@@ -1,11 +1,13 @@
 import { MeshStandardNodeMaterial } from 'three/webgpu';
 import {
   attribute,
+  cameraPosition,
   float,
   max,
   mix,
   normalMap,
   pow,
+  positionWorld,
   smoothstep,
   sub,
   texture,
@@ -13,7 +15,10 @@ import {
   vec3,
   vertexColor,
 } from 'three/tsl';
-import { grassCameraDistance, TERRAIN_DIRT_LOD } from '../grass/GrassLodConfig.ts';
+import {
+  DIRT_PROXIMITY_INNER_SQ,
+  DIRT_PROXIMITY_OUTER_SQ,
+} from '../grass/grassLodMath.ts';
 import type { TextureSet } from '../roads/RoadTextureLoader.ts';
 import type { TerrainBlendTextureSet } from '../roads/RoadTextureLoader.ts';
 
@@ -21,6 +26,7 @@ type TslNode = {
   add(value: TslNode): TslNode;
   div(value: TslNode): TslNode;
   mul(value: TslNode): TslNode;
+  sub(value: TslNode): TslNode;
   r: TslNode;
   g: TslNode;
   b: TslNode;
@@ -84,23 +90,35 @@ function buildDirtGroundColorNode(textures: TextureSet, grassUv: TslNode): TslNo
   return sample.rgb.mul(vec3(0.52, 0.42, 0.3) as TslNode);
 }
 
+function buildProximityDirtMask(): TslNode {
+  const world = positionWorld as TslNode;
+  const cam = cameraPosition as TslNode;
+  const dx = sub(world.x, cam.x) as TslNode;
+  const dz = sub(world.z, cam.z) as TslNode;
+  const horizDistSq = dx.mul(dx).add(dz.mul(dz)) as TslNode;
+  return sub(
+    float(1) as TslNode,
+    smoothstep(
+      float(DIRT_PROXIMITY_INNER_SQ) as TslNode,
+      float(DIRT_PROXIMITY_OUTER_SQ) as TslNode,
+      horizDistSq,
+    ) as TslNode,
+  ) as TslNode;
+}
+
 function applyCloseZoomDirtBlend(
   meadowColor: TslNode,
   dirtColor: TslNode,
   shoreBlend: TslNode,
   roadWear: TslNode,
 ): TslNode {
-  const meadowWeight = pow(
-    smoothstep(
-      float(TERRAIN_DIRT_LOD.close) as TslNode,
-      float(TERRAIN_DIRT_LOD.far) as TslNode,
-      grassCameraDistance as unknown as TslNode,
-    ) as TslNode,
-    float(TERRAIN_DIRT_LOD.ease) as TslNode,
-  ) as TslNode;
+  const zoomGate = attribute('dirtZoomGate', 'float') as TslNode;
+  const proximity = buildProximityDirtMask();
   const wornMask = max(shoreBlend, roadWear) as TslNode;
   const openGround = sub(float(1) as TslNode, wornMask) as TslNode;
-  return mix(dirtColor, meadowColor, meadowWeight.mul(openGround)) as TslNode;
+  const dirtAmount = zoomGate.mul(proximity).mul(openGround) as TslNode;
+  const meadowWeight = sub(float(1) as TslNode, dirtAmount) as TslNode;
+  return mix(dirtColor, meadowColor, meadowWeight) as TslNode;
 }
 
 export function createTerrainGrassMaterial(textures: TerrainBlendTextureSet): MeshStandardNodeMaterial {
@@ -152,16 +170,16 @@ export function createTerrainGrassMaterialWithRiverShore(
   const dirtRoughness = mix(roadRoughness, float(0.82) as TslNode, float(0.24) as TslNode);
   const roughnessWithShore = mix(blendNodes.roughnessNode, muddyRoughness, shoreBlend);
   const roughnessWithWear = mix(roughnessWithShore, wornRoughness, roadWear);
-  const meadowRoughness = pow(
-    smoothstep(
-      float(TERRAIN_DIRT_LOD.close) as TslNode,
-      float(TERRAIN_DIRT_LOD.far) as TslNode,
-      grassCameraDistance as unknown as TslNode,
-    ) as TslNode,
-    float(TERRAIN_DIRT_LOD.ease) as TslNode,
-  ) as TslNode;
+  const zoomGate = attribute('dirtZoomGate', 'float') as TslNode;
+  const proximity = buildProximityDirtMask();
   const openGround = sub(float(1) as TslNode, max(shoreBlend, roadWear) as TslNode) as TslNode;
-  const roughnessNode = mix(dirtRoughness, roughnessWithWear, meadowRoughness.mul(openGround));
+  const dirtAmount = zoomGate.mul(proximity).mul(openGround) as TslNode;
+  const meadowWeight = sub(float(1) as TslNode, dirtAmount) as TslNode;
+  const roughnessNode = mix(
+    dirtRoughness,
+    roughnessWithWear as TslNode,
+    meadowWeight as TslNode,
+  );
 
   const material = new MeshStandardNodeMaterial();
   material.name = 'Grass blend terrain with river shore';

@@ -1,41 +1,59 @@
 /** Matches CameraController default orbit distance at 100% zoom. */
 export const BASELINE_CAMERA_DISTANCE = 88;
 
-/** Full dirt ground at this zoom and beyond (zooming in). */
+/** Dirt is fully active at this zoom and beyond. */
 export const DIRT_REVEAL_ZOOM_PERCENT = 400;
 
-/** Full meadow terrain at this zoom and below (zooming out). */
-export const DIRT_FADE_END_ZOOM_PERCENT = 100;
+/** Dirt begins fading in above this zoom; below it the map stays meadow. */
+export const DIRT_FADE_START_ZOOM_PERCENT = 300;
 
-/** Pow easing on the dirt↔meadow blend (< 1 = dirt appears more gradually). */
+/** Pow easing on the zoom gate (< 1 = dirt ramps in more gradually between 300–400%). */
 export const DIRT_BLEND_EASE = 0.72;
 
+/** Orbit distances matching the 300% / 400% zoom band. */
 export const TERRAIN_DIRT_CLOSE_DISTANCE =
   BASELINE_CAMERA_DISTANCE / (DIRT_REVEAL_ZOOM_PERCENT / 100);
 
 export const TERRAIN_DIRT_FAR_DISTANCE =
-  BASELINE_CAMERA_DISTANCE / (DIRT_FADE_END_ZOOM_PERCENT / 100);
+  BASELINE_CAMERA_DISTANCE / (DIRT_FADE_START_ZOOM_PERCENT / 100);
 
-/** Blade tufts track the same dirt reveal band as close-zoom terrain. */
+/** Horizontal radius (world units) where close dirt is visible around the camera. */
+export const DIRT_PROXIMITY_INNER = 16;
+
+export const DIRT_PROXIMITY_OUTER = 50;
+
+export const DIRT_PROXIMITY_INNER_SQ = DIRT_PROXIMITY_INNER * DIRT_PROXIMITY_INNER;
+
+export const DIRT_PROXIMITY_OUTER_SQ = DIRT_PROXIMITY_OUTER * DIRT_PROXIMITY_OUTER;
+
+/** Blade tufts use the same zoom band as close dirt terrain. */
 export const GRASS_BLADE_REVEAL = {
   close: TERRAIN_DIRT_CLOSE_DISTANCE,
   far: TERRAIN_DIRT_FAR_DISTANCE,
 } as const;
 
-/** Horizontal radius around the camera where blade tufts stay visible. */
-export const GRASS_BLADE_NEAR_RADIUS = 46;
+/** Horizontal radius around the camera where blade tufts stay visible (matches dirt patch). */
+export const GRASS_BLADE_NEAR_RADIUS = DIRT_PROXIMITY_OUTER;
 
 /** Spatial chunk size for instanced grass batches. */
-export const GRASS_BLADE_CHUNK_SIZE = 32;
+export const GRASS_BLADE_CHUNK_SIZE = 8;
 
-/** 0 = full dirt, 1 = full meadow. Shared by terrain shader and grass CPU fade. */
-export function dirtMeadowBlend(cameraDistance: number): number {
+/** Instanced tufts placed per chunk — keeps the visible dirt patch dense but cheap elsewhere. */
+export const GRASS_TUFTS_PER_CHUNK_MIN = 7;
+
+export const GRASS_TUFTS_PER_CHUNK_MAX = 9;
+
+/** Blade stalks in each tuft mesh (shared geometry). */
+export const GRASS_BLADES_PER_TUFT = 8;
+
+/** 0 below 300% zoom → 1 at 400% zoom; controls whether close dirt is allowed at all. */
+export function dirtZoomGate(cameraDistance: number): number {
   const t = smoothstep(TERRAIN_DIRT_CLOSE_DISTANCE, TERRAIN_DIRT_FAR_DISTANCE, cameraDistance);
-  return Math.pow(t, DIRT_BLEND_EASE);
+  return Math.pow(1 - t, DIRT_BLEND_EASE);
 }
 
 export function grassBladeRevealOpacity(cameraDistance: number): number {
-  return 1 - dirtMeadowBlend(cameraDistance);
+  return dirtZoomGate(cameraDistance);
 }
 
 export function isGrassBladeZoomActive(cameraDistance: number): boolean {

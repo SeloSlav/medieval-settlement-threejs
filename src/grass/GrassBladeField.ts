@@ -16,11 +16,13 @@ import {
 import {
   GRASS_BLADE_CHUNK_SIZE,
   GRASS_BLADE_NEAR_RADIUS,
+  GRASS_BLADES_PER_TUFT,
+  GRASS_TUFTS_PER_CHUNK_MAX,
+  GRASS_TUFTS_PER_CHUNK_MIN,
   grassBladeRevealOpacity,
 } from './grassLodMath.ts';
 
-/** Toggle to false while debugging load/render issues — grass code stays, nothing is built. */
-export const GRASS_BLADES_ENABLED = false;
+export const GRASS_BLADES_ENABLED = true;
 
 type TslNode = {
   rgb: TslNode;
@@ -49,7 +51,6 @@ export type GrassBladeField = {
   dispose: () => void;
 };
 
-const GRASS_CELL = 1.15;
 const ROAD_CLEAR_MARGIN = 1.05;
 const TAU = Math.PI * 2;
 
@@ -258,28 +259,36 @@ function createGrassPlacements(
 ): GrassBladePlacement[] {
   const placements: GrassBladePlacement[] = [];
   const half = terrain.playableSize * 0.5;
-  const cells = Math.ceil(terrain.playableSize / GRASS_CELL);
+  const chunkCount = Math.ceil(terrain.playableSize / GRASS_BLADE_CHUNK_SIZE);
+  const gridSide = Math.ceil(Math.sqrt(GRASS_TUFTS_PER_CHUNK_MAX));
 
-  for (let xi = 0; xi < cells; xi++) {
-    for (let zi = 0; zi < cells; zi++) {
-      const cellX = -half + (xi + 0.5) * GRASS_CELL;
-      const cellZ = -half + (zi + 0.5) * GRASS_CELL;
-      const tuftsInCell = rng() < 0.22 ? 4 : rng() < 0.58 ? 3 : 2;
+  for (let chunkX = 0; chunkX < chunkCount; chunkX++) {
+    for (let chunkZ = 0; chunkZ < chunkCount; chunkZ++) {
+      const chunkMinX = -half + chunkX * GRASS_BLADE_CHUNK_SIZE;
+      const chunkMinZ = -half + chunkZ * GRASS_BLADE_CHUNK_SIZE;
+      const tuftCount =
+        GRASS_TUFTS_PER_CHUNK_MIN +
+        Math.floor(rng() * (GRASS_TUFTS_PER_CHUNK_MAX - GRASS_TUFTS_PER_CHUNK_MIN + 1));
+      const cellSize = GRASS_BLADE_CHUNK_SIZE / gridSide;
+      let placed = 0;
 
-      for (let t = 0; t < tuftsInCell; t++) {
-        const x = cellX + (rng() - 0.5) * GRASS_CELL * 0.82;
-        const z = cellZ + (rng() - 0.5) * GRASS_CELL * 0.82;
+      for (let slot = 0; slot < gridSide * gridSide && placed < tuftCount; slot++) {
+        const gridX = slot % gridSide;
+        const gridZ = Math.floor(slot / gridSide);
+        const x = chunkMinX + (gridX + 0.5 + (rng() - 0.5) * 0.62) * cellSize;
+        const z = chunkMinZ + (gridZ + 0.5 + (rng() - 0.5) * 0.62) * cellSize;
 
         if (!isInsidePlayableExtent(x, z, extent)) continue;
-        if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + rng() * 6) continue;
+        if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + rng() * 4) continue;
         if (isBlockedAt?.(x, z)) continue;
 
         const density = forestDensityAt(x, z, forestCores, extent);
-        const spawnChance = THREE.MathUtils.lerp(0.84, 0.99, density);
+        const spawnChance = THREE.MathUtils.lerp(0.94, 0.99, density);
         if (rng() > spawnChance) continue;
 
         const scale =
-          THREE.MathUtils.lerp(0.92, 1.48, Math.pow(rng(), 0.74)) * THREE.MathUtils.lerp(0.96, 1.18, density);
+          THREE.MathUtils.lerp(0.98, 1.42, Math.pow(rng(), 0.68)) *
+          THREE.MathUtils.lerp(0.94, 1.12, density);
         placements.push({
           x,
           z,
@@ -287,6 +296,7 @@ function createGrassPlacements(
           yaw: rng() * TAU,
           meshIndex: placements.length,
         });
+        placed++;
       }
     }
   }
@@ -328,12 +338,12 @@ function createGrassTuftGeometry(): THREE.BufferGeometry {
   const colors: number[] = [];
   const indices: number[] = [];
 
-  const bladeCount = 11;
+  const bladeCount = GRASS_BLADES_PER_TUFT;
   for (let i = 0; i < bladeCount; i++) {
-    const yaw = (i / bladeCount) * TAU + (i % 2 === 0 ? 0.18 : -0.14);
-    const height = 0.42 + (i % 4) * 0.11 + (i % 3) * 0.06;
-    const halfWidth = 0.018 + (i % 2) * 0.006;
-    const lean = 0.04 + (i % 3) * 0.025;
+    const yaw = (i / bladeCount) * TAU + (i % 2 === 0 ? 0.16 : -0.12);
+    const height = 0.44 + (i % 4) * 0.1 + (i % 3) * 0.055;
+    const halfWidth = 0.017 + (i % 2) * 0.005;
+    const lean = 0.045 + (i % 3) * 0.022;
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
     const leanX = cos * lean;

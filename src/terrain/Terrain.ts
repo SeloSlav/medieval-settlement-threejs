@@ -15,6 +15,7 @@ export class Terrain {
   readonly resolution = 385;
   readonly bounds: TerrainBounds;
   readonly mesh: THREE.Mesh;
+  private dirtZoomGateAttr!: THREE.BufferAttribute;
 
   static fullBounds(size = 1080): TerrainBounds {
     const half = size * 0.5;
@@ -24,7 +25,9 @@ export class Terrain {
   constructor(material: THREE.Material, riverField?: RiverField) {
     const half = this.playableSize * 0.5;
     this.bounds = { minX: -half, maxX: half, minZ: -half, maxZ: half };
-    this.mesh = new THREE.Mesh(this.createGeometry(riverField), material);
+    const geometry = this.createGeometry(riverField);
+    this.dirtZoomGateAttr = geometry.getAttribute('dirtZoomGate') as THREE.BufferAttribute;
+    this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.name = 'Continuous terrain heightfield';
     this.mesh.receiveShadow = true;
     this.mesh.userData.terrain = true;
@@ -45,6 +48,12 @@ export class Terrain {
     };
   }
 
+  setDirtZoomGate(value: number): void {
+    const array = this.dirtZoomGateAttr.array as Float32Array;
+    array.fill(value);
+    this.dirtZoomGateAttr.needsUpdate = true;
+  }
+
   dispose(): void {
     this.mesh.geometry.dispose();
     const { material } = this.mesh;
@@ -61,6 +70,7 @@ export class Terrain {
     const colors: number[] = [];
     const shoreBlends: number[] = [];
     const roadWearBlends: number[] = [];
+    const dirtZoomGates: number[] = [];
     const indices: number[] = [];
     const step = this.size / (this.resolution - 1);
     const half = this.size * 0.5;
@@ -75,6 +85,7 @@ export class Terrain {
         colors.push(...this.getTerrainBlendWeights(x, z));
         shoreBlends.push(riverField?.sampleMudBlendAt(x, z) ?? 0);
         roadWearBlends.push(0);
+        dirtZoomGates.push(0);
       }
     }
 
@@ -96,6 +107,7 @@ export class Terrain {
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geometry.setAttribute('shoreBlend', new THREE.Float32BufferAttribute(shoreBlends, 1));
     geometry.setAttribute('roadWearBlend', new THREE.Float32BufferAttribute(roadWearBlends, 1));
+    geometry.setAttribute('dirtZoomGate', new THREE.Float32BufferAttribute(dirtZoomGates, 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     return geometry;

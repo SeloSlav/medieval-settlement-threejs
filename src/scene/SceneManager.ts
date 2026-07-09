@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createForestProps } from '../props/ForestProps.ts';
 import type { ForestManager } from '../props/ForestManager.ts';
 import { createGrassBladeField, GRASS_BLADES_ENABLED, type GrassBladeField } from '../grass/GrassBladeField.ts';
-import { updateGrassCameraDistance } from '../grass/GrassLodConfig.ts';
+import { updateTerrainZoomBlend } from '../grass/GrassLodConfig.ts';
 import { createRiverSystem, type RiverSystem } from '../rivers/RiverSystem.ts';
 import { updateTerrainRoadWear } from '../terrain/TerrainRoadWear.ts';
 import { RiverField } from '../rivers/RiverField.ts';
@@ -140,7 +140,9 @@ export class SceneManager {
     ]);
     onProgress?.('Building world', 'Terrain, sky, and river');
     const manager = new SceneManager(container, backend, materials, { riverRock, skyPerlin });
-    await manager.sky.ready;
+    void manager.sky.ready.catch((error) => {
+      console.warn('Sky volumetric shader still compiling:', error);
+    });
     return manager;
   }
 
@@ -186,7 +188,7 @@ export class SceneManager {
   render(dt: number, orbitDistance?: number): void {
     const elapsed = performance.now() * 0.001;
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
-    updateGrassCameraDistance(cameraDistance);
+    updateTerrainZoomBlend(this.terrain, cameraDistance);
     this.grassField?.updateCameraState(this.camera.position, cameraDistance);
     this.sky.updateCamera(this.camera);
     this.sky.updateSun(this.sunDirection);
