@@ -4,13 +4,10 @@ import type { RiverField } from './RiverField.ts';
 import { VirtualPipesWater2D } from './virtualPipesWater.ts';
 import { disposeSharedRiverWaterMaterial, getSharedRiverWaterMaterial } from './RiverWaterMaterial.ts';
 
-const WATER_BODY_BASE = new THREE.Color(0x4a93a8);
-const WATER_FOAM_BASE = new THREE.Color(0xf2faf7);
 const RIVER_WATER_DEPTH = 0.78;
+const WATER_SIM_RENDER_DELTA_SCALE = 0.16;
 const MAX_SIM_CATCHUP_STEPS = 2;
 const WATER_CPU_UPDATE_INTERVAL_SEC = 1 / 20;
-const SHORE_LAP_MAX = 0.13;
-const SHORE_FOAM_MAX = 0.82;
 const WATER_CLIP_FEATHER = -0.62;
 const WATER_ALPHA_FEATHER_IN = 1.45;
 
@@ -91,6 +88,107 @@ function writeWaterConstrainedBoundaryFlows(sim: VirtualPipesWater2D, wetMask: U
   }
 }
 
+type GridSample = {
+  i00: number;
+  i10: number;
+  i01: number;
+  i11: number;
+  tx: number;
+  tz: number;
+  wetCell: number;
+};
+
+function buildGridSample(gx: number, gz: number, nx: number, nz: number): GridSample {
+  const x = Math.max(0, Math.min(nx - 1, gx));
+  const z = Math.max(0, Math.min(nz - 1, gz));
+  const x0 = Math.floor(x);
+  const z0 = Math.floor(z);
+  const x1 = Math.min(nx - 1, x0 + 1);
+  const z1 = Math.min(nz - 1, z0 + 1);
+  const ix = Math.max(0, Math.min(nx - 1, Math.round(gx)));
+  const iz = Math.max(0, Math.min(nz - 1, Math.round(gz)));
+  return {
+    i00: z0 * nx + x0,
+    i10: z0 * nx + x1,
+    i01: z1 * nx + x0,
+    i11: z1 * nx + x1,
+    tx: x - x0,
+    tz: z - z0,
+    wetCell: iz * nx + ix,
+  };
+}
+
+function sampleFromGrid(sample: GridSample, values: Float32Array): number {
+  const { i00, i10, i01, i11, tx, tz } = sample;
+  const h00 = values[i00] ?? 0;
+  const h10 = values[i10] ?? h00;
+  const h01 = values[i01] ?? h00;
+  const h11 = values[i11] ?? h10;
+  const hx0 = h00 + (h10 - h00) * tx;
+  const hx1 = h01 + (h11 - h01) * tx;
+  return hx0 + (hx1 - hx0) * tz;
+}
+
+function compactWaterVertices(params: {
+  indices: number[];
+  vertexGx: number[];
+  vertexGz: number[];
+  foamBases: number[];
+  featherAlphas: number[];
+  positions: Float32Array;
+  nx: number;
+  nz: number;
+}): {
+  indices: number[];
+  gx: Float32Array;
+  gz: Float32Array;
+  foamBase: Float32Array;
+  featherAlpha: Float32Array;
+  positions: Float32Array;
+  simDelta: Float32Array;
+  gridSamples: GridSample[];
+} {
+  const used = new Set<number>();
+  for (const index of params.indices) used.add(index);
+  const sorted = Array.from(used).sort((a, b) => a - b);
+  const remap = new Map<number, number>();
+  sorted.forEach((oldIndex, newIndex) => remap.set(oldIndex, newIndex));
+
+  const count = sorted.length;
+  const gx = new Float32Array(count);
+  const gz = new Float32Array(count);
+  const foamBase = new Float32Array(count);
+  const featherAlpha = new Float32Array(count);
+  const positions = new Float32Array(count * 3);
+  const simDelta = new Float32Array(count);
+  const gridSamples = new Array<GridSample>(count);
+
+  for (let newIndex = 0; newIndex < count; newIndex++) {
+    const oldIndex = sorted[newIndex];
+    const gxValue = params.vertexGx[oldIndex];
+    const gzValue = params.vertexGz[oldIndex];
+    gx[newIndex] = gxValue;
+    gz[newIndex] = gzValue;
+    foamBase[newIndex] = params.foamBases[oldIndex];
+    featherAlpha[newIndex] = params.featherAlphas[oldIndex];
+    positions[newIndex * 3] = params.positions[oldIndex * 3];
+    positions[newIndex * 3 + 1] = params.positions[oldIndex * 3 + 1];
+    positions[newIndex * 3 + 2] = params.positions[oldIndex * 3 + 2];
+    gridSamples[newIndex] = buildGridSample(gxValue, gzValue, params.nx, params.nz);
+  }
+
+  return {
+    indices: params.indices.map((index) => remap.get(index)!),
+    gx,
+    gz,
+    foamBase,
+    featherAlpha,
+    positions,
+    simDelta,
+    gridSamples,
+  };
+}
+
 type ClipPoint = { gx: number; gz: number; signed: number; index: number };
 
 export function createRiverWaterMesh(
@@ -124,11 +222,11 @@ export function createRiverWaterMesh(
     return clipSigned(iz * nx + ix, ix, iz);
   };
 
-  const computeFeatherAlpha = (gx: number, gz: number, signed: number, timeSec = 0): number => {
+  const computeFeatherAlpha = (gx: number, gz: number, signed: number): number => {
     const wx = riverField.startX + gx * riverField.stepX;
     const wz = riverField.startZ + gz * riverField.stepZ;
     const edgeNoise =
-      (valueNoise2D(wx * 0.36 + timeSec * 0.11, wz * 0.36 - timeSec * 0.08) - 0.5) * 0.2 +
+      (valueNoise2D(wx * 0.36, wz * 0.36) - 0.5) * 0.2 +
       (valueNoise2D(wx * 0.11 - 7.4, wz * 0.11 + 3.1) - 0.5) * 0.12;
     return smoothstep(WATER_CLIP_FEATHER - 0.06, WATER_ALPHA_FEATHER_IN + 0.18, signed + edgeNoise);
   };
@@ -186,7 +284,6 @@ export function createRiverWaterMesh(
   const vertexGz: number[] = [];
   const foamBases: number[] = [];
   const featherAlphas: number[] = [];
-  const colors: number[] = [];
 
   const appendVertex = (
     gx: number,
@@ -207,7 +304,6 @@ export function createRiverWaterMesh(
     vertexGz.push(gz);
     foamBases.push(Math.min(1, foamBase));
     featherAlphas.push(computeFeatherAlpha(gx, gz, clipSignedAt));
-    colors.push(WATER_BODY_BASE.r, WATER_BODY_BASE.g, WATER_BODY_BASE.b);
     return index;
   };
 
@@ -288,88 +384,55 @@ export function createRiverWaterMesh(
   }
   if (indices.length === 0) return null;
 
-  const vertexGxAttr = Float32Array.from(vertexGx);
-  const vertexGzAttr = Float32Array.from(vertexGz);
-  const foamBaseAttr = Float32Array.from(foamBases);
-  const featherAlphaAttr = new Float32Array(featherAlphas);
-  const positions = new Float32Array(vertexGxAttr.length * 3);
+  const fullPositions = new Float32Array(vertexGx.length * 3);
+  for (let vi = 0; vi < vertexGx.length; vi++) {
+    const gx = vertexGx[vi];
+    const gz = vertexGz[vi];
+    fullPositions[vi * 3] = riverField.startX + gx * riverField.stepX;
+    fullPositions[vi * 3 + 1] = sampleFloatGridBilinear(renderSurfaceBase, nx, nz, gx, gz);
+    fullPositions[vi * 3 + 2] = riverField.startZ + gz * riverField.stepZ;
+  }
 
-  const writePositions = () => {
-    for (let vi = 0; vi < vertexGxAttr.length; vi++) {
-      const gx = vertexGxAttr[vi];
-      const gz = vertexGzAttr[vi];
-      positions[vi * 3] = riverField.startX + gx * riverField.stepX;
-      positions[vi * 3 + 1] = sampleFloatGridBilinear(renderSurfaceBase, nx, nz, gx, gz);
-      positions[vi * 3 + 2] = riverField.startZ + gz * riverField.stepZ;
-    }
-  };
-
-  writePositions();
+  const compact = compactWaterVertices({
+    indices,
+    vertexGx,
+    vertexGz,
+    foamBases,
+    featherAlphas,
+    positions: fullPositions,
+    nx,
+    nz,
+  });
 
   const geometry = new THREE.BufferGeometry();
-  const positionAttr = new THREE.BufferAttribute(positions, 3);
-  const colorAttr = new THREE.BufferAttribute(new Float32Array(colors), 3);
-  const featherAttr = new THREE.BufferAttribute(featherAlphaAttr, 1);
+  const positionAttr = new THREE.BufferAttribute(compact.positions, 3);
+  const foamAttr = new THREE.BufferAttribute(compact.foamBase, 1);
+  const featherAttr = new THREE.BufferAttribute(compact.featherAlpha, 1);
+  const simDeltaAttr = new THREE.BufferAttribute(compact.simDelta, 1);
   geometry.setAttribute('position', positionAttr);
-  geometry.setAttribute('color', colorAttr);
+  geometry.setAttribute('foamBase', foamAttr);
   geometry.setAttribute('featherAlpha', featherAttr);
-  geometry.setIndex(indices);
+  geometry.setAttribute('simDelta', simDeltaAttr);
+  geometry.setIndex(compact.indices);
   geometry.computeVertexNormals();
 
-  const updateWaterSurface = (timeSec: number) => {
+  const vertexCount = compact.gx.length;
+  const gridSamples = compact.gridSamples;
+
+  const updateSimDelta = () => {
     sim.writeSurfaceHeightsInto(surfaceScratch);
-    for (let vi = 0; vi < vertexGxAttr.length; vi++) {
-      const gx = vertexGxAttr[vi];
-      const gz = vertexGzAttr[vi];
-      const wx = riverField.startX + gx * riverField.stepX;
-      const wz = riverField.startZ + gz * riverField.stepZ;
-      const foamBase = foamBaseAttr[vi];
-      const ix = Math.max(0, Math.min(nx - 1, Math.round(gx)));
-      const iz = Math.max(0, Math.min(nz - 1, Math.round(gz)));
-      const isBoundary = gx <= 0 || gz <= 0 || gx >= nx - 1 || gz >= nz - 1;
-      const wet = wetMask[iz * nx + ix] > 0;
-      const simDelta =
-        wet && !isBoundary
-          ? (sampleFloatGridBilinear(surfaceScratch, nx, nz, gx, gz) -
-              sampleFloatGridBilinear(stillSurface, nx, nz, gx, gz)) *
-            WATER_SIM_RENDER_DELTA_SCALE
-          : 0;
-
-      featherAttr.setX(vi, computeFeatherAlpha(gx, gz, effectiveClipSignedAt(gx, gz), timeSec));
-
-      const shoreMask = Math.pow(foamBase, 0.72);
-      const lapPhaseA = timeSec * 2.35 + wx * 0.34 + wz * 0.12;
-      const lapPhaseB = timeSec * 3.85 - wx * 0.21 + wz * 0.31;
-      const lapPhaseC = timeSec * 1.65 + wx * 0.11 - wz * 0.27;
-      const lap =
-        shoreMask *
-        SHORE_LAP_MAX *
-        (Math.sin(lapPhaseA) * 0.52 + Math.sin(lapPhaseB) * 0.33 + Math.sin(lapPhaseC) * 0.15);
-      const ripple = (valueNoise2D(wx * 0.24 + timeSec * 0.38, wz * 0.24 - timeSec * 0.31) - 0.5) * shoreMask * 0.035;
-
-      positionAttr.setY(
-        vi,
-        sampleFloatGridBilinear(renderSurfaceBase, nx, nz, gx, gz) + simDelta + lap + ripple,
-      );
-
-      const foamNoise = valueNoise2D(wx * 0.42 + timeSec * 0.44, wz * 0.42 - timeSec * 0.36);
-      const foamWave = 0.5 + 0.5 * Math.sin(timeSec * 4.4 + wx * 0.19 - wz * 0.16);
-      const foamPulse = 0.5 + 0.5 * Math.sin(timeSec * 6.1 + gx * 1.15 + gz * 0.83);
-      const foam = Math.min(
-        SHORE_FOAM_MAX,
-        Math.pow(shoreMask, 1.15) * (0.34 + foamNoise * 0.34 + foamWave * 0.24 + foamPulse * 0.22),
-      );
-      colorAttr.setXYZ(
-        vi,
-        WATER_BODY_BASE.r + (WATER_FOAM_BASE.r - WATER_BODY_BASE.r) * foam,
-        WATER_BODY_BASE.g + (WATER_FOAM_BASE.g - WATER_BODY_BASE.g) * foam,
-        WATER_BODY_BASE.b + (WATER_FOAM_BASE.b - WATER_BODY_BASE.b) * foam,
-      );
+    const simValues = simDeltaAttr.array as Float32Array;
+    for (let vi = 0; vi < vertexCount; vi++) {
+      const sample = gridSamples[vi];
+      if (wetMask[sample.wetCell] === 0) {
+        simValues[vi] = 0;
+        continue;
+      }
+      const surface = sampleFromGrid(sample, surfaceScratch);
+      const still = sampleFromGrid(sample, stillSurface);
+      simValues[vi] = (surface - still) * WATER_SIM_RENDER_DELTA_SCALE;
     }
-    positionAttr.needsUpdate = true;
-    colorAttr.needsUpdate = true;
-    featherAttr.needsUpdate = true;
-    geometry.computeVertexNormals();
+    simDeltaAttr.needsUpdate = true;
   };
 
   const mesh = new THREE.Mesh(geometry, getSharedRiverWaterMaterial());
@@ -380,9 +443,10 @@ export function createRiverWaterMesh(
   mesh.renderOrder = 1.25;
   group.add(mesh);
 
+  updateSimDelta();
+
   let simAccum = 0;
   let cpuAccum = 0;
-  let elapsed = 0;
   let disposed = false;
 
   const dispose = () => {
@@ -392,10 +456,8 @@ export function createRiverWaterMesh(
     geometry.dispose();
   };
 
-  const tick = (dt: number, timeSec?: number) => {
+  const tick = (dt: number, _timeSec?: number) => {
     if (disposed) return;
-    elapsed = timeSec ?? elapsed + dt;
-    updateWaterSurface(elapsed);
 
     cpuAccum += Math.min(0.1, Math.max(0, dt));
     if (cpuAccum < WATER_CPU_UPDATE_INTERVAL_SEC) return;
@@ -404,13 +466,16 @@ export function createRiverWaterMesh(
 
     simAccum += Math.min(0.1, Math.max(0, updateDt));
     let steps = 0;
+    let stepped = false;
     while (simAccum >= sim.dt && steps < MAX_SIM_CATCHUP_STEPS) {
       writeWaterConstrainedBoundaryFlows(sim, wetMask);
       sim.step();
       writeWaterConstrainedBoundaryFlows(sim, wetMask);
       simAccum -= sim.dt;
       steps++;
+      stepped = true;
     }
+    if (stepped) updateSimDelta();
   };
 
   return { tick, dispose };
