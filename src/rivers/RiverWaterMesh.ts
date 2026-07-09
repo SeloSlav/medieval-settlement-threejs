@@ -225,10 +225,8 @@ export function createRiverWaterMesh(
   const computeFeatherAlpha = (gx: number, gz: number, signed: number): number => {
     const wx = riverField.startX + gx * riverField.stepX;
     const wz = riverField.startZ + gz * riverField.stepZ;
-    const edgeNoise =
-      (valueNoise2D(wx * 0.36, wz * 0.36) - 0.5) * 0.2 +
-      (valueNoise2D(wx * 0.11 - 7.4, wz * 0.11 + 3.1) - 0.5) * 0.12;
-    return smoothstep(WATER_CLIP_FEATHER - 0.06, WATER_ALPHA_FEATHER_IN + 0.18, signed + edgeNoise);
+    const edgeNoise = (valueNoise2D(wx * 0.22, wz * 0.22) - 0.5) * 0.1;
+    return smoothstep(WATER_CLIP_FEATHER - 0.18, WATER_ALPHA_FEATHER_IN + 0.42, signed + edgeNoise);
   };
 
   const wetMask = new Uint8Array(nx * nz);
@@ -297,7 +295,9 @@ export function createRiverWaterMesh(
     const foamSigned =
       foamSignedOverride ??
       signed;
-    const foamBase = foamSigned >= 0 ? 1 - smoothstep(0.04, 3.2, foamSigned) : 1 - smoothstep(-0.35, 0.08, foamSigned);
+    const foamBase = foamSigned >= 0
+      ? 1 - smoothstep(0.12, 4.8, foamSigned)
+      : 1 - smoothstep(-0.28, 0.14, foamSigned);
     const clipSignedAt = signedOverride ?? effectiveClipSignedAt(gx, gz);
     const index = vertexGx.length;
     vertexGx.push(gx);

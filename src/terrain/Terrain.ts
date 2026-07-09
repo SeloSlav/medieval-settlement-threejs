@@ -16,6 +16,11 @@ export class Terrain {
   readonly bounds: TerrainBounds;
   readonly mesh: THREE.Mesh;
 
+  static fullBounds(size = 1080): TerrainBounds {
+    const half = size * 0.5;
+    return { minX: -half, maxX: half, minZ: -half, maxZ: half };
+  }
+
   constructor(material: THREE.Material, riverField?: RiverField) {
     const half = this.playableSize * 0.5;
     this.bounds = { minX: -half, maxX: half, minZ: -half, maxZ: half };

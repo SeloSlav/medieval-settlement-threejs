@@ -273,12 +273,10 @@ button {
   position: absolute;
   top: 14px;
   right: 14px;
-  min-width: 78px;
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 6px;
-  align-items: baseline;
-  justify-content: center;
+  min-width: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 8px 10px;
   color: var(--muted);
   background: rgba(23, 25, 21, 0.72);
@@ -291,6 +289,14 @@ button {
   letter-spacing: 0;
 }
 
+.fps-stat {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: center;
+}
+
 .fps-panel strong {
   color: #a7d77f;
   font-size: 18px;
@@ -298,11 +304,16 @@ button {
   letter-spacing: 0;
 }
 
-.fps-panel.is-fast strong {
+.fps-stat:last-child strong {
+  color: #9ec5e8;
+  font-size: 15px;
+}
+
+.fps-panel.is-fast .fps-stat:first-child strong {
   color: #d7b463;
 }
 
-.fps-panel.is-low strong {
+.fps-panel.is-low .fps-stat:first-child strong {
   color: var(--danger);
 }
 

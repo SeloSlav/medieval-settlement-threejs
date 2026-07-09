@@ -8,7 +8,7 @@ export type RiverFieldOptions = {
   resolution?: number;
 };
 
-const DEFAULT_RESOLUTION = 225;
+const DEFAULT_RESOLUTION = 296;
 const WATER_THRESHOLD = 0.48;
 const MASK_DILATE_THRESHOLD = 0.38;
 const RENDER_WATER_MASK_THRESHOLD = MASK_DILATE_THRESHOLD;

@@ -4,9 +4,11 @@ import type { TerrainBounds } from '../terrain/Terrain.ts';
 const DEFAULT_PITCH = THREE.MathUtils.degToRad(7);
 const MIN_PITCH = THREE.MathUtils.degToRad(5);
 const MAX_PITCH = THREE.MathUtils.degToRad(70);
-const MIN_DISTANCE = 16;
-const MAX_DISTANCE = 300;
 const DEFAULT_DISTANCE = 88;
+const BASELINE_ZOOM_PERCENT = 100;
+const MAX_ZOOM_PERCENT = 1000;
+const MIN_DISTANCE = DEFAULT_DISTANCE / (MAX_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
+const MAX_DISTANCE = 300;
 const ZOOM_MULTIPLIER = 1.18;
 const PAN_LERP_SPEED = 10;
 const ROTATE_LERP_SPEED = 12;
@@ -54,6 +56,10 @@ export class CameraController {
     window.addEventListener('mouseup', this.onMouseUp);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+  }
+
+  getZoomPercent(): number {
+    return (DEFAULT_DISTANCE / this.currentDistance) * BASELINE_ZOOM_PERCENT;
   }
 
   update(dt: number): void {

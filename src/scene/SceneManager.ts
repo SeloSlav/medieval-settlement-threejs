@@ -52,16 +52,10 @@ export class SceneManager {
     this.scene.fog = new THREE.FogExp2(0xc8def1, 0.00082);
     this.camera = new THREE.PerspectiveCamera(54, 1, 0.1, 2600);
     this.sunDirection.setFromSphericalCoords(1, THREE.MathUtils.degToRad(43), THREE.MathUtils.degToRad(225));
-    const playableHalf = 820 * 0.5;
-    const bounds = {
-      minX: -playableHalf,
-      maxX: playableHalf,
-      minZ: -playableHalf,
-      maxZ: playableHalf,
-    };
-    const riverLayout = RiverLayout.create({ bounds });
+    const riverBounds = Terrain.fullBounds();
+    const riverLayout = RiverLayout.create({ bounds: riverBounds });
     setActiveRiverLayout(riverLayout);
-    const riverField = RiverField.fromLayout({ bounds, layout: riverLayout });
+    const riverField = RiverField.fromLayout({ bounds: riverBounds, layout: riverLayout });
     this.terrain = new Terrain(materials.createTerrainMaterialWithRiverShore(), riverField);
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
     this.roadMeshBuilder = new RoadMeshBuilder(this.terrain, materials);

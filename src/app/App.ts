@@ -137,6 +137,7 @@ export class App {
     const dt = Math.min(0.05, Math.max(0.001, rawDt));
     this.lastTime = time;
     this.cameraController?.update(dt);
+    this.toolbar?.setZoomPercent(this.cameraController?.getZoomPercent() ?? 100);
     this.roadTool?.update(dt);
     this.updateBuildButtonPosition();
     this.sceneManager?.render(dt);

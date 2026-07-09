@@ -20,6 +20,7 @@ export class BuildToolbar {
   private readonly cancelDeleteButton: HTMLButtonElement;
   private readonly fpsPanel: HTMLElement;
   private readonly fpsValue: HTMLElement;
+  private readonly zoomValue: HTMLElement;
   private deleteCancel: (() => void) | null = null;
   private deleteRemove: (() => void) | null = null;
 
@@ -73,8 +74,14 @@ export class BuildToolbar {
       </div>
 
       <div class="fps-panel" data-fps-panel aria-live="polite">
-        <strong data-stat="fps">--</strong>
-        <span>FPS</span>
+        <div class="fps-stat">
+          <strong data-stat="fps">--</strong>
+          <span>FPS</span>
+        </div>
+        <div class="fps-stat">
+          <strong data-stat="zoom">100%</strong>
+          <span>Zoom</span>
+        </div>
       </div>
     `;
 
@@ -86,6 +93,7 @@ export class BuildToolbar {
     this.cancelDeleteButton = this.mustButton(root, '[data-action="cancel-delete"]');
     this.fpsPanel = this.mustElement(root, '[data-fps-panel]');
     this.fpsValue = this.mustElement(root, '[data-stat="fps"]');
+    this.zoomValue = this.mustElement(root, '[data-stat="zoom"]');
 
     this.roadButton.addEventListener('click', handlers.onOpenRoads);
     this.buildButton.addEventListener('click', handlers.onBuildRoad);
@@ -131,6 +139,11 @@ export class BuildToolbar {
     this.fpsValue.textContent = displayFps.toString();
     this.fpsPanel.classList.toggle('is-low', displayFps < 60);
     this.fpsPanel.classList.toggle('is-fast', displayFps >= 85);
+  }
+
+  setZoomPercent(zoomPercent: number): void {
+    const displayZoom = Math.max(1, Math.round(zoomPercent));
+    this.zoomValue.textContent = `${displayZoom}%`;
   }
 
   showDeletePopup(options: DeletePopupOptions): void {

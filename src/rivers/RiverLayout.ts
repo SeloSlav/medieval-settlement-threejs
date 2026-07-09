@@ -163,9 +163,10 @@ function buildCorridor(
   const length = Math.max(1, Math.hypot(dx, dz));
   const perpX = -dz / length;
   const perpZ = dx / length;
+  const upstreamReach = Math.min(140, length * 0.2);
   const upstream = {
-    x: start.x - (dx / length) * Math.min(96, length * 0.14),
-    z: start.z - (dz / length) * Math.min(96, length * 0.14),
+    x: start.x - (dx / length) * upstreamReach,
+    z: start.z - (dz / length) * upstreamReach,
   };
   const controls: Array<{ x: number; z: number }> = [upstream, start];
 
@@ -192,7 +193,10 @@ function buildCorridor(
   const points: RiverPoint[] = resampled.map((point, index) => {
     const progress = index / Math.max(1, resampled.length - 1);
     let halfWidth = lerp(2.4, 12, Math.pow(progress, 0.68)) * scale;
+    const headwaterBlend = 1 - smoothstep(0, 0.18, progress);
+    halfWidth = lerp(halfWidth, Math.max(halfWidth, 8.5 * scale), headwaterBlend);
     let channelDepth = lerp(0.7, 2.2, Math.pow(progress, 0.82)) * scale;
+    channelDepth = lerp(channelDepth, Math.max(channelDepth, 1.35 * scale), headwaterBlend * 0.75);
     const distToDrain = Math.hypot(point.x - drain.x, point.z - drain.z);
     const mouthBlend = 1 - smoothstep(0, 130, distToDrain);
     halfWidth = lerp(halfWidth, 26, mouthBlend * 0.82);
