@@ -189,7 +189,7 @@ export class SceneManager {
     const elapsed = performance.now() * 0.001;
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
     updateTerrainZoomBlend(this.terrain, cameraDistance);
-    this.grassField?.updateCameraState(this.camera.position, cameraDistance);
+    this.grassField?.updateCameraState(this.camera.position, this.cameraTarget, cameraDistance);
     this.sky.updateCamera(this.camera);
     this.sky.updateSun(this.sunDirection);
     this.sky.updateTime(elapsed);

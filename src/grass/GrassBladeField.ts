@@ -6,7 +6,6 @@ import type { RoadEdge } from '../roads/RoadEdge.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { distancePointToPolylineXZ } from '../utils/pathGeometry.ts';
 import {
-  CENTRAL_CLEARING_RADIUS,
   createForestCores,
   createForestSpawnConfig,
   forestDensityAt,
@@ -17,8 +16,10 @@ import {
   GRASS_BLADE_CHUNK_SIZE,
   GRASS_BLADE_NEAR_RADIUS,
   GRASS_BLADES_PER_TUFT,
-  GRASS_TUFTS_PER_CHUNK_MAX,
-  GRASS_TUFTS_PER_CHUNK_MIN,
+  GRASS_EDGE_FADE_BAND,
+  GRASS_STREAM_CHUNK_RADIUS,
+  GRASS_STREAM_CHUNKS_PER_FRAME,
+  GRASS_TUFTS_PER_CHUNK,
   grassBladeRevealOpacity,
 } from './grassLodMath.ts';
 
@@ -28,37 +29,40 @@ type TslNode = {
   rgb: TslNode;
 };
 
-export type GrassBladePlacement = {
-  x: number;
-  z: number;
-  scale: number;
-  yaw: number;
-  meshIndex: number;
-};
-
-type GrassChunk = {
-  mesh: THREE.InstancedMesh;
-  centerX: number;
-  centerZ: number;
-};
-
 export type GrassBladeField = {
   group: THREE.Group;
-  chunks: GrassChunk[];
-  placements: GrassBladePlacement[];
   syncRoadClearance: (network: RoadNetwork) => void;
-  updateCameraState: (cameraPosition: THREE.Vector3, cameraDistance: number) => void;
+  updateCameraState: (
+    cameraPosition: THREE.Vector3,
+    cameraTarget: THREE.Vector3,
+    cameraDistance: number,
+  ) => void;
   dispose: () => void;
 };
 
 const ROAD_CLEAR_MARGIN = 1.05;
 const TAU = Math.PI * 2;
+const MAX_STREAM_INSTANCES = (GRASS_STREAM_CHUNK_RADIUS * 2 + 1) ** 2 * GRASS_TUFTS_PER_CHUNK;
+const SCATTER_ATTEMPTS = GRASS_TUFTS_PER_CHUNK + 14;
+const MIN_TUFT_SPACING_SQ = 0.72 * 0.72;
 
-const BLADE_BASE = new THREE.Color(0x4a7c32);
-const BLADE_MID = new THREE.Color(0x5e943f);
-const BLADE_TIP = new THREE.Color(0x72ad4c);
+/** Matches forest undergrowth — muted olive, not neon yellow-green. */
+const BLADE_BASE = new THREE.Color(0x3a5032);
+const BLADE_MID = new THREE.Color(0x4a6340);
+const BLADE_TIP = new THREE.Color(0x566b48);
 
-const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+type GrassFieldContext = {
+  terrain: Terrain;
+  extent: number;
+  forestCores: ReturnType<typeof createForestCores>;
+  isBlockedAt?: (x: number, z: number) => boolean;
+  roadEdges: RoadEdge[];
+};
+
+type StreamChunk = {
+  chunkX: number;
+  chunkZ: number;
+};
 
 export function createGrassBladeField(
   terrain: Terrain,
@@ -68,78 +72,152 @@ export function createGrassBladeField(
     return createDisabledGrassBladeField();
   }
 
-  const rng = mulberry32(0x6a55b1ade);
   const spawnConfig = createForestSpawnConfig(terrain.playableSize);
-  const forestCores = createForestCores(rng, spawnConfig);
-  const placements = createGrassPlacements(rng, terrain, spawnConfig.extent, forestCores, options?.isBlockedAt);
+  const context: GrassFieldContext = {
+    terrain,
+    extent: spawnConfig.extent,
+    forestCores: createForestCores(mulberry32(0x6a55b1ade), spawnConfig),
+    isBlockedAt: options?.isBlockedAt,
+    roadEdges: [],
+  };
+
   const material = createGrassBladeMaterial();
   const geometry = createGrassTuftGeometry();
-  const groupedPlacements = bucketPlacementsByChunk(placements);
-  const chunks = buildGrassChunks(groupedPlacements, terrain, geometry, material, rng);
+  const mesh = new THREE.InstancedMesh(geometry, material, MAX_STREAM_INSTANCES);
+  mesh.name = 'Grass blade stream';
+  mesh.count = 0;
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = true;
+  mesh.visible = false;
 
   const group = new THREE.Group();
   group.name = 'Grass blade field';
-  for (const chunk of chunks) group.add(chunk.mesh);
+  group.add(mesh);
 
-  const baseMatrices = new Map<number, THREE.Matrix4>();
-  for (const chunk of chunks) {
-    const placementIndices = chunk.mesh.userData.placementIndices as number[];
-    for (let index = 0; index < chunk.mesh.count; index++) {
-      const matrix = new THREE.Matrix4();
-      chunk.mesh.getMatrixAt(index, matrix);
-      baseMatrices.set(placementIndices[index], matrix);
+  let streamChunkX = Number.NaN;
+  let streamChunkZ = Number.NaN;
+  let streamDirty = true;
+  let rebuildQueue: StreamChunk[] | null = null;
+  let rebuildInstanceIndex = 0;
+  let rebuildFocusX = 0;
+  let rebuildFocusZ = 0;
+  let lastMaterialOpacity = Number.NaN;
+
+  const collectStreamChunks = (focusX: number, focusZ: number): StreamChunk[] => {
+    const centerChunkX = Math.floor(focusX / GRASS_BLADE_CHUNK_SIZE);
+    const centerChunkZ = Math.floor(focusZ / GRASS_BLADE_CHUNK_SIZE);
+    const includeRadiusSq = (GRASS_BLADE_NEAR_RADIUS + GRASS_BLADE_CHUNK_SIZE * 0.6) ** 2;
+    const chunks: StreamChunk[] = [];
+
+    for (let dz = -GRASS_STREAM_CHUNK_RADIUS; dz <= GRASS_STREAM_CHUNK_RADIUS; dz++) {
+      for (let dx = -GRASS_STREAM_CHUNK_RADIUS; dx <= GRASS_STREAM_CHUNK_RADIUS; dx++) {
+        const chunkX = centerChunkX + dx;
+        const chunkZ = centerChunkZ + dz;
+        const chunkCenterX = (chunkX + 0.5) * GRASS_BLADE_CHUNK_SIZE;
+        const chunkCenterZ = (chunkZ + 0.5) * GRASS_BLADE_CHUNK_SIZE;
+        const toFocusX = chunkCenterX - focusX;
+        const toFocusZ = chunkCenterZ - focusZ;
+        if (toFocusX * toFocusX + toFocusZ * toFocusZ > includeRadiusSq) continue;
+        chunks.push({ chunkX, chunkZ });
+      }
     }
-  }
 
-  const removed = new Set<number>();
+    return chunks;
+  };
+
+  const beginStreamRebuild = (focusX: number, focusZ: number): void => {
+    rebuildQueue = collectStreamChunks(focusX, focusZ);
+    rebuildInstanceIndex = 0;
+    rebuildFocusX = focusX;
+    rebuildFocusZ = focusZ;
+    mesh.count = 0;
+  };
+
+  const finishStreamRebuild = (focusX: number, focusZ: number): void => {
+    streamChunkX = Math.floor(focusX / GRASS_BLADE_CHUNK_SIZE);
+    streamChunkZ = Math.floor(focusZ / GRASS_BLADE_CHUNK_SIZE);
+    streamDirty = false;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  };
+
+  const stepStreamRebuild = (): void => {
+    if (!rebuildQueue) return;
+
+    const budget = GRASS_STREAM_CHUNKS_PER_FRAME;
+    const end = Math.min(rebuildQueue.length, budget);
+    for (let index = 0; index < end; index++) {
+      const { chunkX, chunkZ } = rebuildQueue[index]!;
+      rebuildInstanceIndex = writeChunkInstances(
+        mesh,
+        rebuildInstanceIndex,
+        chunkX,
+        chunkZ,
+        rebuildFocusX,
+        rebuildFocusZ,
+        context,
+      );
+    }
+
+    rebuildQueue.splice(0, end);
+    mesh.count = rebuildInstanceIndex;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+
+    if (rebuildQueue.length === 0) {
+      rebuildQueue = null;
+      finishStreamRebuild(rebuildFocusX, rebuildFocusZ);
+    }
+  };
 
   return {
     group,
-    chunks,
-    placements,
     syncRoadClearance(network: RoadNetwork) {
-      const edges = [...network.edges.values()];
-      const nextRemoved = new Set<number>();
-
-      for (let index = 0; index < placements.length; index++) {
-        const { x, z } = placements[index];
-        if (isGrassNearAnyEdge(x, z, edges)) nextRemoved.add(index);
-      }
-
-      for (const chunk of chunks) {
-        const mesh = chunk.mesh;
-        const placementIndices = mesh.userData.placementIndices as number[];
-        let changed = false;
-
-        for (let index = 0; index < mesh.count; index++) {
-          const placementIndex = placementIndices[index];
-          const shouldRemove = nextRemoved.has(placementIndex);
-          if (shouldRemove === removed.has(placementIndex)) continue;
-          mesh.setMatrixAt(index, shouldRemove ? hiddenMatrix : baseMatrices.get(placementIndex)!);
-          changed = true;
-        }
-
-        if (changed) {
-          mesh.instanceMatrix.needsUpdate = true;
-          mesh.computeBoundingSphere();
-        }
-      }
-
-      removed.clear();
-      for (const index of nextRemoved) removed.add(index);
+      context.roadEdges = [...network.edges.values()];
+      streamDirty = true;
     },
-    updateCameraState(cameraPosition: THREE.Vector3, cameraDistance: number) {
+    updateCameraState(_cameraPosition: THREE.Vector3, cameraTarget: THREE.Vector3, cameraDistance: number) {
       const zoomOpacity = grassBladeRevealOpacity(cameraDistance);
       const zoomVisible = zoomOpacity > 0.02;
-      material.opacity = zoomOpacity;
-      material.transparent = zoomOpacity < 0.995;
 
-      const nearRadiusSq = GRASS_BLADE_NEAR_RADIUS * GRASS_BLADE_NEAR_RADIUS;
-      for (const chunk of chunks) {
-        const dx = chunk.centerX - cameraPosition.x;
-        const dz = chunk.centerZ - cameraPosition.z;
-        const nearEnough = dx * dx + dz * dz <= nearRadiusSq;
-        chunk.mesh.visible = zoomVisible && nearEnough;
+      if (Math.abs(zoomOpacity - lastMaterialOpacity) > 0.008) {
+        lastMaterialOpacity = zoomOpacity;
+        material.opacity = zoomOpacity;
+        const useTransparency = zoomOpacity < 0.995;
+        if (material.transparent !== useTransparency) {
+          material.transparent = useTransparency;
+          material.depthWrite = !useTransparency;
+          material.needsUpdate = true;
+        }
+      }
+
+      mesh.visible = zoomVisible;
+      if (!zoomVisible) {
+        rebuildQueue = null;
+        return;
+      }
+
+      const focusX = cameraTarget.x;
+      const focusZ = cameraTarget.z;
+      const centerChunkX = Math.floor(focusX / GRASS_BLADE_CHUNK_SIZE);
+      const centerChunkZ = Math.floor(focusZ / GRASS_BLADE_CHUNK_SIZE);
+
+      if (rebuildQueue) {
+        const queueChunkX = Math.floor(rebuildFocusX / GRASS_BLADE_CHUNK_SIZE);
+        const queueChunkZ = Math.floor(rebuildFocusZ / GRASS_BLADE_CHUNK_SIZE);
+        if (streamDirty || centerChunkX !== queueChunkX || centerChunkZ !== queueChunkZ) {
+          beginStreamRebuild(focusX, focusZ);
+        }
+        stepStreamRebuild();
+        return;
+      }
+
+      const chunkChanged = centerChunkX !== streamChunkX || centerChunkZ !== streamChunkZ;
+      if (streamDirty || chunkChanged) {
+        beginStreamRebuild(focusX, focusZ);
+        stepStreamRebuild();
       }
     },
     dispose() {
@@ -155,84 +233,113 @@ function createDisabledGrassBladeField(): GrassBladeField {
   group.visible = false;
   return {
     group,
-    chunks: [],
-    placements: [],
     syncRoadClearance() {},
     updateCameraState() {},
     dispose() {},
   };
 }
 
-function bucketPlacementsByChunk(placements: GrassBladePlacement[]): Map<string, GrassBladePlacement[]> {
-  const grouped = new Map<string, GrassBladePlacement[]>();
-  for (const placement of placements) {
-    const key = chunkKey(placement.x, placement.z);
-    const bucket = grouped.get(key);
-    if (bucket) bucket.push(placement);
-    else grouped.set(key, [placement]);
-  }
-  return grouped;
+function chunkSeed(chunkX: number, chunkZ: number): number {
+  return ((chunkX * 73856093) ^ (chunkZ * 19349663) ^ 0x6a55b1ade) >>> 0;
 }
 
-function buildGrassChunks(
-  groupedPlacements: Map<string, GrassBladePlacement[]>,
-  terrain: Terrain,
-  geometry: THREE.BufferGeometry,
-  material: MeshStandardNodeMaterial,
-  rng: () => number,
-): GrassChunk[] {
-  const matrix = new THREE.Matrix4();
-  const quaternion = new THREE.Quaternion();
-  const position = new THREE.Vector3();
-  const scaleVector = new THREE.Vector3();
-  const color = new THREE.Color();
-  const euler = new THREE.Euler();
-  const chunks: GrassChunk[] = [];
+const writeMatrix = new THREE.Matrix4();
+const writeQuaternion = new THREE.Quaternion();
+const writePosition = new THREE.Vector3();
+const writeScale = new THREE.Vector3();
+const writeEuler = new THREE.Euler();
+const writeColor = new THREE.Color();
 
-  for (const [key, bucket] of groupedPlacements) {
-    if (bucket.length === 0) continue;
-    const mesh = new THREE.InstancedMesh(geometry, material, bucket.length);
-    mesh.name = `Grass blades ${key}`;
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    mesh.frustumCulled = true;
+function writeChunkInstances(
+  mesh: THREE.InstancedMesh,
+  startIndex: number,
+  chunkX: number,
+  chunkZ: number,
+  focusX: number,
+  focusZ: number,
+  context: GrassFieldContext,
+): number {
+  const { terrain, extent, forestCores, isBlockedAt, roadEdges } = context;
+  const rng = mulberry32(chunkSeed(chunkX, chunkZ));
+  const chunkMinX = chunkX * GRASS_BLADE_CHUNK_SIZE;
+  const chunkMinZ = chunkZ * GRASS_BLADE_CHUNK_SIZE;
+  const chunkSpan = GRASS_BLADE_CHUNK_SIZE;
+  const margin = chunkSpan * 0.08;
+  let instanceIndex = startIndex;
 
-    let centerX = 0;
-    let centerZ = 0;
+  const localPlacements: { x: number; z: number }[] = [];
+  const tuftTarget = GRASS_TUFTS_PER_CHUNK + Math.floor(rng() * 5);
 
-    bucket.forEach((placement, index) => {
-      composeGrassMatrix(placement, terrain, matrix, quaternion, position, scaleVector, euler);
-      mesh.setMatrixAt(index, matrix);
-      centerX += placement.x;
-      centerZ += placement.z;
-      color.setHSL(
-        0.32 + (rng() - 0.5) * 0.04,
-        0.72 + rng() * 0.1,
-        0.42 + rng() * 0.1,
-      );
-      mesh.setColorAt(index, color);
-    });
+  for (let attempt = 0; attempt < SCATTER_ATTEMPTS && localPlacements.length < tuftTarget; attempt++) {
+    let x: number;
+    let z: number;
 
-    mesh.userData.placementIndices = bucket.map((placement) => placement.meshIndex);
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.computeBoundingSphere();
-    mesh.visible = false;
+    if (localPlacements.length > 0 && rng() < 0.28) {
+      const anchor = localPlacements[Math.floor(rng() * localPlacements.length)]!;
+      const clusterRadius = 0.55 + rng() * 0.95;
+      const angle = rng() * TAU;
+      x = anchor.x + Math.cos(angle) * clusterRadius;
+      z = anchor.z + Math.sin(angle) * clusterRadius;
+    } else {
+      x = chunkMinX + margin + rng() * (chunkSpan - margin * 2);
+      z = chunkMinZ + margin + rng() * (chunkSpan - margin * 2);
+    }
 
-    chunks.push({
-      mesh,
-      centerX: centerX / bucket.length,
-      centerZ: centerZ / bucket.length,
-    });
+    let tooClose = false;
+    for (const placed of localPlacements) {
+      const dx = x - placed.x;
+      const dz = z - placed.z;
+      if (dx * dx + dz * dz < MIN_TUFT_SPACING_SQ) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (tooClose) continue;
+
+    if (!isInsidePlayableExtent(x, z, extent)) continue;
+    if (isBlockedAt?.(x, z)) continue;
+    if (isGrassNearAnyEdge(x, z, roadEdges)) continue;
+
+    const toFocusX = x - focusX;
+    const toFocusZ = z - focusZ;
+    const focusDist = Math.hypot(toFocusX, toFocusZ);
+    const edgeFade = smoothstep01(
+      GRASS_BLADE_NEAR_RADIUS,
+      GRASS_BLADE_NEAR_RADIUS - GRASS_EDGE_FADE_BAND,
+      focusDist,
+    );
+    if (edgeFade <= 0.02) continue;
+
+    localPlacements.push({ x, z });
+
+    const density = forestDensityAt(x, z, forestCores, extent);
+    const scale =
+      THREE.MathUtils.lerp(0.82, 1.22, Math.pow(rng(), 0.82)) *
+      THREE.MathUtils.lerp(0.9, 1.06, density) *
+      edgeFade;
+    const yaw = rng() * TAU;
+
+    writePosition.set(x, terrain.getHeightAt(x, z), z);
+    writeEuler.set(0, yaw, 0);
+    writeQuaternion.setFromEuler(writeEuler);
+    writeScale.set(scale, scale, scale);
+    writeMatrix.compose(writePosition, writeQuaternion, writeScale);
+    mesh.setMatrixAt(instanceIndex, writeMatrix);
+    writeColor.setHSL(
+      0.27 + (rng() - 0.5) * 0.035,
+      0.36 + rng() * 0.12,
+      0.27 + rng() * 0.08,
+    );
+    mesh.setColorAt(instanceIndex, writeColor);
+    instanceIndex++;
   }
 
-  return chunks;
+  return instanceIndex;
 }
 
-function chunkKey(x: number, z: number): string {
-  const chunkX = Math.floor(x / GRASS_BLADE_CHUNK_SIZE);
-  const chunkZ = Math.floor(z / GRASS_BLADE_CHUNK_SIZE);
-  return `${chunkX},${chunkZ}`;
+function smoothstep01(edge0: number, edge1: number, value: number): number {
+  const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
 }
 
 function createGrassBladeMaterial(): MeshStandardNodeMaterial {
@@ -241,83 +348,13 @@ function createGrassBladeMaterial(): MeshStandardNodeMaterial {
   material.side = THREE.DoubleSide;
   material.transparent = true;
   material.opacity = 0;
-  material.alphaTest = 0.2;
+  material.alphaTest = 0.22;
   material.depthWrite = true;
-  material.roughness = 0.88;
+  material.roughness = 0.94;
   material.metalness = 0;
-  material.color.set(0xffffff);
+  material.color.set(0x8a9480);
   material.colorNode = (vertexColor() as TslNode).rgb;
   return material;
-}
-
-function createGrassPlacements(
-  rng: () => number,
-  terrain: Terrain,
-  extent: number,
-  forestCores: ReturnType<typeof createForestCores>,
-  isBlockedAt?: (x: number, z: number) => boolean,
-): GrassBladePlacement[] {
-  const placements: GrassBladePlacement[] = [];
-  const half = terrain.playableSize * 0.5;
-  const chunkCount = Math.ceil(terrain.playableSize / GRASS_BLADE_CHUNK_SIZE);
-  const gridSide = Math.ceil(Math.sqrt(GRASS_TUFTS_PER_CHUNK_MAX));
-
-  for (let chunkX = 0; chunkX < chunkCount; chunkX++) {
-    for (let chunkZ = 0; chunkZ < chunkCount; chunkZ++) {
-      const chunkMinX = -half + chunkX * GRASS_BLADE_CHUNK_SIZE;
-      const chunkMinZ = -half + chunkZ * GRASS_BLADE_CHUNK_SIZE;
-      const tuftCount =
-        GRASS_TUFTS_PER_CHUNK_MIN +
-        Math.floor(rng() * (GRASS_TUFTS_PER_CHUNK_MAX - GRASS_TUFTS_PER_CHUNK_MIN + 1));
-      const cellSize = GRASS_BLADE_CHUNK_SIZE / gridSide;
-      let placed = 0;
-
-      for (let slot = 0; slot < gridSide * gridSide && placed < tuftCount; slot++) {
-        const gridX = slot % gridSide;
-        const gridZ = Math.floor(slot / gridSide);
-        const x = chunkMinX + (gridX + 0.5 + (rng() - 0.5) * 0.62) * cellSize;
-        const z = chunkMinZ + (gridZ + 0.5 + (rng() - 0.5) * 0.62) * cellSize;
-
-        if (!isInsidePlayableExtent(x, z, extent)) continue;
-        if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + rng() * 4) continue;
-        if (isBlockedAt?.(x, z)) continue;
-
-        const density = forestDensityAt(x, z, forestCores, extent);
-        const spawnChance = THREE.MathUtils.lerp(0.94, 0.99, density);
-        if (rng() > spawnChance) continue;
-
-        const scale =
-          THREE.MathUtils.lerp(0.98, 1.42, Math.pow(rng(), 0.68)) *
-          THREE.MathUtils.lerp(0.94, 1.12, density);
-        placements.push({
-          x,
-          z,
-          scale,
-          yaw: rng() * TAU,
-          meshIndex: placements.length,
-        });
-        placed++;
-      }
-    }
-  }
-
-  return placements;
-}
-
-function composeGrassMatrix(
-  placement: GrassBladePlacement,
-  terrain: Terrain,
-  matrix: THREE.Matrix4,
-  quaternion: THREE.Quaternion,
-  position: THREE.Vector3,
-  scaleVector: THREE.Vector3,
-  euler: THREE.Euler,
-): void {
-  position.set(placement.x, terrain.getHeightAt(placement.x, placement.z), placement.z);
-  euler.set(0, placement.yaw, 0);
-  quaternion.setFromEuler(euler);
-  scaleVector.set(placement.scale, placement.scale, placement.scale);
-  matrix.compose(position, quaternion, scaleVector);
 }
 
 function isGrassNearAnyEdge(x: number, z: number, edges: RoadEdge[]): boolean {
@@ -341,9 +378,9 @@ function createGrassTuftGeometry(): THREE.BufferGeometry {
   const bladeCount = GRASS_BLADES_PER_TUFT;
   for (let i = 0; i < bladeCount; i++) {
     const yaw = (i / bladeCount) * TAU + (i % 2 === 0 ? 0.16 : -0.12);
-    const height = 0.44 + (i % 4) * 0.1 + (i % 3) * 0.055;
-    const halfWidth = 0.017 + (i % 2) * 0.005;
-    const lean = 0.045 + (i % 3) * 0.022;
+    const height = 0.46 + (i % 4) * 0.095 + (i % 3) * 0.05;
+    const halfWidth = 0.019 + (i % 2) * 0.006;
+    const lean = 0.04 + (i % 3) * 0.02;
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
     const leanX = cos * lean;
@@ -388,8 +425,8 @@ function appendTaperedBlade(
   baseColor: THREE.Color,
 ): void {
   const base = positions.length / 3;
-  const tipColor = BLADE_TIP.clone().lerp(baseColor, 0.35);
-  const midColor = BLADE_MID.clone().lerp(baseColor, 0.55);
+  const tipColor = BLADE_TIP.clone().lerp(baseColor, 0.42);
+  const midColor = BLADE_MID.clone().lerp(baseColor, 0.62);
 
   const verts = [
     { x: -halfWidth * cos, y: 0, z: -halfWidth * sin, c: baseColor },

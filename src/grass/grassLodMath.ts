@@ -36,15 +36,23 @@ export const GRASS_BLADE_REVEAL = {
 export const GRASS_BLADE_NEAR_RADIUS = DIRT_PROXIMITY_OUTER;
 
 /** Spatial chunk size for instanced grass batches. */
-export const GRASS_BLADE_CHUNK_SIZE = 8;
+export const GRASS_BLADE_CHUNK_SIZE = 6;
 
-/** Instanced tufts placed per chunk — keeps the visible dirt patch dense but cheap elsewhere. */
-export const GRASS_TUFTS_PER_CHUNK_MIN = 7;
-
-export const GRASS_TUFTS_PER_CHUNK_MAX = 9;
+/** Target tufts scattered per chunk (organic placement, not a rigid grid). */
+export const GRASS_TUFTS_PER_CHUNK = 28;
 
 /** Blade stalks in each tuft mesh (shared geometry). */
-export const GRASS_BLADES_PER_TUFT = 8;
+export const GRASS_BLADES_PER_TUFT = 9;
+
+/** World chunks kept loaded around the camera focus (covers the dirt patch). */
+export const GRASS_STREAM_CHUNK_RADIUS =
+  Math.ceil(GRASS_BLADE_NEAR_RADIUS / GRASS_BLADE_CHUNK_SIZE) + 1;
+
+/** Chunks rebuilt per frame while panning — spreads work to avoid hitches. */
+export const GRASS_STREAM_CHUNKS_PER_FRAME = 32;
+
+/** Soft falloff band at the outer edge of the grass patch (world units). */
+export const GRASS_EDGE_FADE_BAND = 14;
 
 /** 0 below 300% zoom → 1 at 400% zoom; controls whether close dirt is allowed at all. */
 export function dirtZoomGate(cameraDistance: number): number {
