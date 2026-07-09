@@ -1,4 +1,4 @@
-# Medieval Road System
+# City Builder Starter Kit - ThreeJS
 
 A real-time Three.js sandbox for drawing medieval dirt roads on a procedural 3D landscape. Build road networks across rolling hills, pine forests, and winding rivers — with terrain-aware placement, junction generation, animated water, and a lightweight builder UI for prototyping game-world paths.
 

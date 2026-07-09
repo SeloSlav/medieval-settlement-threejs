@@ -41,6 +41,7 @@ declare module 'three/webgpu' {
     roughnessNode: unknown;
     aoNode: unknown;
     opacityNode: unknown;
+    positionNode: unknown;
   }
 
   export class MeshStandardNodeMaterial extends NodeMaterial {
@@ -73,5 +74,10 @@ declare module 'three/tsl' {
   export const normalMap: (sample: TslNode) => TslNode;
   export const vertexColor: () => TslNode;
   export const attribute: (name: string, type: string) => TslNode;
+  export const positionLocal: TslNode;
+  export const time: TslNode;
+  export const hash: (seed: TslNode) => TslNode;
+  export const sin: (value: TslNode) => TslNode;
+  export const min: (a: TslNode, b: TslNode) => TslNode;
   export const max: (a: TslNode, b: TslNode) => TslNode;
 }

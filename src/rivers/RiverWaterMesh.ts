@@ -7,9 +7,8 @@ import { disposeSharedRiverWaterMaterial, getSharedRiverWaterMaterial } from './
 const WATER_BODY_BASE = new THREE.Color(0x4a93a8);
 const WATER_FOAM_BASE = new THREE.Color(0xf2faf7);
 const RIVER_WATER_DEPTH = 0.78;
-const WATER_SIM_RENDER_DELTA_SCALE = 0.16;
-const MAX_SIM_CATCHUP_STEPS = 4;
-const WATER_CPU_UPDATE_INTERVAL_SEC = 1 / 30;
+const MAX_SIM_CATCHUP_STEPS = 2;
+const WATER_CPU_UPDATE_INTERVAL_SEC = 1 / 20;
 const SHORE_LAP_MAX = 0.13;
 const SHORE_FOAM_MAX = 0.82;
 const WATER_CLIP_FEATHER = -0.62;
