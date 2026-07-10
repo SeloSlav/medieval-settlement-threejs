@@ -24,7 +24,15 @@ export const BUILDING_DEFINITIONS: Record<BuildingKind, BuildingDefinition> = {
     workRadius: 38,
     pickRadius: 8,
     harvestInterval: 0,
-    regrowRatePerSecond: 0.045,
+    regrowRatePerSecond: 0.035,
+  },
+  stone_quarry: {
+    kind: 'stone_quarry',
+    label: 'Stone quarry',
+    workRadius: 55,
+    pickRadius: 10,
+    harvestInterval: 4,
+    regrowRatePerSecond: 0,
   },
 };
 

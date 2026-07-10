@@ -119,22 +119,73 @@ Preview the production build:
 npm run preview
 ```
 
+## SpacetimeDB (local multiplayer backend)
+
+This project uses [SpacetimeDB 2.0.1](https://spacetimedb.com/) (same version as selo-empire) for authoritative game state: stockpile, buildings, tree phases, quarry yields, and road networks.
+
+### Run locally
+
+1. Start the SpacetimeDB standalone server (once per machine):
+
+```bash
+spacetime start
+```
+
+2. Publish the Rust module and regenerate TypeScript bindings:
+
+```bash
+npm run deploy:local
+```
+
+3. Start the Vite dev server:
+
+```bash
+npm run dev
+```
+
+The client connects to `http://localhost:3000` with database name `medieval-road-system-local`.
+
+### Anonymous identity
+
+No login is required for local dev. On first visit the client generates a random token, stores it in `localStorage` under `medieval-road-system:spacetime-token`, and reconnects with the same SpacetimeDB identity on refresh. Stockpile, buildings, and roads are scoped to that identity.
+
+When real auth is added later, swap the token source in `src/network/identityPersistence.ts` — the connection layer stays the same.
+
+### What syncs through the DB
+
+| Data | Server table | Notes |
+| --- | --- | --- |
+| Wood / stone / water | `player_resources` | Per anonymous identity |
+| Lumber mill, reforester, stone quarry | `building` | Server tick harvests/regrows |
+| Tree stump / sapling / mature | `tree_entity` | Bootstrapped after forest load |
+| Quarry remaining yield | `quarry` | Global world sites |
+| Roads + bridges | `road_network_state` | Full `RoadNetworkSnapshot` JSON per player |
+
+If SpacetimeDB is not running, the app falls back to the local-only `Simulation.ts` loop and JSON export/import.
+
 ## Project Structure
 
 ```text
 src/
   app/        App bootstrap and frame loop
   camera/     RTS orbit camera, first-person controller, and locomotion helpers
+  data/       SpacetimeDB game store (replicated state)
+  generated/  SpacetimeDB TypeScript bindings (auto-generated)
   grass/      Streamed 3D grass blade field and zoom LOD math
   input/      Keyboard and pointer state helpers
+  network/    SpacetimeDB client + anonymous identity persistence
   props/      Instanced forest, undergrowth, stumps, rocks, road clearance, shadow filters
+  quarries/   Quarry site layout and terrain depression
+  resources/  Game state, simulation, tree registry, world layout
   rivers/     River layout, field sampling, water sim, banks, reeds, and shore stones
   roads/      Road graph, drawing tool, mesh generation, junctions, bridges, materials
+  runtime/    GameRuntime bridge (SpacetimeDB → App)
   scene/      Three.js scene, renderer backend, lighting, post-processing
   sky/        Animated sky/cloud mesh
   terrain/    Procedural heightfield, grass materials, road wear, ray projection
   ui/         Build toolbar, compass HUD, game menu, tip cards, toasts, loading screen
   utils/      Path geometry helpers and Three.js disposal
+server/       SpacetimeDB Rust module (authoritative sim tick)
 public/
   assets/     Terrain, road, prop, and third-party texture assets
 scripts/

@@ -42,13 +42,14 @@ export function updateHarvestStumpInstance(
   const matrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
   const position = new THREE.Vector3(x, y, z);
-  const stumpScale = 0.48 + treeScale * 0.12;
-  const scaleVector = new THREE.Vector3(stumpScale, stumpScale * 0.55, stumpScale);
+  const stumpScale = 0.95 + treeScale * 0.35;
+  const scaleVector = new THREE.Vector3(stumpScale, stumpScale * 0.62, stumpScale);
   const yaw = stumpHash(x, z) * 0.01;
   quaternion.setFromEuler(new THREE.Euler(0, yaw, 0));
   matrix.compose(position, quaternion, scaleVector);
   mesh.setMatrixAt(index, matrix);
   mesh.instanceMatrix.needsUpdate = true;
+  mesh.computeBoundingSphere();
 }
 
 function createStumpInstancedMesh(name: string, capacity: number): THREE.InstancedMesh {

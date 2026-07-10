@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { disposeObject3D } from '../utils/dispose.ts';
 import type { BuildingState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
+import { createBuildingMesh } from './BuildingMeshes.ts';
 
 type BuildingMarkersOptions = {
   terrain: Terrain;
@@ -65,11 +66,12 @@ export class BuildingMarkers {
   private upsertBuilding(building: BuildingState): void {
     let marker = this.buildingMeshes.get(building.id);
     if (!marker) {
-      marker = createBuildingMarker(building.kind);
+      marker = createBuildingMesh(building.kind);
+      marker.rotation.y = buildingPlacementYaw(building.x, building.z);
       this.buildingMeshes.set(building.id, marker);
       this.group.add(marker);
 
-      const radius = createRadiusRing(building.kind === 'lumber_mill' ? 0xd7b463 : 0x84a66b, 0.16);
+      const radius = createRadiusRing(buildingRadiusColor(building.kind), 0.16);
       this.radiusMeshes.set(building.id, radius);
       this.group.add(radius);
     }
@@ -87,7 +89,7 @@ export class BuildingMarkers {
   private removeBuilding(id: string): void {
     const marker = this.buildingMeshes.get(id);
     if (marker) {
-      disposeObject3D(marker);
+      disposeObject3D(marker, true);
       this.buildingMeshes.delete(id);
     }
     const radius = this.radiusMeshes.get(id);
@@ -98,37 +100,23 @@ export class BuildingMarkers {
   }
 }
 
-function createBuildingMarker(kind: BuildingState['kind']): THREE.Group {
-  const group = new THREE.Group();
-  group.name = `${kind} marker`;
+function buildingRadiusColor(kind: BuildingState['kind']): number {
+  switch (kind) {
+    case 'lumber_mill':
+      return 0xd7b463;
+    case 'reforester':
+      return 0x84a66b;
+    case 'stone_quarry':
+      return 0xa8a29e;
+    default: {
+      const unreachable: never = kind;
+      return unreachable;
+    }
+  }
+}
 
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(4.2, 2.4, 4.2),
-    new THREE.MeshStandardMaterial({
-      color: kind === 'lumber_mill' ? 0x8b6a43 : 0x5f7a4a,
-      roughness: 0.88,
-      metalness: 0,
-    }),
-  );
-  base.position.y = 1.2;
-  base.castShadow = true;
-  base.receiveShadow = true;
-  group.add(base);
-
-  const roof = new THREE.Mesh(
-    new THREE.ConeGeometry(3.2, 1.8, 4),
-    new THREE.MeshStandardMaterial({
-      color: kind === 'lumber_mill' ? 0x5a4030 : 0x466038,
-      roughness: 0.92,
-      metalness: 0,
-    }),
-  );
-  roof.position.y = 2.8;
-  roof.rotation.y = Math.PI * 0.25;
-  roof.castShadow = true;
-  group.add(roof);
-
-  return group;
+function buildingPlacementYaw(x: number, z: number): number {
+  return (Math.abs(Math.floor(Math.sin(x * 0.017 + z * 0.013) * 6283)) % 360) * (Math.PI / 180);
 }
 
 function createRadiusRing(color: number, opacity: number): THREE.Mesh {

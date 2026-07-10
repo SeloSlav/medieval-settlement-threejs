@@ -22,7 +22,7 @@ export class ForestVisualSync {
   }
 
   private syncTree(entity: TreeEntityState): void {
-    this.forestManager.applyTreePhase(entity.layoutIndex, entity.phase, entity.regrowProgress);
+    this.forestManager.applyTreePhase(entity.layoutIndex, entity.phase, entity.growthProgress);
   }
 }
 
@@ -32,24 +32,23 @@ export function countTreesNearBuilding(
   x: number,
   z: number,
   radius: number,
-): { standing: number; felled: number; regrowing: number } {
-  let standing = 0;
-  let felled = 0;
-  let regrowing = 0;
+): { matureTrees: number; stumpTrees: number; growingTrees: number } {
+  let matureTrees = 0;
+  let stumpTrees = 0;
+  let growingTrees = 0;
 
   for (const entry of treeRegistry.treesInRadius(x, z, radius)) {
     const entity = state.trees.get(entry.id);
     if (!entity) continue;
     switch (entity.phase) {
-      case 'standing':
-      case 'felling':
-        standing++;
+      case 'mature':
+        matureTrees++;
         break;
-      case 'felled':
-        felled++;
+      case 'stump':
+        stumpTrees++;
         break;
-      case 'regrowing':
-        regrowing++;
+      case 'growing':
+        growingTrees++;
         break;
       default: {
         const unreachable: never = entity.phase;
@@ -58,5 +57,5 @@ export function countTreesNearBuilding(
     }
   }
 
-  return { standing, felled, regrowing };
+  return { matureTrees, stumpTrees, growingTrees };
 }

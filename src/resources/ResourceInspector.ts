@@ -189,30 +189,42 @@ export class ResourceInspector {
     }
 
     if (target.kind === 'building') {
-      const { building, standingTrees, felledTrees, regrowingTrees } = target;
+      const { building, matureTrees, stumpTrees, growingTrees } = target;
       const label = this.options.worldQueries.getBuildingLabel(building.kind);
       this.eyebrow.textContent = 'Building';
       this.title.textContent = label;
       const definition = getBuildingDefinition(building.kind);
 
       if (building.kind === 'lumber_mill') {
-        this.status.textContent = standingTrees > 0
-          ? `Harvesting — ${standingTrees} trees in range`
-          : 'Idle — no standing trees in range';
-        this.status.dataset.state = standingTrees > 0 ? 'active' : 'idle';
+        this.status.textContent = matureTrees > 0
+          ? `Harvesting — ${matureTrees} mature trees in range`
+          : 'Idle — no mature trees in range';
+        this.status.dataset.state = matureTrees > 0 ? 'active' : 'idle';
+      } else if (building.kind === 'stone_quarry') {
+        const nearestQuarry = this.options.worldQueries.findNearestQuarryWithRemaining(building.x, building.z, building.workRadius);
+        this.status.textContent = nearestQuarry
+          ? `Extracting — ${Math.round(nearestQuarry.remaining)} stone left at site`
+          : 'Idle — no quarry stone in range';
+        this.status.dataset.state = nearestQuarry ? 'active' : 'idle';
       } else {
-        this.status.textContent = felledTrees + regrowingTrees > 0
-          ? `Reforesting — ${felledTrees} stumps, ${regrowingTrees} regrowing`
+        this.status.textContent = stumpTrees + growingTrees > 0
+          ? `Reforesting — ${stumpTrees} stumps, ${growingTrees} growing`
           : 'Idle — no stumps in range';
-        this.status.dataset.state = felledTrees + regrowingTrees > 0 ? 'active' : 'draft';
+        this.status.dataset.state = stumpTrees + growingTrees > 0 ? 'active' : 'draft';
       }
 
-      this.detailList.innerHTML = `
+      this.detailList.innerHTML = building.kind === 'stone_quarry'
+        ? `
         <li><span>Kind</span><span>${building.kind}</span></li>
         <li><span>Work radius</span><span>${definition.workRadius} m</span></li>
-        <li><span>Standing trees</span><span>${standingTrees}</span></li>
-        <li><span>Felled stumps</span><span>${felledTrees}</span></li>
-        <li><span>Regrowing</span><span>${regrowingTrees}</span></li>
+        <li><span>Harvest interval</span><span>${definition.harvestInterval}s</span></li>
+      `
+        : `
+        <li><span>Kind</span><span>${building.kind}</span></li>
+        <li><span>Work radius</span><span>${definition.workRadius} m</span></li>
+        <li><span>Mature trees</span><span>${matureTrees}</span></li>
+        <li><span>Stumps</span><span>${stumpTrees}</span></li>
+        <li><span>Growing saplings</span><span>${growingTrees}</span></li>
       `;
       return;
     }

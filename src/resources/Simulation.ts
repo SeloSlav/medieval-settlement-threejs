@@ -60,7 +60,7 @@ function stepLumberMill(
     return { state: { ...state, buildings }, changedTreeIds };
   }
 
-  const harvestTarget = findNearestStandingTree(state, treeRegistry, building.x, building.z, building.workRadius);
+  const harvestTarget = findNearestMatureTree(state, treeRegistry, building.x, building.z, building.workRadius);
   if (!harvestTarget) {
     buildings.set(buildingId, { ...building, actionCooldown: definition.harvestInterval });
     return { state: { ...state, buildings }, changedTreeIds };
@@ -69,8 +69,8 @@ function stepLumberMill(
   const trees = new Map(state.trees);
   trees.set(harvestTarget.treeId, {
     ...harvestTarget,
-    phase: 'felled',
-    regrowProgress: 0,
+    phase: 'stump',
+    growthProgress: 0,
   });
 
   const stockpile = { ...state.stockpile };
@@ -105,23 +105,23 @@ function stepReforester(
     const entity = trees.get(entry.id);
     if (!entity) continue;
 
-    if (entity.phase === 'felled') {
+    if (entity.phase === 'stump') {
       trees.set(entry.id, {
         ...entity,
-        phase: 'regrowing',
-        regrowProgress: definition.regrowRatePerSecond * dt,
+        phase: 'growing',
+        growthProgress: definition.regrowRatePerSecond * dt,
       });
       changedTreeIds.push(entry.id);
       continue;
     }
 
-    if (entity.phase !== 'regrowing') continue;
+    if (entity.phase !== 'growing') continue;
 
-    const regrowProgress = entity.regrowProgress + definition.regrowRatePerSecond * dt;
-    if (regrowProgress >= 1) {
-      trees.set(entry.id, { ...entity, phase: 'standing', regrowProgress: 0 });
+    const growthProgress = entity.growthProgress + definition.regrowRatePerSecond * dt;
+    if (growthProgress >= 1) {
+      trees.set(entry.id, { ...entity, phase: 'mature', growthProgress: 1 });
     } else {
-      trees.set(entry.id, { ...entity, regrowProgress });
+      trees.set(entry.id, { ...entity, growthProgress });
     }
     changedTreeIds.push(entry.id);
   }
@@ -130,7 +130,7 @@ function stepReforester(
   return { state: { ...state, trees }, changedTreeIds };
 }
 
-function findNearestStandingTree(
+function findNearestMatureTree(
   state: GameState,
   treeRegistry: TreeRegistry,
   x: number,
@@ -142,7 +142,7 @@ function findNearestStandingTree(
 
   for (const entry of treeRegistry.treesInRadius(x, z, radius)) {
     const entity = state.trees.get(entry.id);
-    if (!entity || entity.phase !== 'standing') continue;
+    if (!entity || entity.phase !== 'mature') continue;
     const distance = Math.hypot(entry.x - x, entry.z - z);
     if (distance >= bestDistance) continue;
     bestDistance = distance;

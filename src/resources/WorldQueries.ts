@@ -1,7 +1,7 @@
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
-import type { GameState, InspectableTarget } from './types.ts';
+import type { GameState, InspectableTarget, QuarryNodeState } from './types.ts';
 import type { WorldLayoutRegistry } from './WorldLayoutRegistry.ts';
 import { buildingKindLabel, findNearestBuilding as findBuilding } from './WorldLayoutRegistry.ts';
 import { countTreesNearBuilding } from './ForestVisualSync.ts';
@@ -52,13 +52,13 @@ export class WorldQueries {
       const treeRegistry = this.getTreeRegistry();
       const counts = treeRegistry
         ? countTreesNearBuilding(state, treeRegistry, building.x, building.z, building.workRadius)
-        : { standing: 0, felled: 0, regrowing: 0 };
+        : { matureTrees: 0, stumpTrees: 0, growingTrees: 0 };
       return {
         kind: 'building',
         building,
-        standingTrees: counts.standing,
-        felledTrees: counts.felled,
-        regrowingTrees: counts.regrowing,
+        matureTrees: counts.matureTrees,
+        stumpTrees: counts.stumpTrees,
+        growingTrees: counts.growingTrees,
       };
     }
 
@@ -93,5 +93,22 @@ export class WorldQueries {
 
   getBuildingLabel(kind: Parameters<typeof buildingKindLabel>[0]): string {
     return buildingKindLabel(kind);
+  }
+
+  findNearestQuarryWithRemaining(x: number, z: number, radius: number): QuarryNodeState | null {
+    const state = this.getGameState();
+    let best: QuarryNodeState | null = null;
+    let bestDistance = Infinity;
+
+    for (const definition of this.registry.definitionList) {
+      const quarryState = state.quarries.get(definition.id);
+      if (!quarryState || quarryState.remaining <= 0) continue;
+      const distance = Math.hypot(x - definition.x, z - definition.z);
+      if (distance > radius || distance >= bestDistance) continue;
+      bestDistance = distance;
+      best = quarryState;
+    }
+
+    return best;
   }
 }

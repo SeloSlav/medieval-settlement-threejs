@@ -6,10 +6,10 @@ export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 export const RESOURCE_NODE_KINDS = ['quarry'] as const;
 export type ResourceNodeKind = (typeof RESOURCE_NODE_KINDS)[number];
 
-export const TREE_PHASES = ['standing', 'felling', 'felled', 'regrowing'] as const;
+export const TREE_PHASES = ['stump', 'growing', 'mature'] as const;
 export type TreePhase = (typeof TREE_PHASES)[number];
 
-export const BUILDING_KINDS = ['lumber_mill', 'reforester'] as const;
+export const BUILDING_KINDS = ['lumber_mill', 'reforester', 'stone_quarry'] as const;
 export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
 export type ResourceNodeDefinition = {
@@ -47,7 +47,7 @@ export type TreeEntityState = {
   treeId: string;
   layoutIndex: number;
   phase: TreePhase;
-  regrowProgress: number;
+  growthProgress: number;
 };
 
 export type BuildingState = {
@@ -100,9 +100,9 @@ export type InspectableTarget =
   | {
       kind: 'building';
       building: BuildingState;
-      standingTrees: number;
-      felledTrees: number;
-      regrowingTrees: number;
+      matureTrees: number;
+      stumpTrees: number;
+      growingTrees: number;
     }
   | {
       kind: 'river';

@@ -2,15 +2,18 @@
 import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import { BuildingTool } from '../buildings/BuildingTool.ts';
+import { SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
 import { InputManager } from '../input/InputManager.ts';
 import {
   createInitialGameState,
   deserializeGameState,
   gameStateToSnapshot,
   initTreeEntities,
+  placeBuilding,
   restoreGameState,
   serializeGameState,
 } from '../resources/GameState.ts';
+import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
 import type { GameState } from '../resources/types.ts';
 import { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
@@ -22,6 +25,7 @@ import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { RoadSelection } from '../roads/RoadSelection.ts';
 import { RoadTool } from '../roads/RoadTool.ts';
+import { GameRuntime } from '../runtime/GameRuntime.ts';
 import { SceneManager } from '../scene/SceneManager.ts';
 import { beginStartupTextureLoad } from '../scene/startupTextures.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
@@ -51,6 +55,10 @@ export class App {
   private treeRegistry: TreeRegistry | null = null;
   private forestVisualSync: ForestVisualSync | null = null;
   private simulation: Simulation | null = null;
+  private spacetimeStore: SpacetimeGameStore | null = null;
+  private gameRuntime: GameRuntime | null = null;
+  private spacetimeConnected = false;
+  private previousTreePhases = new Map<string, string>();
   private animationId = 0;
   private lastTime = 0;
   private frameBudgetTime = 0;
@@ -126,6 +134,9 @@ export class App {
         sceneManager.syncRoadNetwork(roadNetwork);
         roadSelection.refresh();
         this.syncToolbar();
+        if (this.spacetimeConnected && this.spacetimeStore) {
+          this.spacetimeStore.queueRoadSync(roadNetwork.snapshot());
+        }
       },
       onStateChanged: () => this.syncToolbar(),
       onDeleteRequested: (request) => {
@@ -159,6 +170,18 @@ export class App {
         this.syncResourceUi();
         this.syncToolbar();
       },
+      onPlaceBuilding: async (kind, x, z) => {
+        if (this.spacetimeConnected && this.spacetimeStore) {
+          await this.spacetimeStore.placeBuilding(kind, x, z);
+          return;
+        }
+        const result = placeBuilding(this.gameState ?? gameState, kind, x, z);
+        if (!result.ok) return;
+        this.gameState = result.state;
+        buildingMarkers.syncBuildings(result.state.buildings.values());
+        this.syncResourceUi();
+        this.syncToolbar();
+      },
       isBlocked: () =>
         roadTool.isEnabled()
         || firstPersonController.isActive()
@@ -179,6 +202,11 @@ export class App {
       },
       onToggleReforester: () => {
         buildingTool.toggleMode('reforester');
+        if (buildingTool.isEnabled()) roadTool.setEnabled(false);
+        this.syncToolbar();
+      },
+      onToggleStoneQuarry: () => {
+        buildingTool.toggleMode('stone_quarry');
         if (buildingTool.isEnabled()) roadTool.setEnabled(false);
         this.syncToolbar();
       },
@@ -243,6 +271,23 @@ export class App {
     this.gameState = gameState;
     this.layoutRegistry = layoutRegistry;
 
+    const spacetimeStore = new SpacetimeGameStore();
+    this.spacetimeStore = spacetimeStore;
+    this.gameRuntime = new GameRuntime(spacetimeStore, layoutRegistry, sceneManager.worldLayout.seed, {
+      onSnapshot: (snapshot, state) => this.applySpacetimeSnapshot(snapshot, state),
+      onRoadsHydrated: (roads) => {
+        this.roadNetwork?.restore(roads);
+        this.sceneManager?.syncRoadNetwork(this.roadNetwork!);
+        this.roadSelection?.refresh();
+        this.syncToolbar();
+      },
+      onConnectError: (error) => {
+        console.warn('SpacetimeDB unavailable — running local simulation fallback.', error);
+        this.spacetimeConnected = false;
+      },
+    });
+    this.gameRuntime.start();
+
     this.exposeDevHandles();
 
     sceneManager.syncRoadNetwork(roadNetwork);
@@ -281,6 +326,7 @@ export class App {
     this.roadSelection?.dispose();
     this.buildingTool?.dispose();
     this.buildingMarkers?.dispose();
+    this.gameRuntime?.dispose();
     this.resourceInspector?.dispose();
     this.toastManager?.dispose();
     this.firstPersonController?.dispose();
@@ -325,6 +371,7 @@ export class App {
   };
 
   private stepSimulation(dt: number): void {
+    if (this.spacetimeConnected) return;
     if (!this.simulation || !this.gameState || !this.forestVisualSync) return;
 
     const previousWood = this.gameState.stockpile.wood;
@@ -349,6 +396,8 @@ export class App {
     this.forestVisualSync = new ForestVisualSync(forestManager);
     this.forestVisualSync.syncAll(this.gameState.trees);
     this.simulation = new Simulation(this.treeRegistry);
+    this.gameRuntime?.setTreeRegistry(this.treeRegistry);
+    void this.gameRuntime?.bootstrapWorldIfReady();
     this.buildingMarkers?.syncBuildings(this.gameState.buildings.values());
     this.syncResourceUi();
     this.exposeDevHandles();
@@ -399,6 +448,30 @@ export class App {
     this.fpsSampleStart = time;
     this.fpsFrameCount = 0;
     this.fpsAccumulatedSeconds = 0;
+  }
+
+  private applySpacetimeSnapshot(snapshot: SpacetimeGameSnapshot, state: GameState): void {
+    this.spacetimeConnected = snapshot.connected;
+    this.gameState = state;
+
+    const changedTreeIds: string[] = [];
+    for (const [treeId, entity] of state.trees) {
+      const previous = this.previousTreePhases.get(treeId);
+      if (previous !== entity.phase || previous === undefined) {
+        changedTreeIds.push(treeId);
+      }
+      this.previousTreePhases.set(treeId, entity.phase);
+    }
+
+    if (changedTreeIds.length > 0) {
+      this.forestVisualSync?.syncTrees(state.trees, changedTreeIds);
+    } else if (this.forestVisualSync && snapshot.simTick === 0) {
+      this.forestVisualSync.syncAll(state.trees);
+    }
+
+    this.buildingMarkers?.syncBuildings(state.buildings.values());
+    this.syncResourceUi();
+    this.syncToolbar();
   }
 
   private syncResourceUi(): void {

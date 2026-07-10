@@ -2,7 +2,6 @@ import type { RoadNetworkSnapshot } from '../roads/RoadNetwork.ts';
 import {
   createEmptyStockpile,
   isBuildingKind,
-  isTreePhase,
   RESOURCE_KINDS,
   type BuildingState,
   type GameState,
@@ -46,8 +45,8 @@ export function initTreeEntities(state: GameState, treeRegistry: TreeRegistry): 
     trees.set(entry.id, {
       treeId: entry.id,
       layoutIndex: entry.layoutIndex,
-      phase: 'standing',
-      regrowProgress: 0,
+      phase: 'mature',
+      growthProgress: 1,
     });
   }
   return { ...state, trees };
@@ -224,7 +223,7 @@ function restoreQuarries(nodes: QuarryNodeState[], registry: WorldLayoutRegistry
 }
 
 function restoreTrees(
-  nodes: TreeEntityState[],
+  nodes: Array<TreeEntityState & { regrowProgress?: number }>,
   treeRegistry?: TreeRegistry | null,
   fillMissing = false,
 ): Map<string, TreeEntityState> {
@@ -234,11 +233,12 @@ function restoreTrees(
   for (const node of nodes) {
     const entry = treeRegistry.getEntry(node.treeId);
     if (!entry) continue;
+    const normalized = normalizeTreeEntity(node);
     trees.set(node.treeId, {
       treeId: node.treeId,
       layoutIndex: entry.layoutIndex,
-      phase: isTreePhase(node.phase) ? node.phase : 'standing',
-      regrowProgress: clamp01(node.regrowProgress),
+      phase: normalized.phase,
+      growthProgress: normalized.growthProgress,
     });
   }
 
@@ -248,13 +248,34 @@ function restoreTrees(
       trees.set(entry.id, {
         treeId: entry.id,
         layoutIndex: entry.layoutIndex,
-        phase: 'standing',
-        regrowProgress: 0,
+        phase: 'mature',
+        growthProgress: 1,
       });
     }
   }
 
   return trees;
+}
+
+function normalizeTreeEntity(node: { phase: string; growthProgress?: number; regrowProgress?: number }): Pick<TreeEntityState, 'phase' | 'growthProgress'> {
+  const progress = node.growthProgress ?? node.regrowProgress ?? 0;
+  switch (node.phase) {
+    case 'mature':
+      return { phase: 'mature', growthProgress: 1 };
+    case 'growing':
+      return { phase: 'growing', growthProgress: clamp01(progress) };
+    case 'stump':
+      return { phase: 'stump', growthProgress: 0 };
+    case 'standing':
+      return { phase: 'mature', growthProgress: 1 };
+    case 'felled':
+    case 'felling':
+      return { phase: 'stump', growthProgress: 0 };
+    case 'regrowing':
+      return { phase: 'growing', growthProgress: clamp01(progress || 0.1) };
+    default:
+      return { phase: 'mature', growthProgress: 1 };
+  }
 }
 
 function restoreBuildings(buildings: BuildingState[]): Map<string, BuildingState> {

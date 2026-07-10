@@ -12,6 +12,8 @@ import {
   updateRoadStumpInstances,
   updateHarvestStumpInstance,
 } from './RoadStumps.ts';
+import { createTreeSaplingMesh, updateTreeSaplingInstance } from './TreeSaplings.ts';
+import type { TreePhase } from '../resources/types.ts';
 
 const ROAD_CLEAR_MARGIN = 1.35;
 const UNDERGROWTH_CLEAR_MARGIN = 0.95;
@@ -66,15 +68,13 @@ export class ForestManager {
   private readonly undergrowthPlacements: UndergrowthPlacement[];
   private readonly stumpMesh: THREE.InstancedMesh;
   private readonly harvestStumpMesh: THREE.InstancedMesh;
+  private readonly saplingMesh: THREE.InstancedMesh;
   private readonly terrain: Terrain;
   private readonly hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
-  private readonly scratchMatrix = new THREE.Matrix4();
-  private readonly scratchScale = new THREE.Vector3();
-  private readonly scratchPosition = new THREE.Vector3();
-  private readonly scratchQuaternion = new THREE.Quaternion();
   private removedTrees = new Set<number>();
   private removedUndergrowth = new Set<number>();
-  private treePhases = new Map<number, 'standing' | 'felling' | 'felled' | 'regrowing'>();
+  private treePhases = new Map<number, TreePhase>();
+  private treeGrowthProgress = new Map<number, number>();
 
   constructor(
     root: THREE.Group,
@@ -106,10 +106,13 @@ export class ForestManager {
     this.terrain = terrain;
     this.stumpMesh = createRoadStumpMesh();
     this.harvestStumpMesh = createHarvestStumpMesh(this.placements.length);
+    this.saplingMesh = createTreeSaplingMesh(this.placements.length);
     this.group.add(this.stumpMesh);
     this.group.add(this.harvestStumpMesh);
+    this.group.add(this.saplingMesh);
     for (let i = 0; i < this.placements.length; i++) {
       this.hideHarvestStump(i);
+      this.hideSapling(i);
     }
   }
 
@@ -120,38 +123,42 @@ export class ForestManager {
     }));
   }
 
-  applyTreePhase(
-    layoutIndex: number,
-    phase: 'standing' | 'felling' | 'felled' | 'regrowing',
-    regrowProgress: number,
-  ): void {
+  applyTreePhase(layoutIndex: number, phase: TreePhase, growthProgress: number): void {
     if (layoutIndex < 0 || layoutIndex >= this.placements.length) return;
     this.treePhases.set(layoutIndex, phase);
+    this.treeGrowthProgress.set(layoutIndex, growthProgress);
 
-    if (this.removedTrees.has(layoutIndex)) return;
+    if (this.removedTrees.has(layoutIndex)) {
+      this.hideTree(layoutIndex);
+      this.hideHarvestStump(layoutIndex);
+      this.hideSapling(layoutIndex);
+      this.commitTreeInstanceUpdates();
+      return;
+    }
 
     switch (phase) {
-      case 'standing':
+      case 'mature':
         this.hideHarvestStump(layoutIndex);
+        this.hideSapling(layoutIndex);
         this.showTree(layoutIndex);
         break;
-      case 'felling':
-        this.hideHarvestStump(layoutIndex);
+      case 'stump':
         this.hideTree(layoutIndex);
-        break;
-      case 'felled':
-        this.hideTree(layoutIndex);
+        this.hideSapling(layoutIndex);
         this.showHarvestStump(layoutIndex);
         break;
-      case 'regrowing':
+      case 'growing':
+        this.hideTree(layoutIndex);
         this.hideHarvestStump(layoutIndex);
-        this.showTreeWithScale(layoutIndex, 0.18 + regrowProgress * 0.82);
+        this.showSapling(layoutIndex, growthProgress);
         break;
       default: {
         const unreachable: never = phase;
         return unreachable;
       }
     }
+
+    this.commitTreeInstanceUpdates();
   }
 
   syncRoadClearance(network: RoadNetwork): void {
@@ -164,19 +171,13 @@ export class ForestManager {
       }
     }
 
-    for (let treeIndex = 0; treeIndex < this.placements.length; treeIndex++) {
-      const shouldRemove = nextRemoved.has(treeIndex);
-      if (shouldRemove === this.removedTrees.has(treeIndex)) continue;
-      if (shouldRemove) this.hideTree(treeIndex);
-      else this.showTree(treeIndex);
-    }
-
     this.removedTrees = nextRemoved;
-    this.trunkMesh.instanceMatrix.needsUpdate = true;
-    this.coniferFoliageMesh.instanceMatrix.needsUpdate = true;
-    this.broadleafFoliageMesh.instanceMatrix.needsUpdate = true;
-    this.coniferShadowMesh.instanceMatrix.needsUpdate = true;
-    this.broadleafShadowMesh.instanceMatrix.needsUpdate = true;
+
+    for (let treeIndex = 0; treeIndex < this.placements.length; treeIndex++) {
+      const phase = this.treePhases.get(treeIndex) ?? 'mature';
+      const growthProgress = this.treeGrowthProgress.get(treeIndex) ?? 1;
+      this.applyTreePhase(treeIndex, phase, growthProgress);
+    }
 
     this.syncUndergrowthClearance(edges);
     this.syncRoadStumps(network);
@@ -187,6 +188,8 @@ export class ForestManager {
     (this.stumpMesh.material as THREE.Material).dispose();
     this.harvestStumpMesh.geometry.dispose();
     (this.harvestStumpMesh.material as THREE.Material).dispose();
+    this.saplingMesh.geometry.dispose();
+    (this.saplingMesh.material as THREE.Material).dispose();
     this.disposeResources();
   }
 
@@ -243,29 +246,9 @@ export class ForestManager {
   }
 
   private showTree(treeIndex: number): void {
-    this.showTreeWithScale(treeIndex, 1);
-  }
-
-  private showTreeWithScale(treeIndex: number, scaleFactor: number): void {
-    this.trunkMesh.setMatrixAt(
-      treeIndex,
-      this.scaledTreeMatrix(this.trunkMatrices[treeIndex], scaleFactor).clone(),
-    );
-    this.showConiferLayers(treeIndex, scaleFactor);
-    this.showBroadleafLayers(treeIndex, scaleFactor);
-    this.trunkMesh.instanceMatrix.needsUpdate = true;
-    this.coniferFoliageMesh.instanceMatrix.needsUpdate = true;
-    this.broadleafFoliageMesh.instanceMatrix.needsUpdate = true;
-    this.coniferShadowMesh.instanceMatrix.needsUpdate = true;
-    this.broadleafShadowMesh.instanceMatrix.needsUpdate = true;
-  }
-
-  private scaledTreeMatrix(baseMatrix: THREE.Matrix4, scaleFactor: number): THREE.Matrix4 {
-    this.scratchMatrix.copy(baseMatrix);
-    this.scratchMatrix.decompose(this.scratchPosition, this.scratchQuaternion, this.scratchScale);
-    this.scratchScale.multiplyScalar(scaleFactor);
-    this.scratchMatrix.compose(this.scratchPosition, this.scratchQuaternion, this.scratchScale);
-    return this.scratchMatrix;
+    this.trunkMesh.setMatrixAt(treeIndex, this.trunkMatrices[treeIndex]);
+    this.showConiferLayers(treeIndex);
+    this.showBroadleafLayers(treeIndex);
   }
 
   private showHarvestStump(layoutIndex: number): void {
@@ -282,7 +265,33 @@ export class ForestManager {
 
   private hideHarvestStump(layoutIndex: number): void {
     this.harvestStumpMesh.setMatrixAt(layoutIndex, this.hiddenMatrix);
+  }
+
+  private showSapling(layoutIndex: number, growthProgress: number): void {
+    const placement = this.placements[layoutIndex];
+    updateTreeSaplingInstance(
+      this.saplingMesh,
+      layoutIndex,
+      placement.x,
+      placement.z,
+      this.terrain.getHeightAt(placement.x, placement.z),
+      growthProgress,
+      isConiferSpecies(placement.species),
+    );
+  }
+
+  private hideSapling(layoutIndex: number): void {
+    this.saplingMesh.setMatrixAt(layoutIndex, this.hiddenMatrix);
+  }
+
+  private commitTreeInstanceUpdates(): void {
+    this.trunkMesh.instanceMatrix.needsUpdate = true;
+    this.coniferFoliageMesh.instanceMatrix.needsUpdate = true;
+    this.broadleafFoliageMesh.instanceMatrix.needsUpdate = true;
+    this.coniferShadowMesh.instanceMatrix.needsUpdate = true;
+    this.broadleafShadowMesh.instanceMatrix.needsUpdate = true;
     this.harvestStumpMesh.instanceMatrix.needsUpdate = true;
+    this.saplingMesh.instanceMatrix.needsUpdate = true;
   }
 
   private hideConiferLayers(treeIndex: number): void {
@@ -295,14 +304,13 @@ export class ForestManager {
     }
   }
 
-  private showConiferLayers(treeIndex: number, scaleFactor = 1): void {
+  private showConiferLayers(treeIndex: number): void {
     const foliageStart = this.coniferStartIndex[treeIndex];
     const foliageCount = this.coniferLayerCounts[treeIndex];
     for (let i = 0; i < foliageCount; i++) {
       const layerIndex = foliageStart + i;
-      const matrix = this.scaledTreeMatrix(this.coniferFoliageMatrices[layerIndex], scaleFactor).clone();
-      this.coniferFoliageMesh.setMatrixAt(layerIndex, matrix);
-      this.coniferShadowMesh.setMatrixAt(layerIndex, matrix);
+      this.coniferFoliageMesh.setMatrixAt(layerIndex, this.coniferFoliageMatrices[layerIndex]);
+      this.coniferShadowMesh.setMatrixAt(layerIndex, this.coniferFoliageMatrices[layerIndex]);
     }
   }
 
@@ -316,16 +324,22 @@ export class ForestManager {
     }
   }
 
-  private showBroadleafLayers(treeIndex: number, scaleFactor = 1): void {
+  private showBroadleafLayers(treeIndex: number): void {
     const foliageStart = this.broadleafStartIndex[treeIndex];
     const foliageCount = this.broadleafLayerCounts[treeIndex];
     for (let i = 0; i < foliageCount; i++) {
       const layerIndex = foliageStart + i;
-      const matrix = this.scaledTreeMatrix(this.broadleafFoliageMatrices[layerIndex], scaleFactor).clone();
-      this.broadleafFoliageMesh.setMatrixAt(layerIndex, matrix);
-      this.broadleafShadowMesh.setMatrixAt(layerIndex, matrix);
+      this.broadleafFoliageMesh.setMatrixAt(layerIndex, this.broadleafFoliageMatrices[layerIndex]);
+      this.broadleafShadowMesh.setMatrixAt(layerIndex, this.broadleafFoliageMatrices[layerIndex]);
     }
   }
+}
+
+function isConiferSpecies(species: string): boolean {
+  return species === 'norwaySpruce'
+    || species === 'scotsPine'
+    || species === 'silverFir'
+    || species === 'larch';
 }
 
 function treeClearRadius(placement: TreePlacement, roadWidth: number): number {

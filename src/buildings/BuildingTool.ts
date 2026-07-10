@@ -12,6 +12,8 @@ type BuildingToolOptions = {
   markers: BuildingMarkers;
   getState: () => GameState;
   onPlaced: (state: GameState) => void;
+  /** When set (SpacetimeDB connected), placement goes through the server reducer. */
+  onPlaceBuilding?: (kind: BuildingKind, x: number, z: number) => void | Promise<void>;
   isBlocked: () => boolean;
 };
 
@@ -56,6 +58,13 @@ export class BuildingTool {
 
     event.preventDefault();
     event.stopPropagation();
+
+    if (this.options.onPlaceBuilding) {
+      void Promise.resolve(this.options.onPlaceBuilding(this.mode, point.x, point.z)).catch((error) => {
+        console.error('Building placement failed:', error);
+      });
+      return;
+    }
 
     const result = placeBuilding(this.options.getState(), this.mode, point.x, point.z);
     if (!result.ok) return;
