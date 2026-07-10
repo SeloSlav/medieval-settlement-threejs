@@ -3,6 +3,7 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import { formatResourceAmount } from './yields.ts';
+import { buildingSalvageRefund, formatBuildingCost, getBuildingCost, STONE_SALVAGE_FRACTION, WOOD_SALVAGE_FRACTION } from './buildingEconomy.ts';
 import { getBuildingDefinition } from './buildings.ts';
 import type { InspectableTarget, ResourceStockpile } from './types.ts';
 import type { WorldQueries } from './WorldQueries.ts';
@@ -13,6 +14,7 @@ type ResourceInspectorOptions = {
   sceneManager: SceneManager;
   terrainProjector: TerrainProjector;
   worldQueries: WorldQueries;
+  onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   isBlocked: () => boolean;
 };
 
@@ -24,7 +26,10 @@ export class ResourceInspector {
   private readonly status: HTMLElement;
   private readonly detailList: HTMLElement;
   private readonly stockpileRoot: HTMLElement;
-  private readonly stockpileValues: Record<keyof ResourceStockpile, HTMLElement>;
+  private readonly stockpileValues: Record<'stone' | 'wood', HTMLElement>;
+  private readonly demolishSection: HTMLElement;
+  private readonly demolishButton: HTMLButtonElement;
+  private readonly demolishHint: HTMLElement;
   private readonly marker: THREE.Mesh;
   private selectedTarget: InspectableTarget | null = null;
   private selectedX = 0;
@@ -46,10 +51,6 @@ export class ResourceInspector {
           <span class="resource-stockpile-label">Wood</span>
           <strong data-stockpile="wood">0</strong>
         </div>
-        <div class="resource-stockpile-item" data-resource="water">
-          <span class="resource-stockpile-label">Water</span>
-          <strong data-stockpile="water">0</strong>
-        </div>
       </div>
 
       <aside class="resource-inspector-panel" data-resource-inspector hidden aria-label="Resource inspector">
@@ -62,6 +63,12 @@ export class ResourceInspector {
         </header>
         <section class="resource-inspector-details" aria-label="Resource details">
           <ul class="road-controls-list" data-inspector-details></ul>
+        </section>
+        <section class="resource-inspector-actions" data-inspector-actions hidden aria-label="Building actions">
+          <button type="button" class="resource-inspector-demolish" data-action="demolish-building">
+            Demolish
+          </button>
+          <p class="resource-inspector-demolish-hint" data-demolish-hint></p>
         </section>
       </aside>
     `,
@@ -76,20 +83,27 @@ export class ResourceInspector {
     this.stockpileValues = {
       stone: this.mustElement(options.uiRoot, '[data-stockpile="stone"]'),
       wood: this.mustElement(options.uiRoot, '[data-stockpile="wood"]'),
-      water: this.mustElement(options.uiRoot, '[data-stockpile="water"]'),
     };
+    this.demolishSection = this.mustElement(options.uiRoot, '[data-inspector-actions]');
+    this.demolishButton = this.mustButton(options.uiRoot, '[data-action="demolish-building"]');
+    this.demolishHint = this.mustElement(options.uiRoot, '[data-demolish-hint]');
 
     this.marker = createSelectionMarker();
     options.sceneManager.selectionGroup.add(this.marker);
     this.marker.visible = false;
 
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
+    this.demolishButton.addEventListener('click', this.onDemolishClick);
   }
+
+  private readonly onDemolishClick = (): void => {
+    if (!this.selectedTarget || this.selectedTarget.kind !== 'building') return;
+    void this.options.onDemolishBuilding?.(this.selectedTarget.building.id);
+  };
 
   setStockpile(stockpile: ResourceStockpile): void {
     this.stockpileValues.stone.textContent = Math.round(stockpile.stone).toString();
     this.stockpileValues.wood.textContent = Math.round(stockpile.wood).toString();
-    this.stockpileValues.water.textContent = Math.round(stockpile.water).toString();
   }
 
   selectQuarry(quarryId: string): void {
@@ -125,6 +139,7 @@ export class ResourceInspector {
 
   dispose(): void {
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
+    this.demolishButton.removeEventListener('click', this.onDemolishClick);
     this.options.sceneManager.selectionGroup.remove(this.marker);
     disposeObject3D(this.marker);
     this.panel.remove();
@@ -173,11 +188,13 @@ export class ResourceInspector {
   private clearSelection(hidePanel: boolean): void {
     this.selectedTarget = null;
     this.marker.visible = false;
+    this.demolishSection.hidden = true;
     if (hidePanel) this.panel.hidden = true;
   }
 
   private renderTarget(target: InspectableTarget): void {
     if (target.kind === 'quarry') {
+      this.demolishSection.hidden = true;
       const { definition, state } = target;
       this.eyebrow.textContent = 'Quarry';
       this.title.textContent = definition.label;
@@ -200,6 +217,11 @@ export class ResourceInspector {
       this.eyebrow.textContent = 'Building';
       this.title.textContent = label;
       const definition = getBuildingDefinition(building.kind);
+      const cost = getBuildingCost(building.kind);
+      const refund = buildingSalvageRefund(building.kind);
+      this.demolishSection.hidden = false;
+      this.demolishHint.textContent =
+        `Salvages about ${refund.wood} wood and ${refund.stone} stone (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(WOOD_SALVAGE_FRACTION * 100)}% wood of ${formatBuildingCost(cost)}).`;
 
       if (building.kind === 'lumber_mill') {
         this.status.textContent = matureTrees > 0
@@ -222,11 +244,13 @@ export class ResourceInspector {
       this.detailList.innerHTML = building.kind === 'stone_quarry'
         ? `
         <li><span>Kind</span><span>${building.kind}</span></li>
+        <li><span>Build cost</span><span>${formatBuildingCost(cost)}</span></li>
         <li><span>Work radius</span><span>${definition.workRadius} m</span></li>
         <li><span>Harvest interval</span><span>${definition.harvestInterval}s</span></li>
       `
         : `
         <li><span>Kind</span><span>${building.kind}</span></li>
+        <li><span>Build cost</span><span>${formatBuildingCost(cost)}</span></li>
         <li><span>Work radius</span><span>${definition.workRadius} m</span></li>
         <li><span>Mature trees</span><span>${matureTrees}</span></li>
         <li><span>Stumps</span><span>${stumpTrees}</span></li>
@@ -236,6 +260,7 @@ export class ResourceInspector {
     }
 
     this.eyebrow.textContent = 'River';
+    this.demolishSection.hidden = true;
     this.title.textContent = target.onWater ? 'Open water' : 'River access';
     this.status.textContent = target.onWater
       ? 'Direct water access — useful for mills and wells.'
@@ -259,6 +284,12 @@ export class ResourceInspector {
   private mustElement(root: HTMLElement, selector: string): HTMLElement {
     const element = root.querySelector<HTMLElement>(selector);
     if (!element) throw new Error(`Missing resource inspector element ${selector}`);
+    return element;
+  }
+
+  private mustButton(root: HTMLElement, selector: string): HTMLButtonElement {
+    const element = root.querySelector<HTMLButtonElement>(selector);
+    if (!element) throw new Error(`Missing resource inspector button ${selector}`);
     return element;
   }
 }

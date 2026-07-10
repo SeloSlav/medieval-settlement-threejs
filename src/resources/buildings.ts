@@ -15,7 +15,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingKind, BuildingDefinition> = {
     label: 'Lumber mill',
     workRadius: 210,
     pickRadius: 8,
-    harvestInterval: 3.5,
+    harvestInterval: 9,
     regrowRatePerSecond: 0,
   },
   reforester: {
@@ -24,14 +24,14 @@ export const BUILDING_DEFINITIONS: Record<BuildingKind, BuildingDefinition> = {
     workRadius: 190,
     pickRadius: 8,
     harvestInterval: 0,
-    regrowRatePerSecond: 0.035,
+    regrowRatePerSecond: 0.014,
   },
   stone_quarry: {
     kind: 'stone_quarry',
     label: "Stonecutter's camp",
     workRadius: 55,
     pickRadius: 10,
-    harvestInterval: 4,
+    harvestInterval: 9,
     regrowRatePerSecond: 0,
   },
 };

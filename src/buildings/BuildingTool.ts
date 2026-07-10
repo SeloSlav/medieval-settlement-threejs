@@ -191,6 +191,7 @@ export class BuildingTool {
   private validate(kind: BuildingKind, x: number, z: number) {
     return validateBuildingPlacement(kind, x, z, {
       buildings: this.options.getState().buildings.values(),
+      stockpile: this.options.getState().stockpile,
       isWaterAt: this.options.isWaterAt,
       getNaturalHeightAt: this.options.getNaturalHeightAt,
     });

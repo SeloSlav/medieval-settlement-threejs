@@ -171,6 +171,14 @@ export class SpacetimeGameStore {
     await this.callReducer('placeBuilding', 'place_building', { kind, x, z });
   }
 
+  async demolishBuilding(buildingId: string): Promise<void> {
+    const serverId = parseBuildingServerId(buildingId);
+    if (serverId === null) {
+      throw new Error('Invalid building id.');
+    }
+    await this.callReducer('demolishBuilding', 'demolish_building', { buildingId: serverId });
+  }
+
   async bootstrapWorld(registry: WorldLayoutRegistry): Promise<void> {
     const quarries = registry.definitionList.map((definition) => ({
       quarryId: definition.id,
@@ -389,4 +397,10 @@ function inferNextBuildingId(buildings: Map<string, BuildingState>): number {
     maxId = Math.max(maxId, Number.parseInt(match[1], 10));
   }
   return maxId + 1;
+}
+
+function parseBuildingServerId(buildingId: string): number | null {
+  const match = /^building-(\d+)$/.exec(buildingId);
+  if (!match) return null;
+  return Number.parseInt(match[1], 10);
 }

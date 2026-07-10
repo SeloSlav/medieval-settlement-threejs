@@ -9,6 +9,8 @@ export const TOAST_MESSAGES = {
   'building.placement.water': 'Cannot build on water',
   'building.placement.too_steep': 'The slope is too steep here',
   'building.placement.too_close': 'Too close to another building',
+  'building.placement.within_reforester_radius': 'Within an existing reforester hut\'s work area',
+  'building.placement.insufficient_resources': 'Not enough wood or stone',
 } as const;
 
 export type ToastMessageId = keyof typeof TOAST_MESSAGES;
@@ -44,6 +46,10 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.too_steep';
     case 'too_close':
       return 'building.placement.too_close';
+    case 'within_reforester_radius':
+      return 'building.placement.within_reforester_radius';
+    case 'insufficient_resources':
+      return 'building.placement.insufficient_resources';
     default: {
       const unhandled: never = reason;
       return unhandled;

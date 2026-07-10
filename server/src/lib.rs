@@ -2,6 +2,7 @@
 //! Single-player localhost: anonymous identity per browser token; resources/buildings/roads scoped by owner.
 
 mod constants;
+mod economy;
 mod tables;
 mod types;
 mod world_gen;

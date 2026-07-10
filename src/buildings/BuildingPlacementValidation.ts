@@ -1,8 +1,14 @@
-import type { BuildingKind, BuildingState } from '../resources/types.ts';
+import type { BuildingKind, BuildingState, ResourceStockpile } from '../resources/types.ts';
+import { canAffordBuilding } from '../resources/buildingEconomy.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { sampleBuildingFootprintHeights } from './BuildingTerrainLayout.ts';
 
-export type BuildingPlacementFailureReason = 'water' | 'too_steep' | 'too_close';
+export type BuildingPlacementFailureReason =
+  | 'water'
+  | 'too_steep'
+  | 'too_close'
+  | 'within_reforester_radius'
+  | 'insufficient_resources';
 
 export type BuildingPlacementResult =
   | { ok: true }
@@ -12,6 +18,7 @@ const MAX_FOOTPRINT_HEIGHT_DELTA = 9.5;
 
 type BuildingPlacementContext = {
   buildings: Iterable<BuildingState>;
+  stockpile: ResourceStockpile;
   isWaterAt: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
 };
@@ -28,6 +35,14 @@ export function validateBuildingPlacement(
 
   if (isFootprintTooUneven(kind, x, z, context.getNaturalHeightAt)) {
     return { ok: false, reason: 'too_steep' };
+  }
+
+  if (kind === 'reforester' && isWithinExistingReforesterRadius(x, z, context.buildings)) {
+    return { ok: false, reason: 'within_reforester_radius' };
+  }
+
+  if (!canAffordBuilding(context.stockpile, kind)) {
+    return { ok: false, reason: 'insufficient_resources' };
   }
 
   const definition = getBuildingDefinition(kind);
@@ -67,4 +82,19 @@ function isFootprintTooUneven(
     maxHeight = Math.max(maxHeight, height);
   }
   return maxHeight - minHeight > MAX_FOOTPRINT_HEIGHT_DELTA;
+}
+
+function isWithinExistingReforesterRadius(
+  x: number,
+  z: number,
+  buildings: Iterable<BuildingState>,
+): boolean {
+  for (const building of buildings) {
+    if (building.kind !== 'reforester') continue;
+    const distance = Math.hypot(building.x - x, building.z - z);
+    if (distance < building.workRadius) {
+      return true;
+    }
+  }
+  return false;
 }

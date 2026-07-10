@@ -36,6 +36,7 @@ import {
 // Import all reducer arg schemas
 import BootstrapQuarriesReducer from "./bootstrap_quarries_reducer";
 import BootstrapTreesReducer from "./bootstrap_trees_reducer";
+import DemolishBuildingReducer from "./demolish_building_reducer";
 import PlaceBuildingReducer from "./place_building_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
@@ -142,6 +143,7 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("bootstrap_quarries", BootstrapQuarriesReducer),
   __reducerSchema("bootstrap_trees", BootstrapTreesReducer),
+  __reducerSchema("demolish_building", DemolishBuildingReducer),
   __reducerSchema("place_building", PlaceBuildingReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),

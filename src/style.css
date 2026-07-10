@@ -281,6 +281,41 @@ button {
   border-top: 1px solid rgba(238, 232, 220, 0.1);
 }
 
+.resource-inspector-actions {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(238, 232, 220, 0.1);
+}
+
+.resource-inspector-actions[hidden] {
+  display: none;
+}
+
+.resource-inspector-demolish {
+  height: 36px;
+  padding: 0 13px;
+  color: #f6d8d2;
+  background: rgba(120, 42, 34, 0.42);
+  border: 1px solid rgba(220, 120, 104, 0.42);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.resource-inspector-demolish:hover,
+.resource-inspector-demolish:focus-visible {
+  background: rgba(150, 52, 42, 0.58);
+  outline: none;
+}
+
+.resource-inspector-demolish-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .fps-reticule {
   position: fixed;
   left: 50%;

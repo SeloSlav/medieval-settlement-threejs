@@ -1,8 +1,9 @@
 import type { QuarryKind } from '../quarries/QuarryLayout.ts';
 import type { ResourceKind } from './types.ts';
 
-const LARGE_QUARRY_YIELD = 800;
-const SMALL_QUARRY_YIELD = 350;
+/** World stone budget — finite until late-game markets. Tuned with harvest rate in server constants. */
+const LARGE_QUARRY_YIELD = 1500;
+const SMALL_QUARRY_YIELD = 650;
 
 export function quarryMaxYield(kind: QuarryKind): number {
   switch (kind) {

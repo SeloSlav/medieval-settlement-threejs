@@ -230,6 +230,18 @@ export class App {
       sceneManager,
       terrainProjector: sceneManager.terrainProjector,
       worldQueries,
+      onDemolishBuilding: async (buildingId) => {
+        if (!this.spacetimeStore?.isConnected) {
+          this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
+          return;
+        }
+        try {
+          await this.spacetimeStore.demolishBuilding(buildingId);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Demolition failed.';
+          this.toastManager?.show(message, { variant: 'error' });
+        }
+      },
       isBlocked: () =>
         roadTool.isEnabled()
         || buildingTool.isEnabled()

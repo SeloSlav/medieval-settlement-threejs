@@ -1,5 +1,6 @@
 import { CompassHud } from './CompassHud.ts';
 import { GameMenu } from './GameMenu.ts';
+import { formatBuildingCost, getBuildingCost } from '../resources/buildingEconomy.ts';
 import { syncTipCardVisibility } from './tipCards.ts';
 import { subscribeTipCardsPreference } from './tipCardsPreference.ts';
 
@@ -320,9 +321,15 @@ export class BuildToolbar {
   }
 
   private describeStatus(stats: ToolbarStats): string {
-    if (stats.mode === 'lumber_mill') return 'Click terrain to place a lumber mill (one at a time)';
-    if (stats.mode === 'reforester') return 'Click terrain to place a reforester (one at a time)';
-    if (stats.mode === 'stone_quarry') return "Click terrain to place a stonecutter's camp (one at a time)";
+    if (stats.mode === 'lumber_mill') {
+      return `Click terrain to place a lumber mill (${formatBuildingCost(getBuildingCost('lumber_mill'))})`;
+    }
+    if (stats.mode === 'reforester') {
+      return `Click terrain to place a reforester (${formatBuildingCost(getBuildingCost('reforester'))})`;
+    }
+    if (stats.mode === 'stone_quarry') {
+      return `Click terrain to place a stonecutter's camp (${formatBuildingCost(getBuildingCost('stone_quarry'))})`;
+    }
     if (stats.mode !== 'road') return 'Road tool off';
     if (stats.canBuild) return 'Ready to build';
     if (stats.hasDraft) return 'Add more points';
