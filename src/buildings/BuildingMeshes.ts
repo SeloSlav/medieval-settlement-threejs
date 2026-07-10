@@ -104,7 +104,7 @@ export function createLumberMillMesh(): THREE.Group {
       new THREE.BoxGeometry(length + 0.65, 0.12, slopeLength),
       tileMaterial(0),
       new THREE.Vector3(0, roofY + ridgeHeight * 0.5, side * halfW * 0.46),
-      new THREE.Euler(side > 0 ? -roofPitch : roofPitch, 0, 0),
+      new THREE.Euler(side > 0 ? roofPitch : -roofPitch, 0, 0),
     );
   }
 
@@ -127,12 +127,12 @@ export function createLumberMillMesh(): THREE.Group {
         new THREE.BoxGeometry(length + 0.45, 0.06, 0.26),
         tileMaterial(variant),
         new THREE.Vector3(0, stripY, side * stripZ),
-        new THREE.Euler(side > 0 ? -roofPitch : roofPitch, 0, 0),
+        new THREE.Euler(side > 0 ? roofPitch : -roofPitch, 0, 0),
       );
     }
   }
 
-  // Triangular gable ends — two sloped faces meeting at the ridge (visible ^ profile).
+  // Triangular gable ends — sloped faces in the Y–Z plane meeting at the ridge.
   for (const xSign of [-1, 1] as const) {
     for (const zSide of [-1, 1] as const) {
       addMesh(
@@ -140,7 +140,7 @@ export function createLumberMillMesh(): THREE.Group {
         new THREE.BoxGeometry(0.16, 0.12, slopeLength * 0.96),
         tileMaterial(1),
         new THREE.Vector3(xSign * (halfL + 0.06), roofY + ridgeHeight * 0.48, zSide * halfW * 0.46),
-        new THREE.Euler(0, 0, zSide * -roofPitch),
+        new THREE.Euler(zSide > 0 ? roofPitch : -roofPitch, 0, 0),
       );
     }
   }
@@ -378,7 +378,6 @@ export function createStoneQuarryMesh(): THREE.Group {
   const shedW = 5.2;
   const shedD = 4.2;
   const shedWallH = 2.55;
-  const shedHalfW = shedW * 0.5;
   const shedHalfD = shedD * 0.5;
   const shedRidgeH = 1.35;
 
@@ -401,21 +400,21 @@ export function createStoneQuarryMesh(): THREE.Group {
     new THREE.Vector3(shedX + 0.6, 0.32 + 1.05, shedZ + shedHalfD - 0.04),
   );
 
-  const shedRoofPitch = Math.atan2(shedRidgeH, shedHalfW);
-  const shedSlopeLen = shedHalfW / Math.cos(shedRoofPitch) + 0.2;
+  const shedRoofPitch = Math.atan2(shedRidgeH, shedHalfD);
+  const shedSlopeLen = shedHalfD / Math.cos(shedRoofPitch) + 0.2;
   const shedRoofY = 0.32 + shedWallH;
   for (const side of [-1, 1] as const) {
     addMesh(
       group,
-      new THREE.BoxGeometry(shedD + 0.3, 0.1, shedSlopeLen),
+      new THREE.BoxGeometry(shedW + 0.3, 0.1, shedSlopeLen),
       tileMaterial(side > 0 ? 1 : 0),
-      new THREE.Vector3(shedX, shedRoofY + shedRidgeH * 0.5, shedZ + side * shedHalfW * 0.46),
-      new THREE.Euler(side > 0 ? -shedRoofPitch : shedRoofPitch, 0, 0),
+      new THREE.Vector3(shedX, shedRoofY + shedRidgeH * 0.5, shedZ + side * shedHalfD * 0.46),
+      new THREE.Euler(side > 0 ? shedRoofPitch : -shedRoofPitch, 0, 0),
     );
   }
   addMesh(
     group,
-    new THREE.BoxGeometry(shedD + 0.4, 0.16, 0.28),
+    new THREE.BoxGeometry(shedW + 0.4, 0.16, 0.28),
     tileMaterial(2),
     new THREE.Vector3(shedX, shedRoofY + shedRidgeH + 0.04, shedZ),
   );

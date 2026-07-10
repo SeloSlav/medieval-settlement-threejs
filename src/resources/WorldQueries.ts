@@ -100,10 +100,9 @@ export class WorldQueries {
     let best: QuarryNodeState | null = null;
     let bestDistance = Infinity;
 
-    for (const definition of this.registry.definitionList) {
-      const quarryState = state.quarries.get(definition.id);
-      if (!quarryState || quarryState.remaining <= 0) continue;
-      const distance = Math.hypot(x - definition.x, z - definition.z);
+    for (const quarryState of state.quarries.values()) {
+      if (quarryState.remaining <= 0) continue;
+      const distance = Math.hypot(x - quarryState.x, z - quarryState.z);
       if (distance > radius || distance >= bestDistance) continue;
       bestDistance = distance;
       best = quarryState;

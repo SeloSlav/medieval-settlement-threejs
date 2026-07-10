@@ -30,6 +30,8 @@ export type QuarryNodeState = {
   resource: ResourceKind;
   remaining: number;
   maxYield: number;
+  x: number;
+  z: number;
 };
 
 export type TreeLayoutEntry = {

@@ -2,7 +2,6 @@ mod math;
 mod quarry;
 mod river;
 
-use quarry::generate_quarries;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -18,6 +17,20 @@ struct EmbeddedTree {
 #[derive(Debug, Deserialize)]
 struct EmbeddedTreesFile {
     trees: Vec<EmbeddedTree>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EmbeddedQuarry {
+    quarry_id: String,
+    x: f64,
+    z: f64,
+    max_yield: f64,
+}
+
+#[derive(Debug, Deserialize)]
+struct EmbeddedQuarriesFile {
+    quarries: Vec<EmbeddedQuarry>,
 }
 
 pub struct WorldBootstrapQuarry {
@@ -41,8 +54,15 @@ fn parse_embedded_trees() -> Vec<EmbeddedTree> {
     file.trees
 }
 
-pub fn bootstrap_quarry_rows(seed: u64) -> Vec<WorldBootstrapQuarry> {
-    generate_quarries(seed)
+fn parse_embedded_quarries() -> Vec<EmbeddedQuarry> {
+    let json = include_str!("../../generated/world_quarries.json");
+    let file: EmbeddedQuarriesFile =
+        serde_json::from_str(json).expect("world_quarries.json must be valid");
+    file.quarries
+}
+
+pub fn bootstrap_quarry_rows(_seed: u64) -> Vec<WorldBootstrapQuarry> {
+    parse_embedded_quarries()
         .into_iter()
         .map(|quarry| WorldBootstrapQuarry {
             quarry_id: quarry.quarry_id,

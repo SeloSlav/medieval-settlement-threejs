@@ -21,6 +21,7 @@ export class GameRuntime {
   private readonly callbacks: GameRuntimeCallbacks;
   private unsubscribe: (() => void) | null = null;
   private roadsHydrated = false;
+  private worldBootstrapped = false;
 
   constructor(
     store: SpacetimeGameStore,
@@ -45,6 +46,14 @@ export class GameRuntime {
     this.unsubscribe = this.store.subscribe((snapshot) => {
       const gameState = this.store.toGameState(this.seed, this.registry);
       this.callbacks.onSnapshot(snapshot, gameState);
+
+      if (!this.worldBootstrapped && snapshot.connected) {
+        this.worldBootstrapped = true;
+        void this.store.bootstrapWorld(this.registry).catch((error) => {
+          console.warn('[GameRuntime] Failed to bootstrap quarries', error);
+          this.worldBootstrapped = false;
+        });
+      }
 
       if (!this.roadsHydrated && snapshot.connected && snapshot.roads) {
         this.roadsHydrated = true;

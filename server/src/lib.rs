@@ -185,22 +185,33 @@ fn ensure_sim_schedule(ctx: &ReducerContext) {
 
 #[reducer]
 pub fn bootstrap_quarries(ctx: &ReducerContext, quarries: Vec<QuarryBootstrap>) -> Result<(), String> {
-    if ctx.db.quarry().iter().count() > 0 {
-        return Ok(());
-    }
     if !quarries.is_empty() {
         for quarry in quarries {
             if quarry.quarry_id.is_empty() || quarry.max_yield <= 0.0 {
                 continue;
             }
-            ctx.db.quarry().insert(Quarry {
-                quarry_id: quarry.quarry_id,
-                x: quarry.x,
-                z: quarry.z,
-                max_yield: quarry.max_yield,
-                remaining: quarry.max_yield,
-            });
+            if let Some(existing) = ctx.db.quarry().quarry_id().find(&quarry.quarry_id) {
+                ctx.db.quarry().quarry_id().update(Quarry {
+                    x: quarry.x,
+                    z: quarry.z,
+                    max_yield: quarry.max_yield,
+                    remaining: existing.remaining.min(quarry.max_yield),
+                    ..existing
+                });
+            } else {
+                ctx.db.quarry().insert(Quarry {
+                    quarry_id: quarry.quarry_id,
+                    x: quarry.x,
+                    z: quarry.z,
+                    max_yield: quarry.max_yield,
+                    remaining: quarry.max_yield,
+                });
+            }
         }
+        return Ok(());
+    }
+
+    if ctx.db.quarry().iter().count() > 0 {
         return Ok(());
     }
 

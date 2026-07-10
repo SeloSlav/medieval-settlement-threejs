@@ -25,6 +25,8 @@ export function createInitialGameState(registry: WorldLayoutRegistry, seed: numb
       resource: definition.resource,
       remaining: definition.maxYield,
       maxYield: definition.maxYield,
+      x: definition.x,
+      z: definition.z,
     });
   }
 
@@ -205,6 +207,8 @@ function restoreQuarries(nodes: QuarryNodeState[], registry: WorldLayoutRegistry
       resource: definition.resource,
       remaining: clamp(node.remaining, 0, definition.maxYield),
       maxYield: definition.maxYield,
+      x: node.x ?? definition.x,
+      z: node.z ?? definition.z,
     });
   }
 
@@ -216,6 +220,8 @@ function restoreQuarries(nodes: QuarryNodeState[], registry: WorldLayoutRegistry
       resource: definition.resource,
       remaining: definition.maxYield,
       maxYield: definition.maxYield,
+      x: definition.x,
+      z: definition.z,
     });
   }
 

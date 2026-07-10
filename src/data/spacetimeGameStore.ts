@@ -150,6 +150,8 @@ export class SpacetimeGameStore {
           resource: definition.resource,
           remaining: definition.maxYield,
           maxYield: definition.maxYield,
+          x: definition.x,
+          z: definition.z,
         });
       }
     }
@@ -167,6 +169,16 @@ export class SpacetimeGameStore {
 
   async placeBuilding(kind: BuildingKind, x: number, z: number): Promise<void> {
     await this.callReducer('placeBuilding', 'place_building', { kind, x, z });
+  }
+
+  async bootstrapWorld(registry: WorldLayoutRegistry): Promise<void> {
+    const quarries = registry.definitionList.map((definition) => ({
+      quarryId: definition.id,
+      x: definition.x,
+      z: definition.z,
+      maxYield: definition.maxYield,
+    }));
+    await this.callReducer('bootstrapQuarries', 'bootstrap_quarries', { quarries });
   }
 
   queueRoadSync(snapshot: RoadNetworkSnapshot): void {
@@ -284,6 +296,8 @@ export class SpacetimeGameStore {
           resource: 'stone',
           remaining: row.remaining,
           maxYield: row.maxYield,
+          x: row.x,
+          z: row.z,
         });
       }
     }

@@ -3,10 +3,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { computeWorldBootstrapDataHeadless } from '../src/world/worldBootstrapData.ts';
 
-const outputPath = join(dirname(fileURLToPath(import.meta.url)), '../server/generated/world_trees.json');
+const generatedDir = join(dirname(fileURLToPath(import.meta.url)), '../server/generated');
+const treesPath = join(generatedDir, 'world_trees.json');
+const quarriesPath = join(generatedDir, 'world_quarries.json');
 
 const data = computeWorldBootstrapDataHeadless();
-mkdirSync(dirname(outputPath), { recursive: true });
-writeFileSync(outputPath, JSON.stringify({ trees: data.trees }, null, 2));
+mkdirSync(generatedDir, { recursive: true });
+writeFileSync(treesPath, JSON.stringify({ trees: data.trees }, null, 2));
+writeFileSync(quarriesPath, JSON.stringify({ quarries: data.quarries }, null, 2));
 
-console.log(`Wrote ${data.trees.length} trees to ${outputPath}`);
+console.log(`Wrote ${data.trees.length} trees to ${treesPath}`);
+console.log(`Wrote ${data.quarries.length} quarries to ${quarriesPath}`);
