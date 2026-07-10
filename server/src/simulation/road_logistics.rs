@@ -2,6 +2,7 @@
 
 use spacetimedb::Identity;
 
+use crate::constants::RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC;
 use crate::roads::RoadNetwork;
 use crate::tables::{building, Building, Residence};
 
@@ -50,6 +51,45 @@ pub fn claim_residences_for_lodges(
         }
     }
     claims
+}
+
+pub fn residence_firewood_runway_seconds(residence: &Residence) -> f64 {
+    if residence.abandoned || residence.population == 0 {
+        return f64::INFINITY;
+    }
+    let demand = residence.population as f64 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC;
+    if demand <= 1e-9 {
+        return f64::INFINITY;
+    }
+    residence.firewood_stock / demand
+}
+
+/// Lowest firewood runway first; tie-break by road-path distance, then residence id.
+pub fn sort_residences_for_delivery(
+    network: &RoadNetwork,
+    lodge: &Building,
+    residences: &mut [Residence],
+) {
+    residences.sort_by(|a, b| {
+        let runway_a = residence_firewood_runway_seconds(a);
+        let runway_b = residence_firewood_runway_seconds(b);
+        match runway_a
+            .partial_cmp(&runway_b)
+            .unwrap_or(std::cmp::Ordering::Equal)
+        {
+            std::cmp::Ordering::Equal => {
+                let distance_a = road_path_distance(network, lodge.x, lodge.z, a.x, a.z)
+                    .unwrap_or(f64::INFINITY);
+                let distance_b = road_path_distance(network, lodge.x, lodge.z, b.x, b.z)
+                    .unwrap_or(f64::INFINITY);
+                distance_a
+                    .partial_cmp(&distance_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| a.id.cmp(&b.id))
+            }
+            other => other,
+        }
+    });
 }
 
 pub fn sort_mills_by_road_path(

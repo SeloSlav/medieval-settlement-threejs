@@ -6,8 +6,12 @@ import {
 } from '../../generated/gameBalance.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
+  formatFirewoodRunwayDays,
+  formatLodgeCrewSplit,
   lodgeDeliveryIntervalSeconds,
   lodgeFirewoodPerDelivery,
+  lodgeLaborSplit,
+  residenceFirewoodRunwayDays,
 } from '../resourceTotals.ts';
 import {
   buildingCostRows,
@@ -32,16 +36,24 @@ export function renderWoodcuttersLodgeInspector(
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
   const definition = getBuildingDefinition(building.kind);
+  const crew = lodgeLaborSplit(building.assignedLabor);
+  const crewLabel = formatLodgeCrewSplit(crew);
   const connectedMills = context.worldQueries.getRoadConnectedMills(building);
   const claimedResidences = context.worldQueries.getClaimedResidencesForLodge(building);
+  const nextDeliveryTarget = context.worldQueries.getNextDeliveryTargetForLodge(building);
+  const nextTargetRunway = nextDeliveryTarget ? residenceFirewoodRunwayDays(nextDeliveryTarget) : null;
+  const nextTargetLabel = nextDeliveryTarget
+    ? `Parcel #${nextDeliveryTarget.parcelIndex + 1}${nextTargetRunway != null ? ` (${formatFirewoodRunwayDays(nextTargetRunway)} left)` : ''}`
+    : 'None needing fuel';
   const millsWithTimber = connectedMills.filter((mill) => mill.timber > 0).length;
   const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
   const onRoad = roadAccess.startsWith('Connected');
-  const deliveryInterval = lodgeDeliveryIntervalSeconds(building.assignedLabor);
-  const firewoodPerTrip = lodgeFirewoodPerDelivery(building.assignedLabor);
-  const timberPerCycle = LODGE_TIMBER_PER_CYCLE * Math.max(1, building.assignedLabor);
-  const firewoodPerCycle = LODGE_FIREWOOD_PER_CYCLE * Math.max(1, building.assignedLabor);
-  const canDeliver = building.assignedLabor > 0 && onRoad && building.firewood > 0 && claimedResidences.length > 0;
+  const deliveryInterval = lodgeDeliveryIntervalSeconds(crew.delivering);
+  const firewoodPerTrip = lodgeFirewoodPerDelivery(crew.delivering);
+  const processingWorkers = crew.alternates ? 1 : crew.processing;
+  const timberPerCycle = LODGE_TIMBER_PER_CYCLE * processingWorkers;
+  const firewoodPerCycle = LODGE_FIREWOOD_PER_CYCLE * processingWorkers;
+  const canDeliver = crew.delivering > 0 && onRoad && building.firewood > 0 && nextDeliveryTarget != null;
   const deliveringSoon = canDeliver && building.deliveryCooldown <= 0.1;
   const onDeliveryCooldown = building.deliveryCooldown > 0.1;
 
@@ -62,18 +74,29 @@ export function renderWoodcuttersLodgeInspector(
   } else if (claimedResidences.length === 0) {
     statusText = 'No residences claimed on this road branch';
     statusState = 'warning';
+  } else if (crew.alternates && onDeliveryCooldown) {
+    statusText = nextDeliveryTarget
+      ? `Deliverer on trip — next run in ${formatCooldown(building.deliveryCooldown)} → ${nextTargetLabel}`
+      : `Deliverer on trip — next run in ${formatCooldown(building.deliveryCooldown)}`;
+    statusState = 'active';
   } else if (building.firewood <= 0 && building.timber <= 0) {
     statusText = `Pulling timber from ${millsWithTimber} nearest mill${millsWithTimber === 1 ? '' : 's'} by road`;
     statusState = 'active';
   } else if (building.firewood <= 0) {
-    statusText = `Processing timber into firewood for ${claimedResidences.length} claimed home${claimedResidences.length === 1 ? '' : 's'}`;
+    statusText = crew.alternates
+      ? 'Processing timber — lone worker alternates with delivery runs'
+      : `Processing timber into firewood (${crew.processing} at lodge)`;
     statusState = 'active';
   } else if (onDeliveryCooldown) {
-    statusText = `Next delivery in ${formatCooldown(building.deliveryCooldown)} — ${claimedResidences.length} home${claimedResidences.length === 1 ? '' : 's'} on branch`;
+    statusText = nextDeliveryTarget
+      ? `Deliverer on trip — next run in ${formatCooldown(building.deliveryCooldown)} → ${nextTargetLabel}`
+      : `Next delivery in ${formatCooldown(building.deliveryCooldown)} — all claimed homes stocked`;
     statusState = 'active';
   } else if (deliveringSoon) {
-    statusText = `Dispatching firewood to nearest claimed residence (${firewoodPerTrip} per trip)`;
-    statusState = 'active';
+    statusText = nextDeliveryTarget
+      ? `Dispatching firewood to ${nextTargetLabel} (${firewoodPerTrip} per trip)`
+      : `No claimed residences need firewood right now`;
+    statusState = nextDeliveryTarget ? 'active' : 'idle';
   } else {
     statusText = `Serving ${claimedResidences.length} claimed residence${claimedResidences.length === 1 ? '' : 's'} on this branch`;
     statusState = 'active';
@@ -90,10 +113,17 @@ export function renderWoodcuttersLodgeInspector(
     ? 'None on branch'
     : `${claimedResidences.length} claimed`;
 
-  const deliveryRow = building.assignedLabor > 0
-    ? `<li><span>Delivery timer</span><span>${formatCooldown(building.deliveryCooldown)} / ${deliveryInterval.toFixed(1)}s</span></li>
+  const deliveryRow = crew.delivering > 0
+    ? `<li><span>Next delivery</span><span>${nextTargetLabel}</span></li>
+      <li><span>Delivery timer</span><span>${formatCooldown(building.deliveryCooldown)} / ${deliveryInterval.toFixed(1)}s</span></li>
       <li><span>Firewood per trip</span><span>${firewoodPerTrip}</span></li>`
     : `<li><span>Delivery</span><span>Paused — no lodge workers</span></li>`;
+
+  const processOutputLabel = building.assignedLabor > 0
+    ? crew.alternates
+      ? `${firewoodPerCycle} firewood from ${timberPerCycle} timber when processing`
+      : `${firewoodPerCycle} firewood from ${timberPerCycle} timber`
+    : `up to ${LODGE_FIREWOOD_PER_CYCLE * definition.maxLabor} firewood (${definition.maxLabor} workers)`;
 
   return {
     eyebrow: 'Building',
@@ -103,10 +133,11 @@ export function renderWoodcuttersLodgeInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
+      <li><span>Crew split</span><span>${crewLabel}</span></li>
       <li><span>Road-linked mills</span><span>${millSummary}</span></li>
       <li><span>Claimed residences</span><span>${residenceSummary}</span></li>
       <li><span>Process interval</span><span>${definition.harvestInterval}s</span></li>
-      <li><span>Output per cycle</span><span>${building.assignedLabor > 0 ? `${firewoodPerCycle} firewood from ${timberPerCycle} timber` : `up to ${LODGE_FIREWOOD_PER_CYCLE * definition.maxLabor} firewood (${definition.maxLabor} workers)`}</span></li>
+      <li><span>Output per cycle</span><span>${processOutputLabel}</span></li>
       ${deliveryRow}
       ${buildingStorageRows(building, building.kind)}
     `,

@@ -8,10 +8,34 @@ use crate::constants::{
 use crate::db::*;
 use crate::economy::{building_storage_caps, deposit_building, withdraw_building};
 use crate::simulation::road_logistics::{
-    claim_residences_for_lodges, owner_lodges, road_path_distance, sort_mills_by_road_path,
+    claim_residences_for_lodges, owner_lodges, sort_mills_by_road_path,
+    sort_residences_for_delivery,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct LodgeLaborSplit {
+    processing: u32,
+    delivering: u32,
+}
+
+fn lodge_labor_split(assigned: u32) -> LodgeLaborSplit {
+    match assigned {
+        0 => LodgeLaborSplit {
+            processing: 0,
+            delivering: 0,
+        },
+        1 => LodgeLaborSplit {
+            processing: 1,
+            delivering: 1,
+        },
+        workers => LodgeLaborSplit {
+            processing: workers - 1,
+            delivering: 1,
+        },
+    }
+}
 
 pub fn step_woodcutters_lodge(ctx: &ReducerContext, tick: &SimTickContext, building: Building) {
     let Some(def) = building_def(&building.kind) else {
@@ -30,18 +54,63 @@ pub fn step_woodcutters_lodge(ctx: &ReducerContext, tick: &SimTickContext, build
     lodge.action_cooldown = (lodge.action_cooldown - TICK_DT).max(0.0);
     lodge.delivery_cooldown = (lodge.delivery_cooldown - TICK_DT).max(0.0);
 
-    if lodge.assigned_labor > 0 && lodge.action_cooldown <= 0.0 {
-        lodge = process_timber_to_firewood(ctx, tick, network, lodge);
-        lodge.action_cooldown = def.action_interval;
-    }
+    let split = lodge_labor_split(lodge.assigned_labor);
+    let single_worker = lodge.assigned_labor == 1;
+    let process_ready = split.processing > 0 && lodge.action_cooldown <= 0.0;
+    let delivery_ready =
+        split.delivering > 0 && lodge.delivery_cooldown <= 0.0 && lodge.firewood > 0.0;
 
-    if lodge.assigned_labor > 0 && lodge.delivery_cooldown <= 0.0 && lodge.firewood > 0.0 {
-        deliver_firewood_trip(ctx, tick, network, &mut lodge);
-        lodge.delivery_cooldown =
-            LODGE_DELIVERY_INTERVAL / lodge.assigned_labor.max(1) as f64;
+    if single_worker {
+        if delivery_ready && process_ready {
+            if lodge_has_delivery_target(ctx, network, &lodge) {
+                deliver_firewood_trip(ctx, network, &mut lodge, split.delivering);
+                lodge.delivery_cooldown =
+                    LODGE_DELIVERY_INTERVAL / split.delivering.max(1) as f64;
+            } else {
+                lodge = process_timber_to_firewood(ctx, tick, network, lodge, split.processing);
+                lodge.action_cooldown = def.action_interval;
+            }
+        } else if delivery_ready {
+            deliver_firewood_trip(ctx, network, &mut lodge, split.delivering);
+            lodge.delivery_cooldown = LODGE_DELIVERY_INTERVAL / split.delivering.max(1) as f64;
+        } else if process_ready {
+            lodge = process_timber_to_firewood(ctx, tick, network, lodge, split.processing);
+            lodge.action_cooldown = def.action_interval;
+        }
+    } else {
+        if process_ready {
+            lodge = process_timber_to_firewood(ctx, tick, network, lodge, split.processing);
+            lodge.action_cooldown = def.action_interval;
+        }
+        if delivery_ready {
+            deliver_firewood_trip(ctx, network, &mut lodge, split.delivering);
+            lodge.delivery_cooldown = LODGE_DELIVERY_INTERVAL / split.delivering.max(1) as f64;
+        }
     }
 
     ctx.db.building().id().update(lodge);
+}
+
+fn lodge_has_delivery_target(
+    ctx: &ReducerContext,
+    network: &crate::roads::RoadNetwork,
+    lodge: &Building,
+) -> bool {
+    let lodges = owner_lodges(ctx, lodge.owner);
+    let residences: Vec<Residence> = ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&lodge.owner)
+        .filter(|residence| !residence.abandoned)
+        .collect();
+    let claims = claim_residences_for_lodges(network, &lodges, &residences);
+    let capacity = crate::economy::residence_firewood_capacity();
+
+    residences.iter().any(|residence| {
+        claims.get(&residence.id).copied() == Some(lodge.id)
+            && (capacity - residence.firewood_stock) > 1e-6
+    })
 }
 
 fn process_timber_to_firewood(
@@ -49,13 +118,18 @@ fn process_timber_to_firewood(
     tick: &SimTickContext,
     network: &crate::roads::RoadNetwork,
     lodge: Building,
+    processing_workers: u32,
 ) -> Building {
+    if processing_workers == 0 {
+        return lodge;
+    }
+
     let caps = building_storage_caps(&lodge.kind);
     if lodge.firewood >= caps.firewood - 1e-6 {
         return lodge;
     }
 
-    let labor = lodge.assigned_labor.max(1) as f64;
+    let labor = processing_workers as f64;
     let timber_needed = LODGE_TIMBER_PER_CYCLE * labor;
     let firewood_output = LODGE_FIREWOOD_PER_CYCLE * labor;
 
@@ -123,11 +197,11 @@ fn ensure_lodge_timber(
 
 fn deliver_firewood_trip(
     ctx: &ReducerContext,
-    _tick: &SimTickContext,
     network: &crate::roads::RoadNetwork,
     lodge: &mut Building,
+    delivery_workers: u32,
 ) {
-    if lodge.firewood <= 0.0 || lodge.assigned_labor == 0 {
+    if lodge.firewood <= 0.0 || delivery_workers == 0 {
         return;
     }
 
@@ -145,15 +219,10 @@ fn deliver_firewood_trip(
         .into_iter()
         .filter(|residence| claims.get(&residence.id).copied() == Some(lodge.id))
         .collect();
-    targets.sort_by(|a, b| {
-        road_path_distance(network, lodge.x, lodge.z, a.x, a.z)
-            .unwrap_or(f64::INFINITY)
-            .partial_cmp(&road_path_distance(network, lodge.x, lodge.z, b.x, b.z).unwrap_or(f64::INFINITY))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    sort_residences_for_delivery(network, lodge, &mut targets);
 
     let capacity = crate::economy::residence_firewood_capacity();
-    let batch = LODGE_FIREWOOD_PER_DELIVERY * lodge.assigned_labor.max(1) as f64;
+    let batch = LODGE_FIREWOOD_PER_DELIVERY * delivery_workers as f64;
     let mut available = lodge.firewood;
 
     for residence in targets {

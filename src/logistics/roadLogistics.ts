@@ -1,6 +1,7 @@
 import { BUILDING_ROAD_ACCESS_DISTANCE } from '../generated/gameBalance.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
+import { residenceFirewoodRunwaySeconds } from '../resources/resourceTotals.ts';
 import { distancePointToPolylineXZ } from '../utils/pathGeometry.ts';
 
 type RoadPoint = { x: number; z: number };
@@ -170,5 +171,22 @@ export function sortByRoadPathDistance<T extends { x: number; z: number }>(
     const da = roadPathDistance(network, origin.x, origin.z, a.x, a.z) ?? Infinity;
     const db = roadPathDistance(network, origin.x, origin.z, b.x, b.z) ?? Infinity;
     return da - db;
+  });
+}
+
+/** Lowest firewood runway first; tie-break by road-path distance, then residence id. */
+export function sortResidencesForDelivery(
+  network: RoadNetwork,
+  lodge: { x: number; z: number },
+  residences: readonly ResidenceState[],
+): ResidenceState[] {
+  return [...residences].sort((a, b) => {
+    const runwayA = residenceFirewoodRunwaySeconds(a) ?? Infinity;
+    const runwayB = residenceFirewoodRunwaySeconds(b) ?? Infinity;
+    if (Math.abs(runwayA - runwayB) > 1e-6) return runwayA - runwayB;
+    const distanceA = roadPathDistance(network, lodge.x, lodge.z, a.x, a.z) ?? Infinity;
+    const distanceB = roadPathDistance(network, lodge.x, lodge.z, b.x, b.z) ?? Infinity;
+    if (Math.abs(distanceA - distanceB) > 1e-6) return distanceA - distanceB;
+    return a.id.localeCompare(b.id);
   });
 }

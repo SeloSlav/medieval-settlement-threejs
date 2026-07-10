@@ -84,14 +84,38 @@ export function formatFirewoodRunwayDays(days: number): string {
   return `~${Math.max(1, Math.round(minutes))} min`;
 }
 
-export function lodgeFirewoodPerDelivery(assignedLabor: number): number {
-  if (assignedLabor <= 0) return 0;
-  return LODGE_FIREWOOD_PER_DELIVERY * assignedLabor;
+export type LodgeLaborSplit = {
+  processing: number;
+  delivering: number;
+  alternates: boolean;
+};
+
+/** One deliverer when possible; remaining workers process. A lone worker alternates roles. */
+export function lodgeLaborSplit(assignedLabor: number): LodgeLaborSplit {
+  if (assignedLabor <= 0) {
+    return { processing: 0, delivering: 0, alternates: false };
+  }
+  if (assignedLabor === 1) {
+    return { processing: 1, delivering: 1, alternates: true };
+  }
+  return { processing: assignedLabor - 1, delivering: 1, alternates: false };
 }
 
-export function lodgeDeliveryIntervalSeconds(assignedLabor: number): number {
-  if (assignedLabor <= 0) return Infinity;
-  return LODGE_DELIVERY_INTERVAL / assignedLabor;
+export function formatLodgeCrewSplit(split: LodgeLaborSplit): string {
+  if (split.processing === 0 && split.delivering === 0) return 'None assigned';
+  if (split.alternates) return '1 worker — alternates processing & delivery';
+  if (split.delivering === 0) return `${split.processing} processing`;
+  return `${split.processing} processing · ${split.delivering} delivering`;
+}
+
+export function lodgeFirewoodPerDelivery(deliveryWorkers: number): number {
+  if (deliveryWorkers <= 0) return 0;
+  return LODGE_FIREWOOD_PER_DELIVERY * deliveryWorkers;
+}
+
+export function lodgeDeliveryIntervalSeconds(deliveryWorkers: number): number {
+  if (deliveryWorkers <= 0) return Infinity;
+  return LODGE_DELIVERY_INTERVAL / deliveryWorkers;
 }
 
 export function computeResourceTotals(state: GameState): ResourceTotals {

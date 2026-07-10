@@ -5,8 +5,9 @@ import {
   claimResidencesForLodges,
   roadPathDistance,
   sortByRoadPathDistance,
+  sortResidencesForDelivery,
 } from '../logistics/roadLogistics.ts';
-import { lodgeDeliveryIntervalSeconds } from './resourceTotals.ts';
+import { RESIDENCE_FIREWOOD_CAPACITY, lodgeDeliveryIntervalSeconds, lodgeLaborSplit } from './resourceTotals.ts';
 import { areRoadConnected, formatRoadAccess, nearestRoadDistance } from '../roads/roadConnectivity.ts';
 import type { BuildingState, GameState, InspectableTarget, QuarryNodeState, ResidenceState } from './types.ts';
 import type { WorldLayoutRegistry } from './WorldLayoutRegistry.ts';
@@ -194,7 +195,12 @@ export class WorldQueries {
     const residences = [...state.residences.values()].filter(
       (residence) => !residence.abandoned && claims.get(residence.id) === lodge.id,
     );
-    return sortByRoadPathDistance(this.getRoadNetwork(), lodge, residences);
+    return sortResidencesForDelivery(this.getRoadNetwork(), lodge, residences);
+  }
+
+  getNextDeliveryTargetForLodge(lodge: BuildingState): ResidenceState | null {
+    const claimed = this.getClaimedResidencesForLodge(lodge);
+    return claimed.find((residence) => residence.firewoodStock < RESIDENCE_FIREWOOD_CAPACITY - 1e-6) ?? null;
   }
 
   getServingLodgeForResidence(residence: ResidenceState): BuildingState | null {
@@ -204,7 +210,7 @@ export class WorldQueries {
   }
 
   getLodgeDeliveryIntervalSeconds(lodge: BuildingState): number {
-    return lodgeDeliveryIntervalSeconds(lodge.assignedLabor);
+    return lodgeDeliveryIntervalSeconds(lodgeLaborSplit(lodge.assignedLabor).delivering);
   }
 
   isRoadConnected(ax: number, az: number, bx: number, bz: number): boolean {
