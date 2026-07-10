@@ -242,6 +242,8 @@ export class RoadJunctionBuilder {
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
+    const vertexCount = positions.length / 3;
+    geometry.setAttribute('bridgeBlend', new THREE.BufferAttribute(new Float32Array(vertexCount), 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     return new THREE.Mesh(geometry, material);

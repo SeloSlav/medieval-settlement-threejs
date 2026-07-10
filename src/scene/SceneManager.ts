@@ -67,7 +67,6 @@ export class SceneManager {
   private readonly edgeVisuals = new Map<string, { revision: number; group: THREE.Group }>();
   private rockSpatialIndex: RockSpatialIndex | null = null;
   private buildInteractionActive = false;
-  private shadowsEnabledBeforeDraft = true;
   private renderFrame = 0;
 
   private constructor(
@@ -239,13 +238,9 @@ export class SceneManager {
     }
     this.buildInteractionActive = active;
     this.grassField?.setBuildInteractionActive(active);
-    if (active) {
-      this.shadowsEnabledBeforeDraft = this.sunLight.castShadow;
-      this.sunLight.castShadow = false;
-      return;
+    if (!active) {
+      this.refreshShadowMap();
     }
-    this.sunLight.castShadow = this.shadowsEnabledBeforeDraft;
-    this.refreshShadowMap();
   }
 
   setRoadDraftActive(active: boolean): void {
@@ -282,7 +277,8 @@ export class SceneManager {
     this.sky.updateTime(elapsed);
     this.riverSystem.tick(dt, elapsed);
     this.renderFrame++;
-    if (!this.buildInteractionActive) {
+    const shadowInterval = this.buildInteractionActive ? 3 : 1;
+    if (this.renderFrame % shadowInterval === 0) {
       fitDirectionalLightShadow(this.sunLight, { bounds: this.terrain.bounds, sunOffsetDir: this.sunDirection });
     }
     this.postProcessor.render(dt);
