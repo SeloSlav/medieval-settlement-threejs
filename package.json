@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "generate:world-bootstrap": "npx tsx scripts/generateWorldBootstrap.mts",
-    "deploy:local": "npm run generate:world-bootstrap && spacetime publish --no-config -p ./server medieval-road-system-local -y && spacetime generate --no-config --include-private -p ./server -l typescript -o ./src/generated -y"
+    "deploy:local": "powershell -ExecutionPolicy Bypass -File ./server/deploy-local.ps1",
+    "deploy:local-clean": "powershell -ExecutionPolicy Bypass -File ./server/deploy-local-clean.ps1"
   },
   "devDependencies": {
     "@types/three": "^0.185.1",

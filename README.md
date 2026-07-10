@@ -143,7 +143,7 @@ npm run deploy:local
 npm run dev
 ```
 
-The client connects to `http://localhost:3000` with database name `medieval-road-system-local`.
+The client connects to `http://localhost:3000` with database name `city-builder`.
 
 ### Anonymous identity
 

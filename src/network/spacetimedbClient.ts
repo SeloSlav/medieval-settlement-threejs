@@ -9,7 +9,7 @@ const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
 const spacetimeUriFromEnv = (import.meta.env.VITE_SPACETIME_URI ?? '').trim();
 const dbNameFromEnv = (import.meta.env.VITE_SPACETIME_DB_NAME ?? '').trim();
 const SPACETIME_URI = (spacetimeUriFromEnv || (isDev ? 'http://localhost:3000' : 'https://maincloud.spacetimedb.com')).replace(/\/+$/, '');
-const DB_NAME = dbNameFromEnv || (isDev ? 'medieval-road-system-local' : 'medieval-road-system');
+const DB_NAME = dbNameFromEnv || 'city-builder';
 
 let connection: DbConnection | null = null;
 let connectionToken: string | null = null;
