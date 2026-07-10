@@ -1,4 +1,4 @@
-# Medieval Road System
+# City Builder Starter Kit - ThreeJS
 
 A real-time Three.js sandbox for building a medieval settlement on a procedural 3D landscape. Draw dirt road networks across rolling hills, pine forests, and winding rivers — wooden bridges and graded ramps appear automatically when a path crosses water. Place lumber mills, reforesters, and stone quarries to harvest wood and stone from the world. A [SpacetimeDB](https://spacetimedb.com/) Rust module runs the authoritative economy simulation; the client renders replicated state in real time. Drop into first-person walk mode to explore on foot.
 
@@ -174,7 +174,7 @@ The client connects to `http://localhost:3000` with database name `city-builder`
 
 ### Anonymous identity
 
-No login is required for local dev. On first visit the client generates a random token, stores it in `localStorage` under `medieval-road-system:spacetime-token`, and reconnects with the same SpacetimeDB identity on refresh. Stockpile, buildings, and roads are scoped to that identity.
+No login is required for local dev. On first visit the client generates a random token, stores it in `localStorage`, and reconnects with the same SpacetimeDB identity on refresh. Stockpile, buildings, and roads are scoped to that identity.
 
 When real auth is added later, swap the token source in `src/network/identityPersistence.ts` — the connection layer stays the same.
 

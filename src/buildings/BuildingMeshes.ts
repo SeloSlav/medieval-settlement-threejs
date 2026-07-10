@@ -115,23 +115,6 @@ export function createLumberMillMesh(): THREE.Group {
     new THREE.Vector3(0, roofY + ridgeHeight + 0.06, 0),
   );
 
-  const tileStripCount = 7;
-  for (let i = 0; i < tileStripCount; i++) {
-    const t = i / (tileStripCount - 1);
-    const stripY = roofY + 0.1 + t * (ridgeHeight - 0.15);
-    const stripZ = halfW * 0.44 * (1 - t * 0.58);
-    const variant = (i % 3) as 0 | 1 | 2;
-    for (const side of [-1, 1] as const) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(length + 0.45, 0.06, 0.26),
-        tileMaterial(variant),
-        new THREE.Vector3(0, stripY, side * stripZ),
-        new THREE.Euler(side > 0 ? roofPitch : -roofPitch, 0, 0),
-      );
-    }
-  }
-
   // Triangular gable ends — sloped faces in the Y–Z plane meeting at the ridge.
   for (const xSign of [-1, 1] as const) {
     for (const zSide of [-1, 1] as const) {
@@ -159,15 +142,28 @@ export function createLumberMillMesh(): THREE.Group {
     new THREE.Vector3(-halfL + 1.5, totalWall + 2.75, halfW - 1.2),
   );
 
-  // Timber log stack beside the mill.
-  for (let i = 0; i < 6; i++) {
-    addMesh(
-      group,
-      new THREE.CylinderGeometry(0.24, 0.28, 3.2, 8),
-      timberMaterial('weathered'),
-      new THREE.Vector3(halfL - 2.4 - i * 0.08, stoneHeight + 0.6, halfW + 1.5),
-      new THREE.Euler(0, 0, Math.PI * 0.5),
-    );
+  // Triangular log pile beside the mill — stacked rows tapering to a point.
+  const logRadius = 0.26;
+  const logLength = 3.0;
+  const logSpacing = logRadius * 1.72;
+  const rowSpacing = logRadius * 1.82;
+  const pileRows = 5;
+  const pileX = halfL - 1.8;
+  const pileZ = halfW + 1.6;
+
+  for (let row = 0; row < pileRows; row++) {
+    const logsInRow = pileRows - row;
+    const rowY = logRadius + row * rowSpacing;
+    const rowSpan = (logsInRow - 1) * logSpacing;
+    for (let col = 0; col < logsInRow; col++) {
+      addMesh(
+        group,
+        new THREE.CylinderGeometry(logRadius * 0.93, logRadius * 1.05, logLength, 8),
+        (row + col) % 2 === 0 ? timberMaterial('weathered') : timberMaterial('mid'),
+        new THREE.Vector3(pileX, rowY, pileZ - rowSpan * 0.5 + col * logSpacing),
+        new THREE.Euler(0, 0, Math.PI * 0.5),
+      );
+    }
   }
 
   return group;
