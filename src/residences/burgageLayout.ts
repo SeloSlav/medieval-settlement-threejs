@@ -37,8 +37,8 @@ export type BurgageLayoutResult = {
 
 export const MIN_PLOT_FRONTAGE = 8;
 export const HOUSE_SETBACK = 3.5;
-export const MAIN_HOUSE_WIDTH = 5.2;
-export const MAIN_HOUSE_DEPTH = 6.2;
+export const MAIN_HOUSE_WIDTH = 6.6;
+export const MAIN_HOUSE_DEPTH = 7.4;
 export const MIN_PARCEL_DEPTH = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + 2.5;
 export const MAX_ROAD_FRONTAGE_DISTANCE = 10;
 
@@ -281,6 +281,16 @@ export function edgeMidpoint(corners: BurgageZoneCorners, edge: BurgageFrontageE
 export function cornersFromPoints(points: Point2[]): BurgageZoneCorners | null {
   if (points.length !== 4) return null;
   return { a: points[0], b: points[1], c: points[2], d: points[3] };
+}
+
+/** Vertical lot dividers between adjacent burgage parcels (front edge to rear edge). */
+export function getParcelDividerSegments(layout: BurgageLayoutResult): Array<[Point2, Point2]> {
+  const segments: Array<[Point2, Point2]> = [];
+  for (let i = 0; i < layout.parcels.length - 1; i++) {
+    const parcel = layout.parcels[i];
+    segments.push([parcel.frontRight, parcel.polygon[2]]);
+  }
+  return segments;
 }
 
 export { CORNER_KEYS };

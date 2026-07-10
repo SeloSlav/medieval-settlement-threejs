@@ -28,8 +28,8 @@ pub struct BurgageLayout {
 
 const MIN_PLOT_FRONTAGE: f64 = 8.0;
 const HOUSE_SETBACK: f64 = 3.5;
-const MAIN_HOUSE_WIDTH: f64 = 5.2;
-const MAIN_HOUSE_DEPTH: f64 = 6.2;
+const MAIN_HOUSE_WIDTH: f64 = 6.6;
+const MAIN_HOUSE_DEPTH: f64 = 7.4;
 const MIN_PARCEL_DEPTH: f64 = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + 2.5;
 
 pub fn suggest_plot_count(frontage_length: f64) -> u32 {

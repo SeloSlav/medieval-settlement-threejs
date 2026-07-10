@@ -3,7 +3,7 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { GameState } from '../resources/types.ts';
 import type { BurgageFrontageEdge } from './burgageLayout.ts';
-import { cornersFromPoints } from './burgageLayout.ts';
+import { cornersFromPoints, computeBurgageLayout } from './burgageLayout.ts';
 import { initialPlotCount } from './burgagePlacementValidation.ts';
 import { BurgagePreview } from './BurgagePreview.ts';
 import {
@@ -269,10 +269,20 @@ export class BurgageTool {
     if (this.hoverPoint && corners.length > 0 && corners.length < 4) {
       corners.push(this.hoverPoint);
     }
+
+    let layout = null;
+    if (this.points.length === 4) {
+      const cornerPoints = this.points.map((point) => ({ x: point.x, z: point.z }));
+      const zoneCorners = cornersFromPoints(cornerPoints);
+      if (zoneCorners) {
+        layout = computeBurgageLayout(zoneCorners, this.frontageEdge, this.plotCount);
+      }
+    }
+
     const validation = this.points.length === 4 ? this.getValidation() : { ok: false as const, reason: 'invalid_shape' as const };
     this.preview.update(
       corners,
-      validation.ok ? validation.layout : null,
+      layout,
       validation.ok,
       this.options.getHeightAt,
     );
