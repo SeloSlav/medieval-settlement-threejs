@@ -105,6 +105,39 @@ function addCircularSaw(group: THREE.Group, x: number, z: number, floorY: number
   );
 }
 
+type GableAxis = 'x' | 'z';
+
+/** Solid triangular infill closing the gable void between the wall plate and ridge. */
+function addTriangularGableWall(
+  group: THREE.Group,
+  axis: GableAxis,
+  planePos: number,
+  halfSpan: number,
+  wallTop: number,
+  ridgeHeight: number,
+  thickness: number,
+  material: THREE.Material,
+): void {
+  const span = halfSpan - 0.06;
+  const shape = new THREE.Shape();
+  shape.moveTo(-span, 0);
+  shape.lineTo(span, 0);
+  shape.lineTo(0, ridgeHeight);
+  shape.closePath();
+
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
+  geometry.translate(0, wallTop, 0);
+
+  if (axis === 'x') {
+    geometry.rotateY(Math.PI * 0.5);
+    geometry.translate(planePos, 0, 0);
+  } else {
+    geometry.translate(0, 0, planePos);
+  }
+
+  addMesh(group, geometry, material, new THREE.Vector3(0, 0, 0));
+}
+
 /** Long timber sawmill — stone plinth, plank walls, red terracotta gabled roof. */
 export function createLumberMillMesh(): THREE.Group {
   const group = new THREE.Group();
@@ -239,17 +272,19 @@ export function createLumberMillMesh(): THREE.Group {
     new THREE.Vector3(0, roofY + ridgeHeight + 0.06, 0),
   );
 
-  // Triangular gable ends — sloped faces in the Y–Z plane meeting at the ridge.
+  // Triangular gable walls — seal the end faces below the roof.
+  const gableWallThickness = 0.18;
   for (const xSign of [-1, 1] as const) {
-    for (const zSide of [-1, 1] as const) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.16, 0.12, slopeLength * 0.96),
-        tileMaterial(1),
-        new THREE.Vector3(xSign * (halfL + 0.06), roofY + ridgeHeight * 0.48, zSide * halfW * 0.46),
-        new THREE.Euler(zSide > 0 ? roofPitch : -roofPitch, 0, 0),
-      );
-    }
+    addTriangularGableWall(
+      group,
+      'x',
+      xSign * (halfL - 0.08),
+      halfW,
+      roofY,
+      ridgeHeight,
+      gableWallThickness,
+      timberMaterial('light'),
+    );
   }
 
   // Stone chimney — common in the region.
@@ -463,18 +498,19 @@ export function createReforesterHutMesh(): THREE.Group {
     );
   }
 
-  // Gable infill — closes the front and back triangles beneath the roof.
-  const gableSlopeLen = halfW / Math.cos(roofPitch);
+  // Triangular gable walls — seal the front and back faces below the roof.
+  const gableWallThickness = 0.18;
   for (const zSign of [-1, 1] as const) {
-    for (const xSign of [-1, 1] as const) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(gableSlopeLen * 0.94, 0.12, 0.16),
-        shingleMaterial(),
-        new THREE.Vector3(xSign * halfW * 0.46, wallTop + ridgeHeight * 0.48, zSign * (halfD - 0.06)),
-        new THREE.Euler(0, 0, xSign * -roofPitch),
-      );
-    }
+    addTriangularGableWall(
+      group,
+      'z',
+      zSign * (halfD - 0.08),
+      halfW,
+      wallTop,
+      ridgeHeight,
+      gableWallThickness,
+      timberMaterial('mid'),
+    );
   }
 
   // Axe block beside the door, resting on the plinth.
