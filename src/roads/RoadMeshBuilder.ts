@@ -5,6 +5,17 @@ import { RoadMaterialFactory } from './RoadMaterialFactory.ts';
 import type { RoadNetwork } from './RoadNetwork.ts';
 import { trimPathAtEndpoint } from './roadEndpoint.ts';
 
+const CORE_Y_OFFSET = 0.055;
+const CORE_EDGE_JITTER = 0.22;
+/** How far the feathered shoulder extends under the opaque core to avoid visible seams. */
+const BLEND_INNER_OVERLAP = 0.14;
+
+type RoadCrossSection = {
+  leftCore: THREE.Vector3;
+  rightCore: THREE.Vector3;
+  normal: THREE.Vector3;
+};
+
 export class RoadMeshBuilder {
   private readonly terrain: Terrain;
   private readonly materials: RoadMaterialFactory;
@@ -30,7 +41,8 @@ export class RoadMeshBuilder {
     group.name = `Road edge ${edge.id}`;
     group.userData.edgeId = edge.id;
 
-    const core = this.buildRibbon(ribbonPath, edge.width, this.materials.road, 0.055, edge.id, true);
+    const crossSections = this.buildCrossSections(ribbonPath, edge.width, edge.id, true);
+    const core = this.buildRibbonFromSections(crossSections, ribbonPath, this.materials.road);
     core.name = `Road core ${edge.id}`;
     core.userData.edgeId = edge.id;
     core.castShadow = false;
@@ -38,7 +50,7 @@ export class RoadMeshBuilder {
     core.renderOrder = 11;
     group.add(core);
 
-    const edgeBlend = this.buildEdgeBlend(ribbonPath, edge.width, edge.id, {
+    const edgeBlend = this.buildEdgeBlend(crossSections, ribbonPath, edge.width, edge.id, {
       fadeStart: startIsEndpoint,
       fadeEnd: endIsEndpoint,
     });
@@ -55,13 +67,13 @@ export class RoadMeshBuilder {
   buildPreview(points: THREE.Vector3[], width: number, valid: boolean): THREE.Mesh | null {
     const sampled = this.samplePath(points, 1.25);
     if (sampled.length < 2) return null;
-    return this.buildRibbon(sampled, width, valid ? this.materials.previewValid : this.materials.previewInvalid, 0.13, 'preview', false);
+    return this.buildSimpleRibbon(sampled, width, valid ? this.materials.previewValid : this.materials.previewInvalid, 0.13, 'preview', false);
   }
 
   buildSelection(edge: RoadEdge): THREE.Mesh | null {
     const path = edge.sampledPath.length >= 2 ? edge.sampledPath : edge.controlPoints;
     if (path.length < 2) return null;
-    const mesh = this.buildRibbon(path, edge.width + 0.9, this.materials.selection, 0.18, `${edge.id}-selection`, false);
+    const mesh = this.buildSimpleRibbon(path, edge.width + 0.9, this.materials.selection, 0.18, `${edge.id}-selection`, false);
     mesh.renderOrder = 20;
     return mesh;
   }
@@ -88,7 +100,62 @@ export class RoadMeshBuilder {
     return sampled;
   }
 
-  private buildRibbon(
+  private buildCrossSections(
+    path: THREE.Vector3[],
+    width: number,
+    seed: string,
+    irregular: boolean,
+  ): RoadCrossSection[] {
+    const half = width * 0.5;
+    const sections: RoadCrossSection[] = [];
+
+    for (let i = 0; i < path.length; i++) {
+      const tangent = tangentAt(path, i);
+      const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      const leftJitter = irregular ? edgeJitter(seed, i, 0) * CORE_EDGE_JITTER : 0;
+      const rightJitter = irregular ? edgeJitter(seed, i, 1) * CORE_EDGE_JITTER : 0;
+      const leftCore = path[i].clone().addScaledVector(normal, half + leftJitter);
+      const rightCore = path[i].clone().addScaledVector(normal, -half + rightJitter);
+      leftCore.y = this.terrain.getHeightAt(leftCore.x, leftCore.z) + CORE_Y_OFFSET;
+      rightCore.y = this.terrain.getHeightAt(rightCore.x, rightCore.z) + CORE_Y_OFFSET;
+      sections.push({ leftCore, rightCore, normal });
+    }
+
+    return sections;
+  }
+
+  private buildRibbonFromSections(
+    crossSections: RoadCrossSection[],
+    path: THREE.Vector3[],
+    material: THREE.Material,
+  ): THREE.Mesh {
+    const positions: number[] = [];
+    const uvs: number[] = [];
+    const indices: number[] = [];
+    const distances = cumulativeDistances(path);
+
+    for (let i = 0; i < crossSections.length; i++) {
+      const { leftCore, rightCore } = crossSections[i];
+      positions.push(leftCore.x, leftCore.y, leftCore.z, rightCore.x, rightCore.y, rightCore.z);
+      uvs.push(0, distances[i] / 5.8, 1, distances[i] / 5.8);
+    }
+
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = i * 2;
+      indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setIndex(indices);
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    return new THREE.Mesh(geometry, material);
+  }
+
+  private buildSimpleRibbon(
     path: THREE.Vector3[],
     width: number,
     material: THREE.Material,
@@ -105,9 +172,9 @@ export class RoadMeshBuilder {
     for (let i = 0; i < path.length; i++) {
       const tangent = tangentAt(path, i);
       const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const jitter = irregular ? edgeJitter(seed, i, 0) * 0.22 : 0;
+      const jitter = irregular ? edgeJitter(seed, i, 0) * CORE_EDGE_JITTER : 0;
       const left = path[i].clone().addScaledVector(normal, half + jitter);
-      const right = path[i].clone().addScaledVector(normal, -half + edgeJitter(seed, i, 1) * (irregular ? 0.22 : 0));
+      const right = path[i].clone().addScaledVector(normal, -half + edgeJitter(seed, i, 1) * (irregular ? CORE_EDGE_JITTER : 0));
       left.y = this.terrain.getHeightAt(left.x, left.z) + yOffset;
       right.y = this.terrain.getHeightAt(right.x, right.z) + yOffset;
       positions.push(left.x, left.y, left.z, right.x, right.y, right.z);
@@ -130,6 +197,7 @@ export class RoadMeshBuilder {
   }
 
   private buildEdgeBlend(
+    crossSections: RoadCrossSection[],
     path: THREE.Vector3[],
     width: number,
     seed: string,
@@ -140,24 +208,21 @@ export class RoadMeshBuilder {
     const indices: number[] = [];
     const distances = cumulativeDistances(path);
     const pathLen = distances[distances.length - 1] ?? 0;
-    const half = width * 0.5;
     const shoulderMid = width * 0.48;
     const shoulderOuter = width * 0.92;
     const fadeSpan = width * 0.55;
 
-    for (let i = 0; i < path.length; i++) {
-      const tangent = tangentAt(path, i);
-      const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const leftJitter = edgeJitter(seed, i, 2) * 0.52;
-      const rightJitter = edgeJitter(seed, i, 3) * 0.52;
-      const leftFar = path[i].clone().addScaledVector(normal, half + shoulderOuter + leftJitter);
-      const leftMid = path[i].clone().addScaledVector(normal, half + shoulderMid + leftJitter * 0.62);
-      const leftInner = path[i].clone().addScaledVector(normal, half - 0.04 + leftJitter * 0.28);
-      const rightInner = path[i].clone().addScaledVector(normal, -half + 0.04 + rightJitter * 0.28);
-      const rightMid = path[i].clone().addScaledVector(normal, -half - shoulderMid + rightJitter * 0.62);
-      const rightFar = path[i].clone().addScaledVector(normal, -half - shoulderOuter + rightJitter);
+    for (let i = 0; i < crossSections.length; i++) {
+      const { leftCore, rightCore, normal } = crossSections[i];
+      const leftOuterJitter = edgeJitter(seed, i, 2) * 0.52;
+      const rightOuterJitter = edgeJitter(seed, i, 3) * 0.52;
+      const leftInner = leftCore.clone().addScaledVector(normal, -BLEND_INNER_OVERLAP);
+      const rightInner = rightCore.clone().addScaledVector(normal, BLEND_INNER_OVERLAP);
+      const leftMid = leftCore.clone().addScaledVector(normal, shoulderMid + leftOuterJitter * 0.62);
+      const leftFar = leftCore.clone().addScaledVector(normal, shoulderOuter + leftOuterJitter);
+      const rightMid = rightCore.clone().addScaledVector(normal, -(shoulderMid + rightOuterJitter * 0.62));
+      const rightFar = rightCore.clone().addScaledVector(normal, -(shoulderOuter + rightOuterJitter));
       for (const p of [leftFar, leftMid, leftInner, rightInner, rightMid, rightFar]) {
-        p.y = this.terrain.getHeightAt(p.x, p.z) + 0.034;
         positions.push(p.x, p.y, p.z);
       }
       const v = distances[i] / 5.8;

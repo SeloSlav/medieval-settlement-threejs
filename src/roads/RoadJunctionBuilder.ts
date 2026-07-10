@@ -13,7 +13,7 @@ import {
 } from './roadEndpoint.ts';
 
 const CORE_Y_OFFSET = 0.055;
-const BLEND_Y_OFFSET = 0.034;
+const BLEND_Y_OFFSET = 0.055;
 const CAP_OVERLAP = 0.14;
 
 export class RoadJunctionBuilder {

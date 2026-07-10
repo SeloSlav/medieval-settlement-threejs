@@ -5,7 +5,11 @@ import {
   resolveFpWalkProbePhase,
   type FpWalkProbePhase,
 } from './fpAirborneWalkPolicy.ts';
-import { OUTDOOR_SPRINT_SPEED_MPS, OUTDOOR_WALK_SPEED_MPS } from './fpConstants.ts';
+import {
+  OUTDOOR_CROUCH_SPEED_MPS,
+  OUTDOOR_SPRINT_SPEED_MPS,
+  OUTDOOR_WALK_SPEED_MPS,
+} from './fpConstants.ts';
 
 /** Match The Mammoth `apps/server` pose clamp lower bound. */
 const FLOOR_Y = 0.35;
@@ -16,7 +20,7 @@ const GRAVITY = 21.5;
 const JUMP_SPEED = 6.5;
 const WALK_SPEED = OUTDOOR_WALK_SPEED_MPS;
 const SPRINT_SPEED = OUTDOOR_SPRINT_SPEED_MPS;
-const CROUCH_SPEED = 2.8;
+const CROUCH_SPEED = OUTDOOR_CROUCH_SPEED_MPS;
 const GROUND_ACCEL = 19;
 const AIR_ACCEL = 7.8;
 const JUMP_RISE_CUT_FACTOR = 0.91;

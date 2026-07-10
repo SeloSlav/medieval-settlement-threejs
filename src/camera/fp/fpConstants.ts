@@ -8,6 +8,11 @@ export const FREE_LOOK_RECENTER_RATE_PER_S = 3.5;
 export const FREE_LOOK_RECENTER_SNAP_EPS = 1e-4;
 export const CAM_BOB_DIP_Y = 0.004;
 
-/** Outdoor scale — Mammoth apartment speeds feel slow on 820m terrain. */
-export const OUTDOOR_WALK_SPEED_MPS = 12;
-export const OUTDOOR_SPRINT_SPEED_MPS = 21;
+/**
+ * Human-scale locomotion (1 world unit = 1 m).
+ * Eye stand ~1.55 m (~1.70 m tall); crouch eye ~1.0 m.
+ * Walk ~5.2 km/h, run ~19.8 km/h, crouch-walk ~3.2 km/h on uneven ground.
+ */
+export const OUTDOOR_WALK_SPEED_MPS = 1.45;
+export const OUTDOOR_SPRINT_SPEED_MPS = 5.5;
+export const OUTDOOR_CROUCH_SPEED_MPS = 0.9;

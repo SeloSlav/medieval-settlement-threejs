@@ -43,13 +43,13 @@ function buildMuddyBankColorNode(textures: TextureSet): TslNode {
 
 function buildBankOpacityNode(textures: TextureSet): TslNode {
   const uvNode = uv() as TslNode;
-  const radialFade = pow(smoothstep(float(0) as TslNode, float(1) as TslNode, uvNode.x), float(0.52) as TslNode);
+  const radialFade = pow(smoothstep(float(0.12) as TslNode, float(1) as TslNode, uvNode.x), float(0.48) as TslNode);
   const edgeMaskSample = textures.edgeMask
     ? (texture(textures.edgeMask, uvNode) as TslNode).r
     : (float(1) as TslNode);
   return (mix(float(0.03) as TslNode, float(1) as TslNode, radialFade) as TslNode)
     .mul(edgeMaskSample)
-    .mul(float(0.94) as TslNode);
+    .mul(float(0.98) as TslNode);
 }
 
 function buildRiverBankOpacityNode(textures: TextureSet): TslNode {
