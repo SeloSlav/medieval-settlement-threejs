@@ -426,6 +426,24 @@ export function createReforesterHutMesh(): THREE.Group {
     );
   }
 
+  // Loft deck — horizontal ceiling where the wall frame meets the roof attic.
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width - 0.55, 0.14, depth - 0.45),
+    timberMaterial('light'),
+    new THREE.Vector3(0, wallTop - 0.06, 0),
+  );
+
+  // Loft joists visible from the main floor below.
+  for (let z = -halfD + 2.2; z <= halfD - 2.2; z += 2.8) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(width - 0.52, 0.2, 0.16),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, wallTop - 0.2, z),
+    );
+  }
+
   // Ridge beam.
   addMesh(
     group,
