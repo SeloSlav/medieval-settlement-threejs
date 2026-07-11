@@ -8,6 +8,7 @@ import {
 type GameMenuOptions = {
   onShadowPreferenceChange: () => void;
   onOpenChange?: (open: boolean) => void;
+  onOpenCityAdministration?: () => void;
   onNewWorld?: () => void;
   showButton?: boolean;
   /** When false, Escape will not open the menu (e.g. first-person walk mode). */
@@ -23,6 +24,7 @@ export class GameMenu {
   private open = false;
   private readonly onShadowPreferenceChange: () => void;
   private readonly onOpenChange?: (open: boolean) => void;
+  private readonly onOpenCityAdministration?: () => void;
   private readonly onNewWorld?: () => void;
   private readonly canOpenFromKeyboard?: () => boolean;
   private readonly onKeyDown: (event: KeyboardEvent) => void;
@@ -30,6 +32,7 @@ export class GameMenu {
   constructor(parent: HTMLElement, options: GameMenuOptions) {
     this.onShadowPreferenceChange = options.onShadowPreferenceChange;
     this.onOpenChange = options.onOpenChange;
+    this.onOpenCityAdministration = options.onOpenCityAdministration;
     this.onNewWorld = options.onNewWorld;
     this.canOpenFromKeyboard = options.canOpenFromKeyboard;
 
@@ -59,6 +62,7 @@ export class GameMenu {
           <input type="checkbox" data-building-shadows-checkbox />
           <span>Building shadows</span>
         </label>
+        <button type="button" class="game-menu-action" data-city-admin>City administration…</button>
         <button type="button" class="game-menu-action" data-new-world>New world…</button>
         <button type="button" class="game-menu-return" data-return-button>Return to game</button>
       </div>
@@ -68,6 +72,7 @@ export class GameMenu {
     this.treeShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-tree-shadows-checkbox]')!;
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
     const returnButton = this.backdrop.querySelector<HTMLButtonElement>('[data-return-button]')!;
+    const cityAdminButton = this.backdrop.querySelector<HTMLButtonElement>('[data-city-admin]')!;
     const newWorldButton = this.backdrop.querySelector<HTMLButtonElement>('[data-new-world]')!;
 
     if (options.showButton !== false) parent.appendChild(this.menuButton);
@@ -77,6 +82,10 @@ export class GameMenu {
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
     this.menuButton.addEventListener('click', () => this.toggle());
     returnButton.addEventListener('click', () => this.close());
+    cityAdminButton.addEventListener('click', () => {
+      this.close();
+      this.onOpenCityAdministration?.();
+    });
     newWorldButton.addEventListener('click', () => {
       this.close();
       this.onNewWorld?.();

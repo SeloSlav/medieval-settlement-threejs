@@ -97,17 +97,9 @@ export type PlacementBuildMenuAction =
   | 'marketplace'
   | 'residences';
 
-export type BuildMenuAction = PlacementBuildMenuAction | 'city-administration';
+export type BuildMenuAction = PlacementBuildMenuAction;
 
-export type BuildMenuEntry =
-  | { kind: 'placement'; action: PlacementBuildMenuAction; artKey: PlacementArtKey }
-  | {
-      kind: 'panel';
-      action: 'city-administration';
-      hotkey: 'A';
-      title: 'City administration';
-      description: 'Set the mayor tax on village trade and review household wealth, savings, mayor tax, and parish tithe income.';
-    };
+export type BuildMenuEntry = { kind: 'placement'; action: PlacementBuildMenuAction; artKey: PlacementArtKey };
 
 export const BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   { kind: 'placement', action: 'lumber-mill', artKey: 'lumber_mill' },
@@ -120,19 +112,11 @@ export const BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   { kind: 'placement', action: 'chapel', artKey: 'chapel' },
   { kind: 'placement', action: 'marketplace', artKey: 'marketplace' },
   { kind: 'placement', action: 'residences', artKey: 'residences' },
-  {
-    kind: 'panel',
-    action: 'city-administration',
-    hotkey: 'A',
-    title: 'City administration',
-    description: 'Set the mayor tax on village trade and review household wealth, savings, mayor tax, and parish tithe income.',
-  },
 ];
 
 export type BuildMenuHandlers = {
   onToggleBuilding: (kind: BuildingKind) => void;
   onToggleResidences: () => void;
-  onOpenCityAdministration: () => void;
 };
 
 export function renderBuildMenuCards(): string {
@@ -142,9 +126,7 @@ export function renderBuildMenuCards(): string {
 export function resolveBuildMenuHotkey(key: string): BuildMenuAction | null {
   const normalized = key.toLowerCase();
   for (const entry of BUILD_MENU_ENTRIES) {
-    const hotkey = entry.kind === 'placement'
-      ? BUILD_CARD_COPY[entry.artKey].hotkey.toLowerCase()
-      : entry.hotkey.toLowerCase();
+    const hotkey = BUILD_CARD_COPY[entry.artKey].hotkey.toLowerCase();
     if (hotkey === normalized) {
       return entry.action;
     }
@@ -158,10 +140,6 @@ export function runBuildMenuAction(
   closeMenu: () => void,
 ): void {
   closeMenu();
-  if (action === 'city-administration') {
-    handlers.onOpenCityAdministration();
-    return;
-  }
   if (action === 'residences') {
     handlers.onToggleResidences();
     return;
@@ -171,26 +149,6 @@ export function runBuildMenuAction(
 }
 
 function renderBuildMenuEntry(entry: BuildMenuEntry): string {
-  if (entry.kind === 'panel') {
-    return `
-          <button type="button" class="construction-card construction-card--admin" data-action="${entry.action}" data-hotkey="${entry.hotkey}" aria-label="${entry.title} (${entry.hotkey})">
-            <span class="construction-card__art construction-card__art--icon" aria-hidden="true">
-              <svg viewBox="0 0 64 64" width="64" height="64">
-                <rect x="10" y="28" width="44" height="24" rx="2" fill="#d8c9a2" stroke="#5a4a32" stroke-width="2"/>
-                <path d="M32 10 L52 28 H12 Z" fill="#8b5e3c" stroke="#5a4a32" stroke-width="2"/>
-                <rect x="28" y="36" width="8" height="16" fill="#5a4a32"/>
-                <circle cx="20" cy="22" r="3" fill="#f0d070"/>
-                <circle cx="44" cy="22" r="3" fill="#f0d070"/>
-              </svg>
-            </span>
-            <span class="construction-card__hotkey" aria-hidden="true">${entry.hotkey}</span>
-            <span class="construction-card__tooltip" role="tooltip">
-              <span class="construction-card__tooltip-title">${entry.title} (${entry.hotkey})</span>
-              <span class="construction-card__tooltip-desc">${entry.description}</span>
-            </span>
-          </button>`;
-  }
-
   const copy = BUILD_CARD_COPY[entry.artKey];
   const cost = copy.cost();
   return `

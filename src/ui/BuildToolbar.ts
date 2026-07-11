@@ -189,7 +189,6 @@ export class BuildToolbar {
               <li><span>Forager's shed</span><span class="road-controls-key">Y</span></li>
               <li><span>Chapel</span><span class="road-controls-key">C</span></li>
               <li><span>Marketplace</span><span class="road-controls-key">P</span></li>
-              <li><span>City admin</span><span class="road-controls-key">A</span></li>
               <li><span>Residence</span><span class="road-controls-key">H</span></li>
             </ul>
           </section>
@@ -306,7 +305,6 @@ export class BuildToolbar {
     this.toolbarHandlers = {
       onToggleBuilding: handlers.onToggleBuilding,
       onToggleResidences: handlers.onToggleResidences,
-      onOpenCityAdministration: handlers.onOpenCityAdministration,
       onOpenRoads: handlers.onOpenRoads,
       onSetWaterOverlay: handlers.onSetWaterOverlay,
     };
@@ -314,6 +312,7 @@ export class BuildToolbar {
     this.gameMenu = new GameMenu(root, {
       onShadowPreferenceChange: () => handlers.onShadowPreferenceChange?.(),
       onOpenChange: handlers.onMenuOpenChange,
+      onOpenCityAdministration: handlers.onOpenCityAdministration,
       canOpenFromKeyboard: handlers.canOpenMenuFromKeyboard,
       onNewWorld: handlers.onNewWorld,
       showButton: false,

@@ -50,7 +50,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 - **Tree lifecycle** — server-driven `mature → stump → growing → mature` phases with client visual sync (instanced forest, animated saplings, stumps).
 - Server-authoritative simulation tick (200 ms) in the Rust module — buildings, trees, quarries, foraging, delivery trips, residence needs, backyard gardens, and settlement growth all run server-side. No pause or speed controls; players live through time at a fixed rate.
 - **In-game calendar** — one real second equals one sim second; a full day is 24 hours. Twelve 30-day months (no leap years), weekday names, and work hours 06:00–20:00. The settlement HUD shows date and time. Outside work hours, assigned labor pauses, residence needs do not deplete, chimneys go quiet, and the world shifts through dawn/day/dusk/night lighting. With a staffed chapel, the mayor can enable **Sunday sabbath** in City administration — labor, deliveries, need consumption, and tithes pause that day in exchange for higher chapel attendance and faster settlement.
-- Construction dock UI — `R` for roads, `B` for the build menu (nine building types + residences + city administration), `M` for the hydrology overlay.
+- Construction dock UI — `R` for roads, `B` for the build menu (nine building types + residences), `M` for the hydrology overlay. City administration lives in the main menu (gear icon or `Esc`).
 - Building placement tool with terrain-following preview, flattened terrain pads, work-radius rings, and validation (water, slope, overlap, road access, trees, quarry stone, foraging nodes).
 - Building and residence demolish actions from the inspector panel.
 - Click-to-inspect resource panel for quarries, foraging nodes, buildings, residences, backyards, and river access — yields, storage, labor controls, runway days, delivery status, and hydrology grades.
@@ -138,7 +138,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 | Select forager's shed | Build menu → **Forager's shed** (`Y`) |
 | Select chapel | Build menu → **Chapel** (`C`) |
 | Select marketplace | Build menu → **Marketplace** (`P`) |
-| Open city administration | Build menu → **City administration** (`A`) |
+| Open city administration | Main menu (gear) → **City administration…** |
 | Select residences | Build menu → **Residence** (`H`) |
 | Place building | Left-click on terrain (building tool active) |
 | Undo last building placement | `Ctrl+Z` / `Cmd+Z` |
