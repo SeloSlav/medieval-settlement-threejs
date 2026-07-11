@@ -11,13 +11,16 @@ import {
   STARTING_POPULATION,
   type StorageCaps,
 } from '../generated/gameBalance.ts';
-import type { BuildingKind, BuildingState, GameState, ResidenceState } from './types.ts';
+import { getNeedStock } from '../residences/residenceNeedState.ts';
+import type { BuildingKind, BuildingState, GameState } from './types.ts';
 import {
   formatFirewoodRunwayDays,
   GAME_DAY_SECONDS,
   residenceFirewoodRunwayDays,
   residenceFirewoodRunwaySeconds,
 } from '../logistics/firewoodLogistics.ts';
+
+export { residenceNeedsStatus } from '../residences/residenceNeeds.ts';
 
 export {
   ABANDON_AFTER_DEFICIT_TICKS,
@@ -89,7 +92,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   }
 
   for (const residence of state.residences.values()) {
-    firewood += residence.firewoodStock;
+    firewood += getNeedStock(residence.needs, 'firewood');
   }
 
   cachedTotals = {
@@ -134,85 +137,4 @@ export function maxAssignableLabor(
   const assignedElsewhere = stats.assigned - building.assignedLabor;
   const fromPool = Math.max(0, stats.total - assignedElsewhere);
   return Math.min(fromPool, buildingMaxLabor(building.kind));
-}
-
-export function residenceNeedsStatus(residence: ResidenceState): {
-  label: string;
-  state: 'active' | 'idle' | 'warning' | 'abandoned';
-} {
-  if (residence.abandoned) {
-    if (residence.firewoodStock + 1e-6 >= RESIDENCE_RECOVERY_FIREWOOD_MIN) {
-      return {
-        label: 'Restocking complete — settlers return once supply holds',
-        state: 'idle',
-      };
-    }
-    if (residence.firewoodStock > 0) {
-      return {
-        label: `Abandoned — restocking firewood (${Math.round(residence.firewoodStock)} / ${RESIDENCE_RECOVERY_FIREWOOD_MIN})`,
-        state: 'warning',
-      };
-    }
-    return {
-      label: 'Abandoned — awaiting firewood from a road-connected lodge',
-      state: 'abandoned',
-    };
-  }
-  if (residence.population === 0) {
-    const capacity = residence.populationCapacity;
-    const settleSeconds = Math.max(
-      1,
-      Math.round((RESIDENCE_SETTLE_TICKS - residence.settlementTicks) * SIM_TICK_SECONDS),
-    );
-    return {
-      label: capacity > 0
-        ? `Awaiting settlers — first arrival in ~${formatShortDuration(settleSeconds)}`
-        : 'Vacant — awaiting settlers',
-      state: 'idle',
-    };
-  }
-  if (residence.needsDeficitTicks > 0) {
-    const remainingTicks = Math.max(0, ABANDON_AFTER_DEFICIT_TICKS - residence.needsDeficitTicks);
-    const remainingSeconds = remainingTicks * SIM_TICK_SECONDS;
-    return {
-      label: `Low firewood — abandons in ${formatShortDuration(remainingSeconds)}`,
-      state: 'warning',
-    };
-  }
-
-  const runwayDays = residenceFirewoodRunwayDays(residence);
-  if (runwayDays == null) {
-    return { label: 'Needs met', state: 'active' };
-  }
-
-  if (runwayDays <= 0.25) {
-    return {
-      label: 'Out of firewood — awaiting delivery',
-      state: 'warning',
-    };
-  }
-  if (runwayDays < 1) {
-    return {
-      label: `Low firewood — ${formatFirewoodRunwayDays(runwayDays)} left`,
-      state: 'warning',
-    };
-  }
-  if (runwayDays < 3) {
-    return {
-      label: `Firewood low — ${formatFirewoodRunwayDays(runwayDays)} left`,
-      state: 'warning',
-    };
-  }
-  return {
-    label: `Needs met — ${formatFirewoodRunwayDays(runwayDays)} of firewood`,
-    state: 'active',
-  };
-}
-
-function formatShortDuration(seconds: number): string {
-  if (seconds >= 120) {
-    const minutes = Math.max(1, Math.round(seconds / 60));
-    return `~${minutes} min`;
-  }
-  return `~${Math.max(1, Math.round(seconds))}s`;
 }

@@ -1,7 +1,9 @@
 import { BUILDING_ROAD_ACCESS_DISTANCE } from '../generated/gameBalance.ts';
+import { RESIDENCE_FIREWOOD_CAPACITY } from '../generated/gameBalance.ts';
+import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
-import { residenceFirewoodRunwaySeconds, residenceHasFirewoodRoom } from './firewoodLogistics.ts';
+import { residenceFirewoodRunwaySeconds } from './firewoodLogistics.ts';
 import { distancePointToPolylineXZ } from '../utils/pathGeometry.ts';
 
 type RoadPoint = { x: number; z: number };
@@ -208,7 +210,7 @@ export function peekNextDeliveryTarget(
 ): ResidenceState | null {
   let best: ResidenceState | null = null;
   for (const residence of residences) {
-    if (!residenceHasFirewoodRoom(residence.firewoodStock)) continue;
+    if (!hasNeedStockRoom(getNeedStock(residence.needs, 'firewood'), RESIDENCE_FIREWOOD_CAPACITY)) continue;
     if (best == null || compareResidencesForDelivery(network, lodge, residence, best) < 0) {
       best = residence;
     }

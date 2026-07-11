@@ -13,6 +13,7 @@ use crate::economy::{
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{burgage_zone_overlaps_buildings, is_on_quarry_pit};
+use crate::simulation::{clear_residence_needs, ensure_residence_needs};
 use crate::tables::{BurgageZone, Residence};
 
 #[reducer]
@@ -138,7 +139,7 @@ pub fn place_burgage_zone(
 
     for residence in layout.residences {
         let population_capacity = residence_population_for_parcel(residence.parcel_frontage);
-        ctx.db.residence().insert(Residence {
+        let inserted = ctx.db.residence().insert(Residence {
             id: 0,
             zone_id,
             owner,
@@ -149,10 +150,9 @@ pub fn place_burgage_zone(
             population: 0,
             population_capacity,
             settlement_ticks: 0,
-            firewood_stock: 0.0,
             abandoned: false,
-            needs_deficit_ticks: 0,
         });
+        ensure_residence_needs(ctx, inserted.id);
     }
 
     Ok(())
@@ -181,6 +181,7 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
     credit_treasury_timber(ctx, owner, salvage.timber);
     credit_treasury_stone(ctx, owner, salvage.stone);
 
+    clear_residence_needs(ctx, residence_id);
     ctx.db.residence().id().delete(residence_id);
 
     let remaining = ctx.db.residence().zone_id().filter(&zone_id).count();
@@ -220,6 +221,7 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
     credit_treasury_stone(ctx, owner, salvage.stone);
 
     for residence in ctx.db.residence().zone_id().filter(&zone_id) {
+        clear_residence_needs(ctx, residence.id);
         ctx.db.residence().id().delete(residence.id);
     }
     ctx.db.burgage_zone().id().delete(zone_id);

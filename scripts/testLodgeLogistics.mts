@@ -7,6 +7,7 @@ import {
   lodgeLaborSplit,
 } from '../src/logistics/lodgeLogistics.ts';
 import { compareResidencesForDelivery } from '../src/logistics/roadLogistics.ts';
+import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
 import type { ResidenceState } from '../src/resources/types.ts';
 
 function residence(id: string, firewoodStock: number, population = 4): ResidenceState {
@@ -18,9 +19,13 @@ function residence(id: string, firewoodStock: number, population = 4): Residence
     z: 0,
     yaw: 0,
     population,
-    firewoodStock,
+    populationCapacity: population,
+    settlementTicks: 0,
+    needs: mergeNeedRow(createDefaultNeeds(), 'firewood', {
+      stock: firewoodStock,
+      deficitTicks: 0,
+    }),
     abandoned: false,
-    needsDeficitTicks: 0,
   };
 }
 

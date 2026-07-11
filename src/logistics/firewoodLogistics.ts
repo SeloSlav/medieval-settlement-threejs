@@ -2,12 +2,11 @@ import {
   RESIDENCE_FIREWOOD_CAPACITY,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
 } from '../generated/gameBalance.ts';
+import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { ResidenceState } from '../resources/types.ts';
 
 /** One in-game day for firewood runway display (60 sim seconds). */
 export const GAME_DAY_SECONDS = 60;
-
-const FIREWOOD_ROOM_EPSILON = 1e-6;
 
 export function residenceFirewoodDemandPerSecond(residence: ResidenceState): number {
   if (residence.abandoned || residence.population <= 0) return 0;
@@ -17,7 +16,7 @@ export function residenceFirewoodDemandPerSecond(residence: ResidenceState): num
 export function residenceFirewoodRunwaySeconds(residence: ResidenceState): number | null {
   const demand = residenceFirewoodDemandPerSecond(residence);
   if (demand <= 0) return null;
-  return residence.firewoodStock / demand;
+  return getNeedStock(residence.needs, 'firewood') / demand;
 }
 
 export function residenceFirewoodRunwayDays(residence: ResidenceState): number | null {
@@ -27,7 +26,7 @@ export function residenceFirewoodRunwayDays(residence: ResidenceState): number |
 }
 
 export function residenceHasFirewoodRoom(firewoodStock: number): boolean {
-  return firewoodStock < RESIDENCE_FIREWOOD_CAPACITY - FIREWOOD_ROOM_EPSILON;
+  return firewoodStock + 1e-6 < RESIDENCE_FIREWOOD_CAPACITY;
 }
 
 export function formatFirewoodRunwayDays(days: number): string {

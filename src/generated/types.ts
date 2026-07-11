@@ -79,11 +79,18 @@ export const Residence = __t.object("Residence", {
   population: __t.u32(),
   populationCapacity: __t.u32(),
   settlementTicks: __t.u32(),
-  firewoodStock: __t.f64(),
   abandoned: __t.bool(),
-  needsDeficitTicks: __t.u32(),
 });
 export type Residence = __Infer<typeof Residence>;
+
+export const ResidenceNeed = __t.object("ResidenceNeed", {
+  id: __t.u64(),
+  residenceId: __t.u64(),
+  needKind: __t.u8(),
+  stock: __t.f64(),
+  deficitTicks: __t.u32(),
+});
+export type ResidenceNeed = __Infer<typeof ResidenceNeed>;
 
 export const RoadNetworkState = __t.object("RoadNetworkState", {
   owner: __t.identity(),

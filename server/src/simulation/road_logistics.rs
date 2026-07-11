@@ -57,17 +57,20 @@ pub fn claim_residences_for_lodges(
     claims
 }
 
-pub fn residence_firewood_runway_seconds(residence: &Residence) -> f64 {
+pub fn residence_firewood_runway_seconds(
+    residence: &Residence,
+    firewood_stock: f64,
+) -> f64 {
     residence_runway_seconds(
         residence.abandoned,
         residence.population,
-        residence.firewood_stock,
+        firewood_stock,
         RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
     )
 }
 
-pub fn residence_has_firewood_room(residence: &Residence) -> bool {
-    residence_has_room(residence.firewood_stock, residence_firewood_capacity())
+pub fn residence_has_firewood_room_for_stock(firewood_stock: f64) -> bool {
+    residence_has_room(firewood_stock, residence_firewood_capacity())
 }
 
 /// Lowest firewood runway first; tie-break by road-path distance, then residence id.
@@ -75,14 +78,17 @@ pub fn sort_residences_for_delivery(
     network: &RoadNetwork,
     lodge: &Building,
     residences: &mut [Residence],
+    firewood_stock_for: impl Fn(&Residence) -> f64,
 ) {
     residences.sort_by(|a, b| {
         match (a.abandoned, b.abandoned) {
             (true, false) => std::cmp::Ordering::Greater,
             (false, true) => std::cmp::Ordering::Less,
             _ => {
-                let runway_a = residence_firewood_runway_seconds(a);
-                let runway_b = residence_firewood_runway_seconds(b);
+                let runway_a =
+                    residence_firewood_runway_seconds(a, firewood_stock_for(a));
+                let runway_b =
+                    residence_firewood_runway_seconds(b, firewood_stock_for(b));
                 match runway_a
                     .partial_cmp(&runway_b)
                     .unwrap_or(std::cmp::Ordering::Equal)

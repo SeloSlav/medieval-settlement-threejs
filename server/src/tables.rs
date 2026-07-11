@@ -101,7 +101,20 @@ pub struct Residence {
     pub population: u32,
     pub population_capacity: u32,
     pub settlement_ticks: u32,
-    pub firewood_stock: f64,
     pub abandoned: bool,
-    pub needs_deficit_ticks: u32,
+}
+
+#[spacetimedb::table(
+    accessor = residence_need,
+    public,
+    index(accessor = residence_id, btree(columns = [residence_id]))
+)]
+pub struct ResidenceNeed {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub residence_id: u64,
+    pub need_kind: u8,
+    pub stock: f64,
+    pub deficit_ticks: u32,
 }

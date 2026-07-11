@@ -7,12 +7,15 @@ import {
 } from '../buildingEconomy.ts';
 import {
   formatFirewoodRunwayDays,
-  RESIDENCE_FIREWOOD_CAPACITY,
   RESIDENCE_SETTLE_TICKS,
   residenceFirewoodRunwayDays,
-  residenceNeedsStatus,
   SIM_TICK_SECONDS,
 } from '../resourceTotals.ts';
+import {
+  getNeedStock,
+  RESIDENCE_FIREWOOD_CAPACITY,
+  residenceNeedsStatus,
+} from '../../residences/residenceNeeds.ts';
 import type { InspectableTarget } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
@@ -26,10 +29,12 @@ export function renderResidenceInspector(
   const singleRefund = residenceZoneSalvageRefund(1);
   const plotCost = residenceZoneCost(residenceCount);
   const plotRefund = residenceZoneSalvageRefund(residenceCount);
-  const needs = residenceNeedsStatus(residence);
   const nearestRoad = context.worldQueries.getNearestRoadNodeDistance(residence.x, residence.z);
   const roadAccess = context.worldQueries.getRoadAccessLabel(residence.x, residence.z);
   const servingLodge = context.worldQueries.getServingLodgeForResidence(residence);
+  const needs = residenceNeedsStatus(residence, {
+    servingLodgeId: servingLodge?.id ?? null,
+  });
   const runwayDays = residenceFirewoodRunwayDays(residence);
   const firewoodRunwayLabel = runwayDays == null
     ? '—'
@@ -49,7 +54,7 @@ export function renderResidenceInspector(
   return {
     eyebrow: 'Residence',
     title: residence.abandoned
-      ? residence.firewoodStock > 0
+      ? getNeedStock(residence.needs, 'firewood') > 0
         ? 'Abandoned residence — restocking'
         : 'Abandoned residence'
       : residenceCount === 1
@@ -65,7 +70,7 @@ export function renderResidenceInspector(
       ${settleEtaSeconds != null && !residence.abandoned
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — next in ~${formatSettleEta(settleEtaSeconds)}</span></li>`
         : ''}
-      <li><span>Firewood stock</span><span>${Math.round(residence.firewoodStock)} / ${RESIDENCE_FIREWOOD_CAPACITY}</span></li>
+      <li><span>Firewood stock</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY}</span></li>
       <li><span>Firewood runway</span><span>${firewoodRunwayLabel}</span></li>
       <li><span>Serving lodge</span><span>${lodgeLabel}</span></li>
       <li><span>Road access</span><span>${roadAccess}</span></li>

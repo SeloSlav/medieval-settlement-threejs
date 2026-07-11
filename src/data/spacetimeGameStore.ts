@@ -39,6 +39,11 @@ import type {
   TreePhase,
 } from '../resources/types.ts';
 import { createEmptyStockpile, isBuildingKind, isTreePhase } from '../resources/types.ts';
+import {
+  createDefaultNeeds,
+  mergeNeedRow,
+  needKindFromId,
+} from '../residences/residenceNeedState.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 
 export type SpacetimeGameSnapshot = {
@@ -313,6 +318,7 @@ export class SpacetimeGameStore {
     connection.subscriptionBuilder().subscribe('SELECT * FROM building');
     connection.subscriptionBuilder().subscribe('SELECT * FROM burgage_zone');
     connection.subscriptionBuilder().subscribe('SELECT * FROM residence');
+    connection.subscriptionBuilder().subscribe('SELECT * FROM residence_need');
     connection.subscriptionBuilder().subscribe('SELECT * FROM road_network_state');
 
     this.syncAllFromDb(connection);
@@ -328,6 +334,7 @@ export class SpacetimeGameStore {
       building?: TableHandle;
       burgage_zone?: TableHandle;
       residence?: TableHandle;
+      residence_need?: TableHandle;
       road_network_state?: TableHandle;
     };
 
@@ -350,6 +357,9 @@ export class SpacetimeGameStore {
     db.residence?.onInsert(() => this.syncAllFromDb(connection));
     db.residence?.onUpdate(() => this.syncAllFromDb(connection));
     db.residence?.onDelete(() => this.syncAllFromDb(connection));
+    db.residence_need?.onInsert(() => this.syncAllFromDb(connection));
+    db.residence_need?.onUpdate(() => this.syncAllFromDb(connection));
+    db.residence_need?.onDelete(() => this.syncAllFromDb(connection));
     db.road_network_state?.onInsert(() => this.syncAllFromDb(connection));
     db.road_network_state?.onUpdate(() => this.syncAllFromDb(connection));
     db.road_network_state?.onDelete(() => this.syncAllFromDb(connection));
@@ -364,6 +374,14 @@ export class SpacetimeGameStore {
       building?: { iter: () => Iterable<Building> };
       burgage_zone?: { iter: () => Iterable<BurgageZone> };
       residence?: { iter: () => Iterable<Residence> };
+      residence_need?: {
+        iter: () => Iterable<{
+          residenceId: bigint | number;
+          needKind: number;
+          stock: number;
+          deficitTicks: bigint | number;
+        }>;
+      };
       road_network_state?: { iter: () => Iterable<{ owner: { toHexString: () => string }; snapshotJson: string }> };
     };
 
@@ -451,12 +469,30 @@ export class SpacetimeGameStore {
       }
     }
 
+    const needsByResidence = new Map<string, ResidenceState['needs']>();
+    if (db.residence_need) {
+      for (const row of db.residence_need.iter()) {
+        const kind = needKindFromId(Number(row.needKind));
+        if (!kind) continue;
+        const residenceId = `residence-${row.residenceId}`;
+        const needs = needsByResidence.get(residenceId) ?? createDefaultNeeds();
+        needsByResidence.set(
+          residenceId,
+          mergeNeedRow(needs, kind, {
+            stock: row.stock,
+            deficitTicks: Number(row.deficitTicks),
+          }),
+        );
+      }
+    }
+
     this.residences = new Map();
     if (db.residence && this.identityHex) {
       for (const row of db.residence.iter()) {
         if (row.owner.toHexString() !== this.identityHex) continue;
-        this.residences.set(`residence-${row.id}`, {
-          id: `residence-${row.id}`,
+        const residenceId = `residence-${row.id}`;
+        this.residences.set(residenceId, {
+          id: residenceId,
           zoneId: `zone-${row.zoneId}`,
           parcelIndex: Number(row.parcelIndex),
           x: row.x,
@@ -465,9 +501,8 @@ export class SpacetimeGameStore {
           population: Number(row.population),
           populationCapacity: Number(row.populationCapacity ?? row.population),
           settlementTicks: Number(row.settlementTicks ?? 0),
-          firewoodStock: row.firewoodStock,
+          needs: needsByResidence.get(residenceId) ?? createDefaultNeeds(),
           abandoned: row.abandoned,
-          needsDeficitTicks: Number(row.needsDeficitTicks),
         });
       }
     }

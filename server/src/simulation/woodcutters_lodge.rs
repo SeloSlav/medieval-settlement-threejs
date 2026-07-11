@@ -8,10 +8,14 @@ use crate::constants::{
 use crate::db::*;
 use crate::economy::{building_storage_caps, deposit_building, withdraw_building};
 use crate::simulation::road_logistics::{
-    claim_residences_for_lodges, lodge_labor_split, owner_lodges, residence_has_firewood_room,
-    sort_mills_by_road_path, sort_residences_for_delivery,
+    claim_residences_for_lodges, lodge_labor_split, owner_lodges, sort_mills_by_road_path,
+    sort_residences_for_delivery,
 };
 use crate::simulation::tick_context::SimTickContext;
+use crate::simulation::residence_needs::{
+    apply_need_delivery, load_needs, need_stock, ResidenceNeedKind,
+};
+use crate::simulation::residence_needs::firewood;
 use crate::tables::{Building, Residence};
 
 pub fn step_woodcutters_lodge(ctx: &ReducerContext, tick: &SimTickContext, building: Building) {
@@ -42,7 +46,10 @@ pub fn step_woodcutters_lodge(ctx: &ReducerContext, tick: &SimTickContext, build
     } else {
         Vec::new()
     };
-    let has_target = delivery_targets.iter().any(residence_has_firewood_room);
+    let has_target = delivery_targets.iter().any(|residence| {
+        let stock = need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Firewood);
+        firewood::has_stock_room(stock)
+    });
 
     let do_deliver =
         delivery_ready && (!single_worker || !process_ready || has_target);
@@ -79,7 +86,12 @@ fn collect_delivery_targets(
         .into_iter()
         .filter(|residence| claims.get(&residence.id).copied() == Some(lodge.id))
         .collect();
-    sort_residences_for_delivery(network, lodge, &mut targets);
+    sort_residences_for_delivery(network, lodge, &mut targets, |residence| {
+        need_stock(
+            &load_needs(ctx, residence.id),
+            ResidenceNeedKind::Firewood,
+        )
+    });
     targets
 }
 
@@ -175,7 +187,6 @@ fn deliver_firewood_trip(
         return;
     }
 
-    let capacity = crate::economy::residence_firewood_capacity();
     let batch = LODGE_FIREWOOD_PER_DELIVERY * delivery_workers as f64;
     let mut available = lodge.firewood;
 
@@ -183,10 +194,14 @@ fn deliver_firewood_trip(
         if available <= 1e-6 {
             break;
         }
-        if !residence_has_firewood_room(residence) {
+        let stock = need_stock(
+            &load_needs(ctx, residence.id),
+            ResidenceNeedKind::Firewood,
+        );
+        if !firewood::has_stock_room(stock) {
             continue;
         }
-        let room = (capacity - residence.firewood_stock).max(0.0);
+        let room = (firewood::stock_capacity() - stock).max(0.0);
         if room <= 1e-6 {
             continue;
         }
@@ -195,11 +210,7 @@ fn deliver_firewood_trip(
             continue;
         }
         available -= delivered;
-        ctx.db.residence().id().update(Residence {
-            firewood_stock: residence.firewood_stock + delivered,
-            needs_deficit_ticks: 0,
-            ..*residence
-        });
+        apply_need_delivery(ctx, residence.id, ResidenceNeedKind::Firewood, delivered);
         break;
     }
 

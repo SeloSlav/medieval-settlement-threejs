@@ -4,6 +4,8 @@ import { createResidenceShadowProxy } from '../buildings/buildingShadowProxy.ts'
 import { addMesh, shingleMaterial, stoneMaterial, timberMaterial } from '../buildings/buildingMaterials.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import { ChimneySmokeEmitter } from './ResidenceChimneySmoke.ts';
+import { getNeedStock } from './residenceNeedState.ts';
+import type { ResidenceState } from '../resources/types.ts';
 import { MAIN_HOUSE_DEPTH, MAIN_HOUSE_WIDTH } from './burgageLayout.ts';
 
 const WINDOW_MATERIAL = new THREE.MeshStandardMaterial({
@@ -241,15 +243,7 @@ export class ResidenceMarkers {
   }
 
   syncResidences(
-    residences: Iterable<{
-      id: string;
-      x: number;
-      z: number;
-      yaw: number;
-      firewoodStock: number;
-      abandoned: boolean;
-      population: number;
-    }>,
+    residences: Iterable<ResidenceState>,
     getHeightAt: (x: number, z: number) => number,
   ): void {
     const nextIds = new Set<string>();
@@ -275,7 +269,9 @@ export class ResidenceMarkers {
       marker.rotation.y = residence.yaw;
       this.smokeActive.set(
         residence.id,
-        !residence.abandoned && residence.population > 0 && residence.firewoodStock > 0,
+        !residence.abandoned
+          && residence.population > 0
+          && getNeedStock(residence.needs, 'firewood') > 0,
       );
       if (!marker.getObjectByName('Building shadow proxy')) {
         const shadowProxy = createResidenceShadowProxy();

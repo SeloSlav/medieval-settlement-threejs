@@ -12,14 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  zoneId: __t.u64().name("zone_id"),
-  owner: __t.identity(),
-  parcelIndex: __t.u32().name("parcel_index"),
-  x: __t.f64(),
-  z: __t.f64(),
-  yaw: __t.f64(),
-  population: __t.u32(),
-  populationCapacity: __t.u32().name("population_capacity"),
-  settlementTicks: __t.u32().name("settlement_ticks"),
-  abandoned: __t.bool(),
+  residenceId: __t.u64().name("residence_id"),
+  needKind: __t.u8().name("need_kind"),
+  stock: __t.f64(),
+  deficitTicks: __t.u32().name("deficit_ticks"),
 });

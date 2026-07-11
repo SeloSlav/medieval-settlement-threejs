@@ -53,6 +53,7 @@ import BuildingRow from "./building_table";
 import BurgageZoneRow from "./burgage_zone_table";
 import PlayerResourcesRow from "./player_resources_table";
 import QuarryRow from "./quarry_table";
+import ResidenceNeedRow from "./residence_need_table";
 import ResidenceRow from "./residence_table";
 import RoadNetworkStateRow from "./road_network_state_table";
 import SimTickScheduleRow from "./sim_tick_schedule_table";
@@ -130,6 +131,20 @@ const tablesSchema = __schema({
       { name: 'residence_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ResidenceRow),
+  residence_need: __table({
+    name: 'residence_need',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'residence_id', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'residence_need_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResidenceNeedRow),
   road_network_state: __table({
     name: 'road_network_state',
     indexes: [

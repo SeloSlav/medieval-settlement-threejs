@@ -10,6 +10,7 @@ export const TREE_PHASES = ['stump', 'growing', 'mature'] as const;
 export type TreePhase = (typeof TREE_PHASES)[number];
 
 import { BUILDING_KINDS, type BuildingKind } from '../generated/gameBalance.ts';
+import type { ResidenceNeedsState } from '../residences/residenceNeedState.ts';
 
 export type { BuildingKind };
 export { BUILDING_KINDS };
@@ -90,9 +91,8 @@ export type ResidenceState = {
   population: number;
   populationCapacity: number;
   settlementTicks: number;
-  firewoodStock: number;
+  needs: ResidenceNeedsState;
   abandoned: boolean;
-  needsDeficitTicks: number;
 };
 
 export type ResourceStockpile = Record<ResourceKind, number>;
