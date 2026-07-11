@@ -2,20 +2,37 @@ use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
 use crate::constants::{
-    RESIDENCE_WATER_PER_PERSON_PER_SEC, TICK_DT, WELL_BASE_REFILL_PER_SEC,
-    WELL_SURGE_AMOUNT_MAX, WELL_SURGE_AMOUNT_MIN, WELL_SURGE_CHANCE_PER_TICK,
-    WELL_SURGE_COOLDOWN_SEC,
+    TICK_DT, WATER_DELIVERY_SPEED_MPS, WATER_DELIVERY_UNLOAD_SEC, WELL_BASE_REFILL_PER_SEC,
+    WELL_SURGE_AMOUNT_MAX, WELL_SURGE_AMOUNT_MIN, WELL_SURGE_CHANCE_PER_TICK, WELL_SURGE_COOLDOWN_SEC,
+    WELL_WATER_PER_DELIVERY,
 };
 use crate::db::*;
+use crate::simulation::delivery_cargo::{any_target_needs_delivery, collect_claimed_delivery_targets};
 use crate::hydrology::sample_hydrology_score;
-use crate::simulation::residence_needs::{
-    apply_need_delivery, load_needs, need_stock, ResidenceNeedKind,
+use crate::roads::RoadNetwork;
+use crate::simulation::delivery_supplier::{
+    delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
+    DeliveryDispatchConfig,
 };
-use crate::simulation::residence_needs::water;
+use crate::simulation::residence_needs::{
+    load_needs, need_stock, ResidenceNeedKind,
+};
+use crate::simulation::road_logistics::{
+    claim_residences_for_wells, lodge_labor_split, owner_wells, sort_residences_for_water_delivery,
+};
+use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
 
-pub fn step_well(ctx: &ReducerContext, sim_tick: u64, building: Building) {
+pub fn step_well(ctx: &ReducerContext, tick: &SimTickContext, sim_tick: u64, building: Building) {
     let Some(def) = building_def(&building.kind) else {
+        return;
+    };
+
+    let Some(network) = tick.road_network(building.owner) else {
+        ctx.db.building().id().update(Building {
+            action_cooldown: (building.action_cooldown - TICK_DT).max(0.0),
+            ..building
+        });
         return;
     };
 
@@ -28,94 +45,93 @@ pub fn step_well(ctx: &ReducerContext, sim_tick: u64, building: Building) {
     };
 
     well.water_capacity = capacity;
-    well.water = (well.water + WELL_BASE_REFILL_PER_SEC * hydrology * TICK_DT).min(capacity);
-    well.delivery_cooldown = (well.delivery_cooldown - TICK_DT).max(0.0);
+    well.action_cooldown = (well.action_cooldown - TICK_DT).max(0.0);
 
-    if well.delivery_cooldown <= 0.0 && should_surge(well.id, sim_tick, hydrology) {
-        let surge = lerp(WELL_SURGE_AMOUNT_MIN, WELL_SURGE_AMOUNT_MAX, hydrology);
-        well.water = (well.water + surge).min(capacity);
-        well.delivery_cooldown = WELL_SURGE_COOLDOWN_SEC;
+    let split = lodge_labor_split(well.assigned_labor);
+    let single_worker = well.assigned_labor == 1;
+    let refill_ready = split.processing > 0;
+    let delivery_ready =
+        delivery_work_ready(split.delivering, well.water > 0.0, well.id, ctx);
+
+    let delivery_targets = if delivery_ready {
+        collect_delivery_targets(ctx, network, &well)
+    } else {
+        Vec::new()
+    };
+    let has_target = any_target_needs_delivery(ctx, &delivery_targets, ResidenceNeedKind::Water);
+
+    let (do_deliver, do_refill) = should_alternate_single_worker(
+        single_worker,
+        refill_ready,
+        delivery_ready,
+        has_target,
+    );
+
+    if do_refill {
+        let labor = split.processing as f64;
+        well.water = (well.water + WELL_BASE_REFILL_PER_SEC * hydrology * labor * TICK_DT)
+            .min(capacity);
+
+        if well.action_cooldown <= 0.0 && should_surge(well.id, sim_tick, hydrology) {
+            let surge = lerp(WELL_SURGE_AMOUNT_MIN, WELL_SURGE_AMOUNT_MAX, hydrology);
+            well.water = (well.water + surge).min(capacity);
+            well.action_cooldown = WELL_SURGE_COOLDOWN_SEC;
+        }
     }
 
-    if well.work_radius > 0.0 && well.water > 0.0 {
-        deliver_to_residences(ctx, &mut well);
+    if do_deliver {
+        dispatch_delivery_if_ready(
+            ctx,
+            network,
+            &mut well,
+            split.delivering,
+            &delivery_targets,
+            DeliveryDispatchConfig {
+                need_kind: ResidenceNeedKind::Water,
+                speed_mps: WATER_DELIVERY_SPEED_MPS,
+                unload_seconds: WATER_DELIVERY_UNLOAD_SEC,
+                per_delivery: WELL_WATER_PER_DELIVERY,
+            },
+        );
     }
 
     ctx.db.building().id().update(well);
 }
 
-pub fn residence_has_well_supply(ctx: &ReducerContext, owner: spacetimedb::Identity, residence: &Residence) -> bool {
-    let radius_sq = |radius: f64| radius * radius;
-    for building in ctx.db.building().owner().filter(&owner) {
-        if building.kind != "well" || building.work_radius <= 0.0 {
-            continue;
-        }
-        let dx = building.x - residence.x;
-        let dz = building.z - residence.z;
-        if dx * dx + dz * dz <= radius_sq(building.work_radius) {
-            return true;
-        }
-    }
-    false
+pub fn residence_has_well_supply(
+    tick: &SimTickContext,
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    residence: &Residence,
+) -> bool {
+    let Some(network) = tick.road_network(owner) else {
+        return false;
+    };
+    let wells = owner_wells(ctx, owner);
+    let claims = claim_residences_for_wells(network, &wells, std::slice::from_ref(residence));
+    claims.contains_key(&residence.id)
 }
 
-fn deliver_to_residences(ctx: &ReducerContext, well: &mut Building) {
-    let radius_sq = well.work_radius * well.work_radius;
-    let mut targets: Vec<(Residence, f64)> = Vec::new();
+fn collect_delivery_targets(
+    ctx: &ReducerContext,
+    network: &RoadNetwork,
+    well: &Building,
+) -> Vec<Residence> {
+    let wells = owner_wells(ctx, well.owner);
+    let residences: Vec<Residence> = ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&well.owner)
+        .filter(|residence| !residence.abandoned && residence.population > 0)
+        .collect();
+    let claims = claim_residences_for_wells(network, &wells, &residences);
 
-    for residence in ctx.db.residence().owner().filter(&well.owner) {
-        if residence.abandoned || residence.population == 0 {
-            continue;
-        }
-        let dx = residence.x - well.x;
-        let dz = residence.z - well.z;
-        if dx * dx + dz * dz > radius_sq {
-            continue;
-        }
-
-        let needs = load_needs(ctx, residence.id);
-        let stock = need_stock(&needs, ResidenceNeedKind::Water);
-        if !water::has_stock_room(stock) {
-            continue;
-        }
-
-        let demand = residence.population as f64 * RESIDENCE_WATER_PER_PERSON_PER_SEC * TICK_DT;
-        if demand <= 1e-9 {
-            continue;
-        }
-
-        let distance = (dx * dx + dz * dz).sqrt();
-        targets.push((residence, distance));
-    }
-
-    targets.sort_by(|(left, left_distance), (right, right_distance)| {
-        left_distance
-            .partial_cmp(right_distance)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| left.id.cmp(&right.id))
-    });
-
-    for (residence, _) in targets {
-        if well.water <= 1e-9 {
-            break;
-        }
-
-        let needs = load_needs(ctx, residence.id);
-        let stock = need_stock(&needs, ResidenceNeedKind::Water);
-        if !water::has_stock_room(stock) {
-            continue;
-        }
-
-        let demand = residence.population as f64 * RESIDENCE_WATER_PER_PERSON_PER_SEC * TICK_DT;
-        let room = water::stock_capacity() - stock;
-        let deliver = demand.min(room).min(well.water);
-        if deliver <= 1e-9 {
-            continue;
-        }
-
-        apply_need_delivery(ctx, residence.id, ResidenceNeedKind::Water, deliver);
-        well.water -= deliver;
-    }
+    collect_claimed_delivery_targets(residences, &claims, well.id, |targets| {
+        sort_residences_for_water_delivery(network, well, targets, |residence| {
+            need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water)
+        });
+    })
 }
 
 fn should_surge(building_id: u64, sim_tick: u64, hydrology: f64) -> bool {

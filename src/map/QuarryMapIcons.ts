@@ -1,8 +1,12 @@
 import * as THREE from 'three';
-import { mapIconRevealOpacity } from '../grass/grassLodMath.ts';
 import type { ResourceNodeDefinition } from '../resources/types.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
+import {
+  beginMapIconFrame,
+  createMapIconRoot,
+  placeProjectedMapButton,
+} from './mapIconProjection.ts';
 
 type QuarryMapIconsOptions = {
   uiRoot: HTMLElement;
@@ -35,11 +39,7 @@ export class QuarryMapIcons {
 
   constructor(options: QuarryMapIconsOptions) {
     this.options = options;
-
-    this.root = document.createElement('div');
-    this.root.className = 'quarry-map-icons';
-    this.root.setAttribute('aria-hidden', 'true');
-    options.uiRoot.appendChild(this.root);
+    this.root = createMapIconRoot(options.uiRoot, 'quarry-map-icons');
 
     this.entries = options.registry.definitionList
       .filter((definition) => definition.kind === 'quarry' && definition.resource === 'stone')
@@ -55,45 +55,19 @@ export class QuarryMapIcons {
   }
 
   update(): void {
-    const camera = this.options.getCamera();
-    if (!camera) {
-      this.root.hidden = true;
-      return;
-    }
-
-    const blocked = this.options.isBlocked();
-    const reveal = blocked ? 0 : mapIconRevealOpacity(this.options.getZoomPercent());
-    const show = reveal > 0.02;
-    this.root.hidden = !show;
-    this.root.style.opacity = reveal.toFixed(3);
-    if (!show) return;
-
-    const rect = this.options.domElement.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) {
-      this.root.hidden = true;
-      return;
-    }
+    const frame = beginMapIconFrame(
+      this.root,
+      this.options.domElement,
+      this.options.terrain,
+      this.options.getCamera,
+      this.options.getZoomPercent,
+      this.options.isBlocked,
+    );
+    if (!frame) return;
 
     for (const entry of this.entries) {
       const { definition, button, worldPoint } = entry;
-      worldPoint.set(
-        definition.x,
-        this.options.terrain.getHeightAt(definition.x, definition.z) + 2.4,
-        definition.z,
-      );
-      worldPoint.project(camera);
-
-      const onScreen = worldPoint.z >= -1 && worldPoint.z <= 1;
-      if (!onScreen) {
-        button.hidden = true;
-        continue;
-      }
-
-      const clientX = rect.left + (worldPoint.x * 0.5 + 0.5) * rect.width;
-      const clientY = rect.top + (-worldPoint.y * 0.5 + 0.5) * rect.height;
-      button.hidden = false;
-      button.style.left = `${clientX}px`;
-      button.style.top = `${clientY}px`;
+      placeProjectedMapButton(button, definition.x, definition.z, worldPoint, frame);
     }
   }
 

@@ -1,12 +1,20 @@
 import * as THREE from 'three';
-import { addTriangularGableWall } from '../buildings/BuildingMeshes.ts';
+import { addTriangularGableWall } from '../buildings/meshPrimitives.ts';
 import { createResidenceShadowProxy } from '../buildings/buildingShadowProxy.ts';
-import { addMesh, shingleMaterial, stoneMaterial, timberMaterial } from '../buildings/buildingMaterials.ts';
+import {
+  addMesh,
+  residenceFacadeMaterial,
+  residenceRoofMaterial,
+  stoneMaterial,
+  timberMaterial,
+} from '../buildings/buildingMaterials.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import { ChimneySmokeEmitter } from './ResidenceChimneySmoke.ts';
+import { pickResidenceAppearance } from './residenceAppearance.ts';
 import { getNeedStock } from './residenceNeedState.ts';
 import type { ResidenceState } from '../resources/types.ts';
 import { MAIN_HOUSE_DEPTH, MAIN_HOUSE_WIDTH } from './burgageLayout.ts';
+import { hashStringSeed } from '../utils/random.ts';
 
 const WINDOW_MATERIAL = new THREE.MeshStandardMaterial({
   color: 0x2a3540,
@@ -65,7 +73,11 @@ function addWindow(
   );
 }
 
-export function createResidenceMesh(): THREE.Group {
+export function createResidenceMesh(seed = 0): THREE.Group {
+  const { facade, roof } = pickResidenceAppearance(seed);
+  const wallMaterial = residenceFacadeMaterial(facade);
+  const roofSurfaceMaterial = residenceRoofMaterial(roof);
+
   const group = new THREE.Group();
   group.name = 'Residence';
 
@@ -107,7 +119,7 @@ export function createResidenceMesh(): THREE.Group {
   addMesh(
     group,
     new THREE.BoxGeometry(width - 0.28, wallHeight, depth - 0.28),
-    timberMaterial('mid'),
+    wallMaterial,
     new THREE.Vector3(0, stoneHeight + wallHeight * 0.5, 0),
   );
 
@@ -161,7 +173,7 @@ export function createResidenceMesh(): THREE.Group {
     addMesh(
       group,
       new THREE.BoxGeometry(slopeLen, 0.13, depth + 0.36),
-      shingleMaterial(),
+      roofSurfaceMaterial,
       new THREE.Vector3(side * halfW * 0.46, wallTop + ridgeHeight * 0.48, 0),
       new THREE.Euler(0, 0, side * -roofPitch),
     );
@@ -177,7 +189,7 @@ export function createResidenceMesh(): THREE.Group {
       wallTop,
       ridgeHeight,
       gableWallThickness,
-      timberMaterial('mid'),
+      wallMaterial,
     );
   }
 
@@ -204,8 +216,8 @@ export function createResidenceMesh(): THREE.Group {
 
 const PREVIEW_OPACITY = 0.72;
 
-export function createResidencePreviewMesh(): THREE.Group {
-  const mesh = createResidenceMesh();
+export function createResidencePreviewMesh(seed = 0): THREE.Group {
+  const mesh = createResidenceMesh(seed);
   mesh.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
     const source = child.material;
@@ -251,7 +263,8 @@ export class ResidenceMarkers {
       nextIds.add(residence.id);
       let marker = this.meshes.get(residence.id);
       if (!marker) {
-        marker = createResidenceMesh();
+        const appearanceSeed = hashStringSeed(residence.id);
+        marker = createResidenceMesh(appearanceSeed);
         const shadowProxy = createResidenceShadowProxy();
         shadowProxy.castShadow = areBuildingShadowsEnabled();
         marker.add(shadowProxy);
@@ -260,8 +273,7 @@ export class ResidenceMarkers {
 
         const chimneyEmitter = marker.getObjectByName('ChimneyEmitter');
         if (chimneyEmitter) {
-          const seed = residence.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-          this.smokeEmitters.set(residence.id, new ChimneySmokeEmitter(chimneyEmitter, seed));
+          this.smokeEmitters.set(residence.id, new ChimneySmokeEmitter(chimneyEmitter, appearanceSeed));
         }
       }
       const y = getHeightAt(residence.x, residence.z);

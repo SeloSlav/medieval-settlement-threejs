@@ -1,5 +1,5 @@
 use crate::constants::{
-    RESIDENCE_WATER_PER_PERSON_PER_SEC, RESIDENCE_RECOVERY_WATER_MIN, TICK_DT,
+    RESIDENCE_WATER_PER_PERSON_PER_SEC, TICK_DT,
 };
 use crate::economy::residence_water_capacity;
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
@@ -36,9 +36,12 @@ pub fn on_unmet(need: &NeedState) -> NeedState {
     }
 }
 
-pub fn evaluate_recovery(need: &NeedState, supply: &ResidenceNeedSupplyContext) -> bool {
-    supply.has_route(ResidenceNeedKind::Water)
-        && need.stock + 1e-9 >= RESIDENCE_RECOVERY_WATER_MIN
+pub fn evaluate_recovery(
+    need: &NeedState,
+    supply: &ResidenceNeedSupplyContext,
+    stock_min: f64,
+) -> bool {
+    supply.has_route(ResidenceNeedKind::Water) && need.stock + 1e-9 >= stock_min
 }
 
 pub fn apply_delivery(need: &NeedState, delivered: f64) -> NeedState {

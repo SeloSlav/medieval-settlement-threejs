@@ -1,6 +1,7 @@
 import type { BuildingKind, BuildingState, BurgageZoneState, QuarryNodeState } from '../resources/types.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
 import { canAffordBuilding } from '../resources/buildingEconomy.ts';
+import { buildingRequiresRoad } from '../resources/buildingPlacementPolicy.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { sampleBuildingFootprintHeights } from './BuildingTerrainLayout.ts';
 import { sampleBuildingFootprintPoints } from './BuildingTerrainLayout.ts';
@@ -16,6 +17,8 @@ export type BuildingPlacementFailureReason =
   | 'within_residence_zone'
   | 'on_quarry_pit'
   | 'no_quarry_in_range'
+  | 'no_game_in_range'
+  | 'no_berries_in_range'
   | 'no_trees_in_range'
   | 'no_road_access'
   | 'on_road'
@@ -31,6 +34,7 @@ type BuildingPlacementContext = {
   buildings: Iterable<BuildingState>;
   burgageZones: Iterable<BurgageZoneState>;
   quarries: Iterable<QuarryNodeState>;
+  foragingNodes: Iterable<QuarryNodeState>;
   stockpile: Pick<ResourceTotals, 'timber' | 'stone'>;
   isWaterAt: (x: number, z: number) => boolean;
   isQuarryPitAt?: (x: number, z: number) => boolean;
@@ -73,6 +77,14 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'no_quarry_in_range' };
   }
 
+  if (kind === 'hunters_hall' && !hasForagingInRadius(x, z, getBuildingDefinition(kind).workRadius, 'game', context.foragingNodes)) {
+    return { ok: false, reason: 'no_game_in_range' };
+  }
+
+  if (kind === 'foragers_shed' && !hasForagingInRadius(x, z, getBuildingDefinition(kind).workRadius, 'berries', context.foragingNodes)) {
+    return { ok: false, reason: 'no_berries_in_range' };
+  }
+
   if (kind === 'lumber_mill') {
     const workRadius = getBuildingDefinition(kind).workRadius;
     const matureTrees = context.countMatureTreesInRadius?.(x, z, workRadius) ?? 0;
@@ -82,7 +94,7 @@ export function validateBuildingPlacement(
   }
 
   if (
-    (kind === 'lumber_mill' || kind === 'woodcutters_lodge')
+    buildingRequiresRoad(kind)
     && context.roadNetwork
     && !hasRoadAccess(x, z, context.roadNetwork)
   ) {
@@ -157,6 +169,22 @@ function hasQuarryStoneInRadius(
   for (const quarry of quarries) {
     if (quarry.remaining <= 0) continue;
     if (Math.hypot(quarry.x - x, quarry.z - z) <= radius) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasForagingInRadius(
+  x: number,
+  z: number,
+  radius: number,
+  nodeKind: 'game' | 'berries',
+  nodes: Iterable<QuarryNodeState>,
+): boolean {
+  for (const node of nodes) {
+    if (node.kind !== nodeKind || node.remaining <= 0) continue;
+    if (Math.hypot(node.x - x, node.z - z) <= radius) {
       return true;
     }
   }

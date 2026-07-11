@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { RoadEdge } from '../roads/RoadEdge.ts';
 import type { RoadNetwork, SnapTarget } from '../roads/RoadNetwork.ts';
 import { getEdgePath, roadPerpendicular } from '../roads/roadEndpoint.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
@@ -13,11 +14,18 @@ import {
 export const BURGAGE_ROAD_SETBACK = 0.35;
 const FRONTAGE_SAMPLE_SPACING = 1.1;
 const MIN_FRONTAGE_LENGTH = 4;
-const MAX_CENTER_PATH_MATCH_DISTANCE = 8;
+const ROAD_CENTER_SNAP_DISTANCE = 14;
+const HOVER_FRONTAGE_PREVIEW_HALF_LENGTH = 5;
 
 export type CurvedZoneGeometry = {
   outline: Point2[];
   corners: RectangleCorners;
+  frontagePointCount: number;
+};
+
+export type FrontagePreviewOutline = {
+  points: THREE.Vector3[];
+  frontagePointCount: number;
 };
 
 type PathProjection = {
@@ -25,6 +33,21 @@ type PathProjection = {
   point: THREE.Vector3;
   distanceAlong: number;
   distance: number;
+};
+
+type NetworkAnchor = {
+  edgeId: string;
+  path: THREE.Vector3[];
+  point: THREE.Vector3;
+  distanceAlong: number;
+  startNodeId: string;
+  endNodeId: string;
+  totalLength: number;
+};
+
+type AnchorExit = {
+  nodeId: string;
+  legLength: number;
 };
 
 export function snapBurgagePointBesideRoad(
@@ -58,10 +81,14 @@ export function resolveCurvedFrontageLine(
   centerEnd?: Point2,
   offsetSide: 1 | -1 = 1,
 ): Point2[] {
-  const centerPath = centerStart && centerEnd
-    ? extractRoadCenterPathBetween(roadNetwork, centerStart, centerEnd)
-    : null;
-  if (centerPath) {
+  const centerPath = resolveRoadCenterPathForFrontage(
+    roadNetwork,
+    frontStart,
+    frontEnd,
+    centerStart,
+    centerEnd,
+  );
+  if (centerPath && centerPath.length >= 2) {
     return offsetCenterPathBesideRoad(centerPath, offsetSide, roadNetwork);
   }
   return [frontStart, frontEnd];
@@ -83,10 +110,14 @@ export function buildCurvedZoneFromFrontage(
   const depth = depthFromBackPoint(frontStart, frontEnd, backPoint, inward);
   if (depth < MIN_ZONE_DEPTH - 0.05 || depth > MAX_ZONE_DEPTH + 0.05) return null;
 
-  const centerPath = centerStart && centerEnd
-    ? extractRoadCenterPathBetween(roadNetwork, centerStart, centerEnd)
-    : null;
-  const frontEdge = centerPath
+  const centerPath = resolveRoadCenterPathForFrontage(
+    roadNetwork,
+    frontStart,
+    frontEnd,
+    centerStart,
+    centerEnd,
+  );
+  const frontEdge = centerPath && centerPath.length >= 2
     ? offsetCenterPathBesideRoad(centerPath, offsetSide, roadNetwork)
     : [frontStart, frontEnd];
 
@@ -103,7 +134,7 @@ export function buildCurvedZoneFromFrontage(
     d: rearEdge[0],
   };
 
-  return { outline, corners };
+  return { outline, corners, frontagePointCount: frontEdge.length };
 }
 
 export function resolveCurvedZoneOutline(
@@ -120,6 +151,53 @@ export function resolveCurvedZoneOutline(
     inwardSideForCorners(corners, roadNetwork),
   );
   return geometry?.outline ?? [corners.a, corners.b, corners.c, corners.d];
+}
+
+export function resolveHoverFrontagePreview(
+  center: Point2,
+  roadNetwork: RoadNetwork,
+  offsetSide: 1 | -1,
+  getHeightAt: (x: number, z: number) => number,
+): FrontagePreviewOutline | null {
+  const anchor = resolveNetworkAnchor(roadNetwork, center);
+  if (!anchor) return null;
+
+  const startDist = Math.max(0, anchor.distanceAlong - HOVER_FRONTAGE_PREVIEW_HALF_LENGTH);
+  const endDist = Math.min(anchor.totalLength, anchor.distanceAlong + HOVER_FRONTAGE_PREVIEW_HALF_LENGTH);
+  const centerSlice = slicePathByDistance(anchor.path, startDist, endDist);
+  if (centerSlice.length < 2) return null;
+
+  const frontEdge = offsetCenterPathBesideRoad(centerSlice, offsetSide, roadNetwork);
+  const points = frontEdge.map((point) => {
+    const y = getHeightAt(point.x, point.z);
+    return new THREE.Vector3(point.x, y, point.z);
+  });
+  return { points, frontagePointCount: points.length };
+}
+
+function resolveRoadCenterPathForFrontage(
+  roadNetwork: RoadNetwork,
+  frontStart: Point2,
+  frontEnd: Point2,
+  centerStart?: Point2,
+  centerEnd?: Point2,
+): THREE.Vector3[] | null {
+  const resolvedStart = centerStart ?? resolveRoadCenterFromFrontagePoint(frontStart, roadNetwork);
+  const resolvedEnd = centerEnd ?? resolveRoadCenterFromFrontagePoint(frontEnd, roadNetwork);
+  if (!resolvedStart || !resolvedEnd) return null;
+  return extractRoadCenterPathBetween(roadNetwork, resolvedStart, resolvedEnd);
+}
+
+function resolveRoadCenterFromFrontagePoint(
+  point: Point2,
+  roadNetwork: RoadNetwork,
+): Point2 | null {
+  const snap = roadNetwork.findSnap(
+    new THREE.Vector3(point.x, 0, point.z),
+    ROAD_CENTER_SNAP_DISTANCE,
+  );
+  if (!snap) return null;
+  return { x: snap.point.x, z: snap.point.z };
 }
 
 function inwardSideForCorners(corners: RectangleCorners, roadNetwork: RoadNetwork): 1 | -1 {
@@ -184,44 +262,287 @@ function resolveSnapTangentAndWidth(
   return { tangent, halfWidth };
 }
 
+function resolveNetworkAnchor(roadNetwork: RoadNetwork, point: Point2): NetworkAnchor | null {
+  const snap = roadNetwork.findSnap(
+    new THREE.Vector3(point.x, 0, point.z),
+    ROAD_CENTER_SNAP_DISTANCE,
+  );
+  if (!snap) return null;
+
+  if (snap.kind === 'segment') {
+    const edge = roadNetwork.edges.get(snap.edgeId);
+    if (!edge) return null;
+    const path = getEdgePath(edge);
+    if (path.length < 2) return null;
+    const projection = projectPointToPath(path, point);
+    const distances = cumulativeDistances(path);
+    return {
+      edgeId: snap.edgeId,
+      path,
+      point: projection.point,
+      distanceAlong: projection.distanceAlong,
+      startNodeId: edge.startNodeId,
+      endNodeId: edge.endNodeId,
+      totalLength: distances[distances.length - 1],
+    };
+  }
+
+  const node = roadNetwork.nodes.get(snap.nodeId);
+  if (!node || node.edgeIds.size === 0) return null;
+
+  let bestEdge: RoadEdge | null = null;
+  let bestPath: THREE.Vector3[] | null = null;
+  let bestDistance = Infinity;
+  for (const edgeId of node.edgeIds) {
+    const edge = roadNetwork.edges.get(edgeId);
+    if (!edge) continue;
+    const path = getEdgePath(edge);
+    const projection = projectPointToPath(path, point);
+    if (projection.distance < bestDistance) {
+      bestDistance = projection.distance;
+      bestEdge = edge;
+      bestPath = path;
+    }
+  }
+  if (!bestEdge || !bestPath || bestPath.length < 2) return null;
+
+  const distances = cumulativeDistances(bestPath);
+  const distanceAlong = bestEdge.startNodeId === snap.nodeId
+    ? 0
+    : distances[distances.length - 1];
+
+  return {
+    edgeId: bestEdge.id,
+    path: bestPath,
+    point: snap.point.clone(),
+    distanceAlong,
+    startNodeId: bestEdge.startNodeId,
+    endNodeId: bestEdge.endNodeId,
+    totalLength: distances[distances.length - 1],
+  };
+}
+
 function extractRoadCenterPathBetween(
   roadNetwork: RoadNetwork,
   start: Point2,
   end: Point2,
 ): THREE.Vector3[] | null {
-  let bestPath: THREE.Vector3[] | null = null;
-  let bestProjA: PathProjection | null = null;
-  let bestProjB: PathProjection | null = null;
-  let bestScore = Infinity;
+  const anchorA = resolveNetworkAnchor(roadNetwork, start);
+  const anchorB = resolveNetworkAnchor(roadNetwork, end);
+  if (!anchorA || !anchorB) return null;
 
-  for (const edge of roadNetwork.edges.values()) {
-    const path = getEdgePath(edge);
-    if (path.length < 2) continue;
-    const projA = projectPointToPath(path, start);
-    const projB = projectPointToPath(path, end);
-    const score = projA.distance + projB.distance;
-    if (score >= bestScore) continue;
-    bestScore = score;
-    bestPath = path;
-    bestProjA = projA;
-    bestProjB = projB;
+  if (anchorA.edgeId === anchorB.edgeId) {
+    const sliced = sliceBetweenAnchorsOnSameEdge(anchorA, anchorB);
+    return sliced ? densifyPath(sliced, FRONTAGE_SAMPLE_SPACING) : null;
   }
 
-  if (!bestPath || !bestProjA || !bestProjB || bestScore > MAX_CENTER_PATH_MATCH_DISTANCE) {
-    return null;
-  }
+  const routed = routeCenterPathBetweenAnchors(anchorA, anchorB, roadNetwork);
+  return routed ? densifyPath(routed, FRONTAGE_SAMPLE_SPACING) : null;
+}
 
-  const forward = bestProjA.distanceAlong <= bestProjB.distanceAlong;
-  const startDist = forward ? bestProjA.distanceAlong : bestProjB.distanceAlong;
-  const endDist = forward ? bestProjB.distanceAlong : bestProjA.distanceAlong;
-  const startPoint = forward ? bestProjA.point : bestProjB.point;
-  const endPoint = forward ? bestProjB.point : bestProjA.point;
+function sliceBetweenAnchorsOnSameEdge(
+  anchorA: NetworkAnchor,
+  anchorB: NetworkAnchor,
+): THREE.Vector3[] | null {
+  const forward = anchorA.distanceAlong <= anchorB.distanceAlong;
+  const startDist = forward ? anchorA.distanceAlong : anchorB.distanceAlong;
+  const endDist = forward ? anchorB.distanceAlong : anchorA.distanceAlong;
+  const startPoint = forward ? anchorA.point : anchorB.point;
+  const endPoint = forward ? anchorB.point : anchorA.point;
 
-  const sliced = slicePathByDistance(bestPath, startDist, endDist);
-  if (sliced.length === 0) return null;
+  const sliced = slicePathByDistance(anchorA.path, startDist, endDist);
+  if (sliced.length < 2) return null;
   sliced[0] = startPoint.clone();
   sliced[sliced.length - 1] = endPoint.clone();
-  return densifyPath(sliced, FRONTAGE_SAMPLE_SPACING);
+  return sliced;
+}
+
+function routeCenterPathBetweenAnchors(
+  anchorA: NetworkAnchor,
+  anchorB: NetworkAnchor,
+  roadNetwork: RoadNetwork,
+): THREE.Vector3[] | null {
+  const exitsA = anchorExits(anchorA);
+  const exitsB = anchorExits(anchorB);
+  let bestPath: THREE.Vector3[] | null = null;
+  let bestLength = Infinity;
+
+  for (const exitA of exitsA) {
+    for (const exitB of exitsB) {
+      const nodePath = shortestNodePath(roadNetwork, exitA.nodeId, exitB.nodeId);
+      if (!nodePath) continue;
+
+      const stitched = stitchCenterPath(anchorA, exitA, nodePath, exitB, anchorB, roadNetwork);
+      if (!stitched || stitched.length < 2) continue;
+
+      const length = polylineLength(stitched);
+      if (length < bestLength) {
+        bestLength = length;
+        bestPath = stitched;
+      }
+    }
+  }
+
+  return bestPath;
+}
+
+function anchorExits(anchor: NetworkAnchor): AnchorExit[] {
+  const toStart = anchor.distanceAlong;
+  const toEnd = anchor.totalLength - anchor.distanceAlong;
+  return [
+    { nodeId: anchor.startNodeId, legLength: toStart },
+    { nodeId: anchor.endNodeId, legLength: toEnd },
+  ];
+}
+
+function stitchCenterPath(
+  anchorA: NetworkAnchor,
+  exitA: AnchorExit,
+  nodePath: string[],
+  exitB: AnchorExit,
+  anchorB: NetworkAnchor,
+  roadNetwork: RoadNetwork,
+): THREE.Vector3[] | null {
+  const parts: THREE.Vector3[] = [];
+  const legA = sliceAnchorToNode(anchorA, exitA);
+  if (legA.length > 0) appendPath(parts, legA);
+
+  for (let i = 0; i < nodePath.length - 1; i++) {
+    const edgeLeg = edgePathBetweenNodes(roadNetwork, nodePath[i], nodePath[i + 1]);
+    if (!edgeLeg) return null;
+    appendPath(parts, edgeLeg);
+  }
+
+  const legB = sliceNodeToAnchor(anchorB, exitB);
+  if (legB.length > 0) appendPath(parts, legB);
+
+  return parts.length >= 2 ? parts : null;
+}
+
+function sliceAnchorToNode(anchor: NetworkAnchor, exit: AnchorExit): THREE.Vector3[] {
+  if (exit.nodeId === anchor.startNodeId) {
+    const leg = slicePathByDistance(anchor.path, 0, anchor.distanceAlong);
+    if (leg.length < 2) return [anchor.point.clone(), leg[0]?.clone() ?? anchor.path[0].clone()];
+    leg[leg.length - 1] = anchor.point.clone();
+    return leg.reverse();
+  }
+
+  if (exit.nodeId === anchor.endNodeId) {
+    const leg = slicePathByDistance(anchor.path, anchor.distanceAlong, anchor.totalLength);
+    if (leg.length < 2) return [anchor.point.clone(), leg[leg.length - 1]?.clone() ?? anchor.path[anchor.path.length - 1].clone()];
+    leg[0] = anchor.point.clone();
+    return leg;
+  }
+
+  return [];
+}
+
+function sliceNodeToAnchor(anchor: NetworkAnchor, exit: AnchorExit): THREE.Vector3[] {
+  if (exit.nodeId === anchor.startNodeId) {
+    const leg = slicePathByDistance(anchor.path, 0, anchor.distanceAlong);
+    if (leg.length < 2) return [leg[0]?.clone() ?? anchor.path[0].clone(), anchor.point.clone()];
+    leg[leg.length - 1] = anchor.point.clone();
+    return leg;
+  }
+
+  if (exit.nodeId === anchor.endNodeId) {
+    const leg = slicePathByDistance(anchor.path, anchor.distanceAlong, anchor.totalLength);
+    if (leg.length < 2) return [leg[0]?.clone() ?? anchor.point.clone(), anchor.point.clone()];
+    leg[0] = anchor.point.clone();
+    return leg;
+  }
+
+  return [];
+}
+
+function edgePathBetweenNodes(
+  roadNetwork: RoadNetwork,
+  startNodeId: string,
+  endNodeId: string,
+): THREE.Vector3[] | null {
+  const startNode = roadNetwork.nodes.get(startNodeId);
+  if (!startNode) return null;
+
+  for (const edgeId of startNode.edgeIds) {
+    const edge = roadNetwork.edges.get(edgeId);
+    if (!edge) continue;
+    const forward = edge.startNodeId === startNodeId && edge.endNodeId === endNodeId;
+    const reverse = edge.endNodeId === startNodeId && edge.startNodeId === endNodeId;
+    if (!forward && !reverse) continue;
+
+    const path = getEdgePath(edge).map((point) => point.clone());
+    if (path.length < 2) return null;
+    return reverse ? path.reverse() : path;
+  }
+
+  return null;
+}
+
+function shortestNodePath(
+  roadNetwork: RoadNetwork,
+  startNodeId: string,
+  endNodeId: string,
+): string[] | null {
+  if (startNodeId === endNodeId) return [startNodeId];
+
+  const dist = new Map<string, number>();
+  const prev = new Map<string, string | null>();
+  const heap: Array<{ cost: number; id: string }> = [{ cost: 0, id: startNodeId }];
+  dist.set(startNodeId, 0);
+  prev.set(startNodeId, null);
+
+  while (heap.length > 0) {
+    heap.sort((a, b) => a.cost - b.cost);
+    const current = heap.shift();
+    if (!current) break;
+    if (current.cost > (dist.get(current.id) ?? Infinity)) continue;
+    if (current.id === endNodeId) break;
+
+    const node = roadNetwork.nodes.get(current.id);
+    if (!node) continue;
+
+    for (const edgeId of node.edgeIds) {
+      const edge = roadNetwork.edges.get(edgeId);
+      if (!edge) continue;
+      const neighbor = edge.startNodeId === current.id ? edge.endNodeId : edge.startNodeId;
+      const weight = edge.length > 0
+        ? edge.length
+        : polylineLength(getEdgePath(edge));
+      const nextCost = current.cost + weight;
+      if (nextCost >= (dist.get(neighbor) ?? Infinity)) continue;
+      dist.set(neighbor, nextCost);
+      prev.set(neighbor, current.id);
+      heap.push({ cost: nextCost, id: neighbor });
+    }
+  }
+
+  if (!dist.has(endNodeId)) return null;
+
+  const path: string[] = [];
+  let cursor: string | null = endNodeId;
+  while (cursor) {
+    path.push(cursor);
+    cursor = prev.get(cursor) ?? null;
+  }
+  path.reverse();
+  return path;
+}
+
+function appendPath(target: THREE.Vector3[], source: THREE.Vector3[]): void {
+  for (let i = 0; i < source.length; i++) {
+    const point = source[i];
+    const last = target[target.length - 1];
+    if (last && last.distanceToSquared(point) <= 1e-4) continue;
+    target.push(point.clone());
+  }
+}
+
+function polylineLength(path: THREE.Vector3[]): number {
+  let total = 0;
+  for (let i = 1; i < path.length; i++) {
+    total += path[i].distanceTo(path[i - 1]);
+  }
+  return total;
 }
 
 function offsetCenterPathBesideRoad(

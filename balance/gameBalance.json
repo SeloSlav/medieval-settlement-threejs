@@ -6,10 +6,40 @@
   "economy": {
     "startingTimber": 160,
     "startingStone": 140,
+    "startingGold": 0,
     "stoneSalvageFraction": 0.92,
     "timberSalvageFraction": 0.7,
+    "goldSalvageFraction": 0.65,
+    "economicActivityTaxRate": 0.18,
+    "economicActivityTaxRateMin": 0,
+    "economicActivityTaxRateMax": 0.45,
+    "lowTaxProductivityBoost": 0.28,
+    "highTaxProductivityDrag": 0.58,
+    "foodSaleGoldPerUnit": 0.35,
     "residenceTimberCost": 8,
-    "residenceStoneCost": 12
+    "residenceStoneCost": 12,
+    "householdMaxWealth": 200
+  },
+  "marketplaceTrade": {
+    "resourceSpendScopes": {
+      "timber": "aggregate",
+      "stone": "aggregate",
+      "firewood": "aggregate",
+      "food": "aggregate"
+    },
+    "offers": [
+      { "id": "buy_timber", "kind": "goldBuy", "resource": "timber", "amount": 10, "goldCost": 16 },
+      { "id": "sell_timber", "kind": "goldSell", "resource": "timber", "amount": 10, "goldYield": 10 },
+      { "id": "buy_stone", "kind": "goldBuy", "resource": "stone", "amount": 10, "goldCost": 22 },
+      { "id": "sell_stone", "kind": "goldSell", "resource": "stone", "amount": 10, "goldYield": 14 },
+      { "id": "buy_firewood", "kind": "goldBuy", "resource": "firewood", "amount": 10, "goldCost": 8 },
+      { "id": "sell_firewood", "kind": "goldSell", "resource": "firewood", "amount": 10, "goldYield": 5 },
+      { "id": "buy_food", "kind": "goldBuy", "resource": "food", "amount": 10, "goldCost": 12 },
+      { "id": "sell_food", "kind": "goldSell", "resource": "food", "amount": 10, "goldYield": 8 },
+      { "id": "timber_for_stone", "kind": "barter", "give": "timber", "giveAmount": 25, "receive": "stone", "receiveAmount": 10 },
+      { "id": "stone_for_timber", "kind": "barter", "give": "stone", "giveAmount": 10, "receive": "timber", "receiveAmount": 20 },
+      { "id": "timber_for_firewood", "kind": "barter", "give": "timber", "giveAmount": 10, "receive": "firewood", "receiveAmount": 18 }
+    ]
   },
   "population": {
     "starting": 5,
@@ -22,33 +52,58 @@
     "residenceFirewoodPerPersonPerSec": 0.02,
     "residenceWaterCapacity": 24,
     "residenceWaterPerPersonPerSec": 0.012,
+    "residenceFoodCapacity": 32,
+    "residenceFoodPerPersonPerSec": 0.015,
     "abandonAfterDeficitTicks": 3600,
     "residenceRecoveryFirewoodMin": 8,
     "residenceRecoveryWaterMin": 5,
-    "residenceSettleTicks": 250
+    "residenceRecoveryFoodMin": 6,
+    "residenceSettleTicks": 250,
+    "chapelSettlementTicksMultiplier": 0.7,
+    "chapelAbandonmentDeficitMultiplier": 0.7,
+    "chapelTitheGoldPerPersonPerDay": 0.08,
+    "chapelBaseAttendanceChance": 0.55,
+    "chapelPriestAttendanceBonus": 0.25,
+    "chapelCommunityAttendanceBonus": 0.15,
+    "chapelRecoveryStockMultiplier": 0.65,
+    "chapelRecoveryNeedsRequired": 2
   },
   "roads": {
     "buildingRoadAccessDistance": 20,
-    "burgageRoadFrontageDistance": 16
+    "burgageRoadFrontageDistance": 16,
+    "minDeliveryTripSec": 4,
+    "firewoodDeliverySpeedMps": 0.95,
+    "waterDeliverySpeedMps": 1.15,
+    "foodDeliverySpeedMps": 1.25,
+    "firewoodDeliveryUnloadSec": 10,
+    "waterDeliveryUnloadSec": 5,
+    "foodDeliveryUnloadSec": 6
   },
   "production": {
     "lodgeTimberPerCycle": 3,
     "lodgeFirewoodPerCycle": 3,
-    "lodgeDeliveryInterval": 4,
     "lodgeFirewoodPerDelivery": 2,
     "stonePerHarvest": 3,
+    "gamePerHarvest": 4,
+    "berriesPerHarvest": 3,
+    "foodPerDelivery": 2,
+    "gameRespawnSec": 120,
+    "berriesRespawnSec": 75,
+    "berriesRespawnRadius": 28,
     "reforesterRegrowPerSec": 0.014,
     "wellBaseRefillPerSec": 0.42,
     "wellSurgeChancePerTick": 0.0022,
     "wellSurgeAmountMin": 10,
     "wellSurgeAmountMax": 26,
-    "wellSurgeCooldownSec": 42
+    "wellSurgeCooldownSec": 42,
+    "wellWaterPerDelivery": 3,
+    "millWaterPerHarvest": 4
   },
   "buildings": {
     "lumber_mill": {
       "label": "Lumber mill",
       "cost": { "timber": 45, "stone": 15 },
-      "storage": { "timber": 240, "firewood": 0, "stone": 0 },
+      "storage": { "timber": 240, "firewood": 0, "stone": 0, "water": 48, "food": 0 },
       "workRadius": 210,
       "pickRadius": 8,
       "harvestInterval": 9,
@@ -56,13 +111,16 @@
       "maxLabor": 3,
       "acceptsLabor": true,
       "requiresRoad": true,
+      "facesRoad": true,
       "requiresMatureTrees": true,
-      "requiresQuarryStone": false
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
     },
     "reforester": {
       "label": "Reforester",
       "cost": { "timber": 35, "stone": 10 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 0 },
       "workRadius": 190,
       "pickRadius": 8,
       "harvestInterval": 0,
@@ -70,13 +128,16 @@
       "maxLabor": 1,
       "acceptsLabor": true,
       "requiresRoad": false,
+      "facesRoad": false,
       "requiresMatureTrees": false,
-      "requiresQuarryStone": false
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
     },
     "woodcutters_lodge": {
       "label": "Woodcutter's lodge",
       "cost": { "timber": 40, "stone": 12 },
-      "storage": { "timber": 60, "firewood": 120, "stone": 0 },
+      "storage": { "timber": 60, "firewood": 120, "stone": 0, "food": 0 },
       "workRadius": 0,
       "pickRadius": 8,
       "harvestInterval": 5,
@@ -84,13 +145,16 @@
       "maxLabor": 2,
       "acceptsLabor": true,
       "requiresRoad": true,
+      "facesRoad": true,
       "requiresMatureTrees": false,
-      "requiresQuarryStone": false
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
     },
     "stone_quarry": {
       "label": "Stonecutter's camp",
       "cost": { "timber": 25, "stone": 40 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 180 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 180, "food": 0 },
       "workRadius": 55,
       "pickRadius": 10,
       "harvestInterval": 9,
@@ -98,22 +162,133 @@
       "maxLabor": 4,
       "acceptsLabor": true,
       "requiresRoad": false,
+      "facesRoad": false,
       "requiresMatureTrees": false,
-      "requiresQuarryStone": true
+      "requiresQuarryStone": true,
+      "requiresGame": false,
+      "requiresBerries": false
     },
     "well": {
       "label": "Well",
       "cost": { "timber": 18, "stone": 22 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 100 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 100, "food": 0 },
       "workRadius": 90,
       "pickRadius": 6,
       "harvestInterval": 0,
       "regrowRatePerSecond": 0,
+      "maxLabor": 2,
+      "acceptsLabor": true,
+      "requiresRoad": true,
+      "facesRoad": false,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
+    },
+    "hunters_hall": {
+      "label": "Hunter's hall",
+      "cost": { "timber": 38, "stone": 14 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 100 },
+      "workRadius": 68,
+      "pickRadius": 9,
+      "harvestInterval": 8,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 3,
+      "acceptsLabor": true,
+      "requiresRoad": false,
+      "facesRoad": false,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": true,
+      "requiresBerries": false
+    },
+    "foragers_shed": {
+      "label": "Forager's shed",
+      "cost": { "timber": 28, "stone": 8 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 80 },
+      "workRadius": 48,
+      "pickRadius": 8,
+      "harvestInterval": 6,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 2,
+      "acceptsLabor": true,
+      "requiresRoad": false,
+      "facesRoad": false,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": true
+    },
+    "chapel": {
+      "label": "Chapel",
+      "cost": { "timber": 22, "stone": 34 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
+      "workRadius": 0,
+      "pickRadius": 7,
+      "harvestInterval": 0,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 1,
+      "acceptsLabor": true,
+      "requiresRoad": true,
+      "facesRoad": true,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
+    },
+    "marketplace": {
+      "label": "Marketplace",
+      "cost": { "timber": 32, "stone": 26 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
+      "workRadius": 0,
+      "pickRadius": 8,
+      "harvestInterval": 0,
+      "regrowRatePerSecond": 0,
       "maxLabor": 0,
       "acceptsLabor": false,
-      "requiresRoad": false,
+      "requiresRoad": true,
+      "facesRoad": true,
       "requiresMatureTrees": false,
-      "requiresQuarryStone": false
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
+    }
+  },
+  "backyardGardens": {
+    "apple_orchard": {
+      "label": "Apple orchard",
+      "cost": { "timber": 10, "stone": 4 },
+      "foodSelfShare": 0.55,
+      "foodPerPersonPerSec": 0.009,
+      "goldPerPersonPerSec": 0.008
+    },
+    "cherry_orchard": {
+      "label": "Cherry orchard",
+      "cost": { "timber": 9, "stone": 3 },
+      "foodSelfShare": 0.5,
+      "foodPerPersonPerSec": 0.008,
+      "goldPerPersonPerSec": 0.01
+    },
+    "vegetable_garden": {
+      "label": "Vegetable garden",
+      "cost": { "timber": 5, "stone": 2 },
+      "foodSelfShare": 0.65,
+      "foodPerPersonPerSec": 0.012,
+      "goldPerPersonPerSec": 0.006
+    },
+    "flower_garden": {
+      "label": "Flower garden",
+      "cost": { "timber": 4, "stone": 1 },
+      "foodSelfShare": 0,
+      "foodPerPersonPerSec": 0,
+      "goldPerPersonPerSec": 0.018
+    },
+    "herb_garden": {
+      "label": "Herb garden",
+      "cost": { "timber": 4, "stone": 2 },
+      "foodSelfShare": 0,
+      "foodPerPersonPerSec": 0,
+      "goldPerPersonPerSec": 0.015
     }
   }
 }

@@ -10,6 +10,14 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const BackyardGarden = __t.object("BackyardGarden", {
+  id: __t.u64(),
+  residenceId: __t.u64(),
+  owner: __t.identity(),
+  kind: __t.u8(),
+});
+export type BackyardGarden = __Infer<typeof BackyardGarden>;
+
 export const Building = __t.object("Building", {
   id: __t.u64(),
   owner: __t.identity(),
@@ -18,11 +26,11 @@ export const Building = __t.object("Building", {
   z: __t.f64(),
   workRadius: __t.f64(),
   actionCooldown: __t.f64(),
-  deliveryCooldown: __t.f64(),
   timber: __t.f64(),
   firewood: __t.f64(),
   stone: __t.f64(),
   water: __t.f64(),
+  food: __t.f64(),
   waterCapacity: __t.f64(),
   assignedLabor: __t.u32(),
 });
@@ -44,12 +52,57 @@ export const BurgageZone = __t.object("BurgageZone", {
 });
 export type BurgageZone = __Infer<typeof BurgageZone>;
 
+export const DeliveryTrip = __t.object("DeliveryTrip", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  buildingId: __t.u64(),
+  residenceId: __t.u64(),
+  cargoKind: __t.u8(),
+  amount: __t.f64(),
+  phase: __t.u8(),
+  x: __t.f64(),
+  z: __t.f64(),
+  progress: __t.f64(),
+  speedMps: __t.f64(),
+  unloadSeconds: __t.f64(),
+  unloadRemaining: __t.f64(),
+  deliveryWorkers: __t.u32(),
+});
+export type DeliveryTrip = __Infer<typeof DeliveryTrip>;
+
+export const ForagingBootstrap = __t.object("ForagingBootstrap", {
+  nodeId: __t.string(),
+  nodeKind: __t.string(),
+  x: __t.f64(),
+  z: __t.f64(),
+  maxYield: __t.f64(),
+  anchorX: __t.f64(),
+  anchorZ: __t.f64(),
+});
+export type ForagingBootstrap = __Infer<typeof ForagingBootstrap>;
+
+export const ForagingNode = __t.object("ForagingNode", {
+  nodeId: __t.string(),
+  nodeKind: __t.string(),
+  x: __t.f64(),
+  z: __t.f64(),
+  maxYield: __t.f64(),
+  remaining: __t.f64(),
+  respawnCooldown: __t.f64(),
+  anchorX: __t.f64(),
+  anchorZ: __t.f64(),
+});
+export type ForagingNode = __Infer<typeof ForagingNode>;
+
 export const PlayerResources = __t.object("PlayerResources", {
   owner: __t.identity(),
   timber: __t.f64(),
   stone: __t.f64(),
   firewood: __t.f64(),
   water: __t.f64(),
+  gold: __t.f64(),
+  food: __t.f64(),
+  economicActivityTaxRate: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
@@ -82,6 +135,7 @@ export const Residence = __t.object("Residence", {
   populationCapacity: __t.u32(),
   settlementTicks: __t.u32(),
   abandoned: __t.bool(),
+  householdWealth: __t.f64(),
 });
 export type Residence = __Infer<typeof Residence>;
 

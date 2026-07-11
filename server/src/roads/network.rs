@@ -44,6 +44,17 @@ pub struct RoadNetwork {
     edges: Vec<RoadEdgeRow>,
 }
 
+#[derive(Debug, Clone)]
+pub struct RoadPathRoute {
+    pub distance: f64,
+    pub polyline: Vec<[f64; 2]>,
+}
+
+struct ShortestPathSolve {
+    distance: f64,
+    node_path: Vec<String>,
+}
+
 impl RoadNetwork {
     pub fn from_snapshot_json(json: &str) -> Option<Self> {
         let snapshot: RoadSnapshot = serde_json::from_str(json).ok()?;
@@ -130,36 +141,50 @@ impl RoadNetwork {
 
     /// Shortest travel distance along the road graph, including off-road access legs.
     pub fn road_path_distance(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<f64> {
+        self.road_path_route(ax, az, bx, bz).map(|route| route.distance)
+    }
+
+    /// Full one-way polyline from origin to destination along the road graph.
+    pub fn road_path_polyline(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<Vec<[f64; 2]>> {
+        self.road_path_route(ax, az, bx, bz)
+            .map(|route| route.polyline)
+    }
+
+    /// Canonical shortest route — distance matches sampled polyline length for movement.
+    pub fn road_path_route(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<RoadPathRoute> {
+        let solve = self.shortest_path_solve(ax, az, bx, bz)?;
+        let polyline = self.materialize_polyline(ax, az, bx, bz, &solve.node_path);
+        Some(RoadPathRoute {
+            distance: Self::polyline_length_xz(&polyline),
+            polyline,
+        })
+    }
+
+    fn shortest_path_solve(
+        &self,
+        ax: f64,
+        az: f64,
+        bx: f64,
+        bz: f64,
+    ) -> Option<ShortestPathSolve> {
         let nodes_a = self.snap_nodes(ax, az)?;
         let nodes_b = self.snap_nodes(bx, bz)?;
         if !self.share_component(&nodes_a, &nodes_b) {
             return None;
         }
 
-        let mut graph: HashMap<String, Vec<(String, f64)>> = HashMap::new();
-        for edge in &self.edges {
-            if edge.start_node_id.is_empty() || edge.end_node_id.is_empty() {
-                continue;
-            }
-            let weight = polyline_length(&edge.sampled_path);
-            graph
-                .entry(edge.start_node_id.clone())
-                .or_default()
-                .push((edge.end_node_id.clone(), weight));
-            graph
-                .entry(edge.end_node_id.clone())
-                .or_default()
-                .push((edge.start_node_id.clone(), weight));
-        }
-
+        let graph = self.build_weighted_graph();
         let mut dist: HashMap<String, f64> = HashMap::new();
+        let mut prev: HashMap<String, Option<String>> = HashMap::new();
         let mut heap: BinaryHeap<Reverse<(u64, String)>> = BinaryHeap::new();
+
         for node_id in &nodes_a {
             let Some(&(nx, nz)) = self.nodes.get(node_id) else {
                 continue;
             };
             let cost = distance(ax, az, nx, nz);
             dist.insert(node_id.clone(), cost);
+            prev.insert(node_id.clone(), None);
             heap.push(Reverse((cost_to_key(cost), node_id.clone())));
         }
 
@@ -176,12 +201,14 @@ impl RoadNetwork {
                 let entry = dist.entry(neighbor.clone()).or_insert(f64::INFINITY);
                 if next + 1e-6 < *entry {
                     *entry = next;
+                    prev.insert(neighbor.clone(), Some(node_id.clone()));
                     heap.push(Reverse((cost_to_key(next), neighbor.clone())));
                 }
             }
         }
 
-        let mut best = f64::INFINITY;
+        let mut best_end: Option<String> = None;
+        let mut best_total = f64::INFINITY;
         for node_id in &nodes_b {
             let Some(&road_cost) = dist.get(node_id) else {
                 continue;
@@ -189,10 +216,151 @@ impl RoadNetwork {
             let Some(&(nx, nz)) = self.nodes.get(node_id) else {
                 continue;
             };
-            best = best.min(road_cost + distance(bx, bz, nx, nz));
+            let total = road_cost + distance(bx, bz, nx, nz);
+            if total + 1e-6 < best_total {
+                best_total = total;
+                best_end = Some(node_id.clone());
+            }
         }
 
-        if best.is_finite() { Some(best) } else { None }
+        let end_node = best_end?;
+        let mut node_path: Vec<String> = Vec::new();
+        let mut cursor = Some(end_node);
+        while let Some(node_id) = cursor {
+            node_path.push(node_id.clone());
+            cursor = prev.get(&node_id).cloned().flatten();
+        }
+        node_path.reverse();
+
+        if !best_total.is_finite() {
+            return None;
+        }
+
+        Some(ShortestPathSolve {
+            distance: best_total,
+            node_path,
+        })
+    }
+
+    fn build_weighted_graph(&self) -> HashMap<String, Vec<(String, f64)>> {
+        let mut graph: HashMap<String, Vec<(String, f64)>> = HashMap::new();
+        for edge in &self.edges {
+            if edge.start_node_id.is_empty() || edge.end_node_id.is_empty() {
+                continue;
+            }
+            let weight = polyline_length(&edge.sampled_path);
+            graph
+                .entry(edge.start_node_id.clone())
+                .or_default()
+                .push((edge.end_node_id.clone(), weight));
+            graph
+                .entry(edge.end_node_id.clone())
+                .or_default()
+                .push((edge.start_node_id.clone(), weight));
+        }
+        graph
+    }
+
+    fn materialize_polyline(
+        &self,
+        ax: f64,
+        az: f64,
+        bx: f64,
+        bz: f64,
+        node_path: &[String],
+    ) -> Vec<[f64; 2]> {
+        let mut path: Vec<[f64; 2]> = vec![[ax, az]];
+        for window in node_path.windows(2) {
+            if let Some(segment) = self.edge_polyline_between(&window[0], &window[1]) {
+                append_polyline(&mut path, &segment);
+            }
+        }
+        append_point(&mut path, bx, bz);
+        path
+    }
+
+    fn edge_polyline_between(&self, from: &str, to: &str) -> Option<Vec<[f64; 2]>> {
+        for edge in &self.edges {
+            if edge.start_node_id == from && edge.end_node_id == to {
+                return Some(
+                    edge.sampled_path
+                        .iter()
+                        .map(|point| [point[0], point[2]])
+                        .collect(),
+                );
+            }
+            if edge.end_node_id == from && edge.start_node_id == to {
+                return Some(
+                    edge.sampled_path
+                        .iter()
+                        .rev()
+                        .map(|point| [point[0], point[2]])
+                        .collect(),
+                );
+            }
+        }
+
+        let (ax, az) = *self.nodes.get(from)?;
+        let (bx, bz) = *self.nodes.get(to)?;
+        Some(vec![[ax, az], [bx, bz]])
+    }
+
+    /// Polyline length in meters (XZ plane).
+    pub fn polyline_length_xz(path: &[[f64; 2]]) -> f64 {
+        if path.len() < 2 {
+            return 0.0;
+        }
+        let mut total = 0.0;
+        for window in path.windows(2) {
+            total += distance(
+                window[0][0],
+                window[0][1],
+                window[1][0],
+                window[1][1],
+            );
+        }
+        total
+    }
+
+    /// Sample a position `meters` from the start of a polyline.
+    pub fn sample_polyline_xz(path: &[[f64; 2]], meters: f64) -> (f64, f64) {
+        if path.is_empty() {
+            return (0.0, 0.0);
+        }
+        if path.len() == 1 || meters <= 0.0 {
+            return (path[0][0], path[0][1]);
+        }
+
+        let mut remaining = meters;
+        for window in path.windows(2) {
+            let seg_len = distance(
+                window[0][0],
+                window[0][1],
+                window[1][0],
+                window[1][1],
+            );
+            if remaining <= seg_len + 1e-9 {
+                let t = if seg_len <= 1e-9 {
+                    0.0
+                } else {
+                    remaining / seg_len
+                };
+                let x = window[0][0] + (window[1][0] - window[0][0]) * t;
+                let z = window[0][1] + (window[1][1] - window[0][1]) * t;
+                return (x, z);
+            }
+            remaining -= seg_len;
+        }
+
+        let last = path[path.len() - 1];
+        (last[0], last[1])
+    }
+
+    /// Sample a position `meters` from the end of a polyline (inbound leg).
+    pub fn sample_polyline_inbound_xz(path: &[[f64; 2]], meters: f64) -> (f64, f64) {
+        let total = Self::polyline_length_xz(path);
+        let clamped = meters.clamp(0.0, total);
+        Self::sample_polyline_xz(path, total - clamped)
     }
 
     fn snap_nodes(&self, x: f64, z: f64) -> Option<Vec<String>> {
@@ -337,4 +505,19 @@ fn polyline_length(path: &[[f64; 3]]) -> f64 {
         );
     }
     total
+}
+
+fn append_point(path: &mut Vec<[f64; 2]>, x: f64, z: f64) {
+    if let Some(last) = path.last() {
+        if (last[0] - x).abs() <= 1e-6 && (last[1] - z).abs() <= 1e-6 {
+            return;
+        }
+    }
+    path.push([x, z]);
+}
+
+fn append_polyline(path: &mut Vec<[f64; 2]>, segment: &[[f64; 2]]) {
+    for point in segment {
+        append_point(path, point[0], point[1]);
+    }
 }

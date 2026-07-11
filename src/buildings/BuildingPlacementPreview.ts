@@ -17,6 +17,10 @@ const PREVIEW_HEIGHT: Record<BuildingKind, number> = {
   woodcutters_lodge: 4.2,
   stone_quarry: 5.8,
   well: 2.4,
+  hunters_hall: 4.8,
+  foragers_shed: 3.8,
+  chapel: 5.4,
+  marketplace: 3.2,
 };
 
 export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
@@ -79,6 +83,10 @@ function createPreviewFootprintGeometry(
     case 'reforester':
     case 'woodcutters_lodge':
     case 'well':
+    case 'hunters_hall':
+    case 'foragers_shed':
+    case 'chapel':
+    case 'marketplace':
       return new THREE.BoxGeometry(params.radiusX * 2 * scale, height, params.radiusZ * 2 * scale);
     default: {
       const unreachable: never = kind;

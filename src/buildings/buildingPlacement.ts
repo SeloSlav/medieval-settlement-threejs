@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type { BuildingKind } from '../generated/gameBalance.ts';
+import { buildingFacesRoad } from '../resources/buildingPlacementPolicy.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 
-const ROAD_FACING_BUILDINGS = new Set<BuildingKind>(['lumber_mill', 'woodcutters_lodge']);
 const ROAD_FACING_SNAP_DISTANCE = 24;
 
 function pseudoRandomYaw(x: number, z: number): number {
@@ -16,7 +16,7 @@ export function buildingPlacementYaw(
   z: number,
   roadNetwork?: RoadNetwork | null,
 ): number {
-  if (roadNetwork && ROAD_FACING_BUILDINGS.has(kind)) {
+  if (roadNetwork && buildingFacesRoad(kind)) {
     const snap = roadNetwork.findSnap(new THREE.Vector3(x, 0, z), ROAD_FACING_SNAP_DISTANCE);
     if (snap) {
       const dx = snap.point.x - x;

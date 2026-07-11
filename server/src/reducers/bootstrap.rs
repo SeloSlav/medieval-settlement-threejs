@@ -2,8 +2,8 @@ use spacetimedb::{reducer, ReducerContext};
 
 use crate::db::*;
 use crate::lifecycle::seed_world_entities;
-use crate::tables::{Quarry, TreeEntity};
-use crate::types::{QuarryBootstrap, TreeBootstrap};
+use crate::tables::{ForagingNode, Quarry, TreeEntity};
+use crate::types::{ForagingBootstrap, QuarryBootstrap, TreeBootstrap};
 
 #[reducer]
 pub fn bootstrap_quarries(ctx: &ReducerContext, quarries: Vec<QuarryBootstrap>) -> Result<(), String> {
@@ -34,6 +34,51 @@ pub fn bootstrap_quarries(ctx: &ReducerContext, quarries: Vec<QuarryBootstrap>) 
     }
 
     if ctx.db.quarry().iter().count() > 0 {
+        return Ok(());
+    }
+
+    seed_world_entities(ctx);
+    Ok(())
+}
+
+#[reducer]
+pub fn bootstrap_foraging(
+    ctx: &ReducerContext,
+    nodes: Vec<ForagingBootstrap>,
+) -> Result<(), String> {
+    if !nodes.is_empty() {
+        for node in nodes {
+            if node.node_id.is_empty() || node.max_yield <= 0.0 {
+                continue;
+            }
+            if let Some(existing) = ctx.db.foraging_node().node_id().find(&node.node_id) {
+                ctx.db.foraging_node().node_id().update(ForagingNode {
+                    x: node.x,
+                    z: node.z,
+                    max_yield: node.max_yield,
+                    remaining: existing.remaining.min(node.max_yield),
+                    anchor_x: node.anchor_x,
+                    anchor_z: node.anchor_z,
+                    ..existing
+                });
+            } else {
+                ctx.db.foraging_node().insert(ForagingNode {
+                    node_id: node.node_id,
+                    node_kind: node.node_kind,
+                    x: node.x,
+                    z: node.z,
+                    max_yield: node.max_yield,
+                    remaining: node.max_yield,
+                    respawn_cooldown: 0.0,
+                    anchor_x: node.anchor_x,
+                    anchor_z: node.anchor_z,
+                });
+            }
+        }
+        return Ok(());
+    }
+
+    if ctx.db.foraging_node().iter().count() > 0 {
         return Ok(());
     }
 

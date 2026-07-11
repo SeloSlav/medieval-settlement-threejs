@@ -19,6 +19,31 @@ export const GORSKI_PALETTE = {
   interiorDark: 0x1a1410,
 } as const;
 
+export const RESIDENCE_FACADE_PALETTE = {
+  white: 0xe8e2d8,
+  yellow: 0xccb860,
+  grey: 0x8a8580,
+  lightOrange: 0xcc9858,
+  orange: 0xbf7038,
+} as const;
+
+export const RESIDENCE_ROOF_PALETTE = {
+  red: GORSKI_PALETTE.tileRed,
+  brown: GORSKI_PALETTE.shingleWood,
+  grey: 0x6a6662,
+  slate: 0x454a50,
+} as const;
+
+export const RESIDENCE_ROOF_SPECS = {
+  red: { roughness: 0.82, metalness: 0.02 },
+  brown: { roughness: 0.92, metalness: 0 },
+  grey: { roughness: 0.92, metalness: 0 },
+  slate: { roughness: 0.88, metalness: 0.04 },
+} as const;
+
+export type ResidenceFacadeColor = keyof typeof RESIDENCE_FACADE_PALETTE;
+export type ResidenceRoofColor = keyof typeof RESIDENCE_ROOF_PALETTE;
+
 /** Weathered grey quarry stone — distinct from bright Gorski limestone on mills/huts. */
 export const QUARRY_ROCK_PALETTE = {
   dark: 0x52565c,
@@ -71,6 +96,25 @@ export function shingleMaterial(): THREE.MeshStandardMaterial {
     color: GORSKI_PALETTE.shingleWood,
     roughness: 0.92,
     metalness: 0,
+  });
+}
+
+export function residenceFacadeMaterial(
+  facade: ResidenceFacadeColor,
+): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color: RESIDENCE_FACADE_PALETTE[facade],
+    roughness: 0.9,
+    metalness: 0,
+  });
+}
+
+export function residenceRoofMaterial(roof: ResidenceRoofColor): THREE.MeshStandardMaterial {
+  const spec = RESIDENCE_ROOF_SPECS[roof];
+  return new THREE.MeshStandardMaterial({
+    color: RESIDENCE_ROOF_PALETTE[roof],
+    roughness: spec.roughness,
+    metalness: spec.metalness,
   });
 }
 

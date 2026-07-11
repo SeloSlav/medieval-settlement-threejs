@@ -14,6 +14,8 @@ export const TOAST_MESSAGES = {
   'building.placement.within_residence_zone': 'Cannot build inside a residence plot',
   'building.placement.on_quarry_pit': 'Cannot build on a quarry pit',
   'building.placement.no_quarry_in_range': 'No quarry stone within work range',
+  'building.placement.no_game_in_range': 'No game within work range',
+  'building.placement.no_berries_in_range': 'No berries within work range',
   'building.placement.no_trees_in_range': 'No mature trees within work range',
   'building.placement.no_road_access': 'Building must be placed near a road',
   'building.placement.on_road': 'Cannot build on a road',
@@ -103,6 +105,10 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.on_quarry_pit';
     case 'no_quarry_in_range':
       return 'building.placement.no_quarry_in_range';
+    case 'no_game_in_range':
+      return 'building.placement.no_game_in_range';
+    case 'no_berries_in_range':
+      return 'building.placement.no_berries_in_range';
     case 'no_trees_in_range':
       return 'building.placement.no_trees_in_range';
     case 'no_road_access':

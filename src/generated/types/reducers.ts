@@ -7,28 +7,38 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import AssignBuildingLaborReducer from "../assign_building_labor_reducer";
+import BootstrapForagingReducer from "../bootstrap_foraging_reducer";
 import BootstrapQuarriesReducer from "../bootstrap_quarries_reducer";
 import BootstrapTreesReducer from "../bootstrap_trees_reducer";
 import ClientConnectedReducer from "../client_connected_reducer";
+import DemolishBackyardGardenReducer from "../demolish_backyard_garden_reducer";
 import DemolishBuildingReducer from "../demolish_building_reducer";
 import DemolishBurgageZoneReducer from "../demolish_burgage_zone_reducer";
 import DemolishResidenceReducer from "../demolish_residence_reducer";
+import MarketplaceTradeReducer from "../marketplace_trade_reducer";
+import PlaceBackyardGardenReducer from "../place_backyard_garden_reducer";
 import PlaceBuildingReducer from "../place_building_reducer";
 import PlaceBurgageZoneReducer from "../place_burgage_zone_reducer";
 import RemoveRoadEdgeReducer from "../remove_road_edge_reducer";
+import SetEconomicActivityTaxRateReducer from "../set_economic_activity_tax_rate_reducer";
 import SyncRoadNetworkReducer from "../sync_road_network_reducer";
 import TickSimReducer from "../tick_sim_reducer";
 
 export type AssignBuildingLaborParams = __Infer<typeof AssignBuildingLaborReducer>;
+export type BootstrapForagingParams = __Infer<typeof BootstrapForagingReducer>;
 export type BootstrapQuarriesParams = __Infer<typeof BootstrapQuarriesReducer>;
 export type BootstrapTreesParams = __Infer<typeof BootstrapTreesReducer>;
 export type ClientConnectedParams = __Infer<typeof ClientConnectedReducer>;
+export type DemolishBackyardGardenParams = __Infer<typeof DemolishBackyardGardenReducer>;
 export type DemolishBuildingParams = __Infer<typeof DemolishBuildingReducer>;
 export type DemolishBurgageZoneParams = __Infer<typeof DemolishBurgageZoneReducer>;
 export type DemolishResidenceParams = __Infer<typeof DemolishResidenceReducer>;
+export type MarketplaceTradeParams = __Infer<typeof MarketplaceTradeReducer>;
+export type PlaceBackyardGardenParams = __Infer<typeof PlaceBackyardGardenReducer>;
 export type PlaceBuildingParams = __Infer<typeof PlaceBuildingReducer>;
 export type PlaceBurgageZoneParams = __Infer<typeof PlaceBurgageZoneReducer>;
 export type RemoveRoadEdgeParams = __Infer<typeof RemoveRoadEdgeReducer>;
+export type SetEconomicActivityTaxRateParams = __Infer<typeof SetEconomicActivityTaxRateReducer>;
 export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;
 

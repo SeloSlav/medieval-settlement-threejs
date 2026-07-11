@@ -7,11 +7,16 @@ import {
 } from '../buildingEconomy.ts';
 import {
   formatFirewoodRunwayDays,
-  RESIDENCE_SETTLE_TICKS,
   RESIDENCE_WATER_CAPACITY,
   residenceFirewoodRunwayDays,
   SIM_TICK_SECONDS,
 } from '../resourceTotals.ts';
+import { effectiveResidenceSettleTicks } from '../../economy/chapelCommunity.ts';
+import {
+  chapelAttendanceChance,
+  chapelTitheGoldPerDay,
+  formatHouseholdWealth,
+} from '../../economy/householdEconomy.ts';
 import {
   RESIDENCE_FIREWOOD_CAPACITY,
   residenceNeedsStatus,
@@ -34,10 +39,15 @@ export function renderResidenceInspector(
   const roadAccess = context.worldQueries.getRoadAccessLabel(residence.x, residence.z);
   const servingLodge = context.worldQueries.getServingLodgeForResidence(residence);
   const servingWell = context.worldQueries.getServingWellForResidence(residence);
+  const servingFoodSupplier = context.worldQueries.getServingFoodSupplierForResidence(residence);
+  const community = {
+    hasChapelAccess: context.worldQueries.isResidenceConnectedToChapel(residence),
+  };
   const needs = residenceNeedsStatus(residence, {
     servingLodgeId: servingLodge?.id ?? null,
     servingWellId: servingWell?.id ?? null,
-  });
+    servingFoodSupplierId: servingFoodSupplier?.id ?? null,
+  }, community);
   const runwayDays = residenceFirewoodRunwayDays(residence);
   const firewoodRunwayLabel = runwayDays == null
     ? '—'
@@ -47,15 +57,22 @@ export function renderResidenceInspector(
     : 'None on branch';
   const wellLabel = servingWell
     ? context.worldQueries.getBuildingLabel(servingWell.kind)
-    : 'None in range';
+    : 'None on branch';
   const capacity = residence.populationCapacity;
   const settlersRemaining = Math.max(0, capacity - residence.population);
+  const settleTicks = effectiveResidenceSettleTicks(community.hasChapelAccess);
   const settleEtaSeconds = settlersRemaining > 0
     ? Math.max(
         1,
-        Math.round((RESIDENCE_SETTLE_TICKS - residence.settlementTicks) * SIM_TICK_SECONDS),
+        Math.round((settleTicks - residence.settlementTicks) * SIM_TICK_SECONDS),
       )
     : null;
+  const chapelAttendance = community.hasChapelAccess
+    ? chapelAttendanceChance(1)
+    : 0;
+  const titheExposurePerDay = community.hasChapelAccess
+    ? chapelTitheGoldPerDay(residence.population) * chapelAttendance
+    : 0;
 
   return {
     eyebrow: 'Residence',
@@ -73,6 +90,10 @@ export function renderResidenceInspector(
       <li><span>Residences</span><span>${residenceCount}</span></li>
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population} / ${capacity}</span></li>
+      <li><span>Household wealth</span><span>${formatHouseholdWealth(residence.householdWealth)}</span></li>
+      ${community.hasChapelAccess
+        ? `<li><span>Parish tithe</span><span>~${titheExposurePerDay.toFixed(1)} gold / day when attending (${Math.round(chapelAttendance * 100)}% chance)</span></li>`
+        : ''}
       ${settleEtaSeconds != null && !residence.abandoned
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — next in ~${formatSettleEta(settleEtaSeconds)}</span></li>`
         : ''}
@@ -81,6 +102,7 @@ export function renderResidenceInspector(
       <li><span>Water stock</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY}</span></li>
       <li><span>Serving lodge</span><span>${lodgeLabel}</span></li>
       <li><span>Serving well</span><span>${wellLabel}</span></li>
+      <li><span>Chapel link</span><span>${community.hasChapelAccess ? 'Staffed parish on the road' : 'None on branch'}</span></li>
       <li><span>Road access</span><span>${roadAccess}</span></li>
       <li><span>Build cost</span><span>${formatBuildingCost(singleCost)}</span></li>
       <li><span>Nearest road</span><span>${nearestRoad == null ? 'None nearby' : `${nearestRoad.toFixed(1)} m`}</span></li>

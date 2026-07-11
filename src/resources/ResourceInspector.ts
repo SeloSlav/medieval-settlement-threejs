@@ -3,6 +3,7 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import {
+  computeTradeAvailability,
   maxAssignableLabor,
   type PopulationStats,
   type ResourceTotals,
@@ -10,6 +11,9 @@ import {
 import type { GameState, InspectableTarget } from './types.ts';
 import type { WorldQueries } from './WorldQueries.ts';
 import { renderInspectableTarget } from './inspector/renderInspectableTarget.ts';
+import { handleSupplementalPanelClick } from './inspector/supplementalPanel.ts';
+import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
+import { backyardIconPosition } from '../residences/backyardPosition.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -18,10 +22,14 @@ type ResourceInspectorOptions = {
   terrainProjector: TerrainProjector;
   worldQueries: WorldQueries;
   getState: () => GameState;
+  getEconomicActivityTaxRate?: () => number;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onDemolishBurgageZone?: (zoneId: string) => void | Promise<void>;
+  onPlaceBackyardGarden?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
+  onDemolishBackyardGarden?: (residenceId: string) => void | Promise<void>;
   onAssignBuildingLabor?: (buildingId: string, labor: number) => void | Promise<void>;
+  onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
   onSelectionChange?: (target: InspectableTarget | null) => void;
   isBlocked: () => boolean;
 };
@@ -34,7 +42,7 @@ export class ResourceInspector {
   private readonly status: HTMLElement;
   private readonly detailList: HTMLElement;
   private readonly stockpileRoot: HTMLElement;
-  private readonly stockpileValues: Record<'timber' | 'stone' | 'firewood', HTMLElement>;
+  private readonly stockpileValues: Record<'timber' | 'stone' | 'firewood' | 'gold', HTMLElement>;
   private readonly populationValue: HTMLElement;
   private readonly housingValue: HTMLElement;
   private readonly housingSub: HTMLElement;
@@ -49,6 +57,7 @@ export class ResourceInspector {
   private readonly laborHint: HTMLElement;
   private readonly laborDecrease: HTMLButtonElement;
   private readonly laborIncrease: HTMLButtonElement;
+  private readonly supplementalPanelSection: HTMLElement;
   private readonly marker: THREE.Mesh;
   private selectedTarget: InspectableTarget | null = null;
   private selectedX = 0;
@@ -91,6 +100,7 @@ export class ResourceInspector {
           </div>
           <p class="resource-inspector-labor-hint" data-inspector-labor-hint></p>
         </section>
+        <section class="resource-inspector-supplemental" data-inspector-supplemental hidden aria-label="Inspector actions"></section>
         <section class="resource-inspector-actions" data-inspector-actions hidden aria-label="Building actions">
           <button type="button" class="resource-inspector-demolish" data-action="demolish-primary">
             Demolish
@@ -115,6 +125,7 @@ export class ResourceInspector {
       timber: this.mustElement(options.uiRoot, '[data-stockpile="timber"]'),
       stone: this.mustElement(options.uiRoot, '[data-stockpile="stone"]'),
       firewood: this.mustElement(options.uiRoot, '[data-stockpile="firewood"]'),
+      gold: this.mustElement(options.uiRoot, '[data-stockpile="gold"]'),
     };
     this.populationValue = this.mustElement(options.uiRoot, '[data-stockpile="population"]');
     this.housingValue = this.mustElement(options.uiRoot, '[data-stockpile="housing"]');
@@ -130,6 +141,7 @@ export class ResourceInspector {
     this.laborHint = this.mustElement(options.uiRoot, '[data-inspector-labor-hint]');
     this.laborDecrease = this.mustButton(options.uiRoot, '[data-action="labor-decrease"]');
     this.laborIncrease = this.mustButton(options.uiRoot, '[data-action="labor-increase"]');
+    this.supplementalPanelSection = this.mustElement(options.uiRoot, '[data-inspector-supplemental]');
 
     this.marker = createSelectionMarker();
     options.sceneManager.selectionGroup.add(this.marker);
@@ -137,7 +149,7 @@ export class ResourceInspector {
 
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
     this.panel.addEventListener('mousedown', (event) => event.stopPropagation());
-    this.panel.addEventListener('click', (event) => event.stopPropagation());
+    this.panel.addEventListener('click', this.onPanelClick);
     this.demolishButton.addEventListener('click', this.onDemolishPrimaryClick);
     this.demolishSecondaryButton.addEventListener('click', this.onDemolishSecondaryClick);
     this.laborDecrease.addEventListener('click', this.onLaborDecrease);
@@ -152,7 +164,19 @@ export class ResourceInspector {
     }
     if (this.selectedTarget.kind === 'residence') {
       void this.options.onDemolishResidence?.(this.selectedTarget.residence.id);
+      return;
     }
+    if (this.selectedTarget.kind === 'backyard' && this.selectedTarget.garden) {
+      void this.options.onDemolishBackyardGarden?.(this.selectedTarget.residence.id);
+    }
+  };
+
+  private readonly onPanelClick = (event: MouseEvent): void => {
+    event.stopPropagation();
+    handleSupplementalPanelClick(this.selectedTarget, event.target as HTMLElement, {
+      onPlaceBackyardGarden: this.options.onPlaceBackyardGarden,
+      onMarketplaceTrade: this.options.onMarketplaceTrade,
+    });
   };
 
   private readonly onDemolishSecondaryClick = (): void => {
@@ -178,6 +202,7 @@ export class ResourceInspector {
     this.stockpileValues.timber.textContent = Math.round(totals.timber).toString();
     this.stockpileValues.stone.textContent = Math.round(totals.stone).toString();
     this.stockpileValues.firewood.textContent = Math.round(totals.firewood).toString();
+    this.stockpileValues.gold.textContent = totals.gold.toFixed(1);
     this.populationValue.textContent = population.total.toString();
     this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;
     this.housingSub.textContent = population.vacant === 1
@@ -194,6 +219,18 @@ export class ResourceInspector {
 
   selectQuarry(quarryId: string): void {
     const target = this.options.worldQueries.findQuarryTarget(quarryId);
+    if (!target) return;
+    this.selectTarget(target);
+  }
+
+  selectForaging(nodeId: string): void {
+    const target = this.options.worldQueries.findForagingTarget(nodeId);
+    if (!target) return;
+    this.selectTarget(target);
+  }
+
+  selectBackyard(residenceId: string): void {
+    const target = this.options.worldQueries.findBackyardTarget(residenceId);
     if (!target) return;
     this.selectTarget(target);
   }
@@ -220,6 +257,16 @@ export class ResourceInspector {
       this.renderTarget(latest);
       return;
     }
+    if (this.selectedTarget.kind === 'foraging' && latest.kind === 'foraging' && latest.definition.id === this.selectedTarget.definition.id) {
+      this.selectedTarget = latest;
+      this.renderTarget(latest);
+      return;
+    }
+    if (this.selectedTarget.kind === 'backyard' && latest.kind === 'backyard' && latest.residence.id === this.selectedTarget.residence.id) {
+      this.selectedTarget = latest;
+      this.renderTarget(latest);
+      return;
+    }
     if (this.selectedTarget.kind === 'river' && latest.kind === 'river') {
       this.selectedTarget = latest;
       this.renderTarget(latest);
@@ -232,6 +279,7 @@ export class ResourceInspector {
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
     this.demolishButton.removeEventListener('click', this.onDemolishPrimaryClick);
     this.demolishSecondaryButton.removeEventListener('click', this.onDemolishSecondaryClick);
+    this.panel.removeEventListener('click', this.onPanelClick);
     this.laborDecrease.removeEventListener('click', this.onLaborDecrease);
     this.laborIncrease.removeEventListener('click', this.onLaborIncrease);
     this.options.sceneManager.selectionGroup.remove(this.marker);
@@ -264,6 +312,10 @@ export class ResourceInspector {
       this.selectedX = target.definition.x;
       this.selectedZ = target.definition.z;
       this.selectedRadius = target.definition.pickRadius * 0.42;
+    } else if (target.kind === 'foraging') {
+      this.selectedX = target.definition.x;
+      this.selectedZ = target.definition.z;
+      this.selectedRadius = target.definition.pickRadius * 0.42;
     } else if (target.kind === 'building') {
       this.selectedX = target.building.x;
       this.selectedZ = target.building.z;
@@ -272,6 +324,11 @@ export class ResourceInspector {
       this.selectedX = target.residence.x;
       this.selectedZ = target.residence.z;
       this.selectedRadius = 4.2;
+    } else if (target.kind === 'backyard') {
+      const position = backyardIconPosition(target.residence, target.zone);
+      this.selectedX = position?.x ?? target.residence.x;
+      this.selectedZ = position?.z ?? target.residence.z;
+      this.selectedRadius = 3.8;
     } else {
       this.selectedX = target.x;
       this.selectedZ = target.z;
@@ -288,6 +345,7 @@ export class ResourceInspector {
     this.marker.visible = false;
     this.demolishSection.hidden = true;
     this.laborSection.hidden = true;
+    this.supplementalPanelSection.hidden = true;
     if (hidePanel) this.panel.hidden = true;
     this.options.onSelectionChange?.(null);
   }
@@ -296,6 +354,10 @@ export class ResourceInspector {
     const view = renderInspectableTarget(target, {
       worldQueries: this.options.worldQueries,
       populationStats: this.populationStats,
+      ...(this.options.getEconomicActivityTaxRate
+        ? { getEconomicActivityTaxRate: this.options.getEconomicActivityTaxRate }
+        : {}),
+      getTradeAvailability: () => computeTradeAvailability(this.options.getState()),
     });
 
     this.eyebrow.textContent = view.eyebrow;
@@ -325,6 +387,14 @@ export class ResourceInspector {
       this.laborHint.textContent = view.labor.hint;
       this.laborDecrease.disabled = view.labor.decreaseDisabled;
       this.laborIncrease.disabled = view.labor.increaseDisabled;
+    }
+
+    if (view.supplementalPanelHtml) {
+      this.supplementalPanelSection.hidden = false;
+      this.supplementalPanelSection.innerHTML = view.supplementalPanelHtml;
+    } else {
+      this.supplementalPanelSection.hidden = true;
+      this.supplementalPanelSection.innerHTML = '';
     }
   }
 

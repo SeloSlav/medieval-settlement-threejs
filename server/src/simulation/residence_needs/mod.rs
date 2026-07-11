@@ -1,5 +1,6 @@
 pub mod firewood;
 mod kinds;
+pub mod food;
 pub mod state;
 mod supply;
 pub mod water;
@@ -9,15 +10,21 @@ pub use state::{load_needs, need_stock};
 
 use spacetimedb::ReducerContext;
 
-use crate::constants::ABANDON_AFTER_DEFICIT_TICKS;
 use crate::db::*;
+use crate::simulation::chapel_community::{
+    effective_abandon_after_deficit_ticks, recovery_needs_required, recovery_stock_min,
+};
 use crate::simulation::residence_needs::state::{
     delete_needs, find_need_mut, init_needs, max_deficit_ticks, persist_needs, NeedState,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::Residence;
 
-pub fn step_residence_needs(ctx: &ReducerContext, residence: Residence) {
+pub fn step_residence_needs(
+    ctx: &ReducerContext,
+    residence: Residence,
+    has_chapel_access: bool,
+) {
     if residence.abandoned || residence.population == 0 {
         return;
     }
@@ -47,7 +54,8 @@ pub fn step_residence_needs(ctx: &ReducerContext, residence: Residence) {
         return;
     }
 
-    let abandoned = max_deficit_ticks(&needs) >= ABANDON_AFTER_DEFICIT_TICKS;
+    let abandon_threshold = effective_abandon_after_deficit_ticks(has_chapel_access);
+    let abandoned = max_deficit_ticks(&needs) >= abandon_threshold;
     persist_needs(ctx, residence.id, &needs);
     ctx.db.residence().id().update(Residence {
         abandoned,
@@ -60,6 +68,7 @@ pub fn step_residence_recovery(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     residence: Residence,
+    has_chapel_access: bool,
 ) {
     if !residence.abandoned {
         return;
@@ -67,7 +76,7 @@ pub fn step_residence_recovery(
 
     let needs = load_needs(ctx, residence.id);
     let supply = supply::build_supply_context(tick, ctx, &residence);
-    if !recovery_ready(&needs, &supply) {
+    if !recovery_ready(&needs, &supply, has_chapel_access) {
         return;
     }
 
@@ -106,13 +115,22 @@ pub fn clear_residence_needs(ctx: &ReducerContext, residence_id: u64) {
     delete_needs(ctx, residence_id);
 }
 
-fn recovery_ready(needs: &[NeedState], supply: &supply::ResidenceNeedSupplyContext) -> bool {
-    ResidenceNeedKind::ALL.iter().all(|kind| {
-        let Some(need) = state::find_need(needs, *kind) else {
-            return false;
-        };
-        evaluate_recovery(*kind, need, supply)
-    })
+fn recovery_ready(
+    needs: &[NeedState],
+    supply: &supply::ResidenceNeedSupplyContext,
+    has_chapel_access: bool,
+) -> bool {
+    let ready_count = ResidenceNeedKind::ALL
+        .into_iter()
+        .filter(|kind| {
+            let Some(need) = state::find_need(needs, *kind) else {
+                return false;
+            };
+            evaluate_recovery(*kind, need, supply, has_chapel_access)
+        })
+        .count();
+
+    ready_count >= recovery_needs_required(has_chapel_access) as usize
 }
 
 enum ConsumeResult {
@@ -134,6 +152,10 @@ fn consume_need(
                 water::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
                 water::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
             },
+            ResidenceNeedKind::Food => match food::consume(residence, need) {
+                food::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
+                food::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
+            },
         }
 }
 
@@ -141,6 +163,7 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
     match kind {
         ResidenceNeedKind::Firewood => firewood::on_unmet(need),
         ResidenceNeedKind::Water => water::on_unmet(need),
+        ResidenceNeedKind::Food => food::on_unmet(need),
     }
 }
 
@@ -148,10 +171,13 @@ fn evaluate_recovery(
     kind: ResidenceNeedKind,
     need: &NeedState,
     supply: &supply::ResidenceNeedSupplyContext,
+    has_chapel_access: bool,
 ) -> bool {
+    let stock_min = recovery_stock_min(kind, has_chapel_access);
     match kind {
-        ResidenceNeedKind::Firewood => firewood::evaluate_recovery(need, supply),
-        ResidenceNeedKind::Water => water::evaluate_recovery(need, supply),
+        ResidenceNeedKind::Firewood => firewood::evaluate_recovery(need, supply, stock_min),
+        ResidenceNeedKind::Water => water::evaluate_recovery(need, supply, stock_min),
+        ResidenceNeedKind::Food => food::evaluate_recovery(need, supply, stock_min),
     }
 }
 
@@ -163,5 +189,6 @@ fn apply_delivery_for_kind(
     match kind {
         ResidenceNeedKind::Firewood => firewood::apply_delivery(need, delivered),
         ResidenceNeedKind::Water => water::apply_delivery(need, delivered),
+        ResidenceNeedKind::Food => food::apply_delivery(need, delivered),
     }
 }

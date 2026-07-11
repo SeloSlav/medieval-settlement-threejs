@@ -1,10 +1,11 @@
 use spacetimedb::{reducer, Identity, ReducerContext, ScheduleAt, TimeDuration};
 
+use crate::balance_generated::ECONOMIC_ACTIVITY_TAX_RATE;
 use crate::constants::{DEFAULT_WORLD_SEED, TICK_MICROS};
-use crate::economy::{STARTING_STONE, STARTING_TIMBER};
+use crate::economy::{STARTING_GOLD, STARTING_STONE, STARTING_TIMBER};
 use crate::db::*;
 use crate::schedule::SimTickSchedule;
-use crate::tables::{PlayerResources, Quarry, TreeEntity, WorldConfig};
+use crate::tables::{ForagingNode, PlayerResources, Quarry, TreeEntity, WorldConfig};
 use crate::world_gen;
 
 #[reducer(init)]
@@ -38,6 +39,22 @@ pub fn seed_world_entities(ctx: &ReducerContext) {
         }
     }
 
+    if ctx.db.foraging_node().iter().count() == 0 {
+        for node in world_gen::bootstrap_foraging_rows() {
+            ctx.db.foraging_node().insert(ForagingNode {
+                node_id: node.node_id,
+                node_kind: node.node_kind,
+                x: node.x,
+                z: node.z,
+                max_yield: node.max_yield,
+                remaining: node.max_yield,
+                respawn_cooldown: 0.0,
+                anchor_x: node.anchor_x,
+                anchor_z: node.anchor_z,
+            });
+        }
+    }
+
     if ctx.db.tree_entity().iter().count() == 0 {
         for tree in world_gen::bootstrap_tree_rows() {
             if tree.tree_id.is_empty() {
@@ -66,6 +83,9 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         stone: STARTING_STONE,
         firewood: 0.0,
         water: 0.0,
+        gold: STARTING_GOLD,
+        food: 0.0,
+        economic_activity_tax_rate: ECONOMIC_ACTIVITY_TAX_RATE,
     });
 }
 

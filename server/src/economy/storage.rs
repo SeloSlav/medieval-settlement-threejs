@@ -1,16 +1,16 @@
 use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
-use crate::constants::RESIDENCE_FIREWOOD_CAPACITY;
-use crate::constants::RESIDENCE_WATER_CAPACITY;
+use crate::constants::{RESIDENCE_FOOD_CAPACITY, RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_WATER_CAPACITY};
 use crate::db::*;
-use crate::tables::Building;
+use crate::tables::{Building, ResidenceNeed};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StorageCaps {
     pub timber: f64,
     pub firewood: f64,
     pub stone: f64,
+    pub food: f64,
 }
 
 pub fn building_storage_caps(kind: &str) -> StorageCaps {
@@ -21,6 +21,7 @@ pub fn building_storage_caps(kind: &str) -> StorageCaps {
         timber: def.storage_timber,
         firewood: def.storage_firewood,
         stone: def.storage_stone,
+        food: def.storage_food,
     }
 }
 
@@ -32,6 +33,10 @@ pub fn residence_water_capacity() -> f64 {
     RESIDENCE_WATER_CAPACITY
 }
 
+pub fn residence_food_capacity() -> f64 {
+    RESIDENCE_FOOD_CAPACITY
+}
+
 pub fn total_timber(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
     treasury_timber(ctx, owner)
         + building_sum(ctx, owner, |building| building.timber)
@@ -41,7 +46,25 @@ pub fn total_stone(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
     treasury_stone(ctx, owner) + building_sum(ctx, owner, |building| building.stone)
 }
 
-pub fn deposit_building(building: &Building, caps: StorageCaps, timber: f64, firewood: f64, stone: f64) -> (f64, f64, f64, Building) {
+pub fn total_firewood(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    treasury_firewood(ctx, owner)
+        + building_sum(ctx, owner, |building| building.firewood)
+        + residence_need_sum(ctx, owner, 0)
+}
+
+pub fn total_food(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    treasury_food(ctx, owner)
+        + building_sum(ctx, owner, |building| building.food)
+        + residence_need_sum(ctx, owner, 2)
+}
+
+pub fn deposit_building(
+    building: &Building,
+    caps: StorageCaps,
+    timber: f64,
+    firewood: f64,
+    stone: f64,
+) -> (f64, f64, f64, Building) {
     let mut next = building.clone();
     let timber_room = (caps.timber - next.timber).max(0.0);
     let firewood_room = (caps.firewood - next.firewood).max(0.0);
@@ -55,6 +78,21 @@ pub fn deposit_building(building: &Building, caps: StorageCaps, timber: f64, fir
     (timber_deposited, firewood_deposited, stone_deposited, next)
 }
 
+pub fn deposit_building_food(building: &Building, cap: f64, amount: f64) -> (f64, Building) {
+    let mut next = building.clone();
+    let room = (cap - next.food).max(0.0);
+    let deposited = amount.min(room);
+    next.food += deposited;
+    (deposited, next)
+}
+
+pub fn withdraw_building_food(building: &Building, amount: f64) -> (f64, Building) {
+    let mut next = building.clone();
+    let withdrawn = amount.min(next.food);
+    next.food -= withdrawn;
+    (withdrawn, next)
+}
+
 pub fn withdraw_building(building: &Building, timber: f64, firewood: f64, stone: f64) -> (f64, f64, f64, Building) {
     let mut next = building.clone();
     let timber_withdrawn = timber.min(next.timber);
@@ -64,6 +102,29 @@ pub fn withdraw_building(building: &Building, timber: f64, firewood: f64, stone:
     next.firewood -= firewood_withdrawn;
     next.stone -= stone_withdrawn;
     (timber_withdrawn, firewood_withdrawn, stone_withdrawn, next)
+}
+
+pub fn deposit_building_water(building: &Building, cap: f64, amount: f64) -> (f64, Building) {
+    let mut next = building.clone();
+    let room = (cap - next.water).max(0.0);
+    let deposited = amount.min(room);
+    next.water += deposited;
+    (deposited, next)
+}
+
+pub fn withdraw_building_water(building: &Building, amount: f64) -> (f64, Building) {
+    let mut next = building.clone();
+    let withdrawn = amount.min(next.water);
+    next.water -= withdrawn;
+    (withdrawn, next)
+}
+
+pub fn building_water_storage_cap(kind: &str) -> f64 {
+    building_def(kind).map(|def| def.storage_water).unwrap_or(0.0)
+}
+
+pub fn building_food_storage_cap(kind: &str) -> f64 {
+    building_def(kind).map(|def| def.storage_food).unwrap_or(0.0)
 }
 
 enum AggregateSpendField {
@@ -152,6 +213,22 @@ pub fn spend_aggregate_stone(ctx: &ReducerContext, owner: spacetimedb::Identity,
     spend_aggregate(ctx, owner, amount, AggregateSpendField::Stone)
 }
 
+pub fn spend_aggregate_firewood(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    amount: f64,
+) -> Result<(), String> {
+    spend_residence_stock(ctx, owner, amount, 0, TreasurySpendField::Firewood, |building| building.firewood)
+}
+
+pub fn spend_aggregate_food(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    amount: f64,
+) -> Result<(), String> {
+    spend_residence_stock(ctx, owner, amount, 2, TreasurySpendField::Food, |building| building.food)
+}
+
 pub fn credit_treasury_timber(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
     if amount <= 0.0 {
         return;
@@ -172,6 +249,68 @@ pub fn credit_treasury_stone(ctx: &ReducerContext, owner: spacetimedb::Identity,
     }
 }
 
+pub fn credit_treasury_firewood(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
+    if amount <= 0.0 {
+        return;
+    }
+    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
+        treasury.firewood += amount;
+        ctx.db.player_resources().owner().update(treasury);
+    }
+}
+
+pub fn credit_treasury_water(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
+    if amount <= 0.0 {
+        return;
+    }
+    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
+        treasury.water += amount;
+        ctx.db.player_resources().owner().update(treasury);
+    }
+}
+
+pub fn credit_treasury_food(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
+    if amount <= 0.0 {
+        return;
+    }
+    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
+        treasury.food += amount;
+        ctx.db.player_resources().owner().update(treasury);
+    }
+}
+
+pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
+    if amount <= 0.0 {
+        return;
+    }
+    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
+        treasury.gold += amount;
+        ctx.db.player_resources().owner().update(treasury);
+    }
+}
+
+pub fn spend_treasury_gold(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    amount: f64,
+) -> Result<(), String> {
+    if amount <= 0.0 {
+        return Ok(());
+    }
+    let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Not enough gold.".to_string());
+    };
+    if treasury.gold + 1e-6 < amount {
+        return Err(format!(
+            "Not enough gold (need {} more).",
+            (amount - treasury.gold).round() as i64
+        ));
+    }
+    treasury.gold -= amount;
+    ctx.db.player_resources().owner().update(treasury);
+    Ok(())
+}
+
 fn treasury_timber(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
     ctx.db
         .player_resources()
@@ -188,6 +327,144 @@ fn treasury_stone(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
         .find(&owner)
         .map(|row| row.stone)
         .unwrap_or(0.0)
+}
+
+fn treasury_firewood(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    ctx.db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .map(|row| row.firewood)
+        .unwrap_or(0.0)
+}
+
+fn treasury_food(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    ctx.db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .map(|row| row.food)
+        .unwrap_or(0.0)
+}
+
+enum TreasurySpendField {
+    Firewood,
+    Food,
+}
+
+fn spend_residence_stock<F>(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    amount: f64,
+    need_kind: u8,
+    treasury_field: TreasurySpendField,
+    building_pick: F,
+) -> Result<(), String>
+where
+    F: Fn(&Building) -> f64,
+{
+    if amount <= 0.0 {
+        return Ok(());
+    }
+
+    let resource_name = match treasury_field {
+        TreasurySpendField::Firewood => "firewood",
+        TreasurySpendField::Food => "food",
+    };
+
+    let mut remaining = amount;
+    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
+        let from_treasury = match treasury_field {
+            TreasurySpendField::Firewood => {
+                let withdraw = remaining.min(treasury.firewood);
+                treasury.firewood -= withdraw;
+                withdraw
+            }
+            TreasurySpendField::Food => {
+                let withdraw = remaining.min(treasury.food);
+                treasury.food -= withdraw;
+                withdraw
+            }
+        };
+        remaining -= from_treasury;
+        ctx.db.player_resources().owner().update(treasury);
+    }
+
+    if remaining <= 1e-6 {
+        return Ok(());
+    }
+
+    for building in ctx.db.building().owner().filter(&owner) {
+        if remaining <= 1e-6 {
+            break;
+        }
+        let available = building_pick(&building);
+        let withdraw = remaining.min(available);
+        if withdraw <= 0.0 {
+            continue;
+        }
+        let updated = match treasury_field {
+            TreasurySpendField::Firewood => Building {
+                firewood: building.firewood - withdraw,
+                ..building
+            },
+            TreasurySpendField::Food => Building {
+                food: building.food - withdraw,
+                ..building
+            },
+        };
+        ctx.db.building().id().update(updated);
+        remaining -= withdraw;
+    }
+
+    if remaining <= 1e-6 {
+        return Ok(());
+    }
+
+    for residence in ctx.db.residence().owner().filter(&owner) {
+        if remaining <= 1e-6 {
+            break;
+        }
+        for need in ctx.db.residence_need().residence_id().filter(&residence.id) {
+            if need.need_kind != need_kind {
+                continue;
+            }
+            let withdraw = remaining.min(need.stock);
+            if withdraw <= 0.0 {
+                continue;
+            }
+            let updated = ResidenceNeed {
+                stock: need.stock - withdraw,
+                ..need
+            };
+            ctx.db.residence_need().id().update(updated);
+            remaining -= withdraw;
+            if remaining <= 1e-6 {
+                break;
+            }
+        }
+    }
+
+    if remaining > 1e-6 {
+        return Err(format!(
+            "Not enough {resource_name} (need {} more).",
+            remaining.round() as i64
+        ));
+    }
+
+    Ok(())
+}
+
+fn residence_need_sum(ctx: &ReducerContext, owner: spacetimedb::Identity, need_kind: u8) -> f64 {
+    let mut total = 0.0;
+    for residence in ctx.db.residence().owner().filter(&owner) {
+        for need in ctx.db.residence_need().residence_id().filter(&residence.id) {
+            if need.need_kind == need_kind {
+                total += need.stock;
+            }
+        }
+    }
+    total
 }
 
 fn building_sum<F>(ctx: &ReducerContext, owner: spacetimedb::Identity, pick: F) -> f64

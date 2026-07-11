@@ -19,6 +19,15 @@ pub struct PlayerResources {
     /// Treasury firewood (usually zero; residences and lodges hold stock).
     pub firewood: f64,
     pub water: f64,
+    /// Treasury gold from taxed village economic activity.
+    #[default(0.0)]
+    pub gold: f64,
+    /// Treasury food from demolished suppliers and undeposited delivery overflow.
+    #[default(0.0)]
+    pub food: f64,
+    /// Mayor tax rate on village economic activity (0–1 fraction).
+    #[default(0.18)]
+    pub economic_activity_tax_rate: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -29,6 +38,20 @@ pub struct Quarry {
     pub z: f64,
     pub max_yield: f64,
     pub remaining: f64,
+}
+
+#[spacetimedb::table(accessor = foraging_node, public)]
+pub struct ForagingNode {
+    #[primary_key]
+    pub node_id: String,
+    pub node_kind: String,
+    pub x: f64,
+    pub z: f64,
+    pub max_yield: f64,
+    pub remaining: f64,
+    pub respawn_cooldown: f64,
+    pub anchor_x: f64,
+    pub anchor_z: f64,
 }
 
 #[spacetimedb::table(accessor = tree_entity, public)]
@@ -55,11 +78,11 @@ pub struct Building {
     pub z: f64,
     pub work_radius: f64,
     pub action_cooldown: f64,
-    pub delivery_cooldown: f64,
     pub timber: f64,
     pub firewood: f64,
     pub stone: f64,
     pub water: f64,
+    pub food: f64,
     pub water_capacity: f64,
     pub assigned_labor: u32,
 }
@@ -104,6 +127,56 @@ pub struct Residence {
     pub population_capacity: u32,
     pub settlement_ticks: u32,
     pub abandoned: bool,
+    /// Gold saved by the household from marketplace garden sales (capped).
+    #[default(0.0)]
+    pub household_wealth: f64,
+}
+
+#[spacetimedb::table(
+    accessor = backyard_garden,
+    public,
+    index(accessor = residence_id, btree(columns = [residence_id])),
+    index(accessor = owner, btree(columns = [owner]))
+)]
+pub struct BackyardGarden {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub residence_id: u64,
+    pub owner: Identity,
+    /// Matches `BackyardGardenKind` in balance_generated.
+    pub kind: u8,
+}
+
+/// Active road delivery agent — position and phase are authoritative; cargo unloads on arrival.
+#[spacetimedb::table(
+    accessor = delivery_trip,
+    public,
+    index(accessor = building_id, btree(columns = [building_id])),
+    index(accessor = residence_id, btree(columns = [residence_id])),
+    index(accessor = owner, btree(columns = [owner]))
+)]
+pub struct DeliveryTrip {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub owner: Identity,
+    pub building_id: u64,
+    pub residence_id: u64,
+    /// 0 = firewood, 1 = water, 2 = food (matches `ResidenceNeedKind`)
+    pub cargo_kind: u8,
+    /// Cargo still on the cart (decreases when unloaded at residence).
+    pub amount: f64,
+    /// 0 = outbound, 1 = unloading, 2 = inbound
+    pub phase: u8,
+    pub x: f64,
+    pub z: f64,
+    /// Meters traveled along the current leg (outbound or inbound).
+    pub progress: f64,
+    pub speed_mps: f64,
+    pub unload_seconds: f64,
+    pub unload_remaining: f64,
+    pub delivery_workers: u32,
 }
 
 #[spacetimedb::table(

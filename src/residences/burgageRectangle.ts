@@ -50,14 +50,22 @@ export function inwardNormalForFrontage(
   return leftDist >= rightDist ? left : right;
 }
 
+export function measureRawDepthFromBackPoint(
+  frontStart: Point2,
+  backPoint: Point2,
+  inward: Point2,
+): number {
+  const fromStart = subtract2(backPoint, frontStart);
+  return fromStart.x * inward.x + fromStart.z * inward.z;
+}
+
 export function depthFromBackPoint(
   frontStart: Point2,
   _frontEnd: Point2,
   backPoint: Point2,
   inward: Point2,
 ): number {
-  const fromStart = subtract2(backPoint, frontStart);
-  const depth = fromStart.x * inward.x + fromStart.z * inward.z;
+  const depth = measureRawDepthFromBackPoint(frontStart, backPoint, inward);
   return Math.min(MAX_ZONE_DEPTH, Math.max(MIN_ZONE_DEPTH, depth));
 }
 

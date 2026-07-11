@@ -1,6 +1,6 @@
-# City Builder Starter Kit - ThreeJS
+# Medieval Settlement — Three.js
 
-A real-time Three.js sandbox for building a medieval settlement on a procedural 3D landscape. Draw dirt road networks across rolling hills, pine forests, and winding rivers — wooden bridges and graded ramps appear automatically when a path crosses water. Place lumber mills, woodcutter's lodges, reforesters, and stone quarries to harvest timber and stone, then lay out burgage residence zones along road frontage to grow your population. Assign workers from your labor pool to speed production; a server-side firewood supply chain routes timber from road-connected mills through lodges to homes that consume fuel each tick. A [SpacetimeDB](https://spacetimedb.com/) Rust module runs the authoritative economy simulation; the client renders replicated state in real time. Drop into first-person walk mode to explore on foot.
+A real-time Three.js sandbox for growing a **medieval settlement** on a procedural 3D landscape. Draw dirt road networks across rolling hills, pine forests, and winding rivers — wooden bridges and graded ramps appear automatically when a path crosses water. Place production buildings to harvest timber, stone, game, and berries; connect wells and woodcutter's lodges along those roads; then lay out residence zones along your roads so settlers move in over time. Homes need firewood, water, and food — road-based delivery crews haul supplies from lodges, wells, hunter's halls, and forager's sheds while you watch colored agents travel the network. Assign workers from your labor pool, plant backyard gardens for local food and village gold, and keep the supply chain running before homes are abandoned. A [SpacetimeDB](https://spacetimedb.com/) Rust module runs the authoritative economy simulation; the client renders replicated state in real time. Toggle the hydrology overlay to scout well sites, inspect foraging nodes and quarries from map icons, and drop into first-person walk mode to explore on foot.
 
 ![Road network with wooden bridges, ramps, and forest](docs/screenshots/medieval-roads-bridges-forest.png)
 
@@ -23,40 +23,50 @@ A real-time Three.js sandbox for building a medieval settlement on a procedural 
 - Wood-log bridge deck material blended onto the road ribbon via a per-vertex `bridgeBlend` attribute.
 - Bridge preview tint while drawing, plus placement validation that rejects spans wider than the max bridge length.
 - Rock collision checks that block roads through scattered forest and river-shore boulders.
-- Road-network connectivity for gameplay — buildings and residences must be within road-path distance for access, mill→lodge timber routing, and lodge→residence firewood delivery.
+- Road-network connectivity for gameplay — buildings and residences must be within road-path distance for access, mill→lodge timber routing, and lodge/well/food-supplier delivery.
 
 ### Economy & settlement
 
-- **Treasury & stockpile HUD** — per-player timber, stone, and firewood tracked in SpacetimeDB; live HUD also shows total population and free labor.
+- **Settlement HUD** — per-player timber, stone, firewood, population, housing (occupied/capacity/vacant), and free labor tracked in SpacetimeDB with live FPS and zoom readout.
 - **Shared game balance** — one `balance/gameBalance.json` source generates Rust constants and TypeScript bindings for costs, radii, tick intervals, and production rates.
-- **Building placement costs** — timber and stone deducted from treasury on place; toolbar shows costs for the active build tool.
-- **Building storage** — lumber mills, lodges, and quarries hold harvested resources in per-building inventory with capacity caps.
-- **Salvage on demolish** — removing buildings or residence zones refunds ~70% timber and ~92% stone of placement cost, plus stored resources.
+- **Building placement costs** — timber and stone deducted from treasury on place; build menu cards show costs for each structure.
+- **Building storage** — mills, lodges, quarries, wells, and food buildings hold harvested resources in per-building inventory with capacity caps.
+- **Salvage on demolish** — removing buildings, residence zones, or backyard gardens refunds a fraction of placement cost plus stored resources.
 - **Labor assignment** — assign workers to production buildings via the inspector; labor speeds harvest cycles and is capped by available population.
-- **Population pool** — starting population plus occupants from placed residences; unassigned workers form the free-labor pool shown in the HUD.
-- **Lumber mill** — harvests the nearest mature tree within a 210 m work radius, stores timber in the building, and requires road access; up to 3 laborers scale the 9 s harvest cycle.
+- **Population & housing** — starting population plus occupants from placed residences; settlers arrive gradually per home; unassigned workers form the free-labor pool.
+- **Treasury gold** — backyard gardens generate village economic activity taxed into player gold (orchards, vegetable plots, flower and herb gardens).
+- **Lumber mill** — harvests the nearest mature tree within a 210 m work radius when road-connected to a well; stores timber and consumes water per harvest; up to 3 laborers scale the 9 s harvest cycle.
 - **Reforester** — regrows stumps within a 190 m radius through `stump → growing → mature` phases; growing trees render as animated saplings; up to 1 laborer.
 - **Stonecutter's camp** — extracts stone from the nearest procedural quarry site within 55 m every 9 s until depleted; stores stone in the building; up to 4 laborers.
-- **Woodcutter's lodge** — processes stored timber into firewood on a 5 s cycle and delivers fuel along the road network to claimed residences; up to 2 laborers split between processing and delivery crews.
-- **Road-based logistics** — Dijkstra road-path distance routes timber from mills to lodges and firewood from lodges to residences; nearest lodge claims each home on its road branch.
+- **Woodcutter's lodge** — processes stored timber into firewood on a 5 s cycle, pulls timber from road-connected mills, and dispatches delivery crews along the road network; up to 2 laborers split between processing and delivery.
+- **Well** — refills groundwater based on local hydrology score, with occasional surges; delivers water to claimed residences along connected roads; capacity and yield depend on placement; up to 2 laborers split between pumping and delivery.
+- **Hunter's hall** — hunts game from procedural foraging nodes within 68 m, stores food, and delivers along roads; up to 3 laborers.
+- **Forager's shed** — gathers berries from forest-edge foraging nodes within 48 m, stores food, and delivers along roads; up to 2 laborers.
+- **Chapel** — parish hub on the road; assign a priest to collect tithes from road-linked villagers and boost settlement, shortage resilience, and abandoned-home recovery.
+- **Road-based logistics** — Dijkstra road-path distance routes timber mill→lodge, firewood lodge→residence, water well→residence, and food supplier→residence; nearest supplier claims each home on its road branch.
+- **Delivery trips** — server-spawned road agents travel outbound, unload at the residence, and return; client renders colored spheres along routes for firewood, water, and food hauls.
+- **Foraging nodes** — procedural game trails and berry patches bootstrapped at world start; depleted nodes respawn at new locations after cooldowns.
 - **Tree lifecycle** — server-driven `mature → stump → growing → mature` phases with client visual sync (instanced forest, animated saplings, stumps).
-- Server-authoritative simulation tick (200 ms) in the Rust module — buildings, trees, quarries, residence needs, and lodge delivery all run server-side.
-- Building placement tool with terrain-following preview, flattened terrain pads, work-radius rings, and validation (water, slope, overlap, road access, trees, quarry stone).
+- Server-authoritative simulation tick (200 ms) in the Rust module — buildings, trees, quarries, foraging, delivery trips, residence needs, backyard gardens, and settlement growth all run server-side.
+- Construction dock UI — `R` for roads, `B` for the build menu (eight building types + residences), `M` for the hydrology overlay.
+- Building placement tool with terrain-following preview, flattened terrain pads, work-radius rings, and validation (water, slope, overlap, road access, trees, quarry stone, foraging nodes).
 - Building and residence demolish actions from the inspector panel.
-- Click-to-inspect resource panel for quarries, buildings, residences, and river access — yields, storage, labor controls, firewood runway, and lodge delivery status.
-- Quarry map icons projected on screen at zoomed-out camera levels; click an icon to inspect the site.
+- Click-to-inspect resource panel for quarries, foraging nodes, buildings, residences, backyards, and river access — yields, storage, labor controls, runway days, delivery status, and hydrology grades.
+- Map icons at zoomed-out camera levels for quarries, foraging nodes, and backyard gardens; click an icon to inspect the site.
 - Game state export/import (JSON v2) from the game menu for backups and sharing layouts offline (roads, buildings, trees, quarries, and treasury — residences are server-owned and not included in snapshots).
 
 ### Residences
 
-- **Burgage zone placement** — draw a frontage edge along a road, then a depth point to define a rectangular plot subdivided into residence parcels.
-- **Burgage layout HUD** — adjust plot count (+/−), rotate frontage edge (`F`), and see validity while placing.
+- **Residence zone placement** — draw a frontage edge along a road, then a depth point to define a rectangular plot subdivided into residence parcels.
+- **Residence layout HUD** — adjust plot count (+/−), rotate frontage edge (`F`), and see validity while placing.
 - **Road frontage requirement** — zones must sit within frontage distance of the road network; parcels face the selected frontage edge.
-- **Per-parcel costs** — each residence costs timber and stone on placement; narrow and wide parcels get 2 or 4 population respectively (default 3).
-- **Procedural residence meshes** — timber-and-stone houses placed per parcel with instanced fence posts and rails along zone boundaries.
-- **Firewood consumption** — residents burn firewood per person per tick; homes track stock and deficit timers server-side.
-- **Abandonment** — prolonged firewood shortage abandons a residence (population drops to zero).
-- **Residence inspector** — firewood stock, runway days, serving lodge, road access, and demolish options for a single home or entire zone.
+- **Per-parcel costs** — each residence costs timber and stone on placement; narrow and wide parcels get 2 or 4 population capacity respectively (default 3).
+- **Gradual settlement** — empty homes fill one settler at a time after a settle timer; inspector shows pending settlers and ETA.
+- **Procedural residence meshes** — timber-and-stone houses with varied facade and roof colors per parcel; instanced fence posts and rails along zone boundaries.
+- **Residence needs** — residents consume firewood, water, and food per person per tick; homes track per-need stock and deficit timers server-side.
+- **Abandonment & recovery** — prolonged shortage of any need abandons a residence (population drops to zero); homes can recover once all needs are restocked and road-connected suppliers are available.
+- **Backyard gardens** — click an occupied home's backyard to plant apple/cherry orchards, vegetable gardens, flower beds, or herb plots; food gardens partially self-supply the household; surplus and ornamental gardens generate taxed gold.
+- **Residence inspector** — firewood/water/food stock, runway days, serving lodge/well/food supplier, road access, settlers pending, and demolish options for a single home or entire zone.
 
 ### Exploration
 
@@ -83,8 +93,11 @@ A real-time Three.js sandbox for building a medieval settlement on a procedural 
 - River shore reeds clustered along bank edges for added shoreline detail.
 - Trees automatically cleared along built roads; props respect river blocking zones.
 - Procedural rock quarries (one large, two small) carved into the terrain with pit depressions, scattered boulders, and grass clearance pads.
+- Procedural foraging nodes — game trails in woodland and berry patches near forest edges.
+- **Hydrology overlay** — toggle a groundwater map (`M`) to grade well placement sites before building.
 - Animated volumetric-style sky and cloud dome with wind-driven motion.
 - Directional sun lighting, exponential fog, soft shadow maps, and shadow bounds fitting.
+- Ambient audio — wind and village ambience that intensifies when the camera nears your settlement.
 
 ### Rendering & UI
 
@@ -93,15 +106,17 @@ A real-time Three.js sandbox for building a medieval settlement on a procedural 
 - Progressive loading screen with staged status labels while the world initializes.
 - Contextual tip cards for camera, walk, and road modes — toggle off via the game menu.
 - Game menu with persistent "turn off tips" preference stored in `localStorage`.
-- Toast notifications for rejected road, building, and burgage placements (steep slope, river too wide, rocks in the way, insufficient resources, etc.).
-- HUD with floating road/build tool buttons, live stockpile readout (timber, stone, firewood, population, labor), FPS and zoom readout, compass strip, burgage layout HUD, and building cost hints.
+- Toast notifications for rejected road, building, and residence placements (steep slope, river too wide, rocks in the way, insufficient resources, missing foraging, etc.).
+- Construction dock and build menu with illustrated cards, hotkeys, settlement HUD, compass strip, residence layout HUD, delivery-agent rendering, and building cost hints.
 - Responsive full-screen canvas built with Vite, TypeScript, and Three.js r185.
 
 ## Controls
 
 | Action | Control |
 | --- | --- |
-| Toggle road tool | `R` or click **Roads** |
+| Toggle road tool | `R` or click **Roads** in the construction dock |
+| Open build menu | `B` or click **Build** in the construction dock |
+| Toggle hydrology / water map | `M` or click **Water map** in the construction dock |
 | Place road point | Left-click on terrain |
 | Undo last placed point while drawing | Right-click |
 | Curve the road | Hold `Ctrl` and scroll the mouse wheel |
@@ -111,18 +126,23 @@ A real-time Three.js sandbox for building a medieval settlement on a procedural 
 | Undo last road change | `Ctrl+Z` / `Cmd+Z` |
 | Redo last road change | `Ctrl+Y` / `Cmd+Y` |
 | Cancel active road preview | `Escape` (road mode) |
-| Toggle lumber mill placement | Click **Lumber mill** in the build toolbar |
-| Toggle reforester placement | Click **Reforester** |
-| Toggle woodcutter's lodge placement | Click **Woodcutter's lodge** |
-| Toggle stonecutter's camp placement | Click **Stonecutter's camp** |
-| Toggle burgage residence placement | Click **Residences** |
+| Select lumber mill | Build menu → **Lumber mill** (`L`) |
+| Select stonecutter's camp | Build menu → **Stonecutter's camp** (`S`) |
+| Select reforester | Build menu → **Reforester** (`F`) |
+| Select woodcutter's lodge | Build menu → **Woodcutter's lodge** (`W`) |
+| Select well | Build menu → **Well** (`E`) |
+| Select hunter's hall | Build menu → **Hunter's hall** (`K`) |
+| Select forager's shed | Build menu → **Forager's shed** (`Y`) |
+| Select chapel | Build menu → **Chapel** (`C`) |
+| Select residences | Build menu → **Residence** (`H`) |
 | Place building | Left-click on terrain (building tool active) |
-| Place burgage zone | Click frontage edge, then depth point (residence tool active) |
-| Adjust burgage plot count | `+` / `−` buttons in the burgage layout HUD |
-| Rotate burgage frontage edge | `F` or click the frontage button in the burgage HUD |
-| Inspect quarry / building / residence / river | Left-click on terrain (no tool active) |
+| Place residence zone | Click frontage edge, then depth point (residence tool active) |
+| Adjust residence plot count | `+` / `−` buttons in the residence layout HUD |
+| Rotate residence frontage edge | `F` or click the frontage button in the residence layout HUD |
+| Inspect quarry / foraging / building / residence / backyard / river | Left-click on terrain (no tool active) |
+| Plant or manage backyard garden | Inspect an occupied residence backyard |
 | Assign labor to building | Inspector panel → labor `+` / `−` |
-| Demolish building or residence | Inspector panel → **Remove** |
+| Demolish building, garden, or residence | Inspector panel → **Remove** |
 | Pan camera | Right-click drag, `WASD`, or arrow keys |
 | Rotate camera | Middle-click drag or `Q` / `E` |
 | Zoom camera | Mouse wheel |
@@ -170,7 +190,7 @@ npm run preview
 
 ## SpacetimeDB (authoritative backend)
 
-This project uses [SpacetimeDB 2.0.1](https://spacetimedb.com/) for authoritative game state: treasury, buildings, trees, quarries, roads, burgage zones, residences, and the firewood supply chain. The client is a thin renderer — all economy simulation runs in the Rust module via a scheduled `tick_sim` reducer every 200 ms.
+This project uses [SpacetimeDB 2.0.1](https://spacetimedb.com/) for authoritative game state: treasury, buildings, trees, quarries, foraging nodes, roads, residence zones, backyard gardens, delivery trips, and the full settlement supply chain. The client is a thin renderer — all economy simulation runs in the Rust module via a scheduled `tick_sim` reducer every 200 ms.
 
 ### Run locally
 
@@ -186,7 +206,7 @@ spacetime start
 npm run deploy:local
 ```
 
-This runs `generate:world-bootstrap` (tree layout data for server bootstrap), `generate:game-balance` (shared economy constants), publishes the module to database `city-builder`, and writes TypeScript bindings to `src/generated/`.
+This runs `generate:world-bootstrap` (tree and foraging layout data for server bootstrap), `generate:game-balance` (shared economy constants), publishes the module to database `city-builder`, and writes TypeScript bindings to `src/generated/`.
 
 To wipe and republish from scratch:
 
@@ -212,16 +232,20 @@ When real auth is added later, swap the token source in `src/network/identityPer
 
 | Data | Server table | Notes |
 | --- | --- | --- |
-| Timber / stone / firewood / water | `player_resources` | Per anonymous identity (treasury) |
-| Lumber mill, reforester, lodge, stone quarry | `building` | Per-building storage, labor, cooldowns; server tick drives production |
+| Timber / stone / firewood / water / gold | `player_resources` | Per anonymous identity (treasury) |
+| Lumber mill, reforester, lodge, quarry, well, hunter's hall, forager's shed, chapel | `building` | Per-building storage, labor, cooldowns; server tick drives production |
 | Tree stump / growing / mature | `tree_entity` | Bootstrapped after forest load |
 | Quarry remaining yield | `quarry` | Global world sites (1 large + 2 small) |
+| Game trails / berry patches | `foraging_node` | Depletes on harvest; respawns after cooldown |
 | Roads + bridges | `road_network_state` | Full `RoadNetworkSnapshot` JSON per player |
-| Burgage zone footprints | `burgage_zone` | Rectangular plot corners, frontage edge, plot count |
-| Residence parcels | `residence` | Population, firewood stock, deficit ticks, abandoned flag |
+| Residence zone layout | zone records | Rectangular plot corners, frontage edge, plot count |
+| Residence parcels | `residence` | Population, capacity, settlement ticks, abandoned flag |
+| Residence need stocks | `residence_need` | Firewood, water, and food stock + deficit timers |
+| Backyard gardens | `backyard_garden` | Orchard, vegetable, flower, or herb plot per residence |
+| Active delivery hauls | `delivery_trip` | Road agents carrying firewood, water, or food |
 | Sim tick counter | `world_config` | Monotonic server tick |
 
-**Player reducers:** `place_building`, `demolish_building`, `assign_building_labor`, `place_burgage_zone`, `demolish_residence`, `demolish_burgage_zone`, `sync_road_network`, `remove_road_edge`. **Bootstrap reducers:** `bootstrap_quarries`, `bootstrap_trees`.
+**Player reducers:** `place_building`, `demolish_building`, `assign_building_labor`, `demolish_residence`, `place_backyard_garden`, `demolish_backyard_garden`, `sync_road_network`, `remove_road_edge`, plus place/demolish residence zone. **Bootstrap reducers:** `bootstrap_quarries`, `bootstrap_trees`, `bootstrap_foraging`.
 
 ### Offline / disconnected behavior
 
@@ -234,37 +258,40 @@ When real auth is added later, swap the token source in `src/network/identityPer
 ```text
 src/
   app/        App bootstrap and frame loop
+  audio/      Ambient wind and village audio driven by camera proximity
   buildings/  Building placement tool, meshes, markers, terrain pads, and validation
   camera/     RTS orbit camera, first-person controller, and locomotion helpers
   data/       SpacetimeDB game store (replicated state)
+  foraging/   Foraging node layout helpers and yield display
   generated/  SpacetimeDB TypeScript bindings and game-balance constants (auto-generated)
   grass/      Streamed 3D grass blade field and zoom LOD math
+  hydrology/  Groundwater sampling, well capacity math, and hydrology overlay
   input/      Keyboard and pointer state helpers
-  logistics/  Client-side firewood runway and lodge delivery helpers
-  map/        Screen-projected quarry map icons
+  logistics/  Client-side runway, delivery trip, firewood/water/food routing helpers
+  map/        Screen-projected quarry, foraging, and backyard map icons
   network/    SpacetimeDB client + anonymous identity persistence
   placement/  Spatial index for building, residence, and road footprint conflicts
   props/      Instanced forest, undergrowth, stumps, rocks, road clearance, shadow filters
   quarries/   Quarry site layout, terrain depression, and rock scatter
-  residences/ Burgage zone tool, layout, meshes, fencing, and placement validation
+  residences/ Residence zone tool, layout, meshes, fencing, backyard gardens, and placement validation
   resources/  Game state, tree registry, world layout, resource inspector
   rivers/     River layout, field sampling, water sim, banks, reeds, and shore stones
   roads/      Road graph, drawing tool, mesh generation, junctions, bridges, connectivity
   runtime/    GameRuntime bridge (SpacetimeDB → App)
-  scene/      Three.js scene, renderer backend, lighting, post-processing
+  scene/      Three.js scene, renderer backend, lighting, post-processing, hydrology overlay
   sky/        Animated sky/cloud mesh
   terrain/    Procedural heightfield, grass materials, road wear, ray projection
-  ui/         Build toolbar, compass HUD, game menu, tip cards, toasts, loading screen
-  utils/      Path geometry helpers and Three.js disposal
-  world/      Precomputed world bootstrap data (tree positions for server seed)
-balance/      Shared game-balance JSON (costs, radii, production, population)
+  ui/         Construction dock, build menu, compass HUD, game menu, tip cards, toasts, loading screen
+  utils/      Path geometry helpers, random utilities, and Three.js disposal
+  world/      Precomputed world bootstrap data (tree and foraging positions for server seed)
+balance/      Shared game-balance JSON (costs, radii, production, population, gardens)
 server/       SpacetimeDB Rust module (authoritative sim tick, economy, logistics)
 public/
-  assets/     Terrain, road, prop, and third-party texture assets
+  assets/     Terrain, road, prop, UI build-menu art, and third-party texture assets
 scripts/
   derive_pbr_maps.py             Utility script for derived texture maps
   generate_wood_logs_texture.py  Procedural wood-log bridge albedo generator
-  generateWorldBootstrap.mts     Generates tree bootstrap JSON for server publish
+  generateWorldBootstrap.mts     Generates tree and foraging bootstrap JSON for server publish
   generateGameBalance.mts         Generates Rust + TypeScript balance constants
   testLodgeLogistics.mts         Standalone firewood delivery logic validation
 docs/
@@ -275,9 +302,9 @@ docs/
 
 The terrain is generated as a continuous heightfield in `src/terrain/Terrain.ts`. It combines several value-noise layers with broad sine/cosine shaping, then uses vertex colors to blend grass tints and a shore-blend attribute for muddy river banks. `TerrainGrassMaterial.ts` builds a TSL node material that samples meadow, dense, and dry PBR sets per vertex.
 
-`RiverLayout.ts` generates procedural river corridors from map edges toward a central drain, with optional tributaries. `RiverField.ts` rasterizes those corridors into mask and signed-distance fields used for terrain carving, shore mud blending, and prop blocking. `RiverWaterMesh.ts` runs a lightweight 2D virtual-pipes water simulation each frame and drives animated foam and shore effects through `RiverWaterMaterial.ts`.
+`RiverLayout.ts` generates procedural river corridors from map edges toward a central drain, with optional tributaries. `RiverField.ts` rasterizes those corridors into mask and signed-distance fields used for terrain carving, shore mud blending, and prop blocking. `RiverWaterMesh.ts` runs a lightweight 2D virtual-pipes water simulation each frame and drives animated foam and shore effects through `RiverWaterMaterial.ts`. `HydrologyOverlay.ts` reuses the river field to visualize groundwater scores for well placement.
 
-`QuarryLayout.ts` places one large and two small rock quarries on the playable terrain, carving pit depressions into the heightfield and scattering instanced boulders via `QuarrySystem.ts`. Quarry yields and remaining stone are tracked server-side in the `quarry` table.
+`QuarryLayout.ts` places one large and two small rock quarries on the playable terrain, carving pit depressions into the heightfield and scattering instanced boulders via `QuarrySystem.ts`. Quarry yields and remaining stone are tracked server-side in the `quarry` table. Foraging nodes (game and berries) are bootstrapped from `world_foraging.json` and respawn via `foraging_respawn.rs` when depleted.
 
 Road placement is handled by `src/roads/RoadTool.ts`. Pointer input is projected onto the terrain by `TerrainProjector`, collected as clicked road nodes with optional wheel-adjusted curvature merged with `roadAutoCurve.ts` suggestions around building and residence footprints, validated against slope and minimum length rules, and committed into a `RoadNetwork`.
 
@@ -289,27 +316,27 @@ Road placement is handled by `src/roads/RoadTool.ts`. Pointer input is projected
 
 `src/props/ForestProps.ts`, `ForestUndergrowth.ts`, and `ForestManager.ts` scatter instanced conifer trees, bushes, ferns, and rocks across the playable area, skipping rivers and clearing trees near committed road edges. `RoadStumps.ts` places cut stumps along road shoulders after clearance. `RiverReeds.ts` adds instanced reed clusters along river banks. `ForestVisualSync.ts` mirrors server tree phases (`stump`, `growing`, `mature`) onto the instanced forest — growing trees swap to animated sapling meshes via `TreeSaplings.ts`.
 
-`src/buildings/BuildingTool.ts` handles placement of lumber mills, reforesters, woodcutter's lodges, and stone quarries. `BuildingPlacementValidation.ts` rejects water, steep slopes, overlapping buildings, missing road access, and missing quarry stone or mature trees. `BuildingTerrainLayout.ts` flattens terrain pads under placed buildings. `BuildingMarkers.ts` renders placed buildings with work-radius rings. Placement calls the SpacetimeDB `place_building` reducer; the server tick then drives harvesting, regrowth, and lodge processing.
+`src/buildings/BuildingTool.ts` handles placement of all eight production and decorative buildings. `BuildingPlacementValidation.ts` rejects water, steep slopes, overlapping buildings, missing road access, missing quarry stone, mature trees, or foraging nodes as required per building type. `BuildingTerrainLayout.ts` flattens terrain pads under placed buildings. `BuildingMarkers.ts` renders placed buildings with work-radius rings. Placement calls the SpacetimeDB `place_building` reducer; the server tick then drives harvesting, regrowth, processing, and delivery dispatch.
 
-`src/residences/BurgageTool.ts` handles burgage zone drawing — a frontage edge snapped to the road network plus a depth point defining the rectangular plot. `burgageLayout.ts` subdivides the zone into residence parcels; `burgagePlacementValidation.ts` enforces road frontage, depth limits, overlap checks, and resource costs. `ResidenceMarkers.ts` and `BurgageFencing.ts` render procedural houses and parcel fencing. Placement calls `place_burgage_zone`; the server creates residence rows with population scaled by parcel width.
+`src/residences/` handles residence zone drawing — a frontage edge snapped to the road network plus a depth point defining the rectangular plot. Layout and placement validation subdivide the zone into residence parcels and enforce road frontage, depth limits, overlap checks, and resource costs. `ResidenceMarkers.ts` and parcel fencing render procedural houses along zone boundaries. Placement calls the residence-zone reducer; the server creates residence rows with population capacity scaled by parcel width. `residence_settlement.rs` gradually fills homes; `backyard_garden.rs` runs garden production and treasury tax.
 
-`src/logistics/` mirrors server firewood logic on the client for inspector displays — runway days, lodge delivery targets, and residence needs status. `src/roads/roadConnectivity.ts` and `server/src/roads/network.rs` compute Dijkstra road-path distances for building access and mill→lodge→residence routing.
+`src/logistics/` mirrors server delivery logic on the client for inspector displays — runway days, trip durations, lodge/well/food-supplier targets, and residence needs status. `DeliveryAgentRenderer.ts` animates replicated `delivery_trip` rows along the road network. `src/roads/roadConnectivity.ts` and `server/src/roads/network.rs` compute Dijkstra road-path distances for building access and supplier routing.
 
-`src/placement/` maintains a spatial index of building, burgage zone, and road footprints for fast overlap checks during placement and auto-curve obstacle queries.
+`src/placement/` maintains a spatial index of building, residence zone, and road footprints for fast overlap checks during placement and auto-curve obstacle queries.
 
 `src/grass/GrassBladeField.ts` streams instanced 3D grass tufts in camera-relative chunks. Tufts fade in at close zoom (aligned with the terrain dirt LOD band) and are cleared near committed roads. `TerrainRoadWear.ts` updates a per-vertex `roadWearBlend` attribute so the TSL grass material tints to packed dirt along road corridors.
 
-`src/data/spacetimeGameStore.ts` subscribes to replicated tables and maps rows into client `GameState`. `GameRuntime.ts` connects on startup, bootstraps quarries and trees via reducers, and hydrates the road network from the server snapshot.
+`src/data/spacetimeGameStore.ts` subscribes to replicated tables and maps rows into client `GameState`. `GameRuntime.ts` connects on startup, bootstraps quarries, trees, and foraging via reducers, and hydrates the road network from the server snapshot.
 
-On the server, `server/src/reducers/simulation.rs` runs each 200 ms tick: lumber mills harvest mature trees into building storage, reforesters advance stump regrowth, stone quarries extract from quarry sites, woodcutter's lodges process timber into firewood and dispatch delivery crews along the road graph (`lodge_logistics.rs`, `road_logistics.rs`), and residences consume firewood with abandonment on prolonged deficit (`residence_needs.rs`). Economy constants come from `balance/gameBalance.json` via `balance_generated.rs`.
+On the server, `server/src/reducers/simulation.rs` runs each 200 ms tick: lumber mills harvest mature trees (requiring road-connected well water), reforesters advance stump regrowth, stone quarries extract from quarry sites, woodcutter's lodges process timber into firewood and dispatch trips, wells refill and deliver water, hunter's halls and forager's sheds harvest and deliver food, `delivery_trips.rs` moves agents along road paths and unloads cargo at residences, residences consume firewood/water/food with abandonment and recovery (`residence_needs/`), backyard gardens produce food and gold, and settlement ticks fill homes over time. Economy constants come from `balance/gameBalance.json` via `balance_generated.rs`.
 
-`src/resources/ResourceInspector.ts` provides the stockpile HUD (timber, stone, firewood, population, labor) and click-to-inspect panel for quarries, buildings, residences, and river access — including labor assignment, demolish actions, and lodge delivery status. `WorldQueries.ts` resolves inspectable targets from terrain clicks. `src/map/QuarryMapIcons.ts` projects quarry icons at zoomed-out camera levels.
+`src/resources/ResourceInspector.ts` provides the settlement HUD and click-to-inspect panel for quarries, foraging nodes, buildings, residences, backyards, and river access — including labor assignment, demolish actions, hydrology grades, and delivery status. `WorldQueries.ts` resolves inspectable targets from terrain clicks. `src/map/` projects quarry, foraging, and backyard icons at zoomed-out camera levels.
 
 `src/camera/CameraController.ts` drives the RTS orbit camera with smooth pan, rotate, and zoom (displayed as a percentage in the HUD). `FirstPersonController.ts` handles walk mode — pointer-lock look, terrain- and road-deck-sampled foot placement, sprint/jump/crouch, free-look, camera bob, and compass heading publication.
 
-`src/ui/BuildToolbar.ts` composes the HUD: tool buttons (roads, four building types, residences), burgage layout HUD, contextual tip cards, FPS/zoom stats, compass strip, delete popup, and game menu. `ToastManager.ts` surfaces placement validation errors. `LoadingScreen.ts` shows staged progress during world bootstrap.
+`src/ui/BuildToolbar.ts` composes the construction dock, illustrated build menu, settlement HUD, contextual tip cards, FPS/zoom stats, compass strip, residence layout HUD, delete popup, and game menu. `ToastManager.ts` surfaces placement validation errors. `LoadingScreen.ts` shows staged progress during world bootstrap. `AmbientAudioController.ts` crossfades wind and village ambience based on camera distance to your buildings and residence zones.
 
-`src/scene/SceneManager.ts` owns the renderer backend, terrain, sky, forest, grass field, river system, quarry system, road groups, selection/preview groups, lighting, fog, and post-processing. Forest and grass build asynchronously after the first frame to keep initial load responsive.
+`src/scene/SceneManager.ts` owns the renderer backend, terrain, sky, forest, grass field, river system, quarry system, hydrology overlay, road groups, delivery agents, selection/preview groups, lighting, fog, and post-processing. Forest and grass build asynchronously after the first frame to keep initial load responsive.
 
 ## Tech Stack
 
@@ -323,7 +350,7 @@ On the server, `server/src/reducers/simulation.rs` runs each 200 ms tick: lumber
 
 ## Assets
 
-Texture assets are stored under `public/assets/textures`. The road surface uses a medieval dirt texture set with albedo, normal, roughness, ambient occlusion, height, rut mask, and edge mask maps. River bridge decks use a separate wood-log PBR set (procedurally generated via `scripts/generate_wood_logs_texture.py`). Terrain uses multiple manor grass PBR sets (meadow, dense, dry, blend) and prop textures for pine foliage and rocks. Building meshes use procedural geometry with timber, stone, and shingle materials. Everything is loaded locally at runtime — no external asset CDN required.
+Texture assets are stored under `public/assets/textures`. The road surface uses a medieval dirt texture set with albedo, normal, roughness, ambient occlusion, height, rut mask, and edge mask maps. River bridge decks use a separate wood-log PBR set (procedurally generated via `scripts/generate_wood_logs_texture.py`). Terrain uses multiple manor grass PBR sets (meadow, dense, dry, blend) and prop textures for pine foliage and rocks. Build menu cards use illustrated PNG art under `public/assets/ui/build-menu/`. Building meshes use procedural geometry with timber, stone, and shingle materials. Everything is loaded locally at runtime — no external asset CDN required.
 
 ## Development Notes
 

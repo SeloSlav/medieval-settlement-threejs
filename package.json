@@ -11,6 +11,9 @@
     "generate:game-balance": "npx tsx scripts/generateGameBalance.mts",
     "generate:hydrology-grid": "npx tsx scripts/generateHydrologyGrid.mts",
     "test:lodge-logistics": "npx tsx scripts/testLodgeLogistics.mts",
+    "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",
+    "test:chapel-community": "npx tsx scripts/testChapelCommunity.mts",
+    "test:household-economy": "npx tsx scripts/testHouseholdEconomy.mts",
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./server/deploy-local.ps1",
     "deploy:local-clean": "powershell -ExecutionPolicy Bypass -File ./server/deploy-local-clean.ps1"
   },

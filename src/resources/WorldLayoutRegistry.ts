@@ -1,5 +1,8 @@
+import type { ForagingSite } from '../foraging/ForagingLayout.ts';
 import type { QuarrySite } from '../quarries/QuarryLayout.ts';
 import type { BuildingKind, ResourceNodeDefinition } from './types.ts';
+import { foragingPickRadius } from '../foraging/foragingYields.ts';
+import { BERRY_PATCH_MAX_YIELD, GAME_PATCH_MAX_YIELD } from '../foraging/foragingYields.ts';
 import { quarryMaxYield, quarryPickRadius } from './yields.ts';
 import type { WorldLayout } from './WorldLayout.ts';
 import { getBuildingDefinition } from './buildings.ts';
@@ -41,6 +44,10 @@ export class WorldLayoutRegistry {
       });
     }
 
+    for (const site of layout.foragingLayout.sites) {
+      definitions.push(foragingDefinition(site));
+    }
+
     return new WorldLayoutRegistry(definitions);
   }
 
@@ -49,10 +56,40 @@ export class WorldLayoutRegistry {
   }
 
   findNearestQuarry(x: number, z: number): ResourceNodeDefinition | null {
+    return this.findNearestNodeOfKind(x, z, 'quarry');
+  }
+
+  findNearestForagingNode(
+    x: number,
+    z: number,
+    nodeKind: 'game' | 'berries',
+  ): ResourceNodeDefinition | null {
     let best: ResourceNodeDefinition | null = null;
     let bestScore = Infinity;
 
     for (const definition of this.candidateDefinitions(x, z)) {
+      if (definition.kind !== nodeKind) continue;
+      const distance = Math.hypot(x - definition.x, z - definition.z);
+      if (distance > definition.pickRadius) continue;
+      if (distance < bestScore) {
+        bestScore = distance;
+        best = definition;
+      }
+    }
+
+    return best;
+  }
+
+  private findNearestNodeOfKind(
+    x: number,
+    z: number,
+    kind: ResourceNodeDefinition['kind'],
+  ): ResourceNodeDefinition | null {
+    let best: ResourceNodeDefinition | null = null;
+    let bestScore = Infinity;
+
+    for (const definition of this.candidateDefinitions(x, z)) {
+      if (definition.kind !== kind) continue;
       const distance = Math.hypot(x - definition.x, z - definition.z);
       if (distance > definition.pickRadius) continue;
       if (distance < bestScore) {
@@ -103,6 +140,20 @@ export function findNearestBuilding(
 
 export function buildingKindLabel(kind: BuildingKind): string {
   return getBuildingDefinition(kind).label;
+}
+
+function foragingDefinition(site: ForagingSite): ResourceNodeDefinition {
+  const isGame = site.kind === 'game';
+  return {
+    id: isGame ? 'foraging-game-0' : 'foraging-berries-0',
+    kind: site.kind,
+    resource: isGame ? 'game' : 'berries',
+    x: site.x,
+    z: site.z,
+    label: isGame ? 'Game trail' : 'Berry patch',
+    maxYield: isGame ? GAME_PATCH_MAX_YIELD : BERRY_PATCH_MAX_YIELD,
+    pickRadius: foragingPickRadius(site.kind),
+  };
 }
 
 function quarryNodeId(site: QuarrySite, largeIndex: number, smallIndex: number): string {

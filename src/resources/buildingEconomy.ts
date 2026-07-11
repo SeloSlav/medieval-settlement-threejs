@@ -1,6 +1,7 @@
-import type { BuildingKind } from '../generated/gameBalance.ts';
+import type { BackyardGardenKind, BuildingKind } from '../generated/gameBalance.ts';
 import type { ResourceTotals } from './resourceTotals.ts';
 import {
+  BACKYARD_GARDEN_COSTS,
   BUILDING_COSTS,
   RESIDENCE_STONE_COST,
   RESIDENCE_TIMBER_COST,
@@ -71,4 +72,24 @@ export function canAffordResidenceZone(
 
 export function formatBuildingCost(cost: BuildingResourceCost): string {
   return `${cost.timber} timber, ${cost.stone} stone`;
+}
+
+export function getBackyardGardenCost(kind: BackyardGardenKind): BuildingResourceCost {
+  return BACKYARD_GARDEN_COSTS[kind];
+}
+
+export function backyardGardenSalvageRefund(kind: BackyardGardenKind): BuildingResourceCost {
+  const cost = getBackyardGardenCost(kind);
+  return {
+    timber: Math.round(cost.timber * TIMBER_SALVAGE_FRACTION),
+    stone: Math.round(cost.stone * STONE_SALVAGE_FRACTION),
+  };
+}
+
+export function formatBackyardGardenCost(kind: BackyardGardenKind): string {
+  return formatBuildingCost(getBackyardGardenCost(kind));
+}
+
+export function formatBackyardGardenSalvage(kind: BackyardGardenKind): string {
+  return formatBuildingCost(backyardGardenSalvageRefund(kind));
 }

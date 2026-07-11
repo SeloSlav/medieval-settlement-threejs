@@ -6,6 +6,7 @@ import { BuildingTerrainLayout } from '../buildings/BuildingTerrainLayout.ts';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
 import { BuildingTool } from '../buildings/BuildingTool.ts';
 import { BurgageTool } from '../residences/BurgageTool.ts';
+import { MAX_ZONE_DEPTH, MIN_ZONE_DEPTH } from '../residences/burgageLayout.ts';
 import { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
 import { BurgageFencing } from '../residences/BurgageFencing.ts';
 import { collectOccupiedParcelPolygons } from '../residences/burgageZoneLayout.ts';
@@ -38,11 +39,16 @@ import { RoadSelection } from '../roads/RoadSelection.ts';
 import { RoadTool } from '../roads/RoadTool.ts';
 import { GameRuntime } from '../runtime/GameRuntime.ts';
 import { SceneManager } from '../scene/SceneManager.ts';
-import { QuarryMapIcons } from '../map/QuarryMapIcons.ts';
+import { createInspectorSpacetimeActions } from './inspectorSpacetimeActions.ts';
+import { createWorldMapIcons, type WorldMapIconsBundle } from './worldMapIcons.ts';
+import { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
 import { beginStartupTextureLoad } from '../scene/startupTextures.ts';
 import { setActivePlacedBuildingLayout, sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { updateTerrainBuildingPads } from '../terrain/TerrainBuildingPads.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
+import type { BuildingKind } from '../generated/gameBalance.ts';
+import { CityAdministrationPanel } from '../ui/CityAdministrationPanel.ts';
+import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { mountTooltips } from '../ui/tooltips.ts';
@@ -67,10 +73,12 @@ export class App {
   private residenceMarkers: ResidenceMarkers | null = null;
   private burgageFencing: BurgageFencing | null = null;
   private toolbar: BuildToolbar | null = null;
+  private cityAdminPanel: CityAdministrationPanel | null = null;
   private toastManager: ToastManager | null = null;
   private disposeTooltips: (() => void) | null = null;
   private resourceInspector: ResourceInspector | null = null;
-  private quarryMapIcons: QuarryMapIcons | null = null;
+  private worldMapIcons: WorldMapIconsBundle | null = null;
+  private deliveryAgents: DeliveryAgentRenderer | null = null;
   private gameState: GameState | null = null;
   private layoutRegistry: WorldLayoutRegistry | null = null;
   private treeRegistry: TreeRegistry | null = null;
@@ -143,6 +151,10 @@ export class App {
       terrain: sceneManager.terrain,
       parent: sceneManager.selectionGroup,
       getRoadNetwork: () => this.roadNetwork ?? roadNetwork,
+    });
+    const deliveryAgents = new DeliveryAgentRenderer({
+      terrain: sceneManager.terrain,
+      parent: sceneManager.selectionGroup,
     });
     const placementGate: PlacementInteractionGate = {
       isRoadToolEnabled: () => false,
@@ -288,7 +300,18 @@ export class App {
       },
       onPickRejected: (reason) => {
         if (reason === 'missed_terrain') {
-          this.toastManager?.show('Click on terrain to place a corner.', { variant: 'info', durationMs: 2200 });
+          this.toastManager?.show('Click on terrain to place a point.', { variant: 'info', durationMs: 2200 });
+          return;
+        }
+        if (reason === 'off_road') {
+          this.toastManager?.show('Click beside a road for the frontage edge.', { variant: 'info', durationMs: 2400 });
+          return;
+        }
+        if (reason === 'invalid_depth') {
+          this.toastManager?.show(
+            `Set depth between ~${Math.round(MIN_ZONE_DEPTH)}m and ~${Math.round(MAX_ZONE_DEPTH)}m behind the road.`,
+            { variant: 'info', durationMs: 2600 },
+          );
           return;
         }
         this.toastManager?.show('Move farther from the last corner.', { variant: 'info', durationMs: 2200 });
@@ -309,40 +332,8 @@ export class App {
         }
         roadTool.commitDraft();
       },
-      onToggleLumberMill: () => {
-        buildingTool.toggleMode('lumber_mill');
-        if (buildingTool.isEnabled()) {
-          roadTool.setEnabled(false);
-          burgageTool.setEnabled(false);
-        }
-        this.syncToolbar();
-      },
-      onToggleReforester: () => {
-        buildingTool.toggleMode('reforester');
-        if (buildingTool.isEnabled()) {
-          roadTool.setEnabled(false);
-          burgageTool.setEnabled(false);
-        }
-        this.syncToolbar();
-      },
-      onToggleWoodcuttersLodge: () => {
-        buildingTool.toggleMode('woodcutters_lodge');
-        if (buildingTool.isEnabled()) {
-          roadTool.setEnabled(false);
-          burgageTool.setEnabled(false);
-        }
-        this.syncToolbar();
-      },
-      onToggleStoneQuarry: () => {
-        buildingTool.toggleMode('stone_quarry');
-        if (buildingTool.isEnabled()) {
-          roadTool.setEnabled(false);
-          burgageTool.setEnabled(false);
-        }
-        this.syncToolbar();
-      },
-      onToggleWell: () => {
-        buildingTool.toggleMode('well');
+      onToggleBuilding: (kind: BuildingKind) => {
+        buildingTool.toggleMode(kind);
         if (buildingTool.isEnabled()) {
           roadTool.setEnabled(false);
           burgageTool.setEnabled(false);
@@ -362,6 +353,9 @@ export class App {
         }
         this.syncToolbar();
       },
+      onOpenCityAdministration: () => {
+        this.cityAdminPanel?.openPanel();
+      },
       onBurgagePlotDecrease: () => {
         burgageTool.adjustPlotCount(-1);
         this.syncToolbar();
@@ -380,7 +374,7 @@ export class App {
         this.toolbar?.setWaterOverlayActive(active);
       },
       onMenuOpenChange: (open) => {
-        cameraController.setInputEnabled(!open && !firstPersonController.isActive());
+        cameraController.setInputEnabled(!open && !firstPersonController.isActive() && !this.cityAdminPanel?.isOpen());
       },
       onShadowPreferenceChange: () => {
         sceneManager.applyShadowPreferences();
@@ -393,8 +387,31 @@ export class App {
       onExportGameState: () => this.exportGameState(),
       onImportGameState: () => this.importGameState(),
     });
+    this.cityAdminPanel = new CityAdministrationPanel(uiRoot, {
+      getGameState: () => this.gameState,
+      getTaxRate: () => this.spacetimeStore?.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
+      onTaxRateChange: async (taxRate) => {
+        if (!this.spacetimeStore?.isConnected) {
+          this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
+          throw new Error('SpacetimeDB is not connected.');
+        }
+        await this.spacetimeStore.setEconomicActivityTaxRate(taxRate);
+      },
+      onTaxRateChangeFailed: (error) => {
+        const message = error instanceof Error ? error.message : 'Could not update tax rate.';
+        this.toastManager?.show(message, { variant: 'error' });
+      },
+      onOpenChange: (open) => {
+        const menuOpen = this.toolbar?.isGameMenuOpen() ?? false;
+        cameraController.setInputEnabled(!open && !menuOpen && !firstPersonController.isActive());
+      },
+    });
     const disposeTooltips = mountTooltips(uiRoot);
     const toastManager = new ToastManager(uiRoot);
+    const inspectorActions = createInspectorSpacetimeActions(
+      () => this.spacetimeStore,
+      toastManager,
+    );
     const resourceInspector = new ResourceInspector({
       domElement: sceneManager.renderer.domElement,
       uiRoot,
@@ -402,54 +419,9 @@ export class App {
       terrainProjector: sceneManager.terrainProjector,
       worldQueries,
       getState: () => this.gameState!,
-      onDemolishBuilding: async (buildingId) => {
-        if (!this.spacetimeStore?.isConnected) {
-          this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
-          return;
-        }
-        try {
-          await this.spacetimeStore.demolishBuilding(buildingId);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Demolition failed.';
-          this.toastManager?.show(message, { variant: 'error' });
-        }
-      },
-      onDemolishBurgageZone: async (zoneId) => {
-        if (!this.spacetimeStore?.isConnected) {
-          this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
-          return;
-        }
-        try {
-          await this.spacetimeStore.demolishBurgageZone(zoneId);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Residence plot demolition failed.';
-          this.toastManager?.show(message, { variant: 'error' });
-        }
-      },
-      onDemolishResidence: async (residenceId) => {
-        if (!this.spacetimeStore?.isConnected) {
-          this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
-          return;
-        }
-        try {
-          await this.spacetimeStore.demolishResidence(residenceId);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Residence removal failed.';
-          this.toastManager?.show(message, { variant: 'error' });
-        }
-      },
-      onAssignBuildingLabor: async (buildingId, labor) => {
-        if (!this.spacetimeStore?.isConnected) {
-          this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
-          return;
-        }
-        try {
-          await this.spacetimeStore.assignBuildingLabor(buildingId, labor);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Labor assignment failed.';
-          this.toastManager?.show(message, { variant: 'error' });
-        }
-      },
+      getEconomicActivityTaxRate: () =>
+        this.spacetimeStore?.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
+      ...inspectorActions,
       onSelectionChange: (target) => {
         buildingMarkers.setSelectedWorkExtent(
           target?.kind === 'building' ? target.building : null,
@@ -462,14 +434,17 @@ export class App {
       computePopulationStats(gameState),
     );
 
-    const quarryMapIcons = new QuarryMapIcons({
+    const worldMapIcons = createWorldMapIcons({
       uiRoot,
       domElement: sceneManager.renderer.domElement,
       terrain: sceneManager.terrain,
       registry: layoutRegistry,
       getCamera: () => sceneManager.camera,
       getZoomPercent: () => this.cameraController?.getZoomPercent() ?? 100,
+      getGameState: () => this.gameState ?? gameState,
       onQuarrySelect: (quarryId) => resourceInspector.selectQuarry(quarryId),
+      onForagingSelect: (nodeId) => resourceInspector.selectForaging(nodeId),
+      onBackyardSelect: (residenceId) => resourceInspector.selectBackyard(residenceId),
       isBlocked: () => isWorldInspectionBlocked(placementGate),
     });
 
@@ -514,6 +489,7 @@ export class App {
     this.buildingTool = buildingTool;
     this.burgageTool = burgageTool;
     this.buildingMarkers = buildingMarkers;
+    this.deliveryAgents = deliveryAgents;
     this.residenceMarkers = residenceMarkers;
     this.burgageFencing = burgageFencing;
     this.toolbar = toolbar;
@@ -521,7 +497,7 @@ export class App {
     this.toastManager = toastManager;
     this.disposeTooltips = disposeTooltips;
     this.resourceInspector = resourceInspector;
-    this.quarryMapIcons = quarryMapIcons;
+    this.worldMapIcons = worldMapIcons;
     this.gameState = gameState;
     this.ambientAudio = ambientAudio;
     this.layoutRegistry = layoutRegistry;
@@ -587,13 +563,17 @@ export class App {
     this.burgageFencing?.dispose();
     this.gameRuntime?.dispose();
     this.resourceInspector?.dispose();
-    this.quarryMapIcons?.dispose();
+    this.worldMapIcons?.quarry.dispose();
+    this.worldMapIcons?.foraging.dispose();
+    this.worldMapIcons?.backyard.dispose();
+    this.deliveryAgents?.dispose();
     this.toastManager?.dispose();
     this.disposeTooltips?.();
     this.disposeTooltips = null;
     this.firstPersonController?.dispose();
     this.cameraController?.dispose();
     this.toolbar?.dispose();
+    this.cityAdminPanel?.dispose();
     this.input?.dispose();
     this.ambientAudio?.dispose();
     this.sceneManager?.dispose();
@@ -621,7 +601,10 @@ export class App {
       this.buildingTool?.update();
       this.burgageTool?.update();
       this.updateBuildButtonPosition();
-      this.quarryMapIcons?.update();
+      this.worldMapIcons?.quarry.update();
+      this.worldMapIcons?.foraging.update();
+      this.worldMapIcons?.backyard.update();
+      this.deliveryAgents?.update(dt);
       this.sceneManager?.render(dt, 12, true);
     } else {
       this.cameraController?.update(dt);
@@ -631,7 +614,10 @@ export class App {
       this.buildingTool?.update();
       this.burgageTool?.update();
       this.updateBuildButtonPosition();
-      this.quarryMapIcons?.update();
+      this.worldMapIcons?.quarry.update();
+      this.worldMapIcons?.foraging.update();
+      this.worldMapIcons?.backyard.update();
+      this.deliveryAgents?.update(dt);
       this.sceneManager?.render(dt, this.cameraController?.getOrbitDistance());
     }
     this.updateFps(time, dt);
@@ -784,6 +770,7 @@ export class App {
     );
 
     this.syncForestClearanceIfNeeded(state);
+    this.deliveryAgents?.syncTrips(state.deliveryTrips.values());
     this.syncResourceUi();
     this.syncToolbar();
   }
@@ -876,6 +863,7 @@ export class App {
       computePopulationStats(this.gameState),
     );
     this.resourceInspector.refreshSelection();
+    this.cityAdminPanel?.refresh();
   }
 
   private exportGameState(): void {

@@ -17,6 +17,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+@import url('./ui/inspectorSupplemental.css');
+@import url('./ui/marketplaceTrade.css');
+
 * {
   box-sizing: border-box;
 }
@@ -60,6 +63,8 @@ button {
 [data-ui-root] .resource-inspector-panel,
 [data-ui-root] .game-menu-backdrop,
 [data-ui-root] .quarry-map-icon,
+[data-ui-root] .foraging-map-icon,
+[data-ui-root] .backyard-map-icon,
 [data-ui-root] .toast--clickable,
 [data-ui-root] .builder-status-bar {
   pointer-events: auto;
@@ -421,6 +426,103 @@ button {
 .quarry-map-icon--large .quarry-map-icon-glyph {
   width: 20px;
   height: 20px;
+}
+
+.foraging-map-icons {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.foraging-map-icon {
+  position: fixed;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: -18px 0 0 -18px;
+  padding: 0;
+  color: var(--ink);
+  background: var(--panel);
+  border: 2px solid rgba(120, 156, 98, 0.58);
+  border-radius: 999px;
+  box-shadow: 0 8px 22px var(--shadow);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.foraging-map-icon--berries {
+  border-color: rgba(176, 92, 118, 0.58);
+}
+
+.foraging-map-icon:hover,
+.foraging-map-icon:focus-visible {
+  transform: scale(1.08);
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
+}
+
+.foraging-map-icon-glyph {
+  width: 18px;
+  height: 18px;
+}
+
+.backyard-map-icons {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.backyard-map-icon {
+  position: fixed;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  padding: 0;
+  color: #d8e8c8;
+  background: rgba(22, 34, 24, 0.82);
+  border: 1px solid rgba(132, 168, 108, 0.52);
+  border-radius: 999px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.backyard-map-icon--empty {
+  color: rgba(220, 228, 210, 0.82);
+  border-style: dashed;
+  border-color: rgba(168, 188, 138, 0.45);
+}
+
+.backyard-map-icon--active {
+  color: #b8e090;
+  border-color: rgba(168, 210, 118, 0.72);
+}
+
+.backyard-map-icon:hover,
+.backyard-map-icon:focus-visible {
+  transform: scale(1.08);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.backyard-map-icon-glyph {
+  width: 18px;
+  height: 18px;
+}
+
+.settlement-hud__stat--gold .settlement-hud__value {
+  color: #e8c86a;
 }
 
 .resource-inspector-details {
@@ -986,6 +1088,140 @@ button {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(196, 167, 99, 0.95);
+}
+
+.construction-card__art--icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  background: rgba(23, 25, 21, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.city-admin-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 86px;
+  transform: translateX(-50%);
+  z-index: 7;
+  width: min(360px, calc(100vw - 28px));
+  padding: 14px 16px 16px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(23, 25, 21, 0.92);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.city-admin-panel[hidden] {
+  display: none;
+}
+
+.city-admin-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.city-admin-panel__eyebrow {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(196, 167, 99, 0.9);
+}
+
+.city-admin-panel__title {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.city-admin-panel__close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.city-admin-panel__close:hover,
+.city-admin-panel__close:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  outline: none;
+}
+
+.city-admin-panel__intro {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(232, 226, 210, 0.82);
+}
+
+.city-admin-panel__slider-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.city-admin-panel__slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.city-admin-panel__range-hints {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(232, 226, 210, 0.62);
+}
+
+.city-admin-panel__stats {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.city-admin-panel__stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.city-admin-panel__stat dt {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(232, 226, 210, 0.72);
+}
+
+.city-admin-panel__stat dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: right;
+}
+
+.city-admin-panel__stat--highlight dd {
+  color: rgba(196, 167, 99, 0.98);
 }
 
 .builder-status-bar {

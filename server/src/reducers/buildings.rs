@@ -4,13 +4,14 @@ use crate::building_defs::{building_def, building_def_or_err};
 use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, building_cost, building_salvage_refund,
-    credit_treasury_stone, credit_treasury_timber, spend_aggregate_stone, spend_aggregate_timber,
-    total_stone, total_timber,
+    credit_treasury_firewood, credit_treasury_food, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
+    spend_aggregate_stone, spend_aggregate_timber, total_stone, total_timber,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::hydrology::{sample_hydrology_score, well_capacity_from_hydrology};
 use crate::placement_validation::{building_overlaps_residence_zone, building_overlaps_road_surface, is_on_quarry_pit};
 use crate::roads::has_building_road_access;
+use crate::simulation::drain_trips_for_building;
 use crate::tables::{Building, WorldConfig};
 
 fn is_within_same_kind_work_radius(ctx: &ReducerContext, kind: &str, x: f64, z: f64) -> bool {
@@ -77,6 +78,27 @@ fn has_quarry_stone_in_radius(ctx: &ReducerContext, x: f64, z: f64, radius: f64)
     false
 }
 
+fn has_foraging_in_radius(
+    ctx: &ReducerContext,
+    x: f64,
+    z: f64,
+    radius: f64,
+    node_kind: &str,
+) -> bool {
+    let radius_sq = radius * radius;
+    for node in ctx.db.foraging_node().iter() {
+        if node.node_kind != node_kind || node.remaining <= 0.0 {
+            continue;
+        }
+        let dx = node.x - x;
+        let dz = node.z - z;
+        if dx * dx + dz * dz <= radius_sq {
+            return true;
+        }
+    }
+    false
+}
+
 #[reducer]
 pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Result<(), String> {
     let def = building_def_or_err(&kind)?;
@@ -105,6 +127,14 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
 
     if def.requires_quarry_stone && !has_quarry_stone_in_radius(ctx, x, z, def.work_radius) {
         return Err("No quarry stone within work range.".to_string());
+    }
+
+    if def.requires_game && !has_foraging_in_radius(ctx, x, z, def.work_radius, "game") {
+        return Err("No game within work range.".to_string());
+    }
+
+    if def.requires_berries && !has_foraging_in_radius(ctx, x, z, def.work_radius, "berries") {
+        return Err("No berries within work range.".to_string());
     }
 
     if is_too_close_to_buildings(ctx, &kind, x, z) {
@@ -162,11 +192,11 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         z,
         work_radius: def.work_radius,
         action_cooldown: 0.0,
-        delivery_cooldown: 0.0,
         timber: 0.0,
         firewood: 0.0,
         stone: 0.0,
         water: 0.0,
+        food: 0.0,
         water_capacity,
         assigned_labor: 0,
     });
@@ -206,15 +236,14 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         return Err("You do not own this building.".to_string());
     }
 
+    let trip_cargo = drain_trips_for_building(ctx, building_id);
+
     let refund = building_salvage_refund(&building.kind)?;
     credit_treasury_timber(ctx, owner, refund.timber + building.timber);
     credit_treasury_stone(ctx, owner, refund.stone + building.stone);
-    if building.firewood > 0.0 {
-        if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
-            treasury.firewood += building.firewood;
-            ctx.db.player_resources().owner().update(treasury);
-        }
-    }
+    credit_treasury_firewood(ctx, owner, building.firewood + trip_cargo.firewood);
+    credit_treasury_water(ctx, owner, building.water + trip_cargo.water);
+    credit_treasury_food(ctx, owner, building.food + trip_cargo.food);
 
     ctx.db.building().id().delete(building_id);
 

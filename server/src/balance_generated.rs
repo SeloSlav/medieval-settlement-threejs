@@ -5,10 +5,19 @@ pub const TICK_DT: f64 = 0.2;
 
 pub const STARTING_TIMBER: f64 = 160.0;
 pub const STARTING_STONE: f64 = 140.0;
+pub const STARTING_GOLD: f64 = 0.0;
 pub const STONE_SALVAGE_FRACTION: f64 = 0.92;
 pub const TIMBER_SALVAGE_FRACTION: f64 = 0.7;
+pub const GOLD_SALVAGE_FRACTION: f64 = 0.65;
+pub const ECONOMIC_ACTIVITY_TAX_RATE: f64 = 0.18;
+pub const ECONOMIC_ACTIVITY_TAX_RATE_MIN: f64 = 0.0;
+pub const ECONOMIC_ACTIVITY_TAX_RATE_MAX: f64 = 0.45;
+pub const LOW_TAX_PRODUCTIVITY_BOOST: f64 = 0.28;
+pub const HIGH_TAX_PRODUCTIVITY_DRAG: f64 = 0.58;
+pub const FOOD_SALE_GOLD_PER_UNIT: f64 = 0.35;
 pub const RESIDENCE_TIMBER_COST: f64 = 8.0;
 pub const RESIDENCE_STONE_COST: f64 = 12.0;
+pub const HOUSEHOLD_MAX_WEALTH: f64 = 200.0;
 
 pub const STARTING_POPULATION: u32 = 5;
 pub const POPULATION_PER_RESIDENCE: u32 = 3;
@@ -20,24 +29,50 @@ pub const RESIDENCE_FIREWOOD_CAPACITY: f64 = 40.0;
 pub const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC: f64 = 0.02;
 pub const RESIDENCE_WATER_CAPACITY: f64 = 24.0;
 pub const RESIDENCE_WATER_PER_PERSON_PER_SEC: f64 = 0.012;
+pub const RESIDENCE_FOOD_CAPACITY: f64 = 32.0;
+pub const RESIDENCE_FOOD_PER_PERSON_PER_SEC: f64 = 0.015;
 pub const ABANDON_AFTER_DEFICIT_TICKS: u32 = 3600;
 pub const RESIDENCE_RECOVERY_FIREWOOD_MIN: f64 = 8.0;
 pub const RESIDENCE_RECOVERY_WATER_MIN: f64 = 5.0;
+pub const RESIDENCE_RECOVERY_FOOD_MIN: f64 = 6.0;
 pub const RESIDENCE_SETTLE_TICKS: u32 = 250;
+pub const CHAPEL_SETTLEMENT_TICKS_MULTIPLIER: f64 = 0.7;
+pub const CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER: f64 = 0.7;
+pub const CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY: f64 = 0.08;
+pub const CHAPEL_BASE_ATTENDANCE_CHANCE: f64 = 0.55;
+pub const CHAPEL_PRIEST_ATTENDANCE_BONUS: f64 = 0.25;
+pub const CHAPEL_COMMUNITY_ATTENDANCE_BONUS: f64 = 0.15;
+pub const CHAPEL_RECOVERY_STOCK_MULTIPLIER: f64 = 0.65;
+pub const CHAPEL_RECOVERY_NEEDS_REQUIRED: u32 = 2;
 
 pub const BUILDING_ROAD_ACCESS_DISTANCE: f64 = 20.0;
+pub const BURGAGE_ROAD_FRONTAGE_DISTANCE: f64 = 16.0;
+pub const MIN_DELIVERY_TRIP_SEC: f64 = 4.0;
+pub const FIREWOOD_DELIVERY_SPEED_MPS: f64 = 0.95;
+pub const WATER_DELIVERY_SPEED_MPS: f64 = 1.15;
+pub const FOOD_DELIVERY_SPEED_MPS: f64 = 1.25;
+pub const FIREWOOD_DELIVERY_UNLOAD_SEC: f64 = 10.0;
+pub const WATER_DELIVERY_UNLOAD_SEC: f64 = 5.0;
+pub const FOOD_DELIVERY_UNLOAD_SEC: f64 = 6.0;
 
 pub const LODGE_TIMBER_PER_CYCLE: f64 = 3.0;
 pub const LODGE_FIREWOOD_PER_CYCLE: f64 = 3.0;
-pub const LODGE_DELIVERY_INTERVAL: f64 = 4.0;
 pub const LODGE_FIREWOOD_PER_DELIVERY: f64 = 2.0;
 pub const STONE_PER_HARVEST: f64 = 3.0;
+pub const GAME_PER_HARVEST: f64 = 4.0;
+pub const BERRIES_PER_HARVEST: f64 = 3.0;
+pub const FOOD_PER_DELIVERY: f64 = 2.0;
+pub const GAME_RESPAWN_SEC: f64 = 120.0;
+pub const BERRIES_RESPAWN_SEC: f64 = 75.0;
+pub const BERRIES_RESPAWN_RADIUS: f64 = 28.0;
 pub const REFORESTER_REGROW_PER_SEC: f64 = 0.014;
 pub const WELL_BASE_REFILL_PER_SEC: f64 = 0.42;
 pub const WELL_SURGE_CHANCE_PER_TICK: f64 = 0.0022;
 pub const WELL_SURGE_AMOUNT_MIN: f64 = 10.0;
 pub const WELL_SURGE_AMOUNT_MAX: f64 = 26.0;
 pub const WELL_SURGE_COOLDOWN_SEC: f64 = 42.0;
+pub const WELL_WATER_PER_DELIVERY: f64 = 3.0;
+pub const MILL_WATER_PER_HARVEST: f64 = 4.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BuildingSimKind {
@@ -46,6 +81,8 @@ pub enum BuildingSimKind {
     StoneQuarry,
     WoodcuttersLodge,
     Well,
+    HuntersHall,
+    ForagersShed,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -57,6 +94,7 @@ pub struct BuildingDef {
     pub storage_firewood: f64,
     pub storage_stone: f64,
     pub storage_water: f64,
+    pub storage_food: f64,
     pub accepts_labor: bool,
     pub max_labor: u32,
     pub work_radius: f64,
@@ -65,6 +103,8 @@ pub struct BuildingDef {
     pub requires_road: bool,
     pub requires_mature_trees: bool,
     pub requires_quarry_stone: bool,
+    pub requires_game: bool,
+    pub requires_berries: bool,
     pub sim_kind: Option<BuildingSimKind>,
 }
 
@@ -75,7 +115,8 @@ const LUMBER_MILL: BuildingDef = BuildingDef {
     storage_timber: 240.0,
     storage_firewood: 0.0,
     storage_stone: 0.0,
-    storage_water: 0.0,
+    storage_water: 48.0,
+    storage_food: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 210.0,
@@ -84,6 +125,8 @@ const LUMBER_MILL: BuildingDef = BuildingDef {
     requires_road: true,
     requires_mature_trees: true,
     requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
     sim_kind: Some(BuildingSimKind::LumberMill),
 };
 
@@ -95,6 +138,7 @@ const REFORESTER: BuildingDef = BuildingDef {
     storage_firewood: 0.0,
     storage_stone: 0.0,
     storage_water: 0.0,
+    storage_food: 0.0,
     accepts_labor: true,
     max_labor: 1,
     work_radius: 190.0,
@@ -103,6 +147,8 @@ const REFORESTER: BuildingDef = BuildingDef {
     requires_road: false,
     requires_mature_trees: false,
     requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
     sim_kind: Some(BuildingSimKind::Reforester),
 };
 
@@ -114,6 +160,7 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     storage_firewood: 120.0,
     storage_stone: 0.0,
     storage_water: 0.0,
+    storage_food: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -122,6 +169,8 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     requires_road: true,
     requires_mature_trees: false,
     requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
     sim_kind: Some(BuildingSimKind::WoodcuttersLodge),
 };
 
@@ -133,6 +182,7 @@ const STONE_QUARRY: BuildingDef = BuildingDef {
     storage_firewood: 0.0,
     storage_stone: 180.0,
     storage_water: 0.0,
+    storage_food: 0.0,
     accepts_labor: true,
     max_labor: 4,
     work_radius: 55.0,
@@ -141,6 +191,8 @@ const STONE_QUARRY: BuildingDef = BuildingDef {
     requires_road: false,
     requires_mature_trees: false,
     requires_quarry_stone: true,
+    requires_game: false,
+    requires_berries: false,
     sim_kind: Some(BuildingSimKind::StoneQuarry),
 };
 
@@ -152,18 +204,109 @@ const WELL: BuildingDef = BuildingDef {
     storage_firewood: 0.0,
     storage_stone: 0.0,
     storage_water: 100.0,
-    accepts_labor: false,
-    max_labor: 0,
+    storage_food: 0.0,
+    accepts_labor: true,
+    max_labor: 2,
     work_radius: 90.0,
     action_interval: 0.0,
     pick_radius: 6.0,
-    requires_road: false,
+    requires_road: true,
     requires_mature_trees: false,
     requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
     sim_kind: Some(BuildingSimKind::Well),
 };
 
-const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, WELL];
+const HUNTERS_HALL: BuildingDef = BuildingDef {
+    kind: "hunters_hall",
+    cost_timber: 38.0,
+    cost_stone: 14.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 100.0,
+    accepts_labor: true,
+    max_labor: 3,
+    work_radius: 68.0,
+    action_interval: 8.0,
+    pick_radius: 9.0,
+    requires_road: false,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: true,
+    requires_berries: false,
+    sim_kind: Some(BuildingSimKind::HuntersHall),
+};
+
+const FORAGERS_SHED: BuildingDef = BuildingDef {
+    kind: "foragers_shed",
+    cost_timber: 28.0,
+    cost_stone: 8.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 80.0,
+    accepts_labor: true,
+    max_labor: 2,
+    work_radius: 48.0,
+    action_interval: 6.0,
+    pick_radius: 8.0,
+    requires_road: false,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: true,
+    sim_kind: Some(BuildingSimKind::ForagersShed),
+};
+
+const CHAPEL: BuildingDef = BuildingDef {
+    kind: "chapel",
+    cost_timber: 22.0,
+    cost_stone: 34.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 0.0,
+    accepts_labor: true,
+    max_labor: 1,
+    work_radius: 0.0,
+    action_interval: 0.0,
+    pick_radius: 7.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    sim_kind: None,
+};
+
+const MARKETPLACE: BuildingDef = BuildingDef {
+    kind: "marketplace",
+    cost_timber: 32.0,
+    cost_stone: 26.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 0.0,
+    accepts_labor: false,
+    max_labor: 0,
+    work_radius: 0.0,
+    action_interval: 0.0,
+    pick_radius: 8.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    sim_kind: None,
+};
+
+const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, CHAPEL, MARKETPLACE];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)
@@ -171,4 +314,268 @@ pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
 
 pub fn building_def_or_err(kind: &str) -> Result<&'static BuildingDef, String> {
     building_def(kind).ok_or_else(|| format!("Unknown building kind: {kind}"))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum BackyardGardenKind {
+    AppleOrchard = 1,
+    CherryOrchard = 2,
+    VegetableGarden = 3,
+    FlowerGarden = 4,
+    HerbGarden = 5,
+}
+
+impl BackyardGardenKind {
+    pub fn from_id(id: u8) -> Option<Self> {
+        match id {
+            1 => Some(Self::AppleOrchard),
+            2 => Some(Self::CherryOrchard),
+            3 => Some(Self::VegetableGarden),
+            4 => Some(Self::FlowerGarden),
+            5 => Some(Self::HerbGarden),
+            _ => None,
+        }
+    }
+
+    pub fn slug(self) -> &'static str {
+        match self {
+            Self::AppleOrchard => "apple_orchard",
+            Self::CherryOrchard => "cherry_orchard",
+            Self::VegetableGarden => "vegetable_garden",
+            Self::FlowerGarden => "flower_garden",
+            Self::HerbGarden => "herb_garden",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct BackyardGardenDef {
+    pub kind: BackyardGardenKind,
+    pub slug: &'static str,
+    pub label: &'static str,
+    pub cost_timber: f64,
+    pub cost_stone: f64,
+    pub food_self_share: f64,
+    pub food_per_person_per_sec: f64,
+    pub gold_per_person_per_sec: f64,
+}
+
+const BACKYARD_APPLE_ORCHARD: BackyardGardenDef = BackyardGardenDef {
+    kind: BackyardGardenKind::AppleOrchard,
+    slug: "apple_orchard",
+    label: "Apple orchard",
+    cost_timber: 10.0,
+    cost_stone: 4.0,
+    food_self_share: 0.55,
+    food_per_person_per_sec: 0.009,
+    gold_per_person_per_sec: 0.008,
+};
+
+const BACKYARD_CHERRY_ORCHARD: BackyardGardenDef = BackyardGardenDef {
+    kind: BackyardGardenKind::CherryOrchard,
+    slug: "cherry_orchard",
+    label: "Cherry orchard",
+    cost_timber: 9.0,
+    cost_stone: 3.0,
+    food_self_share: 0.5,
+    food_per_person_per_sec: 0.008,
+    gold_per_person_per_sec: 0.01,
+};
+
+const BACKYARD_VEGETABLE_GARDEN: BackyardGardenDef = BackyardGardenDef {
+    kind: BackyardGardenKind::VegetableGarden,
+    slug: "vegetable_garden",
+    label: "Vegetable garden",
+    cost_timber: 5.0,
+    cost_stone: 2.0,
+    food_self_share: 0.65,
+    food_per_person_per_sec: 0.012,
+    gold_per_person_per_sec: 0.006,
+};
+
+const BACKYARD_FLOWER_GARDEN: BackyardGardenDef = BackyardGardenDef {
+    kind: BackyardGardenKind::FlowerGarden,
+    slug: "flower_garden",
+    label: "Flower garden",
+    cost_timber: 4.0,
+    cost_stone: 1.0,
+    food_self_share: 0.0,
+    food_per_person_per_sec: 0.0,
+    gold_per_person_per_sec: 0.018,
+};
+
+const BACKYARD_HERB_GARDEN: BackyardGardenDef = BackyardGardenDef {
+    kind: BackyardGardenKind::HerbGarden,
+    slug: "herb_garden",
+    label: "Herb garden",
+    cost_timber: 4.0,
+    cost_stone: 2.0,
+    food_self_share: 0.0,
+    food_per_person_per_sec: 0.0,
+    gold_per_person_per_sec: 0.015,
+};
+
+const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[BACKYARD_APPLE_ORCHARD, BACKYARD_CHERRY_ORCHARD, BACKYARD_VEGETABLE_GARDEN, BACKYARD_FLOWER_GARDEN, BACKYARD_HERB_GARDEN];
+
+pub fn backyard_garden_def(kind: BackyardGardenKind) -> &'static BackyardGardenDef {
+    ALL_BACKYARD_GARDENS
+        .iter()
+        .find(|def| def.kind == kind)
+        .expect("missing backyard garden def")
+}
+
+pub fn backyard_garden_def_by_slug(slug: &str) -> Option<&'static BackyardGardenDef> {
+    ALL_BACKYARD_GARDENS.iter().find(|def| def.slug == slug)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TradeResource {
+    Timber,
+    Stone,
+    Firewood,
+    Food,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TradeResourceSpendScope {
+    Aggregate,
+    Treasury,
+}
+
+impl TradeResource {
+    pub fn spend_scope(self) -> TradeResourceSpendScope {
+        match self {
+            Self::Timber => TradeResourceSpendScope::Aggregate,
+            Self::Stone => TradeResourceSpendScope::Aggregate,
+            Self::Firewood => TradeResourceSpendScope::Aggregate,
+            Self::Food => TradeResourceSpendScope::Aggregate,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum MarketplaceTradeKind {
+    GoldBuy { resource: TradeResource, amount: f64, gold_cost: f64 },
+    GoldSell { resource: TradeResource, amount: f64, gold_yield: f64 },
+    Barter {
+        give: TradeResource,
+        give_amount: f64,
+        receive: TradeResource,
+        receive_amount: f64,
+    },
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct MarketplaceTradeOffer {
+    pub id: &'static str,
+    pub kind: MarketplaceTradeKind,
+}
+
+const TRADE_BUY_TIMBER: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_timber",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Timber,
+        amount: 10.0,
+        gold_cost: 16.0,
+    },
+};
+
+const TRADE_SELL_TIMBER: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_timber",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Timber,
+        amount: 10.0,
+        gold_yield: 10.0,
+    },
+};
+
+const TRADE_BUY_STONE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_stone",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Stone,
+        amount: 10.0,
+        gold_cost: 22.0,
+    },
+};
+
+const TRADE_SELL_STONE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_stone",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Stone,
+        amount: 10.0,
+        gold_yield: 14.0,
+    },
+};
+
+const TRADE_BUY_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_firewood",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Firewood,
+        amount: 10.0,
+        gold_cost: 8.0,
+    },
+};
+
+const TRADE_SELL_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_firewood",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Firewood,
+        amount: 10.0,
+        gold_yield: 5.0,
+    },
+};
+
+const TRADE_BUY_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_food",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Food,
+        amount: 10.0,
+        gold_cost: 12.0,
+    },
+};
+
+const TRADE_SELL_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_food",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Food,
+        amount: 10.0,
+        gold_yield: 8.0,
+    },
+};
+
+const TRADE_TIMBER_FOR_STONE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "timber_for_stone",
+    kind: MarketplaceTradeKind::Barter {
+        give: TradeResource::Timber,
+        give_amount: 25.0,
+        receive: TradeResource::Stone,
+        receive_amount: 10.0,
+    },
+};
+
+const TRADE_STONE_FOR_TIMBER: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "stone_for_timber",
+    kind: MarketplaceTradeKind::Barter {
+        give: TradeResource::Stone,
+        give_amount: 10.0,
+        receive: TradeResource::Timber,
+        receive_amount: 20.0,
+    },
+};
+
+const TRADE_TIMBER_FOR_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "timber_for_firewood",
+    kind: MarketplaceTradeKind::Barter {
+        give: TradeResource::Timber,
+        give_amount: 10.0,
+        receive: TradeResource::Firewood,
+        receive_amount: 18.0,
+    },
+};
+
+const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_BUY_FOOD, TRADE_SELL_FOOD, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
+
+pub fn marketplace_trade_offer(id: &str) -> Option<&'static MarketplaceTradeOffer> {
+    ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)
 }

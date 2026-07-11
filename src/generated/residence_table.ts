@@ -22,4 +22,5 @@ export default __t.row({
   populationCapacity: __t.u32().name("population_capacity"),
   settlementTicks: __t.u32().name("settlement_ticks"),
   abandoned: __t.bool(),
+  householdWealth: __t.f64().name("household_wealth"),
 });

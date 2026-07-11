@@ -242,7 +242,7 @@ function isConvexQuad(a: Point2, b: Point2, c: Point2, d: Point2): boolean {
   return signs.every((value) => value === signs[0]);
 }
 
-function distancePointToSegment(point: Point2, segStart: Point2, segEnd: Point2): number {
+export function distancePointToSegment(point: Point2, segStart: Point2, segEnd: Point2): number {
   const abx = segEnd.x - segStart.x;
   const abz = segEnd.z - segStart.z;
   const lengthSq = abx * abx + abz * abz;

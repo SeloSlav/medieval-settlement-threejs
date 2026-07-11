@@ -267,6 +267,7 @@ export class BuildingTool {
       buildings: state.buildings.values(),
       burgageZones: state.burgageZones.values(),
       quarries: state.quarries.values(),
+      foragingNodes: state.foragingNodes.values(),
       stockpile: totals,
       isWaterAt: this.options.isWaterAt,
       isQuarryPitAt: this.options.isQuarryPitAt,

@@ -18,8 +18,9 @@ import type { BuildingKind } from './types.ts';
 
 export function createInitialGameState(registry: WorldLayoutRegistry, seed: number): GameState {
   const quarries = new Map<string, QuarryNodeState>();
+  const foragingNodes = new Map<string, QuarryNodeState>();
   for (const definition of registry.definitionList) {
-    quarries.set(definition.id, {
+    const nodeState = {
       nodeId: definition.id,
       kind: definition.kind,
       resource: definition.resource,
@@ -27,7 +28,12 @@ export function createInitialGameState(registry: WorldLayoutRegistry, seed: numb
       maxYield: definition.maxYield,
       x: definition.x,
       z: definition.z,
-    });
+    };
+    if (definition.kind === 'quarry') {
+      quarries.set(definition.id, nodeState);
+    } else {
+      foragingNodes.set(definition.id, nodeState);
+    }
   }
 
   return {
@@ -35,10 +41,13 @@ export function createInitialGameState(registry: WorldLayoutRegistry, seed: numb
     tick: 0,
     stockpile: createEmptyStockpile(),
     quarries,
+    foragingNodes,
     trees: new Map(),
     buildings: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
+    backyardGardens: new Map(),
+    deliveryTrips: new Map(),
     nextBuildingId: 1,
   };
 }
@@ -63,6 +72,7 @@ export function gameStateToSnapshot(state: GameState, roads: RoadNetworkSnapshot
     tick: state.tick,
     stockpile: { ...state.stockpile },
     quarries: [...state.quarries.values()],
+    foragingNodes: [...state.foragingNodes.values()],
     trees: [...state.trees.values()],
     buildings: [...state.buildings.values()],
     roads,
@@ -82,6 +92,7 @@ export function restoreGameState(
   }
 
   const quarries = restoreQuarries(snapshot.quarries, registry);
+  const foragingNodes = restoreForagingNodes(snapshot.foragingNodes ?? [], registry);
   const trees = restoreTrees(snapshot.trees, treeRegistry);
   const buildings = restoreBuildings(snapshot.buildings);
 
@@ -90,10 +101,13 @@ export function restoreGameState(
     tick: Math.max(0, snapshot.tick),
     stockpile: normalizeStockpile(snapshot.stockpile),
     quarries,
+    foragingNodes,
     trees,
     buildings,
     burgageZones: new Map(),
     residences: new Map(),
+    backyardGardens: new Map(),
+    deliveryTrips: new Map(),
     nextBuildingId: inferNextBuildingId(buildings),
   };
 }
@@ -128,11 +142,11 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     z,
     workRadius: definition.workRadius,
     actionCooldown: 0,
-    deliveryCooldown: 0,
     timber: 0,
     firewood: 0,
     stone: 0,
     water: 0,
+    food: 0,
     waterCapacity: 0,
     assignedLabor: 0,
   };
@@ -201,10 +215,13 @@ function restoreFromV1(
     tick: Math.max(0, snapshot.tick),
     stockpile: normalizeStockpile(snapshot.stockpile),
     quarries,
+    foragingNodes: restoreForagingNodes([], registry),
     trees,
     buildings: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
+    backyardGardens: new Map(),
+    deliveryTrips: new Map(),
     nextBuildingId: 1,
   };
 }
@@ -239,6 +256,45 @@ function restoreQuarries(nodes: QuarryNodeState[], registry: WorldLayoutRegistry
   }
 
   return quarries;
+}
+
+function restoreForagingNodes(
+  nodes: QuarryNodeState[],
+  registry: WorldLayoutRegistry,
+  fillMissing = true,
+): Map<string, QuarryNodeState> {
+  const foragingNodes = new Map<string, QuarryNodeState>();
+  for (const node of nodes) {
+    const definition = registry.getDefinition(node.nodeId);
+    if (!definition || (definition.kind !== 'game' && definition.kind !== 'berries')) continue;
+    foragingNodes.set(node.nodeId, {
+      nodeId: node.nodeId,
+      kind: definition.kind,
+      resource: definition.resource,
+      remaining: Math.max(0, node.remaining),
+      maxYield: definition.maxYield,
+      x: definition.x,
+      z: definition.z,
+    });
+  }
+
+  if (fillMissing) {
+    for (const definition of registry.definitionList) {
+      if (definition.kind !== 'game' && definition.kind !== 'berries') continue;
+      if (foragingNodes.has(definition.id)) continue;
+      foragingNodes.set(definition.id, {
+        nodeId: definition.id,
+        kind: definition.kind,
+        resource: definition.resource,
+        remaining: definition.maxYield,
+        maxYield: definition.maxYield,
+        x: definition.x,
+        z: definition.z,
+      });
+    }
+  }
+
+  return foragingNodes;
 }
 
 function restoreTrees(
@@ -309,11 +365,11 @@ function restoreBuildings(buildings: BuildingState[]): Map<string, BuildingState
       z: building.z,
       workRadius: definition.workRadius,
       actionCooldown: Math.max(0, building.actionCooldown),
-      deliveryCooldown: Math.max(0, building.deliveryCooldown ?? 0),
       timber: building.timber ?? 0,
       firewood: building.firewood ?? 0,
       stone: building.stone ?? 0,
       water: building.water ?? 0,
+      food: building.food ?? 0,
       waterCapacity: building.waterCapacity ?? 0,
       assignedLabor: building.assignedLabor ?? 0,
     });
@@ -363,6 +419,7 @@ function validateSnapshot(value: Partial<GameStateSnapshot | GameStateSnapshotV1
     tick: value.tick,
     stockpile: normalizeStockpile(value.stockpile as Partial<ResourceStockpile>),
     quarries: value.quarries as QuarryNodeState[],
+    foragingNodes: (value.foragingNodes ?? []) as QuarryNodeState[],
     trees: value.trees as TreeEntityState[],
     buildings: value.buildings as BuildingState[],
     roads: value.roads as RoadNetworkSnapshot,
@@ -377,6 +434,9 @@ function normalizeStockpile(value: Partial<ResourceStockpile> & { wood?: number 
   }
   if (typeof value.wood === 'number' && Number.isFinite(value.wood) && stockpile.timber === 0) {
     stockpile.timber = Math.max(0, value.wood);
+  }
+  if (typeof value.gold === 'number' && Number.isFinite(value.gold)) {
+    stockpile.gold = Math.max(0, value.gold);
   }
   return stockpile;
 }

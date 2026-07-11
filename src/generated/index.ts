@@ -35,22 +35,30 @@ import {
 
 // Import all reducer arg schemas
 import AssignBuildingLaborReducer from "./assign_building_labor_reducer";
+import BootstrapForagingReducer from "./bootstrap_foraging_reducer";
 import BootstrapQuarriesReducer from "./bootstrap_quarries_reducer";
 import BootstrapTreesReducer from "./bootstrap_trees_reducer";
+import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
 import DemolishBuildingReducer from "./demolish_building_reducer";
 import DemolishBurgageZoneReducer from "./demolish_burgage_zone_reducer";
 import DemolishResidenceReducer from "./demolish_residence_reducer";
+import MarketplaceTradeReducer from "./marketplace_trade_reducer";
+import PlaceBackyardGardenReducer from "./place_backyard_garden_reducer";
 import PlaceBuildingReducer from "./place_building_reducer";
 import PlaceBurgageZoneReducer from "./place_burgage_zone_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
+import SetEconomicActivityTaxRateReducer from "./set_economic_activity_tax_rate_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
 import TickSimReducer from "./tick_sim_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import BackyardGardenRow from "./backyard_garden_table";
 import BuildingRow from "./building_table";
 import BurgageZoneRow from "./burgage_zone_table";
+import DeliveryTripRow from "./delivery_trip_table";
+import ForagingNodeRow from "./foraging_node_table";
 import PlayerResourcesRow from "./player_resources_table";
 import QuarryRow from "./quarry_table";
 import ResidenceRow from "./residence_table";
@@ -64,6 +72,23 @@ import WorldConfigRow from "./world_config_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  backyard_garden: __table({
+    name: 'backyard_garden',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'residence_id', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'backyard_garden_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BackyardGardenRow),
   building: __table({
     name: 'building',
     indexes: [
@@ -92,6 +117,37 @@ const tablesSchema = __schema({
       { name: 'burgage_zone_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BurgageZoneRow),
+  delivery_trip: __table({
+    name: 'delivery_trip',
+    indexes: [
+      { name: 'building_id', algorithm: 'btree', columns: [
+        'buildingId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'residence_id', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'delivery_trip_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, DeliveryTripRow),
+  foraging_node: __table({
+    name: 'foraging_node',
+    indexes: [
+      { name: 'node_id', algorithm: 'btree', columns: [
+        'nodeId',
+      ] },
+    ],
+    constraints: [
+      { name: 'foraging_node_node_id_key', constraint: 'unique', columns: ['nodeId'] },
+    ],
+  }, ForagingNodeRow),
   player_resources: __table({
     name: 'player_resources',
     indexes: [
@@ -194,14 +250,19 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("assign_building_labor", AssignBuildingLaborReducer),
+  __reducerSchema("bootstrap_foraging", BootstrapForagingReducer),
   __reducerSchema("bootstrap_quarries", BootstrapQuarriesReducer),
   __reducerSchema("bootstrap_trees", BootstrapTreesReducer),
+  __reducerSchema("demolish_backyard_garden", DemolishBackyardGardenReducer),
   __reducerSchema("demolish_building", DemolishBuildingReducer),
   __reducerSchema("demolish_burgage_zone", DemolishBurgageZoneReducer),
   __reducerSchema("demolish_residence", DemolishResidenceReducer),
+  __reducerSchema("marketplace_trade", MarketplaceTradeReducer),
+  __reducerSchema("place_backyard_garden", PlaceBackyardGardenReducer),
   __reducerSchema("place_building", PlaceBuildingReducer),
   __reducerSchema("place_burgage_zone", PlaceBurgageZoneReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
+  __reducerSchema("set_economic_activity_tax_rate", SetEconomicActivityTaxRateReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
   __reducerSchema("tick_sim", TickSimReducer),
 );

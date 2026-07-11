@@ -7,8 +7,14 @@ const VALID_ZONE_COLOR = 0x8ec07c;
 const INVALID_ZONE_COLOR = 0xd45d4a;
 const VALID_ZONE_FILL = 0x8ec07c;
 const INVALID_ZONE_FILL = 0xd45d4a;
-const PLACING_OUTLINE_COLOR = 0xffffff;
+const PLACING_ZONE_OUTLINE_COLOR = 0xd8e8ff;
+const PLACING_FRONTAGE_COLOR = PLACING_ZONE_OUTLINE_COLOR;
+const PLACING_DEPTH_GUIDE_COLOR = 0x7ec8ff;
+const PLACED_CORNER_COLOR = 0xffd56a;
 const PLACING_CORNER_COLOR = 0xffffff;
+const HOVER_CORNER_COLOR = PLACING_CORNER_COLOR;
+const OUTLINE_LIFT = 0.38;
+const FRONTAGE_OUTLINE_LIFT = 0.46;
 const PARCEL_FILL_COLOR = 0xc9b07f;
 const PARCEL_LINE_COLOR = 0xe8d4a8;
 const DIVIDER_LINE_COLOR = 0xf2e3b7;
@@ -148,8 +154,13 @@ function layoutSignature(layout: BurgageLayoutResult | null): string {
 export class BurgagePreview {
   readonly group = new THREE.Group();
   private readonly zoneOutline: THREE.LineSegments;
+  private readonly frontageOutline: THREE.LineSegments;
+  private readonly depthGuide: THREE.LineSegments;
   private readonly zoneOutlinePlacing: THREE.LineBasicMaterial;
+  private readonly frontageOutlinePlacing: THREE.LineBasicMaterial;
+  private readonly depthGuideMaterial: THREE.LineBasicMaterial;
   private readonly zoneOutlineSolid: THREE.LineBasicMaterial;
+  private readonly placedCornerMaterial: THREE.MeshBasicMaterial;
   private readonly zoneFill: THREE.Mesh;
   private readonly parcelFillMeshes: THREE.Mesh[];
   private readonly parcelFillMaterial: THREE.MeshBasicMaterial;
@@ -167,7 +178,14 @@ export class BurgagePreview {
     this.group.frustumCulled = false;
 
     this.zoneOutlinePlacing = new THREE.LineBasicMaterial({
-      color: PLACING_OUTLINE_COLOR,
+      color: PLACING_ZONE_OUTLINE_COLOR,
+      transparent: true,
+      opacity: 0.82,
+      depthTest: false,
+      depthWrite: false,
+    });
+    this.frontageOutlinePlacing = new THREE.LineBasicMaterial({
+      color: PLACING_FRONTAGE_COLOR,
       transparent: true,
       opacity: 0.98,
       depthTest: false,
@@ -188,6 +206,31 @@ export class BurgagePreview {
     this.zoneOutline.frustumCulled = false;
     this.zoneOutline.visible = false;
     this.group.add(this.zoneOutline);
+
+    this.frontageOutline = new THREE.LineSegments(
+      new THREE.BufferGeometry(),
+      this.frontageOutlinePlacing,
+    );
+    this.frontageOutline.renderOrder = 18;
+    this.frontageOutline.frustumCulled = false;
+    this.frontageOutline.visible = false;
+    this.group.add(this.frontageOutline);
+
+    this.depthGuideMaterial = new THREE.LineBasicMaterial({
+      color: PLACING_DEPTH_GUIDE_COLOR,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+      depthWrite: false,
+    });
+    this.depthGuide = new THREE.LineSegments(
+      new THREE.BufferGeometry(),
+      this.depthGuideMaterial,
+    );
+    this.depthGuide.renderOrder = 17;
+    this.depthGuide.frustumCulled = false;
+    this.depthGuide.visible = false;
+    this.group.add(this.depthGuide);
 
     this.zoneFill = new THREE.Mesh(
       new THREE.BufferGeometry(),
@@ -254,15 +297,16 @@ export class BurgagePreview {
     this.group.add(this.dividerLines);
 
     const cornerGeometry = new THREE.SphereGeometry(0.72, 10, 10);
+    this.placedCornerMaterial = new THREE.MeshBasicMaterial({
+      color: PLACED_CORNER_COLOR,
+      transparent: true,
+      opacity: 0.98,
+      depthWrite: false,
+      depthTest: false,
+    });
     this.cornerMarkers = new THREE.InstancedMesh(
       cornerGeometry,
-      new THREE.MeshBasicMaterial({
-        color: PLACING_CORNER_COLOR,
-        transparent: true,
-        opacity: 0.98,
-        depthWrite: false,
-        depthTest: false,
-      }),
+      this.placedCornerMaterial,
       4,
     );
     this.cornerMarkers.renderOrder = 16;
@@ -274,7 +318,7 @@ export class BurgagePreview {
     this.hoverMarker = new THREE.Mesh(
       new THREE.SphereGeometry(0.55, 10, 10),
       new THREE.MeshBasicMaterial({
-        color: PLACING_CORNER_COLOR,
+        color: HOVER_CORNER_COLOR,
         transparent: true,
         opacity: 0.72,
         depthWrite: false,
@@ -288,7 +332,8 @@ export class BurgagePreview {
 
     this.housePreviewMeshes = [];
     for (let i = 0; i < MAX_HOUSE_PREVIEWS; i++) {
-      const mesh = createResidencePreviewMesh();
+      // Preview slot index only — placed homes derive colors from residence id hash.
+      const mesh = createResidencePreviewMesh(i + 1);
       mesh.visible = false;
       this.housePreviewMeshes.push(mesh);
       this.group.add(mesh);
@@ -305,6 +350,9 @@ export class BurgagePreview {
     hoverPoint: THREE.Vector3 | null = null,
     frontageEdge = 0,
     outlinePolygon: THREE.Vector3[] | null = null,
+    frontagePointCount = 0,
+    placedPoints: THREE.Vector3[] = [],
+    depthGuide: { from: THREE.Vector3; to: THREE.Vector3 } | null = null,
   ): void {
     if (!placing && corners.length === 0) {
       this.clear();
@@ -312,7 +360,7 @@ export class BurgagePreview {
     }
 
     const hoverSignature = hoverPoint ? `${hoverPoint.x.toFixed(2)},${hoverPoint.z.toFixed(2)}` : 'none';
-    const geometrySignature = `${cornersSignature(corners)}|${outlineSignature(outlinePolygon)}|${hoverSignature}|${layoutSignature(layout)}|${placing ? 1 : 0}|${placementStage}|${frontageEdge}`;
+    const geometrySignature = `${cornersSignature(corners)}|${outlineSignature(outlinePolygon)}|${hoverSignature}|${layoutSignature(layout)}|${placing ? 1 : 0}|${placementStage}|${frontageEdge}|${frontagePointCount}|${cornersSignature(placedPoints)}|${depthGuide ? `${depthGuide.from.x},${depthGuide.from.z}-${depthGuide.to.x},${depthGuide.to.z}` : 'none'}`;
     const geometryChanged = geometrySignature !== this.lastGeometrySignature;
     const validityChanged = valid !== this.lastValid;
 
@@ -329,6 +377,9 @@ export class BurgagePreview {
         placementStage,
         hoverPoint,
         outlinePolygon,
+        frontagePointCount,
+        placedPoints,
+        depthGuide,
       );
       this.lastValid = valid;
       return;
@@ -357,29 +408,41 @@ export class BurgagePreview {
     placementStage: number,
     hoverPoint: THREE.Vector3 | null,
     outlinePolygon: THREE.Vector3[] | null,
+    frontagePointCount: number,
+    placedPoints: THREE.Vector3[],
+    depthGuide: { from: THREE.Vector3; to: THREE.Vector3 } | null,
   ): void {
     this.group.visible = true;
     const edgeColor = valid ? VALID_ZONE_COLOR : INVALID_ZONE_COLOR;
     const fillColor = valid ? VALID_ZONE_FILL : INVALID_ZONE_FILL;
     (this.zoneFill.material as THREE.MeshBasicMaterial).color.setHex(fillColor);
 
-    const markerCount = placing && corners.length >= 4
-      ? 4
-      : placementStage > 0
-        ? Math.min(placementStage, corners.length, 4)
-        : 0;
-    const markerSource = corners.slice(0, markerCount);
+    const markerSource = placedPoints.length > 0
+      ? placedPoints
+      : corners.slice(0, placing && corners.length >= 4 ? 4 : Math.min(placementStage, corners.length, 4));
 
     this.cornerMarkers.count = markerSource.length;
     this.cornerMarkers.visible = markerSource.length > 0;
     for (let i = 0; i < markerSource.length; i++) {
       const corner = markerSource[i];
       const y = getHeightAt(corner.x, corner.z) + 0.42;
-      this.cornerMatrix.identity();
-      this.cornerMatrix.setPosition(corner.x, y, corner.z);
+      const scale = i < 2 && placing && placementStage <= 2 ? 1.12 : 1;
+      this.cornerMatrix.compose(
+        new THREE.Vector3(corner.x, y, corner.z),
+        new THREE.Quaternion(),
+        new THREE.Vector3(scale, scale, scale),
+      );
       this.cornerMarkers.setMatrixAt(i, this.cornerMatrix);
     }
     this.cornerMarkers.instanceMatrix.needsUpdate = markerSource.length > 0;
+
+    if (depthGuide && placing && placementStage === 2) {
+      assignLineSegments(this.depthGuide, buildDashedEdgePositions([[depthGuide.from, depthGuide.to]]));
+      this.depthGuide.visible = true;
+    } else {
+      replaceGeometry(this.depthGuide);
+      this.depthGuide.visible = false;
+    }
 
     if (hoverPoint && placing && placementStage < 4) {
       const y = getHeightAt(hoverPoint.x, hoverPoint.z) + 0.36;
@@ -393,20 +456,43 @@ export class BurgagePreview {
       ? outlinePolygon
       : corners;
     const lifted = outlineSource.map((corner) => {
-      const y = getHeightAt(corner.x, corner.z) + 0.22;
+      const y = getHeightAt(corner.x, corner.z) + OUTLINE_LIFT;
       return new THREE.Vector3(corner.x, y, corner.z);
     });
 
     const closeLoop = lifted.length >= 4 && (!placing || placementStage >= 2);
     const edges = collectEdges(lifted, closeLoop);
+    const resolvedFrontageCount = Math.min(
+      Math.max(frontagePointCount, 0),
+      lifted.length,
+    );
+    const frontageEdges = resolvedFrontageCount >= 2
+      ? edges.slice(0, resolvedFrontageCount - 1)
+      : edges;
+    const zoneEdges = resolvedFrontageCount >= 2 && closeLoop
+      ? [...edges.slice(resolvedFrontageCount - 1, resolvedFrontageCount), ...edges.slice(resolvedFrontageCount)]
+      : resolvedFrontageCount >= 2
+        ? edges.slice(resolvedFrontageCount - 1)
+        : [];
+
     if (placing) {
       this.zoneOutline.material = this.zoneOutlinePlacing;
-      this.zoneOutlinePlacing.color.setHex(PLACING_OUTLINE_COLOR);
-      assignLineSegments(this.zoneOutline, buildDashedEdgePositions(edges));
+      this.zoneOutlinePlacing.color.setHex(PLACING_ZONE_OUTLINE_COLOR);
+      assignLineSegments(this.zoneOutline, buildDashedEdgePositions(zoneEdges));
+
+      const frontageEdgeSegments: EdgeSegment[] = frontageEdges.map(([start, end]) => [
+        new THREE.Vector3(start.x, getHeightAt(start.x, start.z) + FRONTAGE_OUTLINE_LIFT, start.z),
+        new THREE.Vector3(end.x, getHeightAt(end.x, end.z) + FRONTAGE_OUTLINE_LIFT, end.z),
+      ]);
+      assignLineSegments(this.frontageOutline, buildDashedEdgePositions(frontageEdgeSegments));
+      this.frontageOutline.material = this.frontageOutlinePlacing;
+      this.frontageOutlinePlacing.color.setHex(PLACING_FRONTAGE_COLOR);
     } else {
       this.zoneOutline.material = this.zoneOutlineSolid;
       this.zoneOutlineSolid.color.setHex(edgeColor);
       assignLineSegments(this.zoneOutline, buildSolidEdgePositions(edges));
+      replaceGeometry(this.frontageOutline);
+      this.frontageOutline.visible = false;
     }
 
     if (closeLoop) {
@@ -478,6 +564,10 @@ export class BurgagePreview {
     this.hoverMarker.visible = false;
     replaceGeometry(this.zoneOutline);
     this.zoneOutline.visible = false;
+    replaceGeometry(this.frontageOutline);
+    this.frontageOutline.visible = false;
+    replaceGeometry(this.depthGuide);
+    this.depthGuide.visible = false;
     replaceGeometry(this.zoneFill);
     this.zoneFill.visible = false;
     for (const mesh of this.housePreviewMeshes) {
@@ -495,7 +585,9 @@ export class BurgagePreview {
 
   dispose(): void {
     this.zoneOutline.geometry.dispose();
+    this.frontageOutline.geometry.dispose();
     this.zoneOutlinePlacing.dispose();
+    this.frontageOutlinePlacing.dispose();
     this.zoneOutlineSolid.dispose();
     this.zoneFill.geometry.dispose();
     (this.zoneFill.material as THREE.Material).dispose();

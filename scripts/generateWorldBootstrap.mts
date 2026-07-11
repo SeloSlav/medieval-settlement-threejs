@@ -6,11 +6,25 @@ import { computeWorldBootstrapDataHeadless } from '../src/world/worldBootstrapDa
 const generatedDir = join(dirname(fileURLToPath(import.meta.url)), '../server/generated');
 const treesPath = join(generatedDir, 'world_trees.json');
 const quarriesPath = join(generatedDir, 'world_quarries.json');
+const foragingPath = join(generatedDir, 'world_foraging.json');
 
 const data = computeWorldBootstrapDataHeadless();
 mkdirSync(generatedDir, { recursive: true });
 writeFileSync(treesPath, JSON.stringify({ trees: data.trees }, null, 2));
 writeFileSync(quarriesPath, JSON.stringify({ quarries: data.quarries }, null, 2));
+writeFileSync(
+  foragingPath,
+  JSON.stringify(
+    {
+      foragingNodes: data.foragingNodes,
+      gameRespawnCandidates: data.gameRespawnCandidates,
+    },
+    null,
+    2,
+  ),
+);
 
 console.log(`Wrote ${data.trees.length} trees to ${treesPath}`);
 console.log(`Wrote ${data.quarries.length} quarries to ${quarriesPath}`);
+console.log(`Wrote ${data.foragingNodes.length} foraging nodes to ${foragingPath}`);
+console.log(`Wrote ${data.gameRespawnCandidates.length} game respawn candidates`);

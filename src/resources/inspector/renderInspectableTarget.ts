@@ -1,6 +1,9 @@
 import type { PopulationStats } from '../resourceTotals.ts';
+import type { MarketplaceTradeAvailability } from '../../economy/marketplaceTrade.ts';
 import type { InspectableTarget } from '../types.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
+import { renderBackyardInspector } from './backyardRenderer.ts';
+import { renderForagingInspector } from './foragingRenderer.ts';
 import { renderBuildingInspector } from './buildingRenderer.ts';
 import { renderQuarryInspector } from './quarryRenderer.ts';
 import { renderResidenceInspector } from './residenceRenderer.ts';
@@ -32,11 +35,14 @@ export type InspectorView = {
   detailsHtml: string;
   demolish: InspectorDemolishView;
   labor: InspectorLaborView;
+  supplementalPanelHtml?: string;
 };
 
 export type InspectorRenderContext = {
   worldQueries: WorldQueries;
   populationStats: PopulationStats;
+  getEconomicActivityTaxRate?: () => number;
+  getTradeAvailability?: () => MarketplaceTradeAvailability;
 };
 
 export function hiddenLabor(): InspectorLaborView {
@@ -60,10 +66,14 @@ export function renderInspectableTarget(
   switch (target.kind) {
     case 'quarry':
       return renderQuarryInspector(target, context);
+    case 'foraging':
+      return renderForagingInspector(target, context);
     case 'building':
       return renderBuildingInspector(target, context);
     case 'residence':
       return renderResidenceInspector(target, context);
+    case 'backyard':
+      return renderBackyardInspector(target, context);
     case 'river':
       return renderRiverInspector(target);
     default: {

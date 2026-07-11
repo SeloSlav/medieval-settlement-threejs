@@ -1,9 +1,9 @@
 import type { RoadNetworkSnapshot } from '../roads/RoadNetwork.ts';
 
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'food'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
-export const RESOURCE_NODE_KINDS = ['quarry'] as const;
+export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries'] as const;
 export type ResourceNodeKind = (typeof RESOURCE_NODE_KINDS)[number];
 
 export const TREE_PHASES = ['stump', 'growing', 'mature'] as const;
@@ -11,6 +11,7 @@ export type TreePhase = (typeof TREE_PHASES)[number];
 
 import { BUILDING_KINDS, type BuildingKind } from '../generated/gameBalance.ts';
 import type { ResidenceNeedsState } from '../residences/residenceNeedState.ts';
+import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 
 export type { BuildingKind };
 export { BUILDING_KINDS };
@@ -37,6 +38,8 @@ export type QuarryNodeState = {
   z: number;
 };
 
+export type ForagingNodeState = QuarryNodeState;
+
 export type TreeLayoutEntry = {
   id: string;
   layoutIndex: number;
@@ -62,11 +65,11 @@ export type BuildingState = {
   z: number;
   workRadius: number;
   actionCooldown: number;
-  deliveryCooldown: number;
   timber: number;
   firewood: number;
   stone: number;
   water: number;
+  food: number;
   waterCapacity: number;
   assignedLabor: number;
 };
@@ -95,9 +98,16 @@ export type ResidenceState = {
   settlementTicks: number;
   needs: ResidenceNeedsState;
   abandoned: boolean;
+  householdWealth: number;
 };
 
-export type ResourceStockpile = Record<ResourceKind, number>;
+export type BackyardGardenState = {
+  id: string;
+  residenceId: string;
+  kind: import('../generated/gameBalance.ts').BackyardGardenKind;
+};
+
+export type ResourceStockpile = Record<ResourceKind, number> & { gold: number };
 
 export type GameStateSnapshotV1 = {
   version: 1;
@@ -114,6 +124,7 @@ export type GameStateSnapshot = {
   tick: number;
   stockpile: ResourceStockpile;
   quarries: QuarryNodeState[];
+  foragingNodes: ForagingNodeState[];
   trees: TreeEntityState[];
   buildings: BuildingState[];
   roads: RoadNetworkSnapshot;
@@ -124,10 +135,13 @@ export type GameState = {
   tick: number;
   stockpile: ResourceStockpile;
   quarries: Map<string, QuarryNodeState>;
+  foragingNodes: Map<string, ForagingNodeState>;
   trees: Map<string, TreeEntityState>;
   buildings: Map<string, BuildingState>;
   burgageZones: Map<string, BurgageZoneState>;
   residences: Map<string, ResidenceState>;
+  backyardGardens: Map<string, BackyardGardenState>;
+  deliveryTrips: Map<string, DeliveryTripState>;
   nextBuildingId: number;
 };
 
@@ -136,6 +150,11 @@ export type InspectableTarget =
       kind: 'quarry';
       definition: ResourceNodeDefinition;
       state: QuarryNodeState;
+    }
+  | {
+      kind: 'foraging';
+      definition: ResourceNodeDefinition;
+      state: ForagingNodeState;
     }
   | {
       kind: 'building';
@@ -156,10 +175,16 @@ export type InspectableTarget =
       residence: ResidenceState;
       zone: BurgageZoneState;
       residenceCount: number;
+    }
+  | {
+      kind: 'backyard';
+      residence: ResidenceState;
+      zone: BurgageZoneState;
+      garden: BackyardGardenState | null;
     };
 
 export function createEmptyStockpile(): ResourceStockpile {
-  return { timber: 0, stone: 0, firewood: 0, water: 0 };
+  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, food: 0, gold: 0 };
 }
 
 export function isResourceKind(value: string): value is ResourceKind {

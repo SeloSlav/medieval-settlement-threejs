@@ -3,12 +3,13 @@ use spacetimedb::ReducerContext;
 use crate::building_defs::BuildingSimKind;
 use crate::db::*;
 use crate::schedule::SimTickSchedule;
-use crate::simulation::SimTickContext;
 use crate::simulation::{
-    step_lumber_mill, step_reforester, step_residence_needs, step_residence_recovery,
-    step_residence_settlement, step_stone_quarry, step_well, step_woodcutters_lodge,
+    step_chapels, step_backyard_gardens, step_delivery_trips, step_foragers_shed, step_foraging_respawn, step_hunters_hall,
+    step_lumber_mill, step_reforester, step_residence, step_stone_quarry, step_well, step_woodcutters_lodge,
+    SimTickContext,
 };
 use crate::tables::WorldConfig;
+use crate::tables::Building;
 
 pub fn run_sim_tick(ctx: &ReducerContext, _schedule: SimTickSchedule) {
     if let Some(config) = ctx.db.world_config().id().find(&0) {
@@ -18,7 +19,10 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: SimTickSchedule) {
         });
     }
 
+    step_foraging_respawn(ctx);
+
     let tick = SimTickContext::new(ctx);
+    step_delivery_trips(ctx, &tick);
     let sim_tick = ctx
         .db
         .world_config()
@@ -32,6 +36,8 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: SimTickSchedule) {
     let mut stone_quarry_ids: Vec<u64> = Vec::new();
     let mut woodcutters_lodge_ids: Vec<u64> = Vec::new();
     let mut well_ids: Vec<u64> = Vec::new();
+    let mut hunters_hall_ids: Vec<u64> = Vec::new();
+    let mut foragers_shed_ids: Vec<u64> = Vec::new();
 
     for building in ctx.db.building().iter() {
         let Some(sim_kind) =
@@ -45,6 +51,8 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: SimTickSchedule) {
             BuildingSimKind::StoneQuarry => stone_quarry_ids.push(building.id),
             BuildingSimKind::WoodcuttersLodge => woodcutters_lodge_ids.push(building.id),
             BuildingSimKind::Well => well_ids.push(building.id),
+            BuildingSimKind::HuntersHall => hunters_hall_ids.push(building.id),
+            BuildingSimKind::ForagersShed => foragers_shed_ids.push(building.id),
         }
     }
 
@@ -59,7 +67,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: SimTickSchedule) {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        step_lumber_mill(ctx, building);
+        step_lumber_mill(ctx, &tick, building);
     }
 
     for building_id in stone_quarry_ids {
@@ -67,6 +75,20 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: SimTickSchedule) {
             continue;
         };
         step_stone_quarry(ctx, building);
+    }
+
+    for building_id in hunters_hall_ids {
+        let Some(building) = ctx.db.building().id().find(&building_id) else {
+            continue;
+        };
+        step_hunters_hall(ctx, &tick, building);
+    }
+
+    for building_id in foragers_shed_ids {
+        let Some(building) = ctx.db.building().id().find(&building_id) else {
+            continue;
+        };
+        step_foragers_shed(ctx, &tick, building);
     }
 
     for building_id in woodcutters_lodge_ids {
@@ -80,26 +102,21 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: SimTickSchedule) {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        step_well(ctx, sim_tick, building);
+        step_well(ctx, &tick, sim_tick, building);
     }
 
-    let residence_ids: Vec<u64> = ctx.db.residence().iter().map(|row| row.id).collect();
-    for residence_id in &residence_ids {
-        let Some(residence) = ctx.db.residence().id().find(residence_id) else {
-            continue;
-        };
-        step_residence_recovery(ctx, &tick, residence);
-    }
-    for residence_id in &residence_ids {
-        let Some(residence) = ctx.db.residence().id().find(residence_id) else {
-            continue;
-        };
-        step_residence_settlement(ctx, residence);
-    }
-    for residence_id in &residence_ids {
-        let Some(residence) = ctx.db.residence().id().find(residence_id) else {
-            continue;
-        };
-        step_residence_needs(ctx, residence);
+    step_backyard_gardens(ctx, &tick);
+
+    let chapels: Vec<Building> = ctx
+        .db
+        .building()
+        .iter()
+        .filter(|building| building.kind == "chapel")
+        .collect();
+
+    step_chapels(ctx, &tick, sim_tick, &chapels);
+
+    for residence in ctx.db.residence().iter() {
+        step_residence(ctx, &tick, &chapels, residence);
     }
 }

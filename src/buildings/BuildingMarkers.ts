@@ -201,6 +201,14 @@ function workExtentColor(kind: BuildingKind): number {
       return 0xd7b463;
     case 'well':
       return 0x4f9fd4;
+    case 'hunters_hall':
+      return 0x8a6d45;
+    case 'foragers_shed':
+      return 0xb05c76;
+    case 'chapel':
+      return 0xe8e2d8;
+    case 'marketplace':
+      return 0xd4a85a;
     default: {
       const unreachable: never = kind;
       return unreachable;

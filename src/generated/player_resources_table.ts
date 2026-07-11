@@ -16,4 +16,7 @@ export default __t.row({
   stone: __t.f64(),
   firewood: __t.f64(),
   water: __t.f64(),
+  gold: __t.f64(),
+  food: __t.f64(),
+  economicActivityTaxRate: __t.f64().name("economic_activity_tax_rate"),
 });
