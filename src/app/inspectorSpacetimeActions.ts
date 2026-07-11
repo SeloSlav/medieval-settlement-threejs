@@ -10,6 +10,7 @@ export type InspectorSpacetimeActions = {
   onDemolishBackyardGarden: (residenceId: string) => Promise<void>;
   onAssignBuildingLabor: (buildingId: string, labor: number) => Promise<void>;
   onMarketplaceTrade: (buildingId: string, tradeId: string) => Promise<void>;
+  onCollectChapelCoffer: (buildingId: string) => Promise<void>;
 };
 
 export function createInspectorSpacetimeActions(
@@ -80,6 +81,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.marketplaceTrade(buildingId, tradeId),
         'Marketplace trade failed.',
+      );
+    },
+    onCollectChapelCoffer: async (buildingId) => {
+      const store = requireConnected();
+      if (!store) return;
+      await runReducer(
+        () => store.collectChapelCoffer(buildingId),
+        'Could not collect chapel coffer.',
       );
     },
   };

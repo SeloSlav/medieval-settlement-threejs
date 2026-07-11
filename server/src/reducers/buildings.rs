@@ -4,8 +4,9 @@ use crate::building_defs::{building_def, building_def_or_err};
 use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, building_cost, building_salvage_refund,
-    credit_treasury_firewood, credit_treasury_food, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
-    spend_aggregate_stone, spend_aggregate_timber, total_stone, total_timber,
+    chapel_coffer_gold, collect_chapel_coffer as sweep_chapel_coffer, credit_treasury_firewood,
+    credit_treasury_food, credit_treasury_gold, credit_treasury_stone, credit_treasury_timber,
+    credit_treasury_water, spend_aggregate_stone, spend_aggregate_timber, total_stone, total_timber,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::hydrology::{sample_hydrology_score, well_capacity_from_hydrology};
@@ -199,6 +200,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         food: 0.0,
         water_capacity,
         assigned_labor: 0,
+        gold: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -218,6 +220,13 @@ pub fn assign_building_labor(
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
     set_building_labor(ctx, owner, building_id, labor)
+}
+
+#[reducer]
+pub fn collect_chapel_coffer(ctx: &ReducerContext, building_id: u64) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    sweep_chapel_coffer(ctx, owner, building_id).map(|_| ())
 }
 
 #[reducer]
@@ -244,6 +253,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     credit_treasury_firewood(ctx, owner, building.firewood + trip_cargo.firewood);
     credit_treasury_water(ctx, owner, building.water + trip_cargo.water);
     credit_treasury_food(ctx, owner, building.food + trip_cargo.food);
+    credit_treasury_gold(ctx, owner, chapel_coffer_gold(&building));
 
     ctx.db.building().id().delete(building_id);
 

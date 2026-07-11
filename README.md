@@ -42,7 +42,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 - **Well** — refills groundwater based on local hydrology score, with occasional surges; delivers water to claimed residences along connected roads; capacity and yield depend on placement; up to 2 laborers split between pumping and delivery.
 - **Hunter's hall** — hunts game from procedural foraging nodes within 68 m, stores food, and delivers along roads; up to 3 laborers.
 - **Forager's shed** — gathers berries from forest-edge foraging nodes within 48 m, stores food, and delivers along roads; up to 2 laborers.
-- **Chapel** — parish hub on the road; assign a priest to collect tithes from road-linked household wealth (probabilistic attendance) and boost settlement, shortage resilience, and abandoned-home recovery.
+- **Chapel** — parish hub on the road; assign a priest to collect tithes from road-linked household wealth into the **parish coffer** (collect into treasury when ready); boosts settlement, shortage resilience, and abandoned-home recovery.
 - **Road-based logistics** — Dijkstra road-path distance routes timber mill→lodge, firewood lodge→residence, water well→residence, and food supplier→residence; nearest supplier claims each home on its road branch.
 - **Delivery trips** — server-spawned road agents travel outbound, unload at the residence, and return; client renders colored spheres along routes for firewood, water, and food hauls.
 - **Foraging nodes** — procedural game trails and berry patches bootstrapped at world start; depleted nodes respawn at new locations after cooldowns.

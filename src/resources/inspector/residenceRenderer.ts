@@ -12,11 +12,8 @@ import {
   SIM_TICK_SECONDS,
 } from '../resourceTotals.ts';
 import { effectiveResidenceSettleTicks } from '../../economy/chapelCommunity.ts';
-import {
-  chapelAttendanceChance,
-  chapelTitheGoldPerDay,
-  formatHouseholdWealth,
-} from '../../economy/householdEconomy.ts';
+import { formatHouseholdWealth } from '../../economy/householdWealth.ts';
+import { buildResidenceParishEconomyView } from '../../economy/economyInspectorViews.ts';
 import {
   RESIDENCE_FIREWOOD_CAPACITY,
   residenceNeedsStatus,
@@ -40,9 +37,11 @@ export function renderResidenceInspector(
   const servingLodge = context.worldQueries.getServingLodgeForResidence(residence);
   const servingWell = context.worldQueries.getServingWellForResidence(residence);
   const servingFoodSupplier = context.worldQueries.getServingFoodSupplierForResidence(residence);
+  const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
   const community = {
-    hasChapelAccess: context.worldQueries.isResidenceConnectedToChapel(residence),
+    hasChapelAccess: servingChapel != null,
   };
+  const parishEconomy = buildResidenceParishEconomyView(residence, servingChapel);
   const needs = residenceNeedsStatus(residence, {
     servingLodgeId: servingLodge?.id ?? null,
     servingWellId: servingWell?.id ?? null,
@@ -67,12 +66,6 @@ export function renderResidenceInspector(
         Math.round((settleTicks - residence.settlementTicks) * SIM_TICK_SECONDS),
       )
     : null;
-  const chapelAttendance = community.hasChapelAccess
-    ? chapelAttendanceChance(1)
-    : 0;
-  const titheExposurePerDay = community.hasChapelAccess
-    ? chapelTitheGoldPerDay(residence.population) * chapelAttendance
-    : 0;
 
   return {
     eyebrow: 'Residence',
@@ -91,8 +84,8 @@ export function renderResidenceInspector(
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population} / ${capacity}</span></li>
       <li><span>Household wealth</span><span>${formatHouseholdWealth(residence.householdWealth)}</span></li>
-      ${community.hasChapelAccess
-        ? `<li><span>Parish tithe</span><span>~${titheExposurePerDay.toFixed(1)} gold / day when attending (${Math.round(chapelAttendance * 100)}% chance)</span></li>`
+      ${parishEconomy.hasChapelAccess
+        ? `<li><span>Parish tithe</span><span>~${parishEconomy.tithePerDay.toFixed(1)} gold / day when attending (${parishEconomy.attendancePercent}% chance${parishEconomy.wealthLimited ? ', wealth-limited' : ''}) → chapel coffer</span></li>`
         : ''}
       ${settleEtaSeconds != null && !residence.abandoned
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — next in ~${formatSettleEta(settleEtaSeconds)}</span></li>`

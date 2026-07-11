@@ -1,14 +1,25 @@
 //! Building costs, salvage, storage, population, and aggregate spending.
 
+mod aggregate_spend;
+mod chapel_coffer;
 mod marketplace_trade;
 mod marketplace_trade_policy;
 mod garden_market_activity;
 mod household_wealth;
 mod population;
 mod storage;
+mod parish_accounting;
 mod village_economy;
 
 pub use marketplace_trade::execute_marketplace_trade;
+pub use aggregate_spend::{
+    spend_aggregate_firewood, spend_aggregate_food, spend_aggregate_stone, spend_aggregate_timber,
+};
+pub use chapel_coffer::{
+    chapel_coffer_capacity, chapel_coffer_gold, clear_coffer_in_place, collect_chapel_coffer,
+    deposit_chapel_coffer, deposit_coffer_in_place, withdraw_chapel_coffer, withdraw_coffer_in_place,
+};
+pub use parish_accounting::{clamp_chapel_coffer_reserve_gold, record_parish_ledger, ParishLedgerKind};
 pub use garden_market_activity::garden_market_activity;
 pub use household_wealth::{credit_residence_wealth, debit_residence_wealth};
 pub use population::{assign_building_labor, residence_population_for_parcel};
@@ -16,8 +27,7 @@ pub use storage::{
     building_food_storage_cap, building_storage_caps, building_water_storage_cap, credit_treasury_firewood,
     credit_treasury_food, credit_treasury_gold, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
     deposit_building, deposit_building_food, deposit_building_water, residence_firewood_capacity, residence_food_capacity,
-    residence_water_capacity, spend_aggregate_firewood, spend_aggregate_food, spend_aggregate_stone,
-    spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber,
+    residence_water_capacity, spend_treasury_gold, total_firewood, total_food, total_stone, total_timber,
     withdraw_building, withdraw_building_food, withdraw_building_water,
 };
 pub use village_economy::{

@@ -28,7 +28,7 @@ export type ResourceNodeDefinition = {
   quarryKind?: 'large' | 'small';
 };
 
-export type QuarryNodeState = {
+export type ResourceNodeState = {
   nodeId: string;
   kind: ResourceNodeKind;
   resource: ResourceKind;
@@ -38,7 +38,10 @@ export type QuarryNodeState = {
   z: number;
 };
 
-export type ForagingNodeState = QuarryNodeState;
+/** @deprecated Use ResourceNodeState */
+export type QuarryNodeState = ResourceNodeState;
+
+export type ForagingNodeState = ResourceNodeState;
 
 export type TreeLayoutEntry = {
   id: string;
@@ -70,6 +73,7 @@ export type BuildingState = {
   stone: number;
   water: number;
   food: number;
+  gold: number;
   waterCapacity: number;
   assignedLabor: number;
 };

@@ -13,7 +13,12 @@ use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
 
 pub fn step_backyard_gardens(ctx: &ReducerContext, tick: &SimTickContext) {
-    let landmarks: Vec<Building> = ctx.db.building().iter().collect();
+    let marketplaces: Vec<Building> = ctx
+        .db
+        .building()
+        .iter()
+        .filter(|building| building.kind == "marketplace")
+        .collect();
 
     for garden in ctx.db.backyard_garden().iter() {
         let Some(kind) = BackyardGardenKind::from_id(garden.kind) else {
@@ -26,7 +31,7 @@ pub fn step_backyard_gardens(ctx: &ReducerContext, tick: &SimTickContext) {
             continue;
         }
         let has_market_access =
-            residence_has_marketplace_access(tick, garden.owner, &residence, &landmarks);
+            residence_has_marketplace_access(tick, garden.owner, &residence, &marketplaces);
         step_one_garden(ctx, kind, &residence, garden.owner, has_market_access);
     }
 }

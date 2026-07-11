@@ -6,9 +6,8 @@ import {
   formatBackyardGardenSalvage,
   type BackyardGardenKind,
 } from '../../residences/backyardGarden.ts';
-import { formatTaxRatePercent, ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../../economy/villageEconomy.ts';
-import { backyardGardenNetWealthPerDay, backyardGardenTaxPerDay } from '../../economy/villageGdp.ts';
-import { formatHouseholdNetIncomePerDay } from '../../economy/householdEconomy.ts';
+import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../../economy/villageEconomy.ts';
+import { buildBackyardEconomyView, formatBackyardSavingsLabel } from '../../economy/economyInspectorViews.ts';
 import { STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION } from '../../generated/gameBalance.ts';
 import { getNeedStock } from '../../residences/residenceNeeds.ts';
 import type { InspectableTarget } from '../types.ts';
@@ -29,13 +28,7 @@ export function renderBackyardInspector(
   const foodStock = Math.round(getNeedStock(residence.needs, 'food'));
   const taxRate = context.getEconomicActivityTaxRate?.() ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
   const hasMarketAccess = context.worldQueries.isResidenceConnectedToMarketplace(residence);
-  const taxPerDay = hasMarketAccess
-    ? backyardGardenTaxPerDay(garden.kind, residence.population, taxRate)
-    : 0;
-  const netWealthPerDay = hasMarketAccess
-    ? backyardGardenNetWealthPerDay(garden.kind, residence.population, taxRate)
-    : 0;
-  const taxPercent = formatTaxRatePercent(taxRate);
+  const economy = buildBackyardEconomyView(garden.kind, residence.population, taxRate, hasMarketAccess);
   const producesFood = def.foodPerPersonPerSec > 0;
 
   return {
@@ -58,8 +51,8 @@ export function renderBackyardInspector(
       <li><span>Economic activity</span><span>${hasMarketAccess
         ? `Sells ${producesFood ? 'surplus produce & ' : ''}garden goods`
         : 'Sales need a road path to a marketplace'}</span></li>
-      <li><span>Mayor tax (${taxPercent})</span><span>${hasMarketAccess ? `~${taxPerDay.toFixed(1)} gold / day` : '0 gold / day'}</span></li>
-      <li><span>Household savings</span><span>${hasMarketAccess ? formatHouseholdNetIncomePerDay(netWealthPerDay) : '0 gold / day'}</span></li>
+      <li><span>Mayor tax (${economy.taxPercent})</span><span>${hasMarketAccess ? `~${economy.taxPerDay.toFixed(1)} gold / day` : '0 gold / day'}</span></li>
+      <li><span>Household savings</span><span>${formatBackyardSavingsLabel(economy.netWealthPerDay, hasMarketAccess)}</span></li>
       <li><span>Build cost</span><span>${formatBackyardGardenCost(garden.kind)}</span></li>
     `,
     demolish: {

@@ -1,0 +1,114 @@
+.hud-menu-button {
+  position: fixed;
+  left: max(14px, env(safe-area-inset-left, 0px));
+  top: max(14px, env(safe-area-inset-top, 0px));
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.hud-menu-button:hover,
+.hud-menu-button:focus-visible {
+  border-color: rgba(215, 180, 99, 0.45);
+  outline: none;
+}
+
+.game-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.game-menu-backdrop[hidden] {
+  display: none;
+}
+
+.game-menu-dialog {
+  width: min(92vw, 360px);
+  display: grid;
+  gap: 18px;
+  padding: 22px 24px;
+  color: var(--ink);
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.game-menu-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.game-menu-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+}
+
+.game-menu-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.game-menu-return {
+  justify-self: start;
+  padding: 10px 16px;
+  color: #201d15;
+  font-weight: 700;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.game-menu-return:hover,
+.game-menu-return:focus-visible {
+  filter: brightness(1.05);
+  outline: none;
+}
+
+.game-menu-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.game-menu-action {
+  justify-self: stretch;
+  padding: 10px 14px;
+  color: var(--ink);
+  font-weight: 600;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.game-menu-action:hover,
+.game-menu-action:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}

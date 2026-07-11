@@ -53,3 +53,32 @@
   font-size: 0.8rem;
   color: rgba(238, 232, 220, 0.58);
 }
+
+.inspector-action-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.inspector-action-panel__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgba(238, 232, 220, 0.62);
+  line-height: 1.35;
+}
+
+.inspector-action-panel__button {
+  width: 100%;
+  padding: 10px 12px;
+  font-weight: 650;
+  color: inherit;
+  background: rgba(196, 167, 99, 0.14);
+  border: 1px solid rgba(196, 167, 99, 0.42);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.inspector-action-panel__button:hover,
+.inspector-action-panel__button:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}

@@ -149,6 +149,7 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     food: 0,
     waterCapacity: 0,
     assignedLabor: 0,
+    gold: 0,
   };
 
   const buildings = new Map(state.buildings);
@@ -372,6 +373,7 @@ function restoreBuildings(buildings: BuildingState[]): Map<string, BuildingState
       food: building.food ?? 0,
       waterCapacity: building.waterCapacity ?? 0,
       assignedLabor: building.assignedLabor ?? 0,
+      gold: building.gold ?? 0,
     });
   }
   return map;

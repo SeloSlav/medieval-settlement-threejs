@@ -28,6 +28,27 @@ pub struct PlayerResources {
     /// Mayor tax rate on village economic activity (0–1 fraction).
     #[default(0.18)]
     pub economic_activity_tax_rate: f64,
+    /// Sweep coffer surplus above reserve into treasury on interval.
+    #[default(false)]
+    pub chapel_auto_sweep_enabled: bool,
+    /// Gold kept in coffer for parish operations before auto-sweep.
+    #[default(80.0)]
+    pub chapel_coffer_reserve_gold: f64,
+    /// Lifetime gold manually collected from chapel coffers.
+    #[default(0.0)]
+    pub parish_manual_collect_total: f64,
+    /// Lifetime gold auto-swept from chapel coffers to treasury.
+    #[default(0.0)]
+    pub parish_auto_sweep_total: f64,
+    /// Lifetime priest salary paid from chapel coffers.
+    #[default(0.0)]
+    pub parish_salary_paid_total: f64,
+    /// Lifetime chapel upkeep paid from chapel coffers.
+    #[default(0.0)]
+    pub parish_upkeep_paid_total: f64,
+    /// Lifetime poor-relief charity paid from chapel coffers.
+    #[default(0.0)]
+    pub parish_charity_paid_total: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -85,6 +106,9 @@ pub struct Building {
     pub food: f64,
     pub water_capacity: f64,
     pub assigned_labor: u32,
+    /// Chapel coffer gold (tithes); other buildings keep this at zero.
+    #[default(0.0)]
+    pub gold: f64,
 }
 
 #[spacetimedb::table(accessor = road_network_state, public)]

@@ -10,11 +10,12 @@ import {
   RESIDENCE_SETTLE_TICKS,
 } from '../generated/gameBalance.ts';
 import type { ResidenceNeedKind } from '../residences/residenceNeedState.ts';
+import { RESIDENCE_NEED_KINDS } from '../residences/residenceNeedState.ts';
 import {
   chapelAttendanceChance,
   chapelTitheGoldPerDay,
   expectedChapelTithePerDay,
-} from './householdEconomy.ts';
+} from './householdWealth.ts';
 
 export function effectiveResidenceSettleTicks(hasChapelAccess: boolean): number {
   if (!hasChapelAccess) {
@@ -41,7 +42,7 @@ export function recoveryStockMin(kind: ResidenceNeedKind, hasChapelAccess: boole
 }
 
 export function recoveryNeedsRequired(hasChapelAccess: boolean): number {
-  return hasChapelAccess ? CHAPEL_RECOVERY_NEEDS_REQUIRED : 3;
+  return hasChapelAccess ? CHAPEL_RECOVERY_NEEDS_REQUIRED : RESIDENCE_NEED_KINDS.length;
 }
 
 export function formatChapelTithePerDay(linkedPopulation: number, assignedLabor: number): string {

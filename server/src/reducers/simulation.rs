@@ -4,12 +4,12 @@ use crate::building_defs::BuildingSimKind;
 use crate::db::*;
 use crate::schedule::SimTickSchedule;
 use crate::simulation::{
-    step_chapels, step_backyard_gardens, step_delivery_trips, step_foragers_shed, step_foraging_respawn, step_hunters_hall,
+    step_chapels, step_chapel_parish, step_backyard_gardens, step_delivery_trips, step_foragers_shed, step_foraging_respawn, step_hunters_hall,
     step_lumber_mill, step_reforester, step_residence, step_stone_quarry, step_well, step_woodcutters_lodge,
     SimTickContext,
 };
 use crate::tables::WorldConfig;
-use crate::tables::Building;
+use crate::tables::{Building, Residence};
 
 pub fn run_sim_tick(ctx: &ReducerContext, _schedule: SimTickSchedule) {
     if let Some(config) = ctx.db.world_config().id().find(&0) {
@@ -116,7 +116,10 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: SimTickSchedule) {
 
     step_chapels(ctx, &tick, sim_tick, &chapels);
 
-    for residence in ctx.db.residence().iter() {
+    let residences: Vec<Residence> = ctx.db.residence().iter().collect();
+    step_chapel_parish(ctx, &tick, sim_tick, &chapels, &residences);
+
+    for residence in residences {
         step_residence(ctx, &tick, &chapels, residence);
     }
 }

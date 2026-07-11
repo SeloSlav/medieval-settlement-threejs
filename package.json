@@ -14,6 +14,9 @@
     "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",
     "test:chapel-community": "npx tsx scripts/testChapelCommunity.mts",
     "test:household-economy": "npx tsx scripts/testHouseholdEconomy.mts",
+    "test:landmark-access": "npx tsx scripts/testLandmarkAccessParity.mts",
+    "test:economy-parity": "npx tsx scripts/testEconomyParity.mts",
+    "test:chapel-parish": "npx tsx scripts/testChapelParish.mts",
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./server/deploy-local.ps1",
     "deploy:local-clean": "powershell -ExecutionPolicy Bypass -File ./server/deploy-local-clean.ps1"
   },

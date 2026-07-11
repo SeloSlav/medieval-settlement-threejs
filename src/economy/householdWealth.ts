@@ -51,6 +51,15 @@ export function expectedChapelTithePerDay(population: number, assignedLabor: num
   return chapelTitheGoldPerDay(population) * chance;
 }
 
+/** Conservative daily tithe estimate limited by current household wealth. */
+export function payableChapelTithePerDay(
+  population: number,
+  assignedLabor: number,
+  householdWealth: number,
+): number {
+  return Math.min(expectedChapelTithePerDay(population, assignedLabor), householdWealth);
+}
+
 export function formatHouseholdWealth(wealth: number): string {
   return `${wealth.toFixed(1)} / ${HOUSEHOLD_MAX_WEALTH} gold`;
 }

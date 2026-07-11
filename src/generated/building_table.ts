@@ -25,4 +25,5 @@ export default __t.row({
   food: __t.f64(),
   waterCapacity: __t.f64().name("water_capacity"),
   assignedLabor: __t.u32().name("assigned_labor"),
+  gold: __t.f64(),
 });

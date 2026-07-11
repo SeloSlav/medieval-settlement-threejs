@@ -66,7 +66,18 @@
     "chapelPriestAttendanceBonus": 0.25,
     "chapelCommunityAttendanceBonus": 0.15,
     "chapelRecoveryStockMultiplier": 0.65,
-    "chapelRecoveryNeedsRequired": 2
+    "chapelRecoveryNeedsRequired": 2,
+    "chapelCofferCapacity": 500,
+    "chapelPriestSalaryGoldPerDay": 2.5,
+    "chapelUpkeepGoldPerDay": 0.35,
+    "chapelUnstaffedUpkeepFraction": 0.25,
+    "chapelCharityGoldPerDay": 0.12,
+    "chapelCharityMinCofferGold": 120,
+    "chapelAutoSweepIntervalTicks": 900,
+    "chapelAutoSweepFraction": 0.5,
+    "chapelCofferReserveDefault": 80,
+    "chapelCofferReserveMin": 20,
+    "chapelCofferReserveMax": 200
   },
   "roads": {
     "buildingRoadAccessDistance": 20,

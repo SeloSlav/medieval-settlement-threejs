@@ -4,6 +4,7 @@ import {
   CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
   CHAPEL_PRIEST_ATTENDANCE_BONUS,
   CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
+  CHAPEL_COFFER_CAPACITY,
   HOUSEHOLD_MAX_WEALTH,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
@@ -13,13 +14,13 @@ import {
   chapelTitheGoldPerTick,
   expectedChapelTithePerDay,
   householdNetIncomePerDay,
-} from '../src/economy/householdEconomy.ts';
+} from '../src/economy/householdWealth.ts';
 import {
   estimateVillageChapelTithePerDay,
   estimateVillageHouseholdSavingsPerDay,
-  staffedChapelLabor,
   summarizeHouseholdWealth,
-} from '../src/economy/villageHouseholdEconomy.ts';
+} from '../src/economy/villageProjections.ts';
+import { totalChapelCofferGold } from '../src/resources/chapelCoffer.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
 import type { ResidenceState } from '../src/resources/types.ts';
 import { taxedEconomicActivity } from '../src/economy/villageEconomy.ts';
@@ -83,13 +84,9 @@ assert.equal(summary.totalWealth, 12.5);
 assert.equal(summary.occupiedHomes, 2);
 assert.equal(summary.homesWithSavings, 1);
 
-assert.equal(staffedChapelLabor([{ kind: 'chapel', assignedLabor: 1 } as never]), 1);
-assert.equal(staffedChapelLabor([{ kind: 'chapel', assignedLabor: 0 } as never]), 0);
-
 const chapelTithe = estimateVillageChapelTithePerDay(
   residences.values(),
-  () => true,
-  1,
+  () => ({ kind: 'chapel', assignedLabor: 1 } as never),
 );
 assert.ok(chapelTithe > 0);
 
@@ -100,5 +97,8 @@ const savings = estimateVillageHouseholdSavingsPerDay(
   () => true,
 );
 assert.ok(savings > 0);
+
+assert.equal(totalChapelCofferGold([{ kind: 'chapel', gold: 40 } as never, { kind: 'well', gold: 5 } as never]), 40);
+assert.equal(CHAPEL_COFFER_CAPACITY, 500);
 
 console.log('household economy tests passed');

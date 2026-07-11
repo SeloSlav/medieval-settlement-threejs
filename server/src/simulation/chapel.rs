@@ -1,11 +1,11 @@
 use spacetimedb::ReducerContext;
 
 use crate::db::*;
-use crate::economy::{credit_treasury_gold, debit_residence_wealth};
+use crate::economy::{credit_treasury_gold, debit_residence_wealth, deposit_chapel_coffer};
 use crate::simulation::chapel_community::{chapel_attendance_chance, chapel_tithe_gold_per_tick};
-use crate::simulation::landmark_access::{is_chapel_staffed, residence_has_chapel_access};
+use crate::simulation::landmark_access::find_serving_chapel;
 use crate::simulation::tick_context::SimTickContext;
-use crate::tables::{Building, Residence};
+use crate::tables::Building;
 
 pub fn step_chapels(
     ctx: &ReducerContext,
@@ -18,11 +18,7 @@ pub fn step_chapels(
             continue;
         }
 
-        if !residence_has_chapel_access(tick, residence.owner, &residence, chapels) {
-            continue;
-        }
-
-        let Some(chapel) = find_serving_chapel(tick, &residence, chapels) else {
+        let Some(chapel) = find_serving_chapel(tick, residence.owner, &residence, chapels) else {
             continue;
         };
 
@@ -33,28 +29,16 @@ pub fn step_chapels(
 
         let tithe_due = chapel_tithe_gold_per_tick(residence.population);
         let paid = debit_residence_wealth(ctx, &residence, tithe_due);
-        if paid > 1e-9 {
-            credit_treasury_gold(ctx, residence.owner, paid);
+        if paid <= 1e-9 {
+            continue;
+        }
+
+        let deposited = deposit_chapel_coffer(ctx, chapel.id, paid);
+        let overflow = paid - deposited;
+        if overflow > 1e-9 {
+            credit_treasury_gold(ctx, residence.owner, overflow);
         }
     }
-}
-
-fn find_serving_chapel<'a>(
-    tick: &SimTickContext,
-    residence: &Residence,
-    chapels: &'a [Building],
-) -> Option<&'a Building> {
-    chapels.iter().find(|chapel| {
-        chapel.owner == residence.owner
-            && is_chapel_staffed(chapel)
-            && tick.road_connected(
-                residence.owner,
-                residence.x,
-                residence.z,
-                chapel.x,
-                chapel.z,
-            )
-    })
 }
 
 fn roll_chapel_attendance(residence_id: u64, sim_tick: u64, chance: f64) -> bool {

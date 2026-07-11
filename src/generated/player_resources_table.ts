@@ -19,4 +19,11 @@ export default __t.row({
   gold: __t.f64(),
   food: __t.f64(),
   economicActivityTaxRate: __t.f64().name("economic_activity_tax_rate"),
+  chapelAutoSweepEnabled: __t.bool().name("chapel_auto_sweep_enabled"),
+  chapelCofferReserveGold: __t.f64().name("chapel_coffer_reserve_gold"),
+  parishManualCollectTotal: __t.f64().name("parish_manual_collect_total"),
+  parishAutoSweepTotal: __t.f64().name("parish_auto_sweep_total"),
+  parishSalaryPaidTotal: __t.f64().name("parish_salary_paid_total"),
+  parishUpkeepPaidTotal: __t.f64().name("parish_upkeep_paid_total"),
+  parishCharityPaidTotal: __t.f64().name("parish_charity_paid_total"),
 });

@@ -1,6 +1,11 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { MarketplaceTradeBalance } from './generateMarketplaceTradeBalance.mts';
+import {
+  generateMarketplaceTradeRust,
+  generateMarketplaceTradeTypeScript,
+} from './generateMarketplaceTradeBalance.mts';
 
 type BuildingBalance = {
   label: string;
@@ -27,12 +32,6 @@ type BackyardGardenBalance = {
   foodPerPersonPerSec: number;
   goldPerPersonPerSec: number;
 };
-
-import type { MarketplaceTradeBalance } from './generateMarketplaceTradeBalance.mts';
-import {
-  generateMarketplaceTradeRust,
-  generateMarketplaceTradeTypeScript,
-} from './generateMarketplaceTradeBalance.mts';
 
 type MarketplaceGoldBuyOffer = {
   id: string;
@@ -106,6 +105,17 @@ export type GameBalance = {
     chapelCommunityAttendanceBonus: number;
     chapelRecoveryStockMultiplier: number;
     chapelRecoveryNeedsRequired: number;
+    chapelCofferCapacity: number;
+    chapelPriestSalaryGoldPerDay: number;
+    chapelUpkeepGoldPerDay: number;
+    chapelUnstaffedUpkeepFraction: number;
+    chapelCharityGoldPerDay: number;
+    chapelCharityMinCofferGold: number;
+    chapelAutoSweepIntervalTicks: number;
+    chapelAutoSweepFraction: number;
+    chapelCofferReserveDefault: number;
+    chapelCofferReserveMin: number;
+    chapelCofferReserveMax: number;
   };
   roads: {
     buildingRoadAccessDistance: number;
@@ -215,6 +225,17 @@ function generateRust(): string {
     `pub const CHAPEL_COMMUNITY_ATTENDANCE_BONUS: f64 = ${rustF64(b.population.chapelCommunityAttendanceBonus)};`,
     `pub const CHAPEL_RECOVERY_STOCK_MULTIPLIER: f64 = ${rustF64(b.population.chapelRecoveryStockMultiplier)};`,
     `pub const CHAPEL_RECOVERY_NEEDS_REQUIRED: u32 = ${b.population.chapelRecoveryNeedsRequired};`,
+    `pub const CHAPEL_COFFER_CAPACITY: f64 = ${rustF64(b.population.chapelCofferCapacity)};`,
+    `pub const CHAPEL_PRIEST_SALARY_GOLD_PER_DAY: f64 = ${rustF64(b.population.chapelPriestSalaryGoldPerDay)};`,
+    `pub const CHAPEL_UPKEEP_GOLD_PER_DAY: f64 = ${rustF64(b.population.chapelUpkeepGoldPerDay)};`,
+    `pub const CHAPEL_UNSTAFFED_UPKEEP_FRACTION: f64 = ${rustF64(b.population.chapelUnstaffedUpkeepFraction)};`,
+    `pub const CHAPEL_CHARITY_GOLD_PER_DAY: f64 = ${rustF64(b.population.chapelCharityGoldPerDay)};`,
+    `pub const CHAPEL_CHARITY_MIN_COFFER_GOLD: f64 = ${rustF64(b.population.chapelCharityMinCofferGold)};`,
+    `pub const CHAPEL_AUTO_SWEEP_INTERVAL_TICKS: u64 = ${b.population.chapelAutoSweepIntervalTicks};`,
+    `pub const CHAPEL_AUTO_SWEEP_FRACTION: f64 = ${rustF64(b.population.chapelAutoSweepFraction)};`,
+    `pub const CHAPEL_COFFER_RESERVE_DEFAULT: f64 = ${rustF64(b.population.chapelCofferReserveDefault)};`,
+    `pub const CHAPEL_COFFER_RESERVE_MIN: f64 = ${rustF64(b.population.chapelCofferReserveMin)};`,
+    `pub const CHAPEL_COFFER_RESERVE_MAX: f64 = ${rustF64(b.population.chapelCofferReserveMax)};`,
     '',
     `pub const BUILDING_ROAD_ACCESS_DISTANCE: f64 = ${rustF64(b.roads.buildingRoadAccessDistance)};`,
     `pub const BURGAGE_ROAD_FRONTAGE_DISTANCE: f64 = ${rustF64(b.roads.burgageRoadFrontageDistance)};`,
@@ -463,6 +484,17 @@ function generateTypeScript(): string {
     `export const CHAPEL_COMMUNITY_ATTENDANCE_BONUS = ${b.population.chapelCommunityAttendanceBonus};`,
     `export const CHAPEL_RECOVERY_STOCK_MULTIPLIER = ${b.population.chapelRecoveryStockMultiplier};`,
     `export const CHAPEL_RECOVERY_NEEDS_REQUIRED = ${b.population.chapelRecoveryNeedsRequired};`,
+    `export const CHAPEL_COFFER_CAPACITY = ${b.population.chapelCofferCapacity};`,
+    `export const CHAPEL_PRIEST_SALARY_GOLD_PER_DAY = ${b.population.chapelPriestSalaryGoldPerDay};`,
+    `export const CHAPEL_UPKEEP_GOLD_PER_DAY = ${b.population.chapelUpkeepGoldPerDay};`,
+    `export const CHAPEL_UNSTAFFED_UPKEEP_FRACTION = ${b.population.chapelUnstaffedUpkeepFraction};`,
+    `export const CHAPEL_CHARITY_GOLD_PER_DAY = ${b.population.chapelCharityGoldPerDay};`,
+    `export const CHAPEL_CHARITY_MIN_COFFER_GOLD = ${b.population.chapelCharityMinCofferGold};`,
+    `export const CHAPEL_AUTO_SWEEP_INTERVAL_TICKS = ${b.population.chapelAutoSweepIntervalTicks};`,
+    `export const CHAPEL_AUTO_SWEEP_FRACTION = ${b.population.chapelAutoSweepFraction};`,
+    `export const CHAPEL_COFFER_RESERVE_DEFAULT = ${b.population.chapelCofferReserveDefault};`,
+    `export const CHAPEL_COFFER_RESERVE_MIN = ${b.population.chapelCofferReserveMin};`,
+    `export const CHAPEL_COFFER_RESERVE_MAX = ${b.population.chapelCofferReserveMax};`,
     '',
     `export const BUILDING_ROAD_ACCESS_DISTANCE = ${b.roads.buildingRoadAccessDistance};`,
     `export const BURGAGE_ROAD_FRONTAGE_DISTANCE = ${b.roads.burgageRoadFrontageDistance};`,

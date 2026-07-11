@@ -1,6 +1,7 @@
 mod landmark_access;
 mod chapel;
 mod chapel_community;
+mod chapel_parish;
 mod backyard_garden;
 mod delivery_cargo;
 mod delivery_supplier;
@@ -30,6 +31,7 @@ pub use foraging_respawn::step_foraging_respawn;
 pub use lumber_mill::step_lumber_mill;
 pub use reforester::step_reforester;
 pub use chapel::step_chapels;
+pub use chapel_parish::step_chapel_parish;
 pub use residence_lifecycle::step_residence;
 pub use residence_needs::{
     clear_residence_needs, ensure_residence_needs,

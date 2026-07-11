@@ -2,16 +2,19 @@ import type { Terrain } from '../terrain/Terrain.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
-  claimResidencesForFoodSuppliers,
-  claimResidencesForLodges,
-  claimResidencesForWells,
-  peekNextDeliveryTarget,
-  peekNextWaterDeliveryTarget,
   roadPathDistance,
   sortByRoadPathDistance,
-  sortResidencesForDelivery,
-  sortResidencesForWaterDelivery,
 } from '../logistics/roadLogistics.ts';
+import {
+  findServingChapel,
+  hasRoadPathToBuildingKind as landmarkHasRoadPathToBuildingKind,
+} from '../logistics/landmarkAccess.ts';
+import {
+  FoodDeliveryClaimQueries,
+  LodgeDeliveryClaimQueries,
+  WellDeliveryClaimQueries,
+} from '../logistics/deliveryClaimQueries.ts';
+import { findNearestResourceNodeWithRemaining } from './depletableNodes.ts';
 import { findActiveTripForBuilding, tripRemainingSeconds } from '../logistics/deliveryTrips.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { lodgeDeliveryTripSeconds, lodgeLaborSplit } from '../logistics/lodgeLogistics.ts';
@@ -22,7 +25,7 @@ import {
 } from '../logistics/waterLogistics.ts';
 import { areRoadConnected, formatRoadAccess, nearestRoadDistance } from '../roads/roadConnectivity.ts';
 import { backyardIconPosition } from '../residences/backyardPosition.ts';
-import type { BuildingKind, BuildingState, BurgageZoneState, GameState, InspectableTarget, QuarryNodeState, ResidenceState } from './types.ts';
+import type { BuildingKind, BuildingState, BurgageZoneState, GameState, InspectableTarget, ResourceNodeState, ResidenceState } from './types.ts';
 import type { WorldLayoutRegistry } from './WorldLayoutRegistry.ts';
 import { buildingKindLabel, findNearestBuilding as findBuilding } from './WorldLayoutRegistry.ts';
 import { countTreesNearBuilding } from './ForestVisualSync.ts';
@@ -220,17 +223,40 @@ export class WorldQueries {
     return distance;
   }
 
+  private deliverySnapshot() {
+    const state = this.getGameState();
+    return {
+      network: this.getRoadNetwork(),
+      buildings: [...state.buildings.values()],
+      residences: [...state.residences.values()],
+    };
+  }
+
+  private lodgeClaims(): LodgeDeliveryClaimQueries {
+    const { network, buildings, residences } = this.deliverySnapshot();
+    return new LodgeDeliveryClaimQueries(network, buildings, residences);
+  }
+
+  private wellClaims(): WellDeliveryClaimQueries {
+    const { network, buildings, residences } = this.deliverySnapshot();
+    return new WellDeliveryClaimQueries(network, buildings, residences);
+  }
+
+  private foodClaims(): FoodDeliveryClaimQueries {
+    const { network, buildings, residences } = this.deliverySnapshot();
+    return new FoodDeliveryClaimQueries(network, buildings, residences);
+  }
+
   getRoadAccessLabel(x: number, z: number): string {
     return formatRoadAccess(nearestRoadDistance(x, z, this.getRoadNetwork()));
   }
 
-  private getResidenceWellClaims(): Map<string, string> {
-    const state = this.getGameState();
-    return claimResidencesForWells(
-      this.getRoadNetwork(),
-      [...state.buildings.values()],
-      [...state.residences.values()],
-    );
+  getClaimedResidencesForWell(well: BuildingState): ResidenceState[] {
+    return this.wellClaims().getClaimedResidences(well);
+  }
+
+  getNextWaterDeliveryTargetForWell(well: BuildingState): ResidenceState | null {
+    return this.wellClaims().peekNextTarget(well);
   }
 
   getRoadConnectedWells(building: BuildingState): BuildingState[] {
@@ -242,30 +268,6 @@ export class WorldQueries {
         && roadPathDistance(network, building.x, building.z, candidate.x, candidate.z) != null,
     );
     return sortByRoadPathDistance(network, building, wells);
-  }
-
-  getClaimedResidencesForWell(well: BuildingState): ResidenceState[] {
-    const state = this.getGameState();
-    const claims = this.getResidenceWellClaims();
-    const residences = [...state.residences.values()].filter(
-      (residence) =>
-        !residence.abandoned
-        && residence.population > 0
-        && claims.get(residence.id) === well.id,
-    );
-    return sortResidencesForWaterDelivery(this.getRoadNetwork(), well, residences);
-  }
-
-  getNextWaterDeliveryTargetForWell(well: BuildingState): ResidenceState | null {
-    const state = this.getGameState();
-    const claims = this.getResidenceWellClaims();
-    const residences = [...state.residences.values()].filter(
-      (residence) =>
-        !residence.abandoned
-        && residence.population > 0
-        && claims.get(residence.id) === well.id,
-    );
-    return peekNextWaterDeliveryTarget(this.getRoadNetwork(), well, residences);
   }
 
   getWellDeliveryTripSeconds(
@@ -281,7 +283,7 @@ export class WorldQueries {
   }
 
   getServingWellForResidence(residence: ResidenceState): BuildingState | null {
-    const wellId = this.getResidenceWellClaims().get(residence.id);
+    const wellId = this.wellClaims().getServingSupplierForResidence(residence.id);
     if (!wellId) return null;
     return this.getGameState().buildings.get(wellId) ?? null;
   }
@@ -299,39 +301,40 @@ export class WorldQueries {
     return count;
   }
 
-  private getResidenceLodgeClaims(): Map<string, string> {
-    const state = this.getGameState();
-    return claimResidencesForLodges(
-      this.getRoadNetwork(),
-      [...state.buildings.values()],
-      [...state.residences.values()],
-    );
-  }
-
   getRoadPathDistance(ax: number, az: number, bx: number, bz: number): number | null {
     return roadPathDistance(this.getRoadNetwork(), ax, az, bx, bz);
   }
 
   hasRoadPathToBuildingKind(ax: number, az: number, kind: BuildingKind): boolean {
-    const network = this.getRoadNetwork();
-    for (const building of this.getGameState().buildings.values()) {
-      if (building.kind !== kind) continue;
-      if (roadPathDistance(network, ax, az, building.x, building.z) != null) {
-        return true;
-      }
-    }
-    return false;
+    return landmarkHasRoadPathToBuildingKind(
+      this.getGameState().buildings.values(),
+      ax,
+      az,
+      kind,
+      (a, b, c, d) => this.getRoadPathDistance(a, b, c, d),
+    );
   }
 
   hasRoadPathToStaffedBuildingKind(ax: number, az: number, kind: BuildingKind): boolean {
-    const network = this.getRoadNetwork();
-    for (const building of this.getGameState().buildings.values()) {
-      if (building.kind !== kind || building.assignedLabor <= 0) continue;
-      if (roadPathDistance(network, ax, az, building.x, building.z) != null) {
-        return true;
-      }
-    }
-    return false;
+    return landmarkHasRoadPathToBuildingKind(
+      this.getGameState().buildings.values(),
+      ax,
+      az,
+      kind,
+      (a, b, c, d) => this.getRoadPathDistance(a, b, c, d),
+      true,
+    );
+  }
+
+  getServingChapelForResidence(residence: ResidenceState): BuildingState | null {
+    const chapels = [...this.getGameState().buildings.values()].filter(
+      (building) => building.kind === 'chapel',
+    );
+    return findServingChapel(
+      residence,
+      chapels,
+      (a, b, c, d) => this.getRoadPathDistance(a, b, c, d),
+    );
   }
 
   countRoadConnectedPopulation(building: BuildingState): number {
@@ -366,7 +369,7 @@ export class WorldQueries {
   }
 
   isResidenceConnectedToChapel(residence: ResidenceState): boolean {
-    return this.hasRoadPathToStaffedBuildingKind(residence.x, residence.z, 'chapel');
+    return this.getServingChapelForResidence(residence) != null;
   }
 
   getRoadConnectedMills(lodge: BuildingState): BuildingState[] {
@@ -381,42 +384,27 @@ export class WorldQueries {
   }
 
   getClaimedResidencesForLodge(lodge: BuildingState): ResidenceState[] {
-    const state = this.getGameState();
-    const claims = this.getResidenceLodgeClaims();
-    const residences = [...state.residences.values()].filter(
-      (residence) => claims.get(residence.id) === lodge.id,
-    );
-    return sortResidencesForDelivery(this.getRoadNetwork(), lodge, residences);
+    return this.lodgeClaims().getClaimedResidences(lodge);
   }
 
   getNextDeliveryTargetForLodge(lodge: BuildingState): ResidenceState | null {
-    const state = this.getGameState();
-    const claims = this.getResidenceLodgeClaims();
-    const residences = [...state.residences.values()].filter(
-      (residence) => claims.get(residence.id) === lodge.id,
-    );
-    return peekNextDeliveryTarget(this.getRoadNetwork(), lodge, residences);
+    return this.lodgeClaims().peekNextTarget(lodge);
   }
 
   getServingLodgeForResidence(residence: ResidenceState): BuildingState | null {
-    const lodgeId = this.getResidenceLodgeClaims().get(residence.id);
+    const lodgeId = this.lodgeClaims().getServingSupplierForResidence(residence.id);
     if (!lodgeId) return null;
     return this.getGameState().buildings.get(lodgeId) ?? null;
   }
 
-  private getResidenceFoodClaims(): Map<string, string> {
-    const state = this.getGameState();
-    return claimResidencesForFoodSuppliers(
-      this.getRoadNetwork(),
-      [...state.buildings.values()],
-      [...state.residences.values()],
-    );
-  }
-
   getServingFoodSupplierForResidence(residence: ResidenceState): BuildingState | null {
-    const supplierId = this.getResidenceFoodClaims().get(residence.id);
+    const supplierId = this.foodClaims().getServingSupplierForResidence(residence.id);
     if (!supplierId) return null;
     return this.getGameState().buildings.get(supplierId) ?? null;
+  }
+
+  getClaimedResidencesForFoodSupplier(supplier: BuildingState): ResidenceState[] {
+    return this.foodClaims().getClaimedResidences(supplier);
   }
 
   getLodgeDeliveryTripSeconds(
@@ -476,20 +464,8 @@ export class WorldQueries {
     return { kind: 'quarry', definition, state: quarryState };
   }
 
-  findNearestQuarryWithRemaining(x: number, z: number, radius: number): QuarryNodeState | null {
-    const state = this.getGameState();
-    let best: QuarryNodeState | null = null;
-    let bestDistance = Infinity;
-
-    for (const quarryState of state.quarries.values()) {
-      if (quarryState.remaining <= 0) continue;
-      const distance = Math.hypot(x - quarryState.x, z - quarryState.z);
-      if (distance > radius || distance >= bestDistance) continue;
-      bestDistance = distance;
-      best = quarryState;
-    }
-
-    return best;
+  findNearestQuarryWithRemaining(x: number, z: number, radius: number): ResourceNodeState | null {
+    return findNearestResourceNodeWithRemaining(this.getGameState().quarries.values(), x, z, radius, 'quarry');
   }
 
   findForagingTarget(nodeId: string): Extract<InspectableTarget, { kind: 'foraging' }> | null {
@@ -538,31 +514,13 @@ export class WorldQueries {
     z: number,
     radius: number,
     nodeKind: 'game' | 'berries',
-  ): QuarryNodeState | null {
-    const state = this.getGameState();
-    let best: QuarryNodeState | null = null;
-    let bestDistance = Infinity;
-
-    for (const nodeState of state.foragingNodes.values()) {
-      if (nodeState.kind !== nodeKind || nodeState.remaining <= 0) continue;
-      const distance = Math.hypot(x - nodeState.x, z - nodeState.z);
-      if (distance > radius || distance >= bestDistance) continue;
-      bestDistance = distance;
-      best = nodeState;
-    }
-
-    return best;
-  }
-
-  getClaimedResidencesForFoodSupplier(supplier: BuildingState): ResidenceState[] {
-    const network = this.getRoadNetwork();
-    const state = this.getGameState();
-    const suppliers = [...state.buildings.values()].filter(
-      (building) => building.kind === 'hunters_hall' || building.kind === 'foragers_shed',
+  ): ResourceNodeState | null {
+    return findNearestResourceNodeWithRemaining(
+      this.getGameState().foragingNodes.values(),
+      x,
+      z,
+      radius,
+      nodeKind,
     );
-    const residences = [...state.residences.values()];
-    const claims = claimResidencesForFoodSuppliers(network, suppliers, residences);
-    const supplierId = supplier.id;
-    return residences.filter((residence) => claims.get(residence.id) === supplierId);
   }
 }

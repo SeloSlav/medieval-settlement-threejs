@@ -1,6 +1,8 @@
 use spacetimedb::{reducer, Identity, ReducerContext, ScheduleAt, TimeDuration};
 
-use crate::balance_generated::ECONOMIC_ACTIVITY_TAX_RATE;
+use crate::balance_generated::{
+    CHAPEL_COFFER_RESERVE_DEFAULT, ECONOMIC_ACTIVITY_TAX_RATE,
+};
 use crate::constants::{DEFAULT_WORLD_SEED, TICK_MICROS};
 use crate::economy::{STARTING_GOLD, STARTING_STONE, STARTING_TIMBER};
 use crate::db::*;
@@ -86,6 +88,13 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         gold: STARTING_GOLD,
         food: 0.0,
         economic_activity_tax_rate: ECONOMIC_ACTIVITY_TAX_RATE,
+        chapel_auto_sweep_enabled: false,
+        chapel_coffer_reserve_gold: CHAPEL_COFFER_RESERVE_DEFAULT,
+        parish_manual_collect_total: 0.0,
+        parish_auto_sweep_total: 0.0,
+        parish_salary_paid_total: 0.0,
+        parish_upkeep_paid_total: 0.0,
+        parish_charity_paid_total: 0.0,
     });
 }
 

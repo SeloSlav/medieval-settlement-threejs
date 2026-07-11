@@ -1,0 +1,316 @@
+.builder-status-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 74px;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: min(520px, calc(100vw - 28px));
+  padding: 8px 12px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(23, 25, 21, 0.82);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(12px);
+}
+
+.builder-status-bar[data-state='ready'] {
+  border-color: rgba(132, 166, 107, 0.65);
+  color: #d9e8cf;
+}
+
+.builder-status-bar[data-state='draft'],
+.builder-status-bar[data-state='active'] {
+  border-color: rgba(215, 180, 99, 0.55);
+}
+
+.road-tool-button,
+.delete-popup button {
+  height: 36px;
+  padding: 0 13px;
+  color: var(--ink);
+  background: rgba(238, 232, 220, 0.08);
+  border: 1px solid rgba(238, 232, 220, 0.16);
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0;
+}
+
+.road-tool-button {
+  min-width: 74px;
+  font-weight: 650;
+}
+
+.road-tool-button-key {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.road-tool-button.is-active .road-tool-button-key {
+  color: rgba(32, 29, 21, 0.62);
+}
+
+.road-tool-button.icon-button {
+  min-width: 40px;
+  width: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.road-tool-button.icon-button[hidden] {
+  display: none;
+}
+
+.floating-build-button {
+  position: absolute;
+  z-index: 6;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(12px);
+}
+
+.burgage-layout-hud {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(23, 25, 21, 0.9);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(12px);
+}
+
+.burgage-layout-hud[hidden] {
+  display: none;
+}
+
+.burgage-layout-hud[data-state='ready'] {
+  border-color: rgba(132, 166, 107, 0.55);
+}
+
+.burgage-layout-hud[data-state='warning'] {
+  border-color: rgba(201, 112, 85, 0.65);
+}
+
+.burgage-layout-hud-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  background: rgba(238, 232, 220, 0.08);
+  border: 1px solid rgba(238, 232, 220, 0.16);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.burgage-layout-hud-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.burgage-layout-hud-button:not(:disabled):hover,
+.burgage-layout-hud-button:not(:disabled):focus-visible,
+.burgage-layout-hud-frontage:hover,
+.burgage-layout-hud-frontage:focus-visible {
+  border-color: rgba(215, 180, 99, 0.75);
+  outline: none;
+}
+
+.burgage-layout-hud-count {
+  display: grid;
+  justify-items: center;
+  min-width: 72px;
+  padding: 0 2px;
+  line-height: 1.1;
+}
+
+.burgage-layout-hud-count strong {
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.burgage-layout-hud-count span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.burgage-layout-hud-frontage {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  background: rgba(238, 232, 220, 0.06);
+  border: 1px solid rgba(238, 232, 220, 0.14);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.burgage-layout-hud-frontage[hidden] {
+  display: none;
+}
+
+.burgage-layout-hud-frontage span:first-child {
+  color: var(--accent);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.road-tool-button.icon-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.road-tool-button:hover,
+.road-tool-button:focus-visible,
+.delete-popup button:hover,
+.delete-popup button:focus-visible {
+  border-color: rgba(215, 180, 99, 0.75);
+  outline: none;
+}
+
+.road-tool-button.is-active,
+.road-tool-button.is-ready {
+  color: #201d15;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.road-tool-button.has-draft:not(.is-ready) {
+  border-color: rgba(201, 112, 85, 0.6);
+}
+
+.road-tool-button:disabled {
+  color: rgba(238, 232, 220, 0.35);
+  cursor: default;
+  border-color: rgba(238, 232, 220, 0.1);
+  background: rgba(238, 232, 220, 0.04);
+}
+
+.delete-popup {
+  position: absolute;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12px);
+  z-index: 5;
+}
+
+.delete-popup[hidden] {
+  display: none;
+}
+
+.delete-popup button:first-child {
+  color: #201d15;
+  background: var(--danger);
+  border-color: var(--danger);
+  font-weight: 700;
+}
+
+.delete-popup .ghost-button {
+  color: var(--muted);
+  background: rgba(238, 232, 220, 0.08);
+}
+
+.toast-container {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.toast {
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 10px 14px;
+  color: #f8e8e4;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 112, 85, 0.55);
+  background: rgba(62, 28, 22, 0.92);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 280ms ease,
+    transform 280ms ease;
+}
+
+.toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.is-dismissing {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.toast--clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.toast--clickable:hover,
+.toast--clickable:focus-visible {
+  border-color: rgba(232, 160, 140, 0.85);
+  outline: none;
+}
+
+.toast--error {
+  color: #f8e8e4;
+  border-color: rgba(201, 112, 85, 0.55);
+  background: rgba(62, 28, 22, 0.92);
+}
+
+.toast--info {
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--panel-strong);
+}
+
+.toast--success {
+  color: #e8f2dd;
+  border-color: rgba(132, 166, 107, 0.55);
+  background: rgba(28, 42, 24, 0.92);
+}

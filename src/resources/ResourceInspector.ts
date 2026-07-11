@@ -30,6 +30,7 @@ type ResourceInspectorOptions = {
   onDemolishBackyardGarden?: (residenceId: string) => void | Promise<void>;
   onAssignBuildingLabor?: (buildingId: string, labor: number) => void | Promise<void>;
   onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
+  onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
   onSelectionChange?: (target: InspectableTarget | null) => void;
   isBlocked: () => boolean;
 };
@@ -176,6 +177,7 @@ export class ResourceInspector {
     handleSupplementalPanelClick(this.selectedTarget, event.target as HTMLElement, {
       onPlaceBackyardGarden: this.options.onPlaceBackyardGarden,
       onMarketplaceTrade: this.options.onMarketplaceTrade,
+      onCollectChapelCoffer: this.options.onCollectChapelCoffer,
     });
   };
 

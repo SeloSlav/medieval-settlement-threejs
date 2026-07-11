@@ -1,0 +1,119 @@
+.settlement-hud {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 14px 34px var(--shadow);
+  backdrop-filter: blur(14px);
+}
+
+.settlement-hud__perf {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settlement-hud__body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+
+.settlement-hud__stat {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  cursor: help;
+  outline: none;
+}
+
+.settlement-hud__stat--perf {
+  padding: 2px 0;
+}
+
+.settlement-hud__label {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settlement-hud__value {
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1;
+  color: var(--accent-2);
+}
+
+.settlement-hud__value--fps {
+  color: #a7d77f;
+}
+
+.settlement-hud__value--zoom {
+  color: #9ec5e8;
+  font-size: 15px;
+}
+
+.settlement-hud.is-fast .settlement-hud__value--fps {
+  color: var(--accent);
+}
+
+.settlement-hud.is-low .settlement-hud__value--fps {
+  color: var(--danger);
+}
+
+.settlement-hud__sub {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
+.settlement-hud__stat--gold .settlement-hud__value {
+  color: #e8c86a;
+}
+
+.ui-tooltip {
+  position: fixed;
+  z-index: 40;
+  width: max-content;
+  max-width: min(240px, calc(100vw - 24px));
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  box-shadow: 0 10px 28px var(--shadow);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.ui-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ui-tooltip[hidden] {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .settlement-hud__value {
+    font-size: 15px;
+  }
+}

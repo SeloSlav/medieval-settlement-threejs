@@ -49,6 +49,7 @@ import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { CityAdministrationPanel } from '../ui/CityAdministrationPanel.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
+import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { mountTooltips } from '../ui/tooltips.ts';
@@ -391,6 +392,7 @@ export class App {
       getGameState: () => this.gameState,
       getWorldQueries: () => worldQueries,
       getTaxRate: () => this.spacetimeStore?.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
+      getParishPolicy: () => this.spacetimeStore?.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
       onTaxRateChange: async (taxRate) => {
         if (!this.spacetimeStore?.isConnected) {
           this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
@@ -400,6 +402,17 @@ export class App {
       },
       onTaxRateChangeFailed: (error) => {
         const message = error instanceof Error ? error.message : 'Could not update tax rate.';
+        this.toastManager?.show(message, { variant: 'error' });
+      },
+      onParishPolicyChange: async (autoSweepEnabled, cofferReserveGold) => {
+        if (!this.spacetimeStore?.isConnected) {
+          this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
+          throw new Error('SpacetimeDB is not connected.');
+        }
+        await this.spacetimeStore.setChapelParishPolicy(autoSweepEnabled, cofferReserveGold);
+      },
+      onParishPolicyChangeFailed: (error) => {
+        const message = error instanceof Error ? error.message : 'Could not update parish policy.';
         this.toastManager?.show(message, { variant: 'error' });
       },
       onOpenChange: (open) => {

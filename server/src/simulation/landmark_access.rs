@@ -30,17 +30,26 @@ pub fn is_chapel_staffed(chapel: &Building) -> bool {
     chapel.kind == "chapel" && chapel.assigned_labor > 0
 }
 
+pub fn find_serving_chapel<'a>(
+    tick: &SimTickContext,
+    owner: Identity,
+    residence: &Residence,
+    chapels: &'a [Building],
+) -> Option<&'a Building> {
+    chapels.iter().find(|chapel| {
+        chapel.owner == owner
+            && is_chapel_staffed(chapel)
+            && tick.road_connected(owner, residence.x, residence.z, chapel.x, chapel.z)
+    })
+}
+
 pub fn residence_has_chapel_access(
     tick: &SimTickContext,
     owner: Identity,
     residence: &Residence,
     chapels: &[Building],
 ) -> bool {
-    chapels.iter().any(|chapel| {
-        chapel.owner == owner
-            && is_chapel_staffed(chapel)
-            && tick.road_connected(owner, residence.x, residence.z, chapel.x, chapel.z)
-    })
+    find_serving_chapel(tick, owner, residence, chapels).is_some()
 }
 
 pub fn linked_chapel_population(

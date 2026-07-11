@@ -38,6 +38,7 @@ import AssignBuildingLaborReducer from "./assign_building_labor_reducer";
 import BootstrapForagingReducer from "./bootstrap_foraging_reducer";
 import BootstrapQuarriesReducer from "./bootstrap_quarries_reducer";
 import BootstrapTreesReducer from "./bootstrap_trees_reducer";
+import CollectChapelCofferReducer from "./collect_chapel_coffer_reducer";
 import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
 import DemolishBuildingReducer from "./demolish_building_reducer";
 import DemolishBurgageZoneReducer from "./demolish_burgage_zone_reducer";
@@ -47,6 +48,7 @@ import PlaceBackyardGardenReducer from "./place_backyard_garden_reducer";
 import PlaceBuildingReducer from "./place_building_reducer";
 import PlaceBurgageZoneReducer from "./place_burgage_zone_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
+import SetChapelParishPolicyReducer from "./set_chapel_parish_policy_reducer";
 import SetEconomicActivityTaxRateReducer from "./set_economic_activity_tax_rate_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
 import TickSimReducer from "./tick_sim_reducer";
@@ -253,6 +255,7 @@ const reducersSchema = __reducers(
   __reducerSchema("bootstrap_foraging", BootstrapForagingReducer),
   __reducerSchema("bootstrap_quarries", BootstrapQuarriesReducer),
   __reducerSchema("bootstrap_trees", BootstrapTreesReducer),
+  __reducerSchema("collect_chapel_coffer", CollectChapelCofferReducer),
   __reducerSchema("demolish_backyard_garden", DemolishBackyardGardenReducer),
   __reducerSchema("demolish_building", DemolishBuildingReducer),
   __reducerSchema("demolish_burgage_zone", DemolishBurgageZoneReducer),
@@ -262,6 +265,7 @@ const reducersSchema = __reducers(
   __reducerSchema("place_building", PlaceBuildingReducer),
   __reducerSchema("place_burgage_zone", PlaceBurgageZoneReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
+  __reducerSchema("set_chapel_parish_policy", SetChapelParishPolicyReducer),
   __reducerSchema("set_economic_activity_tax_rate", SetEconomicActivityTaxRateReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
   __reducerSchema("tick_sim", TickSimReducer),

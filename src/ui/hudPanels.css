@@ -1,0 +1,208 @@
+.fp-controls-panel,
+.rts-controls-panel,
+.road-controls-panel {
+  width: 100%;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 14px 34px var(--shadow);
+  backdrop-filter: blur(14px);
+}
+
+.fp-controls-panel[hidden],
+.rts-controls-panel[hidden],
+.road-controls-panel[hidden] {
+  display: none;
+}
+
+.hud-right-stack {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: min(300px, calc(100vw - 28px));
+}
+
+.road-controls-header {
+  display: block;
+}
+
+.road-controls-eyebrow {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.road-controls-title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+.road-controls-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.road-controls-status[data-state='active'] {
+  color: #b8c99a;
+}
+
+.road-controls-status[data-state='draft'] {
+  color: #d7b463;
+}
+
+.road-controls-status[data-state='warning'] {
+  color: #d9a441;
+}
+
+.road-controls-status[data-state='ready'] {
+  color: var(--accent);
+}
+
+.road-controls-help {
+  padding-top: 2px;
+  border-top: 1px solid rgba(238, 232, 220, 0.1);
+}
+
+.road-controls-help-title {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.road-controls-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.road-controls-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.road-controls-key {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.fps-panel {
+  align-self: flex-end;
+  min-width: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  color: var(--muted);
+  background: rgba(23, 25, 21, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.fps-stat {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.fps-panel strong {
+  color: #a7d77f;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.fps-stat:last-child strong {
+  color: #9ec5e8;
+  font-size: 15px;
+}
+
+.fps-panel.is-fast .fps-stat:first-child strong {
+  color: #d7b463;
+}
+
+.fps-panel.is-low .fps-stat:first-child strong {
+  color: var(--danger);
+}
+
+.hud-bottom-right {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 4;
+}
+
+.fp-mode-panel strong {
+  color: #9ec5e8;
+  font-size: 15px;
+}
+
+.fp-mode-panel.is-active {
+  border-color: rgba(215, 180, 99, 0.45);
+}
+
+.fp-mode-panel.is-active strong {
+  color: var(--accent);
+}
+
+@media (max-width: 720px) {
+  .hud-right-stack {
+    top: 10px;
+    right: 10px;
+    width: min(280px, calc(100vw - 20px));
+  }
+
+  .fp-controls-panel,
+  .rts-controls-panel,
+  .road-controls-panel {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .road-controls-title {
+    font-size: 16px;
+  }
+
+  .road-controls-list li {
+    font-size: 11px;
+  }
+
+  .hud-bottom-right {
+    right: 10px;
+    bottom: 10px;
+  }
+}

@@ -33,6 +33,7 @@ export const Building = __t.object("Building", {
   food: __t.f64(),
   waterCapacity: __t.f64(),
   assignedLabor: __t.u32(),
+  gold: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -103,6 +104,13 @@ export const PlayerResources = __t.object("PlayerResources", {
   gold: __t.f64(),
   food: __t.f64(),
   economicActivityTaxRate: __t.f64(),
+  chapelAutoSweepEnabled: __t.bool(),
+  chapelCofferReserveGold: __t.f64(),
+  parishManualCollectTotal: __t.f64(),
+  parishAutoSweepTotal: __t.f64(),
+  parishSalaryPaidTotal: __t.f64(),
+  parishUpkeepPaidTotal: __t.f64(),
+  parishCharityPaidTotal: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

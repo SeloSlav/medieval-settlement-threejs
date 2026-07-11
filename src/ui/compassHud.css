@@ -1,0 +1,132 @@
+.fps-reticule {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  pointer-events: none;
+  z-index: 6;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.fps-reticule[hidden] {
+  display: none;
+}
+
+.compass-hud {
+  position: fixed;
+  left: 50%;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 5;
+  width: min(360px, 88vw);
+  height: 40px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.compass-hud[hidden] {
+  display: none;
+}
+
+.compass-hud__frame {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.compass-hud__fade {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.55) 0%,
+    transparent 14%,
+    transparent 86%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  pointer-events: none;
+}
+
+.compass-hud__caret {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 10px solid var(--ink);
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
+  z-index: 2;
+}
+
+.compass-hud__viewport {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  width: calc(100% + 48px);
+  margin-left: calc(-50% - 24px);
+  height: 26px;
+  overflow: hidden;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.compass-hud__band {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  will-change: transform;
+}
+
+.compass-hud__tick {
+  flex: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+}
+
+.compass-hud__label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -0.04em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+  margin-bottom: 1px;
+}
+
+.compass-hud__label.is-cardinal {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0;
+}
+
+.compass-hud__mark {
+  width: 2px;
+  background: var(--muted);
+  opacity: 0.85;
+  border-radius: 1px;
+  margin-bottom: 4px;
+}
+
+.compass-hud__mark.is-minor {
+  width: 1px;
+  opacity: 0.45;
+}

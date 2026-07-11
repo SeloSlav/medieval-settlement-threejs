@@ -1,0 +1,311 @@
+.road-tools {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(23, 25, 21, 0.58);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+}
+
+.construction-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(23, 25, 21, 0.58);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+}
+
+.construction-dock-button {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  background: rgba(238, 232, 220, 0.08);
+  border: 1px solid rgba(238, 232, 220, 0.16);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.construction-dock-button__hotkey {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 2;
+  min-width: 18px;
+  padding: 2px 5px;
+  border: 1px solid rgba(215, 180, 99, 0.55);
+  border-radius: 5px;
+  background: rgba(16, 20, 26, 0.92);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.construction-dock-button svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.construction-dock-button__icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.construction-dock-button--text span {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.construction-dock-button.is-active .construction-dock-button__hotkey,
+.construction-dock-button[aria-pressed='true'] .construction-dock-button__hotkey {
+  color: #201d15;
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(32, 29, 21, 0.25);
+}
+
+.construction-dock-button:hover,
+.construction-dock-button:focus-visible {
+  border-color: rgba(215, 180, 99, 0.75);
+  outline: none;
+}
+
+.construction-dock-button.is-active,
+.construction-dock-button[aria-pressed='true'] {
+  color: #201d15;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.construction-menu {
+  position: absolute;
+  left: 50%;
+  bottom: 86px;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: max-content;
+  max-width: calc(100vw - 28px);
+  padding: 0;
+  pointer-events: none;
+}
+
+.construction-menu[hidden] {
+  display: none;
+}
+
+.construction-menu__cards {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  pointer-events: auto;
+}
+
+.construction-card {
+  position: relative;
+  display: block;
+  padding: 0;
+  margin: 0;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.construction-card:hover,
+.construction-card:focus-visible {
+  outline: none;
+}
+
+.construction-card:hover .construction-card__art,
+.construction-card:focus-visible .construction-card__art {
+  filter: brightness(1.1);
+}
+
+.construction-card.is-active .construction-card__art,
+.construction-card[aria-pressed='true'] .construction-card__art {
+  filter: drop-shadow(0 0 8px rgba(215, 180, 99, 0.95)) brightness(1.08);
+}
+
+.construction-card__art {
+  display: block;
+  height: 224px;
+  width: auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.12s ease;
+}
+
+.construction-card__hotkey {
+  position: absolute;
+  left: 8px;
+  bottom: 10px;
+  z-index: 2;
+  min-width: 22px;
+  padding: 3px 6px;
+  border: 1px solid rgba(215, 180, 99, 0.55);
+  border-radius: 5px;
+  background: rgba(16, 20, 26, 0.88);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.construction-card__tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  z-index: 30;
+  display: grid;
+  gap: 4px;
+  min-width: 200px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border: 1px solid rgba(196, 167, 99, 0.35);
+  border-radius: 8px;
+  background: rgba(16, 20, 26, 0.96);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(6px);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease,
+    visibility 0.14s ease;
+}
+
+.construction-card__tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top-color: rgba(196, 167, 99, 0.35);
+}
+
+.construction-card__tooltip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: -1px;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: rgba(16, 20, 26, 0.96);
+}
+
+.construction-card:hover .construction-card__tooltip,
+.construction-card:focus-visible .construction-card__tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.construction-card__tooltip-title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.construction-card__tooltip-desc {
+  color: rgba(238, 232, 220, 0.88);
+}
+
+.construction-card__tooltip-cost {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(196, 167, 99, 0.95);
+}
+
+.construction-card__art--icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  background: rgba(23, 25, 21, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+@media (max-width: 720px) {
+  .road-tools,
+  .construction-dock {
+    right: 10px;
+    left: 10px;
+    bottom: 10px;
+    transform: none;
+    justify-content: center;
+  }
+
+  .construction-menu {
+    left: 50%;
+    right: auto;
+    bottom: 76px;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 20px);
+  }
+
+  .construction-card__art {
+    height: 176px;
+  }
+
+  .construction-card__hotkey {
+    left: 6px;
+    bottom: 8px;
+    min-width: 20px;
+    padding: 2px 5px;
+    font-size: 11px;
+  }
+
+  .construction-card__tooltip {
+    min-width: 180px;
+    max-width: min(240px, calc(100vw - 32px));
+  }
+}

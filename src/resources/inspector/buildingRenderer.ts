@@ -1,8 +1,7 @@
 import type { InspectableTarget } from '../types.ts';
 import { renderChapelInspector } from './chapelRenderer.ts';
 import { renderMarketplaceInspector } from './marketplaceInspector.ts';
-import { renderForagersShedInspector } from './foragersShedRenderer.ts';
-import { renderHuntersHallInspector } from './huntersHallRenderer.ts';
+import { renderHarvestBuildingInspector } from './harvestBuildingRenderer.ts';
 import { renderLumberMillInspector } from './lumberMillRenderer.ts';
 import { renderReforesterInspector } from './reforesterRenderer.ts';
 import { renderStoneQuarryInspector } from './stoneQuarryRenderer.ts';
@@ -31,9 +30,8 @@ export function renderBuildingInspector(
     case 'well':
       return renderWellInspector(target, context);
     case 'hunters_hall':
-      return renderHuntersHallInspector(target, context);
     case 'foragers_shed':
-      return renderForagersShedInspector(target, context);
+      return renderHarvestBuildingInspector(target, context);
     default: {
       const unreachable: never = building.kind;
       throw new Error(`Unhandled building kind: ${unreachable}`);
