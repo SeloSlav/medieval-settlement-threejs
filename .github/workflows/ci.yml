@@ -30,3 +30,77 @@ jobs:
       - name: Check Rust server module
         working-directory: server
         run: cargo check
+
+      - name: Run Rust unit tests
+        working-directory: server/logic
+        run: cargo test
+
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y binaryen
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Install SpacetimeDB CLI
+        run: curl -sSf https://install.spacetimedb.com | sh -s -- --yes
+
+      - name: Add SpacetimeDB to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Generate deploy artifacts
+        run: |
+          npm run generate:world-bootstrap
+          npm run generate:game-balance
+
+      - name: Start SpacetimeDB
+        run: spacetime start &
+
+      - name: Wait for SpacetimeDB
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000 >/dev/null 2>&1; then
+              echo "SpacetimeDB is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "SpacetimeDB failed to start." >&2
+          exit 1
+
+      - name: Publish server module
+        working-directory: server
+        run: spacetime publish --no-config -p . city-builder -y
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run browser smoke test
+        env:
+          CI: '1'
+          VITE_SPACETIME_URI: http://127.0.0.1:3000
+          VITE_SPACETIME_DB_NAME: city-builder
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/

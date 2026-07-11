@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:e2e": "tsc && vite build",
     "preview": "vite preview",
+    "preview:e2e": "vite preview --host 127.0.0.1 --port 4173",
+    "test:rust": "cargo test --manifest-path server/logic/Cargo.toml",
+    "test:e2e": "playwright test",
+    "smoketest": "playwright test e2e/smoke.spec.ts",
     "generate:world-bootstrap": "npx tsx scripts/generateWorldBootstrap.mts",
     "generate:game-balance": "npx tsx scripts/generateGameBalance.mts",
     "generate:hydrology-grid": "npx tsx scripts/generateHydrologyGrid.mts",
@@ -25,6 +30,7 @@
     "deploy:local-clean": "powershell -ExecutionPolicy Bypass -File ./server/deploy-local-clean.ps1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/three": "^0.185.1",
     "typescript": "^7.0.2",
     "vite": "^8.1.4"

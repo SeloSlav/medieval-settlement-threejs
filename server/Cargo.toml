@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "logic"]
+resolver = "2"
+
 [package]
 name = "medieval-road-system-server"
 version = "0.1.0"

@@ -25,17 +25,20 @@ import type { WorldMapIconsBundle } from './worldMapIcons.ts';
 import { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import { CityAdministrationPanel } from '../ui/CityAdministrationPanel.ts';
+import { ToastManager } from '../ui/ToastManager.ts';
 import { SettlementPresentationController } from './settlementSchedulePresentation.ts';
 import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './spacetimeSnapshotApplier.ts';
-import { bootstrapAppSession, type SessionLiveContext } from './appBootstrap.ts';
+import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext } from './appBootstrap.ts';
 import {
   disposeSettlementWorld,
   syncSettlementWorld,
   tickSettlementWorld,
 } from './settlementWorldSync.ts';
 import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
-import { ToastManager } from '../ui/ToastManager.ts';
 import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
+import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHooks.ts';
+import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
+import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
 
 const TARGET_MAX_FPS = 90;
 const TARGET_FRAME_MS = 1000 / TARGET_MAX_FPS;
@@ -155,6 +158,7 @@ export class App {
     this.gameRuntime.start();
 
     this.exposeDevHandles();
+    this.exposeE2eHandles(session);
 
     session.sceneManager.syncRoadNetwork(session.roadNetwork);
     this.syncToolbar();
@@ -437,5 +441,27 @@ export class App {
       registry: this.layoutRegistry,
       treeRegistry: this.treeRegistry,
     };
+  }
+
+  private exposeE2eHandles(session: BootstrappedSession): void {
+    if (import.meta.env.VITE_E2E_TEST !== '1') return;
+    if (!this.gameState || !this.spacetimeStore || !this.buildingTool || !this.sceneManager) return;
+
+    const worldSettings = session.sceneManager.worldLayout.settings;
+    const playableHalf = resolveWorldDimensions(worldSettings.mapSize).playableHalf;
+
+    installSmokeTestHooks(createSmokeTestHooks({
+      getState: () => this.gameState!,
+      getBuildingMode: () => this.buildingTool!.getMode(),
+      isConnected: () => this.spacetimeStore!.isConnected,
+      placeBuilding: async (kind, x, z) => {
+        await this.spacetimeStore!.placeBuilding(kind, x, z);
+      },
+      isWaterAt: (x, z) => this.sceneManager!.riverField.isRenderedWetAt(x, z),
+      isQuarryPitAt: (x, z) => this.sceneManager!.worldLayout.quarryLayout.isBlockedForProps(x, z),
+      getNaturalHeightAt: sampleNaturalTerrainHeight,
+      getRoadNetwork: () => this.roadNetwork,
+      playableHalf,
+    }));
   }
 }

@@ -16,6 +16,8 @@ pub fn init(ctx: &ReducerContext) {
     let config = default_world_config();
     let seed = config.seed;
     ctx.db.world_config().insert(config);
+    // Deploy-time seed from embedded JSON. Connected clients replace this with
+    // layout-derived bootstrap rows via configure_world + bootstrap_* reducers.
     seed_world_entities(ctx);
     ensure_sim_schedule(ctx);
     log::info!("Medieval Road System module initialized (seed={seed})");

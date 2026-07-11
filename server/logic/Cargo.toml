@@ -1,0 +1,11 @@
+[package]
+name = "medieval-server-logic"
+version = "0.1.0"
+edition = "2021"
+description = "Host-runnable pure logic extracted from the SpacetimeDB module for unit tests"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+log = "0.4"
