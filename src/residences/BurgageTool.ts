@@ -7,8 +7,13 @@ import type { BurgageFrontageEdge, BurgageLayoutResult } from './burgageLayout.t
 import { cornersFromPoints, getZoneEdge, MAX_ZONE_DEPTH, MIN_ZONE_DEPTH, resolveBurgageLayout, suggestPlotCount } from './burgageLayout.ts';
 import {
   rectangleCornersToPoints,
-  rectangleFromFrontageAndBackPoint,
+  inwardNormalForFrontage,
 } from './burgageRectangle.ts';
+import {
+  buildCurvedZoneFromFrontage,
+  resolveCurvedFrontageLine,
+  snapBurgagePointBesideRoad,
+} from './burgageRoadFrontage.ts';
 import { initialPlotCount } from './burgagePlacementValidation.ts';
 import { BurgagePreview } from './BurgagePreview.ts';
 import {
@@ -85,6 +90,9 @@ export class BurgageTool {
   private validationDirty = true;
   private validationScheduled = false;
   private previewLayout: BurgageLayoutResult | null = null;
+  private frontageCenters: THREE.Vector3[] = [];
+  private frontageOffsetSide: 1 | -1 | null = null;
+  private hoverCenter: THREE.Vector3 | null = null;
 
   constructor(options: BurgageToolOptions) {
     this.options = options;
@@ -290,6 +298,7 @@ export class BurgageTool {
   private readonly onPointerLeave = (): void => {
     this.pointerInside = false;
     this.hoverPoint = null;
+    this.hoverCenter = null;
     this.lastHoverPreviewX = Number.NaN;
     this.lastHoverPreviewZ = Number.NaN;
     this.refreshPreview();
@@ -396,6 +405,9 @@ export class BurgageTool {
 
     event.preventDefault();
     event.stopPropagation();
+    if (this.placementStage < 2) {
+      this.recordFrontageCenter(event.clientX, event.clientY, point);
+    }
     this.points.push(point);
     this.placementStage = this.points.length;
     this.options.onModeChanged();
@@ -465,8 +477,11 @@ export class BurgageTool {
   private cancelDraft(notify: boolean): void {
     this.points = [];
     this.depthPoint = null;
+    this.frontageCenters = [];
+    this.frontageOffsetSide = null;
     this.placementStage = 0;
     this.hoverPoint = null;
+    this.hoverCenter = null;
     this.lastHoverPreviewX = Number.NaN;
     this.lastHoverPreviewZ = Number.NaN;
     this.frontageEdge = 0;
@@ -562,6 +577,7 @@ export class BurgageTool {
       this.placementStage,
       this.hoverPoint,
       previewFrontageEdge,
+      this.resolvePreviewOutline(),
     );
   }
 
@@ -650,18 +666,110 @@ export class BurgageTool {
     if (this.points.length < 2) return null;
     const frontStart = { x: this.points[0].x, z: this.points[0].z };
     const frontEnd = { x: this.points[1].x, z: this.points[1].z };
-    const rect = rectangleFromFrontageAndBackPoint(
+    const centerStart = this.frontageCenters[0]
+      ? { x: this.frontageCenters[0].x, z: this.frontageCenters[0].z }
+      : undefined;
+    const centerEnd = this.frontageCenters[1]
+      ? { x: this.frontageCenters[1].x, z: this.frontageCenters[1].z }
+      : undefined;
+    const geometry = buildCurvedZoneFromFrontage(
       frontStart,
       frontEnd,
       { x: backPoint.x, z: backPoint.z },
       this.options.roadNetwork,
+      centerStart,
+      centerEnd,
+      this.frontageOffsetSide ?? 1,
     );
-    if (!rect) return null;
+    if (!geometry) return null;
 
-    return rectangleCornersToPoints(rect).map((corner) => {
+    return rectangleCornersToPoints(geometry.corners).map((corner) => {
       const y = this.options.getHeightAt(corner.x, corner.z);
       return new THREE.Vector3(corner.x, y, corner.z);
     });
+  }
+
+  private resolvePreviewOutline(): THREE.Vector3[] | null {
+    if (this.points.length < 1) return null;
+
+    const secondPoint = this.points.length >= 2 ? this.points[1] : this.hoverPoint;
+    if (!secondPoint) return null;
+
+    const frontStart = { x: this.points[0].x, z: this.points[0].z };
+    const frontEnd = { x: secondPoint.x, z: secondPoint.z };
+    const centerStart = this.frontageCenters[0]
+      ? { x: this.frontageCenters[0].x, z: this.frontageCenters[0].z }
+      : undefined;
+    const centerEnd = this.points.length >= 2 && this.frontageCenters[1]
+      ? { x: this.frontageCenters[1].x, z: this.frontageCenters[1].z }
+      : this.getHoverFrontageCenter() ?? undefined;
+
+    if (this.placementStage < 2) {
+      const frontLine = resolveCurvedFrontageLine(
+        frontStart,
+        frontEnd,
+        this.options.roadNetwork,
+        centerStart,
+        centerEnd ?? undefined,
+        this.frontageOffsetSide ?? 1,
+      );
+      return frontLine.map((point) => {
+        const y = this.options.getHeightAt(point.x, point.z);
+        return new THREE.Vector3(point.x, y, point.z);
+      });
+    }
+
+    const backSource = this.placementStage >= 3
+      ? (this.hoverPoint ?? this.depthPoint)
+      : (this.depthPoint ?? this.hoverPoint);
+    const backPoint = backSource
+      ? { x: backSource.x, z: backSource.z }
+      : (() => {
+        const inward = inwardNormalForFrontage(frontStart, frontEnd, this.options.roadNetwork);
+        const mid = {
+          x: (frontStart.x + frontEnd.x) * 0.5,
+          z: (frontStart.z + frontEnd.z) * 0.5,
+        };
+        return {
+          x: mid.x + inward.x * MIN_ZONE_DEPTH,
+          z: mid.z + inward.z * MIN_ZONE_DEPTH,
+        };
+      })();
+
+    const geometry = buildCurvedZoneFromFrontage(
+      frontStart,
+      frontEnd,
+      backPoint,
+      this.options.roadNetwork,
+      centerStart,
+      centerEnd,
+      this.frontageOffsetSide ?? 1,
+    );
+    if (!geometry) return null;
+    return geometry.outline.map((point) => {
+      const y = this.options.getHeightAt(point.x, point.z);
+      return new THREE.Vector3(point.x, y, point.z);
+    });
+  }
+
+  private getHoverFrontageCenter(): { x: number; z: number } | null {
+    if (!this.hoverCenter) return null;
+    return { x: this.hoverCenter.x, z: this.hoverCenter.z };
+  }
+
+  private recordFrontageCenter(clientX: number, clientY: number, _offsetPoint: THREE.Vector3): void {
+    const picked = this.options.terrainProjector.pick(clientX, clientY);
+    if (!picked) return;
+    const snap = this.options.roadNetwork.findSnap(picked, SNAP_DISTANCE);
+    if (!snap) return;
+    const beside = snapBurgagePointBesideRoad(
+      picked,
+      this.options.roadNetwork,
+      SNAP_DISTANCE,
+      this.frontageOffsetSide,
+    );
+    this.frontageOffsetSide = beside.side;
+    this.frontageCenters.push(beside.center);
   }
 
   private canAdjustLayout(): boolean {
@@ -698,14 +806,32 @@ export class BurgageTool {
   private pickPoint(clientX: number, clientY: number): THREE.Vector3 | null {
     const picked = this.options.terrainProjector.pick(clientX, clientY);
     if (!picked) return null;
-    const snapped = this.applyRoadSnap(picked);
-    return new THREE.Vector3(snapped.x, snapped.y, snapped.z);
+    const point = this.shouldSnapToRoad()
+      ? this.applyRoadSnap(picked)
+      : (() => {
+        this.hoverCenter = null;
+        return picked;
+      })();
+    return new THREE.Vector3(point.x, point.y, point.z);
+  }
+
+  private shouldSnapToRoad(): boolean {
+    return this.placementStage < 2;
   }
 
   private applyRoadSnap(point: THREE.Vector3): THREE.Vector3 {
-    const snap = this.options.roadNetwork.findSnap(point, SNAP_DISTANCE);
-    if (!snap) return point;
-    return snap.point.clone();
+    const beside = snapBurgagePointBesideRoad(
+      point,
+      this.options.roadNetwork,
+      SNAP_DISTANCE,
+      this.frontageOffsetSide,
+    );
+    if (this.frontageOffsetSide === null) {
+      this.frontageOffsetSide = beside.side;
+    }
+    this.hoverCenter = beside.center;
+    beside.point.y = point.y;
+    return beside.point;
   }
 }
 

@@ -131,6 +131,11 @@ function cornersSignature(corners: THREE.Vector3[]): string {
   return corners.map((corner) => `${corner.x.toFixed(2)},${corner.z.toFixed(2)}`).join('|');
 }
 
+function outlineSignature(outline: THREE.Vector3[] | null | undefined): string {
+  if (!outline || outline.length === 0) return 'none';
+  return outline.map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`).join('|');
+}
+
 function layoutSignature(layout: BurgageLayoutResult | null): string {
   if (!layout) return 'none';
   return [
@@ -299,6 +304,7 @@ export class BurgagePreview {
     placementStage = 0,
     hoverPoint: THREE.Vector3 | null = null,
     frontageEdge = 0,
+    outlinePolygon: THREE.Vector3[] | null = null,
   ): void {
     if (!placing && corners.length === 0) {
       this.clear();
@@ -306,7 +312,7 @@ export class BurgagePreview {
     }
 
     const hoverSignature = hoverPoint ? `${hoverPoint.x.toFixed(2)},${hoverPoint.z.toFixed(2)}` : 'none';
-    const geometrySignature = `${cornersSignature(corners)}|${hoverSignature}|${layoutSignature(layout)}|${placing ? 1 : 0}|${placementStage}|${frontageEdge}`;
+    const geometrySignature = `${cornersSignature(corners)}|${outlineSignature(outlinePolygon)}|${hoverSignature}|${layoutSignature(layout)}|${placing ? 1 : 0}|${placementStage}|${frontageEdge}`;
     const geometryChanged = geometrySignature !== this.lastGeometrySignature;
     const validityChanged = valid !== this.lastValid;
 
@@ -322,6 +328,7 @@ export class BurgagePreview {
         placing,
         placementStage,
         hoverPoint,
+        outlinePolygon,
       );
       this.lastValid = valid;
       return;
@@ -349,6 +356,7 @@ export class BurgagePreview {
     placing: boolean,
     placementStage: number,
     hoverPoint: THREE.Vector3 | null,
+    outlinePolygon: THREE.Vector3[] | null,
   ): void {
     this.group.visible = true;
     const edgeColor = valid ? VALID_ZONE_COLOR : INVALID_ZONE_COLOR;
@@ -381,12 +389,15 @@ export class BurgagePreview {
       this.hoverMarker.visible = false;
     }
 
-    const lifted = corners.map((corner) => {
+    const outlineSource = outlinePolygon && outlinePolygon.length >= 2
+      ? outlinePolygon
+      : corners;
+    const lifted = outlineSource.map((corner) => {
       const y = getHeightAt(corner.x, corner.z) + 0.22;
       return new THREE.Vector3(corner.x, y, corner.z);
     });
 
-    const closeLoop = lifted.length >= 4;
+    const closeLoop = lifted.length >= 4 && (!placing || placementStage >= 2);
     const edges = collectEdges(lifted, closeLoop);
     if (placing) {
       this.zoneOutline.material = this.zoneOutlinePlacing;
@@ -398,8 +409,8 @@ export class BurgagePreview {
       assignLineSegments(this.zoneOutline, buildSolidEdgePositions(edges));
     }
 
-    if (corners.length >= 4) {
-      assignTriangleFanMesh(this.zoneFill, corners, getHeightAt, 0.14);
+    if (closeLoop) {
+      assignTriangleFanMesh(this.zoneFill, lifted, getHeightAt, 0.14);
     } else {
       replaceGeometry(this.zoneFill);
       this.zoneFill.visible = false;
