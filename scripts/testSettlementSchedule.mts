@@ -6,7 +6,7 @@ import {
   expectLaborPausedLikeServer,
   settlementScheduleDirtyKey,
 } from '../src/world/settlementSchedule.ts';
-import { deriveInterpolatedSettlementSchedule } from '../src/world/interpolatedSettlementSchedule.ts';
+import { deriveInterpolatedSettlementSchedule } from '../src/world/settlementSchedule.ts';
 import { DEFAULT_PARISH_POLICY } from '../src/economy/chapelParish.ts';
 import type { GameState } from '../src/resources/types.ts';
 

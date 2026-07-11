@@ -2,74 +2,47 @@
 import { CameraController } from '../camera/CameraController.ts';
 import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
-import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
 import { BuildingTool } from '../buildings/BuildingTool.ts';
 import { BurgageTool } from '../residences/BurgageTool.ts';
-import { MAX_ZONE_DEPTH, MIN_ZONE_DEPTH } from '../residences/burgageLayout.ts';
 import { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
 import { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
 import { BurgageFencing } from '../residences/BurgageFencing.ts';
 import { SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
 import { InputManager } from '../input/InputManager.ts';
-import {
-  isBurgagePlacementBlocked,
-  isBuildingPlacementBlocked,
-  isWorldInspectionBlocked,
-  type PlacementInteractionGate,
-} from '../input/PlacementInteractionGate.ts';
-import {
-  createInitialGameState,
-} from '../resources/GameState.ts';
 import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
 import type { GameState } from '../resources/types.ts';
-import { ForestVisualSync, countTreesNearBuilding } from '../resources/ForestVisualSync.ts';
+import { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
 import { computePopulationStats, computeResourceTotals } from '../resources/resourceTotals.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
-import { WorldQueries } from '../resources/WorldQueries.ts';
-import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { RoadSelection } from '../roads/RoadSelection.ts';
 import { RoadTool } from '../roads/RoadTool.ts';
 import { GameRuntime } from '../runtime/GameRuntime.ts';
 import { SceneManager } from '../scene/SceneManager.ts';
-import { createInspectorSpacetimeActions } from './inspectorSpacetimeActions.ts';
-import { createWorldMapIcons, type WorldMapIconsBundle } from './worldMapIcons.ts';
+import type { WorldMapIconsBundle } from './worldMapIcons.ts';
 import { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
-import { beginStartupTextureLoad } from '../scene/startupTextures.ts';
-import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
-import type { BuildingKind } from '../generated/gameBalance.ts';
 import { CityAdministrationPanel } from '../ui/CityAdministrationPanel.ts';
-import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
-import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
-import { beginNewWorld, resolveWorldGenerationSettings } from './worldBootstrapFlow.ts';
 import { SettlementPresentationController } from './settlementSchedulePresentation.ts';
-import { SpacetimeSnapshotApplier } from './spacetimeSnapshotApplier.ts';
-import {
-  syncBuildingTerrainLayout,
-  syncPlacedBuildingTerrain,
-  syncPreviewTerrainPads,
-} from './placedBuildingTerrainSync.ts';
+import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './spacetimeSnapshotApplier.ts';
+import { bootstrapAppSession, type SessionLiveContext } from './appBootstrap.ts';
 import {
   disposeSettlementWorld,
   syncSettlementWorld,
   tickSettlementWorld,
 } from './settlementWorldSync.ts';
-import { LoadingScreen } from '../ui/LoadingScreen.ts';
+import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
-import { saveWorldGenerationSettings } from '../world/worldGenerationSettings.ts';
-import { setActiveWorldGeneration } from '../world/worldGenerationContext.ts';
-import { mountTooltips } from '../ui/tooltips.ts';
-import { setHydrologyOverlayEnabled, isHydrologyOverlayEnabled } from '../scene/hydrologyOverlayPreference.ts';
-import { roadPlacementReasonToToastId, buildingPlacementReasonToToastId, burgagePlacementReasonToToastId } from '../ui/toastMessages.ts';
+import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
 
 const TARGET_MAX_FPS = 90;
 const TARGET_FRAME_MS = 1000 / TARGET_MAX_FPS;
 
 export class App {
   private readonly root: HTMLElement;
+  private liveContext: SessionLiveContext | null = null;
   private sceneManager: SceneManager | null = null;
   private cameraController: CameraController | null = null;
   private firstPersonController: FirstPersonController | null = null;
@@ -96,7 +69,7 @@ export class App {
   private forestVisualSync: ForestVisualSync | null = null;
   private spacetimeStore: SpacetimeGameStore | null = null;
   private gameRuntime: GameRuntime | null = null;
-  private spacetimeConnected = false;
+  private snapshotApplierDeps: SpacetimeSnapshotApplierDeps | null = null;
   private readonly spacetimeSnapshotApplier = new SpacetimeSnapshotApplier();
   private animationId = 0;
   private lastTime = 0;
@@ -113,480 +86,101 @@ export class App {
   }
 
   async start(): Promise<void> {
-    const loadingScreen = LoadingScreen.tryCreate();
-    const materialsPromise = RoadMaterialFactory.create(8);
-    const startupTexturesPromise = beginStartupTextureLoad();
-
-    this.root.innerHTML = `
-      <div class="app-shell">
-        <div class="scene-root" data-scene-root></div>
-        <div data-ui-root></div>
-      </div>
-    `;
-
-    const worldSettings = await resolveWorldGenerationSettings(this.root);
-    setActiveWorldGeneration(worldSettings);
-    saveWorldGenerationSettings(worldSettings);
-
-    loadingScreen?.setProgress({ label: 'Starting world…', detail: 'Setting up scene shell' });
-
-    const sceneRoot = this.mustElement('[data-scene-root]');
-    const uiRoot = this.mustElement('[data-ui-root]');
-
-    const sceneManager = await SceneManager.create(sceneRoot, worldSettings, (label, detail) => {
-      loadingScreen?.setProgress({ label, detail });
-    }, materialsPromise, startupTexturesPromise);
-    const layoutRegistry = WorldLayoutRegistry.fromWorldLayout(sceneManager.worldLayout);
-    const gameState = createInitialGameState(layoutRegistry, sceneManager.worldLayout.seed);
-    const input = new InputManager(sceneManager.renderer.domElement);
-    const ambientAudio = new AmbientAudioController({
-      unlockElement: sceneManager.renderer.domElement,
-      getCameraTarget: () => {
-        const target = sceneManager.cameraTarget;
-        return { x: target.x, z: target.z };
+    const session = await bootstrapAppSession(this.root, {
+      syncToolbar: () => this.syncToolbar(),
+      getCityAdminPanel: () => this.cityAdminPanel,
+      setCityAdminPanel: (panel) => {
+        this.cityAdminPanel = panel;
       },
-      getOrbitDistance: () => {
-        if (this.firstPersonController?.isActive()) return 12;
-        return this.cameraController?.getOrbitDistance() ?? 240;
-      },
-      getBuildings: () => this.gameState?.buildings.values() ?? [],
-      getBurgageZones: () => this.gameState?.burgageZones.values() ?? [],
-    });
-    const roadNetwork = new RoadNetwork();
-    const worldQueries = new WorldQueries({
-      terrain: sceneManager.terrain,
-      riverField: sceneManager.riverField,
-      registry: layoutRegistry,
-      getGameState: () => this.gameState ?? gameState,
-      getRoadNetwork: () => this.roadNetwork ?? roadNetwork,
-      getTreeRegistry: () => this.treeRegistry,
-    });
-    const buildingMarkers = new BuildingMarkers({
-      terrain: sceneManager.terrain,
-      parent: sceneManager.selectionGroup,
-      getRoadNetwork: () => this.roadNetwork ?? roadNetwork,
-    });
-    const deliveryAgents = new DeliveryAgentRenderer({
-      terrain: sceneManager.terrain,
-      parent: sceneManager.selectionGroup,
-    });
-    const placementGate: PlacementInteractionGate = {
-      isRoadToolEnabled: () => false,
-      isBuildingToolEnabled: () => false,
-      isBurgageToolEnabled: () => false,
-      isFirstPersonActive: () => false,
-      isMenuOpen: () => false,
-    };
-    const cameraController = new CameraController({
-      camera: sceneManager.camera,
-      target: sceneManager.cameraTarget,
-      domElement: sceneManager.renderer.domElement,
-      bounds: sceneManager.terrain.bounds,
-      getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
-      getCursorOverride: () => {
-        if (this.firstPersonController?.isActive()) return 'default';
-        return this.burgageTool?.getCursor()
-          ?? this.roadTool?.getCursor()
-          ?? null;
-      },
-      shouldIgnoreInput: (event) =>
-        (this.roadTool?.shouldBlockCameraInput(event) ?? false)
-        || (this.buildingTool?.shouldBlockCameraInput(event) ?? false)
-        || (this.burgageTool?.shouldBlockCameraInput(event) ?? false),
     });
 
-    const roadSelection = new RoadSelection({
-      camera: sceneManager.camera,
-      domElement: sceneManager.renderer.domElement,
-      network: roadNetwork,
-      sceneManager,
-      onChange: () => this.syncToolbar(),
-    });
+    this.liveContext = session.liveContext;
+    this.sceneManager = session.sceneManager;
+    this.layoutRegistry = session.layoutRegistry;
+    this.gameState = session.gameState;
+    this.input = session.input;
+    this.roadNetwork = session.roadNetwork;
+    this.cameraController = session.cameraController;
+    this.firstPersonController = session.firstPersonController;
+    this.roadTool = session.roadTool;
+    this.roadSelection = session.roadSelection;
+    this.buildingTool = session.buildingTool;
+    this.burgageTool = session.burgageTool;
+    this.buildingMarkers = session.buildingMarkers;
+    this.deliveryAgents = session.deliveryAgents;
+    this.residenceMarkers = session.residenceMarkers;
+    this.backyardGardenMarkers = session.backyardGardenMarkers;
+    this.burgageFencing = session.burgageFencing;
+    this.toolbar = session.toolbar;
+    this.toastManager = session.toastManager;
+    this.disposeTooltips = session.disposeTooltips;
+    this.resourceInspector = session.resourceInspector;
+    this.worldMapIcons = session.worldMapIcons;
+    this.ambientAudio = session.ambientAudio;
+    this.spacetimeStore = session.spacetimeStore;
 
-    const toggleRoadTool = (): void => {
-      roadTool.setEnabled(!roadTool.isEnabled());
-      if (roadTool.isEnabled()) {
-        buildingTool.setMode('off');
-        burgageTool.setEnabled(false);
-      }
-      this.syncToolbar();
+    this.snapshotApplierDeps = {
+      sceneManager: this.sceneManager,
+      buildingMarkers: this.buildingMarkers,
+      burgageFencing: this.burgageFencing,
+      forestVisualSync: this.forestVisualSync,
+      settlementWorld: {
+        residenceMarkers: this.residenceMarkers,
+        backyardGardenMarkers: this.backyardGardenMarkers,
+        deliveryAgents: this.deliveryAgents,
+        getHeightAt: (x, z) => this.sceneManager?.terrain.getHeightAt(x, z) ?? 0,
+      },
+      onForestClearanceChanged: () => this.syncForestClearance(),
     };
 
-    const roadTool = new RoadTool({
-      domElement: sceneManager.renderer.domElement,
-      network: roadNetwork,
-      sceneManager,
-      selection: roadSelection,
-      terrainProjector: sceneManager.terrainProjector,
-      getGameState: () => this.gameState ?? gameState,
-      onToggle: toggleRoadTool,
-      onNetworkChanged: () => {
-        sceneManager.syncRoadNetwork(roadNetwork);
-        roadSelection.refresh();
-        this.syncToolbar();
-        if (this.spacetimeConnected && this.spacetimeStore) {
-          this.spacetimeStore.queueRoadSync(roadNetwork.snapshot());
-        }
-      },
-      onStateChanged: () => this.syncToolbar(),
-      onDeleteRequested: (request) => {
-        if (!this.toolbar) return;
-        if (!request) {
-          this.toolbar.hideDeletePopup();
-          return;
-        }
-        this.toolbar.showDeletePopup({
-          clientX: request.clientX,
-          clientY: request.clientY,
-          onRemove: () => roadTool.confirmDelete(request.edgeId),
-          onCancel: () => roadSelection.setSelected(null),
-        });
-      },
-      onPlacementRejected: (event) => {
-        const messageId = roadPlacementReasonToToastId(event.reason);
-        if (messageId) this.toastManager?.showMessageId(messageId, { variant: 'error' });
-      },
-    });
-
-    let firstPersonController: FirstPersonController;
-
-    const buildingTool = new BuildingTool({
-      domElement: sceneManager.renderer.domElement,
-      terrainProjector: sceneManager.terrainProjector,
-      markers: buildingMarkers,
-      getState: () => this.gameState ?? gameState,
-      onPlaceBuilding: async (kind, x, z) => {
-        if (!this.spacetimeStore?.isConnected) {
-          throw new Error('SpacetimeDB is not connected. Start the local server and refresh.');
-        }
-        await this.spacetimeStore.placeBuilding(kind, x, z);
-      },
-      isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
-      isQuarryPitAt: (x, z) => sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z),
-      getNaturalHeightAt: (x, z) => sampleNaturalTerrainHeight(x, z),
-      countMatureTreesInRadius: (x, z, radius) => {
-        const registry = this.treeRegistry;
-        const state = this.gameState ?? gameState;
-        if (!registry) return 0;
-        return countTreesNearBuilding(state, registry, x, z, radius).matureTrees;
-      },
-      getRoadNetwork: () => roadNetwork,
-      onPreviewChange: (preview) => {
-        this.syncBuildingTerrainLayout();
-        this.syncPreviewTerrainPads(preview);
-      },
-      onModeChanged: () => this.syncToolbar(),
-      onPlacementRejected: (reason) => {
-        this.toastManager?.showMessageId(buildingPlacementReasonToToastId(reason), { variant: 'error' });
-      },
-      onPlacementFailed: (message) => {
-        this.toastManager?.show(message, { variant: 'error' });
-      },
-      isBlocked: () => isBuildingPlacementBlocked(placementGate),
-    });
-
-    const burgageTool = new BurgageTool({
-      domElement: sceneManager.renderer.domElement,
-      camera: sceneManager.camera,
-      terrainProjector: sceneManager.terrainProjector,
-      roadNetwork,
-      getState: () => this.gameState ?? gameState,
-      getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
-      getNaturalHeightAt: (x, z) => sampleNaturalTerrainHeight(x, z),
-      isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
-      isQuarryPitAt: (x, z) => sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z),
-      onCommit: async (commit) => {
-        if (!this.spacetimeStore?.isConnected) {
-          throw new Error('SpacetimeDB is not connected. Start the local server and refresh.');
-        }
-        await this.spacetimeStore.placeBurgageZone({
-          corners: commit.corners.map((corner) => ({ x: corner.x, z: corner.z })),
-          frontageEdge: commit.frontageEdge,
-          plotCount: commit.plotCount,
-        });
-      },
-      onModeChanged: () => this.syncToolbar(),
-      onPlacementRejected: (reason) => {
-        this.toastManager?.showMessageId(burgagePlacementReasonToToastId(reason), { variant: 'error' });
-      },
-      onPlacementFailed: (message) => {
-        this.toastManager?.show(message, { variant: 'error' });
-      },
-      onPickRejected: (reason) => {
-        if (reason === 'missed_terrain') {
-          this.toastManager?.show('Click on terrain to place a point.', { variant: 'info', durationMs: 2200 });
-          return;
-        }
-        if (reason === 'off_road') {
-          this.toastManager?.show('Click beside a road for the frontage edge.', { variant: 'info', durationMs: 2400 });
-          return;
-        }
-        if (reason === 'invalid_depth') {
-          this.toastManager?.show(
-            `Set depth between ~${Math.round(MIN_ZONE_DEPTH)}m and ~${Math.round(MAX_ZONE_DEPTH)}m behind the road.`,
-            { variant: 'info', durationMs: 2600 },
-          );
-          return;
-        }
-        this.toastManager?.show('Move farther from the last corner.', { variant: 'info', durationMs: 2200 });
-      },
-      isBlocked: () => isBurgagePlacementBlocked(placementGate),
-    });
-    burgageTool.attachTo(sceneManager.previewGroup);
-
-    const residenceMarkers = new ResidenceMarkers(sceneManager.selectionGroup);
-    const backyardGardenMarkers = new BackyardGardenMarkers(sceneManager.selectionGroup);
-    const burgageFencing = new BurgageFencing(sceneManager.selectionGroup);
-
-    const toolbar = new BuildToolbar(uiRoot, {
-      onOpenRoads: toggleRoadTool,
-      onBuildRoad: () => {
-        if (burgageTool.isEnabled()) {
-          burgageTool.commitDraft();
-          return;
-        }
-        roadTool.commitDraft();
-      },
-      onToggleBuilding: (kind: BuildingKind) => {
-        buildingTool.toggleMode(kind);
-        if (buildingTool.isEnabled()) {
-          roadTool.setEnabled(false);
-          burgageTool.setEnabled(false);
-        }
-        this.syncToolbar();
-      },
-      onToggleResidences: () => {
-        const wasEnabled = burgageTool.isEnabled();
-        burgageTool.setEnabled(!wasEnabled);
-        if (burgageTool.isEnabled()) {
-          roadTool.setEnabled(false);
-          buildingTool.setMode('off');
-          this.toastManager?.show(
-            'Draw the rectangle along the road, then use the on-screen plot controls to choose how many homes fit.',
-            { variant: 'info', durationMs: 6500 },
-          );
-        }
-        this.syncToolbar();
-      },
-      onOpenCityAdministration: () => {
-        this.cityAdminPanel?.openPanel();
-      },
-      onBurgagePlotDecrease: () => {
-        burgageTool.adjustPlotCount(-1);
-        this.syncToolbar();
-      },
-      onBurgagePlotIncrease: () => {
-        burgageTool.adjustPlotCount(1);
-        this.syncToolbar();
-      },
-      onBurgageRotateFrontage: () => {
-        burgageTool.rotateFrontageEdge();
-        this.syncToolbar();
-      },
-      onSetWaterOverlay: (active) => {
-        setHydrologyOverlayEnabled(active);
-        this.sceneManager?.setHydrologyOverlayVisible(active);
-        this.toolbar?.setWaterOverlayActive(active);
-      },
-      onMenuOpenChange: (open) => {
-        cameraController.setInputEnabled(!open && !firstPersonController.isActive() && !this.cityAdminPanel?.isOpen());
-      },
-      onShadowPreferenceChange: () => {
-        sceneManager.applyShadowPreferences();
-      },
-      canOpenMenuFromKeyboard: () =>
-        !firstPersonController.isActive()
-        && !roadTool.isEnabled()
-        && !buildingTool.isEnabled()
-        && !burgageTool.isEnabled(),
-      onNewWorld: () => {
-        void beginNewWorld({ connected: this.spacetimeStore?.isConnected ?? false });
-      },
-    });
-    this.cityAdminPanel = new CityAdministrationPanel(uiRoot, {
-      getGameState: () => this.gameState,
-      getWorldQueries: () => worldQueries,
-      getTaxRate: () => this.spacetimeStore?.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
-      getParishPolicy: () => this.spacetimeStore?.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
-      onTaxRateChange: async (taxRate) => {
-        if (!this.spacetimeStore?.isConnected) {
-          this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
-          throw new Error('SpacetimeDB is not connected.');
-        }
-        await this.spacetimeStore.setEconomicActivityTaxRate(taxRate);
-      },
-      onTaxRateChangeFailed: (error) => {
-        const message = error instanceof Error ? error.message : 'Could not update tax rate.';
-        this.toastManager?.show(message, { variant: 'error' });
-      },
-      onParishPolicyChange: async (autoSweepEnabled, cofferReserveGold, sabbathObservanceEnabled) => {
-        if (!this.spacetimeStore?.isConnected) {
-          this.toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
-          throw new Error('SpacetimeDB is not connected.');
-        }
-        await this.spacetimeStore.setChapelParishPolicy(
-          autoSweepEnabled,
-          cofferReserveGold,
-          sabbathObservanceEnabled,
-        );
-      },
-      onParishPolicyChangeFailed: (error) => {
-        const message = error instanceof Error ? error.message : 'Could not update parish policy.';
-        this.toastManager?.show(message, { variant: 'error' });
-      },
-      onOpenChange: (open) => {
-        const menuOpen = this.toolbar?.isGameMenuOpen() ?? false;
-        cameraController.setInputEnabled(!open && !menuOpen && !firstPersonController.isActive());
-      },
-    });
-    const disposeTooltips = mountTooltips(uiRoot);
-    const toastManager = new ToastManager(uiRoot);
-    const inspectorActions = createInspectorSpacetimeActions(
-      () => this.spacetimeStore,
-      toastManager,
-    );
-    const resourceInspector = new ResourceInspector({
-      domElement: sceneManager.renderer.domElement,
-      uiRoot,
-      sceneManager,
-      terrainProjector: sceneManager.terrainProjector,
-      worldQueries,
-      getState: () => this.gameState!,
-      getEconomicActivityTaxRate: () =>
-        this.spacetimeStore?.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
-      getParishPolicy: () =>
-        this.spacetimeStore?.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
-      ...inspectorActions,
-      onSelectionChange: (target) => {
-        buildingMarkers.setSelectedWorkExtent(
-          target?.kind === 'building' ? target.building : null,
-        );
-      },
-      isBlocked: () => isWorldInspectionBlocked(placementGate),
-    });
-    resourceInspector.setHud(
-      computeResourceTotals(gameState),
-      computePopulationStats(gameState),
-    );
-
-    const worldMapIcons = createWorldMapIcons({
-      uiRoot,
-      domElement: sceneManager.renderer.domElement,
-      terrain: sceneManager.terrain,
-      registry: layoutRegistry,
-      getCamera: () => sceneManager.camera,
-      getZoomPercent: () => this.cameraController?.getZoomPercent() ?? 100,
-      getGameState: () => this.gameState ?? gameState,
-      onQuarrySelect: (quarryId) => resourceInspector.selectQuarry(quarryId),
-      onForagingSelect: (nodeId) => resourceInspector.selectForaging(nodeId),
-      onBackyardSelect: (residenceId) => resourceInspector.selectBackyard(residenceId),
-      isBlocked: () => isWorldInspectionBlocked(placementGate),
-    });
-
-    firstPersonController = new FirstPersonController({
-      camera: sceneManager.camera,
-      domElement: sceneManager.renderer.domElement,
-      bounds: sceneManager.terrain.bounds,
-      getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
-      getRoadDeckY: (x, z) => sceneManager.sampleRoadDeckY(x, z),
-      getOrbitSpawn: () => {
-        const target = cameraController.getTargetPosition();
-        return { x: target.x, z: target.z, yaw: cameraController.getYaw() };
-      },
-      isMenuOpen: () => toolbar.isGameMenuOpen(),
-      onModeChange: (active) => {
-        cameraController.setInputEnabled(!active && !toolbar.isGameMenuOpen());
-        toolbar.setFirstPersonMode(active);
-        if (active) {
-          if (roadTool.isEnabled()) roadTool.setEnabled(false);
-          if (buildingTool.isEnabled()) buildingTool.setMode('off');
-          if (burgageTool.isEnabled()) burgageTool.setEnabled(false);
-          return;
-        }
-        const pos = firstPersonController.getPosition();
-        cameraController.syncFromFirstPerson(pos.x, pos.z, firstPersonController.getBodyYaw());
-      },
-    });
-
-    placementGate.isRoadToolEnabled = () => roadTool.isEnabled();
-    placementGate.isBuildingToolEnabled = () => buildingTool.isEnabled();
-    placementGate.isBurgageToolEnabled = () => burgageTool.isEnabled();
-    placementGate.isFirstPersonActive = () => firstPersonController.isActive();
-    placementGate.isMenuOpen = () => toolbar.isGameMenuOpen();
-
-    this.sceneManager = sceneManager;
-    this.input = input;
-    this.roadNetwork = roadNetwork;
-    this.cameraController = cameraController;
-    this.firstPersonController = firstPersonController;
-    this.roadTool = roadTool;
-    this.roadSelection = roadSelection;
-    this.buildingTool = buildingTool;
-    this.burgageTool = burgageTool;
-    this.buildingMarkers = buildingMarkers;
-    this.deliveryAgents = deliveryAgents;
-    this.residenceMarkers = residenceMarkers;
-    this.backyardGardenMarkers = backyardGardenMarkers;
-    this.burgageFencing = burgageFencing;
-    this.toolbar = toolbar;
-    this.toolbar.setWaterOverlayActive(isHydrologyOverlayEnabled());
-    this.toastManager = toastManager;
-    this.disposeTooltips = disposeTooltips;
-    this.resourceInspector = resourceInspector;
-    this.worldMapIcons = worldMapIcons;
-    this.gameState = gameState;
-    this.ambientAudio = ambientAudio;
-    this.layoutRegistry = layoutRegistry;
-
-    const spacetimeStore = new SpacetimeGameStore();
-    this.spacetimeStore = spacetimeStore;
     this.gameRuntime = new GameRuntime(
-      spacetimeStore,
-      layoutRegistry,
-      sceneManager.worldLayout,
+      session.spacetimeStore,
+      session.layoutRegistry,
+      session.sceneManager.worldLayout,
       {
-      onSnapshot: (snapshot, state) => this.applySpacetimeSnapshot(snapshot, state),
-      onRoadsHydrated: (roads) => {
-        this.roadNetwork?.restore(roads);
-        this.sceneManager?.syncRoadNetwork(this.roadNetwork!);
-        this.roadSelection?.refresh();
-        this.syncToolbar();
+        onSnapshot: (snapshot, state) => this.applySpacetimeSnapshot(snapshot, state),
+        onRoadsHydrated: (roads) => {
+          this.roadNetwork?.restore(roads);
+          this.sceneManager?.syncRoadNetwork(this.roadNetwork!);
+          this.roadSelection?.refresh();
+          this.syncToolbar();
+        },
+        onConnectError: (error) => {
+          console.warn('SpacetimeDB unavailable — game simulation requires the server.', error);
+          clearAuthoritativeWorldGeneration();
+          this.toastManager?.show('SpacetimeDB is offline. Run `spacetime start` and refresh.', { variant: 'error' });
+        },
       },
-      onConnectError: (error) => {
-        console.warn('SpacetimeDB unavailable — game simulation requires the server.', error);
-        this.spacetimeConnected = false;
-        this.toastManager?.show('SpacetimeDB is offline. Run `spacetime start` and refresh.', { variant: 'error' });
-      },
-    });
+    );
     this.gameRuntime.start();
 
     this.exposeDevHandles();
 
-    sceneManager.syncRoadNetwork(roadNetwork);
+    session.sceneManager.syncRoadNetwork(session.roadNetwork);
     this.syncToolbar();
     window.addEventListener('resize', this.onResize);
     this.onResize();
-    cameraController.applyRtsOrbitView();
-    cameraController.update(0);
-    this.toolbar?.setZoomPercent(cameraController.getZoomPercent());
+    session.cameraController.applyRtsOrbitView();
+    session.cameraController.update(0);
+    this.toolbar?.setZoomPercent(session.cameraController.getZoomPercent());
     this.lastTime = performance.now();
     this.frameBudgetTime = this.lastTime;
     this.fpsSampleStart = this.lastTime;
-    loadingScreen?.setProgress({ label: 'Almost ready…', detail: 'Rendering first frame' });
-    sceneManager.render(0, cameraController.getOrbitDistance());
-    loadingScreen?.dismiss();
-    this.animationId = requestAnimationFrame(this.tick);
+    session.loadingScreen?.setProgress({ label: 'Almost ready…', detail: 'Rendering first frame' });
+    session.sceneManager.render(0, session.cameraController.getOrbitDistance());
+    session.loadingScreen?.dismiss();
     window.setTimeout(() => {
       void (async () => {
         try {
-          await sceneManager.finishVegetation();
-          if (this.roadNetwork) sceneManager.syncRoadNetwork(this.roadNetwork);
+          await session.sceneManager.finishVegetation();
+          if (this.roadNetwork) session.sceneManager.syncRoadNetwork(this.roadNetwork);
           this.onForestReady();
         } catch (error) {
           console.error('Vegetation build failed:', error);
         }
       })();
     }, 0);
+    this.animationId = requestAnimationFrame(this.tick);
   }
 
   dispose(): void {
@@ -669,7 +263,7 @@ export class App {
     );
     this.ambientAudio?.tick(dt);
     this.settlementPresentation.tick({
-      toolbar: this.toolbar,
+      settlementHud: this.toolbar?.settlementHud ?? null,
       sceneManager: this.sceneManager,
       residenceMarkers: this.residenceMarkers,
     });
@@ -678,18 +272,29 @@ export class App {
 
   private onForestReady(): void {
     const forestManager = this.sceneManager?.getForestManager();
-    if (!forestManager || !this.gameState) return;
+    if (!forestManager || !this.gameState || !this.liveContext) return;
 
     this.treeRegistry = TreeRegistry.fromForestManager(forestManager);
+    this.liveContext.treeRegistry = this.treeRegistry;
     this.forestVisualSync = new ForestVisualSync(forestManager);
+    if (this.snapshotApplierDeps) {
+      this.snapshotApplierDeps.forestVisualSync = this.forestVisualSync;
+    }
     this.buildingMarkers?.syncBuildings(this.gameState.buildings.values());
-    this.syncSettlementWorld(this.gameState);
+    if (this.snapshotApplierDeps) {
+      syncSettlementWorld(this.snapshotApplierDeps.settlementWorld, this.gameState);
+    }
     this.burgageFencing?.syncZones(
       this.gameState.burgageZones.values(),
       this.gameState.residences.values(),
       (x, z) => this.sceneManager?.terrain.getHeightAt(x, z) ?? 0,
     );
-    this.syncPlacedBuildingTerrain({ forceMeshUpdate: true });
+    syncPlacedBuildingTerrain({
+      sceneManager: this.sceneManager,
+      gameState: this.gameState,
+      buildingMarkers: this.buildingMarkers,
+      forceMeshUpdate: true,
+    });
     this.syncForestClearance();
     this.syncResourceUi();
     this.exposeDevHandles();
@@ -768,9 +373,8 @@ export class App {
   }
 
   private applySpacetimeSnapshot(snapshot: SpacetimeGameSnapshot, state: GameState): void {
-    this.spacetimeConnected = snapshot.connected;
-
     if (!snapshot.connected) {
+      clearAuthoritativeWorldGeneration();
       this.spacetimeSnapshotApplier.reset();
       this.settlementPresentation.reset();
       this.syncToolbar();
@@ -779,62 +383,35 @@ export class App {
 
     const previous = this.gameState;
     this.gameState = state;
+    if (this.liveContext) {
+      this.liveContext.gameState = state;
+    }
+
+    if (!this.snapshotApplierDeps) return;
 
     this.spacetimeSnapshotApplier.apply(
-      this.getSnapshotApplierDeps(),
+      this.snapshotApplierDeps,
       state,
       previous,
     );
 
     this.syncResourceUi();
     this.syncToolbar();
-    this.applySettlementPresentation();
-  }
-
-  private getSnapshotApplierDeps() {
-    return {
-      sceneManager: this.sceneManager,
-      buildingMarkers: this.buildingMarkers,
-      burgageFencing: this.burgageFencing,
-      forestVisualSync: this.forestVisualSync,
-      settlementWorld: this.getSettlementWorldTargets(),
-      onForestClearanceChanged: () => this.syncForestClearance(),
-    };
-  }
-
-  private getSettlementWorldTargets() {
-    return {
-      residenceMarkers: this.residenceMarkers,
-      backyardGardenMarkers: this.backyardGardenMarkers,
-      deliveryAgents: this.deliveryAgents,
-      getHeightAt: (x: number, z: number) => this.sceneManager?.terrain.getHeightAt(x, z) ?? 0,
-    };
-  }
-
-  private syncSettlementWorld(state: GameState): void {
-    syncSettlementWorld(this.getSettlementWorldTargets(), state);
+    this.settlementPresentation.sync(
+      {
+        settlementHud: this.toolbar?.settlementHud ?? null,
+        sceneManager: this.sceneManager,
+        residenceMarkers: this.residenceMarkers,
+      },
+      snapshot,
+      state,
+      this.spacetimeStore?.isConnected ?? false,
+    );
   }
 
   private syncForestClearance(): void {
-    if (!this.gameState) return;
-    this.spacetimeSnapshotApplier.syncForestClearance(this.getSnapshotApplierDeps(), this.gameState);
-  }
-
-  private syncBuildingTerrainLayout(): void {
-    syncBuildingTerrainLayout(this.sceneManager, this.gameState);
-  }
-
-  private syncPreviewTerrainPads(preview: BuildingTerrainSource | null): void {
-    syncPreviewTerrainPads(this.sceneManager, this.gameState, preview);
-  }
-
-  private syncPlacedBuildingTerrain(options?: { forceMeshUpdate?: boolean }): void {
-    syncPlacedBuildingTerrain({
-      sceneManager: this.sceneManager,
-      gameState: this.gameState,
-      buildingMarkers: this.buildingMarkers,
-      forceMeshUpdate: options?.forceMeshUpdate,
-    });
+    if (!this.gameState || !this.snapshotApplierDeps) return;
+    this.spacetimeSnapshotApplier.syncForestClearance(this.snapshotApplierDeps, this.gameState);
   }
 
   private syncResourceUi(): void {
@@ -845,21 +422,6 @@ export class App {
     );
     this.resourceInspector.refreshSelection();
     this.cityAdminPanel?.refresh();
-    this.applySettlementPresentation();
-  }
-
-  private applySettlementPresentation(): void {
-    if (!this.spacetimeStore) return;
-    this.settlementPresentation.sync(
-      {
-        toolbar: this.toolbar,
-        sceneManager: this.sceneManager,
-        residenceMarkers: this.residenceMarkers,
-      },
-      this.spacetimeStore.snapshot,
-      this.gameState,
-      this.spacetimeStore.isConnected,
-    );
   }
 
   private exposeDevHandles(): void {
@@ -875,11 +437,5 @@ export class App {
       registry: this.layoutRegistry,
       treeRegistry: this.treeRegistry,
     };
-  }
-
-  private mustElement(selector: string): HTMLElement {
-    const element = this.root.querySelector<HTMLElement>(selector);
-    if (!element) throw new Error(`Missing app element ${selector}`);
-    return element;
   }
 }

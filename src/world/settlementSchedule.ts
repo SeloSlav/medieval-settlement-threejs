@@ -1,10 +1,11 @@
-import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
 import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
+import type { ParishPolicyState } from '../economy/chapelParish.ts';
 import { playerHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import type { GameState } from '../resources/types.ts';
-import { computeDayNightState, type DayNightLightingState } from './dayNightPresentation.ts';
+import { computeDayNightState } from './dayNightPresentation.ts';
 import {
   gameClock,
+  gameClockAtElapsedSeconds,
   isLaborPaused,
   laborPauseLabel,
   type GameClock,
@@ -14,13 +15,32 @@ export type SettlementSchedule = {
   clock: GameClock;
   laborPaused: boolean;
   laborPauseLabel: string | null;
-  dayNight: DayNightLightingState;
+  dayNight: ReturnType<typeof computeDayNightState>;
   sabbathObservance: boolean;
   staffedChapel: boolean;
 };
 
+export function deriveSettlementScheduleFromClock(
+  clock: GameClock,
+  parishPolicy: ParishPolicyState,
+  gameState: GameState | null,
+): SettlementSchedule {
+  const sabbathObservance = parishPolicy.sabbathObservanceEnabled
+    ?? DEFAULT_PARISH_POLICY.sabbathObservanceEnabled;
+  const staffedChapel = gameState ? playerHasStaffedChapel(gameState.buildings.values()) : false;
+  const laborPaused = isLaborPaused(clock, sabbathObservance, staffedChapel);
+  return {
+    clock,
+    laborPaused,
+    laborPauseLabel: laborPauseLabel(clock, sabbathObservance, staffedChapel),
+    dayNight: computeDayNightState(clock, laborPaused),
+    sabbathObservance,
+    staffedChapel,
+  };
+}
+
 export function settlementScheduleDirtyKey(
-  snapshot: Pick<SpacetimeGameSnapshot, 'simTick' | 'parishPolicy'>,
+  snapshot: { simTick: number; parishPolicy: ParishPolicyState },
   gameState: GameState | null,
 ): string {
   const sabbathObservance = snapshot.parishPolicy.sabbathObservanceEnabled
@@ -36,23 +56,26 @@ export function settlementScheduleDirtyKey(
 }
 
 export function deriveSettlementSchedule(
-  snapshot: Pick<SpacetimeGameSnapshot, 'simTick' | 'parishPolicy'>,
+  snapshot: { simTick: number; parishPolicy: ParishPolicyState },
   gameState: GameState | null,
 ): SettlementSchedule {
-  const clock = gameClock(snapshot.simTick);
-  const sabbathObservance = snapshot.parishPolicy.sabbathObservanceEnabled
-    ?? DEFAULT_PARISH_POLICY.sabbathObservanceEnabled;
-  const staffedChapel = gameState ? playerHasStaffedChapel(gameState.buildings.values()) : false;
-  const laborPaused = isLaborPaused(clock, sabbathObservance, staffedChapel);
+  return deriveSettlementScheduleFromClock(
+    gameClock(snapshot.simTick),
+    snapshot.parishPolicy,
+    gameState,
+  );
+}
 
-  return {
-    clock,
-    laborPaused,
-    laborPauseLabel: laborPauseLabel(clock, sabbathObservance, staffedChapel),
-    dayNight: computeDayNightState(clock, laborPaused),
-    sabbathObservance,
-    staffedChapel,
-  };
+export function deriveInterpolatedSettlementSchedule(
+  elapsedSeconds: number,
+  parishPolicy: ParishPolicyState,
+  gameState: GameState | null,
+): SettlementSchedule {
+  return deriveSettlementScheduleFromClock(
+    gameClockAtElapsedSeconds(elapsedSeconds),
+    parishPolicy,
+    gameState,
+  );
 }
 
 /**

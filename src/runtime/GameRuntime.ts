@@ -4,10 +4,12 @@
  */
 
 import type { SpacetimeGameSnapshot, SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
+import type { GameState } from '../resources/types.ts';
 import type { RoadNetworkSnapshot } from '../roads/RoadNetwork.ts';
 import type { WorldLayout } from '../resources/WorldLayout.ts';
-import type { GameState } from '../resources/types.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
+import { assertWorldGenerationCompatible } from '../world/worldConfigAuthority.ts';
+import { applyAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
 
 export type GameRuntimeCallbacks = {
   onSnapshot: (snapshot: SpacetimeGameSnapshot, gameState: GameState) => void;
@@ -50,7 +52,7 @@ export class GameRuntime {
 
       if (!this.worldBootstrapped && snapshot.connected) {
         this.worldBootstrapped = true;
-        void this.ensureWorldBootstrap().catch((error) => {
+        void this.ensureWorldBootstrap(snapshot).catch((error) => {
           console.warn('[GameRuntime] Failed to bootstrap world entities', error);
           this.worldBootstrapped = false;
         });
@@ -68,8 +70,35 @@ export class GameRuntime {
     this.unsubscribe = null;
   }
 
-  private async ensureWorldBootstrap(): Promise<void> {
-    await this.store.configureWorld(this.worldLayout.settings);
+  private async ensureWorldBootstrap(snapshot: SpacetimeGameSnapshot): Promise<void> {
+    await this.waitForWorldConfig();
+    const local = this.worldLayout.settings;
+    const server = this.store.getAuthoritativeWorldGeneration();
+    assertWorldGenerationCompatible(local, server, snapshot.simTick);
+    await this.store.configureWorld(local);
+    const authoritative = this.store.getAuthoritativeWorldGeneration();
+    if (authoritative?.configured) {
+      applyAuthoritativeWorldGeneration(authoritative);
+    }
     await this.store.bootstrapWorld(this.registry, this.worldLayout);
+  }
+
+  private waitForWorldConfig(maxAttempts = 40): Promise<void> {
+    return new Promise((resolve, reject) => {
+      let attempts = 0;
+      const poll = (): void => {
+        if (this.store.getAuthoritativeWorldGeneration() !== null) {
+          resolve();
+          return;
+        }
+        attempts += 1;
+        if (attempts >= maxAttempts) {
+          reject(new Error('Timed out waiting for world_config subscription.'));
+          return;
+        }
+        window.setTimeout(poll, 50);
+      };
+      poll();
+    });
   }
 }

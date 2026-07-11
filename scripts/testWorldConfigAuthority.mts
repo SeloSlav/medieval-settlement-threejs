@@ -1,16 +1,22 @@
 import assert from 'node:assert/strict';
 import type { WorldConfig } from '../src/generated/types.ts';
 import {
+  assertWorldGenerationCompatible,
   decodeMapSize,
   encodeMapSize,
   generationMatchesServer,
+  MAP_SIZE_BY_CODE,
+  MAP_SIZE_CODES,
   settingsToConfigurePayload,
+  WorldGenerationMismatchError,
   worldConfigRowToGeneration,
 } from '../src/world/worldConfigAuthority.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 
-assert.equal(encodeMapSize('medium'), 1);
-assert.equal(decodeMapSize(2), 'large');
+assert.equal(encodeMapSize('medium'), MAP_SIZE_CODES.medium);
+assert.equal(decodeMapSize(2), MAP_SIZE_BY_CODE[2]);
+assert.equal(MAP_SIZE_CODES.small, 0);
+assert.equal(MAP_SIZE_CODES.large, 2);
 
 const row = {
   id: 0,
@@ -36,7 +42,24 @@ assert.equal(
 );
 
 const payload = settingsToConfigurePayload(DEFAULT_WORLD_GENERATION_SETTINGS);
-assert.equal(payload.mapSize, 1);
+assert.equal(payload.mapSize, MAP_SIZE_CODES.medium);
 assert.equal(payload.seed, BigInt(DEFAULT_WORLD_GENERATION_SETTINGS.seed));
+
+assert.throws(
+  () => assertWorldGenerationCompatible(
+    DEFAULT_WORLD_GENERATION_SETTINGS,
+    generation,
+    42,
+  ),
+  WorldGenerationMismatchError,
+);
+
+assert.doesNotThrow(
+  () => assertWorldGenerationCompatible(
+    DEFAULT_WORLD_GENERATION_SETTINGS,
+    generation,
+    0,
+  ),
+);
 
 console.log('world config authority tests passed');

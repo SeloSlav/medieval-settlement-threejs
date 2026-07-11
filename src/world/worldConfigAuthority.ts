@@ -9,13 +9,20 @@ export type AuthoritativeWorldGeneration = WorldGenerationSettings & {
   configured: boolean;
 };
 
-const MAP_SIZE_CODES: Record<WorldMapSize, number> = {
+export class WorldGenerationMismatchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WorldGenerationMismatchError';
+  }
+}
+
+export const MAP_SIZE_CODES = {
   small: 0,
   medium: 1,
   large: 2,
-};
+} as const satisfies Record<WorldMapSize, number>;
 
-const MAP_SIZE_BY_CODE: Record<number, WorldMapSize> = {
+export const MAP_SIZE_BY_CODE: Record<number, WorldMapSize> = {
   0: 'small',
   1: 'medium',
   2: 'large',
@@ -52,6 +59,21 @@ export function generationMatchesServer(
     && server.topography === local.topography
     && server.hydrology === local.hydrology
     && server.forestDensity === local.forestDensity;
+}
+
+/** Blocks bootstrap when a running server world was generated with different settings. */
+export function assertWorldGenerationCompatible(
+  local: WorldGenerationSettings,
+  server: AuthoritativeWorldGeneration | null,
+  simTick: number,
+): void {
+  if (!server?.configured) return;
+  if (generationMatchesServer(server, local)) return;
+  if (simTick > 0) {
+    throw new WorldGenerationMismatchError(
+      'This server world was generated with different settings. Use Game menu → New world… to start fresh.',
+    );
+  }
 }
 
 export function settingsToConfigurePayload(settings: WorldGenerationSettings) {

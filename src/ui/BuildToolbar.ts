@@ -20,12 +20,6 @@ import {
 } from './buildMenuCards.ts';
 import { toolbarModeToMenuAction } from './buildMenuMapping.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
-import type { SettlementSchedule } from '../world/settlementSchedule.ts';
-import {
-  formatCalendarDate,
-  formatClockTime,
-  formatWeekday,
-} from '../world/gameCalendar.ts';
 import {
   describeBuilderHelp,
   describeBuilderTitle,
@@ -34,6 +28,7 @@ import {
   isConstructionToolMode,
   type ToolbarStats,
 } from './buildToolbarStatus.ts';
+import { SettlementHud } from './SettlementHud.ts';
 
 export type { ToolbarStats };
 
@@ -63,12 +58,7 @@ export class BuildToolbar {
   private readonly deletePopup: HTMLElement;
   private readonly removeButton: HTMLButtonElement;
   private readonly cancelDeleteButton: HTMLButtonElement;
-  private readonly fpsPanel: HTMLElement;
-  private readonly clockDate: HTMLElement;
-  private readonly clockTime: HTMLElement;
-  private readonly clockDetail: HTMLElement;
-  private readonly fpsValue: HTMLElement;
-  private readonly zoomValue: HTMLElement;
+  readonly settlementHud: SettlementHud;
   private readonly fpModePanel: HTMLElement;
   private readonly constructionDock: HTMLElement;
   private readonly zoomStat: HTMLElement;
@@ -149,117 +139,6 @@ export class BuildToolbar {
   ) {
     root.innerHTML = `
       <div class="hud-right-stack">
-        <div class="settlement-hud" data-settlement-hud data-fps-panel aria-label="Settlement overview" aria-live="polite">
-          <div class="settlement-hud__clock" data-settlement-clock>
-            <span class="settlement-hud__clock-date" data-clock-date>Year 1</span>
-            <span class="settlement-hud__clock-time" data-clock-time>06:00</span>
-            <span class="settlement-hud__clock-detail" data-clock-detail></span>
-          </div>
-          <div class="settlement-hud__perf">
-            <div
-              class="settlement-hud__stat settlement-hud__stat--perf"
-              tabindex="0"
-              data-tooltip="Frames per second. Turns amber below 60 and gold at 85 or higher."
-            >
-              <span class="settlement-hud__label">FPS</span>
-              <strong class="settlement-hud__value settlement-hud__value--fps" data-stat="fps">--</strong>
-            </div>
-            <div
-              class="settlement-hud__stat settlement-hud__stat--perf"
-              tabindex="0"
-              data-stat-row="zoom"
-              data-tooltip="Camera zoom level. Scroll the mouse wheel to zoom in and out on the map."
-            >
-              <span class="settlement-hud__label">Zoom</span>
-              <strong class="settlement-hud__value settlement-hud__value--zoom" data-stat="zoom">100%</strong>
-            </div>
-          </div>
-          <div class="settlement-hud__body">
-            <div
-              class="settlement-hud__stat"
-              tabindex="0"
-              data-resource="timber"
-              data-tooltip="Timber in your treasury plus lumber stored at mills and lodges. Building costs spend treasury first, then pull from building storage."
-            >
-              <span class="settlement-hud__label">Timber</span>
-              <strong class="settlement-hud__value" data-stockpile="timber">0</strong>
-            </div>
-            <div
-              class="settlement-hud__stat"
-              tabindex="0"
-              data-resource="stone"
-              data-tooltip="Stone in your treasury plus quarry camp storage. Construction spends treasury first, then quarry storage."
-            >
-              <span class="settlement-hud__label">Stone</span>
-              <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
-            </div>
-            <div
-              class="settlement-hud__stat"
-              tabindex="0"
-              data-resource="firewood"
-              data-tooltip="Firewood held in treasury, woodcutter lodges, and residence stocks combined."
-            >
-              <span class="settlement-hud__label">Firewood</span>
-              <strong class="settlement-hud__value" data-stockpile="firewood">0</strong>
-            </div>
-            <div
-              class="settlement-hud__stat settlement-hud__stat--water"
-              tabindex="0"
-              data-resource="water"
-              data-tooltip="Water in treasury, wells, and residence stocks combined."
-            >
-              <span class="settlement-hud__label">Water</span>
-              <strong class="settlement-hud__value" data-stockpile="water">0</strong>
-            </div>
-            <div
-              class="settlement-hud__stat settlement-hud__stat--food"
-              tabindex="0"
-              data-resource="food"
-              data-tooltip="Food in treasury, supplier buildings, and residence stocks combined."
-            >
-              <span class="settlement-hud__label">Food</span>
-              <strong class="settlement-hud__value" data-stockpile="food">0</strong>
-            </div>
-            <div
-              class="settlement-hud__stat settlement-hud__stat--gold"
-              tabindex="0"
-              data-resource="gold"
-              data-tooltip="Treasury gold from taxed village economic activity. Adjust the mayor tax in City administration (build menu)."
-            >
-              <span class="settlement-hud__label">Gold</span>
-              <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
-            </div>
-            <div
-              class="settlement-hud__stat"
-              tabindex="0"
-              data-resource="population"
-              data-tooltip="Total population: starting townsfolk plus residents who have moved into homes."
-            >
-              <span class="settlement-hud__label">Population</span>
-              <strong class="settlement-hud__value" data-stockpile="population">0</strong>
-            </div>
-            <div
-              class="settlement-hud__stat"
-              tabindex="0"
-              data-resource="housing"
-              data-tooltip="Residents housed versus total housing capacity. New homes start empty and attract settlers over time."
-            >
-              <span class="settlement-hud__label">Housing</span>
-              <strong class="settlement-hud__value" data-stockpile="housing">0/0</strong>
-              <span class="settlement-hud__sub" data-stockpile="housing-sub">0 vacant</span>
-            </div>
-            <div
-              class="settlement-hud__stat"
-              tabindex="0"
-              data-resource="labor"
-              data-tooltip="Workers free to assign. Labor equals population minus workers already assigned to buildings."
-            >
-              <span class="settlement-hud__label">Labor</span>
-              <strong class="settlement-hud__value" data-stockpile="labor">0</strong>
-              <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>
-            </div>
-          </div>
-        </div>
 
         <aside class="fp-controls-panel" data-tip-card="fp" data-fp-controls-panel aria-label="Walk mode controls" hidden>
           <header class="road-controls-header">
@@ -416,6 +295,8 @@ export class BuildToolbar {
     `;
 
     this.root = root;
+    const hudStack = this.mustElement(root, '.hud-right-stack');
+    this.settlementHud = new SettlementHud(hudStack);
     this.toolbarHandlers = {
       onToggleBuilding: handlers.onToggleBuilding,
       onToggleResidences: handlers.onToggleResidences,
@@ -451,15 +332,9 @@ export class BuildToolbar {
     this.deletePopup = this.mustElement(root, '[data-delete-popup]');
     this.removeButton = this.mustButton(root, '[data-action="confirm-delete"]');
     this.cancelDeleteButton = this.mustButton(root, '[data-action="cancel-delete"]');
-    this.fpsPanel = this.mustElement(root, '[data-settlement-hud]');
-    this.clockDate = this.mustElement(root, '[data-clock-date]');
-    this.clockTime = this.mustElement(root, '[data-clock-time]');
-    this.clockDetail = this.mustElement(root, '[data-clock-detail]');
-    this.fpsValue = this.mustElement(root, '[data-stat="fps"]');
-    this.zoomValue = this.mustElement(root, '[data-stat="zoom"]');
     this.fpModePanel = this.mustElement(root, '[data-fp-mode-panel]');
     this.constructionDock = this.mustElement(root, '[data-construction-dock]');
-    this.zoomStat = this.mustElement(root, '[data-stat-row="zoom"]');
+    this.zoomStat = this.settlementHud.zoomStat;
     this.builderPanelTitle = this.mustElement(root, '[data-road-controls-panel] .road-controls-title');
     this.builderHelpList = this.mustElement(root, '[data-road-controls-panel] .road-controls-list');
     this.builderStatusBar = this.mustElement(root, '[data-builder-status]');
@@ -634,27 +509,16 @@ export class BuildToolbar {
     this.burgageLayoutHud.style.top = `${top}px`;
   }
 
-  setSettlementClock(schedule: SettlementSchedule): void {
-    this.clockDate.textContent = formatCalendarDate(schedule.clock);
-    this.clockTime.textContent = formatClockTime(schedule.clock);
-    const pauseLabel = schedule.laborPauseLabel;
-    this.clockDetail.textContent = pauseLabel
-      ? `${formatWeekday(schedule.clock)} · ${pauseLabel}`
-      : formatWeekday(schedule.clock);
-    this.fpsPanel.classList.toggle('is-sabbath', pauseLabel === 'Sunday sabbath');
-    this.fpsPanel.classList.toggle('is-night', pauseLabel === 'Night hours');
+  setSettlementClock(schedule: Parameters<SettlementHud['setSettlementClock']>[0]): void {
+    this.settlementHud.setSettlementClock(schedule);
   }
 
   setFps(fps: number): void {
-    const displayFps = Math.min(90, Math.round(fps));
-    this.fpsValue.textContent = displayFps.toString();
-    this.fpsPanel.classList.toggle('is-low', displayFps < 60);
-    this.fpsPanel.classList.toggle('is-fast', displayFps >= 85);
+    this.settlementHud.setFps(fps);
   }
 
   setZoomPercent(zoomPercent: number): void {
-    const displayZoom = Math.max(1, Math.round(zoomPercent));
-    this.zoomValue.textContent = `${displayZoom}%`;
+    this.settlementHud.setZoomPercent(zoomPercent);
   }
 
   isGameMenuOpen(): boolean {

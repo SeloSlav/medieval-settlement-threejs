@@ -43,9 +43,12 @@ import {
   generationMatchesServer,
   type AuthoritativeWorldGeneration,
 } from '../world/worldConfigAuthority.ts';
+import { getDraftWorldGeneration } from '../world/worldGenerationContext.ts';
 import { inferNextBuildingId } from './spacetimeIds.ts';
 import * as spacetimeReducers from './spacetimeReducers.ts';
+import { applyAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
 import { GameTableSync } from './spacetimeTableSync/gameTableSync.ts';
+import { syncWorldConfig } from './spacetimeTableSync/syncWorldConfig.ts';
 import type { GameTableSyncState } from './spacetimeTableSync/gameTableSyncState.ts';
 
 export type SpacetimeGameSnapshot = {
@@ -186,7 +189,9 @@ export class SpacetimeGameStore {
 
   toGameState(registry: WorldLayoutRegistry): GameState {
     const state = this.tableState;
-    const seed = state.worldGeneration?.seed ?? 0;
+    const seed = state.worldGeneration?.configured
+      ? state.worldGeneration.seed
+      : getDraftWorldGeneration().seed;
     const quarries = new Map(state.quarries);
     const foragingNodes = new Map(state.foragingNodes);
     if (!this.isConnected) {
@@ -313,6 +318,14 @@ export class SpacetimeGameStore {
       return;
     }
     await spacetimeReducers.configureWorld(settings);
+    const connection = getConnection();
+    if (connection) {
+      syncWorldConfig(connection.db.world_config ? connection.db.world_config.iter() : [], this.tableState);
+      if (this.tableState.worldGeneration?.configured) {
+        applyAuthoritativeWorldGeneration(this.tableState.worldGeneration);
+      }
+      this.emit();
+    }
   }
 
   bootstrapWorld(registry: WorldLayoutRegistry, worldLayout: WorldLayout): Promise<void> {

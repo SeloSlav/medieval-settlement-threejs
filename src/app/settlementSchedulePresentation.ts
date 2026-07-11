@@ -3,16 +3,16 @@ import { simElapsedSeconds } from '../world/gameCalendar.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
 import type { GameState } from '../resources/types.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
-import type { BuildToolbar } from '../ui/BuildToolbar.ts';
+import type { SettlementHud } from '../ui/SettlementHud.ts';
 import {
   deriveSettlementSchedule,
+  deriveInterpolatedSettlementSchedule,
   settlementScheduleDirtyKey,
   type SettlementSchedule,
 } from '../world/settlementSchedule.ts';
-import { deriveInterpolatedSettlementSchedule } from '../world/interpolatedSettlementSchedule.ts';
 
 export type SettlementPresentationTargets = {
-  toolbar: BuildToolbar | null;
+  settlementHud: SettlementHud | null;
   sceneManager: SceneManager | null;
   residenceMarkers: ResidenceMarkers | null;
 };
@@ -50,8 +50,7 @@ export class SettlementPresentationController {
     this.anchor = { simTick: snapshot.simTick, receivedAtMs: performance.now() };
 
     const schedule = deriveSettlementSchedule(snapshot, gameState);
-    targets.toolbar?.setSettlementClock(schedule);
-    this.applyVisuals(targets, schedule);
+    this.applyPresentation(targets, schedule);
     return schedule;
   }
 
@@ -66,8 +65,7 @@ export class SettlementPresentationController {
       this.lastSnapshot.parishPolicy,
       this.lastGameState,
     );
-    targets.toolbar?.setSettlementClock(schedule);
-    this.applyVisuals(targets, schedule);
+    this.applyPresentation(targets, schedule);
   }
 
   reset(): void {
@@ -77,22 +75,10 @@ export class SettlementPresentationController {
     this.lastGameState = null;
   }
 
-  private applyVisuals(targets: SettlementPresentationTargets, schedule: SettlementSchedule): void {
+  private applyPresentation(targets: SettlementPresentationTargets, schedule: SettlementSchedule): void {
+    targets.settlementHud?.setSettlementClock(schedule);
     targets.sceneManager?.applyDayNight(schedule.dayNight);
     targets.residenceMarkers?.setChimneySmokeAllowed(schedule.dayNight.smokeAllowed);
     targets.residenceMarkers?.setEveningWindowGlow(schedule.dayNight.eveningWindowGlow);
   }
-}
-
-export function applySettlementPresentation(
-  targets: SettlementPresentationTargets,
-  snapshot: Pick<SpacetimeGameSnapshot, 'simTick' | 'parishPolicy'>,
-  gameState: GameState | null,
-): SettlementSchedule {
-  const schedule = deriveSettlementSchedule(snapshot, gameState);
-  targets.toolbar?.setSettlementClock(schedule);
-  targets.sceneManager?.applyDayNight(schedule.dayNight);
-  targets.residenceMarkers?.setChimneySmokeAllowed(schedule.dayNight.smokeAllowed);
-  targets.residenceMarkers?.setEveningWindowGlow(schedule.dayNight.eveningWindowGlow);
-  return schedule;
 }
