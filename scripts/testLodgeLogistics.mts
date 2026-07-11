@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { residenceFirewoodRunwaySeconds, residenceHasFirewoodRoom } from '../src/logistics/firewoodLogistics.ts';
 import {
-  lodgeDeliveryIntervalSeconds,
   lodgeFirewoodPerDelivery,
   lodgeLaborAlternates,
   lodgeLaborSplit,
@@ -35,7 +34,6 @@ assert.deepEqual(lodgeLaborSplit(3), { processing: 2, delivering: 1 });
 assert.equal(lodgeLaborAlternates(1), true);
 assert.equal(lodgeLaborAlternates(2), false);
 assert.equal(lodgeFirewoodPerDelivery(2), lodgeFirewoodPerDelivery(1) * 2);
-assert.equal(lodgeDeliveryIntervalSeconds(2), lodgeDeliveryIntervalSeconds(1) / 2);
 
 const lowStock = residence('low', 2);
 const highStock = residence('high', 20);

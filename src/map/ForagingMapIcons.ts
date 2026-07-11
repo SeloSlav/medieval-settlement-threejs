@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { ForagingNodeState } from '../resources/types.ts';
 import type { ResourceNodeDefinition } from '../resources/types.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
@@ -8,41 +9,53 @@ import {
   placeProjectedMapButton,
 } from './mapIconProjection.ts';
 
-type QuarryMapIconsOptions = {
+type ForagingMapIconsOptions = {
   uiRoot: HTMLElement;
   domElement: HTMLElement;
   terrain: Terrain;
   registry: WorldLayoutRegistry;
   getCamera: () => THREE.PerspectiveCamera | null;
   getZoomPercent: () => number;
-  onQuarrySelect: (quarryId: string) => void;
+  getForagingNodes: () => Map<string, ForagingNodeState>;
+  onForagingSelect: (nodeId: string) => void;
   isBlocked: () => boolean;
 };
 
-type QuarryIconEntry = {
+type ForagingIconEntry = {
   definition: ResourceNodeDefinition;
   button: HTMLButtonElement;
   worldPoint: THREE.Vector3;
 };
 
-const STONE_ICON_SVG = `
-  <svg class="quarry-map-icon-glyph" viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M12 3.5 18.5 9l-2.2 11.5H7.7L5.5 9 12 3.5Z" fill="currentColor" opacity="0.92"/>
-    <path d="M9.2 10.2 12 7.8l2.8 2.4-1 5.8H10.2l-1-5.8Z" fill="currentColor" opacity="0.38"/>
+const GAME_ICON_SVG = `
+  <svg class="foraging-map-icon-glyph" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M6.5 18.5 10 6.5h4l3.5 12H6.5Z" fill="currentColor" opacity="0.9"/>
+    <path d="M11 8.5h2l1.2 4.2h-4.4L11 8.5Z" fill="currentColor" opacity="0.35"/>
+    <circle cx="16.5" cy="8" r="1.4" fill="currentColor"/>
   </svg>
 `.trim();
 
-export class QuarryMapIcons {
-  private readonly options: QuarryMapIconsOptions;
-  private readonly root: HTMLElement;
-  private readonly entries: QuarryIconEntry[];
+const BERRY_ICON_SVG = `
+  <svg class="foraging-map-icon-glyph" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="9" cy="11" r="2.2" fill="currentColor" opacity="0.92"/>
+    <circle cx="13.5" cy="9.5" r="2" fill="currentColor" opacity="0.82"/>
+    <circle cx="15" cy="13.5" r="1.8" fill="currentColor" opacity="0.78"/>
+    <circle cx="11" cy="15" r="1.6" fill="currentColor" opacity="0.7"/>
+    <path d="M12 5.5c1.2 0 2.2.8 2.4 2" stroke="currentColor" stroke-width="1.2" fill="none"/>
+  </svg>
+`.trim();
 
-  constructor(options: QuarryMapIconsOptions) {
+export class ForagingMapIcons {
+  private readonly options: ForagingMapIconsOptions;
+  private readonly root: HTMLElement;
+  private readonly entries: ForagingIconEntry[];
+
+  constructor(options: ForagingMapIconsOptions) {
     this.options = options;
-    this.root = createMapIconRoot(options.uiRoot, 'quarry-map-icons');
+    this.root = createMapIconRoot(options.uiRoot, 'foraging-map-icons');
 
     this.entries = options.registry.definitionList
-      .filter((definition) => definition.kind === 'quarry' && definition.resource === 'stone')
+      .filter((definition) => definition.kind === 'game' || definition.kind === 'berries')
       .map((definition) => ({
         definition,
         button: this.createIconButton(definition),
@@ -65,8 +78,16 @@ export class QuarryMapIcons {
     );
     if (!frame) return;
 
+    const nodes = this.options.getForagingNodes();
+
     for (const entry of this.entries) {
       const { definition, button, worldPoint } = entry;
+      const state = nodes.get(definition.id);
+      if (!state || state.remaining <= 0) {
+        button.hidden = true;
+        continue;
+      }
+
       placeProjectedMapButton(button, definition.x, definition.z, worldPoint, frame);
     }
   }
@@ -78,23 +99,26 @@ export class QuarryMapIcons {
   private createIconButton(definition: ResourceNodeDefinition): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'quarry-map-icon';
-    button.dataset.quarryId = definition.id;
+    button.className = 'foraging-map-icon';
+    button.dataset.foragingId = definition.id;
     button.title = definition.label;
     button.setAttribute('aria-label', definition.label);
     button.hidden = true;
 
-    if (definition.quarryKind === 'large') {
-      button.classList.add('quarry-map-icon--large');
+    if (definition.kind === 'game') {
+      button.classList.add('foraging-map-icon--game');
+      button.innerHTML = GAME_ICON_SVG;
+    } else {
+      button.classList.add('foraging-map-icon--berries');
+      button.innerHTML = BERRY_ICON_SVG;
     }
 
-    button.innerHTML = STONE_ICON_SVG;
     button.addEventListener('mousedown', (event) => {
       if (event.button !== 0) return;
       if (this.options.isBlocked()) return;
       event.preventDefault();
       event.stopPropagation();
-      this.options.onQuarrySelect(definition.id);
+      this.options.onForagingSelect(definition.id);
     });
 
     return button;

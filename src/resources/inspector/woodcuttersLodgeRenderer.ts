@@ -5,8 +5,11 @@ import {
   LODGE_TIMBER_PER_CYCLE,
 } from '../../generated/gameBalance.ts';
 import {
+  formatDeliveryRoadDistance,
+  formatDeliveryTripDuration,
+} from '../../logistics/deliveryLogistics.ts';
+import {
   formatLodgeCrewSplit,
-  lodgeDeliveryIntervalSeconds,
   lodgeFirewoodPerDelivery,
   lodgeLaborAlternates,
   lodgeLaborSplit,
@@ -25,6 +28,7 @@ import {
   formatNextDeliveryTargetLabel,
   resolveWoodcuttersLodgeStatus,
 } from './woodcuttersLodgeStatus.ts';
+import { formatTripPhaseLabel } from '../../logistics/deliveryTrips.ts';
 
 export function renderWoodcuttersLodgeInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -43,12 +47,17 @@ export function renderWoodcuttersLodgeInspector(
   const millsWithTimber = connectedMills.filter((mill) => mill.timber > 0).length;
   const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
   const onRoad = roadAccess.startsWith('Connected');
-  const deliveryInterval = lodgeDeliveryIntervalSeconds(crew.delivering);
+  const deliveryTripSeconds = context.worldQueries.getLodgeDeliveryTripSeconds(building, nextDeliveryTarget);
+  const deliveryDistance = nextDeliveryTarget
+    ? context.worldQueries.getRoadPathDistance(building.x, building.z, nextDeliveryTarget.x, nextDeliveryTarget.z)
+    : null;
   const firewoodPerTrip = lodgeFirewoodPerDelivery(crew.delivering);
+  const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
+  const tripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
   const processingWorkers = lodgeLaborAlternates(building.assignedLabor) ? 1 : crew.processing;
   const timberPerCycle = LODGE_TIMBER_PER_CYCLE * processingWorkers;
   const firewoodPerCycle = LODGE_FIREWOOD_PER_CYCLE * processingWorkers;
-  const canDeliver = crew.delivering > 0 && onRoad && building.firewood > 0 && nextDeliveryTarget != null;
+  const canDeliver = crew.delivering > 0 && onRoad && building.firewood > 0 && nextDeliveryTarget != null && !activeTrip;
   const { statusText, statusState } = resolveWoodcuttersLodgeStatus({
     onRoad,
     assignedLabor: building.assignedLabor,
@@ -58,7 +67,8 @@ export function renderWoodcuttersLodgeInspector(
     firewood: building.firewood,
     claimedResidenceCount: claimedResidences.length,
     crew,
-    deliveryCooldown: building.deliveryCooldown,
+    tripRemainingSeconds: tripRemaining,
+    activeTrip,
     nextTargetLabel,
     hasNextTarget: nextDeliveryTarget != null,
     firewoodPerTrip,
@@ -77,8 +87,9 @@ export function renderWoodcuttersLodgeInspector(
     : `${claimedResidences.length} claimed`;
 
   const deliveryRow = crew.delivering > 0
-    ? `<li><span>Next delivery</span><span>${nextTargetLabel}</span></li>
-      <li><span>Delivery timer</span><span>${formatCooldown(building.deliveryCooldown)} / ${deliveryInterval.toFixed(1)}s</span></li>
+    ? `<li><span>Next delivery</span><span>${activeTrip ? `Parcel #${(context.worldQueries.getResidence(activeTrip.residenceId)?.parcelIndex ?? 0) + 1}` : nextTargetLabel}</span></li>
+      <li><span>Road distance</span><span>${formatDeliveryRoadDistance(deliveryDistance)}</span></li>
+      <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
       <li><span>Firewood per trip</span><span>${firewoodPerTrip}</span></li>`
     : `<li><span>Delivery</span><span>Paused — no lodge workers</span></li>`;
 

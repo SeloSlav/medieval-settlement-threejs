@@ -26,7 +26,13 @@ import {
   isUnauthorizedConnectError,
 } from '../network/spacetimedbClient.ts';
 import type { RoadNetworkSnapshot } from '../roads/RoadNetwork.ts';
+import {
+  backyardGardenKindFromId,
+  type BackyardGardenKind,
+} from '../residences/backyardGarden.ts';
+import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
 import type {
+  BackyardGardenState,
   BuildingKind,
   BuildingState,
   BurgageFrontageEdge,
@@ -44,17 +50,26 @@ import {
   mergeNeedRow,
   needKindFromId,
 } from '../residences/residenceNeedState.ts';
+import {
+  cargoKindFromId,
+  phaseFromId,
+  type DeliveryTripState,
+} from '../logistics/deliveryTrips.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 
 export type SpacetimeGameSnapshot = {
   connected: boolean;
   identityHex: string | null;
   stockpile: ResourceStockpile;
+  economicActivityTaxRate: number;
   quarries: Map<string, QuarryNodeState>;
+  foragingNodes: Map<string, QuarryNodeState>;
   trees: Map<string, TreeEntityState>;
   buildings: Map<string, BuildingState>;
   burgageZones: Map<string, BurgageZoneState>;
   residences: Map<string, ResidenceState>;
+  backyardGardens: Map<string, BackyardGardenState>;
+  deliveryTrips: Map<string, DeliveryTripState>;
   roads: RoadNetworkSnapshot | null;
   simTick: number;
 };
@@ -73,11 +88,15 @@ export class SpacetimeGameStore {
   private identityHex: string | null = null;
   private readonly listeners = new Set<SpacetimeGameStoreListener>();
   private stockpile: ResourceStockpile = createEmptyStockpile();
+  private economicActivityTaxRate = ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
   private quarries = new Map<string, QuarryNodeState>();
+  private foragingNodes = new Map<string, QuarryNodeState>();
   private trees = new Map<string, TreeEntityState>();
   private buildings = new Map<string, BuildingState>();
   private burgageZones = new Map<string, BurgageZoneState>();
   private residences = new Map<string, ResidenceState>();
+  private backyardGardens = new Map<string, BackyardGardenState>();
+  private deliveryTrips = new Map<string, DeliveryTripState>();
   private roads: RoadNetworkSnapshot | null = null;
   private simTick = 0;
   private roadSyncTimer: number | null = null;
@@ -100,11 +119,15 @@ export class SpacetimeGameStore {
       connected: this.isConnected,
       identityHex: this.identityHex,
       stockpile: { ...this.stockpile },
+      economicActivityTaxRate: this.economicActivityTaxRate,
       quarries: new Map(this.quarries),
+      foragingNodes: new Map(this.foragingNodes),
       trees: new Map(this.trees),
       buildings: new Map(this.buildings),
       burgageZones: new Map(this.burgageZones),
       residences: new Map(this.residences),
+      backyardGardens: new Map(this.backyardGardens),
+      deliveryTrips: new Map(this.deliveryTrips),
       roads: this.roads ? structuredClone(this.roads) : null,
       simTick: this.simTick,
     };
@@ -157,10 +180,10 @@ export class SpacetimeGameStore {
 
   toGameState(seed: number, registry: WorldLayoutRegistry): GameState {
     const quarries = new Map(this.quarries);
+    const foragingNodes = new Map(this.foragingNodes);
     if (!this.isConnected) {
       for (const definition of registry.definitionList) {
-        if (quarries.has(definition.id)) continue;
-        quarries.set(definition.id, {
+        const nodeState = {
           nodeId: definition.id,
           kind: definition.kind,
           resource: definition.resource,
@@ -168,7 +191,14 @@ export class SpacetimeGameStore {
           maxYield: definition.maxYield,
           x: definition.x,
           z: definition.z,
-        });
+        };
+        if (definition.kind === 'quarry') {
+          if (quarries.has(definition.id)) continue;
+          quarries.set(definition.id, nodeState);
+        } else if (definition.kind === 'game' || definition.kind === 'berries') {
+          if (foragingNodes.has(definition.id)) continue;
+          foragingNodes.set(definition.id, nodeState);
+        }
       }
     }
 
@@ -177,12 +207,36 @@ export class SpacetimeGameStore {
       tick: this.simTick,
       stockpile: { ...this.stockpile },
       quarries,
+      foragingNodes,
       trees: new Map(this.trees),
       buildings: new Map(this.buildings),
       burgageZones: new Map(this.burgageZones),
       residences: new Map(this.residences),
+      backyardGardens: new Map(this.backyardGardens),
+      deliveryTrips: new Map(this.deliveryTrips),
       nextBuildingId: inferNextBuildingId(this.buildings),
     };
+  }
+
+  async placeBackyardGarden(residenceId: string, kind: BackyardGardenKind): Promise<void> {
+    const serverId = parseResidenceServerId(residenceId);
+    if (serverId === null) {
+      throw new Error('Invalid residence id.');
+    }
+    await this.callReducer('placeBackyardGarden', 'place_backyard_garden', {
+      residenceId: serverId,
+      kind,
+    });
+  }
+
+  async demolishBackyardGarden(residenceId: string): Promise<void> {
+    const serverId = parseResidenceServerId(residenceId);
+    if (serverId === null) {
+      throw new Error('Invalid residence id.');
+    }
+    await this.callReducer('demolishBackyardGarden', 'demolish_backyard_garden', {
+      residenceId: serverId,
+    });
   }
 
   async placeBurgageZone(input: {
@@ -225,6 +279,12 @@ export class SpacetimeGameStore {
     await this.callReducer('placeBuilding', 'place_building', { kind, x, z });
   }
 
+  async setEconomicActivityTaxRate(taxRate: number): Promise<void> {
+    await this.callReducer('setEconomicActivityTaxRate', 'set_economic_activity_tax_rate', {
+      taxRate,
+    });
+  }
+
   async assignBuildingLabor(buildingId: string, labor: number): Promise<void> {
     const serverId = parseBuildingServerId(buildingId);
     if (serverId === null) {
@@ -254,6 +314,17 @@ export class SpacetimeGameStore {
     }
   }
 
+  async marketplaceTrade(buildingId: string, tradeId: string): Promise<void> {
+    const serverId = parseBuildingServerId(buildingId);
+    if (serverId === null) {
+      throw new Error('Invalid building id.');
+    }
+    await this.callReducer('marketplaceTrade', 'marketplace_trade', {
+      buildingId: serverId,
+      tradeId,
+    });
+  }
+
   async demolishBuilding(buildingId: string): Promise<void> {
     const serverId = parseBuildingServerId(buildingId);
     if (serverId === null) {
@@ -263,13 +334,27 @@ export class SpacetimeGameStore {
   }
 
   async bootstrapWorld(registry: WorldLayoutRegistry): Promise<void> {
-    const quarries = registry.definitionList.map((definition) => ({
-      quarryId: definition.id,
-      x: definition.x,
-      z: definition.z,
-      maxYield: definition.maxYield,
-    }));
+    const quarries = registry.definitionList
+      .filter((definition) => definition.kind === 'quarry')
+      .map((definition) => ({
+        quarryId: definition.id,
+        x: definition.x,
+        z: definition.z,
+        maxYield: definition.maxYield,
+      }));
+    const nodes = registry.definitionList
+      .filter((definition) => definition.kind === 'game' || definition.kind === 'berries')
+      .map((definition) => ({
+        nodeId: definition.id,
+        nodeKind: definition.kind,
+        x: definition.x,
+        z: definition.z,
+        maxYield: definition.maxYield,
+        anchorX: definition.x,
+        anchorZ: definition.z,
+      }));
     await this.callReducer('bootstrapQuarries', 'bootstrap_quarries', { quarries });
+    await this.callReducer('bootstrapForaging', 'bootstrap_foraging', { nodes });
   }
 
   queueRoadSync(snapshot: RoadNetworkSnapshot): void {
@@ -314,11 +399,14 @@ export class SpacetimeGameStore {
     connection.subscriptionBuilder().subscribe('SELECT * FROM world_config');
     connection.subscriptionBuilder().subscribe('SELECT * FROM player_resources');
     connection.subscriptionBuilder().subscribe('SELECT * FROM quarry');
+    connection.subscriptionBuilder().subscribe('SELECT * FROM foraging_node');
     connection.subscriptionBuilder().subscribe('SELECT * FROM tree_entity');
     connection.subscriptionBuilder().subscribe('SELECT * FROM building');
     connection.subscriptionBuilder().subscribe('SELECT * FROM burgage_zone');
     connection.subscriptionBuilder().subscribe('SELECT * FROM residence');
+    connection.subscriptionBuilder().subscribe('SELECT * FROM backyard_garden');
     connection.subscriptionBuilder().subscribe('SELECT * FROM residence_need');
+    connection.subscriptionBuilder().subscribe('SELECT * FROM delivery_trip');
     connection.subscriptionBuilder().subscribe('SELECT * FROM road_network_state');
 
     this.syncAllFromDb(connection);
@@ -330,11 +418,14 @@ export class SpacetimeGameStore {
       world_config?: TableHandle;
       player_resources?: TableHandle;
       quarry?: TableHandle;
+      foraging_node?: TableHandle;
       tree_entity?: TableHandle;
       building?: TableHandle;
       burgage_zone?: TableHandle;
       residence?: TableHandle;
+      backyard_garden?: TableHandle;
       residence_need?: TableHandle;
+      delivery_trip?: TableHandle;
       road_network_state?: TableHandle;
     };
 
@@ -345,6 +436,9 @@ export class SpacetimeGameStore {
     db.quarry?.onInsert(() => this.syncAllFromDb(connection));
     db.quarry?.onUpdate(() => this.syncAllFromDb(connection));
     db.quarry?.onDelete(() => this.syncAllFromDb(connection));
+    db.foraging_node?.onInsert(() => this.syncAllFromDb(connection));
+    db.foraging_node?.onUpdate(() => this.syncAllFromDb(connection));
+    db.foraging_node?.onDelete(() => this.syncAllFromDb(connection));
     db.tree_entity?.onInsert(() => this.syncAllFromDb(connection));
     db.tree_entity?.onUpdate(() => this.syncAllFromDb(connection));
     db.tree_entity?.onDelete(() => this.syncAllFromDb(connection));
@@ -357,9 +451,15 @@ export class SpacetimeGameStore {
     db.residence?.onInsert(() => this.syncAllFromDb(connection));
     db.residence?.onUpdate(() => this.syncAllFromDb(connection));
     db.residence?.onDelete(() => this.syncAllFromDb(connection));
+    db.backyard_garden?.onInsert(() => this.syncAllFromDb(connection));
+    db.backyard_garden?.onUpdate(() => this.syncAllFromDb(connection));
+    db.backyard_garden?.onDelete(() => this.syncAllFromDb(connection));
     db.residence_need?.onInsert(() => this.syncAllFromDb(connection));
     db.residence_need?.onUpdate(() => this.syncAllFromDb(connection));
     db.residence_need?.onDelete(() => this.syncAllFromDb(connection));
+    db.delivery_trip?.onInsert(() => this.syncAllFromDb(connection));
+    db.delivery_trip?.onUpdate(() => this.syncAllFromDb(connection));
+    db.delivery_trip?.onDelete(() => this.syncAllFromDb(connection));
     db.road_network_state?.onInsert(() => this.syncAllFromDb(connection));
     db.road_network_state?.onUpdate(() => this.syncAllFromDb(connection));
     db.road_network_state?.onDelete(() => this.syncAllFromDb(connection));
@@ -374,6 +474,14 @@ export class SpacetimeGameStore {
       building?: { iter: () => Iterable<Building> };
       burgage_zone?: { iter: () => Iterable<BurgageZone> };
       residence?: { iter: () => Iterable<Residence> };
+      backyard_garden?: {
+        iter: () => Iterable<{
+          id: bigint | number;
+          residenceId: bigint | number;
+          owner: { toHexString: () => string };
+          kind: number;
+        }>;
+      };
       residence_need?: {
         iter: () => Iterable<{
           residenceId: bigint | number;
@@ -383,6 +491,32 @@ export class SpacetimeGameStore {
         }>;
       };
       road_network_state?: { iter: () => Iterable<{ owner: { toHexString: () => string }; snapshotJson: string }> };
+      foraging_node?: { iter: () => Iterable<{
+        nodeId: string;
+        nodeKind: string;
+        remaining: number;
+        maxYield: number;
+        x: number;
+        z: number;
+      }> };
+      delivery_trip?: {
+        iter: () => Iterable<{
+          id: bigint | number;
+          owner: { toHexString: () => string };
+          buildingId: bigint | number;
+          residenceId: bigint | number;
+          cargoKind: number;
+          amount: number;
+          phase: number;
+          x: number;
+          z: number;
+          progress: number;
+          speedMps: number;
+          unloadSeconds: number;
+          unloadRemaining: number;
+          deliveryWorkers: bigint | number;
+        }>;
+      };
     };
 
     const worldRows = db.world_config ? [...db.world_config.iter()] : [];
@@ -391,6 +525,7 @@ export class SpacetimeGameStore {
     }
 
     this.stockpile = createEmptyStockpile();
+    this.economicActivityTaxRate = ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
     if (db.player_resources && this.identityHex) {
       for (const row of db.player_resources.iter()) {
         if (row.owner.toHexString() !== this.identityHex) continue;
@@ -399,7 +534,12 @@ export class SpacetimeGameStore {
           stone: row.stone,
           firewood: row.firewood,
           water: row.water,
+          gold: row.gold ?? 0,
+          game: 0,
+          berries: 0,
+          food: row.food ?? 0,
         };
+        this.economicActivityTaxRate = row.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
         break;
       }
     }
@@ -411,6 +551,29 @@ export class SpacetimeGameStore {
           nodeId: row.quarryId,
           kind: 'quarry',
           resource: 'stone',
+          remaining: row.remaining,
+          maxYield: row.maxYield,
+          x: row.x,
+          z: row.z,
+        });
+      }
+    }
+
+    this.foragingNodes = new Map();
+    if (db.foraging_node) {
+      for (const row of db.foraging_node.iter() as Iterable<{
+        nodeId: string;
+        nodeKind: string;
+        remaining: number;
+        maxYield: number;
+        x: number;
+        z: number;
+      }>) {
+        const kind = row.nodeKind === 'game' ? 'game' : 'berries';
+        this.foragingNodes.set(row.nodeId, {
+          nodeId: row.nodeId,
+          kind,
+          resource: kind,
           remaining: row.remaining,
           maxYield: row.maxYield,
           x: row.x,
@@ -444,11 +607,11 @@ export class SpacetimeGameStore {
           z: row.z,
           workRadius: row.workRadius,
           actionCooldown: row.actionCooldown,
-          deliveryCooldown: row.deliveryCooldown,
           timber: row.timber,
           firewood: row.firewood,
           stone: row.stone,
           water: row.water,
+          food: (row as Building & { food?: number }).food ?? 0,
           waterCapacity: row.waterCapacity,
           assignedLabor: Number(row.assignedLabor),
         });
@@ -505,6 +668,52 @@ export class SpacetimeGameStore {
           settlementTicks: Number(row.settlementTicks ?? 0),
           needs: needsByResidence.get(residenceId) ?? createDefaultNeeds(),
           abandoned: row.abandoned,
+          householdWealth: Number(row.householdWealth ?? 0),
+        });
+      }
+    }
+
+    this.backyardGardens = new Map();
+    if (db.backyard_garden && this.identityHex) {
+      for (const row of db.backyard_garden.iter() as Iterable<{
+        id: bigint;
+        residenceId: bigint;
+        owner: { toHexString(): string };
+        kind: number;
+      }>) {
+        if (row.owner.toHexString() !== this.identityHex) continue;
+        const residenceId = `residence-${row.residenceId}`;
+        const kind = backyardGardenKindFromId(Number(row.kind));
+        if (!kind) continue;
+        this.backyardGardens.set(residenceId, {
+          id: `garden-${row.id}`,
+          residenceId,
+          kind,
+        });
+      }
+    }
+
+    this.deliveryTrips = new Map();
+    if (db.delivery_trip && this.identityHex) {
+      for (const row of db.delivery_trip.iter()) {
+        if (row.owner.toHexString() !== this.identityHex) continue;
+        const cargoKind = cargoKindFromId(Number(row.cargoKind));
+        if (!cargoKind) continue;
+        const tripId = `trip-${row.id}`;
+        this.deliveryTrips.set(tripId, {
+          id: tripId,
+          buildingId: `building-${row.buildingId}`,
+          residenceId: `residence-${row.residenceId}`,
+          cargoKind,
+          amount: row.amount,
+          phase: phaseFromId(Number(row.phase)),
+          x: row.x,
+          z: row.z,
+          progress: row.progress,
+          speedMps: row.speedMps,
+          unloadSeconds: row.unloadSeconds,
+          unloadRemaining: row.unloadRemaining,
+          deliveryWorkers: Number(row.deliveryWorkers),
         });
       }
     }

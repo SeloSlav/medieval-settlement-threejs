@@ -32,6 +32,12 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} firewood`;
     case 'water':
       return amount > 0 ? 'Fresh water access' : 'No water stored';
+    case 'game':
+      return `${Math.round(amount)} game`;
+    case 'berries':
+      return `${Math.round(amount)} berries`;
+    case 'food':
+      return `${Math.round(amount)} food`;
     default: {
       const unreachable: never = kind;
       return unreachable;

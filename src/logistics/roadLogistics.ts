@@ -1,9 +1,10 @@
 import { BUILDING_ROAD_ACCESS_DISTANCE } from '../generated/gameBalance.ts';
-import { RESIDENCE_FIREWOOD_CAPACITY } from '../generated/gameBalance.ts';
+import { RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_WATER_CAPACITY } from '../generated/gameBalance.ts';
 import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
 import { residenceFirewoodRunwaySeconds } from './firewoodLogistics.ts';
+import { isResidenceInWellRange, residenceWaterRunwaySeconds } from './waterLogistics.ts';
 import { distancePointToPolylineXZ } from '../utils/pathGeometry.ts';
 
 type RoadPoint = { x: number; z: number };
@@ -72,17 +73,7 @@ function shareComponent(network: RoadNetwork, startNodes: string[], targetNodes:
   return false;
 }
 
-export function roadPathDistance(
-  network: RoadNetwork,
-  ax: number,
-  az: number,
-  bx: number,
-  bz: number,
-): number | null {
-  const nodesA = snapNodes(network, ax, az);
-  const nodesB = snapNodes(network, bx, bz);
-  if (!nodesA || !nodesB || !shareComponent(network, nodesA, nodesB)) return null;
-
+function buildWeightedGraph(network: RoadNetwork): Map<string, Array<{ id: string; weight: number }>> {
   const graph = new Map<string, Array<{ id: string; weight: number }>>();
   for (const edge of network.edges.values()) {
     const weight = polylineLength(edge.sampledPath.map((point) => ({ x: point.x, z: point.z })));
@@ -93,14 +84,75 @@ export function roadPathDistance(
     end.push({ id: edge.startNodeId, weight });
     graph.set(edge.endNodeId, end);
   }
+  return graph;
+}
 
+function appendPoint(path: RoadPoint[], point: RoadPoint): void {
+  const last = path[path.length - 1];
+  if (last && distance(last.x, last.z, point.x, point.z) <= 1e-6) return;
+  path.push(point);
+}
+
+function edgePolylineBetween(
+  network: RoadNetwork,
+  from: string,
+  to: string,
+): RoadPoint[] | null {
+  for (const edge of network.edges.values()) {
+    const points = edge.sampledPath.map((point) => ({ x: point.x, z: point.z }));
+    if (edge.startNodeId === from && edge.endNodeId === to) return points;
+    if (edge.endNodeId === from && edge.startNodeId === to) return [...points].reverse();
+  }
+
+  const fromNode = network.nodes.get(from);
+  const toNode = network.nodes.get(to);
+  if (!fromNode || !toNode) return null;
+  return [
+    { x: fromNode.position.x, z: fromNode.position.z },
+    { x: toNode.position.x, z: toNode.position.z },
+  ];
+}
+
+function materializePolyline(
+  network: RoadNetwork,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  nodePath: readonly string[],
+): RoadPoint[] {
+  const path: RoadPoint[] = [{ x: ax, z: az }];
+  for (let i = 0; i < nodePath.length - 1; i++) {
+    const segment = edgePolylineBetween(network, nodePath[i], nodePath[i + 1]);
+    if (!segment) continue;
+    for (const point of segment) appendPoint(path, point);
+  }
+  appendPoint(path, { x: bx, z: bz });
+  return path;
+}
+
+function shortestPathSolve(
+  network: RoadNetwork,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+): { nodePath: string[] } | null {
+  const nodesA = snapNodes(network, ax, az);
+  const nodesB = snapNodes(network, bx, bz);
+  if (!nodesA || !nodesB || !shareComponent(network, nodesA, nodesB)) return null;
+
+  const graph = buildWeightedGraph(network);
   const dist = new Map<string, number>();
+  const prev = new Map<string, string | null>();
   const heap: Array<{ cost: number; id: string }> = [];
+
   for (const nodeId of nodesA) {
     const node = network.nodes.get(nodeId);
     if (!node) continue;
     const cost = distance(ax, az, node.position.x, node.position.z);
     dist.set(nodeId, cost);
+    prev.set(nodeId, null);
     heap.push({ cost, id: nodeId });
   }
 
@@ -116,22 +168,60 @@ export function roadPathDistance(
       const existing = dist.get(neighbor.id);
       if (existing != null && next + 1e-6 >= existing) continue;
       dist.set(neighbor.id, next);
+      prev.set(neighbor.id, current.id);
       heap.push({ cost: next, id: neighbor.id });
     }
   }
 
-  let best = Infinity;
+  let bestEnd: string | null = null;
+  let bestTotal = Infinity;
   for (const nodeId of nodesB) {
     const roadCost = dist.get(nodeId);
     const node = network.nodes.get(nodeId);
     if (roadCost == null || !node) continue;
-    best = Math.min(
-      best,
-      roadCost + distance(bx, bz, node.position.x, node.position.z),
-    );
+    const total = roadCost + distance(bx, bz, node.position.x, node.position.z);
+    if (total + 1e-6 < bestTotal) {
+      bestTotal = total;
+      bestEnd = nodeId;
+    }
   }
 
-  return Number.isFinite(best) ? best : null;
+  if (!bestEnd || !Number.isFinite(bestTotal)) return null;
+
+  const nodePath: string[] = [];
+  let cursor: string | null = bestEnd;
+  while (cursor) {
+    nodePath.push(cursor);
+    cursor = prev.get(cursor) ?? null;
+  }
+  nodePath.reverse();
+  return { nodePath };
+}
+
+export function roadPathRoute(
+  network: RoadNetwork,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+): { distance: number; polyline: RoadPoint[] } | null {
+  const solve = shortestPathSolve(network, ax, az, bx, bz);
+  if (!solve) return null;
+  const polyline = materializePolyline(network, ax, az, bx, bz, solve.nodePath);
+  const travelDistance = polylineLength(polyline);
+  if (travelDistance <= 1e-6) return null;
+  return { distance: travelDistance, polyline };
+}
+
+/** Travel distance along the road graph polyline (matches server trip movement). */
+export function roadPathDistance(
+  network: RoadNetwork,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+): number | null {
+  return roadPathRoute(network, ax, az, bx, bz)?.distance ?? null;
 }
 
 export function claimResidencesForLodges(
@@ -158,6 +248,67 @@ export function claimResidencesForLodges(
       }
     }
     if (bestLodge) claims.set(residence.id, bestLodge.id);
+  }
+
+  return claims;
+}
+
+export function claimResidencesForWells(
+  network: RoadNetwork,
+  wells: readonly BuildingState[],
+  residences: readonly ResidenceState[],
+): Map<string, string> {
+  const claims = new Map<string, string>();
+  const activeWells = wells.filter((building) => building.kind === 'well');
+
+  for (const residence of residences) {
+    let bestWell: BuildingState | null = null;
+    let bestDistance = Infinity;
+    for (const well of activeWells) {
+      if (!isResidenceInWellRange(well, residence)) continue;
+      const pathDistance = roadPathDistance(network, well.x, well.z, residence.x, residence.z);
+      if (pathDistance == null) continue;
+      if (
+        pathDistance + 1e-6 < bestDistance
+        || (Math.abs(pathDistance - bestDistance) <= 1e-6 && bestWell && well.id < bestWell.id)
+        || (Math.abs(pathDistance - bestDistance) <= 1e-6 && !bestWell)
+      ) {
+        bestDistance = pathDistance;
+        bestWell = well;
+      }
+    }
+    if (bestWell) claims.set(residence.id, bestWell.id);
+  }
+
+  return claims;
+}
+
+export function claimResidencesForFoodSuppliers(
+  network: RoadNetwork,
+  suppliers: readonly BuildingState[],
+  residences: readonly ResidenceState[],
+): Map<string, string> {
+  const claims = new Map<string, string>();
+  const foodSuppliers = suppliers.filter(
+    (building) => building.kind === 'hunters_hall' || building.kind === 'foragers_shed',
+  );
+
+  for (const residence of residences) {
+    let bestSupplier: BuildingState | null = null;
+    let bestDistance = Infinity;
+    for (const supplier of foodSuppliers) {
+      const pathDistance = roadPathDistance(network, supplier.x, supplier.z, residence.x, residence.z);
+      if (pathDistance == null) continue;
+      if (
+        pathDistance + 1e-6 < bestDistance
+        || (Math.abs(pathDistance - bestDistance) <= 1e-6 && bestSupplier && supplier.id < bestSupplier.id)
+        || (Math.abs(pathDistance - bestDistance) <= 1e-6 && !bestSupplier)
+      ) {
+        bestDistance = pathDistance;
+        bestSupplier = supplier;
+      }
+    }
+    if (bestSupplier) claims.set(residence.id, bestSupplier.id);
   }
 
   return claims;
@@ -212,6 +363,47 @@ export function peekNextDeliveryTarget(
   for (const residence of residences) {
     if (!hasNeedStockRoom(getNeedStock(residence.needs, 'firewood'), RESIDENCE_FIREWOOD_CAPACITY)) continue;
     if (best == null || compareResidencesForDelivery(network, lodge, residence, best) < 0) {
+      best = residence;
+    }
+  }
+  return best;
+}
+
+export function compareResidencesForWaterDelivery(
+  network: RoadNetwork,
+  well: { x: number; z: number },
+  a: ResidenceState,
+  b: ResidenceState,
+): number {
+  if (a.abandoned !== b.abandoned) {
+    return a.abandoned ? 1 : -1;
+  }
+  const runwayA = residenceWaterRunwaySeconds(a) ?? Infinity;
+  const runwayB = residenceWaterRunwaySeconds(b) ?? Infinity;
+  if (Math.abs(runwayA - runwayB) > 1e-6) return runwayA - runwayB;
+  const distanceA = roadPathDistance(network, well.x, well.z, a.x, a.z) ?? Infinity;
+  const distanceB = roadPathDistance(network, well.x, well.z, b.x, b.z) ?? Infinity;
+  if (Math.abs(distanceA - distanceB) > 1e-6) return distanceA - distanceB;
+  return a.id.localeCompare(b.id);
+}
+
+export function sortResidencesForWaterDelivery(
+  network: RoadNetwork,
+  well: { x: number; z: number },
+  residences: readonly ResidenceState[],
+): ResidenceState[] {
+  return [...residences].sort((a, b) => compareResidencesForWaterDelivery(network, well, a, b));
+}
+
+export function peekNextWaterDeliveryTarget(
+  network: RoadNetwork,
+  well: { x: number; z: number },
+  residences: readonly ResidenceState[],
+): ResidenceState | null {
+  let best: ResidenceState | null = null;
+  for (const residence of residences) {
+    if (!hasNeedStockRoom(getNeedStock(residence.needs, 'water'), RESIDENCE_WATER_CAPACITY)) continue;
+    if (best == null || compareResidencesForWaterDelivery(network, well, residence, best) < 0) {
       best = residence;
     }
   }

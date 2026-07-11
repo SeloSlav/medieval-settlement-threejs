@@ -1,7 +1,6 @@
-import {
-  LODGE_DELIVERY_INTERVAL,
-  LODGE_FIREWOOD_PER_DELIVERY,
-} from '../generated/gameBalance.ts';
+import { LODGE_FIREWOOD_PER_DELIVERY } from '../generated/gameBalance.ts';
+import { firewoodDeliveryTripSeconds } from './deliveryLogistics.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 
 export type LodgeLaborSplit = {
   processing: number;
@@ -35,7 +34,11 @@ export function lodgeFirewoodPerDelivery(deliveryWorkers: number): number {
   return LODGE_FIREWOOD_PER_DELIVERY * deliveryWorkers;
 }
 
-export function lodgeDeliveryIntervalSeconds(deliveryWorkers: number): number {
-  if (deliveryWorkers <= 0) return Infinity;
-  return LODGE_DELIVERY_INTERVAL / deliveryWorkers;
+export function lodgeDeliveryTripSeconds(
+  network: RoadNetwork,
+  lodge: { x: number; z: number },
+  target: { x: number; z: number } | null,
+  deliveryWorkers: number,
+): number {
+  return firewoodDeliveryTripSeconds(network, lodge, target, deliveryWorkers);
 }

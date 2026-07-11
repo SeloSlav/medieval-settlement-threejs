@@ -12,6 +12,7 @@ import {
   STARTING_POPULATION,
   type StorageCaps,
 } from '../generated/gameBalance.ts';
+import type { MarketplaceTradeAvailability } from '../economy/marketplaceTrade.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { BuildingKind, BuildingState, GameState } from './types.ts';
 import {
@@ -46,6 +47,7 @@ export type ResourceTotals = {
   stone: number;
   firewood: number;
   water: number;
+  gold: number;
 };
 
 export type PopulationStats = {
@@ -102,9 +104,32 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     stone,
     firewood,
     water: state.stockpile.water,
+    gold: state.stockpile.gold,
   };
   cachedState = state;
   return cachedTotals;
+}
+
+export function computeTradeAvailability(state: GameState): MarketplaceTradeAvailability {
+  const totals = computeResourceTotals(state);
+  return {
+    timber: totals.timber,
+    stone: totals.stone,
+    gold: totals.gold,
+    firewood: totals.firewood,
+    food: computeAggregateFood(state),
+  };
+}
+
+function computeAggregateFood(state: GameState): number {
+  let food = state.stockpile.food;
+  for (const building of state.buildings.values()) {
+    food += building.food;
+  }
+  for (const residence of state.residences.values()) {
+    food += getNeedStock(residence.needs, 'food');
+  }
+  return food;
 }
 
 export function computePopulationStats(state: GameState): PopulationStats {

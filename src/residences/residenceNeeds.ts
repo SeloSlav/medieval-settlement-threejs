@@ -1,17 +1,24 @@
 import {
-  ABANDON_AFTER_DEFICIT_TICKS,
   RESIDENCE_FIREWOOD_CAPACITY,
-  RESIDENCE_RECOVERY_FIREWOOD_MIN,
-  RESIDENCE_RECOVERY_WATER_MIN,
-  RESIDENCE_SETTLE_TICKS,
+  RESIDENCE_FOOD_CAPACITY,
+  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_CAPACITY,
-  RESIDENCE_WATER_PER_PERSON_PER_SEC,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
+import {
+  effectiveAbandonAfterDeficitTicks,
+  effectiveResidenceSettleTicks,
+  recoveryNeedsRequired,
+  recoveryStockMin,
+} from '../economy/chapelCommunity.ts';
 import {
   formatFirewoodRunwayDays,
   residenceFirewoodRunwayDays,
 } from '../logistics/firewoodLogistics.ts';
+import {
+  formatWaterRunwayDays,
+  residenceWaterRunwayDays,
+} from '../logistics/waterLogistics.ts';
 import type { ResidenceState } from '../resources/types.ts';
 import {
   getNeed,
@@ -19,7 +26,9 @@ import {
   type ResidenceNeedKind,
   type ResidenceNeedRecoveryStatus,
   type ResidenceNeedSupplyContext,
+  type ResidenceCommunityContext,
   type ResidenceNeedsStatus,
+  DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
   RESIDENCE_NEED_KINDS,
 } from './residenceNeedState.ts';
 
@@ -27,6 +36,7 @@ export type {
   ResidenceNeedKind,
   ResidenceNeedRecoveryStatus,
   ResidenceNeedSupplyContext,
+  ResidenceCommunityContext,
   ResidenceNeedsStatus,
 };
 export {
@@ -39,28 +49,36 @@ export {
 export function evaluateResidenceNeedRecovery(
   residence: ResidenceState,
   supply: ResidenceNeedSupplyContext,
+  community: ResidenceCommunityContext = DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
 ): ResidenceNeedRecoveryStatus[] {
-  return RESIDENCE_NEED_KINDS.map((kind) => evaluateNeedRecovery(kind, residence, supply));
+  return RESIDENCE_NEED_KINDS.map((kind) => evaluateNeedRecovery(kind, residence, supply, community));
 }
 
 export function residenceRecoveryReady(
   statuses: readonly ResidenceNeedRecoveryStatus[],
+  community: ResidenceCommunityContext = DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
 ): boolean {
-  return statuses.length > 0 && statuses.every((status) => status.ready);
+  const required = recoveryNeedsRequired(community.hasChapelAccess);
+  return statuses.filter((status) => status.ready).length >= required;
 }
 
 export function residenceNeedsStatus(
   residence: ResidenceState,
-  supply: ResidenceNeedSupplyContext = { servingLodgeId: null, servingWellId: null },
+  supply: ResidenceNeedSupplyContext = {
+    servingLodgeId: null,
+    servingWellId: null,
+    servingFoodSupplierId: null,
+  },
+  community: ResidenceCommunityContext = DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
 ): ResidenceNeedsStatus {
   if (residence.abandoned) {
-    return describeAbandonedResidence(residence, supply);
+    return describeAbandonedResidence(residence, supply, community);
   }
   if (residence.population === 0) {
-    return describeAwaitingSettlers(residence);
+    return describeAwaitingSettlers(residence, community.hasChapelAccess);
   }
 
-  const deficitWarning = describeDeficitWarning(residence);
+  const deficitWarning = describeDeficitWarning(residence, community.hasChapelAccess);
   if (deficitWarning) return deficitWarning;
 
   return describeActiveNeeds(residence);
@@ -70,28 +88,37 @@ function evaluateNeedRecovery(
   kind: ResidenceNeedKind,
   residence: ResidenceState,
   supply: ResidenceNeedSupplyContext,
+  community: ResidenceCommunityContext,
 ): ResidenceNeedRecoveryStatus {
   const need = getNeed(residence.needs, kind);
+  const threshold = recoveryStockMin(kind, community.hasChapelAccess);
   switch (kind) {
     case 'firewood':
       return {
         kind,
         label: 'Firewood',
-        ready: supply.servingLodgeId != null
-          && need.stock + 1e-6 >= RESIDENCE_RECOVERY_FIREWOOD_MIN,
+        ready: supply.servingLodgeId != null && need.stock + 1e-6 >= threshold,
         stock: need.stock,
-        threshold: RESIDENCE_RECOVERY_FIREWOOD_MIN,
+        threshold,
         supplyAvailable: supply.servingLodgeId != null,
       };
     case 'water':
       return {
         kind,
         label: 'Water',
-        ready: supply.servingWellId != null
-          && need.stock + 1e-6 >= RESIDENCE_RECOVERY_WATER_MIN,
+        ready: supply.servingWellId != null && need.stock + 1e-6 >= threshold,
         stock: need.stock,
-        threshold: RESIDENCE_RECOVERY_WATER_MIN,
+        threshold,
         supplyAvailable: supply.servingWellId != null,
+      };
+    case 'food':
+      return {
+        kind,
+        label: 'Food',
+        ready: supply.servingFoodSupplierId != null && need.stock + 1e-6 >= threshold,
+        stock: need.stock,
+        threshold,
+        supplyAvailable: supply.servingFoodSupplierId != null,
       };
     default: {
       const unhandled: never = kind;
@@ -103,11 +130,14 @@ function evaluateNeedRecovery(
 function describeAbandonedResidence(
   residence: ResidenceState,
   supply: ResidenceNeedSupplyContext,
+  community: ResidenceCommunityContext,
 ): ResidenceNeedsStatus {
-  const recovery = evaluateResidenceNeedRecovery(residence, supply);
-  if (residenceRecoveryReady(recovery)) {
+  const recovery = evaluateResidenceNeedRecovery(residence, supply, community);
+  if (residenceRecoveryReady(recovery, community)) {
     return {
-      label: 'Restocking complete — settlers return once supply holds',
+      label: community.hasChapelAccess
+        ? 'Restocking complete — chapel parish welcomes settlers back'
+        : 'Restocking complete — settlers return once supply holds',
       state: 'idle',
     };
   }
@@ -130,21 +160,26 @@ function describeAbandonedResidence(
   };
 }
 
-function describeAwaitingSettlers(residence: ResidenceState): ResidenceNeedsStatus {
+function describeAwaitingSettlers(residence: ResidenceState, hasChapelAccess: boolean): ResidenceNeedsStatus {
   const capacity = residence.populationCapacity;
+  const settleTicks = effectiveResidenceSettleTicks(hasChapelAccess);
   const settleSeconds = Math.max(
     1,
-    Math.round((RESIDENCE_SETTLE_TICKS - residence.settlementTicks) * SIM_TICK_SECONDS),
+    Math.round((settleTicks - residence.settlementTicks) * SIM_TICK_SECONDS),
   );
+  const chapelNote = hasChapelAccess ? ' (staffed chapel)' : '';
   return {
     label: capacity > 0
-      ? `Awaiting settlers — first arrival in ~${formatShortDuration(settleSeconds)}`
+      ? `Awaiting settlers — first arrival in ~${formatShortDuration(settleSeconds)}${chapelNote}`
       : 'Vacant — awaiting settlers',
     state: 'idle',
   };
 }
 
-function describeDeficitWarning(residence: ResidenceState): ResidenceNeedsStatus | null {
+function describeDeficitWarning(
+  residence: ResidenceState,
+  hasChapelAccess: boolean,
+): ResidenceNeedsStatus | null {
   const deficitTicks = maxNeedDeficitTicks(residence.needs);
   if (deficitTicks <= 0) return null;
 
@@ -152,7 +187,8 @@ function describeDeficitWarning(residence: ResidenceState): ResidenceNeedsStatus
     .filter((kind) => getNeed(residence.needs, kind).deficitTicks > 0)
     .map((kind) => needLabel(kind).toLowerCase());
 
-  const remainingTicks = Math.max(0, ABANDON_AFTER_DEFICIT_TICKS - deficitTicks);
+  const abandonThreshold = effectiveAbandonAfterDeficitTicks(hasChapelAccess);
+  const remainingTicks = Math.max(0, abandonThreshold - deficitTicks);
   const remainingSeconds = remainingTicks * SIM_TICK_SECONDS;
   const needLabelText = unmetNeeds.length > 0 ? unmetNeeds.join(', ') : 'needs';
   return {
@@ -227,25 +263,34 @@ function describeActiveNeed(
       }
       return null;
     }
+    case 'food': {
+      const runwayDays = residenceFoodRunwayDays(residence);
+      if (runwayDays == null) return null;
+      if (runwayDays <= 0.25) {
+        return {
+          label: 'Out of food — awaiting delivery',
+          state: 'warning',
+        };
+      }
+      if (runwayDays < 1) {
+        return {
+          label: `Low food — ${formatFoodRunwayDays(runwayDays)} left`,
+          state: 'warning',
+        };
+      }
+      if (runwayDays < 3) {
+        return {
+          label: `Food low — ${formatFoodRunwayDays(runwayDays)} left`,
+          state: 'warning',
+        };
+      }
+      return null;
+    }
     default: {
       const unhandled: never = kind;
       return unhandled;
     }
   }
-}
-
-function residenceWaterRunwayDays(residence: ResidenceState): number | null {
-  if (residence.abandoned || residence.population === 0) return null;
-  const stock = getNeed(residence.needs, 'water').stock;
-  const dailyUse = residence.population * RESIDENCE_WATER_PER_PERSON_PER_SEC * 86400;
-  if (dailyUse <= 1e-9) return null;
-  return stock / dailyUse;
-}
-
-function formatWaterRunwayDays(days: number): string {
-  if (days >= 2) return `${days.toFixed(1)} days`;
-  const hours = Math.max(1, Math.round(days * 24));
-  return `${hours}h`;
 }
 
 function needLabel(kind: ResidenceNeedKind): string {
@@ -254,6 +299,8 @@ function needLabel(kind: ResidenceNeedKind): string {
       return 'Firewood';
     case 'water':
       return 'Water';
+    case 'food':
+      return 'Food';
     default: {
       const unhandled: never = kind;
       return unhandled;
@@ -276,4 +323,18 @@ function formatShortDuration(seconds: number): string {
   return `~${Math.max(1, Math.round(seconds))}s`;
 }
 
-export { RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_WATER_CAPACITY };
+function residenceFoodRunwayDays(residence: ResidenceState): number | null {
+  if (residence.abandoned || residence.population === 0) return null;
+  const stock = getNeed(residence.needs, 'food').stock;
+  const dailyUse = residence.population * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 86400;
+  if (dailyUse <= 1e-9) return null;
+  return stock / dailyUse;
+}
+
+function formatFoodRunwayDays(days: number): string {
+  if (days >= 2) return `${days.toFixed(1)} days`;
+  const hours = Math.max(1, Math.round(days * 24));
+  return `${hours}h`;
+}
+
+export { RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_WATER_CAPACITY, RESIDENCE_FOOD_CAPACITY };

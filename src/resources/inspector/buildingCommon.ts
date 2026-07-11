@@ -24,6 +24,8 @@ export function buildingStorageRows(building: BuildingState, kind: BuildingKind)
     caps.timber > 0 ? `<li><span>Timber stored</span><span>${Math.round(building.timber)} / ${caps.timber}</span></li>` : '',
     caps.firewood > 0 ? `<li><span>Firewood stored</span><span>${Math.round(building.firewood)} / ${caps.firewood}</span></li>` : '',
     caps.stone > 0 ? `<li><span>Stone stored</span><span>${Math.round(building.stone)} / ${caps.stone}</span></li>` : '',
+    caps.water != null && caps.water > 0 ? `<li><span>Water stored</span><span>${Math.round(building.water)} / ${caps.water}</span></li>` : '',
+    caps.food != null && caps.food > 0 ? `<li><span>Food stored</span><span>${Math.round(building.food)} / ${caps.food}</span></li>` : '',
   ].filter(Boolean).join('');
 }
 

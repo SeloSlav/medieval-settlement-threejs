@@ -2,6 +2,8 @@ import type { ResidenceState } from '../types.ts';
 import { formatFirewoodRunwayDays, residenceFirewoodRunwayDays } from '../../logistics/firewoodLogistics.ts';
 import type { LodgeLaborSplit } from '../../logistics/lodgeLogistics.ts';
 import { lodgeLaborAlternates } from '../../logistics/lodgeLogistics.ts';
+import type { DeliveryTripState } from '../../logistics/deliveryTrips.ts';
+import { formatTripPhaseLabel } from '../../logistics/deliveryTrips.ts';
 
 export function formatCooldown(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return 'Ready';
@@ -16,18 +18,6 @@ export function formatNextDeliveryTargetLabel(target: ResidenceState | null): st
   return `Parcel #${target.parcelIndex + 1}${runwaySuffix}`;
 }
 
-export function formatDeliveryCooldownStatus(
-  cooldown: number,
-  nextTargetLabel: string,
-  hasNextTarget: boolean,
-): string {
-  const timer = formatCooldown(cooldown);
-  if (hasNextTarget) {
-    return `Deliverer on trip — next run in ${timer} → ${nextTargetLabel}`;
-  }
-  return `Next delivery in ${timer} — all claimed homes stocked`;
-}
-
 export type LodgeStatusInput = {
   onRoad: boolean;
   assignedLabor: number;
@@ -37,7 +27,8 @@ export type LodgeStatusInput = {
   firewood: number;
   claimedResidenceCount: number;
   crew: LodgeLaborSplit;
-  deliveryCooldown: number;
+  tripRemainingSeconds: number | null;
+  activeTrip: DeliveryTripState | null;
   nextTargetLabel: string;
   hasNextTarget: boolean;
   firewoodPerTrip: number;
@@ -57,7 +48,8 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
     firewood,
     claimedResidenceCount,
     crew,
-    deliveryCooldown,
+    tripRemainingSeconds,
+    activeTrip,
     nextTargetLabel,
     hasNextTarget,
     firewoodPerTrip,
@@ -108,13 +100,14 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
       statusState: 'active',
     };
   }
-  if (deliveryCooldown > 0.1) {
+  if (activeTrip && tripRemainingSeconds != null) {
+    const timer = formatCooldown(tripRemainingSeconds ?? Infinity);
     return {
-      statusText: formatDeliveryCooldownStatus(deliveryCooldown, nextTargetLabel, hasNextTarget),
+      statusText: `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${timer} remaining → ${nextTargetLabel}`,
       statusState: 'active',
     };
   }
-  if (canDeliver && deliveryCooldown <= 0.1) {
+  if (canDeliver) {
     return {
       statusText: hasNextTarget
         ? `Dispatching firewood to ${nextTargetLabel} (${firewoodPerTrip} per trip)`
