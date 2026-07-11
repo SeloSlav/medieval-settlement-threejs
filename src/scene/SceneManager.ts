@@ -139,6 +139,7 @@ export class SceneManager {
     this.addLighting();
     this.postProcessor = createPostProcessor(backend, this.scene, this.camera);
     this.unsubscribeShadowPreferences = subscribeShadowPreferences(() => this.applyShadowPreferences());
+    this.applyShadowPreferences();
   }
 
   static async create(

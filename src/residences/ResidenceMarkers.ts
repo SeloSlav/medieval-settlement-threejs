@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { addTriangularGableWall } from '../buildings/BuildingMeshes.ts';
 import { createResidenceShadowProxy } from '../buildings/buildingShadowProxy.ts';
 import { addMesh, shingleMaterial, stoneMaterial, timberMaterial } from '../buildings/buildingMaterials.ts';
-import { areBuildingShadowsDisabled } from '../scene/shadowPreference.ts';
+import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import { ChimneySmokeEmitter } from './ResidenceChimneySmoke.ts';
 import { MAIN_HOUSE_DEPTH, MAIN_HOUSE_WIDTH } from './burgageLayout.ts';
 
@@ -259,7 +259,7 @@ export class ResidenceMarkers {
       if (!marker) {
         marker = createResidenceMesh();
         const shadowProxy = createResidenceShadowProxy();
-        shadowProxy.castShadow = !areBuildingShadowsDisabled();
+        shadowProxy.castShadow = areBuildingShadowsEnabled();
         marker.add(shadowProxy);
         this.root.add(marker);
         this.meshes.set(residence.id, marker);
@@ -279,7 +279,7 @@ export class ResidenceMarkers {
       );
       if (!marker.getObjectByName('Building shadow proxy')) {
         const shadowProxy = createResidenceShadowProxy();
-        shadowProxy.castShadow = !areBuildingShadowsDisabled();
+        shadowProxy.castShadow = areBuildingShadowsEnabled();
         marker.add(shadowProxy);
       }
     }

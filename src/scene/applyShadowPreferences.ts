@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { isBuildingShadowProxy } from '../buildings/buildingShadowProxy.ts';
 import type { ForestManager } from '../props/ForestManager.ts';
 import {
-  areBuildingShadowsDisabled,
-  areTreeShadowsDisabled,
+  areBuildingShadowsEnabled,
+  areTreeShadowsEnabled,
 } from './shadowPreference.ts';
 
 export function applyShadowPreferences(options: {
@@ -12,8 +12,8 @@ export function applyShadowPreferences(options: {
   propGroups: readonly THREE.Object3D[];
   buildingRoot: THREE.Object3D;
 }): void {
-  const treeShadows = !areTreeShadowsDisabled();
-  const buildingShadows = !areBuildingShadowsDisabled();
+  const treeShadows = areTreeShadowsEnabled();
+  const buildingShadows = areBuildingShadowsEnabled();
 
   options.sunLight.castShadow = treeShadows || buildingShadows;
   options.forestManager?.setTreeShadowsEnabled(treeShadows);
