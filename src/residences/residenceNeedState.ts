@@ -23,10 +23,12 @@ export type ResidenceNeedSupplyContext = {
 
 export type ResidenceCommunityContext = {
   hasChapelAccess: boolean;
+  sabbathObservance: boolean;
 };
 
 export const DEFAULT_RESIDENCE_COMMUNITY_CONTEXT: ResidenceCommunityContext = {
   hasChapelAccess: false,
+  sabbathObservance: false,
 };
 
 export type ResidenceNeedRecoveryStatus = {

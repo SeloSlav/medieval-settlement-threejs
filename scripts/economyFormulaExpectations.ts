@@ -13,6 +13,8 @@ import {
   CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
   CHAPEL_PRIEST_ATTENDANCE_BONUS,
   CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
+  CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
+  CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
   CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
   CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
   CHAPEL_UNSTAFFED_UPKEEP_FRACTION,
@@ -22,11 +24,19 @@ import {
 } from '../src/generated/gameBalance.ts';
 import { SECONDS_PER_DAY } from '../src/economy/gardenMarketActivity.ts';
 
-export function expectedEffectiveSettleTicks(hasChapelAccess: boolean): number {
-  if (!hasChapelAccess) {
-    return RESIDENCE_SETTLE_TICKS;
+export function expectedEffectiveSettleTicks(
+  hasChapelAccess: boolean,
+  sabbathObservance = false,
+): number {
+  let ticks = hasChapelAccess
+    ? Math.ceil(RESIDENCE_SETTLE_TICKS * CHAPEL_SETTLEMENT_TICKS_MULTIPLIER)
+    : RESIDENCE_SETTLE_TICKS;
+
+  if (hasChapelAccess && sabbathObservance) {
+    ticks = Math.ceil(ticks * (1 - CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS));
   }
-  return Math.ceil(RESIDENCE_SETTLE_TICKS * CHAPEL_SETTLEMENT_TICKS_MULTIPLIER);
+
+  return Math.max(1, ticks);
 }
 
 export function expectedEffectiveAbandonAfterDeficitTicks(hasChapelAccess: boolean): number {
@@ -36,16 +46,23 @@ export function expectedEffectiveAbandonAfterDeficitTicks(hasChapelAccess: boole
   return Math.ceil(ABANDON_AFTER_DEFICIT_TICKS / CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER);
 }
 
-export function expectedChapelAttendanceChance(assignedLabor: number): number {
+export function expectedChapelAttendanceChance(
+  assignedLabor: number,
+  sabbathObservance = false,
+): number {
   if (assignedLabor <= 0) {
     return 0;
   }
-  return Math.min(
-    1,
-    CHAPEL_BASE_ATTENDANCE_CHANCE
-      + CHAPEL_PRIEST_ATTENDANCE_BONUS * assignedLabor
-      + CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
-  );
+
+  let chance = CHAPEL_BASE_ATTENDANCE_CHANCE
+    + CHAPEL_PRIEST_ATTENDANCE_BONUS * assignedLabor
+    + CHAPEL_COMMUNITY_ATTENDANCE_BONUS;
+
+  if (sabbathObservance) {
+    chance += CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS;
+  }
+
+  return Math.min(1, chance);
 }
 
 export function expectedChapelTitheGoldPerTick(population: number): number {

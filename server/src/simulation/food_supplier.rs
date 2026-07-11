@@ -8,6 +8,7 @@ use crate::constants::{
 use crate::db::*;
 use crate::economy::{building_food_storage_cap, deposit_building_food};
 use crate::simulation::delivery_cargo::{any_target_needs_delivery, collect_claimed_delivery_targets};
+use crate::simulation::foraging_respawn::mark_foraging_depleted;
 use crate::simulation::delivery_supplier::{
     delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
     DeliveryDispatchConfig,

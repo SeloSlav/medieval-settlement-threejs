@@ -42,6 +42,7 @@ export type InspectorRenderContext = {
   worldQueries: WorldQueries;
   populationStats: PopulationStats;
   getEconomicActivityTaxRate?: () => number;
+  getSabbathObservanceEnabled?: () => boolean;
   getTradeAvailability?: () => MarketplaceTradeAvailability;
 };
 

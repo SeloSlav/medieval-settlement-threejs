@@ -21,6 +21,13 @@ import {
 import { toolbarModeToMenuAction } from './buildMenuMapping.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import {
+  formatCalendarDate,
+  formatClockTime,
+  formatWeekday,
+  gameClock,
+  laborPauseLabel,
+} from '../world/gameCalendar.ts';
+import {
   describeBuilderHelp,
   describeBuilderTitle,
   describeToolbarStatus,
@@ -58,6 +65,9 @@ export class BuildToolbar {
   private readonly removeButton: HTMLButtonElement;
   private readonly cancelDeleteButton: HTMLButtonElement;
   private readonly fpsPanel: HTMLElement;
+  private readonly clockDate: HTMLElement;
+  private readonly clockTime: HTMLElement;
+  private readonly clockDetail: HTMLElement;
   private readonly fpsValue: HTMLElement;
   private readonly zoomValue: HTMLElement;
   private readonly fpModePanel: HTMLElement;
@@ -425,6 +435,9 @@ export class BuildToolbar {
     this.removeButton = this.mustButton(root, '[data-action="confirm-delete"]');
     this.cancelDeleteButton = this.mustButton(root, '[data-action="cancel-delete"]');
     this.fpsPanel = this.mustElement(root, '[data-settlement-hud]');
+    this.clockDate = this.mustElement(root, '[data-clock-date]');
+    this.clockTime = this.mustElement(root, '[data-clock-time]');
+    this.clockDetail = this.mustElement(root, '[data-clock-detail]');
     this.fpsValue = this.mustElement(root, '[data-stat="fps"]');
     this.zoomValue = this.mustElement(root, '[data-stat="zoom"]');
     this.fpModePanel = this.mustElement(root, '[data-fp-mode-panel]');
@@ -602,6 +615,21 @@ export class BuildToolbar {
     this.lastHudTop = top;
     this.burgageLayoutHud.style.left = `${left}px`;
     this.burgageLayoutHud.style.top = `${top}px`;
+  }
+
+  setSettlementClock(
+    simTick: number,
+    options: { sabbathObservance: boolean; staffedChapel: boolean },
+  ): void {
+    const clock = gameClock(simTick);
+    this.clockDate.textContent = formatCalendarDate(clock);
+    this.clockTime.textContent = formatClockTime(clock);
+    const pauseLabel = laborPauseLabel(clock, options.sabbathObservance, options.staffedChapel);
+    this.clockDetail.textContent = pauseLabel
+      ? `${formatWeekday(clock)} · ${pauseLabel}`
+      : formatWeekday(clock);
+    this.fpsPanel.classList.toggle('is-sabbath', pauseLabel === 'Sunday sabbath');
+    this.fpsPanel.classList.toggle('is-night', pauseLabel === 'Night hours');
   }
 
   setFps(fps: number): void {

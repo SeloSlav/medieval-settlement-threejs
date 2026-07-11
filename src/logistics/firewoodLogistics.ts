@@ -5,6 +5,7 @@ import {
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { ResidenceState } from '../resources/types.ts';
 
+export { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 
 export function residenceFirewoodDemandPerSecond(residence: ResidenceState): number {

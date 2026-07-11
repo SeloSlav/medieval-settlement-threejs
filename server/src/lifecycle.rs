@@ -90,6 +90,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         economic_activity_tax_rate: ECONOMIC_ACTIVITY_TAX_RATE,
         chapel_auto_sweep_enabled: false,
         chapel_coffer_reserve_gold: CHAPEL_COFFER_RESERVE_DEFAULT,
+        sabbath_observance_enabled: false,
         parish_manual_collect_total: 0.0,
         parish_auto_sweep_total: 0.0,
         parish_salary_paid_total: 0.0,

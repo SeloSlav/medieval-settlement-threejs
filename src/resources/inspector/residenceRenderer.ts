@@ -38,10 +38,13 @@ export function renderResidenceInspector(
   const servingWell = context.worldQueries.getServingWellForResidence(residence);
   const servingFoodSupplier = context.worldQueries.getServingFoodSupplierForResidence(residence);
   const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
+  const sabbathObservance = servingChapel != null
+    && (context.getSabbathObservanceEnabled?.() ?? false);
   const community = {
     hasChapelAccess: servingChapel != null,
+    sabbathObservance,
   };
-  const parishEconomy = buildResidenceParishEconomyView(residence, servingChapel);
+  const parishEconomy = buildResidenceParishEconomyView(residence, servingChapel, sabbathObservance);
   const needs = residenceNeedsStatus(residence, {
     servingLodgeId: servingLodge?.id ?? null,
     servingWellId: servingWell?.id ?? null,
@@ -59,7 +62,10 @@ export function renderResidenceInspector(
     : 'None on branch';
   const capacity = residence.populationCapacity;
   const settlersRemaining = Math.max(0, capacity - residence.population);
-  const settleTicks = effectiveResidenceSettleTicks(community.hasChapelAccess);
+  const settleTicks = effectiveResidenceSettleTicks(
+    community.hasChapelAccess,
+    community.sabbathObservance,
+  );
   const settleEtaSeconds = settlersRemaining > 0
     ? Math.max(
         1,

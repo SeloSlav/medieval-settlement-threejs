@@ -39,6 +39,7 @@ pub use residence_needs::{
     clear_residence_needs, ensure_residence_needs,
 };
 pub use stone_quarry::step_stone_quarry;
+pub use tick_context::SimTickContext;
 pub use game_calendar::{game_clock, sim_elapsed_seconds, GameClock};
 pub use labor_schedule::{
     labor_and_logistics_paused, labor_pause_reason, owner_has_staffed_chapel,

@@ -3,6 +3,7 @@ import {
   CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER,
   CHAPEL_RECOVERY_NEEDS_REQUIRED,
   CHAPEL_RECOVERY_STOCK_MULTIPLIER,
+  CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
   CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
   RESIDENCE_RECOVERY_FIREWOOD_MIN,
   RESIDENCE_RECOVERY_FOOD_MIN,
@@ -17,12 +18,19 @@ import {
   expectedChapelTithePerDay,
 } from './householdWealth.ts';
 
-export function effectiveResidenceSettleTicks(hasChapelAccess: boolean): number {
-  if (!hasChapelAccess) {
-    return RESIDENCE_SETTLE_TICKS;
+export function effectiveResidenceSettleTicks(
+  hasChapelAccess: boolean,
+  sabbathObservance = false,
+): number {
+  let ticks = hasChapelAccess
+    ? Math.ceil(RESIDENCE_SETTLE_TICKS * CHAPEL_SETTLEMENT_TICKS_MULTIPLIER)
+    : RESIDENCE_SETTLE_TICKS;
+
+  if (hasChapelAccess && sabbathObservance) {
+    ticks = Math.ceil(ticks * (1 - CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS));
   }
 
-  return Math.ceil(RESIDENCE_SETTLE_TICKS * CHAPEL_SETTLEMENT_TICKS_MULTIPLIER);
+  return Math.max(1, ticks);
 }
 
 export function effectiveAbandonAfterDeficitTicks(hasChapelAccess: boolean): number {

@@ -45,7 +45,7 @@ import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { CityAdministrationPanel } from '../ui/CityAdministrationPanel.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
-import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
+import { DEFAULT_PARISH_POLICY, hasStaffedChapel } from '../economy/chapelParish.ts';
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { WorldSetupPanel } from '../ui/WorldSetupPanel.ts';
@@ -449,6 +449,9 @@ export class App {
       getState: () => this.gameState!,
       getEconomicActivityTaxRate: () =>
         this.spacetimeStore?.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
+      getSabbathObservanceEnabled: () =>
+        this.spacetimeStore?.snapshot.parishPolicy.sabbathObservanceEnabled
+        ?? DEFAULT_PARISH_POLICY.sabbathObservanceEnabled,
       ...inspectorActions,
       onSelectionChange: (target) => {
         buildingMarkers.setSelectedWorkExtent(
@@ -741,6 +744,7 @@ export class App {
     if (sampleMs < 400) return;
     const fps = this.fpsFrameCount / Math.max(this.fpsAccumulatedSeconds, 0.001);
     this.toolbar?.setFps(fps);
+    this.syncSettlementClock();
     (window as typeof window & { __medievalRoadStats?: { backend?: string; fps: number; calls?: number; triangles?: number; pixelRatio?: number } })
       .__medievalRoadStats = { fps, ...this.sceneManager?.getPerformanceStats() };
     this.resetFpsSample(time);
@@ -896,6 +900,15 @@ export class App {
     );
     this.resourceInspector.refreshSelection();
     this.cityAdminPanel?.refresh();
+    this.syncSettlementClock();
+  }
+
+  private syncSettlementClock(): void {
+    if (!this.toolbar || !this.spacetimeStore?.isConnected || !this.gameState) return;
+    this.toolbar.setSettlementClock(this.spacetimeStore.snapshot.simTick, {
+      sabbathObservance: this.spacetimeStore.snapshot.parishPolicy.sabbathObservanceEnabled,
+      staffedChapel: hasStaffedChapel(this.gameState.buildings.values()),
+    });
   }
 
   private exposeDevHandles(): void {

@@ -23,6 +23,7 @@ type ResourceInspectorOptions = {
   worldQueries: WorldQueries;
   getState: () => GameState;
   getEconomicActivityTaxRate?: () => number;
+  getSabbathObservanceEnabled?: () => boolean;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onDemolishBurgageZone?: (zoneId: string) => void | Promise<void>;
@@ -358,6 +359,9 @@ export class ResourceInspector {
       populationStats: this.populationStats,
       ...(this.options.getEconomicActivityTaxRate
         ? { getEconomicActivityTaxRate: this.options.getEconomicActivityTaxRate }
+        : {}),
+      ...(this.options.getSabbathObservanceEnabled
+        ? { getSabbathObservanceEnabled: this.options.getSabbathObservanceEnabled }
         : {}),
       getTradeAvailability: () => computeTradeAvailability(this.options.getState()),
     });

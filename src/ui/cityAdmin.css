@@ -67,6 +67,12 @@
   color: rgba(232, 226, 210, 0.82);
 }
 
+.city-admin-panel__intro--compact {
+  margin-bottom: 10px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .city-admin-panel__slider-label {
   display: flex;
   align-items: baseline;

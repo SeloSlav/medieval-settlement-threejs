@@ -36,6 +36,15 @@ export const DEFAULT_PARISH_POLICY: ParishPolicyState = {
   charityPaidTotal: 0,
 };
 
+export function hasStaffedChapel(buildings: Iterable<BuildingState>): boolean {
+  for (const building of buildings) {
+    if (building.kind === 'chapel' && building.assignedLabor > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function clampChapelCofferReserveGold(value: number): number {
   return Math.min(CHAPEL_COFFER_RESERVE_MAX, Math.max(CHAPEL_COFFER_RESERVE_MIN, value));
 }

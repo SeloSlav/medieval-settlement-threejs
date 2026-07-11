@@ -27,7 +27,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 
 ### Economy & settlement
 
-- **Settlement HUD** — per-player timber, stone, firewood, population, housing (occupied/capacity/vacant), and free labor tracked in SpacetimeDB with live FPS and zoom readout.
+- **Settlement HUD** — per-player timber, stone, firewood, population, housing (occupied/capacity/vacant), free labor, in-game date/time, and live FPS and zoom readout.
 - **Shared game balance** — one `balance/gameBalance.json` source generates Rust constants and TypeScript bindings for costs, radii, tick intervals, and production rates.
 - **Building placement costs** — timber and stone deducted from treasury on place; build menu cards show costs for each structure.
 - **Building storage** — mills, lodges, quarries, wells, and food buildings hold harvested resources in per-building inventory with capacity caps.
@@ -42,12 +42,13 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 - **Well** — refills groundwater based on local hydrology score, with occasional surges; delivers water to claimed residences along connected roads; capacity and yield depend on placement; up to 2 laborers split between pumping and delivery.
 - **Hunter's hall** — hunts game from procedural foraging nodes within 68 m, stores food, and delivers along roads; up to 3 laborers.
 - **Forager's shed** — gathers berries from forest-edge foraging nodes within 48 m, stores food, and delivers along roads; up to 2 laborers.
-- **Chapel** — parish hub on the road; assign a priest to collect tithes from road-linked household wealth into the **parish coffer** (collect into treasury when ready); boosts settlement, shortage resilience, and abandoned-home recovery.
+- **Chapel** — parish hub on the road; assign a priest to collect tithes from road-linked household wealth into the **parish coffer** (collect into treasury when ready); boosts settlement, shortage resilience, and abandoned-home recovery. Optional Sunday sabbath observance (requires staffed chapel) pauses labor and logistics that day.
 - **Road-based logistics** — Dijkstra road-path distance routes timber mill→lodge, firewood lodge→residence, water well→residence, and food supplier→residence; nearest supplier claims each home on its road branch.
 - **Delivery trips** — server-spawned road agents travel outbound, unload at the residence, and return; client renders colored spheres along routes for firewood, water, and food hauls.
 - **Foraging nodes** — procedural game trails and berry patches bootstrapped at world start; depleted nodes respawn at new locations after cooldowns.
 - **Tree lifecycle** — server-driven `mature → stump → growing → mature` phases with client visual sync (instanced forest, animated saplings, stumps).
-- Server-authoritative simulation tick (200 ms) in the Rust module — buildings, trees, quarries, foraging, delivery trips, residence needs, backyard gardens, and settlement growth all run server-side.
+- Server-authoritative simulation tick (200 ms) in the Rust module — buildings, trees, quarries, foraging, delivery trips, residence needs, backyard gardens, and settlement growth all run server-side. No pause or speed controls; players live through time at a fixed rate.
+- **In-game calendar** — one real second equals one sim second; a full day is 24 hours. Twelve 30-day months (no leap years), weekday names, and work hours 06:00–20:00. The settlement HUD shows date and time. With a staffed chapel, the mayor can enable **Sunday sabbath** in City administration — labor and deliveries pause that day in exchange for higher chapel attendance and faster settlement.
 - Construction dock UI — `R` for roads, `B` for the build menu (eight building types + residences), `M` for the hydrology overlay.
 - Building placement tool with terrain-following preview, flattened terrain pads, work-radius rings, and validation (water, slope, overlap, road access, trees, quarry stone, foraging nodes).
 - Building and residence demolish actions from the inspector panel.

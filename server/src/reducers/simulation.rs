@@ -2,7 +2,7 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::simulation::{
-    game_calendar::GameClock, labor_and_logistics_paused, step_backyard_gardens,
+    labor_and_logistics_paused, step_backyard_gardens,
     step_chapels, step_chapel_parish, step_delivery_trips, step_foragers_shed, step_foraging_respawn,
     step_hunters_hall, step_lumber_mill, step_reforester, step_residence, step_stone_quarry,
     step_well, step_woodcutters_lodge, SimTickContext,

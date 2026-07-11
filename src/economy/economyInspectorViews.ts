@@ -34,6 +34,7 @@ export type ResidenceParishEconomyView = {
 export function buildResidenceParishEconomyView(
   residence: ResidenceState,
   servingChapel: BuildingState | null,
+  sabbathObservance = false,
 ): ResidenceParishEconomyView {
   if (!servingChapel) {
     return {
@@ -44,7 +45,7 @@ export function buildResidenceParishEconomyView(
     };
   }
 
-  const attendance = chapelAttendanceChance(servingChapel.assignedLabor);
+  const attendance = chapelAttendanceChance(servingChapel.assignedLabor, sabbathObservance);
   const uncapped = residence.population > 0
     ? payableChapelTithePerDay(
         residence.population,

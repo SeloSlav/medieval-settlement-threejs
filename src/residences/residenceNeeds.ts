@@ -75,7 +75,7 @@ export function residenceNeedsStatus(
     return describeAbandonedResidence(residence, supply, community);
   }
   if (residence.population === 0) {
-    return describeAwaitingSettlers(residence, community.hasChapelAccess);
+    return describeAwaitingSettlers(residence, community);
   }
 
   const deficitWarning = describeDeficitWarning(residence, community.hasChapelAccess);
@@ -160,14 +160,20 @@ function describeAbandonedResidence(
   };
 }
 
-function describeAwaitingSettlers(residence: ResidenceState, hasChapelAccess: boolean): ResidenceNeedsStatus {
+function describeAwaitingSettlers(
+  residence: ResidenceState,
+  community: ResidenceCommunityContext,
+): ResidenceNeedsStatus {
   const capacity = residence.populationCapacity;
-  const settleTicks = effectiveResidenceSettleTicks(hasChapelAccess);
+  const settleTicks = effectiveResidenceSettleTicks(
+    community.hasChapelAccess,
+    community.sabbathObservance,
+  );
   const settleSeconds = Math.max(
     1,
     Math.round((settleTicks - residence.settlementTicks) * SIM_TICK_SECONDS),
   );
-  const chapelNote = hasChapelAccess ? ' (staffed chapel)' : '';
+  const chapelNote = community.hasChapelAccess ? ' (staffed chapel)' : '';
   return {
     label: capacity > 0
       ? `Awaiting settlers — first arrival in ~${formatShortDuration(settleSeconds)}${chapelNote}`
