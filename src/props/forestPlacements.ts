@@ -255,7 +255,7 @@ function pickTreeSpecies(rng: () => number, habitat: LocalForestHabitat, zone: F
   const dry = 1 - damp;
 
   // Gorski Kotar mix: beech–fir in moist valleys, spruce on cold slopes, pines on karst and ridges.
-  addSpeciesWeight(weights, 'beech', 26 + damp * 9 + warm * 5 - cold * 7);
+  addSpeciesWeight(weights, 'beech', 28 + damp * 9 + warm * 5 - cold * 7);
   addSpeciesWeight(weights, 'silverFir', 24 + cold * 12 + damp * 9 + habitat.density * 3 - warm * 3);
   addSpeciesWeight(weights, 'norwaySpruce', 11 + cold * 16 + planted * 8 + poor * 2);
   addSpeciesWeight(weights, 'scotsPine', 3.5 + poor * 9 + edgeLight * 5 + dry * 4 + cold * 2.5);
