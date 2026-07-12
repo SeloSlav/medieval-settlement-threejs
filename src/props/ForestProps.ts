@@ -39,8 +39,6 @@ import {
   type TreeSpeciesProfile,
 } from './forestPlacements.ts';
 
-export { computeForestTreePlacements, type ForestTreePlacement } from './forestPlacements.ts';
-
 const UP = new THREE.Vector3(0, 1, 0);
 const TAU = Math.PI * 2;
 
