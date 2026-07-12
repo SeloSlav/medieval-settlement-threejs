@@ -30,6 +30,8 @@ export class GameRuntime {
   private bootstrapComplete = false;
   private bootstrapInFlight = false;
   private sessionReadyEmitted = false;
+  private transportConnected = false;
+  private awaitingSessionRecovery = false;
 
   constructor(
     store: SpacetimeGameStore,
@@ -56,13 +58,18 @@ export class GameRuntime {
       this.callbacks.onSnapshot(snapshot, gameState);
 
       if (!snapshot.connected) {
+        this.transportConnected = false;
         if (this.sessionReadyEmitted) {
           this.roadsHydrated = false;
           this.sessionReadyEmitted = false;
+          this.awaitingSessionRecovery = true;
           this.callbacks.onSessionLost?.();
         }
         return;
       }
+
+      const reconnected = !this.transportConnected && this.awaitingSessionRecovery;
+      this.transportConnected = true;
 
       if (!this.bootstrapComplete && !this.bootstrapInFlight) {
         this.bootstrapInFlight = true;
@@ -76,11 +83,16 @@ export class GameRuntime {
           });
       }
 
+      if (reconnected && this.bootstrapComplete) {
+        this.roadsHydrated = false;
+      }
+
       if (!this.roadsHydrated && snapshot.roads) {
         this.roadsHydrated = true;
         this.callbacks.onRoadsHydrated(snapshot.roads);
-        this.tryEmitSessionReady();
       }
+
+      this.tryEmitSessionReady();
     });
   }
 
@@ -112,6 +124,7 @@ export class GameRuntime {
       return;
     }
     this.sessionReadyEmitted = true;
+    this.awaitingSessionRecovery = false;
     this.callbacks.onSessionReady?.();
   }
 

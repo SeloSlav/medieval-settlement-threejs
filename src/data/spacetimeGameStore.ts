@@ -177,6 +177,7 @@ export class SpacetimeGameStore {
       },
       onDisconnect: () => {
         this.tableState.identityHex = null;
+        this.tableState.roads = null;
         this.emit();
       },
     });

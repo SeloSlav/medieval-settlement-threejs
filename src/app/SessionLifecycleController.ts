@@ -53,6 +53,9 @@ export class SessionLifecycleController {
 
   onBootConnectionFailure(): void {
     if (this.deps.sessionGate.hasEverBeenReady()) {
+      if (this.deps.spacetimeStore.isConnected) {
+        return;
+      }
       this.onLost();
       return;
     }
@@ -101,10 +104,12 @@ export class SessionLifecycleController {
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       if (this.deps.sessionGate.isReady()) return;
-      try {
-        this.deps.spacetimeStore.connect();
-      } catch (error) {
-        console.warn('[SessionLifecycle] SpacetimeDB reconnect failed:', error);
+      if (!this.deps.spacetimeStore.isConnected) {
+        try {
+          this.deps.spacetimeStore.connect();
+        } catch (error) {
+          console.warn('[SessionLifecycle] SpacetimeDB reconnect failed:', error);
+        }
       }
       if (!this.deps.sessionGate.isReady()) {
         this.scheduleReconnect();
