@@ -69,12 +69,17 @@ pub fn is_chapel_tithe_paused(
 
 #[cfg(test)]
 mod tests {
-    use super::{is_work_hours, labor_and_logistics_paused};
+    use super::is_work_hours;
+    use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
     use crate::simulation::game_calendar::game_clock;
+
+    fn midnight_tick() -> u64 {
+        ((CALENDAR_SECONDS_PER_DAY / 2.0) / TICK_DT) as u64
+    }
 
     #[test]
     fn night_hours_pause_labor_without_db() {
-        let clock = game_clock(0);
+        let clock = game_clock(midnight_tick());
         assert!(!is_work_hours(&clock));
     }
 
@@ -82,7 +87,7 @@ mod tests {
     fn consumption_policy_matches_labor_policy_signature() {
         // Documented invariant: is_consumption_paused delegates to labor_and_logistics_paused.
         // Integration with owner/sabbath is covered by simulation tests.
-        let night = game_clock(0);
+        let night = game_clock(midnight_tick());
         assert!(!night.is_work_hours);
     }
 }

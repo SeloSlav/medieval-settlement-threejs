@@ -64,6 +64,10 @@ declare module '@seedthree/core/rng.js' {
   }
 }
 
+declare module '@seedthree/core/wind.js' {
+  export function grassWindPosition(bladeHeight?: number): unknown;
+}
+
 declare module '@seedthree/species/index.js' {
   export const SPECIES: Record<string, Record<string, unknown>>;
   export const DEFAULT_SPECIES: string;

@@ -10,6 +10,7 @@
     "monthsPerYear": 12,
     "daysPerWeek": 7,
     "sundayWeekday": 0,
+    "dayStartHour": 12,
     "workStartHour": 6,
     "workEndHour": 20
   },

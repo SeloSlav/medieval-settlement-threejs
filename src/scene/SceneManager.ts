@@ -237,11 +237,13 @@ export class SceneManager {
       forestCores: this.worldLayout.forestCores,
     });
     if (GRASS_BLADES_ENABLED) {
-      this.grassField = createGrassBladeField(this.terrain, {
+      this.grassField = await createGrassBladeField(this.terrain, {
         isBlockedAt: (x, z) =>
           this.riverSystem.isGrassBlockedAt(x, z)
           || this.quarrySystem.isGrassBlockedAt(x, z)
           || (getActivePlacedBuildingLayout()?.isBlockedForGrass(x, z) ?? false),
+        useSeedThreeClumps: this.rendererBackend === 'webgpu',
+        maxAnisotropy: this.maxAnisotropy,
       });
       this.scene.add(this.grassField.group);
       // Draw reeds after grass so shoreline cattails stay visible at ground level.

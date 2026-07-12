@@ -69,6 +69,7 @@ export type GameBalance = {
     monthsPerYear: number;
     daysPerWeek: number;
     sundayWeekday: number;
+    dayStartHour: number;
     workStartHour: number;
     workEndHour: number;
   };
@@ -206,6 +207,8 @@ function generateRust(): string {
     `pub const CALENDAR_MONTHS_PER_YEAR: u32 = ${b.calendar.monthsPerYear};`,
     `pub const CALENDAR_DAYS_PER_WEEK: u32 = ${b.calendar.daysPerWeek};`,
     `pub const CALENDAR_SUNDAY_WEEKDAY: u32 = ${b.calendar.sundayWeekday};`,
+    `pub const CALENDAR_DAY_START_HOUR: u32 = ${b.calendar.dayStartHour};`,
+    `pub const CALENDAR_DAY_START_OFFSET_SECONDS: f64 = ${rustF64(b.calendar.dayStartHour * 3600)};`,
     `pub const CALENDAR_WORK_START_HOUR: u32 = ${b.calendar.workStartHour};`,
     `pub const CALENDAR_WORK_END_HOUR: u32 = ${b.calendar.workEndHour};`,
     '',
@@ -468,6 +471,8 @@ function generateTypeScript(): string {
     `export const CALENDAR_MONTHS_PER_YEAR = ${b.calendar.monthsPerYear};`,
     `export const CALENDAR_DAYS_PER_WEEK = ${b.calendar.daysPerWeek};`,
     `export const CALENDAR_SUNDAY_WEEKDAY = ${b.calendar.sundayWeekday};`,
+    `export const CALENDAR_DAY_START_HOUR = ${b.calendar.dayStartHour};`,
+    `export const CALENDAR_DAY_START_OFFSET_SECONDS = ${b.calendar.dayStartHour * 3600};`,
     `export const CALENDAR_WORK_START_HOUR = ${b.calendar.workStartHour};`,
     `export const CALENDAR_WORK_END_HOUR = ${b.calendar.workEndHour};`,
     `export const SECONDS_PER_DAY = ${b.calendar.secondsPerDay};`,

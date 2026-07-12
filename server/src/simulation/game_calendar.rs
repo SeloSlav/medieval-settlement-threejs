@@ -1,7 +1,7 @@
 use crate::balance_generated::{
-    CALENDAR_DAYS_PER_MONTH, CALENDAR_DAYS_PER_WEEK, CALENDAR_HOURS_PER_DAY,
-    CALENDAR_MONTHS_PER_YEAR, CALENDAR_SECONDS_PER_DAY, CALENDAR_SUNDAY_WEEKDAY,
-    CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, TICK_DT,
+    CALENDAR_DAYS_PER_MONTH, CALENDAR_DAYS_PER_WEEK, CALENDAR_DAY_START_OFFSET_SECONDS,
+    CALENDAR_HOURS_PER_DAY, CALENDAR_MONTHS_PER_YEAR, CALENDAR_SECONDS_PER_DAY,
+    CALENDAR_SUNDAY_WEEKDAY, CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, TICK_DT,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,8 +24,9 @@ pub fn sim_elapsed_seconds(sim_tick: u64) -> f64 {
 
 pub fn game_clock(sim_tick: u64) -> GameClock {
     let elapsed = sim_elapsed_seconds(sim_tick);
-    let total_days = (elapsed / CALENDAR_SECONDS_PER_DAY).floor() as u64;
-    let seconds_into_day = elapsed % CALENDAR_SECONDS_PER_DAY;
+    let calendar_elapsed = elapsed + CALENDAR_DAY_START_OFFSET_SECONDS;
+    let total_days = (calendar_elapsed / CALENDAR_SECONDS_PER_DAY).floor() as u64;
+    let seconds_into_day = calendar_elapsed % CALENDAR_SECONDS_PER_DAY;
     let hour = (seconds_into_day / 3600.0).floor() as u32;
     let minute = ((seconds_into_day % 3600.0) / 60.0).floor() as u32;
     let weekday = (total_days % CALENDAR_DAYS_PER_WEEK as u64) as u32;
@@ -54,6 +55,14 @@ pub fn game_clock(sim_tick: u64) -> GameClock {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::balance_generated::CALENDAR_DAY_START_HOUR;
+
+    #[test]
+    fn new_game_starts_at_day_start_hour() {
+        let clock = game_clock(0);
+        assert_eq!(clock.hour, CALENDAR_DAY_START_HOUR);
+        assert_eq!(clock.minute, 0);
+    }
 
     #[test]
     fn rational_calendar_months_are_thirty_days() {

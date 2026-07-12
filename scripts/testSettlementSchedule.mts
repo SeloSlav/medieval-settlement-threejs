@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
-import { CALENDAR_WORK_START_HOUR, SIM_TICK_SECONDS } from '../src/generated/gameBalance.ts';
+import {
+  CALENDAR_DAY_START_OFFSET_SECONDS,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_START_HOUR,
+  SIM_TICK_SECONDS,
+} from '../src/generated/gameBalance.ts';
 import { gameClock, gameClockAtElapsedSeconds, isLaborPaused, laborPauseLabel } from '../src/world/gameCalendar.ts';
 import {
   deriveSettlementSchedule,
@@ -10,10 +15,11 @@ import { deriveInterpolatedSettlementSchedule } from '../src/world/settlementSch
 import { DEFAULT_PARISH_POLICY } from '../src/economy/chapelParish.ts';
 import type { GameState } from '../src/resources/types.ts';
 
-const workHourTick = Math.ceil(
-  (CALENDAR_WORK_START_HOUR * 3600 + 60) / SIM_TICK_SECONDS,
-);
-const nightTick = 0;
+const nightTick = Math.ceil((CALENDAR_SECONDS_PER_DAY / 2) / SIM_TICK_SECONDS);
+const workHourTick = 0;
+const mondayWorkMorningElapsed =
+  CALENDAR_SECONDS_PER_DAY + CALENDAR_WORK_START_HOUR * 3600 + 60 - CALENDAR_DAY_START_OFFSET_SECONDS;
+const workMorningTick = mondayWorkMorningElapsed / SIM_TICK_SECONDS;
 
 const nightClock = gameClock(nightTick);
 assert.equal(isLaborPaused(nightClock, false, false), true);
@@ -85,7 +91,7 @@ const staffedSunday = deriveSettlementSchedule(
 assert.equal(staffedSunday.laborPaused, true);
 assert.equal(staffedSunday.staffedChapel, true);
 
-const elapsedAtWork = workHourTick * SIM_TICK_SECONDS;
+const elapsedAtWork = workMorningTick * SIM_TICK_SECONDS;
 const interpolatedWork = deriveInterpolatedSettlementSchedule(
   elapsedAtWork + 30,
   DEFAULT_PARISH_POLICY,
@@ -97,6 +103,6 @@ assert.equal(interpolatedWork.clock.minute, 1);
 const clockFromElapsed = gameClockAtElapsedSeconds(elapsedAtWork + 90);
 assert.equal(clockFromElapsed.hour, CALENDAR_WORK_START_HOUR);
 assert.equal(clockFromElapsed.minute, 2);
-assert.equal(gameClock(workHourTick).hour, CALENDAR_WORK_START_HOUR);
+assert.equal(gameClock(workMorningTick).hour, CALENDAR_WORK_START_HOUR);
 
 console.log('settlement schedule tests passed');

@@ -48,12 +48,29 @@ declare module 'three/webgpu' {
     color: THREE.Color;
     metalness: number;
     roughness: number;
+    roughnessMap: THREE.Texture | null;
     transparent: boolean;
     opacity: number;
     depthWrite: boolean;
     alphaMap: THREE.Texture | null;
     backdropNode: unknown;
     backdropAlphaNode: unknown;
+  }
+
+  export class MeshSSSNodeMaterial extends MeshStandardNodeMaterial {
+    constructor(parameters?: THREE.MaterialParameters & {
+      map?: THREE.Texture | null;
+      alphaTest?: number;
+      side?: THREE.Side;
+      roughness?: number;
+      metalness?: number;
+    });
+    thicknessColorNode: unknown;
+    thicknessDistortionNode: unknown;
+    thicknessAmbientNode: unknown;
+    thicknessAttenuationNode: unknown;
+    thicknessPowerNode: unknown;
+    thicknessScaleNode: unknown;
   }
 
   export class MeshPhysicalNodeMaterial extends MeshStandardNodeMaterial {

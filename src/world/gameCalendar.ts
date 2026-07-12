@@ -1,6 +1,7 @@
 import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_DAYS_PER_WEEK,
+  CALENDAR_DAY_START_OFFSET_SECONDS,
   CALENDAR_HOURS_PER_DAY,
   CALENDAR_MONTHS_PER_YEAR,
   CALENDAR_SECONDS_PER_DAY,
@@ -58,9 +59,10 @@ export function gameClock(simTick: number): GameClock {
 
 export function gameClockAtElapsedSeconds(elapsedSeconds: number): GameClock {
   const elapsed = Math.max(0, elapsedSeconds);
+  const calendarElapsed = elapsed + CALENDAR_DAY_START_OFFSET_SECONDS;
   const simTick = elapsed / SIM_TICK_SECONDS;
-  const totalDays = Math.floor(elapsed / CALENDAR_SECONDS_PER_DAY);
-  const secondsIntoDay = elapsed % CALENDAR_SECONDS_PER_DAY;
+  const totalDays = Math.floor(calendarElapsed / CALENDAR_SECONDS_PER_DAY);
+  const secondsIntoDay = calendarElapsed % CALENDAR_SECONDS_PER_DAY;
   const hour = Math.min(CALENDAR_HOURS_PER_DAY - 1, Math.floor(secondsIntoDay / 3600));
   const minute = Math.min(59, Math.floor((secondsIntoDay % 3600) / 60));
   const weekday = totalDays % CALENDAR_DAYS_PER_WEEK;

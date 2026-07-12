@@ -3,6 +3,7 @@ declare module 'three/tsl' {
 
   export const abs: (value: unknown) => unknown;
   export const cameraPosition: unknown;
+  export const cameraViewMatrix: unknown;
   export const dot: (a: unknown, b: unknown) => unknown;
   export const normalView: unknown;
   export const normalize: (value: unknown) => unknown;
@@ -35,5 +36,6 @@ declare module 'three/tsl' {
   export function mix(a: unknown, b: unknown, t: unknown): unknown;
   export function vec2(x: unknown, y?: unknown): unknown;
   export function vec3(x: unknown, y?: unknown, z?: unknown): unknown;
+  export function vec4(x: unknown, y?: unknown, z?: unknown, w?: unknown): unknown;
   export const fwidth: (value: unknown) => unknown;
 }
