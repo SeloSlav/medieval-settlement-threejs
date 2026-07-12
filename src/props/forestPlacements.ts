@@ -258,8 +258,8 @@ function pickTreeSpecies(rng: () => number, habitat: LocalForestHabitat, zone: F
   addSpeciesWeight(weights, 'beech', 26 + damp * 9 + warm * 5 - cold * 7);
   addSpeciesWeight(weights, 'silverFir', 24 + cold * 12 + damp * 9 + habitat.density * 3 - warm * 3);
   addSpeciesWeight(weights, 'norwaySpruce', 11 + cold * 16 + planted * 8 + poor * 2);
-  addSpeciesWeight(weights, 'scotsPine', 5 + poor * 11 + edgeLight * 6 + dry * 5 + cold * 3);
-  addSpeciesWeight(weights, 'blackPine', 3.5 + poor * 9 + cold * 5 + edgeLight * 4 + dry * 3);
+  addSpeciesWeight(weights, 'scotsPine', 3.5 + poor * 9 + edgeLight * 5 + dry * 4 + cold * 2.5);
+  addSpeciesWeight(weights, 'blackPine', 2.6 + poor * 7 + cold * 4 + edgeLight * 3 + dry * 2.5);
   addSpeciesWeight(weights, 'larch', 1.8 + planted * 4.5 + cold * 1.1);
   addSpeciesWeight(weights, 'sycamoreMaple', 3.5 + damp * 8 + warm * 2);
   addSpeciesWeight(weights, 'norwayMaple', 2.4 + warm * 4.5 + edgeLight * 1.4);
@@ -275,8 +275,8 @@ function pickTreeSpecies(rng: () => number, habitat: LocalForestHabitat, zone: F
     multiplySpeciesWeight(weights, 'beech', 0.52);
     multiplySpeciesWeight(weights, 'silverFir', 1.14);
     multiplySpeciesWeight(weights, 'norwaySpruce', 1.42);
-    multiplySpeciesWeight(weights, 'scotsPine', 2.1);
-    multiplySpeciesWeight(weights, 'blackPine', 1.95);
+    multiplySpeciesWeight(weights, 'scotsPine', 1.75);
+    multiplySpeciesWeight(weights, 'blackPine', 1.65);
     multiplySpeciesWeight(weights, 'larch', 1.65);
     multiplySpeciesWeight(weights, 'sessileOak', 0.34);
     multiplySpeciesWeight(weights, 'hornbeam', 0.45);
