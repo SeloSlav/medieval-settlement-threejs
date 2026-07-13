@@ -4,6 +4,16 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 
 ![Road network with wooden bridges, ramps, and forest](docs/screenshots/medieval-roads-bridges-forest.png)
 
+## Setting & visual direction
+
+**Gorski Kotar, Croatia — circa 1500–1600.** The default sandbox is a wet, wooded highland in the Dinaric Alps: beech–fir valleys, karst ridges, limestone hamlets, and seasonal trade with Kvarner. Regional market goods, forest species, and building materials all lean into that slice of Croatian history. You are free to retarget the game to another region or era — treat this as a starting point, not a hard constraint.
+
+**Build menu cards** use a **Croatian naive art** style — folk painting with flat color, bold outlines, and charming asymmetry. Examples live in `public/assets/ui/build-menu/`.
+
+**3D buildings and residences** follow the shared [building visual language](docs/design/building-visual-language.md): grounded Gorski vernacular, limestone-and-timber construction, and silhouettes readable at settlement zoom. The chapel mesh is the reference implementation.
+
+**Generating new assets?** Before asking an LLM or agent to create buildings, menu illustrations, or textures, point it at `docs/design/building-visual-language.md` and the existing art under `public/assets/` so output stays consistent. To shift the whole aesthetic — different country, period, or illustration style — update that document first (or ask your agent orchestrator to do that), then regenerate art and meshes against the new brief.
+
 ## Features
 
 ### Road building
@@ -368,7 +378,7 @@ On the server, `server/src/reducers/simulation.rs` runs each 200 ms tick: lumber
 
 ## Assets
 
-Texture assets are stored under `public/assets/textures`. The road surface uses a medieval dirt texture set with albedo, normal, roughness, ambient occlusion, height, rut mask, and edge mask maps. River bridge decks use a separate wood-log PBR set (procedurally generated via `scripts/generate_wood_logs_texture.py`). Terrain uses multiple manor grass PBR sets (meadow, dense, dry, blend) and prop textures for pine foliage and rocks. Build menu cards use illustrated PNG art under `public/assets/ui/build-menu/`. Building meshes use procedural geometry with timber, stone, and shingle materials. Everything is loaded locally at runtime — no external asset CDN required.
+Texture assets are stored under `public/assets/textures`. The road surface uses a medieval dirt texture set with albedo, normal, roughness, ambient occlusion, height, rut mask, and edge mask maps. River bridge decks use a separate wood-log PBR set (procedurally generated via `scripts/generate_wood_logs_texture.py`). Terrain uses multiple manor grass PBR sets (meadow, dense, dry, blend) and prop textures for pine foliage and rocks. Build menu cards use Croatian naive art PNGs under `public/assets/ui/build-menu/`. Building meshes use procedural geometry with timber, stone, and shingle materials guided by [building visual language](docs/design/building-visual-language.md). Everything is loaded locally at runtime — no external asset CDN required.
 
 ## Third-Party Libraries
 

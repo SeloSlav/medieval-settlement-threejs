@@ -18,7 +18,7 @@ const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   marketplace: 3.2,
 };
 
-const RESIDENCE_SHADOW_HEIGHT = 6.4;
+const RESIDENCE_SHADOW_HEIGHT = 7.7;
 
 const shadowCastMaterial = new THREE.MeshStandardMaterial({
   transparent: true,

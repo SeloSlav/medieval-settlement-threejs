@@ -11,10 +11,13 @@ import {
 } from '../buildings/buildingMaterials.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import { ChimneySmokeEmitter } from './ResidenceChimneySmoke.ts';
-import { pickResidenceAppearance } from './residenceAppearance.ts';
+import {
+  pickResidenceAppearance,
+  type ResidenceArchetype,
+  type ResidenceTrimColor,
+} from './residenceAppearance.ts';
 import { getNeedStock } from './residenceNeedState.ts';
 import type { ResidenceState } from '../resources/types.ts';
-import { MAIN_HOUSE_DEPTH, MAIN_HOUSE_WIDTH } from './burgageLayout.ts';
 import { RESIDENCE_FIREWOOD_CAPACITY } from '../generated/gameBalance.ts';
 import { hashStringSeed } from '../utils/random.ts';
 
@@ -60,201 +63,449 @@ function lerpColor(a: number, b: number, t: number): number {
   return (r << 16) | (g << 8) | bl;
 }
 
-const WINDOW_DEPTH = 0.1;
-const WINDOW_FRAME_DEPTH = 0.05;
-const WINDOW_FRAME_PAD = 0.14;
+type HouseDimensions = {
+  width: number;
+  depth: number;
+  foundationHeight: number;
+  groundHeight: number;
+  upperHeight: number;
+  ridgeHeight: number;
+};
 
-type WindowFace = 'front' | 'left' | 'right';
+function dimensionsForArchetype(archetype: ResidenceArchetype): HouseDimensions {
+  switch (archetype) {
+    case 'stone_portal':
+      return { width: 6.3, depth: 7.05, foundationHeight: 0.48, groundHeight: 2.42, upperHeight: 2.34, ridgeHeight: 2.5 };
+    case 'timber_balcony':
+      return { width: 6.0, depth: 6.45, foundationHeight: 0.5, groundHeight: 2.38, upperHeight: 2.32, ridgeHeight: 2.42 };
+    case 'working_lean_to':
+      return { width: 5.65, depth: 6.7, foundationHeight: 0.46, groundHeight: 2.36, upperHeight: 2.28, ridgeHeight: 2.38 };
+  }
+}
 
-function addWindow(
+function residenceTrimMaterial(trim: ResidenceTrimColor): THREE.MeshStandardMaterial {
+  const color = trim === 'red'
+    ? 0x9f4538
+    : trim === 'blue'
+      ? 0x456774
+      : trim === 'green'
+        ? 0x536a43
+        : 0x5a4030;
+  return new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0 });
+}
+
+function addFrontWindow(
   group: THREE.Group,
   windowMaterial: THREE.MeshStandardMaterial,
-  face: WindowFace,
-  along: number,
+  shutterMaterial: THREE.MeshStandardMaterial,
+  x: number,
   y: number,
-  width: number,
-  height: number,
-  halfW: number,
-  halfD: number,
+  z: number,
+  width = 0.82,
+  height = 1.12,
+  shutters = true,
 ): void {
-  if (face === 'front') {
-    const z = halfD - 0.1;
-    addMesh(
-      group,
-      new THREE.BoxGeometry(width, height, WINDOW_DEPTH),
-      windowMaterial,
-      new THREE.Vector3(along, y, z),
-    );
-    addMesh(
-      group,
-      new THREE.BoxGeometry(width + WINDOW_FRAME_PAD, height + WINDOW_FRAME_PAD, WINDOW_FRAME_DEPTH),
-      timberMaterial('dark'),
-      new THREE.Vector3(along, y, z - 0.03),
-    );
-    return;
-  }
-
-  const x = face === 'left' ? -(halfW - 0.1) : halfW - 0.1;
-  const frameOffsetX = face === 'left' ? 0.03 : -0.03;
   addMesh(
     group,
-    new THREE.BoxGeometry(WINDOW_DEPTH, height, width),
-    windowMaterial,
-    new THREE.Vector3(x, y, along),
+    new THREE.BoxGeometry(width + 0.22, height + 0.22, 0.08),
+    stoneMaterial('light'),
+    new THREE.Vector3(x, y, z),
   );
   addMesh(
     group,
-    new THREE.BoxGeometry(WINDOW_FRAME_DEPTH, height + WINDOW_FRAME_PAD, width + WINDOW_FRAME_PAD),
+    new THREE.BoxGeometry(width, height, 0.075),
+    windowMaterial,
+    new THREE.Vector3(x, y, z + 0.065),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width + 0.28, 0.1, 0.2),
+    stoneMaterial('mortar'),
+    new THREE.Vector3(x, y - height * 0.5 - 0.1, z + 0.09),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.055, height * 0.88, 0.055),
     timberMaterial('dark'),
-    new THREE.Vector3(x + frameOffsetX, y, along),
+    new THREE.Vector3(x, y, z + 0.125),
+  );
+  if (!shutters) return;
+
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(width * 0.32, height * 0.92, 0.07),
+      shutterMaterial,
+      new THREE.Vector3(x + side * (width * 0.7), y, z + 0.08),
+    );
+  }
+}
+
+function addSideWindow(
+  group: THREE.Group,
+  windowMaterial: THREE.MeshStandardMaterial,
+  side: -1 | 1,
+  x: number,
+  y: number,
+  z: number,
+  width = 0.78,
+  height = 1.08,
+): void {
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.08, height + 0.22, width + 0.22),
+    stoneMaterial('light'),
+    new THREE.Vector3(x, y, z),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.075, height, width),
+    windowMaterial,
+    new THREE.Vector3(x + side * 0.065, y, z),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.18, 0.1, width + 0.28),
+    stoneMaterial('mortar'),
+    new THREE.Vector3(x + side * 0.09, y - height * 0.5 - 0.1, z),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.055, height * 0.88, 0.055),
+    timberMaterial('dark'),
+    new THREE.Vector3(x + side * 0.125, y, z),
+  );
+}
+
+function addPlankDoor(
+  group: THREE.Group,
+  x: number,
+  baseY: number,
+  z: number,
+  width = 1.02,
+  height = 1.92,
+): void {
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width + 0.38, height + 0.24, 0.1),
+    stoneMaterial('light'),
+    new THREE.Vector3(x, baseY + height * 0.5, z),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width, height, 0.12),
+    timberMaterial('dark'),
+    new THREE.Vector3(x, baseY + height * 0.5, z + 0.075),
+  );
+  for (let plank = -1; plank <= 1; plank++) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.26, height * 0.88, 0.055),
+      plank === 0 ? timberMaterial('mid') : timberMaterial('weathered'),
+      new THREE.Vector3(x + plank * 0.29, baseY + height * 0.5, z + 0.155),
+    );
+  }
+  for (const y of [baseY + 0.45, baseY + 1.36]) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(width * 0.82, 0.075, 0.055),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, y, z + 0.205),
+    );
+  }
+}
+
+function addStoneStoreyCourses(
+  group: THREE.Group,
+  width: number,
+  depth: number,
+  foundationHeight: number,
+  groundHeight: number,
+): void {
+  for (let course = 1; course <= 3; course++) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(width + 0.08, 0.045, depth + 0.08),
+      stoneMaterial(course % 2 === 0 ? 'light' : 'mortar'),
+      new THREE.Vector3(0, foundationHeight + groundHeight * (course / 4), 0),
+    );
+  }
+}
+
+function addRoofCourses(
+  group: THREE.Group,
+  material: THREE.Material,
+  halfWidth: number,
+  depth: number,
+  wallTop: number,
+  ridgeHeight: number,
+  roofPitch: number,
+): void {
+  for (const side of [-1, 1] as const) {
+    for (let row = 0; row < 4; row++) {
+      const t = (row + 0.45) / 4.8;
+      addMesh(
+        group,
+        new THREE.BoxGeometry(0.07, 0.06, depth + 0.46),
+        material,
+        new THREE.Vector3(side * halfWidth * (1 - t), wallTop + ridgeHeight * t + 0.02, 0),
+        new THREE.Euler(0, 0, side * -roofPitch),
+      );
+    }
+  }
+}
+
+function addStonePortalPorch(
+  group: THREE.Group,
+  entryX: number,
+  frontZ: number,
+  foundationHeight: number,
+): void {
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.16, 1.72, 0.16),
+      timberMaterial('dark'),
+      new THREE.Vector3(entryX + side * 0.68, foundationHeight + 0.86, frontZ + 0.7),
+    );
+  }
+  addMesh(
+    group,
+    new THREE.BoxGeometry(1.7, 0.12, 1.08),
+    residenceRoofMaterial('red'),
+    new THREE.Vector3(entryX, foundationHeight + 1.77, frontZ + 0.36),
+    new THREE.Euler(-0.16, 0, 0),
+  );
+}
+
+function addTimberBalcony(
+  group: THREE.Group,
+  entrySide: -1 | 1,
+  frontZ: number,
+  floorY: number,
+): void {
+  const width = 4.4;
+  const depth = 0.62;
+  const deckZ = frontZ + depth * 0.52;
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width, 0.16, depth),
+    timberMaterial('mid'),
+    new THREE.Vector3(0, floorY, deckZ),
+  );
+  for (const x of [-2.0, -1.0, 0, 1.0, 2.0]) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.11, 0.82, 0.11),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, floorY + 0.46, deckZ + depth * 0.42),
+    );
+  }
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width + 0.08, 0.1, 0.1),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, floorY + 0.84, deckZ + depth * 0.42),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.12, 1.95, 0.12),
+    timberMaterial('dark'),
+    new THREE.Vector3(-entrySide * 2.0, floorY - 0.75, deckZ),
+  );
+}
+
+function addWorkingLeanTo(
+  group: THREE.Group,
+  side: -1 | 1,
+  halfWidth: number,
+  foundationHeight: number,
+): void {
+  const annexWidth = 0.74;
+  const annexHeight = 1.78;
+  const x = side * (halfWidth + annexWidth * 0.48);
+  addMesh(
+    group,
+    new THREE.BoxGeometry(annexWidth, annexHeight, 3.4),
+    timberMaterial('weathered'),
+    new THREE.Vector3(x, foundationHeight + annexHeight * 0.5, -0.28),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(annexWidth + 0.22, 0.12, 3.68),
+    residenceRoofMaterial('brown'),
+    new THREE.Vector3(x, foundationHeight + annexHeight + 0.12, -0.28),
+    new THREE.Euler(0, 0, side * 0.18),
   );
 }
 
 export function createResidenceMesh(seed = 0): THREE.Group {
-  const { facade, roof } = pickResidenceAppearance(seed);
+  const appearance = pickResidenceAppearance(seed);
+  const { facade, roof, archetype, entrySide, trim } = appearance;
+  const dimensions = dimensionsForArchetype(archetype);
   const wallMaterial = residenceFacadeMaterial(facade);
   const roofSurfaceMaterial = residenceRoofMaterial(roof);
+  const shutterMaterial = residenceTrimMaterial(trim);
+  const windowMaterial = createWindowMaterial();
 
   const group = new THREE.Group();
   group.name = 'Residence';
-  const windowMaterial = createWindowMaterial();
   group.userData.windowMaterial = windowMaterial;
+  group.userData.residenceArchetype = archetype;
 
-  const width = MAIN_HOUSE_WIDTH;
-  const depth = MAIN_HOUSE_DEPTH;
-  const stoneHeight = 0.95;
-  const storeyHeight = 2.55;
-  const wallHeight = storeyHeight * 2;
+  const { width, depth, foundationHeight, groundHeight, upperHeight, ridgeHeight } = dimensions;
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
-  const wallTop = stoneHeight + wallHeight;
-  const ridgeHeight = 2.85;
+  const groundTop = foundationHeight + groundHeight;
+  const wallTop = groundTop + upperHeight;
   const roofPitch = Math.atan2(ridgeHeight, halfW);
-  const slopeLen = halfW / Math.cos(roofPitch) + 0.22;
-  const frontZ = halfD - 0.1;
+  const slopeLen = halfW / Math.cos(roofPitch) + 0.3;
+  const frontZ = halfD - 0.075;
 
   addMesh(
     group,
-    new THREE.BoxGeometry(width + 0.34, stoneHeight, depth + 0.34),
+    new THREE.BoxGeometry(width + 0.38, foundationHeight, depth + 0.38),
     stoneMaterial('light'),
-    new THREE.Vector3(0, stoneHeight * 0.5, 0),
+    new THREE.Vector3(0, foundationHeight * 0.5, 0),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width, groundHeight, depth),
+    stoneMaterial('mid'),
+    new THREE.Vector3(0, foundationHeight + groundHeight * 0.5, 0),
+  );
+  addStoneStoreyCourses(group, width, depth, foundationHeight, groundHeight);
+
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width - 0.12, upperHeight, depth - 0.12),
+    wallMaterial,
+    new THREE.Vector3(0, groundTop + upperHeight * 0.5, 0),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width + 0.12, 0.18, depth + 0.12),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, groundTop + 0.04, 0),
   );
   addMesh(
     group,
     new THREE.BoxGeometry(width + 0.08, 0.14, depth + 0.08),
     stoneMaterial('mortar'),
-    new THREE.Vector3(0, stoneHeight + 0.07, 0),
+    new THREE.Vector3(0, wallTop - 0.07, 0),
   );
 
-  for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]] as const) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(0.36, wallHeight + 0.1, 0.36),
-      stoneMaterial('mid'),
-      new THREE.Vector3(sx * (halfW - 0.12), stoneHeight + (wallHeight + 0.1) * 0.5, sz * (halfD - 0.12)),
-    );
+  const doorX = entrySide * (archetype === 'working_lean_to' ? 1.18 : 1.38);
+  addPlankDoor(group, doorX, foundationHeight + 0.08, frontZ + 0.03);
+  addFrontWindow(
+    group,
+    windowMaterial,
+    shutterMaterial,
+    -entrySide * 1.38,
+    foundationHeight + groundHeight * 0.55,
+    frontZ + 0.02,
+    0.78,
+    1.02,
+    false,
+  );
+
+  if (archetype === 'timber_balcony') {
+    addFrontWindow(group, windowMaterial, shutterMaterial, -entrySide * 1.35, groundTop + upperHeight * 0.55, frontZ + 0.02);
+    addPlankDoor(group, entrySide * 0.82, groundTop + 0.08, frontZ + 0.03, 0.86, 1.84);
+    addTimberBalcony(group, entrySide, frontZ, groundTop + 0.08);
+  } else {
+    addFrontWindow(group, windowMaterial, shutterMaterial, -1.38, groundTop + upperHeight * 0.54, frontZ + 0.02);
+    addFrontWindow(group, windowMaterial, shutterMaterial, 1.38, groundTop + upperHeight * 0.54, frontZ + 0.02);
   }
 
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width - 0.28, wallHeight, depth - 0.28),
-    wallMaterial,
-    new THREE.Vector3(0, stoneHeight + wallHeight * 0.5, 0),
-  );
+  for (const side of [-1, 1] as const) {
+    const x = side * (halfW - 0.035);
+    addSideWindow(group, windowMaterial, side, x, foundationHeight + groundHeight * 0.56, -0.35, 0.74, 0.98);
+    addSideWindow(group, windowMaterial, side, x, groundTop + upperHeight * 0.54, 0.42, 0.78, 1.05);
+  }
 
-  const floorY = stoneHeight + storeyHeight;
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width - 0.34, 0.12, depth - 0.34),
-    timberMaterial('dark'),
-    new THREE.Vector3(0, floorY, 0),
-  );
-
-  addWindow(group, windowMaterial, 'front', -1.55, stoneHeight + storeyHeight * 0.55, 1.05, 1.35, halfW, halfD);
-  addWindow(group, windowMaterial, 'front', 1.55, stoneHeight + storeyHeight * 0.55, 1.05, 1.35, halfW, halfD);
-  addWindow(group, windowMaterial, 'front', -1.55, stoneHeight + storeyHeight + storeyHeight * 0.55, 1.0, 1.25, halfW, halfD);
-  addWindow(group, windowMaterial, 'front', 1.55, stoneHeight + storeyHeight + storeyHeight * 0.55, 1.0, 1.25, halfW, halfD);
-  addWindow(group, windowMaterial, 'left', 0, stoneHeight + storeyHeight * 0.55, 1.2, 1.2, halfW, halfD);
-  addWindow(group, windowMaterial, 'left', 0, stoneHeight + storeyHeight + storeyHeight * 0.5, 1.15, 1.15, halfW, halfD);
-  addWindow(group, windowMaterial, 'right', 0, stoneHeight + storeyHeight * 0.55, 1.2, 1.2, halfW, halfD);
-  addWindow(group, windowMaterial, 'right', 0, stoneHeight + storeyHeight + storeyHeight * 0.5, 1.15, 1.15, halfW, halfD);
-
-  const doorWidth = 1.2;
-  const doorHeight = 2.1;
-  addMesh(
-    group,
-    new THREE.BoxGeometry(doorWidth, doorHeight, 0.14),
-    timberMaterial('dark'),
-    new THREE.Vector3(0, stoneHeight + doorHeight * 0.5, frontZ),
-  );
-  addMesh(
-    group,
-    new THREE.BoxGeometry(doorWidth + 0.18, doorHeight + 0.12, 0.08),
-    timberMaterial('weathered'),
-    new THREE.Vector3(0, stoneHeight + doorHeight * 0.5 + 0.06, frontZ - 0.04),
-  );
-
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width - 0.5, 0.14, depth - 0.5),
-    timberMaterial('light'),
-    new THREE.Vector3(0, wallTop - 0.06, 0),
-  );
-
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.16, 0.16, depth - 0.2),
-    timberMaterial('dark'),
-    new THREE.Vector3(0, wallTop + ridgeHeight, 0),
-  );
+  for (let step = 0; step < 2; step++) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(1.5 - step * 0.18, 0.16, 0.5),
+      stoneMaterial(step === 0 ? 'mid' : 'light'),
+      new THREE.Vector3(doorX, 0.08 + step * 0.12, halfD + 0.34 - step * 0.14),
+    );
+  }
 
   for (const side of [-1, 1] as const) {
     addMesh(
       group,
-      new THREE.BoxGeometry(slopeLen, 0.13, depth + 0.36),
+      new THREE.BoxGeometry(slopeLen, 0.14, depth + 0.48),
       roofSurfaceMaterial,
       new THREE.Vector3(side * halfW * 0.46, wallTop + ridgeHeight * 0.48, 0),
       new THREE.Euler(0, 0, side * -roofPitch),
     );
   }
+  addRoofCourses(group, roofSurfaceMaterial, halfW, depth, wallTop, ridgeHeight, roofPitch);
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.24, 0.18, depth + 0.62),
+    roofSurfaceMaterial,
+    new THREE.Vector3(0, wallTop + ridgeHeight + 0.035, 0),
+  );
 
-  const gableWallThickness = 0.18;
   for (const zSign of [-1, 1] as const) {
     addTriangularGableWall(
       group,
       'z',
-      zSign * (halfD - 0.08),
+      zSign * (halfD - 0.065),
       halfW,
       wallTop,
       ridgeHeight,
-      gableWallThickness,
+      0.16,
       wallMaterial,
     );
+    for (const side of [-1, 1] as const) {
+      addMesh(
+        group,
+        new THREE.BoxGeometry(slopeLen, 0.14, 0.15),
+        timberMaterial('dark'),
+        new THREE.Vector3(side * halfW * 0.46, wallTop + ridgeHeight * 0.48, zSign * (halfD + 0.16)),
+        new THREE.Euler(0, 0, side * -roofPitch),
+      );
+    }
   }
 
+  if (archetype === 'stone_portal') {
+    addStonePortalPorch(group, doorX, frontZ, foundationHeight);
+  } else if (archetype === 'working_lean_to') {
+    addWorkingLeanTo(group, entrySide === -1 ? 1 : -1, halfW, foundationHeight);
+  }
+
+  const chimneySide: -1 | 1 = entrySide === -1 ? 1 : -1;
+  const chimneyX = chimneySide * (halfW - 0.92);
+  const chimneyZ = -halfD + 1.22;
+  const chimneyHeight = 2.02;
+  const chimneyY = wallTop + 0.62 + chimneyHeight * 0.5;
   addMesh(
     group,
-    new THREE.BoxGeometry(0.82, 2.6, 0.82),
+    new THREE.BoxGeometry(0.72, chimneyHeight, 0.72),
     stoneMaterial('mid'),
-    new THREE.Vector3(halfW - 1.25, wallTop + 1.15, -halfD + 1.35),
+    new THREE.Vector3(chimneyX, chimneyY, chimneyZ),
   );
   addMesh(
     group,
-    new THREE.BoxGeometry(0.92, 0.2, 0.92),
+    new THREE.BoxGeometry(0.82, 0.18, 0.82),
     stoneMaterial('light'),
-    new THREE.Vector3(halfW - 1.25, wallTop + 2.55, -halfD + 1.35),
+    new THREE.Vector3(chimneyX, chimneyY + chimneyHeight * 0.5 + 0.08, chimneyZ),
   );
 
   const chimneyEmitter = new THREE.Object3D();
   chimneyEmitter.name = 'ChimneyEmitter';
-  chimneyEmitter.position.set(halfW - 1.25, wallTop + 2.7, -halfD + 1.35);
+  chimneyEmitter.position.set(chimneyX, chimneyY + chimneyHeight * 0.5 + 0.22, chimneyZ);
   group.add(chimneyEmitter);
 
   const firewoodPile = new THREE.Group();
   firewoodPile.name = 'FirewoodPile';
   firewoodPile.visible = false;
   group.add(firewoodPile);
-  addLogPile(firewoodPile, -halfW + 1.35, -halfD - 1.05, 0, 4, 2.1, 0.19);
+  addLogPile(firewoodPile, entrySide * (halfW - 0.72), -halfD - 0.72, 0, 4, 2.15, 0.19);
 
   return group;
 }
