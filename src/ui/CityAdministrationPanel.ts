@@ -77,6 +77,7 @@ export class CityAdministrationPanel {
   private debounceTimer: number | null = null;
   private parishDebounceTimer: number | null = null;
   private monasteryDebounceTimer: number | null = null;
+  private readonly onKeyDown: (event: KeyboardEvent) => void;
   private readonly options: CityAdministrationPanelOptions;
 
   constructor(parent: HTMLElement, options: CityAdministrationPanelOptions) {
@@ -243,6 +244,14 @@ export class CityAdministrationPanel {
     this.closeButton.addEventListener('click', () => this.close());
     this.root.addEventListener('mousedown', (event) => event.stopPropagation());
     this.root.addEventListener('click', (event) => event.stopPropagation());
+    this.onKeyDown = (event: KeyboardEvent) => {
+      if (!this.open || event.key !== 'Escape') return;
+      if (isTypingTarget(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.close();
+    };
+    window.addEventListener('keydown', this.onKeyDown, true);
     this.slider.addEventListener('input', () => this.onSliderInput());
     this.reserveSlider.addEventListener('input', () => this.onReserveInput());
     this.autoSweepToggle.addEventListener('change', () => this.onAutoSweepToggle());
@@ -282,6 +291,7 @@ export class CityAdministrationPanel {
   }
 
   dispose(): void {
+    window.removeEventListener('keydown', this.onKeyDown, true);
     if (this.debounceTimer !== null) {
       window.clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
@@ -514,4 +524,10 @@ export class CityAdministrationPanel {
       formatMonasteryFoodCharityTotal(monasteryPolicy.foodCharityTotal),
     ].join(' · ');
   }
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  const tag = element?.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || Boolean(element?.isContentEditable);
 }

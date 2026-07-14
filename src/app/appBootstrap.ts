@@ -524,8 +524,8 @@ export async function bootstrapAppSession(
       }
       bridge.syncToolbar();
     },
-    onOpenCityAdministration: () => {
-      bridge.getCityAdminPanel()?.openPanel();
+    onToggleCityAdministration: () => {
+      bridge.getCityAdminPanel()?.toggle();
     },
     onBurgagePlotDecrease: () => {
       burgageTool.adjustPlotCount(-1);
@@ -555,7 +555,8 @@ export async function bootstrapAppSession(
       && !roadTool.isEnabled()
       && !buildingTool.isEnabled()
       && !burgageTool.isEnabled()
-      && !farmFieldTool.isEnabled(),
+      && !farmFieldTool.isEnabled()
+      && !bridge.getCityAdminPanel()?.isOpen(),
     onNewWorld: () => {
       void beginNewWorld(() => sessionGate.isReady());
     },
@@ -596,6 +597,7 @@ export async function bootstrapAppSession(
       toastManager?.show(message, { variant: 'error' });
     },
     onOpenChange: (open) => {
+      toolbar.setCityAdministrationOpen(open);
       const menuOpen = toolbar.isGameMenuOpen();
       cameraController.setInputEnabled(!open && !menuOpen && !firstPersonController.isActive());
     },

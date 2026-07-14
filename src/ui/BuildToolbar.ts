@@ -10,7 +10,7 @@ import {
   type DockToggle,
 } from './constructionDockToggle.ts';
 import { syncTipCardVisibility } from './tipCards.ts';
-import { areTipCardsDisabled, setTipCardsDisabled, subscribeTipCardsPreference } from './tipCardsPreference.ts';
+import { subscribeTipCardsPreference } from './tipCardsPreference.ts';
 import {
   type BuildMenuAction,
   type BuildMenuHandlers,
@@ -49,7 +49,7 @@ export class BuildToolbar {
   private readonly basicBuildMenuButton: HTMLButtonElement;
   private readonly industryBuildMenuButton: HTMLButtonElement;
   private readonly waterOverlayButton: HTMLButtonElement;
-  private readonly helpButton: HTMLButtonElement;
+  private readonly cityAdminButton: HTMLButtonElement;
   private readonly settingsButton: HTMLButtonElement;
   private readonly buildButton: HTMLButtonElement;
   private readonly basicBuildMenu: HTMLElement;
@@ -97,6 +97,8 @@ export class BuildToolbar {
     onOpenRoads: () => void;
     onSetWaterOverlay?: (active: boolean) => void;
   };
+  private readonly onToggleCityAdministration: () => void;
+  private cityAdministrationOpen = false;
   private gameplayEnabled = true;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target) || this.firstPersonActive || this.gameMenu?.isOpen()) return;
@@ -114,6 +116,12 @@ export class BuildToolbar {
     if (handleDockHotkey(key, this.dockToggles)) {
       event.preventDefault();
       event.stopPropagation();
+      return;
+    }
+    if (key === 'a' && !this.isAnyBuildMenuOpen()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.onToggleCityAdministration();
       return;
     }
     if (key === 'r' && this.isAnyBuildMenuOpen()) {
@@ -146,7 +154,7 @@ export class BuildToolbar {
       onToggleBuilding: (kind: BuildingKind) => void;
       onToggleResidences: () => void;
       onToggleFarmFields: () => void;
-      onOpenCityAdministration: () => void;
+      onToggleCityAdministration: () => void;
       onSetWaterOverlay?: (active: boolean) => void;
       onBurgagePlotDecrease?: () => void;
       onBurgagePlotIncrease?: () => void;
@@ -290,10 +298,16 @@ export class BuildToolbar {
           <span class="construction-dock-button__icon" aria-hidden="true">💧</span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">M</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--text" data-action="help" data-tooltip="Help tips" aria-label="Toggle help tips" aria-pressed="false">
-          <span aria-hidden="true">?</span>
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="city-admin" data-tooltip="City administration (A)" aria-label="City administration (A)" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3 4 7v14h16V7l-8-4Z" />
+            <path d="M9 21v-6h6v6" />
+            <path d="M10 10h4" />
+            <path d="M10 13h4" />
+          </svg>
+          <span class="construction-dock-button__hotkey" aria-hidden="true">A</span>
         </button>
-        <button type="button" class="construction-dock-button" data-action="settings" data-tooltip="Settings" aria-label="Settings">
+        <button type="button" class="construction-dock-button" data-action="settings" data-tooltip="Settings (Esc)" aria-label="Settings (Esc)">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Z" />
             <path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a8 8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A8 8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a8 8 0 0 0 2.6-1.5l2.4 1 2-3.4-2-1.5Z" />
@@ -339,6 +353,7 @@ export class BuildToolbar {
     `;
 
     this.root = root;
+    this.onToggleCityAdministration = handlers.onToggleCityAdministration;
     const hudStack = this.mustElement(root, '.hud-right-stack');
     this.settlementHud = new SettlementHud(hudStack);
     this.toolbarHandlers = {
@@ -352,7 +367,6 @@ export class BuildToolbar {
     this.gameMenu = new GameMenu(root, {
       onShadowPreferenceChange: () => handlers.onShadowPreferenceChange?.(),
       onOpenChange: handlers.onMenuOpenChange,
-      onOpenCityAdministration: handlers.onOpenCityAdministration,
       canOpenFromKeyboard: handlers.canOpenMenuFromKeyboard,
       onNewWorld: handlers.onNewWorld,
       showButton: false,
@@ -363,7 +377,7 @@ export class BuildToolbar {
     this.basicBuildMenuButton = this.mustButton(root, '[data-action="basic-build-menu"]');
     this.industryBuildMenuButton = this.mustButton(root, '[data-action="industry-build-menu"]');
     this.waterOverlayButton = this.mustButton(root, '[data-action="water-overlay"]');
-    this.helpButton = this.mustButton(root, '[data-action="help"]');
+    this.cityAdminButton = this.mustButton(root, '[data-action="city-admin"]');
     this.settingsButton = this.mustButton(root, '[data-action="settings"]');
     this.buildButton = this.mustButton(root, '[data-action="commit-build"]');
     this.basicBuildMenu = this.mustElement(root, '[data-build-menu="basic"]');
@@ -386,7 +400,6 @@ export class BuildToolbar {
     this.builderHelpList = this.mustElement(root, '[data-road-controls-panel] .road-controls-list');
     this.builderStatusBar = this.mustElement(root, '[data-builder-status]');
     this.compassHud = new CompassHud(root);
-    this.helpButton.setAttribute('aria-pressed', String(!areTipCardsDisabled()));
 
     this.basicBuildMenuToggle = {
       button: this.basicBuildMenuButton,
@@ -420,7 +433,10 @@ export class BuildToolbar {
     this.basicBuildMenuButton.addEventListener('click', () => toggleDockControl(this.basicBuildMenuToggle));
     this.industryBuildMenuButton.addEventListener('click', () => toggleDockControl(this.industryBuildMenuToggle));
     this.waterOverlayButton.addEventListener('click', () => toggleDockControl(this.waterOverlayToggle));
-    this.helpButton.addEventListener('click', () => this.toggleHelpTips());
+    this.cityAdminButton.addEventListener('click', () => {
+      this.closeAllBuildMenus();
+      this.onToggleCityAdministration();
+    });
     this.settingsButton.addEventListener('click', () => {
       this.closeAllBuildMenus();
       this.gameMenu?.toggle();
@@ -455,6 +471,7 @@ export class BuildToolbar {
     this.basicBuildMenuButton.disabled = !enabled;
     this.industryBuildMenuButton.disabled = !enabled;
     this.waterOverlayButton.disabled = !enabled;
+    this.cityAdminButton.disabled = !enabled;
     if (!enabled) {
       this.closeAllBuildMenus();
       dismissDockToggles(this.dockToggles);
@@ -585,8 +602,15 @@ export class BuildToolbar {
     this.settlementHud.setZoomPercent(zoomPercent);
   }
 
+  setCityAdministrationOpen(open: boolean): void {
+    if (this.cityAdministrationOpen === open) return;
+    this.cityAdministrationOpen = open;
+    this.cityAdminButton.classList.toggle('is-active', open);
+    this.cityAdminButton.setAttribute('aria-pressed', String(open));
+  }
+
   isGameMenuOpen(): boolean {
-    return this.gameMenu?.isOpen() ?? false;
+    return (this.gameMenu?.isOpen() ?? false) || (this.gameMenu?.isControlsOpen() ?? false);
   }
 
   setFirstPersonMode(active: boolean): void {
@@ -610,7 +634,6 @@ export class BuildToolbar {
 
   private syncContextPanels(): void {
     const tipHudMode = isBuilderHudMode(this.hudMode) ? 'road' : 'idle';
-    this.helpButton.setAttribute('aria-pressed', String(!areTipCardsDisabled()));
     syncTipCardVisibility(this.root, {
       firstPersonActive: this.firstPersonActive,
       hudMode: tipHudMode,
@@ -711,13 +734,6 @@ export class BuildToolbar {
     });
     menu.addEventListener('mousedown', (event) => event.stopPropagation());
     menu.addEventListener('click', (event) => event.stopPropagation());
-  }
-
-  private toggleHelpTips(): void {
-    const disabled = !areTipCardsDisabled();
-    setTipCardsDisabled(disabled);
-    this.helpButton.setAttribute('aria-pressed', String(!disabled));
-    this.syncContextPanels();
   }
 
   private mustButton(root: HTMLElement, selector: string): HTMLButtonElement {

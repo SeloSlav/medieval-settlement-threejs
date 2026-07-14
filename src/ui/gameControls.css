@@ -1,0 +1,134 @@
+.game-controls-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 22;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.game-controls-backdrop[hidden] {
+  display: none;
+}
+
+.game-controls-dialog {
+  width: min(92vw, 640px);
+  max-height: min(84vh, 760px);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  color: var(--ink);
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.game-controls-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.game-controls-dialog__eyebrow {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(196, 167, 99, 0.9);
+}
+
+.game-controls-dialog__title {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 750;
+}
+
+.game-controls-dialog__close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.game-controls-dialog__close:hover,
+.game-controls-dialog__close:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  outline: none;
+}
+
+.game-controls-dialog__body {
+  overflow: auto;
+  padding: 8px 20px 20px;
+  display: grid;
+  gap: 18px;
+}
+
+.game-controls-section__title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(196, 167, 99, 0.95);
+}
+
+.game-controls-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.game-controls-list__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.game-controls-list__item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.game-controls-list__action {
+  font-size: 13px;
+  color: rgba(232, 226, 210, 0.88);
+}
+
+.game-controls-list__keys {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border: 1px solid rgba(215, 180, 99, 0.35);
+  border-radius: 6px;
+  background: rgba(16, 20, 26, 0.72);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (min-width: 720px) {
+  .game-controls-dialog__body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+  }
+
+  .game-controls-section {
+    break-inside: avoid;
+  }
+}

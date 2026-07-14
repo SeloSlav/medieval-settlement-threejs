@@ -4,11 +4,12 @@ import {
   setBuildingShadowsEnabled,
   setTreeShadowsEnabled,
 } from '../scene/shadowPreference.ts';
+import { areTipCardsDisabled, setTipCardsDisabled } from './tipCardsPreference.ts';
+import { GameControlsModal } from './GameControlsModal.ts';
 
 type GameMenuOptions = {
   onShadowPreferenceChange: () => void;
   onOpenChange?: (open: boolean) => void;
-  onOpenCityAdministration?: () => void;
   onNewWorld?: () => void;
   showButton?: boolean;
   /** When false, Escape will not open the menu (e.g. first-person walk mode). */
@@ -20,11 +21,12 @@ export class GameMenu {
   private readonly dialog: HTMLElement;
   private readonly treeShadowsCheckbox: HTMLInputElement;
   private readonly buildingShadowsCheckbox: HTMLInputElement;
+  private readonly tipCardsCheckbox: HTMLInputElement;
   private readonly menuButton: HTMLButtonElement;
+  private readonly controlsModal: GameControlsModal;
   private open = false;
   private readonly onShadowPreferenceChange: () => void;
   private readonly onOpenChange?: (open: boolean) => void;
-  private readonly onOpenCityAdministration?: () => void;
   private readonly onNewWorld?: () => void;
   private readonly canOpenFromKeyboard?: () => boolean;
   private readonly onKeyDown: (event: KeyboardEvent) => void;
@@ -32,7 +34,6 @@ export class GameMenu {
   constructor(parent: HTMLElement, options: GameMenuOptions) {
     this.onShadowPreferenceChange = options.onShadowPreferenceChange;
     this.onOpenChange = options.onOpenChange;
-    this.onOpenCityAdministration = options.onOpenCityAdministration;
     this.onNewWorld = options.onNewWorld;
     this.canOpenFromKeyboard = options.canOpenFromKeyboard;
 
@@ -53,7 +54,7 @@ export class GameMenu {
     this.backdrop.hidden = true;
     this.backdrop.innerHTML = `
       <div class="game-menu-dialog" role="dialog" aria-modal="true" aria-labelledby="game-menu-title">
-        <h2 id="game-menu-title" class="game-menu-title">Menu</h2>
+        <h2 id="game-menu-title" class="game-menu-title">Settings</h2>
         <label class="game-menu-option">
           <input type="checkbox" data-tree-shadows-checkbox />
           <span>Tree shadows</span>
@@ -62,7 +63,11 @@ export class GameMenu {
           <input type="checkbox" data-building-shadows-checkbox />
           <span>Building shadows</span>
         </label>
-        <button type="button" class="game-menu-action" data-city-admin>City administration…</button>
+        <label class="game-menu-option">
+          <input type="checkbox" data-tip-cards-checkbox />
+          <span>Contextual control tips</span>
+        </label>
+        <button type="button" class="game-menu-action" data-game-controls>Game controls…</button>
         <button type="button" class="game-menu-action" data-new-world>New world…</button>
         <button type="button" class="game-menu-return" data-return-button>Return to game</button>
       </div>
@@ -71,20 +76,24 @@ export class GameMenu {
     this.dialog = this.backdrop.querySelector<HTMLElement>('.game-menu-dialog')!;
     this.treeShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-tree-shadows-checkbox]')!;
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
+    this.tipCardsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-tip-cards-checkbox]')!;
     const returnButton = this.backdrop.querySelector<HTMLButtonElement>('[data-return-button]')!;
-    const cityAdminButton = this.backdrop.querySelector<HTMLButtonElement>('[data-city-admin]')!;
+    const controlsButton = this.backdrop.querySelector<HTMLButtonElement>('[data-game-controls]')!;
     const newWorldButton = this.backdrop.querySelector<HTMLButtonElement>('[data-new-world]')!;
+
+    this.controlsModal = new GameControlsModal(parent);
 
     if (options.showButton !== false) parent.appendChild(this.menuButton);
     parent.appendChild(this.backdrop);
 
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
+    this.tipCardsCheckbox.checked = !areTipCardsDisabled();
     this.menuButton.addEventListener('click', () => this.toggle());
     returnButton.addEventListener('click', () => this.close());
-    cityAdminButton.addEventListener('click', () => {
+    controlsButton.addEventListener('click', () => {
       this.close();
-      this.onOpenCityAdministration?.();
+      this.controlsModal.openModal();
     });
     newWorldButton.addEventListener('click', () => {
       this.close();
@@ -100,9 +109,19 @@ export class GameMenu {
       setBuildingShadowsEnabled(this.buildingShadowsCheckbox.checked);
       this.onShadowPreferenceChange();
     });
+    this.tipCardsCheckbox.addEventListener('change', () => {
+      setTipCardsDisabled(!this.tipCardsCheckbox.checked);
+    });
 
     this.onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || this.isTextInputFocused()) return;
+
+      if (this.controlsModal.isOpen()) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.controlsModal.close();
+        return;
+      }
 
       if (this.open) {
         event.preventDefault();
@@ -125,8 +144,13 @@ export class GameMenu {
     return this.open;
   }
 
+  isControlsOpen(): boolean {
+    return this.controlsModal.isOpen();
+  }
+
   dispose(): void {
     this.close();
+    this.controlsModal.dispose();
     window.removeEventListener('keydown', this.onKeyDown, true);
     this.menuButton.remove();
     this.backdrop.remove();
@@ -141,6 +165,7 @@ export class GameMenu {
     this.open = true;
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
+    this.tipCardsCheckbox.checked = !areTipCardsDisabled();
     this.backdrop.hidden = false;
     this.menuButton.setAttribute('aria-expanded', 'true');
     this.onOpenChange?.(true);

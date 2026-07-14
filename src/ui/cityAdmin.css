@@ -4,8 +4,10 @@
   bottom: 86px;
   transform: translateX(-50%);
   z-index: 7;
-  width: min(360px, calc(100vw - 28px));
-  padding: 14px 16px 16px;
+  width: min(560px, calc(100vw - 28px));
+  max-height: min(72vh, 720px);
+  overflow: auto;
+  padding: 16px 20px 18px;
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -123,8 +125,23 @@
 
 .city-admin-panel__stats {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
   margin: 14px 0 0;
+}
+
+.city-admin-panel__stat--inline {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding-top: 10px;
+}
+
+@media (max-width: 560px) {
+  .city-admin-panel__stats {
+    grid-template-columns: 1fr;
+  }
 }
 
 .city-admin-panel__stat {
