@@ -402,7 +402,7 @@ export class ResourceInspector {
     this.options.onSelectionChange?.(target);
   }
 
-  private clearSelection(hidePanel: boolean): void {
+  clearSelection(hidePanel = true): void {
     this.selectedTarget = null;
     this.marker.visible = false;
     this.demolishSection.hidden = true;

@@ -91,8 +91,7 @@
   line-height: 1;
 }
 
-.construction-dock-button.is-active .construction-dock-button__hotkey,
-.construction-dock-button[aria-pressed='true'] .construction-dock-button__hotkey {
+.construction-dock-button.is-active .construction-dock-button__hotkey {
   color: #201d15;
   background: rgba(255, 255, 255, 0.92);
   border-color: rgba(32, 29, 21, 0.25);
@@ -104,11 +103,22 @@
   outline: none;
 }
 
-.construction-dock-button.is-active,
-.construction-dock-button[aria-pressed='true'] {
+.construction-dock-button.is-active {
   color: #201d15;
   background: var(--accent);
   border-color: var(--accent);
+}
+
+.construction-dock-button.has-active-tool:not(.is-active)::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(23, 25, 21, 0.85);
 }
 
 .construction-menu {

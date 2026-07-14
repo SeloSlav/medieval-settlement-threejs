@@ -82,9 +82,9 @@ export const BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 ];
 
 export type BuildMenuHandlers = {
-  onToggleBuilding: (kind: BuildingKind) => void;
-  onToggleResidences: () => void;
-  onToggleFarmFields: () => void;
+  onSelectBuilding: (kind: BuildingKind) => void;
+  onSelectResidences: () => void;
+  onSelectFarmFields: () => void;
 };
 
 export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_MENU_ENTRIES): string {
@@ -110,7 +110,7 @@ export function resolveBuildMenuHotkey(key: string, entries: readonly BuildMenuE
 
 export function runBuildMenuAction(action: BuildMenuAction, handlers: BuildMenuHandlers, closeMenu: () => void): void {
   closeMenu();
-  if (action === 'residences') handlers.onToggleResidences();
-  else if (action === 'grain-field') handlers.onToggleFarmFields();
-  else handlers.onToggleBuilding(MENU_ACTION_TO_BUILDING_KIND[action]);
+  if (action === 'residences') handlers.onSelectResidences();
+  else if (action === 'grain-field') handlers.onSelectFarmFields();
+  else handlers.onSelectBuilding(MENU_ACTION_TO_BUILDING_KIND[action]);
 }

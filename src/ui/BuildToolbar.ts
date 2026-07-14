@@ -97,6 +97,24 @@ export class BuildToolbar {
     if (this.deletePopup.contains(event.target as Node)) return;
     this.hideDeletePopup(true);
   };
+  private readonly onBuildMenuOutsideMouseDown = (event: MouseEvent): void => {
+    if (!this.isAnyBuildMenuOpen()) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (this.constructionDock.contains(target)) return;
+    if (
+      this.basicBuildMenu.contains(target)
+      || this.agricultureBuildMenu.contains(target)
+      || this.ruralIndustryBuildMenu.contains(target)
+    ) return;
+
+    this.closeAllBuildMenus();
+    if (!this.root.contains(target)) {
+      // A world click dismisses the open palette without placing the previously active tool.
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
   private readonly basicBuildMenuToggle: DockToggle;
   private readonly agricultureBuildMenuToggle: DockToggle;
   private readonly ruralIndustryBuildMenuToggle: DockToggle;
@@ -178,9 +196,9 @@ export class BuildToolbar {
     handlers: {
       onOpenRoads: () => void;
       onBuildRoad: () => void;
-      onToggleBuilding: (kind: BuildingKind) => void;
-      onToggleResidences: () => void;
-      onToggleFarmFields: () => void;
+      onSelectBuilding: (kind: BuildingKind) => void;
+      onSelectResidences: () => void;
+      onSelectFarmFields: () => void;
       onToggleCityAdministration: () => void;
       onSetWaterOverlay?: (active: boolean) => void;
       onBurgagePlotDecrease?: () => void;
@@ -222,19 +240,19 @@ export class BuildToolbar {
       </div>
 
       <div class="hud-bottom-center" data-hud-bottom-center>
-        <section class="construction-menu" data-build-menu="basic" hidden aria-label="Build menu">
+        <section class="construction-menu" id="basic-build-menu" data-build-menu="basic" hidden aria-label="Build menu">
           <div class="construction-menu__cards">
             ${renderBuildMenuCards(BASIC_BUILD_MENU_ENTRIES)}
           </div>
         </section>
 
-        <section class="construction-menu" data-build-menu="agriculture" hidden aria-label="Agriculture menu">
+        <section class="construction-menu" id="agriculture-build-menu" data-build-menu="agriculture" hidden aria-label="Agriculture menu">
           <div class="construction-menu__cards">
             ${renderBuildMenuCards(AGRICULTURE_BUILD_MENU_ENTRIES)}
           </div>
         </section>
 
-        <section class="construction-menu" data-build-menu="industry" hidden aria-label="Industry menu">
+        <section class="construction-menu" id="industry-build-menu" data-build-menu="industry" hidden aria-label="Industry menu">
           <div class="construction-menu__cards">
             ${renderBuildMenuCards(RURAL_INDUSTRY_BUILD_MENU_ENTRIES)}
           </div>
@@ -255,7 +273,7 @@ export class BuildToolbar {
           </svg>
           <span class="construction-dock-button__hotkey" aria-hidden="true">R</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="basic-build-menu" data-tooltip="Build (B)" aria-label="Build menu (B)" aria-expanded="false" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="basic-build-menu" data-tooltip="Build (B)" aria-label="Build menu (B)" aria-controls="basic-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M14.5 5.5l4 4" />
             <path d="M12.3 7.7l4-4 3.9 3.9-4 4" />
@@ -263,7 +281,7 @@ export class BuildToolbar {
           </svg>
           <span class="construction-dock-button__hotkey" aria-hidden="true">B</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="agriculture-build-menu" data-tooltip="Agriculture (U)" aria-label="Agriculture menu (U)" aria-expanded="false" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="agriculture-build-menu" data-tooltip="Agriculture (U)" aria-label="Agriculture menu (U)" aria-controls="agriculture-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 3v18" />
             <path d="M8 7c2-2 6-2 8 0" />
@@ -272,7 +290,7 @@ export class BuildToolbar {
           </svg>
           <span class="construction-dock-button__hotkey" aria-hidden="true">U</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="industry-build-menu" data-tooltip="Industry (V)" aria-label="Industry menu (V)" aria-expanded="false" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="industry-build-menu" data-tooltip="Industry (V)" aria-label="Industry menu (V)" aria-controls="industry-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M3 18h18" />
             <path d="M7 18V11h10v7" />
@@ -345,9 +363,9 @@ export class BuildToolbar {
     const hudStack = this.mustElement(root, '.hud-right-stack');
     this.settlementHud = new SettlementHud(hudStack);
     this.toolbarHandlers = {
-      onToggleBuilding: handlers.onToggleBuilding,
-      onToggleResidences: handlers.onToggleResidences,
-      onToggleFarmFields: handlers.onToggleFarmFields,
+      onSelectBuilding: handlers.onSelectBuilding,
+      onSelectResidences: handlers.onSelectResidences,
+      onSelectFarmFields: handlers.onSelectFarmFields,
       onOpenRoads: handlers.onOpenRoads,
       onSetWaterOverlay: handlers.onSetWaterOverlay,
     };
@@ -425,6 +443,7 @@ export class BuildToolbar {
     for (const toggle of this.dockToggles) {
       syncDockToggleButton(toggle);
     }
+    window.addEventListener('mousedown', this.onBuildMenuOutsideMouseDown, true);
 
     this.syncBuilderControlsPanel();
     this.roadButton.addEventListener('click', () => {
@@ -642,6 +661,7 @@ export class BuildToolbar {
 
   dispose(): void {
     window.removeEventListener('keydown', this.onKeyDown, true);
+    window.removeEventListener('mousedown', this.onBuildMenuOutsideMouseDown, true);
     window.removeEventListener('pointerdown', this.onDeleteOutsidePointerDown, true);
     this.gameMenu?.dispose();
     this.compassHud.dispose();
@@ -723,16 +743,38 @@ export class BuildToolbar {
     const basicConstruction = activeAction != null && BASIC_BUILD_MENU_ACTIONS.has(activeAction);
     const agricultureConstruction = activeAction != null && AGRICULTURE_BUILD_MENU_ACTIONS.has(activeAction);
     const ruralIndustryConstruction = activeAction != null && RURAL_INDUSTRY_BUILD_MENU_ACTIONS.has(activeAction);
-    const basicActive = basicConstruction || this.basicBuildMenuOpen;
-    const agricultureActive = agricultureConstruction || this.agricultureBuildMenuOpen;
-    const ruralIndustryActive = ruralIndustryConstruction || this.ruralIndustryBuildMenuOpen;
+    const browsing = this.isAnyBuildMenuOpen();
 
-    this.basicBuildMenuButton.classList.toggle('is-active', basicActive);
-    this.basicBuildMenuButton.setAttribute('aria-pressed', String(basicActive));
-    this.agricultureBuildMenuButton.classList.toggle('is-active', agricultureActive);
-    this.agricultureBuildMenuButton.setAttribute('aria-pressed', String(agricultureActive));
-    this.ruralIndustryBuildMenuButton.classList.toggle('is-active', ruralIndustryActive);
-    this.ruralIndustryBuildMenuButton.setAttribute('aria-pressed', String(ruralIndustryActive));
+    this.syncBuildMenuButton(
+      this.basicBuildMenuButton,
+      this.basicBuildMenuOpen,
+      basicConstruction,
+      browsing,
+    );
+    this.syncBuildMenuButton(
+      this.agricultureBuildMenuButton,
+      this.agricultureBuildMenuOpen,
+      agricultureConstruction,
+      browsing,
+    );
+    this.syncBuildMenuButton(
+      this.ruralIndustryBuildMenuButton,
+      this.ruralIndustryBuildMenuOpen,
+      ruralIndustryConstruction,
+      browsing,
+    );
+  }
+
+  private syncBuildMenuButton(
+    button: HTMLButtonElement,
+    menuOpen: boolean,
+    toolActive: boolean,
+    browsing: boolean,
+  ): void {
+    button.classList.toggle('is-menu-open', menuOpen);
+    button.classList.toggle('has-active-tool', toolActive);
+    button.classList.toggle('is-active', menuOpen || (toolActive && !browsing));
+    button.setAttribute('aria-pressed', String(toolActive));
   }
 
   private syncBuildMenuCardActiveState(mode: ToolbarStats['mode']): void {

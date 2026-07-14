@@ -189,6 +189,7 @@ export async function bootstrapAppSession(
   let farmFieldTool: FarmFieldTool;
   let toolbar: BuildToolbar;
   let toastManager: ToastManager;
+  let resourceInspector: ResourceInspector;
 
   const ambientAudio = new AmbientAudioController({
     unlockElement: sceneManager.renderer.domElement,
@@ -278,6 +279,7 @@ export async function bootstrapAppSession(
       buildingTool.setMode('off');
       burgageTool.setEnabled(false);
       farmFieldTool.setEnabled(false);
+      resourceInspector?.clearSelection();
     }
     bridge.syncToolbar();
   };
@@ -477,51 +479,59 @@ export async function bootstrapAppSession(
       }
       roadTool.commitDraft();
     },
-    onToggleBuilding: (kind: BuildingKind) => {
+    onSelectBuilding: (kind: BuildingKind) => {
       if (!sessionGate.isReady()) {
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
         return;
       }
-      buildingTool.toggleMode(kind);
-      if (buildingTool.isEnabled()) {
+      buildingTool.setMode(kind);
+      if (buildingTool.getMode() === kind) {
         roadTool.setEnabled(false);
         burgageTool.setEnabled(false);
         farmFieldTool.setEnabled(false);
+        resourceInspector?.clearSelection();
       }
       bridge.syncToolbar();
     },
-    onToggleResidences: () => {
+    onSelectResidences: () => {
       if (!sessionGate.isReady()) {
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
         return;
       }
       const wasEnabled = burgageTool.isEnabled();
-      burgageTool.setEnabled(!wasEnabled);
+      burgageTool.setEnabled(true);
       if (burgageTool.isEnabled()) {
         roadTool.setEnabled(false);
         buildingTool.setMode('off');
         farmFieldTool.setEnabled(false);
-        toastManager?.show(
-          'Draw the rectangle along the road, then use the on-screen plot controls to choose how many homes fit.',
-          { variant: 'info', durationMs: 6500 },
-        );
+        resourceInspector?.clearSelection();
+        if (!wasEnabled) {
+          toastManager?.show(
+            'Draw the rectangle along the road, then use the on-screen plot controls to choose how many homes fit.',
+            { variant: 'info', durationMs: 6500 },
+          );
+        }
       }
       bridge.syncToolbar();
     },
-    onToggleFarmFields: () => {
+    onSelectFarmFields: () => {
       if (!sessionGate.isReady()) {
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
         return;
       }
-      farmFieldTool.setEnabled(!farmFieldTool.isEnabled());
+      const wasEnabled = farmFieldTool.isEnabled();
+      farmFieldTool.setEnabled(true);
       if (farmFieldTool.isEnabled()) {
         roadTool.setEnabled(false);
         buildingTool.setMode('off');
         burgageTool.setEnabled(false);
-        toastManager?.show(
-          'Draw a baseline, set field depth, then choose rye, oats, or fallow with C.',
-          { variant: 'info', durationMs: 6000 },
-        );
+        resourceInspector?.clearSelection();
+        if (!wasEnabled) {
+          toastManager?.show(
+            'Draw a baseline, set field depth, then choose rye, oats, or fallow with C.',
+            { variant: 'info', durationMs: 6000 },
+          );
+        }
       }
       bridge.syncToolbar();
     },
@@ -617,7 +627,7 @@ export async function bootstrapAppSession(
     () => sessionGate.isReady(),
     toastManager,
   );
-  const resourceInspector = new ResourceInspector({
+  resourceInspector = new ResourceInspector({
     domElement: sceneManager.renderer.domElement,
     uiRoot,
     sceneManager,
