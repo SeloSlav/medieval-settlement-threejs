@@ -19,7 +19,7 @@ const WORK_EXTENT_KINDS = new Set<BuildingKind>([
 /**
  * Returns a gameplay extent worth visualizing. A non-zero balance workRadius is
  * not, by itself, permission to draw a ring: processors and other point
- * buildings do not gain a selection radius just because they are selected.
+ * buildings do not gain an extent overlay just because they are selected.
  */
 export function getBuildingExtent(kind: BuildingKind, workRadius: number): BuildingExtent | null {
   if (kind === 'monastery') {

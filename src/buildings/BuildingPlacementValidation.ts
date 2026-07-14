@@ -11,6 +11,7 @@ import { buildingFootprintPolygon, buildingOverlapsResidenceZone } from '../plac
 import { convexPolygonsOverlap2 } from '../utils/polygonGeometry.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { hasRoadAccess, isOnRoadSurface } from '../roads/roadConnectivity.ts';
+import { getBuildingExtent } from './buildingExtents.ts';
 
 export type BuildingPlacementFailureReason =
   | 'water'
@@ -18,7 +19,7 @@ export type BuildingPlacementFailureReason =
   | 'requires_hillside'
   | 'too_steep'
   | 'too_close'
-  | 'overlapping_work_extent'
+  | 'overlapping_extent'
   | 'within_residence_zone'
   | 'within_farm_field'
   | 'on_quarry_pit'
@@ -98,8 +99,8 @@ export function validateBuildingPlacement(
     }
   }
 
-  if (overlapsSameKindWorkExtent(kind, x, z, context.buildings)) {
-    return { ok: false, reason: 'overlapping_work_extent' };
+  if (overlapsSameKindFunctionalExtent(kind, x, z, context.buildings)) {
+    return { ok: false, reason: 'overlapping_extent' };
   }
 
   if (kind === 'stone_quarry' && !hasQuarryStoneInRadius(x, z, getBuildingDefinition(kind).workRadius, context.quarries)) {
@@ -201,16 +202,20 @@ function footprintHeightDelta(
   return maxHeight - minHeight;
 }
 
-function overlapsSameKindWorkExtent(
+function overlapsSameKindFunctionalExtent(
   kind: BuildingKind,
   x: number,
   z: number,
   buildings: Iterable<BuildingState>,
 ): boolean {
+  const definition = getBuildingDefinition(kind);
+  const extent = getBuildingExtent(kind, definition.workRadius);
+  if (!extent || extent.type === 'coverage') return false;
+
   for (const building of buildings) {
     if (building.kind !== kind) continue;
     const distance = Math.hypot(building.x - x, building.z - z);
-    if (distance < building.workRadius) {
+    if (distance < extent.radius) {
       return true;
     }
   }
