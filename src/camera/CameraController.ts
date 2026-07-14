@@ -63,6 +63,7 @@ export class CameraController {
   private isRotating = false;
   private lastMouseX = 0;
   private lastMouseY = 0;
+  private activeCursor = '';
 
   constructor(config: CameraControllerConfig) {
     this.config = config;
@@ -129,6 +130,7 @@ export class CameraController {
     if (!this.inputEnabled) return;
     const scale = this.getPanScale();
     const panSpeed = KEY_PAN_SPEED * scale * dt;
+    const keyboardPan = this.isKeyboardPanActive();
     if (this.keys.has('w') || this.keys.has('arrowup')) this.pan(0, panSpeed);
     if (this.keys.has('s') || this.keys.has('arrowdown')) this.pan(0, -panSpeed);
     if (this.keys.has('a') || this.keys.has('arrowleft')) this.pan(panSpeed, 0);
@@ -136,13 +138,23 @@ export class CameraController {
     if (this.keys.has('q')) this.targetYaw = this.normalizeAngle(this.targetYaw - KEY_ROTATE_SPEED * dt);
     if (this.keys.has('e')) this.targetYaw = this.normalizeAngle(this.targetYaw + KEY_ROTATE_SPEED * dt);
 
-    const panLerp = 1 - Math.exp(-PAN_LERP_SPEED * dt);
-    const rotLerp = 1 - Math.exp(-ROTATE_LERP_SPEED * dt);
+    if (this.isPanning || keyboardPan) {
+      this.syncPanTarget();
+    } else {
+      const panLerp = 1 - Math.exp(-PAN_LERP_SPEED * dt);
+      this.config.target.lerp(this.desiredTarget, panLerp);
+      this.config.target.y = this.config.getHeightAt(this.config.target.x, this.config.target.z);
+    }
+
+    if (this.isRotating) {
+      this.syncRotation();
+    } else {
+      const rotLerp = 1 - Math.exp(-ROTATE_LERP_SPEED * dt);
+      this.currentYaw = this.normalizeAngle(this.currentYaw + this.normalizeAngle(this.targetYaw - this.currentYaw) * rotLerp);
+      this.currentPitch += (this.targetPitch - this.currentPitch) * rotLerp;
+    }
+
     const zoomLerp = 1 - Math.exp(-ZOOM_LERP_SPEED * dt);
-    this.config.target.lerp(this.desiredTarget, panLerp);
-    this.config.target.y = this.config.getHeightAt(this.config.target.x, this.config.target.z);
-    this.currentYaw = this.normalizeAngle(this.currentYaw + this.normalizeAngle(this.targetYaw - this.currentYaw) * rotLerp);
-    this.currentPitch += (this.targetPitch - this.currentPitch) * rotLerp;
     this.currentDistance += (this.targetDistance - this.currentDistance) * zoomLerp;
     this.updateCamera();
     this.applyCursor();
@@ -189,6 +201,9 @@ export class CameraController {
       this.lastMouseX = event.clientX;
       this.lastMouseY = event.clientY;
       this.pan(dx, dy);
+      this.syncPanTarget();
+      this.updateCamera();
+      this.applyCursor();
     } else if (this.isRotating) {
       if ((event.buttons & 4) === 0) {
         this.isRotating = false;
@@ -201,6 +216,9 @@ export class CameraController {
       this.targetYaw = this.normalizeAngle(this.targetYaw - dx * ROTATE_SENSITIVITY);
       this.targetPitch = THREE.MathUtils.clamp(this.targetPitch + dy * PITCH_SENSITIVITY, MIN_PITCH, MAX_PITCH);
       this.targetDistance = this.clampDistance(this.targetDistance);
+      this.syncRotation();
+      this.updateCamera();
+      this.applyCursor();
     }
   };
 
@@ -217,8 +235,13 @@ export class CameraController {
       const steps = Math.max(1, Math.floor(Math.abs(event.deltaY) / 80));
       const factor = event.deltaY > 0 ? ZOOM_MULTIPLIER : 1 / ZOOM_MULTIPLIER;
       for (let i = 0; i < steps; i++) this.targetDistance = this.clampDistance(this.targetDistance * factor);
+      this.currentDistance = this.targetDistance;
     }
-    if (event.deltaX !== 0) this.pan(event.deltaX * 0.03, 0);
+    if (event.deltaX !== 0) {
+      this.pan(event.deltaX * 0.03, 0);
+      this.syncPanTarget();
+    }
+    this.updateCamera();
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
@@ -245,6 +268,23 @@ export class CameraController {
     this.desiredTarget.x += rightX * dx + forwardX * dy;
     this.desiredTarget.z += rightZ * dx + forwardZ * dy;
     this.clampTarget();
+  }
+
+  private isKeyboardPanActive(): boolean {
+    return this.keys.has('w') || this.keys.has('arrowup')
+      || this.keys.has('s') || this.keys.has('arrowdown')
+      || this.keys.has('a') || this.keys.has('arrowleft')
+      || this.keys.has('d') || this.keys.has('arrowright');
+  }
+
+  private syncPanTarget(): void {
+    this.config.target.copy(this.desiredTarget);
+    this.config.target.y = this.config.getHeightAt(this.config.target.x, this.config.target.z);
+  }
+
+  private syncRotation(): void {
+    this.currentYaw = this.targetYaw;
+    this.currentPitch = this.targetPitch;
   }
 
   private getMinDistance(): number {
@@ -324,6 +364,8 @@ export class CameraController {
     let cursor = override ?? 'default';
     if (!override && this.isPanning) cursor = 'move';
     if (!override && this.isRotating) cursor = 'grabbing';
+    if (cursor === this.activeCursor) return;
+    this.activeCursor = cursor;
     this.config.domElement.style.cursor = cursor;
     document.body.style.cursor = cursor;
   }

@@ -118,7 +118,7 @@ export class BuildToolbar {
       event.stopPropagation();
       return;
     }
-    if (key === 'a' && !this.isAnyBuildMenuOpen()) {
+    if (key === 'i' && !this.isAnyBuildMenuOpen()) {
       event.preventDefault();
       event.stopPropagation();
       this.onToggleCityAdministration();
@@ -298,14 +298,14 @@ export class BuildToolbar {
           <span class="construction-dock-button__icon" aria-hidden="true">💧</span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">M</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="city-admin" data-tooltip="City administration (A)" aria-label="City administration (A)" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="city-admin" data-tooltip="City administration (I)" aria-label="City administration (I)" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 3 4 7v14h16V7l-8-4Z" />
             <path d="M9 21v-6h6v6" />
             <path d="M10 10h4" />
             <path d="M10 13h4" />
           </svg>
-          <span class="construction-dock-button__hotkey" aria-hidden="true">A</span>
+          <span class="construction-dock-button__hotkey" aria-hidden="true">I</span>
         </button>
         <button type="button" class="construction-dock-button" data-action="settings" data-tooltip="Settings (Esc)" aria-label="Settings (Esc)">
           <svg viewBox="0 0 24 24" aria-hidden="true">
