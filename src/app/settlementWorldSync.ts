@@ -5,6 +5,7 @@ import type { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
 import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import type { GameState } from '../resources/types.ts';
+import type { CrowdViewState } from '../settlement/crowdView.ts';
 
 export type SettlementWorldSyncTargets = {
   residenceMarkers: ResidenceMarkers | null;
@@ -30,6 +31,7 @@ export function syncSettlementWorld(
     getHeightAt,
   });
   targets.deliveryAgents?.syncTrips(state.deliveryTrips.values());
+  targets.deliveryAgents?.applyTripStates(state.deliveryTrips.values());
   targets.villagers?.sync({
     residences: state.residences.values(),
     roadNetwork: targets.getRoadNetwork(),
@@ -39,10 +41,15 @@ export function syncSettlementWorld(
 export function tickSettlementWorld(
   targets: Pick<SettlementWorldSyncTargets, 'residenceMarkers' | 'deliveryAgents' | 'villagers'>,
   dt: number,
+  view?: CrowdViewState,
+  gameState?: Pick<GameState, 'deliveryTrips'>,
 ): void {
+  if (gameState) {
+    targets.deliveryAgents?.applyTripStates(gameState.deliveryTrips.values());
+  }
   targets.residenceMarkers?.tick(dt);
-  targets.deliveryAgents?.update(dt);
-  targets.villagers?.tick(dt);
+  targets.deliveryAgents?.update(dt, view);
+  targets.villagers?.tick(dt, view);
 }
 
 export function disposeSettlementWorld(

@@ -1,6 +1,7 @@
 ﻿import * as THREE from 'three';
 import type { RoadEdge } from './RoadEdge.ts';
 import type { JunctionType, RoadNode } from './RoadNode.ts';
+import { RoadPathfinder } from './RoadPathfinder.ts';
 import { RoadSpatialIndex } from './roadSpatialIndex.ts';
 
 export type SnapTarget =
@@ -45,6 +46,16 @@ export class RoadNetwork {
   private nextEdgeId = 1;
   private spatialIndex: RoadSpatialIndex | null = null;
   private spatialIndexDirty = true;
+  private pathfinder: RoadPathfinder | null = null;
+  private pathfinderDirty = true;
+
+  getPathfinder(): RoadPathfinder {
+    if (this.pathfinderDirty || !this.pathfinder) {
+      this.pathfinder = new RoadPathfinder(this);
+      this.pathfinderDirty = false;
+    }
+    return this.pathfinder;
+  }
 
   getSpatialIndex(): RoadSpatialIndex {
     if (this.spatialIndexDirty || !this.spatialIndex) {
@@ -336,6 +347,7 @@ export class RoadNetwork {
 
   private invalidateSpatialIndex(): void {
     this.spatialIndexDirty = true;
+    this.pathfinderDirty = true;
   }
 
   private pruneOrphans(): void {

@@ -93,4 +93,13 @@ assert.equal(
   false,
 );
 
+assert.equal(
+  shouldRequireWorldRegeneration(
+    { ...DEFAULT_WORLD_GENERATION_SETTINGS, configured: false },
+    0,
+    DEFAULT_WORLD_GENERATION_SETTINGS,
+  ),
+  true,
+);
+
 console.log('world config authority tests passed');

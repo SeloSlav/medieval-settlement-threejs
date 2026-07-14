@@ -2,6 +2,7 @@ import type { BackyardGardenKind, BuildingKind } from '../generated/gameBalance.
 import type { ResourceTotals } from './resourceTotals.ts';
 import {
   BACKYARD_GARDEN_COSTS,
+  BACKYARD_GARDEN_DEFINITIONS,
   BUILDING_COSTS,
   RESIDENCE_STONE_COST,
   RESIDENCE_TIMBER_COST,
@@ -92,4 +93,29 @@ export function formatBackyardGardenCost(kind: BackyardGardenKind): string {
 
 export function formatBackyardGardenSalvage(kind: BackyardGardenKind): string {
   return formatBuildingCost(backyardGardenSalvageRefund(kind));
+}
+
+export function canAffordBackyardGarden(
+  totals: Pick<ResourceTotals, 'timber' | 'stone'>,
+  kind: BackyardGardenKind,
+): boolean {
+  const cost = getBackyardGardenCost(kind);
+  return totals.timber + 1e-6 >= cost.timber && totals.stone + 1e-6 >= cost.stone;
+}
+
+export function describeBackyardGardenShortfall(
+  totals: Pick<ResourceTotals, 'timber' | 'stone'>,
+  kind: BackyardGardenKind,
+): string | null {
+  const cost = getBackyardGardenCost(kind);
+  const label = BACKYARD_GARDEN_DEFINITIONS[kind].label;
+  const missing: string[] = [];
+  if (totals.timber + 1e-6 < cost.timber) {
+    missing.push(`${cost.timber} timber (you have ${Math.floor(totals.timber)})`);
+  }
+  if (totals.stone + 1e-6 < cost.stone) {
+    missing.push(`${cost.stone} stone (you have ${Math.floor(totals.stone)})`);
+  }
+  if (missing.length === 0) return null;
+  return `Not enough resources for ${label}: need ${missing.join(' and ')}.`;
 }

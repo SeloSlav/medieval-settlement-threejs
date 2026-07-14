@@ -83,6 +83,6 @@ pub fn default_world_config() -> WorldConfig {
         topography: 50,
         hydrology: 50,
         forest_density: 50,
-        configured: true,
+        configured: false,
     }
 }

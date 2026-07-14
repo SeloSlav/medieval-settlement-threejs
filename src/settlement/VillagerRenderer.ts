@@ -1,15 +1,20 @@
 import * as THREE from 'three';
-import { disposeObject3D } from '../utils/dispose.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { ResidenceState } from '../resources/types.ts';
 import { polylineLengthXZ, samplePolylineXZ, type PointXZ } from '../utils/pathGeometry.ts';
-import { createVillagerMesh } from './villagerMesh.ts';
+import {
+  CROWD_SIM_DT,
+  isWithinCrowdView,
+  type CrowdViewState,
+} from './crowdView.ts';
+import { SettlementCrowdRenderer, type CrowdRenderAgent } from './SettlementCrowdRenderer.ts';
 import {
   computeVillagerSlots,
   findNearestRoadEdgePath,
   pickIdleDuration,
   pickIdleOffset,
   pickVillagerAppearanceSeed,
+  pickVillagerColors,
   pickVillagerWalkPath,
   pickWalkSpeed,
   residenceDoorPosition,
@@ -21,18 +26,27 @@ type VillagerAgent = {
   id: string;
   residenceId: string;
   slotIndex: number;
-  mesh: THREE.Group;
   mode: VillagerMode;
   path: PointXZ[];
   pathDistance: number;
   pathCursor: number;
+  simPathCursor: number;
+  displayPathCursor: number;
   idleRemaining: number;
   walkSpeed: number;
   appearanceSeed: number;
+  tunicColor: number;
+  skinColor: number;
   idleOffset: { x: number; z: number; yaw: number };
   pathSeed: number;
   idleDirty: boolean;
   nearestEdge: { path: PointXZ[]; distance: number } | null;
+  x: number;
+  z: number;
+  y: number;
+  yaw: number;
+  simAccumulator: number;
+  frozen: boolean;
 };
 
 export type VillagerRendererOptions = {
@@ -42,18 +56,18 @@ export type VillagerRendererOptions = {
 };
 
 export class VillagerRenderer {
-  private readonly group = new THREE.Group();
+  private readonly renderer: SettlementCrowdRenderer;
   private readonly getHeightAt: (x: number, z: number) => number;
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
   private readonly agents = new Map<string, VillagerAgent>();
   private residences = new Map<string, ResidenceState>();
   private roadNetwork: RoadNetwork | null = null;
+  private lastView: CrowdViewState | undefined;
 
   constructor(options: VillagerRendererOptions) {
     this.getHeightAt = options.getHeightAt;
     this.getRoadDeckY = options.getRoadDeckY ?? null;
-    this.group.name = 'Villagers';
-    options.parent.add(this.group);
+    this.renderer = new SettlementCrowdRenderer({ parent: options.parent });
   }
 
   sync(options: {
@@ -63,7 +77,7 @@ export class VillagerRenderer {
     this.residences = new Map([...options.residences].map((residence) => [residence.id, residence]));
     this.roadNetwork = options.roadNetwork;
 
-    const slots = computeVillagerSlots([...this.residences.values()]);
+    const slots = computeVillagerSlots([...this.residences.values()], this.roadNetwork);
     const nextIds = new Set<string>();
 
     for (const [residenceId, count] of slots) {
@@ -81,26 +95,33 @@ export class VillagerRenderer {
         let agent = this.agents.get(id);
         if (!agent) {
           const appearanceSeed = pickVillagerAppearanceSeed(residenceId, slotIndex);
+          const colors = pickVillagerColors(appearanceSeed);
           agent = {
             id,
             residenceId,
             slotIndex,
-            mesh: createVillagerMesh(appearanceSeed),
             mode: 'idle',
             path: [],
             pathDistance: 0,
             pathCursor: 0,
+            simPathCursor: 0,
+            displayPathCursor: 0,
             idleRemaining: pickIdleDuration(appearanceSeed),
             walkSpeed: pickWalkSpeed(appearanceSeed),
             appearanceSeed,
+            tunicColor: colors.tunic,
+            skinColor: colors.skin,
             idleOffset: pickIdleOffset(residenceId, slotIndex),
             pathSeed: appearanceSeed ^ 0x85ebca6b,
             idleDirty: true,
             nearestEdge,
+            x: residence.x,
+            z: residence.z,
+            y: 0,
+            yaw: residence.yaw,
+            simAccumulator: 0,
+            frozen: false,
           };
-          agent.mesh.castShadow = true;
-          agent.mesh.receiveShadow = false;
-          this.group.add(agent.mesh);
           this.agents.set(id, agent);
         } else {
           agent.nearestEdge = nearestEdge;
@@ -111,7 +132,7 @@ export class VillagerRenderer {
 
     for (const id of [...this.agents.keys()]) {
       if (nextIds.has(id)) continue;
-      this.removeAgent(id);
+      this.agents.delete(id);
     }
 
     for (const agent of this.agents.values()) {
@@ -121,44 +142,105 @@ export class VillagerRenderer {
       this.placeIdle(agent, residence);
       agent.idleDirty = false;
     }
+
+    this.pushRenderState();
   }
 
-  tick(dt: number): void {
+  tick(dt: number, view?: CrowdViewState): void {
+    this.lastView = view;
+
     for (const agent of this.agents.values()) {
       const residence = this.residences.get(agent.residenceId);
-      if (!residence || residence.abandoned || residence.population <= 0) continue;
-
-      if (agent.mode === 'idle') {
-        agent.idleRemaining -= dt;
-        if (agent.idleRemaining <= 0) {
-          this.tryBeginWalk(agent, residence);
-        }
+      if (!residence || residence.abandoned || residence.population <= 0) {
+        agent.frozen = true;
         continue;
       }
 
-      agent.pathCursor += agent.walkSpeed * dt;
-      if (agent.pathCursor >= agent.pathDistance) {
-        this.resetToIdle(agent, residence);
-        continue;
+      agent.frozen = !isWithinCrowdView(agent.x, agent.z, view);
+      if (agent.frozen) continue;
+
+      agent.simAccumulator += dt;
+      while (agent.simAccumulator >= CROWD_SIM_DT) {
+        this.simStep(agent, residence, CROWD_SIM_DT);
+        agent.simAccumulator -= CROWD_SIM_DT;
       }
 
-      const sample = samplePolylineXZ(agent.path, agent.pathCursor);
-      if (!sample) {
-        this.resetToIdle(agent, residence);
-        continue;
-      }
-
-      const y = this.resolveGroundY(sample.x, sample.z) + 0.02;
-      agent.mesh.position.set(sample.x, y, sample.z);
-      agent.mesh.rotation.y = sample.yaw;
+      this.interpolateDisplay(agent, dt);
+      agent.x = this.readDisplayX(agent);
+      agent.z = this.readDisplayZ(agent);
+      agent.yaw = this.readDisplayYaw(agent);
+      agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
     }
+
+    this.pushRenderState(view);
   }
 
   dispose(): void {
-    for (const id of [...this.agents.keys()]) {
-      this.removeAgent(id);
+    this.agents.clear();
+    this.renderer.dispose();
+  }
+
+  private pushRenderState(view?: CrowdViewState): void {
+    const renderAgents: CrowdRenderAgent[] = [];
+    let slot = 0;
+    for (const agent of this.agents.values()) {
+      const residence = this.residences.get(agent.residenceId);
+      if (!residence || residence.abandoned || residence.population <= 0) continue;
+      renderAgents.push({
+        slot: slot++,
+        x: agent.x,
+        y: agent.y,
+        z: agent.z,
+        yaw: agent.yaw,
+        tunicColor: agent.tunicColor,
+        skinColor: agent.skinColor,
+        active: true,
+      });
     }
-    this.group.removeFromParent();
+    this.renderer.syncAgents(renderAgents, view ?? this.lastView);
+  }
+
+  private simStep(agent: VillagerAgent, residence: ResidenceState, dt: number): void {
+    if (agent.mode === 'idle') {
+      agent.idleRemaining -= dt;
+      if (agent.idleRemaining <= 0) {
+        this.tryBeginWalk(agent, residence);
+      }
+      return;
+    }
+
+    agent.simPathCursor += agent.walkSpeed * dt;
+    agent.pathCursor = agent.simPathCursor;
+    if (agent.simPathCursor >= agent.pathDistance) {
+      this.resetToIdle(agent, residence);
+    }
+  }
+
+  private interpolateDisplay(agent: VillagerAgent, dt: number): void {
+    if (agent.mode === 'idle') return;
+    const blend = 1 - Math.exp(-dt * 18);
+    agent.displayPathCursor += (agent.simPathCursor - agent.displayPathCursor) * blend;
+  }
+
+  private readDisplayX(agent: VillagerAgent): number {
+    if (agent.mode === 'idle') return agent.x;
+    const sample = samplePolylineXZ(agent.path, agent.displayPathCursor);
+    return sample?.x ?? agent.x;
+  }
+
+  private readDisplayZ(agent: VillagerAgent): number {
+    if (agent.mode === 'idle') return agent.z;
+    const sample = samplePolylineXZ(agent.path, agent.displayPathCursor);
+    return sample?.z ?? agent.z;
+  }
+
+  private readDisplayYaw(agent: VillagerAgent): number {
+    if (agent.mode === 'idle') {
+      const residence = this.residences.get(agent.residenceId);
+      return residence ? residence.yaw + agent.idleOffset.yaw : agent.yaw;
+    }
+    const sample = samplePolylineXZ(agent.path, agent.displayPathCursor);
+    return sample?.yaw ?? agent.yaw;
   }
 
   private tryBeginWalk(agent: VillagerAgent, residence: ResidenceState): void {
@@ -186,6 +268,8 @@ export class VillagerRenderer {
     agent.path = path;
     agent.pathDistance = pathDistance;
     agent.pathCursor = 0;
+    agent.simPathCursor = 0;
+    agent.displayPathCursor = 0;
     agent.idleDirty = false;
   }
 
@@ -194,6 +278,8 @@ export class VillagerRenderer {
     agent.path = [];
     agent.pathDistance = 0;
     agent.pathCursor = 0;
+    agent.simPathCursor = 0;
+    agent.displayPathCursor = 0;
     agent.idleRemaining = pickIdleDuration(agent.pathSeed);
     agent.idleDirty = true;
     this.placeIdle(agent, residence);
@@ -206,24 +292,15 @@ export class VillagerRenderer {
     const cos = Math.cos(residence.yaw);
     const offsetX = agent.idleOffset.x * cos - agent.idleOffset.z * sin;
     const offsetZ = agent.idleOffset.x * sin + agent.idleOffset.z * cos;
-    const x = door.x + offsetX;
-    const z = door.z + offsetZ;
-    const y = this.resolveGroundY(x, z) + 0.02;
-    agent.mesh.position.set(x, y, z);
-    agent.mesh.rotation.y = residence.yaw + agent.idleOffset.yaw;
+    agent.x = door.x + offsetX;
+    agent.z = door.z + offsetZ;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = residence.yaw + agent.idleOffset.yaw;
   }
 
   private resolveGroundY(x: number, z: number): number {
     const deckY = this.getRoadDeckY?.(x, z);
     if (deckY != null) return deckY;
     return this.getHeightAt(x, z);
-  }
-
-  private removeAgent(id: string): void {
-    const agent = this.agents.get(id);
-    if (!agent) return;
-    disposeObject3D(agent.mesh);
-    agent.mesh.removeFromParent();
-    this.agents.delete(id);
   }
 }

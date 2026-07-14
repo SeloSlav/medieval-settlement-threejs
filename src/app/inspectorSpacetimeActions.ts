@@ -1,7 +1,9 @@
 import type { ToastManager } from '../ui/ToastManager.ts';
 import type { SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
-import type { FarmCrop } from '../resources/types.ts';
+import type { FarmCrop, GameState } from '../resources/types.ts';
+import { describeBackyardGardenShortfall } from '../resources/buildingEconomy.ts';
+import { computeResourceTotals } from '../resources/resourceTotals.ts';
 
 export type InspectorSpacetimeActions = {
   onDemolishBuilding: (buildingId: string) => Promise<void>;
@@ -20,6 +22,7 @@ export type InspectorSpacetimeActions = {
 
 export function createInspectorSpacetimeActions(
   getStore: () => SpacetimeGameStore | null,
+  getGameState: () => GameState,
   isSessionReady: () => boolean,
   toastManager: ToastManager,
 ): InspectorSpacetimeActions {
@@ -68,6 +71,28 @@ export function createInspectorSpacetimeActions(
     onPlaceBackyardGarden: async (residenceId, kind) => {
       const store = requireReady();
       if (!store) return;
+
+      const state = getGameState();
+      const residence = state.residences.get(residenceId);
+      if (!residence) {
+        toastManager.show('Residence not found.', { variant: 'error' });
+        return;
+      }
+      if (residence.abandoned) {
+        toastManager.show('Cannot plant a backyard garden at an abandoned residence.', { variant: 'error' });
+        return;
+      }
+      if (state.backyardGardens.has(residenceId)) {
+        toastManager.show('This backyard already has a garden.', { variant: 'error' });
+        return;
+      }
+
+      const shortfall = describeBackyardGardenShortfall(computeResourceTotals(state), kind);
+      if (shortfall) {
+        toastManager.show(shortfall, { variant: 'error' });
+        return;
+      }
+
       await runReducer(
         () => store.placeBackyardGarden(residenceId, kind),
         'Could not plant backyard garden.',

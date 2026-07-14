@@ -22,6 +22,35 @@ use crate::simulation::residence_needs::{
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, DeliveryTrip, Residence};
 
+pub fn serialize_route_polyline(polyline: &[[f64; 2]]) -> String {
+    serde_json::to_string(polyline).unwrap_or_default()
+}
+
+pub fn deserialize_route_polyline(json: &str) -> Option<Vec<[f64; 2]>> {
+    if json.is_empty() {
+        return None;
+    }
+    serde_json::from_str(json).ok()
+}
+
+fn cached_trip_route(
+    ctx: &ReducerContext,
+    network: &RoadNetwork,
+    trip: &DeliveryTrip,
+) -> Option<RoadPathRoute> {
+    if trip.path_distance > 1e-6 {
+        if let Some(polyline) = deserialize_route_polyline(&trip.route_polyline_json) {
+            if polyline.len() >= 2 {
+                return Some(RoadPathRoute {
+                    distance: trip.path_distance,
+                    polyline,
+                });
+            }
+        }
+    }
+    trip_route(ctx, network, trip)
+}
+
 pub const DELIVERY_DESTINATION_RESIDENCE: u8 = 0;
 pub const DELIVERY_DESTINATION_BUILDING: u8 = 1;
 
@@ -316,6 +345,8 @@ fn try_start_road_trip(
 
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
     let (start_x, start_z) = RoadNetwork::sample_polyline_xz(&route.polyline, 0.0);
+    let travel_speed_multiplier =
+        carpenter_delivery_multiplier_for_origin(ctx, network, &origin, origin.owner);
 
     ctx.db.delivery_trip().insert(DeliveryTrip {
         id: 0,
@@ -334,6 +365,9 @@ fn try_start_road_trip(
         unload_seconds: spec.unload_seconds,
         unload_remaining: 0.0,
         delivery_workers: spec.delivery_workers,
+        path_distance: route.distance,
+        travel_speed_multiplier,
+        route_polyline_json: serialize_route_polyline(&route.polyline),
     });
 
     true
@@ -350,7 +384,7 @@ fn step_one_trip(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock,
         return;
     };
 
-    let Some(route) = trip_route(ctx, &network, &trip) else {
+    let Some(route) = cached_trip_route(ctx, &network, &trip) else {
         return_trip_cargo_to_building(ctx, &trip);
         ctx.db.delivery_trip().id().delete(trip.id);
         return;
@@ -360,7 +394,7 @@ fn step_one_trip(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock,
     trip.progress = trip.progress.min(path_distance);
 
     let workers = trip.delivery_workers.max(1) as f64;
-    let travel_speed = trip.speed_mps * workers * carpenter_delivery_multiplier(ctx, &network, &trip);
+    let travel_speed = trip.speed_mps * workers * trip.travel_speed_multiplier.max(1e-6);
 
     let Some(phase) = DeliveryTripPhase::from_u8(trip.phase) else {
         return_trip_cargo_to_building(ctx, &trip);
@@ -437,13 +471,24 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip) {
     }
 }
 
-fn carpenter_delivery_multiplier(ctx: &ReducerContext, network: &RoadNetwork, trip: &DeliveryTrip) -> f64 {
-    let Some(origin) = ctx.db.building().id().find(&trip.building_id) else { return 1.0; };
-    let supported = ctx.db.building().owner().filter(&trip.owner).any(|shop| {
-        shop.kind == "carpenter" && shop.assigned_labor > 0
-            && network.road_path_distance(origin.x, origin.z, shop.x, shop.z).is_some()
+fn carpenter_delivery_multiplier_for_origin(
+    ctx: &ReducerContext,
+    network: &RoadNetwork,
+    origin: &Building,
+    owner: spacetimedb::Identity,
+) -> f64 {
+    let supported = ctx.db.building().owner().filter(&owner).any(|shop| {
+        shop.kind == "carpenter"
+            && shop.assigned_labor > 0
+            && network
+                .road_path_distance(origin.x, origin.z, shop.x, shop.z)
+                .is_some()
     });
-    if supported { CARPENTER_DELIVERY_SPEED_MULTIPLIER } else { 1.0 }
+    if supported {
+        CARPENTER_DELIVERY_SPEED_MULTIPLIER
+    } else {
+        1.0
+    }
 }
 
 fn unload_commodity_to_building(

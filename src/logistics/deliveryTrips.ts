@@ -1,6 +1,8 @@
 import type { BuildingState, GameState, ResidenceState } from '../resources/types.ts';
-import { roadPathDistance } from './roadLogistics.ts';
+import { decodeRoutePolyline } from './routePolyline.ts';
+import { roadPathDistance, roadPathRoute } from './roadLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import type { PointXZ } from '../utils/pathGeometry.ts';
 
 export const DELIVERY_TRIP_PHASES = ['outbound', 'unloading', 'inbound'] as const;
 export type DeliveryTripPhase = (typeof DELIVERY_TRIP_PHASES)[number];
@@ -39,6 +41,9 @@ export type DeliveryTripState = {
   unloadSeconds: number;
   unloadRemaining: number;
   deliveryWorkers: number;
+  pathDistance: number;
+  travelSpeedMultiplier: number;
+  routePolylineJson: string;
 };
 
 export type TripEndpoint = {
@@ -150,6 +155,8 @@ export function tripPathDistance(
   trip: DeliveryTripState,
   state: Pick<GameState, 'buildings' | 'residences'>,
 ): number | null {
+  if (trip.pathDistance > 1e-6) return trip.pathDistance;
+
   const endpoints = resolveTripEndpoints(trip, state);
   if (!endpoints) return null;
   return roadPathDistance(
@@ -159,6 +166,25 @@ export function tripPathDistance(
     endpoints.destinationX,
     endpoints.destinationZ,
   );
+}
+
+export function tripRoutePolyline(
+  network: RoadNetwork,
+  trip: DeliveryTripState,
+  state: Pick<GameState, 'buildings' | 'residences'>,
+): PointXZ[] | null {
+  const cached = decodeRoutePolyline(trip.routePolylineJson);
+  if (cached && cached.length >= 2) return cached;
+
+  const endpoints = resolveTripEndpoints(trip, state);
+  if (!endpoints) return null;
+  return roadPathRoute(
+    network,
+    endpoints.origin.x,
+    endpoints.origin.z,
+    endpoints.destinationX,
+    endpoints.destinationZ,
+  )?.polyline ?? null;
 }
 
 export function formatTripDestinationLabel(
@@ -230,7 +256,7 @@ export function tripRemainingSeconds(trip: DeliveryTripState, pathDistance: numb
   if (pathDistance == null || pathDistance <= 1e-6) return Infinity;
 
   const workers = Math.max(1, trip.deliveryWorkers);
-  const travelSpeed = trip.speedMps * workers;
+  const travelSpeed = trip.speedMps * workers * Math.max(1, trip.travelSpeedMultiplier);
   if (travelSpeed <= 1e-9) return Infinity;
 
   const travelPerLeg = pathDistance / travelSpeed;

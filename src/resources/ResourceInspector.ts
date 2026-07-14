@@ -3,6 +3,7 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import {
+  computeResourceTotals,
   computeTradeAvailability,
   maxAssignableLabor,
   type PopulationStats,
@@ -92,38 +93,42 @@ export class ResourceInspector {
       'beforeend',
       `
       <aside class="resource-inspector-panel" data-resource-inspector hidden aria-label="Resource inspector">
-        <header class="road-controls-header">
+        <header class="road-controls-header resource-inspector-header">
           <div>
             <p class="road-controls-eyebrow" data-inspector-eyebrow>Resources</p>
             <h2 class="road-controls-title" data-inspector-title>Select a site</h2>
             <p class="road-controls-status" data-inspector-status>Click terrain to inspect quarries, buildings, residences, or river access.</p>
           </div>
         </header>
-        <section class="resource-inspector-details" aria-label="Resource details">
-          <ul class="road-controls-list" data-inspector-details></ul>
-        </section>
-        <section class="resource-inspector-labor" data-inspector-labor hidden aria-label="Labor assignment">
-          <div class="resource-inspector-labor-row">
-            <span>Assigned labor</span>
-            <div class="resource-inspector-labor-controls">
-              <button type="button" class="resource-inspector-labor-button" data-action="labor-decrease" aria-label="Decrease labor">−</button>
-              <strong data-inspector-labor-count>0</strong>
-              <button type="button" class="resource-inspector-labor-button" data-action="labor-increase" aria-label="Increase labor">+</button>
+        <div class="resource-inspector-scroll">
+          <section class="resource-inspector-details" aria-label="Resource details">
+            <ul class="road-controls-list" data-inspector-details></ul>
+          </section>
+          <section class="resource-inspector-labor" data-inspector-labor hidden aria-label="Labor assignment">
+            <div class="resource-inspector-labor-row">
+              <span>Assigned labor</span>
+              <div class="resource-inspector-labor-controls">
+                <button type="button" class="resource-inspector-labor-button" data-action="labor-decrease" aria-label="Decrease labor">−</button>
+                <strong data-inspector-labor-count>0</strong>
+                <button type="button" class="resource-inspector-labor-button" data-action="labor-increase" aria-label="Increase labor">+</button>
+              </div>
             </div>
-          </div>
-          <p class="resource-inspector-labor-hint" data-inspector-labor-hint></p>
-        </section>
-        <section class="resource-inspector-supplemental" data-inspector-supplemental hidden aria-label="Inspector actions"></section>
-        <section class="resource-inspector-actions" data-inspector-actions hidden aria-label="Building actions">
-          <button type="button" class="resource-inspector-demolish" data-action="demolish-primary">
-            Demolish
-          </button>
-          <p class="resource-inspector-demolish-hint" data-demolish-hint></p>
-          <button type="button" class="resource-inspector-demolish resource-inspector-demolish--secondary" data-action="demolish-secondary" hidden>
-            Demolish plot
-          </button>
-          <p class="resource-inspector-demolish-hint" data-demolish-secondary-hint hidden></p>
-        </section>
+            <p class="resource-inspector-labor-hint" data-inspector-labor-hint></p>
+          </section>
+        </div>
+        <footer class="resource-inspector-footer">
+          <section class="resource-inspector-supplemental" data-inspector-supplemental hidden aria-label="Inspector actions"></section>
+          <section class="resource-inspector-actions" data-inspector-actions hidden aria-label="Building actions">
+            <button type="button" class="resource-inspector-demolish" data-action="demolish-primary">
+              Demolish
+            </button>
+            <p class="resource-inspector-demolish-hint" data-demolish-hint></p>
+            <button type="button" class="resource-inspector-demolish resource-inspector-demolish--secondary" data-action="demolish-secondary" hidden>
+              Demolish plot
+            </button>
+            <p class="resource-inspector-demolish-hint" data-demolish-secondary-hint hidden></p>
+          </section>
+        </footer>
       </aside>
     `,
     );
@@ -411,6 +416,7 @@ export class ResourceInspector {
     const view = renderInspectableTarget(target, {
       worldQueries: this.options.worldQueries,
       populationStats: this.populationStats,
+      resourceTotals: computeResourceTotals(this.options.getState()),
       ...(this.options.getEconomicActivityTaxRate
         ? { getEconomicActivityTaxRate: this.options.getEconomicActivityTaxRate }
         : {}),

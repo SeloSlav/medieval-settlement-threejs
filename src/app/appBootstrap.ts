@@ -616,6 +616,7 @@ export async function bootstrapAppSession(
   });
   const inspectorActions = createInspectorSpacetimeActions(
     () => spacetimeStore,
+    () => liveContext.gameState,
     () => sessionGate.isReady(),
     toastManager,
   );

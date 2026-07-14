@@ -27,4 +27,7 @@ export default __t.row({
   unloadSeconds: __t.f64().name("unload_seconds"),
   unloadRemaining: __t.f64().name("unload_remaining"),
   deliveryWorkers: __t.u32().name("delivery_workers"),
+  pathDistance: __t.f64().name("path_distance"),
+  travelSpeedMultiplier: __t.f64().name("travel_speed_multiplier"),
+  routePolylineJson: __t.string().name("route_polyline_json"),
 });

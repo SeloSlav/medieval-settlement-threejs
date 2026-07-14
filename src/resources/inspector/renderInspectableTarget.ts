@@ -1,4 +1,4 @@
-import type { PopulationStats } from '../resourceTotals.ts';
+import type { PopulationStats, ResourceTotals } from '../resourceTotals.ts';
 import type { ParishPolicyState } from '../../economy/chapelParish.ts';
 import type { MarketplaceTradeAvailability } from '../../economy/marketplaceTrade.ts';
 import type { RegionalMarketState } from '../../economy/regionalMarket.ts';
@@ -44,6 +44,7 @@ export type InspectorView = {
 export type InspectorRenderContext = {
   worldQueries: WorldQueries;
   populationStats: PopulationStats;
+  resourceTotals: ResourceTotals;
   getEconomicActivityTaxRate?: () => number;
   getParishPolicy?: () => ParishPolicyState;
   getTradeAvailability?: () => MarketplaceTradeAvailability;

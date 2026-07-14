@@ -7,6 +7,7 @@ import {
   getBackyardGardenCost,
   type BackyardGardenKind,
 } from '../../residences/backyardGarden.ts';
+import { canAffordBackyardGarden } from '../buildingEconomy.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../../economy/villageEconomy.ts';
 import { buildBackyardEconomyView, formatBackyardSavingsLabel } from '../../economy/economyInspectorViews.ts';
 import { STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION } from '../../generated/gameBalance.ts';
@@ -22,7 +23,7 @@ export function renderBackyardInspector(
   const { residence, zone, garden } = target;
 
   if (!garden) {
-    return renderEmptyBackyardPicker(residence, zone.plotCount, residence.parcelIndex);
+    return renderEmptyBackyardPicker(residence, zone.plotCount, residence.parcelIndex, context);
   }
 
   const def = BACKYARD_GARDEN_DEFINITIONS[garden.kind];
@@ -69,14 +70,30 @@ function renderEmptyBackyardPicker(
   residence: Extract<InspectableTarget, { kind: 'backyard' }>['residence'],
   plotCount: number,
   parcelIndex: number,
+  context: InspectorRenderContext,
 ): InspectorView {
+  const totals = context.resourceTotals;
+  const abandoned = residence.abandoned;
   const options = BACKYARD_GARDEN_KINDS.map((kind) => {
     const def = BACKYARD_GARDEN_DEFINITIONS[kind];
     const tag = def.foodPerPersonPerSec > 0 ? 'Food' : 'Market';
     const cost = getBackyardGardenCost(kind);
+    const affordable = !abandoned && canAffordBackyardGarden(totals, kind);
+    const disabledReason = abandoned
+      ? 'Cannot plant while the residence is abandoned.'
+      : affordable
+        ? ''
+        : `Need ${cost.timber} timber and ${cost.stone} stone (you have ${Math.floor(totals.timber)} timber, ${Math.floor(totals.stone)} stone).`;
     return `
       <li class="backyard-picker-row">
-        <button type="button" class="backyard-picker-option" data-inspector-action="place-garden" data-garden-kind="${kind}">
+        <button
+          type="button"
+          class="backyard-picker-option${affordable ? '' : ' backyard-picker-option--disabled'}"
+          data-inspector-action="place-garden"
+          data-garden-kind="${kind}"
+          ${affordable ? '' : 'disabled'}
+          ${disabledReason ? `title="${disabledReason}"` : ''}
+        >
           <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
           <span class="backyard-picker-option__meta">
             <span class="backyard-picker-option__tag">${tag}</span>
@@ -90,23 +107,29 @@ function renderEmptyBackyardPicker(
   return {
     eyebrow: 'Backyard',
     title: 'Empty backyard',
-    statusText: 'Pick a garden type',
-    statusState: 'neutral',
+    statusText: abandoned ? 'Abandoned — gardens unavailable' : 'Pick a garden type',
+    statusState: abandoned ? 'warning' : 'neutral',
     detailsHtml: `
       <li><span>Parcel</span><span>#${parcelIndex + 1} of ${plotCount}</span></li>
       <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population}</span></li>
+      <li><span>Available timber</span><span>${Math.floor(totals.timber)}</span></li>
+      <li><span>Available stone</span><span>${Math.floor(totals.stone)}</span></li>
     `,
     demolish: { visible: false, hint: '' },
     labor: hiddenLabor(),
-    supplementalPanelHtml: `<ul class="backyard-picker-list">${options}</ul>`,
+    supplementalPanelHtml: `
+      <p class="resource-inspector-note">Orchards and gardens cost timber and stone from your settlement stockpile.</p>
+      <ul class="backyard-picker-list">${options}</ul>
+    `,
   };
 }
 
 export function parseGardenPickerKind(button: HTMLElement): BackyardGardenKind | null {
-  if (button.closest('[data-inspector-action="place-garden"]') === null) {
+  const option = button.closest<HTMLButtonElement>('[data-inspector-action="place-garden"]');
+  if (!option || option.disabled) {
     return null;
   }
-  const value = button.closest('[data-garden-kind]')?.getAttribute('data-garden-kind');
+  const value = option.getAttribute('data-garden-kind');
   if (!value) return null;
   return (BACKYARD_GARDEN_KINDS as readonly string[]).includes(value)
     ? (value as BackyardGardenKind)

@@ -184,10 +184,10 @@ export class BuildingMarkers {
 
   private removeBuilding(id: string): void {
     const marker = this.buildingMeshes.get(id);
-    if (marker) {
-      disposeObject3D(marker, true);
-      this.buildingMeshes.delete(id);
-    }
+    if (!marker) return;
+    this.group.remove(marker);
+    disposeObject3D(marker, true);
+    this.buildingMeshes.delete(id);
   }
 }
 

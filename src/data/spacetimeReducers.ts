@@ -14,6 +14,25 @@ import {
   parseZoneServerId,
 } from './spacetimeIds.ts';
 
+function formatReducerError(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    if (typeof record.message === 'string' && record.message.trim()) {
+      return record.message;
+    }
+    if (typeof record.value === 'string' && record.value.trim()) {
+      return record.value;
+    }
+  }
+  return fallback;
+}
+
 async function callReducer(
   camelName: string,
   snakeName: string,
@@ -29,7 +48,11 @@ async function callReducer(
   if (!fn) {
     throw new Error(`Reducer ${camelName} is missing from generated bindings.`);
   }
-  await fn(args);
+  try {
+    await fn(args);
+  } catch (error) {
+    throw new Error(formatReducerError(error, `Reducer ${camelName} failed.`));
+  }
 }
 
 export async function placeBackyardGarden(

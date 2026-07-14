@@ -74,6 +74,26 @@ export class RoadSpatialIndex {
     return { nodes: [...nodeSet], edges: [...edgeSet] };
   }
 
+  findNearestEdgePath(
+    x: number,
+    z: number,
+    maxDistance = Infinity,
+  ): { path: THREE.Vector3[]; distance: number } | null {
+    let best: { path: THREE.Vector3[]; distance: number } | null = null;
+    const searchRadius = Number.isFinite(maxDistance) ? maxDistance : CELL_SIZE * 16;
+
+    for (const edge of this.queryEdges(x, z, searchRadius)) {
+      if (edge.path.length < 2) continue;
+      const distance = distancePointToPolylineXZ(x, z, edge.path);
+      if (distance > maxDistance + 1e-6) continue;
+      if (!best || distance < best.distance) {
+        best = { path: edge.path, distance };
+      }
+    }
+
+    return best;
+  }
+
   private nearestDistanceWithin(
     x: number,
     z: number,

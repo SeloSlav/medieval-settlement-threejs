@@ -1,12 +1,17 @@
 .resource-inspector-supplemental {
   display: grid;
   gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(238, 232, 220, 0.1);
 }
 
 .resource-inspector-supplemental[hidden] {
   display: none;
+}
+
+.resource-inspector-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .backyard-picker-list {
@@ -42,6 +47,19 @@
 .backyard-picker-option:focus-visible {
   border-color: var(--accent);
   outline: none;
+}
+
+.backyard-picker-option:disabled,
+.backyard-picker-option--disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.backyard-picker-option:disabled:hover,
+.backyard-picker-option:disabled:focus-visible,
+.backyard-picker-option--disabled:hover,
+.backyard-picker-option--disabled:focus-visible {
+  border-color: rgba(238, 232, 220, 0.12);
 }
 
 .backyard-picker-option__title {

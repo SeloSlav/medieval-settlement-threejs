@@ -41,6 +41,7 @@ import {
   syncSettlementWorld,
   tickSettlementWorld,
 } from './settlementWorldSync.ts';
+import { buildCrowdViewState } from '../settlement/crowdView.ts';
 import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
 import { SessionLifecycleController } from './SessionLifecycleController.ts';
 import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
@@ -350,6 +351,7 @@ export class App {
       this.sceneManager?.render(dt, this.cameraController?.getOrbitDistance());
     }
     this.updateFps(time, dt);
+    const crowdView = this.buildCrowdViewState();
     tickSettlementWorld(
       {
         residenceMarkers: this.residenceMarkers,
@@ -357,6 +359,8 @@ export class App {
         villagers: this.villagers,
       },
       dt,
+      crowdView,
+      this.gameState ?? undefined,
     );
     this.ambientAudio?.tick(dt);
     this.animationId = requestAnimationFrame(this.tick);
@@ -565,5 +569,16 @@ export class App {
       getRoadNetwork: () => this.roadNetwork,
       playableHalf,
     }));
+  }
+
+  private buildCrowdViewState() {
+    if (this.firstPersonController?.isActive()) {
+      const pos = this.firstPersonController.getPosition();
+      return buildCrowdViewState(pos.x, pos.z, 48);
+    }
+    const target = this.cameraController?.getTargetPosition();
+    const orbit = this.cameraController?.getOrbitDistance() ?? 240;
+    if (!target) return buildCrowdViewState(0, 0, orbit);
+    return buildCrowdViewState(target.x, target.z, orbit);
   }
 }

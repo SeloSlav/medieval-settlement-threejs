@@ -1,7 +1,7 @@
 .resource-inspector-labor {
   display: grid;
   gap: 8px;
-  padding: 0 16px 12px;
+  padding: 0 2px 2px;
 }
 
 .resource-inspector-labor[hidden] {
@@ -52,31 +52,84 @@
   top: 64px;
   left: 14px;
   z-index: 4;
-  width: min(300px, calc(100vw - 28px));
-  display: grid;
-  gap: 14px;
+  width: min(352px, calc(100vw - 28px));
+  max-height: calc(100vh - 78px);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--panel);
   box-shadow: 0 14px 34px var(--shadow);
   backdrop-filter: blur(14px);
+  overflow: hidden;
 }
 
 .resource-inspector-panel[hidden] {
   display: none;
 }
 
-.resource-inspector-details {
-  padding-top: 2px;
+.resource-inspector-header {
+  flex-shrink: 0;
+}
+
+.resource-inspector-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid rgba(238, 232, 220, 0.1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.resource-inspector-scroll:empty {
+  display: none;
+}
+
+.resource-inspector-footer {
+  flex-shrink: 0;
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(238, 232, 220, 0.1);
+}
+
+.resource-inspector-footer:has(> [hidden]:only-child),
+.resource-inspector-footer:not(:has(> :not([hidden]))) {
+  display: none;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.resource-inspector-details {
+  padding-top: 0;
+}
+
+.resource-inspector-details .road-controls-list li {
+  align-items: flex-start;
+}
+
+.resource-inspector-details .road-controls-list li > span:first-child {
+  flex: 0 0 auto;
+  max-width: 42%;
+}
+
+.resource-inspector-details .road-controls-list li > span:last-child {
+  flex: 1 1 auto;
+  text-align: right;
+  line-height: 1.35;
 }
 
 .resource-inspector-actions {
   display: grid;
   gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(238, 232, 220, 0.1);
 }
 
 .resource-inspector-actions[hidden] {
@@ -116,4 +169,14 @@
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .resource-inspector-panel {
+    top: 58px;
+    left: 10px;
+    width: min(320px, calc(100vw - 20px));
+    max-height: calc(100vh - 68px);
+    padding: 12px;
+  }
 }
