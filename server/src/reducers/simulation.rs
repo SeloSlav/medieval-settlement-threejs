@@ -16,12 +16,17 @@ use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence};
 
 pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSchedule) {
-    if let Some(config) = ctx.db.world_config().id().find(&0) {
-        ctx.db.world_config().id().update(WorldConfig {
-            sim_tick: config.sim_tick + 1,
-            ..config
-        });
+    let Some(config) = ctx.db.world_config().id().find(&0) else {
+        return;
+    };
+    if !config.configured {
+        return;
     }
+
+    ctx.db.world_config().id().update(WorldConfig {
+        sim_tick: config.sim_tick + 1,
+        ..config
+    });
 
     step_foraging_respawn(ctx);
 

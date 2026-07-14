@@ -337,7 +337,8 @@ export class SpacetimeGameStore {
   }
 
   async configureWorld(settings: WorldGenerationSettings): Promise<void> {
-    if (generationMatchesServer(this.tableState.worldGeneration, settings)) {
+    const server = this.tableState.worldGeneration;
+    if (server?.configured && generationMatchesServer(server, settings)) {
       return;
     }
     await spacetimeReducers.configureWorld(settings);

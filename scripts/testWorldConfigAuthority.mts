@@ -58,6 +58,14 @@ assert.throws(
 assert.doesNotThrow(
   () => assertWorldGenerationCompatible(
     DEFAULT_WORLD_GENERATION_SETTINGS,
+    { ...generation, configured: false },
+    42,
+  ),
+);
+
+assert.doesNotThrow(
+  () => assertWorldGenerationCompatible(
+    DEFAULT_WORLD_GENERATION_SETTINGS,
     generation,
     0,
   ),

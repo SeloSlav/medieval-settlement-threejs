@@ -36,7 +36,9 @@ pub fn configure_world(
         || config.hydrology != hydrology
         || config.forest_density != forest_density;
 
-    if generation_changed && config.sim_tick > 0 {
+    // Only lock generation after a client has published settings. The sim scheduler
+    // may be running while configured=false (e.g. idle server before first connect).
+    if generation_changed && config.configured && config.sim_tick > 0 {
         return Err("Cannot change world generation after the simulation has started.".into());
     }
 
