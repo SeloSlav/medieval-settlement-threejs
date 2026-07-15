@@ -984,6 +984,10 @@ function generateTypeScript(): string {
     '  acceptsLabor: boolean;',
     '  requiresRoad: boolean;',
     '  facesRoad: boolean;',
+    '  requiresMatureTrees: boolean;',
+    '  requiresQuarryStone: boolean;',
+    '  requiresGame: boolean;',
+    '  requiresBerries: boolean;',
     '  requiresWaterShore: boolean;',
     '  requiresHillside: boolean;',
     '};',
@@ -1003,6 +1007,10 @@ function generateTypeScript(): string {
     lines.push(`    acceptsLabor: ${def.acceptsLabor},`);
     lines.push(`    requiresRoad: ${def.requiresRoad},`);
     lines.push(`    facesRoad: ${def.facesRoad},`);
+    lines.push(`    requiresMatureTrees: ${def.requiresMatureTrees},`);
+    lines.push(`    requiresQuarryStone: ${def.requiresQuarryStone},`);
+    lines.push(`    requiresGame: ${def.requiresGame},`);
+    lines.push(`    requiresBerries: ${def.requiresBerries},`);
     lines.push(`    requiresWaterShore: ${def.requiresWaterShore ?? false},`);
     lines.push(`    requiresHillside: ${def.requiresHillside ?? false},`);
     lines.push('  },');

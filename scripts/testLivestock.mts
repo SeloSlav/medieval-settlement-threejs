@@ -107,7 +107,8 @@ for (const label of ['cow', 'bull', 'sheep', 'pig', 'chicken']) {
 assert.match(license, /CC0 1\.0/, 'livestock assets should retain their CC0 license record');
 
 const serverLivestock = fs.readFileSync('server/src/simulation/livestock.rs', 'utf8');
-assert.match(serverLivestock, /mature_tree_count[\s\S]*SWINE_MATURE_TREES_PER_HEAD/, 'pannage capacity should use mature trees');
+assert.match(serverLivestock, /tree\.phase == "mature"/, 'pannage should count only mature trees');
+assert.match(serverLivestock, /mature_trees\s*\/\s*SWINE_MATURE_TREES_PER_HEAD/, 'pannage capacity should use mature trees');
 assert.match(serverLivestock, /CATTLE_MAX_FERTILIZED_FIELDS/, 'cattle support should cap fertilized fields');
 const farmSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(farmSimulation, /field\.stage == STAGE_PLOUGHING \{ plough_multiplier \} else \{ 1\.0 \}/, 'ox power should apply only to ploughing');
