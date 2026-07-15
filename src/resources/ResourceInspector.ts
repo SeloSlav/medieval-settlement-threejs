@@ -14,6 +14,7 @@ import type { WorldQueries } from './WorldQueries.ts';
 import { renderInspectableTarget } from './inspector/renderInspectableTarget.ts';
 import { handleSupplementalPanelClick } from './inspector/supplementalPanel.ts';
 import type { ParishPolicyState } from '../economy/chapelParish.ts';
+import type { MonasteryPolicyState } from '../economy/monasteryPolicy.ts';
 import type { RegionalMarketState } from '../economy/regionalMarket.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../economy/regionalMarket.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
@@ -28,6 +29,7 @@ type ResourceInspectorOptions = {
   getState: () => GameState;
   getEconomicActivityTaxRate?: () => number;
   getParishPolicy?: () => ParishPolicyState;
+  getMonasteryPolicy?: () => MonasteryPolicyState;
   getMarketState?: () => RegionalMarketState;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
@@ -38,6 +40,10 @@ type ResourceInspectorOptions = {
   onAssignBuildingLabor?: (buildingId: string, labor: number) => void | Promise<void>;
   onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
   onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
+  onSetEconomicActivityTaxRate?: (taxRate: number) => void | Promise<void>;
+  onSetChapelParishPolicy?: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => void | Promise<void>;
+  onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
+  onSetStorehousePolicy?: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => void | Promise<void>;
   onDemolishFarmField?: (fieldId: string) => void | Promise<void>;
   onSetFarmFieldCrop?: (fieldId: string, crop: FarmCrop) => void | Promise<void>;
   onSetFarmFieldPriority?: (fieldId: string, priority: number) => void | Promise<void>;
@@ -177,6 +183,8 @@ export class ResourceInspector {
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
     this.panel.addEventListener('mousedown', (event) => event.stopPropagation());
     this.panel.addEventListener('click', this.onPanelClick);
+    this.supplementalPanelSection.addEventListener('input', this.onSupplementalInput);
+    this.supplementalPanelSection.addEventListener('change', this.onSupplementalChange);
     this.demolishButton.addEventListener('click', this.onDemolishPrimaryClick);
     this.demolishSecondaryButton.addEventListener('click', this.onDemolishSecondaryClick);
     this.laborDecrease.addEventListener('click', this.onLaborDecrease);
@@ -240,6 +248,51 @@ export class ResourceInspector {
     void this.options.onDemolishBurgageZone?.(this.selectedTarget.zone.id);
   };
 
+  private readonly onSupplementalInput = (event: Event): void => {
+    const input = event.target as HTMLInputElement;
+    if (input.matches('[data-policy-tax-rate]')) {
+      const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-tax-rate-value]');
+      if (output) output.textContent = `${Math.round(Number(input.value))}%`;
+    } else if (input.matches('[data-policy-chapel-reserve]')) {
+      const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-chapel-reserve-value]');
+      if (output) output.textContent = `${Math.round(Number(input.value))} gold`;
+    } else if (input.matches('[data-policy-monastery-tithe]')) {
+      const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-monastery-tithe-value]');
+      if (output) output.textContent = `${Math.round(Number(input.value))}%`;
+    }
+  };
+
+  private readonly onSupplementalChange = (event: Event): void => {
+    event.stopPropagation();
+    const input = event.target as HTMLInputElement;
+    if (this.selectedTarget?.kind !== 'building') return;
+    const building = this.selectedTarget.building;
+
+    if (building.kind === 'town_hall' && input.matches('[data-policy-tax-rate]')) {
+      void this.options.onSetEconomicActivityTaxRate?.(Number(input.value) / 100);
+      return;
+    }
+    if (building.kind === 'chapel' && input.matches('[data-policy-chapel-auto-sweep], [data-policy-chapel-reserve], [data-policy-chapel-sabbath]')) {
+      const autoSweep = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-auto-sweep]')?.checked ?? false;
+      const reserve = Number(this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-reserve]')?.value ?? 80);
+      const sabbath = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-sabbath]')?.checked ?? false;
+      void this.options.onSetChapelParishPolicy?.(autoSweep, reserve, sabbath);
+      return;
+    }
+    if (building.kind === 'monastery' && input.matches('[data-policy-monastery-tithe], [data-policy-monastery-feasts]')) {
+      const tithe = Number(this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-monastery-tithe]')?.value ?? 30) / 100;
+      const feasts = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-monastery-feasts]')?.checked ?? true;
+      void this.options.onSetMonasteryPolicy?.(tithe, feasts);
+      return;
+    }
+    if (building.kind === 'village_storehouse' && input.matches('[data-storehouse-accepts-timber], [data-storehouse-accepts-stone], [data-storehouse-accepts-firewood]')) {
+      const timber = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-timber]')?.checked ?? false;
+      const stone = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-stone]')?.checked ?? false;
+      const firewood = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-firewood]')?.checked ?? false;
+      void this.options.onSetStorehousePolicy?.(building.id, timber, stone, firewood);
+    }
+  };
+
   private readonly onLaborDecrease = (): void => {
     if (this.selectedTarget?.kind !== 'building') return;
     const building = this.selectedTarget.building;
@@ -299,6 +352,12 @@ export class ResourceInspector {
     this.selectTarget(target);
   }
 
+  selectBuilding(buildingId: string): void {
+    const target = this.options.worldQueries.findBuildingTarget(buildingId);
+    if (!target) return;
+    this.selectTarget(target);
+  }
+
   refreshSelection(): void {
     if (!this.selectedTarget) return;
     const latest = this.options.worldQueries.findInspectableTarget(this.selectedX, this.selectedZ);
@@ -354,6 +413,8 @@ export class ResourceInspector {
     this.demolishButton.removeEventListener('click', this.onDemolishPrimaryClick);
     this.demolishSecondaryButton.removeEventListener('click', this.onDemolishSecondaryClick);
     this.panel.removeEventListener('click', this.onPanelClick);
+    this.supplementalPanelSection.removeEventListener('input', this.onSupplementalInput);
+    this.supplementalPanelSection.removeEventListener('change', this.onSupplementalChange);
     this.laborDecrease.removeEventListener('click', this.onLaborDecrease);
     this.laborIncrease.removeEventListener('click', this.onLaborIncrease);
     this.options.sceneManager.selectionGroup.remove(this.marker);
@@ -427,15 +488,20 @@ export class ResourceInspector {
   }
 
   private renderTarget(target: InspectableTarget): void {
+    const gameState = this.options.getState();
     const view = renderInspectableTarget(target, {
+      gameState,
       worldQueries: this.options.worldQueries,
       populationStats: this.populationStats,
-      resourceTotals: computeResourceTotals(this.options.getState()),
+      resourceTotals: computeResourceTotals(gameState),
       ...(this.options.getEconomicActivityTaxRate
         ? { getEconomicActivityTaxRate: this.options.getEconomicActivityTaxRate }
         : {}),
       ...(this.options.getParishPolicy
         ? { getParishPolicy: this.options.getParishPolicy }
+        : {}),
+      ...(this.options.getMonasteryPolicy
+        ? { getMonasteryPolicy: this.options.getMonasteryPolicy }
         : {}),
       getTradeAvailability: () => computeTradeAvailability(this.options.getState()),
       getMarketState: () => this.options.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE,

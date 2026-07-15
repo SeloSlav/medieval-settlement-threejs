@@ -20,6 +20,10 @@ export type InspectorSpacetimeActions = {
   onSetFarmFieldPriority: (fieldId: string, priority: number) => Promise<void>;
   onDemolishPasture: (pastureId: string) => Promise<void>;
   onSetLivestockSpecies: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
+  onSetEconomicActivityTaxRate: (taxRate: number) => Promise<void>;
+  onSetChapelParishPolicy: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => Promise<void>;
+  onSetMonasteryPolicy: (titheShare: number, feastsEnabled: boolean) => Promise<void>;
+  onSetStorehousePolicy: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => Promise<void>;
 };
 
 export function createInspectorSpacetimeActions(
@@ -155,6 +159,38 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setLivestockSpecies(buildingId, species),
         'Could not change livestock specialization.',
+      );
+    },
+    onSetEconomicActivityTaxRate: async (taxRate) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setEconomicActivityTaxRate(taxRate),
+        'Could not update the Town Hall tax policy.',
+      );
+    },
+    onSetChapelParishPolicy: async (autoSweepEnabled, cofferReserveGold, sabbathObservanceEnabled) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setChapelParishPolicy(autoSweepEnabled, cofferReserveGold, sabbathObservanceEnabled),
+        'Could not update chapel policy.',
+      );
+    },
+    onSetMonasteryPolicy: async (titheShare, feastsEnabled) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMonasteryPolicy(titheShare, feastsEnabled),
+        'Could not update monastery policy.',
+      );
+    },
+    onSetStorehousePolicy: async (buildingId, acceptsTimber, acceptsStone, acceptsFirewood) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setStorehousePolicy(buildingId, acceptsTimber, acceptsStone, acceptsFirewood),
+        'Could not update storehouse intake filters.',
       );
     },
   };

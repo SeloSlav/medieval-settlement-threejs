@@ -30,7 +30,6 @@ import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
 import { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
 import { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
-import { CityAdministrationPanel } from '../ui/CityAdministrationPanel.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { SettlementPresentationController } from './settlementSchedulePresentation.ts';
 import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './spacetimeSnapshotApplier.ts';
@@ -73,7 +72,6 @@ export class App {
   private pastureMarkers: PastureMarkers | null = null;
   private livestockVisuals: LivestockVisuals | null = null;
   private toolbar: BuildToolbar | null = null;
-  private cityAdminPanel: CityAdministrationPanel | null = null;
   private toastManager: ToastManager | null = null;
   private disposeTooltips: (() => void) | null = null;
   private resourceInspector: ResourceInspector | null = null;
@@ -98,6 +96,7 @@ export class App {
   private fpsAccumulatedSeconds = 0;
   private ambientAudio: AmbientAudioController | null = null;
   private readonly settlementPresentation = new SettlementPresentationController();
+  private showcaseViewApplied = false;
   private disposed = false;
 
   constructor(root: HTMLElement) {
@@ -107,11 +106,11 @@ export class App {
   async start(): Promise<void> {
     const session = await bootstrapAppSession(this.root, {
       syncToolbar: () => this.syncToolbar(),
-      getCityAdminPanel: () => this.cityAdminPanel,
-      setCityAdminPanel: (panel) => {
-        this.cityAdminPanel = panel;
-      },
     });
+
+    if (isShowcaseMode()) {
+      session.uiRoot.hidden = true;
+    }
 
     this.liveContext = session.liveContext;
     this.sceneManager = session.sceneManager;
@@ -253,35 +252,39 @@ export class App {
       fraction: 0.35,
     });
     session.sceneManager.render(0, session.cameraController.getOrbitDistance());
-    window.setTimeout(() => {
-      void (async () => {
-        try {
-          session.loadingScreen?.setProgress({
-            label: 'Growing forest…',
-            detail: 'Building trees and ground cover',
-            phase: 'vegetation',
-            fraction: 0,
-          });
-          await session.sceneManager.finishVegetation();
-          session.loadingScreen?.setProgress({
-            label: 'Growing forest…',
-            detail: 'Building trees and ground cover',
-            phase: 'vegetation',
-            fraction: 1,
-          });
-          if (this.roadNetwork) session.sceneManager.syncRoadNetwork(this.roadNetwork);
-          this.onForestReady();
-          // Prime a frame so WebGPU tree materials compile before the overlay clears.
-          session.sceneManager.render(0, session.cameraController.getOrbitDistance());
-          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-          this.sessionLifecycle?.onPresentationReady();
-        } catch (error) {
-          console.error('Vegetation build failed:', error);
-          this.toastManager?.show('Forest vegetation failed to load. Try refreshing the page.', { variant: 'error' });
-          this.sessionLifecycle?.onPresentationReady();
-        }
-      })();
-    }, 0);
+    if (new URLSearchParams(window.location.search).get('construction') === '1') {
+      this.sessionLifecycle?.onPresentationReady();
+    } else {
+      window.setTimeout(() => {
+        void (async () => {
+          try {
+            session.loadingScreen?.setProgress({
+              label: 'Growing forest…',
+              detail: 'Building trees and ground cover',
+              phase: 'vegetation',
+              fraction: 0,
+            });
+            await session.sceneManager.finishVegetation();
+            session.loadingScreen?.setProgress({
+              label: 'Growing forest…',
+              detail: 'Building trees and ground cover',
+              phase: 'vegetation',
+              fraction: 1,
+            });
+            if (this.roadNetwork) session.sceneManager.syncRoadNetwork(this.roadNetwork);
+            this.onForestReady();
+            // Prime a frame so WebGPU tree materials compile before the overlay clears.
+            session.sceneManager.render(0, session.cameraController.getOrbitDistance());
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            this.sessionLifecycle?.onPresentationReady();
+          } catch (error) {
+            console.error('Vegetation build failed:', error);
+            this.toastManager?.show('Forest vegetation failed to load. Try refreshing the page.', { variant: 'error' });
+            this.sessionLifecycle?.onPresentationReady();
+          }
+        })();
+      }, 0);
+    }
     this.animationId = requestAnimationFrame(this.tick);
   }
 
@@ -321,7 +324,6 @@ export class App {
     this.firstPersonController?.dispose();
     this.cameraController?.dispose();
     this.toolbar?.dispose();
-    this.cityAdminPanel?.dispose();
     this.input?.dispose();
     this.ambientAudio?.dispose();
     this.sceneManager?.dispose();
@@ -529,6 +531,8 @@ export class App {
       previous,
     );
 
+    this.applyShowcaseView(state);
+
     this.syncResourceUi();
     this.syncToolbar();
     this.settlementPresentation.sync(
@@ -549,6 +553,32 @@ export class App {
     this.spacetimeSnapshotApplier.syncForestClearance(this.snapshotApplierDeps, this.gameState);
   }
 
+  private applyShowcaseView(state: GameState): void {
+    if (!isShowcaseMode() || this.showcaseViewApplied || !this.cameraController) return;
+
+    const points = [...state.residences.values()].map((residence) => ({
+      x: residence.x,
+      z: residence.z,
+    }));
+    if (points.length < 4) return;
+
+    const center = points.reduce(
+      (sum, point) => ({ x: sum.x + point.x, z: sum.z + point.z }),
+      { x: 0, z: 0 },
+    );
+    center.x /= points.length;
+    center.z /= points.length;
+
+    const chapel = [...state.buildings.values()].find((building) => building.kind === 'chapel');
+    if (chapel) {
+      center.x = center.x * 0.72 + chapel.x * 0.28;
+      center.z = center.z * 0.72 + chapel.z * 0.28;
+    }
+
+    this.cameraController.applyShowcaseView(center.x, center.z);
+    this.showcaseViewApplied = true;
+  }
+
   private syncResourceUi(): void {
     if (!this.gameState || !this.resourceInspector) return;
     this.resourceInspector.setHud(
@@ -556,7 +586,6 @@ export class App {
       computePopulationStats(this.gameState),
     );
     this.resourceInspector.refreshSelection();
-    this.cityAdminPanel?.refresh();
   }
 
   private exposeDevHandles(): void {
@@ -606,4 +635,8 @@ export class App {
     if (!target) return buildCrowdViewState(0, 0, orbit);
     return buildCrowdViewState(target.x, target.z, orbit);
   }
+}
+
+function isShowcaseMode(): boolean {
+  return new URLSearchParams(window.location.search).get('showcase') === '1';
 }

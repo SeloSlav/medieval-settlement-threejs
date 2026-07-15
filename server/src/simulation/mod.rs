@@ -26,6 +26,7 @@ mod well;
 mod woodcutters_lodge;
 mod expanded_economy;
 mod livestock;
+mod village_storehouse;
 pub mod spatial;
 
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
@@ -58,3 +59,4 @@ pub use expanded_economy::{
     step_watermill,
 };
 pub use livestock::{step_pastoral_farmstead, step_swineherd};
+pub use village_storehouse::step_village_storehouse;

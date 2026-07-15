@@ -6,7 +6,14 @@ import {
   formatChapelExpenseLabel,
 } from '../../economy/economyInspectorViews.ts';
 import { isChapelStaffed } from '../../logistics/landmarkAccess.ts';
-import { CHAPEL_COFFER_CAPACITY } from '../../generated/gameBalance.ts';
+import {
+  CHAPEL_COFFER_CAPACITY,
+  CHAPEL_COFFER_RESERVE_MAX,
+  CHAPEL_COFFER_RESERVE_MIN,
+  CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
+  CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
+} from '../../generated/gameBalance.ts';
+import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import {
   buildingCostRows,
   buildingDemolishHint,
@@ -49,16 +56,25 @@ export function renderChapelInspector(
     CHAPEL_COFFER_COLLECT_ACTION,
   );
   const cofferLabel = `${economy.cofferGold.toFixed(1)} / ${economy.cofferCapacity} gold${economy.cofferFull ? ' · full — overflow to treasury' : ''}`;
-  const collectPanelHtml = economy.cofferGold > 0.05
+  const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
+  const collectButtonHtml = economy.cofferGold > 0.05
     ? `
-    <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Tithes are held in the parish coffer until you collect them into treasury.</p>
       <button type="button" class="inspector-action-panel__button" data-action="${CHAPEL_COFFER_COLLECT_ACTION}">
         Collect coffer (${economy.cofferGold.toFixed(1)} gold)
       </button>
+    `
+    : '';
+  const collectPanelHtml = `
+    <div class="inspector-action-panel">
+      <p class="inspector-action-panel__hint">Tithes fund this parish before surplus reaches the treasury.</p>
+      ${collectButtonHtml}
+      <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-auto-sweep ${parishPolicy.autoSweepEnabled ? 'checked' : ''} /><span>Auto-sweep surplus to treasury</span></label>
+      <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-sabbath ${parishPolicy.sabbathObservanceEnabled ? 'checked' : ''} /><span>Observe Sunday Sabbath</span></label>
+      <p class="inspector-action-panel__hint">Sabbath pauses work for +${Math.round(CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS * 100)}% attendance and +${Math.round(CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS * 100)}% settlement speed.</p>
+      <label class="city-admin-panel__slider-label"><span>Coffer reserve</span><strong data-policy-chapel-reserve-value>${Math.round(parishPolicy.cofferReserveGold)} gold</strong></label>
+      <input class="city-admin-panel__slider" type="range" data-policy-chapel-reserve min="${CHAPEL_COFFER_RESERVE_MIN}" max="${CHAPEL_COFFER_RESERVE_MAX}" step="5" value="${Math.round(parishPolicy.cofferReserveGold)}" />
     </div>
-  `
-    : undefined;
+  `;
 
   return {
     eyebrow: 'Building',

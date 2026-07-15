@@ -35,7 +35,9 @@
     "residenceTier3TimberCost": 28,
     "residenceTier3StoneCost": 24,
     "residenceTier3GoldCost": 22,
-    "householdMaxWealth": 200
+    "householdMaxWealth": 200,
+    "townHallPopulationRequired": 24,
+    "townHallUnstaffedTaxCollectionMultiplier": 0.6
   },
   "marketplaceTrade": {
     "resourceSpendScopes": {
@@ -248,7 +250,9 @@
     "specialtyExportGoldPerWine": 1.6,
     "ferryGoldPerDay": 2.25,
     "carpenterDeliverySpeedMultiplier": 1.18,
-    "carpenterTimberCostMultiplier": 0.9
+    "carpenterTimberCostMultiplier": 0.9,
+    "storehouseOverflowThreshold": 0.65,
+    "storehouseHaulPerWorker": 24
   },
   "farming": {
     "minFieldArea": 48,
@@ -465,6 +469,40 @@
       "workRadius": 0,
       "pickRadius": 8,
       "harvestInterval": 0,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 2,
+      "acceptsLabor": true,
+      "requiresRoad": true,
+      "facesRoad": true,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
+    },
+    "town_hall": {
+      "label": "Town Hall",
+      "cost": { "timber": 88, "stone": 96 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
+      "workRadius": 0,
+      "pickRadius": 11,
+      "harvestInterval": 0,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 1,
+      "acceptsLabor": true,
+      "requiresRoad": true,
+      "facesRoad": true,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
+    },
+    "village_storehouse": {
+      "label": "Village storehouse",
+      "cost": { "timber": 54, "stone": 28 },
+      "storage": { "timber": 360, "firewood": 280, "stone": 360, "water": 0, "food": 0 },
+      "workRadius": 0,
+      "pickRadius": 10,
+      "harvestInterval": 4,
       "regrowRatePerSecond": 0,
       "maxLabor": 2,
       "acceptsLabor": true,

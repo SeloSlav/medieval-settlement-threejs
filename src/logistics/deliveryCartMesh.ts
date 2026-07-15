@@ -107,6 +107,11 @@ function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
         new THREE.Euler(-0.06, -0.15, Math.PI * 0.5),
       );
       break;
+    case 'stone':
+      addMesh(group, new THREE.DodecahedronGeometry(0.28, 0), material, new THREE.Vector3(-0.24, 0.72, 0.08));
+      addMesh(group, new THREE.DodecahedronGeometry(0.24, 0), material, new THREE.Vector3(0.18, 0.74, -0.08));
+      addMesh(group, new THREE.DodecahedronGeometry(0.2, 0), material, new THREE.Vector3(0.26, 0.91, 0.12));
+      break;
     default: {
       const unreachable: never = kind;
       throw new Error(`Unknown cargo kind: ${unreachable}`);

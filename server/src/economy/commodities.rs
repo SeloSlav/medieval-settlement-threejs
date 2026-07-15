@@ -16,6 +16,7 @@ pub enum CommodityKind {
     PreservedFood,
     Honey,
     Wine,
+    Stone,
 }
 
 impl CommodityKind {
@@ -31,6 +32,7 @@ impl CommodityKind {
             Self::PreservedFood => 7,
             Self::Honey => 8,
             Self::Wine => 9,
+            Self::Stone => 10,
         }
     }
 
@@ -46,6 +48,7 @@ impl CommodityKind {
             7 => Some(Self::PreservedFood),
             8 => Some(Self::Honey),
             9 => Some(Self::Wine),
+            10 => Some(Self::Stone),
             _ => None,
         }
     }
@@ -63,6 +66,7 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::PreservedFood => building.preserved_food,
         CommodityKind::Honey => building.honey,
         CommodityKind::Wine => building.wine,
+        CommodityKind::Stone => building.stone,
     }
 }
 
@@ -81,6 +85,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::PreservedFood => def.storage_preserved_food,
         CommodityKind::Honey => def.storage_honey,
         CommodityKind::Wine => def.storage_wine,
+        CommodityKind::Stone => def.storage_stone,
     }
 }
 
@@ -105,6 +110,7 @@ pub fn withdraw_building_commodity(
         CommodityKind::PreservedFood => building.preserved_food -= withdrawn,
         CommodityKind::Honey => building.honey -= withdrawn,
         CommodityKind::Wine => building.wine -= withdrawn,
+        CommodityKind::Stone => building.stone -= withdrawn,
     }
     withdrawn
 }
@@ -126,6 +132,7 @@ pub fn deposit_building_commodity(
         CommodityKind::PreservedFood => building.preserved_food += deposited,
         CommodityKind::Honey => building.honey += deposited,
         CommodityKind::Wine => building.wine += deposited,
+        CommodityKind::Stone => building.stone += deposited,
     }
     deposited
 }
@@ -153,6 +160,7 @@ pub fn credit_treasury_commodity(
         CommodityKind::PreservedFood => treasury.preserved_food += amount,
         CommodityKind::Honey => treasury.honey += amount,
         CommodityKind::Wine => treasury.wine += amount,
+        CommodityKind::Stone => treasury.stone += amount,
     }
     ctx.db.player_resources().owner().update(treasury);
 }

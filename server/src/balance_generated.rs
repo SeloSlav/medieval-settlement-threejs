@@ -36,6 +36,8 @@ pub const RESIDENCE_TIER3_TIMBER_COST: f64 = 28.0;
 pub const RESIDENCE_TIER3_STONE_COST: f64 = 24.0;
 pub const RESIDENCE_TIER3_GOLD_COST: f64 = 22.0;
 pub const HOUSEHOLD_MAX_WEALTH: f64 = 200.0;
+pub const TOWN_HALL_POPULATION_REQUIRED: u32 = 24;
+pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = 0.6;
 
 pub const STARTING_POPULATION: u32 = 5;
 pub const POPULATION_PER_RESIDENCE: u32 = 3;
@@ -151,6 +153,8 @@ pub const SPECIALTY_EXPORT_GOLD_PER_WINE: f64 = 1.6;
 pub const FERRY_GOLD_PER_DAY: f64 = 2.25;
 pub const CARPENTER_DELIVERY_SPEED_MULTIPLIER: f64 = 1.18;
 pub const CARPENTER_TIMBER_COST_MULTIPLIER: f64 = 0.9;
+pub const STOREHOUSE_OVERFLOW_THRESHOLD: f64 = 0.65;
+pub const STOREHOUSE_HAUL_PER_WORKER: f64 = 24.0;
 
 pub const FARM_MIN_FIELD_AREA: f64 = 48.0;
 pub const FARM_OPTIMAL_FIELD_AREA: f64 = 1600.0;
@@ -236,6 +240,7 @@ pub enum BuildingSimKind {
     Vineyard,
     PastoralFarmstead,
     Swineherd,
+    VillageStorehouse,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -537,6 +542,66 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     requires_water_shore: false,
     requires_hillside: false,
     sim_kind: None,
+};
+
+const TOWN_HALL: BuildingDef = BuildingDef {
+    kind: "town_hall",
+    cost_timber: 88.0,
+    cost_stone: 96.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 0.0,
+    storage_grain: 0.0,
+    storage_flour: 0.0,
+    storage_ale: 0.0,
+    storage_preserved_food: 0.0,
+    storage_honey: 0.0,
+    storage_wine: 0.0,
+    accepts_labor: true,
+    max_labor: 1,
+    work_radius: 0.0,
+    action_interval: 0.0,
+    pick_radius: 11.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: None,
+};
+
+const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
+    kind: "village_storehouse",
+    cost_timber: 54.0,
+    cost_stone: 28.0,
+    storage_timber: 360.0,
+    storage_firewood: 280.0,
+    storage_stone: 360.0,
+    storage_water: 0.0,
+    storage_food: 0.0,
+    storage_grain: 0.0,
+    storage_flour: 0.0,
+    storage_ale: 0.0,
+    storage_preserved_food: 0.0,
+    storage_honey: 0.0,
+    storage_wine: 0.0,
+    accepts_labor: true,
+    max_labor: 2,
+    work_radius: 0.0,
+    action_interval: 4.0,
+    pick_radius: 10.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: Some(BuildingSimKind::VillageStorehouse),
 };
 
 const THRESHING_BARN: BuildingDef = BuildingDef {
@@ -899,7 +964,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, CHAPEL, MARKETPLACE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, FERRY_LANDING, VINEYARD];
+const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, FERRY_LANDING, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)

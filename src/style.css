@@ -63,6 +63,10 @@ button {
   z-index: 4;
 }
 
+[data-ui-root][hidden] {
+  display: none;
+}
+
 [data-ui-root] .hud-menu-button,
 [data-ui-root] .road-tools,
 [data-ui-root] .hud-bottom-center,

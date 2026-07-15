@@ -26,6 +26,7 @@ export class GameRuntime {
   private readonly callbacks: GameRuntimeCallbacks;
   private unsubscribe: (() => void) | null = null;
   private roadsHydrated = false;
+  private roadSnapshotKey: string | null = null;
   private bootstrapComplete = false;
   private bootstrapInFlight = false;
   private sessionReadyEmitted = false;
@@ -58,6 +59,7 @@ export class GameRuntime {
         if (!snapshot.connected && (this.sessionReadyEmitted || this.roadsHydrated)) {
           this.sessionReadyEmitted = false;
           this.roadsHydrated = false;
+          this.roadSnapshotKey = null;
         }
         return;
       }
@@ -110,7 +112,9 @@ export class GameRuntime {
 
   private syncRoads(snapshot: SpacetimeGameSnapshot): void {
     if (!snapshot.roads) return;
-    const changed = !this.roadsHydrated;
+    const snapshotKey = roadSnapshotKey(snapshot.roads);
+    const changed = snapshotKey !== this.roadSnapshotKey;
+    this.roadSnapshotKey = snapshotKey;
     this.roadsHydrated = true;
     if (changed) {
       this.callbacks.onRoadsHydrated(snapshot.roads);
@@ -162,4 +166,17 @@ export class GameRuntime {
       poll();
     });
   }
+}
+
+function roadSnapshotKey(snapshot: RoadNetworkSnapshot): string {
+  const edgeRevisions = snapshot.edges
+    .map((edge) => `${edge.id}:${edge.revision}`)
+    .join(',');
+  return [
+    snapshot.nextNodeId,
+    snapshot.nextEdgeId,
+    snapshot.nodes.length,
+    snapshot.edges.length,
+    edgeRevisions,
+  ].join('|');
 }

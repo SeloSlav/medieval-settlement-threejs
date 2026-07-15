@@ -16,6 +16,8 @@ const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   foragers_shed: 4.9,
   chapel: 9.5,
   marketplace: 5.3,
+  town_hall: 9.2,
+  village_storehouse: 6.7,
   threshing_barn: 7.1,
   monastery: 9.8,
   brewery: 6.7,
@@ -92,6 +94,8 @@ function createBuildingShadowGeometry(
     case 'foragers_shed':
     case 'chapel':
     case 'marketplace':
+    case 'town_hall':
+    case 'village_storehouse':
     case 'threshing_barn':
     case 'monastery':
     case 'brewery':

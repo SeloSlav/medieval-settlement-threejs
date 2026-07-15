@@ -8,6 +8,7 @@ export type PlacementBuildMenuAction =
   | 'grain-field' | 'threshing-barn' | 'monastery' | 'brewery' | 'smokehouse'
   | 'granary' | 'apiary' | 'watermill' | 'carpenter' | 'ferry-landing' | 'vineyard'
   | 'pastoral-farmstead' | 'swineherd' | 'pasture'
+  | 'town-hall' | 'village-storehouse'
   | 'residences';
 
 export type BuildMenuAction = PlacementBuildMenuAction;
@@ -20,6 +21,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   well: '/assets/ui/build-menu/water-well.png', hunters_hall: '/assets/ui/build-menu/hunter-hall.png',
   foragers_shed: '/assets/ui/build-menu/foragers-hut.png', chapel: '/assets/ui/build-menu/chapel.png',
   marketplace: '/assets/ui/build-menu/market.png', residences: '/assets/ui/build-menu/residence.png',
+  town_hall: '/assets/ui/build-menu/town-hall.png', village_storehouse: '/assets/ui/build-menu/village-storehouse.png',
   farm_field: '/assets/ui/build-menu/grain-field.png', threshing_barn: '/assets/ui/build-menu/threshing-barn.png',
   monastery: '/assets/ui/build-menu/monastery.png', brewery: '/assets/ui/build-menu/brewery.png',
   smokehouse: '/assets/ui/build-menu/smokehouse.png', granary: '/assets/ui/build-menu/granary.png',
@@ -37,6 +39,8 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   chapel: ['Chapel', 'C', 'A staffed parish chapel collects tithes and supports nearby households.'],
   monastery: ['Pauline monastery', 'O', 'An autonomous hillside monastery offering charity, pilgrimages, feasts, and wider faith coverage.'],
   marketplace: ['Marketplace', 'P', 'Trade hub for household produce and specialty exports.'],
+  town_hall: ['Town Hall', 'T', 'Physical seat of settlement government, taxation, and the economic ledger. Requires a chapel, marketplace, and 24 people.'],
+  village_storehouse: ['Village storehouse', 'S', 'Hauls surplus timber, stone, and firewood from producers into shared construction stock. Never stores food.'],
   ferry_landing: ['Ferry landing', 'J', 'A staffed river crossing and modest source of trade income. Must touch open water.'],
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
@@ -73,7 +77,7 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
 
 /** Housing, water, faith, trade, and transport. */
 export const BASIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('ferry_landing'),
+  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('town_hall'), entry('village_storehouse'), entry('ferry_landing'),
 ];
 
 /** Farms, grain processing, and village food production. */

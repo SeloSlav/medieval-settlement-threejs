@@ -267,6 +267,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.placeBuilding(kind, x, z);
   }
 
+  grantCheatResources(amount: number): Promise<void> {
+    return spacetimeReducers.grantCheatResources(amount);
+  }
+
   placeFarmField(input: {
     farmsteadId: string;
     corners: Array<{ x: number; z: number }>;
@@ -322,6 +326,20 @@ export class SpacetimeGameStore {
 
   setMonasteryPolicy(titheShare: number, feastsEnabled: boolean): Promise<void> {
     return spacetimeReducers.setMonasteryPolicy(titheShare, feastsEnabled);
+  }
+
+  setStorehousePolicy(
+    buildingId: string,
+    acceptsTimber: boolean,
+    acceptsStone: boolean,
+    acceptsFirewood: boolean,
+  ): Promise<void> {
+    return spacetimeReducers.setStorehousePolicy(
+      buildingId,
+      acceptsTimber,
+      acceptsStone,
+      acceptsFirewood,
+    );
   }
 
   async assignBuildingLabor(buildingId: string, labor: number): Promise<void> {

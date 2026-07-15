@@ -10,6 +10,8 @@ import { renderWellInspector } from './wellRenderer.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { renderExpandedBuildingInspector } from './expandedBuildingRenderer.ts';
 import { renderLivestockBuildingInspector } from './livestockBuildingRenderer.ts';
+import { renderTownHallInspector } from './townHallRenderer.ts';
+import { renderStorehouseInspector } from './storehouseRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -21,6 +23,10 @@ export function renderBuildingInspector(
       return renderChapelInspector(target, context);
     case 'marketplace':
       return renderMarketplaceInspector(target, context);
+    case 'town_hall':
+      return renderTownHallInspector(target, context);
+    case 'village_storehouse':
+      return renderStorehouseInspector(target, context);
     case 'lumber_mill':
       return renderLumberMillInspector(target, context);
     case 'woodcutters_lodge':

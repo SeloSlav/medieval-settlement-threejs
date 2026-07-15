@@ -96,6 +96,9 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     waterCapacity: 0,
     assignedLabor: 0,
     gold: 0,
+    storehouseAcceptsTimber: true,
+    storehouseAcceptsStone: true,
+    storehouseAcceptsFirewood: true,
   };
 
   const buildings = new Map(state.buildings);

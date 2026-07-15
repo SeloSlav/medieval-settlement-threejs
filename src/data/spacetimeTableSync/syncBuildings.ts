@@ -35,6 +35,9 @@ export function syncBuildings(
       gold: row.gold,
       waterCapacity: row.waterCapacity,
       assignedLabor: Number(row.assignedLabor),
+      storehouseAcceptsTimber: row.storehouseAcceptsTimber,
+      storehouseAcceptsStone: row.storehouseAcceptsStone,
+      storehouseAcceptsFirewood: row.storehouseAcceptsFirewood,
     });
   }
   return buildings;

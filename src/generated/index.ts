@@ -46,6 +46,7 @@ import DemolishBurgageZoneReducer from "./demolish_burgage_zone_reducer";
 import DemolishFarmFieldReducer from "./demolish_farm_field_reducer";
 import DemolishPastureReducer from "./demolish_pasture_reducer";
 import DemolishResidenceReducer from "./demolish_residence_reducer";
+import GrantCheatResourcesReducer from "./grant_cheat_resources_reducer";
 import MarketplaceTradeReducer from "./marketplace_trade_reducer";
 import PlaceBackyardGardenReducer from "./place_backyard_garden_reducer";
 import PlaceBuildingReducer from "./place_building_reducer";
@@ -60,6 +61,7 @@ import SetFarmFieldCropReducer from "./set_farm_field_crop_reducer";
 import SetFarmFieldPriorityReducer from "./set_farm_field_priority_reducer";
 import SetLivestockSpeciesReducer from "./set_livestock_species_reducer";
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
+import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
 import TickSimReducer from "./tick_sim_reducer";
 import UpgradeResidenceReducer from "./upgrade_residence_reducer";
@@ -340,6 +342,7 @@ const reducersSchema = __reducers(
   __reducerSchema("demolish_farm_field", DemolishFarmFieldReducer),
   __reducerSchema("demolish_pasture", DemolishPastureReducer),
   __reducerSchema("demolish_residence", DemolishResidenceReducer),
+  __reducerSchema("grant_cheat_resources", GrantCheatResourcesReducer),
   __reducerSchema("marketplace_trade", MarketplaceTradeReducer),
   __reducerSchema("place_backyard_garden", PlaceBackyardGardenReducer),
   __reducerSchema("place_building", PlaceBuildingReducer),
@@ -354,6 +357,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_farm_field_priority", SetFarmFieldPriorityReducer),
   __reducerSchema("set_livestock_species", SetLivestockSpeciesReducer),
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),
+  __reducerSchema("set_storehouse_policy", SetStorehousePolicyReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
   __reducerSchema("tick_sim", TickSimReducer),
   __reducerSchema("upgrade_residence", UpgradeResidenceReducer),

@@ -259,6 +259,23 @@ export class WorldQueries {
     return distance;
   }
 
+  findBuildingTarget(buildingId: string): Extract<InspectableTarget, { kind: 'building' }> | null {
+    const state = this.getGameState();
+    const building = state.buildings.get(buildingId);
+    if (!building) return null;
+    const treeRegistry = this.getTreeRegistry();
+    const counts = treeRegistry
+      ? countTreesNearBuilding(state, treeRegistry, building.x, building.z, building.workRadius)
+      : { matureTrees: 0, stumpTrees: 0, growingTrees: 0 };
+    return {
+      kind: 'building',
+      building,
+      matureTrees: counts.matureTrees,
+      stumpTrees: counts.stumpTrees,
+      growingTrees: counts.growingTrees,
+    };
+  }
+
   getLivestockHerd(buildingId: string): LivestockHerdState | null {
     return this.getGameState().livestockHerds.get(buildingId) ?? null;
   }

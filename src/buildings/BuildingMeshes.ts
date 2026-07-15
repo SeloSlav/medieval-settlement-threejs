@@ -29,6 +29,7 @@ import {
   createPastoralFarmsteadMesh,
   createSwineherdMesh,
 } from './meshes/livestockBuildingMeshes.ts';
+import { createTownHallMesh, createVillageStorehouseMesh } from './meshes/civicLogisticsBuildingMeshes.ts';
 
 export function createBuildingMesh(kind: BuildingKind): THREE.Group {
   switch (kind) {
@@ -50,6 +51,8 @@ export function createBuildingMesh(kind: BuildingKind): THREE.Group {
       return createChapelMesh();
     case 'marketplace':
       return createMarketplaceMesh();
+    case 'town_hall': return createTownHallMesh();
+    case 'village_storehouse': return createVillageStorehouseMesh();
     case 'threshing_barn': return createThreshingBarnMesh();
     case 'monastery': return createMonasteryMesh();
     case 'brewery': return createBreweryMesh();

@@ -2,7 +2,7 @@
 
 A real-time Three.js sandbox for growing a **medieval settlement** on a procedural 3D landscape. On a fresh game, choose map size, topography, hydrology, forest density, and world seed before generation begins. Draw dirt road networks across rolling hills, pine forests, and winding rivers — wooden bridges and graded ramps appear automatically when a path crosses water. Place production buildings to harvest timber, stone, game, and berries; connect wells and woodcutter's lodges along those roads; then lay out residence zones along your roads so settlers move in over time. Homes need firewood, water, and food — road-based delivery crews haul supplies from lodges, wells, hunter's halls, and forager's sheds while you watch wooden carts travel the network. Assign workers from your labor pool, plant backyard gardens for local food and village gold, and keep the supply chain running before homes are abandoned. A [SpacetimeDB](https://spacetimedb.com/) Rust module runs the authoritative economy simulation; the client renders replicated state in real time. Toggle the hydrology overlay to scout well sites, inspect foraging nodes and quarries from map icons, and drop into first-person walk mode to explore on foot.
 
-![Road network with wooden bridges, ramps, and forest](docs/screenshots/medieval-roads-bridges-forest.png)
+![A functioning medieval city built in cheat mode, with roads, homes, workshops, and WebGPU forest](docs/screenshots/medieval-city-cheat-mode-webgpu.png)
 
 ## Setting & visual direction
 
@@ -38,6 +38,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 ### Economy & settlement
 
 - **Settlement HUD** — per-player timber, stone, firewood, water, food, gold, population, housing (occupied/capacity/vacant), free labor, in-game date/time, and live FPS and zoom readout.
+- **Cheat mode** — open the game menu, choose any amount up to one billion, and top up every treasury resource for unrestricted city planning and screenshot builds.
 - **Shared game balance** — one `balance/gameBalance.json` source generates Rust constants and TypeScript bindings for costs, radii, tick intervals, and production rates.
 - **Building placement costs** — timber and stone deducted from treasury on place; build menu cards show costs for each structure.
 - **Building storage** — mills, lodges, quarries, wells, and food buildings hold harvested resources in per-building inventory with capacity caps.
@@ -157,6 +158,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 | Select forager's shed | Industry menu (`V`) → **Forager's shed** (`Y`) |
 | Select marketplace | Build menu (`B`) → **Marketplace** (`P`) |
 | Open city administration | Main menu (gear) → **City administration…** (tax, parish coffer, monastery policy) |
+| Enable / top up cheat resources | Main menu (gear) → **Cheat mode** → enter an amount → **Enable cheat mode** |
 | Place building | Left-click on terrain (building tool active) |
 | Undo last building placement | `Ctrl+Z` / `Cmd+Z` |
 | Redo last building placement | `Ctrl+Y` / `Cmd+Y` |

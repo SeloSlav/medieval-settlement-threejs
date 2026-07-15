@@ -48,6 +48,7 @@ pub use storage::{
 };
 pub use village_economy::{
     clamp_economic_activity_tax_rate, player_economic_activity_tax_rate, taxed_economic_activity,
+    town_hall_tax_collection_multiplier,
 };
 
 pub use crate::balance_generated::{

@@ -138,6 +138,8 @@ export type GameBalance = {
     residenceTier3StoneCost: number;
     residenceTier3GoldCost: number;
     householdMaxWealth: number;
+    townHallPopulationRequired: number;
+    townHallUnstaffedTaxCollectionMultiplier: number;
   };
   population: {
     starting: number;
@@ -256,6 +258,8 @@ export type GameBalance = {
     ferryGoldPerDay: number;
     carpenterDeliverySpeedMultiplier: number;
     carpenterTimberCostMultiplier: number;
+    storehouseOverflowThreshold: number;
+    storehouseHaulPerWorker: number;
   };
   farming: {
     minFieldArea: number;
@@ -313,6 +317,8 @@ const simKindByKind: Record<string, string | null> = {
   foragers_shed: 'ForagersShed',
   chapel: null,
   marketplace: null,
+  town_hall: null,
+  village_storehouse: 'VillageStorehouse',
   threshing_barn: 'ThreshingBarn',
   monastery: 'Monastery',
   brewery: 'Brewery',
@@ -372,6 +378,8 @@ function generateRust(): string {
     `pub const RESIDENCE_TIER3_STONE_COST: f64 = ${rustF64(b.economy.residenceTier3StoneCost)};`,
     `pub const RESIDENCE_TIER3_GOLD_COST: f64 = ${rustF64(b.economy.residenceTier3GoldCost)};`,
     `pub const HOUSEHOLD_MAX_WEALTH: f64 = ${rustF64(b.economy.householdMaxWealth)};`,
+    `pub const TOWN_HALL_POPULATION_REQUIRED: u32 = ${b.economy.townHallPopulationRequired};`,
+    `pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = ${rustF64(b.economy.townHallUnstaffedTaxCollectionMultiplier)};`,
     '',
     `pub const STARTING_POPULATION: u32 = ${b.population.starting};`,
     `pub const POPULATION_PER_RESIDENCE: u32 = ${b.population.perResidence};`,
@@ -487,6 +495,8 @@ function generateRust(): string {
     `pub const FERRY_GOLD_PER_DAY: f64 = ${rustF64(b.production.ferryGoldPerDay)};`,
     `pub const CARPENTER_DELIVERY_SPEED_MULTIPLIER: f64 = ${rustF64(b.production.carpenterDeliverySpeedMultiplier)};`,
     `pub const CARPENTER_TIMBER_COST_MULTIPLIER: f64 = ${rustF64(b.production.carpenterTimberCostMultiplier)};`,
+    `pub const STOREHOUSE_OVERFLOW_THRESHOLD: f64 = ${rustF64(b.production.storehouseOverflowThreshold)};`,
+    `pub const STOREHOUSE_HAUL_PER_WORKER: f64 = ${rustF64(b.production.storehouseHaulPerWorker)};`,
     '',
     `pub const FARM_MIN_FIELD_AREA: f64 = ${rustF64(b.farming.minFieldArea)};`,
     `pub const FARM_OPTIMAL_FIELD_AREA: f64 = ${rustF64(b.farming.optimalFieldArea)};`,
@@ -574,6 +584,7 @@ function generateRust(): string {
   lines.push('    Vineyard,');
   lines.push('    PastoralFarmstead,');
   lines.push('    Swineherd,');
+  lines.push('    VillageStorehouse,');
   lines.push('}');
   lines.push('');
   lines.push('#[derive(Clone, Copy, Debug)]');
@@ -779,6 +790,8 @@ function generateTypeScript(): string {
     `export const RESIDENCE_TIER3_STONE_COST = ${b.economy.residenceTier3StoneCost};`,
     `export const RESIDENCE_TIER3_GOLD_COST = ${b.economy.residenceTier3GoldCost};`,
     `export const HOUSEHOLD_MAX_WEALTH = ${b.economy.householdMaxWealth};`,
+    `export const TOWN_HALL_POPULATION_REQUIRED = ${b.economy.townHallPopulationRequired};`,
+    `export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = ${b.economy.townHallUnstaffedTaxCollectionMultiplier};`,
     '',
     `export const STARTING_POPULATION = ${b.population.starting};`,
     `export const POPULATION_PER_RESIDENCE = ${b.population.perResidence};`,
@@ -890,6 +903,8 @@ function generateTypeScript(): string {
     `export const FERRY_GOLD_PER_DAY = ${b.production.ferryGoldPerDay};`,
     `export const CARPENTER_DELIVERY_SPEED_MULTIPLIER = ${b.production.carpenterDeliverySpeedMultiplier};`,
     `export const CARPENTER_TIMBER_COST_MULTIPLIER = ${b.production.carpenterTimberCostMultiplier};`,
+    `export const STOREHOUSE_OVERFLOW_THRESHOLD = ${b.production.storehouseOverflowThreshold};`,
+    `export const STOREHOUSE_HAUL_PER_WORKER = ${b.production.storehouseHaulPerWorker};`,
     '',
     `export const FARM_MIN_FIELD_AREA = ${b.farming.minFieldArea};`,
     `export const FARM_OPTIMAL_FIELD_AREA = ${b.farming.optimalFieldArea};`,

@@ -4,7 +4,7 @@ use crate::balance_generated::{
     backyard_garden_def, BackyardGardenKind, TICK_DT,
 };
 use crate::db::*;
-use crate::economy::{credit_treasury_gold, credit_residence_wealth, garden_market_activity, player_economic_activity_tax_rate, taxed_economic_activity};
+use crate::economy::{credit_treasury_gold, credit_residence_wealth, garden_market_activity, player_economic_activity_tax_rate, taxed_economic_activity, town_hall_tax_collection_multiplier};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::landmark_access::residence_has_marketplace_access;
@@ -69,7 +69,8 @@ fn step_one_garden(
     }
 
     let tax_rate = player_economic_activity_tax_rate(ctx, owner);
-    let (adjusted, tax) = taxed_economic_activity(economic_activity, tax_rate);
+    let (adjusted, assessed_tax) = taxed_economic_activity(economic_activity, tax_rate);
+    let tax = assessed_tax * town_hall_tax_collection_multiplier(ctx, owner);
     let net_wealth = (adjusted - tax).max(0.0);
     if net_wealth > 1e-9 {
         credit_residence_wealth(ctx, residence.id, net_wealth);

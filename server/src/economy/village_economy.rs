@@ -3,6 +3,7 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{
     ECONOMIC_ACTIVITY_TAX_RATE, ECONOMIC_ACTIVITY_TAX_RATE_MAX, ECONOMIC_ACTIVITY_TAX_RATE_MIN,
     HIGH_TAX_PRODUCTIVITY_DRAG, LOW_TAX_PRODUCTIVITY_BOOST,
+    TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
 };
 use crate::db::*;
 
@@ -42,4 +43,21 @@ pub fn player_economic_activity_tax_rate(ctx: &ReducerContext, owner: spacetimed
         .find(&owner)
         .map(|row| row.economic_activity_tax_rate)
         .unwrap_or(ECONOMIC_ACTIVITY_TAX_RATE)
+}
+
+pub fn town_hall_tax_collection_multiplier(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> f64 {
+    if ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .any(|building| building.kind == "town_hall" && building.assigned_labor > 0)
+    {
+        1.0
+    } else {
+        TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER
+    }
 }

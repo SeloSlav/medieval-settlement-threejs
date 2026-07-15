@@ -39,7 +39,7 @@
 }
 
 .game-menu-dialog {
-  width: min(92vw, 360px);
+  width: min(92vw, 390px);
   display: grid;
   gap: 18px;
   padding: 22px 24px;
@@ -48,6 +48,126 @@
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.game-menu-cheat {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(215, 180, 99, 0.28);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(215, 180, 99, 0.12), transparent 48%),
+    rgba(255, 255, 255, 0.025);
+}
+
+.game-menu-dialog.is-cheat-active .game-menu-cheat {
+  border-color: rgba(132, 166, 107, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(132, 166, 107, 0.12);
+}
+
+.game-menu-cheat__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.game-menu-cheat__heading h3,
+.game-menu-cheat__heading p,
+.game-menu-cheat__status {
+  margin: 0;
+}
+
+.game-menu-cheat__heading h3 {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.game-menu-cheat__heading p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.game-menu-cheat__badge {
+  padding: 4px 7px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid rgba(215, 180, 99, 0.35);
+  border-radius: 999px;
+  background: rgba(215, 180, 99, 0.08);
+}
+
+.game-menu-cheat__amount {
+  display: grid;
+  grid-template-columns: 1fr 150px;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.game-menu-cheat__amount input {
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-transform: none;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.game-menu-cheat__amount input:focus {
+  border-color: rgba(215, 180, 99, 0.62);
+}
+
+.game-menu-cheat__grant {
+  padding: 9px 12px;
+  color: #201d15;
+  font-weight: 750;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.game-menu-cheat__grant:hover,
+.game-menu-cheat__grant:focus-visible {
+  filter: brightness(1.06);
+  outline: none;
+}
+
+.game-menu-cheat__grant:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.game-menu-cheat__status {
+  min-height: 1.2em;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.game-menu-cheat__status[data-variant='success'] {
+  color: #a7d77f;
+}
+
+.game-menu-cheat__status[data-variant='error'] {
+  color: var(--danger);
 }
 
 .game-menu-title {

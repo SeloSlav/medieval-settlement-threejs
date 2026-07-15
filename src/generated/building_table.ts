@@ -31,5 +31,8 @@ export default __t.row({
   wine: __t.f64(),
   waterCapacity: __t.f64().name("water_capacity"),
   assignedLabor: __t.u32().name("assigned_labor"),
+  storehouseAcceptsTimber: __t.bool().name("storehouse_accepts_timber"),
+  storehouseAcceptsStone: __t.bool().name("storehouse_accepts_stone"),
+  storehouseAcceptsFirewood: __t.bool().name("storehouse_accepts_firewood"),
   gold: __t.f64(),
 });

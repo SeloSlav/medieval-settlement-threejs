@@ -45,7 +45,6 @@ import { beginStartupTextureLoad } from '../scene/startupTextures.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { BuildToolbar } from '../ui/BuildToolbar.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
-import { CityAdministrationPanel } from '../ui/CityAdministrationPanel.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
 import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
 import { DEFAULT_MONASTERY_POLICY } from '../economy/monasteryPolicy.ts';
@@ -68,8 +67,6 @@ import {
 
 export type AppBootstrapBridge = {
   syncToolbar: () => void;
-  getCityAdminPanel: () => CityAdministrationPanel | null;
-  setCityAdminPanel: (panel: CityAdministrationPanel) => void;
 };
 
 export type SessionLiveContext = {
@@ -574,7 +571,13 @@ export async function bootstrapAppSession(
       bridge.syncToolbar();
     },
     onToggleCityAdministration: () => {
-      bridge.getCityAdminPanel()?.toggle();
+      const townHall = [...liveContext.gameState.buildings.values()]
+        .find((building) => building.kind === 'town_hall');
+      if (!townHall) {
+        toastManager?.show('Build a Town Hall to open settlement administration.', { variant: 'info' });
+        return;
+      }
+      resourceInspector.selectBuilding(townHall.id);
     },
     onBurgagePlotDecrease: () => {
       burgageTool.adjustPlotCount(-1);
@@ -594,7 +597,7 @@ export async function bootstrapAppSession(
       toolbar.setWaterOverlayActive(active);
     },
     onMenuOpenChange: (open) => {
-      cameraController.setInputEnabled(!open && !firstPersonController.isActive() && !bridge.getCityAdminPanel()?.isOpen());
+      cameraController.setInputEnabled(!open && !firstPersonController.isActive());
     },
     onShadowPreferenceChange: () => {
       sceneManager.applyShadowPreferences();
@@ -604,54 +607,19 @@ export async function bootstrapAppSession(
       && !roadTool.isEnabled()
       && !buildingTool.isEnabled()
       && !burgageTool.isEnabled()
-      && !farmFieldTool.isEnabled()
-      && !bridge.getCityAdminPanel()?.isOpen(),
+      && !farmFieldTool.isEnabled(),
     onNewWorld: () => {
       void beginNewWorld(() => sessionGate.isReady());
     },
-  });
-
-  const cityAdminPanel = new CityAdministrationPanel(uiRoot, {
-    getGameState: () => liveContext.gameState,
-    getWorldQueries: () => worldQueries,
-    getTaxRate: () => spacetimeStore.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
-    getParishPolicy: () => spacetimeStore.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
-    getMonasteryPolicy: () => spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY,
-    onTaxRateChange: async (taxRate) => {
+    onGrantCheatResources: async (amount) => {
       requireSessionReady();
-      await spacetimeStore.setEconomicActivityTaxRate(taxRate);
-    },
-    onTaxRateChangeFailed: (error) => {
-      const message = error instanceof Error ? error.message : 'Could not update tax rate.';
-      toastManager?.show(message, { variant: 'error' });
-    },
-    onParishPolicyChange: async (autoSweepEnabled, cofferReserveGold, sabbathObservanceEnabled) => {
-      requireSessionReady();
-      await spacetimeStore.setChapelParishPolicy(
-        autoSweepEnabled,
-        cofferReserveGold,
-        sabbathObservanceEnabled,
+      await spacetimeStore.grantCheatResources(amount);
+      toastManager?.show(
+        `Cheat mode active: ${amount.toLocaleString()} of every resource.`,
+        { variant: 'info', durationMs: 4200 },
       );
     },
-    onParishPolicyChangeFailed: (error) => {
-      const message = error instanceof Error ? error.message : 'Could not update parish policy.';
-      toastManager?.show(message, { variant: 'error' });
-    },
-    onMonasteryPolicyChange: async (titheShare, feastsEnabled) => {
-      requireSessionReady();
-      await spacetimeStore.setMonasteryPolicy(titheShare, feastsEnabled);
-    },
-    onMonasteryPolicyChangeFailed: (error) => {
-      const message = error instanceof Error ? error.message : 'Could not update monastery policy.';
-      toastManager?.show(message, { variant: 'error' });
-    },
-    onOpenChange: (open) => {
-      toolbar.setCityAdministrationOpen(open);
-      const menuOpen = toolbar.isGameMenuOpen();
-      cameraController.setInputEnabled(!open && !menuOpen && !firstPersonController.isActive());
-    },
   });
-  bridge.setCityAdminPanel(cityAdminPanel);
 
   const disposeTooltips = mountTooltips(uiRoot);
   toastManager = new ToastManager(uiRoot);
@@ -676,9 +644,12 @@ export async function bootstrapAppSession(
       spacetimeStore.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
     getParishPolicy: () =>
       spacetimeStore.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
+    getMonasteryPolicy: () =>
+      spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY,
     getMarketState: () => spacetimeStore.snapshot.marketState,
     ...inspectorActions,
     onSelectionChange: (target) => {
+      toolbar.setCityAdministrationOpen(target?.kind === 'building' && target.building.kind === 'town_hall');
       if (target?.kind === 'building') {
         buildingMarkers.setBuildingExtentOverlay(target.building);
         return;

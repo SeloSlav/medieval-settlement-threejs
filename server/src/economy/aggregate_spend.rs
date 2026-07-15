@@ -74,7 +74,9 @@ fn spend_aggregate(
         return Ok(());
     }
 
-    for building in ctx.db.building().owner().filter(&owner) {
+    let mut buildings: Vec<Building> = ctx.db.building().owner().filter(&owner).collect();
+    buildings.sort_by_key(|building| if building.kind == "village_storehouse" { 0 } else { 1 });
+    for building in buildings {
         if remaining <= 1e-6 {
             break;
         }
@@ -152,7 +154,9 @@ where
         return Ok(());
     }
 
-    for building in ctx.db.building().owner().filter(&owner) {
+    let mut buildings: Vec<Building> = ctx.db.building().owner().filter(&owner).collect();
+    buildings.sort_by_key(|building| if building.kind == "village_storehouse" { 0 } else { 1 });
+    for building in buildings {
         if remaining <= 1e-6 {
             break;
         }

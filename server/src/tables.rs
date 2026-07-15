@@ -157,6 +157,13 @@ pub struct Building {
     pub wine: f64,
     pub water_capacity: f64,
     pub assigned_labor: u32,
+    /// Village storehouse intake filters; ignored by other building kinds.
+    #[default(true)]
+    pub storehouse_accepts_timber: bool,
+    #[default(true)]
+    pub storehouse_accepts_stone: bool,
+    #[default(true)]
+    pub storehouse_accepts_firewood: bool,
     /// Chapel coffer gold (tithes); other buildings keep this at zero.
     #[default(0.0)]
     pub gold: f64,

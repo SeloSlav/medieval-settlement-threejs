@@ -10,6 +10,7 @@ type GameMenuOptions = {
   onShadowPreferenceChange: () => void;
   onOpenChange?: (open: boolean) => void;
   onNewWorld?: () => void;
+  onGrantCheatResources?: (amount: number) => Promise<void>;
   showButton?: boolean;
   /** When false, Escape will not open the menu (e.g. first-person walk mode). */
   canOpenFromKeyboard?: () => boolean;
@@ -20,6 +21,9 @@ export class GameMenu {
   private readonly dialog: HTMLElement;
   private readonly treeShadowsCheckbox: HTMLInputElement;
   private readonly buildingShadowsCheckbox: HTMLInputElement;
+  private readonly cheatAmountInput: HTMLInputElement;
+  private readonly cheatGrantButton: HTMLButtonElement;
+  private readonly cheatStatus: HTMLElement;
   private readonly menuButton: HTMLButtonElement;
   private readonly controlsModal: GameControlsModal;
   private open = false;
@@ -61,6 +65,31 @@ export class GameMenu {
           <input type="checkbox" data-building-shadows-checkbox />
           <span>Building shadows</span>
         </label>
+        <section class="game-menu-cheat" aria-labelledby="game-menu-cheat-title">
+          <div class="game-menu-cheat__heading">
+            <div>
+              <h3 id="game-menu-cheat-title">Cheat mode</h3>
+              <p>Top up every resource for unrestricted sandbox building.</p>
+            </div>
+            <span class="game-menu-cheat__badge">Sandbox</span>
+          </div>
+          <label class="game-menu-cheat__amount">
+            <span>Resources each</span>
+            <input
+              type="number"
+              min="1"
+              max="1000000000"
+              step="10000"
+              value="100000"
+              inputmode="numeric"
+              data-cheat-amount
+            />
+          </label>
+          <button type="button" class="game-menu-cheat__grant" data-cheat-grant>
+            Enable cheat mode
+          </button>
+          <p class="game-menu-cheat__status" data-cheat-status aria-live="polite"></p>
+        </section>
         <button type="button" class="game-menu-action" data-game-controls>Game controls…</button>
         <button type="button" class="game-menu-action" data-new-world>New world…</button>
         <button type="button" class="game-menu-return" data-return-button>Return to game</button>
@@ -70,6 +99,9 @@ export class GameMenu {
     this.dialog = this.backdrop.querySelector<HTMLElement>('.game-menu-dialog')!;
     this.treeShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-tree-shadows-checkbox]')!;
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
+    this.cheatAmountInput = this.backdrop.querySelector<HTMLInputElement>('[data-cheat-amount]')!;
+    this.cheatGrantButton = this.backdrop.querySelector<HTMLButtonElement>('[data-cheat-grant]')!;
+    this.cheatStatus = this.backdrop.querySelector<HTMLElement>('[data-cheat-status]')!;
     const returnButton = this.backdrop.querySelector<HTMLButtonElement>('[data-return-button]')!;
     const controlsButton = this.backdrop.querySelector<HTMLButtonElement>('[data-game-controls]')!;
     const newWorldButton = this.backdrop.querySelector<HTMLButtonElement>('[data-new-world]')!;
@@ -92,6 +124,9 @@ export class GameMenu {
     newWorldButton.addEventListener('click', () => {
       this.close();
       this.onNewWorld?.();
+    });
+    this.cheatGrantButton.addEventListener('click', () => {
+      void this.grantCheatResources(options.onGrantCheatResources);
     });
     this.backdrop.addEventListener('click', () => this.close());
     this.dialog.addEventListener('click', (event) => event.stopPropagation());
@@ -180,5 +215,39 @@ export class GameMenu {
     const target = document.activeElement as HTMLElement | null;
     const tag = target?.tagName;
     return tag === 'INPUT' || tag === 'TEXTAREA' || Boolean(target?.isContentEditable);
+  }
+
+  private async grantCheatResources(
+    grant: GameMenuOptions['onGrantCheatResources'],
+  ): Promise<void> {
+    if (!grant || this.cheatGrantButton.disabled) return;
+
+    const amount = Math.floor(Number(this.cheatAmountInput.value));
+    if (!Number.isFinite(amount) || amount < 1 || amount > 1_000_000_000) {
+      this.cheatStatus.textContent = 'Enter an amount from 1 to 1,000,000,000.';
+      this.cheatStatus.dataset.variant = 'error';
+      this.cheatAmountInput.focus();
+      return;
+    }
+
+    this.cheatGrantButton.disabled = true;
+    this.cheatGrantButton.textContent = 'Granting resources…';
+    this.cheatStatus.textContent = '';
+    this.cheatStatus.dataset.variant = '';
+    try {
+      await grant(amount);
+      this.cheatGrantButton.textContent = 'Top up again';
+      this.cheatStatus.textContent = `Cheat mode active · ${amount.toLocaleString()} of every resource.`;
+      this.cheatStatus.dataset.variant = 'success';
+      this.dialog.classList.add('is-cheat-active');
+    } catch (error) {
+      this.cheatGrantButton.textContent = 'Enable cheat mode';
+      this.cheatStatus.textContent = error instanceof Error
+        ? error.message
+        : 'Could not grant cheat resources.';
+      this.cheatStatus.dataset.variant = 'error';
+    } finally {
+      this.cheatGrantButton.disabled = false;
+    }
   }
 }

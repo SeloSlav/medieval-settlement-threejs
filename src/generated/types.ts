@@ -39,6 +39,9 @@ export const Building = __t.object("Building", {
   wine: __t.f64(),
   waterCapacity: __t.f64(),
   assignedLabor: __t.u32(),
+  storehouseAcceptsTimber: __t.bool(),
+  storehouseAcceptsStone: __t.bool(),
+  storehouseAcceptsFirewood: __t.bool(),
   gold: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;

@@ -52,7 +52,7 @@ const SETTLEMENT_HUD_HTML = `
         <span class="settlement-hud__label">Food</span>
         <strong class="settlement-hud__value" data-stockpile="food">0</strong>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip="Treasury gold from taxed village economic activity. Adjust the mayor tax in City administration (main menu).">
+      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip="Treasury gold from taxed village economic activity. Select a staffed Town Hall to adjust tax policy.">
         <span class="settlement-hud__label">Gold</span>
         <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
       </div>

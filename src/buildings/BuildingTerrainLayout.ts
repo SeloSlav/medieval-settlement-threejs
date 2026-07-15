@@ -30,6 +30,8 @@ const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   foragers_shed: { radiusX: 4.2, radiusZ: 3.8, innerFade: 0.88, outerFade: 1.3 },
   chapel: { radiusX: 3.4, radiusZ: 4.2, innerFade: 0.9, outerFade: 1.28 },
   marketplace: { radiusX: 4.2, radiusZ: 3.4, innerFade: 0.9, outerFade: 1.3 },
+  town_hall: { radiusX: 7.2, radiusZ: 5.8, innerFade: 0.88, outerFade: 1.32 },
+  village_storehouse: { radiusX: 6.3, radiusZ: 5.2, innerFade: 0.88, outerFade: 1.3 },
   threshing_barn: { radiusX: 6.5, radiusZ: 5.0, innerFade: 0.88, outerFade: 1.3 },
   monastery: { radiusX: 9.5, radiusZ: 6.8, innerFade: 0.86, outerFade: 1.35 },
   brewery: { radiusX: 5.6, radiusZ: 4.7, innerFade: 0.88, outerFade: 1.3 },

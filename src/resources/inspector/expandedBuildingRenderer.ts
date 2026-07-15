@@ -14,6 +14,12 @@ import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
 import { renderInboundSupplyRow, renderOutboundDeliveryRows, type DeliveryStatusContext } from './deliveryStatusRows.ts';
 import type { DeliveryTripState } from '../../logistics/deliveryTrips.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import {
+  DEFAULT_MONASTERY_POLICY,
+  formatMonasteryFoodCharityTotal,
+  formatMonasteryPilgrimageTotal,
+  formatMonasteryTithePaidTotal,
+} from '../../economy/monasteryPolicy.ts';
 
 const PROCESS: Record<string, string> = {
   threshing_barn: 'Farmstead crew works nearby drawn fields',
@@ -214,6 +220,9 @@ export function renderExpandedBuildingInspector(
   const processorStatus = getBuildingProcessorStatus(building, context.worldQueries);
   const fallbackActive = definition.acceptsLabor ? building.assignedLabor > 0 : true;
   const logisticsRows = renderLogisticsRows(building, context);
+  const supplementalPanelHtml = building.kind === 'monastery'
+    ? renderMonasteryPolicyPanel(context)
+    : undefined;
   return {
     eyebrow: 'Settlement building',
     title: definition.label,
@@ -222,5 +231,20 @@ export function renderExpandedBuildingInspector(
     detailsHtml: `<li><span>Role</span><span>${PROCESS[building.kind] ?? 'Settlement service'}</span></li>${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats),
+    ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),
   };
+}
+
+function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
+  const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
+  return `
+    <div class="inspector-action-panel">
+      <p class="inspector-action-panel__hint">The monastery decides how much parish tithe supports alms, pilgrimages, and feast-day charity.</p>
+      <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Hold feast-day charity</span></label>
+      <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>
+      <input class="city-admin-panel__slider" type="range" data-policy-monastery-tithe min="0" max="80" step="5" value="${Math.round(policy.titheShare * 100)}" />
+      <div class="city-admin-panel__range-hints"><span>Chapel keeps all</span><span>Monastery-led</span></div>
+      <p class="inspector-action-panel__hint">Lifetime: ${formatMonasteryTithePaidTotal(policy.tithePaidTotal)} · ${formatMonasteryPilgrimageTotal(policy.pilgrimageGoldTotal)} · ${formatMonasteryFoodCharityTotal(policy.foodCharityTotal)}</p>
+    </div>
+  `;
 }

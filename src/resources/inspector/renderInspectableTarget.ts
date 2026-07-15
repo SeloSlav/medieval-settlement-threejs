@@ -1,8 +1,9 @@
 import type { PopulationStats, ResourceTotals } from '../resourceTotals.ts';
 import type { ParishPolicyState } from '../../economy/chapelParish.ts';
+import type { MonasteryPolicyState } from '../../economy/monasteryPolicy.ts';
 import type { MarketplaceTradeAvailability } from '../../economy/marketplaceTrade.ts';
 import type { RegionalMarketState } from '../../economy/regionalMarket.ts';
-import type { InspectableTarget } from '../types.ts';
+import type { GameState, InspectableTarget } from '../types.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import { renderBackyardInspector } from './backyardRenderer.ts';
 import { renderForagingInspector } from './foragingRenderer.ts';
@@ -43,11 +44,13 @@ export type InspectorView = {
 };
 
 export type InspectorRenderContext = {
+  gameState: GameState;
   worldQueries: WorldQueries;
   populationStats: PopulationStats;
   resourceTotals: ResourceTotals;
   getEconomicActivityTaxRate?: () => number;
   getParishPolicy?: () => ParishPolicyState;
+  getMonasteryPolicy?: () => MonasteryPolicyState;
   getTradeAvailability?: () => MarketplaceTradeAvailability;
   getMarketState?: () => RegionalMarketState;
 };

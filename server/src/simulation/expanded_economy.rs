@@ -100,7 +100,7 @@ pub fn step_granary(
         clock,
         &granary,
         CommodityKind::Firewood,
-        &["woodcutters_lodge"],
+        &["woodcutters_lodge", "village_storehouse"],
         GRANARY_FIREWOOD_PER_CYCLE * 3.0,
     );
     granary = step_processor(
@@ -304,7 +304,7 @@ pub fn step_smokehouse(
         &["hunters_hall", "foragers_shed", "granary", "swineherd"],
         SMOKEHOUSE_FOOD_PER_CYCLE * 2.0,
     );
-    request_connected_commodity(ctx, tick, clock, &smokehouse, CommodityKind::Firewood, &["woodcutters_lodge"], SMOKEHOUSE_FIREWOOD_PER_CYCLE * 3.0);
+    request_connected_commodity(ctx, tick, clock, &smokehouse, CommodityKind::Firewood, &["woodcutters_lodge", "village_storehouse"], SMOKEHOUSE_FIREWOOD_PER_CYCLE * 3.0);
     smokehouse = step_processor(
         ctx,
         clock,

@@ -77,6 +77,9 @@ export type BuildingState = {
   gold: number;
   waterCapacity: number;
   assignedLabor: number;
+  storehouseAcceptsTimber: boolean;
+  storehouseAcceptsStone: boolean;
+  storehouseAcceptsFirewood: boolean;
 };
 
 export const FARM_CROPS = ['rye', 'oats', 'fallow'] as const;

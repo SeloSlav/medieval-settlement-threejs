@@ -2,7 +2,7 @@ use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::building_defs::{building_def, building_def_or_err};
 use crate::burgage::{zone_overlaps_footprint, Point2};
-use crate::balance_generated::CARPENTER_TIMBER_COST_MULTIPLIER;
+use crate::balance_generated::{CARPENTER_TIMBER_COST_MULTIPLIER, TOWN_HALL_POPULATION_REQUIRED};
 use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, building_cost, building_salvage_refund,
@@ -181,6 +181,53 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         }
     }
 
+    if kind == "town_hall" {
+        if ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .any(|building| building.kind == "town_hall")
+        {
+            return Err("Only one Town Hall may serve a settlement.".to_string());
+        }
+        let population: u32 = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .map(|residence| residence.population)
+            .sum();
+        if population < TOWN_HALL_POPULATION_REQUIRED {
+            return Err(format!(
+                "The settlement needs at least {TOWN_HALL_POPULATION_REQUIRED} residents before building a Town Hall."
+            ));
+        }
+        let chapel = ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .find(|building| building.kind == "chapel")
+            .ok_or_else(|| "Build a chapel before founding the Town Hall.".to_string())?;
+        let marketplace = ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .find(|building| building.kind == "marketplace")
+            .ok_or_else(|| "Build a marketplace before founding the Town Hall.".to_string())?;
+        let network = load_owner_road_network(ctx, owner)
+            .ok_or_else(|| "The Town Hall requires a road network.".to_string())?;
+        if network.road_path_distance(x, z, chapel.x, chapel.z).is_none()
+            || network
+                .road_path_distance(x, z, marketplace.x, marketplace.z)
+                .is_none()
+        {
+            return Err("The Town Hall must be road-linked to both the chapel and marketplace.".to_string());
+        }
+    }
+
     if building_overlaps_residence_zone(ctx, &kind, x, z) {
         return Err("Cannot build inside a residence plot.".to_string());
     }
@@ -291,6 +338,9 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         wine: 0.0,
         water_capacity,
         assigned_labor: 0,
+        storehouse_accepts_timber: true,
+        storehouse_accepts_stone: true,
+        storehouse_accepts_firewood: true,
         gold: 0.0,
     });
 
@@ -321,6 +371,31 @@ pub fn assign_building_labor(
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
     set_building_labor(ctx, owner, building_id, labor)
+}
+
+#[reducer]
+pub fn set_storehouse_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    accepts_timber: bool,
+    accepts_stone: bool,
+    accepts_firewood: bool,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Storehouse not found.".to_string())?;
+    if building.owner != owner || building.kind != "village_storehouse" {
+        return Err("You do not own this village storehouse.".to_string());
+    }
+    building.storehouse_accepts_timber = accepts_timber;
+    building.storehouse_accepts_stone = accepts_stone;
+    building.storehouse_accepts_firewood = accepts_firewood;
+    ctx.db.building().id().update(building);
+    Ok(())
 }
 
 #[reducer]
@@ -360,7 +435,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
 
     let refund = building_salvage_refund(&building.kind)?;
     credit_treasury_timber(ctx, owner, refund.timber + building.timber + trip_cargo.timber);
-    credit_treasury_stone(ctx, owner, refund.stone + building.stone);
+    credit_treasury_stone(ctx, owner, refund.stone + building.stone + trip_cargo.stone);
     credit_treasury_firewood(ctx, owner, building.firewood + trip_cargo.firewood);
     credit_treasury_water(ctx, owner, building.water + trip_cargo.water);
     credit_treasury_food(ctx, owner, building.food + trip_cargo.food);

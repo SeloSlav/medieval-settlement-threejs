@@ -109,6 +109,22 @@ export class CameraController {
     this.updateCamera();
   }
 
+  applyShowcaseView(
+    x: number,
+    z: number,
+    yaw = THREE.MathUtils.degToRad(-38),
+    pitch = THREE.MathUtils.degToRad(14),
+    distance = 70,
+  ): void {
+    this.config.target.set(x, this.config.getHeightAt(x, z), z);
+    this.clampTarget();
+    this.currentYaw = this.normalizeAngle(yaw);
+    this.currentPitch = THREE.MathUtils.clamp(pitch, MIN_PITCH, MAX_PITCH);
+    this.currentDistance = this.clampDistance(distance);
+    this.updateCamera();
+    this.notifyViewChanged();
+  }
+
   syncFromFirstPerson(x: number, z: number, yaw: number): void {
     const terrainY = this.config.getHeightAt(x, z);
     this.config.target.set(x, terrainY, z);

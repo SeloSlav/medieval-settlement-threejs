@@ -131,6 +131,10 @@ export async function placeBuilding(kind: BuildingKind, x: number, z: number): P
   await callReducer('placeBuilding', 'place_building', { kind, x, z });
 }
 
+export async function grantCheatResources(amount: number): Promise<void> {
+  await callReducer('grantCheatResources', 'grant_cheat_resources', { amount });
+}
+
 const cropId = (crop: FarmCrop): number => crop === 'oats' ? 1 : crop === 'fallow' ? 2 : 0;
 
 export async function placeFarmField(input: {
@@ -243,6 +247,22 @@ export async function setMonasteryPolicy(
   await callReducer('setMonasteryPolicy', 'set_monastery_policy', {
     titheShare,
     feastsEnabled,
+  });
+}
+
+export async function setStorehousePolicy(
+  buildingId: string,
+  acceptsTimber: boolean,
+  acceptsStone: boolean,
+  acceptsFirewood: boolean,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid village storehouse id.');
+  await callReducer('setStorehousePolicy', 'set_storehouse_policy', {
+    buildingId: serverId,
+    acceptsTimber,
+    acceptsStone,
+    acceptsFirewood,
   });
 }
 
