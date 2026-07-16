@@ -529,7 +529,9 @@ export class App {
 
     this.applyShowcaseView(state);
 
-    this.syncResourceUi();
+    if (resourceUiNeedsSync(state, previous)) {
+      this.syncResourceUi();
+    }
     this.syncToolbar();
     this.settlementPresentation.sync(
       {
@@ -635,4 +637,20 @@ export class App {
 
 function isShowcaseMode(): boolean {
   return new URLSearchParams(window.location.search).get('showcase') === '1';
+}
+
+function resourceUiNeedsSync(current: GameState, previous: GameState | null): boolean {
+  return !previous
+    || current.stockpile !== previous.stockpile
+    || current.quarries !== previous.quarries
+    || current.foragingNodes !== previous.foragingNodes
+    || current.trees !== previous.trees
+    || current.buildings !== previous.buildings
+    || current.farmFields !== previous.farmFields
+    || current.pastures !== previous.pastures
+    || current.livestockHerds !== previous.livestockHerds
+    || current.burgageZones !== previous.burgageZones
+    || current.residences !== previous.residences
+    || current.backyardGardens !== previous.backyardGardens
+    || current.deliveryTrips !== previous.deliveryTrips;
 }

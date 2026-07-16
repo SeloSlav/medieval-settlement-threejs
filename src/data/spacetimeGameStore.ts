@@ -119,6 +119,9 @@ export class SpacetimeGameStore {
   private pendingRoadSnapshot: string | null = null;
   private subscribedConnection: DbConnection | null = null;
   private readonly tableSync: GameTableSync;
+  private readonly snapshotMapCache = new WeakMap<object, object>();
+  private readonly snapshotRecordCache = new WeakMap<object, object>();
+  private readonly snapshotRoadCache = new WeakMap<RoadNetworkSnapshot, RoadNetworkSnapshot>();
 
   constructor() {
     this.tableSync = new GameTableSync(this.tableState, () => this.emit());
@@ -145,25 +148,27 @@ export class SpacetimeGameStore {
     return {
       connected: this.isConnected,
       identityHex: state.identityHex,
-      stockpile: { ...state.stockpile },
+      stockpile: this.snapshotRecord(state.stockpile),
       economicActivityTaxRate: state.economicActivityTaxRate,
-      parishPolicy: { ...state.parishPolicy },
-      monasteryPolicy: { ...state.monasteryPolicy },
-      marketState: { ...state.marketState },
-      quarries: new Map(state.quarries),
-      foragingNodes: new Map(state.foragingNodes),
-      trees: new Map(state.trees),
-      buildings: new Map(state.buildings),
-      farmFields: new Map(state.farmFields),
-      pastures: new Map(state.pastures),
-      livestockHerds: new Map(state.livestockHerds),
-      burgageZones: new Map(state.burgageZones),
-      residences: new Map(state.residences),
-      backyardGardens: new Map(state.backyardGardens),
-      deliveryTrips: new Map(state.deliveryTrips),
-      roads: state.roads ? structuredClone(state.roads) : null,
+      parishPolicy: this.snapshotRecord(state.parishPolicy),
+      monasteryPolicy: this.snapshotRecord(state.monasteryPolicy),
+      marketState: this.snapshotRecord(state.marketState),
+      quarries: this.snapshotMap(state.quarries),
+      foragingNodes: this.snapshotMap(state.foragingNodes),
+      trees: this.snapshotMap(state.trees),
+      buildings: this.snapshotMap(state.buildings),
+      farmFields: this.snapshotMap(state.farmFields),
+      pastures: this.snapshotMap(state.pastures),
+      livestockHerds: this.snapshotMap(state.livestockHerds),
+      burgageZones: this.snapshotMap(state.burgageZones),
+      residences: this.snapshotMap(state.residences),
+      backyardGardens: this.snapshotMap(state.backyardGardens),
+      deliveryTrips: this.snapshotMap(state.deliveryTrips),
+      roads: this.snapshotRoads(state.roads),
       simTick: state.simTick,
-      worldGeneration: state.worldGeneration ? { ...state.worldGeneration } : null,
+      worldGeneration: state.worldGeneration
+        ? this.snapshotRecord(state.worldGeneration)
+        : null,
     };
   }
 
@@ -184,7 +189,6 @@ export class SpacetimeGameStore {
       onIdentity: (identity) => {
         this.tableState.identityHex = identity.toHexString();
         this.startSubscriptions();
-        this.emit();
       },
       onToken: (serverToken) => {
         setStoredSpacetimeToken(dbName, serverToken);
@@ -210,28 +214,30 @@ export class SpacetimeGameStore {
     return this.connection;
   }
 
-  toGameState(_registry: WorldLayoutRegistry): GameState {
-    const state = this.tableState;
-    const seed = state.worldGeneration?.configured
-      ? state.worldGeneration.seed
+  toGameState(
+    _registry: WorldLayoutRegistry,
+    snapshot: SpacetimeGameSnapshot = this.snapshot,
+  ): GameState {
+    const seed = snapshot.worldGeneration?.configured
+      ? snapshot.worldGeneration.seed
       : getDraftWorldGeneration().seed;
 
     return {
       seed,
-      tick: state.simTick,
-      stockpile: { ...state.stockpile },
-      quarries: new Map(state.quarries),
-      foragingNodes: new Map(state.foragingNodes),
-      trees: new Map(state.trees),
-      buildings: new Map(state.buildings),
-      farmFields: new Map(state.farmFields),
-      pastures: new Map(state.pastures),
-      livestockHerds: new Map(state.livestockHerds),
-      burgageZones: new Map(state.burgageZones),
-      residences: new Map(state.residences),
-      backyardGardens: new Map(state.backyardGardens),
-      deliveryTrips: new Map(state.deliveryTrips),
-      nextBuildingId: inferNextBuildingId(state.buildings),
+      tick: snapshot.simTick,
+      stockpile: snapshot.stockpile,
+      quarries: snapshot.quarries,
+      foragingNodes: snapshot.foragingNodes,
+      trees: snapshot.trees,
+      buildings: snapshot.buildings,
+      farmFields: snapshot.farmFields,
+      pastures: snapshot.pastures,
+      livestockHerds: snapshot.livestockHerds,
+      burgageZones: snapshot.burgageZones,
+      residences: snapshot.residences,
+      backyardGardens: snapshot.backyardGardens,
+      deliveryTrips: snapshot.deliveryTrips,
+      nextBuildingId: inferNextBuildingId(snapshot.buildings),
     };
   }
 
@@ -346,7 +352,9 @@ export class SpacetimeGameStore {
     const clampedLabor = Math.max(0, Math.floor(labor));
     const previous = this.tableState.buildings.get(buildingId);
     if (previous) {
-      this.tableState.buildings.set(buildingId, { ...previous, assignedLabor: clampedLabor });
+      const nextBuildings = new Map(this.tableState.buildings);
+      nextBuildings.set(buildingId, { ...previous, assignedLabor: clampedLabor });
+      this.tableState.buildings = nextBuildings;
       this.emit();
     }
     try {
@@ -357,7 +365,9 @@ export class SpacetimeGameStore {
       }
     } catch (error) {
       if (previous) {
-        this.tableState.buildings.set(buildingId, previous);
+        const nextBuildings = new Map(this.tableState.buildings);
+        nextBuildings.set(buildingId, previous);
+        this.tableState.buildings = nextBuildings;
         this.emit();
       }
       throw error;
@@ -460,7 +470,6 @@ export class SpacetimeGameStore {
     }
 
     this.tableSync.syncAll(connection);
-    this.emit();
   }
 
   private emit(): void {
@@ -468,5 +477,30 @@ export class SpacetimeGameStore {
     for (const listener of this.listeners) {
       listener(snapshot);
     }
+  }
+
+  private snapshotMap<K, V>(source: Map<K, V>): Map<K, V> {
+    const cached = this.snapshotMapCache.get(source);
+    if (cached) return cached as Map<K, V>;
+    const snapshot = new Map(source);
+    this.snapshotMapCache.set(source, snapshot);
+    return snapshot;
+  }
+
+  private snapshotRecord<T extends object>(source: T): T {
+    const cached = this.snapshotRecordCache.get(source);
+    if (cached) return cached as T;
+    const snapshot = { ...source };
+    this.snapshotRecordCache.set(source, snapshot);
+    return snapshot;
+  }
+
+  private snapshotRoads(source: RoadNetworkSnapshot | null): RoadNetworkSnapshot | null {
+    if (!source) return null;
+    const cached = this.snapshotRoadCache.get(source);
+    if (cached) return cached;
+    const snapshot = structuredClone(source);
+    this.snapshotRoadCache.set(source, snapshot);
+    return snapshot;
   }
 }

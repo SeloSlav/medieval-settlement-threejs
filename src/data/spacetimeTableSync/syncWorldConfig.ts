@@ -11,8 +11,23 @@ export function syncWorldConfig(rows: Iterable<WorldConfig>, state: GameTableSyn
   }
   const row = worldRows[0];
   state.simTick = Number(row.simTick);
-  state.worldGeneration = worldConfigRowToGeneration(row);
-  if (state.worldGeneration.configured) {
-    applyAuthoritativeWorldGeneration(state.worldGeneration);
+  const nextGeneration = worldConfigRowToGeneration(row);
+  if (!sameGeneration(state.worldGeneration, nextGeneration)) {
+    state.worldGeneration = nextGeneration;
+    if (nextGeneration.configured) {
+      applyAuthoritativeWorldGeneration(nextGeneration);
+    }
   }
+}
+
+function sameGeneration(
+  current: GameTableSyncState['worldGeneration'],
+  next: NonNullable<GameTableSyncState['worldGeneration']>,
+): boolean {
+  return current?.seed === next.seed
+    && current.mapSize === next.mapSize
+    && current.topography === next.topography
+    && current.hydrology === next.hydrology
+    && current.forestDensity === next.forestDensity
+    && current.configured === next.configured;
 }

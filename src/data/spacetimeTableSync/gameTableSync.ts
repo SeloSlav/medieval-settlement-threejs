@@ -1,7 +1,12 @@
 import type { DbConnection } from '../../generated/index.ts';
+import type { Building, TreeEntity } from '../../generated/types.ts';
 import type { GameTableSyncState } from './gameTableSyncState.ts';
 import { syncBackyardGardens } from './syncBackyardGardens.ts';
-import { syncBuildings } from './syncBuildings.ts';
+import {
+  removeBuildingRow,
+  syncBuildings,
+  upsertBuildingRow,
+} from './syncBuildings.ts';
 import { syncBurgageZones } from './syncBurgageZones.ts';
 import { syncDeliveryTrips } from './syncDeliveryTrips.ts';
 import { syncForagingNodes } from './syncForagingNodes.ts';
@@ -12,7 +17,7 @@ import { syncPlayerResources } from './syncPlayerResources.ts';
 import { syncQuarries } from './syncQuarries.ts';
 import { syncResidences } from './syncResidences.ts';
 import { syncRoadNetwork } from './syncRoadNetwork.ts';
-import { syncTrees } from './syncTrees.ts';
+import { removeTreeRow, syncTrees, upsertTreeRow } from './syncTrees.ts';
 import { syncWorldConfig } from './syncWorldConfig.ts';
 
 type TableHandle = {
@@ -20,6 +25,11 @@ type TableHandle = {
   onUpdate: (cb: () => void) => void;
   onDelete: (cb: () => void) => void;
 };
+
+type TableChange<Row> =
+  | { type: 'insert'; row: Row }
+  | { type: 'update'; oldRow: Row; row: Row }
+  | { type: 'delete'; row: Row };
 
 export class GameTableSync {
   private readonly state: GameTableSyncState;
@@ -115,6 +125,38 @@ export class GameTableSync {
       }
     };
 
+    const queueTableChanges = <Row>(
+      apply: (changes: ReadonlyArray<TableChange<Row>>) => void,
+    ) => {
+      let pending: TableChange<Row>[] = [];
+      let applyPending = false;
+      const schedule = (): void => {
+        if (applyPending) return;
+        applyPending = true;
+        queueMicrotask(() => {
+          applyPending = false;
+          const changes = pending;
+          pending = [];
+          apply(changes);
+          notify();
+        });
+      };
+      return {
+        insert: (row: Row): void => {
+          pending.push({ type: 'insert', row });
+          schedule();
+        },
+        update: (oldRow: Row, row: Row): void => {
+          pending.push({ type: 'update', oldRow, row });
+          schedule();
+        },
+        delete: (row: Row): void => {
+          pending.push({ type: 'delete', row });
+          schedule();
+        },
+      };
+    };
+
     bindTable(db.world_config, () => {
       syncWorldConfig(db.world_config ? db.world_config.iter() : [], this.state);
     }, false);
@@ -135,13 +177,45 @@ export class GameTableSync {
       this.state.foragingNodes = syncForagingNodes(db.foraging_node ? db.foraging_node.iter() : []);
     });
 
-    bindTable(db.tree_entity, () => {
-      this.state.trees = syncTrees(db.tree_entity ? db.tree_entity.iter() : []);
-    });
+    if (db.tree_entity) {
+      const treeChanges = queueTableChanges<TreeEntity>((changes) => {
+        const nextTrees = new Map(this.state.trees);
+        for (const change of changes) {
+          if (change.type === 'delete') {
+            removeTreeRow(nextTrees, change.row);
+          } else {
+            if (change.type === 'update' && change.oldRow.treeId !== change.row.treeId) {
+              removeTreeRow(nextTrees, change.oldRow);
+            }
+            upsertTreeRow(nextTrees, change.row);
+          }
+        }
+        this.state.trees = nextTrees;
+      });
+      db.tree_entity.onInsert((_ctx, row) => treeChanges.insert(row));
+      db.tree_entity.onUpdate((_ctx, oldRow, row) => treeChanges.update(oldRow, row));
+      db.tree_entity.onDelete((_ctx, row) => treeChanges.delete(row));
+    }
 
-    bindTable(db.building, () => {
-      this.state.buildings = syncBuildings(db.building ? db.building.iter() : [], this.state.identityHex);
-    });
+    if (db.building) {
+      const buildingChanges = queueTableChanges<Building>((changes) => {
+        const nextBuildings = new Map(this.state.buildings);
+        for (const change of changes) {
+          if (change.type === 'delete') {
+            removeBuildingRow(nextBuildings, change.row, this.state.identityHex);
+          } else {
+            if (change.type === 'update') {
+              removeBuildingRow(nextBuildings, change.oldRow, this.state.identityHex);
+            }
+            upsertBuildingRow(nextBuildings, change.row, this.state.identityHex);
+          }
+        }
+        this.state.buildings = nextBuildings;
+      });
+      db.building.onInsert((_ctx, row) => buildingChanges.insert(row));
+      db.building.onUpdate((_ctx, oldRow, row) => buildingChanges.update(oldRow, row));
+      db.building.onDelete((_ctx, row) => buildingChanges.delete(row));
+    }
 
     bindTable(db.farm_field, () => {
       this.state.farmFields = syncFarmFields(

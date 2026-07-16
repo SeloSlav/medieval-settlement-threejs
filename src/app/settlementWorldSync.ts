@@ -116,6 +116,7 @@ function mapEntriesShareValues<K, V>(
   current: ReadonlyMap<K, V>,
   previous: ReadonlyMap<K, V>,
 ): boolean {
+  if (current === previous) return true;
   if (current.size !== previous.size) return false;
   for (const [key, value] of current) {
     if (previous.get(key) !== value) return false;

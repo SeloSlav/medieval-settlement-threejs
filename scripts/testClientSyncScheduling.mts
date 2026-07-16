@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { syncSettlementWorld } from '../src/app/settlementWorldSync.ts';
+import { SpacetimeSnapshotApplier } from '../src/app/spacetimeSnapshotApplier.ts';
 import { GameTableSync } from '../src/data/spacetimeTableSync/gameTableSync.ts';
+import { syncWorldConfig } from '../src/data/spacetimeTableSync/syncWorldConfig.ts';
 import { ForestManager } from '../src/props/ForestManager.ts';
 import { createStubForestInstances } from '../src/props/forestInstanceStub.ts';
 import type { GameState } from '../src/resources/types.ts';
@@ -10,15 +12,12 @@ import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 await testTableCallbackCoalescing();
 testPlacementClearanceKeepsRoadWorkCached();
 testSettlementSyncSkipsUnchangedDomains();
+testTreeVisualSyncSkipsUnchangedSnapshots();
+testWorldGenerationReferenceStaysStableAcrossTicks();
 
 console.log('client sync scheduling tests passed');
 
 async function testTableCallbackCoalescing(): Promise<void> {
-  const callbacks: {
-    insert?: () => void;
-    update?: () => void;
-    delete?: () => void;
-  } = {};
   let tableRebuilds = 0;
   let notifications = 0;
   const owner = { toHexString: () => 'owner' };
@@ -48,18 +47,23 @@ async function testTableCallbackCoalescing(): Promise<void> {
     storehouseAcceptsStone: true,
     storehouseAcceptsFirewood: true,
   };
+  const callbacks: {
+    insert?: (context: unknown, row: typeof row) => void;
+    update?: (context: unknown, oldRow: typeof row, row: typeof row) => void;
+    delete?: (context: unknown, row: typeof row) => void;
+  } = {};
   const buildingTable = {
     iter: () => {
       tableRebuilds += 1;
       return [row];
     },
-    onInsert: (callback: () => void) => {
+    onInsert: (callback: (context: unknown, row: typeof row) => void) => {
       callbacks.insert = callback;
     },
-    onUpdate: (callback: () => void) => {
+    onUpdate: (callback: (context: unknown, oldRow: typeof row, row: typeof row) => void) => {
       callbacks.update = callback;
     },
-    onDelete: (callback: () => void) => {
+    onDelete: (callback: (context: unknown, row: typeof row) => void) => {
       callbacks.delete = callback;
     },
   };
@@ -96,13 +100,16 @@ async function testTableCallbackCoalescing(): Promise<void> {
     db: { building: buildingTable },
   } as Parameters<GameTableSync['attachHandlers']>[0]);
 
-  for (let index = 0; index < 100; index++) callbacks.update?.();
+  for (let index = 0; index < 100; index++) {
+    callbacks.update?.(undefined, row, { ...row, actionCooldown: index });
+  }
   await Promise.resolve();
   await Promise.resolve();
 
-  assert.equal(tableRebuilds, 1, 'one table burst should rebuild the table once');
+  assert.equal(tableRebuilds, 0, 'row callbacks should not reread the whole table');
   assert.equal(notifications, 1, 'one table burst should notify app listeners once');
   assert.equal(state.buildings.size, 1);
+  assert.equal(state.buildings.get('building-1')?.actionCooldown, 99);
 }
 
 function testPlacementClearanceKeepsRoadWorkCached(): void {
@@ -201,6 +208,103 @@ function testSettlementSyncSkipsUnchangedDomains(): void {
     deliveries: 0,
     villagers: 0,
   });
+}
+
+function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
+  const first = emptyGameState();
+  first.trees.set('tree-1', {
+    treeId: 'tree-1',
+    layoutIndex: 1,
+    phase: 'mature',
+    growthProgress: 1,
+  });
+  let syncAllCalls = 0;
+  let syncTreeCalls = 0;
+  let fenceSyncCalls = 0;
+  let forestClearanceCalls = 0;
+  const deps = {
+    sceneManager: null,
+    buildingMarkers: null,
+    terrainMinimap: null,
+    burgageFencing: {
+      syncZones: () => {
+        fenceSyncCalls += 1;
+      },
+    },
+    forestVisualSync: {
+      syncAll: () => {
+        syncAllCalls += 1;
+      },
+      syncTrees: () => {
+        syncTreeCalls += 1;
+      },
+    },
+    settlementWorld: {
+      residenceMarkers: null,
+      farmFieldMarkers: null,
+      pastureMarkers: null,
+      livestockVisuals: null,
+      backyardGardenMarkers: null,
+      deliveryAgents: null,
+      villagers: null,
+      getHeightAt: () => 0,
+      getRoadNetwork: () => null,
+    },
+    onForestClearanceChanged: () => {
+      forestClearanceCalls += 1;
+    },
+  };
+  const applier = new SpacetimeSnapshotApplier();
+  applier.apply(deps as never, first, null);
+  assert.equal(syncAllCalls, 1);
+  assert.equal(fenceSyncCalls, 1);
+  assert.equal(forestClearanceCalls, 1);
+
+  const tickOnly = { ...first, tick: 1 };
+  applier.apply(deps as never, tickOnly, first);
+  assert.equal(syncAllCalls, 1);
+  assert.equal(syncTreeCalls, 0);
+  assert.equal(fenceSyncCalls, 1);
+  assert.equal(forestClearanceCalls, 1);
+
+  const changedTrees = new Map(tickOnly.trees);
+  changedTrees.set('tree-1', {
+    ...changedTrees.get('tree-1')!,
+    phase: 'stump',
+    growthProgress: 0,
+  });
+  const treeChanged = { ...tickOnly, tick: 2, trees: changedTrees };
+  applier.apply(deps as never, treeChanged, tickOnly);
+  assert.equal(syncTreeCalls, 1);
+}
+
+function testWorldGenerationReferenceStaysStableAcrossTicks(): void {
+  const state = {
+    simTick: 0,
+    worldGeneration: null,
+  };
+  const row = {
+    id: 0,
+    seed: 123n,
+    nextBuildingId: 1n,
+    simTick: 1n,
+    mapSize: 1,
+    topography: 50,
+    hydrology: 50,
+    forestDensity: 50,
+    configured: false,
+  };
+
+  syncWorldConfig([row] as never, state as never);
+  const firstGeneration = state.worldGeneration;
+  syncWorldConfig([{ ...row, simTick: 2n }] as never, state as never);
+
+  assert.equal(state.simTick, 2);
+  assert.strictEqual(
+    state.worldGeneration,
+    firstGeneration,
+    'simulation ticks should not replace unchanged world-generation settings',
+  );
 }
 
 function emptyGameState(): GameState {
