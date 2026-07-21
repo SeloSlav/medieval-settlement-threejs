@@ -48,6 +48,9 @@ export class RoadPreview {
       this.anchorMaterialValid,
       MAX_ANCHOR_MARKERS,
     );
+    // InstancedMesh starts every slot at the identity transform, so hide the
+    // unplaced anchors instead of rendering them together at the world origin.
+    this.anchorMarkers.count = 0;
     this.anchorMarkers.renderOrder = 31;
     this.anchorMarkers.castShadow = false;
     this.anchorMarkers.receiveShadow = false;

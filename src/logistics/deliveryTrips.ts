@@ -248,7 +248,11 @@ export function findInboundSupplyTripForBuilding(
   buildingId: string,
 ): DeliveryTripState | null {
   for (const trip of trips) {
-    if (trip.destinationKind === 'building' && trip.targetBuildingId === buildingId) {
+    if (
+      trip.phase !== 'inbound'
+      && trip.destinationKind === 'building'
+      && trip.targetBuildingId === buildingId
+    ) {
       return trip;
     }
   }

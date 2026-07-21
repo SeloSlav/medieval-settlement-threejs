@@ -9,6 +9,8 @@ use crate::balance_generated::CONSTRUCTION_MAX_BUILDERS;
 use crate::db::*;
 use crate::tables::Building;
 
+use super::population_policy::population_limit_blocks_labor_request;
+
 pub fn residence_population_for_parcel(parcel_frontage: f64) -> u32 {
     if parcel_frontage >= WIDE_PARCEL_FRONTAGE_MIN {
         RESIDENCE_POPULATION_WIDE
@@ -92,9 +94,16 @@ pub fn assign_building_labor(
         ));
     }
 
-    let assigned_elsewhere = total_assigned_labor(ctx, owner).saturating_sub(building.assigned_labor);
-    let max_allowed = total_population(ctx, owner).saturating_sub(assigned_elsewhere);
-    if requested_labor > max_allowed {
+    let assigned_elsewhere =
+        total_assigned_labor(ctx, owner).saturating_sub(building.assigned_labor);
+    let population = total_population(ctx, owner);
+    let max_allowed = population.saturating_sub(assigned_elsewhere);
+    if population_limit_blocks_labor_request(
+        building.assigned_labor,
+        requested_labor,
+        population,
+        assigned_elsewhere,
+    ) {
         return Err(format!(
             "Only {} workers available ({} population assigned elsewhere).",
             max_allowed, assigned_elsewhere

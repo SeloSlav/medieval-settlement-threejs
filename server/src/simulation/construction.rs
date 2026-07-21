@@ -3,24 +3,20 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    CONSTRUCTION_TREASURY_TRANSFER_PER_SEC, CONSTRUCTION_WORK_PER_WORKER_PER_SEC, TICK_DT,
+    CONSTRUCTION_DELIVERY_UNLOAD_SEC, CONSTRUCTION_TREASURY_TRANSFER_PER_SEC,
+    CONSTRUCTION_WORK_PER_WORKER_PER_SEC, TICK_DT,
 };
 use crate::building_defs::building_def;
 use crate::db::*;
-use crate::economy::{building_commodity_stock, CommodityKind};
+use crate::economy::{available_building_labor, building_commodity_stock, CommodityKind};
 use crate::reducers::livestock::{starter_herd, SPECIES_CATTLE, SPECIES_SWINE};
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, try_start_construction_supply_trip,
-    DELIVERY_DESTINATION_BUILDING,
+    building_has_active_trip, try_start_construction_supply_trip, DELIVERY_DESTINATION_BUILDING,
 };
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::Building;
 
-pub fn step_construction_sites(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-) {
+pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
     let site_ids: Vec<u64> = ctx
         .db
         .building()
@@ -41,11 +37,7 @@ pub fn step_construction_sites(
     }
 }
 
-fn transfer_treasury_reserve(
-    ctx: &ReducerContext,
-    clock: &GameClock,
-    site: &mut Building,
-) {
+fn transfer_treasury_reserve(ctx: &ReducerContext, clock: &GameClock, site: &mut Building) {
     if site.assigned_labor == 0 || labor_and_logistics_paused(ctx, site.owner, clock) {
         return;
     }
@@ -61,8 +53,7 @@ fn transfer_treasury_reserve(
     if stone > 1e-6 {
         treasury.stone -= stone;
         site.construction_treasury_stone -= stone;
-        site.construction_reserved_stone =
-            (site.construction_reserved_stone - stone).max(0.0);
+        site.construction_reserved_stone = (site.construction_reserved_stone - stone).max(0.0);
         site.construction_delivered_stone += stone;
         transfer_budget -= stone;
     }
@@ -73,8 +64,7 @@ fn transfer_treasury_reserve(
     if timber > 1e-6 {
         treasury.timber -= timber;
         site.construction_treasury_timber -= timber;
-        site.construction_reserved_timber =
-            (site.construction_reserved_timber - timber).max(0.0);
+        site.construction_reserved_timber = (site.construction_reserved_timber - timber).max(0.0);
         site.construction_delivered_timber += timber;
     }
 
@@ -114,7 +104,6 @@ fn dispatch_reserved_stock(
         .filter(|source| {
             source.id != site.id
                 && source.construction_complete
-                && source.assigned_labor > 0
                 && !building_has_active_trip(ctx, source.id)
                 && building_commodity_stock(source, commodity) > 1e-6
         })
@@ -130,6 +119,7 @@ fn dispatch_reserved_stock(
     });
 
     for mut source in sources {
+        let free_haulers = available_construction_haulers(ctx, site.owner);
         if try_start_construction_supply_trip(
             ctx,
             clock,
@@ -138,6 +128,7 @@ fn dispatch_reserved_stock(
             site,
             commodity,
             allow_offroad,
+            free_haulers,
         ) {
             return;
         }
@@ -148,10 +139,8 @@ fn advance_builder_work(ctx: &ReducerContext, clock: &GameClock, mut site: Build
     if site.assigned_labor == 0 || labor_and_logistics_paused(ctx, site.owner, clock) {
         return;
     }
-    let required_total =
-        site.construction_required_timber + site.construction_required_stone;
-    let delivered_total =
-        site.construction_delivered_timber + site.construction_delivered_stone;
+    let required_total = site.construction_required_timber + site.construction_required_stone;
+    let delivered_total = site.construction_delivered_timber + site.construction_delivered_stone;
     let material_readiness = if required_total <= 1e-6 {
         1.0
     } else {
@@ -160,16 +149,13 @@ fn advance_builder_work(ctx: &ReducerContext, clock: &GameClock, mut site: Build
     let work_step = if required_total <= 1e-6 {
         1.0
     } else {
-        CONSTRUCTION_WORK_PER_WORKER_PER_SEC * site.assigned_labor as f64 * TICK_DT
-            / required_total
+        CONSTRUCTION_WORK_PER_WORKER_PER_SEC * site.assigned_labor as f64 * TICK_DT / required_total
     };
-    site.construction_progress =
-        (site.construction_progress + work_step).min(material_readiness);
+    site.construction_progress = (site.construction_progress + work_step).min(material_readiness);
 
-    let timber_ready = site.construction_delivered_timber + 1e-6
-        >= site.construction_required_timber;
-    let stone_ready =
-        site.construction_delivered_stone + 1e-6 >= site.construction_required_stone;
+    let timber_ready =
+        site.construction_delivered_timber + 1e-6 >= site.construction_required_timber;
+    let stone_ready = site.construction_delivered_stone + 1e-6 >= site.construction_required_stone;
     if timber_ready && stone_ready && site.construction_progress >= 1.0 - 1e-6 {
         complete_site(ctx, &mut site);
     }
@@ -210,11 +196,7 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
     }
 }
 
-fn site_has_inbound_cargo(
-    ctx: &ReducerContext,
-    site_id: u64,
-    commodity: CommodityKind,
-) -> bool {
+fn site_has_inbound_cargo(ctx: &ReducerContext, site_id: u64, commodity: CommodityKind) -> bool {
     ctx.db
         .delivery_trip()
         .target_building_id()
@@ -225,12 +207,46 @@ fn site_has_inbound_cargo(
         })
 }
 
+fn available_construction_haulers(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    let active_free_haulers: u32 = ctx
+        .db
+        .delivery_trip()
+        .owner()
+        .filter(&owner)
+        .filter(|trip| {
+            if trip.destination_kind != DELIVERY_DESTINATION_BUILDING {
+                return false;
+            }
+            let is_construction_cargo =
+                matches!(
+                    CommodityKind::from_u8(trip.cargo_kind),
+                    Some(CommodityKind::Timber | CommodityKind::Stone)
+                ) && (trip.unload_seconds - CONSTRUCTION_DELIVERY_UNLOAD_SEC).abs() <= 1e-6;
+            let origin_is_unstaffed = ctx
+                .db
+                .building()
+                .id()
+                .find(&trip.building_id)
+                .is_some_and(|origin| origin.assigned_labor == 0);
+            is_construction_cargo && origin_is_unstaffed
+        })
+        .map(|trip| trip.delivery_workers)
+        .sum();
+
+    available_building_labor(ctx, owner).saturating_sub(active_free_haulers)
+}
+
 fn source_priority(source: &Building) -> u8 {
-    match source.kind.as_str() {
+    let kind_priority = match source.kind.as_str() {
         "village_storehouse" => 0,
         "carpenter" => 1,
         "lumber_mill" | "stone_quarry" => 2,
         _ => 3,
+    };
+    if source.assigned_labor > 0 {
+        kind_priority
+    } else {
+        kind_priority + 4
     }
 }
 

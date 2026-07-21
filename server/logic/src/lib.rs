@@ -10,6 +10,9 @@ pub mod hydrology_grid_generated;
 #[path = "../../src/economy/marketplace_trade_policy.rs"]
 pub mod marketplace_trade_policy;
 
+#[path = "../../src/economy/population_policy.rs"]
+pub mod population_policy;
+
 #[path = "../../src/hydrology/mod.rs"]
 pub mod hydrology;
 

@@ -1,4 +1,7 @@
-import { STOREHOUSE_OVERFLOW_THRESHOLD } from '../../generated/gameBalance.ts';
+import {
+  STOREHOUSE_HAUL_PER_WORKER,
+  STOREHOUSE_OVERFLOW_THRESHOLD,
+} from '../../generated/gameBalance.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
@@ -26,9 +29,9 @@ export function renderStorehouseInspector(
   const status = !roadAccess.startsWith('Connected')
     ? ['Connect to a road before haulers can collect overflow', 'warning'] as const
     : building.assignedLabor <= 0
-      ? ['Assign haulers to collect producer overflow', 'warning'] as const
+      ? ['Storage active · assign haulers for faster material carts', 'idle'] as const
       : activeTrip || inboundTrip
-        ? ['Haulers moving construction materials', 'active'] as const
+        ? ['Logistics trip in progress', 'active'] as const
         : accepted.length === 0
           ? ['All acceptance filters disabled', 'idle'] as const
           : ['Ready to collect producer overflow', 'ok'] as const;
@@ -41,8 +44,9 @@ export function renderStorehouseInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Role</span><span>Collects surplus construction materials from road-linked producers</span></li>
+      <li><span>Role</span><span>High-capacity storage and fast construction logistics</span></li>
       <li><span>Collection trigger</span><span>Producer stock above ${Math.round(STOREHOUSE_OVERFLOW_THRESHOLD * 100)}%</span></li>
+      <li><span>Construction bonus</span><span>${STOREHOUSE_HAUL_PER_WORKER} materials per staffed hauler; up to 2 haulers per cart</span></li>
       <li><span>Accepted cargo</span><span>${accepted.join(', ') || 'None'}</span></li>
       <li><span>Food policy</span><span>Never accepted — granaries remain specialized</span></li>
       <li><span>Market role</span><span>No retail or regional trade</span></li>
@@ -53,7 +57,7 @@ export function renderStorehouseInspector(
     labor: buildingLaborView(building, context.populationStats),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Choose which non-food materials haulers may collect. Construction automatically uses staged storehouse stock first.</p>
+        <p class="inspector-action-panel__hint">Storage works without staff. Assigned haulers collect producer overflow and send larger, faster construction carts; unassigned villagers can still fetch stored materials.</p>
         ${acceptanceToggle('timber', 'Timber', building.storehouseAcceptsTimber)}
         ${acceptanceToggle('stone', 'Stone', building.storehouseAcceptsStone)}
         ${acceptanceToggle('firewood', 'Firewood', building.storehouseAcceptsFirewood)}

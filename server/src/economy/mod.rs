@@ -9,6 +9,7 @@ mod regional_market;
 mod garden_market_activity;
 mod household_wealth;
 mod population;
+mod population_policy;
 mod storage;
 mod parish_accounting;
 mod village_economy;

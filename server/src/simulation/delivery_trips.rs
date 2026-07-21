@@ -2,27 +2,25 @@
 
 use spacetimedb::ReducerContext;
 
-use crate::constants::TICK_DT;
 use crate::balance_generated::CARPENTER_DELIVERY_SPEED_MULTIPLIER;
 use crate::balance_generated::{
     CONSTRUCTION_DELIVERY_SPEED_MPS, CONSTRUCTION_DELIVERY_UNLOAD_SEC,
-    CONSTRUCTION_HAUL_PER_WORKER,
+    CONSTRUCTION_HAUL_PER_WORKER, STOREHOUSE_HAUL_PER_WORKER,
 };
+use crate::constants::TICK_DT;
 use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, credit_treasury_commodity,
     deposit_building_commodity, withdraw_building_commodity, CommodityKind,
 };
-use crate::simulation::delivery_cargo::{
-    building_delivery_stock, pick_delivery_target, residence_delivery_room, withdraw_delivery_cargo,
-    DeliveryCargoTotals,
-};
 use crate::roads::{RoadNetwork, RoadPathRoute};
+use crate::simulation::delivery_cargo::{
+    building_delivery_stock, pick_delivery_target, residence_delivery_room,
+    withdraw_delivery_cargo, DeliveryCargoTotals,
+};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::residence_needs::{
-    apply_need_delivery, ResidenceNeedKind,
-};
+use crate::simulation::residence_needs::{apply_need_delivery, ResidenceNeedKind};
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, DeliveryTrip, Residence};
 
@@ -172,9 +170,7 @@ pub fn drain_trips_for_building(ctx: &ReducerContext, building_id: u64) -> Deliv
             if trip.building_id == building_id
                 && trip.destination_kind == DELIVERY_DESTINATION_BUILDING
             {
-                if let Some(mut site) =
-                    ctx.db.building().id().find(&trip.target_building_id)
-                {
+                if let Some(mut site) = ctx.db.building().id().find(&trip.target_building_id) {
                     if !site.construction_complete {
                         match kind {
                             CommodityKind::Timber => {
@@ -352,9 +348,11 @@ pub fn try_start_building_supply_trip(
     )
 }
 
-/// Loads reserved construction stock from a completed source and sends it to a
-/// construction site. The reservation is reduced at loading time; if the trip
-/// is cancelled, `return_trip_cargo_to_building` restores it.
+/// Loads reserved construction stock from any completed source and sends it to
+/// a construction site. Staffed sources use their crew; unstaffed sources draw
+/// one worker from the owner's free-labor pool. Staffed storehouses use their
+/// larger logistics-cart capacity. The reservation is reduced at loading time;
+/// if the trip is cancelled, `return_trip_cargo_to_building` restores it.
 pub fn try_start_construction_supply_trip(
     ctx: &ReducerContext,
     clock: &GameClock,
@@ -363,11 +361,11 @@ pub fn try_start_construction_supply_trip(
     site: &mut Building,
     commodity: CommodityKind,
     allow_offroad: bool,
+    available_free_haulers: u32,
 ) -> bool {
     if !origin.construction_complete
         || site.construction_complete
         || origin.owner != site.owner
-        || origin.assigned_labor == 0
         || building_has_active_trip(ctx, origin.id)
     {
         return false;
@@ -385,10 +383,22 @@ pub fn try_start_construction_supply_trip(
         }
         _ => 0.0,
     };
-    let workers = origin.assigned_labor.min(2).max(1);
+    let workers = if origin.assigned_labor > 0 {
+        origin.assigned_labor.min(2)
+    } else {
+        available_free_haulers.min(1)
+    };
+    if workers == 0 {
+        return false;
+    }
+    let haul_per_worker = if origin.kind == "village_storehouse" && origin.assigned_labor > 0 {
+        STOREHOUSE_HAUL_PER_WORKER
+    } else {
+        CONSTRUCTION_HAUL_PER_WORKER
+    };
     let load = building_commodity_stock(origin, commodity)
         .min(reserved_physical)
-        .min(CONSTRUCTION_HAUL_PER_WORKER * workers as f64);
+        .min(haul_per_worker * workers as f64);
     if load <= 1e-6 {
         return false;
     }
@@ -524,7 +534,12 @@ fn insert_trip(
     });
 }
 
-fn step_one_trip(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock, mut trip: DeliveryTrip) {
+fn step_one_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    mut trip: DeliveryTrip,
+) {
     if labor_and_logistics_paused(ctx, trip.owner, clock) {
         return;
     }
@@ -662,9 +677,9 @@ fn unload_commodity_to_building(
                 amount
             }
             CommodityKind::Stone => {
-                let room =
-                    (target.construction_required_stone - target.construction_delivered_stone)
-                        .max(0.0);
+                let room = (target.construction_required_stone
+                    - target.construction_delivered_stone)
+                    .max(0.0);
                 let amount = trip.amount.min(room);
                 target.construction_delivered_stone += amount;
                 amount
@@ -697,7 +712,8 @@ fn unload_need_to_residence(
         if need_kind == ResidenceNeedKind::Food {
             if let Some(origin) = ctx.db.building().id().find(&trip.building_id) {
                 if origin.kind == "monastery" {
-                    if let Some(mut resources) = ctx.db.player_resources().owner().find(&trip.owner) {
+                    if let Some(mut resources) = ctx.db.player_resources().owner().find(&trip.owner)
+                    {
                         resources.monastery_food_charity_total += delivered;
                         ctx.db.player_resources().owner().update(resources);
                     }
@@ -725,9 +741,7 @@ fn return_trip_cargo_to_building(ctx: &ReducerContext, trip: &DeliveryTrip) {
                             CommodityKind::Timber => {
                                 site.construction_reserved_timber += trip.amount
                             }
-                            CommodityKind::Stone => {
-                                site.construction_reserved_stone += trip.amount
-                            }
+                            CommodityKind::Stone => site.construction_reserved_stone += trip.amount,
                             _ => {}
                         }
                         ctx.db.building().id().update(site);
