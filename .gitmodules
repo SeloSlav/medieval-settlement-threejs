@@ -1,4 +1,4 @@
 [submodule "vendor/seedthree"]
 	path = vendor/seedthree
-	url = https://github.com/SkyeShark/SeedThree.git
+	url = https://github.com/SeloSlav/SeedThree.git
 	ignore = all
