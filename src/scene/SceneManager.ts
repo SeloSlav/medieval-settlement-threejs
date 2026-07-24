@@ -523,6 +523,7 @@ export class SceneManager {
           : 0;
     this.skyAnimationTime = state.skyAnimationTime;
     this.sunDirection.copy(state.sunDirection);
+    this.sky.updateAtmosphere(state.dawnAmount, state.duskAmount);
     this.sunLight.color.setHex(blendColorHex(state.sunColor, weather.fogTint, atmosphericBlend * 0.28));
     this.sunLight.intensity = state.sunIntensity * weather.sunlightMultiplier;
     // Keep the sun parallel to the fitted shadow target — not world origin — so panning

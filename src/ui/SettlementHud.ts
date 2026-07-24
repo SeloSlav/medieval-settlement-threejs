@@ -8,6 +8,7 @@ import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import { describeEnvironment } from '../world/seasonPolicy.ts';
 import {
   GAME_SPEEDS,
+  PLAYER_GAME_SPEEDS,
   gameSpeedLabel,
   type GameSpeed,
 } from '../world/gameSpeed.ts';
@@ -26,15 +27,15 @@ const SETTLEMENT_HUD_HTML = `
         <span data-fire-response>Awaiting a staffed well</span>
       </div>
       <div class="settlement-hud__speed" role="group" aria-label="Simulation speed">
-        ${GAME_SPEEDS.map((speed) => `
+        ${PLAYER_GAME_SPEEDS.map((speed) => `
           <button
             type="button"
             class="settlement-hud__speed-button"
             data-game-speed="${speed}"
-            data-tooltip="${gameSpeedLabel(speed)}${speed === 0 ? ' (Space)' : ` (${speed === 1 ? 1 : speed === 4 ? 2 : 3})`}"
+            data-tooltip="${gameSpeedLabel(speed)} (${speed === 1 ? 1 : speed === 4 ? 2 : 3})"
             aria-label="${gameSpeedLabel(speed)}"
             aria-pressed="${speed === 1}"
-          >${speed === 0 ? 'Ⅱ' : `${speed}×`}</button>
+          >${speed}×</button>
         `).join('')}
       </div>
     </div>

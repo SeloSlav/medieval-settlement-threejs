@@ -28,6 +28,7 @@ import {
     clamp,
     dot,
     exp,
+    floor,
     fract as tslFract,
     float,
     mat3,
@@ -77,6 +78,8 @@ const PARAM_TO_NODE = {
     cloudCoverage: 'uCloudCoverage',
     cloudHeight: 'uCloudHeight',
     cloudThickness: 'uCloudThickness',
+    dawnAmount: 'uDawnAmount',
+    duskAmount: 'uDuskAmount',
     hazeStrength: 'uHazeStrength',
     maxCloudDistance: 'uMaxCloudDistance',
     mieCoefficient: 'uMieCoefficient',
@@ -419,6 +422,8 @@ function createNodeSet(options = {}) {
         uCloudCoverage: uniform(normalizeParamValue('cloudCoverage', options.cloudCoverage ?? DEFAULT_PARAMS.cloudCoverage)),
         uCloudHeight: uniform(normalizeParamValue('cloudHeight', options.cloudHeight ?? DEFAULT_PARAMS.cloudHeight)),
         uCloudThickness: uniform(normalizeParamValue('cloudThickness', options.cloudThickness ?? DEFAULT_PARAMS.cloudThickness)),
+        uDawnAmount: uniform(options.dawnAmount ?? 0.0),
+        uDuskAmount: uniform(options.duskAmount ?? 0.0),
         uHazeStrength: uniform(normalizeParamValue('hazeStrength', options.hazeStrength ?? DEFAULT_PARAMS.hazeStrength)),
         uMaxCloudDistance: uniform(normalizeParamValue('maxCloudDistance', options.maxCloudDistance ?? DEFAULT_PARAMS.maxCloudDistance)),
         uMieCoefficient: uniform(normalizeParamValue('mieCoefficient', options.mieCoefficient ?? DEFAULT_PARAMS.mieCoefficient)),
@@ -787,12 +792,41 @@ function buildColorNode(nodes) {
                     .mul(distanceColorFade)
                     .mul(distanceFade)
                     .toVar();
-                const cloudColorFloor = vec3(0.72, 0.75, 0.78)
+                const sunHeight = clamp(nodes.uSunDirection.y, -1.0, 1.0).toVar();
+                const dayAmount = smoothstep(-0.03, 0.16, sunHeight).toVar();
+                const twilightAmount = clamp(nodes.uDawnAmount.add(nodes.uDuskAmount), 0.0, 1.0).toVar();
+                const duskBias = nodes.uDuskAmount
+                    .div(max(0.001, nodes.uDawnAmount.add(nodes.uDuskAmount)))
+                    .toVar();
+                const twilightCloudColor = mix(
+                    vec3(1.0, 0.45, 0.2),
+                    vec3(0.76, 0.12, 0.05),
+                    duskBias,
+                ).toVar();
+                const twilightCloudMix = twilightAmount
+                    .mul(mix(0.48, 0.68, duskBias))
+                    .toVar();
+                const tintedCloudColor = mix(
+                    premultipliedCloudColor,
+                    twilightCloudColor.mul(cloudAlpha).mul(distanceFade),
+                    twilightCloudMix,
+                ).toVar();
+                const cloudFloorTint = mix(
+                    vec3(0.012, 0.017, 0.03),
+                    vec3(0.72, 0.75, 0.78),
+                    dayAmount,
+                ).toVar();
+                cloudFloorTint.assign(mix(
+                    cloudFloorTint,
+                    twilightCloudColor.mul(0.54),
+                    twilightAmount.mul(0.7),
+                ));
+                const cloudColorFloor = cloudFloorTint
                     .mul(cloudAlpha)
                     .mul(distanceFade)
                     .toVar();
 
-                color.assign(max(premultipliedCloudColor, cloudColorFloor));
+                color.assign(max(tintedCloudColor, cloudColorFloor));
                 alpha.assign(cloudAlpha.mul(distanceFade));
             });
         });
@@ -804,9 +838,97 @@ function buildColorNode(nodes) {
         const rayDirection = normalize(positionWorld.sub(cameraPosition)).toVar();
         const skyColor = getSkyColor(rayDirection).toVar();
         const clouds = renderClouds(cameraPosition, rayDirection).toVar();
-        const finalColor = skyColor.mul(float(1.0).sub(clouds.a)).add(clouds.rgb).toVar();
+        const dayComposite = skyColor.mul(float(1.0).sub(clouds.a)).add(clouds.rgb).toVar();
+        const sunHeight = clamp(nodes.uSunDirection.y, -1.0, 1.0).toVar();
+        const dayAmount = smoothstep(-0.14, 0.12, sunHeight).toVar();
+        const twilightAmount = clamp(nodes.uDawnAmount.add(nodes.uDuskAmount), 0.0, 1.0).toVar();
+        const duskBias = nodes.uDuskAmount
+            .div(max(0.001, nodes.uDawnAmount.add(nodes.uDuskAmount)))
+            .toVar();
+        const upAmount = clamp(rayDirection.y.mul(0.92).add(0.08), 0.0, 1.0).toVar();
+        const nightSky = mix(
+            vec3(0.035, 0.052, 0.105),
+            vec3(0.006, 0.012, 0.042),
+            pow(upAmount, 0.62),
+        ).toVar();
+        const nightComposite = nightSky
+            .mul(float(1.0).sub(clouds.a))
+            .add(vec3(0.012, 0.017, 0.03).mul(clouds.a))
+            .toVar();
+        const atmosphericColor = mix(nightComposite, dayComposite, dayAmount).toVar();
 
-        return vec4(finalColor, 1.0);
+        const rayAzimuth = normalize(vec3(rayDirection.x, 0.001, rayDirection.z)).toVar();
+        const sunAzimuth = normalize(vec3(nodes.uSunDirection.x, 0.001, nodes.uSunDirection.z)).toVar();
+        const sunFacing = clamp(dot(rayAzimuth, sunAzimuth).mul(0.5).add(0.5), 0.0, 1.0).toVar();
+        const horizonBand = pow(float(1.0).sub(upAmount), 1.7).toVar();
+        const twilightReach = horizonBand
+            .mul(mix(0.16, 1.0, pow(sunFacing, 0.72)))
+            .toVar();
+        const twilightHorizon = mix(
+            vec3(1.0, 0.42, 0.17),
+            vec3(0.82, 0.12, 0.045),
+            duskBias,
+        ).toVar();
+        const twilightUpper = mix(
+            vec3(0.31, 0.28, 0.48),
+            vec3(0.25, 0.12, 0.27),
+            duskBias,
+        ).toVar();
+        const twilightSky = mix(
+            twilightHorizon,
+            twilightUpper,
+            pow(upAmount, 0.58),
+        ).toVar();
+        const twilightStrength = twilightAmount
+            .mul(twilightReach)
+            .mul(mix(0.78, 1.0, duskBias))
+            .toVar();
+
+        atmosphericColor.assign(mix(atmosphericColor, twilightSky, twilightStrength));
+
+        const nightAmount = float(1.0).sub(smoothstep(-0.25, -0.08, sunHeight)).toVar();
+        const starCell = floor(rayDirection.mul(680.0)).toVar();
+        const starSeed = tslFract(
+            tslSin(dot(starCell, vec3(12.9898, 78.233, 45.164))).mul(43758.5453),
+        ).toVar();
+        const starVariation = tslFract(
+            tslSin(dot(starCell.add(vec3(17.0, 43.0, 29.0)), vec3(39.346, 11.135, 83.155)))
+                .mul(24634.6345),
+        ).toVar();
+        const starPresence = smoothstep(0.9962, 1.0, starSeed).toVar();
+        const twinkle = tslSin(nodes.uTime.mul(0.08).add(starSeed.mul(TWO_PI)))
+            .mul(0.16)
+            .add(0.84)
+            .toVar();
+        const starVisibility = nightAmount
+            .mul(smoothstep(0.035, 0.18, rayDirection.y))
+            .mul(float(1.0).sub(clouds.a))
+            .toVar();
+        const starColor = mix(
+            vec3(0.68, 0.76, 1.0),
+            vec3(1.0, 0.84, 0.62),
+            starVariation,
+        ).toVar();
+        atmosphericColor.addAssign(
+            starColor.mul(starPresence).mul(starVisibility).mul(twinkle).mul(1.25),
+        );
+
+        const moonDirection = normalize(nodes.uSunDirection.negate()).toVar();
+        const moonDot = max(0.0, dot(rayDirection, moonDirection)).toVar();
+        const moonAboveHorizon = smoothstep(-0.035, 0.09, moonDirection.y).toVar();
+        const moonDisk = smoothstep(0.99972, 0.99988, moonDot).toVar();
+        const moonHalo = pow(moonDot, 320.0).mul(0.16).toVar();
+        const moonVisibility = nightAmount
+            .mul(moonAboveHorizon)
+            .mul(float(1.0).sub(clouds.a))
+            .toVar();
+        atmosphericColor.addAssign(
+            vec3(0.76, 0.84, 1.0)
+                .mul(moonDisk.mul(0.92).add(moonHalo))
+                .mul(moonVisibility),
+        );
+
+        return vec4(max(atmosphericColor, vec3(0.0)), 1.0);
     })();
 }
 
@@ -977,6 +1099,17 @@ class SkyCloudMesh extends Mesh {
 
         if (nodes?.uTime) {
             nodes.uTime.value = time;
+        }
+    }
+
+    updateAtmosphere(dawnAmount, duskAmount) {
+        const nodes = getSkyCloudNodes(this.material);
+
+        if (nodes?.uDawnAmount) {
+            nodes.uDawnAmount.value = Math.max(0.0, Math.min(1.0, dawnAmount ?? 0.0));
+        }
+        if (nodes?.uDuskAmount) {
+            nodes.uDuskAmount.value = Math.max(0.0, Math.min(1.0, duskAmount ?? 0.0));
         }
     }
 

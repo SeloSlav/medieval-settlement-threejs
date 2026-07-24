@@ -105,7 +105,12 @@ type MarketplaceBarterOffer = {
 type MarketplaceTradeOffer = MarketplaceGoldBuyOffer | MarketplaceGoldSellOffer | MarketplaceBarterOffer;
 
 export type GameBalance = {
-  sim: { tickMicros: number; tickDt: number };
+  sim: {
+    tickMicros: number;
+    tickDt: number;
+    baseSpeedNumerator: number;
+    baseSpeedDenominator: number;
+  };
   calendar: {
     secondsPerDay: number;
     hoursPerDay: number;
@@ -418,6 +423,8 @@ function generateRust(): string {
     '',
     `pub const TICK_MICROS: i64 = ${b.sim.tickMicros};`,
     `pub const TICK_DT: f64 = ${rustF64(b.sim.tickDt)};`,
+    `pub const BASE_SPEED_NUMERATOR: u16 = ${b.sim.baseSpeedNumerator};`,
+    `pub const BASE_SPEED_DENOMINATOR: u16 = ${b.sim.baseSpeedDenominator};`,
     '',
     `pub const CALENDAR_SECONDS_PER_DAY: f64 = ${rustF64(b.calendar.secondsPerDay)};`,
     `pub const CALENDAR_HOURS_PER_DAY: u32 = ${b.calendar.hoursPerDay};`,
@@ -899,6 +906,8 @@ function generateTypeScript(): string {
     'export type BuildingKind = (typeof BUILDING_KINDS)[number];',
     '',
     `export const SIM_TICK_SECONDS = ${b.sim.tickDt};`,
+    `export const SIM_TICK_INTERVAL_SECONDS = ${b.sim.tickMicros / 1_000_000};`,
+    `export const SIM_REALTIME_RATE = ${b.sim.baseSpeedNumerator / b.sim.baseSpeedDenominator};`,
     '',
     `export const CALENDAR_SECONDS_PER_DAY = ${b.calendar.secondsPerDay};`,
     `export const CALENDAR_HOURS_PER_DAY = ${b.calendar.hoursPerDay};`,

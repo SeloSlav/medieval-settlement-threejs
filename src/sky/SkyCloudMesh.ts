@@ -9,6 +9,8 @@ type SkyCloudOptions = {
   cloudCoverage?: number;
   cloudHeight?: number;
   cloudThickness?: number;
+  dawnAmount?: number;
+  duskAmount?: number;
   hazeStrength?: number;
   maxCloudDistance?: number;
   mieCoefficient?: number;
@@ -32,6 +34,7 @@ type SkyCloudNativeMesh = THREE.Mesh & {
   ready?: Promise<unknown>;
   dispose?: () => void;
   updateCamera?: (camera: THREE.Camera) => void;
+  updateAtmosphere?: (dawnAmount: number, duskAmount: number) => void;
   updateResolution?: (width: number, height: number) => void;
   updateSun?: (direction: THREE.Vector3) => void;
   updateTime?: (time: number) => void;
@@ -118,6 +121,10 @@ export class SkyCloudMesh extends THREE.Group {
 
   updateTime(time: number): void {
     this.nativeSky.updateTime?.(time);
+  }
+
+  updateAtmosphere(dawnAmount: number, duskAmount: number): void {
+    this.nativeSky.updateAtmosphere?.(dawnAmount, duskAmount);
   }
 
   updateResolution(width: number, height: number): void {

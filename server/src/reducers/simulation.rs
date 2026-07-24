@@ -16,7 +16,8 @@ use crate::simulation::{
 };
 use crate::economy::{reconcile_all_building_labor, step_regional_markets};
 use crate::tables::WorldConfig;
-use crate::tables::{Building, Residence};
+use crate::tables::{Building, Residence, SimPacingState};
+use crate::balance_generated::{BASE_SPEED_DENOMINATOR, BASE_SPEED_NUMERATOR};
 
 pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSchedule) {
     let Some(config) = ctx.db.world_config().id().find(&0) else {
@@ -25,11 +26,32 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     if !config.configured || config.game_speed == 0 {
         return;
     }
-    let substeps = if matches!(config.game_speed, 1 | 4 | 12) {
+    let speed = if matches!(config.game_speed, 1 | 4 | 12) {
         config.game_speed
     } else {
         1
     };
+    let previous_credit = ctx
+        .db
+        .sim_pacing_state()
+        .id()
+        .find(&0)
+        .map(|state| state.step_credit)
+        .unwrap_or(0);
+    let step_budget = previous_credit + speed as u16 * BASE_SPEED_NUMERATOR;
+    let substeps = step_budget / BASE_SPEED_DENOMINATOR;
+    let next_credit = step_budget % BASE_SPEED_DENOMINATOR;
+    if ctx.db.sim_pacing_state().id().find(&0).is_some() {
+        ctx.db.sim_pacing_state().id().update(SimPacingState {
+            id: 0,
+            step_credit: next_credit,
+        });
+    } else {
+        ctx.db.sim_pacing_state().insert(SimPacingState {
+            id: 0,
+            step_credit: next_credit,
+        });
+    }
     for _ in 0..substeps {
         run_one_sim_tick(ctx);
     }

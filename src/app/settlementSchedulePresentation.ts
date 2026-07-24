@@ -1,4 +1,5 @@
 import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
+import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
 import { simElapsedSeconds } from '../world/gameCalendar.ts';
 import type { AmbientAudioController } from '../audio/AmbientAudioController.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
@@ -26,6 +27,15 @@ type SnapshotAnchor = {
   receivedAtMs: number;
   gameSpeed: SpacetimeGameSnapshot['gameSpeed'];
 };
+
+export function interpolatedSimElapsedSeconds(
+  simTick: number,
+  realElapsedSeconds: number,
+  gameSpeed: SpacetimeGameSnapshot['gameSpeed'],
+): number {
+  return simElapsedSeconds(simTick)
+    + Math.max(0, realElapsedSeconds) * gameSpeed * SIM_REALTIME_RATE;
+}
 
 export class SettlementPresentationController {
   private lastDirtyKey = '';
@@ -72,8 +82,11 @@ export class SettlementPresentationController {
     if (!this.anchor || !this.lastSnapshot) return;
 
     const driftSeconds = (performance.now() - this.anchor.receivedAtMs) / 1000;
-    const elapsedSeconds = simElapsedSeconds(this.anchor.simTick)
-      + driftSeconds * this.anchor.gameSpeed;
+    const elapsedSeconds = interpolatedSimElapsedSeconds(
+      this.anchor.simTick,
+      driftSeconds,
+      this.anchor.gameSpeed,
+    );
     const schedule = deriveInterpolatedSettlementSchedule(
       elapsedSeconds,
       this.lastSnapshot.parishPolicy,

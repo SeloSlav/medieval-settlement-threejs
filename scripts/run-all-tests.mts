@@ -14,6 +14,7 @@ const tests = [
   'test:settlement-schedule',
   'test:seasons',
   'test:weather-visuals',
+  'test:day-night',
   'test:fires',
   'test:world-config',
   'test:connection-recovery',

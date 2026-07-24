@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import {
+  CALENDAR_DAYS_PER_MONTH,
   CALENDAR_HOURS_PER_DAY,
+  CALENDAR_MONTHS_PER_YEAR,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
 } from '../generated/gameBalance.ts';
@@ -29,6 +31,9 @@ export type DayNightLightingState = {
   fillIntensity: number;
   fogColor: number;
   fogDensity: number;
+  dawnAmount: number;
+  duskAmount: number;
+  solarElevationDeg: number;
   grade: DayNightGrade;
   skyAnimationTime: number;
   isNight: boolean;
@@ -37,6 +42,13 @@ export type DayNightLightingState = {
 };
 
 const SUN_DIRECTION = new THREE.Vector3();
+const SETTLEMENT_LATITUDE_RAD = THREE.MathUtils.degToRad(45.6);
+const SOLAR_NOON_HOUR = 12.75;
+const AXIAL_TILT_DEG = 23.44;
+const DAYS_PER_YEAR = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
+// The compressed calendar keeps the familiar month names. Its winter solstice
+// falls late in December, just as it does in the northern hemisphere.
+const WINTER_SOLSTICE_DAY = DAYS_PER_YEAR - CALENDAR_DAYS_PER_MONTH * 0.35;
 
 export function fractionalHour(clock: GameClock): number {
   return clock.hour + clock.minute / 60;
@@ -48,61 +60,47 @@ export function computeDayNightState(
 ): DayNightLightingState {
   const hour = fractionalHour(clock);
   const smokeAllowed = !laborPaused;
+  const { direction, elevationDeg } = computeSolarPosition(clock, hour);
+  SUN_DIRECTION.copy(direction);
 
-  const dawn = blendPhases(hour, [
-    { at: 4.5, value: 0 },
-    { at: CALENDAR_WORK_START_HOUR, value: 1 },
-    { at: 8, value: 0 },
-  ]);
-  const dusk = blendPhases(hour, [
-    { at: CALENDAR_WORK_END_HOUR - 2, value: 0 },
-    { at: CALENDAR_WORK_END_HOUR, value: 1 },
-    { at: CALENDAR_WORK_END_HOUR + 1.5, value: 0 },
-  ]);
-  const night = blendPhases(hour, [
-    { at: 0, value: 1 },
-    { at: CALENDAR_WORK_START_HOUR - 1, value: 1 },
-    { at: CALENDAR_WORK_START_HOUR + 0.5, value: 0 },
-    { at: CALENDAR_WORK_END_HOUR, value: 0 },
-    { at: CALENDAR_WORK_END_HOUR + 2, value: 1 },
-    { at: CALENDAR_HOURS_PER_DAY, value: 1 },
-  ]);
+  const dayAmount = smoothstep(-8, 9, elevationDeg);
+  const night = 1 - smoothstep(-12, -4, elevationDeg);
+  const twilight = smoothstep(-14, -2, elevationDeg)
+    * (1 - smoothstep(7, 25, elevationDeg));
+  const dawn = hour < SOLAR_NOON_HOUR ? twilight : 0;
+  const dusk = hour >= SOLAR_NOON_HOUR ? twilight : 0;
+  const goldenHour = Math.max(dawn, dusk);
+  const isNight = elevationDeg < -6;
 
-  const dayAmount = clamp01(1 - night * 0.92);
-  const goldenHour = clamp01(Math.max(dawn, dusk) * (1 - night * 0.65));
-  const isNight = night > 0.55;
+  const sunVisible = smoothstep(-1.5, 4, elevationDeg);
+  const highSun = smoothstep(7, 48, elevationDeg);
+  let sunWarm = lerpColor(0x8299c5, 0xfff2dc, dayAmount);
+  sunWarm = lerpColor(sunWarm, 0xffb36b, dawn * 0.8);
+  sunWarm = lerpColor(sunWarm, 0xd95b2f, dusk * 0.94);
+  const sunIntensity = lerp(0.025, 4.9, Math.pow(sunVisible, 0.55))
+    * lerp(0.84, 1, highSun);
 
-  const daySpan = CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR;
-  const dayProgress = clamp01((hour - CALENDAR_WORK_START_HOUR) / daySpan);
-  const noonCurve = Math.sin(dayProgress * Math.PI);
-  const elevationDeg = isNight
-    ? -18 + 8 * (1 - night)
-    : 6 + noonCurve * 48;
-  const azimuthDeg = isNight
-    ? 300 + (hour / CALENDAR_HOURS_PER_DAY) * 120
-    : 118 + dayProgress * 168;
+  let hemiSkyColor = lerpColor(0x111c38, 0xdff0ff, dayAmount);
+  hemiSkyColor = lerpColor(hemiSkyColor, 0xe8a06d, dawn * 0.34);
+  hemiSkyColor = lerpColor(hemiSkyColor, 0xc7593c, dusk * 0.46);
+  let hemiGroundColor = lerpColor(0x151d20, 0x56644a, dayAmount);
+  hemiGroundColor = lerpColor(hemiGroundColor, 0x704437, dusk * 0.32);
+  const hemiIntensity = lerp(0.34, 1.9, dayAmount) + goldenHour * 0.12;
 
-  const elevationRad = THREE.MathUtils.degToRad(elevationDeg);
-  const azimuthRad = THREE.MathUtils.degToRad(azimuthDeg);
-  SUN_DIRECTION.setFromSphericalCoords(
-    1,
-    THREE.MathUtils.degToRad(90) - elevationRad,
-    azimuthRad,
-  );
+  let ambientColor = lerpColor(0x354b78, 0xb8d1ff, dayAmount);
+  ambientColor = lerpColor(ambientColor, 0x986b73, dawn * 0.24);
+  ambientColor = lerpColor(ambientColor, 0x8f4f4b, dusk * 0.34);
+  const ambientIntensity = lerp(0.14, 0.2, dayAmount) + night * 0.045;
+  const buildingIndirectIntensity = lerp(0.016, 0.11, dayAmount);
 
-  const sunColor = lerpColor(0x9eb6ff, 0xffefd2, dayAmount);
-  const sunWarm = lerpColor(sunColor, 0xffb070, goldenHour * 0.75);
-  const sunIntensity = lerp(0.35, 4.9, dayAmount) + goldenHour * 0.8;
-  const hemiSkyColor = lerpColor(0x1a2744, 0xdff0ff, dayAmount);
-  const hemiGroundColor = lerpColor(0x1f2a22, 0x56644a, dayAmount);
-  const hemiIntensity = lerp(0.55, 1.9, dayAmount);
-  const ambientColor = lerpColor(0x4a628f, 0xb8d1ff, dayAmount);
-  const ambientIntensity = lerp(0.12, 0.2, dayAmount) + night * 0.08;
-  const buildingIndirectIntensity = lerp(0.018, 0.11, dayAmount);
-  const fillColor = lerpColor(0x5f7fb8, 0x9fc8ff, dayAmount);
-  const fillIntensity = lerp(0.18, 0.45, dayAmount);
-  const fogColor = lerpColor(0x1b2740, 0xc8def1, dayAmount);
-  const fogDensity = lerp(0.00145, 0.00082, dayAmount);
+  let fillColor = lerpColor(0x506fa9, 0x9fc8ff, dayAmount);
+  fillColor = lerpColor(fillColor, 0x8d7099, goldenHour * 0.28);
+  const fillIntensity = lerp(0.14, 0.45, dayAmount);
+
+  let fogColor = lerpColor(0x111b35, 0xc8def1, dayAmount);
+  fogColor = lerpColor(fogColor, 0xc48972, dawn * 0.42);
+  fogColor = lerpColor(fogColor, 0xa94b39, dusk * 0.62);
+  const fogDensity = lerp(0.00155, 0.00082, dayAmount) + goldenHour * 0.00008;
   const eveningWindowGlow = computeEveningWindowGlow(hour, night);
 
   return {
@@ -119,17 +117,52 @@ export function computeDayNightState(
     fillIntensity,
     fogColor,
     fogDensity,
+    dawnAmount: dawn,
+    duskAmount: dusk,
+    solarElevationDeg: elevationDeg,
     grade: {
-      saturation: lerp(0.72, 1.02, dayAmount) + goldenHour * 0.08,
-      contrast: lerp(0.96, 1.05, dayAmount),
-      warmth: goldenHour * 0.42 + dawn * 0.18,
-      nightBlue: night * 0.55,
-      vignette: lerp(0.18, 0.1, dayAmount) + night * 0.08,
+      saturation: lerp(0.7, 1.02, dayAmount) + dawn * 0.08 + dusk * 0.14,
+      contrast: lerp(0.95, 1.05, dayAmount) + dusk * 0.025,
+      warmth: dawn * 0.48 + dusk * 0.78,
+      nightBlue: night * 0.62,
+      vignette: lerp(0.2, 0.1, dayAmount) + night * 0.08,
     },
     skyAnimationTime: simElapsedSeconds(clock.simTick),
     isNight,
     smokeAllowed,
     eveningWindowGlow,
+  };
+}
+
+function computeSolarPosition(
+  clock: Pick<GameClock, 'month' | 'monthDay'>,
+  hour: number,
+): { direction: THREE.Vector3; elevationDeg: number } {
+  const calendarDay = (clock.month - 1) * CALENDAR_DAYS_PER_MONTH
+    + Math.max(0, clock.monthDay - 0.5);
+  const annualAngle = (calendarDay - WINTER_SOLSTICE_DAY) / DAYS_PER_YEAR * Math.PI * 2;
+  const declinationRad = THREE.MathUtils.degToRad(-AXIAL_TILT_DEG * Math.cos(annualAngle));
+  const hourAngleRad = THREE.MathUtils.degToRad((hour - SOLAR_NOON_HOUR) * 15);
+
+  const sinLatitude = Math.sin(SETTLEMENT_LATITUDE_RAD);
+  const cosLatitude = Math.cos(SETTLEMENT_LATITUDE_RAD);
+  const sinDeclination = Math.sin(declinationRad);
+  const cosDeclination = Math.cos(declinationRad);
+  const sinHourAngle = Math.sin(hourAngleRad);
+  const cosHourAngle = Math.cos(hourAngleRad);
+
+  // Local horizon coordinates: +X east, +Z north, +Y up. This formulation
+  // remains continuous through midnight and avoids azimuth singularities.
+  const east = -cosDeclination * sinHourAngle;
+  const north = cosLatitude * sinDeclination
+    - sinLatitude * cosDeclination * cosHourAngle;
+  const up = sinLatitude * sinDeclination
+    + cosLatitude * cosDeclination * cosHourAngle;
+  const direction = new THREE.Vector3(east, up, north).normalize();
+
+  return {
+    direction,
+    elevationDeg: THREE.MathUtils.radToDeg(Math.asin(clamp(up, -1, 1))),
   };
 }
 
@@ -166,6 +199,15 @@ function blendPhases(hour: number, phases: { at: number; value: number }[]): num
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const t = clamp01((value - edge0) / Math.max(edge1 - edge0, 1e-6));
+  return t * t * (3 - 2 * t);
 }
 
 function lerp(a: number, b: number, t: number): number {

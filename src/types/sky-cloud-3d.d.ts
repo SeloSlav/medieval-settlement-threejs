@@ -5,6 +5,7 @@ declare module 'sky-cloud-3d' {
     isSkyCloudMesh: boolean;
     ready: Promise<SkyCloudMesh>;
     constructor(options?: Record<string, unknown>);
+    updateAtmosphere(dawnAmount: number, duskAmount: number): void;
     updateCamera(camera: Camera): void;
     updateResolution(width: number, height: number): void;
     updateSun(direction: Vector3): void;
@@ -20,6 +21,7 @@ declare module 'sky-cloud-3d/webgl' {
     isSkyCloudMesh: boolean;
     ready?: Promise<SkyCloudMesh>;
     constructor(options?: Record<string, unknown>);
+    updateAtmosphere?(dawnAmount: number, duskAmount: number): void;
     updateResolution?(width: number, height: number): void;
     updateSun(direction: Vector3): void;
     updateTime(time: number): void;

@@ -129,8 +129,6 @@ export class BuildToolbar {
   private readonly onToggleCityAdministration: () => void;
   private cityAdministrationOpen = false;
   private gameplayEnabled = true;
-  private currentGameSpeed: GameSpeed = 1;
-  private lastRunningGameSpeed: Exclude<GameSpeed, 0> = 1;
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target) || this.firstPersonActive || this.isGameMenuOpen()) return;
@@ -143,14 +141,6 @@ export class BuildToolbar {
       event.preventDefault();
       event.stopPropagation();
       this.requestGameSpeed(speed);
-      return;
-    }
-    if (key === ' ' || event.code === 'Space') {
-      event.preventDefault();
-      event.stopPropagation();
-      this.requestGameSpeed(
-        this.currentGameSpeed === 0 ? this.lastRunningGameSpeed : 0,
-      );
       return;
     }
     if (key === 'escape') {
@@ -792,10 +782,6 @@ export class BuildToolbar {
   }
 
   setSimulationState(speed: GameSpeed, environment: EnvironmentState): void {
-    this.currentGameSpeed = speed;
-    if (speed !== 0) {
-      this.lastRunningGameSpeed = speed;
-    }
     this.settlementHud.setSimulationState(speed, environment);
   }
 

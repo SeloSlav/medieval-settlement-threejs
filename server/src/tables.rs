@@ -1,5 +1,13 @@
 use spacetimedb::Identity;
 
+#[spacetimedb::table(accessor = sim_pacing_state)]
+pub struct SimPacingState {
+    #[primary_key]
+    pub id: u8,
+    /// Fixed-point remainder used to pace the leisurely baseline without changing sim_tick meaning.
+    pub step_credit: u16,
+}
+
 #[spacetimedb::table(accessor = world_config, public)]
 pub struct WorldConfig {
     #[primary_key]

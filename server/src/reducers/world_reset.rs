@@ -122,6 +122,12 @@ fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
 }
 
 fn reset_world_progress(ctx: &ReducerContext) {
+    if let Some(pacing) = ctx.db.sim_pacing_state().id().find(&0) {
+        ctx.db.sim_pacing_state().id().update(crate::tables::SimPacingState {
+            step_credit: 0,
+            ..pacing
+        });
+    }
     if let Some(config) = ctx.db.world_config().id().find(&0) {
         ctx.db.world_config().id().update(WorldConfig {
             sim_tick: 0,

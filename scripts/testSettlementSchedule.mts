@@ -13,12 +13,16 @@ import {
 } from '../src/world/settlementSchedule.ts';
 import { deriveInterpolatedSettlementSchedule } from '../src/world/settlementSchedule.ts';
 import { DEFAULT_PARISH_POLICY } from '../src/economy/chapelParish.ts';
+import { interpolatedSimElapsedSeconds } from '../src/app/settlementSchedulePresentation.ts';
 import type { GameState } from '../src/resources/types.ts';
 
 const secondsPerGameHour = CALENDAR_SECONDS_PER_DAY / 24;
 const secondsPerGameMinute = secondsPerGameHour / 60;
 const nightTick = Math.ceil((17 * secondsPerGameHour) / SIM_TICK_SECONDS);
 const workHourTick = 0;
+const middayTick = (
+  12 * secondsPerGameHour - CALENDAR_DAY_START_OFFSET_SECONDS
+) / SIM_TICK_SECONDS;
 const mondayWorkMorningElapsed =
   CALENDAR_SECONDS_PER_DAY
   + CALENDAR_WORK_START_HOUR * secondsPerGameHour
@@ -56,7 +60,7 @@ assert.equal(schedule.dayNight.smokeAllowed, false);
 assert.equal(schedule.dayNight.isNight, true);
 
 const daySchedule = deriveSettlementSchedule(
-  { simTick: workHourTick, parishPolicy: DEFAULT_PARISH_POLICY },
+  { simTick: middayTick, parishPolicy: DEFAULT_PARISH_POLICY },
   null,
 );
 assert.equal(daySchedule.laborPaused, false);
@@ -119,5 +123,8 @@ const clockFromElapsed = gameClockAtElapsedSeconds(
 assert.equal(clockFromElapsed.hour, CALENDAR_WORK_START_HOUR);
 assert.equal(clockFromElapsed.minute, 2);
 assert.equal(gameClock(workMorningTick).hour, CALENDAR_WORK_START_HOUR);
+assert.ok(Math.abs(interpolatedSimElapsedSeconds(0, 1, 1) - 0.4) < 1e-9);
+assert.ok(Math.abs(interpolatedSimElapsedSeconds(0, 1, 4) - 1.6) < 1e-9);
+assert.equal(interpolatedSimElapsedSeconds(0, 10, 0), 0);
 
 console.log('settlement schedule tests passed');

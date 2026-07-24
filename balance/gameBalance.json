@@ -1,7 +1,9 @@
 {
   "sim": {
     "tickMicros": 200000,
-    "tickDt": 0.2
+    "tickDt": 0.2,
+    "baseSpeedNumerator": 2,
+    "baseSpeedDenominator": 5
   },
   "calendar": {
     "secondsPerDay": 120,

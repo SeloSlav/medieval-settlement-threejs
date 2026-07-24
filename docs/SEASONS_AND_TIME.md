@@ -18,22 +18,23 @@ The calendar is deliberately fictional and fixed:
 
 | Speed | Day | Month | Season | Year |
 | --- | ---: | ---: | ---: | ---: |
-| Paused | — | — | — | — |
-| Normal, 1× | 2 min | 20 min | 1 hr | 4 hr |
-| Fast, 4× | 30 sec | 5 min | 15 min | 1 hr |
-| Very fast, 12× | 10 sec | 1 min 40 sec | 5 min | 20 min |
+| Leisurely, 1× | 5 min | 50 min | 2 hr 30 min | 10 hr |
+| Fast, 4× | 1 min 15 sec | 12 min 30 sec | 37 min 30 sec | 2 hr 30 min |
+| Very fast, 12× | 25 sec | 4 min 10 sec | 12 min 30 sec | 50 min |
 
-The scheduler still fires every 200 milliseconds. Fast modes run 4 or 12 complete
-simulation substeps per scheduler transaction. They therefore accelerate movement,
+The scheduler still fires every 200 milliseconds and every completed substep retains
+its established 0.2-second meaning, so existing save clocks do not jump when this
+pacing is deployed. A persistent fixed-point budget completes two substeps per five
+scheduler callbacks at 1×. Fast modes receive 4 or 12 times that budget, making 1× a
+deliberately leisurely baseline. Faster modes accelerate movement,
 labor, construction, production, deliveries, consumption, regrowth, reproduction,
-weather damage, and the calendar together. Pause runs zero substeps; placement,
-inspection, labor assignment, and speed controls remain usable.
+weather damage, and the calendar together.
 
-Controls are in the settlement clock. `Space` toggles pause and the last running
-speed; `1`, `2`, and `3` select Normal, Fast, and Very fast. Speed is server
-authoritative and global to the world. In the current shared-world model, any
-connected player can change it; host-only authority should be added before a
-competitive multiplayer mode.
+Controls are in the settlement clock. `1`, `2`, and `3` select Leisurely, Fast, and
+Very fast. Pause remains supported by the server reducer for administration and
+recovery, but is not exposed as a player control. Speed is server authoritative and
+global to the world. In the current shared-world model, any connected player can
+change it; host-only authority should be added before a competitive multiplayer mode.
 
 ## Deterministic weather
 
@@ -175,7 +176,7 @@ mirrored in `server/src/season_policy.rs` and `src/world/seasonPolicy.ts`.
 
 The most important tuning sequence is:
 
-1. Observe whether a 60-minute season at Normal creates meaningful preparation.
+1. Observe whether a 150-minute season at Leisurely creates meaningful preparation.
 2. Tune work requirements so an appropriately staffed farm can harvest in September
    and plough/sow in October–November without making failure impossible.
 3. Tune winter firewood and pasture multipliers against one full four-hour year.

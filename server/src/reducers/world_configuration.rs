@@ -2,7 +2,7 @@ use spacetimedb::{reducer, ReducerContext};
 
 use crate::constants::DEFAULT_WORLD_SEED;
 use crate::db::*;
-use crate::tables::WorldConfig;
+use crate::tables::{SimPacingState, WorldConfig};
 use crate::world_entities::{clear_global_world_entities, has_global_world_entities};
 
 const MAP_SIZE_SMALL: u8 = 0;
@@ -25,6 +25,12 @@ pub fn set_game_speed(ctx: &ReducerContext, speed: u8) -> Result<(), String> {
         game_speed: speed,
         ..config
     });
+    if ctx.db.sim_pacing_state().id().find(&0).is_some() {
+        ctx.db.sim_pacing_state().id().update(SimPacingState {
+            id: 0,
+            step_credit: 0,
+        });
+    }
     Ok(())
 }
 
