@@ -59,6 +59,9 @@ import {
   disposeVineyardVineResources,
   initializeVineyardVineResources,
 } from '../vegetation/seedthree/vineyardVines.ts';
+import { PrecipitationRenderer } from '../weather/PrecipitationRenderer.ts';
+import { precipitationProfile } from '../weather/precipitationPolicy.ts';
+import type { EnvironmentState } from '../world/seasonPolicy.ts';
 
 export type SceneLoadProgress = {
   label: string;
@@ -83,6 +86,7 @@ export class SceneManager {
   readonly previewGroup = new THREE.Group();
   readonly selectionGroup = new THREE.Group();
   private readonly sky: SkyCloudMesh;
+  private readonly precipitation: PrecipitationRenderer;
   private readonly sunDirection = new THREE.Vector3();
   private sunLight!: THREE.DirectionalLight;
   private hemiLight!: THREE.HemisphereLight;
@@ -127,6 +131,8 @@ export class SceneManager {
   private lastShadowDistance = Number.NaN;
   private unsubscribeShadowPreferences: (() => void) | null = null;
   private unsubscribeHydrologyOverlayPreference: (() => void) | null = null;
+  private environment: EnvironmentState | null = null;
+  private lastDayNightState: DayNightLightingState | null = null;
 
   private constructor(
     container: HTMLElement,
@@ -198,6 +204,7 @@ export class SceneManager {
       this.previewGroup,
       this.selectionGroup,
     );
+    this.precipitation = new PrecipitationRenderer(this.camera, this.scene);
     this.addLighting();
     this.postProcessor = createPostProcessor(backend, this.scene, this.camera);
     this.unsubscribeShadowPreferences = subscribeShadowPreferences(() => this.applyShadowPreferences());
@@ -465,6 +472,7 @@ export class SceneManager {
     this.sky.updateCamera(this.camera);
     this.sky.updateSun(this.sunDirection);
     this.sky.updateTime(this.skyAnimationTime);
+    this.precipitation.update(dt, cameraDistance, firstPersonActive);
     this.riverSystem.tick(dt, elapsed);
     if (firstPersonActive) {
       this.firstPersonDeerObserver.x = this.camera.position.x;
@@ -504,30 +512,56 @@ export class SceneManager {
   }
 
   applyDayNight(state: DayNightLightingState): void {
+    this.lastDayNightState = state;
+    const weather = precipitationProfile(this.environment);
+    const atmosphericBlend = weather.kind === 'rain'
+      ? 0.42
+      : weather.kind === 'snow'
+        ? 0.28
+        : this.environment?.weather === 'drought'
+          ? 0.16
+          : 0;
     this.skyAnimationTime = state.skyAnimationTime;
     this.sunDirection.copy(state.sunDirection);
-    this.sunLight.color.setHex(state.sunColor);
-    this.sunLight.intensity = state.sunIntensity;
+    this.sunLight.color.setHex(blendColorHex(state.sunColor, weather.fogTint, atmosphericBlend * 0.28));
+    this.sunLight.intensity = state.sunIntensity * weather.sunlightMultiplier;
     // Keep the sun parallel to the fitted shadow target — not world origin — so panning
     // does not skew directional shadows between shadow-map refits.
     this.sunLight.position.copy(this.sunLight.target.position).addScaledVector(state.sunDirection, 180);
     this.sunLight.updateMatrixWorld();
     this.sunLight.target.updateMatrixWorld();
     updateDirectionalShadowCameraMatrices(this.sunLight);
-    this.hemiLight.color.setHex(state.hemiSkyColor);
-    this.hemiLight.groundColor.setHex(state.hemiGroundColor);
-    this.hemiLight.intensity = state.hemiIntensity;
-    this.ambientLight.color.setHex(state.ambientColor);
-    this.ambientLight.intensity = state.ambientIntensity;
-    setBuildingIndirectLightIntensity(state.buildingIndirectIntensity);
-    this.skyFillLight.color.setHex(state.fillColor);
-    this.skyFillLight.intensity = state.fillIntensity;
+    this.hemiLight.color.setHex(blendColorHex(state.hemiSkyColor, weather.fogTint, atmosphericBlend * 0.48));
+    this.hemiLight.groundColor.setHex(blendColorHex(state.hemiGroundColor, weather.fogTint, atmosphericBlend * 0.2));
+    this.hemiLight.intensity = state.hemiIntensity * THREE.MathUtils.lerp(1, 0.82, atmosphericBlend);
+    this.ambientLight.color.setHex(blendColorHex(state.ambientColor, weather.fogTint, atmosphericBlend * 0.34));
+    this.ambientLight.intensity = state.ambientIntensity * THREE.MathUtils.lerp(1, 0.9, atmosphericBlend);
+    setBuildingIndirectLightIntensity(
+      state.buildingIndirectIntensity * THREE.MathUtils.lerp(1, 0.84, atmosphericBlend),
+    );
+    this.skyFillLight.color.setHex(blendColorHex(state.fillColor, weather.fogTint, atmosphericBlend * 0.4));
+    this.skyFillLight.intensity = state.fillIntensity * THREE.MathUtils.lerp(1, 0.86, atmosphericBlend);
     this.skyFillLight.position.copy(this.sunDirection).multiplyScalar(-90).add(new THREE.Vector3(0, 65, 0));
     if (this.scene.fog instanceof THREE.FogExp2) {
-      this.scene.fog.color.setHex(state.fogColor);
-      this.scene.fog.density = state.fogDensity;
+      this.scene.fog.color.setHex(blendColorHex(state.fogColor, weather.fogTint, atmosphericBlend));
+      this.scene.fog.density = state.fogDensity * weather.fogDensityMultiplier;
     }
-    this.postProcessor.setDayNightGrade(state.grade);
+    this.postProcessor.setDayNightGrade({
+      ...state.grade,
+      saturation: state.grade.saturation * weather.saturationMultiplier,
+      contrast: state.grade.contrast * THREE.MathUtils.lerp(1, 0.95, atmosphericBlend),
+      warmth: Math.max(
+        0,
+        state.grade.warmth + (this.environment?.weather === 'drought' ? 0.08 : -atmosphericBlend * 0.08),
+      ),
+      vignette: state.grade.vignette + atmosphericBlend * 0.025,
+    });
+  }
+
+  setEnvironment(environment: EnvironmentState): void {
+    this.environment = environment;
+    this.precipitation.setEnvironment(environment);
+    if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }
 
   getPerformanceStats(): { backend: RendererBackendKind; calls: number; triangles: number; pixelRatio: number } {
@@ -737,6 +771,7 @@ export class SceneManager {
     disposeObject3D(this.riverSystem.group);
     this.quarrySystem.dispose();
     disposeObject3D(this.quarrySystem.group);
+    this.precipitation.dispose();
     this.sky.dispose();
     this.postProcessor.dispose();
     disposeObject3D(this.junctionGroup);
@@ -827,6 +862,20 @@ function forestClearanceSourceSignature(
     .sort()
     .join('|');
   return `${buildingPart}§${parcelPart}§${farmFieldPart}`;
+}
+
+function blendColorHex(from: number, to: number, amount: number): number {
+  const mix = THREE.MathUtils.clamp(amount, 0, 1);
+  const fromR = (from >> 16) & 255;
+  const fromG = (from >> 8) & 255;
+  const fromB = from & 255;
+  const toR = (to >> 16) & 255;
+  const toG = (to >> 8) & 255;
+  const toB = to & 255;
+  const r = Math.round(THREE.MathUtils.lerp(fromR, toR, mix));
+  const g = Math.round(THREE.MathUtils.lerp(fromG, toG, mix));
+  const b = Math.round(THREE.MathUtils.lerp(fromB, toB, mix));
+  return (r << 16) | (g << 8) | b;
 }
 
 function projectPointToPathXZ(

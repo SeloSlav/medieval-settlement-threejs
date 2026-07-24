@@ -39,6 +39,7 @@ import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext 
 import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
 import { gameClock } from '../world/gameCalendar.ts';
 import { environmentFor } from '../world/seasonPolicy.ts';
+import { precipitationPreviewEnvironment } from '../weather/precipitationPolicy.ts';
 import { SessionConnectionGate } from '../network/SessionConnectionGate.ts';
 import { SessionConnectionOverlay } from '../ui/SessionConnectionOverlay.ts';
 import {
@@ -560,13 +561,16 @@ export class App {
       this.syncResourceUi();
     }
     this.syncToolbar();
-    this.toolbar?.setSimulationState(
-      snapshot.gameSpeed,
-      environmentFor(
-        state.seed,
-        snapshot.worldGeneration?.hydrology ?? 50,
-        gameClock(snapshot.simTick),
-      ),
+    const environment = environmentFor(
+      state.seed,
+      snapshot.worldGeneration?.hydrology ?? 50,
+      gameClock(snapshot.simTick),
+    );
+    this.toolbar?.setSimulationState(snapshot.gameSpeed, environment);
+    this.sceneManager?.setEnvironment(
+      import.meta.env.DEV
+        ? precipitationPreviewEnvironment(environment, window.location.search)
+        : environment,
     );
     this.toolbar?.settlementHud.setFireState(
       state.fireIncidents.values(),

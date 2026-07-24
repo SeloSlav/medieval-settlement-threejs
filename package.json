@@ -26,6 +26,7 @@
     "test:marketplace-trade": "npx tsx scripts/testMarketplaceTrade.mts",
     "test:settlement-schedule": "npx tsx scripts/testSettlementSchedule.mts",
     "test:seasons": "node --experimental-strip-types scripts/testSeasonSimulation.mts",
+    "test:weather-visuals": "node --experimental-strip-types scripts/testPrecipitationVisuals.mts",
     "test:fires": "node --experimental-strip-types scripts/testFireSystem.mts",
     "test:world-config": "npx tsx scripts/testWorldConfigAuthority.mts",
     "test:connection-recovery": "npx tsx scripts/testConnectionRecoveryHints.mts",
