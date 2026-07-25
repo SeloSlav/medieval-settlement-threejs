@@ -158,7 +158,11 @@ assert.deepEqual(
     farmFields: [],
     pastures: [],
     quarries: [],
-    foragingNodes: mushroomStates,
+    // GameState supplies Map.values(), a one-shot iterator. Checking berries
+    // must not consume it before the validator can see mushrooms.
+    foragingNodes: new Map(
+      mushroomStates.map((node) => [node.nodeId, node] as const),
+    ).values(),
     stockpile: { timber: 10_000, stone: 10_000 },
     isWaterAt: () => false,
     getNaturalHeightAt: () => 0,

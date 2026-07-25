@@ -371,9 +371,14 @@ function hasAnyForagingInRadius(
   nodeKinds: ReadonlyArray<'game' | 'berries' | 'mushrooms' | 'fish'>,
   nodes: Iterable<ForagingNodeState>,
 ): boolean {
-  return nodeKinds.some((nodeKind) =>
-    hasForagingInRadius(x, z, radius, nodeKind, nodes, true)
-  );
+  const acceptedKinds = new Set(nodeKinds);
+  for (const node of nodes) {
+    if (!acceptedKinds.has(node.kind)) continue;
+    if (Math.hypot(node.x - x, node.z - z) <= radius) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function buildingFootprintOverlapsRoadSurface(
