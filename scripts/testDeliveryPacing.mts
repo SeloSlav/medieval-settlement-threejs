@@ -7,6 +7,7 @@ import {
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 import { deliveryLegRemainingMeters } from '../src/logistics/deliveryTrips.ts';
+import { DELIVERY_ROAD_SPEED_MULTIPLIER } from '../src/roads/roadTravel.ts';
 
 const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), 'utf8');
@@ -44,10 +45,14 @@ assert.match(
   /while remaining_seconds > 1e-9/,
   'large speed steps must carry elapsed time across trip phase boundaries',
 );
-assert.match(deliveryServer, /remaining_distance \/ travel_speed/);
+assert.match(deliveryServer, /advance_travel_progress\(/);
+assert.match(deliveryServer, /network\.is_on_road_surface\(x, z\)/);
+assert.equal(DELIVERY_ROAD_SPEED_MULTIPLIER, 1.35);
+assert.match(deliveryServer, /DELIVERY_ROAD_SPEED_MULTIPLIER: f64 = 1\.35/);
 
 const deliveryRenderer = read('src/logistics/DeliveryAgentRenderer.ts');
-assert.match(deliveryRenderer, /effectiveTravelSpeed = visual\.travelSpeed \* gameSpeed/);
+assert.match(deliveryRenderer, /surfaceAdjustedTravelSpeed\(/);
+assert.match(deliveryRenderer, /DELIVERY_ROAD_SPEED_MULTIPLIER/);
 assert.match(deliveryRenderer, /phaseChanged \|\| progressRestarted/);
 assert.match(
   deliveryRenderer,
@@ -60,6 +65,11 @@ assert.match(
   appBootstrap,
   /new DeliveryAgentRenderer\(\{[\s\S]*?getRoadDeckY:[\s\S]*?sampleRoadDeckY/,
   'delivery agents should receive the same bridge deck sampler as villagers and first-person',
+);
+assert.match(
+  appBootstrap,
+  /new DeliveryAgentRenderer\(\{[\s\S]*?isOnRoadSurface:/,
+  'delivery agents should receive the live road-surface query used for cart speed',
 );
 
 const villagerInspector = read('src/ui/VillagerInspector.ts');

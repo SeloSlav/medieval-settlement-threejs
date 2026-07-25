@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
+import { isOnRoadSurface } from '../roads/roadConnectivity.ts';
+import {
+  PEDESTRIAN_ROAD_SPEED_MULTIPLIER,
+  surfaceAdjustedTravelSpeed,
+} from '../roads/roadTravel.ts';
 import type {
   BuildingState,
   FarmFieldState,
@@ -58,6 +63,10 @@ import {
   villagerDisplayName,
   villagerOccupation,
 } from './villagerIdentity.ts';
+import {
+  chapelGatheringPoint,
+  isSundayMassTime,
+} from './chapelMass.ts';
 
 type VillagerMode = VillagerRenderMode;
 type VillagerRole = 'resident' | 'worker';
@@ -65,12 +74,17 @@ type VillagerRoutinePhase =
   | 'work'
   | 'commuting_to_work'
   | 'returning_home'
+  | 'going_to_mass'
+  | 'at_mass'
+  | 'returning_from_mass'
   | HouseholdHomeState;
 type VillagerPathPurpose =
   | 'home_wander'
   | 'worker_work_loop'
   | 'commute_to_work'
   | 'return_home'
+  | 'chapel_mass'
+  | 'return_from_mass'
   | null;
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
@@ -98,6 +112,8 @@ type VillagerAgent = {
   workPerformed: boolean;
   idleRemaining: number;
   walkSpeed: number;
+  currentMoveSpeed: number;
+  massChapelId: string | null;
   appearanceSeed: number;
   modelVariant: VillagerModelVariant;
   tunicColor: number;
@@ -292,6 +308,8 @@ export class VillagerRenderer {
             workPerformed: false,
             idleRemaining: pickIdleDuration(appearanceSeed),
             walkSpeed: pickWalkSpeed(appearanceSeed),
+            currentMoveSpeed: 0,
+            massChapelId: null,
             appearanceSeed,
             modelVariant: pickVillagerModelVariant(appearanceSeed),
             tunicColor: colors.tunic,
@@ -379,6 +397,8 @@ export class VillagerRenderer {
           workPerformed: false,
           idleRemaining: pickIdleDuration(appearanceSeed) * 0.55,
           walkSpeed: pickWalkSpeed(appearanceSeed),
+          currentMoveSpeed: 0,
+          massChapelId: null,
           appearanceSeed,
           modelVariant: pickVillagerModelVariant(appearanceSeed),
           tunicColor: colors.tunic,
@@ -472,7 +492,9 @@ export class VillagerRenderer {
 
       agent.frozen = !isWithinCrowdView(agent.x, agent.z, view);
       const commuteMustAdvance = agent.pathPurpose === 'return_home'
-        || agent.pathPurpose === 'commute_to_work';
+        || agent.pathPurpose === 'commute_to_work'
+        || agent.pathPurpose === 'chapel_mass'
+        || agent.pathPurpose === 'return_from_mass';
       if (agent.frozen && !commuteMustAdvance) continue;
 
       agent.simAccumulator += dt;
@@ -581,7 +603,9 @@ export class VillagerRenderer {
       crew: workplace
         ? `${workplace.assignedLabor} / ${getBuildingDefinition(workplace.kind).maxLabor} assigned`
         : 'Free labor pool',
-      pace: `${agent.walkSpeed.toFixed(1)} m/s`,
+      pace: `${agent.walkSpeed.toFixed(1)} m/s off-road · ${
+        (agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER).toFixed(1)
+      } m/s on roads`,
       position: { x: agent.x, y: agent.y, z: agent.z },
       visible: this.isVisibleAgent(agent),
     };
@@ -627,6 +651,7 @@ export class VillagerRenderer {
         skinColor: agent.skinColor,
         hairColor: agent.hairColor,
         tool: this.workerToolFor(agent),
+        movementSpeed: agent.currentMoveSpeed,
         active: true,
       });
     }
@@ -660,12 +685,14 @@ export class VillagerRenderer {
       || agent.mode === 'tend'
       || agent.mode === 'build'
     ) {
+      agent.currentMoveSpeed = 0;
       agent.workRemaining -= dt;
       if (agent.workRemaining <= 0) this.finishWorkerActivity(agent);
       return;
     }
 
     if (agent.mode === 'idle') {
+      agent.currentMoveSpeed = 0;
       agent.idleRemaining -= dt;
       if (agent.idleRemaining <= 0) {
         if (agent.routinePhase === 'work' && agent.role === 'worker') {
@@ -682,9 +709,20 @@ export class VillagerRenderer {
       return;
     }
 
+    const currentPathPoint = samplePolylineXZ(agent.path, agent.simPathCursor);
+    const onRoad = Boolean(
+      currentPathPoint
+      && this.roadNetwork
+      && isOnRoadSurface(currentPathPoint.x, currentPathPoint.z, this.roadNetwork),
+    );
+    agent.currentMoveSpeed = surfaceAdjustedTravelSpeed(
+      agent.walkSpeed,
+      onRoad,
+      PEDESTRIAN_ROAD_SPEED_MULTIPLIER,
+    );
     const nextPathCursor = Math.min(
       agent.pathDistance,
-      agent.simPathCursor + agent.walkSpeed * dt,
+      agent.simPathCursor + agent.currentMoveSpeed * dt,
     );
     if (
       agent.pathPurpose === 'worker_work_loop'
@@ -706,6 +744,12 @@ export class VillagerRenderer {
           break;
         case 'commute_to_work':
           this.completeWorkerCommuteToWork(agent);
+          break;
+        case 'chapel_mass':
+          this.completeMassArrival(agent);
+          break;
+        case 'return_from_mass':
+          this.completeMassReturn(agent);
           break;
         case 'worker_work_loop':
           this.resetWorkerToIdle(agent);
@@ -742,7 +786,9 @@ export class VillagerRenderer {
 
   private readDisplayYaw(agent: VillagerAgent): number {
     if (agent.mode !== 'walk') {
-      if (agent.routinePhase === 'work') return agent.yaw;
+      if (agent.routinePhase === 'work' || agent.routinePhase === 'at_mass') {
+        return agent.yaw;
+      }
       const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
       return residence ? residence.yaw + agent.idleOffset.yaw : agent.yaw;
     }
@@ -857,6 +903,29 @@ export class VillagerRenderer {
   private reconcileRoutine(agent: VillagerAgent): boolean {
     if (!this.clock) return false;
     const homeState = householdMemberHomeState(agent.personIdentity, this.clock);
+    const chapel = this.findMassChapel(agent);
+    const shouldAttendMass = isSundayMassTime(
+      this.clock,
+      chapel != null,
+    );
+
+    if (shouldAttendMass && chapel) {
+      if (
+        agent.routinePhase === 'going_to_mass'
+        || agent.routinePhase === 'at_mass'
+      ) {
+        return false;
+      }
+      return this.beginMassJourney(agent, chapel);
+    }
+
+    if (
+      agent.routinePhase === 'going_to_mass'
+      || agent.routinePhase === 'at_mass'
+    ) {
+      return this.beginMassReturn(agent);
+    }
+    if (agent.routinePhase === 'returning_from_mass') return false;
 
     if (agent.role === 'worker') {
       const shouldWork = this.clock.isWorkHours && !this.laborPaused;
@@ -874,6 +943,102 @@ export class VillagerRenderer {
     }
 
     return this.transitionToHomeState(agent, homeState);
+  }
+
+  private findMassChapel(agent: VillagerAgent): BuildingState | null {
+    let nearest: BuildingState | null = null;
+    let nearestDistance = Infinity;
+    for (const building of this.buildings.values()) {
+      if (
+        building.kind !== 'chapel'
+        || building.constructionComplete === false
+        || building.assignedLabor <= 0
+      ) {
+        continue;
+      }
+      const distance = Math.hypot(building.x - agent.x, building.z - agent.z);
+      if (distance >= nearestDistance) continue;
+      nearest = building;
+      nearestDistance = distance;
+    }
+    return nearest;
+  }
+
+  private beginMassJourney(agent: VillagerAgent, chapel: BuildingState): boolean {
+    const destination = chapelGatheringPoint(chapel, agent.personIdentity);
+    const distance = Math.hypot(destination.x - agent.x, destination.z - agent.z);
+    agent.massChapelId = chapel.id;
+    if (distance < 0.25) {
+      this.completeMassArrival(agent);
+      return true;
+    }
+    const path = pickWorkerCommutePath(
+      { x: agent.x, z: agent.z },
+      destination,
+      this.roadNetwork,
+    );
+    if (!path || !this.beginJourney(agent, path, 'chapel_mass')) {
+      agent.massChapelId = null;
+      return false;
+    }
+    agent.routinePhase = 'going_to_mass';
+    return true;
+  }
+
+  private completeMassArrival(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    const chapel = agent.massChapelId
+      ? this.buildings.get(agent.massChapelId) ?? null
+      : null;
+    if (!chapel) {
+      agent.massChapelId = null;
+      return;
+    }
+    const gathering = chapelGatheringPoint(chapel, agent.personIdentity);
+    agent.x = gathering.x;
+    agent.z = gathering.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = Math.atan2(chapel.x - agent.x, chapel.z - agent.z);
+    agent.routinePhase = 'at_mass';
+    agent.idleRemaining = 60;
+  }
+
+  private beginMassReturn(agent: VillagerAgent): boolean {
+    const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
+    if (!residence) {
+      this.completeMassReturn(agent);
+      return true;
+    }
+    const path = pickWorkerCommutePath(
+      { x: agent.x, z: agent.z },
+      residenceDoorPosition(residence),
+      this.roadNetwork,
+    );
+    if (!path || !this.beginJourney(agent, path, 'return_from_mass')) {
+      this.completeMassReturn(agent);
+      return true;
+    }
+    agent.routinePhase = 'returning_from_mass';
+    return true;
+  }
+
+  private completeMassReturn(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    agent.massChapelId = null;
+    if (
+      agent.role === 'worker'
+      && this.clock?.isWorkHours
+      && !this.laborPaused
+    ) {
+      agent.routinePhase = 'home_outdoors';
+      this.beginWorkerCommuteToWork(agent);
+      return;
+    }
+    const homeState = this.clock
+      ? householdMemberHomeState(agent.personIdentity, this.clock)
+      : 'home_outdoors';
+    agent.routinePhase = 'returning_from_mass';
+    this.transitionToHomeState(agent, homeState);
   }
 
   private beginWorkerReturnHome(agent: VillagerAgent): boolean {
@@ -1004,6 +1169,14 @@ export class VillagerRenderer {
       agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
     }
     this.clearPath(agent);
+    if (purpose === 'chapel_mass') {
+      this.completeMassArrival(agent);
+      return;
+    }
+    if (purpose === 'return_from_mass') {
+      this.completeMassReturn(agent);
+      return;
+    }
     if (purpose === 'commute_to_work') agent.routinePhase = 'home_outdoors';
     if (purpose === 'return_home' || purpose === 'worker_work_loop') {
       agent.routinePhase = 'work';
@@ -1013,6 +1186,7 @@ export class VillagerRenderer {
 
   private clearPath(agent: VillagerAgent): void {
     agent.mode = 'idle';
+    agent.currentMoveSpeed = 0;
     agent.pathPurpose = null;
     agent.path = [];
     agent.pathDistance = 0;
@@ -1175,6 +1349,12 @@ function describeVillagerActivity(
       return `Walking to ${workplaceLabel}`;
     case 'returning_home':
       return 'Walking home';
+    case 'going_to_mass':
+      return 'Walking to Sunday mass';
+    case 'at_mass':
+      return 'Attending Sunday mass';
+    case 'returning_from_mass':
+      return 'Walking home from Sunday mass';
     case 'work':
       if (agent.mode === 'chop') return `Chopping timber near ${workplaceLabel}`;
       if (agent.mode === 'mine') return `Quarrying stone near ${workplaceLabel}`;

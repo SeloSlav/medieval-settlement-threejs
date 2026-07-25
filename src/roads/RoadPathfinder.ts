@@ -239,6 +239,15 @@ export class RoadPathfinder {
     nodePath: readonly string[],
   ): RoadPoint[] {
     const path: RoadPoint[] = [{ x: ax, z: az }];
+    const firstNode = nodePath.length > 0
+      ? this.network.nodes.get(nodePath[0])
+      : null;
+    if (firstNode) {
+      this.appendPoint(path, {
+        x: firstNode.position.x,
+        z: firstNode.position.z,
+      });
+    }
     for (let i = 0; i < nodePath.length - 1; i++) {
       const segment = this.edgePolylineBetween(nodePath[i], nodePath[i + 1]);
       if (!segment) continue;

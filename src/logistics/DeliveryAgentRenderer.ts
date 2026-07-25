@@ -28,6 +28,10 @@ import {
 import type { Terrain } from '../terrain/Terrain.ts';
 import { samplePolylineXZ, type PointXZ } from '../utils/pathGeometry.ts';
 import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
+import {
+  DELIVERY_ROAD_SPEED_MULTIPLIER,
+  surfaceAdjustedTravelSpeed,
+} from '../roads/roadTravel.ts';
 import { isWithinShadowRange, type CrowdViewState } from '../settlement/crowdView.ts';
 import { hashStringSeed } from '../utils/random.ts';
 import {
@@ -59,6 +63,7 @@ type DeliveryAgentRendererOptions = {
   parent: THREE.Group;
   getGameSpeed: () => GameSpeed;
   getRoadDeckY?: (x: number, z: number) => number | null;
+  isOnRoadSurface?: (x: number, z: number) => boolean;
 };
 
 export type DeliveryAgentInspection = {
@@ -75,6 +80,7 @@ export class DeliveryAgentRenderer {
   private readonly getGameSpeed: () => GameSpeed;
   private readonly terrain: Terrain;
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
+  private readonly isOnRoadSurface: ((x: number, z: number) => boolean) | null;
   private readonly group = new THREE.Group();
   private readonly visuals = new Map<string, TripVisual>();
   private readonly selectedRoute: THREE.Line<
@@ -91,6 +97,7 @@ export class DeliveryAgentRenderer {
     this.getGameSpeed = options.getGameSpeed;
     this.terrain = options.terrain;
     this.getRoadDeckY = options.getRoadDeckY ?? null;
+    this.isOnRoadSurface = options.isOnRoadSurface ?? null;
     this.group.name = 'Delivery agents';
     this.selectedRoute = createSelectedDeliveryRoute();
     this.group.add(this.selectedRoute);
@@ -154,7 +161,18 @@ export class DeliveryAgentRenderer {
   update(dt: number, view?: CrowdViewState): void {
     const gameSpeed = this.getGameSpeed();
     for (const [tripId, visual] of this.visuals) {
-      const effectiveTravelSpeed = visual.travelSpeed * gameSpeed;
+      const currentSample = visual.polyline.length >= 2
+        ? samplePolylineXZ(visual.polyline, this.phaseSampleDistance(visual))
+        : null;
+      const onRoadSurface = this.isOnRoadSurface?.(
+        currentSample?.x ?? visual.serverX,
+        currentSample?.z ?? visual.serverZ,
+      ) ?? false;
+      const effectiveTravelSpeed = surfaceAdjustedTravelSpeed(
+        visual.travelSpeed,
+        onRoadSurface,
+        DELIVERY_ROAD_SPEED_MULTIPLIER,
+      ) * gameSpeed;
       if (visual.phase !== 'unloading') {
         visual.displayProgress += effectiveTravelSpeed * dt;
         const maxLead = Math.max(0.6, effectiveTravelSpeed * 0.35);

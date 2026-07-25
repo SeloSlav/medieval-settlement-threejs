@@ -677,14 +677,19 @@ fn step_one_trip(
 
         match phase {
             DeliveryTripPhase::Outbound => {
-                let remaining_distance = (path_distance - trip.progress).max(0.0);
-                let travel_seconds = remaining_distance / travel_speed;
-                if remaining_seconds + 1e-9 < travel_seconds {
-                    trip.progress += travel_speed * remaining_seconds;
-                    remaining_seconds = 0.0;
-                } else {
+                let advance = advance_travel_progress(
+                    &network,
+                    &route.polyline,
+                    trip.progress,
+                    path_distance,
+                    remaining_seconds,
+                    travel_speed,
+                    false,
+                );
+                trip.progress = advance.progress;
+                remaining_seconds = advance.remaining_seconds;
+                if advance.reached_end {
                     trip.progress = path_distance;
-                    remaining_seconds = (remaining_seconds - travel_seconds).max(0.0);
                     trip.phase = DeliveryTripPhase::Unloading.as_u8();
                     trip.unload_remaining = trip.unload_seconds / workers;
                 }
@@ -703,12 +708,18 @@ fn step_one_trip(
                 }
             }
             DeliveryTripPhase::Inbound => {
-                let remaining_distance = (path_distance - trip.progress).max(0.0);
-                let travel_seconds = remaining_distance / travel_speed;
-                if remaining_seconds + 1e-9 < travel_seconds {
-                    trip.progress += travel_speed * remaining_seconds;
-                    remaining_seconds = 0.0;
-                } else {
+                let advance = advance_travel_progress(
+                    &network,
+                    &route.polyline,
+                    trip.progress,
+                    path_distance,
+                    remaining_seconds,
+                    travel_speed,
+                    true,
+                );
+                trip.progress = advance.progress;
+                remaining_seconds = advance.remaining_seconds;
+                if advance.reached_end {
                     finish_inbound_trip(ctx, trip);
                     return;
                 }
@@ -740,6 +751,55 @@ fn step_one_trip(
         }
     }
     ctx.db.delivery_trip().id().update(trip);
+}
+
+const DELIVERY_ROAD_SPEED_MULTIPLIER: f64 = 1.35;
+const SURFACE_SPEED_SAMPLE_SECONDS: f64 = 0.25;
+
+struct TravelAdvance {
+    progress: f64,
+    remaining_seconds: f64,
+    reached_end: bool,
+}
+
+fn advance_travel_progress(
+    network: &RoadNetwork,
+    polyline: &[[f64; 2]],
+    mut progress: f64,
+    path_distance: f64,
+    mut remaining_seconds: f64,
+    base_speed: f64,
+    inbound: bool,
+) -> TravelAdvance {
+    while remaining_seconds > 1e-9 && progress + 1e-9 < path_distance {
+        let (x, z) = if inbound {
+            RoadNetwork::sample_polyline_inbound_xz(polyline, progress)
+        } else {
+            RoadNetwork::sample_polyline_xz(polyline, progress)
+        };
+        let road_multiplier = if network.is_on_road_surface(x, z) {
+            DELIVERY_ROAD_SPEED_MULTIPLIER
+        } else {
+            1.0
+        };
+        let speed = base_speed * road_multiplier;
+        let distance_left = (path_distance - progress).max(0.0);
+        let sample_seconds = remaining_seconds.min(SURFACE_SPEED_SAMPLE_SECONDS);
+        let seconds_to_end = distance_left / speed;
+        if seconds_to_end <= sample_seconds + 1e-9 {
+            progress = path_distance;
+            remaining_seconds = (remaining_seconds - seconds_to_end).max(0.0);
+            break;
+        }
+        progress += speed * sample_seconds;
+        remaining_seconds -= sample_seconds;
+    }
+
+    TravelAdvance {
+        progress,
+        remaining_seconds,
+        reached_end: progress + 1e-9 >= path_distance,
+    }
 }
 
 fn trip_route(

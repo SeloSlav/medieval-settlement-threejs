@@ -307,6 +307,11 @@ impl RoadNetwork {
         node_path: &[String],
     ) -> Vec<[f64; 2]> {
         let mut path: Vec<[f64; 2]> = vec![[ax, az]];
+        if let Some(first_node_id) = node_path.first() {
+            if let Some(&(x, z)) = self.nodes.get(first_node_id) {
+                append_point(&mut path, x, z);
+            }
+        }
         for window in node_path.windows(2) {
             if let Some(segment) = self.edge_polyline_between(&window[0], &window[1]) {
                 append_polyline(&mut path, &segment);
@@ -341,6 +346,12 @@ impl RoadNetwork {
     fn route_distance(&self, ax: f64, az: f64, bx: f64, bz: f64, node_path: &[String]) -> f64 {
         let mut previous = (ax, az);
         let mut total = 0.0;
+        if let Some(first_node_id) = node_path.first() {
+            if let Some(&(x, z)) = self.nodes.get(first_node_id) {
+                total += distance(previous.0, previous.1, x, z);
+                previous = (x, z);
+            }
+        }
         for window in node_path.windows(2) {
             if let Some((edge, reverse)) = self.edge_between(&window[0], &window[1]) {
                 if reverse {
@@ -702,6 +713,14 @@ mod tests {
         assert!(!network.road_connected(0.0, 0.0, 100.0, 0.0));
         assert!((network.road_path_distance(0.0, 0.0, 20.0, 0.0).unwrap() - 20.0).abs() < 1e-9);
         assert!(network.is_on_road_surface(100.0, 2.9));
+
+        let short_route = network
+            .road_path_route(1.0, 3.0, 2.0, 3.0)
+            .expect("nearby endpoints should still attach to the road");
+        assert!(
+            short_route.polyline.iter().any(|point| point[1].abs() < 1e-9),
+            "a same-node route must include its road attachment instead of cutting directly"
+        );
     }
 
     #[test]

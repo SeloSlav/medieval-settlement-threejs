@@ -40,6 +40,7 @@ import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { RoadSelection } from '../roads/RoadSelection.ts';
 import { RoadTool } from '../roads/RoadTool.ts';
+import { isOnRoadSurface } from '../roads/roadConnectivity.ts';
 import { SceneManager } from '../scene/SceneManager.ts';
 import { createInspectorSpacetimeActions } from './inspectorSpacetimeActions.ts';
 import { createWorldMapUi, resolveWorldMapFocus, type WorldMapUiBundle } from './worldMapIcons.ts';
@@ -260,6 +261,9 @@ export async function bootstrapAppSession(
     parent: sceneManager.selectionGroup,
     getGameSpeed: () => spacetimeStore.snapshot.gameSpeed,
     getRoadDeckY: (x, z) => sceneManager.sampleRoadDeckY(x, z),
+    isOnRoadSurface: (x, z) => (
+      roadNetwork ? isOnRoadSurface(x, z, roadNetwork) : false
+    ),
   });
   const fireEffects = new FireEffectsRenderer(
     sceneManager.terrain,

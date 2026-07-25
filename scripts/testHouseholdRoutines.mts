@@ -9,6 +9,11 @@ import {
 } from '../src/residences/householdRoutine.ts';
 import { pickWorkerCommutePath } from '../src/settlement/workerPaths.ts';
 import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import {
+  PEDESTRIAN_ROAD_SPEED_MULTIPLIER,
+  surfaceAdjustedTravelSpeed,
+} from '../src/roads/roadTravel.ts';
 import { computeDayNightState } from '../src/world/dayNightPresentation.ts';
 import type { GameClock } from '../src/world/gameCalendar.ts';
 
@@ -84,6 +89,26 @@ assert.deepEqual(
   'workers should still walk home directly when no road route is available',
 );
 
+const shortTripNetwork = new RoadNetwork();
+shortTripNetwork.addRoadPath([
+  new THREE.Vector3(0, 0, 0),
+  new THREE.Vector3(20, 0, 0),
+]);
+const shortRoadTrip = pickWorkerCommutePath(
+  { x: 1, z: 3 },
+  { x: 2, z: 3 },
+  shortTripNetwork,
+);
+assert.ok(
+  shortRoadTrip?.some((point) => Math.abs(point.z) < 1e-6),
+  'even a short same-node commute should attach to the road instead of cutting cross-country',
+);
+assert.equal(
+  surfaceAdjustedTravelSpeed(1.2, true, PEDESTRIAN_ROAD_SPEED_MULTIPLIER),
+  1.5,
+  'pedestrians should move 25% faster while their feet are on a road or bridge',
+);
+
 const originalWarn = console.warn;
 console.warn = () => {};
 const villagers = new VillagerRenderer({
@@ -92,9 +117,13 @@ const villagers = new VillagerRenderer({
 });
 const home = residence('routine-home', 0, 0);
 const workplace = building('routine-workplace', 12, 0);
+const chapel = {
+  ...building('routine-chapel', 28, 0),
+  kind: 'chapel' as const,
+};
 villagers.sync({
   residences: [home],
-  buildings: [workplace],
+  buildings: [workplace, chapel],
   quarries: [],
   foragingNodes: [],
   trees: new Map(),
@@ -132,6 +161,28 @@ assert.equal(worker.pathPurpose, 'commute_to_work');
 for (let step = 0; step < 600; step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.notEqual(worker.pathPurpose, 'commute_to_work');
+
+villagers.setSchedule({
+  ...fullClock(9),
+  weekday: 0,
+  isSunday: true,
+}, false);
+assert.equal(worker.routinePhase, 'going_to_mass');
+assert.equal(worker.pathPurpose, 'chapel_mass');
+for (let step = 0; step < 1200; step++) villagers.tick(0.05);
+assert.equal(worker.routinePhase, 'at_mass');
+assert.equal(worker.pathPurpose, null);
+
+villagers.setSchedule({
+  ...fullClock(12),
+  weekday: 0,
+  isSunday: true,
+}, false);
+assert.equal(worker.routinePhase, 'returning_from_mass');
+assert.equal(worker.pathPurpose, 'return_from_mass');
+for (let step = 0; step < 1200; step++) villagers.tick(0.05);
+assert.equal(worker.routinePhase, 'work');
+assert.notEqual(worker.pathPurpose, 'return_from_mass');
 villagers.dispose();
 await new Promise((resolve) => setTimeout(resolve, 0));
 console.warn = originalWarn;

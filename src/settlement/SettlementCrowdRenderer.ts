@@ -18,6 +18,7 @@ import {
 const MAX_INSTANCES = 1024;
 const MAX_ANIMATED_VILLAGERS = 72;
 const MODEL_YAW_OFFSET = 0;
+const NOMINAL_WALK_SPEED = 1.2;
 const BODY_GEOMETRY = new THREE.CapsuleGeometry(0.22, 0.72, 4, 8);
 const LEGS_GEOMETRY = new THREE.CapsuleGeometry(0.16, 0.34, 4, 8);
 const HEAD_GEOMETRY = new THREE.SphereGeometry(0.19, 10, 10);
@@ -93,6 +94,7 @@ export type CrowdRenderAgent = {
   skinColor: number;
   hairColor: number;
   tool: WorkerToolKind | null;
+  movementSpeed: number;
   active: boolean;
 };
 
@@ -340,6 +342,9 @@ export class SettlementCrowdRenderer {
       visual.root.position.set(agent.x, agent.y, agent.z);
       visual.root.rotation.y = agent.yaw + MODEL_YAW_OFFSET;
       if (visual.mode !== agent.mode) this.transition(visual, agent.mode);
+      visual.actions.walk.setEffectiveTimeScale(
+        1.06 * Math.max(0.65, agent.movementSpeed / NOMINAL_WALK_SPEED),
+      );
       if (dt > 0) visual.mixer.update(dt);
     }
   }
@@ -402,7 +407,9 @@ export class SettlementCrowdRenderer {
       action.enabled = true;
       action.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
     }
-    actions.walk.setEffectiveTimeScale(1.06);
+    actions.walk.setEffectiveTimeScale(
+      1.06 * Math.max(0.65, agent.movementSpeed / NOMINAL_WALK_SPEED),
+    );
     actions.chop.setEffectiveTimeScale(1.08);
     actions.mine.setEffectiveTimeScale(0.9);
     actions.gather.setEffectiveTimeScale(0.92);
@@ -506,7 +513,9 @@ export class SettlementCrowdRenderer {
       let count = 0;
       for (const agent of proxyAgents) {
         if (agent.variant !== layer.variant || count >= MAX_INSTANCES) continue;
-        const phase = this.elapsed * 7.5 + (agent.appearanceSeed % 1024) * 0.07;
+        const walkCadence = Math.max(0.65, agent.movementSpeed / NOMINAL_WALK_SPEED);
+        const phase = this.elapsed * 7.5 * walkCadence
+          + (agent.appearanceSeed % 1024) * 0.07;
         const bob = agent.mode === 'walk' ? Math.sin(phase) * 0.018 : 0;
         this.position.set(agent.x, agent.y + bob, agent.z);
         this.euler.set(0, agent.yaw + MODEL_YAW_OFFSET, 0);
