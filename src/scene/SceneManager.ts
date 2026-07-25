@@ -46,6 +46,7 @@ import {
 import type { LoadingPhase } from '../ui/loadingProgress.ts';
 import { createBerryPatchVisuals, type BerryPatchVisuals } from '../foraging/BerryPatchVisuals.ts';
 import { createDeerWildlifeVisuals, type DeerWildlifeVisuals } from '../foraging/DeerWildlifeVisuals.ts';
+import { createFishWildlifeVisuals, type FishWildlifeVisuals } from '../foraging/FishWildlifeVisuals.ts';
 import {
   createMushroomPatchVisuals,
   type MushroomPatchVisuals,
@@ -98,6 +99,7 @@ export class SceneManager {
   private berryPatchVisuals: BerryPatchVisuals | null = null;
   private mushroomPatchVisuals: MushroomPatchVisuals | null = null;
   private deerWildlifeVisuals: DeerWildlifeVisuals | null = null;
+  private fishWildlifeVisuals: FishWildlifeVisuals | null = null;
   private latestForagingNodes: ForagingNodeState[] = [];
   private latestForagingMonth = 1;
   private vegetationBuilt = false;
@@ -341,6 +343,19 @@ export class SceneManager {
       console.warn('Animated deer model could not be loaded:', error);
       return null;
     });
+    const fishVisualsPromise = createFishWildlifeVisuals(
+      this.terrain,
+      this.worldLayout.foragingLayout.sites,
+      this.worldLayout.foragingLayout.seed,
+      {
+        isWaterAt: (x, z) => this.riverSystem.field.isRenderedWetAt(x, z),
+        getWaterSurfaceY: (x, z) =>
+          getStillWaterSurfaceY(this.terrain, this.riverSystem.field, x, z),
+      },
+    ).catch((error: unknown) => {
+      console.warn('Animated fish model could not be loaded:', error);
+      return null;
+    });
     this.berryPatchVisuals = await createBerryPatchVisuals(
       this.terrain,
       this.worldLayout.foragingLayout.sites,
@@ -359,6 +374,8 @@ export class SceneManager {
     this.scene.add(this.mushroomPatchVisuals.group);
     this.deerWildlifeVisuals = await deerVisualsPromise;
     if (this.deerWildlifeVisuals) this.scene.add(this.deerWildlifeVisuals.group);
+    this.fishWildlifeVisuals = await fishVisualsPromise;
+    if (this.fishWildlifeVisuals) this.scene.add(this.fishWildlifeVisuals.group);
     this.applyForagingVisualState();
     if (GRASS_BLADES_ENABLED) {
       this.grassField = await createGrassBladeField(this.terrain, {
@@ -495,6 +512,7 @@ export class SceneManager {
       firstPersonActive ? this.firstPersonDeerObserver : null,
       cameraDistance,
     );
+    this.fishWildlifeVisuals?.update(dt, cameraDistance, firstPersonActive);
     this.mushroomPatchVisuals?.updateCameraState(cameraDistance, firstPersonActive);
     this.renderFrame++;
     if (this.shouldRefreshShadowMap(cameraDistance)) {
@@ -599,6 +617,7 @@ export class SceneManager {
     this.berryPatchVisuals?.sync(this.latestForagingNodes, this.latestForagingMonth);
     this.mushroomPatchVisuals?.sync(this.latestForagingNodes, this.latestForagingMonth);
     this.deerWildlifeVisuals?.sync(this.latestForagingNodes);
+    this.fishWildlifeVisuals?.sync(this.latestForagingNodes);
   }
 
   getFirstPersonCollisionRoots(): readonly THREE.Object3D[] {
@@ -779,6 +798,11 @@ export class SceneManager {
       this.scene.remove(this.deerWildlifeVisuals.group);
       this.deerWildlifeVisuals.dispose();
       this.deerWildlifeVisuals = null;
+    }
+    if (this.fishWildlifeVisuals) {
+      this.scene.remove(this.fishWildlifeVisuals.group);
+      this.fishWildlifeVisuals.dispose();
+      this.fishWildlifeVisuals = null;
     }
     this.riverSystem.dispose();
     disposeObject3D(this.riverSystem.group);

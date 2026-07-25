@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { sampleBuildingFootprintPoints } from '../src/buildings/BuildingTerrainLayout.ts';
 import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
 import {
@@ -14,6 +17,12 @@ import {
   isForagingHarvestAvailable,
   isForagingRegrowthSeason,
 } from '../src/foraging/foragingSeason.ts';
+import {
+  RICH_FISH_SCHOOL_VISUAL_CAPACITY,
+  SMALL_FISH_SCHOOL_VISUAL_CAPACITY,
+  displayedFishSchoolCount,
+  sampleFishBreach,
+} from '../src/foraging/FishWildlifeVisuals.ts';
 import { claimResidencesForFoodSuppliers } from '../src/logistics/roadLogistics.ts';
 import { FISH_ICON_SVG } from '../src/map/resourceMapIconGlyphs.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
@@ -160,6 +169,64 @@ assert.ok(
   existsSync(`${projectRoot}public/assets/ui/build-menu/cards/fishing-camp.webp`),
   'fishing camp build card should exist',
 );
+
+assert.equal(displayedFishSchoolCount(0, 120), 0);
+assert.equal(displayedFishSchoolCount(120, 120), SMALL_FISH_SCHOOL_VISUAL_CAPACITY);
+assert.equal(displayedFishSchoolCount(240, 240, true), RICH_FISH_SCHOOL_VISUAL_CAPACITY);
+assert.equal(displayedFishSchoolCount(60, 120), Math.ceil(SMALL_FISH_SCHOOL_VISUAL_CAPACITY / 2));
+assert.equal(displayedFishSchoolCount(0.01, 120), 1);
+
+const breachStart = sampleFishBreach(0, 0.9);
+const breachQuarter = sampleFishBreach(0.25, 0.9);
+const breachApex = sampleFishBreach(0.5, 0.9);
+const breachEnd = sampleFishBreach(1, 0.9);
+assert.equal(breachStart.heightOffset, 0);
+assert.ok(breachQuarter.heightOffset > 0 && breachQuarter.pitch < 0);
+assert.ok(Math.abs(breachApex.heightOffset - 0.9) < 1e-9);
+assert.ok(Math.abs(breachEnd.heightOffset) < 1e-9);
+
+const fishModelBytes = readFileSync(
+  `${projectRoot}public/assets/models/fish/quaternius-fish.glb`,
+);
+assert.ok(fishModelBytes.byteLength > 100_000, 'the local fish GLB should not be a placeholder');
+const fishModelBuffer = fishModelBytes.buffer.slice(
+  fishModelBytes.byteOffset,
+  fishModelBytes.byteOffset + fishModelBytes.byteLength,
+) as ArrayBuffer;
+const fishGltf = await new Promise<Awaited<ReturnType<GLTFLoader['loadAsync']>>>((resolve, reject) => {
+  new GLTFLoader().parse(fishModelBuffer, '', resolve, reject);
+});
+const fishClipNames = new Set(fishGltf.animations.map((clip) => clip.name));
+for (const suffix of ['Swimming_Normal', 'Swimming_Fast', 'Out_Of_Water']) {
+  assert.ok(
+    [...fishClipNames].some((name) => name.endsWith(suffix)),
+    `the fish GLB should contain its ${suffix} animation`,
+  );
+}
+let sourceFishMesh: THREE.SkinnedMesh | null = null;
+fishGltf.scene.traverse((object) => {
+  const skinnedMesh = object as THREE.SkinnedMesh;
+  if (!sourceFishMesh && skinnedMesh.isSkinnedMesh) sourceFishMesh = skinnedMesh;
+});
+assert.ok(sourceFishMesh, 'the fish GLB should contain a skinned mesh');
+assert.ok(sourceFishMesh.skeleton.bones.length >= 6, 'the fish GLB should retain its articulated rig');
+const clonedFish = cloneSkinned(fishGltf.scene);
+let clonedFishMesh: THREE.SkinnedMesh | null = null;
+clonedFish.traverse((object) => {
+  const skinnedMesh = object as THREE.SkinnedMesh;
+  if (!clonedFishMesh && skinnedMesh.isSkinnedMesh) clonedFishMesh = skinnedMesh;
+});
+assert.ok(clonedFishMesh, 'runtime fish clones should remain skinned');
+assert.notEqual(
+  clonedFishMesh.skeleton,
+  sourceFishMesh.skeleton,
+  'each visible fish should have an independent skeleton',
+);
+
+const sceneManagerSource = readFileSync(`${projectRoot}src/scene/SceneManager.ts`, 'utf8');
+assert.match(sceneManagerSource, /createFishWildlifeVisuals/);
+assert.match(sceneManagerSource, /fishWildlifeVisuals\?\.sync/);
+assert.match(sceneManagerSource, /fishWildlifeVisuals\?\.update/);
 
 const serverFoodSupplier = readFileSync(
   `${projectRoot}server/src/simulation/food_supplier.rs`,

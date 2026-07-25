@@ -1,0 +1,20 @@
+Quaternius animated fish model
+================================
+
+quaternius-fish.glb is "Tuna" by Quaternius, distributed under Creative
+Commons Zero v1.0 Universal (CC0 1.0):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Individual model page:
+https://poly.pizza/m/1tycAcvSVW
+
+Creator's Animated Fish Pack:
+https://quaternius.com/packs/animatedfish.html
+
+Downloaded GLB:
+https://static.poly.pizza/95b59647-7cc1-45b4-b136-3ab9e3f5b3ae.glb
+
+The game scales and clones the rigged model for finite shoal-population
+visuals. It uses the authored Swimming_Normal, Swimming_Fast, and
+Out_Of_Water clips. Attribution is not required by CC0, but this record is
+kept alongside the asset for auditing.
