@@ -20,6 +20,10 @@ Files used by this project:
   Renamed from `Models/GLB format/tool-pickaxe.glb`.
 - kenney-tool-hammer.glb
   Renamed from `Models/GLB format/tool-hammer.glb`.
+- kenney-tool-hoe.glb
+  Renamed from `Models/GLB format/tool-hoe.glb`.
+- kenney-tool-shovel.glb
+  Renamed from `Models/GLB format/tool-shovel.glb`.
 - Textures/colormap.png
   Shared palette texture referenced by the GLB files.
 

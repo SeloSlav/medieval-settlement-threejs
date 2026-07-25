@@ -11,6 +11,9 @@ import {
 } from '../src/audio/WorkerActivityAudio.ts';
 import type {
   BuildingState,
+  FarmFieldState,
+  ForagingNodeState,
+  PastureState,
   ResidenceState,
   ResourceNodeState,
   TreeEntityState,
@@ -22,7 +25,10 @@ import {
   collectWorkerTargets,
   pickWorkerWalkPath,
   pickWorkerWalkPlan,
+  PRODUCTION_WORKPLACE_KINDS,
+  YARD_WORK_ACTIVITY,
 } from '../src/settlement/workerPaths.ts';
+import { WORKER_TOOL_URLS } from '../src/settlement/workerTools.ts';
 import {
   villagerDisplayName,
   villagerOccupation,
@@ -39,16 +45,24 @@ const roster = allocateProductionWorkers(
   [residenceA, residenceB],
   [serviceWell, stoneCamp, lumberMill],
 );
-assert.equal(roster.assignments.length, 4, 'only production labor becomes workplace agents');
+assert.equal(roster.assignments.length, 6, 'resource and processing labor becomes workplace agents');
 assert.deepEqual(
   roster.assignments.map((assignment) => assignment.buildingId),
-  ['building-1', 'building-1', 'building-2', 'building-2'],
+  [
+    'building-1',
+    'building-1',
+    'building-2',
+    'building-2',
+    'building-3',
+    'building-3',
+  ],
 );
-assert.equal(roster.remainingPopulationByResidence.get(residenceA.id), 1);
+assert.equal(roster.remainingPopulationByResidence.get(residenceA.id), 0);
 assert.equal(roster.remainingPopulationByResidence.get(residenceB.id), 0);
-assert.ok(
-  roster.assignments.every((assignment) => assignment.homeResidenceId !== null),
-  'nearby housed residents should be claimed before starting-population fallbacks',
+assert.equal(
+  roster.assignments.filter((assignment) => assignment.homeResidenceId === null).length,
+  1,
+  'nearby housed residents should be claimed before one starting-population fallback',
 );
 
 const homeSlots = computeVillagerSlots(
@@ -56,7 +70,7 @@ const homeSlots = computeVillagerSlots(
   null,
   roster.remainingPopulationByResidence,
 );
-assert.equal(homeSlots.get(residenceA.id), 1);
+assert.equal(homeSlots.has(residenceA.id), false);
 assert.equal(homeSlots.has(residenceB.id), false, 'fully assigned households disappear from home crowd');
 
 const overstaffed = allocateProductionWorkers(
@@ -98,6 +112,12 @@ assert.deepEqual(
   ['tree-stump'],
   'reforesters should walk toward stumps or growing trees',
 );
+const reforester = building('building-5', 'reforester', 0, 0, 1, 60);
+const reforesterPlan = Array.from({ length: 32 }, (_, seed) =>
+  pickWorkerWalkPlan(reforester, 0, collectWorkerTargets(reforester, targetInputs), seed)
+).find((plan) => plan?.activity === 'plant');
+assert.ok(reforesterPlan, 'reforesters should stop and plant at regrowing tree targets');
+assert.equal(reforesterPlan.target?.id, 'tree-stump');
 
 const quarryCamp = building('building-6', 'stone_quarry', 0, 0, 1, 55);
 const quarryTarget = resourceNode('quarry-near', 'quarry', 30, 0, 40);
@@ -141,6 +161,95 @@ const lumberWorkPlan = Array.from({ length: 32 }, (_, seed) =>
 assert.ok(lumberWorkPlan, 'lumberjacks should schedule chopping stops at mature trees');
 assert.equal(lumberWorkPlan.target?.id, 'tree-mature');
 
+for (const [kind, nodeKind, expectedActivity] of [
+  ['hunters_hall', 'game', 'gather'],
+  ['foragers_shed', 'berries', 'gather'],
+  ['fishing_camp', 'fish', 'fish'],
+] as const) {
+  const workplace = building(`natural-${kind}`, kind, 0, 0, 1, 60);
+  const node = foragingNode(`${nodeKind}-near`, nodeKind, 24, 0);
+  const targets = collectWorkerTargets(workplace, {
+    ...targetInputs,
+    foragingNodes: [node],
+  });
+  const activityPlan = Array.from({ length: 32 }, (_, seed) =>
+    pickWorkerWalkPlan(workplace, 0, targets, seed)
+  ).find((plan) => plan?.activity === expectedActivity);
+  assert.ok(
+    activityPlan,
+    `${kind} workers should perform ${expectedActivity} at ${nodeKind} targets`,
+  );
+}
+
+const farmstead = building('field-farmstead', 'threshing_barn', 0, 0, 1, 150);
+const field = farmField('field-1', farmstead.id, 26, 0);
+const fieldPlan = Array.from({ length: 32 }, (_, seed) =>
+  pickWorkerWalkPlan(
+    farmstead,
+    0,
+    collectWorkerTargets(farmstead, { ...targetInputs, farmFields: [field] }),
+    seed,
+  )
+).find((plan) => plan?.activity === 'tend');
+assert.ok(fieldPlan, 'farmhands should perform field work instead of only visiting fields');
+
+for (const kind of ['pastoral_farmstead', 'swineherd'] as const) {
+  const workplace = building(`pasture-${kind}`, kind, 0, 0, 1, 120);
+  const pasture = pastureState(`pasture-${kind}`, workplace.id, 24, 0);
+  const activityPlan = Array.from({ length: 32 }, (_, seed) =>
+    pickWorkerWalkPlan(
+      workplace,
+      0,
+      collectWorkerTargets(workplace, { ...targetInputs, pastures: [pasture] }),
+      seed,
+    )
+  ).find((plan) => plan?.activity === 'tend');
+  assert.ok(activityPlan, `${kind} workers should visibly tend their pasture`);
+}
+
+const expectedWorkplaces = [
+  'lumber_mill',
+  'reforester',
+  'woodcutters_lodge',
+  'stone_quarry',
+  'large_quarry',
+  'well',
+  'hunters_hall',
+  'foragers_shed',
+  'fishing_camp',
+  'threshing_barn',
+  'pastoral_farmstead',
+  'swineherd',
+  'brewery',
+  'smokehouse',
+  'granary',
+  'apiary',
+  'watermill',
+  'carpenter',
+  'vineyard',
+] as const;
+assert.deepEqual(
+  PRODUCTION_WORKPLACE_KINDS,
+  expectedWorkplaces,
+  'every staffed gathering and processing workplace should receive visible agents',
+);
+
+for (const [kind, expectedActivity] of Object.entries(YARD_WORK_ACTIVITY)) {
+  const workplace = building(`yard-${kind}`, kind as BuildingState['kind'], 0, 0, 2, 0);
+  const targets = collectWorkerTargets(workplace, targetInputs);
+  assert.ok(
+    targets.length >= 2 && targets.every((target) => target.kind === 'workstation'),
+    `${kind} should expose deterministic outdoor workstations`,
+  );
+  const activityPlan = Array.from({ length: 32 }, (_, seed) =>
+    pickWorkerWalkPlan(workplace, 0, targets, seed)
+  ).find((plan) => plan?.activity === expectedActivity);
+  assert.ok(
+    activityPlan,
+    `${kind} workers should perform ${expectedActivity} instead of only circling the yard`,
+  );
+}
+
 const constructionSite: BuildingState = {
   ...lumberMill,
   id: 'construction-site',
@@ -169,6 +278,10 @@ for (const [activity, clips] of Object.entries(WORKER_ACTIVITY_CLIPS)) {
     const assetPath = `public${clip.path}`;
     assert.ok(fs.statSync(assetPath).size > 10_000, `${assetPath} should be a real audio asset`);
   }
+}
+for (const [tool, url] of Object.entries(WORKER_TOOL_URLS)) {
+  const assetPath = `public${url}`;
+  assert.ok(fs.statSync(assetPath).size > 5_000, `${tool} should use a real CC0 GLB asset`);
 }
 const closeSoundView = buildCrowdViewState(
   0,
@@ -319,5 +432,72 @@ function resourceNode(
     maxYield: 100,
     x,
     z,
+  };
+}
+
+function foragingNode(
+  nodeId: string,
+  kind: ForagingNodeState['kind'],
+  x: number,
+  z: number,
+): ForagingNodeState {
+  return {
+    nodeId,
+    kind,
+    resource: kind,
+    remaining: 40,
+    maxYield: 40,
+    x,
+    z,
+  };
+}
+
+function farmField(
+  id: string,
+  farmsteadId: string,
+  x: number,
+  z: number,
+): FarmFieldState {
+  return {
+    id,
+    farmsteadId,
+    corners: [
+      { x: x - 4, z: z - 4 },
+      { x: x + 4, z: z - 4 },
+      { x: x + 4, z: z + 4 },
+      { x: x - 4, z: z + 4 },
+    ],
+    area: 64,
+    averageSlopeDegrees: 0,
+    moisture: 0.7,
+    fertility: 0.8,
+    crop: 'rye',
+    nextCrop: 'oats',
+    stage: 'harvesting',
+    stageProgress: 0.5,
+    priority: 1,
+    harvestCount: 0,
+    lastYield: 0,
+  };
+}
+
+function pastureState(
+  id: string,
+  farmsteadId: string,
+  x: number,
+  z: number,
+): PastureState {
+  return {
+    id,
+    farmsteadId,
+    corners: [
+      { x: x - 4, z: z - 4 },
+      { x: x + 4, z: z - 4 },
+      { x: x + 4, z: z + 4 },
+      { x: x - 4, z: z + 4 },
+    ],
+    area: 64,
+    averageSlopeDegrees: 0,
+    moisture: 0.7,
   };
 }

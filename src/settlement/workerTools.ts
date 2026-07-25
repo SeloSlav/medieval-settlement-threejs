@@ -1,24 +1,30 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-export type WorkerToolKind = 'hatchet' | 'pickaxe' | 'hammer';
+export type WorkerToolKind = 'hatchet' | 'pickaxe' | 'hammer' | 'hoe' | 'shovel';
 
 export const WORKER_TOOL_URLS: Record<WorkerToolKind, string> = {
   hatchet: '/assets/models/worker-tools/kenney-tool-hatchet.glb',
   pickaxe: '/assets/models/worker-tools/kenney-tool-pickaxe.glb',
   hammer: '/assets/models/worker-tools/kenney-tool-hammer.glb',
+  hoe: '/assets/models/worker-tools/kenney-tool-hoe.glb',
+  shovel: '/assets/models/worker-tools/kenney-tool-shovel.glb',
 };
 
 const TARGET_TOOL_LENGTH: Record<WorkerToolKind, number> = {
   hatchet: 0.58,
   pickaxe: 0.68,
   hammer: 0.6,
+  hoe: 0.82,
+  shovel: 0.88,
 };
 
 const GRIP_FRACTION_FROM_HANDLE_END: Record<WorkerToolKind, number> = {
   hatchet: 0.34,
   pickaxe: 0.38,
   hammer: 0.34,
+  hoe: 0.3,
+  shovel: 0.28,
 };
 
 export type WorkerToolSource = {
@@ -32,15 +38,19 @@ export type WorkerToolSources = Record<WorkerToolKind, WorkerToolSource>;
 
 export async function loadWorkerToolSources(): Promise<WorkerToolSources> {
   const loader = new GLTFLoader();
-  const [hatchet, pickaxe, hammer] = await Promise.all([
+  const [hatchet, pickaxe, hammer, hoe, shovel] = await Promise.all([
     loader.loadAsync(WORKER_TOOL_URLS.hatchet),
     loader.loadAsync(WORKER_TOOL_URLS.pickaxe),
     loader.loadAsync(WORKER_TOOL_URLS.hammer),
+    loader.loadAsync(WORKER_TOOL_URLS.hoe),
+    loader.loadAsync(WORKER_TOOL_URLS.shovel),
   ]);
   return {
     hatchet: createWorkerToolSource('hatchet', hatchet.scene),
     pickaxe: createWorkerToolSource('pickaxe', pickaxe.scene),
     hammer: createWorkerToolSource('hammer', hammer.scene),
+    hoe: createWorkerToolSource('hoe', hoe.scene),
+    shovel: createWorkerToolSource('shovel', shovel.scene),
   };
 }
 

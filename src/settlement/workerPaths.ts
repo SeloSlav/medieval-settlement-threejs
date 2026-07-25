@@ -22,6 +22,7 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'woodcutters_lodge',
   'stone_quarry',
   'large_quarry',
+  'well',
   'hunters_hall',
   'foragers_shed',
   'fishing_camp',
@@ -64,6 +65,7 @@ export type WorkerTargetKind =
   | 'fish'
   | 'field'
   | 'pasture'
+  | 'workstation'
   | 'construction';
 
 export type WorkerTarget = PointXZ & {
@@ -71,7 +73,14 @@ export type WorkerTarget = PointXZ & {
   kind: WorkerTargetKind;
 };
 
-export type WorkerActivityKind = 'chop' | 'mine' | 'gather' | 'build';
+export type WorkerActivityKind =
+  | 'chop'
+  | 'mine'
+  | 'gather'
+  | 'plant'
+  | 'fish'
+  | 'tend'
+  | 'build';
 
 export type WorkerWalkPlan = {
   path: PointXZ[];
@@ -91,6 +100,23 @@ export type WorkerTargetInputs = {
   pastures: Iterable<PastureState>;
   foragingMonth?: number;
 };
+
+/**
+ * Processing buildings do not have replicated natural-resource nodes to walk
+ * toward. These profiles give each staffed yard a small set of deterministic
+ * outdoor workstations and an activity that reads clearly at game scale.
+ */
+export const YARD_WORK_ACTIVITY = {
+  woodcutters_lodge: 'chop',
+  well: 'tend',
+  brewery: 'tend',
+  smokehouse: 'tend',
+  granary: 'tend',
+  apiary: 'gather',
+  watermill: 'tend',
+  carpenter: 'build',
+  vineyard: 'tend',
+} as const satisfies Partial<Record<BuildingKind, WorkerActivityKind>>;
 
 export function isProductionWorkplaceKind(kind: BuildingKind): boolean {
   return PRODUCTION_WORKPLACE_KIND_SET.has(kind);
@@ -274,6 +300,10 @@ export function collectWorkerTargets(
     }
   }
 
+  if (building.kind in YARD_WORK_ACTIVITY) {
+    collectYardWorkstations(building, targets);
+  }
+
   targets.sort((a, b) => {
     const distanceA = distanceSq(building, a);
     const distanceB = distanceSq(building, b);
@@ -402,13 +432,47 @@ function workerActivityFor(
     return 'build';
   }
   if (building.kind === 'lumber_mill' && target.kind === 'tree') return 'chop';
+  if (building.kind === 'reforester' && target.kind === 'tree') return 'plant';
   if (building.kind === 'stone_quarry' && target.kind === 'quarry') return 'mine';
   if (building.kind === 'large_quarry' && target.kind === 'quarry') return 'mine';
+  if (building.kind === 'hunters_hall' && target.kind === 'game') return 'gather';
   if (
     building.kind === 'foragers_shed'
     && (target.kind === 'berries' || target.kind === 'mushrooms')
   ) return 'gather';
+  if (building.kind === 'fishing_camp' && target.kind === 'fish') return 'fish';
+  if (building.kind === 'threshing_barn' && target.kind === 'field') return 'tend';
+  if (
+    (building.kind === 'pastoral_farmstead' || building.kind === 'swineherd')
+    && target.kind === 'pasture'
+  ) return 'tend';
+  if (building.kind === 'swineherd' && target.kind === 'tree') return 'gather';
+  if (target.kind === 'workstation') {
+    return YARD_WORK_ACTIVITY[
+      building.kind as keyof typeof YARD_WORK_ACTIVITY
+    ] ?? null;
+  }
   return null;
+}
+
+function collectYardWorkstations(
+  building: BuildingState,
+  targets: WorkerTarget[],
+): void {
+  const definition = getBuildingDefinition(building.kind);
+  const count = Math.max(2, definition.maxLabor);
+  const radius = Math.max(4.2, definition.pickRadius * 0.74);
+  const phase = hashStringSeed(`workstations:${building.id}`) / 0xffff_ffff
+    * Math.PI * 2;
+  for (let index = 0; index < count; index += 1) {
+    const angle = phase + index / count * Math.PI * 2;
+    targets.push({
+      id: `${building.id}:workstation:${index}`,
+      kind: 'workstation',
+      x: building.x + Math.sin(angle) * radius,
+      z: building.z + Math.cos(angle) * radius,
+    });
+  }
 }
 
 function pushNodeInsideExtent(
@@ -439,7 +503,11 @@ function resourceWorkLoop(
     z: (start.z + target.z) * 0.5 + normalZ * bend,
   });
   const approachAngle = rng() * Math.PI * 2;
-  const approachRadius = target.kind === 'tree' ? 1.8 : 2.4;
+  const approachRadius = target.kind === 'tree'
+    ? 1.8
+    : target.kind === 'workstation'
+      ? 1.15
+      : 2.4;
   const approach = clampToWorkExtent(building, {
     x: target.x + Math.sin(approachAngle) * approachRadius,
     z: target.z + Math.cos(approachAngle) * approachRadius,

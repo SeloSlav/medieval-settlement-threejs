@@ -33,7 +33,16 @@ const TARGET_HEIGHTS = {
 } as const;
 
 export type VillagerModelVariant = keyof typeof MODEL_URLS;
-export type VillagerRenderMode = 'idle' | 'walk' | 'chop' | 'mine' | 'gather' | 'build';
+export type VillagerRenderMode =
+  | 'idle'
+  | 'walk'
+  | 'chop'
+  | 'mine'
+  | 'gather'
+  | 'plant'
+  | 'fish'
+  | 'tend'
+  | 'build';
 
 type FallbackPartLayer = {
   mesh: THREE.InstancedMesh;
@@ -384,6 +393,9 @@ export class SettlementCrowdRenderer {
       chop: mixer.clipAction(source.clips.chop, model),
       mine: mixer.clipAction(source.clips.mine, model),
       gather: mixer.clipAction(source.clips.gather, model),
+      plant: mixer.clipAction(source.clips.plant, model),
+      fish: mixer.clipAction(source.clips.fish, model),
+      tend: mixer.clipAction(source.clips.tend, model),
       build: mixer.clipAction(source.clips.build, model),
     };
     for (const action of Object.values(actions)) {
@@ -394,6 +406,9 @@ export class SettlementCrowdRenderer {
     actions.chop.setEffectiveTimeScale(1.08);
     actions.mine.setEffectiveTimeScale(0.9);
     actions.gather.setEffectiveTimeScale(0.92);
+    actions.plant.setEffectiveTimeScale(0.78);
+    actions.fish.setEffectiveTimeScale(0.82);
+    actions.tend.setEffectiveTimeScale(0.9);
     actions.build.setEffectiveTimeScale(1.08);
     actions[agent.mode].play();
     actions[agent.mode].time =
@@ -530,15 +545,19 @@ async function loadVillagerSource(
   chop.name = `${swing.name}:worker-chop`;
   const mine = swing.clone();
   mine.name = `${swing.name}:worker-mine`;
+  const plant = swing.clone();
+  plant.name = `${swing.name}:worker-plant`;
   const build = swing.clone();
   build.name = `${swing.name}:worker-build`;
   const gather = createGatherAnimationClip(gltf.scene);
+  const fish = createFishingAnimationClip(gltf.scene);
+  const tend = createTendAnimationClip(gltf.scene);
   return {
     scene: gltf.scene,
     bounds,
     sourceHeight,
     targetHeight,
-    clips: { idle, walk, chop, mine, gather, build },
+    clips: { idle, walk, chop, mine, gather, plant, fish, tend, build },
   };
 }
 
@@ -594,12 +613,110 @@ function createGatherAnimationClip(scene: THREE.Object3D): THREE.AnimationClip {
   return new THREE.AnimationClip('Worker_Gather', 2.4, tracks).optimize();
 }
 
+/**
+ * A quiet standing reach-and-check loop for processors, herders, beekeepers,
+ * well keepers, and millers. It deliberately avoids a generic weapon swing:
+ * these jobs read as tending equipment or handling stock in the yard.
+ */
+function createTendAnimationClip(scene: THREE.Object3D): THREE.AnimationClip {
+  const times = [0, 0.38, 0.82, 1.2, 1.62, 2.08, 2.46];
+  const reach = [0, 0.18, 0.54, 0.28, 0.62, 0.2, 0];
+  const sway = [0, -0.08, 0.1, -0.05, 0.08, -0.04, 0];
+  const tracks: THREE.KeyframeTrack[] = [];
+
+  const addRotation = (
+    boneName: string,
+    xScale: number,
+    zScale = 0,
+  ): void => {
+    const bone = scene.getObjectByName(boneName);
+    if (!bone) return;
+    const values: number[] = [];
+    for (let index = 0; index < times.length; index++) {
+      const offset = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        reach[index]! * xScale,
+        0,
+        sway[index]! * zScale,
+        'XYZ',
+      ));
+      const pose = bone.quaternion.clone().multiply(offset).normalize();
+      values.push(pose.x, pose.y, pose.z, pose.w);
+    }
+    tracks.push(new THREE.QuaternionKeyframeTrack(
+      `${boneName}.quaternion`,
+      times,
+      values,
+    ));
+  };
+
+  addRotation('Hips', 0.08, 0.35);
+  addRotation('Abdomen', 0.22, 0.5);
+  addRotation('Torso', 0.28, 0.45);
+  addRotation('Neck', -0.12, -0.2);
+  addRotation('UpperArmL', 0.48, -0.7);
+  addRotation('UpperArmR', 0.58, 0.7);
+  addRotation('LowerArmL', 0.42);
+  addRotation('LowerArmR', 0.5);
+
+  return new THREE.AnimationClip('Worker_Tend', 2.46, tracks).optimize();
+}
+
+/**
+ * The villager pack has no fishing clip. This restrained two-handed cast and
+ * pull loop keeps the worker planted beside the water and reads clearly
+ * without requiring a weapon-like swing.
+ */
+function createFishingAnimationClip(scene: THREE.Object3D): THREE.AnimationClip {
+  const times = [0, 0.46, 0.92, 1.34, 1.82, 2.32, 2.8];
+  const pull = [0, 0.16, 0.42, 0.2, 0.5, 0.18, 0];
+  const cast = [0, -0.1, 0.16, -0.06, 0.12, -0.04, 0];
+  const tracks: THREE.KeyframeTrack[] = [];
+
+  const addRotation = (
+    boneName: string,
+    xScale: number,
+    zScale = 0,
+  ): void => {
+    const bone = scene.getObjectByName(boneName);
+    if (!bone) return;
+    const values: number[] = [];
+    for (let index = 0; index < times.length; index++) {
+      const offset = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        pull[index]! * xScale,
+        0,
+        cast[index]! * zScale,
+        'XYZ',
+      ));
+      const pose = bone.quaternion.clone().multiply(offset).normalize();
+      values.push(pose.x, pose.y, pose.z, pose.w);
+    }
+    tracks.push(new THREE.QuaternionKeyframeTrack(
+      `${boneName}.quaternion`,
+      times,
+      values,
+    ));
+  };
+
+  addRotation('Abdomen', 0.2, 0.28);
+  addRotation('Torso', 0.24, 0.38);
+  addRotation('Neck', -0.12);
+  addRotation('UpperArmL', 0.7, -0.55);
+  addRotation('UpperArmR', 0.7, 0.55);
+  addRotation('LowerArmL', 0.64);
+  addRotation('LowerArmR', 0.64);
+
+  return new THREE.AnimationClip('Worker_Fish', 2.8, tracks).optimize();
+}
+
 function isWorkMode(
   mode: VillagerRenderMode,
-): mode is 'chop' | 'mine' | 'gather' | 'build' {
+): mode is 'chop' | 'mine' | 'gather' | 'plant' | 'fish' | 'tend' | 'build' {
   return mode === 'chop'
     || mode === 'mine'
     || mode === 'gather'
+    || mode === 'plant'
+    || mode === 'fish'
+    || mode === 'tend'
     || mode === 'build';
 }
 

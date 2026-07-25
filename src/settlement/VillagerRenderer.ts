@@ -654,6 +654,9 @@ export class VillagerRenderer {
       agent.mode === 'chop'
       || agent.mode === 'mine'
       || agent.mode === 'gather'
+      || agent.mode === 'plant'
+      || agent.mode === 'fish'
+      || agent.mode === 'tend'
       || agent.mode === 'build'
     ) {
       agent.workRemaining -= dt;
@@ -1093,8 +1096,11 @@ export class VillagerRenderer {
     const workplace = this.buildings.get(agent.workplaceId);
     if (workplace?.constructionComplete === false) return 'hammer';
     const kind = workplace?.kind;
-    if (kind === 'lumber_mill') return 'hatchet';
+    if (kind === 'lumber_mill' || kind === 'woodcutters_lodge') return 'hatchet';
     if (kind === 'stone_quarry' || kind === 'large_quarry') return 'pickaxe';
+    if (kind === 'reforester') return 'shovel';
+    if (kind === 'threshing_barn' || kind === 'vineyard') return 'hoe';
+    if (kind === 'carpenter') return 'hammer';
     return null;
   }
 }
@@ -1170,7 +1176,28 @@ function describeVillagerActivity(
     case 'work':
       if (agent.mode === 'chop') return `Chopping timber near ${workplaceLabel}`;
       if (agent.mode === 'mine') return `Quarrying stone near ${workplaceLabel}`;
-      if (agent.mode === 'gather') return `Gathering wild food near ${workplaceLabel}`;
+      if (agent.mode === 'plant') return `Planting saplings near ${workplaceLabel}`;
+      if (agent.mode === 'fish') return `Fishing near ${workplaceLabel}`;
+      if (agent.mode === 'gather') {
+        if (workplace?.kind === 'hunters_hall') return `Checking game near ${workplaceLabel}`;
+        if (workplace?.kind === 'swineherd') return `Collecting mast near ${workplaceLabel}`;
+        if (workplace?.kind === 'apiary') return `Inspecting hives at ${workplaceLabel}`;
+        return `Gathering wild food near ${workplaceLabel}`;
+      }
+      if (agent.mode === 'tend') {
+        switch (workplace?.kind) {
+          case 'well': return `Drawing water at ${workplaceLabel}`;
+          case 'threshing_barn': return `Working the fields for ${workplaceLabel}`;
+          case 'pastoral_farmstead':
+          case 'swineherd': return `Tending livestock for ${workplaceLabel}`;
+          case 'brewery': return `Tending the brew at ${workplaceLabel}`;
+          case 'smokehouse': return `Tending the smoke racks at ${workplaceLabel}`;
+          case 'granary': return `Handling grain at ${workplaceLabel}`;
+          case 'watermill': return `Tending the mill at ${workplaceLabel}`;
+          case 'vineyard': return `Tending vines at ${workplaceLabel}`;
+          default: return `Tending work at ${workplaceLabel}`;
+        }
+      }
       if (agent.mode === 'build') return `Hammering on ${workplaceLabel}`;
       if (workplace?.constructionComplete === false) {
         return agent.mode === 'walk'
