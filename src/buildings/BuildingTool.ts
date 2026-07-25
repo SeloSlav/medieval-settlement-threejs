@@ -219,6 +219,15 @@ export class BuildingTool {
     if (!point) return;
 
     const resolved = this.resolvePoint(this.mode, point.x, point.z);
+    if (this.mode === 'foragers_shed') {
+      console.info('[forager-placement-debug]', JSON.stringify({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        point,
+        resolved,
+        foragingNodes: [...this.options.getState().foragingNodes.values()],
+      }));
+    }
     const validation = this.validate(this.mode, resolved.x, resolved.z);
     if (!validation.ok) {
       event.preventDefault();

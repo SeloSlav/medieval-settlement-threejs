@@ -23,6 +23,13 @@ pub fn harvest_available(node_kind: &str, month: u32) -> bool {
     }
 }
 
+/// Game habitats can migrate after nearby construction disturbs them. Static
+/// forage sites must instead follow the generated world layout when it changes,
+/// otherwise the server validates buildings against invisible, stale patches.
+pub fn preserves_runtime_location_during_bootstrap(node_kind: &str) -> bool {
+    node_kind == "game"
+}
+
 pub fn population_growth_per_second(
     node_kind: &str,
     remaining: f64,
@@ -85,6 +92,14 @@ mod tests {
         assert!(population_growth_per_second("berries", 0.0, 60.0, 3) > 0.0);
         assert!(population_growth_per_second("mushrooms", 0.0, 42.0, 7) > 0.0);
         assert_eq!(population_growth_per_second("berries", 0.0, 60.0, 10), 0.0);
+    }
+
+    #[test]
+    fn only_migrating_game_habitats_keep_runtime_coordinates_during_bootstrap() {
+        assert!(preserves_runtime_location_during_bootstrap("game"));
+        assert!(!preserves_runtime_location_during_bootstrap("berries"));
+        assert!(!preserves_runtime_location_during_bootstrap("mushrooms"));
+        assert!(!preserves_runtime_location_during_bootstrap("fish"));
     }
 
     #[test]

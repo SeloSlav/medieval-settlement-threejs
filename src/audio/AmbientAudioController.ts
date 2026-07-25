@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { BuildingState, BurgageZoneState } from '../resources/types.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
+import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import { AmbientAudio } from './AmbientAudio.ts';
 import { buildSettlementZones, evaluateAmbientRules, type AmbientRuleState } from './ambientRules.ts';
@@ -29,6 +30,7 @@ export class AmbientAudioController {
   private lastSettlementSignature = '';
   private settlementZones: ReturnType<typeof buildSettlementZones> = [];
   private schedule: SettlementSchedule | null = null;
+  private isRaining = false;
   private running = false;
   private unlocked = false;
   private readonly onUnlock = (): void => {
@@ -58,6 +60,10 @@ export class AmbientAudioController {
 
   syncSettlementSchedule(schedule: SettlementSchedule | null): void {
     this.schedule = schedule;
+  }
+
+  syncEnvironment(environment: Pick<EnvironmentState, 'weather'> | null): void {
+    this.isRaining = environment?.weather === 'rain';
   }
 
   tick(dtSeconds: number): void {
@@ -98,6 +104,7 @@ export class AmbientAudioController {
       this.audio.setAmbientMix({
         baseLayer: ambient.baseLayer,
         overlayLayer: ambient.overlayLayer,
+        weatherLayer: this.isRaining ? 'light_rain' : null,
       });
     }
     this.audio.tick(dtSeconds);
@@ -124,6 +131,7 @@ export class AmbientAudioController {
     this.running = false;
     this.unlocked = false;
     this.schedule = null;
+    this.isRaining = false;
   }
 
   private refreshSettlementZones(): void {

@@ -2,7 +2,8 @@ export type AmbientLayerId =
   | 'birds_wind_day'
   | 'village_day'
   | 'night_insects'
-  | 'open_wind_overview';
+  | 'open_wind_overview'
+  | 'light_rain';
 
 export type AudioClipDefinition = {
   path: string;
@@ -17,6 +18,7 @@ export const AMBIENT_LAYERS: Record<AmbientLayerId, AudioClipDefinition> = {
   village_day: { path: '/sounds/ambient/village_day.mp3', volume: 0.12, loop: true },
   night_insects: { path: '/sounds/ambient/night_insects.mp3', volume: 0.12, loop: true },
   open_wind_overview: { path: '/sounds/ambient/open_wind_overview.mp3', volume: 0.28, loop: true },
+  light_rain: { path: '/sounds/ambient/light_rain.mp3', volume: 0.18, loop: true },
 };
 
 /** Chapel bell at 6 AM and 6 PM. Distance and end fades are applied by ChapelBellPlayer. */

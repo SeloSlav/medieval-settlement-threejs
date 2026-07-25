@@ -120,6 +120,9 @@ export class App {
     const session = await bootstrapAppSession(this.root, {
       syncToolbar: () => this.syncToolbar(),
     });
+    const weatherPreview = import.meta.env.DEV
+      ? standalonePrecipitationPreview(window.location.search)
+      : null;
 
     if (isShowcaseMode()) {
       session.uiRoot.hidden = true;
@@ -127,10 +130,7 @@ export class App {
 
     this.liveContext = session.liveContext;
     this.sceneManager = session.sceneManager;
-    if (import.meta.env.DEV) {
-      const weatherPreview = standalonePrecipitationPreview(window.location.search);
-      if (weatherPreview) this.sceneManager.setEnvironment(weatherPreview);
-    }
+    if (weatherPreview) this.sceneManager.setEnvironment(weatherPreview);
     this.layoutRegistry = session.layoutRegistry;
     this.gameState = session.gameState;
     this.input = session.input;
@@ -159,6 +159,7 @@ export class App {
     this.villagerInspector = session.villagerInspector;
     this.worldMapUi = session.worldMapUi;
     this.ambientAudio = session.ambientAudio;
+    this.ambientAudio.syncEnvironment(weatherPreview);
     this.spacetimeStore = session.spacetimeStore;
     this.sessionGate = session.sessionGate;
 
@@ -565,6 +566,7 @@ export class App {
       clearAuthoritativeWorldGeneration();
       this.spacetimeSnapshotApplier.reset();
       this.settlementPresentation.reset();
+      this.ambientAudio?.syncEnvironment(null);
       this.syncToolbar();
       return;
     }
@@ -596,11 +598,11 @@ export class App {
       gameClock(snapshot.simTick),
     );
     this.toolbar?.setSimulationState(snapshot.gameSpeed, environment);
-    this.sceneManager?.setEnvironment(
-      import.meta.env.DEV
-        ? precipitationPreviewEnvironment(environment, window.location.search)
-        : environment,
-    );
+    const presentationEnvironment = import.meta.env.DEV
+      ? precipitationPreviewEnvironment(environment, window.location.search)
+      : environment;
+    this.sceneManager?.setEnvironment(presentationEnvironment);
+    this.ambientAudio?.syncEnvironment(presentationEnvironment);
     this.toolbar?.settlementHud.setFireState(
       state.fireIncidents.values(),
       state.deliveryTrips.values(),

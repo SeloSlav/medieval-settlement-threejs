@@ -339,7 +339,10 @@ export class SceneManager {
       this.terrain,
       this.worldLayout.foragingLayout.sites,
       this.worldLayout.foragingLayout.seed,
-      isForagingSiteBlocked,
+      {
+        isSpawnBlockedAt: isForagingSiteBlocked,
+        isMovementBlockedAt: (x, z) => this.quarrySystem.isBlockedAt(x, z),
+      },
     ).catch((error: unknown) => {
       console.warn('Animated deer model could not be loaded:', error);
       return null;
@@ -501,6 +504,9 @@ export class SceneManager {
     this.sky.updateCamera(this.camera);
     this.sky.updateSun(this.sunDirection);
     this.sky.updateTime(this.skyAnimationTime);
+    if (this.lastDayNightState) {
+      this.sky.updateSiderealAngle(this.lastDayNightState.siderealAngle);
+    }
     this.precipitation.update(dt, cameraDistance, firstPersonActive);
     this.riverSystem.tick(dt, elapsed);
     if (firstPersonActive) {
@@ -554,6 +560,7 @@ export class SceneManager {
     this.skyAnimationTime = state.skyAnimationTime;
     this.sunDirection.copy(state.sunDirection);
     this.sky.updateAtmosphere(state.dawnAmount, state.duskAmount);
+    this.sky.updateSiderealAngle(state.siderealAngle);
     this.sunLight.color.setHex(blendColorHex(state.sunColor, weather.fogTint, atmosphericBlend * 0.28));
     this.sunLight.intensity = state.sunIntensity * weather.sunlightMultiplier;
     // Keep the sun parallel to the fitted shadow target — not world origin — so panning

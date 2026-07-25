@@ -1,6 +1,7 @@
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::db::*;
+use crate::foraging_policy::preserves_runtime_location_during_bootstrap;
 use crate::quarry_balance::preserve_extracted_stone;
 use crate::tables::{ForagingNode, Quarry, TreeEntity};
 use crate::types::{ForagingBootstrap, QuarryBootstrap, TreeBootstrap};
@@ -51,12 +52,27 @@ pub fn bootstrap_foraging(
             continue;
         }
         if let Some(existing) = ctx.db.foraging_node().node_id().find(&node.node_id) {
+            let preserve_runtime_location =
+                preserves_runtime_location_during_bootstrap(&node.node_kind);
             ctx.db.foraging_node().node_id().update(ForagingNode {
-                // A persistent habitat may have migrated. Reconnecting clients
-                // must not snap it back to its generated starting position.
+                // Disturbed game habitats may have migrated, but plants and
+                // fish are static world-layout sites and must stay aligned
+                // with the resources rendered by reconnecting clients.
+                x: if preserve_runtime_location { existing.x } else { node.x },
+                z: if preserve_runtime_location { existing.z } else { node.z },
                 max_yield: node.max_yield,
                 remaining: existing.remaining.min(node.max_yield),
                 node_kind: node.node_kind,
+                anchor_x: if preserve_runtime_location {
+                    existing.anchor_x
+                } else {
+                    node.anchor_x
+                },
+                anchor_z: if preserve_runtime_location {
+                    existing.anchor_z
+                } else {
+                    node.anchor_z
+                },
                 ..existing
             });
         } else {

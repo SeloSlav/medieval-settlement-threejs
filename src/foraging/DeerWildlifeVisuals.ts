@@ -62,6 +62,13 @@ export type DeerWildlifeVisuals = {
   dispose: () => void;
 };
 
+export type DeerWildlifeObstacleQueries = {
+  /** Keeps the initial visual herd off water and solid terrain obstacles. */
+  isSpawnBlockedAt?: (x: number, z: number) => boolean;
+  /** Deer may wade across water, but still steer around solid terrain obstacles. */
+  isMovementBlockedAt?: (x: number, z: number) => boolean;
+};
+
 const DOE_MODEL_URL = '/assets/models/deer/quaternius-deer.glb';
 const STAG_MODEL_URL = '/assets/models/deer/quaternius-stag.glb';
 const DOE_TARGET_HEIGHT = 1.7;
@@ -77,7 +84,7 @@ export async function createDeerWildlifeVisuals(
   terrain: Terrain,
   sites: ReadonlyArray<ForagingSite>,
   seed: number,
-  isBlockedAt?: (x: number, z: number) => boolean,
+  obstacles: DeerWildlifeObstacleQueries = {},
 ): Promise<DeerWildlifeVisuals> {
   const gameSites = sites.filter((site) => site.kind === 'game');
   const group = new THREE.Group();
@@ -117,7 +124,7 @@ export async function createDeerWildlifeVisuals(
   for (let siteIndex = 0; siteIndex < gameSites.length; siteIndex++) {
     const site = gameSites[siteIndex];
     const nodeId = `foraging-game-${siteIndex}`;
-    const spawnPoints = createGameHerdSpawnPoints(site, rng, isBlockedAt);
+    const spawnPoints = createGameHerdSpawnPoints(site, rng, obstacles.isSpawnBlockedAt);
     const distribution = createHerdSexDistribution(spawnPoints.length, rng);
     let siteDoeCount = 0;
     let siteStagCount = 0;
@@ -199,7 +206,7 @@ export async function createDeerWildlifeVisuals(
       updateDeerMotion(visual.motion, dtSeconds, {
         observer: firstPersonObserver,
         random: rng,
-        isBlockedAt,
+        isBlockedAt: obstacles.isMovementBlockedAt,
       });
       if (visual.motion.mode !== visual.activeMode) transitionAnimation(visual, visual.motion.mode);
 

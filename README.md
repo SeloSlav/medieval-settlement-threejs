@@ -411,6 +411,7 @@ Vegetation and sky rendering use vendored libraries (Git submodules under `vendo
 | Library | Author / project | Used for | License |
 | --- | --- | --- | --- |
 | [SeedThree](https://github.com/SkyeShark/SeedThree) | [SkyeShark](https://github.com/SkyeShark) | Procedural forest trees, grass tufts (WebGPU), undergrowth cards, wind | [MIT](vendor/seedthree/LICENSE) |
+| [d3-celestial](https://github.com/ofrohn/d3-celestial) | Olaf Frohn | Naked-eye star coordinates and classical constellation figures | [BSD-3-Clause](public/assets/third-party/d3-celestial-LICENSE.txt) |
 | [sky-cloud-3d](vendor/sky-cloud-3d/) | sky-cloud-3d | Volumetric sky and cloud dome (WebGL + WebGPU) | [Non-commercial](vendor/sky-cloud-3d/LICENSE) — see also [`public/assets/third-party/sky-cloud-3d-LICENSE.txt`](public/assets/third-party/sky-cloud-3d-LICENSE.txt) |
 | [Kenney Survival Kit](https://kenney.nl/assets/survival-kit) | Kenney | Low-poly worker hatchet, pickaxe, hammer, hoe, and shovel models | [CC0 1.0](public/assets/models/worker-tools/LICENSE.txt) |
 | [Animated Fish Pack](https://quaternius.com/packs/animatedfish.html) | Quaternius | Rigged fish schools, swimming, surface breaches, and catch flops | [CC0 1.0](public/assets/models/fish/LICENSE.txt) |

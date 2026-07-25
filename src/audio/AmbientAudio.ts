@@ -14,6 +14,8 @@ type AmbientMix = {
   baseVolume?: number;
   overlayLayer?: AmbientLayerId | null;
   overlayVolume?: number;
+  weatherLayer?: AmbientLayerId | null;
+  weatherVolume?: number;
 };
 
 const AMBIENT_FADE_SPEED = 0.16;
@@ -33,6 +35,7 @@ export class AmbientAudio {
     village_day: { audio: null, blobUrl: null, currentVolume: 0, targetVolume: 0, playPending: false, lastPlayAttemptAtMs: 0 },
     night_insects: { audio: null, blobUrl: null, currentVolume: 0, targetVolume: 0, playPending: false, lastPlayAttemptAtMs: 0 },
     open_wind_overview: { audio: null, blobUrl: null, currentVolume: 0, targetVolume: 0, playPending: false, lastPlayAttemptAtMs: 0 },
+    light_rain: { audio: null, blobUrl: null, currentVolume: 0, targetVolume: 0, playPending: false, lastPlayAttemptAtMs: 0 },
   };
 
   setEnabled(enabled: boolean): void {
@@ -58,6 +61,11 @@ export class AmbientAudio {
       const clip = AMBIENT_LAYERS[mix.overlayLayer];
       this.ambientTracks[mix.overlayLayer].targetVolume = Math.max(0, mix.overlayVolume ?? clip.volume ?? 1);
       this.ensureAmbientTrackLoaded(mix.overlayLayer);
+    }
+    if (mix.weatherLayer) {
+      const clip = AMBIENT_LAYERS[mix.weatherLayer];
+      this.ambientTracks[mix.weatherLayer].targetVolume = Math.max(0, mix.weatherVolume ?? clip.volume ?? 1);
+      this.ensureAmbientTrackLoaded(mix.weatherLayer);
     }
   }
 
@@ -92,7 +100,14 @@ export class AmbientAudio {
   }
 
   stop(): void {
-    this.setAmbientMix({ baseLayer: null, overlayLayer: null, baseVolume: 0, overlayVolume: 0 });
+    this.setAmbientMix({
+      baseLayer: null,
+      overlayLayer: null,
+      weatherLayer: null,
+      baseVolume: 0,
+      overlayVolume: 0,
+      weatherVolume: 0,
+    });
     for (const id of Object.keys(this.ambientTracks) as AmbientLayerId[]) {
       const state = this.ambientTracks[id];
       if (!state.audio) continue;

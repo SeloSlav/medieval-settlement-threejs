@@ -3,6 +3,7 @@ import { loadBitmapTexture } from '../utils/textureLoad.ts';
 import { SkyCloudMesh as WebGPUSkyCloudMesh } from 'sky-cloud-3d';
 import { SkyCloudMesh as WebGLSkyCloudMesh } from 'sky-cloud-3d/webgl';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import { createCelestialStarMap } from './CelestialStarMap.ts';
 
 type SkyCloudOptions = {
   cloudAbsorption?: number;
@@ -20,6 +21,8 @@ type SkyCloudOptions = {
   rayleigh?: number;
   rendererBackend?: RendererBackendKind;
   sunDirection?: THREE.Vector3;
+  starMap?: THREE.Texture;
+  siderealAngle?: number;
   turbidity?: number;
   windSpeedX?: number;
   windSpeedZ?: number;
@@ -36,6 +39,7 @@ type SkyCloudNativeMesh = THREE.Mesh & {
   updateCamera?: (camera: THREE.Camera) => void;
   updateAtmosphere?: (dawnAmount: number, duskAmount: number) => void;
   updateResolution?: (width: number, height: number) => void;
+  updateSiderealAngle?: (angle: number) => void;
   updateSun?: (direction: THREE.Vector3) => void;
   updateTime?: (time: number) => void;
 };
@@ -90,10 +94,12 @@ export class SkyCloudMesh extends THREE.Group {
   readonly isSkyCloudMesh = true;
   readonly ready: Promise<SkyCloudMesh>;
   private readonly nativeSky: SkyCloudNativeMesh;
+  private readonly starMap: THREE.Texture;
 
   constructor(options: SkyCloudOptions = {}) {
     super();
-    const config = { ...DEFAULTS, ...options };
+    const starMap = options.starMap ?? createCelestialStarMap();
+    const config = { ...DEFAULTS, ...options, starMap };
     const rendererBackend = config.rendererBackend ?? 'webgl';
     const NativeSky = rendererBackend === 'webgpu' ? WebGPUSkyCloudMesh : WebGLSkyCloudMesh;
     const nativeOptions = {
@@ -109,6 +115,7 @@ export class SkyCloudMesh extends THREE.Group {
 
     this.name = nativeSky.name;
     this.nativeSky = nativeSky;
+    this.starMap = starMap;
     this.add(nativeSky);
     this.ready = Promise.resolve(nativeSky.ready).then(() => this);
 
@@ -121,6 +128,10 @@ export class SkyCloudMesh extends THREE.Group {
 
   updateTime(time: number): void {
     this.nativeSky.updateTime?.(time);
+  }
+
+  updateSiderealAngle(angle: number): void {
+    this.nativeSky.updateSiderealAngle?.(angle);
   }
 
   updateAtmosphere(dawnAmount: number, duskAmount: number): void {
@@ -143,6 +154,7 @@ export class SkyCloudMesh extends THREE.Group {
   dispose(): void {
     this.nativeSky.removeFromParent();
     disposeSky(this.nativeSky);
+    this.starMap.dispose();
   }
 }
 

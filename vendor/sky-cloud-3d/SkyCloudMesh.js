@@ -24,8 +24,11 @@ import {
     Loop,
     abs,
     acos,
+    asin,
+    atan,
     cameraPosition,
     clamp,
+    cos as tslCos,
     dot,
     exp,
     floor,
@@ -43,6 +46,7 @@ import {
     texture,
     texture3D,
     uniform,
+    vec2,
     vec3,
     vec4,
 } from 'three/tsl';
@@ -391,6 +395,23 @@ function createNeutralPerlinTexture() {
     return texture;
 }
 
+function createNeutralStarTexture() {
+    const texture = new DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, RGBAFormat);
+    texture.wrapS = RepeatWrapping;
+    texture.wrapT = ClampToEdgeWrapping;
+    texture.minFilter = LinearFilter;
+    texture.magFilter = LinearFilter;
+    texture.generateMipmaps = false;
+    texture.flipY = false;
+    texture.colorSpace = NoColorSpace;
+    texture.userData = {
+        ...texture.userData,
+        isSkyCloudManagedStarTexture: true,
+    };
+    texture.needsUpdate = true;
+    return texture;
+}
+
 function createVolumeNoiseTextureFromData(data, size) {
     const texture = new Data3DTexture(data, size, size, size);
     texture.format = RedFormat;
@@ -413,11 +434,13 @@ function normalizeParamValue(name, value) {
 function createNodeSet(options = {}) {
     const initialTexture2D = configureNoiseTexture(options.perlinTexture ?? createNeutralPerlinTexture(), !options.perlinTexture);
     const initialTexture3D = configureVolumeNoiseTexture(options.volumeNoiseTexture ?? createFallbackVolumeNoiseTexture(), !options.volumeNoiseTexture);
+    const initialStarMap = options.starMap ?? createNeutralStarTexture();
     const noiseMode = options.perlinTexture ? 0.0 : 1.0;
 
     return {
         t_PerlinNoise: texture(initialTexture2D),
         t_PerlinNoise3D: texture3D(initialTexture3D),
+        t_StarMap: texture(initialStarMap),
         uCloudAbsorption: uniform(normalizeParamValue('cloudAbsorption', options.cloudAbsorption ?? DEFAULT_PARAMS.cloudAbsorption)),
         uCloudCoverage: uniform(normalizeParamValue('cloudCoverage', options.cloudCoverage ?? DEFAULT_PARAMS.cloudCoverage)),
         uCloudHeight: uniform(normalizeParamValue('cloudHeight', options.cloudHeight ?? DEFAULT_PARAMS.cloudHeight)),
@@ -431,6 +454,7 @@ function createNodeSet(options = {}) {
         uNoiseMode: uniform(noiseMode),
         uRayleigh: uniform(normalizeParamValue('rayleigh', options.rayleigh ?? DEFAULT_PARAMS.rayleigh)),
         uResolution: uniform(new Vector2(options.width ?? 1920, options.height ?? 1080)),
+        uSiderealAngle: uniform(options.siderealAngle ?? 0.0),
         uSunDirection: uniform((options.sunDirection ?? new Vector3(0.5, 0.5, -0.5)).clone().normalize()),
         uTime: uniform(options.time ?? 0.0),
         uTurbidity: uniform(normalizeParamValue('turbidity', options.turbidity ?? DEFAULT_PARAMS.turbidity)),
@@ -887,30 +911,37 @@ function buildColorNode(nodes) {
         atmosphericColor.assign(mix(atmosphericColor, twilightSky, twilightStrength));
 
         const nightAmount = float(1.0).sub(smoothstep(-0.25, -0.08, sunHeight)).toVar();
-        const starCell = floor(rayDirection.mul(680.0)).toVar();
-        const starSeed = tslFract(
-            tslSin(dot(starCell, vec3(12.9898, 78.233, 45.164))).mul(43758.5453),
-        ).toVar();
-        const starVariation = tslFract(
-            tslSin(dot(starCell.add(vec3(17.0, 43.0, 29.0)), vec3(39.346, 11.135, 83.155)))
-                .mul(24634.6345),
-        ).toVar();
-        const starPresence = smoothstep(0.9962, 1.0, starSeed).toVar();
-        const twinkle = tslSin(nodes.uTime.mul(0.08).add(starSeed.mul(TWO_PI)))
-            .mul(0.16)
-            .add(0.84)
+        const observerLatitude = float(0.79587013891);
+        const sinLatitude = tslSin(observerLatitude).toVar();
+        const cosLatitude = tslCos(observerLatitude).toVar();
+        const sinSidereal = tslSin(nodes.uSiderealAngle).toVar();
+        const cosSidereal = tslCos(nodes.uSiderealAngle).toVar();
+        const meridian = cosLatitude.mul(rayDirection.y)
+            .sub(sinLatitude.mul(rayDirection.z))
             .toVar();
+        const celestialNorth = sinLatitude.mul(rayDirection.y)
+            .add(cosLatitude.mul(rayDirection.z))
+            .toVar();
+        const equatorialDirection = normalize(vec3(
+            meridian.mul(cosSidereal).sub(rayDirection.x.mul(sinSidereal)),
+            celestialNorth,
+            meridian.mul(sinSidereal).add(rayDirection.x.mul(cosSidereal)),
+        )).toVar();
+        const starUv = vec2(
+            tslFract(atan(equatorialDirection.z, equatorialDirection.x).div(TWO_PI).add(1.0)),
+            float(0.5).sub(asin(clamp(equatorialDirection.y, -1.0, 1.0)).div(Math.PI)),
+        ).toVar();
+        const catalogStars = nodes.t_StarMap.sample(starUv).rgb.toVar();
+        const twinkle = tslSin(
+            nodes.uTime.mul(0.07)
+                .add(dot(floor(starUv.mul(1024.0)), vec2(0.067, 0.113))),
+        ).mul(0.03).add(0.97).toVar();
         const starVisibility = nightAmount
             .mul(smoothstep(0.035, 0.18, rayDirection.y))
             .mul(float(1.0).sub(clouds.a))
             .toVar();
-        const starColor = mix(
-            vec3(0.68, 0.76, 1.0),
-            vec3(1.0, 0.84, 0.62),
-            starVariation,
-        ).toVar();
         atmosphericColor.addAssign(
-            starColor.mul(starPresence).mul(starVisibility).mul(twinkle).mul(1.25),
+            catalogStars.mul(starVisibility).mul(twinkle).mul(1.55),
         );
 
         const moonDirection = normalize(nodes.uSunDirection.negate()).toVar();
@@ -978,6 +1009,9 @@ function disposeSkyCloudMaterialResources(material) {
 
     disposeManagedNoiseTexture(nodes.t_PerlinNoise?.value);
     disposeManagedNoiseTexture(nodes.t_PerlinNoise3D?.value);
+    if (nodes.t_StarMap?.value?.userData?.isSkyCloudManagedStarTexture) {
+        nodes.t_StarMap.value.dispose();
+    }
 }
 
 function setPerlinNoiseTexture(material, nextTexture, managed = false) {
@@ -1099,6 +1133,14 @@ class SkyCloudMesh extends Mesh {
 
         if (nodes?.uTime) {
             nodes.uTime.value = time;
+        }
+    }
+
+    updateSiderealAngle(angle) {
+        const nodes = getSkyCloudNodes(this.material);
+
+        if (nodes?.uSiderealAngle) {
+            nodes.uSiderealAngle.value = angle;
         }
     }
 

@@ -36,6 +36,7 @@ export type DayNightLightingState = {
   solarElevationDeg: number;
   grade: DayNightGrade;
   skyAnimationTime: number;
+  siderealAngle: number;
   isNight: boolean;
   smokeAllowed: boolean;
   eveningWindowGlow: number;
@@ -49,6 +50,7 @@ const DAYS_PER_YEAR = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
 // The compressed calendar keeps the familiar month names. Its winter solstice
 // falls late in December, just as it does in the northern hemisphere.
 const WINTER_SOLSTICE_DAY = DAYS_PER_YEAR - CALENDAR_DAYS_PER_MONTH * 0.35;
+const LOCAL_SIDEREAL_PHASE_HOURS = 8;
 
 export function fractionalHour(clock: GameClock): number {
   return clock.preciseHour ?? clock.hour + clock.minute / 60;
@@ -128,10 +130,29 @@ export function computeDayNightState(
       vignette: lerp(0.2, 0.1, dayAmount) + night * 0.08,
     },
     skyAnimationTime: simElapsedSeconds(clock.simTick),
+    siderealAngle: computeSiderealAngle(clock, hour),
     isNight,
     smokeAllowed,
     eveningWindowGlow,
   };
+}
+
+/**
+ * Approximate local sidereal time for Gorski Kotar. The extra yearly turn is
+ * what brings different classical constellations into the evening sky each season.
+ */
+export function computeSiderealAngle(
+  clock: Pick<GameClock, 'month' | 'monthDay' | 'preciseCalendarDay'>,
+  hour: number,
+): number {
+  const calendarDay = clock.preciseCalendarDay
+    ?? (clock.month - 1) * CALENDAR_DAYS_PER_MONTH + Math.max(0, clock.monthDay - 0.5);
+  const siderealHours = hour
+    + calendarDay / DAYS_PER_YEAR * CALENDAR_HOURS_PER_DAY
+    + LOCAL_SIDEREAL_PHASE_HOURS;
+  return positiveModulo(siderealHours, CALENDAR_HOURS_PER_DAY)
+    / CALENDAR_HOURS_PER_DAY
+    * Math.PI * 2;
 }
 
 function computeSolarPosition(
@@ -201,6 +222,10 @@ function blendPhases(hour: number, phases: { at: number; value: number }[]): num
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
+}
+
+function positiveModulo(value: number, divisor: number): number {
+  return ((value % divisor) + divisor) % divisor;
 }
 
 function clamp(value: number, min: number, max: number): number {

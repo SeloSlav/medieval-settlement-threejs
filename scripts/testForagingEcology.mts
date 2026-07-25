@@ -15,14 +15,21 @@ import {
   isForagingRegrowthSeason,
 } from '../src/foraging/foragingSeason.ts';
 import {
+  GAME_HABITAT_WATER_CLEARANCE,
+  isGameHabitatClearOfWater,
+} from '../src/foraging/ForagingLayout.ts';
+import {
   GAME_PATCH_MAX_YIELD,
   RICH_GAME_PATCH_MAX_YIELD,
   RICH_GAME_PATCH_PICK_RADIUS,
+  gamePatchSpawnRadius,
 } from '../src/foraging/foragingYields.ts';
 import { forestDensityAt } from '../src/props/forestField.ts';
 import { MUSHROOM_ICON_SVG } from '../src/map/resourceMapIconGlyphs.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
+import { computeWorldBootstrapDataHeadless } from '../src/world/worldBootstrapData.ts';
+import { RiverField } from '../src/rivers/RiverField.ts';
 import {
   RESOURCE_KINDS,
   createEmptyStockpile,
@@ -35,6 +42,7 @@ import {
   collectWorkerTargets,
   pickWorkerWalkPlan,
 } from '../src/settlement/workerPaths.ts';
+import { Terrain } from '../src/terrain/Terrain.ts';
 
 assert.ok(RESOURCE_KINDS.includes('mushrooms'));
 assert.equal(createEmptyStockpile().mushrooms, 0);
@@ -75,6 +83,7 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
     [gameHabitats[1].x, gameHabitats[1].z],
     `${mapSize} game habitats should occupy different locations`,
   );
+  assertGameHabitatsStayDry(layout, `${mapSize} map`);
   assert.equal(mushrooms.length, 2, `${mapSize} maps should have two mushroom beds`);
   assert.equal(berries.length, 2, `${mapSize} maps should have two berry patches`);
 
@@ -99,6 +108,7 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
 }
 
 const layout = createWorldLayout();
+assertGameHabitatsStayDry(layout, 'default map');
 const registry = WorldLayoutRegistry.fromWorldLayout(layout);
 const gameDefinitions = registry.definitionList.filter((node) => node.kind === 'game');
 assert.deepEqual(gameDefinitions.map((node) => node.id), ['foraging-game-0', 'foraging-game-1']);
@@ -213,6 +223,20 @@ assert.ok(!MUSHROOM_ICON_SVG.includes('<image'));
 assert.ok(MUSHROOM_ICON_SVG.includes('foraging-map-icon-glyph--mushrooms'));
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
+const generatedForaging = JSON.parse(readFileSync(
+  `${projectRoot}server/generated/world_foraging.json`,
+  'utf8',
+));
+const currentBootstrap = computeWorldBootstrapDataHeadless();
+assert.deepEqual(
+  generatedForaging,
+  {
+    foragingNodes: currentBootstrap.foragingNodes,
+    gameRespawnCandidates: currentBootstrap.gameRespawnCandidates,
+  },
+  'server forage bootstrap coordinates must match the client world layout',
+);
+
 const lifecycle = readFileSync(
   `${projectRoot}server/src/simulation/foraging_respawn.rs`,
   'utf8',
@@ -279,4 +303,54 @@ console.log('foraging ecology tests passed');
 
 function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
+}
+
+function assertGameHabitatsStayDry(
+  worldLayout: ReturnType<typeof createWorldLayout>,
+  label: string,
+): void {
+  const dimensions = resolveWorldDimensions(worldLayout.settings.mapSize);
+  const riverField = RiverField.fromLayout({
+    bounds: Terrain.fullBounds(dimensions.terrainSize),
+    layout: worldLayout.riverLayout,
+  });
+  const habitats = worldLayout.foragingLayout.sites.filter((site) => site.kind === 'game');
+
+  for (const habitat of habitats) {
+    assert.equal(
+      isGameHabitatClearOfWater(
+        worldLayout.riverLayout,
+        habitat.x,
+        habitat.z,
+        GAME_HABITAT_WATER_CLEARANCE,
+      ),
+      true,
+      `${label} ${habitat.isRich ? 'large' : 'standard'} game habitat should clear the river`,
+    );
+    const spawnRadius = gamePatchSpawnRadius(habitat.isRich === true);
+    for (let radius = 0; radius <= spawnRadius; radius += 2) {
+      for (let angleIndex = 0; angleIndex < 24; angleIndex++) {
+        const angle = angleIndex * Math.PI * 2 / 24;
+        assert.equal(
+          riverField.isRenderedWetAt(
+            habitat.x + Math.sin(angle) * radius,
+            habitat.z + Math.cos(angle) * radius,
+          ),
+          false,
+          `${label} game herd footprint should stay on dry land`,
+        );
+      }
+    }
+  }
+
+  assert.ok(
+    worldLayout.foragingLayout.gameRespawnCandidates.length >= 2,
+    `${label} should retain dry migration destinations`,
+  );
+  assert.ok(
+    worldLayout.foragingLayout.gameRespawnCandidates.every((candidate) =>
+      isGameHabitatClearOfWater(worldLayout.riverLayout, candidate.x, candidate.z)
+    ),
+    `${label} migration candidates should also clear the river`,
+  );
 }

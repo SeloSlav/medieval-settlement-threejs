@@ -204,4 +204,16 @@ assert.match(
   'the game resource should retain its own static map-marker style',
 );
 
+const sceneManagerSource = fs.readFileSync('src/scene/SceneManager.ts', 'utf8');
+assert.match(
+  sceneManagerSource,
+  /isSpawnBlockedAt:\s*isForagingSiteBlocked/,
+  'initial deer spawn points should still avoid rivers and quarries',
+);
+assert.match(
+  sceneManagerSource,
+  /isMovementBlockedAt:\s*\(x,\s*z\)\s*=>\s*this\.quarrySystem\.isBlockedAt\(x,\s*z\)/,
+  'roaming deer should treat quarries, but not water, as movement obstacles',
+);
+
 console.log('test:deer-wildlife passed');
