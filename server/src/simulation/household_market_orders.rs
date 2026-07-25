@@ -9,15 +9,17 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     best_affordable_food_commodity, best_affordable_water_commodity, ensure_market_state,
-    nearest_marketplace_for_residence, order_food_commodity, order_water_commodity, scaled_gold_cost,
-    MarketGoldPayer,
+    nearest_marketplace_for_residence, order_food_commodity, order_water_commodity,
+    scaled_gold_cost, MarketGoldPayer,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::landmark_access::residence_has_marketplace_access;
 use crate::simulation::marketplace_caravan::MarketCaravanDispatch;
-use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::simulation::road_logistics::{residence_food_runway_seconds, residence_water_runway_seconds};
 use crate::simulation::residence_is_disabled_by_fire;
+use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
+use crate::simulation::road_logistics::{
+    residence_food_runway_seconds, residence_water_runway_seconds,
+};
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::Building;
 
@@ -111,9 +113,9 @@ pub fn step_household_market_orders(
                     all_market_food_commodities(),
                     wealth,
                     market.food_price_mult,
-                )
-                {
-                    let gold_cost = scaled_gold_cost(commodity.base_gold_cost, market.food_price_mult);
+                ) {
+                    let gold_cost =
+                        scaled_gold_cost(commodity.base_gold_cost, market.food_price_mult);
                     if order_food_commodity(
                         ctx,
                         tick,

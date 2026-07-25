@@ -1,6 +1,7 @@
 use spacetimedb::ReducerContext;
 
 use crate::db::*;
+use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::landmark_access::{
     residence_has_chapel_access, residence_has_monastery_coverage,
@@ -8,7 +9,6 @@ use crate::simulation::landmark_access::{
 use crate::simulation::residence_needs::{step_residence_needs, step_residence_recovery};
 use crate::simulation::residence_settlement::step_residence_settlement;
 use crate::simulation::tick_context::SimTickContext;
-use crate::season_policy::EnvironmentState;
 use crate::tables::{Building, Residence};
 
 pub fn step_residence(
@@ -21,15 +21,9 @@ pub fn step_residence(
     environment: EnvironmentState,
 ) {
     let residence_id = residence.id;
-    let has_chapel_access =
-        residence_has_chapel_access(tick, residence.owner, &residence, chapels);
-    let has_monastery_coverage = residence_has_monastery_coverage(
-        tick,
-        residence.owner,
-        &residence,
-        monasteries,
-        chapels,
-    );
+    let has_chapel_access = residence_has_chapel_access(tick, residence.owner, &residence, chapels);
+    let has_monastery_coverage =
+        residence_has_monastery_coverage(tick, residence.owner, &residence, monasteries, chapels);
 
     step_residence_recovery(
         ctx,

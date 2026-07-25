@@ -271,6 +271,7 @@ export async function bootstrapAppSession(
   );
   const villagers = new VillagerRenderer({
     parent: sceneManager.selectionGroup,
+    getGameSpeed: () => spacetimeStore.snapshot.gameSpeed,
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     getRoadDeckY: (x, z) => sceneManager.sampleRoadDeckY(x, z),
     routePathAroundObstacles: (path) => firstPersonCollisionWorld.routeAgentPath(path),

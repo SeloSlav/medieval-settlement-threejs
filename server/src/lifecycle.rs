@@ -1,12 +1,10 @@
 use spacetimedb::{reducer, Identity, ReducerContext, ScheduleAt, TimeDuration};
 
-use crate::balance_generated::{
-    CHAPEL_COFFER_RESERVE_DEFAULT, ECONOMIC_ACTIVITY_TAX_RATE,
-};
+use crate::balance_generated::{CHAPEL_COFFER_RESERVE_DEFAULT, ECONOMIC_ACTIVITY_TAX_RATE};
 use crate::constants::TICK_MICROS;
-use crate::reducers::world_configuration::default_world_config;
-use crate::economy::{ensure_market_state, STARTING_GOLD, STARTING_STONE, STARTING_TIMBER};
 use crate::db::*;
+use crate::economy::{ensure_market_state, STARTING_GOLD, STARTING_STONE, STARTING_TIMBER};
+use crate::reducers::world_configuration::default_world_config;
 use crate::schedule::SimTickSchedule;
 use crate::tables::{ForagingNode, PlayerResources, Quarry, TreeEntity};
 use crate::world_gen;

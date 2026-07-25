@@ -8,8 +8,11 @@ import {
   FIRE_DROUGHT_RISK_MULTIPLIER,
   FIRE_EXTINGUISH_CHANCE_BASE,
   FIRE_EXTINGUISH_INTENSITY_THRESHOLD,
+  FIRE_MINIMUM_BUCKET_WATER,
   FIRE_RAIN_RISK_MULTIPLIER,
   FIRE_SPREAD_RADIUS,
+  WELL_BASE_REFILL_PER_SEC,
+  WELL_MINIMUM_REFILL_HYDROLOGY,
 } from '../src/generated/gameBalance.ts';
 import {
   activeFireCount,
@@ -21,6 +24,7 @@ import { destinationKindFromId } from '../src/logistics/deliveryTrips.ts';
 
 assert.equal(destinationKindFromId(2), 'fire');
 assert.equal(FIRE_BUCKET_WATER, 3);
+assert.equal(FIRE_MINIMUM_BUCKET_WATER, 0.5);
 assert.ok(FIRE_BUCKET_SPEED_MPS > 0);
 assert.ok(FIRE_BUCKET_UNLOAD_SECONDS > 0);
 assert.ok(FIRE_SPREAD_RADIUS > 0);
@@ -28,6 +32,8 @@ assert.ok(FIRE_DROUGHT_RISK_MULTIPLIER > 1);
 assert.ok(FIRE_RAIN_RISK_MULTIPLIER < 1);
 assert.ok(FIRE_EXTINGUISH_CHANCE_BASE > 0);
 assert.ok(FIRE_EXTINGUISH_INTENSITY_THRESHOLD < 0.5);
+assert.equal(WELL_BASE_REFILL_PER_SEC, 0.7);
+assert.equal(WELL_MINIMUM_REFILL_HYDROLOGY, 0.15);
 
 const incident: FireIncidentState = {
   id: 'fire-1',
@@ -65,8 +71,8 @@ assert.match(
 );
 assert.match(
   tripSource,
-  /well\.water\s*-=\s*load/,
-  'bucket water must leave the well at dispatch',
+  /let load = fire_response_load\(well\.water\)[\s\S]*well\.water\s*-=\s*load/,
+  'partial bucket water must leave the well at dispatch',
 );
 assert.match(
   tripSource,
@@ -77,6 +83,11 @@ assert.match(
   fireSource,
   /within_extent\(well,\s*incident\.x,\s*incident\.z\)/,
   'fire response must respect the well work extent',
+);
+assert.match(
+  wellSource,
+  /fire_response_needed_for_well[\s\S]*delivery_ready = !fire_response_needed[\s\S]*prioritize_fire_response/,
+  'fire calls must preempt household delivery work',
 );
 assert.match(
   rendererSource,

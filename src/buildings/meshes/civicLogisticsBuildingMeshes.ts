@@ -91,9 +91,9 @@ export function createVillageStorehouseMesh(): THREE.Group {
 
   // Loading platform and deep canopy make the warehouse function legible at game camera distance.
   addMesh(group, new THREE.BoxGeometry(9.2, 0.32, 2.2), timberMaterial('dark'), new THREE.Vector3(-0.4, 0.72, 4.2));
-  for (const x of [-4.6, 3.8]) addMesh(group, new THREE.BoxGeometry(0.22, 2.6, 0.22), timberMaterial('dark'), new THREE.Vector3(x, 1.65, 5.0));
-  addMesh(group, new THREE.BoxGeometry(9.4, 0.16, 2.75), shingleMaterial(), new THREE.Vector3(-0.4, 3.0, 4.25), new THREE.Euler(-0.14, 0, 0));
-  for (let i = 0; i < 4; i++) addMesh(group, new THREE.BoxGeometry(2.7 - i * 0.18, 0.18, 0.52), stoneMaterial(i % 2 ? 'light' : 'mid'), new THREE.Vector3(-0.55, 0.1 + i * 0.18, 5.25 + i * 0.4));
+  for (const x of [-4.6, 3.8]) addMesh(group, new THREE.BoxGeometry(0.22, 3.4, 0.22), timberMaterial('dark'), new THREE.Vector3(x, 2.5, 5.0));
+  addMesh(group, new THREE.BoxGeometry(9.4, 0.16, 2.75), shingleMaterial(), new THREE.Vector3(-0.4, 4.15, 4.25), new THREE.Euler(-0.14, 0, 0));
+  for (let i = 0; i < 4; i++) addMesh(group, new THREE.BoxGeometry(2.7 - i * 0.18, 0.18, 0.52), stoneMaterial(i % 2 ? 'light' : 'mid'), new THREE.Vector3(-0.55, 0.1 + i * 0.18, 6.45 - i * 0.4));
 
   addCrate(group, 2.8, 0.92, 4.18, 1.05);
   addCrate(group, 4.0, 0.92, 4.28, 0.82);

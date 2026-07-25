@@ -116,7 +116,10 @@ fn validate_chapel_owner(chapel: &Building, owner: spacetimedb::Identity) -> Res
 
 #[cfg(test)]
 mod tests {
-    use super::{chapel_coffer_capacity, chapel_coffer_gold, deposit_coffer_in_place, withdraw_coffer_in_place};
+    use super::{
+        chapel_coffer_capacity, chapel_coffer_gold, deposit_coffer_in_place,
+        withdraw_coffer_in_place,
+    };
     use crate::tables::Building;
 
     fn sample_chapel(gold: f64) -> Building {

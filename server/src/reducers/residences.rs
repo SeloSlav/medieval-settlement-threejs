@@ -21,9 +21,8 @@ use crate::placement_validation::{
     burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, is_on_quarry_pit,
 };
 use crate::simulation::{
-    cancel_trips_for_residence, clear_backyard_garden_for_residence, clear_residence_needs,
-    clear_fire_for_target, ensure_residence_needs, residence_fire_state,
-    FIRE_TARGET_RESIDENCE,
+    cancel_trips_for_residence, clear_backyard_garden_for_residence, clear_fire_for_target,
+    clear_residence_needs, ensure_residence_needs, residence_fire_state, FIRE_TARGET_RESIDENCE,
 };
 use crate::tables::{farm_field, BurgageZone, Residence};
 

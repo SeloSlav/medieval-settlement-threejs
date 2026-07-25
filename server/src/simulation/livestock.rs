@@ -4,17 +4,15 @@ use crate::balance_generated::{
     CATTLE_AREA_PER_HEAD, CATTLE_BREEDING_PER_CYCLE, CATTLE_FERTILITY_BONUS,
     CATTLE_FOOD_PER_CYCLE_PER_HEAD, CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
     CATTLE_HEALTH_LOSS_PER_CYCLE, CATTLE_HEALTH_RECOVERY_PER_CYCLE, CATTLE_MAX_FERTILIZED_FIELDS,
-    CATTLE_MAX_HERD, CATTLE_MAX_SLOPE_DEGREES, CATTLE_MOISTURE_IDEAL,
-    CATTLE_MOISTURE_TOLERANCE, CATTLE_PLOUGH_WORK_MULTIPLIER,
-    CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, SHEEP_AREA_PER_HEAD, SHEEP_BREEDING_PER_CYCLE,
-    SHEEP_FOOD_PER_CYCLE_PER_HEAD, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
+    CATTLE_MAX_HERD, CATTLE_MAX_SLOPE_DEGREES, CATTLE_MOISTURE_IDEAL, CATTLE_MOISTURE_TOLERANCE,
+    CATTLE_PLOUGH_WORK_MULTIPLIER, CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, SHEEP_AREA_PER_HEAD,
+    SHEEP_BREEDING_PER_CYCLE, SHEEP_FOOD_PER_CYCLE_PER_HEAD, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
     SHEEP_HEALTH_LOSS_PER_CYCLE, SHEEP_HEALTH_RECOVERY_PER_CYCLE, SHEEP_MAX_HERD,
     SHEEP_MAX_SLOPE_DEGREES, SHEEP_MOISTURE_IDEAL, SHEEP_MOISTURE_TOLERANCE,
     SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, SHEEP_WOOL_GOLD_PER_CYCLE_PER_HEAD,
     SWINE_AREA_PER_HEAD, SWINE_BREEDING_PER_CYCLE, SWINE_FOOD_PER_CYCLE_PER_HEAD,
-    SWINE_GRAIN_PER_UNSUPPORTED_HEAD, SWINE_HEALTH_LOSS_PER_CYCLE,
-    SWINE_HEALTH_RECOVERY_PER_CYCLE, SWINE_MATURE_TREES_PER_HEAD, SWINE_MAX_HERD,
-    TICK_DT,
+    SWINE_GRAIN_PER_UNSUPPORTED_HEAD, SWINE_HEALTH_LOSS_PER_CYCLE, SWINE_HEALTH_RECOVERY_PER_CYCLE,
+    SWINE_MATURE_TREES_PER_HEAD, SWINE_MAX_HERD, TICK_DT,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -25,6 +23,7 @@ use crate::economy::{
 };
 use crate::farming::{centroid, point_in_field};
 use crate::reducers::livestock::{SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE};
+use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::expanded_economy::{
     dispatch_need, dispatch_to_building, request_connected_commodity,
 };
@@ -32,7 +31,6 @@ use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::tick_context::SimTickContext;
-use crate::season_policy::{EnvironmentState, Season};
 use crate::tables::{farm_field, Building, FarmField, LivestockHerd, Pasture};
 
 pub fn step_pastoral_farmstead(
@@ -63,12 +61,7 @@ fn step_livestock_building(
     mut building: Building,
     swine_building: bool,
 ) {
-    let Some(mut herd) = ctx
-        .db
-        .livestock_herd()
-        .building_id()
-        .find(&building.id)
-    else {
+    let Some(mut herd) = ctx.db.livestock_herd().building_id().find(&building.id) else {
         ctx.db.building().id().update(building);
         return;
     };
@@ -121,7 +114,11 @@ fn step_livestock_building(
             clock,
             &mut building,
             ResidenceNeedKind::Food,
-            if herd.species == SPECIES_SWINE { 3.0 } else { 2.0 },
+            if herd.species == SPECIES_SWINE {
+                3.0
+            } else {
+                2.0
+            },
         );
         if herd.species != SPECIES_SWINE {
             dispatch_need(
@@ -159,11 +156,7 @@ fn run_livestock_cycle(
         0.0
     };
     if supplement > 0.0 {
-        withdraw_building_commodity(
-            building,
-            CommodityKind::Grain,
-            supplement * grain_per_head,
-        );
+        withdraw_building_commodity(building, CommodityKind::Grain, supplement * grain_per_head);
     }
     herd.supplied_capacity = (herd.pasture_capacity + supplement).min(heads);
     let support_ratio = (herd.supplied_capacity / heads).clamp(0.0, 1.0);
@@ -174,23 +167,25 @@ fn run_livestock_cycle(
 
     let productive_heads = heads * support_ratio * herd.health;
     let season_multiplier = if herd.species == SPECIES_SWINE {
-        if matches!(clock.month, 10..=12) { 1.35 } else { 0.45 }
+        if matches!(clock.month, 10..=12) {
+            1.35
+        } else {
+            0.45
+        }
     } else {
         1.0
     };
-    let food = productive_heads
-        * species_food_per_cycle(herd.species)
-        * season_multiplier;
+    let food = productive_heads * species_food_per_cycle(herd.species) * season_multiplier;
     let preserved = productive_heads * species_preserved_per_cycle(herd.species);
     herd.last_food_output = food.min(building_commodity_room(building, CommodityKind::Food));
-    herd.last_preserved_output =
-        preserved.min(building_commodity_room(building, CommodityKind::PreservedFood));
+    herd.last_preserved_output = preserved.min(building_commodity_room(
+        building,
+        CommodityKind::PreservedFood,
+    ));
     deposit_building_commodity(building, CommodityKind::Food, food);
     deposit_building_commodity(building, CommodityKind::PreservedFood, preserved);
 
-    herd.last_wool_gold = if herd.species == SPECIES_SHEEP
-        && environment.season != Season::Winter
-    {
+    herd.last_wool_gold = if herd.species == SPECIES_SHEEP && environment.season != Season::Winter {
         productive_heads * SHEEP_WOOL_GOLD_PER_CYCLE_PER_HEAD
     } else {
         0.0
@@ -228,8 +223,8 @@ fn grazing_capacity(ctx: &ReducerContext, building: &Building, herd: &LivestockH
         return 0.0;
     }
     if herd.species == SPECIES_SWINE {
-        let area_capacity = pastures.iter().map(|pasture| pasture.area).sum::<f64>()
-            / SWINE_AREA_PER_HEAD.max(1.0);
+        let area_capacity =
+            pastures.iter().map(|pasture| pasture.area).sum::<f64>() / SWINE_AREA_PER_HEAD.max(1.0);
         let mature_trees = ctx
             .db
             .tree_entity()
@@ -238,7 +233,10 @@ fn grazing_capacity(ctx: &ReducerContext, building: &Building, herd: &LivestockH
                 tree.phase == "mature"
                     && pastures.iter().any(|pasture| {
                         point_in_field(
-                            Point2 { x: tree.x, z: tree.z },
+                            Point2 {
+                                x: tree.x,
+                                z: tree.z,
+                            },
                             &pasture_points(pasture),
                         )
                     })
@@ -270,7 +268,7 @@ fn grazing_capacity(ctx: &ReducerContext, building: &Building, herd: &LivestockH
                 (1.0 - 0.35 * pasture.average_slope_degrees / max_slope.max(1.0)).clamp(0.5, 1.0);
             let moisture_quality = (1.0
                 - 0.45 * (pasture.moisture - moisture_ideal).abs() / moisture_tolerance.max(0.01))
-                .clamp(0.45, 1.0);
+            .clamp(0.45, 1.0);
             pasture.area / area_per_head.max(1.0) * slope_quality * moisture_quality
         })
         .sum()
@@ -278,19 +276,43 @@ fn grazing_capacity(ctx: &ReducerContext, building: &Building, herd: &LivestockH
 
 fn pasture_points(pasture: &Pasture) -> ZoneCorners {
     ZoneCorners {
-        a: Point2 { x: pasture.corner_ax, z: pasture.corner_az },
-        b: Point2 { x: pasture.corner_bx, z: pasture.corner_bz },
-        c: Point2 { x: pasture.corner_cx, z: pasture.corner_cz },
-        d: Point2 { x: pasture.corner_dx, z: pasture.corner_dz },
+        a: Point2 {
+            x: pasture.corner_ax,
+            z: pasture.corner_az,
+        },
+        b: Point2 {
+            x: pasture.corner_bx,
+            z: pasture.corner_bz,
+        },
+        c: Point2 {
+            x: pasture.corner_cx,
+            z: pasture.corner_cz,
+        },
+        d: Point2 {
+            x: pasture.corner_dx,
+            z: pasture.corner_dz,
+        },
     }
 }
 
 pub fn cattle_support_for_field(ctx: &ReducerContext, field: &FarmField) -> (f64, f64) {
     let corners = ZoneCorners {
-        a: Point2 { x: field.corner_ax, z: field.corner_az },
-        b: Point2 { x: field.corner_bx, z: field.corner_bz },
-        c: Point2 { x: field.corner_cx, z: field.corner_cz },
-        d: Point2 { x: field.corner_dx, z: field.corner_dz },
+        a: Point2 {
+            x: field.corner_ax,
+            z: field.corner_az,
+        },
+        b: Point2 {
+            x: field.corner_bx,
+            z: field.corner_bz,
+        },
+        c: Point2 {
+            x: field.corner_cx,
+            z: field.corner_cz,
+        },
+        d: Point2 {
+            x: field.corner_dx,
+            z: field.corner_dz,
+        },
     };
     let field_center = centroid(&corners);
     for herd in ctx
@@ -318,10 +340,22 @@ pub fn cattle_support_for_field(ctx: &ReducerContext, field: &FarmField) -> (f64
             .filter(&field.owner)
             .filter(|candidate| {
                 let center = centroid(&ZoneCorners {
-                    a: Point2 { x: candidate.corner_ax, z: candidate.corner_az },
-                    b: Point2 { x: candidate.corner_bx, z: candidate.corner_bz },
-                    c: Point2 { x: candidate.corner_cx, z: candidate.corner_cz },
-                    d: Point2 { x: candidate.corner_dx, z: candidate.corner_dz },
+                    a: Point2 {
+                        x: candidate.corner_ax,
+                        z: candidate.corner_az,
+                    },
+                    b: Point2 {
+                        x: candidate.corner_bx,
+                        z: candidate.corner_bz,
+                    },
+                    c: Point2 {
+                        x: candidate.corner_cx,
+                        z: candidate.corner_cz,
+                    },
+                    d: Point2 {
+                        x: candidate.corner_dx,
+                        z: candidate.corner_dz,
+                    },
                 });
                 (building.x - center.x).hypot(building.z - center.z) <= building.work_radius
             })
@@ -372,7 +406,10 @@ fn species_breeding_per_cycle(species: u8) -> f64 {
 
 fn species_health_rates(species: u8) -> (f64, f64) {
     match species {
-        SPECIES_CATTLE => (CATTLE_HEALTH_RECOVERY_PER_CYCLE, CATTLE_HEALTH_LOSS_PER_CYCLE),
+        SPECIES_CATTLE => (
+            CATTLE_HEALTH_RECOVERY_PER_CYCLE,
+            CATTLE_HEALTH_LOSS_PER_CYCLE,
+        ),
         SPECIES_SHEEP => (SHEEP_HEALTH_RECOVERY_PER_CYCLE, SHEEP_HEALTH_LOSS_PER_CYCLE),
         _ => (SWINE_HEALTH_RECOVERY_PER_CYCLE, SWINE_HEALTH_LOSS_PER_CYCLE),
     }

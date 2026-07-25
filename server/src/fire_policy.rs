@@ -1,9 +1,10 @@
 //! Pure fire behavior shared by the authoritative simulation and native tests.
 
 use crate::balance_generated::{
-    FIRE_DAMAGE_PER_INTENSITY_SECOND, FIRE_DROUGHT_RISK_MULTIPLIER, FIRE_EXTINGUISH_CHANCE_BASE,
-    FIRE_EXTINGUISH_CHANCE_PER_WATER, FIRE_EXTINGUISH_INTENSITY_THRESHOLD,
-    FIRE_INTENSITY_GROWTH_PER_SECOND, FIRE_INTENSITY_REDUCTION_PER_WATER,
+    FIRE_BUCKET_WATER, FIRE_DAMAGE_PER_INTENSITY_SECOND, FIRE_DROUGHT_RISK_MULTIPLIER,
+    FIRE_EXTINGUISH_CHANCE_BASE, FIRE_EXTINGUISH_CHANCE_PER_WATER,
+    FIRE_EXTINGUISH_INTENSITY_THRESHOLD, FIRE_INTENSITY_GROWTH_PER_SECOND,
+    FIRE_INTENSITY_REDUCTION_PER_WATER, FIRE_MINIMUM_BUCKET_WATER,
     FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND, FIRE_RAIN_RISK_MULTIPLIER,
 };
 
@@ -18,6 +19,14 @@ pub struct SuppressionResult {
     pub intensity: f64,
     pub extinguish_chance: f64,
     pub extinguished: bool,
+}
+
+pub fn fire_response_load(available_water: f64) -> f64 {
+    if available_water + 1e-6 < FIRE_MINIMUM_BUCKET_WATER {
+        0.0
+    } else {
+        available_water.min(FIRE_BUCKET_WATER).max(0.0)
+    }
 }
 
 pub fn weather_risk_multiplier(is_raining: bool, is_drought: bool) -> f64 {
@@ -107,6 +116,38 @@ mod tests {
         assert!(!result.extinguished);
         let follow_up = suppression_result(result.intensity, 0.2, 3.0, 0.0);
         assert!(follow_up.extinguished);
+    }
+
+    #[test]
+    fn low_water_wells_send_partial_buckets() {
+        assert_eq!(fire_response_load(0.49), 0.0);
+        assert_eq!(fire_response_load(0.5), 0.5);
+        assert_eq!(fire_response_load(1.9), 1.9);
+        assert_eq!(fire_response_load(3.0), 3.0);
+        assert_eq!(fire_response_load(8.0), 3.0);
+    }
+
+    #[test]
+    fn a_partial_bucket_has_real_suppression_value() {
+        let result = suppression_result(0.34, 0.2, fire_response_load(1.9), 1.0);
+        assert!(result.intensity < 0.16);
+        assert!(result.extinguish_chance > FIRE_EXTINGUISH_CHANCE_BASE);
+    }
+
+    #[test]
+    fn low_water_response_can_dispatch_and_refill_for_a_follow_up_trip() {
+        let first_load = fire_response_load(1.9);
+        assert_eq!(first_load, 1.9);
+
+        let refilled = crate::well_policy::well_refill_amount(0.03, 1, 1.0, 20.0);
+        let second_load = fire_response_load(refilled);
+        assert!(second_load >= 2.0);
+
+        let first_suppression = suppression_result(0.42, 0.15, first_load, 1.0);
+        let second_suppression =
+            suppression_result(first_suppression.intensity, 0.25, second_load, 0.0);
+        assert!(second_suppression.intensity < first_suppression.intensity);
+        assert!(second_suppression.extinguished);
     }
 
     #[test]

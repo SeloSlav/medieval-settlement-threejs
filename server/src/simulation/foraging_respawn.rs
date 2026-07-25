@@ -61,12 +61,8 @@ fn migrate_disrupted_game_habitats(ctx: &ReducerContext, sim_tick: u64) {
         if !habitat_is_disrupted(node.x, node.z, &buildings) {
             continue;
         }
-        let Some((x, z)) = choose_migration_target(
-            node,
-            &resource_nodes,
-            &buildings,
-            sim_tick,
-        ) else {
+        let Some((x, z)) = choose_migration_target(node, &resource_nodes, &buildings, sim_tick)
+        else {
             continue;
         };
         let Some(current) = ctx.db.foraging_node().node_id().find(&node.node_id) else {
@@ -92,8 +88,7 @@ fn habitat_is_disrupted(x: f64, z: f64, buildings: &[Building]) -> bool {
             .map(|definition| definition.pick_radius)
             .unwrap_or(0.0);
         let radius = GAME_HABITAT_DISRUPTION_RADIUS + footprint;
-        (building.x - x) * (building.x - x) + (building.z - z) * (building.z - z)
-            <= radius * radius
+        (building.x - x) * (building.x - x) + (building.z - z) * (building.z - z) <= radius * radius
     })
 }
 

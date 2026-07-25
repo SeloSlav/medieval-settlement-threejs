@@ -162,6 +162,7 @@ export type GameBalance = {
     rainIntensityDampingPerSecond: number;
     damagePerIntensitySecond: number;
     bucketWater: number;
+    minimumBucketWater: number;
     bucketSpeedMps: number;
     bucketUnloadSeconds: number;
     intensityReductionPerWater: number;
@@ -296,6 +297,7 @@ export type GameBalance = {
     gameHabitatDisruptionRadius: number;
     reforesterRegrowPerSec: number;
     wellBaseRefillPerSec: number;
+    wellMinimumRefillHydrology: number;
     wellSurgeChancePerTick: number;
     wellSurgeAmountMin: number;
     wellSurgeAmountMax: number;
@@ -475,6 +477,7 @@ function generateRust(): string {
     `pub const FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND: f64 = ${rustF64(b.fires.rainIntensityDampingPerSecond)};`,
     `pub const FIRE_DAMAGE_PER_INTENSITY_SECOND: f64 = ${rustF64(b.fires.damagePerIntensitySecond)};`,
     `pub const FIRE_BUCKET_WATER: f64 = ${rustF64(b.fires.bucketWater)};`,
+    `pub const FIRE_MINIMUM_BUCKET_WATER: f64 = ${rustF64(b.fires.minimumBucketWater)};`,
     `pub const FIRE_BUCKET_SPEED_MPS: f64 = ${rustF64(b.fires.bucketSpeedMps)};`,
     `pub const FIRE_BUCKET_UNLOAD_SECONDS: f64 = ${rustF64(b.fires.bucketUnloadSeconds)};`,
     `pub const FIRE_INTENSITY_REDUCTION_PER_WATER: f64 = ${rustF64(b.fires.intensityReductionPerWater)};`,
@@ -603,6 +606,7 @@ function generateRust(): string {
     `pub const GAME_HABITAT_DISRUPTION_RADIUS: f64 = ${rustF64(b.production.gameHabitatDisruptionRadius)};`,
     `pub const REFORESTER_REGROW_PER_SEC: f64 = ${rustF64(b.production.reforesterRegrowPerSec)};`,
     `pub const WELL_BASE_REFILL_PER_SEC: f64 = ${rustF64(b.production.wellBaseRefillPerSec)};`,
+    `pub const WELL_MINIMUM_REFILL_HYDROLOGY: f64 = ${rustF64(b.production.wellMinimumRefillHydrology)};`,
     `pub const WELL_SURGE_CHANCE_PER_TICK: f64 = ${rustF64(b.production.wellSurgeChancePerTick)};`,
     `pub const WELL_SURGE_AMOUNT_MIN: f64 = ${rustF64(b.production.wellSurgeAmountMin)};`,
     `pub const WELL_SURGE_AMOUNT_MAX: f64 = ${rustF64(b.production.wellSurgeAmountMax)};`,
@@ -959,6 +963,7 @@ function generateTypeScript(): string {
     `export const FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND = ${b.fires.rainIntensityDampingPerSecond};`,
     `export const FIRE_DAMAGE_PER_INTENSITY_SECOND = ${b.fires.damagePerIntensitySecond};`,
     `export const FIRE_BUCKET_WATER = ${b.fires.bucketWater};`,
+    `export const FIRE_MINIMUM_BUCKET_WATER = ${b.fires.minimumBucketWater};`,
     `export const FIRE_BUCKET_SPEED_MPS = ${b.fires.bucketSpeedMps};`,
     `export const FIRE_BUCKET_UNLOAD_SECONDS = ${b.fires.bucketUnloadSeconds};`,
     `export const FIRE_INTENSITY_REDUCTION_PER_WATER = ${b.fires.intensityReductionPerWater};`,
@@ -1086,6 +1091,7 @@ function generateTypeScript(): string {
     `export const GAME_MIN_BREEDING_POPULATION = ${b.production.gameMinBreedingPopulation};`,
     `export const GAME_HABITAT_DISRUPTION_RADIUS = ${b.production.gameHabitatDisruptionRadius};`,
     `export const WELL_BASE_REFILL_PER_SEC = ${b.production.wellBaseRefillPerSec};`,
+    `export const WELL_MINIMUM_REFILL_HYDROLOGY = ${b.production.wellMinimumRefillHydrology};`,
     `export const WELL_SURGE_CHANCE_PER_TICK = ${b.production.wellSurgeChancePerTick};`,
     `export const WELL_SURGE_AMOUNT_MIN = ${b.production.wellSurgeAmountMin};`,
     `export const WELL_SURGE_AMOUNT_MAX = ${b.production.wellSurgeAmountMax};`,

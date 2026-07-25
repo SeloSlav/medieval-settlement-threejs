@@ -3,8 +3,8 @@
 use spacetimedb::ReducerContext;
 
 use crate::roads::RoadNetwork;
-use crate::simulation::game_calendar::GameClock;
 use crate::simulation::delivery_trips::{building_has_active_trip, try_start_delivery_trip};
+use crate::simulation::game_calendar::GameClock;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::tables::{Building, Residence};
 
@@ -22,9 +22,7 @@ pub fn delivery_work_ready(
     building_id: u64,
     ctx: &ReducerContext,
 ) -> bool {
-    delivering_workers > 0
-        && building_has_stock
-        && !building_has_active_trip(ctx, building_id)
+    delivering_workers > 0 && building_has_stock && !building_has_active_trip(ctx, building_id)
 }
 
 pub fn should_alternate_single_worker(

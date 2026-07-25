@@ -25,7 +25,10 @@ pub struct MarketCaravanDispatch {
 }
 
 pub fn marketplace_caravan_workers(building: &Building) -> u32 {
-    MARKET_CARAVAN_DELIVERY_WORKERS + building.assigned_labor.saturating_mul(MARKET_CARAVAN_LABOR_PER_WORKER)
+    MARKET_CARAVAN_DELIVERY_WORKERS
+        + building
+            .assigned_labor
+            .saturating_mul(MARKET_CARAVAN_LABOR_PER_WORKER)
 }
 
 pub fn try_dispatch_marketplace_caravan(
@@ -71,7 +74,10 @@ pub fn try_dispatch_marketplace_caravan(
         .collect();
 
     if let Some(priority_id) = dispatch.priority_residence_id {
-        if let Some(index) = targets.iter().position(|residence| residence.id == priority_id) {
+        if let Some(index) = targets
+            .iter()
+            .position(|residence| residence.id == priority_id)
+        {
             let priority = targets.remove(index);
             targets.insert(0, priority);
         }

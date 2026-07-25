@@ -49,10 +49,19 @@ pub fn place_farm_field(
     }
     let area = polygon_area(&corners);
     if area < FARM_MIN_FIELD_AREA - 1e-6 {
-        return Err(format!("Field is too small; draw at least {} m².", FARM_MIN_FIELD_AREA.round()));
+        return Err(format!(
+            "Field is too small; draw at least {} m².",
+            FARM_MIN_FIELD_AREA.round()
+        ));
     }
-    if edge_lengths(&corners).iter().any(|length| *length < FARM_MIN_FIELD_EDGE) {
-        return Err(format!("Every field edge must be at least {} m.", FARM_MIN_FIELD_EDGE.round()));
+    if edge_lengths(&corners)
+        .iter()
+        .any(|length| *length < FARM_MIN_FIELD_EDGE)
+    {
+        return Err(format!(
+            "Every field edge must be at least {} m.",
+            FARM_MIN_FIELD_EDGE.round()
+        ));
     }
 
     let slope = average_slope_degrees.clamp(0.0, 90.0);
@@ -82,17 +91,31 @@ pub fn place_farm_field(
     }
 
     for building in ctx.db.building().iter() {
-        let Some(radius) = building_pick_radius(&building.kind) else { continue; };
+        let Some(radius) = building_pick_radius(&building.kind) else {
+            continue;
+        };
         if zone_overlaps_footprint(&polygon, building.x, building.z, radius) {
             return Err("Field overlaps a building.".to_string());
         }
     }
     for zone in ctx.db.burgage_zone().iter() {
         let existing = [
-            Point2 { x: zone.corner_ax, z: zone.corner_az },
-            Point2 { x: zone.corner_bx, z: zone.corner_bz },
-            Point2 { x: zone.corner_cx, z: zone.corner_cz },
-            Point2 { x: zone.corner_dx, z: zone.corner_dz },
+            Point2 {
+                x: zone.corner_ax,
+                z: zone.corner_az,
+            },
+            Point2 {
+                x: zone.corner_bx,
+                z: zone.corner_bz,
+            },
+            Point2 {
+                x: zone.corner_cx,
+                z: zone.corner_cz,
+            },
+            Point2 {
+                x: zone.corner_dx,
+                z: zone.corner_dz,
+            },
         ];
         if convex_zones_overlap(&polygon, &existing) {
             return Err("Field overlaps a residence plot.".to_string());
@@ -100,10 +123,22 @@ pub fn place_farm_field(
     }
     for field in ctx.db.farm_field().iter() {
         let existing = [
-            Point2 { x: field.corner_ax, z: field.corner_az },
-            Point2 { x: field.corner_bx, z: field.corner_bz },
-            Point2 { x: field.corner_cx, z: field.corner_cz },
-            Point2 { x: field.corner_dx, z: field.corner_dz },
+            Point2 {
+                x: field.corner_ax,
+                z: field.corner_az,
+            },
+            Point2 {
+                x: field.corner_bx,
+                z: field.corner_bz,
+            },
+            Point2 {
+                x: field.corner_cx,
+                z: field.corner_cz,
+            },
+            Point2 {
+                x: field.corner_dx,
+                z: field.corner_dz,
+            },
         ];
         if convex_zones_overlap(&polygon, &existing) {
             return Err("Field overlaps existing farmland.".to_string());
@@ -113,7 +148,15 @@ pub fn place_farm_field(
         .db
         .tree_entity()
         .iter()
-        .filter(|tree| point_in_field(Point2 { x: tree.x, z: tree.z }, &corners))
+        .filter(|tree| {
+            point_in_field(
+                Point2 {
+                    x: tree.x,
+                    z: tree.z,
+                },
+                &corners,
+            )
+        })
         .map(|tree| tree.tree_id)
         .collect::<Vec<_>>();
     for tree_id in cleared_tree_ids {
@@ -162,7 +205,11 @@ pub fn set_farm_field_crop(ctx: &ReducerContext, field_id: u64, crop: u8) -> Res
 }
 
 #[reducer]
-pub fn set_farm_field_priority(ctx: &ReducerContext, field_id: u64, priority: u8) -> Result<(), String> {
+pub fn set_farm_field_priority(
+    ctx: &ReducerContext,
+    field_id: u64,
+    priority: u8,
+) -> Result<(), String> {
     let mut field = owned_field(ctx, field_id)?;
     field.priority = priority.min(3);
     ctx.db.farm_field().id().update(field);

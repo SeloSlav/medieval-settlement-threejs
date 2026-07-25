@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  FOOD_PER_DELIVERY,
   FOOD_DELIVERY_SPEED_MPS,
   SIM_REALTIME_RATE,
   SIM_TICK_SECONDS,
@@ -13,9 +14,18 @@ const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), 'utf8');
 
 assert.equal(
-  FOOD_DELIVERY_SPEED_MPS * SIM_REALTIME_RATE,
-  0.08,
+  FOOD_DELIVERY_SPEED_MPS,
+  1.6,
+  'food handcarts should keep a believable base pace before game-speed scaling',
+);
+assert.ok(
+  Math.abs(FOOD_DELIVERY_SPEED_MPS * SIM_REALTIME_RATE - 0.05333333333333334) < 1e-12,
   'the sparse Scenic economy cadence must not be applied directly to physical cart speed',
+);
+assert.equal(
+  FOOD_PER_DELIVERY,
+  6,
+  'each food visit should replenish a meaningful share of household storage',
 );
 assert.equal(SIM_TICK_SECONDS * 1 * 5, 1, 'Scenic delivery heartbeats cover real elapsed time');
 assert.equal(SIM_TICK_SECONDS * 5 * 5, 5, 'Normal delivery heartbeats retain the 5x control');

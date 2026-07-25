@@ -3,13 +3,14 @@
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    CALENDAR_SECONDS_PER_DAY, FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY, FIRE_BUCKET_WATER,
+    CALENDAR_SECONDS_PER_DAY, FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY,
     FIRE_INITIAL_INTENSITY, FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY,
     FIRE_RESOLVED_RETENTION_SECONDS, FIRE_SPREAD_CHANCE_PER_SECOND, FIRE_SPREAD_RADIUS, TICK_DT,
 };
 use crate::db::*;
 use crate::fire_policy::{
-    distance_spread_factor, step_fire, suppression_result, weather_risk_multiplier,
+    distance_spread_factor, fire_response_load, step_fire, suppression_result,
+    weather_risk_multiplier,
 };
 use crate::roads::RoadNetwork;
 use crate::season_policy::{EnvironmentState, WeatherKind};
@@ -121,7 +122,7 @@ pub fn select_fire_for_well(
     if well.kind != "well"
         || !well.construction_complete
         || well.assigned_labor == 0
-        || well.water + 1e-6 < FIRE_BUCKET_WATER
+        || fire_response_load(well.water) <= 0.0
         || well.work_radius <= 0.0
     {
         return None;
@@ -158,6 +159,26 @@ pub fn select_fire_for_well(
             .then_with(|| a.id.cmp(&b.id))
     });
     candidates.into_iter().next().map(|(incident, _)| incident)
+}
+
+pub fn fire_response_needed_for_well(ctx: &ReducerContext, well: &Building) -> bool {
+    if well.kind != "well"
+        || !well.construction_complete
+        || well.assigned_labor == 0
+        || well.work_radius <= 0.0
+    {
+        return false;
+    }
+
+    ctx.db
+        .fire_incident()
+        .owner()
+        .filter(&well.owner)
+        .any(|incident| {
+            incident.state == FIRE_STATE_BURNING
+                && (incident.response_well_id == 0 || incident.response_well_id == well.id)
+                && within_extent(well, incident.x, incident.z)
+        })
 }
 
 pub fn reserve_fire_response(ctx: &ReducerContext, incident_id: u64, well_id: u64) -> bool {
@@ -417,7 +438,7 @@ fn nearest_eligible_well_id(
             building.kind == "well"
                 && building.construction_complete
                 && building.assigned_labor > 0
-                && building.water + 1e-6 >= FIRE_BUCKET_WATER
+                && fire_response_load(building.water) > 0.0
                 && within_extent(building, incident.x, incident.z)
         })
     {

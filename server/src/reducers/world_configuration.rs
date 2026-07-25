@@ -80,7 +80,11 @@ pub fn configure_world(
             forest_density,
             configured: true,
             // Repair idle ticks that ran before the first client published settings.
-            sim_tick: if !config.configured { 0 } else { config.sim_tick },
+            sim_tick: if !config.configured {
+                0
+            } else {
+                config.sim_tick
+            },
             ..config
         });
     }
@@ -92,7 +96,9 @@ fn validate_map_size(map_size: u8) -> Result<(), String> {
     if map_size == MAP_SIZE_SMALL || map_size == MAP_SIZE_MEDIUM || map_size == MAP_SIZE_LARGE {
         return Ok(());
     }
-    Err(format!("map_size must be {MAP_SIZE_SMALL}, {MAP_SIZE_MEDIUM}, or {MAP_SIZE_LARGE}"))
+    Err(format!(
+        "map_size must be {MAP_SIZE_SMALL}, {MAP_SIZE_MEDIUM}, or {MAP_SIZE_LARGE}"
+    ))
 }
 
 fn validate_percent(value: u8, label: &str) -> Result<(), String> {

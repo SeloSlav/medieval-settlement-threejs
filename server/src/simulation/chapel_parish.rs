@@ -1,28 +1,28 @@
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::all_market_food_commodities;
 use crate::balance_generated::{
-    CHAPEL_AUTO_SWEEP_FRACTION, CHAPEL_AUTO_SWEEP_INTERVAL_TICKS, CHAPEL_CHARITY_GOLD_PER_DAY,
-    CHAPEL_CHARITY_MIN_COFFER_GOLD, CHAPEL_CHARITY_RELIEF_FRACTION, CHAPEL_CHARITY_WEALTH_FRACTION,
-    CHAPEL_PRIEST_SALARY_GOLD_PER_DAY, CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY,
-    CALENDAR_SECONDS_PER_DAY, TICK_DT,
+    CALENDAR_SECONDS_PER_DAY, CHAPEL_AUTO_SWEEP_FRACTION, CHAPEL_AUTO_SWEEP_INTERVAL_TICKS,
+    CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_CHARITY_MIN_COFFER_GOLD, CHAPEL_CHARITY_RELIEF_FRACTION,
+    CHAPEL_CHARITY_WEALTH_FRACTION, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
+    CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY, TICK_DT,
 };
 use crate::db::*;
-use crate::economy::{
-    chapel_coffer_gold, credit_treasury_gold, credit_residence_wealth, deposit_coffer_in_place,
-    withdraw_coffer_in_place,
-};
 use crate::economy::{
     best_affordable_food_commodity, ensure_market_state, nearest_marketplace_for_residence,
     order_food_commodity, scaled_gold_cost, MarketGoldPayer,
 };
+use crate::economy::{
+    chapel_coffer_gold, credit_residence_wealth, credit_treasury_gold, deposit_coffer_in_place,
+    withdraw_coffer_in_place,
+};
 use crate::economy::{record_parish_ledger, ParishLedgerKind};
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::landmark_access::residence_has_marketplace_access;
 use crate::simulation::labor_schedule::is_parish_economy_paused;
+use crate::simulation::landmark_access::residence_has_marketplace_access;
 use crate::simulation::marketplace_caravan::MarketCaravanDispatch;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::tick_context::SimTickContext;
-use crate::balance_generated::all_market_food_commodities;
 use crate::tables::{Building, Residence};
 
 pub fn chapel_gold_per_tick(daily_rate: f64) -> f64 {
@@ -86,12 +86,15 @@ fn step_one_chapel_parish(
     let assigned_labor = chapel_row.assigned_labor;
 
     if assigned_labor > 0 {
-        let salary_paid =
-            withdraw_coffer_in_place(&mut chapel_row, chapel_priest_salary_per_tick(assigned_labor));
+        let salary_paid = withdraw_coffer_in_place(
+            &mut chapel_row,
+            chapel_priest_salary_per_tick(assigned_labor),
+        );
         record_parish_ledger(ctx, owner, ParishLedgerKind::Salary, salary_paid);
     }
 
-    let upkeep_paid = withdraw_coffer_in_place(&mut chapel_row, chapel_upkeep_per_tick(assigned_labor));
+    let upkeep_paid =
+        withdraw_coffer_in_place(&mut chapel_row, chapel_upkeep_per_tick(assigned_labor));
     record_parish_ledger(ctx, owner, ParishLedgerKind::Upkeep, upkeep_paid);
 
     let coffer_balance = chapel_coffer_gold(&chapel_row);
@@ -109,7 +112,10 @@ fn step_one_chapel_parish(
                 let reserve = resources.chapel_coffer_reserve_gold;
                 let excess = chapel_coffer_gold(&chapel_row) - reserve;
                 if excess > 1e-9 {
-                    let swept = withdraw_coffer_in_place(&mut chapel_row, excess * CHAPEL_AUTO_SWEEP_FRACTION);
+                    let swept = withdraw_coffer_in_place(
+                        &mut chapel_row,
+                        excess * CHAPEL_AUTO_SWEEP_FRACTION,
+                    );
                     if swept > 1e-9 {
                         credit_treasury_gold(ctx, owner, swept);
                         record_parish_ledger(ctx, owner, ParishLedgerKind::AutoSweep, swept);
@@ -209,9 +215,11 @@ fn try_chapel_poor_relief(
         return 0.0;
     };
 
-    let Some(commodity) =
-        best_affordable_food_commodity(all_market_food_commodities(), budget, market.food_price_mult)
-    else {
+    let Some(commodity) = best_affordable_food_commodity(
+        all_market_food_commodities(),
+        budget,
+        market.food_price_mult,
+    ) else {
         return 0.0;
     };
 
@@ -253,19 +261,15 @@ fn distribute_wealth_charity(
         if residence.abandoned || residence.population == 0 || residence.owner != chapel.owner {
             continue;
         }
-        if !tick.road_connected(
-            chapel.owner,
-            residence.x,
-            residence.z,
-            chapel.x,
-            chapel.z,
-        ) {
+        if !tick.road_connected(chapel.owner, residence.x, residence.z, chapel.x, chapel.z) {
             continue;
         }
 
         poorest = match poorest {
             None => Some(residence),
-            Some(current) if residence.household_wealth < current.household_wealth => Some(residence),
+            Some(current) if residence.household_wealth < current.household_wealth => {
+                Some(residence)
+            }
             other => other,
         };
     }
@@ -281,17 +285,17 @@ fn distribute_wealth_charity(
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_charity_per_tick, chapel_gold_per_tick, chapel_priest_salary_per_tick, chapel_upkeep_per_tick,
+        chapel_charity_per_tick, chapel_gold_per_tick, chapel_priest_salary_per_tick,
+        chapel_upkeep_per_tick,
     };
     use crate::balance_generated::{
-        CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY, CHAPEL_UNSTAFFED_UPKEEP_FRACTION,
-        CHAPEL_UPKEEP_GOLD_PER_DAY, TICK_DT,
+        CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
+        CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY, TICK_DT,
     };
 
     #[test]
     fn priest_salary_per_tick_matches_balance() {
-        let expected =
-            CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * TICK_DT / CALENDAR_SECONDS_PER_DAY;
+        let expected = CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * TICK_DT / CALENDAR_SECONDS_PER_DAY;
         assert!((chapel_priest_salary_per_tick(1) - expected).abs() < 1e-9);
         assert_eq!(chapel_priest_salary_per_tick(0), 0.0);
     }
@@ -299,7 +303,8 @@ mod tests {
     #[test]
     fn upkeep_per_tick_matches_balance() {
         let staffed = chapel_gold_per_tick(CHAPEL_UPKEEP_GOLD_PER_DAY);
-        let idle = chapel_gold_per_tick(CHAPEL_UPKEEP_GOLD_PER_DAY * CHAPEL_UNSTAFFED_UPKEEP_FRACTION);
+        let idle =
+            chapel_gold_per_tick(CHAPEL_UPKEEP_GOLD_PER_DAY * CHAPEL_UNSTAFFED_UPKEEP_FRACTION);
         assert!((chapel_upkeep_per_tick(1) - staffed).abs() < 1e-9);
         assert!((chapel_upkeep_per_tick(0) - idle).abs() < 1e-9);
     }

@@ -21,23 +21,23 @@ pub enum TradeReceive {
 pub fn trade_spend(offer: &MarketplaceTradeOffer) -> TradeSpend {
     match offer.kind {
         MarketplaceTradeKind::GoldBuy { gold_cost, .. } => TradeSpend::Gold(gold_cost),
-        MarketplaceTradeKind::GoldSell { resource, amount, .. } => {
-            TradeSpend::Resource(TradeLeg { resource, amount })
-        }
-        MarketplaceTradeKind::Barter { give, give_amount, .. } => {
-            TradeSpend::Resource(TradeLeg {
-                resource: give,
-                amount: give_amount,
-            })
-        }
+        MarketplaceTradeKind::GoldSell {
+            resource, amount, ..
+        } => TradeSpend::Resource(TradeLeg { resource, amount }),
+        MarketplaceTradeKind::Barter {
+            give, give_amount, ..
+        } => TradeSpend::Resource(TradeLeg {
+            resource: give,
+            amount: give_amount,
+        }),
     }
 }
 
 pub fn trade_receive(offer: &MarketplaceTradeOffer) -> TradeReceive {
     match offer.kind {
-        MarketplaceTradeKind::GoldBuy { resource, amount, .. } => {
-            TradeReceive::Resource(TradeLeg { resource, amount })
-        }
+        MarketplaceTradeKind::GoldBuy {
+            resource, amount, ..
+        } => TradeReceive::Resource(TradeLeg { resource, amount }),
         MarketplaceTradeKind::GoldSell { gold_yield, .. } => TradeReceive::Gold(gold_yield),
         MarketplaceTradeKind::Barter {
             receive,

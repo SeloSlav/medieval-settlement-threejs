@@ -9,9 +9,9 @@ pub mod water;
 pub use kinds::ResidenceNeedKind;
 pub use state::{load_needs, need_stock};
 
+use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_consumption_paused;
-use crate::season_policy::EnvironmentState;
 use spacetimedb::ReducerContext;
 
 use crate::db::*;
@@ -199,14 +199,12 @@ fn consume_need(
     environment: EnvironmentState,
 ) -> ConsumeResult {
     match kind {
-        ResidenceNeedKind::Firewood => match firewood::consume(
-            residence,
-            need,
-            environment.firewood_demand_multiplier(),
-        ) {
-            firewood::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
-            firewood::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
-        },
+        ResidenceNeedKind::Firewood => {
+            match firewood::consume(residence, need, environment.firewood_demand_multiplier()) {
+                firewood::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
+                firewood::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
+            }
+        }
         ResidenceNeedKind::Water => match water::consume(residence, need) {
             water::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             water::ConsumeOutcome::Unmet => ConsumeResult::Unmet,

@@ -1,17 +1,16 @@
 use crate::balance_generated::{
-    AUTUMN_FIREWOOD_DEMAND_MULTIPLIER, AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
-    CALENDAR_DAYS_PER_MONTH, CALENDAR_SECONDS_PER_DAY, DROUGHT_CROP_GROWTH_MULTIPLIER,
-    DROUGHT_FISH_LOSS_FRACTION_PER_DAY, DROUGHT_FORAGE_REGROWTH_MULTIPLIER,
-    DROUGHT_PASTURE_CAPACITY_MULTIPLIER, DROUGHT_WELL_REFILL_MULTIPLIER,
-    FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY, FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY,
-    FRESH_FOOD_SPOILAGE_SPRING_PER_DAY, FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY,
-    FRESH_FOOD_SPOILAGE_WINTER_PER_DAY, SPRING_BREEDING_MULTIPLIER,
-    SPRING_FIREWOOD_DEMAND_MULTIPLIER, SPRING_PASTURE_CAPACITY_MULTIPLIER,
-    SPRING_RAIN_CHANCE, SPRING_RAIN_CROP_GROWTH_MULTIPLIER,
-    SPRING_RAIN_WELL_REFILL_MULTIPLIER, SUMMER_DROUGHT_CHANCE,
-    SUMMER_DROUGHT_DURATION_DAYS, SUMMER_FIREWOOD_DEMAND_MULTIPLIER,
-    SUMMER_PASTURE_CAPACITY_MULTIPLIER, WINTER_BREEDING_MULTIPLIER,
-    WINTER_FIREWOOD_DEMAND_MULTIPLIER, WINTER_PASTURE_CAPACITY_MULTIPLIER,
+    AUTUMN_FIREWOOD_DEMAND_MULTIPLIER, AUTUMN_PASTURE_CAPACITY_MULTIPLIER, CALENDAR_DAYS_PER_MONTH,
+    CALENDAR_SECONDS_PER_DAY, DROUGHT_CROP_GROWTH_MULTIPLIER, DROUGHT_FISH_LOSS_FRACTION_PER_DAY,
+    DROUGHT_FORAGE_REGROWTH_MULTIPLIER, DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
+    DROUGHT_WELL_REFILL_MULTIPLIER, FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
+    FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY, FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
+    FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY, FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
+    SPRING_BREEDING_MULTIPLIER, SPRING_FIREWOOD_DEMAND_MULTIPLIER,
+    SPRING_PASTURE_CAPACITY_MULTIPLIER, SPRING_RAIN_CHANCE, SPRING_RAIN_CROP_GROWTH_MULTIPLIER,
+    SPRING_RAIN_WELL_REFILL_MULTIPLIER, SUMMER_DROUGHT_CHANCE, SUMMER_DROUGHT_DURATION_DAYS,
+    SUMMER_FIREWOOD_DEMAND_MULTIPLIER, SUMMER_PASTURE_CAPACITY_MULTIPLIER,
+    WINTER_BREEDING_MULTIPLIER, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+    WINTER_PASTURE_CAPACITY_MULTIPLIER,
 };
 use crate::simulation::GameClock;
 
@@ -145,9 +144,8 @@ fn spring_rain(seed: u64, hydrology: u8, clock: &GameClock) -> bool {
 }
 
 fn summer_drought(seed: u64, hydrology: u8, clock: &GameClock) -> bool {
-    let chance = (SUMMER_DROUGHT_CHANCE
-        * (1.15 - hydrology as f64 / 100.0 * 0.5))
-        .clamp(0.12, 0.65);
+    let chance =
+        (SUMMER_DROUGHT_CHANCE * (1.15 - hydrology as f64 / 100.0 * 0.5)).clamp(0.12, 0.65);
     let year_key = seed as u32 ^ clock.year.wrapping_mul(0xc2b2_ae35) ^ 0x7f4a_7c15;
     if unit_roll(year_key) >= chance {
         return false;
@@ -188,11 +186,19 @@ mod tests {
 
     #[test]
     fn drought_effects_are_harsher_than_fair_summer() {
-        let drought = EnvironmentState { season: Season::Summer, weather: WeatherKind::Drought };
-        let fair = EnvironmentState { season: Season::Summer, weather: WeatherKind::Fair };
+        let drought = EnvironmentState {
+            season: Season::Summer,
+            weather: WeatherKind::Drought,
+        };
+        let fair = EnvironmentState {
+            season: Season::Summer,
+            weather: WeatherKind::Fair,
+        };
         assert!(drought.crop_growth_multiplier() < fair.crop_growth_multiplier());
-        assert!(drought.fresh_food_spoilage_fraction_per_second()
-            > fair.fresh_food_spoilage_fraction_per_second());
+        assert!(
+            drought.fresh_food_spoilage_fraction_per_second()
+                > fair.fresh_food_spoilage_fraction_per_second()
+        );
         assert!(drought.fish_loss_per_second() > 0.0);
     }
 }

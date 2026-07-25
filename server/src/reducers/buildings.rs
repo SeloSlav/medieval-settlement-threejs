@@ -153,8 +153,7 @@ fn has_rich_quarry_at_center(ctx: &ReducerContext, x: f64, z: f64) -> bool {
     let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
     ctx.db.quarry().iter().any(|quarry| {
         quarry.is_rich
-            && (quarry.x - x) * (quarry.x - x) + (quarry.z - z) * (quarry.z - z)
-                <= tolerance_sq
+            && (quarry.x - x) * (quarry.x - x) + (quarry.z - z) * (quarry.z - z) <= tolerance_sq
     })
 }
 
@@ -318,7 +317,9 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     }
 
     if kind == "large_quarry" && !has_rich_quarry_at_center(ctx, x, z) {
-        return Err("Large Quarries must be placed directly over a rich stone deposit.".to_string());
+        return Err(
+            "Large Quarries must be placed directly over a rich stone deposit.".to_string(),
+        );
     }
 
     if def.requires_game && !has_foraging_in_radius(ctx, x, z, def.work_radius, "game", false) {
@@ -565,8 +566,16 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         owner,
         refund.stone + (building.stone + trip_cargo.stone) * recoverable,
     );
-    credit_treasury_firewood(ctx, owner, (building.firewood + trip_cargo.firewood) * recoverable);
-    credit_treasury_water(ctx, owner, (building.water + trip_cargo.water) * recoverable);
+    credit_treasury_firewood(
+        ctx,
+        owner,
+        (building.firewood + trip_cargo.firewood) * recoverable,
+    );
+    credit_treasury_water(
+        ctx,
+        owner,
+        (building.water + trip_cargo.water) * recoverable,
+    );
     credit_treasury_food(ctx, owner, (building.food + trip_cargo.food) * recoverable);
     credit_treasury_gold(ctx, owner, chapel_coffer_gold(&building) * recoverable);
     credit_treasury_commodity(

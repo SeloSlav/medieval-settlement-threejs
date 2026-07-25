@@ -39,11 +39,14 @@ assert.ok(
   Math.min(
     FIREWOOD_DELIVERY_SPEED_MPS,
     WATER_DELIVERY_SPEED_MPS,
-    FOOD_DELIVERY_SPEED_MPS,
     TIMBER_DELIVERY_SPEED_MPS,
     CONSTRUCTION_DELIVERY_SPEED_MPS,
   ) >= 2,
-  'delivery carts should move materially faster than villagers on foot',
+  'heavy utility and construction carts should retain their established logistics pace',
+);
+assert.ok(
+  FOOD_DELIVERY_SPEED_MPS >= 1.4 && FOOD_DELIVERY_SPEED_MPS < 2,
+  'household food handcarts should move at a believable brisk walking pace',
 );
 
 for (const kind of ['lumber_mill', 'stone_quarry'] as const) {

@@ -1,6 +1,4 @@
-use crate::constants::{
-    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, TICK_DT,
-};
+use crate::constants::{RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, TICK_DT};
 use crate::economy::residence_firewood_capacity;
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::simulation::residence_needs::state::NeedState;
@@ -13,11 +11,7 @@ pub enum ConsumeOutcome {
     Unmet,
 }
 
-pub fn consume(
-    residence: &Residence,
-    need: &NeedState,
-    demand_multiplier: f64,
-) -> ConsumeOutcome {
+pub fn consume(residence: &Residence, need: &NeedState, demand_multiplier: f64) -> ConsumeOutcome {
     let demand = residence.population as f64
         * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
         * demand_multiplier

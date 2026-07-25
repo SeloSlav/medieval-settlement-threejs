@@ -16,6 +16,7 @@ import {
 } from '../src/roads/roadTravel.ts';
 import { computeDayNightState } from '../src/world/dayNightPresentation.ts';
 import type { GameClock } from '../src/world/gameCalendar.ts';
+import type { GameSpeed } from '../src/world/gameSpeed.ts';
 
 const identities = Array.from(
   { length: 12 },
@@ -111,8 +112,10 @@ assert.equal(
 
 const originalWarn = console.warn;
 console.warn = () => {};
+let gameSpeed: GameSpeed = 1;
 const villagers = new VillagerRenderer({
   parent: new THREE.Group(),
+  getGameSpeed: () => gameSpeed,
   getHeightAt: () => 0,
 });
 const home = residence('routine-home', 0, 0);
@@ -139,6 +142,7 @@ const agents = (
     agents: Map<string, {
       routinePhase: string;
       pathPurpose: string | null;
+      simPathCursor: number;
     }>;
   }
 ).agents;
@@ -149,6 +153,25 @@ assert.equal(worker.routinePhase, 'work');
 villagers.setSchedule(fullClock(20), true);
 assert.equal(worker.routinePhase, 'returning_home');
 assert.equal(worker.pathPurpose, 'return_home');
+const pausedCursor = worker.simPathCursor;
+gameSpeed = 0;
+villagers.tick(1);
+assert.equal(
+  worker.simPathCursor,
+  pausedCursor,
+  'paused game time should freeze villager travel',
+);
+gameSpeed = 1;
+villagers.tick(0.2);
+const scenicDistance = worker.simPathCursor - pausedCursor;
+gameSpeed = 5;
+villagers.tick(0.2);
+const normalDistance = worker.simPathCursor - pausedCursor - scenicDistance;
+assert.ok(
+  normalDistance > scenicDistance * 4,
+  'Normal speed should advance villagers about five times farther than Scenic speed',
+);
+gameSpeed = 1;
 for (let step = 0; step < 600; step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'home_outdoors');
 assert.equal(worker.pathPurpose, null);

@@ -30,7 +30,7 @@
     "test:weather-visuals": "node --experimental-strip-types scripts/testPrecipitationVisuals.mts",
     "test:day-night": "node --experimental-strip-types scripts/testDayNightPresentation.mts",
     "test:celestial-sky": "node --experimental-strip-types scripts/testCelestialSky.mts",
-    "test:fires": "node --experimental-strip-types scripts/testFireSystem.mts",
+    "test:fires": "node --experimental-strip-types scripts/testFireSystem.mts && cargo test --manifest-path server/logic/Cargo.toml fire_policy && cargo test --manifest-path server/logic/Cargo.toml well_policy",
     "test:world-config": "npx tsx scripts/testWorldConfigAuthority.mts",
     "test:connection-recovery": "npx tsx scripts/testConnectionRecoveryHints.mts",
     "test:building-processor-status": "npx tsx scripts/testBuildingProcessorStatus.mts",

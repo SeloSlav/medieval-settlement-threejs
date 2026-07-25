@@ -48,8 +48,11 @@ pub fn measure_zone_depth(corners: &ZoneCorners, frontage_edge: u8) -> f64 {
     let (front_start, front_end) = zone_edge(corners, frontage_edge);
     let rear_edge = (frontage_edge + 2) % 4;
     let (rear_end, rear_start) = zone_edge(corners, rear_edge);
-    distance_point_to_segment(&front_start, &rear_start, &rear_end)
-        .min(distance_point_to_segment(&front_end, &rear_start, &rear_end))
+    distance_point_to_segment(&front_start, &rear_start, &rear_end).min(distance_point_to_segment(
+        &front_end,
+        &rear_start,
+        &rear_end,
+    ))
 }
 
 pub fn max_zone_depth() -> f64 {
@@ -136,8 +139,9 @@ pub fn compute_burgage_layout(
             continue;
         }
 
-        let parcel_depth = distance_point_to_segment(&front_left, &rear_left, &rear_right)
-            .min(distance_point_to_segment(&front_right, &rear_left, &rear_right));
+        let parcel_depth = distance_point_to_segment(&front_left, &rear_left, &rear_right).min(
+            distance_point_to_segment(&front_right, &rear_left, &rear_right),
+        );
         if parcel_depth < MIN_PARCEL_DEPTH {
             continue;
         }
@@ -244,7 +248,8 @@ fn distance_point_to_segment(point: &Point2, seg_start: &Point2, seg_end: &Point
     let t = if length_sq <= 1e-6 {
         0.0
     } else {
-        (((point.x - seg_start.x) * abx + (point.z - seg_start.z) * abz) / length_sq).clamp(0.0, 1.0)
+        (((point.x - seg_start.x) * abx + (point.z - seg_start.z) * abz) / length_sq)
+            .clamp(0.0, 1.0)
     };
     let px = seg_start.x + abx * t;
     let pz = seg_start.z + abz * t;
@@ -323,7 +328,11 @@ fn polygon_centroid(polygon: &[Point2]) -> Point2 {
     }
 }
 
-fn point_strictly_inside_polygon(point: &Point2, polygon: &[Point2], boundary_epsilon: f64) -> bool {
+fn point_strictly_inside_polygon(
+    point: &Point2,
+    polygon: &[Point2],
+    boundary_epsilon: f64,
+) -> bool {
     if !is_point_in_polygon(point, polygon) {
         return false;
     }

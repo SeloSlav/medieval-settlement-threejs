@@ -5,9 +5,7 @@ use spacetimedb::Identity;
 use crate::constants::RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC;
 use crate::constants::RESIDENCE_WATER_PER_PERSON_PER_SEC;
 use crate::roads::RoadNetwork;
-use crate::simulation::lodge_logistics::{
-    residence_firewood_runway_seconds as residence_runway_seconds,
-};
+use crate::simulation::lodge_logistics::residence_firewood_runway_seconds as residence_runway_seconds;
 use crate::tables::{building, Building, Residence};
 
 pub use crate::simulation::lodge_logistics::lodge_labor_split;
@@ -56,10 +54,7 @@ pub fn claim_residences_for_lodges(
     claims
 }
 
-pub fn residence_firewood_runway_seconds(
-    residence: &Residence,
-    firewood_stock: f64,
-) -> f64 {
+pub fn residence_firewood_runway_seconds(residence: &Residence, firewood_stock: f64) -> f64 {
     residence_runway_seconds(
         residence.abandoned,
         residence.population,
@@ -75,41 +70,33 @@ pub fn sort_residences_for_delivery(
     residences: &mut [Residence],
     firewood_stock_for: impl Fn(&Residence) -> f64,
 ) {
-    residences.sort_by(|a, b| {
-        match (a.abandoned, b.abandoned) {
-            (true, false) => std::cmp::Ordering::Greater,
-            (false, true) => std::cmp::Ordering::Less,
-            _ => {
-                let runway_a =
-                    residence_firewood_runway_seconds(a, firewood_stock_for(a));
-                let runway_b =
-                    residence_firewood_runway_seconds(b, firewood_stock_for(b));
-                match runway_a
-                    .partial_cmp(&runway_b)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                {
-                    std::cmp::Ordering::Equal => {
-                        let distance_a = road_path_distance(network, lodge.x, lodge.z, a.x, a.z)
-                            .unwrap_or(f64::INFINITY);
-                        let distance_b = road_path_distance(network, lodge.x, lodge.z, b.x, b.z)
-                            .unwrap_or(f64::INFINITY);
-                        distance_a
-                            .partial_cmp(&distance_b)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                            .then_with(|| a.id.cmp(&b.id))
-                    }
-                    other => other,
+    residences.sort_by(|a, b| match (a.abandoned, b.abandoned) {
+        (true, false) => std::cmp::Ordering::Greater,
+        (false, true) => std::cmp::Ordering::Less,
+        _ => {
+            let runway_a = residence_firewood_runway_seconds(a, firewood_stock_for(a));
+            let runway_b = residence_firewood_runway_seconds(b, firewood_stock_for(b));
+            match runway_a
+                .partial_cmp(&runway_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
+            {
+                std::cmp::Ordering::Equal => {
+                    let distance_a = road_path_distance(network, lodge.x, lodge.z, a.x, a.z)
+                        .unwrap_or(f64::INFINITY);
+                    let distance_b = road_path_distance(network, lodge.x, lodge.z, b.x, b.z)
+                        .unwrap_or(f64::INFINITY);
+                    distance_a
+                        .partial_cmp(&distance_b)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                        .then_with(|| a.id.cmp(&b.id))
                 }
+                other => other,
             }
         }
     });
 }
 
-pub fn sort_mills_by_road_path(
-    network: &RoadNetwork,
-    lodge: &Building,
-    mills: &mut [Building],
-) {
+pub fn sort_mills_by_road_path(network: &RoadNetwork, lodge: &Building, mills: &mut [Building]) {
     mills.sort_by(|a, b| {
         let da = road_path_distance(network, a.x, a.z, lodge.x, lodge.z).unwrap_or(f64::INFINITY);
         let db = road_path_distance(network, b.x, b.z, lodge.x, lodge.z).unwrap_or(f64::INFINITY);
@@ -195,42 +182,38 @@ pub fn sort_residences_for_water_delivery(
     residences: &mut [Residence],
     water_stock_for: impl Fn(&Residence) -> f64,
 ) {
-    residences.sort_by(|a, b| {
-        match (a.abandoned, b.abandoned) {
-            (true, false) => std::cmp::Ordering::Greater,
-            (false, true) => std::cmp::Ordering::Less,
-            _ => {
-                let runway_a = residence_water_runway_seconds(a, water_stock_for(a));
-                let runway_b = residence_water_runway_seconds(b, water_stock_for(b));
-                match runway_a
-                    .partial_cmp(&runway_b)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                {
-                    std::cmp::Ordering::Equal => {
-                        let distance_a = road_path_distance(network, well.x, well.z, a.x, a.z)
-                            .unwrap_or(f64::INFINITY);
-                        let distance_b = road_path_distance(network, well.x, well.z, b.x, b.z)
-                            .unwrap_or(f64::INFINITY);
-                        distance_a
-                            .partial_cmp(&distance_b)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                            .then_with(|| a.id.cmp(&b.id))
-                    }
-                    other => other,
+    residences.sort_by(|a, b| match (a.abandoned, b.abandoned) {
+        (true, false) => std::cmp::Ordering::Greater,
+        (false, true) => std::cmp::Ordering::Less,
+        _ => {
+            let runway_a = residence_water_runway_seconds(a, water_stock_for(a));
+            let runway_b = residence_water_runway_seconds(b, water_stock_for(b));
+            match runway_a
+                .partial_cmp(&runway_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
+            {
+                std::cmp::Ordering::Equal => {
+                    let distance_a = road_path_distance(network, well.x, well.z, a.x, a.z)
+                        .unwrap_or(f64::INFINITY);
+                    let distance_b = road_path_distance(network, well.x, well.z, b.x, b.z)
+                        .unwrap_or(f64::INFINITY);
+                    distance_a
+                        .partial_cmp(&distance_b)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                        .then_with(|| a.id.cmp(&b.id))
                 }
+                other => other,
             }
         }
     });
 }
 
-pub fn sort_wells_by_road_path(
-    network: &RoadNetwork,
-    building: &Building,
-    wells: &mut [Building],
-) {
+pub fn sort_wells_by_road_path(network: &RoadNetwork, building: &Building, wells: &mut [Building]) {
     wells.sort_by(|a, b| {
-        let da = road_path_distance(network, a.x, a.z, building.x, building.z).unwrap_or(f64::INFINITY);
-        let db = road_path_distance(network, b.x, b.z, building.x, building.z).unwrap_or(f64::INFINITY);
+        let da =
+            road_path_distance(network, a.x, a.z, building.x, building.z).unwrap_or(f64::INFINITY);
+        let db =
+            road_path_distance(network, b.x, b.z, building.x, building.z).unwrap_or(f64::INFINITY);
         da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
     });
 }
@@ -241,9 +224,7 @@ pub fn owner_food_suppliers(ctx: &spacetimedb::ReducerContext, owner: Identity) 
         .owner()
         .filter(&owner)
         .filter(|row| {
-            row.kind == "hunters_hall"
-                || row.kind == "foragers_shed"
-                || row.kind == "fishing_camp"
+            row.kind == "hunters_hall" || row.kind == "foragers_shed" || row.kind == "fishing_camp"
         })
         .collect()
 }
@@ -300,29 +281,27 @@ pub fn sort_residences_for_food_delivery(
     residences: &mut [Residence],
     food_stock_for: impl Fn(&Residence) -> f64,
 ) {
-    residences.sort_by(|a, b| {
-        match (a.abandoned, b.abandoned) {
-            (true, false) => std::cmp::Ordering::Greater,
-            (false, true) => std::cmp::Ordering::Less,
-            _ => {
-                let runway_a = residence_food_runway_seconds(a, food_stock_for(a));
-                let runway_b = residence_food_runway_seconds(b, food_stock_for(b));
-                match runway_a
-                    .partial_cmp(&runway_b)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                {
-                    std::cmp::Ordering::Equal => {
-                        let distance_a = road_path_distance(network, supplier.x, supplier.z, a.x, a.z)
-                            .unwrap_or(f64::INFINITY);
-                        let distance_b = road_path_distance(network, supplier.x, supplier.z, b.x, b.z)
-                            .unwrap_or(f64::INFINITY);
-                        distance_a
-                            .partial_cmp(&distance_b)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                            .then_with(|| a.id.cmp(&b.id))
-                    }
-                    other => other,
+    residences.sort_by(|a, b| match (a.abandoned, b.abandoned) {
+        (true, false) => std::cmp::Ordering::Greater,
+        (false, true) => std::cmp::Ordering::Less,
+        _ => {
+            let runway_a = residence_food_runway_seconds(a, food_stock_for(a));
+            let runway_b = residence_food_runway_seconds(b, food_stock_for(b));
+            match runway_a
+                .partial_cmp(&runway_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
+            {
+                std::cmp::Ordering::Equal => {
+                    let distance_a = road_path_distance(network, supplier.x, supplier.z, a.x, a.z)
+                        .unwrap_or(f64::INFINITY);
+                    let distance_b = road_path_distance(network, supplier.x, supplier.z, b.x, b.z)
+                        .unwrap_or(f64::INFINITY);
+                    distance_a
+                        .partial_cmp(&distance_b)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                        .then_with(|| a.id.cmp(&b.id))
                 }
+                other => other,
             }
         }
     });

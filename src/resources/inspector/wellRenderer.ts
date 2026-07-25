@@ -1,5 +1,6 @@
 import {
   WELL_BASE_REFILL_PER_SEC,
+  WELL_MINIMUM_REFILL_HYDROLOGY,
   BUILDING_STORAGE_CAPS,
 } from '../../generated/gameBalance.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
@@ -49,7 +50,10 @@ export function renderWellInspector(
     : wellCapacityFromHydrology(BUILDING_STORAGE_CAPS.well.water ?? 100, hydrology);
   const fillPct = capacity > 0 ? Math.round((building.water / capacity) * 100) : 0;
   const crew = wellLaborSplit(building.assignedLabor);
-  const refillPerSec = WELL_BASE_REFILL_PER_SEC * hydrology * Math.max(crew.processing, lodgeLaborAlternates(building.assignedLabor) ? 1 : 0);
+  const refillHydrology = Math.max(hydrology, WELL_MINIMUM_REFILL_HYDROLOGY);
+  const refillPerSec = WELL_BASE_REFILL_PER_SEC
+    * refillHydrology
+    * Math.max(crew.processing, lodgeLaborAlternates(building.assignedLabor) ? 1 : 0);
   const claimedResidences = context.worldQueries.getClaimedResidencesForWell(building);
   const industrialConsumers = context.worldQueries.getRoadConnectedWaterConsumers(building);
   const nextDeliveryTarget = context.worldQueries.getNextWaterDeliveryTargetForWell(building);

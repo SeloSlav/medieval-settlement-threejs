@@ -1,8 +1,10 @@
 use spacetimedb::ReducerContext;
 
 use crate::db::*;
-use crate::simulation::road_logistics::{claim_residences_for_food_suppliers, owner_food_suppliers};
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
+use crate::simulation::road_logistics::{
+    claim_residences_for_food_suppliers, owner_food_suppliers,
+};
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::well::residence_has_well_supply;
 use crate::tables::Residence;
@@ -44,7 +46,11 @@ pub fn build_supply_context(
     let has_water_route = residence_has_well_supply(tick, ctx, residence.owner, residence);
     let has_food_route = tick.road_network(residence.owner).is_some_and(|network| {
         let suppliers = owner_food_suppliers(ctx, residence.owner);
-        let claims = claim_residences_for_food_suppliers(network, &suppliers, std::slice::from_ref(residence));
+        let claims = claim_residences_for_food_suppliers(
+            network,
+            &suppliers,
+            std::slice::from_ref(residence),
+        );
         claims.contains_key(&residence.id)
     });
     let has_preserved_food_route = has_specialty_route(
@@ -53,16 +59,10 @@ pub fn build_supply_context(
         residence,
         &["smokehouse", "granary", "monastery"],
     );
-    let has_ale_route = has_specialty_route(
-        tick,
-        ctx,
-        residence,
-        &["brewery", "monastery"],
-    );
+    let has_ale_route = has_specialty_route(tick, ctx, residence, &["brewery", "monastery"]);
 
     let mut routes = [false; ResidenceNeedKind::ALL.len()];
-    routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Firewood)] =
-        has_firewood_route;
+    routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Firewood)] = has_firewood_route;
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Water)] = has_water_route;
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Food)] = has_food_route;
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::PreservedFood)] =
@@ -80,9 +80,13 @@ fn has_specialty_route(
     let Some(network) = tick.road_network(residence.owner) else {
         return false;
     };
-    ctx.db.building().owner().filter(&residence.owner).any(|building| {
-        building.construction_complete
-            && supplier_kinds.contains(&building.kind.as_str())
-            && network.road_connected(building.x, building.z, residence.x, residence.z)
-    })
+    ctx.db
+        .building()
+        .owner()
+        .filter(&residence.owner)
+        .any(|building| {
+            building.construction_complete
+                && supplier_kinds.contains(&building.kind.as_str())
+                && network.road_connected(building.x, building.z, residence.x, residence.z)
+        })
 }

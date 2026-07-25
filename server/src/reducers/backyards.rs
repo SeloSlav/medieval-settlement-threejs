@@ -3,8 +3,9 @@ use spacetimedb::{reducer, ReducerContext, Table};
 use crate::balance_generated::{backyard_garden_def_by_slug, BackyardGardenKind};
 use crate::db::*;
 use crate::economy::{
-    backyard_garden_cost, backyard_garden_salvage_refund, credit_treasury_stone, credit_treasury_timber,
-    spend_aggregate_stone, spend_aggregate_timber, total_stone, total_timber,
+    backyard_garden_cost, backyard_garden_salvage_refund, credit_treasury_stone,
+    credit_treasury_timber, spend_aggregate_stone, spend_aggregate_timber, total_stone,
+    total_timber,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::tables::BackyardGarden;

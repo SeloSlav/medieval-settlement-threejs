@@ -1,19 +1,21 @@
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::TradeResource;
-use super::marketplace_trade_policy::{trade_receive, trade_spend, TradeReceive, TradeSpend};
 use super::marketplace_orders::{order_food_commodity, order_water_commodity, MarketGoldPayer};
-use super::regional_market::{ensure_market_state, price_multiplier_for, scaled_gold_cost, scaled_gold_yield};
-use crate::balance_generated::{
-    market_commodity_offer, market_water_commodity_offer, marketplace_trade_offer, MarketplaceTradeKind,
-    MarketplaceTradeOffer, TradeResourceSpendScope,
+use super::marketplace_trade_policy::{trade_receive, trade_spend, TradeReceive, TradeSpend};
+use super::regional_market::{
+    ensure_market_state, price_multiplier_for, scaled_gold_cost, scaled_gold_yield,
 };
+use crate::balance_generated::TradeResource;
+use crate::balance_generated::{
+    market_commodity_offer, market_water_commodity_offer, marketplace_trade_offer,
+    MarketplaceTradeKind, MarketplaceTradeOffer, TradeResourceSpendScope,
+};
+use crate::db::*;
 use crate::economy::{
     credit_treasury_firewood, credit_treasury_food, credit_treasury_gold, credit_treasury_stone,
     credit_treasury_timber, spend_aggregate_firewood, spend_aggregate_food, spend_aggregate_stone,
     spend_aggregate_timber, spend_treasury_gold,
 };
-use crate::db::*;
 use crate::simulation::{game_clock, MarketCaravanDispatch, SimTickContext};
 
 pub fn execute_marketplace_trade(

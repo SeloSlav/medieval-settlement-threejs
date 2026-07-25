@@ -90,7 +90,8 @@ pub struct RespawnPoint {
 
 fn parse_embedded_trees() -> Vec<EmbeddedTree> {
     let json = include_str!("../../generated/world_trees.json");
-    let file: EmbeddedTreesFile = serde_json::from_str(json).expect("world_trees.json must be valid");
+    let file: EmbeddedTreesFile =
+        serde_json::from_str(json).expect("world_trees.json must be valid");
     file.trees
 }
 

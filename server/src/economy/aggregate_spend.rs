@@ -1,11 +1,11 @@
 use spacetimedb::ReducerContext;
 
-use crate::db::*;
-use crate::tables::{Building, ResidenceNeed};
 use super::storage::{
     available_unreserved_building_stone, available_unreserved_building_timber,
     available_unreserved_treasury_stone, available_unreserved_treasury_timber,
 };
+use crate::db::*;
+use crate::tables::{Building, ResidenceNeed};
 
 enum AggregateSpendField {
     Timber,
@@ -17,11 +17,19 @@ enum TreasurySpendField {
     Food,
 }
 
-pub fn spend_aggregate_timber(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) -> Result<(), String> {
+pub fn spend_aggregate_timber(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    amount: f64,
+) -> Result<(), String> {
     spend_aggregate(ctx, owner, amount, AggregateSpendField::Timber)
 }
 
-pub fn spend_aggregate_stone(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) -> Result<(), String> {
+pub fn spend_aggregate_stone(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    amount: f64,
+) -> Result<(), String> {
     spend_aggregate(ctx, owner, amount, AggregateSpendField::Stone)
 }
 
@@ -30,7 +38,14 @@ pub fn spend_aggregate_firewood(
     owner: spacetimedb::Identity,
     amount: f64,
 ) -> Result<(), String> {
-    spend_residence_stock(ctx, owner, amount, 0, TreasurySpendField::Firewood, |building| building.firewood)
+    spend_residence_stock(
+        ctx,
+        owner,
+        amount,
+        0,
+        TreasurySpendField::Firewood,
+        |building| building.firewood,
+    )
 }
 
 pub fn spend_aggregate_food(
@@ -38,7 +53,14 @@ pub fn spend_aggregate_food(
     owner: spacetimedb::Identity,
     amount: f64,
 ) -> Result<(), String> {
-    spend_residence_stock(ctx, owner, amount, 2, TreasurySpendField::Food, |building| building.food)
+    spend_residence_stock(
+        ctx,
+        owner,
+        amount,
+        2,
+        TreasurySpendField::Food,
+        |building| building.food,
+    )
 }
 
 fn spend_aggregate(
@@ -74,7 +96,13 @@ fn spend_aggregate(
     let mut remaining = amount;
     let mut remaining_building_budget = available_building;
     let mut buildings: Vec<Building> = ctx.db.building().owner().filter(&owner).collect();
-    buildings.sort_by_key(|building| if building.kind == "village_storehouse" { 0 } else { 1 });
+    buildings.sort_by_key(|building| {
+        if building.kind == "village_storehouse" {
+            0
+        } else {
+            1
+        }
+    });
     for building in buildings {
         if remaining <= 1e-6 || remaining_building_budget <= 1e-6 {
             break;
@@ -167,7 +195,13 @@ where
     }
 
     let mut buildings: Vec<Building> = ctx.db.building().owner().filter(&owner).collect();
-    buildings.sort_by_key(|building| if building.kind == "village_storehouse" { 0 } else { 1 });
+    buildings.sort_by_key(|building| {
+        if building.kind == "village_storehouse" {
+            0
+        } else {
+            1
+        }
+    });
     for building in buildings {
         if remaining <= 1e-6 {
             break;

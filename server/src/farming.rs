@@ -1,11 +1,9 @@
 use crate::balance_generated::{
     FARM_BASE_GRAIN_PER_SQUARE_METER, FARM_FALLOW_FERTILITY_RESTORE,
-    FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_OATS_FERTILITY_DRAIN,
-    FARM_LARGE_FIELD_EFFICIENCY_EXPONENT, FARM_LARGE_FIELD_EFFICIENCY_FLOOR,
-    FARM_OATS_MOISTURE_IDEAL, FARM_OATS_MOISTURE_TOLERANCE,
-    FARM_OPTIMAL_FIELD_AREA,
-    FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_RYE_FERTILITY_DRAIN,
-    FARM_RYE_MOISTURE_IDEAL, FARM_RYE_MOISTURE_TOLERANCE,
+    FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_LARGE_FIELD_EFFICIENCY_EXPONENT,
+    FARM_LARGE_FIELD_EFFICIENCY_FLOOR, FARM_OATS_FERTILITY_DRAIN, FARM_OATS_MOISTURE_IDEAL,
+    FARM_OATS_MOISTURE_TOLERANCE, FARM_OPTIMAL_FIELD_AREA, FARM_PLOUGH_WORK_PER_SQUARE_METER,
+    FARM_RYE_FERTILITY_DRAIN, FARM_RYE_MOISTURE_IDEAL, FARM_RYE_MOISTURE_TOLERANCE,
     FARM_SLOPE_PENALTY_PER_DEGREE, FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
@@ -21,10 +19,22 @@ pub const STAGE_HARVESTING: u8 = 3;
 
 pub fn corners_from_values(values: [f64; 8]) -> ZoneCorners {
     ZoneCorners {
-        a: Point2 { x: values[0], z: values[1] },
-        b: Point2 { x: values[2], z: values[3] },
-        c: Point2 { x: values[4], z: values[5] },
-        d: Point2 { x: values[6], z: values[7] },
+        a: Point2 {
+            x: values[0],
+            z: values[1],
+        },
+        b: Point2 {
+            x: values[2],
+            z: values[3],
+        },
+        c: Point2 {
+            x: values[4],
+            z: values[5],
+        },
+        d: Point2 {
+            x: values[6],
+            z: values[7],
+        },
     }
 }
 
@@ -159,7 +169,10 @@ pub fn point_in_field(point: Point2, corners: &ZoneCorners) -> bool {
     let polygon = corners_array(corners);
     let mut sign = 0.0;
     for index in 0..polygon.len() {
-        let value = cross(subtract(polygon[(index + 1) % 4], polygon[index]), subtract(point, polygon[index]));
+        let value = cross(
+            subtract(polygon[(index + 1) % 4], polygon[index]),
+            subtract(point, polygon[index]),
+        );
         if value.abs() <= 1e-8 {
             continue;
         }
@@ -173,7 +186,10 @@ pub fn point_in_field(point: Point2, corners: &ZoneCorners) -> bool {
 }
 
 fn subtract(a: Point2, b: Point2) -> Point2 {
-    Point2 { x: a.x - b.x, z: a.z - b.z }
+    Point2 {
+        x: a.x - b.x,
+        z: a.z - b.z,
+    }
 }
 
 fn dot(a: Point2, b: Point2) -> f64 {

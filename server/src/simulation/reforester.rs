@@ -53,7 +53,9 @@ pub fn step_reforester(ctx: &ReducerContext, clock: &GameClock, building: Buildi
                 } else {
                     pending_updates.push((
                         tree.tree_id.clone(),
-                        ReforesterTreeUpdate::AdvanceGrowing { growth_progress: progress },
+                        ReforesterTreeUpdate::AdvanceGrowing {
+                            growth_progress: progress,
+                        },
                     ));
                 }
             }

@@ -718,7 +718,10 @@ mod tests {
             .road_path_route(1.0, 3.0, 2.0, 3.0)
             .expect("nearby endpoints should still attach to the road");
         assert!(
-            short_route.polyline.iter().any(|point| point[1].abs() < 1e-9),
+            short_route
+                .polyline
+                .iter()
+                .any(|point| point[1].abs() < 1e-9),
             "a same-node route must include its road attachment instead of cutting directly"
         );
     }

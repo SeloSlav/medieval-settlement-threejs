@@ -8,7 +8,10 @@ use crate::balance_generated::{
 use crate::db::*;
 
 pub fn clamp_economic_activity_tax_rate(rate: f64) -> f64 {
-    rate.clamp(ECONOMIC_ACTIVITY_TAX_RATE_MIN, ECONOMIC_ACTIVITY_TAX_RATE_MAX)
+    rate.clamp(
+        ECONOMIC_ACTIVITY_TAX_RATE_MIN,
+        ECONOMIC_ACTIVITY_TAX_RATE_MAX,
+    )
 }
 
 /// Laffer-style productivity: low taxes stimulate village trade; high taxes suppress it.
@@ -36,7 +39,10 @@ pub fn taxed_economic_activity(base_activity: f64, tax_rate: f64) -> (f64, f64) 
     (adjusted, tax)
 }
 
-pub fn player_economic_activity_tax_rate(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+pub fn player_economic_activity_tax_rate(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> f64 {
     ctx.db
         .player_resources()
         .owner()
@@ -49,17 +55,11 @@ pub fn town_hall_tax_collection_multiplier(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> f64 {
-    if ctx
-        .db
-        .building()
-        .owner()
-        .filter(&owner)
-        .any(|building| {
-            building.kind == "town_hall"
-                && building.construction_complete
-                && building.assigned_labor > 0
-        })
-    {
+    if ctx.db.building().owner().filter(&owner).any(|building| {
+        building.kind == "town_hall"
+            && building.construction_complete
+            && building.assigned_labor > 0
+    }) {
         1.0
     } else {
         TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER

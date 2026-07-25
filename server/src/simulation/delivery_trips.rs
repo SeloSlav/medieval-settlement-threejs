@@ -6,25 +6,26 @@ use crate::balance_generated::CARPENTER_DELIVERY_SPEED_MULTIPLIER;
 use crate::balance_generated::{
     CONSTRUCTION_DELIVERY_SPEED_MPS, CONSTRUCTION_DELIVERY_UNLOAD_SEC,
     CONSTRUCTION_HAUL_PER_WORKER, FIRE_BUCKET_SPEED_MPS, FIRE_BUCKET_UNLOAD_SECONDS,
-    FIRE_BUCKET_WATER, STOREHOUSE_HAUL_PER_WORKER,
+    STOREHOUSE_HAUL_PER_WORKER,
 };
 use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, credit_treasury_commodity,
     deposit_building_commodity, withdraw_building_commodity, CommodityKind,
 };
+use crate::fire_policy::fire_response_load;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::simulation::delivery_cargo::{
     building_delivery_stock, pick_delivery_target, residence_delivery_room,
     withdraw_delivery_cargo, DeliveryCargoTotals,
 };
+use crate::simulation::fires::{
+    apply_fire_water, release_fire_response, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE,
+};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{apply_need_delivery, ResidenceNeedKind};
 use crate::simulation::tick_context::SimTickContext;
-use crate::simulation::fires::{
-    apply_fire_water, release_fire_response, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE,
-};
 use crate::tables::{Building, DeliveryTrip, FireIncident, Residence};
 
 pub fn serialize_route_polyline(polyline: &[[f64; 2]]) -> String {
@@ -379,7 +380,7 @@ pub fn try_start_fire_response_trip(
 ) -> bool {
     if well.kind != "well"
         || well.assigned_labor == 0
-        || well.water + 1e-6 < FIRE_BUCKET_WATER
+        || fire_response_load(well.water) <= 0.0
         || building_has_active_trip(ctx, well.id)
     {
         return false;
@@ -410,7 +411,7 @@ pub fn try_start_fire_response_trip(
         return false;
     };
 
-    let load = well.water.min(FIRE_BUCKET_WATER);
+    let load = fire_response_load(well.water);
     if load <= 1e-6 {
         return false;
     }
@@ -699,8 +700,7 @@ fn step_one_trip(
                     trip.unload_remaining -= remaining_seconds;
                     remaining_seconds = 0.0;
                 } else {
-                    remaining_seconds =
-                        (remaining_seconds - trip.unload_remaining).max(0.0);
+                    remaining_seconds = (remaining_seconds - trip.unload_remaining).max(0.0);
                     trip.unload_remaining = 0.0;
                     complete_unload(ctx, &mut trip, clock.sim_tick);
                     trip.phase = DeliveryTripPhase::Inbound.as_u8();
@@ -739,8 +739,7 @@ fn step_one_trip(
             trip.z = z;
         }
         Some(DeliveryTripPhase::Inbound) => {
-            let (x, z) =
-                RoadNetwork::sample_polyline_inbound_xz(&route.polyline, trip.progress);
+            let (x, z) = RoadNetwork::sample_polyline_inbound_xz(&route.polyline, trip.progress);
             trip.x = x;
             trip.z = z;
         }
@@ -829,13 +828,15 @@ fn trip_route(
             } else {
                 (target_x, target_z)
             };
-            network.road_path_route(building.x, building.z, x, z).or_else(|| {
-                let distance = ((x - building.x).powi(2) + (z - building.z).powi(2)).sqrt();
-                (distance > 1e-6).then_some(RoadPathRoute {
-                    distance,
-                    polyline: vec![[building.x, building.z], [x, z]],
+            network
+                .road_path_route(building.x, building.z, x, z)
+                .or_else(|| {
+                    let distance = ((x - building.x).powi(2) + (z - building.z).powi(2)).sqrt();
+                    (distance > 1e-6).then_some(RoadPathRoute {
+                        distance,
+                        polyline: vec![[building.x, building.z], [x, z]],
+                    })
                 })
-            })
         }
         DELIVERY_DESTINATION_BUILDING => {
             let target = ctx.db.building().id().find(&trip.target_building_id)?;

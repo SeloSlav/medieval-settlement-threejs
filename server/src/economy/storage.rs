@@ -1,7 +1,9 @@
 use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
-use crate::constants::{RESIDENCE_FOOD_CAPACITY, RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_WATER_CAPACITY};
+use crate::constants::{
+    RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FOOD_CAPACITY, RESIDENCE_WATER_CAPACITY,
+};
 use crate::db::*;
 use crate::tables::Building;
 
@@ -36,17 +38,15 @@ pub fn residence_food_capacity() -> f64 {
 }
 
 pub fn total_timber(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    (treasury_timber(ctx, owner)
-        + building_sum(ctx, owner, |building| building.timber)
+    (treasury_timber(ctx, owner) + building_sum(ctx, owner, |building| building.timber)
         - reserved_construction_total(ctx, owner, |building| building.construction_reserved_timber))
-        .max(0.0)
+    .max(0.0)
 }
 
 pub fn total_stone(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    (treasury_stone(ctx, owner)
-        + building_sum(ctx, owner, |building| building.stone)
+    (treasury_stone(ctx, owner) + building_sum(ctx, owner, |building| building.stone)
         - reserved_construction_total(ctx, owner, |building| building.construction_reserved_stone))
-        .max(0.0)
+    .max(0.0)
 }
 
 pub(crate) fn available_unreserved_building_timber(
@@ -75,9 +75,8 @@ pub(crate) fn available_unreserved_treasury_timber(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> f64 {
-    let reserved = reserved_construction_total(ctx, owner, |building| {
-        building.construction_treasury_timber
-    });
+    let reserved =
+        reserved_construction_total(ctx, owner, |building| building.construction_treasury_timber);
     (treasury_timber(ctx, owner) - reserved).max(0.0)
 }
 
@@ -85,9 +84,8 @@ pub(crate) fn available_unreserved_treasury_stone(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> f64 {
-    let reserved = reserved_construction_total(ctx, owner, |building| {
-        building.construction_treasury_stone
-    });
+    let reserved =
+        reserved_construction_total(ctx, owner, |building| building.construction_treasury_stone);
     (treasury_stone(ctx, owner) - reserved).max(0.0)
 }
 
@@ -100,16 +98,10 @@ pub fn construction_treasury_reservation(
     timber: f64,
     stone: f64,
 ) -> (f64, f64) {
-    let timber_from_treasury =
-        (timber - available_unreserved_building_timber(ctx, owner)).clamp(
-            0.0,
-            available_unreserved_treasury_timber(ctx, owner),
-        );
-    let stone_from_treasury =
-        (stone - available_unreserved_building_stone(ctx, owner)).clamp(
-            0.0,
-            available_unreserved_treasury_stone(ctx, owner),
-        );
+    let timber_from_treasury = (timber - available_unreserved_building_timber(ctx, owner))
+        .clamp(0.0, available_unreserved_treasury_timber(ctx, owner));
+    let stone_from_treasury = (stone - available_unreserved_building_stone(ctx, owner))
+        .clamp(0.0, available_unreserved_treasury_stone(ctx, owner));
     (timber_from_treasury, stone_from_treasury)
 }
 
@@ -165,7 +157,12 @@ pub fn withdraw_building_food(building: &Building, amount: f64) -> (f64, Buildin
     (withdrawn, next)
 }
 
-pub fn withdraw_building(building: &Building, timber: f64, firewood: f64, stone: f64) -> (f64, f64, f64, Building) {
+pub fn withdraw_building(
+    building: &Building,
+    timber: f64,
+    firewood: f64,
+    stone: f64,
+) -> (f64, f64, f64, Building) {
     let mut next = building.clone();
     let timber_withdrawn = timber.min(next.timber);
     let firewood_withdrawn = firewood.min(next.firewood);
@@ -192,11 +189,15 @@ pub fn withdraw_building_water(building: &Building, amount: f64) -> (f64, Buildi
 }
 
 pub fn building_water_storage_cap(kind: &str) -> f64 {
-    building_def(kind).map(|def| def.storage_water).unwrap_or(0.0)
+    building_def(kind)
+        .map(|def| def.storage_water)
+        .unwrap_or(0.0)
 }
 
 pub fn building_food_storage_cap(kind: &str) -> f64 {
-    building_def(kind).map(|def| def.storage_food).unwrap_or(0.0)
+    building_def(kind)
+        .map(|def| def.storage_food)
+        .unwrap_or(0.0)
 }
 
 pub fn credit_treasury_timber(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {

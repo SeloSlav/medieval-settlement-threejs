@@ -75,10 +75,11 @@ fn update_market_state(
     sim_tick: u64,
     state: &mut MarketState,
 ) {
-    let seed = sim_tick.wrapping_mul(0x9E37_79B9).wrapping_add(hash_identity(owner));
+    let seed = sim_tick
+        .wrapping_mul(0x9E37_79B9)
+        .wrapping_add(hash_identity(owner));
 
-    state.regional_timber_supply =
-        drift_index(state.regional_timber_supply, seed.wrapping_add(1));
+    state.regional_timber_supply = drift_index(state.regional_timber_supply, seed.wrapping_add(1));
     state.regional_stone_supply = drift_index(state.regional_stone_supply, seed.wrapping_add(2));
     state.regional_firewood_demand =
         drift_index(state.regional_firewood_demand, seed.wrapping_add(3));
@@ -101,8 +102,10 @@ fn update_market_state(
     let food_demand = (state.regional_food_demand * (1.0 - MARKET_LOCAL_FOOD_DEMAND_WEIGHT)
         + local_food_pressure * MARKET_LOCAL_FOOD_DEMAND_WEIGHT)
         .clamp(0.0, 1.0);
-    state.food_price_mult =
-        clamp_multiplier(price_from_supply_demand(state.regional_food_supply, food_demand));
+    state.food_price_mult = clamp_multiplier(price_from_supply_demand(
+        state.regional_food_supply,
+        food_demand,
+    ));
 
     state.bulletin = compose_bulletin(state);
     state.last_price_tick = sim_tick;

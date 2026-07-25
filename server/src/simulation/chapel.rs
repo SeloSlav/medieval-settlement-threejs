@@ -31,7 +31,10 @@ pub fn step_chapels(
         };
 
         let sabbath_observance =
-            crate::simulation::labor_schedule::owner_sabbath_observance_enabled(ctx, residence.owner);
+            crate::simulation::labor_schedule::owner_sabbath_observance_enabled(
+                ctx,
+                residence.owner,
+            );
         let has_monastery_coverage = residence_has_monastery_coverage(
             tick,
             residence.owner,

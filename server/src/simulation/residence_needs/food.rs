@@ -1,6 +1,4 @@
-use crate::constants::{
-    RESIDENCE_FOOD_PER_PERSON_PER_SEC, TICK_DT,
-};
+use crate::constants::{RESIDENCE_FOOD_PER_PERSON_PER_SEC, TICK_DT};
 use crate::economy::residence_food_capacity;
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::simulation::residence_needs::state::NeedState;

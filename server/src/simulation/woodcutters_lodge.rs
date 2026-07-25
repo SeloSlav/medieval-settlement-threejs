@@ -3,15 +3,17 @@ use spacetimedb::ReducerContext;
 use crate::building_defs::building_def;
 use crate::constants::{
     FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC, LODGE_FIREWOOD_PER_CYCLE,
-    LODGE_FIREWOOD_PER_DELIVERY, LODGE_TIMBER_PER_CYCLE, LODGE_TIMBER_PER_DELIVERY,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, TICK_DT,
+    LODGE_FIREWOOD_PER_DELIVERY, LODGE_TIMBER_PER_CYCLE, LODGE_TIMBER_PER_DELIVERY, TICK_DT,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::{
     available_unreserved_building_timber, building_storage_caps, deposit_building,
     withdraw_building,
 };
-use crate::simulation::delivery_cargo::{any_target_needs_delivery, collect_claimed_delivery_targets};
+use crate::simulation::delivery_cargo::{
+    any_target_needs_delivery, collect_claimed_delivery_targets,
+};
 use crate::simulation::delivery_supplier::{
     delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
     DeliveryDispatchConfig,
@@ -19,11 +21,9 @@ use crate::simulation::delivery_supplier::{
 use crate::simulation::delivery_trips::{
     building_has_inbound_supply_trip, try_start_timber_supply_trip,
 };
-use crate::simulation::residence_needs::{
-    load_needs, need_stock, ResidenceNeedKind,
-};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
+use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
     claim_residences_for_lodges, lodge_labor_split, owner_lodges, sort_mills_by_road_path,
     sort_residences_for_delivery,
@@ -31,7 +31,12 @@ use crate::simulation::road_logistics::{
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
 
-pub fn step_woodcutters_lodge(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock, building: Building) {
+pub fn step_woodcutters_lodge(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
     if labor_and_logistics_paused(ctx, building.owner, clock) {
         return;
     }
@@ -53,8 +58,7 @@ pub fn step_woodcutters_lodge(ctx: &ReducerContext, tick: &SimTickContext, clock
     let split = lodge_labor_split(lodge.assigned_labor);
     let single_worker = lodge.assigned_labor == 1;
     let process_ready = split.processing > 0 && lodge.action_cooldown <= 0.0;
-    let delivery_ready =
-        delivery_work_ready(split.delivering, lodge.firewood > 0.0, lodge.id, ctx);
+    let delivery_ready = delivery_work_ready(split.delivering, lodge.firewood > 0.0, lodge.id, ctx);
 
     let delivery_targets = if delivery_ready {
         collect_delivery_targets(ctx, network, &lodge)
@@ -63,12 +67,8 @@ pub fn step_woodcutters_lodge(ctx: &ReducerContext, tick: &SimTickContext, clock
     };
     let has_target = any_target_needs_delivery(ctx, &delivery_targets, ResidenceNeedKind::Firewood);
 
-    let (do_deliver, do_process) = should_alternate_single_worker(
-        single_worker,
-        process_ready,
-        delivery_ready,
-        has_target,
-    );
+    let (do_deliver, do_process) =
+        should_alternate_single_worker(single_worker, process_ready, delivery_ready, has_target);
 
     if do_process {
         lodge = dispatch_timber_supply_if_needed(ctx, clock, network, lodge, split.processing);
@@ -112,10 +112,7 @@ fn collect_delivery_targets(
 
     collect_claimed_delivery_targets(residences, &claims, lodge.id, |targets| {
         sort_residences_for_delivery(network, lodge, targets, |residence| {
-            need_stock(
-                &load_needs(ctx, residence.id),
-                ResidenceNeedKind::Firewood,
-            )
+            need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Firewood)
         });
     })
 }
@@ -146,7 +143,9 @@ fn dispatch_timber_supply_if_needed(
         .filter(|row| {
             row.kind == "lumber_mill"
                 && row.timber > 0.0
-                && network.road_path_route(row.x, row.z, lodge.x, lodge.z).is_some()
+                && network
+                    .road_path_route(row.x, row.z, lodge.x, lodge.z)
+                    .is_some()
         })
         .collect();
     sort_mills_by_road_path(network, &lodge, &mut mills);

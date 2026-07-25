@@ -3,13 +3,15 @@ use spacetimedb::ReducerContext;
 use crate::building_defs::building_def;
 use crate::constants::{
     BERRIES_PER_HARVEST, FISH_PER_HARVEST, FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC,
-    FOOD_PER_DELIVERY, GAME_ANIMALS_PER_HARVEST, GAME_PER_HARVEST,
-    MUSHROOMS_PER_HARVEST, RICH_FISH_YIELD_MULTIPLIER, TICK_DT,
+    FOOD_PER_DELIVERY, GAME_ANIMALS_PER_HARVEST, GAME_PER_HARVEST, MUSHROOMS_PER_HARVEST,
+    RICH_FISH_YIELD_MULTIPLIER, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{building_food_storage_cap, deposit_building_food};
 use crate::foraging_policy::harvest_available;
-use crate::simulation::delivery_cargo::{any_target_needs_delivery, collect_claimed_delivery_targets};
+use crate::simulation::delivery_cargo::{
+    any_target_needs_delivery, collect_claimed_delivery_targets,
+};
 use crate::simulation::delivery_supplier::{
     delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
     DeliveryDispatchConfig,
@@ -25,7 +27,12 @@ use crate::simulation::spatial::find_nearest_foraging_node;
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, ForagingNode, Residence};
 
-pub fn step_hunters_hall(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock, building: Building) {
+pub fn step_hunters_hall(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
     step_food_supplier(
         ctx,
         tick,
@@ -37,7 +44,12 @@ pub fn step_hunters_hall(ctx: &ReducerContext, tick: &SimTickContext, clock: &Ga
     );
 }
 
-pub fn step_foragers_shed(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock, building: Building) {
+pub fn step_foragers_shed(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
     // Both resources use the same three-unit basket size; the nearest
     // seasonally available patch wins.
     debug_assert!((BERRIES_PER_HARVEST - MUSHROOMS_PER_HARVEST).abs() <= f64::EPSILON);
@@ -52,16 +64,13 @@ pub fn step_foragers_shed(ctx: &ReducerContext, tick: &SimTickContext, clock: &G
     );
 }
 
-pub fn step_fishing_camp(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock, building: Building) {
-    step_food_supplier(
-        ctx,
-        tick,
-        clock,
-        building,
-        &["fish"],
-        FISH_PER_HARVEST,
-        1.0,
-    );
+pub fn step_fishing_camp(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    step_food_supplier(ctx, tick, clock, building, &["fish"], FISH_PER_HARVEST, 1.0);
 }
 
 fn step_food_supplier(
@@ -92,18 +101,18 @@ fn step_food_supplier(
         && delivery_work_ready(split.delivering, supplier.food > 0.0, supplier.id, ctx);
 
     let delivery_targets = if delivery_ready {
-        collect_delivery_targets(ctx, network.expect("delivery readiness requires a road network"), &supplier)
+        collect_delivery_targets(
+            ctx,
+            network.expect("delivery readiness requires a road network"),
+            &supplier,
+        )
     } else {
         Vec::new()
     };
     let has_target = any_target_needs_delivery(ctx, &delivery_targets, ResidenceNeedKind::Food);
 
-    let (do_deliver, do_harvest) = should_alternate_single_worker(
-        single_worker,
-        harvest_ready,
-        delivery_ready,
-        has_target,
-    );
+    let (do_deliver, do_harvest) =
+        should_alternate_single_worker(single_worker, harvest_ready, delivery_ready, has_target);
 
     if do_harvest {
         supplier = harvest_from_node(
@@ -182,8 +191,7 @@ fn harvest_from_node(
     });
 
     let produced_food = extracted * food_per_resource_unit;
-    let (deposited, updated_building) =
-        deposit_building_food(&building, food_cap, produced_food);
+    let (deposited, updated_building) = deposit_building_food(&building, food_cap, produced_food);
     if deposited <= 0.0 {
         return building;
     }
@@ -226,12 +234,7 @@ fn collect_delivery_targets(
     supplier: &Building,
 ) -> Vec<Residence> {
     let suppliers = owner_food_suppliers(ctx, supplier.owner);
-    let residences: Vec<Residence> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&supplier.owner)
-        .collect();
+    let residences: Vec<Residence> = ctx.db.residence().owner().filter(&supplier.owner).collect();
     let claims = claim_residences_for_food_suppliers(network, &suppliers, &residences);
 
     collect_claimed_delivery_targets(residences, &claims, supplier.id, |targets| {

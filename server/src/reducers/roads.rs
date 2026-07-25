@@ -10,10 +10,13 @@ pub fn sync_road_network(ctx: &ReducerContext, snapshot_json: String) -> Result<
     }
     let owner = ctx.sender();
     if let Some(existing) = ctx.db.road_network_state().owner().find(&owner) {
-        ctx.db.road_network_state().owner().update(RoadNetworkState {
-            snapshot_json,
-            ..existing
-        });
+        ctx.db
+            .road_network_state()
+            .owner()
+            .update(RoadNetworkState {
+                snapshot_json,
+                ..existing
+            });
     } else {
         ctx.db.road_network_state().insert(RoadNetworkState {
             owner,
@@ -45,9 +48,12 @@ pub fn remove_road_edge(ctx: &ReducerContext, edge_id: String) -> Result<(), Str
     let updated = serde_json::to_string(&snapshot)
         .map_err(|_| "Failed to serialize road snapshot.".to_string())?;
 
-    ctx.db.road_network_state().owner().update(RoadNetworkState {
-        snapshot_json: updated,
-        ..state
-    });
+    ctx.db
+        .road_network_state()
+        .owner()
+        .update(RoadNetworkState {
+            snapshot_json: updated,
+            ..state
+        });
     Ok(())
 }

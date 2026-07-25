@@ -7,17 +7,17 @@ use crate::balance_generated::{
     MARKET_CARAVAN_WATER_PER_DELIVERY,
 };
 use crate::db::*;
-use crate::economy::{
-    building_food_storage_cap, building_water_storage_cap, credit_treasury_food, credit_treasury_gold,
-    credit_treasury_water, debit_residence_wealth, deposit_building_food, deposit_building_water,
-    spend_treasury_gold,
-};
 use crate::economy::regional_market::scaled_gold_cost;
-use crate::simulation::{
-    road_path_distance, GameClock, MarketCaravanDispatch, SimTickContext,
-    try_dispatch_marketplace_caravan,
+use crate::economy::{
+    building_food_storage_cap, building_water_storage_cap, credit_treasury_food,
+    credit_treasury_gold, credit_treasury_water, debit_residence_wealth, deposit_building_food,
+    deposit_building_water, spend_treasury_gold,
 };
 use crate::simulation::residence_needs::ResidenceNeedKind;
+use crate::simulation::{
+    road_path_distance, try_dispatch_marketplace_caravan, GameClock, MarketCaravanDispatch,
+    SimTickContext,
+};
 use crate::tables::{Building, Residence};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -257,4 +257,3 @@ fn refund_market_gold(
         }
     }
 }
-

@@ -1,6 +1,6 @@
 use crate::balance_generated::{
-    RESIDENCE_ALE_CAPACITY, RESIDENCE_ALE_PER_PERSON_PER_SEC,
-    RESIDENCE_PRESERVED_FOOD_CAPACITY, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
+    RESIDENCE_ALE_CAPACITY, RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_CAPACITY,
+    RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
 };
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::simulation::residence_needs::state::NeedState;
@@ -33,7 +33,10 @@ fn consume(residence: &Residence, need: &NeedState, rate: f64) -> ConsumeOutcome
 }
 
 pub fn on_unmet(need: &NeedState) -> NeedState {
-    NeedState { stock: 0.0, ..*need }
+    NeedState {
+        stock: 0.0,
+        ..*need
+    }
 }
 
 pub fn evaluate_recovery(

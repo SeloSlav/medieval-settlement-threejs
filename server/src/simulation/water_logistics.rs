@@ -17,10 +17,10 @@ pub fn building_has_road_connected_well(
     let Some(network) = tick.road_network(building.owner) else {
         return false;
     };
-    owner_wells(ctx, building.owner)
-        .iter()
-        .any(|well| tick.road_connected(building.owner, well.x, well.z, building.x, building.z)
-            && road_path_connected(network, well, building))
+    owner_wells(ctx, building.owner).iter().any(|well| {
+        tick.road_connected(building.owner, well.x, well.z, building.x, building.z)
+            && road_path_connected(network, well, building)
+    })
 }
 
 pub fn ensure_building_water(
@@ -77,11 +77,7 @@ pub fn ensure_building_water(
 
 fn road_path_connected(network: &RoadNetwork, well: &Building, building: &Building) -> bool {
     crate::simulation::road_logistics::road_path_distance(
-        network,
-        well.x,
-        well.z,
-        building.x,
-        building.z,
+        network, well.x, well.z, building.x, building.z,
     )
     .is_some()
 }

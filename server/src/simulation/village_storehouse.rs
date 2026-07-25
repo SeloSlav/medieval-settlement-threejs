@@ -1,8 +1,8 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    STOREHOUSE_HAUL_PER_WORKER, STOREHOUSE_OVERFLOW_THRESHOLD,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    STOREHOUSE_HAUL_PER_WORKER, STOREHOUSE_OVERFLOW_THRESHOLD, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::{
@@ -53,7 +53,9 @@ pub fn step_village_storehouse(
             "stone_quarry" | "large_quarry" if storehouse.storehouse_accepts_stone => {
                 CommodityKind::Stone
             }
-            "woodcutters_lodge" if storehouse.storehouse_accepts_firewood => CommodityKind::Firewood,
+            "woodcutters_lodge" if storehouse.storehouse_accepts_firewood => {
+                CommodityKind::Firewood
+            }
             _ => continue,
         };
         if building_has_active_trip(ctx, source.id)
@@ -70,12 +72,9 @@ pub fn step_village_storehouse(
         if excess <= 1e-6 {
             continue;
         }
-        let Some(distance) = network.road_path_distance(
-            source.x,
-            source.z,
-            storehouse.x,
-            storehouse.z,
-        ) else {
+        let Some(distance) =
+            network.road_path_distance(source.x, source.z, storehouse.x, storehouse.z)
+        else {
             continue;
         };
         candidates.push(OverflowSource {

@@ -3,13 +3,11 @@
 use spacetimedb::ReducerContext;
 
 use crate::economy::{
-    withdraw_building, withdraw_building_food, withdraw_building_water,
-    withdraw_building_commodity, CommodityKind,
-};
-use crate::simulation::residence_needs::{
-    load_needs, need_stock, ResidenceNeedKind,
+    withdraw_building, withdraw_building_commodity, withdraw_building_food,
+    withdraw_building_water, CommodityKind,
 };
 use crate::simulation::residence_needs::{firewood, food, provisions, water};
+use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::tables::Building;
 
 #[derive(Clone, Copy, Debug, Default)]

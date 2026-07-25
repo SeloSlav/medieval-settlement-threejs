@@ -90,7 +90,8 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
 }
 
 pub fn building_commodity_room(building: &Building, kind: CommodityKind) -> f64 {
-    (building_commodity_cap(&building.kind, kind) - building_commodity_stock(building, kind)).max(0.0)
+    (building_commodity_cap(&building.kind, kind) - building_commodity_stock(building, kind))
+        .max(0.0)
 }
 
 pub fn withdraw_building_commodity(

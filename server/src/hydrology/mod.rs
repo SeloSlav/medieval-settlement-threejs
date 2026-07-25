@@ -17,8 +17,12 @@ pub fn sample_hydrology_score(x: f64, z: f64) -> f64 {
     let gx = ((x - HYDROLOGY_GRID_MIN_X) / span_x) * (HYDROLOGY_GRID_RESOLUTION as f64 - 1.0);
     let gz = ((z - HYDROLOGY_GRID_MIN_Z) / span_z) * (HYDROLOGY_GRID_RESOLUTION as f64 - 1.0);
 
-    let ix0 = gx.floor().clamp(0.0, (HYDROLOGY_GRID_RESOLUTION - 2) as f64) as usize;
-    let iz0 = gz.floor().clamp(0.0, (HYDROLOGY_GRID_RESOLUTION - 2) as f64) as usize;
+    let ix0 = gx
+        .floor()
+        .clamp(0.0, (HYDROLOGY_GRID_RESOLUTION - 2) as f64) as usize;
+    let iz0 = gz
+        .floor()
+        .clamp(0.0, (HYDROLOGY_GRID_RESOLUTION - 2) as f64) as usize;
     let ix1 = ix0 + 1;
     let iz1 = iz0 + 1;
     let tx = gx - ix0 as f64;

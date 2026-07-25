@@ -196,9 +196,7 @@ mod tests {
 
     #[test]
     fn chapel_tithe_gold_per_tick_matches_balance() {
-        let expected = 3.0
-            * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
-            * TICK_DT
+        let expected = 3.0 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * TICK_DT
             / crate::balance_generated::CALENDAR_SECONDS_PER_DAY;
         assert!((chapel_tithe_gold_per_tick(3) - expected).abs() < 1e-9);
     }

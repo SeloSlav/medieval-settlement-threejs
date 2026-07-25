@@ -37,3 +37,6 @@ pub mod foraging_policy;
 
 #[path = "../../src/fire_policy.rs"]
 pub mod fire_policy;
+
+#[path = "../../src/well_policy.rs"]
+pub mod well_policy;

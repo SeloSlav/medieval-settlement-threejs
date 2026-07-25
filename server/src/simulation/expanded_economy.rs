@@ -1,43 +1,41 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    APIARY_FOOD_PER_CYCLE, APIARY_HONEY_PER_CYCLE, BREWERY_ALE_PER_CYCLE,
-    BREWERY_GRAIN_PER_CYCLE, BREWERY_WATER_PER_CYCLE, FERRY_GOLD_PER_DAY,
-    FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC,
-    GRAIN_TRANSFER_PER_TRIP, GRANARY_FIREWOOD_PER_CYCLE,
-    GRANARY_FLOUR_PER_CYCLE, GRANARY_WATER_PER_CYCLE,
-    GRANARY_FOOD_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
-    MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE,
-    MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
+    APIARY_FOOD_PER_CYCLE, APIARY_HONEY_PER_CYCLE, BREWERY_ALE_PER_CYCLE, BREWERY_GRAIN_PER_CYCLE,
+    BREWERY_WATER_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, FARM_GROWTH_SECONDS,
+    FARM_WORK_METERS_PER_WORKER_PER_SEC, FERRY_GOLD_PER_DAY, FOOD_DELIVERY_SPEED_MPS,
+    FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP, GRANARY_FIREWOOD_PER_CYCLE,
+    GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE, GRANARY_WATER_PER_CYCLE,
+    MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS, MONASTERY_FOOD_PER_CYCLE,
+    MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
     SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
-    SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_HONEY,
-    SPECIALTY_EXPORT_GOLD_PER_WINE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE,
-    WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
-    CALENDAR_SECONDS_PER_DAY, FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC,
+    SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_WINE,
+    TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
+    VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
 use crate::db::*;
 use crate::economy::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
-    credit_treasury_gold, deposit_building_commodity, withdraw_building_commodity,
-    CommodityKind,
+    credit_treasury_gold, deposit_building_commodity, withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
-    expected_grain_yield, fertility_after_harvest, shape_efficiency, work_required,
-    CROP_FALLOW, STAGE_GROWING, STAGE_HARVESTING, STAGE_PLOUGHING, STAGE_SOWING,
+    expected_grain_yield, fertility_after_harvest, shape_efficiency, work_required, CROP_FALLOW,
+    STAGE_GROWING, STAGE_HARVESTING, STAGE_PLOUGHING, STAGE_SOWING,
 };
+use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, building_has_inbound_supply_trip,
-    try_start_building_supply_trip, try_start_delivery_trip,
+    building_has_active_trip, building_has_inbound_supply_trip, try_start_building_supply_trip,
+    try_start_delivery_trip,
 };
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::landmark_access::monastery_linked_to_chapel;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::residence_needs::{apply_need_delivery, load_needs, need_stock, ResidenceNeedKind};
+use crate::simulation::landmark_access::monastery_linked_to_chapel;
+use crate::simulation::residence_needs::{
+    apply_need_delivery, load_needs, need_stock, ResidenceNeedKind,
+};
 use crate::simulation::tick_context::SimTickContext;
-use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::water_logistics::ensure_building_water;
 use crate::tables::{farm_field, Building, FarmField, Residence};
 
@@ -128,7 +126,14 @@ pub fn step_granary(
         ],
         &[(CommodityKind::Food, GRANARY_FOOD_PER_CYCLE)],
     );
-    dispatch_to_building(ctx, tick, clock, &mut granary, CommodityKind::Food, &["smokehouse"]);
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut granary,
+        CommodityKind::Food,
+        &["smokehouse"],
+    );
     dispatch_need(ctx, tick, clock, &mut granary, ResidenceNeedKind::Food, 4.0);
     ctx.db.building().id().update(granary);
 }
@@ -189,11 +194,9 @@ fn step_farmstead_fields(
         }
         let crop_growth_multiplier = if field.crop == CROP_FALLOW { 0.72 } else { 1.0 };
         field.stage_progress = (field.stage_progress
-            + TICK_DT
-                * crop_growth_multiplier
-                * environment.crop_growth_multiplier()
+            + TICK_DT * crop_growth_multiplier * environment.crop_growth_multiplier()
                 / FARM_GROWTH_SECONDS.max(1.0))
-            .min(1.0);
+        .min(1.0);
     }
 
     let mut work_budget = if work_allowed {
@@ -221,8 +224,12 @@ fn step_farmstead_fields(
         let (plough_multiplier, manure_bonus) =
             super::livestock::cattle_support_for_field(ctx, field);
         let required = (work_required(field.stage, field.area, shape)
-            * if field.stage == STAGE_PLOUGHING { plough_multiplier } else { 1.0 })
-            .max(1e-6);
+            * if field.stage == STAGE_PLOUGHING {
+                plough_multiplier
+            } else {
+                1.0
+            })
+        .max(1e-6);
         let remaining = required * (1.0_f64 - field.stage_progress).max(0.0_f64);
         let expected_harvest = if field.stage == STAGE_HARVESTING {
             Some(expected_grain_yield(
@@ -239,9 +246,8 @@ fn step_farmstead_fields(
         let mut spent = work_budget.min(remaining);
         if let Some(expected) = expected_harvest {
             if expected > 1e-9 {
-                let storage_limited_work = required
-                    * building_commodity_room(farmstead, CommodityKind::Grain)
-                    / expected;
+                let storage_limited_work =
+                    required * building_commodity_room(farmstead, CommodityKind::Grain) / expected;
                 spent = spent.min(storage_limited_work);
             }
         }
@@ -260,7 +266,11 @@ fn step_farmstead_fields(
         }
         match field.stage {
             STAGE_PLOUGHING => {
-                field.stage = if field.crop == CROP_FALLOW { STAGE_GROWING } else { STAGE_SOWING };
+                field.stage = if field.crop == CROP_FALLOW {
+                    STAGE_GROWING
+                } else {
+                    STAGE_SOWING
+                };
                 field.stage_progress = 0.0;
             }
             STAGE_SOWING => {
@@ -290,8 +300,8 @@ fn finish_field_cycle(field: &mut FarmField, harvested: f64) {
 fn finish_field_cycle_with_manure(field: &mut FarmField, harvested: f64, manure_bonus: f64) {
     field.last_yield = harvested;
     field.harvest_count = field.harvest_count.saturating_add(1);
-    field.fertility = (fertility_after_harvest(field.crop, field.fertility) + manure_bonus)
-        .clamp(0.0, 1.0);
+    field.fertility =
+        (fertility_after_harvest(field.crop, field.fertility) + manure_bonus).clamp(0.0, 1.0);
     field.crop = field.next_crop;
     field.stage = STAGE_PLOUGHING;
     field.stage_progress = 0.0;
@@ -314,10 +324,22 @@ fn field_work_allowed(stage: u8, month: u32) -> bool {
 
 fn field_corners(field: &FarmField) -> ZoneCorners {
     ZoneCorners {
-        a: Point2 { x: field.corner_ax, z: field.corner_az },
-        b: Point2 { x: field.corner_bx, z: field.corner_bz },
-        c: Point2 { x: field.corner_cx, z: field.corner_cz },
-        d: Point2 { x: field.corner_dx, z: field.corner_dz },
+        a: Point2 {
+            x: field.corner_ax,
+            z: field.corner_az,
+        },
+        b: Point2 {
+            x: field.corner_bx,
+            z: field.corner_bz,
+        },
+        c: Point2 {
+            x: field.corner_cx,
+            z: field.corner_cz,
+        },
+        d: Point2 {
+            x: field.corner_dx,
+            z: field.corner_dz,
+        },
     }
 }
 
@@ -347,7 +369,14 @@ pub fn step_brewery(
         ],
         &[(CommodityKind::Ale, BREWERY_ALE_PER_CYCLE)],
     );
-    dispatch_to_building(ctx, tick, clock, &mut brewery, CommodityKind::Ale, &["monastery"]);
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut brewery,
+        CommodityKind::Ale,
+        &["monastery"],
+    );
     dispatch_need(ctx, tick, clock, &mut brewery, ResidenceNeedKind::Ale, 3.0);
     export_specialty(
         ctx,
@@ -372,16 +401,36 @@ pub fn step_smokehouse(
         clock,
         &smokehouse,
         CommodityKind::Food,
-        &["hunters_hall", "foragers_shed", "fishing_camp", "granary", "swineherd"],
+        &[
+            "hunters_hall",
+            "foragers_shed",
+            "fishing_camp",
+            "granary",
+            "swineherd",
+        ],
         SMOKEHOUSE_FOOD_PER_CYCLE * 2.0,
     );
-    request_connected_commodity(ctx, tick, clock, &smokehouse, CommodityKind::Firewood, &["woodcutters_lodge", "village_storehouse"], SMOKEHOUSE_FIREWOOD_PER_CYCLE * 3.0);
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &smokehouse,
+        CommodityKind::Firewood,
+        &["woodcutters_lodge", "village_storehouse"],
+        SMOKEHOUSE_FIREWOOD_PER_CYCLE * 3.0,
+    );
     smokehouse = step_processor(
         ctx,
         clock,
         smokehouse,
-        &[(CommodityKind::Food, SMOKEHOUSE_FOOD_PER_CYCLE), (CommodityKind::Firewood, SMOKEHOUSE_FIREWOOD_PER_CYCLE)],
-        &[(CommodityKind::PreservedFood, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE)],
+        &[
+            (CommodityKind::Food, SMOKEHOUSE_FOOD_PER_CYCLE),
+            (CommodityKind::Firewood, SMOKEHOUSE_FIREWOOD_PER_CYCLE),
+        ],
+        &[(
+            CommodityKind::PreservedFood,
+            SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+        )],
     );
     dispatch_need(
         ctx,
@@ -442,7 +491,14 @@ pub fn step_vineyard(
         CommodityKind::Wine,
         SPECIALTY_EXPORT_GOLD_PER_WINE,
     );
-    dispatch_need(ctx, tick, clock, &mut vineyard, ResidenceNeedKind::Food, 2.0);
+    dispatch_need(
+        ctx,
+        tick,
+        clock,
+        &mut vineyard,
+        ResidenceNeedKind::Food,
+        2.0,
+    );
     ctx.db.building().id().update(vineyard);
 }
 
@@ -453,12 +509,19 @@ pub fn step_monastery(
     building: Building,
 ) {
     let linked = monastery_has_parish_link(ctx, tick, &building);
-    let productivity = if linked { 1.0 } else { MONASTERY_UNLINKED_PRODUCTIVITY };
+    let productivity = if linked {
+        1.0
+    } else {
+        MONASTERY_UNLINKED_PRODUCTIVITY
+    };
     let mut monastery = step_autonomous_processor(
         ctx,
         clock,
         building,
-        &[(CommodityKind::Grain, MONASTERY_GRAIN_PER_CYCLE * productivity)],
+        &[(
+            CommodityKind::Grain,
+            MONASTERY_GRAIN_PER_CYCLE * productivity,
+        )],
         &[(CommodityKind::Food, MONASTERY_FOOD_PER_CYCLE * productivity)],
     );
 
@@ -818,7 +881,19 @@ pub(crate) fn request_connected_commodity(
     sources.sort_by_key(|source| source.id);
     for mut source in sources {
         let request = (desired - building_commodity_stock(target, commodity)).max(0.0);
-        if try_start_building_supply_trip(ctx, clock, network, &mut source, target, 1, commodity, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP, request) {
+        if try_start_building_supply_trip(
+            ctx,
+            clock,
+            network,
+            &mut source,
+            target,
+            1,
+            commodity,
+            TIMBER_DELIVERY_SPEED_MPS,
+            TIMBER_DELIVERY_UNLOAD_SEC,
+            GRAIN_TRANSFER_PER_TRIP,
+            request,
+        ) {
             ctx.db.building().id().update(source);
             break;
         }
@@ -832,23 +907,51 @@ fn run_monastery_feast(
     monastery: &mut Building,
 ) {
     let first_tick_of_minute = clock.sim_tick % (60.0 / TICK_DT).round() as u64 == 0;
-    let feast_day = matches!((clock.month, clock.month_day), (1, 6) | (6, 29) | (8, 15) | (9, 14) | (12, 25));
-    let enabled = ctx.db.player_resources().owner().find(&monastery.owner)
-        .map(|resources| resources.monastery_feasts_enabled).unwrap_or(false);
+    let feast_day = matches!(
+        (clock.month, clock.month_day),
+        (1, 6) | (6, 29) | (8, 15) | (9, 14) | (12, 25)
+    );
+    let enabled = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&monastery.owner)
+        .map(|resources| resources.monastery_feasts_enabled)
+        .unwrap_or(false);
     if !enabled || !feast_day || clock.hour != 12 || clock.minute != 0 || !first_tick_of_minute {
         return;
     }
-    let Some(network) = tick.road_network(monastery.owner) else { return; };
+    let Some(network) = tick.road_network(monastery.owner) else {
+        return;
+    };
     let available_food = withdraw_building_commodity(monastery, CommodityKind::Food, 18.0);
     let available_ale = withdraw_building_commodity(monastery, CommodityKind::Ale, 10.0);
-    if available_food <= 1e-6 && available_ale <= 1e-6 { return; }
-    let residences: Vec<Residence> = ctx.db.residence().owner().filter(&monastery.owner)
-        .filter(|home| !home.abandoned && network.road_path_distance(monastery.x, monastery.z, home.x, home.z).is_some())
+    if available_food <= 1e-6 && available_ale <= 1e-6 {
+        return;
+    }
+    let residences: Vec<Residence> = ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&monastery.owner)
+        .filter(|home| {
+            !home.abandoned
+                && network
+                    .road_path_distance(monastery.x, monastery.z, home.x, home.z)
+                    .is_some()
+        })
         .collect();
     let count = residences.len().max(1) as f64;
     for home in &residences {
-        apply_need_delivery(ctx, home.id, ResidenceNeedKind::Food, available_food / count);
-        if home.tier >= 3 { apply_need_delivery(ctx, home.id, ResidenceNeedKind::Ale, available_ale / count); }
+        apply_need_delivery(
+            ctx,
+            home.id,
+            ResidenceNeedKind::Food,
+            available_food / count,
+        );
+        if home.tier >= 3 {
+            apply_need_delivery(ctx, home.id, ResidenceNeedKind::Ale, available_ale / count);
+        }
     }
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&monastery.owner) {
         resources.monastery_food_charity_total += available_food;
@@ -881,13 +984,17 @@ fn owner_has_connected_marketplace(
     let Some(network) = tick.road_network(building.owner) else {
         return false;
     };
-    ctx.db.building().owner().filter(&building.owner).any(|market| {
-        market.kind == "marketplace"
-            && market.construction_complete
-            && network
-                .road_path_distance(building.x, building.z, market.x, market.z)
-                .is_some()
-    })
+    ctx.db
+        .building()
+        .owner()
+        .filter(&building.owner)
+        .any(|market| {
+            market.kind == "marketplace"
+                && market.construction_complete
+                && network
+                    .road_path_distance(building.x, building.z, market.x, market.z)
+                    .is_some()
+        })
 }
 
 fn monastery_has_parish_link(

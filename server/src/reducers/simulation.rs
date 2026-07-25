@@ -1,25 +1,21 @@
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::{BASE_SPEED_DENOMINATOR, BASE_SPEED_NUMERATOR, TICK_DT};
 use crate::db::*;
-use crate::simulation::{
-    step_backyard_gardens,
-    step_chapels, step_chapel_parish, step_construction_sites, step_delivery_trips, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
-    step_fresh_food_spoilage,
-    step_household_market_orders, step_hunters_hall, step_lumber_mill, step_marketplace_caravans,
-    step_large_quarry, step_reforester, step_residence, step_stone_quarry, step_well, step_woodcutters_lodge,
-    step_fires, building_is_disabled_by_fire, residence_is_disabled_by_fire,
-    step_apiary, step_brewery, step_carpenter, step_ferry_landing,
-    step_granary, step_monastery, step_smokehouse, step_threshing_barn, step_vineyard,
-    step_watermill, step_pastoral_farmstead, step_swineherd,
-    step_village_storehouse,
-    SimTickContext,
-};
 use crate::economy::{reconcile_all_building_labor, step_regional_markets};
+use crate::simulation::{
+    building_is_disabled_by_fire, residence_is_disabled_by_fire, step_apiary,
+    step_backyard_gardens, step_brewery, step_carpenter, step_chapel_parish, step_chapels,
+    step_construction_sites, step_delivery_trips, step_ferry_landing, step_fires,
+    step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_fresh_food_spoilage,
+    step_granary, step_household_market_orders, step_hunters_hall, step_large_quarry,
+    step_lumber_mill, step_marketplace_caravans, step_monastery, step_pastoral_farmstead,
+    step_reforester, step_residence, step_smokehouse, step_stone_quarry, step_swineherd,
+    step_threshing_barn, step_village_storehouse, step_vineyard, step_watermill, step_well,
+    step_woodcutters_lodge, SimTickContext,
+};
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
-use crate::balance_generated::{
-    BASE_SPEED_DENOMINATOR, BASE_SPEED_NUMERATOR, TICK_DT,
-};
 
 pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSchedule) {
     let Some(config) = ctx.db.world_config().id().find(&0) else {
@@ -41,12 +37,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     if ctx.db.delivery_trip().iter().next().is_some() {
         let delivery_clock = crate::simulation::game_clock(config.sim_tick);
         let delivery_tick = SimTickContext::new(ctx);
-        step_delivery_trips(
-            ctx,
-            &delivery_tick,
-            &delivery_clock,
-            TICK_DT * speed as f64,
-        );
+        step_delivery_trips(ctx, &delivery_tick, &delivery_clock, TICK_DT * speed as f64);
     }
     let previous_credit = ctx
         .db
@@ -97,8 +88,7 @@ fn run_one_sim_tick(ctx: &ReducerContext) {
         .map(|config| config.sim_tick)
         .unwrap_or(0);
     let clock = crate::simulation::game_clock(sim_tick);
-    let environment =
-        crate::season_policy::environment_for(world_seed, world_hydrology, &clock);
+    let environment = crate::season_policy::environment_for(world_seed, world_hydrology, &clock);
     step_foraging_lifecycle(ctx, &clock, environment);
 
     reconcile_all_building_labor(ctx);
@@ -133,13 +123,19 @@ fn run_one_sim_tick(ctx: &ReducerContext) {
         match sim_kind {
             crate::building_defs::BuildingSimKind::LumberMill => lumber_mill_ids.push(building.id),
             crate::building_defs::BuildingSimKind::Reforester => reforester_ids.push(building.id),
-            crate::building_defs::BuildingSimKind::StoneQuarry => stone_quarry_ids.push(building.id),
-            crate::building_defs::BuildingSimKind::LargeQuarry => large_quarry_ids.push(building.id),
+            crate::building_defs::BuildingSimKind::StoneQuarry => {
+                stone_quarry_ids.push(building.id)
+            }
+            crate::building_defs::BuildingSimKind::LargeQuarry => {
+                large_quarry_ids.push(building.id)
+            }
             crate::building_defs::BuildingSimKind::WoodcuttersLodge => {
                 woodcutters_lodge_ids.push(building.id)
             }
             crate::building_defs::BuildingSimKind::Well => well_ids.push(building.id),
-            crate::building_defs::BuildingSimKind::HuntersHall => hunters_hall_ids.push(building.id),
+            crate::building_defs::BuildingSimKind::HuntersHall => {
+                hunters_hall_ids.push(building.id)
+            }
             crate::building_defs::BuildingSimKind::ForagersShed => {
                 foragers_shed_ids.push(building.id)
             }

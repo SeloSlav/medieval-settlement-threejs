@@ -2,34 +2,35 @@ use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
 use crate::constants::{
-    TICK_DT, WATER_DELIVERY_SPEED_MPS, WATER_DELIVERY_UNLOAD_SEC, WELL_BASE_REFILL_PER_SEC,
-    WELL_SURGE_AMOUNT_MAX, WELL_SURGE_AMOUNT_MIN, WELL_SURGE_CHANCE_PER_TICK, WELL_SURGE_COOLDOWN_SEC,
+    TICK_DT, WATER_DELIVERY_SPEED_MPS, WATER_DELIVERY_UNLOAD_SEC, WELL_SURGE_AMOUNT_MAX,
+    WELL_SURGE_AMOUNT_MIN, WELL_SURGE_CHANCE_PER_TICK, WELL_SURGE_COOLDOWN_SEC,
     WELL_WATER_PER_DELIVERY,
 };
 use crate::db::*;
-use crate::simulation::delivery_cargo::{any_target_needs_delivery, collect_claimed_delivery_targets};
-use crate::simulation::delivery_trips::building_has_active_trip;
 use crate::hydrology::sample_hydrology_score;
 use crate::roads::RoadNetwork;
+use crate::season_policy::EnvironmentState;
+use crate::simulation::delivery_cargo::{
+    any_target_needs_delivery, collect_claimed_delivery_targets,
+};
 use crate::simulation::delivery_supplier::{
     delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
     DeliveryDispatchConfig,
 };
+use crate::simulation::delivery_trips::building_has_active_trip;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
-use crate::season_policy::EnvironmentState;
-use crate::simulation::residence_needs::{
-    load_needs, need_stock, ResidenceNeedKind,
-};
+use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
     claim_residences_for_wells, lodge_labor_split, owner_wells, sort_residences_for_water_delivery,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
-    release_fire_response, reserve_fire_response, select_fire_for_well,
-    try_start_fire_response_trip,
+    fire_response_needed_for_well, release_fire_response, reserve_fire_response,
+    select_fire_for_well, try_start_fire_response_trip,
 };
 use crate::tables::{Building, Residence};
+use crate::well_policy::{prioritize_fire_response, well_refill_amount};
 
 pub fn step_well(
     ctx: &ReducerContext,
@@ -58,17 +59,13 @@ pub fn step_well(
                 if try_start_fire_response_trip(ctx, network, &mut well, &incident) {
                     return;
                 }
-                release_fire_response(
-                    ctx,
-                    incident.target_kind,
-                    incident.target_id,
-                    well.id,
-                );
+                release_fire_response(ctx, incident.target_kind, incident.target_id, well.id);
             }
         }
     }
 
-    if labor_and_logistics_paused(ctx, well.owner, clock) {
+    let fire_response_needed = fire_response_needed_for_well(ctx, &well);
+    if labor_and_logistics_paused(ctx, well.owner, clock) && !fire_response_needed {
         return;
     }
 
@@ -94,8 +91,8 @@ pub fn step_well(
     let split = lodge_labor_split(available_labor);
     let single_worker = available_labor == 1;
     let refill_ready = split.processing > 0;
-    let delivery_ready =
-        delivery_work_ready(split.delivering, well.water > 0.0, well.id, ctx);
+    let delivery_ready = !fire_response_needed
+        && delivery_work_ready(split.delivering, well.water > 0.0, well.id, ctx);
 
     let delivery_targets = if delivery_ready {
         collect_delivery_targets(ctx, network, &well)
@@ -104,22 +101,21 @@ pub fn step_well(
     };
     let has_target = any_target_needs_delivery(ctx, &delivery_targets, ResidenceNeedKind::Water);
 
-    let (do_deliver, do_refill) = should_alternate_single_worker(
-        single_worker,
+    let (do_deliver, do_refill) = prioritize_fire_response(
+        fire_response_needed,
         refill_ready,
-        delivery_ready,
-        has_target,
+        should_alternate_single_worker(single_worker, refill_ready, delivery_ready, has_target),
     );
 
     if do_refill {
-        let labor = split.processing as f64;
         well.water = (well.water
-            + WELL_BASE_REFILL_PER_SEC
-                * hydrology
-                * labor
-                * environment.well_refill_multiplier()
-                * TICK_DT)
-            .min(capacity);
+            + well_refill_amount(
+                hydrology,
+                split.processing,
+                environment.well_refill_multiplier(),
+                TICK_DT,
+            ))
+        .min(capacity);
 
         if well.action_cooldown <= 0.0 && should_surge(well.id, sim_tick, hydrology) {
             let surge = lerp(WELL_SURGE_AMOUNT_MIN, WELL_SURGE_AMOUNT_MAX, hydrology);

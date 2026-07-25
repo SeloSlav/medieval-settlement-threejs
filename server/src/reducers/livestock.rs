@@ -99,12 +99,7 @@ pub fn place_pasture(
         return Err("The entire pasture must lie inside the building's working range.".to_string());
     }
 
-    let polygon = [
-        corners.a,
-        corners.b,
-        corners.c,
-        corners.d,
-    ];
+    let polygon = [corners.a, corners.b, corners.c, corners.d];
     for point in polygon.iter().chain(std::iter::once(&center)) {
         if is_open_water(point.x, point.z) {
             return Err("Pastures cannot cover open water.".to_string());
@@ -123,10 +118,22 @@ pub fn place_pasture(
     }
     for zone in ctx.db.burgage_zone().iter() {
         let existing = [
-            Point2 { x: zone.corner_ax, z: zone.corner_az },
-            Point2 { x: zone.corner_bx, z: zone.corner_bz },
-            Point2 { x: zone.corner_cx, z: zone.corner_cz },
-            Point2 { x: zone.corner_dx, z: zone.corner_dz },
+            Point2 {
+                x: zone.corner_ax,
+                z: zone.corner_az,
+            },
+            Point2 {
+                x: zone.corner_bx,
+                z: zone.corner_bz,
+            },
+            Point2 {
+                x: zone.corner_cx,
+                z: zone.corner_cz,
+            },
+            Point2 {
+                x: zone.corner_dx,
+                z: zone.corner_dz,
+            },
         ];
         if convex_zones_overlap(&polygon, &existing) {
             return Err("Pasture overlaps a residence plot.".to_string());
@@ -134,10 +141,22 @@ pub fn place_pasture(
     }
     for field in ctx.db.farm_field().iter() {
         let existing = [
-            Point2 { x: field.corner_ax, z: field.corner_az },
-            Point2 { x: field.corner_bx, z: field.corner_bz },
-            Point2 { x: field.corner_cx, z: field.corner_cz },
-            Point2 { x: field.corner_dx, z: field.corner_dz },
+            Point2 {
+                x: field.corner_ax,
+                z: field.corner_az,
+            },
+            Point2 {
+                x: field.corner_bx,
+                z: field.corner_bz,
+            },
+            Point2 {
+                x: field.corner_cx,
+                z: field.corner_cz,
+            },
+            Point2 {
+                x: field.corner_dx,
+                z: field.corner_dz,
+            },
         ];
         if convex_zones_overlap(&polygon, &existing) {
             return Err("Pasture overlaps cultivated farmland.".to_string());
@@ -145,10 +164,22 @@ pub fn place_pasture(
     }
     for pasture in ctx.db.pasture().iter() {
         let existing = [
-            Point2 { x: pasture.corner_ax, z: pasture.corner_az },
-            Point2 { x: pasture.corner_bx, z: pasture.corner_bz },
-            Point2 { x: pasture.corner_cx, z: pasture.corner_cz },
-            Point2 { x: pasture.corner_dx, z: pasture.corner_dz },
+            Point2 {
+                x: pasture.corner_ax,
+                z: pasture.corner_az,
+            },
+            Point2 {
+                x: pasture.corner_bx,
+                z: pasture.corner_bz,
+            },
+            Point2 {
+                x: pasture.corner_cx,
+                z: pasture.corner_cz,
+            },
+            Point2 {
+                x: pasture.corner_dx,
+                z: pasture.corner_dz,
+            },
         ];
         if convex_zones_overlap(&polygon, &existing) {
             return Err("Pasture overlaps an existing grazing parcel.".to_string());

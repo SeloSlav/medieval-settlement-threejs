@@ -8,15 +8,12 @@ pub fn is_work_hours(clock: &GameClock) -> bool {
 }
 
 pub fn owner_has_staffed_chapel(ctx: &ReducerContext, owner: Identity) -> bool {
-    ctx.db
-        .building()
-        .iter()
-        .any(|building| {
-            building.owner == owner
-                && building.kind == "chapel"
-                && building.construction_complete
-                && building.assigned_labor > 0
-        })
+    ctx.db.building().iter().any(|building| {
+        building.owner == owner
+            && building.kind == "chapel"
+            && building.construction_complete
+            && building.assigned_labor > 0
+    })
 }
 
 pub fn owner_sabbath_observance_enabled(ctx: &ReducerContext, owner: Identity) -> bool {
@@ -50,11 +47,7 @@ pub fn labor_and_logistics_paused(
 }
 
 /// Residence need consumption pauses with labor — including Sunday sabbath.
-pub fn is_consumption_paused(
-    ctx: &ReducerContext,
-    owner: Identity,
-    clock: &GameClock,
-) -> bool {
+pub fn is_consumption_paused(ctx: &ReducerContext, owner: Identity, clock: &GameClock) -> bool {
     labor_and_logistics_paused(ctx, owner, clock)
 }
 
@@ -64,11 +57,7 @@ pub fn is_parish_economy_paused(clock: &GameClock) -> bool {
 }
 
 /// Chapel tithes pause outside work hours and on Sunday sabbath.
-pub fn is_chapel_tithe_paused(
-    ctx: &ReducerContext,
-    owner: Identity,
-    clock: &GameClock,
-) -> bool {
+pub fn is_chapel_tithe_paused(ctx: &ReducerContext, owner: Identity, clock: &GameClock) -> bool {
     labor_and_logistics_paused(ctx, owner, clock)
 }
 

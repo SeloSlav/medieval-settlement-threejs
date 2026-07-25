@@ -3,7 +3,9 @@ use spacetimedb::ReducerContext;
 use crate::building_defs::building_def;
 use crate::constants::{MILL_WATER_PER_HARVEST, TICK_DT};
 use crate::db::*;
-use crate::economy::{building_storage_caps, building_water_storage_cap, deposit_building, withdraw_building_water};
+use crate::economy::{
+    building_storage_caps, building_water_storage_cap, deposit_building, withdraw_building_water,
+};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::spatial::find_nearest_mature_tree;
@@ -11,7 +13,12 @@ use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::water_logistics::{building_has_road_connected_well, ensure_building_water};
 use crate::tables::{Building, TreeEntity};
 
-pub fn step_lumber_mill(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock, building: Building) {
+pub fn step_lumber_mill(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
     if labor_and_logistics_paused(ctx, building.owner, clock) {
         return;
     }

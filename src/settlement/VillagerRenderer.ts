@@ -67,6 +67,7 @@ import {
   chapelGatheringPoint,
   isSundayMassTime,
 } from './chapelMass.ts';
+import type { GameSpeed } from '../world/gameSpeed.ts';
 
 type VillagerMode = VillagerRenderMode;
 type VillagerRole = 'resident' | 'worker';
@@ -149,6 +150,7 @@ export type VillagerInspection = {
 
 export type VillagerRendererOptions = {
   parent: THREE.Group;
+  getGameSpeed: () => GameSpeed;
   getHeightAt: (x: number, z: number) => number;
   getRoadDeckY?: (x: number, z: number) => number | null;
   routePathAroundObstacles?: (path: readonly PointXZ[]) => PointXZ[] | null;
@@ -157,6 +159,7 @@ export type VillagerRendererOptions = {
 export class VillagerRenderer {
   private readonly renderer: SettlementCrowdRenderer;
   private readonly activityAudio = new WorkerActivityAudio();
+  private readonly getGameSpeed: () => GameSpeed;
   private readonly getHeightAt: (x: number, z: number) => number;
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
   private readonly routePathAroundObstacles:
@@ -171,6 +174,7 @@ export class VillagerRenderer {
   private lastView: CrowdViewState | undefined;
 
   constructor(options: VillagerRendererOptions) {
+    this.getGameSpeed = options.getGameSpeed;
     this.getHeightAt = options.getHeightAt;
     this.getRoadDeckY = options.getRoadDeckY ?? null;
     this.routePathAroundObstacles = options.routePathAroundObstacles ?? null;
@@ -474,6 +478,8 @@ export class VillagerRenderer {
 
   tick(dt: number, view?: CrowdViewState): void {
     this.lastView = view;
+    const realDt = Math.max(0, dt);
+    const simulationDt = realDt * this.getGameSpeed();
 
     for (const agent of this.agents.values()) {
       if (agent.role === 'worker') {
@@ -497,20 +503,20 @@ export class VillagerRenderer {
         || agent.pathPurpose === 'return_from_mass';
       if (agent.frozen && !commuteMustAdvance) continue;
 
-      agent.simAccumulator += dt;
+      agent.simAccumulator += simulationDt;
       while (agent.simAccumulator >= CROWD_SIM_DT) {
         this.simStep(agent, CROWD_SIM_DT);
         agent.simAccumulator -= CROWD_SIM_DT;
       }
 
-      this.interpolateDisplay(agent, dt);
+      this.interpolateDisplay(agent, simulationDt);
       agent.x = this.readDisplayX(agent);
       agent.z = this.readDisplayZ(agent);
       agent.yaw = this.readDisplayYaw(agent);
       agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
     }
 
-    this.pushRenderState(view, dt);
+    this.pushRenderState(view, simulationDt, simulationDt > 0 ? realDt : 0);
   }
 
   pickVillager(
@@ -623,7 +629,11 @@ export class VillagerRenderer {
     return Boolean(residence && !residence.abandoned && residence.population > 0);
   }
 
-  private pushRenderState(view?: CrowdViewState, dt = 0): void {
+  private pushRenderState(
+    view?: CrowdViewState,
+    animationDt = 0,
+    audioDt = animationDt,
+  ): void {
     const renderAgents: CrowdRenderAgent[] = [];
     let slot = 0;
     for (const agent of this.agents.values()) {
@@ -656,10 +666,10 @@ export class VillagerRenderer {
       });
     }
     const activeView = view ?? this.lastView;
-    this.renderer.syncAgents(renderAgents, activeView, dt);
-    if (dt > 0) {
+    this.renderer.syncAgents(renderAgents, activeView, animationDt);
+    if (audioDt > 0) {
       this.activityAudio.tick(
-        dt,
+        audioDt,
         renderAgents.flatMap((agent) => (
           agent.mode === 'chop' || agent.mode === 'mine' || agent.mode === 'build'
             ? [{
