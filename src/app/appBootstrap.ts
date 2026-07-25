@@ -226,6 +226,10 @@ export async function bootstrapAppSession(
 
   const ambientAudio = new AmbientAudioController({
     unlockElement: sceneManager.renderer.domElement,
+    camera: sceneManager.camera,
+    audioParent: sceneManager.scene,
+    riverLayout: sceneManager.riverField.layout,
+    getRiverWaterSurfaceY: sceneManager.getBridgeSamplingContext().getWaterSurfaceY,
     getCameraTarget: () => {
       const target = sceneManager.cameraTarget;
       return { x: target.x, z: target.z };

@@ -25,6 +25,13 @@ export const CHURCH_BELL_CLIP: AudioClipDefinition = {
   volume: 0.32,
 };
 
+/** Continuous rushing water used by the river's spatial audio source. */
+export const RIVER_WATER_CLIP: AudioClipDefinition = {
+  path: '/sounds/ambient/river_water_rushing.mp3',
+  volume: 0.28,
+  loop: true,
+};
+
 function workerActivityVariants(
   baseName: string,
   count = 4,

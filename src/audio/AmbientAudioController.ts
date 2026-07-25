@@ -1,20 +1,28 @@
+import type * as THREE from 'three';
 import type { BuildingState, BurgageZoneState } from '../resources/types.ts';
+import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import { AmbientAudio } from './AmbientAudio.ts';
 import { buildSettlementZones, evaluateAmbientRules, type AmbientRuleState } from './ambientRules.ts';
 import { ChapelBellPlayer } from './ChapelBellPlayer.ts';
+import { RiverAudio } from './RiverAudio.ts';
 
 export type AmbientAudioControllerConfig = {
   getCameraTarget: () => { x: number; z: number };
   getOrbitDistance: () => number;
   getBuildings: () => Iterable<BuildingState>;
   getBurgageZones: () => Iterable<BurgageZoneState>;
+  camera: THREE.Camera;
+  audioParent: THREE.Object3D;
+  riverLayout: RiverLayout;
+  getRiverWaterSurfaceY: (x: number, z: number) => number;
   unlockElement: HTMLElement;
 };
 
 export class AmbientAudioController {
   private readonly audio = new AmbientAudio();
   private readonly chapelBell = new ChapelBellPlayer();
+  private readonly riverAudio: RiverAudio;
   private readonly config: AmbientAudioControllerConfig;
   private readonly ambientRuleState: AmbientRuleState = { overviewActive: false, villageActive: false };
   private lastAmbientEvalAtMs = 0;
@@ -31,6 +39,12 @@ export class AmbientAudioController {
 
   constructor(config: AmbientAudioControllerConfig) {
     this.config = config;
+    this.riverAudio = new RiverAudio({
+      camera: config.camera,
+      parent: config.audioParent,
+      riverLayout: config.riverLayout,
+      getWaterSurfaceY: config.getRiverWaterSurfaceY,
+    });
     config.unlockElement.addEventListener('pointerdown', this.onUnlock, { capture: true });
     window.addEventListener('keydown', this.onUnlock, { capture: true });
   }
@@ -39,6 +53,7 @@ export class AmbientAudioController {
     if (this.running) return;
     this.running = true;
     this.lastAmbientEvalAtMs = 0;
+    this.riverAudio.start();
   }
 
   syncSettlementSchedule(schedule: SettlementSchedule | null): void {
@@ -86,10 +101,12 @@ export class AmbientAudioController {
       });
     }
     this.audio.tick(dtSeconds);
+    this.riverAudio.tick(dtSeconds);
   }
 
   setEnabled(enabled: boolean): void {
     this.audio.setEnabled(enabled);
+    this.riverAudio.setEnabled(enabled);
     if (!enabled) {
       this.running = false;
       this.chapelBell.stop();
@@ -103,6 +120,7 @@ export class AmbientAudioController {
     window.removeEventListener('keydown', this.onUnlock, { capture: true });
     this.audio.dispose();
     this.chapelBell.dispose();
+    this.riverAudio.dispose();
     this.running = false;
     this.unlocked = false;
     this.schedule = null;
