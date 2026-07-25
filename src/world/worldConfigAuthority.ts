@@ -44,6 +44,8 @@ export function worldConfigRowToGeneration(row: WorldConfig): AuthoritativeWorld
       topography: row.topography,
       hydrology: row.hydrology,
       forestDensity: row.forestDensity,
+      conflictMode: row.conflictEnabled ? 'frontier' : 'peaceful',
+      enemyPressure: row.enemyPressure,
     }),
     configured: row.configured,
   };
@@ -58,7 +60,9 @@ export function generationMatchesServer(
     && server.mapSize === local.mapSize
     && server.topography === local.topography
     && server.hydrology === local.hydrology
-    && server.forestDensity === local.forestDensity;
+    && server.forestDensity === local.forestDensity
+    && server.conflictMode === local.conflictMode
+    && server.enemyPressure === local.enemyPressure;
 }
 
 /**
@@ -108,5 +112,7 @@ export function settingsToConfigurePayload(settings: WorldGenerationSettings) {
     topography: normalized.topography,
     hydrology: normalized.hydrology,
     forestDensity: normalized.forestDensity,
+    conflictEnabled: normalized.conflictMode === 'frontier',
+    enemyPressure: normalized.enemyPressure,
   };
 }

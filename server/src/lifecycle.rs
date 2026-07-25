@@ -6,6 +6,7 @@ use crate::db::*;
 use crate::economy::{ensure_market_state, STARTING_GOLD, STARTING_STONE, STARTING_TIMBER};
 use crate::reducers::world_configuration::default_world_config;
 use crate::schedule::SimTickSchedule;
+use crate::simulation::ensure_settlement_security;
 use crate::tables::{ForagingNode, PlayerResources, Quarry, TreeEntity};
 use crate::world_gen;
 
@@ -76,6 +77,8 @@ pub fn seed_world_entities(ctx: &ReducerContext) {
 
 pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
     if ctx.db.player_resources().owner().find(&owner).is_some() {
+        ensure_market_state(ctx, owner);
+        ensure_settlement_security(ctx, owner);
         return;
     }
     ctx.db.player_resources().insert(PlayerResources {
@@ -108,6 +111,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         monastery_food_charity_total: 0.0,
     });
     ensure_market_state(ctx, owner);
+    ensure_settlement_security(ctx, owner);
 }
 
 fn ensure_sim_schedule(ctx: &ReducerContext) {

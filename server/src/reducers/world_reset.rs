@@ -2,8 +2,9 @@ use spacetimedb::{reducer, Identity, ReducerContext};
 
 use crate::db::*;
 use crate::tables::{
-    farm_field, livestock_herd, pasture, BackyardGarden, Building, BurgageZone, DeliveryTrip,
-    FarmField, FireIncident, LivestockHerd, Pasture, ResidenceNeed, WorldConfig,
+    farm_field, livestock_herd, pasture, settlement_security, BackyardGarden, Building,
+    BurgageZone, DeliveryTrip, FarmField, FireIncident, LivestockHerd, Pasture, ResidenceNeed,
+    WorldConfig,
 };
 use crate::world_entities::clear_global_world_entities;
 
@@ -122,6 +123,9 @@ fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
     if ctx.db.player_resources().owner().find(&owner).is_some() {
         ctx.db.player_resources().owner().delete(&owner);
     }
+    if ctx.db.settlement_security().owner().find(&owner).is_some() {
+        ctx.db.settlement_security().owner().delete(&owner);
+    }
 }
 
 fn reset_world_progress(ctx: &ReducerContext) {
@@ -139,6 +143,8 @@ fn reset_world_progress(ctx: &ReducerContext) {
             sim_tick: 0,
             next_building_id: 1,
             game_speed: 1,
+            conflict_enabled: false,
+            enemy_pressure: 0,
             configured: false,
             ..config
         });

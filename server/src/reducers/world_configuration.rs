@@ -42,11 +42,15 @@ pub fn configure_world(
     topography: u8,
     hydrology: u8,
     forest_density: u8,
+    conflict_enabled: bool,
+    enemy_pressure: u8,
 ) -> Result<(), String> {
     validate_map_size(map_size)?;
     validate_percent(topography, "topography")?;
     validate_percent(hydrology, "hydrology")?;
     validate_percent(forest_density, "forest_density")?;
+    validate_percent(enemy_pressure, "enemy_pressure")?;
+    let enemy_pressure = if conflict_enabled { enemy_pressure.max(1) } else { 0 };
 
     let config = ctx
         .db
@@ -59,7 +63,9 @@ pub fn configure_world(
         || config.map_size != map_size
         || config.topography != topography
         || config.hydrology != hydrology
-        || config.forest_density != forest_density;
+        || config.forest_density != forest_density
+        || config.conflict_enabled != conflict_enabled
+        || config.enemy_pressure != enemy_pressure;
 
     // Only lock generation after a client has published settings. The sim scheduler
     // may be running while configured=false (e.g. idle server before first connect).
@@ -78,6 +84,8 @@ pub fn configure_world(
             topography,
             hydrology,
             forest_density,
+            conflict_enabled,
+            enemy_pressure,
             configured: true,
             // Repair idle ticks that ran before the first client published settings.
             sim_tick: if !config.configured {
@@ -119,6 +127,8 @@ pub fn default_world_config() -> WorldConfig {
         topography: 50,
         hydrology: 50,
         forest_density: 50,
+        conflict_enabled: false,
+        enemy_pressure: 0,
         configured: false,
     }
 }

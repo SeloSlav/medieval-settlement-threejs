@@ -41,6 +41,14 @@ export function getBuildingExtent(kind: BuildingKind, workRadius: number): Build
     };
   }
 
+  if (kind === 'watchtower' && workRadius > 0) {
+    return {
+      type: 'coverage',
+      label: 'Watch coverage',
+      radius: workRadius,
+    };
+  }
+
   if (!WORK_EXTENT_KINDS.has(kind) || workRadius <= 0) return null;
 
   return {

@@ -28,6 +28,8 @@ pub mod simulation {
 
 #[path = "../../src/season_policy.rs"]
 pub mod season_policy;
+#[path = "../../src/security_policy.rs"]
+pub mod security_policy;
 
 #[path = "../../src/quarry_balance.rs"]
 pub mod quarry_balance;

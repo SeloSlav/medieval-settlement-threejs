@@ -624,6 +624,25 @@
       "requiresGame": false,
       "requiresBerries": false
     },
+    "watchtower": {
+      "label": "Frontier watchtower",
+      "cost": { "timber": 48, "stone": 18 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
+      "workRadius": 190,
+      "pickRadius": 8,
+      "harvestInterval": 0,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 2,
+      "acceptsLabor": true,
+      "requiresRoad": true,
+      "facesRoad": false,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false,
+      "requiresWaterShore": false,
+      "requiresHillside": true
+    },
     "threshing_barn": {
       "label": "Farmstead and threshing barn",
       "cost": { "timber": 44, "stone": 16 },

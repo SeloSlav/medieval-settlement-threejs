@@ -1,6 +1,7 @@
 export const DEFAULT_WORLD_SEED = 0x71a2e0d;
 
 export type WorldMapSize = 'small' | 'medium' | 'large';
+export type WorldConflictMode = 'peaceful' | 'frontier';
 
 export type WorldGenerationSettings = {
   seed: number;
@@ -11,6 +12,10 @@ export type WorldGenerationSettings = {
   hydrology: number;
   /** 0 = open meadows, 100 = dense woodland */
   forestDensity: number;
+  /** Peaceful settlements never schedule hostile pressure. */
+  conflictMode: WorldConflictMode;
+  /** 0 = disabled, 100 = severe frontier pressure. */
+  enemyPressure: number;
 };
 
 export type WorldDimensions = {
@@ -31,6 +36,8 @@ export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
   topography: 50,
   hydrology: 50,
   forestDensity: 50,
+  conflictMode: 'peaceful',
+  enemyPressure: 0,
 };
 
 const STORAGE_KEY = 'medieval-road-system:world-generation';
@@ -114,12 +121,17 @@ export function normalizeWorldGenerationSettings(
   const mapSize = partial.mapSize === 'small' || partial.mapSize === 'large'
     ? partial.mapSize
     : 'medium';
+  const conflictMode = partial.conflictMode === 'frontier' ? 'frontier' : 'peaceful';
   return {
     seed,
     mapSize,
     topography: clampPercent(partial.topography ?? DEFAULT_WORLD_GENERATION_SETTINGS.topography),
     hydrology: clampPercent(partial.hydrology ?? DEFAULT_WORLD_GENERATION_SETTINGS.hydrology),
     forestDensity: clampPercent(partial.forestDensity ?? DEFAULT_WORLD_GENERATION_SETTINGS.forestDensity),
+    conflictMode,
+    enemyPressure: conflictMode === 'frontier'
+      ? Math.max(1, clampPercent(partial.enemyPressure ?? 50))
+      : 0,
   };
 }
 

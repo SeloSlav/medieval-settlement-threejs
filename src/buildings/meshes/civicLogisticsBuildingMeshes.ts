@@ -115,3 +115,53 @@ export function createVillageStorehouseMesh(): THREE.Group {
   addMesh(group, new THREE.BoxGeometry(0.7, 0.06, 1.8), earth, new THREE.Vector3(-0.4, 0.06, 6.35));
   return group;
 }
+
+export function createWatchtowerMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'Frontier watchtower';
+
+  // A compact limestone footing resists the wet mountain ground without reading as a castle keep.
+  addMesh(group, new THREE.BoxGeometry(4.6, 0.82, 4.6), stoneMaterial('mid'), new THREE.Vector3(0, 0.41, 0));
+  for (const [x, z] of [[-1.45, -1.45], [1.45, -1.45], [-1.45, 1.45], [1.45, 1.45]] as const) {
+    addMesh(group, new THREE.BoxGeometry(0.46, 5.8, 0.46), timberMaterial('dark'), new THREE.Vector3(x, 3.72, z));
+  }
+
+  // Braced open legs keep the silhouette legible while showing believable timber construction.
+  for (const z of [-1.5, 1.5]) {
+    addMesh(group, new THREE.BoxGeometry(0.24, 4.1, 0.22), timberMaterial('weathered'), new THREE.Vector3(0, 3.35, z), new THREE.Euler(0, 0, 0.58));
+    addMesh(group, new THREE.BoxGeometry(0.24, 4.1, 0.22), timberMaterial('weathered'), new THREE.Vector3(0, 3.35, z), new THREE.Euler(0, 0, -0.58));
+  }
+  for (const x of [-1.5, 1.5]) {
+    addMesh(group, new THREE.BoxGeometry(0.22, 4.1, 0.24), timberMaterial('weathered'), new THREE.Vector3(x, 3.35, 0), new THREE.Euler(0.58, 0, 0));
+    addMesh(group, new THREE.BoxGeometry(0.22, 4.1, 0.24), timberMaterial('weathered'), new THREE.Vector3(x, 3.35, 0), new THREE.Euler(-0.58, 0, 0));
+  }
+
+  addMesh(group, new THREE.BoxGeometry(4.8, 0.34, 4.8), timberMaterial('dark'), new THREE.Vector3(0, 6.08, 0));
+  addMesh(group, new THREE.BoxGeometry(4.35, 1.5, 4.35), timberMaterial('weathered'), new THREE.Vector3(0, 6.78, 0));
+  // Dark openings cut into the gallery walls make the lookout function clear from settlement zoom.
+  for (const x of [-1.15, 0, 1.15]) {
+    addDarkOpening(group, x, 6.92, 2.2, 0.72, 0.58);
+  }
+  for (const z of [-1.15, 0, 1.15]) {
+    const opening = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.58, 0.72), metalMaterial('iron'));
+    opening.position.set(2.2, 6.92, z);
+    group.add(opening);
+  }
+
+  // Steep shingle cap is the single dominant silhouette feature.
+  addMesh(group, new THREE.ConeGeometry(3.45, 2.65, 4), shingleMaterial(), new THREE.Vector3(0, 8.74, 0), new THREE.Euler(0, Math.PI * 0.25, 0));
+  addMesh(group, new THREE.BoxGeometry(0.11, 0.82, 0.11), metalMaterial('iron'), new THREE.Vector3(0, 10.38, 0));
+
+  // Exterior ladder and warning bell explain access and early-warning gameplay.
+  for (const x of [-0.6, 0.6]) {
+    addMesh(group, new THREE.BoxGeometry(0.14, 6.0, 0.14), timberMaterial('dark'), new THREE.Vector3(x, 3.25, 2.5), new THREE.Euler(-0.08, 0, 0));
+  }
+  for (let y = 0.75; y <= 5.8; y += 0.5) {
+    addMesh(group, new THREE.BoxGeometry(1.35, 0.1, 0.12), timberMaterial('weathered'), new THREE.Vector3(0, y, 2.5));
+  }
+  addMesh(group, new THREE.BoxGeometry(1.15, 0.14, 0.14), timberMaterial('dark'), new THREE.Vector3(2.65, 7.45, 1.7));
+  addMesh(group, new THREE.BoxGeometry(0.14, 0.75, 0.14), timberMaterial('dark'), new THREE.Vector3(2.15, 7.15, 1.7));
+  addBell(group, 3.1, 7.08, 1.7);
+
+  return group;
+}

@@ -210,6 +210,18 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     // placement checks. Reuse one snapshot for overlap, landmark, and carpenter checks.
     let road_network = load_owner_road_network(ctx, owner);
 
+    if kind == "watchtower" {
+        let conflict_enabled = ctx
+            .db
+            .world_config()
+            .id()
+            .find(&0)
+            .is_some_and(|config| config.conflict_enabled && config.enemy_pressure > 0);
+        if !conflict_enabled {
+            return Err("Watchtowers are only available in contested-frontier worlds.".to_string());
+        }
+    }
+
     if kind == "monastery" {
         let staffed_chapel = ctx.db.building().owner().filter(&owner).any(|building| {
             building.kind == "chapel"

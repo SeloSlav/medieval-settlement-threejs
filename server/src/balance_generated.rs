@@ -750,6 +750,37 @@ const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::VillageStorehouse),
 };
 
+const WATCHTOWER: BuildingDef = BuildingDef {
+    kind: "watchtower",
+    cost_timber: 48.0,
+    cost_stone: 18.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 0.0,
+    storage_grain: 0.0,
+    storage_flour: 0.0,
+    storage_ale: 0.0,
+    storage_preserved_food: 0.0,
+    storage_honey: 0.0,
+    storage_wine: 0.0,
+    accepts_labor: true,
+    max_labor: 2,
+    work_radius: 190.0,
+    action_interval: 0.0,
+    pick_radius: 8.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: true,
+    sim_kind: None,
+};
+
 const THRESHING_BARN: BuildingDef = BuildingDef {
     kind: "threshing_barn",
     cost_timber: 44.0,
@@ -1122,7 +1153,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, FERRY_LANDING, VINEYARD];
+const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, FERRY_LANDING, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)

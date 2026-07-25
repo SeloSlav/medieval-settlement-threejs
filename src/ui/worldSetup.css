@@ -91,6 +91,54 @@
   background: rgba(215, 180, 99, 0.12);
 }
 
+.world-setup-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.world-setup-mode-option {
+  display: grid;
+  gap: 5px;
+  min-height: 92px;
+  padding: 12px;
+  text-align: left;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.world-setup-mode-option strong {
+  font-size: 14px;
+}
+
+.world-setup-mode-option span {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.world-setup-mode-option.is-selected {
+  border-color: rgba(215, 180, 99, 0.72);
+  background: rgba(215, 180, 99, 0.12);
+}
+
+.world-setup-mode-option:hover,
+.world-setup-mode-option:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.world-setup-pressure {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(215, 180, 99, 0.22);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.14);
+}
+
 .world-setup-size-option:hover,
 .world-setup-size-option:focus-visible {
   background: rgba(255, 255, 255, 0.08);

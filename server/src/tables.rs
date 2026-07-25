@@ -27,6 +27,12 @@ pub struct WorldConfig {
     pub hydrology: u8,
     #[default(50)]
     pub forest_density: u8,
+    /// Enables historically grounded frontier pressure and raid events.
+    #[default(false)]
+    pub conflict_enabled: bool,
+    /// Configurable hostile pressure from 0 (disabled) to 100 (severe).
+    #[default(0)]
+    pub enemy_pressure: u8,
     /// False until a client publishes generation settings via configure_world.
     #[default(false)]
     pub configured: bool,
@@ -336,6 +342,7 @@ pub struct BurgageZone {
 }
 
 #[spacetimedb::table(accessor = residence, public, index(accessor = zone_id, btree(columns = [zone_id])), index(accessor = owner, btree(columns = [owner])))]
+#[derive(Clone)]
 pub struct Residence {
     #[primary_key]
     #[auto_inc]
@@ -406,6 +413,36 @@ pub struct MarketState {
     pub last_price_tick: u64,
     /// Flavor bulletin for the marketplace UI.
     pub bulletin: String,
+}
+
+/// Per-settlement frontier pressure. Peaceful worlds keep this row at zero.
+#[spacetimedb::table(accessor = settlement_security, public)]
+pub struct SettlementSecurity {
+    #[primary_key]
+    pub owner: Identity,
+    /// Normalized progress toward the next hostile incursion.
+    #[default(0.0)]
+    pub threat: f64,
+    /// Weighted share of settlement homes and stores inside staffed watch coverage.
+    #[default(0.0)]
+    pub coverage: f64,
+    #[default(0.0)]
+    pub protected_value: f64,
+    #[default(0.0)]
+    pub total_value: f64,
+    #[default(0u32)]
+    pub staffed_watchtowers: u32,
+    #[default(0u64)]
+    pub next_raid_tick: u64,
+    #[default(0u64)]
+    pub last_raid_tick: u64,
+    /// 0 = none, 1 = warning/averted, 2 = stores plundered.
+    #[default(0u8)]
+    pub last_outcome: u8,
+    #[default(0.0)]
+    pub last_goods_lost: f64,
+    #[default(0.0)]
+    pub last_wealth_lost: f64,
 }
 
 /// Active road delivery agent — position and phase are authoritative; cargo unloads on arrival.

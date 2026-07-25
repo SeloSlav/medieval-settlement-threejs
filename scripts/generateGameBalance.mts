@@ -399,6 +399,7 @@ const simKindByKind: Record<string, string | null> = {
   marketplace: null,
   town_hall: null,
   village_storehouse: 'VillageStorehouse',
+  watchtower: null,
   threshing_barn: 'ThreshingBarn',
   monastery: 'Monastery',
   brewery: 'Brewery',

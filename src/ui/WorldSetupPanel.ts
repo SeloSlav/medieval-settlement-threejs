@@ -31,6 +31,28 @@ export class WorldSetupPanel {
           <div class="world-setup-size-grid" data-size-grid></div>
         </section>
 
+        <section class="world-setup-section" aria-label="Settlement mode">
+          <h2 class="world-setup-section__title">Settlement mode</h2>
+          <div class="world-setup-mode-grid" data-mode-grid>
+            <button type="button" class="world-setup-mode-option is-selected" data-conflict-mode="peaceful">
+              <strong>Peaceful settlement</strong>
+              <span>Construction, survival, trade, and optimization without hostile raids.</span>
+            </button>
+            <button type="button" class="world-setup-mode-option" data-conflict-mode="frontier">
+              <strong>Contested frontier</strong>
+              <span>Build an economy that can also support watchmen and withstand periodic incursions.</span>
+            </button>
+          </div>
+          <div class="world-setup-pressure" data-pressure-controls hidden>
+            <label class="world-setup-slider-label" for="world-setup-pressure">
+              <span>Enemy pressure</span>
+              <strong data-pressure-value>50</strong>
+            </label>
+            <input id="world-setup-pressure" class="world-setup-slider" type="range" min="10" max="100" step="5" value="50" />
+            <p class="world-setup-slider-hint">Higher pressure shortens warnings and increases exposed-stock losses. It does not grant enemies extra resources.</p>
+          </div>
+        </section>
+
         <section class="world-setup-section" aria-label="Topography">
           <label class="world-setup-slider-label" for="world-setup-topography">
             <span>Topography</span>
@@ -93,6 +115,29 @@ export class WorldSetupPanel {
     const forestValue = this.backdrop.querySelector<HTMLElement>('[data-forest-value]')!;
     const seedInput = this.backdrop.querySelector<HTMLInputElement>('[data-seed-input]')!;
     const randomizeButton = this.backdrop.querySelector<HTMLButtonElement>('[data-randomize-seed]')!;
+    const modeGrid = this.backdrop.querySelector<HTMLElement>('[data-mode-grid]')!;
+    const pressureControls = this.backdrop.querySelector<HTMLElement>('[data-pressure-controls]')!;
+    const pressureSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-pressure')!;
+    const pressureValue = this.backdrop.querySelector<HTMLElement>('[data-pressure-value]')!;
+
+    for (const button of modeGrid.querySelectorAll<HTMLButtonElement>('[data-conflict-mode]')) {
+      button.addEventListener('click', () => {
+        this.draft.conflictMode = button.dataset.conflictMode === 'frontier' ? 'frontier' : 'peaceful';
+        if (this.draft.conflictMode === 'frontier' && this.draft.enemyPressure <= 0) {
+          this.draft.enemyPressure = 50;
+        }
+        pressureSlider.value = String(Math.max(10, this.draft.enemyPressure));
+        pressureValue.textContent = pressureSlider.value;
+        pressureControls.hidden = this.draft.conflictMode !== 'frontier';
+        for (const option of modeGrid.querySelectorAll<HTMLButtonElement>('[data-conflict-mode]')) {
+          option.classList.toggle('is-selected', option.dataset.conflictMode === this.draft.conflictMode);
+        }
+      });
+    }
+    pressureSlider.addEventListener('input', () => {
+      this.draft.enemyPressure = Number(pressureSlider.value);
+      pressureValue.textContent = pressureSlider.value;
+    });
 
     topographySlider.addEventListener('input', () => {
       this.draft.topography = Number(topographySlider.value);

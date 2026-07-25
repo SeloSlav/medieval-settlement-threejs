@@ -311,6 +311,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.88,
             outer_fade: 1.3,
         },
+        "watchtower" => BuildingPadParams {
+            radius_x: 3.0,
+            radius_z: 3.0,
+            inner_fade: 0.9,
+            outer_fade: 1.3,
+        },
         "threshing_barn" => BuildingPadParams {
             radius_x: 6.5,
             radius_z: 5.0,

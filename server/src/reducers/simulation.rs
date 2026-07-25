@@ -11,8 +11,8 @@ use crate::simulation::{
     step_granary, step_household_market_orders, step_hunters_hall, step_large_quarry,
     step_lumber_mill, step_marketplace_caravans, step_monastery, step_pastoral_farmstead,
     step_reforester, step_residence, step_smokehouse, step_stone_quarry, step_swineherd,
-    step_threshing_barn, step_village_storehouse, step_vineyard, step_watermill, step_well,
-    step_woodcutters_lodge, SimTickContext,
+    step_settlement_security, step_threshing_barn, step_village_storehouse, step_vineyard,
+    step_watermill, step_well, step_woodcutters_lodge, SimTickContext,
 };
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
@@ -75,6 +75,8 @@ fn run_one_sim_tick(ctx: &ReducerContext) {
 
     let world_seed = config.seed;
     let world_hydrology = config.hydrology;
+    let conflict_enabled = config.conflict_enabled;
+    let enemy_pressure = config.enemy_pressure;
     ctx.db.world_config().id().update(WorldConfig {
         sim_tick: config.sim_tick + 1,
         ..config
@@ -92,6 +94,14 @@ fn run_one_sim_tick(ctx: &ReducerContext) {
     step_foraging_lifecycle(ctx, &clock, environment);
 
     reconcile_all_building_labor(ctx);
+    step_settlement_security(
+        ctx,
+        sim_tick,
+        clock.month,
+        world_seed,
+        conflict_enabled,
+        enemy_pressure,
+    );
 
     let tick = SimTickContext::new(ctx);
     step_fires(ctx, &clock, environment, world_seed, sim_tick);
