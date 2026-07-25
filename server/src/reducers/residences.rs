@@ -18,8 +18,7 @@ use crate::economy::{
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{
-    burgage_zone_has_road_frontage, burgage_zone_on_water, burgage_zone_overlaps_buildings,
-    is_on_quarry_pit,
+    burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, is_on_quarry_pit,
 };
 use crate::simulation::{
     cancel_trips_for_residence, clear_backyard_garden_for_residence, clear_residence_needs,
@@ -71,9 +70,11 @@ pub fn place_burgage_zone(
         }
     }
 
-    if burgage_zone_on_water(&corners) {
-        return Err("Cannot place residences on water.".to_string());
-    }
+    // Open-water overlap is validated by the placement client against the active
+    // world's seed-aware rendered river mask. The server hydrology grid is a
+    // groundwater/moisture proxy used for wells and crop yields; it is not the
+    // active river layout and can be saturated on visibly dry land. Do not turn
+    // that proxy into a second, contradictory water-placement check.
 
     if !burgage_zone_has_road_frontage(ctx, owner, &corners, frontage_edge) {
         return Err("Frontage must face a road.".to_string());

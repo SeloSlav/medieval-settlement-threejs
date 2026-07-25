@@ -79,15 +79,6 @@ fn any_open_water_near(
     false
 }
 
-pub fn burgage_zone_on_water(corners: &ZoneCorners) -> bool {
-    for corner in zone_corners_polygon(corners) {
-        if is_open_water(corner.x, corner.z) {
-            return true;
-        }
-    }
-    false
-}
-
 pub fn burgage_frontage_edge_distance(
     ctx: &ReducerContext,
     owner: Identity,

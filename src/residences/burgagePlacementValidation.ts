@@ -49,6 +49,7 @@ const RESIDENCE_TERRAIN_HALF_WIDTH = 3.85;
 const RESIDENCE_TERRAIN_HALF_DEPTH = 4.2;
 const FOOTPRINT_SAMPLE_FRACTIONS = [-1, 0, 1] as const;
 const MIN_ZONE_AREA = MIN_PLOT_FRONTAGE * 12;
+const WATER_SAMPLE_SPACING = 1.5;
 
 type BurgagePlacementContext = {
   corners: THREE.Vector3[];
@@ -94,9 +95,6 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
   }
 
   for (const corner of context.corners) {
-    if (context.isWaterAt(corner.x, corner.z)) {
-      return { ok: false, reason: 'water' };
-    }
     if (context.isQuarryPitAt?.(corner.x, corner.z)) {
       return { ok: false, reason: 'on_quarry_pit' };
     }
@@ -124,6 +122,10 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
 
   if (!isConvexQuad2(zoneCorners.a, zoneCorners.b, zoneCorners.c, zoneCorners.d)) {
     return { ok: false, reason: 'invalid_shape' };
+  }
+
+  if (burgageZoneTouchesWater(zoneCorners, context.isWaterAt)) {
+    return { ok: false, reason: 'water' };
   }
 
   if (polygonArea2(cornerPoints) < MIN_ZONE_AREA) {
@@ -178,6 +180,48 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
   }
 
   return { ok: true, layout };
+}
+
+/**
+ * Samples the complete authored parcel instead of only its four corners.
+ * River water can cross an edge or the middle of a wide zone while every
+ * corner remains dry, especially around bends and tributary junctions.
+ */
+export function burgageZoneTouchesWater(
+  corners: BurgageZoneCorners,
+  isWaterAt: (x: number, z: number) => boolean,
+  sampleSpacing = WATER_SAMPLE_SPACING,
+): boolean {
+  const spacing = Math.max(0.25, sampleSpacing);
+  const sideSteps = Math.max(1, Math.ceil(Math.max(
+    Math.hypot(corners.d.x - corners.a.x, corners.d.z - corners.a.z),
+    Math.hypot(corners.c.x - corners.b.x, corners.c.z - corners.b.z),
+  ) / spacing));
+
+  for (let sideIndex = 0; sideIndex <= sideSteps; sideIndex++) {
+    const sideT = sideIndex / sideSteps;
+    const left = {
+      x: corners.a.x + (corners.d.x - corners.a.x) * sideT,
+      z: corners.a.z + (corners.d.z - corners.a.z) * sideT,
+    };
+    const right = {
+      x: corners.b.x + (corners.c.x - corners.b.x) * sideT,
+      z: corners.b.z + (corners.c.z - corners.b.z) * sideT,
+    };
+    const rowSteps = Math.max(1, Math.ceil(Math.hypot(
+      right.x - left.x,
+      right.z - left.z,
+    ) / spacing));
+
+    for (let rowIndex = 0; rowIndex <= rowSteps; rowIndex++) {
+      const rowT = rowIndex / rowSteps;
+      const x = left.x + (right.x - left.x) * rowT;
+      const z = left.z + (right.z - left.z) * rowT;
+      if (isWaterAt(x, z)) return true;
+    }
+  }
+
+  return false;
 }
 
 export function residenceFootprintHeightDelta(

@@ -4,6 +4,7 @@ import { isWorldMapForagingMarkerVisible } from './worldMapMarkers.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import { createTerrainMinimapImage } from './createTerrainMinimapImage.ts';
+import { RESOURCE_MAP_ICON_SVG } from './resourceMapIconGlyphs.ts';
 import {
   riverFieldBounds,
   worldDirectionToMapRotation,
@@ -156,6 +157,11 @@ export class TerrainMinimapOverlay {
     const foragingNodes = this.options.getGameState().foragingNodes;
     for (const entry of this.layoutMarkerEntries) {
       entry.hidden = !isWorldMapForagingMarkerVisible(entry.marker, foragingNodes);
+      const node = foragingNodes.get(entry.marker.id);
+      entry.element.classList.toggle(
+        'terrain-minimap__marker--depleted',
+        Boolean(node && node.remaining <= 0),
+      );
     }
     this.refreshLayoutMarkerPositions();
   }
@@ -198,6 +204,13 @@ export class TerrainMinimapOverlay {
   private createMarkerEntry(marker: WorldMapMarker): MinimapMarkerEntry {
     const element = document.createElement('span');
     element.className = `terrain-minimap__marker ${MARKER_KIND_CLASS[marker.kind]}`;
+    if (marker.kind !== 'building') {
+      element.classList.add('terrain-minimap__marker--resource');
+      element.innerHTML = RESOURCE_MAP_ICON_SVG[marker.kind];
+      if (marker.kind === 'quarry' && marker.quarryKind === 'large') {
+        element.classList.add('terrain-minimap__marker--large');
+      }
+    }
     element.dataset.kind = marker.kind;
     element.dataset.id = marker.id;
     element.title = marker.label;

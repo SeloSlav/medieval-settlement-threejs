@@ -75,12 +75,48 @@
 
 .terrain-minimap__marker {
   position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.terrain-minimap__marker--resource {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1.5px solid rgba(238, 232, 220, 0.55);
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.terrain-minimap__marker--resource .map-resource-icon-glyph {
+  width: 13px;
+  height: 13px;
+}
+
+.terrain-minimap__marker--large {
+  width: 24px;
+  height: 24px;
+}
+
+.terrain-minimap__marker--large .map-resource-icon-glyph {
+  width: 16px;
+  height: 16px;
+}
+
+.terrain-minimap__marker--depleted {
+  opacity: 0.52;
+  filter: saturate(0.35);
+}
+
+.terrain-minimap__marker--building {
   width: 9px;
   height: 9px;
   border-radius: 999px;
   border: 1.5px solid rgba(255, 255, 255, 0.72);
+  background: var(--accent);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-  transform: translate(-50%, -50%);
 }
 
 .terrain-minimap__marker[hidden] {
@@ -88,31 +124,23 @@
 }
 
 .terrain-minimap__marker--quarry {
-  width: 11px;
-  height: 11px;
-  border-radius: 2px;
-  rotate: 45deg;
-  background: #c8b07a;
+  border-color: rgba(215, 180, 99, 0.72);
 }
 
 .terrain-minimap__marker--game {
-  background: #6f9a58;
+  border-color: rgba(120, 156, 98, 0.72);
 }
 
 .terrain-minimap__marker--berries {
-  background: #b45c74;
+  border-color: rgba(176, 92, 118, 0.72);
 }
 
 .terrain-minimap__marker--mushrooms {
-  background: #b78f5c;
+  border-color: rgba(183, 143, 92, 0.78);
 }
 
 .terrain-minimap__marker--fish {
-  background: #5b99b0;
-}
-
-.terrain-minimap__marker--building {
-  background: var(--accent);
+  border-color: rgba(91, 153, 176, 0.82);
 }
 
 .terrain-minimap__focus {

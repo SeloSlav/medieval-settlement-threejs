@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { getBuildingSiteClearanceSearchRadius } from '../src/buildings/BuildingTerrainLayout.ts';
 import { PlacementClearanceSpatialIndex } from '../src/placement/PlacementClearanceSpatialIndex.ts';
 import { QuarryLayout, quarrySiteOverlapsRiver } from '../src/quarries/QuarryLayout.ts';
+import { burgageZoneTouchesWater } from '../src/residences/burgagePlacementValidation.ts';
 import { RiverLayout } from '../src/rivers/RiverLayout.ts';
 import {
   deriveSubSeed,
@@ -81,6 +82,32 @@ function testQuarryFootprintsAvoidRivers(): void {
   assert.equal(checkedWorlds, 36);
 }
 
+function testBurgageWaterValidationSamplesTheWholeZone(): void {
+  const zone = {
+    a: { x: 0, z: 0 },
+    b: { x: 24, z: 0 },
+    c: { x: 24, z: 20 },
+    d: { x: 0, z: 20 },
+  };
+
+  assert.equal(
+    burgageZoneTouchesWater(zone, (x, z) => Math.abs(x - 12) <= 0.8 && z >= 4 && z <= 16),
+    true,
+    'water crossing only the middle of a zone must be detected',
+  );
+  assert.equal(
+    burgageZoneTouchesWater(zone, (x, z) => Math.abs(z - 10) <= 0.8 && x >= 20 && x <= 28),
+    true,
+    'water crossing a zone edge between dry corners must be detected',
+  );
+  assert.equal(
+    burgageZoneTouchesWater(zone, (x, z) => x >= 25.5 && z >= 4 && z <= 16),
+    false,
+    'nearby water outside the parcel must not block dry shoreline placement',
+  );
+}
+
 testClearanceSpatialIndexKeepsNearbyCandidates();
 testQuarryFootprintsAvoidRivers();
+testBurgageWaterValidationSamplesTheWholeZone();
 console.log('Placement regression tests passed.');

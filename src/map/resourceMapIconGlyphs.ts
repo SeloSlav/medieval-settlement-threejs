@@ -11,6 +11,7 @@
  * artwork was redrawn as low-detail silhouettes, and every glyph now inherits
  * the marker's currentColor. See public/assets/third-party/game-icons-LICENSE.txt.
  */
+import type { ResourceNodeKind } from '../resources/types.ts';
 
 export const QUARRY_ICON_SVG = `
   <svg class="map-resource-icon-glyph quarry-map-icon-glyph" viewBox="0 0 24 24" aria-hidden="true">
@@ -53,3 +54,14 @@ export const FISH_ICON_SVG = `
     <circle cx="17.2" cy="11.4" r="1" fill="var(--panel, #171915)"/>
   </svg>
 `.trim();
+
+/**
+ * Canonical resource glyphs shared by the far-zoom map icons and minimap.
+ */
+export const RESOURCE_MAP_ICON_SVG: Readonly<Record<ResourceNodeKind, string>> = {
+  quarry: QUARRY_ICON_SVG,
+  game: GAME_ICON_SVG,
+  berries: BERRY_ICON_SVG,
+  mushrooms: MUSHROOM_ICON_SVG,
+  fish: FISH_ICON_SVG,
+};
