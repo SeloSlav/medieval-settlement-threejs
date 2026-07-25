@@ -7,6 +7,11 @@ export type RoadEdge = {
   controlPoints: THREE.Vector3[];
   width: number;
   sampledPath: THREE.Vector3[];
+  /**
+   * Runtime-derived centerline matching the rendered road top. Unlike
+   * `sampledPath`, this includes bridge approach ramps and elevated decks.
+   */
+  surfacePath?: THREE.Vector3[];
   length: number;
   mesh?: THREE.Group;
   materialData?: {

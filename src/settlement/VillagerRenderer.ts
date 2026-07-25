@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
 import type {
   BuildingState,
   FarmFieldState,
@@ -1086,9 +1087,10 @@ export class VillagerRenderer {
   }
 
   private resolveGroundY(x: number, z: number): number {
-    const deckY = this.getRoadDeckY?.(x, z);
-    if (deckY != null) return deckY;
-    return this.getHeightAt(x, z);
+    return resolveRoadAwareGroundY(
+      this.getHeightAt(x, z),
+      this.getRoadDeckY?.(x, z) ?? null,
+    );
   }
 
   private workerToolFor(agent: VillagerAgent): WorkerToolKind | null {

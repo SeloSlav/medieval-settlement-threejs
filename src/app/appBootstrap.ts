@@ -259,6 +259,7 @@ export async function bootstrapAppSession(
     terrain: sceneManager.terrain,
     parent: sceneManager.selectionGroup,
     getGameSpeed: () => spacetimeStore.snapshot.gameSpeed,
+    getRoadDeckY: (x, z) => sceneManager.sampleRoadDeckY(x, z),
   });
   const fireEffects = new FireEffectsRenderer(
     sceneManager.terrain,

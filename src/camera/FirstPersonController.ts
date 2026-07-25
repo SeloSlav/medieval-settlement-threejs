@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
+import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
 import { DEFAULT_FOV } from './CameraCurves.ts';
 import { FP_LOCOMOTION_AIRBORNE_SUBSTEP_SCALE } from './fp/fpAirborneWalkPolicy.ts';
 import {
@@ -135,8 +136,11 @@ export class FirstPersonController {
 
     const x = spawn?.x ?? 0;
     const z = spawn?.z ?? 0;
-    const terrainY = this.config.getHeightAt(x, z);
-    this.pos.set(x, terrainY + FP_LOCOMOTION_FEET_SKIN_M, z);
+    const groundY = resolveRoadAwareGroundY(
+      this.config.getHeightAt(x, z),
+      this.config.getRoadDeckY?.(x, z) ?? null,
+    );
+    this.pos.set(x, groundY + FP_LOCOMOTION_FEET_SKIN_M, z);
     this.look.bodyYaw = spawn?.yaw ?? 0;
     this.look.pitch = spawn?.pitch ?? 0;
     this.look.headLookYaw = 0;
@@ -301,7 +305,7 @@ export class FirstPersonController {
       FP_WALK_STEP_UP_MARGIN,
       phase,
     ) ?? Number.NEGATIVE_INFINITY;
-    return Math.max(terrainY, roadY ?? Number.NEGATIVE_INFINITY, obstacleY);
+    return Math.max(resolveRoadAwareGroundY(terrainY, roadY ?? null), obstacleY);
   };
 
   private clampPositionXZ(): void {

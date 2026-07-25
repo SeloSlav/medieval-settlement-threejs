@@ -49,6 +49,18 @@ assert.match(deliveryServer, /remaining_distance \/ travel_speed/);
 const deliveryRenderer = read('src/logistics/DeliveryAgentRenderer.ts');
 assert.match(deliveryRenderer, /effectiveTravelSpeed = visual\.travelSpeed \* gameSpeed/);
 assert.match(deliveryRenderer, /phaseChanged \|\| progressRestarted/);
+assert.match(
+  deliveryRenderer,
+  /this\.resolveGroundY\(x,\s*z\) \+ 0\.05/,
+  'delivery carts and their visible workers should use the road/bridge walking surface',
+);
+
+const appBootstrap = read('src/app/appBootstrap.ts');
+assert.match(
+  appBootstrap,
+  /new DeliveryAgentRenderer\(\{[\s\S]*?getRoadDeckY:[\s\S]*?sampleRoadDeckY/,
+  'delivery agents should receive the same bridge deck sampler as villagers and first-person',
+);
 
 const villagerInspector = read('src/ui/VillagerInspector.ts');
 assert.match(villagerInspector, />Distance left</);

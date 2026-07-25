@@ -19,6 +19,7 @@ import type { RoadEdge } from '../roads/RoadEdge.ts';
 import { RoadJunctionBuilder } from '../roads/RoadJunctionBuilder.ts';
 import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
 import { RoadMeshBuilder } from '../roads/RoadMeshBuilder.ts';
+import { sampleRoadSurfaceY } from '../roads/RoadSurfaceSampling.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { BridgeSamplingContext } from '../roads/RiverBridgeSpans.ts';
@@ -691,17 +692,7 @@ export class SceneManager {
   sampleRoadDeckY(x: number, z: number): number | null {
     const network = this.roadNetworkRef;
     if (!network) return null;
-
-    let best: number | null = null;
-    for (const edge of network.edges.values()) {
-      const path = edge.sampledPath.length >= 2 ? edge.sampledPath : edge.controlPoints;
-      if (path.length < 2) continue;
-
-      const projection = projectPointToPathXZ(x, z, path);
-      if (projection.distance > edge.width * 0.52) continue;
-      best = best == null ? projection.y : Math.max(best, projection.y);
-    }
-    return best;
+    return sampleRoadSurfaceY(network.edges.values(), x, z);
   }
 
   syncRoadNetwork(network: RoadNetwork): void {
@@ -913,29 +904,4 @@ function blendColorHex(from: number, to: number, amount: number): number {
   const g = Math.round(THREE.MathUtils.lerp(fromG, toG, mix));
   const b = Math.round(THREE.MathUtils.lerp(fromB, toB, mix));
   return (r << 16) | (g << 8) | b;
-}
-
-function projectPointToPathXZ(
-  x: number,
-  z: number,
-  path: THREE.Vector3[],
-): { distance: number; y: number } {
-  let bestDistance = Infinity;
-  let bestY = path[0].y;
-  for (let i = 0; i < path.length - 1; i++) {
-    const a = path[i];
-    const b = path[i + 1];
-    const abx = b.x - a.x;
-    const abz = b.z - a.z;
-    const lengthSq = abx * abx + abz * abz;
-    const t = lengthSq <= 1e-6 ? 0 : THREE.MathUtils.clamp(((x - a.x) * abx + (z - a.z) * abz) / lengthSq, 0, 1);
-    const px = a.x + abx * t;
-    const pz = a.z + abz * t;
-    const distance = Math.hypot(x - px, z - pz);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestY = THREE.MathUtils.lerp(a.y, b.y, t);
-    }
-  }
-  return { distance: bestDistance, y: bestY };
 }

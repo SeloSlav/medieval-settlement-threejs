@@ -58,6 +58,10 @@ export class RoadMeshBuilder {
     const bridgeBlends = spans.length > 0
       ? applyBridgeHeightsToPath(ribbonPath, spans, this.requireBridgeCtx(), CORE_Y_OFFSET)
       : new Float32Array(ribbonPath.length);
+    // Publish the same elevated centerline used by the rendered ribbon. Player,
+    // villager, and delivery-agent ground sampling must not read the untouched
+    // riverbed-height path while the visible bridge sits above it.
+    edge.surfacePath = ribbonPath.map((point) => point.clone());
 
     const startNode = network.nodes.get(edge.startNodeId);
     const endNode = network.nodes.get(edge.endNodeId);
@@ -277,7 +281,11 @@ export class RoadMeshBuilder {
   }
 
   buildSelection(edge: RoadEdge): THREE.Mesh | null {
-    const path = edge.sampledPath.length >= 2 ? edge.sampledPath : edge.controlPoints;
+    const path = edge.surfacePath && edge.surfacePath.length >= 2
+      ? edge.surfacePath
+      : edge.sampledPath.length >= 2
+        ? edge.sampledPath
+        : edge.controlPoints;
     if (path.length < 2) return null;
     const mesh = this.buildSimpleRibbon(path, edge.width + 0.9, this.materials.selection, 0.18, `${edge.id}-selection`, false);
     mesh.renderOrder = 20;

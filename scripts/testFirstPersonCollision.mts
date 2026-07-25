@@ -8,6 +8,12 @@ import {
   FP_WALK_STEP_UP_MARGIN,
   stepFpLocomotion,
 } from '../src/camera/fp/fpLocomotion.ts';
+import type { RoadEdge } from '../src/roads/RoadEdge.ts';
+import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
+import {
+  resolveRoadAwareGroundY,
+  sampleRoadSurfaceY,
+} from '../src/roads/RoadSurfaceSampling.ts';
 
 const root = new THREE.Group();
 root.name = 'Backyard gardens';
@@ -249,6 +255,84 @@ function resolveAt(
     stepFpLocomotion(state, position, 0, input, 0.05, walk);
   }
   assert.ok(position.x <= -0.72, 'substep collision should prevent sprint tunnelling through walls');
+}
+
+{
+  const bridgeTerrain = {
+    getHeightAt: () => 0,
+    getPointAt: (x: number, z: number, offset = 0) => new THREE.Vector3(x, offset, z),
+    getPointAtInto: (
+      x: number,
+      z: number,
+      target: THREE.Vector3,
+      offset = 0,
+    ) => target.set(x, offset, z),
+  };
+  const roadMaterial = new THREE.MeshBasicMaterial();
+  const edgeMaterial = new THREE.MeshBasicMaterial();
+  const supportMaterial = new THREE.MeshBasicMaterial();
+  const bridgeBuilder = new RoadMeshBuilder(
+    bridgeTerrain as never,
+    {
+      road: roadMaterial,
+      roadEdge: edgeMaterial,
+      bridgeSupport: supportMaterial,
+    } as never,
+    {
+      isWaterAt: (x) => Math.abs(x) <= 4.5,
+      getTerrainY: () => 0,
+      getWaterSurfaceY: () => 1.2,
+    },
+  );
+  const bridgeEdge: RoadEdge = {
+    id: 'walkable-bridge',
+    startNodeId: 'bridge-a',
+    endNodeId: 'bridge-b',
+    controlPoints: [
+      new THREE.Vector3(-22, 0, 0),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(22, 0, 0),
+    ],
+    width: 4,
+    sampledPath: [],
+    length: 44,
+    editableState: 'normal',
+    revision: 1,
+  };
+  const bridgeGroup = bridgeBuilder.buildEdge(
+    bridgeEdge,
+    { nodes: new Map() } as never,
+  );
+
+  assert.ok(bridgeEdge.surfacePath && bridgeEdge.surfacePath.length >= 2);
+  assert.ok(
+    bridgeEdge.sampledPath.every((point) => Math.abs(point.y) < 1e-9),
+    'the terrain-following navigation path should remain at riverbed height',
+  );
+  const deckY = sampleRoadSurfaceY([bridgeEdge], 0, 0);
+  assert.ok(deckY != null && deckY > 1.5, 'bridge sampling should publish the rendered deck top');
+  assert.equal(
+    resolveRoadAwareGroundY(0, deckY),
+    deckY,
+    'first-person feet and walking agents should resolve onto the bridge deck',
+  );
+  assert.equal(
+    sampleRoadSurfaceY([bridgeEdge], 0, 2.2),
+    null,
+    'bridge support should end outside the rendered road width',
+  );
+  const rampPoint = bridgeEdge.surfacePath.find((point) =>
+    point.y > 0.15 && point.y < deckY - 0.15
+  );
+  assert.ok(rampPoint, 'bridge approaches should expose a continuous elevated walking ramp');
+
+  bridgeGroup.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    mesh.geometry?.dispose();
+  });
+  roadMaterial.dispose();
+  edgeMaterial.dispose();
+  supportMaterial.dispose();
 }
 
 console.log('test:first-person-collision passed');

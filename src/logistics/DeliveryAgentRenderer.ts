@@ -27,6 +27,7 @@ import {
 } from './deliveryCartWorker.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { samplePolylineXZ, type PointXZ } from '../utils/pathGeometry.ts';
+import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
 import { isWithinShadowRange, type CrowdViewState } from '../settlement/crowdView.ts';
 import { hashStringSeed } from '../utils/random.ts';
 import {
@@ -57,6 +58,7 @@ type DeliveryAgentRendererOptions = {
   terrain: Terrain;
   parent: THREE.Group;
   getGameSpeed: () => GameSpeed;
+  getRoadDeckY?: (x: number, z: number) => number | null;
 };
 
 export type DeliveryAgentInspection = {
@@ -72,6 +74,7 @@ export type DeliveryAgentInspection = {
 export class DeliveryAgentRenderer {
   private readonly getGameSpeed: () => GameSpeed;
   private readonly terrain: Terrain;
+  private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
   private readonly group = new THREE.Group();
   private readonly visuals = new Map<string, TripVisual>();
   private readonly selectedRoute: THREE.Line<
@@ -87,6 +90,7 @@ export class DeliveryAgentRenderer {
   constructor(options: DeliveryAgentRendererOptions) {
     this.getGameSpeed = options.getGameSpeed;
     this.terrain = options.terrain;
+    this.getRoadDeckY = options.getRoadDeckY ?? null;
     this.group.name = 'Delivery agents';
     this.selectedRoute = createSelectedDeliveryRoute();
     this.group.add(this.selectedRoute);
@@ -177,7 +181,7 @@ export class DeliveryAgentRenderer {
         }
       }
 
-      const y = this.terrain.getHeightAt(x, z) + 0.05;
+      const y = this.resolveGroundY(x, z) + 0.05;
       visual.mesh.position.set(x, y, z);
       visual.mesh.rotation.y = visual.phase === 'inbound'
         ? yaw + Math.PI
@@ -414,12 +418,19 @@ export class DeliveryAgentRenderer {
     }
     const points = route.map((point) => new THREE.Vector3(
       point.x,
-      this.terrain.getHeightAt(point.x, point.z) + DELIVERY_ROUTE_Y_OFFSET,
+      this.resolveGroundY(point.x, point.z) + DELIVERY_ROUTE_Y_OFFSET,
       point.z,
     ));
     this.selectedRoute.geometry.setFromPoints(points);
     this.selectedRoute.computeLineDistances();
     this.selectedRoute.visible = true;
+  }
+
+  private resolveGroundY(x: number, z: number): number {
+    return resolveRoadAwareGroundY(
+      this.terrain.getHeightAt(x, z),
+      this.getRoadDeckY?.(x, z) ?? null,
+    );
   }
 
   private async loadCartSource(): Promise<void> {
