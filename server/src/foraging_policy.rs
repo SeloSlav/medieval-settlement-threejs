@@ -1,7 +1,6 @@
 use crate::balance_generated::{
-    BERRIES_REGROW_PER_DAY, FISH_REPRODUCTION_RATE_PER_DAY,
-    GAME_MIN_BREEDING_POPULATION, GAME_REPRODUCTION_RATE_PER_DAY,
-    CALENDAR_SECONDS_PER_DAY, MUSHROOMS_REGROW_PER_DAY,
+    BERRIES_REGROW_PER_DAY, CALENDAR_SECONDS_PER_DAY, FISH_REPRODUCTION_RATE_PER_DAY,
+    GAME_MIN_BREEDING_POPULATION, GAME_REPRODUCTION_RATE_PER_DAY, MUSHROOMS_REGROW_PER_DAY,
 };
 
 pub fn is_spring(month: u32) -> bool {
@@ -48,18 +47,10 @@ pub fn population_growth_per_second(
             MUSHROOMS_REGROW_PER_DAY / CALENDAR_SECONDS_PER_DAY
         }
         "fish" if is_spring(month) && remaining > 0.0 => {
-            logistic_growth_per_second(
-                remaining,
-                max_yield,
-                FISH_REPRODUCTION_RATE_PER_DAY,
-            )
+            logistic_growth_per_second(remaining, max_yield, FISH_REPRODUCTION_RATE_PER_DAY)
         }
         "game" if remaining >= GAME_MIN_BREEDING_POPULATION => {
-            logistic_growth_per_second(
-                remaining,
-                max_yield,
-                GAME_REPRODUCTION_RATE_PER_DAY,
-            )
+            logistic_growth_per_second(remaining, max_yield, GAME_REPRODUCTION_RATE_PER_DAY)
         }
         _ => 0.0,
     }

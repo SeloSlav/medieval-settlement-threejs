@@ -7,7 +7,10 @@ use crate::tables::{ForagingNode, Quarry, TreeEntity};
 use crate::types::{ForagingBootstrap, QuarryBootstrap, TreeBootstrap};
 
 #[reducer]
-pub fn bootstrap_quarries(ctx: &ReducerContext, quarries: Vec<QuarryBootstrap>) -> Result<(), String> {
+pub fn bootstrap_quarries(
+    ctx: &ReducerContext,
+    quarries: Vec<QuarryBootstrap>,
+) -> Result<(), String> {
     for quarry in quarries {
         if quarry.quarry_id.is_empty() || quarry.max_yield <= 0.0 {
             continue;
@@ -15,11 +18,8 @@ pub fn bootstrap_quarries(ctx: &ReducerContext, quarries: Vec<QuarryBootstrap>) 
         if let Some(existing) = ctx.db.quarry().quarry_id().find(&quarry.quarry_id) {
             // Preserve the absolute amount already extracted when a balance update
             // expands a deposit, so existing worlds receive the additional reserve.
-            let rebalanced_remaining = preserve_extracted_stone(
-                existing.max_yield,
-                existing.remaining,
-                quarry.max_yield,
-            );
+            let rebalanced_remaining =
+                preserve_extracted_stone(existing.max_yield, existing.remaining, quarry.max_yield);
             ctx.db.quarry().quarry_id().update(Quarry {
                 x: quarry.x,
                 z: quarry.z,
@@ -58,8 +58,16 @@ pub fn bootstrap_foraging(
                 // Disturbed game habitats may have migrated, but plants and
                 // fish are static world-layout sites and must stay aligned
                 // with the resources rendered by reconnecting clients.
-                x: if preserve_runtime_location { existing.x } else { node.x },
-                z: if preserve_runtime_location { existing.z } else { node.z },
+                x: if preserve_runtime_location {
+                    existing.x
+                } else {
+                    node.x
+                },
+                z: if preserve_runtime_location {
+                    existing.z
+                } else {
+                    node.z
+                },
                 max_yield: node.max_yield,
                 remaining: existing.remaining.min(node.max_yield),
                 node_kind: node.node_kind,
