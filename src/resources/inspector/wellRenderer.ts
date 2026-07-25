@@ -23,7 +23,6 @@ import {
 import {
   formatWaterRunwayDays,
   formatWellCrewSplit,
-  lodgeLaborAlternates,
   residenceWaterRunwayDays,
   wellLaborSplit,
   wellWaterPerDelivery,
@@ -50,13 +49,18 @@ export function renderWellInspector(
     : wellCapacityFromHydrology(BUILDING_STORAGE_CAPS.well.water ?? 100, hydrology);
   const fillPct = capacity > 0 ? Math.round((building.water / capacity) * 100) : 0;
   const crew = wellLaborSplit(building.assignedLabor);
-  const refillHydrology = Math.max(hydrology, WELL_MINIMUM_REFILL_HYDROLOGY);
-  const refillPerSec = WELL_BASE_REFILL_PER_SEC
-    * refillHydrology
-    * Math.max(crew.processing, lodgeLaborAlternates(building.assignedLabor) ? 1 : 0);
   const claimedResidences = context.worldQueries.getClaimedResidencesForWell(building);
   const industrialConsumers = context.worldQueries.getRoadConnectedWaterConsumers(building);
   const nextDeliveryTarget = context.worldQueries.getNextWaterDeliveryTargetForWell(building);
+  const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
+  const availableLabor = Math.max(0, building.assignedLabor - (activeTrip?.deliveryWorkers ?? 0));
+  const drawingWorkers = activeTrip || !nextDeliveryTarget
+    ? availableLabor
+    : Math.max(0, availableLabor - 1);
+  const refillHydrology = Math.max(hydrology, WELL_MINIMUM_REFILL_HYDROLOGY);
+  const refillPerSec = WELL_BASE_REFILL_PER_SEC
+    * refillHydrology
+    * drawingWorkers;
   const nextTargetLabel = formatNextWaterTargetLabel(nextDeliveryTarget);
   const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
   const onRoad = roadAccess.startsWith('Connected');
@@ -65,7 +69,6 @@ export function renderWellInspector(
     ? context.worldQueries.getRoadPathDistance(building.x, building.z, nextDeliveryTarget.x, nextDeliveryTarget.z)
     : null;
   const waterPerTrip = wellWaterPerDelivery(crew.delivering);
-  const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const tripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
   const canDeliver = crew.delivering > 0 && onRoad && building.water > 0 && nextDeliveryTarget != null && !activeTrip;
 
@@ -86,7 +89,7 @@ export function renderWellInspector(
   } else if (building.water + 1e-6 >= capacity) {
     statusText = `Full — ${claimedResidences.length} road-linked home${claimedResidences.length === 1 ? '' : 's'} in range`;
     statusState = 'active';
-  } else if (crew.processing > 0) {
+  } else if (drawingWorkers > 0) {
     statusText = `Drawing water — ${fillPct}% (${Math.round(building.water)} / ${Math.round(capacity)})`;
     statusState = building.water > capacity * 0.2 ? 'active' : 'idle';
   } else {
@@ -109,7 +112,7 @@ export function renderWellInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Crew split</span><span>${formatWellCrewSplit(building.assignedLabor)}</span></li>
+      <li><span>Crew split</span><span>${nextDeliveryTarget || activeTrip ? formatWellCrewSplit(building.assignedLabor) : `${drawingWorkers} drawing · delivery on demand`}</span></li>
       <li><span>Hydrology</span><span>${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)</span></li>
       <li><span>Stored water</span><span>${Math.round(building.water)} / ${Math.round(capacity)}</span></li>
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>

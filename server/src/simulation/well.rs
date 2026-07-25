@@ -30,7 +30,9 @@ use crate::simulation::{
     select_fire_for_well, try_start_fire_response_trip,
 };
 use crate::tables::{Building, Residence};
-use crate::well_policy::{prioritize_fire_response, well_refill_amount};
+use crate::well_policy::{
+    prioritize_fire_response, well_refill_amount, well_refill_workers,
+};
 
 pub fn step_well(
     ctx: &ReducerContext,
@@ -90,7 +92,6 @@ pub fn step_well(
     let available_labor = well.assigned_labor.saturating_sub(workers_away);
     let split = lodge_labor_split(available_labor);
     let single_worker = available_labor == 1;
-    let refill_ready = split.processing > 0;
     let delivery_ready = !fire_response_needed
         && delivery_work_ready(split.delivering, well.water > 0.0, well.id, ctx);
 
@@ -100,6 +101,9 @@ pub fn step_well(
         Vec::new()
     };
     let has_target = any_target_needs_delivery(ctx, &delivery_targets, ResidenceNeedKind::Water);
+    let delivery_ready = delivery_ready && has_target;
+    let refill_workers = well_refill_workers(available_labor, has_target);
+    let refill_ready = refill_workers > 0;
 
     let (do_deliver, do_refill) = prioritize_fire_response(
         fire_response_needed,
@@ -111,7 +115,7 @@ pub fn step_well(
         well.water = (well.water
             + well_refill_amount(
                 hydrology,
-                split.processing,
+                refill_workers,
                 environment.well_refill_multiplier(),
                 TICK_DT,
             ))

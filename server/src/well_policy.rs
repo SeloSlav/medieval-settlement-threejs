@@ -26,6 +26,14 @@ pub fn well_refill_amount(
     well_refill_per_second(hydrology, processing_workers, weather_multiplier) * dt.max(0.0)
 }
 
+pub fn well_refill_workers(available_labor: u32, has_delivery_target: bool) -> u32 {
+    if has_delivery_target {
+        available_labor.saturating_sub(1)
+    } else {
+        available_labor
+    }
+}
+
 pub fn prioritize_fire_response(
     fire_response_needed: bool,
     refill_ready: bool,
@@ -71,5 +79,15 @@ mod tests {
             prioritize_fire_response(false, true, (true, false)),
             (true, false)
         );
+    }
+
+    #[test]
+    fn idle_deliverers_join_the_drawing_crew_until_demand_appears() {
+        assert_eq!(well_refill_workers(1, false), 1);
+        assert_eq!(well_refill_workers(2, false), 2);
+        assert_eq!(well_refill_workers(4, false), 4);
+        assert_eq!(well_refill_workers(1, true), 0);
+        assert_eq!(well_refill_workers(2, true), 1);
+        assert_eq!(well_refill_workers(4, true), 3);
     }
 }

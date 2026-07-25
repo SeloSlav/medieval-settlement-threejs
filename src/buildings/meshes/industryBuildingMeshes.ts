@@ -177,16 +177,16 @@ export function createLumberMillMesh(): THREE.Group {
   for (const x of [-2.7, 2.7]) {
     addMesh(
       group,
-      new THREE.BoxGeometry(0.18, 2.5, 0.18),
+      new THREE.BoxGeometry(0.18, 3.9, 0.18),
       timberMaterial('dark'),
-      new THREE.Vector3(x, 1.25, halfW + 1.05),
+      new THREE.Vector3(x, 1.95, halfW + 1.05),
     );
   }
   addMesh(
     group,
     new THREE.BoxGeometry(6.0, 0.13, 2.1),
     tileMaterial(1),
-    new THREE.Vector3(0, 2.62, halfW + 0.72),
+    new THREE.Vector3(0, 3.95, halfW + 0.72),
     new THREE.Euler(-0.16, 0, 0),
   );
 
