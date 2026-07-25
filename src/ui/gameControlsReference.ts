@@ -1,3 +1,9 @@
+import {
+  PLAYER_GAME_SPEEDS,
+  gameSpeedLabel,
+  hotkeyForGameSpeed,
+} from '../world/gameSpeed.ts';
+
 export type GameControlEntry = {
   action: string;
   keys: string;
@@ -9,6 +15,13 @@ export type GameControlSection = {
 };
 
 export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
+  {
+    title: 'Simulation speed',
+    entries: PLAYER_GAME_SPEEDS.map((speed) => ({
+      action: `${gameSpeedLabel(speed)} (${speed}×)`,
+      keys: hotkeyForGameSpeed(speed) ?? '',
+    })),
+  },
   {
     title: 'Construction dock',
     entries: [

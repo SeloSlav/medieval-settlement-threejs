@@ -8,11 +8,15 @@ import {
 import { gameClock } from '../src/world/gameCalendar.ts';
 import {
   GAME_SPEEDS,
+  PLAYER_GAME_SPEED_HOTKEYS,
   PLAYER_GAME_SPEEDS,
+  gameSpeedForHotkey,
   gameSpeedLabel,
+  hotkeyForGameSpeed,
   normalizeGameSpeed,
 } from '../src/world/gameSpeed.ts';
 import { environmentFor, seasonForMonth } from '../src/world/seasonPolicy.ts';
+import { GAME_CONTROL_SECTIONS } from '../src/ui/gameControlsReference.ts';
 
 assert.equal(CALENDAR_SECONDS_PER_DAY, 120);
 assert.equal(CALENDAR_DAYS_PER_MONTH, 10);
@@ -31,6 +35,27 @@ assert.equal(seasonForMonth(12), 'winter');
 
 assert.deepEqual(GAME_SPEEDS, [0, 1, 5, 20, 120]);
 assert.deepEqual(PLAYER_GAME_SPEEDS, [1, 5, 20, 120]);
+assert.deepEqual(PLAYER_GAME_SPEED_HOTKEYS, ['1', '2', '3', '4']);
+assert.equal(gameSpeedForHotkey('1'), 1);
+assert.equal(gameSpeedForHotkey('2'), 5);
+assert.equal(gameSpeedForHotkey('3'), 20);
+assert.equal(gameSpeedForHotkey('4'), 120);
+assert.equal(gameSpeedForHotkey('0'), null);
+assert.equal(gameSpeedForHotkey('5'), null);
+assert.equal(hotkeyForGameSpeed(0), null);
+assert.equal(hotkeyForGameSpeed(1), '1');
+assert.equal(hotkeyForGameSpeed(5), '2');
+assert.equal(hotkeyForGameSpeed(20), '3');
+assert.equal(hotkeyForGameSpeed(120), '4');
+assert.deepEqual(
+  GAME_CONTROL_SECTIONS.find((section) => section.title === 'Simulation speed')?.entries,
+  [
+    { action: 'Scenic (1×)', keys: '1' },
+    { action: 'Normal (5×)', keys: '2' },
+    { action: 'Fast (20×)', keys: '3' },
+    { action: 'Ultra (120×)', keys: '4' },
+  ],
+);
 assert.equal(normalizeGameSpeed(99), 1);
 assert.equal(normalizeGameSpeed(4), 5);
 assert.equal(normalizeGameSpeed(12), 20);

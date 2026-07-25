@@ -4,6 +4,10 @@ import {
   setBuildingShadowsEnabled,
   setTreeShadowsEnabled,
 } from '../scene/shadowPreference.ts';
+import {
+  areConstellationGuidesEnabled,
+  setConstellationGuidesEnabled,
+} from '../scene/constellationPreference.ts';
 import { GameControlsModal } from './GameControlsModal.ts';
 
 type GameMenuOptions = {
@@ -21,6 +25,7 @@ export class GameMenu {
   private readonly dialog: HTMLElement;
   private readonly treeShadowsCheckbox: HTMLInputElement;
   private readonly buildingShadowsCheckbox: HTMLInputElement;
+  private readonly constellationGuidesCheckbox: HTMLInputElement;
   private readonly cheatAmountInput: HTMLInputElement;
   private readonly cheatGrantButton: HTMLButtonElement;
   private readonly cheatStatus: HTMLElement;
@@ -65,6 +70,10 @@ export class GameMenu {
           <input type="checkbox" data-building-shadows-checkbox />
           <span>Building shadows</span>
         </label>
+        <label class="game-menu-option">
+          <input type="checkbox" data-constellation-guides-checkbox />
+          <span>Constellation guides</span>
+        </label>
         <section class="game-menu-cheat" aria-labelledby="game-menu-cheat-title">
           <div class="game-menu-cheat__heading">
             <div>
@@ -99,6 +108,7 @@ export class GameMenu {
     this.dialog = this.backdrop.querySelector<HTMLElement>('.game-menu-dialog')!;
     this.treeShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-tree-shadows-checkbox]')!;
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
+    this.constellationGuidesCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-constellation-guides-checkbox]')!;
     this.cheatAmountInput = this.backdrop.querySelector<HTMLInputElement>('[data-cheat-amount]')!;
     this.cheatGrantButton = this.backdrop.querySelector<HTMLButtonElement>('[data-cheat-grant]')!;
     this.cheatStatus = this.backdrop.querySelector<HTMLElement>('[data-cheat-status]')!;
@@ -115,6 +125,7 @@ export class GameMenu {
 
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
+    this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
     this.menuButton.addEventListener('click', () => this.toggle());
     returnButton.addEventListener('click', () => this.close());
     controlsButton.addEventListener('click', () => {
@@ -137,6 +148,9 @@ export class GameMenu {
     this.buildingShadowsCheckbox.addEventListener('change', () => {
       setBuildingShadowsEnabled(this.buildingShadowsCheckbox.checked);
       this.onShadowPreferenceChange();
+    });
+    this.constellationGuidesCheckbox.addEventListener('change', () => {
+      setConstellationGuidesEnabled(this.constellationGuidesCheckbox.checked);
     });
 
     this.onKeyDown = (event: KeyboardEvent) => {
@@ -191,6 +205,7 @@ export class GameMenu {
     this.open = true;
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
+    this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
     this.backdrop.hidden = false;
     this.menuButton.setAttribute('aria-expanded', 'true');
     this.onOpenChange?.(true);

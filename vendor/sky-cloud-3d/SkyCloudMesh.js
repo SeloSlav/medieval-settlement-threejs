@@ -445,6 +445,7 @@ function createNodeSet(options = {}) {
         uCloudCoverage: uniform(normalizeParamValue('cloudCoverage', options.cloudCoverage ?? DEFAULT_PARAMS.cloudCoverage)),
         uCloudHeight: uniform(normalizeParamValue('cloudHeight', options.cloudHeight ?? DEFAULT_PARAMS.cloudHeight)),
         uCloudThickness: uniform(normalizeParamValue('cloudThickness', options.cloudThickness ?? DEFAULT_PARAMS.cloudThickness)),
+        uConstellationVisibility: uniform(options.constellationVisibility ?? 0.0),
         uDawnAmount: uniform(options.dawnAmount ?? 0.0),
         uDuskAmount: uniform(options.duskAmount ?? 0.0),
         uHazeStrength: uniform(normalizeParamValue('hazeStrength', options.hazeStrength ?? DEFAULT_PARAMS.hazeStrength)),
@@ -931,7 +932,8 @@ function buildColorNode(nodes) {
             tslFract(atan(equatorialDirection.z, equatorialDirection.x).div(TWO_PI).add(1.0)),
             float(0.5).sub(asin(clamp(equatorialDirection.y, -1.0, 1.0)).div(Math.PI)),
         ).toVar();
-        const catalogStars = nodes.t_StarMap.sample(starUv).rgb.toVar();
+        const catalogSample = nodes.t_StarMap.sample(starUv).toVar();
+        const catalogStars = catalogSample.rgb.toVar();
         const twinkle = tslSin(
             nodes.uTime.mul(0.07)
                 .add(dot(floor(starUv.mul(1024.0)), vec2(0.067, 0.113))),
@@ -942,6 +944,13 @@ function buildColorNode(nodes) {
             .toVar();
         atmosphericColor.addAssign(
             catalogStars.mul(starVisibility).mul(twinkle).mul(1.55),
+        );
+        atmosphericColor.addAssign(
+            vec3(0.31, 0.45, 0.67)
+                .mul(catalogSample.a)
+                .mul(starVisibility)
+                .mul(nodes.uConstellationVisibility)
+                .mul(1.55),
         );
 
         const moonDirection = normalize(nodes.uSunDirection.negate()).toVar();
@@ -1141,6 +1150,14 @@ class SkyCloudMesh extends Mesh {
 
         if (nodes?.uSiderealAngle) {
             nodes.uSiderealAngle.value = angle;
+        }
+    }
+
+    updateConstellationVisibility(visibility) {
+        const nodes = getSkyCloudNodes(this.material);
+
+        if (nodes?.uConstellationVisibility) {
+            nodes.uConstellationVisibility.value = Math.max(0.0, Math.min(1.0, visibility ?? 0.0));
         }
     }
 

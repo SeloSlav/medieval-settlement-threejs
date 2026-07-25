@@ -24,6 +24,7 @@ export function createSkyMaterial(params = {}) {
         t_PerlinNoise: { value: null },
         t_StarMap: { value: params.starMap ?? createFallbackStarTexture() },
         uSiderealAngle: { value: params.siderealAngle ?? 0.0 },
+        uConstellationVisibility: { value: params.constellationVisibility ?? 0.0 },
         uResolution: { value: new THREE.Vector2(1920, 1080) },
         uCloudCoverage: { value: params.cloudCoverage ?? 0.65 },
         uCloudHeight: { value: params.cloudHeight ?? 600.0 },
@@ -56,6 +57,7 @@ export function createSkyMaterial(params = {}) {
         uniform sampler2D t_PerlinNoise;
         uniform sampler2D t_StarMap;
         uniform float uSiderealAngle;
+        uniform float uConstellationVisibility;
         uniform vec2 uResolution;
         uniform float uCloudCoverage;
         uniform float uCloudHeight;
@@ -135,12 +137,15 @@ export function createSkyMaterial(params = {}) {
                 fract(atan(equatorialDirection.z, equatorialDirection.x) / TWO_PI + 1.0),
                 0.5 - asin(clamp(equatorialDirection.y, -1.0, 1.0)) / PI
             );
-            vec3 catalogStars = texture(t_StarMap, starUv).rgb;
+            vec4 catalogSample = texture(t_StarMap, starUv);
+            vec3 catalogStars = catalogSample.rgb;
             float twinkle = 0.97 + 0.03 * sin(
                 uTime * 0.07 + dot(floor(starUv * 1024.0), vec2(0.067, 0.113))
             );
             float starVisibility = nightAmount * smoothstep(0.035, 0.18, rayDir.y);
             skyColor += catalogStars * starVisibility * twinkle * 1.55;
+            skyColor += vec3(0.31, 0.45, 0.67)
+                * catalogSample.a * starVisibility * uConstellationVisibility * 1.55;
 
             vec3 moonDirection = normalize(-uSunDirection);
             float moonDot = max(0.0, dot(rayDir, moonDirection));
@@ -447,6 +452,11 @@ export class SkyCloudMesh extends THREE.Mesh {
     updateSiderealAngle(angle) {
         if (this.material && this.material.uniforms && this.material.uniforms.uSiderealAngle) {
             this.material.uniforms.uSiderealAngle.value = angle;
+        }
+    }
+    updateConstellationVisibility(visibility) {
+        if (this.material && this.material.uniforms && this.material.uniforms.uConstellationVisibility) {
+            this.material.uniforms.uConstellationVisibility.value = Math.max(0.0, Math.min(1.0, visibility ?? 0.0));
         }
     }
     updateAtmosphere(dawnAmount, duskAmount) {

@@ -32,7 +32,7 @@ import {
 } from './buildToolbarStatus.ts';
 import { SettlementHud } from './SettlementHud.ts';
 import type { EnvironmentState } from '../world/seasonPolicy.ts';
-import type { GameSpeed } from '../world/gameSpeed.ts';
+import { gameSpeedForHotkey, type GameSpeed } from '../world/gameSpeed.ts';
 
 export type { ToolbarStats };
 
@@ -132,26 +132,21 @@ export class BuildToolbar {
   private gameplayEnabled = true;
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (isTypingTarget(event.target) || this.firstPersonActive || this.isGameMenuOpen()) return;
+    if (isTypingTarget(event.target) || this.isGameMenuOpen()) return;
     if (!this.gameplayEnabled) return;
     if (event.altKey || event.ctrlKey || event.metaKey) return;
 
     const key = event.key.toLowerCase();
-    const speed = key === '1'
-      ? 1
-      : key === '2'
-        ? 5
-        : key === '3'
-          ? 20
-          : key === '4'
-            ? 120
-            : null;
+    const speed = gameSpeedForHotkey(key);
     if (speed !== null) {
       event.preventDefault();
       event.stopPropagation();
-      this.requestGameSpeed(speed);
+      if (!event.repeat) {
+        this.requestGameSpeed(speed);
+      }
       return;
     }
+    if (this.firstPersonActive) return;
     if (key === 'escape') {
       if (dismissDockToggles(this.dockToggles)) {
         event.preventDefault();

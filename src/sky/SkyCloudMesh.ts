@@ -10,6 +10,7 @@ type SkyCloudOptions = {
   cloudCoverage?: number;
   cloudHeight?: number;
   cloudThickness?: number;
+  constellationVisibility?: number;
   dawnAmount?: number;
   duskAmount?: number;
   hazeStrength?: number;
@@ -38,6 +39,7 @@ type SkyCloudNativeMesh = THREE.Mesh & {
   dispose?: () => void;
   updateCamera?: (camera: THREE.Camera) => void;
   updateAtmosphere?: (dawnAmount: number, duskAmount: number) => void;
+  updateConstellationVisibility?: (visibility: number) => void;
   updateResolution?: (width: number, height: number) => void;
   updateSiderealAngle?: (angle: number) => void;
   updateSun?: (direction: THREE.Vector3) => void;
@@ -132,6 +134,10 @@ export class SkyCloudMesh extends THREE.Group {
 
   updateSiderealAngle(angle: number): void {
     this.nativeSky.updateSiderealAngle?.(angle);
+  }
+
+  updateConstellationVisibility(visibility: number): void {
+    this.nativeSky.updateConstellationVisibility?.(THREE.MathUtils.clamp(visibility, 0, 1));
   }
 
   updateAtmosphere(dawnAmount: number, duskAmount: number): void {

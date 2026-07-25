@@ -30,8 +30,9 @@ export type CelestialStarMapOptions = {
 
 /**
  * Builds a deterministic, offline celestial texture from real naked-eye star
- * coordinates. Classical Western constellation figures are deliberately faint:
- * they orient the player without turning the natural sky into a UI overlay.
+ * coordinates. RGB stores the natural star field; alpha stores optional
+ * classical Western constellation guides so the shader can toggle them without
+ * rebuilding or duplicating the catalog texture.
  */
 export function createCelestialStarMap(
   options: CelestialStarMapOptions = {},
@@ -134,7 +135,7 @@ function drawCatalogStars(
           : magnitude < 4.6
             ? 0.8
             : 0.52;
-    drawGlow(
+    drawStarGlow(
       pixels,
       width,
       height,
@@ -206,20 +207,19 @@ function drawGreatCircleSegment(
       : start;
     const coordinate = vectorEquatorial(vector);
     const point = texturePoint(coordinate, width, height);
-    drawGlow(
+    drawConstellationGlow(
       pixels,
       width,
       height,
       point.x,
       point.y,
       0.62,
-      [80, 115, 170],
       0.018,
     );
   }
 }
 
-function drawGlow(
+function drawStarGlow(
   pixels: Uint8Array,
   width: number,
   height: number,
@@ -243,7 +243,31 @@ function drawGlow(
       pixels[pixelIndex] = Math.min(255, pixels[pixelIndex] + color[0] * amount);
       pixels[pixelIndex + 1] = Math.min(255, pixels[pixelIndex + 1] + color[1] * amount);
       pixels[pixelIndex + 2] = Math.min(255, pixels[pixelIndex + 2] + color[2] * amount);
-      pixels[pixelIndex + 3] = 255;
+    }
+  }
+}
+
+function drawConstellationGlow(
+  pixels: Uint8Array,
+  width: number,
+  height: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  strength: number,
+): void {
+  const extent = Math.max(1, Math.ceil(radius * 1.7));
+  const sigmaSquared = Math.max(0.22, radius * radius * 0.48);
+  for (let offsetY = -extent; offsetY <= extent; offsetY += 1) {
+    const y = Math.round(centerY + offsetY);
+    if (y < 0 || y >= height) continue;
+    for (let offsetX = -extent; offsetX <= extent; offsetX += 1) {
+      const distanceSquared = offsetX * offsetX + offsetY * offsetY;
+      const amount = strength * Math.exp(-distanceSquared / (2 * sigmaSquared));
+      if (amount < 0.012) continue;
+      const x = positiveModulo(Math.round(centerX + offsetX), width);
+      const alphaIndex = (y * width + x) * 4 + 3;
+      pixels[alphaIndex] = Math.min(255, pixels[alphaIndex] + 255 * amount);
     }
   }
 }

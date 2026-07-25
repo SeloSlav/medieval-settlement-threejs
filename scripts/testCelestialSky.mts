@@ -24,16 +24,19 @@ assert.equal(map.image.height, 256);
 assert.equal(map.userData.catalogEpoch, 1550);
 const pixels = map.image.data as Uint8Array;
 let illuminatedPixels = 0;
+let constellationPixels = 0;
 const longitudeEnergy = new Array<number>(16).fill(0);
 for (let y = 0; y < map.image.height; y += 1) {
   for (let x = 0; x < map.image.width; x += 1) {
     const offset = (y * map.image.width + x) * 4;
     const energy = pixels[offset] + pixels[offset + 1] + pixels[offset + 2];
     if (energy > 0) illuminatedPixels += 1;
+    if (pixels[offset + 3] > 0) constellationPixels += 1;
     longitudeEnergy[Math.floor(x / map.image.width * longitudeEnergy.length)] += energy;
   }
 }
-assert.ok(illuminatedPixels > 4_000, 'catalog stars and constellation strokes should populate the sky');
+assert.ok(illuminatedPixels > 2_000, 'catalog stars should populate the sky independently');
+assert.ok(constellationPixels > 1_000, 'constellation guides should occupy the alpha channel');
 assert.ok(
   new Set(longitudeEnergy).size > 12,
   'longitude bands should vary naturally rather than repeat as a short procedural period',

@@ -44,6 +44,10 @@ import {
   isHydrologyOverlayEnabled,
   subscribeHydrologyOverlayPreference,
 } from './hydrologyOverlayPreference.ts';
+import {
+  areConstellationGuidesEnabled,
+  subscribeConstellationPreference,
+} from './constellationPreference.ts';
 import type { LoadingPhase } from '../ui/loadingProgress.ts';
 import { createBerryPatchVisuals, type BerryPatchVisuals } from '../foraging/BerryPatchVisuals.ts';
 import { createDeerWildlifeVisuals, type DeerWildlifeVisuals } from '../foraging/DeerWildlifeVisuals.ts';
@@ -134,6 +138,7 @@ export class SceneManager {
   private lastShadowDistance = Number.NaN;
   private unsubscribeShadowPreferences: (() => void) | null = null;
   private unsubscribeHydrologyOverlayPreference: (() => void) | null = null;
+  private unsubscribeConstellationPreference: (() => void) | null = null;
   private environment: EnvironmentState | null = null;
   private lastDayNightState: DayNightLightingState | null = null;
 
@@ -177,6 +182,7 @@ export class SceneManager {
       heightSegments: 28,
       rendererBackend: backend.kind,
       perlinTexture: startupTextures.skyPerlin,
+      constellationVisibility: areConstellationGuidesEnabled() ? 1 : 0,
     });
     this.riverSystem = riverSystem;
     this.quarrySystem = quarrySystem;
@@ -185,6 +191,9 @@ export class SceneManager {
       this.applyHydrologyOverlayPreference();
     });
     this.applyHydrologyOverlayPreference();
+    this.unsubscribeConstellationPreference = subscribeConstellationPreference(() => {
+      this.sky.updateConstellationVisibility(areConstellationGuidesEnabled() ? 1 : 0);
+    });
     this.roadMeshBuilder = new RoadMeshBuilder(this.terrain, materials, this.getBridgeSamplingContext());
 
     this.roadGroup.name = 'Road network visuals';
@@ -770,6 +779,8 @@ export class SceneManager {
     this.unsubscribeShadowPreferences = null;
     this.unsubscribeHydrologyOverlayPreference?.();
     this.unsubscribeHydrologyOverlayPreference = null;
+    this.unsubscribeConstellationPreference?.();
+    this.unsubscribeConstellationPreference = null;
     this.hydrologyOverlay?.dispose();
     this.hydrologyOverlay = null;
     for (const visual of this.edgeVisuals.values()) disposeObject3D(visual.group);
