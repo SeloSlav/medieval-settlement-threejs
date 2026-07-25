@@ -65,8 +65,8 @@ export function generationMatchesServer(
  * True when cached client settings are stale relative to the server row and the
  * player should pick generation settings again in the setup panel.
  *
- * When the server is not yet configured, bootstrap will publish local settings —
- * do not force the setup panel in that case.
+ * An unconfigured server is a new world. Always show the setup panel instead of
+ * silently reusing browser-cached settings from an older world.
  *
  * When the server world is already running (simTick > 0), re-picking settings
  * cannot help; bootstrap guards will surface a New world action instead.
@@ -77,7 +77,7 @@ export function shouldRequireWorldRegeneration(
   local: WorldGenerationSettings | null,
 ): boolean {
   if (!local) return true;
-  if (!server.configured) return false;
+  if (!server.configured) return true;
   if (simTick > 0) return false;
   return !generationMatchesServer(server, local);
 }

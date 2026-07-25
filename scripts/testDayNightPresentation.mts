@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { computeDayNightState } from '../src/world/dayNightPresentation.ts';
-import type { GameClock } from '../src/world/gameCalendar.ts';
+import { gameClockAtElapsedSeconds, type GameClock } from '../src/world/gameCalendar.ts';
 
 const springDawn = computeDayNightState(clockAt(6.65, 3), false);
 const springNoon = computeDayNightState(clockAt(12.75, 3), false);
@@ -57,6 +57,21 @@ for (let step = 1; step <= 24 * 12; step += 1) {
 assert.ok(
   largestStepRadians < THREE.MathUtils.degToRad(1.4),
   `solar motion should be continuous; largest five-minute step was ${THREE.MathUtils.radToDeg(largestStepRadians).toFixed(2)} deg`,
+);
+
+const subMinuteA = gameClockAtElapsedSeconds(0.01);
+const subMinuteB = gameClockAtElapsedSeconds(0.02);
+assert.equal(subMinuteA.minute, subMinuteB.minute, 'test samples must remain in one displayed minute');
+const subMinuteAngle = computeDayNightState(subMinuteA, false).sunDirection.angleTo(
+  computeDayNightState(subMinuteB, false).sunDirection,
+);
+assert.ok(
+  subMinuteAngle > 0,
+  'solar motion must retain sub-minute precision instead of waiting for the HUD minute to change',
+);
+assert.ok(
+  subMinuteAngle < THREE.MathUtils.degToRad(0.1),
+  'sub-minute solar motion should advance smoothly without a large step',
 );
 
 console.log('Day/night presentation tests passed.');

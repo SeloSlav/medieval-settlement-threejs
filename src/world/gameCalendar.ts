@@ -42,6 +42,10 @@ export type GameClock = {
   totalDays: number;
   hour: number;
   minute: number;
+  /** Continuous hour used by presentation systems; HUD and schedules stay minute-based. */
+  preciseHour?: number;
+  /** Continuous zero-based day within the fictional year, including time-of-day. */
+  preciseCalendarDay?: number;
   weekday: number;
   monthDay: number;
   month: number;
@@ -83,6 +87,8 @@ export function gameClockAtElapsedSeconds(elapsedSeconds: number): GameClock {
     totalDays,
     hour,
     minute,
+    preciseHour: hoursIntoDay,
+    preciseCalendarDay: dayOfYear + hoursIntoDay / CALENDAR_HOURS_PER_DAY,
     weekday,
     monthDay,
     month,

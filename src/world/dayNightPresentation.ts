@@ -51,7 +51,7 @@ const DAYS_PER_YEAR = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
 const WINTER_SOLSTICE_DAY = DAYS_PER_YEAR - CALENDAR_DAYS_PER_MONTH * 0.35;
 
 export function fractionalHour(clock: GameClock): number {
-  return clock.hour + clock.minute / 60;
+  return clock.preciseHour ?? clock.hour + clock.minute / 60;
 }
 
 export function computeDayNightState(
@@ -135,11 +135,13 @@ export function computeDayNightState(
 }
 
 function computeSolarPosition(
-  clock: Pick<GameClock, 'month' | 'monthDay'>,
+  clock: Pick<GameClock, 'month' | 'monthDay' | 'preciseCalendarDay'>,
   hour: number,
 ): { direction: THREE.Vector3; elevationDeg: number } {
-  const calendarDay = (clock.month - 1) * CALENDAR_DAYS_PER_MONTH
-    + Math.max(0, clock.monthDay - 0.5);
+  // Include time-of-day so solar declination also remains continuous across
+  // midnight instead of taking a small step when the calendar date changes.
+  const calendarDay = clock.preciseCalendarDay
+    ?? (clock.month - 1) * CALENDAR_DAYS_PER_MONTH + Math.max(0, clock.monthDay - 0.5);
   const annualAngle = (calendarDay - WINTER_SOLSTICE_DAY) / DAYS_PER_YEAR * Math.PI * 2;
   const declinationRad = THREE.MathUtils.degToRad(-AXIAL_TILT_DEG * Math.cos(annualAngle));
   const hourAngleRad = THREE.MathUtils.degToRad((hour - SOLAR_NOON_HOUR) * 15);

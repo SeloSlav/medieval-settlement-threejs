@@ -10,8 +10,8 @@ The calendar is deliberately fictional and fixed:
 - 120 simulation seconds per day.
 - Every month and year has the same length. There are no leap years, variable month
   lengths, accumulated drift, or real-time-zone rules.
-- A new world begins on 1 March, Year 1 at 06:00 so the first session opens at the
-  beginning of spring and the workday.
+- A new world begins on 1 March, Year 1 at 08:00 so the first session opens after
+  dawn, near the beginning of spring and the workday.
 - Labor normally works from 06:00 to 20:00. A staffed chapel can make Sunday a
   sabbath. Household heating continues at night and on sabbaths even while other
   household consumption and labor are paused.

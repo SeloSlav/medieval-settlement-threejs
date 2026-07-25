@@ -75,13 +75,13 @@ assert.doesNotThrow(
 const unconfigured = { ...generation, configured: false };
 assert.equal(
   shouldRequireWorldRegeneration(unconfigured, 0, DEFAULT_WORLD_GENERATION_SETTINGS),
-  false,
+  true,
 );
 
 const smallWorld = { ...DEFAULT_WORLD_GENERATION_SETTINGS, mapSize: 'small' as const };
 assert.equal(
   shouldRequireWorldRegeneration(unconfigured, 42, smallWorld),
-  false,
+  true,
 );
 
 assert.equal(
@@ -114,7 +114,7 @@ assert.equal(
     0,
     DEFAULT_WORLD_GENERATION_SETTINGS,
   ),
-  false,
+  true,
 );
 
 assert.equal(

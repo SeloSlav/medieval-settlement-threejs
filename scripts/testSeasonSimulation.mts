@@ -21,7 +21,7 @@ assert.equal(CALENDAR_MONTHS_PER_YEAR, 12);
 const start = gameClock(0);
 assert.deepEqual(
   { month: start.month, day: start.monthDay, hour: start.hour, minute: start.minute },
-  { month: 3, day: 1, hour: 6, minute: 0 },
+  { month: 3, day: 1, hour: 8, minute: 0 },
 );
 
 assert.equal(seasonForMonth(3), 'spring');

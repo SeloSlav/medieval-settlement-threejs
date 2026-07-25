@@ -19,7 +19,7 @@ const SETTLEMENT_HUD_HTML = `
   <div class="settlement-hud" data-settlement-hud data-fps-panel aria-label="Settlement overview" aria-live="polite">
     <div class="settlement-hud__clock" data-settlement-clock>
       <span class="settlement-hud__clock-date" data-clock-date>Year 1</span>
-      <span class="settlement-hud__clock-time" data-clock-time>06:00</span>
+      <span class="settlement-hud__clock-time" data-clock-time>08:00</span>
       <span class="settlement-hud__clock-detail" data-clock-detail></span>
       <span class="settlement-hud__season" data-season-status></span>
       <div class="settlement-hud__fire-alert" data-fire-alert hidden>
