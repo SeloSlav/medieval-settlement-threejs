@@ -22,8 +22,11 @@ import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import {
   ALE_SUPPLIER_KINDS,
   findRoadLinkedSupplierForResidence,
+  peekNextSpecialtyDeliveryTarget,
   PRESERVED_FOOD_SUPPLIER_KINDS,
+  type SpecialtyNeedKind,
 } from '../logistics/specialtyLogistics.ts';
+import { MONASTERY_COVERAGE_RADIUS } from '../generated/gameBalance.ts';
 import {
   foodLaborSplit,
   foodSupplierDeliveryTripSeconds,
@@ -530,11 +533,51 @@ export class WorldQueries {
   }
 
   getServingAleSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const state = this.getGameState();
+    const network = this.getRoadNetwork();
+    const chapels = [...state.buildings.values()].filter(
+      (building) => building.kind === 'chapel' && building.constructionComplete !== false,
+    );
+    const hasParishAccess = findServingChapel(
+      residence,
+      chapels,
+      (a, b, c, d) => roadPathDistance(network, a, b, c, d),
+    ) != null;
     return findRoadLinkedSupplierForResidence(
       residence,
-      this.getGameState().buildings.values(),
-      this.getRoadNetwork(),
+      state.buildings.values(),
+      network,
       ALE_SUPPLIER_KINDS,
+      (building, distance) =>
+        building.kind !== 'monastery'
+        || (
+          hasParishAccess
+          && distance <= MONASTERY_COVERAGE_RADIUS
+          && monasteryLinkedToChapel(
+            building,
+            chapels,
+            (a, b, c, d) => roadPathDistance(network, a, b, c, d),
+          )
+        ),
+    );
+  }
+
+  getNextSpecialtyDeliveryTargetForSupplier(
+    supplier: BuildingState,
+    needKind: SpecialtyNeedKind,
+  ): ResidenceState | null {
+    const state = this.getGameState();
+    const claimed = [...state.residences.values()].filter((residence) => {
+      const serving = needKind === 'ale'
+        ? this.getServingAleSupplierForResidence(residence)
+        : this.getServingPreservedFoodSupplierForResidence(residence);
+      return serving?.id === supplier.id;
+    });
+    return peekNextSpecialtyDeliveryTarget(
+      this.getRoadNetwork(),
+      supplier,
+      claimed,
+      needKind,
     );
   }
 

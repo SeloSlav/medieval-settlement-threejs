@@ -111,7 +111,11 @@ assert.match(serverLivestock, /tree\.phase == "mature"/, 'pannage should count o
 assert.match(serverLivestock, /mature_trees\s*\/\s*SWINE_MATURE_TREES_PER_HEAD/, 'pannage capacity should use mature trees');
 assert.match(serverLivestock, /CATTLE_MAX_FERTILIZED_FIELDS/, 'cattle support should cap fertilized fields');
 const farmSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
-assert.match(farmSimulation, /field\.stage == STAGE_PLOUGHING \{ plough_multiplier \} else \{ 1\.0 \}/, 'ox power should apply only to ploughing');
+assert.match(
+  farmSimulation,
+  /field\.stage == STAGE_PLOUGHING[\s\S]{0,100}plough_multiplier[\s\S]{0,100}else[\s\S]{0,100}1\.0/,
+  'ox power should apply only to ploughing',
+);
 assert.match(farmSimulation, /fertility_after_harvest[\s\S]*manure_bonus/, 'cattle manure should directly improve field fertility');
 assert.doesNotMatch(serverLivestock, /RESOURCE_MANURE|manure commodity/i, 'manure must remain a direct field effect, not a new commodity');
 

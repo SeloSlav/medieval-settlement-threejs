@@ -40,3 +40,6 @@ pub mod fire_policy;
 
 #[path = "../../src/well_policy.rs"]
 pub mod well_policy;
+
+#[path = "../../src/supply_policy.rs"]
+pub mod supply_policy;

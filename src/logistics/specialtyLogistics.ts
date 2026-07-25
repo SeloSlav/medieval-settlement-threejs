@@ -12,7 +12,9 @@ import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 
 export const MONASTERY_MIN_PARISH_POPULATION = 12;
 
-const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = ['smokehouse', 'granary', 'monastery'];
+export type SpecialtyNeedKind = 'ale' | 'preservedFood';
+
+const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = ['smokehouse', 'pastoral_farmstead'];
 const ALE_SUPPLIER_KINDS: readonly BuildingKind[] = ['brewery', 'monastery'];
 
 export function findRoadLinkedSupplierForResidence(
@@ -20,6 +22,7 @@ export function findRoadLinkedSupplierForResidence(
   buildings: Iterable<BuildingState>,
   network: RoadNetwork,
   supplierKinds: readonly BuildingKind[],
+  eligible: (building: BuildingState, roadDistance: number) => boolean = () => true,
 ): BuildingState | null {
   let best: BuildingState | null = null;
   let bestDistance = Infinity;
@@ -28,6 +31,7 @@ export function findRoadLinkedSupplierForResidence(
     if (building.constructionComplete === false || !supplierKinds.includes(building.kind)) continue;
     const distance = roadPathDistance(network, residence.x, residence.z, building.x, building.z);
     if (distance == null) continue;
+    if (!eligible(building, distance)) continue;
     if (
       distance + 1e-6 < bestDistance
       || (Math.abs(distance - bestDistance) <= 1e-6 && best != null && building.id < best.id)
@@ -85,6 +89,54 @@ export function residenceAleRunwayDays(residence: ResidenceState): number | null
   const runwaySeconds = residenceAleRunwaySeconds(residence);
   if (runwaySeconds == null) return null;
   return runwaySeconds / GAME_DAY_SECONDS;
+}
+
+export function specialtyRunwaySeconds(
+  residence: ResidenceState,
+  needKind: SpecialtyNeedKind,
+): number | null {
+  return needKind === 'ale'
+    ? residenceAleRunwaySeconds(residence)
+    : residencePreservedFoodRunwaySeconds(residence);
+}
+
+export function compareResidencesForSpecialtyDelivery(
+  network: RoadNetwork,
+  supplier: { x: number; z: number },
+  a: ResidenceState,
+  b: ResidenceState,
+  needKind: SpecialtyNeedKind,
+): number {
+  const runwayA = specialtyRunwaySeconds(a, needKind) ?? Infinity;
+  const runwayB = specialtyRunwaySeconds(b, needKind) ?? Infinity;
+  if (Math.abs(runwayA - runwayB) > 1e-6) return runwayA - runwayB;
+  const distanceA = roadPathDistance(network, supplier.x, supplier.z, a.x, a.z) ?? Infinity;
+  const distanceB = roadPathDistance(network, supplier.x, supplier.z, b.x, b.z) ?? Infinity;
+  if (Math.abs(distanceA - distanceB) > 1e-6) return distanceA - distanceB;
+  return a.id.localeCompare(b.id);
+}
+
+export function peekNextSpecialtyDeliveryTarget(
+  network: RoadNetwork,
+  supplier: { x: number; z: number },
+  residences: readonly ResidenceState[],
+  needKind: SpecialtyNeedKind,
+): ResidenceState | null {
+  const capacity = needKind === 'ale'
+    ? RESIDENCE_ALE_CAPACITY
+    : RESIDENCE_PRESERVED_FOOD_CAPACITY;
+  let best: ResidenceState | null = null;
+  for (const residence of residences) {
+    if (residence.abandoned || residence.population <= 0 || residence.tier < 3) continue;
+    if (getNeedStock(residence.needs, needKind) + 1e-6 >= capacity) continue;
+    if (
+      best == null
+      || compareResidencesForSpecialtyDelivery(network, supplier, residence, best, needKind) < 0
+    ) {
+      best = residence;
+    }
+  }
+  return best;
 }
 
 export function formatSpecialtyRunwayDays(days: number): string {

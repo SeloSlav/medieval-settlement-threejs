@@ -37,7 +37,19 @@ use crate::simulation::residence_needs::{
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::water_logistics::ensure_building_water;
+use crate::supply_policy::{compare_need_delivery_candidates, compare_supply_route_candidates};
 use crate::tables::{farm_field, Building, FarmField, Residence};
+
+struct RoutedBuilding {
+    building: Building,
+    distance: f64,
+}
+
+struct RoutedResidence {
+    residence: Residence,
+    stock: f64,
+    distance: f64,
+}
 
 pub fn step_threshing_barn(
     ctx: &ReducerContext,
@@ -702,28 +714,32 @@ pub(crate) fn dispatch_to_building(
     let Some(network) = tick.road_network(source.owner) else {
         return;
     };
-    let mut targets: Vec<Building> = ctx
+    let mut targets: Vec<RoutedBuilding> = ctx
         .db
         .building()
         .owner()
         .filter(&source.owner)
-        .filter(|target| {
-            target.id != source.id
-                && target_kinds.contains(&target.kind.as_str())
-                && building_commodity_room(target, commodity) > 1e-6
-                && !building_has_inbound_supply_trip(ctx, target.id)
+        .filter_map(|target| {
+            if target.id == source.id
+                || !target.construction_complete
+                || !target_kinds.contains(&target.kind.as_str())
+                || building_commodity_room(&target, commodity) <= 1e-6
+                || building_has_inbound_supply_trip(ctx, target.id)
+            {
+                return None;
+            }
+            network
+                .road_path_distance(source.x, source.z, target.x, target.z)
+                .map(|distance| RoutedBuilding {
+                    building: target,
+                    distance,
+                })
         })
         .collect();
     targets.sort_by(|a, b| {
-        let da = network
-            .road_path_distance(source.x, source.z, a.x, a.z)
-            .unwrap_or(f64::INFINITY);
-        let db = network
-            .road_path_distance(source.x, source.z, b.x, b.z)
-            .unwrap_or(f64::INFINITY);
-        da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+        compare_supply_route_candidates(a.distance, a.building.id, b.distance, b.building.id)
     });
-    let Some(target) = targets.first() else {
+    let Some(target) = targets.first().map(|candidate| &candidate.building) else {
         return;
     };
     let needed = building_commodity_room(target, commodity);
@@ -758,25 +774,14 @@ fn dispatch_monastery_covered_need(
     let Some(network) = tick.road_network(supplier.owner) else {
         return;
     };
-    let mut targets: Vec<Residence> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&supplier.owner)
-        .filter(|residence| {
-            if residence.abandoned || !need_kind.is_active_for_tier(residence.tier) {
-                return false;
-            }
-            network
-                .road_path_distance(supplier.x, supplier.z, residence.x, residence.z)
-                .is_some_and(|distance| distance <= MONASTERY_COVERAGE_RADIUS)
-        })
-        .collect();
-    targets.sort_by(|a, b| {
-        let sa = need_stock(&load_needs(ctx, a.id), need_kind);
-        let sb = need_stock(&load_needs(ctx, b.id), need_kind);
-        sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
-    });
+    let targets = collect_need_delivery_targets(
+        ctx,
+        tick,
+        network,
+        supplier,
+        need_kind,
+        Some(MONASTERY_COVERAGE_RADIUS),
+    );
     try_start_delivery_trip(
         ctx,
         clock,
@@ -807,24 +812,7 @@ pub(crate) fn dispatch_need(
     let Some(network) = tick.road_network(supplier.owner) else {
         return;
     };
-    let mut targets: Vec<Residence> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&supplier.owner)
-        .filter(|residence| {
-            !residence.abandoned
-                && need_kind.is_active_for_tier(residence.tier)
-                && network
-                    .road_path_distance(supplier.x, supplier.z, residence.x, residence.z)
-                    .is_some()
-        })
-        .collect();
-    targets.sort_by(|a, b| {
-        let sa = need_stock(&load_needs(ctx, a.id), need_kind);
-        let sb = need_stock(&load_needs(ctx, b.id), need_kind);
-        sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
-    });
+    let targets = collect_need_delivery_targets(ctx, tick, network, supplier, need_kind, None);
     try_start_delivery_trip(
         ctx,
         clock,
@@ -837,6 +825,63 @@ pub(crate) fn dispatch_need(
         FOOD_DELIVERY_UNLOAD_SEC,
         per_delivery,
     );
+}
+
+fn collect_need_delivery_targets(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    network: &crate::roads::RoadNetwork,
+    supplier: &Building,
+    need_kind: ResidenceNeedKind,
+    max_distance: Option<f64>,
+) -> Vec<Residence> {
+    let specialty_claimed = matches!(
+        need_kind,
+        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood
+    );
+    let mut targets: Vec<RoutedResidence> = ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&supplier.owner)
+        .filter_map(|residence| {
+            if residence.abandoned
+                || residence.population == 0
+                || !need_kind.is_active_for_tier(residence.tier)
+            {
+                return None;
+            }
+            if specialty_claimed
+                && tick.specialty_supplier_for(ctx, supplier.owner, residence.id, need_kind)
+                    != Some(supplier.id)
+            {
+                return None;
+            }
+            let distance =
+                network.road_path_distance(supplier.x, supplier.z, residence.x, residence.z)?;
+            if max_distance.is_some_and(|limit| distance > limit) {
+                return None;
+            }
+            Some(RoutedResidence {
+                stock: need_stock(&load_needs(ctx, residence.id), need_kind),
+                residence,
+                distance,
+            })
+        })
+        .collect();
+    targets.sort_by(|a, b| {
+        compare_need_delivery_candidates(
+            a.stock,
+            a.residence.population,
+            a.distance,
+            a.residence.id,
+            b.stock,
+            b.residence.population,
+            b.distance,
+            b.residence.id,
+        )
+    });
+    targets.into_iter().map(|target| target.residence).collect()
 }
 
 fn need_to_commodity(kind: ResidenceNeedKind) -> CommodityKind {
@@ -858,28 +903,41 @@ pub(crate) fn request_connected_commodity(
     source_kinds: &[&str],
     desired: f64,
 ) {
-    if building_commodity_stock(&target, commodity) + 1e-6 >= desired {
+    if !target.construction_complete
+        || building_has_inbound_supply_trip(ctx, target.id)
+        || building_commodity_stock(&target, commodity) + 1e-6 >= desired
+    {
         return;
     }
     let Some(network) = tick.road_network(target.owner) else {
         return;
     };
-    let mut sources: Vec<Building> = ctx
+    let mut sources: Vec<RoutedBuilding> = ctx
         .db
         .building()
         .owner()
         .filter(&target.owner)
-        .filter(|source| {
-            source_kinds.contains(&source.kind.as_str())
-                && building_commodity_stock(source, commodity) > 1e-6
-                && !building_has_active_trip(ctx, source.id)
-                && network
-                    .road_path_distance(source.x, source.z, target.x, target.z)
-                    .is_some()
+        .filter_map(|source| {
+            if !source.construction_complete
+                || !source_kinds.contains(&source.kind.as_str())
+                || building_commodity_stock(&source, commodity) <= 1e-6
+                || building_has_active_trip(ctx, source.id)
+            {
+                return None;
+            }
+            network
+                .road_path_distance(source.x, source.z, target.x, target.z)
+                .map(|distance| RoutedBuilding {
+                    building: source,
+                    distance,
+                })
         })
         .collect();
-    sources.sort_by_key(|source| source.id);
-    for mut source in sources {
+    sources.sort_by(|a, b| {
+        compare_supply_route_candidates(a.distance, a.building.id, b.distance, b.building.id)
+    });
+    for routed_source in sources {
+        let mut source = routed_source.building;
         let request = (desired - building_commodity_stock(target, commodity)).max(0.0);
         if try_start_building_supply_trip(
             ctx,

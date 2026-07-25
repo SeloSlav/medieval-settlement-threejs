@@ -71,7 +71,10 @@ assert.match(hauling, /road_path_distance/);
 assert.match(hauling, /try_start_building_supply_trip/);
 
 const aggregate = fs.readFileSync('server/src/economy/aggregate_spend.rs', 'utf8');
-assert.match(aggregate, /sort_by_key\(\|building\| if building\.kind == "village_storehouse" \{ 0 \} else \{ 1 \}\)/);
+assert.match(
+  aggregate,
+  /sort_by_key\(\|building\|\s*\{[\s\S]{0,80}building\.kind == "village_storehouse"[\s\S]{0,80}\b0\b[\s\S]{0,80}else[\s\S]{0,80}\b1\b/,
+);
 const processors = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(processors, /"village_storehouse"/, 'storehouse firewood must support specialist processing');
 

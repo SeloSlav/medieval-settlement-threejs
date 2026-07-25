@@ -17,6 +17,7 @@
     "generate:celestial-catalog": "node scripts/generateCelestialCatalog.mjs",
     "generate:hydrology-grid": "node --experimental-strip-types scripts/generateHydrologyGrid.mts",
     "test:lodge-logistics": "npx tsx scripts/testLodgeLogistics.mts",
+    "test:specialty-logistics": "node --experimental-strip-types scripts/testSpecialtyLogistics.mts",
     "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",
     "test:chapel-community": "npx tsx scripts/testChapelCommunity.mts",
     "test:household-economy": "npx tsx scripts/testHouseholdEconomy.mts",

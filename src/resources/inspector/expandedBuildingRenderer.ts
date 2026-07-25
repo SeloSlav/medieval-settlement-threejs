@@ -71,9 +71,9 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'granary':
       return 'Nearest road-linked smokehouse or home';
     case 'brewery':
-      return 'Nearest road-linked monastery or tier-3 home';
+      return 'Nearest monastery or lowest-runway claimed tier-3 home';
     case 'smokehouse':
-      return 'Nearest road-linked tier-2 home';
+      return 'Lowest-runway claimed tier-3 home';
     case 'monastery':
       return 'Nearest covered home needing food';
     default:
@@ -122,10 +122,13 @@ function outboundTripTarget(
     case 'granary':
     case 'monastery':
       return context.worldQueries.findNearestRoadLinkedResidence(building, 1);
-    case 'smokehouse':
-      return context.worldQueries.findNearestRoadLinkedResidence(building, 2);
     case 'brewery':
-      return context.worldQueries.findNearestRoadLinkedResidence(building, 3);
+      return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'ale');
+    case 'smokehouse':
+      return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
+        building,
+        'preservedFood',
+      );
     default:
       return null;
   }

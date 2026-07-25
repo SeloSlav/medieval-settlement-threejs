@@ -32,6 +32,7 @@ import {
   residencePreservedFoodRunwayDays,
 } from '../../logistics/specialtyLogistics.ts';
 import { formatWaterRunwayDays, residenceWaterRunwayDays } from '../../logistics/waterLogistics.ts';
+import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
 import { effectiveResidenceSettleTicks } from '../../economy/chapelCommunity.ts';
 import { formatHouseholdWealth } from '../../economy/householdWealth.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
@@ -112,21 +113,21 @@ export function renderResidenceInspector(
   const aleRunwayLabel = aleRunwayDays == null
     ? '—'
     : formatSpecialtyRunwayDays(aleRunwayDays);
-  const lodgeLabel = servingLodge
-    ? context.worldQueries.getBuildingLabel(servingLodge.kind)
-    : 'None on branch';
-  const wellLabel = servingWell
-    ? context.worldQueries.getBuildingLabel(servingWell.kind)
-    : 'None on branch';
-  const foodSupplierLabel = servingFoodSupplier
-    ? context.worldQueries.getBuildingLabel(servingFoodSupplier.kind)
-    : 'None on branch';
-  const preservedFoodSupplierLabel = servingPreservedFoodSupplier
-    ? context.worldQueries.getBuildingLabel(servingPreservedFoodSupplier.kind)
-    : 'None on branch';
-  const aleSupplierLabel = servingAleSupplier
-    ? context.worldQueries.getBuildingLabel(servingAleSupplier.kind)
-    : 'None on branch';
+  const supplierLabel = (supplier: typeof servingLodge): string => {
+    if (!supplier) return 'None on branch';
+    const distance = context.worldQueries.getRoadPathDistance(
+      residence.x,
+      residence.z,
+      supplier.x,
+      supplier.z,
+    );
+    return `${context.worldQueries.getBuildingLabel(supplier.kind)} · ${formatDeliveryRoadDistance(distance)}`;
+  };
+  const lodgeLabel = supplierLabel(servingLodge);
+  const wellLabel = supplierLabel(servingWell);
+  const foodSupplierLabel = supplierLabel(servingFoodSupplier);
+  const preservedFoodSupplierLabel = supplierLabel(servingPreservedFoodSupplier);
+  const aleSupplierLabel = supplierLabel(servingAleSupplier);
   const capacity = residence.populationCapacity;
   const settlersRemaining = Math.max(0, capacity - residence.population);
   const settleTicks = effectiveResidenceSettleTicks(

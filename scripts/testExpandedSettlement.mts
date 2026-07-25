@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   BUILDING_DEFINITIONS,
   BUILDING_KINDS,
@@ -121,5 +122,27 @@ const tierSizes = ([1, 2, 3] as const).map((tier) =>
 );
 assert.ok(tierSizes[0].x < tierSizes[1].x && tierSizes[1].x < tierSizes[2].x);
 assert.ok(tierSizes[0].y < tierSizes[1].y && tierSizes[1].y < tierSizes[2].y);
+
+const expandedSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+assert.match(
+  expandedSimulation,
+  /compare_supply_route_candidates/,
+  'specialist inputs and outputs should prefer short road routes',
+);
+assert.match(
+  expandedSimulation,
+  /building_has_inbound_supply_trip\(ctx, target\.id\)/,
+  'a processor should not summon duplicate carts while an input haul is already in flight',
+);
+assert.match(
+  expandedSimulation,
+  /!target\.construction_complete/,
+  'specialist goods should never be dispatched to unfinished buildings',
+);
+assert.doesNotMatch(
+  expandedSimulation,
+  /sources\.sort_by_key\(\|source\| source\.id\)/,
+  'building age must not override industrial clustering and road layout',
+);
 
 console.log('expanded settlement tests passed');

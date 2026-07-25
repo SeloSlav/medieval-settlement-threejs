@@ -1,6 +1,5 @@
 use spacetimedb::ReducerContext;
 
-use crate::db::*;
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::simulation::road_logistics::{
     claim_residences_for_food_suppliers, owner_food_suppliers,
@@ -53,13 +52,17 @@ pub fn build_supply_context(
         );
         claims.contains_key(&residence.id)
     });
-    let has_preserved_food_route = has_specialty_route(
-        tick,
-        ctx,
-        residence,
-        &["smokehouse", "granary", "monastery"],
-    );
-    let has_ale_route = has_specialty_route(tick, ctx, residence, &["brewery", "monastery"]);
+    let has_preserved_food_route = tick
+        .specialty_supplier_for(
+            ctx,
+            residence.owner,
+            residence.id,
+            ResidenceNeedKind::PreservedFood,
+        )
+        .is_some();
+    let has_ale_route = tick
+        .specialty_supplier_for(ctx, residence.owner, residence.id, ResidenceNeedKind::Ale)
+        .is_some();
 
     let mut routes = [false; ResidenceNeedKind::ALL.len()];
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Firewood)] = has_firewood_route;
@@ -69,24 +72,4 @@ pub fn build_supply_context(
         has_preserved_food_route;
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Ale)] = has_ale_route;
     ResidenceNeedSupplyContext { routes }
-}
-
-fn has_specialty_route(
-    tick: &SimTickContext,
-    ctx: &ReducerContext,
-    residence: &Residence,
-    supplier_kinds: &[&str],
-) -> bool {
-    let Some(network) = tick.road_network(residence.owner) else {
-        return false;
-    };
-    ctx.db
-        .building()
-        .owner()
-        .filter(&residence.owner)
-        .any(|building| {
-            building.construction_complete
-                && supplier_kinds.contains(&building.kind.as_str())
-                && network.road_connected(building.x, building.z, residence.x, residence.z)
-        })
 }

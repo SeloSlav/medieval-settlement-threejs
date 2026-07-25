@@ -62,7 +62,11 @@ assert.match(sceneSource, /this\.precipitation\.update\(dt,\s*cameraDistance,\s*
 assert.match(sceneSource, /fog\.density\s*=\s*state\.fogDensity\s*\*\s*weather\.fogDensityMultiplier/);
 assert.match(
   appSource,
-  /this\.sceneManager\?\.setEnvironment\([\s\S]*precipitationPreviewEnvironment\(environment/,
+  /precipitationPreviewEnvironment\(environment,\s*window\.location\.search\)/,
+);
+assert.match(
+  appSource,
+  /this\.sceneManager\?\.setEnvironment\(presentationEnvironment\)/,
 );
 
 console.log('precipitation visual tests passed');

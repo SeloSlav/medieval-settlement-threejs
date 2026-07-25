@@ -39,7 +39,7 @@ assert.equal(deliveryLegRemainingMeters(0, 0, 'outbound'), null);
 const simulationReducer = read('server/src/reducers/simulation.rs');
 assert.match(
   simulationReducer,
-  /step_delivery_trips\([\s\S]*?TICK_DT \* speed as f64,[\s\S]*?\);/,
+  /step_delivery_trips\([\s\S]*?TICK_DT \* speed as f64[\s\S]*?\);/,
   'authoritative deliveries must advance on each scheduler heartbeat at the selected game speed',
 );
 const oneSimStep = simulationReducer.slice(simulationReducer.indexOf('fn run_one_sim_tick'));
