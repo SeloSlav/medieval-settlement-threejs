@@ -119,6 +119,7 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     storehouseAcceptsTimber: true,
     storehouseAcceptsStone: true,
     storehouseAcceptsFirewood: true,
+    granaryAcceptsFreshFood: true,
   };
 
   const buildings = new Map(state.buildings);

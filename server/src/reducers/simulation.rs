@@ -8,11 +8,12 @@ use crate::simulation::{
     step_backyard_gardens, step_brewery, step_carpenter, step_chapel_parish, step_chapels,
     step_construction_sites, step_delivery_trips, step_ferry_landing, step_fires,
     step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_fresh_food_spoilage,
-    step_granary, step_household_market_orders, step_hunters_hall, step_large_quarry,
-    step_lumber_mill, step_marketplace_caravans, step_monastery, step_pastoral_farmstead,
-    step_reforester, step_residence, step_smokehouse, step_stone_quarry, step_swineherd,
-    step_settlement_security, step_threshing_barn, step_village_storehouse, step_vineyard,
-    step_watermill, step_well, step_woodcutters_lodge, SimTickContext,
+    step_granary, step_guardhouse, step_household_market_orders, step_hunters_hall,
+    step_large_quarry, step_lumber_mill, step_marketplace_caravans, step_monastery,
+    step_pastoral_farmstead, step_reforester, step_residence, step_settlement_security,
+    step_smokehouse, step_stone_quarry, step_swineherd, step_threshing_barn,
+    step_village_storehouse, step_vineyard, step_watermill, step_well, step_woodcutters_lodge,
+    SimTickContext,
 };
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
@@ -160,6 +161,7 @@ fn run_one_sim_tick(ctx: &ReducerContext) {
             | crate::building_defs::BuildingSimKind::Apiary
             | crate::building_defs::BuildingSimKind::Watermill
             | crate::building_defs::BuildingSimKind::Carpenter
+            | crate::building_defs::BuildingSimKind::Guardhouse
             | crate::building_defs::BuildingSimKind::FerryLanding
             | crate::building_defs::BuildingSimKind::Vineyard
             | crate::building_defs::BuildingSimKind::PastoralFarmstead
@@ -260,7 +262,10 @@ fn run_one_sim_tick(ctx: &ReducerContext) {
                 step_watermill(ctx, &tick, &clock, building)
             }
             crate::building_defs::BuildingSimKind::Carpenter => {
-                step_carpenter(ctx, &clock, building)
+                step_carpenter(ctx, &tick, &clock, building)
+            }
+            crate::building_defs::BuildingSimKind::Guardhouse => {
+                step_guardhouse(ctx, &tick, &clock, building)
             }
             crate::building_defs::BuildingSimKind::FerryLanding => {
                 step_ferry_landing(ctx, &tick, &clock, building)

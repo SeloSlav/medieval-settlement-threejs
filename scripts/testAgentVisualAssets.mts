@@ -165,6 +165,7 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   honey: 'Honey crock 1',
   wine: 'Wine amphora',
   stone: 'Quarried stone 1',
+  polearms: 'Polearm shaft 1',
 };
 for (const [index, kind] of DELIVERY_CARGO_KINDS.entries()) {
   const cart = createDeliveryCartMesh(kind, {
@@ -241,6 +242,10 @@ const workerToolAssets: ReadonlyArray<{
     kind: 'hammer',
     path: 'public/assets/models/worker-tools/kenney-tool-hammer.glb',
   },
+  {
+    kind: 'spear',
+    path: 'public/assets/models/worker-tools/quaternius-spear.glb',
+  },
 ];
 const workerRigGltf = await parseGlb(villagerAssets[0].path);
 const workerRigBounds = new THREE.Box3().setFromObject(workerRigGltf.scene);
@@ -282,9 +287,10 @@ for (const asset of workerToolAssets) {
     .setFromObject(tool)
     .getSize(new THREE.Vector3());
   const worldLength = Math.max(worldSize.x, worldSize.y, worldSize.z);
+  const expectedRange = asset.kind === 'spear' ? [1.65, 1.95] : [0.5, 0.8];
   assert.ok(
-    worldLength >= 0.5 && worldLength <= 0.8,
-    `${asset.kind} should be scaled to a believable hand-tool length`,
+    worldLength >= expectedRange[0] && worldLength <= expectedRange[1],
+    `${asset.kind} should be scaled to a believable hand-tool length (got ${worldLength.toFixed(3)}m)`,
   );
 }
 
@@ -325,5 +331,7 @@ const workerToolLicense = fs.readFileSync(
 );
 assert.match(workerToolLicense, /CC0 1\.0/);
 assert.match(workerToolLicense, /kenney\.nl\/assets\/survival-kit/);
+assert.match(workerToolLicense, /poly\.pizza\/m\/3zA9NtYBEi/);
+assert.match(workerToolLicense, /Quaternius/);
 
 console.log('villager and delivery-cart asset tests passed');

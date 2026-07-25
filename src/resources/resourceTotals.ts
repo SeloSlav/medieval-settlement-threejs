@@ -56,6 +56,7 @@ export type ResourceTotals = {
   preservedFood: number;
   honey: number;
   wine: number;
+  polearms: number;
 };
 
 export type PopulationStats = {
@@ -104,6 +105,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let preservedFood = state.stockpile.preservedFood;
   let honey = state.stockpile.honey;
   let wine = state.stockpile.wine;
+  let polearms = state.stockpile.polearms ?? 0;
 
   for (const building of state.buildings.values()) {
     timber += building.timber;
@@ -117,6 +119,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     preservedFood += building.preservedFood;
     honey += building.honey;
     wine += building.wine;
+    polearms += building.polearms ?? 0;
     if (building.constructionComplete === false) {
       timber -= building.constructionReservedTimber;
       stone -= building.constructionReservedStone;
@@ -144,6 +147,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     preservedFood,
     honey,
     wine,
+    polearms,
   };
   cachedState = state;
   return cachedTotals;

@@ -11,20 +11,34 @@ pub enum ConsumeOutcome {
     Unmet,
 }
 
-pub fn consume(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
+pub fn consume(
+    residence: &Residence,
+    need: &NeedState,
+    spoilage_fraction_per_second: f64,
+) -> ConsumeOutcome {
+    let spoiled = spoil(need, spoilage_fraction_per_second);
     let demand = residence.population as f64 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * TICK_DT;
     if demand <= 1e-9 {
-        return ConsumeOutcome::Met(*need);
+        return ConsumeOutcome::Met(spoiled);
     }
 
-    if need.stock + 1e-9 >= demand {
+    if spoiled.stock + 1e-9 >= demand {
         return ConsumeOutcome::Met(NeedState {
-            stock: need.stock - demand,
-            ..*need
+            stock: spoiled.stock - demand,
+            ..spoiled
         });
     }
 
     ConsumeOutcome::Unmet
+}
+
+pub fn spoil(need: &NeedState, spoilage_fraction_per_second: f64) -> NeedState {
+    NeedState {
+        stock: (need.stock
+            - need.stock * spoilage_fraction_per_second.max(0.0) * TICK_DT)
+            .max(0.0),
+        ..*need
+    }
 }
 
 pub fn on_unmet(need: &NeedState) -> NeedState {

@@ -114,6 +114,9 @@ function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
     case 'stone':
       addStoneLoad(group);
       break;
+    case 'polearms':
+      addPolearmLoad(group);
+      break;
     default: {
       const unreachable: never = kind;
       throw new Error(`Unknown cargo kind: ${unreachable}`);
@@ -355,6 +358,38 @@ function addStoneLoad(group: THREE.Group): void {
       new THREE.Vector3(x, y, z),
       new THREE.Euler(index * 0.19, index * 0.37, index * 0.11),
       new THREE.Vector3(1, 0.84 + (index % 2) * 0.12, 0.92),
+    );
+  }
+}
+
+function addPolearmLoad(group: THREE.Group): void {
+  for (let index = 0; index < 5; index += 1) {
+    const x = -0.22 + index * 0.11;
+    const y = 0.67 + (index % 2) * 0.07;
+    addNamedMesh(
+      group,
+      `Polearm shaft ${index + 1}`,
+      new THREE.CylinderGeometry(0.025, 0.03, 1.22, 6),
+      timberMaterial(index % 2 ? 'light' : 'weathered'),
+      new THREE.Vector3(x, y, 0),
+      new THREE.Euler(Math.PI * 0.5, 0, 0),
+    );
+    addNamedMesh(
+      group,
+      `Polearm head ${index + 1}`,
+      new THREE.ConeGeometry(0.075, 0.24, 5),
+      metalMaterial('iron'),
+      new THREE.Vector3(x, y, 0.72),
+      new THREE.Euler(Math.PI * 0.5, 0, 0),
+    );
+  }
+  for (const z of [-0.28, 0.28]) {
+    addNamedMesh(
+      group,
+      'Polearm bundle rope',
+      new THREE.BoxGeometry(0.58, 0.035, 0.04),
+      CARGO_MATERIALS.rope,
+      new THREE.Vector3(0, 0.83, z),
     );
   }
 }

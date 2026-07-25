@@ -142,6 +142,7 @@ mod tests {
             preserved_food: 0.0,
             honey: 0.0,
             wine: 0.0,
+            polearms: 0.0,
             water_capacity: 0.0,
             assigned_labor: 1,
             construction_complete: true,

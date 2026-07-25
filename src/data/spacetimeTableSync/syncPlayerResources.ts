@@ -31,6 +31,7 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       preservedFood: row.preservedFood ?? 0,
       honey: row.honey ?? 0,
       wine: row.wine ?? 0,
+      polearms: row.polearms ?? 0,
     };
     state.economicActivityTaxRate = row.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
     state.parishPolicy = {

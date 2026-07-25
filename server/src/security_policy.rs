@@ -56,6 +56,39 @@ pub fn raid_loss_fraction(enemy_pressure: u8, coverage: f64) -> f64 {
     (exposed_loss * (1.0 - coverage.clamp(0.0, 1.0) * 0.88)).clamp(0.0, 0.4)
 }
 
+pub fn raid_target_count(enemy_pressure: u8) -> usize {
+    1 + enemy_pressure.min(100) as usize / 35
+}
+
+pub fn raid_strength(enemy_pressure: u8) -> f64 {
+    2.5 + enemy_pressure.min(100) as f64 * 0.065
+}
+
+/// Guards fight most effectively when watch coverage gives them time to muster.
+/// A ratio of one means the settlement can avert this incursion.
+pub fn guard_defense_ratio(enemy_pressure: u8, coverage: f64, ready_guards: f64) -> f64 {
+    let warning_multiplier = 0.65 + coverage.clamp(0.0, 1.0) * 0.35;
+    (ready_guards.max(0.0) * warning_multiplier / raid_strength(enemy_pressure)).clamp(0.0, 1.0)
+}
+
+pub fn guarded_raid_loss_fraction(enemy_pressure: u8, coverage: f64, ready_guards: f64) -> f64 {
+    let defense = guard_defense_ratio(enemy_pressure, coverage, ready_guards);
+    if defense >= 1.0 - 1e-9 {
+        0.0
+    } else {
+        raid_loss_fraction(enemy_pressure, coverage) * (1.0 - defense * 0.8)
+    }
+}
+
+pub fn guarded_raid_target_count(enemy_pressure: u8, defense_ratio: f64) -> usize {
+    if defense_ratio >= 1.0 - 1e-9 {
+        return 0;
+    }
+    ((raid_target_count(enemy_pressure) as f64) * (1.0 - defense_ratio * 0.65))
+        .ceil()
+        .max(1.0) as usize
+}
+
 pub fn compare_raid_targets(
     a_protected: bool,
     a_value: f64,
@@ -110,6 +143,31 @@ mod tests {
         let guarded = raid_loss_fraction(50, 0.8);
         assert!(guarded < exposed * 0.4);
         assert!(raid_loss_fraction(90, 0.0) > exposed);
+    }
+
+    #[test]
+    fn pressure_increases_the_number_of_exposed_targets() {
+        assert_eq!(raid_target_count(10), 1);
+        assert_eq!(raid_target_count(50), 2);
+        assert_eq!(raid_target_count(90), 3);
+    }
+
+    #[test]
+    fn paid_guards_and_warning_can_avert_a_mid_pressure_raid() {
+        let uncovered = guard_defense_ratio(50, 0.0, 6.0);
+        let warned = guard_defense_ratio(50, 1.0, 6.0);
+        assert!(warned > uncovered);
+        assert_eq!(warned, 1.0);
+        assert_eq!(guarded_raid_loss_fraction(50, 1.0, 6.0), 0.0);
+        assert_eq!(guarded_raid_target_count(50, warned), 0);
+    }
+
+    #[test]
+    fn partial_guard_strength_reduces_but_does_not_erase_losses() {
+        let unguarded = raid_loss_fraction(90, 0.25);
+        let guarded = guarded_raid_loss_fraction(90, 0.25, 3.0);
+        assert!(guarded > 0.0);
+        assert!(guarded < unguarded);
     }
 
     #[test]

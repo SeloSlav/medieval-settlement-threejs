@@ -9,6 +9,10 @@
   backdrop-filter: blur(14px);
 }
 
+.settlement-hud__stat[hidden] {
+  display: none;
+}
+
 .settlement-hud__clock {
   display: grid;
   gap: 2px;
@@ -72,6 +76,98 @@
   color: #e8a67e;
   font-size: 9px;
   font-weight: 650;
+}
+
+.settlement-hud__security-alert {
+  display: grid;
+  gap: 1px;
+  margin-top: 4px;
+  padding: 6px 7px;
+  border: 1px solid rgba(183, 151, 82, 0.48);
+  border-radius: 6px;
+  color: #ead7a9;
+  background: rgba(65, 48, 24, 0.34);
+  cursor: help;
+}
+
+.settlement-hud__security-alert[hidden] {
+  display: none;
+}
+
+.settlement-hud__security-alert strong {
+  font-size: 10px;
+  letter-spacing: 0.035em;
+}
+
+.settlement-hud__security-alert span {
+  color: #bcae8b;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.settlement-hud__security-alert[data-threat='high'],
+.settlement-hud__security-alert[data-threat='imminent'] {
+  border-color: rgba(215, 125, 72, 0.76);
+  color: #ffd1a2;
+  background: rgba(102, 44, 24, 0.42);
+}
+
+.settlement-hud__security-alert[data-threat='imminent'] {
+  animation: frontier-alert-pulse 1.8s ease-in-out infinite;
+}
+
+.settlement-hud__provision-alert {
+  display: grid;
+  gap: 1px;
+  margin-top: 4px;
+  padding: 6px 7px;
+  border: 1px solid rgba(132, 162, 106, 0.52);
+  border-radius: 6px;
+  color: #d8e6bd;
+  background: rgba(45, 61, 32, 0.36);
+  cursor: help;
+}
+
+.settlement-hud__provision-alert[hidden] {
+  display: none;
+}
+
+.settlement-hud__provision-alert strong {
+  font-size: 10px;
+  letter-spacing: 0.035em;
+}
+
+.settlement-hud__provision-alert span {
+  color: #b8c89d;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.settlement-hud__provision-alert[data-level='watch'] {
+  border-color: rgba(207, 163, 81, 0.68);
+  color: #f0d79a;
+  background: rgba(86, 58, 22, 0.38);
+}
+
+.settlement-hud__provision-alert[data-level='critical'] {
+  border-color: rgba(218, 111, 67, 0.78);
+  color: #ffd0a5;
+  background: rgba(104, 39, 21, 0.42);
+  animation: provision-alert-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes provision-alert-pulse {
+  50% {
+    border-color: rgba(244, 178, 91, 0.96);
+    box-shadow: 0 0 10px rgba(184, 80, 34, 0.2);
+  }
+}
+
+@keyframes frontier-alert-pulse {
+  50% {
+    border-color: rgba(242, 174, 93, 0.96);
+    box-shadow: 0 0 12px rgba(181, 79, 31, 0.22);
+  }
 }
 
 @keyframes fire-alert-pulse {

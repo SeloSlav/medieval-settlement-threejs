@@ -20,6 +20,7 @@ import { DEFAULT_REGIONAL_MARKET_STATE } from '../economy/regionalMarket.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
 import { backyardIconPosition } from '../residences/backyardPosition.ts';
 import { fireForTarget, fireSourceLabel } from '../fires/fireIncident.ts';
+import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -32,6 +33,8 @@ type ResourceInspectorOptions = {
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
   getMarketState?: () => RegionalMarketState;
+  getSettlementSecurity?: () => SettlementSecurityState;
+  getWorldHydrology?: () => number;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
@@ -45,6 +48,7 @@ type ResourceInspectorOptions = {
   onSetChapelParishPolicy?: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => void | Promise<void>;
   onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
   onSetStorehousePolicy?: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => void | Promise<void>;
+  onSetGranaryPolicy?: (buildingId: string, acceptsFreshFood: boolean) => void | Promise<void>;
   onDemolishFarmField?: (fieldId: string) => void | Promise<void>;
   onSetFarmFieldCrop?: (fieldId: string, crop: FarmCrop) => void | Promise<void>;
   onSetFarmFieldPriority?: (fieldId: string, priority: number) => void | Promise<void>;
@@ -65,7 +69,7 @@ export class ResourceInspector {
   private readonly detailList: HTMLElement;
   private readonly stockpileRoot: HTMLElement;
   private readonly stockpileValues: Record<
-    'timber' | 'stone' | 'firewood' | 'water' | 'food' | 'gold' | 'grain' | 'flour' | 'ale' | 'preservedFood' | 'honey' | 'wine',
+    'timber' | 'stone' | 'firewood' | 'water' | 'food' | 'gold' | 'grain' | 'flour' | 'ale' | 'preservedFood' | 'honey' | 'wine' | 'polearms',
     HTMLElement
   >;
   private readonly populationValue: HTMLElement;
@@ -162,6 +166,7 @@ export class ResourceInspector {
       preservedFood: this.mustElement(options.uiRoot, '[data-stockpile="preservedFood"]'),
       honey: this.mustElement(options.uiRoot, '[data-stockpile="honey"]'),
       wine: this.mustElement(options.uiRoot, '[data-stockpile="wine"]'),
+      polearms: this.mustElement(options.uiRoot, '[data-stockpile="polearms"]'),
     };
     this.populationValue = this.mustElement(options.uiRoot, '[data-stockpile="population"]');
     this.housingValue = this.mustElement(options.uiRoot, '[data-stockpile="housing"]');
@@ -305,6 +310,10 @@ export class ResourceInspector {
       const stone = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-stone]')?.checked ?? false;
       const firewood = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-firewood]')?.checked ?? false;
       void this.options.onSetStorehousePolicy?.(building.id, timber, stone, firewood);
+      return;
+    }
+    if (building.kind === 'granary' && input.matches('[data-granary-accepts-fresh-food]')) {
+      void this.options.onSetGranaryPolicy?.(building.id, input.checked);
     }
   };
 
@@ -335,6 +344,7 @@ export class ResourceInspector {
     this.stockpileValues.preservedFood.textContent = Math.round(totals.preservedFood).toString();
     this.stockpileValues.honey.textContent = Math.round(totals.honey).toString();
     this.stockpileValues.wine.textContent = Math.round(totals.wine).toString();
+    this.stockpileValues.polearms.textContent = Math.round(totals.polearms).toString();
     this.populationValue.textContent = population.total.toString();
     this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;
     this.housingSub.textContent = population.vacant === 1
@@ -509,6 +519,7 @@ export class ResourceInspector {
       worldQueries: this.options.worldQueries,
       populationStats: this.populationStats,
       resourceTotals: computeResourceTotals(gameState),
+      worldHydrology: this.options.getWorldHydrology?.() ?? 50,
       ...(this.options.getEconomicActivityTaxRate
         ? { getEconomicActivityTaxRate: this.options.getEconomicActivityTaxRate }
         : {}),
@@ -520,6 +531,9 @@ export class ResourceInspector {
         : {}),
       getTradeAvailability: () => computeTradeAvailability(this.options.getState()),
       getMarketState: () => this.options.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE,
+      ...(this.options.getSettlementSecurity
+        ? { getSettlementSecurity: this.options.getSettlementSecurity }
+        : {}),
     });
     const fire = target.kind === 'building'
       ? fireForTarget(gameState.fireIncidents.values(), 'building', target.building.id)

@@ -30,3 +30,17 @@ Files used by this project:
 Kenney permits personal, educational, and commercial use. Attribution is not
 required by CC0, but this record is kept with the assets so their provenance
 and reuse terms remain auditable.
+
+Frontier spear
+--------------
+
+`quaternius-spear.glb` is the low-poly Spear by Quaternius, downloaded from
+Poly Pizza and distributed under Creative Commons Zero v1.0 Universal
+(CC0 1.0):
+
+- Creator: Quaternius (https://quaternius.com/)
+- Asset page: https://poly.pizza/m/3zA9NtYBEi
+- Direct GLB: https://static.poly.pizza/6a63e2ad-5260-4ace-9245-7bfffdfd9695.glb
+
+The spear remains unmodified at source; the game scales and attaches it to the
+existing Quaternius villager rig at runtime.

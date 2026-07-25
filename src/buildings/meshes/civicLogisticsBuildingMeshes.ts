@@ -9,7 +9,13 @@ import {
   tileMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
-import { addDarkOpening, addGableShell, addPlankDoor, addSmallWindow } from './buildingMeshKit.ts';
+import {
+  addDarkOpening,
+  addGableShell,
+  addLeanToRoof,
+  addPlankDoor,
+  addSmallWindow,
+} from './buildingMeshKit.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
 
@@ -23,6 +29,19 @@ function addCrate(group: THREE.Group, x: number, y: number, z: number, scale = 1
 function addBell(group: THREE.Group, x: number, y: number, z: number): void {
   addMesh(group, new THREE.CylinderGeometry(0.12, 0.34, 0.52, 10), sharedBuildingDetailMaterial('brass'), new THREE.Vector3(x, y, z));
   addMesh(group, new THREE.SphereGeometry(0.09, 7, 5), metalMaterial('iron'), new THREE.Vector3(x, y - 0.34, z));
+}
+
+function addPolearmRack(group: THREE.Group, x: number, z: number): void {
+  addMesh(group, new THREE.BoxGeometry(3.0, 0.16, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 0.72, z));
+  addMesh(group, new THREE.BoxGeometry(3.0, 0.16, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 1.64, z));
+  for (const offset of [-1.3, 1.3]) {
+    addMesh(group, new THREE.BoxGeometry(0.16, 1.95, 0.18), timberMaterial('dark'), new THREE.Vector3(x + offset, 0.98, z));
+  }
+  for (let index = 0; index < 6; index += 1) {
+    const shaftX = x - 1.02 + index * 0.41;
+    addMesh(group, new THREE.CylinderGeometry(0.035, 0.045, 2.45, 6), timberMaterial('light'), new THREE.Vector3(shaftX, 1.42, z - 0.12));
+    addMesh(group, new THREE.ConeGeometry(0.12, 0.38, 5), metalMaterial('iron'), new THREE.Vector3(shaftX, 2.81, z - 0.12));
+  }
 }
 
 export function createTownHallMesh(): THREE.Group {
@@ -91,8 +110,17 @@ export function createVillageStorehouseMesh(): THREE.Group {
 
   // Loading platform and deep canopy make the warehouse function legible at game camera distance.
   addMesh(group, new THREE.BoxGeometry(9.2, 0.32, 2.2), timberMaterial('dark'), new THREE.Vector3(-0.4, 0.72, 4.2));
-  for (const x of [-4.6, 3.8]) addMesh(group, new THREE.BoxGeometry(0.22, 3.4, 0.22), timberMaterial('dark'), new THREE.Vector3(x, 2.5, 5.0));
-  addMesh(group, new THREE.BoxGeometry(9.4, 0.16, 2.75), shingleMaterial(), new THREE.Vector3(-0.4, 4.15, 4.25), new THREE.Euler(-0.14, 0, 0));
+  for (const x of [-4.6, 3.8]) addMesh(group, new THREE.BoxGeometry(0.22, 3.1, 0.22), timberMaterial('dark'), new THREE.Vector3(x, 2.43, 5.0));
+  addLeanToRoof(group, {
+    width: 9.4,
+    depth: 2.75,
+    thickness: 0.16,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(-0.4, 4.15, 4.25),
+    pitch: 0.14,
+    highEdge: 'negativeZ',
+    name: 'Village storehouse loading canopy roof',
+  });
   for (let i = 0; i < 4; i++) addMesh(group, new THREE.BoxGeometry(2.7 - i * 0.18, 0.18, 0.52), stoneMaterial(i % 2 ? 'light' : 'mid'), new THREE.Vector3(-0.55, 0.1 + i * 0.18, 6.45 - i * 0.4));
 
   addCrate(group, 2.8, 0.92, 4.18, 1.05);
@@ -163,5 +191,69 @@ export function createWatchtowerMesh(): THREE.Group {
   addMesh(group, new THREE.BoxGeometry(0.14, 0.75, 0.14), timberMaterial('dark'), new THREE.Vector3(2.15, 7.15, 1.7));
   addBell(group, 3.1, 7.08, 1.7);
 
+  return group;
+}
+
+export function createGuardhouseMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'Frontier guardhouse';
+
+  // This is a paid-company lodging and muster yard, not a miniature castle.
+  addMesh(group, new THREE.BoxGeometry(8.2, 0.58, 6.2), stoneMaterial('mid'), new THREE.Vector3(-1.35, 0.29, 0));
+  const shell = addGableShell(group, {
+    width: 7.7,
+    depth: 5.65,
+    stoneHeight: 1.35,
+    wallHeight: 3.45,
+    ridgeHeight: 2.35,
+    wallMaterial: timberMaterial('weathered'),
+    roofMaterial: shingleMaterial(),
+    stoneGroundFloor: true,
+    centerX: -1.45,
+  });
+  addPlankDoor(group, -1.45, 1.22, shell.frontZ + 0.05, 1.18, 2.05);
+  for (const x of [-3.85, 0.95]) {
+    addSmallWindow(group, x, 2.55, shell.frontZ + 0.07, 0.58, 0.7);
+  }
+
+  // Exposed oak framing gives the upper room a legible, locally built structure.
+  for (const x of [-4.95, -2.62, -0.28, 2.05]) {
+    addMesh(group, new THREE.BoxGeometry(0.2, 2.45, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 2.48, shell.frontZ + 0.14));
+  }
+  addMesh(group, new THREE.BoxGeometry(7.45, 0.2, 0.18), timberMaterial('dark'), new THREE.Vector3(-1.45, 1.42, shell.frontZ + 0.14));
+  addMesh(group, new THREE.BoxGeometry(7.45, 0.2, 0.18), timberMaterial('dark'), new THREE.Vector3(-1.45, 3.48, shell.frontZ + 0.14));
+
+  // A deep lean-to covers drill equipment and provisions beside the street.
+  for (const x of [3.05, 6.25]) {
+    for (const z of [-2.35, 2.35]) {
+      addMesh(group, new THREE.BoxGeometry(0.22, 3.0, 0.22), timberMaterial('dark'), new THREE.Vector3(x, 1.5, z));
+    }
+  }
+  addLeanToRoof(group, {
+    width: 4.7,
+    depth: 5.45,
+    thickness: 0.18,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(4.18, 3.18, 0),
+    pitch: 0.16,
+    highEdge: 'negativeX',
+    name: 'Frontier guardhouse drill-yard roof',
+  });
+  addMesh(group, new THREE.BoxGeometry(3.2, 0.18, 0.64), timberMaterial('mid'), new THREE.Vector3(4.55, 0.54, -1.85));
+  for (const x of [3.15, 5.95]) {
+    addMesh(group, new THREE.BoxGeometry(0.16, 0.55, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 0.28, -1.85));
+  }
+
+  addPolearmRack(group, 4.45, 1.68);
+  addCrate(group, 5.55, 0.02, -0.1, 1.08);
+  addCrate(group, 3.75, 0.02, -0.52, 0.75);
+
+  // A compact palisade fragment frames the drill yard without implying a full wall system.
+  for (let index = 0; index < 7; index += 1) {
+    const z = -3.2 + index * 1.02;
+    addMesh(group, new THREE.CylinderGeometry(0.12, 0.16, 1.9, 6), timberMaterial(index % 2 ? 'dark' : 'weathered'), new THREE.Vector3(6.65, 0.95, z));
+    addMesh(group, new THREE.ConeGeometry(0.17, 0.4, 6), timberMaterial('weathered'), new THREE.Vector3(6.65, 2.1, z));
+  }
+  addMesh(group, new THREE.BoxGeometry(0.18, 0.08, 6.45), earth, new THREE.Vector3(6.62, 0.05, 0));
   return group;
 }

@@ -49,6 +49,20 @@ const modelNames = new Set<string>();
 const sharedMaterials = new Set<THREE.Material>();
 let texturedMeshCount = 0;
 let largestMetricUvSpan = 0;
+const expectedLeanToRoofs = new Map<string, number>([
+  ['lumber_mill', 1],
+  ['woodcutters_lodge', 1],
+  ['hunters_hall', 1],
+  ['foragers_shed', 1],
+  ['village_storehouse', 1],
+  ['guardhouse', 1],
+  ['pastoral_farmstead', 1],
+  ['monastery', 1],
+  ['brewery', 1],
+  ['smokehouse', 1],
+  ['carpenter', 1],
+]);
+const leanToRoofCounts = new Map<string, number>();
 for (const kind of BUILDING_KINDS) {
   const model = createBuildingMesh(kind);
   if (!model.name) throw new Error(`${kind} must have a named, dedicated model.`);
@@ -62,6 +76,44 @@ for (const kind of BUILDING_KINDS) {
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     meshCount += 1;
+    const highEdge = object.userData.leanToHighEdge as string | undefined;
+    if (highEdge) {
+      const geometry = object.geometry as THREE.BoxGeometry;
+      const width = geometry.parameters.width;
+      const depth = geometry.parameters.depth;
+      let highPoint: THREE.Vector3;
+      let lowPoint: THREE.Vector3;
+      switch (highEdge) {
+        case 'negativeX':
+          highPoint = new THREE.Vector3(-width * 0.5, 0, 0);
+          lowPoint = new THREE.Vector3(width * 0.5, 0, 0);
+          break;
+        case 'positiveX':
+          highPoint = new THREE.Vector3(width * 0.5, 0, 0);
+          lowPoint = new THREE.Vector3(-width * 0.5, 0, 0);
+          break;
+        case 'negativeZ':
+          highPoint = new THREE.Vector3(0, 0, -depth * 0.5);
+          lowPoint = new THREE.Vector3(0, 0, depth * 0.5);
+          break;
+        case 'positiveZ':
+          highPoint = new THREE.Vector3(0, 0, depth * 0.5);
+          lowPoint = new THREE.Vector3(0, 0, -depth * 0.5);
+          break;
+        default:
+          throw new Error(`${kind} has an invalid lean-to high edge (${highEdge}).`);
+      }
+      highPoint.applyEuler(object.rotation);
+      lowPoint.applyEuler(object.rotation);
+      if (highPoint.y <= lowPoint.y + 0.01) {
+        throw new Error(`${kind} has a lean-to roof that does not drain away from ${highEdge}.`);
+      }
+      if (!object.name) throw new Error(`${kind} has an unnamed lean-to roof.`);
+      leanToRoofCounts.set(kind, (leanToRoofCounts.get(kind) ?? 0) + 1);
+      if (kind === 'foragers_shed' && object.position.y < 2.5) {
+        throw new Error("Forager's herb porch roof must clear the door and drying rail.");
+      }
+    }
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
       if (material.userData.sharedBuildingMaterial !== true) {
@@ -92,6 +144,16 @@ for (const kind of BUILDING_KINDS) {
   if (![size.x, size.y, size.z].every(Number.isFinite) || size.x <= 0 || size.y <= 0 || size.z <= 0) {
     throw new Error(`${kind} produced invalid model bounds.`);
   }
+}
+
+for (const [kind, expectedCount] of expectedLeanToRoofs) {
+  const actualCount = leanToRoofCounts.get(kind) ?? 0;
+  if (actualCount !== expectedCount) {
+    throw new Error(`${kind} should have ${expectedCount} audited lean-to roof(s); found ${actualCount}.`);
+  }
+}
+if (leanToRoofCounts.size !== expectedLeanToRoofs.size) {
+  throw new Error(`Expected lean-to roofs on ${expectedLeanToRoofs.size} building kinds; found ${leanToRoofCounts.size}.`);
 }
 
 const stats = getBuildingMaterialLibraryStats();

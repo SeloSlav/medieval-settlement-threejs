@@ -206,6 +206,19 @@ export class RoadNetwork {
   }
 
   restore(snapshot: RoadNetworkSnapshot): void {
+    // Server snapshots intentionally contain only terrain-following road data.
+    // Keep the rendered bridge centerline when an unchanged edge is echoed back
+    // into this live network; otherwise first-person sampling falls through to
+    // the riverbed while the cached bridge mesh remains visibly elevated.
+    const runtimeSurfacePaths = new Map<string, { revision: number; path: THREE.Vector3[] }>();
+    for (const edge of this.edges.values()) {
+      if (!edge.surfacePath || edge.surfacePath.length < 2) continue;
+      runtimeSurfacePaths.set(edge.id, {
+        revision: edge.revision,
+        path: edge.surfacePath.map((point) => point.clone()),
+      });
+    }
+
     this.nodes.clear();
     this.edges.clear();
     this.invalidateSpatialIndex();
@@ -220,6 +233,7 @@ export class RoadNetwork {
       });
     }
     for (const edge of snapshot.edges) {
+      const runtimeSurface = runtimeSurfacePaths.get(edge.id);
       this.edges.set(edge.id, {
         id: edge.id,
         startNodeId: edge.startNodeId,
@@ -227,6 +241,9 @@ export class RoadNetwork {
         width: edge.width,
         controlPoints: edge.controlPoints.map(tupleToVector),
         sampledPath: edge.sampledPath.map(tupleToVector),
+        surfacePath: runtimeSurface?.revision === edge.revision
+          ? runtimeSurface.path
+          : undefined,
         length: edge.length,
         editableState: 'normal',
         materialData: {

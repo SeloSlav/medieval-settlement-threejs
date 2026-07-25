@@ -32,6 +32,66 @@ export type GableShell = {
   centerZ: number;
 };
 
+export type LeanToHighEdge = 'negativeX' | 'positiveX' | 'negativeZ' | 'positiveZ';
+
+export type LeanToRoofOptions = {
+  width: number;
+  depth: number;
+  thickness: number;
+  material: THREE.Material;
+  position: THREE.Vector3;
+  pitch: number;
+  highEdge: LeanToHighEdge;
+  name: string;
+};
+
+/**
+ * Adds a shallow attached roof with an explicit high edge.
+ *
+ * Lean-tos occur on every side of a building, and raw Euler signs are easy to
+ * reverse: positive X rotation lowers +Z, while positive Z rotation raises +X.
+ * Naming the attachment edge here keeps roofs draining away from their wall.
+ */
+export function addLeanToRoof(group: THREE.Group, options: LeanToRoofOptions): THREE.Mesh {
+  const {
+    width,
+    depth,
+    thickness,
+    material,
+    position,
+    pitch,
+    highEdge,
+    name,
+  } = options;
+  const rotation = new THREE.Euler();
+  switch (highEdge) {
+    case 'negativeX':
+      rotation.z = -Math.abs(pitch);
+      break;
+    case 'positiveX':
+      rotation.z = Math.abs(pitch);
+      break;
+    case 'negativeZ':
+      rotation.x = Math.abs(pitch);
+      break;
+    case 'positiveZ':
+      rotation.x = -Math.abs(pitch);
+      break;
+  }
+
+  const roof = addMesh(
+    group,
+    new THREE.BoxGeometry(width, thickness, depth),
+    material,
+    position,
+    rotation,
+  );
+  roof.name = name;
+  roof.userData.leanToHighEdge = highEdge;
+  roof.userData.leanToPitch = Math.abs(pitch);
+  return roof;
+}
+
 export function addGableShell(group: THREE.Group, options: GableShellOptions): GableShell {
   const {
     width,

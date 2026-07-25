@@ -20,6 +20,7 @@ import type { GameState } from '../resources/types.ts';
 import { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
 import { computePopulationStats, computeResourceTotals } from '../resources/resourceTotals.ts';
+import { computeSettlementProvisioning } from '../economy/settlementProvisioning.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -57,6 +58,8 @@ import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
 import { SessionLifecycleController } from './SessionLifecycleController.ts';
 import { beginNewWorld } from './worldBootstrapFlow.ts';
 import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
+import { formatRaidReport } from '../security/frontierSecurity.ts';
+import { hasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHooks.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
@@ -110,6 +113,7 @@ export class App {
   private ambientAudio: AmbientAudioController | null = null;
   private readonly settlementPresentation = new SettlementPresentationController();
   private showcaseViewApplied = false;
+  private lastSeenRaidTick: number | null = null;
   private disposed = false;
 
   constructor(root: HTMLElement) {
@@ -567,6 +571,9 @@ export class App {
       this.spacetimeSnapshotApplier.reset();
       this.settlementPresentation.reset();
       this.ambientAudio?.syncEnvironment(null);
+      this.toolbar?.setConflictEnabled(false);
+      this.toolbar?.settlementHud.setSecurityState(snapshot.settlementSecurity, null, snapshot.simTick);
+      this.toolbar?.settlementHud.clearProvisioningState();
       this.syncToolbar();
       return;
     }
@@ -585,6 +592,7 @@ export class App {
       previous,
     );
     this.notifyFireChanges(state, previous);
+    this.notifySecurityChanges(snapshot);
 
     this.applyShowcaseView(state);
 
@@ -592,12 +600,25 @@ export class App {
       this.syncResourceUi();
     }
     this.syncToolbar();
+    const clock = gameClock(snapshot.simTick);
     const environment = environmentFor(
       state.seed,
       snapshot.worldGeneration?.hydrology ?? 50,
-      gameClock(snapshot.simTick),
+      clock,
     );
     this.toolbar?.setSimulationState(snapshot.gameSpeed, environment);
+    this.toolbar?.settlementHud.setProvisioningState(
+      computeSettlementProvisioning({
+        state,
+        totals: computeResourceTotals(state),
+        currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
+        freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
+        sabbathConsumptionPaused: snapshot.parishPolicy.sabbathObservanceEnabled
+          && hasStaffedChapel(state.buildings.values()),
+      }),
+      clock.month,
+    );
+    this.toolbar?.setConflictEnabled(snapshot.worldGeneration?.conflictMode === 'frontier');
     const presentationEnvironment = import.meta.env.DEV
       ? precipitationPreviewEnvironment(environment, window.location.search)
       : environment;
@@ -606,6 +627,11 @@ export class App {
     this.toolbar?.settlementHud.setFireState(
       state.fireIncidents.values(),
       state.deliveryTrips.values(),
+    );
+    this.toolbar?.settlementHud.setSecurityState(
+      snapshot.settlementSecurity,
+      snapshot.worldGeneration,
+      snapshot.simTick,
     );
     this.settlementPresentation.sync(
       {
@@ -650,6 +676,20 @@ export class App {
         );
       }
     }
+  }
+
+  private notifySecurityChanges(snapshot: SpacetimeGameSnapshot): void {
+    const raidTick = snapshot.settlementSecurity.lastRaidTick;
+    if (this.lastSeenRaidTick === null || raidTick < this.lastSeenRaidTick) {
+      this.lastSeenRaidTick = raidTick;
+      return;
+    }
+    if (raidTick <= 0 || raidTick === this.lastSeenRaidTick) return;
+    this.lastSeenRaidTick = raidTick;
+    this.toastManager?.show(formatRaidReport(snapshot.settlementSecurity), {
+      variant: snapshot.settlementSecurity.lastOutcome === 'plundered' ? 'error' : 'info',
+      durationMs: 8_000,
+    });
   }
 
   private applyShowcaseView(state: GameState): void {

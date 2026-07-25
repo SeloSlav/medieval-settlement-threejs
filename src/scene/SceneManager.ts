@@ -645,7 +645,10 @@ export class SceneManager {
       'Burgage fencing',
       'Fenced pastures',
     ]);
-    return this.selectionGroup.children.filter((child) => solidRootNames.has(child.name));
+    return [
+      ...this.selectionGroup.children.filter((child) => solidRootNames.has(child.name)),
+      this.roadGroup,
+    ];
   }
 
   getRockObstaclesNear(x: number, z: number, radius: number): readonly import('../utils/pathGeometry.ts').RockObstacle[] {

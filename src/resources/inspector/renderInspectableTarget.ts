@@ -4,6 +4,7 @@ import type { MonasteryPolicyState } from '../../economy/monasteryPolicy.ts';
 import type { MarketplaceTradeAvailability } from '../../economy/marketplaceTrade.ts';
 import type { RegionalMarketState } from '../../economy/regionalMarket.ts';
 import type { GameState, InspectableTarget } from '../types.ts';
+import type { SettlementSecurityState } from '../../security/frontierSecurity.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import { renderBackyardInspector } from './backyardRenderer.ts';
 import { renderForagingInspector } from './foragingRenderer.ts';
@@ -48,11 +49,13 @@ export type InspectorRenderContext = {
   worldQueries: WorldQueries;
   populationStats: PopulationStats;
   resourceTotals: ResourceTotals;
+  worldHydrology: number;
   getEconomicActivityTaxRate?: () => number;
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
   getTradeAvailability?: () => MarketplaceTradeAvailability;
   getMarketState?: () => RegionalMarketState;
+  getSettlementSecurity?: () => SettlementSecurityState;
 };
 
 export function hiddenLabor(): InspectorLaborView {

@@ -37,6 +37,9 @@ pub mod quarry_balance;
 #[path = "../../src/foraging_policy.rs"]
 pub mod foraging_policy;
 
+#[path = "../../src/frontier_economy_policy.rs"]
+pub mod frontier_economy_policy;
+
 #[path = "../../src/fire_policy.rs"]
 pub mod fire_policy;
 

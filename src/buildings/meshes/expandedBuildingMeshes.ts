@@ -13,7 +13,14 @@ import {
   createSeedThreeVineyardVines,
   type VineyardVinePlacement,
 } from '../../vegetation/seedthree/vineyardVines.ts';
-import { addBarrel, addDarkOpening, addGableShell, addPlankDoor, addSmallWindow } from './buildingMeshKit.ts';
+import {
+  addBarrel,
+  addDarkOpening,
+  addGableShell,
+  addLeanToRoof,
+  addPlankDoor,
+  addSmallWindow,
+} from './buildingMeshKit.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
 const crop = sharedBuildingDetailMaterial('crop');
@@ -86,7 +93,16 @@ export function createMonasteryMesh(): THREE.Group {
   addPlankDoor(group, 6.2, 1.14, wing.frontZ + 0.03, 0.94, 1.95);
   // Low arcaded cloister edge and a restrained belfry distinguish it from the parish chapel.
   for (let x = -4.9; x <= 2.6; x += 1.5) addMesh(group, new THREE.BoxGeometry(0.18, 2.15, 0.18), stoneMaterial('light'), new THREE.Vector3(x, 1.08, 4.25));
-  addMesh(group, new THREE.BoxGeometry(8.0, 0.18, 1.55), tileMaterial(1), new THREE.Vector3(-1.15, 2.3, 4.25), new THREE.Euler(-0.16, 0, 0));
+  addLeanToRoof(group, {
+    width: 8.0,
+    depth: 1.55,
+    thickness: 0.18,
+    material: tileMaterial(1),
+    position: new THREE.Vector3(-1.15, 2.3, 4.25),
+    pitch: 0.16,
+    highEdge: 'negativeZ',
+    name: 'Monastery cloister roof',
+  });
   addMesh(group, new THREE.BoxGeometry(2.1, 2.25, 2.1), stoneMaterial('light'), new THREE.Vector3(-1.2, 6.25, 0));
   addMesh(group, new THREE.ConeGeometry(1.55, 2.35, 4), tileMaterial(2), new THREE.Vector3(-1.2, 8.55, 0), new THREE.Euler(0, Math.PI * 0.25, 0));
   addCross(group, -1.2, 10.05, 0, 0.85);
@@ -109,7 +125,16 @@ export function createBreweryMesh(): THREE.Group {
   for (const [x, z, s] of [[-3.9, 4.1, 1], [-2.9, 4.25, 0.85], [3.5, 3.9, 1.1]] as const) addBarrel(group, x, z, s);
   // Open brewing bay with a copper mash kettle and malt sacks.
   for (const x of [2.45, 4.55]) addMesh(group, new THREE.BoxGeometry(0.18, 2.45, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 1.22, 4.2));
-  addMesh(group, new THREE.BoxGeometry(2.65, 0.14, 2.45), tileMaterial(1), new THREE.Vector3(3.5, 2.58, 4.1), new THREE.Euler(-0.13, 0, 0));
+  addLeanToRoof(group, {
+    width: 2.65,
+    depth: 2.45,
+    thickness: 0.14,
+    material: tileMaterial(1),
+    position: new THREE.Vector3(3.5, 2.58, 4.1),
+    pitch: 0.13,
+    highEdge: 'negativeZ',
+    name: 'Brewery open-bay roof',
+  });
   addMesh(group, new THREE.SphereGeometry(0.72, 12, 8), copper, new THREE.Vector3(3.45, 0.96, 4.15), new THREE.Euler(), new THREE.Vector3(1, 1.18, 1));
   addMesh(group, new THREE.CylinderGeometry(0.16, 0.16, 1.6, 8), copper, new THREE.Vector3(3.45, 2.0, 4.15));
   addSack(group, 1.7, 4.3, 0.9);
@@ -128,7 +153,16 @@ export function createSmokehouseMesh(): THREE.Group {
   smoke.name = 'Smoke plume';
   for (let i = -2; i <= 2; i++) addMesh(group, new THREE.BoxGeometry(0.08, 0.36, 0.08), metalMaterial('iron'), new THREE.Vector3(i * 0.2, 3.15, shell.frontZ + 0.08));
   // Fuel lean-to and restrained drying rail communicate the complete preservation process.
-  addMesh(group, new THREE.BoxGeometry(2.35, 0.12, 2.25), shingleMaterial(), new THREE.Vector3(-4.2, 2.05, 0), new THREE.Euler(0, 0, -0.14));
+  addLeanToRoof(group, {
+    width: 2.35,
+    depth: 2.25,
+    thickness: 0.12,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(-4.2, 2.05, 0),
+    pitch: 0.14,
+    highEdge: 'positiveX',
+    name: 'Smokehouse fuel lean-to roof',
+  });
   for (const z of [-0.9, 0.9]) addMesh(group, new THREE.BoxGeometry(0.16, 2.0, 0.16), timberMaterial('dark'), new THREE.Vector3(-5.1, 1.0, z));
   for (let row = 0; row < 3; row++) for (let i = 0; i < 4; i++) addMesh(group, new THREE.CylinderGeometry(0.13, 0.16, 1.05, 8), timberMaterial(i % 2 ? 'light' : 'mid'), new THREE.Vector3(-4.1 + i * 0.42, 0.22 + row * 0.34, 0.2));
   addMesh(group, new THREE.BoxGeometry(2.55, 0.1, 0.1), timberMaterial('weathered'), new THREE.Vector3(0, 1.85, 4.0));
@@ -206,7 +240,16 @@ export function createCarpenterMesh(): THREE.Group {
   const shell = addGableShell(group, { width: 7.2, depth: 5.6, stoneHeight: 0.7, wallHeight: 2.7, ridgeHeight: 2.2, wallMaterial: timberMaterial('weathered'), roofMaterial: shingleMaterial() });
   addPlankDoor(group, -1.3, 0.74, shell.frontZ + 0.03, 0.95, 1.86);
   addSmallWindow(group, 1.4, 1.85, shell.frontZ + 0.03, 0.82, 0.94);
-  addMesh(group, new THREE.BoxGeometry(3.4, 0.14, 5.0), shingleMaterial(), new THREE.Vector3(5.1, 2.65, 0), new THREE.Euler(0, 0, -0.16));
+  addLeanToRoof(group, {
+    width: 3.4,
+    depth: 5.0,
+    thickness: 0.14,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(5.1, 2.65, 0),
+    pitch: 0.16,
+    highEdge: 'negativeX',
+    name: 'Carpenter open-bay roof',
+  });
   for (const z of [-2.1, 2.1]) addMesh(group, new THREE.BoxGeometry(0.18, 2.6, 0.18), timberMaterial('dark'), new THREE.Vector3(6.35, 1.3, z));
   for (let i = 0; i < 2; i++) {
     const x = 4.4 + i * 1.5;

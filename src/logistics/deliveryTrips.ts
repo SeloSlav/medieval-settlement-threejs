@@ -20,6 +20,7 @@ export const DELIVERY_CARGO_KINDS = [
   'honey',
   'wine',
   'stone',
+  'polearms',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -82,6 +83,8 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'wine';
     case 10:
       return 'stone';
+    case 11:
+      return 'polearms';
     default:
       return null;
   }
@@ -135,6 +138,8 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Wine';
     case 'stone':
       return 'Stone';
+    case 'polearms':
+      return 'Polearms';
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;
@@ -354,6 +359,8 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0x6b2d5c;
     case 'stone':
       return 0x8b8985;
+    case 'polearms':
+      return 0x695642;
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;

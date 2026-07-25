@@ -9,6 +9,8 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 
 ## Recent updates (July 2026)
 
+- **Peaceful or contested frontier worlds** — world setup now offers a raid-free settlement mode or configurable enemy pressure. Frontier settlements can staff road-linked hillside watchtowers, read seasonal threat and coverage in the HUD, and maintain paid guard companies whose readiness grows out of the settlement economy.
+
 - **Scenic simulation pacing** — server-authoritative 1×/5×/20× controls now provide 60-, 12-, and 3-minute days while keeping movement, logistics, production, ecology, weather, and the calendar synchronized.
 - **Seasons and visible weather** — the fixed calendar drives planting and harvest windows, winter heating, seasonal ecology, rain, snow, drought lighting, fog, and atmospheric color.
 - **Structural fires and firefighting** — lightning and workplace accidents can start spreading fires; staffed wells dispatch bucket responders, and damaged or destroyed structures remain inspectable.
@@ -48,6 +50,11 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 
 ### Economy & settlement
 
+- **Frontier security** — contested worlds begin generating pressure after the settlement reaches eight people. Raids occur from April through October, target a pressure-scaled number of the richest exposed stores and households, and steal portable goods or household wealth rather than operating as a disconnected combat minigame. Peaceful worlds remain fully raid-free.
+- **Frontier watchtower** — a road-linked hillside defense staffed by up to two watchmen. The first watchman provides a reduced warning radius and the second reaches the full 190 m extent, turning labor allocation and settlement layout into explicit protection tradeoffs.
+- **Frontier guardhouse** — available after a watchtower is complete. Up to six paid guards leave the general labor pool, require one carpenter-made polearm each, consume food and treasury wages every day, and lose readiness when either supply fails. Warning coverage improves their ability to muster, so lookout placement and guard upkeep reinforce each other instead of becoming separate combat systems.
+- **Seasonal provisioning forecast** — the settlement HUD turns aggregate food, household fuel, and paid-guard wages into days of runway. Food runway includes current season/drought spoilage across treasury, buildings, and household stores; the Town Hall ledger exposes daily consumption, fresh-food loss, sheltered-storage share, and military upkeep. Autumn and winter surface a 30-day frost-fuel target. Forecasts assume no new production and explicitly warn that disconnected stock can still be inaccessible.
+
 - **Settlement HUD** — per-player timber, stone, firewood, water, food, gold, population, housing (occupied/capacity/vacant), free labor, in-game date/time, and live FPS and zoom readout.
 - **Cheat mode** — open the game menu, choose any amount up to one billion, and top up every treasury resource for unrestricted city planning and screenshot builds.
 - **Shared game balance** — one `balance/gameBalance.json` source generates Rust constants and TypeScript bindings for costs, radii, tick intervals, and production rates.
@@ -70,10 +77,10 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 - **Chapel** — parish hub on the road; assign a priest to collect tithes from road-linked household wealth into the **parish coffer** (collect into treasury when ready); boosts settlement, shortage resilience, and abandoned-home recovery. Optional Sunday sabbath observance (requires staffed chapel) pauses labor and logistics that day.
 - **Pauline monastery** — mid-game hillside landmark (requires staffed chapel and 12+ population); road-linked to the parish for full strength. Autonomous grain→food production, pilgrimage gold via marketplace, feast-day charity, ongoing food deliveries within a 520 m coverage radius, and wider faith bonuses for road-linked homes inside that radius. City administration sets tithe share (0–80%) and feast-day charity.
 - **Marketplace** — village trade hub on the road; buy and sell timber, stone, firewood, and food for gold, or barter goods. Backyard garden surplus and mayor tax both flow through marketplace-linked homes.
-- **Expanded agriculture & processing** — grain fields and threshing barns; fields have no hard area cap, with full per-square-metre efficiency through 1,600 m² and soft diminishing returns beyond it; river **watermill** (shore placement); **granary** bakes flour into food and collects road-linked wild-food surplus; **brewery** and **smokehouse** supply ale and preserved food for tier-3 homes; **apiary** and **vineyard** for honey/wine exports.
-- **Carpenter & wheelwright** — reduces timber placement cost when road-linked; **ferry landing** (shore placement) earns trade income when staffed and marketplace-connected.
+- **Expanded agriculture & processing** — grain fields and threshing barns; fields have no hard area cap, with full per-square-metre efficiency through 1,600 m² and soft diminishing returns beyond it; river **watermill** (shore placement); a staffed **granary** bakes flour, dispatches provisions, and can centralize road-linked fresh-food surplus into sheltered storage with 65% lower spoilage; **brewery** and **smokehouse** supply ale and preserved food for tier-3 homes; **apiary** and **vineyard** for honey/wine exports. Granary intake can be disabled when short direct producer routes are preferable to the extra preservation haul.
+- **Carpenter & wheelwright** — reduces timber placement cost when road-linked and, in contested worlds, turns 2 timber plus 1 gold of imported ironwork into a road-hauled polearm; **ferry landing** (shore placement) earns trade income when staffed and marketplace-connected.
 - **Road-based logistics** — Dijkstra road-path distance routes timber mill→lodge, specialist inputs between processors, and household provisions. Production chains prefer the nearest reachable stocked source, unfinished buildings reject specialist cargo, and each processor accepts one inbound haul at a time. The nearest eligible supplier claims each home for core firewood, water, wild-food, ale, and preserved-food service; household carts prioritize the lowest per-person runway, then the shortest route, so compact service territories and industrial clustering matter.
-- **Delivery trips** — server-spawned road agents travel outbound, unload at the residence, and return; client renders worker-hauled wooden carts with recognizable commodity loads such as bundled firewood, water barrels, food baskets, sacks, kegs, amphorae, timber poles, and quarried stone.
+- **Delivery trips** — server-spawned road agents travel outbound, unload at the residence or receiving workshop, and return; client renders worker-hauled wooden carts with recognizable commodity loads such as bundled firewood, water barrels, food baskets, sacks, kegs, amphorae, timber poles, quarried stone, and bundled polearms.
 - **Persistent wild-resource ecology** — procedural game habitats, forest-edge berry patches, deep-forest mushroom beds, and water-bound fish shoals are bootstrapped once. Harvesting reduces current stock without replacing the node: plants recover seasonally, fish reproduce in spring, and game reproduce continuously above their two-animal breeding floor.
 - **Tree lifecycle** — server-driven `mature → stump → growing → mature` phases with client visual sync (instanced forest, animated saplings, stumps).
 - Server-authoritative simulation tick (200 ms) in the Rust module — buildings, trees, quarries, foraging, delivery trips, residence needs, backyard gardens, and settlement growth all run server-side. Player-facing 1×/5×/20× controls apply one, five, or twenty times the scenic pacing budget so every system remains synchronized; pause remains available to the server reducer for administration and recovery.
@@ -149,6 +156,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 | Toggle road tool | `R` or click **Roads** in the construction dock |
 | Open build menu (settlement essentials) | `B` or click **Build** in the construction dock |
 | Open industry menu (production & trade) | `V` or click **Industry** in the construction dock |
+| Open defenses menu (contested frontier only) | `D` or click **Defenses** in the construction dock |
 | Toggle hydrology / water map | `M` or click **Water map** in the construction dock |
 | Place road point | Left-click on terrain |
 | Undo last placed point while drawing | Right-click |
@@ -173,6 +181,8 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 | Select hunter's hall | Industry menu (`V`) → **Hunter's hall** (`K`) |
 | Select forager's shed | Industry menu (`V`) → **Forager's shed** (`Y`) |
 | Select marketplace | Build menu (`B`) → **Marketplace** (`P`) |
+| Select frontier watchtower | Defenses menu (`D`) → **Frontier watchtower** (`W`) |
+| Select frontier guardhouse | Defenses menu (`D`) → **Frontier guardhouse** (`G`) |
 | Open city administration | Main menu (gear) → **City administration…** (tax, parish coffer, monastery policy) |
 | Enable / top up cheat resources | Main menu (gear) → **Cheat mode** → enter an amount → **Enable cheat mode** |
 | Place building | Left-click on terrain (building tool active) |
@@ -276,8 +286,8 @@ When real auth is added later, swap the token source in `src/network/identityPer
 
 | Data | Server table | Notes |
 | --- | --- | --- |
-| Timber / stone / firewood / water / food / gold / grain / flour / ale / preserved food / honey / wine | `player_resources` | Per anonymous identity (treasury); parish and monastery policy fields on same row |
-| Building kinds (mills, lodges, quarries, wells, food suppliers, chapel, monastery, marketplace, grain chain, processing, apiary, vineyard, carpenter, ferry) | `building` | Per-building storage, labor, cooldowns; server tick drives production |
+| Timber / stone / firewood / water / food / gold / grain / flour / ale / preserved food / honey / wine / polearms | `player_resources` | Per anonymous identity (treasury); parish and monastery policy fields on same row |
+| Building kinds (mills, lodges, quarries, wells, food suppliers, chapel, monastery, marketplace, grain chain, processing, apiary, vineyard, carpenter, ferry, watchtower, guardhouse) | `building` | Per-building storage, labor, cooldowns/readiness; server tick drives production |
 | Tree stump / growing / mature | `tree_entity` | Bootstrapped after forest load |
 | Quarry remaining yield | `quarry` | Global world sites (1 large + 2 small) |
 | Game habitats / berry patches / mushroom beds / fish shoals | `foraging_node` | Persistent location and current population; seasonal plant regrowth, spring fish reproduction, herd reproduction/migration, and extinction state |
@@ -288,7 +298,8 @@ When real auth is added later, swap the token source in `src/network/identityPer
 | Backyard gardens | `backyard_garden` | Orchard, vegetable, flower, or herb plot per residence |
 | Active delivery hauls | `delivery_trip` | Road agents carrying firewood, water, or food |
 | Sim tick counter | `world_config` | Monotonic server tick |
-| World generation | `world_config` | Authoritative seed, map size, topography, hydrology, forest density (`configure_world` on connect) |
+| World generation and rules | `world_config` | Authoritative seed, map size, topography, hydrology, forest density, peaceful/frontier mode, and enemy pressure (`configure_world` on connect) |
+| Frontier security | `settlement_security` | Per-player threat, watch coverage, ready guards, defense readiness, next raid schedule, and latest losses |
 
 **Player reducers:** `place_building`, `demolish_building`, `assign_building_labor`, `collect_chapel_coffer`, `marketplace_trade`, `set_economic_activity_tax_rate`, `set_chapel_parish_policy`, `set_monastery_policy`, `reset_world`, `configure_world`, `place_backyard_garden`, `demolish_backyard_garden`, `sync_road_network`, `remove_road_edge`, plus place/demolish/upgrade residence zone. **Bootstrap reducers:** `bootstrap_quarries`, `bootstrap_trees`, `bootstrap_foraging`.
 
@@ -380,7 +391,7 @@ Road placement is handled by `src/roads/RoadTool.ts`. Pointer input is projected
 
 `src/data/spacetimeGameStore.ts` subscribes to replicated tables and maps rows into client `GameState`. `GameRuntime.ts` connects on startup, publishes world-generation settings to `world_config` via `configure_world`, bootstraps quarries, trees, and foraging from the client layout, and hydrates the road network from the server snapshot. Module `init` still seeds deploy-time embedded JSON so a fresh publish has world entities before the first client connects; `bootstrap_*` reducers apply client-authored rows only and no longer fall back to that JSON when empty arrays are sent. `reset_world` clears settlement progress and global entities but does not re-seed deploy-time defaults — the next connect re-publishes settings and re-bootstraps from the authoritative layout.
 
-On the server, `server/src/reducers/simulation.rs` runs each 200 ms tick: construction reservations/hauling/builder work, wild-resource lifecycle and habitat migration, lumber mills, reforesters, quarries, lodges, wells, hunter's halls, forager's sheds, fishing camps, the grain→food processing chain (fields, barn, watermill, granary, brewery, smokehouse, apiary, vineyard), monastery charity and pilgrimages, carpenter/ferry bonuses, `delivery_trips.rs` road agents, progressively tier-gated residence needs, backyard gardens, chapel tithes, and settlement growth. Fresh food is physically held by producer buildings, homes, smokehouses, monasteries, marketplaces, and granaries; staffed granaries can collect road-linked surplus from wild-food producers. Incomplete buildings are excluded from production, services, bonuses, trade, and policy gates. Economy constants come from `balance/gameBalance.json` via `balance_generated.rs`.
+On the server, `server/src/reducers/simulation.rs` runs each 200 ms tick: construction reservations/hauling/builder work, wild-resource lifecycle and habitat migration, lumber mills, reforesters, quarries, lodges, wells, hunter's halls, forager's sheds, fishing camps, the grain→food processing chain (fields, barn, watermill, granary, brewery, smokehouse, apiary, vineyard), monastery charity and pilgrimages, carpenter polearms, guardhouse readiness/upkeep, ferry income, `delivery_trips.rs` road agents, progressively tier-gated residence needs, backyard gardens, chapel tithes, and settlement growth. Fresh food is physically held by producer buildings, homes, smokehouses, monasteries, marketplaces, granaries, and guardhouses and spoils continuously according to season, weather, and storage quality. Staffed granaries can optionally collect road-linked surplus from wild-food producers; unstaffed processors neither request inputs nor dispatch provision carts. Incomplete buildings are excluded from production, services, bonuses, trade, and policy gates. Economy constants come from `balance/gameBalance.json` via `balance_generated.rs`.
 
 `src/resources/ResourceInspector.ts` provides the settlement HUD and click-to-inspect panel for quarries, foraging nodes, buildings, residences, backyards, and river access — including labor assignment, demolish actions, hydrology grades, and delivery status. `WorldQueries.ts` resolves inspectable targets from terrain clicks. `src/map/` projects quarry, foraging, and backyard icons at zoomed-out camera levels.
 

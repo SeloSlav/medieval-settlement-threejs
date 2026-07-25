@@ -14,6 +14,7 @@ import {
   type BuildMenuHandlers,
   AGRICULTURE_BUILD_MENU_ENTRIES,
   BASIC_BUILD_MENU_ENTRIES,
+  MILITARY_BUILD_MENU_ENTRIES,
   RURAL_INDUSTRY_BUILD_MENU_ENTRIES,
   hydrateBuildMenuImages,
   renderBuildMenuCards,
@@ -39,6 +40,7 @@ export type { ToolbarStats };
 const BASIC_BUILD_MENU_ACTIONS = new Set(BASIC_BUILD_MENU_ENTRIES.map((entry) => entry.action));
 const AGRICULTURE_BUILD_MENU_ACTIONS = new Set(AGRICULTURE_BUILD_MENU_ENTRIES.map((entry) => entry.action));
 const RURAL_INDUSTRY_BUILD_MENU_ACTIONS = new Set(RURAL_INDUSTRY_BUILD_MENU_ENTRIES.map((entry) => entry.action));
+const MILITARY_BUILD_MENU_ACTIONS = new Set(MILITARY_BUILD_MENU_ENTRIES.map((entry) => entry.action));
 
 type DeletePopupOptions = {
   clientX: number;
@@ -52,6 +54,7 @@ export class BuildToolbar {
   private readonly basicBuildMenuButton: HTMLButtonElement;
   private readonly agricultureBuildMenuButton: HTMLButtonElement;
   private readonly ruralIndustryBuildMenuButton: HTMLButtonElement;
+  private readonly militaryBuildMenuButton: HTMLButtonElement;
   private readonly waterOverlayButton: HTMLButtonElement;
   private readonly cityAdminButton: HTMLButtonElement;
   private readonly settingsButton: HTMLButtonElement;
@@ -59,6 +62,7 @@ export class BuildToolbar {
   private readonly basicBuildMenu: HTMLElement;
   private readonly agricultureBuildMenu: HTMLElement;
   private readonly ruralIndustryBuildMenu: HTMLElement;
+  private readonly militaryBuildMenu: HTMLElement;
   private readonly builderControlsPanel: HTMLElement;
   private readonly burgageLayoutHud: HTMLElement;
   private readonly burgagePlotDecreaseButton: HTMLButtonElement;
@@ -85,6 +89,7 @@ export class BuildToolbar {
   private basicBuildMenuOpen = false;
   private agricultureBuildMenuOpen = false;
   private ruralIndustryBuildMenuOpen = false;
+  private militaryBuildMenuOpen = false;
   private waterOverlayActive = false;
   private buildButtonVisible = false;
   private burgageLayoutHudVisible = false;
@@ -109,6 +114,7 @@ export class BuildToolbar {
       this.basicBuildMenu.contains(target)
       || this.agricultureBuildMenu.contains(target)
       || this.ruralIndustryBuildMenu.contains(target)
+      || this.militaryBuildMenu.contains(target)
     ) return;
 
     this.closeAllBuildMenus();
@@ -121,6 +127,7 @@ export class BuildToolbar {
   private readonly basicBuildMenuToggle: DockToggle;
   private readonly agricultureBuildMenuToggle: DockToggle;
   private readonly ruralIndustryBuildMenuToggle: DockToggle;
+  private readonly militaryBuildMenuToggle: DockToggle;
   private readonly waterOverlayToggle: DockToggle;
   private readonly dockToggles: DockToggle[];
   private readonly toolbarHandlers: BuildMenuHandlers & {
@@ -130,6 +137,7 @@ export class BuildToolbar {
   private readonly onToggleCityAdministration: () => void;
   private cityAdministrationOpen = false;
   private gameplayEnabled = true;
+  private conflictEnabled = false;
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target) || this.isGameMenuOpen()) return;
@@ -184,6 +192,15 @@ export class BuildToolbar {
         event.preventDefault();
         event.stopPropagation();
         runBuildMenuAction(industryAction, this.toolbarHandlers, () => this.setRuralIndustryBuildMenuOpen(false));
+        return;
+      }
+    }
+    if (this.militaryBuildMenuOpen) {
+      const militaryAction = resolveBuildMenuHotkey(key, MILITARY_BUILD_MENU_ENTRIES);
+      if (militaryAction) {
+        event.preventDefault();
+        event.stopPropagation();
+        runBuildMenuAction(militaryAction, this.toolbarHandlers, () => this.setMilitaryBuildMenuOpen(false));
         return;
       }
     }
@@ -273,6 +290,12 @@ export class BuildToolbar {
           </div>
         </section>
 
+        <section class="construction-menu" id="military-build-menu" data-build-menu="military" hidden aria-label="Military menu">
+          <div class="construction-menu__cards">
+            ${renderBuildMenuCards(MILITARY_BUILD_MENU_ENTRIES)}
+          </div>
+        </section>
+
         <div class="hud-bottom-messages" data-hud-bottom-messages aria-live="polite">
           <div class="builder-status-bar" data-builder-status hidden></div>
         </div>
@@ -313,6 +336,14 @@ export class BuildToolbar {
             <path d="M12 6v2" />
           </svg>
           <span class="construction-dock-button__hotkey" aria-hidden="true">V</span>
+        </button>
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="military-build-menu" data-tooltip="Defenses (D)" aria-label="Military menu (D)" aria-controls="military-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3 5 6v5c0 4.7 2.8 8.2 7 10 4.2-1.8 7-5.3 7-10V6l-7-3Z" />
+            <path d="M9 14h6" />
+            <path d="M10 14V9h4v5" />
+          </svg>
+          <span class="construction-dock-button__hotkey" aria-hidden="true">D</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--water" data-action="water-overlay" data-tooltip="Water map (M)" aria-label="Water map (M)" aria-pressed="false">
           <span class="construction-dock-button__icon" aria-hidden="true">💧</span>
@@ -401,6 +432,7 @@ export class BuildToolbar {
     this.basicBuildMenuButton = this.mustButton(root, '[data-action="basic-build-menu"]');
     this.agricultureBuildMenuButton = this.mustButton(root, '[data-action="agriculture-build-menu"]');
     this.ruralIndustryBuildMenuButton = this.mustButton(root, '[data-action="industry-build-menu"]');
+    this.militaryBuildMenuButton = this.mustButton(root, '[data-action="military-build-menu"]');
     this.waterOverlayButton = this.mustButton(root, '[data-action="water-overlay"]');
     this.cityAdminButton = this.mustButton(root, '[data-action="city-admin"]');
     this.settingsButton = this.mustButton(root, '[data-action="settings"]');
@@ -408,6 +440,7 @@ export class BuildToolbar {
     this.basicBuildMenu = this.mustElement(root, '[data-build-menu="basic"]');
     this.agricultureBuildMenu = this.mustElement(root, '[data-build-menu="agriculture"]');
     this.ruralIndustryBuildMenu = this.mustElement(root, '[data-build-menu="industry"]');
+    this.militaryBuildMenu = this.mustElement(root, '[data-build-menu="military"]');
     this.builderControlsPanel = this.mustElement(root, '[data-road-controls-panel]');
     this.builderPanelTitle = this.mustElement(this.builderControlsPanel, '.road-controls-title');
     this.builderHelpList = this.mustElement(this.builderControlsPanel, '.road-controls-list');
@@ -446,6 +479,12 @@ export class BuildToolbar {
       getActive: () => this.ruralIndustryBuildMenuOpen,
       setActive: (active) => this.setRuralIndustryBuildMenuOpen(active),
     };
+    this.militaryBuildMenuToggle = {
+      button: this.militaryBuildMenuButton,
+      hotkey: 'd',
+      getActive: () => this.militaryBuildMenuOpen,
+      setActive: (active) => this.setMilitaryBuildMenuOpen(active),
+    };
     this.waterOverlayToggle = {
       button: this.waterOverlayButton,
       hotkey: 'm',
@@ -456,6 +495,7 @@ export class BuildToolbar {
       this.basicBuildMenuToggle,
       this.agricultureBuildMenuToggle,
       this.ruralIndustryBuildMenuToggle,
+      this.militaryBuildMenuToggle,
       this.waterOverlayToggle,
     ];
     this.waterOverlayActive = isHydrologyOverlayEnabled();
@@ -472,6 +512,7 @@ export class BuildToolbar {
     this.basicBuildMenuButton.addEventListener('click', () => toggleDockControl(this.basicBuildMenuToggle));
     this.agricultureBuildMenuButton.addEventListener('click', () => toggleDockControl(this.agricultureBuildMenuToggle));
     this.ruralIndustryBuildMenuButton.addEventListener('click', () => toggleDockControl(this.ruralIndustryBuildMenuToggle));
+    this.militaryBuildMenuButton.addEventListener('click', () => toggleDockControl(this.militaryBuildMenuToggle));
     this.waterOverlayButton.addEventListener('click', () => toggleDockControl(this.waterOverlayToggle));
     this.cityAdminButton.addEventListener('click', () => {
       this.closeAllBuildMenus();
@@ -484,6 +525,7 @@ export class BuildToolbar {
     this.bindBuildMenuClicks(this.basicBuildMenu, () => this.setBasicBuildMenuOpen(false));
     this.bindBuildMenuClicks(this.agricultureBuildMenu, () => this.setAgricultureBuildMenuOpen(false));
     this.bindBuildMenuClicks(this.ruralIndustryBuildMenu, () => this.setRuralIndustryBuildMenuOpen(false));
+    this.bindBuildMenuClicks(this.militaryBuildMenu, () => this.setMilitaryBuildMenuOpen(false));
     this.buildButton.addEventListener('click', handlers.onBuildRoad);
     this.burgagePlotDecreaseButton.addEventListener('click', () => handlers.onBurgagePlotDecrease?.());
     this.burgagePlotIncreaseButton.addEventListener('click', () => handlers.onBurgagePlotIncrease?.());
@@ -512,6 +554,7 @@ export class BuildToolbar {
     this.basicBuildMenuButton.disabled = !enabled;
     this.agricultureBuildMenuButton.disabled = !enabled;
     this.ruralIndustryBuildMenuButton.disabled = !enabled;
+    this.militaryBuildMenuButton.disabled = !enabled || !this.conflictEnabled;
     this.waterOverlayButton.disabled = !enabled;
     this.cityAdminButton.disabled = !enabled;
     this.settlementHud.setSpeedControlsEnabled(enabled);
@@ -713,19 +756,24 @@ export class BuildToolbar {
   }
 
   private isAnyBuildMenuOpen(): boolean {
-    return this.basicBuildMenuOpen || this.agricultureBuildMenuOpen || this.ruralIndustryBuildMenuOpen;
+    return this.basicBuildMenuOpen
+      || this.agricultureBuildMenuOpen
+      || this.ruralIndustryBuildMenuOpen
+      || this.militaryBuildMenuOpen;
   }
 
   private closeAllBuildMenus(): void {
     this.setBasicBuildMenuOpen(false);
     this.setAgricultureBuildMenuOpen(false);
     this.setRuralIndustryBuildMenuOpen(false);
+    this.setMilitaryBuildMenuOpen(false);
   }
 
-  private closeOtherBuildMenus(except: 'basic' | 'agriculture' | 'industry'): void {
+  private closeOtherBuildMenus(except: 'basic' | 'agriculture' | 'industry' | 'military'): void {
     if (except !== 'basic') this.setBasicBuildMenuOpen(false);
     if (except !== 'agriculture') this.setAgricultureBuildMenuOpen(false);
     if (except !== 'industry') this.setRuralIndustryBuildMenuOpen(false);
+    if (except !== 'military') this.setMilitaryBuildMenuOpen(false);
   }
 
   private setBasicBuildMenuOpen(open: boolean): void {
@@ -761,11 +809,24 @@ export class BuildToolbar {
     this.syncBuildMenuButtons();
   }
 
+  private setMilitaryBuildMenuOpen(open: boolean): void {
+    const allowed = open && this.conflictEnabled && this.gameplayEnabled;
+    if (this.militaryBuildMenuOpen === allowed) return;
+    if (allowed) this.closeOtherBuildMenus('military');
+    if (allowed) hydrateBuildMenuImages(this.militaryBuildMenu);
+    this.militaryBuildMenuOpen = allowed;
+    this.militaryBuildMenu.hidden = !allowed;
+    this.militaryBuildMenuButton.setAttribute('aria-expanded', String(allowed));
+    syncDockToggleButton(this.militaryBuildMenuToggle);
+    this.syncBuildMenuButtons();
+  }
+
   private syncBuildMenuButtons(): void {
     const activeAction = toolbarModeToMenuAction(this.hudMode);
     const basicConstruction = activeAction != null && BASIC_BUILD_MENU_ACTIONS.has(activeAction);
     const agricultureConstruction = activeAction != null && AGRICULTURE_BUILD_MENU_ACTIONS.has(activeAction);
     const ruralIndustryConstruction = activeAction != null && RURAL_INDUSTRY_BUILD_MENU_ACTIONS.has(activeAction);
+    const militaryConstruction = activeAction != null && MILITARY_BUILD_MENU_ACTIONS.has(activeAction);
     const browsing = this.isAnyBuildMenuOpen();
 
     this.syncBuildMenuButton(
@@ -786,6 +847,23 @@ export class BuildToolbar {
       ruralIndustryConstruction,
       browsing,
     );
+    this.syncBuildMenuButton(
+      this.militaryBuildMenuButton,
+      this.militaryBuildMenuOpen,
+      militaryConstruction,
+      browsing,
+    );
+  }
+
+  setConflictEnabled(enabled: boolean): void {
+    if (this.conflictEnabled === enabled) return;
+    this.conflictEnabled = enabled;
+    this.settlementHud.setConflictEnabled(enabled);
+    this.militaryBuildMenuButton.hidden = !enabled;
+    this.militaryBuildMenuButton.disabled = !enabled || !this.gameplayEnabled;
+    if (!enabled) {
+      this.setMilitaryBuildMenuOpen(false);
+    }
   }
 
   setSimulationState(speed: GameSpeed, environment: EnvironmentState): void {
@@ -809,6 +887,7 @@ export class BuildToolbar {
     this.syncBuildMenuCards(this.basicBuildMenu, activeAction);
     this.syncBuildMenuCards(this.agricultureBuildMenu, activeAction);
     this.syncBuildMenuCards(this.ruralIndustryBuildMenu, activeAction);
+    this.syncBuildMenuCards(this.militaryBuildMenu, activeAction);
   }
 
   private syncBuildMenuCards(menu: HTMLElement, activeAction: PlacementBuildMenuAction | null): void {

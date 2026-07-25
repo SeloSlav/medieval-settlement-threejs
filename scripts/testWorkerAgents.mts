@@ -226,6 +226,7 @@ const expectedWorkplaces = [
   'apiary',
   'watermill',
   'carpenter',
+  'guardhouse',
   'vineyard',
 ] as const;
 assert.deepEqual(

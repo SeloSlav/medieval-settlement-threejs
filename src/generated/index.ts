@@ -60,6 +60,7 @@ import SetEconomicActivityTaxRateReducer from "./set_economic_activity_tax_rate_
 import SetFarmFieldCropReducer from "./set_farm_field_crop_reducer";
 import SetFarmFieldPriorityReducer from "./set_farm_field_priority_reducer";
 import SetGameSpeedReducer from "./set_game_speed_reducer";
+import SetGranaryPolicyReducer from "./set_granary_policy_reducer";
 import SetLivestockSpeciesReducer from "./set_livestock_species_reducer";
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
 import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
@@ -85,6 +86,7 @@ import QuarryRow from "./quarry_table";
 import ResidenceRow from "./residence_table";
 import ResidenceNeedRow from "./residence_need_table";
 import RoadNetworkStateRow from "./road_network_state_table";
+import SettlementSecurityRow from "./settlement_security_table";
 import SimPacingStateRow from "./sim_pacing_state_table";
 import SimTickScheduleRow from "./sim_tick_schedule_table";
 import TreeEntityRow from "./tree_entity_table";
@@ -313,6 +315,17 @@ const tablesSchema = __schema({
       { name: 'road_network_state_owner_key', constraint: 'unique', columns: ['owner'] },
     ],
   }, RoadNetworkStateRow),
+  settlement_security: __table({
+    name: 'settlement_security',
+    indexes: [
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'settlement_security_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, SettlementSecurityRow),
   sim_pacing_state: __table({
     name: 'sim_pacing_state',
     indexes: [
@@ -387,6 +400,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_farm_field_crop", SetFarmFieldCropReducer),
   __reducerSchema("set_farm_field_priority", SetFarmFieldPriorityReducer),
   __reducerSchema("set_game_speed", SetGameSpeedReducer),
+  __reducerSchema("set_granary_policy", SetGranaryPolicyReducer),
   __reducerSchema("set_livestock_species", SetLivestockSpeciesReducer),
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),
   __reducerSchema("set_storehouse_policy", SetStorehousePolicyReducer),

@@ -18,6 +18,7 @@ import { syncPlayerResources } from './syncPlayerResources.ts';
 import { syncQuarries } from './syncQuarries.ts';
 import { syncResidences } from './syncResidences.ts';
 import { syncRoadNetwork } from './syncRoadNetwork.ts';
+import { syncSettlementSecurity } from './syncSettlementSecurity.ts';
 import { removeTreeRow, syncTrees, upsertTreeRow } from './syncTrees.ts';
 import { syncWorldConfig } from './syncWorldConfig.ts';
 
@@ -47,6 +48,10 @@ export class GameTableSync {
     syncWorldConfig(db.world_config ? db.world_config.iter() : [], this.state);
     syncPlayerResources(db.player_resources ? db.player_resources.iter() : [], this.state);
     syncMarketState(db.market_state ? db.market_state.iter() : [], this.state);
+    syncSettlementSecurity(
+      db.settlement_security ? db.settlement_security.iter() : [],
+      this.state,
+    );
     this.state.quarries = syncQuarries(db.quarry ? db.quarry.iter() : []);
     this.state.foragingNodes = syncForagingNodes(db.foraging_node ? db.foraging_node.iter() : []);
     this.state.trees = syncTrees(db.tree_entity ? db.tree_entity.iter() : []);
@@ -172,6 +177,13 @@ export class GameTableSync {
 
     bindTable(db.market_state, () => {
       syncMarketState(db.market_state ? db.market_state.iter() : [], this.state);
+    }, false);
+
+    bindTable(db.settlement_security, () => {
+      syncSettlementSecurity(
+        db.settlement_security ? db.settlement_security.iter() : [],
+        this.state,
+      );
     }, false);
 
     bindTable(db.quarry, () => {

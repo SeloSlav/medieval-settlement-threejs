@@ -35,6 +35,7 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'apiary',
   'watermill',
   'carpenter',
+  'guardhouse',
   'vineyard',
 ] as const satisfies readonly BuildingKind[];
 
@@ -115,6 +116,7 @@ export const YARD_WORK_ACTIVITY = {
   apiary: 'gather',
   watermill: 'tend',
   carpenter: 'build',
+  guardhouse: 'build',
   vineyard: 'tend',
 } as const satisfies Partial<Record<BuildingKind, WorkerActivityKind>>;
 

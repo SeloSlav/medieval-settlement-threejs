@@ -97,7 +97,7 @@ export function assertWorldGenerationCompatible(
   if (simTick > 0) {
     throw new WorldGenerationMismatchError(
       'This server world is already running with different map settings than your browser saved '
-      + `(server: ${server.mapSize}, saved: ${local.mapSize}). `
+      + `(server: ${server.mapSize}/${server.conflictMode}, saved: ${local.mapSize}/${local.conflictMode}). `
       + 'Clearing SpacetimeDB alone does not reset an active world — use Start new world below, '
       + 'or run deploy:local-clean in dev.',
     );

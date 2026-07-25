@@ -33,6 +33,7 @@ import SetEconomicActivityTaxRateReducer from "../set_economic_activity_tax_rate
 import SetFarmFieldCropReducer from "../set_farm_field_crop_reducer";
 import SetFarmFieldPriorityReducer from "../set_farm_field_priority_reducer";
 import SetGameSpeedReducer from "../set_game_speed_reducer";
+import SetGranaryPolicyReducer from "../set_granary_policy_reducer";
 import SetLivestockSpeciesReducer from "../set_livestock_species_reducer";
 import SetMonasteryPolicyReducer from "../set_monastery_policy_reducer";
 import SetStorehousePolicyReducer from "../set_storehouse_policy_reducer";
@@ -67,6 +68,7 @@ export type SetEconomicActivityTaxRateParams = __Infer<typeof SetEconomicActivit
 export type SetFarmFieldCropParams = __Infer<typeof SetFarmFieldCropReducer>;
 export type SetFarmFieldPriorityParams = __Infer<typeof SetFarmFieldPriorityReducer>;
 export type SetGameSpeedParams = __Infer<typeof SetGameSpeedReducer>;
+export type SetGranaryPolicyParams = __Infer<typeof SetGranaryPolicyReducer>;
 export type SetLivestockSpeciesParams = __Infer<typeof SetLivestockSpeciesReducer>;
 export type SetMonasteryPolicyParams = __Infer<typeof SetMonasteryPolicyReducer>;
 export type SetStorehousePolicyParams = __Infer<typeof SetStorehousePolicyReducer>;

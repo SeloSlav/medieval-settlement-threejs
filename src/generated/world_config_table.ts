@@ -20,5 +20,7 @@ export default __t.row({
   topography: __t.u8(),
   hydrology: __t.u8(),
   forestDensity: __t.u8().name("forest_density"),
+  conflictEnabled: __t.bool().name("conflict_enabled"),
+  enemyPressure: __t.u8().name("enemy_pressure"),
   configured: __t.bool(),
 });

@@ -10,6 +10,7 @@ import {
 } from '../src/camera/fp/fpLocomotion.ts';
 import type { RoadEdge } from '../src/roads/RoadEdge.ts';
 import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
   resolveRoadAwareGroundY,
   sampleRoadSurfaceY,
@@ -290,7 +291,9 @@ function resolveAt(
     endNodeId: 'bridge-b',
     controlPoints: [
       new THREE.Vector3(-22, 0, 0),
+      new THREE.Vector3(-11, 0, -0.8),
       new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(11, 0, 0.8),
       new THREE.Vector3(22, 0, 0),
     ],
     width: 4,
@@ -299,9 +302,112 @@ function resolveAt(
     editableState: 'normal',
     revision: 1,
   };
+  const bridgeNetwork = new RoadNetwork();
+  bridgeNetwork.nodes.set('bridge-a', {
+    id: 'bridge-a',
+    position: bridgeEdge.controlPoints[0].clone(),
+    edgeIds: new Set([bridgeEdge.id]),
+    junctionType: 'endpoint',
+  });
+  bridgeNetwork.nodes.set('bridge-b', {
+    id: 'bridge-b',
+    position: bridgeEdge.controlPoints[bridgeEdge.controlPoints.length - 1].clone(),
+    edgeIds: new Set([bridgeEdge.id]),
+    junctionType: 'endpoint',
+  });
+  bridgeNetwork.edges.set(bridgeEdge.id, bridgeEdge);
   const bridgeGroup = bridgeBuilder.buildEdge(
     bridgeEdge,
-    { nodes: new Map() } as never,
+    bridgeNetwork,
+  );
+  const railings = bridgeGroup.getObjectByName('Bridge railings');
+  const railingPosts = bridgeGroup.getObjectByName(
+    'Bridge railing posts',
+  ) as THREE.InstancedMesh | undefined;
+  const railingRails = bridgeGroup.getObjectByName(
+    'Bridge railing rails',
+  ) as THREE.InstancedMesh | undefined;
+  assert.ok(railings, 'generated bridges should have timber railings on both sides');
+  assert.ok(
+    railingPosts && railingPosts.count >= 12,
+    'bridge railings should have regularly spaced posts',
+  );
+  assert.ok(
+    railingRails && railingRails.count >= (railingPosts.count - 4) * 2,
+    'bridge railing bays should have continuous lower rails and handrails',
+  );
+
+  const railingMatrix = new THREE.Matrix4();
+  const railingPosition = new THREE.Vector3();
+  const railingHeadings: number[] = [];
+  let hasPitchedRail = false;
+  let collisionRailPosition: THREE.Vector3 | null = null;
+  for (let index = 0; index < railingRails.count; index++) {
+    railingRails.getMatrixAt(index, railingMatrix);
+    railingPosition.setFromMatrixPosition(railingMatrix);
+    hasPitchedRail ||= Math.abs(railingMatrix.elements[9]) > 0.025;
+    railingHeadings.push(Math.atan2(railingMatrix.elements[8], railingMatrix.elements[10]));
+    if (
+      Math.abs(railingPosition.x) < 1.2
+      && (!collisionRailPosition || railingPosition.z > collisionRailPosition.z)
+    ) {
+      collisionRailPosition = railingPosition.clone();
+    }
+  }
+  assert.ok(hasPitchedRail, 'railing bays should pitch with the bridge approach ramps');
+  assert.ok(
+    Math.max(...railingHeadings) - Math.min(...railingHeadings) > 0.025,
+    'railing bays should turn with a curved bridge centerline',
+  );
+  assert.ok(collisionRailPosition, 'the bridge should expose a railing bay near midspan');
+
+  const roadCollisionRoot = new THREE.Group();
+  roadCollisionRoot.name = 'Road network visuals';
+  roadCollisionRoot.add(bridgeGroup);
+  const bridgeCollisionWorld = new FpCollisionWorld({
+    getStaticRoots: () => [roadCollisionRoot],
+    getHeightAt: () => 0,
+  });
+  bridgeCollisionWorld.prepare(collisionRailPosition.x, collisionRailPosition.z);
+  const collisionDeckY = collisionRailPosition.y - 0.43;
+  const railingVelocity = new THREE.Vector3(0, 0, 2);
+  const railingCollisionPosition = new THREE.Vector3(
+    collisionRailPosition.x,
+    collisionDeckY + 0.034,
+    collisionRailPosition.z,
+  );
+  bridgeCollisionWorld.resolvePlayer(
+    railingCollisionPosition,
+    collisionRailPosition.x,
+    collisionRailPosition.z - 0.7,
+    railingVelocity,
+    {
+      bodyHeight: 1.78,
+      footRadius: FP_WALK_FOOT_RADIUS_XZ,
+      maxStepHeight: FP_WALK_STEP_UP_MARGIN,
+      grounded: true,
+    },
+  );
+  assert.ok(
+    railingCollisionPosition.z < collisionRailPosition.z - 0.16,
+    'first-person collision should keep the player inside the bridge railing',
+  );
+  assert.ok(
+    Math.abs(railingVelocity.z) < 1e-8,
+    'bridge railing collision should remove velocity directed through the rail',
+  );
+  assert.equal(
+    bridgeCollisionWorld.sampleSupportTopY(
+      collisionRailPosition.x,
+      collisionRailPosition.z,
+      collisionDeckY + 1.084,
+      collisionDeckY + 0.034,
+      FP_WALK_FOOT_RADIUS_XZ,
+      FP_WALK_STEP_UP_MARGIN,
+      'ground',
+    ),
+    Number.NEGATIVE_INFINITY,
+    'bridge railings should remain barriers instead of becoming automatic steps',
   );
 
   assert.ok(bridgeEdge.surfacePath && bridgeEdge.surfacePath.length >= 2);
@@ -325,6 +431,75 @@ function resolveAt(
     point.y > 0.15 && point.y < deckY - 0.15
   );
   assert.ok(rampPoint, 'bridge approaches should expose a continuous elevated walking ramp');
+
+  const authoritativeSnapshot = bridgeNetwork.snapshot();
+  bridgeNetwork.restore(authoritativeSnapshot);
+  const restoredBridgeEdge = bridgeNetwork.edges.get(bridgeEdge.id);
+  assert.ok(
+    restoredBridgeEdge?.surfacePath && restoredBridgeEdge.surfacePath.length >= 2,
+    'authoritative road hydration should preserve the runtime bridge walking surface',
+  );
+  const restoredDeckY = sampleRoadSurfaceY(bridgeNetwork.edges.values(), 0, 0);
+  assert.equal(
+    restoredDeckY,
+    deckY,
+    'authoritative road hydration should not make first-person sampling fall back to the riverbed',
+  );
+
+  const bridgeWalkState = createFpLocomotionState();
+  const bridgeWalkPosition = new THREE.Vector3(-21, 0.034, 0);
+  const bridgeWalkInput = {
+    forward: false,
+    backward: false,
+    left: false,
+    right: true,
+    sprint: true,
+    crouch: false,
+    jumpHeld: false,
+  };
+  let maxFeetYOverWater = bridgeWalkPosition.y;
+  for (let frame = 0; frame < 100 && bridgeWalkPosition.x < 20; frame++) {
+    bridgeCollisionWorld.prepare(bridgeWalkPosition.x, bridgeWalkPosition.z);
+    stepFpLocomotion(
+      bridgeWalkState,
+      bridgeWalkPosition,
+      0,
+      bridgeWalkInput,
+      0.05,
+      {
+        sampleWalkGroundTopY: (x, z) => resolveRoadAwareGroundY(
+          0,
+          sampleRoadSurfaceY(bridgeNetwork.edges.values(), x, z),
+        ),
+        resolveBodyCollisions: (
+          nextPosition,
+          previousX,
+          previousZ,
+          nextState,
+          bodyHeight,
+        ) => bridgeCollisionWorld.resolvePlayer(
+          nextPosition,
+          previousX,
+          previousZ,
+          nextState.velocity,
+          {
+            bodyHeight,
+            footRadius: FP_WALK_FOOT_RADIUS_XZ,
+            maxStepHeight: FP_WALK_STEP_UP_MARGIN,
+            grounded: nextState.grounded,
+          },
+        ),
+      },
+    );
+    if (Math.abs(bridgeWalkPosition.x) <= 4.5) {
+      maxFeetYOverWater = Math.max(maxFeetYOverWater, bridgeWalkPosition.y);
+    }
+  }
+  assert.ok(bridgeWalkPosition.x >= 20, 'first-person locomotion should cross the entire bridge');
+  assert.ok(
+    maxFeetYOverWater > 1.5,
+    'first-person feet should stay on the elevated deck while crossing the river',
+  );
 
   bridgeGroup.traverse((object) => {
     const mesh = object as THREE.Mesh;

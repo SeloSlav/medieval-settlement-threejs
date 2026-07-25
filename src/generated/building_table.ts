@@ -29,6 +29,7 @@ export default __t.row({
   preservedFood: __t.f64().name("preserved_food"),
   honey: __t.f64(),
   wine: __t.f64(),
+  polearms: __t.f64(),
   waterCapacity: __t.f64().name("water_capacity"),
   assignedLabor: __t.u32().name("assigned_labor"),
   storehouseAcceptsTimber: __t.bool().name("storehouse_accepts_timber"),
@@ -45,4 +46,5 @@ export default __t.row({
   constructionReservedStone: __t.f64().name("construction_reserved_stone"),
   constructionTreasuryTimber: __t.f64().name("construction_treasury_timber"),
   constructionTreasuryStone: __t.f64().name("construction_treasury_stone"),
+  granaryAcceptsFreshFood: __t.bool().name("granary_accepts_fresh_food"),
 });

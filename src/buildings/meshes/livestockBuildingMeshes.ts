@@ -8,7 +8,12 @@ import {
   stoneMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
-import { addGableShell, addPlankDoor, addSmallWindow } from './buildingMeshKit.ts';
+import {
+  addGableShell,
+  addLeanToRoof,
+  addPlankDoor,
+  addSmallWindow,
+} from './buildingMeshKit.ts';
 
 const hay = sharedBuildingDetailMaterial('crop');
 const earth = sharedBuildingDetailMaterial('earth');
@@ -69,7 +74,16 @@ export function createPastoralFarmsteadMesh(): THREE.Group {
   for (const z of [-2.6, 2.6]) {
     addMesh(group, new THREE.BoxGeometry(0.2, 2.55, 0.2), timberMaterial('dark'), new THREE.Vector3(5.2, 1.28, z));
   }
-  addMesh(group, new THREE.BoxGeometry(4.8, 0.16, 6.2), shingleMaterial(), new THREE.Vector3(3.8, 2.78, 0), new THREE.Euler(0, 0, -0.17));
+  addLeanToRoof(group, {
+    width: 4.8,
+    depth: 6.2,
+    thickness: 0.16,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(3.8, 2.78, 0),
+    pitch: 0.17,
+    highEdge: 'negativeX',
+    name: 'Pastoral farmstead byre roof',
+  });
   addMesh(group, new THREE.BoxGeometry(3.2, 0.18, 5.4), earth, new THREE.Vector3(3.65, 0.1, 0));
   addTrough(group, 3.7, 0, 3.2);
 

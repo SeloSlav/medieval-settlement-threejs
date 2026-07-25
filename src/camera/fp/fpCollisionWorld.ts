@@ -346,7 +346,11 @@ function appendObjectColliders(
   allowStep: boolean,
 ): void {
   if (!isCollisionVisible(object) || shouldSkipObject(object)) return;
-  const objectAllowsStep = allowStep && !object.name.toLowerCase().includes('fence');
+  const objectAllowsStep = (
+    allowStep
+    && object.userData.fpCollisionAllowStep !== false
+    && !object.name.toLowerCase().includes('fence')
+  );
   if (object.userData.fpCollisionAggregate === true) {
     const collider = aggregateObjectCollider(object, false);
     if (collider) index.add(collider);

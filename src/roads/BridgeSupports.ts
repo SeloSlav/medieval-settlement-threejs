@@ -62,6 +62,7 @@ export function buildBridgeSupports(
 
   const group = new THREE.Group();
   group.name = 'Bridge supports';
+  group.userData.fpNoCollision = true;
   const geometry = new THREE.BoxGeometry(POST_WIDTH, 1, POST_DEPTH);
   const mesh = new THREE.InstancedMesh(geometry, material, placements.length);
   mesh.name = 'Bridge support posts';

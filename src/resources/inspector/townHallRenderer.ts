@@ -5,6 +5,15 @@ import {
 } from '../../generated/gameBalance.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { buildVillageAdminReadout } from '../../economy/villageAdminReadout.ts';
+import {
+  computeSettlementProvisioning,
+  formatProvisionRunway,
+  WINTER_RESERVE_DAYS,
+} from '../../economy/settlementProvisioning.ts';
+import { formatFreshFoodLoss } from '../../economy/foodPreservation.ts';
+import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import { gameClock } from '../../world/gameCalendar.ts';
+import { environmentFor } from '../../world/seasonPolicy.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
@@ -29,6 +38,17 @@ export function renderTownHallInspector(
     parishPolicy: context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY,
   });
   const collectionRate = staffed ? 100 : Math.round(TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER * 100);
+  const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
+  const clock = gameClock(context.gameState.tick);
+  const environment = environmentFor(context.gameState.seed, context.worldHydrology, clock);
+  const provisioning = computeSettlementProvisioning({
+    state: context.gameState,
+    totals: context.resourceTotals,
+    currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
+    freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
+    sabbathConsumptionPaused: parishPolicy.sabbathObservanceEnabled
+      && hasStaffedChapel(context.gameState.buildings.values()),
+  });
 
   return {
     eyebrow: 'Civic administration',
@@ -52,6 +72,13 @@ export function renderTownHallInspector(
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>
       <li><span>Parish coffers</span><span>${readout.cofferBalanceLabel}</span></li>
       <li><span>Parish ledger</span><span>${readout.parishLedgerLabel}</span></li>
+      <li><span>Food reserve</span><span>${formatProvisionRunway(provisioning.foodRunwayDays)} · ${provisioning.totalFoodPerDay.toFixed(1)} consumed / day</span></li>
+      <li><span>Fresh-food spoilage</span><span>${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)} · ${Math.round(provisioning.protectedFoodShare * 100)}% in sheltered stores</span></li>
+      <li><span>Winter firewood</span><span>${Math.round(provisioning.firewoodStock)} / ${Math.ceil(provisioning.winterFirewoodNeed)} · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>
+      <li><span>Armed establishment</span><span>${provisioning.armedGuards > 0
+        ? `${provisioning.armedGuards} guards · ${provisioning.guardFoodPerDay.toFixed(1)} food + ${provisioning.guardWagePerDay.toFixed(1)} gold / day`
+        : 'No guard upkeep due'}</span></li>
+      <li><span>Polearms on hand</span><span>${Math.round(context.resourceTotals.polearms)}</span></li>
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats),

@@ -43,6 +43,13 @@ pub const FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY: f64 = 0.008;
 pub const FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY: f64 = 0.004;
 pub const FRESH_FOOD_SPOILAGE_WINTER_PER_DAY: f64 = 0.002;
 pub const FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY: f64 = 0.018;
+pub const FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR: f64 = 1.0;
+pub const FRESH_FOOD_STORAGE_GRANARY_FACTOR: f64 = 0.35;
+pub const FRESH_FOOD_STORAGE_SMOKEHOUSE_FACTOR: f64 = 0.55;
+pub const FRESH_FOOD_STORAGE_MONASTERY_FACTOR: f64 = 0.65;
+pub const FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR: f64 = 0.8;
+pub const FRESH_FOOD_STORAGE_RESIDENCE_FACTOR: f64 = 1.0;
+pub const FRESH_FOOD_STORAGE_TREASURY_FACTOR: f64 = 1.2;
 
 pub const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY: f64 = 0.1;
 pub const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY: f64 = 0.0015;
@@ -87,6 +94,13 @@ pub const RESIDENCE_TIER3_GOLD_COST: f64 = 22.0;
 pub const HOUSEHOLD_MAX_WEALTH: f64 = 200.0;
 pub const TOWN_HALL_POPULATION_REQUIRED: u32 = 24;
 pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = 0.6;
+
+pub const CARPENTER_TIMBER_PER_POLEARM: f64 = 2.0;
+pub const CARPENTER_GOLD_PER_POLEARM: f64 = 1.0;
+pub const GUARDHOUSE_FOOD_PER_GUARD_PER_DAY: f64 = 0.45;
+pub const GUARDHOUSE_WAGE_PER_GUARD_PER_DAY: f64 = 0.35;
+pub const GUARDHOUSE_TRAINING_PER_DAY: f64 = 1.0;
+pub const GUARDHOUSE_READINESS_DECAY_PER_DAY: f64 = 0.5;
 
 pub const STARTING_POPULATION: u32 = 5;
 pub const POPULATION_PER_RESIDENCE: u32 = 3;
@@ -308,6 +322,7 @@ pub enum BuildingSimKind {
     Apiary,
     Watermill,
     Carpenter,
+    Guardhouse,
     FerryLanding,
     Vineyard,
     PastoralFarmstead,
@@ -331,6 +346,7 @@ pub struct BuildingDef {
     pub storage_preserved_food: f64,
     pub storage_honey: f64,
     pub storage_wine: f64,
+    pub storage_polearms: f64,
     pub accepts_labor: bool,
     pub max_labor: u32,
     pub work_radius: f64,
@@ -362,6 +378,7 @@ const LUMBER_MILL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 210.0,
@@ -393,6 +410,7 @@ const REFORESTER: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 1,
     work_radius: 190.0,
@@ -424,6 +442,7 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -455,6 +474,7 @@ const STONE_QUARRY: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 4,
     work_radius: 80.0,
@@ -486,6 +506,7 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 6,
     work_radius: 0.0,
@@ -517,6 +538,7 @@ const WELL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 90.0,
@@ -548,6 +570,7 @@ const HUNTERS_HALL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 68.0,
@@ -579,6 +602,7 @@ const FORAGERS_SHED: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 48.0,
@@ -610,6 +634,7 @@ const FISHING_CAMP: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 64.0,
@@ -641,6 +666,7 @@ const CHAPEL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 1,
     work_radius: 0.0,
@@ -672,6 +698,7 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -703,6 +730,7 @@ const TOWN_HALL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 1,
     work_radius: 0.0,
@@ -734,6 +762,7 @@ const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -765,6 +794,7 @@ const WATCHTOWER: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 190.0,
@@ -779,6 +809,38 @@ const WATCHTOWER: BuildingDef = BuildingDef {
     requires_water_shore: false,
     requires_hillside: true,
     sim_kind: None,
+};
+
+const GUARDHOUSE: BuildingDef = BuildingDef {
+    kind: "guardhouse",
+    cost_timber: 64.0,
+    cost_stone: 32.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 72.0,
+    storage_grain: 0.0,
+    storage_flour: 0.0,
+    storage_ale: 0.0,
+    storage_preserved_food: 0.0,
+    storage_honey: 0.0,
+    storage_wine: 0.0,
+    storage_polearms: 12.0,
+    accepts_labor: true,
+    max_labor: 6,
+    work_radius: 0.0,
+    action_interval: 0.0,
+    pick_radius: 10.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: Some(BuildingSimKind::Guardhouse),
 };
 
 const THRESHING_BARN: BuildingDef = BuildingDef {
@@ -796,6 +858,7 @@ const THRESHING_BARN: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 6,
     work_radius: 150.0,
@@ -827,6 +890,7 @@ const PASTORAL_FARMSTEAD: BuildingDef = BuildingDef {
     storage_preserved_food: 70.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 110.0,
@@ -858,6 +922,7 @@ const SWINEHERD: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 120.0,
@@ -889,6 +954,7 @@ const MONASTERY: BuildingDef = BuildingDef {
     storage_preserved_food: 80.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: false,
     max_labor: 0,
     work_radius: 0.0,
@@ -920,6 +986,7 @@ const BREWERY: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
@@ -951,6 +1018,7 @@ const SMOKEHOUSE: BuildingDef = BuildingDef {
     storage_preserved_food: 180.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -982,6 +1050,7 @@ const GRANARY: BuildingDef = BuildingDef {
     storage_preserved_food: 180.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
@@ -1013,6 +1082,7 @@ const APIARY: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 140.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 1,
     work_radius: 0.0,
@@ -1044,6 +1114,7 @@ const WATERMILL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
@@ -1075,6 +1146,7 @@ const CARPENTER: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 24.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -1106,6 +1178,7 @@ const FERRY_LANDING: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -1137,6 +1210,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 180.0,
+    storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -1153,7 +1227,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, FERRY_LANDING, VINEYARD];
+const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, FERRY_LANDING, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)

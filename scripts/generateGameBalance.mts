@@ -31,6 +31,7 @@ type BuildingBalance = {
     preservedFood?: number;
     honey?: number;
     wine?: number;
+    polearms?: number;
   };
   workRadius: number;
   pickRadius: number;
@@ -149,6 +150,15 @@ export type GameBalance = {
     freshFoodSpoilageAutumnPerDay: number;
     freshFoodSpoilageWinterPerDay: number;
     freshFoodSpoilageDroughtPerDay: number;
+    freshFoodStorageFactors: {
+      defaultBuilding: number;
+      granary: number;
+      smokehouse: number;
+      monastery: number;
+      marketplace: number;
+      residence: number;
+      treasury: number;
+    };
   };
   fires: {
     lightningIgnitionChancePerRainDay: number;
@@ -195,6 +205,14 @@ export type GameBalance = {
     householdMaxWealth: number;
     townHallPopulationRequired: number;
     townHallUnstaffedTaxCollectionMultiplier: number;
+  };
+  frontierEconomy: {
+    carpenterTimberPerPolearm: number;
+    carpenterGoldPerPolearm: number;
+    guardhouseFoodPerGuardPerDay: number;
+    guardhouseWagePerGuardPerDay: number;
+    guardhouseTrainingPerDay: number;
+    guardhouseReadinessDecayPerDay: number;
   };
   population: {
     starting: number;
@@ -400,6 +418,7 @@ const simKindByKind: Record<string, string | null> = {
   town_hall: null,
   village_storehouse: 'VillageStorehouse',
   watchtower: null,
+  guardhouse: 'Guardhouse',
   threshing_barn: 'ThreshingBarn',
   monastery: 'Monastery',
   brewery: 'Brewery',
@@ -466,6 +485,13 @@ function generateRust(): string {
     `pub const FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY: f64 = ${rustF64(b.seasons.freshFoodSpoilageAutumnPerDay)};`,
     `pub const FRESH_FOOD_SPOILAGE_WINTER_PER_DAY: f64 = ${rustF64(b.seasons.freshFoodSpoilageWinterPerDay)};`,
     `pub const FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY: f64 = ${rustF64(b.seasons.freshFoodSpoilageDroughtPerDay)};`,
+    `pub const FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.defaultBuilding)};`,
+    `pub const FRESH_FOOD_STORAGE_GRANARY_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.granary)};`,
+    `pub const FRESH_FOOD_STORAGE_SMOKEHOUSE_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.smokehouse)};`,
+    `pub const FRESH_FOOD_STORAGE_MONASTERY_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.monastery)};`,
+    `pub const FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.marketplace)};`,
+    `pub const FRESH_FOOD_STORAGE_RESIDENCE_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.residence)};`,
+    `pub const FRESH_FOOD_STORAGE_TREASURY_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.treasury)};`,
     '',
     `pub const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY: f64 = ${rustF64(b.fires.lightningIgnitionChancePerRainDay)};`,
     `pub const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY: f64 = ${rustF64(b.fires.accidentIgnitionChancePerStructureDay)};`,
@@ -510,6 +536,13 @@ function generateRust(): string {
     `pub const HOUSEHOLD_MAX_WEALTH: f64 = ${rustF64(b.economy.householdMaxWealth)};`,
     `pub const TOWN_HALL_POPULATION_REQUIRED: u32 = ${b.economy.townHallPopulationRequired};`,
     `pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = ${rustF64(b.economy.townHallUnstaffedTaxCollectionMultiplier)};`,
+    '',
+    `pub const CARPENTER_TIMBER_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterTimberPerPolearm)};`,
+    `pub const CARPENTER_GOLD_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterGoldPerPolearm)};`,
+    `pub const GUARDHOUSE_FOOD_PER_GUARD_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseFoodPerGuardPerDay)};`,
+    `pub const GUARDHOUSE_WAGE_PER_GUARD_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseWagePerGuardPerDay)};`,
+    `pub const GUARDHOUSE_TRAINING_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseTrainingPerDay)};`,
+    `pub const GUARDHOUSE_READINESS_DECAY_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseReadinessDecayPerDay)};`,
     '',
     `pub const STARTING_POPULATION: u32 = ${b.population.starting};`,
     `pub const POPULATION_PER_RESIDENCE: u32 = ${b.population.perResidence};`,
@@ -733,6 +766,7 @@ function generateRust(): string {
   lines.push('    Apiary,');
   lines.push('    Watermill,');
   lines.push('    Carpenter,');
+  lines.push('    Guardhouse,');
   lines.push('    FerryLanding,');
   lines.push('    Vineyard,');
   lines.push('    PastoralFarmstead,');
@@ -756,6 +790,7 @@ function generateRust(): string {
   lines.push('    pub storage_preserved_food: f64,');
   lines.push('    pub storage_honey: f64,');
   lines.push('    pub storage_wine: f64,');
+  lines.push('    pub storage_polearms: f64,');
   lines.push('    pub accepts_labor: bool,');
   lines.push('    pub max_labor: u32,');
   lines.push('    pub work_radius: f64,');
@@ -791,6 +826,7 @@ function generateRust(): string {
     lines.push(`    storage_preserved_food: ${rustF64(def.storage.preservedFood ?? 0)},`);
     lines.push(`    storage_honey: ${rustF64(def.storage.honey ?? 0)},`);
     lines.push(`    storage_wine: ${rustF64(def.storage.wine ?? 0)},`);
+    lines.push(`    storage_polearms: ${rustF64(def.storage.polearms ?? 0)},`);
     lines.push(`    accepts_labor: ${def.acceptsLabor},`);
     lines.push(`    max_labor: ${def.maxLabor},`);
     lines.push(`    work_radius: ${rustF64(def.workRadius)},`);
@@ -952,6 +988,13 @@ function generateTypeScript(): string {
     `export const FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY = ${b.seasons.freshFoodSpoilageAutumnPerDay};`,
     `export const FRESH_FOOD_SPOILAGE_WINTER_PER_DAY = ${b.seasons.freshFoodSpoilageWinterPerDay};`,
     `export const FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY = ${b.seasons.freshFoodSpoilageDroughtPerDay};`,
+    `export const FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR = ${b.seasons.freshFoodStorageFactors.defaultBuilding};`,
+    `export const FRESH_FOOD_STORAGE_GRANARY_FACTOR = ${b.seasons.freshFoodStorageFactors.granary};`,
+    `export const FRESH_FOOD_STORAGE_SMOKEHOUSE_FACTOR = ${b.seasons.freshFoodStorageFactors.smokehouse};`,
+    `export const FRESH_FOOD_STORAGE_MONASTERY_FACTOR = ${b.seasons.freshFoodStorageFactors.monastery};`,
+    `export const FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR = ${b.seasons.freshFoodStorageFactors.marketplace};`,
+    `export const FRESH_FOOD_STORAGE_RESIDENCE_FACTOR = ${b.seasons.freshFoodStorageFactors.residence};`,
+    `export const FRESH_FOOD_STORAGE_TREASURY_FACTOR = ${b.seasons.freshFoodStorageFactors.treasury};`,
     '',
     `export const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY = ${b.fires.lightningIgnitionChancePerRainDay};`,
     `export const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY = ${b.fires.accidentIgnitionChancePerStructureDay};`,
@@ -996,6 +1039,13 @@ function generateTypeScript(): string {
     `export const HOUSEHOLD_MAX_WEALTH = ${b.economy.householdMaxWealth};`,
     `export const TOWN_HALL_POPULATION_REQUIRED = ${b.economy.townHallPopulationRequired};`,
     `export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = ${b.economy.townHallUnstaffedTaxCollectionMultiplier};`,
+    '',
+    `export const CARPENTER_TIMBER_PER_POLEARM = ${b.frontierEconomy.carpenterTimberPerPolearm};`,
+    `export const CARPENTER_GOLD_PER_POLEARM = ${b.frontierEconomy.carpenterGoldPerPolearm};`,
+    `export const GUARDHOUSE_FOOD_PER_GUARD_PER_DAY = ${b.frontierEconomy.guardhouseFoodPerGuardPerDay};`,
+    `export const GUARDHOUSE_WAGE_PER_GUARD_PER_DAY = ${b.frontierEconomy.guardhouseWagePerGuardPerDay};`,
+    `export const GUARDHOUSE_TRAINING_PER_DAY = ${b.frontierEconomy.guardhouseTrainingPerDay};`,
+    `export const GUARDHOUSE_READINESS_DECAY_PER_DAY = ${b.frontierEconomy.guardhouseReadinessDecayPerDay};`,
     '',
     `export const STARTING_POPULATION = ${b.population.starting};`,
     `export const POPULATION_PER_RESIDENCE = ${b.population.perResidence};`,
@@ -1214,6 +1264,7 @@ function generateTypeScript(): string {
     '  preservedFood?: number;',
     '  honey?: number;',
     '  wine?: number;',
+    '  polearms?: number;',
     '};',
     '',
     'export type BuildingDefinition = {',
@@ -1282,6 +1333,7 @@ function generateTypeScript(): string {
     const preservedFood = def.storage.preservedFood ?? 0;
     const honey = def.storage.honey ?? 0;
     const wine = def.storage.wine ?? 0;
+    const polearms = def.storage.polearms ?? 0;
     const extras: string[] = [];
     if (water > 0) extras.push(`water: ${water}`);
     if (food > 0) extras.push(`food: ${food}`);
@@ -1291,6 +1343,7 @@ function generateTypeScript(): string {
     if (preservedFood > 0) extras.push(`preservedFood: ${preservedFood}`);
     if (honey > 0) extras.push(`honey: ${honey}`);
     if (wine > 0) extras.push(`wine: ${wine}`);
+    if (polearms > 0) extras.push(`polearms: ${polearms}`);
     lines.push(
       `  ${kind}: { timber: ${def.storage.timber}, firewood: ${def.storage.firewood}, stone: ${def.storage.stone}${extras.length > 0 ? `, ${extras.join(', ')}` : ''} },`,
     );

@@ -57,6 +57,7 @@ function buildingStateFromRow(
     preservedFood: row.preservedFood,
     honey: row.honey,
     wine: row.wine,
+    polearms: row.polearms,
     gold: row.gold,
     waterCapacity: row.waterCapacity,
     assignedLabor: Number(row.assignedLabor),
@@ -73,5 +74,6 @@ function buildingStateFromRow(
     storehouseAcceptsTimber: row.storehouseAcceptsTimber,
     storehouseAcceptsStone: row.storehouseAcceptsStone,
     storehouseAcceptsFirewood: row.storehouseAcceptsFirewood,
+    granaryAcceptsFreshFood: row.granaryAcceptsFreshFood,
   };
 }

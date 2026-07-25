@@ -267,6 +267,18 @@ export async function setStorehousePolicy(
   });
 }
 
+export async function setGranaryPolicy(
+  buildingId: string,
+  acceptsFreshFood: boolean,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid village granary id.');
+  await callReducer('setGranaryPolicy', 'set_granary_policy', {
+    buildingId: serverId,
+    acceptsFreshFood,
+  });
+}
+
 export async function assignBuildingLabor(buildingId: string, labor: number): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
   if (serverId === null) {

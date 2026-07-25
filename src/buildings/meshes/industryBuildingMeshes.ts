@@ -14,6 +14,7 @@ import { addLogPile } from '../logPile.ts';
 import {
   addDarkOpening,
   addGableShell,
+  addLeanToRoof,
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
@@ -182,13 +183,16 @@ export function createLumberMillMesh(): THREE.Group {
       new THREE.Vector3(x, 1.95, halfW + 1.05),
     );
   }
-  addMesh(
-    group,
-    new THREE.BoxGeometry(6.0, 0.13, 2.1),
-    tileMaterial(1),
-    new THREE.Vector3(0, 3.95, halfW + 0.72),
-    new THREE.Euler(-0.16, 0, 0),
-  );
+  addLeanToRoof(group, {
+    width: 6.0,
+    depth: 2.1,
+    thickness: 0.13,
+    material: tileMaterial(1),
+    position: new THREE.Vector3(0, 3.95, halfW + 0.72),
+    pitch: 0.16,
+    highEdge: 'negativeZ',
+    name: 'Lumber mill intake canopy roof',
+  });
 
   group.add(createMillTimberStockpile());
   return group;
@@ -257,13 +261,16 @@ function addChoppingShelter(group: THREE.Group, halfW: number): void {
       );
     }
   }
-  addMesh(
-    group,
-    new THREE.BoxGeometry(1.65, 0.12, 3.0),
-    shingleMaterial(),
-    new THREE.Vector3(centerX, 2.06, 0),
-    new THREE.Euler(0, 0, -0.13),
-  );
+  addLeanToRoof(group, {
+    width: 1.65,
+    depth: 3.0,
+    thickness: 0.12,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(centerX, 2.06, 0),
+    pitch: 0.13,
+    highEdge: 'negativeX',
+    name: "Woodcutter's chopping shelter roof",
+  });
   addMesh(
     group,
     new THREE.CylinderGeometry(0.46, 0.52, 0.56, 10),

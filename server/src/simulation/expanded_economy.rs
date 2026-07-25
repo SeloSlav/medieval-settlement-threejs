@@ -18,11 +18,16 @@ use crate::burgage::{Point2, ZoneCorners};
 use crate::db::*;
 use crate::economy::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
-    credit_treasury_gold, deposit_building_commodity, withdraw_building_commodity, CommodityKind,
+    credit_treasury_gold, deposit_building_commodity, spend_treasury_gold,
+    withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
     expected_grain_yield, fertility_after_harvest, shape_efficiency, work_required, CROP_FALLOW,
     STAGE_GROWING, STAGE_HARVESTING, STAGE_PLOUGHING, STAGE_SOWING,
+};
+use crate::frontier_economy_policy::{
+    armed_guards, guard_upkeep, next_guard_readiness, CARPENTER_GOLD_PER_POLEARM,
+    CARPENTER_TIMBER_PER_POLEARM,
 };
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{
@@ -104,7 +109,8 @@ pub fn step_granary(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut granary = ensure_water_for_process(ctx, tick, building, GRANARY_WATER_PER_CYCLE);
+    let mut granary =
+        ensure_water_for_process(ctx, tick, clock, building, GRANARY_WATER_PER_CYCLE);
     request_connected_commodity(
         ctx,
         tick,
@@ -117,16 +123,18 @@ pub fn step_granary(
     // Once its bakery inputs are covered, the granary also centralizes fresh
     // wild food. Producers keep enough local stock for direct household
     // deliveries; the granary requests only while below its storage buffer.
-    let food_buffer = building_commodity_cap(&granary.kind, CommodityKind::Food) * 0.75;
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &granary,
-        CommodityKind::Food,
-        &["hunters_hall", "foragers_shed", "fishing_camp", "swineherd"],
-        food_buffer,
-    );
+    if granary.granary_accepts_fresh_food {
+        let food_buffer = building_commodity_cap(&granary.kind, CommodityKind::Food) * 0.75;
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            &granary,
+            CommodityKind::Food,
+            &["hunters_hall", "foragers_shed", "fishing_camp", "swineherd"],
+            food_buffer,
+        );
+    }
     granary = step_processor(
         ctx,
         clock,
@@ -370,7 +378,8 @@ pub fn step_brewery(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut brewery = ensure_water_for_process(ctx, tick, building, BREWERY_WATER_PER_CYCLE);
+    let mut brewery =
+        ensure_water_for_process(ctx, tick, clock, building, BREWERY_WATER_PER_CYCLE);
     brewery = step_processor(
         ctx,
         clock,
@@ -584,11 +593,129 @@ pub fn step_ferry_landing(
     ctx.db.building().id().update(building);
 }
 
-pub fn step_carpenter(ctx: &ReducerContext, clock: &GameClock, mut building: Building) {
-    if labor_and_logistics_paused(ctx, building.owner, clock) {
+fn frontier_economy_enabled(ctx: &ReducerContext) -> bool {
+    ctx.db
+        .world_config()
+        .id()
+        .find(&0)
+        .is_some_and(|config| config.conflict_enabled && config.enemy_pressure > 0)
+}
+
+pub fn step_carpenter(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    mut building: Building,
+) {
+    if !frontier_economy_enabled(ctx) {
+        building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
+        ctx.db.building().id().update(building);
         return;
     }
-    building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
+
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &building,
+        CommodityKind::Timber,
+        &["lumber_mill", "village_storehouse"],
+        CARPENTER_TIMBER_PER_POLEARM * 6.0,
+    );
+
+    if cycle_ready(ctx, clock, &mut building, false)
+        && building.timber + 1e-6 >= CARPENTER_TIMBER_PER_POLEARM
+        && building_commodity_room(&building, CommodityKind::Polearms) + 1e-6 >= 1.0
+        && spend_treasury_gold(ctx, building.owner, CARPENTER_GOLD_PER_POLEARM).is_ok()
+    {
+        withdraw_building_commodity(
+            &mut building,
+            CommodityKind::Timber,
+            CARPENTER_TIMBER_PER_POLEARM,
+        );
+        deposit_building_commodity(&mut building, CommodityKind::Polearms, 1.0);
+        let labor = building.assigned_labor as f64;
+        reset_cycle(&mut building, labor);
+    }
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut building,
+        CommodityKind::Polearms,
+        &["guardhouse"],
+    );
+    ctx.db.building().id().update(building);
+}
+
+pub fn step_guardhouse(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    mut building: Building,
+) {
+    if !frontier_economy_enabled(ctx) {
+        building.action_cooldown = 0.0;
+        ctx.db.building().id().update(building);
+        return;
+    }
+
+    let food_buffer = (building.assigned_labor as f64 * 6.0).max(12.0);
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &building,
+        CommodityKind::Food,
+        &[
+            "granary",
+            "hunters_hall",
+            "foragers_shed",
+            "fishing_camp",
+            "pastoral_farmstead",
+            "swineherd",
+        ],
+        food_buffer,
+    );
+
+    let armed_guards = armed_guards(building.assigned_labor, building.polearms);
+    if armed_guards <= 1e-6 {
+        building.action_cooldown = next_guard_readiness(
+            building.action_cooldown,
+            0.0,
+            TICK_DT,
+            CALENDAR_SECONDS_PER_DAY,
+        );
+        ctx.db.building().id().update(building);
+        return;
+    }
+
+    let treasury_gold = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&building.owner)
+        .map(|resources| resources.gold)
+        .unwrap_or(0.0);
+    let upkeep = guard_upkeep(
+        armed_guards,
+        building.food,
+        treasury_gold,
+        TICK_DT,
+        CALENDAR_SECONDS_PER_DAY,
+    );
+    withdraw_building_commodity(
+        &mut building,
+        CommodityKind::Food,
+        upkeep.food_due * upkeep.supply_ratio,
+    );
+    let _ = spend_treasury_gold(ctx, building.owner, upkeep.wage_due * upkeep.supply_ratio);
+    building.action_cooldown = next_guard_readiness(
+        building.action_cooldown,
+        upkeep.supply_ratio,
+        TICK_DT,
+        CALENDAR_SECONDS_PER_DAY,
+    );
     ctx.db.building().id().update(building);
 }
 
@@ -691,9 +818,13 @@ fn reset_cycle(building: &mut Building, labor: f64) {
 fn ensure_water_for_process(
     ctx: &ReducerContext,
     tick: &SimTickContext,
+    clock: &GameClock,
     building: Building,
     needed: f64,
 ) -> Building {
+    if building.assigned_labor == 0 || labor_and_logistics_paused(ctx, building.owner, clock) {
+        return building;
+    }
     let Some(network) = tick.road_network(building.owner) else {
         return building;
     };
@@ -804,7 +935,9 @@ pub(crate) fn dispatch_need(
     need_kind: ResidenceNeedKind,
     per_delivery: f64,
 ) {
-    if building_has_active_trip(ctx, supplier.id)
+    if supplier.assigned_labor == 0
+        || labor_and_logistics_paused(ctx, supplier.owner, clock)
+        || building_has_active_trip(ctx, supplier.id)
         || building_commodity_stock(supplier, need_to_commodity(need_kind)) <= 1e-6
     {
         return;
@@ -904,6 +1037,8 @@ pub(crate) fn request_connected_commodity(
     desired: f64,
 ) {
     if !target.construction_complete
+        || target.assigned_labor == 0
+        || labor_and_logistics_paused(ctx, target.owner, clock)
         || building_has_inbound_supply_trip(ctx, target.id)
         || building_commodity_stock(&target, commodity) + 1e-6 >= desired
     {

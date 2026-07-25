@@ -14,6 +14,8 @@ import { renderLivestockBuildingInspector } from './livestockBuildingRenderer.ts
 import { renderTownHallInspector } from './townHallRenderer.ts';
 import { renderStorehouseInspector } from './storehouseRenderer.ts';
 import { renderConstructionInspector } from './constructionRenderer.ts';
+import { renderWatchtowerInspector } from './watchtowerRenderer.ts';
+import { renderGuardhouseInspector } from './guardhouseRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -32,6 +34,10 @@ export function renderBuildingInspector(
       return renderTownHallInspector(target, context);
     case 'village_storehouse':
       return renderStorehouseInspector(target, context);
+    case 'watchtower':
+      return renderWatchtowerInspector(target, context);
+    case 'guardhouse':
+      return renderGuardhouseInspector(target, context);
     case 'lumber_mill':
       return renderLumberMillInspector(target, context);
     case 'woodcutters_lodge':

@@ -66,6 +66,9 @@ pub struct PlayerResources {
     pub honey: f64,
     #[default(0.0)]
     pub wine: f64,
+    /// Treasury polearms recovered from demolition or interrupted deliveries.
+    #[default(0.0)]
+    pub polearms: f64,
     /// Mayor tax rate on village economic activity (0–1 fraction).
     #[default(0.18)]
     pub economic_activity_tax_rate: f64,
@@ -174,6 +177,9 @@ pub struct Building {
     pub honey: f64,
     #[default(0.0)]
     pub wine: f64,
+    /// Carpenter-made spears and other long hafted weapons.
+    #[default(0.0)]
+    pub polearms: f64,
     pub water_capacity: f64,
     pub assigned_labor: u32,
     /// Village storehouse intake filters; ignored by other building kinds.
@@ -210,6 +216,11 @@ pub struct Building {
     pub construction_treasury_timber: f64,
     #[default(0.0)]
     pub construction_treasury_stone: f64,
+    /// Granary intake policy; ignored by other building kinds. Keeping this
+    /// enabled trades an extra road haul for substantially slower fresh-food
+    /// spoilage in centralized storage.
+    #[default(true)]
+    pub granary_accepts_fresh_food: bool,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).
@@ -432,6 +443,12 @@ pub struct SettlementSecurity {
     pub total_value: f64,
     #[default(0u32)]
     pub staffed_watchtowers: u32,
+    /// Armed, provisioned and paid guards available at this security update.
+    #[default(0.0)]
+    pub ready_guards: f64,
+    /// Normalized settlement-wide guard readiness.
+    #[default(0.0)]
+    pub defense_readiness: f64,
     #[default(0u64)]
     pub next_raid_tick: u64,
     #[default(0u64)]

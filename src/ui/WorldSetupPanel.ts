@@ -40,7 +40,7 @@ export class WorldSetupPanel {
             </button>
             <button type="button" class="world-setup-mode-option" data-conflict-mode="frontier">
               <strong>Contested frontier</strong>
-              <span>Build an economy that can also support watchmen and withstand periodic incursions.</span>
+              <span>Build an economy that can support watchmen and withstand periodic Ottoman raiding parties.</span>
             </button>
           </div>
           <div class="world-setup-pressure" data-pressure-controls hidden>
@@ -49,7 +49,7 @@ export class WorldSetupPanel {
               <strong data-pressure-value>50</strong>
             </label>
             <input id="world-setup-pressure" class="world-setup-slider" type="range" min="10" max="100" step="5" value="50" />
-            <p class="world-setup-slider-hint">Higher pressure shortens warnings and increases exposed-stock losses. It does not grant enemies extra resources.</p>
+            <p class="world-setup-slider-hint">Higher pressure brings scouts sooner and increases portable-goods losses at exposed holdings.</p>
           </div>
         </section>
 

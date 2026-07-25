@@ -79,6 +79,7 @@ export type BuildingState = {
   preservedFood: number;
   honey: number;
   wine: number;
+  polearms?: number;
   gold: number;
   waterCapacity: number;
   assignedLabor: number;
@@ -95,6 +96,7 @@ export type BuildingState = {
   storehouseAcceptsTimber: boolean;
   storehouseAcceptsStone: boolean;
   storehouseAcceptsFirewood: boolean;
+  granaryAcceptsFreshFood?: boolean;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {
@@ -187,7 +189,7 @@ export type BackyardGardenState = {
   kind: import('../generated/gameBalance.ts').BackyardGardenKind;
 };
 
-export type ResourceStockpile = Record<ResourceKind, number> & { gold: number };
+export type ResourceStockpile = Record<ResourceKind, number> & { gold: number; polearms?: number };
 
 export type GameState = {
   seed: number;
@@ -258,7 +260,7 @@ export type InspectableTarget =
     };
 
 export function createEmptyStockpile(): ResourceStockpile {
-  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, gold: 0 };
+  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, polearms: 0, gold: 0 };
 }
 
 export function isResourceKind(value: string): value is ResourceKind {

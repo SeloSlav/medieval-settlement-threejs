@@ -1,4 +1,5 @@
 import type { EnvironmentState } from '../world/seasonPolicy.ts';
+import { FRESH_FOOD_SPOILAGE_SPRING_PER_DAY } from '../generated/gameBalance.ts';
 
 export type PrecipitationKind = 'none' | 'rain' | 'snow';
 
@@ -99,5 +100,6 @@ export function standalonePrecipitationPreview(
     cropGrowthMultiplier: 1,
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
+    freshFoodSpoilageFractionPerDay: FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
   }, search);
 }

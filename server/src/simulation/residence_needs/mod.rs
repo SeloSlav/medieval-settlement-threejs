@@ -10,6 +10,7 @@ pub use kinds::ResidenceNeedKind;
 pub use state::{load_needs, need_stock};
 
 use crate::season_policy::EnvironmentState;
+use crate::balance_generated::FRESH_FOOD_STORAGE_RESIDENCE_FACTOR;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_consumption_paused;
 use spacetimedb::ReducerContext;
@@ -45,6 +46,15 @@ pub fn step_residence_needs(
     for kind in ResidenceNeedKind::ALL {
         // Heating is continuous. Other needs keep the existing workday cadence.
         if general_consumption_paused && kind != ResidenceNeedKind::Firewood {
+            if kind == ResidenceNeedKind::Food {
+                if let Some(need) = find_need_mut(&mut needs, kind) {
+                    *need = food::spoil(
+                        need,
+                        environment.fresh_food_spoilage_fraction_per_second()
+                            * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
+                    );
+                }
+            }
             continue;
         }
         if !kind.is_active_for_tier(residence.tier) {
@@ -209,7 +219,12 @@ fn consume_need(
             water::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             water::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
-        ResidenceNeedKind::Food => match food::consume(residence, need) {
+        ResidenceNeedKind::Food => match food::consume(
+            residence,
+            need,
+            environment.fresh_food_spoilage_fraction_per_second()
+                * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
+        ) {
             food::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             food::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },

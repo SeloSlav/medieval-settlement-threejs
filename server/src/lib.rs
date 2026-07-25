@@ -10,6 +10,7 @@ mod economy;
 mod farming;
 mod fire_policy;
 mod foraging_policy;
+mod frontier_economy_policy;
 mod hydrology;
 mod hydrology_grid_generated;
 mod lifecycle;

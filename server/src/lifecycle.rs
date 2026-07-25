@@ -95,6 +95,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         preserved_food: 0.0,
         honey: 0.0,
         wine: 0.0,
+        polearms: 0.0,
         economic_activity_tax_rate: ECONOMIC_ACTIVITY_TAX_RATE,
         chapel_auto_sweep_enabled: false,
         chapel_coffer_reserve_gold: CHAPEL_COFFER_RESERVE_DEFAULT,

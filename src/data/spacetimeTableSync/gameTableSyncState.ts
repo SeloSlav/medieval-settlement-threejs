@@ -19,6 +19,7 @@ import type {
 } from '../../resources/types.ts';
 import type { GameSpeed } from '../../world/gameSpeed.ts';
 import type { FireIncidentState } from '../../fires/fireIncident.ts';
+import type { SettlementSecurityState } from '../../security/frontierSecurity.ts';
 
 export type GameTableSyncState = {
   identityHex: string | null;
@@ -42,5 +43,6 @@ export type GameTableSyncState = {
   backyardGardens: Map<string, BackyardGardenState>;
   deliveryTrips: Map<string, DeliveryTripState>;
   fireIncidents: Map<string, FireIncidentState>;
+  settlementSecurity: SettlementSecurityState;
   roads: RoadNetworkSnapshot | null;
 };

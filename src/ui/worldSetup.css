@@ -228,3 +228,9 @@
   filter: brightness(1.05);
   outline: none;
 }
+
+@media (max-width: 560px) {
+  .world-setup-mode-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -35,6 +35,7 @@ import {
   createTownHallMesh,
   createVillageStorehouseMesh,
   createWatchtowerMesh,
+  createGuardhouseMesh,
 } from './meshes/civicLogisticsBuildingMeshes.ts';
 
 export function createBuildingMesh(kind: BuildingKind): THREE.Group {
@@ -64,6 +65,7 @@ export function createBuildingMesh(kind: BuildingKind): THREE.Group {
     case 'town_hall': return createTownHallMesh();
     case 'village_storehouse': return createVillageStorehouseMesh();
     case 'watchtower': return createWatchtowerMesh();
+    case 'guardhouse': return createGuardhouseMesh();
     case 'threshing_barn': return createThreshingBarnMesh();
     case 'monastery': return createMonasteryMesh();
     case 'brewery': return createBreweryMesh();

@@ -10,6 +10,7 @@ import {
   type BridgeSamplingContext,
   type BridgeSpan,
 } from './RiverBridgeSpans.ts';
+import { buildBridgeRailings } from './BridgeRailings.ts';
 import { buildBridgeSupports } from './BridgeSupports.ts';
 
 const CORE_Y_OFFSET = 0.12;
@@ -79,6 +80,7 @@ export class RoadMeshBuilder {
     const core = this.buildRibbonFromSections(crossSections, ribbonPath, this.materials.road, bridgeBlends);
     core.name = `Road core ${edge.id}`;
     core.userData.edgeId = edge.id;
+    core.userData.fpNoCollision = true;
     core.castShadow = false;
     core.receiveShadow = true;
     core.renderOrder = hasBridge ? 13 : 11;
@@ -90,6 +92,7 @@ export class RoadMeshBuilder {
     });
     edgeBlend.name = `Road edge blend ${edge.id}`;
     edgeBlend.userData.edgeId = edge.id;
+    edgeBlend.userData.fpNoCollision = true;
     edgeBlend.castShadow = false;
     edgeBlend.receiveShadow = true;
     edgeBlend.renderOrder = hasBridge ? 12 : 10;
@@ -98,6 +101,16 @@ export class RoadMeshBuilder {
     if (hasBridge && this.bridgeCtx) {
       const supports = buildBridgeSupports(ribbonPath, edge.width, spans, this.bridgeCtx, this.materials.bridgeSupport);
       if (supports) group.add(supports);
+      const railings = buildBridgeRailings(
+        crossSections.map((section, index) => ({
+          center: ribbonPath[index],
+          leftDeck: section.leftCore,
+          rightDeck: section.rightCore,
+          bridgeBlend: section.bridgeBlend,
+        })),
+        this.materials.bridgeSupport,
+      );
+      if (railings) group.add(railings);
     }
 
     edge.mesh = group;

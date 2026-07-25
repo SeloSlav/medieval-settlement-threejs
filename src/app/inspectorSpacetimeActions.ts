@@ -24,6 +24,7 @@ export type InspectorSpacetimeActions = {
   onSetChapelParishPolicy: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => Promise<void>;
   onSetMonasteryPolicy: (titheShare: number, feastsEnabled: boolean) => Promise<void>;
   onSetStorehousePolicy: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => Promise<void>;
+  onSetGranaryPolicy: (buildingId: string, acceptsFreshFood: boolean) => Promise<void>;
 };
 
 export function createInspectorSpacetimeActions(
@@ -191,6 +192,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setStorehousePolicy(buildingId, acceptsTimber, acceptsStone, acceptsFirewood),
         'Could not update storehouse intake filters.',
+      );
+    },
+    onSetGranaryPolicy: async (buildingId, acceptsFreshFood) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setGranaryPolicy(buildingId, acceptsFreshFood),
+        'Could not update granary intake policy.',
       );
     },
   };

@@ -23,6 +23,7 @@ pub struct DeliveryCargoTotals {
     pub honey: f64,
     pub wine: f64,
     pub stone: f64,
+    pub polearms: f64,
 }
 
 impl DeliveryCargoTotals {
@@ -39,6 +40,7 @@ impl DeliveryCargoTotals {
             CommodityKind::Honey => self.honey += amount,
             CommodityKind::Wine => self.wine += amount,
             CommodityKind::Stone => self.stone += amount,
+            CommodityKind::Polearms => self.polearms += amount,
         }
     }
 }

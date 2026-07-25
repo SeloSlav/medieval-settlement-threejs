@@ -17,6 +17,7 @@ pub enum CommodityKind {
     Honey,
     Wine,
     Stone,
+    Polearms,
 }
 
 impl CommodityKind {
@@ -33,6 +34,7 @@ impl CommodityKind {
             Self::Honey => 8,
             Self::Wine => 9,
             Self::Stone => 10,
+            Self::Polearms => 11,
         }
     }
 
@@ -49,6 +51,7 @@ impl CommodityKind {
             8 => Some(Self::Honey),
             9 => Some(Self::Wine),
             10 => Some(Self::Stone),
+            11 => Some(Self::Polearms),
             _ => None,
         }
     }
@@ -67,6 +70,7 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Honey => building.honey,
         CommodityKind::Wine => building.wine,
         CommodityKind::Stone => building.stone,
+        CommodityKind::Polearms => building.polearms,
     }
 }
 
@@ -86,6 +90,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Honey => def.storage_honey,
         CommodityKind::Wine => def.storage_wine,
         CommodityKind::Stone => def.storage_stone,
+        CommodityKind::Polearms => def.storage_polearms,
     }
 }
 
@@ -112,6 +117,7 @@ pub fn withdraw_building_commodity(
         CommodityKind::Honey => building.honey -= withdrawn,
         CommodityKind::Wine => building.wine -= withdrawn,
         CommodityKind::Stone => building.stone -= withdrawn,
+        CommodityKind::Polearms => building.polearms -= withdrawn,
     }
     withdrawn
 }
@@ -134,6 +140,7 @@ pub fn deposit_building_commodity(
         CommodityKind::Honey => building.honey += deposited,
         CommodityKind::Wine => building.wine += deposited,
         CommodityKind::Stone => building.stone += deposited,
+        CommodityKind::Polearms => building.polearms += deposited,
     }
     deposited
 }
@@ -162,6 +169,7 @@ pub fn credit_treasury_commodity(
         CommodityKind::Honey => treasury.honey += amount,
         CommodityKind::Wine => treasury.wine += amount,
         CommodityKind::Stone => treasury.stone += amount,
+        CommodityKind::Polearms => treasury.polearms += amount,
     }
     ctx.db.player_resources().owner().update(treasury);
 }

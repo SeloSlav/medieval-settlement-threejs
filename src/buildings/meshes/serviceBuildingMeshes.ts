@@ -11,6 +11,7 @@ import {
 import {
   addBarrel,
   addGableShell,
+  addLeanToRoof,
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
@@ -126,13 +127,16 @@ function addDryingLeanTo(group: THREE.Group, halfW: number): void {
       );
     }
   }
-  addMesh(
-    group,
-    new THREE.BoxGeometry(1.85, 0.13, 3.95),
-    shingleMaterial(),
-    new THREE.Vector3(centerX, 2.22, 0),
-    new THREE.Euler(0, 0, -0.16),
-  );
+  addLeanToRoof(group, {
+    width: 1.85,
+    depth: 3.95,
+    thickness: 0.13,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(centerX, 2.22, 0),
+    pitch: 0.16,
+    highEdge: 'negativeX',
+    name: "Hunter's hall drying lean-to roof",
+  });
   for (const z of [-1.25, -0.42, 0.42, 1.25]) {
     addMesh(
       group,
@@ -178,30 +182,33 @@ function addHerbPorch(group: THREE.Group, frontZ: number): void {
   for (const x of [-2.0, 2.0]) {
     addMesh(
       group,
-      new THREE.BoxGeometry(0.14, 2.1, 0.14),
+      new THREE.BoxGeometry(0.14, 2.48, 0.14),
       timberMaterial('dark'),
-      new THREE.Vector3(x, 1.05, porchZ),
+      new THREE.Vector3(x, 1.24, porchZ),
     );
   }
-  addMesh(
-    group,
-    new THREE.BoxGeometry(4.35, 0.12, 2.05),
-    shingleMaterial(),
-    new THREE.Vector3(0, 2.18, porchZ - 0.18),
-    new THREE.Euler(-0.14, 0, 0),
-  );
+  addLeanToRoof(group, {
+    width: 4.35,
+    depth: 2.05,
+    thickness: 0.12,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(0, 2.54, porchZ - 0.18),
+    pitch: 0.14,
+    highEdge: 'negativeZ',
+    name: "Forager's shed herb porch roof",
+  });
   addMesh(
     group,
     new THREE.BoxGeometry(4.0, 0.1, 0.1),
     timberMaterial('weathered'),
-    new THREE.Vector3(0, 1.72, porchZ),
+    new THREE.Vector3(0, 2.15, porchZ),
   );
   for (let i = 0; i < 7; i++) {
     addMesh(
       group,
       new THREE.ConeGeometry(0.16, 0.55 + (i % 2) * 0.12, 7),
       sharedBuildingDetailMaterial('foliage'),
-      new THREE.Vector3(-1.55 + i * 0.52, 1.4, porchZ),
+      new THREE.Vector3(-1.55 + i * 0.52, 1.83, porchZ),
       new THREE.Euler(Math.PI, 0, 0),
     );
   }

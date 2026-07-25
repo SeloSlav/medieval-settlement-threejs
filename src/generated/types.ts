@@ -37,6 +37,7 @@ export const Building = __t.object("Building", {
   preservedFood: __t.f64(),
   honey: __t.f64(),
   wine: __t.f64(),
+  polearms: __t.f64(),
   waterCapacity: __t.f64(),
   assignedLabor: __t.u32(),
   storehouseAcceptsTimber: __t.bool(),
@@ -53,6 +54,7 @@ export const Building = __t.object("Building", {
   constructionReservedStone: __t.f64(),
   constructionTreasuryTimber: __t.f64(),
   constructionTreasuryStone: __t.f64(),
+  granaryAcceptsFreshFood: __t.bool(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -229,6 +231,7 @@ export const PlayerResources = __t.object("PlayerResources", {
   preservedFood: __t.f64(),
   honey: __t.f64(),
   wine: __t.f64(),
+  polearms: __t.f64(),
   economicActivityTaxRate: __t.f64(),
   chapelAutoSweepEnabled: __t.bool(),
   chapelCofferReserveGold: __t.f64(),
@@ -298,6 +301,23 @@ export const RoadNetworkState = __t.object("RoadNetworkState", {
 });
 export type RoadNetworkState = __Infer<typeof RoadNetworkState>;
 
+export const SettlementSecurity = __t.object("SettlementSecurity", {
+  owner: __t.identity(),
+  threat: __t.f64(),
+  coverage: __t.f64(),
+  protectedValue: __t.f64(),
+  totalValue: __t.f64(),
+  staffedWatchtowers: __t.u32(),
+  readyGuards: __t.f64(),
+  defenseReadiness: __t.f64(),
+  nextRaidTick: __t.u64(),
+  lastRaidTick: __t.u64(),
+  lastOutcome: __t.u8(),
+  lastGoodsLost: __t.f64(),
+  lastWealthLost: __t.f64(),
+});
+export type SettlementSecurity = __Infer<typeof SettlementSecurity>;
+
 export const SimPacingState = __t.object("SimPacingState", {
   id: __t.u8(),
   stepCredit: __t.u16(),
@@ -340,6 +360,8 @@ export const WorldConfig = __t.object("WorldConfig", {
   topography: __t.u8(),
   hydrology: __t.u8(),
   forestDensity: __t.u8(),
+  conflictEnabled: __t.bool(),
+  enemyPressure: __t.u8(),
   configured: __t.bool(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;

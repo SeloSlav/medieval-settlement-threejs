@@ -2,8 +2,10 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
+use crate::frontier_economy_policy::armed_guards;
 use crate::security_policy::{
-    is_raid_season, raid_loss_fraction, scheduled_raid_ticks, threat_progress,
+    compare_raid_targets, guard_defense_ratio, guarded_raid_loss_fraction,
+    guarded_raid_target_count, is_raid_season, scheduled_raid_ticks, threat_progress,
     tower_effective_radius, MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{settlement_security, Building, Residence, SettlementSecurity};
@@ -26,6 +28,8 @@ pub fn ensure_settlement_security(ctx: &ReducerContext, owner: Identity) {
         protected_value: 0.0,
         total_value: 0.0,
         staffed_watchtowers: 0,
+        ready_guards: 0.0,
+        defense_readiness: 0.0,
         next_raid_tick: 0,
         last_raid_tick: 0,
         last_outcome: 0,
@@ -85,6 +89,8 @@ fn step_owner_security(
         state.protected_value = 0.0;
         state.total_value = 0.0;
         state.staffed_watchtowers = 0;
+        state.ready_guards = 0.0;
+        state.defense_readiness = 0.0;
         state.next_raid_tick = 0;
         state.last_raid_tick = 0;
         state.last_outcome = 0;
@@ -124,6 +130,13 @@ fn step_owner_security(
     state.protected_value = protected_value;
     state.total_value = total_value;
     state.staffed_watchtowers = towers.len() as u32;
+    let (ready_guards, assigned_guards) = settlement_guard_strength(&buildings);
+    state.ready_guards = ready_guards;
+    state.defense_readiness = if assigned_guards > 0.0 {
+        (ready_guards / assigned_guards).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
 
     if population < MIN_FRONTIER_POPULATION {
         state.threat = 0.0;
@@ -144,12 +157,23 @@ fn step_owner_security(
     }
 
     if sim_tick >= state.next_raid_tick && is_raid_season(month) {
-        let (goods_lost, wealth_lost) =
-            resolve_raid(ctx, &buildings, &residences, &towers, enemy_pressure, coverage);
+        let (goods_lost, wealth_lost) = resolve_raid(
+            ctx,
+            &buildings,
+            &residences,
+            &towers,
+            enemy_pressure,
+            coverage,
+            ready_guards,
+        );
         state.last_raid_tick = sim_tick;
         state.last_goods_lost = goods_lost;
         state.last_wealth_lost = wealth_lost;
-        state.last_outcome = if goods_lost + wealth_lost <= 0.1 { 1 } else { 2 };
+        state.last_outcome = if goods_lost + wealth_lost <= 0.1 {
+            1
+        } else {
+            2
+        };
         state.next_raid_tick = sim_tick.saturating_add(scheduled_raid_ticks(
             enemy_pressure,
             ticks_per_day,
@@ -214,8 +238,23 @@ fn building_vulnerable_value(building: &Building) -> f64 {
         + building.preserved_food
         + building.honey
         + building.wine
+        + building.polearms * 4.0
         + building.gold)
         / 30.0
+}
+
+fn settlement_guard_strength(buildings: &[Building]) -> (f64, f64) {
+    buildings
+        .iter()
+        .filter(|building| building.kind == "guardhouse")
+        .fold((0.0, 0.0), |(ready, assigned), guardhouse| {
+            let assigned_here = guardhouse.assigned_labor as f64;
+            let armed_here = armed_guards(guardhouse.assigned_labor, guardhouse.polearms);
+            (
+                ready + armed_here * guardhouse.action_cooldown.clamp(0.0, 1.0),
+                assigned + assigned_here,
+            )
+        })
 }
 
 fn position_is_watched(x: f64, z: f64, towers: &[WatchCoverage]) -> bool {
@@ -233,15 +272,34 @@ fn resolve_raid(
     towers: &[WatchCoverage],
     enemy_pressure: u8,
     coverage: f64,
+    ready_guards: f64,
 ) -> (f64, f64) {
-    let loss_fraction = raid_loss_fraction(enemy_pressure, coverage);
+    let defense_ratio = guard_defense_ratio(enemy_pressure, coverage, ready_guards);
+    let loss_fraction = guarded_raid_loss_fraction(enemy_pressure, coverage, ready_guards);
+    let target_count = guarded_raid_target_count(enemy_pressure, defense_ratio);
+    if target_count == 0 || loss_fraction <= 1e-9 {
+        return (0.0, 0.0);
+    }
     let mut goods_lost = 0.0;
     let mut wealth_lost = 0.0;
 
-    for building in buildings {
-        if building.kind == "watchtower" || position_is_watched(building.x, building.z, towers) {
-            continue;
-        }
+    let mut exposed_buildings = buildings
+        .iter()
+        .filter(|building| {
+            building.kind != "watchtower" && !position_is_watched(building.x, building.z, towers)
+        })
+        .collect::<Vec<_>>();
+    exposed_buildings.sort_by(|a, b| {
+        compare_raid_targets(
+            false,
+            building_vulnerable_value(a),
+            a.id,
+            false,
+            building_vulnerable_value(b),
+            b.id,
+        )
+    });
+    for building in exposed_buildings.into_iter().take(target_count) {
         let mut updated = building.clone();
         macro_rules! plunder {
             ($field:ident) => {{
@@ -259,16 +317,23 @@ fn resolve_raid(
         plunder!(preserved_food);
         plunder!(honey);
         plunder!(wine);
+        plunder!(polearms);
         let lost_gold = updated.gold * loss_fraction;
         updated.gold = (updated.gold - lost_gold).max(0.0);
         wealth_lost += lost_gold;
         ctx.db.building().id().update(updated);
     }
 
-    for residence in residences {
-        if position_is_watched(residence.x, residence.z, towers) {
-            continue;
-        }
+    let mut exposed_residences = residences
+        .iter()
+        .filter(|residence| !position_is_watched(residence.x, residence.z, towers))
+        .collect::<Vec<_>>();
+    exposed_residences.sort_by(|a, b| {
+        b.household_wealth
+            .total_cmp(&a.household_wealth)
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    for residence in exposed_residences.into_iter().take(target_count) {
         let lost = residence.household_wealth * loss_fraction;
         if lost <= 1e-9 {
             continue;

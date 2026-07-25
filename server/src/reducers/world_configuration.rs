@@ -50,7 +50,11 @@ pub fn configure_world(
     validate_percent(hydrology, "hydrology")?;
     validate_percent(forest_density, "forest_density")?;
     validate_percent(enemy_pressure, "enemy_pressure")?;
-    let enemy_pressure = if conflict_enabled { enemy_pressure.max(1) } else { 0 };
+    let enemy_pressure = if conflict_enabled {
+        enemy_pressure.max(1)
+    } else {
+        0
+    };
 
     let config = ctx
         .db
@@ -59,25 +63,26 @@ pub fn configure_world(
         .find(&0)
         .ok_or_else(|| "world_config row missing".to_string())?;
 
-    let generation_changed = config.seed != seed
+    let terrain_changed = config.seed != seed
         || config.map_size != map_size
         || config.topography != topography
         || config.hydrology != hydrology
-        || config.forest_density != forest_density
-        || config.conflict_enabled != conflict_enabled
-        || config.enemy_pressure != enemy_pressure;
+        || config.forest_density != forest_density;
+    let rules_changed =
+        config.conflict_enabled != conflict_enabled || config.enemy_pressure != enemy_pressure;
+    let setup_changed = terrain_changed || rules_changed;
 
     // Only lock generation after a client has published settings. The sim scheduler
     // may be running while configured=false (e.g. idle server before first connect).
-    if generation_changed && config.configured && config.sim_tick > 0 {
-        return Err("Cannot change world generation after the simulation has started.".into());
+    if setup_changed && config.configured && config.sim_tick > 0 {
+        return Err("Cannot change world setup after the simulation has started.".into());
     }
 
-    if generation_changed && has_global_world_entities(ctx) {
+    if terrain_changed && has_global_world_entities(ctx) {
         clear_global_world_entities(ctx);
     }
 
-    if generation_changed || !config.configured {
+    if setup_changed || !config.configured {
         ctx.db.world_config().id().update(WorldConfig {
             seed,
             map_size,

@@ -4,6 +4,11 @@ import {
   CALENDAR_DAYS_PER_MONTH,
   DROUGHT_CROP_GROWTH_MULTIPLIER,
   DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
+  FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
+  FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY,
+  FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
+  FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY,
+  FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
   SPRING_FIREWOOD_DEMAND_MULTIPLIER,
   SPRING_PASTURE_CAPACITY_MULTIPLIER,
   SPRING_RAIN_CHANCE,
@@ -26,6 +31,7 @@ export type EnvironmentState = {
   cropGrowthMultiplier: number;
   firewoodDemandMultiplier: number;
   pastureCapacityMultiplier: number;
+  freshFoodSpoilageFractionPerDay: number;
 };
 
 export function seasonForMonth(month: number): Season {
@@ -70,6 +76,14 @@ export function environmentFor(
         summer: SUMMER_PASTURE_CAPACITY_MULTIPLIER,
         autumn: AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
         winter: WINTER_PASTURE_CAPACITY_MULTIPLIER,
+      }[season],
+    freshFoodSpoilageFractionPerDay: weather === 'drought'
+      ? FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY
+      : {
+        spring: FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
+        summer: FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY,
+        autumn: FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
+        winter: FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
       }[season],
   };
 }

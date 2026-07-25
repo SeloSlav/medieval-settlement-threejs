@@ -42,7 +42,16 @@
     "freshFoodSpoilageSummerPerDay": 0.008,
     "freshFoodSpoilageAutumnPerDay": 0.004,
     "freshFoodSpoilageWinterPerDay": 0.002,
-    "freshFoodSpoilageDroughtPerDay": 0.018
+    "freshFoodSpoilageDroughtPerDay": 0.018,
+    "freshFoodStorageFactors": {
+      "defaultBuilding": 1,
+      "granary": 0.35,
+      "smokehouse": 0.55,
+      "monastery": 0.65,
+      "marketplace": 0.8,
+      "residence": 1,
+      "treasury": 1.2
+    }
   },
   "fires": {
     "lightningIgnitionChancePerRainDay": 0.1,
@@ -89,6 +98,14 @@
     "householdMaxWealth": 200,
     "townHallPopulationRequired": 24,
     "townHallUnstaffedTaxCollectionMultiplier": 0.6
+  },
+  "frontierEconomy": {
+    "carpenterTimberPerPolearm": 2,
+    "carpenterGoldPerPolearm": 1,
+    "guardhouseFoodPerGuardPerDay": 0.45,
+    "guardhouseWagePerGuardPerDay": 0.35,
+    "guardhouseTrainingPerDay": 1,
+    "guardhouseReadinessDecayPerDay": 0.5
   },
   "marketplaceTrade": {
     "resourceSpendScopes": {
@@ -643,6 +660,25 @@
       "requiresWaterShore": false,
       "requiresHillside": true
     },
+    "guardhouse": {
+      "label": "Frontier guardhouse",
+      "cost": { "timber": 64, "stone": 32 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 72, "polearms": 12 },
+      "workRadius": 0,
+      "pickRadius": 10,
+      "harvestInterval": 0,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 6,
+      "acceptsLabor": true,
+      "requiresRoad": true,
+      "facesRoad": true,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false,
+      "requiresWaterShore": false,
+      "requiresHillside": false
+    },
     "threshing_barn": {
       "label": "Farmstead and threshing barn",
       "cost": { "timber": 44, "stone": 16 },
@@ -812,7 +848,7 @@
     "carpenter": {
       "label": "Carpenter and wheelwright",
       "cost": { "timber": 52, "stone": 20 },
-      "storage": { "timber": 140, "firewood": 0, "stone": 0 },
+      "storage": { "timber": 140, "firewood": 0, "stone": 0, "polearms": 24 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 8,

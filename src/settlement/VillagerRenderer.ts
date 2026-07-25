@@ -1287,6 +1287,7 @@ export class VillagerRenderer {
     if (kind === 'reforester') return 'shovel';
     if (kind === 'threshing_barn' || kind === 'vineyard') return 'hoe';
     if (kind === 'carpenter') return 'hammer';
+    if (kind === 'guardhouse') return 'spear';
     return null;
   }
 }
@@ -1390,7 +1391,11 @@ function describeVillagerActivity(
           default: return `Tending work at ${workplaceLabel}`;
         }
       }
-      if (agent.mode === 'build') return `Hammering on ${workplaceLabel}`;
+      if (agent.mode === 'build') {
+        return workplace?.kind === 'guardhouse'
+          ? `Drilling with the guard at ${workplaceLabel}`
+          : `Hammering on ${workplaceLabel}`;
+      }
       if (workplace?.constructionComplete === false) {
         return agent.mode === 'walk'
           ? `Building ${workplaceLabel}`

@@ -46,6 +46,10 @@ import type {
 import { createEmptyStockpile } from '../resources/types.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import type { FireIncidentState } from '../fires/fireIncident.ts';
+import {
+  DEFAULT_SETTLEMENT_SECURITY,
+  type SettlementSecurityState,
+} from '../security/frontierSecurity.ts';
 import type { WorldLayout } from '../resources/WorldLayout.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
@@ -82,6 +86,7 @@ export type SpacetimeGameSnapshot = {
   backyardGardens: Map<string, BackyardGardenState>;
   deliveryTrips: Map<string, DeliveryTripState>;
   fireIncidents: Map<string, FireIncidentState>;
+  settlementSecurity: SettlementSecurityState;
   roads: RoadNetworkSnapshot | null;
   simTick: number;
   gameSpeed: GameSpeed;
@@ -113,6 +118,7 @@ function createEmptyTableState(): GameTableSyncState {
     backyardGardens: new Map(),
     deliveryTrips: new Map(),
     fireIncidents: new Map(),
+    settlementSecurity: { ...DEFAULT_SETTLEMENT_SECURITY },
     roads: null,
   };
 }
@@ -171,6 +177,7 @@ export class SpacetimeGameStore {
       backyardGardens: this.snapshotMap(state.backyardGardens),
       deliveryTrips: this.snapshotMap(state.deliveryTrips),
       fireIncidents: this.snapshotMap(state.fireIncidents),
+      settlementSecurity: this.snapshotRecord(state.settlementSecurity),
       roads: this.snapshotRoads(state.roads),
       simTick: state.simTick,
       gameSpeed: state.gameSpeed,
@@ -370,6 +377,10 @@ export class SpacetimeGameStore {
     );
   }
 
+  setGranaryPolicy(buildingId: string, acceptsFreshFood: boolean): Promise<void> {
+    return spacetimeReducers.setGranaryPolicy(buildingId, acceptsFreshFood);
+  }
+
   async assignBuildingLabor(buildingId: string, labor: number): Promise<void> {
     const clampedLabor = Math.max(0, Math.floor(labor));
     const previous = this.tableState.buildings.get(buildingId);
@@ -487,6 +498,7 @@ export class SpacetimeGameStore {
       connection.subscriptionBuilder().subscribe('SELECT * FROM residence_need');
       connection.subscriptionBuilder().subscribe('SELECT * FROM delivery_trip');
       connection.subscriptionBuilder().subscribe('SELECT * FROM fire_incident');
+      connection.subscriptionBuilder().subscribe('SELECT * FROM settlement_security');
       connection.subscriptionBuilder().subscribe('SELECT * FROM road_network_state');
       this.tableSync.attachHandlers(connection);
       this.subscribedConnection = connection;

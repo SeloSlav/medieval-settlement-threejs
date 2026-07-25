@@ -210,7 +210,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     // placement checks. Reuse one snapshot for overlap, landmark, and carpenter checks.
     let road_network = load_owner_road_network(ctx, owner);
 
-    if kind == "watchtower" {
+    if matches!(kind.as_str(), "watchtower" | "guardhouse") {
         let conflict_enabled = ctx
             .db
             .world_config()
@@ -218,8 +218,23 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
             .find(&0)
             .is_some_and(|config| config.conflict_enabled && config.enemy_pressure > 0);
         if !conflict_enabled {
-            return Err("Watchtowers are only available in contested-frontier worlds.".to_string());
+            return Err(
+                "Frontier defenses are only available in contested-frontier worlds.".to_string(),
+            );
         }
+    }
+
+    if kind == "guardhouse"
+        && !ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .any(|building| building.kind == "watchtower" && building.construction_complete)
+    {
+        return Err(
+            "Complete a frontier watchtower before establishing a paid guardhouse.".to_string(),
+        );
     }
 
     if kind == "monastery" {
@@ -436,6 +451,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         preserved_food: 0.0,
         honey: 0.0,
         wine: 0.0,
+        polearms: 0.0,
         water_capacity,
         assigned_labor: assigned_builders,
         construction_complete: false,
@@ -451,6 +467,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         storehouse_accepts_timber: true,
         storehouse_accepts_stone: true,
         storehouse_accepts_firewood: true,
+        granary_accepts_fresh_food: true,
         gold: 0.0,
     });
 
@@ -497,6 +514,30 @@ pub fn set_storehouse_policy(
     building.storehouse_accepts_timber = accepts_timber;
     building.storehouse_accepts_stone = accepts_stone;
     building.storehouse_accepts_firewood = accepts_firewood;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_granary_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    accepts_fresh_food: bool,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Granary not found.".to_string())?;
+    if building.owner != owner
+        || building.kind != "granary"
+        || !building.construction_complete
+    {
+        return Err("You do not own this village granary.".to_string());
+    }
+    building.granary_accepts_fresh_food = accepts_fresh_food;
     ctx.db.building().id().update(building);
     Ok(())
 }
@@ -625,6 +666,12 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         owner,
         CommodityKind::Wine,
         (building.wine + trip_cargo.wine) * recoverable,
+    );
+    credit_treasury_commodity(
+        ctx,
+        owner,
+        CommodityKind::Polearms,
+        (building.polearms + trip_cargo.polearms) * recoverable,
     );
 
     if ctx

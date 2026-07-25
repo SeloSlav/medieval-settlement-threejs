@@ -673,6 +673,7 @@ export async function bootstrapAppSession(
       );
     },
   });
+  toolbar.setConflictEnabled(worldSettings.conflictMode === 'frontier');
 
   const disposeTooltips = mountTooltips(uiRoot);
   toastManager = new ToastManager(uiRoot);
@@ -713,6 +714,8 @@ export async function bootstrapAppSession(
     getMonasteryPolicy: () =>
       spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY,
     getMarketState: () => spacetimeStore.snapshot.marketState,
+    getSettlementSecurity: () => spacetimeStore.snapshot.settlementSecurity,
+    getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
     ...inspectorActions,
     onBeginFarmFieldPlacement: (farmsteadId) => beginLinkedLandParcelPlacement('field', farmsteadId),
     onBeginPasturePlacement: (farmsteadId) => beginLinkedLandParcelPlacement('pasture', farmsteadId),

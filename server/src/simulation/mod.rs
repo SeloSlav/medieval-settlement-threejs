@@ -43,8 +43,8 @@ pub use delivery_trips::{
     try_start_fire_response_trip,
 };
 pub use expanded_economy::{
-    step_apiary, step_brewery, step_carpenter, step_ferry_landing, step_granary, step_monastery,
-    step_smokehouse, step_threshing_barn, step_vineyard, step_watermill,
+    step_apiary, step_brewery, step_carpenter, step_ferry_landing, step_granary, step_guardhouse,
+    step_monastery, step_smokehouse, step_threshing_barn, step_vineyard, step_watermill,
 };
 pub use fires::{
     building_fire_state, building_is_disabled_by_fire, clear_fire_for_target,

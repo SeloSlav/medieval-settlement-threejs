@@ -24,6 +24,7 @@ export default __t.row({
   preservedFood: __t.f64().name("preserved_food"),
   honey: __t.f64(),
   wine: __t.f64(),
+  polearms: __t.f64(),
   economicActivityTaxRate: __t.f64().name("economic_activity_tax_rate"),
   chapelAutoSweepEnabled: __t.bool().name("chapel_auto_sweep_enabled"),
   chapelCofferReserveGold: __t.f64().name("chapel_coffer_reserve_gold"),
