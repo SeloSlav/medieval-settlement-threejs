@@ -1,4 +1,5 @@
 import {
+  BUILDING_STORAGE_CAPS,
   FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
   FRESH_FOOD_STORAGE_GRANARY_FACTOR,
   FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR,
@@ -9,6 +10,26 @@ import {
 } from '../generated/gameBalance.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { BuildingKind, GameState } from '../resources/types.ts';
+import { granaryFreshFoodTarget } from './granaryPolicy.ts';
+
+export type FreshFoodLossSite = {
+  source: 'treasury' | 'building' | 'residence';
+  id: string | null;
+  buildingKind: BuildingKind | null;
+  stock: number;
+  storageFactor: number;
+  spoilagePerDay: number;
+};
+
+export type GranaryFreshFoodNetwork = {
+  completedGranaries: number;
+  collectingGranaries: number;
+  staffedCollectingGranaries: number;
+  targetStock: number;
+  stockTowardTarget: number;
+  targetShortfall: number;
+  stockAboveTarget: number;
+};
 
 export type FreshFoodPreservation = {
   totalStock: number;
@@ -18,6 +39,8 @@ export type FreshFoodPreservation = {
   effectiveStorageFactor: number;
   spoilageFractionPerDay: number;
   spoilagePerDay: number;
+  largestLossSite: FreshFoodLossSite | null;
+  granaryNetwork: GranaryFreshFoodNetwork;
 };
 
 export function buildingFreshFoodStorageFactor(kind: BuildingKind): number {
@@ -39,26 +62,81 @@ export function analyzeFreshFoodPreservation(
   state: GameState,
   ambientSpoilageFractionPerDay: number,
 ): FreshFoodPreservation {
-  const ambientRate = Math.max(0, ambientSpoilageFractionPerDay);
-  let totalStock = Math.max(0, state.stockpile.food);
+  const ambientRate = Number.isFinite(ambientSpoilageFractionPerDay)
+    ? Math.max(0, ambientSpoilageFractionPerDay)
+    : 0;
+  const treasuryStock = finiteStock(state.stockpile.food);
+  let totalStock = treasuryStock;
   let weightedStock = totalStock * FRESH_FOOD_STORAGE_TREASURY_FACTOR;
   let protectedStock = 0;
+  let largestLossSite: FreshFoodLossSite | null = null;
+  const granaryNetwork: GranaryFreshFoodNetwork = {
+    completedGranaries: 0,
+    collectingGranaries: 0,
+    staffedCollectingGranaries: 0,
+    targetStock: 0,
+    stockTowardTarget: 0,
+    targetShortfall: 0,
+    stockAboveTarget: 0,
+  };
+
+  largestLossSite = largerLossSite(largestLossSite, {
+    source: 'treasury',
+    id: null,
+    buildingKind: null,
+    stock: treasuryStock,
+    storageFactor: FRESH_FOOD_STORAGE_TREASURY_FACTOR,
+    spoilagePerDay: treasuryStock * FRESH_FOOD_STORAGE_TREASURY_FACTOR * ambientRate,
+  });
 
   for (const building of state.buildings.values()) {
-    const stock = Math.max(0, building.food);
+    const stock = finiteStock(building.food);
+    if (building.kind === 'granary' && building.constructionComplete !== false) {
+      granaryNetwork.completedGranaries += 1;
+      if (building.granaryAcceptsFreshFood !== false) {
+        granaryNetwork.collectingGranaries += 1;
+        if (building.assignedLabor > 0) {
+          granaryNetwork.staffedCollectingGranaries += 1;
+        }
+        const target = granaryFreshFoodTarget(
+          BUILDING_STORAGE_CAPS.granary.food ?? 0,
+          building.granaryFreshFoodTargetPercent,
+        );
+        granaryNetwork.targetStock += target;
+        granaryNetwork.stockTowardTarget += Math.min(stock, target);
+        granaryNetwork.targetShortfall += Math.max(0, target - stock);
+        granaryNetwork.stockAboveTarget += Math.max(0, stock - target);
+      }
+    }
     if (stock <= 0) continue;
     const factor = buildingFreshFoodStorageFactor(building.kind);
     totalStock += stock;
     weightedStock += stock * factor;
+    largestLossSite = largerLossSite(largestLossSite, {
+      source: 'building',
+      id: building.id,
+      buildingKind: building.kind,
+      stock,
+      storageFactor: factor,
+      spoilagePerDay: stock * factor * ambientRate,
+    });
     if (factor < FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR) {
       protectedStock += stock;
     }
   }
 
   for (const residence of state.residences.values()) {
-    const stock = Math.max(0, getNeedStock(residence.needs, 'food'));
+    const stock = finiteStock(getNeedStock(residence.needs, 'food'));
     totalStock += stock;
     weightedStock += stock * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR;
+    largestLossSite = largerLossSite(largestLossSite, {
+      source: 'residence',
+      id: residence.id,
+      buildingKind: null,
+      stock,
+      storageFactor: FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
+      spoilagePerDay: stock * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR * ambientRate,
+    });
   }
 
   const effectiveStorageFactor = totalStock > 1e-9 ? weightedStock / totalStock : 0;
@@ -70,7 +148,24 @@ export function analyzeFreshFoodPreservation(
     effectiveStorageFactor,
     spoilageFractionPerDay: ambientRate * effectiveStorageFactor,
     spoilagePerDay: ambientRate * weightedStock,
+    largestLossSite,
+    granaryNetwork,
   };
+}
+
+function finiteStock(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, value) : 0;
+}
+
+function largerLossSite(
+  current: FreshFoodLossSite | null,
+  candidate: FreshFoodLossSite,
+): FreshFoodLossSite | null {
+  if (candidate.spoilagePerDay <= 1e-9) return current;
+  if (current === null || candidate.spoilagePerDay > current.spoilagePerDay + 1e-9) {
+    return candidate;
+  }
+  return current;
 }
 
 /**

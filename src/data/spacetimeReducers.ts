@@ -1,6 +1,7 @@
 import type { DbConnection } from '../generated/index.ts';
 import { getConnection } from '../network/spacetimedbClient.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
+import type { FireTargetKind } from '../fires/fireIncident.ts';
 import type {
   BuildingKind,
   BurgageFrontageEdge,
@@ -13,6 +14,7 @@ import { computeWorldBootstrapDataFromLayout } from '../world/worldBootstrapData
 import { settingsToConfigurePayload } from '../world/worldConfigAuthority.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
+import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
 import {
   parseBuildingServerId,
   parseFarmFieldServerId,
@@ -128,6 +130,20 @@ export async function upgradeResidence(residenceId: string): Promise<void> {
   await callReducer('upgradeResidence', 'upgrade_residence', { residenceId: serverId });
 }
 
+export async function repairFireDamage(
+  targetKind: FireTargetKind,
+  targetId: string,
+): Promise<void> {
+  const serverId = targetKind === 'building'
+    ? parseBuildingServerId(targetId)
+    : parseResidenceServerId(targetId);
+  if (serverId === null) throw new Error('Invalid fire-damaged structure id.');
+  await callReducer('repairFireDamage', 'repair_fire_damage', {
+    targetKind: targetKind === 'building' ? 0 : 1,
+    targetId: serverId,
+  });
+}
+
 export async function placeBuilding(kind: BuildingKind, x: number, z: number): Promise<void> {
   await callReducer('placeBuilding', 'place_building', { kind, x, z });
 }
@@ -223,9 +239,45 @@ export async function setLivestockSpecies(
   });
 }
 
+export async function setLivestockBreedingReserve(
+  buildingId: string,
+  breedingReserve: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid livestock holding id.');
+  await callReducer('setLivestockBreedingReserve', 'set_livestock_breeding_reserve', {
+    buildingId: serverId,
+    breedingReserve: Math.max(0, Math.floor(breedingReserve)),
+  });
+}
+
+export async function setLivestockHaymakingPercent(
+  buildingId: string,
+  haymakingPercent: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid pastoral farmstead id.');
+  await callReducer('setLivestockHaymakingPercent', 'set_livestock_haymaking_percent', {
+    buildingId: serverId,
+    haymakingPercent: Math.max(0, Math.floor(haymakingPercent)),
+  });
+}
+
 export async function setEconomicActivityTaxRate(taxRate: number): Promise<void> {
   await callReducer('setEconomicActivityTaxRate', 'set_economic_activity_tax_rate', {
     taxRate,
+  });
+}
+
+export async function setSeasonalLaborSteward(enabled: boolean): Promise<void> {
+  await callReducer('setSeasonalLaborSteward', 'set_seasonal_labor_steward', {
+    enabled,
+  });
+}
+
+export async function setConstructionLaborSteward(enabled: boolean): Promise<void> {
+  await callReducer('setConstructionLaborSteward', 'set_construction_labor_steward', {
+    enabled,
   });
 }
 
@@ -267,15 +319,155 @@ export async function setStorehousePolicy(
   });
 }
 
+export async function setStorehouseStockTarget(
+  buildingId: string,
+  commodity: StorehouseCommodity,
+  targetPercent: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid village storehouse id.');
+  await callReducer('setStorehouseStockTarget', 'set_storehouse_stock_target', {
+    buildingId: serverId,
+    commodity,
+    targetPercent,
+  });
+}
+
+export async function setProcessorOutputTarget(
+  buildingId: string,
+  targetPercent: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid processing workshop id.');
+  await callReducer('setProcessorOutputTarget', 'set_processor_output_target', {
+    buildingId: serverId,
+    targetPercent,
+  });
+}
+
 export async function setGranaryPolicy(
   buildingId: string,
   acceptsFreshFood: boolean,
+  householdsFirst: boolean,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
   if (serverId === null) throw new Error('Invalid village granary id.');
   await callReducer('setGranaryPolicy', 'set_granary_policy', {
     buildingId: serverId,
     acceptsFreshFood,
+    householdsFirst,
+  });
+}
+
+export async function setGranaryGrainReserve(
+  buildingId: string,
+  grainReserve: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid village granary id.');
+  await callReducer('setGranaryGrainReserve', 'set_granary_grain_reserve', {
+    buildingId: serverId,
+    grainReserve,
+  });
+}
+
+export async function setGranaryFreshFoodTarget(
+  buildingId: string,
+  targetPercent: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid village granary id.');
+  await callReducer('setGranaryFreshFoodTarget', 'set_granary_fresh_food_target', {
+    buildingId: serverId,
+    targetPercent,
+  });
+}
+
+export async function setWoodcutterTimberReserve(
+  buildingId: string,
+  timberReserve: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error("Invalid woodcutter's lodge id.");
+  await callReducer('setWoodcutterTimberReserve', 'set_woodcutter_timber_reserve', {
+    buildingId: serverId,
+    timberReserve,
+  });
+}
+
+export async function setCarpenterPolearmReserve(
+  buildingId: string,
+  polearmReserve: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid carpenter workshop id.');
+  await callReducer('setCarpenterPolearmReserve', 'set_carpenter_polearm_reserve', {
+    buildingId: serverId,
+    polearmReserve: Math.max(0, Math.floor(polearmReserve)),
+  });
+}
+
+export async function setGuardhousePayPriority(
+  buildingId: string,
+  payPriority: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid guardhouse id.');
+  await callReducer('setGuardhousePayPriority', 'set_guardhouse_pay_priority', {
+    buildingId: serverId,
+    payPriority: Math.max(0, Math.min(2, Math.floor(payPriority))),
+  });
+}
+
+export async function setGuardhouseFoodReserve(
+  buildingId: string,
+  reservePerGuard: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid guardhouse id.');
+  await callReducer('setGuardhouseFoodReserve', 'set_guardhouse_food_reserve', {
+    buildingId: serverId,
+    reservePerGuard: Math.max(0, Math.min(12, Math.floor(reservePerGuard))),
+  });
+}
+
+export async function setMarketplaceIronworkTarget(
+  buildingId: string,
+  ironworkTarget: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid marketplace id.');
+  await callReducer('setMarketplaceIronworkTarget', 'set_marketplace_ironwork_target', {
+    buildingId: serverId,
+    ironworkTarget: Math.max(0, Math.min(48, Math.floor(ironworkTarget))),
+  });
+}
+
+export async function setMarketplaceSpecialtyExportPolicy(
+  buildingId: string,
+  exportPolicy: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid marketplace id.');
+  await callReducer(
+    'setMarketplaceSpecialtyExportPolicy',
+    'set_marketplace_specialty_export_policy',
+    {
+      buildingId: serverId,
+      exportPolicy: Math.max(0, Math.min(2, Math.floor(exportPolicy))),
+    },
+  );
+}
+
+export async function setHarvestReservePercent(
+  buildingId: string,
+  reservePercent: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error("Invalid hunter's hall or fishing camp id.");
+  await callReducer('setHarvestReservePercent', 'set_harvest_reserve_percent', {
+    buildingId: serverId,
+    reservePercent: Math.max(0, Math.min(90, Math.round(reservePercent))),
   });
 }
 
@@ -287,6 +479,50 @@ export async function assignBuildingLabor(buildingId: string, labor: number): Pr
   await callReducer('assignBuildingLabor', 'assign_building_labor', {
     buildingId: serverId,
     labor: Math.max(0, Math.floor(labor)),
+  });
+}
+
+export async function rotateConstructionLabor(): Promise<void> {
+  await callReducer('rotateConstructionLabor', 'rotate_construction_labor', {});
+}
+
+export async function recallIdleSeasonalLabor(): Promise<void> {
+  await callReducer('recallIdleSeasonalLabor', 'recall_idle_seasonal_labor', {});
+}
+
+export async function callUpActiveSeasonalLabor(): Promise<void> {
+  await callReducer('callUpActiveSeasonalLabor', 'call_up_active_seasonal_labor', {});
+}
+
+export async function recallTargetIdleProcessorLabor(): Promise<void> {
+  await callReducer(
+    'recallTargetIdleProcessorLabor',
+    'recall_target_idle_processor_labor',
+    {},
+  );
+}
+
+export async function callUpTargetReadyProcessorLabor(): Promise<void> {
+  await callReducer(
+    'callUpTargetReadyProcessorLabor',
+    'call_up_target_ready_processor_labor',
+    {},
+  );
+}
+
+export async function callUpYearRoundLabor(): Promise<void> {
+  await callReducer('callUpYearRoundLabor', 'call_up_year_round_labor', {});
+}
+
+export async function setConstructionPriority(
+  buildingId: string,
+  priority: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid building id.');
+  await callReducer('setConstructionPriority', 'set_construction_priority', {
+    buildingId: serverId,
+    priority: Math.max(0, Math.min(3, Math.floor(priority))),
   });
 }
 

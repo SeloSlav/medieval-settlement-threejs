@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   BUILDING_DEFINITIONS,
+  BUILDING_COSTS,
   BUILDING_KINDS,
   BUILDING_STORAGE_CAPS,
+  CARPENTER_DELIVERY_SPEED_MULTIPLIER,
+  CARPENTER_TIMBER_COST_MULTIPLIER,
   MONASTERY_COVERAGE_RADIUS,
   RESIDENCE_TIER1_CAPACITY,
   RESIDENCE_TIER2_CAPACITY,
@@ -14,7 +17,7 @@ import {
   createDefaultNeeds,
 } from '../src/residences/residenceNeedState.ts';
 import { evaluateResidenceNeedRecovery } from '../src/residences/residenceNeeds.ts';
-import type { ResidenceState } from '../src/resources/types.ts';
+import type { BuildingKind, BuildingState, ResidenceState } from '../src/resources/types.ts';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
@@ -22,6 +25,15 @@ import { pointWithinBuildingSiteClearance } from '../src/buildings/BuildingTerra
 import { getBuildingExtent } from '../src/buildings/buildingExtents.ts';
 import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import {
+  buildingCostWithCarpenterSupport,
+  carpenterDeliverySpeedMultiplier,
+  hasRoadLinkedCarpenter,
+  isOperationalCarpenter,
+  type CarpenterSupportBuilding,
+} from '../src/economy/carpenterSupport.ts';
+import { roadDeliveryTripSeconds } from '../src/logistics/deliveryLogistics.ts';
+import { describeToolbarStatus } from '../src/ui/buildToolbarStatus.ts';
 
 const expanded = [
   'threshing_barn', 'monastery', 'brewery', 'smokehouse', 'granary',
@@ -45,7 +57,11 @@ assert.deepEqual(
   getBuildingExtent('monastery', BUILDING_DEFINITIONS.monastery.workRadius),
   { type: 'coverage', label: 'Faith coverage', radius: 520 },
 );
-for (const kind of ['brewery', 'smokehouse', 'granary', 'apiary', 'watermill', 'carpenter', 'ferry_landing'] as const) {
+assert.deepEqual(
+  getBuildingExtent('apiary', BUILDING_DEFINITIONS.apiary.workRadius),
+  { type: 'work', label: 'Bee forage extent', radius: 48 },
+);
+for (const kind of ['brewery', 'smokehouse', 'granary', 'watermill', 'carpenter', 'ferry_landing'] as const) {
   assert.equal(BUILDING_DEFINITIONS[kind].workRadius, 0, `${kind} has no spatial work extent`);
   assert.equal(getBuildingExtent(kind, BUILDING_DEFINITIONS[kind].workRadius), null, `${kind} must not render an extent ring`);
 }
@@ -80,6 +96,169 @@ assert.equal(
   'construction clearing must not expand to the functional work radius',
 );
 
+function buildingState(
+  kind: BuildingKind,
+  id: string,
+  x: number,
+  z: number,
+  assignedLabor = 0,
+): BuildingState {
+  return {
+    id,
+    kind,
+    x,
+    z,
+    workRadius: BUILDING_DEFINITIONS[kind].workRadius,
+    actionCooldown: 0,
+    timber: 0,
+    firewood: 0,
+    stone: 0,
+    water: 0,
+    food: 0,
+    grain: 0,
+    flour: 0,
+    ale: 0,
+    preservedFood: 0,
+    honey: 0,
+    wine: 0,
+    ironwork: 0,
+    polearms: 0,
+    gold: 0,
+    waterCapacity: 0,
+    assignedLabor,
+    constructionComplete: true,
+    constructionProgress: 1,
+    constructionRequiredTimber: 0,
+    constructionRequiredStone: 0,
+    constructionDeliveredTimber: 0,
+    constructionDeliveredStone: 0,
+    constructionReservedTimber: 0,
+    constructionReservedStone: 0,
+    constructionTreasuryTimber: 0,
+    constructionTreasuryStone: 0,
+    storehouseAcceptsTimber: true,
+    storehouseAcceptsStone: true,
+    storehouseAcceptsFirewood: true,
+  };
+}
+
+const carpenterRoad = new RoadNetwork();
+carpenterRoad.addRoadPath([
+  new THREE.Vector3(-20, 0, 0),
+  new THREE.Vector3(140, 0, 0),
+]);
+const activeCarpenter = buildingState('carpenter', 'carpenter', 0, 18, 1);
+const idleCarpenter = buildingState('carpenter', 'idle-carpenter', 0, 18, 0);
+assert.equal(isOperationalCarpenter(activeCarpenter), true);
+assert.equal(isOperationalCarpenter(idleCarpenter), false);
+assert.equal(
+  hasRoadLinkedCarpenter([activeCarpenter], carpenterRoad, { x: 100, z: 18 }),
+  true,
+  'a staffed carpenter must support sites on its road component',
+);
+assert.equal(
+  hasRoadLinkedCarpenter([idleCarpenter], carpenterRoad, { x: 100, z: 18 }),
+  false,
+  'an unstaffed carpenter must not grant economic bonuses',
+);
+assert.equal(
+  hasRoadLinkedCarpenter(
+    [activeCarpenter],
+    carpenterRoad,
+    { x: 100, z: 18 },
+    new Set([activeCarpenter.id]),
+  ),
+  false,
+  'a fire-disabled carpenter must not grant construction or cart bonuses',
+);
+
+const supportedSmokehouseCost = buildingCostWithCarpenterSupport('smokehouse', true);
+assert.equal(
+  supportedSmokehouseCost.timber,
+  BUILDING_COSTS.smokehouse.timber * CARPENTER_TIMBER_COST_MULTIPLIER,
+);
+assert.equal(supportedSmokehouseCost.stone, BUILDING_COSTS.smokehouse.stone);
+const discountedPlacementContext = {
+  ...roadlessPlacementContext,
+  roadNetwork: carpenterRoad,
+  buildings: [activeCarpenter],
+  stockpile: {
+    timber: supportedSmokehouseCost.timber,
+    stone: supportedSmokehouseCost.stone,
+  },
+};
+assert.deepEqual(
+  validateBuildingPlacement('smokehouse', 100, 18, discountedPlacementContext),
+  { ok: true },
+  'client placement affordability must accept the server carpenter discount',
+);
+const idleDiscountResult = validateBuildingPlacement('smokehouse', 100, 18, {
+  ...discountedPlacementContext,
+  buildings: [idleCarpenter],
+});
+assert.equal(idleDiscountResult.ok, false);
+if (!idleDiscountResult.ok) assert.equal(idleDiscountResult.reason, 'insufficient_resources');
+
+const baseTripSeconds = roadDeliveryTripSeconds(
+  carpenterRoad,
+  { x: 30, z: 18 },
+  { x: 120, z: 18 },
+  1,
+  1,
+  0,
+);
+const supportedSpeed = carpenterDeliverySpeedMultiplier(
+  [activeCarpenter],
+  carpenterRoad,
+  { x: 30, z: 18 },
+);
+assert.equal(supportedSpeed, CARPENTER_DELIVERY_SPEED_MULTIPLIER);
+const supportedTripSeconds = roadDeliveryTripSeconds(
+  carpenterRoad,
+  { x: 30, z: 18 },
+  { x: 120, z: 18 },
+  1,
+  1,
+  0,
+  supportedSpeed,
+);
+assert.ok(
+  supportedTripSeconds < baseTripSeconds,
+  'idle-trip projections must expose the carpenter cart-speed benefit',
+);
+const placementStatus = describeToolbarStatus({
+  canBuild: true,
+  hasDraft: false,
+  mode: 'smokehouse',
+  buildingCost: supportedSmokehouseCost,
+  carpenterSupported: true,
+});
+assert.match(placementStatus, /carpenter-supported: 10% less timber and 18% faster road carts/);
+assert.match(placementStatus, new RegExp(`${supportedSmokehouseCost.timber} timber`));
+
+const performanceCarpenters: CarpenterSupportBuilding[] = Array.from(
+  { length: 100_000 },
+  (_, index) => ({
+    id: `mill-${index}`,
+    kind: 'lumber_mill' as const,
+    x: index,
+    z: 200,
+    constructionComplete: true,
+    assignedLabor: 1,
+  }),
+);
+performanceCarpenters.push(activeCarpenter);
+const supportScanStarted = performance.now();
+assert.equal(
+  hasRoadLinkedCarpenter(performanceCarpenters, carpenterRoad, { x: 100, z: 18 }),
+  true,
+);
+const supportScanElapsed = performance.now() - supportScanStarted;
+assert.ok(
+  supportScanElapsed < 500,
+  `100k-building carpenter support scan regressed (${supportScanElapsed.toFixed(1)} ms)`,
+);
+
 const closeShorePlacement = validateBuildingPlacement('watermill', 0, 0, {
   ...roadlessPlacementContext,
   isWaterAt: (x: number, z: number) => Math.hypot(x - 4, z) <= 0.75,
@@ -101,10 +280,13 @@ const residence = (tier: 1 | 2 | 3): ResidenceState => ({
 const supply = { servingLodgeId: 'lodge', servingWellId: 'well', servingFoodSupplierId: 'food' };
 assert.deepEqual(activeResidenceNeedKinds(1), ['food']);
 assert.deepEqual(activeResidenceNeedKinds(2), ['firewood', 'water', 'food']);
-assert.deepEqual(activeResidenceNeedKinds(3), ['firewood', 'water', 'food', 'preservedFood', 'ale']);
+assert.deepEqual(
+  activeResidenceNeedKinds(3),
+  ['firewood', 'water', 'food', 'preservedFood', 'ale', 'cloth'],
+);
 assert.equal(evaluateResidenceNeedRecovery(residence(1), supply).length, 1);
 assert.equal(evaluateResidenceNeedRecovery(residence(2), supply).length, 3);
-assert.equal(evaluateResidenceNeedRecovery(residence(3), supply).length, 5);
+assert.equal(evaluateResidenceNeedRecovery(residence(3), supply).length, 6);
 
 for (const kind of expanded) {
   const model = createBuildingMesh(kind);
@@ -126,7 +308,7 @@ assert.ok(tierSizes[0].y < tierSizes[1].y && tierSizes[1].y < tierSizes[2].y);
 const expandedSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(
   expandedSimulation,
-  /compare_supply_route_candidates/,
+  /select_supply_route_candidate/,
   'specialist inputs and outputs should prefer short road routes',
 );
 assert.match(
@@ -143,6 +325,18 @@ assert.doesNotMatch(
   expandedSimulation,
   /sources\.sort_by_key\(\|source\| source\.id\)/,
   'building age must not override industrial clustering and road layout',
+);
+const placementReducer = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
+assert.match(
+  placementReducer,
+  /CARPENTER_TIMBER_COST_MULTIPLIER/,
+  'client contextual costs must retain an authoritative server counterpart',
+);
+const deliverySimulation = fs.readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
+assert.match(
+  deliverySimulation,
+  /CARPENTER_DELIVERY_SPEED_MULTIPLIER/,
+  'client trip projections must retain an authoritative server counterpart',
 );
 
 console.log('expanded settlement tests passed');

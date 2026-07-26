@@ -18,6 +18,10 @@ import {
   isForagingRegrowthSeason,
 } from '../src/foraging/foragingSeason.ts';
 import {
+  harvestableWildStock,
+  protectedWildStock,
+} from '../src/foraging/harvestReservePolicy.ts';
+import {
   RICH_FISH_SCHOOL_VISUAL_CAPACITY,
   SMALL_FISH_SCHOOL_VISUAL_CAPACITY,
   displayedFishSchoolCount,
@@ -64,6 +68,11 @@ assert.equal(isForagingHarvestAvailable('fish', 1), false);
 assert.equal(isForagingHarvestAvailable('fish', 4), true);
 assert.equal(isForagingRegrowthSeason('fish', 4), true);
 assert.equal(isForagingRegrowthSeason('fish', 7), false);
+assert.equal(protectedWildStock('fish', 120, 25), 30);
+assert.equal(
+  harvestableWildStock({ kind: 'fish', remaining: 30, maxYield: 120 }, 25),
+  0,
+);
 
 for (const mapSize of ['small', 'medium', 'large'] as const) {
   for (const hydrology of [0, 50, 100]) {
@@ -148,7 +157,15 @@ assert.deepEqual(
   'the full fishing-camp footprint—not just its center—must remain on land',
 );
 
-const camp = { id: 'camp-1', kind: 'fishing_camp', x: 0, z: 0 } as BuildingState;
+const camp = {
+  id: 'camp-1',
+  kind: 'fishing_camp',
+  x: 0,
+  z: 0,
+  food: 12,
+  assignedLabor: 1,
+  constructionComplete: true,
+} as BuildingState;
 const residence = { id: 'home-1', x: 20, z: 0 } as ResidenceState;
 const connectedNetwork = {
   getPathfinder: () => ({
@@ -158,7 +175,16 @@ const connectedNetwork = {
 assert.equal(
   claimResidencesForFoodSuppliers(connectedNetwork, [camp], [residence]).get(residence.id),
   camp.id,
-  'fishing camps should participate in normal residence food claims',
+  'stocked fishing camps should participate in normal residence food claims',
+);
+assert.equal(
+  claimResidencesForFoodSuppliers(
+    connectedNetwork,
+    [{ ...camp, food: 0 }],
+    [residence],
+  ).has(residence.id),
+  false,
+  'an empty fishing camp must yield household service until its next catch',
 );
 
 assert.ok(FISH_ICON_SVG.includes('currentColor'));
@@ -239,8 +265,8 @@ assert.match(
 );
 assert.match(
   serverFoodSupplier,
-  /remaining:\s*\(node\.remaining\s*-\s*extracted\)\.max\(0\.0\)/,
-  'each catch must reduce the authoritative shoal population',
+  /requested\.min\(available\)\.min\(max_resource_for_room\)/,
+  'each catch must be capped by stock above the protected reserve',
 );
 
 const foragingPolicy = readFileSync(

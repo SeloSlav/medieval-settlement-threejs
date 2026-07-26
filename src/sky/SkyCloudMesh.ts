@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { loadBitmapTexture } from '../utils/textureLoad.ts';
 import { SkyCloudMesh as WebGPUSkyCloudMesh } from 'sky-cloud-3d';
 import { SkyCloudMesh as WebGLSkyCloudMesh } from 'sky-cloud-3d/webgl';
-import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import { supportsNodeMaterials, type RendererBackendKind } from '../scene/RendererBackend.ts';
 import { createCelestialStarMap } from './CelestialStarMap.ts';
 
 type SkyCloudOptions = {
@@ -103,14 +103,23 @@ export class SkyCloudMesh extends THREE.Group {
     const starMap = options.starMap ?? createCelestialStarMap();
     const config = { ...DEFAULTS, ...options, starMap };
     const rendererBackend = config.rendererBackend ?? 'webgl';
-    const NativeSky = rendererBackend === 'webgpu' ? WebGPUSkyCloudMesh : WebGLSkyCloudMesh;
+    const useNodeMaterials = supportsNodeMaterials(rendererBackend);
+    const NativeSky = useNodeMaterials ? WebGPUSkyCloudMesh : WebGLSkyCloudMesh;
+    // sky-cloud-3d otherwise generates a 96³ multi-octave volume texture
+    // synchronously, even while its supplied 2D Perlin path is active.
+    const inactiveVolumeNoise = useNodeMaterials && config.perlinTexture
+      ? createInactiveVolumeNoiseTexture()
+      : undefined;
     const nativeOptions = {
       ...config,
       perlinTexture: config.perlinTexture,
       perlinTextureUrl: config.perlinTexture ? undefined : WEBGL_PERLIN_TEXTURE_URL,
+      volumeNoiseTexture: inactiveVolumeNoise,
     };
     const nativeSky = new NativeSky(nativeOptions) as SkyCloudNativeMesh;
-    nativeSky.name = rendererBackend === 'webgpu' ? 'sky-cloud-3d WebGPU volumetric sky' : 'sky-cloud-3d WebGL volumetric sky';
+    nativeSky.name = useNodeMaterials
+      ? 'sky-cloud-3d node volumetric sky'
+      : 'sky-cloud-3d WebGL volumetric sky';
     nativeSky.renderOrder = -1000;
     nativeSky.frustumCulled = false;
     nativeSky.userData.isSkyCloudMesh = true;
@@ -162,6 +171,24 @@ export class SkyCloudMesh extends THREE.Group {
     disposeSky(this.nativeSky);
     this.starMap.dispose();
   }
+}
+
+function createInactiveVolumeNoiseTexture(): THREE.Data3DTexture {
+  const texture = new THREE.Data3DTexture(new Uint8Array([128]), 1, 1, 1);
+  texture.name = 'Inactive sky volume noise';
+  texture.format = THREE.RedFormat;
+  texture.type = THREE.UnsignedByteType;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.wrapR = THREE.RepeatWrapping;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  texture.unpackAlignment = 1;
+  texture.colorSpace = THREE.NoColorSpace;
+  texture.userData.isSkyCloudManagedNoiseTexture = true;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function disposeSky(sky: SkyCloudNativeMesh): void {

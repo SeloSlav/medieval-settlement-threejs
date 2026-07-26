@@ -34,7 +34,12 @@ import { RockSpatialIndex } from '../utils/rockSpatialIndex.ts';
 import { yieldToMain } from '../utils/yieldToMain.ts';
 import { createPostProcessor, type ScenePostProcessor } from './PostProcessing.ts';
 import { fitDirectionalLightShadow, computeViewShadowBounds, intersectTerrainBounds, updateDirectionalShadowCameraMatrices } from './fitDirectionalShadow.ts';
-import { createPreferredRenderer, type RendererBackend, type RendererBackendKind, type SupportedRenderer } from './RendererBackend.ts';
+import {
+  createPreferredRenderer,
+  type RendererBackend,
+  type RendererBackendKind,
+  type SupportedRenderer,
+} from './RendererBackend.ts';
 import { applyShadowPreferences as syncShadowCasters } from './applyShadowPreferences.ts';
 import { TREE_SHADOW_CAST_LAYER } from './SceneLayers.ts';
 import { subscribeShadowPreferences } from './shadowPreference.ts';
@@ -132,6 +137,7 @@ export class SceneManager {
   private rockSpatialIndex: RockSpatialIndex | null = null;
   private buildInteractionActive = false;
   private renderFrame = 0;
+  private completedRenderFrames = 0;
   private readonly firstPersonDeerObserver = { x: 0, z: 0, crouching: false };
   private lastShadowTargetX = Number.NaN;
   private lastShadowTargetZ = Number.NaN;
@@ -543,7 +549,22 @@ export class SceneManager {
       this.lastShadowDistance = cameraDistance;
       this.refreshShadowMap();
     }
+    if (import.meta.env.VITE_E2E_TEST === '1') {
+      // The smoke test exercises the real node-material terrain through the
+      // WebGL 2 node backend. Its software renderer does not need to spend
+      // minutes raymarching the sky and bloom pipeline to prove compatibility.
+      const skyVisible = this.sky.visible;
+      const precipitationVisible = this.precipitation.group.visible;
+      this.sky.visible = false;
+      this.precipitation.group.visible = false;
+      this.renderer.render(this.scene, this.camera);
+      this.sky.visible = skyVisible;
+      this.precipitation.group.visible = precipitationVisible;
+      this.completedRenderFrames++;
+      return;
+    }
     this.postProcessor.render(dt);
+    this.completedRenderFrames++;
   }
 
   private shouldRefreshShadowMap(cameraDistance: number): boolean {
@@ -611,9 +632,16 @@ export class SceneManager {
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }
 
-  getPerformanceStats(): { backend: RendererBackendKind; calls: number; triangles: number; pixelRatio: number } {
+  getPerformanceStats(): {
+    backend: RendererBackendKind;
+    frames: number;
+    calls: number;
+    triangles: number;
+    pixelRatio: number;
+  } {
     return {
       backend: this.rendererBackend,
+      frames: this.completedRenderFrames,
       calls: this.renderer.info.render.calls,
       triangles: this.renderer.info.render.triangles,
       pixelRatio: this.renderer.getPixelRatio(),

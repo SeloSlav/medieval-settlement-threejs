@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
 import {
   ABANDON_AFTER_DEFICIT_TICKS,
   CHAPEL_RECOVERY_NEEDS_REQUIRED,
@@ -69,4 +71,40 @@ assert.ok(
 );
 assert.equal(chapelAttendanceChance(assignedLabor), expectedChapelAttendanceChance(assignedLabor));
 
-console.log('chapel community tests passed');
+const chapelSimulation = readFileSync(
+  new URL('../server/src/simulation/chapel.rs', import.meta.url),
+  'utf8',
+);
+assert.match(chapelSimulation, /build_monastery_tithe_routes/);
+assert.match(chapelSimulation, /monasteries\s*\.iter\(\)/);
+assert.match(chapelSimulation, /\.map\(\|building\| building\.id\)\s*\.min\(\)/);
+assert.doesNotMatch(chapelSimulation, /monasteries\.sort_by_key/);
+assert.doesNotMatch(
+  chapelSimulation,
+  /db\s*\.building\(\)\s*\.owner\(\)\s*\.filter\(&chapel\.owner\)/,
+);
+assert.match(
+  chapelSimulation,
+  /ctx\.db\.building\(\)\.id\(\)\.find\(&monastery_id\)/,
+  'the selected route must still reload fresh monastery stock before crediting it',
+);
+
+const householdCount = 100_000;
+const monasteryCount = 128;
+const oldCandidateVisits = householdCount * monasteryCount;
+const routeStarted = performance.now();
+let selectedMonasteryId = Number.POSITIVE_INFINITY;
+for (let id = monasteryCount; id > 0; id -= 1) {
+  selectedMonasteryId = Math.min(selectedMonasteryId, id);
+}
+const routeElapsedMs = performance.now() - routeStarted;
+assert.equal(selectedMonasteryId, 1);
+assert.equal(oldCandidateVisits, 12_800_000);
+assert.ok(
+  routeElapsedMs < 25,
+  `128-monastery stable route selection took ${routeElapsedMs.toFixed(1)} ms`,
+);
+
+console.log(
+  `chapel community tests passed (100k households: monastery candidate visits ${oldCandidateVisits.toLocaleString()}→${monasteryCount})`,
+);

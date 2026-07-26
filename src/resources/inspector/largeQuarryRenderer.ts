@@ -27,12 +27,12 @@ export function renderLargeQuarryInspector(
   return {
     eyebrow: 'Underground quarry',
     title: context.worldQueries.getBuildingLabel(building.kind),
-    statusText: !richDeposit
-      ? 'Stopped — no rich underground source beneath the shaft'
-      : building.assignedLabor === 0
-        ? 'Idle — assign workers to the underground quarry'
-        : storageFull
-          ? 'Paused — stone storage is full'
+    statusText: building.assignedLabor === 0
+      ? 'Idle — assign workers to the underground quarry'
+      : storageFull
+        ? 'Paused — stone storage is full'
+        : !richDeposit
+          ? 'Stopped — no rich underground source beneath the shaft'
           : 'Extracting from the inexhaustible underground source',
     statusState: active ? 'active' : 'idle',
     detailsHtml: `

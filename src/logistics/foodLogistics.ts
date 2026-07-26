@@ -1,5 +1,7 @@
 import {
   FOOD_PER_DELIVERY,
+  HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
+  HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
   RESIDENCE_FOOD_CAPACITY,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
 } from '../generated/gameBalance.ts';
@@ -8,13 +10,25 @@ import { getNeedStock } from '../residences/residenceNeedState.ts';
 import { foodDeliveryTripSeconds } from './deliveryLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { lodgeLaborAlternates, lodgeLaborSplit } from './lodgeLogistics.ts';
-import { roadPathDistance } from './roadLogistics.ts';
+import { compareStableEntityIds, roadPathDistance } from './roadLogistics.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 
 export type FoodLaborSplit = {
   harvesting: number;
   delivering: number;
 };
+
+export type GranaryDispatchDuty = 'households' | 'preservation';
+
+export function granaryDispatchOrder(householdsFirst: boolean): GranaryDispatchDuty[] {
+  return householdsFirst
+    ? ['households', 'preservation']
+    : ['preservation', 'households'];
+}
+
+export function granaryDispatchPriorityLabel(householdsFirst: boolean): string {
+  return householdsFirst ? 'Households first' : 'Winter preservation first';
+}
 
 export function foodLaborSplit(assignedLabor: number): FoodLaborSplit {
   const split = lodgeLaborSplit(assignedLabor);
@@ -36,6 +50,30 @@ export function formatFoodCrewSplit(assignedLabor: number): string {
 export function foodPerDelivery(deliveryWorkers: number): number {
   if (deliveryWorkers <= 0) return 0;
   return FOOD_PER_DELIVERY * deliveryWorkers;
+}
+
+export function householdFoodReserve(
+  claimedHouseholds: number,
+  sourceCapacity: number,
+): number {
+  return Math.max(
+    0,
+    Math.min(
+      Math.max(0, claimedHouseholds) * HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
+      Math.max(0, sourceCapacity) * HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
+    ),
+  );
+}
+
+export function institutionalFoodSurplus(
+  sourceStock: number,
+  claimedHouseholds: number,
+  sourceCapacity: number,
+): number {
+  return Math.max(
+    0,
+    sourceStock - householdFoodReserve(claimedHouseholds, sourceCapacity),
+  );
 }
 
 export function residenceFoodRunwaySeconds(residence: ResidenceState): number | null {
@@ -73,7 +111,7 @@ export function compareResidencesForFoodDelivery(
   const distanceA = roadPathDistance(network, supplier.x, supplier.z, a.x, a.z) ?? Infinity;
   const distanceB = roadPathDistance(network, supplier.x, supplier.z, b.x, b.z) ?? Infinity;
   if (Math.abs(distanceA - distanceB) > 1e-6) return distanceA - distanceB;
-  return a.id.localeCompare(b.id);
+  return compareStableEntityIds(a.id, b.id);
 }
 
 export function peekNextFoodDeliveryTarget(
@@ -97,6 +135,13 @@ export function foodSupplierDeliveryTripSeconds(
   supplier: { x: number; z: number },
   target: { x: number; z: number } | null,
   deliveryWorkers: number,
+  travelSpeedMultiplier = 1,
 ): number {
-  return foodDeliveryTripSeconds(network, supplier, target, deliveryWorkers);
+  return foodDeliveryTripSeconds(
+    network,
+    supplier,
+    target,
+    deliveryWorkers,
+    travelSpeedMultiplier,
+  );
 }

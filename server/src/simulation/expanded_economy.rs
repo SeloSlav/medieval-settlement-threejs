@@ -6,12 +6,13 @@ use crate::balance_generated::{
     FARM_WORK_METERS_PER_WORKER_PER_SEC, FERRY_GOLD_PER_DAY, FOOD_DELIVERY_SPEED_MPS,
     FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP, GRANARY_FIREWOOD_PER_CYCLE,
     GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE, GRANARY_WATER_PER_CYCLE,
-    MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS, MONASTERY_FOOD_PER_CYCLE,
-    MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
-    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
-    SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_WINE,
-    TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
+    MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_HONEY,
+    MONASTERY_FEAST_WINE, MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE,
+    MONASTERY_UNLINKED_PRODUCTIVITY, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
+    SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
     VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
+    WEAVER_CLOTH_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -22,14 +23,24 @@ use crate::economy::{
     withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
-    expected_grain_yield, fertility_after_harvest, shape_efficiency, work_required, CROP_FALLOW,
-    STAGE_GROWING, STAGE_HARVESTING, STAGE_PLOUGHING, STAGE_SOWING,
+    crop_growth_allowed, expected_grain_yield, farmstead_exportable_grain, fertility_after_harvest,
+    field_seed_grain_remaining, field_work_allowed, seed_grain_required, shape_efficiency,
+    sowing_window_missed, work_required, CROP_FALLOW, STAGE_GROWING, STAGE_HARVESTING,
+    STAGE_PLOUGHING, STAGE_SOWING,
 };
 use crate::frontier_economy_policy::{
-    armed_guards, guard_upkeep, next_guard_readiness, CARPENTER_GOLD_PER_POLEARM,
-    CARPENTER_TIMBER_PER_POLEARM,
+    armed_guards, carpenter_polearm_shortfall, guard_upkeep, guardhouse_food_runway_days,
+    guardhouse_food_target, guardhouse_polearm_target, next_guard_readiness,
+    select_guardhouse_food_candidate, CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
+    GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
+};
+use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
+use crate::monastery_hospitality_policy::{monastery_hospitality_use, monastery_pilgrimage_gold};
+use crate::processor_output_policy::{
+    processor_output_headroom, processor_output_kind, ProcessorOutputKind,
 };
 use crate::season_policy::{EnvironmentState, WeatherKind};
+use crate::simulation::delivery_cargo::has_delivery_stock_room;
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_supply_trip, try_start_building_supply_trip,
     try_start_delivery_trip,
@@ -40,9 +51,15 @@ use crate::simulation::landmark_access::monastery_linked_to_chapel;
 use crate::simulation::residence_needs::{
     apply_need_delivery, load_needs, need_stock, ResidenceNeedKind,
 };
+use crate::simulation::road_logistics::select_residence_for_need_delivery;
 use crate::simulation::tick_context::SimTickContext;
-use crate::simulation::water_logistics::ensure_building_water;
-use crate::supply_policy::{compare_need_delivery_candidates, compare_supply_route_candidates};
+use crate::specialty_trade_policy::{apiary_is_active, vineyard_is_harvesting};
+use crate::supply_policy::{
+    grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
+    institutional_food_surplus, select_grain_dispatch_candidate, select_supply_route_candidate,
+    GrainDispatchDuty, GranaryDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
+    GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS,
+};
 use crate::tables::{farm_field, Building, FarmField, Residence};
 
 struct RoutedBuilding {
@@ -50,10 +67,19 @@ struct RoutedBuilding {
     distance: f64,
 }
 
-struct RoutedResidence {
-    residence: Residence,
-    stock: f64,
+struct RoutedGrainTarget {
+    building: Building,
     distance: f64,
+    duty: GrainDispatchDuty,
+    runway_cycles: f64,
+    desired_stock: f64,
+}
+
+struct RoutedGuardFoodTarget {
+    building: Building,
+    distance: f64,
+    runway_days: f64,
+    desired_stock: f64,
 }
 
 pub fn step_threshing_barn(
@@ -63,17 +89,37 @@ pub fn step_threshing_barn(
     environment: EnvironmentState,
     mut building: Building,
 ) {
-    let work_allowed = !labor_and_logistics_paused(ctx, building.owner, clock);
-    step_farmstead_fields(ctx, &mut building, clock, environment, work_allowed);
-    if !labor_and_logistics_paused(ctx, building.owner, clock) && building.assigned_labor > 0 {
-        dispatch_to_building(
+    let fields: Vec<FarmField> = ctx
+        .db
+        .farm_field()
+        .farmstead_id()
+        .filter(&building.id)
+        .collect();
+    let requested_seed = farmstead_seed_grain_remaining(&fields);
+    if requested_seed > building.grain + 1e-6 {
+        request_connected_seed_grain(
             ctx,
             tick,
             clock,
-            &mut building,
-            CommodityKind::Grain,
-            &["watermill", "brewery", "granary", "monastery"],
+            &building,
+            &["granary", "marketplace"],
+            requested_seed,
         );
+    }
+    let work_allowed = !labor_and_logistics_paused(ctx, tick, building.owner, clock);
+    let seed_reserve = step_farmstead_fields(
+        ctx,
+        tick,
+        &mut building,
+        clock,
+        environment,
+        work_allowed,
+        fields,
+    );
+    tick.set_farmstead_seed_reserve(ctx, building.owner, building.id, seed_reserve);
+    if !labor_and_logistics_paused(ctx, tick, building.owner, clock) && building.assigned_labor > 0
+    {
+        dispatch_farmstead_grain(ctx, tick, clock, &mut building, seed_reserve);
     }
     ctx.db.building().id().update(building);
 }
@@ -87,6 +133,7 @@ pub fn step_watermill(
     let mut mill = building;
     mill = step_processor(
         ctx,
+        tick,
         clock,
         mill,
         &[(CommodityKind::Grain, WATERMILL_GRAIN_PER_CYCLE)],
@@ -109,8 +156,7 @@ pub fn step_granary(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut granary =
-        ensure_water_for_process(ctx, tick, clock, building, GRANARY_WATER_PER_CYCLE);
+    let mut granary = building;
     request_connected_commodity(
         ctx,
         tick,
@@ -121,22 +167,25 @@ pub fn step_granary(
         GRANARY_FIREWOOD_PER_CYCLE * 3.0,
     );
     // Once its bakery inputs are covered, the granary also centralizes fresh
-    // wild food. Producers keep enough local stock for direct household
-    // deliveries; the granary requests only while below its storage buffer.
+    // food. Routine household suppliers retain a territory-sized delivery
+    // buffer before any institutional collection cart may load.
     if granary.granary_accepts_fresh_food {
-        let food_buffer = building_commodity_cap(&granary.kind, CommodityKind::Food) * 0.75;
-        request_connected_commodity(
+        let food_buffer = granary_fresh_food_target(
+            building_commodity_cap(&granary.kind, CommodityKind::Food),
+            granary.granary_fresh_food_target_percent,
+        );
+        request_connected_food_surplus(
             ctx,
             tick,
             clock,
             &granary,
-            CommodityKind::Food,
             &["hunters_hall", "foragers_shed", "fishing_camp", "swineherd"],
             food_buffer,
         );
     }
     granary = step_processor(
         ctx,
+        tick,
         clock,
         granary,
         &[
@@ -146,30 +195,71 @@ pub fn step_granary(
         ],
         &[(CommodityKind::Food, GRANARY_FOOD_PER_CYCLE)],
     );
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut granary,
-        CommodityKind::Food,
-        &["smokehouse"],
-    );
-    dispatch_need(ctx, tick, clock, &mut granary, ResidenceNeedKind::Food, 4.0);
+    let grain_dispatch = next_granary_grain_dispatch(ctx, tick, clock, &granary);
+    let guard_food_dispatch = next_granary_guard_food_dispatch(ctx, tick, clock, &granary);
+    let grain_is_critical = grain_dispatch
+        .as_ref()
+        .is_some_and(|dispatch| dispatch.runway_cycles < GRAIN_CRITICAL_RUNWAY_CYCLES);
+    let guard_food_preempts_grain = guard_food_dispatch.as_ref().is_some_and(|guard| {
+        !grain_is_critical
+            || grain_dispatch.as_ref().is_some_and(|grain| {
+                let guard_urgency =
+                    guard.runway_days / GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS.max(1e-9);
+                let grain_urgency = grain.runway_cycles / GRAIN_CRITICAL_RUNWAY_CYCLES.max(1e-9);
+                guard_urgency < grain_urgency - 1e-9
+                    || ((guard_urgency - grain_urgency).abs() <= 1e-9
+                        && guard.building.id < grain.building.id)
+            })
+    });
+    if guard_food_preempts_grain {
+        if let Some(dispatch) = guard_food_dispatch.as_ref() {
+            dispatch_granary_guard_food(ctx, tick, clock, &mut granary, dispatch);
+        }
+    } else if grain_is_critical {
+        if let Some(dispatch) = grain_dispatch.as_ref() {
+            dispatch_granary_grain(ctx, tick, clock, &mut granary, dispatch);
+        }
+    }
+    for duty in granary_dispatch_order(granary.granary_households_first) {
+        match duty {
+            GranaryDispatchDuty::Households => {
+                dispatch_need(ctx, tick, clock, &mut granary, ResidenceNeedKind::Food, 4.0);
+            }
+            GranaryDispatchDuty::Preservation => {
+                dispatch_to_building(
+                    ctx,
+                    tick,
+                    clock,
+                    &mut granary,
+                    CommodityKind::Food,
+                    &["smokehouse"],
+                );
+            }
+        }
+    }
+    if !grain_is_critical {
+        if let Some(dispatch) = grain_dispatch.as_ref() {
+            dispatch_granary_grain(ctx, tick, clock, &mut granary, dispatch);
+        }
+    }
     ctx.db.building().id().update(granary);
 }
 
 fn step_farmstead_fields(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     farmstead: &mut Building,
     clock: &GameClock,
     environment: EnvironmentState,
     work_allowed: bool,
-) {
-    let mut fields: Vec<FarmField> = ctx
-        .db
-        .farm_field()
-        .farmstead_id()
-        .filter(&farmstead.id)
+    mut fields: Vec<FarmField>,
+) -> f64 {
+    let cattle_support: std::collections::HashMap<u64, (f64, f64)> = fields
+        .iter()
+        .filter_map(|field| {
+            tick.cattle_field_support_for(ctx, farmstead.owner, field.id)
+                .map(|support| (field.id, support))
+        })
         .collect();
 
     // Rain and drought persistently change soil moisture, which later affects yield.
@@ -187,7 +277,7 @@ fn step_farmstead_fields(
     // Seasonal boundaries are authoritative. A partial sowing dies at winter,
     // immature crops fail in September, and uncollected harvest is lost in October.
     for field in &mut fields {
-        if matches!(clock.month, 12 | 1 | 2) && field.stage == STAGE_SOWING {
+        if sowing_window_missed(field.stage, field.crop, clock.month) {
             fail_field_cycle(field);
         } else if clock.month == 9 && field.stage == STAGE_GROWING {
             if field.crop == CROP_FALLOW {
@@ -199,17 +289,22 @@ fn step_farmstead_fields(
             } else if field.stage_progress >= 0.75 {
                 field.stage = STAGE_HARVESTING;
                 field.stage_progress = 0.0;
+                field.current_yield = 0.0;
             } else {
                 fail_field_cycle(field);
             }
         } else if clock.month == 10 && field.stage == STAGE_HARVESTING {
-            fail_field_cycle(field);
+            let manure_bonus = cattle_support
+                .get(&field.id)
+                .map(|(_, bonus)| *bonus)
+                .unwrap_or(0.0);
+            finish_field_cycle_with_manure(field, field.current_yield, manure_bonus);
         }
     }
 
-    // Fully sown grain is dormant in winter, then grows through spring and summer.
+    // Winter rye wakes in March; spring oats join after their shorter sowing window.
     for field in &mut fields {
-        if field.stage != STAGE_GROWING || !matches!(clock.month, 3..=8) {
+        if field.stage != STAGE_GROWING || !crop_growth_allowed(field.crop, clock.month) {
             continue;
         }
         let crop_growth_multiplier = if field.crop == CROP_FALLOW { 0.72 } else { 1.0 };
@@ -235,14 +330,14 @@ fn step_farmstead_fields(
         if work_budget <= 1e-9
             || field.stage == STAGE_GROWING
             || field.priority == 0
-            || !field_work_allowed(field.stage, clock.month)
+            || !field_work_allowed(field.stage, field.crop, clock.month)
         {
             continue;
         }
         let corners = field_corners(field);
         let shape = shape_efficiency(&corners);
         let (plough_multiplier, manure_bonus) =
-            super::livestock::cattle_support_for_field(ctx, field);
+            cattle_support.get(&field.id).copied().unwrap_or((1.0, 0.0));
         let required = (work_required(field.stage, field.area, shape)
             * if field.stage == STAGE_PLOUGHING {
                 plough_multiplier
@@ -271,15 +366,30 @@ fn step_farmstead_fields(
                 spent = spent.min(storage_limited_work);
             }
         }
+        let seed_required = if field.stage == STAGE_SOWING {
+            seed_grain_required(field.area, field.crop)
+        } else {
+            0.0
+        };
+        if seed_required > 1e-9 {
+            let seed_limited_work = required * farmstead.grain.max(0.0) / seed_required;
+            spent = spent.min(seed_limited_work);
+        }
         if spent <= 1e-9 {
             continue;
         }
         let previous_progress = field.stage_progress;
         field.stage_progress = (field.stage_progress + spent / required).min(1.0);
         work_budget -= spent;
+        if seed_required > 1e-9 {
+            let seed_used =
+                seed_required * (field.stage_progress - previous_progress).clamp(0.0, 1.0);
+            withdraw_building_commodity(farmstead, CommodityKind::Grain, seed_used);
+        }
         if let Some(expected) = expected_harvest {
             let harvested = expected * (field.stage_progress - previous_progress).max(0.0);
-            deposit_building_commodity(farmstead, CommodityKind::Grain, harvested);
+            let deposited = deposit_building_commodity(farmstead, CommodityKind::Grain, harvested);
+            field.current_yield += deposited;
         }
         if field.stage_progress < 1.0 - 1e-9 {
             continue;
@@ -308,9 +418,27 @@ fn step_farmstead_fields(
         }
     }
 
+    let seed_reserve = farmstead_seed_grain_remaining(&fields);
     for field in fields {
         ctx.db.farm_field().id().update(field);
     }
+    seed_reserve
+}
+
+fn farmstead_seed_grain_remaining(fields: &[FarmField]) -> f64 {
+    fields
+        .iter()
+        .map(|field| {
+            field_seed_grain_remaining(
+                field.area,
+                field.crop,
+                field.next_crop,
+                field.stage,
+                field.stage_progress,
+                field.priority,
+            )
+        })
+        .sum()
 }
 
 fn finish_field_cycle(field: &mut FarmField, harvested: f64) {
@@ -319,6 +447,7 @@ fn finish_field_cycle(field: &mut FarmField, harvested: f64) {
 
 fn finish_field_cycle_with_manure(field: &mut FarmField, harvested: f64, manure_bonus: f64) {
     field.last_yield = harvested;
+    field.current_yield = 0.0;
     field.harvest_count = field.harvest_count.saturating_add(1);
     field.fertility =
         (fertility_after_harvest(field.crop, field.fertility) + manure_bonus).clamp(0.0, 1.0);
@@ -329,17 +458,10 @@ fn finish_field_cycle_with_manure(field: &mut FarmField, harvested: f64, manure_
 
 fn fail_field_cycle(field: &mut FarmField) {
     field.last_yield = 0.0;
+    field.current_yield = 0.0;
     field.crop = field.next_crop;
     field.stage = STAGE_PLOUGHING;
     field.stage_progress = 0.0;
-}
-
-fn field_work_allowed(stage: u8, month: u32) -> bool {
-    match stage {
-        STAGE_HARVESTING => month == 9,
-        STAGE_PLOUGHING | STAGE_SOWING => matches!(month, 10 | 11),
-        _ => false,
-    }
 }
 
 fn field_corners(field: &FarmField) -> ZoneCorners {
@@ -378,10 +500,10 @@ pub fn step_brewery(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut brewery =
-        ensure_water_for_process(ctx, tick, clock, building, BREWERY_WATER_PER_CYCLE);
+    let mut brewery = building;
     brewery = step_processor(
         ctx,
+        tick,
         clock,
         brewery,
         &[
@@ -399,14 +521,49 @@ pub fn step_brewery(
         &["monastery"],
     );
     dispatch_need(ctx, tick, clock, &mut brewery, ResidenceNeedKind::Ale, 3.0);
-    export_specialty(
+    dispatch_to_building(
         ctx,
         tick,
+        clock,
         &mut brewery,
         CommodityKind::Ale,
-        SPECIALTY_EXPORT_GOLD_PER_ALE,
+        &["marketplace"],
     );
     ctx.db.building().id().update(brewery);
+}
+
+pub fn step_weaver(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let starting_cloth = building.cloth;
+    let mut weaver = step_processor(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[(CommodityKind::Wool, WEAVER_WOOL_PER_CYCLE)],
+        &[(CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE)],
+    );
+    if starting_cloth <= 1e-6 && weaver.cloth > 1e-6 {
+        // Specialty claims read authoritative building rows. Expose the first
+        // completed batch before claims are built so it serves households
+        // instead of slipping directly into an export cart.
+        ctx.db.building().id().update(weaver.clone());
+        tick.invalidate_specialty_claims(weaver.owner, ResidenceNeedKind::Cloth);
+    }
+    dispatch_need(ctx, tick, clock, &mut weaver, ResidenceNeedKind::Cloth, 2.0);
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut weaver,
+        CommodityKind::Cloth,
+        &["marketplace"],
+    );
+    ctx.db.building().id().update(weaver);
 }
 
 pub fn step_smokehouse(
@@ -416,19 +573,12 @@ pub fn step_smokehouse(
     building: Building,
 ) {
     let mut smokehouse = building;
-    request_connected_commodity(
+    request_connected_food_surplus(
         ctx,
         tick,
         clock,
         &smokehouse,
-        CommodityKind::Food,
-        &[
-            "hunters_hall",
-            "foragers_shed",
-            "fishing_camp",
-            "granary",
-            "swineherd",
-        ],
+        &["hunters_hall", "foragers_shed", "fishing_camp", "swineherd"],
         SMOKEHOUSE_FOOD_PER_CYCLE * 2.0,
     );
     request_connected_commodity(
@@ -442,6 +592,7 @@ pub fn step_smokehouse(
     );
     smokehouse = step_processor(
         ctx,
+        tick,
         clock,
         smokehouse,
         &[
@@ -470,23 +621,30 @@ pub fn step_apiary(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut apiary = step_simple_producer(
-        ctx,
-        clock,
-        building,
-        &[
-            (CommodityKind::Honey, APIARY_HONEY_PER_CYCLE),
-            (CommodityKind::Food, APIARY_FOOD_PER_CYCLE),
-        ],
-    );
-    export_specialty(
+    let mut apiary = if apiary_is_active(clock.month as u8) {
+        step_simple_producer(
+            ctx,
+            tick,
+            clock,
+            building,
+            &[
+                (CommodityKind::Honey, APIARY_HONEY_PER_CYCLE),
+                (CommodityKind::Food, APIARY_FOOD_PER_CYCLE),
+            ],
+        )
+    } else {
+        building
+    };
+    dispatch_need(ctx, tick, clock, &mut apiary, ResidenceNeedKind::Food, 2.0);
+    dispatch_monastery_hospitality(ctx, tick, clock, &mut apiary, CommodityKind::Honey);
+    dispatch_to_building(
         ctx,
         tick,
+        clock,
         &mut apiary,
         CommodityKind::Honey,
-        SPECIALTY_EXPORT_GOLD_PER_HONEY,
+        &["marketplace"],
     );
-    dispatch_need(ctx, tick, clock, &mut apiary, ResidenceNeedKind::Food, 2.0);
     ctx.db.building().id().update(apiary);
 }
 
@@ -496,22 +654,20 @@ pub fn step_vineyard(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut vineyard = step_simple_producer(
-        ctx,
-        clock,
-        building,
-        &[
-            (CommodityKind::Wine, VINEYARD_WINE_PER_CYCLE),
-            (CommodityKind::Food, VINEYARD_FOOD_PER_CYCLE),
-        ],
-    );
-    export_specialty(
-        ctx,
-        tick,
-        &mut vineyard,
-        CommodityKind::Wine,
-        SPECIALTY_EXPORT_GOLD_PER_WINE,
-    );
+    let mut vineyard = if vineyard_is_harvesting(clock.month as u8) {
+        step_simple_producer(
+            ctx,
+            tick,
+            clock,
+            building,
+            &[
+                (CommodityKind::Wine, VINEYARD_WINE_PER_CYCLE),
+                (CommodityKind::Food, VINEYARD_FOOD_PER_CYCLE),
+            ],
+        )
+    } else {
+        building
+    };
     dispatch_need(
         ctx,
         tick,
@@ -519,6 +675,15 @@ pub fn step_vineyard(
         &mut vineyard,
         ResidenceNeedKind::Food,
         2.0,
+    );
+    dispatch_monastery_hospitality(ctx, tick, clock, &mut vineyard, CommodityKind::Wine);
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut vineyard,
+        CommodityKind::Wine,
+        &["marketplace"],
     );
     ctx.db.building().id().update(vineyard);
 }
@@ -537,6 +702,7 @@ pub fn step_monastery(
     };
     let mut monastery = step_autonomous_processor(
         ctx,
+        tick,
         clock,
         building,
         &[(
@@ -546,8 +712,25 @@ pub fn step_monastery(
         &[(CommodityKind::Food, MONASTERY_FOOD_PER_CYCLE * productivity)],
     );
 
+    let hospitality_enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
     if linked && owner_has_connected_marketplace(ctx, tick, &monastery) {
-        let gold = MONASTERY_PILGRIMAGE_GOLD_PER_DAY * TICK_DT / CALENDAR_SECONDS_PER_DAY;
+        // Honey abstracts both table use and beeswax for worship; wine supports
+        // liturgy and guests. Both remain physical stores with an export value.
+        let hospitality = monastery_hospitality_use(
+            monastery.honey,
+            monastery.wine,
+            TICK_DT,
+            CALENDAR_SECONDS_PER_DAY,
+            hospitality_enabled,
+        );
+        withdraw_building_commodity(&mut monastery, CommodityKind::Honey, hospitality.honey_used);
+        withdraw_building_commodity(&mut monastery, CommodityKind::Wine, hospitality.wine_used);
+        let gold = monastery_pilgrimage_gold(
+            hospitality_enabled,
+            hospitality.supply_ratio,
+            TICK_DT,
+            CALENDAR_SECONDS_PER_DAY,
+        );
         credit_treasury_gold(ctx, monastery.owner, gold);
         if let Some(mut treasury) = ctx.db.player_resources().owner().find(&monastery.owner) {
             treasury.monastery_pilgrimage_gold_total += gold;
@@ -582,7 +765,7 @@ pub fn step_ferry_landing(
     clock: &GameClock,
     building: Building,
 ) {
-    if !labor_and_logistics_paused(ctx, building.owner, clock)
+    if !labor_and_logistics_paused(ctx, tick, building.owner, clock)
         && building.assigned_labor > 0
         && owner_has_connected_marketplace(ctx, tick, &building)
     {
@@ -598,7 +781,7 @@ fn frontier_economy_enabled(ctx: &ReducerContext) -> bool {
         .world_config()
         .id()
         .find(&0)
-        .is_some_and(|config| config.conflict_enabled && config.enemy_pressure > 0)
+        .is_some_and(|config| config.conflict_enabled)
 }
 
 pub fn step_carpenter(
@@ -613,38 +796,51 @@ pub fn step_carpenter(
         return;
     }
 
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &building,
-        CommodityKind::Timber,
-        &["lumber_mill", "village_storehouse"],
-        CARPENTER_TIMBER_PER_POLEARM * 6.0,
-    );
+    let polearm_shortfall =
+        carpenter_polearm_shortfall(building.polearms, building.carpenter_polearm_reserve);
+    if polearm_shortfall > 1e-6 {
+        let next_batch = polearm_shortfall.min(6.0);
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            &building,
+            CommodityKind::Timber,
+            &["lumber_mill", "village_storehouse"],
+            CARPENTER_TIMBER_PER_POLEARM * next_batch,
+        );
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            &building,
+            CommodityKind::Ironwork,
+            &["marketplace"],
+            CARPENTER_IRONWORK_PER_POLEARM * next_batch,
+        );
+    }
 
-    if cycle_ready(ctx, clock, &mut building, false)
+    if cycle_ready(ctx, tick, clock, &mut building, false)
+        && polearm_shortfall > 1e-6
         && building.timber + 1e-6 >= CARPENTER_TIMBER_PER_POLEARM
+        && building.ironwork + 1e-6 >= CARPENTER_IRONWORK_PER_POLEARM
         && building_commodity_room(&building, CommodityKind::Polearms) + 1e-6 >= 1.0
-        && spend_treasury_gold(ctx, building.owner, CARPENTER_GOLD_PER_POLEARM).is_ok()
     {
         withdraw_building_commodity(
             &mut building,
             CommodityKind::Timber,
             CARPENTER_TIMBER_PER_POLEARM,
         );
+        withdraw_building_commodity(
+            &mut building,
+            CommodityKind::Ironwork,
+            CARPENTER_IRONWORK_PER_POLEARM,
+        );
         deposit_building_commodity(&mut building, CommodityKind::Polearms, 1.0);
         let labor = building.assigned_labor as f64;
         reset_cycle(&mut building, labor);
     }
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut building,
-        CommodityKind::Polearms,
-        &["guardhouse"],
-    );
+    dispatch_polearms_to_guardhouse(ctx, tick, clock, &mut building);
     ctx.db.building().id().update(building);
 }
 
@@ -660,23 +856,27 @@ pub fn step_guardhouse(
         return;
     }
 
-    let food_buffer = (building.assigned_labor as f64 * 6.0).max(12.0);
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &building,
-        CommodityKind::Food,
-        &[
-            "granary",
-            "hunters_hall",
-            "foragers_shed",
-            "fishing_camp",
-            "pastoral_farmstead",
-            "swineherd",
-        ],
-        food_buffer,
+    let food_buffer = guardhouse_food_target(
+        building.assigned_labor,
+        building.polearms,
+        building.guardhouse_food_reserve,
     );
+    if food_buffer > 1e-6 {
+        request_connected_food_surplus(
+            ctx,
+            tick,
+            clock,
+            &building,
+            &[
+                "hunters_hall",
+                "foragers_shed",
+                "fishing_camp",
+                "pastoral_farmstead",
+                "swineherd",
+            ],
+            food_buffer,
+        );
+    }
 
     let armed_guards = armed_guards(building.assigned_labor, building.polearms);
     if armed_guards <= 1e-6 {
@@ -721,11 +921,12 @@ pub fn step_guardhouse(
 
 fn step_simple_producer(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     mut building: Building,
     outputs: &[(CommodityKind, f64)],
 ) -> Building {
-    if !cycle_ready(ctx, clock, &mut building, false) {
+    if !cycle_ready(ctx, tick, clock, &mut building, false) {
         return building;
     }
     let labor = building.assigned_labor.max(1) as f64;
@@ -738,31 +939,40 @@ fn step_simple_producer(
 
 fn step_processor(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     mut building: Building,
     inputs: &[(CommodityKind, f64)],
     outputs: &[(CommodityKind, f64)],
 ) -> Building {
-    if !cycle_ready(ctx, clock, &mut building, false) {
+    if !cycle_ready(ctx, tick, clock, &mut building, false) {
         return building;
     }
     let labor = building.assigned_labor.max(1) as f64;
-    process_batch(&mut building, inputs, outputs, 1.0);
+    let output_target_percent = building.processor_output_target_percent;
+    process_batch(
+        &mut building,
+        inputs,
+        outputs,
+        1.0,
+        Some(output_target_percent),
+    );
     reset_cycle(&mut building, labor);
     building
 }
 
 fn step_autonomous_processor(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     mut building: Building,
     inputs: &[(CommodityKind, f64)],
     outputs: &[(CommodityKind, f64)],
 ) -> Building {
-    if !cycle_ready(ctx, clock, &mut building, true) {
+    if !cycle_ready(ctx, tick, clock, &mut building, true) {
         return building;
     }
-    process_batch(&mut building, inputs, outputs, 1.0);
+    process_batch(&mut building, inputs, outputs, 1.0, None);
     reset_cycle(&mut building, 1.0);
     building
 }
@@ -772,6 +982,7 @@ fn process_batch(
     inputs: &[(CommodityKind, f64)],
     outputs: &[(CommodityKind, f64)],
     labor: f64,
+    output_target_percent: Option<u8>,
 ) {
     let mut scale = labor;
     for (kind, amount) in inputs {
@@ -781,7 +992,18 @@ fn process_batch(
     }
     for (kind, amount) in outputs {
         if *amount > 1e-6 {
-            scale = scale.min(building_commodity_room(building, *kind) / amount);
+            let room = if output_target_percent.is_some()
+                && processor_output_commodity(&building.kind) == Some(*kind)
+            {
+                processor_output_headroom(
+                    building_commodity_stock(building, *kind),
+                    building_commodity_cap(&building.kind, *kind),
+                    output_target_percent.unwrap_or(100),
+                )
+            } else {
+                building_commodity_room(building, *kind)
+            };
+            scale = scale.min(room / amount);
         }
     }
     if scale <= 1e-6 {
@@ -795,13 +1017,61 @@ fn process_batch(
     }
 }
 
+fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
+    match processor_output_kind(kind)? {
+        ProcessorOutputKind::Flour => Some(CommodityKind::Flour),
+        ProcessorOutputKind::Food => Some(CommodityKind::Food),
+        ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
+        ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
+        ProcessorOutputKind::Cloth => Some(CommodityKind::Cloth),
+    }
+}
+
+fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
+    match kind {
+        "watermill" => commodity == CommodityKind::Grain,
+        "granary" => matches!(
+            commodity,
+            CommodityKind::Flour | CommodityKind::Water | CommodityKind::Firewood
+        ),
+        "brewery" => matches!(commodity, CommodityKind::Grain | CommodityKind::Water),
+        "smokehouse" => {
+            matches!(commodity, CommodityKind::Food | CommodityKind::Firewood)
+        }
+        "weaver" => commodity == CommodityKind::Wool,
+        _ => false,
+    }
+}
+
+pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityKind) -> bool {
+    if !processor_uses_input(&building.kind, commodity) {
+        return true;
+    }
+    let Some(output) = processor_output_commodity(&building.kind) else {
+        return true;
+    };
+    processor_output_headroom(
+        building_commodity_stock(building, output),
+        building_commodity_cap(&building.kind, output),
+        building.processor_output_target_percent,
+    ) > 1e-6
+}
+
+fn commodity_transfer_per_trip(commodity: CommodityKind) -> f64 {
+    match commodity {
+        CommodityKind::Wool | CommodityKind::Cloth => TEXTILE_TRANSFER_PER_TRIP,
+        _ => GRAIN_TRANSFER_PER_TRIP,
+    }
+}
+
 fn cycle_ready(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     building: &mut Building,
     autonomous: bool,
 ) -> bool {
-    if labor_and_logistics_paused(ctx, building.owner, clock) {
+    if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
         return false;
     }
     building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
@@ -815,20 +1085,291 @@ fn reset_cycle(building: &mut Building, labor: f64) {
     building.action_cooldown = interval / labor.max(1.0);
 }
 
-fn ensure_water_for_process(
+fn dispatch_farmstead_grain(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
-    building: Building,
-    needed: f64,
-) -> Building {
-    if building.assigned_labor == 0 || labor_and_logistics_paused(ctx, building.owner, clock) {
-        return building;
+    source: &mut Building,
+    seed_reserve: f64,
+) {
+    if source.assigned_labor == 0
+        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+        || building_has_active_trip(ctx, source.id)
+        || source.grain <= 1e-6
+    {
+        return;
     }
-    let Some(network) = tick.road_network(building.owner) else {
-        return building;
+    let transferable_grain = farmstead_exportable_grain(source.grain, seed_reserve);
+    if transferable_grain <= 1e-6 {
+        return;
+    }
+    let Some(network) = tick.road_network(source.owner) else {
+        return;
     };
-    ensure_building_water(ctx, tick, network, building, needed)
+    let Some(routed_target) = select_grain_dispatch_candidate(
+        tick.building_ids_for_kinds(ctx, source.owner, GRAIN_DISPATCH_TARGET_KINDS)
+            .into_iter()
+            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
+            .filter_map(|target| {
+                if target.id == source.id
+                    || !target.construction_complete
+                    || !GRAIN_DISPATCH_TARGET_KINDS.contains(&target.kind.as_str())
+                    || !processor_accepts_input(&target, CommodityKind::Grain)
+                    || building_commodity_room(&target, CommodityKind::Grain) <= 1e-6
+                    || building_has_inbound_supply_trip(ctx, target.id)
+                {
+                    return None;
+                }
+                let productivity = if target.kind == "monastery"
+                    && !monastery_has_parish_link(ctx, tick, &target)
+                {
+                    MONASTERY_UNLINKED_PRODUCTIVITY
+                } else {
+                    1.0
+                };
+                let desired_stock = grain_input_target(&target.kind, productivity);
+                let duty = grain_dispatch_duty(
+                    &target.kind,
+                    target.assigned_labor,
+                    target.grain,
+                    desired_stock,
+                )?;
+                network
+                    .road_path_distance(source.x, source.z, target.x, target.z)
+                    .map(|distance| RoutedGrainTarget {
+                        runway_cycles: grain_input_runway_cycles(
+                            &target.kind,
+                            target.grain,
+                            productivity,
+                        ),
+                        building: target,
+                        distance,
+                        duty,
+                        desired_stock,
+                    })
+            }),
+        |candidate| candidate.duty,
+        |candidate| candidate.runway_cycles,
+        |candidate| candidate.distance,
+        |candidate| candidate.building.id,
+    ) else {
+        return;
+    };
+    let target = &routed_target.building;
+    let needed = match routed_target.duty {
+        GrainDispatchDuty::WorkingBuffer => (routed_target.desired_stock - target.grain).max(0.0),
+        GrainDispatchDuty::GranaryReserve | GrainDispatchDuty::WorkshopOverflow => {
+            building_commodity_room(target, CommodityKind::Grain)
+        }
+    }
+    .min(transferable_grain);
+    try_start_building_supply_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        source,
+        target,
+        1,
+        CommodityKind::Grain,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        GRAIN_TRANSFER_PER_TRIP,
+        needed,
+    );
+}
+
+/// Central grain leaves from a staffed granary rather than being claimed by
+/// whichever processor happens to run first. One pass chooses the operational
+/// processor with the least cycle runway, then the shortest road route and
+/// stable id. Existing inbound trips keep multiple granaries from duplicating
+/// the same workshop load.
+fn next_granary_grain_dispatch(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &Building,
+) -> Option<RoutedGrainTarget> {
+    if source.kind != "granary"
+        || source.assigned_labor == 0
+        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+        || building_has_active_trip(ctx, source.id)
+        || granary_exportable_grain(source.grain, source.granary_grain_reserve) <= 1e-6
+    {
+        return None;
+    }
+    let network = tick.road_network(source.owner)?;
+    select_grain_dispatch_candidate(
+        tick.building_ids_for_kinds(ctx, source.owner, GRAIN_PROCESSOR_KINDS)
+            .into_iter()
+            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
+            .filter_map(|target| {
+                if target.id == source.id
+                    || !target.construction_complete
+                    || !GRAIN_PROCESSOR_KINDS.contains(&target.kind.as_str())
+                    || (target.kind != "monastery" && target.assigned_labor == 0)
+                    || !processor_accepts_input(&target, CommodityKind::Grain)
+                    || building_has_inbound_supply_trip(ctx, target.id)
+                {
+                    return None;
+                }
+                let productivity = if target.kind == "monastery"
+                    && !monastery_has_parish_link(ctx, tick, &target)
+                {
+                    MONASTERY_UNLINKED_PRODUCTIVITY
+                } else {
+                    1.0
+                };
+                let desired_stock = grain_input_target(&target.kind, productivity);
+                if desired_stock <= 1e-6 || target.grain + 1e-6 >= desired_stock {
+                    return None;
+                }
+                network
+                    .road_path_distance(source.x, source.z, target.x, target.z)
+                    .map(|distance| RoutedGrainTarget {
+                        runway_cycles: grain_input_runway_cycles(
+                            &target.kind,
+                            target.grain,
+                            productivity,
+                        ),
+                        building: target,
+                        distance,
+                        duty: GrainDispatchDuty::WorkingBuffer,
+                        desired_stock,
+                    })
+            }),
+        |candidate| candidate.duty,
+        |candidate| candidate.runway_cycles,
+        |candidate| candidate.distance,
+        |candidate| candidate.building.id,
+    )
+}
+
+fn dispatch_granary_grain(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &mut Building,
+    dispatch: &RoutedGrainTarget,
+) -> bool {
+    let Some(network) = tick.road_network(source.owner) else {
+        return false;
+    };
+    let transferable = granary_exportable_grain(source.grain, source.granary_grain_reserve);
+    let needed = (dispatch.desired_stock - dispatch.building.grain)
+        .max(0.0)
+        .min(transferable);
+    try_start_building_supply_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        source,
+        &dispatch.building,
+        1,
+        CommodityKind::Grain,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        GRAIN_TRANSFER_PER_TRIP,
+        needed,
+    )
+}
+
+/// Central military provisions leave from the granary so target-side pulls
+/// cannot bypass its household/preservation policy. Only an armed company
+/// below the emergency runway is eligible; lowest runway, route, then stable
+/// id determines which guardhouse receives the next cart.
+fn next_granary_guard_food_dispatch(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &Building,
+) -> Option<RoutedGuardFoodTarget> {
+    if !frontier_economy_enabled(ctx)
+        || source.kind != "granary"
+        || source.assigned_labor == 0
+        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+        || building_has_active_trip(ctx, source.id)
+    {
+        return None;
+    }
+    let transferable = institutional_source_food_surplus(ctx, tick, source, source.food);
+    if transferable <= 1e-6 {
+        return None;
+    }
+    let network = tick.road_network(source.owner)?;
+    select_guardhouse_food_candidate(
+        tick.building_ids_for_kinds(ctx, source.owner, &["guardhouse"])
+            .into_iter()
+            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
+            .filter_map(|target| {
+                if target.id == source.id
+                    || target.kind != "guardhouse"
+                    || !target.construction_complete
+                    || target.assigned_labor == 0
+                    || building_has_inbound_supply_trip(ctx, target.id)
+                {
+                    return None;
+                }
+                let desired_stock = guardhouse_food_target(
+                    target.assigned_labor,
+                    target.polearms,
+                    target.guardhouse_food_reserve,
+                );
+                if desired_stock <= 1e-6 || target.food + 1e-6 >= desired_stock {
+                    return None;
+                }
+                let runway_days = guardhouse_food_runway_days(
+                    target.assigned_labor,
+                    target.polearms,
+                    target.food,
+                );
+                if runway_days + 1e-9 >= GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS {
+                    return None;
+                }
+                network
+                    .road_path_distance(source.x, source.z, target.x, target.z)
+                    .map(|distance| RoutedGuardFoodTarget {
+                        building: target,
+                        distance,
+                        runway_days,
+                        desired_stock,
+                    })
+            }),
+        |candidate| candidate.runway_days,
+        |candidate| candidate.distance,
+        |candidate| candidate.building.id,
+    )
+}
+
+fn dispatch_granary_guard_food(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &mut Building,
+    dispatch: &RoutedGuardFoodTarget,
+) -> bool {
+    let Some(network) = tick.road_network(source.owner) else {
+        return false;
+    };
+    let transferable = institutional_source_food_surplus(ctx, tick, source, source.food);
+    let needed = (dispatch.desired_stock - dispatch.building.food)
+        .max(0.0)
+        .min(transferable);
+    try_start_building_supply_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        source,
+        &dispatch.building,
+        1,
+        CommodityKind::Food,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        GRAIN_TRANSFER_PER_TRIP,
+        needed,
+    )
 }
 
 pub(crate) fn dispatch_to_building(
@@ -839,43 +1380,139 @@ pub(crate) fn dispatch_to_building(
     commodity: CommodityKind,
     target_kinds: &[&str],
 ) {
-    if source.assigned_labor == 0 || building_has_active_trip(ctx, source.id) {
+    dispatch_to_building_where(ctx, tick, clock, source, commodity, target_kinds, |_| true);
+}
+
+fn dispatch_polearms_to_guardhouse(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &mut Building,
+) {
+    if source.assigned_labor == 0
+        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+        || building_has_active_trip(ctx, source.id)
+        || source.polearms <= 1e-6
+    {
         return;
     }
     let Some(network) = tick.road_network(source.owner) else {
         return;
     };
-    let mut targets: Vec<RoutedBuilding> = ctx
-        .db
-        .building()
-        .owner()
-        .filter(&source.owner)
-        .filter_map(|target| {
-            if target.id == source.id
-                || !target.construction_complete
-                || !target_kinds.contains(&target.kind.as_str())
-                || building_commodity_room(&target, commodity) <= 1e-6
-                || building_has_inbound_supply_trip(ctx, target.id)
-            {
-                return None;
-            }
-            network
-                .road_path_distance(source.x, source.z, target.x, target.z)
-                .map(|distance| RoutedBuilding {
-                    building: target,
-                    distance,
-                })
-        })
-        .collect();
-    targets.sort_by(|a, b| {
-        compare_supply_route_candidates(a.distance, a.building.id, b.distance, b.building.id)
-    });
-    let Some(target) = targets.first().map(|candidate| &candidate.building) else {
+    let Some((routed_target, desired_stock)) = select_supply_route_candidate(
+        tick.building_ids_for_kinds(ctx, source.owner, &["guardhouse"])
+            .into_iter()
+            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
+            .filter_map(|target| {
+                if target.id == source.id
+                    || target.kind != "guardhouse"
+                    || !target.construction_complete
+                    || building_has_inbound_supply_trip(ctx, target.id)
+                {
+                    return None;
+                }
+                let desired_stock = guardhouse_polearm_target(target.assigned_labor).min(
+                    building_commodity_cap(&target.kind, CommodityKind::Polearms),
+                );
+                if desired_stock <= 1e-6 || target.polearms + 1e-6 >= desired_stock {
+                    return None;
+                }
+                network
+                    .road_path_distance(source.x, source.z, target.x, target.z)
+                    .map(|distance| {
+                        (
+                            RoutedBuilding {
+                                building: target,
+                                distance,
+                            },
+                            desired_stock,
+                        )
+                    })
+            }),
+        |candidate| candidate.0.distance,
+        |candidate| candidate.0.building.id,
+    ) else {
         return;
     };
-    let needed = building_commodity_room(target, commodity);
+    let target = &routed_target.building;
+    let needed = (desired_stock - target.polearms)
+        .max(0.0)
+        .min(source.polearms);
     try_start_building_supply_trip(
         ctx,
+        tick,
+        clock,
+        network,
+        source,
+        target,
+        1,
+        CommodityKind::Polearms,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        commodity_transfer_per_trip(CommodityKind::Polearms),
+        needed,
+    );
+}
+
+fn dispatch_to_building_where(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &mut Building,
+    commodity: CommodityKind,
+    target_kinds: &[&str],
+    target_is_eligible: impl Fn(&Building) -> bool,
+) {
+    if source.assigned_labor == 0
+        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+        || building_has_active_trip(ctx, source.id)
+    {
+        return;
+    }
+    let Some(network) = tick.road_network(source.owner) else {
+        return;
+    };
+    let source_stock = building_commodity_stock(source, commodity);
+    let transferable = if commodity == CommodityKind::Food {
+        institutional_source_food_surplus(ctx, tick, source, source_stock)
+    } else {
+        source_stock
+    };
+    if transferable <= 1e-6 {
+        return;
+    }
+    let Some(routed_target) = select_supply_route_candidate(
+        tick.building_ids_for_kinds(ctx, source.owner, target_kinds)
+            .into_iter()
+            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
+            .filter_map(|target| {
+                if target.id == source.id
+                    || !target.construction_complete
+                    || !target_kinds.contains(&target.kind.as_str())
+                    || !target_is_eligible(&target)
+                    || !processor_accepts_input(&target, commodity)
+                    || building_commodity_room(&target, commodity) <= 1e-6
+                    || building_has_inbound_supply_trip(ctx, target.id)
+                {
+                    return None;
+                }
+                network
+                    .road_path_distance(source.x, source.z, target.x, target.z)
+                    .map(|distance| RoutedBuilding {
+                        building: target,
+                        distance,
+                    })
+            }),
+        |candidate| candidate.distance,
+        |candidate| candidate.building.id,
+    ) else {
+        return;
+    };
+    let target = &routed_target.building;
+    let needed = building_commodity_room(target, commodity).min(transferable);
+    try_start_building_supply_trip(
+        ctx,
+        tick,
         clock,
         network,
         source,
@@ -884,8 +1521,29 @@ pub(crate) fn dispatch_to_building(
         commodity,
         TIMBER_DELIVERY_SPEED_MPS,
         TIMBER_DELIVERY_UNLOAD_SEC,
-        GRAIN_TRANSFER_PER_TRIP,
+        commodity_transfer_per_trip(commodity),
         needed,
+    );
+}
+
+fn dispatch_monastery_hospitality(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &mut Building,
+    commodity: CommodityKind,
+) {
+    if !tick.monastery_hospitality_enabled(ctx, source.owner) {
+        return;
+    }
+    dispatch_to_building_where(
+        ctx,
+        tick,
+        clock,
+        source,
+        commodity,
+        &["monastery"],
+        |target| monastery_has_parish_link(ctx, tick, target),
     );
 }
 
@@ -915,6 +1573,7 @@ fn dispatch_monastery_covered_need(
     );
     try_start_delivery_trip(
         ctx,
+        tick,
         clock,
         network,
         supplier,
@@ -936,7 +1595,7 @@ pub(crate) fn dispatch_need(
     per_delivery: f64,
 ) {
     if supplier.assigned_labor == 0
-        || labor_and_logistics_paused(ctx, supplier.owner, clock)
+        || labor_and_logistics_paused(ctx, tick, supplier.owner, clock)
         || building_has_active_trip(ctx, supplier.id)
         || building_commodity_stock(supplier, need_to_commodity(need_kind)) <= 1e-6
     {
@@ -948,6 +1607,7 @@ pub(crate) fn dispatch_need(
     let targets = collect_need_delivery_targets(ctx, tick, network, supplier, need_kind, None);
     try_start_delivery_trip(
         ctx,
+        tick,
         clock,
         network,
         supplier,
@@ -968,53 +1628,53 @@ fn collect_need_delivery_targets(
     need_kind: ResidenceNeedKind,
     max_distance: Option<f64>,
 ) -> Vec<Residence> {
-    let specialty_claimed = matches!(
-        need_kind,
-        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood
-    );
-    let mut targets: Vec<RoutedResidence> = ctx
+    let residences: Vec<Residence> = ctx
         .db
         .residence()
         .owner()
         .filter(&supplier.owner)
-        .filter_map(|residence| {
+        .filter(|residence| {
             if residence.abandoned
                 || residence.population == 0
                 || !need_kind.is_active_for_tier(residence.tier)
             {
-                return None;
+                return false;
             }
-            if specialty_claimed
-                && tick.specialty_supplier_for(ctx, supplier.owner, residence.id, need_kind)
-                    != Some(supplier.id)
+            let claimed_supplier = match need_kind {
+                ResidenceNeedKind::Food => {
+                    tick.food_supplier_for(ctx, supplier.owner, residence.id)
+                }
+                ResidenceNeedKind::Ale
+                | ResidenceNeedKind::PreservedFood
+                | ResidenceNeedKind::Cloth => {
+                    tick.specialty_supplier_for(ctx, supplier.owner, residence.id, need_kind)
+                }
+                ResidenceNeedKind::Firewood | ResidenceNeedKind::Water => None,
+            };
+            if matches!(
+                need_kind,
+                ResidenceNeedKind::Food
+                    | ResidenceNeedKind::Ale
+                    | ResidenceNeedKind::PreservedFood
+                    | ResidenceNeedKind::Cloth
+            ) && claimed_supplier != Some(supplier.id)
             {
-                return None;
+                return false;
             }
-            let distance =
-                network.road_path_distance(supplier.x, supplier.z, residence.x, residence.z)?;
-            if max_distance.is_some_and(|limit| distance > limit) {
-                return None;
-            }
-            Some(RoutedResidence {
-                stock: need_stock(&load_needs(ctx, residence.id), need_kind),
-                residence,
-                distance,
-            })
+            true
         })
         .collect();
-    targets.sort_by(|a, b| {
-        compare_need_delivery_candidates(
-            a.stock,
-            a.residence.population,
-            a.distance,
-            a.residence.id,
-            b.stock,
-            b.residence.population,
-            b.distance,
-            b.residence.id,
-        )
-    });
-    targets.into_iter().map(|target| target.residence).collect()
+    select_residence_for_need_delivery(
+        network,
+        supplier,
+        residences,
+        None,
+        max_distance,
+        |residence| need_stock(&load_needs(ctx, residence.id), need_kind),
+        |stock| has_delivery_stock_room(need_kind, stock),
+    )
+    .into_iter()
+    .collect()
 }
 
 fn need_to_commodity(kind: ResidenceNeedKind) -> CommodityKind {
@@ -1024,6 +1684,7 @@ fn need_to_commodity(kind: ResidenceNeedKind) -> CommodityKind {
         ResidenceNeedKind::Food => CommodityKind::Food,
         ResidenceNeedKind::Ale => CommodityKind::Ale,
         ResidenceNeedKind::PreservedFood => CommodityKind::PreservedFood,
+        ResidenceNeedKind::Cloth => CommodityKind::Cloth,
     }
 }
 
@@ -1036,9 +1697,108 @@ pub(crate) fn request_connected_commodity(
     source_kinds: &[&str],
     desired: f64,
 ) {
+    request_connected_commodity_with_source_availability(
+        ctx,
+        tick,
+        clock,
+        target,
+        commodity,
+        source_kinds,
+        desired,
+        |source, stock| connected_source_surplus(ctx, tick, source, commodity, stock),
+    );
+}
+
+/// Seed replenishment is the deliberate exception to a granary's strategic
+/// floor: processors and exports must stop at the reserve, but linked holdings
+/// may draw it down to complete their sowing plan.
+fn request_connected_seed_grain(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    target: &Building,
+    source_kinds: &[&str],
+    desired: f64,
+) {
+    request_connected_commodity_with_source_availability(
+        ctx,
+        tick,
+        clock,
+        target,
+        CommodityKind::Grain,
+        source_kinds,
+        desired,
+        |_source, stock| stock,
+    );
+}
+
+fn connected_source_surplus(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    source: &Building,
+    commodity: CommodityKind,
+    stock: f64,
+) -> f64 {
+    if commodity == CommodityKind::Grain && source.kind == "threshing_barn" {
+        return farmstead_exportable_grain(
+            stock,
+            tick.farmstead_seed_reserve_for(ctx, source.owner, source.id),
+        );
+    }
+    if commodity == CommodityKind::Grain && source.kind == "granary" {
+        return granary_exportable_grain(stock, source.granary_grain_reserve);
+    }
+    stock
+}
+
+fn request_connected_food_surplus(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    target: &Building,
+    source_kinds: &[&str],
+    desired: f64,
+) {
+    request_connected_commodity_with_source_availability(
+        ctx,
+        tick,
+        clock,
+        target,
+        CommodityKind::Food,
+        source_kinds,
+        desired,
+        |source, stock| institutional_source_food_surplus(ctx, tick, source, stock),
+    );
+}
+
+fn institutional_source_food_surplus(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    source: &Building,
+    stock: f64,
+) -> f64 {
+    let claimed_households = tick.food_claim_count_for_supplier(ctx, source.owner, source.id);
+    institutional_food_surplus(
+        stock,
+        claimed_households,
+        building_commodity_cap(&source.kind, CommodityKind::Food),
+    )
+}
+
+fn request_connected_commodity_with_source_availability(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    target: &Building,
+    commodity: CommodityKind,
+    source_kinds: &[&str],
+    desired: f64,
+    source_availability: impl Fn(&Building, f64) -> f64,
+) {
     if !target.construction_complete
         || target.assigned_labor == 0
-        || labor_and_logistics_paused(ctx, target.owner, clock)
+        || labor_and_logistics_paused(ctx, tick, target.owner, clock)
+        || !processor_accepts_input(target, commodity)
         || building_has_inbound_supply_trip(ctx, target.id)
         || building_commodity_stock(&target, commodity) + 1e-6 >= desired
     {
@@ -1047,49 +1807,61 @@ pub(crate) fn request_connected_commodity(
     let Some(network) = tick.road_network(target.owner) else {
         return;
     };
-    let mut sources: Vec<RoutedBuilding> = ctx
-        .db
-        .building()
-        .owner()
-        .filter(&target.owner)
-        .filter_map(|source| {
-            if !source.construction_complete
-                || !source_kinds.contains(&source.kind.as_str())
-                || building_commodity_stock(&source, commodity) <= 1e-6
-                || building_has_active_trip(ctx, source.id)
-            {
-                return None;
-            }
-            network
-                .road_path_distance(source.x, source.z, target.x, target.z)
-                .map(|distance| RoutedBuilding {
-                    building: source,
-                    distance,
-                })
-        })
-        .collect();
-    sources.sort_by(|a, b| {
-        compare_supply_route_candidates(a.distance, a.building.id, b.distance, b.building.id)
-    });
-    for routed_source in sources {
-        let mut source = routed_source.building;
-        let request = (desired - building_commodity_stock(target, commodity)).max(0.0);
-        if try_start_building_supply_trip(
-            ctx,
-            clock,
-            network,
-            &mut source,
-            target,
-            1,
-            commodity,
-            TIMBER_DELIVERY_SPEED_MPS,
-            TIMBER_DELIVERY_UNLOAD_SEC,
-            GRAIN_TRANSFER_PER_TRIP,
-            request,
-        ) {
-            ctx.db.building().id().update(source);
-            break;
-        }
+    let Some((routed_source, transferable)) = select_supply_route_candidate(
+        tick.building_ids_for_kinds(ctx, target.owner, source_kinds)
+            .into_iter()
+            .filter_map(|source_id| ctx.db.building().id().find(&source_id))
+            .filter_map(|source| {
+                if !source.construction_complete
+                    || !source_kinds.contains(&source.kind.as_str())
+                    || (commodity == CommodityKind::Ironwork
+                        && source.kind == "marketplace"
+                        && source.assigned_labor == 0)
+                    || building_has_active_trip(ctx, source.id)
+                {
+                    return None;
+                }
+                let stock = building_commodity_stock(&source, commodity);
+                let transferable = source_availability(&source, stock).clamp(0.0, stock.max(0.0));
+                if transferable <= 1e-6 {
+                    return None;
+                }
+                network
+                    .road_path_distance(source.x, source.z, target.x, target.z)
+                    .map(|distance| {
+                        (
+                            RoutedBuilding {
+                                building: source,
+                                distance,
+                            },
+                            transferable,
+                        )
+                    })
+            }),
+        |candidate| candidate.0.distance,
+        |candidate| candidate.0.building.id,
+    ) else {
+        return;
+    };
+    let mut source = routed_source.building;
+    let request = (desired - building_commodity_stock(target, commodity))
+        .max(0.0)
+        .min(transferable);
+    if try_start_building_supply_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        &mut source,
+        target,
+        1,
+        commodity,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        commodity_transfer_per_trip(commodity),
+        request,
+    ) {
+        ctx.db.building().id().update(source);
     }
 }
 
@@ -1104,13 +1876,7 @@ fn run_monastery_feast(
         (clock.month, clock.month_day),
         (1, 6) | (6, 29) | (8, 15) | (9, 14) | (12, 25)
     );
-    let enabled = ctx
-        .db
-        .player_resources()
-        .owner()
-        .find(&monastery.owner)
-        .map(|resources| resources.monastery_feasts_enabled)
-        .unwrap_or(false);
+    let enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
     if !enabled || !feast_day || clock.hour != 12 || clock.minute != 0 || !first_tick_of_minute {
         return;
     }
@@ -1122,6 +1888,8 @@ fn run_monastery_feast(
     if available_food <= 1e-6 && available_ale <= 1e-6 {
         return;
     }
+    withdraw_building_commodity(monastery, CommodityKind::Honey, MONASTERY_FEAST_HONEY);
+    withdraw_building_commodity(monastery, CommodityKind::Wine, MONASTERY_FEAST_WINE);
     let residences: Vec<Residence> = ctx
         .db
         .residence()
@@ -1152,23 +1920,6 @@ fn run_monastery_feast(
     }
 }
 
-fn export_specialty(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    building: &mut Building,
-    commodity: CommodityKind,
-    gold_per_unit: f64,
-) {
-    if !owner_has_connected_marketplace(ctx, tick, building) {
-        return;
-    }
-    let cap = building_commodity_cap(&building.kind, commodity);
-    let reserve = cap * 0.25;
-    let sellable = (building_commodity_stock(building, commodity) - reserve).max(0.0);
-    let sold = withdraw_building_commodity(building, commodity, sellable.min(0.5));
-    credit_treasury_gold(ctx, building.owner, sold * gold_per_unit);
-}
-
 fn owner_has_connected_marketplace(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -1177,10 +1928,9 @@ fn owner_has_connected_marketplace(
     let Some(network) = tick.road_network(building.owner) else {
         return false;
     };
-    ctx.db
-        .building()
-        .owner()
-        .filter(&building.owner)
+    tick.building_ids_for_kinds(ctx, building.owner, &["marketplace"])
+        .into_iter()
+        .filter_map(|market_id| ctx.db.building().id().find(&market_id))
         .any(|market| {
             market.kind == "marketplace"
                 && market.construction_complete
@@ -1195,11 +1945,10 @@ fn monastery_has_parish_link(
     tick: &SimTickContext,
     monastery: &Building,
 ) -> bool {
-    let chapels: Vec<Building> = ctx
-        .db
-        .building()
-        .owner()
-        .filter(&monastery.owner)
+    let chapels: Vec<Building> = tick
+        .building_ids_for_kinds(ctx, monastery.owner, &["chapel"])
+        .into_iter()
+        .filter_map(|chapel_id| ctx.db.building().id().find(&chapel_id))
         .filter(|building| building.kind == "chapel" && building.construction_complete)
         .collect();
     monastery_linked_to_chapel(tick, monastery, &chapels)

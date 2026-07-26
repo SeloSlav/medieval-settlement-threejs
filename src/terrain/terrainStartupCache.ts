@@ -2,7 +2,7 @@ import type { SerializedQuarryLayout } from '../quarries/QuarryLayout.ts';
 import type { SerializedRiverField } from '../rivers/RiverField.ts';
 import type { SerializedRiverLayout } from '../rivers/RiverLayout.ts';
 import type { WorldDimensions, WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
-import type { TerrainGeometryData } from './terrainGeometryData.ts';
+import { TERRAIN_RESOLUTION, type TerrainGeometryData } from './terrainGeometryData.ts';
 
 const DATABASE_NAME = 'medieval-road-system-generated-world';
 const DATABASE_VERSION = 1;
@@ -53,6 +53,7 @@ export function terrainStartupCacheKey(request: TerrainStartupRequest): string {
     settings.hydrology,
     dimensions.playableSize,
     dimensions.terrainSize,
+    TERRAIN_RESOLUTION,
   ].join(':');
 }
 

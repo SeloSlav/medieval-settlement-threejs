@@ -118,12 +118,18 @@ fn zone_edge(corners: &ZoneCorners, edge: u8) -> (Point2, Point2) {
     }
 }
 
-pub fn building_overlaps_residence_zone(ctx: &ReducerContext, kind: &str, x: f64, z: f64) -> bool {
+pub fn building_overlaps_residence_zone(
+    ctx: &ReducerContext,
+    owner: Identity,
+    kind: &str,
+    x: f64,
+    z: f64,
+) -> bool {
     let Some(pick_radius) = building_pick_radius(kind) else {
         return false;
     };
 
-    for zone in ctx.db.burgage_zone().iter() {
+    for zone in ctx.db.burgage_zone().owner().filter(&owner) {
         let zone_polygon = [
             crate::burgage::Point2 {
                 x: zone.corner_ax,
@@ -150,9 +156,13 @@ pub fn building_overlaps_residence_zone(ctx: &ReducerContext, kind: &str, x: f64
     false
 }
 
-pub fn burgage_zone_overlaps_buildings(ctx: &ReducerContext, corners: &ZoneCorners) -> bool {
+pub fn burgage_zone_overlaps_buildings(
+    ctx: &ReducerContext,
+    owner: Identity,
+    corners: &ZoneCorners,
+) -> bool {
     let candidate = zone_corners_polygon(corners);
-    for building in ctx.db.building().iter() {
+    for building in ctx.db.building().owner().filter(&owner) {
         let Some(pick_radius) = building_pick_radius(&building.kind) else {
             continue;
         };

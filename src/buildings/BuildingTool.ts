@@ -13,6 +13,12 @@ import type { BuildingMarkers } from './BuildingMarkers.ts';
 import type { BuildingTerrainSource } from './BuildingTerrainLayout.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
+import {
+  buildingCostWithCarpenterSupport,
+  hasRoadLinkedCarpenter,
+} from '../economy/carpenterSupport.ts';
+import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 
 export type BuildingToolMode = BuildingKind | 'off';
 
@@ -93,6 +99,27 @@ export class BuildingTool {
 
   isEnabled(): boolean {
     return this.mode !== 'off';
+  }
+
+  getPlacementEconomy(): {
+    cost: BuildingResourceCost;
+    carpenterSupported: boolean;
+  } | null {
+    if (this.mode === 'off') return null;
+    const hasPreview = Number.isFinite(this.lastPreviewX)
+      && Number.isFinite(this.lastPreviewZ);
+    const state = this.options.getState();
+    const disabledBuildingIds = fireDisabledBuildingIds(state.fireIncidents.values());
+    const carpenterSupported = hasPreview && hasRoadLinkedCarpenter(
+      state.buildings.values(),
+      this.options.getRoadNetwork?.(),
+      { x: this.lastPreviewX, z: this.lastPreviewZ },
+      disabledBuildingIds,
+    );
+    return {
+      cost: buildingCostWithCarpenterSupport(this.mode, carpenterSupported),
+      carpenterSupported,
+    };
   }
 
   shouldBlockCameraInput(event: MouseEvent | WheelEvent): boolean {
@@ -394,6 +421,7 @@ export class BuildingTool {
       getNaturalHeightAt: this.options.getNaturalHeightAt,
       countMatureTreesInRadius: this.options.countMatureTreesInRadius,
       roadNetwork: this.options.getRoadNetwork?.(),
+      fireDisabledBuildingIds: fireDisabledBuildingIds(state.fireIncidents.values()),
     });
   }
 

@@ -35,6 +35,9 @@ export type LodgeStatusInput = {
   hasNextTarget: boolean;
   firewoodPerTrip: number;
   canDeliver: boolean;
+  availableUnreservedTimber: number;
+  timberReserve: number;
+  timberPerCycle: number;
 };
 
 export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
@@ -58,6 +61,9 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
     hasNextTarget,
     firewoodPerTrip,
     canDeliver,
+    availableUnreservedTimber,
+    timberReserve,
+    timberPerCycle,
   } = input;
 
   if (!onRoad) {
@@ -97,6 +103,15 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
       statusState: 'active',
     };
   }
+  const reserveBlocksProcessing = timberReserve > 0
+    && availableUnreservedTimber + 1e-6 < timberReserve + timberPerCycle;
+  if (reserveBlocksProcessing && firewood <= 0) {
+    const shortfall = Math.ceil(timberReserve + timberPerCycle - availableUnreservedTimber);
+    return {
+      statusText: `Holding timber for construction — need ${shortfall} more before the next firewood cycle`,
+      statusState: 'warning',
+    };
+  }
   if (firewood <= 0 && timber <= 0) {
     return {
       statusText: `Dispatching timber haul from nearest road-linked mill`,
@@ -124,6 +139,12 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
         ? `Dispatching firewood to ${nextTargetLabel} (${firewoodPerTrip} per trip)`
         : 'No claimed residences need firewood right now',
       statusState: hasNextTarget ? 'active' : 'idle',
+    };
+  }
+  if (reserveBlocksProcessing) {
+    return {
+      statusText: `Serving stored firewood — timber processing held at the ${Math.round(timberReserve)} reserve`,
+      statusState: 'warning',
     };
   }
   return {

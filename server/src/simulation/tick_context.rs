@@ -1,35 +1,87 @@
 //! Per-tick caches shared across simulation steps.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::MONASTERY_COVERAGE_RADIUS;
+use crate::balance_generated::{
+    CATTLE_FERTILITY_BONUS, CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS,
+};
 use crate::db::*;
+use crate::economy::CommodityKind;
+use crate::farming::field_seed_grain_remaining;
 use crate::roads::RoadNetwork;
+use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::supply_policy::{
-    compare_supply_route_candidates, ALE_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
+    compare_supply_route_candidates, is_firewood_supplier_operational,
+    is_food_supplier_operational, is_specialty_supplier_operational, is_well_supplier_operational,
+    ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
 };
-use crate::tables::{Building, Residence};
+use crate::tables::{farm_field, livestock_herd, Building, Residence};
+
+#[derive(Default)]
+struct OwnerBuildingIndex {
+    all: Vec<u64>,
+    by_kind: HashMap<String, Vec<u64>>,
+    construction_timber: Vec<u64>,
+    construction_stone: Vec<u64>,
+}
+
+pub type SharedRoadNetworks = Arc<HashMap<Identity, RoadNetwork>>;
 
 pub struct SimTickContext {
-    road_networks: HashMap<Identity, RoadNetwork>,
+    road_networks: SharedRoadNetworks,
+    building_index: RefCell<Option<HashMap<Identity, OwnerBuildingIndex>>>,
+    sabbath_observance_by_owner: RefCell<HashMap<Identity, bool>>,
+    monastery_hospitality_by_owner: RefCell<HashMap<Identity, bool>>,
+    staffed_chapel_by_owner: RefCell<HashMap<Identity, bool>>,
+    disabled_fire_targets: RefCell<Option<HashSet<(u8, u64)>>>,
+    firewood_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
+    water_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
+    food_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
+    food_claim_counts: RefCell<HashMap<Identity, HashMap<u64, u32>>>,
     specialty_claims: RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
+    farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
+    cattle_field_sources_by_owner: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
 }
 
 impl SimTickContext {
     pub fn new(ctx: &ReducerContext) -> Self {
+        Self::with_road_networks(Self::load_road_networks(ctx))
+    }
+
+    /// Road rows cannot change inside one simulation reducer transaction.
+    /// Parsing their JSON and rebuilding graph/spatial indexes once lets the
+    /// delivery heartbeat and every economy substep share immutable networks,
+    /// while each context below still owns fresh mutable simulation caches.
+    pub fn load_road_networks(ctx: &ReducerContext) -> SharedRoadNetworks {
         let mut road_networks = HashMap::new();
         for state in ctx.db.road_network_state().iter() {
             if let Some(network) = RoadNetwork::from_snapshot_json(&state.snapshot_json) {
                 road_networks.insert(state.owner, network);
             }
         }
+        Arc::new(road_networks)
+    }
+
+    pub fn with_road_networks(road_networks: SharedRoadNetworks) -> Self {
         Self {
             road_networks,
+            building_index: RefCell::new(None),
+            sabbath_observance_by_owner: RefCell::new(HashMap::new()),
+            monastery_hospitality_by_owner: RefCell::new(HashMap::new()),
+            staffed_chapel_by_owner: RefCell::new(HashMap::new()),
+            disabled_fire_targets: RefCell::new(None),
+            firewood_claims: RefCell::new(HashMap::new()),
+            water_claims: RefCell::new(HashMap::new()),
+            food_claims: RefCell::new(HashMap::new()),
+            food_claim_counts: RefCell::new(HashMap::new()),
             specialty_claims: RefCell::new(HashMap::new()),
+            farmstead_seed_reserves: RefCell::new(HashMap::new()),
+            cattle_field_sources_by_owner: RefCell::new(HashMap::new()),
         }
     }
 
@@ -41,6 +93,447 @@ impl SimTickContext {
         self.road_network(owner)
             .map(|network| network.road_connected(ax, az, bx, bz))
             .unwrap_or(false)
+    }
+
+    /// Owner policy cannot change inside one simulation reducer transaction.
+    /// Chapel, residence, construction, and economy steps can therefore share
+    /// one indexed policy read per owner for the whole substep.
+    pub fn sabbath_observance_enabled(&self, ctx: &ReducerContext, owner: Identity) -> bool {
+        if let Some(enabled) = self
+            .sabbath_observance_by_owner
+            .borrow()
+            .get(&owner)
+            .copied()
+        {
+            return enabled;
+        }
+        let enabled = ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&owner)
+            .map(|resources| resources.sabbath_observance_enabled)
+            .unwrap_or(false);
+        self.sabbath_observance_by_owner
+            .borrow_mut()
+            .insert(owner, enabled);
+        enabled
+    }
+
+    /// The settlement-wide monastery policy cannot change inside one simulation
+    /// transaction. Apiaries, vineyards, and monasteries therefore share one
+    /// authoritative policy read rather than querying the player row per site.
+    pub fn monastery_hospitality_enabled(&self, ctx: &ReducerContext, owner: Identity) -> bool {
+        if let Some(enabled) = self
+            .monastery_hospitality_by_owner
+            .borrow()
+            .get(&owner)
+            .copied()
+        {
+            return enabled;
+        }
+        let enabled = ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&owner)
+            .map(|resources| resources.monastery_feasts_enabled)
+            .unwrap_or(false);
+        self.monastery_hospitality_by_owner
+            .borrow_mut()
+            .insert(owner, enabled);
+        enabled
+    }
+
+    /// Staffed-chapel state is shared by every Sunday schedule check. The
+    /// owner building index narrows the authoritative row reads to chapels,
+    /// avoiding a full building-table scan for every producer and cart.
+    pub fn owner_has_staffed_chapel(&self, ctx: &ReducerContext, owner: Identity) -> bool {
+        if let Some(staffed) = self.staffed_chapel_by_owner.borrow().get(&owner).copied() {
+            return staffed;
+        }
+        let staffed = self
+            .building_ids_for_kinds(ctx, owner, &["chapel"])
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .any(|building| building.construction_complete && building.assigned_labor > 0);
+        self.staffed_chapel_by_owner
+            .borrow_mut()
+            .insert(owner, staffed);
+        staffed
+    }
+
+    /// Construction may complete a chapel after an earlier site has already
+    /// queried the Sunday schedule. Forget only that owner's derived chapel
+    /// state so later phases preserve the previous fresh-read semantics.
+    pub fn invalidate_staffed_chapel(&self, owner: Identity) {
+        self.staffed_chapel_by_owner.borrow_mut().remove(&owner);
+    }
+
+    /// Fire incidents are immutable after `step_fires` for the rest of an
+    /// economy substep. One lazy set therefore replaces a target-index query
+    /// for every production building, household, and logistics candidate.
+    pub fn building_disabled_by_fire(&self, ctx: &ReducerContext, building_id: u64) -> bool {
+        self.target_disabled_by_fire(ctx, FIRE_TARGET_BUILDING, building_id)
+    }
+
+    pub fn residence_disabled_by_fire(&self, ctx: &ReducerContext, residence_id: u64) -> bool {
+        self.target_disabled_by_fire(ctx, FIRE_TARGET_RESIDENCE, residence_id)
+    }
+
+    fn target_disabled_by_fire(
+        &self,
+        ctx: &ReducerContext,
+        target_kind: u8,
+        target_id: u64,
+    ) -> bool {
+        if self.disabled_fire_targets.borrow().is_none() {
+            let targets = ctx
+                .db
+                .fire_incident()
+                .iter()
+                .map(|incident| (incident.target_kind, incident.target_id))
+                .collect();
+            *self.disabled_fire_targets.borrow_mut() = Some(targets);
+        }
+        self.disabled_fire_targets
+            .borrow()
+            .as_ref()
+            .is_some_and(|targets| targets.contains(&(target_kind, target_id)))
+    }
+
+    /// Returns candidate ids from one owner-wide building scan performed only
+    /// if a simulation step needs role-based logistics. Callers still fetch
+    /// every row by primary key, so stock, labor, completion, fire state, and
+    /// inbound-cart changes made earlier in the substep remain authoritative.
+    pub fn building_ids_for_kinds(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        kinds: &[&str],
+    ) -> Vec<u64> {
+        self.ensure_building_index(ctx);
+        let index = self.building_index.borrow();
+        let Some(owner_index) = index.as_ref().and_then(|owners| owners.get(&owner)) else {
+            return Vec::new();
+        };
+        kinds
+            .iter()
+            .flat_map(|kind| {
+                owner_index
+                    .by_kind
+                    .get(*kind)
+                    .into_iter()
+                    .flat_map(|ids| ids.iter().copied())
+            })
+            .collect()
+    }
+
+    pub fn owner_building_ids(&self, ctx: &ReducerContext, owner: Identity) -> Vec<u64> {
+        self.ensure_building_index(ctx);
+        self.building_index
+            .borrow()
+            .as_ref()
+            .and_then(|owners| owners.get(&owner))
+            .map(|owner_index| owner_index.all.clone())
+            .unwrap_or_default()
+    }
+
+    /// Construction runs before production in each substep, so its initially
+    /// stocked source roster can only shrink as carts load. Fresh row reads
+    /// below still reject depleted or newly busy sources for every site.
+    pub fn construction_source_ids(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        commodity: CommodityKind,
+    ) -> Vec<u64> {
+        self.ensure_building_index(ctx);
+        self.building_index
+            .borrow()
+            .as_ref()
+            .and_then(|owners| owners.get(&owner))
+            .map(|owner_index| match commodity {
+                CommodityKind::Timber => owner_index.construction_timber.clone(),
+                CommodityKind::Stone => owner_index.construction_stone.clone(),
+                _ => Vec::new(),
+            })
+            .unwrap_or_default()
+    }
+
+    fn ensure_building_index(&self, ctx: &ReducerContext) {
+        if self.building_index.borrow().is_some() {
+            return;
+        }
+        let mut owners: HashMap<Identity, OwnerBuildingIndex> = HashMap::new();
+        for building in ctx.db.building().iter() {
+            let owner_index = owners.entry(building.owner).or_default();
+            owner_index.all.push(building.id);
+            if building.timber > 1e-6 {
+                owner_index.construction_timber.push(building.id);
+            }
+            if building.stone > 1e-6 {
+                owner_index.construction_stone.push(building.id);
+            }
+            owner_index
+                .by_kind
+                .entry(building.kind)
+                .or_default()
+                .push(building.id);
+        }
+        for owner_index in owners.values_mut() {
+            owner_index.all.sort_unstable();
+            owner_index.construction_timber.sort_unstable();
+            owner_index.construction_stone.sort_unstable();
+            for ids in owner_index.by_kind.values_mut() {
+                ids.sort_unstable();
+            }
+        }
+        *self.building_index.borrow_mut() = Some(owners);
+    }
+
+    /// Returns protected seed for one farmstead from an owner-wide field scan
+    /// performed at most once per simulation substep. Processor input searches
+    /// can inspect many candidate farms, so querying each farm's index inside
+    /// the candidate loop would multiply field scans by processor count.
+    pub fn farmstead_seed_reserve_for(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        farmstead_id: u64,
+    ) -> f64 {
+        self.ensure_farmstead_seed_reserves(ctx, owner);
+        self.farmstead_seed_reserves
+            .borrow()
+            .get(&owner)
+            .and_then(|reserves| reserves.get(&farmstead_id))
+            .copied()
+            .unwrap_or(0.0)
+    }
+
+    /// Keeps the cache current when this substep advances field work after a
+    /// processor has already caused the owner-wide reserve map to be built.
+    pub fn set_farmstead_seed_reserve(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        farmstead_id: u64,
+        reserve: f64,
+    ) {
+        self.ensure_farmstead_seed_reserves(ctx, owner);
+        self.farmstead_seed_reserves
+            .borrow_mut()
+            .entry(owner)
+            .or_default()
+            .insert(farmstead_id, reserve.max(0.0));
+    }
+
+    fn ensure_farmstead_seed_reserves(&self, ctx: &ReducerContext, owner: Identity) {
+        if self.farmstead_seed_reserves.borrow().contains_key(&owner) {
+            return;
+        }
+        let mut reserves = HashMap::new();
+        for field in ctx.db.farm_field().owner().filter(&owner) {
+            let reserve = field_seed_grain_remaining(
+                field.area,
+                field.crop,
+                field.next_crop,
+                field.stage,
+                field.stage_progress,
+                field.priority,
+            );
+            *reserves.entry(field.farmstead_id).or_insert(0.0) += reserve;
+        }
+        self.farmstead_seed_reserves
+            .borrow_mut()
+            .insert(owner, reserves);
+    }
+
+    /// Cattle select at most a handful of priority fields from geometry and
+    /// priority state that cannot change inside this simulation substep. Cache
+    /// those candidate source ids once per owner, but reload every herd below:
+    /// livestock care earlier in the same substep may still change whether its
+    /// headcount, health, or supplied capacity qualifies for ox work.
+    pub fn cattle_field_support_for(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        field_id: u64,
+    ) -> Option<(f64, f64)> {
+        self.ensure_cattle_field_sources(ctx, owner);
+        let source_ids = self
+            .cattle_field_sources_by_owner
+            .borrow()
+            .get(&owner)
+            .and_then(|sources| sources.get(&field_id))
+            .cloned()
+            .unwrap_or_default();
+        source_ids
+            .into_iter()
+            .filter_map(|building_id| ctx.db.livestock_herd().building_id().find(&building_id))
+            .any(|herd| {
+                crate::livestock_policy::cattle_field_support_is_active(
+                    herd.species,
+                    herd.head_count,
+                    herd.health,
+                    herd.supplied_capacity,
+                )
+            })
+            .then_some((CATTLE_PLOUGH_WORK_MULTIPLIER, CATTLE_FERTILITY_BONUS))
+    }
+
+    fn ensure_cattle_field_sources(&self, ctx: &ReducerContext, owner: Identity) {
+        if self
+            .cattle_field_sources_by_owner
+            .borrow()
+            .contains_key(&owner)
+        {
+            return;
+        }
+        let sources = crate::simulation::livestock::cattle_field_support_sources(ctx, owner);
+        self.cattle_field_sources_by_owner
+            .borrow_mut()
+            .insert(owner, sources);
+    }
+
+    /// Returns the one routine firewood distributor assigned to this household.
+    /// Building steps and abandoned-home recovery share this lazily built map,
+    /// avoiding one full territory rebuild for every lodge and storehouse.
+    pub fn firewood_supplier_for(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        residence_id: u64,
+    ) -> Option<u64> {
+        if !self.firewood_claims.borrow().contains_key(&owner) {
+            let claims = self.build_firewood_claims(ctx, owner);
+            self.firewood_claims.borrow_mut().insert(owner, claims);
+        }
+        self.firewood_claims
+            .borrow()
+            .get(&owner)
+            .and_then(|claims| claims.get(&residence_id))
+            .copied()
+    }
+
+    /// Returns the one staffed well assigned to this household. The well's
+    /// physical service extent remains part of the authoritative claim.
+    pub fn well_supplier_for(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        residence_id: u64,
+    ) -> Option<u64> {
+        if !self.water_claims.borrow().contains_key(&owner) {
+            let claims = self.build_water_claims(ctx, owner);
+            self.water_claims.borrow_mut().insert(owner, claims);
+        }
+        self.water_claims
+            .borrow()
+            .get(&owner)
+            .and_then(|claims| claims.get(&residence_id))
+            .copied()
+    }
+
+    /// Returns the one routine food distributor assigned to this household.
+    /// Paid marketplace emergency orders intentionally bypass these claims.
+    pub fn food_supplier_for(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        residence_id: u64,
+    ) -> Option<u64> {
+        self.ensure_food_claims(ctx, owner);
+        self.food_claims
+            .borrow()
+            .get(&owner)
+            .and_then(|claims| claims.get(&residence_id))
+            .copied()
+    }
+
+    /// Returns how many households depend on a routine food supplier. Granary
+    /// surplus intake uses this cached inverse count to protect local cart loads
+    /// without rescanning all homes for every candidate source.
+    pub fn food_claim_count_for_supplier(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        supplier_id: u64,
+    ) -> u32 {
+        self.ensure_food_claims(ctx, owner);
+        if !self.food_claim_counts.borrow().contains_key(&owner) {
+            let counts = {
+                let claims_by_owner = self.food_claims.borrow();
+                let mut counts = HashMap::new();
+                if let Some(claims) = claims_by_owner.get(&owner) {
+                    for supplier_id in claims.values() {
+                        let count = counts.entry(*supplier_id).or_insert(0_u32);
+                        *count = count.saturating_add(1);
+                    }
+                }
+                counts
+            };
+            self.food_claim_counts.borrow_mut().insert(owner, counts);
+        }
+        self.food_claim_counts
+            .borrow()
+            .get(&owner)
+            .and_then(|counts| counts.get(&supplier_id))
+            .copied()
+            .unwrap_or(0)
+    }
+
+    fn ensure_food_claims(&self, ctx: &ReducerContext, owner: Identity) {
+        if self.food_claims.borrow().contains_key(&owner) {
+            return;
+        }
+        let claims = self.build_food_claims(ctx, owner);
+        self.food_claims.borrow_mut().insert(owner, claims);
+    }
+
+    fn build_firewood_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
+        let Some(network) = self.road_network(owner) else {
+            return HashMap::new();
+        };
+        let suppliers: Vec<Building> = self
+            .building_ids_for_kinds(ctx, owner, &["woodcutters_lodge", "village_storehouse"])
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .filter(|building| {
+                is_firewood_supplier_operational(
+                    &building.kind,
+                    building.construction_complete,
+                    building.assigned_labor,
+                    building.storehouse_accepts_firewood,
+                )
+            })
+            .collect();
+        let residences: Vec<Residence> = ctx.db.residence().owner().filter(&owner).collect();
+        crate::simulation::road_logistics::claim_residences_for_firewood_suppliers(
+            network,
+            &suppliers,
+            &residences,
+        )
+    }
+
+    fn build_water_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
+        let Some(network) = self.road_network(owner) else {
+            return HashMap::new();
+        };
+        let wells: Vec<Building> = self
+            .building_ids_for_kinds(ctx, owner, &["well"])
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .filter(|building| {
+                is_well_supplier_operational(
+                    &building.kind,
+                    building.construction_complete,
+                    building.assigned_labor,
+                )
+            })
+            .collect();
+        let residences: Vec<Residence> = ctx.db.residence().owner().filter(&owner).collect();
+        crate::simulation::road_logistics::claim_residences_for_wells(network, &wells, &residences)
     }
 
     /// Returns the single nearest supplier assigned to this tier-3 household.
@@ -66,6 +559,12 @@ impl SimTickContext {
             .copied()
     }
 
+    pub fn invalidate_specialty_claims(&self, owner: Identity, need_kind: ResidenceNeedKind) {
+        self.specialty_claims
+            .borrow_mut()
+            .remove(&(owner, need_kind));
+    }
+
     fn build_specialty_claims(
         &self,
         ctx: &ReducerContext,
@@ -78,9 +577,14 @@ impl SimTickContext {
         let supplier_kinds = match need_kind {
             ResidenceNeedKind::Ale => ALE_SUPPLIER_KINDS,
             ResidenceNeedKind::PreservedFood => PRESERVED_FOOD_SUPPLIER_KINDS,
+            ResidenceNeedKind::Cloth => CLOTH_SUPPLIER_KINDS,
             _ => return HashMap::new(),
         };
-        let buildings: Vec<Building> = ctx.db.building().owner().filter(&owner).collect();
+        let buildings: Vec<Building> = self
+            .owner_building_ids(ctx, owner)
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .collect();
         let chapels: Vec<&Building> = buildings
             .iter()
             .filter(|building| {
@@ -92,8 +596,17 @@ impl SimTickContext {
         let suppliers: Vec<&Building> = buildings
             .iter()
             .filter(|building| {
-                building.construction_complete
-                    && supplier_kinds.contains(&building.kind.as_str())
+                is_specialty_supplier_operational(
+                    &building.kind,
+                    building.construction_complete,
+                    building.assigned_labor,
+                ) && supplier_kinds.contains(&building.kind.as_str())
+                    && match need_kind {
+                        ResidenceNeedKind::Ale => building.ale > 1e-6,
+                        ResidenceNeedKind::PreservedFood => building.preserved_food > 1e-6,
+                        ResidenceNeedKind::Cloth => building.cloth > 1e-6,
+                        _ => false,
+                    }
                     && (building.kind != "monastery"
                         || chapels.iter().any(|chapel| {
                             network.road_connected(building.x, building.z, chapel.x, chapel.z)
@@ -108,6 +621,81 @@ impl SimTickContext {
                 || residence.population == 0
                 || !need_kind.is_active_for_tier(residence.tier)
             {
+                continue;
+            }
+            let residence_has_parish = chapels
+                .iter()
+                .any(|chapel| network.road_connected(residence.x, residence.z, chapel.x, chapel.z));
+            let mut best: Option<(&Building, f64)> = None;
+            for supplier in &suppliers {
+                let Some(distance) =
+                    network.road_path_distance(supplier.x, supplier.z, residence.x, residence.z)
+                else {
+                    continue;
+                };
+                if supplier.kind == "monastery"
+                    && (!residence_has_parish || distance > MONASTERY_COVERAGE_RADIUS)
+                {
+                    continue;
+                }
+                let replace = match best {
+                    None => true,
+                    Some((current, current_distance)) => compare_supply_route_candidates(
+                        distance,
+                        supplier.id,
+                        current_distance,
+                        current.id,
+                    )
+                    .is_lt(),
+                };
+                if replace {
+                    best = Some((supplier, distance));
+                }
+            }
+            if let Some((supplier, _)) = best {
+                claims.insert(residence.id, supplier.id);
+            }
+        }
+
+        claims
+    }
+
+    fn build_food_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
+        let Some(network) = self.road_network(owner) else {
+            return HashMap::new();
+        };
+        let buildings: Vec<Building> = self
+            .owner_building_ids(ctx, owner)
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .collect();
+        let chapels: Vec<&Building> = buildings
+            .iter()
+            .filter(|building| {
+                building.kind == "chapel"
+                    && building.construction_complete
+                    && building.assigned_labor > 0
+            })
+            .collect();
+        let suppliers: Vec<&Building> = buildings
+            .iter()
+            .filter(|building| {
+                is_food_supplier_operational(
+                    &building.kind,
+                    building.construction_complete,
+                    building.assigned_labor,
+                ) && building.food > 1e-6
+                    && (building.kind != "monastery"
+                        || chapels.iter().any(|chapel| {
+                            network.road_connected(building.x, building.z, chapel.x, chapel.z)
+                        }))
+            })
+            .collect();
+        let residences: Vec<Residence> = ctx.db.residence().owner().filter(&owner).collect();
+        let mut claims = HashMap::new();
+
+        for residence in residences {
+            if residence.abandoned || residence.population == 0 {
                 continue;
             }
             let residence_has_parish = chapels

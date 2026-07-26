@@ -1,6 +1,6 @@
 import type { BuildingKind, BuildingState, BurgageZoneState, FarmFieldState, ForagingNodeState, PastureState, ResidenceState, ResourceNodeState } from '../resources/types.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
-import { canAffordBuilding } from '../resources/buildingEconomy.ts';
+import { buildingCostWithCarpenterSupport, hasRoadLinkedCarpenter } from '../economy/carpenterSupport.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { MONASTERY_MIN_FOOTPRINT_SLOPE } from '../generated/gameBalance.ts';
 import { hasStaffedChapel, MONASTERY_MIN_PARISH_POPULATION, parishPopulation } from '../logistics/specialtyLogistics.ts';
@@ -57,6 +57,7 @@ type BuildingPlacementContext = {
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number;
   roadNetwork?: RoadNetwork;
+  fireDisabledBuildingIds?: ReadonlySet<string>;
 };
 
 export function validateBuildingPlacement(
@@ -161,7 +162,14 @@ export function validateBuildingPlacement(
     }
   }
 
-  if (!canAffordBuilding(context.stockpile, kind)) {
+  const carpenterSupported = hasRoadLinkedCarpenter(
+    context.buildings,
+    context.roadNetwork,
+    { x, z },
+    context.fireDisabledBuildingIds,
+  );
+  const cost = buildingCostWithCarpenterSupport(kind, carpenterSupported);
+  if (context.stockpile.timber + 1e-6 < cost.timber || context.stockpile.stone + 1e-6 < cost.stone) {
     return { ok: false, reason: 'insufficient_resources' };
   }
 

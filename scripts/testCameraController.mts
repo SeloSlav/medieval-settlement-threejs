@@ -177,6 +177,22 @@ function rmbPan(domElement: HTMLElement, fromX: number, fromY: number, toX: numb
 
 {
   let viewChangeCount = 0;
+  const { controller, target } = createController(() => {
+    viewChangeCount += 1;
+  });
+  controller.focusWorldPosition(800, -700);
+  assert.equal(target.x, 500, 'focused targets should remain inside the playable bounds');
+  assert.equal(target.z, -500, 'focused targets should remain inside the playable bounds');
+  assert.ok(
+    controller.getOrbitDistance() <= 90,
+    'inspector focus should bring a distant bottleneck into a readable view',
+  );
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  assert.equal(viewChangeCount, 1, 'inspector focus should notify scene dependents once');
+}
+
+{
+  let viewChangeCount = 0;
   const { domElement } = createController(() => {
     viewChangeCount += 1;
   });

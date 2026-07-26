@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { getBuildingSiteClearanceSearchRadius } from '../src/buildings/BuildingTerrainLayout.ts';
 import { PlacementClearanceSpatialIndex } from '../src/placement/PlacementClearanceSpatialIndex.ts';
 import { QuarryLayout, quarrySiteOverlapsRiver } from '../src/quarries/QuarryLayout.ts';
@@ -110,4 +111,54 @@ function testBurgageWaterValidationSamplesTheWholeZone(): void {
 testClearanceSpatialIndexKeepsNearbyCandidates();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
+
+const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
+const placementValidation = readFileSync('server/src/placement_validation.rs', 'utf8');
+const residenceReducer = readFileSync('server/src/reducers/residences.rs', 'utf8');
+const farmFieldReducer = readFileSync('server/src/reducers/farm_fields.rs', 'utf8');
+const livestockReducer = readFileSync('server/src/reducers/livestock.rs', 'utf8');
+
+assert.match(
+  buildingReducer,
+  /fn overlaps_same_kind_functional_extent\([\s\S]{0,220}owner: spacetimedb::Identity[\s\S]{0,300}building\(\)\.owner\(\)\.filter\(&owner\)/,
+  'functional extents from an invisible foreign settlement must not block placement',
+);
+assert.match(
+  buildingReducer,
+  /fn is_too_close_to_buildings\([\s\S]{0,220}owner: spacetimedb::Identity[\s\S]{0,300}building\(\)\.owner\(\)\.filter\(&owner\)/,
+);
+assert.match(
+  buildingReducer,
+  /farm_field\(\)\.owner\(\)\.filter\(&owner\)\.any/,
+);
+assert.match(
+  buildingReducer,
+  /pasture\(\)\.owner\(\)\.filter\(&owner\)\.any/,
+);
+assert.match(
+  placementValidation,
+  /building_overlaps_residence_zone\([\s\S]{0,260}burgage_zone\(\)\.owner\(\)\.filter\(&owner\)/,
+);
+assert.match(
+  placementValidation,
+  /burgage_zone_overlaps_buildings\([\s\S]{0,260}building\(\)\.owner\(\)\.filter\(&owner\)/,
+);
+assert.match(
+  residenceReducer,
+  /burgage_zone\(\)\.owner\(\)\.filter\(&owner\)[\s\S]*burgage_zone_overlaps_buildings\(ctx, owner, &corners\)[\s\S]*farm_field\(\)\.owner\(\)\.filter\(&owner\)/,
+);
+for (const [label, source] of [
+  ['farm fields', farmFieldReducer],
+  ['pastures', livestockReducer],
+] as const) {
+  assert.match(source, /building\(\)\.owner\(\)\.filter\(&owner\)/, `${label} must ignore foreign buildings`);
+  assert.match(source, /burgage_zone\(\)\.owner\(\)\.filter\(&owner\)/, `${label} must ignore foreign homes`);
+  assert.match(source, /farm_field\(\)\.owner\(\)\.filter\(&owner\)/, `${label} must ignore foreign fields`);
+}
+assert.match(
+  livestockReducer,
+  /pasture\(\)\.owner\(\)\.filter\(&owner\)/,
+  'pastures must ignore foreign grazing parcels',
+);
+
 console.log('Placement regression tests passed.');

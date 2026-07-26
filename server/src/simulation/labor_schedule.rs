@@ -1,33 +1,32 @@
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::db::*;
-use crate::simulation::game_calendar::GameClock;
+use crate::simulation::game_calendar::{household_consumption_paused, GameClock};
+use crate::simulation::SimTickContext;
 
 pub fn is_work_hours(clock: &GameClock) -> bool {
     clock.is_work_hours
 }
 
-pub fn owner_has_staffed_chapel(ctx: &ReducerContext, owner: Identity) -> bool {
-    ctx.db.building().iter().any(|building| {
-        building.owner == owner
-            && building.kind == "chapel"
-            && building.construction_complete
-            && building.assigned_labor > 0
-    })
+pub fn owner_has_staffed_chapel(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    owner: Identity,
+) -> bool {
+    tick.owner_has_staffed_chapel(ctx, owner)
 }
 
-pub fn owner_sabbath_observance_enabled(ctx: &ReducerContext, owner: Identity) -> bool {
-    ctx.db
-        .player_resources()
-        .owner()
-        .find(&owner)
-        .map(|resources| resources.sabbath_observance_enabled)
-        .unwrap_or(false)
+pub fn owner_sabbath_observance_enabled(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    owner: Identity,
+) -> bool {
+    tick.sabbath_observance_enabled(ctx, owner)
 }
 
 /// Night hours and Sunday sabbath (when staffed chapel + policy enabled).
 pub fn labor_and_logistics_paused(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     owner: Identity,
     clock: &GameClock,
 ) -> bool {
@@ -39,16 +38,17 @@ pub fn labor_and_logistics_paused(
         return false;
     }
 
-    if !owner_sabbath_observance_enabled(ctx, owner) {
+    if !owner_sabbath_observance_enabled(ctx, tick, owner) {
         return false;
     }
 
-    owner_has_staffed_chapel(ctx, owner)
+    owner_has_staffed_chapel(ctx, tick, owner)
 }
 
-/// Residence need consumption pauses with labor — including Sunday sabbath.
-pub fn is_consumption_paused(ctx: &ReducerContext, owner: Identity, clock: &GameClock) -> bool {
-    labor_and_logistics_paused(ctx, owner, clock)
+/// Household consumption keeps its daytime cadence on Sundays even when work
+/// and delivery carts rest, requiring homes to be provisioned in advance.
+pub fn is_consumption_paused(_ctx: &ReducerContext, _owner: Identity, clock: &GameClock) -> bool {
+    household_consumption_paused(clock)
 }
 
 /// Parish salary, upkeep, charity, and auto-sweep pause outside work hours.
@@ -57,8 +57,13 @@ pub fn is_parish_economy_paused(clock: &GameClock) -> bool {
 }
 
 /// Chapel tithes pause outside work hours and on Sunday sabbath.
-pub fn is_chapel_tithe_paused(ctx: &ReducerContext, owner: Identity, clock: &GameClock) -> bool {
-    labor_and_logistics_paused(ctx, owner, clock)
+pub fn is_chapel_tithe_paused(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    owner: Identity,
+    clock: &GameClock,
+) -> bool {
+    labor_and_logistics_paused(ctx, tick, owner, clock)
 }
 
 #[cfg(test)]
@@ -78,10 +83,9 @@ mod tests {
     }
 
     #[test]
-    fn consumption_policy_matches_labor_policy_signature() {
-        // Documented invariant: is_consumption_paused delegates to labor_and_logistics_paused.
-        // Integration with owner/sabbath is covered by simulation tests.
+    fn night_still_pauses_household_consumption() {
         let night = game_clock(midnight_tick());
         assert!(!night.is_work_hours);
+        assert!(super::household_consumption_paused(&night));
     }
 }

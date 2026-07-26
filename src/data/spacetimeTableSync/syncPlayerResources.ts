@@ -2,12 +2,18 @@ import type { PlayerResources } from '../../generated/types.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../../economy/villageEconomy.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { DEFAULT_MONASTERY_POLICY } from '../../economy/monasteryPolicy.ts';
+import {
+  DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
+  DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
+} from '../../economy/laborSteward.ts';
 import { createEmptyStockpile } from '../../resources/types.ts';
 import type { GameTableSyncState } from './gameTableSyncState.ts';
 
 export function syncPlayerResources(rows: Iterable<PlayerResources>, state: GameTableSyncState): void {
   state.stockpile = createEmptyStockpile();
   state.economicActivityTaxRate = ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
+  state.seasonalLaborStewardEnabled = DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;
+  state.constructionLaborStewardEnabled = DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED;
   state.parishPolicy = { ...DEFAULT_PARISH_POLICY };
   state.monasteryPolicy = { ...DEFAULT_MONASTERY_POLICY };
   if (!state.identityHex) return;
@@ -31,9 +37,16 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       preservedFood: row.preservedFood ?? 0,
       honey: row.honey ?? 0,
       wine: row.wine ?? 0,
+      wool: row.wool ?? 0,
+      cloth: row.cloth ?? 0,
+      ironwork: row.ironwork ?? 0,
       polearms: row.polearms ?? 0,
     };
     state.economicActivityTaxRate = row.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
+    state.seasonalLaborStewardEnabled = row.seasonalLaborStewardEnabled
+      ?? DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;
+    state.constructionLaborStewardEnabled = row.constructionLaborStewardEnabled
+      ?? DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED;
     state.parishPolicy = {
       autoSweepEnabled: row.chapelAutoSweepEnabled ?? DEFAULT_PARISH_POLICY.autoSweepEnabled,
       cofferReserveGold: row.chapelCofferReserveGold ?? DEFAULT_PARISH_POLICY.cofferReserveGold,

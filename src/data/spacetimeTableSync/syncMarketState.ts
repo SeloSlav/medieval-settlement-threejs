@@ -14,8 +14,10 @@ export function syncMarketState(rows: Iterable<MarketState>, state: GameTableSyn
       stonePriceMult: row.stonePriceMult,
       firewoodPriceMult: row.firewoodPriceMult,
       foodPriceMult: row.foodPriceMult,
+      specialtyPriceMult: row.specialtyPriceMult,
       regionalFoodDemand: row.regionalFoodDemand,
       regionalFoodSupply: row.regionalFoodSupply,
+      regionalSpecialtyDemand: row.regionalSpecialtyDemand,
       bulletin: row.bulletin,
     };
     break;

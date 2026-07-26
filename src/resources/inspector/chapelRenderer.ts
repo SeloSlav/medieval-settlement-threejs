@@ -70,7 +70,7 @@ export function renderChapelInspector(
       ${collectButtonHtml}
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-auto-sweep ${parishPolicy.autoSweepEnabled ? 'checked' : ''} /><span>Auto-sweep surplus to treasury</span></label>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-sabbath ${parishPolicy.sabbathObservanceEnabled ? 'checked' : ''} /><span>Observe Sunday Sabbath</span></label>
-      <p class="inspector-action-panel__hint">Sabbath pauses work for +${Math.round(CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS * 100)}% attendance and +${Math.round(CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS * 100)}% settlement speed.</p>
+      <p class="inspector-action-panel__hint">Sabbath pauses work and carts for +${Math.round(CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS * 100)}% attendance and +${Math.round(CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS * 100)}% settlement speed. Households still consume delivered provisions, so stock them before Saturday night.</p>
       <label class="city-admin-panel__slider-label"><span>Coffer reserve</span><strong data-policy-chapel-reserve-value>${Math.round(parishPolicy.cofferReserveGold)} gold</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-chapel-reserve min="${CHAPEL_COFFER_RESERVE_MIN}" max="${CHAPEL_COFFER_RESERVE_MAX}" step="5" value="${Math.round(parishPolicy.cofferReserveGold)}" />
     </div>

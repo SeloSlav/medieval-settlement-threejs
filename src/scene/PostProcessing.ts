@@ -6,15 +6,19 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { RenderPipeline, type WebGPURenderer } from 'three/webgpu';
-import { pass, uniform, uv, wgslFn } from 'three/tsl';
+import { distance, dot, float, max, mix, pass, smoothstep, uniform, uv, vec2, vec3, vec4 } from 'three/tsl';
 import type { DayNightGrade } from '../world/dayNightPresentation.ts';
 import { applyDayNightGradeUniforms, DEFAULT_DAY_NIGHT_GRADE } from './postGrade.ts';
 import {
   buildGradeGlslFragmentShader,
   buildGradeGlslVertexShader,
-  buildGradeWgslFunctionBody,
+  GRADE_LUMA_WEIGHTS,
+  GRADE_NIGHT_BLUE_TINT,
+  GRADE_VIGNETTE_INNER,
+  GRADE_VIGNETTE_OUTER,
+  GRADE_WARMTH_TINT,
 } from './postGradeShader.ts';
-import type { RendererBackend } from './RendererBackend.ts';
+import { supportsNodeMaterials, type RendererBackend } from './RendererBackend.ts';
 
 type Disposable = {
   dispose(): void;
@@ -54,7 +58,7 @@ export function createPostProcessor(
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera,
 ): ScenePostProcessor {
-  if (backend.kind === 'webgpu') {
+  if (supportsNodeMaterials(backend.kind)) {
     return new WebGPUPostProcessor(backend.renderer as WebGPURenderer, scene, camera);
   }
 
@@ -118,29 +122,14 @@ class WebGPUPostProcessor implements ScenePostProcessor {
 
     const sceneColor = this.scenePass.getTextureNode('output');
     this.bloomPass = bloom(sceneColor, 0.12, 0.38, 0.82);
-    const gradeFn = wgslFn(`
-      fn daylightGrade(
-        inputColor: vec4<f32>,
-        frameUv: vec2<f32>,
-        gradeSaturation: f32,
-        gradeContrast: f32,
-        gradeWarmth: f32,
-        gradeNightBlue: f32,
-        gradeVignette: f32
-      ) -> vec4<f32> {
-        ${buildGradeWgslFunctionBody()}
-      }
-    `);
-
-    this.pipeline.outputNode = gradeFn({
-      frameUv: uv(),
-      inputColor: sceneColor.add(this.bloomPass),
-      gradeSaturation: this.gradeSaturation,
-      gradeContrast: this.gradeContrast,
-      gradeWarmth: this.gradeWarmth,
-      gradeNightBlue: this.gradeNightBlue,
-      gradeVignette: this.gradeVignette,
-    });
+    this.pipeline.outputNode = buildGradeNode(
+      sceneColor.add(this.bloomPass),
+      this.gradeSaturation,
+      this.gradeContrast,
+      this.gradeWarmth,
+      this.gradeNightBlue,
+      this.gradeVignette,
+    );
   }
 
   dispose(): void {
@@ -173,4 +162,49 @@ class WebGPUPostProcessor implements ScenePostProcessor {
   setSize(): void {
     // WebGPU pass nodes size themselves from the renderer drawing buffer each frame.
   }
+}
+
+type TslNode = {
+  a: TslNode;
+  rgb: TslNode;
+  add(value: unknown): TslNode;
+  mul(value: unknown): TslNode;
+  sub(value: unknown): TslNode;
+};
+
+function buildGradeNode(
+  inputColorValue: unknown,
+  saturationValue: unknown,
+  contrastValue: unknown,
+  warmthValue: unknown,
+  nightBlueValue: unknown,
+  vignetteValue: unknown,
+): unknown {
+  const inputColor = inputColorValue as TslNode;
+  const [lr, lg, lb] = GRADE_LUMA_WEIGHTS;
+  const [wr, wg, wb] = GRADE_WARMTH_TINT;
+  const [nr, ng, nb] = GRADE_NIGHT_BLUE_TINT;
+  const luma = dot(inputColor.rgb, vec3(lr, lg, lb));
+  const saturated = mix(vec3(luma), inputColor.rgb, saturationValue) as TslNode;
+  const contrasted = saturated.sub(float(0.5)).mul(contrastValue).add(float(0.5));
+  const warmed = mix(
+    contrasted,
+    contrasted.mul(vec3(wr, wg, wb)),
+    warmthValue,
+  ) as TslNode;
+  const nightTinted = mix(
+    warmed,
+    warmed.mul(vec3(nr, ng, nb)),
+    nightBlueValue,
+  ) as TslNode;
+  const distanceFromCenter = distance(uv(), vec2(0.5));
+  const edge = smoothstep(
+    float(GRADE_VIGNETTE_INNER),
+    float(GRADE_VIGNETTE_OUTER),
+    distanceFromCenter,
+  );
+  const graded = nightTinted.mul(
+    mix(float(1), (float(1) as TslNode).sub(vignetteValue), edge),
+  );
+  return vec4(max(graded, vec3(0)), inputColor.a);
 }

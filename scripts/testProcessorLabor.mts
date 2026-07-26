@@ -1,0 +1,425 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
+import {
+  applyProcessorLaborCallup,
+  applyProcessorLaborRecall,
+  computeSettlementProcessorLaborCallupPlan,
+  computeSettlementProcessorLaborRecallPlan,
+} from '../src/economy/processorLabor.ts';
+import { BUILDING_DEFINITIONS, type BuildingKind } from '../src/generated/gameBalance.ts';
+import {
+  computePopulationStats,
+  computeResourceTotals,
+} from '../src/resources/resourceTotals.ts';
+import { renderTownHallInspector } from '../src/resources/inspector/townHallRenderer.ts';
+import {
+  createEmptyStockpile,
+  type BuildingState,
+  type ForagingNodeState,
+  type GameState,
+  type ResourceNodeState,
+} from '../src/resources/types.ts';
+import type { WorldQueries } from '../src/resources/WorldQueries.ts';
+
+const recallState = emptyGameState();
+const brewery = building('10', 'brewery', 3);
+brewery.processorOutputTargetPercent = 50;
+brewery.ale = 100;
+const weaver = building('20', 'weaver', 1);
+weaver.processorOutputTargetPercent = 25;
+weaver.cloth = 30;
+const smokehouse = building('30', 'smokehouse', 2);
+smokehouse.processorOutputTargetPercent = 50;
+smokehouse.preservedFood = 20;
+const granary = building('40', 'granary', 3);
+granary.processorOutputTargetPercent = 25;
+granary.food = 85;
+const carpenter = building('50', 'carpenter', 4);
+for (const site of [brewery, weaver, smokehouse, granary, carpenter]) {
+  recallState.buildings.set(site.id, site);
+}
+
+const recallPlan = computeSettlementProcessorLaborRecallPlan(recallState);
+assert.equal(recallPlan.targetPausedSites, 3);
+assert.equal(recallPlan.reclaimableSites, 2);
+assert.equal(recallPlan.reclaimableWorkers, 4);
+assert.equal(recallPlan.retainedDispatchers, 3);
+assert.equal(recallPlan.firstReclaimableBuildingId, brewery.id);
+assert.deepEqual(
+  recallPlan.sites.map((site) => [site.buildingId, site.targetLabor]),
+  [
+    [brewery.id, 1],
+    [granary.id, 1],
+  ],
+);
+
+const recalled = applyProcessorLaborRecall(recallState.buildings, recallPlan);
+assert.equal(recalled.get(brewery.id)?.assignedLabor, 1);
+assert.equal(recalled.get(granary.id)?.assignedLabor, 1);
+assert.equal(recalled.get(weaver.id)?.assignedLabor, 1);
+assert.equal(recalled.get(smokehouse.id)?.assignedLabor, 2);
+assert.equal(recalled.get(carpenter.id)?.assignedLabor, 4);
+assert.equal(recallState.buildings.get(brewery.id)?.assignedLabor, 3);
+
+const callupState = emptyGameState();
+const highMill = building('10', 'watermill', 0);
+highMill.constructionPriority = 3;
+const highBrewery = building('20', 'brewery', 0);
+highBrewery.constructionPriority = 3;
+const normalSmokehouse = building('30', 'smokehouse', 0);
+normalSmokehouse.constructionPriority = 2;
+const cappedWeaver = building('40', 'weaver', 0);
+cappedWeaver.constructionPriority = 3;
+cappedWeaver.processorOutputTargetPercent = 25;
+cappedWeaver.cloth = 30;
+const unrelatedCarpenter = building('50', 'carpenter', 0);
+for (const site of [
+  highMill,
+  highBrewery,
+  normalSmokehouse,
+  cappedWeaver,
+  unrelatedCarpenter,
+]) {
+  callupState.buildings.set(site.id, site);
+}
+
+const callupPlan = computeSettlementProcessorLaborCallupPlan(callupState, 3);
+assert.equal(callupPlan.auditedSites, 4);
+assert.equal(callupPlan.readySites, 3);
+assert.equal(callupPlan.blockedSites, 1);
+assert.equal(callupPlan.understaffedSites, 3);
+assert.equal(callupPlan.openPosts, 8);
+assert.equal(callupPlan.callupWorkers, 3);
+assert.equal(callupPlan.remainingOpenPosts, 5);
+assert.equal(callupPlan.firstUnderstaffedBuildingId, highMill.id);
+assert.deepEqual(
+  callupPlan.assignments.map((assignment) => [
+    assignment.buildingId,
+    assignment.targetLabor,
+  ]),
+  [
+    [highMill.id, 2],
+    [highBrewery.id, 1],
+  ],
+  'scarce workers should round-robin inside the high-priority tier before normal work',
+);
+const calledUp = applyProcessorLaborCallup(callupState.buildings, callupPlan);
+assert.equal(calledUp.get(highMill.id)?.assignedLabor, 2);
+assert.equal(calledUp.get(highBrewery.id)?.assignedLabor, 1);
+assert.equal(calledUp.get(normalSmokehouse.id)?.assignedLabor, 0);
+assert.equal(calledUp.get(cappedWeaver.id)?.assignedLabor, 0);
+assert.equal(calledUp.get(unrelatedCarpenter.id)?.assignedLabor, 0);
+
+const sourceBoundState = emptyGameState();
+const readyQuarry = building('10', 'stone_quarry', 0);
+readyQuarry.workRadius = 30;
+const exhaustedQuarry = building('20', 'stone_quarry', 0);
+exhaustedQuarry.x = 100;
+exhaustedQuarry.workRadius = 30;
+const readyLargeQuarry = building('30', 'large_quarry', 0);
+readyLargeQuarry.x = 200;
+const readyHunter = building('40', 'hunters_hall', 0);
+readyHunter.x = 300;
+readyHunter.workRadius = 68;
+readyHunter.harvestReservePercent = 50;
+const reserveHunter = building('50', 'hunters_hall', 0);
+reserveHunter.x = 400;
+reserveHunter.workRadius = 68;
+reserveHunter.harvestReservePercent = 50;
+for (const site of [
+  readyQuarry,
+  exhaustedQuarry,
+  readyLargeQuarry,
+  readyHunter,
+  reserveHunter,
+]) {
+  sourceBoundState.buildings.set(site.id, site);
+}
+sourceBoundState.quarries.set('ready-stone', quarry('ready-stone', 0, 0, 50));
+sourceBoundState.quarries.set('spent-stone', quarry('spent-stone', 100, 0, 0));
+sourceBoundState.quarries.set('rich-stone', {
+  ...quarry('rich-stone', 200, 0, 0),
+  isRich: true,
+});
+sourceBoundState.foragingNodes.set(
+  'healthy-game',
+  wildStock('healthy-game', 300, 0, 80, 100),
+);
+sourceBoundState.foragingNodes.set(
+  'protected-game',
+  wildStock('protected-game', 400, 0, 50, 100),
+);
+
+const sourceBoundPlan = computeSettlementProcessorLaborCallupPlan(sourceBoundState, 3);
+assert.equal(sourceBoundPlan.auditedSites, 5);
+assert.equal(sourceBoundPlan.readySites, 3);
+assert.equal(sourceBoundPlan.blockedSites, 2);
+assert.equal(sourceBoundPlan.callupWorkers, 3);
+assert.deepEqual(
+  sourceBoundPlan.assignments.map((assignment) => [
+    assignment.buildingId,
+    assignment.targetLabor,
+  ]),
+  [
+    [readyQuarry.id, 1],
+    [readyLargeQuarry.id, 1],
+    [readyHunter.id, 1],
+  ],
+  'source-ready extraction sites should share scarce labor while depleted and reserve-held sites stay empty',
+);
+
+highMill.assignedLabor = BUILDING_DEFINITIONS.watermill.maxLabor;
+highBrewery.assignedLabor = BUILDING_DEFINITIONS.brewery.maxLabor;
+normalSmokehouse.constructionPriority = 0;
+const legacyPriorityPlan = computeSettlementProcessorLaborCallupPlan(callupState, 1);
+assert.equal(legacyPriorityPlan.assignments[0]?.buildingId, normalSmokehouse.id);
+assert.equal(legacyPriorityPlan.assignments[0]?.priority, 2);
+
+const renderedState = emptyGameState();
+const townHall = building('hall', 'town_hall', 1);
+const pausedBrewery = building('brewery', 'brewery', 3);
+pausedBrewery.processorOutputTargetPercent = 50;
+pausedBrewery.ale = 100;
+const readyMill = building('mill', 'watermill', 0);
+readyMill.constructionPriority = 3;
+for (const site of [townHall, pausedBrewery, readyMill]) {
+  renderedState.buildings.set(site.id, site);
+}
+const inspector = renderTownHallInspector(
+  {
+    kind: 'building',
+    building: townHall,
+    matureTrees: 0,
+    stumpTrees: 0,
+    growingTrees: 0,
+  },
+  {
+    gameState: renderedState,
+    worldQueries: worldQueries(),
+    populationStats: computePopulationStats(renderedState),
+    resourceTotals: computeResourceTotals(renderedState),
+    worldHydrology: 0.5,
+  },
+);
+assert.match(inspector.detailsHtml, /Target-paused workshops/);
+assert.match(inspector.detailsHtml, /2 reclaimable workers across 1 target-paused workshop/);
+assert.match(inspector.detailsHtml, /data-inspect-building="brewery"/);
+assert.match(inspector.detailsHtml, /Production call-up/);
+assert.match(inspector.detailsHtml, /ready production posts/);
+assert.match(inspector.detailsHtml, /1 blocked/);
+assert.match(inspector.detailsHtml, /data-inspect-building="mill"/);
+assert.match(inspector.supplementalPanelHtml ?? '', /data-recall-target-idle-processor-labor/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Recall 2 stalled production workers/);
+assert.match(inspector.supplementalPanelHtml ?? '', /One dispatcher remains for stored output/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Matching inbound supplies protect recovering workshops/);
+assert.match(inspector.supplementalPanelHtml ?? '', /data-call-up-target-ready-processor-labor/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 1 production worker/);
+assert.match(inspector.supplementalPanelHtml ?? '', /equal-priority sites share workers round-robin/);
+assert.match(inspector.supplementalPanelHtml ?? '', /quarries with usable stone and yard room/);
+
+const perfState = emptyGameState();
+for (let index = 0; index < 100_000; index += 1) {
+  const site = building(String(index), 'brewery', 3);
+  site.processorOutputTargetPercent = 25;
+  site.ale = 50;
+  perfState.buildings.set(site.id, site);
+}
+const recallStarted = performance.now();
+const perfRecallPlan = computeSettlementProcessorLaborRecallPlan(perfState);
+const recallElapsedMs = performance.now() - recallStarted;
+assert.equal(perfRecallPlan.reclaimableWorkers, 200_000);
+assert.ok(
+  recallElapsedMs < 250,
+  `100,000-site workshop recall plan took ${recallElapsedMs.toFixed(1)} ms`,
+);
+
+for (const site of perfState.buildings.values()) {
+  site.assignedLabor = 0;
+  site.ale = 0;
+}
+const callupStarted = performance.now();
+const perfCallupPlan = computeSettlementProcessorLaborCallupPlan(perfState, 100_000);
+const callupElapsedMs = performance.now() - callupStarted;
+assert.equal(perfCallupPlan.callupWorkers, 100_000);
+assert.equal(perfCallupPlan.readySites, 100_000);
+assert.equal(perfCallupPlan.blockedSites, 0);
+assert.ok(
+  callupElapsedMs < 500,
+  `100,000-site workshop call-up plan took ${callupElapsedMs.toFixed(1)} ms`,
+);
+
+const spatialCallupState = emptyGameState();
+for (let index = 0; index < 20_000; index += 1) {
+  const x = index * 200;
+  const hunter = building(`hunter-${index}`, 'hunters_hall', 0);
+  hunter.x = x;
+  hunter.workRadius = 68;
+  hunter.harvestReservePercent = 50;
+  spatialCallupState.buildings.set(hunter.id, hunter);
+  const node = wildStock(`game-${index}`, x, 0, 80, 100);
+  spatialCallupState.foragingNodes.set(node.nodeId, node);
+}
+const spatialCallupStarted = performance.now();
+const spatialCallupPlan = computeSettlementProcessorLaborCallupPlan(
+  spatialCallupState,
+  20_000,
+);
+const spatialCallupElapsedMs = performance.now() - spatialCallupStarted;
+assert.equal(spatialCallupPlan.readySites, 20_000);
+assert.equal(spatialCallupPlan.callupWorkers, 20_000);
+assert.ok(
+  spatialCallupElapsedMs < 750,
+  `20,000 source-aware production call-ups took ${spatialCallupElapsedMs.toFixed(1)} ms`,
+);
+
+const serverReducer = readFileSync(
+  new URL('../server/src/reducers/buildings.rs', import.meta.url),
+  'utf8',
+);
+const resourceInspector = readFileSync(
+  new URL('../src/resources/ResourceInspector.ts', import.meta.url),
+  'utf8',
+);
+const spacetimeReducers = readFileSync(
+  new URL('../src/data/spacetimeReducers.ts', import.meta.url),
+  'utf8',
+);
+const generatedReducers = readFileSync(
+  new URL('../src/generated/index.ts', import.meta.url),
+  'utf8',
+);
+assert.match(serverReducer, /pub fn recall_target_idle_processor_labor/);
+assert.match(serverReducer, /pub fn call_up_target_ready_processor_labor/);
+assert.match(serverReducer, /A staffed Town Hall is required/);
+assert.match(serverReducer, /building_has_active_trip/);
+assert.match(serverReducer, /stalled_labor_target/);
+assert.match(serverReducer, /production_site_ready/);
+assert.match(serverReducer, /is_production_labor_kind/);
+assert.match(resourceInspector, /data-recall-target-idle-processor-labor/);
+assert.match(resourceInspector, /data-call-up-target-ready-processor-labor/);
+assert.match(spacetimeReducers, /recallTargetIdleProcessorLabor/);
+assert.match(spacetimeReducers, /callUpTargetReadyProcessorLabor/);
+assert.match(generatedReducers, /recall_target_idle_processor_labor/);
+assert.match(generatedReducers, /call_up_target_ready_processor_labor/);
+
+console.log(
+  `processor labor rotation tests passed (100,000 sites: recall ${recallElapsedMs.toFixed(1)} ms, call-up ${callupElapsedMs.toFixed(1)} ms; 20,000 spatial call-ups: ${spatialCallupElapsedMs.toFixed(1)} ms)`,
+);
+
+function emptyGameState(): GameState {
+  return {
+    seed: 1,
+    tick: 0,
+    stockpile: createEmptyStockpile(),
+    quarries: new Map(),
+    foragingNodes: new Map(),
+    trees: new Map(),
+    buildings: new Map(),
+    farmFields: new Map(),
+    pastures: new Map(),
+    livestockHerds: new Map(),
+    burgageZones: new Map(),
+    residences: new Map(),
+    backyardGardens: new Map(),
+    deliveryTrips: new Map(),
+    fireIncidents: new Map(),
+    nextBuildingId: 1,
+  };
+}
+
+function building(
+  id: string,
+  kind: BuildingKind,
+  assignedLabor: number,
+): BuildingState {
+  return {
+    id,
+    kind,
+    x: 0,
+    z: 0,
+    workRadius: 0,
+    actionCooldown: 0,
+    timber: 0,
+    firewood: 0,
+    stone: 0,
+    water: 0,
+    food: 0,
+    grain: 0,
+    flour: 0,
+    ale: 0,
+    preservedFood: 0,
+    honey: 0,
+    wine: 0,
+    wool: 0,
+    cloth: 0,
+    ironwork: 0,
+    polearms: 0,
+    gold: 0,
+    waterCapacity: 0,
+    assignedLabor,
+    constructionComplete: true,
+    constructionProgress: 1,
+    constructionRequiredTimber: 0,
+    constructionRequiredStone: 0,
+    constructionDeliveredTimber: 0,
+    constructionDeliveredStone: 0,
+    constructionReservedTimber: 0,
+    constructionReservedStone: 0,
+    constructionTreasuryTimber: 0,
+    constructionTreasuryStone: 0,
+    storehouseAcceptsTimber: false,
+    storehouseAcceptsStone: false,
+    storehouseAcceptsFirewood: false,
+    processorOutputTargetPercent: 100,
+    constructionPriority: 2,
+  };
+}
+
+function worldQueries(): WorldQueries {
+  return {
+    getBuildingLabel: (kind: BuildingKind) => BUILDING_DEFINITIONS[kind].label,
+    getRoadAccessLabel: () => 'Connected',
+    hasRoadAccess: () => true,
+    getRoadPathDistance: () => null,
+    isResidenceConnectedToMarketplace: () => false,
+    getServingChapelForResidence: () => null,
+    isMonasteryLinkedToChapel: () => false,
+    findNearestRoadLinkedBuilding: () => null,
+  } as unknown as WorldQueries;
+}
+
+function quarry(
+  nodeId: string,
+  x: number,
+  z: number,
+  remaining: number,
+): ResourceNodeState {
+  return {
+    nodeId,
+    kind: 'quarry',
+    resource: 'stone',
+    x,
+    z,
+    remaining,
+    maxYield: 50,
+  };
+}
+
+function wildStock(
+  nodeId: string,
+  x: number,
+  z: number,
+  remaining: number,
+  maxYield: number,
+): ForagingNodeState {
+  return {
+    nodeId,
+    kind: 'game',
+    resource: 'game',
+    x,
+    z,
+    remaining,
+    maxYield,
+  };
+}

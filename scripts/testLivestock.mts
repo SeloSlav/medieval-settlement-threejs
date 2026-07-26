@@ -4,6 +4,10 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import {
+  HAYLOFT_VISUAL_SEGMENTS,
+  syncStockpileSegments,
+} from '../src/buildings/buildingStockpileVisuals.ts';
 import { getBuildingExtent } from '../src/buildings/buildingExtents.ts';
 import { createCattleVisualDistribution } from '../src/farming/LivestockVisuals.ts';
 import {
@@ -14,6 +18,7 @@ import {
   CATTLE_MAX_FERTILIZED_FIELDS,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
   LIVESTOCK_MIN_PASTURE_AREA,
+  LIVESTOCK_HAY_STORAGE_CAPACITY,
   SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
   SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
   SWINE_MATURE_TREES_PER_HEAD,
@@ -66,6 +71,40 @@ for (const kind of ['pastoral_farmstead', 'swineherd'] as const) {
   assert.ok(size.x > 6 && size.y > 2 && size.z > 4, `${kind} should have a readable building footprint`);
 }
 
+const pastoralModel = createBuildingMesh('pastoral_farmstead');
+const hayloft = pastoralModel.getObjectByName('HayloftStockpile');
+assert.ok(hayloft instanceof THREE.Group, 'the pastoral farmstead should expose a live hayloft');
+const haySegments = hayloft.children.filter((child) => child.name === 'HayStockSegment');
+assert.equal(haySegments.length, HAYLOFT_VISUAL_SEGMENTS);
+assert.equal(hayloft.visible, false, 'an empty local hay reserve must not show decorative hay');
+assert.equal(
+  syncStockpileSegments(
+    hayloft,
+    'HayStockSegment',
+    LIVESTOCK_HAY_STORAGE_CAPACITY / 2,
+    LIVESTOCK_HAY_STORAGE_CAPACITY,
+  ),
+  HAYLOFT_VISUAL_SEGMENTS / 2,
+);
+assert.equal(haySegments.filter((segment) => segment.visible).length, 4);
+assert.equal(
+  syncStockpileSegments(
+    hayloft,
+    'HayStockSegment',
+    LIVESTOCK_HAY_STORAGE_CAPACITY,
+    LIVESTOCK_HAY_STORAGE_CAPACITY,
+  ),
+  HAYLOFT_VISUAL_SEGMENTS,
+);
+assert.equal(haySegments.filter((segment) => segment.visible).length, 8);
+assert.equal(syncStockpileSegments(
+  hayloft,
+  'HayStockSegment',
+  0,
+  LIVESTOCK_HAY_STORAGE_CAPACITY,
+), 0);
+assert.equal(hayloft.visible, false);
+
 const livestockAssets = [
   { label: 'cow', path: 'public/assets/models/livestock/quaternius-cow.glb', idle: 'idle', graze: 'eating', walk: 'walk' },
   { label: 'bull', path: 'public/assets/models/livestock/quaternius-bull.glb', idle: 'idle', graze: 'eating', walk: 'walk' },
@@ -107,10 +146,36 @@ for (const label of ['cow', 'bull', 'sheep', 'pig', 'chicken']) {
 assert.match(license, /CC0 1\.0/, 'livestock assets should retain their CC0 license record');
 
 const serverLivestock = fs.readFileSync('server/src/simulation/livestock.rs', 'utf8');
+const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
 assert.match(serverLivestock, /tree\.phase == "mature"/, 'pannage should count only mature trees');
 assert.match(serverLivestock, /mature_trees\s*\/\s*SWINE_MATURE_TREES_PER_HEAD/, 'pannage capacity should use mature trees');
 assert.match(serverLivestock, /CATTLE_MAX_FERTILIZED_FIELDS/, 'cattle support should cap fertilized fields');
+assert.match(
+  serverLivestock,
+  /pub fn cattle_field_support_sources[\s\S]*owner_fields[\s\S]*retain_priority_candidate/,
+  'field geometry and priorities should be scanned once into bounded cattle-source candidates',
+);
+assert.doesNotMatch(
+  serverLivestock,
+  /pub fn cattle_support_for_fields/,
+  'each farmstead must not repeat the owner-wide cattle and field scan',
+);
+assert.match(
+  tickContext,
+  /cattle_field_sources_by_owner:\s*RefCell<HashMap<Identity,\s*HashMap<u64,\s*Vec<u64>>>>/,
+  'cattle-source candidates should be cached once per owner and simulation substep',
+);
+assert.match(
+  tickContext,
+  /cattle_field_support_for[\s\S]*livestock_herd\(\)[\s\S]*building_id\(\)[\s\S]*find\(&building_id\)[\s\S]*cattle_field_support_is_active/,
+  'field work should re-read live herd readiness after using the cached candidate map',
+);
 const farmSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+assert.match(
+  farmSimulation,
+  /tick\.cattle_field_support_for\(ctx,\s*farmstead\.owner,\s*field\.id\)/,
+  'farmstead work should consume the owner-scoped tick cache',
+);
 assert.match(
   farmSimulation,
   /field\.stage == STAGE_PLOUGHING[\s\S]{0,100}plough_multiplier[\s\S]{0,100}else[\s\S]{0,100}1\.0/,
@@ -119,4 +184,16 @@ assert.match(
 assert.match(farmSimulation, /fertility_after_harvest[\s\S]*manure_bonus/, 'cattle manure should directly improve field fertility');
 assert.doesNotMatch(serverLivestock, /RESOURCE_MANURE|manure commodity/i, 'manure must remain a direct field effect, not a new commodity');
 
-console.log('livestock gameplay and asset tests passed');
+const scaleFarmsteads = 2_000;
+const scaleFields = 2_000;
+const scaleCattleHoldings = 20;
+const repeatedFieldVisits = scaleFarmsteads * scaleFields * scaleCattleHoldings;
+const cachedFieldVisits = scaleFields * scaleCattleHoldings + scaleFields;
+assert.ok(
+  repeatedFieldVisits / cachedFieldVisits > 1_000,
+  'the owner cache should remove farmstead × field × cattle scan multiplication',
+);
+
+console.log(
+  `livestock gameplay and asset tests passed (modeled cattle candidate visits ${repeatedFieldVisits.toLocaleString()}→${cachedFieldVisits.toLocaleString()})`,
+);

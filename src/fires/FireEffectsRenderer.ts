@@ -48,12 +48,6 @@ const SMOKE_MATERIAL = new THREE.MeshLambertMaterial({
   opacity: 0.34,
   depthWrite: false,
 });
-const STEAM_MATERIAL = new THREE.MeshLambertMaterial({
-  color: 0xc9d1d2,
-  transparent: true,
-  opacity: 0.28,
-  depthWrite: false,
-});
 const RUBBLE_MATERIAL = new THREE.MeshStandardMaterial({
   color: 0x24211e,
   roughness: 1,
@@ -102,7 +96,7 @@ export class FireEffectsRenderer {
       const structureHeight = fireEffectHeight(incident, buildings, residences);
       visual.root.position.set(
         incident.x,
-        y + (incident.status === 'destroyed' ? 0.75 : structureHeight),
+        y + (incident.status === 'burning' ? structureHeight : 0.75),
         incident.z,
       );
       this.applyIncidentState(visual);
@@ -122,6 +116,7 @@ export class FireEffectsRenderer {
 
   tick(dt: number): void {
     for (const visual of this.visuals.values()) {
+      if (visual.incident.status !== 'burning') continue;
       visual.phase += dt;
       const { incident } = visual;
       const intensity = THREE.MathUtils.clamp(incident.intensity, 0, 1);
@@ -140,12 +135,9 @@ export class FireEffectsRenderer {
         smoke.position.z = Math.cos(age * 3.6 + index * 1.7) * (0.28 + age * 1.1);
         smoke.scale.setScalar(0.55 + age * 1.6 + intensity * 0.45);
         const material = smoke.material as THREE.MeshLambertMaterial;
-        material.opacity = (incident.status === 'extinguished' ? 0.22 : 0.34)
-          * Math.sin(Math.PI * age);
+        material.opacity = 0.34 * Math.sin(Math.PI * age);
       }
-      visual.light.intensity = incident.status === 'burning'
-        ? 5 + intensity * 12 + Math.sin(visual.phase * 11.3) * 1.8
-        : 0;
+      visual.light.intensity = 5 + intensity * 12 + Math.sin(visual.phase * 11.3) * 1.8;
     }
     this.syncWaterJets();
     for (const jet of this.waterJets.values()) {
@@ -171,7 +163,6 @@ export class FireEffectsRenderer {
     FLAME_OUTER.dispose();
     FLAME_INNER.dispose();
     SMOKE_MATERIAL.dispose();
-    STEAM_MATERIAL.dispose();
     RUBBLE_MATERIAL.dispose();
     WATER_MATERIAL.dispose();
   }
@@ -231,14 +222,27 @@ export class FireEffectsRenderer {
     const destroyed = visual.incident.status === 'destroyed';
     for (const flame of visual.flames) flame.visible = burning;
     for (const puff of visual.smoke) {
-      puff.visible = true;
-      const oldMaterial = puff.material as THREE.MeshLambertMaterial;
-      const desired = visual.incident.status === 'extinguished' ? STEAM_MATERIAL : SMOKE_MATERIAL;
-      if (oldMaterial.color.getHex() !== desired.color.getHex()) {
-        oldMaterial.color.copy(desired.color);
-      }
+      puff.visible = burning;
     }
-    for (const rubble of visual.rubble) rubble.visible = destroyed;
+    if (!burning) {
+      // Resolved incidents persist until repair, so retire their animated
+      // particles instead of paying the per-frame and object cost forever.
+      for (const flame of visual.flames) flame.removeFromParent();
+      visual.flames.length = 0;
+      for (const puff of visual.smoke) {
+        puff.removeFromParent();
+        (puff.material as THREE.Material).dispose();
+      }
+      visual.smoke.length = 0;
+      visual.light.intensity = 0;
+      visual.light.removeFromParent();
+    }
+    const visibleRubble = destroyed
+      ? visual.rubble.length
+      : Math.max(1, Math.ceil(visual.incident.damage * visual.rubble.length));
+    for (const [index, rubble] of visual.rubble.entries()) {
+      rubble.visible = !burning && index < visibleRubble;
+    }
   }
 
   private syncWaterJets(): void {

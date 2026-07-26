@@ -17,6 +17,7 @@ const WORK_EXTENT_KINDS = new Set<BuildingKind>([
   'threshing_barn',
   'pastoral_farmstead',
   'swineherd',
+  'apiary',
 ]);
 
 /**
@@ -57,8 +58,10 @@ export function getBuildingExtent(kind: BuildingKind, workRadius: number): Build
       ? 'Field work extent'
       : kind === 'pastoral_farmstead'
         ? 'Pasture work extent'
-        : kind === 'swineherd'
+      : kind === 'swineherd'
           ? 'Pannage work extent'
+          : kind === 'apiary'
+            ? 'Bee forage extent'
           : 'Work extent',
     radius: workRadius,
   };

@@ -3,15 +3,16 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    MarketCommodityOffer, MarketWaterCommodityOffer, MARKET_CARAVAN_FOOD_PER_DELIVERY,
-    MARKET_CARAVAN_WATER_PER_DELIVERY,
+    MarketCommodityOffer, MarketWaterCommodityOffer, TradeResource,
+    MARKET_CARAVAN_FOOD_PER_DELIVERY, MARKET_CARAVAN_WATER_PER_DELIVERY,
 };
 use crate::db::*;
-use crate::economy::regional_market::scaled_gold_cost;
+use crate::economy::marketplace_trade_policy::market_order_should_commit;
+use crate::economy::regional_market::{record_market_trade, scaled_gold_cost};
+use crate::economy::regional_market_policy::MarketTradeDirection;
 use crate::economy::{
-    building_food_storage_cap, building_water_storage_cap, credit_treasury_food,
-    credit_treasury_gold, credit_treasury_water, debit_residence_wealth, deposit_building_food,
-    deposit_building_water, spend_treasury_gold,
+    building_food_storage_cap, building_water_storage_cap, credit_treasury_gold,
+    debit_residence_wealth, deposit_building_food, deposit_building_water, spend_treasury_gold,
 };
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::{
@@ -43,28 +44,25 @@ pub fn order_food_commodity(
         return Ok(false);
     }
 
-    pay_market_gold(ctx, owner, gold_cost, payer, residence)?;
-
     let mut building = ctx
         .db
         .building()
         .id()
         .find(&marketplace_id)
         .ok_or_else(|| "Marketplace not found.".to_string())?;
+    validate_order_marketplace(&building, owner)?;
+    let original_building = building.clone();
+
+    pay_market_gold(ctx, owner, gold_cost, payer, residence)?;
 
     let cap = building_food_storage_cap(&building.kind);
     let (deposited, updated) = deposit_building_food(&building, cap, commodity.food_amount);
-    building = updated;
-    if deposited <= 1e-6 {
+    if deposited + 1e-6 < commodity.food_amount {
         refund_market_gold(ctx, owner, gold_cost, payer, residence);
-        return Err("Marketplace provender storage is full.".to_string());
+        return Err("Marketplace needs room for the full provender order.".to_string());
     }
+    building = updated;
     ctx.db.building().id().update(building.clone());
-
-    let overflow = commodity.food_amount - deposited;
-    if overflow > 1e-6 {
-        credit_treasury_food(ctx, owner, overflow);
-    }
 
     let mut dispatch_building = ctx
         .db
@@ -81,7 +79,20 @@ pub fn order_food_commodity(
         MARKET_CARAVAN_FOOD_PER_DELIVERY,
         dispatch,
     );
+    if !market_order_should_commit(dispatch.priority_residence_id.is_some(), dispatched) {
+        ctx.db.building().id().update(original_building);
+        refund_market_gold(ctx, owner, gold_cost, payer, residence);
+        return Ok(false);
+    }
     ctx.db.building().id().update(dispatch_building);
+
+    record_market_trade(
+        ctx,
+        owner,
+        TradeResource::Food,
+        MarketTradeDirection::Import,
+        commodity.food_amount,
+    );
     Ok(dispatched)
 }
 
@@ -101,30 +112,27 @@ pub fn order_water_commodity(
         return Ok(false);
     }
 
-    pay_market_gold(ctx, owner, gold_cost, payer, residence)?;
-
     let mut building = ctx
         .db
         .building()
         .id()
         .find(&marketplace_id)
         .ok_or_else(|| "Marketplace not found.".to_string())?;
+    validate_order_marketplace(&building, owner)?;
+    let original_building = building.clone();
+
+    pay_market_gold(ctx, owner, gold_cost, payer, residence)?;
 
     let cap = building
         .water_capacity
         .max(building_water_storage_cap(&building.kind));
     let (deposited, updated) = deposit_building_water(&building, cap, commodity.water_amount);
-    building = updated;
-    if deposited <= 1e-6 {
+    if deposited + 1e-6 < commodity.water_amount {
         refund_market_gold(ctx, owner, gold_cost, payer, residence);
-        return Err("Marketplace water storage is full.".to_string());
+        return Err("Marketplace needs room for the full water order.".to_string());
     }
+    building = updated;
     ctx.db.building().id().update(building.clone());
-
-    let overflow = commodity.water_amount - deposited;
-    if overflow > 1e-6 {
-        credit_treasury_water(ctx, owner, overflow);
-    }
 
     let mut dispatch_building = ctx
         .db
@@ -141,8 +149,26 @@ pub fn order_water_commodity(
         MARKET_CARAVAN_WATER_PER_DELIVERY,
         dispatch,
     );
+    if !market_order_should_commit(dispatch.priority_residence_id.is_some(), dispatched) {
+        ctx.db.building().id().update(original_building);
+        refund_market_gold(ctx, owner, gold_cost, payer, residence);
+        return Ok(false);
+    }
     ctx.db.building().id().update(dispatch_building);
     Ok(dispatched)
+}
+
+fn validate_order_marketplace(
+    building: &Building,
+    owner: spacetimedb::Identity,
+) -> Result<(), String> {
+    if building.owner != owner || building.kind != "marketplace" {
+        return Err("Marketplace not found.".to_string());
+    }
+    if !building.construction_complete {
+        return Err("Complete the marketplace before ordering goods.".to_string());
+    }
+    Ok(())
 }
 
 pub fn best_affordable_food_commodity<'a>(
@@ -230,8 +256,12 @@ fn pay_market_gold(
             let Some(residence) = residence else {
                 return Err("Household payment requires a residence.".to_string());
             };
-            let paid = debit_residence_wealth(ctx, residence, gold_cost);
+            let Some(current) = ctx.db.residence().id().find(&residence.id) else {
+                return Err("Household not found.".to_string());
+            };
+            let paid = debit_residence_wealth(ctx, &current, gold_cost);
             if paid + 1e-6 < gold_cost {
+                crate::economy::credit_residence_wealth(ctx, residence.id, paid);
                 return Err("Household cannot afford this order.".to_string());
             }
             Ok(())

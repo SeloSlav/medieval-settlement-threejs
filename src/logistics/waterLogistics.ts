@@ -1,4 +1,7 @@
 import {
+  BREWERY_WATER_PER_CYCLE,
+  GRANARY_WATER_PER_CYCLE,
+  MILL_WATER_PER_HARVEST,
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   WELL_WATER_PER_DELIVERY,
@@ -6,7 +9,7 @@ import {
 import { waterDeliveryTripSeconds } from './deliveryLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState.ts';
-import type { BuildingState, ResidenceState } from '../resources/types.ts';
+import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { GAME_DAY_SECONDS } from './firewoodLogistics.ts';
 
 export {
@@ -24,13 +27,78 @@ export function wellWaterPerDelivery(deliveryWorkers: number): number {
   return WELL_WATER_PER_DELIVERY * deliveryWorkers;
 }
 
+export type IndustrialWaterCandidate = {
+  building: BuildingState;
+  requiredPerCycle: number;
+  stockRatio: number;
+  distance: number;
+};
+
+export function industrialWaterRequirement(kind: BuildingKind): number {
+  switch (kind) {
+    case 'granary':
+      return GRANARY_WATER_PER_CYCLE;
+    case 'brewery':
+      return BREWERY_WATER_PER_CYCLE;
+    case 'lumber_mill':
+      return MILL_WATER_PER_HARVEST;
+    default:
+      return 0;
+  }
+}
+
+function compareCanonicalUint64Strings(a: string, b: string): number {
+  if (a.length !== b.length) return a.length - b.length;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+export function selectIndustrialWaterCandidate(
+  candidates: Iterable<IndustrialWaterCandidate>,
+): IndustrialWaterCandidate | null {
+  let selected: IndustrialWaterCandidate | null = null;
+  for (const candidate of candidates) {
+    if (
+      !Number.isFinite(candidate.stockRatio)
+      || candidate.stockRatio < 0
+      || !Number.isFinite(candidate.distance)
+      || candidate.distance < 0
+    ) {
+      continue;
+    }
+    if (
+      !selected
+      || candidate.stockRatio < selected.stockRatio
+      || (
+        candidate.stockRatio === selected.stockRatio
+        && (
+          candidate.distance < selected.distance
+          || (
+            candidate.distance === selected.distance
+            && compareCanonicalUint64Strings(candidate.building.id, selected.building.id) < 0
+          )
+        )
+      )
+    ) {
+      selected = candidate;
+    }
+  }
+  return selected;
+}
+
 export function wellDeliveryTripSeconds(
   network: RoadNetwork,
   well: { x: number; z: number },
   target: { x: number; z: number } | null,
   deliveryWorkers: number,
+  travelSpeedMultiplier = 1,
 ): number {
-  return waterDeliveryTripSeconds(network, well, target, deliveryWorkers);
+  return waterDeliveryTripSeconds(
+    network,
+    well,
+    target,
+    deliveryWorkers,
+    travelSpeedMultiplier,
+  );
 }
 
 export function formatWellCrewSplit(assignedLabor: number): string {

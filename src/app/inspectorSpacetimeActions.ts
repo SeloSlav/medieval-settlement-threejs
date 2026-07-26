@@ -4,15 +4,25 @@ import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
 import type { FarmCrop, GameState, LivestockSpecies } from '../resources/types.ts';
 import { describeBackyardGardenShortfall } from '../resources/buildingEconomy.ts';
 import { computeResourceTotals } from '../resources/resourceTotals.ts';
+import type { FireTargetKind } from '../fires/fireIncident.ts';
+import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
 
 export type InspectorSpacetimeActions = {
   onDemolishBuilding: (buildingId: string) => Promise<void>;
   onDemolishBurgageZone: (zoneId: string) => Promise<void>;
   onDemolishResidence: (residenceId: string) => Promise<void>;
   onUpgradeResidence: (residenceId: string) => Promise<void>;
+  onRepairFireDamage: (targetKind: FireTargetKind, targetId: string) => Promise<void>;
   onPlaceBackyardGarden: (residenceId: string, kind: BackyardGardenKind) => Promise<void>;
   onDemolishBackyardGarden: (residenceId: string) => Promise<void>;
   onAssignBuildingLabor: (buildingId: string, labor: number) => Promise<void>;
+  onRotateConstructionLabor: () => Promise<void>;
+  onRecallIdleSeasonalLabor: () => Promise<void>;
+  onCallUpActiveSeasonalLabor: () => Promise<void>;
+  onRecallTargetIdleProcessorLabor: () => Promise<void>;
+  onCallUpTargetReadyProcessorLabor: () => Promise<void>;
+  onBalanceYearRoundLabor: () => Promise<void>;
+  onSetConstructionPriority: (buildingId: string, priority: number) => Promise<void>;
   onMarketplaceTrade: (buildingId: string, tradeId: string) => Promise<void>;
   onCollectChapelCoffer: (buildingId: string) => Promise<void>;
   onDemolishFarmField: (fieldId: string) => Promise<void>;
@@ -20,11 +30,40 @@ export type InspectorSpacetimeActions = {
   onSetFarmFieldPriority: (fieldId: string, priority: number) => Promise<void>;
   onDemolishPasture: (pastureId: string) => Promise<void>;
   onSetLivestockSpecies: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
+  onSetLivestockBreedingReserve: (buildingId: string, breedingReserve: number) => Promise<void>;
+  onSetLivestockHaymakingPercent: (buildingId: string, haymakingPercent: number) => Promise<void>;
   onSetEconomicActivityTaxRate: (taxRate: number) => Promise<void>;
+  onSetSeasonalLaborSteward: (enabled: boolean) => Promise<void>;
+  onSetConstructionLaborSteward: (enabled: boolean) => Promise<void>;
   onSetChapelParishPolicy: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => Promise<void>;
   onSetMonasteryPolicy: (titheShare: number, feastsEnabled: boolean) => Promise<void>;
   onSetStorehousePolicy: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => Promise<void>;
-  onSetGranaryPolicy: (buildingId: string, acceptsFreshFood: boolean) => Promise<void>;
+  onSetStorehouseStockTarget: (
+    buildingId: string,
+    commodity: StorehouseCommodity,
+    targetPercent: number,
+  ) => Promise<void>;
+  onSetProcessorOutputTarget: (
+    buildingId: string,
+    targetPercent: number,
+  ) => Promise<void>;
+  onSetGranaryPolicy: (
+    buildingId: string,
+    acceptsFreshFood: boolean,
+    householdsFirst: boolean,
+  ) => Promise<void>;
+  onSetGranaryGrainReserve: (buildingId: string, grainReserve: number) => Promise<void>;
+  onSetGranaryFreshFoodTarget: (buildingId: string, targetPercent: number) => Promise<void>;
+  onSetWoodcutterTimberReserve: (buildingId: string, timberReserve: number) => Promise<void>;
+  onSetCarpenterPolearmReserve: (buildingId: string, polearmReserve: number) => Promise<void>;
+  onSetGuardhousePayPriority: (buildingId: string, payPriority: number) => Promise<void>;
+  onSetGuardhouseFoodReserve: (buildingId: string, reservePerGuard: number) => Promise<void>;
+  onSetMarketplaceIronworkTarget: (buildingId: string, ironworkTarget: number) => Promise<void>;
+  onSetMarketplaceSpecialtyExportPolicy: (
+    buildingId: string,
+    exportPolicy: number,
+  ) => Promise<void>;
+  onSetHarvestReservePercent: (buildingId: string, reservePercent: number) => Promise<void>;
 };
 
 export function createInspectorSpacetimeActions(
@@ -75,6 +114,14 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(() => store.upgradeResidence(residenceId), 'Residence upgrade failed.');
     },
+    onRepairFireDamage: async (targetKind, targetId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.repairFireDamage(targetKind, targetId),
+        'Could not begin fire-damage recovery.',
+      );
+    },
     onPlaceBackyardGarden: async (residenceId, kind) => {
       const store = requireReady();
       if (!store) return;
@@ -117,6 +164,98 @@ export function createInspectorSpacetimeActions(
       const store = requireReady();
       if (!store) return;
       await runReducer(() => store.assignBuildingLabor(buildingId, labor), 'Labor assignment failed.');
+    },
+    onRotateConstructionLabor: async () => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        const result = await store.rotateConstructionLabor();
+        if (result.recalledWorkers > 0 && result.calledWorkers > 0) {
+          toastManager.show(
+            `${result.recalledWorkers} blocked ${result.recalledWorkers === 1 ? 'builder' : 'builders'} released; ${result.calledWorkers} ${result.calledWorkers === 1 ? 'worker' : 'workers'} deployed to ready sites.`,
+          );
+        } else if (result.recalledWorkers > 0) {
+          toastManager.show(
+            `${result.recalledWorkers} blocked ${result.recalledWorkers === 1 ? 'builder returned' : 'builders returned'} to the free labor pool.`,
+          );
+        } else if (result.calledWorkers > 0) {
+          toastManager.show(
+            `${result.calledWorkers} ${result.calledWorkers === 1 ? 'builder deployed' : 'builders deployed'} to ready construction sites.`,
+          );
+        }
+      }, 'Could not rotate construction crews.');
+    },
+    onRecallIdleSeasonalLabor: async () => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        const recalled = await store.recallIdleSeasonalLabor();
+        if (recalled > 0) {
+          toastManager.show(
+            `${recalled} seasonal ${recalled === 1 ? 'worker' : 'workers'} returned to the free labor pool.`,
+          );
+        }
+      }, 'Could not recall idle seasonal crews.');
+    },
+    onCallUpActiveSeasonalLabor: async () => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        const calledUp = await store.callUpActiveSeasonalLabor();
+        if (calledUp > 0) {
+          toastManager.show(
+            `${calledUp} seasonal ${calledUp === 1 ? 'worker' : 'workers'} called to active work.`,
+          );
+        }
+      }, 'Could not call up active seasonal crews.');
+    },
+    onRecallTargetIdleProcessorLabor: async () => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        const recalled = await store.recallTargetIdleProcessorLabor();
+        if (recalled > 0) {
+          toastManager.show(
+            `${recalled} stalled production ${recalled === 1 ? 'worker' : 'workers'} returned to the free labor pool.`,
+          );
+        }
+      }, 'Could not recall stalled production crews.');
+    },
+    onCallUpTargetReadyProcessorLabor: async () => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        const calledUp = await store.callUpTargetReadyProcessorLabor();
+        if (calledUp > 0) {
+          toastManager.show(
+            `${calledUp} production ${calledUp === 1 ? 'worker' : 'workers'} deployed to ready worksites.`,
+          );
+        }
+      }, 'Could not deploy production crews.');
+    },
+    onBalanceYearRoundLabor: async () => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        const result = await store.balanceYearRoundLabor();
+        if (result.recalledWorkers > 0) {
+          toastManager.show(
+            `${result.recalledWorkers} lower-priority ${result.recalledWorkers === 1 ? 'worker' : 'workers'} reassigned; ${result.calledWorkers} year-round ${result.calledWorkers === 1 ? 'post filled' : 'posts filled'}.`,
+          );
+        } else if (result.calledWorkers > 0) {
+          toastManager.show(
+            `${result.calledWorkers} year-round ${result.calledWorkers === 1 ? 'worker deployed' : 'workers deployed'} by priority.`,
+          );
+        }
+      }, 'Could not balance year-round crews.');
+    },
+    onSetConstructionPriority: async (buildingId, priority) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setConstructionPriority(buildingId, priority),
+        'Could not change work priority.',
+      );
     },
     onMarketplaceTrade: async (buildingId, tradeId) => {
       const store = requireReady();
@@ -162,12 +301,64 @@ export function createInspectorSpacetimeActions(
         'Could not change livestock specialization.',
       );
     },
+    onSetLivestockBreedingReserve: async (buildingId, breedingReserve) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setLivestockBreedingReserve(buildingId, breedingReserve),
+        'Could not change the herd breeding reserve.',
+      );
+    },
+    onSetLivestockHaymakingPercent: async (buildingId, haymakingPercent) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setLivestockHaymakingPercent(buildingId, haymakingPercent),
+        'Could not change the summer hay meadow allocation.',
+      );
+    },
     onSetEconomicActivityTaxRate: async (taxRate) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
         () => store.setEconomicActivityTaxRate(taxRate),
         'Could not update the Town Hall tax policy.',
+      );
+    },
+    onSetSeasonalLaborSteward: async (enabled) => {
+      const store = requireReady();
+      if (!store) return;
+      let updated = false;
+      await runReducer(
+        async () => {
+          await store.setSeasonalLaborSteward(enabled);
+          updated = true;
+        },
+        'Could not update the seasonal labor steward policy.',
+      );
+      if (!updated) return;
+      toastManager.show(
+        enabled
+          ? 'Town Hall steward enabled. Seasonal crews were reviewed now and will be reviewed daily while a clerk is assigned.'
+          : 'Town Hall steward disabled. Seasonal crew changes are manual.',
+      );
+    },
+    onSetConstructionLaborSteward: async (enabled) => {
+      const store = requireReady();
+      if (!store) return;
+      let updated = false;
+      await runReducer(
+        async () => {
+          await store.setConstructionLaborSteward(enabled);
+          updated = true;
+        },
+        'Could not update the construction labor steward policy.',
+      );
+      if (!updated) return;
+      toastManager.show(
+        enabled
+          ? 'Town Hall construction steward enabled. Builders were rotated now and will be reviewed daily while a clerk is assigned.'
+          : 'Town Hall construction steward disabled. Builder rotation is manual.',
       );
     },
     onSetChapelParishPolicy: async (autoSweepEnabled, cofferReserveGold, sabbathObservanceEnabled) => {
@@ -194,12 +385,100 @@ export function createInspectorSpacetimeActions(
         'Could not update storehouse intake filters.',
       );
     },
-    onSetGranaryPolicy: async (buildingId, acceptsFreshFood) => {
+    onSetStorehouseStockTarget: async (buildingId, commodity, targetPercent) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.setGranaryPolicy(buildingId, acceptsFreshFood),
-        'Could not update granary intake policy.',
+        () => store.setStorehouseStockTarget(buildingId, commodity, targetPercent),
+        'Could not update the storehouse stock target.',
+      );
+    },
+    onSetProcessorOutputTarget: async (buildingId, targetPercent) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setProcessorOutputTarget(buildingId, targetPercent),
+        'Could not update the workshop output target.',
+      );
+    },
+    onSetGranaryPolicy: async (buildingId, acceptsFreshFood, householdsFirst) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setGranaryPolicy(buildingId, acceptsFreshFood, householdsFirst),
+        'Could not update granary policy.',
+      );
+    },
+    onSetGranaryGrainReserve: async (buildingId, grainReserve) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setGranaryGrainReserve(buildingId, grainReserve),
+        'Could not update the granary grain reserve.',
+      );
+    },
+    onSetGranaryFreshFoodTarget: async (buildingId, targetPercent) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setGranaryFreshFoodTarget(buildingId, targetPercent),
+        'Could not update the granary fresh-food target.',
+      );
+    },
+    onSetWoodcutterTimberReserve: async (buildingId, timberReserve) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setWoodcutterTimberReserve(buildingId, timberReserve),
+        'Could not update the lodge timber reserve.',
+      );
+    },
+    onSetCarpenterPolearmReserve: async (buildingId, polearmReserve) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setCarpenterPolearmReserve(buildingId, polearmReserve),
+        'Could not update the carpenter armory reserve.',
+      );
+    },
+    onSetGuardhousePayPriority: async (buildingId, payPriority) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setGuardhousePayPriority(buildingId, payPriority),
+        'Could not update the guardhouse payroll priority.',
+      );
+    },
+    onSetGuardhouseFoodReserve: async (buildingId, reservePerGuard) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setGuardhouseFoodReserve(buildingId, reservePerGuard),
+        'Could not update the guardhouse ration reserve.',
+      );
+    },
+    onSetMarketplaceIronworkTarget: async (buildingId, ironworkTarget) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMarketplaceIronworkTarget(buildingId, ironworkTarget),
+        'Could not update the marketplace ironwork target.',
+      );
+    },
+    onSetMarketplaceSpecialtyExportPolicy: async (buildingId, exportPolicy) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMarketplaceSpecialtyExportPolicy(buildingId, exportPolicy),
+        'Could not update the marketplace specialty export policy.',
+      );
+    },
+    onSetHarvestReservePercent: async (buildingId, reservePercent) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setHarvestReservePercent(buildingId, reservePercent),
+        'Could not update the wild-stock reserve.',
       );
     },
   };

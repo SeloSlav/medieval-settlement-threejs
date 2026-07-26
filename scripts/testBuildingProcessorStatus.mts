@@ -62,6 +62,7 @@ function stubWorldQueries(
           && roadDistance(building.x, building.z, candidate.x, candidate.z) != null,
       ),
     getRoadPathDistance: roadDistance,
+    getInboundSupplyTrip: () => null,
     hasRoadPathToBuildingKind: (ax, az, kind) =>
       buildings.some(
         (candidate) =>
@@ -85,6 +86,7 @@ const well = makeBuilding({
   x: 10,
   z: 0,
   water: 0,
+  assignedLabor: 1,
 });
 
 const connected = (_ax: number, _az: number, bx: number, bz: number) =>
@@ -108,12 +110,13 @@ const readyWell = makeBuilding({
   x: 10,
   z: 0,
   water: 5,
+  assignedLabor: 1,
 });
 const readyQueries = stubWorldQueries([readyGranary, readyWell], connected);
 
 assert.equal(
   getBuildingProcessorStatus(granary, noWellQueries)?.statusText,
-  'Idle — needs a road-connected well to operate',
+  'Idle — needs a staffed, road-connected well to operate',
 );
 assert.equal(
   getBuildingProcessorStatus(granary, noWellQueries)?.statusState,
@@ -122,7 +125,7 @@ assert.equal(
 
 assert.equal(
   getBuildingProcessorStatus(granary, dryWellQueries)?.statusText,
-  'Waiting for water — needs 2 per cycle',
+  'Waiting for water — all linked wells are dry (2 needed)',
 );
 
 assert.equal(
@@ -132,6 +135,14 @@ assert.equal(
 assert.equal(
   getBuildingProcessorStatus(readyGranary, readyQueries)?.statusState,
   'active',
+);
+assert.match(
+  getBuildingProcessorStatus(readyGranary, readyQueries)?.waterDetailHtml ?? '',
+  /On-site input buffer<\/span><span>1\.0 cycle · flour limits/,
+);
+assert.match(
+  getBuildingProcessorStatus(readyGranary, readyQueries)?.waterDetailHtml ?? '',
+  /Output room<\/span><span>85 cycles · food before 340 target/,
 );
 
 const brewery = makeBuilding({
@@ -146,6 +157,92 @@ const brewery = makeBuilding({
 assert.match(
   getBuildingProcessorStatus(brewery, readyQueries)?.statusText ?? '',
   /Waiting for grain/,
+);
+assert.match(
+  getBuildingProcessorStatus(brewery, readyQueries)?.waterDetailHtml ?? '',
+  /On-site input buffer<\/span><span>0\.0 cycles · grain limits/,
+);
+assert.match(
+  getBuildingProcessorStatus(brewery, readyQueries)?.waterDetailHtml ?? '',
+  /Output room<\/span><span>50 cycles · ale before 200 target/,
+);
+
+const cappedBrewery = makeBuilding({
+  id: 'brewery-capped',
+  kind: 'brewery',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  processorOutputTargetPercent: 25,
+  ale: 50,
+});
+assert.equal(
+  getBuildingProcessorStatus(cappedBrewery, noWellQueries)?.statusText,
+  'Output target reached — production paused',
+  'a reached target should explain the deliberate pause before irrelevant input warnings',
+);
+assert.equal(
+  getBuildingProcessorStatus(cappedBrewery, noWellQueries)?.statusState,
+  'idle',
+);
+assert.match(
+  getBuildingProcessorStatus(cappedBrewery, noWellQueries)?.waterDetailHtml ?? '',
+  /Output room<\/span><span>0\.0 cycles · ale before 50 target/,
+);
+
+const partialBrewery = makeBuilding({
+  id: 'brewery-partial',
+  kind: 'brewery',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  grain: 0.25,
+  water: 0.25,
+});
+assert.equal(
+  getBuildingProcessorStatus(partialBrewery, noWellQueries)?.statusText,
+  'Brewing ale',
+  'fractional on-site inputs should remain productive because the server scales partial batches',
+);
+assert.match(
+  getBuildingProcessorStatus(partialBrewery, noWellQueries)?.waterDetailHtml ?? '',
+  /On-site input buffer<\/span><span>0\.1 cycles · grain limits/,
+);
+
+const apiary = makeBuilding({
+  id: 'apiary-1',
+  kind: 'apiary',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+});
+assert.match(
+  getBuildingProcessorStatus(apiary, noWellQueries, { month: 1 })?.statusText ?? '',
+  /resumes in April/,
+);
+assert.equal(
+  getBuildingProcessorStatus(apiary, noWellQueries, { month: 1 })?.statusState,
+  'idle',
+);
+assert.match(
+  getBuildingProcessorStatus(apiary, noWellQueries, { month: 4 })?.statusText ?? '',
+  /Gathering honey/,
+);
+
+const vineyard = makeBuilding({
+  id: 'vineyard-1',
+  kind: 'vineyard',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+});
+assert.match(
+  getBuildingProcessorStatus(vineyard, noWellQueries, { month: 8 })?.statusText ?? '',
+  /next harvest September/,
+);
+assert.equal(
+  getBuildingProcessorStatus(vineyard, noWellQueries, { month: 9 })?.statusState,
+  'active',
 );
 
 console.log('building processor status tests passed');

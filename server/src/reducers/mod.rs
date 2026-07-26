@@ -3,6 +3,7 @@ pub mod bootstrap;
 pub mod buildings;
 pub mod cheats;
 pub mod farm_fields;
+pub mod fire_recovery;
 pub mod livestock;
 pub mod marketplace_trade;
 pub mod residences;

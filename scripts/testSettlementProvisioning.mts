@@ -1,15 +1,24 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
   GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
+  RESIDENCE_ALE_PER_PERSON_PER_SEC,
+  RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_WATER_PER_PERSON_PER_SEC,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import {
   computeSettlementProvisioning,
+  formatHouseholdBufferReadiness,
   formatProvisionDays,
+  formatSabbathReadiness,
+  HOUSEHOLD_BUFFER_CRITICAL_COVERAGE,
+  HOUSEHOLD_BUFFER_WARNING_COVERAGE,
   settlementProvisionLevel,
   shouldShowProvisioning,
   WINTER_RESERVE_DAYS,
@@ -21,31 +30,98 @@ import type {
   ResidenceState,
 } from '../src/resources/types.ts';
 
+const serverCalendar = readFileSync(
+  new URL('../server/src/simulation/game_calendar.rs', import.meta.url),
+  'utf8',
+);
+const laborSchedule = readFileSync(
+  new URL('../server/src/simulation/labor_schedule.rs', import.meta.url),
+  'utf8',
+);
+const residenceNeeds = readFileSync(
+  new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url),
+  'utf8',
+);
+const settlementHud = readFileSync(
+  new URL('../src/ui/SettlementHud.ts', import.meta.url),
+  'utf8',
+);
+const chapelInspector = readFileSync(
+  new URL('../src/resources/inspector/chapelRenderer.ts', import.meta.url),
+  'utf8',
+);
+const guardhouseInspector = readFileSync(
+  new URL('../src/resources/inspector/guardhouseRenderer.ts', import.meta.url),
+  'utf8',
+);
+const townHallInspector = readFileSync(
+  new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
+  'utf8',
+);
+
+assert.match(
+  serverCalendar,
+  /pub fn household_consumption_paused[\s\S]*?!clock\.is_work_hours/,
+  'household consumption should pause at night, not because the day is Sunday',
+);
+assert.match(laborSchedule, /is_consumption_paused[\s\S]*?household_consumption_paused\(clock\)/);
+assert.match(residenceNeeds, /Sunday observance does not make provisions free/);
+assert.match(settlementHud, /Sunday stores/);
+assert.match(settlementHud, /Household buffers/);
+assert.match(settlementHud, /Local delivery buffer/);
+assert.match(settlementHud, /guard food/);
+assert.match(settlementHud, /first local company/);
+assert.match(chapelInspector, /stock them before Saturday night/);
+assert.match(guardhouseInspector, /Food endurance/);
+assert.match(guardhouseInspector, /PROVISION_WARNING_DAYS/);
+assert.match(townHallInspector, /first shortfall/);
+assert.match(townHallInspector, /Household delivery buffer/);
+
 const state = emptyGameState();
 state.stockpile.food = 72;
 state.stockpile.firewood = 259.2;
 state.stockpile.gold = 7;
 state.residences.set('tier-1', residence('tier-1', 1, 3));
 state.residences.set('tier-2', residence('tier-2', 2, 4));
-state.buildings.set('guards', building('guards', 'guardhouse', 3, 2.9));
+const guards = building('guards', 'guardhouse', 3, 2.9);
+guards.food = 9;
+state.buildings.set('guards', guards);
 
 const provisioning = computeSettlementProvisioning({
   state,
   totals: computeResourceTotals(state),
   currentFirewoodDemandMultiplier: 1.15,
   freshFoodSpoilageFractionPerDay: 0,
-  sabbathConsumptionPaused: true,
+  sabbathObserved: true,
 });
 
 assert.equal(provisioning.foodConsumers, 7);
 assert.equal(provisioning.heatedResidents, 4);
+assert.equal(provisioning.assignedGuards, 3);
 assert.equal(provisioning.armedGuards, 2, 'each ready guard must have one whole polearm');
+assert.equal(provisioning.unarmedGuards, 1);
+assert.equal(provisioning.guardFoodStock, 9);
+assert.ok(Math.abs(provisioning.guardProvisionRunwayDays - 10) < 1e-9);
+assert.equal(provisioning.householdBufferHouseholds, 2);
+assert.equal(provisioning.householdBufferReadyHouseholds, 0);
+assert.equal(provisioning.householdBufferCoverage, 0);
+assert.equal(provisioning.householdBufferFoodShortHomes, 2);
+assert.equal(provisioning.householdBufferFirewoodShortHomes, 1);
+assert.equal(provisioning.householdBufferWaterShortHomes, 1);
+assert.equal(provisioning.householdBufferPreservedFoodShortHomes, 0);
+assert.equal(provisioning.householdBufferAleShortHomes, 0);
+assert.equal(provisioning.householdBufferClothShortHomes, 0);
+assert.match(formatHouseholdBufferReadiness(provisioning), /0 \/ 2 homes buffered/);
 assert.ok(Math.abs(
   provisioning.householdFoodPerDay
-  - 7 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70 * (6 / 7),
+  - 7 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70,
 ) < 1e-9);
 assert.equal(provisioning.guardFoodPerDay, 2 * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY);
-assert.ok(Math.abs(provisioning.foodRunwayDays - 10) < 1e-9);
+assert.ok(Math.abs(
+  provisioning.foodRunwayDays
+  - provisioning.foodStock
+    / (7 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70 + provisioning.guardFoodPerDay),
+) < 1e-9);
 assert.ok(Math.abs(
   provisioning.winterFirewoodPerDay
   - 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 120 * WINTER_FIREWOOD_DEMAND_MULTIPLIER,
@@ -54,30 +130,100 @@ assert.ok(Math.abs(provisioning.winterFirewoodRunwayDays - 15) < 1e-9);
 assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 0.5) < 1e-9);
 assert.equal(provisioning.guardWagePerDay, 2 * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY);
 assert.ok(Math.abs(provisioning.guardWageRunwayDays - 10) < 1e-9);
-assert.equal(settlementProvisionLevel(provisioning, 10), 'watch');
+assert.equal(provisioning.sabbathHouseholds, 2);
+assert.equal(provisioning.sabbathReadyHouseholds, 0);
+assert.equal(provisioning.sabbathFoodShortHomes, 2);
+assert.equal(provisioning.sabbathFirewoodShortHomes, 1);
+assert.equal(provisioning.sabbathWaterShortHomes, 1);
+assert.match(formatSabbathReadiness(provisioning), /0 \/ 2 homes stocked/);
+assert.equal(settlementProvisionLevel(provisioning, 10), 'critical');
 assert.equal(shouldShowProvisioning(provisioning, 10), true);
 assert.equal(formatProvisionDays(provisioning.winterFirewoodRunwayDays), '15d');
 assert.equal(WINTER_RESERVE_DAYS, 30);
+assert.equal(HOUSEHOLD_BUFFER_WARNING_COVERAGE, 0.8);
+assert.equal(HOUSEHOLD_BUFFER_CRITICAL_COVERAGE, 0.5);
 
 const critical = computeSettlementProvisioning({
   state,
   totals: { ...computeResourceTotals(state), food: 7 },
   currentFirewoodDemandMultiplier: 1.15,
   freshFoodSpoilageFractionPerDay: 0,
-  sabbathConsumptionPaused: true,
+  sabbathObserved: true,
 });
 assert.equal(settlementProvisionLevel(critical, 7), 'critical');
 assert.equal(shouldShowProvisioning(critical, 7), true);
+
+const locallyStarvedState = emptyGameState();
+locallyStarvedState.stockpile.food = 500;
+locallyStarvedState.stockpile.gold = 500;
+const locallyStarvedGuards = building('starved-guards', 'guardhouse', 3, 3);
+locallyStarvedGuards.food = 0;
+locallyStarvedState.buildings.set(locallyStarvedGuards.id, locallyStarvedGuards);
+const locallyStarved = computeSettlementProvisioning({
+  state: locallyStarvedState,
+  totals: computeResourceTotals(locallyStarvedState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+});
+assert.ok(locallyStarved.foodRunwayDays > 100, 'aggregate village food can look abundant');
+assert.equal(
+  locallyStarved.guardProvisionRunwayDays,
+  0,
+  'guard readiness must use food physically stored at the guardhouse',
+);
+assert.equal(
+  settlementProvisionLevel(locallyStarved, 7),
+  'critical',
+  'an empty guardhouse must not be hidden by remote aggregate food',
+);
 
 const empty = computeSettlementProvisioning({
   state: emptyGameState(),
   totals: computeResourceTotals(emptyGameState()),
   currentFirewoodDemandMultiplier: 1,
   freshFoodSpoilageFractionPerDay: 0,
-  sabbathConsumptionPaused: false,
+  sabbathObserved: false,
 });
 assert.equal(settlementProvisionLevel(empty, 10), 'none');
 assert.equal(shouldShowProvisioning(empty, 10), false);
+assert.equal(empty.householdBufferCoverage, 1);
+
+const readyThreshold = householdBufferState(4);
+assert.equal(readyThreshold.householdBufferCoverage, 0.8);
+assert.equal(
+  settlementProvisionLevel(readyThreshold, 7),
+  'ready',
+  'one short home in five should remain ledger detail rather than create HUD noise',
+);
+assert.equal(shouldShowProvisioning(readyThreshold, 7), false);
+
+const warningThreshold = householdBufferState(3);
+assert.equal(warningThreshold.householdBufferCoverage, 0.6);
+assert.equal(settlementProvisionLevel(warningThreshold, 7), 'watch');
+assert.equal(shouldShowProvisioning(warningThreshold, 7), true);
+
+const criticalThreshold = householdBufferState(2);
+assert.equal(criticalThreshold.householdBufferCoverage, 0.4);
+assert.equal(settlementProvisionLevel(criticalThreshold, 7), 'critical');
+assert.equal(shouldShowProvisioning(criticalThreshold, 7), true);
+
+const tierThreeShortState = emptyGameState();
+tierThreeShortState.stockpile.food = 500;
+tierThreeShortState.residences.set('tier-3-short', residence('tier-3-short', 3, 5));
+const tierThreeShort = computeSettlementProvisioning({
+  state: tierThreeShortState,
+  totals: computeResourceTotals(tierThreeShortState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+});
+assert.equal(tierThreeShort.householdBufferFoodShortHomes, 1);
+assert.equal(tierThreeShort.householdBufferFirewoodShortHomes, 1);
+assert.equal(tierThreeShort.householdBufferWaterShortHomes, 1);
+assert.equal(tierThreeShort.householdBufferPreservedFoodShortHomes, 1);
+assert.equal(tierThreeShort.householdBufferAleShortHomes, 1);
+assert.equal(tierThreeShort.householdBufferClothShortHomes, 1);
 
 const perfState = emptyGameState();
 for (let index = 0; index < 10_000; index += 1) {
@@ -92,11 +238,50 @@ const perfProvisioning = computeSettlementProvisioning({
   totals: computeResourceTotals(perfState),
   currentFirewoodDemandMultiplier: 1,
   freshFoodSpoilageFractionPerDay: 0,
-  sabbathConsumptionPaused: false,
+  sabbathObserved: true,
 });
 const elapsedMs = performance.now() - started;
 assert.equal(perfProvisioning.foodConsumers, 40_000);
+assert.equal(perfProvisioning.householdBufferHouseholds, 10_000);
+assert.equal(perfProvisioning.householdBufferReadyHouseholds, 0);
+assert.equal(perfProvisioning.sabbathHouseholds, 10_000);
+assert.equal(perfProvisioning.sabbathReadyHouseholds, 0);
 assert.ok(elapsedMs < 250, `10,000-home provisioning forecast took ${elapsedMs.toFixed(1)} ms`);
+
+const preparedState = emptyGameState();
+for (const [id, tier, population] of [
+  ['prepared-1', 1, 3],
+  ['prepared-2', 2, 4],
+  ['prepared-3', 3, 5],
+] as const) {
+  const home = residence(id, tier, population);
+  home.needs.food.stock = population * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+  if (tier >= 2) {
+    home.needs.firewood.stock = population * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170 * 1.15;
+    home.needs.water.stock = population * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
+  }
+  if (tier >= 3) {
+    home.needs.preservedFood.stock = population
+      * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+      * 70;
+    home.needs.ale.stock = population * RESIDENCE_ALE_PER_PERSON_PER_SEC * 70;
+    home.needs.cloth.stock = population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * 70;
+  }
+  preparedState.residences.set(id, home);
+}
+const prepared = computeSettlementProvisioning({
+  state: preparedState,
+  totals: computeResourceTotals(preparedState),
+  currentFirewoodDemandMultiplier: 1.15,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: true,
+});
+assert.equal(prepared.sabbathReadyHouseholds, 3);
+assert.equal(prepared.sabbathHouseholds, 3);
+assert.equal(formatSabbathReadiness(prepared), '3 / 3 homes stocked');
+assert.equal(prepared.householdBufferReadyHouseholds, 3);
+assert.equal(prepared.householdBufferHouseholds, 3);
+assert.equal(formatHouseholdBufferReadiness(prepared), '3 / 3 homes buffered');
 
 console.log(`settlement provisioning tests passed (${elapsedMs.toFixed(1)} ms for 10,000 homes)`);
 
@@ -162,10 +347,30 @@ function residence(id: string, tier: number, population: number): ResidenceState
       food: { stock: 0, deficitSeconds: 0 },
       preservedFood: { stock: 0, deficitSeconds: 0 },
       ale: { stock: 0, deficitSeconds: 0 },
+      cloth: { stock: 0, deficitSeconds: 0 },
     },
     abandoned: false,
     householdWealth: 0,
   };
+}
+
+function householdBufferState(readyHomes: number) {
+  const state = emptyGameState();
+  state.stockpile.food = 500;
+  for (let index = 0; index < 5; index += 1) {
+    const home = residence(`buffer-home-${index}`, 1, 3);
+    if (index < readyHomes) {
+      home.needs.food.stock = 3 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+    }
+    state.residences.set(home.id, home);
+  }
+  return computeSettlementProvisioning({
+    state,
+    totals: computeResourceTotals(state),
+    currentFirewoodDemandMultiplier: 1,
+    freshFoodSpoilageFractionPerDay: 0,
+    sabbathObserved: false,
+  });
 }
 
 function emptyGameState(): GameState {

@@ -13,7 +13,11 @@ import {
   buildingExtentRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
-import { formatTripDestinationLabel, formatTripPhaseLabel } from '../../logistics/deliveryTrips.ts';
+import {
+  formatTripBuildingDestinationLabel,
+  formatTripDestinationLabel,
+  formatTripPhaseLabel,
+} from '../../logistics/deliveryTrips.ts';
 import { hydrologyGradeLabel, wellCapacityFromHydrology } from '../../hydrology/sampleHydrology.ts';
 import { sampleAuthoritativeHydrologyScore } from '../../hydrology/sampleAuthoritativeHydrology.ts';
 import {
@@ -23,6 +27,7 @@ import {
 import {
   formatWaterRunwayDays,
   formatWellCrewSplit,
+  industrialWaterRequirement,
   residenceWaterRunwayDays,
   wellLaborSplit,
   wellWaterPerDelivery,
@@ -51,7 +56,11 @@ export function renderWellInspector(
   const crew = wellLaborSplit(building.assignedLabor);
   const claimedResidences = context.worldQueries.getClaimedResidencesForWell(building);
   const industrialConsumers = context.worldQueries.getRoadConnectedWaterConsumers(building);
-  const nextDeliveryTarget = context.worldQueries.getNextWaterDeliveryTargetForWell(building);
+  const nextHouseholdTarget = context.worldQueries.getNextWaterDeliveryTargetForWell(building);
+  const nextIndustrialTarget = nextHouseholdTarget
+    ? null
+    : context.worldQueries.getNextIndustrialWaterTargetForWell(building);
+  const nextDeliveryTarget = nextHouseholdTarget ?? nextIndustrialTarget;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const availableLabor = Math.max(0, building.assignedLabor - (activeTrip?.deliveryWorkers ?? 0));
   const drawingWorkers = activeTrip || !nextDeliveryTarget
@@ -61,13 +70,29 @@ export function renderWellInspector(
   const refillPerSec = WELL_BASE_REFILL_PER_SEC
     * refillHydrology
     * drawingWorkers;
-  const nextTargetLabel = formatNextWaterTargetLabel(nextDeliveryTarget);
+  const nextTargetLabel = nextHouseholdTarget
+    ? formatNextWaterTargetLabel(nextHouseholdTarget)
+    : nextIndustrialTarget
+      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} (${nextIndustrialTarget.water.toFixed(1)} / ${industrialWaterRequirement(nextIndustrialTarget.kind)} water)`
+      : 'None needing water';
+  const activeTargetLabel = formatTripDestinationLabel(
+    activeTrip,
+    (id) => context.worldQueries.getResidence(id),
+    formatTripBuildingDestinationLabel(
+      activeTrip,
+      (kind) => context.worldQueries.getBuildingLabel(kind),
+      (id) => context.worldQueries.getBuilding(id),
+      nextTargetLabel,
+    ),
+  );
   const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
   const onRoad = roadAccess.startsWith('Connected');
   const deliveryTripSeconds = context.worldQueries.getWellDeliveryTripSeconds(building, nextDeliveryTarget);
-  const deliveryDistance = nextDeliveryTarget
-    ? context.worldQueries.getRoadPathDistance(building.x, building.z, nextDeliveryTarget.x, nextDeliveryTarget.z)
-    : null;
+  const deliveryDistance = activeTrip
+    ? context.worldQueries.getActiveTripPathDistance(activeTrip)
+    : nextDeliveryTarget
+      ? context.worldQueries.getRoadPathDistance(building.x, building.z, nextDeliveryTarget.x, nextDeliveryTarget.z)
+      : null;
   const waterPerTrip = wellWaterPerDelivery(crew.delivering);
   const tripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
   const canDeliver = crew.delivering > 0 && onRoad && building.water > 0 && nextDeliveryTarget != null && !activeTrip;
@@ -81,10 +106,12 @@ export function renderWellInspector(
     statusText = 'Off road — connect to the road network';
     statusState = 'warning';
   } else if (activeTrip) {
-    statusText = `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemaining ?? Infinity)} remaining → ${nextTargetLabel}`;
+    statusText = `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemaining ?? Infinity)} remaining → ${activeTargetLabel}`;
     statusState = 'active';
   } else if (canDeliver) {
-    statusText = `Delivering water — ${claimedResidences.length} road-linked home${claimedResidences.length === 1 ? '' : 's'}`;
+    statusText = nextHouseholdTarget
+      ? `Delivering water — households take priority (${claimedResidences.length} claimed)`
+      : `Supplying workshop — ${nextTargetLabel}`;
     statusState = 'active';
   } else if (building.water + 1e-6 >= capacity) {
     statusText = `Full — ${claimedResidences.length} road-linked home${claimedResidences.length === 1 ? '' : 's'} in range`;
@@ -98,7 +125,7 @@ export function renderWellInspector(
   }
 
   const deliveryRow = crew.delivering > 0
-    ? `<li><span>Next delivery</span><span>${formatTripDestinationLabel(activeTrip, (id) => context.worldQueries.getResidence(id), nextTargetLabel)}</span></li>
+    ? `<li><span>Next delivery</span><span>${activeTrip ? activeTargetLabel : nextTargetLabel}</span></li>
       <li><span>Road distance</span><span>${formatDeliveryRoadDistance(deliveryDistance)}</span></li>
       <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
       <li><span>Water per trip</span><span>${waterPerTrip}</span></li>`
@@ -119,7 +146,8 @@ export function renderWellInspector(
       ${buildingExtentRow(building.kind)}
       <li><span>Road-linked homes</span><span>${claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
       <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'granary').length} granary`}</span></li>
-      <li><span>Supplies</span><span>Homes, brewhouses, and granary bakeries</span></li>
+      <li><span>Dispatch rule</span><span>Fires first · households second · emptiest workshop third</span></li>
+      <li><span>Supplies</span><span>Homes, brewhouses, and granary bakeries by visible cart</span></li>
       ${deliveryRow}
     `,
     demolish: {

@@ -13,4 +13,5 @@ import {
 export default {
   buildingId: __t.u64(),
   acceptsFreshFood: __t.bool(),
+  householdsFirst: __t.bool(),
 };

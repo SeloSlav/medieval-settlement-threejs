@@ -12,32 +12,52 @@ import {
   monasteryLinkedToChapel,
 } from '../logistics/landmarkAccess.ts';
 import {
+  FirewoodDeliveryClaimQueries,
   FoodDeliveryClaimQueries,
-  LodgeDeliveryClaimQueries,
   WellDeliveryClaimQueries,
 } from '../logistics/deliveryClaimQueries.ts';
 import { findNearestResourceNodeWithRemaining } from './depletableNodes.ts';
 import { findActiveTripForBuilding, findInboundSupplyTripForBuilding, findInboundTimberTripForBuilding, tripPathDistance, tripRemainingSeconds } from '../logistics/deliveryTrips.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import {
-  ALE_SUPPLIER_KINDS,
   findRoadLinkedSupplierForResidence,
+  findRoadLinkedUpgradeSupplierForResidence,
   peekNextSpecialtyDeliveryTarget,
-  PRESERVED_FOOD_SUPPLIER_KINDS,
   type SpecialtyNeedKind,
 } from '../logistics/specialtyLogistics.ts';
-import { MONASTERY_COVERAGE_RADIUS } from '../generated/gameBalance.ts';
+import {
+  BUILDING_STORAGE_CAPS,
+  MONASTERY_COVERAGE_RADIUS,
+  MONASTERY_UNLINKED_PRODUCTIVITY,
+} from '../generated/gameBalance.ts';
+import {
+  selectGrainProcessorTarget,
+  selectGrainDispatchTarget,
+  type RoutedGrainDestination,
+} from '../logistics/grainLogistics.ts';
+import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
+import { farmsteadExportableGrain } from '../farming/farmWorkPlanning.ts';
 import {
   foodLaborSplit,
   foodSupplierDeliveryTripSeconds,
+  institutionalFoodSurplus,
 } from '../logistics/foodLogistics.ts';
 import { lodgeDeliveryTripSeconds, lodgeLaborSplit } from '../logistics/lodgeLogistics.ts';
+import { firewoodDeliveryTripSeconds } from '../logistics/deliveryLogistics.ts';
 import {
+  industrialWaterRequirement,
   isResidenceInWellRange,
+  selectIndustrialWaterCandidate,
   wellDeliveryTripSeconds,
   wellLaborSplit,
 } from '../logistics/waterLogistics.ts';
-import { areRoadConnected, formatRoadAccess, nearestRoadDistance } from '../roads/roadConnectivity.ts';
+import { processorAcceptsInput } from '../economy/processorOutputPolicy.ts';
+import {
+  areRoadConnected,
+  formatRoadAccess,
+  hasRoadAccess as roadHasRoadAccess,
+  nearestRoadDistance,
+} from '../roads/roadConnectivity.ts';
 import { backyardIconPosition } from '../residences/backyardPosition.ts';
 import type { BuildingKind, BuildingState, BurgageZoneState, GameState, InspectableTarget, LivestockHerdState, PastureState, ResourceNodeState, ResidenceState } from './types.ts';
 import type { WorldLayoutRegistry } from './WorldLayoutRegistry.ts';
@@ -46,6 +66,15 @@ import { countTreesNearBuilding } from './ForestVisualSync.ts';
 import type { TreeRegistry } from './TreeRegistry.ts';
 import { RESIDENCE_PICK_RADIUS } from '../residences/burgageLayout.ts';
 import { isPointInPolygon2 } from '../utils/polygonGeometry.ts';
+import {
+  carpenterDeliverySpeedMultiplier,
+  hasRoadLinkedCarpenter,
+} from '../economy/carpenterSupport.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import {
+  selectCriticalGuardhouseFoodTarget,
+  type RoutedGuardhouseFoodTarget,
+} from '../security/frontierSecurity.ts';
 
 const RIVER_INSPECT_MAX_SHORE = 8;
 const NEAREST_ROAD_MAX_DISTANCE = 24;
@@ -286,6 +315,30 @@ export class WorldQueries {
     };
   }
 
+  findFarmFieldTarget(fieldId: string): Extract<InspectableTarget, { kind: 'farm-field' }> | null {
+    const state = this.getGameState();
+    const field = state.farmFields.get(fieldId);
+    if (!field) return null;
+    return {
+      kind: 'farm-field',
+      field,
+      farmstead: state.buildings.get(field.farmsteadId) ?? null,
+    };
+  }
+
+  findResidenceTarget(residenceId: string): Extract<InspectableTarget, { kind: 'residence' }> | null {
+    const state = this.getGameState();
+    const residence = state.residences.get(residenceId);
+    if (!residence) return null;
+    const zone = state.burgageZones.get(residence.zoneId);
+    if (!zone) return null;
+    let residenceCount = 0;
+    for (const candidate of state.residences.values()) {
+      if (candidate.zoneId === zone.id) residenceCount += 1;
+    }
+    return { kind: 'residence', residence, zone, residenceCount };
+  }
+
   getLivestockHerd(buildingId: string): LivestockHerdState | null {
     return this.getGameState().livestockHerds.get(buildingId) ?? null;
   }
@@ -307,9 +360,9 @@ export class WorldQueries {
     };
   }
 
-  private lodgeClaims(): LodgeDeliveryClaimQueries {
+  private firewoodClaims(): FirewoodDeliveryClaimQueries {
     const { network, buildings, residences } = this.deliverySnapshot();
-    return new LodgeDeliveryClaimQueries(network, buildings, residences);
+    return new FirewoodDeliveryClaimQueries(network, buildings, residences);
   }
 
   private wellClaims(): WellDeliveryClaimQueries {
@@ -319,11 +372,29 @@ export class WorldQueries {
 
   private foodClaims(): FoodDeliveryClaimQueries {
     const { network, buildings, residences } = this.deliverySnapshot();
-    return new FoodDeliveryClaimQueries(network, buildings, residences);
+    const chapels = buildings.filter((building) => building.kind === 'chapel');
+    const probe = (ax: number, az: number, bx: number, bz: number) =>
+      roadPathDistance(network, ax, az, bx, bz);
+    return new FoodDeliveryClaimQueries(
+      network,
+      buildings,
+      residences,
+      (supplier, residence, distance) =>
+        supplier.kind !== 'monastery'
+        || (
+          distance <= MONASTERY_COVERAGE_RADIUS
+          && findServingChapel(residence, chapels, probe) != null
+          && monasteryLinkedToChapel(supplier, chapels, probe)
+        ),
+    );
   }
 
   getRoadAccessLabel(x: number, z: number): string {
     return formatRoadAccess(nearestRoadDistance(x, z, this.getRoadNetwork()));
+  }
+
+  hasRoadAccess(x: number, z: number): boolean {
+    return roadHasRoadAccess(x, z, this.getRoadNetwork());
   }
 
   getClaimedResidencesForWell(well: BuildingState): ResidenceState[] {
@@ -341,6 +412,7 @@ export class WorldQueries {
       (candidate) =>
         candidate.kind === 'well'
         && candidate.constructionComplete !== false
+        && candidate.assignedLabor > 0
         && roadPathDistance(network, building.x, building.z, candidate.x, candidate.z) != null,
     );
     return sortByRoadPathDistance(network, building, wells);
@@ -352,20 +424,65 @@ export class WorldQueries {
     return [...state.buildings.values()].filter(
       (candidate) =>
         candidate.constructionComplete !== false
-        && (candidate.kind === 'brewery' || candidate.kind === 'granary')
+        && industrialWaterRequirement(candidate.kind) > 0
         && roadPathDistance(network, well.x, well.z, candidate.x, candidate.z) != null,
     );
   }
 
+  getNextIndustrialWaterTargetForWell(well: BuildingState): BuildingState | null {
+    const state = this.getGameState();
+    const network = this.getRoadNetwork();
+    const inboundTargets = new Set<string>();
+    for (const trip of state.deliveryTrips.values()) {
+      if (
+        trip.phase !== 'inbound'
+        && trip.destinationKind === 'building'
+        && trip.targetBuildingId
+      ) {
+        inboundTargets.add(trip.targetBuildingId);
+      }
+    }
+    const candidates = [...state.buildings.values()].flatMap((candidate) => {
+      const requiredPerCycle = industrialWaterRequirement(candidate.kind);
+      if (
+        candidate.constructionComplete === false
+        || candidate.assignedLabor <= 0
+        || requiredPerCycle <= 0
+        || !processorAcceptsInput(candidate, 'water')
+        || candidate.water + 1e-6 >= requiredPerCycle
+        || inboundTargets.has(candidate.id)
+      ) {
+        return [];
+      }
+      const distance = roadPathDistance(
+        network,
+        well.x,
+        well.z,
+        candidate.x,
+        candidate.z,
+      );
+      if (distance == null) return [];
+      return [{
+        building: candidate,
+        requiredPerCycle,
+        stockRatio: Math.max(0, candidate.water) / requiredPerCycle,
+        distance,
+      }];
+    });
+    return selectIndustrialWaterCandidate(candidates)?.building ?? null;
+  }
+
   getWellDeliveryTripSeconds(
     well: BuildingState,
-    target: ResidenceState | null,
+    target: Pick<ResidenceState, 'x' | 'z'> | null,
   ): number {
+    const network = this.getRoadNetwork();
     return wellDeliveryTripSeconds(
-      this.getRoadNetwork(),
+      network,
       well,
       target,
       wellLaborSplit(well.assignedLabor).delivering,
+      this.getCarpenterDeliverySpeedMultiplier(well),
     );
   }
 
@@ -394,6 +511,26 @@ export class WorldQueries {
 
   getRoadNetworkSnapshot(): RoadNetwork {
     return this.getRoadNetwork();
+  }
+
+  hasCarpenterSupportAt(origin: { x: number; z: number }): boolean {
+    const state = this.getGameState();
+    return hasRoadLinkedCarpenter(
+      state.buildings.values(),
+      this.getRoadNetwork(),
+      origin,
+      fireDisabledBuildingIds(state.fireIncidents.values()),
+    );
+  }
+
+  getCarpenterDeliverySpeedMultiplier(origin: { x: number; z: number }): number {
+    const state = this.getGameState();
+    return carpenterDeliverySpeedMultiplier(
+      state.buildings.values(),
+      this.getRoadNetwork(),
+      origin,
+      fireDisabledBuildingIds(state.fireIncidents.values()),
+    );
   }
 
   hasRoadPathToBuildingKind(ax: number, az: number, kind: BuildingKind): boolean {
@@ -503,18 +640,30 @@ export class WorldQueries {
     return sortByRoadPathDistance(network, lodge, mills);
   }
 
+  getClaimedResidencesForFirewoodSupplier(supplier: BuildingState): ResidenceState[] {
+    return this.firewoodClaims().getClaimedResidences(supplier);
+  }
+
+  getNextFirewoodDeliveryTarget(supplier: BuildingState): ResidenceState | null {
+    return this.firewoodClaims().peekNextTarget(supplier);
+  }
+
+  getServingFirewoodSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const supplierId = this.firewoodClaims().getServingSupplierForResidence(residence.id);
+    if (!supplierId) return null;
+    return this.getGameState().buildings.get(supplierId) ?? null;
+  }
+
   getClaimedResidencesForLodge(lodge: BuildingState): ResidenceState[] {
-    return this.lodgeClaims().getClaimedResidences(lodge);
+    return this.getClaimedResidencesForFirewoodSupplier(lodge);
   }
 
   getNextDeliveryTargetForLodge(lodge: BuildingState): ResidenceState | null {
-    return this.lodgeClaims().peekNextTarget(lodge);
+    return this.getNextFirewoodDeliveryTarget(lodge);
   }
 
   getServingLodgeForResidence(residence: ResidenceState): BuildingState | null {
-    const lodgeId = this.lodgeClaims().getServingSupplierForResidence(residence.id);
-    if (!lodgeId) return null;
-    return this.getGameState().buildings.get(lodgeId) ?? null;
+    return this.getServingFirewoodSupplierForResidence(residence);
   }
 
   getServingFoodSupplierForResidence(residence: ResidenceState): BuildingState | null {
@@ -528,11 +677,51 @@ export class WorldQueries {
       residence,
       this.getGameState().buildings.values(),
       this.getRoadNetwork(),
-      PRESERVED_FOOD_SUPPLIER_KINDS,
+      'preservedFood',
+    );
+  }
+
+  getPreservedFoodUpgradeSupplierForResidence(
+    residence: ResidenceState,
+  ): BuildingState | null {
+    return findRoadLinkedUpgradeSupplierForResidence(
+      residence,
+      this.getGameState().buildings.values(),
+      this.getRoadNetwork(),
+      'preservedFood',
     );
   }
 
   getServingAleSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    return this.getAleSupplierForResidence(residence, true);
+  }
+
+  getAleUpgradeSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    return this.getAleSupplierForResidence(residence, false);
+  }
+
+  getServingClothSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    return findRoadLinkedSupplierForResidence(
+      residence,
+      this.getGameState().buildings.values(),
+      this.getRoadNetwork(),
+      'cloth',
+    );
+  }
+
+  getClothUpgradeSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    return findRoadLinkedUpgradeSupplierForResidence(
+      residence,
+      this.getGameState().buildings.values(),
+      this.getRoadNetwork(),
+      'cloth',
+    );
+  }
+
+  private getAleSupplierForResidence(
+    residence: ResidenceState,
+    requireStock: boolean,
+  ): BuildingState | null {
     const state = this.getGameState();
     const network = this.getRoadNetwork();
     const chapels = [...state.buildings.values()].filter(
@@ -543,11 +732,14 @@ export class WorldQueries {
       chapels,
       (a, b, c, d) => roadPathDistance(network, a, b, c, d),
     ) != null;
-    return findRoadLinkedSupplierForResidence(
+    const findSupplier = requireStock
+      ? findRoadLinkedSupplierForResidence
+      : findRoadLinkedUpgradeSupplierForResidence;
+    return findSupplier(
       residence,
       state.buildings.values(),
       network,
-      ALE_SUPPLIER_KINDS,
+      'ale',
       (building, distance) =>
         building.kind !== 'monastery'
         || (
@@ -566,13 +758,7 @@ export class WorldQueries {
     supplier: BuildingState,
     needKind: SpecialtyNeedKind,
   ): ResidenceState | null {
-    const state = this.getGameState();
-    const claimed = [...state.residences.values()].filter((residence) => {
-      const serving = needKind === 'ale'
-        ? this.getServingAleSupplierForResidence(residence)
-        : this.getServingPreservedFoodSupplierForResidence(residence);
-      return serving?.id === supplier.id;
-    });
+    const claimed = this.getClaimedResidencesForSpecialtySupplier(supplier, needKind);
     return peekNextSpecialtyDeliveryTarget(
       this.getRoadNetwork(),
       supplier,
@@ -588,6 +774,7 @@ export class WorldQueries {
   findNearestRoadLinkedBuilding(
     origin: BuildingState,
     targetKinds: readonly BuildingKind[],
+    isEligible: (candidate: BuildingState) => boolean = () => true,
   ): BuildingState | null {
     if (targetKinds.length === 0) return null;
     const network = this.getRoadNetwork();
@@ -598,6 +785,7 @@ export class WorldQueries {
         candidate.id === origin.id
         || candidate.constructionComplete === false
         || !targetKinds.includes(candidate.kind)
+        || !isEligible(candidate)
       ) continue;
       const distance = roadPathDistance(network, origin.x, origin.z, candidate.x, candidate.z);
       if (distance == null) continue;
@@ -610,6 +798,161 @@ export class WorldQueries {
       }
     }
     return best;
+  }
+
+  getNextMonasteryHospitalityTarget(
+    origin: BuildingState,
+    commodity: 'honey' | 'wine',
+  ): BuildingState | null {
+    const capacity = BUILDING_STORAGE_CAPS.monastery[commodity] ?? 0;
+    return this.findNearestRoadLinkedBuilding(
+      origin,
+      ['monastery'],
+      (candidate) =>
+        this.isMonasteryLinkedToChapel(candidate)
+        && candidate[commodity] < capacity - 1e-6
+        && this.getInboundSupplyTrip(candidate) == null,
+    );
+  }
+
+  getNextFarmGrainDispatch(
+    farmstead: BuildingState,
+  ): RoutedGrainDestination<BuildingState> | null {
+    const state = this.getGameState();
+    const exportableGrain = farmsteadExportableGrain(
+      farmstead.grain,
+      [...state.farmFields.values()]
+        .filter((field) => field.farmsteadId === farmstead.id),
+    );
+    if (exportableGrain <= 1e-6) return null;
+    const network = this.getRoadNetwork();
+    const inboundTargets = new Set<string>();
+    for (const trip of state.deliveryTrips.values()) {
+      if (
+        trip.phase !== 'inbound'
+        && trip.destinationKind === 'building'
+        && trip.targetBuildingId
+      ) {
+        inboundTargets.add(trip.targetBuildingId);
+      }
+    }
+    return selectGrainDispatchTarget(
+      state.buildings.values(),
+      farmstead.id,
+      (target) => roadPathDistance(
+        network,
+        farmstead.x,
+        farmstead.z,
+        target.x,
+        target.z,
+      ),
+      (target) => target.kind === 'monastery'
+        && !this.isMonasteryLinkedToChapel(target)
+        ? MONASTERY_UNLINKED_PRODUCTIVITY
+        : 1,
+      (target) => inboundTargets.has(target.id),
+      (target) => processorAcceptsInput(target, 'grain'),
+    );
+  }
+
+  getClaimedResidencesForSpecialtySupplier(
+    supplier: BuildingState,
+    needKind: SpecialtyNeedKind,
+  ): ResidenceState[] {
+    return [...this.getGameState().residences.values()].filter((residence) => {
+      const serving = needKind === 'ale'
+        ? this.getServingAleSupplierForResidence(residence)
+        : needKind === 'cloth'
+          ? this.getServingClothSupplierForResidence(residence)
+          : this.getServingPreservedFoodSupplierForResidence(residence);
+      return serving?.id === supplier.id;
+    });
+  }
+
+  getNextGranaryGrainDispatch(
+    granary: BuildingState,
+  ): RoutedGrainDestination<BuildingState> | null {
+    if (
+      granary.kind !== 'granary'
+      || granary.constructionComplete === false
+      || granary.assignedLabor <= 0
+      || granaryExportableGrain(granary.grain, granary.granaryGrainReserve ?? 0) <= 1e-6
+    ) {
+      return null;
+    }
+    const state = this.getGameState();
+    const network = this.getRoadNetwork();
+    const inboundTargets = new Set<string>();
+    for (const trip of state.deliveryTrips.values()) {
+      if (
+        trip.phase !== 'inbound'
+        && trip.destinationKind === 'building'
+        && trip.targetBuildingId
+      ) {
+        inboundTargets.add(trip.targetBuildingId);
+      }
+    }
+    return selectGrainProcessorTarget(
+      state.buildings.values(),
+      granary.id,
+      (target) => roadPathDistance(
+        network,
+        granary.x,
+        granary.z,
+        target.x,
+        target.z,
+      ),
+      (target) => target.kind === 'monastery'
+        && !this.isMonasteryLinkedToChapel(target)
+        ? MONASTERY_UNLINKED_PRODUCTIVITY
+        : 1,
+      (target) => inboundTargets.has(target.id),
+      (target) => processorAcceptsInput(target, 'grain'),
+    );
+  }
+
+  getNextGranaryGuardFoodDispatch(
+    granary: BuildingState,
+  ): RoutedGuardhouseFoodTarget<BuildingState> | null {
+    if (
+      granary.kind !== 'granary'
+      || granary.constructionComplete === false
+      || granary.assignedLabor <= 0
+    ) {
+      return null;
+    }
+    const claimedHouseholds = this.getClaimedResidencesForFoodSupplier(granary).length;
+    const transferable = institutionalFoodSurplus(
+      granary.food,
+      claimedHouseholds,
+      BUILDING_STORAGE_CAPS.granary.food,
+    );
+    if (transferable <= 1e-6) return null;
+
+    const state = this.getGameState();
+    const network = this.getRoadNetwork();
+    const inboundTargets = new Set<string>();
+    for (const trip of state.deliveryTrips.values()) {
+      if (
+        trip.phase !== 'inbound'
+        && trip.destinationKind === 'building'
+        && trip.targetBuildingId
+      ) {
+        inboundTargets.add(trip.targetBuildingId);
+      }
+    }
+    return selectCriticalGuardhouseFoodTarget(
+      state.buildings.values(),
+      granary.id,
+      (target) => roadPathDistance(
+        network,
+        granary.x,
+        granary.z,
+        target.x,
+        target.z,
+      ),
+      (target) => inboundTargets.has(target.id),
+    );
   }
 
   findNearestRoadLinkedResidence(
@@ -646,11 +989,13 @@ export class WorldQueries {
     supplier: BuildingState,
     target: ResidenceState | null,
   ): number {
+    const network = this.getRoadNetwork();
     return foodSupplierDeliveryTripSeconds(
-      this.getRoadNetwork(),
+      network,
       supplier,
       target,
       foodLaborSplit(supplier.assignedLabor).delivering,
+      this.getCarpenterDeliverySpeedMultiplier(supplier),
     );
   }
 
@@ -658,11 +1003,28 @@ export class WorldQueries {
     lodge: BuildingState,
     target: ResidenceState | null,
   ): number {
+    const network = this.getRoadNetwork();
     return lodgeDeliveryTripSeconds(
-      this.getRoadNetwork(),
+      network,
       lodge,
       target,
       lodgeLaborSplit(lodge.assignedLabor).delivering,
+      this.getCarpenterDeliverySpeedMultiplier(lodge),
+    );
+  }
+
+  getFirewoodDeliveryTripSeconds(
+    supplier: BuildingState,
+    target: ResidenceState | null,
+    deliveryWorkers: number,
+  ): number {
+    const network = this.getRoadNetwork();
+    return firewoodDeliveryTripSeconds(
+      network,
+      supplier,
+      target,
+      deliveryWorkers,
+      this.getCarpenterDeliverySpeedMultiplier(supplier),
     );
   }
 

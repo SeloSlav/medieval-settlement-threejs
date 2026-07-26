@@ -1,5 +1,6 @@
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::RESIDENCE_CLOTH_CAPACITY;
 use crate::db::*;
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::tables::ResidenceNeed;
@@ -36,9 +37,29 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
         })
         .collect();
 
+    let missing_cloth = !needs
+        .iter()
+        .any(|need| need.kind == ResidenceNeedKind::Cloth);
+    let legacy_tier = if missing_cloth {
+        ctx.db
+            .residence()
+            .id()
+            .find(&residence_id)
+            .map(|residence| residence.tier)
+            .unwrap_or(1)
+    } else {
+        1
+    };
     for kind in ResidenceNeedKind::ALL {
         if !needs.iter().any(|need| need.kind == kind) {
-            needs.push(NeedState::initial(kind));
+            let mut initial = NeedState::initial(kind);
+            // Only established tier-3 homes from pre-textile saves receive a
+            // transition buffer. New residences already have a zero-stock
+            // cloth row, so this does not create free exportable production.
+            if kind == ResidenceNeedKind::Cloth && legacy_tier >= 3 {
+                initial.stock = RESIDENCE_CLOTH_CAPACITY;
+            }
+            needs.push(initial);
         }
     }
 

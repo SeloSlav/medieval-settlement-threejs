@@ -9,9 +9,8 @@ use crate::constants::{
 use crate::db::*;
 use crate::economy::{building_food_storage_cap, deposit_building_food};
 use crate::foraging_policy::harvest_available;
-use crate::simulation::delivery_cargo::{
-    any_target_needs_delivery, collect_claimed_delivery_targets,
-};
+use crate::harvest_reserve_policy::harvestable_wild_stock;
+use crate::simulation::delivery_cargo::has_delivery_stock_room;
 use crate::simulation::delivery_supplier::{
     delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
     DeliveryDispatchConfig,
@@ -20,10 +19,8 @@ use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::lodge_logistics::lodge_labor_split;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::simulation::road_logistics::{
-    claim_residences_for_food_suppliers, owner_food_suppliers, sort_residences_for_food_delivery,
-};
-use crate::simulation::spatial::find_nearest_foraging_node;
+use crate::simulation::road_logistics::select_residence_for_need_delivery;
+use crate::simulation::spatial::find_nearest_harvestable_foraging_node;
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, ForagingNode, Residence};
 
@@ -82,7 +79,7 @@ fn step_food_supplier(
     resource_units_per_harvest: f64,
     food_per_resource_unit: f64,
 ) {
-    if labor_and_logistics_paused(ctx, building.owner, clock) {
+    if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
         return;
     }
 
@@ -103,13 +100,14 @@ fn step_food_supplier(
     let delivery_targets = if delivery_ready {
         collect_delivery_targets(
             ctx,
+            tick,
             network.expect("delivery readiness requires a road network"),
             &supplier,
         )
     } else {
         Vec::new()
     };
-    let has_target = any_target_needs_delivery(ctx, &delivery_targets, ResidenceNeedKind::Food);
+    let has_target = !delivery_targets.is_empty();
 
     let (do_deliver, do_harvest) =
         should_alternate_single_worker(single_worker, harvest_ready, delivery_ready, has_target);
@@ -130,6 +128,7 @@ fn step_food_supplier(
         if let Some(network) = network {
             dispatch_delivery_if_ready(
                 ctx,
+                tick,
                 clock,
                 network,
                 &mut supplier,
@@ -179,7 +178,13 @@ fn harvest_from_node(
     let requested = resource_units_per_harvest * richness_multiplier * labor;
     let food_room = (food_cap - building.food).max(0.0);
     let max_resource_for_room = food_room / food_per_resource_unit.max(1e-9);
-    let extracted = requested.min(node.remaining).min(max_resource_for_room);
+    let available = harvestable_wild_stock(
+        &node.node_kind,
+        node.remaining,
+        node.max_yield,
+        building.harvest_reserve_percent,
+    );
+    let extracted = requested.min(available).min(max_resource_for_room);
     if extracted <= 0.0 {
         return building;
     }
@@ -210,12 +215,13 @@ fn find_nearest_harvestable_node(
         if !harvest_available(node_kind, month) {
             continue;
         }
-        let Some(node) = find_nearest_foraging_node(
+        let Some(node) = find_nearest_harvestable_foraging_node(
             ctx,
             building.x,
             building.z,
             building.work_radius,
             node_kind,
+            building.harvest_reserve_percent,
         ) else {
             continue;
         };
@@ -230,16 +236,28 @@ fn find_nearest_harvestable_node(
 
 fn collect_delivery_targets(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     network: &crate::roads::RoadNetwork,
     supplier: &Building,
 ) -> Vec<Residence> {
-    let suppliers = owner_food_suppliers(ctx, supplier.owner);
-    let residences: Vec<Residence> = ctx.db.residence().owner().filter(&supplier.owner).collect();
-    let claims = claim_residences_for_food_suppliers(network, &suppliers, &residences);
-
-    collect_claimed_delivery_targets(residences, &claims, supplier.id, |targets| {
-        sort_residences_for_food_delivery(network, supplier, targets, |residence| {
-            need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Food)
-        });
-    })
+    let targets: Vec<Residence> = ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&supplier.owner)
+        .filter(|residence| {
+            tick.food_supplier_for(ctx, supplier.owner, residence.id) == Some(supplier.id)
+        })
+        .collect();
+    select_residence_for_need_delivery(
+        network,
+        supplier,
+        targets,
+        None,
+        None,
+        |residence| need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Food),
+        |stock| has_delivery_stock_room(ResidenceNeedKind::Food, stock),
+    )
+    .into_iter()
+    .collect()
 }

@@ -39,4 +39,9 @@ export default __t.row({
   monasteryTithePaidTotal: __t.f64().name("monastery_tithe_paid_total"),
   monasteryPilgrimageGoldTotal: __t.f64().name("monastery_pilgrimage_gold_total"),
   monasteryFoodCharityTotal: __t.f64().name("monastery_food_charity_total"),
+  ironwork: __t.f64(),
+  wool: __t.f64(),
+  cloth: __t.f64(),
+  seasonalLaborStewardEnabled: __t.bool().name("seasonal_labor_steward_enabled"),
+  constructionLaborStewardEnabled: __t.bool().name("construction_labor_steward_enabled"),
 });

@@ -1,0 +1,826 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
+import {
+  computeSettlementProductionCapacity,
+  grainChainBalanceLabel,
+  processorBottleneckBuildingId,
+} from '../src/economy/settlementProduction.ts';
+import { computeSettlementGrainPlan } from '../src/economy/settlementGrainPlan.ts';
+import { buildSettlementFarmPlan } from '../src/farming/farmWorkPlanning.ts';
+import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
+import {
+  CALENDAR_DAYS_PER_MONTH,
+  CALENDAR_SECONDS_PER_DAY,
+} from '../src/generated/gameBalance.ts';
+import {
+  createEmptyStockpile,
+  type BuildingKind,
+  type BuildingState,
+  type FarmFieldState,
+  type GameState,
+  type ResidenceState,
+} from '../src/resources/types.ts';
+import { gameClockAtElapsedSeconds } from '../src/world/gameCalendar.ts';
+
+const state = emptyGameState();
+const mill = building('mill', 'watermill', 1);
+mill.grain = 60;
+mill.flour = 180;
+state.buildings.set(mill.id, mill);
+const bakery = building('bakery', 'granary', 1);
+bakery.flour = 84;
+bakery.water = 56;
+bakery.firewood = 42;
+bakery.food = 228;
+state.buildings.set(bakery.id, bakery);
+const brewery = building('brewery', 'brewery', 1);
+brewery.grain = 45;
+brewery.water = 40;
+brewery.ale = 140;
+state.buildings.set(brewery.id, brewery);
+const smokehouse = building('smokehouse', 'smokehouse', 1);
+smokehouse.food = 70;
+smokehouse.firewood = 17.5;
+smokehouse.preservedFood = 127.5;
+state.buildings.set(smokehouse.id, smokehouse);
+const weaver = building('weaver', 'weaver', 1);
+weaver.wool = 39.375;
+weaver.cloth = 63.75;
+state.buildings.set(weaver.id, weaver);
+state.residences.set('tier-three-home', residence('tier-three-home', 10));
+
+const fullWeek = computeSettlementProductionCapacity(state, false);
+assert.equal(fullWeek.capacityDaysPerWeek, 7);
+assert.deepEqual(
+  [
+    fullWeek.millWorkers,
+    fullWeek.bakeryWorkers,
+    fullWeek.breweryWorkers,
+    fullWeek.smokehouseWorkers,
+    fullWeek.weaverWorkers,
+  ],
+  [1, 1, 1, 1, 1],
+);
+approx(fullWeek.flourOutputPerDay, 40);
+approx(fullWeek.bakeryFlourCapacityPerDay, 42);
+approx(fullWeek.breadFoodCapacityPerDay, 160 / 3);
+approx(fullWeek.breadGrainPerDay, 30);
+approx(fullWeek.breadWaterPerDay, 80 / 3);
+approx(fullWeek.breadFirewoodPerDay, 40 / 3);
+approx(fullWeek.aleOutputPerDay, 40);
+approx(fullWeek.aleGrainPerDay, 30);
+approx(fullWeek.aleWaterPerDay, 20);
+approx(fullWeek.preservedFoodOutputPerDay, 35);
+approx(fullWeek.preservationFreshFoodPerDay, 35);
+approx(fullWeek.preservationFirewoodPerDay, 35 / 3);
+approx(fullWeek.clothOutputPerDay, 17.5);
+approx(fullWeek.clothWoolPerDay, 26.25);
+assert.ok(fullWeek.millInputBuffer);
+approx(fullWeek.millInputBuffer.days, 2);
+assert.equal(fullWeek.millInputBuffer.limitingInput, 'grain');
+assert.ok(fullWeek.bakeryInputBuffer);
+approx(fullWeek.bakeryInputBuffer.days, 2);
+assert.equal(fullWeek.bakeryInputBuffer.limitingInput, 'flour');
+assert.ok(fullWeek.breweryInputBuffer);
+approx(fullWeek.breweryInputBuffer.days, 1.5);
+assert.equal(fullWeek.breweryInputBuffer.limitingInput, 'grain');
+assert.ok(fullWeek.smokehouseInputBuffer);
+approx(fullWeek.smokehouseInputBuffer.days, 1.5);
+assert.equal(fullWeek.smokehouseInputBuffer.limitingInput, 'firewood');
+assert.ok(fullWeek.weaverInputBuffer);
+approx(fullWeek.weaverInputBuffer.days, 1.5);
+assert.equal(fullWeek.weaverInputBuffer.limitingInput, 'wool');
+approx(fullWeek.millOutputRoom?.days ?? -1, 2);
+approx(fullWeek.bakeryOutputRoom?.days ?? -1, 2);
+approx(fullWeek.breweryOutputRoom?.days ?? -1, 1.5);
+approx(fullWeek.smokehouseOutputRoom?.days ?? -1, 1.5);
+approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5);
+assert.equal(fullWeek.millInputBuffer.buildingId, mill.id);
+assert.equal(fullWeek.millOutputRoom?.buildingId, mill.id);
+assert.equal(fullWeek.tierThreeResidents, 10);
+approx(fullWeek.aleDemandPerDay, 1.75);
+approx(fullWeek.preservedFoodDemandPerDay, 2.8);
+approx(fullWeek.clothDemandPerDay, 0.126);
+assert.equal(
+  grainChainBalanceLabel(fullWeek),
+  'Balanced milling and baking capacity',
+);
+assert.match(
+  grainChainBalanceLabel({
+    millWorkers: 1,
+    bakeryWorkers: 2,
+    flourOutputPerDay: 40,
+    bakeryFlourCapacityPerDay: 84,
+  }),
+  /Mill-limited/,
+);
+
+const sabbathWeek = computeSettlementProductionCapacity(state, true);
+assert.equal(sabbathWeek.capacityDaysPerWeek, 6);
+for (const key of [
+  'flourOutputPerDay',
+  'bakeryFlourCapacityPerDay',
+  'breadFoodCapacityPerDay',
+  'breadGrainPerDay',
+  'breadWaterPerDay',
+  'breadFirewoodPerDay',
+  'aleOutputPerDay',
+  'aleGrainPerDay',
+  'aleWaterPerDay',
+  'preservedFoodOutputPerDay',
+  'preservationFreshFoodPerDay',
+  'preservationFirewoodPerDay',
+  'clothOutputPerDay',
+  'clothWoolPerDay',
+] as const) {
+  approx(sabbathWeek[key], fullWeek[key] * 6 / 7);
+}
+approx(
+  sabbathWeek.aleDemandPerDay,
+  fullWeek.aleDemandPerDay,
+  'household demand continues on Sunday',
+);
+approx(
+  sabbathWeek.preservedFoodDemandPerDay,
+  fullWeek.preservedFoodDemandPerDay,
+  'household demand continues on Sunday',
+);
+approx(
+  sabbathWeek.clothDemandPerDay,
+  fullWeek.clothDemandPerDay,
+  'household textile demand continues on Sunday',
+);
+assert.ok(sabbathWeek.millInputBuffer);
+assert.ok(sabbathWeek.bakeryInputBuffer);
+assert.ok(sabbathWeek.breweryInputBuffer);
+assert.ok(sabbathWeek.smokehouseInputBuffer);
+assert.ok(sabbathWeek.weaverInputBuffer);
+approx(sabbathWeek.millInputBuffer.days, 2 * 7 / 6);
+approx(sabbathWeek.bakeryInputBuffer.days, 2 * 7 / 6);
+approx(sabbathWeek.breweryInputBuffer.days, 1.5 * 7 / 6);
+approx(sabbathWeek.smokehouseInputBuffer.days, 1.5 * 7 / 6);
+approx(sabbathWeek.weaverInputBuffer.days, 1.5 * 7 / 6);
+approx(sabbathWeek.millOutputRoom?.days ?? -1, 2 * 7 / 6);
+approx(sabbathWeek.bakeryOutputRoom?.days ?? -1, 2 * 7 / 6);
+approx(sabbathWeek.breweryOutputRoom?.days ?? -1, 1.5 * 7 / 6);
+approx(sabbathWeek.smokehouseOutputRoom?.days ?? -1, 1.5 * 7 / 6);
+approx(sabbathWeek.weaverOutputRoom?.days ?? -1, 1.5 * 7 / 6);
+
+const inactiveState = emptyGameState();
+const unfinishedMill = building('unfinished-mill', 'watermill', 3);
+unfinishedMill.constructionComplete = false;
+inactiveState.buildings.set(unfinishedMill.id, unfinishedMill);
+inactiveState.buildings.set('unstaffed-bakery', building('unstaffed-bakery', 'granary', 0));
+const abandonedHome = residence('abandoned-home', 7);
+abandonedHome.abandoned = true;
+inactiveState.residences.set(abandonedHome.id, abandonedHome);
+const inactive = computeSettlementProductionCapacity(inactiveState, false);
+assert.equal(inactive.millWorkers, 0);
+assert.equal(inactive.bakeryWorkers, 0);
+assert.equal(inactive.flourOutputPerDay, 0);
+assert.equal(inactive.breadFoodCapacityPerDay, 0);
+assert.equal(inactive.tierThreeResidents, 0);
+assert.equal(inactive.millInputBuffer, null);
+assert.equal(inactive.bakeryInputBuffer, null);
+assert.equal(inactive.breweryInputBuffer, null);
+assert.equal(inactive.smokehouseInputBuffer, null);
+assert.equal(inactive.weaverInputBuffer, null);
+assert.equal(inactive.millOutputRoom, null);
+assert.equal(inactive.bakeryOutputRoom, null);
+assert.equal(inactive.breweryOutputRoom, null);
+assert.equal(inactive.smokehouseOutputRoom, null);
+assert.equal(inactive.weaverOutputRoom, null);
+assert.equal(grainChainBalanceLabel(inactive), 'No staffed mill or granary');
+
+const distributedState = emptyGameState();
+const stockedMill = building('stocked-mill', 'watermill', 1);
+stockedMill.grain = 300;
+distributedState.buildings.set(stockedMill.id, stockedMill);
+const starvedMill = building('starved-mill', 'watermill', 1);
+starvedMill.grain = 3;
+starvedMill.flour = 256;
+distributedState.buildings.set(starvedMill.id, starvedMill);
+const distributed = computeSettlementProductionCapacity(distributedState, false);
+assert.ok(distributed.millInputBuffer);
+approx(
+  distributed.millInputBuffer.days,
+  0.1,
+  'stock at one mill must not conceal another mill about to stop',
+);
+approx(
+  distributed.millOutputRoom?.days ?? -1,
+  0.1,
+  'free output room at one mill must not conceal another mill about to fill',
+);
+assert.equal(distributed.millInputBuffer.buildingId, starvedMill.id);
+assert.equal(distributed.millOutputRoom?.buildingId, starvedMill.id);
+assert.equal(
+  processorBottleneckBuildingId(
+    distributed.millInputBuffer,
+    distributed.millOutputRoom,
+  ),
+  starvedMill.id,
+);
+assert.equal(
+  processorBottleneckBuildingId(
+    {
+      days: 2,
+      onsiteDays: 2,
+      limitingInput: 'grain',
+      buildingId: 'input-site',
+      inTransitAmount: 0,
+      inTransitTrips: 0,
+      nextDeliverySeconds: null,
+      deliveryGap: false,
+    },
+    { days: 0.5, buildingId: 'output-site', targetPercent: 50 },
+  ),
+  'output-site',
+  'the Inspect action should choose the constraint that arrives first',
+);
+assert.equal(processorBottleneckBuildingId(null, null), null);
+
+const suppliedState = emptyGameState();
+const suppliedMill = building('supplied-mill', 'watermill', 1);
+suppliedMill.grain = 3;
+suppliedState.buildings.set(suppliedMill.id, suppliedMill);
+const timelyGrain = deliveryTrip('timely-grain', suppliedMill.id, 30, 'outbound');
+timelyGrain.pathDistance = 5;
+timelyGrain.speedMps = 1;
+timelyGrain.unloadSeconds = 1;
+suppliedState.deliveryTrips.set(timelyGrain.id, timelyGrain);
+const suppliedProduction = computeSettlementProductionCapacity(suppliedState, false);
+assert.ok(suppliedProduction.millInputBuffer);
+approx(
+  suppliedProduction.millInputBuffer.days,
+  1.1,
+  'a cart that unloads before onsite grain is exhausted should extend continuous runway',
+);
+approx(suppliedProduction.millInputBuffer.onsiteDays, 0.1);
+assert.equal(suppliedProduction.millInputBuffer.inTransitAmount, 30);
+assert.equal(suppliedProduction.millInputBuffer.inTransitTrips, 1);
+assert.equal(suppliedProduction.millInputBuffer.nextDeliverySeconds, 6);
+assert.equal(suppliedProduction.millInputBuffer.deliveryGap, false);
+
+const lateState = emptyGameState();
+const lateMill = building('late-mill', 'watermill', 1);
+lateMill.grain = 3;
+lateState.buildings.set(lateMill.id, lateMill);
+const lateGrain = deliveryTrip('late-grain', lateMill.id, 30, 'outbound');
+lateGrain.pathDistance = 100;
+lateGrain.speedMps = 1;
+lateGrain.unloadSeconds = 1;
+lateState.deliveryTrips.set(lateGrain.id, lateGrain);
+const lateProduction = computeSettlementProductionCapacity(lateState, false);
+assert.ok(lateProduction.millInputBuffer);
+approx(
+  lateProduction.millInputBuffer.days,
+  0.1,
+  'a cart that arrives after depletion must not conceal the production stop',
+);
+assert.equal(lateProduction.millInputBuffer.deliveryGap, true);
+assert.equal(lateProduction.millInputBuffer.nextDeliverySeconds, 101);
+
+const targetedState = emptyGameState();
+const targetedMill = building('targeted-mill', 'watermill', 1);
+targetedMill.grain = 30;
+targetedMill.flour = 45;
+targetedMill.processorOutputTargetPercent = 25;
+targetedState.buildings.set(targetedMill.id, targetedMill);
+const targetedProduction = computeSettlementProductionCapacity(targetedState, false);
+assert.ok(targetedProduction.millOutputRoom);
+approx(
+  targetedProduction.millOutputRoom.days,
+  0.5,
+  'Town Hall output runway should end at the selected 25% ceiling, not physical capacity',
+);
+assert.equal(targetedProduction.millOutputRoom.targetPercent, 25);
+
+const september = gameClockAtElapsedSeconds(
+  6 * CALENDAR_DAYS_PER_MONTH * CALENDAR_SECONDS_PER_DAY,
+);
+const farmState = emptyGameState();
+const shortFarm = building('short-farm', 'threshing_barn', 1);
+const stockedFarm = building('stocked-farm', 'threshing_barn', 6);
+stockedFarm.grain = 100;
+farmState.buildings.set(shortFarm.id, shortFarm);
+farmState.buildings.set(stockedFarm.id, stockedFarm);
+farmState.farmFields.set(
+  'short-field',
+  farmField('short-field', shortFarm.id, 'oats'),
+);
+farmState.farmFields.set(
+  'stocked-field',
+  farmField('stocked-field', stockedFarm.id, 'fallow'),
+);
+const farmPlan = buildSettlementFarmPlan(farmState, september, false);
+assert.equal(farmPlan.holdingCount, 2);
+assert.equal(farmPlan.staffedHoldings, 2);
+assert.equal(farmPlan.activeFields, 2);
+assert.equal(farmPlan.pausedFields, 0);
+assert.equal(farmPlan.orphanedFields, 0);
+assert.ok(farmPlan.expectedHarvest > 0);
+approx(farmPlan.laborCoveredHarvest, farmPlan.expectedHarvest);
+approx(farmPlan.seedGrainRequired, 5.6);
+assert.equal(
+  farmPlan.seedGrainCovered,
+  0,
+  'grain at a different holding must not conceal local seed risk',
+);
+approx(farmPlan.seedGrainShortfall, 5.6);
+assert.equal(farmPlan.seedShortHoldings, 1);
+assert.equal(farmPlan.firstSeedShortBuildingId, shortFarm.id);
+assert.equal(farmPlan.harvest.shortfallWorkerDays, 0);
+assert.ok(farmPlan.spring.requiredWorkerDays > 0);
+assert.ok(
+  farmPlan.autumn.requiredWorkerDays > 0,
+  'worked fallow should retain its autumn ploughing cost',
+);
+assert.equal(farmPlan.rotation.activeArea, 800);
+assert.equal(farmPlan.rotation.nextRyeArea, 0);
+assert.equal(farmPlan.rotation.nextOatsArea, 400);
+assert.equal(farmPlan.rotation.nextFallowArea, 400);
+approx(farmPlan.rotation.currentAverageFertility, 0.9);
+assert.ok(
+  farmPlan.rotation.afterCurrentAverageFertility
+    < farmPlan.rotation.currentAverageFertility,
+);
+assert.equal(farmPlan.rotation.restoringFields, 1);
+assert.equal(farmPlan.rotation.decliningFields, 1);
+approx(farmPlan.rotation.plannedSeedGrainRequired, 5.6);
+assert.ok(farmPlan.rotation.plannedHarvest > 0);
+assert.equal(farmPlan.rotation.weakestFieldId, 'short-field');
+
+const grainState = emptyGameState();
+grainState.stockpile.grain = 10;
+const seedFarm = building('seed-farm', 'threshing_barn', 1);
+seedFarm.grain = 4;
+grainState.buildings.set(seedFarm.id, seedFarm);
+const fodderHolding = building('fodder-holding', 'pastoral_farmstead', 1);
+fodderHolding.grain = 3;
+grainState.buildings.set(fodderHolding.id, fodderHolding);
+const reserveGranary = building('reserve-granary', 'granary', 1);
+reserveGranary.grain = 10;
+grainState.buildings.set(reserveGranary.id, reserveGranary);
+const grainMill = building('grain-mill', 'watermill', 1);
+grainMill.grain = 5;
+grainState.buildings.set(grainMill.id, grainMill);
+const linkedMonastery = building('linked-monastery', 'monastery', 0);
+linkedMonastery.grain = 2;
+grainState.buildings.set(linkedMonastery.id, linkedMonastery);
+const unlinkedMonastery = building('unlinked-monastery', 'monastery', 0);
+unlinkedMonastery.grain = 1;
+grainState.buildings.set(unlinkedMonastery.id, unlinkedMonastery);
+const grainBrewery = building('grain-brewery', 'brewery', 1);
+grainState.buildings.set(grainBrewery.id, grainBrewery);
+grainState.deliveryTrips.set(
+  'seed-trip',
+  deliveryTrip('seed-trip', seedFarm.id, 2, 'outbound'),
+);
+grainState.deliveryTrips.set(
+  'fodder-trip',
+  deliveryTrip('fodder-trip', fodderHolding.id, 4, 'unloading'),
+);
+grainState.deliveryTrips.set(
+  'reserve-trip',
+  deliveryTrip('reserve-trip', reserveGranary.id, 6, 'outbound'),
+);
+grainState.deliveryTrips.set(
+  'processor-trip',
+  deliveryTrip('processor-trip', grainBrewery.id, 3, 'outbound'),
+);
+grainState.deliveryTrips.set(
+  'return-trip',
+  deliveryTrip('return-trip', seedFarm.id, 1, 'inbound'),
+);
+
+const grainPlanInput = {
+  state: grainState,
+  farmPlan: {
+    seedGrainRequired: 10,
+    seedGrainCovered: 4,
+    firstSeedShortBuildingId: seedFarm.id,
+    laborCoveredHarvest: 100,
+    expectedHarvest: 120,
+  },
+  livestockFodder: {
+    winterGrainNeed: 20,
+    winterReserveTarget: 12,
+    winterReserveStock: 3,
+    firstShortBuildingId: fodderHolding.id,
+  },
+  granaryReserve: {
+    reserveTarget: 20,
+    protectedStock: 10,
+    firstShortGranaryId: reserveGranary.id,
+  },
+  production: {
+    breadGrainPerDay: 2,
+    aleGrainPerDay: 1,
+  },
+  sabbathObserved: false,
+  monasteryProductivity: (candidate: BuildingState) =>
+    candidate.id === linkedMonastery.id ? 1 : 0.45,
+};
+const grainPlan = computeSettlementGrainPlan(grainPlanInput);
+approx(grainPlan.totalStock, 51);
+approx(grainPlan.inTransit, 16);
+assert.deepEqual(grainPlan.seed, { target: 10, protected: 6, shortfall: 4 });
+assert.deepEqual(grainPlan.winterFodder, { target: 12, protected: 7, shortfall: 5 });
+assert.deepEqual(grainPlan.granaryReserve, { target: 20, protected: 16, shortfall: 4 });
+approx(grainPlan.totalProtected, 29);
+approx(grainPlan.discretionaryStock, 22);
+approx(grainPlan.monasteryGrainPerDay, 203 / 12);
+approx(grainPlan.processorGrainPerDay, 239 / 12);
+approx(grainPlan.processorRunwayDays, 264 / 239);
+approx(grainPlan.annualProcessorDemand, 2_390);
+approx(grainPlan.annualCommitments, 2_420);
+approx(grainPlan.annualBalance, -2_320);
+assert.equal(grainPlan.firstAttentionKind, 'seed');
+assert.equal(grainPlan.firstAttentionBuildingId, seedFarm.id);
+
+const sabbathGrainPlan = computeSettlementGrainPlan({
+  ...grainPlanInput,
+  sabbathObserved: true,
+});
+approx(sabbathGrainPlan.monasteryGrainPerDay, 14.5);
+approx(sabbathGrainPlan.processorGrainPerDay, 17.5);
+
+grainState.deliveryTrips.set(
+  'seed-trip',
+  deliveryTrip('seed-trip', seedFarm.id, 6, 'outbound'),
+);
+const fodderAttention = computeSettlementGrainPlan(grainPlanInput);
+assert.equal(fodderAttention.firstAttentionKind, 'winter-fodder');
+assert.equal(fodderAttention.firstAttentionBuildingId, fodderHolding.id);
+
+grainState.deliveryTrips.set(
+  'fodder-trip',
+  deliveryTrip('fodder-trip', fodderHolding.id, 9, 'unloading'),
+);
+const reserveAttention = computeSettlementGrainPlan(grainPlanInput);
+assert.equal(reserveAttention.firstAttentionKind, 'granary-reserve');
+assert.equal(reserveAttention.firstAttentionBuildingId, reserveGranary.id);
+
+const cattleHolding = building('cattle-holding', 'pastoral_farmstead', 1);
+cattleHolding.x = 10;
+cattleHolding.z = 10;
+cattleHolding.workRadius = 100;
+farmState.buildings.set(cattleHolding.id, cattleHolding);
+farmState.livestockHerds.set(cattleHolding.id, {
+  buildingId: cattleHolding.id,
+  species: 'cattle',
+  headCount: 4,
+  health: 0.9,
+  breedingProgress: 0,
+  pastureCapacity: 4,
+  suppliedCapacity: 4,
+  lastFoodOutput: 0,
+  lastPreservedOutput: 0,
+  lastWoolGold: 0,
+  breedingReserve: 4,
+  lastCulled: 0,
+  hayStock: 0,
+  lastHayOutput: 0,
+  haymakingPercent: 35,
+});
+const cattleFarmPlan = buildSettlementFarmPlan(farmState, september, false);
+assert.equal(cattleFarmPlan.cattleSupportedFields, 2);
+assert.ok(
+  cattleFarmPlan.rotation.afterCurrentAverageFertility
+    > farmPlan.rotation.afterCurrentAverageFertility,
+  'the rotation forecast should carry current ox-team manure into next-cycle soil',
+);
+assert.ok(
+  cattleFarmPlan.rotation.plannedHarvest > farmPlan.rotation.plannedHarvest,
+  'better post-cycle soil should raise the next crop forecast',
+);
+assert.ok(
+  cattleFarmPlan.spring.requiredWorkerDays < farmPlan.spring.requiredWorkerDays,
+  'settlement spring forecasts should include ox ploughing support',
+);
+assert.ok(
+  cattleFarmPlan.autumn.requiredWorkerDays < farmPlan.autumn.requiredWorkerDays,
+  'settlement autumn forecasts should include ox ploughing support',
+);
+
+farmState.farmFields.set(
+  'orphan-field',
+  farmField('orphan-field', 'missing-farm', 'rye'),
+);
+const orphanPlan = buildSettlementFarmPlan(farmState, september, false);
+assert.equal(orphanPlan.orphanedFields, 1);
+assert.ok(orphanPlan.harvest.shortfallWorkerDays > 0);
+assert.ok(orphanPlan.laborCoveredHarvest < orphanPlan.expectedHarvest);
+
+const perfState = emptyGameState();
+for (let index = 0; index < 100_000; index += 1) {
+  const kinds = ['watermill', 'granary', 'brewery', 'smokehouse', 'weaver'] as const;
+  const kind = kinds[index % kinds.length];
+  perfState.buildings.set(`processor-${index}`, building(`processor-${index}`, kind, 1));
+}
+const started = performance.now();
+const perfCapacity = computeSettlementProductionCapacity(perfState, false);
+const elapsedMs = performance.now() - started;
+assert.equal(perfCapacity.millWorkers, 20_000);
+assert.equal(perfCapacity.bakeryWorkers, 20_000);
+assert.equal(perfCapacity.breweryWorkers, 20_000);
+assert.equal(perfCapacity.smokehouseWorkers, 20_000);
+assert.equal(perfCapacity.weaverWorkers, 20_000);
+assert.equal(perfCapacity.millInputBuffer?.days, 0);
+assert.equal(perfCapacity.bakeryInputBuffer?.days, 0);
+assert.equal(perfCapacity.breweryInputBuffer?.days, 0);
+assert.equal(perfCapacity.smokehouseInputBuffer?.days, 0);
+assert.equal(perfCapacity.weaverInputBuffer?.days, 0);
+assert.ok((perfCapacity.millOutputRoom?.days ?? 0) > 0);
+assert.ok((perfCapacity.bakeryOutputRoom?.days ?? 0) > 0);
+assert.ok((perfCapacity.breweryOutputRoom?.days ?? 0) > 0);
+assert.ok((perfCapacity.smokehouseOutputRoom?.days ?? 0) > 0);
+assert.ok((perfCapacity.weaverOutputRoom?.days ?? 0) > 0);
+assert.ok(
+  elapsedMs < 200,
+  `100,000-building production ledger took ${elapsedMs.toFixed(1)} ms`,
+);
+
+for (let index = 0; index < 100_000; index += 1) {
+  perfState.deliveryTrips.set(
+    `grain-trip-${index}`,
+    deliveryTrip(
+      `grain-trip-${index}`,
+      `processor-${index}`,
+      1,
+      index % 7 === 0 ? 'inbound' : 'outbound',
+    ),
+  );
+}
+const timedProductionStarted = performance.now();
+const timedProduction = computeSettlementProductionCapacity(perfState, false);
+const timedProductionElapsedMs = performance.now() - timedProductionStarted;
+assert.equal(timedProduction.millInputBuffer?.days, 0);
+assert.equal(timedProduction.millInputBuffer?.inTransitTrips, 0);
+assert.ok(
+  timedProductionElapsedMs < 350,
+  `100,000-building + 100,000-cart timed production ledger took ${timedProductionElapsedMs.toFixed(1)} ms`,
+);
+const grainPerfStarted = performance.now();
+const perfGrainPlan = computeSettlementGrainPlan({
+  state: perfState,
+  farmPlan: {
+    seedGrainRequired: 0,
+    seedGrainCovered: 0,
+    firstSeedShortBuildingId: null,
+    laborCoveredHarvest: 0,
+    expectedHarvest: 0,
+  },
+  livestockFodder: {
+    winterGrainNeed: 0,
+    winterReserveTarget: 0,
+    winterReserveStock: 0,
+    firstShortBuildingId: null,
+  },
+  granaryReserve: {
+    reserveTarget: 0,
+    protectedStock: 0,
+    firstShortGranaryId: null,
+  },
+  production: perfCapacity,
+  sabbathObserved: false,
+  monasteryProductivity: () => 1,
+});
+const grainPerfElapsedMs = performance.now() - grainPerfStarted;
+assert.equal(perfGrainPlan.inTransit, 100_000);
+assert.ok(
+  grainPerfElapsedMs < 300,
+  `100,000-building + 100,000-cart grain ledger took ${grainPerfElapsedMs.toFixed(1)} ms`,
+);
+
+const perfFarmState = emptyGameState();
+const perfFarm = building('perf-farm', 'threshing_barn', 6);
+perfFarmState.buildings.set(perfFarm.id, perfFarm);
+for (let index = 0; index < 100_000; index += 1) {
+  const field = farmField(`perf-field-${index}`, perfFarm.id, 'fallow');
+  perfFarmState.farmFields.set(field.id, field);
+}
+const aggregationStarted = performance.now();
+const perfFarmPlan = buildSettlementFarmPlan(perfFarmState, september, false);
+const aggregationElapsedMs = performance.now() - aggregationStarted;
+assert.equal(perfFarmPlan.activeFields, 100_000);
+assert.equal(perfFarmPlan.rotation.activeArea, 40_000_000);
+assert.equal(perfFarmPlan.rotation.nextFallowArea, 40_000_000);
+assert.equal(perfFarmPlan.rotation.plannedHarvest, 0);
+assert.equal(perfFarmPlan.rotation.plannedSeedGrainRequired, 0);
+assert.equal(perfFarmPlan.rotation.restoringFields, 100_000);
+assert.equal(perfFarmPlan.rotation.decliningFields, 0);
+assert.equal(perfFarmPlan.rotation.weakestFieldId, 'perf-field-0');
+assert.ok(
+  aggregationElapsedMs < 250,
+  `100,000-field settlement farm plan took ${aggregationElapsedMs.toFixed(1)} ms`,
+);
+
+const townHallInspector = readFileSync(
+  new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
+  'utf8',
+);
+assert.match(townHallInspector, /installed capacity if supplied/);
+assert.match(townHallInspector, /Processing labor/);
+assert.match(townHallInspector, /First staffed site to stop/);
+assert.match(townHallInspector, /carts that unload before depletion/);
+assert.match(townHallInspector, /too late to prevent a stop/);
+assert.match(townHallInspector, /Mill buffers/);
+assert.match(townHallInspector, /Granary bakery buffers/);
+assert.match(townHallInspector, /flour room/);
+assert.match(townHallInspector, /preserved-food room/);
+assert.match(townHallInspector, /Cloth capacity/);
+assert.match(townHallInspector, /data-inspect-building=/);
+assert.match(townHallInspector, /processorBottleneckBuildingId/);
+assert.match(townHallInspector, /Mill \/ bakery balance/);
+assert.match(townHallInspector, /Bread capacity/);
+assert.match(townHallInspector, /bakery intake/);
+assert.match(townHallInspector, /September harvest/);
+assert.match(townHallInspector, /Seed on holdings/);
+assert.match(townHallInspector, /Spring oats labor/);
+assert.match(townHallInspector, /Ox-supported fields/);
+assert.match(townHallInspector, /Grain allocation/);
+assert.match(townHallInspector, /Protected grain/);
+assert.match(townHallInspector, /Installed grain draw/);
+assert.match(townHallInspector, /Crop-year balance/);
+assert.match(townHallInspector, /imports excluded/);
+assert.match(townHallInspector, /firstSeedShortBuildingId/);
+assert.match(townHallInspector, /firstShortGranaryId/);
+assert.match(townHallInspector, /Next rotation/);
+assert.match(townHallInspector, /Soil trajectory/);
+assert.match(townHallInspector, /Next-cycle potential/);
+assert.match(townHallInspector, /data-inspect-field=/);
+
+const resourceInspector = readFileSync(
+  new URL('../src/resources/ResourceInspector.ts', import.meta.url),
+  'utf8',
+);
+assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-building\]'\)/);
+assert.match(resourceInspector, /findBuildingTarget\(inspectBuildingId\)/);
+assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-field\]'\)/);
+assert.match(resourceInspector, /findFarmFieldTarget\(inspectFieldId\)/);
+assert.match(resourceInspector, /onFocusWorldPosition\?\./);
+
+const worldQueries = readFileSync(
+  new URL('../src/resources/WorldQueries.ts', import.meta.url),
+  'utf8',
+);
+assert.match(worldQueries, /findFarmFieldTarget\(fieldId: string\)/);
+
+console.log(
+  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields)`,
+);
+
+function approx(actual: number, expected: number, message?: string): void {
+  assert.ok(
+    Math.abs(actual - expected) < 1e-9,
+    message ?? `expected ${actual} to equal ${expected}`,
+  );
+}
+
+function building(
+  id: string,
+  kind: BuildingKind,
+  assignedLabor: number,
+): BuildingState {
+  return {
+    id,
+    kind,
+    x: 0,
+    z: 0,
+    workRadius: 0,
+    actionCooldown: 0,
+    timber: 0,
+    firewood: 0,
+    stone: 0,
+    water: 0,
+    food: 0,
+    grain: 0,
+    flour: 0,
+    ale: 0,
+    preservedFood: 0,
+    honey: 0,
+    wine: 0,
+    polearms: 0,
+    gold: 0,
+    waterCapacity: 0,
+    assignedLabor,
+    constructionComplete: true,
+    constructionProgress: 1,
+    constructionRequiredTimber: 0,
+    constructionRequiredStone: 0,
+    constructionDeliveredTimber: 0,
+    constructionDeliveredStone: 0,
+    constructionReservedTimber: 0,
+    constructionReservedStone: 0,
+    constructionTreasuryTimber: 0,
+    constructionTreasuryStone: 0,
+    storehouseAcceptsTimber: true,
+    storehouseAcceptsStone: true,
+    storehouseAcceptsFirewood: true,
+  };
+}
+
+function residence(id: string, population: number): ResidenceState {
+  return {
+    id,
+    zoneId: `zone-${id}`,
+    parcelIndex: 0,
+    x: 0,
+    z: 0,
+    yaw: 0,
+    population,
+    populationCapacity: population,
+    tier: 3,
+    settlementTicks: 0,
+    needs: {
+      firewood: { stock: 0, deficitSeconds: 0 },
+      water: { stock: 0, deficitSeconds: 0 },
+      food: { stock: 0, deficitSeconds: 0 },
+      preservedFood: { stock: 0, deficitSeconds: 0 },
+      ale: { stock: 0, deficitSeconds: 0 },
+    },
+    abandoned: false,
+    householdWealth: 0,
+  };
+}
+
+function deliveryTrip(
+  id: string,
+  targetBuildingId: string,
+  amount: number,
+  phase: DeliveryTripState['phase'],
+): DeliveryTripState {
+  return {
+    id,
+    buildingId: 'grain-origin',
+    residenceId: null,
+    destinationKind: 'building',
+    targetBuildingId,
+    cargoKind: 'grain',
+    amount,
+    phase,
+    x: 0,
+    z: 0,
+    progress: 0,
+    speedMps: 1,
+    unloadSeconds: 1,
+    unloadRemaining: 1,
+    deliveryWorkers: 1,
+    pathDistance: 1,
+    travelSpeedMultiplier: 1,
+    routePolylineJson: '[]',
+  };
+}
+
+function farmField(
+  id: string,
+  farmsteadId: string,
+  nextCrop: FarmFieldState['nextCrop'],
+): FarmFieldState {
+  return {
+    id,
+    farmsteadId,
+    corners: [
+      { x: 0, z: 0 },
+      { x: 20, z: 0 },
+      { x: 20, z: 20 },
+      { x: 0, z: 20 },
+    ],
+    area: 400,
+    averageSlopeDegrees: 2,
+    moisture: 0.38,
+    fertility: 0.9,
+    crop: 'rye',
+    nextCrop,
+    stage: 'harvesting',
+    stageProgress: 0,
+    priority: 1,
+    harvestCount: 0,
+    lastYield: 0,
+    currentYield: 0,
+  };
+}
+
+function emptyGameState(): GameState {
+  return {
+    seed: 1,
+    tick: 0,
+    stockpile: createEmptyStockpile(),
+    quarries: new Map(),
+    foragingNodes: new Map(),
+    trees: new Map(),
+    buildings: new Map(),
+    farmFields: new Map(),
+    pastures: new Map(),
+    livestockHerds: new Map(),
+    burgageZones: new Map(),
+    residences: new Map(),
+    backyardGardens: new Map(),
+    deliveryTrips: new Map(),
+    fireIncidents: new Map(),
+    nextBuildingId: 1,
+  };
+}

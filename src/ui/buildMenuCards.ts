@@ -7,6 +7,7 @@ export type PlacementBuildMenuAction =
   | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'marketplace'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'smokehouse'
   | 'granary' | 'apiary' | 'watermill' | 'carpenter' | 'ferry-landing' | 'vineyard'
+  | 'weaver'
   | 'pastoral-farmstead' | 'swineherd'
   | 'town-hall' | 'village-storehouse'
   | 'watchtower'
@@ -33,6 +34,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   smokehouse: '/assets/ui/build-menu/cards/smokehouse.webp', granary: '/assets/ui/build-menu/cards/granary.webp',
   apiary: '/assets/ui/build-menu/cards/apiary.webp', watermill: '/assets/ui/build-menu/cards/watermill.webp',
   carpenter: '/assets/ui/build-menu/cards/carpenter.webp', ferry_landing: '/assets/ui/build-menu/cards/ferry-landing.webp',
+  weaver: '/assets/ui/build-menu/cards/weaver.webp',
   vineyard: '/assets/ui/build-menu/cards/vineyard.webp',
   pastoral_farmstead: '/assets/ui/build-menu/cards/pastoral-farmstead.webp',
   swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
@@ -42,12 +44,12 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   residences: ['Residence', 'H', 'Lay out homesteads along a road; homes can grow through three distinct tiers.'],
   well: ['Well', 'E', 'Draws groundwater and dispatches it to road-linked homes.'],
   chapel: ['Chapel', 'C', 'A staffed parish chapel collects tithes and supports nearby households.'],
-  monastery: ['Pauline monastery', 'O', 'An autonomous hillside monastery offering charity, pilgrimages, feasts, and wider faith coverage.'],
-  marketplace: ['Marketplace', 'P', 'Trade hub for household produce and specialty exports.'],
+  monastery: ['Pauline monastery', 'O', 'A hillside parish institution turning grain, optional honey-and-wine hospitality, and tithes into charity and pilgrim income.'],
+  marketplace: ['Marketplace', 'P', 'Trade hub for household produce, emergency seed grain, and specialty exports.'],
   town_hall: ['Town Hall', 'T', 'Physical seat of settlement government, taxation, and the economic ledger. Requires a chapel, marketplace, and 24 people.'],
   village_storehouse: ['Village storehouse', 'S', 'Hauls surplus timber, stone, and firewood from producers into shared construction stock. Never stores food.'],
   watchtower: ['Frontier watchtower', 'W', 'Staffed hill tower warns nearby homes and stores, reducing losses when raiders cross the frontier.'],
-  guardhouse: ['Frontier guardhouse', 'G', 'Paid guards consume labor, provisions, wages, and carpenter-made polearms to resist incursions. Requires a completed watchtower.'],
+  guardhouse: ['Frontier guardhouse', 'G', 'Paid guards consume labor, provisions, wages, and carpenter-made polearms. Polearms need market-imported ironwork. Requires a completed watchtower.'],
   ferry_landing: ['Ferry landing', 'J', 'A staffed river crossing and modest source of trade income. Must touch open water.'],
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
@@ -61,11 +63,12 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   watermill: ['Grain watermill', 'M', 'Uses a river wheel to grind grain into flour. Must touch open water.'],
   granary: ['Village granary', 'N', 'Stores grain and flour, bakes staple food, and collects wild-food surplus.'],
   brewery: ['Brewhouse', 'B', 'Brews grain and water into ale for prosperous households and export.'],
-  smokehouse: ['Smokehouse', 'Q', 'Preserves fresh food with firewood for tier-two households.'],
-  apiary: ['Forest apiary', 'A', 'Produces honey and a little food at a quiet woodland edge.'],
-  carpenter: ['Carpenter & wheelwright', 'R', 'A specialist workshop that strengthens local construction and cart logistics.'],
-  vineyard: ['Vineyard terrace', 'V', 'Stone-banked vines yield food and high-value wine for trade.'],
-  pastoral_farmstead: ['Pastoral farmstead', 'D', 'Keeps cattle for dairy, manure, and ox power, or sheep for upland cheese and wool income. Draw fenced pastures within its work extent.'],
+  smokehouse: ['Smokehouse', 'Q', 'Preserves fresh food with firewood for tier-three households.'],
+  apiary: ['Forest apiary', 'A', 'Produces seasonal honey and food. Hospitality-enabled monasteries take honey before market export.'],
+  carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10% and move connected carts 18% faster.'],
+  weaver: ["Weaver's workshop", 'I', 'Turns the annual wool clip into household textiles, then exports the surplus.'],
+  vineyard: ['Vineyard terrace', 'V', 'An autumn hillside harvest yields food and wine for monastery hospitality or high-value export.'],
+  pastoral_farmstead: ['Pastoral farmstead', 'D', 'Keeps cattle for dairy, manure, and ox power, or sheep for upland cheese and an annual wool clip for local weaving. Draw fenced pastures within its work extent.'],
   swineherd: ['Woodland swineherd', 'X', 'Raises pigs on mature woodland mast. Felling its pannage trees forces inefficient grain feeding and reduces output.'],
 };
 
@@ -93,7 +96,7 @@ export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 /** Forestry, hunting, foraging, extraction, and rural craft. */
 export const RURAL_INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   entry('hunters_hall'), entry('foragers_shed'), entry('fishing_camp'), entry('woodcutters_lodge'), entry('lumber_mill'), entry('reforester'),
-  entry('stone_quarry'), entry('large_quarry'), entry('carpenter'),
+  entry('stone_quarry'), entry('large_quarry'), entry('carpenter'), entry('weaver'),
 ];
 
 /** Conflict-enabled early warning and settlement defenses. */

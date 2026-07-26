@@ -15,7 +15,6 @@ use crate::economy::{
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::landmark_access::residence_has_marketplace_access;
 use crate::simulation::marketplace_caravan::MarketCaravanDispatch;
-use crate::simulation::residence_is_disabled_by_fire;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
     residence_food_runway_seconds, residence_water_runway_seconds,
@@ -49,9 +48,6 @@ pub fn step_household_market_orders(
 
     for owner in owners {
         ensure_market_state(ctx, owner);
-        let Some(market) = ctx.db.market_state().owner().find(&owner) else {
-            continue;
-        };
 
         let owner_marketplaces: Vec<Building> = marketplaces
             .iter()
@@ -62,7 +58,7 @@ pub fn step_household_market_orders(
         for residence in ctx.db.residence().owner().filter(&owner) {
             if residence.abandoned
                 || residence.population == 0
-                || residence_is_disabled_by_fire(ctx, residence.id)
+                || tick.residence_disabled_by_fire(ctx, residence.id)
             {
                 continue;
             }
@@ -100,10 +96,8 @@ pub fn step_household_market_orders(
             if wealth <= 1e-9 {
                 continue;
             }
-
-            let dispatch = MarketCaravanDispatch {
-                include_abandoned: false,
-                priority_residence_id: Some(residence.id),
+            let Some(market) = ctx.db.market_state().owner().find(&owner) else {
+                continue;
             };
 
             let mut ordered = false;
@@ -126,9 +120,12 @@ pub fn step_household_market_orders(
                         gold_cost,
                         MarketGoldPayer::Household,
                         Some(&residence),
-                        dispatch,
-                    )
-                    .is_ok()
+                        MarketCaravanDispatch {
+                            include_abandoned: false,
+                            priority_residence_id: Some(residence.id),
+                            exact_load_amount: Some(commodity.food_amount),
+                        },
+                    ) == Ok(true)
                     {
                         ordered = true;
                     }
@@ -153,9 +150,12 @@ pub fn step_household_market_orders(
                         gold_cost,
                         MarketGoldPayer::Household,
                         Some(&residence),
-                        dispatch,
-                    )
-                    .is_ok()
+                        MarketCaravanDispatch {
+                            include_abandoned: false,
+                            priority_residence_id: Some(residence.id),
+                            exact_load_amount: Some(commodity.water_amount),
+                        },
+                    ) == Ok(true)
                     {
                         ordered = true;
                     }

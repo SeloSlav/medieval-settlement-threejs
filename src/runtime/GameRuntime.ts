@@ -8,7 +8,10 @@ import type { GameState } from '../resources/types.ts';
 import type { RoadNetworkSnapshot } from '../roads/RoadNetwork.ts';
 import type { WorldLayout } from '../resources/WorldLayout.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
-import { assertWorldGenerationCompatible } from '../world/worldConfigAuthority.ts';
+import {
+  assertWorldGenerationCompatible,
+  WorldGenerationMismatchError,
+} from '../world/worldConfigAuthority.ts';
 import { applyAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
 
 export type GameRuntimeCallbacks = {
@@ -29,6 +32,7 @@ export class GameRuntime {
   private roadSnapshotRef: RoadNetworkSnapshot | null = null;
   private bootstrapComplete = false;
   private bootstrapInFlight = false;
+  private bootstrapBlocked = false;
   private sessionReadyEmitted = false;
 
   constructor(
@@ -64,17 +68,7 @@ export class GameRuntime {
         return;
       }
 
-      if (!this.bootstrapComplete && !this.bootstrapInFlight) {
-        this.bootstrapInFlight = true;
-        void this.ensureWorldBootstrap(snapshot)
-          .catch((error) => {
-            console.warn('[GameRuntime] Failed to bootstrap world entities', error);
-            this.callbacks.onBootstrapFailed?.(error);
-          })
-          .finally(() => {
-            this.bootstrapInFlight = false;
-          });
-      }
+      this.requestWorldBootstrap();
 
       this.syncRoads(snapshot);
       this.tryEmitSessionReady();
@@ -92,17 +86,7 @@ export class GameRuntime {
       return;
     }
 
-    if (!this.bootstrapInFlight) {
-      this.bootstrapInFlight = true;
-      void this.ensureWorldBootstrap(snapshot)
-        .catch((error) => {
-          console.warn('[GameRuntime] Failed to bootstrap world entities', error);
-          this.callbacks.onBootstrapFailed?.(error);
-        })
-        .finally(() => {
-          this.bootstrapInFlight = false;
-        });
-    }
+    this.requestWorldBootstrap();
   }
 
   dispose(): void {
@@ -120,12 +104,52 @@ export class GameRuntime {
     }
   }
 
-  private async ensureWorldBootstrap(snapshot: SpacetimeGameSnapshot): Promise<void> {
+  private requestWorldBootstrap(): void {
+    if (
+      this.bootstrapComplete
+      || this.bootstrapInFlight
+      || this.bootstrapBlocked
+      || !this.store.isConnected
+      || !this.store.snapshot.identityHex
+    ) {
+      return;
+    }
+    this.bootstrapInFlight = true;
+    void this.ensureWorldBootstrap()
+      .catch((error) => {
+        if (error instanceof WorldGenerationMismatchError) {
+          this.bootstrapBlocked = true;
+        }
+        console.warn('[GameRuntime] Failed to bootstrap world entities', error);
+        this.callbacks.onBootstrapFailed?.(error);
+      })
+      .finally(() => {
+        this.bootstrapInFlight = false;
+      });
+  }
+
+  private async ensureWorldBootstrap(): Promise<void> {
     await this.waitForWorldConfig();
     const local = this.worldLayout.settings;
     const server = this.store.getAuthoritativeWorldGeneration();
-    assertWorldGenerationCompatible(local, server, snapshot.simTick);
-    await this.store.configureWorld(local);
+    assertWorldGenerationCompatible(local, server, this.store.snapshot.simTick);
+    try {
+      await this.store.configureWorld(local);
+    } catch (error) {
+      if (isWorldSetupLockError(error)) {
+        const current = this.store.getAuthoritativeWorldGeneration();
+        assertWorldGenerationCompatible(
+          local,
+          current,
+          Math.max(1, this.store.snapshot.simTick),
+        );
+        throw new WorldGenerationMismatchError(
+          'The server locked different world settings while this terrain was being prepared. '
+          + 'Reload to adopt the server\'s saved map settings without resetting the settlement.',
+        );
+      }
+      throw error;
+    }
     const authoritative = this.store.getAuthoritativeWorldGeneration();
     if (authoritative?.configured) {
       applyAuthoritativeWorldGeneration(authoritative);
@@ -165,4 +189,14 @@ export class GameRuntime {
       poll();
     });
   }
+}
+
+function isWorldSetupLockError(error: unknown): boolean {
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'string'
+      ? error
+      : '';
+  return message.includes('Cannot change world setup after the simulation has started.')
+    || message.includes('Cannot change world generation after the simulation has started.');
 }

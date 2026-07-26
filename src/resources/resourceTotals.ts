@@ -14,6 +14,7 @@ import {
   type StorageCaps,
 } from '../generated/gameBalance.ts';
 import type { MarketplaceTradeAvailability } from '../economy/marketplaceTrade.ts';
+import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { BuildingKind, BuildingState, GameState } from './types.ts';
 import {
@@ -56,6 +57,9 @@ export type ResourceTotals = {
   preservedFood: number;
   honey: number;
   wine: number;
+  wool: number;
+  cloth: number;
+  ironwork: number;
   polearms: number;
 };
 
@@ -105,6 +109,9 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let preservedFood = state.stockpile.preservedFood;
   let honey = state.stockpile.honey;
   let wine = state.stockpile.wine;
+  let wool = state.stockpile.wool;
+  let cloth = state.stockpile.cloth;
+  let ironwork = state.stockpile.ironwork ?? 0;
   let polearms = state.stockpile.polearms ?? 0;
 
   for (const building of state.buildings.values()) {
@@ -119,6 +126,9 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     preservedFood += building.preservedFood;
     honey += building.honey;
     wine += building.wine;
+    wool += building.wool ?? 0;
+    cloth += building.cloth ?? 0;
+    ironwork += building.ironwork ?? 0;
     polearms += building.polearms ?? 0;
     if (building.constructionComplete === false) {
       timber -= building.constructionReservedTimber;
@@ -132,6 +142,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     food += getNeedStock(residence.needs, 'food');
     ale += getNeedStock(residence.needs, 'ale');
     preservedFood += getNeedStock(residence.needs, 'preservedFood');
+    cloth += getNeedStock(residence.needs, 'cloth');
   }
 
   cachedTotals = {
@@ -147,20 +158,110 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     preservedFood,
     honey,
     wine,
+    wool,
+    cloth,
+    ironwork,
     polearms,
   };
   cachedState = state;
   return cachedTotals;
 }
 
-export function computeTradeAvailability(state: GameState): MarketplaceTradeAvailability {
-  const totals = computeResourceTotals(state);
+/**
+ * Physical timber held at buildings after subtracting active construction
+ * reservations backed by those stores. This mirrors the authoritative lodge
+ * conversion check; founding-treasury timber is deliberately excluded because
+ * mill-to-lodge supply trips can only load physical building stock.
+ */
+export function computeUnreservedBuildingTimber(state: GameState): number {
+  let timber = 0;
+  let reserved = 0;
+  for (const building of state.buildings.values()) {
+    timber += building.timber;
+    if (building.constructionComplete === false) {
+      reserved += Math.max(
+        0,
+        building.constructionReservedTimber - building.constructionTreasuryTimber,
+      );
+    }
+  }
+  return Math.max(0, timber - reserved);
+}
+
+export type RoadConnectionQuery = (
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+) => boolean;
+
+/**
+ * Manual exports can draw only from the founding treasury and completed stores
+ * that can physically reach this marketplace. Household need stocks are never
+ * exposed, and construction reservations remain protected.
+ */
+export function computeMarketplaceTradeAvailability(
+  state: GameState,
+  marketplace: BuildingState,
+  roadConnected: RoadConnectionQuery,
+): MarketplaceTradeAvailability {
+  let allBuildingTimber = 0;
+  let allBuildingStone = 0;
+  let accessibleTimber = 0;
+  let accessibleStone = 0;
+  let accessibleFirewood = 0;
+  let accessibleFood = 0;
+  let accessibleGrain = 0;
+  let accessibleIronwork = 0;
+  let reservedBuildingTimber = 0;
+  let reservedBuildingStone = 0;
+  let reservedTreasuryTimber = 0;
+  let reservedTreasuryStone = 0;
+
+  for (const building of state.buildings.values()) {
+    allBuildingTimber += building.timber;
+    allBuildingStone += building.stone;
+    if (building.constructionComplete === false) {
+      reservedBuildingTimber += Math.max(
+        0,
+        building.constructionReservedTimber - building.constructionTreasuryTimber,
+      );
+      reservedBuildingStone += Math.max(
+        0,
+        building.constructionReservedStone - building.constructionTreasuryStone,
+      );
+      reservedTreasuryTimber += building.constructionTreasuryTimber;
+      reservedTreasuryStone += building.constructionTreasuryStone;
+      continue;
+    }
+
+    const connected = building.id === marketplace.id
+      || roadConnected(marketplace.x, marketplace.z, building.x, building.z);
+    if (!connected) continue;
+    accessibleTimber += building.timber;
+    accessibleStone += building.stone;
+    accessibleFirewood += building.firewood;
+    accessibleFood += building.food;
+    accessibleGrain += building.kind === 'granary'
+      ? granaryExportableGrain(building.grain, building.granaryGrainReserve ?? 0)
+      : building.grain;
+    accessibleIronwork += building.ironwork ?? 0;
+  }
+
+  const unreservedBuildingTimber = Math.max(0, allBuildingTimber - reservedBuildingTimber);
+  const unreservedBuildingStone = Math.max(0, allBuildingStone - reservedBuildingStone);
   return {
-    timber: totals.timber,
-    stone: totals.stone,
-    gold: totals.gold,
-    firewood: totals.firewood,
-    food: totals.food,
+    timber:
+      Math.max(0, state.stockpile.timber - reservedTreasuryTimber)
+      + Math.min(accessibleTimber, unreservedBuildingTimber),
+    stone:
+      Math.max(0, state.stockpile.stone - reservedTreasuryStone)
+      + Math.min(accessibleStone, unreservedBuildingStone),
+    gold: state.stockpile.gold,
+    firewood: state.stockpile.firewood + accessibleFirewood,
+    food: state.stockpile.food + accessibleFood,
+    grain: state.stockpile.grain + accessibleGrain,
+    ironwork: (state.stockpile.ironwork ?? 0) + accessibleIronwork,
   };
 }
 

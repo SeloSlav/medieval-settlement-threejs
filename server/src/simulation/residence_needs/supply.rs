@@ -1,11 +1,7 @@
 use spacetimedb::ReducerContext;
 
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
-use crate::simulation::road_logistics::{
-    claim_residences_for_food_suppliers, owner_food_suppliers,
-};
 use crate::simulation::tick_context::SimTickContext;
-use crate::simulation::well::residence_has_well_supply;
 use crate::tables::Residence;
 
 pub struct ResidenceNeedSupplyContext {
@@ -24,6 +20,7 @@ impl ResidenceNeedSupplyContext {
             ResidenceNeedKind::Food => 2,
             ResidenceNeedKind::PreservedFood => 3,
             ResidenceNeedKind::Ale => 4,
+            ResidenceNeedKind::Cloth => 5,
         }
     }
 }
@@ -33,25 +30,15 @@ pub fn build_supply_context(
     ctx: &ReducerContext,
     residence: &Residence,
 ) -> ResidenceNeedSupplyContext {
-    let has_firewood_route = tick.road_network(residence.owner).is_some_and(|network| {
-        let lodges = crate::simulation::road_logistics::owner_lodges(ctx, residence.owner);
-        let claims = crate::simulation::road_logistics::claim_residences_for_lodges(
-            network,
-            &lodges,
-            std::slice::from_ref(residence),
-        );
-        claims.contains_key(&residence.id)
-    });
-    let has_water_route = residence_has_well_supply(tick, ctx, residence.owner, residence);
-    let has_food_route = tick.road_network(residence.owner).is_some_and(|network| {
-        let suppliers = owner_food_suppliers(ctx, residence.owner);
-        let claims = claim_residences_for_food_suppliers(
-            network,
-            &suppliers,
-            std::slice::from_ref(residence),
-        );
-        claims.contains_key(&residence.id)
-    });
+    let has_firewood_route = tick
+        .firewood_supplier_for(ctx, residence.owner, residence.id)
+        .is_some();
+    let has_water_route = tick
+        .well_supplier_for(ctx, residence.owner, residence.id)
+        .is_some();
+    let has_food_route = tick
+        .food_supplier_for(ctx, residence.owner, residence.id)
+        .is_some();
     let has_preserved_food_route = tick
         .specialty_supplier_for(
             ctx,
@@ -63,6 +50,9 @@ pub fn build_supply_context(
     let has_ale_route = tick
         .specialty_supplier_for(ctx, residence.owner, residence.id, ResidenceNeedKind::Ale)
         .is_some();
+    let has_cloth_route = tick
+        .specialty_supplier_for(ctx, residence.owner, residence.id, ResidenceNeedKind::Cloth)
+        .is_some();
 
     let mut routes = [false; ResidenceNeedKind::ALL.len()];
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Firewood)] = has_firewood_route;
@@ -71,5 +61,6 @@ pub fn build_supply_context(
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::PreservedFood)] =
         has_preserved_food_route;
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Ale)] = has_ale_route;
+    routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Cloth)] = has_cloth_route;
     ResidenceNeedSupplyContext { routes }
 }

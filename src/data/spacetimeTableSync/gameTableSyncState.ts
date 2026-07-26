@@ -28,6 +28,8 @@ export type GameTableSyncState = {
   worldGeneration: AuthoritativeWorldGeneration | null;
   stockpile: ResourceStockpile;
   economicActivityTaxRate: number;
+  seasonalLaborStewardEnabled: boolean;
+  constructionLaborStewardEnabled: boolean;
   parishPolicy: ParishPolicyState;
   monasteryPolicy: MonasteryPolicyState;
   marketState: RegionalMarketState;

@@ -2,7 +2,7 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
 import {
   claimResidencesForFoodSuppliers,
-  claimResidencesForLodges,
+  claimResidencesForFirewoodSuppliers,
   claimResidencesForWells,
   peekNextDeliveryTarget,
   peekNextWaterDeliveryTarget,
@@ -60,9 +60,9 @@ export class DeliveryClaimQueries {
   }
 }
 
-export class LodgeDeliveryClaimQueries extends DeliveryClaimQueries {
+export class FirewoodDeliveryClaimQueries extends DeliveryClaimQueries {
   constructor(network: RoadNetwork, buildings: BuildingState[], residences: ResidenceState[]) {
-    super(network, buildings, residences, claimResidencesForLodges);
+    super(network, buildings, residences, claimResidencesForFirewoodSuppliers);
   }
 
   protected override sortClaimed(lodge: BuildingState, residences: ResidenceState[]): ResidenceState[] {
@@ -73,6 +73,9 @@ export class LodgeDeliveryClaimQueries extends DeliveryClaimQueries {
     return peekNextDeliveryTarget(this.network, lodge, residences);
   }
 }
+
+/** Compatibility name retained for lodge-specific inspector callers. */
+export class LodgeDeliveryClaimQueries extends FirewoodDeliveryClaimQueries {}
 
 export class WellDeliveryClaimQueries extends DeliveryClaimQueries {
   constructor(network: RoadNetwork, buildings: BuildingState[], residences: ResidenceState[]) {
@@ -111,14 +114,23 @@ export class WellDeliveryClaimQueries extends DeliveryClaimQueries {
 }
 
 export class FoodDeliveryClaimQueries extends DeliveryClaimQueries {
-  constructor(network: RoadNetwork, buildings: BuildingState[], residences: ResidenceState[]) {
-    const suppliers = buildings.filter(
-      (building) =>
-        building.kind === 'hunters_hall'
-        || building.kind === 'foragers_shed'
-        || building.kind === 'fishing_camp',
+  constructor(
+    network: RoadNetwork,
+    buildings: BuildingState[],
+    residences: ResidenceState[],
+    eligible: (
+      supplier: BuildingState,
+      residence: ResidenceState,
+      roadDistance: number,
+    ) => boolean = () => true,
+  ) {
+    super(
+      network,
+      buildings,
+      residences,
+      (claimNetwork, suppliers, homes) =>
+        claimResidencesForFoodSuppliers(claimNetwork, suppliers, homes, eligible),
     );
-    super(network, suppliers, residences, claimResidencesForFoodSuppliers);
   }
 
   protected override peekTarget(supplier: BuildingState, residences: ResidenceState[]): ResidenceState | null {

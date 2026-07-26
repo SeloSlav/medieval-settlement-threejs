@@ -7,7 +7,16 @@ import {
 } from '../src/logistics/lodgeLogistics.ts';
 import { compareResidencesForDelivery } from '../src/logistics/roadLogistics.ts';
 import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
-import type { ResidenceState } from '../src/resources/types.ts';
+import { computeUnreservedBuildingTimber } from '../src/resources/resourceTotals.ts';
+import {
+  normalizeWoodcutterTimberReserve,
+  timberAboveWoodcutterReserve,
+  woodcutterCanProcess,
+  WOODCUTTER_TIMBER_RESERVE_MAX,
+  WOODCUTTER_TIMBER_RESERVE_PRESETS,
+} from '../src/economy/woodcutterPolicy.ts';
+import { resolveWoodcuttersLodgeStatus } from '../src/resources/inspector/woodcuttersLodgeStatus.ts';
+import type { BuildingState, GameState, ResidenceState } from '../src/resources/types.ts';
 
 function residence(id: string, firewoodStock: number, population = 4): ResidenceState {
   return {
@@ -53,5 +62,66 @@ assert.equal(
   compareResidencesForDelivery(network, { x: 0, z: 0 }, lowStock, highStock) < 0,
   true,
 );
+
+assert.equal(woodcutterCanProcess(3, 0, 3), true);
+assert.equal(woodcutterCanProcess(2.99, 0, 3), false);
+assert.equal(woodcutterCanProcess(43, 40, 3), true);
+assert.equal(woodcutterCanProcess(42.99, 40, 3), false);
+assert.equal(normalizeWoodcutterTimberReserve(-5), 0);
+assert.equal(normalizeWoodcutterTimberReserve(39.6), 40);
+assert.equal(normalizeWoodcutterTimberReserve(1_000), WOODCUTTER_TIMBER_RESERVE_MAX);
+assert.equal(timberAboveWoodcutterReserve(87, 40), 47);
+assert.deepEqual(
+  WOODCUTTER_TIMBER_RESERVE_PRESETS.map(({ reserve }) => reserve),
+  [0, 40, 100, 200],
+);
+
+const stockState = {
+  buildings: new Map<string, BuildingState>([
+    ['mill', {
+      timber: 100,
+      constructionComplete: true,
+      constructionReservedTimber: 0,
+      constructionTreasuryTimber: 0,
+    } as BuildingState],
+    ['lodge', {
+      timber: 10,
+      constructionComplete: true,
+      constructionReservedTimber: 0,
+      constructionTreasuryTimber: 0,
+    } as BuildingState],
+    ['site', {
+      timber: 0,
+      constructionComplete: false,
+      constructionReservedTimber: 50,
+      constructionTreasuryTimber: 20,
+    } as BuildingState],
+  ]),
+} as GameState;
+assert.equal(computeUnreservedBuildingTimber(stockState), 80);
+
+const heldStatus = resolveWoodcuttersLodgeStatus({
+  onRoad: true,
+  assignedLabor: 1,
+  connectedMillCount: 1,
+  millsWithTimber: 1,
+  timber: 0,
+  firewood: 0,
+  claimedResidenceCount: 2,
+  crew: lodgeLaborSplit(1),
+  tripRemainingSeconds: null,
+  activeTrip: null,
+  inboundTimberTrip: null,
+  timberTripRemainingSeconds: null,
+  nextTargetLabel: 'Parcel #1',
+  hasNextTarget: true,
+  firewoodPerTrip: lodgeFirewoodPerDelivery(1),
+  canDeliver: false,
+  availableUnreservedTimber: 40,
+  timberReserve: 40,
+  timberPerCycle: 3,
+});
+assert.match(heldStatus.statusText, /Holding timber for construction/);
+assert.equal(heldStatus.statusState, 'warning');
 
 console.log('lodge logistics tests passed');

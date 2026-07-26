@@ -20,7 +20,8 @@ use crate::simulation::delivery_cargo::{
     withdraw_delivery_cargo, DeliveryCargoTotals,
 };
 use crate::simulation::fires::{
-    apply_fire_water, release_fire_response, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE,
+    apply_fire_water, building_fire_state, release_fire_response, FIRE_TARGET_BUILDING,
+    FIRE_TARGET_RESIDENCE,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -165,6 +166,41 @@ pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) 
         .is_some()
 }
 
+/// Returns whether a matching commodity is still traveling to or unloading at
+/// a building. Returning carts do not make a starved processor look as though
+/// its supply is recovering.
+pub fn building_has_inbound_commodity_trip(
+    ctx: &ReducerContext,
+    building_id: u64,
+    commodity: CommodityKind,
+) -> bool {
+    ctx.db
+        .delivery_trip()
+        .target_building_id()
+        .filter(&building_id)
+        .any(|trip| {
+            trip.destination_kind == DELIVERY_DESTINATION_BUILDING
+                && trip.cargo_kind == commodity.as_u8()
+                && DeliveryTripPhase::from_u8(trip.phase) != Some(DeliveryTripPhase::Inbound)
+        })
+}
+
+/// Holding a construction site recalls any cart already bound for it. Cargo is
+/// returned to its source and the site's reservation is restored atomically.
+pub fn cancel_inbound_construction_trips_for_site(ctx: &ReducerContext, building_id: u64) {
+    let trips: Vec<DeliveryTrip> = ctx
+        .db
+        .delivery_trip()
+        .target_building_id()
+        .filter(&building_id)
+        .filter(|trip| trip.destination_kind == DELIVERY_DESTINATION_BUILDING)
+        .collect();
+    for trip in trips {
+        return_trip_cargo_to_building(ctx, &trip);
+        ctx.db.delivery_trip().id().delete(trip.id);
+    }
+}
+
 /// Delete trips and return cart cargo totals without touching the building.
 pub fn drain_trips_for_building(ctx: &ReducerContext, building_id: u64) -> DeliveryCargoTotals {
     let mut trips: Vec<DeliveryTrip> = ctx
@@ -230,6 +266,7 @@ pub fn cancel_trips_for_residence(ctx: &ReducerContext, residence_id: u64) {
 
 pub fn try_start_delivery_trip(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     network: &RoadNetwork,
     building: &mut Building,
@@ -244,7 +281,7 @@ pub fn try_start_delivery_trip(
         return false;
     }
 
-    if labor_and_logistics_paused(ctx, building.owner, clock) {
+    if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
         return false;
     }
 
@@ -262,6 +299,7 @@ pub fn try_start_delivery_trip(
 
     try_start_road_trip(
         ctx,
+        tick,
         clock,
         network,
         StartTripSpec {
@@ -284,6 +322,7 @@ pub fn try_start_delivery_trip(
 
 pub fn try_start_timber_supply_trip(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     network: &RoadNetwork,
     mill: &mut Building,
@@ -296,6 +335,7 @@ pub fn try_start_timber_supply_trip(
 ) -> bool {
     try_start_building_supply_trip(
         ctx,
+        tick,
         clock,
         network,
         mill,
@@ -311,6 +351,7 @@ pub fn try_start_timber_supply_trip(
 
 pub fn try_start_building_supply_trip(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     network: &RoadNetwork,
     origin: &mut Building,
@@ -326,7 +367,7 @@ pub fn try_start_building_supply_trip(
         return false;
     }
 
-    if labor_and_logistics_paused(ctx, origin.owner, clock) {
+    if labor_and_logistics_paused(ctx, tick, origin.owner, clock) {
         return false;
     }
 
@@ -350,6 +391,7 @@ pub fn try_start_building_supply_trip(
 
     try_start_road_trip(
         ctx,
+        tick,
         clock,
         network,
         StartTripSpec {
@@ -374,6 +416,7 @@ pub fn try_start_building_supply_trip(
 /// leave the road for the last leg, but still uses the cached authoritative route.
 pub fn try_start_fire_response_trip(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     network: &RoadNetwork,
     well: &mut Building,
     incident: &FireIncident,
@@ -432,6 +475,7 @@ pub fn try_start_fire_response_trip(
     };
     insert_trip(
         ctx,
+        tick,
         network,
         StartTripSpec {
             origin: well.clone(),
@@ -454,6 +498,7 @@ pub fn try_start_fire_response_trip(
 /// if the trip is cancelled, `return_trip_cargo_to_building` restores it.
 pub fn try_start_construction_supply_trip(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     network: &RoadNetwork,
     origin: &mut Building,
@@ -466,10 +511,11 @@ pub fn try_start_construction_supply_trip(
         || site.construction_complete
         || origin.owner != site.owner
         || building_has_active_trip(ctx, origin.id)
+        || (origin.kind == "village_storehouse" && building_has_inbound_supply_trip(ctx, origin.id))
     {
         return false;
     }
-    if labor_and_logistics_paused(ctx, origin.owner, clock) {
+    if labor_and_logistics_paused(ctx, tick, origin.owner, clock) {
         return false;
     }
 
@@ -540,6 +586,7 @@ pub fn try_start_construction_supply_trip(
 
     insert_trip(
         ctx,
+        tick,
         network,
         StartTripSpec {
             origin: source,
@@ -561,13 +608,14 @@ pub fn try_start_construction_supply_trip(
 
 fn try_start_road_trip(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     network: &RoadNetwork,
     spec: StartTripSpec,
     withdraw: impl FnOnce(&mut Building, f64) -> f64,
     write_origin: impl FnOnce(&Building),
 ) -> bool {
-    if labor_and_logistics_paused(ctx, spec.origin.owner, clock) {
+    if labor_and_logistics_paused(ctx, tick, spec.origin.owner, clock) {
         return false;
     }
 
@@ -588,6 +636,7 @@ fn try_start_road_trip(
     let load_amount = withdrawn;
     insert_trip(
         ctx,
+        tick,
         network,
         StartTripSpec {
             origin,
@@ -601,14 +650,20 @@ fn try_start_road_trip(
 
 fn insert_trip(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     network: &RoadNetwork,
     spec: StartTripSpec,
     route: RoadPathRoute,
 ) {
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
     let (start_x, start_z) = RoadNetwork::sample_polyline_xz(&route.polyline, 0.0);
-    let travel_speed_multiplier =
-        carpenter_delivery_multiplier_for_origin(ctx, network, &spec.origin, spec.origin.owner);
+    let travel_speed_multiplier = carpenter_delivery_multiplier_for_origin(
+        ctx,
+        tick,
+        network,
+        &spec.origin,
+        spec.origin.owner,
+    );
 
     ctx.db.delivery_trip().insert(DeliveryTrip {
         id: 0,
@@ -641,7 +696,7 @@ fn step_one_trip(
     elapsed_seconds: f64,
 ) {
     if trip.destination_kind != DELIVERY_DESTINATION_FIRE
-        && labor_and_logistics_paused(ctx, trip.owner, clock)
+        && labor_and_logistics_paused(ctx, tick, trip.owner, clock)
     {
         return;
     }
@@ -871,18 +926,24 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
 
 fn carpenter_delivery_multiplier_for_origin(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     network: &RoadNetwork,
     origin: &Building,
     owner: spacetimedb::Identity,
 ) -> f64 {
-    let supported = ctx.db.building().owner().filter(&owner).any(|shop| {
-        shop.kind == "carpenter"
-            && shop.construction_complete
-            && shop.assigned_labor > 0
-            && network
-                .road_path_distance(origin.x, origin.z, shop.x, shop.z)
-                .is_some()
-    });
+    let supported = tick
+        .building_ids_for_kinds(ctx, owner, &["carpenter"])
+        .into_iter()
+        .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+        .any(|shop| {
+            shop.kind == "carpenter"
+                && shop.construction_complete
+                && shop.assigned_labor > 0
+                && building_fire_state(ctx, shop.id).is_none()
+                && network
+                    .road_path_distance(origin.x, origin.z, shop.x, shop.z)
+                    .is_some()
+        });
     if supported {
         CARPENTER_DELIVERY_SPEED_MULTIPLIER
     } else {

@@ -70,6 +70,7 @@ class MinHeap {
 export class RoadPathfinder {
   private readonly network: RoadNetwork;
   private weightedGraph: Map<string, WeightedEdge[]> | null = null;
+  private componentByNode: Map<string, number> | null = null;
 
   constructor(network: RoadNetwork) {
     this.network = network;
@@ -77,6 +78,13 @@ export class RoadPathfinder {
 
   invalidate(): void {
     this.weightedGraph = null;
+    this.componentByNode = null;
+  }
+
+  roadConnected(ax: number, az: number, bx: number, bz: number): boolean {
+    const nodesA = this.snapNodes(ax, az);
+    const nodesB = this.snapNodes(bx, bz);
+    return nodesA != null && nodesB != null && this.shareComponent(nodesA, nodesB);
   }
 
   roadPathRoute(
@@ -183,8 +191,9 @@ export class RoadPathfinder {
     const maxSnap = BUILDING_ROAD_ACCESS_DISTANCE;
     let bestDistance = maxSnap;
     let bestNodes: string[] = [];
+    const candidates = this.network.getSpatialIndex().collectSnapCandidates(x, z, maxSnap);
 
-    for (const node of this.network.nodes.values()) {
+    for (const node of candidates.nodes) {
       const dist = distance(x, z, node.position.x, node.position.z);
       if (dist > bestDistance + 1e-6) continue;
       if (dist < bestDistance - 1e-6) {
@@ -195,9 +204,10 @@ export class RoadPathfinder {
       }
     }
 
-    for (const edge of this.network.edges.values()) {
-      if (edge.sampledPath.length < 2) continue;
-      const dist = distancePointToPolylineXZ(x, z, edge.sampledPath);
+    for (const indexed of candidates.edges) {
+      const edge = this.network.edges.get(indexed.edgeId);
+      if (!edge || indexed.path.length < 2) continue;
+      const dist = distancePointToPolylineXZ(x, z, indexed.path);
       if (dist > bestDistance + 1e-6) continue;
       if (dist < bestDistance - 1e-6) {
         bestDistance = dist;
@@ -209,26 +219,41 @@ export class RoadPathfinder {
   }
 
   private shareComponent(startNodes: string[], targetNodes: string[]): boolean {
-    const targets = new Set(targetNodes);
-    const visited = new Set<string>();
-    const queue = [...startNodes];
+    const components = this.getComponentByNode();
+    return startNodes.some((start) => {
+      const component = components.get(start);
+      return component != null
+        && targetNodes.some((target) => components.get(target) === component);
+    });
+  }
 
-    while (queue.length > 0) {
-      const node = queue.shift();
-      if (!node || visited.has(node)) continue;
-      visited.add(node);
-      if (targets.has(node)) return true;
-      const nodeData = this.network.nodes.get(node);
-      if (!nodeData) continue;
-      for (const edgeId of nodeData.edgeIds) {
-        const edge = this.network.edges.get(edgeId);
-        if (!edge) continue;
-        const neighbor = edge.startNodeId === node ? edge.endNodeId : edge.startNodeId;
-        if (!visited.has(neighbor)) queue.push(neighbor);
+  private getComponentByNode(): Map<string, number> {
+    if (this.componentByNode) return this.componentByNode;
+
+    const components = new Map<string, number>();
+    let nextComponent = 0;
+    for (const nodeId of this.network.nodes.keys()) {
+      if (components.has(nodeId)) continue;
+      const queue = [nodeId];
+      let cursor = 0;
+      components.set(nodeId, nextComponent);
+      while (cursor < queue.length) {
+        const currentId = queue[cursor++];
+        const current = this.network.nodes.get(currentId);
+        if (!current) continue;
+        for (const edgeId of current.edgeIds) {
+          const edge = this.network.edges.get(edgeId);
+          if (!edge) continue;
+          const neighbor = edge.startNodeId === currentId ? edge.endNodeId : edge.startNodeId;
+          if (components.has(neighbor)) continue;
+          components.set(neighbor, nextComponent);
+          queue.push(neighbor);
+        }
       }
+      nextComponent += 1;
     }
-
-    return false;
+    this.componentByNode = components;
+    return components;
   }
 
   private materializePolyline(

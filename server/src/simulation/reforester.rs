@@ -5,6 +5,7 @@ use crate::constants::{REFORESTER_REGROW_PER_SEC, TICK_DT};
 use crate::db::*;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
+use crate::simulation::SimTickContext;
 use crate::tables::{Building, TreeEntity};
 
 enum ReforesterTreeUpdate {
@@ -13,8 +14,13 @@ enum ReforesterTreeUpdate {
     Mature,
 }
 
-pub fn step_reforester(ctx: &ReducerContext, clock: &GameClock, building: Building) {
-    if labor_and_logistics_paused(ctx, building.owner, clock) {
+pub fn step_reforester(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
         return;
     }
 

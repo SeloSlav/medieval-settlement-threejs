@@ -1,27 +1,38 @@
-use spacetimedb::ReducerContext;
+use std::collections::HashMap;
+
+use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    CATTLE_AREA_PER_HEAD, CATTLE_BREEDING_PER_CYCLE, CATTLE_FERTILITY_BONUS,
-    CATTLE_FOOD_PER_CYCLE_PER_HEAD, CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
-    CATTLE_HEALTH_LOSS_PER_CYCLE, CATTLE_HEALTH_RECOVERY_PER_CYCLE, CATTLE_MAX_FERTILIZED_FIELDS,
-    CATTLE_MAX_HERD, CATTLE_MAX_SLOPE_DEGREES, CATTLE_MOISTURE_IDEAL, CATTLE_MOISTURE_TOLERANCE,
-    CATTLE_PLOUGH_WORK_MULTIPLIER, CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, SHEEP_AREA_PER_HEAD,
+    CATTLE_AREA_PER_HEAD, CATTLE_BREEDING_PER_CYCLE, CATTLE_FOOD_PER_CYCLE_PER_HEAD,
+    CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
+    CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE, CATTLE_HEALTH_LOSS_PER_CYCLE,
+    CATTLE_HEALTH_RECOVERY_PER_CYCLE, CATTLE_MAX_FERTILIZED_FIELDS, CATTLE_MAX_HERD,
+    CATTLE_MAX_SLOPE_DEGREES, CATTLE_MOISTURE_IDEAL, CATTLE_MOISTURE_TOLERANCE,
+    CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, CATTLE_SLAUGHTER_FOOD_PER_HEAD,
+    CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, LIVESTOCK_HAY_STORAGE_CAPACITY, SHEEP_AREA_PER_HEAD,
     SHEEP_BREEDING_PER_CYCLE, SHEEP_FOOD_PER_CYCLE_PER_HEAD, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
+    SHEEP_HAY_PER_UNSUPPORTED_HEAD, SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
     SHEEP_HEALTH_LOSS_PER_CYCLE, SHEEP_HEALTH_RECOVERY_PER_CYCLE, SHEEP_MAX_HERD,
     SHEEP_MAX_SLOPE_DEGREES, SHEEP_MOISTURE_IDEAL, SHEEP_MOISTURE_TOLERANCE,
-    SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, SHEEP_WOOL_GOLD_PER_CYCLE_PER_HEAD,
-    SWINE_AREA_PER_HEAD, SWINE_BREEDING_PER_CYCLE, SWINE_FOOD_PER_CYCLE_PER_HEAD,
-    SWINE_GRAIN_PER_UNSUPPORTED_HEAD, SWINE_HEALTH_LOSS_PER_CYCLE, SWINE_HEALTH_RECOVERY_PER_CYCLE,
-    SWINE_MATURE_TREES_PER_HEAD, SWINE_MAX_HERD, TICK_DT,
+    SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, SHEEP_SLAUGHTER_FOOD_PER_HEAD,
+    SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, SWINE_AREA_PER_HEAD, SWINE_BREEDING_PER_CYCLE,
+    SWINE_FOOD_PER_CYCLE_PER_HEAD, SWINE_GRAIN_PER_UNSUPPORTED_HEAD, SWINE_HEALTH_LOSS_PER_CYCLE,
+    SWINE_HEALTH_RECOVERY_PER_CYCLE, SWINE_MATURE_TREES_PER_HEAD, SWINE_MAX_HERD,
+    SWINE_SLAUGHTER_FOOD_PER_HEAD, SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, TICK_DT,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
 use crate::db::*;
 use crate::economy::{
-    building_commodity_room, credit_treasury_gold, deposit_building_commodity,
+    building_commodity_cap, building_commodity_room, deposit_building_commodity,
     withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{centroid, point_in_field};
+use crate::livestock_policy::{
+    can_cull_one, can_store_full_sheep_clip, effective_breeding_reserve, haymaking_share,
+    is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
+    projected_winter_fodder_grain, retain_priority_candidate, sheep_fleece_output,
+};
 use crate::reducers::livestock::{SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE};
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::expanded_economy::{
@@ -69,16 +80,57 @@ fn step_livestock_building(
     if swine_building && herd.species != SPECIES_SWINE {
         herd.species = SPECIES_SWINE;
     }
-    herd.pasture_capacity =
-        grazing_capacity(ctx, &building, &herd) * environment.pasture_capacity_multiplier();
+    let base_pasture_capacity = grazing_capacity(ctx, &building, &herd);
+    let summer_hay_share = if herd.species != SPECIES_SWINE && is_haymaking_month(clock.month) {
+        haymaking_share(herd.haymaking_percent)
+    } else {
+        0.0
+    };
+    herd.pasture_capacity = base_pasture_capacity
+        * environment.pasture_capacity_multiplier()
+        * (1.0 - summer_hay_share);
     herd.supplied_capacity = herd.pasture_capacity.min(herd.head_count as f64);
 
-    let paused = labor_and_logistics_paused(ctx, building.owner, clock);
+    let paused = labor_and_logistics_paused(ctx, tick, building.owner, clock);
     building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
     if !paused && building.assigned_labor > 0 {
         let unsupported = (herd.head_count as f64 - herd.pasture_capacity).max(0.0);
-        if unsupported > 0.05 {
-            let grain_per_head = species_grain_per_unsupported_head(herd.species);
+        let grain_per_head = species_grain_per_unsupported_head(herd.species);
+        let immediate_grain_buffer = unsupported * grain_per_head * 2.0;
+        let winter_grain_target = if matches!(environment.season, Season::Autumn | Season::Winter) {
+            let projected_head_count = if environment.season == Season::Autumn {
+                herd.head_count.min(effective_breeding_reserve(
+                    herd.breeding_reserve,
+                    species_max_herd(herd.species),
+                ))
+            } else {
+                herd.head_count
+            };
+            let sabbath_observed = tick.sabbath_observance_enabled(ctx, building.owner)
+                && tick.owner_has_staffed_chapel(ctx, building.owner);
+            let cycles_per_day = building_def(&building.kind)
+                .map(|def| {
+                    livestock_cycles_per_calendar_day(
+                        building.assigned_labor,
+                        def.action_interval,
+                        sabbath_observed,
+                    )
+                })
+                .unwrap_or(0.0);
+            projected_winter_fodder_grain(
+                projected_head_count,
+                base_pasture_capacity,
+                herd.hay_stock,
+                species_hay_per_unsupported_head(herd.species),
+                grain_per_head,
+                cycles_per_day,
+            )
+            .min(building_commodity_cap(&building.kind, CommodityKind::Grain))
+        } else {
+            0.0
+        };
+        let desired_grain = immediate_grain_buffer.max(winter_grain_target);
+        if desired_grain > 0.05 {
             request_connected_commodity(
                 ctx,
                 tick,
@@ -86,12 +138,18 @@ fn step_livestock_building(
                 &building,
                 CommodityKind::Grain,
                 &["threshing_barn", "granary"],
-                unsupported * grain_per_head * 2.0,
+                desired_grain,
             );
         }
 
         if building.action_cooldown <= 1e-6 {
-            run_livestock_cycle(ctx, clock, environment, &mut building, &mut herd);
+            run_livestock_cycle(
+                clock,
+                environment,
+                base_pasture_capacity,
+                &mut building,
+                &mut herd,
+            );
             let labor = building.assigned_labor.max(1) as f64;
             building.action_cooldown = building_def(&building.kind)
                 .map(|def| def.action_interval / labor)
@@ -106,6 +164,17 @@ fn step_livestock_building(
                 &mut building,
                 CommodityKind::Food,
                 &["smokehouse"],
+            );
+        } else if herd.species == SPECIES_SHEEP {
+            // Shearing briefly takes the holding's only cart away from food
+            // deliveries, making nearby weaving capacity matter in early summer.
+            dispatch_to_building(
+                ctx,
+                tick,
+                clock,
+                &mut building,
+                CommodityKind::Wool,
+                &["weaver"],
             );
         }
         dispatch_need(
@@ -137,28 +206,54 @@ fn step_livestock_building(
 }
 
 fn run_livestock_cycle(
-    ctx: &ReducerContext,
     clock: &GameClock,
     environment: EnvironmentState,
+    base_pasture_capacity: f64,
     building: &mut Building,
     herd: &mut LivestockHerd,
 ) {
+    herd.last_culled = 0;
+    herd.last_hay_output = 0.0;
     let heads = herd.head_count as f64;
     if heads <= 0.0 {
+        herd.last_food_output = 0.0;
+        herd.last_preserved_output = 0.0;
+        herd.last_wool_gold = 0.0;
         return;
     }
 
+    if herd.species != SPECIES_SWINE && is_haymaking_month(clock.month) {
+        let reserved_capacity =
+            base_pasture_capacity.max(0.0) * haymaking_share(herd.haymaking_percent);
+        let hay = reserved_capacity
+            * species_hay_yield_per_reserved_capacity(herd.species)
+            * environment.pasture_capacity_multiplier();
+        let stored = hay.min((LIVESTOCK_HAY_STORAGE_CAPACITY - herd.hay_stock).max(0.0));
+        herd.hay_stock += stored;
+        herd.last_hay_output = stored;
+    }
+
     let unsupported = (heads - herd.pasture_capacity).max(0.0);
+    let hay_per_head = species_hay_per_unsupported_head(herd.species);
+    let hay_supplement = if environment.season == Season::Winter && hay_per_head > 0.0 {
+        (herd.hay_stock / hay_per_head).min(unsupported)
+    } else {
+        0.0
+    };
+    if hay_supplement > 0.0 {
+        herd.hay_stock = (herd.hay_stock - hay_supplement * hay_per_head).max(0.0);
+    }
+    let grain_unsupported = (unsupported - hay_supplement).max(0.0);
     let grain_per_head = species_grain_per_unsupported_head(herd.species);
     let supplement = if grain_per_head > 0.0 {
-        (building.grain / grain_per_head).min(unsupported)
+        (building.grain / grain_per_head).min(grain_unsupported)
     } else {
         0.0
     };
     if supplement > 0.0 {
         withdraw_building_commodity(building, CommodityKind::Grain, supplement * grain_per_head);
     }
-    herd.supplied_capacity = (herd.pasture_capacity + supplement).min(heads);
+    herd.supplied_capacity = (herd.pasture_capacity + hay_supplement + supplement).min(heads);
     let support_ratio = (herd.supplied_capacity / heads).clamp(0.0, 1.0);
     let (health_recovery, health_loss) = species_health_rates(herd.species);
     herd.health = (herd.health + health_recovery * support_ratio
@@ -166,16 +261,9 @@ fn run_livestock_cycle(
         .clamp(0.12, 1.0);
 
     let productive_heads = heads * support_ratio * herd.health;
-    let season_multiplier = if herd.species == SPECIES_SWINE {
-        if matches!(clock.month, 10..=12) {
-            1.35
-        } else {
-            0.45
-        }
-    } else {
-        1.0
-    };
-    let food = productive_heads * species_food_per_cycle(herd.species) * season_multiplier;
+    // Cattle and sheep provide recurring dairy/cheese and wool. Pigs provide
+    // meat only when actual surplus animals are culled below.
+    let food = productive_heads * species_food_per_cycle(herd.species);
     let preserved = productive_heads * species_preserved_per_cycle(herd.species);
     herd.last_food_output = food.min(building_commodity_room(building, CommodityKind::Food));
     herd.last_preserved_output = preserved.min(building_commodity_room(
@@ -185,23 +273,36 @@ fn run_livestock_cycle(
     deposit_building_commodity(building, CommodityKind::Food, food);
     deposit_building_commodity(building, CommodityKind::PreservedFood, preserved);
 
-    herd.last_wool_gold = if herd.species == SPECIES_SHEEP && environment.season != Season::Winter {
-        productive_heads * SHEEP_WOOL_GOLD_PER_CYCLE_PER_HEAD
-    } else {
-        0.0
-    };
-    if herd.last_wool_gold > 0.0 {
-        credit_treasury_gold(ctx, building.owner, herd.last_wool_gold);
+    // A flock is shorn once in the early-summer window. The old implementation
+    // minted gold every livestock cycle; keeping a physical annual fleece makes
+    // storage, road hauling, workshop labor, and market capacity consequential.
+    herd.last_wool_gold = 0.0;
+    if herd.species == SPECIES_SHEEP
+        && herd.last_shearing_year != clock.year
+        && is_shearing_month(clock.month)
+    {
+        let fleece = sheep_fleece_output(productive_heads);
+        let wool_room = building_commodity_room(building, CommodityKind::Wool);
+        if can_store_full_sheep_clip(productive_heads, wool_room) {
+            let stored = deposit_building_commodity(building, CommodityKind::Wool, fleece);
+            herd.last_wool_output = stored;
+            herd.last_shearing_year = clock.year;
+        }
     }
 
     if support_ratio >= 0.9 && herd.health >= 0.72 {
-        herd.breeding_progress += productive_heads
-            * species_breeding_per_cycle(herd.species)
-            * environment.breeding_multiplier();
         let max_herd = species_max_herd(herd.species);
-        while herd.breeding_progress >= 1.0 && herd.head_count < max_herd {
-            herd.head_count += 1;
-            herd.breeding_progress -= 1.0;
+        if herd.head_count < max_herd {
+            herd.breeding_progress += productive_heads
+                * species_breeding_per_cycle(herd.species)
+                * environment.breeding_multiplier();
+            while herd.breeding_progress >= 1.0 && herd.head_count < max_herd {
+                herd.head_count += 1;
+                herd.breeding_progress -= 1.0;
+            }
+        } else {
+            // Do not bank years of unborn animals while a holding is full.
+            herd.breeding_progress = herd.breeding_progress.min(0.999);
         }
     } else if support_ratio < 0.45 {
         herd.breeding_progress = (herd.breeding_progress - 0.08).max(0.0);
@@ -209,6 +310,27 @@ fn run_livestock_cycle(
             herd.head_count -= 1;
             herd.health = 0.36;
         }
+    }
+
+    let maximum_herd = species_max_herd(herd.species);
+    let (slaughter_food, slaughter_preserved) = species_slaughter_yields(herd.species);
+    if can_cull_one(
+        clock.month,
+        herd.head_count,
+        herd.breeding_reserve,
+        maximum_herd,
+        building_commodity_room(building, CommodityKind::Food),
+        building_commodity_room(building, CommodityKind::PreservedFood),
+        slaughter_food,
+        slaughter_preserved,
+    ) {
+        herd.head_count -= 1;
+        herd.last_culled = 1;
+        herd.supplied_capacity = herd.supplied_capacity.min(herd.head_count as f64);
+        deposit_building_commodity(building, CommodityKind::Food, slaughter_food);
+        deposit_building_commodity(building, CommodityKind::PreservedFood, slaughter_preserved);
+        herd.last_food_output += slaughter_food;
+        herd.last_preserved_output += slaughter_preserved;
     }
 }
 
@@ -295,8 +417,49 @@ fn pasture_points(pasture: &Pasture) -> ZoneCorners {
     }
 }
 
-pub fn cattle_support_for_field(ctx: &ReducerContext, field: &FarmField) -> (f64, f64) {
-    let corners = ZoneCorners {
+pub fn cattle_field_support_sources(
+    ctx: &ReducerContext,
+    owner: Identity,
+) -> HashMap<u64, Vec<u64>> {
+    let owner_fields: Vec<FarmField> = ctx.db.farm_field().owner().filter(&owner).collect();
+    let mut sources: HashMap<u64, Vec<u64>> = HashMap::new();
+
+    for herd in ctx
+        .db
+        .livestock_herd()
+        .owner()
+        .filter(&owner)
+        .filter(|herd| herd.species == SPECIES_CATTLE)
+    {
+        let Some(building) = ctx.db.building().id().find(&herd.building_id) else {
+            continue;
+        };
+        let mut selected = Vec::with_capacity(CATTLE_MAX_FERTILIZED_FIELDS);
+        for candidate in &owner_fields {
+            let center = centroid(&field_corners(candidate));
+            if (building.x - center.x).hypot(building.z - center.z) > building.work_radius {
+                continue;
+            }
+            retain_priority_candidate(
+                &mut selected,
+                candidate.priority,
+                candidate.id,
+                CATTLE_MAX_FERTILIZED_FIELDS,
+            );
+        }
+        for (_, field_id) in selected {
+            sources.entry(field_id).or_default().push(herd.building_id);
+        }
+    }
+    for field_sources in sources.values_mut() {
+        field_sources.sort_unstable();
+        field_sources.dedup();
+    }
+    sources
+}
+
+fn field_corners(field: &FarmField) -> ZoneCorners {
+    ZoneCorners {
         a: Point2 {
             x: field.corner_ax,
             z: field.corner_az,
@@ -313,63 +476,7 @@ pub fn cattle_support_for_field(ctx: &ReducerContext, field: &FarmField) -> (f64
             x: field.corner_dx,
             z: field.corner_dz,
         },
-    };
-    let field_center = centroid(&corners);
-    for herd in ctx
-        .db
-        .livestock_herd()
-        .owner()
-        .filter(&field.owner)
-        .filter(|herd| {
-            herd.species == SPECIES_CATTLE
-                && herd.head_count >= 2
-                && herd.health >= 0.65
-                && herd.supplied_capacity >= 2.0
-        })
-    {
-        let Some(building) = ctx.db.building().id().find(&herd.building_id) else {
-            continue;
-        };
-        if (building.x - field_center.x).hypot(building.z - field_center.z) > building.work_radius {
-            continue;
-        }
-        let mut supported: Vec<FarmField> = ctx
-            .db
-            .farm_field()
-            .owner()
-            .filter(&field.owner)
-            .filter(|candidate| {
-                let center = centroid(&ZoneCorners {
-                    a: Point2 {
-                        x: candidate.corner_ax,
-                        z: candidate.corner_az,
-                    },
-                    b: Point2 {
-                        x: candidate.corner_bx,
-                        z: candidate.corner_bz,
-                    },
-                    c: Point2 {
-                        x: candidate.corner_cx,
-                        z: candidate.corner_cz,
-                    },
-                    d: Point2 {
-                        x: candidate.corner_dx,
-                        z: candidate.corner_dz,
-                    },
-                });
-                (building.x - center.x).hypot(building.z - center.z) <= building.work_radius
-            })
-            .collect();
-        supported.sort_by(|a, b| b.priority.cmp(&a.priority).then_with(|| a.id.cmp(&b.id)));
-        if supported
-            .iter()
-            .take(CATTLE_MAX_FERTILIZED_FIELDS)
-            .any(|candidate| candidate.id == field.id)
-        {
-            return (CATTLE_PLOUGH_WORK_MULTIPLIER, CATTLE_FERTILITY_BONUS);
-        }
     }
-    (1.0, 0.0)
 }
 
 fn species_grain_per_unsupported_head(species: u8) -> f64 {
@@ -377,6 +484,22 @@ fn species_grain_per_unsupported_head(species: u8) -> f64 {
         SPECIES_CATTLE => CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
         SPECIES_SHEEP => SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
         _ => SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
+    }
+}
+
+fn species_hay_per_unsupported_head(species: u8) -> f64 {
+    match species {
+        SPECIES_CATTLE => CATTLE_HAY_PER_UNSUPPORTED_HEAD,
+        SPECIES_SHEEP => SHEEP_HAY_PER_UNSUPPORTED_HEAD,
+        _ => 0.0,
+    }
+}
+
+fn species_hay_yield_per_reserved_capacity(species: u8) -> f64 {
+    match species {
+        SPECIES_CATTLE => CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
+        SPECIES_SHEEP => SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
+        _ => 0.0,
     }
 }
 
@@ -401,6 +524,23 @@ fn species_breeding_per_cycle(species: u8) -> f64 {
         SPECIES_CATTLE => CATTLE_BREEDING_PER_CYCLE,
         SPECIES_SHEEP => SHEEP_BREEDING_PER_CYCLE,
         _ => SWINE_BREEDING_PER_CYCLE,
+    }
+}
+
+fn species_slaughter_yields(species: u8) -> (f64, f64) {
+    match species {
+        SPECIES_CATTLE => (
+            CATTLE_SLAUGHTER_FOOD_PER_HEAD,
+            CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+        ),
+        SPECIES_SHEEP => (
+            SHEEP_SLAUGHTER_FOOD_PER_HEAD,
+            SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+        ),
+        _ => (
+            SWINE_SLAUGHTER_FOOD_PER_HEAD,
+            SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+        ),
     }
 }
 

@@ -16,6 +16,7 @@ import { renderStorehouseInspector } from './storehouseRenderer.ts';
 import { renderConstructionInspector } from './constructionRenderer.ts';
 import { renderWatchtowerInspector } from './watchtowerRenderer.ts';
 import { renderGuardhouseInspector } from './guardhouseRenderer.ts';
+import { withStaffingPriority } from './staffingPriorityRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -27,33 +28,33 @@ export function renderBuildingInspector(
   }
   switch (building.kind) {
     case 'chapel':
-      return renderChapelInspector(target, context);
+      return withStaffingPriority(renderChapelInspector(target, context), building);
     case 'marketplace':
-      return renderMarketplaceInspector(target, context);
+      return withStaffingPriority(renderMarketplaceInspector(target, context), building);
     case 'town_hall':
-      return renderTownHallInspector(target, context);
+      return withStaffingPriority(renderTownHallInspector(target, context), building);
     case 'village_storehouse':
-      return renderStorehouseInspector(target, context);
+      return withStaffingPriority(renderStorehouseInspector(target, context), building);
     case 'watchtower':
-      return renderWatchtowerInspector(target, context);
+      return withStaffingPriority(renderWatchtowerInspector(target, context), building);
     case 'guardhouse':
-      return renderGuardhouseInspector(target, context);
+      return withStaffingPriority(renderGuardhouseInspector(target, context), building);
     case 'lumber_mill':
-      return renderLumberMillInspector(target, context);
+      return withStaffingPriority(renderLumberMillInspector(target, context), building);
     case 'woodcutters_lodge':
-      return renderWoodcuttersLodgeInspector(target, context);
+      return withStaffingPriority(renderWoodcuttersLodgeInspector(target, context), building);
     case 'stone_quarry':
-      return renderStoneQuarryInspector(target, context);
+      return withStaffingPriority(renderStoneQuarryInspector(target, context), building);
     case 'large_quarry':
-      return renderLargeQuarryInspector(target, context);
+      return withStaffingPriority(renderLargeQuarryInspector(target, context), building);
     case 'reforester':
-      return renderReforesterInspector(target, context);
+      return withStaffingPriority(renderReforesterInspector(target, context), building);
     case 'well':
-      return renderWellInspector(target, context);
+      return withStaffingPriority(renderWellInspector(target, context), building);
     case 'hunters_hall':
     case 'foragers_shed':
     case 'fishing_camp':
-      return renderHarvestBuildingInspector(target, context);
+      return withStaffingPriority(renderHarvestBuildingInspector(target, context), building);
     case 'threshing_barn':
     case 'monastery':
     case 'brewery':
@@ -62,12 +63,13 @@ export function renderBuildingInspector(
     case 'apiary':
     case 'watermill':
     case 'carpenter':
+    case 'weaver':
     case 'ferry_landing':
     case 'vineyard':
-      return renderExpandedBuildingInspector(target, context);
+      return withStaffingPriority(renderExpandedBuildingInspector(target, context), building);
     case 'pastoral_farmstead':
     case 'swineherd':
-      return renderLivestockBuildingInspector(target, context);
+      return withStaffingPriority(renderLivestockBuildingInspector(target, context), building);
     default: {
       const unreachable: never = building.kind;
       throw new Error(`Unhandled building kind: ${unreachable}`);

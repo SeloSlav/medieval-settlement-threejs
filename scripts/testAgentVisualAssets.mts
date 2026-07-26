@@ -166,6 +166,9 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   wine: 'Wine amphora',
   stone: 'Quarried stone 1',
   polearms: 'Polearm shaft 1',
+  ironwork: 'Ironwork spearhead 1',
+  wool: 'Wool fleece bundle 1',
+  cloth: 'Woven cloth roll 1',
 };
 for (const [index, kind] of DELIVERY_CARGO_KINDS.entries()) {
   const cart = createDeliveryCartMesh(kind, {

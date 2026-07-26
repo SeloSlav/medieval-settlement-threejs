@@ -23,4 +23,6 @@ export default __t.row({
   regionalFoodSupply: __t.f64().name("regional_food_supply"),
   lastPriceTick: __t.u64().name("last_price_tick"),
   bulletin: __t.string(),
+  specialtyPriceMult: __t.f64().name("specialty_price_mult"),
+  regionalSpecialtyDemand: __t.f64().name("regional_specialty_demand"),
 });

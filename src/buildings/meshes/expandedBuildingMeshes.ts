@@ -21,6 +21,10 @@ import {
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
+import {
+  CLOTH_STOCKPILE_VISUAL_SEGMENTS,
+  WOOL_STOCKPILE_VISUAL_SEGMENTS,
+} from '../buildingStockpileVisuals.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
 const crop = sharedBuildingDetailMaterial('crop');
@@ -262,6 +266,109 @@ export function createCarpenterMesh(): THREE.Group {
   for (const x of [4.15, 5.85]) addMesh(group, new THREE.BoxGeometry(0.16, 2.2, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 1.2, -0.2));
   addMesh(group, new THREE.BoxGeometry(2.05, 0.16, 0.16), timberMaterial('weathered'), new THREE.Vector3(5, 2.25, -0.2));
   addMesh(group, new THREE.BoxGeometry(1.45, 0.05, 0.09), metalMaterial('steel'), new THREE.Vector3(5, 1.35, -0.2), new THREE.Euler(0, 0, -0.08));
+  return group;
+}
+
+function createWeaverWoolStockpile(): THREE.Group {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'WeaverWoolStockpile';
+  stockpile.visible = false;
+  stockpile.position.set(-3.7, 0, 3.65);
+  for (let index = 0; index < WOOL_STOCKPILE_VISUAL_SEGMENTS; index++) {
+    const segment = new THREE.Group();
+    segment.name = 'WoolStockSegment';
+    segment.position.set((index % 2) * 0.74, 0.34 + Math.floor(index / 2) * 0.5, 0);
+    addMesh(
+      segment,
+      new THREE.DodecahedronGeometry(0.44, 1),
+      residenceFacadeMaterial(index % 2 ? 'grey' : 'white'),
+      new THREE.Vector3(),
+      new THREE.Euler(0.08, index * 0.31, index % 2 ? 0.05 : -0.05),
+      new THREE.Vector3(1, 0.72, 0.88),
+    );
+    stockpile.add(segment);
+  }
+  return stockpile;
+}
+
+function createClothStockpile(): THREE.Group {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'ClothStockpile';
+  stockpile.visible = false;
+  stockpile.position.set(3.8, 0, 3.55);
+  const clothMaterials = [canvas, hiveRed, hiveBlue, residenceFacadeMaterial('grey')] as const;
+  for (let index = 0; index < CLOTH_STOCKPILE_VISUAL_SEGMENTS; index++) {
+    const segment = new THREE.Group();
+    segment.name = 'ClothStockSegment';
+    segment.position.set((index % 2) * 0.7, 0.3 + Math.floor(index / 2) * 0.42, 0);
+    addMesh(
+      segment,
+      new THREE.CylinderGeometry(0.24, 0.24, 1.15, 10),
+      clothMaterials[index],
+      new THREE.Vector3(),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+    addMesh(
+      segment,
+      new THREE.CylinderGeometry(0.075, 0.075, 1.24, 8),
+      timberMaterial('dark'),
+      new THREE.Vector3(),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+    stockpile.add(segment);
+  }
+  return stockpile;
+}
+
+export function createWeaverMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "Weaver's workshop";
+  const shell = addGableShell(group, {
+    width: 7.4,
+    depth: 5.7,
+    stoneHeight: 0.7,
+    wallHeight: 2.65,
+    ridgeHeight: 2.15,
+    wallMaterial: residenceFacadeMaterial('white'),
+    roofMaterial: shingleMaterial(),
+  });
+  addPlankDoor(group, -1.35, 0.74, shell.frontZ + 0.03, 0.92, 1.82);
+  addSmallWindow(group, 1.45, 1.82, shell.frontZ + 0.03, 0.86, 0.95);
+
+  // A bright road-facing open bay exposes the timber warp-weighted loom.
+  addLeanToRoof(group, {
+    width: 3.9,
+    depth: 5.0,
+    thickness: 0.14,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(5.25, 2.62, 0),
+    pitch: 0.16,
+    highEdge: 'negativeX',
+    name: 'Weaver open-bay roof',
+  });
+  for (const z of [-2.1, 2.1]) {
+    addMesh(group, new THREE.BoxGeometry(0.18, 2.55, 0.18), timberMaterial('dark'), new THREE.Vector3(6.55, 1.28, z));
+  }
+  for (const x of [4.25, 6.05]) {
+    addMesh(group, new THREE.BoxGeometry(0.17, 2.2, 0.17), timberMaterial('dark'), new THREE.Vector3(x, 1.26, 0));
+  }
+  for (const y of [0.48, 2.28]) {
+    addMesh(group, new THREE.BoxGeometry(2.05, 0.16, 0.18), timberMaterial('weathered'), new THREE.Vector3(5.15, y, 0));
+  }
+  for (let index = 0; index < 8; index++) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.025, 1.62, 0.025),
+      index % 3 === 0 ? hiveRed : canvas,
+      new THREE.Vector3(4.42 + index * 0.21, 1.37, 0.02),
+    );
+  }
+  addMesh(group, new THREE.BoxGeometry(1.58, 0.72, 0.055), hiveBlue, new THREE.Vector3(5.15, 0.91, 0.04));
+  addMesh(group, new THREE.BoxGeometry(2.25, 0.2, 0.8), timberMaterial('weathered'), new THREE.Vector3(5.15, 0.62, 1.25));
+  addMesh(group, new THREE.CylinderGeometry(0.07, 0.07, 1.15, 8), timberMaterial('light'), new THREE.Vector3(5.15, 0.92, 1.25), new THREE.Euler(0, 0, Math.PI * 0.5));
+
+  group.add(createWeaverWoolStockpile());
+  group.add(createClothStockpile());
   return group;
 }
 

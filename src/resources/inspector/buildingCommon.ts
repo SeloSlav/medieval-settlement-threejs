@@ -19,8 +19,16 @@ import {
 import type { WorldQueries } from '../WorldQueries.ts';
 import type { InspectorLaborView } from './renderInspectableTarget.ts';
 import { CONSTRUCTION_MAX_BUILDERS } from '../../generated/gameBalance.ts';
+import {
+  CONSTRUCTION_PRIORITY_HOLD,
+  normalizeConstructionPriority,
+} from '../../logistics/constructionPriority.ts';
 
-export function buildingStorageRows(building: BuildingState, kind: BuildingKind): string {
+export function buildingStorageRows(
+  building: BuildingState,
+  kind: BuildingKind,
+  includeFrontierStock = true,
+): string {
   const caps = buildingStorageCaps(kind);
   return [
     caps.timber > 0 ? `<li><span>Timber stored</span><span>${Math.round(building.timber)} / ${caps.timber}</span></li>` : '',
@@ -34,7 +42,10 @@ export function buildingStorageRows(building: BuildingState, kind: BuildingKind)
     caps.preservedFood != null && caps.preservedFood > 0 ? `<li><span>Preserved food</span><span>${Math.round(building.preservedFood)} / ${caps.preservedFood}</span></li>` : '',
     caps.honey != null && caps.honey > 0 ? `<li><span>Honey stored</span><span>${Math.round(building.honey)} / ${caps.honey}</span></li>` : '',
     caps.wine != null && caps.wine > 0 ? `<li><span>Wine stored</span><span>${Math.round(building.wine)} / ${caps.wine}</span></li>` : '',
-    caps.polearms != null && caps.polearms > 0 ? `<li><span>Polearms stored</span><span>${Math.round(building.polearms ?? 0)} / ${caps.polearms}</span></li>` : '',
+    caps.wool != null && caps.wool > 0 ? `<li><span>Wool stored</span><span>${Math.round(building.wool ?? 0)} / ${caps.wool}</span></li>` : '',
+    caps.cloth != null && caps.cloth > 0 ? `<li><span>Cloth stored</span><span>${Math.round(building.cloth ?? 0)} / ${caps.cloth}</span></li>` : '',
+    includeFrontierStock && caps.ironwork != null && caps.ironwork > 0 ? `<li><span>Ironwork stored</span><span>${Math.round(building.ironwork ?? 0)} / ${caps.ironwork}</span></li>` : '',
+    includeFrontierStock && caps.polearms != null && caps.polearms > 0 ? `<li><span>Polearms stored</span><span>${Math.round(building.polearms ?? 0)} / ${caps.polearms}</span></li>` : '',
   ].filter(Boolean).join('');
 }
 
@@ -58,6 +69,18 @@ export function buildingLaborView(
       visible: false,
       count: 0,
       hint: '',
+      decreaseDisabled: true,
+      increaseDisabled: true,
+    };
+  }
+  if (
+    building.constructionComplete === false
+    && normalizeConstructionPriority(building.constructionPriority) === CONSTRUCTION_PRIORITY_HOLD
+  ) {
+    return {
+      visible: true,
+      count: 0,
+      hint: 'Construction is held. Reservations remain earmarked; resume the site before assigning builders.',
       decreaseDisabled: true,
       increaseDisabled: true,
     };

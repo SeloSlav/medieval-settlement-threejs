@@ -212,6 +212,84 @@ impl RoadNetwork {
         Some(self.route_distance(ax, az, bx, bz, &solve.node_path))
     }
 
+    /// Shortest road distance from one origin to any target, with one graph
+    /// traversal regardless of target count. This is suited to periodic
+    /// service/muster checks where only the nearest reachable site matters.
+    pub fn nearest_road_path_distance(
+        &self,
+        ax: f64,
+        az: f64,
+        targets: &[(f64, f64)],
+    ) -> Option<f64> {
+        let start_nodes = self.snap_nodes(ax, az)?;
+        if targets.is_empty() {
+            return None;
+        }
+
+        let mut target_access_by_node: HashMap<String, f64> = HashMap::new();
+        for &(tx, tz) in targets {
+            let Some(target_nodes) = self.snap_nodes(tx, tz) else {
+                continue;
+            };
+            for node_id in target_nodes {
+                let Some(&(nx, nz)) = self.nodes.get(&node_id) else {
+                    continue;
+                };
+                let access = distance(tx, tz, nx, nz);
+                target_access_by_node
+                    .entry(node_id)
+                    .and_modify(|current| *current = current.min(access))
+                    .or_insert(access);
+            }
+        }
+        if target_access_by_node.is_empty() {
+            return None;
+        }
+
+        let mut distances: HashMap<String, f64> = HashMap::new();
+        let mut heap: BinaryHeap<Reverse<(u64, String)>> = BinaryHeap::new();
+        for node_id in start_nodes {
+            let Some(&(nx, nz)) = self.nodes.get(&node_id) else {
+                continue;
+            };
+            let cost = distance(ax, az, nx, nz);
+            let entry = distances.entry(node_id.clone()).or_insert(f64::INFINITY);
+            if cost + 1e-6 < *entry {
+                *entry = cost;
+                heap.push(Reverse((cost_to_key(cost), node_id)));
+            }
+        }
+
+        let mut nearest = f64::INFINITY;
+        while let Some(Reverse((heap_key, node_id))) = heap.pop() {
+            let Some(&best) = distances.get(&node_id) else {
+                continue;
+            };
+            if heap_key > cost_to_key(best) {
+                continue;
+            }
+            if best >= nearest {
+                break;
+            }
+            if let Some(access) = target_access_by_node.get(&node_id) {
+                nearest = nearest.min(best + access);
+            }
+            for (neighbor, weight) in self.weighted_graph.get(&node_id).into_iter().flatten() {
+                let next = best + weight;
+                if next >= nearest {
+                    continue;
+                }
+                let entry = distances.entry(neighbor.clone()).or_insert(f64::INFINITY);
+                if next + 1e-6 < *entry {
+                    *entry = next;
+                    heap.push(Reverse((cost_to_key(next), neighbor.clone())));
+                }
+            }
+        }
+
+        nearest.is_finite().then_some(nearest)
+    }
+
     /// Canonical shortest route — distance matches sampled polyline length for movement.
     pub fn road_path_route(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<RoadPathRoute> {
         let solve = self.shortest_path_solve(ax, az, bx, bz)?;
@@ -435,24 +513,47 @@ impl RoadNetwork {
         let max_snap = BUILDING_ROAD_ACCESS_DISTANCE;
         let mut best_distance = max_snap;
         let mut best_nodes: Vec<String> = Vec::new();
+        let keys = surface_cell_keys(x, z, max_snap);
+        let mut seen_nodes: HashSet<String> = HashSet::new();
 
-        for (id, &(nx, nz)) in &self.nodes {
-            let dist = distance(x, z, nx, nz);
-            if dist <= best_distance + 1e-6 {
-                if dist < best_distance - 1e-6 {
-                    best_distance = dist;
-                    best_nodes.clear();
-                    best_nodes.push(id.clone());
-                } else if (dist - best_distance).abs() <= 1e-6 {
-                    best_nodes.push(id.clone());
+        for key in &keys {
+            let Some(node_ids) = self.surface_node_cells.get(key) else {
+                continue;
+            };
+            for id in node_ids {
+                if !seen_nodes.insert(id.clone()) {
+                    continue;
+                }
+                let Some(&(nx, nz)) = self.nodes.get(id) else {
+                    continue;
+                };
+                let dist = distance(x, z, nx, nz);
+                if dist <= best_distance + 1e-6 {
+                    if dist < best_distance - 1e-6 {
+                        best_distance = dist;
+                        best_nodes.clear();
+                        best_nodes.push(id.clone());
+                    } else if (dist - best_distance).abs() <= 1e-6 {
+                        best_nodes.push(id.clone());
+                    }
                 }
             }
         }
 
-        for edge in &self.edges {
-            let dist = distance_to_polyline(x, z, &edge.sampled_path);
-            if dist <= best_distance + 1e-6 {
-                if dist < best_distance - 1e-6 {
+        let mut seen_edges: HashSet<usize> = HashSet::new();
+        for key in &keys {
+            let Some(edge_indices) = self.surface_edge_cells.get(key) else {
+                continue;
+            };
+            for &index in edge_indices {
+                if !seen_edges.insert(index) {
+                    continue;
+                }
+                let Some(edge) = self.edges.get(index) else {
+                    continue;
+                };
+                let dist = distance_to_polyline(x, z, &edge.sampled_path);
+                if dist <= best_distance + 1e-6 && dist < best_distance - 1e-6 {
                     best_distance = dist;
                     best_nodes = vec![edge.start_node_id.clone(), edge.end_node_id.clone()];
                 }
@@ -712,6 +813,14 @@ mod tests {
         assert!(network.road_connected(0.0, 0.0, 20.0, 0.0));
         assert!(!network.road_connected(0.0, 0.0, 100.0, 0.0));
         assert!((network.road_path_distance(0.0, 0.0, 20.0, 0.0).unwrap() - 20.0).abs() < 1e-9);
+        assert!(
+            (network
+                .nearest_road_path_distance(0.0, 0.0, &[(100.0, 0.0), (20.0, 0.0)])
+                .unwrap()
+                - 20.0)
+                .abs()
+                < 1e-9
+        );
         assert!(network.is_on_road_surface(100.0, 2.9));
 
         let short_route = network

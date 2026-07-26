@@ -17,13 +17,17 @@ import type { FireIncidentState } from '../fires/fireIncident.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import {
   estimatedRaidDays,
+  formatFrontierForecast,
   formatRaidReport,
   frontierThreatLabel,
   type SettlementSecurityState,
 } from '../security/frontierSecurity.ts';
 import {
+  formatHouseholdBufferReadiness,
   formatProvisionDays,
   formatProvisionRunway,
+  formatSabbathReadiness,
+  HOUSEHOLD_BUFFER_WARNING_COVERAGE,
   settlementProvisionLevel,
   shouldShowProvisioning,
   WINTER_RESERVE_DAYS,
@@ -116,12 +120,12 @@ const SETTLEMENT_HUD_HTML = `
         <span class="settlement-hud__label">Population</span>
         <strong class="settlement-hud__value" data-stockpile="population">0</strong>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="housing" data-tooltip="Residents housed versus total housing capacity. New homes start empty and attract settlers over time.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="housing" data-tooltip="Residents housed versus total housing capacity. A first settler establishes an empty home; later arrivals require every need active at that house tier to hold a local buffer. Select a Town Hall for the settlement-wide growth forecast.">
         <span class="settlement-hud__label">Housing</span>
         <strong class="settlement-hud__value" data-stockpile="housing">0/0</strong>
         <span class="settlement-hud__sub" data-stockpile="housing-sub">0 vacant</span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-tooltip="Workers free to assign. Labor equals population minus workers already assigned to buildings.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-tooltip="Workers free to assign. Labor equals population minus workers already assigned to buildings. Select a Town Hall to compare permanent jobs, temporary builders, cart crews, live route load, sector staffing, and the workforce available when current housing fills.">
         <span class="settlement-hud__label">Labor</span>
         <strong class="settlement-hud__value" data-stockpile="labor">0</strong>
         <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>
@@ -140,17 +144,29 @@ const SETTLEMENT_HUD_HTML = `
         <span class="settlement-hud__label">Ale</span>
         <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Preserved food in treasury, smokehouses, and tier-2 homes.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Preserved food in treasury, smokehouses, and tier-3 homes.">
         <span class="settlement-hud__label">Preserved</span>
         <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Honey in treasury and apiary storage.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Honey in treasury, apiaries, marketplaces, and monastery hospitality stores. Enabled monasteries consume it before producers export surplus.">
         <span class="settlement-hud__label">Honey</span>
         <strong class="settlement-hud__value" data-stockpile="honey">0</strong>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="Wine in treasury and vineyard storage.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="Wine in treasury, vineyards, marketplaces, and monastery hospitality stores. Enabled monasteries consume it before producers export surplus.">
         <span class="settlement-hud__label">Wine</span>
         <strong class="settlement-hud__value" data-stockpile="wine">0</strong>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Unspun sheep fleece in treasury, pastoral holdings, and weavers' stores. Sheep are shorn once each year in early summer.">
+        <span class="settlement-hud__label">Wool</span>
+        <strong class="settlement-hud__value" data-stockpile="wool">0</strong>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Woven cloth in treasury, weavers' workshops, tier-3 homes, and marketplaces awaiting export.">
+        <span class="settlement-hud__label">Cloth</span>
+        <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Imported wrought-iron spearheads and fittings in treasury, marketplaces, and carpenter workshops. A staffed marketplace must order them; road carts haul them to a carpenter." hidden>
+        <span class="settlement-hud__label">Ironwork</span>
+        <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
       </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="Polearms in treasury, carpenter workshops, and guardhouses. One is required for each paid guard." hidden>
         <span class="settlement-hud__label">Polearms</span>
@@ -179,6 +195,7 @@ export class SettlementHud {
   private readonly foodStat: HTMLElement;
   private readonly firewoodStat: HTMLElement;
   private readonly goldStat: HTMLElement;
+  private readonly ironworkStat: HTMLElement;
   private readonly polearmsStat: HTMLElement;
   private readonly speedButtons: HTMLButtonElement[];
   private readonly fpsValue: HTMLElement;
@@ -211,6 +228,7 @@ export class SettlementHud {
     this.foodStat = this.mustElement('[data-resource="food"]');
     this.firewoodStat = this.mustElement('[data-resource="firewood"]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
+    this.ironworkStat = this.mustElement('[data-resource="ironwork"]');
     this.polearmsStat = this.mustElement('[data-resource="polearms"]');
     this.speedButtons = [...this.panel.querySelectorAll<HTMLButtonElement>('[data-game-speed]')];
     for (const button of this.speedButtons) {
@@ -281,6 +299,7 @@ export class SettlementHud {
     security: SettlementSecurityState,
     world: AuthoritativeWorldGeneration | null,
     simTick: number,
+    projectedTargets?: string,
   ): void {
     const enabled = world?.configured === true && world.conflictMode === 'frontier';
     this.securityAlert.hidden = !enabled;
@@ -291,9 +310,10 @@ export class SettlementHud {
     const days = estimatedRaidDays(security, simTick);
     const coverage = Math.round(security.coverage * 100);
     const readyGuards = security.readyGuards.toFixed(security.readyGuards < 10 ? 1 : 0);
+    const requiredGuards = security.guardsRequired.toFixed(security.guardsRequired < 10 ? 1 : 0);
     this.securityDetail.textContent = days === null
       ? `Pressure begins at 8 residents · ${readyGuards} guards ready`
-      : `${days <= 0.1 ? 'Scouts may arrive now' : `about ${Math.max(1, Math.ceil(days))} days`} · ${coverage}% watched · ${readyGuards} ready`;
+      : `${days <= 0.1 ? 'Scouts may arrive now' : `about ${Math.max(1, Math.ceil(days))} days`} · ${coverage}% watched · ${readyGuards}/${requiredGuards} ready${security.threat >= 0.4 && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
     this.securityAlert.dataset.threat = security.threat >= 0.9
       ? 'imminent'
       : security.threat >= 0.7
@@ -307,17 +327,23 @@ export class SettlementHud {
       `Ready paid guards: ${readyGuards}`,
       `Guard readiness: ${Math.round(security.defenseReadiness * 100)}%`,
       `Protected settlement value: ${coverage}%`,
+      formatFrontierForecast(security, world.enemyPressure),
+      projectedTargets,
       'One watchman provides 78% of a tower’s full radius; two provide full coverage.',
-      'Armed guards need provisions and wages; watch coverage helps them muster before contact.',
-      'Incursions target the richest exposed stores and households between April and October.',
+      'Armed guards need provisions and wages. A short road route to a staffed tower gives a full muster; long or missing signal routes reduce effective strength.',
+      'Incursions strike the richest exposed holdings first; watched holdings remain vulnerable if the guard muster is insufficient.',
       formatRaidReport(security),
-    ].join(' · ');
+    ].filter(Boolean).join(' · ');
   }
 
   setProvisioningState(provisioning: SettlementProvisioning, month: number): void {
     const level = settlementProvisionLevel(provisioning, month);
     const show = shouldShowProvisioning(provisioning, month);
     const winterRelevant = month >= 9 || month <= 2;
+    const sabbathShort = provisioning.sabbathObserved
+      && provisioning.sabbathReadyHouseholds < provisioning.sabbathHouseholds;
+    const householdBuffersShort = provisioning.householdBufferHouseholds > 0
+      && provisioning.householdBufferCoverage < HOUSEHOLD_BUFFER_WARNING_COVERAGE;
     this.provisionAlert.hidden = !show;
     this.provisionAlert.dataset.level = level;
     this.panel.classList.toggle('has-provision-warning', level === 'watch');
@@ -325,29 +351,52 @@ export class SettlementHud {
 
     this.provisionLabel.textContent = level === 'critical'
       ? '⚠ Provision shortage'
-      : winterRelevant
-        ? '❄ Winter stores'
-        : '⚖ Provision watch';
+      : sabbathShort
+        ? 'Sunday stores'
+        : householdBuffersShort
+          ? 'Household buffers'
+        : winterRelevant
+          ? '❄ Winter stores'
+          : '⚖ Provision watch';
     this.provisionDetail.textContent = [
       `food ${formatProvisionDays(provisioning.foodRunwayDays)}`,
       provisioning.heatedResidents > 0
         ? `winter fuel ${formatProvisionDays(provisioning.winterFirewoodRunwayDays)} / ${WINTER_RESERVE_DAYS}d`
         : null,
+      provisioning.householdBufferHouseholds > 0
+        ? `homes ${provisioning.householdBufferReadyHouseholds}/${provisioning.householdBufferHouseholds}`
+        : null,
+      provisioning.assignedGuards > 0
+        ? `arms ${provisioning.armedGuards}/${provisioning.assignedGuards}`
+        : null,
+      provisioning.armedGuards > 0
+        ? `guard food ${formatProvisionDays(provisioning.guardProvisionRunwayDays)}`
+        : null,
       provisioning.armedGuards > 0
         ? `wages ${formatProvisionDays(provisioning.guardWageRunwayDays)}`
+        : null,
+      provisioning.sabbathObserved
+        ? `Sunday ${provisioning.sabbathReadyHouseholds}/${provisioning.sabbathHouseholds} homes`
         : null,
     ].filter(Boolean).join(' · ');
 
     this.provisionAlert.dataset.tooltip = [
       `${provisioning.foodConsumers} housed residents consume ${provisioning.householdFoodPerDay.toFixed(1)} food per day.`,
+      provisioning.assignedGuards > 0
+        ? `${provisioning.armedGuards} / ${provisioning.assignedGuards} assigned guards are armed; ${provisioning.unarmedGuards} still need polearms.`
+        : 'No paid guard company is currently assigned.',
       provisioning.armedGuards > 0
-        ? `${provisioning.armedGuards} armed guards add ${provisioning.guardFoodPerDay.toFixed(1)} food and ${provisioning.guardWagePerDay.toFixed(1)} gold per day.`
+        ? `Guardhouses hold ${provisioning.guardFoodStock.toFixed(1)} food; the first local company runs short in ${formatProvisionRunway(provisioning.guardProvisionRunwayDays)}. Wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day (${formatProvisionRunway(provisioning.guardWageRunwayDays)}).`
         : 'No armed guard upkeep is currently due.',
       provisioning.heatedResidents > 0
         ? `A full winter needs about ${Math.ceil(provisioning.winterFirewoodNeed)} firewood at the current heated population.`
         : 'Tier-one households do not yet require household firewood.',
       `Fresh-food spoilage is currently ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}; ${Math.round(provisioning.protectedFoodShare * 100)}% is held in sheltered stores.`,
-      'Runways include current spoilage, use aggregate on-hand stores, and assume no new production; disconnected stock may still be inaccessible.',
+      `Local delivery buffer: ${formatHouseholdBufferReadiness(provisioning)}. Food, water, and provisions cover one workday; firewood covers the nightly no-cart interval.`,
+      provisioning.sabbathObserved
+        ? `Sunday readiness: ${formatSabbathReadiness(provisioning)}. Labor and carts rest, but households keep consuming delivered provisions.`
+        : 'Sunday labor follows the normal schedule.',
+      'Guard food and household buffers use local stores. Other runways use aggregate on-hand stores and assume no new production; disconnected stock may still be inaccessible.',
     ].join(' · ');
 
     this.foodStat.dataset.tooltip = [
@@ -374,6 +423,7 @@ export class SettlementHud {
   }
 
   setConflictEnabled(enabled: boolean): void {
+    this.ironworkStat.hidden = !enabled;
     this.polearmsStat.hidden = !enabled;
   }
 

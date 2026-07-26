@@ -21,7 +21,7 @@ type ShadowMapWithManualRefresh = THREE.WebGLRenderer['shadowMap'] & {
   needsUpdate?: boolean;
 };
 
-export type RendererBackendKind = 'webgpu' | 'webgl';
+export type RendererBackendKind = 'webgpu' | 'webgl2-node' | 'webgl';
 export type SupportedRenderer = THREE.WebGLRenderer | WebGPURenderer;
 
 export type RendererBackend = {
@@ -52,7 +52,14 @@ export async function createPreferredRenderer(): Promise<RendererBackend> {
         };
       }
 
-      console.warn('WebGPU initialization selected Three.js WebGL fallback; using the classic WebGL renderer instead.');
+      if (isNodeWebGL(renderer)) {
+        console.warn('WebGPU is unavailable; using Three.js node materials through its WebGL 2 backend.');
+        return {
+          kind: 'webgl2-node',
+          maxAnisotropy: renderer.getMaxAnisotropy(),
+          renderer,
+        };
+      }
     } catch (error) {
       console.warn('WebGPU renderer initialization failed; falling back to WebGL.', error);
     }
@@ -60,14 +67,27 @@ export async function createPreferredRenderer(): Promise<RendererBackend> {
     renderer.dispose();
   }
 
-  const renderer = new THREE.WebGLRenderer(RENDERER_OPTIONS);
+  const renderer = new WebGPURenderer({
+    ...RENDERER_OPTIONS,
+    alpha: true,
+    forceWebGL: true,
+  });
   configureRenderer(renderer);
 
-  return {
-    kind: 'webgl',
-    maxAnisotropy: renderer.capabilities.getMaxAnisotropy(),
-    renderer,
-  };
+  try {
+    await withTimeout(renderer.init(), WEBGPU_STARTUP_TIMEOUT_MS, 'WebGL 2 node renderer initialization');
+    return {
+      kind: 'webgl2-node',
+      maxAnisotropy: renderer.getMaxAnisotropy(),
+      renderer,
+    };
+  } catch (error) {
+    renderer.dispose();
+    throw new Error(
+      'This browser could not initialize the WebGPU or WebGL 2 renderer required by the game.',
+      { cause: error },
+    );
+  }
 }
 
 function configureRenderer(renderer: SupportedRenderer): void {
@@ -104,6 +124,14 @@ async function canUseWebGPU(): Promise<boolean> {
 
 function isNativeWebGPU(renderer: WebGPURenderer): boolean {
   return (renderer as RendererWithBackend).backend.isWebGPUBackend === true;
+}
+
+function isNodeWebGL(renderer: WebGPURenderer): boolean {
+  return (renderer as RendererWithBackend).backend.isWebGLBackend === true;
+}
+
+export function supportsNodeMaterials(backend: RendererBackendKind): boolean {
+  return backend === 'webgpu' || backend === 'webgl2-node';
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {

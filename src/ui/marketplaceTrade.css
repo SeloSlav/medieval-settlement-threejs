@@ -24,11 +24,26 @@
 }
 
 .marketplace-trade-intro,
+.marketplace-trade-depth,
+.marketplace-trade-rates,
 .marketplace-trade-stock {
   margin: 0;
   font-size: 0.82rem;
   color: rgba(238, 232, 220, 0.62);
   line-height: 1.45;
+}
+
+.marketplace-trade-rates {
+  padding: 8px 10px;
+  border: 1px solid rgba(210, 178, 108, 0.18);
+  border-radius: 7px;
+  background: rgba(18, 16, 14, 0.38);
+  color: rgba(238, 232, 220, 0.82);
+  font-variant-numeric: tabular-nums;
+}
+
+.marketplace-trade-depth {
+  color: rgba(210, 178, 108, 0.7);
 }
 
 .marketplace-trade-stock {

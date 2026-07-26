@@ -54,6 +54,7 @@ import {
   collectWorkerTargets,
   pickWorkerCommutePath,
   pickWorkerWalkPlan,
+  watchtowerDutyPosition,
   workplaceYardPosition,
   type WorkerActivityKind,
   type WorkerTarget,
@@ -224,7 +225,7 @@ export class VillagerRenderer {
       agent.workStopDistance = rerouted.workStopDistance ?? 0;
       agent.x = rerouted.path[0].x;
       agent.z = rerouted.path[0].z;
-      agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+      agent.y = this.resolveAgentY(agent);
       changed = true;
     }
     if (changed) this.pushRenderState();
@@ -513,7 +514,7 @@ export class VillagerRenderer {
       agent.x = this.readDisplayX(agent);
       agent.z = this.readDisplayZ(agent);
       agent.yaw = this.readDisplayYaw(agent);
-      agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+      agent.y = this.resolveAgentY(agent);
     }
 
     this.pushRenderState(view, simulationDt, simulationDt > 0 ? realDt : 0);
@@ -874,6 +875,10 @@ export class VillagerRenderer {
   private tryBeginWorkerWalk(agent: VillagerAgent): void {
     const building = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
     if (!building) return;
+    if (building.kind === 'watchtower' && building.constructionComplete !== false) {
+      this.scanFromWatchtower(agent, building);
+      return;
+    }
     const targets = this.workerTargets.get(building.id) ?? [];
     const plan = pickWorkerWalkPlan(
       building,
@@ -1263,11 +1268,44 @@ export class VillagerRenderer {
   }
 
   private placeWorkerIdle(agent: VillagerAgent, building: BuildingState): void {
+    if (building.kind === 'watchtower' && building.constructionComplete !== false) {
+      const lookout = watchtowerDutyPosition(building, agent.workplaceSlot);
+      agent.x = lookout.x;
+      agent.z = lookout.z;
+      agent.y = this.resolveGroundY(building.x, building.z) + lookout.yOffset;
+      agent.yaw = lookout.yaw;
+      return;
+    }
     const yard = workplaceYardPosition(building, agent.workplaceSlot);
     agent.x = yard.x;
     agent.z = yard.z;
     agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
     agent.yaw = yard.yaw;
+  }
+
+  private scanFromWatchtower(agent: VillagerAgent, building: BuildingState): void {
+    this.placeWorkerIdle(agent, building);
+    const sweepUnit = ((agent.pathSeed >>> 8) & 0xff) / 0xff;
+    agent.yaw += (sweepUnit - 0.5) * 1.15;
+    agent.pathSeed = (agent.pathSeed * 1_664_525) ^ 0x51f15e5d;
+    agent.idleRemaining = 2.5 + sweepUnit * 2.5;
+    agent.idleDirty = false;
+  }
+
+  private resolveAgentY(agent: VillagerAgent): number {
+    if (
+      agent.role === 'worker'
+      && agent.routinePhase === 'work'
+      && agent.mode === 'idle'
+      && agent.workplaceId
+    ) {
+      const building = this.buildings.get(agent.workplaceId);
+      if (building?.kind === 'watchtower' && building.constructionComplete !== false) {
+        return this.resolveGroundY(building.x, building.z)
+          + watchtowerDutyPosition(building, agent.workplaceSlot).yOffset;
+      }
+    }
+    return this.resolveGroundY(agent.x, agent.z) + 0.02;
   }
 
   private resolveGroundY(x: number, z: number): number {
@@ -1287,7 +1325,9 @@ export class VillagerRenderer {
     if (kind === 'reforester') return 'shovel';
     if (kind === 'threshing_barn' || kind === 'vineyard') return 'hoe';
     if (kind === 'carpenter') return 'hammer';
-    if (kind === 'guardhouse') return 'spear';
+    if (kind === 'guardhouse') {
+      return agent.workplaceSlot < Math.floor(workplace?.polearms ?? 0) ? 'spear' : null;
+    }
     return null;
   }
 }
@@ -1367,6 +1407,9 @@ function describeVillagerActivity(
     case 'returning_from_mass':
       return 'Walking home from Sunday mass';
     case 'work':
+      if (workplace?.kind === 'watchtower') {
+        return 'Keeping watch from the frontier gallery';
+      }
       if (agent.mode === 'chop') return `Chopping timber near ${workplaceLabel}`;
       if (agent.mode === 'mine') return `Quarrying stone near ${workplaceLabel}`;
       if (agent.mode === 'plant') return `Planting saplings near ${workplaceLabel}`;

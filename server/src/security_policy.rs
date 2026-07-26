@@ -1,9 +1,91 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
+
+use crate::balance_generated::{
+    GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE, GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
+    GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE, GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
+};
 
 pub const MIN_FRONTIER_POPULATION: u32 = 8;
 pub const SECURITY_UPDATE_INTERVAL_TICKS: u64 = 300;
 pub const RAID_SEASON_START_MONTH: u32 = 4;
 pub const RAID_SEASON_END_MONTH: u32 = 10;
+pub const WATCH_COVERAGE_CELL_SIZE: f64 = 128.0;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WatchArea {
+    pub x: f64,
+    pub z: f64,
+    pub radius: f64,
+}
+
+/// Exact point-in-watch queries backed by coarse cells. Each tower is inserted
+/// into every cell touched by its bounding square, then the final radius check
+/// preserves the prior geometry without scanning distant towers.
+pub struct WatchCoverageIndex {
+    cells: HashMap<(i32, i32), Vec<WatchArea>>,
+}
+
+impl WatchCoverageIndex {
+    pub fn new(areas: &[WatchArea]) -> Self {
+        let mut cells: HashMap<(i32, i32), Vec<WatchArea>> = HashMap::new();
+        for area in areas.iter().copied().filter(|area| {
+            area.x.is_finite() && area.z.is_finite() && area.radius.is_finite() && area.radius > 0.0
+        }) {
+            let min_x = watch_cell(area.x - area.radius);
+            let max_x = watch_cell(area.x + area.radius);
+            let min_z = watch_cell(area.z - area.radius);
+            let max_z = watch_cell(area.z + area.radius);
+            for cell_x in min_x..=max_x {
+                for cell_z in min_z..=max_z {
+                    cells.entry((cell_x, cell_z)).or_default().push(area);
+                }
+            }
+        }
+        Self { cells }
+    }
+
+    pub fn contains(&self, x: f64, z: f64) -> bool {
+        if !x.is_finite() || !z.is_finite() {
+            return false;
+        }
+        self.cells
+            .get(&(watch_cell(x), watch_cell(z)))
+            .is_some_and(|areas| {
+                areas.iter().any(|area| {
+                    let dx = x - area.x;
+                    let dz = z - area.z;
+                    dx * dx + dz * dz <= area.radius * area.radius
+                })
+            })
+    }
+}
+
+fn watch_cell(value: f64) -> i32 {
+    (value / WATCH_COVERAGE_CELL_SIZE).floor() as i32
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RaidTargetKind {
+    Building,
+    Residence,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RaidTargetCandidate {
+    pub kind: RaidTargetKind,
+    pub id: u64,
+    pub protected: bool,
+    pub value: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RaidForecast {
+    pub guards_required: f64,
+    pub defense_ratio: f64,
+    pub target_count: usize,
+    pub loss_fraction: f64,
+}
 
 pub fn is_raid_season(month: u32) -> bool {
     (RAID_SEASON_START_MONTH..=RAID_SEASON_END_MONTH).contains(&month)
@@ -50,6 +132,26 @@ pub fn tower_effective_radius(work_radius: f64, assigned_labor: u32) -> f64 {
     }
 }
 
+/// How much of a provisioned guard company can answer the watch in time.
+/// Nearby road links give the full muster; long links retain a useful reserve,
+/// while an unlinked company can only react locally after contact.
+pub fn guardhouse_muster_efficiency(road_distance: Option<f64>) -> f64 {
+    let Some(distance) = road_distance.filter(|distance| distance.is_finite()) else {
+        return GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY.clamp(0.0, 1.0);
+    };
+    let distance = distance.max(0.0);
+    if distance <= GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE {
+        return 1.0;
+    }
+    if distance >= GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE {
+        return GUARDHOUSE_LONG_MUSTER_EFFICIENCY.clamp(0.0, 1.0);
+    }
+    let span =
+        (GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE - GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE).max(1e-9);
+    let progress = (distance - GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE) / span;
+    (1.0 + (GUARDHOUSE_LONG_MUSTER_EFFICIENCY - 1.0) * progress).clamp(0.0, 1.0)
+}
+
 pub fn raid_loss_fraction(enemy_pressure: u8, coverage: f64) -> f64 {
     let pressure = enemy_pressure.min(100) as f64 / 100.0;
     let exposed_loss = 0.12 + pressure * 0.2;
@@ -64,11 +166,15 @@ pub fn raid_strength(enemy_pressure: u8) -> f64 {
     2.5 + enemy_pressure.min(100) as f64 * 0.065
 }
 
+pub fn guards_required(enemy_pressure: u8, coverage: f64) -> f64 {
+    let warning_multiplier = 0.65 + coverage.clamp(0.0, 1.0) * 0.35;
+    raid_strength(enemy_pressure) / warning_multiplier
+}
+
 /// Guards fight most effectively when watch coverage gives them time to muster.
 /// A ratio of one means the settlement can avert this incursion.
 pub fn guard_defense_ratio(enemy_pressure: u8, coverage: f64, ready_guards: f64) -> f64 {
-    let warning_multiplier = 0.65 + coverage.clamp(0.0, 1.0) * 0.35;
-    (ready_guards.max(0.0) * warning_multiplier / raid_strength(enemy_pressure)).clamp(0.0, 1.0)
+    (ready_guards.max(0.0) / guards_required(enemy_pressure, coverage)).clamp(0.0, 1.0)
 }
 
 pub fn guarded_raid_loss_fraction(enemy_pressure: u8, coverage: f64, ready_guards: f64) -> f64 {
@@ -87,6 +193,65 @@ pub fn guarded_raid_target_count(enemy_pressure: u8, defense_ratio: f64) -> usiz
     ((raid_target_count(enemy_pressure) as f64) * (1.0 - defense_ratio * 0.65))
         .ceil()
         .max(1.0) as usize
+}
+
+pub fn raid_forecast(
+    enemy_pressure: u8,
+    coverage: f64,
+    ready_guards: f64,
+    available_targets: usize,
+) -> RaidForecast {
+    let defense_ratio = guard_defense_ratio(enemy_pressure, coverage, ready_guards);
+    RaidForecast {
+        guards_required: guards_required(enemy_pressure, coverage),
+        defense_ratio,
+        target_count: guarded_raid_target_count(enemy_pressure, defense_ratio)
+            .min(available_targets),
+        loss_fraction: guarded_raid_loss_fraction(enemy_pressure, coverage, ready_guards),
+    }
+}
+
+/// Raiders who break through can put one reached holding to the torch. The
+/// bounded chance keeps arson consequential without turning each incursion
+/// into a settlement-wide fire roll; ready guards reduce both plunder and this
+/// aftermath risk.
+pub fn raid_arson_chance(enemy_pressure: u8, defense_ratio: f64) -> f64 {
+    if enemy_pressure == 0 || defense_ratio >= 1.0 - 1e-9 {
+        return 0.0;
+    }
+    let pressure = enemy_pressure.min(100) as f64 / 100.0;
+    let undefended_chance = 0.06 + pressure * 0.18;
+    (undefended_chance * (1.0 - defense_ratio.clamp(0.0, 1.0) * 0.8)).clamp(0.0, 0.24)
+}
+
+pub fn raid_arson_occurs(enemy_pressure: u8, defense_ratio: f64, entropy: u64) -> bool {
+    unit_hash(entropy) < raid_arson_chance(enemy_pressure, defense_ratio)
+}
+
+pub fn select_raid_targets(
+    candidates: &[RaidTargetCandidate],
+    target_count: usize,
+) -> Vec<RaidTargetCandidate> {
+    let limit = target_count.min(candidates.len());
+    let mut selected = Vec::with_capacity(limit);
+    for candidate in candidates.iter().copied() {
+        let insert_at = selected
+            .iter()
+            .position(|current| compare_raid_candidates(&candidate, current).is_lt())
+            .unwrap_or(selected.len());
+        if insert_at < limit {
+            selected.insert(insert_at, candidate);
+            selected.truncate(limit);
+        } else if selected.len() < limit {
+            selected.push(candidate);
+        }
+    }
+    selected
+}
+
+fn compare_raid_candidates(a: &RaidTargetCandidate, b: &RaidTargetCandidate) -> Ordering {
+    compare_raid_targets(a.protected, a.value, a.id, b.protected, b.value, b.id)
+        .then_with(|| a.kind.cmp(&b.kind))
 }
 
 pub fn compare_raid_targets(
@@ -138,6 +303,77 @@ mod tests {
     }
 
     #[test]
+    fn watch_index_preserves_exact_radius_checks_across_negative_cells() {
+        let areas = [
+            WatchArea {
+                x: -130.0,
+                z: -20.0,
+                radius: 148.2,
+            },
+            WatchArea {
+                x: 190.0,
+                z: 190.0,
+                radius: 190.0,
+            },
+        ];
+        let index = WatchCoverageIndex::new(&areas);
+        for x in (-500..=500).step_by(17) {
+            for z in (-500..=500).step_by(19) {
+                let expected = areas.iter().any(|area| {
+                    let dx = x as f64 - area.x;
+                    let dz = z as f64 - area.z;
+                    dx * dx + dz * dz <= area.radius * area.radius
+                });
+                assert_eq!(index.contains(x as f64, z as f64), expected);
+            }
+        }
+        assert!(!index.contains(f64::NAN, 0.0));
+    }
+
+    #[test]
+    fn watch_index_stays_bounded_with_many_holdings_and_towers() {
+        let areas = (0..1_000)
+            .map(|index| WatchArea {
+                x: (index % 40) as f64 * 320.0,
+                z: (index / 40) as f64 * 320.0,
+                radius: 190.0,
+            })
+            .collect::<Vec<_>>();
+        let started = std::time::Instant::now();
+        let index = WatchCoverageIndex::new(&areas);
+        let watched = (0..100_000)
+            .filter(|holding| {
+                index.contains(
+                    (holding % 1_280) as f64 * 10.0,
+                    (holding / 1_280) as f64 * 10.0,
+                )
+            })
+            .count();
+        assert!(watched > 0);
+        assert!(
+            started.elapsed() < std::time::Duration::from_millis(250),
+            "1,000 towers and 100,000 holdings should use nearby watch buckets"
+        );
+    }
+
+    #[test]
+    fn road_linked_guard_companies_muster_more_effectively() {
+        assert_eq!(guardhouse_muster_efficiency(Some(120.0)), 1.0);
+        assert_eq!(
+            guardhouse_muster_efficiency(Some(GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE)),
+            GUARDHOUSE_LONG_MUSTER_EFFICIENCY
+        );
+        assert_eq!(
+            guardhouse_muster_efficiency(None),
+            GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY
+        );
+        let middle = guardhouse_muster_efficiency(Some(
+            (GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE + GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE) * 0.5,
+        ));
+        assert!((middle - (1.0 + GUARDHOUSE_LONG_MUSTER_EFFICIENCY) * 0.5).abs() < 1e-9);
+    }
+
+    #[test]
     fn coverage_materially_reduces_plunder() {
         let exposed = raid_loss_fraction(50, 0.0);
         let guarded = raid_loss_fraction(50, 0.8);
@@ -163,11 +399,54 @@ mod tests {
     }
 
     #[test]
+    fn tower_warning_reduces_the_guard_requirement() {
+        assert!(guards_required(65, 1.0) < guards_required(65, 0.0));
+    }
+
+    #[test]
+    fn full_watch_coverage_without_guards_is_not_immunity() {
+        let forecast = raid_forecast(50, 1.0, 0.0, 3);
+        assert!(forecast.target_count > 0);
+        assert!(forecast.loss_fraction > 0.0);
+    }
+
+    #[test]
+    fn forecast_clamps_targets_to_real_holdings() {
+        let forecast = raid_forecast(90, 0.0, 0.0, 1);
+        assert_eq!(forecast.target_count, 1);
+        assert!(forecast.loss_fraction > 0.0);
+    }
+
+    #[test]
     fn partial_guard_strength_reduces_but_does_not_erase_losses() {
         let unguarded = raid_loss_fraction(90, 0.25);
         let guarded = guarded_raid_loss_fraction(90, 0.25, 3.0);
         assert!(guarded > 0.0);
         assert!(guarded < unguarded);
+    }
+
+    #[test]
+    fn guards_bound_raid_arson_without_making_an_undefended_frontier_safe() {
+        assert_eq!(raid_arson_chance(0, 0.0), 0.0);
+        assert_eq!(raid_arson_chance(100, 1.0), 0.0);
+        assert!(raid_arson_chance(80, 0.0) > raid_arson_chance(30, 0.0));
+        assert!(raid_arson_chance(80, 0.5) < raid_arson_chance(80, 0.0));
+        assert!(raid_arson_chance(100, 0.0) <= 0.24);
+    }
+
+    #[test]
+    fn raid_arson_roll_is_deterministic_and_remains_a_minority_outcome() {
+        let outcomes = (0..10_000u64)
+            .filter(|entropy| raid_arson_occurs(50, 0.0, *entropy))
+            .count();
+        assert_eq!(
+            raid_arson_occurs(50, 0.0, 42),
+            raid_arson_occurs(50, 0.0, 42)
+        );
+        assert!(
+            (1_300..=1_700).contains(&outcomes),
+            "mid-pressure undefended arson should stay near its 15% policy chance"
+        );
     }
 
     #[test]
@@ -179,6 +458,75 @@ mod tests {
         assert_eq!(
             compare_raid_targets(false, 10.0, 2, false, 5.0, 1),
             Ordering::Less
+        );
+    }
+
+    #[test]
+    fn watched_holdings_are_deprioritized_not_immune() {
+        let targets = [
+            RaidTargetCandidate {
+                kind: RaidTargetKind::Building,
+                id: 1,
+                protected: true,
+                value: 100.0,
+            },
+            RaidTargetCandidate {
+                kind: RaidTargetKind::Residence,
+                id: 2,
+                protected: true,
+                value: 50.0,
+            },
+        ];
+        assert_eq!(select_raid_targets(&targets, 1), vec![targets[0]]);
+    }
+
+    #[test]
+    fn one_target_budget_is_shared_across_stores_and_homes() {
+        let exposed_home = RaidTargetCandidate {
+            kind: RaidTargetKind::Residence,
+            id: 2,
+            protected: false,
+            value: 40.0,
+        };
+        let targets = [
+            RaidTargetCandidate {
+                kind: RaidTargetKind::Building,
+                id: 1,
+                protected: false,
+                value: 20.0,
+            },
+            exposed_home,
+            RaidTargetCandidate {
+                kind: RaidTargetKind::Building,
+                id: 3,
+                protected: true,
+                value: 100.0,
+            },
+        ];
+        assert_eq!(select_raid_targets(&targets, 1), vec![exposed_home]);
+    }
+
+    #[test]
+    fn raid_selection_keeps_a_small_bounded_working_set() {
+        let candidates = (0..100_000)
+            .map(|id| RaidTargetCandidate {
+                kind: if id % 2 == 0 {
+                    RaidTargetKind::Building
+                } else {
+                    RaidTargetKind::Residence
+                },
+                id,
+                protected: id % 3 == 0,
+                value: id as f64,
+            })
+            .collect::<Vec<_>>();
+        let started = std::time::Instant::now();
+        let selected = select_raid_targets(&candidates, 3);
+        assert_eq!(selected.len(), 3);
+        assert!(selected.iter().all(|target| !target.protected));
+        assert!(
+            started.elapsed() < std::time::Duration::from_millis(250),
+            "100,000 raid candidates should not require a full sort"
         );
     }
 }

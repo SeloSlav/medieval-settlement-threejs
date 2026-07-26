@@ -1,5 +1,6 @@
 use crate::balance_generated::{
-    RESIDENCE_ALE_CAPACITY, RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_CAPACITY,
+    RESIDENCE_ALE_CAPACITY, RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_CAPACITY,
+    RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_CAPACITY,
     RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
 };
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
@@ -19,6 +20,10 @@ pub fn consume_ale(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
 
 pub fn consume_preserved_food(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
     consume(residence, need, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC)
+}
+
+pub fn consume_cloth(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
+    consume(residence, need, RESIDENCE_CLOTH_PER_PERSON_PER_SEC)
 }
 
 fn consume(residence: &Residence, need: &NeedState, rate: f64) -> ConsumeOutcome {
@@ -60,6 +65,7 @@ pub fn stock_capacity(kind: ResidenceNeedKind) -> f64 {
     match kind {
         ResidenceNeedKind::Ale => RESIDENCE_ALE_CAPACITY,
         ResidenceNeedKind::PreservedFood => RESIDENCE_PRESERVED_FOOD_CAPACITY,
+        ResidenceNeedKind::Cloth => RESIDENCE_CLOTH_CAPACITY,
         _ => 0.0,
     }
 }

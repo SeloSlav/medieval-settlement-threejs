@@ -84,7 +84,7 @@ pub struct PlayerResources {
     /// Fraction of parish tithe income transferred to a linked Pauline monastery.
     #[default(0.3)]
     pub monastery_tithe_share: f64,
-    /// When true, linked monasteries observe the three annual settlement feast days.
+    /// When true, linked monasteries provision daily hospitality and five annual feast days.
     #[default(true)]
     pub monastery_feasts_enabled: bool,
     /// Lifetime gold manually collected from chapel coffers.
@@ -108,6 +108,31 @@ pub struct PlayerResources {
     pub monastery_pilgrimage_gold_total: f64,
     #[default(0.0)]
     pub monastery_food_charity_total: f64,
+    /// Imported wrought-iron heads and fittings awaiting local hafting.
+    ///
+    /// Appended for additive save compatibility; resource grouping is handled
+    /// by the client projection rather than physical table-column order.
+    #[default(0.0)]
+    pub ironwork: f64,
+    /// Raw fleece recovered from demolished stores or interrupted deliveries.
+    #[default(0.0)]
+    pub wool: f64,
+    /// Finished woven cloth recovered from demolished stores or interrupted deliveries.
+    #[default(0.0)]
+    pub cloth: f64,
+    /// When enabled, a staffed Town Hall reviews seasonal crews once per
+    /// calendar day: dormant labor is released before active sites claim free
+    /// workers by their existing staffing priorities. Appended for additive
+    /// save compatibility; existing settlements remain manual.
+    #[default(false)]
+    pub seasonal_labor_steward_enabled: bool,
+    /// When enabled, a staffed Town Hall reviews builders once per calendar
+    /// day: blocked crews without an approaching cart are released, then
+    /// immediately productive sites claim labor by construction priority.
+    /// Appended for additive save compatibility; existing settlements remain
+    /// manual.
+    #[default(false)]
+    pub construction_labor_steward_enabled: bool,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -221,6 +246,84 @@ pub struct Building {
     /// spoilage in centralized storage.
     #[default(true)]
     pub granary_accepts_fresh_food: bool,
+    /// Imported wrought-iron heads and fittings awaiting local hafting.
+    ///
+    /// Appended for additive save compatibility.
+    #[default(0.0)]
+    pub ironwork: f64,
+    /// Granary distribution policy. Appended for additive save compatibility.
+    /// False preserves the legacy behavior: central surplus goes to smokehouses
+    /// before household carts.
+    #[default(false)]
+    pub granary_households_first: bool,
+    /// Work priority: construction uses 0 = held, 1 = low, 2 = normal,
+    /// 3 = urgent. Completed buildings use 1 = low, 2 = normal, 3 = high
+    /// when retaining staff after population loss. The additive legacy default
+    /// remains normal; an explicitly prioritized site retains that intent.
+    #[default(2u8)]
+    pub construction_priority: u8,
+    /// Settlement-wide unreserved building timber this lodge must leave intact
+    /// when converting timber into firewood. Ignored by other building kinds.
+    /// Zero preserves legacy lodge behavior for existing saves.
+    #[default(0.0)]
+    pub woodcutter_timber_reserve: f64,
+    /// Strategic grain floor protected from routine processors and foreign
+    /// sales. Farmstead seed replenishment may draw through this floor.
+    /// Appended for additive save compatibility; zero preserves legacy behavior.
+    #[default(0.0)]
+    pub granary_grain_reserve: f64,
+    /// Share of a game habitat or fish shoal's carrying capacity protected from
+    /// this building's harvest. Ignored by other building kinds. Appended for
+    /// additive save compatibility; zero preserves legacy behavior.
+    #[default(0u8)]
+    pub harvest_reserve_percent: u8,
+    /// Raw fleece awaiting local weaving. Appended for additive save compatibility.
+    #[default(0.0)]
+    pub wool: f64,
+    /// Finished woven cloth awaiting sale. Appended for additive save compatibility.
+    #[default(0.0)]
+    pub cloth: f64,
+    /// Finished polearms retained at a carpenter after current company deliveries.
+    ///
+    /// Existing saves keep the former full-workshop behavior; newly placed
+    /// carpenters start with a smaller one-company reserve.
+    #[default(24u8)]
+    pub carpenter_polearm_reserve: u8,
+    /// Order in which this company claims scarce treasury wages. Existing
+    /// saves remain at normal priority; ignored by other building kinds.
+    #[default(1u8)]
+    pub guardhouse_pay_priority: u8,
+    /// Desired ironwork held at this marketplace in whole six-unit import lots.
+    /// Existing saves default to manual-only procurement; ignored elsewhere.
+    #[default(0u8)]
+    pub marketplace_ironwork_target: u8,
+    /// 0 = sell specialty goods at any rate, 1 = hold below fair value,
+    /// 2 = hold for favorable regional demand. Appended for save compatibility.
+    #[default(0u8)]
+    pub marketplace_specialty_export_policy: u8,
+    /// Fresh-food capacity target used by institutional collection carts.
+    /// The legacy hard-coded behavior filled granaries to 75%.
+    #[default(75u8)]
+    pub granary_fresh_food_target_percent: u8,
+    /// Per-material village-storehouse collection ceilings. Construction and
+    /// household fuel may still draw below these levels. Appended fields retain
+    /// the former fill-to-capacity behavior for existing saves.
+    #[default(100u8)]
+    pub storehouse_timber_target_percent: u8,
+    #[default(100u8)]
+    pub storehouse_stone_target_percent: u8,
+    #[default(100u8)]
+    pub storehouse_firewood_target_percent: u8,
+    /// Finished-goods ceiling for staffed conversion workshops. Inputs stop
+    /// arriving while output is at this level, but outgoing demand may draw it
+    /// down and restart production. Appended for additive save compatibility.
+    #[default(100u8)]
+    pub processor_output_target_percent: u8,
+    /// Fresh-food units reserved per armed guard. Appended so existing saves
+    /// retain the former six-unit company standard without reordering fields;
+    /// ignored by other building kinds.
+    #[default(6u8)]
+    pub guardhouse_food_reserve: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).
@@ -272,6 +375,12 @@ pub struct FarmField {
     /// Grain from the latest completed harvest.
     #[default(0.0)]
     pub last_yield: f64,
+    /// Grain already brought in during the current September harvest.
+    ///
+    /// Kept separately from `last_yield` so an in-progress or storage-blocked
+    /// harvest survives restarts and can be closed accurately at the deadline.
+    #[default(0.0)]
+    pub current_yield: f64,
 }
 
 /// A player-drawn grazing parcel tied to a pastoral farmstead or woodland swineherd.
@@ -325,6 +434,28 @@ pub struct LivestockHerd {
     pub last_food_output: f64,
     pub last_preserved_output: f64,
     pub last_wool_gold: f64,
+    /// Desired herd kept through winter. The shared migration default is valid
+    /// for every species; newly created herds use their species-specific value.
+    #[default(7u32)]
+    pub breeding_reserve: u32,
+    /// Animals culled during the most recent livestock work cycle.
+    #[default(0u32)]
+    pub last_culled: u32,
+    /// Dried grass stored locally in the holding's loft and hayrack.
+    #[default(0.0)]
+    pub hay_stock: f64,
+    /// Hay cut during the most recent livestock work cycle.
+    #[default(0.0)]
+    pub last_hay_output: f64,
+    /// Share of summer pasture withheld from grazing and cut for winter hay.
+    #[default(0u8)]
+    pub haymaking_percent: u8,
+    /// Wool stored during the most recent annual shearing.
+    #[default(0.0)]
+    pub last_wool_output: f64,
+    /// Calendar year of the last completed shearing; zero means never shorn.
+    #[default(0u32)]
+    pub last_shearing_year: u32,
 }
 
 #[spacetimedb::table(accessor = road_network_state, public)]
@@ -424,6 +555,12 @@ pub struct MarketState {
     pub last_price_tick: u64,
     /// Flavor bulletin for the marketplace UI.
     pub bulletin: String,
+    /// Shared regional rate for physically hauled ale, honey, wine, and cloth.
+    /// Appended fields retain neutral defaults for existing market rows.
+    #[default(1.0)]
+    pub specialty_price_mult: f64,
+    #[default(0.5)]
+    pub regional_specialty_demand: f64,
 }
 
 /// Per-settlement frontier pressure. Peaceful worlds keep this row at zero.
@@ -453,13 +590,22 @@ pub struct SettlementSecurity {
     pub next_raid_tick: u64,
     #[default(0u64)]
     pub last_raid_tick: u64,
-    /// 0 = none, 1 = warning/averted, 2 = stores plundered.
+    /// 0 = none, 1 = warning/averted, 2 = stores plundered, 3 = plunder and arson.
     #[default(0u8)]
     pub last_outcome: u8,
     #[default(0.0)]
     pub last_goods_lost: f64,
     #[default(0.0)]
     pub last_wealth_lost: f64,
+    /// Ready guards needed to fully repel the currently projected raid at present watch coverage.
+    #[default(0.0)]
+    pub guards_required: f64,
+    /// Combined stores and households likely to be struck if the projected raid arrived now.
+    #[default(0u32)]
+    pub targets_at_risk: u32,
+    /// Fraction of portable stock likely to be lost at each selected holding.
+    #[default(0.0)]
+    pub estimated_loss_fraction: f64,
 }
 
 /// Active road delivery agent — position and phase are authoritative; cargo unloads on arrival.
@@ -523,7 +669,7 @@ pub struct FireIncident {
     pub target_id: u64,
     pub x: f64,
     pub z: f64,
-    /// 0 = lightning, 1 = hearth/workshop accident, 2 = spread.
+    /// 0 = lightning, 1 = hearth/workshop accident, 2 = spread, 3 = hostile raid.
     pub ignition_source: u8,
     /// 0 = burning, 1 = extinguished, 2 = destroyed.
     pub state: u8,

@@ -22,8 +22,11 @@ pub struct DeliveryCargoTotals {
     pub preserved_food: f64,
     pub honey: f64,
     pub wine: f64,
+    pub ironwork: f64,
     pub stone: f64,
     pub polearms: f64,
+    pub wool: f64,
+    pub cloth: f64,
 }
 
 impl DeliveryCargoTotals {
@@ -39,8 +42,11 @@ impl DeliveryCargoTotals {
             CommodityKind::PreservedFood => self.preserved_food += amount,
             CommodityKind::Honey => self.honey += amount,
             CommodityKind::Wine => self.wine += amount,
+            CommodityKind::Ironwork => self.ironwork += amount,
             CommodityKind::Stone => self.stone += amount,
             CommodityKind::Polearms => self.polearms += amount,
+            CommodityKind::Wool => self.wool += amount,
+            CommodityKind::Cloth => self.cloth += amount,
         }
     }
 }
@@ -52,6 +58,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::Food => building.food,
         ResidenceNeedKind::Ale => building.ale,
         ResidenceNeedKind::PreservedFood => building.preserved_food,
+        ResidenceNeedKind::Cloth => building.cloth,
     }
 }
 
@@ -80,6 +87,9 @@ pub fn withdraw_delivery_cargo(
         ResidenceNeedKind::PreservedFood => {
             withdraw_building_commodity(building, CommodityKind::PreservedFood, amount)
         }
+        ResidenceNeedKind::Cloth => {
+            withdraw_building_commodity(building, CommodityKind::Cloth, amount)
+        }
     }
 }
 
@@ -88,7 +98,7 @@ pub fn delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> f64 {
         ResidenceNeedKind::Firewood => (firewood::stock_capacity() - stock).max(0.0),
         ResidenceNeedKind::Water => (water::stock_capacity() - stock).max(0.0),
         ResidenceNeedKind::Food => (food::stock_capacity() - stock).max(0.0),
-        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood => {
+        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => {
             (provisions::stock_capacity(kind) - stock).max(0.0)
         }
     }
@@ -99,7 +109,7 @@ pub fn has_delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> bool {
         ResidenceNeedKind::Firewood => firewood::has_stock_room(stock),
         ResidenceNeedKind::Water => water::has_stock_room(stock),
         ResidenceNeedKind::Food => food::has_stock_room(stock),
-        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood => {
+        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => {
             stock + 1e-6 < provisions::stock_capacity(kind)
         }
     }
@@ -112,33 +122,6 @@ pub fn residence_delivery_room(
 ) -> f64 {
     let stock = need_stock(&load_needs(ctx, residence_id), kind);
     delivery_stock_room(kind, stock)
-}
-
-pub fn any_target_needs_delivery(
-    ctx: &ReducerContext,
-    targets: &[crate::tables::Residence],
-    kind: ResidenceNeedKind,
-) -> bool {
-    targets.iter().any(|residence| {
-        has_delivery_stock_room(kind, need_stock(&load_needs(ctx, residence.id), kind))
-    })
-}
-
-pub fn collect_claimed_delivery_targets<F>(
-    residences: Vec<crate::tables::Residence>,
-    claims: &std::collections::HashMap<u64, u64>,
-    building_id: u64,
-    mut sort: F,
-) -> Vec<crate::tables::Residence>
-where
-    F: FnMut(&mut Vec<crate::tables::Residence>),
-{
-    let mut targets: Vec<crate::tables::Residence> = residences
-        .into_iter()
-        .filter(|residence| claims.get(&residence.id).copied() == Some(building_id))
-        .collect();
-    sort(&mut targets);
-    targets
 }
 
 pub fn pick_delivery_target(

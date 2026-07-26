@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import {
   CONSTRUCTION_DELIVERY_SPEED_MPS,
@@ -24,8 +25,24 @@ import {
   findInboundSupplyTripForBuilding,
   type DeliveryTripState,
 } from '../src/logistics/deliveryTrips.ts';
+import {
+  constructionSourcePriority,
+  selectConstructionRouteSource,
+} from '../src/logistics/constructionLogistics.ts';
+import {
+  computeSettlementConstructionPlan,
+} from '../src/economy/settlementConstruction.ts';
+import {
+  CONSTRUCTION_PRIORITY_HOLD,
+  CONSTRUCTION_PRIORITY_LOW,
+  CONSTRUCTION_PRIORITY_NORMAL,
+  CONSTRUCTION_PRIORITY_URGENT,
+  constructionPriorityLabel,
+  normalizeConstructionPriority,
+} from '../src/logistics/constructionPriority.ts';
 import type { BuildingState } from '../src/resources/types.ts';
 import { renderConstructionInspector } from '../src/resources/inspector/constructionRenderer.ts';
+import { renderConstructionQueueRows } from '../src/resources/inspector/townHallRenderer.ts';
 
 const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), 'utf8');
@@ -47,6 +64,18 @@ assert.ok(
 assert.ok(
   FOOD_DELIVERY_SPEED_MPS >= 1.4 && FOOD_DELIVERY_SPEED_MPS < 2,
   'household food handcarts should move at a believable brisk walking pace',
+);
+assert.equal(normalizeConstructionPriority(undefined), CONSTRUCTION_PRIORITY_NORMAL);
+assert.equal(normalizeConstructionPriority(-8), CONSTRUCTION_PRIORITY_HOLD);
+assert.equal(normalizeConstructionPriority(99), CONSTRUCTION_PRIORITY_URGENT);
+assert.deepEqual(
+  [
+    CONSTRUCTION_PRIORITY_HOLD,
+    CONSTRUCTION_PRIORITY_LOW,
+    CONSTRUCTION_PRIORITY_NORMAL,
+    CONSTRUCTION_PRIORITY_URGENT,
+  ].map(constructionPriorityLabel),
+  ['Hold', 'Low', 'Normal', 'Urgent'],
 );
 
 for (const kind of ['lumber_mill', 'stone_quarry'] as const) {
@@ -100,6 +129,18 @@ assert.match(constructionServer, /try_start_construction_supply_trip/);
 assert.match(constructionServer, /available_construction_haulers/);
 assert.match(constructionServer, /construction_progress/);
 assert.match(constructionServer, /complete_site/);
+assert.match(constructionServer, /site_buckets/);
+assert.match(constructionServer, /construction_priority_bucket/);
+assert.match(constructionServer, /CONSTRUCTION_PRIORITY_HOLD/);
+assert.match(constructionServer, /\.into_iter\(\)\.rev\(\)\.flatten\(\)/);
+assert.doesNotMatch(
+  constructionServer.slice(
+    constructionServer.indexOf('pub fn step_construction_sites'),
+    constructionServer.indexOf('fn transfer_treasury_reserve'),
+  ),
+  /\.sort/,
+  'construction priority must stay a fixed-bucket linear pass',
+);
 const constructionDispatch = constructionServer.slice(
   constructionServer.indexOf('fn dispatch_reserved_stock'),
   constructionServer.indexOf('fn advance_builder_work'),
@@ -109,6 +150,25 @@ assert.doesNotMatch(
   /source\.assigned_labor\s*>\s*0/,
   'unstaffed completed sources must remain eligible for construction pickup',
 );
+assert.doesNotMatch(
+  constructionDispatch,
+  /\.sort_by\(/,
+  'construction dispatch should not sort every stocked building before starting one cart',
+);
+assert.match(constructionDispatch, /source_groups/);
+assert.match(constructionDispatch, /construction_source_priority/);
+assert.match(
+  constructionDispatch,
+  /tick\.construction_source_ids\(ctx, site\.owner, commodity\)/,
+  'every site should inspect only the tick-local roster that began with the requested material',
+);
+assert.doesNotMatch(
+  constructionDispatch,
+  /ctx\.db\.building\(\)\.owner\(\)/,
+  'construction carts must not rescan every owner building for each site and commodity',
+);
+assert.match(constructionDispatch, /road_path_distance/);
+assert.match(constructionDispatch, /select_supply_route_candidate/);
 
 const roadNetworkServer = read('server/src/roads/network.rs');
 assert.match(
@@ -144,6 +204,12 @@ assert.doesNotMatch(constructionInspector, /Waiting for a staffed material sourc
 assert.match(constructionInspector, /Unassigned hauler bringing/);
 assert.match(constructionInspector, /No road route to/);
 assert.match(constructionInspector, /Material source/);
+assert.match(constructionInspector, /routeDistance/);
+assert.doesNotMatch(
+  constructionInspector.slice(constructionInspector.indexOf('function resolveConstructionSupply')),
+  /\.sort\(/,
+  'inspector prediction should use the same bounded selection as the server',
+);
 
 const returningTrip: DeliveryTripState = {
   id: 'trip-1',
@@ -218,8 +284,144 @@ const buildingState = (
   storehouseAcceptsTimber: true,
   storehouseAcceptsStone: true,
   storehouseAcceptsFirewood: true,
+  constructionPriority: CONSTRUCTION_PRIORITY_NORMAL,
   ...overrides,
 });
+const urgentOffRoadSite = buildingState({
+  id: 'queue-urgent',
+  kind: 'lumber_mill',
+  assignedLabor: 2,
+  constructionComplete: false,
+  constructionProgress: 0.4,
+  constructionRequiredTimber: 40,
+  constructionRequiredStone: 10,
+  constructionDeliveredTimber: 20,
+  constructionReservedStone: 10,
+  constructionPriority: CONSTRUCTION_PRIORITY_URGENT,
+});
+const uncrewedNormalSite = buildingState({
+  id: 'queue-normal',
+  kind: 'village_storehouse',
+  assignedLabor: 0,
+  constructionComplete: false,
+  constructionProgress: 0.5,
+  constructionRequiredTimber: 10,
+  constructionDeliveredTimber: 10,
+});
+const suppliedLowSite = buildingState({
+  id: 'queue-low',
+  kind: 'chapel',
+  assignedLabor: 1,
+  constructionComplete: false,
+  constructionProgress: 0,
+  constructionRequiredStone: 12,
+  constructionPriority: CONSTRUCTION_PRIORITY_LOW,
+});
+const heldQueueSite = buildingState({
+  id: 'queue-held',
+  kind: 'marketplace',
+  assignedLabor: 3,
+  constructionComplete: false,
+  constructionProgress: 0,
+  constructionRequiredTimber: 10,
+  constructionReservedTimber: 10,
+  constructionTreasuryTimber: 4,
+  constructionPriority: CONSTRUCTION_PRIORITY_HOLD,
+});
+const queueStoneTrip: DeliveryTripState = {
+  ...outboundTrip,
+  id: 'queue-stone-trip',
+  targetBuildingId: suppliedLowSite.id,
+  cargoKind: 'stone',
+  amount: 8,
+};
+const returningQueueTrip: DeliveryTripState = {
+  ...queueStoneTrip,
+  id: 'returning-queue-trip',
+  phase: 'inbound',
+  amount: 99,
+};
+const constructionQueue = computeSettlementConstructionPlan({
+  state: {
+    buildings: new Map([
+      urgentOffRoadSite,
+      uncrewedNormalSite,
+      suppliedLowSite,
+      heldQueueSite,
+    ].map((building) => [building.id, building])),
+    deliveryTrips: new Map([
+      [queueStoneTrip.id, queueStoneTrip],
+      [returningQueueTrip.id, returningQueueTrip],
+    ]),
+  },
+  hasRoadAccess: (building) => building.id !== urgentOffRoadSite.id,
+});
+assert.equal(constructionQueue.siteCount, 4);
+assert.equal(constructionQueue.activeSites, 3);
+assert.equal(constructionQueue.heldSites, 1);
+assert.deepEqual(
+  constructionQueue.priorityCounts,
+  { held: 1, low: 1, normal: 1, urgent: 1 },
+);
+assert.equal(constructionQueue.assignedBuilders, 3);
+assert.equal(constructionQueue.builderCapacity, 12);
+assert.ok(Math.abs(constructionQueue.remainingBuilderDays - 47 / 70) < 1e-9);
+assert.deepEqual(
+  constructionQueue.statusCounts,
+  {
+    held: 1,
+    building: 0,
+    'founders-reserve': 0,
+    'in-transit': 1,
+    'waiting-builders': 1,
+    'off-road': 1,
+    'waiting-hauler': 0,
+    'waiting-materials': 0,
+  },
+);
+assert.deepEqual(
+  constructionQueue.materials.timber,
+  {
+    required: 60,
+    delivered: 30,
+    remaining: 30,
+    foundersReserve: 4,
+    awaitingPickup: 6,
+    inTransit: 0,
+    uncovered: 20,
+  },
+);
+assert.deepEqual(
+  constructionQueue.materials.stone,
+  {
+    required: 22,
+    delivered: 0,
+    remaining: 22,
+    foundersReserve: 0,
+    awaitingPickup: 10,
+    inTransit: 8,
+    uncovered: 4,
+  },
+);
+assert.deepEqual(
+  constructionQueue.firstAttention,
+  {
+    buildingId: urgentOffRoadSite.id,
+    priority: CONSTRUCTION_PRIORITY_URGENT,
+    status: 'off-road',
+  },
+  'the highest-priority blocked site should lead the settlement queue',
+);
+const constructionQueueRows = renderConstructionQueueRows(constructionQueue);
+assert.match(constructionQueueRows, /Construction queue/);
+assert.match(constructionQueueRows, /urgent 1 \/ normal 1 \/ low 1/);
+assert.match(constructionQueueRows, /10 \/ 30 timber earmarked/);
+assert.match(
+  constructionQueueRows,
+  new RegExp(`data-inspect-building="${urgentOffRoadSite.id}"`),
+);
+assert.match(constructionQueueRows, /off-road materials/);
+
 const site = buildingState({
   id: 'site',
   kind: 'lumber_mill',
@@ -240,7 +442,10 @@ const stoneSource = buildingState({
 const constructionContext = (
   sources: BuildingState[],
   available: number,
-  pathDistance: number | null,
+  pathDistance:
+    | number
+    | null
+    | ((ax: number, az: number, bx: number, bz: number) => number | null),
   inbound: DeliveryTripState | null = null,
 ) => {
   const buildings = new Map(sources.concat(site).map((building) => [building.id, building]));
@@ -252,7 +457,14 @@ const constructionContext = (
     worldQueries: {
       getInboundSupplyTrip: () => inbound,
       getBuilding: (id: string) => buildings.get(id) ?? null,
-      getRoadPathDistance: () => pathDistance,
+      getRoadPathDistance: (
+        ax: number,
+        az: number,
+        bx: number,
+        bz: number,
+      ) => typeof pathDistance === 'function'
+        ? pathDistance(ax, az, bx, bz)
+        : pathDistance,
       getActiveDeliveryTrip: () => null,
       getRoadAccessLabel: () => 'Connected (5 m to road)',
     },
@@ -303,6 +515,126 @@ assert.equal(
   ).statusText,
   'Storehouse crew preparing 15 stone',
 );
+const straightLineNearSource = buildingState({
+  id: '10',
+  kind: 'stone_quarry',
+  x: 25,
+  assignedLabor: 1,
+  stone: 100,
+});
+const roadRouteNearSource = buildingState({
+  id: '20',
+  kind: 'large_quarry',
+  x: -100,
+  assignedLabor: 1,
+  stone: 100,
+});
+const routeAwareView = renderConstructionInspector(
+  siteTarget,
+  constructionContext(
+    [straightLineNearSource, roadRouteNearSource],
+    5,
+    (sourceX) => sourceX === roadRouteNearSource.x ? 20 : 90,
+  ) as never,
+);
+assert.equal(
+  routeAwareView.statusText,
+  'Large Quarry crew preparing 15 stone',
+  'the source with the shorter road route must beat the source that looks nearer in a straight line',
+);
+assert.match(routeAwareView.detailsHtml, /Large Quarry · 20m haul/);
+assert.match(routeAwareView.detailsHtml, /Queue priority<\/span><span>Normal/);
+assert.match(routeAwareView.supplementalPanelHtml ?? '', /data-construction-priority="3"/);
+assert.match(routeAwareView.supplementalPanelHtml ?? '', /urgent sites claim available carts/);
+
+const heldSite = {
+  ...site,
+  assignedLabor: 0,
+  constructionPriority: CONSTRUCTION_PRIORITY_HOLD,
+};
+const heldView = renderConstructionInspector(
+  { kind: 'building', building: heldSite },
+  constructionContext([stoneSource], 5, 30) as never,
+);
+assert.equal(heldView.statusText, 'Construction held — reservations retained');
+assert.match(heldView.detailsHtml, /Queue priority<\/span><span>Hold/);
+assert.match(heldView.labor.hint, /Reservations remain earmarked/);
+assert.equal(heldView.labor.increaseDisabled, true);
+
+assert.ok(
+  constructionSourcePriority(staffedStorehouse)
+    < constructionSourcePriority(roadRouteNearSource),
+  'staffed central stores should retain their established source-class advantage',
+);
+const hierarchyWinner = selectConstructionRouteSource(
+  [roadRouteNearSource, staffedStorehouse],
+  (source) => source.id === staffedStorehouse.id ? 500 : 20,
+);
+assert.equal(
+  hierarchyWinner?.source.id,
+  staffedStorehouse.id,
+  'route distance should break ties inside a source class rather than erase the source hierarchy',
+);
+const stableTieWinner = selectConstructionRouteSource(
+  [
+    { id: '7', kind: 'stone_quarry' as const, assignedLabor: 1 },
+    { id: '3', kind: 'large_quarry' as const, assignedLabor: 1 },
+  ],
+  () => 40,
+);
+assert.equal(stableTieWinner?.source.id, '3');
+
+const largeSourceSet = Array.from({ length: 100_000 }, (_, index) => ({
+  id: String(index),
+  kind: 'stone_quarry' as const,
+  assignedLabor: 1,
+}));
+const selectionStarted = performance.now();
+const largeSelection = selectConstructionRouteSource(
+  largeSourceSet,
+  (source) => 100_000 - Number(source.id),
+);
+const selectionElapsedMs = performance.now() - selectionStarted;
+assert.equal(largeSelection?.source.id, '99999');
+assert.ok(
+  selectionElapsedMs < 250,
+  `100,000 construction sources took ${selectionElapsedMs.toFixed(1)} ms to select`,
+);
+const largeQueueBuildings = new Map(
+  Array.from({ length: 100_000 }, (_, index) => {
+    const building = buildingState({
+      id: String(index),
+      kind: 'lumber_mill',
+      constructionComplete: false,
+      constructionRequiredTimber: 10,
+    });
+    return [building.id, building] as const;
+  }),
+);
+const queueStarted = performance.now();
+let largeQueueRoadChecks = 0;
+const largeQueue = computeSettlementConstructionPlan({
+  state: {
+    buildings: largeQueueBuildings,
+    deliveryTrips: new Map(),
+  },
+  hasRoadAccess: () => {
+    largeQueueRoadChecks += 1;
+    return true;
+  },
+});
+const queueElapsedMs = performance.now() - queueStarted;
+assert.equal(largeQueue.siteCount, 100_000);
+assert.equal(largeQueue.firstAttention?.buildingId, '0');
+assert.equal(
+  largeQueueRoadChecks,
+  0,
+  'uncrewed sites should be classified without unnecessary road-network queries',
+);
+assert.ok(
+  queueElapsedMs < 500,
+  `100,000 construction sites took ${queueElapsedMs.toFixed(1)} ms to summarize`,
+);
 const visibleInbound = {
   ...outboundTrip,
   buildingId: stoneSource.id,
@@ -336,6 +668,15 @@ assert.doesNotMatch(
   /spend_aggregate_timber/,
   'building placement must reserve resources instead of consuming them instantly',
 );
+assert.match(placementServer, /construction_priority: CONSTRUCTION_PRIORITY_NORMAL/);
+assert.match(placementServer, /pub fn set_construction_priority/);
+assert.match(placementServer, /building\.assigned_labor = 0/);
+assert.match(placementServer, /cancel_inbound_construction_trips_for_site/);
+assert.match(placementServer, /initial_construction_labor\(available_building_labor/);
+assert.match(
+  deliveryServer,
+  /pub fn cancel_inbound_construction_trips_for_site[\s\S]*return_trip_cargo_to_building/,
+);
 
 const simServer = read('server/src/reducers/simulation.rs');
 assert.match(simServer, /step_construction_sites/);
@@ -356,8 +697,21 @@ for (const field of [
   'constructionDeliveredStone',
   'constructionReservedTimber',
   'constructionTreasuryStone',
+  'constructionPriority',
 ]) {
   assert.match(generatedBuilding, new RegExp(field), `generated binding missing ${field}`);
 }
+assert.match(read('src/generated/set_construction_priority_reducer.ts'), /priority: __t\.u8/);
+assert.match(
+  read('src/data/spacetimeTableSync/syncBuildings.ts'),
+  /constructionPriority: row\.constructionPriority/,
+);
+assert.match(
+  read('src/data/spacetimeGameStore.ts'),
+  /async setConstructionPriority[\s\S]*constructionPriority: clampedPriority/,
+);
+assert.match(read('src/resources/ResourceInspector.ts'), /data-construction-priority/);
 
-console.log('construction logistics tests passed');
+console.log(
+  `construction logistics tests passed (${selectionElapsedMs.toFixed(1)} ms source selection; ${queueElapsedMs.toFixed(1)} ms queue summary for 100,000 sites)`,
+);

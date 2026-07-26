@@ -28,6 +28,7 @@ const PITCH_SENSITIVITY = 0.004;
 const RMB_PAN_MULTIPLIER = 0.105;
 const KEY_PAN_SPEED = 34;
 const KEY_ROTATE_SPEED = 2.8;
+const INSPECT_FOCUS_DISTANCE = 90;
 
 export type CameraControllerConfig = {
   camera: THREE.PerspectiveCamera;
@@ -93,6 +94,20 @@ export class CameraController {
 
   getTargetPosition(out = new THREE.Vector3()): THREE.Vector3 {
     return out.copy(this.config.target);
+  }
+
+  focusWorldPosition(
+    x: number,
+    z: number,
+    maxDistance = INSPECT_FOCUS_DISTANCE,
+  ): void {
+    this.config.target.set(x, this.config.getHeightAt(x, z), z);
+    this.clampTarget();
+    this.currentDistance = this.clampDistance(
+      Math.min(this.currentDistance, maxDistance),
+    );
+    this.updateCamera();
+    this.notifyViewChanged();
   }
 
   setInputEnabled(enabled: boolean): void {

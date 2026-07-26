@@ -1,5 +1,5 @@
 import type { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
-import { buildingMarkerCollectionSignature } from '../buildings/buildingMarkerSignature.ts';
+import { buildingMarkerSignatures } from '../buildings/buildingMarkerSignature.ts';
 import type { BurgageFencing } from '../residences/BurgageFencing.ts';
 import type { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import type { GameState } from '../resources/types.ts';
@@ -29,6 +29,7 @@ export type SpacetimeSnapshotApplierDeps = {
 export class SpacetimeSnapshotApplier {
   private lastPlacedBuildingSignature = '';
   private lastBuildingMarkerSignature = '';
+  private lastBuildingColliderSignature = '';
   private lastForestClearanceSignature = '';
   private readonly previousTreePhases = new Map<string, string>();
   private readonly previousTreeGrowth = new Map<string, number>();
@@ -39,6 +40,8 @@ export class SpacetimeSnapshotApplier {
     previous: GameState | null,
   ): void {
     const buildingsChanged = !previous || state.buildings !== previous.buildings;
+    const livestockHerdsChanged = !previous
+      || state.livestockHerds !== previous.livestockHerds;
     const residencesChanged = !previous || state.residences !== previous.residences;
     const burgageZonesChanged = !previous || state.burgageZones !== previous.burgageZones;
     const farmFieldsChanged = !previous || state.farmFields !== previous.farmFields;
@@ -120,12 +123,21 @@ export class SpacetimeSnapshotApplier {
       }
     }
 
-    if (buildingsChanged) {
-      const markerSignature = buildingMarkerCollectionSignature(state.buildings);
-      if (markerSignature !== this.lastBuildingMarkerSignature) {
-        this.lastBuildingMarkerSignature = markerSignature;
+    if (buildingsChanged || livestockHerdsChanged) {
+      const markerSignatures = buildingMarkerSignatures(
+        state.buildings,
+        state.livestockHerds,
+      );
+      if (markerSignatures.visual !== this.lastBuildingMarkerSignature) {
+        this.lastBuildingMarkerSignature = markerSignatures.visual;
+        deps.buildingMarkers?.syncBuildings(
+          state.buildings.values(),
+          state.livestockHerds,
+        );
+      }
+      if (markerSignatures.collider !== this.lastBuildingColliderSignature) {
+        this.lastBuildingColliderSignature = markerSignatures.collider;
         buildingCollidersChanged = true;
-        deps.buildingMarkers?.syncBuildings(state.buildings.values());
       }
     }
 
@@ -191,6 +203,7 @@ export class SpacetimeSnapshotApplier {
   reset(): void {
     this.lastPlacedBuildingSignature = '';
     this.lastBuildingMarkerSignature = '';
+    this.lastBuildingColliderSignature = '';
     this.lastForestClearanceSignature = '';
     this.previousTreePhases.clear();
     this.previousTreeGrowth.clear();

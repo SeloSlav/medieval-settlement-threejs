@@ -13,14 +13,9 @@ import {
 } from '../resourceTotals.ts';
 import {
   RESIDENCE_ALE_CAPACITY,
+  RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
-  RESIDENCE_TIER2_GOLD_COST,
-  RESIDENCE_TIER2_STONE_COST,
-  RESIDENCE_TIER2_TIMBER_COST,
-  RESIDENCE_TIER3_GOLD_COST,
-  RESIDENCE_TIER3_STONE_COST,
-  RESIDENCE_TIER3_TIMBER_COST,
 } from '../../generated/gameBalance.ts';
 import {
   formatFoodRunwayDays,
@@ -29,6 +24,7 @@ import {
 import {
   formatSpecialtyRunwayDays,
   residenceAleRunwayDays,
+  residenceClothRunwayDays,
   residencePreservedFoodRunwayDays,
 } from '../../logistics/specialtyLogistics.ts';
 import { formatWaterRunwayDays, residenceWaterRunwayDays } from '../../logistics/waterLogistics.ts';
@@ -36,6 +32,18 @@ import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts
 import { effectiveResidenceSettleTicks } from '../../economy/chapelCommunity.ts';
 import { formatHouseholdWealth } from '../../economy/householdWealth.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
+import { residenceSettlementReadiness } from '../../economy/residenceSettlement.ts';
+import {
+  evaluateResidenceUpgrade,
+  type ResidenceUpgradePlan,
+  type ResidenceUpgradeServiceKind,
+} from '../../economy/residenceUpgrade.ts';
+import {
+  computeSettlementProsperityPlan,
+  projectTierThreeUpgrade,
+  type SettlementProsperityPlan,
+  type TierThreeUpgradeProjection,
+} from '../../economy/settlementProsperity.ts';
 import {
   buildResidenceCommunityContext,
   buildResidenceParishEconomyView,
@@ -46,7 +54,7 @@ import {
   residenceNeedsStatus,
   getNeedStock,
 } from '../../residences/residenceNeeds.ts';
-import type { InspectableTarget } from '../types.ts';
+import type { BuildingState, InspectableTarget } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
 
@@ -61,18 +69,66 @@ export function renderResidenceInspector(
   const plotRefund = residenceZoneSalvageRefund(residenceCount);
   const nearestRoad = context.worldQueries.getNearestRoadNodeDistance(residence.x, residence.z);
   const roadAccess = context.worldQueries.getRoadAccessLabel(residence.x, residence.z);
-  const servingLodge = residence.tier >= 2
-    ? context.worldQueries.getServingLodgeForResidence(residence)
-    : null;
-  const servingWell = residence.tier >= 2
-    ? context.worldQueries.getServingWellForResidence(residence)
-    : null;
+  const servingFirewoodSupplier =
+    context.worldQueries.getServingFirewoodSupplierForResidence(residence);
+  const servingWell = context.worldQueries.getServingWellForResidence(residence);
   const servingFoodSupplier = context.worldQueries.getServingFoodSupplierForResidence(residence);
-  const servingPreservedFoodSupplier = residence.tier >= 3
+  const servingPreservedFoodSupplier = residence.tier >= 2
     ? context.worldQueries.getServingPreservedFoodSupplierForResidence(residence)
     : null;
-  const servingAleSupplier = residence.tier >= 3
+  const servingAleSupplier = residence.tier >= 2
     ? context.worldQueries.getServingAleSupplierForResidence(residence)
+    : null;
+  const servingClothSupplier = residence.tier >= 2
+    ? context.worldQueries.getServingClothSupplierForResidence(residence)
+    : null;
+  const preservedFoodUpgradeSupplier = residence.tier === 2
+    ? servingPreservedFoodSupplier
+      ?? context.worldQueries.getPreservedFoodUpgradeSupplierForResidence(residence)
+    : servingPreservedFoodSupplier;
+  const aleUpgradeSupplier = residence.tier === 2
+    ? servingAleSupplier
+      ?? context.worldQueries.getAleUpgradeSupplierForResidence(residence)
+    : servingAleSupplier;
+  const clothUpgradeSupplier = residence.tier === 2
+    ? servingClothSupplier
+      ?? context.worldQueries.getClothUpgradeSupplierForResidence(residence)
+    : servingClothSupplier;
+  const upgradePlan = evaluateResidenceUpgrade(
+    residence,
+    context.resourceTotals,
+    {
+      firewood: {
+        supplier: servingFirewoodSupplier,
+        stocked: upgradeSupplierHasStock('firewood', servingFirewoodSupplier),
+      },
+      water: {
+        supplier: servingWell,
+        stocked: upgradeSupplierHasStock('water', servingWell),
+      },
+      preservedFood: {
+        supplier: preservedFoodUpgradeSupplier,
+        stocked: servingPreservedFoodSupplier != null,
+      },
+      ale: {
+        supplier: aleUpgradeSupplier,
+        stocked: servingAleSupplier != null,
+      },
+      cloth: {
+        supplier: clothUpgradeSupplier,
+        stocked: servingClothSupplier != null,
+      },
+    },
+  );
+  const prosperityPlan = upgradePlan?.nextTier === 3 && context.settlementProduction
+    ? computeSettlementProsperityPlan(context.settlementProduction)
+    : null;
+  const tierThreeProjection = prosperityPlan && upgradePlan?.nextTier === 3
+    ? projectTierThreeUpgrade(
+        prosperityPlan,
+        residence,
+        upgradePlan.populationCapacity,
+      )
     : null;
   const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
@@ -89,9 +145,12 @@ export function renderResidenceInspector(
     community.hasMonasteryCoverage,
   );
   const needs = residenceNeedsStatus(residence, {
-    servingLodgeId: servingLodge?.id ?? null,
+    servingLodgeId: servingFirewoodSupplier?.id ?? null,
     servingWellId: servingWell?.id ?? null,
     servingFoodSupplierId: servingFoodSupplier?.id ?? null,
+    servingPreservedFoodSupplierId: servingPreservedFoodSupplier?.id ?? null,
+    servingAleSupplierId: servingAleSupplier?.id ?? null,
+    servingClothSupplierId: servingClothSupplier?.id ?? null,
   }, community);
   const runwayDays = residence.tier >= 2 ? residenceFirewoodRunwayDays(residence) : null;
   const firewoodRunwayLabel = runwayDays == null
@@ -113,7 +172,11 @@ export function renderResidenceInspector(
   const aleRunwayLabel = aleRunwayDays == null
     ? '—'
     : formatSpecialtyRunwayDays(aleRunwayDays);
-  const supplierLabel = (supplier: typeof servingLodge): string => {
+  const clothRunwayDays = residence.tier >= 3 ? residenceClothRunwayDays(residence) : null;
+  const clothRunwayLabel = clothRunwayDays == null
+    ? '—'
+    : formatSpecialtyRunwayDays(clothRunwayDays);
+  const supplierLabel = (supplier: typeof servingFirewoodSupplier): string => {
     if (!supplier) return 'None on branch';
     const distance = context.worldQueries.getRoadPathDistance(
       residence.x,
@@ -123,26 +186,34 @@ export function renderResidenceInspector(
     );
     return `${context.worldQueries.getBuildingLabel(supplier.kind)} · ${formatDeliveryRoadDistance(distance)}`;
   };
-  const lodgeLabel = supplierLabel(servingLodge);
+  const firewoodSupplierLabel = supplierLabel(servingFirewoodSupplier);
   const wellLabel = supplierLabel(servingWell);
   const foodSupplierLabel = supplierLabel(servingFoodSupplier);
   const preservedFoodSupplierLabel = supplierLabel(servingPreservedFoodSupplier);
   const aleSupplierLabel = supplierLabel(servingAleSupplier);
+  const clothSupplierLabel = supplierLabel(servingClothSupplier);
   const capacity = residence.populationCapacity;
   const settlersRemaining = Math.max(0, capacity - residence.population);
+  const settlementReadiness = residenceSettlementReadiness(residence, community);
   const settleTicks = effectiveResidenceSettleTicks(
     community.hasChapelAccess,
     community.sabbathObservance,
     community.hasMonasteryCoverage,
   );
-  const settleEtaSeconds = settlersRemaining > 0
+  const settleEtaSeconds = settlersRemaining > 0 && settlementReadiness.ready
     ? Math.max(
         1,
         Math.round((settleTicks - residence.settlementTicks) * SIM_TICK_SECONDS),
       )
     : null;
   const activeNeedsLabel = activeResidenceNeedKinds(residence.tier)
-    .map((kind) => kind === 'preservedFood' ? 'preserved food' : kind)
+    .map((kind) =>
+      kind === 'preservedFood'
+        ? 'preserved food'
+        : kind === 'cloth'
+          ? 'household textiles'
+          : kind
+    )
     .join(', ');
 
   return {
@@ -160,6 +231,10 @@ export function renderResidenceInspector(
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population} / ${capacity}</span></li>
       <li><span>House tier</span><span>${residence.tier} / 3</span></li>
+      ${upgradePlan ? residenceUpgradeRows(upgradePlan, context.worldQueries.getBuildingLabel.bind(context.worldQueries)) : ''}
+      ${prosperityPlan && tierThreeProjection
+        ? residenceProsperityRows(prosperityPlan, tierThreeProjection)
+        : ''}
       <li><span>Active needs</span><span>${activeNeedsLabel}</span></li>
       <li><span>Household wealth</span><span>${formatHouseholdWealth(residence.householdWealth)}</span></li>
       ${parishEconomy.hasChapelAccess
@@ -167,6 +242,9 @@ export function renderResidenceInspector(
         : ''}
       ${settleEtaSeconds != null && !residence.abandoned
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — next in ~${formatSettleEta(settleEtaSeconds)}</span></li>`
+        : ''}
+      ${settlersRemaining > 0 && !residence.abandoned && !settlementReadiness.ready
+        ? `<li><span>Settlers</span><span>${settlersRemaining} pending — paused for ${formatSettlementWait(settlementReadiness.waitingOn)}</span></li>`
         : ''}
       <li><span>Food stock</span><span>${Math.round(getNeedStock(residence.needs, 'food'))} / ${RESIDENCE_FOOD_CAPACITY}</span></li>
       <li><span>Food runway</span><span>${foodRunwayLabel}</span></li>
@@ -178,11 +256,14 @@ export function renderResidenceInspector(
       ${residence.tier >= 3 ? `<li><span>Preserved food runway</span><span>${preservedFoodRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale runway</span><span>${aleRunwayLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Household textiles</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Textile runway</span><span>${clothRunwayLabel}</span></li>` : ''}
       <li><span>Serving food supplier</span><span>${foodSupplierLabel}</span></li>
-      ${residence.tier >= 2 ? `<li><span>Serving lodge</span><span>${lodgeLabel}</span></li>` : ''}
+      ${residence.tier >= 2 ? `<li><span>Firewood supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Serving well</span><span>${wellLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Preserved food supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale supplier</span><span>${aleSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Cloth supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
       <li><span>Chapel link</span><span>${community.hasChapelAccess ? 'Staffed parish on the road' : 'None on branch'}</span></li>
       <li><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>
       <li><span>Road access</span><span>${roadAccess}</span></li>
@@ -192,7 +273,7 @@ export function renderResidenceInspector(
     demolish: {
       visible: true,
       label: 'Remove residence',
-      hint: `Salvages about ${singleRefund.timber} timber and ${singleRefund.stone} stone (${Math.round(STONE_SALVAGE_FRACTION * 100)}% timber, ${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone of ${formatBuildingCost(singleCost)}).`,
+      hint: `Salvages about ${singleRefund.timber} timber and ${singleRefund.stone} stone (${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber, ${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone of ${formatBuildingCost(singleCost)}).`,
       secondary: residenceCount > 1
         ? {
             label: 'Remove entire plot',
@@ -201,19 +282,81 @@ export function renderResidenceInspector(
         : undefined,
     },
     labor: hiddenLabor(),
-    supplementalPanelHtml: residence.tier < 3 ? residenceUpgradePanel(residence.tier) : '<p class="resource-inspector-note">This household has reached tier 3.</p>',
+    supplementalPanelHtml: upgradePlan
+      ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
+      : '<p class="resource-inspector-note">This household has reached tier 3.</p>',
   };
 }
 
-function residenceUpgradePanel(tier: 1 | 2 | 3): string {
-  const next = tier + 1;
-  const costs = tier === 1
-    ? [RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_GOLD_COST]
-    : [RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_GOLD_COST];
-  const requirement = tier === 1
-    ? "Adds firewood and water needs. Requires a road-linked woodcutter's lodge and well."
-    : 'Adds preserved food and ale needs. Requires both road-linked suppliers; a monastery can serve both.';
-  return `<button type="button" class="resource-action-button" data-action="upgrade-residence">Upgrade to tier ${next}</button><p class="resource-inspector-note">${costs[0]} timber · ${costs[1]} stone · ${costs[2]} gold. ${requirement}</p>`;
+function residenceUpgradeRows(
+  plan: ResidenceUpgradePlan,
+  buildingLabel: (kind: BuildingState['kind']) => string,
+): string {
+  const services = plan.services.map((service) =>
+    `${service.label}: ${service.supplier
+      ? `${buildingLabel(service.supplier.kind)} route${service.stocked ? '' : ' · currently empty'}`
+      : 'missing'}`,
+  ).join(' · ');
+  const resources = plan.resources.map(
+    (resource) =>
+      `${resource.label} ${formatUpgradeAmount(resource.available)} / ${formatUpgradeAmount(resource.required)}`,
+  ).join(' · ');
+  return `
+    <li><span>Tier ${plan.nextTier} services</span><span>${services}</span></li>
+    <li><span>Upgrade resources</span><span>${resources}</span></li>
+  `;
+}
+
+function residenceProsperityRows(
+  plan: SettlementProsperityPlan,
+  projection: TierThreeUpgradeProjection,
+): string {
+  const immediateStatus = projection.immediateSustainable
+    ? `${projection.immediateHeadroomResidents} resident capacity remains`
+    : `short capacity for ${Math.abs(projection.immediateHeadroomResidents)} residents`;
+  return `
+    <li><span>Settlement prosperity</span><span>${plan.currentResidents} / ${plan.installedResidentCapacity} residents sustained · ${plan.limitingLabel} limited · assumes fully supplied staffed workshops</span></li>
+    <li><span>Promotion load</span><span>+${projection.occupantsPromotedNow} prosperous consumers now · +${projection.targetHouseCapacity} with this house full · ${immediateStatus}</span></li>
+    <li><span>Immediate daily demand</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} preserved food · +${projection.immediateDemand.ale.toFixed(2)} ale · +${projection.immediateDemand.cloth.toFixed(3)} cloth</span></li>
+  `;
+}
+
+function residenceUpgradePanel(
+  plan: ResidenceUpgradePlan,
+  prosperity: SettlementProsperityPlan | null,
+  projection: TierThreeUpgradeProjection | null,
+): string {
+  const status = plan.ready
+    ? `Ready · adds ${plan.addedCapacity} resident capacity (${plan.populationCapacity} total) · ${plan.addedNeeds.toLowerCase()}.`
+    : `Blocked · ${plan.blockers.join(' · ')}.`;
+  const guidance = plan.nextTier === 2
+    ? "Firewood needs a staffed lodge or accepting storehouse; water needs a staffed road-linked well whose service radius reaches this home."
+    : 'Preserved food needs a staffed smokehouse or pastoral holding; ale needs a staffed brewhouse or parish-linked monastery; household textiles need a staffed weaver.';
+  const throughput = prosperity && projection
+    ? projection.immediateSustainable
+      ? projection.fullPipelineSustainable
+        ? ` Installed capacity can sustain the current occupants and this house at full occupancy; ${prosperity.limitingLabel} is the tightest chain.`
+        : ` Current occupants fit, but filling this house would exceed installed ${prosperity.limitingLabel} capacity.`
+      : ` Warning: promoting the current occupants immediately exceeds installed ${prosperity.limitingLabel} capacity by ${Math.abs(projection.immediateHeadroomResidents)} residents.`
+    : '';
+  return `<button type="button" class="resource-action-button" data-action="upgrade-residence" ${plan.ready ? '' : 'disabled'}>Upgrade to tier ${plan.nextTier}</button><p class="resource-inspector-note">${status}${throughput} ${guidance}</p>`;
+}
+
+function upgradeSupplierHasStock(
+  kind: ResidenceUpgradeServiceKind,
+  supplier: BuildingState | null,
+): boolean {
+  if (!supplier) return false;
+  if (kind === 'firewood') return supplier.firewood > 1e-6;
+  if (kind === 'water') return supplier.water > 1e-6;
+  if (kind === 'preservedFood') return supplier.preservedFood > 1e-6;
+  if (kind === 'ale') return supplier.ale > 1e-6;
+  return (supplier.cloth ?? 0) > 1e-6;
+}
+
+function formatUpgradeAmount(value: number): string {
+  const rounded = Math.round(value);
+  return Math.abs(value - rounded) < 0.05 ? String(rounded) : value.toFixed(1);
 }
 
 function formatSettleEta(seconds: number): string {
@@ -221,4 +364,13 @@ function formatSettleEta(seconds: number): string {
     return `${Math.max(1, Math.round(seconds / 60))} min`;
   }
   return `${Math.max(1, Math.round(seconds))}s`;
+}
+
+function formatSettlementWait(
+  waitingOn: ReturnType<typeof residenceSettlementReadiness>['waitingOn'],
+): string {
+  return waitingOn.map(
+    (buffer) =>
+      `${buffer.label} ${formatUpgradeAmount(buffer.stock)} / ${formatUpgradeAmount(buffer.required)}`,
+  ).join(' · ');
 }

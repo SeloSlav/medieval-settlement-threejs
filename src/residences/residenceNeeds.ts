@@ -19,6 +19,10 @@ import {
   formatWaterRunwayDays,
   residenceWaterRunwayDays,
 } from '../logistics/waterLogistics.ts';
+import {
+  formatSpecialtyRunwayDays,
+  residenceClothRunwayDays,
+} from '../logistics/specialtyLogistics.ts';
 import type { ResidenceState } from '../resources/types.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 import {
@@ -127,9 +131,32 @@ function evaluateNeedRecovery(
         supplyAvailable: supply.servingFoodSupplierId != null,
       };
     case 'preservedFood':
-      return { kind, label: 'Preserved food', ready: need.stock + 1e-6 >= threshold, stock: need.stock, threshold, supplyAvailable: true };
+      return {
+        kind,
+        label: 'Preserved food',
+        ready: supply.servingPreservedFoodSupplierId != null && need.stock + 1e-6 >= threshold,
+        stock: need.stock,
+        threshold,
+        supplyAvailable: supply.servingPreservedFoodSupplierId != null,
+      };
     case 'ale':
-      return { kind, label: 'Ale', ready: need.stock + 1e-6 >= threshold, stock: need.stock, threshold, supplyAvailable: true };
+      return {
+        kind,
+        label: 'Ale',
+        ready: supply.servingAleSupplierId != null && need.stock + 1e-6 >= threshold,
+        stock: need.stock,
+        threshold,
+        supplyAvailable: supply.servingAleSupplierId != null,
+      };
+    case 'cloth':
+      return {
+        kind,
+        label: 'Household textiles',
+        ready: supply.servingClothSupplierId != null && need.stock + 1e-6 >= threshold,
+        stock: need.stock,
+        threshold,
+        supplyAvailable: supply.servingClothSupplierId != null,
+      };
     default: {
       const unhandled: never = kind;
       return unhandled;
@@ -319,6 +346,23 @@ function describeActiveNeed(
       return getNeed(residence.needs, kind).stock <= 1e-6
         ? { label: 'Out of ale — awaiting brewhouse supply', state: 'warning' }
         : null;
+    case 'cloth': {
+      const runwayDays = residenceClothRunwayDays(residence);
+      if (runwayDays == null) return null;
+      if (runwayDays <= 0.25) {
+        return {
+          label: 'Out of household textiles — awaiting weaver supply',
+          state: 'warning',
+        };
+      }
+      if (runwayDays < 3) {
+        return {
+          label: `Household textiles low — ${formatSpecialtyRunwayDays(runwayDays)} left`,
+          state: 'warning',
+        };
+      }
+      return null;
+    }
     default: {
       const unhandled: never = kind;
       return unhandled;
@@ -338,6 +382,8 @@ function needLabel(kind: ResidenceNeedKind): string {
       return 'Ale';
     case 'preservedFood':
       return 'Preserved food';
+    case 'cloth':
+      return 'Household textiles';
     default: {
       const unhandled: never = kind;
       return unhandled;

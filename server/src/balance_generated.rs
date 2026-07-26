@@ -70,6 +70,9 @@ pub const FIRE_EXTINGUISH_INTENSITY_THRESHOLD: f64 = 0.3;
 pub const FIRE_EXTINGUISH_CHANCE_BASE: f64 = 0.22;
 pub const FIRE_EXTINGUISH_CHANCE_PER_WATER: f64 = 0.07;
 pub const FIRE_RESOLVED_RETENTION_SECONDS: f64 = 12.0;
+pub const FIRE_MINIMUM_REPAIR_COST_FRACTION: f64 = 0.1;
+pub const FIRE_DAMAGE_REPAIR_COST_MULTIPLIER: f64 = 0.65;
+pub const FIRE_DESTROYED_REBUILD_COST_FRACTION: f64 = 0.7;
 
 pub const STARTING_TIMBER: f64 = 160.0;
 pub const STARTING_STONE: f64 = 140.0;
@@ -96,11 +99,15 @@ pub const TOWN_HALL_POPULATION_REQUIRED: u32 = 24;
 pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = 0.6;
 
 pub const CARPENTER_TIMBER_PER_POLEARM: f64 = 2.0;
-pub const CARPENTER_GOLD_PER_POLEARM: f64 = 1.0;
+pub const CARPENTER_IRONWORK_PER_POLEARM: f64 = 1.0;
 pub const GUARDHOUSE_FOOD_PER_GUARD_PER_DAY: f64 = 0.45;
 pub const GUARDHOUSE_WAGE_PER_GUARD_PER_DAY: f64 = 0.35;
 pub const GUARDHOUSE_TRAINING_PER_DAY: f64 = 1.0;
 pub const GUARDHOUSE_READINESS_DECAY_PER_DAY: f64 = 0.5;
+pub const GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE: f64 = 240.0;
+pub const GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE: f64 = 720.0;
+pub const GUARDHOUSE_LONG_MUSTER_EFFICIENCY: f64 = 0.65;
+pub const GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY: f64 = 0.4;
 
 pub const STARTING_POPULATION: u32 = 5;
 pub const POPULATION_PER_RESIDENCE: u32 = 3;
@@ -121,6 +128,8 @@ pub const RESIDENCE_PRESERVED_FOOD_CAPACITY: f64 = 28.0;
 pub const RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC: f64 = 0.004;
 pub const RESIDENCE_ALE_CAPACITY: f64 = 20.0;
 pub const RESIDENCE_ALE_PER_PERSON_PER_SEC: f64 = 0.0025;
+pub const RESIDENCE_CLOTH_CAPACITY: f64 = 8.0;
+pub const RESIDENCE_CLOTH_PER_PERSON_PER_SEC: f64 = 0.00018;
 pub const ABANDON_AFTER_DEFICIT_TICKS: u32 = 3600;
 pub const RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER: f64 = 2.5;
 pub const RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER: f64 = 1.5;
@@ -214,19 +223,34 @@ pub const GRANARY_FLOUR_PER_CYCLE: f64 = 3.0;
 pub const GRANARY_WATER_PER_CYCLE: f64 = 2.0;
 pub const GRANARY_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const GRANARY_FOOD_PER_CYCLE: f64 = 4.0;
+pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = 6.0;
+pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = 0.5;
 pub const BREWERY_GRAIN_PER_CYCLE: f64 = 3.0;
 pub const BREWERY_WATER_PER_CYCLE: f64 = 2.0;
 pub const BREWERY_ALE_PER_CYCLE: f64 = 4.0;
+pub const WEAVER_WOOL_PER_CYCLE: f64 = 3.0;
+pub const WEAVER_CLOTH_PER_CYCLE: f64 = 2.0;
+pub const TEXTILE_TRANSFER_PER_TRIP: f64 = 12.0;
 pub const SMOKEHOUSE_FOOD_PER_CYCLE: f64 = 3.0;
 pub const SMOKEHOUSE_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = 3.0;
 pub const APIARY_HONEY_PER_CYCLE: f64 = 2.0;
 pub const APIARY_FOOD_PER_CYCLE: f64 = 1.0;
+pub const APIARY_SEASON_START_MONTH: u8 = 4;
+pub const APIARY_SEASON_END_MONTH: u8 = 9;
 pub const VINEYARD_WINE_PER_CYCLE: f64 = 3.0;
 pub const VINEYARD_FOOD_PER_CYCLE: f64 = 1.0;
+pub const VINEYARD_HARVEST_START_MONTH: u8 = 9;
+pub const VINEYARD_HARVEST_END_MONTH: u8 = 10;
+pub const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND: f64 = 0.45;
 pub const MONASTERY_GRAIN_PER_CYCLE: f64 = 2.0;
 pub const MONASTERY_FOOD_PER_CYCLE: f64 = 2.0;
-pub const MONASTERY_PILGRIMAGE_GOLD_PER_DAY: f64 = 3.5;
+pub const MONASTERY_PILGRIMAGE_GOLD_PER_DAY: f64 = 2.0;
+pub const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY: f64 = 1.5;
+pub const MONASTERY_HOSPITALITY_HONEY_PER_DAY: f64 = 0.8;
+pub const MONASTERY_HOSPITALITY_WINE_PER_DAY: f64 = 0.5;
+pub const MONASTERY_FEAST_HONEY: f64 = 4.0;
+pub const MONASTERY_FEAST_WINE: f64 = 3.0;
 pub const MONASTERY_UNLINKED_PRODUCTIVITY: f64 = 0.45;
 pub const MONASTERY_COVERAGE_RADIUS: f64 = 520.0;
 pub const MONASTERY_TITHE_SHARE_DEFAULT: f64 = 0.3;
@@ -234,11 +258,13 @@ pub const MONASTERY_CHARITY_FOOD_PER_DELIVERY: f64 = 4.0;
 pub const SPECIALTY_EXPORT_GOLD_PER_HONEY: f64 = 0.8;
 pub const SPECIALTY_EXPORT_GOLD_PER_ALE: f64 = 1.15;
 pub const SPECIALTY_EXPORT_GOLD_PER_WINE: f64 = 1.6;
+pub const SPECIALTY_EXPORT_GOLD_PER_CLOTH: f64 = 1.5;
 pub const FERRY_GOLD_PER_DAY: f64 = 2.25;
 pub const CARPENTER_DELIVERY_SPEED_MULTIPLIER: f64 = 1.18;
 pub const CARPENTER_TIMBER_COST_MULTIPLIER: f64 = 0.9;
 pub const STOREHOUSE_OVERFLOW_THRESHOLD: f64 = 0.65;
 pub const STOREHOUSE_HAUL_PER_WORKER: f64 = 24.0;
+pub const STOREHOUSE_FIREWOOD_PER_DELIVERY: f64 = 8.0;
 
 pub const FARM_MIN_FIELD_AREA: f64 = 48.0;
 pub const FARM_OPTIMAL_FIELD_AREA: f64 = 1600.0;
@@ -251,6 +277,9 @@ pub const FARM_SOW_WORK_PER_SQUARE_METER: f64 = 0.55;
 pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = 0.8;
 pub const FARM_GROWTH_SECONDS: f64 = 6000.0;
 pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = 0.08;
+pub const FARM_RYE_SEED_GRAIN_PER_SQUARE_METER: f64 = 0.012;
+pub const FARM_OATS_SEED_GRAIN_PER_SQUARE_METER: f64 = 0.014;
+pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = 24.0;
 pub const FARM_RYE_MOISTURE_IDEAL: f64 = 0.38;
 pub const FARM_RYE_MOISTURE_TOLERANCE: f64 = 0.52;
 pub const FARM_OATS_MOISTURE_IDEAL: f64 = 0.58;
@@ -265,14 +294,28 @@ pub const FARM_FIELD_SALVAGE_FRACTION: f64 = 0.0;
 pub const LIVESTOCK_MIN_PASTURE_AREA: f64 = 64.0;
 pub const LIVESTOCK_MIN_PASTURE_EDGE: f64 = 6.0;
 pub const LIVESTOCK_PASTURE_SALVAGE_FRACTION: f64 = 0.0;
+pub const LIVESTOCK_AUTUMN_CULL_START_MONTH: u32 = 10;
+pub const LIVESTOCK_AUTUMN_CULL_END_MONTH: u32 = 11;
+pub const LIVESTOCK_WINTER_FODDER_RESERVE_DAYS: f64 = 30.0;
+pub const LIVESTOCK_HAYMAKING_START_MONTH: u32 = 6;
+pub const LIVESTOCK_HAYMAKING_END_MONTH: u32 = 8;
+pub const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT: u8 = 35;
+pub const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT: u8 = 60;
+pub const LIVESTOCK_HAY_STORAGE_CAPACITY: f64 = 240.0;
 pub const CATTLE_STARTER_HERD: u32 = 3;
 pub const CATTLE_MAX_HERD: u32 = 10;
+pub const CATTLE_MINIMUM_BREEDING_RESERVE: u32 = 3;
+pub const CATTLE_DEFAULT_BREEDING_RESERVE: u32 = 6;
 pub const CATTLE_AREA_PER_HEAD: f64 = 190.0;
 pub const CATTLE_MAX_SLOPE_DEGREES: f64 = 15.0;
 pub const CATTLE_MOISTURE_IDEAL: f64 = 0.58;
 pub const CATTLE_MOISTURE_TOLERANCE: f64 = 0.52;
-pub const CATTLE_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.72;
-pub const CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.18;
+pub const CATTLE_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.42;
+pub const CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.12;
+pub const CATTLE_SLAUGHTER_FOOD_PER_HEAD: f64 = 10.0;
+pub const CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD: f64 = 3.0;
+pub const CATTLE_HAY_PER_UNSUPPORTED_HEAD: f64 = 0.34;
+pub const CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE: f64 = 0.24;
 pub const CATTLE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = 0.34;
 pub const CATTLE_BREEDING_PER_CYCLE: f64 = 0.018;
 pub const CATTLE_HEALTH_RECOVERY_PER_CYCLE: f64 = 0.035;
@@ -282,22 +325,34 @@ pub const CATTLE_MAX_FERTILIZED_FIELDS: usize = 2;
 pub const CATTLE_PLOUGH_WORK_MULTIPLIER: f64 = 0.78;
 pub const SHEEP_STARTER_HERD: u32 = 6;
 pub const SHEEP_MAX_HERD: u32 = 18;
+pub const SHEEP_MINIMUM_BREEDING_RESERVE: u32 = 5;
+pub const SHEEP_DEFAULT_BREEDING_RESERVE: u32 = 10;
 pub const SHEEP_AREA_PER_HEAD: f64 = 105.0;
 pub const SHEEP_MAX_SLOPE_DEGREES: f64 = 28.0;
 pub const SHEEP_MOISTURE_IDEAL: f64 = 0.38;
 pub const SHEEP_MOISTURE_TOLERANCE: f64 = 0.72;
-pub const SHEEP_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.32;
-pub const SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.08;
+pub const SHEEP_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.22;
+pub const SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.06;
+pub const SHEEP_SLAUGHTER_FOOD_PER_HEAD: f64 = 5.0;
+pub const SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD: f64 = 1.0;
+pub const SHEEP_HAY_PER_UNSUPPORTED_HEAD: f64 = 0.18;
+pub const SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE: f64 = 0.13;
 pub const SHEEP_GRAIN_PER_UNSUPPORTED_HEAD: f64 = 0.18;
-pub const SHEEP_WOOL_GOLD_PER_CYCLE_PER_HEAD: f64 = 0.075;
+pub const SHEEP_WOOL_PER_SHEARING_PER_HEAD: f64 = 3.0;
+pub const SHEEP_SHEARING_START_MONTH: u8 = 6;
+pub const SHEEP_SHEARING_END_MONTH: u8 = 7;
 pub const SHEEP_BREEDING_PER_CYCLE: f64 = 0.025;
 pub const SHEEP_HEALTH_RECOVERY_PER_CYCLE: f64 = 0.04;
 pub const SHEEP_HEALTH_LOSS_PER_CYCLE: f64 = 0.065;
 pub const SWINE_STARTER_HERD: u32 = 4;
 pub const SWINE_MAX_HERD: u32 = 14;
+pub const SWINE_MINIMUM_BREEDING_RESERVE: u32 = 3;
+pub const SWINE_DEFAULT_BREEDING_RESERVE: u32 = 7;
 pub const SWINE_AREA_PER_HEAD: f64 = 120.0;
 pub const SWINE_MATURE_TREES_PER_HEAD: f64 = 2.5;
-pub const SWINE_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.62;
+pub const SWINE_FOOD_PER_CYCLE_PER_HEAD: f64 = 0.0;
+pub const SWINE_SLAUGHTER_FOOD_PER_HEAD: f64 = 9.0;
+pub const SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD: f64 = 0.0;
 pub const SWINE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = 0.5;
 pub const SWINE_BREEDING_PER_CYCLE: f64 = 0.022;
 pub const SWINE_HEALTH_RECOVERY_PER_CYCLE: f64 = 0.03;
@@ -322,6 +377,7 @@ pub enum BuildingSimKind {
     Apiary,
     Watermill,
     Carpenter,
+    Weaver,
     Guardhouse,
     FerryLanding,
     Vineyard,
@@ -346,6 +402,9 @@ pub struct BuildingDef {
     pub storage_preserved_food: f64,
     pub storage_honey: f64,
     pub storage_wine: f64,
+    pub storage_wool: f64,
+    pub storage_cloth: f64,
+    pub storage_ironwork: f64,
     pub storage_polearms: f64,
     pub accepts_labor: bool,
     pub max_labor: u32,
@@ -378,6 +437,9 @@ const LUMBER_MILL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
@@ -410,6 +472,9 @@ const REFORESTER: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 1,
@@ -442,6 +507,9 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -474,6 +542,9 @@ const STONE_QUARRY: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 4,
@@ -506,6 +577,9 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 6,
@@ -538,6 +612,9 @@ const WELL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -570,6 +647,9 @@ const HUNTERS_HALL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
@@ -602,6 +682,9 @@ const FORAGERS_SHED: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -634,6 +717,9 @@ const FISHING_CAMP: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
@@ -666,6 +752,9 @@ const CHAPEL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 1,
@@ -687,17 +776,20 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     kind: "marketplace",
     cost_timber: 32.0,
     cost_stone: 26.0,
-    storage_timber: 0.0,
-    storage_firewood: 0.0,
-    storage_stone: 0.0,
+    storage_timber: 60.0,
+    storage_firewood: 80.0,
+    storage_stone: 60.0,
     storage_water: 48.0,
     storage_food: 96.0,
-    storage_grain: 0.0,
+    storage_grain: 48.0,
     storage_flour: 0.0,
-    storage_ale: 0.0,
+    storage_ale: 140.0,
     storage_preserved_food: 0.0,
-    storage_honey: 0.0,
-    storage_wine: 0.0,
+    storage_honey: 100.0,
+    storage_wine: 120.0,
+    storage_wool: 0.0,
+    storage_cloth: 120.0,
+    storage_ironwork: 48.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -730,6 +822,9 @@ const TOWN_HALL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 1,
@@ -762,6 +857,9 @@ const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -794,6 +892,9 @@ const WATCHTOWER: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -826,6 +927,9 @@ const GUARDHOUSE: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 12.0,
     accepts_labor: true,
     max_labor: 6,
@@ -858,6 +962,9 @@ const THRESHING_BARN: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 6,
@@ -890,6 +997,9 @@ const PASTORAL_FARMSTEAD: BuildingDef = BuildingDef {
     storage_preserved_food: 70.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 120.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
@@ -922,6 +1032,9 @@ const SWINEHERD: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -952,8 +1065,11 @@ const MONASTERY: BuildingDef = BuildingDef {
     storage_flour: 0.0,
     storage_ale: 120.0,
     storage_preserved_food: 80.0,
-    storage_honey: 0.0,
-    storage_wine: 0.0,
+    storage_honey: 160.0,
+    storage_wine: 120.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: false,
     max_labor: 0,
@@ -986,6 +1102,9 @@ const BREWERY: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
@@ -1018,6 +1137,9 @@ const SMOKEHOUSE: BuildingDef = BuildingDef {
     storage_preserved_food: 180.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -1050,6 +1172,9 @@ const GRANARY: BuildingDef = BuildingDef {
     storage_preserved_food: 180.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
@@ -1082,14 +1207,17 @@ const APIARY: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 140.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 1,
-    work_radius: 0.0,
+    work_radius: 48.0,
     action_interval: 18.0,
     pick_radius: 7.0,
     requires_road: false,
-    requires_mature_trees: false,
+    requires_mature_trees: true,
     requires_quarry_stone: false,
     requires_game: false,
     requires_berries: false,
@@ -1114,6 +1242,9 @@ const WATERMILL: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 3,
@@ -1146,6 +1277,9 @@ const CARPENTER: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 18.0,
     storage_polearms: 24.0,
     accepts_labor: true,
     max_labor: 2,
@@ -1163,6 +1297,41 @@ const CARPENTER: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Carpenter),
 };
 
+const WEAVER: BuildingDef = BuildingDef {
+    kind: "weaver",
+    cost_timber: 38.0,
+    cost_stone: 16.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 0.0,
+    storage_grain: 0.0,
+    storage_flour: 0.0,
+    storage_ale: 0.0,
+    storage_preserved_food: 0.0,
+    storage_honey: 0.0,
+    storage_wine: 0.0,
+    storage_wool: 90.0,
+    storage_cloth: 90.0,
+    storage_ironwork: 0.0,
+    storage_polearms: 0.0,
+    accepts_labor: true,
+    max_labor: 2,
+    work_radius: 0.0,
+    action_interval: 8.0,
+    pick_radius: 8.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: Some(BuildingSimKind::Weaver),
+};
+
 const FERRY_LANDING: BuildingDef = BuildingDef {
     kind: "ferry_landing",
     cost_timber: 46.0,
@@ -1178,6 +1347,9 @@ const FERRY_LANDING: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -1210,6 +1382,9 @@ const VINEYARD: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 180.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
     storage_polearms: 0.0,
     accepts_labor: true,
     max_labor: 2,
@@ -1223,11 +1398,11 @@ const VINEYARD: BuildingDef = BuildingDef {
     requires_berries: false,
     requires_fish: false,
     requires_water_shore: false,
-    requires_hillside: false,
+    requires_hillside: true,
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, FERRY_LANDING, VINEYARD];
+const ALL: &[BuildingDef] = &[LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)
@@ -1354,17 +1529,21 @@ pub fn backyard_garden_def_by_slug(slug: &str) -> Option<&'static BackyardGarden
     ALL_BACKYARD_GARDENS.iter().find(|def| def.slug == slug)
 }
 
+pub const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS: f64 = 8.0;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TradeResource {
     Timber,
     Stone,
     Firewood,
     Food,
+    Grain,
+    Ironwork,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TradeResourceSpendScope {
-    Aggregate,
+    MarketAccessible,
     #[allow(dead_code)]
     Treasury,
 }
@@ -1372,10 +1551,12 @@ pub enum TradeResourceSpendScope {
 impl TradeResource {
     pub fn spend_scope(self) -> TradeResourceSpendScope {
         match self {
-            Self::Timber => TradeResourceSpendScope::Aggregate,
-            Self::Stone => TradeResourceSpendScope::Aggregate,
-            Self::Firewood => TradeResourceSpendScope::Aggregate,
-            Self::Food => TradeResourceSpendScope::Aggregate,
+            Self::Timber => TradeResourceSpendScope::MarketAccessible,
+            Self::Stone => TradeResourceSpendScope::MarketAccessible,
+            Self::Firewood => TradeResourceSpendScope::MarketAccessible,
+            Self::Food => TradeResourceSpendScope::MarketAccessible,
+            Self::Grain => TradeResourceSpendScope::MarketAccessible,
+            Self::Ironwork => TradeResourceSpendScope::MarketAccessible,
         }
     }
 }
@@ -1461,6 +1642,24 @@ const TRADE_SELL_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
+const TRADE_BUY_SEED_GRAIN: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_seed_grain",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Grain,
+        amount: 24.0,
+        gold_cost: 18.0,
+    },
+};
+
+const TRADE_BUY_IRONWORK: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_ironwork",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Ironwork,
+        amount: 6.0,
+        gold_cost: 12.0,
+    },
+};
+
 const TRADE_TIMBER_FOR_STONE: MarketplaceTradeOffer = MarketplaceTradeOffer {
     id: "timber_for_stone",
     kind: MarketplaceTradeKind::Barter {
@@ -1491,7 +1690,7 @@ const TRADE_TIMBER_FOR_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_SELL_FOOD, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
+const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_SELL_FOOD, TRADE_BUY_SEED_GRAIN, TRADE_BUY_IRONWORK, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
 
 pub fn marketplace_trade_offer(id: &str) -> Option<&'static MarketplaceTradeOffer> {
     ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)
@@ -1501,11 +1700,14 @@ pub const MARKET_PRICE_UPDATE_INTERVAL_TICKS: u64 = 150;
 pub const MARKET_PRICE_MULTIPLIER_MIN: f64 = 0.78;
 pub const MARKET_PRICE_MULTIPLIER_MAX: f64 = 1.38;
 pub const MARKET_REGIONAL_INDEX_DRIFT: f64 = 0.014;
+pub const MARKET_REGIONAL_INDEX_MEAN_REVERSION: f64 = 0.08;
+pub const MARKET_TRADE_IMPACT_PER_TEN_UNITS: f64 = 0.04;
 pub const MARKET_LOCAL_FOOD_DEMAND_WEIGHT: f64 = 0.32;
 pub const MARKET_CARAVAN_DELIVERY_WORKERS: u32 = 1;
 pub const MARKET_CARAVAN_LABOR_PER_WORKER: u32 = 1;
 pub const MARKET_CARAVAN_FOOD_PER_DELIVERY: f64 = 4.0;
 pub const MARKET_CARAVAN_WATER_PER_DELIVERY: f64 = 3.0;
+pub const MARKET_CARAVAN_FIREWOOD_PER_DELIVERY: f64 = 5.0;
 pub const HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS: f64 = 0.75;
 pub const HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS: u64 = 450;
 pub const CHAPEL_CHARITY_WEALTH_FRACTION: f64 = 0.4;

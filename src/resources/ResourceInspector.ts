@@ -4,7 +4,7 @@ import type { SceneManager } from '../scene/SceneManager.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import {
   computeResourceTotals,
-  computeTradeAvailability,
+  computeMarketplaceTradeAvailability,
   maxAssignableLabor,
   type PopulationStats,
   type ResourceTotals,
@@ -20,7 +20,20 @@ import { DEFAULT_REGIONAL_MARKET_STATE } from '../economy/regionalMarket.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
 import { backyardIconPosition } from '../residences/backyardPosition.ts';
 import { fireForTarget, fireSourceLabel } from '../fires/fireIncident.ts';
+import {
+  buildingFireRecoveryQuote,
+  fireRecoveryCoolingSeconds,
+  residenceFireRecoveryQuote,
+} from '../fires/fireRecovery.ts';
 import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
+import { formatBuildingCost } from './buildingEconomy.ts';
+import {
+  isStorehouseCommodity,
+  type StorehouseCommodity,
+} from '../economy/storehousePolicy.ts';
+import { isProcessorOutputTargetKind } from '../economy/processorOutputPolicy.ts';
+import { computeSettlementProductionCapacity } from '../economy/settlementProduction.ts';
+import { hasStaffedChapel } from '../logistics/landmarkAccess.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -30,32 +43,102 @@ type ResourceInspectorOptions = {
   worldQueries: WorldQueries;
   getState: () => GameState;
   getEconomicActivityTaxRate?: () => number;
+  getSeasonalLaborStewardEnabled?: () => boolean;
+  getConstructionLaborStewardEnabled?: () => boolean;
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
+  getConflictEnabled?: () => boolean;
+  getEnemyPressure?: () => number;
   getWorldHydrology?: () => number;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
+  onRepairFireDamage?: (
+    targetKind: 'building' | 'residence',
+    targetId: string,
+  ) => void | Promise<void>;
   onDemolishBurgageZone?: (zoneId: string) => void | Promise<void>;
   onPlaceBackyardGarden?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
   onDemolishBackyardGarden?: (residenceId: string) => void | Promise<void>;
   onAssignBuildingLabor?: (buildingId: string, labor: number) => void | Promise<void>;
+  onRotateConstructionLabor?: () => void | Promise<void>;
+  onRecallIdleSeasonalLabor?: () => void | Promise<void>;
+  onCallUpActiveSeasonalLabor?: () => void | Promise<void>;
+  onRecallTargetIdleProcessorLabor?: () => void | Promise<void>;
+  onCallUpTargetReadyProcessorLabor?: () => void | Promise<void>;
+  onBalanceYearRoundLabor?: () => void | Promise<void>;
+  onSetConstructionPriority?: (buildingId: string, priority: number) => void | Promise<void>;
   onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
   onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
   onSetEconomicActivityTaxRate?: (taxRate: number) => void | Promise<void>;
+  onSetSeasonalLaborSteward?: (enabled: boolean) => void | Promise<void>;
+  onSetConstructionLaborSteward?: (enabled: boolean) => void | Promise<void>;
   onSetChapelParishPolicy?: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => void | Promise<void>;
   onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
   onSetStorehousePolicy?: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => void | Promise<void>;
-  onSetGranaryPolicy?: (buildingId: string, acceptsFreshFood: boolean) => void | Promise<void>;
+  onSetStorehouseStockTarget?: (
+    buildingId: string,
+    commodity: StorehouseCommodity,
+    targetPercent: number,
+  ) => void | Promise<void>;
+  onSetProcessorOutputTarget?: (
+    buildingId: string,
+    targetPercent: number,
+  ) => void | Promise<void>;
+  onSetGranaryPolicy?: (
+    buildingId: string,
+    acceptsFreshFood: boolean,
+    householdsFirst: boolean,
+  ) => void | Promise<void>;
+  onSetGranaryGrainReserve?: (
+    buildingId: string,
+    grainReserve: number,
+  ) => void | Promise<void>;
+  onSetGranaryFreshFoodTarget?: (
+    buildingId: string,
+    targetPercent: number,
+  ) => void | Promise<void>;
+  onSetWoodcutterTimberReserve?: (
+    buildingId: string,
+    timberReserve: number,
+  ) => void | Promise<void>;
+  onSetCarpenterPolearmReserve?: (
+    buildingId: string,
+    polearmReserve: number,
+  ) => void | Promise<void>;
+  onSetGuardhousePayPriority?: (
+    buildingId: string,
+    payPriority: number,
+  ) => void | Promise<void>;
+  onSetGuardhouseFoodReserve?: (
+    buildingId: string,
+    reservePerGuard: number,
+  ) => void | Promise<void>;
+  onSetMarketplaceIronworkTarget?: (
+    buildingId: string,
+    ironworkTarget: number,
+  ) => void | Promise<void>;
+  onSetMarketplaceSpecialtyExportPolicy?: (
+    buildingId: string,
+    exportPolicy: number,
+  ) => void | Promise<void>;
+  onSetHarvestReservePercent?: (
+    buildingId: string,
+    reservePercent: number,
+  ) => void | Promise<void>;
   onDemolishFarmField?: (fieldId: string) => void | Promise<void>;
   onSetFarmFieldCrop?: (fieldId: string, crop: FarmCrop) => void | Promise<void>;
   onSetFarmFieldPriority?: (fieldId: string, priority: number) => void | Promise<void>;
   onDemolishPasture?: (pastureId: string) => void | Promise<void>;
   onSetLivestockSpecies?: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
+  onSetLivestockBreedingReserve?: (buildingId: string, breedingReserve: number) => void | Promise<void>;
+  onSetLivestockHaymakingPercent?: (buildingId: string, haymakingPercent: number) => void | Promise<void>;
   onBeginFarmFieldPlacement?: (farmsteadId: string) => void;
   onBeginPasturePlacement?: (farmsteadId: string) => void;
+  onInspectDeliveryTrip?: (tripId: string) => void;
+  onFocusWorldPosition?: (x: number, z: number) => void;
   onSelectionChange?: (target: InspectableTarget | null) => void;
   isBlocked: () => boolean;
 };
@@ -69,7 +152,7 @@ export class ResourceInspector {
   private readonly detailList: HTMLElement;
   private readonly stockpileRoot: HTMLElement;
   private readonly stockpileValues: Record<
-    'timber' | 'stone' | 'firewood' | 'water' | 'food' | 'gold' | 'grain' | 'flour' | 'ale' | 'preservedFood' | 'honey' | 'wine' | 'polearms',
+    'timber' | 'stone' | 'firewood' | 'water' | 'food' | 'gold' | 'grain' | 'flour' | 'ale' | 'preservedFood' | 'honey' | 'wine' | 'wool' | 'cloth' | 'ironwork' | 'polearms',
     HTMLElement
   >;
   private readonly populationValue: HTMLElement;
@@ -166,6 +249,9 @@ export class ResourceInspector {
       preservedFood: this.mustElement(options.uiRoot, '[data-stockpile="preservedFood"]'),
       honey: this.mustElement(options.uiRoot, '[data-stockpile="honey"]'),
       wine: this.mustElement(options.uiRoot, '[data-stockpile="wine"]'),
+      wool: this.mustElement(options.uiRoot, '[data-stockpile="wool"]'),
+      cloth: this.mustElement(options.uiRoot, '[data-stockpile="cloth"]'),
+      ironwork: this.mustElement(options.uiRoot, '[data-stockpile="ironwork"]'),
       polearms: this.mustElement(options.uiRoot, '[data-stockpile="polearms"]'),
     };
     this.populationValue = this.mustElement(options.uiRoot, '[data-stockpile="population"]');
@@ -224,6 +310,109 @@ export class ResourceInspector {
 
   private readonly onPanelClick = (event: MouseEvent): void => {
     event.stopPropagation();
+    const inspectDeliveryTripId = (event.target as HTMLElement)
+      .closest<HTMLElement>('[data-inspect-delivery-trip]')
+      ?.dataset.inspectDeliveryTrip;
+    if (inspectDeliveryTripId) {
+      this.options.onInspectDeliveryTrip?.(inspectDeliveryTripId);
+      return;
+    }
+    const inspectBuildingId = (event.target as HTMLElement)
+      .closest<HTMLElement>('[data-inspect-building]')
+      ?.dataset.inspectBuilding;
+    if (inspectBuildingId) {
+      const target = this.options.worldQueries.findBuildingTarget(inspectBuildingId);
+      if (target) {
+        this.selectTarget(target);
+        this.options.onFocusWorldPosition?.(target.building.x, target.building.z);
+      }
+      return;
+    }
+    const inspectFieldId = (event.target as HTMLElement)
+      .closest<HTMLElement>('[data-inspect-field]')
+      ?.dataset.inspectField;
+    if (inspectFieldId) {
+      const target = this.options.worldQueries.findFarmFieldTarget(inspectFieldId);
+      if (target) {
+        this.selectTarget(target);
+        const center = target.field.corners.reduce(
+          (sum, point) => ({
+            x: sum.x + point.x / target.field.corners.length,
+            z: sum.z + point.z / target.field.corners.length,
+          }),
+          { x: 0, z: 0 },
+        );
+        this.options.onFocusWorldPosition?.(center.x, center.z);
+      }
+      return;
+    }
+    const inspectResidenceId = (event.target as HTMLElement)
+      .closest<HTMLElement>('[data-inspect-residence]')
+      ?.dataset.inspectResidence;
+    if (inspectResidenceId) {
+      const target = this.options.worldQueries.findResidenceTarget(inspectResidenceId);
+      if (target) {
+        this.selectTarget(target);
+        this.options.onFocusWorldPosition?.(target.residence.x, target.residence.z);
+      }
+      return;
+    }
+    if ((event.target as HTMLElement).closest('[data-fire-recovery]')) {
+      if (this.selectedTarget?.kind === 'building') {
+        void this.options.onRepairFireDamage?.('building', this.selectedTarget.building.id);
+      } else if (this.selectedTarget?.kind === 'residence') {
+        void this.options.onRepairFireDamage?.('residence', this.selectedTarget.residence.id);
+      }
+      return;
+    }
+    if (
+      (event.target as HTMLElement).closest('[data-rotate-construction-labor]')
+      && this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'town_hall'
+    ) {
+      void this.options.onRotateConstructionLabor?.();
+      return;
+    }
+    if (
+      (event.target as HTMLElement).closest('[data-recall-idle-seasonal-labor]')
+      && this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'town_hall'
+    ) {
+      void this.options.onRecallIdleSeasonalLabor?.();
+      return;
+    }
+    if (
+      (event.target as HTMLElement).closest('[data-call-up-active-seasonal-labor]')
+      && this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'town_hall'
+    ) {
+      void this.options.onCallUpActiveSeasonalLabor?.();
+      return;
+    }
+    if (
+      (event.target as HTMLElement).closest('[data-recall-target-idle-processor-labor]')
+      && this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'town_hall'
+    ) {
+      void this.options.onRecallTargetIdleProcessorLabor?.();
+      return;
+    }
+    if (
+      (event.target as HTMLElement).closest('[data-call-up-target-ready-processor-labor]')
+      && this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'town_hall'
+    ) {
+      void this.options.onCallUpTargetReadyProcessorLabor?.();
+      return;
+    }
+    if (
+      (event.target as HTMLElement).closest('[data-balance-year-round-labor]')
+      && this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'town_hall'
+    ) {
+      void this.options.onBalanceYearRoundLabor?.();
+      return;
+    }
     if (this.selectedTarget?.kind === 'farm-field') {
       const crop = (event.target as HTMLElement).closest<HTMLElement>('[data-field-crop]')?.dataset.fieldCrop;
       if (crop === 'rye' || crop === 'oats' || crop === 'fallow') {
@@ -238,6 +427,26 @@ export class ResourceInspector {
     }
     if (this.selectedTarget?.kind === 'building') {
       const building = this.selectedTarget.building;
+      const constructionPriority = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-construction-priority]')
+        ?.dataset.constructionPriority;
+      if (constructionPriority != null && !building.constructionComplete) {
+        void this.options.onSetConstructionPriority?.(
+          building.id,
+          Number(constructionPriority),
+        );
+        return;
+      }
+      const staffingPriority = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-staffing-priority]')
+        ?.dataset.staffingPriority;
+      if (staffingPriority != null && building.constructionComplete) {
+        void this.options.onSetConstructionPriority?.(
+          building.id,
+          Number(staffingPriority),
+        );
+        return;
+      }
       const landParcel = (event.target as HTMLElement).closest<HTMLElement>('[data-land-parcel]')?.dataset.landParcel;
       if (landParcel === 'field' && building.kind === 'threshing_barn') {
         this.options.onBeginFarmFieldPlacement?.(building.id);
@@ -252,6 +461,187 @@ export class ResourceInspector {
       const species = (event.target as HTMLElement).closest<HTMLElement>('[data-livestock-species]')?.dataset.livestockSpecies;
       if (species === 'cattle' || species === 'sheep') {
         void this.options.onSetLivestockSpecies?.(this.selectedTarget.building.id, species);
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && (this.selectedTarget.building.kind === 'pastoral_farmstead'
+        || this.selectedTarget.building.kind === 'swineherd')
+    ) {
+      const reserveValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-livestock-breeding-reserve]')
+        ?.dataset.livestockBreedingReserve;
+      if (reserveValue != null) {
+        void this.options.onSetLivestockBreedingReserve?.(
+          this.selectedTarget.building.id,
+          Number(reserveValue),
+        );
+        return;
+      }
+      const haymakingValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-livestock-haymaking-percent]')
+        ?.dataset.livestockHaymakingPercent;
+      if (haymakingValue != null && this.selectedTarget.building.kind === 'pastoral_farmstead') {
+        void this.options.onSetLivestockHaymakingPercent?.(
+          this.selectedTarget.building.id,
+          Number(haymakingValue),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'woodcutters_lodge'
+    ) {
+      const reserveValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-woodcutter-timber-reserve]')
+        ?.dataset.woodcutterTimberReserve;
+      if (reserveValue != null) {
+        void this.options.onSetWoodcutterTimberReserve?.(
+          this.selectedTarget.building.id,
+          Number(reserveValue),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'carpenter'
+    ) {
+      const reserveValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-carpenter-polearm-reserve]')
+        ?.dataset.carpenterPolearmReserve;
+      if (reserveValue != null) {
+        void this.options.onSetCarpenterPolearmReserve?.(
+          this.selectedTarget.building.id,
+          Number(reserveValue),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'guardhouse'
+    ) {
+      const reserveValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-guardhouse-food-reserve]')
+        ?.dataset.guardhouseFoodReserve;
+      if (reserveValue != null) {
+        void this.options.onSetGuardhouseFoodReserve?.(
+          this.selectedTarget.building.id,
+          Number(reserveValue),
+        );
+        return;
+      }
+      const priorityValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-guardhouse-pay-priority]')
+        ?.dataset.guardhousePayPriority;
+      if (priorityValue != null) {
+        void this.options.onSetGuardhousePayPriority?.(
+          this.selectedTarget.building.id,
+          Number(priorityValue),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'marketplace'
+    ) {
+      const targetValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-marketplace-ironwork-target]')
+        ?.dataset.marketplaceIronworkTarget;
+      if (targetValue != null) {
+        void this.options.onSetMarketplaceIronworkTarget?.(
+          this.selectedTarget.building.id,
+          Number(targetValue),
+        );
+        return;
+      }
+      const exportPolicyValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-marketplace-specialty-export-policy]')
+        ?.dataset.marketplaceSpecialtyExportPolicy;
+      if (exportPolicyValue != null) {
+        void this.options.onSetMarketplaceSpecialtyExportPolicy?.(
+          this.selectedTarget.building.id,
+          Number(exportPolicyValue),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'village_storehouse'
+    ) {
+      const targetButton = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-storehouse-stock-target]');
+      const commodity = targetButton?.dataset.storehouseStockKind;
+      const targetValue = targetButton?.dataset.storehouseStockTarget;
+      if (targetValue != null && isStorehouseCommodity(commodity)) {
+        void this.options.onSetStorehouseStockTarget?.(
+          this.selectedTarget.building.id,
+          commodity,
+          Number(targetValue),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && isProcessorOutputTargetKind(this.selectedTarget.building.kind)
+    ) {
+      const targetValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-processor-output-target]')
+        ?.dataset.processorOutputTarget;
+      if (targetValue != null) {
+        void this.options.onSetProcessorOutputTarget?.(
+          this.selectedTarget.building.id,
+          Number(targetValue),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'granary'
+    ) {
+      const reserveValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-granary-grain-reserve]')
+        ?.dataset.granaryGrainReserve;
+      if (reserveValue != null) {
+        void this.options.onSetGranaryGrainReserve?.(
+          this.selectedTarget.building.id,
+          Number(reserveValue),
+        );
+        return;
+      }
+      const foodTargetValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-granary-fresh-food-target]')
+        ?.dataset.granaryFreshFoodTarget;
+      if (foodTargetValue != null) {
+        void this.options.onSetGranaryFreshFoodTarget?.(
+          this.selectedTarget.building.id,
+          Number(foodTargetValue),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && (
+        this.selectedTarget.building.kind === 'hunters_hall'
+        || this.selectedTarget.building.kind === 'fishing_camp'
+      )
+    ) {
+      const reserveValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-harvest-reserve-percent]')
+        ?.dataset.harvestReservePercent;
+      if (reserveValue != null) {
+        void this.options.onSetHarvestReservePercent?.(
+          this.selectedTarget.building.id,
+          Number(reserveValue),
+        );
         return;
       }
     }
@@ -292,6 +682,14 @@ export class ResourceInspector {
       void this.options.onSetEconomicActivityTaxRate?.(Number(input.value) / 100);
       return;
     }
+    if (building.kind === 'town_hall' && input.matches('[data-policy-seasonal-labor-steward]')) {
+      void this.options.onSetSeasonalLaborSteward?.(input.checked);
+      return;
+    }
+    if (building.kind === 'town_hall' && input.matches('[data-policy-construction-labor-steward]')) {
+      void this.options.onSetConstructionLaborSteward?.(input.checked);
+      return;
+    }
     if (building.kind === 'chapel' && input.matches('[data-policy-chapel-auto-sweep], [data-policy-chapel-reserve], [data-policy-chapel-sabbath]')) {
       const autoSweep = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-auto-sweep]')?.checked ?? false;
       const reserve = Number(this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-reserve]')?.value ?? 80);
@@ -312,8 +710,10 @@ export class ResourceInspector {
       void this.options.onSetStorehousePolicy?.(building.id, timber, stone, firewood);
       return;
     }
-    if (building.kind === 'granary' && input.matches('[data-granary-accepts-fresh-food]')) {
-      void this.options.onSetGranaryPolicy?.(building.id, input.checked);
+    if (building.kind === 'granary' && input.matches('[data-granary-accepts-fresh-food], [data-granary-households-first]')) {
+      const acceptsFreshFood = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-granary-accepts-fresh-food]')?.checked ?? true;
+      const householdsFirst = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-granary-households-first]')?.checked ?? false;
+      void this.options.onSetGranaryPolicy?.(building.id, acceptsFreshFood, householdsFirst);
     }
   };
 
@@ -344,6 +744,9 @@ export class ResourceInspector {
     this.stockpileValues.preservedFood.textContent = Math.round(totals.preservedFood).toString();
     this.stockpileValues.honey.textContent = Math.round(totals.honey).toString();
     this.stockpileValues.wine.textContent = Math.round(totals.wine).toString();
+    this.stockpileValues.wool.textContent = Math.round(totals.wool).toString();
+    this.stockpileValues.cloth.textContent = Math.round(totals.cloth).toString();
+    this.stockpileValues.ironwork.textContent = Math.round(totals.ironwork).toString();
     this.stockpileValues.polearms.textContent = Math.round(totals.polearms).toString();
     this.populationValue.textContent = population.total.toString();
     this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;
@@ -393,6 +796,7 @@ export class ResourceInspector {
     if (this.selectedTarget.kind === 'building' && latest.kind === 'building' && latest.building.id === this.selectedTarget.building.id) {
       this.selectedTarget = latest;
       this.renderTarget(latest);
+      this.options.onSelectionChange?.(latest);
       return;
     }
     if (this.selectedTarget.kind === 'residence' && latest.kind === 'residence' && latest.residence.id === this.selectedTarget.residence.id) {
@@ -514,14 +918,37 @@ export class ResourceInspector {
 
   private renderTarget(target: InspectableTarget): void {
     const gameState = this.options.getState();
+    const resourceTotals = computeResourceTotals(gameState);
+    const needsProductionForecast = (
+      target.kind === 'residence' && target.residence.tier === 2
+    ) || (
+      target.kind === 'building'
+      && target.building.kind === 'town_hall'
+      && target.building.constructionComplete !== false
+    );
+    const sabbathObserved = (
+      this.options.getParishPolicy?.().sabbathObservanceEnabled ?? false
+    ) && hasStaffedChapel(gameState.buildings.values());
+    const settlementProduction = needsProductionForecast
+      ? computeSettlementProductionCapacity(gameState, sabbathObserved)
+      : undefined;
     const view = renderInspectableTarget(target, {
       gameState,
       worldQueries: this.options.worldQueries,
       populationStats: this.populationStats,
-      resourceTotals: computeResourceTotals(gameState),
+      resourceTotals,
       worldHydrology: this.options.getWorldHydrology?.() ?? 50,
+      conflictEnabled: this.options.getConflictEnabled?.() ?? false,
+      enemyPressure: this.options.getEnemyPressure?.() ?? 0,
+      ...(settlementProduction ? { settlementProduction } : {}),
       ...(this.options.getEconomicActivityTaxRate
         ? { getEconomicActivityTaxRate: this.options.getEconomicActivityTaxRate }
+        : {}),
+      ...(this.options.getSeasonalLaborStewardEnabled
+        ? { getSeasonalLaborStewardEnabled: this.options.getSeasonalLaborStewardEnabled }
+        : {}),
+      ...(this.options.getConstructionLaborStewardEnabled
+        ? { getConstructionLaborStewardEnabled: this.options.getConstructionLaborStewardEnabled }
         : {}),
       ...(this.options.getParishPolicy
         ? { getParishPolicy: this.options.getParishPolicy }
@@ -529,7 +956,11 @@ export class ResourceInspector {
       ...(this.options.getMonasteryPolicy
         ? { getMonasteryPolicy: this.options.getMonasteryPolicy }
         : {}),
-      getTradeAvailability: () => computeTradeAvailability(this.options.getState()),
+      getTradeAvailability: (marketplace) => computeMarketplaceTradeAvailability(
+        this.options.getState(),
+        marketplace,
+        (ax, az, bx, bz) => this.options.worldQueries.isRoadConnected(ax, az, bx, bz),
+      ),
       getMarketState: () => this.options.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE,
       ...(this.options.getSettlementSecurity
         ? { getSettlementSecurity: this.options.getSettlementSecurity }
@@ -541,9 +972,28 @@ export class ResourceInspector {
         ? fireForTarget(gameState.fireIncidents.values(), 'residence', target.residence.id)
         : null;
     if (fire) {
-      const response = fire.responseWellId
-        ? 'A staffed well has dispatched a bucket carrier'
-        : 'No staffed well currently has this fire inside its work extent';
+      const response = fire.status === 'burning'
+        ? fire.responseWellId
+          ? 'A staffed well has dispatched a bucket carrier'
+          : 'No staffed well currently has this fire inside its work extent'
+        : fire.status === 'destroyed'
+          ? 'Fire out; the surviving foundations can be rebuilt'
+          : 'Fire suppressed; structural repairs are required';
+      const carpenterSupported = this.options.worldQueries.hasCarpenterSupportAt(
+        { x: fire.x, z: fire.z },
+      );
+      const recovery = target.kind === 'building'
+        ? buildingFireRecoveryQuote(target.building, fire, carpenterSupported)
+        : target.kind === 'residence'
+          ? residenceFireRecoveryQuote(target.residence, fire, carpenterSupported)
+          : null;
+      const coolingSeconds = fireRecoveryCoolingSeconds(fire, gameState.tick);
+      const canAffordRecovery = recovery != null
+        && resourceTotals.timber + 1e-6 >= recovery.cost.timber
+        && resourceTotals.stone + 1e-6 >= recovery.cost.stone;
+      const recoveryLabel = recovery?.kind === 'rebuild'
+        ? target.kind === 'residence' ? 'Rebuild homestead' : 'Rebuild structure'
+        : target.kind === 'residence' ? 'Repair homestead' : 'Begin repairs';
       view.detailsHtml = `
         <li><span>Fire cause</span><strong>${fireSourceLabel(fire.ignitionSource)}</strong></li>
         <li><span>Fire intensity</span><strong>${Math.round(fire.intensity * 100)}%</strong></li>
@@ -553,16 +1003,34 @@ export class ResourceInspector {
         ${fire.extinguishChance > 0
           ? `<li><span>Last attempt odds</span><strong>${Math.round(fire.extinguishChance * 100)}%</strong></li>`
           : ''}
+        ${recovery ? `<li><span>${recovery.kind === 'rebuild' ? 'Rebuild' : 'Repair'} cost</span><strong>${formatBuildingCost(recovery.cost)}${recovery.carpenterSupported ? ' · carpenter-supported' : ''}</strong></li>` : ''}
         ${view.detailsHtml}
       `;
       view.statusText = fire.status === 'burning'
         ? 'Burning — production and household activity are suspended until the fire is out.'
         : fire.status === 'destroyed'
-          ? 'Destroyed by fire — demolish the ruin before rebuilding.'
-          : 'Extinguished — cooling steam remains briefly.';
+          ? 'Destroyed by fire — rebuild the surviving foundations or clear the ruin.'
+          : 'Fire out — repair the damage before activity can resume.';
       view.statusState = fire.status === 'burning' || fire.status === 'destroyed'
         ? 'warning'
         : 'warning';
+      view.supplementalPanelHtml = fire.status === 'burning' || !recovery
+        ? `<div class="inspector-action-panel">
+            <p class="inspector-action-panel__hint">Keep a staffed, supplied well within work extent. Fire calls preempt routine water deliveries.</p>
+          </div>`
+        : `<div class="inspector-action-panel">
+            <p class="inspector-action-panel__hint">${target.kind === 'building'
+              ? 'Recovery reuses the existing site and enters the normal material-hauling and builder-work pipeline.'
+              : 'Residence construction is immediate; a rebuilt homestead returns vacant and can be settled again.'}</p>
+            <button type="button" class="resource-action-button" data-fire-recovery ${
+              coolingSeconds > 1e-6 || !canAffordRecovery ? 'disabled' : ''
+            }>${coolingSeconds > 1e-6
+              ? `Cooling (${Math.ceil(coolingSeconds)}s)`
+              : !canAffordRecovery
+                ? `Need ${formatBuildingCost(recovery.cost)}`
+                : `${recoveryLabel} · ${formatBuildingCost(recovery.cost)}`}</button>
+            ${recovery.carpenterSupported ? '<p class="inspector-action-panel__hint">A staffed road-linked carpenter reduces the timber requirement by 10%.</p>' : ''}
+          </div>`;
     }
 
     this.eyebrow.textContent = view.eyebrow;

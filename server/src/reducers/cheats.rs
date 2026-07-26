@@ -36,6 +36,10 @@ pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), St
     resources.preserved_food = resources.preserved_food.max(amount);
     resources.honey = resources.honey.max(amount);
     resources.wine = resources.wine.max(amount);
+    resources.ironwork = resources.ironwork.max(amount);
+    resources.polearms = resources.polearms.max(amount);
+    resources.wool = resources.wool.max(amount);
+    resources.cloth = resources.cloth.max(amount);
     ctx.db.player_resources().owner().update(resources);
     Ok(())
 }

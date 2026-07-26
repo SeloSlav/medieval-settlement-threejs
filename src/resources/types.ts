@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'grain', 'flour', 'ale', 'preservedFood', 'honey', 'wine'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'grain', 'flour', 'ale', 'preservedFood', 'honey', 'wine', 'wool', 'cloth'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -79,6 +79,9 @@ export type BuildingState = {
   preservedFood: number;
   honey: number;
   wine: number;
+  wool?: number;
+  cloth?: number;
+  ironwork?: number;
   polearms?: number;
   gold: number;
   waterCapacity: number;
@@ -96,7 +99,22 @@ export type BuildingState = {
   storehouseAcceptsTimber: boolean;
   storehouseAcceptsStone: boolean;
   storehouseAcceptsFirewood: boolean;
+  storehouseTimberTargetPercent?: number;
+  storehouseStoneTargetPercent?: number;
+  storehouseFirewoodTargetPercent?: number;
+  processorOutputTargetPercent?: number;
   granaryAcceptsFreshFood?: boolean;
+  granaryHouseholdsFirst?: boolean;
+  granaryGrainReserve?: number;
+  granaryFreshFoodTargetPercent?: number;
+  constructionPriority?: number;
+  woodcutterTimberReserve?: number;
+  harvestReservePercent?: number;
+  carpenterPolearmReserve?: number;
+  guardhousePayPriority?: number;
+  guardhouseFoodReserve?: number;
+  marketplaceIronworkTarget?: number;
+  marketplaceSpecialtyExportPolicy?: number;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {
@@ -128,6 +146,7 @@ export type FarmFieldState = {
   priority: number;
   harvestCount: number;
   lastYield: number;
+  currentYield: number;
 };
 
 export const LIVESTOCK_SPECIES = ['cattle', 'sheep', 'swine'] as const;
@@ -153,6 +172,13 @@ export type LivestockHerdState = {
   lastFoodOutput: number;
   lastPreservedOutput: number;
   lastWoolGold: number;
+  lastWoolOutput?: number;
+  lastShearingYear?: number;
+  breedingReserve: number;
+  lastCulled: number;
+  hayStock: number;
+  lastHayOutput: number;
+  haymakingPercent: number;
 };
 
 export type BurgageFrontageEdge = 0 | 1 | 2 | 3;
@@ -189,7 +215,11 @@ export type BackyardGardenState = {
   kind: import('../generated/gameBalance.ts').BackyardGardenKind;
 };
 
-export type ResourceStockpile = Record<ResourceKind, number> & { gold: number; polearms?: number };
+export type ResourceStockpile = Record<ResourceKind, number> & {
+  gold: number;
+  ironwork?: number;
+  polearms?: number;
+};
 
 export type GameState = {
   seed: number;
@@ -260,7 +290,7 @@ export type InspectableTarget =
     };
 
 export function createEmptyStockpile(): ResourceStockpile {
-  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, polearms: 0, gold: 0 };
+  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, cloth: 0, ironwork: 0, polearms: 0, gold: 0 };
 }
 
 export function isResourceKind(value: string): value is ResourceKind {

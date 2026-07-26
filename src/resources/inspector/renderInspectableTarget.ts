@@ -5,6 +5,7 @@ import type { MarketplaceTradeAvailability } from '../../economy/marketplaceTrad
 import type { RegionalMarketState } from '../../economy/regionalMarket.ts';
 import type { GameState, InspectableTarget } from '../types.ts';
 import type { SettlementSecurityState } from '../../security/frontierSecurity.ts';
+import type { SettlementProductionCapacity } from '../../economy/settlementProduction.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import { renderBackyardInspector } from './backyardRenderer.ts';
 import { renderForagingInspector } from './foragingRenderer.ts';
@@ -50,10 +51,17 @@ export type InspectorRenderContext = {
   populationStats: PopulationStats;
   resourceTotals: ResourceTotals;
   worldHydrology: number;
+  conflictEnabled?: boolean;
+  enemyPressure?: number;
+  settlementProduction?: SettlementProductionCapacity;
   getEconomicActivityTaxRate?: () => number;
+  getSeasonalLaborStewardEnabled?: () => boolean;
+  getConstructionLaborStewardEnabled?: () => boolean;
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
-  getTradeAvailability?: () => MarketplaceTradeAvailability;
+  getTradeAvailability?: (
+    marketplace: Extract<InspectableTarget, { kind: 'building' }>['building'],
+  ) => MarketplaceTradeAvailability;
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
 };

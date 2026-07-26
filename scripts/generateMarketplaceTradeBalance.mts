@@ -1,26 +1,30 @@
 export type MarketplaceBarterOffer = {
   id: string;
   kind: 'barter';
-  give: 'timber' | 'stone' | 'firewood' | 'food';
+  give: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork';
   giveAmount: number;
-  receive: 'timber' | 'stone' | 'firewood' | 'food';
+  receive: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork';
   receiveAmount: number;
 };
 
 export type MarketplaceTradeBalance = {
-  resourceSpendScopes: Record<'timber' | 'stone' | 'firewood' | 'food', 'aggregate' | 'treasury'>;
+  bulkTradeCooldownSeconds: number;
+  resourceSpendScopes: Record<
+    'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork',
+    'marketAccessible' | 'treasury'
+  >;
   offers: Array<
     | {
         id: string;
         kind: 'goldBuy';
-        resource: 'timber' | 'stone' | 'firewood' | 'food';
+        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork';
         amount: number;
         goldCost: number;
       }
     | {
         id: string;
         kind: 'goldSell';
-        resource: 'timber' | 'stone' | 'firewood' | 'food';
+        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork';
         amount: number;
         goldYield: number;
       }
@@ -44,17 +48,21 @@ export function generateMarketplaceTradeRust(balance: BalanceWithMarketplaceTrad
   const trade = balance.marketplaceTrade;
   const offers = trade.offers;
   const lines: string[] = [
+    `pub const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS: f64 = ${rustF64(trade.bulkTradeCooldownSeconds)};`,
+    '',
     '#[derive(Clone, Copy, Debug, PartialEq, Eq)]',
     'pub enum TradeResource {',
     '    Timber,',
     '    Stone,',
     '    Firewood,',
     '    Food,',
+    '    Grain,',
+    '    Ironwork,',
     '}',
     '',
     '#[derive(Clone, Copy, Debug, PartialEq, Eq)]',
     'pub enum TradeResourceSpendScope {',
-    '    Aggregate,',
+    '    MarketAccessible,',
     '    #[allow(dead_code)]',
     '    Treasury,',
     '}',
@@ -66,7 +74,7 @@ export function generateMarketplaceTradeRust(balance: BalanceWithMarketplaceTrad
 
   for (const [resource, scope] of Object.entries(trade.resourceSpendScopes)) {
     const variant = rustTradeResourceSlug(resource);
-    const scopeVariant = scope === 'aggregate' ? 'Aggregate' : 'Treasury';
+    const scopeVariant = scope === 'marketAccessible' ? 'MarketAccessible' : 'Treasury';
     lines.push(`            Self::${variant} => TradeResourceSpendScope::${scopeVariant},`);
   }
 
@@ -144,10 +152,12 @@ export function generateMarketplaceTradeTypeScript(balance: BalanceWithMarketpla
   const trade = balance.marketplaceTrade;
   const offers = trade.offers;
   const lines: string[] = [
-    "export const TRADE_RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'food'] as const;",
+    `export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = ${trade.bulkTradeCooldownSeconds};`,
+    '',
+    "export const TRADE_RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'food', 'grain', 'ironwork'] as const;",
     'export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];',
     '',
-    "export type TradeResourceSpendScope = 'aggregate' | 'treasury';",
+    "export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';",
     '',
     'export const TRADE_RESOURCE_SPEND_SCOPES = {',
     ...Object.entries(trade.resourceSpendScopes).map(

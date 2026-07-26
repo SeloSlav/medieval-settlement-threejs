@@ -2,17 +2,24 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { syncSettlementWorld } from '../src/app/settlementWorldSync.ts';
 import { SpacetimeSnapshotApplier } from '../src/app/spacetimeSnapshotApplier.ts';
+import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
+import { GAME_TABLE_SUBSCRIPTIONS } from '../src/data/gameTableSubscriptions.ts';
 import { GameTableSync } from '../src/data/spacetimeTableSync/gameTableSync.ts';
 import { syncWorldConfig } from '../src/data/spacetimeTableSync/syncWorldConfig.ts';
 import { ForestManager } from '../src/props/ForestManager.ts';
 import { createStubForestInstances } from '../src/props/forestInstanceStub.ts';
 import { ForestVisualSync } from '../src/resources/ForestVisualSync.ts';
-import type { GameState } from '../src/resources/types.ts';
+import type {
+  BuildingState,
+  GameState,
+  LivestockHerdState,
+} from '../src/resources/types.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import { isOnRoadSurface } from '../src/roads/roadConnectivity.ts';
 import { changedBuildingPadBounds } from '../src/terrain/TerrainBuildingPads.ts';
 
 await testTableCallbackCoalescing();
+testAuthoritativeTableSubscriptions();
 testPlacementClearanceKeepsRoadWorkCached();
 testRoadSurfaceSpatialIndexRespectsRoadWidths();
 testTerrainPreviewOnlyResamplesChangedPads();
@@ -20,8 +27,24 @@ testSettlementSyncSkipsUnchangedDomains();
 testForestPhaseUpdatesCommitOncePerBatch();
 testTreeVisualSyncSkipsUnchangedSnapshots();
 testWorldGenerationReferenceStaysStableAcrossTicks();
+testQuantizedStockVisualSignatures();
+const markerSignatureElapsed = testBuildingMarkerSignatureScale();
 
-console.log('client sync scheduling tests passed');
+console.log(
+  `client sync scheduling tests passed (${markerSignatureElapsed.toFixed(1)} ms for 100,000 dynamic building signatures)`,
+);
+
+function testAuthoritativeTableSubscriptions(): void {
+  assert.ok(
+    GAME_TABLE_SUBSCRIPTIONS.includes('market_state'),
+    'regional market prices must be subscribed before the marketplace inspector can show them',
+  );
+  assert.equal(
+    new Set(GAME_TABLE_SUBSCRIPTIONS).size,
+    GAME_TABLE_SUBSCRIPTIONS.length,
+    'authoritative table subscriptions should not contain duplicates',
+  );
+}
 
 async function testTableCallbackCoalescing(): Promise<void> {
   let tableRebuilds = 0;
@@ -488,11 +511,17 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
     timber: 8,
   });
   const timberStocked = { ...constructionCompleted, tick: 7, buildings: timberChanged };
+  const collisionInvalidationsBeforeTimber = collisionInvalidations;
   applier.apply(deps as never, timberStocked, constructionCompleted);
   assert.equal(
     buildingSyncCalls,
     4,
     'lumber stock changes should refresh the mill stockpile without rebuilding terrain',
+  );
+  assert.equal(
+    collisionInvalidations,
+    collisionInvalidationsBeforeTimber,
+    'stock-only building visuals must not invalidate first-person collision geometry',
   );
 
   const clearedTrees = new Map(timberStocked.trees);
@@ -502,6 +531,105 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
   assert.equal(syncAllCalls, 1, 'tree deletion should not reapply every remaining tree');
   assert.equal(syncLayoutCalls, 1, 'tree deletion should only resync authoritative layouts');
   assert.equal(syncTreeCalls, 1);
+}
+
+function testQuantizedStockVisualSignatures(): void {
+  const lumber = {
+    id: 'building-1',
+    kind: 'lumber_mill',
+    x: 0,
+    z: 0,
+    timber: 0,
+    constructionComplete: true,
+  } as BuildingState;
+  const pastoral = {
+    id: 'building-2',
+    kind: 'pastoral_farmstead',
+    x: 12,
+    z: 0,
+    timber: 0,
+    constructionComplete: true,
+  } as BuildingState;
+  const buildings = new Map([
+    [lumber.id, lumber],
+    [pastoral.id, pastoral],
+  ]);
+  const emptyHerd = {
+    buildingId: pastoral.id,
+    hayStock: 0,
+  } as LivestockHerdState;
+  const emptySignatures = buildingMarkerSignatures(
+    buildings,
+    new Map([[pastoral.id, emptyHerd]]),
+  );
+
+  const stockedBuildings = new Map(buildings);
+  stockedBuildings.set(lumber.id, { ...lumber, timber: 8 });
+  const firstHayBundle = new Map([
+    [pastoral.id, { ...emptyHerd, hayStock: 10 }],
+  ]);
+  const stockedSignatures = buildingMarkerSignatures(
+    stockedBuildings,
+    firstHayBundle,
+  );
+  assert.notEqual(stockedSignatures.visual, emptySignatures.visual);
+  assert.equal(
+    stockedSignatures.collider,
+    emptySignatures.collider,
+    'resource stock should change visual signatures without changing collision signatures',
+  );
+
+  const sameVisualLevel = buildingMarkerSignatures(
+    new Map([
+      [lumber.id, { ...lumber, timber: 9 }],
+      [pastoral.id, pastoral],
+    ]),
+    new Map([[pastoral.id, { ...emptyHerd, hayStock: 20 }]]),
+  );
+  assert.equal(
+    sameVisualLevel.visual,
+    stockedSignatures.visual,
+    'small stock changes inside one visible bundle should not resync building meshes',
+  );
+
+  const secondHayBundle = buildingMarkerSignatures(
+    stockedBuildings,
+    new Map([[pastoral.id, { ...emptyHerd, hayStock: 31 }]]),
+  );
+  assert.notEqual(secondHayBundle.visual, stockedSignatures.visual);
+  assert.equal(secondHayBundle.collider, stockedSignatures.collider);
+}
+
+function testBuildingMarkerSignatureScale(): number {
+  const buildings = new Map<string, BuildingState>();
+  const herds = new Map<string, LivestockHerdState>();
+  for (let index = 0; index < 100_000; index++) {
+    const id = `building-${index}`;
+    const pastoral = index % 2 === 0;
+    buildings.set(id, {
+      id,
+      kind: pastoral ? 'pastoral_farmstead' : 'lumber_mill',
+      x: index % 500,
+      z: Math.floor(index / 500),
+      timber: pastoral ? 0 : index % 241,
+      constructionComplete: true,
+    } as BuildingState);
+    if (pastoral) {
+      herds.set(id, {
+        buildingId: id,
+        hayStock: index % 241,
+      } as LivestockHerdState);
+    }
+  }
+  const started = performance.now();
+  const signatures = buildingMarkerSignatures(buildings, herds);
+  const elapsed = performance.now() - started;
+  assert.ok(signatures.visual.length > signatures.collider.length);
+  assert.ok(
+    elapsed < 1_000,
+    `100,000 dynamic building signatures took ${elapsed.toFixed(1)} ms`,
+  );
+  return elapsed;
 }
 
 function testForestPhaseUpdatesCommitOncePerBatch(): void {

@@ -227,6 +227,7 @@ fn try_chapel_poor_relief(
     let dispatch = MarketCaravanDispatch {
         include_abandoned: true,
         priority_residence_id: Some(residence.id),
+        exact_load_amount: Some(commodity.food_amount),
     };
 
     if order_food_commodity(
@@ -240,8 +241,7 @@ fn try_chapel_poor_relief(
         MarketGoldPayer::Relief,
         Some(residence),
         dispatch,
-    )
-    .is_ok()
+    ) == Ok(true)
     {
         gold_cost
     } else {
@@ -289,7 +289,7 @@ mod tests {
         chapel_upkeep_per_tick,
     };
     use crate::balance_generated::{
-        CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
+        CALENDAR_SECONDS_PER_DAY, CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
         CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY, TICK_DT,
     };
 

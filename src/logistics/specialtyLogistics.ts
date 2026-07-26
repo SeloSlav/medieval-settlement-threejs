@@ -1,40 +1,95 @@
 import {
   RESIDENCE_ALE_CAPACITY,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
+  RESIDENCE_CLOTH_CAPACITY,
+  RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
 } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
-import { roadPathDistance } from './roadLogistics.ts';
+import { compareStableEntityIds, roadPathDistance } from './roadLogistics.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 
 export const MONASTERY_MIN_PARISH_POPULATION = 12;
 
-export type SpecialtyNeedKind = 'ale' | 'preservedFood';
+export type SpecialtyNeedKind = 'ale' | 'preservedFood' | 'cloth';
 
 const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = ['smokehouse', 'pastoral_farmstead'];
 const ALE_SUPPLIER_KINDS: readonly BuildingKind[] = ['brewery', 'monastery'];
+const CLOTH_SUPPLIER_KINDS: readonly BuildingKind[] = ['weaver'];
+
+export function isOperationalSpecialtySupplier(building: BuildingState): boolean {
+  return building.constructionComplete !== false
+    && (building.kind === 'monastery' || building.assignedLabor > 0);
+}
 
 export function findRoadLinkedSupplierForResidence(
   residence: ResidenceState,
   buildings: Iterable<BuildingState>,
   network: RoadNetwork,
-  supplierKinds: readonly BuildingKind[],
+  needKind: SpecialtyNeedKind,
   eligible: (building: BuildingState, roadDistance: number) => boolean = () => true,
 ): BuildingState | null {
+  return findRoadLinkedSpecialtySupplier(
+    residence,
+    buildings,
+    network,
+    needKind,
+    eligible,
+    true,
+  );
+}
+
+/**
+ * Upgrade eligibility needs an operational route, not current stock. Keeping
+ * this separate from the live serving supplier prevents an empty workshop from
+ * hiding a valid upgrade route while preserving stock-aware delivery claims.
+ */
+export function findRoadLinkedUpgradeSupplierForResidence(
+  residence: ResidenceState,
+  buildings: Iterable<BuildingState>,
+  network: RoadNetwork,
+  needKind: SpecialtyNeedKind,
+  eligible: (building: BuildingState, roadDistance: number) => boolean = () => true,
+): BuildingState | null {
+  return findRoadLinkedSpecialtySupplier(
+    residence,
+    buildings,
+    network,
+    needKind,
+    eligible,
+    false,
+  );
+}
+
+function findRoadLinkedSpecialtySupplier(
+  residence: ResidenceState,
+  buildings: Iterable<BuildingState>,
+  network: RoadNetwork,
+  needKind: SpecialtyNeedKind,
+  eligible: (building: BuildingState, roadDistance: number) => boolean,
+  requireStock: boolean,
+): BuildingState | null {
+  const supplierKinds = supplierKindsForNeed(needKind);
   let best: BuildingState | null = null;
   let bestDistance = Infinity;
 
   for (const building of buildings) {
-    if (building.constructionComplete === false || !supplierKinds.includes(building.kind)) continue;
+    if (!isOperationalSpecialtySupplier(building) || !supplierKinds.includes(building.kind)) continue;
+    const stock = specialtySupplierStock(building, needKind);
+    if (requireStock && stock <= 1e-6) continue;
     const distance = roadPathDistance(network, residence.x, residence.z, building.x, building.z);
     if (distance == null) continue;
     if (!eligible(building, distance)) continue;
     if (
       distance + 1e-6 < bestDistance
-      || (Math.abs(distance - bestDistance) <= 1e-6 && best != null && building.id < best.id)
+      || (
+        Math.abs(distance - bestDistance) <= 1e-6
+        && best != null
+        && compareStableEntityIds(building.id, best.id) < 0
+      )
     ) {
       bestDistance = distance;
       best = building;
@@ -64,7 +119,7 @@ export function hasStaffedChapel(buildings: Iterable<BuildingState>): boolean {
 }
 
 export function residencePreservedFoodRunwaySeconds(residence: ResidenceState): number | null {
-  if (residence.abandoned || residence.population === 0 || residence.tier < 2) return null;
+  if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
   const stock = getNeedStock(residence.needs, 'preservedFood');
   const usePerSec = residence.population * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC;
   if (usePerSec <= 1e-9) return null;
@@ -91,13 +146,27 @@ export function residenceAleRunwayDays(residence: ResidenceState): number | null
   return runwaySeconds / GAME_DAY_SECONDS;
 }
 
+export function residenceClothRunwaySeconds(residence: ResidenceState): number | null {
+  if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
+  const stock = getNeedStock(residence.needs, 'cloth');
+  const usePerSec = residence.population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC;
+  if (usePerSec <= 1e-9) return null;
+  return stock / usePerSec;
+}
+
+export function residenceClothRunwayDays(residence: ResidenceState): number | null {
+  const runwaySeconds = residenceClothRunwaySeconds(residence);
+  if (runwaySeconds == null) return null;
+  return runwaySeconds / GAME_DAY_SECONDS;
+}
+
 export function specialtyRunwaySeconds(
   residence: ResidenceState,
   needKind: SpecialtyNeedKind,
 ): number | null {
-  return needKind === 'ale'
-    ? residenceAleRunwaySeconds(residence)
-    : residencePreservedFoodRunwaySeconds(residence);
+  if (needKind === 'ale') return residenceAleRunwaySeconds(residence);
+  if (needKind === 'cloth') return residenceClothRunwaySeconds(residence);
+  return residencePreservedFoodRunwaySeconds(residence);
 }
 
 export function compareResidencesForSpecialtyDelivery(
@@ -113,7 +182,7 @@ export function compareResidencesForSpecialtyDelivery(
   const distanceA = roadPathDistance(network, supplier.x, supplier.z, a.x, a.z) ?? Infinity;
   const distanceB = roadPathDistance(network, supplier.x, supplier.z, b.x, b.z) ?? Infinity;
   if (Math.abs(distanceA - distanceB) > 1e-6) return distanceA - distanceB;
-  return a.id.localeCompare(b.id);
+  return compareStableEntityIds(a.id, b.id);
 }
 
 export function peekNextSpecialtyDeliveryTarget(
@@ -122,9 +191,7 @@ export function peekNextSpecialtyDeliveryTarget(
   residences: readonly ResidenceState[],
   needKind: SpecialtyNeedKind,
 ): ResidenceState | null {
-  const capacity = needKind === 'ale'
-    ? RESIDENCE_ALE_CAPACITY
-    : RESIDENCE_PRESERVED_FOOD_CAPACITY;
+  const capacity = specialtyCapacity(needKind);
   let best: ResidenceState | null = null;
   for (const residence of residences) {
     if (residence.abandoned || residence.population <= 0 || residence.tier < 3) continue;
@@ -139,10 +206,38 @@ export function peekNextSpecialtyDeliveryTarget(
   return best;
 }
 
+function supplierKindsForNeed(needKind: SpecialtyNeedKind): readonly BuildingKind[] {
+  if (needKind === 'ale') return ALE_SUPPLIER_KINDS;
+  if (needKind === 'cloth') return CLOTH_SUPPLIER_KINDS;
+  return PRESERVED_FOOD_SUPPLIER_KINDS;
+}
+
+function specialtySupplierStock(
+  building: BuildingState,
+  needKind: SpecialtyNeedKind,
+): number {
+  if (needKind === 'ale') return building.ale;
+  if (needKind === 'cloth') return building.cloth ?? 0;
+  return building.preservedFood;
+}
+
+function specialtyCapacity(needKind: SpecialtyNeedKind): number {
+  if (needKind === 'ale') return RESIDENCE_ALE_CAPACITY;
+  if (needKind === 'cloth') return RESIDENCE_CLOTH_CAPACITY;
+  return RESIDENCE_PRESERVED_FOOD_CAPACITY;
+}
+
 export function formatSpecialtyRunwayDays(days: number): string {
   if (days >= 2) return `${days.toFixed(1)} days`;
   const hours = Math.max(1, Math.round(days * 24));
   return `${hours}h`;
 }
 
-export { PRESERVED_FOOD_SUPPLIER_KINDS, ALE_SUPPLIER_KINDS, RESIDENCE_PRESERVED_FOOD_CAPACITY, RESIDENCE_ALE_CAPACITY };
+export {
+  PRESERVED_FOOD_SUPPLIER_KINDS,
+  ALE_SUPPLIER_KINDS,
+  CLOTH_SUPPLIER_KINDS,
+  RESIDENCE_PRESERVED_FOOD_CAPACITY,
+  RESIDENCE_ALE_CAPACITY,
+  RESIDENCE_CLOTH_CAPACITY,
+};

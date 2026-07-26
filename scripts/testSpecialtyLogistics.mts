@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   ALE_SUPPLIER_KINDS,
+  CLOTH_SUPPLIER_KINDS,
   compareResidencesForSpecialtyDelivery,
   findRoadLinkedSupplierForResidence,
   peekNextSpecialtyDeliveryTarget,
@@ -31,8 +32,8 @@ function building(
     food: 0,
     grain: 0,
     flour: 0,
-    ale: 0,
-    preservedFood: 0,
+    ale: 80,
+    preservedFood: 80,
     honey: 0,
     wine: 0,
     gold: 0,
@@ -46,7 +47,7 @@ function residence(
   id: string,
   x: number,
   population: number,
-  needKind: 'ale' | 'preservedFood',
+  needKind: 'ale' | 'preservedFood' | 'cloth',
   stock: number,
 ): ResidenceState {
   return {
@@ -78,6 +79,7 @@ const network = {
 
 assert.deepEqual(ALE_SUPPLIER_KINDS, ['brewery', 'monastery']);
 assert.deepEqual(PRESERVED_FOOD_SUPPLIER_KINDS, ['smokehouse', 'pastoral_farmstead']);
+assert.deepEqual(CLOTH_SUPPLIER_KINDS, ['weaver']);
 assert.equal(PRESERVED_FOOD_SUPPLIER_KINDS.includes('granary'), false);
 
 const home = residence('home', 0, 4, 'preservedFood', 0);
@@ -89,7 +91,7 @@ assert.equal(
     home,
     [granary, smokehouse, farmstead],
     network,
-    PRESERVED_FOOD_SUPPLIER_KINDS,
+    'preservedFood',
   )?.id,
   farmstead.id,
   'the nearest actual producer should claim preserved-food service',
@@ -102,11 +104,39 @@ assert.equal(
     home,
     [monastery, brewery],
     network,
-    ALE_SUPPLIER_KINDS,
+    'ale',
     (candidate) => candidate.kind !== 'monastery',
   )?.id,
   brewery.id,
   'an unlinked or out-of-coverage monastery must not claim ale service',
+);
+const weaver = { ...building('weaver', 'weaver', 6), cloth: 12 };
+assert.equal(
+  findRoadLinkedSupplierForResidence(home, [brewery, weaver], network, 'cloth')?.id,
+  weaver.id,
+  'only a staffed road-linked weaver should claim household textile service',
+);
+const emptySmokehouse = { ...building('empty-smokehouse', 'smokehouse', 2), preservedFood: 0 };
+assert.equal(
+  findRoadLinkedSupplierForResidence(
+    home,
+    [emptySmokehouse, farmstead],
+    network,
+    'preservedFood',
+  )?.id,
+  farmstead.id,
+  'an empty smokehouse must yield preserved-food service to stocked holdings',
+);
+const emptyBrewery = { ...building('empty-brewery', 'brewery', 2), ale: 0 };
+assert.equal(
+  findRoadLinkedSupplierForResidence(
+    home,
+    [emptyBrewery, monastery],
+    network,
+    'ale',
+  )?.id,
+  monastery.id,
+  'an empty brewhouse must not block stocked monastic ale',
 );
 
 const largeUrgent = residence('large-urgent', 25, 6, 'ale', 6);
@@ -135,8 +165,20 @@ const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'ut
 assert.match(tickContext, /specialty_claims:\s*RefCell/);
 assert.match(tickContext, /PRESERVED_FOOD_SUPPLIER_KINDS/);
 assert.match(tickContext, /MONASTERY_COVERAGE_RADIUS/);
+assert.match(tickContext, /ResidenceNeedKind::Ale => building\.ale > 1e-6/);
+assert.match(
+  tickContext,
+  /ResidenceNeedKind::PreservedFood => building\.preserved_food > 1e-6/,
+);
+assert.match(tickContext, /ResidenceNeedKind::Cloth => building\.cloth > 1e-6/);
 const expanded = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
-assert.match(expanded, /compare_need_delivery_candidates/);
+const needDispatch = expanded.slice(
+  expanded.indexOf('fn collect_need_delivery_targets'),
+  expanded.indexOf('fn need_to_commodity'),
+);
+assert.match(needDispatch, /select_residence_for_need_delivery/);
+assert.match(needDispatch, /has_delivery_stock_room/);
+assert.doesNotMatch(needDispatch, /targets\.sort_by/);
 assert.match(expanded, /specialty_supplier_for/);
 const supply = fs.readFileSync('server/src/simulation/residence_needs/supply.rs', 'utf8');
 assert.match(supply, /ResidenceNeedKind::PreservedFood[\s\S]*specialty_supplier_for|specialty_supplier_for[\s\S]*ResidenceNeedKind::PreservedFood/);

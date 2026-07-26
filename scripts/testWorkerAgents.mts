@@ -26,9 +26,18 @@ import {
   pickWorkerWalkPath,
   pickWorkerWalkPlan,
   PRODUCTION_WORKPLACE_KINDS,
+  WATCHTOWER_GALLERY_FLOOR_HEIGHT,
+  watchtowerDutyPosition,
+  workplaceYardPosition,
   YARD_WORK_ACTIVITY,
 } from '../src/settlement/workerPaths.ts';
 import { WORKER_TOOL_URLS } from '../src/settlement/workerTools.ts';
+import {
+  WATCHTOWER_GALLERY_RAIL_CENTER_Y,
+  WATCHTOWER_GALLERY_RAIL_HEIGHT,
+  WATCHTOWER_ROOF_CENTER_Y,
+  WATCHTOWER_ROOF_HEIGHT,
+} from '../src/buildings/watchtowerLayout.ts';
 import {
   villagerDisplayName,
   villagerOccupation,
@@ -226,6 +235,8 @@ const expectedWorkplaces = [
   'apiary',
   'watermill',
   'carpenter',
+  'weaver',
+  'watchtower',
   'guardhouse',
   'vineyard',
 ] as const;
@@ -234,6 +245,56 @@ assert.deepEqual(
   expectedWorkplaces,
   'every staffed gathering and processing workplace should receive visible agents',
 );
+
+const watchtower = building('visible-watchtower', 'watchtower', 40, 80, 2, 190);
+const watchRoster = allocateProductionWorkers(
+  [residence('watch-household', 42, 84, 2)],
+  [watchtower],
+);
+assert.equal(watchRoster.assignments.length, 2, 'both tower posts should claim real visible watchmen');
+const ladderFootA = workplaceYardPosition(watchtower, 0);
+const ladderFootB = workplaceYardPosition(watchtower, 1);
+assert.ok(
+  ladderFootA.z > watchtower.z + 2.5 && ladderFootB.z > watchtower.z + 2.5,
+  'watchmen should commute to the exterior ladder before taking post',
+);
+const lookoutA = watchtowerDutyPosition(watchtower, 0);
+const lookoutB = watchtowerDutyPosition(watchtower, 1);
+assert.equal(lookoutA.yOffset, WATCHTOWER_GALLERY_FLOOR_HEIGHT);
+assert.equal(lookoutB.yOffset, WATCHTOWER_GALLERY_FLOOR_HEIGHT);
+assert.notDeepEqual(lookoutA, lookoutB, 'two watchmen need separate sight lines in the gallery');
+for (const lookout of [lookoutA, lookoutB]) {
+  assert.ok(
+    Math.abs(lookout.x - watchtower.x) < 1.8
+      && Math.abs(lookout.z - watchtower.z) < 1.8,
+    'lookouts must stand inside the raised timber gallery',
+  );
+}
+assert.ok(
+  WATCHTOWER_GALLERY_RAIL_CENTER_Y + WATCHTOWER_GALLERY_RAIL_HEIGHT * 0.5
+    < WATCHTOWER_GALLERY_FLOOR_HEIGHT + 0.75,
+  'the gallery rail must leave a lookout visibly exposed above waist height',
+);
+assert.ok(
+  WATCHTOWER_ROOF_CENTER_Y - WATCHTOWER_ROOF_HEIGHT * 0.5
+    > WATCHTOWER_GALLERY_FLOOR_HEIGHT + 1.72,
+  'the gallery roof must clear a full-height male villager rig',
+);
+const boundedWatchRoster = allocateProductionWorkers(
+  [],
+  Array.from({ length: 600 }, (_, index) =>
+    building(`bounded-watch-${index}`, 'watchtower', index * 8, 0, 2, 190)
+  ),
+);
+assert.equal(
+  boundedWatchRoster.assignments.length,
+  1024,
+  'visible tower posts must respect the existing settlement crowd budget',
+);
+const villagerRendererSource = fs.readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
+assert.match(villagerRendererSource, /scanFromWatchtower/);
+assert.match(villagerRendererSource, /resolveAgentY/);
+assert.match(villagerRendererSource, /Keeping watch from the frontier gallery/);
 
 for (const [kind, expectedActivity] of Object.entries(YARD_WORK_ACTIVITY)) {
   const workplace = building(`yard-${kind}`, kind as BuildingState['kind'], 0, 0, 2, 0);

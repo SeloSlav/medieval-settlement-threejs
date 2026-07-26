@@ -22,4 +22,11 @@ export default __t.row({
   lastFoodOutput: __t.f64().name("last_food_output"),
   lastPreservedOutput: __t.f64().name("last_preserved_output"),
   lastWoolGold: __t.f64().name("last_wool_gold"),
+  breedingReserve: __t.u32().name("breeding_reserve"),
+  lastCulled: __t.u32().name("last_culled"),
+  hayStock: __t.f64().name("hay_stock"),
+  lastHayOutput: __t.f64().name("last_hay_output"),
+  haymakingPercent: __t.u8().name("haymaking_percent"),
+  lastWoolOutput: __t.f64().name("last_wool_output"),
+  lastShearingYear: __t.u32().name("last_shearing_year"),
 });

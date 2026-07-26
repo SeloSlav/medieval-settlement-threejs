@@ -1,9 +1,9 @@
 use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::balance_generated::{
-    RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST, RESIDENCE_TIER2_STONE_COST,
-    RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_CAPACITY, RESIDENCE_TIER3_GOLD_COST,
-    RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST,
+    MONASTERY_COVERAGE_RADIUS, RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST,
+    RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_CAPACITY,
+    RESIDENCE_TIER3_GOLD_COST, RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST,
 };
 use crate::burgage::{
     compute_burgage_layout, convex_zones_overlap, max_zone_depth, measure_zone_depth,
@@ -24,7 +24,22 @@ use crate::simulation::{
     cancel_trips_for_residence, clear_backyard_garden_for_residence, clear_fire_for_target,
     clear_residence_needs, ensure_residence_needs, residence_fire_state, FIRE_TARGET_RESIDENCE,
 };
+use crate::supply_policy::{
+    is_firewood_supplier_operational, is_specialty_supplier_operational,
+    is_well_supplier_operational, ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS,
+    PRESERVED_FOOD_SUPPLIER_KINDS,
+};
 use crate::tables::{farm_field, BurgageZone, Residence};
+use crate::well_policy::position_within_well_service_radius;
+
+#[derive(Clone, Copy)]
+enum ResidenceUpgradeService {
+    Firewood,
+    Water,
+    PreservedFood,
+    Ale,
+    Cloth,
+}
 
 #[reducer]
 pub fn place_burgage_zone(
@@ -79,7 +94,7 @@ pub fn place_burgage_zone(
         return Err("Frontage must face a road.".to_string());
     }
 
-    for existing in ctx.db.burgage_zone().iter() {
+    for existing in ctx.db.burgage_zone().owner().filter(&owner) {
         let existing_polygon = [
             crate::burgage::Point2 {
                 x: existing.corner_ax,
@@ -103,11 +118,11 @@ pub fn place_burgage_zone(
         }
     }
 
-    if burgage_zone_overlaps_buildings(ctx, &corners) {
+    if burgage_zone_overlaps_buildings(ctx, owner, &corners) {
         return Err("Residence plot overlaps an existing building.".to_string());
     }
 
-    for field in ctx.db.farm_field().iter() {
+    for field in ctx.db.farm_field().owner().filter(&owner) {
         let field_polygon = [
             crate::burgage::Point2 {
                 x: field.corner_ax,
@@ -223,19 +238,22 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     }
 
     let next_tier = residence.tier.saturating_add(1);
-    let (timber, stone, gold, capacity, required_supplier_groups): (
+    let (timber, stone, gold, capacity, required_services): (
         f64,
         f64,
         f64,
         u32,
-        &[&[&str]],
+        &[ResidenceUpgradeService],
     ) = match next_tier {
         2 => (
             RESIDENCE_TIER2_TIMBER_COST,
             RESIDENCE_TIER2_STONE_COST,
             RESIDENCE_TIER2_GOLD_COST,
             RESIDENCE_TIER2_CAPACITY,
-            &[&["woodcutters_lodge"], &["well"]],
+            &[
+                ResidenceUpgradeService::Firewood,
+                ResidenceUpgradeService::Water,
+            ],
         ),
         3 => (
             RESIDENCE_TIER3_TIMBER_COST,
@@ -243,25 +261,37 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             RESIDENCE_TIER3_GOLD_COST,
             RESIDENCE_TIER3_CAPACITY,
             &[
-                &["smokehouse", "granary", "monastery"],
-                &["brewery", "monastery"],
+                ResidenceUpgradeService::PreservedFood,
+                ResidenceUpgradeService::Ale,
+                ResidenceUpgradeService::Cloth,
             ],
         ),
         _ => return Err("This residence is already at tier 3.".to_string()),
     };
 
-    if !has_connected_suppliers(ctx, &residence, required_supplier_groups) {
+    if !has_connected_services(ctx, &residence, required_services) {
         return Err(if next_tier == 2 {
-            "Tier 2 requires a road-linked woodcutter's lodge and well.".to_string()
+            "Tier 2 requires staffed road-linked firewood distribution (a lodge or accepting storehouse) and a staffed well.".to_string()
         } else {
-            "Tier 3 requires road-linked preserved-food and ale suppliers (a monastery can serve both).".to_string()
+            "Tier 3 requires staffed road-linked preserved-food, ale, and cloth suppliers (a linked monastery can supply ale).".to_string()
         });
     }
-    if total_timber(ctx, owner) + 1e-6 < timber || total_stone(ctx, owner) + 1e-6 < stone {
+    let treasury_gold = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .map(|resources| resources.gold)
+        .unwrap_or(0.0);
+    if total_timber(ctx, owner) + 1e-6 < timber
+        || total_stone(ctx, owner) + 1e-6 < stone
+        || treasury_gold + 1e-6 < gold
+    {
         return Err(format!(
-            "Upgrade requires {} timber and {} stone.",
+            "Upgrade requires {} timber, {} stone, and {} gold.",
             timber.round() as i64,
-            stone.round() as i64
+            stone.round() as i64,
+            gold.round() as i64,
         ));
     }
     spend_aggregate_timber(ctx, owner, timber)?;
@@ -278,31 +308,92 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     Ok(())
 }
 
-fn has_connected_suppliers(
+fn has_connected_services(
     ctx: &ReducerContext,
     residence: &Residence,
-    required_groups: &[&[&str]],
+    required_services: &[ResidenceUpgradeService],
 ) -> bool {
     let Some(network) = crate::roads::load_owner_road_network(ctx, residence.owner) else {
         return false;
     };
-    let connected_buildings: Vec<_> = ctx
-        .db
-        .building()
-        .owner()
-        .filter(&residence.owner)
+    let buildings: Vec<_> = ctx.db.building().owner().filter(&residence.owner).collect();
+    let staffed_chapels: Vec<_> = buildings
+        .iter()
         .filter(|building| {
-            building.construction_complete
-                && network
-                    .road_path_distance(building.x, building.z, residence.x, residence.z)
-                    .is_some()
+            building.kind == "chapel"
+                && building.construction_complete
+                && building.assigned_labor > 0
         })
         .collect();
+    let residence_has_parish = staffed_chapels.iter().any(|chapel| {
+        network
+            .road_path_distance(residence.x, residence.z, chapel.x, chapel.z)
+            .is_some()
+    });
 
-    required_groups.iter().all(|kinds| {
-        connected_buildings
-            .iter()
-            .any(|building| kinds.contains(&building.kind.as_str()))
+    required_services.iter().all(|service| {
+        buildings.iter().any(|building| {
+            let Some(distance) =
+                network.road_path_distance(building.x, building.z, residence.x, residence.z)
+            else {
+                return false;
+            };
+            match service {
+                ResidenceUpgradeService::Firewood => is_firewood_supplier_operational(
+                    &building.kind,
+                    building.construction_complete,
+                    building.assigned_labor,
+                    building.storehouse_accepts_firewood,
+                ),
+                ResidenceUpgradeService::Water => {
+                    is_well_supplier_operational(
+                        &building.kind,
+                        building.construction_complete,
+                        building.assigned_labor,
+                    ) && position_within_well_service_radius(
+                        building.x,
+                        building.z,
+                        building.work_radius,
+                        residence.x,
+                        residence.z,
+                    )
+                }
+                ResidenceUpgradeService::PreservedFood => {
+                    PRESERVED_FOOD_SUPPLIER_KINDS.contains(&building.kind.as_str())
+                        && is_specialty_supplier_operational(
+                            &building.kind,
+                            building.construction_complete,
+                            building.assigned_labor,
+                        )
+                }
+                ResidenceUpgradeService::Ale => {
+                    ALE_SUPPLIER_KINDS.contains(&building.kind.as_str())
+                        && is_specialty_supplier_operational(
+                            &building.kind,
+                            building.construction_complete,
+                            building.assigned_labor,
+                        )
+                        && (building.kind != "monastery"
+                            || (residence_has_parish
+                                && distance <= MONASTERY_COVERAGE_RADIUS
+                                && staffed_chapels.iter().any(|chapel| {
+                                    network
+                                        .road_path_distance(
+                                            building.x, building.z, chapel.x, chapel.z,
+                                        )
+                                        .is_some()
+                                })))
+                }
+                ResidenceUpgradeService::Cloth => {
+                    CLOTH_SUPPLIER_KINDS.contains(&building.kind.as_str())
+                        && is_specialty_supplier_operational(
+                            &building.kind,
+                            building.construction_complete,
+                            building.assigned_labor,
+                        )
+                }
+            }
+        })
     })
 }
 

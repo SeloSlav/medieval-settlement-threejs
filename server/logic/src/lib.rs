@@ -10,6 +10,9 @@ pub mod hydrology_grid_generated;
 #[path = "../../src/economy/marketplace_trade_policy.rs"]
 pub mod marketplace_trade_policy;
 
+#[path = "../../src/economy/regional_market_policy.rs"]
+pub mod regional_market_policy;
+
 #[path = "../../src/economy/population_policy.rs"]
 pub mod population_policy;
 
@@ -26,25 +29,79 @@ pub mod simulation {
     pub use crate::game_calendar::GameClock;
 }
 
+#[path = "../../src/labor_steward_policy.rs"]
+pub mod labor_steward_policy;
 #[path = "../../src/season_policy.rs"]
 pub mod season_policy;
+#[path = "../../src/seasonal_labor_policy.rs"]
+pub mod seasonal_labor_policy;
 #[path = "../../src/security_policy.rs"]
 pub mod security_policy;
+
+#[path = "../../src/specialty_trade_policy.rs"]
+pub mod specialty_trade_policy;
+
+#[path = "../../src/storehouse_policy.rs"]
+pub mod storehouse_policy;
+
+#[path = "../../src/processor_output_policy.rs"]
+pub mod processor_output_policy;
+
+#[path = "../../src/processor_labor_policy.rs"]
+pub mod processor_labor_policy;
 
 #[path = "../../src/quarry_balance.rs"]
 pub mod quarry_balance;
 
 #[path = "../../src/foraging_policy.rs"]
 pub mod foraging_policy;
+#[path = "../../src/harvest_reserve_policy.rs"]
+pub mod harvest_reserve_policy;
 
 #[path = "../../src/frontier_economy_policy.rs"]
 pub mod frontier_economy_policy;
 
+#[path = "../../src/granary_policy.rs"]
+pub mod granary_policy;
+
+#[path = "../../src/burgage.rs"]
+pub mod burgage;
+
+#[path = "../../src/farming.rs"]
+pub mod farming;
+
+#[path = "../../src/livestock_policy.rs"]
+pub mod livestock_policy;
+
+#[path = "../../src/monastery_hospitality_policy.rs"]
+pub mod monastery_hospitality_policy;
+
+#[path = "../../src/residence_settlement_policy.rs"]
+pub mod residence_settlement_policy;
+
+#[path = "../../src/marketplace_procurement_policy.rs"]
+pub mod marketplace_procurement_policy;
+
 #[path = "../../src/fire_policy.rs"]
 pub mod fire_policy;
 
+#[path = "../../src/fire_recovery_policy.rs"]
+pub mod fire_recovery_policy;
+
+#[path = "../../src/construction_priority.rs"]
+pub mod construction_priority;
+
 #[path = "../../src/well_policy.rs"]
 pub mod well_policy;
+
+#[path = "../../src/woodcutter_policy.rs"]
+pub mod woodcutter_policy;
+
+#[path = "../../src/year_round_labor_policy.rs"]
+pub mod year_round_labor_policy;
+
+#[path = "../../src/worksite_stall_policy.rs"]
+pub mod worksite_stall_policy;
 
 #[path = "../../src/supply_policy.rs"]
 pub mod supply_policy;

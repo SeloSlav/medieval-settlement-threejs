@@ -2,8 +2,9 @@ use crate::balance_generated::{
     FARM_BASE_GRAIN_PER_SQUARE_METER, FARM_FALLOW_FERTILITY_RESTORE,
     FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_LARGE_FIELD_EFFICIENCY_EXPONENT,
     FARM_LARGE_FIELD_EFFICIENCY_FLOOR, FARM_OATS_FERTILITY_DRAIN, FARM_OATS_MOISTURE_IDEAL,
-    FARM_OATS_MOISTURE_TOLERANCE, FARM_OPTIMAL_FIELD_AREA, FARM_PLOUGH_WORK_PER_SQUARE_METER,
-    FARM_RYE_FERTILITY_DRAIN, FARM_RYE_MOISTURE_IDEAL, FARM_RYE_MOISTURE_TOLERANCE,
+    FARM_OATS_MOISTURE_TOLERANCE, FARM_OATS_SEED_GRAIN_PER_SQUARE_METER, FARM_OPTIMAL_FIELD_AREA,
+    FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_RYE_FERTILITY_DRAIN, FARM_RYE_MOISTURE_IDEAL,
+    FARM_RYE_MOISTURE_TOLERANCE, FARM_RYE_SEED_GRAIN_PER_SQUARE_METER,
     FARM_SLOPE_PENALTY_PER_DEGREE, FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
@@ -157,6 +158,80 @@ pub fn work_required(stage: u8, area: f64, shape: f64) -> f64 {
     area.max(1.0) * per_square_meter / shape.clamp(0.72, 1.0)
 }
 
+pub fn crop_seed_grain_per_square_meter(crop: u8) -> f64 {
+    match crop {
+        CROP_RYE => FARM_RYE_SEED_GRAIN_PER_SQUARE_METER,
+        CROP_OATS => FARM_OATS_SEED_GRAIN_PER_SQUARE_METER,
+        _ => 0.0,
+    }
+}
+
+pub fn seed_grain_required(area: f64, crop: u8) -> f64 {
+    area.max(0.0) * crop_seed_grain_per_square_meter(crop)
+}
+
+/// Grain still protected at a farmstead for this field's next sowing.
+///
+/// Ploughing and partially sown fields reserve the current crop. Growing and
+/// harvesting fields reserve the selected next crop. Pausing a field releases
+/// its seed allocation back to the settlement economy.
+pub fn field_seed_grain_remaining(
+    area: f64,
+    crop: u8,
+    next_crop: u8,
+    stage: u8,
+    stage_progress: f64,
+    priority: u8,
+) -> f64 {
+    if priority == 0 {
+        return 0.0;
+    }
+    let planned_crop = if matches!(stage, STAGE_PLOUGHING | STAGE_SOWING) {
+        crop
+    } else {
+        next_crop
+    };
+    let unseeded_fraction = if stage == STAGE_SOWING {
+        1.0 - stage_progress.clamp(0.0, 1.0)
+    } else {
+        1.0
+    };
+    seed_grain_required(area, planned_crop) * unseeded_fraction
+}
+
+/// Grain a farmstead may release without consuming seed allocated to fields.
+pub fn farmstead_exportable_grain(stock: f64, seed_grain_required: f64) -> f64 {
+    (stock.max(0.0) - seed_grain_required.max(0.0)).max(0.0)
+}
+
+/// Mountain rye is autumn-sown before winter dormancy. Oats are spring-sown,
+/// spreading peak farm labor across two historically plausible work windows.
+pub fn field_work_allowed(stage: u8, crop: u8, month: u32) -> bool {
+    match stage {
+        STAGE_HARVESTING => month == 9,
+        STAGE_PLOUGHING | STAGE_SOWING if crop == CROP_OATS => matches!(month, 3 | 4),
+        STAGE_PLOUGHING | STAGE_SOWING => matches!(month, 10 | 11),
+        _ => false,
+    }
+}
+
+pub fn crop_growth_allowed(crop: u8, month: u32) -> bool {
+    if crop == CROP_OATS {
+        matches!(month, 4..=8)
+    } else {
+        matches!(month, 3..=8)
+    }
+}
+
+pub fn sowing_window_missed(stage: u8, crop: u8, month: u32) -> bool {
+    stage == STAGE_SOWING
+        && if crop == CROP_OATS {
+            month == 5
+        } else {
+            month == 12
+        }
+}
+
 pub fn fertility_after_harvest(crop: u8, fertility: f64) -> f64 {
     match crop {
         CROP_FALLOW => (fertility + FARM_FALLOW_FERTILITY_RESTORE).min(1.0),
@@ -237,5 +312,42 @@ mod tests {
         );
         assert!(large_yield > optimal_yield);
         assert!(large_yield / 2.0 < optimal_yield);
+    }
+
+    #[test]
+    fn crop_calendars_split_rye_and_oats_labor() {
+        assert!(field_work_allowed(STAGE_SOWING, CROP_RYE, 10));
+        assert!(!field_work_allowed(STAGE_SOWING, CROP_RYE, 3));
+        assert!(field_work_allowed(STAGE_SOWING, CROP_OATS, 3));
+        assert!(!field_work_allowed(STAGE_SOWING, CROP_OATS, 10));
+        assert!(sowing_window_missed(STAGE_SOWING, CROP_RYE, 12));
+        assert!(sowing_window_missed(STAGE_SOWING, CROP_OATS, 5));
+        assert!(crop_growth_allowed(CROP_RYE, 6));
+        assert!(crop_growth_allowed(CROP_OATS, 6));
+    }
+
+    #[test]
+    fn seed_reserve_tracks_crop_progress_and_field_priority() {
+        assert!((seed_grain_required(1_600.0, CROP_RYE) - 19.2).abs() < 1e-9);
+        assert!((seed_grain_required(1_600.0, CROP_OATS) - 22.4).abs() < 1e-9);
+        assert_eq!(seed_grain_required(1_600.0, CROP_FALLOW), 0.0);
+        assert!(
+            (field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_SOWING, 0.25, 1,)
+                - 14.4)
+                .abs()
+                < 1e-9
+        );
+        assert!(
+            (field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_GROWING, 0.5, 1,)
+                - 22.4)
+                .abs()
+                < 1e-9
+        );
+        assert_eq!(
+            field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_GROWING, 0.5, 0,),
+            0.0
+        );
+        assert!((farmstead_exportable_grain(30.0, 19.2) - 10.8).abs() < 1e-9);
+        assert_eq!(farmstead_exportable_grain(10.0, 19.2), 0.0);
     }
 }

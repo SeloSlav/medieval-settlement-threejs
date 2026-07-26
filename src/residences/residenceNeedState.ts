@@ -1,6 +1,19 @@
-export type ResidenceNeedKind = 'firewood' | 'water' | 'food' | 'ale' | 'preservedFood';
+export type ResidenceNeedKind =
+  | 'firewood'
+  | 'water'
+  | 'food'
+  | 'ale'
+  | 'preservedFood'
+  | 'cloth';
 
-export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = ['firewood', 'water', 'food', 'preservedFood', 'ale'];
+export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
+  'firewood',
+  'water',
+  'food',
+  'preservedFood',
+  'ale',
+  'cloth',
+];
 
 export function activeResidenceNeedKinds(tier: 1 | 2 | 3): ResidenceNeedKind[] {
   return RESIDENCE_NEED_KINDS.filter((kind) => {
@@ -16,6 +29,7 @@ export const RESIDENCE_NEED_KIND_IDS: Record<ResidenceNeedKind, number> = {
   food: 2,
   ale: 6,
   preservedFood: 7,
+  cloth: 14,
 };
 
 export type ResidenceNeedRecord = {
@@ -29,6 +43,9 @@ export type ResidenceNeedSupplyContext = {
   servingLodgeId: string | null;
   servingWellId: string | null;
   servingFoodSupplierId: string | null;
+  servingPreservedFoodSupplierId?: string | null;
+  servingAleSupplierId?: string | null;
+  servingClothSupplierId?: string | null;
 };
 
 export type ResidenceCommunityContext = {
@@ -64,6 +81,7 @@ export function createDefaultNeeds(): ResidenceNeedsState {
     food: { stock: 0, deficitTicks: 0 },
     ale: { stock: 0, deficitTicks: 0 },
     preservedFood: { stock: 0, deficitTicks: 0 },
+    cloth: { stock: 0, deficitTicks: 0 },
   };
 }
 
@@ -79,6 +97,8 @@ export function needKindFromId(id: number): ResidenceNeedKind | null {
       return 'ale';
     case RESIDENCE_NEED_KIND_IDS.preservedFood:
       return 'preservedFood';
+    case RESIDENCE_NEED_KIND_IDS.cloth:
+      return 'cloth';
     default:
       return null;
   }
@@ -88,20 +108,20 @@ export function getNeed(
   needs: ResidenceNeedsState,
   kind: ResidenceNeedKind,
 ): ResidenceNeedRecord {
-  return needs[kind];
+  return needs[kind] ?? { stock: 0, deficitTicks: 0 };
 }
 
 export function getNeedStock(needs: ResidenceNeedsState, kind: ResidenceNeedKind): number {
-  return needs[kind].stock;
+  return getNeed(needs, kind).stock;
 }
 
 export function getNeedDeficitTicks(needs: ResidenceNeedsState, kind: ResidenceNeedKind): number {
-  return needs[kind].deficitTicks;
+  return getNeed(needs, kind).deficitTicks;
 }
 
 export function maxNeedDeficitTicks(needs: ResidenceNeedsState): number {
   return RESIDENCE_NEED_KINDS.reduce(
-    (max, kind) => Math.max(max, needs[kind].deficitTicks),
+    (max, kind) => Math.max(max, getNeedDeficitTicks(needs, kind)),
     0,
   );
 }
@@ -111,7 +131,7 @@ export function maxActiveNeedDeficitTicks(
   tier: 1 | 2 | 3,
 ): number {
   return activeResidenceNeedKinds(tier).reduce(
-    (max, kind) => Math.max(max, needs[kind].deficitTicks),
+    (max, kind) => Math.max(max, getNeedDeficitTicks(needs, kind)),
     0,
   );
 }

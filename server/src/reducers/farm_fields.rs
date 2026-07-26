@@ -90,7 +90,7 @@ pub fn place_farm_field(
         }
     }
 
-    for building in ctx.db.building().iter() {
+    for building in ctx.db.building().owner().filter(&owner) {
         let Some(radius) = building_pick_radius(&building.kind) else {
             continue;
         };
@@ -98,7 +98,7 @@ pub fn place_farm_field(
             return Err("Field overlaps a building.".to_string());
         }
     }
-    for zone in ctx.db.burgage_zone().iter() {
+    for zone in ctx.db.burgage_zone().owner().filter(&owner) {
         let existing = [
             Point2 {
                 x: zone.corner_ax,
@@ -121,7 +121,7 @@ pub fn place_farm_field(
             return Err("Field overlaps a residence plot.".to_string());
         }
     }
-    for field in ctx.db.farm_field().iter() {
+    for field in ctx.db.farm_field().owner().filter(&owner) {
         let existing = [
             Point2 {
                 x: field.corner_ax,
@@ -188,6 +188,7 @@ pub fn place_farm_field(
         priority: 1,
         harvest_count: 0,
         last_yield: 0.0,
+        current_yield: 0.0,
     });
     Ok(())
 }

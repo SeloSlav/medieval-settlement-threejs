@@ -1,0 +1,108 @@
+import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
+import type { BuildingState } from '../resources/types.ts';
+
+export const STOREHOUSE_COMMODITIES = ['timber', 'stone', 'firewood'] as const;
+export type StorehouseCommodity = (typeof STOREHOUSE_COMMODITIES)[number];
+
+export const STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT = 100;
+export const STOREHOUSE_STOCK_TARGET_PRESETS = [
+  {
+    percent: 25,
+    label: 'Quarter',
+    hint: 'Keeps a small local cache and leaves overflow carts free for other depots.',
+  },
+  {
+    percent: 50,
+    label: 'Half',
+    hint: 'Balances local construction supply against collection-cart demand.',
+  },
+  {
+    percent: 75,
+    label: 'Deep',
+    hint: 'Builds a substantial branch reserve before overflow moves elsewhere.',
+  },
+  {
+    percent: 100,
+    label: 'Fill',
+    hint: 'Matches the original behavior and collects until physical capacity.',
+  },
+] as const;
+
+export function isStorehouseCommodity(value: string | undefined): value is StorehouseCommodity {
+  return STOREHOUSE_COMMODITIES.some((commodity) => commodity === value);
+}
+
+export function normalizeStorehouseStockTargetPercent(
+  percent: number | undefined,
+): number {
+  if (!Number.isFinite(percent)) return STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT;
+  const rounded = Math.round(percent as number);
+  return STOREHOUSE_STOCK_TARGET_PRESETS.some((preset) => preset.percent === rounded)
+    ? rounded
+    : STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT;
+}
+
+export function storehouseStockTarget(capacity: number, percent: number | undefined): number {
+  if (!Number.isFinite(capacity)) return 0;
+  return Math.max(0, capacity)
+    * normalizeStorehouseStockTargetPercent(percent)
+    / 100;
+}
+
+export function storehouseCollectionHeadroom(
+  stock: number,
+  capacity: number,
+  percent: number | undefined,
+): number {
+  if (!Number.isFinite(stock)) return 0;
+  return Math.max(0, storehouseStockTarget(capacity, percent) - Math.max(0, stock));
+}
+
+export function storehouseCommodityTargetPercent(
+  building: Pick<
+    BuildingState,
+    | 'storehouseTimberTargetPercent'
+    | 'storehouseStoneTargetPercent'
+    | 'storehouseFirewoodTargetPercent'
+  >,
+  commodity: StorehouseCommodity,
+): number {
+  const percent = commodity === 'timber'
+    ? building.storehouseTimberTargetPercent
+    : commodity === 'stone'
+      ? building.storehouseStoneTargetPercent
+      : building.storehouseFirewoodTargetPercent;
+  return normalizeStorehouseStockTargetPercent(percent);
+}
+
+export function storehouseCommodityTarget(
+  building: Pick<
+    BuildingState,
+    | 'storehouseTimberTargetPercent'
+    | 'storehouseStoneTargetPercent'
+    | 'storehouseFirewoodTargetPercent'
+  >,
+  commodity: StorehouseCommodity,
+): number {
+  const capacity = BUILDING_STORAGE_CAPS.village_storehouse[commodity] ?? 0;
+  return storehouseStockTarget(
+    capacity,
+    storehouseCommodityTargetPercent(building, commodity),
+  );
+}
+
+export function storehouseAcceptsCommodity(
+  building: Pick<
+    BuildingState,
+    | 'storehouseAcceptsTimber'
+    | 'storehouseAcceptsStone'
+    | 'storehouseAcceptsFirewood'
+  >,
+  commodity: StorehouseCommodity,
+): boolean {
+  return commodity === 'timber'
+    ? building.storehouseAcceptsTimber
+    : commodity === 'stone'
+      ? building.storehouseAcceptsStone
+      : building.storehouseAcceptsFirewood;
+}

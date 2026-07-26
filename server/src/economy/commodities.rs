@@ -17,7 +17,10 @@ pub enum CommodityKind {
     Honey,
     Wine,
     Stone,
+    Ironwork,
     Polearms,
+    Wool,
+    Cloth,
 }
 
 impl CommodityKind {
@@ -35,6 +38,9 @@ impl CommodityKind {
             Self::Wine => 9,
             Self::Stone => 10,
             Self::Polearms => 11,
+            Self::Ironwork => 12,
+            Self::Wool => 13,
+            Self::Cloth => 14,
         }
     }
 
@@ -52,6 +58,9 @@ impl CommodityKind {
             9 => Some(Self::Wine),
             10 => Some(Self::Stone),
             11 => Some(Self::Polearms),
+            12 => Some(Self::Ironwork),
+            13 => Some(Self::Wool),
+            14 => Some(Self::Cloth),
             _ => None,
         }
     }
@@ -70,7 +79,10 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Honey => building.honey,
         CommodityKind::Wine => building.wine,
         CommodityKind::Stone => building.stone,
+        CommodityKind::Ironwork => building.ironwork,
         CommodityKind::Polearms => building.polearms,
+        CommodityKind::Wool => building.wool,
+        CommodityKind::Cloth => building.cloth,
     }
 }
 
@@ -90,7 +102,10 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Honey => def.storage_honey,
         CommodityKind::Wine => def.storage_wine,
         CommodityKind::Stone => def.storage_stone,
+        CommodityKind::Ironwork => def.storage_ironwork,
         CommodityKind::Polearms => def.storage_polearms,
+        CommodityKind::Wool => def.storage_wool,
+        CommodityKind::Cloth => def.storage_cloth,
     }
 }
 
@@ -117,7 +132,10 @@ pub fn withdraw_building_commodity(
         CommodityKind::Honey => building.honey -= withdrawn,
         CommodityKind::Wine => building.wine -= withdrawn,
         CommodityKind::Stone => building.stone -= withdrawn,
+        CommodityKind::Ironwork => building.ironwork -= withdrawn,
         CommodityKind::Polearms => building.polearms -= withdrawn,
+        CommodityKind::Wool => building.wool -= withdrawn,
+        CommodityKind::Cloth => building.cloth -= withdrawn,
     }
     withdrawn
 }
@@ -140,7 +158,10 @@ pub fn deposit_building_commodity(
         CommodityKind::Honey => building.honey += deposited,
         CommodityKind::Wine => building.wine += deposited,
         CommodityKind::Stone => building.stone += deposited,
+        CommodityKind::Ironwork => building.ironwork += deposited,
         CommodityKind::Polearms => building.polearms += deposited,
+        CommodityKind::Wool => building.wool += deposited,
+        CommodityKind::Cloth => building.cloth += deposited,
     }
     deposited
 }
@@ -169,7 +190,10 @@ pub fn credit_treasury_commodity(
         CommodityKind::Honey => treasury.honey += amount,
         CommodityKind::Wine => treasury.wine += amount,
         CommodityKind::Stone => treasury.stone += amount,
+        CommodityKind::Ironwork => treasury.ironwork += amount,
         CommodityKind::Polearms => treasury.polearms += amount,
+        CommodityKind::Wool => treasury.wool += amount,
+        CommodityKind::Cloth => treasury.cloth += amount,
     }
     ctx.db.player_resources().owner().update(treasury);
 }

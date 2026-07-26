@@ -12,6 +12,7 @@ import {
   buildingFreshFoodStorageFactor,
   spoilageAdjustedRunwayDays,
 } from '../src/economy/foodPreservation.ts';
+import { renderFreshFoodPreservationRows } from '../src/resources/inspector/townHallRenderer.ts';
 import type {
   BuildingState,
   GameState,
@@ -40,6 +41,17 @@ assert.equal(preservation.protectedStock, 40);
 assert.ok(Math.abs(preservation.protectedShare - 4 / 7) < 1e-9);
 assert.ok(Math.abs(preservation.effectiveStorageFactor - expectedWeightedStock / 70) < 1e-9);
 assert.ok(Math.abs(preservation.spoilagePerDay - expectedWeightedStock * ambientSpoilage) < 1e-9);
+assert.equal(preservation.largestLossSite?.source, 'treasury');
+assert.ok(Math.abs((preservation.largestLossSite?.spoilagePerDay ?? 0) - 0.12) < 1e-9);
+assert.deepEqual(preservation.granaryNetwork, {
+  completedGranaries: 1,
+  collectingGranaries: 1,
+  staffedCollectingGranaries: 1,
+  targetStock: 255,
+  stockTowardTarget: 20,
+  targetShortfall: 235,
+  stockAboveTarget: 0,
+});
 assert.equal(buildingFreshFoodStorageFactor('granary'), FRESH_FOOD_STORAGE_GRANARY_FACTOR);
 assert.ok(
   buildingFreshFoodStorageFactor('granary') < buildingFreshFoodStorageFactor('hunters_hall'),
@@ -56,6 +68,63 @@ assert.ok(adjustedRunway > 9, 'the configured storage mix should not erase more 
 assert.equal(spoilageAdjustedRunwayDays(70, 7, 0), 10);
 assert.equal(spoilageAdjustedRunwayDays(0, 7, 0.01), 0);
 assert.equal(spoilageAdjustedRunwayDays(70, 0, 0.01), Number.POSITIVE_INFINITY);
+
+const hotspotState = emptyGameState();
+hotspotState.buildings.set('hunter-hotspot', building('hunter-hotspot', 'hunters_hall', 80));
+hotspotState.buildings.set('granary-buffer', building('granary-buffer', 'granary', 20));
+const hotspot = analyzeFreshFoodPreservation(hotspotState, 0.01);
+assert.equal(hotspot.largestLossSite?.source, 'building');
+assert.equal(hotspot.largestLossSite?.id, 'hunter-hotspot');
+assert.equal(hotspot.largestLossSite?.buildingKind, 'hunters_hall');
+assert.ok(Math.abs((hotspot.largestLossSite?.spoilagePerDay ?? 0) - 0.8) < 1e-9);
+const hotspotRows = renderFreshFoodPreservationRows(
+  hotspot,
+  (kind) => kind === 'hunters_hall' ? "Hunter's hall" : kind,
+  () => null,
+);
+assert.match(hotspotRows, /Largest fresh-food loss/);
+assert.match(hotspotRows, /Hunter's hall · 80\.0 food · 0\.8 food \/ day/);
+assert.match(hotspotRows, /data-inspect-building="hunter-hotspot"/);
+assert.match(hotspotRows, /Granary intake network/);
+assert.match(hotspotRows, /20\.0 \/ 255\.0 sheltered toward selected targets/);
+assert.match(hotspotRows, /235\.0 collection headroom/);
+assert.match(hotspotRows, /1 \/ 1 collectors staffed/);
+
+const householdHotspotState = emptyGameState();
+householdHotspotState.residences.set(
+  'household-hotspot',
+  residence('household-hotspot', 40),
+);
+const householdHotspotRows = renderFreshFoodPreservationRows(
+  analyzeFreshFoodPreservation(householdHotspotState, 0.01),
+  (kind) => kind,
+  () => 6,
+);
+assert.match(householdHotspotRows, /Residence parcel #7/);
+assert.match(householdHotspotRows, /data-inspect-residence="household-hotspot"/);
+
+const disabledGranaryState = emptyGameState();
+const disabledGranary = building('disabled-granary', 'granary', 20);
+disabledGranary.granaryAcceptsFreshFood = false;
+disabledGranaryState.buildings.set(disabledGranary.id, disabledGranary);
+const disabledGranaryRows = renderFreshFoodPreservationRows(
+  analyzeFreshFoodPreservation(disabledGranaryState, 0.01),
+  (kind) => kind,
+  () => null,
+);
+assert.match(disabledGranaryRows, /1 completed · fresh-food collection disabled at every granary/);
+
+const deepGranaryState = emptyGameState();
+const deepGranary = building('deep-granary', 'granary', 310);
+deepGranary.granaryFreshFoodTargetPercent = 90;
+deepGranaryState.buildings.set(deepGranary.id, deepGranary);
+const deepGranaryRows = renderFreshFoodPreservationRows(
+  analyzeFreshFoodPreservation(deepGranaryState, 0.01),
+  (kind) => kind,
+  () => null,
+);
+assert.match(deepGranaryRows, /306\.0 \/ 306\.0 sheltered toward selected targets/);
+assert.match(deepGranaryRows, /4\.0 above targets from baking or earlier stock/);
 
 const residenceNeeds = readFileSync(
   new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url),
@@ -89,6 +158,10 @@ const granaryInspector = readFileSync(
   new URL('../src/resources/inspector/expandedBuildingRenderer.ts', import.meta.url),
   'utf8',
 );
+const townHallInspector = readFileSync(
+  new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(residenceFood, /pub fn spoil\(/);
 assert.match(
@@ -112,6 +185,13 @@ assert.match(buildingReducers, /pub fn set_granary_policy\(/);
 assert.match(generatedBuilding, /granaryAcceptsFreshFood:[\s\S]*granary_accepts_fresh_food/);
 assert.match(clientReducers, /callReducer\('setGranaryPolicy', 'set_granary_policy'/);
 assert.match(granaryInspector, /data-granary-accepts-fresh-food/);
+assert.match(
+  townHallInspector,
+  /const freshFoodPreservationRows = renderFreshFoodPreservationRows\([\s\S]*\$\{freshFoodPreservationRows\}/,
+  'the Town Hall must render the shared preservation diagnostic rows',
+);
+assert.match(townHallInspector, /data-inspect-building=/);
+assert.match(townHallInspector, /data-inspect-residence=/);
 
 const perfState = emptyGameState();
 for (let index = 0; index < 10_000; index += 1) {
@@ -123,7 +203,26 @@ const elapsedMs = performance.now() - started;
 assert.equal(perfResult.totalStock, 120_000);
 assert.ok(elapsedMs < 250, `10,000-home preservation analysis took ${elapsedMs.toFixed(1)} ms`);
 
-console.log(`food preservation tests passed (${elapsedMs.toFixed(1)} ms for 10,000 homes)`);
+const granaryPerfState = emptyGameState();
+for (let index = 0; index < 100_000; index += 1) {
+  const granary = building(`granary-${index}`, 'granary', index % 341);
+  granary.granaryFreshFoodTargetPercent = [25, 50, 75, 90][index % 4];
+  granaryPerfState.buildings.set(granary.id, granary);
+}
+const granaryStarted = performance.now();
+const granaryPerfResult = analyzeFreshFoodPreservation(granaryPerfState, 0.018);
+const granaryElapsedMs = performance.now() - granaryStarted;
+assert.equal(granaryPerfResult.granaryNetwork.completedGranaries, 100_000);
+assert.equal(granaryPerfResult.granaryNetwork.collectingGranaries, 100_000);
+assert.ok(
+  granaryElapsedMs < 500,
+  `100,000-granary preservation diagnostics took ${granaryElapsedMs.toFixed(1)} ms`,
+);
+
+console.log(
+  `food preservation tests passed (${elapsedMs.toFixed(1)} ms for 10,000 homes; `
+  + `${granaryElapsedMs.toFixed(1)} ms for 100,000 granaries)`,
+);
 
 function building(
   id: string,

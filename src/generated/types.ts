@@ -55,6 +55,24 @@ export const Building = __t.object("Building", {
   constructionTreasuryTimber: __t.f64(),
   constructionTreasuryStone: __t.f64(),
   granaryAcceptsFreshFood: __t.bool(),
+  ironwork: __t.f64(),
+  granaryHouseholdsFirst: __t.bool(),
+  constructionPriority: __t.u8(),
+  woodcutterTimberReserve: __t.f64(),
+  granaryGrainReserve: __t.f64(),
+  harvestReservePercent: __t.u8(),
+  wool: __t.f64(),
+  cloth: __t.f64(),
+  carpenterPolearmReserve: __t.u8(),
+  guardhousePayPriority: __t.u8(),
+  marketplaceIronworkTarget: __t.u8(),
+  marketplaceSpecialtyExportPolicy: __t.u8(),
+  granaryFreshFoodTargetPercent: __t.u8(),
+  storehouseTimberTargetPercent: __t.u8(),
+  storehouseStoneTargetPercent: __t.u8(),
+  storehouseFirewoodTargetPercent: __t.u8(),
+  processorOutputTargetPercent: __t.u8(),
+  guardhouseFoodReserve: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -120,6 +138,7 @@ export const FarmField = __t.object("FarmField", {
   priority: __t.u8(),
   harvestCount: __t.u32(),
   lastYield: __t.f64(),
+  currentYield: __t.f64(),
 });
 export type FarmField = __Infer<typeof FarmField>;
 
@@ -180,6 +199,13 @@ export const LivestockHerd = __t.object("LivestockHerd", {
   lastFoodOutput: __t.f64(),
   lastPreservedOutput: __t.f64(),
   lastWoolGold: __t.f64(),
+  breedingReserve: __t.u32(),
+  lastCulled: __t.u32(),
+  hayStock: __t.f64(),
+  lastHayOutput: __t.f64(),
+  haymakingPercent: __t.u8(),
+  lastWoolOutput: __t.f64(),
+  lastShearingYear: __t.u32(),
 });
 export type LivestockHerd = __Infer<typeof LivestockHerd>;
 
@@ -196,6 +222,8 @@ export const MarketState = __t.object("MarketState", {
   regionalFoodSupply: __t.f64(),
   lastPriceTick: __t.u64(),
   bulletin: __t.string(),
+  specialtyPriceMult: __t.f64(),
+  regionalSpecialtyDemand: __t.f64(),
 });
 export type MarketState = __Infer<typeof MarketState>;
 
@@ -246,6 +274,11 @@ export const PlayerResources = __t.object("PlayerResources", {
   monasteryTithePaidTotal: __t.f64(),
   monasteryPilgrimageGoldTotal: __t.f64(),
   monasteryFoodCharityTotal: __t.f64(),
+  ironwork: __t.f64(),
+  wool: __t.f64(),
+  cloth: __t.f64(),
+  seasonalLaborStewardEnabled: __t.bool(),
+  constructionLaborStewardEnabled: __t.bool(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
@@ -315,6 +348,9 @@ export const SettlementSecurity = __t.object("SettlementSecurity", {
   lastOutcome: __t.u8(),
   lastGoodsLost: __t.f64(),
   lastWealthLost: __t.f64(),
+  guardsRequired: __t.f64(),
+  targetsAtRisk: __t.u32(),
+  estimatedLossFraction: __t.f64(),
 });
 export type SettlementSecurity = __Infer<typeof SettlementSecurity>;
 

@@ -1,3 +1,5 @@
+use crate::construction_priority::{CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT};
+
 /// Labor requests cannot increase a building beyond the settlement's current population.
 pub fn population_limit_blocks_labor_request(
     current_labor: u32,
@@ -14,13 +16,14 @@ pub struct LaborAssignment {
     pub building_id: u64,
     pub assigned_labor: u32,
     pub construction_complete: bool,
+    pub priority: u8,
 }
 
 /// Returns only the building assignments that must change after population loss.
 ///
-/// Construction crews are released before productive workers, then newer buildings are
-/// released before older ones. This keeps the result stable across simulation ticks and
-/// preserves the settlement's established production chain whenever possible.
+/// Construction crews are released before permanent jobs. Within each group,
+/// low-priority work releases first, then normal and high; equal priorities
+/// release newer assignments before older ones.
 pub fn labor_reconciliation_updates(
     mut assignments: Vec<LaborAssignment>,
     total_population: u32,
@@ -37,6 +40,7 @@ pub fn labor_reconciliation_updates(
     assignments.sort_by(|a, b| {
         a.construction_complete
             .cmp(&b.construction_complete)
+            .then_with(|| effective_labor_priority(*a).cmp(&effective_labor_priority(*b)))
             .then_with(|| b.building_id.cmp(&a.building_id))
     });
 
@@ -55,8 +59,17 @@ pub fn labor_reconciliation_updates(
     updates
 }
 
+fn effective_labor_priority(assignment: LaborAssignment) -> u8 {
+    if assignment.construction_complete && assignment.priority == 0 {
+        return CONSTRUCTION_PRIORITY_NORMAL;
+    }
+    assignment.priority.min(CONSTRUCTION_PRIORITY_URGENT)
+}
+
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, Instant};
+
     use super::{
         labor_reconciliation_updates, population_limit_blocks_labor_request, LaborAssignment,
     };
@@ -83,16 +96,19 @@ mod tests {
                     building_id: 10,
                     assigned_labor: 3,
                     construction_complete: true,
+                    priority: 2,
                 },
                 LaborAssignment {
                     building_id: 20,
                     assigned_labor: 2,
                     construction_complete: true,
+                    priority: 2,
                 },
                 LaborAssignment {
                     building_id: 30,
                     assigned_labor: 4,
                     construction_complete: false,
+                    priority: 2,
                 },
             ],
             4,
@@ -108,9 +124,109 @@ mod tests {
                 building_id: 10,
                 assigned_labor: 2,
                 construction_complete: true,
+                priority: 2,
             }],
             5,
         )
         .is_empty());
+    }
+
+    #[test]
+    fn population_loss_releases_low_priority_jobs_before_newer_essential_work() {
+        let updates = labor_reconciliation_updates(
+            vec![
+                LaborAssignment {
+                    building_id: 10,
+                    assigned_labor: 2,
+                    construction_complete: true,
+                    priority: 1,
+                },
+                LaborAssignment {
+                    building_id: 20,
+                    assigned_labor: 2,
+                    construction_complete: true,
+                    priority: 2,
+                },
+                LaborAssignment {
+                    building_id: 30,
+                    assigned_labor: 2,
+                    construction_complete: true,
+                    priority: 3,
+                },
+            ],
+            4,
+        );
+
+        assert_eq!(updates, vec![(10, 0)]);
+    }
+
+    #[test]
+    fn construction_crews_still_release_before_permanent_low_priority_jobs() {
+        let updates = labor_reconciliation_updates(
+            vec![
+                LaborAssignment {
+                    building_id: 10,
+                    assigned_labor: 2,
+                    construction_complete: true,
+                    priority: 1,
+                },
+                LaborAssignment {
+                    building_id: 20,
+                    assigned_labor: 2,
+                    construction_complete: false,
+                    priority: 3,
+                },
+            ],
+            2,
+        );
+
+        assert_eq!(updates, vec![(20, 0)]);
+    }
+
+    #[test]
+    fn legacy_zero_priority_on_completed_buildings_behaves_as_normal() {
+        let updates = labor_reconciliation_updates(
+            vec![
+                LaborAssignment {
+                    building_id: 10,
+                    assigned_labor: 1,
+                    construction_complete: true,
+                    priority: 0,
+                },
+                LaborAssignment {
+                    building_id: 20,
+                    assigned_labor: 1,
+                    construction_complete: true,
+                    priority: 1,
+                },
+            ],
+            1,
+        );
+
+        assert_eq!(updates, vec![(20, 0)]);
+    }
+
+    #[test]
+    fn priority_reconciliation_stays_bounded_at_large_settlement_scale() {
+        let assignments = (0..100_000u64)
+            .map(|building_id| LaborAssignment {
+                building_id,
+                assigned_labor: 1,
+                construction_complete: true,
+                priority: (building_id % 3 + 1) as u8,
+            })
+            .collect();
+        let started = Instant::now();
+        let updates = labor_reconciliation_updates(assignments, 99_900);
+        let elapsed = started.elapsed();
+
+        assert_eq!(updates.len(), 100);
+        assert!(updates
+            .iter()
+            .all(|(building_id, labor)| { building_id % 3 == 0 && *labor == 0 }));
+        assert!(
+            elapsed < Duration::from_millis(250),
+            "100k staffing priorities should reconcile only during a rare population-loss event"
+        );
     }
 }

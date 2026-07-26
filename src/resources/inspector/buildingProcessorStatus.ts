@@ -1,20 +1,32 @@
 import {
+  BREWERY_ALE_PER_CYCLE,
   BREWERY_GRAIN_PER_CYCLE,
   BREWERY_WATER_PER_CYCLE,
   GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_FLOUR_PER_CYCLE,
+  GRANARY_FOOD_PER_CYCLE,
   GRANARY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
   MONASTERY_GRAIN_PER_CYCLE,
   MONASTERY_UNLINKED_PRODUCTIVITY,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
+  SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+  WATERMILL_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
+  WEAVER_CLOTH_PER_CYCLE,
+  WEAVER_WOOL_PER_CYCLE,
 } from '../../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
 import type { BuildingKind, BuildingState } from '../types.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
+import { specialtySeasonStatus } from '../../economy/specialtyTrade.ts';
+import {
+  isProcessorOutputTargetKind,
+  processorOutputHeadroom,
+  processorOutputTargetForBuilding,
+} from '../../economy/processorOutputPolicy.ts';
 import {
   assessWellWaterSupply,
   formatWellWaterDetailRows,
@@ -24,6 +36,7 @@ import {
 
 export type BuildingProcessorContext = {
   matureTrees?: number;
+  month?: number;
 };
 
 export type BuildingProcessorStatus = {
@@ -32,7 +45,7 @@ export type BuildingProcessorStatus = {
   waterDetailHtml: string;
 };
 
-type StockKey = 'timber' | 'firewood' | 'stone' | 'water' | 'food' | 'grain' | 'flour' | 'ale' | 'preservedFood';
+type StockKey = 'timber' | 'firewood' | 'stone' | 'water' | 'food' | 'grain' | 'flour' | 'ale' | 'preservedFood' | 'wool' | 'cloth';
 
 type InputRequirement = {
   key: StockKey;
@@ -46,6 +59,7 @@ type ProcessorProfile = {
   waterPerCycle: number;
   inputs: InputRequirement[];
   output: StockKey | null;
+  outputPerCycle: number;
   operatingLabel: string;
   idleNoWorkersLabel: string;
 };
@@ -59,6 +73,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
       { key: 'firewood', label: 'firewood', required: GRANARY_FIREWOOD_PER_CYCLE, deliveryHint: 'lodge deliveries may supply' },
     ],
     output: 'food',
+    outputPerCycle: GRANARY_FOOD_PER_CYCLE,
     operatingLabel: 'Baking staple food',
     idleNoWorkersLabel: 'Idle — assign workers to bake food',
   },
@@ -66,9 +81,10 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     requiresLabor: true,
     waterPerCycle: BREWERY_WATER_PER_CYCLE,
     inputs: [
-      { key: 'grain', label: 'grain', required: BREWERY_GRAIN_PER_CYCLE, deliveryHint: 'farm deliveries may supply' },
+      { key: 'grain', label: 'grain', required: BREWERY_GRAIN_PER_CYCLE, deliveryHint: 'farmstead or granary deliveries may supply' },
     ],
     output: 'ale',
+    outputPerCycle: BREWERY_ALE_PER_CYCLE,
     operatingLabel: 'Brewing ale',
     idleNoWorkersLabel: 'Idle — assign workers to brew ale',
   },
@@ -80,6 +96,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
       { key: 'firewood', label: 'firewood', required: SMOKEHOUSE_FIREWOOD_PER_CYCLE, deliveryHint: 'lodge deliveries may supply' },
     ],
     output: 'preservedFood',
+    outputPerCycle: SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     operatingLabel: 'Smoking and preserving food',
     idleNoWorkersLabel: 'Idle — assign workers to preserve food',
   },
@@ -87,31 +104,96 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     requiresLabor: true,
     waterPerCycle: 0,
     inputs: [
-      { key: 'grain', label: 'grain', required: WATERMILL_GRAIN_PER_CYCLE, deliveryHint: 'threshing barn deliveries may supply' },
+      { key: 'grain', label: 'grain', required: WATERMILL_GRAIN_PER_CYCLE, deliveryHint: 'farmstead or granary deliveries may supply' },
     ],
     output: 'flour',
+    outputPerCycle: WATERMILL_FLOUR_PER_CYCLE,
     operatingLabel: 'Milling grain into flour',
     idleNoWorkersLabel: 'Idle — assign workers to run the mill',
+  },
+  weaver: {
+    requiresLabor: true,
+    waterPerCycle: 0,
+    inputs: [
+      { key: 'wool', label: 'wool', required: WEAVER_WOOL_PER_CYCLE, deliveryHint: 'staffed sheep holdings dispatch annual fleece by road' },
+    ],
+    output: 'cloth',
+    outputPerCycle: WEAVER_CLOTH_PER_CYCLE,
+    operatingLabel: 'Weaving wool into cloth',
+    idleNoWorkersLabel: 'Idle — assign weavers to work the loom',
   },
 };
 
 function stockAmount(building: BuildingState, key: StockKey): number {
-  return building[key];
+  return building[key] ?? 0;
 }
-function isOutputFull(building: BuildingState, kind: BuildingKind, output: StockKey): boolean {
-  const caps = buildingStorageCaps(kind);
-  const cap = caps[output];
-  if (cap == null || cap <= 0) return false;
-  return stockAmount(building, output) >= cap - 0.001;
+
+function stockLabel(key: StockKey): string {
+  return key === 'preservedFood' ? 'preserved food' : key;
+}
+
+function isOutputAtLimit(
+  building: BuildingState,
+  kind: BuildingKind,
+  output: StockKey,
+): boolean {
+  if (isProcessorOutputTargetKind(kind)) {
+    return (processorOutputHeadroom(building) ?? Number.POSITIVE_INFINITY) <= 0.001;
+  }
+  const cap = buildingStorageCaps(kind)[output];
+  return cap != null
+    && cap > 0
+    && stockAmount(building, output) >= cap - 0.001;
 }
 
 function firstMissingInput(building: BuildingState, inputs: InputRequirement[]): InputRequirement | null {
   for (const input of inputs) {
-    if (stockAmount(building, input.key) + 1e-6 < input.required) {
+    if (stockAmount(building, input.key) <= 1e-6) {
       return input;
     }
   }
   return null;
+}
+
+function formatInputCycleCoverage(cycles: number): string {
+  if (!Number.isFinite(cycles)) return 'No current input demand';
+  if (cycles >= 100) return 'At least 100 cycles';
+  const rounded = cycles < 10
+    ? cycles.toFixed(1)
+    : Math.floor(cycles + 1e-9).toString();
+  return `${rounded} ${Math.abs(cycles - 1) < 0.05 ? 'cycle' : 'cycles'}`;
+}
+
+function formatProcessorInputBufferRow(
+  building: BuildingState,
+  profile: ProcessorProfile,
+): string {
+  let limitingCycles = Number.POSITIVE_INFINITY;
+  let limitingInput = '';
+  for (const input of profile.inputs) {
+    const cycles = Math.max(0, stockAmount(building, input.key)) / input.required;
+    if (cycles < limitingCycles) {
+      limitingCycles = cycles;
+      limitingInput = input.label;
+    }
+  }
+  if (profile.waterPerCycle > 0) {
+    const waterCycles = Math.max(0, building.water) / profile.waterPerCycle;
+    if (waterCycles < limitingCycles) {
+      limitingCycles = waterCycles;
+      limitingInput = 'water';
+    }
+  }
+  if (!limitingInput) return '';
+  const inputRow = `<li><span>On-site input buffer</span><span>${formatInputCycleCoverage(limitingCycles)} · ${limitingInput} limits</span></li>`;
+  if (!profile.output || profile.outputPerCycle <= 1e-9) return inputRow;
+  const outputLimit = processorOutputTargetForBuilding(building)
+    ?? (buildingStorageCaps(building.kind)[profile.output] ?? 0);
+  const outputRoom = isProcessorOutputTargetKind(building.kind)
+    ? (processorOutputHeadroom(building) ?? 0)
+    : Math.max(0, outputLimit - Math.max(0, stockAmount(building, profile.output)));
+  const outputRoomCycles = outputRoom / profile.outputPerCycle;
+  return `${inputRow}<li><span>Output room</span><span>${formatInputCycleCoverage(outputRoomCycles)} · ${stockLabel(profile.output)} before ${outputLimit.toFixed(0)} target</span></li>`;
 }
 
 function formatMissingInput(input: InputRequirement): string {
@@ -129,28 +211,36 @@ function buildProcessorStatus(
     profile.waterPerCycle <= 0 ? 'None — uses river power or dry process' : undefined,
   );
 
+  const processorDetailHtml = waterDetailHtml
+    + formatProcessorInputBufferRow(building, profile);
+
   if (profile.requiresLabor && building.assignedLabor === 0) {
     return {
       statusText: profile.idleNoWorkersLabel,
       statusState: 'idle',
-      waterDetailHtml,
+      waterDetailHtml: processorDetailHtml,
     };
   }
 
-  const waterIssue = wellWaterStatusIssue(waterAssessment);
+  if (profile.output && isOutputAtLimit(building, building.kind, profile.output)) {
+    return {
+      statusText: 'Output target reached — production paused',
+      statusState: 'idle',
+      waterDetailHtml: processorDetailHtml,
+    };
+  }
+
+  // The authoritative processor scales a batch down to the limiting stock.
+  // Any positive on-site water can therefore advance production; the full
+  // cycle requirement remains visible in the buffer rows.
+  const waterIssue = building.water > 1e-6
+    ? null
+    : wellWaterStatusIssue(waterAssessment);
   if (waterIssue) {
     return {
       statusText: waterIssue,
       statusState: 'warning',
-      waterDetailHtml,
-    };
-  }
-
-  if (profile.output && isOutputFull(building, building.kind, profile.output)) {
-    return {
-      statusText: 'Storage full — not producing',
-      statusState: 'idle',
-      waterDetailHtml,
+      waterDetailHtml: processorDetailHtml,
     };
   }
 
@@ -159,14 +249,14 @@ function buildProcessorStatus(
     return {
       statusText: formatMissingInput(missingInput),
       statusState: 'warning',
-      waterDetailHtml,
+      waterDetailHtml: processorDetailHtml,
     };
   }
 
   return {
     statusText: profile.operatingLabel,
     statusState: 'active',
-    waterDetailHtml,
+    waterDetailHtml: processorDetailHtml,
   };
 }
 
@@ -237,7 +327,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
     };
   }
 
-  if (isOutputFull(building, 'monastery', 'food')) {
+  if (isOutputAtLimit(building, 'monastery', 'food')) {
     return {
       statusText: 'Storage full — charity hauls paused',
       statusState: 'idle',
@@ -247,7 +337,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
 
   if (building.grain + 1e-6 < grainNeeded) {
     return {
-      statusText: `Waiting for grain — needs ${grainNeeded.toFixed(1)} per cycle`,
+      statusText: `Waiting for grain — needs ${grainNeeded.toFixed(1)} per cycle; farmstead or granary deliveries may supply`,
       statusState: 'warning',
       waterDetailHtml: '',
     };
@@ -332,17 +422,8 @@ export function getBuildingProcessorStatus(
         'Idle — assign workers to work the fields',
       );
     case 'apiary':
-      return getSimpleLaborStatus(
-        building,
-        'Foraging honey and food',
-        'Idle — assign workers to tend the apiary',
-      );
     case 'vineyard':
-      return getSimpleLaborStatus(
-        building,
-        'Tending vines — wine and food',
-        'Idle — assign workers to tend the vineyard',
-      );
+      return getSeasonalProducerStatus(building, context.month);
     case 'carpenter':
       return getSimpleLaborStatus(
         building,
@@ -359,4 +440,34 @@ export function getBuildingProcessorStatus(
       );
     }
   }
+}
+
+function getSeasonalProducerStatus(
+  building: BuildingState,
+  month: number | undefined,
+): BuildingProcessorStatus {
+  if (building.assignedLabor === 0) {
+    return {
+      statusText: building.kind === 'apiary'
+        ? 'Idle - assign workers to tend the apiary'
+        : 'Idle - assign workers to tend the vineyard',
+      statusState: 'idle',
+      waterDetailHtml: '',
+    };
+  }
+  const season = month == null ? null : specialtySeasonStatus(building.kind, month);
+  if (season && !season.active) {
+    return {
+      statusText: season.label,
+      statusState: 'idle',
+      waterDetailHtml: '',
+    };
+  }
+  return {
+    statusText: building.kind === 'apiary'
+      ? 'Gathering honey and forest forage'
+      : 'Harvesting grapes for wine and food',
+    statusState: 'active',
+    waterDetailHtml: '',
+  };
 }

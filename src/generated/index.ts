@@ -38,6 +38,9 @@ import AssignBuildingLaborReducer from "./assign_building_labor_reducer";
 import BootstrapForagingReducer from "./bootstrap_foraging_reducer";
 import BootstrapQuarriesReducer from "./bootstrap_quarries_reducer";
 import BootstrapTreesReducer from "./bootstrap_trees_reducer";
+import CallUpActiveSeasonalLaborReducer from "./call_up_active_seasonal_labor_reducer";
+import CallUpTargetReadyProcessorLaborReducer from "./call_up_target_ready_processor_labor_reducer";
+import CallUpYearRoundLaborReducer from "./call_up_year_round_labor_reducer";
 import CollectChapelCofferReducer from "./collect_chapel_coffer_reducer";
 import ConfigureWorldReducer from "./configure_world_reducer";
 import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
@@ -53,17 +56,37 @@ import PlaceBuildingReducer from "./place_building_reducer";
 import PlaceBurgageZoneReducer from "./place_burgage_zone_reducer";
 import PlaceFarmFieldReducer from "./place_farm_field_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
+import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
+import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
+import RepairFireDamageReducer from "./repair_fire_damage_reducer";
 import ResetWorldReducer from "./reset_world_reducer";
+import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer";
+import SetCarpenterPolearmReserveReducer from "./set_carpenter_polearm_reserve_reducer";
 import SetChapelParishPolicyReducer from "./set_chapel_parish_policy_reducer";
+import SetConstructionLaborStewardReducer from "./set_construction_labor_steward_reducer";
+import SetConstructionPriorityReducer from "./set_construction_priority_reducer";
 import SetEconomicActivityTaxRateReducer from "./set_economic_activity_tax_rate_reducer";
 import SetFarmFieldCropReducer from "./set_farm_field_crop_reducer";
 import SetFarmFieldPriorityReducer from "./set_farm_field_priority_reducer";
 import SetGameSpeedReducer from "./set_game_speed_reducer";
+import SetGranaryFreshFoodTargetReducer from "./set_granary_fresh_food_target_reducer";
+import SetGranaryGrainReserveReducer from "./set_granary_grain_reserve_reducer";
 import SetGranaryPolicyReducer from "./set_granary_policy_reducer";
+import SetGuardhouseFoodReserveReducer from "./set_guardhouse_food_reserve_reducer";
+import SetGuardhousePayPriorityReducer from "./set_guardhouse_pay_priority_reducer";
+import SetHarvestReservePercentReducer from "./set_harvest_reserve_percent_reducer";
+import SetLivestockBreedingReserveReducer from "./set_livestock_breeding_reserve_reducer";
+import SetLivestockHaymakingPercentReducer from "./set_livestock_haymaking_percent_reducer";
 import SetLivestockSpeciesReducer from "./set_livestock_species_reducer";
+import SetMarketplaceIronworkTargetReducer from "./set_marketplace_ironwork_target_reducer";
+import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specialty_export_policy_reducer";
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
+import SetProcessorOutputTargetReducer from "./set_processor_output_target_reducer";
+import SetSeasonalLaborStewardReducer from "./set_seasonal_labor_steward_reducer";
 import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
+import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
+import SetWoodcutterTimberReserveReducer from "./set_woodcutter_timber_reserve_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
 import TickSimReducer from "./tick_sim_reducer";
 import UpgradeResidenceReducer from "./upgrade_residence_reducer";
@@ -378,6 +401,9 @@ const reducersSchema = __reducers(
   __reducerSchema("bootstrap_foraging", BootstrapForagingReducer),
   __reducerSchema("bootstrap_quarries", BootstrapQuarriesReducer),
   __reducerSchema("bootstrap_trees", BootstrapTreesReducer),
+  __reducerSchema("call_up_active_seasonal_labor", CallUpActiveSeasonalLaborReducer),
+  __reducerSchema("call_up_target_ready_processor_labor", CallUpTargetReadyProcessorLaborReducer),
+  __reducerSchema("call_up_year_round_labor", CallUpYearRoundLaborReducer),
   __reducerSchema("collect_chapel_coffer", CollectChapelCofferReducer),
   __reducerSchema("configure_world", ConfigureWorldReducer),
   __reducerSchema("demolish_backyard_garden", DemolishBackyardGardenReducer),
@@ -393,17 +419,37 @@ const reducersSchema = __reducers(
   __reducerSchema("place_burgage_zone", PlaceBurgageZoneReducer),
   __reducerSchema("place_farm_field", PlaceFarmFieldReducer),
   __reducerSchema("place_pasture", PlacePastureReducer),
+  __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),
+  __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
+  __reducerSchema("repair_fire_damage", RepairFireDamageReducer),
   __reducerSchema("reset_world", ResetWorldReducer),
+  __reducerSchema("rotate_construction_labor", RotateConstructionLaborReducer),
+  __reducerSchema("set_carpenter_polearm_reserve", SetCarpenterPolearmReserveReducer),
   __reducerSchema("set_chapel_parish_policy", SetChapelParishPolicyReducer),
+  __reducerSchema("set_construction_labor_steward", SetConstructionLaborStewardReducer),
+  __reducerSchema("set_construction_priority", SetConstructionPriorityReducer),
   __reducerSchema("set_economic_activity_tax_rate", SetEconomicActivityTaxRateReducer),
   __reducerSchema("set_farm_field_crop", SetFarmFieldCropReducer),
   __reducerSchema("set_farm_field_priority", SetFarmFieldPriorityReducer),
   __reducerSchema("set_game_speed", SetGameSpeedReducer),
+  __reducerSchema("set_granary_fresh_food_target", SetGranaryFreshFoodTargetReducer),
+  __reducerSchema("set_granary_grain_reserve", SetGranaryGrainReserveReducer),
   __reducerSchema("set_granary_policy", SetGranaryPolicyReducer),
+  __reducerSchema("set_guardhouse_food_reserve", SetGuardhouseFoodReserveReducer),
+  __reducerSchema("set_guardhouse_pay_priority", SetGuardhousePayPriorityReducer),
+  __reducerSchema("set_harvest_reserve_percent", SetHarvestReservePercentReducer),
+  __reducerSchema("set_livestock_breeding_reserve", SetLivestockBreedingReserveReducer),
+  __reducerSchema("set_livestock_haymaking_percent", SetLivestockHaymakingPercentReducer),
   __reducerSchema("set_livestock_species", SetLivestockSpeciesReducer),
+  __reducerSchema("set_marketplace_ironwork_target", SetMarketplaceIronworkTargetReducer),
+  __reducerSchema("set_marketplace_specialty_export_policy", SetMarketplaceSpecialtyExportPolicyReducer),
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),
+  __reducerSchema("set_processor_output_target", SetProcessorOutputTargetReducer),
+  __reducerSchema("set_seasonal_labor_steward", SetSeasonalLaborStewardReducer),
   __reducerSchema("set_storehouse_policy", SetStorehousePolicyReducer),
+  __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),
+  __reducerSchema("set_woodcutter_timber_reserve", SetWoodcutterTimberReserveReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
   __reducerSchema("tick_sim", TickSimReducer),
   __reducerSchema("upgrade_residence", UpgradeResidenceReducer),

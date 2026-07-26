@@ -15,6 +15,13 @@ import {
   isForagingRegrowthSeason,
 } from '../src/foraging/foragingSeason.ts';
 import {
+  HARVEST_RESERVE_PRESETS,
+  harvestableWildStock,
+  isWildStockHarvestable,
+  normalizeHarvestReservePercent,
+  protectedWildStock,
+} from '../src/foraging/harvestReservePolicy.ts';
+import {
   GAME_HABITAT_WATER_CLEARANCE,
   isGameHabitatClearOfWater,
 } from '../src/foraging/ForagingLayout.ts';
@@ -59,6 +66,22 @@ assert.equal(isForagingHarvestAvailable('game', 1), true);
 assert.equal(isForagingRegrowthSeason('berries', 4), true);
 assert.equal(isForagingRegrowthSeason('mushrooms', 7), true);
 assert.equal(isForagingRegrowthSeason('mushrooms', 10), false);
+assert.deepEqual(HARVEST_RESERVE_PRESETS.map((preset) => preset.percent), [0, 25, 50]);
+assert.equal(normalizeHarvestReservePercent(255), 90);
+assert.equal(protectedWildStock('game', 12, 25), 3);
+assert.equal(
+  harvestableWildStock({ kind: 'game', remaining: 9, maxYield: 12 }, 25),
+  6,
+);
+assert.equal(
+  isWildStockHarvestable({ kind: 'game', remaining: 3, maxYield: 12 }, 25),
+  false,
+);
+assert.equal(
+  harvestableWildStock({ kind: 'berries', remaining: 12, maxYield: 60 }, 50),
+  12,
+  'wild-stock policy must not reserve seasonal forage',
+);
 
 for (const mapSize of ['small', 'medium', 'large'] as const) {
   const layout = createWorldLayout({
@@ -222,6 +245,41 @@ const gatherPlan = Array.from({ length: 32 }, (_, seed) =>
 ).find((plan) => plan?.activity === 'gather');
 assert.ok(gatherPlan, 'foragers should stop and gather at berry or mushroom targets');
 
+const protectedGame = {
+  nodeId: 'protected-game',
+  kind: 'game',
+  resource: 'game',
+  remaining: 3,
+  maxYield: 12,
+  x: 20,
+  z: 0,
+} as ForagingNodeState;
+const hunter = {
+  id: 'hunter-test',
+  kind: 'hunters_hall',
+  x: 0,
+  z: 0,
+  workRadius: 48,
+  assignedLabor: 1,
+  constructionComplete: true,
+  harvestReservePercent: 25,
+} as BuildingState;
+assert.equal(
+  collectWorkerTargets(hunter, {
+    ...workerTargetInputs,
+    foragingNodes: [protectedGame],
+  }).length,
+  0,
+  'visible hunters must rest when a population reaches its protected floor',
+);
+assert.ok(
+  collectWorkerTargets(hunter, {
+    ...workerTargetInputs,
+    foragingNodes: [{ ...protectedGame, remaining: 4 }],
+  }).some((target) => target.kind === 'game'),
+  'visible hunters should return when population growth creates harvestable surplus',
+);
+
 assert.ok(MUSHROOM_ICON_SVG.includes('currentColor'));
 assert.ok(!MUSHROOM_ICON_SVG.includes('<image'));
 assert.ok(MUSHROOM_ICON_SVG.includes('foraging-map-icon-glyph--mushrooms'));
@@ -255,6 +313,15 @@ const foodSupplier = readFileSync(
 );
 assert.match(foodSupplier, /&\["berries",\s*"mushrooms"\]/);
 assert.match(foodSupplier, /GAME_ANIMALS_PER_HARVEST/);
+assert.match(foodSupplier, /harvestable_wild_stock/);
+assert.match(foodSupplier, /building\.harvest_reserve_percent/);
+
+const harvestInspector = readFileSync(
+  `${projectRoot}src/resources/inspector/harvestBuildingRenderer.ts`,
+  'utf8',
+);
+assert.match(harvestInspector, /data-harvest-reserve-percent/);
+assert.match(harvestInspector, /Wild-stock reserve/);
 
 const granary = readFileSync(
   `${projectRoot}server/src/simulation/expanded_economy.rs`,
@@ -262,7 +329,7 @@ const granary = readFileSync(
 );
 assert.match(
   granary,
-  /CommodityKind::Food,\s*&\["hunters_hall",\s*"foragers_shed",\s*"fishing_camp",\s*"swineherd"\]/s,
+  /request_connected_food_surplus\(\s*ctx,\s*tick,\s*clock,\s*&granary,\s*&\["hunters_hall",\s*"foragers_shed",\s*"fishing_camp",\s*"swineherd"\]/s,
   'the granary should collect road-linked wild-food surplus',
 );
 

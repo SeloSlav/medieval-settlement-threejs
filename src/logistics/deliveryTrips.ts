@@ -21,6 +21,9 @@ export const DELIVERY_CARGO_KINDS = [
   'wine',
   'stone',
   'polearms',
+  'ironwork',
+  'wool',
+  'cloth',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -85,6 +88,12 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'stone';
     case 11:
       return 'polearms';
+    case 12:
+      return 'ironwork';
+    case 13:
+      return 'wool';
+    case 14:
+      return 'cloth';
     default:
       return null;
   }
@@ -140,6 +149,12 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Stone';
     case 'polearms':
       return 'Polearms';
+    case 'ironwork':
+      return 'Ironwork';
+    case 'wool':
+      return 'Wool';
+    case 'cloth':
+      return 'Cloth';
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;
@@ -310,6 +325,30 @@ export function tripRemainingSeconds(trip: DeliveryTripState, pathDistance: numb
   }
 }
 
+/**
+ * Time until a loaded cart finishes unloading at its destination. Unlike
+ * `tripRemainingSeconds`, this excludes the empty return leg so economic
+ * forecasts can decide whether traveling stock will arrive before a site
+ * runs dry.
+ */
+export function tripDeliveryRemainingSeconds(trip: DeliveryTripState): number {
+  if (trip.phase === 'inbound') return Infinity;
+
+  const workers = Math.max(1, trip.deliveryWorkers);
+  if (trip.phase === 'unloading') {
+    return Math.max(0, trip.unloadRemaining);
+  }
+
+  const pathDistance = Number.isFinite(trip.pathDistance)
+    ? Math.max(0, trip.pathDistance)
+    : 0;
+  const travelSpeed = trip.speedMps * workers * Math.max(1, trip.travelSpeedMultiplier);
+  if (pathDistance <= 1e-6 || travelSpeed <= 1e-9) return Infinity;
+
+  const progress = Math.min(Math.max(0, trip.progress), pathDistance);
+  return (pathDistance - progress) / travelSpeed + trip.unloadSeconds / workers;
+}
+
 export function deliveryLegRemainingMeters(
   pathDistance: number,
   progress: number,
@@ -361,6 +400,12 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0x8b8985;
     case 'polearms':
       return 0x695642;
+    case 'ironwork':
+      return 0x687078;
+    case 'wool':
+      return 0xd8d1c2;
+    case 'cloth':
+      return 0x52697a;
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;

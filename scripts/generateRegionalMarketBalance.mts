@@ -21,11 +21,14 @@ export type RegionalMarketBalance = {
   priceMultiplierMin: number;
   priceMultiplierMax: number;
   regionalIndexDrift: number;
+  regionalIndexMeanReversion: number;
+  tradeImpactPerTenUnits: number;
   localFoodDemandWeight: number;
   caravanDeliveryWorkers: number;
   caravanLaborPerWorker: number;
   caravanFoodPerDelivery: number;
   caravanWaterPerDelivery: number;
+  caravanFirewoodPerDelivery: number;
   householdAutoBuyRunwayDays: number;
   householdAutoBuyCooldownTicks: number;
   chapelCharityWealthFraction: number;
@@ -135,11 +138,14 @@ export function generateRegionalMarketRust(balance: BalanceWithRegionalMarket): 
     `pub const MARKET_PRICE_MULTIPLIER_MIN: f64 = ${rustF64(market.priceMultiplierMin)};`,
     `pub const MARKET_PRICE_MULTIPLIER_MAX: f64 = ${rustF64(market.priceMultiplierMax)};`,
     `pub const MARKET_REGIONAL_INDEX_DRIFT: f64 = ${rustF64(market.regionalIndexDrift)};`,
+    `pub const MARKET_REGIONAL_INDEX_MEAN_REVERSION: f64 = ${rustF64(market.regionalIndexMeanReversion)};`,
+    `pub const MARKET_TRADE_IMPACT_PER_TEN_UNITS: f64 = ${rustF64(market.tradeImpactPerTenUnits)};`,
     `pub const MARKET_LOCAL_FOOD_DEMAND_WEIGHT: f64 = ${rustF64(market.localFoodDemandWeight)};`,
     `pub const MARKET_CARAVAN_DELIVERY_WORKERS: u32 = ${market.caravanDeliveryWorkers};`,
     `pub const MARKET_CARAVAN_LABOR_PER_WORKER: u32 = ${market.caravanLaborPerWorker};`,
     `pub const MARKET_CARAVAN_FOOD_PER_DELIVERY: f64 = ${rustF64(market.caravanFoodPerDelivery)};`,
     `pub const MARKET_CARAVAN_WATER_PER_DELIVERY: f64 = ${rustF64(market.caravanWaterPerDelivery)};`,
+    `pub const MARKET_CARAVAN_FIREWOOD_PER_DELIVERY: f64 = ${rustF64(market.caravanFirewoodPerDelivery)};`,
     `pub const HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS: f64 = ${rustF64(market.householdAutoBuyRunwayDays)};`,
     `pub const HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS: u64 = ${market.householdAutoBuyCooldownTicks};`,
     `pub const CHAPEL_CHARITY_WEALTH_FRACTION: f64 = ${rustF64(market.chapelCharityWealthFraction)};`,
@@ -161,8 +167,10 @@ export function generateRegionalMarketTypeScript(balance: BalanceWithRegionalMar
     `export const MARKET_PRICE_UPDATE_INTERVAL_TICKS = ${market.priceUpdateIntervalTicks};`,
     `export const MARKET_PRICE_MULTIPLIER_MIN = ${market.priceMultiplierMin};`,
     `export const MARKET_PRICE_MULTIPLIER_MAX = ${market.priceMultiplierMax};`,
+    `export const MARKET_TRADE_IMPACT_PER_TEN_UNITS = ${market.tradeImpactPerTenUnits};`,
     `export const MARKET_CARAVAN_FOOD_PER_DELIVERY = ${market.caravanFoodPerDelivery};`,
     `export const MARKET_CARAVAN_WATER_PER_DELIVERY = ${market.caravanWaterPerDelivery};`,
+    `export const MARKET_CARAVAN_FIREWOOD_PER_DELIVERY = ${market.caravanFirewoodPerDelivery};`,
     `export const MARKET_CARAVAN_DELIVERY_WORKERS = ${market.caravanDeliveryWorkers};`,
     `export const MARKET_CARAVAN_LABOR_PER_WORKER = ${market.caravanLaborPerWorker};`,
     `export const HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS = ${market.householdAutoBuyRunwayDays};`,

@@ -15,6 +15,7 @@ import {
   lodgeLaborSplit,
 } from '../../logistics/lodgeLogistics.ts';
 import type { InspectableTarget } from '../types.ts';
+import { computeUnreservedBuildingTimber } from '../resourceTotals.ts';
 import {
   buildingCostRows,
   buildingDemolishHint,
@@ -29,6 +30,11 @@ import {
   resolveWoodcuttersLodgeStatus,
 } from './woodcuttersLodgeStatus.ts';
 import { formatTripPhaseLabel, formatTripDestinationLabel, tripRemainingSeconds } from '../../logistics/deliveryTrips.ts';
+import {
+  normalizeWoodcutterTimberReserve,
+  timberAboveWoodcutterReserve,
+  WOODCUTTER_TIMBER_RESERVE_PRESETS,
+} from '../../economy/woodcutterPolicy.ts';
 
 export function renderWoodcuttersLodgeInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -41,8 +47,8 @@ export function renderWoodcuttersLodgeInspector(
   const crew = lodgeLaborSplit(building.assignedLabor);
   const crewLabel = formatLodgeCrewSplit(crew, building.assignedLabor);
   const connectedMills = context.worldQueries.getRoadConnectedMills(building);
-  const claimedResidences = context.worldQueries.getClaimedResidencesForLodge(building);
-  const nextDeliveryTarget = context.worldQueries.getNextDeliveryTargetForLodge(building);
+  const claimedResidences = context.worldQueries.getClaimedResidencesForFirewoodSupplier(building);
+  const nextDeliveryTarget = context.worldQueries.getNextFirewoodDeliveryTarget(building);
   const nextTargetLabel = formatNextDeliveryTargetLabel(nextDeliveryTarget);
   const millsWithTimber = connectedMills.filter((mill) => mill.timber > 0).length;
   const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
@@ -64,6 +70,12 @@ export function renderWoodcuttersLodgeInspector(
   const processingWorkers = lodgeLaborAlternates(building.assignedLabor) ? 1 : crew.processing;
   const timberPerCycle = LODGE_TIMBER_PER_CYCLE * processingWorkers;
   const firewoodPerCycle = LODGE_FIREWOOD_PER_CYCLE * processingWorkers;
+  const timberReserve = normalizeWoodcutterTimberReserve(building.woodcutterTimberReserve ?? 0);
+  const availableUnreservedTimber = computeUnreservedBuildingTimber(context.gameState);
+  const timberAboveReserve = timberAboveWoodcutterReserve(
+    availableUnreservedTimber,
+    timberReserve,
+  );
   const canDeliver = crew.delivering > 0 && onRoad && building.firewood > 0 && nextDeliveryTarget != null && !activeTrip;
   const { statusText, statusState } = resolveWoodcuttersLodgeStatus({
     onRoad,
@@ -82,6 +94,9 @@ export function renderWoodcuttersLodgeInspector(
     hasNextTarget: nextDeliveryTarget != null,
     firewoodPerTrip,
     canDeliver,
+    availableUnreservedTimber,
+    timberReserve,
+    timberPerCycle,
   });
 
   const nearestMill = connectedMills[0];
@@ -121,6 +136,8 @@ export function renderWoodcuttersLodgeInspector(
       <li><span>Claimed residences</span><span>${residenceSummary}</span></li>
       <li><span>Process interval</span><span>${definition.harvestInterval}s</span></li>
       <li><span>Output per cycle</span><span>${processOutputLabel}</span></li>
+      <li><span>Construction timber floor</span><span>${Math.round(timberReserve)}</span></li>
+      <li><span>Unreserved building timber</span><span>${Math.floor(availableUnreservedTimber)} total · ${Math.floor(timberAboveReserve)} above floor</span></li>
       ${deliveryRow}
       ${buildingStorageRows(building, building.kind)}
     `,
@@ -129,5 +146,13 @@ export function renderWoodcuttersLodgeInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats),
+    supplementalPanelHtml: `
+      <div class="inspector-action-panel">
+        <p class="inspector-action-panel__hint">This lodge stops hauling and splitting timber before settlement-wide physical stock would fall below its chosen floor. Materials already reserved by active construction sites are protected separately.</p>
+        ${WOODCUTTER_TIMBER_RESERVE_PRESETS
+          .map((preset) => `<button type="button" class="resource-action-button" data-woodcutter-timber-reserve="${preset.reserve}" ${timberReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
+          .join('')}
+      </div>
+    `,
   };
 }

@@ -30,6 +30,7 @@ const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   apiary: 4.8,
   watermill: 7.2,
   carpenter: 5.8,
+  weaver: 5.7,
   ferry_landing: 4.8,
   vineyard: 4.2,
   pastoral_farmstead: 6.4,
@@ -112,6 +113,7 @@ function createBuildingShadowGeometry(
     case 'apiary':
     case 'watermill':
     case 'carpenter':
+    case 'weaver':
     case 'ferry_landing':
     case 'vineyard':
     case 'pastoral_farmstead':

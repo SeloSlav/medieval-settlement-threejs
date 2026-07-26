@@ -2,11 +2,10 @@ import { clearStoredSpacetimeToken } from '../network/identityPersistence.ts';
 import { probeServerWorldConfig } from '../network/serverWorldProbe.ts';
 import { resetWorld } from '../data/spacetimeReducers.ts';
 import { WorldSetupPanel } from '../ui/WorldSetupPanel.ts';
-import { shouldRequireWorldRegeneration } from '../world/worldConfigAuthority.ts';
+import { resolveWorldGenerationAuthority } from '../world/worldConfigAuthority.ts';
 import {
   clearStoredWorldGenerationSettings,
   loadStoredWorldGenerationSettings,
-  shouldShowWorldSetup,
   type WorldGenerationSettings,
 } from '../world/worldGenerationSettings.ts';
 
@@ -19,31 +18,41 @@ export async function resolveWorldGenerationSettings(
   root: HTMLElement,
   onProgress?: (progress: WorldBootstrapProgress) => void,
 ): Promise<WorldGenerationSettings> {
-  if (shouldShowWorldSetup()) {
+  const explicitNewWorld = new URLSearchParams(window.location.search).has('new');
+  if (explicitNewWorld) {
     return WorldSetupPanel.prompt(root);
   }
 
   const local = loadStoredWorldGenerationSettings();
-  if (!local) {
-    return WorldSetupPanel.prompt(root);
-  }
-
   onProgress?.({
     label: 'Checking world…',
     detail: 'Verifying server state',
   });
 
   const probe = await probeServerWorldConfig();
-  if (probe && shouldRequireWorldRegeneration(probe.generation, probe.simTick, local)) {
+  const resolution = resolveWorldGenerationAuthority(
+    probe?.generation ?? null,
+    local,
+  );
+  if (resolution.kind === 'adopt-server') {
+    onProgress?.({
+      label: 'Loading settlement',
+      detail: `Using the server's ${resolution.settings.mapSize} ${resolution.settings.conflictMode} world`,
+    });
+    return resolution.settings;
+  }
+  if (resolution.kind === 'use-local') {
+    return resolution.settings;
+  }
+
+  if (probe) {
     clearStoredWorldGenerationSettings();
     onProgress?.({
       label: 'New settlement',
-      detail: 'Server was reset — choose map size, landscape, and seed',
+      detail: 'Choose map size, landscape, and seed',
     });
-    return WorldSetupPanel.prompt(root);
   }
-
-  return local;
+  return WorldSetupPanel.prompt(root);
 }
 
 export async function beginNewWorld(isReady: () => boolean): Promise<void> {

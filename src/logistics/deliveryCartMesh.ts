@@ -44,6 +44,9 @@ const CARGO_MATERIALS = {
   stoneDark: createCargoMaterial('Cargo stone dark', 0x51565c, 0.99),
   stoneMid: createCargoMaterial('Cargo stone mid', 0x6b7178, 0.99),
   stoneLight: createCargoMaterial('Cargo stone light', 0x858b91, 0.98),
+  wool: createCargoMaterial('Raw wool fleece', 0xd8d1c2, 0.99),
+  clothRed: createCargoMaterial('Madder-dyed cloth', 0x8f443d, 0.96),
+  clothBlue: createCargoMaterial('Blue-grey woven cloth', 0x52697a, 0.96),
 } as const;
 
 const CANOPY_PALETTES = [
@@ -116,6 +119,15 @@ function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
       break;
     case 'polearms':
       addPolearmLoad(group);
+      break;
+    case 'ironwork':
+      addIronworkLoad(group);
+      break;
+    case 'wool':
+      addWoolLoad(group);
+      break;
+    case 'cloth':
+      addClothLoad(group);
       break;
     default: {
       const unreachable: never = kind;
@@ -390,6 +402,89 @@ function addPolearmLoad(group: THREE.Group): void {
       new THREE.BoxGeometry(0.58, 0.035, 0.04),
       CARGO_MATERIALS.rope,
       new THREE.Vector3(0, 0.83, z),
+    );
+  }
+}
+
+function addIronworkLoad(group: THREE.Group): void {
+  addCrate(
+    group,
+    'Ironwork fitting crate',
+    new THREE.Vector3(0, 0.63, 0),
+    1.05,
+  );
+  for (const [index, [x, z, yaw]] of [
+    [-0.2, -0.08, -0.22],
+    [0, 0.06, 0.16],
+    [0.2, -0.04, -0.1],
+  ].entries()) {
+    addNamedMesh(
+      group,
+      `Ironwork spearhead ${index + 1}`,
+      new THREE.ConeGeometry(0.07, 0.28, 5),
+      metalMaterial('iron'),
+      new THREE.Vector3(x, 0.91, z),
+      new THREE.Euler(0, 0, Math.PI * 0.5 + yaw),
+    );
+    addNamedMesh(
+      group,
+      `Ironwork socket ${index + 1}`,
+      new THREE.CylinderGeometry(0.035, 0.05, 0.16, 7),
+      metalMaterial('iron'),
+      new THREE.Vector3(x - 0.17 * Math.cos(yaw), 0.91, z + 0.17 * Math.sin(yaw)),
+      new THREE.Euler(0, 0, Math.PI * 0.5 + yaw),
+    );
+  }
+}
+
+function addWoolLoad(group: THREE.Group): void {
+  for (const [index, [x, y, z, scale]] of ([
+    [-0.2, 0.72, -0.06, 1],
+    [0.2, 0.7, 0.05, 0.9],
+    [0, 0.93, 0, 0.8],
+  ] as const).entries()) {
+    addNamedMesh(
+      group,
+      `Wool fleece bundle ${index + 1}`,
+      new THREE.DodecahedronGeometry(0.3 * scale, 1),
+      CARGO_MATERIALS.wool,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(0.08, index * 0.35, index % 2 ? 0.06 : -0.05),
+      new THREE.Vector3(1.15, 0.8, 0.95),
+    );
+  }
+  for (const x of [-0.18, 0.18]) {
+    addNamedMesh(
+      group,
+      'Wool bundle rope',
+      new THREE.BoxGeometry(0.035, 0.52, 0.5),
+      CARGO_MATERIALS.rope,
+      new THREE.Vector3(x, 0.78, 0),
+    );
+  }
+}
+
+function addClothLoad(group: THREE.Group): void {
+  for (const [index, [x, y, z, material]] of ([
+    [-0.18, 0.72, -0.04, CARGO_MATERIALS.clothRed],
+    [0.19, 0.69, 0.04, CARGO_MATERIALS.clothBlue],
+    [0, 0.94, 0, CARGO_MATERIALS.flourCanvas],
+  ] as const).entries()) {
+    addNamedMesh(
+      group,
+      `Woven cloth roll ${index + 1}`,
+      new THREE.CylinderGeometry(0.16, 0.16, 0.58, 10),
+      material,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+    addNamedMesh(
+      group,
+      `Cloth roll core ${index + 1}`,
+      new THREE.CylinderGeometry(0.04, 0.04, 0.64, 8),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
     );
   }
 }

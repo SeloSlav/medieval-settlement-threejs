@@ -1,6 +1,48 @@
 //! Pure well-yield policy shared by the authoritative simulation and native tests.
 
-use crate::balance_generated::{WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY};
+use crate::balance_generated::{
+    BREWERY_WATER_PER_CYCLE, GRANARY_WATER_PER_CYCLE, MILL_WATER_PER_HARVEST,
+    WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
+};
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct IndustrialWaterCandidate {
+    pub building_id: u64,
+    pub stock_ratio: f64,
+    pub distance: f64,
+}
+
+pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &["granary", "brewery", "lumber_mill"];
+
+pub fn industrial_water_requirement(building_kind: &str) -> f64 {
+    match building_kind {
+        "granary" => GRANARY_WATER_PER_CYCLE,
+        "brewery" => BREWERY_WATER_PER_CYCLE,
+        "lumber_mill" => MILL_WATER_PER_HARVEST,
+        _ => 0.0,
+    }
+}
+
+/// Select the workshop with the least water runway, then the shortest cart
+/// route, using building id as a deterministic final tie-break.
+pub fn select_industrial_water_candidate(
+    candidates: impl IntoIterator<Item = IndustrialWaterCandidate>,
+) -> Option<IndustrialWaterCandidate> {
+    candidates
+        .into_iter()
+        .filter(|candidate| {
+            candidate.stock_ratio.is_finite()
+                && candidate.stock_ratio >= 0.0
+                && candidate.distance.is_finite()
+                && candidate.distance >= 0.0
+        })
+        .min_by(|a, b| {
+            a.stock_ratio
+                .total_cmp(&b.stock_ratio)
+                .then_with(|| a.distance.total_cmp(&b.distance))
+                .then_with(|| a.building_id.cmp(&b.building_id))
+        })
+}
 
 pub fn effective_well_hydrology(hydrology: f64) -> f64 {
     hydrology.clamp(0.0, 1.0).max(WELL_MINIMUM_REFILL_HYDROLOGY)
@@ -34,6 +76,21 @@ pub fn well_refill_workers(available_labor: u32, has_delivery_target: bool) -> u
     }
 }
 
+pub fn position_within_well_service_radius(
+    well_x: f64,
+    well_z: f64,
+    work_radius: f64,
+    target_x: f64,
+    target_z: f64,
+) -> bool {
+    if work_radius <= 0.0 {
+        return false;
+    }
+    let dx = well_x - target_x;
+    let dz = well_z - target_z;
+    dx * dx + dz * dz <= work_radius * work_radius
+}
+
 pub fn prioritize_fire_response(
     fire_response_needed: bool,
     refill_ready: bool,
@@ -49,6 +106,7 @@ pub fn prioritize_fire_response(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
 
     #[test]
     fn dry_wells_still_draw_a_useful_baseline_supply() {
@@ -89,5 +147,79 @@ mod tests {
         assert_eq!(well_refill_workers(1, true), 0);
         assert_eq!(well_refill_workers(2, true), 1);
         assert_eq!(well_refill_workers(4, true), 3);
+    }
+
+    #[test]
+    fn service_radius_rejects_connected_but_unreachable_homes() {
+        assert!(position_within_well_service_radius(
+            0.0, 0.0, 80.0, 48.0, 64.0,
+        ));
+        assert!(!position_within_well_service_radius(
+            0.0, 0.0, 80.0, 48.1, 64.0,
+        ));
+        assert!(!position_within_well_service_radius(
+            0.0, 0.0, 0.0, 0.0, 0.0,
+        ));
+    }
+
+    #[test]
+    fn industrial_water_targets_prioritize_runway_then_route_then_id() {
+        let selected = select_industrial_water_candidate([
+            IndustrialWaterCandidate {
+                building_id: 8,
+                stock_ratio: 0.5,
+                distance: 10.0,
+            },
+            IndustrialWaterCandidate {
+                building_id: 7,
+                stock_ratio: 0.0,
+                distance: 30.0,
+            },
+            IndustrialWaterCandidate {
+                building_id: 6,
+                stock_ratio: 0.0,
+                distance: 30.0,
+            },
+        ])
+        .expect("a valid workshop should be selected");
+        assert_eq!(selected.building_id, 6);
+    }
+
+    #[test]
+    fn industrial_water_requirements_only_include_wet_processors() {
+        assert_eq!(
+            INDUSTRIAL_WATER_BUILDING_KINDS,
+            &["granary", "brewery", "lumber_mill"]
+        );
+        assert_eq!(
+            industrial_water_requirement("granary"),
+            GRANARY_WATER_PER_CYCLE
+        );
+        assert_eq!(
+            industrial_water_requirement("brewery"),
+            BREWERY_WATER_PER_CYCLE
+        );
+        assert_eq!(
+            industrial_water_requirement("lumber_mill"),
+            MILL_WATER_PER_HARVEST
+        );
+        assert_eq!(industrial_water_requirement("watermill"), 0.0);
+    }
+
+    #[test]
+    fn industrial_water_selection_stays_linear_at_settlement_scale() {
+        let candidates = (0..100_000).map(|index| IndustrialWaterCandidate {
+            building_id: index,
+            stock_ratio: if index == 99_999 { 0.0 } else { 0.5 },
+            distance: (100_000 - index) as f64,
+        });
+        let started = Instant::now();
+        let selected =
+            select_industrial_water_candidate(candidates).expect("the final workshop should win");
+        assert_eq!(selected.building_id, 99_999);
+        assert!(
+            started.elapsed().as_millis() < 250,
+            "100k workshop selection should remain comfortably interactive"
+        );
     }
 }

@@ -150,6 +150,18 @@ export class VillagerInspector {
     this.renderVillager(inspection);
   }
 
+  selectDeliveryTrip(tripId: string): boolean {
+    const delivery = this.options.deliveryAgents.inspectDeliveryAgent(tripId);
+    if (!delivery) return false;
+    this.selectedPersonIdentity = null;
+    this.selectedDeliveryTripId = tripId;
+    this.options.deliveryAgents.selectDeliveryAgent(tripId);
+    this.panel.hidden = false;
+    this.renderDelivery(delivery);
+    this.options.onSelectionChange?.(true);
+    return true;
+  }
+
   clearSelection(notify = false): void {
     const hadSelection = this.selectedPersonIdentity !== null
       || this.selectedDeliveryTripId !== null;
@@ -181,12 +193,7 @@ export class VillagerInspector {
     if (delivery) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      this.selectedPersonIdentity = null;
-      this.selectedDeliveryTripId = delivery.tripId;
-      this.options.deliveryAgents.selectDeliveryAgent(delivery.tripId);
-      this.panel.hidden = false;
-      this.renderDelivery(delivery);
-      this.options.onSelectionChange?.(true);
+      this.selectDeliveryTrip(delivery.tripId);
       return;
     }
 

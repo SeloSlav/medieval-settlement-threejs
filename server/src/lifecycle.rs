@@ -3,7 +3,12 @@ use spacetimedb::{reducer, Identity, ReducerContext, ScheduleAt, TimeDuration};
 use crate::balance_generated::{CHAPEL_COFFER_RESERVE_DEFAULT, ECONOMIC_ACTIVITY_TAX_RATE};
 use crate::constants::TICK_MICROS;
 use crate::db::*;
-use crate::economy::{ensure_market_state, STARTING_GOLD, STARTING_STONE, STARTING_TIMBER};
+use crate::economy::{
+    ensure_market_state, reconcile_building_labor, STARTING_GOLD, STARTING_STONE, STARTING_TIMBER,
+};
+use crate::labor_steward_policy::{
+    CONSTRUCTION_LABOR_STEWARD_DEFAULT, SEASONAL_LABOR_STEWARD_DEFAULT,
+};
 use crate::reducers::world_configuration::default_world_config;
 use crate::schedule::SimTickSchedule;
 use crate::simulation::ensure_settlement_security;
@@ -24,7 +29,12 @@ pub fn init(ctx: &ReducerContext) {
 
 #[reducer(client_connected)]
 pub fn client_connected(ctx: &ReducerContext) {
-    ensure_player_resources(ctx, ctx.sender());
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    // Repair legacy or interrupted saves once when their owner returns. Normal
+    // population-loss events reconcile immediately at the mutation site, so
+    // the hot simulation loop never needs a settlement-wide fallback scan.
+    reconcile_building_labor(ctx, owner);
 }
 
 pub fn seed_world_entities(ctx: &ReducerContext) {
@@ -95,7 +105,10 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         preserved_food: 0.0,
         honey: 0.0,
         wine: 0.0,
+        ironwork: 0.0,
         polearms: 0.0,
+        wool: 0.0,
+        cloth: 0.0,
         economic_activity_tax_rate: ECONOMIC_ACTIVITY_TAX_RATE,
         chapel_auto_sweep_enabled: false,
         chapel_coffer_reserve_gold: CHAPEL_COFFER_RESERVE_DEFAULT,
@@ -110,6 +123,8 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         monastery_tithe_paid_total: 0.0,
         monastery_pilgrimage_gold_total: 0.0,
         monastery_food_charity_total: 0.0,
+        seasonal_labor_steward_enabled: SEASONAL_LABOR_STEWARD_DEFAULT,
+        construction_labor_steward_enabled: CONSTRUCTION_LABOR_STEWARD_DEFAULT,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

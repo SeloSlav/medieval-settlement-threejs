@@ -1,12 +1,14 @@
 //! Road-graph distance and branch claims for firewood logistics.
 
-use spacetimedb::Identity;
-
-use crate::constants::RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC;
 use crate::constants::RESIDENCE_WATER_PER_PERSON_PER_SEC;
 use crate::roads::RoadNetwork;
 use crate::simulation::lodge_logistics::residence_firewood_runway_seconds as residence_runway_seconds;
-use crate::tables::{building, Building, Residence};
+use crate::supply_policy::{
+    is_firewood_supplier_operational, is_well_supplier_operational, select_need_delivery_candidate,
+    NeedDeliveryCandidate,
+};
+use crate::tables::{Building, Residence};
+use crate::well_policy::position_within_well_service_radius;
 
 pub use crate::simulation::lodge_logistics::lodge_labor_split;
 
@@ -20,116 +22,88 @@ pub fn road_path_distance(
     network.road_path_distance(ax, az, bx, bz)
 }
 
-/// Each residence is claimed by the nearest road-connected woodcutter's lodge.
-pub fn claim_residences_for_lodges(
+/// Find the single household that should receive the next cart.
+///
+/// Stock and route distance are evaluated once per eligible home. A named market
+/// or parish order is destination-strict; routine deliveries use lowest
+/// stock-per-resident runway, shortest route, and stable id.
+pub fn select_residence_for_need_delivery(
     network: &RoadNetwork,
-    lodges: &[Building],
+    supplier: &Building,
+    mut residences: Vec<Residence>,
+    explicit_priority_residence_id: Option<u64>,
+    max_distance: Option<f64>,
+    stock_for: impl Fn(&Residence) -> f64,
+    needs_delivery: impl Fn(f64) -> bool,
+) -> Option<Residence> {
+    let selected = select_need_delivery_candidate(residences.iter().enumerate().filter_map(
+        |(index, residence)| {
+            if explicit_priority_residence_id.is_some_and(|priority_id| residence.id != priority_id)
+            {
+                return None;
+            }
+            let stock = stock_for(residence);
+            if !needs_delivery(stock) {
+                return None;
+            }
+            let distance =
+                road_path_distance(network, supplier.x, supplier.z, residence.x, residence.z)?;
+            if !distance.is_finite() || max_distance.is_some_and(|limit| distance > limit) {
+                return None;
+            }
+            Some(NeedDeliveryCandidate {
+                index,
+                residence_id: residence.id,
+                abandoned: residence.abandoned,
+                population: residence.population,
+                stock,
+                distance,
+                explicit_priority: explicit_priority_residence_id == Some(residence.id),
+            })
+        },
+    ))?;
+    Some(residences.swap_remove(selected.index))
+}
+
+/// Each residence is claimed by its nearest operational firewood distributor.
+/// A staffed village storehouse can therefore become a road-network fuel hub,
+/// while unfinished or unstaffed suppliers cannot strand a branch.
+pub fn claim_residences_for_firewood_suppliers(
+    network: &RoadNetwork,
+    suppliers: &[Building],
     residences: &[Residence],
 ) -> std::collections::HashMap<u64, u64> {
     let mut claims = std::collections::HashMap::new();
     for residence in residences {
-        let mut best_lodge: Option<&Building> = None;
+        let mut best_supplier: Option<&Building> = None;
         let mut best_distance = f64::INFINITY;
-        for lodge in lodges {
-            if lodge.kind != "woodcutters_lodge" {
+        for supplier in suppliers {
+            if !is_firewood_supplier_operational(
+                &supplier.kind,
+                supplier.construction_complete,
+                supplier.assigned_labor,
+                supplier.storehouse_accepts_firewood,
+            ) {
                 continue;
             }
             let Some(distance) =
-                road_path_distance(network, lodge.x, lodge.z, residence.x, residence.z)
+                road_path_distance(network, supplier.x, supplier.z, residence.x, residence.z)
             else {
                 continue;
             };
             if distance + 1e-6 < best_distance
                 || ((distance - best_distance).abs() <= 1e-6
-                    && best_lodge.map_or(true, |current| lodge.id < current.id))
+                    && best_supplier.map_or(true, |current| supplier.id < current.id))
             {
                 best_distance = distance;
-                best_lodge = Some(lodge);
+                best_supplier = Some(supplier);
             }
         }
-        if let Some(lodge) = best_lodge {
-            claims.insert(residence.id, lodge.id);
+        if let Some(supplier) = best_supplier {
+            claims.insert(residence.id, supplier.id);
         }
     }
     claims
-}
-
-pub fn residence_firewood_runway_seconds(residence: &Residence, firewood_stock: f64) -> f64 {
-    residence_runway_seconds(
-        residence.abandoned,
-        residence.population,
-        firewood_stock,
-        RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-    )
-}
-
-/// Lowest firewood runway first; tie-break by road-path distance, then residence id.
-pub fn sort_residences_for_delivery(
-    network: &RoadNetwork,
-    lodge: &Building,
-    residences: &mut [Residence],
-    firewood_stock_for: impl Fn(&Residence) -> f64,
-) {
-    residences.sort_by(|a, b| match (a.abandoned, b.abandoned) {
-        (true, false) => std::cmp::Ordering::Greater,
-        (false, true) => std::cmp::Ordering::Less,
-        _ => {
-            let runway_a = residence_firewood_runway_seconds(a, firewood_stock_for(a));
-            let runway_b = residence_firewood_runway_seconds(b, firewood_stock_for(b));
-            match runway_a
-                .partial_cmp(&runway_b)
-                .unwrap_or(std::cmp::Ordering::Equal)
-            {
-                std::cmp::Ordering::Equal => {
-                    let distance_a = road_path_distance(network, lodge.x, lodge.z, a.x, a.z)
-                        .unwrap_or(f64::INFINITY);
-                    let distance_b = road_path_distance(network, lodge.x, lodge.z, b.x, b.z)
-                        .unwrap_or(f64::INFINITY);
-                    distance_a
-                        .partial_cmp(&distance_b)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                        .then_with(|| a.id.cmp(&b.id))
-                }
-                other => other,
-            }
-        }
-    });
-}
-
-pub fn sort_mills_by_road_path(network: &RoadNetwork, lodge: &Building, mills: &mut [Building]) {
-    mills.sort_by(|a, b| {
-        let da = road_path_distance(network, a.x, a.z, lodge.x, lodge.z).unwrap_or(f64::INFINITY);
-        let db = road_path_distance(network, b.x, b.z, lodge.x, lodge.z).unwrap_or(f64::INFINITY);
-        da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
-    });
-}
-
-pub fn owner_lodges(ctx: &spacetimedb::ReducerContext, owner: Identity) -> Vec<Building> {
-    ctx.db
-        .building()
-        .owner()
-        .filter(&owner)
-        .filter(|row| row.kind == "woodcutters_lodge")
-        .collect()
-}
-
-pub fn owner_wells(ctx: &spacetimedb::ReducerContext, owner: Identity) -> Vec<Building> {
-    ctx.db
-        .building()
-        .owner()
-        .filter(&owner)
-        .filter(|row| row.kind == "well")
-        .collect()
-}
-
-fn within_well_service_extent(well: &Building, x: f64, z: f64) -> bool {
-    if well.work_radius <= 0.0 {
-        return false;
-    }
-    let dx = well.x - x;
-    let dz = well.z - z;
-    let radius_sq = well.work_radius * well.work_radius;
-    dx * dx + dz * dz <= radius_sq
 }
 
 /// Each residence is claimed by the nearest road-connected well within its service extent.
@@ -143,7 +117,17 @@ pub fn claim_residences_for_wells(
         let mut best_well: Option<&Building> = None;
         let mut best_distance = f64::INFINITY;
         for well in wells {
-            if well.kind != "well" || !within_well_service_extent(well, residence.x, residence.z) {
+            if !is_well_supplier_operational(
+                &well.kind,
+                well.construction_complete,
+                well.assigned_labor,
+            ) || !position_within_well_service_radius(
+                well.x,
+                well.z,
+                well.work_radius,
+                residence.x,
+                residence.z,
+            ) {
                 continue;
             }
             let Some(distance) =
@@ -175,97 +159,6 @@ pub fn residence_water_runway_seconds(residence: &Residence, water_stock: f64) -
     )
 }
 
-/// Lowest water runway first; tie-break by road-path distance, then residence id.
-pub fn sort_residences_for_water_delivery(
-    network: &RoadNetwork,
-    well: &Building,
-    residences: &mut [Residence],
-    water_stock_for: impl Fn(&Residence) -> f64,
-) {
-    residences.sort_by(|a, b| match (a.abandoned, b.abandoned) {
-        (true, false) => std::cmp::Ordering::Greater,
-        (false, true) => std::cmp::Ordering::Less,
-        _ => {
-            let runway_a = residence_water_runway_seconds(a, water_stock_for(a));
-            let runway_b = residence_water_runway_seconds(b, water_stock_for(b));
-            match runway_a
-                .partial_cmp(&runway_b)
-                .unwrap_or(std::cmp::Ordering::Equal)
-            {
-                std::cmp::Ordering::Equal => {
-                    let distance_a = road_path_distance(network, well.x, well.z, a.x, a.z)
-                        .unwrap_or(f64::INFINITY);
-                    let distance_b = road_path_distance(network, well.x, well.z, b.x, b.z)
-                        .unwrap_or(f64::INFINITY);
-                    distance_a
-                        .partial_cmp(&distance_b)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                        .then_with(|| a.id.cmp(&b.id))
-                }
-                other => other,
-            }
-        }
-    });
-}
-
-pub fn sort_wells_by_road_path(network: &RoadNetwork, building: &Building, wells: &mut [Building]) {
-    wells.sort_by(|a, b| {
-        let da =
-            road_path_distance(network, a.x, a.z, building.x, building.z).unwrap_or(f64::INFINITY);
-        let db =
-            road_path_distance(network, b.x, b.z, building.x, building.z).unwrap_or(f64::INFINITY);
-        da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
-    });
-}
-
-pub fn owner_food_suppliers(ctx: &spacetimedb::ReducerContext, owner: Identity) -> Vec<Building> {
-    ctx.db
-        .building()
-        .owner()
-        .filter(&owner)
-        .filter(|row| {
-            row.kind == "hunters_hall" || row.kind == "foragers_shed" || row.kind == "fishing_camp"
-        })
-        .collect()
-}
-
-/// Each residence is claimed by the nearest road-connected food supplier.
-pub fn claim_residences_for_food_suppliers(
-    network: &RoadNetwork,
-    suppliers: &[Building],
-    residences: &[Residence],
-) -> std::collections::HashMap<u64, u64> {
-    let mut claims = std::collections::HashMap::new();
-    for residence in residences {
-        let mut best_supplier: Option<&Building> = None;
-        let mut best_distance = f64::INFINITY;
-        for supplier in suppliers {
-            if supplier.kind != "hunters_hall"
-                && supplier.kind != "foragers_shed"
-                && supplier.kind != "fishing_camp"
-            {
-                continue;
-            }
-            let Some(distance) =
-                road_path_distance(network, supplier.x, supplier.z, residence.x, residence.z)
-            else {
-                continue;
-            };
-            if distance + 1e-6 < best_distance
-                || ((distance - best_distance).abs() <= 1e-6
-                    && best_supplier.map_or(true, |current| supplier.id < current.id))
-            {
-                best_distance = distance;
-                best_supplier = Some(supplier);
-            }
-        }
-        if let Some(supplier) = best_supplier {
-            claims.insert(residence.id, supplier.id);
-        }
-    }
-    claims
-}
-
 pub fn residence_food_runway_seconds(residence: &Residence, food_stock: f64) -> f64 {
     residence_runway_seconds(
         residence.abandoned,
@@ -273,36 +166,4 @@ pub fn residence_food_runway_seconds(residence: &Residence, food_stock: f64) -> 
         food_stock,
         crate::constants::RESIDENCE_FOOD_PER_PERSON_PER_SEC,
     )
-}
-
-pub fn sort_residences_for_food_delivery(
-    network: &RoadNetwork,
-    supplier: &Building,
-    residences: &mut [Residence],
-    food_stock_for: impl Fn(&Residence) -> f64,
-) {
-    residences.sort_by(|a, b| match (a.abandoned, b.abandoned) {
-        (true, false) => std::cmp::Ordering::Greater,
-        (false, true) => std::cmp::Ordering::Less,
-        _ => {
-            let runway_a = residence_food_runway_seconds(a, food_stock_for(a));
-            let runway_b = residence_food_runway_seconds(b, food_stock_for(b));
-            match runway_a
-                .partial_cmp(&runway_b)
-                .unwrap_or(std::cmp::Ordering::Equal)
-            {
-                std::cmp::Ordering::Equal => {
-                    let distance_a = road_path_distance(network, supplier.x, supplier.z, a.x, a.z)
-                        .unwrap_or(f64::INFINITY);
-                    let distance_b = road_path_distance(network, supplier.x, supplier.z, b.x, b.z)
-                        .unwrap_or(f64::INFINITY);
-                    distance_a
-                        .partial_cmp(&distance_b)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                        .then_with(|| a.id.cmp(&b.id))
-                }
-                other => other,
-            }
-        }
-    });
 }

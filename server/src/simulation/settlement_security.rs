@@ -3,18 +3,21 @@ use spacetimedb::{Identity, ReducerContext};
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::frontier_economy_policy::armed_guards;
+use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::security_policy::{
-    compare_raid_targets, guard_defense_ratio, guarded_raid_loss_fraction,
-    guarded_raid_target_count, is_raid_season, scheduled_raid_ticks, threat_progress,
-    tower_effective_radius, MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
+    guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_forecast,
+    scheduled_raid_ticks, select_raid_targets, threat_progress, tower_effective_radius,
+    RaidForecast, RaidTargetCandidate, RaidTargetKind, WatchArea, WatchCoverageIndex,
+    MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{settlement_security, Building, Residence, SettlementSecurity};
 
-#[derive(Clone, Copy)]
-struct WatchCoverage {
-    x: f64,
-    z: f64,
-    radius: f64,
+use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
+
+struct SettlementExposure {
+    protected_value: f64,
+    total_value: f64,
+    raid_targets: Vec<RaidTargetCandidate>,
 }
 
 pub fn ensure_settlement_security(ctx: &ReducerContext, owner: Identity) {
@@ -35,6 +38,9 @@ pub fn ensure_settlement_security(ctx: &ReducerContext, owner: Identity) {
         last_outcome: 0,
         last_goods_lost: 0.0,
         last_wealth_lost: 0.0,
+        guards_required: 0.0,
+        targets_at_risk: 0,
+        estimated_loss_fraction: 0.0,
     });
 }
 
@@ -96,6 +102,9 @@ fn step_owner_security(
         state.last_outcome = 0;
         state.last_goods_lost = 0.0;
         state.last_wealth_lost = 0.0;
+        state.guards_required = 0.0;
+        state.targets_at_risk = 0;
+        state.estimated_loss_fraction = 0.0;
         ctx.db.settlement_security().owner().update(state);
         return;
     }
@@ -119,24 +128,30 @@ fn step_owner_security(
         .map(|residence| residence.population)
         .sum::<u32>();
     let towers = staffed_watch_coverage(&buildings);
-    let (protected_value, total_value) = settlement_coverage(&buildings, &residences, &towers);
-    let coverage = if total_value > 1e-9 {
-        (protected_value / total_value).clamp(0.0, 1.0)
+    let watch_index = WatchCoverageIndex::new(&towers);
+    let exposure = settlement_exposure(&buildings, &residences, &watch_index);
+    let coverage = if exposure.total_value > 1e-9 {
+        (exposure.protected_value / exposure.total_value).clamp(0.0, 1.0)
     } else {
         0.0
     };
 
     state.coverage = coverage;
-    state.protected_value = protected_value;
-    state.total_value = total_value;
+    state.protected_value = exposure.protected_value;
+    state.total_value = exposure.total_value;
     state.staffed_watchtowers = towers.len() as u32;
-    let (ready_guards, assigned_guards) = settlement_guard_strength(&buildings);
+    let road_network = load_owner_road_network(ctx, owner);
+    let (ready_guards, assigned_guards) =
+        settlement_guard_strength(&buildings, &towers, road_network.as_ref());
     state.ready_guards = ready_guards;
     state.defense_readiness = if assigned_guards > 0.0 {
         (ready_guards / assigned_guards).clamp(0.0, 1.0)
     } else {
         0.0
     };
+    state.guards_required = 0.0;
+    state.targets_at_risk = 0;
+    state.estimated_loss_fraction = 0.0;
 
     if population < MIN_FRONTIER_POPULATION {
         state.threat = 0.0;
@@ -144,6 +159,12 @@ fn step_owner_security(
         ctx.db.settlement_security().owner().update(state);
         return;
     }
+
+    let raid_targets = exposure.raid_targets;
+    let forecast = raid_forecast(enemy_pressure, coverage, ready_guards, raid_targets.len());
+    state.guards_required = forecast.guards_required;
+    state.targets_at_risk = forecast.target_count as u32;
+    state.estimated_loss_fraction = forecast.loss_fraction;
 
     let ticks_per_day = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round() as u64;
     if state.next_raid_tick == 0 {
@@ -157,19 +178,21 @@ fn step_owner_security(
     }
 
     if sim_tick >= state.next_raid_tick && is_raid_season(month) {
-        let (goods_lost, wealth_lost) = resolve_raid(
+        let (goods_lost, wealth_lost, arson_started) = resolve_raid(
             ctx,
-            &buildings,
-            &residences,
-            &towers,
+            owner,
+            &raid_targets,
+            forecast,
             enemy_pressure,
-            coverage,
-            ready_guards,
+            world_seed ^ sim_tick ^ population as u64,
+            sim_tick,
         );
         state.last_raid_tick = sim_tick;
         state.last_goods_lost = goods_lost;
         state.last_wealth_lost = wealth_lost;
-        state.last_outcome = if goods_lost + wealth_lost <= 0.1 {
+        state.last_outcome = if arson_started {
+            3
+        } else if goods_lost + wealth_lost <= 1e-9 {
             1
         } else {
             2
@@ -186,13 +209,13 @@ fn step_owner_security(
     ctx.db.settlement_security().owner().update(state);
 }
 
-fn staffed_watch_coverage(buildings: &[Building]) -> Vec<WatchCoverage> {
+fn staffed_watch_coverage(buildings: &[Building]) -> Vec<WatchArea> {
     buildings
         .iter()
         .filter(|building| building.kind == "watchtower" && building.assigned_labor > 0)
         .filter_map(|tower| {
             let radius = tower_effective_radius(tower.work_radius, tower.assigned_labor);
-            (radius > 0.0).then_some(WatchCoverage {
+            (radius > 0.0).then_some(WatchArea {
                 x: tower.x,
                 z: tower.z,
                 radius,
@@ -201,35 +224,59 @@ fn staffed_watch_coverage(buildings: &[Building]) -> Vec<WatchCoverage> {
         .collect()
 }
 
-fn settlement_coverage(
+fn settlement_exposure(
     buildings: &[Building],
     residences: &[Residence],
-    towers: &[WatchCoverage],
-) -> (f64, f64) {
+    watch_index: &WatchCoverageIndex,
+) -> SettlementExposure {
     let mut protected_value = 0.0;
     let mut total_value = 0.0;
+    let mut raid_targets = Vec::with_capacity(buildings.len() + residences.len());
     for building in buildings
         .iter()
         .filter(|building| building.kind != "watchtower")
     {
-        let value = building_vulnerable_value(building);
-        total_value += value;
-        if position_is_watched(building.x, building.z, towers) {
-            protected_value += value;
+        let portable_value = building_portable_value(building);
+        let vulnerable_value = 1.0 + portable_value / 30.0;
+        let protected = watch_index.contains(building.x, building.z);
+        total_value += vulnerable_value;
+        if protected {
+            protected_value += vulnerable_value;
+        }
+        if portable_value > 1e-9 {
+            raid_targets.push(RaidTargetCandidate {
+                kind: RaidTargetKind::Building,
+                id: building.id,
+                protected,
+                value: portable_value,
+            });
         }
     }
     for residence in residences {
-        let value = residence.population as f64 + residence.household_wealth / 20.0;
-        total_value += value;
-        if position_is_watched(residence.x, residence.z, towers) {
-            protected_value += value;
+        let vulnerable_value = residence.population as f64 + residence.household_wealth / 20.0;
+        let protected = watch_index.contains(residence.x, residence.z);
+        total_value += vulnerable_value;
+        if protected {
+            protected_value += vulnerable_value;
+        }
+        if residence.household_wealth > 1e-9 {
+            raid_targets.push(RaidTargetCandidate {
+                kind: RaidTargetKind::Residence,
+                id: residence.id,
+                protected,
+                value: residence.household_wealth,
+            });
         }
     }
-    (protected_value, total_value)
+    SettlementExposure {
+        protected_value,
+        total_value,
+        raid_targets,
+    }
 }
 
-fn building_vulnerable_value(building: &Building) -> f64 {
-    1.0 + (building.timber
+fn building_portable_value(building: &Building) -> f64 {
+    building.timber
         + building.firewood
         + building.food
         + building.grain
@@ -238,112 +285,109 @@ fn building_vulnerable_value(building: &Building) -> f64 {
         + building.preserved_food
         + building.honey
         + building.wine
+        + building.wool
+        + building.cloth * 1.5
+        + building.ironwork * 2.0
         + building.polearms * 4.0
-        + building.gold)
-        / 30.0
+        + building.gold
 }
 
-fn settlement_guard_strength(buildings: &[Building]) -> (f64, f64) {
+fn settlement_guard_strength(
+    buildings: &[Building],
+    towers: &[WatchArea],
+    road_network: Option<&RoadNetwork>,
+) -> (f64, f64) {
+    let watch_positions = towers
+        .iter()
+        .map(|tower| (tower.x, tower.z))
+        .collect::<Vec<_>>();
     buildings
         .iter()
         .filter(|building| building.kind == "guardhouse")
         .fold((0.0, 0.0), |(ready, assigned), guardhouse| {
             let assigned_here = guardhouse.assigned_labor as f64;
             let armed_here = armed_guards(guardhouse.assigned_labor, guardhouse.polearms);
+            let muster_distance = road_network.and_then(|network| {
+                network.nearest_road_path_distance(guardhouse.x, guardhouse.z, &watch_positions)
+            });
+            let muster_efficiency = guardhouse_muster_efficiency(muster_distance);
             (
-                ready + armed_here * guardhouse.action_cooldown.clamp(0.0, 1.0),
+                ready + armed_here * guardhouse.action_cooldown.clamp(0.0, 1.0) * muster_efficiency,
                 assigned + assigned_here,
             )
         })
 }
 
-fn position_is_watched(x: f64, z: f64, towers: &[WatchCoverage]) -> bool {
-    towers.iter().any(|tower| {
-        let dx = x - tower.x;
-        let dz = z - tower.z;
-        dx * dx + dz * dz <= tower.radius * tower.radius
-    })
-}
-
 fn resolve_raid(
     ctx: &ReducerContext,
-    buildings: &[Building],
-    residences: &[Residence],
-    towers: &[WatchCoverage],
+    owner: Identity,
+    candidates: &[RaidTargetCandidate],
+    forecast: RaidForecast,
     enemy_pressure: u8,
-    coverage: f64,
-    ready_guards: f64,
-) -> (f64, f64) {
-    let defense_ratio = guard_defense_ratio(enemy_pressure, coverage, ready_guards);
-    let loss_fraction = guarded_raid_loss_fraction(enemy_pressure, coverage, ready_guards);
-    let target_count = guarded_raid_target_count(enemy_pressure, defense_ratio);
-    if target_count == 0 || loss_fraction <= 1e-9 {
-        return (0.0, 0.0);
+    entropy: u64,
+    sim_tick: u64,
+) -> (f64, f64, bool) {
+    if forecast.target_count == 0 || forecast.loss_fraction <= 1e-9 {
+        return (0.0, 0.0, false);
     }
     let mut goods_lost = 0.0;
     let mut wealth_lost = 0.0;
+    let selected = select_raid_targets(candidates, forecast.target_count);
 
-    let mut exposed_buildings = buildings
-        .iter()
-        .filter(|building| {
-            building.kind != "watchtower" && !position_is_watched(building.x, building.z, towers)
-        })
-        .collect::<Vec<_>>();
-    exposed_buildings.sort_by(|a, b| {
-        compare_raid_targets(
-            false,
-            building_vulnerable_value(a),
-            a.id,
-            false,
-            building_vulnerable_value(b),
-            b.id,
-        )
-    });
-    for building in exposed_buildings.into_iter().take(target_count) {
-        let mut updated = building.clone();
-        macro_rules! plunder {
-            ($field:ident) => {{
-                let lost = updated.$field * loss_fraction;
-                updated.$field = (updated.$field - lost).max(0.0);
-                goods_lost += lost;
-            }};
+    for target in &selected {
+        match target.kind {
+            RaidTargetKind::Building => {
+                let Some(mut updated) = ctx.db.building().id().find(&target.id) else {
+                    continue;
+                };
+                macro_rules! plunder {
+                    ($field:ident) => {{
+                        let lost = updated.$field * forecast.loss_fraction;
+                        updated.$field = (updated.$field - lost).max(0.0);
+                        goods_lost += lost;
+                    }};
+                }
+                plunder!(timber);
+                plunder!(firewood);
+                plunder!(food);
+                plunder!(grain);
+                plunder!(flour);
+                plunder!(ale);
+                plunder!(preserved_food);
+                plunder!(honey);
+                plunder!(wine);
+                plunder!(ironwork);
+                plunder!(polearms);
+                let lost_gold = updated.gold * forecast.loss_fraction;
+                updated.gold = (updated.gold - lost_gold).max(0.0);
+                wealth_lost += lost_gold;
+                ctx.db.building().id().update(updated);
+            }
+            RaidTargetKind::Residence => {
+                let Some(residence) = ctx.db.residence().id().find(&target.id) else {
+                    continue;
+                };
+                let lost = residence.household_wealth * forecast.loss_fraction;
+                if lost <= 1e-9 {
+                    continue;
+                }
+                wealth_lost += lost;
+                ctx.db.residence().id().update(Residence {
+                    household_wealth: (residence.household_wealth - lost).max(0.0),
+                    ..residence
+                });
+            }
         }
-        plunder!(timber);
-        plunder!(firewood);
-        plunder!(food);
-        plunder!(grain);
-        plunder!(flour);
-        plunder!(ale);
-        plunder!(preserved_food);
-        plunder!(honey);
-        plunder!(wine);
-        plunder!(polearms);
-        let lost_gold = updated.gold * loss_fraction;
-        updated.gold = (updated.gold - lost_gold).max(0.0);
-        wealth_lost += lost_gold;
-        ctx.db.building().id().update(updated);
     }
 
-    let mut exposed_residences = residences
-        .iter()
-        .filter(|residence| !position_is_watched(residence.x, residence.z, towers))
-        .collect::<Vec<_>>();
-    exposed_residences.sort_by(|a, b| {
-        b.household_wealth
-            .total_cmp(&a.household_wealth)
-            .then_with(|| a.id.cmp(&b.id))
-    });
-    for residence in exposed_residences.into_iter().take(target_count) {
-        let lost = residence.household_wealth * loss_fraction;
-        if lost <= 1e-9 {
-            continue;
-        }
-        wealth_lost += lost;
-        ctx.db.residence().id().update(Residence {
-            household_wealth: (residence.household_wealth - lost).max(0.0),
-            ..residence.clone()
+    let arson_started = raid_arson_occurs(enemy_pressure, forecast.defense_ratio, entropy)
+        && selected.iter().any(|target| {
+            let target_kind = match target.kind {
+                RaidTargetKind::Building => FIRE_TARGET_BUILDING,
+                RaidTargetKind::Residence => FIRE_TARGET_RESIDENCE,
+            };
+            ignite_raid_target(ctx, owner, target_kind, target.id, sim_tick)
         });
-    }
 
-    (goods_lost, wealth_lost)
+    (goods_lost, wealth_lost, arson_started)
 }

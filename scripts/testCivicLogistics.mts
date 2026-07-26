@@ -69,6 +69,13 @@ assert.match(hauling, /"woodcutters_lodge"[\s\S]*CommodityKind::Firewood/);
 assert.doesNotMatch(hauling, /CommodityKind::(?:Food|Grain|Flour|Ale|PreservedFood)/);
 assert.match(hauling, /road_path_distance/);
 assert.match(hauling, /try_start_building_supply_trip/);
+assert.match(
+  hauling,
+  /building_ids_for_kinds\(ctx,\s*owner,\s*STOREHOUSE_OVERFLOW_SOURCE_KINDS\)/,
+  'each owner-wide depot pass should inspect only indexed overflow-source kinds',
+);
+assert.match(hauling, /pub fn step_village_storehouses/);
+assert.match(hauling, /idle_by_owner: HashMap<Identity, Vec<Building>>/);
 
 const aggregate = fs.readFileSync('server/src/economy/aggregate_spend.rs', 'utf8');
 assert.match(

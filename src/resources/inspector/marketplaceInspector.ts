@@ -10,6 +10,11 @@ import {
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { renderMarketplaceTradePanel } from './marketplaceTradeRenderer.ts';
 import { formatMarketplaceCaravanCrew } from '../../economy/regionalMarket.ts';
+import { marketplaceManualTradeStatus } from '../../economy/marketplaceTrade.ts';
+import {
+  marketplaceSpecialtyExportPlan,
+  marketplaceSpecialtyQueue,
+} from '../../economy/specialtyTrade.ts';
 
 function formatLinkedHomeStatus(connectedHomes: number): string {
   if (connectedHomes <= 0) {
@@ -23,7 +28,7 @@ export function renderMarketplaceInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
-  const availability = context.getTradeAvailability?.();
+  const availability = context.getTradeAvailability?.(building);
   if (!availability) {
     throw new Error('Marketplace inspector requires trade availability.');
   }
@@ -36,27 +41,90 @@ export function renderMarketplaceInspector(
   const cost = getBuildingCost(building.kind);
   const connectedHomes = context.worldQueries.countRoadConnectedResidences(building, true);
   const labor = buildingLaborView(building, context.populationStats);
+  const hasRoadAccess = context.worldQueries.hasRoadAccess(building.x, building.z);
+  const manualTrade = marketplaceManualTradeStatus(
+    building,
+    hasRoadAccess,
+  );
+  const specialtyPlan = marketplaceSpecialtyExportPlan(
+    building,
+    marketState.specialtyPriceMult,
+  );
+  const specialtyQueue = marketplaceSpecialtyQueue(building, marketState.specialtyPriceMult);
+  const specialtyExportActive = specialtyQueue.units > 1e-6
+    && specialtyPlan.saleAllowed
+    && hasRoadAccess
+    && specialtyQueue.exportWorkers > 0;
+  const specialtyExportHeld = specialtyQueue.units > 1e-6 && !specialtyPlan.saleAllowed;
+  const specialtyDesk = formatSpecialtyExportDesk(
+    hasRoadAccess,
+    building.assignedLabor,
+    building.actionCooldown,
+    specialtyQueue,
+    specialtyPlan,
+  );
 
   return {
     eyebrow: 'Building',
     title: label,
-    statusText: formatLinkedHomeStatus(connectedHomes),
-    statusState: connectedHomes > 0 ? 'ok' : 'idle',
+    statusText: specialtyExportActive
+      ? `Brokering specialty exports at ${Math.round(specialtyPlan.marketRate * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
+      : specialtyExportHeld
+        ? `Holding specialty exports - regional rate ${Math.round(specialtyPlan.marketRate * 100)}%`
+      : manualTrade.ready
+        ? formatLinkedHomeStatus(connectedHomes)
+        : manualTrade.label,
+    statusState: specialtyExportActive || (manualTrade.ready && connectedHomes > 0) ? 'ok' : 'idle',
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      ${buildingStorageRows(building, building.kind)}
+      ${buildingStorageRows(building, building.kind, context.conflictEnabled ?? false)}
       <li><span>Purpose</span><span>Foreign trade hub — exchange gold and goods with neighboring villages</span></li>
       <li><span>Linked homes</span><span>${connectedHomes}</span></li>
       <li><span>Caravan crew</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>
+      <li><span>Bulk trade desk</span><span>${manualTrade.label}</span></li>
+      <li><span>Specialty queue</span><span>${specialtyQueue.units.toFixed(1)} units - about ${specialtyQueue.goldValue.toFixed(1)} gold</span></li>
+      <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
+      <li><span>Export stock</span><span>Treasury + road-linked building stores</span></li>
+      <li><span>Household reserves</span><span>Protected from exports</span></li>
       <li><span>Backyard sales</span><span>Road-linked homes only</span></li>
-      <li><span>Household orders</span><span>Road-linked homes auto-buy provender when runway is low</span></li>
+      <li><span>Household orders</span><span>Critical homes buy a full lot for their own cart; busy, resting, or blocked caravans wait without charging</span></li>
     `,
     demolish: {
       visible: true,
       hint: buildingDemolishHint(building.kind),
     },
     labor,
-    supplementalPanelHtml: renderMarketplaceTradePanel(building, availability, marketState),
+    supplementalPanelHtml: renderMarketplaceTradePanel(
+      building,
+      availability,
+      marketState,
+      manualTrade,
+      context.conflictEnabled,
+    ),
   };
+}
+
+function formatSpecialtyExportDesk(
+  hasRoadAccess: boolean,
+  assignedLabor: number,
+  actionCooldown: number,
+  queue: ReturnType<typeof marketplaceSpecialtyQueue>,
+  plan: ReturnType<typeof marketplaceSpecialtyExportPlan>,
+): string {
+  if (queue.units <= 1e-6) return 'Ready - awaiting ale, honey, wine, or cloth hauls';
+  if (!plan.saleAllowed) {
+    return `Holding - ${Math.round(plan.marketRate * 100)}% regional rate below ${Math.round(plan.policy.minRate * 100)}% floor`;
+  }
+  if (!hasRoadAccess) return 'Stalled - connect this market to a road';
+  if (assignedLabor <= 0) return 'Stalled - assign at least one broker';
+  if (queue.exportWorkers <= 0) {
+    return actionCooldown > 1e-6
+      ? 'Paused - sole broker is settling a manual trade'
+      : 'Stalled - no broker capacity';
+  }
+  const clearTime = queue.clearSeconds == null
+    ? ''
+    : ` - clears in about ${queue.clearSeconds.toFixed(1)}s`;
+  return `${queue.exportWorkers} broker${queue.exportWorkers === 1 ? '' : 's'} - ${queue.unitsPerSecond.toFixed(2)} units/s at ${Math.round(plan.marketRate * 100)}%${clearTime}`;
 }

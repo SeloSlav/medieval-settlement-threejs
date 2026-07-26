@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   CALENDAR_DAY_START_OFFSET_SECONDS,
   CALENDAR_SECONDS_PER_DAY,
@@ -205,6 +206,49 @@ assert.ok(
       ),
   ) < 1e-9,
   'each subsequent speed transition must continue from the displayed clock',
+);
+
+const laborScheduleSource = readFileSync(
+  new URL('../server/src/simulation/labor_schedule.rs', import.meta.url),
+  'utf8',
+);
+const tickContextSource = readFileSync(
+  new URL('../server/src/simulation/tick_context.rs', import.meta.url),
+  'utf8',
+);
+const constructionSource = readFileSync(
+  new URL('../server/src/simulation/construction.rs', import.meta.url),
+  'utf8',
+);
+assert.match(
+  tickContextSource,
+  /sabbath_observance_by_owner:\s*RefCell<HashMap<Identity,\s*bool>>/,
+  'owner Sabbath policy should be cached once per simulation substep',
+);
+assert.match(
+  tickContextSource,
+  /staffed_chapel_by_owner:\s*RefCell<HashMap<Identity,\s*bool>>/,
+  'staffed-chapel state should be shared by every Sunday schedule check',
+);
+assert.match(
+  tickContextSource,
+  /building_ids_for_kinds\(ctx,\s*owner,\s*&\["chapel"\]\)/,
+  'staffed-chapel discovery should use the shared owner/building-kind index',
+);
+assert.doesNotMatch(
+  laborScheduleSource,
+  /ctx\.db\s*\.\s*building\(\)\s*\.\s*iter\(\)/,
+  'a schedule check must not rescan the whole building table',
+);
+assert.match(
+  laborScheduleSource,
+  /labor_and_logistics_paused\([\s\S]*?tick:\s*&SimTickContext[\s\S]*?owner_sabbath_observance_enabled\(ctx,\s*tick,\s*owner\)[\s\S]*?owner_has_staffed_chapel\(ctx,\s*tick,\s*owner\)/,
+  'all schedule decisions should resolve through the tick-local owner caches',
+);
+assert.match(
+  constructionSource,
+  /site\.kind == "chapel"[\s\S]*?tick\.invalidate_staffed_chapel\(site\.owner\)/,
+  'chapel completion should invalidate derived schedule state for later phases',
 );
 
 console.log('settlement schedule tests passed');

@@ -1,4 +1,6 @@
 import {
+  BUILDING_STORAGE_CAPS,
+  MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS,
   MARKETPLACE_TRADE_OFFERS,
   TRADE_RESOURCE_SPEND_SCOPES,
   type MarketplaceBarterOffer,
@@ -18,6 +20,7 @@ import {
   MARKET_WATER_COMMODITIES,
 } from './regionalMarket.ts';
 import type { MarketCommodityOffer, MarketWaterCommodityOffer } from '../generated/gameBalance.ts';
+import type { BuildingState } from '../resources/types.ts';
 
 export type MarketplaceTradeAvailability = Record<TradeResourceKind | 'gold', number>;
 
@@ -26,6 +29,8 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   stone: 'Stone',
   firewood: 'Firewood',
   food: 'Food',
+  grain: 'Grain',
+  ironwork: 'Ironwork',
   gold: 'Gold',
 };
 
@@ -107,6 +112,105 @@ export function canAffordWaterCommodityTrade(
   return tradeStock(availability, cost.resource) + 1e-6 >= cost.amount;
 }
 
+export type MarketplaceManualTradeStatus = {
+  ready: boolean;
+  label: string;
+  reason: string | null;
+};
+
+export function marketplaceManualTradeStatus(
+  building: BuildingState,
+  hasRoadAccess: boolean,
+): MarketplaceManualTradeStatus {
+  if (building.constructionComplete === false) {
+    return {
+      ready: false,
+      label: 'Trade desk under construction',
+      reason: 'Complete the marketplace before trading.',
+    };
+  }
+  if (building.assignedLabor <= 0) {
+    return {
+      ready: false,
+      label: 'Trade desk unstaffed',
+      reason: 'Assign at least one broker to place manual orders.',
+    };
+  }
+  if (!hasRoadAccess) {
+    return {
+      ready: false,
+      label: 'Trade desk has no road access',
+      reason: 'Connect the marketplace to a road before trading.',
+    };
+  }
+  if (building.actionCooldown > 1e-6) {
+    return {
+      ready: false,
+      label: `Brokers settling caravan · ${building.actionCooldown.toFixed(1)}s`,
+      reason: `The brokers need another ${building.actionCooldown.toFixed(1)} seconds.`,
+    };
+  }
+  return {
+    ready: true,
+    label: 'Trade desk ready',
+    reason: null,
+  };
+}
+
+export function marketplaceManualTradeCooldown(assignedLabor: number): number {
+  return MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS / Math.max(1, Math.floor(assignedLabor));
+}
+
+export function marketplaceResourceRoom(
+  building: BuildingState,
+  resource: TradeResourceKind,
+): number {
+  const cap = BUILDING_STORAGE_CAPS.marketplace[resource] ?? 0;
+  return Math.max(0, cap - (building[resource] ?? 0));
+}
+
+export function marketplaceTradeOfferReceive(
+  offer: MarketplaceTradeOffer,
+): { resource: TradeResourceKind | 'gold'; amount: number } {
+  switch (offer.kind) {
+    case 'goldBuy':
+      return { resource: offer.resource, amount: offer.amount };
+    case 'goldSell':
+      return { resource: 'gold', amount: offer.goldYield };
+    case 'barter':
+      return { resource: offer.receive, amount: offer.receiveAmount };
+    default: {
+      const unhandled: never = offer;
+      return unhandled;
+    }
+  }
+}
+
+export function canReceiveMarketplaceTrade(
+  building: BuildingState,
+  offer: MarketplaceTradeOffer,
+): boolean {
+  const receive = marketplaceTradeOfferReceive(offer);
+  return receive.resource === 'gold'
+    || marketplaceResourceRoom(building, receive.resource) + 1e-6 >= receive.amount;
+}
+
+export function canReceiveCommodityTrade(
+  building: BuildingState,
+  commodity: MarketCommodityOffer,
+): boolean {
+  return Math.max(0, (BUILDING_STORAGE_CAPS.marketplace.food ?? 0) - building.food) + 1e-6
+    >= commodity.foodAmount;
+}
+
+export function canReceiveWaterCommodityTrade(
+  building: BuildingState,
+  commodity: MarketWaterCommodityOffer,
+): boolean {
+  return Math.max(0, (BUILDING_STORAGE_CAPS.marketplace.water ?? 0) - building.water) + 1e-6
+    >= commodity.waterAmount;
+}
+
 export function formatTradeAvailabilitySummary(availability: MarketplaceTradeAvailability): string {
   const parts = (['gold', 'timber', 'stone', 'firewood', 'food'] as const).map((resource) => {
     const amount = Math.round(availability[resource]);
@@ -115,7 +219,7 @@ export function formatTradeAvailabilitySummary(availability: MarketplaceTradeAva
   return `Available: ${parts.join(' · ')}`;
 }
 
-export function marketplaceTradeOffersBySection(): {
+export function marketplaceTradeOffersBySection(includeFrontierOffers = true): {
   goldBuy: MarketplaceTradeOffer[];
   goldSell: MarketplaceTradeOffer[];
   barter: MarketplaceBarterOffer[];
@@ -124,6 +228,13 @@ export function marketplaceTradeOffersBySection(): {
   const goldSell: MarketplaceTradeOffer[] = [];
   const barter: MarketplaceBarterOffer[] = [];
   for (const offer of MARKETPLACE_TRADE_OFFERS) {
+    const frontierOffer = offer.kind === 'barter'
+      ? (offer.give as TradeResourceKind) === 'ironwork'
+        || (offer.receive as TradeResourceKind) === 'ironwork'
+      : offer.resource === 'ironwork';
+    if (!includeFrontierOffers && frontierOffer) {
+      continue;
+    }
     if (offer.kind === 'goldBuy') goldBuy.push(offer);
     else if (offer.kind === 'goldSell') goldSell.push(offer);
     else barter.push(offer);

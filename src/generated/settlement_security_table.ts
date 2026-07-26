@@ -24,4 +24,7 @@ export default __t.row({
   lastOutcome: __t.u8().name("last_outcome"),
   lastGoodsLost: __t.f64().name("last_goods_lost"),
   lastWealthLost: __t.f64().name("last_wealth_lost"),
+  guardsRequired: __t.f64().name("guards_required"),
+  targetsAtRisk: __t.u32().name("targets_at_risk"),
+  estimatedLossFraction: __t.f64().name("estimated_loss_fraction"),
 });

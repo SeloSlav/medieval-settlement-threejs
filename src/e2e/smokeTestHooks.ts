@@ -6,6 +6,7 @@ import type { BuildingToolMode } from '../buildings/BuildingTool.ts';
 
 export type MedievalE2eHooks = {
   isConnected: () => boolean;
+  getRendererStats: () => { backend: string; frames: number; calls: number; triangles: number };
   getBuildingMode: () => BuildingToolMode;
   getHudTimber: () => string;
   getBuildingCount: () => number;
@@ -16,6 +17,7 @@ type SmokeTestHookDeps = {
   getState: () => GameState;
   getBuildingMode: () => BuildingToolMode;
   isConnected: () => boolean;
+  getRendererStats: () => { backend: string; frames: number; calls: number; triangles: number };
   placeBuilding: (kind: BuildingKind, x: number, z: number) => Promise<void>;
   isWaterAt: (x: number, z: number) => boolean;
   isQuarryPitAt: (x: number, z: number) => boolean;
@@ -30,17 +32,11 @@ const GRID_STEP = 28;
 export function createSmokeTestHooks(deps: SmokeTestHookDeps): MedievalE2eHooks {
   return {
     isConnected: deps.isConnected,
+    getRendererStats: deps.getRendererStats,
     getBuildingMode: deps.getBuildingMode,
     getHudTimber: () => readHudValue('timber'),
     getBuildingCount: () => deps.getState().buildings.size,
-    placeRforesterAtFirstValidSpot: async () => {
-      const spot = findFirstValidRforesterSpot(deps);
-      if (!spot) {
-        throw new Error('No valid reforester placement found for smoke test.');
-      }
-      await deps.placeBuilding(REFORESTER_KIND, spot.x, spot.z);
-      return spot;
-    },
+    placeRforesterAtFirstValidSpot: () => placeRforesterAtFirstAuthoritativeSpot(deps),
   };
 }
 
@@ -49,11 +45,15 @@ function readHudValue(resource: string): string {
   return element?.textContent?.trim() ?? '';
 }
 
-function findFirstValidRforesterSpot(deps: SmokeTestHookDeps): { x: number; z: number } | null {
+async function placeRforesterAtFirstAuthoritativeSpot(
+  deps: SmokeTestHookDeps,
+): Promise<{ x: number; z: number }> {
   const half = deps.playableHalf - 40;
   const state = deps.getState();
   const totals = computeResourceTotals(state);
   const roadNetwork = deps.getRoadNetwork() ?? undefined;
+  let rejectedCandidates = 0;
+  let lastRejection: unknown = null;
 
   for (let x = -half; x <= half; x += GRID_STEP) {
     for (let z = -half; z <= half; z += GRID_STEP) {
@@ -69,13 +69,25 @@ function findFirstValidRforesterSpot(deps: SmokeTestHookDeps): { x: number; z: n
         getNaturalHeightAt: deps.getNaturalHeightAt,
         roadNetwork,
       });
-      if (validation.ok) {
+      if (!validation.ok) continue;
+
+      try {
+        await deps.placeBuilding(REFORESTER_KIND, x, z);
         return { x, z };
+      } catch (error) {
+        // Other smoke-test identities share the persistent local world but are
+        // intentionally absent from this player's state. Let the authoritative
+        // reducer reject their occupied extents, then advance to the next spot.
+        rejectedCandidates += 1;
+        lastRejection = error;
       }
     }
   }
 
-  return null;
+  const suffix = lastRejection instanceof Error ? ` Last rejection: ${lastRejection.message}` : '';
+  throw new Error(
+    `No authoritative reforester placement found after ${rejectedCandidates} server rejections.${suffix}`,
+  );
 }
 
 export function installSmokeTestHooks(hooks: MedievalE2eHooks): void {

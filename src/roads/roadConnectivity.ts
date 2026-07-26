@@ -38,11 +38,13 @@ export function areRoadConnected(
   network: RoadNetwork,
   maxSnap = BUILDING_ROAD_ACCESS_DISTANCE,
 ): boolean {
+  if (maxSnap === BUILDING_ROAD_ACCESS_DISTANCE) {
+    return network.getPathfinder().roadConnected(ax, az, bx, bz);
+  }
   const graph = buildRoadGraph(network);
   const nodesA = snapToRoadNodes(graph, ax, az, maxSnap);
   const nodesB = snapToRoadNodes(graph, bx, bz, maxSnap);
-  if (!nodesA || !nodesB) return false;
-  return shareComponent(graph.adjacency, nodesA, nodesB);
+  return nodesA != null && nodesB != null && shareComponent(graph.adjacency, nodesA, nodesB);
 }
 
 export function findRoadConnectedBuildings(

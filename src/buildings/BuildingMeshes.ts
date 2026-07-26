@@ -26,6 +26,7 @@ import {
   createThreshingBarnMesh,
   createVineyardMesh,
   createWatermillMesh,
+  createWeaverMesh,
 } from './meshes/expandedBuildingMeshes.ts';
 import {
   createPastoralFarmsteadMesh,
@@ -74,6 +75,7 @@ export function createBuildingMesh(kind: BuildingKind): THREE.Group {
     case 'apiary': return createApiaryMesh();
     case 'watermill': return createWatermillMesh();
     case 'carpenter': return createCarpenterMesh();
+    case 'weaver': return createWeaverMesh();
     case 'ferry_landing': return createFerryLandingMesh();
     case 'vineyard': return createVineyardMesh();
     case 'pastoral_farmstead': return createPastoralFarmsteadMesh();

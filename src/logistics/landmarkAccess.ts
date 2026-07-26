@@ -1,5 +1,6 @@
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { MONASTERY_COVERAGE_RADIUS } from '../generated/gameBalance.ts';
+import { compareStableEntityIds } from './roadLogistics.ts';
 
 export type RoadPathProbe = (ax: number, az: number, bx: number, bz: number) => number | null;
 
@@ -127,7 +128,7 @@ export function findLinkedMonasteryInCoverage(
     if (distance == null || distance > MONASTERY_COVERAGE_RADIUS) {
       continue;
     }
-    if (!best || monastery.id < best.id) {
+    if (!best || compareStableEntityIds(monastery.id, best.id) < 0) {
       best = monastery;
     }
   }

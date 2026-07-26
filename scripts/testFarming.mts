@@ -4,12 +4,23 @@ import {
   FARM_LARGE_FIELD_EFFICIENCY_FLOOR,
   FARM_MIN_FIELD_AREA,
   FARM_MIN_FIELD_EDGE,
+  FARM_OATS_SEED_GRAIN_PER_SQUARE_METER,
   FARM_OPTIMAL_FIELD_AREA,
+  FARM_RYE_SEED_GRAIN_PER_SQUARE_METER,
+  FARMSTEAD_STARTER_SEED_GRAIN,
   GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
   WATERMILL_WATER_PER_CYCLE,
+  CALENDAR_DAYS_PER_MONTH,
+  CALENDAR_SECONDS_PER_DAY,
+  CATTLE_FERTILITY_BONUS,
+  CATTLE_PLOUGH_WORK_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
+import {
+  computeCattleFieldSupport,
+  selectCattleSupportedFields,
+} from '../src/farming/cattleFieldSupport.ts';
 import {
   expectedFieldYield,
   fieldArea,
@@ -20,6 +31,24 @@ import {
   rectangleFromBaseline,
   sampleAverageSlopeDegrees,
 } from '../src/farming/farmFieldMath.ts';
+import {
+  buildFarmsteadWorkPlan,
+  cropCalendarLabel,
+  currentFieldWorkRemaining,
+  farmsteadExportableGrain,
+  farmsteadSeedGrainRequired,
+  fieldSeedGrainRemaining,
+  fieldStageAllowed,
+  projectedCropFertility,
+  projectedFieldFertility,
+  seedGrainRequired,
+} from '../src/farming/farmWorkPlanning.ts';
+import { gameClockAtElapsedSeconds } from '../src/world/gameCalendar.ts';
+import type {
+  BuildingState,
+  FarmFieldState,
+  LivestockHerdState,
+} from '../src/resources/types.ts';
 import { sampleAuthoritativeHydrologyScore } from '../src/hydrology/sampleAuthoritativeHydrology.ts';
 import {
   AGRICULTURE_BUILD_MENU_ENTRIES,
@@ -106,6 +135,303 @@ assert.equal(MILL_WATER_PER_HARVEST, 0, 'lumber should not consume well water');
 assert.equal(WATERMILL_WATER_PER_CYCLE, 0, 'a river-powered mill should not consume well water');
 assert.ok(GRANARY_WATER_PER_CYCLE > 0, 'bakery production should consume well water');
 assert.ok(GRANARY_FIREWOOD_PER_CYCLE > 0, 'bakery production should consume fuel');
+assert.ok(FARM_RYE_SEED_GRAIN_PER_SQUARE_METER > 0);
+assert.ok(FARM_OATS_SEED_GRAIN_PER_SQUARE_METER > FARM_RYE_SEED_GRAIN_PER_SQUARE_METER);
+assert.ok(
+  FARMSTEAD_STARTER_SEED_GRAIN >= seedGrainRequired(FARM_OPTIMAL_FIELD_AREA, 'oats'),
+  'a new holding should be able to sow one efficient oats field',
+);
+
+const planningField: FarmFieldState = {
+  id: 'field-1',
+  farmsteadId: 'farm-1',
+  corners: rectangle,
+  area: 400,
+  averageSlopeDegrees: 2,
+  moisture: 0.38,
+  fertility: 0.9,
+  crop: 'rye',
+  nextCrop: 'fallow',
+  stage: 'harvesting',
+  stageProgress: 0.25,
+  priority: 1,
+  harvestCount: 0,
+  lastYield: 0,
+  currentYield: 6,
+};
+assert.ok(currentFieldWorkRemaining(planningField) > 0);
+assert.ok(projectedFieldFertility(planningField) < planningField.fertility);
+assert.ok(projectedFieldFertility({ ...planningField, crop: 'fallow' }) > planningField.fertility);
+assert.equal(
+  projectedCropFertility(planningField.fertility, planningField.crop),
+  projectedFieldFertility(planningField),
+);
+assert.ok(
+  projectedCropFertility(projectedFieldFertility(planningField), 'fallow')
+    > projectedFieldFertility(planningField),
+  'a scheduled worked fallow should visibly restore soil after the current cereal',
+);
+assert.equal(
+  projectedFieldFertility(planningField, CATTLE_FERTILITY_BONUS),
+  projectedFieldFertility(planningField) + CATTLE_FERTILITY_BONUS,
+);
+assert.equal(fieldSeedGrainRemaining(planningField), 0, 'planned fallow needs no seed');
+assert.equal(
+  fieldSeedGrainRemaining({ ...planningField, nextCrop: 'oats' }),
+  seedGrainRequired(planningField.area, 'oats'),
+);
+assert.equal(
+  fieldSeedGrainRemaining({
+    ...planningField,
+    crop: 'rye',
+    nextCrop: 'oats',
+    stage: 'sowing',
+    stageProgress: 0.25,
+  }),
+  seedGrainRequired(planningField.area, 'rye') * 0.75,
+);
+assert.equal(fieldSeedGrainRemaining({ ...planningField, priority: 0, nextCrop: 'oats' }), 0);
+assert.equal(
+  farmsteadSeedGrainRequired([
+    { ...planningField, nextCrop: 'rye' },
+    { ...planningField, id: 'field-2', nextCrop: 'oats' },
+  ]),
+  seedGrainRequired(planningField.area, 'rye') + seedGrainRequired(planningField.area, 'oats'),
+);
+assert.equal(
+  farmsteadExportableGrain(30, [{ ...planningField, nextCrop: 'rye' }]),
+  30 - seedGrainRequired(planningField.area, 'rye'),
+);
+assert.equal(
+  farmsteadExportableGrain(4, [{ ...planningField, nextCrop: 'rye' }]),
+  0,
+);
+assert.equal(fieldStageAllowed({ ...planningField, crop: 'rye', stage: 'sowing' }, 10), true);
+assert.equal(fieldStageAllowed({ ...planningField, crop: 'rye', stage: 'sowing' }, 3), false);
+assert.equal(fieldStageAllowed({ ...planningField, crop: 'oats', stage: 'sowing' }, 3), true);
+assert.equal(fieldStageAllowed({ ...planningField, crop: 'oats', stage: 'sowing' }, 10), false);
+assert.match(cropCalendarLabel('rye'), /Oct–Nov/);
+assert.match(cropCalendarLabel('oats'), /Mar–Apr/);
+
+const september = gameClockAtElapsedSeconds(
+  6 * CALENDAR_DAYS_PER_MONTH * CALENDAR_SECONDS_PER_DAY,
+);
+const staffedPlan = buildFarmsteadWorkPlan([planningField], 1, september, false);
+const sabbathPlan = buildFarmsteadWorkPlan([planningField], 1, september, true);
+const unstaffedPlan = buildFarmsteadWorkPlan([planningField], 0, september, false);
+assert.equal(staffedPlan.rotation.activeArea, planningField.area);
+assert.equal(staffedPlan.rotation.nextFallowArea, planningField.area);
+assert.equal(staffedPlan.rotation.restoringFields, 1);
+assert.equal(staffedPlan.rotation.decliningFields, 0);
+assert.equal(staffedPlan.rotation.plannedHarvest, 0);
+assert.equal(staffedPlan.rotation.plannedSeedGrainRequired, 0);
+assert.equal(staffedPlan.rotation.weakestFieldId, planningField.id);
+assert.ok(
+  staffedPlan.rotation.afterPlannedAverageFertility
+    > staffedPlan.rotation.afterCurrentAverageFertility,
+);
+assert.ok(staffedPlan.harvest.requiredWorkerDays > 0);
+assert.equal(staffedPlan.harvest.shortfallWorkerDays, 0);
+assert.ok(sabbathPlan.harvest.availableWorkerDays < staffedPlan.harvest.availableWorkerDays);
+assert.equal(
+  unstaffedPlan.harvest.shortfallWorkerDays,
+  unstaffedPlan.harvest.requiredWorkerDays,
+);
+assert.equal(
+  buildFarmsteadWorkPlan([{ ...planningField, priority: 0 }], 6, september, false).expectedHarvest,
+  0,
+  'paused fields should not count as a viable harvest plan',
+);
+assert.equal(
+  buildFarmsteadWorkPlan([{ ...planningField, priority: 0 }], 6, september, false)
+    .rotation.activeArea,
+  0,
+  'paused land must not appear to restore soil without being worked',
+);
+const springOatsPlan = buildFarmsteadWorkPlan(
+  [{ ...planningField, nextCrop: 'oats' }],
+  2,
+  september,
+  false,
+);
+assert.ok(springOatsPlan.spring.requiredWorkerDays > 0);
+assert.equal(springOatsPlan.autumn.requiredWorkerDays, 0);
+assert.equal(
+  springOatsPlan.seedGrainRequired,
+  seedGrainRequired(planningField.area, 'oats'),
+);
+assert.equal(
+  springOatsPlan.rotation.plannedHarvest,
+  expectedFieldYield({
+    ...planningField,
+    crop: 'oats',
+    fertility: projectedFieldFertility(planningField),
+  }),
+);
+assert.equal(
+  springOatsPlan.rotation.afterPlannedAverageFertility,
+  projectedCropFertility(projectedFieldFertility(planningField), 'oats'),
+);
+const tiedRotationPlan = buildFarmsteadWorkPlan(
+  [
+    { ...planningField, id: '10', nextCrop: 'oats' },
+    { ...planningField, id: '2', nextCrop: 'oats' },
+  ],
+  2,
+  september,
+  false,
+);
+assert.equal(
+  tiedRotationPlan.rotation.weakestFieldId,
+  '2',
+  'equal soil projections should retain stable server-order field ids',
+);
+const autumnRyePlan = buildFarmsteadWorkPlan(
+  [{ ...planningField, nextCrop: 'rye' }],
+  2,
+  september,
+  false,
+);
+assert.ok(autumnRyePlan.autumn.requiredWorkerDays > 0);
+assert.equal(autumnRyePlan.spring.requiredWorkerDays, 0);
+
+const oxHolding = {
+  id: 'building-7',
+  kind: 'pastoral_farmstead',
+  x: 10,
+  z: 10,
+  workRadius: 100,
+} as BuildingState;
+const healthyCattle = {
+  buildingId: oxHolding.id,
+  species: 'cattle',
+  headCount: 4,
+  health: 0.9,
+  suppliedCapacity: 4,
+} as LivestockHerdState;
+const cattleCandidateFields = [
+  { ...planningField, id: 'farm-field-10', stage: 'ploughing' as const, priority: 3 },
+  { ...planningField, id: 'farm-field-2', stage: 'ploughing' as const, priority: 3 },
+  { ...planningField, id: 'farm-field-3', stage: 'ploughing' as const, priority: 2 },
+  {
+    ...planningField,
+    id: 'farm-field-1',
+    stage: 'ploughing' as const,
+    priority: 4,
+    corners: planningField.corners.map((point) => ({
+      x: point.x + 500,
+      z: point.z + 500,
+    })) as FarmFieldState['corners'],
+  },
+];
+assert.deepEqual(
+  selectCattleSupportedFields(oxHolding, healthyCattle, cattleCandidateFields)
+    .map(({ field }) => field.id),
+  ['farm-field-2', 'farm-field-10'],
+  'ox teams should mirror server priority and numeric-id tie-breaking inside their work extent',
+);
+assert.equal(
+  selectCattleSupportedFields(
+    oxHolding,
+    { ...healthyCattle, health: 0.64 },
+    cattleCandidateFields,
+  ).length,
+  0,
+  'an unhealthy herd should not provide field support',
+);
+const cattleSupport = computeCattleFieldSupport({
+  buildings: new Map([[oxHolding.id, oxHolding]]),
+  farmFields: new Map(cattleCandidateFields.map((field) => [field.id, field])),
+  livestockHerds: new Map([[healthyCattle.buildingId, healthyCattle]]),
+});
+assert.deepEqual([...cattleSupport.keys()], ['farm-field-2', 'farm-field-10']);
+const unsupportedPloughWork = currentFieldWorkRemaining(cattleCandidateFields[0]);
+assert.equal(
+  currentFieldWorkRemaining(
+    cattleCandidateFields[0],
+    cattleSupport.get(cattleCandidateFields[0].id)?.ploughWorkMultiplier,
+  ),
+  unsupportedPloughWork * CATTLE_PLOUGH_WORK_MULTIPLIER,
+);
+const unsupportedAutumnPlan = buildFarmsteadWorkPlan(
+  [{ ...planningField, nextCrop: 'fallow' }],
+  2,
+  september,
+  false,
+);
+const supportedAutumnPlan = buildFarmsteadWorkPlan(
+  [{ ...planningField, nextCrop: 'fallow' }],
+  2,
+  september,
+  false,
+  new Map([[
+    planningField.id,
+    {
+      buildingId: oxHolding.id,
+      distance: 0,
+      ploughWorkMultiplier: CATTLE_PLOUGH_WORK_MULTIPLIER,
+      fertilityBonus: CATTLE_FERTILITY_BONUS,
+    },
+  ]]),
+);
+assert.equal(supportedAutumnPlan.cattleSupportedFields, 1);
+assert.ok(
+  supportedAutumnPlan.autumn.requiredWorkerDays
+    < unsupportedAutumnPlan.autumn.requiredWorkerDays,
+  'farmstead labor forecasts should include the ox ploughing reduction',
+);
+const planningStarted = performance.now();
+const largeFarmPlan = buildFarmsteadWorkPlan(
+  Array.from({ length: 10_000 }, (_, index) => ({
+    ...planningField,
+    id: `field-${index}`,
+  })),
+  6,
+  september,
+  false,
+);
+assert.equal(largeFarmPlan.activeFields, 10_000);
+assert.equal(largeFarmPlan.seedGrainRequired, 0);
+assert.ok(
+  performance.now() - planningStarted < 250,
+  'the inspector forecast should remain interactive for a pathological 10,000-field holding',
+);
+const reserveProjectionFields = Array.from({ length: 100_000 }, (_, index) => ({
+  ...planningField,
+  id: `reserve-field-${index}`,
+  nextCrop: 'rye' as const,
+}));
+const reserveProjectionStarted = performance.now();
+const reserveProjection = farmsteadSeedGrainRequired(reserveProjectionFields);
+const reserveProjectionElapsed = performance.now() - reserveProjectionStarted;
+assert.ok(
+  Math.abs(
+    reserveProjection
+      - reserveProjectionFields.length * seedGrainRequired(planningField.area, 'rye'),
+  ) < 1e-5,
+);
+assert.ok(
+  reserveProjectionElapsed < 150,
+  `100,000-field seed projection took ${reserveProjectionElapsed.toFixed(1)}ms`,
+);
+const cattleProjectionStarted = performance.now();
+const cattleProjection = computeCattleFieldSupport({
+  buildings: new Map([[
+    oxHolding.id,
+    { ...oxHolding, workRadius: 1_000_000 },
+  ]]),
+  farmFields: new Map(reserveProjectionFields.map((field, index) => [
+    `farm-field-${index + 1}`,
+    { ...field, id: `farm-field-${index + 1}` },
+  ])),
+  livestockHerds: new Map([[healthyCattle.buildingId, healthyCattle]]),
+});
+const cattleProjectionElapsed = performance.now() - cattleProjectionStarted;
+assert.equal(cattleProjection.size, 2);
+assert.ok(
+  cattleProjectionElapsed < 250,
+  `100,000-field cattle support projection took ${cattleProjectionElapsed.toFixed(1)}ms`,
+);
 
 const agricultureMenu = renderBuildMenuCards(AGRICULTURE_BUILD_MENU_ENTRIES);
 assert.doesNotMatch(agricultureMenu, /data-action="grain-field"/, 'fields must be started from a selected farmstead');
@@ -118,7 +444,37 @@ assert.match(farmFieldTool, /corners\.some\(\(point\)/, 'the whole parcel must s
 
 const farmsteadInspector = fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const livestockInspector = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
+const farmFieldInspector = fs.readFileSync('src/resources/inspector/farmFieldRenderer.ts', 'utf8');
 assert.match(farmsteadInspector, /data-land-parcel="field"/, 'farmsteads need a contextual field-layout action');
 assert.match(livestockInspector, /data-land-parcel="pasture"/, 'livestock holdings need a contextual pasture action');
+assert.match(farmFieldInspector, /Ox support/);
+assert.match(farmFieldInspector, /priority.*limited ox team/i);
+assert.match(farmsteadInspector, /Ox-supported fields/);
+assert.match(farmFieldInspector, /Current-cycle soil/);
+assert.match(farmFieldInspector, /Planned-cycle soil/);
+assert.match(farmFieldInspector, /Next-crop potential/);
+assert.match(farmFieldInspector, /future manure/);
+assert.match(farmsteadInspector, /Next rotation/);
+assert.match(farmsteadInspector, /Soil trajectory/);
+assert.match(farmsteadInspector, /data-inspect-field=/);
+
+const farmSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+assert.match(farmSimulation, /field\.current_yield \+= deposited/, 'harvest accounting must track grain actually stored');
+assert.match(
+  farmSimulation,
+  /finish_field_cycle_with_manure\(field, field\.current_yield, manure_bonus\)/,
+  'the October deadline must close partial harvests instead of erasing their soil cost',
+);
+assert.match(farmSimulation, /seed_grain_required\(field\.area, field\.crop\)/);
+assert.match(farmSimulation, /withdraw_building_commodity\(farmstead, CommodityKind::Grain, seed_used\)/);
+assert.match(farmSimulation, /crop_growth_allowed\(field\.crop, clock\.month\)/);
+assert.match(farmSimulation, /field_work_allowed\(field\.stage, field\.crop, clock\.month\)/);
+assert.match(
+  farmSimulation,
+  /request_connected_seed_grain\([\s\S]*&\["granary", "marketplace"\],[\s\S]*requested_seed/,
+  'seed-short farmsteads must use the dedicated request that may draw through a granary floor',
+);
+const constructionSimulation = fs.readFileSync('server/src/simulation/construction.rs', 'utf8');
+assert.match(constructionSimulation, /site\.grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);
 
 console.log('farming and water-chain tests passed');

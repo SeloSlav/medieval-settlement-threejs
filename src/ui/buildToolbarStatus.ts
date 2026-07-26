@@ -1,6 +1,7 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { BUILDING_KINDS } from '../generated/gameBalance.ts';
 import { formatBuildingCost, getBuildingCost } from '../resources/buildingEconomy.ts';
+import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 
 export type ToolbarStats = {
@@ -8,6 +9,8 @@ export type ToolbarStats = {
   hasDraft: boolean;
   mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'idle';
   statusDetail?: string | null;
+  buildingCost?: BuildingResourceCost;
+  carpenterSupported?: boolean;
 };
 
 export function isBuildingToolMode(mode: ToolbarStats['mode']): mode is BuildingKind {
@@ -116,7 +119,11 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
   if (isBuildingToolMode(stats.mode)) {
     const hint = PLACEMENT_STATUS_HINTS[stats.mode] ?? '';
     const label = getBuildingDefinition(stats.mode).label;
-    return `Click terrain to place a ${label.toLowerCase()} (${formatBuildingCost(getBuildingCost(stats.mode))})${hint}`;
+    const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
+    const support = stats.carpenterSupported
+      ? ' — carpenter-supported: 10% less timber and 18% faster road carts'
+      : '';
+    return `Click terrain to place a ${label.toLowerCase()} (${formatBuildingCost(cost)})${support}${hint}`;
   }
   if (stats.mode === 'residences') {
     return stats.statusDetail ?? 'Click along a road to start the frontage, then set depth behind it';

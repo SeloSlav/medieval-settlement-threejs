@@ -39,6 +39,16 @@ pub fn weather_risk_multiplier(is_raining: bool, is_drought: bool) -> f64 {
     }
 }
 
+/// Combines repeated independent checks without inflating or suppressing the
+/// probability when an expensive world scan is polled less often.
+pub fn accumulated_event_chance(single_check_chance: f64, checks: u64) -> f64 {
+    if checks == 0 {
+        return 0.0;
+    }
+    let chance = single_check_chance.clamp(0.0, 1.0);
+    1.0 - (1.0 - chance).powf(checks as f64)
+}
+
 pub fn step_fire(
     intensity: f64,
     damage: f64,
@@ -154,5 +164,20 @@ mod tests {
     fn spread_falls_off_quadratically() {
         assert_eq!(distance_spread_factor(26.0, 26.0), 0.0);
         assert!(distance_spread_factor(4.0, 26.0) > distance_spread_factor(18.0, 26.0));
+    }
+
+    #[test]
+    fn accumulated_event_chance_preserves_repeated_rare_checks() {
+        assert_eq!(accumulated_event_chance(0.4, 0), 0.0);
+        assert!((accumulated_event_chance(0.4, 1) - 0.4).abs() < 1e-12);
+
+        let per_tick = 0.001;
+        let five_ticks = accumulated_event_chance(per_tick, 5);
+        assert!(five_ticks < per_tick * 5.0);
+        assert!(five_ticks > per_tick * 4.99);
+
+        let two_windows = accumulated_event_chance(five_ticks, 2);
+        let ten_ticks = accumulated_event_chance(per_tick, 10);
+        assert!((two_windows - ten_ticks).abs() < 1e-12);
     }
 }

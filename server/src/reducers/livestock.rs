@@ -1,8 +1,12 @@
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::balance_generated::{
-    CATTLE_MAX_SLOPE_DEGREES, CATTLE_STARTER_HERD, LIVESTOCK_MIN_PASTURE_AREA,
-    LIVESTOCK_MIN_PASTURE_EDGE, SHEEP_MAX_SLOPE_DEGREES, SHEEP_STARTER_HERD,
+    CATTLE_DEFAULT_BREEDING_RESERVE, CATTLE_MAX_HERD, CATTLE_MAX_SLOPE_DEGREES,
+    CATTLE_MINIMUM_BREEDING_RESERVE, CATTLE_STARTER_HERD, LIVESTOCK_DEFAULT_HAYMAKING_PERCENT,
+    LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT, LIVESTOCK_MIN_PASTURE_AREA, LIVESTOCK_MIN_PASTURE_EDGE,
+    SHEEP_DEFAULT_BREEDING_RESERVE, SHEEP_MAX_HERD, SHEEP_MAX_SLOPE_DEGREES,
+    SHEEP_MINIMUM_BREEDING_RESERVE, SHEEP_STARTER_HERD, SWINE_DEFAULT_BREEDING_RESERVE,
+    SWINE_MAX_HERD, SWINE_MINIMUM_BREEDING_RESERVE,
 };
 use crate::burgage::{convex_zones_overlap, zone_overlaps_footprint, Point2};
 use crate::db::*;
@@ -108,7 +112,7 @@ pub fn place_pasture(
             return Err("Pastures cannot cover a quarry pit.".to_string());
         }
     }
-    for building in ctx.db.building().iter() {
+    for building in ctx.db.building().owner().filter(&owner) {
         let Some(radius) = building_pick_radius(&building.kind) else {
             continue;
         };
@@ -116,7 +120,7 @@ pub fn place_pasture(
             return Err("Pasture overlaps a building.".to_string());
         }
     }
-    for zone in ctx.db.burgage_zone().iter() {
+    for zone in ctx.db.burgage_zone().owner().filter(&owner) {
         let existing = [
             Point2 {
                 x: zone.corner_ax,
@@ -139,7 +143,7 @@ pub fn place_pasture(
             return Err("Pasture overlaps a residence plot.".to_string());
         }
     }
-    for field in ctx.db.farm_field().iter() {
+    for field in ctx.db.farm_field().owner().filter(&owner) {
         let existing = [
             Point2 {
                 x: field.corner_ax,
@@ -162,7 +166,7 @@ pub fn place_pasture(
             return Err("Pasture overlaps cultivated farmland.".to_string());
         }
     }
-    for pasture in ctx.db.pasture().iter() {
+    for pasture in ctx.db.pasture().owner().filter(&owner) {
         let existing = [
             Point2 {
                 x: pasture.corner_ax,
@@ -245,6 +249,85 @@ pub fn set_livestock_species(
     herd.last_food_output = 0.0;
     herd.last_preserved_output = 0.0;
     herd.last_wool_gold = 0.0;
+    herd.last_wool_output = 0.0;
+    herd.last_shearing_year = 0;
+    herd.breeding_reserve = default_breeding_reserve(species);
+    herd.last_culled = 0;
+    herd.last_hay_output = 0.0;
+    herd.haymaking_percent = LIVESTOCK_DEFAULT_HAYMAKING_PERCENT;
+    ctx.db.livestock_herd().building_id().update(herd);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_livestock_breeding_reserve(
+    ctx: &ReducerContext,
+    building_id: u64,
+    breeding_reserve: u32,
+) -> Result<(), String> {
+    let building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Livestock holding not found.".to_string())?;
+    if building.owner != ctx.sender()
+        || !matches!(building.kind.as_str(), "pastoral_farmstead" | "swineherd")
+        || !building.construction_complete
+    {
+        return Err("You do not own this completed livestock holding.".to_string());
+    }
+    let mut herd = ctx
+        .db
+        .livestock_herd()
+        .building_id()
+        .find(&building_id)
+        .ok_or_else(|| "Herd state not found.".to_string())?;
+    let minimum = minimum_breeding_reserve(herd.species);
+    let maximum = maximum_herd(herd.species);
+    if breeding_reserve < minimum || breeding_reserve > maximum {
+        return Err(format!(
+            "Breeding reserve must be between {minimum} and {maximum} head."
+        ));
+    }
+    herd.breeding_reserve = breeding_reserve;
+    ctx.db.livestock_herd().building_id().update(herd);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_livestock_haymaking_percent(
+    ctx: &ReducerContext,
+    building_id: u64,
+    haymaking_percent: u8,
+) -> Result<(), String> {
+    let building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Pastoral farmstead not found.".to_string())?;
+    if building.owner != ctx.sender()
+        || building.kind != "pastoral_farmstead"
+        || !building.construction_complete
+    {
+        return Err("You do not own this completed pastoral farmstead.".to_string());
+    }
+    if haymaking_percent > LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT {
+        return Err(format!(
+            "Haymaking may reserve at most {LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT}% of summer pasture."
+        ));
+    }
+    let mut herd = ctx
+        .db
+        .livestock_herd()
+        .building_id()
+        .find(&building_id)
+        .ok_or_else(|| "Herd state not found.".to_string())?;
+    if herd.species == SPECIES_SWINE {
+        return Err("Woodland pigs use pannage rather than hay meadows.".to_string());
+    }
+    herd.haymaking_percent = haymaking_percent;
     ctx.db.livestock_herd().building_id().update(herd);
     Ok(())
 }
@@ -281,5 +364,40 @@ pub fn starter_herd(building_id: u64, owner: spacetimedb::Identity, species: u8)
         last_food_output: 0.0,
         last_preserved_output: 0.0,
         last_wool_gold: 0.0,
+        breeding_reserve: default_breeding_reserve(species),
+        last_culled: 0,
+        hay_stock: 0.0,
+        last_hay_output: 0.0,
+        haymaking_percent: if species == SPECIES_SWINE {
+            0
+        } else {
+            LIVESTOCK_DEFAULT_HAYMAKING_PERCENT
+        },
+        last_wool_output: 0.0,
+        last_shearing_year: 0,
+    }
+}
+
+fn minimum_breeding_reserve(species: u8) -> u32 {
+    match species {
+        SPECIES_CATTLE => CATTLE_MINIMUM_BREEDING_RESERVE,
+        SPECIES_SHEEP => SHEEP_MINIMUM_BREEDING_RESERVE,
+        _ => SWINE_MINIMUM_BREEDING_RESERVE,
+    }
+}
+
+fn default_breeding_reserve(species: u8) -> u32 {
+    match species {
+        SPECIES_CATTLE => CATTLE_DEFAULT_BREEDING_RESERVE,
+        SPECIES_SHEEP => SHEEP_DEFAULT_BREEDING_RESERVE,
+        _ => SWINE_DEFAULT_BREEDING_RESERVE,
+    }
+}
+
+fn maximum_herd(species: u8) -> u32 {
+    match species {
+        SPECIES_CATTLE => CATTLE_MAX_HERD,
+        SPECIES_SHEEP => SHEEP_MAX_HERD,
+        _ => SWINE_MAX_HERD,
     }
 }

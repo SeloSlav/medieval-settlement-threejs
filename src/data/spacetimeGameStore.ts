@@ -19,6 +19,8 @@ import {
 } from '../network/spacetimedbClient.ts';
 import type { RoadNetworkSnapshot } from '../roads/RoadNetwork.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
+import type { FireTargetKind } from '../fires/fireIncident.ts';
+import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
 import type { FarmCrop, LivestockSpecies } from '../resources/types.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
 import { DEFAULT_PARISH_POLICY, type ParishPolicyState } from '../economy/chapelParish.ts';
@@ -50,6 +52,7 @@ import {
   DEFAULT_SETTLEMENT_SECURITY,
   type SettlementSecurityState,
 } from '../security/frontierSecurity.ts';
+import { GAME_TABLE_SUBSCRIPTIONS } from './gameTableSubscriptions.ts';
 import type { WorldLayout } from '../resources/WorldLayout.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
@@ -65,12 +68,42 @@ import { GameTableSync } from './spacetimeTableSync/gameTableSync.ts';
 import { syncWorldConfig } from './spacetimeTableSync/syncWorldConfig.ts';
 import type { GameTableSyncState } from './spacetimeTableSync/gameTableSyncState.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
+import {
+  applySeasonalLaborCallup,
+  applySeasonalLaborRecall,
+  computeSettlementSeasonalCallupPlan,
+  computeSettlementSeasonalLaborPlan,
+} from '../economy/seasonalLabor.ts';
+import {
+  applyProcessorLaborCallup,
+  computeSettlementProcessorLaborCallupPlan,
+} from '../economy/processorLabor.ts';
+import {
+  applyWorksiteStallRecall,
+  computeSettlementWorksiteStallPlan,
+} from '../economy/settlementWorksiteStalls.ts';
+import {
+  applyConstructionLaborRotation,
+  computeSettlementConstructionLaborPlan,
+} from '../economy/constructionLabor.ts';
+import {
+  applyYearRoundLaborRotation,
+  computeSettlementYearRoundLaborRotation,
+} from '../economy/yearRoundLabor.ts';
+import { gameClock } from '../world/gameCalendar.ts';
+import { STARTING_POPULATION } from '../generated/gameBalance.ts';
+import {
+  DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
+  DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
+} from '../economy/laborSteward.ts';
 
 export type SpacetimeGameSnapshot = {
   connected: boolean;
   identityHex: string | null;
   stockpile: ResourceStockpile;
   economicActivityTaxRate: number;
+  seasonalLaborStewardEnabled: boolean;
+  constructionLaborStewardEnabled: boolean;
   parishPolicy: ParishPolicyState;
   monasteryPolicy: MonasteryPolicyState;
   marketState: RegionalMarketState;
@@ -103,6 +136,8 @@ function createEmptyTableState(): GameTableSyncState {
     worldGeneration: null,
     stockpile: createEmptyStockpile(),
     economicActivityTaxRate: ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
+    seasonalLaborStewardEnabled: DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
+    constructionLaborStewardEnabled: DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
     parishPolicy: { ...DEFAULT_PARISH_POLICY },
     monasteryPolicy: { ...DEFAULT_MONASTERY_POLICY },
     marketState: { ...DEFAULT_REGIONAL_MARKET_STATE },
@@ -162,6 +197,8 @@ export class SpacetimeGameStore {
       identityHex: state.identityHex,
       stockpile: this.snapshotRecord(state.stockpile),
       economicActivityTaxRate: state.economicActivityTaxRate,
+      seasonalLaborStewardEnabled: state.seasonalLaborStewardEnabled,
+      constructionLaborStewardEnabled: state.constructionLaborStewardEnabled,
       parishPolicy: this.snapshotRecord(state.parishPolicy),
       monasteryPolicy: this.snapshotRecord(state.monasteryPolicy),
       marketState: this.snapshotRecord(state.marketState),
@@ -285,6 +322,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.upgradeResidence(residenceId);
   }
 
+  repairFireDamage(targetKind: FireTargetKind, targetId: string): Promise<void> {
+    return spacetimeReducers.repairFireDamage(targetKind, targetId);
+  }
+
   placeBuilding(kind: BuildingKind, x: number, z: number): Promise<void> {
     return spacetimeReducers.placeBuilding(kind, x, z);
   }
@@ -343,8 +384,24 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setLivestockSpecies(buildingId, species);
   }
 
+  setLivestockBreedingReserve(buildingId: string, breedingReserve: number): Promise<void> {
+    return spacetimeReducers.setLivestockBreedingReserve(buildingId, breedingReserve);
+  }
+
+  setLivestockHaymakingPercent(buildingId: string, haymakingPercent: number): Promise<void> {
+    return spacetimeReducers.setLivestockHaymakingPercent(buildingId, haymakingPercent);
+  }
+
   setEconomicActivityTaxRate(taxRate: number): Promise<void> {
     return spacetimeReducers.setEconomicActivityTaxRate(taxRate);
+  }
+
+  setSeasonalLaborSteward(enabled: boolean): Promise<void> {
+    return spacetimeReducers.setSeasonalLaborSteward(enabled);
+  }
+
+  setConstructionLaborSteward(enabled: boolean): Promise<void> {
+    return spacetimeReducers.setConstructionLaborSteward(enabled);
   }
 
   setChapelParishPolicy(
@@ -377,8 +434,67 @@ export class SpacetimeGameStore {
     );
   }
 
-  setGranaryPolicy(buildingId: string, acceptsFreshFood: boolean): Promise<void> {
-    return spacetimeReducers.setGranaryPolicy(buildingId, acceptsFreshFood);
+  setStorehouseStockTarget(
+    buildingId: string,
+    commodity: StorehouseCommodity,
+    targetPercent: number,
+  ): Promise<void> {
+    return spacetimeReducers.setStorehouseStockTarget(
+      buildingId,
+      commodity,
+      targetPercent,
+    );
+  }
+
+  setProcessorOutputTarget(
+    buildingId: string,
+    targetPercent: number,
+  ): Promise<void> {
+    return spacetimeReducers.setProcessorOutputTarget(buildingId, targetPercent);
+  }
+
+  setGranaryPolicy(
+    buildingId: string,
+    acceptsFreshFood: boolean,
+    householdsFirst: boolean,
+  ): Promise<void> {
+    return spacetimeReducers.setGranaryPolicy(buildingId, acceptsFreshFood, householdsFirst);
+  }
+
+  setGranaryGrainReserve(buildingId: string, grainReserve: number): Promise<void> {
+    return spacetimeReducers.setGranaryGrainReserve(buildingId, grainReserve);
+  }
+
+  setGranaryFreshFoodTarget(buildingId: string, targetPercent: number): Promise<void> {
+    return spacetimeReducers.setGranaryFreshFoodTarget(buildingId, targetPercent);
+  }
+
+  setWoodcutterTimberReserve(buildingId: string, timberReserve: number): Promise<void> {
+    return spacetimeReducers.setWoodcutterTimberReserve(buildingId, timberReserve);
+  }
+
+  setCarpenterPolearmReserve(buildingId: string, polearmReserve: number): Promise<void> {
+    return spacetimeReducers.setCarpenterPolearmReserve(buildingId, polearmReserve);
+  }
+
+  setGuardhousePayPriority(buildingId: string, payPriority: number): Promise<void> {
+    return spacetimeReducers.setGuardhousePayPriority(buildingId, payPriority);
+  }
+
+  setGuardhouseFoodReserve(buildingId: string, reservePerGuard: number): Promise<void> {
+    return spacetimeReducers.setGuardhouseFoodReserve(buildingId, reservePerGuard);
+  }
+
+  setMarketplaceIronworkTarget(buildingId: string, ironworkTarget: number): Promise<void> {
+    return spacetimeReducers.setMarketplaceIronworkTarget(buildingId, ironworkTarget);
+  }
+
+  setMarketplaceSpecialtyExportPolicy(buildingId: string, exportPolicy: number): Promise<void> {
+    return spacetimeReducers.setMarketplaceSpecialtyExportPolicy(buildingId, exportPolicy);
+  }
+
+  setHarvestReservePercent(buildingId: string, reservePercent: number): Promise<void> {
+    return spacetimeReducers.setHarvestReservePercent(buildingId, reservePercent);
   }
 
   async assignBuildingLabor(buildingId: string, labor: number): Promise<void> {
@@ -396,6 +512,217 @@ export class SpacetimeGameStore {
       if (connection) {
         this.tableSync.syncBuildings(connection);
       }
+    } catch (error) {
+      if (previous) {
+        const nextBuildings = new Map(this.tableState.buildings);
+        nextBuildings.set(buildingId, previous);
+        this.tableState.buildings = nextBuildings;
+        this.emit();
+      }
+      throw error;
+    }
+  }
+
+  async rotateConstructionLabor(): Promise<{
+    recalledWorkers: number;
+    calledWorkers: number;
+  }> {
+    const totalPopulation = STARTING_POPULATION + Array.from(
+      this.tableState.residences.values(),
+    ).reduce(
+      (total, residence) => total + (residence.abandoned ? 0 : residence.population),
+      0,
+    );
+    const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
+      (total, building) => total + building.assignedLabor,
+      0,
+    );
+    const plan = computeSettlementConstructionLaborPlan(
+      this.tableState,
+      Math.max(0, totalPopulation - assignedLabor),
+    );
+    if (plan.assignments.length === 0) {
+      return { recalledWorkers: 0, calledWorkers: 0 };
+    }
+    const previousBuildings = this.tableState.buildings;
+    this.tableState.buildings = applyConstructionLaborRotation(previousBuildings, plan);
+    this.emit();
+    try {
+      await spacetimeReducers.rotateConstructionLabor();
+      const connection = getConnection();
+      if (connection) this.tableSync.syncBuildings(connection);
+      return {
+        recalledWorkers: plan.recalledWorkers,
+        calledWorkers: plan.calledWorkers,
+      };
+    } catch (error) {
+      this.tableState.buildings = previousBuildings;
+      this.emit();
+      throw error;
+    }
+  }
+
+  async recallIdleSeasonalLabor(): Promise<number> {
+    const plan = computeSettlementSeasonalLaborPlan(
+      this.tableState,
+      gameClock(this.tableState.simTick).month,
+    );
+    if (plan.reclaimableWorkers <= 0) return 0;
+    const previousBuildings = this.tableState.buildings;
+    this.tableState.buildings = applySeasonalLaborRecall(previousBuildings, plan);
+    this.emit();
+    try {
+      await spacetimeReducers.recallIdleSeasonalLabor();
+      const connection = getConnection();
+      if (connection) this.tableSync.syncBuildings(connection);
+      return plan.reclaimableWorkers;
+    } catch (error) {
+      this.tableState.buildings = previousBuildings;
+      this.emit();
+      throw error;
+    }
+  }
+
+  async callUpActiveSeasonalLabor(): Promise<number> {
+    const totalPopulation = STARTING_POPULATION + Array.from(
+      this.tableState.residences.values(),
+    ).reduce(
+      (total, residence) => total + (residence.abandoned ? 0 : residence.population),
+      0,
+    );
+    const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
+      (total, building) => total + building.assignedLabor,
+      0,
+    );
+    const plan = computeSettlementSeasonalCallupPlan(
+      this.tableState,
+      gameClock(this.tableState.simTick).month,
+      Math.max(0, totalPopulation - assignedLabor),
+    );
+    if (plan.callupWorkers <= 0) return 0;
+    const previousBuildings = this.tableState.buildings;
+    this.tableState.buildings = applySeasonalLaborCallup(previousBuildings, plan);
+    this.emit();
+    try {
+      await spacetimeReducers.callUpActiveSeasonalLabor();
+      const connection = getConnection();
+      if (connection) this.tableSync.syncBuildings(connection);
+      return plan.callupWorkers;
+    } catch (error) {
+      this.tableState.buildings = previousBuildings;
+      this.emit();
+      throw error;
+    }
+  }
+
+  async recallTargetIdleProcessorLabor(): Promise<number> {
+    const plan = computeSettlementWorksiteStallPlan(
+      this.tableState,
+      gameClock(this.tableState.simTick).month,
+    );
+    if (plan.reclaimableWorkers <= 0) return 0;
+    const previousBuildings = this.tableState.buildings;
+    this.tableState.buildings = applyWorksiteStallRecall(previousBuildings, plan);
+    this.emit();
+    try {
+      await spacetimeReducers.recallTargetIdleProcessorLabor();
+      const connection = getConnection();
+      if (connection) this.tableSync.syncBuildings(connection);
+      return plan.reclaimableWorkers;
+    } catch (error) {
+      this.tableState.buildings = previousBuildings;
+      this.emit();
+      throw error;
+    }
+  }
+
+  async callUpTargetReadyProcessorLabor(): Promise<number> {
+    const totalPopulation = STARTING_POPULATION + Array.from(
+      this.tableState.residences.values(),
+    ).reduce(
+      (total, residence) => total + (residence.abandoned ? 0 : residence.population),
+      0,
+    );
+    const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
+      (total, building) => total + building.assignedLabor,
+      0,
+    );
+    const plan = computeSettlementProcessorLaborCallupPlan(
+      this.tableState,
+      Math.max(0, totalPopulation - assignedLabor),
+    );
+    if (plan.callupWorkers <= 0) return 0;
+    const previousBuildings = this.tableState.buildings;
+    this.tableState.buildings = applyProcessorLaborCallup(previousBuildings, plan);
+    this.emit();
+    try {
+      await spacetimeReducers.callUpTargetReadyProcessorLabor();
+      const connection = getConnection();
+      if (connection) this.tableSync.syncBuildings(connection);
+      return plan.callupWorkers;
+    } catch (error) {
+      this.tableState.buildings = previousBuildings;
+      this.emit();
+      throw error;
+    }
+  }
+
+  async balanceYearRoundLabor(): Promise<{
+    recalledWorkers: number;
+    calledWorkers: number;
+  }> {
+    const totalPopulation = STARTING_POPULATION + Array.from(
+      this.tableState.residences.values(),
+    ).reduce(
+      (total, residence) => total + (residence.abandoned ? 0 : residence.population),
+      0,
+    );
+    const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
+      (total, building) => total + building.assignedLabor,
+      0,
+    );
+    const plan = computeSettlementYearRoundLaborRotation(
+      this.tableState,
+      Math.max(0, totalPopulation - assignedLabor),
+    );
+    if (plan.assignments.length === 0) {
+      return { recalledWorkers: 0, calledWorkers: 0 };
+    }
+    const previousBuildings = this.tableState.buildings;
+    this.tableState.buildings = applyYearRoundLaborRotation(previousBuildings, plan);
+    this.emit();
+    try {
+      await spacetimeReducers.callUpYearRoundLabor();
+      const connection = getConnection();
+      if (connection) this.tableSync.syncBuildings(connection);
+      return {
+        recalledWorkers: plan.recalledWorkers,
+        calledWorkers: plan.calledWorkers,
+      };
+    } catch (error) {
+      this.tableState.buildings = previousBuildings;
+      this.emit();
+      throw error;
+    }
+  }
+
+  async setConstructionPriority(buildingId: string, priority: number): Promise<void> {
+    const clampedPriority = Math.max(0, Math.min(3, Math.floor(priority)));
+    const previous = this.tableState.buildings.get(buildingId);
+    if (previous) {
+      const nextBuildings = new Map(this.tableState.buildings);
+      nextBuildings.set(buildingId, {
+        ...previous,
+        constructionPriority: clampedPriority,
+        assignedLabor: clampedPriority === 0 ? 0 : previous.assignedLabor,
+      });
+      this.tableState.buildings = nextBuildings;
+      this.emit();
+    }
+    try {
+      await spacetimeReducers.setConstructionPriority(buildingId, clampedPriority);
+      const connection = getConnection();
+      if (connection) this.tableSync.syncBuildings(connection);
     } catch (error) {
       if (previous) {
         const nextBuildings = new Map(this.tableState.buildings);
@@ -485,21 +812,9 @@ export class SpacetimeGameStore {
     if (!connection) return;
 
     if (this.subscribedConnection !== connection) {
-      connection.subscriptionBuilder().subscribe('SELECT * FROM world_config');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM player_resources');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM quarry');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM foraging_node');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM tree_entity');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM building');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM farm_field');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM burgage_zone');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM residence');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM backyard_garden');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM residence_need');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM delivery_trip');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM fire_incident');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM settlement_security');
-      connection.subscriptionBuilder().subscribe('SELECT * FROM road_network_state');
+      for (const table of GAME_TABLE_SUBSCRIPTIONS) {
+        connection.subscriptionBuilder().subscribe(`SELECT * FROM ${table}`);
+      }
       this.tableSync.attachHandlers(connection);
       this.subscribedConnection = connection;
     }

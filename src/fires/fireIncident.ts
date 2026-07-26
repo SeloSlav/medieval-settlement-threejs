@@ -4,7 +4,7 @@ export type FireTargetKind = (typeof FIRE_TARGET_KINDS)[number];
 export const FIRE_INCIDENT_STATES = ['burning', 'extinguished', 'destroyed'] as const;
 export type FireIncidentStatus = (typeof FIRE_INCIDENT_STATES)[number];
 
-export const FIRE_IGNITION_SOURCES = ['lightning', 'accident', 'spread'] as const;
+export const FIRE_IGNITION_SOURCES = ['lightning', 'accident', 'spread', 'raid'] as const;
 export type FireIgnitionSource = (typeof FIRE_IGNITION_SOURCES)[number];
 
 export type FireIncidentState = {
@@ -46,6 +46,16 @@ export function activeFireCount(incidents: Iterable<FireIncidentState>): number 
   return count;
 }
 
+export function fireDisabledBuildingIds(
+  incidents: Iterable<FireIncidentState>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const incident of incidents) {
+    if (incident.targetKind === 'building') ids.add(incident.targetId);
+  }
+  return ids;
+}
+
 export function fireForTarget(
   incidents: Iterable<FireIncidentState>,
   targetKind: FireTargetKind,
@@ -64,5 +74,6 @@ export function fireSourceLabel(source: FireIgnitionSource): string {
     case 'lightning': return 'Lightning strike';
     case 'accident': return 'Hearth or workshop accident';
     case 'spread': return 'Fire spread from a nearby structure';
+    case 'raid': return 'Raiders set the holding alight';
   }
 }

@@ -54,6 +54,13 @@ export function syncLivestockHerds(
       lastFoodOutput: row.lastFoodOutput,
       lastPreservedOutput: row.lastPreservedOutput,
       lastWoolGold: row.lastWoolGold,
+      lastWoolOutput: row.lastWoolOutput,
+      lastShearingYear: Number(row.lastShearingYear),
+      breedingReserve: Number(row.breedingReserve),
+      lastCulled: Number(row.lastCulled),
+      hayStock: row.hayStock,
+      lastHayOutput: row.lastHayOutput,
+      haymakingPercent: Number(row.haymakingPercent),
     });
   }
   return herds;

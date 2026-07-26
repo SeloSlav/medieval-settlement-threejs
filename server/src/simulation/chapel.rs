@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use spacetimedb::ReducerContext;
 
 use crate::db::*;
@@ -9,6 +11,12 @@ use crate::simulation::landmark_access::{find_serving_chapel, residence_has_mona
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::Building;
 
+#[derive(Clone, Copy)]
+struct MonasteryTitheRoute {
+    monastery_id: Option<u64>,
+    share: f64,
+}
+
 pub fn step_chapels(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -17,12 +25,17 @@ pub fn step_chapels(
     chapels: &[Building],
     monasteries: &[Building],
 ) {
+    // Routes depend only on the current policy, road graph, and the classified
+    // fire-safe building roster. Resolve them once per chapel rather than
+    // scanning and sorting monastery rows for every household that pays.
+    let monastery_tithe_routes = build_monastery_tithe_routes(ctx, tick, chapels, monasteries);
+
     for residence in ctx.db.residence().iter() {
         if residence.abandoned || residence.population == 0 {
             continue;
         }
 
-        if is_chapel_tithe_paused(ctx, residence.owner, clock) {
+        if is_chapel_tithe_paused(ctx, tick, residence.owner, clock) {
             continue;
         }
 
@@ -33,6 +46,7 @@ pub fn step_chapels(
         let sabbath_observance =
             crate::simulation::labor_schedule::owner_sabbath_observance_enabled(
                 ctx,
+                tick,
                 residence.owner,
             );
         let has_monastery_coverage = residence_has_monastery_coverage(
@@ -57,7 +71,8 @@ pub fn step_chapels(
             continue;
         }
 
-        let monastery_share = transfer_monastery_tithe(ctx, tick, chapel, paid);
+        let monastery_share =
+            transfer_monastery_tithe(ctx, chapel, monastery_tithe_routes.get(&chapel.id), paid);
         let parish_share = (paid - monastery_share).max(0.0);
         let deposited = deposit_chapel_coffer(ctx, chapel.id, parish_share);
         let overflow = parish_share - deposited;
@@ -67,42 +82,72 @@ pub fn step_chapels(
     }
 }
 
-fn transfer_monastery_tithe(
+fn build_monastery_tithe_routes(
     ctx: &ReducerContext,
     tick: &SimTickContext,
+    chapels: &[Building],
+    monasteries: &[Building],
+) -> HashMap<u64, MonasteryTitheRoute> {
+    chapels
+        .iter()
+        .map(|chapel| {
+            let share = ctx
+                .db
+                .player_resources()
+                .owner()
+                .find(&chapel.owner)
+                .map(|resources| resources.monastery_tithe_share.clamp(0.0, 0.8))
+                .unwrap_or(0.0);
+            let monastery_id = if share <= 1e-9 {
+                None
+            } else {
+                monasteries
+                    .iter()
+                    .filter(|building| {
+                        building.owner == chapel.owner
+                            && building.kind == "monastery"
+                            && building.construction_complete
+                            && tick.road_connected(
+                                chapel.owner,
+                                chapel.x,
+                                chapel.z,
+                                building.x,
+                                building.z,
+                            )
+                    })
+                    .map(|building| building.id)
+                    .min()
+            };
+            (
+                chapel.id,
+                MonasteryTitheRoute {
+                    monastery_id,
+                    share,
+                },
+            )
+        })
+        .collect()
+}
+
+fn transfer_monastery_tithe(
+    ctx: &ReducerContext,
     chapel: &Building,
+    route: Option<&MonasteryTitheRoute>,
     paid: f64,
 ) -> f64 {
-    let Some(network) = tick.road_network(chapel.owner) else {
+    let Some(route) = route else {
         return 0.0;
     };
-    let share = ctx
-        .db
-        .player_resources()
-        .owner()
-        .find(&chapel.owner)
-        .map(|resources| resources.monastery_tithe_share.clamp(0.0, 0.8))
-        .unwrap_or(0.0);
-    if share <= 1e-9 {
+    if route.share <= 1e-9 {
         return 0.0;
     }
-    let mut monasteries: Vec<Building> = ctx
-        .db
-        .building()
-        .owner()
-        .filter(&chapel.owner)
-        .filter(|building| building.kind == "monastery" && building.construction_complete)
-        .filter(|building| {
-            network
-                .road_path_distance(chapel.x, chapel.z, building.x, building.z)
-                .is_some()
-        })
-        .collect();
-    monasteries.sort_by_key(|building| building.id);
-    let Some(mut monastery) = monasteries.into_iter().next() else {
+    let Some(monastery_id) = route.monastery_id else {
         return 0.0;
     };
-    let transferred = paid * share;
+    let Some(mut monastery) = ctx.db.building().id().find(&monastery_id) else {
+        return 0.0;
+    };
+    let transferred = paid * route.share;
     monastery.gold += transferred;
     ctx.db.building().id().update(monastery);
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&chapel.owner) {

@@ -105,6 +105,48 @@ pub fn construction_treasury_reservation(
     (timber_from_treasury, stone_from_treasury)
 }
 
+/// Repair sites may already hold usable material. The caller records the
+/// consumed onsite portion as delivered, then reserves only the remainder
+/// from other stores or the treasury so the site never dispatches a cart to
+/// itself.
+pub fn construction_treasury_reservation_excluding_building(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    timber: f64,
+    stone: f64,
+    excluded_building_id: u64,
+) -> (f64, f64) {
+    let building_timber: f64 = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.id != excluded_building_id)
+        .map(|building| building.timber)
+        .sum();
+    let building_stone: f64 = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.id != excluded_building_id)
+        .map(|building| building.stone)
+        .sum();
+    let reserved_timber = reserved_construction_total(ctx, owner, |building| {
+        (building.construction_reserved_timber - building.construction_treasury_timber).max(0.0)
+    });
+    let reserved_stone = reserved_construction_total(ctx, owner, |building| {
+        (building.construction_reserved_stone - building.construction_treasury_stone).max(0.0)
+    });
+    let available_timber = (building_timber - reserved_timber).max(0.0);
+    let available_stone = (building_stone - reserved_stone).max(0.0);
+    let timber_from_treasury =
+        (timber - available_timber).clamp(0.0, available_unreserved_treasury_timber(ctx, owner));
+    let stone_from_treasury =
+        (stone - available_stone).clamp(0.0, available_unreserved_treasury_stone(ctx, owner));
+    (timber_from_treasury, stone_from_treasury)
+}
+
 fn reserved_construction_total<F>(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,

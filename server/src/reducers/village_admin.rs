@@ -3,6 +3,8 @@ use spacetimedb::{reducer, ReducerContext};
 use crate::db::*;
 use crate::economy::clamp_chapel_coffer_reserve_gold;
 use crate::lifecycle::ensure_player_resources;
+use crate::reducers::buildings::rotate_construction_labor_for_owner;
+use crate::simulation::{game_clock, reconcile_seasonal_labor_for_owner};
 
 fn require_owned_building(ctx: &ReducerContext, kind: &str, staffed: bool) -> Result<(), String> {
     let owner = ctx.sender();
@@ -84,5 +86,56 @@ pub fn set_monastery_policy(
     resources.monastery_tithe_share = tithe_share.clamp(0.0, 0.8);
     resources.monastery_feasts_enabled = feasts_enabled;
     ctx.db.player_resources().owner().update(resources);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_seasonal_labor_steward(ctx: &ReducerContext, enabled: bool) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    require_owned_building(ctx, "town_hall", true)?;
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Player resources not found.".to_string());
+    };
+    if resources.seasonal_labor_steward_enabled == enabled {
+        return Ok(());
+    }
+    resources.seasonal_labor_steward_enabled = enabled;
+    ctx.db.player_resources().owner().update(resources);
+
+    // Enabling is immediately useful; later reviews occur once per calendar
+    // day while a Town Hall clerk remains assigned.
+    if enabled {
+        let sim_tick = ctx
+            .db
+            .world_config()
+            .id()
+            .find(&0)
+            .map(|config| config.sim_tick)
+            .unwrap_or(0);
+        reconcile_seasonal_labor_for_owner(ctx, owner, game_clock(sim_tick).month);
+    }
+    Ok(())
+}
+
+#[reducer]
+pub fn set_construction_labor_steward(ctx: &ReducerContext, enabled: bool) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    require_owned_building(ctx, "town_hall", true)?;
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Player resources not found.".to_string());
+    };
+    if resources.construction_labor_steward_enabled == enabled {
+        return Ok(());
+    }
+    resources.construction_labor_steward_enabled = enabled;
+    ctx.db.player_resources().owner().update(resources);
+
+    // Opting in is immediately useful; later reviews occur once per calendar
+    // day while a Town Hall clerk remains assigned.
+    if enabled {
+        rotate_construction_labor_for_owner(ctx, owner);
+    }
     Ok(())
 }

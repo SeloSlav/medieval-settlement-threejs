@@ -3,6 +3,7 @@ export type StartupDiagnostics = {
   terrainSource?: 'cache' | 'generated';
   terrainDataReadyMs?: number;
   firstPlayableMs?: number;
+  settlementPresentationReadyMs?: number;
   detailedWorldTexturesReadyMs?: number;
   vegetationReadyMs?: number;
 };
@@ -24,6 +25,13 @@ export function markTerrainDataReady(source: 'cache' | 'generated'): void {
 export function markFirstPlayable(): void {
   stats.firstPlayableMs = elapsed();
   console.info(`[Startup] first playable frame in ${stats.firstPlayableMs} ms`);
+}
+
+export function markSettlementPresentationReady(): void {
+  stats.settlementPresentationReadyMs = elapsed();
+  console.info(
+    `[Startup] settlement presentation ready in ${stats.settlementPresentationReadyMs} ms`,
+  );
 }
 
 export function markDetailedWorldTexturesReady(): void {

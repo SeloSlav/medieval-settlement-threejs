@@ -6,6 +6,7 @@ use crate::roads::RoadNetwork;
 use crate::simulation::delivery_trips::{building_has_active_trip, try_start_delivery_trip};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::residence_needs::ResidenceNeedKind;
+use crate::simulation::SimTickContext;
 use crate::tables::{Building, Residence};
 
 #[derive(Clone, Copy, Debug)]
@@ -38,6 +39,7 @@ pub fn should_alternate_single_worker(
 
 pub fn dispatch_delivery_if_ready(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     clock: &GameClock,
     network: &RoadNetwork,
     building: &mut Building,
@@ -50,6 +52,7 @@ pub fn dispatch_delivery_if_ready(
     }
     try_start_delivery_trip(
         ctx,
+        tick,
         clock,
         network,
         building,

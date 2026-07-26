@@ -1,5 +1,7 @@
 import {
   countSitesProtectedByWatchtower,
+  DEFAULT_SETTLEMENT_SECURITY,
+  formatFrontierForecast,
   frontierThreatLabel,
   watchtowerEffectiveRadius,
 } from '../../security/frontierSecurity.ts';
@@ -18,24 +20,11 @@ export function renderWatchtowerInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
-  const security = context.getSettlementSecurity?.();
+  const security = context.getSettlementSecurity?.() ?? DEFAULT_SETTLEMENT_SECURITY;
   const protectedSites = countSitesProtectedByWatchtower(building, context.gameState);
   const effectiveRadius = watchtowerEffectiveRadius(building);
-  const settlementCoverage = Math.round((security?.coverage ?? 0) * 100);
-  const threatLabel = frontierThreatLabel(security ?? {
-    threat: 0,
-    coverage: 0,
-    protectedValue: 0,
-    totalValue: 0,
-    staffedWatchtowers: 0,
-    readyGuards: 0,
-    defenseReadiness: 0,
-    nextRaidTick: 0,
-    lastRaidTick: 0,
-    lastOutcome: 'none',
-    lastGoodsLost: 0,
-    lastWealthLost: 0,
-  }, { conflictMode: 'frontier' });
+  const settlementCoverage = Math.round(security.coverage * 100);
+  const threatLabel = frontierThreatLabel(security, { conflictMode: 'frontier' });
 
   const status = building.assignedLabor <= 0
     ? ['Unstaffed — no warning coverage', 'warning'] as const
@@ -52,11 +41,13 @@ export function renderWatchtowerInspector(
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Early warning for nearby households and stores</span></li>
+      <li><span>Posted watch</span><span>${building.assignedLabor > 0 ? `${building.assignedLabor} visible ${building.assignedLabor === 1 ? 'lookout' : 'lookouts'} in the raised gallery` : 'No lookout posted'}</span></li>
       <li><span>Effective radius</span><span>${effectiveRadius > 0 ? `${Math.round(effectiveRadius)} m` : 'None until staffed'}</span></li>
       <li><span>Protected holdings</span><span>${protectedSites.buildings} buildings · ${protectedSites.homes} homes</span></li>
       <li><span>Residents warned</span><span>${protectedSites.residents}</span></li>
       <li><span>Settlement coverage</span><span>${settlementCoverage}% weighted value</span></li>
       <li><span>Frontier report</span><span>${threatLabel}</span></li>
+      <li><span>Projected defense</span><span>${formatFrontierForecast(security, context.enemyPressure)}</span></li>
       <li><span>Campaign season</span><span>Incursions pause from November through March</span></li>
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },

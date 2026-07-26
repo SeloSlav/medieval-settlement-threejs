@@ -5,6 +5,10 @@ import {
   CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
   ECONOMIC_ACTIVITY_TAX_RATE_MAX,
   ECONOMIC_ACTIVITY_TAX_RATE_MIN,
+  MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
+  MONASTERY_HOSPITALITY_HONEY_PER_DAY,
+  MONASTERY_HOSPITALITY_WINE_PER_DAY,
+  MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
 } from '../generated/gameBalance.ts';
 import { clampChapelCofferReserveGold, type ParishPolicyState } from '../economy/chapelParish.ts';
 import {
@@ -133,7 +137,8 @@ export class CityAdministrationPanel {
           <span>Observe Sunday sabbath (staffed chapel)</span>
         </label>
         <p class="city-admin-panel__intro city-admin-panel__intro--compact">
-          Sabbath pauses work and deliveries every Sunday when a priest is assigned. Villagers attend more often
+          Sabbath pauses work and deliveries every Sunday when a priest is assigned. Households still consume
+          provisions already delivered, so stock homes before Saturday night. Villagers attend more often
           (+${Math.round(CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS * 100)}% attendance) and settle in faster
           (+${Math.round(CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS * 100)}% settlement speed).
         </p>
@@ -155,8 +160,15 @@ export class CityAdministrationPanel {
         <h3 class="city-admin-panel__section-title">Pauline monastery policy</h3>
         <label class="city-admin-panel__toggle">
           <input type="checkbox" data-monastery-feasts-toggle />
-          <span>Hold feast-day charity (fixed calendar)</span>
+          <span>Provision hospitality and feast days</span>
         </label>
+        <p class="city-admin-panel__intro city-admin-panel__intro--compact">
+          Apiaries and vineyards supply each linked monastery before exporting. Daily use is
+          ${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey and
+          ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine, plus five feast-day draws;
+          full stores add ${MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY.toFixed(1)} pilgrimage gold/day
+          to the ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} baseline. Disable this to preserve all specialty goods for trade.
+        </p>
         <label class="city-admin-panel__slider-label" for="city-admin-monastery-tithe-slider">
           <span>Parish tithe share to monastery</span>
           <strong data-monastery-tithe-value>30%</strong>

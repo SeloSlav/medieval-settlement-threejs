@@ -20,6 +20,7 @@ export function roadDeliveryTripSeconds(
   speedMps: number,
   deliveryWorkers: number,
   unloadSeconds: number,
+  travelSpeedMultiplier = 1,
 ): number {
   if (deliveryWorkers <= 0 || speedMps <= 1e-9 || !target) {
     return Infinity;
@@ -32,7 +33,8 @@ export function roadDeliveryTripSeconds(
 
   const workers = Math.max(1, deliveryWorkers);
   const roundTripMeters = oneWayMeters * 2;
-  const travelSeconds = roundTripMeters / (speedMps * workers);
+  const travelSeconds = roundTripMeters
+    / (speedMps * workers * Math.max(1, travelSpeedMultiplier));
   const tripSeconds = travelSeconds + unloadSeconds / workers;
   return Math.max(MIN_DELIVERY_TRIP_SEC, tripSeconds);
 }
@@ -51,6 +53,7 @@ export function firewoodDeliveryTripSeconds(
   origin: RoadPoint,
   target: RoadPoint | null,
   deliveryWorkers: number,
+  travelSpeedMultiplier = 1,
 ): number {
   return roadDeliveryTripSeconds(
     network,
@@ -59,6 +62,7 @@ export function firewoodDeliveryTripSeconds(
     FIREWOOD_DELIVERY_SPEED_MPS,
     deliveryWorkers,
     FIREWOOD_DELIVERY_UNLOAD_SEC,
+    travelSpeedMultiplier,
   );
 }
 
@@ -67,6 +71,7 @@ export function waterDeliveryTripSeconds(
   origin: RoadPoint,
   target: RoadPoint | null,
   deliveryWorkers: number,
+  travelSpeedMultiplier = 1,
 ): number {
   return roadDeliveryTripSeconds(
     network,
@@ -75,6 +80,7 @@ export function waterDeliveryTripSeconds(
     WATER_DELIVERY_SPEED_MPS,
     deliveryWorkers,
     WATER_DELIVERY_UNLOAD_SEC,
+    travelSpeedMultiplier,
   );
 }
 
@@ -83,6 +89,7 @@ export function foodDeliveryTripSeconds(
   origin: RoadPoint,
   target: RoadPoint | null,
   deliveryWorkers: number,
+  travelSpeedMultiplier = 1,
 ): number {
   return roadDeliveryTripSeconds(
     network,
@@ -91,6 +98,7 @@ export function foodDeliveryTripSeconds(
     FOOD_DELIVERY_SPEED_MPS,
     deliveryWorkers,
     FOOD_DELIVERY_UNLOAD_SEC,
+    travelSpeedMultiplier,
   );
 }
 

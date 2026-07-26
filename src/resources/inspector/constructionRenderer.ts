@@ -1,13 +1,22 @@
 import { CONSTRUCTION_DELIVERY_UNLOAD_SEC } from '../../generated/gameBalance.ts';
+import { selectConstructionRouteSource } from '../../logistics/constructionLogistics.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import { buildingLaborView, buildingRoadAccessRow } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import {
+  CONSTRUCTION_PRIORITIES,
+  CONSTRUCTION_PRIORITY_HOLD,
+  constructionPriorityLabel,
+  normalizeConstructionPriority,
+  type ConstructionPriority,
+} from '../../logistics/constructionPriority.ts';
 
 type ConstructionMaterial = 'timber' | 'stone';
 type SupplyResolution = {
   state: 'ready-free' | 'ready-staffed' | 'busy' | 'no-hauler' | 'unreachable' | 'missing';
   source: BuildingState | null;
+  routeDistance: number | null;
 };
 
 export function renderConstructionInspector(
@@ -18,6 +27,8 @@ export function renderConstructionInspector(
   const definition = getBuildingDefinition(building.kind);
   const inbound = context.worldQueries.getInboundSupplyTrip(building);
   const progress = Math.round(building.constructionProgress * 100);
+  const priority = normalizeConstructionPriority(building.constructionPriority);
+  const held = priority === CONSTRUCTION_PRIORITY_HOLD;
   const timberPending = Math.max(
     0,
     building.constructionReservedTimber - building.constructionTreasuryTimber,
@@ -34,14 +45,17 @@ export function renderConstructionInspector(
       ? 'timber'
       : null;
   const pendingAmount = pendingMaterial === 'stone' ? stonePending : timberPending;
-  const supply = pendingMaterial
+  const supply = pendingMaterial && !held
     ? resolveConstructionSupply(context, building, pendingMaterial)
     : null;
   const origin = inbound ? context.worldQueries.getBuilding(inbound.buildingId) : null;
 
   let statusText = `${progress}% built`;
   let statusState = 'active';
-  if (building.assignedLabor <= 0) {
+  if (held) {
+    statusText = 'Construction held — reservations retained';
+    statusState = 'warning';
+  } else if (building.assignedLabor <= 0) {
     statusText = 'Waiting for builders';
     statusState = 'warning';
   } else if (inbound) {
@@ -99,7 +113,17 @@ export function renderConstructionInspector(
       }`
     : 'None';
   const nextSource = origin ?? supply?.source ?? null;
-  const nextSourceLabel = nextSource ? getBuildingDefinition(nextSource.kind).label : 'None';
+  const nextSourceDistance = inbound?.pathDistance ?? supply?.routeDistance ?? null;
+  const nextSourceLabel = nextSource
+    ? `${getBuildingDefinition(nextSource.kind).label}${
+        nextSourceDistance == null ? '' : ` · ${Math.round(nextSourceDistance)}m haul`
+      }`
+    : 'None';
+  const priorityControls = `<div class="inspector-action-panel">
+      <p class="resource-inspector-note">Queue priority — urgent sites claim available carts and scarce stored material first. Hold stops hauling and builder work while retaining reservations.</p>
+      <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
+        constructionPriorityButton(candidate, priority)).join('')}</div>
+    </div>`;
 
   return {
     eyebrow: 'Construction site',
@@ -108,6 +132,7 @@ export function renderConstructionInspector(
     statusState,
     detailsHtml: `
       <li><span>Builder progress</span><span>${progress}%</span></li>
+      <li><span>Queue priority</span><span>${constructionPriorityLabel(priority)}</span></li>
       <li><span>Timber delivered</span><span>${formatAmount(building.constructionDeliveredTimber)} / ${formatAmount(building.constructionRequiredTimber)}</span></li>
       <li><span>Stone delivered</span><span>${formatAmount(building.constructionDeliveredStone)} / ${formatAmount(building.constructionRequiredStone)}</span></li>
       <li><span>Incoming haul</span><span>${incomingLabel}</span></li>
@@ -122,7 +147,17 @@ export function renderConstructionInspector(
       hint: 'Cancels immediately. Undelivered reservations are released; delivered materials are salvaged at the usual demolition rate.',
     },
     labor: buildingLaborView(building, context.populationStats),
+    supplementalPanelHtml: priorityControls,
   };
+}
+
+function constructionPriorityButton(
+  candidate: ConstructionPriority,
+  current: ConstructionPriority,
+): string {
+  return `<button type="button" class="resource-action-button" data-construction-priority="${candidate}" ${
+    candidate === current ? 'disabled' : ''
+  }>${constructionPriorityLabel(candidate)}</button>`;
 }
 
 function resolveConstructionSupply(
@@ -135,53 +170,79 @@ function resolveConstructionSupply(
     0,
     context.populationStats.available - countActiveFreeConstructionHaulers(context),
   );
-  const sources = [...context.gameState.buildings.values()]
-    .filter((source) =>
-      source.id !== site.id
-      && source.constructionComplete !== false
-      && source[material] > 1e-6)
-    .sort((left, right) => {
-      const priority = constructionSourcePriority(left) - constructionSourcePriority(right);
-      if (priority !== 0) return priority;
-      const leftDistance = squaredDistance(left, site);
-      const rightDistance = squaredDistance(right, site);
-      if (Math.abs(leftDistance - rightDistance) > 1e-6) {
-        return leftDistance - rightDistance;
-      }
-      return left.id.localeCompare(right.id, undefined, { numeric: true });
-    });
-
-  let waitingForLabor: BuildingState | null = null;
-  let busy: BuildingState | null = null;
-  let unreachable: BuildingState | null = null;
+  const sources = [...context.gameState.buildings.values()].filter((source) =>
+    source.id !== site.id
+    && source.constructionComplete !== false
+    && source[material] > 1e-6);
+  const routeDistances = new Map<string, number>();
+  const readySources: BuildingState[] = [];
+  const waitingForLabor: BuildingState[] = [];
+  const busy: BuildingState[] = [];
+  const unreachable: BuildingState[] = [];
   for (const source of sources) {
-    const reachable = !requiresRoad || context.worldQueries.getRoadPathDistance(
+    const roadDistance = context.worldQueries.getRoadPathDistance(
       source.x,
       source.z,
       site.x,
       site.z,
-    ) != null;
-    if (!reachable) {
-      unreachable ??= source;
+    );
+    const routeDistance = roadDistance ?? (
+      requiresRoad ? null : directDistance(source, site)
+    );
+    if (routeDistance == null) {
+      unreachable.push(source);
       continue;
     }
-    if (context.worldQueries.getActiveDeliveryTrip(source)) {
-      busy ??= source;
+    routeDistances.set(source.id, routeDistance);
+    if (
+      context.worldQueries.getActiveDeliveryTrip(source)
+      || (
+        source.kind === 'village_storehouse'
+        && context.worldQueries.getInboundSupplyTrip(source)
+      )
+    ) {
+      busy.push(source);
       continue;
     }
-    if (source.assignedLabor > 0) {
-      return { state: 'ready-staffed', source };
-    }
-    if (freeHaulers > 0) {
-      return { state: 'ready-free', source };
-    }
-    waitingForLabor ??= source;
+    if (source.assignedLabor > 0 || freeHaulers > 0) readySources.push(source);
+    else waitingForLabor.push(source);
   }
 
-  if (waitingForLabor) return { state: 'no-hauler', source: waitingForLabor };
-  if (busy) return { state: 'busy', source: busy };
-  if (unreachable) return { state: 'unreachable', source: unreachable };
-  return { state: 'missing', source: null };
+  const routeDistanceFor = (source: BuildingState): number | null =>
+    routeDistances.get(source.id) ?? null;
+  const ready = selectConstructionRouteSource(readySources, routeDistanceFor);
+  if (ready) {
+    return {
+      state: ready.source.assignedLabor > 0 ? 'ready-staffed' : 'ready-free',
+      source: ready.source,
+      routeDistance: ready.routeDistance,
+    };
+  }
+
+  const waiting = selectConstructionRouteSource(waitingForLabor, routeDistanceFor);
+  if (waiting) {
+    return {
+      state: 'no-hauler',
+      source: waiting.source,
+      routeDistance: waiting.routeDistance,
+    };
+  }
+  const occupied = selectConstructionRouteSource(busy, routeDistanceFor);
+  if (occupied) {
+    return {
+      state: 'busy',
+      source: occupied.source,
+      routeDistance: occupied.routeDistance,
+    };
+  }
+  const disconnected = selectConstructionRouteSource(
+    unreachable,
+    (source) => directDistance(source, site),
+  );
+  if (disconnected) {
+    return { state: 'unreachable', source: disconnected.source, routeDistance: null };
+  }
+  return { state: 'missing', source: null, routeDistance: null };
 }
 
 function countActiveFreeConstructionHaulers(context: InspectorRenderContext): number {
@@ -198,21 +259,8 @@ function countActiveFreeConstructionHaulers(context: InspectorRenderContext): nu
   return count;
 }
 
-function constructionSourcePriority(source: BuildingState): number {
-  const kindPriority = source.kind === 'village_storehouse'
-    ? 0
-    : source.kind === 'carpenter'
-      ? 1
-      : source.kind === 'lumber_mill'
-        || source.kind === 'stone_quarry'
-        || source.kind === 'large_quarry'
-        ? 2
-        : 3;
-  return source.assignedLabor > 0 ? kindPriority : kindPriority + 4;
-}
-
-function squaredDistance(left: BuildingState, right: BuildingState): number {
-  return (left.x - right.x) ** 2 + (left.z - right.z) ** 2;
+function directDistance(left: BuildingState, right: BuildingState): number {
+  return Math.hypot(left.x - right.x, left.z - right.z);
 }
 
 function formatAmount(value: number): string {

@@ -1,12 +1,35 @@
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
+import * as THREE from 'three';
+import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import { FrontierRiskMarkers } from '../src/security/FrontierRiskMarkers.ts';
 import {
+  armedGuardCount,
   countSitesProtectedByWatchtower,
   estimatedRaidDays,
+  formatFrontierForecast,
+  formatProjectedRaidTargets,
+  formatRaidReport,
   frontierThreatLabel,
+  getGuardhouseMusterState,
+  guardhouseFoodReserveLabel,
+  guardhouseFoodRunwayDays,
+  guardhouseFoodTarget,
+  guardhouseMusterEfficiency,
+  guardhouseMusterResponseBand,
+  projectRaidTargets,
+  projectedRaidArsonChance,
+  normalizeGuardhouseFoodReserve,
+  selectCriticalGuardhouseFoodTarget,
   watchtowerEffectiveRadius,
+  GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
+  GUARDHOUSE_FOOD_RESERVE_DEEP,
+  GUARDHOUSE_FOOD_RESERVE_LEAN,
+  GUARDHOUSE_FOOD_RESERVE_STANDARD,
+  WATCH_COVERAGE_CELL_SIZE,
   type SettlementSecurityState,
 } from '../src/security/frontierSecurity.ts';
 import type { BuildingState, GameState, ResidenceState } from '../src/resources/types.ts';
@@ -14,7 +37,10 @@ import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
   normalizeWorldGenerationSettings,
 } from '../src/world/worldGenerationSettings.ts';
-import { BUILDING_DEFINITIONS } from '../src/generated/gameBalance.ts';
+import {
+  BUILDING_DEFINITIONS,
+  BUILDING_STORAGE_CAPS,
+} from '../src/generated/gameBalance.ts';
 
 const legacySettings = normalizeWorldGenerationSettings({
   seed: 7,
@@ -44,6 +70,8 @@ assert.equal(BUILDING_DEFINITIONS.watchtower.maxLabor, 2);
 assert.equal(BUILDING_DEFINITIONS.watchtower.workRadius, 190);
 assert.equal(BUILDING_DEFINITIONS.guardhouse.requiresRoad, true);
 assert.equal(BUILDING_DEFINITIONS.guardhouse.maxLabor, 6);
+assert.equal(GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS, 3);
+assert.equal(WATCH_COVERAGE_CELL_SIZE, 128);
 
 const tower = building('tower', 'watchtower', 0, 0, 1);
 assert.equal(Math.round(watchtowerEffectiveRadius(tower)), 148);
@@ -62,6 +90,259 @@ assert.deepEqual(countSitesProtectedByWatchtower(tower, state), {
   residents: 3,
 });
 
+assert.equal(guardhouseMusterEfficiency(120), 1);
+assert.equal(guardhouseMusterEfficiency(480), 0.825);
+assert.equal(guardhouseMusterEfficiency(720), 0.65);
+assert.equal(guardhouseMusterEfficiency(null), 0.4);
+assert.equal(guardhouseMusterResponseBand(1), 'full');
+assert.equal(guardhouseMusterResponseBand(0.825), 'delayed');
+assert.equal(guardhouseMusterResponseBand(0.65), 'weak');
+
+const musterState = emptyGameState();
+const musterTower = { ...tower, assignedLabor: 2 };
+const guardhouse = {
+  ...building('guardhouse', 'guardhouse', 400, 0, 4),
+  actionCooldown: 1,
+  polearms: 4,
+};
+assert.equal(armedGuardCount(6, 2.9), 2);
+assert.equal(guardhouseFoodTarget(6, 0), 0);
+assert.equal(guardhouseFoodTarget(6, 2.9), 12);
+assert.equal(guardhouseFoodTarget(6, 6), 36);
+assert.equal(
+  guardhouseFoodTarget(6, 6, GUARDHOUSE_FOOD_RESERVE_LEAN),
+  18,
+);
+assert.equal(
+  guardhouseFoodTarget(6, 6, GUARDHOUSE_FOOD_RESERVE_DEEP),
+  BUILDING_STORAGE_CAPS.guardhouse.food,
+);
+assert.equal(normalizeGuardhouseFoodReserve(undefined), GUARDHOUSE_FOOD_RESERVE_STANDARD);
+assert.equal(normalizeGuardhouseFoodReserve(5), GUARDHOUSE_FOOD_RESERVE_STANDARD);
+assert.equal(guardhouseFoodReserveLabel(GUARDHOUSE_FOOD_RESERVE_LEAN), 'Lean');
+assert.equal(guardhouseFoodReserveLabel(GUARDHOUSE_FOOD_RESERVE_DEEP), 'Deep');
+assert.ok(Math.abs(guardhouseFoodRunwayDays(6, 6, 8.1) - 3) < 1e-9);
+assert.equal(guardhouseFoodRunwayDays(6, 0, 0), Infinity);
+const emptyFarCompany = {
+  ...building('empty-far-company', 'guardhouse', 80, 0, 6),
+  polearms: 6,
+  food: 0,
+};
+const lowNearCompany = {
+  ...building('low-near-company', 'guardhouse', 10, 0, 6),
+  polearms: 6,
+  food: 1.35,
+};
+assert.equal(
+  selectCriticalGuardhouseFoodTarget(
+    [lowNearCompany, emptyFarCompany],
+    'central-granary',
+    (target) => target.x,
+  )?.target.id,
+  emptyFarCompany.id,
+  'the lowest guard-food runway should beat the shorter route',
+);
+const equalNearCompany = { ...lowNearCompany, id: 'equal-near', x: 8 };
+const equalFarCompany = { ...lowNearCompany, id: 'equal-far', x: 40 };
+assert.equal(
+  selectCriticalGuardhouseFoodTarget(
+    [equalFarCompany, equalNearCompany],
+    'central-granary',
+    (target) => target.x,
+  )?.target.id,
+  equalNearCompany.id,
+  'equal guard-food runway should prefer the shorter road route',
+);
+assert.equal(
+  selectCriticalGuardhouseFoodTarget(
+    [emptyFarCompany, lowNearCompany],
+    'central-granary',
+    (target) => target.x,
+    (target) => target.id === emptyFarCompany.id,
+  )?.target.id,
+  lowNearCompany.id,
+  'multiple granaries must skip a company with food already inbound',
+);
+assert.equal(
+  selectCriticalGuardhouseFoodTarget(
+    [{ ...emptyFarCompany, polearms: 0 }],
+    'central-granary',
+    (target) => target.x,
+  ),
+  null,
+  'unarmed companies must not warehouse food they cannot consume',
+);
+const deepCriticalCompany = {
+  ...emptyFarCompany,
+  id: 'deep-critical-company',
+  food: 1.35,
+  guardhouseFoodReserve: GUARDHOUSE_FOOD_RESERVE_DEEP,
+};
+assert.equal(
+  selectCriticalGuardhouseFoodTarget(
+    [deepCriticalCompany],
+    'central-granary',
+    (target) => target.x,
+  )?.desiredStock,
+  72,
+  'the selected reserve depth must change the authoritative destination fill ceiling',
+);
+musterState.buildings.set(musterTower.id, musterTower);
+musterState.buildings.set(guardhouse.id, guardhouse);
+const linkedMuster = getGuardhouseMusterState(
+  guardhouse,
+  musterState,
+  (_ax, _az, bx) => bx === musterTower.x ? 480 : null,
+);
+assert.equal(linkedMuster.staffedTowers, 1);
+assert.equal(linkedMuster.routeDistance, 480);
+assert.equal(linkedMuster.linkedTowerId, musterTower.id);
+assert.equal(linkedMuster.efficiency, 0.825);
+assert.equal(linkedMuster.rawReady, 4);
+assert.equal(linkedMuster.effectiveReady, 3.3);
+const unlinkedMuster = getGuardhouseMusterState(guardhouse, musterState, () => null);
+assert.equal(unlinkedMuster.linkedTowerId, null);
+assert.equal(unlinkedMuster.effectiveReady, 1.6);
+
+const projectionState = emptyGameState();
+projectionState.buildings.set(tower.id, tower);
+projectionState.buildings.set(
+  '10',
+  { ...building('10', 'village_storehouse', 120, 0, 1), timber: 100 },
+);
+projectionState.buildings.set(
+  '20',
+  { ...building('20', 'village_storehouse', 170, 0, 1), timber: 30 },
+);
+projectionState.residences.set(
+  '15',
+  { ...residence('15', 180, 0, 4), householdWealth: 50 },
+);
+const projectedTargets = projectRaidTargets(projectionState, 2);
+assert.deepEqual(
+  projectedTargets.map((target) => [target.kind, target.id, target.protected]),
+  [
+    ['residence', '15', false],
+    ['building', '20', false],
+  ],
+  'exposed targets should be preferred by value before richer watched stores',
+);
+assert.deepEqual(
+  projectRaidTargets(projectionState, 3).map((target) => target.id),
+  ['15', '20', '10'],
+);
+assert.match(formatProjectedRaidTargets(projectedTargets), /Current likely targets/);
+assert.match(formatProjectedRaidTargets(projectedTargets), /exposed/);
+const negativeCoverageState = emptyGameState();
+negativeCoverageState.buildings.set(
+  'negative-tower',
+  building('negative-tower', 'watchtower', -130, -20, 1),
+);
+negativeCoverageState.buildings.set(
+  'negative-store',
+  { ...building('negative-store', 'village_storehouse', -270, -20, 1), timber: 10 },
+);
+assert.equal(
+  projectRaidTargets(negativeCoverageState, 1)[0]?.protected,
+  true,
+  'client watch buckets must preserve exact radius checks across negative cells',
+);
+
+const markerParent = new THREE.Group();
+const riskMarkers = new FrontierRiskMarkers({
+  terrain: { getHeightAt: () => 12 } as never,
+  parent: markerParent,
+});
+const ringInstances = markerParent.getObjectByName(
+  'Projected raid target rings',
+) as THREE.InstancedMesh;
+const beaconInstances = markerParent.getObjectByName(
+  'Projected raid target beacons',
+) as THREE.InstancedMesh;
+riskMarkers.sync(projectedTargets, 0.39, true);
+assert.equal(ringInstances.count, 0, 'quiet-frontier projections should not clutter the world');
+riskMarkers.sync(projectedTargets, 0.7, true);
+assert.equal(ringInstances.count, 2);
+assert.equal(beaconInstances.count, 2);
+riskMarkers.tick(0.016);
+const markerMatrix = new THREE.Matrix4();
+ringInstances.getMatrixAt(0, markerMatrix);
+assert.ok(
+  markerMatrix.elements.every(Number.isFinite),
+  'pooled risk marker transforms should remain finite',
+);
+riskMarkers.dispose();
+assert.equal(markerParent.children.length, 0);
+
+const deploymentParent = new THREE.Group();
+const deploymentRoads = new RoadNetwork();
+const initialRoadRevision = deploymentRoads.getTopologyRevision();
+deploymentRoads.addRoadPath([
+  new THREE.Vector3(0, 0, 0),
+  new THREE.Vector3(400, 0, 0),
+]);
+assert.ok(
+  deploymentRoads.getTopologyRevision() > initialRoadRevision,
+  'frontier route overlays need an inexpensive topology revision for cache invalidation',
+);
+const deploymentMarkers = new BuildingMarkers({
+  terrain: { getHeightAt: () => 4 } as never,
+  parent: deploymentParent,
+  getRoadNetwork: () => deploymentRoads,
+});
+const deploymentState = emptyGameState();
+const deploymentTower = { ...tower, x: 0, z: 0 };
+const deploymentGuardhouse = {
+  ...guardhouse,
+  x: 400,
+  z: 0,
+};
+deploymentState.buildings.set(deploymentTower.id, deploymentTower);
+deploymentState.buildings.set(deploymentGuardhouse.id, deploymentGuardhouse);
+
+deploymentMarkers.setBuildingExtentOverlay(deploymentTower, deploymentState);
+const selectedExtent = deploymentParent.getObjectByName('Selected building extent') as THREE.Mesh;
+assert.ok(selectedExtent.visible);
+assert.ok(
+  Math.abs(selectedExtent.scale.x - watchtowerEffectiveRadius(deploymentTower)) < 1e-9,
+  'a one-watchman selection ring must show the reduced operational radius',
+);
+deploymentState.buildings.set(deploymentTower.id, { ...deploymentTower, assignedLabor: 2 });
+deploymentMarkers.setBuildingExtentOverlay(
+  deploymentState.buildings.get(deploymentTower.id)!,
+  deploymentState,
+);
+assert.equal(selectedExtent.scale.x, 190);
+
+deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+const musterRoute = deploymentParent.getObjectByName(
+  'Selected guardhouse muster route',
+) as THREE.InstancedMesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>;
+assert.ok(musterRoute.visible, 'a linked guardhouse selection should trace its actual road muster');
+assert.ok(
+  musterRoute.count > 2 && musterRoute.count <= 512,
+  'the muster overlay needs a bounded set of world-space road dashes',
+);
+assert.equal(
+  musterRoute.material.color.getHex(),
+  0xf0a63f,
+  'a degraded long route should use the amber response color',
+);
+const overlayCacheStarted = performance.now();
+for (let index = 0; index < 10_000; index += 1) {
+  deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+}
+const overlayCacheElapsedMs = performance.now() - overlayCacheStarted;
+assert.ok(
+  overlayCacheElapsedMs < 250,
+  `10,000 cached frontier overlay refreshes took ${overlayCacheElapsedMs.toFixed(1)} ms`,
+);
+deploymentState.buildings.set(deploymentTower.id, { ...deploymentTower, assignedLabor: 0 });
+deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+assert.equal(musterRoute.visible, false, 'an unstaffed watch must remove the muster route');
+deploymentMarkers.dispose();
+assert.equal(deploymentParent.children.length, 0);
+
 const security: SettlementSecurityState = {
   threat: 0.76,
   coverage: 0.5,
@@ -75,10 +356,37 @@ const security: SettlementSecurityState = {
   lastOutcome: 'none',
   lastGoodsLost: 0,
   lastWealthLost: 0,
+  guardsRequired: 6.5,
+  targetsAtRisk: 2,
+  estimatedLossFraction: 0.08,
 };
 assert.equal(frontierThreatLabel(security, frontierSettings), 'Raiders reported');
 assert.equal(frontierThreatLabel(security, legacySettings), 'Peaceful settlement');
 assert.equal(estimatedRaidDays(security, 0), 30);
+assert.equal(
+  formatFrontierForecast(security),
+  '4.5 / 6.5 guards ready · 2 holdings at risk · about 8% portable stores per target',
+);
+
+assert.ok(Math.abs(projectedRaidArsonChance(security, 65) - 0.0789692307) < 1e-8);
+assert.match(formatFrontierForecast(security, 65), /8% chance of one raid fire/);
+assert.equal(
+  projectedRaidArsonChance({
+    ...security,
+    readyGuards: security.guardsRequired,
+    targetsAtRisk: 0,
+  }, 65),
+  0,
+);
+assert.match(
+  formatRaidReport({
+    ...security,
+    lastOutcome: 'arson',
+    lastGoodsLost: 14,
+    lastWealthLost: 3,
+  }),
+  /set one reached holding alight/,
+);
 
 const mesh = createBuildingMesh('watchtower');
 let meshCount = 0;
@@ -90,6 +398,10 @@ mesh.traverse((object) => {
 });
 assert.ok(meshCount >= 30, 'watchtower should have a legible braced structure, gallery, roof, ladder, and bell');
 assert.ok(maxY >= 10, 'watchtower silhouette should read above village roofs');
+assert.ok(
+  mesh.getObjectByName('Open timber watch gallery'),
+  'the raised gallery must expose staffed watchmen instead of enclosing them in a solid block',
+);
 
 const guardhouseMesh = createBuildingMesh('guardhouse');
 let guardhouseMeshCount = 0;
@@ -104,24 +416,131 @@ assert.ok(guardhouseMaxY >= 5, 'guardhouse needs a readable steep-roof silhouett
 
 const setupPanel = readFileSync('src/ui/WorldSetupPanel.ts', 'utf8');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
+const settlementHud = readFileSync('src/ui/SettlementHud.ts', 'utf8');
+const watchtowerInspector = readFileSync('src/resources/inspector/watchtowerRenderer.ts', 'utf8');
+const guardhouseInspector = readFileSync('src/resources/inspector/guardhouseRenderer.ts', 'utf8');
+const townHallInspector = readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
+const frontierMarkers = readFileSync('src/security/FrontierRiskMarkers.ts', 'utf8');
+const buildingMarkers = readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
+const villagerRenderer = readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
+const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'utf8');
+const app = readFileSync('src/app/App.ts', 'utf8');
 const serverSimulation = readFileSync('server/src/simulation/settlement_security.rs', 'utf8');
 const frontierEconomy = readFileSync('server/src/frontier_economy_policy.rs', 'utf8');
+const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const serverPolicy = readFileSync('server/src/security_policy.rs', 'utf8');
+const serverFires = readFileSync('server/src/simulation/fires.rs', 'utf8');
 assert.match(setupPanel, /Peaceful settlement/);
 assert.match(setupPanel, /Contested frontier/);
 assert.match(setupPanel, /enemy pressure/i);
 assert.match(toolbar, /MILITARY_BUILD_MENU_ENTRIES/);
 assert.match(toolbar, /setConflictEnabled/);
+assert.match(settlementHud, /formatFrontierForecast/);
+assert.match(settlementHud, /formatFrontierForecast\(security, world\.enemyPressure\)/);
+assert.match(watchtowerInspector, /Projected defense/);
+assert.match(watchtowerInspector, /context\.enemyPressure/);
+assert.match(guardhouseInspector, /Projected raid/);
+assert.match(guardhouseInspector, /context\.enemyPressure/);
+assert.match(guardhouseInspector, /Watch muster/);
+assert.match(guardhouseInspector, /Effective company/);
+assert.match(guardhouseInspector, /Inspect linked watchtower/);
+assert.match(frontierMarkers, /InstancedMesh/);
+assert.match(frontierMarkers, /RAID_TARGET_MARKER_THREAT_THRESHOLD/);
+assert.match(frontierMarkers, /MAX_RAID_TARGET_MARKERS\s*=\s*4/);
+assert.match(buildingMarkers, /Selected guardhouse muster route/);
+assert.match(buildingMarkers, /watchtowerEffectiveRadius/);
+assert.match(buildingMarkers, /MAX_GUARDHOUSE_MUSTER_DASHES\s*=\s*512/);
+assert.match(resourceInspector, /onSelectionChange\?\.\(latest\)/);
+assert.match(app, /resourceInspector\?\.refreshSelection\(\)/);
 assert.match(serverSimulation, /SECURITY_UPDATE_INTERVAL_TICKS/);
-assert.match(serverSimulation, /position_is_watched/);
+assert.match(serverSimulation, /WatchCoverageIndex::new/);
+assert.match(serverSimulation, /fn settlement_exposure/);
+assert.doesNotMatch(serverSimulation, /fn position_is_watched/);
+assert.doesNotMatch(serverSimulation, /fn raid_target_candidates/);
 assert.match(serverSimulation, /settlement_guard_strength/);
-assert.match(serverSimulation, /guarded_raid_target_count/);
+assert.match(serverSimulation, /nearest_road_path_distance/);
+assert.match(serverSimulation, /select_raid_targets/);
+assert.match(serverSimulation, /RaidTargetKind::Residence/);
+assert.match(serverSimulation, /plunder!\(ironwork\)/);
 assert.match(serverSimulation, /plunder!\(polearms\)/);
+assert.match(
+  serverSimulation,
+  /raid_arson_occurs[\s\S]*selected\.iter\(\)\.any[\s\S]*ignite_raid_target/,
+  'one bounded arson attempt should reuse only holdings already reached by the raid',
+);
+assert.match(serverPolicy, /pub fn raid_arson_chance/);
+assert.match(serverPolicy, /defense_ratio\.clamp/);
+assert.match(serverPolicy, /WATCH_COVERAGE_CELL_SIZE:\s*f64\s*=\s*128\.0/);
+assert.match(serverFires, /pub fn ignite_raid_target/);
+assert.match(serverFires, /FIRE_SOURCE_RAID/);
 assert.match(frontierEconomy, /CARPENTER_TIMBER_PER_POLEARM/);
+assert.match(frontierEconomy, /CARPENTER_IRONWORK_PER_POLEARM/);
 assert.match(frontierEconomy, /GUARDHOUSE_WAGE_PER_GUARD_PER_DAY/);
-assert.match(readFileSync('server/src/simulation/expanded_economy.rs', 'utf8'), /guard_upkeep/);
+assert.match(frontierEconomy, /GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS:\s*f64\s*=\s*3\.0/);
+assert.match(frontierEconomy, /pub fn guardhouse_food_target/);
+assert.match(frontierEconomy, /pub fn select_guardhouse_food_candidate/);
+assert.match(expandedEconomy, /CommodityKind::Ironwork/);
+assert.match(expandedEconomy, /CARPENTER_IRONWORK_PER_POLEARM/);
+assert.doesNotMatch(expandedEconomy, /CARPENTER_GOLD_PER_POLEARM/);
+assert.doesNotMatch(expandedEconomy, /conflict_enabled && config\.enemy_pressure/);
+const granaryStepSource = expandedEconomy.slice(
+  expandedEconomy.indexOf('pub fn step_granary'),
+  expandedEconomy.indexOf('fn step_farmstead_fields'),
+);
+assert.match(granaryStepSource, /next_granary_guard_food_dispatch/);
+assert.match(granaryStepSource, /guard_food_preempts_grain/);
+assert.match(granaryStepSource, /GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS/);
+const smokehouseStepSource = expandedEconomy.slice(
+  expandedEconomy.indexOf('pub fn step_smokehouse'),
+  expandedEconomy.indexOf('pub fn step_apiary'),
+);
+assert.doesNotMatch(
+  smokehouseStepSource,
+  /"granary"/,
+  'smokehouses must receive central food through the granary policy rather than pulling ahead of it',
+);
+const guardhouseStepSource = expandedEconomy.slice(
+  expandedEconomy.indexOf('pub fn step_guardhouse'),
+  expandedEconomy.indexOf('fn step_simple_producer'),
+);
+assert.match(guardhouseStepSource, /guardhouse_food_target/);
+assert.doesNotMatch(
+  guardhouseStepSource,
+  /"granary"/,
+  'guardhouses must receive central emergency food through source-side granary arbitration',
+);
+assert.match(expandedEconomy, /fn next_granary_guard_food_dispatch/);
+assert.match(expandedEconomy, /institutional_source_food_surplus/);
+assert.match(guardhouseInspector, /central granary intervenes below/);
+assert.match(guardhouseInspector, /data-guardhouse-food-reserve/);
+assert.match(guardhouseInspector, /lock up more fresh food here/);
+assert.match(townHallInspector, /Ration reserves/);
+assert.match(townHallInspector, /lean.*company.*deep/);
+const buildingSchema = readFileSync('server/src/tables.rs', 'utf8');
+assert.match(
+  buildingSchema,
+  /#\[default\(6u8\)\]\s+pub guardhouse_food_reserve: u8/,
+  'existing guardhouses must retain the former six-food-per-guard reserve',
+);
+const buildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
+assert.match(
+  buildingReducers,
+  /set_guardhouse_food_reserve[\s\S]*is_valid_guardhouse_food_reserve[\s\S]*building\.guardhouse_food_reserve = reserve_per_guard/,
+  'ration depth must remain owner-validated and server authoritative',
+);
+assert.match(
+  readFileSync('src/generated/building_table.ts', 'utf8'),
+  /guardhouseFoodReserve: __t\.u8\(\)/,
+);
+assert.match(
+  readFileSync('src/generated/set_guardhouse_food_reserve_reducer.ts', 'utf8'),
+  /reservePerGuard: __t\.u8\(\)/,
+);
+assert.match(villagerRenderer, /workplaceSlot < Math\.floor\(workplace\?\.polearms/);
+assert.match(villagerRenderer, /Keeping watch from the frontier gallery/);
 assert.match(serverPolicy, /RAID_SEASON_START_MONTH:\s*u32\s*=\s*4/);
 assert.match(serverPolicy, /RAID_SEASON_END_MONTH:\s*u32\s*=\s*10/);
+assert.match(serverPolicy, /guardhouse_muster_efficiency/);
 assert.ok(
   statSync('public/assets/ui/build-menu/cards/watchtower.webp').size > 20_000,
   'watchtower needs a finished construction-menu card',
@@ -149,7 +568,71 @@ const elapsedMs = performance.now() - started;
 assert.ok(perfCoverage.buildings > 0);
 assert.ok(elapsedMs < 250, `10,000-site client coverage readout took ${elapsedMs.toFixed(1)} ms`);
 
-console.log(`frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site inspector scan)`);
+const projectionPerfState = emptyGameState();
+projectionPerfState.buildings.set(staffedTower.id, staffedTower);
+for (let index = 0; index < 1_000; index += 1) {
+  const watch = {
+    ...building(
+      `perf-watch-${index}`,
+      'watchtower',
+      (index % 40) * 320,
+      Math.floor(index / 40) * 320,
+      2,
+    ),
+  };
+  projectionPerfState.buildings.set(watch.id, watch);
+}
+for (let index = 0; index < 100_000; index += 1) {
+  projectionPerfState.buildings.set(
+    `${index + 1}`,
+    {
+      ...building(
+        `${index + 1}`,
+        'village_storehouse',
+        index % 500,
+        Math.floor(index / 500) * 8,
+        1,
+      ),
+      timber: index + 1,
+    },
+  );
+}
+const projectionStarted = performance.now();
+const perfTargets = projectRaidTargets(projectionPerfState, 3);
+const projectionElapsedMs = performance.now() - projectionStarted;
+assert.equal(perfTargets.length, 3);
+assert.ok(
+  projectionElapsedMs < 250,
+  `1,000-tower, 100,000-site bounded target projection took ${projectionElapsedMs.toFixed(1)} ms`,
+);
+
+const guardFoodCandidates = Array.from({ length: 100_000 }, (_, index) => ({
+  ...building(
+    `guard-${index}`,
+    'guardhouse',
+    100_000 - index,
+    0,
+    6,
+  ),
+  polearms: 6,
+  food: index === 99_999 ? 0 : 1.35,
+}));
+const guardFoodStarted = performance.now();
+const guardFoodTarget = selectCriticalGuardhouseFoodTarget(
+  guardFoodCandidates,
+  'central-granary',
+  (target) => target.x,
+);
+const guardFoodElapsedMs = performance.now() - guardFoodStarted;
+assert.equal(guardFoodTarget?.target.id, 'guard-99999');
+assert.ok(
+  guardFoodElapsedMs < 250,
+  `100,000-company food arbitration took ${guardFoodElapsedMs.toFixed(1)} ms`,
+);
+
+console.log(
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-tower/100,000-site target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+);
 
 function building(
   id: string,
@@ -176,6 +659,7 @@ function building(
     preservedFood: 0,
     honey: 0,
     wine: 0,
+    ironwork: 0,
     polearms: 0,
     gold: 0,
     waterCapacity: 0,
@@ -240,6 +724,7 @@ function emptyGameState(): GameState {
       preservedFood: 0,
       honey: 0,
       wine: 0,
+      ironwork: 0,
       polearms: 0,
       gold: 0,
     },

@@ -23,6 +23,12 @@ pub fn sim_elapsed_seconds(sim_tick: u64) -> f64 {
     sim_tick as f64 * TICK_DT
 }
 
+/// Household meals and water use follow the established daytime cadence, but
+/// do not stop merely because Sunday labor and logistics are suspended.
+pub fn household_consumption_paused(clock: &GameClock) -> bool {
+    !clock.is_work_hours
+}
+
 pub fn game_clock(sim_tick: u64) -> GameClock {
     let elapsed = sim_elapsed_seconds(sim_tick);
     let calendar_elapsed = elapsed + CALENDAR_DAY_START_OFFSET_SECONDS;
@@ -91,5 +97,16 @@ mod tests {
         let day_ticks = (CALENDAR_SECONDS_PER_DAY / TICK_DT) as u64;
         assert!(game_clock(0).is_sunday);
         assert!(!game_clock(day_ticks).is_sunday);
+    }
+
+    #[test]
+    fn sunday_pauses_work_not_household_consumption() {
+        let sunday_morning = game_clock(0);
+        assert!(sunday_morning.is_sunday);
+        assert!(sunday_morning.is_work_hours);
+        assert!(!household_consumption_paused(&sunday_morning));
+
+        let night_tick = (CALENDAR_SECONDS_PER_DAY / 2.0 / TICK_DT) as u64;
+        assert!(household_consumption_paused(&game_clock(night_tick)));
     }
 }

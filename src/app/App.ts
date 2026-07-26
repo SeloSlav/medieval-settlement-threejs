@@ -5,14 +5,14 @@ import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import { BuildingTool } from '../buildings/BuildingTool.ts';
 import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterials.ts';
 import { initializeVineyardVineResources } from '../vegetation/seedthree/vineyardVines.ts';
-import { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
+import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import { FarmFieldTool } from '../farming/FarmFieldTool.ts';
-import { PastureMarkers } from '../farming/PastureMarkers.ts';
-import { LivestockVisuals } from '../farming/LivestockVisuals.ts';
+import type { PastureMarkers } from '../farming/PastureMarkers.ts';
+import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
 import { BurgageTool } from '../residences/BurgageTool.ts';
-import { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
-import { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
-import { BurgageFencing } from '../residences/BurgageFencing.ts';
+import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
+import type { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
+import type { BurgageFencing } from '../residences/BurgageFencing.ts';
 import { SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
 import { InputManager } from '../input/InputManager.ts';
 import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
@@ -30,9 +30,9 @@ import { GameRuntime } from '../runtime/GameRuntime.ts';
 import { SceneManager } from '../scene/SceneManager.ts';
 import type { WorldMapUiBundle } from './worldMapIcons.ts';
 import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
-import { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
-import { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
-import { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
+import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
+import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
+import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { VillagerInspector } from '../ui/VillagerInspector.ts';
@@ -58,7 +58,13 @@ import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
 import { SessionLifecycleController } from './SessionLifecycleController.ts';
 import { beginNewWorld } from './worldBootstrapFlow.ts';
 import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
-import { formatRaidReport } from '../security/frontierSecurity.ts';
+import {
+  formatProjectedRaidTargets,
+  formatRaidReport,
+  projectRaidTargets,
+  type ProjectedRaidTarget,
+} from '../security/frontierSecurity.ts';
+import { FrontierRiskMarkers } from '../security/FrontierRiskMarkers.ts';
 import { hasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHooks.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
@@ -93,6 +99,7 @@ export class App {
   private worldMapUi: WorldMapUiBundle | null = null;
   private deliveryAgents: DeliveryAgentRenderer | null = null;
   private fireEffects: FireEffectsRenderer | null = null;
+  private frontierRiskMarkers: FrontierRiskMarkers | null = null;
   private villagers: VillagerRenderer | null = null;
   private gameState: GameState | null = null;
   private layoutRegistry: WorldLayoutRegistry | null = null;
@@ -114,6 +121,8 @@ export class App {
   private readonly settlementPresentation = new SettlementPresentationController();
   private showcaseViewApplied = false;
   private lastSeenRaidTick: number | null = null;
+  private raidProjectionSignature = '';
+  private projectedRaidTargets: ProjectedRaidTarget[] = [];
   private disposed = false;
 
   constructor(root: HTMLElement) {
@@ -134,6 +143,10 @@ export class App {
 
     this.liveContext = session.liveContext;
     this.sceneManager = session.sceneManager;
+    this.frontierRiskMarkers = new FrontierRiskMarkers({
+      terrain: session.sceneManager.terrain,
+      parent: session.sceneManager.selectionGroup,
+    });
     if (weatherPreview) this.sceneManager.setEnvironment(weatherPreview);
     this.layoutRegistry = session.layoutRegistry;
     this.gameState = session.gameState;
@@ -193,6 +206,7 @@ export class App {
               foragingMonth: gameClock(this.gameState.tick).month,
             });
           }
+          this.resourceInspector?.refreshSelection();
         },
         onConnectError: (error) => {
           console.warn('SpacetimeDB unavailable — game simulation requires the server.', error);
@@ -203,7 +217,7 @@ export class App {
           if (error instanceof WorldGenerationMismatchError) {
             this.sessionLifecycle?.onWorldGenerationMismatch(
               error.message,
-              () => this.sessionLifecycle?.retryConnection(),
+              () => window.location.reload(),
             );
             return;
           }
@@ -299,15 +313,17 @@ export class App {
       });
       markFirstPlayable();
       this.sessionLifecycle?.onPresentationReady();
-      void initializeBuildingMaterialLibrary(session.sceneManager.textureAnisotropy).catch((error) => {
-        console.warn('Detailed building textures are still unavailable:', error);
-      });
-      void initializeVineyardVineResources(
-        session.sceneManager.textureAnisotropy,
-        session.sceneManager.rendererBackend,
-      ).catch((error) => {
-        console.warn('Detailed vineyard foliage is still unavailable:', error);
-      });
+      if (import.meta.env.VITE_E2E_TEST !== '1') {
+        void initializeBuildingMaterialLibrary(session.sceneManager.textureAnisotropy).catch((error) => {
+          console.warn('Detailed building textures are still unavailable:', error);
+        });
+        void initializeVineyardVineResources(
+          session.sceneManager.textureAnisotropy,
+          session.sceneManager.rendererBackend,
+        ).catch((error) => {
+          console.warn('Detailed vineyard foliage is still unavailable:', error);
+        });
+      }
     });
 
     const buildVegetation = () => {
@@ -327,15 +343,19 @@ export class App {
     };
     // Leave a short, predictable interaction window before expensive detail
     // generation starts, even when requestIdleCallback fires immediately.
-    window.setTimeout(() => {
-      if (this.disposed) return;
-      if (typeof requestIdleCallback === 'function') {
-        requestIdleCallback(buildVegetation, { timeout: 1_200 });
-      } else {
-        buildVegetation();
-      }
-    }, 2_500);
-    this.animationId = requestAnimationFrame(this.tick);
+    if (import.meta.env.VITE_E2E_TEST !== '1') {
+      window.setTimeout(() => {
+        if (this.disposed) return;
+        if (typeof requestIdleCallback === 'function') {
+          requestIdleCallback(buildVegetation, { timeout: 1_200 });
+        } else {
+          buildVegetation();
+        }
+      }, 2_500);
+    }
+    if (import.meta.env.VITE_E2E_TEST !== '1') {
+      this.animationId = requestAnimationFrame(this.tick);
+    }
   }
 
   dispose(): void {
@@ -349,6 +369,7 @@ export class App {
     this.burgageTool?.dispose();
     this.farmFieldTool?.dispose();
     this.buildingMarkers?.dispose();
+    this.frontierRiskMarkers?.dispose();
     this.villagerInspector?.dispose();
     disposeSettlementWorld({
       residenceMarkers: this.residenceMarkers,
@@ -391,6 +412,7 @@ export class App {
 
     const firstPersonActive = this.firstPersonController?.isActive() ?? false;
     this.syncBuildInteractionPerf();
+    this.frontierRiskMarkers?.tick(dt);
     this.settlementPresentation.tick({
       settlementHud: this.toolbar?.settlementHud ?? null,
       sceneManager: this.sceneManager,
@@ -459,7 +481,10 @@ export class App {
     if (this.snapshotApplierDeps) {
       this.snapshotApplierDeps.forestVisualSync = this.forestVisualSync;
     }
-    this.buildingMarkers?.syncBuildings(this.gameState.buildings.values());
+    this.buildingMarkers?.syncBuildings(
+      this.gameState.buildings.values(),
+      this.gameState.livestockHerds,
+    );
     this.worldMapUi?.minimap.syncBuildings(
       buildBuildingWorldMapMarkers(this.gameState.buildings.values()),
     );
@@ -490,6 +515,7 @@ export class App {
   private syncToolbar(): void {
     if (!this.toolbar || !this.roadNetwork || !this.roadTool || !this.roadSelection || !this.buildingTool || !this.burgageTool || !this.farmFieldTool) return;
     const buildingMode = this.buildingTool.getMode();
+    const placementEconomy = this.buildingTool.getPlacementEconomy();
     const burgageEnabled = this.burgageTool.isEnabled();
     const farmFieldEnabled = this.farmFieldTool.isEnabled();
     const stats: ToolbarStats = {
@@ -505,6 +531,8 @@ export class App {
             ? 'idle'
             : buildingMode,
       statusDetail: farmFieldEnabled ? this.farmFieldTool.getStatusDetail() : burgageEnabled ? this.burgageTool.getStatusDetail() : null,
+      buildingCost: placementEconomy?.cost,
+      carpenterSupported: placementEconomy?.carpenterSupported,
     };
     this.toolbar.setStats(stats);
     this.updateBuildButtonPosition();
@@ -572,7 +600,12 @@ export class App {
       this.settlementPresentation.reset();
       this.ambientAudio?.syncEnvironment(null);
       this.toolbar?.setConflictEnabled(false);
-      this.toolbar?.settlementHud.setSecurityState(snapshot.settlementSecurity, null, snapshot.simTick);
+      this.clearFrontierRiskFeedback();
+      this.toolbar?.settlementHud.setSecurityState(
+        snapshot.settlementSecurity,
+        null,
+        snapshot.simTick,
+      );
       this.toolbar?.settlementHud.clearProvisioningState();
       this.syncToolbar();
       return;
@@ -593,6 +626,7 @@ export class App {
     );
     this.notifyFireChanges(state, previous);
     this.notifySecurityChanges(snapshot);
+    const projectedTargets = this.syncFrontierRiskFeedback(snapshot, state);
 
     this.applyShowcaseView(state);
 
@@ -613,7 +647,7 @@ export class App {
         totals: computeResourceTotals(state),
         currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
         freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
-        sabbathConsumptionPaused: snapshot.parishPolicy.sabbathObservanceEnabled
+        sabbathObserved: snapshot.parishPolicy.sabbathObservanceEnabled
           && hasStaffedChapel(state.buildings.values()),
       }),
       clock.month,
@@ -632,6 +666,7 @@ export class App {
       snapshot.settlementSecurity,
       snapshot.worldGeneration,
       snapshot.simTick,
+      projectedTargets,
     );
     this.settlementPresentation.sync(
       {
@@ -687,9 +722,50 @@ export class App {
     if (raidTick <= 0 || raidTick === this.lastSeenRaidTick) return;
     this.lastSeenRaidTick = raidTick;
     this.toastManager?.show(formatRaidReport(snapshot.settlementSecurity), {
-      variant: snapshot.settlementSecurity.lastOutcome === 'plundered' ? 'error' : 'info',
+      variant: snapshot.settlementSecurity.lastOutcome === 'plundered'
+        || snapshot.settlementSecurity.lastOutcome === 'arson'
+        ? 'error'
+        : 'info',
       durationMs: 8_000,
     });
+  }
+
+  private syncFrontierRiskFeedback(
+    snapshot: SpacetimeGameSnapshot,
+    state: GameState,
+  ): string | undefined {
+    const enabled = snapshot.worldGeneration?.configured === true
+      && snapshot.worldGeneration.conflictMode === 'frontier';
+    const security = snapshot.settlementSecurity;
+    const signature = [
+      enabled ? 1 : 0,
+      security.lastRaidTick,
+      security.nextRaidTick,
+      security.targetsAtRisk,
+      security.threat.toFixed(6),
+      security.coverage.toFixed(6),
+      security.readyGuards.toFixed(6),
+    ].join('|');
+    if (signature !== this.raidProjectionSignature) {
+      this.raidProjectionSignature = signature;
+      this.projectedRaidTargets = enabled
+        ? projectRaidTargets(state, security.targetsAtRisk)
+        : [];
+      this.frontierRiskMarkers?.sync(
+        this.projectedRaidTargets,
+        security.threat,
+        enabled,
+      );
+    }
+    return enabled && security.targetsAtRisk > 0
+      ? formatProjectedRaidTargets(this.projectedRaidTargets)
+      : undefined;
+  }
+
+  private clearFrontierRiskFeedback(): void {
+    this.raidProjectionSignature = '';
+    this.projectedRaidTargets = [];
+    this.frontierRiskMarkers?.sync([], 0, false);
   }
 
   private applyShowcaseView(state: GameState): void {
@@ -753,6 +829,7 @@ export class App {
       getState: () => this.gameState!,
       getBuildingMode: () => this.buildingTool!.getMode(),
       isConnected: () => this.sessionGate?.isReady() ?? false,
+      getRendererStats: () => this.sceneManager!.getPerformanceStats(),
       placeBuilding: async (kind, x, z) => {
         await this.spacetimeStore!.placeBuilding(kind, x, z);
       },

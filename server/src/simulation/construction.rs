@@ -4,41 +4,61 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
     CONSTRUCTION_DELIVERY_UNLOAD_SEC, CONSTRUCTION_TREASURY_TRANSFER_PER_SEC,
-    CONSTRUCTION_WORK_PER_WORKER_PER_SEC, TICK_DT,
+    CONSTRUCTION_WORK_PER_WORKER_PER_SEC, FARMSTEAD_STARTER_SEED_GRAIN, TICK_DT,
 };
 use crate::building_defs::building_def;
+use crate::construction_priority::{
+    construction_priority_bucket, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
+    CONSTRUCTION_PRIORITY_NORMAL,
+};
 use crate::db::*;
 use crate::economy::{available_building_labor, building_commodity_stock, CommodityKind};
 use crate::reducers::livestock::{starter_herd, SPECIES_CATTLE, SPECIES_SWINE};
+use crate::roads::RoadNetwork;
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, try_start_construction_supply_trip, DELIVERY_DESTINATION_BUILDING,
+    building_has_active_trip, building_has_inbound_supply_trip, try_start_construction_supply_trip,
+    DELIVERY_DESTINATION_BUILDING,
 };
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
+use crate::supply_policy::{construction_source_priority, select_supply_route_candidate};
 use crate::tables::Building;
 
 pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
-    let site_ids: Vec<u64> = ctx
+    let mut site_buckets: [Vec<u64>; CONSTRUCTION_PRIORITY_LEVELS] =
+        std::array::from_fn(|_| Vec::new());
+    for building in ctx
         .db
         .building()
         .iter()
         .filter(|building| !building.construction_complete)
-        .map(|building| building.id)
-        .collect();
+    {
+        let bucket = construction_priority_bucket(building.construction_priority);
+        if bucket > CONSTRUCTION_PRIORITY_HOLD as usize {
+            site_buckets[bucket].push(building.id);
+        }
+    }
 
-    for site_id in site_ids {
+    // Four fixed buckets keep dispatch linear while urgent sites get first
+    // claim on busy carts and scarce physical stores.
+    for site_id in site_buckets.into_iter().rev().flatten() {
         let Some(mut site) = ctx.db.building().id().find(&site_id) else {
             continue;
         };
 
-        transfer_treasury_reserve(ctx, clock, &mut site);
+        transfer_treasury_reserve(ctx, tick, clock, &mut site);
         dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::Stone);
         dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::Timber);
-        advance_builder_work(ctx, clock, site);
+        advance_builder_work(ctx, tick, clock, site);
     }
 }
 
-fn transfer_treasury_reserve(ctx: &ReducerContext, clock: &GameClock, site: &mut Building) {
-    if site.assigned_labor == 0 || labor_and_logistics_paused(ctx, site.owner, clock) {
+fn transfer_treasury_reserve(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    site: &mut Building,
+) {
+    if site.assigned_labor == 0 || labor_and_logistics_paused(ctx, tick, site.owner, clock) {
         return;
     }
     let Some(mut treasury) = ctx.db.player_resources().owner().find(&site.owner) else {
@@ -91,37 +111,52 @@ fn dispatch_reserved_stock(
     if physical_reserved <= 1e-6 || site_has_inbound_cargo(ctx, site.id, commodity) {
         return;
     }
+    if labor_and_logistics_paused(ctx, tick, site.owner, clock) {
+        return;
+    }
     let Some(network) = tick.road_network(site.owner) else {
         return;
     };
     let allow_offroad = building_def(&site.kind).is_some_and(|def| !def.requires_road);
+    let free_haulers = available_construction_haulers(ctx, site.owner);
+    let mut source_groups: [Vec<Building>; 8] = std::array::from_fn(|_| Vec::new());
+    for source_id in tick.construction_source_ids(ctx, site.owner, commodity) {
+        let Some(source) = ctx.db.building().id().find(&source_id) else {
+            continue;
+        };
+        if source.id == site.id
+            || !source.construction_complete
+            || building_has_active_trip(ctx, source.id)
+            || (source.kind == "village_storehouse"
+                && building_has_inbound_supply_trip(ctx, source.id))
+            || building_commodity_stock(&source, commodity) <= 1e-6
+            || (source.assigned_labor == 0 && free_haulers == 0)
+        {
+            continue;
+        }
+        source_groups[construction_source_priority(&source.kind, source.assigned_labor) as usize]
+            .push(source);
+    }
 
-    let mut sources: Vec<Building> = ctx
-        .db
-        .building()
-        .owner()
-        .filter(&site.owner)
-        .filter(|source| {
-            source.id != site.id
-                && source.construction_complete
-                && !building_has_active_trip(ctx, source.id)
-                && building_commodity_stock(source, commodity) > 1e-6
-        })
-        .collect();
-    sources.sort_by(|left, right| {
-        source_priority(left)
-            .cmp(&source_priority(right))
-            .then_with(|| {
-                squared_distance(left.x, left.z, site.x, site.z)
-                    .total_cmp(&squared_distance(right.x, right.z, site.x, site.z))
-            })
-            .then_with(|| left.id.cmp(&right.id))
-    });
-
-    for mut source in sources {
-        let free_haulers = available_construction_haulers(ctx, site.owner);
+    // Preserve the existing storehouse/specialist preference, but compare
+    // candidates inside each priority class by real road distance. Only the
+    // first reachable class performs a dispatch, so no whole-set sort or route
+    // polyline construction is needed for candidates that cannot win.
+    for sources in source_groups {
+        let selected = select_supply_route_candidate(
+            sources.into_iter().filter_map(|source| {
+                construction_route_distance(&network, &source, site, allow_offroad)
+                    .map(|distance| (source, distance))
+            }),
+            |candidate| candidate.1,
+            |candidate| candidate.0.id,
+        );
+        let Some((mut source, _distance)) = selected else {
+            continue;
+        };
         if try_start_construction_supply_trip(
             ctx,
+            tick,
             clock,
             &network,
             &mut source,
@@ -135,8 +170,30 @@ fn dispatch_reserved_stock(
     }
 }
 
-fn advance_builder_work(ctx: &ReducerContext, clock: &GameClock, mut site: Building) {
-    if site.assigned_labor == 0 || labor_and_logistics_paused(ctx, site.owner, clock) {
+fn construction_route_distance(
+    network: &RoadNetwork,
+    source: &Building,
+    site: &Building,
+    allow_offroad: bool,
+) -> Option<f64> {
+    network
+        .road_path_distance(source.x, source.z, site.x, site.z)
+        .or_else(|| {
+            if !allow_offroad {
+                return None;
+            }
+            let distance = ((site.x - source.x).powi(2) + (site.z - source.z).powi(2)).sqrt();
+            (distance > 1e-6).then_some(distance)
+        })
+}
+
+fn advance_builder_work(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    mut site: Building,
+) {
+    if site.assigned_labor == 0 || labor_and_logistics_paused(ctx, tick, site.owner, clock) {
         return;
     }
     let required_total = site.construction_required_timber + site.construction_required_stone;
@@ -158,6 +215,9 @@ fn advance_builder_work(ctx: &ReducerContext, clock: &GameClock, mut site: Build
     let stone_ready = site.construction_delivered_stone + 1e-6 >= site.construction_required_stone;
     if timber_ready && stone_ready && site.construction_progress >= 1.0 - 1e-6 {
         complete_site(ctx, &mut site);
+        if site.kind == "chapel" {
+            tick.invalidate_staffed_chapel(site.owner);
+        }
     }
     ctx.db.building().id().update(site);
 }
@@ -169,9 +229,15 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
     site.construction_reserved_stone = 0.0;
     site.construction_treasury_timber = 0.0;
     site.construction_treasury_stone = 0.0;
+    site.construction_priority = CONSTRUCTION_PRIORITY_NORMAL;
     site.assigned_labor = 0;
 
-    if site.kind == "pastoral_farmstead"
+    if site.kind == "threshing_barn" {
+        // A newly established holding arrives with enough seed for roughly one
+        // efficient field. Later expansion must come from its own harvest or a
+        // road-linked granary, avoiding a first-crop grain deadlock.
+        site.grain += FARMSTEAD_STARTER_SEED_GRAIN;
+    } else if site.kind == "pastoral_farmstead"
         && ctx
             .db
             .livestock_herd()
@@ -234,22 +300,4 @@ fn available_construction_haulers(ctx: &ReducerContext, owner: spacetimedb::Iden
         .sum();
 
     available_building_labor(ctx, owner).saturating_sub(active_free_haulers)
-}
-
-fn source_priority(source: &Building) -> u8 {
-    let kind_priority = match source.kind.as_str() {
-        "village_storehouse" => 0,
-        "carpenter" => 1,
-        "lumber_mill" | "stone_quarry" | "large_quarry" => 2,
-        _ => 3,
-    };
-    if source.assigned_labor > 0 {
-        kind_priority
-    } else {
-        kind_priority + 4
-    }
-}
-
-fn squared_distance(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
-    (ax - bx).powi(2) + (az - bz).powi(2)
 }

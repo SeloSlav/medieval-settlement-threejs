@@ -14,6 +14,10 @@ import {
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
+import {
+  HAYLOFT_VISUAL_SEGMENTS,
+  WOOL_STOCKPILE_VISUAL_SEGMENTS,
+} from '../buildingStockpileVisuals.ts';
 
 const hay = sharedBuildingDetailMaterial('crop');
 const earth = sharedBuildingDetailMaterial('earth');
@@ -52,6 +56,84 @@ function addTrough(group: THREE.Group, x: number, z: number, length = 2.8): void
   for (const end of [-1, 1]) {
     addMesh(group, new THREE.BoxGeometry(0.18, 0.48, 1.0), timberMaterial('weathered'), new THREE.Vector3(x + end * length * 0.48, 0.35, z));
   }
+}
+
+function createHayloftStockpile(): THREE.Group {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'HayloftStockpile';
+  stockpile.position.set(-4.5, 0, -4.25);
+  stockpile.visible = false;
+
+  for (let index = 0; index < HAYLOFT_VISUAL_SEGMENTS; index++) {
+    const layer = Math.floor(index / 2);
+    const column = index % 2;
+    const segment = new THREE.Group();
+    segment.name = 'HayStockSegment';
+    segment.position.set(
+      (column === 0 ? -0.34 : 0.34) * (1 - layer * 0.035),
+      1.08 + layer * 0.27,
+      0,
+    );
+    segment.rotation.set(
+      0,
+      (column === 0 ? -1 : 1) * (0.08 + layer * 0.014),
+      (column === 0 ? 1 : -1) * 0.035,
+    );
+    addMesh(
+      segment,
+      new THREE.DodecahedronGeometry(0.48, 0),
+      hay,
+      new THREE.Vector3(),
+      new THREE.Euler(
+        (column === 0 ? -1 : 1) * 0.08,
+        layer * 0.17,
+        (column === 0 ? 1 : -1) * 0.06,
+      ),
+      new THREE.Vector3(0.86 - layer * 0.025, 0.42, 0.76),
+    );
+    for (const [x, yaw] of [[-0.16, -0.24], [0.15, 0.31]] as const) {
+      addMesh(
+        segment,
+        new THREE.CylinderGeometry(0.012, 0.02, 0.78, 5),
+        hay,
+        new THREE.Vector3(x, 0.08, 0),
+        new THREE.Euler(Math.PI * 0.5, yaw, Math.PI * 0.5),
+      );
+    }
+    stockpile.add(segment);
+  }
+  return stockpile;
+}
+
+function createWoolStockpile(): THREE.Group {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'WoolStockpile';
+  stockpile.position.set(-1.6, 0, 4.0);
+  stockpile.visible = false;
+  for (let index = 0; index < WOOL_STOCKPILE_VISUAL_SEGMENTS; index++) {
+    const segment = new THREE.Group();
+    segment.name = 'WoolStockSegment';
+    const column = index % 2;
+    const layer = Math.floor(index / 2);
+    segment.position.set((column - 0.5) * 0.82, 0.36 + layer * 0.52, 0);
+    addMesh(
+      segment,
+      new THREE.DodecahedronGeometry(0.48, 1),
+      residenceFacadeMaterial(index % 2 === 0 ? 'white' : 'grey'),
+      new THREE.Vector3(),
+      new THREE.Euler(0.08, index * 0.29, column ? 0.06 : -0.05),
+      new THREE.Vector3(1, 0.72, 0.88),
+    );
+    addMesh(
+      segment,
+      new THREE.TorusGeometry(0.35, 0.025, 5, 10),
+      timberMaterial('light'),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Euler(Math.PI * 0.5, 0, 0),
+    );
+    stockpile.add(segment);
+  }
+  return stockpile;
 }
 
 export function createPastoralFarmsteadMesh(): THREE.Group {
@@ -94,7 +176,8 @@ export function createPastoralFarmsteadMesh(): THREE.Group {
   for (let i = 0; i < 6; i++) {
     addMesh(group, new THREE.CylinderGeometry(0.05, 0.05, 2.0, 5), timberMaterial('weathered'), new THREE.Vector3(-4.5 + (i - 2.5) * 0.26, 1.02, -4.25), new THREE.Euler(0, 0, 0.3));
   }
-  addMesh(group, new THREE.BoxGeometry(1.5, 0.68, 0.8), hay, new THREE.Vector3(-4.5, 1.4, -4.25));
+  group.add(createHayloftStockpile());
+  group.add(createWoolStockpile());
   for (const [x, scale] of [[-0.2, 1], [0.65, 0.78]] as const) {
     addMesh(group, new THREE.CylinderGeometry(0.3 * scale, 0.36 * scale, 0.82 * scale, 10), metalMaterial('iron'), new THREE.Vector3(x, 0.42 * scale, 4.0));
     addMesh(group, new THREE.TorusGeometry(0.22 * scale, 0.035, 5, 10), metalMaterial('steel'), new THREE.Vector3(x, 0.9 * scale, 4.0), new THREE.Euler(Math.PI * 0.5, 0, 0));

@@ -48,6 +48,11 @@ export class RoadNetwork {
   private spatialIndexDirty = true;
   private pathfinder: RoadPathfinder | null = null;
   private pathfinderDirty = true;
+  private topologyRevision = 0;
+
+  getTopologyRevision(): number {
+    return this.topologyRevision;
+  }
 
   getPathfinder(): RoadPathfinder {
     if (this.pathfinderDirty || !this.pathfinder) {
@@ -365,6 +370,7 @@ export class RoadNetwork {
   private invalidateSpatialIndex(): void {
     this.spatialIndexDirty = true;
     this.pathfinderDirty = true;
+    this.topologyRevision += 1;
   }
 
   private pruneOrphans(): void {

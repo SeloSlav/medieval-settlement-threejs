@@ -6,6 +6,7 @@ use crate::constants::{
     NARROW_PARCEL_FRONTAGE_MAX, POPULATION_PER_RESIDENCE, RESIDENCE_POPULATION_NARROW,
     RESIDENCE_POPULATION_WIDE, STARTING_POPULATION, WIDE_PARCEL_FRONTAGE_MIN,
 };
+use crate::construction_priority::CONSTRUCTION_PRIORITY_HOLD;
 use crate::db::*;
 use crate::tables::Building;
 
@@ -67,6 +68,7 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
             building_id: building.id,
             assigned_labor: building.assigned_labor,
             construction_complete: building.construction_complete,
+            priority: building.construction_priority,
         })
         .collect();
 
@@ -80,20 +82,6 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
             assigned_labor,
             ..building
         });
-    }
-}
-
-/// Enforce the population/labor invariant for every settlement, including saves that were
-/// already over-assigned before reconciliation was introduced.
-pub fn reconcile_all_building_labor(ctx: &ReducerContext) {
-    let owners: Vec<_> = ctx
-        .db
-        .player_resources()
-        .iter()
-        .map(|resources| resources.owner)
-        .collect();
-    for owner in owners {
-        reconcile_building_labor(ctx, owner);
     }
 }
 
@@ -114,6 +102,12 @@ pub fn assign_building_labor(
     }
     if building.construction_complete && !building_accepts_labor(&building.kind) {
         return Err("This building does not use labor.".to_string());
+    }
+    if !building.construction_complete
+        && building.construction_priority == CONSTRUCTION_PRIORITY_HOLD
+        && requested_labor > 0
+    {
+        return Err("Resume this construction site before assigning builders.".to_string());
     }
 
     let building_cap = if building.construction_complete {

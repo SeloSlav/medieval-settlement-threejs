@@ -34,9 +34,7 @@ pub fn consume(
 
 pub fn spoil(need: &NeedState, spoilage_fraction_per_second: f64) -> NeedState {
     NeedState {
-        stock: (need.stock
-            - need.stock * spoilage_fraction_per_second.max(0.0) * TICK_DT)
-            .max(0.0),
+        stock: (need.stock - need.stock * spoilage_fraction_per_second.max(0.0) * TICK_DT).max(0.0),
         ..*need
     }
 }

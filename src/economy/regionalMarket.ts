@@ -5,6 +5,7 @@ import {
   MARKET_WATER_COMMODITIES,
   MARKET_PRICE_MULTIPLIER_MAX,
   MARKET_PRICE_MULTIPLIER_MIN,
+  MARKET_TRADE_IMPACT_PER_TEN_UNITS,
   type MarketCommodityOffer,
   type MarketWaterCommodityOffer,
   type MarketplaceGoldBuyOffer,
@@ -18,8 +19,10 @@ export type RegionalMarketState = {
   stonePriceMult: number;
   firewoodPriceMult: number;
   foodPriceMult: number;
+  specialtyPriceMult: number;
   regionalFoodDemand: number;
   regionalFoodSupply: number;
+  regionalSpecialtyDemand: number;
   bulletin: string;
 };
 
@@ -28,8 +31,10 @@ export const DEFAULT_REGIONAL_MARKET_STATE: RegionalMarketState = {
   stonePriceMult: 1,
   firewoodPriceMult: 1,
   foodPriceMult: 1,
+  specialtyPriceMult: 1,
   regionalFoodDemand: 0.5,
   regionalFoodSupply: 0.5,
+  regionalSpecialtyDemand: 0.5,
   bulletin: 'Caravans from Kvarner and the nearby highlands report steady trade.',
 };
 
@@ -41,10 +46,12 @@ export function priceMultiplierFor(
     case 'timber':
       return state.timberPriceMult;
     case 'stone':
+    case 'ironwork':
       return state.stonePriceMult;
     case 'firewood':
       return state.firewoodPriceMult;
     case 'food':
+    case 'grain':
       return state.foodPriceMult;
     default: {
       const unhandled: never = resource;
@@ -89,6 +96,33 @@ export function formatPriceMultiplier(multiplier: number): string | null {
   return `${pct}% market`;
 }
 
+export function formatRegionalRateSummary(state: RegionalMarketState): string {
+  const rates: Array<[string, TradeResourceKind]> = [
+    ['Timber', 'timber'],
+    ['Stone', 'stone'],
+    ['Firewood', 'firewood'],
+    ['Food & seed grain', 'food'],
+  ];
+  const bulkRates = rates
+    .map(([label, resource]) => {
+      const signal = formatPriceMultiplier(priceMultiplierFor(state, resource)) ?? 'steady';
+      return `${label} ${signal}`;
+    })
+    .join(' · ');
+  const specialtySignal = formatPriceMultiplier(state.specialtyPriceMult) ?? 'steady';
+  return `${bulkRates} · Specialties ${specialtySignal}`;
+}
+
+export function specialtyPriceMultiplier(demand: number): number {
+  const boundedDemand = Math.min(1, Math.max(0, demand));
+  return clampMarketMultiplier(1 + (boundedDemand * 2 - 1) * 0.55);
+}
+
+export function formatMarketDepthHint(): string {
+  const points = Math.round(MARKET_TRADE_IMPACT_PER_TEN_UNITS * 100);
+  return `Market depth: each 10-unit trade shifts regional supply or demand by about ${points} points. Repeated orders move prices; caravan routes settle gradually.`;
+}
+
 export function describeCommodityOffer(
   commodity: MarketCommodityOffer,
   state: RegionalMarketState,
@@ -105,6 +139,9 @@ export function describeMarketplaceTradeOfferWithPrices(
   switch (offer.kind) {
     case 'goldBuy': {
       const gold = effectiveTradeGoldCost(offer, state);
+      if (offer.id === 'buy_seed_grain') {
+        return `Import ${offer.amount} seed grain for ${gold} gold`;
+      }
       return `Buy ${offer.amount} ${resourceLabel(offer.resource).toLowerCase()} for ${gold} gold`;
     }
     case 'goldSell': {

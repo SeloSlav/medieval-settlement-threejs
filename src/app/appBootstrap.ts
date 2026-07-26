@@ -4,19 +4,19 @@ import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { FpCollisionWorld } from '../camera/fp/fpCollisionWorld.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import { BuildingTool } from '../buildings/BuildingTool.ts';
-import { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
+import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import {
   FarmFieldTool,
   type FarmFieldPlacementFailureReason,
   type LandParcelMode,
 } from '../farming/FarmFieldTool.ts';
-import { PastureMarkers } from '../farming/PastureMarkers.ts';
-import { LivestockVisuals } from '../farming/LivestockVisuals.ts';
+import type { PastureMarkers } from '../farming/PastureMarkers.ts';
+import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
 import { BurgageTool } from '../residences/BurgageTool.ts';
 import { MAX_ZONE_DEPTH, MIN_ZONE_DEPTH } from '../residences/burgageLayout.ts';
-import { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
-import { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
-import { BurgageFencing } from '../residences/BurgageFencing.ts';
+import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
+import type { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
+import type { BurgageFencing } from '../residences/BurgageFencing.ts';
 import { SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
 import { InputManager } from '../input/InputManager.ts';
 import {
@@ -45,11 +45,15 @@ import { SceneManager } from '../scene/SceneManager.ts';
 import { createInspectorSpacetimeActions } from './inspectorSpacetimeActions.ts';
 import { createWorldMapUi, resolveWorldMapFocus, type WorldMapUiBundle } from './worldMapIcons.ts';
 import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
-import { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
-import { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
-import { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
+import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
+import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
+import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { beginProgressiveStartupTextureLoad } from '../scene/startupTextures.ts';
-import { markDetailedWorldTexturesReady, markStartupCheckpoint } from './startupDiagnostics.ts';
+import {
+  markDetailedWorldTexturesReady,
+  markSettlementPresentationReady,
+  markStartupCheckpoint,
+} from './startupDiagnostics.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { BuildToolbar } from '../ui/BuildToolbar.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
@@ -64,7 +68,7 @@ import {
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { VillagerInspector } from '../ui/VillagerInspector.ts';
-import { saveWorldGenerationSettings, shouldShowWorldSetup } from '../world/worldGenerationSettings.ts';
+import { saveWorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { getDraftWorldGeneration, setDraftWorldGeneration } from '../world/worldGenerationContext.ts';
 import { mountTooltips } from '../ui/tooltips.ts';
 import { setHydrologyOverlayEnabled, isHydrologyOverlayEnabled } from '../scene/hydrologyOverlayPreference.ts';
@@ -132,6 +136,7 @@ export async function bootstrapAppSession(
   bridge: AppBootstrapBridge,
 ): Promise<BootstrappedSession> {
   const loadingScreen = LoadingScreen.tryCreate();
+  const settlementPresentationPromise = import('./deferredSettlementPresentation.ts');
   const materials = RoadMaterialFactory.createProgressive(8);
   void materials.whenTexturesReady().catch((error) => {
     console.warn('Detailed road and terrain textures are still unavailable:', error);
@@ -153,7 +158,7 @@ export async function bootstrapAppSession(
       </div>
     `;
 
-  if (shouldShowWorldSetup()) {
+  if (new URLSearchParams(window.location.search).has('new')) {
     loadingScreen?.setProgress({
       label: 'New settlement',
       detail: 'Choose map size, landscape, and seed',
@@ -256,6 +261,18 @@ export async function bootstrapAppSession(
     parent: sceneManager.selectionGroup,
     getRoadNetwork: () => roadNetwork,
   });
+  const {
+    DeliveryAgentRenderer,
+    FireEffectsRenderer,
+    VillagerRenderer,
+    ResidenceMarkers,
+    BackyardGardenMarkers,
+    BurgageFencing,
+    FarmFieldMarkers,
+    PastureMarkers,
+    LivestockVisuals,
+  } = await settlementPresentationPromise;
+  markSettlementPresentationReady();
   const deliveryAgents = new DeliveryAgentRenderer({
     terrain: sceneManager.terrain,
     parent: sceneManager.selectionGroup,
@@ -393,6 +410,7 @@ export async function bootstrapAppSession(
     onPreviewChange: (preview) => {
       syncBuildingTerrainLayout(sceneManager, liveContext.gameState);
       syncPreviewTerrainPads(sceneManager, liveContext.gameState, preview);
+      bridge.syncToolbar();
     },
     onModeChanged: () => bridge.syncToolbar(),
     onPlacementRejected: (reason) => {
@@ -709,21 +727,41 @@ export async function bootstrapAppSession(
     getState: () => liveContext.gameState,
     getEconomicActivityTaxRate: () =>
       spacetimeStore.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
+    getSeasonalLaborStewardEnabled: () =>
+      spacetimeStore.snapshot.seasonalLaborStewardEnabled,
+    getConstructionLaborStewardEnabled: () =>
+      spacetimeStore.snapshot.constructionLaborStewardEnabled,
     getParishPolicy: () =>
       spacetimeStore.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
     getMonasteryPolicy: () =>
       spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY,
     getMarketState: () => spacetimeStore.snapshot.marketState,
     getSettlementSecurity: () => spacetimeStore.snapshot.settlementSecurity,
+    getConflictEnabled: () =>
+      spacetimeStore.snapshot.worldGeneration?.configured === true
+      && spacetimeStore.snapshot.worldGeneration.conflictMode === 'frontier',
+    getEnemyPressure: () => spacetimeStore.snapshot.worldGeneration?.enemyPressure ?? 0,
     getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
     ...inspectorActions,
     onBeginFarmFieldPlacement: (farmsteadId) => beginLinkedLandParcelPlacement('field', farmsteadId),
     onBeginPasturePlacement: (farmsteadId) => beginLinkedLandParcelPlacement('pasture', farmsteadId),
+    onInspectDeliveryTrip: (tripId) => {
+      const trip = liveContext.gameState.deliveryTrips.get(tripId);
+      if (!trip || !villagerInspector.selectDeliveryTrip(tripId)) return;
+      if (!firstPersonController?.isActive()) {
+        cameraController.focusWorldPosition(trip.x, trip.z);
+      }
+    },
+    onFocusWorldPosition: (x, z) => {
+      if (!firstPersonController?.isActive()) {
+        cameraController.focusWorldPosition(x, z);
+      }
+    },
     onSelectionChange: (target) => {
       if (target) villagerInspector.clearSelection();
       toolbar.setCityAdministrationOpen(target?.kind === 'building' && target.building.kind === 'town_hall');
       if (target?.kind === 'building') {
-        buildingMarkers.setBuildingExtentOverlay(target.building);
+        buildingMarkers.setBuildingExtentOverlay(target.building, liveContext.gameState);
         return;
       }
       buildingMarkers.setBuildingExtentOverlay(null);

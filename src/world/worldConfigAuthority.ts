@@ -65,25 +65,41 @@ export function generationMatchesServer(
     && server.enemyPressure === local.enemyPressure;
 }
 
+export type WorldGenerationAuthorityResolution =
+  | {
+      kind: 'adopt-server';
+      settings: WorldGenerationSettings;
+    }
+  | {
+      kind: 'use-local';
+      settings: WorldGenerationSettings;
+    }
+  | {
+      kind: 'prompt';
+    };
+
 /**
- * True when cached client settings are stale relative to the server row and the
- * player should pick generation settings again in the setup panel.
+ * Resolves setup before terrain is created.
  *
- * An unconfigured server is a new world. Always show the setup panel instead of
- * silently reusing browser-cached settings from an older world.
- *
- * When the server world is already running (simTick > 0), re-picking settings
- * cannot help; bootstrap guards will surface a New world action instead.
+ * A configured server is the save contract and wins over missing or stale
+ * browser storage. An unconfigured server is a genuinely new world and must
+ * prompt rather than silently inheriting settings from an older database.
+ * When the server cannot be probed, cached settings remain the offline fallback.
  */
-export function shouldRequireWorldRegeneration(
-  server: AuthoritativeWorldGeneration,
-  simTick: number,
+export function resolveWorldGenerationAuthority(
+  server: AuthoritativeWorldGeneration | null,
   local: WorldGenerationSettings | null,
-): boolean {
-  if (!local) return true;
-  if (!server.configured) return true;
-  if (simTick > 0) return false;
-  return !generationMatchesServer(server, local);
+): WorldGenerationAuthorityResolution {
+  if (server?.configured) {
+    const { configured: _configured, ...serverSettings } = server;
+    return local && generationMatchesServer(server, local)
+      ? { kind: 'use-local', settings: local }
+      : { kind: 'adopt-server', settings: serverSettings };
+  }
+  if (server) return { kind: 'prompt' };
+  return local
+    ? { kind: 'use-local', settings: local }
+    : { kind: 'prompt' };
 }
 
 /** Blocks bootstrap when a running server world was generated with different settings. */
@@ -96,10 +112,9 @@ export function assertWorldGenerationCompatible(
   if (generationMatchesServer(server, local)) return;
   if (simTick > 0) {
     throw new WorldGenerationMismatchError(
-      'This server world is already running with different map settings than your browser saved '
-      + `(server: ${server.mapSize}/${server.conflictMode}, saved: ${local.mapSize}/${local.conflictMode}). `
-      + 'Clearing SpacetimeDB alone does not reset an active world — use Start new world below, '
-      + 'or run deploy:local-clean in dev.',
+      'The server world changed after this terrain was prepared '
+      + `(server: ${server.mapSize}/${server.conflictMode}, terrain: ${local.mapSize}/${local.conflictMode}). `
+      + 'Reload to adopt the server\'s saved map settings without resetting the settlement.',
     );
   }
 }

@@ -37,7 +37,7 @@ pub fn step_backyard_gardens(
         let Some(residence) = ctx.db.residence().id().find(&garden.residence_id) else {
             continue;
         };
-        if labor_and_logistics_paused(ctx, residence.owner, clock) {
+        if labor_and_logistics_paused(ctx, tick, residence.owner, clock) {
             continue;
         }
         if residence.abandoned || residence.population == 0 {

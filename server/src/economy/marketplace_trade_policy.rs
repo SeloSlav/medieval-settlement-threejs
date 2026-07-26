@@ -1,4 +1,7 @@
-use crate::balance_generated::{MarketplaceTradeKind, MarketplaceTradeOffer, TradeResource};
+use crate::balance_generated::{
+    MarketplaceTradeKind, MarketplaceTradeOffer, TradeResource,
+    MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TradeLeg {
@@ -50,6 +53,24 @@ pub fn trade_receive(offer: &MarketplaceTradeOffer) -> TradeReceive {
     }
 }
 
+pub fn manual_trade_ready(
+    assigned_labor: u32,
+    action_cooldown: f64,
+    has_road_access: bool,
+) -> bool {
+    assigned_labor > 0 && action_cooldown <= 1e-6 && has_road_access
+}
+
+pub fn manual_trade_cooldown_seconds(assigned_labor: u32) -> f64 {
+    MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS / assigned_labor.max(1) as f64
+}
+
+/// Manual treasury imports may remain as marketplace stock, but a household or
+/// parish order is a sale to one named home and only commits when its cart starts.
+pub fn market_order_should_commit(requires_immediate_delivery: bool, dispatched: bool) -> bool {
+    !requires_immediate_delivery || dispatched
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -64,6 +85,32 @@ mod tests {
             TradeReceive::Resource(TradeLeg {
                 resource: TradeResource::Timber,
                 amount: 10.0,
+            })
+        );
+    }
+
+    #[test]
+    fn buy_ironwork_imports_a_physical_market_shipment() {
+        let offer = marketplace_trade_offer("buy_ironwork").expect("buy_ironwork");
+        assert_eq!(trade_spend(offer), TradeSpend::Gold(12.0));
+        assert_eq!(
+            trade_receive(offer),
+            TradeReceive::Resource(TradeLeg {
+                resource: TradeResource::Ironwork,
+                amount: 6.0,
+            })
+        );
+    }
+
+    #[test]
+    fn buy_seed_grain_restarts_one_efficient_field() {
+        let offer = marketplace_trade_offer("buy_seed_grain").expect("buy_seed_grain");
+        assert_eq!(trade_spend(offer), TradeSpend::Gold(18.0));
+        assert_eq!(
+            trade_receive(offer),
+            TradeReceive::Resource(TradeLeg {
+                resource: TradeResource::Grain,
+                amount: 24.0,
             })
         );
     }
@@ -103,5 +150,35 @@ mod tests {
     #[test]
     fn unknown_offer_is_none() {
         assert!(marketplace_trade_offer("not_a_trade").is_none());
+    }
+
+    #[test]
+    fn manual_trade_requires_a_broker_road_and_ready_desk() {
+        assert!(!manual_trade_ready(0, 0.0, true));
+        assert!(!manual_trade_ready(1, 0.0, false));
+        assert!(!manual_trade_ready(1, 0.1, true));
+        assert!(manual_trade_ready(1, 0.0, true));
+    }
+
+    #[test]
+    fn additional_brokers_reduce_trade_turnaround() {
+        assert_eq!(manual_trade_cooldown_seconds(1), 8.0);
+        assert_eq!(manual_trade_cooldown_seconds(2), 4.0);
+        assert_eq!(manual_trade_cooldown_seconds(4), 2.0);
+    }
+
+    #[test]
+    fn treasury_import_can_wait_in_market_storage() {
+        assert!(market_order_should_commit(false, false));
+    }
+
+    #[test]
+    fn named_household_order_waits_without_committing_when_cart_cannot_leave() {
+        assert!(!market_order_should_commit(true, false));
+    }
+
+    #[test]
+    fn named_household_order_commits_when_its_cart_leaves() {
+        assert!(market_order_should_commit(true, true));
     }
 }

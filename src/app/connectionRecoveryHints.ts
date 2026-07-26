@@ -31,12 +31,15 @@ export function formatBootstrapFailure(error: unknown): RecoveryErrorPresentatio
   const message = error instanceof Error ? error.message : 'World bootstrap failed.';
   const lower = message.toLowerCase();
 
-  if (message.includes('Cannot change world generation')) {
+  if (
+    message.includes('Cannot change world generation')
+    || message.includes('Cannot change world setup')
+  ) {
     return {
       label: 'World bootstrap failed',
       detail: message,
-      recoveryHint: `Your browser saved map settings (for example Small) do not match the server database, which was not fully reset. Use Start new world below, or clear this site's local storage and reload.${devServerHint()} ${stuckHint(false)}`,
-      showNewWorldAction: true,
+      recoveryHint: `The server world changed after terrain setup. Reload to adopt its saved map settings without resetting the settlement.${devServerHint()}`,
+      showNewWorldAction: false,
     };
   }
 
@@ -61,8 +64,8 @@ export function formatWorldGenerationMismatch(message: string): RecoveryErrorPre
   return {
     label: 'World settings mismatch',
     detail: message,
-    recoveryHint: `Re-picking map size in the setup panel cannot fix a server that is already running. Use Start new world below to reset the server settlement.${devServerHint()} ${stuckHint(false)}`,
-    showNewWorldAction: true,
+    recoveryHint: `The server world changed after terrain setup. Use Retry to reload and adopt its saved map settings without resetting the settlement.${devServerHint()}`,
+    showNewWorldAction: false,
   };
 }
 

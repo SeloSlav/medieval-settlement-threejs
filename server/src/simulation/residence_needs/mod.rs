@@ -9,8 +9,8 @@ pub mod water;
 pub use kinds::ResidenceNeedKind;
 pub use state::{load_needs, need_stock};
 
-use crate::season_policy::EnvironmentState;
 use crate::balance_generated::FRESH_FOOD_STORAGE_RESIDENCE_FACTOR;
+use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_consumption_paused;
 use spacetimedb::ReducerContext;
@@ -29,6 +29,7 @@ use crate::tables::Residence;
 pub fn step_residence_needs(
     ctx: &ReducerContext,
     residence: Residence,
+    mut needs: Vec<NeedState>,
     has_chapel_access: bool,
     has_monastery_coverage: bool,
     clock: &GameClock,
@@ -40,11 +41,11 @@ pub fn step_residence_needs(
 
     let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
 
-    let mut needs = load_needs(ctx, residence.id);
     let mut any_unmet = false;
 
     for kind in ResidenceNeedKind::ALL {
-        // Heating is continuous. Other needs keep the existing workday cadence.
+        // Heating is continuous. Other needs keep the established daytime
+        // cadence, but Sunday observance does not make provisions free.
         if general_consumption_paused && kind != ResidenceNeedKind::Firewood {
             if kind == ResidenceNeedKind::Food {
                 if let Some(need) = find_need_mut(&mut needs, kind) {
@@ -238,6 +239,10 @@ fn consume_need(
                 provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
             }
         }
+        ResidenceNeedKind::Cloth => match provisions::consume_cloth(residence, need) {
+            provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
+            provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
+        },
     }
 }
 
@@ -246,7 +251,9 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         ResidenceNeedKind::Firewood => firewood::on_unmet(need),
         ResidenceNeedKind::Water => water::on_unmet(need),
         ResidenceNeedKind::Food => food::on_unmet(need),
-        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood => provisions::on_unmet(need),
+        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => {
+            provisions::on_unmet(need)
+        }
     }
 }
 
@@ -262,7 +269,7 @@ fn evaluate_recovery(
         ResidenceNeedKind::Firewood => firewood::evaluate_recovery(need, supply, stock_min),
         ResidenceNeedKind::Water => water::evaluate_recovery(need, supply, stock_min),
         ResidenceNeedKind::Food => food::evaluate_recovery(need, supply, stock_min),
-        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood => {
+        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => {
             provisions::evaluate_recovery(kind, need, supply, stock_min)
         }
     }
@@ -273,7 +280,7 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         ResidenceNeedKind::Firewood => firewood::apply_delivery(need, delivered),
         ResidenceNeedKind::Water => water::apply_delivery(need, delivered),
         ResidenceNeedKind::Food => food::apply_delivery(need, delivered),
-        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood => {
+        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => {
             provisions::apply_delivery(need, delivered)
         }
     }

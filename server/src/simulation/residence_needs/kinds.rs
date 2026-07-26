@@ -5,22 +5,24 @@ pub enum ResidenceNeedKind {
     Food,
     Ale,
     PreservedFood,
+    Cloth,
 }
 
 impl ResidenceNeedKind {
-    pub const ALL: [ResidenceNeedKind; 5] = [
+    pub const ALL: [ResidenceNeedKind; 6] = [
         Self::Firewood,
         Self::Water,
         Self::Food,
         Self::PreservedFood,
         Self::Ale,
+        Self::Cloth,
     ];
 
     pub fn is_active_for_tier(self, tier: u8) -> bool {
         match self {
             Self::Food => true,
             Self::Firewood | Self::Water => tier >= 2,
-            Self::PreservedFood | Self::Ale => tier >= 3,
+            Self::PreservedFood | Self::Ale | Self::Cloth => tier >= 3,
         }
     }
 
@@ -31,6 +33,7 @@ impl ResidenceNeedKind {
             Self::Food => 2,
             Self::Ale => 6,
             Self::PreservedFood => 7,
+            Self::Cloth => 14,
         }
     }
 
@@ -41,6 +44,7 @@ impl ResidenceNeedKind {
             2 => Some(Self::Food),
             6 => Some(Self::Ale),
             7 => Some(Self::PreservedFood),
+            14 => Some(Self::Cloth),
             _ => None,
         }
     }
@@ -61,9 +65,10 @@ mod tests {
 
         assert_eq!(active_count(1), 1);
         assert_eq!(active_count(2), 3);
-        assert_eq!(active_count(3), 5);
+        assert_eq!(active_count(3), 6);
         assert!(ResidenceNeedKind::Food.is_active_for_tier(1));
         assert!(!ResidenceNeedKind::Firewood.is_active_for_tier(1));
         assert!(!ResidenceNeedKind::PreservedFood.is_active_for_tier(2));
+        assert_eq!(ResidenceNeedKind::Cloth.as_u8(), 14);
     }
 }

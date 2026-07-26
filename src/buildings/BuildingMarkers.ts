@@ -1,7 +1,20 @@
 import * as THREE from 'three';
-import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
+import {
+  BUILDING_STORAGE_CAPS,
+  LIVESTOCK_HAY_STORAGE_CAPACITY,
+} from '../generated/gameBalance.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
-import type { BuildingKind, BuildingState } from '../resources/types.ts';
+import type {
+  BuildingKind,
+  BuildingState,
+  GameState,
+  LivestockHerdState,
+} from '../resources/types.ts';
+import {
+  getGuardhouseMusterState,
+  guardhouseMusterResponseBand,
+  watchtowerEffectiveRadius,
+} from '../security/frontierSecurity.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -13,6 +26,7 @@ import {
   createConstructionSiteMesh,
 } from './ConstructionSiteMesh.ts';
 import { buildingMeshSignature } from './buildingMarkerSignature.ts';
+import { syncStockpileSegments } from './buildingStockpileVisuals.ts';
 import {
   createBuildingPreviewMesh,
   disposeBuildingPreviewMesh,
@@ -32,6 +46,11 @@ export class BuildingMarkers {
   private readonly buildingMeshes = new Map<string, THREE.Group>();
   private extentOverlayMesh: THREE.Mesh | null = null;
   private extentOverlayKind: BuildingKind | null = null;
+  private readonly guardhouseMusterRoute: THREE.InstancedMesh<
+    THREE.BoxGeometry,
+    THREE.MeshBasicMaterial
+  >;
+  private guardhouseMusterSignature = '';
   private previewMesh: THREE.Mesh | null = null;
   private previewBuilding: THREE.Group | null = null;
   private previewKind: BuildingKind | null = null;
@@ -43,40 +62,53 @@ export class BuildingMarkers {
     this.terrain = options.terrain;
     this.getRoadNetwork = options.getRoadNetwork;
     this.group.name = 'Building markers';
+    this.guardhouseMusterRoute = createGuardhouseMusterRoute();
+    this.group.add(this.guardhouseMusterRoute);
     options.parent.add(this.group);
   }
 
-  setBuildingExtentOverlay(building: BuildingState | null): void {
+  setBuildingExtentOverlay(
+    building: BuildingState | null,
+    gameState?: GameState,
+  ): void {
     const extent = building
       ? getBuildingExtent(building.kind, building.workRadius)
       : null;
-    if (!building || !extent) {
+    const radius = building?.kind === 'watchtower'
+      ? watchtowerEffectiveRadius(building)
+      : extent?.radius ?? 0;
+    if (!building || !extent || radius <= 0) {
       if (this.extentOverlayMesh) this.extentOverlayMesh.visible = false;
-      return;
-    }
-
-    const color = buildingExtentColor(building.kind);
-    if (!this.extentOverlayMesh || this.extentOverlayKind !== building.kind) {
-      if (this.extentOverlayMesh) {
-        disposeObject3D(this.extentOverlayMesh);
-        this.extentOverlayMesh.removeFromParent();
+    } else {
+      const color = buildingExtentColor(building.kind);
+      if (!this.extentOverlayMesh || this.extentOverlayKind !== building.kind) {
+        if (this.extentOverlayMesh) {
+          disposeObject3D(this.extentOverlayMesh);
+          this.extentOverlayMesh.removeFromParent();
+        }
+        this.extentOverlayMesh = createRadiusRing(color, 0.14);
+        this.extentOverlayMesh.name = 'Selected building extent';
+        this.extentOverlayKind = building.kind;
+        this.group.add(this.extentOverlayMesh);
       }
-      this.extentOverlayMesh = createRadiusRing(color, 0.14);
-      this.extentOverlayKind = building.kind;
-      this.group.add(this.extentOverlayMesh);
+
+      const y = this.terrain.getHeightAt(building.x, building.z);
+      this.extentOverlayMesh.visible = true;
+      this.extentOverlayMesh.position.set(building.x, y + 0.15, building.z);
+      this.extentOverlayMesh.scale.set(radius, 1, radius);
     }
 
-    const y = this.terrain.getHeightAt(building.x, building.z);
-    this.extentOverlayMesh.visible = true;
-    this.extentOverlayMesh.position.set(building.x, y + 0.15, building.z);
-    this.extentOverlayMesh.scale.set(extent.radius, 1, extent.radius);
+    this.syncGuardhouseMusterRoute(building, gameState);
   }
 
-  syncBuildings(buildings: Iterable<BuildingState>): void {
+  syncBuildings(
+    buildings: Iterable<BuildingState>,
+    livestockHerds?: ReadonlyMap<string, LivestockHerdState>,
+  ): void {
     const nextIds = new Set<string>();
     for (const building of buildings) {
       nextIds.add(building.id);
-      this.upsertBuilding(building);
+      this.upsertBuilding(building, livestockHerds?.get(building.id));
     }
 
     for (const id of this.buildingMeshes.keys()) {
@@ -176,13 +208,90 @@ export class BuildingMarkers {
       this.extentOverlayMesh = null;
       this.extentOverlayKind = null;
     }
+    disposeObject3D(this.guardhouseMusterRoute);
     for (const id of [...this.buildingMeshes.keys()]) {
       this.removeBuilding(id);
     }
     this.group.removeFromParent();
   }
 
-  private upsertBuilding(building: BuildingState): void {
+  private syncGuardhouseMusterRoute(
+    building: BuildingState | null,
+    gameState?: GameState,
+  ): void {
+    const network = this.getRoadNetwork?.() ?? null;
+    if (
+      building?.kind !== 'guardhouse'
+      || building.constructionComplete === false
+      || !gameState
+      || !network
+    ) {
+      this.guardhouseMusterSignature = '';
+      this.guardhouseMusterRoute.visible = false;
+      return;
+    }
+
+    const towerSignature: string[] = [];
+    for (const candidate of gameState.buildings.values()) {
+      if (candidate.kind !== 'watchtower') continue;
+      towerSignature.push([
+        candidate.id,
+        candidate.constructionComplete === false ? 0 : 1,
+        candidate.assignedLabor,
+        candidate.x.toFixed(2),
+        candidate.z.toFixed(2),
+      ].join(':'));
+    }
+    const signature = [
+      building.id,
+      building.x.toFixed(2),
+      building.z.toFixed(2),
+      network.getTopologyRevision(),
+      towerSignature.join('|'),
+    ].join(';');
+    if (signature === this.guardhouseMusterSignature) return;
+    this.guardhouseMusterSignature = signature;
+
+    const muster = getGuardhouseMusterState(
+      building,
+      gameState,
+      (ax, az, bx, bz) => network.getPathfinder().roadPathDistance(ax, az, bx, bz),
+    );
+    const linkedTower = muster.linkedTowerId
+      ? gameState.buildings.get(muster.linkedTowerId)
+      : null;
+    if (!linkedTower) {
+      this.guardhouseMusterRoute.visible = false;
+      return;
+    }
+    const route = network.getPathfinder().roadPathRoute(
+      building.x,
+      building.z,
+      linkedTower.x,
+      linkedTower.z,
+    );
+    if (!route || route.polyline.length < 2) {
+      this.guardhouseMusterRoute.visible = false;
+      return;
+    }
+
+    const responseBand = guardhouseMusterResponseBand(muster.efficiency);
+    this.guardhouseMusterRoute.material.color.setHex(responseBand === 'full'
+      ? 0x9aca6f
+      : responseBand === 'delayed'
+        ? 0xf0a63f
+        : 0xe2573e);
+    syncGuardhouseMusterRouteInstances(
+      this.guardhouseMusterRoute,
+      route.polyline,
+      this.terrain,
+    );
+  }
+
+  private upsertBuilding(
+    building: BuildingState,
+    herd?: LivestockHerdState,
+  ): void {
     let marker = this.buildingMeshes.get(building.id);
     const timberRatio = ratio(
       building.constructionDeliveredTimber,
@@ -228,7 +337,7 @@ export class BuildingMarkers {
 
     const y = this.terrain.getHeightAt(building.x, building.z);
     marker.position.set(building.x, y, building.z);
-    if (operational) syncBuildingVisualState(marker, building);
+    if (operational) syncBuildingVisualState(marker, building, herd);
     if (operational && !marker.getObjectByName('Building shadow proxy')) {
       const shadowProxy = createBuildingShadowProxy(building.kind);
       shadowProxy.castShadow = areBuildingShadowsEnabled();
@@ -251,19 +360,62 @@ function ratio(value: number, required: number): number {
   return required <= 1e-6 ? 1 : THREE.MathUtils.clamp(value / required, 0, 1);
 }
 
-function syncBuildingVisualState(marker: THREE.Group, building: BuildingState): void {
-  if (building.kind !== 'lumber_mill') return;
-  const stockpile = marker.getObjectByName('TimberStockpile');
-  if (!(stockpile instanceof THREE.Group)) return;
-
-  const capacity = BUILDING_STORAGE_CAPS.lumber_mill.timber;
-  const fill = THREE.MathUtils.clamp(building.timber / capacity, 0, 1);
-  const segments = stockpile.children.filter((child) => child.name === 'TimberStockSegment');
-  const visibleCount = fill > 0 ? Math.max(1, Math.ceil(fill * segments.length)) : 0;
-  stockpile.visible = visibleCount > 0;
-  segments.forEach((segment, index) => {
-    segment.visible = index < visibleCount;
-  });
+function syncBuildingVisualState(
+  marker: THREE.Group,
+  building: BuildingState,
+  herd?: LivestockHerdState,
+): void {
+  if (building.kind === 'lumber_mill') {
+    const stockpile = marker.getObjectByName('TimberStockpile');
+    if (stockpile instanceof THREE.Group) {
+      syncStockpileSegments(
+        stockpile,
+        'TimberStockSegment',
+        building.timber,
+        BUILDING_STORAGE_CAPS.lumber_mill.timber,
+      );
+    }
+  }
+  if (building.kind === 'pastoral_farmstead') {
+    const hayloft = marker.getObjectByName('HayloftStockpile');
+    if (hayloft instanceof THREE.Group) {
+      syncStockpileSegments(
+        hayloft,
+        'HayStockSegment',
+        herd?.hayStock ?? 0,
+        LIVESTOCK_HAY_STORAGE_CAPACITY,
+      );
+    }
+    const wool = marker.getObjectByName('WoolStockpile');
+    if (wool instanceof THREE.Group) {
+      syncStockpileSegments(
+        wool,
+        'WoolStockSegment',
+        building.wool ?? 0,
+        BUILDING_STORAGE_CAPS.pastoral_farmstead.wool ?? 0,
+      );
+    }
+  }
+  if (building.kind === 'weaver') {
+    const wool = marker.getObjectByName('WeaverWoolStockpile');
+    if (wool instanceof THREE.Group) {
+      syncStockpileSegments(
+        wool,
+        'WoolStockSegment',
+        building.wool ?? 0,
+        BUILDING_STORAGE_CAPS.weaver.wool ?? 0,
+      );
+    }
+    const cloth = marker.getObjectByName('ClothStockpile');
+    if (cloth instanceof THREE.Group) {
+      syncStockpileSegments(
+        cloth,
+        'ClothStockSegment',
+        building.cloth ?? 0,
+        BUILDING_STORAGE_CAPS.weaver.cloth ?? 0,
+      );
+    }
+  }
 }
 
 const BUILDING_EXTENT_COLORS: Partial<Record<BuildingKind, number>> = {
@@ -277,6 +429,7 @@ const BUILDING_EXTENT_COLORS: Partial<Record<BuildingKind, number>> = {
   fishing_camp: 0x5b99b0,
   threshing_barn: 0xb8894c,
   monastery: 0xe4dfd2,
+  watchtower: 0xe0ad4f,
 };
 
 function buildingExtentColor(kind: BuildingKind): number {
@@ -296,4 +449,104 @@ function createRadiusRing(color: number, opacity: number): THREE.Mesh {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = 8;
   return mesh;
+}
+
+const MAX_GUARDHOUSE_MUSTER_DASHES = 512;
+const GUARDHOUSE_MUSTER_DASH_STRIDE = 3.35;
+const GUARDHOUSE_MUSTER_DASH_FILL = 0.66;
+
+function createGuardhouseMusterRoute(): THREE.InstancedMesh<
+  THREE.BoxGeometry,
+  THREE.MeshBasicMaterial
+> {
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x9aca6f,
+    transparent: true,
+    opacity: 0.84,
+    depthWrite: false,
+    depthTest: false,
+  });
+  const route = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 0.08, 0.54),
+    material,
+    MAX_GUARDHOUSE_MUSTER_DASHES,
+  );
+  route.name = 'Selected guardhouse muster route';
+  route.count = 0;
+  route.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  route.renderOrder = 14;
+  route.visible = false;
+  route.frustumCulled = false;
+  return route;
+}
+
+function syncGuardhouseMusterRouteInstances(
+  route: THREE.InstancedMesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>,
+  polyline: readonly { x: number; z: number }[],
+  terrain: Terrain,
+): void {
+  const segmentLengths: number[] = [];
+  let totalLength = 0;
+  for (let index = 0; index < polyline.length - 1; index += 1) {
+    const start = polyline[index]!;
+    const end = polyline[index + 1]!;
+    const length = Math.hypot(end.x - start.x, end.z - start.z);
+    segmentLengths.push(length);
+    totalLength += length;
+  }
+  if (totalLength <= 1e-6) {
+    route.count = 0;
+    route.visible = false;
+    return;
+  }
+
+  const stride = Math.max(
+    GUARDHOUSE_MUSTER_DASH_STRIDE,
+    totalLength / MAX_GUARDHOUSE_MUSTER_DASHES,
+  );
+  const dashLength = stride * GUARDHOUSE_MUSTER_DASH_FILL;
+  const matrix = new THREE.Matrix4();
+  const position = new THREE.Vector3();
+  const rotation = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  let segmentIndex = 0;
+  let segmentStartDistance = 0;
+  let dashCount = 0;
+
+  for (
+    let dashStart = 0;
+    dashStart < totalLength - 1e-6 && dashCount < MAX_GUARDHOUSE_MUSTER_DASHES;
+    dashStart += stride
+  ) {
+    const visibleLength = Math.min(dashLength, totalLength - dashStart);
+    const midpointDistance = dashStart + visibleLength * 0.5;
+    while (
+      segmentIndex < segmentLengths.length - 1
+      && segmentStartDistance + segmentLengths[segmentIndex]! < midpointDistance
+    ) {
+      segmentStartDistance += segmentLengths[segmentIndex]!;
+      segmentIndex += 1;
+    }
+    const start = polyline[segmentIndex]!;
+    const end = polyline[segmentIndex + 1]!;
+    const segmentLength = Math.max(1e-9, segmentLengths[segmentIndex]!);
+    const t = THREE.MathUtils.clamp(
+      (midpointDistance - segmentStartDistance) / segmentLength,
+      0,
+      1,
+    );
+    const x = THREE.MathUtils.lerp(start.x, end.x, t);
+    const z = THREE.MathUtils.lerp(start.z, end.z, t);
+    position.set(x, terrain.getHeightAt(x, z) + 0.34, z);
+    rotation.setFromAxisAngle(up, -Math.atan2(end.z - start.z, end.x - start.x));
+    scale.set(visibleLength, 1, 1);
+    matrix.compose(position, rotation, scale);
+    route.setMatrixAt(dashCount, matrix);
+    dashCount += 1;
+  }
+
+  route.count = dashCount;
+  route.instanceMatrix.needsUpdate = dashCount > 0;
+  route.visible = dashCount > 0;
 }

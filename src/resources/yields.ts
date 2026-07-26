@@ -56,6 +56,10 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} honey`;
     case 'wine':
       return `${Math.round(amount)} wine`;
+    case 'wool':
+      return `${Math.round(amount)} wool`;
+    case 'cloth':
+      return `${Math.round(amount)} cloth`;
     default: {
       const unreachable: never = kind;
       return unreachable;

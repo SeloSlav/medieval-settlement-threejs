@@ -16,6 +16,17 @@ import {
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
+import {
+  WATCHTOWER_GALLERY_DECK_CENTER_Y,
+  WATCHTOWER_GALLERY_DECK_THICKNESS,
+  WATCHTOWER_GALLERY_POST_CENTER_Y,
+  WATCHTOWER_GALLERY_POST_HEIGHT,
+  WATCHTOWER_GALLERY_RAIL_CENTER_Y,
+  WATCHTOWER_GALLERY_RAIL_HEIGHT,
+  WATCHTOWER_GALLERY_TOP_BEAM_Y,
+  WATCHTOWER_ROOF_CENTER_Y,
+  WATCHTOWER_ROOF_HEIGHT,
+} from '../watchtowerLayout.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
 
@@ -164,21 +175,35 @@ export function createWatchtowerMesh(): THREE.Group {
     addMesh(group, new THREE.BoxGeometry(0.22, 4.1, 0.24), timberMaterial('weathered'), new THREE.Vector3(x, 3.35, 0), new THREE.Euler(-0.58, 0, 0));
   }
 
-  addMesh(group, new THREE.BoxGeometry(4.8, 0.34, 4.8), timberMaterial('dark'), new THREE.Vector3(0, 6.08, 0));
-  addMesh(group, new THREE.BoxGeometry(4.35, 1.5, 4.35), timberMaterial('weathered'), new THREE.Vector3(0, 6.78, 0));
-  // Dark openings cut into the gallery walls make the lookout function clear from settlement zoom.
-  for (const x of [-1.15, 0, 1.15]) {
-    addDarkOpening(group, x, 6.92, 2.2, 0.72, 0.58);
+  addMesh(
+    group,
+    new THREE.BoxGeometry(4.8, WATCHTOWER_GALLERY_DECK_THICKNESS, 4.8),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, WATCHTOWER_GALLERY_DECK_CENTER_Y, 0),
+  );
+  // A waist-high open gallery lets the staffed watch remain readable instead
+  // of hiding villagers inside an undersized solid block.
+  const gallery = new THREE.Group();
+  gallery.name = 'Open timber watch gallery';
+  const galleryWall = timberMaterial('weathered');
+  const galleryFrame = timberMaterial('dark');
+  for (const z of [-2.1, 2.1]) {
+    addMesh(gallery, new THREE.BoxGeometry(4.35, WATCHTOWER_GALLERY_RAIL_HEIGHT, 0.18), galleryWall, new THREE.Vector3(0, WATCHTOWER_GALLERY_RAIL_CENTER_Y, z));
+    addMesh(gallery, new THREE.BoxGeometry(4.35, 0.26, 0.2), galleryFrame, new THREE.Vector3(0, WATCHTOWER_GALLERY_TOP_BEAM_Y, z));
+    for (const x of [-2.05, 0, 2.05]) {
+      addMesh(gallery, new THREE.BoxGeometry(0.2, WATCHTOWER_GALLERY_POST_HEIGHT, 0.2), galleryFrame, new THREE.Vector3(x, WATCHTOWER_GALLERY_POST_CENTER_Y, z));
+    }
   }
-  for (const z of [-1.15, 0, 1.15]) {
-    const opening = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.58, 0.72), metalMaterial('iron'));
-    opening.position.set(2.2, 6.92, z);
-    group.add(opening);
+  for (const x of [-2.1, 2.1]) {
+    addMesh(gallery, new THREE.BoxGeometry(0.18, WATCHTOWER_GALLERY_RAIL_HEIGHT, 4.35), galleryWall, new THREE.Vector3(x, WATCHTOWER_GALLERY_RAIL_CENTER_Y, 0));
+    addMesh(gallery, new THREE.BoxGeometry(0.2, 0.26, 4.35), galleryFrame, new THREE.Vector3(x, WATCHTOWER_GALLERY_TOP_BEAM_Y, 0));
+    addMesh(gallery, new THREE.BoxGeometry(0.2, WATCHTOWER_GALLERY_POST_HEIGHT, 0.2), galleryFrame, new THREE.Vector3(x, WATCHTOWER_GALLERY_POST_CENTER_Y, 0));
   }
+  group.add(gallery);
 
   // Steep shingle cap is the single dominant silhouette feature.
-  addMesh(group, new THREE.ConeGeometry(3.45, 2.65, 4), shingleMaterial(), new THREE.Vector3(0, 8.74, 0), new THREE.Euler(0, Math.PI * 0.25, 0));
-  addMesh(group, new THREE.BoxGeometry(0.11, 0.82, 0.11), metalMaterial('iron'), new THREE.Vector3(0, 10.38, 0));
+  addMesh(group, new THREE.ConeGeometry(3.45, WATCHTOWER_ROOF_HEIGHT, 4), shingleMaterial(), new THREE.Vector3(0, WATCHTOWER_ROOF_CENTER_Y, 0), new THREE.Euler(0, Math.PI * 0.25, 0));
+  addMesh(group, new THREE.BoxGeometry(0.11, 0.82, 0.11), metalMaterial('iron'), new THREE.Vector3(0, WATCHTOWER_ROOF_CENTER_Y + 1.64, 0));
 
   // Exterior ladder and warning bell explain access and early-warning gameplay.
   for (const x of [-0.6, 0.6]) {

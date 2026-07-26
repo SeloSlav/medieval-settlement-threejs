@@ -15,6 +15,10 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { polylineLengthXZ, type PointXZ } from '../utils/pathGeometry.ts';
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import { isForagingHarvestAvailable } from '../foraging/foragingSeason.ts';
+import { isWildStockHarvestable } from '../foraging/harvestReservePolicy.ts';
+import { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
+
+export { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
 
 export const PRODUCTION_WORKPLACE_KINDS = [
   'lumber_mill',
@@ -35,6 +39,8 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'apiary',
   'watermill',
   'carpenter',
+  'weaver',
+  'watchtower',
   'guardhouse',
   'vineyard',
 ] as const satisfies readonly BuildingKind[];
@@ -116,6 +122,7 @@ export const YARD_WORK_ACTIVITY = {
   apiary: 'gather',
   watermill: 'tend',
   carpenter: 'build',
+  weaver: 'tend',
   guardhouse: 'build',
   vineyard: 'tend',
 } as const satisfies Partial<Record<BuildingKind, WorkerActivityKind>>;
@@ -251,7 +258,7 @@ export function collectWorkerTargets(
     for (const node of inputs.foragingNodes) {
       if (
         node.kind !== 'game'
-        || node.remaining <= 0
+        || !isWildStockHarvestable(node, building.harvestReservePercent ?? 0)
         || (
           inputs.foragingMonth !== undefined
           && !isForagingHarvestAvailable(node.kind, inputs.foragingMonth)
@@ -277,7 +284,7 @@ export function collectWorkerTargets(
     for (const node of inputs.foragingNodes) {
       if (
         node.kind !== 'fish'
-        || node.remaining <= 0
+        || !isWildStockHarvestable(node, building.harvestReservePercent ?? 0)
         || (
           inputs.foragingMonth !== undefined
           && !isForagingHarvestAvailable(node.kind, inputs.foragingMonth)
@@ -318,6 +325,16 @@ export function workplaceYardPosition(
   building: BuildingState,
   slotIndex: number,
 ): PointXZ & { yaw: number } {
+  if (building.kind === 'watchtower') {
+    const x = building.x + (slotIndex % 2 === 0 ? -0.58 : 0.58);
+    const z = building.z + 3.05;
+    return {
+      x,
+      z,
+      yaw: Math.atan2(building.x - x, building.z - z),
+    };
+  }
+
   const definition = getBuildingDefinition(building.kind);
   const rng = mulberry32(hashStringSeed(`work-yard:${building.id}:${slotIndex}`));
   const angle = rng() * Math.PI * 2;
@@ -329,6 +346,25 @@ export function workplaceYardPosition(
     z,
     yaw: Math.atan2(building.x - x, building.z - z),
   };
+}
+
+export function watchtowerDutyPosition(
+  building: BuildingState,
+  slotIndex: number,
+): PointXZ & { yaw: number; yOffset: number } {
+  return slotIndex % 2 === 0
+    ? {
+        x: building.x - 0.78,
+        z: building.z + 1.55,
+        yaw: 0,
+        yOffset: WATCHTOWER_GALLERY_FLOOR_HEIGHT,
+      }
+    : {
+        x: building.x + 1.55,
+        z: building.z - 0.78,
+        yaw: Math.PI * 0.5,
+        yOffset: WATCHTOWER_GALLERY_FLOOR_HEIGHT,
+      };
 }
 
 export function pickWorkerWalkPath(

@@ -6,14 +6,20 @@ use crate::db::*;
 use crate::economy::{building_storage_caps, deposit_building};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
+use crate::simulation::SimTickContext;
 use crate::tables::{Building, Quarry};
 
 const RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2.5;
 
 /// Produces from the underground source of the rich deposit beneath the
 /// building. This deliberately never mutates the finite surface reserve.
-pub fn step_large_quarry(ctx: &ReducerContext, clock: &GameClock, building: Building) {
-    if labor_and_logistics_paused(ctx, building.owner, clock) {
+pub fn step_large_quarry(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
         return;
     }
 

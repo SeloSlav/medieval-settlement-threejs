@@ -5,7 +5,10 @@ import type { WorldDimensions } from '../world/worldGenerationSettings.ts';
 import { sampleTerrainBlendWeights, sampleTerrainUv } from './TerrainBlendWeights.ts';
 import { sampleBaseTerrainHeight } from './TerrainHeight.ts';
 
-export const TERRAIN_RESOLUTION = 769;
+// The end-to-end smoke verifies renderer/material compatibility and placement,
+// not production terrain tessellation. Keeping its software-rendered world
+// lightweight makes that regression check deterministic on CI.
+export const TERRAIN_RESOLUTION = import.meta.env?.VITE_E2E_TEST === '1' ? 257 : 769;
 
 export type TerrainGeometryData = {
   resolution: number;

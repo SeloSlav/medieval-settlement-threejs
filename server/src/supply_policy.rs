@@ -1,7 +1,213 @@
 use std::cmp::Ordering;
 
+use crate::balance_generated::{
+    BREWERY_GRAIN_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
+    HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, MONASTERY_GRAIN_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
+};
+
 pub const ALE_SUPPLIER_KINDS: &[&str] = &["brewery", "monastery"];
 pub const PRESERVED_FOOD_SUPPLIER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead"];
+pub const CLOTH_SUPPLIER_KINDS: &[&str] = &["weaver"];
+/// Every non-market building that already dispatches food to households.
+///
+/// Marketplace caravans remain outside territorial claims because they are a
+/// paid, household-prioritized emergency service rather than routine supply.
+pub const FOOD_SUPPLIER_KINDS: &[&str] = &[
+    "hunters_hall",
+    "foragers_shed",
+    "fishing_camp",
+    "granary",
+    "apiary",
+    "vineyard",
+    "pastoral_farmstead",
+    "swineherd",
+    "monastery",
+];
+pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "brewery", "monastery"];
+pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "brewery", "granary", "monastery"];
+pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
+/// Below one complete processing cycle, grain delivery preempts the granary's
+/// ordinary household or preservation cart duty.
+pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
+
+/// Small working stock requested by grain processors. Central granaries can
+/// therefore buffer an autumn harvest without trapping it, while only three
+/// cycles sit idle at any one workshop.
+pub fn grain_input_target(kind: &str, productivity: f64) -> f64 {
+    let per_cycle = match kind {
+        "watermill" => WATERMILL_GRAIN_PER_CYCLE,
+        "brewery" => BREWERY_GRAIN_PER_CYCLE,
+        "monastery" => MONASTERY_GRAIN_PER_CYCLE * productivity.max(0.0),
+        _ => 0.0,
+    };
+    per_cycle * GRAIN_INPUT_BUFFER_CYCLES
+}
+
+pub fn grain_input_runway_cycles(kind: &str, stock: f64, productivity: f64) -> f64 {
+    let target = grain_input_target(kind, productivity);
+    if target <= 1e-6 {
+        f64::INFINITY
+    } else {
+        stock.max(0.0) * GRAIN_INPUT_BUFFER_CYCLES / target
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum GrainDispatchDuty {
+    WorkingBuffer,
+    GranaryReserve,
+    WorkshopOverflow,
+}
+
+/// Direct farm carts first restore active processors to their small working
+/// buffer, then centralize the remaining harvest. Workshop warehouses are used
+/// beyond that buffer only when no granary can receive the crop.
+pub fn grain_dispatch_duty(
+    kind: &str,
+    assigned_labor: u32,
+    stock: f64,
+    desired_stock: f64,
+) -> Option<GrainDispatchDuty> {
+    if kind == "granary" {
+        return Some(GrainDispatchDuty::GranaryReserve);
+    }
+    if !GRAIN_PROCESSOR_KINDS.contains(&kind) {
+        return None;
+    }
+    let operational = assigned_labor > 0 || kind == "monastery";
+    if operational && stock + 1e-6 < desired_stock {
+        Some(GrainDispatchDuty::WorkingBuffer)
+    } else {
+        Some(GrainDispatchDuty::WorkshopOverflow)
+    }
+}
+
+pub fn compare_grain_dispatch_candidates(
+    a_duty: GrainDispatchDuty,
+    a_runway_cycles: f64,
+    a_distance: f64,
+    a_building_id: u64,
+    b_duty: GrainDispatchDuty,
+    b_runway_cycles: f64,
+    b_distance: f64,
+    b_building_id: u64,
+) -> Ordering {
+    a_duty.cmp(&b_duty).then_with(|| {
+        let runway_order = if a_duty == GrainDispatchDuty::WorkingBuffer {
+            a_runway_cycles.total_cmp(&b_runway_cycles)
+        } else {
+            Ordering::Equal
+        };
+        runway_order
+            .then_with(|| a_distance.total_cmp(&b_distance))
+            .then_with(|| a_building_id.cmp(&b_building_id))
+    })
+}
+
+/// One farm cart can leave per step, so keep only the best destination.
+pub fn select_grain_dispatch_candidate<T>(
+    candidates: impl IntoIterator<Item = T>,
+    duty_for: impl Fn(&T) -> GrainDispatchDuty,
+    runway_for: impl Fn(&T) -> f64,
+    distance_for: impl Fn(&T) -> f64,
+    building_id_for: impl Fn(&T) -> u64,
+) -> Option<T> {
+    candidates.into_iter().min_by(|a, b| {
+        compare_grain_dispatch_candidates(
+            duty_for(a),
+            runway_for(a),
+            distance_for(a),
+            building_id_for(a),
+            duty_for(b),
+            runway_for(b),
+            distance_for(b),
+            building_id_for(b),
+        )
+    })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GranaryDispatchDuty {
+    Households,
+    Preservation,
+}
+
+/// A granary attempts both duties in policy order. The dispatch functions
+/// already reject a second trip once the first succeeds, while a blocked first
+/// choice falls through immediately instead of idling the granary.
+pub fn granary_dispatch_order(households_first: bool) -> [GranaryDispatchDuty; 2] {
+    if households_first {
+        [
+            GranaryDispatchDuty::Households,
+            GranaryDispatchDuty::Preservation,
+        ]
+    } else {
+        [
+            GranaryDispatchDuty::Preservation,
+            GranaryDispatchDuty::Households,
+        ]
+    }
+}
+
+pub fn is_staffed_operational_supplier(construction_complete: bool, assigned_labor: u32) -> bool {
+    construction_complete && assigned_labor > 0
+}
+
+pub fn is_firewood_supplier_operational(
+    kind: &str,
+    construction_complete: bool,
+    assigned_labor: u32,
+    storehouse_accepts_firewood: bool,
+) -> bool {
+    is_staffed_operational_supplier(construction_complete, assigned_labor)
+        && (kind == "woodcutters_lodge"
+            || (kind == "village_storehouse" && storehouse_accepts_firewood))
+}
+
+pub fn is_well_supplier_operational(
+    kind: &str,
+    construction_complete: bool,
+    assigned_labor: u32,
+) -> bool {
+    kind == "well" && is_staffed_operational_supplier(construction_complete, assigned_labor)
+}
+
+pub fn is_food_supplier_operational(
+    kind: &str,
+    construction_complete: bool,
+    assigned_labor: u32,
+) -> bool {
+    FOOD_SUPPLIER_KINDS.contains(&kind)
+        && is_specialty_supplier_operational(kind, construction_complete, assigned_labor)
+}
+
+pub fn is_specialty_supplier_operational(
+    kind: &str,
+    construction_complete: bool,
+    assigned_labor: u32,
+) -> bool {
+    construction_complete && (kind == "monastery" || assigned_labor > 0)
+}
+
+/// Food kept at a routine supplier before an institution may collect surplus.
+///
+/// One ordinary cart load is protected for each household claimed by that
+/// producer, but no more than half the source capacity. This lets remote
+/// branches keep serving locally while granaries, smokehouses, and guardhouses
+/// draw only from unclaimed or genuinely overflowing stock.
+pub fn household_food_reserve(claimed_households: u32, source_capacity: f64) -> f64 {
+    (claimed_households as f64 * HOUSEHOLD_FOOD_RESERVE_PER_CLAIM)
+        .min(source_capacity.max(0.0) * HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION)
+        .max(0.0)
+}
+
+pub fn institutional_food_surplus(
+    source_stock: f64,
+    claimed_households: u32,
+    source_capacity: f64,
+) -> f64 {
+    (source_stock.max(0.0) - household_food_reserve(claimed_households, source_capacity)).max(0.0)
+}
 
 /// Prefer the shortest authoritative road route. Building id is the stable
 /// tie-breaker so equal-length layouts behave identically after a reload.
@@ -14,6 +220,41 @@ pub fn compare_supply_route_candidates(
     a_distance
         .total_cmp(&b_distance)
         .then_with(|| a_building_id.cmp(&b_building_id))
+}
+
+/// Select the single nearest route candidate in O(n) time. Supply dispatch can
+/// create only one trip, so retaining and sorting the rest wastes comparisons.
+pub fn select_supply_route_candidate<T>(
+    candidates: impl IntoIterator<Item = T>,
+    distance_for: impl Fn(&T) -> f64,
+    building_id_for: impl Fn(&T) -> u64,
+) -> Option<T> {
+    candidates.into_iter().min_by(|a, b| {
+        compare_supply_route_candidates(
+            distance_for(a),
+            building_id_for(a),
+            distance_for(b),
+            building_id_for(b),
+        )
+    })
+}
+
+/// Construction sources retain a stable service hierarchy before road
+/// distance is considered. A staffed central store loads most efficiently,
+/// followed by the relevant craft or producer; unstaffed stores need a free
+/// settlement hauler and follow the staffed classes in the same order.
+pub fn construction_source_priority(kind: &str, assigned_labor: u32) -> u8 {
+    let kind_priority = match kind {
+        "village_storehouse" => 0,
+        "carpenter" => 1,
+        "lumber_mill" | "stone_quarry" | "large_quarry" => 2,
+        _ => 3,
+    };
+    if assigned_labor > 0 {
+        kind_priority
+    } else {
+        kind_priority + 4
+    }
 }
 
 /// Lower stock per resident means less remaining runway for any one need kind.
@@ -42,19 +283,91 @@ pub fn compare_need_delivery_candidates(
         .then_with(|| a_residence_id.cmp(&b_residence_id))
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NeedDeliveryCandidate {
+    pub index: usize,
+    pub residence_id: u64,
+    pub abandoned: bool,
+    pub population: u32,
+    pub stock: f64,
+    pub distance: f64,
+    /// Paid household orders and parish relief must reach their intended home
+    /// before routine lowest-runway dispatch is considered.
+    pub explicit_priority: bool,
+}
+
+pub fn compare_need_delivery_candidate_records(
+    a: &NeedDeliveryCandidate,
+    b: &NeedDeliveryCandidate,
+) -> Ordering {
+    b.explicit_priority
+        .cmp(&a.explicit_priority)
+        .then_with(|| a.abandoned.cmp(&b.abandoned))
+        .then_with(|| {
+            compare_need_delivery_candidates(
+                a.stock,
+                a.population,
+                a.distance,
+                a.residence_id,
+                b.stock,
+                b.population,
+                b.distance,
+                b.residence_id,
+            )
+        })
+}
+
+/// Select one cart destination in O(n) time. Dispatch creates only one trip,
+/// so sorting an entire claimed branch wastes route and stock queries.
+pub fn select_need_delivery_candidate(
+    candidates: impl IntoIterator<Item = NeedDeliveryCandidate>,
+) -> Option<NeedDeliveryCandidate> {
+    candidates
+        .into_iter()
+        .min_by(compare_need_delivery_candidate_records)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        compare_need_delivery_candidates, compare_supply_route_candidates, ALE_SUPPLIER_KINDS,
-        PRESERVED_FOOD_SUPPLIER_KINDS,
+        compare_grain_dispatch_candidates, compare_need_delivery_candidate_records,
+        compare_need_delivery_candidates, compare_supply_route_candidates,
+        construction_source_priority, grain_dispatch_duty, grain_input_runway_cycles,
+        grain_input_target, granary_dispatch_order, household_food_reserve,
+        institutional_food_surplus, is_firewood_supplier_operational, is_food_supplier_operational,
+        is_specialty_supplier_operational, is_well_supplier_operational,
+        select_grain_dispatch_candidate, select_need_delivery_candidate,
+        select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
+        NeedDeliveryCandidate, ALE_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
+        GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
+        GRAIN_PROCESSOR_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS,
     };
     use std::cmp::Ordering;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn shorter_road_routes_are_preferred_over_older_buildings() {
         assert_eq!(
             compare_supply_route_candidates(24.0, 90, 85.0, 1),
             Ordering::Less
+        );
+    }
+
+    #[test]
+    fn granary_policy_orders_both_duties_without_disabling_fallback() {
+        assert_eq!(
+            granary_dispatch_order(true),
+            [
+                GranaryDispatchDuty::Households,
+                GranaryDispatchDuty::Preservation
+            ]
+        );
+        assert_eq!(
+            granary_dispatch_order(false),
+            [
+                GranaryDispatchDuty::Preservation,
+                GranaryDispatchDuty::Households
+            ]
         );
     }
 
@@ -68,6 +381,124 @@ mod tests {
             compare_supply_route_candidates(42.0, 7, 42.0, 3),
             Ordering::Greater
         );
+    }
+
+    #[test]
+    fn one_pass_supply_selection_uses_route_then_stable_id() {
+        let selected = select_supply_route_candidate(
+            [(90_u64, 24.0), (7, 42.0), (3, 24.0)],
+            |candidate| candidate.1,
+            |candidate| candidate.0,
+        );
+        assert_eq!(selected, Some((3, 24.0)));
+    }
+
+    #[test]
+    fn construction_sources_keep_their_loading_hierarchy() {
+        assert_eq!(construction_source_priority("village_storehouse", 2), 0);
+        assert_eq!(construction_source_priority("carpenter", 1), 1);
+        assert_eq!(construction_source_priority("stone_quarry", 3), 2);
+        assert_eq!(construction_source_priority("granary", 1), 3);
+        assert_eq!(construction_source_priority("village_storehouse", 0), 4);
+        assert_eq!(construction_source_priority("carpenter", 0), 5);
+        assert_eq!(construction_source_priority("large_quarry", 0), 6);
+        assert_eq!(construction_source_priority("granary", 0), 7);
+    }
+
+    #[test]
+    fn grain_processors_keep_only_a_small_working_buffer() {
+        assert_eq!(
+            GRAIN_DISPATCH_TARGET_KINDS,
+            &["watermill", "brewery", "granary", "monastery"]
+        );
+        assert_eq!(
+            GRAIN_PROCESSOR_KINDS,
+            &["watermill", "brewery", "monastery"]
+        );
+        assert_eq!(GRAIN_INPUT_BUFFER_CYCLES, 3.0);
+        assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
+        assert_eq!(grain_input_target("watermill", 1.0), 9.0);
+        assert_eq!(grain_input_target("brewery", 1.0), 9.0);
+        assert_eq!(grain_input_target("monastery", 1.0), 6.0);
+        assert_eq!(grain_input_target("monastery", 0.45), 2.7);
+        assert_eq!(grain_input_target("granary", 1.0), 0.0);
+        assert_eq!(grain_input_runway_cycles("watermill", 6.0, 1.0), 2.0);
+        assert_eq!(grain_input_runway_cycles("monastery", 1.8, 0.45), 2.0);
+    }
+
+    #[test]
+    fn farm_grain_restores_working_buffers_before_central_or_overflow_storage() {
+        assert_eq!(
+            grain_dispatch_duty("watermill", 2, 3.0, 9.0),
+            Some(GrainDispatchDuty::WorkingBuffer)
+        );
+        assert_eq!(
+            grain_dispatch_duty("monastery", 0, 0.0, 6.0),
+            Some(GrainDispatchDuty::WorkingBuffer)
+        );
+        assert_eq!(
+            grain_dispatch_duty("brewery", 0, 0.0, 9.0),
+            Some(GrainDispatchDuty::WorkshopOverflow)
+        );
+        assert_eq!(
+            grain_dispatch_duty("granary", 0, 0.0, 0.0),
+            Some(GrainDispatchDuty::GranaryReserve)
+        );
+        assert_eq!(grain_dispatch_duty("marketplace", 3, 0.0, 0.0), None);
+        assert_eq!(
+            compare_grain_dispatch_candidates(
+                GrainDispatchDuty::WorkingBuffer,
+                2.0,
+                80.0,
+                9,
+                GrainDispatchDuty::WorkingBuffer,
+                2.8,
+                10.0,
+                1,
+            ),
+            Ordering::Less,
+            "lower processor runway outranks a shorter cart route"
+        );
+        assert_eq!(
+            compare_grain_dispatch_candidates(
+                GrainDispatchDuty::GranaryReserve,
+                f64::INFINITY,
+                30.0,
+                9,
+                GrainDispatchDuty::WorkshopOverflow,
+                4.0,
+                5.0,
+                1,
+            ),
+            Ordering::Less,
+            "central storage outranks workshop overfilling"
+        );
+    }
+
+    #[test]
+    fn farm_grain_destination_selection_stays_linear() {
+        let started = Instant::now();
+        let selected = select_grain_dispatch_candidate(
+            (0..100_000).map(|index| {
+                (
+                    index,
+                    if index == 99_999 {
+                        GrainDispatchDuty::WorkingBuffer
+                    } else {
+                        GrainDispatchDuty::GranaryReserve
+                    },
+                    (index % 7) as f64,
+                    (100_000 - index) as f64,
+                )
+            }),
+            |candidate| candidate.1,
+            |candidate| candidate.2,
+            |candidate| candidate.3,
+            |candidate| candidate.0 as u64,
+        )
+        .expect("a large harvest network should have a destination");
+        assert_eq!(selected.0, 99_999);
+        assert!(started.elapsed() < Duration::from_millis(100));
     }
 
     #[test]
@@ -92,6 +523,86 @@ mod tests {
     }
 
     #[test]
+    fn explicit_market_order_beats_routine_runway_priority() {
+        let routine = NeedDeliveryCandidate {
+            index: 0,
+            residence_id: 1,
+            abandoned: false,
+            population: 6,
+            stock: 0.0,
+            distance: 10.0,
+            explicit_priority: false,
+        };
+        let paid_order = NeedDeliveryCandidate {
+            index: 1,
+            residence_id: 99,
+            abandoned: false,
+            population: 2,
+            stock: 12.0,
+            distance: 120.0,
+            explicit_priority: true,
+        };
+        assert_eq!(
+            compare_need_delivery_candidate_records(&paid_order, &routine),
+            Ordering::Less
+        );
+        assert_eq!(
+            select_need_delivery_candidate([routine, paid_order]),
+            Some(paid_order)
+        );
+    }
+
+    #[test]
+    fn routine_delivery_prefers_occupied_homes_before_recovery_stock() {
+        let abandoned = NeedDeliveryCandidate {
+            index: 0,
+            residence_id: 1,
+            abandoned: true,
+            population: 0,
+            stock: 0.0,
+            distance: 5.0,
+            explicit_priority: false,
+        };
+        let occupied = NeedDeliveryCandidate {
+            index: 1,
+            residence_id: 2,
+            abandoned: false,
+            population: 4,
+            stock: 8.0,
+            distance: 80.0,
+            explicit_priority: false,
+        };
+        assert_eq!(
+            select_need_delivery_candidate([abandoned, occupied]),
+            Some(occupied)
+        );
+    }
+
+    #[test]
+    fn one_pass_selection_stays_bounded_for_large_branches() {
+        let started = Instant::now();
+        let selected =
+            select_need_delivery_candidate((0..100_000).map(|index| NeedDeliveryCandidate {
+                index,
+                residence_id: index as u64,
+                abandoned: false,
+                population: 4,
+                stock: (index % 97) as f64,
+                distance: (100_000 - index) as f64,
+                explicit_priority: false,
+            }))
+            .expect("a large branch should have a destination");
+        assert_eq!(selected.stock, 0.0);
+        assert_eq!(selected.index, 99_910);
+        assert_eq!(selected.distance, 90.0);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_millis(100),
+            "100k one-pass household candidates should stay well below a simulation frame"
+        );
+    }
+
+    #[test]
     fn specialty_supplier_roles_match_actual_producers() {
         assert_eq!(ALE_SUPPLIER_KINDS, &["brewery", "monastery"]);
         assert_eq!(
@@ -99,5 +610,104 @@ mod tests {
             &["smokehouse", "pastoral_farmstead"]
         );
         assert!(!PRESERVED_FOOD_SUPPLIER_KINDS.contains(&"granary"));
+        assert_eq!(CLOTH_SUPPLIER_KINDS, &["weaver"]);
+    }
+
+    #[test]
+    fn household_services_require_a_finished_staffed_supplier() {
+        assert!(is_firewood_supplier_operational(
+            "woodcutters_lodge",
+            true,
+            1,
+            false
+        ));
+        assert!(!is_firewood_supplier_operational(
+            "woodcutters_lodge",
+            true,
+            0,
+            false
+        ));
+        assert!(is_firewood_supplier_operational(
+            "village_storehouse",
+            true,
+            2,
+            true
+        ));
+        assert!(!is_firewood_supplier_operational(
+            "village_storehouse",
+            true,
+            2,
+            false
+        ));
+        assert!(is_well_supplier_operational("well", true, 1));
+        assert!(!is_well_supplier_operational("well", false, 1));
+        assert!(is_food_supplier_operational("fishing_camp", true, 1));
+        assert!(!is_food_supplier_operational("fishing_camp", true, 0));
+        assert!(is_food_supplier_operational("granary", true, 2));
+        assert!(is_food_supplier_operational("pastoral_farmstead", true, 1));
+        assert!(is_food_supplier_operational("monastery", true, 0));
+        assert!(!is_food_supplier_operational("marketplace", true, 3));
+    }
+
+    #[test]
+    fn monastery_is_the_only_autonomous_specialty_supplier() {
+        assert!(is_specialty_supplier_operational("monastery", true, 0));
+        assert!(!is_specialty_supplier_operational("brewery", true, 0));
+        assert!(is_specialty_supplier_operational("smokehouse", true, 1));
+    }
+
+    #[test]
+    fn food_supplier_roster_matches_existing_physical_dispatchers() {
+        assert_eq!(
+            FOOD_SUPPLIER_KINDS,
+            &[
+                "hunters_hall",
+                "foragers_shed",
+                "fishing_camp",
+                "granary",
+                "apiary",
+                "vineyard",
+                "pastoral_farmstead",
+                "swineherd",
+                "monastery",
+            ]
+        );
+    }
+
+    #[test]
+    fn institutional_surplus_preserves_one_cart_per_claimed_home() {
+        assert_eq!(household_food_reserve(0, 120.0), 0.0);
+        assert_eq!(household_food_reserve(2, 120.0), 12.0);
+        assert_eq!(institutional_food_surplus(30.0, 2, 120.0), 18.0);
+        assert_eq!(institutional_food_surplus(8.0, 2, 120.0), 0.0);
+    }
+
+    #[test]
+    fn household_food_reserve_is_bounded_to_half_the_source_store() {
+        assert_eq!(household_food_reserve(100, 120.0), 60.0);
+        assert_eq!(institutional_food_surplus(120.0, 100, 120.0), 60.0);
+    }
+
+    #[test]
+    fn one_pass_supply_selection_stays_bounded_for_large_networks() {
+        let started = Instant::now();
+        let selected = select_supply_route_candidate(
+            (0..100_000_u64).map(|building_id| {
+                let distance = if building_id == 99_999 {
+                    1.0
+                } else {
+                    100.0 + building_id as f64
+                };
+                (building_id, distance)
+            }),
+            |candidate| candidate.1,
+            |candidate| candidate.0,
+        )
+        .expect("a supply destination should be selected");
+        assert_eq!(selected.0, 99_999);
+        assert!(
+            started.elapsed() < Duration::from_millis(250),
+            "100k one-pass supply candidates should stay well below a simulation frame"
+        );
     }
 }

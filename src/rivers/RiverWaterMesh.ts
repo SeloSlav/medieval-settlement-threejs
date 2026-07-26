@@ -310,15 +310,22 @@ export function createRiverWaterMesh(
     return index;
   };
 
-  for (let iz = 0; iz < nz; iz++) {
-    for (let ix = 0; ix < nx; ix++) {
-      const i = iz * nx + ix;
-      appendVertex(ix, iz, clipSigned(i, ix, iz), organicSigned[i] ?? 0);
-    }
-  }
-
   const indices: number[] = [];
-  const gridVertexIndex = (ix: number, iz: number): number => iz * nx + ix;
+  const gridVertexIndices = new Int32Array(nx * nz);
+  gridVertexIndices.fill(-1);
+  const gridVertexIndex = (
+    ix: number,
+    iz: number,
+    signed: number,
+    foamSigned: number,
+  ): number => {
+    const cellIndex = iz * nx + ix;
+    const existing = gridVertexIndices[cellIndex];
+    if (existing >= 0) return existing;
+    const created = appendVertex(ix, iz, signed, foamSigned);
+    gridVertexIndices[cellIndex] = created;
+    return created;
+  };
 
   const makeIntersection = (a: ClipPoint, b: ClipPoint): ClipPoint => {
     const denom = a.signed - b.signed;
@@ -361,21 +368,41 @@ export function createRiverWaterMesh(
       const br = iz * nx + ix + 1;
       const tl = (iz + 1) * nx + ix;
       const tr = (iz + 1) * nx + ix + 1;
-      const corners: ClipPoint[] = [
-        { gx: ix, gz: iz, signed: clipSigned(bl, ix, iz), index: gridVertexIndex(ix, iz) },
-        { gx: ix, gz: iz + 1, signed: clipSigned(tl, ix, iz + 1), index: gridVertexIndex(ix, iz + 1) },
-        { gx: ix + 1, gz: iz + 1, signed: clipSigned(tr, ix + 1, iz + 1), index: gridVertexIndex(ix + 1, iz + 1) },
-        { gx: ix + 1, gz: iz, signed: clipSigned(br, ix + 1, iz), index: gridVertexIndex(ix + 1, iz) },
-      ];
-      const insideCount = corners.reduce(
-        (count, corner) => count + (corner.signed >= WATER_CLIP_FEATHER ? 1 : 0),
-        0,
-      );
+      const blSigned = clipSigned(bl, ix, iz);
+      const tlSigned = clipSigned(tl, ix, iz + 1);
+      const trSigned = clipSigned(tr, ix + 1, iz + 1);
+      const brSigned = clipSigned(br, ix + 1, iz);
+      const blInside = blSigned >= WATER_CLIP_FEATHER;
+      const tlInside = tlSigned >= WATER_CLIP_FEATHER;
+      const trInside = trSigned >= WATER_CLIP_FEATHER;
+      const brInside = brSigned >= WATER_CLIP_FEATHER;
+      const insideCount = Number(blInside) + Number(tlInside) + Number(trInside) + Number(brInside);
       if (insideCount === 0) continue;
+
+      const blVertex = blInside
+        ? gridVertexIndex(ix, iz, blSigned, organicSigned[bl] ?? 0)
+        : -1;
+      const tlVertex = tlInside
+        ? gridVertexIndex(ix, iz + 1, tlSigned, organicSigned[tl] ?? 0)
+        : -1;
+      const trVertex = trInside
+        ? gridVertexIndex(ix + 1, iz + 1, trSigned, organicSigned[tr] ?? 0)
+        : -1;
+      const brVertex = brInside
+        ? gridVertexIndex(ix + 1, iz, brSigned, organicSigned[br] ?? 0)
+        : -1;
+
       if (insideCount === 4) {
-        indices.push(bl, tl, br, br, tl, tr);
+        indices.push(blVertex, tlVertex, brVertex, brVertex, tlVertex, trVertex);
         continue;
       }
+
+      const corners: ClipPoint[] = [
+        { gx: ix, gz: iz, signed: blSigned, index: blVertex },
+        { gx: ix, gz: iz + 1, signed: tlSigned, index: tlVertex },
+        { gx: ix + 1, gz: iz + 1, signed: trSigned, index: trVertex },
+        { gx: ix + 1, gz: iz, signed: brSigned, index: brVertex },
+      ];
 
       const clipped = clipWaterPolygon(corners);
       if (clipped.length < 3) continue;

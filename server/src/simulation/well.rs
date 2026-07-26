@@ -7,22 +7,24 @@ use crate::constants::{
     WELL_WATER_PER_DELIVERY,
 };
 use crate::db::*;
+use crate::economy::{building_water_storage_cap, CommodityKind};
 use crate::hydrology::sample_hydrology_score;
 use crate::roads::RoadNetwork;
 use crate::season_policy::EnvironmentState;
-use crate::simulation::delivery_cargo::{
-    any_target_needs_delivery, collect_claimed_delivery_targets,
-};
+use crate::simulation::delivery_cargo::has_delivery_stock_room;
 use crate::simulation::delivery_supplier::{
     delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
     DeliveryDispatchConfig,
 };
-use crate::simulation::delivery_trips::building_has_active_trip;
+use crate::simulation::delivery_trips::{
+    building_has_active_trip, building_has_inbound_supply_trip, try_start_building_supply_trip,
+};
+use crate::simulation::expanded_economy::processor_accepts_input;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
-    claim_residences_for_wells, lodge_labor_split, owner_wells, sort_residences_for_water_delivery,
+    lodge_labor_split, road_path_distance, select_residence_for_need_delivery,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
@@ -31,7 +33,9 @@ use crate::simulation::{
 };
 use crate::tables::{Building, Residence};
 use crate::well_policy::{
-    prioritize_fire_response, well_refill_amount, well_refill_workers,
+    industrial_water_requirement, prioritize_fire_response, select_industrial_water_candidate,
+    well_refill_amount, well_refill_workers, IndustrialWaterCandidate,
+    INDUSTRIAL_WATER_BUILDING_KINDS,
 };
 
 pub fn step_well(
@@ -56,9 +60,9 @@ pub fn step_well(
 
     let mut well = building;
     if !building_has_active_trip(ctx, well.id) {
-        if let Some(incident) = select_fire_for_well(ctx, network, &well) {
+        if let Some(incident) = select_fire_for_well(ctx, tick, network, &well) {
             if reserve_fire_response(ctx, incident.id, well.id) {
-                if try_start_fire_response_trip(ctx, network, &mut well, &incident) {
+                if try_start_fire_response_trip(ctx, tick, network, &mut well, &incident) {
                     return;
                 }
                 release_fire_response(ctx, incident.target_kind, incident.target_id, well.id);
@@ -67,7 +71,7 @@ pub fn step_well(
     }
 
     let fire_response_needed = fire_response_needed_for_well(ctx, &well);
-    if labor_and_logistics_paused(ctx, well.owner, clock) && !fire_response_needed {
+    if labor_and_logistics_paused(ctx, tick, well.owner, clock) && !fire_response_needed {
         return;
     }
 
@@ -95,12 +99,17 @@ pub fn step_well(
     let delivery_ready = !fire_response_needed
         && delivery_work_ready(split.delivering, well.water > 0.0, well.id, ctx);
 
-    let delivery_targets = if delivery_ready {
-        collect_delivery_targets(ctx, network, &well)
+    let household_targets = if delivery_ready {
+        collect_delivery_targets(ctx, tick, network, &well)
     } else {
         Vec::new()
     };
-    let has_target = any_target_needs_delivery(ctx, &delivery_targets, ResidenceNeedKind::Water);
+    let industrial_target = if delivery_ready && household_targets.is_empty() {
+        select_industrial_water_target(ctx, tick, network, &well)
+    } else {
+        None
+    };
+    let has_target = !household_targets.is_empty() || industrial_target.is_some();
     let delivery_ready = delivery_ready && has_target;
     let refill_workers = well_refill_workers(available_labor, has_target);
     let refill_ready = refill_workers > 0;
@@ -129,59 +138,103 @@ pub fn step_well(
     }
 
     if do_deliver {
-        dispatch_delivery_if_ready(
-            ctx,
-            clock,
-            network,
-            &mut well,
-            split.delivering,
-            &delivery_targets,
-            DeliveryDispatchConfig {
-                need_kind: ResidenceNeedKind::Water,
-                speed_mps: WATER_DELIVERY_SPEED_MPS,
-                unload_seconds: WATER_DELIVERY_UNLOAD_SEC,
-                per_delivery: WELL_WATER_PER_DELIVERY,
-            },
-        );
+        if !household_targets.is_empty() {
+            dispatch_delivery_if_ready(
+                ctx,
+                tick,
+                clock,
+                network,
+                &mut well,
+                split.delivering,
+                &household_targets,
+                DeliveryDispatchConfig {
+                    need_kind: ResidenceNeedKind::Water,
+                    speed_mps: WATER_DELIVERY_SPEED_MPS,
+                    unload_seconds: WATER_DELIVERY_UNLOAD_SEC,
+                    per_delivery: WELL_WATER_PER_DELIVERY,
+                },
+            );
+        } else if let Some(target) = industrial_target {
+            let needed = (building_water_storage_cap(&target.kind) - target.water).max(0.0);
+            try_start_building_supply_trip(
+                ctx,
+                tick,
+                clock,
+                network,
+                &mut well,
+                &target,
+                split.delivering,
+                CommodityKind::Water,
+                WATER_DELIVERY_SPEED_MPS,
+                WATER_DELIVERY_UNLOAD_SEC,
+                WELL_WATER_PER_DELIVERY,
+                needed,
+            );
+        }
     }
 
     ctx.db.building().id().update(well);
 }
 
-pub fn residence_has_well_supply(
-    tick: &SimTickContext,
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-    residence: &Residence,
-) -> bool {
-    let Some(network) = tick.road_network(owner) else {
-        return false;
-    };
-    let wells = owner_wells(ctx, owner);
-    let claims = claim_residences_for_wells(network, &wells, std::slice::from_ref(residence));
-    claims.contains_key(&residence.id)
-}
-
 fn collect_delivery_targets(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     network: &RoadNetwork,
     well: &Building,
 ) -> Vec<Residence> {
-    let wells = owner_wells(ctx, well.owner);
     let residences: Vec<Residence> = ctx
         .db
         .residence()
         .owner()
         .filter(&well.owner)
         .filter(|residence| ResidenceNeedKind::Water.is_active_for_tier(residence.tier))
+        .filter(|residence| tick.well_supplier_for(ctx, well.owner, residence.id) == Some(well.id))
         .collect();
-    let claims = claim_residences_for_wells(network, &wells, &residences);
+    select_residence_for_need_delivery(
+        network,
+        well,
+        residences,
+        None,
+        None,
+        |residence| need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water),
+        |stock| has_delivery_stock_room(ResidenceNeedKind::Water, stock),
+    )
+    .into_iter()
+    .collect()
+}
 
-    collect_claimed_delivery_targets(residences, &claims, well.id, |targets| {
-        sort_residences_for_water_delivery(network, well, targets, |residence| {
-            need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water)
-        });
-    })
+fn select_industrial_water_target(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    network: &RoadNetwork,
+    well: &Building,
+) -> Option<Building> {
+    let selected = select_industrial_water_candidate(
+        tick.building_ids_for_kinds(ctx, well.owner, INDUSTRIAL_WATER_BUILDING_KINDS)
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .filter_map(|candidate| {
+                let required = industrial_water_requirement(&candidate.kind);
+                if required <= 1e-6
+                    || !candidate.construction_complete
+                    || candidate.assigned_labor == 0
+                    || !processor_accepts_input(&candidate, CommodityKind::Water)
+                    || candidate.water + 1e-6 >= required
+                    || building_has_inbound_supply_trip(ctx, candidate.id)
+                    || tick.building_disabled_by_fire(ctx, candidate.id)
+                {
+                    return None;
+                }
+                let distance =
+                    road_path_distance(network, well.x, well.z, candidate.x, candidate.z)?;
+                Some(IndustrialWaterCandidate {
+                    building_id: candidate.id,
+                    stock_ratio: candidate.water.max(0.0) / required,
+                    distance,
+                })
+            }),
+    )?;
+    ctx.db.building().id().find(&selected.building_id)
 }
 
 fn should_surge(building_id: u64, sim_tick: u64, hydrology: f64) -> bool {

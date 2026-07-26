@@ -1,7 +1,9 @@
 use spacetimedb::ReducerContext;
 
 use crate::db::*;
-use crate::simulation::chapel_community::effective_settle_ticks;
+use crate::residence_settlement_policy::settlement_buffers_ready;
+use crate::simulation::chapel_community::{effective_settle_ticks, recovery_stock_min};
+use crate::simulation::residence_needs::state::NeedState;
 use crate::tables::Residence;
 
 pub fn step_residence_settlement(
@@ -10,11 +12,25 @@ pub fn step_residence_settlement(
     has_chapel_access: bool,
     has_monastery_coverage: bool,
     sabbath_observance: bool,
+    needs: &[NeedState],
 ) {
     if residence.abandoned || residence.population_capacity == 0 {
         return;
     }
     if residence.population >= residence.population_capacity {
+        return;
+    }
+
+    let buffers = needs
+        .iter()
+        .filter(|need| need.kind.is_active_for_tier(residence.tier))
+        .map(|need| {
+            (
+                need.stock,
+                recovery_stock_min(need.kind, has_chapel_access, has_monastery_coverage),
+            )
+        });
+    if !settlement_buffers_ready(residence.population, buffers) {
         return;
     }
 

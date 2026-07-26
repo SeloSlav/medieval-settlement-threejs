@@ -31,6 +31,9 @@ type BuildingBalance = {
     preservedFood?: number;
     honey?: number;
     wine?: number;
+    wool?: number;
+    cloth?: number;
+    ironwork?: number;
     polearms?: number;
   };
   workRadius: number;
@@ -61,8 +64,14 @@ type BackyardGardenBalance = {
 type LivestockSpeciesBalance = {
   starterHerd: number;
   maxHerd: number;
+  minimumBreedingReserve: number;
+  defaultBreedingReserve: number;
   areaPerHead: number;
   foodPerCyclePerHead: number;
+  slaughterFoodPerHead: number;
+  slaughterPreservedFoodPerHead: number;
+  hayPerUnsupportedHead?: number;
+  hayYieldPerReservedCapacityPerCycle?: number;
   grainPerUnsupportedHead: number;
   breedingPerCycle: number;
   healthRecoveryPerCycle: number;
@@ -71,7 +80,9 @@ type LivestockSpeciesBalance = {
   moistureIdeal?: number;
   moistureTolerance?: number;
   preservedFoodPerCyclePerHead?: number;
-  woolGoldPerCyclePerHead?: number;
+  woolPerShearingPerHead?: number;
+  shearingStartMonth?: number;
+  shearingEndMonth?: number;
   fertilityBonus?: number;
   maxFertilizedFields?: number;
   ploughWorkMultiplier?: number;
@@ -81,7 +92,7 @@ type LivestockSpeciesBalance = {
 type MarketplaceGoldBuyOffer = {
   id: string;
   kind: 'goldBuy';
-  resource: 'timber' | 'stone' | 'firewood' | 'food';
+  resource: 'timber' | 'stone' | 'firewood' | 'food' | 'ironwork';
   amount: number;
   goldCost: number;
 };
@@ -89,7 +100,7 @@ type MarketplaceGoldBuyOffer = {
 type MarketplaceGoldSellOffer = {
   id: string;
   kind: 'goldSell';
-  resource: 'timber' | 'stone' | 'firewood' | 'food';
+  resource: 'timber' | 'stone' | 'firewood' | 'food' | 'ironwork';
   amount: number;
   goldYield: number;
 };
@@ -97,9 +108,9 @@ type MarketplaceGoldSellOffer = {
 type MarketplaceBarterOffer = {
   id: string;
   kind: 'barter';
-  give: 'timber' | 'stone' | 'firewood' | 'food';
+  give: 'timber' | 'stone' | 'firewood' | 'food' | 'ironwork';
   giveAmount: number;
-  receive: 'timber' | 'stone' | 'firewood' | 'food';
+  receive: 'timber' | 'stone' | 'firewood' | 'food' | 'ironwork';
   receiveAmount: number;
 };
 
@@ -180,6 +191,9 @@ export type GameBalance = {
     extinguishChanceBase: number;
     extinguishChancePerWater: number;
     resolvedRetentionSeconds: number;
+    minimumRepairCostFraction: number;
+    damageRepairCostMultiplier: number;
+    destroyedRebuildCostFraction: number;
   };
   economy: {
     startingTimber: number;
@@ -208,11 +222,15 @@ export type GameBalance = {
   };
   frontierEconomy: {
     carpenterTimberPerPolearm: number;
-    carpenterGoldPerPolearm: number;
+    carpenterIronworkPerPolearm: number;
     guardhouseFoodPerGuardPerDay: number;
     guardhouseWagePerGuardPerDay: number;
     guardhouseTrainingPerDay: number;
     guardhouseReadinessDecayPerDay: number;
+    guardhouseFullMusterRoadDistance: number;
+    guardhouseLongMusterRoadDistance: number;
+    guardhouseLongMusterEfficiency: number;
+    guardhouseUnlinkedMusterEfficiency: number;
   };
   population: {
     starting: number;
@@ -234,6 +252,8 @@ export type GameBalance = {
     residencePreservedFoodPerPersonPerSec: number;
     residenceAleCapacity: number;
     residenceAlePerPersonPerSec: number;
+    residenceClothCapacity: number;
+    residenceClothPerPersonPerSec: number;
     abandonAfterDeficitTicks: number;
     residenceTier1AbandonmentGraceMultiplier: number;
     residenceTier2AbandonmentGraceMultiplier: number;
@@ -331,19 +351,34 @@ export type GameBalance = {
     granaryWaterPerCycle: number;
     granaryFirewoodPerCycle: number;
     granaryFoodPerCycle: number;
+    householdFoodReservePerClaim: number;
+    householdFoodReserveCapacityFraction: number;
     breweryGrainPerCycle: number;
     breweryWaterPerCycle: number;
     breweryAlePerCycle: number;
+    weaverWoolPerCycle: number;
+    weaverClothPerCycle: number;
+    textileTransferPerTrip: number;
     smokehouseFoodPerCycle: number;
     smokehouseFirewoodPerCycle: number;
     smokehousePreservedFoodPerCycle: number;
     apiaryHoneyPerCycle: number;
     apiaryFoodPerCycle: number;
+    apiarySeasonStartMonth: number;
+    apiarySeasonEndMonth: number;
     vineyardWinePerCycle: number;
     vineyardFoodPerCycle: number;
+    vineyardHarvestStartMonth: number;
+    vineyardHarvestEndMonth: number;
+    marketSpecialtyExportPerBrokerPerSecond: number;
     monasteryGrainPerCycle: number;
     monasteryFoodPerCycle: number;
     monasteryPilgrimageGoldPerDay: number;
+    monasteryHospitalityBonusGoldPerDay: number;
+    monasteryHospitalityHoneyPerDay: number;
+    monasteryHospitalityWinePerDay: number;
+    monasteryFeastHoney: number;
+    monasteryFeastWine: number;
     monasteryUnlinkedProductivity: number;
     monasteryCoverageRadius: number;
     monasteryTitheShareDefault: number;
@@ -351,11 +386,13 @@ export type GameBalance = {
     specialtyExportGoldPerHoney: number;
     specialtyExportGoldPerAle: number;
     specialtyExportGoldPerWine: number;
+    specialtyExportGoldPerCloth: number;
     ferryGoldPerDay: number;
     carpenterDeliverySpeedMultiplier: number;
     carpenterTimberCostMultiplier: number;
     storehouseOverflowThreshold: number;
     storehouseHaulPerWorker: number;
+    storehouseFirewoodPerDelivery: number;
   };
   farming: {
     minFieldArea: number;
@@ -369,6 +406,9 @@ export type GameBalance = {
     harvestWorkPerSquareMeter: number;
     growthSeconds: number;
     baseGrainPerSquareMeter: number;
+    ryeSeedGrainPerSquareMeter: number;
+    oatsSeedGrainPerSquareMeter: number;
+    farmsteadStarterSeedGrain: number;
     ryeMoistureIdeal: number;
     ryeMoistureTolerance: number;
     oatsMoistureIdeal: number;
@@ -384,6 +424,14 @@ export type GameBalance = {
     minPastureArea: number;
     minPastureEdge: number;
     pastureSalvageFraction: number;
+    autumnCullStartMonth: number;
+    autumnCullEndMonth: number;
+    winterFodderReserveDays: number;
+    haymakingStartMonth: number;
+    haymakingEndMonth: number;
+    defaultHaymakingPercent: number;
+    maximumHaymakingPercent: number;
+    hayStorageCapacity: number;
     cattle: LivestockSpeciesBalance;
     sheep: LivestockSpeciesBalance;
     swine: LivestockSpeciesBalance;
@@ -427,6 +475,7 @@ const simKindByKind: Record<string, string | null> = {
   apiary: 'Apiary',
   watermill: 'Watermill',
   carpenter: 'Carpenter',
+  weaver: 'Weaver',
   ferry_landing: 'FerryLanding',
   vineyard: 'Vineyard',
   pastoral_farmstead: 'PastoralFarmstead',
@@ -512,6 +561,9 @@ function generateRust(): string {
     `pub const FIRE_EXTINGUISH_CHANCE_BASE: f64 = ${rustF64(b.fires.extinguishChanceBase)};`,
     `pub const FIRE_EXTINGUISH_CHANCE_PER_WATER: f64 = ${rustF64(b.fires.extinguishChancePerWater)};`,
     `pub const FIRE_RESOLVED_RETENTION_SECONDS: f64 = ${rustF64(b.fires.resolvedRetentionSeconds)};`,
+    `pub const FIRE_MINIMUM_REPAIR_COST_FRACTION: f64 = ${rustF64(b.fires.minimumRepairCostFraction)};`,
+    `pub const FIRE_DAMAGE_REPAIR_COST_MULTIPLIER: f64 = ${rustF64(b.fires.damageRepairCostMultiplier)};`,
+    `pub const FIRE_DESTROYED_REBUILD_COST_FRACTION: f64 = ${rustF64(b.fires.destroyedRebuildCostFraction)};`,
     '',
     `pub const STARTING_TIMBER: f64 = ${rustF64(b.economy.startingTimber)};`,
     `pub const STARTING_STONE: f64 = ${rustF64(b.economy.startingStone)};`,
@@ -538,11 +590,15 @@ function generateRust(): string {
     `pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = ${rustF64(b.economy.townHallUnstaffedTaxCollectionMultiplier)};`,
     '',
     `pub const CARPENTER_TIMBER_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterTimberPerPolearm)};`,
-    `pub const CARPENTER_GOLD_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterGoldPerPolearm)};`,
+    `pub const CARPENTER_IRONWORK_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterIronworkPerPolearm)};`,
     `pub const GUARDHOUSE_FOOD_PER_GUARD_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseFoodPerGuardPerDay)};`,
     `pub const GUARDHOUSE_WAGE_PER_GUARD_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseWagePerGuardPerDay)};`,
     `pub const GUARDHOUSE_TRAINING_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseTrainingPerDay)};`,
     `pub const GUARDHOUSE_READINESS_DECAY_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseReadinessDecayPerDay)};`,
+    `pub const GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE: f64 = ${rustF64(b.frontierEconomy.guardhouseFullMusterRoadDistance)};`,
+    `pub const GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE: f64 = ${rustF64(b.frontierEconomy.guardhouseLongMusterRoadDistance)};`,
+    `pub const GUARDHOUSE_LONG_MUSTER_EFFICIENCY: f64 = ${rustF64(b.frontierEconomy.guardhouseLongMusterEfficiency)};`,
+    `pub const GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY: f64 = ${rustF64(b.frontierEconomy.guardhouseUnlinkedMusterEfficiency)};`,
     '',
     `pub const STARTING_POPULATION: u32 = ${b.population.starting};`,
     `pub const POPULATION_PER_RESIDENCE: u32 = ${b.population.perResidence};`,
@@ -563,6 +619,8 @@ function generateRust(): string {
     `pub const RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residencePreservedFoodPerPersonPerSec)};`,
     `pub const RESIDENCE_ALE_CAPACITY: f64 = ${rustF64(b.population.residenceAleCapacity)};`,
     `pub const RESIDENCE_ALE_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceAlePerPersonPerSec)};`,
+    `pub const RESIDENCE_CLOTH_CAPACITY: f64 = ${rustF64(b.population.residenceClothCapacity)};`,
+    `pub const RESIDENCE_CLOTH_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceClothPerPersonPerSec)};`,
     `pub const ABANDON_AFTER_DEFICIT_TICKS: u32 = ${b.population.abandonAfterDeficitTicks};`,
     `pub const RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER: f64 = ${rustF64(b.population.residenceTier1AbandonmentGraceMultiplier)};`,
     `pub const RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER: f64 = ${rustF64(b.population.residenceTier2AbandonmentGraceMultiplier)};`,
@@ -656,19 +714,34 @@ function generateRust(): string {
     `pub const GRANARY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.granaryWaterPerCycle)};`,
     `pub const GRANARY_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.granaryFirewoodPerCycle)};`,
     `pub const GRANARY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.granaryFoodPerCycle)};`,
+    `pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = ${rustF64(b.production.householdFoodReservePerClaim)};`,
+    `pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = ${rustF64(b.production.householdFoodReserveCapacityFraction)};`,
     `pub const BREWERY_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.breweryGrainPerCycle)};`,
     `pub const BREWERY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.breweryWaterPerCycle)};`,
     `pub const BREWERY_ALE_PER_CYCLE: f64 = ${rustF64(b.production.breweryAlePerCycle)};`,
+    `pub const WEAVER_WOOL_PER_CYCLE: f64 = ${rustF64(b.production.weaverWoolPerCycle)};`,
+    `pub const WEAVER_CLOTH_PER_CYCLE: f64 = ${rustF64(b.production.weaverClothPerCycle)};`,
+    `pub const TEXTILE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.production.textileTransferPerTrip)};`,
     `pub const SMOKEHOUSE_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseFoodPerCycle)};`,
     `pub const SMOKEHOUSE_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseFirewoodPerCycle)};`,
     `pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehousePreservedFoodPerCycle)};`,
     `pub const APIARY_HONEY_PER_CYCLE: f64 = ${rustF64(b.production.apiaryHoneyPerCycle)};`,
     `pub const APIARY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.apiaryFoodPerCycle)};`,
+    `pub const APIARY_SEASON_START_MONTH: u8 = ${b.production.apiarySeasonStartMonth};`,
+    `pub const APIARY_SEASON_END_MONTH: u8 = ${b.production.apiarySeasonEndMonth};`,
     `pub const VINEYARD_WINE_PER_CYCLE: f64 = ${rustF64(b.production.vineyardWinePerCycle)};`,
     `pub const VINEYARD_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.vineyardFoodPerCycle)};`,
+    `pub const VINEYARD_HARVEST_START_MONTH: u8 = ${b.production.vineyardHarvestStartMonth};`,
+    `pub const VINEYARD_HARVEST_END_MONTH: u8 = ${b.production.vineyardHarvestEndMonth};`,
+    `pub const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND: f64 = ${rustF64(b.production.marketSpecialtyExportPerBrokerPerSecond)};`,
     `pub const MONASTERY_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.monasteryGrainPerCycle)};`,
     `pub const MONASTERY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.monasteryFoodPerCycle)};`,
     `pub const MONASTERY_PILGRIMAGE_GOLD_PER_DAY: f64 = ${rustF64(b.production.monasteryPilgrimageGoldPerDay)};`,
+    `pub const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityBonusGoldPerDay)};`,
+    `pub const MONASTERY_HOSPITALITY_HONEY_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityHoneyPerDay)};`,
+    `pub const MONASTERY_HOSPITALITY_WINE_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityWinePerDay)};`,
+    `pub const MONASTERY_FEAST_HONEY: f64 = ${rustF64(b.production.monasteryFeastHoney)};`,
+    `pub const MONASTERY_FEAST_WINE: f64 = ${rustF64(b.production.monasteryFeastWine)};`,
     `pub const MONASTERY_UNLINKED_PRODUCTIVITY: f64 = ${rustF64(b.production.monasteryUnlinkedProductivity)};`,
     `pub const MONASTERY_COVERAGE_RADIUS: f64 = ${rustF64(b.production.monasteryCoverageRadius)};`,
     `pub const MONASTERY_TITHE_SHARE_DEFAULT: f64 = ${rustF64(b.production.monasteryTitheShareDefault)};`,
@@ -676,11 +749,13 @@ function generateRust(): string {
     `pub const SPECIALTY_EXPORT_GOLD_PER_HONEY: f64 = ${rustF64(b.production.specialtyExportGoldPerHoney)};`,
     `pub const SPECIALTY_EXPORT_GOLD_PER_ALE: f64 = ${rustF64(b.production.specialtyExportGoldPerAle)};`,
     `pub const SPECIALTY_EXPORT_GOLD_PER_WINE: f64 = ${rustF64(b.production.specialtyExportGoldPerWine)};`,
+    `pub const SPECIALTY_EXPORT_GOLD_PER_CLOTH: f64 = ${rustF64(b.production.specialtyExportGoldPerCloth)};`,
     `pub const FERRY_GOLD_PER_DAY: f64 = ${rustF64(b.production.ferryGoldPerDay)};`,
     `pub const CARPENTER_DELIVERY_SPEED_MULTIPLIER: f64 = ${rustF64(b.production.carpenterDeliverySpeedMultiplier)};`,
     `pub const CARPENTER_TIMBER_COST_MULTIPLIER: f64 = ${rustF64(b.production.carpenterTimberCostMultiplier)};`,
     `pub const STOREHOUSE_OVERFLOW_THRESHOLD: f64 = ${rustF64(b.production.storehouseOverflowThreshold)};`,
     `pub const STOREHOUSE_HAUL_PER_WORKER: f64 = ${rustF64(b.production.storehouseHaulPerWorker)};`,
+    `pub const STOREHOUSE_FIREWOOD_PER_DELIVERY: f64 = ${rustF64(b.production.storehouseFirewoodPerDelivery)};`,
     '',
     `pub const FARM_MIN_FIELD_AREA: f64 = ${rustF64(b.farming.minFieldArea)};`,
     `pub const FARM_OPTIMAL_FIELD_AREA: f64 = ${rustF64(b.farming.optimalFieldArea)};`,
@@ -693,6 +768,9 @@ function generateRust(): string {
     `pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = ${rustF64(b.farming.harvestWorkPerSquareMeter)};`,
     `pub const FARM_GROWTH_SECONDS: f64 = ${rustF64(b.farming.growthSeconds)};`,
     `pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.baseGrainPerSquareMeter)};`,
+    `pub const FARM_RYE_SEED_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.ryeSeedGrainPerSquareMeter)};`,
+    `pub const FARM_OATS_SEED_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.oatsSeedGrainPerSquareMeter)};`,
+    `pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = ${rustF64(b.farming.farmsteadStarterSeedGrain)};`,
     `pub const FARM_RYE_MOISTURE_IDEAL: f64 = ${rustF64(b.farming.ryeMoistureIdeal)};`,
     `pub const FARM_RYE_MOISTURE_TOLERANCE: f64 = ${rustF64(b.farming.ryeMoistureTolerance)};`,
     `pub const FARM_OATS_MOISTURE_IDEAL: f64 = ${rustF64(b.farming.oatsMoistureIdeal)};`,
@@ -707,14 +785,28 @@ function generateRust(): string {
     `pub const LIVESTOCK_MIN_PASTURE_AREA: f64 = ${rustF64(b.livestock.minPastureArea)};`,
     `pub const LIVESTOCK_MIN_PASTURE_EDGE: f64 = ${rustF64(b.livestock.minPastureEdge)};`,
     `pub const LIVESTOCK_PASTURE_SALVAGE_FRACTION: f64 = ${rustF64(b.livestock.pastureSalvageFraction)};`,
+    `pub const LIVESTOCK_AUTUMN_CULL_START_MONTH: u32 = ${b.livestock.autumnCullStartMonth};`,
+    `pub const LIVESTOCK_AUTUMN_CULL_END_MONTH: u32 = ${b.livestock.autumnCullEndMonth};`,
+    `pub const LIVESTOCK_WINTER_FODDER_RESERVE_DAYS: f64 = ${rustF64(b.livestock.winterFodderReserveDays)};`,
+    `pub const LIVESTOCK_HAYMAKING_START_MONTH: u32 = ${b.livestock.haymakingStartMonth};`,
+    `pub const LIVESTOCK_HAYMAKING_END_MONTH: u32 = ${b.livestock.haymakingEndMonth};`,
+    `pub const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT: u8 = ${b.livestock.defaultHaymakingPercent};`,
+    `pub const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT: u8 = ${b.livestock.maximumHaymakingPercent};`,
+    `pub const LIVESTOCK_HAY_STORAGE_CAPACITY: f64 = ${rustF64(b.livestock.hayStorageCapacity)};`,
     `pub const CATTLE_STARTER_HERD: u32 = ${b.livestock.cattle.starterHerd};`,
     `pub const CATTLE_MAX_HERD: u32 = ${b.livestock.cattle.maxHerd};`,
+    `pub const CATTLE_MINIMUM_BREEDING_RESERVE: u32 = ${b.livestock.cattle.minimumBreedingReserve};`,
+    `pub const CATTLE_DEFAULT_BREEDING_RESERVE: u32 = ${b.livestock.cattle.defaultBreedingReserve};`,
     `pub const CATTLE_AREA_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.areaPerHead)};`,
     `pub const CATTLE_MAX_SLOPE_DEGREES: f64 = ${rustF64(b.livestock.cattle.maxSlopeDegrees ?? 0)};`,
     `pub const CATTLE_MOISTURE_IDEAL: f64 = ${rustF64(b.livestock.cattle.moistureIdeal ?? 0)};`,
     `pub const CATTLE_MOISTURE_TOLERANCE: f64 = ${rustF64(b.livestock.cattle.moistureTolerance ?? 1)};`,
     `pub const CATTLE_FOOD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.foodPerCyclePerHead)};`,
     `pub const CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.preservedFoodPerCyclePerHead ?? 0)};`,
+    `pub const CATTLE_SLAUGHTER_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.slaughterFoodPerHead)};`,
+    `pub const CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.slaughterPreservedFoodPerHead)};`,
+    `pub const CATTLE_HAY_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.cattle.hayPerUnsupportedHead ?? 0)};`,
+    `pub const CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE: f64 = ${rustF64(b.livestock.cattle.hayYieldPerReservedCapacityPerCycle ?? 0)};`,
     `pub const CATTLE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.cattle.grainPerUnsupportedHead)};`,
     `pub const CATTLE_BREEDING_PER_CYCLE: f64 = ${rustF64(b.livestock.cattle.breedingPerCycle)};`,
     `pub const CATTLE_HEALTH_RECOVERY_PER_CYCLE: f64 = ${rustF64(b.livestock.cattle.healthRecoveryPerCycle)};`,
@@ -724,22 +816,34 @@ function generateRust(): string {
     `pub const CATTLE_PLOUGH_WORK_MULTIPLIER: f64 = ${rustF64(b.livestock.cattle.ploughWorkMultiplier ?? 1)};`,
     `pub const SHEEP_STARTER_HERD: u32 = ${b.livestock.sheep.starterHerd};`,
     `pub const SHEEP_MAX_HERD: u32 = ${b.livestock.sheep.maxHerd};`,
+    `pub const SHEEP_MINIMUM_BREEDING_RESERVE: u32 = ${b.livestock.sheep.minimumBreedingReserve};`,
+    `pub const SHEEP_DEFAULT_BREEDING_RESERVE: u32 = ${b.livestock.sheep.defaultBreedingReserve};`,
     `pub const SHEEP_AREA_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.areaPerHead)};`,
     `pub const SHEEP_MAX_SLOPE_DEGREES: f64 = ${rustF64(b.livestock.sheep.maxSlopeDegrees ?? 0)};`,
     `pub const SHEEP_MOISTURE_IDEAL: f64 = ${rustF64(b.livestock.sheep.moistureIdeal ?? 0)};`,
     `pub const SHEEP_MOISTURE_TOLERANCE: f64 = ${rustF64(b.livestock.sheep.moistureTolerance ?? 1)};`,
     `pub const SHEEP_FOOD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.foodPerCyclePerHead)};`,
     `pub const SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.preservedFoodPerCyclePerHead ?? 0)};`,
+    `pub const SHEEP_SLAUGHTER_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.slaughterFoodPerHead)};`,
+    `pub const SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.slaughterPreservedFoodPerHead)};`,
+    `pub const SHEEP_HAY_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.sheep.hayPerUnsupportedHead ?? 0)};`,
+    `pub const SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE: f64 = ${rustF64(b.livestock.sheep.hayYieldPerReservedCapacityPerCycle ?? 0)};`,
     `pub const SHEEP_GRAIN_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.sheep.grainPerUnsupportedHead)};`,
-    `pub const SHEEP_WOOL_GOLD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.woolGoldPerCyclePerHead ?? 0)};`,
+    `pub const SHEEP_WOOL_PER_SHEARING_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.woolPerShearingPerHead ?? 0)};`,
+    `pub const SHEEP_SHEARING_START_MONTH: u8 = ${b.livestock.sheep.shearingStartMonth ?? 6};`,
+    `pub const SHEEP_SHEARING_END_MONTH: u8 = ${b.livestock.sheep.shearingEndMonth ?? 7};`,
     `pub const SHEEP_BREEDING_PER_CYCLE: f64 = ${rustF64(b.livestock.sheep.breedingPerCycle)};`,
     `pub const SHEEP_HEALTH_RECOVERY_PER_CYCLE: f64 = ${rustF64(b.livestock.sheep.healthRecoveryPerCycle)};`,
     `pub const SHEEP_HEALTH_LOSS_PER_CYCLE: f64 = ${rustF64(b.livestock.sheep.healthLossPerCycle)};`,
     `pub const SWINE_STARTER_HERD: u32 = ${b.livestock.swine.starterHerd};`,
     `pub const SWINE_MAX_HERD: u32 = ${b.livestock.swine.maxHerd};`,
+    `pub const SWINE_MINIMUM_BREEDING_RESERVE: u32 = ${b.livestock.swine.minimumBreedingReserve};`,
+    `pub const SWINE_DEFAULT_BREEDING_RESERVE: u32 = ${b.livestock.swine.defaultBreedingReserve};`,
     `pub const SWINE_AREA_PER_HEAD: f64 = ${rustF64(b.livestock.swine.areaPerHead)};`,
     `pub const SWINE_MATURE_TREES_PER_HEAD: f64 = ${rustF64(b.livestock.swine.matureTreesPerHead ?? 0)};`,
     `pub const SWINE_FOOD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.swine.foodPerCyclePerHead)};`,
+    `pub const SWINE_SLAUGHTER_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.swine.slaughterFoodPerHead)};`,
+    `pub const SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.swine.slaughterPreservedFoodPerHead)};`,
     `pub const SWINE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.swine.grainPerUnsupportedHead)};`,
     `pub const SWINE_BREEDING_PER_CYCLE: f64 = ${rustF64(b.livestock.swine.breedingPerCycle)};`,
     `pub const SWINE_HEALTH_RECOVERY_PER_CYCLE: f64 = ${rustF64(b.livestock.swine.healthRecoveryPerCycle)};`,
@@ -766,6 +870,7 @@ function generateRust(): string {
   lines.push('    Apiary,');
   lines.push('    Watermill,');
   lines.push('    Carpenter,');
+  lines.push('    Weaver,');
   lines.push('    Guardhouse,');
   lines.push('    FerryLanding,');
   lines.push('    Vineyard,');
@@ -790,6 +895,9 @@ function generateRust(): string {
   lines.push('    pub storage_preserved_food: f64,');
   lines.push('    pub storage_honey: f64,');
   lines.push('    pub storage_wine: f64,');
+  lines.push('    pub storage_wool: f64,');
+  lines.push('    pub storage_cloth: f64,');
+  lines.push('    pub storage_ironwork: f64,');
   lines.push('    pub storage_polearms: f64,');
   lines.push('    pub accepts_labor: bool,');
   lines.push('    pub max_labor: u32,');
@@ -826,6 +934,9 @@ function generateRust(): string {
     lines.push(`    storage_preserved_food: ${rustF64(def.storage.preservedFood ?? 0)},`);
     lines.push(`    storage_honey: ${rustF64(def.storage.honey ?? 0)},`);
     lines.push(`    storage_wine: ${rustF64(def.storage.wine ?? 0)},`);
+    lines.push(`    storage_wool: ${rustF64(def.storage.wool ?? 0)},`);
+    lines.push(`    storage_cloth: ${rustF64(def.storage.cloth ?? 0)},`);
+    lines.push(`    storage_ironwork: ${rustF64(def.storage.ironwork ?? 0)},`);
     lines.push(`    storage_polearms: ${rustF64(def.storage.polearms ?? 0)},`);
     lines.push(`    accepts_labor: ${def.acceptsLabor},`);
     lines.push(`    max_labor: ${def.maxLabor},`);
@@ -1015,6 +1126,9 @@ function generateTypeScript(): string {
     `export const FIRE_EXTINGUISH_CHANCE_BASE = ${b.fires.extinguishChanceBase};`,
     `export const FIRE_EXTINGUISH_CHANCE_PER_WATER = ${b.fires.extinguishChancePerWater};`,
     `export const FIRE_RESOLVED_RETENTION_SECONDS = ${b.fires.resolvedRetentionSeconds};`,
+    `export const FIRE_MINIMUM_REPAIR_COST_FRACTION = ${b.fires.minimumRepairCostFraction};`,
+    `export const FIRE_DAMAGE_REPAIR_COST_MULTIPLIER = ${b.fires.damageRepairCostMultiplier};`,
+    `export const FIRE_DESTROYED_REBUILD_COST_FRACTION = ${b.fires.destroyedRebuildCostFraction};`,
     '',
     `export const STARTING_TIMBER = ${b.economy.startingTimber};`,
     `export const STARTING_STONE = ${b.economy.startingStone};`,
@@ -1041,11 +1155,15 @@ function generateTypeScript(): string {
     `export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = ${b.economy.townHallUnstaffedTaxCollectionMultiplier};`,
     '',
     `export const CARPENTER_TIMBER_PER_POLEARM = ${b.frontierEconomy.carpenterTimberPerPolearm};`,
-    `export const CARPENTER_GOLD_PER_POLEARM = ${b.frontierEconomy.carpenterGoldPerPolearm};`,
+    `export const CARPENTER_IRONWORK_PER_POLEARM = ${b.frontierEconomy.carpenterIronworkPerPolearm};`,
     `export const GUARDHOUSE_FOOD_PER_GUARD_PER_DAY = ${b.frontierEconomy.guardhouseFoodPerGuardPerDay};`,
     `export const GUARDHOUSE_WAGE_PER_GUARD_PER_DAY = ${b.frontierEconomy.guardhouseWagePerGuardPerDay};`,
     `export const GUARDHOUSE_TRAINING_PER_DAY = ${b.frontierEconomy.guardhouseTrainingPerDay};`,
     `export const GUARDHOUSE_READINESS_DECAY_PER_DAY = ${b.frontierEconomy.guardhouseReadinessDecayPerDay};`,
+    `export const GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE = ${b.frontierEconomy.guardhouseFullMusterRoadDistance};`,
+    `export const GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE = ${b.frontierEconomy.guardhouseLongMusterRoadDistance};`,
+    `export const GUARDHOUSE_LONG_MUSTER_EFFICIENCY = ${b.frontierEconomy.guardhouseLongMusterEfficiency};`,
+    `export const GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY = ${b.frontierEconomy.guardhouseUnlinkedMusterEfficiency};`,
     '',
     `export const STARTING_POPULATION = ${b.population.starting};`,
     `export const POPULATION_PER_RESIDENCE = ${b.population.perResidence};`,
@@ -1066,6 +1184,8 @@ function generateTypeScript(): string {
     `export const RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC = ${b.population.residencePreservedFoodPerPersonPerSec};`,
     `export const RESIDENCE_ALE_CAPACITY = ${b.population.residenceAleCapacity};`,
     `export const RESIDENCE_ALE_PER_PERSON_PER_SEC = ${b.population.residenceAlePerPersonPerSec};`,
+    `export const RESIDENCE_CLOTH_CAPACITY = ${b.population.residenceClothCapacity};`,
+    `export const RESIDENCE_CLOTH_PER_PERSON_PER_SEC = ${b.population.residenceClothPerPersonPerSec};`,
     `export const ABANDON_AFTER_DEFICIT_TICKS = ${b.population.abandonAfterDeficitTicks};`,
     `export const RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER = ${b.population.residenceTier1AbandonmentGraceMultiplier};`,
     `export const RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER = ${b.population.residenceTier2AbandonmentGraceMultiplier};`,
@@ -1158,19 +1278,34 @@ function generateTypeScript(): string {
     `export const GRANARY_WATER_PER_CYCLE = ${b.production.granaryWaterPerCycle};`,
     `export const GRANARY_FIREWOOD_PER_CYCLE = ${b.production.granaryFirewoodPerCycle};`,
     `export const GRANARY_FOOD_PER_CYCLE = ${b.production.granaryFoodPerCycle};`,
+    `export const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM = ${b.production.householdFoodReservePerClaim};`,
+    `export const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION = ${b.production.householdFoodReserveCapacityFraction};`,
     `export const BREWERY_GRAIN_PER_CYCLE = ${b.production.breweryGrainPerCycle};`,
     `export const BREWERY_WATER_PER_CYCLE = ${b.production.breweryWaterPerCycle};`,
     `export const BREWERY_ALE_PER_CYCLE = ${b.production.breweryAlePerCycle};`,
+    `export const WEAVER_WOOL_PER_CYCLE = ${b.production.weaverWoolPerCycle};`,
+    `export const WEAVER_CLOTH_PER_CYCLE = ${b.production.weaverClothPerCycle};`,
+    `export const TEXTILE_TRANSFER_PER_TRIP = ${b.production.textileTransferPerTrip};`,
     `export const SMOKEHOUSE_FOOD_PER_CYCLE = ${b.production.smokehouseFoodPerCycle};`,
     `export const SMOKEHOUSE_FIREWOOD_PER_CYCLE = ${b.production.smokehouseFirewoodPerCycle};`,
     `export const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE = ${b.production.smokehousePreservedFoodPerCycle};`,
     `export const APIARY_HONEY_PER_CYCLE = ${b.production.apiaryHoneyPerCycle};`,
     `export const APIARY_FOOD_PER_CYCLE = ${b.production.apiaryFoodPerCycle};`,
+    `export const APIARY_SEASON_START_MONTH = ${b.production.apiarySeasonStartMonth};`,
+    `export const APIARY_SEASON_END_MONTH = ${b.production.apiarySeasonEndMonth};`,
     `export const VINEYARD_WINE_PER_CYCLE = ${b.production.vineyardWinePerCycle};`,
     `export const VINEYARD_FOOD_PER_CYCLE = ${b.production.vineyardFoodPerCycle};`,
+    `export const VINEYARD_HARVEST_START_MONTH = ${b.production.vineyardHarvestStartMonth};`,
+    `export const VINEYARD_HARVEST_END_MONTH = ${b.production.vineyardHarvestEndMonth};`,
+    `export const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND = ${b.production.marketSpecialtyExportPerBrokerPerSecond};`,
     `export const MONASTERY_GRAIN_PER_CYCLE = ${b.production.monasteryGrainPerCycle};`,
     `export const MONASTERY_FOOD_PER_CYCLE = ${b.production.monasteryFoodPerCycle};`,
     `export const MONASTERY_PILGRIMAGE_GOLD_PER_DAY = ${b.production.monasteryPilgrimageGoldPerDay};`,
+    `export const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY = ${b.production.monasteryHospitalityBonusGoldPerDay};`,
+    `export const MONASTERY_HOSPITALITY_HONEY_PER_DAY = ${b.production.monasteryHospitalityHoneyPerDay};`,
+    `export const MONASTERY_HOSPITALITY_WINE_PER_DAY = ${b.production.monasteryHospitalityWinePerDay};`,
+    `export const MONASTERY_FEAST_HONEY = ${b.production.monasteryFeastHoney};`,
+    `export const MONASTERY_FEAST_WINE = ${b.production.monasteryFeastWine};`,
     `export const MONASTERY_UNLINKED_PRODUCTIVITY = ${b.production.monasteryUnlinkedProductivity};`,
     `export const MONASTERY_COVERAGE_RADIUS = ${b.production.monasteryCoverageRadius};`,
     `export const MONASTERY_TITHE_SHARE_DEFAULT = ${b.production.monasteryTitheShareDefault};`,
@@ -1178,11 +1313,13 @@ function generateTypeScript(): string {
     `export const SPECIALTY_EXPORT_GOLD_PER_HONEY = ${b.production.specialtyExportGoldPerHoney};`,
     `export const SPECIALTY_EXPORT_GOLD_PER_ALE = ${b.production.specialtyExportGoldPerAle};`,
     `export const SPECIALTY_EXPORT_GOLD_PER_WINE = ${b.production.specialtyExportGoldPerWine};`,
+    `export const SPECIALTY_EXPORT_GOLD_PER_CLOTH = ${b.production.specialtyExportGoldPerCloth};`,
     `export const FERRY_GOLD_PER_DAY = ${b.production.ferryGoldPerDay};`,
     `export const CARPENTER_DELIVERY_SPEED_MULTIPLIER = ${b.production.carpenterDeliverySpeedMultiplier};`,
     `export const CARPENTER_TIMBER_COST_MULTIPLIER = ${b.production.carpenterTimberCostMultiplier};`,
     `export const STOREHOUSE_OVERFLOW_THRESHOLD = ${b.production.storehouseOverflowThreshold};`,
     `export const STOREHOUSE_HAUL_PER_WORKER = ${b.production.storehouseHaulPerWorker};`,
+    `export const STOREHOUSE_FIREWOOD_PER_DELIVERY = ${b.production.storehouseFirewoodPerDelivery};`,
     '',
     `export const FARM_MIN_FIELD_AREA = ${b.farming.minFieldArea};`,
     `export const FARM_OPTIMAL_FIELD_AREA = ${b.farming.optimalFieldArea};`,
@@ -1195,6 +1332,9 @@ function generateTypeScript(): string {
     `export const FARM_HARVEST_WORK_PER_SQUARE_METER = ${b.farming.harvestWorkPerSquareMeter};`,
     `export const FARM_GROWTH_SECONDS = ${b.farming.growthSeconds};`,
     `export const FARM_BASE_GRAIN_PER_SQUARE_METER = ${b.farming.baseGrainPerSquareMeter};`,
+    `export const FARM_RYE_SEED_GRAIN_PER_SQUARE_METER = ${b.farming.ryeSeedGrainPerSquareMeter};`,
+    `export const FARM_OATS_SEED_GRAIN_PER_SQUARE_METER = ${b.farming.oatsSeedGrainPerSquareMeter};`,
+    `export const FARMSTEAD_STARTER_SEED_GRAIN = ${b.farming.farmsteadStarterSeedGrain};`,
     `export const FARM_RYE_MOISTURE_IDEAL = ${b.farming.ryeMoistureIdeal};`,
     `export const FARM_RYE_MOISTURE_TOLERANCE = ${b.farming.ryeMoistureTolerance};`,
     `export const FARM_OATS_MOISTURE_IDEAL = ${b.farming.oatsMoistureIdeal};`,
@@ -1209,14 +1349,28 @@ function generateTypeScript(): string {
     `export const LIVESTOCK_MIN_PASTURE_AREA = ${b.livestock.minPastureArea};`,
     `export const LIVESTOCK_MIN_PASTURE_EDGE = ${b.livestock.minPastureEdge};`,
     `export const LIVESTOCK_PASTURE_SALVAGE_FRACTION = ${b.livestock.pastureSalvageFraction};`,
+    `export const LIVESTOCK_AUTUMN_CULL_START_MONTH = ${b.livestock.autumnCullStartMonth};`,
+    `export const LIVESTOCK_AUTUMN_CULL_END_MONTH = ${b.livestock.autumnCullEndMonth};`,
+    `export const LIVESTOCK_WINTER_FODDER_RESERVE_DAYS = ${b.livestock.winterFodderReserveDays};`,
+    `export const LIVESTOCK_HAYMAKING_START_MONTH = ${b.livestock.haymakingStartMonth};`,
+    `export const LIVESTOCK_HAYMAKING_END_MONTH = ${b.livestock.haymakingEndMonth};`,
+    `export const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT = ${b.livestock.defaultHaymakingPercent};`,
+    `export const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT = ${b.livestock.maximumHaymakingPercent};`,
+    `export const LIVESTOCK_HAY_STORAGE_CAPACITY = ${b.livestock.hayStorageCapacity};`,
     `export const CATTLE_STARTER_HERD = ${b.livestock.cattle.starterHerd};`,
     `export const CATTLE_MAX_HERD = ${b.livestock.cattle.maxHerd};`,
+    `export const CATTLE_MINIMUM_BREEDING_RESERVE = ${b.livestock.cattle.minimumBreedingReserve};`,
+    `export const CATTLE_DEFAULT_BREEDING_RESERVE = ${b.livestock.cattle.defaultBreedingReserve};`,
     `export const CATTLE_AREA_PER_HEAD = ${b.livestock.cattle.areaPerHead};`,
     `export const CATTLE_MAX_SLOPE_DEGREES = ${b.livestock.cattle.maxSlopeDegrees ?? 0};`,
     `export const CATTLE_MOISTURE_IDEAL = ${b.livestock.cattle.moistureIdeal ?? 0};`,
     `export const CATTLE_MOISTURE_TOLERANCE = ${b.livestock.cattle.moistureTolerance ?? 1};`,
     `export const CATTLE_FOOD_PER_CYCLE_PER_HEAD = ${b.livestock.cattle.foodPerCyclePerHead};`,
     `export const CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD = ${b.livestock.cattle.preservedFoodPerCyclePerHead ?? 0};`,
+    `export const CATTLE_SLAUGHTER_FOOD_PER_HEAD = ${b.livestock.cattle.slaughterFoodPerHead};`,
+    `export const CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = ${b.livestock.cattle.slaughterPreservedFoodPerHead};`,
+    `export const CATTLE_HAY_PER_UNSUPPORTED_HEAD = ${b.livestock.cattle.hayPerUnsupportedHead ?? 0};`,
+    `export const CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE = ${b.livestock.cattle.hayYieldPerReservedCapacityPerCycle ?? 0};`,
     `export const CATTLE_GRAIN_PER_UNSUPPORTED_HEAD = ${b.livestock.cattle.grainPerUnsupportedHead};`,
     `export const CATTLE_BREEDING_PER_CYCLE = ${b.livestock.cattle.breedingPerCycle};`,
     `export const CATTLE_HEALTH_RECOVERY_PER_CYCLE = ${b.livestock.cattle.healthRecoveryPerCycle};`,
@@ -1226,22 +1380,34 @@ function generateTypeScript(): string {
     `export const CATTLE_PLOUGH_WORK_MULTIPLIER = ${b.livestock.cattle.ploughWorkMultiplier ?? 1};`,
     `export const SHEEP_STARTER_HERD = ${b.livestock.sheep.starterHerd};`,
     `export const SHEEP_MAX_HERD = ${b.livestock.sheep.maxHerd};`,
+    `export const SHEEP_MINIMUM_BREEDING_RESERVE = ${b.livestock.sheep.minimumBreedingReserve};`,
+    `export const SHEEP_DEFAULT_BREEDING_RESERVE = ${b.livestock.sheep.defaultBreedingReserve};`,
     `export const SHEEP_AREA_PER_HEAD = ${b.livestock.sheep.areaPerHead};`,
     `export const SHEEP_MAX_SLOPE_DEGREES = ${b.livestock.sheep.maxSlopeDegrees ?? 0};`,
     `export const SHEEP_MOISTURE_IDEAL = ${b.livestock.sheep.moistureIdeal ?? 0};`,
     `export const SHEEP_MOISTURE_TOLERANCE = ${b.livestock.sheep.moistureTolerance ?? 1};`,
     `export const SHEEP_FOOD_PER_CYCLE_PER_HEAD = ${b.livestock.sheep.foodPerCyclePerHead};`,
     `export const SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD = ${b.livestock.sheep.preservedFoodPerCyclePerHead ?? 0};`,
+    `export const SHEEP_SLAUGHTER_FOOD_PER_HEAD = ${b.livestock.sheep.slaughterFoodPerHead};`,
+    `export const SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = ${b.livestock.sheep.slaughterPreservedFoodPerHead};`,
+    `export const SHEEP_HAY_PER_UNSUPPORTED_HEAD = ${b.livestock.sheep.hayPerUnsupportedHead ?? 0};`,
+    `export const SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE = ${b.livestock.sheep.hayYieldPerReservedCapacityPerCycle ?? 0};`,
     `export const SHEEP_GRAIN_PER_UNSUPPORTED_HEAD = ${b.livestock.sheep.grainPerUnsupportedHead};`,
-    `export const SHEEP_WOOL_GOLD_PER_CYCLE_PER_HEAD = ${b.livestock.sheep.woolGoldPerCyclePerHead ?? 0};`,
+    `export const SHEEP_WOOL_PER_SHEARING_PER_HEAD = ${b.livestock.sheep.woolPerShearingPerHead ?? 0};`,
+    `export const SHEEP_SHEARING_START_MONTH = ${b.livestock.sheep.shearingStartMonth ?? 6};`,
+    `export const SHEEP_SHEARING_END_MONTH = ${b.livestock.sheep.shearingEndMonth ?? 7};`,
     `export const SHEEP_BREEDING_PER_CYCLE = ${b.livestock.sheep.breedingPerCycle};`,
     `export const SHEEP_HEALTH_RECOVERY_PER_CYCLE = ${b.livestock.sheep.healthRecoveryPerCycle};`,
     `export const SHEEP_HEALTH_LOSS_PER_CYCLE = ${b.livestock.sheep.healthLossPerCycle};`,
     `export const SWINE_STARTER_HERD = ${b.livestock.swine.starterHerd};`,
     `export const SWINE_MAX_HERD = ${b.livestock.swine.maxHerd};`,
+    `export const SWINE_MINIMUM_BREEDING_RESERVE = ${b.livestock.swine.minimumBreedingReserve};`,
+    `export const SWINE_DEFAULT_BREEDING_RESERVE = ${b.livestock.swine.defaultBreedingReserve};`,
     `export const SWINE_AREA_PER_HEAD = ${b.livestock.swine.areaPerHead};`,
     `export const SWINE_MATURE_TREES_PER_HEAD = ${b.livestock.swine.matureTreesPerHead ?? 0};`,
     `export const SWINE_FOOD_PER_CYCLE_PER_HEAD = ${b.livestock.swine.foodPerCyclePerHead};`,
+    `export const SWINE_SLAUGHTER_FOOD_PER_HEAD = ${b.livestock.swine.slaughterFoodPerHead};`,
+    `export const SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = ${b.livestock.swine.slaughterPreservedFoodPerHead};`,
     `export const SWINE_GRAIN_PER_UNSUPPORTED_HEAD = ${b.livestock.swine.grainPerUnsupportedHead};`,
     `export const SWINE_BREEDING_PER_CYCLE = ${b.livestock.swine.breedingPerCycle};`,
     `export const SWINE_HEALTH_RECOVERY_PER_CYCLE = ${b.livestock.swine.healthRecoveryPerCycle};`,
@@ -1264,6 +1430,9 @@ function generateTypeScript(): string {
     '  preservedFood?: number;',
     '  honey?: number;',
     '  wine?: number;',
+    '  wool?: number;',
+    '  cloth?: number;',
+    '  ironwork?: number;',
     '  polearms?: number;',
     '};',
     '',
@@ -1333,6 +1502,9 @@ function generateTypeScript(): string {
     const preservedFood = def.storage.preservedFood ?? 0;
     const honey = def.storage.honey ?? 0;
     const wine = def.storage.wine ?? 0;
+    const wool = def.storage.wool ?? 0;
+    const cloth = def.storage.cloth ?? 0;
+    const ironwork = def.storage.ironwork ?? 0;
     const polearms = def.storage.polearms ?? 0;
     const extras: string[] = [];
     if (water > 0) extras.push(`water: ${water}`);
@@ -1343,6 +1515,9 @@ function generateTypeScript(): string {
     if (preservedFood > 0) extras.push(`preservedFood: ${preservedFood}`);
     if (honey > 0) extras.push(`honey: ${honey}`);
     if (wine > 0) extras.push(`wine: ${wine}`);
+    if (wool > 0) extras.push(`wool: ${wool}`);
+    if (cloth > 0) extras.push(`cloth: ${cloth}`);
+    if (ironwork > 0) extras.push(`ironwork: ${ironwork}`);
     if (polearms > 0) extras.push(`polearms: ${polearms}`);
     lines.push(
       `  ${kind}: { timber: ${def.storage.timber}, firewood: ${def.storage.firewood}, stone: ${def.storage.stone}${extras.length > 0 ? `, ${extras.join(', ')}` : ''} },`,

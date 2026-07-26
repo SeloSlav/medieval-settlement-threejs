@@ -120,6 +120,9 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     storehouseAcceptsStone: true,
     storehouseAcceptsFirewood: true,
     granaryAcceptsFreshFood: true,
+    granaryHouseholdsFirst: false,
+    granaryFreshFoodTargetPercent: 75,
+    constructionPriority: 2,
   };
 
   const buildings = new Map(state.buildings);

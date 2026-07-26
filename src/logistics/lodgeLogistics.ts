@@ -39,6 +39,13 @@ export function lodgeDeliveryTripSeconds(
   lodge: { x: number; z: number },
   target: { x: number; z: number } | null,
   deliveryWorkers: number,
+  travelSpeedMultiplier = 1,
 ): number {
-  return firewoodDeliveryTripSeconds(network, lodge, target, deliveryWorkers);
+  return firewoodDeliveryTripSeconds(
+    network,
+    lodge,
+    target,
+    deliveryWorkers,
+    travelSpeedMultiplier,
+  );
 }
