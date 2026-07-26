@@ -304,7 +304,7 @@ export function tripRemainingSeconds(trip: DeliveryTripState, pathDistance: numb
   if (pathDistance == null || pathDistance <= 1e-6) return Infinity;
 
   const workers = Math.max(1, trip.deliveryWorkers);
-  const travelSpeed = trip.speedMps * workers * Math.max(1, trip.travelSpeedMultiplier);
+  const travelSpeed = trip.speedMps * workers * Math.max(1e-6, trip.travelSpeedMultiplier);
   if (travelSpeed <= 1e-9) return Infinity;
 
   const travelPerLeg = pathDistance / travelSpeed;
@@ -342,7 +342,7 @@ export function tripDeliveryRemainingSeconds(trip: DeliveryTripState): number {
   const pathDistance = Number.isFinite(trip.pathDistance)
     ? Math.max(0, trip.pathDistance)
     : 0;
-  const travelSpeed = trip.speedMps * workers * Math.max(1, trip.travelSpeedMultiplier);
+  const travelSpeed = trip.speedMps * workers * Math.max(1e-6, trip.travelSpeedMultiplier);
   if (pathDistance <= 1e-6 || travelSpeed <= 1e-9) return Infinity;
 
   const progress = Math.min(Math.max(0, trip.progress), pathDistance);

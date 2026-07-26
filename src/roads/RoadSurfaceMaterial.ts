@@ -1,5 +1,17 @@
 import { MeshStandardNodeMaterial } from 'three/webgpu';
-import { attribute, float, mix, normalMap, pow, smoothstep, sub, texture, uv, vec3 } from 'three/tsl';
+import {
+  attribute,
+  float,
+  mix,
+  normalMap,
+  pow,
+  smoothstep,
+  sub,
+  texture,
+  uniform,
+  uv,
+  vec3,
+} from 'three/tsl';
 import type { TextureSet } from './RoadTextureLoader.ts';
 
 type TslNode = {
@@ -11,6 +23,22 @@ type TslNode = {
   rgb: TslNode;
   x: TslNode;
 };
+
+type TslScalarUniform = TslNode & {
+  value: number;
+};
+
+export type RoadWeatherUniforms = {
+  wetness: TslScalarUniform;
+  frost: TslScalarUniform;
+};
+
+export function createRoadWeatherUniforms(): RoadWeatherUniforms {
+  return {
+    wetness: uniform(0) as unknown as TslScalarUniform,
+    frost: uniform(0) as unknown as TslScalarUniform,
+  };
+}
 
 function greyCoolRoadColor(map: TslNode, desaturate: number, tint: [number, number, number]): TslNode {
   const luminance = map.r
@@ -24,6 +52,40 @@ function greyCoolRoadColor(map: TslNode, desaturate: number, tint: [number, numb
 function buildRoadColorNode(textures: TextureSet, desaturate: number, tint: [number, number, number]): TslNode {
   const sample = texture(textures.albedo, uv() as TslNode) as TslNode;
   return greyCoolRoadColor(sample, desaturate, tint);
+}
+
+function applyRoadWeatherColor(
+  baseColor: TslNode,
+  weather: RoadWeatherUniforms,
+  frostStrength = 1,
+): TslNode {
+  const wetTint = baseColor.mul(vec3(0.48, 0.47, 0.44) as TslNode);
+  const wetColor = mix(
+    baseColor,
+    wetTint,
+    weather.wetness.mul(float(0.48) as TslNode),
+  ) as TslNode;
+  return mix(
+    wetColor,
+    vec3(0.5, 0.54, 0.57) as TslNode,
+    weather.frost.mul(float(0.15 * frostStrength) as TslNode),
+  ) as TslNode;
+}
+
+function applyRoadWeatherRoughness(
+  baseRoughness: TslNode,
+  weather: RoadWeatherUniforms,
+): TslNode {
+  const wetRoughness = mix(
+    baseRoughness,
+    float(0.42) as TslNode,
+    weather.wetness.mul(float(0.82) as TslNode),
+  ) as TslNode;
+  return mix(
+    wetRoughness,
+    float(0.9) as TslNode,
+    weather.frost.mul(float(0.78) as TslNode),
+  ) as TslNode;
 }
 
 function buildMuddyBankColorNode(textures: TextureSet): TslNode {
@@ -66,7 +128,11 @@ function buildRiverBankOpacityNode(textures: TextureSet): TslNode {
   return radialFade.mul(edgeMaskSample).mul(float(0.94) as TslNode);
 }
 
-export function createRoadCoreMaterial(dirtTextures: TextureSet, bridgeTextures?: TextureSet): MeshStandardNodeMaterial {
+export function createRoadCoreMaterial(
+  dirtTextures: TextureSet,
+  weather: RoadWeatherUniforms,
+  bridgeTextures?: TextureSet,
+): MeshStandardNodeMaterial {
   const material = new MeshStandardNodeMaterial();
   material.name = 'Road core';
   material.color.set(0xffffff);
@@ -80,7 +146,8 @@ export function createRoadCoreMaterial(dirtTextures: TextureSet, bridgeTextures?
   if (bridgeTextures) {
     const woodColor = buildRoadColorNode(bridgeTextures, 0.38, [1.02, 0.96, 0.88]);
     const bridgeBlend = pow(attribute('bridgeBlend', 'float') as TslNode, float(0.92) as TslNode) as TslNode;
-    material.colorNode = mix(dirtColor, woodColor, bridgeBlend) as TslNode;
+    const surfaceColor = mix(dirtColor, woodColor, bridgeBlend) as TslNode;
+    material.colorNode = applyRoadWeatherColor(surfaceColor, weather);
 
     const dirtNormal = normalMap(texture(dirtTextures.normal, uv()));
     const woodNormal = normalMap(texture(bridgeTextures.normal, uv()));
@@ -88,18 +155,28 @@ export function createRoadCoreMaterial(dirtTextures: TextureSet, bridgeTextures?
 
     const dirtRough = (texture(dirtTextures.roughness, uv() as TslNode) as TslNode).r;
     const woodRough = (texture(bridgeTextures.roughness, uv() as TslNode) as TslNode).r;
-    material.roughnessNode = mix(dirtRough, woodRough.mul(float(0.94) as TslNode), bridgeBlend);
+    const surfaceRoughness = mix(
+      dirtRough,
+      woodRough.mul(float(0.94) as TslNode),
+      bridgeBlend,
+    ) as TslNode;
+    material.roughnessNode = applyRoadWeatherRoughness(surfaceRoughness, weather);
     if (dirtTextures.ao) material.aoNode = (texture(dirtTextures.ao, uv() as TslNode) as TslNode).r;
   } else {
-    material.colorNode = dirtColor;
+    material.colorNode = applyRoadWeatherColor(dirtColor, weather);
     material.normalNode = normalMap(texture(dirtTextures.normal, uv()));
-    material.roughnessNode = (texture(dirtTextures.roughness, uv() as TslNode) as TslNode).r;
+    const dirtRoughness = (texture(dirtTextures.roughness, uv() as TslNode) as TslNode).r;
+    material.roughnessNode = applyRoadWeatherRoughness(dirtRoughness, weather);
     if (dirtTextures.ao) material.aoNode = (texture(dirtTextures.ao, uv() as TslNode) as TslNode).r;
   }
   return material;
 }
 
-export function createRoadEdgeMaterial(textures: TextureSet, fadeBridgeEdges = true): MeshStandardNodeMaterial {
+export function createRoadEdgeMaterial(
+  textures: TextureSet,
+  weather: RoadWeatherUniforms,
+  fadeBridgeEdges = true,
+): MeshStandardNodeMaterial {
   const material = new MeshStandardNodeMaterial();
   material.name = 'Road edge blend';
   material.color.set(0xffffff);
@@ -112,8 +189,10 @@ export function createRoadEdgeMaterial(textures: TextureSet, fadeBridgeEdges = t
   material.polygonOffset = true;
   material.polygonOffsetFactor = -3;
   material.polygonOffsetUnits = -8;
-  material.colorNode = buildRoadColorNode(textures, 0.78, [0.92, 0.91, 0.89]);
-  material.roughnessNode = (texture(textures.roughness, uv() as TslNode) as TslNode).r;
+  const edgeColor = buildRoadColorNode(textures, 0.78, [0.92, 0.91, 0.89]);
+  material.colorNode = applyRoadWeatherColor(edgeColor, weather, 1.12);
+  const edgeRoughness = (texture(textures.roughness, uv() as TslNode) as TslNode).r;
+  material.roughnessNode = applyRoadWeatherRoughness(edgeRoughness, weather);
   let opacity = buildBankOpacityNode(textures);
   if (fadeBridgeEdges) {
     const bridgeBlendAttr = attribute('bridgeBlend', 'float') as TslNode;

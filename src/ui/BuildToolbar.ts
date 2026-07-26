@@ -32,7 +32,10 @@ import {
   type ToolbarStats,
 } from './buildToolbarStatus.ts';
 import { SettlementHud } from './SettlementHud.ts';
-import type { EnvironmentState } from '../world/seasonPolicy.ts';
+import type {
+  EnvironmentState,
+  NextDayEnvironmentOutlook,
+} from '../world/seasonPolicy.ts';
 import { gameSpeedForHotkey, type GameSpeed } from '../world/gameSpeed.ts';
 
 export type { ToolbarStats };
@@ -866,8 +869,12 @@ export class BuildToolbar {
     }
   }
 
-  setSimulationState(speed: GameSpeed, environment: EnvironmentState): void {
-    this.settlementHud.setSimulationState(speed, environment);
+  setSimulationState(
+    speed: GameSpeed,
+    environment: EnvironmentState,
+    outlook?: NextDayEnvironmentOutlook,
+  ): void {
+    this.settlementHud.setSimulationState(speed, environment, outlook);
   }
 
   private syncBuildMenuButton(

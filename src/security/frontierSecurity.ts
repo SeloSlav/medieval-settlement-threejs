@@ -308,8 +308,10 @@ export function watchtowerEffectiveRadius(tower: BuildingState): number {
 
 export type GuardhouseMusterState = {
   routeDistance: number | null;
+  responseDistance: number | null;
   linkedTowerId: string | null;
   staffedTowers: number;
+  roadSpeedMultiplier: number;
   efficiency: number;
   rawReady: number;
   effectiveReady: number;
@@ -325,11 +327,28 @@ export type ProjectedRaidTarget = {
   portableValue: number;
 };
 
-export function guardhouseMusterEfficiency(roadDistance: number | null): number {
+function normalizeRoadSpeedMultiplier(roadSpeedMultiplier: number): number {
+  return Number.isFinite(roadSpeedMultiplier) && roadSpeedMultiplier > 0
+    ? Math.max(0.05, Math.min(1, roadSpeedMultiplier))
+    : 1;
+}
+
+export function guardhouseMusterResponseDistance(
+  roadDistance: number | null,
+  roadSpeedMultiplier = 1,
+): number | null {
   if (roadDistance == null || !Number.isFinite(roadDistance)) {
-    return clamp01(GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY);
+    return null;
   }
-  const distance = Math.max(0, roadDistance);
+  return Math.max(0, roadDistance) / normalizeRoadSpeedMultiplier(roadSpeedMultiplier);
+}
+
+export function guardhouseMusterEfficiency(
+  roadDistance: number | null,
+  roadSpeedMultiplier = 1,
+): number {
+  const distance = guardhouseMusterResponseDistance(roadDistance, roadSpeedMultiplier);
+  if (distance == null) return clamp01(GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY);
   if (distance <= GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE) return 1;
   if (distance >= GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE) {
     return clamp01(GUARDHOUSE_LONG_MUSTER_EFFICIENCY);
@@ -353,6 +372,7 @@ export function getGuardhouseMusterState(
   guardhouse: BuildingState,
   gameState: GameState,
   getRoadPathDistance: (ax: number, az: number, bx: number, bz: number) => number | null,
+  roadSpeedMultiplier = 1,
 ): GuardhouseMusterState {
   const towers = [...gameState.buildings.values()].filter(
     (building) =>
@@ -372,11 +392,18 @@ export function getGuardhouseMusterState(
   }
   const armed = armedGuardCount(guardhouse.assignedLabor, guardhouse.polearms);
   const rawReady = armed * clamp01(guardhouse.actionCooldown);
-  const efficiency = guardhouseMusterEfficiency(routeDistance);
+  const normalizedRoadSpeed = normalizeRoadSpeedMultiplier(roadSpeedMultiplier);
+  const responseDistance = guardhouseMusterResponseDistance(
+    routeDistance,
+    normalizedRoadSpeed,
+  );
+  const efficiency = guardhouseMusterEfficiency(routeDistance, normalizedRoadSpeed);
   return {
     routeDistance,
+    responseDistance,
     linkedTowerId,
     staffedTowers: towers.length,
+    roadSpeedMultiplier: normalizedRoadSpeed,
     efficiency,
     rawReady,
     effectiveReady: rawReady * efficiency,

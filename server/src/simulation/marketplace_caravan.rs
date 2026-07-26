@@ -15,6 +15,7 @@ use crate::economy::{
     building_commodity_stock, credit_treasury_gold, record_specialty_market_export,
     try_execute_standing_ironwork_import, withdraw_building_commodity, CommodityKind,
 };
+use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{delivery_stock_room, has_delivery_stock_room};
 use crate::simulation::delivery_supplier::{dispatch_delivery_if_ready, DeliveryDispatchConfig};
 use crate::simulation::delivery_trips::building_has_active_trip;
@@ -138,7 +139,12 @@ pub fn try_dispatch_marketplace_caravan(
     )
 }
 
-pub fn step_marketplace_caravans(ctx: &ReducerContext, clock: &GameClock, tick: &SimTickContext) {
+pub fn step_marketplace_caravans(
+    ctx: &ReducerContext,
+    clock: &GameClock,
+    tick: &SimTickContext,
+    environment: EnvironmentState,
+) {
     let marketplace_ids: Vec<u64> = ctx
         .db
         .building()
@@ -163,7 +169,13 @@ pub fn step_marketplace_caravans(ctx: &ReducerContext, clock: &GameClock, tick: 
 
     for building_id in marketplace_ids {
         if clock.sim_tick % 5 == building_id % 5 {
-            try_execute_standing_ironwork_import(ctx, tick, clock, building_id);
+            try_execute_standing_ironwork_import(
+                ctx,
+                tick,
+                clock,
+                building_id,
+                environment.road_speed_multiplier(),
+            );
         }
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;

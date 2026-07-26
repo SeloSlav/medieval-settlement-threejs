@@ -14,7 +14,11 @@ import {
   marketplaceTradeOffersBySection,
   tradeResourceSpendScope,
 } from '../src/economy/marketplaceTrade.ts';
-import { MARKETPLACE_TRADE_OFFERS, MARKET_COMMODITIES } from '../src/generated/gameBalance.ts';
+import {
+  MARKETPLACE_TRADE_OFFERS,
+  MARKET_COMMODITIES,
+  SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+} from '../src/generated/gameBalance.ts';
 import { computeMarketplaceTradeAvailability } from '../src/resources/resourceTotals.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
@@ -258,6 +262,20 @@ assert.match(
 assert.equal(marketplaceManualTradeStatus(marketplace, true).ready, true);
 assert.equal(marketplaceManualTradeCooldown(1), 8);
 assert.equal(marketplaceManualTradeCooldown(2), 4);
+assert.equal(
+  marketplaceManualTradeCooldown(1, SPRING_RAIN_ROAD_SPEED_MULTIPLIER),
+  8 / SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+);
+const wetTradeStatus = marketplaceManualTradeStatus(
+  marketplace,
+  true,
+  SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+);
+assert.equal(wetTradeStatus.roadSpeedMultiplier, SPRING_RAIN_ROAD_SPEED_MULTIPLIER);
+assert.equal(
+  wetTradeStatus.nextCooldownSeconds,
+  8 / SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+);
 
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, timber: 50 }, buyTimber), true);
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, timber: 51 }, buyTimber), false);
@@ -343,12 +361,25 @@ const marketplaceOrderSource = readFileSync(
   new URL('../server/src/economy/marketplace_orders.rs', import.meta.url),
   'utf8',
 );
+const marketplaceInspectorSource = readFileSync(
+  new URL('../src/resources/inspector/marketplaceInspector.ts', import.meta.url),
+  'utf8',
+);
+const marketplaceTradeRendererSource = readFileSync(
+  new URL('../src/resources/inspector/marketplaceTradeRenderer.ts', import.meta.url),
+  'utf8',
+);
 assert.match(marketplaceTradeSource, /road_connected/);
 assert.match(marketplaceTradeSource, /deposit_marketplace_resource/);
 assert.match(marketplaceTradeSource, /market-accessible/);
 assert.match(marketplaceTradeSource, /contested-frontier worlds/);
+assert.match(marketplaceTradeSource, /current_road_speed_multiplier/);
+assert.match(marketplaceTradeSource, /manual_trade_cooldown_seconds\(assigned_labor, road_speed_multiplier\)/);
 assert.doesNotMatch(marketplaceTradeSource, /spend_aggregate_(?:food|firewood)/);
 assert.doesNotMatch(marketplaceOrderSource, /credit_treasury_(?:food|water)/);
+assert.match(marketplaceInspectorSource, /Regional route/);
+assert.match(marketplaceInspectorSource, /getRoadConditionSpeedMultiplier/);
+assert.match(marketplaceTradeRendererSource, /current regional road conditions/);
 
 console.log(
   `marketplace trade tests passed (10k stock scan ${elapsed.toFixed(1)}ms; `

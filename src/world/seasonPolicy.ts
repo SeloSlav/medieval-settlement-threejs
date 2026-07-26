@@ -1,7 +1,9 @@
 import {
   AUTUMN_FIREWOOD_DEMAND_MULTIPLIER,
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
+  AUTUMN_ROAD_SPEED_MULTIPLIER,
   CALENDAR_DAYS_PER_MONTH,
+  CALENDAR_SECONDS_PER_DAY,
   DROUGHT_CROP_GROWTH_MULTIPLIER,
   DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
   FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
@@ -13,14 +15,21 @@ import {
   SPRING_PASTURE_CAPACITY_MULTIPLIER,
   SPRING_RAIN_CHANCE,
   SPRING_RAIN_CROP_GROWTH_MULTIPLIER,
+  SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
   SUMMER_DROUGHT_CHANCE,
   SUMMER_DROUGHT_DURATION_DAYS,
   SUMMER_FIREWOOD_DEMAND_MULTIPLIER,
   SUMMER_PASTURE_CAPACITY_MULTIPLIER,
+  SIM_TICK_SECONDS,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
   WINTER_PASTURE_CAPACITY_MULTIPLIER,
+  WINTER_ROAD_SPEED_MULTIPLIER,
 } from '../generated/gameBalance.ts';
-import type { GameClock } from './gameCalendar.ts';
+import {
+  formatCalendarDate,
+  gameClock,
+  type GameClock,
+} from './gameCalendar.ts';
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 export type WeatherKind = 'fair' | 'rain' | 'drought' | 'frost';
@@ -32,6 +41,12 @@ export type EnvironmentState = {
   firewoodDemandMultiplier: number;
   pastureCapacityMultiplier: number;
   freshFoodSpoilageFractionPerDay: number;
+  roadTravelSpeedMultiplier: number;
+};
+
+export type NextDayEnvironmentOutlook = {
+  clock: GameClock;
+  environment: EnvironmentState;
 };
 
 export function seasonForMonth(month: number): Season {
@@ -85,7 +100,59 @@ export function environmentFor(
         autumn: FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
         winter: FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
       }[season],
+    roadTravelSpeedMultiplier: weather === 'rain'
+      ? SPRING_RAIN_ROAD_SPEED_MULTIPLIER
+      : weather === 'frost'
+        ? WINTER_ROAD_SPEED_MULTIPLIER
+        : season === 'autumn'
+          ? AUTUMN_ROAD_SPEED_MULTIPLIER
+          : 1,
   };
+}
+
+export function nextDayEnvironmentOutlook(
+  seed: number,
+  hydrology: number,
+  clock: GameClock,
+): NextDayEnvironmentOutlook {
+  const nextClock = gameClock(
+    clock.simTick + CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS,
+  );
+  return {
+    clock: nextClock,
+    environment: environmentFor(seed, hydrology, nextClock),
+  };
+}
+
+export function describeNextDayEnvironmentOutlook(
+  current: EnvironmentState,
+  outlook: NextDayEnvironmentOutlook,
+): string {
+  const next = outlook.environment;
+  const title = describeEnvironment(next).title;
+  const currentRoad = Math.round(current.roadTravelSpeedMultiplier * 100);
+  const nextRoad = Math.round(next.roadTravelSpeedMultiplier * 100);
+  const road = nextRoad < currentRoad
+    ? `road-linked movement falls ${currentRoad}% → ${nextRoad}%; pre-haul remote stock and regional orders`
+    : nextRoad > currentRoad
+      ? `road-linked movement recovers ${currentRoad}% → ${nextRoad}%`
+      : nextRoad < 100
+        ? `road-linked movement remains ${nextRoad}%`
+        : 'road-linked movement remains at full pace';
+  const pressures: string[] = [];
+  if (Math.abs(next.cropGrowthMultiplier - 1) > 1e-6) {
+    pressures.push(`crop growth ${Math.round(next.cropGrowthMultiplier * 100)}%`);
+  }
+  if (Math.abs(next.pastureCapacityMultiplier - 1) > 1e-6) {
+    pressures.push(`pasture ${Math.round(next.pastureCapacityMultiplier * 100)}%`);
+  }
+  if (Math.abs(next.firewoodDemandMultiplier - 1) > 1e-6) {
+    pressures.push(`firewood demand ${Math.round(next.firewoodDemandMultiplier * 100)}%`);
+  }
+  pressures.push(
+    `fresh-food loss ${(next.freshFoodSpoilageFractionPerDay * 100).toFixed(1)}%/day`,
+  );
+  return `Next dawn, ${formatCalendarDate(outlook.clock)}: ${title} · ${road} · ${pressures.join(' · ')}`;
 }
 
 export function describeEnvironment(environment: EnvironmentState): {
@@ -93,6 +160,10 @@ export function describeEnvironment(environment: EnvironmentState): {
   detail: string;
   symbol: string;
 } {
+  const roadPenalty = Math.max(0, Math.round((1 - environment.roadTravelSpeedMultiplier) * 100));
+  const roadDetail = roadPenalty > 0
+    ? ` Dirt-road carts travel ${roadPenalty}% slower; regional caravans and long watch musters face the same ground conditions, so remote branches need earlier dispatch and deeper local reserves.`
+    : '';
   if (environment.weather === 'drought') {
     return {
       title: 'Summer drought',
@@ -103,21 +174,21 @@ export function describeEnvironment(environment: EnvironmentState): {
   if (environment.weather === 'rain') {
     return {
       title: 'Spring rain',
-      detail: 'Crops grow faster, wells refill faster, and berries and mushrooms replenish.',
+      detail: `Crops grow faster, wells refill faster, and berries and mushrooms replenish.${roadDetail}`,
       symbol: '☂',
     };
   }
   if (environment.season === 'winter') {
     return {
       title: 'Winter frost',
-      detail: 'Forage and fishing stop, pasture is scarce, sheep cannot be shorn, and homes burn more firewood.',
+      detail: `Forage and fishing stop, pasture is scarce, sheep cannot be shorn, and homes burn more firewood.${roadDetail}`,
       symbol: '❄',
     };
   }
   if (environment.season === 'autumn') {
     return {
       title: 'Autumn',
-      detail: 'Harvest crops in September; plough and sow during October and November.',
+      detail: `Harvest crops in September; plough and sow during October and November.${roadDetail}`,
       symbol: '♨',
     };
   }

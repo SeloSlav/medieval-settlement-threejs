@@ -37,11 +37,13 @@ type BuildingMarkersOptions = {
   terrain: Terrain;
   parent: THREE.Group;
   getRoadNetwork?: () => RoadNetwork | null;
+  getRoadConditionSpeedMultiplier?: () => number;
 };
 
 export class BuildingMarkers {
   private readonly terrain: Terrain;
   private readonly getRoadNetwork?: () => RoadNetwork | null;
+  private readonly getRoadConditionSpeedMultiplier?: () => number;
   private readonly group = new THREE.Group();
   private readonly buildingMeshes = new Map<string, THREE.Group>();
   private extentOverlayMesh: THREE.Mesh | null = null;
@@ -61,6 +63,7 @@ export class BuildingMarkers {
   constructor(options: BuildingMarkersOptions) {
     this.terrain = options.terrain;
     this.getRoadNetwork = options.getRoadNetwork;
+    this.getRoadConditionSpeedMultiplier = options.getRoadConditionSpeedMultiplier;
     this.group.name = 'Building markers';
     this.guardhouseMusterRoute = createGuardhouseMusterRoute();
     this.group.add(this.guardhouseMusterRoute);
@@ -242,11 +245,13 @@ export class BuildingMarkers {
         candidate.z.toFixed(2),
       ].join(':'));
     }
+    const roadSpeedMultiplier = this.getRoadConditionSpeedMultiplier?.() ?? 1;
     const signature = [
       building.id,
       building.x.toFixed(2),
       building.z.toFixed(2),
       network.getTopologyRevision(),
+      roadSpeedMultiplier.toFixed(3),
       towerSignature.join('|'),
     ].join(';');
     if (signature === this.guardhouseMusterSignature) return;
@@ -256,6 +261,7 @@ export class BuildingMarkers {
       building,
       gameState,
       (ax, az, bx, bz) => network.getPathfinder().roadPathDistance(ax, az, bx, bz),
+      roadSpeedMultiplier,
     );
     const linkedTower = muster.linkedTowerId
       ? gameState.buildings.get(muster.linkedTowerId)

@@ -116,14 +116,26 @@ export type MarketplaceManualTradeStatus = {
   ready: boolean;
   label: string;
   reason: string | null;
+  roadSpeedMultiplier?: number;
+  nextCooldownSeconds?: number;
 };
 
 export function marketplaceManualTradeStatus(
   building: BuildingState,
   hasRoadAccess: boolean,
+  roadSpeedMultiplier = 1,
 ): MarketplaceManualTradeStatus {
+  const normalizedRoadSpeed = normalizeRoadSpeedMultiplier(roadSpeedMultiplier);
+  const timing = {
+    roadSpeedMultiplier: normalizedRoadSpeed,
+    nextCooldownSeconds: marketplaceManualTradeCooldown(
+      building.assignedLabor,
+      normalizedRoadSpeed,
+    ),
+  };
   if (building.constructionComplete === false) {
     return {
+      ...timing,
       ready: false,
       label: 'Trade desk under construction',
       reason: 'Complete the marketplace before trading.',
@@ -131,6 +143,7 @@ export function marketplaceManualTradeStatus(
   }
   if (building.assignedLabor <= 0) {
     return {
+      ...timing,
       ready: false,
       label: 'Trade desk unstaffed',
       reason: 'Assign at least one broker to place manual orders.',
@@ -138,6 +151,7 @@ export function marketplaceManualTradeStatus(
   }
   if (!hasRoadAccess) {
     return {
+      ...timing,
       ready: false,
       label: 'Trade desk has no road access',
       reason: 'Connect the marketplace to a road before trading.',
@@ -145,20 +159,33 @@ export function marketplaceManualTradeStatus(
   }
   if (building.actionCooldown > 1e-6) {
     return {
+      ...timing,
       ready: false,
       label: `Brokers settling caravan · ${building.actionCooldown.toFixed(1)}s`,
       reason: `The brokers need another ${building.actionCooldown.toFixed(1)} seconds.`,
     };
   }
   return {
+    ...timing,
     ready: true,
     label: 'Trade desk ready',
     reason: null,
   };
 }
 
-export function marketplaceManualTradeCooldown(assignedLabor: number): number {
-  return MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS / Math.max(1, Math.floor(assignedLabor));
+function normalizeRoadSpeedMultiplier(roadSpeedMultiplier: number): number {
+  return Number.isFinite(roadSpeedMultiplier) && roadSpeedMultiplier > 0
+    ? Math.max(0.05, Math.min(1, roadSpeedMultiplier))
+    : 1;
+}
+
+export function marketplaceManualTradeCooldown(
+  assignedLabor: number,
+  roadSpeedMultiplier = 1,
+): number {
+  return MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS
+    / Math.max(1, Math.floor(assignedLabor))
+    / normalizeRoadSpeedMultiplier(roadSpeedMultiplier);
 }
 
 export function marketplaceResourceRoom(

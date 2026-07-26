@@ -41,7 +41,10 @@ import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './s
 import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext } from './appBootstrap.ts';
 import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
 import { gameClock } from '../world/gameCalendar.ts';
-import { environmentFor } from '../world/seasonPolicy.ts';
+import {
+  environmentFor,
+  nextDayEnvironmentOutlook,
+} from '../world/seasonPolicy.ts';
 import {
   precipitationPreviewEnvironment,
   standalonePrecipitationPreview,
@@ -640,7 +643,12 @@ export class App {
       snapshot.worldGeneration?.hydrology ?? 50,
       clock,
     );
-    this.toolbar?.setSimulationState(snapshot.gameSpeed, environment);
+    const environmentOutlook = nextDayEnvironmentOutlook(
+      state.seed,
+      snapshot.worldGeneration?.hydrology ?? 50,
+      clock,
+    );
+    this.toolbar?.setSimulationState(snapshot.gameSpeed, environment, environmentOutlook);
     this.toolbar?.settlementHud.setProvisioningState(
       computeSettlementProvisioning({
         state,

@@ -15,6 +15,7 @@ use crate::economy::{
 };
 use crate::fire_policy::fire_response_load;
 use crate::roads::{RoadNetwork, RoadPathRoute};
+use crate::season_policy::environment_for;
 use crate::simulation::delivery_cargo::{
     building_delivery_stock, pick_delivery_target, residence_delivery_room,
     withdraw_delivery_cargo, DeliveryCargoTotals,
@@ -23,7 +24,7 @@ use crate::simulation::fires::{
     apply_fire_water, building_fire_state, release_fire_response, FIRE_TARGET_BUILDING,
     FIRE_TARGET_RESIDENCE,
 };
-use crate::simulation::game_calendar::GameClock;
+use crate::simulation::game_calendar::{game_clock, GameClock};
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{apply_need_delivery, ResidenceNeedKind};
 use crate::simulation::tick_context::SimTickContext;
@@ -657,13 +658,24 @@ fn insert_trip(
 ) {
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
     let (start_x, start_z) = RoadNetwork::sample_polyline_xz(&route.polyline, 0.0);
-    let travel_speed_multiplier = carpenter_delivery_multiplier_for_origin(
+    let cartwright_multiplier = carpenter_delivery_multiplier_for_origin(
         ctx,
         tick,
         network,
         &spec.origin,
         spec.origin.owner,
     );
+    let road_condition_multiplier = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .map(|config| {
+            environment_for(config.seed, config.hydrology, &game_clock(config.sim_tick))
+                .road_speed_multiplier()
+        })
+        .unwrap_or(1.0);
+    let travel_speed_multiplier = cartwright_multiplier * road_condition_multiplier;
 
     ctx.db.delivery_trip().insert(DeliveryTrip {
         id: 0,

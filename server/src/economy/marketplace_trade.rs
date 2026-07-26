@@ -30,6 +30,7 @@ use crate::marketplace_procurement_policy::{
     standing_ironwork_import_due, MARKETPLACE_IRONWORK_IMPORT_LOT,
 };
 use crate::roads::RoadNetwork;
+use crate::season_policy::environment_for;
 use crate::simulation::{
     game_clock, labor_and_logistics_paused, GameClock, MarketCaravanDispatch, SimTickContext,
 };
@@ -70,7 +71,12 @@ pub fn execute_marketplace_trade(
         apply_marketplace_trade(ctx, owner, building_id, &marketplace, network, offer)
     };
     result?;
-    start_manual_trade_cooldown(ctx, building_id, marketplace.assigned_labor);
+    start_manual_trade_cooldown(
+        ctx,
+        building_id,
+        marketplace.assigned_labor,
+        current_road_speed_multiplier(ctx),
+    );
     Ok(())
 }
 
@@ -79,6 +85,7 @@ pub fn try_execute_standing_ironwork_import(
     tick: &SimTickContext,
     clock: &GameClock,
     building_id: u64,
+    road_speed_multiplier: f64,
 ) -> bool {
     let Some(marketplace) = ctx.db.building().id().find(&building_id) else {
         return false;
@@ -136,7 +143,12 @@ pub fn try_execute_standing_ironwork_import(
     {
         return false;
     }
-    start_manual_trade_cooldown(ctx, building_id, marketplace.assigned_labor);
+    start_manual_trade_cooldown(
+        ctx,
+        building_id,
+        marketplace.assigned_labor,
+        road_speed_multiplier,
+    );
     true
 }
 
@@ -262,11 +274,29 @@ fn validate_marketplace(
     Ok(building)
 }
 
-fn start_manual_trade_cooldown(ctx: &ReducerContext, building_id: u64, assigned_labor: u32) {
+fn start_manual_trade_cooldown(
+    ctx: &ReducerContext,
+    building_id: u64,
+    assigned_labor: u32,
+    road_speed_multiplier: f64,
+) {
     if let Some(mut marketplace) = ctx.db.building().id().find(&building_id) {
-        marketplace.action_cooldown = manual_trade_cooldown_seconds(assigned_labor);
+        marketplace.action_cooldown =
+            manual_trade_cooldown_seconds(assigned_labor, road_speed_multiplier);
         ctx.db.building().id().update(marketplace);
     }
+}
+
+fn current_road_speed_multiplier(ctx: &ReducerContext) -> f64 {
+    ctx.db
+        .world_config()
+        .id()
+        .find(&0)
+        .map(|config| {
+            environment_for(config.seed, config.hydrology, &game_clock(config.sim_tick))
+                .road_speed_multiplier()
+        })
+        .unwrap_or(1.0)
 }
 
 fn apply_marketplace_trade(

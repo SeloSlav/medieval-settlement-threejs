@@ -4,6 +4,7 @@ use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::frontier_economy_policy::armed_guards;
 use crate::roads::{load_owner_road_network, RoadNetwork};
+use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
     guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_forecast,
     scheduled_raid_ticks, select_raid_targets, threat_progress, tower_effective_radius,
@@ -51,6 +52,7 @@ pub fn step_settlement_security(
     world_seed: u64,
     conflict_enabled: bool,
     enemy_pressure: u8,
+    environment: EnvironmentState,
 ) {
     if sim_tick % SECURITY_UPDATE_INTERVAL_TICKS != 0 {
         return;
@@ -73,6 +75,7 @@ pub fn step_settlement_security(
             world_seed,
             conflict_enabled,
             enemy_pressure,
+            environment,
         );
     }
 }
@@ -85,6 +88,7 @@ fn step_owner_security(
     world_seed: u64,
     conflict_enabled: bool,
     enemy_pressure: u8,
+    environment: EnvironmentState,
 ) {
     let Some(mut state) = ctx.db.settlement_security().owner().find(&owner) else {
         return;
@@ -141,8 +145,12 @@ fn step_owner_security(
     state.total_value = exposure.total_value;
     state.staffed_watchtowers = towers.len() as u32;
     let road_network = load_owner_road_network(ctx, owner);
-    let (ready_guards, assigned_guards) =
-        settlement_guard_strength(&buildings, &towers, road_network.as_ref());
+    let (ready_guards, assigned_guards) = settlement_guard_strength(
+        &buildings,
+        &towers,
+        road_network.as_ref(),
+        environment.road_speed_multiplier(),
+    );
     state.ready_guards = ready_guards;
     state.defense_readiness = if assigned_guards > 0.0 {
         (ready_guards / assigned_guards).clamp(0.0, 1.0)
@@ -296,6 +304,7 @@ fn settlement_guard_strength(
     buildings: &[Building],
     towers: &[WatchArea],
     road_network: Option<&RoadNetwork>,
+    road_speed_multiplier: f64,
 ) -> (f64, f64) {
     let watch_positions = towers
         .iter()
@@ -310,7 +319,8 @@ fn settlement_guard_strength(
             let muster_distance = road_network.and_then(|network| {
                 network.nearest_road_path_distance(guardhouse.x, guardhouse.z, &watch_positions)
             });
-            let muster_efficiency = guardhouse_muster_efficiency(muster_distance);
+            let muster_efficiency =
+                guardhouse_muster_efficiency(muster_distance, road_speed_multiplier);
             (
                 ready + armed_here * guardhouse.action_cooldown.clamp(0.0, 1.0) * muster_efficiency,
                 assigned + assigned_here,

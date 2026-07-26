@@ -34,7 +34,7 @@ export function roadDeliveryTripSeconds(
   const workers = Math.max(1, deliveryWorkers);
   const roundTripMeters = oneWayMeters * 2;
   const travelSeconds = roundTripMeters
-    / (speedMps * workers * Math.max(1, travelSpeedMultiplier));
+    / (speedMps * workers * Math.max(1e-6, travelSpeedMultiplier));
   const tripSeconds = travelSeconds + unloadSeconds / workers;
   return Math.max(MIN_DELIVERY_TRIP_SEC, tripSeconds);
 }

@@ -255,11 +255,13 @@ export async function bootstrapAppSession(
     getGameState: () => liveContext.gameState,
     getRoadNetwork: () => roadNetwork,
     getTreeRegistry: () => liveContext.treeRegistry,
+    getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
   });
   const buildingMarkers = new BuildingMarkers({
     terrain: sceneManager.terrain,
     parent: sceneManager.selectionGroup,
     getRoadNetwork: () => roadNetwork,
+    getRoadConditionSpeedMultiplier: () => worldQueries.getRoadConditionSpeedMultiplier(),
   });
   const {
     DeliveryAgentRenderer,

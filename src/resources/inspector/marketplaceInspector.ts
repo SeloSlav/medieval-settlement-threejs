@@ -42,10 +42,19 @@ export function renderMarketplaceInspector(
   const connectedHomes = context.worldQueries.countRoadConnectedResidences(building, true);
   const labor = buildingLaborView(building, context.populationStats);
   const hasRoadAccess = context.worldQueries.hasRoadAccess(building.x, building.z);
+  const roadSpeedMultiplier = context.worldQueries.getRoadConditionSpeedMultiplier();
   const manualTrade = marketplaceManualTradeStatus(
     building,
     hasRoadAccess,
+    roadSpeedMultiplier,
   );
+  const brokerCount = Math.max(0, Math.floor(building.assignedLabor));
+  const routeCondition = roadSpeedMultiplier < 0.999
+    ? `${Math.round(roadSpeedMultiplier * 100)}% caravan pace`
+    : 'Firm roads';
+  const regionalRoute = brokerCount <= 0
+    ? `${routeCondition} · assign a broker to open regional trade`
+    : `${routeCondition} · next ${manualTrade.nextCooldownSeconds?.toFixed(1)}s settlement with ${brokerCount} ${brokerCount === 1 ? 'broker' : 'brokers'}`;
   const specialtyPlan = marketplaceSpecialtyExportPlan(
     building,
     marketState.specialtyPriceMult,
@@ -83,6 +92,7 @@ export function renderMarketplaceInspector(
       <li><span>Linked homes</span><span>${connectedHomes}</span></li>
       <li><span>Caravan crew</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>
       <li><span>Bulk trade desk</span><span>${manualTrade.label}</span></li>
+      <li><span>Regional route</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueue.units.toFixed(1)} units - about ${specialtyQueue.goldValue.toFixed(1)} gold</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
       <li><span>Export stock</span><span>Treasury + road-linked building stores</span></li>

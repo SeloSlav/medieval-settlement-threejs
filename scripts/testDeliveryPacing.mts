@@ -68,6 +68,14 @@ assert.equal(
 assert.equal(
   tripDeliveryRemainingSeconds({
     ...loadedTrip,
+    travelSpeedMultiplier: 0.72,
+  }),
+  41.5,
+  'winter road conditions must lengthen both authoritative movement and client ETAs',
+);
+assert.equal(
+  tripDeliveryRemainingSeconds({
+    ...loadedTrip,
     phase: 'unloading',
     unloadRemaining: 3.5,
   }),
@@ -143,6 +151,11 @@ assert.deepEqual(parseCounts(20), { before: 50, after: 30 });
 assert.deepEqual(parseCounts(120), { before: 150, after: 30 });
 
 const deliveryServer = read('server/src/simulation/delivery_trips.rs');
+assert.match(
+  deliveryServer,
+  /cartwright_multiplier \* road_condition_multiplier/,
+  'new trips should capture both cartwright support and current seasonal road conditions',
+);
 assert.match(
   deliveryServer,
   /while remaining_seconds > 1e-9/,

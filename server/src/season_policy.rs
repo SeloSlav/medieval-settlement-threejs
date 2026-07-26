@@ -1,16 +1,18 @@
 use crate::balance_generated::{
-    AUTUMN_FIREWOOD_DEMAND_MULTIPLIER, AUTUMN_PASTURE_CAPACITY_MULTIPLIER, CALENDAR_DAYS_PER_MONTH,
-    CALENDAR_SECONDS_PER_DAY, DROUGHT_CROP_GROWTH_MULTIPLIER, DROUGHT_FISH_LOSS_FRACTION_PER_DAY,
+    AUTUMN_FIREWOOD_DEMAND_MULTIPLIER, AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
+    AUTUMN_ROAD_SPEED_MULTIPLIER, CALENDAR_DAYS_PER_MONTH, CALENDAR_SECONDS_PER_DAY,
+    DROUGHT_CROP_GROWTH_MULTIPLIER, DROUGHT_FISH_LOSS_FRACTION_PER_DAY,
     DROUGHT_FORAGE_REGROWTH_MULTIPLIER, DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
     DROUGHT_WELL_REFILL_MULTIPLIER, FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
     FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY, FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
     FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY, FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
     SPRING_BREEDING_MULTIPLIER, SPRING_FIREWOOD_DEMAND_MULTIPLIER,
     SPRING_PASTURE_CAPACITY_MULTIPLIER, SPRING_RAIN_CHANCE, SPRING_RAIN_CROP_GROWTH_MULTIPLIER,
-    SPRING_RAIN_WELL_REFILL_MULTIPLIER, SUMMER_DROUGHT_CHANCE, SUMMER_DROUGHT_DURATION_DAYS,
-    SUMMER_FIREWOOD_DEMAND_MULTIPLIER, SUMMER_PASTURE_CAPACITY_MULTIPLIER,
-    WINTER_BREEDING_MULTIPLIER, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
-    WINTER_PASTURE_CAPACITY_MULTIPLIER,
+    SPRING_RAIN_ROAD_SPEED_MULTIPLIER, SPRING_RAIN_WELL_REFILL_MULTIPLIER, SUMMER_DROUGHT_CHANCE,
+    SUMMER_DROUGHT_DURATION_DAYS, SUMMER_FIREWOOD_DEMAND_MULTIPLIER,
+    SUMMER_PASTURE_CAPACITY_MULTIPLIER, WINTER_BREEDING_MULTIPLIER,
+    WINTER_FIREWOOD_DEMAND_MULTIPLIER, WINTER_PASTURE_CAPACITY_MULTIPLIER,
+    WINTER_ROAD_SPEED_MULTIPLIER,
 };
 use crate::simulation::GameClock;
 
@@ -112,6 +114,19 @@ impl EnvironmentState {
         };
         daily / CALENDAR_SECONDS_PER_DAY
     }
+
+    /// Dirt tracks remain fully usable, but saturated spring ground and the
+    /// region's long frost season reduce handcart pace. Autumn keeps a smaller
+    /// cold-season penalty so advance stockpiling and compact road branches
+    /// matter without turning weather into a hard logistics shutdown.
+    pub fn road_speed_multiplier(self) -> f64 {
+        match self.weather {
+            WeatherKind::Rain => SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+            WeatherKind::Frost => WINTER_ROAD_SPEED_MULTIPLIER,
+            _ if self.season == Season::Autumn => AUTUMN_ROAD_SPEED_MULTIPLIER,
+            _ => 1.0,
+        }
+    }
 }
 
 pub fn season_for_month(month: u32) -> Season {
@@ -200,5 +215,26 @@ mod tests {
                 > fair.fresh_food_spoilage_fraction_per_second()
         );
         assert!(drought.fish_loss_per_second() > 0.0);
+        assert_eq!(drought.road_speed_multiplier(), 1.0);
+    }
+
+    #[test]
+    fn wet_and_cold_tracks_slow_haulage_without_stopping_it() {
+        let rain = EnvironmentState {
+            season: Season::Spring,
+            weather: WeatherKind::Rain,
+        };
+        let autumn = EnvironmentState {
+            season: Season::Autumn,
+            weather: WeatherKind::Fair,
+        };
+        let frost = EnvironmentState {
+            season: Season::Winter,
+            weather: WeatherKind::Frost,
+        };
+        assert!(rain.road_speed_multiplier() < 1.0);
+        assert!(rain.road_speed_multiplier() < autumn.road_speed_multiplier());
+        assert!(frost.road_speed_multiplier() < rain.road_speed_multiplier());
+        assert!(frost.road_speed_multiplier() > 0.5);
     }
 }

@@ -15,6 +15,13 @@ export type PrecipitationProfile = {
   saturationMultiplier: number;
 };
 
+export type RoadWeatherProfile = {
+  /** Dark, lower-roughness surface response for rain and persistently damp autumn tracks. */
+  wetness: number;
+  /** Pale, cool packed-frost response used by winter roads. */
+  frost: number;
+};
+
 const FAIR_PROFILE: PrecipitationProfile = {
   kind: 'none',
   intensity: 0,
@@ -25,6 +32,11 @@ const FAIR_PROFILE: PrecipitationProfile = {
   fogDensityMultiplier: 1,
   fogTint: 0xffffff,
   saturationMultiplier: 1,
+};
+
+const FAIR_ROAD_PROFILE: RoadWeatherProfile = {
+  wetness: 0,
+  frost: 0,
 };
 
 /**
@@ -77,6 +89,21 @@ export function precipitationProfile(
   return FAIR_PROFILE;
 }
 
+/**
+ * Mirrors the authoritative road-condition bands with two material parameters.
+ * Autumn remains mildly damp even on a fair day, making its persistent cart
+ * penalty readable without inventing another weather event.
+ */
+export function roadWeatherProfile(
+  environment: EnvironmentState | null,
+): RoadWeatherProfile {
+  if (!environment) return FAIR_ROAD_PROFILE;
+  if (environment.weather === 'rain') return { wetness: 1, frost: 0 };
+  if (environment.weather === 'frost') return { wetness: 0, frost: 1 };
+  if (environment.season === 'autumn') return { wetness: 0.55, frost: 0 };
+  return FAIR_ROAD_PROFILE;
+}
+
 /** Development-only visual override used for deterministic weather art checks. */
 export function precipitationPreviewEnvironment(
   environment: EnvironmentState,
@@ -85,6 +112,7 @@ export function precipitationPreviewEnvironment(
   const requested = new URLSearchParams(search).get('weather');
   if (requested === 'rain') return { ...environment, season: 'spring', weather: 'rain' };
   if (requested === 'snow') return { ...environment, season: 'winter', weather: 'frost' };
+  if (requested === 'autumn') return { ...environment, season: 'autumn', weather: 'fair' };
   if (requested === 'clear') return { ...environment, weather: 'fair' };
   return environment;
 }
@@ -93,7 +121,7 @@ export function standalonePrecipitationPreview(
   search: string,
 ): EnvironmentState | null {
   const requested = new URLSearchParams(search).get('weather');
-  if (requested !== 'rain' && requested !== 'snow') return null;
+  if (requested !== 'rain' && requested !== 'snow' && requested !== 'autumn') return null;
   return precipitationPreviewEnvironment({
     season: 'spring',
     weather: 'fair',
@@ -101,5 +129,6 @@ export function standalonePrecipitationPreview(
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
+    roadTravelSpeedMultiplier: 1,
   }, search);
 }

@@ -644,7 +644,7 @@ pub struct DeliveryTrip {
     pub delivery_workers: u32,
     /// Total road-graph travel distance for the outbound leg (cached at trip start).
     pub path_distance: f64,
-    /// Carpenter road-link speed bonus captured when the trip starts.
+    /// Combined road-condition pace and carpenter bonus captured when the trip starts.
     pub travel_speed_multiplier: f64,
     /// JSON array of `[x, z]` polyline samples for authoritative movement.
     pub route_polyline_json: String,

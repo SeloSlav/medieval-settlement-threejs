@@ -1,6 +1,7 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
 import {
   GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
+  GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE,
   GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
 } from '../../generated/gameBalance.ts';
 import {
@@ -46,6 +47,7 @@ export function renderGuardhouseInspector(
     building,
     context.gameState,
     (ax, az, bx, bz) => context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
+    context.worldQueries.getRoadConditionSpeedMultiplier(),
   );
   const settlement = context.getSettlementSecurity?.();
   const settlementReady = settlement?.readyGuards ?? ready;
@@ -78,6 +80,11 @@ export function renderGuardhouseInspector(
     : musterResponseBand === 'delayed'
       ? 'amber route · delayed response'
       : 'red route · weak response';
+  const roadConditionFeedback = muster.routeDistance != null
+    && muster.responseDistance != null
+    && muster.roadSpeedMultiplier < 0.999
+    ? `${Math.round(muster.roadSpeedMultiplier * 100)}% travel pace · ${Math.round(muster.routeDistance)} m responds like ${Math.round(muster.responseDistance)} m`
+    : 'Dry or firm road · normal response distance';
 
   const status = building.assignedLabor <= 0
     ? ['Unstaffed — no guards can muster', 'warning'] as const
@@ -98,7 +105,11 @@ export function renderGuardhouseInspector(
                 ? [
                     muster.routeDistance == null
                       ? `No staffed tower link — ${Math.round(muster.efficiency * 100)}% local response`
-                      : `Long watch route — ${Math.round(muster.efficiency * 100)}% effective`,
+                      : muster.responseDistance != null
+                        && muster.routeDistance <= GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE
+                        && muster.responseDistance > GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE
+                        ? `Soft-road delay — ${Math.round(muster.efficiency * 100)}% effective`
+                        : `Long watch route — ${Math.round(muster.efficiency * 100)}% effective`,
                     'warning',
                   ] as const
                 : guardRequirement > 0 && settlementReady + 1e-6 < guardRequirement
@@ -117,6 +128,7 @@ export function renderGuardhouseInspector(
       <li><span>Armed guards</span><span>${armed} / ${building.assignedLabor} assigned</span></li>
       <li><span>Local readiness</span><span>${Math.round(readiness * 100)}% · ${ready.toFixed(1)} ready</span></li>
       <li><span>Watch muster</span><span>${muster.routeDistance == null ? `No staffed tower by road · ${Math.round(muster.efficiency * 100)}% local response` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
+      <li><span>Road conditions</span><span>${roadConditionFeedback}</span></li>
       <li><span>Effective company</span><span>${muster.effectiveReady.toFixed(1)} guards after signal and travel</span></li>
       <li><span>Settlement defense</span><span>${settlementReady.toFixed(1)}${guardRequirement > 0 ? ` / ${guardRequirement.toFixed(1)} required` : ''}</span></li>
       <li><span>Projected raid</span><span>${settlement ? formatFrontierForecast(settlement, context.enemyPressure) : 'Awaiting frontier reports'}</span></li>

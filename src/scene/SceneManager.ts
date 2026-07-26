@@ -503,6 +503,7 @@ export class SceneManager {
     if (this.vegetationBuildActive) return;
     const elapsed = performance.now() * 0.001;
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
+    this.materials.updateWeather(dt);
     updateTerrainZoomBlend(this.terrain, cameraDistance, firstPersonActive);
     this.grassField?.updateCameraState(
       this.camera.position,
@@ -628,6 +629,7 @@ export class SceneManager {
 
   setEnvironment(environment: EnvironmentState): void {
     this.environment = environment;
+    this.materials.setEnvironment(environment);
     this.precipitation.setEnvironment(environment);
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }

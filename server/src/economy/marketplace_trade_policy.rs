@@ -61,8 +61,16 @@ pub fn manual_trade_ready(
     assigned_labor > 0 && action_cooldown <= 1e-6 && has_road_access
 }
 
-pub fn manual_trade_cooldown_seconds(assigned_labor: u32) -> f64 {
-    MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS / assigned_labor.max(1) as f64
+/// Regional caravans capture current pass and road conditions when the trade
+/// starts. More brokers still shorten the settlement work, while wet or frozen
+/// routes make repeated import dependence less reliable.
+pub fn manual_trade_cooldown_seconds(assigned_labor: u32, road_speed_multiplier: f64) -> f64 {
+    let road_speed = if road_speed_multiplier.is_finite() && road_speed_multiplier > 0.0 {
+        road_speed_multiplier.clamp(0.05, 1.0)
+    } else {
+        1.0
+    };
+    MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS / assigned_labor.max(1) as f64 / road_speed
 }
 
 /// Manual treasury imports may remain as marketplace stock, but a household or
@@ -162,9 +170,18 @@ mod tests {
 
     #[test]
     fn additional_brokers_reduce_trade_turnaround() {
-        assert_eq!(manual_trade_cooldown_seconds(1), 8.0);
-        assert_eq!(manual_trade_cooldown_seconds(2), 4.0);
-        assert_eq!(manual_trade_cooldown_seconds(4), 2.0);
+        assert_eq!(manual_trade_cooldown_seconds(1, 1.0), 8.0);
+        assert_eq!(manual_trade_cooldown_seconds(2, 1.0), 4.0);
+        assert_eq!(manual_trade_cooldown_seconds(4, 1.0), 2.0);
+    }
+
+    #[test]
+    fn poor_roads_slow_regional_caravan_turnaround() {
+        let rain_speed = crate::balance_generated::SPRING_RAIN_ROAD_SPEED_MULTIPLIER;
+        let dry = manual_trade_cooldown_seconds(1, 1.0);
+        let rain = manual_trade_cooldown_seconds(1, rain_speed);
+        assert!((rain - dry / rain_speed).abs() < 1e-9);
+        assert!(rain > dry);
     }
 
     #[test]

@@ -115,7 +115,11 @@ import {
   normalizeGuardhouseFoodReserve,
 } from '../../security/frontierSecurity.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
-import { environmentFor } from '../../world/seasonPolicy.ts';
+import {
+  describeNextDayEnvironmentOutlook,
+  environmentFor,
+  nextDayEnvironmentOutlook,
+} from '../../world/seasonPolicy.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { BuildingKind, InspectableTarget } from '../types.ts';
 import {
@@ -586,6 +590,15 @@ export function renderTownHallInspector(
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const clock = gameClock(context.gameState.tick);
   const environment = environmentFor(context.gameState.seed, context.worldHydrology, clock);
+  const environmentOutlook = nextDayEnvironmentOutlook(
+    context.gameState.seed,
+    context.worldHydrology,
+    clock,
+  );
+  const nextDawnOutlook = describeNextDayEnvironmentOutlook(
+    environment,
+    environmentOutlook,
+  );
   const provisioning = computeSettlementProvisioning({
     state: context.gameState,
     totals: context.resourceTotals,
@@ -851,6 +864,7 @@ export function renderTownHallInspector(
       <li><span>At full housing labor</span><span>${formatFullHousingLabor(laborPlan)}</span></li>
       <li><span>Work in motion</span><span>${formatWorkInMotion(laborPlan)}</span></li>
       ${renderSettlementHaulageRows(laborPlan.haulage)}
+      <li><span>Next dawn outlook</span><span>${nextDawnOutlook}</span></li>
       ${renderConstructionQueueRows(constructionPlan)}
       <li><span>Construction crews</span><span>${formatConstructionLabor(constructionLabor)}${constructionLaborInspectButton}</span></li>
       ${renderStorehouseNetworkRows(laborPlan.storehouseNetwork)}

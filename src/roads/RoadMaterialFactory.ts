@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 import { createTerrainGrassMaterial, createTerrainGrassMaterialWithRiverShore } from '../terrain/TerrainGrassMaterial.ts';
-import { createRoadCoreMaterial, createRoadEdgeMaterial, createRiverBankMaterial } from './RoadSurfaceMaterial.ts';
+import type { EnvironmentState } from '../world/seasonPolicy.ts';
+import { roadWeatherProfile } from '../weather/precipitationPolicy.ts';
+import {
+  createRoadCoreMaterial,
+  createRoadEdgeMaterial,
+  createRoadWeatherUniforms,
+  createRiverBankMaterial,
+} from './RoadSurfaceMaterial.ts';
 import { RoadTextureLoader, type TerrainBlendTextureSet, type TextureSet } from './RoadTextureLoader.ts';
 import type { MeshStandardNodeMaterial } from 'three/webgpu';
 
@@ -21,6 +28,9 @@ export class RoadMaterialFactory {
   private bridgeTextures: TextureSet | null = null;
   private terrainBlendTextures: TerrainBlendTextureSet | null = null;
   private texturesReadyPromise: Promise<void> = Promise.resolve();
+  private readonly roadWeatherUniforms = createRoadWeatherUniforms();
+  private targetRoadWetness = 0;
+  private targetRoadFrost = 0;
 
   private constructor() {
     this.previewValid = new THREE.MeshBasicMaterial({
@@ -103,6 +113,22 @@ export class RoadMaterialFactory {
     return this.texturesReadyPromise;
   }
 
+  setEnvironment(environment: EnvironmentState): void {
+    const profile = roadWeatherProfile(environment);
+    this.targetRoadWetness = profile.wetness;
+    this.targetRoadFrost = profile.frost;
+  }
+
+  updateWeather(dt: number): void {
+    const blend = 1 - Math.exp(-Math.max(0, dt) * 2.8);
+    this.roadWeatherUniforms.wetness.value += (
+      this.targetRoadWetness - this.roadWeatherUniforms.wetness.value
+    ) * blend;
+    this.roadWeatherUniforms.frost.value += (
+      this.targetRoadFrost - this.roadWeatherUniforms.frost.value
+    ) * blend;
+  }
+
   dispose(): void {
     const materials = [
       this.road,
@@ -145,8 +171,12 @@ export class RoadMaterialFactory {
     if (!this.roadTextures || !this.bridgeTextures || !this.terrainBlendTextures) {
       throw new Error('Textures are not loaded.');
     }
-    const road = createRoadCoreMaterial(this.roadTextures, this.bridgeTextures);
-    const roadEdge = createRoadEdgeMaterial(this.roadTextures, true);
+    const road = createRoadCoreMaterial(
+      this.roadTextures,
+      this.roadWeatherUniforms,
+      this.bridgeTextures,
+    );
+    const roadEdge = createRoadEdgeMaterial(this.roadTextures, this.roadWeatherUniforms, true);
     const riverBank = createRiverBankMaterial(this.roadTextures);
     const terrain = createTerrainGrassMaterial(this.terrainBlendTextures);
     const bridgeSupport = new THREE.MeshStandardMaterial({

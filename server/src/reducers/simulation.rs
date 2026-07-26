@@ -120,13 +120,14 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         world_seed,
         conflict_enabled,
         enemy_pressure,
+        environment,
     );
 
     let tick = SimTickContext::with_road_networks(road_networks);
     step_fires(ctx, &clock, environment, world_seed, sim_tick);
     step_construction_sites(ctx, &tick, &clock);
     step_household_market_orders(ctx, &tick, &clock, sim_tick);
-    step_marketplace_caravans(ctx, &clock, &tick);
+    step_marketplace_caravans(ctx, &clock, &tick, environment);
     step_regional_markets(ctx, sim_tick);
 
     let mut lumber_mill_ids: Vec<u64> = Vec::new();

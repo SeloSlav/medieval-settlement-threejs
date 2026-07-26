@@ -75,6 +75,8 @@ import {
   selectCriticalGuardhouseFoodTarget,
   type RoutedGuardhouseFoodTarget,
 } from '../security/frontierSecurity.ts';
+import { gameClock } from '../world/gameCalendar.ts';
+import { environmentFor } from '../world/seasonPolicy.ts';
 
 const RIVER_INSPECT_MAX_SHORE = 8;
 const NEAREST_ROAD_MAX_DISTANCE = 24;
@@ -164,6 +166,7 @@ export class WorldQueries {
   private readonly getGameState: () => GameState;
   private readonly getRoadNetwork: () => RoadNetwork;
   private readonly getTreeRegistry: () => TreeRegistry | null;
+  private readonly getWorldHydrology: () => number;
 
   constructor(options: {
     terrain: Terrain;
@@ -172,6 +175,7 @@ export class WorldQueries {
     getGameState: () => GameState;
     getRoadNetwork: () => RoadNetwork;
     getTreeRegistry: () => TreeRegistry | null;
+    getWorldHydrology?: () => number;
   }) {
     this.terrain = options.terrain;
     this.riverField = options.riverField;
@@ -179,6 +183,7 @@ export class WorldQueries {
     this.getGameState = options.getGameState;
     this.getRoadNetwork = options.getRoadNetwork;
     this.getTreeRegistry = options.getTreeRegistry;
+    this.getWorldHydrology = options.getWorldHydrology ?? (() => 50);
   }
 
   getHeightAt(x: number, z: number): number {
@@ -482,7 +487,7 @@ export class WorldQueries {
       well,
       target,
       wellLaborSplit(well.assignedLabor).delivering,
-      this.getCarpenterDeliverySpeedMultiplier(well),
+      this.getDeliveryTravelSpeedMultiplier(well),
     );
   }
 
@@ -531,6 +536,20 @@ export class WorldQueries {
       origin,
       fireDisabledBuildingIds(state.fireIncidents.values()),
     );
+  }
+
+  getRoadConditionSpeedMultiplier(): number {
+    const state = this.getGameState();
+    return environmentFor(
+      state.seed,
+      this.getWorldHydrology(),
+      gameClock(state.tick),
+    ).roadTravelSpeedMultiplier;
+  }
+
+  getDeliveryTravelSpeedMultiplier(origin: { x: number; z: number }): number {
+    return this.getCarpenterDeliverySpeedMultiplier(origin)
+      * this.getRoadConditionSpeedMultiplier();
   }
 
   hasRoadPathToBuildingKind(ax: number, az: number, kind: BuildingKind): boolean {
@@ -995,7 +1014,7 @@ export class WorldQueries {
       supplier,
       target,
       foodLaborSplit(supplier.assignedLabor).delivering,
-      this.getCarpenterDeliverySpeedMultiplier(supplier),
+      this.getDeliveryTravelSpeedMultiplier(supplier),
     );
   }
 
@@ -1009,7 +1028,7 @@ export class WorldQueries {
       lodge,
       target,
       lodgeLaborSplit(lodge.assignedLabor).delivering,
-      this.getCarpenterDeliverySpeedMultiplier(lodge),
+      this.getDeliveryTravelSpeedMultiplier(lodge),
     );
   }
 
@@ -1024,7 +1043,7 @@ export class WorldQueries {
       supplier,
       target,
       deliveryWorkers,
-      this.getCarpenterDeliverySpeedMultiplier(supplier),
+      this.getDeliveryTravelSpeedMultiplier(supplier),
     );
   }
 

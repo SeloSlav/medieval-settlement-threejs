@@ -46,6 +46,9 @@ export function renderMarketplaceTradePanel(
 ): string {
   const sections = marketplaceTradeOffersBySection(conflictEnabled);
   const ironworkProcurement = marketplaceIronworkProcurementPlan(building);
+  const nextTurnaround = manualTrade.nextCooldownSeconds == null
+    ? 'Each broker shortens the trade desk turnaround.'
+    : `Each broker shortens the trade desk turnaround; current regional road conditions make the next settlement ${manualTrade.nextCooldownSeconds.toFixed(1)}s.`;
   const renderOffer = (offer: (typeof sections.goldBuy)[number]) => {
     const affordable = canAffordMarketplaceTrade(availability, offer, marketState);
     const hasRoom = canReceiveMarketplaceTrade(building, offer);
@@ -141,7 +144,7 @@ export function renderMarketplaceTradePanel(
     <div class="marketplace-trade-panel">
       <p class="marketplace-trade-bulletin">${marketState.bulletin}</p>
       <p class="marketplace-trade-intro">Brokers export only treasury stock and goods in road-linked building stores; household provisions stay protected. Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here and wait for broker capacity. Imports arrive at this market; farmsteads may collect seed grain by road, while construction carts and household caravans haul other orders onward.</p>
-      <p class="marketplace-trade-depth">${manualTrade.label}. Each broker shortens the trade desk turnaround.</p>
+      <p class="marketplace-trade-depth">${manualTrade.label}. ${nextTurnaround}</p>
       <p class="marketplace-trade-rates" aria-label="Current regional rates">${formatRegionalRateSummary(marketState)}</p>
       <p class="marketplace-trade-depth">${formatMarketDepthHint()}</p>
       <p class="marketplace-trade-stock">${formatTradeAvailabilitySummary(availability)}</p>

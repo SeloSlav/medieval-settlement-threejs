@@ -4,8 +4,14 @@ import {
   formatClockTime,
   formatWeekday,
 } from '../world/gameCalendar.ts';
-import type { EnvironmentState } from '../world/seasonPolicy.ts';
-import { describeEnvironment } from '../world/seasonPolicy.ts';
+import type {
+  EnvironmentState,
+  NextDayEnvironmentOutlook,
+} from '../world/seasonPolicy.ts';
+import {
+  describeEnvironment,
+  describeNextDayEnvironmentOutlook,
+} from '../world/seasonPolicy.ts';
 import {
   GAME_SPEEDS,
   PLAYER_GAME_SPEEDS,
@@ -244,10 +250,16 @@ export class SettlementHud {
     this.zoomStat = this.mustElement('[data-stat-row="zoom"]');
   }
 
-  setSimulationState(speed: GameSpeed, environment: EnvironmentState): void {
+  setSimulationState(
+    speed: GameSpeed,
+    environment: EnvironmentState,
+    outlook?: NextDayEnvironmentOutlook,
+  ): void {
     const description = describeEnvironment(environment);
     this.seasonStatus.textContent = `${description.symbol} ${description.title}`;
-    this.seasonStatus.dataset.tooltip = description.detail;
+    this.seasonStatus.dataset.tooltip = outlook
+      ? `${description.detail} ${describeNextDayEnvironmentOutlook(environment, outlook)}.`
+      : description.detail;
     this.panel.classList.toggle('is-paused', speed === 0);
     for (const button of this.speedButtons) {
       const buttonSpeed = Number(button.dataset.gameSpeed);

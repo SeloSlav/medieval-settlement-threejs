@@ -233,10 +233,10 @@ assert.match(
   'one occupied-target set should serve the whole fire pass',
 );
 const collectCandidatesSource =
-  fireSource.match(/fn collect_candidates[\s\S]*?\n}\n\nfn maybe_ignite_from_lightning/)?.[0]
+  fireSource.match(/fn collect_candidates[\s\S]*?\r?\n}\r?\n\r?\nfn maybe_ignite_from_lightning/)?.[0]
   ?? '';
 const spreadSource =
-  fireSource.match(/fn maybe_spread_fires[\s\S]*?\n}\n\nfn ignite_candidate/)?.[0]
+  fireSource.match(/fn maybe_spread_fires[\s\S]*?\r?\n}\r?\n\r?\nfn ignite_candidate/)?.[0]
   ?? '';
 assert.doesNotMatch(
   collectCandidatesSource,

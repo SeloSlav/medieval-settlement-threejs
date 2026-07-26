@@ -132,14 +132,32 @@ pub fn tower_effective_radius(work_radius: f64, assigned_labor: u32) -> f64 {
     }
 }
 
+/// Converts a physical road route into the distance-equivalent response time
+/// under current ground conditions. This preserves a full response for compact
+/// defensive layouts while making long, softened tracks a seasonal liability.
+pub fn guardhouse_muster_response_distance(
+    road_distance: Option<f64>,
+    road_speed_multiplier: f64,
+) -> Option<f64> {
+    let distance = road_distance
+        .filter(|distance| distance.is_finite())?
+        .max(0.0);
+    let speed = if road_speed_multiplier.is_finite() && road_speed_multiplier > 0.0 {
+        road_speed_multiplier.clamp(0.05, 1.0)
+    } else {
+        1.0
+    };
+    Some(distance / speed)
+}
+
 /// How much of a provisioned guard company can answer the watch in time.
 /// Nearby road links give the full muster; long links retain a useful reserve,
 /// while an unlinked company can only react locally after contact.
-pub fn guardhouse_muster_efficiency(road_distance: Option<f64>) -> f64 {
-    let Some(distance) = road_distance.filter(|distance| distance.is_finite()) else {
+pub fn guardhouse_muster_efficiency(road_distance: Option<f64>, road_speed_multiplier: f64) -> f64 {
+    let Some(distance) = guardhouse_muster_response_distance(road_distance, road_speed_multiplier)
+    else {
         return GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY.clamp(0.0, 1.0);
     };
-    let distance = distance.max(0.0);
     if distance <= GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE {
         return 1.0;
     }
@@ -279,6 +297,7 @@ fn unit_hash(entropy: u64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::balance_generated::SPRING_RAIN_ROAD_SPEED_MULTIPLIER;
 
     #[test]
     fn winter_is_outside_the_raid_season() {
@@ -358,19 +377,48 @@ mod tests {
 
     #[test]
     fn road_linked_guard_companies_muster_more_effectively() {
-        assert_eq!(guardhouse_muster_efficiency(Some(120.0)), 1.0);
+        assert_eq!(guardhouse_muster_efficiency(Some(120.0), 1.0), 1.0);
         assert_eq!(
-            guardhouse_muster_efficiency(Some(GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE)),
+            guardhouse_muster_efficiency(Some(GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE), 1.0),
             GUARDHOUSE_LONG_MUSTER_EFFICIENCY
         );
         assert_eq!(
-            guardhouse_muster_efficiency(None),
+            guardhouse_muster_efficiency(None, SPRING_RAIN_ROAD_SPEED_MULTIPLIER),
             GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY
         );
-        let middle = guardhouse_muster_efficiency(Some(
-            (GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE + GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE) * 0.5,
-        ));
+        let middle = guardhouse_muster_efficiency(
+            Some(
+                (GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE + GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE) * 0.5,
+            ),
+            1.0,
+        );
         assert!((middle - (1.0 + GUARDHOUSE_LONG_MUSTER_EFFICIENCY) * 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn soft_roads_reward_compact_guardhouse_routes() {
+        let spring_rain_speed = SPRING_RAIN_ROAD_SPEED_MULTIPLIER;
+        assert_eq!(
+            guardhouse_muster_response_distance(Some(190.0), spring_rain_speed),
+            Some(190.0 / spring_rain_speed)
+        );
+        assert_eq!(
+            guardhouse_muster_efficiency(Some(190.0), spring_rain_speed),
+            1.0,
+            "a genuinely compact route should retain its full muster"
+        );
+        assert!(
+            guardhouse_muster_efficiency(
+                Some(GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE),
+                spring_rain_speed,
+            ) < 1.0,
+            "a route at the dry-weather limit should become delayed in rain"
+        );
+        assert_eq!(
+            guardhouse_muster_efficiency(None, spring_rain_speed),
+            GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
+            "ground conditions must not double-penalize an already unlinked company"
+        );
     }
 
     #[test]

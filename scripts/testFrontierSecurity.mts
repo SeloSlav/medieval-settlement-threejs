@@ -19,6 +19,7 @@ import {
   guardhouseFoodRunwayDays,
   guardhouseFoodTarget,
   guardhouseMusterEfficiency,
+  guardhouseMusterResponseDistance,
   guardhouseMusterResponseBand,
   projectRaidTargets,
   projectedRaidArsonChance,
@@ -40,6 +41,7 @@ import {
 import {
   BUILDING_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
+  SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 
 const legacySettings = normalizeWorldGenerationSettings({
@@ -94,6 +96,13 @@ assert.equal(guardhouseMusterEfficiency(120), 1);
 assert.equal(guardhouseMusterEfficiency(480), 0.825);
 assert.equal(guardhouseMusterEfficiency(720), 0.65);
 assert.equal(guardhouseMusterEfficiency(null), 0.4);
+assert.equal(
+  guardhouseMusterResponseDistance(190, SPRING_RAIN_ROAD_SPEED_MULTIPLIER),
+  190 / SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+);
+assert.equal(guardhouseMusterEfficiency(190, SPRING_RAIN_ROAD_SPEED_MULTIPLIER), 1);
+assert.ok(guardhouseMusterEfficiency(240, SPRING_RAIN_ROAD_SPEED_MULTIPLIER) < 1);
+assert.equal(guardhouseMusterEfficiency(null, SPRING_RAIN_ROAD_SPEED_MULTIPLIER), 0.4);
 assert.equal(guardhouseMusterResponseBand(1), 'full');
 assert.equal(guardhouseMusterResponseBand(0.825), 'delayed');
 assert.equal(guardhouseMusterResponseBand(0.65), 'weak');
@@ -200,6 +209,20 @@ assert.equal(linkedMuster.linkedTowerId, musterTower.id);
 assert.equal(linkedMuster.efficiency, 0.825);
 assert.equal(linkedMuster.rawReady, 4);
 assert.equal(linkedMuster.effectiveReady, 3.3);
+const wetLinkedMuster = getGuardhouseMusterState(
+  guardhouse,
+  musterState,
+  (_ax, _az, bx) => bx === musterTower.x ? 480 : null,
+  SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+);
+assert.equal(wetLinkedMuster.roadSpeedMultiplier, SPRING_RAIN_ROAD_SPEED_MULTIPLIER);
+assert.ok(
+  Math.abs(
+    (wetLinkedMuster.responseDistance ?? 0)
+      - 480 / SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+  ) < 1e-9,
+);
+assert.ok(wetLinkedMuster.effectiveReady < linkedMuster.effectiveReady);
 const unlinkedMuster = getGuardhouseMusterState(guardhouse, musterState, () => null);
 assert.equal(unlinkedMuster.linkedTowerId, null);
 assert.equal(unlinkedMuster.effectiveReady, 1.6);
@@ -279,22 +302,24 @@ const deploymentRoads = new RoadNetwork();
 const initialRoadRevision = deploymentRoads.getTopologyRevision();
 deploymentRoads.addRoadPath([
   new THREE.Vector3(0, 0, 0),
-  new THREE.Vector3(400, 0, 0),
+  new THREE.Vector3(240, 0, 0),
 ]);
 assert.ok(
   deploymentRoads.getTopologyRevision() > initialRoadRevision,
   'frontier route overlays need an inexpensive topology revision for cache invalidation',
 );
+let deploymentRoadSpeedMultiplier = 1;
 const deploymentMarkers = new BuildingMarkers({
   terrain: { getHeightAt: () => 4 } as never,
   parent: deploymentParent,
   getRoadNetwork: () => deploymentRoads,
+  getRoadConditionSpeedMultiplier: () => deploymentRoadSpeedMultiplier,
 });
 const deploymentState = emptyGameState();
 const deploymentTower = { ...tower, x: 0, z: 0 };
 const deploymentGuardhouse = {
   ...guardhouse,
-  x: 400,
+  x: 240,
   z: 0,
 };
 deploymentState.buildings.set(deploymentTower.id, deploymentTower);
@@ -325,8 +350,15 @@ assert.ok(
 );
 assert.equal(
   musterRoute.material.color.getHex(),
+  0x9aca6f,
+  'a route at the dry full-muster limit should use the green response color',
+);
+deploymentRoadSpeedMultiplier = SPRING_RAIN_ROAD_SPEED_MULTIPLIER;
+deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+assert.equal(
+  musterRoute.material.color.getHex(),
   0xf0a63f,
-  'a degraded long route should use the amber response color',
+  'soft spring roads should turn the same limit route into an amber delay',
 );
 const overlayCacheStarted = performance.now();
 for (let index = 0; index < 10_000; index += 1) {
@@ -442,6 +474,8 @@ assert.match(watchtowerInspector, /context\.enemyPressure/);
 assert.match(guardhouseInspector, /Projected raid/);
 assert.match(guardhouseInspector, /context\.enemyPressure/);
 assert.match(guardhouseInspector, /Watch muster/);
+assert.match(guardhouseInspector, /Road conditions/);
+assert.match(guardhouseInspector, /Soft-road delay/);
 assert.match(guardhouseInspector, /Effective company/);
 assert.match(guardhouseInspector, /Inspect linked watchtower/);
 assert.match(frontierMarkers, /InstancedMesh/);
@@ -541,6 +575,8 @@ assert.match(villagerRenderer, /Keeping watch from the frontier gallery/);
 assert.match(serverPolicy, /RAID_SEASON_START_MONTH:\s*u32\s*=\s*4/);
 assert.match(serverPolicy, /RAID_SEASON_END_MONTH:\s*u32\s*=\s*10/);
 assert.match(serverPolicy, /guardhouse_muster_efficiency/);
+assert.match(serverPolicy, /guardhouse_muster_response_distance/);
+assert.match(serverSimulation, /environment\.road_speed_multiplier\(\)/);
 assert.ok(
   statSync('public/assets/ui/build-menu/cards/watchtower.webp').size > 20_000,
   'watchtower needs a finished construction-menu card',

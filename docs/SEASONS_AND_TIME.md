@@ -57,6 +57,7 @@ The HUD shows the active season/weather and a tooltip listing its major effects.
 
 - Autumn-sown rye, oats, and fallow fields resume growth.
 - Rain increases crop growth to 112% and well refill to 130%.
+- Rain slows new dirt-road cart trips to 82% of their dry-weather pace.
 - Berry and mushroom nodes regrow in place.
 - Fish reproduce only in spring. Recovery follows surviving population, so a badly
   depleted shoal recovers slowly and a zero population is permanently extinct.
@@ -109,6 +110,7 @@ October and November are the only ploughing and sowing months:
 
 Other autumn rules:
 
+- New cart trips travel at 90% pace on seasonally softened tracks.
 - Pasture capacity is 90%.
 - Household firewood demand rises to 115%.
 - Fresh-food spoilage returns to 0.4% per day.
@@ -134,10 +136,48 @@ unfinished sowing cannot spill into winter.
   deficit and can eventually be abandoned.
 - Vegetable, herb, and flower garden work stops. Hens continue at 75%.
 - Fresh-food spoilage falls to 0.2% per day.
+- New cart trips travel at 72% pace on frosted tracks.
 
 Winter's advantage is preservation and freedom for non-agricultural labor. Logging,
 mining, stone gathering, construction, crafting, trade, ordinary hunting, and
-threshing stored wheat have no general seasonal shutdown.
+threshing stored wheat have no general seasonal shutdown, but their road haulage is
+slower.
+
+## Seasonal road logistics
+
+The road-condition multiplier is captured when a trip departs and applies to its
+outbound and return legs. Existing trips therefore keep a stable ETA across a day
+boundary, while the next dispatch reflects the new weather. Dry spring and summer
+travel remain at 100%; spring rain uses 82%, autumn 90%, and winter frost 72%.
+The carpenter's road-linked cartwright bonus multiplies with those values, partially
+offsetting bad tracks without erasing the need for local reserves and shorter service
+territories. The shared road material darkens and gains a wet sheen in rain, remains
+mildly damp through autumn, and turns pale and rough under winter frost. Those
+presentation-only uniforms add no road meshes or draw calls. Fire response and
+construction carts use the same rule. No new save field is required because the
+existing per-trip travel multiplier already stores the combined pace.
+
+Regional marketplace caravans also capture the current multiplier when a bulk
+trade or standing ironwork order begins. Their existing trade-desk cooldown stores
+the longer settlement time, so a weather change does not rewrite an active order.
+Additional brokers remain the economic counterplay, while the marketplace
+inspector previews the next order's current-condition turnaround. Local cartwright
+support does not speed foreign caravans before they reach the settlement.
+
+The seasonal HUD tooltip and staffed or unstaffed Town Hall ledger also show a
+deterministic next-dawn outlook. It uses the same seed, hydrology, calendar, and
+environment policy as the authoritative next day, then reports road movement,
+crop growth, pasture, firewood demand, and fresh-food loss. A deteriorating route
+outlook explicitly recommends pre-hauling remote stock and regional orders. The
+calculation is constant-time and advisory: it changes no orders, labor, or saves.
+
+In conflict-enabled worlds, the same current multiplier converts each guardhouse's
+physical route to its nearest staffed watchtower into a time-equivalent muster
+distance. A compact company can still provide its full strength in rain, while a
+route near the dry-weather response limit becomes delayed. The selected guardhouse
+route changes from green to amber or red as appropriate, and its inspector shows
+both physical and response-equivalent distance. This reuses the existing security
+report interval and road path result rather than adding per-tick pathfinding.
 
 ## Persistent wild resources
 

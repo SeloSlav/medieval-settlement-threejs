@@ -295,7 +295,7 @@ export class DeliveryAgentRenderer {
 
   private tripTravelSpeed(trip: DeliveryTripState): number {
     const workers = Math.max(1, trip.deliveryWorkers);
-    return trip.speedMps * workers * Math.max(1, trip.travelSpeedMultiplier);
+    return trip.speedMps * workers * Math.max(1e-6, trip.travelSpeedMultiplier);
   }
 
   dispose(): void {

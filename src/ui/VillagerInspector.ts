@@ -297,7 +297,7 @@ export class VillagerInspector {
       }`;
     const speed = trip.speedMps
       * Math.max(1, trip.deliveryWorkers)
-      * Math.max(1, trip.travelSpeedMultiplier);
+      * Math.max(1e-6, trip.travelSpeedMultiplier);
     this.pace.textContent = `${speed.toFixed(1)} m/s`;
     this.distance.textContent = inspection.remainingMeters == null
       ? '—'

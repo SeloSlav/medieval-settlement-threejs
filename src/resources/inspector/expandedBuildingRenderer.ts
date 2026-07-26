@@ -343,7 +343,7 @@ function plannedOutboundTripSeconds(
     speed,
     1,
     unload,
-    context.worldQueries.getCarpenterDeliverySpeedMultiplier(building),
+    context.worldQueries.getDeliveryTravelSpeedMultiplier(building),
   );
 }
 
