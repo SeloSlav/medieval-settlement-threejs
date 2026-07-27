@@ -5,6 +5,7 @@ declare module 'three/tsl' {
   export const cameraPosition: unknown;
   export const cameraViewMatrix: unknown;
   export const dot: (a: unknown, b: unknown) => unknown;
+  export const exp: (value: unknown) => unknown;
   export const floor: (value: unknown) => unknown;
   export const fract: (value: unknown) => unknown;
   export const modelWorldMatrix: unknown;
@@ -15,6 +16,7 @@ declare module 'three/tsl' {
   export const normalView: unknown;
   export const normalize: (value: unknown) => unknown;
   export const positionWorld: unknown;
+  export const screenSize: unknown;
   export const screenUV: unknown;
   export const sub: (a: unknown, b: unknown) => unknown;
   export const viewportSafeUV: (uv?: unknown) => unknown;
