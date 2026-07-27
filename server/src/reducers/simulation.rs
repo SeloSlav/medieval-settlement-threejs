@@ -373,5 +373,5 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         );
     }
     step_reclamation_piles(ctx, &tick, &clock, reclamation_pile_ids);
-    step_founding_sites(ctx);
+    step_founding_sites(ctx, &tick, &clock);
 }

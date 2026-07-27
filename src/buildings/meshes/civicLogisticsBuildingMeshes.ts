@@ -42,6 +42,38 @@ function addBell(group: THREE.Group, x: number, y: number, z: number): void {
   addMesh(group, new THREE.SphereGeometry(0.09, 7, 5), metalMaterial('iron'), new THREE.Vector3(x, y - 0.34, z));
 }
 
+function addTownHallTreasuryChest(group: THREE.Group): void {
+  const chest = new THREE.Group();
+  chest.name = 'TownHallTreasuryChest';
+  chest.visible = false;
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(1.35, 0.72, 0.82),
+    timberMaterial('dark'),
+    new THREE.Vector3(3.75, 0.43, 3.18),
+  );
+  addMesh(
+    chest,
+    new THREE.CylinderGeometry(0.42, 0.42, 1.35, 8, 1, false, 0, Math.PI),
+    timberMaterial('weathered'),
+    new THREE.Vector3(3.75, 0.83, 3.18),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  );
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(0.13, 0.78, 0.88),
+    metalMaterial('iron'),
+    new THREE.Vector3(3.75, 0.57, 3.18),
+  );
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(0.22, 0.28, 0.12),
+    sharedBuildingDetailMaterial('brass'),
+    new THREE.Vector3(3.75, 0.56, 3.62),
+  );
+  group.add(chest);
+}
+
 function addPolearmRack(group: THREE.Group, x: number, z: number): void {
   addMesh(group, new THREE.BoxGeometry(3.0, 0.16, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 0.72, z));
   addMesh(group, new THREE.BoxGeometry(3.0, 0.16, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 1.64, z));
@@ -89,6 +121,7 @@ export function createTownHallMesh(): THREE.Group {
   for (const x of [2.6, 4.5]) addMesh(group, new THREE.BoxGeometry(0.16, 2.4, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 1.2, 4.68));
   addMesh(group, new THREE.BoxGeometry(2.7, 0.18, 0.64), timberMaterial('mid'), new THREE.Vector3(0.25, 0.58, 5.05));
   for (const x of [-0.75, 1.25]) addMesh(group, new THREE.BoxGeometry(0.16, 0.58, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 0.3, 5.05));
+  addTownHallTreasuryChest(group);
 
   // Compact bell cupola: a recognizable settlement landmark without reading as a church.
   addMesh(group, new THREE.BoxGeometry(2.25, 1.8, 2.25), timberMaterial('dark'), new THREE.Vector3(0, 7.55, 0));

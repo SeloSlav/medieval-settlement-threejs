@@ -20,6 +20,29 @@ export function renderFoundersCampInspector(
     : 0;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const hasMaterial = building.timber + building.stone > 1e-6;
+  const completedTownHall = Array.from(context.gameState.buildings.values()).find(
+    (candidate) =>
+      candidate.kind === 'town_hall'
+      && candidate.constructionComplete !== false,
+  ) ?? null;
+  const townHallRoadDistance = completedTownHall === null
+    ? null
+    : context.worldQueries.getRoadPathDistance(
+        building.x,
+        building.z,
+        completedTownHall.x,
+        completedTownHall.z,
+      );
+  const lockboxTrip = activeTrip?.cargoKind === 'gold' ? activeTrip : null;
+  const lockboxStatus = lockboxTrip
+    ? `${building.gold.toFixed(0)} gold on site · ${lockboxTrip.amount.toFixed(0)} travelling by handcart`
+    : building.gold <= 1e-6
+      ? 'Empty'
+      : completedTownHall === null
+        ? `${building.gold.toFixed(0)} gold · awaiting a completed Town Hall`
+        : townHallRoadDistance === null
+          ? `${building.gold.toFixed(0)} gold · connect the camp and Town Hall by road`
+          : `${building.gold.toFixed(0)} gold · awaiting the next free hauler`;
 
   const status = activeTrip
     ? [`Handcart ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()}`, 'active'] as const
@@ -39,9 +62,9 @@ export function renderFoundersCampInspector(
       <li><span>Shelter lifecycle</span><span>${shelterActive ? 'Tents clear after all founders have residence places' : 'All founders rehoused'}</span></li>
       <li><span>Construction supply</span><span>Free workers carry reserved loads by handcart; the founding stockyard can begin off-road</span></li>
       <li><span>Active cart</span><span>${activeTrip ? formatTripPhaseLabel(activeTrip.phase) : 'None'}</span></li>
-      <li><span>Lockbox</span><span>${building.gold.toFixed(0)} gold${building.gold > 0 ? ' · moves to the completed Town Hall' : ''}</span></li>
+      <li><span>Lockbox</span><span>${lockboxStatus}</span></li>
       ${buildingStorageRows(building, building.kind)}
-      <li><span>Final clearance</span><span>After the stockyard is empty and both a Town Hall and Village Storehouse are complete</span></li>
+      <li><span>Final clearance</span><span>After every cart returns, the stockyard is empty, and both a Town Hall and Village Storehouse are complete</span></li>
     `,
     demolish: hiddenDemolish(),
     labor: hiddenLabor(),

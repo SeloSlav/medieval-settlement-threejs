@@ -96,6 +96,10 @@ export function buildingMarkerSignatures(
           )
         }:${building.gold > 1e-6 ? 1 : 0}`
         : '';
+      const treasuryState = building.kind === 'town_hall'
+        && building.constructionComplete !== false
+        ? `:treasury:${building.gold > 1e-6 ? 1 : 0}`
+        : '';
       const hayState = building.kind === 'pastoral_farmstead'
         && building.constructionComplete !== false
         ? `:hay:${stockpileVisualLevel(
@@ -128,7 +132,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${timberState}${hayState}${woolState}${clothState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${timberState}${hayState}${woolState}${clothState}`,
         collider: structural,
       };
     })

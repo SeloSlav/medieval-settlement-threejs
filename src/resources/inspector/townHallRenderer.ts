@@ -1759,6 +1759,14 @@ export function renderTownHallInspector(
     : monasteryPolicy.feastsEnabled
       ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} fully supplied · ${hospitalityGoldPerDay.toFixed(2)} pilgrimage gold/day · annual target ${hospitalityHoneyPerYear.toFixed(0)} honey + ${hospitalityWinePerYear.toFixed(0)} wine</span></li>`
       : `<li><span>Monastery hospitality</span><span>Disabled · ${hospitalityGoldPerDay.toFixed(2)} baseline pilgrimage gold/day · honey and wine remain exportable</span></li>`;
+  const inboundTreasuryGold = Array.from(context.gameState.deliveryTrips.values())
+    .filter(
+      (trip) =>
+        trip.targetBuildingId === building.id
+        && trip.cargoKind === 'gold'
+        && trip.phase !== 'inbound',
+    )
+    .reduce((sum, trip) => sum + trip.amount, 0);
 
   return {
     eyebrow: 'Civic administration',
@@ -1771,6 +1779,7 @@ export function renderTownHallInspector(
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Settlement government, taxation, and economic ledger</span></li>
+      <li><span>Treasury chest</span><span>${building.gold.toFixed(0)} gold secured here${inboundTreasuryGold > 1e-6 ? ` · ${inboundTreasuryGold.toFixed(0)} incoming by handcart` : ''}</span></li>
       <li><span>Population</span><span>${context.populationStats.total}</span></li>
       <li><span>Workforce</span><span>${context.populationStats.assigned} / ${context.populationStats.total} assigned · ${context.populationStats.available} free · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
       <li><span>Sector staffing</span><span>${formatLaborSectorMix(laborPlan)}</span></li>

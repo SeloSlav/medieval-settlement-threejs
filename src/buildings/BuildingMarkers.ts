@@ -399,6 +399,10 @@ function syncBuildingVisualState(
     marker.userData.foundingTimberSegments = FOUNDING_TIMBER_VISUAL_SEGMENTS;
     marker.userData.foundingStoneSegments = FOUNDING_STONE_VISUAL_SEGMENTS;
   }
+  if (building.kind === 'town_hall') {
+    const chest = marker.getObjectByName('TownHallTreasuryChest');
+    if (chest) chest.visible = building.gold > 1e-6;
+  }
   if (building.kind === 'salvage_pile') {
     const timber = marker.getObjectByName('SalvageTimberStockpile');
     if (timber instanceof THREE.Group) {

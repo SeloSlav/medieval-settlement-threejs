@@ -2,14 +2,21 @@
 
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::STARTING_POPULATION;
+use crate::balance_generated::{
+    STARTING_POPULATION, STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC,
+};
 use crate::db::*;
-use crate::simulation::building_has_active_trip;
+use crate::economy::CommodityKind;
+use crate::simulation::delivery_trips::{
+    available_free_haulers, building_has_active_trip, try_start_building_supply_trip,
+};
+use crate::simulation::{GameClock, SimTickContext};
 use crate::tables::Building;
 
 const EPSILON: f64 = 1e-6;
 
-pub fn step_founding_sites(ctx: &ReducerContext) {
+pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
     let site_ids = ctx
         .db
         .building()
@@ -37,13 +44,31 @@ pub fn step_founding_sites(ctx: &ReducerContext) {
             site_changed = true;
         }
 
-        let mut town_hall = first_completed_building(ctx, site.owner, "town_hall");
-        if let Some(ref mut town_hall) = town_hall {
-            if site.gold > EPSILON {
-                town_hall.gold += site.gold;
-                site.gold = 0.0;
-                site_changed = true;
-                ctx.db.building().id().update(town_hall.clone());
+        let town_hall = first_completed_building(ctx, site.owner, "town_hall");
+        if let Some(ref town_hall) = town_hall {
+            if site.gold > EPSILON
+                && !building_has_active_trip(ctx, site.id)
+                && available_free_haulers(ctx, site.owner) > 0
+            {
+                if let Some(network) = tick.road_network(site.owner) {
+                    let gold = site.gold;
+                    if try_start_building_supply_trip(
+                        ctx,
+                        tick,
+                        clock,
+                        network,
+                        &mut site,
+                        town_hall,
+                        1,
+                        CommodityKind::Gold,
+                        TIMBER_DELIVERY_SPEED_MPS,
+                        TIMBER_DELIVERY_UNLOAD_SEC,
+                        STOREHOUSE_HAUL_PER_WORKER,
+                        gold,
+                    ) {
+                        site_changed = true;
+                    }
+                }
             }
         }
 

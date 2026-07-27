@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
@@ -55,6 +56,11 @@ assert.ok(shelters instanceof THREE.Group);
 assert.ok(timber instanceof THREE.Group);
 assert.ok(stone instanceof THREE.Group);
 assert.ok(chest instanceof THREE.Group);
+const townHallMesh = createBuildingMesh('town_hall');
+assert.ok(
+  townHallMesh.getObjectByName('TownHallTreasuryChest') instanceof THREE.Group,
+  'the civic treasury must have a visible lockbox at the Town Hall',
+);
 assert.equal(
   timber.children.filter((child) => child.name === 'FoundingTimberSegment').length,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
@@ -141,6 +147,19 @@ const totals = computeResourceTotals(physicalStock);
 assert.equal(totals.timber, 70);
 assert.equal(totals.stone, 30);
 assert.equal(totals.gold, 20, 'physical lockbox gold remains part of settlement totals');
+const camp = physicalStock.buildings.get('camp')!;
+const emptyTownHall = {
+  ...camp,
+  id: 'hall',
+  kind: 'town_hall',
+  gold: 0,
+} satisfies BuildingState;
+const fundedTownHall = { ...emptyTownHall, gold: 1 } satisfies BuildingState;
+assert.notEqual(
+  buildingMarkerSignatures(new Map([['hall', emptyTownHall]])).visual,
+  buildingMarkerSignatures(new Map([['hall', fundedTownHall]])).visual,
+  'crossing zero gold must refresh the Town Hall chest visual',
+);
 
 const bootstrapServer = read('server/src/reducers/bootstrap.rs');
 assert.match(bootstrapServer, /physical_founding_site_enabled/);
@@ -173,6 +192,22 @@ assert.match(foundingLifecycle, /housed >= STARTING_POPULATION/);
 assert.match(foundingLifecycle, /"town_hall"/);
 assert.match(foundingLifecycle, /"village_storehouse"/);
 assert.match(foundingLifecycle, /building_has_active_trip/);
+assert.match(foundingLifecycle, /available_free_haulers/);
+assert.match(foundingLifecycle, /try_start_building_supply_trip/);
+assert.match(foundingLifecycle, /CommodityKind::Gold/);
+assert.doesNotMatch(
+  foundingLifecycle,
+  /town_hall\.gold \+= site\.gold|site\.gold = 0\.0/,
+  'the founders’ lockbox must not teleport into the civic treasury',
+);
+const simulationReducer = read('server/src/reducers/simulation.rs');
+assert.match(simulationReducer, /step_founding_sites\(ctx, &tick, &clock\)/);
+const foundersInspector = read('src/resources/inspector/foundersCampRenderer.ts');
+assert.match(foundersInspector, /connect the camp and Town Hall by road/);
+assert.match(foundersInspector, /awaiting the next free hauler/);
+const townHallInspector = read('src/resources/inspector/townHallRenderer.ts');
+assert.match(townHallInspector, /Treasury chest/);
+assert.match(townHallInspector, /incoming by handcart/);
 
 function gameState(physical: boolean, housed: number): GameState {
   const residences = new Map<string, ResidenceState>();
