@@ -43,6 +43,10 @@ const residenceNeeds = readFileSync(
   new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url),
   'utf8',
 );
+const authoritativeSimulation = readFileSync(
+  new URL('../server/src/reducers/simulation.rs', import.meta.url),
+  'utf8',
+);
 const settlementHud = readFileSync(
   new URL('../src/ui/SettlementHud.ts', import.meta.url),
   'utf8',
@@ -71,6 +75,11 @@ assert.match(
 );
 assert.match(laborSchedule, /is_consumption_paused[\s\S]*?household_consumption_paused\(clock\)/);
 assert.match(residenceNeeds, /Sunday observance does not make provisions free/);
+assert.match(
+  authoritativeSimulation,
+  /residence_disabled_by_fire\(ctx, residence\.id\)[\s\S]*continue;/,
+  'fire-disabled residences must be excluded from authoritative household consumption',
+);
 assert.match(settlementHud, /Sunday stores/);
 assert.match(settlementHud, /Household buffers/);
 assert.match(settlementHud, /Local delivery buffer/);
@@ -173,7 +182,79 @@ assert.equal(fireSuspendedGuards.assignedGuards, 0);
 assert.equal(fireSuspendedGuards.armedGuards, 0);
 assert.equal(fireSuspendedGuards.guardFoodPerDay, 0);
 assert.equal(fireSuspendedGuards.guardWagePerDay, 0);
+assert.equal(fireSuspendedGuards.fireQuarantinedFoodStock, 9);
+assert.equal(
+  fireSuspendedGuards.usableFoodStock,
+  fireSuspendedGuards.foodStock - 9,
+);
 state.fireIncidents.clear();
+
+const displacedState = emptyGameState();
+displacedState.stockpile.food = 50;
+const healthyHome = residence('healthy-home', 1, 4);
+healthyHome.needs.food.stock = 4;
+displacedState.residences.set(healthyHome.id, healthyHome);
+const fireDisabledHome = residence('fire-disabled-home', 2, 4);
+fireDisabledHome.needs.food.stock = 20;
+fireDisabledHome.needs.firewood.stock = 30;
+displacedState.residences.set(fireDisabledHome.id, fireDisabledHome);
+const emptySource = building('empty-source', 'granary', 1, 0);
+displacedState.buildings.set(emptySource.id, emptySource);
+displacedState.deliveryTrips.set('cart-to-fire-disabled-home', {
+  id: 'cart-to-fire-disabled-home',
+  buildingId: emptySource.id,
+  residenceId: fireDisabledHome.id,
+  destinationKind: 'residence',
+  targetBuildingId: null,
+  cargoKind: 'food',
+  amount: 40,
+  phase: 'outbound',
+  x: 0,
+  z: 0,
+  progress: 0,
+  speedMps: 2,
+  unloadSeconds: 3,
+  unloadRemaining: 3,
+  deliveryWorkers: 1,
+  pathDistance: 20,
+  travelSpeedMultiplier: 1,
+  routePolylineJson: '[]',
+});
+displacedState.fireIncidents.set('home-fire', {
+  id: 'home-fire',
+  targetKind: 'residence',
+  targetId: fireDisabledHome.id,
+} as FireIncidentState);
+const displaced = computeSettlementProvisioning({
+  state: displacedState,
+  totals: computeResourceTotals(displacedState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0.01,
+  sabbathObserved: true,
+  roadComponentFor: () => 'village',
+});
+assert.equal(displaced.foodConsumers, 4);
+assert.equal(displaced.heatedResidents, 0);
+assert.equal(displaced.displacedHouseholds, 1);
+assert.equal(displaced.displacedResidents, 4);
+assert.equal(displaced.householdBufferHouseholds, 1);
+assert.equal(displaced.sabbathHouseholds, 1);
+assert.equal(displaced.fireQuarantinedFoodStock, 20);
+assert.equal(displaced.fireQuarantinedFirewoodStock, 30);
+assert.equal(displaced.foodStock, 74);
+assert.equal(displaced.usableFoodStock, 54);
+assert.equal(displaced.firewoodStock, 30);
+assert.equal(displaced.usableFirewoodStock, 0);
+assert.equal(
+  displaced.roadBranches?.physicalFoodStock,
+  4,
+  'cargo bound for a fire-disabled home must not promise usable branch stock',
+);
+assert.equal(
+  displaced.foodPreservation.quarantinedSpoilagePerDay,
+  0,
+  'a suspended household does not run the residence spoilage step until recovery',
+);
 
 const critical = computeSettlementProvisioning({
   state,
@@ -303,6 +384,28 @@ assert.equal(
   'reconnecting the same physical granary should restore the branch forecast',
 );
 
+splitBranchState.deliveryTrips.clear();
+splitBranchState.fireIncidents.set('remote-granary-fire', {
+  id: 'remote-granary-fire',
+  targetKind: 'building',
+  targetId: remoteGranary.id,
+} as FireIncidentState);
+const fireDisabledSupplier = computeSettlementProvisioning({
+  state: splitBranchState,
+  totals: computeResourceTotals(splitBranchState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: () => 'reconnected',
+});
+assert.equal(fireDisabledSupplier.roadBranches?.foodSuppliedBranches, 0);
+assert.equal(fireDisabledSupplier.roadBranches?.foodUnservedBranches, 1);
+assert.equal(fireDisabledSupplier.fireQuarantinedFoodStock, 300);
+assert.equal(
+  fireDisabledSupplier.usableFoodStock,
+  splitHome.needs.food.stock,
+);
+
 const splitFuelState = emptyGameState();
 const splitFuelHome = residence('split-fuel-home', 2, 4);
 splitFuelHome.x = 0;
@@ -430,6 +533,13 @@ for (let branch = 0; branch < 100; branch += 1) {
     const home = residence(`road-home-${branch}-${index}`, 1, 4);
     home.x = branch;
     roadPerfState.residences.set(home.id, home);
+    if (index % 4 === 0) {
+      roadPerfState.fireIncidents.set(`road-home-fire-${branch}-${index}`, {
+        id: `road-home-fire-${branch}-${index}`,
+        targetKind: 'residence',
+        targetId: home.id,
+      } as FireIncidentState);
+    }
   }
 }
 const roadPerfTotals = computeResourceTotals(roadPerfState);
@@ -443,7 +553,9 @@ const roadPerfProvisioning = computeSettlementProvisioning({
   roadComponentFor: (entity) => entity.x,
 });
 const roadElapsedMs = performance.now() - roadStarted;
-assert.equal(roadPerfProvisioning.foodConsumers, 400_000);
+assert.equal(roadPerfProvisioning.foodConsumers, 300_000);
+assert.equal(roadPerfProvisioning.displacedHouseholds, 25_000);
+assert.equal(roadPerfProvisioning.displacedResidents, 100_000);
 assert.equal(roadPerfProvisioning.roadBranches?.activeBranches, 100);
 assert.equal(roadPerfProvisioning.roadBranches?.foodSuppliedBranches, 100);
 assert.equal(roadPerfProvisioning.roadBranches?.foodUnservedBranches, 0);

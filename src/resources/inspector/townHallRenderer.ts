@@ -1229,8 +1229,12 @@ export function renderFreshFoodPreservationRows(
     getBuildingLabel,
     getResidenceParcelIndex,
   );
+  const quarantine = preservation.quarantinedStock > 0.05
+    ? `<li><span>Fire-quarantined food</span><span>${preservation.quarantinedStock.toFixed(1)} inaccessible until recovery · ${formatFreshFoodLoss(preservation.quarantinedSpoilagePerDay)} still spoiling in damaged buildings</span></li>`
+    : '';
   return `
-    <li><span>Fresh-food spoilage</span><span>${formatFreshFoodLoss(preservation.spoilagePerDay)} · ${Math.round(preservation.protectedShare * 100)}% in sheltered stores</span></li>
+    <li><span>Fresh-food spoilage</span><span>${formatFreshFoodLoss(preservation.spoilagePerDay)} · ${Math.round(preservation.usableProtectedShare * 100)}% of usable food in sheltered stores</span></li>
+    ${quarantine}
     <li><span>Largest fresh-food loss</span><span>${hotspot}</span></li>
     <li><span>Granary intake network</span><span>${formatGranaryFreshFoodNetwork(preservation.granaryNetwork)}</span></li>
   `;
@@ -1259,6 +1263,12 @@ function formatFreshFoodLossSite(
 function formatGranaryFreshFoodNetwork(network: GranaryFreshFoodNetwork): string {
   if (network.completedGranaries === 0) return 'No completed granary';
   if (network.collectingGranaries === 0) {
+    if (network.fireDisabledGranaries > 0) {
+      const disabled = network.fireDisabledGranaries === network.completedGranaries
+        ? 'every completed granary is fire-disabled'
+        : `${network.fireDisabledGranaries} fire-disabled · remaining granaries have collection disabled`;
+      return `${network.completedGranaries} completed · ${disabled}`;
+    }
     return `${network.completedGranaries} completed · fresh-food collection disabled at every granary`;
   }
   const enabled = network.collectingGranaries === network.completedGranaries
@@ -1267,7 +1277,10 @@ function formatGranaryFreshFoodNetwork(network: GranaryFreshFoodNetwork): string
   const aboveTarget = network.stockAboveTarget > 0.05
     ? ` · ${network.stockAboveTarget.toFixed(1)} above targets from baking or earlier stock`
     : '';
-  return `${network.stockTowardTarget.toFixed(1)} / ${network.targetStock.toFixed(1)} sheltered toward selected targets · ${network.targetShortfall.toFixed(1)} collection headroom · ${network.staffedCollectingGranaries} / ${network.collectingGranaries} collectors staffed · ${enabled}${aboveTarget}`;
+  const fireOutage = network.fireDisabledGranaries > 0
+    ? ` · ${network.fireDisabledGranaries} fire-disabled`
+    : '';
+  return `${network.stockTowardTarget.toFixed(1)} / ${network.targetStock.toFixed(1)} sheltered toward selected targets · ${network.targetShortfall.toFixed(1)} collection headroom · ${network.staffedCollectingGranaries} / ${network.collectingGranaries} collectors staffed · ${enabled}${fireOutage}${aboveTarget}`;
 }
 
 export function renderTownHallInspector(
@@ -1737,11 +1750,13 @@ export function renderTownHallInspector(
       <li><span>Parish territories</span><span>${formatSettlementParishCoverage(parishReliefPlan)}</span></li>
       <li><span>Daily parish alms</span><span>${parishReliefPlan.dailyAlmsRecipients} / ${parishReliefPlan.activeParishes} active parishes have an eligible poorest household</span></li>
       <li><span>Monday poor relief</span><span>${formatSettlementParishRelief(parishReliefPlan)}${parishReliefInspectButton}</span></li>`}
-      <li><span>Food reserve</span><span>${formatProvisionRunway(provisioning.foodRunwayDays)} · ${provisioning.totalFoodPerDay.toFixed(1)} consumed / day</span></li>
+      <li><span>Food reserve</span><span>${provisioning.usableFoodStock.toFixed(1)} usable / ${provisioning.foodStock.toFixed(1)} owned · ${formatProvisionRunway(provisioning.foodRunwayDays)} · ${provisioning.totalFoodPerDay.toFixed(1)} consumed / day</span></li>
       <li><span>Road-branch provisions</span><span>${formatRoadProvisioning(provisioning.roadBranches)}</span></li>
       ${freshFoodPreservationRows}
+      ${provisioning.displacedHouseholds > 0 ? `<li><span>Fire-displaced households</span><span>${provisioning.displacedHouseholds} ${provisioning.displacedHouseholds === 1 ? 'home' : 'homes'} · ${provisioning.displacedResidents} ${provisioning.displacedResidents === 1 ? 'resident' : 'residents'} excluded from consumption and delivery forecasts until recovery</span></li>` : ''}
       <li><span>Household delivery buffer</span><span>${formatHouseholdBufferReadiness(provisioning)}</span></li>
-      <li><span>Winter firewood</span><span>${Math.round(provisioning.firewoodStock)} / ${Math.ceil(provisioning.winterFirewoodNeed)} · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>
+      <li><span>Winter firewood</span><span>${Math.round(provisioning.usableFirewoodStock)} usable / ${Math.round(provisioning.firewoodStock)} owned · ${Math.ceil(provisioning.winterFirewoodNeed)} needed · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>
+      ${provisioning.fireQuarantinedFirewoodStock > 0.05 ? `<li><span>Fire-quarantined fuel</span><span>${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood inaccessible until the damaged store or home recovers</span></li>` : ''}
       ${provisioning.sabbathObserved ? `<li><span>Sunday household stores</span><span>${formatSabbathReadiness(provisioning)}</span></li>` : ''}
       <li><span>Processing basis</span><span>${processingWeek}</span></li>
       ${productionFireOutageRow}

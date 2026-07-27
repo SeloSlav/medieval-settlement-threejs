@@ -428,6 +428,10 @@ export class SettlementHud {
       provisioning.sabbathObserved
         ? `Sunday ${provisioning.sabbathReadyHouseholds}/${provisioning.sabbathHouseholds} homes`
         : null,
+      provisioning.fireQuarantinedFoodStock > 0.05
+        || provisioning.fireQuarantinedFirewoodStock > 0.05
+        ? `fire quarantine ${provisioning.fireQuarantinedFoodStock.toFixed(0)} food/${provisioning.fireQuarantinedFirewoodStock.toFixed(0)} fuel`
+        : null,
     ].filter(Boolean).join(' · ');
 
     this.provisionAlert.dataset.tooltip = [
@@ -441,6 +445,13 @@ export class SettlementHud {
       provisioning.heatedResidents > 0
         ? `A full winter needs about ${Math.ceil(provisioning.winterFirewoodNeed)} firewood at the current heated population.`
         : 'Tier-one households do not yet require household firewood.',
+      provisioning.displacedHouseholds > 0
+        ? `${provisioning.displacedResidents} residents in ${provisioning.displacedHouseholds} fire-disabled homes are excluded from demand and household-buffer forecasts until recovery.`
+        : 'No occupied household is currently fire-disabled.',
+      provisioning.fireQuarantinedFoodStock > 0.05
+        || provisioning.fireQuarantinedFirewoodStock > 0.05
+        ? `Fire quarantine makes ${provisioning.fireQuarantinedFoodStock.toFixed(1)} food and ${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood temporarily inaccessible. Food in damaged buildings continues to spoil.`
+        : 'No provisions are currently quarantined by structural fire damage.',
       `Fresh-food spoilage is currently ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}; ${Math.round(provisioning.protectedFoodShare * 100)}% is held in sheltered stores.`,
       `Local delivery buffer: ${formatHouseholdBufferReadiness(provisioning)}. Food, water, and provisions cover one workday; firewood covers the nightly no-cart interval.`,
       provisioning.roadBranches === null
@@ -449,11 +460,14 @@ export class SettlementHud {
       provisioning.sabbathObserved
         ? `Sunday readiness: ${formatSabbathReadiness(provisioning)}. Labor and carts rest, but households keep consuming delivered provisions.`
         : 'Sunday labor follows the normal schedule.',
-      'Guard food and household buffers use local stores. Headline runways remain settlement-wide; road-branch runways count only household stocks, dispatch-capable stores, and cargo already arriving on that branch. Both assume no new production.',
+      'Guard food and household buffers use local stores. Headline runways use settlement-wide stock that is currently accessible; road-branch runways count only household stocks, dispatch-capable stores, and cargo already arriving at a usable destination on that branch. Both assume no new production.',
     ].join(' · ');
 
     this.foodStat.dataset.tooltip = [
-      'Food in treasury, supplier buildings, guardhouses, and residence stocks combined.',
+      `${provisioning.foodStock.toFixed(1)} food is owned across the treasury, buildings, and homes; ${provisioning.usableFoodStock.toFixed(1)} is currently accessible.`,
+      provisioning.fireQuarantinedFoodStock > 0.05
+        ? `${provisioning.fireQuarantinedFoodStock.toFixed(1)} food is quarantined at fire-damaged sites and does not extend the runway.`
+        : null,
       `Current demand: ${provisioning.totalFoodPerDay.toFixed(1)} per day.`,
       `Current spoilage: ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}.`,
       `Spoilage-adjusted runway: ${formatProvisionRunway(provisioning.foodRunwayDays)}.`,
@@ -463,7 +477,10 @@ export class SettlementHud {
       'Granaries reduce fresh-food spoilage but add a collection haul; disable intake at a granary to keep local suppliers serving nearby homes directly.',
     ].filter(Boolean).join(' ');
     this.firewoodStat.dataset.tooltip = [
-      'Firewood in treasury, woodcutter lodges, storehouses, and residence stocks combined.',
+      `${provisioning.firewoodStock.toFixed(1)} firewood is owned across the treasury, buildings, and homes; ${provisioning.usableFirewoodStock.toFixed(1)} is currently accessible.`,
+      provisioning.fireQuarantinedFirewoodStock > 0.05
+        ? `${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood is quarantined at fire-damaged sites and does not extend the runway.`
+        : null,
       `Current runway: ${formatProvisionRunway(provisioning.currentFirewoodRunwayDays)}.`,
       `Winter runway: ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} at frost demand.`,
       provisioning.roadBranches === null || provisioning.roadBranches.heatedBranches === 0

@@ -34,7 +34,10 @@ import {
   type FreshFoodPreservation,
   spoilageAdjustedRunwayDays,
 } from './foodPreservation.ts';
-import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import {
+  fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
+} from '../fires/fireIncident.ts';
 
 export const WINTER_RESERVE_DAYS = CALENDAR_DAYS_PER_MONTH * 3;
 export const PROVISION_WARNING_DAYS = 5;
@@ -45,6 +48,8 @@ export const HOUSEHOLD_BUFFER_CRITICAL_COVERAGE = 0.5;
 export type SettlementProvisioning = {
   foodConsumers: number;
   heatedResidents: number;
+  displacedHouseholds: number;
+  displacedResidents: number;
   assignedGuards: number;
   armedGuards: number;
   unarmedGuards: number;
@@ -60,7 +65,11 @@ export type SettlementProvisioning = {
   householdBufferAleShortHomes: number;
   householdBufferClothShortHomes: number;
   foodStock: number;
+  usableFoodStock: number;
+  fireQuarantinedFoodStock: number;
   firewoodStock: number;
+  usableFirewoodStock: number;
+  fireQuarantinedFirewoodStock: number;
   householdFoodPerDay: number;
   guardFoodPerDay: number;
   totalFoodPerDay: number;
@@ -320,7 +329,8 @@ export function computeSettlementProvisioning(input: {
   const roadProvisionBranches = roadComponentFor
     ? new Map<string, RoadProvisionBranch>()
     : null;
-  const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+  const fireDisabledBuildings = fireDisabledBuildingIds(state.fireIncidents.values());
+  const fireDisabledResidences = fireDisabledResidenceIds(state.fireIncidents.values());
 
   const workdayFraction = Math.max(
     0,
@@ -331,6 +341,9 @@ export function computeSettlementProvisioning(input: {
   const sabbathFirewoodBufferSeconds = CALENDAR_SECONDS_PER_DAY + nightlyNoDeliverySeconds;
   let foodConsumers = 0;
   let heatedResidents = 0;
+  let displacedHouseholds = 0;
+  let displacedResidents = 0;
+  let fireQuarantinedFirewoodStock = 0;
   let householdBufferHouseholds = 0;
   let householdBufferReadyHouseholds = 0;
   let householdBufferFoodShortHomes = 0;
@@ -348,6 +361,16 @@ export function computeSettlementProvisioning(input: {
   let sabbathAleShortHomes = 0;
   let sabbathClothShortHomes = 0;
   for (const residence of state.residences.values()) {
+    if (fireDisabledResidences.has(residence.id)) {
+      fireQuarantinedFirewoodStock += finiteStock(
+        getNeedStock(residence.needs, 'firewood'),
+      );
+      if (!residence.abandoned && residence.population > 0) {
+        displacedHouseholds += 1;
+        displacedResidents += residence.population;
+      }
+      continue;
+    }
     if (residence.abandoned || residence.population <= 0) continue;
     foodConsumers += residence.population;
     if (residence.tier >= 2) {
@@ -485,6 +508,10 @@ export function computeSettlementProvisioning(input: {
   let guardFoodStock = 0;
   let guardProvisionRunwayDays = Number.POSITIVE_INFINITY;
   for (const building of state.buildings.values()) {
+    const fireDisabled = fireDisabledBuildings.has(building.id);
+    if (fireDisabled) {
+      fireQuarantinedFirewoodStock += finiteStock(building.firewood);
+    }
     if (roadProvisionBranches && roadComponentFor) {
       // Monastery charity has parish and route-length restrictions inside a
       // connected component. Count it only once a cart is actually bound for a
@@ -492,6 +519,7 @@ export function computeSettlementProvisioning(input: {
       // to homes outside the 520 m service route.
       if (
         building.kind !== 'monastery'
+        && !fireDisabled
         && isOperationalFoodSupplier(building)
         && building.food > 1e-6
       ) {
@@ -508,7 +536,7 @@ export function computeSettlementProvisioning(input: {
           buildingFreshFoodStorageFactor(building.kind),
         );
       }
-      if (isOperationalFirewoodSupplier(building)) {
+      if (!fireDisabled && isOperationalFirewoodSupplier(building)) {
         const branch = roadProvisionBranch(
           roadProvisionBranches,
           building,
@@ -523,7 +551,7 @@ export function computeSettlementProvisioning(input: {
       building.kind !== 'guardhouse'
       || building.constructionComplete === false
       || building.assignedLabor <= 0
-      || fireDisabled.has(building.id)
+      || fireDisabled
     ) {
       continue;
     }
@@ -563,13 +591,19 @@ export function computeSettlementProvisioning(input: {
         : undefined;
       if (
         residence
-        && (residence.abandoned || residence.population <= 0)
+        && (
+          residence.abandoned
+          || residence.population <= 0
+          || fireDisabledResidences.has(residence.id)
+        )
       ) {
         continue;
       }
       if (
         targetBuilding
         && (
+          fireDisabledBuildings.has(targetBuilding.id)
+          ||
           (
             trip.cargoKind === 'food'
             && (
@@ -615,6 +649,18 @@ export function computeSettlementProvisioning(input: {
   const foodPreservation = analyzeFreshFoodPreservation(
     state,
     freshFoodSpoilageFractionPerDay,
+    {
+      fireDisabledBuildingIds: fireDisabledBuildings,
+      fireDisabledResidenceIds: fireDisabledResidences,
+    },
+  );
+  const usableFoodStock = Math.max(
+    0,
+    Math.min(totals.food, foodPreservation.usableStock),
+  );
+  const usableFirewoodStock = Math.max(
+    0,
+    totals.firewood - fireQuarantinedFirewoodStock,
   );
   const currentFirewoodPerDay = heatedResidents
     * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
@@ -636,6 +682,8 @@ export function computeSettlementProvisioning(input: {
   return {
     foodConsumers,
     heatedResidents,
+    displacedHouseholds,
+    displacedResidents,
     assignedGuards,
     armedGuards,
     unarmedGuards: Math.max(0, assignedGuards - armedGuards),
@@ -653,27 +701,31 @@ export function computeSettlementProvisioning(input: {
     householdBufferAleShortHomes,
     householdBufferClothShortHomes,
     foodStock: totals.food,
+    usableFoodStock,
+    fireQuarantinedFoodStock: foodPreservation.quarantinedStock,
     firewoodStock: totals.firewood,
+    usableFirewoodStock,
+    fireQuarantinedFirewoodStock,
     householdFoodPerDay,
     guardFoodPerDay,
     totalFoodPerDay,
     foodSpoilagePerDay: foodPreservation.spoilagePerDay,
-    foodSpoilageFractionPerDay: foodPreservation.spoilageFractionPerDay,
-    protectedFoodShare: foodPreservation.protectedShare,
+    foodSpoilageFractionPerDay: foodPreservation.usableSpoilageFractionPerDay,
+    protectedFoodShare: foodPreservation.usableProtectedShare,
     foodPreservation,
-    foodRunwayWithoutSpoilageDays: runwayDays(totals.food, totalFoodPerDay),
+    foodRunwayWithoutSpoilageDays: runwayDays(usableFoodStock, totalFoodPerDay),
     foodRunwayDays: spoilageAdjustedRunwayDays(
-      totals.food,
+      usableFoodStock,
       totalFoodPerDay,
-      foodPreservation.spoilageFractionPerDay,
+      foodPreservation.usableSpoilageFractionPerDay,
     ),
     currentFirewoodPerDay,
-    currentFirewoodRunwayDays: runwayDays(totals.firewood, currentFirewoodPerDay),
+    currentFirewoodRunwayDays: runwayDays(usableFirewoodStock, currentFirewoodPerDay),
     winterFirewoodPerDay,
     winterFirewoodNeed,
-    winterFirewoodRunwayDays: runwayDays(totals.firewood, winterFirewoodPerDay),
+    winterFirewoodRunwayDays: runwayDays(usableFirewoodStock, winterFirewoodPerDay),
     winterFirewoodCoverage: winterFirewoodNeed > 1e-9
-      ? totals.firewood / winterFirewoodNeed
+      ? usableFirewoodStock / winterFirewoodNeed
       : Number.POSITIVE_INFINITY,
     guardWagePerDay,
     guardWageRunwayDays: runwayDays(totals.gold, guardWagePerDay),

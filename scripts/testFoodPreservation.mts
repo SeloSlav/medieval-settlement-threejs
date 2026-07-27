@@ -45,6 +45,7 @@ assert.equal(preservation.largestLossSite?.source, 'treasury');
 assert.ok(Math.abs((preservation.largestLossSite?.spoilagePerDay ?? 0) - 0.12) < 1e-9);
 assert.deepEqual(preservation.granaryNetwork, {
   completedGranaries: 1,
+  fireDisabledGranaries: 0,
   collectingGranaries: 1,
   staffedCollectingGranaries: 1,
   targetStock: 255,
@@ -126,6 +127,69 @@ const deepGranaryRows = renderFreshFoodPreservationRows(
 assert.match(deepGranaryRows, /306\.0 \/ 306\.0 sheltered toward selected targets/);
 assert.match(deepGranaryRows, /4\.0 above targets from baking or earlier stock/);
 
+const fireQuarantineState = emptyGameState();
+fireQuarantineState.stockpile.food = 10;
+fireQuarantineState.buildings.set(
+  'fire-granary',
+  building('fire-granary', 'granary', 20),
+);
+fireQuarantineState.buildings.set(
+  'fire-hunter',
+  building('fire-hunter', 'hunters_hall', 30),
+);
+fireQuarantineState.buildings.set(
+  'healthy-market',
+  building('healthy-market', 'marketplace', 10),
+);
+fireQuarantineState.residences.set(
+  'fire-home',
+  residence('fire-home', 40),
+);
+const fireQuarantine = analyzeFreshFoodPreservation(
+  fireQuarantineState,
+  ambientSpoilage,
+  {
+    fireDisabledBuildingIds: new Set(['fire-granary', 'fire-hunter']),
+    fireDisabledResidenceIds: new Set(['fire-home']),
+  },
+);
+assert.equal(fireQuarantine.totalStock, 110);
+assert.equal(fireQuarantine.usableStock, 20);
+assert.equal(fireQuarantine.quarantinedStock, 90);
+assert.equal(fireQuarantine.granaryNetwork.completedGranaries, 1);
+assert.equal(fireQuarantine.granaryNetwork.fireDisabledGranaries, 1);
+assert.equal(fireQuarantine.granaryNetwork.collectingGranaries, 0);
+assert.equal(fireQuarantine.largestLossSite?.id, 'fire-hunter');
+assert.ok(
+  Math.abs(
+    fireQuarantine.quarantinedSpoilagePerDay
+    - ambientSpoilage * (
+      20 * FRESH_FOOD_STORAGE_GRANARY_FACTOR
+      + 30
+    ),
+  ) < 1e-9,
+  'food in damaged buildings must remain in authoritative spoilage',
+);
+assert.ok(
+  Math.abs(
+    fireQuarantine.usableSpoilageFractionPerDay
+    - ambientSpoilage * (
+      (
+        10 * FRESH_FOOD_STORAGE_TREASURY_FACTOR
+        + 10 * FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR
+      ) / 20
+    ),
+  ) < 1e-9,
+);
+const fireQuarantineRows = renderFreshFoodPreservationRows(
+  fireQuarantine,
+  (kind) => kind,
+  () => null,
+);
+assert.match(fireQuarantineRows, /Fire-quarantined food/);
+assert.match(fireQuarantineRows, /90\.0 inaccessible until recovery/);
+assert.match(fireQuarantineRows, /every completed granary is fire-disabled/);
+
 const residenceNeeds = readFileSync(
   new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url),
   'utf8',
@@ -162,6 +226,10 @@ const townHallInspector = readFileSync(
   new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
   'utf8',
 );
+const serverFoodSpoilage = readFileSync(
+  new URL('../server/src/simulation/food_spoilage.rs', import.meta.url),
+  'utf8',
+);
 
 assert.match(residenceFood, /pub fn spoil\(/);
 assert.match(
@@ -192,6 +260,11 @@ assert.match(
 );
 assert.match(townHallInspector, /data-inspect-building=/);
 assert.match(townHallInspector, /data-inspect-residence=/);
+assert.match(
+  serverFoodSpoilage,
+  /for building in ctx\.db\.building\(\)\.iter\(\)[\s\S]*building\.food[\s\S]*storage_factor/,
+  'damaged building stores remain in the server-wide fresh-food spoilage pass',
+);
 
 const perfState = emptyGameState();
 for (let index = 0; index < 10_000; index += 1) {
@@ -204,16 +277,23 @@ assert.equal(perfResult.totalStock, 120_000);
 assert.ok(elapsedMs < 250, `10,000-home preservation analysis took ${elapsedMs.toFixed(1)} ms`);
 
 const granaryPerfState = emptyGameState();
+const fireDisabledGranaries = new Set<string>();
 for (let index = 0; index < 100_000; index += 1) {
   const granary = building(`granary-${index}`, 'granary', index % 341);
   granary.granaryFreshFoodTargetPercent = [25, 50, 75, 90][index % 4];
   granaryPerfState.buildings.set(granary.id, granary);
+  if (index % 2 === 0) fireDisabledGranaries.add(granary.id);
 }
 const granaryStarted = performance.now();
-const granaryPerfResult = analyzeFreshFoodPreservation(granaryPerfState, 0.018);
+const granaryPerfResult = analyzeFreshFoodPreservation(
+  granaryPerfState,
+  0.018,
+  { fireDisabledBuildingIds: fireDisabledGranaries },
+);
 const granaryElapsedMs = performance.now() - granaryStarted;
 assert.equal(granaryPerfResult.granaryNetwork.completedGranaries, 100_000);
-assert.equal(granaryPerfResult.granaryNetwork.collectingGranaries, 100_000);
+assert.equal(granaryPerfResult.granaryNetwork.fireDisabledGranaries, 50_000);
+assert.equal(granaryPerfResult.granaryNetwork.collectingGranaries, 50_000);
 assert.ok(
   granaryElapsedMs < 500,
   `100,000-granary preservation diagnostics took ${granaryElapsedMs.toFixed(1)} ms`,
