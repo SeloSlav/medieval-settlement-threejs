@@ -77,8 +77,13 @@ assert.ok(rainMoistureStart >= 0 && rainMoistureEnd > rainMoistureStart);
 const rainMoistureSource = ecologySource.slice(rainMoistureStart, rainMoistureEnd);
 assert.doesNotMatch(
   rainMoistureSource,
-  /\bw\.|geometricNormal|slope|texture\(|sin\(/,
-  'full-rain drainage must use fragment macro/height fields, not vertex-biome or normal inputs',
+  /\bw\.|lowland|world\.y|geometricNormal|slope|texture\(|sin\(/,
+  'full-rain drainage must use fragment macro fields, not vertex-biome, height, or normal inputs',
+);
+assert.match(
+  rainMoistureSource,
+  /macroA[\s\S]*?float\(0\.36\)[\s\S]*?macroB[\s\S]*?float\(0\.64\)/,
+  'full-rain drainage must retain a normalized blend of the existing fragment macro fields',
 );
 const rainColorStart = ecologySource.indexOf('const rainMacro =');
 const rainColorEnd = ecologySource.indexOf('const stableColorNode =');

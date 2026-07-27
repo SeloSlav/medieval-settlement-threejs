@@ -96,6 +96,8 @@ export type ResidenceBackyardProject = ResidenceMaterialProject & {
   kind: BackyardGardenKind;
 };
 
+export type ResidenceFireRepairProject = ResidenceMaterialProject;
+
 type UpgradeDefinition = {
   nextTier: 2 | 3;
   populationCapacity: number;
@@ -233,6 +235,14 @@ export function residenceBackyardProject(
     kind,
     ...residenceMaterialProject(residence, trips),
   };
+}
+
+export function residenceFireRepairProject(
+  residence: ResidenceState,
+  trips: Iterable<DeliveryTripState> = [],
+): ResidenceFireRepairProject | null {
+  if (residence.fireRepairActive !== true) return null;
+  return residenceMaterialProject(residence, trips);
 }
 
 function residenceMaterialProject(

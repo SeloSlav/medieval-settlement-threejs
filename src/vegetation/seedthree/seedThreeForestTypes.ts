@@ -37,6 +37,7 @@ export type SeedThreeForestController = {
     casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
   ): boolean;
   getStructuralStats(): SeedThreeForestStructuralStats;
+  setDeciduousDormancy(amount: number): void;
   setShadows(enabled: boolean): void;
   dispose(): void;
 };

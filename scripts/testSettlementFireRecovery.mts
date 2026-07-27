@@ -158,6 +158,57 @@ assert.match(rows, /burning damage can raise it/);
 assert.match(rows, /data-inspect-building="10"/);
 assert.match(rows, /data-inspect-building="11"/);
 
+const activeRepair = residence('22', 2, {
+  x: 30,
+  population: 0,
+  populationCapacity: 6,
+  fireRepairActive: true,
+  upgradePriority: 3,
+  upgradeProgress: 0.4,
+  upgradeRequiredTimber: 20,
+  upgradeRequiredStone: 12,
+  upgradeDeliveredTimber: 8,
+  upgradeDeliveredStone: 4,
+  upgradeReservedTimber: 12,
+  upgradeReservedStone: 8,
+  upgradeAssignedLabor: 1,
+});
+const activeRepairPlan = computeSettlementFireRecoveryPlan({
+  state: {
+    tick: currentTick,
+    buildings: new Map([[carpenter.id, carpenter]]),
+    residences: new Map([[activeRepair.id, activeRepair]]),
+    fireIncidents: new Map([
+      ['active-repair', fire('active-repair', 'residence', activeRepair.id, {
+        x: activeRepair.x,
+        status: 'destroyed',
+        intensity: 0,
+        damage: 1,
+        resolvedTick: currentTick - 10,
+      })],
+    ]),
+  },
+  resources: { timber: 0, stone: 0 },
+  roadComponentIdsFor,
+});
+assert.equal(activeRepairPlan.activeRecoveryCount, 1);
+assert.equal(activeRepairPlan.readyRecoveryCount, 0);
+assert.equal(activeRepairPlan.coolingRecoveryCount, 0);
+assert.equal(activeRepairPlan.estimatedTimberCost, 0);
+assert.equal(activeRepairPlan.estimatedStoneCost, 0);
+assert.equal(activeRepairPlan.timberShortfall, 0);
+assert.equal(activeRepairPlan.stoneShortfall, 0);
+assert.equal(activeRepairPlan.firstRecoveryTarget?.targetId, activeRepair.id);
+assert.equal(activeRepairPlan.firstRecoveryTarget?.recoveryActive, true);
+assert.equal(activeRepairPlan.firstRecoveryTarget?.workPriority, 3);
+const activeRepairRows = renderSettlementFireRecoveryRows(
+  activeRepairPlan,
+  (kind) => kind.replaceAll('_', ' '),
+);
+assert.match(activeRepairRows, /1 active · 0 ready · 0 cooling/);
+assert.match(activeRepairRows, /underway \(high work priority\)/);
+assert.match(activeRepairRows, /data-inspect-residence="22"/);
+
 const chapel = building('chapel-1', 'chapel', { assignedLabor: 1 });
 const chapelState = {
   buildings: new Map([[chapel.id, chapel]]),

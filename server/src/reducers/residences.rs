@@ -270,6 +270,7 @@ pub fn place_burgage_zone(
             upgrade_assigned_labor: 0,
             upgrade_priority: crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL,
             backyard_project_kind: 0,
+            fire_repair_active: false,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {
@@ -316,6 +317,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         residence.upgrade_target_tier,
         residence.tier,
         residence.backyard_project_kind,
+        residence.fire_repair_active,
     ) {
         return Err("This household already has improvement works underway.".to_string());
     }
@@ -453,6 +455,7 @@ pub fn set_residence_upgrade_priority(
         residence.upgrade_target_tier,
         residence.tier,
         residence.backyard_project_kind,
+        residence.fire_repair_active,
     ) {
         return Err("This residence has no improvement works underway.".to_string());
     }
@@ -624,17 +627,16 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
     }
 
     let zone_id = residence.zone_id;
-    let refund = residence_zone_cost(
-        if residence_fire_state(ctx, residence_id).is_none() && residence.tier >= 1 {
-            1
-        } else {
-            0
-        },
-    );
-    let recover_upgrade_materials = residence_fire_state(ctx, residence_id).is_none();
+    let fire_damaged = residence_fire_state(ctx, residence_id).is_some();
+    let refund = residence_zone_cost(if !fire_damaged && residence.tier >= 1 {
+        1
+    } else {
+        0
+    });
+    let recover_project_materials = !fire_damaged || residence.fire_repair_active;
     let salvage = ResourceAmount {
         timber: ((refund.timber
-            + if recover_upgrade_materials {
+            + if recover_project_materials {
                 residence.upgrade_delivered_timber
             } else {
                 0.0
@@ -642,7 +644,7 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
             * TIMBER_SALVAGE_FRACTION)
             .round(),
         stone: ((refund.stone
-            + if recover_upgrade_materials {
+            + if recover_project_materials {
                 residence.upgrade_delivered_stone
             } else {
                 0.0
@@ -703,12 +705,16 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
     let refund = residence_zone_cost(completed_intact_residence_count);
     let upgrade_timber = residences
         .iter()
-        .filter(|residence| residence_fire_state(ctx, residence.id).is_none())
+        .filter(|residence| {
+            residence_fire_state(ctx, residence.id).is_none() || residence.fire_repair_active
+        })
         .map(|residence| residence.upgrade_delivered_timber)
         .sum::<f64>();
     let upgrade_stone = residences
         .iter()
-        .filter(|residence| residence_fire_state(ctx, residence.id).is_none())
+        .filter(|residence| {
+            residence_fire_state(ctx, residence.id).is_none() || residence.fire_repair_active
+        })
         .map(|residence| residence.upgrade_delivered_stone)
         .sum::<f64>();
     let salvage = ResourceAmount {
@@ -727,10 +733,11 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
     };
     let mut physical_reclamation = false;
     for residence in &residences {
-        if residence_fire_state(ctx, residence.id).is_some() {
+        let fire_damaged = residence_fire_state(ctx, residence.id).is_some();
+        if fire_damaged && !residence.fire_repair_active {
             continue;
         }
-        let completed_structure = if residence.tier >= 1 {
+        let completed_structure = if !fire_damaged && residence.tier >= 1 {
             base_salvage
         } else {
             ReclamationStock::default()

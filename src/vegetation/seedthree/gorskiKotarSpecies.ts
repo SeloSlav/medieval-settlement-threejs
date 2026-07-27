@@ -81,3 +81,15 @@ export const GORSKI_KOTAR_PRESETS: SeedThreePresetKey[] = [
   'loblolly',
   'pine',
 ];
+
+const DECIDUOUS_PRESETS = new Set<SeedThreePresetKey>([
+  'americanBeech',
+  'whiteOak',
+  'redMaple',
+  'sweetgum',
+]);
+
+/** Presets whose broad leaves should drop during winter dormancy. */
+export function seedThreePresetIsDeciduous(preset: SeedThreePresetKey): boolean {
+  return DECIDUOUS_PRESETS.has(preset);
+}

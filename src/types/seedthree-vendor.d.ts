@@ -41,7 +41,15 @@ declare module '@seedthree/core/branch-cards.js' {
     foliageOnly?: boolean;
   };
 
-  export function forestCardMaterial(srcMat: THREE.Material): THREE.Material;
+  export function forestCardMaterial(
+    srcMat: THREE.Material,
+    options?: {
+      seasonalDeciduous?: boolean;
+      canopyTint?: readonly [number, number, number];
+      toneVariation?: number;
+    },
+  ): THREE.Material;
+  export function setForestCardDormancy(material: THREE.Material, amount: number): boolean;
 
   export function bakeBranchCards(
     renderer: unknown,

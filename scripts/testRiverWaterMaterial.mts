@@ -3,6 +3,13 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import {
+  isReedLodVisible,
+  REED_LOD_OPACITY_POWER,
+  REED_LOD_VISIBILITY_THRESHOLD,
+  reedLodOpacity,
+  resolveReedLod,
+} from '../src/grass/grassLodMath.ts';
+import {
   disposeSharedRiverWaterMaterial,
   getSharedRiverWaterMaterial,
   normalizeRiverWaterNightAmount,
@@ -35,6 +42,34 @@ import {
   computeShoreStoneVisualScale,
   computeShoreStoneVisualVariation,
 } from '../src/rivers/riverShoreStoneAppearance.ts';
+
+assert.equal(REED_LOD_OPACITY_POWER, 2);
+assert.ok(
+  REED_LOD_VISIBILITY_THRESHOLD >= 0.7,
+  'alpha-tested reed cards must stay hidden through the overview-scale aliasing band',
+);
+assert.equal(reedLodOpacity(-1), 0);
+assert.equal(reedLodOpacity(0), 0);
+assert.equal(reedLodOpacity(0.5), 0.25);
+assert.equal(reedLodOpacity(1), 1);
+assert.equal(reedLodOpacity(2), 1);
+assert.equal(
+  resolveReedLod(999, true),
+  1,
+  'first-person reeds must retain full close-detail LOD',
+);
+assert.equal(isReedLodVisible(REED_LOD_VISIBILITY_THRESHOLD - 0.001), false);
+assert.equal(isReedLodVisible(REED_LOD_VISIBILITY_THRESHOLD), true);
+const overviewReedLod = resolveReedLod(42, false);
+assert.ok(
+  reedLodOpacity(overviewReedLod) < overviewReedLod,
+  'partial orbit LOD must fade more aggressively than the old linear card opacity',
+);
+assert.equal(
+  isReedLodVisible(overviewReedLod),
+  false,
+  'review-scale orbit reeds must not collapse into detached alpha-tested dots',
+);
 
 const normal = new Float32Array(3);
 writeBoundedRiverWaterNormal(normal, 0, 8, -6);
@@ -165,6 +200,25 @@ const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const waterMaterialSource = readFileSync(
   `${projectRoot}src/rivers/RiverWaterMaterial.ts`,
   'utf8',
+);
+const reedSource = readFileSync(
+  `${projectRoot}src/rivers/RiverReeds.ts`,
+  'utf8',
+);
+assert.match(
+  reedSource,
+  /reedLodOpacity\(reedLod\)\s*\*\s*REED_PEAK_OPACITY/,
+  'runtime reeds must use the anti-aliasing opacity curve',
+);
+assert.match(
+  reedSource,
+  /isReedLodVisible\(reedLod\)/,
+  'runtime reeds must use the minimum readable-card reveal threshold',
+);
+assert.equal(
+  (reedSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
+  1,
+  'reed LOD must retain the existing single instanced draw',
 );
 assert.match(waterMaterialSource, /vec3\(0\.02,\s*0\.043,\s*0\.055\)/);
 assert.match(

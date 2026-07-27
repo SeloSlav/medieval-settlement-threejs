@@ -14,6 +14,7 @@ import { residenceSettlementReadiness } from '../src/economy/residenceSettlement
 import {
   evaluateResidenceUpgrade,
   residenceBackyardProject,
+  residenceFireRepairProject,
   residenceUpgradeProject,
   type ResidenceUpgradeServices,
 } from '../src/economy/residenceUpgrade.ts';
@@ -290,6 +291,46 @@ assert.equal(computeResourceTotals(backyardState).timber, 96);
 assert.equal(computeResourceTotals(backyardState).stone, 78);
 assert.equal(computePopulationStats(backyardState).assigned, 1);
 
+const activeFireRepair = residence('active-fire-repair', 2, 0);
+Object.assign(activeFireRepair, {
+  abandoned: false,
+  fireRepairActive: true,
+  upgradeProgress: 0.35,
+  upgradeRequiredTimber: 20,
+  upgradeRequiredStone: 12,
+  upgradeRequiredGold: 0,
+  upgradeDeliveredTimber: 8,
+  upgradeDeliveredStone: 3,
+  upgradeReservedTimber: 7,
+  upgradeReservedStone: 5,
+  upgradeReservedGold: 0,
+  upgradeAssignedLabor: 1,
+  upgradePriority: 3,
+});
+const fireRepairProject = residenceFireRepairProject(activeFireRepair);
+assert.ok(fireRepairProject);
+assert.equal(fireRepairProject.priorityLabel, 'Urgent');
+assert.deepEqual(fireRepairProject.required, { timber: 20, stone: 12, gold: 0 });
+assert.equal(residenceUpgradeProject(activeFireRepair), null);
+assert.equal(residenceBackyardProject(activeFireRepair), null);
+assert.equal(
+  residenceUpgradeWorkplaces([activeFireRepair]).length,
+  1,
+  'fire recovery should share the visible household builder path',
+);
+const fireRepairState = emptyGameState(
+  [Object.assign(building('repair-camp', 'founders_camp', 0), {
+    timber: 100,
+    stone: 80,
+    assignedLabor: 0,
+  })],
+  [activeFireRepair],
+  [],
+);
+assert.equal(computeResourceTotals(fireRepairState).timber, 93);
+assert.equal(computeResourceTotals(fireRepairState).stone, 75);
+assert.equal(computePopulationStats(fireRepairState).assigned, 1);
+
 const initialCottage = residence('initial-cottage', 0, 0);
 Object.assign(initialCottage, {
   populationCapacity: 3,
@@ -421,6 +462,8 @@ assert.match(residenceInspector, /TIMBER_SALVAGE_FRACTION \* 100\)}% timber/);
 assert.match(residenceInspector, /Cottage construction is physical/);
 assert.match(residenceInspector, /founders remain at camp/);
 assert.match(residenceInspector, /Cancel cottage works/);
+assert.match(residenceInspector, /Fire recovery worksite/);
+assert.match(residenceInspector, /active fire-recovery sites recover only material already delivered/);
 
 const residenceMarkers = source('../src/residences/ResidenceMarkers.ts');
 assert.match(residenceMarkers, /ResidenceUpgradeWorks/);
@@ -442,15 +485,41 @@ assert.match(
   /backyard_project_kind[\s\S]*BackyardGardenKind::from_id[\s\S]*backyard_garden\(\)\.insert/,
   'a productive garden row should only appear after its physical household project completes',
 );
+assert.match(
+  upgradeSimulation,
+  /if residence\.fire_repair_active[\s\S]*clear_fire_for_target[\s\S]*clear_residence_project/,
+  'fire recovery should clear the outage only after physical work completes',
+);
 
 const deliveryTrips = source('../server/src/simulation/delivery_trips.rs');
 assert.match(deliveryTrips, /try_start_residence_upgrade_supply_trip/);
 assert.match(deliveryTrips, /unload_residence_upgrade_material/);
 assert.match(deliveryTrips, /upgrade_reserved_gold/);
 assert.match(deliveryTrips, /residence_project_active/);
+assert.match(
+  deliveryTrips,
+  /tick\.residence_disabled_by_fire\(ctx, residence\.id\) && !residence\.fire_repair_active/,
+  'only recovery carts may enter a fire-disabled household destination',
+);
 
 const residenceBinding = source('../src/generated/residence_table.ts');
 assert.match(residenceBinding, /backyardProjectKind: __t\.u8\(\)/);
+assert.match(residenceBinding, /fireRepairActive: __t\.bool\(\)/);
+
+const recoveryReducer = source('../server/src/reducers/fire_recovery.rs');
+assert.match(recoveryReducer, /Homestead recovery is already underway/);
+assert.match(
+  recoveryReducer,
+  /if physical_economy[\s\S]*cancel_trips_for_residence[\s\S]*ensure_upgrade_source_route[\s\S]*fire_repair_active = true[\s\S]*upgrade_priority = CONSTRUCTION_PRIORITY_URGENT[\s\S]*return Ok\(\(\)\)[\s\S]*spend_aggregate_timber/,
+  'physical saves must reserve routed materials and return before the legacy aggregate fallback',
+);
+
+const fireSimulation = source('../server/src/simulation/fires.rs');
+assert.match(
+  fireSimulation,
+  /residence_project_active[\s\S]*cancel_trips_for_residence[\s\S]*clear_residence_project/,
+  'ignition should cancel any unfinished household works before fire loss is recorded',
+);
 
 console.log(
   `residence upgrade physical-work tests passed (${performanceElapsed.toFixed(1)}ms / 100k summaries)`,

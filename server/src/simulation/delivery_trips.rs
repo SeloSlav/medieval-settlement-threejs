@@ -556,10 +556,11 @@ pub fn try_start_residence_upgrade_supply_trip(
             residence.upgrade_target_tier,
             residence.tier,
             residence.backyard_project_kind,
+            residence.fire_repair_active,
         )
         || origin.owner != residence.owner
         || tick.building_disabled_by_fire(ctx, origin.id)
-        || tick.residence_disabled_by_fire(ctx, residence.id)
+        || (tick.residence_disabled_by_fire(ctx, residence.id) && !residence.fire_repair_active)
         || building_has_active_trip(ctx, origin.id)
         || (origin.kind == "village_storehouse" && building_has_inbound_supply_trip(ctx, origin.id))
         || labor_and_logistics_paused(ctx, tick, origin.owner, clock)
@@ -1195,6 +1196,7 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
                 residence.upgrade_target_tier,
                 residence.tier,
                 residence.backyard_project_kind,
+                residence.fire_repair_active,
             )
         })
     {
@@ -1216,6 +1218,7 @@ fn unload_residence_upgrade_material(
         residence.upgrade_target_tier,
         residence.tier,
         residence.backyard_project_kind,
+        residence.fire_repair_active,
     ) {
         return;
     }
@@ -1388,6 +1391,7 @@ fn return_trip_cargo_to_building(ctx: &ReducerContext, trip: &DeliveryTrip) {
                         residence.upgrade_target_tier,
                         residence.tier,
                         residence.backyard_project_kind,
+                        residence.fire_repair_active,
                     ) {
                         match commodity {
                             CommodityKind::Timber => {

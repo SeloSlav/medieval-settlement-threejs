@@ -24,7 +24,8 @@ use crate::simulation::delivery_trips::{
     try_start_residence_upgrade_supply_trip, DeliveryTripPhase, DELIVERY_DESTINATION_RESIDENCE,
 };
 use crate::simulation::{
-    ensure_residence_needs, labor_and_logistics_paused, GameClock, SimTickContext,
+    clear_fire_for_target, ensure_residence_needs, labor_and_logistics_paused, GameClock,
+    SimTickContext, FIRE_TARGET_RESIDENCE,
 };
 use crate::supply_policy::{construction_source_priority, select_supply_route_candidate};
 use crate::tables::{BackyardGarden, Building, Residence};
@@ -41,12 +42,14 @@ pub fn step_residence_upgrades(ctx: &ReducerContext, tick: &SimTickContext, cloc
             residence.upgrade_target_tier,
             residence.tier,
             residence.backyard_project_kind,
+            residence.fire_repair_active,
         )
     }) {
+        let fire_repair = residence.fire_repair_active;
         let initial_cottage_works = residence.tier == 0 && residence.upgrade_target_tier == 1;
-        let suspended = residence.abandoned
-            || (residence.population == 0 && !initial_cottage_works)
-            || tick.residence_disabled_by_fire(ctx, residence.id)
+        let suspended = (residence.abandoned && !fire_repair)
+            || (residence.population == 0 && !initial_cottage_works && !fire_repair)
+            || (tick.residence_disabled_by_fire(ctx, residence.id) && !fire_repair)
             || construction_priority_bucket(residence.upgrade_priority)
                 == CONSTRUCTION_PRIORITY_HOLD as usize;
         if suspended {
@@ -334,6 +337,14 @@ fn advance_upgrade_work(
 }
 
 fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
+    if residence.fire_repair_active {
+        clear_fire_for_target(ctx, FIRE_TARGET_RESIDENCE, residence.id);
+        residence.abandoned = false;
+        residence.settlement_ticks = 0;
+        clear_residence_project(residence);
+        return true;
+    }
+
     if residence.backyard_project_kind != 0 {
         if BackyardGardenKind::from_id(residence.backyard_project_kind).is_some()
             && ctx
@@ -381,4 +392,5 @@ pub(crate) fn clear_residence_project(residence: &mut Residence) {
     residence.upgrade_assigned_labor = 0;
     residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
     residence.backyard_project_kind = 0;
+    residence.fire_repair_active = false;
 }

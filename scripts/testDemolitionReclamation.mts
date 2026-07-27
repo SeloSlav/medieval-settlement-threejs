@@ -143,7 +143,8 @@ assert.match(backyardInspector, /Reclamation pile blocks rebuilding/);
 assert.match(backyardInspector, /A free hauler must cart it to connected storage/);
 const residenceInspector = read('src/resources/inspector/residenceRenderer.ts');
 assert.match(residenceInspector, /separate reclamation/);
-assert.match(residenceInspector, /every intact footprint remains occupied/);
+assert.match(residenceInspector, /active fire-recovery sites recover only material already delivered/);
+assert.match(residenceInspector, /every salvage-bearing footprint remains occupied/);
 
 const commodities = read('server/src/economy/commodities.rs');
 assert.match(commodities, /Self::Gold => 15/);

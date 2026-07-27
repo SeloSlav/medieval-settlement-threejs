@@ -1,7 +1,6 @@
 import {
   formatBuildingCost,
   residenceZoneCost,
-  residenceZoneSalvageRefund,
   STONE_SALVAGE_FRACTION,
   TIMBER_SALVAGE_FRACTION,
 } from '../buildingEconomy.ts';
@@ -43,7 +42,9 @@ import { residenceSettlementReadiness } from '../../economy/residenceSettlement.
 import {
   evaluateResidenceUpgrade,
   residenceBackyardProject,
+  residenceFireRepairProject,
   residenceUpgradeProject,
+  type ResidenceFireRepairProject,
   type ResidenceUpgradePlan,
   type ResidenceUpgradeProject,
   type ResidenceUpgradeServiceKind,
@@ -81,11 +82,12 @@ export function renderResidenceInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { residence, zone, residenceCount } = target;
-  const fireDisabled = fireForTarget(
+  const residenceFire = fireForTarget(
     context.gameState.fireIncidents.values(),
     'residence',
     residence.id,
-  ) !== null;
+  );
+  const fireDisabled = residenceFire !== null;
   const intactPlotResidences = Array.from(context.gameState.residences.values()).filter(
     (candidate) =>
       candidate.zoneId === zone.id
@@ -95,13 +97,36 @@ export function renderResidenceInspector(
         candidate.id,
       ) === null,
   );
-  const intactPlotResidenceCount = intactPlotResidences.length;
   const completedIntactPlotResidenceCount = intactPlotResidences.filter(
     (candidate) => candidate.tier >= 1,
   ).length;
+  const reclaimablePlotResidences = Array.from(context.gameState.residences.values()).filter(
+    (candidate) =>
+      candidate.zoneId === zone.id
+      && (
+        fireForTarget(
+          context.gameState.fireIncidents.values(),
+          'residence',
+          candidate.id,
+        ) === null
+        || candidate.fireRepairActive === true
+      ),
+  );
+  const reclaimablePlotResidenceCount = reclaimablePlotResidences.length;
   const singleCost = residenceZoneCost(1);
   const singleRefund = fireDisabled
-    ? residenceZoneSalvageRefund(0)
+    ? {
+        timber: residence.fireRepairActive === true
+          ? Math.round(
+              (residence.upgradeDeliveredTimber ?? 0) * TIMBER_SALVAGE_FRACTION,
+            )
+          : 0,
+        stone: residence.fireRepairActive === true
+          ? Math.round(
+              (residence.upgradeDeliveredStone ?? 0) * STONE_SALVAGE_FRACTION,
+            )
+          : 0,
+      }
     : {
         timber: Math.round(
           ((residence.tier >= 1 ? singleCost.timber : 0)
@@ -117,7 +142,7 @@ export function renderResidenceInspector(
   const plotRefund = {
     timber: Math.round(
       (residenceZoneCost(completedIntactPlotResidenceCount).timber
-        + intactPlotResidences.reduce(
+        + reclaimablePlotResidences.reduce(
           (sum, candidate) => sum + (candidate.upgradeDeliveredTimber ?? 0),
           0,
         ))
@@ -125,7 +150,7 @@ export function renderResidenceInspector(
     ),
     stone: Math.round(
       (residenceZoneCost(completedIntactPlotResidenceCount).stone
-        + intactPlotResidences.reduce(
+        + reclaimablePlotResidences.reduce(
           (sum, candidate) => sum + (candidate.upgradeDeliveredStone ?? 0),
           0,
         ))
@@ -167,8 +192,12 @@ export function renderResidenceInspector(
     residence,
     context.gameState.deliveryTrips.values(),
   );
+  const fireRepairProject = residenceFireRepairProject(
+    residence,
+    context.gameState.deliveryTrips.values(),
+  );
   const initialConstruction = residence.tier === 0 && upgradeProject?.targetTier === 1;
-  const upgradePlan = upgradeProject || backyardProject
+  const upgradePlan = upgradeProject || backyardProject || fireRepairProject
     ? null
     : evaluateResidenceUpgrade(
       residence,
@@ -337,17 +366,30 @@ export function renderResidenceInspector(
           : kind
     )
     .join(', ');
-  const displayedNeedsLabel = initialConstruction
+  const displayedNeedsLabel = fireRepairProject
+    ? 'Suspended until structural recovery is complete'
+    : initialConstruction
     ? 'None until the cottage is complete'
     : activeNeedsLabel;
-  const statusText = initialConstruction && upgradeProject
+  const statusText = fireRepairProject
+    ? fireRepairProject.blockers[0]
+      ?? `Structural recovery ${Math.round(fireRepairProject.progress * 100)}% complete`
+    : initialConstruction && upgradeProject
     ? upgradeProject.blockers[0]
       ?? `Cottage frame ${Math.round(upgradeProject.progress * 100)}% complete`
     : needs.label;
 
   return {
-    eyebrow: initialConstruction ? 'Cottage worksite' : 'Residence',
-    title: initialConstruction
+    eyebrow: fireRepairProject
+      ? 'Fire recovery worksite'
+      : initialConstruction
+        ? 'Cottage worksite'
+        : 'Residence',
+    title: fireRepairProject
+      ? residenceFire?.status === 'destroyed'
+        ? 'Homestead reconstruction'
+        : 'Homestead repairs'
+      : initialConstruction
       ? 'Cottage construction'
       : residence.abandoned
       ? 'Abandoned residence'
@@ -355,16 +397,20 @@ export function renderResidenceInspector(
         ? 'Residence'
         : `Residence plot (${residenceCount} residences)`,
     statusText,
-    statusState: initialConstruction && upgradeProject
-      ? upgradeProject.blockers.length === 0 ? 'ok' : 'warning'
-      : needs.state,
+    statusState: fireRepairProject
+      ? fireRepairProject.blockers.length === 0 ? 'ok' : 'warning'
+      : initialConstruction && upgradeProject
+        ? upgradeProject.blockers.length === 0 ? 'ok' : 'warning'
+        : needs.state,
     detailsHtml: `
       <li><span>Plots</span><span>${zone.plotCount}</span></li>
       <li><span>Residences</span><span>${residenceCount}</span></li>
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${initialConstruction ? `0 / ${capacity} · founders remain at camp` : `${residence.abandoned ? 0 : residence.population} / ${capacity}`}</span></li>
       <li><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : `${residence.tier} / 3`}</span></li>
-      ${upgradeProject
+      ${fireRepairProject
+        ? residenceFireRepairProjectRows(fireRepairProject, residence.tier)
+        : upgradeProject
         ? residenceUpgradeProjectRows(upgradeProject, initialConstruction)
         : backyardProject
           ? `<li><span>Household works</span><span>${backyardGardenLabel(backyardProject.kind)} · ${Math.round(backyardProject.progress * 100)}% complete · shares the construction queue</span></li>`
@@ -425,18 +471,22 @@ export function renderResidenceInspector(
       label: initialConstruction ? 'Cancel cottage works' : 'Remove residence',
       hint: initialConstruction
         ? `Cancels this cottage and leaves about ${singleRefund.timber} timber and ${singleRefund.stone} stone from material already delivered onsite. Reserved stock and incoming carts are released back to connected stores.`
+        : fireRepairProject
+          ? `Clears the damaged homestead and leaves about ${singleRefund.timber} timber and ${singleRefund.stone} stone from recovery material already delivered onsite. Reserved stock and incoming carts return to connected stores.`
         : fireDisabled
         ? 'Removes this fire-damaged residence. Its structural material is no longer recoverable.'
         : `Leaves about ${singleRefund.timber} timber and ${singleRefund.stone} stone at this cottage footprint (${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber, ${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone of ${formatBuildingCost(singleCost)}). A free hauler must cart it to connected storage before the footprint clears.`,
       secondary: residenceCount > 1
         ? {
             label: 'Remove entire plot',
-            hint: `Removes all ${residenceCount} residences and leaves up to ${intactPlotResidenceCount} separate reclamation ${intactPlotResidenceCount === 1 ? 'pile' : 'piles'} with about ${plotRefund.timber} timber and ${plotRefund.stone} stone total. Unfinished cottages recover only material already delivered; fire-damaged cottages yield nothing; every intact footprint remains occupied until free haulers reach connected storage.`,
+            hint: `Removes all ${residenceCount} residences and leaves up to ${reclaimablePlotResidenceCount} separate reclamation ${reclaimablePlotResidenceCount === 1 ? 'pile' : 'piles'} with about ${plotRefund.timber} timber and ${plotRefund.stone} stone total. Unfinished cottages and active fire-recovery sites recover only material already delivered; unrepaired fire damage yields nothing; every salvage-bearing footprint remains occupied until free haulers reach connected storage.`,
           }
         : undefined,
     },
     labor: hiddenLabor(),
-    supplementalPanelHtml: upgradeProject
+    supplementalPanelHtml: fireRepairProject
+      ? residenceFireRepairProjectPanel(fireRepairProject)
+      : upgradeProject
       ? residenceUpgradeProjectPanel(upgradeProject, initialConstruction)
       : backyardProject
         ? `<p class="resource-inspector-note">${backyardGardenLabel(backyardProject.kind)} works are using this household's builder slot. Select the backyard marker to inspect carts, materials, priority, or cancel the project.</p>`
@@ -486,6 +536,27 @@ function residenceUpgradeProjectRows(
     <li><span>Stone onsite</span><span>${formatUpgradeAmount(project.delivered.stone)} / ${formatUpgradeAmount(project.required.stone)} · ${formatUpgradeAmount(project.reserved.stone)} reserved</span></li>
     <li><span>Coin onsite</span><span>${formatUpgradeAmount(project.delivered.gold)} / ${formatUpgradeAmount(project.required.gold)} · ${formatUpgradeAmount(project.reserved.gold)} reserved</span></li>
     <li><span>Incoming haul</span><span>${incoming}</span></li>
+  `;
+}
+
+function residenceFireRepairProjectRows(
+  project: ResidenceFireRepairProject,
+  tier: number,
+): string {
+  const incoming = project.incomingTrips.length === 0
+    ? 'None'
+    : project.incomingTrips.map((trip) =>
+      `${formatUpgradeAmount(trip.amount)} ${trip.cargoKind} <button type="button" class="inspector-jump-button" data-inspect-delivery-trip="${trip.id}" aria-label="Inspect incoming ${trip.cargoKind} cart">Inspect cart</button>`,
+    ).join(' · ');
+  return `
+    <li><span>Recovery target</span><span>Restore tier ${tier} homestead</span></li>
+    <li><span>Builder progress</span><span>${Math.round(project.progress * 100)}%</span></li>
+    <li><span>Queue priority</span><span>${project.priorityLabel}</span></li>
+    <li><span>Builder</span><span>${project.assignedLabor > 0 ? '1 on structural recovery' : 'Waiting for free labor'}</span></li>
+    <li><span>Timber onsite</span><span>${formatUpgradeAmount(project.delivered.timber)} / ${formatUpgradeAmount(project.required.timber)} · ${formatUpgradeAmount(project.reserved.timber)} at source</span></li>
+    <li><span>Stone onsite</span><span>${formatUpgradeAmount(project.delivered.stone)} / ${formatUpgradeAmount(project.required.stone)} · ${formatUpgradeAmount(project.reserved.stone)} at source</span></li>
+    <li><span>Incoming haul</span><span>${incoming}</span></li>
+    <li><span>Household activity</span><span>Resumes only after structural recovery is complete</span></li>
   `;
 }
 
@@ -545,6 +616,19 @@ function residenceUpgradeProjectPanel(
     <p class="resource-inspector-note">${initialConstruction
       ? 'Cottage construction is physical: founders remain at camp while one builder raises the frame from onsite timber and stone brought by carts.'
       : 'Household works are physical: one builder works from onsite timber and stone, while carts bring reserved stores and civic coin.'} ${status} Hold releases the builder and stops new carts without losing reservations.</p>
+    <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
+      residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
+  </div>`;
+}
+
+function residenceFireRepairProjectPanel(
+  project: ResidenceFireRepairProject,
+): string {
+  const status = project.blockers.length === 0
+    ? 'Supplied and staffed; recovery advances as delivered material permits.'
+    : project.blockers.join(' · ');
+  return `<div class="inspector-action-panel">
+    <p class="resource-inspector-note">Recovery is physical: the damaged home remains offline while one builder uses timber and stone brought from real stores by cart. ${status} Hold releases the builder and stops new carts without losing reservations.</p>
     <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
       residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
   </div>`;

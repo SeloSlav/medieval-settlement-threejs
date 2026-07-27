@@ -5,18 +5,21 @@ use crate::balance_generated::{
     RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_STONE_COST,
     RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIMBER_COST, TICK_DT,
 };
+use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
 use crate::db::*;
 use crate::economy::{
     available_building_labor, building_cost, construction_treasury_reservation_excluding_building,
     initial_construction_labor, reconcile_building_labor, spend_aggregate_stone,
-    spend_aggregate_timber, total_stone, total_timber,
+    spend_aggregate_timber, total_stone, total_timber, CommodityKind,
 };
 use crate::fire_recovery_policy::{fire_recovery_cost, FireRecoveryCost};
 use crate::lifecycle::ensure_player_resources;
+use crate::reducers::residences::ensure_upgrade_source_route;
 use crate::roads::load_owner_road_network;
 use crate::simulation::{
-    building_fire_state, clear_fire_for_target, ensure_residence_needs, FIRE_STATE_BURNING,
-    FIRE_STATE_DESTROYED, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE,
+    building_fire_state, cancel_trips_for_residence, clear_fire_for_target,
+    clear_residence_project, ensure_residence_needs, FIRE_STATE_BURNING, FIRE_STATE_DESTROYED,
+    FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE,
 };
 use crate::tables::{Building, FireIncident, Residence};
 
@@ -148,6 +151,9 @@ fn repair_residence(
     if residence.owner != owner {
         return Err("You do not own this fire-damaged residence.".to_string());
     }
+    if residence.fire_repair_active {
+        return Err("Homestead recovery is already underway.".to_string());
+    }
 
     let (base_timber, base_stone) = residence_structural_cost(&residence);
     let timber_multiplier = if has_operational_carpenter_support(ctx, owner, &residence) {
@@ -162,6 +168,59 @@ fn repair_residence(
         incident.state == FIRE_STATE_DESTROYED,
         timber_multiplier,
     );
+    let physical_economy = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if physical_economy {
+        // Fire invalidates any unfinished household improvement. Incoming
+        // carts return to their source, onsite material is part of the loss,
+        // and its reservations are released before the recovery quote is
+        // checked. Reducer transactions roll this preparation back on error.
+        cancel_trips_for_residence(ctx, residence.id);
+        clear_residence_project(&mut residence);
+        ctx.db.residence().id().update(residence.clone());
+
+        ensure_recovery_resources(ctx, owner, cost)?;
+        let network = load_owner_road_network(ctx, owner).ok_or_else(|| {
+            "Homestead recovery requires a road-linked material source.".to_string()
+        })?;
+        ensure_upgrade_source_route(
+            ctx,
+            &network,
+            &residence,
+            CommodityKind::Timber,
+            cost.timber,
+        )?;
+        ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Stone, cost.stone)?;
+
+        residence.abandoned = false;
+        residence.settlement_ticks = 0;
+        residence.fire_repair_active = true;
+        residence.upgrade_progress = 0.0;
+        residence.upgrade_required_timber = cost.timber;
+        residence.upgrade_required_stone = cost.stone;
+        residence.upgrade_required_gold = 0.0;
+        residence.upgrade_delivered_timber = 0.0;
+        residence.upgrade_delivered_stone = 0.0;
+        residence.upgrade_delivered_gold = 0.0;
+        residence.upgrade_reserved_timber = cost.timber;
+        residence.upgrade_reserved_stone = cost.stone;
+        residence.upgrade_reserved_gold = 0.0;
+        residence.upgrade_assigned_labor = available_building_labor(ctx, owner).min(1);
+        residence.upgrade_priority = CONSTRUCTION_PRIORITY_URGENT;
+        if incident.state == FIRE_STATE_DESTROYED {
+            residence.population = 0;
+        }
+        ctx.db.residence().id().update(residence);
+        if incident.state == FIRE_STATE_DESTROYED {
+            reconcile_building_labor(ctx, owner);
+        }
+        return Ok(());
+    }
+
     ensure_recovery_resources(ctx, owner, cost)?;
     spend_aggregate_timber(ctx, owner, cost.timber)?;
     spend_aggregate_stone(ctx, owner, cost.stone)?;

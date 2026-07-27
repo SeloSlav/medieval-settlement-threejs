@@ -139,6 +139,14 @@ const terrainMaterialSource = readFileSync(
   `${projectRoot}src/terrain/TerrainGrassMaterial.ts`,
   'utf8',
 );
+const roadEdgeMaterialSource = exportedFunctionSource(
+  roadMaterialSource,
+  'createRoadEdgeMaterial',
+);
+const riverBankMaterialSource = exportedFunctionSource(
+  roadMaterialSource,
+  'createRiverBankMaterial',
+);
 
 assert.match(rendererSource, /Two identical vertical tiles prevent a visible empty band/);
 assert.match(rendererSource, /const RAIN_BASE_PARTICLES = 1_800/);
@@ -207,6 +215,26 @@ assert.match(
 assert.match(roadMaterialSource, /weather\.wetness/);
 assert.match(roadMaterialSource, /weather\.frost/);
 assert.match(roadMaterialSource, /applyRoadWeatherRoughness/);
+assert.match(
+  roadEdgeMaterialSource,
+  /let opacity\s*=\s*buildBankOpacityNode\(textures\)/,
+  'road-edge alpha masking must remain on its existing opacity-node path',
+);
+assert.doesNotMatch(
+  riverBankMaterialSource,
+  /material\.alphaMap/,
+  'river-bank mud must not multiply its edge mask through a duplicate alphaMap path',
+);
+assert.match(
+  riverBankMaterialSource,
+  /material\.opacityNode\s*=\s*buildRiverBankOpacityNode\(textures\)/,
+  'river-bank mud must retain its radial fade and single edge-mask opacity path',
+);
+assert.match(
+  roadMaterialSource,
+  /function buildRiverBankOpacityNode[\s\S]*?texture\(textures\.edgeMask,\s*uvNode\)/,
+  'river-bank opacity must continue sampling the edge mask once',
+);
 assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
 assert.match(terrainMaterialSource, /const stableColorNode = biomeBaseColor/);
@@ -265,3 +293,10 @@ assert.doesNotMatch(
 );
 
 console.log('precipitation visual tests passed');
+
+function exportedFunctionSource(source: string, name: string): string {
+  const start = source.indexOf(`export function ${name}`);
+  assert.ok(start >= 0, `expected exported function ${name}`);
+  const next = source.indexOf('\nexport function ', start + 1);
+  return source.slice(start, next >= 0 ? next : source.length);
+}

@@ -198,6 +198,7 @@ export class App {
     this.burgageTool = session.burgageTool;
     this.farmFieldTool = session.farmFieldTool;
     this.buildingMarkers = session.buildingMarkers;
+    this.buildingMarkers.setEnvironment(weatherPreview);
     this.deliveryAgents = session.deliveryAgents;
     this.fireEffects = session.fireEffects;
     this.villagers = session.villagers;
@@ -683,6 +684,7 @@ export class App {
       this.spacetimeSnapshotApplier.reset();
       this.settlementPresentation.reset();
       this.ambientAudio?.syncEnvironment(null);
+      if (!this.visualQaConditions) this.buildingMarkers?.setEnvironment(null);
       this.toolbar?.setConflictEnabled(false);
       this.clearFrontierRiskFeedback();
       this.toolbar?.settlementHud.setSecurityState(
@@ -757,6 +759,7 @@ export class App {
       this.visualQaConditions ? undefined : environmentOutlook,
     );
     this.sceneManager?.setEnvironment(presentationEnvironment);
+    this.buildingMarkers?.setEnvironment(presentationEnvironment);
     this.ambientAudio?.syncEnvironment(presentationEnvironment);
     this.toolbar?.settlementHud.setFireState(
       state.fireIncidents.values(),

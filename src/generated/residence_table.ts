@@ -39,4 +39,5 @@ export default __t.row({
   upgradeAssignedLabor: __t.u32().name("upgrade_assigned_labor"),
   upgradePriority: __t.u8().name("upgrade_priority"),
   backyardProjectKind: __t.u8().name("backyard_project_kind"),
+  fireRepairActive: __t.bool().name("fire_repair_active"),
 });

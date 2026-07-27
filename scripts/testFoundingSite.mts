@@ -7,7 +7,9 @@ import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import {
   animateFoundersCampfire,
   FOUNDERS_CAMPFIRE_NAME,
+  FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
   setFoundersCampfireNightLighting,
+  setFoundersCampWinterAccumulation,
 } from '../src/buildings/meshes/foundersCampMesh.ts';
 import {
   FIRE_EFFECT_FLAMES_NAME,
@@ -77,6 +79,67 @@ assert.ok(timber instanceof THREE.Group);
 assert.ok(stone instanceof THREE.Group);
 assert.ok(chest instanceof THREE.Group);
 assert.ok(campfire instanceof THREE.Group);
+const winterAccumulation: THREE.Object3D[] = [];
+mesh.traverse((object) => {
+  if (object.userData.foundersCampWinterAccumulation === true) {
+    winterAccumulation.push(object);
+  }
+});
+assert.equal(
+  winterAccumulation.length,
+  2,
+  'winter coherence should cost only one merged camp layer and one timber instance draw',
+);
+assert.ok(
+  winterAccumulation.every((object) => object.visible === false),
+  'non-winter camp rendering must remain bit-identical with accumulation hidden by default',
+);
+const campAccumulation = winterAccumulation.find(
+  (object) => object.name === 'Founders camp winter accumulation',
+);
+const timberAccumulation = mesh.getObjectByName(
+  FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
+);
+assert.ok(campAccumulation instanceof THREE.Mesh);
+assert.ok(timberAccumulation instanceof THREE.InstancedMesh);
+assert.equal(
+  timberAccumulation.count,
+  FOUNDING_TIMBER_VISUAL_SEGMENTS,
+  'winter timber cover must retain one quantity-addressable instance per stock segment',
+);
+assert.equal(
+  campAccumulation.material,
+  timberAccumulation.material,
+  'camp winter surfaces must reuse one existing shared material',
+);
+assert.equal(
+  (campAccumulation.material as THREE.Material).name,
+  'Shared building material: plasterWhite',
+  'winter accumulation should reuse the established pale rough building material',
+);
+campAccumulation.geometry.computeBoundingBox();
+assert.ok(campAccumulation.geometry.boundingBox!.max.y > 2.3);
+assert.ok(campAccumulation.geometry.boundingBox!.min.x < -4.8);
+assert.ok(campAccumulation.geometry.boundingBox!.max.x > 5);
+const heraldicRed = mesh.getObjectByName('Weathered red wool pennant') as THREE.Mesh;
+assert.ok(heraldicRed instanceof THREE.Mesh);
+const heraldicMaterial = heraldicRed.material as THREE.MeshStandardMaterial;
+const heraldicColor = heraldicMaterial.color.getHex();
+setFoundersCampWinterAccumulation(mesh, true);
+assert.ok(
+  winterAccumulation.every((object) => object.visible === true),
+  'winter must reveal both the tent/prop layer and stock-aware timber accumulation',
+);
+assert.equal(
+  heraldicMaterial.color.getHex(),
+  heraldicColor,
+  'winter accumulation must preserve the warm red heraldic accent',
+);
+setFoundersCampWinterAccumulation(mesh, false);
+assert.ok(
+  winterAccumulation.every((object) => object.visible === false),
+  'leaving winter must restore the exact original camp submission set',
+);
 assert.equal(mesh.userData.fpCollisionChildrenOnly, true);
 const tents = shelters.children.filter((child) => child.name === 'Founding canvas tent');
 assert.equal(tents.length, 3, 'the occupied camp should have three modeled canvas tents');
@@ -466,6 +529,16 @@ assert.match(
   'a struck camp must not keep an invisible fire effect in the per-frame animation set',
 );
 const appSource = read('src/app/App.ts');
+assert.match(
+  appSource,
+  /this\.buildingMarkers\.setEnvironment\(weatherPreview\)/,
+  'offline visual-QA must pass its season preset into the existing camp markers',
+);
+assert.match(
+  appSource,
+  /this\.sceneManager\?\.setEnvironment\(presentationEnvironment\);\s*this\.buildingMarkers\?\.setEnvironment\(presentationEnvironment\);/,
+  'authoritative season changes must update terrain and camp winter visuals together',
+);
 assert.match(
   appSource,
   /const presentationState = this\.getVisualQaPresentationState\(this\.gameState\);[\s\S]*?syncPlacedBuildingTerrain\(\{[\s\S]*?gameState: presentationState,[\s\S]*?forceMeshUpdate: true,[\s\S]*?\}\);\s*\/\/ Terrain sync[\s\S]*?this\.syncVisualQaFoundersCampFixture\(\);/,

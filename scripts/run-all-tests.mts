@@ -93,6 +93,7 @@ const tests = [
   'test:river-simulation',
   'test:river-water-material',
   'test:seedthree-forest-compaction',
+  'test:seedthree-winter-foliage',
   'test:terrain-ecology-material',
 ] as const;
 

@@ -184,6 +184,10 @@ export class ForestManager {
     return this.activeRockPlacements;
   }
 
+  setDeciduousDormancy(amount: number): void {
+    this.seedThreeForest?.setDeciduousDormancy(amount);
+  }
+
   isTreeLayoutActiveForCollision(layoutIndex: number): boolean {
     return layoutIndex >= 0
       && layoutIndex < this.placements.length

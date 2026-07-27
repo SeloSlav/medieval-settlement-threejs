@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   addMesh,
   metalMaterial,
@@ -19,8 +20,12 @@ import {
 import { markBuildingDetailShadowCaster } from '../buildingShadowProxy.ts';
 
 export const FOUNDERS_CAMPFIRE_NAME = 'FoundingCampfire';
+export const FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME =
+  'Founding timber winter accumulation';
 const FOUNDERS_CAMPFIRE_EMBERS_NAME = 'FoundingCampfireEmbers';
 const FOUNDERS_CAMPFIRE_LIT_SMOKE_NAME = 'FoundingCampfireLitSmoke';
+const FOUNDERS_CAMP_WINTER_ACCUMULATION_NAME =
+  'Founders camp winter accumulation';
 const TENT_HALF_WIDTH = 1.62;
 const TENT_HALF_DEPTH = 1.92;
 const TENT_EAVE_Y = 0.2;
@@ -71,6 +76,151 @@ function addCampInstances(
   mesh.computeBoundingSphere();
   parent.add(mesh);
   return mesh;
+}
+
+function addFoundersCampWinterAccumulation(parent: THREE.Group): void {
+  const parts: THREE.BufferGeometry[] = [];
+  const tentPlacements = [
+    { x: -3.7, z: 2.7, yaw: 0.3 },
+    { x: -0.1, z: 4.15, yaw: 0 },
+    { x: 3.7, z: 2.7, yaw: -0.3 },
+  ] as const;
+  tentPlacements.forEach(({ x, z, yaw }, index) => {
+    const geometry = createTentRoofFrostGeometry(index);
+    geometry.rotateY(yaw);
+    geometry.translate(x, 0, z);
+    parts.push(geometry);
+  });
+
+  // Work surfaces retain deliberately incomplete cover so timber, iron, and
+  // canvas continue to identify the camp beneath the pale winter read.
+  addHorizontalWinterPatch(parts, 2.22, 0.3, -1.9, 0.625, -0.15);
+  addHorizontalWinterPatch(parts, 1.54, 0.46, -0.95, 0.86, -2.15, -0.16);
+  addHorizontalWinterPatch(parts, 0.72, 0.52, 5.56, 0.865, -1.42, 0.18);
+  addHorizontalWinterPatch(parts, 0.55, 0.44, 4.65, 0.725, -1.66, -0.12);
+  addHorizontalWinterPatch(parts, 0.48, 0.38, 5.2, 1.315, -1.34, 0.08);
+  addHorizontalWinterPatch(parts, 0.46, 0.1, 2.31, 0.755, -2.12, 0.04);
+  addHorizontalWinterPatch(parts, 0.43, 0.095, 2.69, 0.755, -2.06, -0.05);
+  addHorizontalWinterDisc(parts, 0.42, -4.48, 0.745, -1.2, 9, 0.18);
+  addHorizontalWinterDisc(parts, 0.38, 4.2, 1.195, 1.22, 10, -0.12);
+  addHorizontalWinterDisc(parts, 0.36, 5.28, 1.135, 1.02, 10, 0.16);
+
+  const geometry = mergeGeometries(parts, false);
+  for (const part of parts) part.dispose();
+  if (!geometry) throw new Error('Could not merge founders camp winter accumulation.');
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+
+  const accumulation = new THREE.Mesh(
+    geometry,
+    sharedBuildingMaterial('plasterWhite'),
+  );
+  accumulation.name = FOUNDERS_CAMP_WINTER_ACCUMULATION_NAME;
+  accumulation.visible = false;
+  accumulation.receiveShadow = true;
+  accumulation.userData.foundersCampWinterAccumulation = true;
+  accumulation.userData.fpNoCollision = true;
+  parent.add(accumulation);
+}
+
+function createTentRoofFrostGeometry(variant: number): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const lengthSegments = 8;
+  const lowerCoverage = [0.62, 0.57, 0.65, 0.59, 0.68, 0.6, 0.64, 0.58, 0.63];
+  const normalOffset = 0.026;
+
+  for (const side of [-1, 1] as const) {
+    const sideVertexOffset = positions.length / 3;
+    const outward = new THREE.Vector3(
+      side * (TENT_RIDGE_Y - TENT_EAVE_Y),
+      TENT_HALF_WIDTH,
+      0,
+    ).normalize().multiplyScalar(normalOffset);
+    for (let lengthIndex = 0; lengthIndex <= lengthSegments; lengthIndex += 1) {
+      const v = lengthIndex / lengthSegments;
+      const z = THREE.MathUtils.lerp(
+        -TENT_HALF_DEPTH + 0.035,
+        TENT_HALF_DEPTH - 0.035,
+        v,
+      );
+      const shiftedIndex = (
+        lengthIndex + variant * 2 + (side > 0 ? 1 : 0)
+      ) % lowerCoverage.length;
+      const lowerU = lowerCoverage[shiftedIndex]!;
+      for (const u of [lowerU, 0.992]) {
+        const endTension = Math.sin(v * Math.PI);
+        const sag = Math.sin(u * Math.PI) * endTension * 0.095;
+        const fold = Math.sin(v * Math.PI * 7 + side * 0.57)
+          * Math.sin(v * Math.PI)
+          * (0.025 + (1 - u) * 0.045);
+        positions.push(
+          side * (TENT_HALF_WIDTH * (1 - u) + fold * 0.78) + outward.x,
+          THREE.MathUtils.lerp(TENT_EAVE_Y, TENT_RIDGE_Y, u)
+            - sag
+            + fold * 0.42
+            + outward.y,
+          z,
+        );
+        uvs.push(v * 1.7, u * 1.7);
+      }
+    }
+    for (let segment = 0; segment < lengthSegments; segment += 1) {
+      const a = sideVertexOffset + segment * 2;
+      const b = a + 1;
+      const c = a + 2;
+      const d = a + 3;
+      if (side > 0) indices.push(a, c, b, b, c, d);
+      else indices.push(a, b, c, b, d, c);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function addHorizontalWinterPatch(
+  parts: THREE.BufferGeometry[],
+  width: number,
+  depth: number,
+  x: number,
+  y: number,
+  z: number,
+  yaw = 0,
+): void {
+  const geometry = new THREE.PlaneGeometry(width, depth);
+  geometry.rotateX(-Math.PI * 0.5);
+  geometry.rotateY(yaw);
+  geometry.translate(x, y, z);
+  parts.push(geometry);
+}
+
+function addHorizontalWinterDisc(
+  parts: THREE.BufferGeometry[],
+  radius: number,
+  x: number,
+  y: number,
+  z: number,
+  segments: number,
+  yaw: number,
+): void {
+  const geometry = new THREE.CircleGeometry(radius, segments);
+  geometry.rotateX(-Math.PI * 0.5);
+  geometry.rotateY(yaw);
+  geometry.translate(x, y, z);
+  parts.push(geometry);
+}
+
+function createTimberWinterAccumulationGeometry(): THREE.BufferGeometry {
+  const geometry = new THREE.PlaneGeometry(2.12, 0.12, 4, 1);
+  geometry.rotateX(-Math.PI * 0.5);
+  geometry.translate(0.04, 0.855, -0.025);
+  return geometry;
 }
 
 function addCampGrounding(parent: THREE.Group): void {
@@ -1130,12 +1280,17 @@ function addTentStake(parent: THREE.Group, x: number, z: number): void {
 function addTimberStock(parent: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'FoundingTimberStockpile';
+  const winterAccumulationPlacements: CampInstance[] = [];
   for (let segmentIndex = 0; segmentIndex < FOUNDING_TIMBER_VISUAL_SEGMENTS; segmentIndex += 1) {
     const segment = new THREE.Group();
     segment.name = 'FoundingTimberSegment';
     const row = Math.floor(segmentIndex / 4);
     const column = segmentIndex % 4;
     segment.position.set(-5.7 + column * 0.62, 0, -2.55 + row * 0.48);
+    winterAccumulationPlacements.push({
+      position: segment.position.clone(),
+      rotation: new THREE.Euler(0, (segmentIndex % 3 - 1) * 0.025, 0),
+    });
     for (let log = 0; log < 3; log += 1) {
       addMesh(
         segment,
@@ -1147,6 +1302,16 @@ function addTimberStock(parent: THREE.Group): void {
     }
     stockpile.add(segment);
   }
+  const winterAccumulation = addCampInstances(
+    stockpile,
+    FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
+    createTimberWinterAccumulationGeometry(),
+    sharedBuildingMaterial('plasterWhite'),
+    winterAccumulationPlacements,
+  );
+  winterAccumulation.visible = false;
+  winterAccumulation.userData.foundersCampWinterAccumulation = true;
+  winterAccumulation.userData.fpNoCollision = true;
   parent.add(stockpile);
 }
 
@@ -1373,6 +1538,16 @@ export function animateFoundersCampfire(
   animateFirelitCampSmoke(campfire, dtSeconds);
 }
 
+export function setFoundersCampWinterAccumulation(
+  camp: THREE.Group,
+  enabled: boolean,
+): void {
+  camp.traverse((object) => {
+    if (object.userData.foundersCampWinterAccumulation !== true) return;
+    object.visible = enabled;
+  });
+}
+
 export function createFoundersCampMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = "Founders' camp and open stockyard";
@@ -1411,6 +1586,7 @@ export function createFoundersCampMesh(): THREE.Group {
   addFoundingWorkyard(shelters);
   addFoundingUtilityStores(shelters);
   addLivedInTextiles(shelters);
+  addFoundersCampWinterAccumulation(shelters);
   addTimberStock(group);
   addStoneStock(group);
   addTreasuryChest(group);
@@ -1421,6 +1597,7 @@ export function createFoundersCampMesh(): THREE.Group {
       && !mesh.name.startsWith('Animated fire')
       && mesh.userData.campGrounding !== true
       && mesh.userData.campSmoke !== true
+      && mesh.userData.foundersCampWinterAccumulation !== true
     ) {
       markBuildingDetailShadowCaster(mesh);
     }

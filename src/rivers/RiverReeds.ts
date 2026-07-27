@@ -4,7 +4,12 @@ import {
   CATTAIL_TEXTURE_FILES,
   createCattailGeometry,
 } from '@seedthree/core/cattails.js';
-import { grassEdgeFadeFromFocusDistance, resolveReedLod } from '../grass/grassLodMath.ts';
+import {
+  grassEdgeFadeFromFocusDistance,
+  isReedLodVisible,
+  reedLodOpacity,
+  resolveReedLod,
+} from '../grass/grassLodMath.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import {
@@ -187,8 +192,8 @@ export async function createRiverReeds(
       firstPersonActive = false,
     ) {
       const reedLod = resolveReedLod(cameraDistance, firstPersonActive);
-      const reedOpacity = reedLod * REED_PEAK_OPACITY;
-      const reedZoomVisible = reedLod > 0.02 && placements.length > 0;
+      const reedOpacity = reedLodOpacity(reedLod) * REED_PEAK_OPACITY;
+      const reedZoomVisible = isReedLodVisible(reedLod) && placements.length > 0;
 
       if (!Number.isFinite(lastMaterialOpacity) || Math.abs(reedOpacity - lastMaterialOpacity) > 0.008) {
         lastMaterialOpacity = reedOpacity;

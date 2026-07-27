@@ -1,6 +1,8 @@
 /**
  * Produces smooth heightfield normals without inheriting the arbitrary
- * diagonal used to split each terrain cell into render triangles.
+ * diagonal used to split each terrain cell into render triangles. A two-cell
+ * derivative span suppresses one-pixel direct-light contours from the narrow
+ * river-valley carve while preserving the terrain's broad authored relief.
  */
 export function createHeightfieldNormals(
   positions: Float32Array,
@@ -21,7 +23,7 @@ export function createHeightfieldNormals(
 
 /**
  * Updates every central-difference normal that can depend on a rectangular
- * position edit. The one-vertex halo covers each changed height's neighbors.
+ * position edit. The two-vertex halo matches the derivative sample radius.
  */
 export function updateHeightfieldNormalsInRegion(
   positions: Float32Array,
@@ -32,17 +34,18 @@ export function updateHeightfieldNormalsInRegion(
   minZIndex: number,
   maxZIndex: number,
 ): void {
-  const normalMinX = Math.max(0, minXIndex - 1);
-  const normalMaxX = Math.min(resolution - 1, maxXIndex + 1);
-  const normalMinZ = Math.max(0, minZIndex - 1);
-  const normalMaxZ = Math.min(resolution - 1, maxZIndex + 1);
+  const sampleRadius = 2;
+  const normalMinX = Math.max(0, minXIndex - sampleRadius);
+  const normalMaxX = Math.min(resolution - 1, maxXIndex + sampleRadius);
+  const normalMinZ = Math.max(0, minZIndex - sampleRadius);
+  const normalMaxZ = Math.min(resolution - 1, maxZIndex + sampleRadius);
 
   for (let zIndex = normalMinZ; zIndex <= normalMaxZ; zIndex++) {
     for (let xIndex = normalMinX; xIndex <= normalMaxX; xIndex++) {
-      const leftIndex = zIndex * resolution + Math.max(0, xIndex - 1);
-      const rightIndex = zIndex * resolution + Math.min(resolution - 1, xIndex + 1);
-      const downIndex = Math.max(0, zIndex - 1) * resolution + xIndex;
-      const upIndex = Math.min(resolution - 1, zIndex + 1) * resolution + xIndex;
+      const leftIndex = zIndex * resolution + Math.max(0, xIndex - sampleRadius);
+      const rightIndex = zIndex * resolution + Math.min(resolution - 1, xIndex + sampleRadius);
+      const downIndex = Math.max(0, zIndex - sampleRadius) * resolution + xIndex;
+      const upIndex = Math.min(resolution - 1, zIndex + sampleRadius) * resolution + xIndex;
       const xSpan = positions[rightIndex * 3] - positions[leftIndex * 3];
       const zSpan = positions[upIndex * 3 + 2] - positions[downIndex * 3 + 2];
       const dx = xSpan !== 0

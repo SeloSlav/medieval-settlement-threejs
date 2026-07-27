@@ -172,16 +172,16 @@ function buildGrassBlendNodes(
     ) as TslNode,
   ) as TslNode;
   // Sustained rain resolves toward fragment-evaluated ecological fields. These
-  // reuse the existing world-space macro waves and height signal so the result
-  // retains broad valley/ridge variation without exposing vertex-biome
-  // derivative changes along the terrain triangle split.
+  // reuse only the existing world-space macro waves so the result retains
+  // broad ecological variation without tracing the stepped elevation samples
+  // of carved drainage channels or exposing vertex-biome derivative changes
+  // along the terrain triangle split.
   const rainMoisture = smoothstep(
     float(0.16) as TslNode,
     float(0.84) as TslNode,
-    lowland
-      .mul(float(0.34) as TslNode)
-      .add(macroA.mul(float(0.24) as TslNode))
-      .add(macroB.mul(float(0.42) as TslNode)) as TslNode,
+    macroA
+      .mul(float(0.36) as TslNode)
+      .add(macroB.mul(float(0.64) as TslNode)) as TslNode,
   ) as TslNode;
   const moisture = smoothstep(
     float(0.18) as TslNode,

@@ -77,6 +77,7 @@ fn total_residence_project_labor(ctx: &ReducerContext, owner: spacetimedb::Ident
                 residence.upgrade_target_tier,
                 residence.tier,
                 residence.backyard_project_kind,
+                residence.fire_repair_active,
             )
         })
         .map(|residence| residence.upgrade_assigned_labor.min(1))
@@ -139,6 +140,7 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
                     residence.upgrade_target_tier,
                     residence.tier,
                     residence.backyard_project_kind,
+                    residence.fire_repair_active,
                 ) && residence.upgrade_assigned_labor > 0
             })
             .collect::<Vec<_>>();

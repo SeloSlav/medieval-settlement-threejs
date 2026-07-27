@@ -485,7 +485,7 @@ export function renderSettlementFireRecoveryRows(
   } suspended · ${plan.affectedResidents} current ${
     plan.affectedResidents === 1 ? 'resident' : 'residents'
   } disrupted · ${plan.offlineHousingCapacity} housing capacity unavailable`;
-  const queue = `${plan.readyRecoveryCount} ready · ${plan.coolingRecoveryCount} cooling · ${
+  const queue = `${plan.activeRecoveryCount} active · ${plan.readyRecoveryCount} ready · ${plan.coolingRecoveryCount} cooling · ${
     plan.extinguishedCount
   } ${plan.extinguishedCount === 1 ? 'repair' : 'repairs'} + ${
     plan.destroyedCount
@@ -493,7 +493,11 @@ export function renderSettlementFireRecoveryRows(
     plan.firstRecoveryTarget === null
       ? ''
       : ` · ${fireRecoveryTargetLabel(plan.firstRecoveryTarget, getBuildingLabel)} ${
-          plan.firstRecoveryTarget.coolingSeconds <= 1e-6
+          plan.firstRecoveryTarget.recoveryActive
+            ? `underway (${staffingPriorityLabel(
+                plan.firstRecoveryTarget.workPriority,
+              ).toLocaleLowerCase()} work priority)`
+            : plan.firstRecoveryTarget.coolingSeconds <= 1e-6
             ? `is next (${staffingPriorityLabel(
                 plan.firstRecoveryTarget.workPriority,
               ).toLocaleLowerCase()} work priority)`

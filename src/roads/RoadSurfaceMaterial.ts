@@ -275,7 +275,6 @@ export function createRiverBankMaterial(textures: TextureSet): MeshStandardNodeM
   material.polygonOffset = true;
   material.polygonOffsetFactor = -3;
   material.polygonOffsetUnits = -8;
-  if (textures.edgeMask) material.alphaMap = textures.edgeMask;
   material.colorNode = buildMuddyBankColorNode(textures);
   material.normalNode = normalMap(texture(textures.normal, uv()));
   const roughSample = (texture(textures.roughness, uv() as TslNode) as TslNode).r;

@@ -88,6 +88,14 @@ export function dirtZoomGate(cameraDistance: number): number {
   return Math.pow(1 - t, DIRT_BLEND_EASE);
 }
 
+/**
+ * Reeds are alpha-tested cards, so a faint linear fade leaves only detached
+ * opaque texels visible at overview scale. Delay their reveal until the cards
+ * are large enough to read as plants, then use a steeper opacity curve.
+ */
+export const REED_LOD_VISIBILITY_THRESHOLD = 0.78;
+export const REED_LOD_OPACITY_POWER = 2;
+
 export function grassBladeRevealOpacity(cameraDistance: number): number {
   return dirtZoomGate(cameraDistance);
 }
@@ -99,6 +107,15 @@ export function reedRevealOpacity(cameraDistance: number): number {
 export function resolveReedLod(cameraDistance: number, firstPersonActive: boolean): number {
   if (firstPersonActive) return 1;
   return reedRevealOpacity(cameraDistance);
+}
+
+export function reedLodOpacity(reedLod: number): number {
+  const clampedLod = Math.max(0, Math.min(1, reedLod));
+  return Math.pow(clampedLod, REED_LOD_OPACITY_POWER);
+}
+
+export function isReedLodVisible(reedLod: number): boolean {
+  return reedLod >= REED_LOD_VISIBILITY_THRESHOLD;
 }
 
 /** First-person mode always uses full close grass/dirt LOD around the player. */
@@ -118,7 +135,7 @@ export function isGrassBladeZoomActive(cameraDistance: number): boolean {
 }
 
 export function isReedZoomActive(cameraDistance: number): boolean {
-  return reedRevealOpacity(cameraDistance) > 0.02;
+  return isReedLodVisible(reedRevealOpacity(cameraDistance));
 }
 
 /** 0 above 50% zoom → 1 at 45% zoom and below. */

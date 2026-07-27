@@ -602,6 +602,12 @@ pub struct Residence {
     /// Appended for additive save compatibility; existing gardens stay complete.
     #[default(0u8)]
     pub backyard_project_kind: u8,
+    /// True while a fire-disabled homestead is being physically repaired or
+    /// reconstructed. The existing household worksite fields carry its
+    /// materials, builder, priority, and progress so recovery competes in the
+    /// same settlement queue. Appended for additive save compatibility.
+    #[default(false)]
+    pub fire_repair_active: bool,
 }
 
 #[spacetimedb::table(

@@ -234,16 +234,19 @@ export type ResidenceState = {
   upgradePriority?: number;
   /** Stable backyard-garden kind id while a physical improvement worksite is active. */
   backyardProjectKind?: number;
+  /** Physical structural repair/rebuild work on a fire-disabled homestead. */
+  fireRepairActive?: boolean;
 };
 
 export function residenceHasActiveProject(
   residence: Pick<
     ResidenceState,
-    'tier' | 'upgradeTargetTier' | 'backyardProjectKind'
+    'tier' | 'upgradeTargetTier' | 'backyardProjectKind' | 'fireRepairActive'
   >,
 ): boolean {
   return (residence.upgradeTargetTier ?? 0) > residence.tier
-    || (residence.backyardProjectKind ?? 0) !== 0;
+    || (residence.backyardProjectKind ?? 0) !== 0
+    || residence.fireRepairActive === true;
 }
 
 export type BackyardGardenState = {

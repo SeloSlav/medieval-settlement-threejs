@@ -346,14 +346,23 @@ assert.match(
 assert.match(recoverySource, /pub fn repair_fire_damage/);
 assert.match(recoverySource, /construction_treasury_reservation_excluding_building/);
 assert.match(recoverySource, /building\.construction_complete = false/);
-assert.match(recoverySource, /spend_aggregate_timber/);
-assert.match(recoverySource, /spend_aggregate_stone/);
+assert.match(
+  recoverySource,
+  /if physical_economy[\s\S]*ensure_upgrade_source_route[\s\S]*fire_repair_active = true[\s\S]*return Ok\(\(\)\)[\s\S]*spend_aggregate_timber[\s\S]*spend_aggregate_stone/,
+  'physical homestead recovery must enter routed construction before the legacy aggregate fallback',
+);
+assert.match(recoverySource, /Homestead recovery is already underway/);
 assert.match(recoverySource, /reconcile_building_labor/);
 assert.match(recoverySource, /clear_fire_for_target/);
 assert.match(generatedReducerSource, /targetKind: __t\.u8\(\)/);
 assert.match(generatedReducerSource, /targetId: __t\.u64\(\)/);
 assert.match(inspectorSource, /data-fire-recovery/);
 assert.match(inspectorSource, /normal material-hauling and builder-work pipeline/);
+assert.match(
+  inspectorSource,
+  /recovery && !residenceRecoveryActive/,
+  'an active physical recovery should show committed worksite materials instead of a mutable quote',
+);
 assert.match(worldQueriesSource, /private \*fireEnabledBuildings/);
 assert.match(worldQueriesSource, /fireDisabledResidenceIds/);
 assert.match(

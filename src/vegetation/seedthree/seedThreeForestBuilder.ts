@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import type { WebGPURenderer } from 'three/webgpu';
 import { buildTree, forestBarkMaterial } from '@seedthree/core/tree.js';
-import { forestCardMaterial } from '@seedthree/core/branch-cards.js';
+import {
+  forestCardMaterial,
+  setForestCardDormancy,
+} from '@seedthree/core/branch-cards.js';
 import {
   createForestCanopyCompanions,
   createForestLodSelector,
@@ -19,6 +22,7 @@ import type { ForestTreePlacement } from '../../props/forestPlacements.ts';
 import {
   GORSKI_KOTAR_PRESETS,
   resolveSeedThreePreset,
+  seedThreePresetIsDeciduous,
   seedThreeScaleForPreset,
   type SeedThreePresetKey,
 } from './gorskiKotarSpecies.ts';
@@ -54,6 +58,8 @@ export type SeedThreeForestInstances = {
   successionByLayoutIndex: Array<Array<{ bucketIndex: number; slotIndex: number }>>;
   hiddenMatrix: THREE.Matrix4;
   visibilitySelector: ReturnType<typeof createForestLodSelector>;
+  seasonalCardMaterials: THREE.Material[];
+  deciduousDormancy: number;
   successionEnabled: boolean;
   renderStats: SeedThreeForestRenderStats;
 };
@@ -104,6 +110,19 @@ const FOREST_EDGE_ECOLOGY_OPTS = {
   maxLitter: 140,
 };
 
+const OVERVIEW_CANOPY_TONE: Record<
+  SeedThreePresetKey,
+  { tint: readonly [number, number, number]; variation: number }
+> = {
+  americanBeech: { tint: [0.78, 0.86, 0.72], variation: 0.07 },
+  whiteOak: { tint: [0.75, 0.84, 0.68], variation: 0.08 },
+  redMaple: { tint: [0.72, 0.83, 0.67], variation: 0.08 },
+  sweetgum: { tint: [0.76, 0.86, 0.66], variation: 0.07 },
+  douglasFir: { tint: [0.56, 0.72, 0.61], variation: 0.09 },
+  loblolly: { tint: [0.52, 0.69, 0.57], variation: 0.1 },
+  pine: { tint: [0.6, 0.75, 0.58], variation: 0.1 },
+};
+
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const COMPOSE_POS = new THREE.Vector3();
 const COMPOSE_QUAT = new THREE.Quaternion();
@@ -136,6 +155,10 @@ function createInstancedLodSet(
   options: {
     includeBranches?: boolean;
     castShadow?: boolean;
+    seasonalDeciduous?: boolean;
+    seasonalCardMaterials?: Set<THREE.Material>;
+    canopyTint?: readonly [number, number, number];
+    toneVariation?: number;
   } = {},
 ): InstancedLodSet {
   const groupCount = slots.length;
@@ -192,7 +215,14 @@ function createInstancedLodSet(
 
         const fmat = instanced.userData.shareMaterial
           ? instanced.material
-          : forestCardMaterial(instanced.material as THREE.Material);
+          : forestCardMaterial(instanced.material as THREE.Material, {
+              seasonalDeciduous: options.seasonalDeciduous,
+              canopyTint: options.canopyTint,
+              toneVariation: options.toneVariation,
+            });
+        if (options.seasonalDeciduous) {
+          options.seasonalCardMaterials?.add(fmat as THREE.Material);
+        }
         const im = new THREE.InstancedMesh(geo, fmat as THREE.Material, total) as THREE.InstancedMesh & {
           userData: Record<string, unknown>;
         };
@@ -226,25 +256,37 @@ function createSpeciesBucket(
   successionSlots: TreeSlot[],
   prototype: THREE.LOD,
   rng: Rng,
+  seasonalCardMaterials: Set<THREE.Material>,
 ): SpeciesBucket {
   const nearLevel = findLodLevel(prototype, 'LOD2');
-  // Prefer SeedThree's deepest authored overview rung; live visual validation
-  // confirms its reduced whole-limb cards retain a readable settlement-scale
-  // crown while materially reducing distant tree instances.
-  const overviewLevel = findLodLevel(prototype, 'LOD4')
-    ?? findLodLevel(prototype, 'LOD3')
+  // LOD4's crossed whole-limb cards read as flat green triangles from the
+  // settlement camera. LOD3 retains real primary branches and overlapping
+  // terminal-twig cards, spending available headroom on a volumetric silhouette.
+  const overviewLevel = findLodLevel(prototype, 'LOD3')
+    ?? findLodLevel(prototype, 'LOD4')
     ?? nearLevel;
+  const overviewTone = OVERVIEW_CANOPY_TONE[presetKey];
   const nearSet = createInstancedLodSet(
     nearLevel,
     slots,
     rng,
     `${presetKey} near LOD2`,
+    {
+      seasonalDeciduous: seedThreePresetIsDeciduous(presetKey),
+      seasonalCardMaterials,
+    },
   );
   const overviewSet = createInstancedLodSet(
     overviewLevel,
     slots,
     new Rng(`overview:${presetKey}`),
     `${presetKey} overview ${overviewLevel?.userData.lodName ?? 'LOD2'}`,
+    {
+      seasonalDeciduous: seedThreePresetIsDeciduous(presetKey),
+      seasonalCardMaterials,
+      canopyTint: overviewTone.tint,
+      toneVariation: overviewTone.variation,
+    },
   );
   // Succession crowns reuse SeedThree's lowest-cost authored foliage cards,
   // omit duplicate trunks, and never enter the shadow-caster pass.
@@ -253,7 +295,14 @@ function createSpeciesBucket(
     successionSlots,
     new Rng(`succession:${presetKey}`),
     `${presetKey} overview succession`,
-    { includeBranches: false, castShadow: false },
+    {
+      includeBranches: false,
+      castShadow: false,
+      seasonalDeciduous: seedThreePresetIsDeciduous(presetKey),
+      seasonalCardMaterials,
+      canopyTint: overviewTone.tint,
+      toneVariation: overviewTone.variation,
+    },
   );
   const nearSlotIndices = slots.map((_, index) => index);
   const overviewSlotIndices: number[] = [];
@@ -424,6 +473,7 @@ export async function createSeedThreeForest(
   });
 
   const buckets: SpeciesBucket[] = [];
+  const seasonalCardMaterials = new Set<THREE.Material>();
   const successionByLayoutIndex: Array<Array<{ bucketIndex: number; slotIndex: number }>> =
     Array.from({ length: placements.length }, () => []);
 
@@ -448,6 +498,7 @@ export async function createSeedThreeForest(
       successionSlots,
       prototype,
       new Rng(`bucket:${presetKey}:${treeSeed}`),
+      seasonalCardMaterials,
     ));
   }
 
@@ -477,6 +528,8 @@ export async function createSeedThreeForest(
     successionByLayoutIndex,
     hiddenMatrix,
     visibilitySelector,
+    seasonalCardMaterials: [...seasonalCardMaterials],
+    deciduousDormancy: 0,
     successionEnabled: false,
     renderStats: {
       totalTrees: placements.length,
@@ -627,6 +680,18 @@ export function setSeedThreeForestShadows(forest: SeedThreeForestInstances, enab
   });
 }
 
+export function setSeedThreeForestDeciduousDormancy(
+  forest: SeedThreeForestInstances,
+  amount: number,
+): void {
+  const next = THREE.MathUtils.clamp(Number.isFinite(amount) ? amount : 0, 0, 1);
+  if (forest.deciduousDormancy === next) return;
+  forest.deciduousDormancy = next;
+  for (const material of forest.seasonalCardMaterials) {
+    setForestCardDormancy(material, next);
+  }
+}
+
 export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
   forest.group.traverse((object: THREE.Object3D) => {
     const mesh = object as THREE.InstancedMesh;
@@ -646,6 +711,7 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     updateCamera: (camera, firstPersonActive, casterBounds) =>
       updateSeedThreeForestCamera(forest, camera, firstPersonActive, casterBounds),
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
+    setDeciduousDormancy: (amount) => setSeedThreeForestDeciduousDormancy(forest, amount),
     setShadows: (enabled) => setSeedThreeForestShadows(forest, enabled),
     dispose: () => disposeSeedThreeForest(forest),
   };

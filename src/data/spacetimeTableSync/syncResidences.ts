@@ -53,6 +53,7 @@ export function syncResidences(
       upgradeAssignedLabor: number;
       upgradePriority: number;
       backyardProjectKind: number;
+      fireRepairActive: boolean;
     }>;
     const residenceId = residenceClientId(row.id);
     residences.set(residenceId, {
@@ -87,6 +88,7 @@ export function syncResidences(
       upgradeAssignedLabor: Number(upgradeRow.upgradeAssignedLabor ?? 0),
       upgradePriority: Number(upgradeRow.upgradePriority ?? 2),
       backyardProjectKind: Number(upgradeRow.backyardProjectKind ?? 0),
+      fireRepairActive: upgradeRow.fireRepairActive === true,
     });
   }
   return residences;

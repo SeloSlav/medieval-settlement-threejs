@@ -59,6 +59,7 @@ pub fn place_backyard_garden(
         residence.upgrade_target_tier,
         residence.tier,
         residence.backyard_project_kind,
+        residence.fire_repair_active,
     ) {
         return Err("This household already has improvement works underway.".to_string());
     }

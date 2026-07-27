@@ -31,6 +31,7 @@ export type SettlementFireRecoveryTarget = {
   responseWellId: string | null;
   coolingSeconds: number;
   recovery: FireRecoveryQuote;
+  recoveryActive: boolean;
   workPriority: StaffingPriority;
   affectedPeopleOrWorkers: number;
 };
@@ -43,6 +44,7 @@ export type SettlementFireRecoveryPlan = {
   responseWaterRemaining: number;
   extinguishedCount: number;
   destroyedCount: number;
+  activeRecoveryCount: number;
   readyRecoveryCount: number;
   coolingRecoveryCount: number;
   buildingOutages: number;
@@ -84,6 +86,7 @@ export function computeSettlementFireRecoveryPlan(
     responseWaterRemaining: 0,
     extinguishedCount: 0,
     destroyedCount: 0,
+    activeRecoveryCount: 0,
     readyRecoveryCount: 0,
     coolingRecoveryCount: 0,
     buildingOutages: 0,
@@ -137,16 +140,20 @@ export function computeSettlementFireRecoveryPlan(
       responseWellId: incident.responseWellId,
       coolingSeconds,
       recovery,
+      recoveryActive: target.kind === 'residence'
+        && target.residence.fireRepairActive === true,
       workPriority: target.kind === 'building'
         ? normalizeStaffingPriority(target.building.constructionPriority)
-        : normalizeStaffingPriority(undefined),
+        : normalizeStaffingPriority(target.residence.upgradePriority),
       affectedPeopleOrWorkers: target.kind === 'building'
         ? Math.max(0, target.building.assignedLabor)
         : Math.max(0, target.residence.population),
     };
 
-    plan.estimatedTimberCost += recovery.cost.timber;
-    plan.estimatedStoneCost += recovery.cost.stone;
+    if (!summary.recoveryActive) {
+      plan.estimatedTimberCost += recovery.cost.timber;
+      plan.estimatedStoneCost += recovery.cost.stone;
+    }
     if (carpenterSupported) plan.carpenterSupportedTargets += 1;
     if (target.kind === 'building') {
       plan.buildingOutages += 1;
@@ -178,6 +185,13 @@ export function computeSettlementFireRecoveryPlan(
       plan.destroyedCount += 1;
     } else {
       plan.extinguishedCount += 1;
+    }
+    if (summary.recoveryActive) {
+      plan.activeRecoveryCount += 1;
+      if (shouldReplaceRecoveryTarget(summary, plan.firstRecoveryTarget)) {
+        plan.firstRecoveryTarget = summary;
+      }
+      continue;
     }
     if (coolingSeconds <= 1e-6) {
       plan.readyRecoveryCount += 1;
@@ -280,6 +294,9 @@ function shouldReplaceRecoveryTarget(
   current: SettlementFireRecoveryTarget | null,
 ): boolean {
   if (current === null) return true;
+  if (candidate.recoveryActive !== current.recoveryActive) {
+    return candidate.recoveryActive;
+  }
   const candidateReady = candidate.coolingSeconds <= 1e-6;
   const currentReady = current.coolingSeconds <= 1e-6;
   if (candidateReady !== currentReady) return candidateReady;

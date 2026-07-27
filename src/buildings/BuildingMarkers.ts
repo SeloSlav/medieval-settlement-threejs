@@ -10,6 +10,7 @@ import type {
   GameState,
   LivestockHerdState,
 } from '../resources/types.ts';
+import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import {
   getGuardhouseMusterState,
   guardhouseMusterResponseBand,
@@ -39,7 +40,9 @@ import {
 import {
   animateFoundersCampfire,
   FOUNDERS_CAMPFIRE_NAME,
+  FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
   setFoundersCampfireNightLighting,
+  setFoundersCampWinterAccumulation,
 } from './meshes/foundersCampMesh.ts';
 import { disposeFireEffect } from '../fires/FireEffect.ts';
 import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
@@ -80,6 +83,7 @@ export class BuildingMarkers {
   private readonly buildingMeshes = new Map<string, THREE.Group>();
   private readonly foundersCampfires = new Set<THREE.Group>();
   private foundersCampfireNightLighting = 0;
+  private foundersCampWinterAccumulation = false;
   private extentOverlayMesh: THREE.Mesh | null = null;
   private extentOverlayKind: BuildingKind | null = null;
   private readonly guardhouseMusterRoute: THREE.InstancedMesh<
@@ -160,6 +164,16 @@ export class BuildingMarkers {
     this.foundersCampfireNightLighting = THREE.MathUtils.clamp(nightLighting, 0, 1);
     for (const campfire of this.foundersCampfires) {
       setFoundersCampfireNightLighting(campfire, this.foundersCampfireNightLighting);
+    }
+  }
+
+  setEnvironment(environment: Pick<EnvironmentState, 'season'> | null): void {
+    const winterAccumulation = environment?.season === 'winter';
+    if (winterAccumulation === this.foundersCampWinterAccumulation) return;
+    this.foundersCampWinterAccumulation = winterAccumulation;
+    for (const marker of this.buildingMeshes.values()) {
+      if (marker.name !== "Founders' camp and open stockyard") continue;
+      setFoundersCampWinterAccumulation(marker, winterAccumulation);
     }
   }
 
@@ -383,6 +397,12 @@ export class BuildingMarkers {
       );
       this.buildingMeshes.set(building.id, marker);
       this.group.add(marker);
+      if (building.kind === 'founders_camp') {
+        setFoundersCampWinterAccumulation(
+          marker,
+          this.foundersCampWinterAccumulation,
+        );
+      }
       if (
         building.kind === 'founders_camp'
         && building.foundingShelterActive !== false
@@ -445,12 +465,18 @@ function syncBuildingVisualState(
     if (shelters) shelters.visible = building.foundingShelterActive !== false;
     const timber = marker.getObjectByName('FoundingTimberStockpile');
     if (timber instanceof THREE.Group) {
-      syncStockpileSegments(
+      const visibleCount = syncStockpileSegments(
         timber,
         'FoundingTimberSegment',
         building.timber,
         BUILDING_STORAGE_CAPS.founders_camp.timber,
       );
+      const accumulation = timber.getObjectByName(
+        FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
+      );
+      if (accumulation instanceof THREE.InstancedMesh) {
+        accumulation.count = visibleCount;
+      }
     }
     const stone = marker.getObjectByName('FoundingStoneStockpile');
     if (stone instanceof THREE.Group) {

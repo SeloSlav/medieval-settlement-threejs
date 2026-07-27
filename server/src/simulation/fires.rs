@@ -15,13 +15,14 @@ use crate::fire_policy::{
     accumulated_event_chance, distance_spread_factor, fire_response_load, step_fire,
     suppression_result, weather_risk_multiplier,
 };
+use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::RoadNetwork;
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
     cancel_trips_for_residence, clear_backyard_garden_for_residence, clear_residence_needs,
-    drain_trips_for_building,
+    clear_residence_project, drain_trips_for_building,
 };
 use crate::tables::{Building, FireIncident};
 
@@ -512,6 +513,24 @@ fn ignite_candidate(
     if !occupied_targets.insert((candidate.target_kind, candidate.target_id)) {
         return None;
     }
+    if candidate.target_kind == FIRE_TARGET_RESIDENCE {
+        if let Some(mut residence) = ctx.db.residence().id().find(&candidate.target_id) {
+            if residence_project_active(
+                residence.upgrade_target_tier,
+                residence.tier,
+                residence.backyard_project_kind,
+                residence.fire_repair_active,
+            ) {
+                // A new fire ends unfinished household works immediately:
+                // source reservations are released, carts turn back, onsite
+                // material is lost, and the builder returns to the labor pool.
+                cancel_trips_for_residence(ctx, residence.id);
+                clear_residence_project(&mut residence);
+                ctx.db.residence().id().update(residence);
+                reconcile_building_labor(ctx, candidate.owner);
+            }
+        }
+    }
     Some(ctx.db.fire_incident().insert(FireIncident {
         id: 0,
         owner: candidate.owner,
@@ -628,6 +647,7 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             };
             let owner = residence.owner;
             cancel_trips_for_residence(ctx, residence.id);
+            clear_residence_project(&mut residence);
             clear_residence_needs(ctx, residence.id);
             clear_backyard_garden_for_residence(ctx, residence.id);
             residence.population = 0;

@@ -1095,7 +1095,11 @@ export class ResourceInspector {
         ? fireForTarget(gameState.fireIncidents.values(), 'residence', target.residence.id)
         : null;
     if (fire) {
-      const response = fire.status === 'burning'
+      const residenceRecoveryActive = target.kind === 'residence'
+        && target.residence.fireRepairActive === true;
+      const response = residenceRecoveryActive
+        ? 'Structural recovery is underway through the shared construction queue'
+        : fire.status === 'burning'
         ? fire.responseWellId
           ? 'A staffed well has dispatched a bucket carrier'
           : 'No staffed well currently has this fire inside its work extent'
@@ -1126,17 +1130,17 @@ export class ResourceInspector {
         ${fire.extinguishChance > 0
           ? `<li><span>Last attempt odds</span><strong>${Math.round(fire.extinguishChance * 100)}%</strong></li>`
           : ''}
-        ${recovery ? `<li><span>${recovery.kind === 'rebuild' ? 'Rebuild' : 'Repair'} cost</span><strong>${formatBuildingCost(recovery.cost)}${recovery.carpenterSupported ? ' · carpenter-supported' : ''}</strong></li>` : ''}
+        ${recovery && !residenceRecoveryActive ? `<li><span>${recovery.kind === 'rebuild' ? 'Rebuild' : 'Repair'} cost</span><strong>${formatBuildingCost(recovery.cost)}${recovery.carpenterSupported ? ' · carpenter-supported' : ''}</strong></li>` : ''}
         ${view.detailsHtml}
       `;
-      view.statusText = fire.status === 'burning'
-        ? 'Burning — production and household activity are suspended until the fire is out.'
-        : fire.status === 'destroyed'
-          ? 'Destroyed by fire — rebuild the surviving foundations or clear the ruin.'
-          : 'Fire out — repair the damage before activity can resume.';
-      view.statusState = fire.status === 'burning' || fire.status === 'destroyed'
-        ? 'warning'
-        : 'warning';
+      if (!residenceRecoveryActive) {
+        view.statusText = fire.status === 'burning'
+          ? 'Burning — production and household activity are suspended until the fire is out.'
+          : fire.status === 'destroyed'
+            ? 'Destroyed by fire — rebuild the surviving foundations or clear the ruin.'
+            : 'Fire out — repair the damage before activity can resume.';
+        view.statusState = 'warning';
+      }
       if (target.kind === 'building' && view.labor.visible) {
         view.labor = {
           ...view.labor,
@@ -1146,7 +1150,8 @@ export class ResourceInspector {
           increaseDisabled: true,
         };
       }
-      view.supplementalPanelHtml = fire.status === 'burning' || !recovery
+      if (!residenceRecoveryActive) {
+        view.supplementalPanelHtml = fire.status === 'burning' || !recovery
         ? `<div class="inspector-action-panel">
             <p class="inspector-action-panel__hint">Keep a staffed, supplied well within work extent. Fire calls preempt routine water deliveries.</p>
           </div>`
@@ -1163,6 +1168,7 @@ export class ResourceInspector {
                 : `${recoveryLabel} · ${formatBuildingCost(recovery.cost)}`}</button>
             ${recovery.carpenterSupported ? '<p class="inspector-action-panel__hint">A staffed road-linked carpenter reduces the timber requirement by 10%.</p>' : ''}
           </div>`;
+      }
     }
 
     this.eyebrow.textContent = view.eyebrow;
