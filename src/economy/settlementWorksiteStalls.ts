@@ -3,7 +3,10 @@ import {
   harvestableWildStock,
 } from '../foraging/harvestReservePolicy.ts';
 import { isForagingHarvestAvailable } from '../foraging/foragingSeason.ts';
-import type { DeliveryCargoKind } from '../logistics/deliveryTrips.ts';
+import type {
+  DeliveryCargoKind,
+  DeliveryTripState,
+} from '../logistics/deliveryTrips.ts';
 import { lodgeLaborSplit } from '../logistics/lodgeLogistics.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type {
@@ -210,6 +213,31 @@ function missingProcessorInputs(
 ): ProcessorInputCommodity[] {
   return processorInputCommodities(building.kind)
     .filter((commodity) => inputAmount(building, commodity) <= 1e-6);
+}
+
+function buildInboundCargoByBuilding(
+  trips: Iterable<DeliveryTripState>,
+): Map<string, Set<DeliveryCargoKind>> {
+  const inboundCargoByBuilding = new Map<string, Set<DeliveryCargoKind>>();
+  for (const trip of trips) {
+    if (
+      trip.destinationKind !== 'building'
+      || trip.targetBuildingId === null
+      || trip.phase === 'inbound'
+    ) {
+      continue;
+    }
+    const cargo = inboundCargoByBuilding.get(trip.targetBuildingId);
+    if (cargo) {
+      cargo.add(trip.cargoKind);
+    } else {
+      inboundCargoByBuilding.set(
+        trip.targetBuildingId,
+        new Set([trip.cargoKind]),
+      );
+    }
+  }
+  return inboundCargoByBuilding;
 }
 
 function processorStall(
@@ -426,6 +454,56 @@ export function computeSettlementProductionReadiness(
   };
 }
 
+/// Mirrors the stricter automatic production-steward gate. Unlike the manual
+/// deployment forecast, a processor is ready only when every current input is
+/// on site or already approaching on a matching physical cart.
+export function computeSettlementOperationalProductionReadiness(
+  state: Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>,
+): SettlementProductionReadiness {
+  const quarryBuckets = buildSpatialBuckets(state.quarries.values());
+  const nodeBuckets = buildSpatialBuckets(state.foragingNodes.values());
+  const inboundCargoByBuilding = buildInboundCargoByBuilding(
+    state.deliveryTrips.values(),
+  );
+  const readyBuildingIds = new Set<string>();
+  let auditedSites = 0;
+
+  for (const building of state.buildings.values()) {
+    if (
+      building.constructionComplete === false
+      || !isProductionLaborKind(building.kind)
+    ) {
+      continue;
+    }
+    auditedSites += 1;
+
+    let ready: boolean;
+    if (isProcessorOutputTargetKind(building.kind)) {
+      const stall = processorStall(
+        building as BuildingState & { kind: ProcessorOutputTargetKind },
+        inboundCargoByBuilding.get(building.id),
+        false,
+      );
+      ready = stall === null || stall === 'supply_en_route';
+    } else if (
+      building.kind === 'stone_quarry'
+      || building.kind === 'large_quarry'
+    ) {
+      ready = quarryStall(building, quarryBuckets, false) === null;
+    } else {
+      ready = wildStockStall(building, nodeBuckets, false) === null;
+    }
+    if (ready) readyBuildingIds.add(building.id);
+  }
+
+  return {
+    auditedSites,
+    readySites: readyBuildingIds.size,
+    blockedSites: auditedSites - readyBuildingIds.size,
+    readyBuildingIds,
+  };
+}
+
 export function computeSettlementWorksiteStallPlan(
   state: Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>,
   month: number,
@@ -433,25 +511,11 @@ export function computeSettlementWorksiteStallPlan(
   const quarryBuckets = buildSpatialBuckets(state.quarries.values());
   const nodeBuckets = buildSpatialBuckets(state.foragingNodes.values());
   const activeOriginTrips = new Set<string>();
-  const inboundCargoByBuilding = new Map<string, Set<DeliveryCargoKind>>();
+  const inboundCargoByBuilding = buildInboundCargoByBuilding(
+    state.deliveryTrips.values(),
+  );
   for (const trip of state.deliveryTrips.values()) {
     activeOriginTrips.add(trip.buildingId);
-    if (
-      trip.destinationKind !== 'building'
-      || trip.targetBuildingId === null
-      || trip.phase === 'inbound'
-    ) {
-      continue;
-    }
-    const cargo = inboundCargoByBuilding.get(trip.targetBuildingId);
-    if (cargo) {
-      cargo.add(trip.cargoKind);
-    } else {
-      inboundCargoByBuilding.set(
-        trip.targetBuildingId,
-        new Set([trip.cargoKind]),
-      );
-    }
   }
 
   const sites: WorksiteStallSite[] = [];

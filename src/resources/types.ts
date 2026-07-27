@@ -115,6 +115,7 @@ export type BuildingState = {
   guardhouseFoodReserve?: number;
   marketplaceIronworkTarget?: number;
   marketplaceSpecialtyExportPolicy?: number;
+  marketplaceSeedGrainTarget?: number;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {

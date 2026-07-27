@@ -6,6 +6,7 @@
 
 pub const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT: u8 = 100;
 pub const PROCESSOR_OUTPUT_TARGET_PERCENTS: [u8; 4] = [25, 50, 75, 100];
+pub const PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES: f64 = 3.0;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProcessorOutputKind {
@@ -59,12 +60,26 @@ pub fn processor_output_headroom(stock: f64, capacity: f64, percent: u8) -> f64 
     (processor_output_target(capacity, percent) - stock.max(0.0)).max(0.0)
 }
 
+/// The existing output policy also controls how much of every production
+/// input is staged at the workshop. Lean branches turn carts around after one
+/// cycle, balanced branches keep two, and deep/fill policies retain the
+/// legacy three-cycle working stock.
+pub fn processor_input_staging_cycles(percent: u8) -> f64 {
+    match normalize_processor_output_target_percent(percent) {
+        25 => 1.0,
+        50 => 2.0,
+        75 | 100 => PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES,
+        _ => unreachable!("normalized processor output target is always a preset"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         is_processor_output_target_kind, is_valid_processor_output_target_percent,
-        normalize_processor_output_target_percent, processor_output_headroom,
-        processor_output_kind, processor_output_target, ProcessorOutputKind,
+        normalize_processor_output_target_percent, processor_input_staging_cycles,
+        processor_output_headroom, processor_output_kind, processor_output_target,
+        ProcessorOutputKind, PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES,
         PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
     };
 
@@ -92,6 +107,16 @@ mod tests {
         assert_eq!(processor_output_headroom(45.0, 240.0, 25), 15.0);
         assert_eq!(processor_output_headroom(60.0, 240.0, 25), 0.0);
         assert_eq!(processor_output_headroom(90.0, 240.0, 25), 0.0);
+    }
+
+    #[test]
+    fn stock_policy_scales_input_staging_without_changing_the_legacy_default() {
+        assert_eq!(processor_input_staging_cycles(25), 1.0);
+        assert_eq!(processor_input_staging_cycles(50), 2.0);
+        assert_eq!(processor_input_staging_cycles(75), 3.0);
+        assert_eq!(processor_input_staging_cycles(100), 3.0);
+        assert_eq!(processor_input_staging_cycles(0), 3.0);
+        assert_eq!(PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES, 3.0);
     }
 
     #[test]

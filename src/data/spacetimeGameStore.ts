@@ -94,6 +94,8 @@ import { gameClock } from '../world/gameCalendar.ts';
 import { STARTING_POPULATION } from '../generated/gameBalance.ts';
 import {
   DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
+  DEFAULT_LABOR_STEWARD_RESERVE,
+  DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED,
   DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
 } from '../economy/laborSteward.ts';
 
@@ -104,6 +106,8 @@ export type SpacetimeGameSnapshot = {
   economicActivityTaxRate: number;
   seasonalLaborStewardEnabled: boolean;
   constructionLaborStewardEnabled: boolean;
+  productionLaborStewardEnabled: boolean;
+  laborStewardReserve: number;
   parishPolicy: ParishPolicyState;
   monasteryPolicy: MonasteryPolicyState;
   marketState: RegionalMarketState;
@@ -138,6 +142,8 @@ function createEmptyTableState(): GameTableSyncState {
     economicActivityTaxRate: ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
     seasonalLaborStewardEnabled: DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
     constructionLaborStewardEnabled: DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
+    productionLaborStewardEnabled: DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED,
+    laborStewardReserve: DEFAULT_LABOR_STEWARD_RESERVE,
     parishPolicy: { ...DEFAULT_PARISH_POLICY },
     monasteryPolicy: { ...DEFAULT_MONASTERY_POLICY },
     marketState: { ...DEFAULT_REGIONAL_MARKET_STATE },
@@ -199,6 +205,8 @@ export class SpacetimeGameStore {
       economicActivityTaxRate: state.economicActivityTaxRate,
       seasonalLaborStewardEnabled: state.seasonalLaborStewardEnabled,
       constructionLaborStewardEnabled: state.constructionLaborStewardEnabled,
+      productionLaborStewardEnabled: state.productionLaborStewardEnabled,
+      laborStewardReserve: state.laborStewardReserve,
       parishPolicy: this.snapshotRecord(state.parishPolicy),
       monasteryPolicy: this.snapshotRecord(state.monasteryPolicy),
       marketState: this.snapshotRecord(state.marketState),
@@ -404,6 +412,14 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setConstructionLaborSteward(enabled);
   }
 
+  setProductionLaborSteward(enabled: boolean): Promise<void> {
+    return spacetimeReducers.setProductionLaborSteward(enabled);
+  }
+
+  setLaborStewardReserve(laborReserve: number): Promise<void> {
+    return spacetimeReducers.setLaborStewardReserve(laborReserve);
+  }
+
   setChapelParishPolicy(
     autoSweepEnabled: boolean,
     cofferReserveGold: number,
@@ -487,6 +503,10 @@ export class SpacetimeGameStore {
 
   setMarketplaceIronworkTarget(buildingId: string, ironworkTarget: number): Promise<void> {
     return spacetimeReducers.setMarketplaceIronworkTarget(buildingId, ironworkTarget);
+  }
+
+  setMarketplaceSeedGrainTarget(buildingId: string, seedGrainTarget: number): Promise<void> {
+    return spacetimeReducers.setMarketplaceSeedGrainTarget(buildingId, seedGrainTarget);
   }
 
   setMarketplaceSpecialtyExportPolicy(buildingId: string, exportPolicy: number): Promise<void> {

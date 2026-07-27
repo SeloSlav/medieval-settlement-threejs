@@ -44,4 +44,6 @@ export default __t.row({
   cloth: __t.f64(),
   seasonalLaborStewardEnabled: __t.bool().name("seasonal_labor_steward_enabled"),
   constructionLaborStewardEnabled: __t.bool().name("construction_labor_steward_enabled"),
+  productionLaborStewardEnabled: __t.bool().name("production_labor_steward_enabled"),
+  laborStewardReserve: __t.u32().name("labor_steward_reserve"),
 });

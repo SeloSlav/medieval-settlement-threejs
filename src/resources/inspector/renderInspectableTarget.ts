@@ -57,6 +57,8 @@ export type InspectorRenderContext = {
   getEconomicActivityTaxRate?: () => number;
   getSeasonalLaborStewardEnabled?: () => boolean;
   getConstructionLaborStewardEnabled?: () => boolean;
+  getProductionLaborStewardEnabled?: () => boolean;
+  getLaborStewardReserve?: () => number;
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
   getTradeAvailability?: (

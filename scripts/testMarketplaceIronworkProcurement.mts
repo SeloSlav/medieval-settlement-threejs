@@ -137,12 +137,13 @@ assert.match(
   'the authoritative reducer must validate and persist only bounded targets',
 );
 const standingImportSource = tradeSource.slice(
-  tradeSource.indexOf('pub fn try_execute_standing_ironwork_import'),
+  tradeSource.indexOf('pub fn try_execute_standing_marketplace_import'),
   tradeSource.indexOf('fn execute_food_commodity_trade'),
 );
 for (const contract of [
   'conflict_enabled',
-  'standing_ironwork_import_due',
+  'next_standing_marketplace_import',
+  'StandingMarketplaceImport::Ironwork',
   'apply_marketplace_trade',
   'start_manual_trade_cooldown',
 ]) {
@@ -158,7 +159,7 @@ assert.ok(
 );
 assert.match(
   caravanSource,
-  /clock\.sim_tick % 5 == building_id % 5[\s\S]*?try_execute_standing_ironwork_import/,
+  /clock\.sim_tick % 5 == building_id % 5[\s\S]*?try_execute_standing_marketplace_import/,
   'market procurement checks must be staggered rather than run for every market every tick',
 );
 assert.match(generatedTable, /marketplaceIronworkTarget: __t\.u8\(\)/);

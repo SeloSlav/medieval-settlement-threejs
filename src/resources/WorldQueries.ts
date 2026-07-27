@@ -35,6 +35,11 @@ import {
   selectGrainDispatchTarget,
   type RoutedGrainDestination,
 } from '../logistics/grainLogistics.ts';
+import {
+  selectDirectProcessorInputTarget,
+  type DirectProcessorInputCommodity,
+  type RoutedProcessorInputDestination,
+} from '../logistics/processorInputLogistics.ts';
 import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
 import { farmsteadExportableGrain } from '../farming/farmWorkPlanning.ts';
 import {
@@ -927,6 +932,38 @@ export class WorldQueries {
         : 1,
       (target) => inboundTargets.has(target.id),
       (target) => processorAcceptsInput(target, 'grain'),
+    );
+  }
+
+  getNextDirectProcessorInputDispatch(
+    source: BuildingState,
+    commodity: DirectProcessorInputCommodity,
+  ): RoutedProcessorInputDestination<BuildingState> | null {
+    const state = this.getGameState();
+    const network = this.getRoadNetwork();
+    const inboundTargets = new Set<string>();
+    for (const trip of state.deliveryTrips.values()) {
+      if (
+        trip.phase !== 'inbound'
+        && trip.destinationKind === 'building'
+        && trip.targetBuildingId
+      ) {
+        inboundTargets.add(trip.targetBuildingId);
+      }
+    }
+    return selectDirectProcessorInputTarget(
+      state.buildings.values(),
+      source.id,
+      commodity,
+      (target) => roadPathDistance(
+        network,
+        source.x,
+        source.z,
+        target.x,
+        target.z,
+      ),
+      (target) => inboundTargets.has(target.id),
+      (target) => processorAcceptsInput(target, commodity),
     );
   }
 

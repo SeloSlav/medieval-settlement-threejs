@@ -32,6 +32,16 @@ import {
   marketplaceIronworkProcurementPlan,
 } from '../../economy/marketplaceIronworkPolicy.ts';
 import {
+  MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
+  MARKETPLACE_SEED_GRAIN_TARGETS,
+  marketplaceSeedGrainProcurementPlan,
+  nextMarketplaceStandingOrder,
+  type MarketplaceStandingOrder,
+} from '../../economy/marketplaceSeedPolicy.ts';
+import type {
+  MarketplaceSeedCoveragePlan,
+} from '../../economy/marketplaceSeedCoverage.ts';
+import {
   MARKETPLACE_SPECIALTY_EXPORT_POLICIES,
   marketplaceSpecialtyExportPlan,
   marketplaceSpecialtyQueue,
@@ -43,9 +53,12 @@ export function renderMarketplaceTradePanel(
   marketState: RegionalMarketState,
   manualTrade: MarketplaceManualTradeStatus,
   conflictEnabled = false,
+  seedCoverage?: MarketplaceSeedCoveragePlan,
 ): string {
   const sections = marketplaceTradeOffersBySection(conflictEnabled);
   const ironworkProcurement = marketplaceIronworkProcurementPlan(building);
+  const seedGrainProcurement = marketplaceSeedGrainProcurementPlan(building);
+  const nextStandingOrder = nextMarketplaceStandingOrder(building, conflictEnabled);
   const nextTurnaround = manualTrade.nextCooldownSeconds == null
     ? 'Each broker shortens the trade desk turnaround.'
     : `Each broker shortens the trade desk turnaround; current regional road conditions make the next settlement ${manualTrade.nextCooldownSeconds.toFixed(1)}s.`;
@@ -156,11 +169,21 @@ export function renderMarketplaceTradePanel(
         <h3 class="marketplace-trade-section__title">Water imports</h3>
         <ul class="marketplace-trade-list">${MARKET_WATER_COMMODITIES.map(renderWaterCommodity).join('')}</ul>
       </section>
+      ${renderSeedGrainProcurementPolicy(
+        seedGrainProcurement,
+        availability,
+        marketState,
+        manualTrade,
+        nextStandingOrder,
+        conflictEnabled,
+        seedCoverage,
+      )}
       ${conflictEnabled ? renderIronworkProcurementPolicy(
         ironworkProcurement,
         availability,
         marketState,
         manualTrade,
+        nextStandingOrder,
       ) : ''}
       ${renderSpecialtyExportPolicy(building, marketState)}
       <section class="marketplace-trade-section" aria-label="Buy with gold">
@@ -211,6 +234,7 @@ function renderIronworkProcurementPolicy(
   availability: MarketplaceTradeAvailability,
   marketState: RegionalMarketState,
   manualTrade: MarketplaceManualTradeStatus,
+  nextStandingOrder: MarketplaceStandingOrder,
 ): string {
   const nextCost = marketplaceTradeOfferCost(
     MARKETPLACE_IRONWORK_IMPORT_OFFER,
@@ -221,6 +245,8 @@ function renderIronworkProcurementPolicy(
     status = 'Manual-only — brokers place no automatic ironwork orders.';
   } else if (!plan.nextOrderDue) {
     status = `Holding ${plan.stock.toFixed(1)} / ${plan.target} ironwork; the next six-unit lot waits until it fits without overshooting.`;
+  } else if (nextStandingOrder === 'seedGrain') {
+    status = `Queued behind the more depleted seed-grain reserve; ${plan.ordersToTarget} ironwork lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (availability.gold + 1e-6 < nextCost) {
     status = `Waiting for ${nextCost.toFixed(0)} treasury gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (!manualTrade.ready) {
@@ -232,10 +258,108 @@ function renderIronworkProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Frontier ironwork procurement">
       <h3 class="marketplace-trade-section__title">Frontier ironwork procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use broker time, treasury gold, and current regional rates; carpenters must still collect the fittings by road.</p>
+      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the same broker queue as seed grain, treasury gold, and current regional rates; carpenters must still collect the fittings by road. When both orders are due, the more depleted target goes first.</p>
       <div class="resource-action-row">${MARKETPLACE_IRONWORK_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-ironwork-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>
       <p class="inspector-action-panel__hint">${status}</p>
     </section>`;
+}
+
+function renderSeedGrainProcurementPolicy(
+  plan: ReturnType<typeof marketplaceSeedGrainProcurementPlan>,
+  availability: MarketplaceTradeAvailability,
+  marketState: RegionalMarketState,
+  manualTrade: MarketplaceManualTradeStatus,
+  nextStandingOrder: MarketplaceStandingOrder,
+  conflictEnabled: boolean,
+  coverage?: MarketplaceSeedCoveragePlan,
+): string {
+  const nextCost = marketplaceTradeOfferCost(
+    MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
+    marketState,
+  ).amount;
+  let status: string;
+  if (plan.target <= 0) {
+    status = 'Manual-only — brokers place no automatic seed-grain orders.';
+  } else if (!plan.nextOrderDue) {
+    status = `Holding ${plan.stock.toFixed(1)} / ${plan.target} grain; the next 24-unit lot waits until it fits without overshooting.`;
+  } else if (nextStandingOrder === 'ironwork') {
+    status = `Queued behind the more depleted frontier ironwork reserve; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+  } else if (availability.gold + 1e-6 < nextCost) {
+    status = `Waiting for ${nextCost.toFixed(0)} treasury gold; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+  } else if (!manualTrade.ready) {
+    status = `Waiting — ${manualTrade.label.toLowerCase()}.`;
+  } else {
+    status = `Next 24-unit seed lot ready for ${nextCost.toFixed(0)} gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+  }
+
+  const sharedQueue = conflictEnabled
+    ? ' In frontier worlds, seed grain and ironwork share this broker queue; the more depleted selected target goes first.'
+    : '';
+  const coverageHtml = renderSeedCoverage(coverage);
+  return `
+    <section class="marketplace-trade-section" aria-label="Seed-grain procurement">
+      <h3 class="marketplace-trade-section__title">Seed-grain procurement</h3>
+      <p class="resource-inspector-note">Standing stock target — this market buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use broker time, treasury gold, and current regional rates.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free market or granary serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
+      <div class="resource-action-row">${MARKETPLACE_SEED_GRAIN_TARGETS
+        .map((target) => `<button type="button" class="resource-action-button" data-marketplace-seed-grain-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
+        .join('')}</div>
+      <p class="inspector-action-panel__hint">${status}</p>
+      ${coverageHtml}
+    </section>`;
+}
+
+function renderSeedCoverage(coverage?: MarketplaceSeedCoveragePlan): string {
+  if (!coverage) return '';
+  if (coverage.connectedHoldings <= 0) {
+    return '<p class="inspector-action-panel__hint">Reachable field demand — no active field seed claims on this market’s road branch.</p>';
+  }
+  const transit = coverage.inboundGrain > 0.05
+    ? ` · ${coverage.inboundGrain.toFixed(1)} already inbound${coverage.marketOutboundGrain > 0.05 ? ` (${coverage.marketOutboundGrain.toFixed(1)} from this market)` : ''}`
+    : '';
+  const firstExposed = coverage.firstShortBuildingId == null
+    ? ''
+    : ` First exposed: ${coverage.firstShortfall.toFixed(1)} grain short <button type="button" class="inspector-jump-button" data-inspect-building="${coverage.firstShortBuildingId}" aria-label="Inspect first road-linked seed shortfall">Inspect holding</button>.`;
+  const laborBlock = coverage.laborBlockedHoldings > 0
+    ? ` ${coverage.laborBlockedShortfall.toFixed(1)} grain across ${coverage.laborBlockedHoldings} holding${coverage.laborBlockedHoldings === 1 ? '' : 's'} cannot move until farm labor is assigned.`
+    : '';
+  const fireBlock = coverage.fireBlockedHoldings > 0
+    ? ` ${coverage.fireBlockedShortfall.toFixed(1)} grain is held behind ${coverage.fireBlockedHoldings} fire-disabled holding${coverage.fireBlockedHoldings === 1 ? '' : 's'}.`
+    : '';
+  const inboundBlock = coverage.inboundBlockedHoldings > 0
+    ? ` ${coverage.inboundBlockedHoldings} holding${coverage.inboundBlockedHoldings === 1 ? '' : 's'} already ${coverage.inboundBlockedHoldings === 1 ? 'has' : 'have'} a grain cart inbound, so overlapping sources will not duplicate the haul.`
+    : '';
+  const nextCart = renderNextMarketplaceSeedCart(coverage);
+  if (coverage.seedShortfall <= 0.05) {
+    return `<p class="inspector-action-panel__hint">Reachable field demand — ${coverage.seedCovered.toFixed(1)} / ${coverage.seedRequired.toFixed(1)} grain covered across ${coverage.connectedHoldings} holding${coverage.connectedHoldings === 1 ? '' : 's'}${transit}. Current field plans need no additional market seed.</p>`;
+  }
+  const planned = coverage.plannedImportLots > 0
+    ? `${coverage.plannedImportGrain.toFixed(0)} grain in ${coverage.plannedImportLots} currently due lot${coverage.plannedImportLots === 1 ? '' : 's'}`
+    : 'no lot currently due';
+  return `<p class="inspector-action-panel__hint">Reachable field demand — ${coverage.seedCovered.toFixed(1)} / ${coverage.seedRequired.toFixed(1)} grain covered${transit}; ${coverage.seedShortfall.toFixed(1)} remains short across ${coverage.shortHoldings} holding${coverage.shortHoldings === 1 ? '' : 's'}. This market holds ${coverage.currentMarketStock.toFixed(1)} and has ${planned}, enough to cover up to ${coverage.potentialCoverage.toFixed(1)} of the staffed shortfall${coverage.uncoveredDispatchableShortfall > 0.05 ? ` · ${coverage.uncoveredDispatchableShortfall.toFixed(1)} would remain` : ''}.${laborBlock}${fireBlock}${inboundBlock}${firstExposed} ${nextCart} Reachability is shared with other granaries or markets on the same road component.</p>`;
+}
+
+function renderNextMarketplaceSeedCart(
+  coverage: MarketplaceSeedCoveragePlan,
+): string {
+  if (!coverage.sourceOperational) {
+    return 'Next seed cart is blocked until this market is complete, staffed, and safe.';
+  }
+  if (coverage.sourceBusy) {
+    return 'This market already has a cart away; seed priority is recalculated when it returns.';
+  }
+  if (coverage.nextDispatchBuildingId === null) {
+    return coverage.inboundBlockedHoldings > 0
+      ? 'No duplicate seed cart launches while the exposed staffed holdings wait for inbound grain.'
+      : 'No staffed, safe, road-reachable holding is currently eligible for another seed cart.';
+  }
+  const distance = coverage.nextDispatchDistance === null
+    ? ''
+    : ` over ${coverage.nextDispatchDistance.toFixed(0)} m of road`;
+  const inspect = `<button type="button" class="inspector-jump-button" data-inspect-building="${coverage.nextDispatchBuildingId}" aria-label="Inspect next seed-cart holding">Inspect next holding</button>`;
+  if (coverage.nextDispatchAmount <= 0.05) {
+    return `Next eligible destination once physical seed is available: ${coverage.nextDispatchStock.toFixed(1)} / ${coverage.nextDispatchRequired.toFixed(1)} onsite${distance}. ${inspect}`;
+  }
+  return `Next seed cart: ${coverage.nextDispatchAmount.toFixed(1)} grain to the least-covered eligible holding (${coverage.nextDispatchStock.toFixed(1)} / ${coverage.nextDispatchRequired.toFixed(1)} onsite)${distance}. ${inspect}`;
 }

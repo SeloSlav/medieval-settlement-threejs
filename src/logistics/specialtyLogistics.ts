@@ -9,7 +9,11 @@ import {
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
-import { compareStableEntityIds, roadPathDistance } from './roadLogistics.ts';
+import {
+  compareStableEntityIds,
+  roadPathDistance,
+  roadPathDistancesFrom,
+} from './roadLogistics.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 
 export const MONASTERY_MIN_PARISH_POPULATION = 12;
@@ -73,14 +77,24 @@ function findRoadLinkedSpecialtySupplier(
   requireStock: boolean,
 ): BuildingState | null {
   const supplierKinds = supplierKindsForNeed(needKind);
+  const suppliers = [...buildings].filter((building) => {
+    if (!isOperationalSpecialtySupplier(building) || !supplierKinds.includes(building.kind)) {
+      return false;
+    }
+    return !requireStock || specialtySupplierStock(building, needKind) > 1e-6;
+  });
+  const distances = roadPathDistancesFrom(
+    network,
+    residence.x,
+    residence.z,
+    suppliers,
+  );
   let best: BuildingState | null = null;
   let bestDistance = Infinity;
 
-  for (const building of buildings) {
-    if (!isOperationalSpecialtySupplier(building) || !supplierKinds.includes(building.kind)) continue;
-    const stock = specialtySupplierStock(building, needKind);
-    if (requireStock && stock <= 1e-6) continue;
-    const distance = roadPathDistance(network, residence.x, residence.z, building.x, building.z);
+  for (let index = 0; index < suppliers.length; index += 1) {
+    const building = suppliers[index];
+    const distance = distances[index];
     if (distance == null) continue;
     if (!eligible(building, distance)) continue;
     if (
@@ -192,18 +206,39 @@ export function peekNextSpecialtyDeliveryTarget(
   needKind: SpecialtyNeedKind,
 ): ResidenceState | null {
   const capacity = specialtyCapacity(needKind);
-  let best: ResidenceState | null = null;
-  for (const residence of residences) {
-    if (residence.abandoned || residence.population <= 0 || residence.tier < 3) continue;
-    if (getNeedStock(residence.needs, needKind) + 1e-6 >= capacity) continue;
+  const eligible = residences.filter((residence) =>
+    !residence.abandoned
+    && residence.population > 0
+    && residence.tier >= 3
+    && getNeedStock(residence.needs, needKind) + 1e-6 < capacity);
+  const distances = roadPathDistancesFrom(network, supplier.x, supplier.z, eligible);
+  let bestIndex = -1;
+  for (let index = 0; index < eligible.length; index += 1) {
+    const distance = distances[index];
+    if (distance == null) continue;
+    if (bestIndex < 0) {
+      bestIndex = index;
+      continue;
+    }
+    const runway = specialtyRunwaySeconds(eligible[index], needKind) ?? Infinity;
+    const bestRunway = specialtyRunwaySeconds(eligible[bestIndex], needKind) ?? Infinity;
     if (
-      best == null
-      || compareResidencesForSpecialtyDelivery(network, supplier, residence, best, needKind) < 0
+      runway + 1e-6 < bestRunway
+      || (
+        Math.abs(runway - bestRunway) <= 1e-6
+        && (
+          distance + 1e-6 < distances[bestIndex]!
+          || (
+            Math.abs(distance - distances[bestIndex]!) <= 1e-6
+            && compareStableEntityIds(eligible[index].id, eligible[bestIndex].id) < 0
+          )
+        )
+      )
     ) {
-      best = residence;
+      bestIndex = index;
     }
   }
-  return best;
+  return bestIndex < 0 ? null : eligible[bestIndex];
 }
 
 function supplierKindsForNeed(needKind: SpecialtyNeedKind): readonly BuildingKind[] {

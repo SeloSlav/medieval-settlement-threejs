@@ -15,6 +15,7 @@ import {
   marketplaceSpecialtyExportPlan,
   marketplaceSpecialtyQueue,
 } from '../../economy/specialtyTrade.ts';
+import { marketplaceSeedCoveragePlan } from '../../economy/marketplaceSeedCoverage.ts';
 
 function formatLinkedHomeStatus(connectedHomes: number): string {
   if (connectedHomes <= 0) {
@@ -72,6 +73,16 @@ export function renderMarketplaceInspector(
     specialtyQueue,
     specialtyPlan,
   );
+  const seedCoverage = marketplaceSeedCoveragePlan(
+    building,
+    context.gameState,
+    (_market, farmstead) => context.worldQueries.getRoadPathDistance(
+      building.x,
+      building.z,
+      farmstead.x,
+      farmstead.z,
+    ),
+  );
 
   return {
     eyebrow: 'Building',
@@ -111,6 +122,7 @@ export function renderMarketplaceInspector(
       marketState,
       manualTrade,
       context.conflictEnabled,
+      seedCoverage,
     ),
   };
 }

@@ -65,4 +65,5 @@ export default __t.row({
   storehouseFirewoodTargetPercent: __t.u8().name("storehouse_firewood_target_percent"),
   processorOutputTargetPercent: __t.u8().name("processor_output_target_percent"),
   guardhouseFoodReserve: __t.u8().name("guardhouse_food_reserve"),
+  marketplaceSeedGrainTarget: __t.u8().name("marketplace_seed_grain_target"),
 });

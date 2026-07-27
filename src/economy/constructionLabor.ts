@@ -30,6 +30,7 @@ export type SettlementConstructionLaborPlan = {
   remainingReadyPosts: number;
   recalledWorkers: number;
   calledWorkers: number;
+  laborReserve: number;
   freeLaborBefore: number;
   freeLaborAfter: number;
   firstBlockedBuildingId: string | null;
@@ -69,6 +70,7 @@ export function constructionLaborReady(
 export function computeSettlementConstructionLaborPlan(
   state: Pick<GameState, 'buildings' | 'deliveryTrips'>,
   availableLabor: number,
+  laborReserve = 0,
 ): SettlementConstructionLaborPlan {
   type Candidate = ConstructionLaborAssignment & { maxLabor: number };
   const inboundSiteIds = new Set<string>();
@@ -149,7 +151,11 @@ export function computeSettlementConstructionLaborPlan(
   const orderedCandidates = priorityBuckets.slice().reverse().flat();
   const firstReadyUnderstaffedBuildingId = orderedCandidates[0]?.buildingId ?? null;
   const freeLaborBefore = Math.max(0, Math.floor(availableLabor));
-  let laborRemaining = freeLaborBefore + recalledWorkers;
+  const safeLaborReserve = Math.max(0, Math.floor(laborReserve));
+  let laborRemaining = Math.max(
+    0,
+    freeLaborBefore + recalledWorkers - safeLaborReserve,
+  );
 
   for (
     let priority = CONSTRUCTION_PRIORITY_URGENT;
@@ -190,6 +196,7 @@ export function computeSettlementConstructionLaborPlan(
     remainingReadyPosts: readyOpenPosts - calledWorkers,
     recalledWorkers,
     calledWorkers,
+    laborReserve: safeLaborReserve,
     freeLaborBefore,
     freeLaborAfter: freeLaborBefore + recalledWorkers - calledWorkers,
     firstBlockedBuildingId,

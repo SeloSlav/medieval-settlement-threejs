@@ -4,6 +4,17 @@ use crate::balance_generated::{
 
 pub const SEASONAL_LABOR_STEWARD_DEFAULT: bool = false;
 pub const CONSTRUCTION_LABOR_STEWARD_DEFAULT: bool = false;
+pub const PRODUCTION_LABOR_STEWARD_DEFAULT: bool = false;
+pub const LABOR_STEWARD_RESERVE_DEFAULT: u32 = 0;
+pub const LABOR_STEWARD_RESERVE_OPTIONS: [u32; 5] = [0, 1, 2, 4, 6];
+
+pub fn is_valid_labor_steward_reserve(reserve: u32) -> bool {
+    LABOR_STEWARD_RESERVE_OPTIONS.contains(&reserve)
+}
+
+pub fn steward_deployable_labor(available_labor: u32, reserve: u32) -> u32 {
+    available_labor.saturating_sub(reserve)
+}
 
 /// Daily steward work is event-driven rather than checked against a fragile
 /// tick modulus because the fictional day starts with a calendar offset.
@@ -45,5 +56,16 @@ mod tests {
     fn existing_settlements_remain_manual() {
         assert!(!SEASONAL_LABOR_STEWARD_DEFAULT);
         assert!(!CONSTRUCTION_LABOR_STEWARD_DEFAULT);
+        assert!(!PRODUCTION_LABOR_STEWARD_DEFAULT);
+        assert_eq!(LABOR_STEWARD_RESERVE_DEFAULT, 0);
+    }
+
+    #[test]
+    fn reserve_options_are_readable_and_never_create_labor() {
+        assert_eq!(LABOR_STEWARD_RESERVE_OPTIONS, [0, 1, 2, 4, 6]);
+        assert!(is_valid_labor_steward_reserve(4));
+        assert!(!is_valid_labor_steward_reserve(3));
+        assert_eq!(steward_deployable_labor(7, 2), 5);
+        assert_eq!(steward_deployable_labor(1, 2), 0);
     }
 }

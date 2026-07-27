@@ -6,7 +6,8 @@ use crate::balance_generated::{
 use crate::building_defs::{building_def, building_def_or_err};
 use crate::burgage::{zone_overlaps_footprint, Point2};
 use crate::construction_priority::{
-    construction_labor_ready, construction_labor_rotation, is_valid_construction_priority,
+    construction_labor_ready, construction_labor_rotation,
+    construction_labor_rotation_with_reserve, is_valid_construction_priority,
     ConstructionLaborRotation, ConstructionLaborSite, CONSTRUCTION_PRIORITY_HOLD,
     CONSTRUCTION_PRIORITY_NORMAL,
 };
@@ -31,13 +32,18 @@ use crate::granary_policy::{
 };
 use crate::harvest_reserve_policy::{harvestable_wild_stock, normalize_harvest_reserve_percent};
 use crate::hydrology::{sample_hydrology_score, well_capacity_from_hydrology};
+use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
-use crate::marketplace_procurement_policy::is_valid_marketplace_ironwork_target;
+use crate::marketplace_procurement_policy::{
+    is_valid_marketplace_ironwork_target, is_valid_marketplace_seed_grain_target,
+};
 use crate::placement_validation::{
     building_overlaps_open_water, building_overlaps_residence_zone, building_overlaps_road_surface,
     building_site_contains_point, is_near_open_water, is_on_quarry_pit, is_open_water,
 };
-use crate::processor_labor_policy::{processor_callup_targets, ProcessorCallupCandidate};
+use crate::processor_labor_policy::{
+    processor_callup_targets, production_steward_callup_allowed, ProcessorCallupCandidate,
+};
 use crate::processor_output_policy::{
     is_processor_output_target_kind, is_valid_processor_output_target_percent,
     processor_output_headroom, processor_output_kind, ProcessorOutputKind,
@@ -563,6 +569,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         guardhouse_pay_priority,
         guardhouse_food_reserve,
         marketplace_ironwork_target: 0,
+        marketplace_seed_grain_target: 0,
         marketplace_specialty_export_policy: 0,
         granary_fresh_food_target_percent: GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
         storehouse_timber_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
@@ -613,6 +620,14 @@ pub(crate) fn rotate_construction_labor_for_owner(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> ConstructionLaborRotation {
+    rotate_construction_labor_for_owner_with_reserve(ctx, owner, 0)
+}
+
+pub(crate) fn rotate_construction_labor_for_owner_with_reserve(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    labor_reserve: u32,
+) -> ConstructionLaborRotation {
     let available_labor = available_building_labor(ctx, owner);
     let sites = ctx
         .db
@@ -637,7 +652,11 @@ pub(crate) fn rotate_construction_labor_for_owner(
             inbound_supply: building_has_inbound_supply_trip(ctx, building.id),
         })
         .collect::<Vec<_>>();
-    let rotation = construction_labor_rotation(&sites, available_labor);
+    let rotation = if labor_reserve == 0 {
+        construction_labor_rotation(&sites, available_labor)
+    } else {
+        construction_labor_rotation_with_reserve(&sites, available_labor, labor_reserve)
+    };
 
     for &(building_id, target_labor) in &rotation.targets {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
@@ -850,20 +869,10 @@ fn production_site_ready(
 /// is retained for generated-binding and save compatibility. Matching inbound
 /// inputs protect recovering workshops; stored output or an active cart keeps
 /// one dispatcher.
-#[reducer]
-pub fn recall_target_idle_processor_labor(ctx: &ReducerContext) -> Result<(), String> {
-    let owner = ctx.sender();
-    let has_staffed_town_hall = ctx.db.building().owner().filter(&owner).any(|building| {
-        building.kind == "town_hall"
-            && building.construction_complete
-            && building.assigned_labor > 0
-    });
-    if !has_staffed_town_hall {
-        return Err(
-            "A staffed Town Hall is required to recall stalled production crews.".to_string(),
-        );
-    }
-
+pub fn recall_target_idle_processor_labor_for_owner(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> u32 {
     let sim_tick = ctx
         .db
         .world_config()
@@ -881,6 +890,7 @@ pub fn recall_target_idle_processor_labor(ctx: &ReducerContext) -> Result<(), St
         .filter(&owner)
         .filter(|building| building.construction_complete && building.assigned_labor > 0)
         .collect();
+    let mut recalled = 0_u32;
     for mut building in buildings {
         let has_active_trip = building_has_active_trip(ctx, building.id);
         let (stalled, supply_en_route, has_dispatch_duty) = match building.kind.as_str() {
@@ -934,10 +944,23 @@ pub fn recall_target_idle_processor_labor(ctx: &ReducerContext) -> Result<(), St
         if target_labor >= building.assigned_labor {
             continue;
         }
+        recalled = recalled.saturating_add(building.assigned_labor - target_labor);
         building.assigned_labor = target_labor;
         ctx.db.building().id().update(building);
     }
 
+    recalled
+}
+
+#[reducer]
+pub fn recall_target_idle_processor_labor(ctx: &ReducerContext) -> Result<(), String> {
+    let owner = ctx.sender();
+    if !owner_has_staffed_town_hall(ctx, owner) {
+        return Err(
+            "A staffed Town Hall is required to recall stalled production crews.".to_string(),
+        );
+    }
+    recall_target_idle_processor_labor_for_owner(ctx, owner);
     Ok(())
 }
 
@@ -945,21 +968,16 @@ pub fn recall_target_idle_processor_labor(ctx: &ReducerContext) -> Result<(), St
 /// source-ready quarries or hunting halls. Staffing priority tiers fill from
 /// high to low, with round-robin sharing inside each tier. The legacy reducer
 /// name is retained for generated-binding compatibility.
-#[reducer]
-pub fn call_up_target_ready_processor_labor(ctx: &ReducerContext) -> Result<(), String> {
-    let owner = ctx.sender();
-    let has_staffed_town_hall = ctx.db.building().owner().filter(&owner).any(|building| {
-        building.kind == "town_hall"
-            && building.construction_complete
-            && building.assigned_labor > 0
-    });
-    if !has_staffed_town_hall {
-        return Err("A staffed Town Hall is required to deploy production crews.".to_string());
-    }
-
-    let available_labor = available_building_labor(ctx, owner);
+fn call_up_target_ready_processor_labor_for_owner_with_policy(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    require_operational_inputs: bool,
+    labor_reserve: u32,
+) -> u32 {
+    let available_labor =
+        steward_deployable_labor(available_building_labor(ctx, owner), labor_reserve);
     if available_labor == 0 {
-        return Ok(());
+        return 0;
     }
     let (quarry_buckets, foraging_buckets) = worksite_source_buckets(ctx);
     let mut candidates = Vec::new();
@@ -981,6 +999,12 @@ pub fn call_up_target_ready_processor_labor(ctx: &ReducerContext) -> Result<(), 
         {
             continue;
         }
+        if require_operational_inputs && is_processor_output_target_kind(&building.kind) {
+            let (stalled, supply_en_route) = processor_stall_and_recovery(ctx, &building);
+            if !production_steward_callup_allowed(stalled, supply_en_route) {
+                continue;
+            }
+        }
         candidates.push(ProcessorCallupCandidate {
             building_id: building.id,
             priority: building.construction_priority,
@@ -989,6 +1013,7 @@ pub fn call_up_target_ready_processor_labor(ctx: &ReducerContext) -> Result<(), 
         });
     }
 
+    let mut called_up = 0_u32;
     for (building_id, target_labor) in processor_callup_targets(&candidates, available_labor) {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -996,10 +1021,41 @@ pub fn call_up_target_ready_processor_labor(ctx: &ReducerContext) -> Result<(), 
         if building.owner != owner || target_labor <= building.assigned_labor {
             continue;
         }
+        called_up = called_up.saturating_add(target_labor - building.assigned_labor);
         building.assigned_labor = target_labor;
         ctx.db.building().id().update(building);
     }
 
+    called_up
+}
+
+/// The explicit Town Hall order may pre-staff an input-empty workshop so the
+/// player can prepare a chain before its first cart arrives.
+pub fn call_up_target_ready_processor_labor_for_owner(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> u32 {
+    call_up_target_ready_processor_labor_for_owner_with_policy(ctx, owner, false, 0)
+}
+
+/// Daily automation is deliberately stricter: it never recalls an input-starved
+/// crew and immediately hires it back. Capacity-open workshops must have their
+/// current inputs or matching inbound carts before they claim free labor.
+pub fn call_up_operational_production_labor_for_owner(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    labor_reserve: u32,
+) -> u32 {
+    call_up_target_ready_processor_labor_for_owner_with_policy(ctx, owner, true, labor_reserve)
+}
+
+#[reducer]
+pub fn call_up_target_ready_processor_labor(ctx: &ReducerContext) -> Result<(), String> {
+    let owner = ctx.sender();
+    if !owner_has_staffed_town_hall(ctx, owner) {
+        return Err("A staffed Town Hall is required to deploy production crews.".to_string());
+    }
+    call_up_target_ready_processor_labor_for_owner(ctx, owner);
     Ok(())
 }
 
@@ -1082,8 +1138,10 @@ pub fn set_construction_priority(
                 "Operating-building staffing priority must be low, normal, or high.".to_string(),
             );
         }
-        if !building_def(&building.kind).is_some_and(|def| def.accepts_labor) {
-            return Err("This building does not use labor.".to_string());
+        if !building_def(&building.kind).is_some_and(|def| def.accepts_labor)
+            && building.kind != "monastery"
+        {
+            return Err("This building does not use labor or rationed grain.".to_string());
         }
         building.construction_priority = priority;
         ctx.db.building().id().update(building);
@@ -1387,6 +1445,31 @@ pub fn set_marketplace_ironwork_target(
         return Err("You do not own this completed marketplace.".to_string());
     }
     building.marketplace_ironwork_target = ironwork_target;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_marketplace_seed_grain_target(
+    ctx: &ReducerContext,
+    building_id: u64,
+    seed_grain_target: u8,
+) -> Result<(), String> {
+    if !is_valid_marketplace_seed_grain_target(seed_grain_target) {
+        return Err("Marketplace seed-grain target must be 0, 24, 48, 72, or 96.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Marketplace not found.".to_string())?;
+    if building.owner != owner || building.kind != "marketplace" || !building.construction_complete
+    {
+        return Err("You do not own this completed marketplace.".to_string());
+    }
+    building.marketplace_seed_grain_target = seed_grain_target;
     ctx.db.building().id().update(building);
     Ok(())
 }

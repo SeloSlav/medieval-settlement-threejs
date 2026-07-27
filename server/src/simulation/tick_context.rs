@@ -15,10 +15,11 @@ use crate::farming::field_seed_grain_remaining;
 use crate::roads::RoadNetwork;
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
+use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
 use crate::supply_policy::{
-    compare_supply_route_candidates, is_firewood_supplier_operational,
-    is_food_supplier_operational, is_specialty_supplier_operational, is_well_supplier_operational,
-    ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
+    is_firewood_supplier_operational, is_food_supplier_operational,
+    is_specialty_supplier_operational, is_well_supplier_operational, ALE_SUPPLIER_KINDS,
+    CLOTH_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
 };
 use crate::tables::{farm_field, livestock_herd, Building, Residence};
 
@@ -613,51 +614,37 @@ impl SimTickContext {
                         }))
             })
             .collect();
-        let residences: Vec<Residence> = ctx.db.residence().owner().filter(&owner).collect();
-        let mut claims = HashMap::new();
+        let residences: Vec<Residence> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| {
+                !residence.abandoned
+                    && residence.population > 0
+                    && need_kind.is_active_for_tier(residence.tier)
+            })
+            .collect();
+        let parish_residences: HashSet<u64> = residences
+            .iter()
+            .filter(|residence| {
+                chapels.iter().any(|chapel| {
+                    network.road_connected(residence.x, residence.z, chapel.x, chapel.z)
+                })
+            })
+            .map(|residence| residence.id)
+            .collect();
 
-        for residence in residences {
-            if residence.abandoned
-                || residence.population == 0
-                || !need_kind.is_active_for_tier(residence.tier)
-            {
-                continue;
-            }
-            let residence_has_parish = chapels
-                .iter()
-                .any(|chapel| network.road_connected(residence.x, residence.z, chapel.x, chapel.z));
-            let mut best: Option<(&Building, f64)> = None;
-            for supplier in &suppliers {
-                let Some(distance) =
-                    network.road_path_distance(supplier.x, supplier.z, residence.x, residence.z)
-                else {
-                    continue;
-                };
-                if supplier.kind == "monastery"
-                    && (!residence_has_parish || distance > MONASTERY_COVERAGE_RADIUS)
-                {
-                    continue;
-                }
-                let replace = match best {
-                    None => true,
-                    Some((current, current_distance)) => compare_supply_route_candidates(
-                        distance,
-                        supplier.id,
-                        current_distance,
-                        current.id,
-                    )
-                    .is_lt(),
-                };
-                if replace {
-                    best = Some((supplier, distance));
-                }
-            }
-            if let Some((supplier, _)) = best {
-                claims.insert(residence.id, supplier.id);
-            }
-        }
-
-        claims
+        claim_residences_by_nearest_supplier(
+            network,
+            &suppliers,
+            &residences,
+            |supplier, residence, distance| {
+                supplier.kind != "monastery"
+                    || (parish_residences.contains(&residence.id)
+                        && distance <= MONASTERY_COVERAGE_RADIUS)
+            },
+        )
     }
 
     fn build_food_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
@@ -691,47 +678,32 @@ impl SimTickContext {
                         }))
             })
             .collect();
-        let residences: Vec<Residence> = ctx.db.residence().owner().filter(&owner).collect();
-        let mut claims = HashMap::new();
+        let residences: Vec<Residence> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| !residence.abandoned && residence.population > 0)
+            .collect();
+        let parish_residences: HashSet<u64> = residences
+            .iter()
+            .filter(|residence| {
+                chapels.iter().any(|chapel| {
+                    network.road_connected(residence.x, residence.z, chapel.x, chapel.z)
+                })
+            })
+            .map(|residence| residence.id)
+            .collect();
 
-        for residence in residences {
-            if residence.abandoned || residence.population == 0 {
-                continue;
-            }
-            let residence_has_parish = chapels
-                .iter()
-                .any(|chapel| network.road_connected(residence.x, residence.z, chapel.x, chapel.z));
-            let mut best: Option<(&Building, f64)> = None;
-            for supplier in &suppliers {
-                let Some(distance) =
-                    network.road_path_distance(supplier.x, supplier.z, residence.x, residence.z)
-                else {
-                    continue;
-                };
-                if supplier.kind == "monastery"
-                    && (!residence_has_parish || distance > MONASTERY_COVERAGE_RADIUS)
-                {
-                    continue;
-                }
-                let replace = match best {
-                    None => true,
-                    Some((current, current_distance)) => compare_supply_route_candidates(
-                        distance,
-                        supplier.id,
-                        current_distance,
-                        current.id,
-                    )
-                    .is_lt(),
-                };
-                if replace {
-                    best = Some((supplier, distance));
-                }
-            }
-            if let Some((supplier, _)) = best {
-                claims.insert(residence.id, supplier.id);
-            }
-        }
-
-        claims
+        claim_residences_by_nearest_supplier(
+            network,
+            &suppliers,
+            &residences,
+            |supplier, residence, distance| {
+                supplier.kind != "monastery"
+                    || (parish_residences.contains(&residence.id)
+                        && distance <= MONASTERY_COVERAGE_RADIUS)
+            },
+        )
     }
 }

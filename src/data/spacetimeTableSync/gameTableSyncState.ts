@@ -30,6 +30,8 @@ export type GameTableSyncState = {
   economicActivityTaxRate: number;
   seasonalLaborStewardEnabled: boolean;
   constructionLaborStewardEnabled: boolean;
+  productionLaborStewardEnabled: boolean;
+  laborStewardReserve: number;
   parishPolicy: ParishPolicyState;
   monasteryPolicy: MonasteryPolicyState;
   marketState: RegionalMarketState;

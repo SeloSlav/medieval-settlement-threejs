@@ -28,26 +28,27 @@ export type ProcessorInputCommodity =
   | 'wool';
 
 export const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT = 100;
+export const PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES = 3;
 export const PROCESSOR_OUTPUT_TARGET_PRESETS = [
   {
     percent: 25,
     label: 'Lean',
-    hint: 'Preserves scarce inputs and keeps only a small finished-goods buffer.',
+    hint: 'Stages one input cycle and keeps only a small finished-goods buffer.',
   },
   {
     percent: 50,
     label: 'Balanced',
-    hint: 'Maintains a practical buffer while limiting tied-up inputs.',
+    hint: 'Stages two input cycles and maintains a practical finished-goods buffer.',
   },
   {
     percent: 75,
     label: 'Deep',
-    hint: 'Builds a strong seasonal reserve before production pauses.',
+    hint: 'Stages three input cycles and builds a strong seasonal reserve.',
   },
   {
     percent: 100,
     label: 'Fill',
-    hint: 'Matches the original behavior and produces until physical capacity.',
+    hint: 'Stages the legacy three input cycles and produces until physical capacity.',
   },
 ] as const;
 
@@ -109,6 +110,22 @@ export function processorOutputTarget(
   return Math.max(0, capacity)
     * normalizeProcessorOutputTargetPercent(percent)
     / 100;
+}
+
+export function processorInputStagingCycles(
+  percent: number | undefined,
+): number {
+  switch (normalizeProcessorOutputTargetPercent(percent)) {
+    case 25:
+      return 1;
+    case 50:
+      return 2;
+    case 75:
+    case 100:
+      return PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES;
+    default:
+      return PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES;
+  }
 }
 
 export function processorOutputTargetForBuilding(

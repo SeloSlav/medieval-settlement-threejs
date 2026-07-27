@@ -1,13 +1,10 @@
 //! Road network parsing and connectivity checks for building logistics.
 
 use serde::Deserialize;
-use spacetimedb::Identity;
-use spacetimedb::ReducerContext;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 
 use crate::constants::BUILDING_ROAD_ACCESS_DISTANCE;
-use crate::db::*;
 
 #[derive(Debug, Clone, Deserialize)]
 struct RoadNodeRow {
@@ -212,6 +209,43 @@ impl RoadNetwork {
         Some(self.route_distance(ax, az, bx, bz, &solve.node_path))
     }
 
+    /// Shortest travel distance from one origin to every target, including
+    /// each building's off-road access legs.
+    ///
+    /// A household territory or next-cart decision often compares dozens of
+    /// destinations from the same supplier. Solving that as one Dijkstra tree
+    /// preserves the exact route metric while avoiding a full graph traversal
+    /// for every candidate.
+    pub fn road_path_distances_from(
+        &self,
+        ax: f64,
+        az: f64,
+        targets: &[(f64, f64)],
+    ) -> Vec<Option<f64>> {
+        if targets.is_empty() {
+            return Vec::new();
+        }
+        let Some(distances) = self.shortest_node_distances_from(ax, az) else {
+            return vec![None; targets.len()];
+        };
+
+        targets
+            .iter()
+            .map(|&(tx, tz)| {
+                let target_nodes = self.snap_nodes(tx, tz)?;
+                target_nodes
+                    .iter()
+                    .filter_map(|node_id| {
+                        let road_cost = distances.get(node_id)?;
+                        let &(nx, nz) = self.nodes.get(node_id)?;
+                        Some(*road_cost + distance(tx, tz, nx, nz))
+                    })
+                    .filter(|total| total.is_finite())
+                    .min_by(f64::total_cmp)
+            })
+            .collect()
+    }
+
     /// Shortest road distance from one origin to any target, with one graph
     /// traversal regardless of target count. This is suited to periodic
     /// service/muster checks where only the nearest reachable site matters.
@@ -298,6 +332,46 @@ impl RoadNetwork {
             distance: Self::polyline_length_xz(&polyline),
             polyline,
         })
+    }
+
+    fn shortest_node_distances_from(&self, ax: f64, az: f64) -> Option<HashMap<String, f64>> {
+        let start_nodes = self.snap_nodes(ax, az)?;
+        let mut distances: HashMap<String, f64> = HashMap::new();
+        let mut heap: BinaryHeap<Reverse<(u64, String)>> = BinaryHeap::new();
+
+        for node_id in start_nodes {
+            let Some(&(nx, nz)) = self.nodes.get(&node_id) else {
+                continue;
+            };
+            let cost = distance(ax, az, nx, nz);
+            let entry = distances.entry(node_id.clone()).or_insert(f64::INFINITY);
+            if cost + 1e-6 < *entry {
+                *entry = cost;
+                heap.push(Reverse((cost_to_key(cost), node_id)));
+            }
+        }
+        if heap.is_empty() {
+            return None;
+        }
+
+        while let Some(Reverse((heap_key, node_id))) = heap.pop() {
+            let Some(&best) = distances.get(&node_id) else {
+                continue;
+            };
+            if heap_key > cost_to_key(best) {
+                continue;
+            }
+            for (neighbor, weight) in self.weighted_graph.get(&node_id).into_iter().flatten() {
+                let next = best + weight;
+                let entry = distances.entry(neighbor.clone()).or_insert(f64::INFINITY);
+                if next + 1e-6 < *entry {
+                    *entry = next;
+                    heap.push(Reverse((cost_to_key(next), neighbor.clone())));
+                }
+            }
+        }
+
+        Some(distances)
     }
 
     fn shortest_path_solve(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<ShortestPathSolve> {
@@ -695,11 +769,6 @@ fn cost_to_key(cost: f64) -> u64 {
     }
 }
 
-pub fn load_owner_road_network(ctx: &ReducerContext, owner: Identity) -> Option<RoadNetwork> {
-    let state = ctx.db.road_network_state().owner().find(&owner)?;
-    RoadNetwork::from_snapshot_json(&state.snapshot_json)
-}
-
 fn distance(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
     ((ax - bx).powi(2) + (az - bz).powi(2)).sqrt()
 }
@@ -765,6 +834,7 @@ fn append_polyline(path: &mut Vec<[f64; 2]>, segment: &[[f64; 2]]) {
 #[cfg(test)]
 mod tests {
     use super::RoadNetwork;
+    use std::time::Instant;
 
     #[test]
     fn precomputed_graph_preserves_routes_and_components() {
@@ -813,6 +883,12 @@ mod tests {
         assert!(network.road_connected(0.0, 0.0, 20.0, 0.0));
         assert!(!network.road_connected(0.0, 0.0, 100.0, 0.0));
         assert!((network.road_path_distance(0.0, 0.0, 20.0, 0.0).unwrap() - 20.0).abs() < 1e-9);
+        let batched =
+            network.road_path_distances_from(0.0, 0.0, &[(20.0, 0.0), (100.0, 0.0), (12.0, 2.0)]);
+        assert_eq!(batched.len(), 3);
+        assert!((batched[0].unwrap() - 20.0).abs() < 1e-9);
+        assert_eq!(batched[1], None);
+        assert_eq!(batched[2], network.road_path_distance(0.0, 0.0, 12.0, 2.0));
         assert!(
             (network
                 .nearest_road_path_distance(0.0, 0.0, &[(100.0, 0.0), (20.0, 0.0)])
@@ -857,5 +933,63 @@ mod tests {
         // former stale-entry check rejected this initial queue entry.
         let route = network.road_path_route(-2.0006, 1.0, 12.0, 1.0);
         assert!(route.is_some(), "connected off-road access legs must route");
+    }
+
+    #[test]
+    fn batched_household_routes_match_pairwise_solves_and_avoid_repeated_dijkstra() {
+        const NODE_COUNT: usize = 400;
+        let nodes: Vec<_> = (0..NODE_COUNT)
+            .map(|index| {
+                serde_json::json!({
+                    "id": format!("n{index}"),
+                    "position": [index as f64 * 8.0, 0.0, 0.0],
+                })
+            })
+            .collect();
+        let edges: Vec<_> = (0..NODE_COUNT - 1)
+            .map(|index| {
+                let start = index as f64 * 8.0;
+                let end = (index + 1) as f64 * 8.0;
+                serde_json::json!({
+                    "startNodeId": format!("n{index}"),
+                    "endNodeId": format!("n{}", index + 1),
+                    "width": 4.2,
+                    "sampledPath": [[start, 0.0, 0.0], [end, 0.0, 0.0]],
+                })
+            })
+            .collect();
+        let snapshot = serde_json::json!({ "nodes": nodes, "edges": edges }).to_string();
+        let network = RoadNetwork::from_snapshot_json(&snapshot).expect("generated road network");
+        let targets: Vec<(f64, f64)> = (1..NODE_COUNT)
+            .map(|index| (index as f64 * 8.0 + 1.0, 2.0))
+            .collect();
+
+        let pairwise_started = Instant::now();
+        let pairwise: Vec<_> = targets
+            .iter()
+            .map(|&(x, z)| network.road_path_distance(0.0, 0.0, x, z))
+            .collect();
+        let pairwise_elapsed = pairwise_started.elapsed();
+
+        let batched_started = Instant::now();
+        let batched = network.road_path_distances_from(0.0, 0.0, &targets);
+        let batched_elapsed = batched_started.elapsed();
+
+        assert_eq!(batched.len(), pairwise.len());
+        for (batch_distance, pair_distance) in batched.iter().zip(&pairwise) {
+            let batch_distance = batch_distance.expect("every target shares the road branch");
+            let pair_distance = pair_distance.expect("every target shares the road branch");
+            assert!((batch_distance - pair_distance).abs() < 1e-9);
+        }
+        assert!(
+            batched_elapsed.as_nanos().saturating_mul(8) < pairwise_elapsed.as_nanos(),
+            "one-to-many routing should be materially cheaper than {} full graph solves: \
+             batch {batched_elapsed:?}, pairwise {pairwise_elapsed:?}",
+            targets.len()
+        );
+        println!(
+            "{} household routes: batched {batched_elapsed:?}, pairwise {pairwise_elapsed:?}",
+            targets.len()
+        );
     }
 }

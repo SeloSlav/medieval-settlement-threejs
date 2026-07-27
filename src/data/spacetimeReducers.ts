@@ -15,6 +15,7 @@ import { settingsToConfigurePayload } from '../world/worldConfigAuthority.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
+import { normalizeLaborStewardReserve } from '../economy/laborSteward.ts';
 import {
   parseBuildingServerId,
   parseFarmFieldServerId,
@@ -281,6 +282,18 @@ export async function setConstructionLaborSteward(enabled: boolean): Promise<voi
   });
 }
 
+export async function setProductionLaborSteward(enabled: boolean): Promise<void> {
+  await callReducer('setProductionLaborSteward', 'set_production_labor_steward', {
+    enabled,
+  });
+}
+
+export async function setLaborStewardReserve(laborReserve: number): Promise<void> {
+  await callReducer('setLaborStewardReserve', 'set_labor_steward_reserve', {
+    laborReserve: normalizeLaborStewardReserve(laborReserve),
+  });
+}
+
 export async function setChapelParishPolicy(
   autoSweepEnabled: boolean,
   cofferReserveGold: number,
@@ -440,6 +453,18 @@ export async function setMarketplaceIronworkTarget(
   await callReducer('setMarketplaceIronworkTarget', 'set_marketplace_ironwork_target', {
     buildingId: serverId,
     ironworkTarget: Math.max(0, Math.min(48, Math.floor(ironworkTarget))),
+  });
+}
+
+export async function setMarketplaceSeedGrainTarget(
+  buildingId: string,
+  seedGrainTarget: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid marketplace id.');
+  await callReducer('setMarketplaceSeedGrainTarget', 'set_marketplace_seed_grain_target', {
+    buildingId: serverId,
+    seedGrainTarget: Math.max(0, Math.min(96, Math.floor(seedGrainTarget))),
   });
 }
 

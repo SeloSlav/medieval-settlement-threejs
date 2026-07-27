@@ -76,13 +76,16 @@ import SetGranaryPolicyReducer from "./set_granary_policy_reducer";
 import SetGuardhouseFoodReserveReducer from "./set_guardhouse_food_reserve_reducer";
 import SetGuardhousePayPriorityReducer from "./set_guardhouse_pay_priority_reducer";
 import SetHarvestReservePercentReducer from "./set_harvest_reserve_percent_reducer";
+import SetLaborStewardReserveReducer from "./set_labor_steward_reserve_reducer";
 import SetLivestockBreedingReserveReducer from "./set_livestock_breeding_reserve_reducer";
 import SetLivestockHaymakingPercentReducer from "./set_livestock_haymaking_percent_reducer";
 import SetLivestockSpeciesReducer from "./set_livestock_species_reducer";
 import SetMarketplaceIronworkTargetReducer from "./set_marketplace_ironwork_target_reducer";
+import SetMarketplaceSeedGrainTargetReducer from "./set_marketplace_seed_grain_target_reducer";
 import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specialty_export_policy_reducer";
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
 import SetProcessorOutputTargetReducer from "./set_processor_output_target_reducer";
+import SetProductionLaborStewardReducer from "./set_production_labor_steward_reducer";
 import SetSeasonalLaborStewardReducer from "./set_seasonal_labor_steward_reducer";
 import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
@@ -439,13 +442,16 @@ const reducersSchema = __reducers(
   __reducerSchema("set_guardhouse_food_reserve", SetGuardhouseFoodReserveReducer),
   __reducerSchema("set_guardhouse_pay_priority", SetGuardhousePayPriorityReducer),
   __reducerSchema("set_harvest_reserve_percent", SetHarvestReservePercentReducer),
+  __reducerSchema("set_labor_steward_reserve", SetLaborStewardReserveReducer),
   __reducerSchema("set_livestock_breeding_reserve", SetLivestockBreedingReserveReducer),
   __reducerSchema("set_livestock_haymaking_percent", SetLivestockHaymakingPercentReducer),
   __reducerSchema("set_livestock_species", SetLivestockSpeciesReducer),
   __reducerSchema("set_marketplace_ironwork_target", SetMarketplaceIronworkTargetReducer),
+  __reducerSchema("set_marketplace_seed_grain_target", SetMarketplaceSeedGrainTargetReducer),
   __reducerSchema("set_marketplace_specialty_export_policy", SetMarketplaceSpecialtyExportPolicyReducer),
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),
   __reducerSchema("set_processor_output_target", SetProcessorOutputTargetReducer),
+  __reducerSchema("set_production_labor_steward", SetProductionLaborStewardReducer),
   __reducerSchema("set_seasonal_labor_steward", SetSeasonalLaborStewardReducer),
   __reducerSchema("set_storehouse_policy", SetStorehousePolicyReducer),
   __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),

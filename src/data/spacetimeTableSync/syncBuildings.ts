@@ -93,5 +93,6 @@ function buildingStateFromRow(
     guardhouseFoodReserve: row.guardhouseFoodReserve,
     marketplaceIronworkTarget: row.marketplaceIronworkTarget,
     marketplaceSpecialtyExportPolicy: row.marketplaceSpecialtyExportPolicy,
+    marketplaceSeedGrainTarget: row.marketplaceSeedGrainTarget,
   };
 }

@@ -82,12 +82,26 @@ assert.match(population, /priority: building\.construction_priority/);
 assert.match(buildingReducers, /if building\.construction_complete/);
 assert.match(buildingReducers, /Operating-building staffing priority must be low, normal, or high/);
 assert.match(buildingReducers, /building\.construction_priority = priority/);
+assert.match(
+  buildingReducers,
+  /building\.kind != "monastery"/,
+  'autonomous monasteries need the same save-compatible priority control for rationed grain',
+);
 assert.match(buildingRenderer, /withStaffingPriority/);
 assert.match(staffingRenderer, /data-staffing-priority/);
 assert.match(staffingRenderer, /This does not hire workers automatically/);
+assert.match(staffingRenderer, /Labor & cart priority/);
+assert.match(staffingRenderer, /Cart priority/);
+assert.match(staffingRenderer, /Grain and well-water/);
+assert.match(staffingRenderer, /Flour and well-water/);
+assert.match(staffingRenderer, /Dispatched fresh food/);
+assert.match(staffingRenderer, /Wool/);
+assert.match(staffingRenderer, /higher tiers first/);
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-staffing-priority\]'\)/);
 assert.match(resourceInspector, /staffingPriority != null && building\.constructionComplete/);
 assert.match(tables, /Completed buildings use 1 = low, 2 = normal, 3 = high/);
+assert.match(tables, /Routed processor inputs/);
+assert.match(tables, /scarce carts choose a working buffer/);
 assert.doesNotMatch(
   simulation,
   /reconcile_(?:all_)?building_labor/,

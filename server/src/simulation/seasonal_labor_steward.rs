@@ -6,7 +6,7 @@ use crate::economy::available_building_labor;
 use crate::farming::{
     farmstead_exportable_grain, field_seed_grain_remaining, field_work_allowed, STAGE_GROWING,
 };
-use crate::labor_steward_policy::seasonal_labor_steward_review_due;
+use crate::labor_steward_policy::{seasonal_labor_steward_review_due, steward_deployable_labor};
 use crate::seasonal_labor_policy::{
     seasonal_callup_targets, seasonal_labor_target, seasonal_production_active,
     SeasonalCallupCandidate,
@@ -105,7 +105,17 @@ pub fn call_up_active_seasonal_labor_for_owner(
     owner: Identity,
     month: u32,
 ) -> u32 {
-    let available_labor = available_building_labor(ctx, owner);
+    call_up_active_seasonal_labor_for_owner_with_reserve(ctx, owner, month, 0)
+}
+
+fn call_up_active_seasonal_labor_for_owner_with_reserve(
+    ctx: &ReducerContext,
+    owner: Identity,
+    month: u32,
+    labor_reserve: u32,
+) -> u32 {
+    let available_labor =
+        steward_deployable_labor(available_building_labor(ctx, owner), labor_reserve);
     if available_labor == 0 {
         return 0;
     }
@@ -167,9 +177,11 @@ pub fn reconcile_seasonal_labor_for_owner(
     ctx: &ReducerContext,
     owner: Identity,
     month: u32,
+    labor_reserve: u32,
 ) -> (u32, u32) {
     let recalled = recall_idle_seasonal_labor_for_owner(ctx, owner, month);
-    let called_up = call_up_active_seasonal_labor_for_owner(ctx, owner, month);
+    let called_up =
+        call_up_active_seasonal_labor_for_owner_with_reserve(ctx, owner, month, labor_reserve);
     (recalled, called_up)
 }
 
@@ -179,16 +191,16 @@ pub fn step_seasonal_labor_stewards(ctx: &ReducerContext, sim_tick: u64, month: 
     if !seasonal_labor_steward_review_due(sim_tick) {
         return;
     }
-    let owners: Vec<Identity> = ctx
+    let owners: Vec<(Identity, u32)> = ctx
         .db
         .player_resources()
         .iter()
         .filter(|resources| resources.seasonal_labor_steward_enabled)
-        .map(|resources| resources.owner)
+        .map(|resources| (resources.owner, resources.labor_steward_reserve))
         .collect();
-    for owner in owners {
+    for (owner, labor_reserve) in owners {
         if owner_has_staffed_town_hall(ctx, owner) {
-            reconcile_seasonal_labor_for_owner(ctx, owner, month);
+            reconcile_seasonal_labor_for_owner(ctx, owner, month, labor_reserve);
         }
     }
 }

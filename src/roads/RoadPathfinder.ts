@@ -105,6 +105,72 @@ export class RoadPathfinder {
     return this.roadPathRoute(ax, az, bx, bz)?.distance ?? null;
   }
 
+  /**
+   * Exact one-to-many road distances using one Dijkstra tree from the origin.
+   * This mirrors the authoritative server path metric without materializing a
+   * route polyline for every household candidate.
+   */
+  roadPathDistancesFrom(
+    ax: number,
+    az: number,
+    targets: readonly RoadPoint[],
+  ): Array<number | null> {
+    if (targets.length === 0) return [];
+    const distances = this.shortestNodeDistancesFrom(ax, az);
+    if (!distances) return targets.map(() => null);
+
+    return targets.map((target) => {
+      const targetNodes = this.snapNodes(target.x, target.z);
+      if (!targetNodes) return null;
+      let best = Infinity;
+      for (const nodeId of targetNodes) {
+        const roadCost = distances.get(nodeId);
+        const node = this.network.nodes.get(nodeId);
+        if (roadCost == null || !node) continue;
+        best = Math.min(
+          best,
+          roadCost + distance(target.x, target.z, node.position.x, node.position.z),
+        );
+      }
+      return Number.isFinite(best) && best > 1e-6 ? best : null;
+    });
+  }
+
+  private shortestNodeDistancesFrom(ax: number, az: number): Map<string, number> | null {
+    const startNodes = this.snapNodes(ax, az);
+    if (!startNodes) return null;
+    const graph = this.getWeightedGraph();
+    const distances = new Map<string, number>();
+    const heap = new MinHeap();
+
+    for (const nodeId of startNodes) {
+      const node = this.network.nodes.get(nodeId);
+      if (!node) continue;
+      const cost = distance(ax, az, node.position.x, node.position.z);
+      const current = distances.get(nodeId);
+      if (current != null && cost + 1e-6 >= current) continue;
+      distances.set(nodeId, cost);
+      heap.push({ cost, id: nodeId });
+    }
+    if (heap.length === 0) return null;
+
+    while (heap.length > 0) {
+      const current = heap.pop();
+      if (!current) break;
+      const best = distances.get(current.id);
+      if (best == null || current.cost > best + 1e-6) continue;
+      for (const neighbor of graph.get(current.id) ?? []) {
+        const next = current.cost + neighbor.weight;
+        const existing = distances.get(neighbor.id);
+        if (existing != null && next + 1e-6 >= existing) continue;
+        distances.set(neighbor.id, next);
+        heap.push({ cost: next, id: neighbor.id });
+      }
+    }
+
+    return distances;
+  }
+
   private shortestPathSolve(
     ax: number,
     az: number,

@@ -14,8 +14,13 @@ import {
   type StaffingPriority,
 } from './staffingPriority.ts';
 import {
+  applyWorksiteStallRecall,
+  computeSettlementOperationalProductionReadiness,
   computeSettlementProductionReadiness,
+  computeSettlementWorksiteStallPlan,
   type ProductionLaborKind,
+  type SettlementProductionReadiness,
+  type SettlementWorksiteStallPlan,
 } from './settlementWorksiteStalls.ts';
 
 export type ProcessorLaborSitePlan = {
@@ -55,6 +60,17 @@ export type SettlementProcessorLaborCallupPlan = {
   remainingOpenPosts: number;
   firstUnderstaffedBuildingId: string | null;
   assignments: ProcessorLaborCallupAssignment[];
+};
+
+export type SettlementProductionStewardPlan = {
+  recall: SettlementWorksiteStallPlan;
+  callup: SettlementProcessorLaborCallupPlan;
+  availableLaborBefore: number;
+  laborReserve: number;
+  recalledWorkers: number;
+  calledWorkers: number;
+  availableLaborAfter: number;
+  firstChangedBuildingId: string | null;
 };
 
 export function computeSettlementProcessorLaborRecallPlan(
@@ -123,9 +139,31 @@ export function computeSettlementProcessorLaborCallupPlan(
   state: Pick<GameState, 'buildings' | 'quarries' | 'foragingNodes'>,
   availableLabor: number,
 ): SettlementProcessorLaborCallupPlan {
+  return computeProcessorLaborCallupPlanWithReadiness(
+    state,
+    availableLabor,
+    computeSettlementProductionReadiness(state),
+  );
+}
+
+export function computeSettlementOperationalProcessorLaborCallupPlan(
+  state: Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>,
+  availableLabor: number,
+): SettlementProcessorLaborCallupPlan {
+  return computeProcessorLaborCallupPlanWithReadiness(
+    state,
+    availableLabor,
+    computeSettlementOperationalProductionReadiness(state),
+  );
+}
+
+function computeProcessorLaborCallupPlanWithReadiness(
+  state: Pick<GameState, 'buildings'>,
+  availableLabor: number,
+  readiness: SettlementProductionReadiness,
+): SettlementProcessorLaborCallupPlan {
   type Candidate = ProcessorLaborCallupAssignment & { maxLabor: number };
   const priorityBuckets: Candidate[][] = [[], [], []];
-  const readiness = computeSettlementProductionReadiness(state);
   let understaffedSites = 0;
   let openPosts = 0;
 
@@ -197,6 +235,38 @@ export function computeSettlementProcessorLaborCallupPlan(
     remainingOpenPosts: openPosts - callupWorkers,
     firstUnderstaffedBuildingId,
     assignments,
+  };
+}
+
+/// Projects the exact sequential daily steward order without mutating the
+/// synchronized game state: release safe stalled surplus, add it to the free
+/// pool, then deploy only to supplied or recovering production.
+export function computeSettlementProductionStewardPlan(
+  state: Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>,
+  month: number,
+  availableLabor: number,
+  laborReserve = 0,
+): SettlementProductionStewardPlan {
+  const safeAvailableLabor = Math.max(0, Math.floor(availableLabor));
+  const safeLaborReserve = Math.max(0, Math.floor(laborReserve));
+  const recall = computeSettlementWorksiteStallPlan(state, month);
+  const projectedBuildings = applyWorksiteStallRecall(state.buildings, recall);
+  const availableAfterRecall = safeAvailableLabor + recall.reclaimableWorkers;
+  const callup = computeSettlementOperationalProcessorLaborCallupPlan(
+    { ...state, buildings: projectedBuildings },
+    Math.max(0, availableAfterRecall - safeLaborReserve),
+  );
+  const calledWorkers = callup.callupWorkers;
+  return {
+    recall,
+    callup,
+    availableLaborBefore: safeAvailableLabor,
+    laborReserve: safeLaborReserve,
+    recalledWorkers: recall.reclaimableWorkers,
+    calledWorkers,
+    availableLaborAfter: availableAfterRecall - calledWorkers,
+    firstChangedBuildingId: recall.firstReclaimableBuildingId
+      ?? callup.firstUnderstaffedBuildingId,
   };
 }
 

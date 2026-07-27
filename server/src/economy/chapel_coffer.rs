@@ -177,6 +177,7 @@ mod tests {
             guardhouse_pay_priority: 0,
             guardhouse_food_reserve: 0,
             marketplace_ironwork_target: 0,
+            marketplace_seed_grain_target: 0,
             marketplace_specialty_export_policy: 0,
         }
     }

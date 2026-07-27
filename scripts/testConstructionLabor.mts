@@ -96,6 +96,28 @@ assert.equal(rotated.get(inboundWaiting.id)?.assignedLabor, 2);
 assert.equal(rotated.get(foundersReserve.id)?.assignedLabor, 0);
 assert.equal(rotated.get(held.id)?.assignedLabor, 3);
 assert.equal(state.buildings.get(blocked.id)?.assignedLabor, 2);
+
+const reserveState = emptyGameState();
+const reserveBlocked = blockedSite('reserve-blocked', 1, 4);
+const reserveReady = readySite('reserve-ready', 3, 0);
+reserveState.buildings.set(reserveBlocked.id, reserveBlocked);
+reserveState.buildings.set(reserveReady.id, reserveReady);
+const reservePlan = computeSettlementConstructionLaborPlan(reserveState, 0, 2);
+assert.equal(reservePlan.laborReserve, 2);
+assert.equal(reservePlan.recalledWorkers, 4);
+assert.equal(reservePlan.calledWorkers, 2);
+assert.equal(reservePlan.freeLaborAfter, 2);
+assert.deepEqual(
+  reservePlan.assignments.map((assignment) => [
+    assignment.buildingId,
+    assignment.targetLabor,
+  ]),
+  [
+    [reserveBlocked.id, 0],
+    [reserveReady.id, 2],
+  ],
+);
+
 assert.equal(DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED, false);
 assert.match(constructionLaborStewardStatus(false, true), /Manual/);
 assert.match(constructionLaborStewardStatus(true, true), /Daily/);
@@ -246,7 +268,7 @@ assert.match(
 assert.match(serverVillageAdmin, /pub fn set_construction_labor_steward/);
 assert.match(
   serverVillageAdmin,
-  /if enabled \{[\s\S]*rotate_construction_labor_for_owner\(ctx, owner\)/,
+  /if enabled \{[\s\S]*rotate_construction_labor_for_owner_with_reserve\(ctx, owner, labor_reserve\)/,
 );
 assert.match(
   serverTables,
@@ -259,6 +281,7 @@ assert.match(spacetimeReducers, /setConstructionLaborSteward/);
 assert.match(generatedReducers, /rotate_construction_labor/);
 assert.match(generatedReducers, /set_construction_labor_steward/);
 assert.match(generatedPlayerResources, /constructionLaborStewardEnabled: __t\.bool/);
+assert.match(generatedPlayerResources, /laborStewardReserve: __t\.u32/);
 assert.match(generatedConstructionSteward, /enabled: __t\.bool/);
 
 console.log(

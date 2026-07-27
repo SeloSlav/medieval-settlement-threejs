@@ -26,6 +26,13 @@ fn normalize_staffing_priority(priority: u8) -> u8 {
     }
 }
 
+/// Automatic crew rotation is stricter than the explicit pre-staffing order:
+/// a stalled workshop may claim labor only when every missing input is already
+/// approaching on a physical cart.
+pub fn production_steward_callup_allowed(stalled: bool, supply_en_route: bool) -> bool {
+    !stalled || supply_en_route
+}
+
 /// Distributes free labor to reducer-approved production sites by staffing
 /// priority. Equal-priority sites receive one worker per pass before any site
 /// receives a second.
@@ -113,6 +120,13 @@ mod tests {
             3,
         );
         assert_eq!(targets, vec![(10, 2), (20, 1)]);
+    }
+
+    #[test]
+    fn automatic_callup_does_not_rehire_an_input_starved_crew() {
+        assert!(production_steward_callup_allowed(false, false));
+        assert!(production_steward_callup_allowed(true, true));
+        assert!(!production_steward_callup_allowed(true, false));
     }
 
     #[test]

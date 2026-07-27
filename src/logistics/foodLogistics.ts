@@ -10,7 +10,11 @@ import { getNeedStock } from '../residences/residenceNeedState.ts';
 import { foodDeliveryTripSeconds } from './deliveryLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { lodgeLaborAlternates, lodgeLaborSplit } from './lodgeLogistics.ts';
-import { compareStableEntityIds, roadPathDistance } from './roadLogistics.ts';
+import {
+  compareStableEntityIds,
+  roadPathDistance,
+  roadPathDistancesFrom,
+} from './roadLogistics.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 
 export type FoodLaborSplit = {
@@ -119,15 +123,38 @@ export function peekNextFoodDeliveryTarget(
   supplier: { x: number; z: number },
   residences: readonly ResidenceState[],
 ): ResidenceState | null {
-  let best: ResidenceState | null = null;
-  for (const residence of residences) {
-    if (residence.abandoned || residence.population <= 0) continue;
-    if (getNeedStock(residence.needs, 'food') + 1e-6 >= RESIDENCE_FOOD_CAPACITY) continue;
-    if (best == null || compareResidencesForFoodDelivery(network, supplier, residence, best) < 0) {
-      best = residence;
+  const eligible = residences.filter((residence) =>
+    !residence.abandoned
+    && residence.population > 0
+    && getNeedStock(residence.needs, 'food') + 1e-6 < RESIDENCE_FOOD_CAPACITY);
+  const distances = roadPathDistancesFrom(network, supplier.x, supplier.z, eligible);
+  let bestIndex = -1;
+  for (let index = 0; index < eligible.length; index += 1) {
+    const distance = distances[index];
+    if (distance == null) continue;
+    if (bestIndex < 0) {
+      bestIndex = index;
+      continue;
+    }
+    const runway = residenceFoodRunwaySeconds(eligible[index]) ?? Infinity;
+    const bestRunway = residenceFoodRunwaySeconds(eligible[bestIndex]) ?? Infinity;
+    if (
+      runway + 1e-6 < bestRunway
+      || (
+        Math.abs(runway - bestRunway) <= 1e-6
+        && (
+          distance + 1e-6 < distances[bestIndex]!
+          || (
+            Math.abs(distance - distances[bestIndex]!) <= 1e-6
+            && compareStableEntityIds(eligible[index].id, eligible[bestIndex].id) < 0
+          )
+        )
+      )
+    ) {
+      bestIndex = index;
     }
   }
-  return best;
+  return bestIndex < 0 ? null : eligible[bestIndex];
 }
 
 export function foodSupplierDeliveryTripSeconds(

@@ -4,7 +4,10 @@ import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { DEFAULT_MONASTERY_POLICY } from '../../economy/monasteryPolicy.ts';
 import {
   DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
+  DEFAULT_LABOR_STEWARD_RESERVE,
+  DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED,
   DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
+  normalizeLaborStewardReserve,
 } from '../../economy/laborSteward.ts';
 import { createEmptyStockpile } from '../../resources/types.ts';
 import type { GameTableSyncState } from './gameTableSyncState.ts';
@@ -14,6 +17,8 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
   state.economicActivityTaxRate = ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
   state.seasonalLaborStewardEnabled = DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;
   state.constructionLaborStewardEnabled = DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED;
+  state.productionLaborStewardEnabled = DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED;
+  state.laborStewardReserve = DEFAULT_LABOR_STEWARD_RESERVE;
   state.parishPolicy = { ...DEFAULT_PARISH_POLICY };
   state.monasteryPolicy = { ...DEFAULT_MONASTERY_POLICY };
   if (!state.identityHex) return;
@@ -47,6 +52,11 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       ?? DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;
     state.constructionLaborStewardEnabled = row.constructionLaborStewardEnabled
       ?? DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED;
+    state.productionLaborStewardEnabled = row.productionLaborStewardEnabled
+      ?? DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED;
+    state.laborStewardReserve = normalizeLaborStewardReserve(
+      row.laborStewardReserve ?? DEFAULT_LABOR_STEWARD_RESERVE,
+    );
     state.parishPolicy = {
       autoSweepEnabled: row.chapelAutoSweepEnabled ?? DEFAULT_PARISH_POLICY.autoSweepEnabled,
       cofferReserveGold: row.chapelCofferReserveGold ?? DEFAULT_PARISH_POLICY.cofferReserveGold,

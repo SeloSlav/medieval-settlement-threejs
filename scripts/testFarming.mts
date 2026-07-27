@@ -471,8 +471,13 @@ assert.match(farmSimulation, /crop_growth_allowed\(field\.crop, clock\.month\)/)
 assert.match(farmSimulation, /field_work_allowed\(field\.stage, field\.crop, clock\.month\)/);
 assert.match(
   farmSimulation,
-  /request_connected_seed_grain\([\s\S]*&\["granary", "marketplace"\],[\s\S]*requested_seed/,
-  'seed-short farmsteads must use the dedicated request that may draw through a granary floor',
+  /step_seed_grain_distribution[\s\S]*select_seed_grain_delivery_candidate[\s\S]*&\["threshing_barn"\]/,
+  'free granaries and markets must push scarce seed to the least-covered reachable holding',
+);
+assert.match(
+  farmSimulation,
+  /let request = \(target\.required - target\.building\.grain\)[\s\S]*\.min\(source\.grain\.max\(0\.0\)\)/,
+  'seed distribution may draw through a granary floor but only for the selected holding claim',
 );
 const constructionSimulation = fs.readFileSync('server/src/simulation/construction.rs', 'utf8');
 assert.match(constructionSimulation, /site\.grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);

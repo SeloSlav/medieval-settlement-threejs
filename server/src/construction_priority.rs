@@ -76,6 +76,14 @@ pub fn construction_labor_rotation(
     sites: &[ConstructionLaborSite],
     available_labor: u32,
 ) -> ConstructionLaborRotation {
+    construction_labor_rotation_with_reserve(sites, available_labor, 0)
+}
+
+pub fn construction_labor_rotation_with_reserve(
+    sites: &[ConstructionLaborSite],
+    available_labor: u32,
+    labor_reserve: u32,
+) -> ConstructionLaborRotation {
     let mut recalled_workers = 0u32;
     let mut targets = Vec::new();
     let mut buckets: [Vec<(ConstructionLaborSite, u32)>; 3] = std::array::from_fn(|_| Vec::new());
@@ -104,7 +112,9 @@ pub fn construction_labor_rotation(
         bucket.sort_unstable_by_key(|(site, _)| site.building_id);
     }
 
-    let mut labor_remaining = available_labor.saturating_add(recalled_workers);
+    let mut labor_remaining = available_labor
+        .saturating_add(recalled_workers)
+        .saturating_sub(labor_reserve);
     let mut called_workers = 0u32;
     for bucket in buckets.iter_mut().rev() {
         while labor_remaining > 0 {
@@ -148,7 +158,8 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::{
-        construction_labor_ready, construction_labor_rotation, construction_priority_bucket,
+        construction_labor_ready, construction_labor_rotation,
+        construction_labor_rotation_with_reserve, construction_priority_bucket,
         is_valid_construction_priority, ConstructionLaborSite, CONSTRUCTION_PRIORITY_HOLD,
         CONSTRUCTION_PRIORITY_LEVELS, CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL,
         CONSTRUCTION_PRIORITY_URGENT,
@@ -301,6 +312,32 @@ mod tests {
         assert_eq!(rotation.recalled_workers, 0);
         assert_eq!(rotation.called_workers, 0);
         assert!(rotation.targets.is_empty());
+    }
+
+    #[test]
+    fn steward_reserve_survives_blocked_crew_recall() {
+        let sites = [
+            ConstructionLaborSite {
+                building_id: 10,
+                priority: CONSTRUCTION_PRIORITY_LOW,
+                assigned_labor: 4,
+                max_labor: 4,
+                work_ready: false,
+                inbound_supply: false,
+            },
+            ConstructionLaborSite {
+                building_id: 20,
+                priority: CONSTRUCTION_PRIORITY_URGENT,
+                assigned_labor: 0,
+                max_labor: 4,
+                work_ready: true,
+                inbound_supply: false,
+            },
+        ];
+        let rotation = construction_labor_rotation_with_reserve(&sites, 0, 2);
+        assert_eq!(rotation.recalled_workers, 4);
+        assert_eq!(rotation.called_workers, 2);
+        assert_eq!(rotation.targets, vec![(10, 0), (20, 2)]);
     }
 
     #[test]

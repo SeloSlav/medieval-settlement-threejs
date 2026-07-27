@@ -64,6 +64,10 @@ import {
   farmsteadSeedGrainRequired,
   type SeasonalWorkPlan,
 } from '../../farming/farmWorkPlanning.ts';
+import {
+  seedGrainSourceCoveragePlan,
+  type SeedGrainSourceCoveragePlan,
+} from '../../economy/marketplaceSeedCoverage.ts';
 import { computeCattleFieldSupport } from '../../farming/cattleFieldSupport.ts';
 import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
@@ -74,11 +78,11 @@ import {
   isProcessorOutputTargetKind,
   normalizeProcessorOutputTargetPercent,
   PROCESSOR_OUTPUT_TARGET_PRESETS,
-  processorAcceptsInput,
   processorOutputCommodity,
   processorOutputHeadroom,
   processorOutputTargetForBuilding,
 } from '../../economy/processorOutputPolicy.ts';
+import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 
 const PROCESS: Record<string, string> = {
   threshing_barn: 'Farmstead crew works nearby drawn fields',
@@ -148,11 +152,11 @@ function buildingHasOutboundStock(building: BuildingState, protectedSeedGrain = 
 function outboundDestinationLabel(building: BuildingState): string {
   switch (building.kind) {
     case 'threshing_barn':
-      return 'Lowest-runway active processor, then granary reserve';
+      return 'Highest-priority active processor, then lowest runway and granary reserve';
     case 'watermill':
-      return 'Nearest road-linked granary';
+      return 'Highest-priority flour-short bakery, then lowest runway and road route';
     case 'granary':
-      return 'Critical processor first · otherwise food policy, then lowest-runway processor';
+      return 'Priority-selected critical processor first · otherwise food policy, then that processor';
     case 'brewery':
       return 'Monastery, claimed tier-3 home, then road-linked export market';
     case 'smokehouse':
@@ -212,9 +216,16 @@ function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
 function outboundTripTarget(
   building: BuildingState,
   context: InspectorRenderContext,
+  seedPlan: SeedGrainSourceCoveragePlan | null = null,
 ): { id?: string; x: number; z: number } | null {
   if (building.kind === 'threshing_barn') {
     return context.worldQueries.getNextFarmGrainDispatch(building)?.target ?? null;
+  }
+  if (building.kind === 'watermill') {
+    return context.worldQueries.getNextDirectProcessorInputDispatch(
+      building,
+      'flour',
+    )?.target ?? null;
   }
   if (building.kind === 'brewery') {
     const monastery = context.worldQueries.findNearestRoadLinkedBuilding(
@@ -243,6 +254,15 @@ function outboundTripTarget(
       ?? context.worldQueries.findNearestRoadLinkedBuilding(building, ['marketplace']);
   }
   if (building.kind === 'granary') {
+    if (
+      seedPlan?.nextDispatchBuildingId != null
+      && seedPlan.nextDispatchAmount > 0.05
+    ) {
+      const seedTarget = context.gameState.buildings.get(
+        seedPlan.nextDispatchBuildingId,
+      );
+      if (seedTarget) return seedTarget;
+    }
     const grainDispatch = context.worldQueries.getNextGranaryGrainDispatch(building);
     const guardFoodDispatch = context.conflictEnabled
       ? context.worldQueries.getNextGranaryGuardFoodDispatch(building)
@@ -276,14 +296,10 @@ function outboundTripTarget(
     if (building.food > 1e-6) {
       const householdTarget =
         context.worldQueries.getNextFoodDeliveryTargetForSupplier(building);
-      const preservationTarget = context.worldQueries.findNearestRoadLinkedBuilding(
+      const preservationTarget = context.worldQueries.getNextDirectProcessorInputDispatch(
         building,
-        ['smokehouse'],
-        (candidate) =>
-          processorAcceptsInput(candidate, 'food')
-          && candidate.food < (buildingStorageCaps('smokehouse').food ?? 0) - 1e-6
-          && context.worldQueries.getInboundSupplyTrip(candidate) == null,
-      );
+        'food',
+      )?.target ?? null;
       const foodTarget = building.granaryHouseholdsFirst === true
         ? householdTarget ?? preservationTarget
         : preservationTarget ?? householdTarget;
@@ -295,13 +311,6 @@ function outboundTripTarget(
   const buildingTarget = context.worldQueries.findNearestRoadLinkedBuilding(
     building,
     outboundTargetKinds(building.kind),
-    (candidate) =>
-      building.kind !== 'watermill'
-      || (
-        processorAcceptsInput(candidate, 'flour')
-        && candidate.flour < (buildingStorageCaps('granary').flour ?? 0) - 1e-6
-        && context.worldQueries.getInboundSupplyTrip(candidate) == null
-      ),
   );
   if (buildingTarget) return buildingTarget;
 
@@ -321,9 +330,10 @@ function outboundTripTarget(
 function plannedOutboundTripSeconds(
   building: BuildingState,
   context: InspectorRenderContext,
+  seedPlan: SeedGrainSourceCoveragePlan | null = null,
 ): number {
   const network = context.worldQueries.getRoadNetworkSnapshot();
-  const target = outboundTripTarget(building, context);
+  const target = outboundTripTarget(building, context, seedPlan);
   const granaryIsSendingBuildingSupply = building.kind === 'granary'
     && target?.id != null
     && context.gameState.buildings.has(target.id);
@@ -350,6 +360,7 @@ function plannedOutboundTripSeconds(
 function renderLogisticsRows(
   building: BuildingState,
   context: InspectorRenderContext,
+  seedPlan: SeedGrainSourceCoveragePlan | null = null,
 ): string {
   if (!OUTBOUND_SUPPLY_KINDS.has(building.kind)) return '';
 
@@ -364,8 +375,25 @@ function renderLogisticsRows(
       )
     : 0;
   const tripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
-  const destination = outboundDestinationLabel(building);
-  const nearestTarget = outboundTripTarget(building, context);
+  const seedDispatchReady = building.kind === 'granary'
+    && seedPlan?.nextDispatchAmount != null
+    && seedPlan.nextDispatchAmount > 0.05;
+  const activeSeedCollection = building.kind === 'granary'
+    && activeTrip?.cargoKind === 'grain'
+    && activeTrip.targetBuildingId != null
+    && context.gameState.buildings.get(activeTrip.targetBuildingId)?.kind === 'threshing_barn';
+  const seedHaulUsesHoldingCrew = seedDispatchReady || activeSeedCollection;
+  const flourDispatch = building.kind === 'watermill'
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'flour')
+    : null;
+  const destination = seedHaulUsesHoldingCrew
+    ? 'Least-covered staffed farmstead, then shorter road'
+    : flourDispatch
+      ? flourDispatch.duty === 'working-buffer'
+        ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${staffingPriorityLabel(flourDispatch.workPriority)} priority · ${flourDispatch.target.flour.toFixed(1)} / ${flourDispatch.desiredStock.toFixed(1)} flour · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
+        : `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · overflow after active bakery buffers · shortest road`
+      : outboundDestinationLabel(building);
+  const nearestTarget = outboundTripTarget(building, context, seedPlan);
   const pathDistance = nearestTarget
     ? context.worldQueries.getRoadPathDistance(building.x, building.z, nearestTarget.x, nearestTarget.z)
     : null;
@@ -422,7 +450,7 @@ function renderLogisticsRows(
     return `${householdTerritoryRows}<li><span>Deliveries</span><span>Off road — connect to dispatch hauls</span></li>`;
   }
 
-  const requiresLabor = building.kind !== 'monastery';
+  const requiresLabor = building.kind !== 'monastery' && !seedHaulUsesHoldingCrew;
   if (requiresLabor && building.assignedLabor === 0) {
     return `${householdTerritoryRows}<li><span>Deliveries</span><span>Idle — assign workers to dispatch hauls</span></li>`;
   }
@@ -434,7 +462,7 @@ function renderLogisticsRows(
       tripRemaining,
       destination,
       tripPath,
-      plannedOutboundTripSeconds(building, context),
+      plannedOutboundTripSeconds(building, context, seedPlan),
       cargoPerTripLabel(building),
       deliveryContext,
     );
@@ -443,19 +471,56 @@ function renderLogisticsRows(
   const inboundRow = renderInboundSupplyRow(inboundTrip, deliveryContext);
   if (inboundRow) return householdTerritoryRows + inboundRow;
 
-  if (buildingHasOutboundStock(building, protectedSeedGrain)) {
+  if (seedDispatchReady || buildingHasOutboundStock(building, protectedSeedGrain)) {
     return householdTerritoryRows + renderOutboundDeliveryRows(
       null,
       null,
       destination,
       pathDistance,
-      plannedOutboundTripSeconds(building, context),
+      plannedOutboundTripSeconds(building, context, seedPlan),
       cargoPerTripLabel(building),
       deliveryContext,
     );
   }
 
   return `${householdTerritoryRows}<li><span>Deliveries</span><span>Ready — awaiting cargo or destination</span></li>`;
+}
+
+function formatGranarySeedCart(
+  plan: SeedGrainSourceCoveragePlan | null,
+  building: BuildingState,
+  context: InspectorRenderContext,
+): string {
+  if (plan === null) return 'No seed forecast';
+  if (!plan.sourceOperational) return 'Blocked while this granary is fire-disabled';
+  if (plan.sourceBusy) {
+    return 'Cart occupied &middot; least-covered holding recalculates when it returns';
+  }
+  if (plan.nextDispatchBuildingId === null) {
+    if (plan.inboundBlockedHoldings > 0) {
+      return `${plan.inboundBlockedHoldings} short holding${plan.inboundBlockedHoldings === 1 ? '' : 's'} already receiving grain &middot; no duplicate cart`;
+    }
+    if (plan.laborBlockedHoldings > 0) {
+      return `${plan.laborBlockedHoldings} short holding${plan.laborBlockedHoldings === 1 ? '' : 's'} blocked by missing farm labor`;
+    }
+    if (plan.fireBlockedHoldings > 0) {
+      return `${plan.fireBlockedHoldings} short holding${plan.fireBlockedHoldings === 1 ? '' : 's'} blocked by fire`;
+    }
+    if (plan.connectedHoldings <= 0) return 'No active field claim on this road branch';
+    if (plan.seedShortfall <= 0.05) return 'Reachable field claims covered';
+    return 'No safe staffed road-reachable holding eligible';
+  }
+  const inspect = `<button type="button" class="inspector-jump-button" data-inspect-building="${plan.nextDispatchBuildingId}" aria-label="Inspect next granary seed-cart holding">Inspect holding</button>`;
+  const distance = plan.nextDispatchDistance === null
+    ? ''
+    : ` &middot; ${plan.nextDispatchDistance.toFixed(0)} m road`;
+  if (building.grain <= 0.05 || plan.nextDispatchAmount <= 0.05) {
+    return `Awaiting physical grain &middot; next holding ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance} ${inspect}`;
+  }
+  const collection = building.assignedLabor <= 0
+    ? ' &middot; holding crew collects'
+    : '';
+  return `${plan.nextDispatchAmount.toFixed(1)} grain &rarr; ${context.worldQueries.getBuildingLabel('threshing_barn')} at ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance}${collection} ${inspect}`;
 }
 
 export function renderExpandedBuildingInspector(
@@ -501,7 +566,19 @@ export function renderExpandedBuildingInspector(
             }
     : null;
   const fallbackActive = definition.acceptsLabor ? building.assignedLabor > 0 : true;
-  const logisticsRows = renderLogisticsRows(building, context);
+  const granarySeedPlan = building.kind === 'granary'
+    ? seedGrainSourceCoveragePlan(
+        building,
+        context.gameState,
+        (_source, farmstead) => context.worldQueries.getRoadPathDistance(
+          building.x,
+          building.z,
+          farmstead.x,
+          farmstead.z,
+        ),
+      )
+    : null;
+  const logisticsRows = renderLogisticsRows(building, context, granarySeedPlan);
   const environment = environmentFor(
     context.gameState.seed,
     context.worldHydrology,
@@ -531,6 +608,20 @@ export function renderExpandedBuildingInspector(
         buildingStorageCaps('granary').food ?? 0,
       )
     : 0;
+  const granaryPreservationDispatch = building.kind === 'granary'
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'food')
+    : null;
+  const granaryPreservationDispatchLabel = building.kind === 'granary'
+    ? granaryInstitutionalFood <= 1e-6
+      ? building.food > 1e-6
+        ? 'Household reserve holds current fresh food'
+        : 'No fresh food available'
+      : granaryPreservationDispatch
+        ? granaryPreservationDispatch.duty === 'working-buffer'
+          ? `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · ${staffingPriorityLabel(granaryPreservationDispatch.workPriority)} priority · ${granaryPreservationDispatch.target.food.toFixed(1)} / ${granaryPreservationDispatch.desiredStock.toFixed(1)} fresh food`
+          : `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · active buffers covered · nearest overflow route`
+        : 'No road-linked smokehouse can receive fresh food'
+    : '';
   const granaryExportableStock = building.kind === 'granary'
     ? granaryExportableGrain(
         building.grain,
@@ -548,7 +639,7 @@ export function renderExpandedBuildingInspector(
     : 0;
   const granaryGrainDispatchLabel = building.kind === 'granary'
     ? granaryGrainDispatch
-      ? `${context.worldQueries.getBuildingLabel(granaryGrainDispatch.target.kind)} · ${granaryGrainDispatch.target.grain.toFixed(1)} / ${granaryGrainDispatch.desiredStock.toFixed(1)} · ${granaryGrainDispatch.runwayCycles.toFixed(1)} cycles${
+      ? `${context.worldQueries.getBuildingLabel(granaryGrainDispatch.target.kind)} · ${staffingPriorityLabel(granaryGrainDispatch.workPriority)} priority · ${granaryGrainDispatch.target.grain.toFixed(1)} / ${granaryGrainDispatch.desiredStock.toFixed(1)} · ${granaryGrainDispatch.runwayCycles.toFixed(1)} cycles${
           granaryGrainDispatch.runwayCycles < GRAIN_CRITICAL_RUNWAY_CYCLES
             ? ' · critical, preempts food cart'
             : ' · after available food duty'
@@ -574,15 +665,17 @@ export function renderExpandedBuildingInspector(
     : '';
   const granaryMilitaryRows = building.kind === 'granary' && context.conflictEnabled
     ? `<li><span>Next guard cart</span><span>${granaryGuardFoodDispatchLabel}</span></li>
-      <li><span>Emergency arbitration</span><span>Guard under ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days vs processor under ${GRAIN_CRITICAL_RUNWAY_CYCLES} cycle · lower relative runway first</span></li>`
+      <li><span>Emergency arbitration</span><span>Guard under ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days vs priority-selected processor under ${GRAIN_CRITICAL_RUNWAY_CYCLES} cycle · lower relative runway first</span></li>`
     : '';
   const granaryRows = building.kind === 'granary'
     ? `<li><span>Central grain reserve</span><span>${granaryReserveLabel(building)}</span></li>
-      <li><span>Seed exception</span><span>Linked farmsteads may draw through the floor to sow fields</span></li>
+      <li><span>Seed exception</span><span>Linked farmsteads may draw through the floor; least-covered eligible holding goes first</span></li>
+      <li><span>Next seed cart</span><span>${formatGranarySeedCart(granarySeedPlan, building, context)}</span></li>
       <li><span>Next grain cart</span><span>${granaryGrainDispatchLabel}</span></li>
       ${granaryMilitaryRows}
       <li><span>Fresh-food intake</span><span>${building.granaryAcceptsFreshFood === false ? `Local delivery only · ${granaryFoodTargetPercent}% target retained` : `Centralize to ${granaryFoodTargetPercent}% capacity · ${granaryFoodTarget.toFixed(0)} food`}</span></li>
       <li><span>Dispatch priority</span><span>${granaryDispatchPriorityLabel(building.granaryHouseholdsFirst === true)}</span></li>
+      <li><span>Next preservation buffer</span><span>${granaryPreservationDispatchLabel}</span></li>
       <li><span>Household priority</span><span>1 food cart per source-claimed home · capped at 50% source storage</span></li>
       <li><span>Sheltered storage</span><span>${Math.round((1 - FRESH_FOOD_STORAGE_GRANARY_FACTOR) * 100)}% less spoilage · ${formatFreshFoodLoss(building.food * environment.freshFoodSpoilageFractionPerDay * FRESH_FOOD_STORAGE_GRANARY_FACTOR)}</span></li>`
     : '';
@@ -672,7 +765,15 @@ function renderFarmsteadPlanning(
   const seasonalRisk = plan.harvest.shortfallWorkerDays > 0.05
     || plan.spring.shortfallWorkerDays > 0.05
     || plan.autumn.shortfallWorkerDays > 0.05;
-  const seedShortfall = Math.max(0, plan.seedGrainRequired - building.grain);
+  const inboundSupply = context.worldQueries.getInboundSupplyTrip(building);
+  const inboundSeed = inboundSupply?.cargoKind === 'grain'
+    ? Math.max(0, inboundSupply.amount)
+    : 0;
+  const onsiteSeedShortfall = Math.max(0, plan.seedGrainRequired - building.grain);
+  const seedShortfall = Math.max(
+    0,
+    plan.seedGrainRequired - building.grain - inboundSeed,
+  );
   const exportableGrain = Math.max(0, building.grain - plan.seedGrainRequired);
   const grainDispatch = context.worldQueries.getNextFarmGrainDispatch(building);
   const grainRoutingLabel = grainDispatch == null
@@ -682,7 +783,7 @@ function renderFarmsteadPlanning(
         ? 'Held for linked fields'
         : 'No grain awaiting haul'
     : grainDispatch.duty === 'working-buffer'
-      ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · ${grainDispatch.target.grain.toFixed(1)} / ${grainDispatch.desiredStock.toFixed(1)} working buffer`
+      ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · ${staffingPriorityLabel(grainDispatch.workPriority)} priority · ${grainDispatch.target.grain.toFixed(1)} / ${grainDispatch.desiredStock.toFixed(1)} working buffer`
       : grainDispatch.duty === 'granary-reserve'
         ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · central reserve`
         : `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · emergency overflow`;
@@ -700,12 +801,12 @@ function renderFarmsteadPlanning(
     <li><span>September labor</span><span>${formatSeasonalWork(plan.harvest)}</span></li>
     <li><span>Spring oats labor</span><span>${formatSeasonalWork(plan.spring)}</span></li>
     <li><span>Autumn rye/fallow labor</span><span>${formatSeasonalWork(plan.autumn)}</span></li>
-    <li><span>Seed grain</span><span>${Math.min(building.grain, plan.seedGrainRequired).toFixed(1)} / ${plan.seedGrainRequired.toFixed(1)} protected${seedShortfall > 0.05 ? ` · short ${seedShortfall.toFixed(1)}` : ''}</span></li>
+    <li><span>Seed grain</span><span>${Math.min(building.grain, plan.seedGrainRequired).toFixed(1)} onsite${inboundSeed > 0.05 ? ` + ${inboundSeed.toFixed(1)} inbound` : ''} / ${plan.seedGrainRequired.toFixed(1)} protected${seedShortfall > 0.05 ? ` · still short ${seedShortfall.toFixed(1)}` : ''}</span></li>
     <li><span>Exportable grain</span><span>${exportableGrain.toFixed(1)} after sowing reserve</span></li>
     <li><span>${clock.month === 9 ? 'Harvest remaining' : 'Harvest potential'}</span><span>${plan.expectedHarvest.toFixed(1)} grain</span></li>
     <li><span>Harvest storage</span><span>${grainRoom.toFixed(1)} onsite room${haulingRequired ? ' · road hauling required' : ' · fits onsite'}</span></li>
     <li><span>Next grain haul</span><span>${grainRoutingLabel}</span></li>
-    <li><span>Grain policy</span><span>Linked-field seed · lowest processor runway · granary · overflow</span></li>
+    <li><span>Grain policy</span><span>Linked-field seed · processor work priority · lowest cycle runway · granary · overflow</span></li>
   `;
 
   if (fields.length === 0) {
@@ -716,6 +817,15 @@ function renderFarmsteadPlanning(
   }
   if (building.assignedLabor <= 0) {
     return { rows, statusText: 'Fields waiting — assign a farm crew', statusState: 'warning' };
+  }
+  if (onsiteSeedShortfall > 0.05 && inboundSeed > 0.05) {
+    return {
+      rows,
+      statusText: seedShortfall > 0.05
+        ? `Seed cart inbound — ${seedShortfall.toFixed(1)} grain will still be needed`
+        : 'Seed cart inbound — sowing resumes after unloading',
+      statusState: 'warning',
+    };
   }
   if (seedShortfall > 0.05 && (clock.month >= 9 || clock.month <= 4)) {
     return {
@@ -744,8 +854,8 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     freshFoodTargetPercent,
   );
   const priorityHint = householdsFirst
-    ? 'Household-first sends the next available cart to the lowest-runway claimed home. If no home can receive food, the granary falls through to its nearest smokehouse.'
-    : 'Preservation-first sends central surplus to the nearest smokehouse. If no smokehouse can receive it, the granary immediately falls through to its lowest-runway claimed home.';
+    ? 'Household-first sends the next available cart to the lowest-runway claimed home. If no home can receive food, the granary falls through to the highest-priority smokehouse working buffer.'
+    : 'Preservation-first restores the highest-priority smokehouse working buffer before route distance. If no smokehouse can receive food, the granary immediately falls through to its lowest-runway claimed home.';
   return `
     <div class="inspector-action-panel">
       <p class="inspector-action-panel__hint">Centralizing fresh food sharply reduces spoilage but consumes a road haul before the granary can redistribute it. Every routine food supplier keeps one household cart per claimed home, capped at half its storage, before any granary, smokehouse, or guardhouse cart may load.</p>

@@ -103,6 +103,28 @@
   line-height: 1.35;
 }
 
+.inspector-policy-select {
+  width: 100%;
+  padding: 8px 10px;
+  color: inherit;
+  color-scheme: dark;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(238, 232, 220, 0.18);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.inspector-policy-select:hover,
+.inspector-policy-select:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.inspector-policy-select:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
 .inspector-action-panel__button {
   width: 100%;
   padding: 10px 12px;

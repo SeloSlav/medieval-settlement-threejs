@@ -38,6 +38,21 @@ export function roadPathDistance(
   return network.getPathfinder().roadPathDistance(ax, az, bx, bz);
 }
 
+/** Exact one-to-many distances with a pairwise fallback for lightweight test networks. */
+export function roadPathDistancesFrom(
+  network: RoadNetwork,
+  ax: number,
+  az: number,
+  targets: readonly RoadPoint[],
+): Array<number | null> {
+  const pathfinder = network.getPathfinder();
+  if (typeof pathfinder.roadPathDistancesFrom === 'function') {
+    return pathfinder.roadPathDistancesFrom(ax, az, targets);
+  }
+  return targets.map((target) =>
+    pathfinder.roadPathDistance(ax, az, target.x, target.z));
+}
+
 export function isOperationalFirewoodSupplier(building: BuildingState): boolean {
   return building.constructionComplete !== false
     && building.assignedLabor > 0
@@ -71,37 +86,74 @@ export function isOperationalFoodSupplier(building: BuildingState): boolean {
     && (building.kind === 'monastery' || building.assignedLabor > 0);
 }
 
+function claimResidencesByNearestSupplier(
+  network: RoadNetwork,
+  suppliers: readonly BuildingState[],
+  residences: readonly ResidenceState[],
+  candidateAllowed: (
+    supplier: BuildingState,
+    residence: ResidenceState,
+    roadDistance: number,
+  ) => boolean,
+): Map<string, string> {
+  const bestByResidence = new Map<string, {
+    supplierId: string;
+    distance: number;
+  }>();
+  const targets = residences.map((residence) => ({
+    x: residence.x,
+    z: residence.z,
+  }));
+
+  for (const supplier of suppliers) {
+    const distances = roadPathDistancesFrom(
+      network,
+      supplier.x,
+      supplier.z,
+      targets,
+    );
+    for (let index = 0; index < residences.length; index += 1) {
+      const distance = distances[index];
+      if (distance == null || !Number.isFinite(distance)) continue;
+      const residence = residences[index];
+      if (!candidateAllowed(supplier, residence, distance)) continue;
+      const current = bestByResidence.get(residence.id);
+      if (
+        current == null
+        || distance + 1e-6 < current.distance
+        || (
+          Math.abs(distance - current.distance) <= 1e-6
+          && compareStableEntityIds(supplier.id, current.supplierId) < 0
+        )
+      ) {
+        bestByResidence.set(residence.id, {
+          supplierId: supplier.id,
+          distance,
+        });
+      }
+    }
+  }
+
+  return new Map(
+    [...bestByResidence].map(([residenceId, best]) => [
+      residenceId,
+      best.supplierId,
+    ]),
+  );
+}
+
 export function claimResidencesForFirewoodSuppliers(
   network: RoadNetwork,
   suppliers: readonly BuildingState[],
   residences: readonly ResidenceState[],
 ): Map<string, string> {
-  const claims = new Map<string, string>();
   const distributors = suppliers.filter(isOperationalFirewoodSupplier);
-
-  for (const residence of residences) {
-    let bestSupplier: BuildingState | null = null;
-    let bestDistance = Infinity;
-    for (const supplier of distributors) {
-      const pathDistance = roadPathDistance(network, supplier.x, supplier.z, residence.x, residence.z);
-      if (pathDistance == null) continue;
-      if (
-        pathDistance + 1e-6 < bestDistance
-        || (
-          Math.abs(pathDistance - bestDistance) <= 1e-6
-          && bestSupplier
-          && compareStableEntityIds(supplier.id, bestSupplier.id) < 0
-        )
-        || (Math.abs(pathDistance - bestDistance) <= 1e-6 && !bestSupplier)
-      ) {
-        bestDistance = pathDistance;
-        bestSupplier = supplier;
-      }
-    }
-    if (bestSupplier) claims.set(residence.id, bestSupplier.id);
-  }
-
-  return claims;
+  return claimResidencesByNearestSupplier(
+    network,
+    distributors,
+    residences,
+    () => true,
+  );
 }
 
 /** Compatibility wrapper for callers written before storehouse distribution. */
@@ -118,33 +170,13 @@ export function claimResidencesForWells(
   wells: readonly BuildingState[],
   residences: readonly ResidenceState[],
 ): Map<string, string> {
-  const claims = new Map<string, string>();
   const activeWells = wells.filter(isOperationalWellSupplier);
-
-  for (const residence of residences) {
-    let bestWell: BuildingState | null = null;
-    let bestDistance = Infinity;
-    for (const well of activeWells) {
-      if (!isResidenceInWellRange(well, residence)) continue;
-      const pathDistance = roadPathDistance(network, well.x, well.z, residence.x, residence.z);
-      if (pathDistance == null) continue;
-      if (
-        pathDistance + 1e-6 < bestDistance
-        || (
-          Math.abs(pathDistance - bestDistance) <= 1e-6
-          && bestWell
-          && compareStableEntityIds(well.id, bestWell.id) < 0
-        )
-        || (Math.abs(pathDistance - bestDistance) <= 1e-6 && !bestWell)
-      ) {
-        bestDistance = pathDistance;
-        bestWell = well;
-      }
-    }
-    if (bestWell) claims.set(residence.id, bestWell.id);
-  }
-
-  return claims;
+  return claimResidencesByNearestSupplier(
+    network,
+    activeWells,
+    residences,
+    (well, residence) => isResidenceInWellRange(well, residence),
+  );
 }
 
 export function claimResidencesForFoodSuppliers(
@@ -157,38 +189,22 @@ export function claimResidencesForFoodSuppliers(
     roadDistance: number,
   ) => boolean = () => true,
 ): Map<string, string> {
-  const claims = new Map<string, string>();
   // A staffed but empty seasonal producer must not strand nearby homes while a
   // stocked granary or holding can serve the same road branch.
   const foodSuppliers = suppliers.filter(
     (supplier) => isOperationalFoodSupplier(supplier) && supplier.food > 1e-6,
   );
-
-  for (const residence of residences) {
-    if (residence.abandoned || residence.population <= 0) continue;
-    let bestSupplier: BuildingState | null = null;
-    let bestDistance = Infinity;
-    for (const supplier of foodSuppliers) {
-      const pathDistance = roadPathDistance(network, supplier.x, supplier.z, residence.x, residence.z);
-      if (pathDistance == null) continue;
-      if (!eligible(supplier, residence, pathDistance)) continue;
-      if (
-        pathDistance + 1e-6 < bestDistance
-        || (
-          Math.abs(pathDistance - bestDistance) <= 1e-6
-          && bestSupplier
-          && compareStableEntityIds(supplier.id, bestSupplier.id) < 0
-        )
-        || (Math.abs(pathDistance - bestDistance) <= 1e-6 && !bestSupplier)
-      ) {
-        bestDistance = pathDistance;
-        bestSupplier = supplier;
-      }
-    }
-    if (bestSupplier) claims.set(residence.id, bestSupplier.id);
-  }
-
-  return claims;
+  const occupiedResidences = residences.filter(
+    (residence) =>
+      residence.abandoned !== true
+      && (residence.population == null || residence.population > 0),
+  );
+  return claimResidencesByNearestSupplier(
+    network,
+    foodSuppliers,
+    occupiedResidences,
+    eligible,
+  );
 }
 
 export function sortByRoadPathDistance<T extends { x: number; z: number }>(
@@ -196,11 +212,13 @@ export function sortByRoadPathDistance<T extends { x: number; z: number }>(
   origin: { x: number; z: number },
   items: T[],
 ): T[] {
-  return [...items].sort((a, b) => {
-    const da = roadPathDistance(network, origin.x, origin.z, a.x, a.z) ?? Infinity;
-    const db = roadPathDistance(network, origin.x, origin.z, b.x, b.z) ?? Infinity;
-    return da - db;
-  });
+  const routed = items.map((item, index) => ({ item, index, distance: Infinity }));
+  const distances = roadPathDistancesFrom(network, origin.x, origin.z, items);
+  for (let index = 0; index < routed.length; index += 1) {
+    routed[index].distance = distances[index] ?? Infinity;
+  }
+  routed.sort((a, b) => a.distance - b.distance || a.index - b.index);
+  return routed.map(({ item }) => item);
 }
 
 /** Lowest firewood runway first; tie-break by road-path distance, then residence id. */
@@ -227,7 +245,12 @@ export function sortResidencesForDelivery(
   lodge: { x: number; z: number },
   residences: readonly ResidenceState[],
 ): ResidenceState[] {
-  return [...residences].sort((a, b) => compareResidencesForDelivery(network, lodge, a, b));
+  return sortResidencesByRunwayAndDistance(
+    network,
+    lodge,
+    residences,
+    residenceFirewoodRunwaySeconds,
+  );
 }
 
 /** O(n) peek at the next needy residence without sorting the full branch. */
@@ -236,14 +259,30 @@ export function peekNextDeliveryTarget(
   lodge: { x: number; z: number },
   residences: readonly ResidenceState[],
 ): ResidenceState | null {
-  let best: ResidenceState | null = null;
-  for (const residence of residences) {
-    if (!hasNeedStockRoom(getNeedStock(residence.needs, 'firewood'), RESIDENCE_FIREWOOD_CAPACITY)) continue;
-    if (best == null || compareResidencesForDelivery(network, lodge, residence, best) < 0) {
-      best = residence;
+  const eligible = residences.filter((residence) =>
+    hasNeedStockRoom(
+      getNeedStock(residence.needs, 'firewood'),
+      RESIDENCE_FIREWOOD_CAPACITY,
+    ));
+  const distances = roadPathDistancesFrom(network, lodge.x, lodge.z, eligible);
+  let bestIndex = -1;
+  for (let index = 0; index < eligible.length; index += 1) {
+    if (distances[index] == null) continue;
+    if (
+      bestIndex < 0
+      || compareDeliveryCandidates(
+        eligible[index],
+        distances[index]!,
+        residenceFirewoodRunwaySeconds(eligible[index]),
+        eligible[bestIndex],
+        distances[bestIndex]!,
+        residenceFirewoodRunwaySeconds(eligible[bestIndex]),
+      ) < 0
+    ) {
+      bestIndex = index;
     }
   }
-  return best;
+  return bestIndex < 0 ? null : eligible[bestIndex];
 }
 
 export function compareResidencesForWaterDelivery(
@@ -269,7 +308,12 @@ export function sortResidencesForWaterDelivery(
   well: { x: number; z: number },
   residences: readonly ResidenceState[],
 ): ResidenceState[] {
-  return [...residences].sort((a, b) => compareResidencesForWaterDelivery(network, well, a, b));
+  return sortResidencesByRunwayAndDistance(
+    network,
+    well,
+    residences,
+    residenceWaterRunwaySeconds,
+  );
 }
 
 export function peekNextWaterDeliveryTarget(
@@ -277,12 +321,69 @@ export function peekNextWaterDeliveryTarget(
   well: { x: number; z: number },
   residences: readonly ResidenceState[],
 ): ResidenceState | null {
-  let best: ResidenceState | null = null;
-  for (const residence of residences) {
-    if (!hasNeedStockRoom(getNeedStock(residence.needs, 'water'), RESIDENCE_WATER_CAPACITY)) continue;
-    if (best == null || compareResidencesForWaterDelivery(network, well, residence, best) < 0) {
-      best = residence;
+  const eligible = residences.filter((residence) =>
+    hasNeedStockRoom(
+      getNeedStock(residence.needs, 'water'),
+      RESIDENCE_WATER_CAPACITY,
+    ));
+  const distances = roadPathDistancesFrom(network, well.x, well.z, eligible);
+  let bestIndex = -1;
+  for (let index = 0; index < eligible.length; index += 1) {
+    if (distances[index] == null) continue;
+    if (
+      bestIndex < 0
+      || compareDeliveryCandidates(
+        eligible[index],
+        distances[index]!,
+        residenceWaterRunwaySeconds(eligible[index]),
+        eligible[bestIndex],
+        distances[bestIndex]!,
+        residenceWaterRunwaySeconds(eligible[bestIndex]),
+      ) < 0
+    ) {
+      bestIndex = index;
     }
   }
-  return best;
+  return bestIndex < 0 ? null : eligible[bestIndex];
+}
+
+function compareDeliveryCandidates(
+  a: ResidenceState,
+  distanceA: number,
+  runwayA: number | null,
+  b: ResidenceState,
+  distanceB: number,
+  runwayB: number | null,
+): number {
+  if (a.abandoned !== b.abandoned) return a.abandoned ? 1 : -1;
+  const runwayOrder = (runwayA ?? Infinity) - (runwayB ?? Infinity);
+  if (Math.abs(runwayOrder) > 1e-6) return runwayOrder;
+  const distanceOrder = distanceA - distanceB;
+  if (Math.abs(distanceOrder) > 1e-6) return distanceOrder;
+  return compareStableEntityIds(a.id, b.id);
+}
+
+function sortResidencesByRunwayAndDistance(
+  network: RoadNetwork,
+  origin: { x: number; z: number },
+  residences: readonly ResidenceState[],
+  runwayFor: (residence: ResidenceState) => number | null,
+): ResidenceState[] {
+  const distances = roadPathDistancesFrom(network, origin.x, origin.z, residences);
+  return residences
+    .map((residence, index) => ({
+      residence,
+      distance: distances[index] ?? Infinity,
+      runway: runwayFor(residence),
+    }))
+    .sort((a, b) =>
+      compareDeliveryCandidates(
+        a.residence,
+        a.distance,
+        a.runway,
+        b.residence,
+        b.distance,
+        b.runway,
+      ))
+    .map(({ residence }) => residence);
 }

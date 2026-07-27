@@ -4,6 +4,7 @@ use crate::balance_generated::{
     BREWERY_GRAIN_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
     HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, MONASTERY_GRAIN_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
 };
+use crate::processor_output_policy::processor_input_staging_cycles;
 
 pub const ALE_SUPPLIER_KINDS: &[&str] = &["brewery", "monastery"];
 pub const PRESERVED_FOOD_SUPPLIER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead"];
@@ -26,29 +27,53 @@ pub const FOOD_SUPPLIER_KINDS: &[&str] = &[
 pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "brewery", "monastery"];
 pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "brewery", "granary", "monastery"];
 pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
+pub const PROCESSOR_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
 pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
 
-/// Small working stock requested by grain processors. Central granaries can
-/// therefore buffer an autumn harvest without trapping it, while only three
-/// cycles sit idle at any one workshop.
-pub fn grain_input_target(kind: &str, productivity: f64) -> f64 {
+/// Small working stock requested by grain processors. Watermills and breweries
+/// follow their production stock policy; the autonomous monastery retains the
+/// legacy three-cycle buffer.
+pub fn grain_input_target(
+    kind: &str,
+    productivity: f64,
+    processor_output_target_percent: u8,
+) -> f64 {
     let per_cycle = match kind {
         "watermill" => WATERMILL_GRAIN_PER_CYCLE,
         "brewery" => BREWERY_GRAIN_PER_CYCLE,
         "monastery" => MONASTERY_GRAIN_PER_CYCLE * productivity.max(0.0),
         _ => 0.0,
     };
-    per_cycle * GRAIN_INPUT_BUFFER_CYCLES
+    let staging_cycles = if matches!(kind, "watermill" | "brewery") {
+        processor_input_staging_cycles(processor_output_target_percent)
+    } else {
+        GRAIN_INPUT_BUFFER_CYCLES
+    };
+    per_cycle * staging_cycles
 }
 
 pub fn grain_input_runway_cycles(kind: &str, stock: f64, productivity: f64) -> f64 {
-    let target = grain_input_target(kind, productivity);
-    if target <= 1e-6 {
+    let per_cycle = match kind {
+        "watermill" => WATERMILL_GRAIN_PER_CYCLE,
+        "brewery" => BREWERY_GRAIN_PER_CYCLE,
+        "monastery" => MONASTERY_GRAIN_PER_CYCLE * productivity.max(0.0),
+        _ => 0.0,
+    };
+    if per_cycle <= 1e-6 {
         f64::INFINITY
     } else {
-        stock.max(0.0) * GRAIN_INPUT_BUFFER_CYCLES / target
+        stock.max(0.0) / per_cycle
+    }
+}
+
+/// Completed-building priorities share the construction column for additive
+/// save compatibility. Invalid legacy values fall back to the normal tier.
+pub fn grain_work_priority(priority: u8) -> u8 {
+    match priority {
+        1..=3 => priority,
+        _ => 2,
     }
 }
 
@@ -84,21 +109,29 @@ pub fn grain_dispatch_duty(
 
 pub fn compare_grain_dispatch_candidates(
     a_duty: GrainDispatchDuty,
+    a_work_priority: u8,
     a_runway_cycles: f64,
     a_distance: f64,
     a_building_id: u64,
     b_duty: GrainDispatchDuty,
+    b_work_priority: u8,
     b_runway_cycles: f64,
     b_distance: f64,
     b_building_id: u64,
 ) -> Ordering {
     a_duty.cmp(&b_duty).then_with(|| {
+        let work_priority_order = if a_duty == GrainDispatchDuty::WorkingBuffer {
+            grain_work_priority(b_work_priority).cmp(&grain_work_priority(a_work_priority))
+        } else {
+            Ordering::Equal
+        };
         let runway_order = if a_duty == GrainDispatchDuty::WorkingBuffer {
             a_runway_cycles.total_cmp(&b_runway_cycles)
         } else {
             Ordering::Equal
         };
-        runway_order
+        work_priority_order
+            .then(runway_order)
             .then_with(|| a_distance.total_cmp(&b_distance))
             .then_with(|| a_building_id.cmp(&b_building_id))
     })
@@ -108,6 +141,7 @@ pub fn compare_grain_dispatch_candidates(
 pub fn select_grain_dispatch_candidate<T>(
     candidates: impl IntoIterator<Item = T>,
     duty_for: impl Fn(&T) -> GrainDispatchDuty,
+    work_priority_for: impl Fn(&T) -> u8,
     runway_for: impl Fn(&T) -> f64,
     distance_for: impl Fn(&T) -> f64,
     building_id_for: impl Fn(&T) -> u64,
@@ -115,10 +149,12 @@ pub fn select_grain_dispatch_candidate<T>(
     candidates.into_iter().min_by(|a, b| {
         compare_grain_dispatch_candidates(
             duty_for(a),
+            work_priority_for(a),
             runway_for(a),
             distance_for(a),
             building_id_for(a),
             duty_for(b),
+            work_priority_for(b),
             runway_for(b),
             distance_for(b),
             building_id_for(b),
@@ -239,6 +275,147 @@ pub fn select_supply_route_candidate<T>(
     })
 }
 
+/// Scarce seed goes to the holding with the lowest covered share of its active
+/// field claim. Route length and stable id decide only equal-coverage cases, so
+/// a small nearby shortage cannot repeatedly jump ahead of an empty holding.
+pub fn compare_seed_grain_delivery_candidates(
+    a_stock: f64,
+    a_required: f64,
+    a_distance: f64,
+    a_building_id: u64,
+    b_stock: f64,
+    b_required: f64,
+    b_distance: f64,
+    b_building_id: u64,
+) -> Ordering {
+    let coverage = |stock: f64, required: f64| {
+        if required <= 1e-9 {
+            1.0
+        } else {
+            (stock.max(0.0) / required).clamp(0.0, 1.0)
+        }
+    };
+    coverage(a_stock, a_required)
+        .total_cmp(&coverage(b_stock, b_required))
+        .then_with(|| a_distance.total_cmp(&b_distance))
+        .then_with(|| a_building_id.cmp(&b_building_id))
+}
+
+/// One source can launch only one seed cart, so retain the best reachable
+/// holding in a single pass instead of sorting the whole farm network.
+pub fn select_seed_grain_delivery_candidate<T>(
+    candidates: impl IntoIterator<Item = T>,
+    stock_for: impl Fn(&T) -> f64,
+    required_for: impl Fn(&T) -> f64,
+    distance_for: impl Fn(&T) -> f64,
+    building_id_for: impl Fn(&T) -> u64,
+) -> Option<T> {
+    candidates.into_iter().min_by(|a, b| {
+        compare_seed_grain_delivery_candidates(
+            stock_for(a),
+            required_for(a),
+            distance_for(a),
+            building_id_for(a),
+            stock_for(b),
+            required_for(b),
+            distance_for(b),
+            building_id_for(b),
+        )
+    })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ProcessorInputDispatchDuty {
+    WorkingBuffer,
+    WorkshopOverflow,
+}
+
+pub fn processor_input_target(per_cycle: f64, processor_output_target_percent: u8) -> f64 {
+    per_cycle.max(0.0) * processor_input_staging_cycles(processor_output_target_percent)
+}
+
+pub fn processor_input_runway_cycles(stock: f64, per_cycle: f64) -> f64 {
+    if per_cycle <= 1e-6 {
+        f64::INFINITY
+    } else {
+        stock.max(0.0) / per_cycle
+    }
+}
+
+pub fn processor_input_dispatch_duty(
+    assigned_labor: u32,
+    stock: f64,
+    per_cycle: f64,
+    processor_output_target_percent: u8,
+) -> ProcessorInputDispatchDuty {
+    if assigned_labor > 0
+        && stock + 1e-6
+            < processor_input_target(per_cycle, processor_output_target_percent)
+    {
+        ProcessorInputDispatchDuty::WorkingBuffer
+    } else {
+        ProcessorInputDispatchDuty::WorkshopOverflow
+    }
+}
+
+/// Direct producer carts first restore operating processors to a small working
+/// buffer. Within that duty, completed-building work priority wins before
+/// cycle runway, road distance, and stable building id. Once every active
+/// buffer is covered, ordinary nearest-route overflow behavior resumes.
+pub fn compare_processor_input_dispatch_candidates(
+    a_duty: ProcessorInputDispatchDuty,
+    a_work_priority: u8,
+    a_runway_cycles: f64,
+    a_distance: f64,
+    a_building_id: u64,
+    b_duty: ProcessorInputDispatchDuty,
+    b_work_priority: u8,
+    b_runway_cycles: f64,
+    b_distance: f64,
+    b_building_id: u64,
+) -> Ordering {
+    a_duty.cmp(&b_duty).then_with(|| {
+        let work_priority_order = if a_duty == ProcessorInputDispatchDuty::WorkingBuffer {
+            grain_work_priority(b_work_priority).cmp(&grain_work_priority(a_work_priority))
+        } else {
+            Ordering::Equal
+        };
+        let runway_order = if a_duty == ProcessorInputDispatchDuty::WorkingBuffer {
+            a_runway_cycles.total_cmp(&b_runway_cycles)
+        } else {
+            Ordering::Equal
+        };
+        work_priority_order
+            .then(runway_order)
+            .then_with(|| a_distance.total_cmp(&b_distance))
+            .then_with(|| a_building_id.cmp(&b_building_id))
+    })
+}
+
+pub fn select_processor_input_dispatch_candidate<T>(
+    candidates: impl IntoIterator<Item = T>,
+    duty_for: impl Fn(&T) -> ProcessorInputDispatchDuty,
+    work_priority_for: impl Fn(&T) -> u8,
+    runway_for: impl Fn(&T) -> f64,
+    distance_for: impl Fn(&T) -> f64,
+    building_id_for: impl Fn(&T) -> u64,
+) -> Option<T> {
+    candidates.into_iter().min_by(|a, b| {
+        compare_processor_input_dispatch_candidates(
+            duty_for(a),
+            work_priority_for(a),
+            runway_for(a),
+            distance_for(a),
+            building_id_for(a),
+            duty_for(b),
+            work_priority_for(b),
+            runway_for(b),
+            distance_for(b),
+            building_id_for(b),
+        )
+    })
+}
+
 /// Construction sources retain a stable service hierarchy before road
 /// distance is considered. A staffed central store loads most efficiently,
 /// followed by the relevant craft or producer; unstaffed stores need a free
@@ -331,16 +508,20 @@ pub fn select_need_delivery_candidate(
 mod tests {
     use super::{
         compare_grain_dispatch_candidates, compare_need_delivery_candidate_records,
-        compare_need_delivery_candidates, compare_supply_route_candidates,
+        compare_need_delivery_candidates, compare_processor_input_dispatch_candidates,
+        compare_seed_grain_delivery_candidates, compare_supply_route_candidates,
         construction_source_priority, grain_dispatch_duty, grain_input_runway_cycles,
-        grain_input_target, granary_dispatch_order, household_food_reserve,
+        grain_input_target, grain_work_priority, granary_dispatch_order, household_food_reserve,
         institutional_food_surplus, is_firewood_supplier_operational, is_food_supplier_operational,
         is_specialty_supplier_operational, is_well_supplier_operational,
+        processor_input_dispatch_duty, processor_input_runway_cycles, processor_input_target,
         select_grain_dispatch_candidate, select_need_delivery_candidate,
+        select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
         select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
-        NeedDeliveryCandidate, ALE_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
-        GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
-        GRAIN_PROCESSOR_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS,
+        NeedDeliveryCandidate, ProcessorInputDispatchDuty, ALE_SUPPLIER_KINDS,
+        CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS, GRAIN_CRITICAL_RUNWAY_CYCLES,
+        GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES, GRAIN_PROCESSOR_KINDS,
+        PRESERVED_FOOD_SUPPLIER_KINDS, PROCESSOR_INPUT_BUFFER_CYCLES,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
@@ -350,6 +531,59 @@ mod tests {
         assert_eq!(
             compare_supply_route_candidates(24.0, 90, 85.0, 1),
             Ordering::Less
+        );
+    }
+
+    #[test]
+    fn seed_grain_serves_lowest_coverage_before_shortest_route() {
+        assert_eq!(
+            compare_seed_grain_delivery_candidates(0.0, 40.0, 900.0, 20, 8.0, 40.0, 10.0, 1),
+            Ordering::Less,
+            "an empty holding must beat a nearby partially supplied one"
+        );
+        assert_eq!(
+            compare_seed_grain_delivery_candidates(10.0, 40.0, 90.0, 20, 5.0, 20.0, 40.0, 1),
+            Ordering::Greater,
+            "equal coverage must use the shorter road"
+        );
+        assert_eq!(
+            compare_seed_grain_delivery_candidates(10.0, 40.0, 40.0, 20, 5.0, 20.0, 40.0, 1),
+            Ordering::Greater,
+            "equal coverage and route must use stable building id"
+        );
+    }
+
+    #[test]
+    fn seed_grain_selection_is_single_pass_and_ratio_aware() {
+        let candidates = [
+            (1_u64, 8.0, 40.0, 10.0),
+            (2_u64, 0.0, 80.0, 100.0),
+            (3_u64, 0.0, 80.0, 20.0),
+        ];
+        let selected = select_seed_grain_delivery_candidate(
+            candidates,
+            |candidate| candidate.1,
+            |candidate| candidate.2,
+            |candidate| candidate.3,
+            |candidate| candidate.0,
+        );
+        assert_eq!(selected.map(|candidate| candidate.0), Some(3));
+    }
+
+    #[test]
+    fn seed_grain_selection_stays_linear_at_settlement_scale() {
+        let started = Instant::now();
+        let selected = select_seed_grain_delivery_candidate(
+            (0_u64..100_000).map(|id| (id, (id % 97) as f64, 100.0, (100_000_u64 - id) as f64)),
+            |candidate| candidate.1,
+            |candidate| candidate.2,
+            |candidate| candidate.3,
+            |candidate| candidate.0,
+        );
+        assert_eq!(selected.map(|candidate| candidate.0), Some(99_910));
+        assert!(
+            started.elapsed() < Duration::from_millis(250),
+            "100k seed candidates should remain interactive"
         );
     }
 
@@ -424,6 +658,88 @@ mod tests {
         assert_eq!(grain_input_target("granary", 1.0), 0.0);
         assert_eq!(grain_input_runway_cycles("watermill", 6.0, 1.0), 2.0);
         assert_eq!(grain_input_runway_cycles("monastery", 1.8, 0.45), 2.0);
+        assert_eq!(grain_work_priority(0), 2);
+        assert_eq!(grain_work_priority(1), 1);
+        assert_eq!(grain_work_priority(3), 3);
+        assert_eq!(grain_work_priority(4), 2);
+    }
+
+    #[test]
+    fn direct_processor_inputs_restore_priority_buffers_before_overflow() {
+        assert_eq!(PROCESSOR_INPUT_BUFFER_CYCLES, 3.0);
+        assert_eq!(processor_input_target(2.0), 6.0);
+        assert_eq!(processor_input_runway_cycles(3.0, 2.0), 1.5);
+        assert_eq!(
+            processor_input_dispatch_duty(2, 3.0, 2.0),
+            ProcessorInputDispatchDuty::WorkingBuffer
+        );
+        assert_eq!(
+            processor_input_dispatch_duty(0, 0.0, 2.0),
+            ProcessorInputDispatchDuty::WorkshopOverflow
+        );
+        assert_eq!(
+            compare_processor_input_dispatch_candidates(
+                ProcessorInputDispatchDuty::WorkingBuffer,
+                3,
+                2.5,
+                100.0,
+                9,
+                ProcessorInputDispatchDuty::WorkingBuffer,
+                1,
+                0.0,
+                5.0,
+                1,
+            ),
+            Ordering::Less,
+            "a high-priority working buffer must beat a shorter empty low-priority workshop"
+        );
+        assert_eq!(
+            compare_processor_input_dispatch_candidates(
+                ProcessorInputDispatchDuty::WorkingBuffer,
+                1,
+                2.5,
+                100.0,
+                9,
+                ProcessorInputDispatchDuty::WorkshopOverflow,
+                3,
+                0.0,
+                5.0,
+                1,
+            ),
+            Ordering::Less,
+            "an active working buffer must beat warehouse overflow at any tier"
+        );
+    }
+
+    #[test]
+    fn direct_processor_input_selection_stays_linear() {
+        let started = Instant::now();
+        let selected = select_processor_input_dispatch_candidate(
+            (0..100_000_u64).map(|building_id| {
+                (
+                    building_id,
+                    if building_id == 99_999 {
+                        ProcessorInputDispatchDuty::WorkingBuffer
+                    } else {
+                        ProcessorInputDispatchDuty::WorkshopOverflow
+                    },
+                    2_u8,
+                    (building_id % 7) as f64,
+                    (100_000 - building_id) as f64,
+                )
+            }),
+            |candidate| candidate.1,
+            |candidate| candidate.2,
+            |candidate| candidate.3,
+            |candidate| candidate.4,
+            |candidate| candidate.0,
+        )
+        .expect("a direct processor-input destination should be selected");
+        assert_eq!(selected.0, 99_999);
+        assert!(
+            started.elapsed() < Duration::from_millis(100),
+            "100k direct input candidates should remain a one-pass selection"
+        );
     }
 
     #[test]
@@ -448,10 +764,12 @@ mod tests {
         assert_eq!(
             compare_grain_dispatch_candidates(
                 GrainDispatchDuty::WorkingBuffer,
+                2,
                 2.0,
                 80.0,
                 9,
                 GrainDispatchDuty::WorkingBuffer,
+                2,
                 2.8,
                 10.0,
                 1,
@@ -461,11 +779,29 @@ mod tests {
         );
         assert_eq!(
             compare_grain_dispatch_candidates(
+                GrainDispatchDuty::WorkingBuffer,
+                3,
+                2.8,
+                80.0,
+                9,
+                GrainDispatchDuty::WorkingBuffer,
+                1,
+                0.0,
+                10.0,
+                1,
+            ),
+            Ordering::Less,
+            "work priority outranks processor runway during scarcity"
+        );
+        assert_eq!(
+            compare_grain_dispatch_candidates(
                 GrainDispatchDuty::GranaryReserve,
+                1,
                 f64::INFINITY,
                 30.0,
                 9,
                 GrainDispatchDuty::WorkshopOverflow,
+                3,
                 4.0,
                 5.0,
                 1,
@@ -487,6 +823,7 @@ mod tests {
                     } else {
                         GrainDispatchDuty::GranaryReserve
                     },
+                    if index % 3 == 0 { 3 } else { 1 },
                     (index % 7) as f64,
                     (100_000 - index) as f64,
                 )
@@ -494,6 +831,7 @@ mod tests {
             |candidate| candidate.1,
             |candidate| candidate.2,
             |candidate| candidate.3,
+            |candidate| candidate.4,
             |candidate| candidate.0 as u64,
         )
         .expect("a large harvest network should have a destination");

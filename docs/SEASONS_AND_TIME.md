@@ -171,6 +171,57 @@ crop growth, pasture, firewood demand, and fresh-food loss. A deteriorating rout
 outlook explicitly recommends pre-hauling remote stock and regional orders. The
 calculation is constant-time and advisory: it changes no orders, labor, or saves.
 
+## Daily Town Hall steward order
+
+Optional Town Hall stewards review labor only when the authoritative calendar
+crosses into a new day. Ordinary simulation ticks return before any steward
+settlement scan. Existing saves keep all three policies disabled:
+
+1. Seasonal work releases dormant crews and fills active, time-critical sites.
+2. Production releases only surplus labor from genuinely stalled target-governed
+   or source-bound sites, then fills supplied and capacity-open work by staffing
+   priority. Matching inbound supplies and necessary dispatchers remain protected.
+3. Construction releases builders from blocked sites without approaching material
+   carts, then fills immediately productive sites from the remaining labor pool.
+
+This order keeps sowing and harvest windows ahead of routine industry while
+letting workshop output targets act as durable automation rules. Construction
+uses only the labor left after the settlement's seasonal and production plans.
+Removing the Town Hall clerk pauses every enabled steward without changing its
+saved setting; enabling any policy performs its safe rotation immediately.
+
+The Town Hall may reserve 0, 1, 2, 4, or 6 free villagers from all automatic
+call-ups. The three stages share that single floor, so released labor can still
+move to a more urgent earlier stage while the selected number remains available
+for explicit orders or emergencies. Raising the reserve does not dismiss a
+productive crew merely to reach the floor; a later safe recall can restore it.
+Manual call-ups remain unrestricted. Existing saves default to a zero reserve,
+preserving the previous full-deployment behavior.
+
+The Town Hall's Dawn labor review projects only the enabled stages in this same
+sequence. Each stage sees the crew assignments and free pool left by the previous
+stage, so seasonal call-ups can consume labor before workshops and seasonal
+releases can feed production or construction. The projection uses the next day's
+month, including April, September, and winter work-window transitions, and links
+to the first site whose crew would change. It also reports whether the shared
+reserve will be met or remain temporarily short because productive crews stay
+assigned. It is read-only and runs only while the Town Hall inspector is open.
+
+The same completed-building work priority also governs scarce grain carts at
+watermills, breweries, and autonomous monasteries, plus industrial well-water
+carts at breweries and granary bakeries. Grain dispatch first selects the
+highest-priority tier that still needs its three-cycle working buffer, then the
+lowest cycle runway, shortest road route, and stable building order. Wells keep
+fire response and household service ahead of industry, then apply the same tier,
+water-stock ratio, route, and stable-order sequence. This lets the player keep
+staple milling or baking ahead of brewing and hospitality through a lean crop
+year without adding another priority field. Existing buildings remain normal.
+The same control also orders direct producer carts for the next link: flour
+from watermills to staffed granary bakeries, fresh food dispatched from
+granaries or swine holdings to smokehouses, and annual fleece sent to weavers.
+These routes restore three-cycle working buffers by priority before falling
+back to nearest-route overflow, so a high tier cannot absorb every warehouse.
+
 In conflict-enabled worlds, the same current multiplier converts each guardhouse's
 physical route to its nearest staffed watchtower into a time-equivalent muster
 distance. A compact company can still provide its full strength in rain, while a

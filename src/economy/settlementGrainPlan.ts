@@ -13,6 +13,13 @@ import type { SettlementFarmPlan } from '../farming/farmWorkPlanning.ts';
 import type { SettlementGranaryReserve } from './granaryPolicy.ts';
 import type { SettlementLivestockFodderPlan } from './livestockFodder.ts';
 import type { SettlementProductionCapacity } from './settlementProduction.ts';
+import {
+  normalizeStaffingPriority,
+  STAFFING_PRIORITY_HIGH,
+  STAFFING_PRIORITY_LOW,
+  STAFFING_PRIORITY_NORMAL,
+  type StaffingPriority,
+} from './staffingPriority.ts';
 
 export const GRAIN_PLAN_DAYS_PER_YEAR =
   CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
@@ -40,6 +47,7 @@ export type SettlementGrainPlan = {
   processorRunwayDays: number;
   annualProcessorDemand: number;
   annualCommitments: number;
+  processorPriorityCounts: Record<StaffingPriority, number>;
   laborCoveredHarvest: number;
   potentialHarvest: number;
   annualBalance: number;
@@ -159,10 +167,29 @@ export function computeSettlementGrainPlan(
   const transit = grainTransit(input.state);
   let totalStock = positiveFinite(input.state.stockpile.grain) + transit.total;
   let monasteryGrainPerDay = 0;
+  const processorPriorityCounts: Record<StaffingPriority, number> = {
+    [STAFFING_PRIORITY_LOW]: 0,
+    [STAFFING_PRIORITY_NORMAL]: 0,
+    [STAFFING_PRIORITY_HIGH]: 0,
+  };
   const workShare = input.sabbathObserved ? 6 / 7 : 1;
 
   for (const building of input.state.buildings.values()) {
     totalStock += positiveFinite(building.grain);
+    if (
+      building.constructionComplete !== false
+      && (
+        (building.kind === 'monastery')
+        || (
+          (building.kind === 'watermill' || building.kind === 'brewery')
+          && building.assignedLabor > 0
+        )
+      )
+    ) {
+      processorPriorityCounts[
+        normalizeStaffingPriority(building.constructionPriority)
+      ] += 1;
+    }
     if (building.kind !== 'monastery' || building.constructionComplete === false) {
       continue;
     }
@@ -242,6 +269,7 @@ export function computeSettlementGrainPlan(
       : Number.POSITIVE_INFINITY,
     annualProcessorDemand,
     annualCommitments,
+    processorPriorityCounts,
     laborCoveredHarvest,
     potentialHarvest,
     annualBalance: laborCoveredHarvest - annualCommitments,

@@ -12,6 +12,7 @@ import {
 } from '../../economy/livestockPolicy.ts';
 import { projectLivestockFodderHolding } from '../../economy/livestockFodder.ts';
 import { formatProvisionRunway } from '../../economy/settlementProvisioning.ts';
+import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
   CATTLE_MAX_FERTILIZED_FIELDS,
@@ -134,6 +135,16 @@ export function renderLivestockBuildingInspector(
     ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'preservedFood')
     : null;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
+  const nextWoolDispatch = herd?.species === 'sheep'
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'wool')
+    : null;
+  const nextWoolCart = (building.wool ?? 0) <= 0.05
+    ? 'No wool stored'
+    : nextWoolDispatch
+      ? nextWoolDispatch.duty === 'working-buffer'
+        ? `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · ${staffingPriorityLabel(nextWoolDispatch.workPriority)} priority · ${(nextWoolDispatch.target.wool ?? 0).toFixed(1)} / ${nextWoolDispatch.desiredStock.toFixed(1)} wool`
+        : `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · active buffers covered · nearest overflow route`
+      : 'No road-linked weaver can receive wool';
   const statusText = !herd
     ? 'Awaiting herd records'
     : pastures.length === 0
@@ -311,7 +322,8 @@ export function renderLivestockBuildingInspector(
               ? 'Waiting for healthy, supplied sheep'
               : `Open now · ${projectedFleece.toFixed(1)} wool expected with full-clip room secured`
           : `Next window: June–July · ${projectedFleece.toFixed(1)} wool at current flock condition · ${(herd.lastWoolOutput ?? 0).toFixed(1)} stored in last shearing`}</span></li>
-      <li><span>Textile route</span><span>Holding cart → road-linked weaver → cloth cart → marketplace</span></li>` : ''}
+      <li><span>Textile route</span><span>Holding cart → road-linked weaver → cloth cart → marketplace</span></li>
+      <li><span>Next wool cart</span><span>${nextWoolCart}</span></li>` : ''}
       <li><span>Food territory</span><span>${building.food <= 1e-6 ? 'Yielding while empty' : foodTerritory.length === 0 ? 'None on branch' : `${foodTerritory.length} households claimed`}</span></li>
       ${householdReserveRow}
       <li><span>Next food cart</span><span>${nextFoodTarget ? `Parcel #${nextFoodTarget.parcelIndex + 1}` : 'None needing food'}</span></li>

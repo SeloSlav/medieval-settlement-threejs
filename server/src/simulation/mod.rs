@@ -21,6 +21,7 @@ mod livestock;
 mod lodge_logistics;
 mod lumber_mill;
 mod marketplace_caravan;
+mod production_labor_steward;
 mod reforester;
 mod residence_lifecycle;
 pub mod residence_needs;
@@ -48,8 +49,8 @@ pub use delivery_trips::{
 };
 pub use expanded_economy::{
     step_apiary, step_brewery, step_carpenter, step_ferry_landing, step_granary, step_guardhouse,
-    step_monastery, step_smokehouse, step_threshing_barn, step_vineyard, step_watermill,
-    step_weaver,
+    step_monastery, step_seed_grain_distribution, step_smokehouse, step_threshing_barn,
+    step_vineyard, step_watermill, step_weaver,
 };
 pub use fires::{
     building_fire_state, clear_fire_for_target, fire_response_needed_for_well,
@@ -69,6 +70,9 @@ pub use livestock::{step_pastoral_farmstead, step_swineherd};
 pub use lumber_mill::step_lumber_mill;
 pub use marketplace_caravan::{
     step_marketplace_caravans, try_dispatch_marketplace_caravan, MarketCaravanDispatch,
+};
+pub use production_labor_steward::{
+    reconcile_target_production_labor_for_owner, step_production_labor_stewards,
 };
 pub use reforester::step_reforester;
 pub use residence_lifecycle::step_residence;

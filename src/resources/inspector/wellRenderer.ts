@@ -3,6 +3,10 @@ import {
   WELL_MINIMUM_REFILL_HYDROLOGY,
   BUILDING_STORAGE_CAPS,
 } from '../../generated/gameBalance.ts';
+import {
+  normalizeStaffingPriority,
+  staffingPriorityLabel,
+} from '../../economy/staffingPriority.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
@@ -73,7 +77,7 @@ export function renderWellInspector(
   const nextTargetLabel = nextHouseholdTarget
     ? formatNextWaterTargetLabel(nextHouseholdTarget)
     : nextIndustrialTarget
-      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} (${nextIndustrialTarget.water.toFixed(1)} / ${industrialWaterRequirement(nextIndustrialTarget.kind)} water)`
+      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} · ${staffingPriorityLabel(normalizeStaffingPriority(nextIndustrialTarget.constructionPriority))} priority (${nextIndustrialTarget.water.toFixed(1)} / ${industrialWaterRequirement(nextIndustrialTarget.kind)} water)`
       : 'None needing water';
   const activeTargetLabel = formatTripDestinationLabel(
     activeTrip,
@@ -146,7 +150,7 @@ export function renderWellInspector(
       ${buildingExtentRow(building.kind)}
       <li><span>Road-linked homes</span><span>${claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
       <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'granary').length} granary`}</span></li>
-      <li><span>Dispatch rule</span><span>Fires first · households second · emptiest workshop third</span></li>
+      <li><span>Dispatch rule</span><span>Fires first · households second · highest-priority emptiest workshop third</span></li>
       <li><span>Supplies</span><span>Homes, brewhouses, and granary bakeries by visible cart</span></li>
       ${deliveryRow}
     `,

@@ -7,7 +7,8 @@ use crate::economy::{
     ensure_market_state, reconcile_building_labor, STARTING_GOLD, STARTING_STONE, STARTING_TIMBER,
 };
 use crate::labor_steward_policy::{
-    CONSTRUCTION_LABOR_STEWARD_DEFAULT, SEASONAL_LABOR_STEWARD_DEFAULT,
+    CONSTRUCTION_LABOR_STEWARD_DEFAULT, PRODUCTION_LABOR_STEWARD_DEFAULT,
+    SEASONAL_LABOR_STEWARD_DEFAULT,
 };
 use crate::reducers::world_configuration::default_world_config;
 use crate::schedule::SimTickSchedule;
@@ -125,6 +126,8 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         monastery_food_charity_total: 0.0,
         seasonal_labor_steward_enabled: SEASONAL_LABOR_STEWARD_DEFAULT,
         construction_labor_steward_enabled: CONSTRUCTION_LABOR_STEWARD_DEFAULT,
+        production_labor_steward_enabled: PRODUCTION_LABOR_STEWARD_DEFAULT,
+        labor_steward_reserve: crate::labor_steward_policy::LABOR_STEWARD_RESERVE_DEFAULT,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

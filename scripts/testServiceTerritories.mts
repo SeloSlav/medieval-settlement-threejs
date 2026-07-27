@@ -9,7 +9,7 @@ import {
 import {
   findRoadLinkedSupplierForResidence,
 } from '../src/logistics/specialtyLogistics.ts';
-import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
 import { STOREHOUSE_FIREWOOD_PER_DELIVERY } from '../src/generated/gameBalance.ts';
 
@@ -276,6 +276,71 @@ assert.ok(
   `10k-home firewood and water territory builds took ${territoryElapsedMs.toFixed(1)}ms`,
 );
 
+const lineNodeCount = 180;
+const lineNetwork = new RoadNetwork();
+lineNetwork.restore({
+  nextNodeId: lineNodeCount + 1,
+  nextEdgeId: lineNodeCount,
+  nodes: Array.from({ length: lineNodeCount }, (_, index) => ({
+    id: `n${index}`,
+    position: [index * 8, 0, 0] as [number, number, number],
+  })),
+  edges: Array.from({ length: lineNodeCount - 1 }, (_, index) => ({
+    id: `e${index}`,
+    startNodeId: `n${index}`,
+    endNodeId: `n${index + 1}`,
+    width: 4.2,
+    controlPoints: [
+      [index * 8, 0, 0],
+      [(index + 1) * 8, 0, 0],
+    ] as Array<[number, number, number]>,
+    sampledPath: [
+      [index * 8, 0, 0],
+      [(index + 1) * 8, 0, 0],
+    ] as Array<[number, number, number]>,
+    length: 8,
+    revision: 1,
+  })),
+});
+const lineTargets = Array.from({ length: lineNodeCount - 1 }, (_, index) => ({
+  x: (index + 1) * 8 + 1,
+  z: 2,
+}));
+const linePathfinder = lineNetwork.getPathfinder();
+const pairwiseStarted = performance.now();
+const pairwiseDistances = lineTargets.map((target) =>
+  linePathfinder.roadPathDistance(0, 0, target.x, target.z));
+const pairwiseElapsedMs = performance.now() - pairwiseStarted;
+const batchedStarted = performance.now();
+const batchedDistances = linePathfinder.roadPathDistancesFrom(0, 0, lineTargets);
+const batchedElapsedMs = performance.now() - batchedStarted;
+assert.deepEqual(
+  batchedDistances,
+  pairwiseDistances,
+  'client one-to-many routes must exactly preserve pairwise distance decisions',
+);
+assert.ok(
+  batchedElapsedMs * 8 < pairwiseElapsedMs,
+  `batched client routing should avoid repeated Dijkstra solves `
+    + `(batch ${batchedElapsedMs.toFixed(1)}ms, pairwise ${pairwiseElapsedMs.toFixed(1)}ms)`,
+);
+const realRoadHomes = [
+  residence('real-road-west', 40),
+  residence('real-road-east', (lineNodeCount - 6) * 8),
+];
+const realRoadClaims = claimResidencesForFirewoodSuppliers(
+  lineNetwork,
+  [
+    building('real-road-west-lodge', 'woodcutters_lodge', 8, 1),
+    building('real-road-east-lodge', 'woodcutters_lodge', (lineNodeCount - 2) * 8, 1),
+  ],
+  realRoadHomes,
+);
+assert.equal(realRoadClaims.get('real-road-west'), 'real-road-west-lodge');
+assert.equal(realRoadClaims.get('real-road-east'), 'real-road-east-lodge');
+
 console.log(
-  `operational service territory tests passed (${territoryElapsedMs.toFixed(1)}ms for two 10k-home, eight-supplier maps)`,
+  `operational service territory tests passed (${territoryElapsedMs.toFixed(1)}ms for two `
+    + `10k-home, eight-supplier maps; real-road batch ${batchedElapsedMs.toFixed(1)}ms vs `
+    + `${pairwiseElapsedMs.toFixed(1)}ms pairwise)`,
 );

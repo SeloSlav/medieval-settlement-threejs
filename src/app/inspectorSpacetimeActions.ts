@@ -35,6 +35,8 @@ export type InspectorSpacetimeActions = {
   onSetEconomicActivityTaxRate: (taxRate: number) => Promise<void>;
   onSetSeasonalLaborSteward: (enabled: boolean) => Promise<void>;
   onSetConstructionLaborSteward: (enabled: boolean) => Promise<void>;
+  onSetProductionLaborSteward: (enabled: boolean) => Promise<void>;
+  onSetLaborStewardReserve: (laborReserve: number) => Promise<void>;
   onSetChapelParishPolicy: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => Promise<void>;
   onSetMonasteryPolicy: (titheShare: number, feastsEnabled: boolean) => Promise<void>;
   onSetStorehousePolicy: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => Promise<void>;
@@ -59,6 +61,10 @@ export type InspectorSpacetimeActions = {
   onSetGuardhousePayPriority: (buildingId: string, payPriority: number) => Promise<void>;
   onSetGuardhouseFoodReserve: (buildingId: string, reservePerGuard: number) => Promise<void>;
   onSetMarketplaceIronworkTarget: (buildingId: string, ironworkTarget: number) => Promise<void>;
+  onSetMarketplaceSeedGrainTarget: (
+    buildingId: string,
+    seedGrainTarget: number,
+  ) => Promise<void>;
   onSetMarketplaceSpecialtyExportPolicy: (
     buildingId: string,
     exportPolicy: number,
@@ -361,6 +367,42 @@ export function createInspectorSpacetimeActions(
           : 'Town Hall construction steward disabled. Builder rotation is manual.',
       );
     },
+    onSetProductionLaborSteward: async (enabled) => {
+      const store = requireReady();
+      if (!store) return;
+      let updated = false;
+      await runReducer(
+        async () => {
+          await store.setProductionLaborSteward(enabled);
+          updated = true;
+        },
+        'Could not update the production labor steward policy.',
+      );
+      if (!updated) return;
+      toastManager.show(
+        enabled
+          ? 'Town Hall production steward enabled. Stalled crews were released and supplied production was staffed now; the review will repeat daily while a clerk is assigned.'
+          : 'Town Hall production steward disabled. Production crew rotation is manual.',
+      );
+    },
+    onSetLaborStewardReserve: async (laborReserve) => {
+      const store = requireReady();
+      if (!store) return;
+      let updated = false;
+      await runReducer(
+        async () => {
+          await store.setLaborStewardReserve(laborReserve);
+          updated = true;
+        },
+        'Could not update the automatic labor reserve.',
+      );
+      if (!updated) return;
+      toastManager.show(
+        laborReserve === 0
+          ? 'Town Hall stewards may use all free villagers at dawn.'
+          : `Town Hall stewards will leave ${laborReserve} ${laborReserve === 1 ? 'villager' : 'villagers'} free for explicit orders. Productive crews remain assigned.`,
+      );
+    },
     onSetChapelParishPolicy: async (autoSweepEnabled, cofferReserveGold, sabbathObservanceEnabled) => {
       const store = requireReady();
       if (!store) return;
@@ -463,6 +505,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setMarketplaceIronworkTarget(buildingId, ironworkTarget),
         'Could not update the marketplace ironwork target.',
+      );
+    },
+    onSetMarketplaceSeedGrainTarget: async (buildingId, seedGrainTarget) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMarketplaceSeedGrainTarget(buildingId, seedGrainTarget),
+        'Could not update the marketplace seed-grain target.',
       );
     },
     onSetMarketplaceSpecialtyExportPolicy: async (buildingId, exportPolicy) => {

@@ -9,8 +9,17 @@ import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { DEFAULT_MONASTERY_POLICY } from '../../economy/monasteryPolicy.ts';
 import {
   constructionLaborStewardStatus,
+  DEFAULT_LABOR_STEWARD_RESERVE,
+  laborStewardReserveLabel,
+  LABOR_STEWARD_RESERVE_OPTIONS,
+  normalizeLaborStewardReserve,
+  productionLaborStewardStatus,
   seasonalLaborStewardStatus,
 } from '../../economy/laborSteward.ts';
+import {
+  computeSettlementLaborStewardForecast,
+  type SettlementLaborStewardForecast,
+} from '../../economy/laborStewardForecast.ts';
 import { monasteryHospitalityPlan } from '../../economy/monasteryHospitality.ts';
 import { computeSettlementLivestockFodderPlan } from '../../economy/livestockFodder.ts';
 import { buildVillageAdminReadout } from '../../economy/villageAdminReadout.ts';
@@ -33,6 +42,16 @@ import {
   GRAIN_PLAN_DAYS_PER_YEAR,
   type SettlementGrainPlan,
 } from '../../economy/settlementGrainPlan.ts';
+import {
+  computeSettlementSeedProcurementPlan,
+  type SettlementSeedProcurementAttention,
+  type SettlementSeedProcurementPlan,
+} from '../../economy/settlementSeedProcurement.ts';
+import {
+  MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
+} from '../../economy/marketplaceSeedPolicy.ts';
+import { marketplaceTradeOfferCost } from '../../economy/marketplaceTrade.ts';
+import { DEFAULT_REGIONAL_MARKET_STATE } from '../../economy/regionalMarket.ts';
 import { computeSettlementGrowthPlan, type SettlementGrowthPlan } from '../../economy/settlementGrowth.ts';
 import {
   computeSettlementConstructionPlan,
@@ -377,11 +396,70 @@ export function renderSettlementGrainRows(plan: SettlementGrainPlan): string {
   const runway = plan.processorGrainPerDay <= 1e-9
     ? 'no installed grain draw'
     : `${formatProvisionRunway(plan.processorRunwayDays)} discretionary runway`;
+  const priority = plan.processorPriorityCounts;
+  const priorityTotal = priority[1] + priority[2] + priority[3];
+  const priorityRow = priorityTotal > 0
+    ? `<li><span>Grain cart priorities</span><span>${priority[3]} high · ${priority[2]} normal · ${priority[1]} low operational processors · carts serve higher tiers first, then lowest cycle runway</span></li>`
+    : '';
   return `
     <li><span>Grain allocation</span><span>${plan.totalStock.toFixed(1)} owned · ${plan.inTransit.toFixed(1)} on carts · ${plan.discretionaryStock.toFixed(1)} discretionary after protected claims</span></li>
     <li><span>Protected grain</span><span>Seed ${plan.seed.protected.toFixed(1)} / ${plan.seed.target.toFixed(1)} · winter fodder ${plan.winterFodder.protected.toFixed(1)} / ${plan.winterFodder.target.toFixed(1)} · central reserve ${plan.granaryReserve.protected.toFixed(1)} / ${plan.granaryReserve.target.toFixed(1)}${attention}</span></li>
     <li><span>Installed grain draw</span><span>${plan.processorGrainPerDay.toFixed(1)} / day · bread ${plan.breadGrainPerDay.toFixed(1)} · ale ${plan.aleGrainPerDay.toFixed(1)} · monastery ${plan.monasteryGrainPerDay.toFixed(1)} · ${runway}</span></li>
+    ${priorityRow}
     <li><span>Crop-year balance</span><span>${plan.laborCoveredHarvest.toFixed(1)} / ${plan.potentialHarvest.toFixed(1)} harvest covered · ${plan.annualCommitments.toFixed(1)} committed · ${balance} at current installed capacity over ${GRAIN_PLAN_DAYS_PER_YEAR} days; imports excluded</span></li>
+  `;
+}
+
+const SEED_PROCUREMENT_ATTENTION_LABELS: Record<
+  SettlementSeedProcurementAttention,
+  string
+> = {
+  construction: 'market unfinished',
+  labor: 'broker labor missing',
+  road: 'market road missing',
+  treasury: 'treasury short',
+  ironwork: 'ironwork ahead in queue',
+  cooldown: 'caravan cooldown',
+};
+
+export function renderSettlementSeedProcurementRows(
+  plan: SettlementSeedProcurementPlan,
+  firstSeedShortBuildingId: string | null,
+): string {
+  if (plan.marketplaces === 0) {
+    const holding = firstSeedShortBuildingId === null
+      ? ''
+      : ` <button type="button" class="inspector-jump-button" data-inspect-building="${firstSeedShortBuildingId}" aria-label="Inspect first seed-short holding">Inspect holding</button>`;
+    return `<li><span>Standing seed orders</span><span>No marketplace${plan.seedShortfall > 0.05 ? ` &middot; ${plan.seedShortfall.toFixed(1)} holding seed gap${holding}` : ''}</span></li>`;
+  }
+
+  const marketAttention = plan.firstAttentionMarketId === null
+    || plan.firstAttentionKind === null
+    ? ''
+    : ` &middot; first block ${SEED_PROCUREMENT_ATTENTION_LABELS[plan.firstAttentionKind]} <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionMarketId}" aria-label="Inspect first blocked standing seed order">Inspect market</button>`;
+  const queue = plan.ironworkQueuedMarkets > 0
+    ? ` &middot; ${plan.ironworkQueuedMarkets} behind frontier ironwork`
+    : '';
+  const readiness = plan.dueMarkets > 0
+    ? `${plan.readyMarkets} / ${plan.dueMarkets} due markets ready${queue}${marketAttention}`
+    : 'all selected targets currently filled';
+  const orders = plan.targetMarkets === 0
+    ? 'Manual-only at every market'
+    : `${plan.plannedImportLots} future ${plan.plannedImportLots === 1 ? 'lot' : 'lots'} / ${plan.plannedImportGrain.toFixed(0)} grain due toward ${plan.targetStock.toFixed(0)} selected stock &middot; ${readiness}`;
+
+  const holding = firstSeedShortBuildingId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${firstSeedShortBuildingId}" aria-label="Inspect first seed-short holding">Inspect holding</button>`;
+  const recovery = plan.seedShortfall <= 0.05
+    ? `No current holding seed gap &middot; ${plan.currentMarketStock.toFixed(1)} physical market grain already counted in owned stock`
+    : `${plan.currentMarketStock.toFixed(1)} physical market grain + ${plan.plannedImportGrain.toFixed(0)} future grain could cover up to ${plan.potentialCoverage.toFixed(1)} / ${plan.seedShortfall.toFixed(1)} of the holding gap${plan.uncoveredShortfall > 0.05 ? ` &middot; ${plan.uncoveredShortfall.toFixed(1)} still exposed` : ''}${holding}`;
+  const treasury = plan.plannedImportLots > 0
+    ? ` &middot; treasury funds ${plan.affordableLotsAtCurrentRate} / ${plan.plannedImportLots} lots at today's ${plan.nextLotGoldCost.toFixed(0)} gold rate; later lots reprice`
+    : '';
+
+  return `
+    <li><span>Standing seed orders</span><span>${orders}${treasury}</span></li>
+    <li><span>Seed recovery ceiling</span><span>${recovery} &middot; future purchases remain excluded from crop-year balance until bought</span></li>
   `;
 }
 
@@ -511,6 +589,60 @@ function formatProcessorLaborCallup(plan: SettlementProcessorLaborCallupPlan): s
   return `${plan.callupWorkers} free ${plan.callupWorkers === 1 ? 'worker can' : 'workers can'} fill ${plan.callupWorkers} of ${plan.openPosts} ready production ${plan.openPosts === 1 ? 'post' : 'posts'} across ${plan.understaffedSites} ${plan.understaffedSites === 1 ? 'site' : 'sites'} · ${plan.remainingOpenPosts} remain${plan.blockedSites > 0 ? ` · ${plan.blockedSites} blocked` : ''}`;
 }
 
+function formatLaborStewardStage(
+  label: string,
+  recalledWorkers: number,
+  calledWorkers: number,
+): string {
+  if (recalledWorkers === 0 && calledWorkers === 0) return `${label} steady`;
+  const actions = [
+    recalledWorkers > 0 ? `release ${recalledWorkers}` : '',
+    calledWorkers > 0 ? `deploy ${calledWorkers}` : '',
+  ].filter(Boolean).join('/');
+  return `${label} ${actions}`;
+}
+
+function formatLaborStewardForecast(
+  forecast: SettlementLaborStewardForecast,
+  staffedTownHallAvailable: boolean,
+): string {
+  if (forecast.enabledStages === 0) {
+    return `No automatic rotations enabled · ${forecast.availableLaborBefore} free`;
+  }
+  const timing = staffedTownHallAvailable
+    ? 'Next dawn'
+    : 'Paused without a clerk; next-dawn snapshot';
+  const stages = [
+    forecast.seasonal
+      ? formatLaborStewardStage(
+          'seasonal',
+          forecast.seasonal.recalledWorkers,
+          forecast.seasonal.calledWorkers,
+        )
+      : '',
+    forecast.production
+      ? formatLaborStewardStage(
+          'production',
+          forecast.production.recalledWorkers,
+          forecast.production.calledWorkers,
+        )
+      : '',
+    forecast.construction
+      ? formatLaborStewardStage(
+          'construction',
+          forecast.construction.recalledWorkers,
+          forecast.construction.calledWorkers,
+        )
+      : '',
+  ].filter(Boolean);
+  const reserveStatus = forecast.laborReserve === 0
+    ? ''
+    : forecast.availableLaborAfter >= forecast.laborReserve
+      ? ` · ${forecast.laborReserve} held free`
+      : ` · reserve short ${forecast.laborReserve - forecast.availableLaborAfter}; productive crews stay assigned`;
+  return `${timing}: ${stages.join(' → ')} · ${forecast.availableLaborAfter} free after review${reserveStatus}`;
+}
+
 export function renderFreshFoodPreservationRows(
   preservation: FreshFoodPreservation,
   getBuildingLabel: (kind: BuildingKind) => string,
@@ -578,6 +710,11 @@ export function renderTownHallInspector(
     context.getSeasonalLaborStewardEnabled?.() ?? false;
   const constructionLaborStewardEnabled =
     context.getConstructionLaborStewardEnabled?.() ?? false;
+  const productionLaborStewardEnabled =
+    context.getProductionLaborStewardEnabled?.() ?? false;
+  const laborStewardReserve = normalizeLaborStewardReserve(
+    context.getLaborStewardReserve?.() ?? DEFAULT_LABOR_STEWARD_RESERVE,
+  );
   const taxRate = context.getEconomicActivityTaxRate?.() ?? 0;
   const readout = buildVillageAdminReadout({
     gameState: context.gameState,
@@ -599,6 +736,20 @@ export function renderTownHallInspector(
     environment,
     environmentOutlook,
   );
+  const laborStewardForecast = computeSettlementLaborStewardForecast(
+    context.gameState,
+    environmentOutlook.clock.month,
+    context.populationStats.available,
+    {
+      seasonalEnabled: seasonalLaborStewardEnabled,
+      productionEnabled: productionLaborStewardEnabled,
+      constructionEnabled: constructionLaborStewardEnabled,
+    },
+    laborStewardReserve,
+  );
+  const laborStewardInspectButton = laborStewardForecast.firstChangedBuildingId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${laborStewardForecast.firstChangedBuildingId}" aria-label="Inspect first dawn labor steward crew change">Inspect</button>`;
   const provisioning = computeSettlementProvisioning({
     state: context.gameState,
     totals: context.resourceTotals,
@@ -769,6 +920,19 @@ export function renderTownHallInspector(
         ? 1
         : MONASTERY_UNLINKED_PRODUCTIVITY,
   });
+  const marketState = context.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE;
+  const seedProcurement = computeSettlementSeedProcurementPlan({
+    state: context.gameState,
+    seedShortfall: farmPlan.seedGrainShortfall,
+    availableGold: context.resourceTotals.gold,
+    nextLotGoldCost: marketplaceTradeOfferCost(
+      MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
+      marketState,
+    ).amount,
+    conflictEnabled: context.conflictEnabled ?? false,
+    hasRoadAccess: (candidate) =>
+      context.worldQueries.hasRoadAccess(candidate.x, candidate.z),
+  });
   const centralGrainReserveRow = grainReserve.granaries === 0
     ? '<li><span>Central grain floor</span><span>No completed granary</span></li>'
     : `<li><span>Central grain floor</span><span>${grainReserve.protectedStock.toFixed(1)} / ${grainReserve.reserveTarget.toFixed(1)} protected across ${grainReserve.granaries} ${grainReserve.granaries === 1 ? 'granary' : 'granaries'}${grainReserve.reserveShortfall > 0.05 ? ` · short ${grainReserve.reserveShortfall.toFixed(1)}${grainReserve.firstShortGranaryId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${grainReserve.firstShortGranaryId}" aria-label="Inspect first central grain reserve shortfall">Inspect</button>` : ''}` : ''} · ${grainReserve.processorAndTradeSurplus.toFixed(1)} releasable</span></li>`;
@@ -854,7 +1018,10 @@ export function renderTownHallInspector(
       <li><span>Sector staffing</span><span>${formatLaborSectorMix(laborPlan)}</span></li>
       <li><span>Staffing priorities</span><span>${formatStaffingPriorities(laborPlan)}</span></li>
       <li><span>Seasonal steward</span><span>${seasonalLaborStewardStatus(seasonalLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
+      <li><span>Production steward</span><span>${productionLaborStewardStatus(productionLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
       <li><span>Construction steward</span><span>${constructionLaborStewardStatus(constructionLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
+      <li><span>Steward reserve</span><span>${laborStewardReserveLabel(laborStewardReserve)} · ${context.populationStats.available} currently free</span></li>
+      <li><span>Dawn labor review</span><span>${formatLaborStewardForecast(laborStewardForecast, staffedTownHallAvailable)}${laborStewardInspectButton}</span></li>
       <li><span>Seasonal labor</span><span>${formatSeasonalLabor(seasonalLabor)}${seasonalLaborInspectButton}</span></li>
       <li><span>Seasonal call-up</span><span>${formatSeasonalCallup(seasonalCallup)}${seasonalCallupInspectButton}</span></li>
       <li><span>Target-paused workshops</span><span>${formatProcessorLaborRecall(processorLaborRecall)}${processorLaborRecallInspectButton}</span></li>
@@ -905,6 +1072,7 @@ export function renderTownHallInspector(
       <li><span>Prosperous housing pipeline</span><span>${formatProsperityHousingPipeline(prosperity)} · assumes staffed workshops remain fully supplied</span></li>
       ${renderSettlementTextileRows(textilePlan)}
       ${renderSettlementGrainRows(grainPlan)}
+      ${renderSettlementSeedProcurementRows(seedProcurement, farmPlan.firstSeedShortBuildingId)}
       ${monasteryHospitalityRow}
       ${farmPlanRows}
       ${centralGrainReserveRow}
@@ -947,13 +1115,37 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
+        <label class="city-admin-panel__slider-label" for="town-hall-labor-steward-reserve">
+          <span>Automatic labor reserve</span>
+          <strong>${laborStewardReserve}</strong>
+        </label>
+        <select class="inspector-policy-select" id="town-hall-labor-steward-reserve"
+          data-policy-labor-steward-reserve ${staffedTownHallAvailable ? '' : 'disabled'}>
+          ${LABOR_STEWARD_RESERVE_OPTIONS
+            .map((reserve) => `<option value="${reserve}" ${reserve === laborStewardReserve ? 'selected' : ''}>${reserve === 0 ? '0 — Full automatic deployment' : `${reserve} — Hold ${reserve === 1 ? 'one villager' : `${reserve} villagers`} free`}</option>`)
+            .join('')}
+        </select>
+        <p class="inspector-action-panel__hint">All enabled dawn stewards share this floor after safe crew releases. It preserves labor for explicit orders and emergencies without dismissing productive crews merely to reach the floor. Manual call-ups can still use the reserve.</p>
+        ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change this policy.</p>' : ''}
+      </div>
+      <div class="inspector-action-panel">
+        <label class="city-admin-panel__toggle">
+          <input type="checkbox" data-policy-production-labor-steward
+            ${productionLaborStewardEnabled ? 'checked' : ''}
+            ${staffedTownHallAvailable ? '' : 'disabled'} />
+          <span>Daily production labor steward</span>
+        </label>
+        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases surplus crews only from genuinely stalled workshops, blocked quarries, and reserve-held hunting halls, retaining a dispatcher for stored output or an active cart. It then fills supplied, below-target production sites by staffing priority and fair within-tier rotation. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
+        ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
+      </div>
+      <div class="inspector-action-panel">
         <label class="city-admin-panel__toggle">
           <input type="checkbox" data-policy-construction-labor-steward
             ${constructionLaborStewardEnabled ? 'checked' : ''}
             ${staffedTownHallAvailable ? '' : 'disabled'} />
           <span>Daily construction labor steward</span>
         </label>
-        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases builders only from sites that cannot progress and have no supply cart approaching, then fills immediately productive sites by urgent, normal, and low priority. Crews awaiting inbound material stay assigned and equal-priority sites share workers round-robin. Enabling performs one rotation immediately. If both labor stewards are enabled, active seasonal work is reviewed first.</p>
+        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases builders only from sites that cannot progress and have no supply cart approaching, then fills immediately productive sites by urgent, normal, and low priority. Crews awaiting inbound material stay assigned and equal-priority sites share workers round-robin. Enabling performs one rotation immediately. When multiple stewards are enabled, active seasonal work is reviewed first, production second, and construction last.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
@@ -990,7 +1182,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && seasonalCallup.callupWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide call-up.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Recall only labor that cannot currently produce: workshops with an empty input or reached output target, blocked quarries, and active-season hunting or fishing sites without harvestable stock. Matching inbound supplies protect recovering workshops. One dispatcher remains for stored output or an active cart; restaffing remains an explicit decision.</p>
+        <p class="inspector-action-panel__hint">Recall only labor that cannot currently produce: workshops with an empty input or reached output target, blocked quarries, and active-season hunting or fishing sites without harvestable stock. Matching inbound supplies protect recovering workshops. One dispatcher remains for stored output or an active cart.${productionLaborStewardEnabled ? ' The steward will redeploy released labor to ready production sites.' : ' Restaffing remains an explicit decision.'}</p>
         <button type="button" class="resource-action-button" data-recall-target-idle-processor-labor ${staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '' : 'disabled'}>
           ${worksiteStalls.reclaimableWorkers > 0
             ? `Recall ${worksiteStalls.reclaimableWorkers} stalled production ${worksiteStalls.reclaimableWorkers === 1 ? 'worker' : 'workers'}`
@@ -999,7 +1191,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide stalled-production recall.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, quarries with usable stone and yard room, and hunting halls with harvestable game above their reserve. High staffing priority fills before normal, then low; equal-priority sites share workers round-robin. Workshop inputs still depend on their physical supply chain. Existing crews are never displaced and future hiring is never automatic.</p>
+        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, quarries with usable stone and yard room, and hunting halls with harvestable game above their reserve. High staffing priority fills before normal, then low; equal-priority sites share workers round-robin. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when inputs are present or already inbound.' : ' Future hiring remains manual.'}</p>
         <button type="button" class="resource-action-button" data-call-up-target-ready-processor-labor ${staffedTownHallAvailable && productionLaborCallup.callupWorkers > 0 ? '' : 'disabled'}>
           ${productionLaborCallup.callupWorkers > 0
             ? `Deploy ${productionLaborCallup.callupWorkers} production ${productionLaborCallup.callupWorkers === 1 ? 'worker' : 'workers'}`

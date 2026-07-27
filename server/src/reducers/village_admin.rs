@@ -2,9 +2,12 @@ use spacetimedb::{reducer, ReducerContext};
 
 use crate::db::*;
 use crate::economy::clamp_chapel_coffer_reserve_gold;
+use crate::labor_steward_policy::is_valid_labor_steward_reserve;
 use crate::lifecycle::ensure_player_resources;
-use crate::reducers::buildings::rotate_construction_labor_for_owner;
-use crate::simulation::{game_clock, reconcile_seasonal_labor_for_owner};
+use crate::reducers::buildings::rotate_construction_labor_for_owner_with_reserve;
+use crate::simulation::{
+    game_clock, reconcile_seasonal_labor_for_owner, reconcile_target_production_labor_for_owner,
+};
 
 fn require_owned_building(ctx: &ReducerContext, kind: &str, staffed: bool) -> Result<(), String> {
     let owner = ctx.sender();
@@ -101,6 +104,7 @@ pub fn set_seasonal_labor_steward(ctx: &ReducerContext, enabled: bool) -> Result
         return Ok(());
     }
     resources.seasonal_labor_steward_enabled = enabled;
+    let labor_reserve = resources.labor_steward_reserve;
     ctx.db.player_resources().owner().update(resources);
 
     // Enabling is immediately useful; later reviews occur once per calendar
@@ -113,7 +117,7 @@ pub fn set_seasonal_labor_steward(ctx: &ReducerContext, enabled: bool) -> Result
             .find(&0)
             .map(|config| config.sim_tick)
             .unwrap_or(0);
-        reconcile_seasonal_labor_for_owner(ctx, owner, game_clock(sim_tick).month);
+        reconcile_seasonal_labor_for_owner(ctx, owner, game_clock(sim_tick).month, labor_reserve);
     }
     Ok(())
 }
@@ -130,12 +134,55 @@ pub fn set_construction_labor_steward(ctx: &ReducerContext, enabled: bool) -> Re
         return Ok(());
     }
     resources.construction_labor_steward_enabled = enabled;
+    let labor_reserve = resources.labor_steward_reserve;
     ctx.db.player_resources().owner().update(resources);
 
     // Opting in is immediately useful; later reviews occur once per calendar
     // day while a Town Hall clerk remains assigned.
     if enabled {
-        rotate_construction_labor_for_owner(ctx, owner);
+        rotate_construction_labor_for_owner_with_reserve(ctx, owner, labor_reserve);
     }
+    Ok(())
+}
+
+#[reducer]
+pub fn set_production_labor_steward(ctx: &ReducerContext, enabled: bool) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    require_owned_building(ctx, "town_hall", true)?;
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Player resources not found.".to_string());
+    };
+    if resources.production_labor_steward_enabled == enabled {
+        return Ok(());
+    }
+    resources.production_labor_steward_enabled = enabled;
+    let labor_reserve = resources.labor_steward_reserve;
+    ctx.db.player_resources().owner().update(resources);
+
+    // Enabling immediately applies the conservative recall-then-deploy order;
+    // unlike the manual call-up, automation will not pre-staff an empty chain.
+    if enabled {
+        reconcile_target_production_labor_for_owner(ctx, owner, labor_reserve);
+    }
+    Ok(())
+}
+
+#[reducer]
+pub fn set_labor_steward_reserve(ctx: &ReducerContext, labor_reserve: u32) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    require_owned_building(ctx, "town_hall", true)?;
+    if !is_valid_labor_steward_reserve(labor_reserve) {
+        return Err("Labor reserve must be 0, 1, 2, 4, or 6 villagers.".to_string());
+    }
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Player resources not found.".to_string());
+    };
+    if resources.labor_steward_reserve == labor_reserve {
+        return Ok(());
+    }
+    resources.labor_steward_reserve = labor_reserve;
+    ctx.db.player_resources().owner().update(resources);
     Ok(())
 }

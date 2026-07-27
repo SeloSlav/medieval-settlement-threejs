@@ -4,15 +4,19 @@ use crate::balance_generated::{
     BREWERY_WATER_PER_CYCLE, GRANARY_WATER_PER_CYCLE, MILL_WATER_PER_HARVEST,
     WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
 };
+use crate::construction_priority::{
+    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IndustrialWaterCandidate {
     pub building_id: u64,
+    pub work_priority: u8,
     pub stock_ratio: f64,
     pub distance: f64,
 }
 
-pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &["granary", "brewery", "lumber_mill"];
+pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &["granary", "brewery"];
 
 pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     match building_kind {
@@ -23,8 +27,17 @@ pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     }
 }
 
-/// Select the workshop with the least water runway, then the shortest cart
-/// route, using building id as a deterministic final tie-break.
+fn normalized_work_priority(priority: u8) -> u8 {
+    match priority {
+        CONSTRUCTION_PRIORITY_LOW | CONSTRUCTION_PRIORITY_NORMAL | CONSTRUCTION_PRIORITY_URGENT => {
+            priority
+        }
+        _ => CONSTRUCTION_PRIORITY_NORMAL,
+    }
+}
+
+/// Select the highest-priority workshop, then its least water runway and
+/// shortest cart route, using building id as a deterministic final tie-break.
 pub fn select_industrial_water_candidate(
     candidates: impl IntoIterator<Item = IndustrialWaterCandidate>,
 ) -> Option<IndustrialWaterCandidate> {
@@ -37,8 +50,9 @@ pub fn select_industrial_water_candidate(
                 && candidate.distance >= 0.0
         })
         .min_by(|a, b| {
-            a.stock_ratio
-                .total_cmp(&b.stock_ratio)
+            normalized_work_priority(b.work_priority)
+                .cmp(&normalized_work_priority(a.work_priority))
+                .then_with(|| a.stock_ratio.total_cmp(&b.stock_ratio))
                 .then_with(|| a.distance.total_cmp(&b.distance))
                 .then_with(|| a.building_id.cmp(&b.building_id))
         })
@@ -167,16 +181,19 @@ mod tests {
         let selected = select_industrial_water_candidate([
             IndustrialWaterCandidate {
                 building_id: 8,
+                work_priority: 2,
                 stock_ratio: 0.5,
                 distance: 10.0,
             },
             IndustrialWaterCandidate {
                 building_id: 7,
+                work_priority: 2,
                 stock_ratio: 0.0,
                 distance: 30.0,
             },
             IndustrialWaterCandidate {
                 building_id: 6,
+                work_priority: 2,
                 stock_ratio: 0.0,
                 distance: 30.0,
             },
@@ -186,11 +203,28 @@ mod tests {
     }
 
     #[test]
+    fn industrial_water_honors_work_priority_before_runway() {
+        let selected = select_industrial_water_candidate([
+            IndustrialWaterCandidate {
+                building_id: 8,
+                work_priority: 3,
+                stock_ratio: 0.5,
+                distance: 100.0,
+            },
+            IndustrialWaterCandidate {
+                building_id: 7,
+                work_priority: 1,
+                stock_ratio: 0.0,
+                distance: 10.0,
+            },
+        ])
+        .expect("a valid workshop should be selected");
+        assert_eq!(selected.building_id, 8);
+    }
+
+    #[test]
     fn industrial_water_requirements_only_include_wet_processors() {
-        assert_eq!(
-            INDUSTRIAL_WATER_BUILDING_KINDS,
-            &["granary", "brewery", "lumber_mill"]
-        );
+        assert_eq!(INDUSTRIAL_WATER_BUILDING_KINDS, &["granary", "brewery"]);
         assert_eq!(
             industrial_water_requirement("granary"),
             GRANARY_WATER_PER_CYCLE
@@ -210,6 +244,7 @@ mod tests {
     fn industrial_water_selection_stays_linear_at_settlement_scale() {
         let candidates = (0..100_000).map(|index| IndustrialWaterCandidate {
             building_id: index,
+            work_priority: 2,
             stock_ratio: if index == 99_999 { 0.0 } else { 0.5 },
             distance: (100_000 - index) as f64,
         });

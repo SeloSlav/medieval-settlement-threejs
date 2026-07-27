@@ -27,7 +27,8 @@ use crate::economy::{
 };
 use crate::granary_policy::granary_exportable_grain;
 use crate::marketplace_procurement_policy::{
-    standing_ironwork_import_due, MARKETPLACE_IRONWORK_IMPORT_LOT,
+    next_standing_marketplace_import, StandingMarketplaceImport, MARKETPLACE_IRONWORK_IMPORT_LOT,
+    MARKETPLACE_SEED_GRAIN_IMPORT_LOT,
 };
 use crate::roads::RoadNetwork;
 use crate::season_policy::environment_for;
@@ -80,7 +81,7 @@ pub fn execute_marketplace_trade(
     Ok(())
 }
 
-pub fn try_execute_standing_ironwork_import(
+pub fn try_execute_standing_marketplace_import(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
@@ -95,19 +96,25 @@ pub fn try_execute_standing_ironwork_import(
         || marketplace.assigned_labor == 0
         || marketplace.action_cooldown > 1e-6
         || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
-        || !standing_ironwork_import_due(
-            marketplace.ironwork,
-            marketplace.marketplace_ironwork_target,
-        )
-        || !ctx
-            .db
-            .world_config()
-            .id()
-            .find(&0)
-            .is_some_and(|config| config.conflict_enabled)
     {
         return false;
     }
+
+    let conflict_enabled = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .is_some_and(|config| config.conflict_enabled);
+    let Some(next_import) = next_standing_marketplace_import(
+        marketplace.grain,
+        marketplace.marketplace_seed_grain_target,
+        marketplace.ironwork,
+        marketplace.marketplace_ironwork_target,
+        conflict_enabled,
+    ) else {
+        return false;
+    };
 
     let Some(network) = tick.road_network(marketplace.owner) else {
         return false;
@@ -116,18 +123,28 @@ pub fn try_execute_standing_ironwork_import(
         return false;
     }
 
-    let Some(offer) = marketplace_trade_offer("buy_ironwork") else {
+    let (trade_id, expected_resource, expected_lot) = match next_import {
+        StandingMarketplaceImport::SeedGrain => (
+            "buy_seed_grain",
+            TradeResource::Grain,
+            MARKETPLACE_SEED_GRAIN_IMPORT_LOT,
+        ),
+        StandingMarketplaceImport::Ironwork => (
+            "buy_ironwork",
+            TradeResource::Ironwork,
+            MARKETPLACE_IRONWORK_IMPORT_LOT,
+        ),
+    };
+    let Some(offer) = marketplace_trade_offer(trade_id) else {
         return false;
     };
     let MarketplaceTradeKind::GoldBuy {
-        resource: TradeResource::Ironwork,
-        amount,
-        ..
+        resource, amount, ..
     } = offer.kind
     else {
         return false;
     };
-    if (amount - MARKETPLACE_IRONWORK_IMPORT_LOT).abs() > 1e-6 {
+    if resource != expected_resource || (amount - expected_lot).abs() > 1e-6 {
         return false;
     }
 

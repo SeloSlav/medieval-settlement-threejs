@@ -229,6 +229,7 @@ fn select_industrial_water_target(
                     road_path_distance(network, well.x, well.z, candidate.x, candidate.z)?;
                 Some(IndustrialWaterCandidate {
                     building_id: candidate.id,
+                    work_priority: candidate.construction_priority,
                     stock_ratio: candidate.water.max(0.0) / required,
                     distance,
                 })

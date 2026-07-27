@@ -10,6 +10,7 @@ import { waterDeliveryTripSeconds } from './deliveryLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState.ts';
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
+import { normalizeStaffingPriority } from '../economy/staffingPriority.ts';
 import { GAME_DAY_SECONDS } from './firewoodLogistics.ts';
 
 export {
@@ -65,11 +66,22 @@ export function selectIndustrialWaterCandidate(
     ) {
       continue;
     }
+    const candidatePriority = normalizeStaffingPriority(
+      candidate.building.constructionPriority,
+    );
+    const selectedPriority = selected
+      ? normalizeStaffingPriority(selected.building.constructionPriority)
+      : 0;
     if (
       !selected
-      || candidate.stockRatio < selected.stockRatio
+      || candidatePriority > selectedPriority
       || (
-        candidate.stockRatio === selected.stockRatio
+        candidatePriority === selectedPriority
+        && candidate.stockRatio < selected.stockRatio
+      )
+      || (
+        candidatePriority === selectedPriority
+        && candidate.stockRatio === selected.stockRatio
         && (
           candidate.distance < selected.distance
           || (

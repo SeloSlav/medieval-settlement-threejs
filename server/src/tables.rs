@@ -133,6 +133,19 @@ pub struct PlayerResources {
     /// manual.
     #[default(false)]
     pub construction_labor_steward_enabled: bool,
+    /// When enabled, a staffed Town Hall reviews target-governed workshops
+    /// and source-bound production once per calendar day: stalled surplus
+    /// crews are released before supplied, below-target sites claim free
+    /// workers by staffing priority. Appended for additive save compatibility;
+    /// existing settlements remain manual.
+    #[default(false)]
+    pub production_labor_steward_enabled: bool,
+    /// Minimum free villagers that automatic seasonal, production, and
+    /// construction call-ups leave available for explicit orders. Safe recalls
+    /// may restore this pool but productive crews are never dismissed merely
+    /// to reach the floor. Appended for additive save compatibility.
+    #[default(0)]
+    pub labor_steward_reserve: u32,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -258,8 +271,10 @@ pub struct Building {
     pub granary_households_first: bool,
     /// Work priority: construction uses 0 = held, 1 = low, 2 = normal,
     /// 3 = urgent. Completed buildings use 1 = low, 2 = normal, 3 = high
-    /// when retaining staff after population loss. The additive legacy default
-    /// remains normal; an explicitly prioritized site retains that intent.
+    /// when retaining staff after population loss. Routed processor inputs
+    /// also use this tier when scarce carts choose a working buffer.
+    /// The additive legacy default remains normal; an explicitly prioritized
+    /// site retains that intent.
     #[default(2u8)]
     pub construction_priority: u8,
     /// Settlement-wide unreserved building timber this lodge must leave intact
@@ -324,6 +339,11 @@ pub struct Building {
     /// ignored by other building kinds.
     #[default(6u8)]
     pub guardhouse_food_reserve: u8,
+    /// Desired seed grain held at this marketplace in whole twenty-four-unit
+    /// import lots. Appended for additive save compatibility; existing saves
+    /// remain manual-only, and farmsteads must still collect the grain by road.
+    #[default(0u8)]
+    pub marketplace_seed_grain_target: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

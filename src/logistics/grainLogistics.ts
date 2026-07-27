@@ -5,6 +5,10 @@ import {
   WATERMILL_GRAIN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
+import {
+  normalizeStaffingPriority,
+  type StaffingPriority,
+} from '../economy/staffingPriority.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
 
 export const GRAIN_DISPATCH_SOURCE_KINDS = ['threshing_barn', 'granary'] as const;
@@ -29,7 +33,12 @@ export type GrainDispatchDuty =
 
 type GrainDestinationLike = Pick<
   BuildingState,
-  'id' | 'kind' | 'grain' | 'assignedLabor' | 'constructionComplete'
+  | 'id'
+  | 'kind'
+  | 'grain'
+  | 'assignedLabor'
+  | 'constructionComplete'
+  | 'constructionPriority'
 >;
 
 export type RoutedGrainDestination<T extends GrainDestinationLike> = {
@@ -38,6 +47,7 @@ export type RoutedGrainDestination<T extends GrainDestinationLike> = {
   desiredStock: number;
   runwayCycles: number;
   routeDistance: number;
+  workPriority: StaffingPriority;
 };
 
 /** Mirrors the authoritative three-cycle working stock requested by processors. */
@@ -84,8 +94,9 @@ const GRAIN_DUTY_RANK: Record<GrainDispatchDuty, number> = {
 };
 
 /**
- * Mirrors farmstead dispatch: lowest processor runway, then central reserve,
- * with full workshop warehouses used only when no granary has room.
+ * Mirrors farmstead dispatch: higher-priority processors first, then their
+ * lowest runway; central reserve follows, with full workshop warehouses used
+ * only when no granary has room.
  */
 export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
   targets: Iterable<T>,
@@ -118,25 +129,39 @@ export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
       : grainInputRunwayCycles(target.kind as GrainProcessorKind, target.grain, productivity);
     const routeDistance = routeDistanceFor(target);
     if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
-    const candidate = { target, duty, desiredStock, runwayCycles, routeDistance };
+    const candidate = {
+      target,
+      duty,
+      desiredStock,
+      runwayCycles,
+      routeDistance,
+      workPriority: normalizeStaffingPriority(target.constructionPriority),
+    };
     if (best == null) {
       best = candidate;
       continue;
     }
     const rankDelta = GRAIN_DUTY_RANK[candidate.duty] - GRAIN_DUTY_RANK[best.duty];
+    const priorityDelta = candidate.duty === 'working-buffer'
+      && best.duty === 'working-buffer'
+      ? best.workPriority - candidate.workPriority
+      : 0;
     const runwayDelta = candidate.duty === 'working-buffer' && best.duty === 'working-buffer'
       ? candidate.runwayCycles - best.runwayCycles
       : 0;
     if (
       rankDelta < 0
-      || (rankDelta === 0 && runwayDelta < -1e-6)
+      || (rankDelta === 0 && priorityDelta < 0)
+      || (rankDelta === 0 && priorityDelta === 0 && runwayDelta < -1e-6)
       || (
         rankDelta === 0
+        && priorityDelta === 0
         && Math.abs(runwayDelta) <= 1e-6
         && candidate.routeDistance + 1e-6 < best.routeDistance
       )
       || (
         rankDelta === 0
+        && priorityDelta === 0
         && Math.abs(runwayDelta) <= 1e-6
         && Math.abs(candidate.routeDistance - best.routeDistance) <= 1e-6
         && compareStableEntityIds(candidate.target.id, best.target.id) < 0
@@ -150,8 +175,9 @@ export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
 
 /**
  * Mirrors staffed granary dispatch. Only processors below their working buffer
- * are eligible; the least cycle runway wins before route distance and stable
- * id. Multiple granaries skip targets that already have an inbound grain cart.
+ * are eligible; work priority wins first, then the least cycle runway, route
+ * distance, and stable id. Multiple granaries skip targets that already have
+ * an inbound grain cart.
  */
 export function selectGrainProcessorTarget<T extends GrainDestinationLike>(
   targets: Iterable<T>,
@@ -183,15 +209,24 @@ export function selectGrainProcessorTarget<T extends GrainDestinationLike>(
       desiredStock,
       runwayCycles: grainInputRunwayCycles(kind, target.grain, productivity),
       routeDistance,
+      workPriority: normalizeStaffingPriority(target.constructionPriority),
     };
     if (
       best == null
-      || candidate.runwayCycles < best.runwayCycles - 1e-6
+      || candidate.workPriority > best.workPriority
       || (
+        candidate.workPriority === best.workPriority
+        && candidate.runwayCycles < best.runwayCycles - 1e-6
+      )
+      || (
+        candidate.workPriority === best.workPriority
+        &&
         Math.abs(candidate.runwayCycles - best.runwayCycles) <= 1e-6
         && candidate.routeDistance < best.routeDistance - 1e-6
       )
       || (
+        candidate.workPriority === best.workPriority
+        &&
         Math.abs(candidate.runwayCycles - best.runwayCycles) <= 1e-6
         && Math.abs(candidate.routeDistance - best.routeDistance) <= 1e-6
         && compareStableEntityIds(candidate.target.id, best.target.id) < 0

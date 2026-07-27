@@ -10,10 +10,11 @@ use crate::simulation::{
     step_ferry_landing, step_fires, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
     step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_market_orders,
     step_hunters_hall, step_large_quarry, step_lumber_mill, step_marketplace_caravans,
-    step_monastery, step_pastoral_farmstead, step_reforester, step_residence,
-    step_seasonal_labor_stewards, step_settlement_security, step_smokehouse, step_stone_quarry,
-    step_swineherd, step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill,
-    step_weaver, step_well, step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
+    step_monastery, step_pastoral_farmstead, step_production_labor_stewards, step_reforester,
+    step_residence, step_seasonal_labor_stewards, step_seed_grain_distribution,
+    step_settlement_security, step_smokehouse, step_stone_quarry, step_swineherd,
+    step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill, step_weaver,
+    step_well, step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
 };
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
@@ -108,8 +109,10 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let clock = crate::simulation::game_clock(sim_tick);
     let environment = crate::season_policy::environment_for(world_seed, world_hydrology, &clock);
     step_seasonal_labor_stewards(ctx, sim_tick, clock.month);
-    // Seasonal work has first claim on the day's free labor; construction then
-    // rotates only the remaining pool and builders released from blocked sites.
+    // Time-critical seasonal work has first claim on the day's free labor.
+    // Target-governed production then rotates its safe surplus before
+    // construction claims the remaining pool and blocked builders.
+    step_production_labor_stewards(ctx, sim_tick);
     step_construction_labor_stewards(ctx, sim_tick);
     step_foraging_lifecycle(ctx, &clock, environment);
 
@@ -128,6 +131,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     step_construction_sites(ctx, &tick, &clock);
     step_household_market_orders(ctx, &tick, &clock, sim_tick);
     step_marketplace_caravans(ctx, &clock, &tick, environment);
+    step_seed_grain_distribution(ctx, &tick, &clock);
     step_regional_markets(ctx, sim_tick);
 
     let mut lumber_mill_ids: Vec<u64> = Vec::new();

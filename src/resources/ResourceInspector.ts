@@ -45,6 +45,8 @@ type ResourceInspectorOptions = {
   getEconomicActivityTaxRate?: () => number;
   getSeasonalLaborStewardEnabled?: () => boolean;
   getConstructionLaborStewardEnabled?: () => boolean;
+  getProductionLaborStewardEnabled?: () => boolean;
+  getLaborStewardReserve?: () => number;
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
   getMarketState?: () => RegionalMarketState;
@@ -75,6 +77,8 @@ type ResourceInspectorOptions = {
   onSetEconomicActivityTaxRate?: (taxRate: number) => void | Promise<void>;
   onSetSeasonalLaborSteward?: (enabled: boolean) => void | Promise<void>;
   onSetConstructionLaborSteward?: (enabled: boolean) => void | Promise<void>;
+  onSetProductionLaborSteward?: (enabled: boolean) => void | Promise<void>;
+  onSetLaborStewardReserve?: (laborReserve: number) => void | Promise<void>;
   onSetChapelParishPolicy?: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => void | Promise<void>;
   onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
   onSetStorehousePolicy?: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => void | Promise<void>;
@@ -119,6 +123,10 @@ type ResourceInspectorOptions = {
   onSetMarketplaceIronworkTarget?: (
     buildingId: string,
     ironworkTarget: number,
+  ) => void | Promise<void>;
+  onSetMarketplaceSeedGrainTarget?: (
+    buildingId: string,
+    seedGrainTarget: number,
   ) => void | Promise<void>;
   onSetMarketplaceSpecialtyExportPolicy?: (
     buildingId: string,
@@ -559,6 +567,16 @@ export class ResourceInspector {
         );
         return;
       }
+      const seedTargetValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-marketplace-seed-grain-target]')
+        ?.dataset.marketplaceSeedGrainTarget;
+      if (seedTargetValue != null) {
+        void this.options.onSetMarketplaceSeedGrainTarget?.(
+          this.selectedTarget.building.id,
+          Number(seedTargetValue),
+        );
+        return;
+      }
       const exportPolicyValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-marketplace-specialty-export-policy]')
         ?.dataset.marketplaceSpecialtyExportPolicy;
@@ -688,6 +706,14 @@ export class ResourceInspector {
     }
     if (building.kind === 'town_hall' && input.matches('[data-policy-construction-labor-steward]')) {
       void this.options.onSetConstructionLaborSteward?.(input.checked);
+      return;
+    }
+    if (building.kind === 'town_hall' && input.matches('[data-policy-production-labor-steward]')) {
+      void this.options.onSetProductionLaborSteward?.(input.checked);
+      return;
+    }
+    if (building.kind === 'town_hall' && input.matches('[data-policy-labor-steward-reserve]')) {
+      void this.options.onSetLaborStewardReserve?.(Number(input.value));
       return;
     }
     if (building.kind === 'chapel' && input.matches('[data-policy-chapel-auto-sweep], [data-policy-chapel-reserve], [data-policy-chapel-sabbath]')) {
@@ -949,6 +975,12 @@ export class ResourceInspector {
         : {}),
       ...(this.options.getConstructionLaborStewardEnabled
         ? { getConstructionLaborStewardEnabled: this.options.getConstructionLaborStewardEnabled }
+        : {}),
+      ...(this.options.getProductionLaborStewardEnabled
+        ? { getProductionLaborStewardEnabled: this.options.getProductionLaborStewardEnabled }
+        : {}),
+      ...(this.options.getLaborStewardReserve
+        ? { getLaborStewardReserve: this.options.getLaborStewardReserve }
         : {}),
       ...(this.options.getParishPolicy
         ? { getParishPolicy: this.options.getParishPolicy }

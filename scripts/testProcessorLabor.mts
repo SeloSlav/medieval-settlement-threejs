@@ -4,10 +4,17 @@ import { performance } from 'node:perf_hooks';
 import {
   applyProcessorLaborCallup,
   applyProcessorLaborRecall,
+  computeSettlementOperationalProcessorLaborCallupPlan,
   computeSettlementProcessorLaborCallupPlan,
   computeSettlementProcessorLaborRecallPlan,
+  computeSettlementProductionStewardPlan,
 } from '../src/economy/processorLabor.ts';
+import {
+  DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED,
+  productionLaborStewardStatus,
+} from '../src/economy/laborSteward.ts';
 import { BUILDING_DEFINITIONS, type BuildingKind } from '../src/generated/gameBalance.ts';
+import type { DeliveryCargoKind, DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
   computePopulationStats,
   computeResourceTotals,
@@ -21,6 +28,14 @@ import {
   type ResourceNodeState,
 } from '../src/resources/types.ts';
 import type { WorldQueries } from '../src/resources/WorldQueries.ts';
+
+assert.equal(DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED, false);
+assert.equal(
+  productionLaborStewardStatus(false, true),
+  'Manual · rotate stalled and ready production crews when needed',
+);
+assert.match(productionLaborStewardStatus(true, true), /Daily/);
+assert.match(productionLaborStewardStatus(true, false), /paused/);
 
 const recallState = emptyGameState();
 const brewery = building('10', 'brewery', 3);
@@ -176,6 +191,81 @@ const legacyPriorityPlan = computeSettlementProcessorLaborCallupPlan(callupState
 assert.equal(legacyPriorityPlan.assignments[0]?.buildingId, normalSmokehouse.id);
 assert.equal(legacyPriorityPlan.assignments[0]?.priority, 2);
 
+const stewardState = emptyGameState();
+const cappedStewardBrewery = building('brewery', 'brewery', 3);
+cappedStewardBrewery.processorOutputTargetPercent = 50;
+cappedStewardBrewery.ale = 100;
+const suppliedStewardMill = building('mill', 'watermill', 0);
+suppliedStewardMill.grain = 20;
+for (const site of [cappedStewardBrewery, suppliedStewardMill]) {
+  stewardState.buildings.set(site.id, site);
+}
+const stewardPlan = computeSettlementProductionStewardPlan(stewardState, 6, 0);
+assert.equal(stewardPlan.recalledWorkers, 2);
+assert.equal(stewardPlan.calledWorkers, 2);
+assert.equal(stewardPlan.availableLaborAfter, 0);
+assert.equal(stewardPlan.firstChangedBuildingId, cappedStewardBrewery.id);
+assert.equal(
+  stewardPlan.callup.assignments[0]?.buildingId,
+  suppliedStewardMill.id,
+  'the steward should redeploy released labor to supplied capacity-open production',
+);
+assert.equal(
+  stewardPlan.callup.assignments[0]?.targetLabor,
+  2,
+  'the output-capped brewery dispatcher must not be immediately rehired',
+);
+
+const reservedStewardPlan = computeSettlementProductionStewardPlan(
+  stewardState,
+  6,
+  0,
+  2,
+);
+assert.equal(reservedStewardPlan.laborReserve, 2);
+assert.equal(reservedStewardPlan.recalledWorkers, 2);
+assert.equal(reservedStewardPlan.calledWorkers, 0);
+assert.equal(reservedStewardPlan.availableLaborAfter, 2);
+
+const recoveringState = emptyGameState();
+const recoveringMill = building('recovering-mill', 'watermill', 2);
+recoveringState.buildings.set(recoveringMill.id, recoveringMill);
+recoveringState.deliveryTrips.set(
+  'grain-cart',
+  deliveryTrip('grain-cart', 'supplier', recoveringMill.id, 'grain'),
+);
+const recoveringPlan = computeSettlementProductionStewardPlan(
+  recoveringState,
+  6,
+  1,
+);
+assert.equal(recoveringPlan.recalledWorkers, 0);
+assert.equal(recoveringPlan.calledWorkers, 1);
+assert.equal(recoveringPlan.availableLaborAfter, 0);
+assert.equal(recoveringPlan.callup.assignments[0]?.buildingId, recoveringMill.id);
+
+const mismatchedSupplyState = emptyGameState();
+const starvedMill = building('starved-mill', 'watermill', 2);
+mismatchedSupplyState.buildings.set(starvedMill.id, starvedMill);
+mismatchedSupplyState.deliveryTrips.set(
+  'water-cart',
+  deliveryTrip('water-cart', 'supplier', starvedMill.id, 'water'),
+);
+const mismatchedSupplyPlan = computeSettlementProductionStewardPlan(
+  mismatchedSupplyState,
+  6,
+  0,
+);
+assert.equal(mismatchedSupplyPlan.recalledWorkers, 2);
+assert.equal(mismatchedSupplyPlan.calledWorkers, 0);
+assert.equal(mismatchedSupplyPlan.availableLaborAfter, 2);
+const strictCallup = computeSettlementOperationalProcessorLaborCallupPlan(
+  mismatchedSupplyState,
+  2,
+);
+assert.equal(strictCallup.readySites, 0);
+assert.equal(strictCallup.callupWorkers, 0);
+
 const renderedState = emptyGameState();
 const townHall = building('hall', 'town_hall', 1);
 const pausedBrewery = building('brewery', 'brewery', 3);
@@ -183,6 +273,7 @@ pausedBrewery.processorOutputTargetPercent = 50;
 pausedBrewery.ale = 100;
 const readyMill = building('mill', 'watermill', 0);
 readyMill.constructionPriority = 3;
+readyMill.grain = 20;
 for (const site of [townHall, pausedBrewery, readyMill]) {
   renderedState.buildings.set(site.id, site);
 }
@@ -200,7 +291,19 @@ const inspector = renderTownHallInspector(
     populationStats: computePopulationStats(renderedState),
     resourceTotals: computeResourceTotals(renderedState),
     worldHydrology: 0.5,
+    getProductionLaborStewardEnabled: () => true,
   },
+);
+assert.match(inspector.detailsHtml, /Production steward/);
+assert.match(inspector.detailsHtml, /supplied sites fill by priority/);
+assert.match(inspector.detailsHtml, /Dawn labor review/);
+assert.match(
+  inspector.detailsHtml,
+  /Next dawn: production release 2\/deploy 3.*0 free after review/,
+);
+assert.match(
+  inspector.detailsHtml,
+  /aria-label="Inspect first dawn labor steward crew change"/,
 );
 assert.match(inspector.detailsHtml, /Target-paused workshops/);
 assert.match(inspector.detailsHtml, /2 reclaimable workers across 1 target-paused workshop/);
@@ -217,6 +320,14 @@ assert.match(inspector.supplementalPanelHtml ?? '', /data-call-up-target-ready-p
 assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 1 production worker/);
 assert.match(inspector.supplementalPanelHtml ?? '', /equal-priority sites share workers round-robin/);
 assert.match(inspector.supplementalPanelHtml ?? '', /quarries with usable stone and yard room/);
+assert.match(inspector.supplementalPanelHtml ?? '', /data-policy-production-labor-steward/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Daily production labor steward/);
+assert.match(inspector.supplementalPanelHtml ?? '', /production second, and construction last/);
+assert.match(inspector.supplementalPanelHtml ?? '', /steward will redeploy released labor/);
+assert.match(
+  inspector.supplementalPanelHtml ?? '',
+  /previews the full seasonal.*production.*construction sequence against one shared labor pool without issuing orders/,
+);
 
 const perfState = emptyGameState();
 for (let index = 0; index < 100_000; index += 1) {
@@ -273,6 +384,31 @@ assert.ok(
   `20,000 source-aware production call-ups took ${spatialCallupElapsedMs.toFixed(1)} ms`,
 );
 
+const stewardPerfState = emptyGameState();
+for (let index = 0; index < 50_000; index += 1) {
+  const capped = building(`capped-${index}`, 'brewery', 3);
+  capped.processorOutputTargetPercent = 25;
+  capped.ale = 50;
+  stewardPerfState.buildings.set(capped.id, capped);
+  const supplied = building(`supplied-${index}`, 'watermill', 0);
+  supplied.grain = 20;
+  stewardPerfState.buildings.set(supplied.id, supplied);
+}
+const stewardStarted = performance.now();
+const perfStewardPlan = computeSettlementProductionStewardPlan(
+  stewardPerfState,
+  6,
+  0,
+);
+const stewardElapsedMs = performance.now() - stewardStarted;
+assert.equal(perfStewardPlan.recalledWorkers, 100_000);
+assert.equal(perfStewardPlan.calledWorkers, 100_000);
+assert.equal(perfStewardPlan.availableLaborAfter, 0);
+assert.ok(
+  stewardElapsedMs < 1_500,
+  `100,000-site sequential production steward forecast took ${stewardElapsedMs.toFixed(1)} ms`,
+);
+
 const serverReducer = readFileSync(
   new URL('../server/src/reducers/buildings.rs', import.meta.url),
   'utf8',
@@ -289,8 +425,37 @@ const generatedReducers = readFileSync(
   new URL('../src/generated/index.ts', import.meta.url),
   'utf8',
 );
+const generatedPlayerResources = readFileSync(
+  new URL('../src/generated/player_resources_table.ts', import.meta.url),
+  'utf8',
+);
+const productionSteward = readFileSync(
+  new URL('../server/src/simulation/production_labor_steward.rs', import.meta.url),
+  'utf8',
+);
+const simulationReducer = readFileSync(
+  new URL('../server/src/reducers/simulation.rs', import.meta.url),
+  'utf8',
+);
+const villageAdminReducer = readFileSync(
+  new URL('../server/src/reducers/village_admin.rs', import.meta.url),
+  'utf8',
+);
+const serverTables = readFileSync(
+  new URL('../server/src/tables.rs', import.meta.url),
+  'utf8',
+);
+const worksiteStallForecast = readFileSync(
+  new URL('../src/economy/settlementWorksiteStalls.ts', import.meta.url),
+  'utf8',
+);
 assert.match(serverReducer, /pub fn recall_target_idle_processor_labor/);
 assert.match(serverReducer, /pub fn call_up_target_ready_processor_labor/);
+assert.match(serverReducer, /recall_target_idle_processor_labor_for_owner/);
+assert.match(serverReducer, /call_up_target_ready_processor_labor_for_owner/);
+assert.match(serverReducer, /call_up_operational_production_labor_for_owner/);
+assert.match(serverReducer, /require_operational_inputs/);
+assert.match(serverReducer, /production_steward_callup_allowed/);
 assert.match(serverReducer, /A staffed Town Hall is required/);
 assert.match(serverReducer, /building_has_active_trip/);
 assert.match(serverReducer, /stalled_labor_target/);
@@ -300,11 +465,30 @@ assert.match(resourceInspector, /data-recall-target-idle-processor-labor/);
 assert.match(resourceInspector, /data-call-up-target-ready-processor-labor/);
 assert.match(spacetimeReducers, /recallTargetIdleProcessorLabor/);
 assert.match(spacetimeReducers, /callUpTargetReadyProcessorLabor/);
+assert.match(spacetimeReducers, /setProductionLaborSteward/);
 assert.match(generatedReducers, /recall_target_idle_processor_labor/);
 assert.match(generatedReducers, /call_up_target_ready_processor_labor/);
+assert.match(generatedReducers, /set_production_labor_steward/);
+assert.match(generatedPlayerResources, /productionLaborStewardEnabled: __t\.bool/);
+assert.match(generatedPlayerResources, /laborStewardReserve: __t\.u32/);
+assert.match(serverTables, /production_labor_steward_enabled/);
+assert.match(serverTables, /labor_steward_reserve/);
+assert.match(villageAdminReducer, /pub fn set_production_labor_steward/);
+assert.match(villageAdminReducer, /pub fn set_labor_steward_reserve/);
+assert.match(villageAdminReducer, /reconcile_target_production_labor_for_owner/);
+assert.match(productionSteward, /seasonal_labor_steward_review_due/);
+assert.match(productionSteward, /resources\.production_labor_steward_enabled/);
+assert.match(productionSteward, /recall_target_idle_processor_labor_for_owner/);
+assert.match(productionSteward, /call_up_operational_production_labor_for_owner/);
+assert.match(worksiteStallForecast, /computeSettlementOperationalProductionReadiness/);
+assert.match(worksiteStallForecast, /buildInboundCargoByBuilding/);
+assert.match(
+  simulationReducer,
+  /step_seasonal_labor_stewards[\s\S]*step_production_labor_stewards[\s\S]*step_construction_labor_stewards/,
+);
 
 console.log(
-  `processor labor rotation tests passed (100,000 sites: recall ${recallElapsedMs.toFixed(1)} ms, call-up ${callupElapsedMs.toFixed(1)} ms; 20,000 spatial call-ups: ${spatialCallupElapsedMs.toFixed(1)} ms)`,
+  `processor labor rotation tests passed (100,000 sites: recall ${recallElapsedMs.toFixed(1)} ms, call-up ${callupElapsedMs.toFixed(1)} ms, steward ${stewardElapsedMs.toFixed(1)} ms; 20,000 spatial call-ups: ${spatialCallupElapsedMs.toFixed(1)} ms)`,
 );
 
 function emptyGameState(): GameState {
@@ -387,6 +571,34 @@ function worldQueries(): WorldQueries {
     isMonasteryLinkedToChapel: () => false,
     findNearestRoadLinkedBuilding: () => null,
   } as unknown as WorldQueries;
+}
+
+function deliveryTrip(
+  id: string,
+  buildingId: string,
+  targetBuildingId: string,
+  cargoKind: DeliveryCargoKind,
+): DeliveryTripState {
+  return {
+    id,
+    buildingId,
+    residenceId: null,
+    destinationKind: 'building',
+    targetBuildingId,
+    cargoKind,
+    amount: 10,
+    phase: 'outbound',
+    x: 0,
+    z: 0,
+    progress: 0.5,
+    speedMps: 1,
+    unloadSeconds: 1,
+    unloadRemaining: 1,
+    deliveryWorkers: 1,
+    pathDistance: 10,
+    travelSpeedMultiplier: 1,
+    routePolylineJson: '[]',
+  };
 }
 
 function quarry(

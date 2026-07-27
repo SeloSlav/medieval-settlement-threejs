@@ -733,6 +733,10 @@ export async function bootstrapAppSession(
       spacetimeStore.snapshot.seasonalLaborStewardEnabled,
     getConstructionLaborStewardEnabled: () =>
       spacetimeStore.snapshot.constructionLaborStewardEnabled,
+    getProductionLaborStewardEnabled: () =>
+      spacetimeStore.snapshot.productionLaborStewardEnabled,
+    getLaborStewardReserve: () =>
+      spacetimeStore.snapshot.laborStewardReserve,
     getParishPolicy: () =>
       spacetimeStore.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
     getMonasteryPolicy: () =>

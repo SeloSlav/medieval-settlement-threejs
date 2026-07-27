@@ -13,7 +13,7 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     building_commodity_stock, credit_treasury_gold, record_specialty_market_export,
-    try_execute_standing_ironwork_import, withdraw_building_commodity, CommodityKind,
+    try_execute_standing_marketplace_import, withdraw_building_commodity, CommodityKind,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{delivery_stock_room, has_delivery_stock_room};
@@ -153,6 +153,7 @@ pub fn step_marketplace_caravans(
             building.kind == "marketplace"
                 && building.construction_complete
                 && (building.action_cooldown > 1e-6
+                    || building.marketplace_seed_grain_target > 0
                     || building.marketplace_ironwork_target > 0
                     || building.firewood > 1e-6
                     || building.food > 1e-6
@@ -169,7 +170,7 @@ pub fn step_marketplace_caravans(
 
     for building_id in marketplace_ids {
         if clock.sim_tick % 5 == building_id % 5 {
-            try_execute_standing_ironwork_import(
+            try_execute_standing_marketplace_import(
                 ctx,
                 tick,
                 clock,

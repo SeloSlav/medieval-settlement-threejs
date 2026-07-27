@@ -4,8 +4,8 @@ use crate::constants::RESIDENCE_WATER_PER_PERSON_PER_SEC;
 use crate::roads::RoadNetwork;
 use crate::simulation::lodge_logistics::residence_firewood_runway_seconds as residence_runway_seconds;
 use crate::supply_policy::{
-    is_firewood_supplier_operational, is_well_supplier_operational, select_need_delivery_candidate,
-    NeedDeliveryCandidate,
+    compare_supply_route_candidates, is_firewood_supplier_operational,
+    is_well_supplier_operational, select_need_delivery_candidate, NeedDeliveryCandidate,
 };
 use crate::tables::{Building, Residence};
 use crate::well_policy::position_within_well_service_radius;
@@ -36,8 +36,10 @@ pub fn select_residence_for_need_delivery(
     stock_for: impl Fn(&Residence) -> f64,
     needs_delivery: impl Fn(f64) -> bool,
 ) -> Option<Residence> {
-    let selected = select_need_delivery_candidate(residences.iter().enumerate().filter_map(
-        |(index, residence)| {
+    let eligible: Vec<(usize, f64)> = residences
+        .iter()
+        .enumerate()
+        .filter_map(|(index, residence)| {
             if explicit_priority_residence_id.is_some_and(|priority_id| residence.id != priority_id)
             {
                 return None;
@@ -46,23 +48,87 @@ pub fn select_residence_for_need_delivery(
             if !needs_delivery(stock) {
                 return None;
             }
-            let distance =
-                road_path_distance(network, supplier.x, supplier.z, residence.x, residence.z)?;
-            if !distance.is_finite() || max_distance.is_some_and(|limit| distance > limit) {
-                return None;
-            }
-            Some(NeedDeliveryCandidate {
-                index,
-                residence_id: residence.id,
-                abandoned: residence.abandoned,
-                population: residence.population,
-                stock,
-                distance,
-                explicit_priority: explicit_priority_residence_id == Some(residence.id),
-            })
-        },
-    ))?;
+            Some((index, stock))
+        })
+        .collect();
+    let target_positions: Vec<(f64, f64)> = eligible
+        .iter()
+        .map(|(index, _)| {
+            let residence = &residences[*index];
+            (residence.x, residence.z)
+        })
+        .collect();
+    let route_distances =
+        network.road_path_distances_from(supplier.x, supplier.z, &target_positions);
+
+    let selected =
+        select_need_delivery_candidate(eligible.into_iter().zip(route_distances).filter_map(
+            |((index, stock), distance)| {
+                let residence = &residences[index];
+                let distance = distance?;
+                if !distance.is_finite() || max_distance.is_some_and(|limit| distance > limit) {
+                    return None;
+                }
+                Some(NeedDeliveryCandidate {
+                    index,
+                    residence_id: residence.id,
+                    abandoned: residence.abandoned,
+                    population: residence.population,
+                    stock,
+                    distance,
+                    explicit_priority: explicit_priority_residence_id == Some(residence.id),
+                })
+            },
+        ))?;
     Some(residences.swap_remove(selected.index))
+}
+
+/// Assign every residence to its nearest eligible supplier using one graph
+/// solve per supplier. Route length and stable building id preserve the same
+/// deterministic territory boundary as pairwise pathfinding.
+pub fn claim_residences_by_nearest_supplier(
+    network: &RoadNetwork,
+    suppliers: &[&Building],
+    residences: &[Residence],
+    candidate_allowed: impl Fn(&Building, &Residence, f64) -> bool,
+) -> std::collections::HashMap<u64, u64> {
+    let target_positions: Vec<(f64, f64)> = residences
+        .iter()
+        .map(|residence| (residence.x, residence.z))
+        .collect();
+    let mut best_by_residence: std::collections::HashMap<u64, (u64, f64)> =
+        std::collections::HashMap::new();
+
+    for supplier in suppliers {
+        let distances = network.road_path_distances_from(supplier.x, supplier.z, &target_positions);
+        for (residence, distance) in residences.iter().zip(distances) {
+            let Some(distance) = distance.filter(|distance| distance.is_finite()) else {
+                continue;
+            };
+            if !candidate_allowed(supplier, residence, distance) {
+                continue;
+            }
+            let replace = best_by_residence.get(&residence.id).is_none_or(
+                |(current_id, current_distance)| {
+                    compare_supply_route_candidates(
+                        distance,
+                        supplier.id,
+                        *current_distance,
+                        *current_id,
+                    )
+                    .is_lt()
+                },
+            );
+            if replace {
+                best_by_residence.insert(residence.id, (supplier.id, distance));
+            }
+        }
+    }
+
+    best_by_residence
+        .into_iter()
+        .map(|(residence_id, (supplier_id, _))| (residence_id, supplier_id))
+        .collect()
 }
 
 /// Each residence is claimed by its nearest operational firewood distributor.
@@ -73,37 +139,18 @@ pub fn claim_residences_for_firewood_suppliers(
     suppliers: &[Building],
     residences: &[Residence],
 ) -> std::collections::HashMap<u64, u64> {
-    let mut claims = std::collections::HashMap::new();
-    for residence in residences {
-        let mut best_supplier: Option<&Building> = None;
-        let mut best_distance = f64::INFINITY;
-        for supplier in suppliers {
-            if !is_firewood_supplier_operational(
+    let operational: Vec<&Building> = suppliers
+        .iter()
+        .filter(|supplier| {
+            is_firewood_supplier_operational(
                 &supplier.kind,
                 supplier.construction_complete,
                 supplier.assigned_labor,
                 supplier.storehouse_accepts_firewood,
-            ) {
-                continue;
-            }
-            let Some(distance) =
-                road_path_distance(network, supplier.x, supplier.z, residence.x, residence.z)
-            else {
-                continue;
-            };
-            if distance + 1e-6 < best_distance
-                || ((distance - best_distance).abs() <= 1e-6
-                    && best_supplier.map_or(true, |current| supplier.id < current.id))
-            {
-                best_distance = distance;
-                best_supplier = Some(supplier);
-            }
-        }
-        if let Some(supplier) = best_supplier {
-            claims.insert(residence.id, supplier.id);
-        }
-    }
-    claims
+            )
+        })
+        .collect();
+    claim_residences_by_nearest_supplier(network, &operational, residences, |_, _, _| true)
 }
 
 /// Each residence is claimed by the nearest road-connected well within its service extent.
@@ -112,42 +159,25 @@ pub fn claim_residences_for_wells(
     wells: &[Building],
     residences: &[Residence],
 ) -> std::collections::HashMap<u64, u64> {
-    let mut claims = std::collections::HashMap::new();
-    for residence in residences {
-        let mut best_well: Option<&Building> = None;
-        let mut best_distance = f64::INFINITY;
-        for well in wells {
-            if !is_well_supplier_operational(
+    let operational: Vec<&Building> = wells
+        .iter()
+        .filter(|well| {
+            is_well_supplier_operational(
                 &well.kind,
                 well.construction_complete,
                 well.assigned_labor,
-            ) || !position_within_well_service_radius(
-                well.x,
-                well.z,
-                well.work_radius,
-                residence.x,
-                residence.z,
-            ) {
-                continue;
-            }
-            let Some(distance) =
-                road_path_distance(network, well.x, well.z, residence.x, residence.z)
-            else {
-                continue;
-            };
-            if distance + 1e-6 < best_distance
-                || ((distance - best_distance).abs() <= 1e-6
-                    && best_well.map_or(true, |current| well.id < current.id))
-            {
-                best_distance = distance;
-                best_well = Some(well);
-            }
-        }
-        if let Some(well) = best_well {
-            claims.insert(residence.id, well.id);
-        }
-    }
-    claims
+            )
+        })
+        .collect();
+    claim_residences_by_nearest_supplier(network, &operational, residences, |well, residence, _| {
+        position_within_well_service_radius(
+            well.x,
+            well.z,
+            well.work_radius,
+            residence.x,
+            residence.z,
+        )
+    })
 }
 
 pub fn residence_water_runway_seconds(residence: &Residence, water_stock: f64) -> f64 {

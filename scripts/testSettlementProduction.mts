@@ -7,6 +7,7 @@ import {
   processorBottleneckBuildingId,
 } from '../src/economy/settlementProduction.ts';
 import { computeSettlementGrainPlan } from '../src/economy/settlementGrainPlan.ts';
+import { computeSettlementSeedProcurementPlan } from '../src/economy/settlementSeedProcurement.ts';
 import { buildSettlementFarmPlan } from '../src/farming/farmWorkPlanning.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
@@ -365,6 +366,7 @@ reserveGranary.grain = 10;
 grainState.buildings.set(reserveGranary.id, reserveGranary);
 const grainMill = building('grain-mill', 'watermill', 1);
 grainMill.grain = 5;
+grainMill.constructionPriority = 3;
 grainState.buildings.set(grainMill.id, grainMill);
 const linkedMonastery = building('linked-monastery', 'monastery', 0);
 linkedMonastery.grain = 2;
@@ -373,6 +375,7 @@ const unlinkedMonastery = building('unlinked-monastery', 'monastery', 0);
 unlinkedMonastery.grain = 1;
 grainState.buildings.set(unlinkedMonastery.id, unlinkedMonastery);
 const grainBrewery = building('grain-brewery', 'brewery', 1);
+grainBrewery.constructionPriority = 1;
 grainState.buildings.set(grainBrewery.id, grainBrewery);
 grainState.deliveryTrips.set(
   'seed-trip',
@@ -437,6 +440,7 @@ approx(grainPlan.processorRunwayDays, 264 / 239);
 approx(grainPlan.annualProcessorDemand, 2_390);
 approx(grainPlan.annualCommitments, 2_420);
 approx(grainPlan.annualBalance, -2_320);
+assert.deepEqual(grainPlan.processorPriorityCounts, { 1: 1, 2: 2, 3: 1 });
 assert.equal(grainPlan.firstAttentionKind, 'seed');
 assert.equal(grainPlan.firstAttentionBuildingId, seedFarm.id);
 
@@ -462,6 +466,77 @@ grainState.deliveryTrips.set(
 const reserveAttention = computeSettlementGrainPlan(grainPlanInput);
 assert.equal(reserveAttention.firstAttentionKind, 'granary-reserve');
 assert.equal(reserveAttention.firstAttentionBuildingId, reserveGranary.id);
+
+const seedProcurementState = emptyGameState();
+const readySeedMarket = building('seed-market-2', 'marketplace', 1);
+readySeedMarket.marketplaceSeedGrainTarget = 48;
+seedProcurementState.buildings.set(readySeedMarket.id, readySeedMarket);
+const filledSeedMarket = building('seed-market-10', 'marketplace', 1);
+filledSeedMarket.marketplaceSeedGrainTarget = 48;
+filledSeedMarket.grain = 25;
+seedProcurementState.buildings.set(filledSeedMarket.id, filledSeedMarket);
+const unstaffedSeedMarket = building('seed-market-1', 'marketplace', 0);
+unstaffedSeedMarket.marketplaceSeedGrainTarget = 24;
+seedProcurementState.buildings.set(unstaffedSeedMarket.id, unstaffedSeedMarket);
+const seedProcurement = computeSettlementSeedProcurementPlan({
+  state: seedProcurementState,
+  seedShortfall: 60,
+  availableGold: 18,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+});
+assert.equal(seedProcurement.marketplaces, 3);
+assert.equal(seedProcurement.targetMarkets, 3);
+assert.equal(seedProcurement.dueMarkets, 2);
+assert.equal(seedProcurement.readyMarkets, 1);
+assert.equal(seedProcurement.currentMarketStock, 25);
+assert.equal(seedProcurement.targetStock, 120);
+assert.equal(seedProcurement.plannedImportLots, 3);
+assert.equal(seedProcurement.plannedImportGrain, 72);
+assert.equal(seedProcurement.affordableLotsAtCurrentRate, 1);
+assert.equal(seedProcurement.potentialCoverage, 60);
+assert.equal(seedProcurement.uncoveredShortfall, 0);
+assert.equal(seedProcurement.laborBlockedMarkets, 1);
+assert.equal(seedProcurement.firstAttentionMarketId, unstaffedSeedMarket.id);
+assert.equal(seedProcurement.firstAttentionKind, 'labor');
+
+const frontierQueueMarket = building('frontier-seed-market', 'marketplace', 1);
+frontierQueueMarket.marketplaceSeedGrainTarget = 96;
+frontierQueueMarket.marketplaceIronworkTarget = 12;
+frontierQueueMarket.grain = 48;
+frontierQueueMarket.ironwork = 0;
+const frontierQueueState = emptyGameState();
+frontierQueueState.buildings.set(frontierQueueMarket.id, frontierQueueMarket);
+const frontierSeedProcurement = computeSettlementSeedProcurementPlan({
+  state: frontierQueueState,
+  seedShortfall: 80,
+  availableGold: 100,
+  nextLotGoldCost: 18,
+  conflictEnabled: true,
+  hasRoadAccess: () => true,
+});
+assert.equal(frontierSeedProcurement.plannedImportLots, 2);
+assert.equal(frontierSeedProcurement.ironworkQueuedMarkets, 1);
+assert.equal(frontierSeedProcurement.readyMarkets, 0);
+assert.equal(frontierSeedProcurement.firstAttentionKind, 'ironwork');
+
+const physicalSeedState = emptyGameState();
+const stockedManualMarket = building('stocked-market', 'marketplace', 1);
+stockedManualMarket.grain = 24;
+physicalSeedState.buildings.set(stockedManualMarket.id, stockedManualMarket);
+const physicalSeedProcurement = computeSettlementSeedProcurementPlan({
+  state: physicalSeedState,
+  seedShortfall: 40,
+  availableGold: 0,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+});
+assert.equal(physicalSeedProcurement.plannedImportGrain, 0);
+assert.equal(physicalSeedProcurement.currentMarketStock, 24);
+assert.equal(physicalSeedProcurement.potentialCoverage, 24);
+assert.equal(physicalSeedProcurement.uncoveredShortfall, 16);
 
 const cattleHolding = building('cattle-holding', 'pastoral_farmstead', 1);
 cattleHolding.x = 10;
@@ -590,6 +665,11 @@ const perfGrainPlan = computeSettlementGrainPlan({
 });
 const grainPerfElapsedMs = performance.now() - grainPerfStarted;
 assert.equal(perfGrainPlan.inTransit, 100_000);
+assert.deepEqual(perfGrainPlan.processorPriorityCounts, {
+  1: 0,
+  2: 40_000,
+  3: 0,
+});
 assert.ok(
   grainPerfElapsedMs < 300,
   `100,000-building + 100,000-cart grain ledger took ${grainPerfElapsedMs.toFixed(1)} ms`,
@@ -618,6 +698,31 @@ assert.ok(
   `100,000-field settlement farm plan took ${aggregationElapsedMs.toFixed(1)} ms`,
 );
 
+const procurementPerfState = emptyGameState();
+for (let index = 0; index < 100_000; index += 1) {
+  const market = building(`seed-market-${index}`, 'marketplace', index % 5 === 0 ? 0 : 1);
+  market.marketplaceSeedGrainTarget = index % 2 === 0 ? 48 : 0;
+  market.grain = index % 3 === 0 ? 24 : 0;
+  procurementPerfState.buildings.set(market.id, market);
+}
+const procurementPerfStarted = performance.now();
+const procurementPerfPlan = computeSettlementSeedProcurementPlan({
+  state: procurementPerfState,
+  seedShortfall: 1_000_000,
+  availableGold: 10_000,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+});
+const procurementPerfElapsedMs = performance.now() - procurementPerfStarted;
+assert.equal(procurementPerfPlan.marketplaces, 100_000);
+assert.equal(procurementPerfPlan.targetMarkets, 50_000);
+assert.ok(procurementPerfPlan.plannedImportLots > 0);
+assert.ok(
+  procurementPerfElapsedMs < 250,
+  `100,000-market standing seed ledger took ${procurementPerfElapsedMs.toFixed(1)} ms`,
+);
+
 const townHallInspector = readFileSync(
   new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
   'utf8',
@@ -644,8 +749,15 @@ assert.match(townHallInspector, /Ox-supported fields/);
 assert.match(townHallInspector, /Grain allocation/);
 assert.match(townHallInspector, /Protected grain/);
 assert.match(townHallInspector, /Installed grain draw/);
+assert.match(townHallInspector, /Grain cart priorities/);
+assert.match(townHallInspector, /carts serve higher tiers first/);
 assert.match(townHallInspector, /Crop-year balance/);
 assert.match(townHallInspector, /imports excluded/);
+assert.match(townHallInspector, /Standing seed orders/);
+assert.match(townHallInspector, /Seed recovery ceiling/);
+assert.match(townHallInspector, /future purchases remain excluded from crop-year balance until bought/);
+assert.match(townHallInspector, /later lots reprice/);
+assert.match(townHallInspector, /computeSettlementSeedProcurementPlan/);
 assert.match(townHallInspector, /firstSeedShortBuildingId/);
 assert.match(townHallInspector, /firstShortGranaryId/);
 assert.match(townHallInspector, /Next rotation/);
@@ -670,7 +782,7 @@ const worldQueries = readFileSync(
 assert.match(worldQueries, /findFarmFieldTarget\(fieldId: string\)/);
 
 console.log(
-  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields)`,
+  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets)`,
 );
 
 function approx(actual: number, expected: number, message?: string): void {
