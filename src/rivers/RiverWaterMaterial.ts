@@ -58,6 +58,7 @@ const FLOW_STREAK_STRENGTH = 0.56;
 const FLOW_WAVE_HEIGHT = 0.048;
 export const RIVER_WATER_TRANSMISSION = 0.82;
 export const RIVER_WATER_ATTENUATION_DISTANCE = 1.75;
+export const RIVER_DEEP_BACKDROP_STABILITY = 1;
 
 function decodeFlowDirection(shoreSample: TslNode): { flowDirX: TslNode; flowDirZ: TslNode } {
   const flowRaw = (vec2(shoreSample.b, shoreSample.a) as TslNode).mul(float(2) as TslNode).sub(float(1) as TslNode) as TslNode;
@@ -201,6 +202,11 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     vec3(0.34, 0.26, 0.17) as TslNode,
     bedTint,
   ) as TslNode;
+  const stableBackdropColor = mix(
+    bedColor,
+    DEEP_WATER_TINT,
+    depthFactor.mul(float(RIVER_DEEP_BACKDROP_STABILITY) as TslNode) as TslNode,
+  ) as TslNode;
 
   const flowWobble = sin(flowAlong.mul(0.52).sub(frameTime.mul(2.35)) as TslNode) as TslNode;
   const crossWobble = sin(flowCross.mul(0.41).add(frameTime.mul(1.65)) as TslNode) as TslNode;
@@ -212,11 +218,16 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     .add(refractCross.mul(depthFactor.mul(float(0.009) as TslNode) as TslNode) as TslNode) as TslNode;
   const refractUv = viewportSafeUV((screenUV as TslNode).add(refractOffset) as TslNode) as TslNode;
   const sceneBehind = (viewportSharedTexture(refractUv) as TslNode).rgb as TslNode;
-  const bedVisibility = shallowFactor
+  const shallowBackdropStability = shallowFactor
     .mul(pow(viewDotUp, float(0.72) as TslNode) as TslNode)
-    .mul(float(0.86) as TslNode)
-    .add(depthFactor.mul(float(0.14) as TslNode) as TslNode) as TslNode;
-  const backdropNode = mix(sceneBehind, bedColor, bedVisibility) as TslNode;
+    .mul(float(0.86) as TslNode) as TslNode;
+  const backdropStability = min(
+    float(1) as TslNode,
+    shallowBackdropStability.add(
+      depthFactor.mul(float(RIVER_DEEP_BACKDROP_STABILITY) as TslNode) as TslNode,
+    ) as TslNode,
+  ) as TslNode;
+  const backdropNode = mix(sceneBehind, stableBackdropColor, backdropStability) as TslNode;
   const backdropAlphaNode = mix(
     float(0.38) as TslNode,
     float(0.82) as TslNode,

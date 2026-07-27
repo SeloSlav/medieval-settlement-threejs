@@ -4,6 +4,7 @@ import {
   disposeSharedRiverWaterMaterial,
   getSharedRiverWaterMaterial,
   normalizeRiverWaterNightAmount,
+  RIVER_DEEP_BACKDROP_STABILITY,
   RIVER_WATER_ATTENUATION_DISTANCE,
   RIVER_WATER_TRANSMISSION,
   setSharedRiverWaterNightAmount,
@@ -88,6 +89,11 @@ assert.equal(material.transmission, 0.82);
 assert.equal(material.thickness, 0.65);
 assert.equal(material.attenuationDistance, RIVER_WATER_ATTENUATION_DISTANCE);
 assert.equal(material.attenuationDistance, 1.75);
+assert.equal(
+  RIVER_DEEP_BACKDROP_STABILITY,
+  1,
+  'deep water must fully suppress false screen-space terrain and tree-shadow bands',
+);
 assert.equal(material.roughness, 0.3);
 assert.equal(material.specularIntensity, 0.5);
 assert.ok(material.roughnessNode, 'directional flow must modulate reflected highlight roughness');
