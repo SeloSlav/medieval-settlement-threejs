@@ -23,6 +23,7 @@ import { buildingPlacementYaw } from './buildingPlacement.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
 import { createBuildingShadowProxy } from './buildingShadowProxy.ts';
 import { createBuildingMesh } from './BuildingMeshes.ts';
+import { MARKET_STAGING_VISUAL_SEGMENTS } from './meshes/marketplaceMesh.ts';
 import {
   createConstructionSiteMesh,
 } from './ConstructionSiteMesh.ts';
@@ -394,6 +395,43 @@ function syncBuildingVisualState(
     if (chest) chest.visible = building.gold > 1e-6;
     marker.userData.foundingTimberSegments = FOUNDING_TIMBER_VISUAL_SEGMENTS;
     marker.userData.foundingStoneSegments = FOUNDING_STONE_VISUAL_SEGMENTS;
+  }
+  if (building.kind === 'marketplace') {
+    const timber = marker.getObjectByName('MarketTimberStaging');
+    if (timber instanceof THREE.Group) {
+      syncStockpileSegments(
+        timber,
+        'MarketTimberStageSegment',
+        building.timber,
+        BUILDING_STORAGE_CAPS.marketplace.timber,
+      );
+    }
+    const stone = marker.getObjectByName('MarketStoneStaging');
+    if (stone instanceof THREE.Group) {
+      syncStockpileSegments(
+        stone,
+        'MarketStoneStageSegment',
+        building.stone,
+        BUILDING_STORAGE_CAPS.marketplace.stone,
+      );
+    }
+    const crates = marker.getObjectByName('MarketCratedGoodsStaging');
+    if (crates instanceof THREE.Group) {
+      const stagedCratedGoods =
+        building.firewood + building.food + building.grain + (building.ironwork ?? 0);
+      const cratedCapacity =
+        BUILDING_STORAGE_CAPS.marketplace.firewood
+        + BUILDING_STORAGE_CAPS.marketplace.food
+        + BUILDING_STORAGE_CAPS.marketplace.grain
+        + (BUILDING_STORAGE_CAPS.marketplace.ironwork ?? 0);
+      syncStockpileSegments(
+        crates,
+        'MarketCratedStageSegment',
+        stagedCratedGoods,
+        cratedCapacity,
+      );
+    }
+    marker.userData.marketStagingSegments = MARKET_STAGING_VISUAL_SEGMENTS;
   }
   if (building.kind === 'lumber_mill') {
     const stockpile = marker.getObjectByName('TimberStockpile');

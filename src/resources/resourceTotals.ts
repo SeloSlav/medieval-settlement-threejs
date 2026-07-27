@@ -15,6 +15,7 @@ import {
 } from '../generated/gameBalance.ts';
 import type { MarketplaceTradeAvailability } from '../economy/marketplaceTrade.ts';
 import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { BuildingKind, BuildingState, GameState } from './types.ts';
 import {
@@ -199,15 +200,18 @@ export type RoadConnectionQuery = (
 ) => boolean;
 
 /**
- * Manual exports can draw only from the legacy reserve and completed stores
- * that can physically reach this marketplace. Household need stocks are never
- * exposed, and construction reservations remain protected.
+ * Reports goods that can participate in this market's trade loop. Physical
+ * saves use the number to decide whether a staging cart can complete the lot;
+ * only inventory already at the market is consumed when the trade settles.
+ * Legacy saves retain direct access to their compatibility ledger.
  */
 export function computeMarketplaceTradeAvailability(
   state: GameState,
   marketplace: BuildingState,
   roadConnected: RoadConnectionQuery,
 ): MarketplaceTradeAvailability {
+  const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+  const includeLegacyLedger = state.physicalFoundingSiteEnabled !== true;
   let allBuildingTimber = 0;
   let allBuildingStone = 0;
   let accessibleTimber = 0;
@@ -237,6 +241,7 @@ export function computeMarketplaceTradeAvailability(
       reservedTreasuryStone += building.constructionTreasuryStone;
       continue;
     }
+    if (fireDisabled.has(building.id)) continue;
 
     const connected = building.id === marketplace.id
       || roadConnected(marketplace.x, marketplace.z, building.x, building.z);
@@ -253,18 +258,22 @@ export function computeMarketplaceTradeAvailability(
 
   const unreservedBuildingTimber = Math.max(0, allBuildingTimber - reservedBuildingTimber);
   const unreservedBuildingStone = Math.max(0, allBuildingStone - reservedBuildingStone);
+  const ledgerTimber = includeLegacyLedger
+    ? Math.max(0, state.stockpile.timber - reservedTreasuryTimber)
+    : 0;
+  const ledgerStone = includeLegacyLedger
+    ? Math.max(0, state.stockpile.stone - reservedTreasuryStone)
+    : 0;
   return {
     timber:
-      Math.max(0, state.stockpile.timber - reservedTreasuryTimber)
-      + Math.min(accessibleTimber, unreservedBuildingTimber),
+      ledgerTimber + Math.min(accessibleTimber, unreservedBuildingTimber),
     stone:
-      Math.max(0, state.stockpile.stone - reservedTreasuryStone)
-      + Math.min(accessibleStone, unreservedBuildingStone),
+      ledgerStone + Math.min(accessibleStone, unreservedBuildingStone),
     gold: computeResourceTotals(state).gold,
-    firewood: state.stockpile.firewood + accessibleFirewood,
-    food: state.stockpile.food + accessibleFood,
-    grain: state.stockpile.grain + accessibleGrain,
-    ironwork: (state.stockpile.ironwork ?? 0) + accessibleIronwork,
+    firewood: (includeLegacyLedger ? state.stockpile.firewood : 0) + accessibleFirewood,
+    food: (includeLegacyLedger ? state.stockpile.food : 0) + accessibleFood,
+    grain: (includeLegacyLedger ? state.stockpile.grain : 0) + accessibleGrain,
+    ironwork: (includeLegacyLedger ? (state.stockpile.ironwork ?? 0) : 0) + accessibleIronwork,
   };
 }
 

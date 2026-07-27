@@ -9,6 +9,8 @@ import {
 import { addTriangularGableWall } from '../meshPrimitives.ts';
 import { addBarrel, addCrate } from './buildingMeshKit.ts';
 
+export const MARKET_STAGING_VISUAL_SEGMENTS = 5;
+
 function addMarketTable(group: THREE.Group, x: number, z: number, rotation = 0): void {
   const table = new THREE.Group();
   table.position.set(x, 0, z);
@@ -30,6 +32,64 @@ function addMarketTable(group: THREE.Group, x: number, z: number, rotation = 0):
     }
   }
   group.add(table);
+}
+
+function addMarketStagingStock(group: THREE.Group): void {
+  const timber = new THREE.Group();
+  timber.name = 'MarketTimberStaging';
+  timber.position.set(-4.55, 0.1, 1.25);
+  for (let index = 0; index < MARKET_STAGING_VISUAL_SEGMENTS; index++) {
+    const beam = addMesh(
+      timber,
+      new THREE.BoxGeometry(2.15, 0.18, 0.2),
+      timberMaterial(index % 2 === 0 ? 'weathered' : 'dark'),
+      new THREE.Vector3(
+        0,
+        0.12 + Math.floor(index / 2) * 0.2,
+        (index % 2) * 0.26,
+      ),
+    );
+    beam.name = `MarketTimberStageSegment${index}`;
+    beam.visible = false;
+  }
+  group.add(timber);
+
+  const stone = new THREE.Group();
+  stone.name = 'MarketStoneStaging';
+  stone.position.set(4.5, 0.1, -1.25);
+  for (let index = 0; index < MARKET_STAGING_VISUAL_SEGMENTS; index++) {
+    const block = addMesh(
+      stone,
+      new THREE.BoxGeometry(0.58, 0.38, 0.5),
+      stoneMaterial(index % 2 === 0 ? 'mid' : 'light'),
+      new THREE.Vector3(
+        (index % 3) * 0.54 - 0.54,
+        0.2 + Math.floor(index / 3) * 0.36,
+        (index % 2) * 0.18,
+      ),
+      new THREE.Euler(0, (index % 3 - 1) * 0.08, 0),
+    );
+    block.name = `MarketStoneStageSegment${index}`;
+    block.visible = false;
+  }
+  group.add(stone);
+
+  const crates = new THREE.Group();
+  crates.name = 'MarketCratedGoodsStaging';
+  crates.position.set(4.5, 0, 1.25);
+  for (let index = 0; index < MARKET_STAGING_VISUAL_SEGMENTS; index++) {
+    const crate = new THREE.Group();
+    crate.name = `MarketCratedStageSegment${index}`;
+    crate.visible = false;
+    crate.position.set(
+      (index % 2) * 0.7 - 0.35,
+      Math.floor(index / 4) * 0.62,
+      Math.floor(index / 2) % 2 * 0.72,
+    );
+    addCrate(crate, 0, 0, index % 2 === 0 ? 0.62 : 0.54);
+    crates.add(crate);
+  }
+  group.add(crates);
 }
 
 /** Open Croatian market loggia: a permanent civic roof, not a carnival tent. */
@@ -130,6 +190,7 @@ export function createMarketplaceMesh(): THREE.Group {
   addCrate(group, 2.65, 1.45, 0.86);
   addCrate(group, 2.8, 0.55, 0.72);
   addBarrel(group, -2.8, 1.45, 0.88);
+  addMarketStagingStock(group);
 
   // A simple hanging steelyard gives the open loggia a strong trade silhouette.
   addMesh(

@@ -24,6 +24,16 @@ import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
+import type { TradeResourceKind } from '../../generated/gameBalance.ts';
+
+const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>([
+  'timber',
+  'stone',
+  'firewood',
+  'food',
+  'grain',
+  'ironwork',
+]);
 
 function formatLinkedHomeStatus(connectedHomes: number): string {
   if (connectedHomes <= 0) {
@@ -55,6 +65,17 @@ export function renderMarketplaceInspector(
   const marketFireDisabled = fireDisabledBuildingIds(
     context.gameState.fireIncidents.values(),
   ).has(building.id);
+  const physicalEconomy = context.gameState.physicalFoundingSiteEnabled === true;
+  const inboundBulkResources = new Set<TradeResourceKind>();
+  for (const trip of context.gameState.deliveryTrips.values()) {
+    if (
+      trip.targetBuildingId === building.id
+      && trip.phase !== 'inbound'
+      && BULK_TRADE_RESOURCES.has(trip.cargoKind as TradeResourceKind)
+    ) {
+      inboundBulkResources.add(trip.cargoKind as TradeResourceKind);
+    }
+  }
   const manualTrade = marketplaceManualTradeStatus(
     building,
     hasRoadAccess,
@@ -149,7 +170,7 @@ export function renderMarketplaceInspector(
       <li><span>Regional route</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueue.units.toFixed(1)} units - about ${specialtyQueue.goldValue.toFixed(1)} gold</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
-      <li><span>Export stock</span><span>Treasury + road-linked building stores</span></li>
+      <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this market by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>
       <li><span>Backyard sales</span><span>Road-linked homes only</span></li>
       <li><span>Emergency branch</span><span>${householdBranchLabel}</span></li>
@@ -168,6 +189,8 @@ export function renderMarketplaceInspector(
       manualTrade,
       context.conflictEnabled,
       seedCoverage,
+      physicalEconomy,
+      inboundBulkResources,
     ),
   };
 }

@@ -46,7 +46,7 @@ pub use delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, cancel_inbound_construction_trips_for_site,
     cancel_trips_for_residence, drain_trips_for_building, step_delivery_trips,
-    try_start_fire_response_trip,
+    try_start_building_supply_trip, try_start_fire_response_trip,
 };
 pub use expanded_economy::{
     step_apiary, step_brewery, step_carpenter, step_ferry_landing, step_granary, step_guardhouse,

@@ -67,6 +67,49 @@ export function marketplaceTradeOfferCost(
   }
 }
 
+export type MarketplaceTradeStagingPlan = {
+  resource: TradeResourceKind | null;
+  required: number;
+  localStock: number;
+  missing: number;
+  requiresStaging: boolean;
+  inbound: boolean;
+};
+
+/**
+ * Physical-economy exports settle only from goods already at this market.
+ * The first click may therefore order a visible inbound staging cart rather
+ * than immediately changing regional prices or paying the settlement.
+ */
+export function marketplaceTradeStagingPlan(
+  building: BuildingState,
+  offer: MarketplaceTradeOffer,
+  physicalEconomy: boolean,
+  inboundResources: ReadonlySet<TradeResourceKind> = new Set(),
+): MarketplaceTradeStagingPlan {
+  const cost = marketplaceTradeOfferCost(offer);
+  if (!physicalEconomy || cost.resource === 'gold') {
+    return {
+      resource: null,
+      required: 0,
+      localStock: 0,
+      missing: 0,
+      requiresStaging: false,
+      inbound: false,
+    };
+  }
+  const localStock = Math.max(0, building[cost.resource] ?? 0);
+  const missing = Math.max(0, cost.amount - localStock);
+  return {
+    resource: cost.resource,
+    required: cost.amount,
+    localStock,
+    missing,
+    requiresStaging: missing > 1e-6,
+    inbound: missing > 1e-6 && inboundResources.has(cost.resource),
+  };
+}
+
 export function commodityOfferCost(
   commodity: MarketCommodityOffer,
   marketState: RegionalMarketState = DEFAULT_REGIONAL_MARKET_STATE,

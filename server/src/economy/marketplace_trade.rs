@@ -17,7 +17,8 @@ use super::storage::{
 use crate::balance_generated::TradeResource;
 use crate::balance_generated::{
     market_commodity_offer, market_water_commodity_offer, marketplace_trade_offer,
-    MarketplaceTradeKind, MarketplaceTradeOffer,
+    MarketplaceTradeKind, MarketplaceTradeOffer, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::constants::BUILDING_ROAD_ACCESS_DISTANCE;
 use crate::db::*;
@@ -33,7 +34,9 @@ use crate::marketplace_procurement_policy::{
 use crate::roads::RoadNetwork;
 use crate::season_policy::environment_for;
 use crate::simulation::{
-    game_clock, labor_and_logistics_paused, GameClock, MarketCaravanDispatch, SimTickContext,
+    building_has_active_trip, building_has_inbound_commodity_trip, game_clock,
+    labor_and_logistics_paused, try_start_building_supply_trip, GameClock, MarketCaravanDispatch,
+    SimTickContext,
 };
 use crate::tables::Building;
 
@@ -69,7 +72,17 @@ pub fn execute_marketplace_trade(
         let network = tick
             .road_network(owner)
             .ok_or_else(|| "Connect the marketplace to a road before trading.".to_string())?;
-        apply_marketplace_trade(ctx, owner, building_id, &marketplace, network, offer)
+        let clock = current_game_clock(ctx);
+        apply_marketplace_trade(
+            ctx,
+            &tick,
+            &clock,
+            owner,
+            building_id,
+            &marketplace,
+            network,
+            offer,
+        )
     };
     result?;
     start_manual_trade_cooldown(
@@ -151,6 +164,8 @@ pub fn try_execute_standing_marketplace_import(
 
     if apply_marketplace_trade(
         ctx,
+        tick,
+        clock,
         marketplace.owner,
         building_id,
         &marketplace,
@@ -309,19 +324,32 @@ fn start_manual_trade_cooldown(
 }
 
 fn current_road_speed_multiplier(ctx: &ReducerContext) -> f64 {
+    let clock = current_game_clock(ctx);
     ctx.db
         .world_config()
         .id()
         .find(&0)
         .map(|config| {
-            environment_for(config.seed, config.hydrology, &game_clock(config.sim_tick))
-                .road_speed_multiplier()
+            environment_for(config.seed, config.hydrology, &clock).road_speed_multiplier()
         })
         .unwrap_or(1.0)
 }
 
+fn current_game_clock(ctx: &ReducerContext) -> GameClock {
+    game_clock(
+        ctx.db
+            .world_config()
+            .id()
+            .find(&0)
+            .map(|config| config.sim_tick)
+            .unwrap_or(0),
+    )
+}
+
 fn apply_marketplace_trade(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
     owner: spacetimedb::Identity,
     building_id: u64,
     marketplace: &Building,
@@ -346,14 +374,36 @@ fn apply_marketplace_trade(
             let multiplier = price_multiplier_for(&market, resource);
             spend_treasury_gold(ctx, owner, scaled_gold_cost(amount, multiplier))?;
         }
-        TradeSpend::Resource(leg) => spend_market_accessible_resource(
-            ctx,
-            owner,
-            marketplace,
-            network,
-            leg.resource,
-            leg.amount,
-        )?,
+        TradeSpend::Resource(leg) => {
+            if physical_trade_staging_enabled(ctx, owner) {
+                if stage_or_spend_physical_market_resource(
+                    ctx,
+                    tick,
+                    clock,
+                    owner,
+                    marketplace,
+                    network,
+                    leg.resource,
+                    leg.amount,
+                )? == PhysicalMarketSpend::Staged
+                {
+                    // The first click orders a visible inbound cart. Regional
+                    // prices and payment change only after the player settles
+                    // the trade from stock physically present at this market.
+                    return Ok(());
+                }
+            } else {
+                spend_market_accessible_resource(
+                    ctx,
+                    tick,
+                    owner,
+                    marketplace,
+                    network,
+                    leg.resource,
+                    leg.amount,
+                )?;
+            }
+        }
     }
 
     match trade_receive(offer) {
@@ -369,6 +419,151 @@ fn apply_marketplace_trade(
 
     record_trade_effects(ctx, owner, offer);
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PhysicalMarketSpend {
+    Spent,
+    Staged,
+}
+
+fn physical_trade_staging_enabled(ctx: &ReducerContext, owner: spacetimedb::Identity) -> bool {
+    ctx.db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled)
+}
+
+fn stage_or_spend_physical_market_resource(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    owner: spacetimedb::Identity,
+    marketplace: &Building,
+    network: &RoadNetwork,
+    resource: TradeResource,
+    amount: f64,
+) -> Result<PhysicalMarketSpend, String> {
+    if amount <= 1e-6 {
+        return Ok(PhysicalMarketSpend::Spent);
+    }
+    let commodity = trade_commodity(resource);
+    let mut market = ctx
+        .db
+        .building()
+        .id()
+        .find(&marketplace.id)
+        .ok_or_else(|| "Marketplace not found.".to_string())?;
+    let local_stock = market_exportable_building_stock(&market, resource);
+    if local_stock + 1e-6 >= amount {
+        let withdrawn = crate::economy::withdraw_building_commodity(&mut market, commodity, amount);
+        if withdrawn + 1e-6 < amount {
+            return Err(format!(
+                "Marketplace needs {} more staged {}.",
+                (amount - withdrawn).ceil() as i64,
+                trade_resource_name(resource)
+            ));
+        }
+        ctx.db.building().id().update(market);
+        return Ok(PhysicalMarketSpend::Spent);
+    }
+
+    if building_has_inbound_commodity_trip(ctx, marketplace.id, commodity) {
+        return Err(format!(
+            "A {} staging cart is already inbound to this marketplace.",
+            trade_resource_name(resource)
+        ));
+    }
+
+    let needed = amount - local_stock;
+    let unreserved_budget = match resource {
+        TradeResource::Timber => available_unreserved_building_timber(ctx, owner),
+        TradeResource::Stone => available_unreserved_building_stone(ctx, owner),
+        TradeResource::Firewood
+        | TradeResource::Food
+        | TradeResource::Grain
+        | TradeResource::Ironwork => f64::INFINITY,
+    };
+    let remote_budget = (unreserved_budget - local_stock).max(0.0);
+    let mut candidates = Vec::new();
+    let mut candidate_points = Vec::new();
+    for source in ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.id != marketplace.id && building.construction_complete)
+    {
+        if tick.building_disabled_by_fire(ctx, source.id)
+            || building_has_active_trip(ctx, source.id)
+        {
+            continue;
+        }
+        let exportable = market_exportable_building_stock(&source, resource);
+        if exportable <= 1e-6 {
+            continue;
+        }
+        candidate_points.push((source.x, source.z));
+        candidates.push((source, exportable));
+    }
+    let distances =
+        network.road_path_distances_from(marketplace.x, marketplace.z, &candidate_points);
+    let mut accessible = 0.0;
+    let mut best: Option<(Building, f64)> = None;
+    for ((source, exportable), distance) in candidates.into_iter().zip(distances) {
+        let Some(distance) = distance else {
+            continue;
+        };
+        accessible += exportable;
+        let replace = best.as_ref().is_none_or(|(current, current_distance)| {
+            distance < *current_distance - 1e-6
+                || ((distance - *current_distance).abs() <= 1e-6 && source.id < current.id)
+        });
+        if replace {
+            best = Some((source, distance));
+        }
+    }
+
+    let stageable = accessible.min(remote_budget);
+    if stageable + 1e-6 < needed {
+        return Err(format!(
+            "Not enough cart-ready {} to stage this trade (need {} more). Construction reserves, busy carts, fire-damaged stores, and disconnected stock remain protected.",
+            trade_resource_name(resource),
+            (needed - stageable).ceil() as i64
+        ));
+    }
+    let Some((mut source, _)) = best else {
+        return Err(format!(
+            "No free road-linked source can stage {} at this marketplace.",
+            trade_resource_name(resource)
+        ));
+    };
+    let load = needed
+        .min(stageable)
+        .min(market_exportable_building_stock(&source, resource));
+    let workers = marketplace.assigned_labor.clamp(1, 2);
+    if !try_start_building_supply_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        &mut source,
+        marketplace,
+        workers,
+        commodity,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        load / workers as f64,
+        load,
+    ) {
+        return Err(format!(
+            "The selected {} source cannot dispatch its staging cart.",
+            trade_resource_name(resource)
+        ));
+    }
+    ctx.db.building().id().update(source);
+    Ok(PhysicalMarketSpend::Staged)
 }
 
 fn record_trade_effects(
@@ -455,6 +650,7 @@ fn ensure_marketplace_room(
 
 fn spend_market_accessible_resource(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     owner: spacetimedb::Identity,
     marketplace: &Building,
     network: &RoadNetwork,
@@ -471,6 +667,7 @@ fn spend_market_accessible_resource(
         .owner()
         .filter(&owner)
         .filter(|building| building.construction_complete)
+        .filter(|building| !tick.building_disabled_by_fire(ctx, building.id))
         .filter(|building| {
             network.road_connected(marketplace.x, marketplace.z, building.x, building.z)
         })

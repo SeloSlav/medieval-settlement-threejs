@@ -11,7 +11,9 @@ declare global {
   }
 }
 
-const requestedKind = new URLSearchParams(window.location.search).get('kind');
+const lineupParams = new URLSearchParams(window.location.search);
+const requestedKind = lineupParams.get('kind');
+const showStockedState = lineupParams.get('stocked') === '1';
 const selectedKinds = requestedKind && BUILDING_KINDS.includes(requestedKind as (typeof BUILDING_KINDS)[number])
   ? [requestedKind as (typeof BUILDING_KINDS)[number]]
   : BUILDING_KINDS;
@@ -31,10 +33,24 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 root.prepend(renderer.domElement);
 
 const viewSpecs = [
-  ...selectedKinds.map((kind) => ({
-    mesh: createBuildingMesh(kind),
-    label: getBuildingDefinition(kind).label,
-  })),
+  ...selectedKinds.map((kind) => {
+    const mesh = createBuildingMesh(kind);
+    if (kind === 'marketplace' && showStockedState) {
+      mesh.traverse((object) => {
+        if (
+          object.name.startsWith('MarketTimberStageSegment')
+          || object.name.startsWith('MarketStoneStageSegment')
+          || object.name.startsWith('MarketCratedStageSegment')
+        ) {
+          object.visible = true;
+        }
+      });
+    }
+    return {
+      mesh,
+      label: `${getBuildingDefinition(kind).label}${showStockedState && kind === 'marketplace' ? ' · staged export lots' : ''}`,
+    };
+  }),
   {
     mesh: createConstructionSiteMesh('village_storehouse', 0.75, 0.9, 1),
     label: 'Storehouse construction · 75%',

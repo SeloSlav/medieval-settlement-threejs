@@ -13,6 +13,7 @@ import {
   MARKET_COMMODITIES,
   MARKET_WATER_COMMODITIES,
   marketplaceTradeOfferCost,
+  marketplaceTradeStagingPlan,
   marketplaceTradeOffersBySection,
 } from '../../economy/marketplaceTrade.ts';
 import type {
@@ -41,6 +42,7 @@ import {
 import type {
   MarketplaceSeedCoveragePlan,
 } from '../../economy/marketplaceSeedCoverage.ts';
+import type { TradeResourceKind } from '../../generated/gameBalance.ts';
 import {
   MARKETPLACE_SPECIALTY_EXPORT_POLICIES,
   marketplaceSpecialtyExportPlan,
@@ -54,6 +56,8 @@ export function renderMarketplaceTradePanel(
   manualTrade: MarketplaceManualTradeStatus,
   conflictEnabled = false,
   seedCoverage?: MarketplaceSeedCoveragePlan,
+  physicalEconomy = false,
+  inboundBulkResources: ReadonlySet<TradeResourceKind> = new Set(),
 ): string {
   const sections = marketplaceTradeOffersBySection(conflictEnabled);
   const ironworkProcurement = marketplaceIronworkProcurementPlan(building);
@@ -65,7 +69,13 @@ export function renderMarketplaceTradePanel(
   const renderOffer = (offer: (typeof sections.goldBuy)[number]) => {
     const affordable = canAffordMarketplaceTrade(availability, offer, marketState);
     const hasRoom = canReceiveMarketplaceTrade(building, offer);
-    const enabled = manualTrade.ready && affordable && hasRoom;
+    const staging = marketplaceTradeStagingPlan(
+      building,
+      offer,
+      physicalEconomy,
+      inboundBulkResources,
+    );
+    const enabled = manualTrade.ready && affordable && hasRoom && !staging.inbound;
     const disabled = enabled ? '' : ' disabled aria-disabled="true"';
     const priceTag =
       offer.kind === 'goldBuy' || offer.kind === 'goldSell'
@@ -75,12 +85,19 @@ export function renderMarketplaceTradePanel(
       offer.kind === 'goldBuy' || offer.kind === 'goldSell'
         ? priceTag ?? 'Regional caravan rates'
         : 'Direct barter — no gold involved';
+    const actionTitle = staging.requiresStaging && staging.resource
+      ? `Stage ${staging.missing.toFixed(0)} ${staging.resource} at this market`
+      : describeMarketplaceTradeOfferForMarket(offer, marketState);
     const hint = manualTrade.reason
       ?? (!affordable
         ? 'Not enough market-accessible stock'
         : !hasRoom
           ? 'Marketplace storage lacks room for the full shipment'
-          : marketHint);
+          : staging.inbound && staging.resource
+            ? `${staging.resource} staging cart inbound · settle after unloading`
+            : staging.requiresStaging && staging.resource
+              ? `${staging.localStock.toFixed(0)} / ${staging.required.toFixed(0)} at market · click to dispatch the nearest free source cart`
+              : marketHint);
     return `
       <li class="marketplace-trade-row">
         <button
@@ -91,7 +108,7 @@ export function renderMarketplaceTradePanel(
           data-building-id="${building.id}"
           ${disabled}
         >
-          <span class="marketplace-trade-option__title">${describeMarketplaceTradeOfferForMarket(offer, marketState)}</span>
+          <span class="marketplace-trade-option__title">${actionTitle}</span>
           <span class="marketplace-trade-option__hint">${hint}</span>
         </button>
       </li>`;
@@ -156,7 +173,9 @@ export function renderMarketplaceTradePanel(
   return `
     <div class="marketplace-trade-panel">
       <p class="marketplace-trade-bulletin">${marketState.bulletin}</p>
-      <p class="marketplace-trade-intro">Brokers export only treasury stock and goods in road-linked building stores; household provisions stay protected. Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here and wait for broker capacity. Imports arrive at this market; farmsteads may collect seed grain by road, while construction carts and household caravans haul other orders onward.</p>
+      <p class="marketplace-trade-intro">${physicalEconomy
+        ? 'Bulk exports settle only from goods physically staged at this market. If a full lot exists elsewhere on its road network, the first click dispatches a visible source cart; click again after unloading to sell or barter it. Construction and household reserves remain protected.'
+        : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here and wait for broker capacity. Imports arrive at this market; farmsteads may collect seed grain by road, while construction carts and household caravans haul other orders onward.</p>
       <p class="marketplace-trade-depth">${manualTrade.label}. ${nextTurnaround}</p>
       <p class="marketplace-trade-rates" aria-label="Current regional rates">${formatRegionalRateSummary(marketState)}</p>
       <p class="marketplace-trade-depth">${formatMarketDepthHint()}</p>

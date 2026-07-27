@@ -11,6 +11,7 @@ import {
   marketplaceManualTradeCooldown,
   marketplaceManualTradeStatus,
   marketplaceTradeOfferCost,
+  marketplaceTradeStagingPlan,
   marketplaceTradeOffersBySection,
   tradeResourceSpendScope,
 } from '../src/economy/marketplaceTrade.ts';
@@ -34,6 +35,11 @@ import {
   priceMultiplierFor,
   scaledGoldCost,
 } from '../src/economy/regionalMarket.ts';
+import { renderMarketplaceTradePanel } from '../src/resources/inspector/marketplaceTradeRenderer.ts';
+import {
+  createMarketplaceMesh,
+  MARKET_STAGING_VISUAL_SEGMENTS,
+} from '../src/buildings/meshes/marketplaceMesh.ts';
 
 const buyTimber = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'buy_timber');
 const buySeedGrain = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'buy_seed_grain');
@@ -115,6 +121,22 @@ assert.ok(buyIronwork, 'buy_ironwork offer exists');
 assert.ok(sellStone, 'sell_stone offer exists');
 assert.ok(timberForStone, 'timber_for_stone offer exists');
 assert.ok(buyPork, 'buy_pork commodity exists');
+
+const marketplaceMesh = createMarketplaceMesh();
+for (const [groupName, segmentPrefix] of [
+  ['MarketTimberStaging', 'MarketTimberStageSegment'],
+  ['MarketStoneStaging', 'MarketStoneStageSegment'],
+  ['MarketCratedGoodsStaging', 'MarketCratedStageSegment'],
+] as const) {
+  assert.ok(marketplaceMesh.getObjectByName(groupName), `${groupName} should be modeled`);
+  for (let index = 0; index < MARKET_STAGING_VISUAL_SEGMENTS; index++) {
+    assert.equal(
+      marketplaceMesh.getObjectByName(`${segmentPrefix}${index}`)?.visible,
+      false,
+      `${segmentPrefix}${index} should remain hidden until physical stock arrives`,
+    );
+  }
+}
 
 assert.equal(describeMarketplaceTradeOffer(buyTimber), 'Buy 10 timber for 16 gold');
 assert.equal(describeMarketplaceTradeOffer(buySeedGrain), 'Import 24 seed grain for 18 gold');
@@ -248,6 +270,119 @@ assert.deepEqual(availability, {
   grain: 60,
   ironwork: 9,
 });
+const physicalTradeState: GameState = {
+  ...tradeState,
+  physicalFoundingSiteEnabled: true,
+  stockpile: {
+    ...tradeState.stockpile,
+    gold: 0,
+  },
+};
+assert.deepEqual(
+  computeMarketplaceTradeAvailability(physicalTradeState, marketplace, roadConnected),
+  {
+    timber: 25,
+    stone: 20,
+    gold: 0,
+    firewood: 15,
+    food: 10,
+    grain: 60,
+    ironwork: 9,
+  },
+  'physical markets must not promise goods left in the compatibility ledger',
+);
+const fireBlockedTradeState: GameState = {
+  ...physicalTradeState,
+  fireIncidents: new Map([[
+    'connected-store-fire',
+    {
+      id: 'connected-store-fire',
+      targetKind: 'building',
+      targetId: connectedStore.id,
+      x: connectedStore.x,
+      z: connectedStore.z,
+      ignitionSource: 'accident',
+      status: 'extinguished',
+      intensity: 0,
+      damage: 0.4,
+      waterDelivered: 0,
+      requiredWater: 0,
+      extinguishChance: 0,
+      startedTick: 1,
+      lastWaterTick: 0,
+      resolvedTick: 2,
+      responseWellId: null,
+    },
+  ]]),
+};
+assert.deepEqual(
+  computeMarketplaceTradeAvailability(fireBlockedTradeState, marketplace, roadConnected),
+  {
+    timber: 5,
+    stone: 4,
+    gold: 0,
+    firewood: 3,
+    food: 2,
+    grain: 54,
+    ironwork: 5,
+  },
+  'fire-damaged stores remain owned but cannot promise cart-ready export lots',
+);
+
+const stoneStaging = marketplaceTradeStagingPlan(
+  marketplace,
+  sellStone,
+  true,
+);
+assert.deepEqual(stoneStaging, {
+  resource: 'stone',
+  required: 10,
+  localStock: 4,
+  missing: 6,
+  requiresStaging: true,
+  inbound: false,
+});
+assert.equal(
+  marketplaceTradeStagingPlan(marketplace, sellStone, true, new Set(['stone'])).inbound,
+  true,
+);
+assert.equal(
+  marketplaceTradeStagingPlan({ ...marketplace, stone: 10 }, sellStone, true).requiresStaging,
+  false,
+);
+assert.equal(
+  marketplaceTradeStagingPlan(marketplace, sellStone, false).requiresStaging,
+  false,
+  'legacy saves retain their direct road-linked export behavior',
+);
+const stagingPanel = renderMarketplaceTradePanel(
+  marketplace,
+  availability,
+  DEFAULT_REGIONAL_MARKET_STATE,
+  marketplaceManualTradeStatus(marketplace, true),
+  false,
+  undefined,
+  true,
+  new Set(),
+);
+assert.match(stagingPanel, /Stage 6 stone at this market/);
+assert.match(stagingPanel, /visible source cart/);
+const inboundStagingPanel = renderMarketplaceTradePanel(
+  marketplace,
+  availability,
+  DEFAULT_REGIONAL_MARKET_STATE,
+  marketplaceManualTradeStatus(marketplace, true),
+  false,
+  undefined,
+  true,
+  new Set(['stone']),
+);
+assert.match(inboundStagingPanel, /stone staging cart inbound/);
+assert.match(
+  inboundStagingPanel,
+  /disabled aria-disabled="true"[\s\S]*Stage 6 stone at this market/,
+  'the same commodity cannot order a second inbound staging cart',
+);
 
 assert.equal(marketplaceManualTradeStatus({ ...marketplace, assignedLabor: 0 }, true).ready, false);
 assert.match(
@@ -381,6 +516,20 @@ const marketplaceTradeRendererSource = readFileSync(
 assert.match(marketplaceTradeSource, /road_connected/);
 assert.match(marketplaceTradeSource, /deposit_marketplace_resource/);
 assert.match(marketplaceTradeSource, /market-accessible/);
+assert.match(marketplaceTradeSource, /physical_founding_site_enabled/);
+assert.match(marketplaceTradeSource, /stage_or_spend_physical_market_resource/);
+assert.match(marketplaceTradeSource, /try_start_building_supply_trip/);
+assert.match(marketplaceTradeSource, /building_has_inbound_commodity_trip/);
+assert.match(
+  marketplaceTradeSource,
+  /road_path_distances_from/,
+  'staging-source selection should build one road-distance tree instead of one Dijkstra solve per store',
+);
+assert.match(
+  marketplaceTradeSource,
+  /PhysicalMarketSpend::Staged[\s\S]*return Ok\(\(\)\)/,
+  'staging must not record a sale or regional price movement before the cart unloads',
+);
 assert.match(marketplaceTradeSource, /contested-frontier worlds/);
 assert.match(marketplaceTradeSource, /current_road_speed_multiplier/);
 assert.match(marketplaceTradeSource, /manual_trade_cooldown_seconds\(assigned_labor, road_speed_multiplier\)/);
@@ -395,6 +544,8 @@ assert.match(marketplaceInspectorSource, /Regional route/);
 assert.match(marketplaceInspectorSource, /getRoadConditionSpeedMultiplier/);
 assert.match(marketplaceInspectorSource, /marketFireDisabled/);
 assert.match(marketplaceTradeRendererSource, /current regional road conditions/);
+assert.match(marketplaceTradeRendererSource, /visible source cart/);
+assert.match(marketplaceTradeRendererSource, /settle after unloading/);
 
 console.log(
   `marketplace trade tests passed (10k stock scan ${elapsed.toFixed(1)}ms; `
