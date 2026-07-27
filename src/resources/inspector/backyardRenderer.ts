@@ -19,10 +19,11 @@ import {
   backyardGardenSeasonStatus,
 } from '../../economy/backyardGardenTick.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import { backyardGardenPlacement } from '../../residences/backyardPosition.ts';
 import { getNeedStock } from '../../residences/residenceNeeds.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
-import type { InspectableTarget } from '../types.ts';
+import type { BurgageZoneState, InspectableTarget } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
 
@@ -33,7 +34,7 @@ export function renderBackyardInspector(
   const { residence, zone, garden } = target;
 
   if (!garden) {
-    return renderEmptyBackyardPicker(residence, zone.plotCount, residence.parcelIndex, context);
+    return renderEmptyBackyardPicker(residence, zone, context);
   }
 
   const def = BACKYARD_GARDEN_DEFINITIONS[garden.kind];
@@ -119,7 +120,7 @@ export function renderBackyardInspector(
     demolish: {
       visible: true,
       label: 'Remove garden',
-      hint: `Clears the backyard and salvages about ${formatBackyardGardenSalvage(garden.kind)} (${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber, ${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone).`,
+      hint: `Leaves about ${formatBackyardGardenSalvage(garden.kind)} in a visible pile where the improvement stood (${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber, ${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone). A free hauler must cart it to connected storage before this backyard can be rebuilt.`,
     },
     labor: hiddenLabor(),
   };
@@ -127,19 +128,30 @@ export function renderBackyardInspector(
 
 function renderEmptyBackyardPicker(
   residence: Extract<InspectableTarget, { kind: 'backyard' }>['residence'],
-  plotCount: number,
-  parcelIndex: number,
+  zone: BurgageZoneState,
   context: InspectorRenderContext,
 ): InspectorView {
   const totals = context.resourceTotals;
   const abandoned = residence.abandoned;
+  const placement = backyardGardenPlacement(residence, zone);
+  const blockingPile = placement
+    ? Array.from(context.gameState.buildings.values()).find(
+        (building) =>
+          building.kind === 'salvage_pile'
+          && Math.hypot(building.x - placement.x, building.z - placement.z) <= 3,
+      ) ?? null
+    : null;
   const options = BACKYARD_GARDEN_KINDS.map((kind) => {
     const def = BACKYARD_GARDEN_DEFINITIONS[kind];
     const tag = def.foodPerPersonPerSec > 0 ? 'Food' : 'Market';
     const cost = getBackyardGardenCost(kind);
-    const affordable = !abandoned && canAffordBackyardGarden(totals, kind);
+    const affordable = !abandoned
+      && blockingPile === null
+      && canAffordBackyardGarden(totals, kind);
     const disabledReason = abandoned
       ? 'Cannot plant while the residence is abandoned.'
+      : blockingPile
+        ? 'Haul away the reclaimed timber and stone from this backyard first.'
       : affordable
         ? ''
         : `Need ${cost.timber} timber and ${cost.stone} stone (you have ${Math.floor(totals.timber)} timber, ${Math.floor(totals.stone)} stone).`;
@@ -166,10 +178,14 @@ function renderEmptyBackyardPicker(
   return {
     eyebrow: 'Backyard',
     title: 'Empty backyard',
-    statusText: abandoned ? 'Abandoned — gardens unavailable' : 'Pick a garden type',
-    statusState: abandoned ? 'warning' : 'neutral',
+    statusText: abandoned
+      ? 'Abandoned — gardens unavailable'
+      : blockingPile
+        ? 'Reclamation pile blocks rebuilding'
+        : 'Pick a garden type',
+    statusState: abandoned || blockingPile ? 'warning' : 'neutral',
     detailsHtml: `
-      <li><span>Parcel</span><span>#${parcelIndex + 1} of ${plotCount}</span></li>
+      <li><span>Parcel</span><span>#${residence.parcelIndex + 1} of ${zone.plotCount}</span></li>
       <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population}</span></li>
       <li><span>Available timber</span><span>${Math.floor(totals.timber)}</span></li>
       <li><span>Available stone</span><span>${Math.floor(totals.stone)}</span></li>
@@ -177,7 +193,9 @@ function renderEmptyBackyardPicker(
     demolish: { visible: false, hint: '' },
     labor: hiddenLabor(),
     supplementalPanelHtml: `
-      <p class="resource-inspector-note">Orchards and gardens cost timber and stone from your settlement stockpile.</p>
+      <p class="resource-inspector-note">${blockingPile
+        ? 'A free hauler needs a road-connected destination with room for both materials. Select the pile to inspect its route blockers.'
+        : 'Orchards and gardens cost timber and stone from your settlement stockpile.'}</p>
       <ul class="backyard-picker-list">${options}</ul>
     `,
   };

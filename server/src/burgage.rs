@@ -63,6 +63,18 @@ pub fn min_zone_depth() -> f64 {
     MIN_ZONE_DEPTH
 }
 
+/// Midpoint of the usable strip behind a cottage. This mirrors the client
+/// backyard marker convention closely enough that loose salvage appears where
+/// the removed improvement stood instead of inside the house or on the road.
+pub fn backyard_center(x: f64, z: f64, yaw: f64, zone_depth: f64) -> Point2 {
+    let backyard_depth = (zone_depth - HOUSE_SETBACK - MAIN_HOUSE_DEPTH).max(0.0);
+    let offset = MAIN_HOUSE_DEPTH * 0.5 + backyard_depth * 0.5;
+    Point2 {
+        x: x - yaw.sin() * offset,
+        z: z - yaw.cos() * offset,
+    }
+}
+
 pub fn zone_corners_polygon(corners: &ZoneCorners) -> [Point2; 4] {
     [corners.a, corners.b, corners.c, corners.d]
 }
@@ -389,4 +401,24 @@ fn convex_polygons_overlap(a: &[Point2], b: &[Point2], boundary_epsilon: f64) ->
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{backyard_center, HOUSE_SETBACK, MAIN_HOUSE_DEPTH};
+
+    #[test]
+    fn backyard_center_tracks_the_house_rear_axis() {
+        let zone_depth = 18.0;
+        let backyard_depth = zone_depth - HOUSE_SETBACK - MAIN_HOUSE_DEPTH;
+        let expected_offset = MAIN_HOUSE_DEPTH * 0.5 + backyard_depth * 0.5;
+
+        let north_facing = backyard_center(20.0, 30.0, 0.0, zone_depth);
+        assert!((north_facing.x - 20.0).abs() < 1e-9);
+        assert!((north_facing.z - (30.0 - expected_offset)).abs() < 1e-9);
+
+        let east_facing = backyard_center(20.0, 30.0, std::f64::consts::FRAC_PI_2, zone_depth);
+        assert!((east_facing.x - (20.0 - expected_offset)).abs() < 1e-9);
+        assert!((east_facing.z - 30.0).abs() < 1e-9);
+    }
 }

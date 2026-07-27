@@ -93,9 +93,57 @@ const reclamation = read('server/src/simulation/reclamation.rs');
 assert.match(reclamation, /available_free_haulers/);
 assert.match(reclamation, /road_path_distance/);
 assert.match(reclamation, /try_start_building_supply_trip/);
+assert.match(reclamation, /free_haulers_by_owner/);
+assert.match(reclamation, /destination_ids_by_owner/);
 assert.match(reclamation, /CommodityKind::Gold/);
 assert.match(reclamation, /"town_hall" => Some\(0\)/);
 assert.match(reclamation, /ctx\.db\.building\(\)\.id\(\)\.delete\(pile\.id\)/);
+assert.match(
+  reclamation,
+  /pub fn insert_reclamation_pile[\s\S]*physical_founding_site_enabled[\s\S]*kind: "salvage_pile"/,
+  'non-building demolition should use the same physical reclamation row and legacy gate',
+);
+assert.match(
+  reclamation,
+  /next_building_id: building_id[\s\S]*checked_add\(1\)/,
+  'inserted piles must advance the save-persistent global building ID',
+);
+
+const residenceReducers = read('server/src/reducers/residences.rs');
+assert.match(
+  residenceReducers,
+  /demolish_residence[\s\S]*insert_reclamation_pile[\s\S]*residence\.x[\s\S]*residence\.z/,
+  'a removed cottage must leave salvage at its own footprint',
+);
+assert.match(
+  residenceReducers,
+  /demolish_burgage_zone[\s\S]*for residence in &residences[\s\S]*insert_reclamation_pile/,
+  'whole-plot demolition must leave separate piles at intact cottages',
+);
+assert.match(
+  residenceReducers,
+  /residence_fire_state\(ctx, residence\.id\)\.is_some\(\)[\s\S]*continue/,
+  'fire-damaged cottages must not create reusable structural salvage',
+);
+
+const backyardReducers = read('server/src/reducers/backyards.rs');
+assert.match(backyardReducers, /backyard_reclamation_position/);
+assert.match(
+  backyardReducers,
+  /demolish_backyard_garden[\s\S]*insert_reclamation_pile/,
+  'removed backyard improvements must leave their refund in the yard',
+);
+assert.match(
+  backyardReducers,
+  /Clear the reclaimed materials from this backyard before rebuilding/,
+  'backyard rebuilding must wait until its physical pile clears',
+);
+const backyardInspector = read('src/resources/inspector/backyardRenderer.ts');
+assert.match(backyardInspector, /Reclamation pile blocks rebuilding/);
+assert.match(backyardInspector, /A free hauler must cart it to connected storage/);
+const residenceInspector = read('src/resources/inspector/residenceRenderer.ts');
+assert.match(residenceInspector, /separate reclamation/);
+assert.match(residenceInspector, /every intact footprint remains occupied/);
 
 const commodities = read('server/src/economy/commodities.rs');
 assert.match(commodities, /Self::Gold => 15/);
@@ -115,4 +163,4 @@ const simulation = read('server/src/reducers/simulation.rs');
 assert.match(simulation, /"salvage_pile" => reclamation_pile_ids\.push/);
 assert.match(simulation, /step_reclamation_piles\(ctx, &tick, &clock, reclamation_pile_ids\)/);
 
-console.log('Physical demolition reclamation, haulage, treasury, and visual checks passed.');
+console.log('Physical building, cottage, backyard, haulage, treasury, and visual reclamation checks passed.');

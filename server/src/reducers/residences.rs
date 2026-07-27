@@ -22,8 +22,8 @@ use crate::placement_validation::{
 };
 use crate::simulation::{
     building_fire_state, cancel_trips_for_residence, clear_backyard_garden_for_residence,
-    clear_fire_for_target, clear_residence_needs, ensure_residence_needs, residence_fire_state,
-    FIRE_TARGET_RESIDENCE,
+    clear_fire_for_target, clear_residence_needs, ensure_residence_needs, insert_reclamation_pile,
+    residence_fire_state, ReclamationStock, FIRE_TARGET_RESIDENCE,
 };
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
@@ -425,8 +425,19 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
         timber: (refund.timber * TIMBER_SALVAGE_FRACTION).round(),
         stone: (refund.stone * STONE_SALVAGE_FRACTION).round(),
     };
-    credit_treasury_timber(ctx, owner, salvage.timber);
-    credit_treasury_stone(ctx, owner, salvage.stone);
+    if !insert_reclamation_pile(
+        ctx,
+        owner,
+        residence.x,
+        residence.z,
+        ReclamationStock {
+            timber: salvage.timber,
+            stone: salvage.stone,
+        },
+    )? {
+        credit_treasury_timber(ctx, owner, salvage.timber);
+        credit_treasury_stone(ctx, owner, salvage.stone);
+    }
 
     clear_residence_needs(ctx, residence_id);
     clear_backyard_garden_for_residence(ctx, residence_id);
@@ -457,11 +468,9 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
         return Err("You do not own this residence zone.".to_string());
     }
 
-    let intact_residence_count = ctx
-        .db
-        .residence()
-        .zone_id()
-        .filter(&zone_id)
+    let residences: Vec<Residence> = ctx.db.residence().zone_id().filter(&zone_id).collect();
+    let intact_residence_count = residences
+        .iter()
         .filter(|residence| residence_fire_state(ctx, residence.id).is_none())
         .count() as u32;
     let refund = residence_zone_cost(intact_residence_count);
@@ -469,10 +478,28 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
         timber: (refund.timber * TIMBER_SALVAGE_FRACTION).round(),
         stone: (refund.stone * STONE_SALVAGE_FRACTION).round(),
     };
-    credit_treasury_timber(ctx, owner, salvage.timber);
-    credit_treasury_stone(ctx, owner, salvage.stone);
+    let per_intact_residence = if intact_residence_count > 0 {
+        ReclamationStock {
+            timber: salvage.timber / intact_residence_count as f64,
+            stone: salvage.stone / intact_residence_count as f64,
+        }
+    } else {
+        ReclamationStock::default()
+    };
+    let mut physical_reclamation = false;
+    for residence in &residences {
+        if residence_fire_state(ctx, residence.id).is_some() {
+            continue;
+        }
+        physical_reclamation |=
+            insert_reclamation_pile(ctx, owner, residence.x, residence.z, per_intact_residence)?;
+    }
+    if !physical_reclamation {
+        credit_treasury_timber(ctx, owner, salvage.timber);
+        credit_treasury_stone(ctx, owner, salvage.stone);
+    }
 
-    for residence in ctx.db.residence().zone_id().filter(&zone_id) {
+    for residence in residences {
         clear_residence_needs(ctx, residence.id);
         clear_backyard_garden_for_residence(ctx, residence.id);
         cancel_trips_for_residence(ctx, residence.id);

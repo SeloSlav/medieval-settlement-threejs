@@ -77,10 +77,18 @@ export function renderResidenceInspector(
     'residence',
     residence.id,
   ) !== null;
+  const intactPlotResidenceCount = Array.from(context.gameState.residences.values()).filter(
+    (candidate) =>
+      candidate.zoneId === zone.id
+      && fireForTarget(
+        context.gameState.fireIncidents.values(),
+        'residence',
+        candidate.id,
+      ) === null,
+  ).length;
   const singleCost = residenceZoneCost(1);
   const singleRefund = residenceZoneSalvageRefund(1);
-  const plotCost = residenceZoneCost(residenceCount);
-  const plotRefund = residenceZoneSalvageRefund(residenceCount);
+  const plotRefund = residenceZoneSalvageRefund(intactPlotResidenceCount);
   const nearestRoad = context.worldQueries.getNearestRoadNodeDistance(residence.x, residence.z);
   const roadAccess = context.worldQueries.getRoadAccessLabel(residence.x, residence.z);
   const servingFirewoodSupplier =
@@ -339,11 +347,13 @@ export function renderResidenceInspector(
     demolish: {
       visible: true,
       label: 'Remove residence',
-      hint: `Salvages about ${singleRefund.timber} timber and ${singleRefund.stone} stone (${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber, ${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone of ${formatBuildingCost(singleCost)}).`,
+      hint: fireDisabled
+        ? 'Removes this fire-damaged residence. Its structural material is no longer recoverable.'
+        : `Leaves about ${singleRefund.timber} timber and ${singleRefund.stone} stone at this cottage footprint (${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber, ${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone of ${formatBuildingCost(singleCost)}). A free hauler must cart it to connected storage before the footprint clears.`,
       secondary: residenceCount > 1
         ? {
             label: 'Remove entire plot',
-            hint: `Removes all ${residenceCount} residences and salvages about ${plotRefund.timber} timber and ${plotRefund.stone} stone (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber of ${formatBuildingCost(plotCost)}).`,
+            hint: `Removes all ${residenceCount} residences and leaves ${intactPlotResidenceCount} separate reclamation ${intactPlotResidenceCount === 1 ? 'pile' : 'piles'} with about ${plotRefund.timber} timber and ${plotRefund.stone} stone total. Fire-damaged cottages yield nothing; every intact footprint remains occupied until free haulers reach connected storage.`,
           }
         : undefined,
     },

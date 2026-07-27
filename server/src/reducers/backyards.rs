@@ -1,6 +1,7 @@
 use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::balance_generated::{backyard_garden_def_by_slug, BackyardGardenKind};
+use crate::burgage::{backyard_center, measure_zone_depth, Point2, ZoneCorners};
 use crate::db::*;
 use crate::economy::{
     backyard_garden_cost, backyard_garden_salvage_refund, credit_treasury_stone,
@@ -8,7 +9,8 @@ use crate::economy::{
     total_timber,
 };
 use crate::lifecycle::ensure_player_resources;
-use crate::tables::BackyardGarden;
+use crate::simulation::{insert_reclamation_pile, ReclamationStock};
+use crate::tables::{BackyardGarden, Residence};
 
 #[reducer]
 pub fn place_backyard_garden(
@@ -43,6 +45,15 @@ pub fn place_backyard_garden(
         .is_some()
     {
         return Err("This backyard already has a garden.".to_string());
+    }
+    let (backyard_x, backyard_z) = backyard_reclamation_position(ctx, &residence);
+    if ctx.db.building().owner().filter(&owner).any(|building| {
+        building.kind == "salvage_pile"
+            && (building.x - backyard_x).powi(2) + (building.z - backyard_z).powi(2) <= 9.0
+    }) {
+        return Err(
+            "Clear the reclaimed materials from this backyard before rebuilding.".to_string(),
+        );
     }
 
     let def = backyard_garden_def_by_slug(kind.trim())
@@ -98,9 +109,52 @@ pub fn demolish_backyard_garden(ctx: &ReducerContext, residence_id: u64) -> Resu
     };
 
     let refund = backyard_garden_salvage_refund(kind);
-    credit_treasury_timber(ctx, owner, refund.timber);
-    credit_treasury_stone(ctx, owner, refund.stone);
+    let (x, z) = backyard_reclamation_position(ctx, &residence);
+    if !insert_reclamation_pile(
+        ctx,
+        owner,
+        x,
+        z,
+        ReclamationStock {
+            timber: refund.timber,
+            stone: refund.stone,
+        },
+    )? {
+        credit_treasury_timber(ctx, owner, refund.timber);
+        credit_treasury_stone(ctx, owner, refund.stone);
+    }
 
     ctx.db.backyard_garden().id().delete(garden.id);
     Ok(())
+}
+
+fn backyard_reclamation_position(ctx: &ReducerContext, residence: &Residence) -> (f64, f64) {
+    let Some(zone) = ctx.db.burgage_zone().id().find(&residence.zone_id) else {
+        return (residence.x, residence.z);
+    };
+    let corners = ZoneCorners {
+        a: Point2 {
+            x: zone.corner_ax,
+            z: zone.corner_az,
+        },
+        b: Point2 {
+            x: zone.corner_bx,
+            z: zone.corner_bz,
+        },
+        c: Point2 {
+            x: zone.corner_cx,
+            z: zone.corner_cz,
+        },
+        d: Point2 {
+            x: zone.corner_dx,
+            z: zone.corner_dz,
+        },
+    };
+    let point = backyard_center(
+        residence.x,
+        residence.z,
+        residence.yaw,
+        measure_zone_depth(&corners, zone.frontage_edge),
+    );
+    (point.x, point.z)
 }
