@@ -52,12 +52,12 @@ pub fn order_food_commodity(
     validate_order_marketplace(ctx, tick, &building, owner)?;
     let original_building = building.clone();
 
-    pay_market_gold(ctx, owner, gold_cost, payer, residence)?;
+    let paid_from_market = pay_market_gold(ctx, owner, gold_cost, payer, residence, &mut building)?;
 
     let cap = building_food_storage_cap(&building.kind);
     let (deposited, updated) = deposit_building_food(&building, cap, commodity.food_amount);
     if deposited + 1e-6 < commodity.food_amount {
-        refund_market_gold(ctx, owner, gold_cost, payer, residence);
+        refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
         return Err("Marketplace needs room for the full provender order.".to_string());
     }
     building = updated;
@@ -80,7 +80,7 @@ pub fn order_food_commodity(
     );
     if !market_order_should_commit(dispatch.priority_residence_id.is_some(), dispatched) {
         ctx.db.building().id().update(original_building);
-        refund_market_gold(ctx, owner, gold_cost, payer, residence);
+        refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
         return Ok(false);
     }
     ctx.db.building().id().update(dispatch_building);
@@ -120,14 +120,14 @@ pub fn order_water_commodity(
     validate_order_marketplace(ctx, tick, &building, owner)?;
     let original_building = building.clone();
 
-    pay_market_gold(ctx, owner, gold_cost, payer, residence)?;
+    let paid_from_market = pay_market_gold(ctx, owner, gold_cost, payer, residence, &mut building)?;
 
     let cap = building
         .water_capacity
         .max(building_water_storage_cap(&building.kind));
     let (deposited, updated) = deposit_building_water(&building, cap, commodity.water_amount);
     if deposited + 1e-6 < commodity.water_amount {
-        refund_market_gold(ctx, owner, gold_cost, payer, residence);
+        refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
         return Err("Marketplace needs room for the full water order.".to_string());
     }
     building = updated;
@@ -150,7 +150,7 @@ pub fn order_water_commodity(
     );
     if !market_order_should_commit(dispatch.priority_residence_id.is_some(), dispatched) {
         ctx.db.building().id().update(original_building);
-        refund_market_gold(ctx, owner, gold_cost, payer, residence);
+        refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
         return Ok(false);
     }
     ctx.db.building().id().update(dispatch_building);
@@ -217,9 +217,30 @@ fn pay_market_gold(
     gold_cost: f64,
     payer: MarketGoldPayer,
     residence: Option<&Residence>,
-) -> Result<(), String> {
+    marketplace: &mut Building,
+) -> Result<bool, String> {
     match payer {
-        MarketGoldPayer::Treasury => spend_treasury_gold(ctx, owner, gold_cost),
+        MarketGoldPayer::Treasury => {
+            let physical = ctx
+                .db
+                .player_resources()
+                .owner()
+                .find(&owner)
+                .is_some_and(|resources| resources.physical_founding_site_enabled);
+            if physical {
+                if marketplace.gold + 1e-6 < gold_cost {
+                    return Err(format!(
+                        "Marketplace coffer needs {} more gold. Raise its cash reserve or wait for a treasury cart.",
+                        (gold_cost - marketplace.gold.max(0.0)).ceil() as i64
+                    ));
+                }
+                marketplace.gold = (marketplace.gold - gold_cost).max(0.0);
+                Ok(true)
+            } else {
+                spend_treasury_gold(ctx, owner, gold_cost)?;
+                Ok(false)
+            }
+        }
         MarketGoldPayer::Household => {
             let Some(residence) = residence else {
                 return Err("Household payment requires a residence.".to_string());
@@ -232,9 +253,9 @@ fn pay_market_gold(
                 crate::economy::credit_residence_wealth(ctx, residence.id, paid);
                 return Err("Household cannot afford this order.".to_string());
             }
-            Ok(())
+            Ok(false)
         }
-        MarketGoldPayer::Relief => Ok(()),
+        MarketGoldPayer::Relief => Ok(false),
     }
 }
 
@@ -244,7 +265,11 @@ fn refund_market_gold(
     gold_cost: f64,
     payer: MarketGoldPayer,
     residence: Option<&Residence>,
+    paid_from_market: bool,
 ) {
+    if paid_from_market {
+        return;
+    }
     match payer {
         MarketGoldPayer::Treasury => credit_treasury_gold(ctx, owner, gold_cost),
         MarketGoldPayer::Relief => {}

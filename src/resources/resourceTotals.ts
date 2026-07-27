@@ -377,7 +377,9 @@ export function computeMarketplaceTradeAvailability(
       ledgerTimber + Math.min(accessibleTimber, unreservedBuildingTimber),
     stone:
       ledgerStone + Math.min(accessibleStone, unreservedBuildingStone),
-    gold: computeResourceTotals(state).gold,
+    gold: includeLegacyLedger
+      ? computeResourceTotals(state).gold
+      : Math.max(0, marketplace.gold),
     firewood: (includeLegacyLedger ? state.stockpile.firewood : 0) + accessibleFirewood,
     food: (includeLegacyLedger ? state.stockpile.food : 0) + accessibleFood,
     grain: (includeLegacyLedger ? state.stockpile.grain : 0) + accessibleGrain,

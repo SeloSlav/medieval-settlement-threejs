@@ -47,6 +47,14 @@ import {
   MARKET_RECEIPT_VISUAL_SEGMENTS,
   MARKET_STAGING_VISUAL_SEGMENTS,
 } from '../src/buildings/meshes/marketplaceMesh.ts';
+import {
+  MARKETPLACE_GOLD_RESERVE_DEFAULT,
+  MARKETPLACE_GOLD_RESERVE_TARGETS,
+  marketplaceGoldReserveShortfall,
+  marketplaceGoldReserveTarget,
+  marketplaceGoldSweepSurplus,
+  normalizeMarketplaceGoldReserveTarget,
+} from '../src/economy/marketplaceGoldReserve.ts';
 
 const buyTimber = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'buy_timber');
 const buySeedGrain = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'buy_seed_grain');
@@ -316,12 +324,17 @@ const proceedsState: GameState = {
 assert.equal(
   computeResourceTotals(proceedsState).gold,
   5,
-  'gold waiting at a marketplace must not become spendable before its cart unloads',
+  'market working cash must not appear as spendable central treasury gold',
 );
 assert.equal(
   computeGoldAwaitingCollection(proceedsState.buildings.values()),
   14,
-  'the HUD should account separately for trade proceeds and tolls held at markets',
+  'the HUD should account separately for physical coin held at markets',
+);
+assert.equal(
+  computeMarketplaceTradeAvailability(proceedsState, marketWithProceeds, roadConnected).gold,
+  14,
+  'a physical market must fund imports from its own coffer',
 );
 assert.notEqual(
   buildingMarkerCollectionSignature(new Map([[marketplace.id, marketplace]])),
@@ -357,6 +370,15 @@ assert.deepEqual(
   },
   'physical markets must not promise goods left in the compatibility ledger',
 );
+assert.deepEqual(MARKETPLACE_GOLD_RESERVE_TARGETS, [0, 16, 32, 64]);
+assert.equal(MARKETPLACE_GOLD_RESERVE_DEFAULT, 32);
+assert.equal(normalizeMarketplaceGoldReserveTarget(undefined), 32);
+assert.equal(normalizeMarketplaceGoldReserveTarget(47), 32);
+assert.equal(marketplaceGoldReserveTarget(marketplace), 32);
+assert.equal(marketplaceGoldReserveShortfall(8, 4, 32), 20);
+assert.equal(marketplaceGoldReserveShortfall(40, 0, 32), 0);
+assert.equal(marketplaceGoldSweepSurplus(40, 32), 8);
+assert.equal(marketplaceGoldSweepSurplus(Number.NaN, 32), 0);
 const fireBlockedTradeState: GameState = {
   ...physicalTradeState,
   fireIncidents: new Map([[
@@ -562,6 +584,16 @@ assert.ok(
   proceedsElapsed < 100,
   `10k-building market proceeds scan took ${proceedsElapsed.toFixed(1)}ms`,
 );
+const reservePolicyStarted = performance.now();
+for (let index = 0; index < 100_000; index++) {
+  marketplaceGoldReserveShortfall(index % 40, index % 8, 32);
+  marketplaceGoldSweepSurplus(index % 80, 32);
+}
+const reservePolicyElapsed = performance.now() - reservePolicyStarted;
+assert.ok(
+  reservePolicyElapsed < 100,
+  `100k market cash-reserve policy checks took ${reservePolicyElapsed.toFixed(1)}ms`,
+);
 
 const longRoad = new RoadNetwork();
 longRoad.restore({
@@ -644,6 +676,10 @@ const generatedCancelReducerSource = readFileSync(
   new URL('../src/generated/cancel_marketplace_trade_order_reducer.ts', import.meta.url),
   'utf8',
 );
+const generatedGoldReserveReducerSource = readFileSync(
+  new URL('../src/generated/set_marketplace_gold_reserve_target_reducer.ts', import.meta.url),
+  'utf8',
+);
 const buildingSyncSource = readFileSync(
   new URL('../src/data/spacetimeTableSync/syncBuildings.ts', import.meta.url),
   'utf8',
@@ -692,6 +728,10 @@ assert.match(
   'routine household caravans must not consume stock committed to a pending export',
 );
 assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_proceeds/);
+assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_cash_reserve/);
+assert.match(marketplaceCaravanSource, /marketplace_gold_reserve_shortfall/);
+assert.match(marketplaceCaravanSource, /marketplace_gold_sweep_surplus/);
+assert.match(marketplaceCaravanSource, /available_free_haulers/);
 assert.match(marketplaceCaravanSource, /CommodityKind::Gold/);
 assert.match(marketplaceCaravanSource, /onsite_building_labor/);
 assert.doesNotMatch(
@@ -702,15 +742,23 @@ assert.doesNotMatch(
 assert.match(marketplaceReducerSource, /cancel_marketplace_trade_order/);
 assert.match(marketplaceReducerSource, /already withdrawn into a delivery trip remains/);
 assert.match(buildingTableSource, /#\[default\(0u8\)\][\s\S]*marketplace_pending_trade_code: u8/);
+assert.match(buildingTableSource, /#\[default\(32u8\)\][\s\S]*marketplace_gold_reserve_target: u8/);
 assert.match(generatedBuildingSource, /marketplacePendingTradeCode: __t\.u8\(\)/);
+assert.match(generatedBuildingSource, /marketplaceGoldReserveTarget: __t\.u8\(\)/);
 assert.match(generatedCancelReducerSource, /buildingId: __t\.u64\(\)/);
+assert.match(generatedGoldReserveReducerSource, /goldReserveTarget: __t\.u8\(\)/);
 assert.match(buildingSyncSource, /marketplacePendingTradeCode: row\.marketplacePendingTradeCode/);
+assert.match(buildingSyncSource, /marketplaceGoldReserveTarget: row\.marketplaceGoldReserveTarget/);
 assert.match(supplementalPanelSource, /cancel-marketplace-trade-order/);
 assert.match(supplementalPanelSource, /onCancelMarketplaceTradeOrder/);
 assert.match(inspectorActionsSource, /store\.cancelMarketplaceTradeOrder\(buildingId\)/);
 assert.match(
   spacetimeReducersSource,
   /cancelMarketplaceTradeOrder[\s\S]*cancel_marketplace_trade_order/,
+);
+assert.match(
+  spacetimeReducersSource,
+  /setMarketplaceGoldReserveTarget[\s\S]*set_marketplace_gold_reserve_target/,
 );
 assert.match(marketplaceTradeSource, /contested-frontier worlds/);
 assert.match(marketplaceTradeSource, /current_road_speed_multiplier/);
@@ -721,21 +769,27 @@ assert.match(
 );
 assert.doesNotMatch(marketplaceTradeSource, /spend_aggregate_(?:food|firewood)/);
 assert.doesNotMatch(marketplaceOrderSource, /credit_treasury_(?:food|water)/);
+assert.match(marketplaceOrderSource, /marketplace\.gold = \(marketplace\.gold - gold_cost\)/);
+assert.match(marketplaceTradeSource, /spend_marketplace_coffer_gold/);
 assert.match(marketplaceOrderSource, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.match(marketplaceInspectorSource, /Regional route/);
 assert.match(marketplaceInspectorSource, /getRoadConditionSpeedMultiplier/);
 assert.match(marketplaceInspectorSource, /marketFireDisabled/);
-assert.match(marketplaceInspectorSource, /Market receipts/);
-assert.match(marketplaceInspectorSource, /visible receipts lockbox/);
+assert.match(marketplaceInspectorSource, /Market coffer/);
+assert.match(marketplaceInspectorSource, /working gold/);
+assert.match(marketplaceInspectorSource, /inboundCashTrip/);
 assert.match(marketplaceTradeRendererSource, /current regional road conditions/);
 assert.match(marketplaceTradeRendererSource, /visible source carts/);
 assert.match(marketplaceTradeRendererSource, /settle it automatically/);
-assert.match(marketplaceTradeRendererSource, /broker handcart delivers them to the civic treasury/);
+assert.match(marketplaceTradeRendererSource, /Market cash reserve/);
+assert.match(marketplaceTradeRendererSource, /data-marketplace-gold-reserve-target/);
+assert.match(marketplaceTradeRendererSource, /physically held in this market coffer/);
 assert.match(marketplaceTradeRendererSource, /cancel-marketplace-trade-order/);
 assert.doesNotMatch(marketplaceTradeRendererSource, /click again after unloading/);
 
 console.log(
   `marketplace trade tests passed (10k stock scan ${elapsed.toFixed(1)}ms; `
   + `proceeds scan ${proceedsElapsed.toFixed(1)}ms; `
+  + `100k reserve checks ${reservePolicyElapsed.toFixed(1)}ms; `
   + `10k road checks ${connectivityElapsed.toFixed(1)}ms)`,
 );

@@ -547,6 +547,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setMarketplaceIronworkTarget(buildingId, ironworkTarget);
   }
 
+  setMarketplaceGoldReserveTarget(buildingId: string, goldReserveTarget: number): Promise<void> {
+    return spacetimeReducers.setMarketplaceGoldReserveTarget(buildingId, goldReserveTarget);
+  }
+
   setMarketplaceSeedGrainTarget(buildingId: string, seedGrainTarget: number): Promise<void> {
     return spacetimeReducers.setMarketplaceSeedGrainTarget(buildingId, seedGrainTarget);
   }

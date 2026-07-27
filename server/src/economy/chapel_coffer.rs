@@ -227,6 +227,8 @@ mod tests {
             marketplace_ironwork_target: 0,
             marketplace_seed_grain_target: 0,
             marketplace_pending_trade_code: 0,
+            marketplace_gold_reserve_target:
+                crate::marketplace_procurement_policy::MARKETPLACE_GOLD_RESERVE_DEFAULT,
             marketplace_specialty_export_policy: 0,
             founding_shelter_active: false,
             chapel_monastery_tithe_due: 0.0,

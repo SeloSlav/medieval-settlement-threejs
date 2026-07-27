@@ -92,6 +92,7 @@ function buildingStateFromRow(
     guardhousePayPriority: row.guardhousePayPriority,
     guardhouseFoodReserve: row.guardhouseFoodReserve,
     marketplaceIronworkTarget: row.marketplaceIronworkTarget,
+    marketplaceGoldReserveTarget: row.marketplaceGoldReserveTarget,
     marketplaceSpecialtyExportPolicy: row.marketplaceSpecialtyExportPolicy,
     marketplaceSeedGrainTarget: row.marketplaceSeedGrainTarget,
     marketplacePendingTradeCode: row.marketplacePendingTradeCode,

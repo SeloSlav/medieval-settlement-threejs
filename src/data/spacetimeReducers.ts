@@ -475,6 +475,22 @@ export async function setMarketplaceIronworkTarget(
   });
 }
 
+export async function setMarketplaceGoldReserveTarget(
+  buildingId: string,
+  goldReserveTarget: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid marketplace id.');
+  await callReducer(
+    'setMarketplaceGoldReserveTarget',
+    'set_marketplace_gold_reserve_target',
+    {
+      buildingId: serverId,
+      goldReserveTarget: Math.max(0, Math.min(64, Math.floor(goldReserveTarget))),
+    },
+  );
+}
+
 export async function setMarketplaceSeedGrainTarget(
   buildingId: string,
   seedGrainTarget: number,

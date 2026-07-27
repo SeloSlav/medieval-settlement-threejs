@@ -35,6 +35,11 @@ import {
   type TradeResourceKind,
 } from '../../generated/gameBalance.ts';
 import type { BuildingState } from '../types.ts';
+import {
+  marketplaceGoldReserveShortfall,
+  marketplaceGoldReserveTarget,
+  marketplaceGoldSweepSurplus,
+} from '../../economy/marketplaceGoldReserve.ts';
 
 const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>([
   'timber',
@@ -78,6 +83,11 @@ export function renderMarketplaceInspector(
   const physicalEconomy = context.gameState.physicalFoundingSiteEnabled === true;
   const activeMarketTrip = Array.from(context.gameState.deliveryTrips.values())
     .find((trip) => trip.buildingId === building.id) ?? null;
+  const inboundCashTrip = Array.from(context.gameState.deliveryTrips.values())
+    .find((trip) =>
+      trip.targetBuildingId === building.id
+      && trip.cargoKind === 'gold'
+      && trip.phase !== 'inbound') ?? null;
   const treasurySeat = Array.from(context.gameState.buildings.values())
     .filter((candidate) =>
       candidate.id !== building.id
@@ -94,6 +104,7 @@ export function renderMarketplaceInspector(
     physicalEconomy,
     market: building,
     activeTrip: activeMarketTrip,
+    inboundCashTrip,
     marketFireDisabled,
     treasurySeat,
     treasurySeatLabel: treasurySeat
@@ -221,7 +232,7 @@ export function renderMarketplaceInspector(
       <li><span>Regional route</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueue.units.toFixed(1)} units - about ${specialtyQueue.goldValue.toFixed(1)} gold</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
-      <li><span>Market receipts</span><span>${proceedsCollection}</span></li>
+      <li><span>Market coffer</span><span>${proceedsCollection}</span></li>
       <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this market by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>
       <li><span>Backyard sales</span><span>Road-linked homes trade here; activity tolls enter this market lockbox</span></li>
@@ -259,6 +270,7 @@ function formatMarketplaceProceedsCollection(options: {
   physicalEconomy: boolean;
   market: BuildingState;
   activeTrip: DeliveryTripState | null;
+  inboundCashTrip: DeliveryTripState | null;
   marketFireDisabled: boolean;
   treasurySeat: BuildingState | null;
   treasurySeatLabel: string | null;
@@ -275,30 +287,53 @@ function formatMarketplaceProceedsCollection(options: {
       options.treasurySeatLabel ?? 'the civic lockbox'
     } - unavailable until unloading`;
   }
-  const held = Math.max(0, options.market.gold);
-  if (held <= 1e-6) {
-    return 'No market receipts awaiting collection';
+  if (options.inboundCashTrip && options.inboundCashTrip.amount > 1e-6) {
+    return `${options.market.gold.toFixed(1)} gold held + ${
+      options.inboundCashTrip.amount.toFixed(1)
+    } inbound from ${options.treasurySeatLabel ?? 'the civic treasury'}`;
   }
-  const lockbox = `${held.toFixed(1)} gold in the visible receipts lockbox`;
+  const held = Math.max(0, options.market.gold);
+  const target = marketplaceGoldReserveTarget(options.market);
+  const shortfall = marketplaceGoldReserveShortfall(held, 0, target);
+  const surplus = marketplaceGoldSweepSurplus(held, target);
+  const lockbox = `${held.toFixed(1)} gold in the visible coffer`;
   if (options.marketFireDisabled) {
     return `${lockbox} - sealed until fire recovery`;
   }
+  if (shortfall > 1e-6) {
+    if (options.market.assignedLabor <= 0) {
+      return `${lockbox} - assign a broker to request ${shortfall.toFixed(1)} reserve gold`;
+    }
+    if (!options.treasurySeat) {
+      return `${lockbox} - reserve awaits a founding or Town Hall treasury chest`;
+    }
+    if (!options.treasuryRouteAvailable) {
+      return `${lockbox} - connect this market to ${options.treasurySeatLabel}`;
+    }
+    return `${held.toFixed(1)} / ${target} working gold - ${shortfall.toFixed(1)} awaits a free treasury handcart`;
+  }
+  if (surplus <= 1e-6) {
+    return target <= 0
+      ? 'Empty coffer - imports wait for local receipts'
+      : `${held.toFixed(1)} / ${target} working gold ready for imports`;
+  }
+  const sweepable = `${surplus.toFixed(1)} surplus of ${held.toFixed(1)} coffer gold`;
   if (options.market.assignedLabor <= 0) {
-    return `${lockbox} - assign a broker to haul it`;
+    return `${sweepable} - assign a broker to sweep it`;
   }
   if (options.market.actionCooldown > 1e-6 && options.market.assignedLabor <= 1) {
-    return `${lockbox} - sole broker at the trade desk for ${options.market.actionCooldown.toFixed(1)}s`;
+    return `${sweepable} - sole broker at the trade desk for ${options.market.actionCooldown.toFixed(1)}s`;
   }
   if (options.activeTrip) {
-    return `${lockbox} - market cart busy carrying ${options.activeTrip.cargoKind}`;
+    return `${sweepable} - market cart busy carrying ${options.activeTrip.cargoKind}`;
   }
   if (!options.treasurySeat) {
-    return `${lockbox} - awaiting a founding or Town Hall treasury chest`;
+    return `${sweepable} - awaiting a founding or Town Hall treasury chest`;
   }
   if (!options.treasuryRouteAvailable) {
-    return `${lockbox} - connect this market to ${options.treasurySeatLabel}`;
+    return `${sweepable} - connect this market to ${options.treasurySeatLabel}`;
   }
-  return `${lockbox} - next broker handcart carries up to ${STOREHOUSE_HAUL_PER_WORKER.toFixed(0)} gold`;
+  return `${sweepable} - next broker handcart carries up to ${STOREHOUSE_HAUL_PER_WORKER.toFixed(0)} gold`;
 }
 
 function formatSpecialtyExportDesk(

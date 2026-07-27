@@ -130,6 +130,10 @@ type ResourceInspectorOptions = {
     buildingId: string,
     ironworkTarget: number,
   ) => void | Promise<void>;
+  onSetMarketplaceGoldReserveTarget?: (
+    buildingId: string,
+    goldReserveTarget: number,
+  ) => void | Promise<void>;
   onSetMarketplaceSeedGrainTarget?: (
     buildingId: string,
     seedGrainTarget: number,
@@ -578,6 +582,16 @@ export class ResourceInspector {
         void this.options.onSetMarketplaceIronworkTarget?.(
           this.selectedTarget.building.id,
           Number(targetValue),
+        );
+        return;
+      }
+      const goldReserveValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-marketplace-gold-reserve-target]')
+        ?.dataset.marketplaceGoldReserveTarget;
+      if (goldReserveValue != null) {
+        void this.options.onSetMarketplaceGoldReserveTarget?.(
+          this.selectedTarget.building.id,
+          Number(goldReserveValue),
         );
         return;
       }

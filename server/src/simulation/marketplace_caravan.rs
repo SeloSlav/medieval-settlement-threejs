@@ -15,14 +15,18 @@ use crate::db::*;
 use crate::economy::{
     building_commodity_stock, credit_marketplace_receipt_gold, marketplace_proceeds_cart_load,
     pending_marketplace_trade_commodity, physical_treasury_seat, record_specialty_market_export,
-    try_advance_pending_marketplace_trade, try_execute_standing_marketplace_import,
+    treasury_gold, try_advance_pending_marketplace_trade, try_execute_standing_marketplace_import,
     withdraw_building_commodity, CommodityKind,
+};
+use crate::marketplace_procurement_policy::{
+    marketplace_gold_reserve_shortfall, marketplace_gold_sweep_surplus,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{delivery_stock_room, has_delivery_stock_room};
 use crate::simulation::delivery_supplier::{dispatch_delivery_if_ready, DeliveryDispatchConfig};
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, onsite_building_labor, try_start_building_supply_trip,
+    available_free_haulers, building_has_active_trip, building_has_inbound_commodity_trip,
+    onsite_building_labor, try_start_building_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -34,6 +38,8 @@ use crate::specialty_trade_policy::{
     specialty_export_workers,
 };
 use crate::tables::{Building, Residence};
+
+const MARKETPLACE_TREASURY_KINDS: &[&str] = &["town_hall", "founders_camp", "salvage_pile"];
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MarketCaravanDispatch {
@@ -173,6 +179,11 @@ pub fn step_marketplace_caravans(
                 && (building.action_cooldown > 1e-6
                     || building.marketplace_seed_grain_target > 0
                     || building.marketplace_ironwork_target > 0
+                    || marketplace_gold_reserve_shortfall(
+                        building.gold,
+                        0.0,
+                        building.marketplace_gold_reserve_target,
+                    ) > 1e-6
                     || building.marketplace_pending_trade_code != 0
                     || building.firewood > 1e-6
                     || building.food > 1e-6
@@ -213,6 +224,7 @@ pub fn step_marketplace_caravans(
                     environment.road_speed_multiplier(),
                 );
             }
+            try_dispatch_marketplace_cash_reserve(ctx, tick, clock, building_id);
         }
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -226,7 +238,10 @@ pub fn step_marketplace_caravans(
             changed = true;
         }
         changed |= sell_marketplace_specialties(ctx, tick, clock, &mut building);
-        if building.gold > 1e-6 && !building_has_active_trip(ctx, building.id) {
+        if marketplace_gold_sweep_surplus(building.gold, building.marketplace_gold_reserve_target)
+            > 1e-6
+            && !building_has_active_trip(ctx, building.id)
+        {
             changed |= try_dispatch_marketplace_proceeds(ctx, tick, clock, &mut building);
         }
         let pending_commodity = pending_marketplace_trade_commodity(&building);
@@ -270,6 +285,82 @@ pub fn step_marketplace_caravans(
             ctx.db.building().id().update(building);
         }
     }
+}
+
+fn try_dispatch_marketplace_cash_reserve(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    marketplace_id: u64,
+) -> bool {
+    let Some(marketplace) = ctx.db.building().id().find(&marketplace_id) else {
+        return false;
+    };
+    let physical_economy = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&marketplace.owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if !physical_economy
+        || marketplace.marketplace_gold_reserve_target == 0
+        || onsite_building_labor(ctx, &marketplace) == 0
+        || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
+        || building_has_inbound_commodity_trip(ctx, marketplace.id, CommodityKind::Gold)
+        || available_free_haulers(ctx, marketplace.owner) == 0
+    {
+        return false;
+    }
+    let shortfall = marketplace_gold_reserve_shortfall(
+        marketplace.gold,
+        0.0,
+        marketplace.marketplace_gold_reserve_target,
+    );
+    let spendable_gold = treasury_gold(ctx, marketplace.owner);
+    if shortfall <= 1e-6 || spendable_gold <= 1e-6 {
+        return false;
+    }
+    let Some(network) = tick.road_network(marketplace.owner) else {
+        return false;
+    };
+
+    for source_id in tick.building_ids_for_kinds(ctx, marketplace.owner, MARKETPLACE_TREASURY_KINDS)
+    {
+        let Some(mut source) = ctx.db.building().id().find(&source_id) else {
+            continue;
+        };
+        if !source.construction_complete
+            || source.gold <= 1e-6
+            || building_has_active_trip(ctx, source.id)
+        {
+            continue;
+        }
+        let load = shortfall
+            .min(source.gold)
+            .min(spendable_gold)
+            .min(STOREHOUSE_HAUL_PER_WORKER);
+        if load <= 1e-6 {
+            return false;
+        }
+        if try_start_building_supply_trip(
+            ctx,
+            tick,
+            clock,
+            network,
+            &mut source,
+            &marketplace,
+            1,
+            CommodityKind::Gold,
+            TIMBER_DELIVERY_SPEED_MPS,
+            TIMBER_DELIVERY_UNLOAD_SEC,
+            STOREHOUSE_HAUL_PER_WORKER,
+            load,
+        ) {
+            ctx.db.building().id().update(source);
+            return true;
+        }
+    }
+    false
 }
 
 fn sell_marketplace_specialties(
@@ -346,7 +437,10 @@ fn try_dispatch_marketplace_proceeds(
     if available_brokers == 0 || building_has_active_trip(ctx, marketplace.id) {
         return false;
     }
-    let load = marketplace_proceeds_cart_load(marketplace.gold);
+    let load = marketplace_proceeds_cart_load(marketplace_gold_sweep_surplus(
+        marketplace.gold,
+        marketplace.marketplace_gold_reserve_target,
+    ));
     if load <= 1e-6 {
         return false;
     }

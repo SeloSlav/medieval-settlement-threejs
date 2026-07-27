@@ -114,6 +114,7 @@ export type BuildingState = {
   guardhousePayPriority?: number;
   guardhouseFoodReserve?: number;
   marketplaceIronworkTarget?: number;
+  marketplaceGoldReserveTarget?: number;
   marketplaceSpecialtyExportPolicy?: number;
   marketplaceSeedGrainTarget?: number;
   marketplacePendingTradeCode?: number;

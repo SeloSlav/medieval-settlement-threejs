@@ -125,7 +125,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="food">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip="Spendable civic gold secured in the founders' lockbox, reclamation chests, or Town Hall treasury. Market receipts, ferry fares, monastery visitor gifts, guard-company pay chests, and moving lockboxes are shown separately; parish and monastery funds remain separate.">
+      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip="Spendable civic gold secured in the founders' lockbox, reclamation chests, or Town Hall treasury. Market working cash, ferry fares, monastery visitor gifts, guard-company pay chests, and moving lockboxes are shown separately; parish and monastery funds remain separate.">
         <span class="settlement-hud__label">Gold</span>
         <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>

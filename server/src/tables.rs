@@ -373,6 +373,11 @@ pub struct Building {
     /// this subset. Appended for additive save compatibility.
     #[default(0.0)]
     pub civic_receipts_gold: f64,
+    /// Working coin kept physically at a marketplace for imports. Only gold
+    /// above this target is swept back to the civic treasury. Appended with
+    /// the former one-lot purchasing capacity as the save-compatible default.
+    #[default(32u8)]
+    pub marketplace_gold_reserve_target: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

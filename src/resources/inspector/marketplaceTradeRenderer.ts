@@ -52,6 +52,12 @@ import {
   marketplaceSpecialtyExportPlan,
   marketplaceSpecialtyQueue,
 } from '../../economy/specialtyTrade.ts';
+import {
+  MARKETPLACE_GOLD_RESERVE_TARGETS,
+  marketplaceGoldReserveShortfall,
+  marketplaceGoldReserveTarget,
+  marketplaceGoldSweepSurplus,
+} from '../../economy/marketplaceGoldReserve.ts';
 
 export function renderMarketplaceTradePanel(
   building: BuildingState,
@@ -95,7 +101,9 @@ export function renderMarketplaceTradePanel(
       : describeMarketplaceTradeOfferForMarket(offer, marketState);
     const hint = manualTrade.reason
       ?? (!affordable
-        ? 'Not enough market-accessible stock'
+        ? offer.kind === 'goldBuy' && physicalEconomy
+          ? 'Not enough marketplace coffer gold'
+          : 'Not enough market-accessible stock'
         : !hasRoom
           ? 'Marketplace storage lacks room for the full shipment'
           : staging.inbound && staging.resource
@@ -127,7 +135,9 @@ export function renderMarketplaceTradePanel(
     const priceTag = formatPriceMultiplier(marketState.foodPriceMult);
     const hint = manualTrade.reason
       ?? (!affordable
-        ? 'Not enough treasury gold'
+        ? physicalEconomy
+          ? 'Not enough marketplace coffer gold'
+          : 'Not enough treasury gold'
         : !hasRoom
           ? 'Marketplace needs room for the full order'
           : `${commodity.origin} · delivered to homes${priceTag ? ` · ${priceTag}` : ''}`);
@@ -155,7 +165,9 @@ export function renderMarketplaceTradePanel(
     const priceTag = formatPriceMultiplier(marketState.firewoodPriceMult);
     const hint = manualTrade.reason
       ?? (!affordable
-        ? 'Not enough treasury gold'
+        ? physicalEconomy
+          ? 'Not enough marketplace coffer gold'
+          : 'Not enough treasury gold'
         : !hasRoom
           ? 'Marketplace needs room for the full order'
           : `${commodity.origin} · delivered to homes${priceTag ? ` · ${priceTag}` : ''}`);
@@ -179,7 +191,7 @@ export function renderMarketplaceTradePanel(
     <div class="marketplace-trade-panel">
       <p class="marketplace-trade-bulletin">${marketState.bulletin}</p>
       <p class="marketplace-trade-intro">${physicalEconomy
-        ? 'Bulk exports settle only from goods physically staged at this market. One order dispatches visible source carts until its full lot arrives, then brokers settle it automatically at the prevailing regional rate. Sale proceeds and garden-trade tolls remain in the visible market lockbox until a broker handcart delivers them to the civic treasury; only then are they spendable. Construction and household reserves remain protected.'
+        ? 'Bulk exports settle only from goods physically staged at this market. One order dispatches visible source carts until its full lot arrives, then brokers settle it automatically at the prevailing regional rate. Imports spend only coin physically held in this market coffer; free haulers replenish its chosen reserve from the civic treasury, while brokers return only surplus receipts. Construction, household, and residence-upgrade reserves remain protected.'
         : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here and wait for broker capacity. Imports arrive at this market; farmsteads may collect seed grain by road, while construction carts and household caravans haul other orders onward.</p>
       <p class="marketplace-trade-depth">${manualTrade.label}. ${nextTurnaround}</p>
       ${pendingOffer
@@ -195,6 +207,7 @@ export function renderMarketplaceTradePanel(
       <p class="marketplace-trade-rates" aria-label="Current regional rates">${formatRegionalRateSummary(marketState)}</p>
       <p class="marketplace-trade-depth">${formatMarketDepthHint()}</p>
       <p class="marketplace-trade-stock">${formatTradeAvailabilitySummary(availability)}</p>
+      ${physicalEconomy ? renderMarketplaceGoldReserve(building) : ''}
       <section class="marketplace-trade-section" aria-label="Provender">
         <h3 class="marketplace-trade-section__title">Provender — regional market</h3>
         <ul class="marketplace-trade-list">${MARKET_COMMODITIES.map(renderFoodCommodity).join('')}</ul>
@@ -233,6 +246,34 @@ export function renderMarketplaceTradePanel(
         <ul class="marketplace-trade-list">${sections.barter.map(renderOffer).join('')}</ul>
       </section>
     </div>`;
+}
+
+function renderMarketplaceGoldReserve(building: BuildingState): string {
+  const target = marketplaceGoldReserveTarget(building);
+  const held = Math.max(0, building.gold);
+  const shortfall = marketplaceGoldReserveShortfall(held, 0, target);
+  const surplus = marketplaceGoldSweepSurplus(held, target);
+  let status: string;
+  if (target <= 0) {
+    status = held <= 1e-6
+      ? 'Receipts only — no treasury refill; imports wait for locally earned coin.'
+      : `${held.toFixed(1)} gold held — all is eligible for the next treasury sweep.`;
+  } else if (shortfall > 1e-6) {
+    status = `${held.toFixed(1)} / ${target} gold held — ${shortfall.toFixed(1)} awaits a free treasury handcart.`;
+  } else if (surplus > 1e-6) {
+    status = `${target} gold reserved for imports — ${surplus.toFixed(1)} surplus awaits a broker cart to the treasury.`;
+  } else {
+    status = `${held.toFixed(1)} / ${target} gold held — working cash ready for imports.`;
+  }
+  return `
+    <section class="marketplace-trade-section" aria-label="Market cash reserve">
+      <h3 class="marketplace-trade-section__title">Market cash reserve</h3>
+      <p class="resource-inspector-note">Choose how much civic coin to keep physically at this market. Treasury-to-market handcarts consume one free hauler and road time; a larger reserve supports costly or repeated imports but leaves less gold available for wages and residence improvements.</p>
+      <div class="resource-action-row">${MARKETPLACE_GOLD_RESERVE_TARGETS
+        .map((reserveTarget) => `<button type="button" class="resource-action-button" data-marketplace-gold-reserve-target="${reserveTarget}" ${reserveTarget === target ? 'disabled' : ''}>${reserveTarget === 0 ? 'Receipts only' : `Keep ${reserveTarget}`}</button>`)
+        .join('')}</div>
+      <p class="inspector-action-panel__hint">${status}</p>
+    </section>`;
 }
 
 function renderPendingMarketplaceOrder(
@@ -330,7 +371,7 @@ function renderIronworkProcurementPolicy(
   } else if (nextStandingOrder === 'seedGrain') {
     status = `Queued behind the more depleted seed-grain reserve; ${plan.ordersToTarget} ironwork lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (availability.gold + 1e-6 < nextCost) {
-    status = `Waiting for ${nextCost.toFixed(0)} treasury gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+    status = `Waiting for ${nextCost.toFixed(0)} market-coffer gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (!manualTrade.ready) {
     status = `Waiting — ${manualTrade.label.toLowerCase()}.`;
   } else {
@@ -340,7 +381,7 @@ function renderIronworkProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Frontier ironwork procurement">
       <h3 class="marketplace-trade-section__title">Frontier ironwork procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the same broker queue as seed grain, treasury gold, and current regional rates; carpenters must still collect the fittings by road. When both orders are due, the more depleted target goes first.</p>
+      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the same broker queue, physically held market-coffer gold, and current regional rates; carpenters must still collect the fittings by road. When both orders are due, the more depleted target goes first.</p>
       <div class="resource-action-row">${MARKETPLACE_IRONWORK_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-ironwork-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>
@@ -369,7 +410,7 @@ function renderSeedGrainProcurementPolicy(
   } else if (nextStandingOrder === 'ironwork') {
     status = `Queued behind the more depleted frontier ironwork reserve; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (availability.gold + 1e-6 < nextCost) {
-    status = `Waiting for ${nextCost.toFixed(0)} treasury gold; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+    status = `Waiting for ${nextCost.toFixed(0)} market-coffer gold; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (!manualTrade.ready) {
     status = `Waiting — ${manualTrade.label.toLowerCase()}.`;
   } else {
@@ -383,7 +424,7 @@ function renderSeedGrainProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Seed-grain procurement">
       <h3 class="marketplace-trade-section__title">Seed-grain procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this market buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use broker time, treasury gold, and current regional rates.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free market or granary serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
+      <p class="resource-inspector-note">Standing stock target — this market buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use broker time, physically held market-coffer gold, and current regional rates.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free market or granary serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
       <div class="resource-action-row">${MARKETPLACE_SEED_GRAIN_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-seed-grain-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>

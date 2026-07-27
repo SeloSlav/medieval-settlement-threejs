@@ -58,7 +58,7 @@ export function precipitationProfile(
       sunlightMultiplier: 0.32,
       fogDensityMultiplier: 1.38,
       fogTint: 0x8295a1,
-      saturationMultiplier: 0.7,
+      saturationMultiplier: 0.74,
     };
   }
 
@@ -72,7 +72,7 @@ export function precipitationProfile(
       sunlightMultiplier: 0.72,
       fogDensityMultiplier: 1.08,
       fogTint: 0xd8e3ea,
-      saturationMultiplier: 0.8,
+      saturationMultiplier: 0.92,
     };
   }
 

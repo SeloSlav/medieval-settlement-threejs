@@ -46,11 +46,11 @@ assert.equal(rain.intensity, 0.78);
 assert.ok(rain.fallSpeed > snow.fallSpeed * 4);
 assert.equal(rain.sunlightMultiplier, 0.32);
 assert.equal(rain.fogDensityMultiplier, 1.38);
-assert.equal(rain.saturationMultiplier, 0.7);
+assert.equal(rain.saturationMultiplier, 0.74);
 assert.equal(snow.kind, 'snow');
 assert.equal(snow.intensity, 0.78);
 assert.equal(snow.fogDensityMultiplier, 1.08);
-assert.equal(snow.saturationMultiplier, 0.8);
+assert.equal(snow.saturationMultiplier, 0.92);
 assert.equal(rain.intensity, snow.intensity);
 assert.ok(rain.fogDensityMultiplier > snow.fogDensityMultiplier);
 assert.equal(drought.kind, 'none');
@@ -207,17 +207,28 @@ assert.match(roadMaterialSource, /weather\.frost/);
 assert.match(roadMaterialSource, /applyRoadWeatherRoughness/);
 assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
-assert.match(terrainMaterialSource, /float\(0\.14\)/);
-assert.match(terrainMaterialSource, /float\(0\.58\)/);
-assert.match(terrainMaterialSource, /vec3\(0\.64,\s*0\.72,\s*0\.67\)/);
+assert.match(terrainMaterialSource, /const stableColorNode = biomeBaseColor/);
+assert.match(
+  terrainMaterialSource,
+  /weather\.wetness\.mul\(float\(0\.58\)/,
+);
+assert.match(terrainMaterialSource, /float\(0\.1\)/);
+assert.match(terrainMaterialSource, /float\(0\.32\)/);
+assert.match(terrainMaterialSource, /buildTerrainWetMask\(moisture,\s*weather\)/);
+assert.match(terrainMaterialSource, /vec3\(0\.78,\s*0\.82,\s*0\.78\)/);
+assert.match(terrainMaterialSource, /const rainNormalVisibility = mix/);
+assert.match(terrainMaterialSource, /float\(0\.28\)/);
 assert.match(terrainMaterialSource, /function applyTerrainRainHaze/);
 assert.match(terrainMaterialSource, /float\(3600\)/);
 assert.match(terrainMaterialSource, /float\(32400\)/);
-assert.match(terrainMaterialSource, /float\(0\.46\)/);
-assert.match(terrainMaterialSource, /weather\.wetness\.mul\(float\(0\.7\)/);
-assert.match(terrainMaterialSource, /float\(0\.08\)/);
-assert.match(terrainMaterialSource, /float\(0\.82\)/);
-assert.match(terrainMaterialSource, /weather\.frost[\s\S]*?float\(0\.8\)/);
+assert.match(terrainMaterialSource, /float\(0\.72\)/);
+assert.match(terrainMaterialSource, /weather\.wetness\.mul\(float\(0\.62\)/);
+assert.match(terrainMaterialSource, /const rainDirtVisibility = mix/);
+assert.match(terrainMaterialSource, /float\(0\.18\)/);
+assert.match(terrainMaterialSource, /float\(0\.04\)/);
+assert.match(terrainMaterialSource, /float\(0\.68\)/);
+assert.match(terrainMaterialSource, /weather\.frost[\s\S]*?float\(0\.72\)/);
+assert.match(terrainMaterialSource, /float\(0\.64\)/);
 assert.doesNotMatch(
   roadFactorySource,
   /new THREE\.Mesh\(/,

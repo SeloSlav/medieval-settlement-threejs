@@ -228,6 +228,8 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
         guardhouse_food_reserve: 0,
         marketplace_seed_grain_target: 0,
         marketplace_pending_trade_code: 0,
+        marketplace_gold_reserve_target:
+            crate::marketplace_procurement_policy::MARKETPLACE_GOLD_RESERVE_DEFAULT,
         founding_shelter_active: true,
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,

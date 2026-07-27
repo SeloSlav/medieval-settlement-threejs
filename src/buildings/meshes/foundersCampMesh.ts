@@ -25,6 +25,13 @@ const TENT_HALF_WIDTH = 1.62;
 const TENT_HALF_DEPTH = 1.92;
 const TENT_EAVE_Y = 0.2;
 const TENT_RIDGE_Y = 2.32;
+const LIT_SMOKE_UPLOAD_INTERVAL_SECONDS = 1 / 12;
+const litSmokeMatrix = new THREE.Matrix4();
+const litSmokeQuaternion = new THREE.Quaternion();
+const litSmokePosition = new THREE.Vector3();
+const litSmokeScale = new THREE.Vector3();
+const litSmokeUpAxis = new THREE.Vector3(0, 1, 0);
+const litSmokeByCampfire = new WeakMap<THREE.Group, THREE.InstancedMesh>();
 let campGroundMaterial: THREE.MeshStandardMaterial | null = null;
 let tentCanvasMaterial: THREE.MeshStandardMaterial | null = null;
 
@@ -104,18 +111,76 @@ function getCampGroundMaterial(): THREE.MeshStandardMaterial {
 
   const size = 64;
   const data = new Uint8Array(size * size * 4);
+  const mudBlotches = [
+    [-0.48, -0.34, 0.58, 0.34, 0.94, 0.34, 0.88, 0.3],
+    [-0.06, -0.43, 0.62, 0.29, 0.98, -0.2, 0.78, 1.1],
+    [0.43, -0.25, 0.46, 0.37, 0.88, 0.48, 0.84, 2.2],
+    [-0.42, 0.12, 0.39, 0.5, 0.9, -0.44, 0.72, 3.3],
+    [0.04, 0.08, 0.52, 0.43, 0.99, 0.12, 0.94, 4.4],
+    [0.48, 0.3, 0.43, 0.31, 0.95, -0.31, 0.74, 5.5],
+    [-0.17, 0.5, 0.56, 0.28, 0.97, 0.25, 0.69, 6.6],
+  ] as const;
+  const footfallBlotches = [
+    [-0.66, 0.34, 0.17, 0.1, 0.54],
+    [-0.43, 0.27, 0.14, 0.085, 0.48],
+    [-0.2, 0.17, 0.18, 0.1, 0.56],
+    [0.2, -0.08, 0.19, 0.105, 0.52],
+    [0.48, -0.2, 0.16, 0.09, 0.47],
+    [0.67, -0.32, 0.14, 0.08, 0.42],
+  ] as const;
+
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const u = (x + 0.5) / size * 2 - 1;
       const v = (y + 0.5) / size * 2 - 1;
-      const radius = Math.hypot(u, v);
-      const feather = 1 - THREE.MathUtils.smoothstep(radius, 0.46, 0.98);
-      const broadMottle = 0.82
-        + Math.sin(u * 8.7 + v * 3.1) * 0.08
-        + Math.sin(u * -3.9 + v * 11.3) * 0.06;
-      const centerBreakup = 0.9 + Math.sin((u + v) * 17.2) * 0.04;
+      let coverage = 0;
+      for (const [
+        centerX,
+        centerY,
+        radiusX,
+        radiusY,
+        cosine,
+        sine,
+        strength,
+        phase,
+      ] of mudBlotches) {
+        const deltaX = u - centerX;
+        const deltaY = v - centerY;
+        const localX = (deltaX * cosine + deltaY * sine) / radiusX;
+        const localY = (-deltaX * sine + deltaY * cosine) / radiusY;
+        const edgeWarp = (
+          Math.sin(u * 5.1 + v * 2.7 + phase) * 0.07
+          + Math.sin(u * -2.9 + v * 6.3 - phase * 0.4) * 0.045
+        );
+        const distance = Math.hypot(localX, localY) + edgeWarp;
+        const blotch = (
+          1 - THREE.MathUtils.smoothstep(distance, 0.46, 1.04)
+        ) * strength;
+        coverage = Math.max(coverage, blotch);
+      }
+      for (const [
+        centerX,
+        centerY,
+        radiusX,
+        radiusY,
+        strength,
+      ] of footfallBlotches) {
+        const distance = Math.hypot(
+          (u - centerX) / radiusX,
+          (v - centerY) / radiusY,
+        );
+        const footfall = (
+          1 - THREE.MathUtils.smoothstep(distance, 0.24, 1)
+        ) * strength;
+        coverage = Math.max(coverage, footfall);
+      }
+      const lowFrequencyMud = (
+        0.88
+        + Math.sin(u * 3.7 + v * 2.1 + 0.4) * 0.065
+        + Math.sin(u * -2.3 + v * 4.1 + 1.7) * 0.045
+      );
       const alpha = Math.round(
-        THREE.MathUtils.clamp(feather * broadMottle * centerBreakup, 0, 1) * 255,
+        THREE.MathUtils.clamp(coverage * lowFrequencyMud, 0, 1) * 255,
       );
       const offset = (y * size + x) * 4;
       data[offset] = alpha;
@@ -131,7 +196,7 @@ function getCampGroundMaterial(): THREE.MeshStandardMaterial {
     THREE.RGBAFormat,
     THREE.UnsignedByteType,
   );
-  alphaMap.name = 'Procedural feathered camp-ground opacity';
+  alphaMap.name = 'Procedural irregular camp-ground mud blotches';
   alphaMap.colorSpace = THREE.NoColorSpace;
   alphaMap.wrapS = THREE.ClampToEdgeWrapping;
   alphaMap.wrapT = THREE.ClampToEdgeWrapping;
@@ -146,8 +211,8 @@ function getCampGroundMaterial(): THREE.MeshStandardMaterial {
     metalness: 0,
     alphaMap,
     transparent: true,
-    opacity: 0.56,
-    alphaTest: 0.018,
+    opacity: 0.5,
+    alphaTest: 0.025,
     depthWrite: false,
     polygonOffset: true,
     polygonOffsetFactor: -1,
@@ -664,15 +729,16 @@ function addAFrameShelter(
   shelter.userData.fpCollisionAggregate = true;
   const canvasMaterial = getAgedTentCanvasMaterial(fabricVariant);
 
-  for (const side of [-1, 1] as const) {
-    const panel = addMesh(
-      shelter,
-      createTentSideGeometry(side),
-      canvasMaterial,
-      new THREE.Vector3(),
-    );
-    panel.name = 'Weathered tent side';
-  }
+  // Submit the five canvas pieces as one shell. They already share one
+  // material, so keeping them as separate meshes only multiplied draw calls;
+  // the disconnected vertices retain the exact folds, normals, UVs, and bounds.
+  const canvasShell = addMesh(
+    shelter,
+    createAFrameCanvasGeometry(),
+    canvasMaterial,
+    new THREE.Vector3(),
+  );
+  canvasShell.name = 'Weathered tent canvas shell';
   addTentRepairPatch(
     shelter,
     fabricVariant % 2 === 0 ? -1 : 1,
@@ -682,18 +748,6 @@ function addAFrameShelter(
     sharedBuildingDetailMaterial(fabricVariant === 1 ? 'paintOchre' : 'paintRed'),
   );
   addTentCanvasSeams(shelter);
-
-  const back = addMesh(
-    shelter,
-    createTentTriangleGeometry(
-      -TENT_HALF_WIDTH,
-      TENT_HALF_WIDTH,
-      TENT_HALF_DEPTH,
-    ),
-    canvasMaterial,
-    new THREE.Vector3(),
-  );
-  back.name = 'Tent rear canvas';
 
   const interior = addMesh(
     shelter,
@@ -707,16 +761,6 @@ function addAFrameShelter(
   );
   interior.name = 'Open tent interior';
   interior.userData.fpNoCollision = true;
-
-  for (const side of [-1, 1] as const) {
-    const front = addMesh(
-      shelter,
-      createTentFrontPanelGeometry(side),
-      canvasMaterial,
-      new THREE.Vector3(),
-    );
-    front.name = side < 0 ? 'Left tied tent flap' : 'Right tied tent flap';
-  }
 
   for (const zEnd of [-TENT_HALF_DEPTH, TENT_HALF_DEPTH]) {
     addPoleBetween(
@@ -778,6 +822,46 @@ function addAFrameShelter(
   bedroll.userData.fpNoCollision = true;
 
   parent.add(shelter);
+}
+
+function createAFrameCanvasGeometry(): THREE.BufferGeometry {
+  const parts = [
+    createTentSideGeometry(-1),
+    createTentSideGeometry(1),
+    createTentTriangleGeometry(
+      -TENT_HALF_WIDTH,
+      TENT_HALF_WIDTH,
+      TENT_HALF_DEPTH,
+    ),
+    createTentFrontPanelGeometry(-1),
+    createTentFrontPanelGeometry(1),
+  ];
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  let vertexOffset = 0;
+
+  for (const part of parts) {
+    const position = part.getAttribute('position');
+    const uv = part.getAttribute('uv');
+    const index = part.getIndex();
+    for (let vertex = 0; vertex < position.count; vertex += 1) {
+      positions.push(
+        position.getX(vertex),
+        position.getY(vertex),
+        position.getZ(vertex),
+      );
+      uvs.push(uv.getX(vertex), uv.getY(vertex));
+    }
+    if (index) {
+      for (let element = 0; element < index.count; element += 1) {
+        indices.push(vertexOffset + index.getX(element));
+      }
+    }
+    vertexOffset += position.count;
+  }
+
+  return createTentGeometry(positions, indices, uvs);
 }
 
 function createTentSideGeometry(side: -1 | 1): THREE.BufferGeometry {
@@ -1130,46 +1214,61 @@ function addFirelitCampSmoke(campfire: THREE.Group): void {
   smoke.renderOrder = 16;
   smoke.userData.campSmoke = true;
   smoke.userData.fpNoCollision = true;
+  litSmokeByCampfire.set(campfire, smoke);
   campfire.userData.litSmokeElapsedSeconds = 0;
+  campfire.userData.litSmokeUploadAccumulatorSeconds =
+    LIT_SMOKE_UPLOAD_INTERVAL_SECONDS;
 }
 
 function animateFirelitCampSmoke(
   campfire: THREE.Group,
   dtSeconds: number,
 ): void {
-  const smoke = campfire.getObjectByName(FOUNDERS_CAMPFIRE_LIT_SMOKE_NAME);
-  if (!(smoke instanceof THREE.InstancedMesh)) return;
+  const smoke = litSmokeByCampfire.get(campfire);
+  if (!smoke) return;
 
   const elapsed = Math.max(
     0,
     Number(campfire.userData.litSmokeElapsedSeconds ?? 0) + Math.max(0, dtSeconds),
   );
   campfire.userData.litSmokeElapsedSeconds = elapsed;
-  const matrix = new THREE.Matrix4();
-  const quaternion = new THREE.Quaternion();
-  const position = new THREE.Vector3();
-  const scale = new THREE.Vector3();
+  const uploadAccumulator = Math.max(
+    0,
+    Number(campfire.userData.litSmokeUploadAccumulatorSeconds ?? 0)
+      + Math.max(0, dtSeconds),
+  );
+  if (uploadAccumulator < LIT_SMOKE_UPLOAD_INTERVAL_SECONDS) {
+    campfire.userData.litSmokeUploadAccumulatorSeconds = uploadAccumulator;
+    return;
+  }
+  campfire.userData.litSmokeUploadAccumulatorSeconds =
+    uploadAccumulator % LIT_SMOKE_UPLOAD_INTERVAL_SECONDS;
+
   for (let index = 0; index < smoke.count; index += 1) {
     const age = (elapsed * 0.115 + index / smoke.count) % 1;
     const phase = index * 2.37;
     const curl = age * Math.PI * 1.7 + phase;
     const breadth = 0.4 + age * 0.95;
-    position.set(
+    litSmokePosition.set(
       Math.sin(curl) * (0.1 + age * 0.48) + age * 0.26,
       1.02 + age * 4.25,
       Math.cos(curl * 0.82) * (0.08 + age * 0.34),
     );
-    quaternion.setFromAxisAngle(
-      new THREE.Vector3(0, 1, 0),
+    litSmokeQuaternion.setFromAxisAngle(
+      litSmokeUpAxis,
       curl * 0.38,
     );
-    scale.set(
+    litSmokeScale.set(
       breadth * 1.03,
       breadth * (1.24 + age * 0.22),
       breadth * 0.82,
     );
-    matrix.compose(position, quaternion, scale);
-    smoke.setMatrixAt(index, matrix);
+    litSmokeMatrix.compose(
+      litSmokePosition,
+      litSmokeQuaternion,
+      litSmokeScale,
+    );
+    smoke.setMatrixAt(index, litSmokeMatrix);
   }
   smoke.instanceMatrix.needsUpdate = true;
 }

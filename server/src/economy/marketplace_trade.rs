@@ -426,7 +426,12 @@ fn apply_marketplace_trade(
         TradeSpend::Gold(amount) => {
             let resource = trade_resource_for_buy(offer);
             let multiplier = price_multiplier_for(&market, resource);
-            spend_treasury_gold(ctx, owner, scaled_gold_cost(amount, multiplier))?;
+            let gold_cost = scaled_gold_cost(amount, multiplier);
+            if physical_trade_staging_enabled(ctx, owner) {
+                spend_marketplace_coffer_gold(ctx, building_id, gold_cost)?;
+            } else {
+                spend_treasury_gold(ctx, owner, gold_cost)?;
+            }
         }
         TradeSpend::Resource(leg) => {
             if physical_trade_staging_enabled(ctx, owner) {
@@ -591,6 +596,31 @@ fn physical_trade_staging_enabled(ctx: &ReducerContext, owner: spacetimedb::Iden
         .owner()
         .find(&owner)
         .is_some_and(|resources| resources.physical_founding_site_enabled)
+}
+
+fn spend_marketplace_coffer_gold(
+    ctx: &ReducerContext,
+    marketplace_id: u64,
+    amount: f64,
+) -> Result<(), String> {
+    if amount <= 1e-9 {
+        return Ok(());
+    }
+    let mut marketplace = ctx
+        .db
+        .building()
+        .id()
+        .find(&marketplace_id)
+        .ok_or_else(|| "Marketplace not found.".to_string())?;
+    if marketplace.gold + 1e-6 < amount {
+        return Err(format!(
+            "Marketplace coffer needs {} more gold. Raise its cash reserve or wait for a treasury cart.",
+            (amount - marketplace.gold.max(0.0)).ceil() as i64
+        ));
+    }
+    marketplace.gold = (marketplace.gold - amount).max(0.0);
+    ctx.db.building().id().update(marketplace);
+    Ok(())
 }
 
 /// New settlements keep foreign-trade proceeds and local market tolls in the

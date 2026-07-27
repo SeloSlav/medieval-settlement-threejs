@@ -2,6 +2,8 @@ pub const MARKETPLACE_SEED_GRAIN_IMPORT_LOT: f64 = 24.0;
 pub const MARKETPLACE_SEED_GRAIN_TARGETS: [u8; 5] = [0, 24, 48, 72, 96];
 pub const MARKETPLACE_IRONWORK_IMPORT_LOT: f64 = 6.0;
 pub const MARKETPLACE_IRONWORK_TARGETS: [u8; 5] = [0, 6, 12, 24, 48];
+pub const MARKETPLACE_GOLD_RESERVE_DEFAULT: u8 = 32;
+pub const MARKETPLACE_GOLD_RESERVE_TARGETS: [u8; 4] = [0, 16, 32, 64];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StandingMarketplaceImport {
@@ -33,6 +35,29 @@ pub fn normalize_marketplace_ironwork_target(target: u8) -> u8 {
         .rev()
         .find(|candidate| *candidate <= target)
         .unwrap_or(0)
+}
+
+pub fn is_valid_marketplace_gold_reserve_target(target: u8) -> bool {
+    MARKETPLACE_GOLD_RESERVE_TARGETS.contains(&target)
+}
+
+pub fn normalize_marketplace_gold_reserve_target(target: u8) -> u8 {
+    MARKETPLACE_GOLD_RESERVE_TARGETS
+        .iter()
+        .copied()
+        .rev()
+        .find(|candidate| *candidate <= target)
+        .unwrap_or(0)
+}
+
+pub fn marketplace_gold_reserve_shortfall(onsite_gold: f64, inbound_gold: f64, target: u8) -> f64 {
+    let target = normalize_marketplace_gold_reserve_target(target) as f64;
+    (target - onsite_gold.max(0.0) - inbound_gold.max(0.0)).max(0.0)
+}
+
+pub fn marketplace_gold_sweep_surplus(onsite_gold: f64, target: u8) -> f64 {
+    let target = normalize_marketplace_gold_reserve_target(target) as f64;
+    (onsite_gold.max(0.0) - target).max(0.0)
 }
 
 pub fn standing_seed_grain_import_due(stock: f64, target: u8) -> bool {
@@ -106,6 +131,22 @@ mod tests {
         assert!(!is_valid_marketplace_ironwork_target(18));
         assert_eq!(normalize_marketplace_ironwork_target(23), 12);
         assert_eq!(normalize_marketplace_ironwork_target(255), 48);
+        assert!(is_valid_marketplace_gold_reserve_target(0));
+        assert!(is_valid_marketplace_gold_reserve_target(32));
+        assert!(is_valid_marketplace_gold_reserve_target(64));
+        assert!(!is_valid_marketplace_gold_reserve_target(48));
+        assert_eq!(normalize_marketplace_gold_reserve_target(47), 32);
+        assert_eq!(normalize_marketplace_gold_reserve_target(255), 64);
+    }
+
+    #[test]
+    fn market_cash_reserve_counts_inbound_coin_and_sweeps_only_surplus() {
+        assert_eq!(marketplace_gold_reserve_shortfall(8.0, 4.0, 32), 20.0);
+        assert_eq!(marketplace_gold_reserve_shortfall(24.0, 8.0, 32), 0.0);
+        assert_eq!(marketplace_gold_reserve_shortfall(40.0, 0.0, 32), 0.0);
+        assert_eq!(marketplace_gold_sweep_surplus(40.0, 32), 8.0);
+        assert_eq!(marketplace_gold_sweep_surplus(24.0, 32), 0.0);
+        assert_eq!(marketplace_gold_sweep_surplus(f64::NAN, 32), 0.0);
     }
 
     #[test]

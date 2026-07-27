@@ -16,7 +16,7 @@ import type { BurgageFencing } from '../residences/BurgageFencing.ts';
 import { SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
 import { InputManager } from '../input/InputManager.ts';
 import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
-import type { GameState } from '../resources/types.ts';
+import type { BuildingState, GameState } from '../resources/types.ts';
 import { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
 import {
@@ -48,6 +48,11 @@ import {
   parseVisualQaConditions,
   standaloneVisualQaEnvironment,
 } from './visualQaConditions.ts';
+import {
+  createVisualQaFoundersCampFixture,
+  withVisualQaFoundersCamp,
+  withVisualQaFoundersCampState,
+} from './visualQaFoundersCampFixture.ts';
 import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './spacetimeSnapshotApplier.ts';
 import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext } from './appBootstrap.ts';
 import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
@@ -141,6 +146,7 @@ export class App {
     () => performance.now(),
     this.visualQaConditions,
   );
+  private visualQaFoundersCampFixture: BuildingState | null = null;
   private showcaseViewApplied = false;
   private initialSettlementViewApplied = false;
   private lastSeenRaidTick: number | null = null;
@@ -327,6 +333,10 @@ export class App {
     window.addEventListener('resize', this.onResize);
     this.onResize();
     session.cameraController.applyRtsOrbitView();
+    this.syncVisualQaFoundersCampFixture();
+    if (this.visualQaConditions && this.gameState) {
+      this.applyInitialSettlementView(this.gameState);
+    }
     session.cameraController.update(0);
     this.toolbar?.setZoomPercent(session.cameraController.getZoomPercent());
     this.lastTime = performance.now();
@@ -518,7 +528,8 @@ export class App {
       this.snapshotApplierDeps.forestVisualSync = this.forestVisualSync;
     }
     this.buildingMarkers?.syncBuildings(
-      this.gameState.buildings.values(),
+      this.getVisualQaPresentedBuildings(this.gameState)
+        ?? this.gameState.buildings.values(),
       this.gameState.livestockHerds,
     );
     this.worldMapUi?.minimap.syncBuildings(
@@ -530,6 +541,9 @@ export class App {
       buildingMarkers: this.buildingMarkers,
       forceMeshUpdate: true,
     });
+    // Terrain sync intentionally replays authoritative markers. Restore the
+    // presentation-only fallback afterwards when visual QA has no server camp.
+    this.syncVisualQaFoundersCampFixture();
     if (this.snapshotApplierDeps) {
       syncSettlementWorld(this.snapshotApplierDeps.settlementWorld, this.gameState);
     }
@@ -643,6 +657,7 @@ export class App {
         snapshot.simTick,
       );
       this.toolbar?.settlementHud.clearProvisioningState();
+      this.syncVisualQaFoundersCampFixture();
       this.syncToolbar();
       return;
     }
@@ -660,6 +675,7 @@ export class App {
       state,
       previous,
     );
+    this.syncVisualQaFoundersCampFixture();
     this.notifyFireChanges(state, previous);
     this.notifySecurityChanges(snapshot);
     const projectedTargets = this.syncFrontierRiskFeedback(snapshot, state);
@@ -856,33 +872,66 @@ export class App {
       isShowcaseMode()
       || this.initialSettlementViewApplied
       || !this.cameraController
-      || state.residences.size > 0
+      || (!this.visualQaConditions && state.residences.size > 0)
     ) {
       return;
     }
 
-    const foundersCamp = [...state.buildings.values()]
+    const foundersCamp = [
+      ...(this.getVisualQaPresentedBuildings(state) ?? state.buildings.values()),
+    ]
       .find((building) => building.kind === 'founders_camp');
     if (!foundersCamp) return;
 
     this.cameraController.applyShowcaseView(
-      foundersCamp.x - 5,
-      foundersCamp.z + 4.5,
+      foundersCamp.x - 7,
+      foundersCamp.z + 6.3,
       (-42 * Math.PI) / 180,
-      (44 * Math.PI) / 180,
+      (40 * Math.PI) / 180,
       42,
     );
     this.initialSettlementViewApplied = true;
   }
 
+  private getVisualQaPresentedBuildings(
+    state: GameState,
+  ): readonly BuildingState[] | null {
+    if (!this.visualQaConditions || !this.sceneManager) return null;
+    this.visualQaFoundersCampFixture ??= createVisualQaFoundersCampFixture(
+      this.sceneManager.worldLayout,
+      (x, z) => this.sceneManager?.terrain.getHeightAt(x, z) ?? 0,
+    );
+    return withVisualQaFoundersCamp(
+      state.buildings.values(),
+      this.visualQaFoundersCampFixture,
+    );
+  }
+
+  private syncVisualQaFoundersCampFixture(): void {
+    if (!this.gameState || !this.buildingMarkers) return;
+    const buildings = this.getVisualQaPresentedBuildings(this.gameState);
+    if (!buildings) return;
+    this.buildingMarkers.syncBuildings(
+      buildings,
+      this.gameState.livestockHerds,
+    );
+  }
+
   private syncResourceUi(): void {
     if (!this.gameState || !this.resourceInspector) return;
+    const presentationState = this.visualQaFoundersCampFixture
+      && this.visualQaConditions
+      ? withVisualQaFoundersCampState(
+          this.gameState,
+          this.visualQaFoundersCampFixture,
+        )
+      : this.gameState;
     this.resourceInspector.setHud(
-      computeResourceTotals(this.gameState),
-      computePopulationStats(this.gameState),
+      computeResourceTotals(presentationState),
+      computePopulationStats(presentationState),
       computeInTransitResourceTotals(this.gameState.deliveryTrips.values()),
-      computeGoldAwaitingCollection(this.gameState.buildings.values()),
-      computeGuardhousePayrollGold(this.gameState.buildings.values()),
+      computeGoldAwaitingCollection(presentationState.buildings.values()),
+      computeGuardhousePayrollGold(presentationState.buildings.values()),
     );
     this.resourceInspector.refreshSelection();
   }

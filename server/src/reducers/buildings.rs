@@ -36,7 +36,8 @@ use crate::hydrology::{sample_hydrology_score, well_capacity_from_hydrology};
 use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
 use crate::marketplace_procurement_policy::{
-    is_valid_marketplace_ironwork_target, is_valid_marketplace_seed_grain_target,
+    is_valid_marketplace_gold_reserve_target, is_valid_marketplace_ironwork_target,
+    is_valid_marketplace_seed_grain_target, MARKETPLACE_GOLD_RESERVE_DEFAULT,
 };
 use crate::placement_validation::{
     building_overlaps_open_water, building_overlaps_residence_zone, building_overlaps_road_surface,
@@ -594,6 +595,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         marketplace_ironwork_target: 0,
         marketplace_seed_grain_target: 0,
         marketplace_pending_trade_code: 0,
+        marketplace_gold_reserve_target: MARKETPLACE_GOLD_RESERVE_DEFAULT,
         marketplace_specialty_export_policy: 0,
         granary_fresh_food_target_percent: GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
         storehouse_timber_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
@@ -1540,6 +1542,31 @@ pub fn set_marketplace_seed_grain_target(
 }
 
 #[reducer]
+pub fn set_marketplace_gold_reserve_target(
+    ctx: &ReducerContext,
+    building_id: u64,
+    gold_reserve_target: u8,
+) -> Result<(), String> {
+    if !is_valid_marketplace_gold_reserve_target(gold_reserve_target) {
+        return Err("Marketplace cash reserve must be 0, 16, 32, or 64 gold.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Marketplace not found.".to_string())?;
+    if building.owner != owner || building.kind != "marketplace" || !building.construction_complete
+    {
+        return Err("Marketplace not found.".to_string());
+    }
+    building.marketplace_gold_reserve_target = gold_reserve_target;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
 pub fn set_marketplace_specialty_export_policy(
     ctx: &ReducerContext,
     building_id: u64,
@@ -1770,6 +1797,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
             founding_shelter_active: false,
             marketplace_pending_trade_code: 0,
+            marketplace_gold_reserve_target: MARKETPLACE_GOLD_RESERVE_DEFAULT,
             chapel_monastery_tithe_due: 0.0,
             civic_receipts_gold: 0.0,
             ..building

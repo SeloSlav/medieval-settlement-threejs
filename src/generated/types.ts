@@ -78,6 +78,7 @@ export const Building = __t.object("Building", {
   marketplacePendingTradeCode: __t.u8(),
   chapelMonasteryTitheDue: __t.f64(),
   civicReceiptsGold: __t.f64(),
+  marketplaceGoldReserveTarget: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -423,4 +424,3 @@ export const WorldConfig = __t.object("WorldConfig", {
   configured: __t.bool(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
-

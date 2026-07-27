@@ -78,9 +78,9 @@ assert.match(
   /if !market_order_should_commit\([\s\S]{0,220}refund_market_gold/,
   'a targeted order that cannot depart must restore its stock and payment',
 );
-assert.ok(
-  marketplaceOrders.indexOf('validate_order_marketplace(&building, owner)?')
-    < marketplaceOrders.indexOf('pay_market_gold(ctx, owner, gold_cost, payer, residence)?'),
+assert.match(
+  marketplaceOrders,
+  /validate_order_marketplace\(ctx, tick, &building, owner\)\?;[\s\S]{0,220}pay_market_gold\(/,
   'marketplace validation must happen before any payer is debited',
 );
 

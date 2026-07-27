@@ -7,6 +7,8 @@ import {
   RIVER_DEEP_BACKDROP_STABILITY,
   RIVER_FLOW_HIGHLIGHT_STRENGTH,
   RIVER_FLOW_ROUGHNESS_FLOOR,
+  RIVER_OPTICAL_SHORE_EXPONENT,
+  RIVER_SKY_RETURN_STRENGTH,
   RIVER_VISUAL_SHORE_EXPONENT,
   RIVER_WATER_ATTENUATION_DISTANCE,
   RIVER_WATER_TRANSMISSION,
@@ -109,6 +111,10 @@ assert.ok(
   'visual shore depth must settle quickly enough to avoid distance-field pool lobes',
 );
 assert.ok(
+  RIVER_OPTICAL_SHORE_EXPONENT >= 2.2 && RIVER_OPTICAL_SHORE_EXPONENT <= 2.8,
+  'optical depth must reveal the near-bank bed without restoring broad distance lobes',
+);
+assert.ok(
   RIVER_FLOW_ROUGHNESS_FLOOR >= 0.31,
   'flow roughness must not turn directional crests into black winter pools',
 );
@@ -116,6 +122,10 @@ assert.ok(
   RIVER_FLOW_HIGHLIGHT_STRENGTH >= 0.15
     && RIVER_FLOW_HIGHLIGHT_STRENGTH <= 0.2,
   'broken micro-flow must remain visible without becoming broad winter halos',
+);
+assert.ok(
+  RIVER_SKY_RETURN_STRENGTH >= 0.14 && RIVER_SKY_RETURN_STRENGTH <= 0.2,
+  'angle-dependent sky return must remain legible but restrained',
 );
 assert.equal(material.roughness, 0.3);
 assert.equal(material.specularIntensity, 0.5);

@@ -38,6 +38,12 @@ import { RiverField } from '../src/rivers/RiverField.ts';
 import { Terrain } from '../src/terrain/Terrain.ts';
 import { selectFoundingSite } from '../src/world/worldBootstrapData.ts';
 import {
+  createVisualQaFoundersCampFixture,
+  VISUAL_QA_FOUNDERS_CAMP_ID,
+  withVisualQaFoundersCamp,
+  withVisualQaFoundersCampState,
+} from '../src/app/visualQaFoundersCampFixture.ts';
+import {
   BUILDING_DEFINITIONS,
   BUILDING_COSTS,
   BUILDING_STORAGE_CAPS,
@@ -154,6 +160,63 @@ assert.equal(
 const world = createWorldLayout();
 const siteA = selectFoundingSite(world, (x, z) => x * 0.002 + z * -0.001);
 const siteB = selectFoundingSite(world, (x, z) => x * 0.002 + z * -0.001);
+const visualQaFixture = createVisualQaFoundersCampFixture(
+  world,
+  (x, z) => x * 0.002 + z * -0.001,
+);
+assert.equal(visualQaFixture.id, VISUAL_QA_FOUNDERS_CAMP_ID);
+assert.deepEqual(
+  { x: visualQaFixture.x, z: visualQaFixture.z },
+  siteA,
+  'visual-QA fixture must reuse deterministic founding-site selection',
+);
+assert.equal(
+  withVisualQaFoundersCamp([], visualQaFixture)[0],
+  visualQaFixture,
+  'empty visual-QA snapshots must receive the presentation-only camp',
+);
+const repeatedVisualQaBuildings = withVisualQaFoundersCamp(
+  withVisualQaFoundersCamp([], visualQaFixture),
+  visualQaFixture,
+);
+assert.equal(
+  repeatedVisualQaBuildings.filter(
+    (building) => building.kind === 'founders_camp',
+  ).length,
+  1,
+  'repeated disconnected visual-QA syncs must keep one stable camp',
+);
+const authoritativeCamp = {
+  ...visualQaFixture,
+  id: 'authoritative-founders-camp',
+};
+assert.deepEqual(
+  withVisualQaFoundersCamp([authoritativeCamp], visualQaFixture),
+  [authoritativeCamp],
+  'an authoritative founders camp must replace the visual-QA fixture',
+);
+const emptyVisualQaState = gameState(true, 0);
+const visualQaPresentationState = withVisualQaFoundersCampState(
+  emptyVisualQaState,
+  visualQaFixture,
+);
+assert.equal(emptyVisualQaState.buildings.size, 0,
+  'the visual-QA fixture must not mutate authoritative GameState');
+assert.deepEqual(
+  {
+    timber: computeResourceTotals(visualQaPresentationState).timber,
+    stone: computeResourceTotals(visualQaPresentationState).stone,
+  },
+  { timber: 160, stone: 140 },
+  'visual-QA HUD totals must include the presentation-only camp supplies',
+);
+const authoritativeState = gameState(true, 0);
+authoritativeState.buildings.set(authoritativeCamp.id, authoritativeCamp);
+assert.equal(
+  withVisualQaFoundersCampState(authoritativeState, visualQaFixture),
+  authoritativeState,
+  'an authoritative camp must keep its original presentation state',
+);
 assert.deepEqual(siteA, siteB, 'the village origin must be deterministic for a world seed');
 const dims = resolveWorldDimensions(world.settings.mapSize);
 assert.ok(Math.abs(siteA.x) < dims.playableHalf - 18);
@@ -401,6 +464,12 @@ assert.match(
   buildingMarkersSource,
   /building\.kind === 'founders_camp'\s*&& building\.foundingShelterActive !== false[\s\S]*?this\.foundersCampfires\.add/,
   'a struck camp must not keep an invisible fire effect in the per-frame animation set',
+);
+const appSource = read('src/app/App.ts');
+assert.match(
+  appSource,
+  /syncPlacedBuildingTerrain\(\{[\s\S]*?forceMeshUpdate: true,[\s\S]*?\}\);\s*\/\/ Terrain sync[\s\S]*?this\.syncVisualQaFoundersCampFixture\(\);/,
+  'vegetation-ready terrain replay must restore the visual-QA camp afterwards',
 );
 const townHallInspector = read('src/resources/inspector/townHallRenderer.ts');
 assert.match(townHallInspector, /Treasury chest/);
