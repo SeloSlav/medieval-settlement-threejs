@@ -216,6 +216,26 @@ export function computeInTransitResourceTotals(
 }
 
 /**
+ * Foreign-trade proceeds at a marketplace are physically owned but remain
+ * unavailable for spending until a broker cart reaches a civic lockbox.
+ */
+export function computeMarketGoldAwaitingCollection(
+  buildings: Iterable<BuildingState>,
+): number {
+  let gold = 0;
+  for (const building of buildings) {
+    if (
+      building.kind === 'marketplace'
+      && building.constructionComplete !== false
+      && Number.isFinite(building.gold)
+    ) {
+      gold += Math.max(0, building.gold);
+    }
+  }
+  return gold;
+}
+
+/**
  * Physical timber held at buildings after subtracting active construction
  * reservations backed by those stores. This mirrors the authoritative lodge
  * conversion check.

@@ -4,6 +4,7 @@ import {
 } from '../generated/gameBalance.ts';
 import type { BuildingState, LivestockHerdState } from '../resources/types.ts';
 import { constructionVisualSignature } from './ConstructionSiteMesh.ts';
+import { MARKET_STAGING_VISUAL_SEGMENTS } from './meshes/marketplaceMesh.ts';
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
@@ -104,6 +105,7 @@ export function buildingMarkerSignatures(
         && building.constructionComplete !== false
         ? `:secured-gold:${building.gold > 1e-6 ? 1 : 0}`
         : '';
+      const marketState = marketplaceVisualState(building);
       const hayState = building.kind === 'pastoral_farmstead'
         && building.constructionComplete !== false
         ? `:hay:${stockpileVisualLevel(
@@ -136,7 +138,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${timberState}${hayState}${woolState}${clothState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${marketState}${timberState}${hayState}${woolState}${clothState}`,
         collider: structural,
       };
     })
@@ -157,4 +159,38 @@ export function buildingMarkerCollectionSignature(
 function ratio(value: number, required: number): number {
   if (required <= 1e-6) return 1;
   return Math.min(1, Math.max(0, value / required));
+}
+
+function marketplaceVisualState(building: BuildingState): string {
+  if (building.kind !== 'marketplace' || building.constructionComplete === false) {
+    return '';
+  }
+  const cratedGoods = building.firewood
+    + building.food
+    + building.grain
+    + (building.ironwork ?? 0);
+  const cratedCapacity =
+    BUILDING_STORAGE_CAPS.marketplace.firewood
+    + BUILDING_STORAGE_CAPS.marketplace.food
+    + BUILDING_STORAGE_CAPS.marketplace.grain
+    + (BUILDING_STORAGE_CAPS.marketplace.ironwork ?? 0);
+  return `:market:${
+    stockpileVisualLevel(
+      building.timber,
+      BUILDING_STORAGE_CAPS.marketplace.timber,
+      MARKET_STAGING_VISUAL_SEGMENTS,
+    )
+  }:${
+    stockpileVisualLevel(
+      building.stone,
+      BUILDING_STORAGE_CAPS.marketplace.stone,
+      MARKET_STAGING_VISUAL_SEGMENTS,
+    )
+  }:${
+    stockpileVisualLevel(
+      cratedGoods,
+      cratedCapacity,
+      MARKET_STAGING_VISUAL_SEGMENTS,
+    )
+  }:${building.gold > 1e-6 ? 1 : 0}`;
 }

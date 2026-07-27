@@ -464,7 +464,18 @@ fn apply_marketplace_trade(
         TradeReceive::Gold(amount) => {
             let resource = trade_resource_for_sell(offer);
             let multiplier = price_multiplier_for(&market, resource);
-            credit_treasury_gold(ctx, owner, scaled_gold_yield(amount, multiplier));
+            let mut settlement_market = ctx
+                .db
+                .building()
+                .id()
+                .find(&building_id)
+                .ok_or_else(|| "Marketplace not found.".to_string())?;
+            credit_marketplace_export_gold(
+                ctx,
+                &mut settlement_market,
+                scaled_gold_yield(amount, multiplier),
+            );
+            ctx.db.building().id().update(settlement_market);
         }
         TradeReceive::Resource(leg) => {
             deposit_marketplace_resource(ctx, building_id, leg.resource, leg.amount)?
@@ -580,6 +591,25 @@ fn physical_trade_staging_enabled(ctx: &ReducerContext, owner: spacetimedb::Iden
         .owner()
         .find(&owner)
         .is_some_and(|resources| resources.physical_founding_site_enabled)
+}
+
+/// New settlements keep foreign-trade proceeds in the market row until a
+/// visible cart delivers them to a civic lockbox. Legacy saves preserve their
+/// abstract treasury credit so the additive founding-site flag remains the
+/// compatibility boundary for the whole physical economy.
+pub(crate) fn credit_marketplace_export_gold(
+    ctx: &ReducerContext,
+    marketplace: &mut Building,
+    amount: f64,
+) {
+    if !amount.is_finite() || amount <= 1e-6 {
+        return;
+    }
+    if physical_trade_staging_enabled(ctx, marketplace.owner) {
+        deposit_building_commodity(marketplace, CommodityKind::Gold, amount);
+    } else {
+        credit_treasury_gold(ctx, marketplace.owner, amount);
+    }
 }
 
 fn stage_or_spend_physical_market_resource(

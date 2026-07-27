@@ -21,7 +21,12 @@ import {
   MARKET_COMMODITIES,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
-import { computeMarketplaceTradeAvailability } from '../src/resources/resourceTotals.ts';
+import {
+  computeMarketGoldAwaitingCollection,
+  computeMarketplaceTradeAvailability,
+  computeResourceTotals,
+} from '../src/resources/resourceTotals.ts';
+import { buildingMarkerCollectionSignature } from '../src/buildings/buildingMarkerSignature.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
   createEmptyStockpile,
@@ -124,6 +129,13 @@ assert.ok(timberForStone, 'timber_for_stone offer exists');
 assert.ok(buyPork, 'buy_pork commodity exists');
 
 const marketplaceMesh = createMarketplaceMesh();
+const marketProceedsChest = marketplaceMesh.getObjectByName('MarketProceedsChest');
+assert.ok(marketProceedsChest, 'market exports need a visible proceeds lockbox');
+assert.equal(
+  marketProceedsChest.visible,
+  false,
+  'the market lockbox should remain hidden until export gold is physically present',
+);
 for (const [groupName, segmentPrefix] of [
   ['MarketTimberStaging', 'MarketTimberStageSegment'],
   ['MarketStoneStaging', 'MarketStoneStageSegment'],
@@ -279,6 +291,45 @@ const physicalTradeState: GameState = {
     gold: 0,
   },
 };
+const marketWithProceeds = {
+  ...marketplace,
+  gold: 14,
+};
+const townHallWithTreasury = makeBuilding({
+  id: 'town-hall',
+  kind: 'town_hall',
+  x: 6,
+  z: 0,
+  gold: 5,
+});
+const proceedsState: GameState = {
+  ...makeState([marketWithProceeds, townHallWithTreasury]),
+  physicalFoundingSiteEnabled: true,
+  stockpile: createEmptyStockpile(),
+};
+assert.equal(
+  computeResourceTotals(proceedsState).gold,
+  5,
+  'gold waiting at a marketplace must not become spendable before its cart unloads',
+);
+assert.equal(
+  computeMarketGoldAwaitingCollection(proceedsState.buildings.values()),
+  14,
+  'the HUD should account separately for export proceeds held at markets',
+);
+assert.notEqual(
+  buildingMarkerCollectionSignature(new Map([[marketplace.id, marketplace]])),
+  buildingMarkerCollectionSignature(new Map([[marketWithProceeds.id, marketWithProceeds]])),
+  'a market lockbox must refresh when export proceeds arrive or depart',
+);
+assert.notEqual(
+  buildingMarkerCollectionSignature(new Map([[marketplace.id, marketplace]])),
+  buildingMarkerCollectionSignature(new Map([[
+    marketplace.id,
+    { ...marketplace, timber: marketplace.timber + 20 },
+  ]])),
+  'physical market staging piles must refresh when their visible stock level changes',
+);
 assert.deepEqual(
   computeMarketplaceTradeAvailability(physicalTradeState, marketplace, roadConnected),
   {
@@ -484,6 +535,19 @@ const largeAvailability = computeMarketplaceTradeAvailability(
 const elapsed = performance.now() - started;
 assert.equal(largeAvailability.firewood, 5_005);
 assert.ok(elapsed < 250, `10k-building market stock scan took ${elapsed.toFixed(1)}ms`);
+const proceedsStarted = performance.now();
+assert.equal(
+  computeMarketGoldAwaitingCollection([
+    ...manyBuildings,
+    marketWithProceeds,
+  ]),
+  14,
+);
+const proceedsElapsed = performance.now() - proceedsStarted;
+assert.ok(
+  proceedsElapsed < 100,
+  `10k-building market proceeds scan took ${proceedsElapsed.toFixed(1)}ms`,
+);
 
 const longRoad = new RoadNetwork();
 longRoad.restore({
@@ -600,6 +664,7 @@ assert.match(
   'staging must not record a sale or regional price movement before the cart unloads',
 );
 assert.match(marketplaceTradeSource, /try_advance_pending_marketplace_trade/);
+assert.match(marketplaceTradeSource, /credit_marketplace_export_gold/);
 assert.match(marketplaceTradeSource, /pending_trade_code[\s\S]*"sell_timber" => Some\(1\)/);
 assert.match(marketplaceTradeSource, /MarketplaceTradeOutcome::Settled[\s\S]*clear_pending_marketplace_trade/);
 assert.match(
@@ -611,6 +676,14 @@ assert.match(
   marketplaceCaravanSource,
   /pending_commodity != Some\(CommodityKind::Firewood\)[\s\S]*pending_commodity != Some\(CommodityKind::Food\)/,
   'routine household caravans must not consume stock committed to a pending export',
+);
+assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_proceeds/);
+assert.match(marketplaceCaravanSource, /CommodityKind::Gold/);
+assert.match(marketplaceCaravanSource, /onsite_building_labor/);
+assert.doesNotMatch(
+  marketplaceCaravanSource,
+  /credit_treasury_gold/,
+  'market exports must not teleport income into a civic treasury',
 );
 assert.match(marketplaceReducerSource, /cancel_marketplace_trade_order/);
 assert.match(marketplaceReducerSource, /already withdrawn into a delivery trip remains/);
@@ -638,13 +711,17 @@ assert.match(marketplaceOrderSource, /building_disabled_by_fire\(ctx, building\.
 assert.match(marketplaceInspectorSource, /Regional route/);
 assert.match(marketplaceInspectorSource, /getRoadConditionSpeedMultiplier/);
 assert.match(marketplaceInspectorSource, /marketFireDisabled/);
+assert.match(marketplaceInspectorSource, /Export proceeds/);
+assert.match(marketplaceInspectorSource, /visible market lockbox/);
 assert.match(marketplaceTradeRendererSource, /current regional road conditions/);
 assert.match(marketplaceTradeRendererSource, /visible source carts/);
 assert.match(marketplaceTradeRendererSource, /settle it automatically/);
+assert.match(marketplaceTradeRendererSource, /broker handcart delivers them to the civic treasury/);
 assert.match(marketplaceTradeRendererSource, /cancel-marketplace-trade-order/);
 assert.doesNotMatch(marketplaceTradeRendererSource, /click again after unloading/);
 
 console.log(
   `marketplace trade tests passed (10k stock scan ${elapsed.toFixed(1)}ms; `
+  + `proceeds scan ${proceedsElapsed.toFixed(1)}ms; `
   + `10k road checks ${connectivityElapsed.toFixed(1)}ms)`,
 );

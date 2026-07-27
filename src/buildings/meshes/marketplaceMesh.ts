@@ -92,6 +92,33 @@ function addMarketStagingStock(group: THREE.Group): void {
   group.add(crates);
 }
 
+function addMarketProceedsChest(group: THREE.Group): void {
+  const chest = new THREE.Group();
+  chest.name = 'MarketProceedsChest';
+  chest.visible = false;
+  chest.position.set(2.6, 0.25, -1.45);
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(0.92, 0.52, 0.62),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 0.28, 0),
+  );
+  addMesh(
+    chest,
+    new THREE.CylinderGeometry(0.31, 0.31, 0.92, 8, 1, false, 0, Math.PI),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, 0.57, 0),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  );
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(0.09, 0.58, 0.67),
+    metalMaterial('iron'),
+    new THREE.Vector3(0, 0.38, 0),
+  );
+  group.add(chest);
+}
+
 /** Open Croatian market loggia: a permanent civic roof, not a carnival tent. */
 export function createMarketplaceMesh(): THREE.Group {
   const group = new THREE.Group();
@@ -191,6 +218,7 @@ export function createMarketplaceMesh(): THREE.Group {
   addCrate(group, 2.8, 0.55, 0.72);
   addBarrel(group, -2.8, 1.45, 0.88);
   addMarketStagingStock(group);
+  addMarketProceedsChest(group);
 
   // A simple hanging steelyard gives the open loggia a strong trade silhouette.
   addMesh(

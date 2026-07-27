@@ -34,6 +34,7 @@ import { countTreesNearBuilding } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
 import {
   computeInTransitResourceTotals,
+  computeMarketGoldAwaitingCollection,
   computePopulationStats,
   computeResourceTotals,
 } from '../resources/resourceTotals.ts';
@@ -773,6 +774,7 @@ export async function bootstrapAppSession(
     computeResourceTotals(gameState),
     computePopulationStats(gameState),
     computeInTransitResourceTotals(gameState.deliveryTrips.values()),
+    computeMarketGoldAwaitingCollection(gameState.buildings.values()),
   );
 
   firstPersonController = new FirstPersonController({

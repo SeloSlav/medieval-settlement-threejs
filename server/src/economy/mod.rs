@@ -35,9 +35,10 @@ pub use marketplace_orders::{
 };
 pub use marketplace_trade::execute_marketplace_trade;
 pub(crate) use marketplace_trade::{
-    pending_marketplace_trade_commodity, try_advance_pending_marketplace_trade,
-    try_execute_standing_marketplace_import,
+    credit_marketplace_export_gold, pending_marketplace_trade_commodity,
+    try_advance_pending_marketplace_trade, try_execute_standing_marketplace_import,
 };
+pub(crate) use marketplace_trade_policy::marketplace_proceeds_cart_load;
 pub use parish_accounting::{
     clamp_chapel_coffer_reserve_gold, record_parish_ledger, ParishLedgerKind,
 };
@@ -48,6 +49,7 @@ pub use population::{
 pub(crate) use regional_market::record_specialty_market_export;
 pub use regional_market::{ensure_market_state, scaled_gold_cost, step_regional_markets};
 pub(crate) use storage::available_unreserved_building_timber;
+pub(crate) use storage::physical_treasury_seat;
 pub use storage::{
     building_food_storage_cap, building_storage_caps, building_water_storage_cap,
     construction_treasury_reservation, construction_treasury_reservation_excluding_building,

@@ -125,7 +125,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="food">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip="Spendable civic gold secured in the founders' lockbox, reclamation chests, or Town Hall treasury. Parish and monastery coffers remain separate; moving lockboxes are shown until unloading.">
+      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip="Spendable civic gold secured in the founders' lockbox, reclamation chests, or Town Hall treasury. Market proceeds and moving lockboxes are shown separately until a cart unloads; parish and monastery coffers remain separate.">
         <span class="settlement-hud__label">Gold</span>
         <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>
@@ -506,8 +506,8 @@ export class SettlementHud {
         : `Weakest heated road branch: ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at frost demand.`,
     ].filter(Boolean).join(' ');
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
-      ? `Spendable civic gold is secured at physical settlement lockboxes. Armed guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current wage runway is ${formatProvisionRunway(provisioning.guardWageRunwayDays)}. Gold en route appears separately and becomes spendable only after unloading.`
-      : "Spendable civic gold is secured at the founders' lockbox, reclamation chests, or Town Hall treasury. Parish and monastery coffers remain separate; moving lockboxes appear until unloading.";
+      ? `Spendable civic gold is secured at physical settlement lockboxes. Armed guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current wage runway is ${formatProvisionRunway(provisioning.guardWageRunwayDays)}. Market proceeds and gold en route appear separately and become spendable only after unloading.`
+      : "Spendable civic gold is secured at the founders' lockbox, reclamation chests, or Town Hall treasury. Parish and monastery coffers remain separate; market proceeds and moving lockboxes appear until unloading.";
   }
 
   clearProvisioningState(): void {

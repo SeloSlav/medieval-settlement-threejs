@@ -455,6 +455,8 @@ function syncBuildingVisualState(
     if (chest) chest.visible = building.gold > 1e-6;
   }
   if (building.kind === 'marketplace') {
+    const proceedsChest = marker.getObjectByName('MarketProceedsChest');
+    if (proceedsChest) proceedsChest.visible = building.gold > 1e-6;
     const timber = marker.getObjectByName('MarketTimberStaging');
     if (timber instanceof THREE.Group) {
       syncStockpileSegments(

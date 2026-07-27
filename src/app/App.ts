@@ -21,6 +21,7 @@ import { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
 import {
   computeInTransitResourceTotals,
+  computeMarketGoldAwaitingCollection,
   computePopulationStats,
   computeResourceTotals,
 } from '../resources/resourceTotals.ts';
@@ -820,6 +821,7 @@ export class App {
       computeResourceTotals(this.gameState),
       computePopulationStats(this.gameState),
       computeInTransitResourceTotals(this.gameState.deliveryTrips.values()),
+      computeMarketGoldAwaitingCollection(this.gameState.buildings.values()),
     );
     this.resourceInspector.refreshSelection();
   }

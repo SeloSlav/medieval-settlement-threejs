@@ -27,9 +27,14 @@ import {
 } from '../../economy/settlementHouseholdMarket.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import type { DeliveryTripState } from '../../logistics/deliveryTrips.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
-import type { TradeResourceKind } from '../../generated/gameBalance.ts';
+import {
+  STOREHOUSE_HAUL_PER_WORKER,
+  type TradeResourceKind,
+} from '../../generated/gameBalance.ts';
+import type { BuildingState } from '../types.ts';
 
 const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>([
   'timber',
@@ -71,6 +76,37 @@ export function renderMarketplaceInspector(
     context.gameState.fireIncidents.values(),
   ).has(building.id);
   const physicalEconomy = context.gameState.physicalFoundingSiteEnabled === true;
+  const activeMarketTrip = Array.from(context.gameState.deliveryTrips.values())
+    .find((trip) => trip.buildingId === building.id) ?? null;
+  const treasurySeat = Array.from(context.gameState.buildings.values())
+    .filter((candidate) =>
+      candidate.id !== building.id
+      && candidate.constructionComplete !== false
+      && (
+        candidate.kind === 'town_hall'
+        || candidate.kind === 'founders_camp'
+        || candidate.kind === 'salvage_pile'
+      ))
+    .sort((a, b) =>
+      marketplaceTreasurySeatPriority(a) - marketplaceTreasurySeatPriority(b)
+      || a.id.localeCompare(b.id))[0] ?? null;
+  const proceedsCollection = formatMarketplaceProceedsCollection({
+    physicalEconomy,
+    market: building,
+    activeTrip: activeMarketTrip,
+    marketFireDisabled,
+    treasurySeat,
+    treasurySeatLabel: treasurySeat
+      ? context.worldQueries.getBuildingLabel(treasurySeat.kind)
+      : null,
+    treasuryRouteAvailable: treasurySeat != null
+      && context.worldQueries.getRoadPathDistance(
+        building.x,
+        building.z,
+        treasurySeat.x,
+        treasurySeat.z,
+      ) != null,
+  });
   const inboundBulkResources = new Set<TradeResourceKind>();
   for (const trip of context.gameState.deliveryTrips.values()) {
     if (
@@ -185,6 +221,7 @@ export function renderMarketplaceInspector(
       <li><span>Regional route</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueue.units.toFixed(1)} units - about ${specialtyQueue.goldValue.toFixed(1)} gold</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
+      <li><span>Export proceeds</span><span>${proceedsCollection}</span></li>
       <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this market by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>
       <li><span>Backyard sales</span><span>Road-linked homes only</span></li>
@@ -208,6 +245,60 @@ export function renderMarketplaceInspector(
       inboundBulkResources,
     ),
   };
+}
+
+function marketplaceTreasurySeatPriority(building: BuildingState): number {
+  switch (building.kind) {
+    case 'town_hall': return 0;
+    case 'founders_camp': return 1;
+    default: return 2;
+  }
+}
+
+function formatMarketplaceProceedsCollection(options: {
+  physicalEconomy: boolean;
+  market: BuildingState;
+  activeTrip: DeliveryTripState | null;
+  marketFireDisabled: boolean;
+  treasurySeat: BuildingState | null;
+  treasurySeatLabel: string | null;
+  treasuryRouteAvailable: boolean;
+}): string {
+  if (!options.physicalEconomy) {
+    return 'Legacy settlement - sales credit the treasury immediately';
+  }
+  if (
+    options.activeTrip?.cargoKind === 'gold'
+    && options.activeTrip.amount > 1e-6
+  ) {
+    return `${options.activeTrip.amount.toFixed(1)} gold traveling to ${
+      options.treasurySeatLabel ?? 'the civic lockbox'
+    } - unavailable until unloading`;
+  }
+  const held = Math.max(0, options.market.gold);
+  if (held <= 1e-6) {
+    return 'No proceeds awaiting collection';
+  }
+  const lockbox = `${held.toFixed(1)} gold in the visible market lockbox`;
+  if (options.marketFireDisabled) {
+    return `${lockbox} - sealed until fire recovery`;
+  }
+  if (options.market.assignedLabor <= 0) {
+    return `${lockbox} - assign a broker to haul it`;
+  }
+  if (options.market.actionCooldown > 1e-6 && options.market.assignedLabor <= 1) {
+    return `${lockbox} - sole broker at the trade desk for ${options.market.actionCooldown.toFixed(1)}s`;
+  }
+  if (options.activeTrip) {
+    return `${lockbox} - market cart busy carrying ${options.activeTrip.cargoKind}`;
+  }
+  if (!options.treasurySeat) {
+    return `${lockbox} - awaiting a founding or Town Hall treasury chest`;
+  }
+  if (!options.treasuryRouteAvailable) {
+    return `${lockbox} - connect this market to ${options.treasurySeatLabel}`;
+  }
+  return `${lockbox} - next broker handcart carries up to ${STOREHOUSE_HAUL_PER_WORKER.toFixed(0)} gold`;
 }
 
 function formatSpecialtyExportDesk(

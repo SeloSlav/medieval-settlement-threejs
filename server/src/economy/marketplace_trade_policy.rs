@@ -1,6 +1,6 @@
 use crate::balance_generated::{
     MarketplaceTradeKind, MarketplaceTradeOffer, TradeResource,
-    MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS,
+    MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS, STOREHOUSE_HAUL_PER_WORKER,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -77,6 +77,16 @@ pub fn manual_trade_cooldown_seconds(assigned_labor: u32, road_speed_multiplier:
 /// parish order is a sale to one named home and only commits when its cart starts.
 pub fn market_order_should_commit(requires_immediate_delivery: bool, dispatched: bool) -> bool {
     !requires_immediate_delivery || dispatched
+}
+
+/// Export proceeds leave a marketplace in one small broker handcart. Keeping
+/// the load bounded makes a remote trade quarter a real logistics choice
+/// instead of teleporting arbitrarily large sale income into the treasury.
+pub fn marketplace_proceeds_cart_load(held_gold: f64) -> f64 {
+    if !held_gold.is_finite() {
+        return 0.0;
+    }
+    held_gold.clamp(0.0, STOREHOUSE_HAUL_PER_WORKER)
 }
 
 #[cfg(test)]
@@ -197,5 +207,16 @@ mod tests {
     #[test]
     fn named_household_order_commits_when_its_cart_leaves() {
         assert!(market_order_should_commit(true, true));
+    }
+
+    #[test]
+    fn export_proceeds_use_one_bounded_broker_cart() {
+        assert_eq!(marketplace_proceeds_cart_load(-5.0), 0.0);
+        assert_eq!(marketplace_proceeds_cart_load(f64::NAN), 0.0);
+        assert_eq!(marketplace_proceeds_cart_load(8.5), 8.5);
+        assert_eq!(
+            marketplace_proceeds_cart_load(200.0),
+            STOREHOUSE_HAUL_PER_WORKER
+        );
     }
 }

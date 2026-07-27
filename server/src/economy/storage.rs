@@ -368,7 +368,10 @@ pub fn spend_treasury_gold(
     Ok(())
 }
 
-fn physical_treasury_seat(ctx: &ReducerContext, owner: spacetimedb::Identity) -> Option<Building> {
+pub(crate) fn physical_treasury_seat(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> Option<Building> {
     ctx.db
         .building()
         .owner()

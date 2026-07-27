@@ -104,7 +104,8 @@ assert.match(expandedEconomy, /CommodityKind::Cloth,\s*&\["marketplace"\]/s);
 assert.match(marketplaceCaravan, /CommodityKind::Cloth/);
 assert.match(marketplaceCaravan, /withdraw_building_commodity/);
 assert.match(marketplaceCaravan, /specialty_export_capacity/);
-assert.match(marketplaceCaravan, /credit_treasury_gold/);
+assert.match(marketplaceCaravan, /credit_marketplace_export_gold/);
+assert.doesNotMatch(marketplaceCaravan, /credit_treasury_gold/);
 
 const start = performance.now();
 let checksum = 0;

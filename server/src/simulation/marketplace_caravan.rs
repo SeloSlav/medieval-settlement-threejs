@@ -7,19 +7,23 @@ use crate::balance_generated::{
     FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, MARKET_CARAVAN_DELIVERY_WORKERS,
     MARKET_CARAVAN_FIREWOOD_PER_DELIVERY, MARKET_CARAVAN_LABOR_PER_WORKER,
     SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_CLOTH,
-    SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_WINE, TICK_DT,
-    WATER_DELIVERY_SPEED_MPS, WATER_DELIVERY_UNLOAD_SEC,
+    SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_WINE, STOREHOUSE_HAUL_PER_WORKER,
+    TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, WATER_DELIVERY_SPEED_MPS,
+    WATER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_stock, credit_treasury_gold, pending_marketplace_trade_commodity,
-    record_specialty_market_export, try_advance_pending_marketplace_trade,
-    try_execute_standing_marketplace_import, withdraw_building_commodity, CommodityKind,
+    building_commodity_stock, credit_marketplace_export_gold, marketplace_proceeds_cart_load,
+    pending_marketplace_trade_commodity, physical_treasury_seat, record_specialty_market_export,
+    try_advance_pending_marketplace_trade, try_execute_standing_marketplace_import,
+    withdraw_building_commodity, CommodityKind,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{delivery_stock_room, has_delivery_stock_room};
 use crate::simulation::delivery_supplier::{dispatch_delivery_if_ready, DeliveryDispatchConfig};
-use crate::simulation::delivery_trips::building_has_active_trip;
+use crate::simulation::delivery_trips::{
+    building_has_active_trip, onsite_building_labor, try_start_building_supply_trip,
+};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
@@ -27,6 +31,7 @@ use crate::simulation::road_logistics::select_residence_for_need_delivery;
 use crate::simulation::tick_context::SimTickContext;
 use crate::specialty_trade_policy::{
     specialty_export_capacity, specialty_export_order, specialty_export_policy_allows,
+    specialty_export_workers,
 };
 use crate::tables::{Building, Residence};
 
@@ -175,7 +180,8 @@ pub fn step_marketplace_caravans(
                     || building.ale > 1e-6
                     || building.honey > 1e-6
                     || building.wine > 1e-6
-                    || building.cloth > 1e-6)
+                    || building.cloth > 1e-6
+                    || building.gold > 1e-6)
         })
         .map(|building| building.id)
         .collect();
@@ -213,13 +219,16 @@ pub fn step_marketplace_caravans(
         };
         let mut changed = false;
         if building.action_cooldown > 1e-6
-            && building.assigned_labor > 0
+            && onsite_building_labor(ctx, &building) > 0
             && !labor_and_logistics_paused(ctx, tick, building.owner, clock)
         {
             building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
             changed = true;
         }
         changed |= sell_marketplace_specialties(ctx, tick, clock, &mut building);
+        if building.gold > 1e-6 && !building_has_active_trip(ctx, building.id) {
+            changed |= try_dispatch_marketplace_proceeds(ctx, tick, clock, &mut building);
+        }
         let pending_commodity = pending_marketplace_trade_commodity(&building);
         if building.firewood > 1e-6 && pending_commodity != Some(CommodityKind::Firewood) {
             changed |= try_dispatch_marketplace_caravan(
@@ -269,7 +278,8 @@ fn sell_marketplace_specialties(
     clock: &GameClock,
     building: &mut Building,
 ) -> bool {
-    if building.assigned_labor == 0
+    let onsite_labor = onsite_building_labor(ctx, building);
+    if onsite_labor == 0
         || labor_and_logistics_paused(ctx, tick, building.owner, clock)
         || (building.ale <= 1e-6
             && building.honey <= 1e-6
@@ -295,8 +305,7 @@ fn sell_marketplace_specialties(
         return false;
     }
 
-    let mut remaining =
-        specialty_export_capacity(building.assigned_labor, building.action_cooldown, TICK_DT);
+    let mut remaining = specialty_export_capacity(onsite_labor, building.action_cooldown, TICK_DT);
     if remaining <= 1e-6 {
         return false;
     }
@@ -319,7 +328,49 @@ fn sell_marketplace_specialties(
             break;
         }
     }
-    credit_treasury_gold(ctx, building.owner, revenue);
+    credit_marketplace_export_gold(ctx, building, revenue);
     record_specialty_market_export(ctx, building.owner, units_sold);
     revenue > 1e-6
+}
+
+fn try_dispatch_marketplace_proceeds(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    marketplace: &mut Building,
+) -> bool {
+    let available_brokers = specialty_export_workers(
+        onsite_building_labor(ctx, marketplace),
+        marketplace.action_cooldown,
+    );
+    if available_brokers == 0 || building_has_active_trip(ctx, marketplace.id) {
+        return false;
+    }
+    let load = marketplace_proceeds_cart_load(marketplace.gold);
+    if load <= 1e-6 {
+        return false;
+    }
+    let Some(target) = physical_treasury_seat(ctx, marketplace.owner) else {
+        return false;
+    };
+    if target.id == marketplace.id {
+        return false;
+    }
+    let Some(network) = tick.road_network(marketplace.owner) else {
+        return false;
+    };
+    try_start_building_supply_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        marketplace,
+        &target,
+        1,
+        CommodityKind::Gold,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        STOREHOUSE_HAUL_PER_WORKER,
+        load,
+    )
 }

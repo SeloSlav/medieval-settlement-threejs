@@ -771,6 +771,7 @@ export class ResourceInspector {
     totals: ResourceTotals,
     population: PopulationStats,
     inTransit?: ResourceTotals,
+    marketGoldAwaitingCollection = 0,
   ): void {
     this.populationStats = population;
     this.stockpileValues.timber.textContent = Math.round(totals.timber).toString();
@@ -792,10 +793,15 @@ export class ResourceInspector {
     for (const resource of HUD_RESOURCE_KINDS) {
       const transit = this.stockpileTransitValues[resource];
       const amount = Math.max(0, inTransit?.[resource] ?? 0);
-      transit.hidden = amount <= 1e-6;
-      transit.textContent = amount > 1e-6
-        ? `+${formatTransitAmount(amount)} en route`
-        : '';
+      const details = [];
+      if (resource === 'gold' && marketGoldAwaitingCollection > 1e-6) {
+        details.push(`+${formatTransitAmount(marketGoldAwaitingCollection)} at market`);
+      }
+      if (amount > 1e-6) {
+        details.push(`+${formatTransitAmount(amount)} en route`);
+      }
+      transit.hidden = details.length === 0;
+      transit.textContent = details.join(' · ');
     }
     this.populationValue.textContent = population.total.toString();
     this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;
