@@ -93,6 +93,7 @@ pub fn try_execute_standing_marketplace_import(
     };
     if marketplace.kind != "marketplace"
         || !marketplace.construction_complete
+        || tick.building_disabled_by_fire(ctx, marketplace.id)
         || marketplace.assigned_labor == 0
         || marketplace.action_cooldown > 1e-6
         || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
@@ -265,6 +266,9 @@ fn validate_marketplace(
     }
     if !building.construction_complete {
         return Err("The marketplace is still under construction.".to_string());
+    }
+    if tick.building_disabled_by_fire(ctx, building.id) {
+        return Err("Repair the fire-damaged marketplace before trading.".to_string());
     }
     let has_road_access = tick
         .road_network(owner)

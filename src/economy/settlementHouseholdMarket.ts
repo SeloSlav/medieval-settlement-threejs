@@ -28,6 +28,7 @@ import {
   effectiveWaterCommodityGoldCost,
   type RegionalMarketState,
 } from './regionalMarket.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { gameClock, type GameClock } from '../world/gameCalendar.ts';
 
 export type HouseholdMarketOrderKind = 'food' | 'water';
@@ -51,7 +52,8 @@ export type HouseholdMarketOrderStatus =
   | 'market-storage-full'
   | 'household-storage-full'
   | 'route-too-short'
-  | 'fire-disabled';
+  | 'fire-disabled'
+  | 'market-fire-disabled';
 
 export type HouseholdMarketResidencePlan = {
   residenceId: string;
@@ -70,6 +72,7 @@ export type HouseholdMarketResidencePlan = {
 
 export type HouseholdMarketBranchPlan = {
   marketplaceId: string;
+  fireDisabled: boolean;
   assignedHomes: number;
   criticalHomes: number;
   affordableCriticalHomes: number;
@@ -80,6 +83,8 @@ export type HouseholdMarketBranchPlan = {
 
 export type SettlementHouseholdMarketPlan = {
   completedMarketplaces: number;
+  operationalMarketplaces: number;
+  fireDisabledMarketplaces: number;
   occupiedHomes: number;
   criticalHomes: number;
   foodCriticalHomes: number;
@@ -95,6 +100,7 @@ export type SettlementHouseholdMarketPlan = {
   marketStorageBlockedHomes: number;
   householdStorageBlockedHomes: number;
   fireDisabledHomes: number;
+  marketFireBlockedHomes: number;
   totalHouseholdWealth: number;
   currentLogisticsPaused: boolean;
   firstAttentionResidenceId: string | null;
@@ -116,7 +122,12 @@ export type SettlementHouseholdMarketInput = {
 type AttemptResult = {
   status: Exclude<
     HouseholdMarketOrderStatus,
-    'safe' | 'cooldown' | 'no-market-route' | 'unaffordable' | 'fire-disabled'
+    | 'safe'
+    | 'cooldown'
+    | 'no-market-route'
+    | 'unaffordable'
+    | 'fire-disabled'
+    | 'market-fire-disabled'
   >;
   quote: HouseholdMarketOrderQuote;
 };
@@ -184,10 +195,19 @@ export function computeSettlementHouseholdMarketPlan(
   const { state, marketState, roadNetwork, sabbathObserved } = input;
   const clock = input.clock ?? gameClock(state.tick);
   const currentLogisticsPaused = !clock.isWorkHours || (clock.isSunday && sabbathObserved);
+  const fireDisabledMarketIds = fireDisabledBuildingIds(
+    state.fireIncidents.values(),
+  );
   const completedMarkets = [...state.buildings.values()].filter(
     (building) =>
       building.kind === 'marketplace'
       && building.constructionComplete !== false,
+  );
+  const operationalMarkets = completedMarkets.filter(
+    (marketplace) => !fireDisabledMarketIds.has(marketplace.id),
+  );
+  const disabledMarkets = completedMarkets.filter(
+    (marketplace) => fireDisabledMarketIds.has(marketplace.id),
   );
   const marketsById = new Map(
     completedMarkets.map((marketplace) => [marketplace.id, marketplace]),
@@ -209,10 +229,18 @@ export function computeSettlementHouseholdMarketPlan(
   );
   const routeClaims = claimResidenceRoutesByNearestSupplier(
     roadNetwork,
-    completedMarkets,
+    operationalMarkets,
     routeCandidates,
     () => true,
   );
+  const fireBlockedRouteClaims = disabledMarkets.length === 0
+    ? new Map()
+    : claimResidenceRoutesByNearestSupplier(
+        roadNetwork,
+        disabledMarkets,
+        routeCandidates,
+        () => true,
+      );
   const activeMarketTrips = new Set(
     [...state.deliveryTrips.values()].map((trip) => trip.buildingId),
   );
@@ -222,6 +250,7 @@ export function computeSettlementHouseholdMarketPlan(
       marketplace.id,
       {
         marketplaceId: marketplace.id,
+        fireDisabled: fireDisabledMarketIds.has(marketplace.id),
         assignedHomes: 0,
         criticalHomes: 0,
         affordableCriticalHomes: 0,
@@ -246,6 +275,7 @@ export function computeSettlementHouseholdMarketPlan(
   let marketStorageBlockedHomes = 0;
   let householdStorageBlockedHomes = 0;
   let fireDisabledHomes = 0;
+  let marketFireBlockedHomes = 0;
   let totalHouseholdWealth = 0;
 
   for (const residence of occupiedResidences) {
@@ -262,7 +292,11 @@ export function computeSettlementHouseholdMarketPlan(
       foodCritical ? foodRunwayDays : Infinity,
       waterCritical ? waterRunwayDays ?? Infinity : Infinity,
     );
-    const claim = routeClaims.get(residence.id) ?? null;
+    const operationalClaim = routeClaims.get(residence.id) ?? null;
+    const fireBlockedClaim = operationalClaim == null
+      ? fireBlockedRouteClaims.get(residence.id) ?? null
+      : null;
+    const claim = operationalClaim ?? fireBlockedClaim;
     const marketplace = claim ? marketsById.get(claim.supplierId) ?? null : null;
     const elapsedCooldownTicks = Math.max(
       0,
@@ -299,6 +333,8 @@ export function computeSettlementHouseholdMarketPlan(
         status = 'fire-disabled';
       } else if (cooldownTicksRemaining > 0) {
         status = 'cooldown';
+      } else if (fireBlockedClaim != null) {
+        status = 'market-fire-disabled';
       } else if (!marketplace || !claim) {
         status = 'no-market-route';
       } else if (residence.householdWealth <= 1e-9) {
@@ -356,7 +392,7 @@ export function computeSettlementHouseholdMarketPlan(
     }
 
     if (!critical) continue;
-    if (marketplace && claim != null && claim.distance > 1e-6) {
+    if (marketplace && operationalClaim != null && operationalClaim.distance > 1e-6) {
       routedCriticalHomes += 1;
     }
     if (affordableAttempts.length > 0) affordableCriticalHomes += 1;
@@ -371,6 +407,7 @@ export function computeSettlementHouseholdMarketPlan(
       case 'market-storage-full': marketStorageBlockedHomes += 1; break;
       case 'household-storage-full': householdStorageBlockedHomes += 1; break;
       case 'fire-disabled': fireDisabledHomes += 1; break;
+      case 'market-fire-disabled': marketFireBlockedHomes += 1; break;
       case 'safe': break;
     }
   }
@@ -387,6 +424,8 @@ export function computeSettlementHouseholdMarketPlan(
 
   return {
     completedMarketplaces: completedMarkets.length,
+    operationalMarketplaces: operationalMarkets.length,
+    fireDisabledMarketplaces: disabledMarkets.length,
     occupiedHomes: occupiedResidences.length,
     criticalHomes,
     foodCriticalHomes,
@@ -402,6 +441,7 @@ export function computeSettlementHouseholdMarketPlan(
     marketStorageBlockedHomes,
     householdStorageBlockedHomes,
     fireDisabledHomes,
+    marketFireBlockedHomes,
     totalHouseholdWealth,
     currentLogisticsPaused,
     firstAttentionResidenceId: attention?.residenceId ?? null,
@@ -474,6 +514,8 @@ export function formatHouseholdMarketResidenceStatus(
       return `${order} - household needs room for the full lot`;
     case 'fire-disabled':
       return 'Paused - fire damage disables household orders';
+    case 'market-fire-disabled':
+      return 'Blocked - the only reachable marketplace is fire-damaged';
     case 'safe':
       return 'Standing order idle';
   }
@@ -510,6 +552,9 @@ export function formatHouseholdMarketBottlenecks(
   if (storageBlocked > 0) parts.push(`${storageBlocked} full-lot storage blocked`);
   if (plan.closedHomes > 0) parts.push(`${plan.closedHomes} waiting for work hours`);
   if (plan.fireDisabledHomes > 0) parts.push(`${plan.fireDisabledHomes} fire disabled`);
+  if (plan.marketFireBlockedHomes > 0) {
+    parts.push(`${plan.marketFireBlockedHomes} behind fire-disabled markets`);
+  }
   return parts.length > 0 ? parts.join(' - ') : 'No current emergency-order bottleneck';
 }
 
@@ -517,6 +562,12 @@ export function formatHouseholdMarketBranch(
   branch: HouseholdMarketBranchPlan | null,
 ): string {
   if (!branch) return 'No households assigned to this market';
+  if (branch.fireDisabled) {
+    if (branch.assignedHomes === 0) {
+      return 'Fire disabled - road-linked households are using other markets';
+    }
+    return `Fire disabled - ${branch.criticalHomes} / ${branch.assignedHomes} assigned homes have blocked emergency orders`;
+  }
   if (branch.criticalHomes === 0) {
     return `${branch.assignedHomes} nearest road-linked homes - none below emergency runway`;
   }

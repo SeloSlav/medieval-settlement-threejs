@@ -767,6 +767,29 @@ assert.equal(frontierSeedProcurement.ironworkQueuedMarkets, 1);
 assert.equal(frontierSeedProcurement.readyMarkets, 0);
 assert.equal(frontierSeedProcurement.firstAttentionKind, 'ironwork');
 
+const fireSeedState = emptyGameState();
+const fireSeedMarket = building('fire-seed-market', 'marketplace', 1);
+fireSeedMarket.marketplaceSeedGrainTarget = 48;
+fireSeedState.buildings.set(fireSeedMarket.id, fireSeedMarket);
+fireSeedState.fireIncidents.set('seed-market-fire', {
+  id: 'seed-market-fire',
+  targetKind: 'building',
+  targetId: fireSeedMarket.id,
+} as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+const fireSeedProcurement = computeSettlementSeedProcurementPlan({
+  state: fireSeedState,
+  seedShortfall: 24,
+  availableGold: 100,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+});
+assert.equal(fireSeedProcurement.dueMarkets, 1);
+assert.equal(fireSeedProcurement.readyMarkets, 0);
+assert.equal(fireSeedProcurement.fireBlockedMarkets, 1);
+assert.equal(fireSeedProcurement.firstAttentionMarketId, fireSeedMarket.id);
+assert.equal(fireSeedProcurement.firstAttentionKind, 'fire');
+
 const physicalSeedState = emptyGameState();
 const stockedManualMarket = building('stocked-market', 'marketplace', 1);
 stockedManualMarket.grain = 24;

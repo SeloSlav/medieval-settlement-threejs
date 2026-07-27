@@ -362,6 +362,62 @@ assert.equal(
   'market-cart-busy',
 );
 
+const marketFireState = state({
+  buildings: [chapel('chapel', 0), market('burned-market', 10)],
+  homes: [abandoned],
+});
+marketFireState.fireIncidents.set('market-fire', {
+  id: 'market-fire',
+  targetKind: 'building',
+  targetId: 'burned-market',
+} as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+const marketFireBlocked = computeSettlementParishReliefPlan({
+  state: marketFireState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: gameClock(mondayTick),
+  sabbathObserved: false,
+});
+assert.equal(
+  marketFireBlocked.parishes.get('chapel')?.status,
+  'market-fire-disabled',
+);
+assert.equal(
+  marketFireBlocked.parishes.get('chapel')?.marketplaceId,
+  'burned-market',
+);
+assert.equal(marketFireBlocked.marketFireBlockedParishes, 1);
+assert.match(
+  formatChapelPoorRelief(marketFireBlocked.parishes.get('chapel')!),
+  /marketplace is fire-damaged/,
+);
+
+const marketFireFallbackState = state({
+  buildings: [
+    chapel('chapel', 0),
+    market('burned-near-market', 10),
+    market('safe-far-market', 100),
+  ],
+  homes: [abandoned],
+});
+marketFireFallbackState.fireIncidents.set('near-market-fire', {
+  id: 'near-market-fire',
+  targetKind: 'building',
+  targetId: 'burned-near-market',
+} as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+const marketFireFallback = computeSettlementParishReliefPlan({
+  state: marketFireFallbackState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: gameClock(mondayTick),
+  sabbathObserved: false,
+});
+assert.equal(
+  marketFireFallback.parishes.get('chapel')?.marketplaceId,
+  'safe-far-market',
+);
+assert.equal(marketFireFallback.parishes.get('chapel')?.status, 'ready');
+
 const perfChapels = Array.from(
   { length: 8 },
   (_, index) => chapel(`chapel-${index}`, index * 1_000),
@@ -409,6 +465,7 @@ const serverParish = readFileSync(
 assert.match(serverParish, /chapel_poor_relief_due\(sim_tick\)/);
 assert.match(serverParish, /claim_residences_by_nearest_supplier\(/);
 assert.match(serverParish, /tick\.chapel_for_residence\(ctx,/);
+assert.match(serverParish, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.doesNotMatch(serverParish, /CHAPEL_CHARITY_(?:RELIEF|WEALTH)_FRACTION/);
 assert.match(
   serverParish,

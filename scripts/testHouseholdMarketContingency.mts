@@ -13,6 +13,7 @@ import {
   bestAffordableHouseholdWaterQuote,
   computeSettlementHouseholdMarketPlan,
   formatHouseholdMarketBottlenecks,
+  formatHouseholdMarketBranch,
   formatHouseholdMarketResidenceStatus,
   formatHouseholdMarketSettlementSummary,
 } from '../src/economy/settlementHouseholdMarket.ts';
@@ -433,6 +434,78 @@ const fireBlocked = computeSettlementHouseholdMarketPlan({
 assert.equal(fireBlocked.fireDisabledHomes, 1);
 assert.equal(fireBlocked.routedCriticalHomes, 0);
 
+const marketFireState = state({
+  markets: [market('burned-market', 0)],
+  homes: [home('market-fire-home', 20)],
+});
+marketFireState.fireIncidents.set('market-fire', {
+  id: 'market-fire',
+  targetKind: 'building',
+  targetId: 'burned-market',
+} as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+const marketFireBlocked = computeSettlementHouseholdMarketPlan({
+  state: marketFireState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: workClock(),
+  sabbathObserved: false,
+});
+assert.equal(marketFireBlocked.completedMarketplaces, 1);
+assert.equal(marketFireBlocked.operationalMarketplaces, 0);
+assert.equal(marketFireBlocked.fireDisabledMarketplaces, 1);
+assert.equal(marketFireBlocked.marketFireBlockedHomes, 1);
+assert.equal(marketFireBlocked.routedCriticalHomes, 0);
+assert.equal(
+  marketFireBlocked.residences.get('market-fire-home')?.status,
+  'market-fire-disabled',
+);
+assert.match(
+  formatHouseholdMarketResidenceStatus(
+    marketFireBlocked.residences.get('market-fire-home') ?? null,
+  ),
+  /only reachable marketplace is fire-damaged/,
+);
+assert.match(
+  formatHouseholdMarketBranch(
+    marketFireBlocked.branches.get('burned-market') ?? null,
+  ),
+  /Fire disabled/,
+);
+assert.match(
+  formatHouseholdMarketBottlenecks(marketFireBlocked),
+  /behind fire-disabled markets/,
+);
+
+const marketFireFallbackState = state({
+  markets: [
+    market('burned-near-market', 0),
+    market('safe-far-market', 100),
+  ],
+  homes: [home('rerouted-home', 20)],
+});
+marketFireFallbackState.fireIncidents.set('near-market-fire', {
+  id: 'near-market-fire',
+  targetKind: 'building',
+  targetId: 'burned-near-market',
+} as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+const marketFireFallback = computeSettlementHouseholdMarketPlan({
+  state: marketFireFallbackState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: workClock(),
+  sabbathObserved: false,
+});
+assert.equal(
+  marketFireFallback.residences.get('rerouted-home')?.marketplaceId,
+  'safe-far-market',
+  'households must reroute to a longer operational market instead of claiming a closer fire-disabled one',
+);
+assert.equal(
+  marketFireFallback.residences.get('rerouted-home')?.status,
+  'ready',
+);
+assert.equal(marketFireFallback.marketFireBlockedHomes, 0);
+
 assert.match(formatHouseholdMarketSettlementSummary(split), /2 critical/);
 assert.match(
   formatHouseholdMarketResidenceStatus(
@@ -473,6 +546,7 @@ const householdServer = readFileSync(
 );
 assert.match(householdServer, /claim_residences_by_nearest_supplier\(/);
 assert.match(householdServer, /labor_and_logistics_paused\(ctx, tick, owner, clock\)/);
+assert.match(householdServer, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.doesNotMatch(householdServer, /residence_has_marketplace_access/);
 assert.doesNotMatch(householdServer, /nearest_marketplace_for_residence/);
 
@@ -480,6 +554,7 @@ const caravanServer = readFileSync(
   'server/src/simulation/marketplace_caravan.rs',
   'utf8',
 );
+assert.match(caravanServer, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.match(
   caravanServer,
   /match dispatch\.priority_residence_id[\s\S]{0,220}\.residence\(\)[\s\S]{0,80}\.id\(\)[\s\S]{0,80}\.find\(&residence_id\)/,

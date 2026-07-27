@@ -54,7 +54,10 @@ pub fn try_dispatch_marketplace_caravan(
     per_delivery_amount: f64,
     dispatch: MarketCaravanDispatch,
 ) -> bool {
-    if building.kind != "marketplace" {
+    if building.kind != "marketplace"
+        || !building.construction_complete
+        || tick.building_disabled_by_fire(ctx, building.id)
+    {
         return false;
     }
 
@@ -160,6 +163,7 @@ pub fn step_marketplace_caravans(
         .filter(|building| {
             building.kind == "marketplace"
                 && building.construction_complete
+                && !tick.building_disabled_by_fire(ctx, building.id)
                 && (building.action_cooldown > 1e-6
                     || building.marketplace_seed_grain_target > 0
                     || building.marketplace_ironwork_target > 0

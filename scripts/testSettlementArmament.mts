@@ -5,6 +5,7 @@ import {
   computeSettlementArmamentPlan,
 } from '../src/economy/settlementArmament.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
+import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
   renderSettlementArmamentRows,
 } from '../src/resources/inspector/townHallRenderer.ts';
@@ -95,6 +96,7 @@ const state = {
   stockpile: createEmptyStockpile(),
   buildings: new Map<string, BuildingState>(),
   deliveryTrips: new Map<string, DeliveryTripState>(),
+  fireIncidents: new Map<string, FireIncidentState>(),
 };
 state.stockpile.polearms = 2;
 state.stockpile.ironwork = 4;
@@ -223,6 +225,24 @@ assert.match(splitRows, /1\.0 guards blocked by branch fragmentation/);
 assert.match(splitRows, /5\.0 \/ 7\.0 selected polearms have timber and ironwork/);
 assert.match(splitRows, /9\.0 in treasury, excess company stock, idle shops, or disconnected stores/);
 assert.match(splitRows, /data-inspect-building="east-guard"/);
+
+state.fireIncidents.set('west-market-fire', {
+  id: 'west-market-fire',
+  targetKind: 'building',
+  targetId: westMarket.id,
+} as FireIncidentState);
+const fireBlockedMarket = computeSettlementArmamentPlan({
+  state,
+  roadComponentFor: (candidate) =>
+    candidate.x < 50 ? 1 : candidate.x < 150 ? 2 : 3,
+});
+assert.equal(
+  fireBlockedMarket.roadSourceIronwork,
+  0,
+  'fire-disabled marketplace ironwork must not appear serviceable to the armory branch',
+);
+assert.equal(fireBlockedMarket.serviceableIronwork, 5);
+state.fireIncidents.delete('west-market-fire');
 
 const joined = computeSettlementArmamentPlan({
   state,

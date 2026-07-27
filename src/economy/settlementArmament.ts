@@ -16,6 +16,7 @@ import {
   productionRoadBranchKey,
   type ProductionRoadComponentResolver,
 } from './settlementProduction.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 
 export type SettlementArmamentRoadBranch = {
   guardhouses: number;
@@ -326,13 +327,17 @@ function buildRoadPlan(
  * Road-component matching is linear and performs no shortest-path searches.
  */
 export function computeSettlementArmamentPlan(input: {
-  state: Pick<GameState, 'stockpile' | 'buildings' | 'deliveryTrips'>;
+  state: Pick<GameState, 'stockpile' | 'buildings' | 'deliveryTrips'>
+    & Partial<Pick<GameState, 'fireIncidents'>>;
   roadComponentFor?: ProductionRoadComponentResolver;
 }): SettlementArmamentPlan {
   const branches = new Map<string, MutableArmamentBranch>();
   const guardhouses = new Map<string, GuardhouseRecord>();
   const carpenters = new Map<string, CarpenterRecord>();
   const underarmedRanks = new Map<MutableArmamentBranch, UnderarmedCompanyRank>();
+  const fireDisabled = fireDisabledBuildingIds(
+    input.state.fireIncidents?.values() ?? [],
+  );
   let guardhouseCount = 0;
   let assignedGuardCount = 0;
   let armedGuardCount = 0;
@@ -420,6 +425,7 @@ export function computeSettlementArmamentPlan(input: {
     if (
       building.kind === 'marketplace'
       && building.assignedLabor > 0
+      && !fireDisabled.has(building.id)
     ) {
       branch.roadSourceIronwork += positive(building.ironwork);
     }

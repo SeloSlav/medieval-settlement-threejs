@@ -260,6 +260,15 @@ assert.match(
   /2\.5s/,
 );
 assert.equal(marketplaceManualTradeStatus(marketplace, true).ready, true);
+const fireDisabledTrade = marketplaceManualTradeStatus(
+  marketplace,
+  true,
+  1,
+  true,
+);
+assert.equal(fireDisabledTrade.ready, false);
+assert.match(fireDisabledTrade.label, /fire-disabled/i);
+assert.match(fireDisabledTrade.reason ?? '', /Repair the fire-damaged marketplace/);
 assert.equal(marketplaceManualTradeCooldown(1), 8);
 assert.equal(marketplaceManualTradeCooldown(2), 4);
 assert.equal(
@@ -375,10 +384,16 @@ assert.match(marketplaceTradeSource, /market-accessible/);
 assert.match(marketplaceTradeSource, /contested-frontier worlds/);
 assert.match(marketplaceTradeSource, /current_road_speed_multiplier/);
 assert.match(marketplaceTradeSource, /manual_trade_cooldown_seconds\(assigned_labor, road_speed_multiplier\)/);
+assert.match(
+  marketplaceTradeSource,
+  /building_disabled_by_fire\(ctx, (?:marketplace|building)\.id\)/,
+);
 assert.doesNotMatch(marketplaceTradeSource, /spend_aggregate_(?:food|firewood)/);
 assert.doesNotMatch(marketplaceOrderSource, /credit_treasury_(?:food|water)/);
+assert.match(marketplaceOrderSource, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.match(marketplaceInspectorSource, /Regional route/);
 assert.match(marketplaceInspectorSource, /getRoadConditionSpeedMultiplier/);
+assert.match(marketplaceInspectorSource, /marketFireDisabled/);
 assert.match(marketplaceTradeRendererSource, /current regional road conditions/);
 
 console.log(

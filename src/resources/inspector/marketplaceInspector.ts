@@ -23,6 +23,7 @@ import {
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
+import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 
 function formatLinkedHomeStatus(connectedHomes: number): string {
   if (connectedHomes <= 0) {
@@ -51,18 +52,24 @@ export function renderMarketplaceInspector(
   const labor = buildingLaborView(building, context.populationStats);
   const hasRoadAccess = context.worldQueries.hasRoadAccess(building.x, building.z);
   const roadSpeedMultiplier = context.worldQueries.getRoadConditionSpeedMultiplier();
+  const marketFireDisabled = fireDisabledBuildingIds(
+    context.gameState.fireIncidents.values(),
+  ).has(building.id);
   const manualTrade = marketplaceManualTradeStatus(
     building,
     hasRoadAccess,
     roadSpeedMultiplier,
+    marketFireDisabled,
   );
   const brokerCount = Math.max(0, Math.floor(building.assignedLabor));
   const routeCondition = roadSpeedMultiplier < 0.999
     ? `${Math.round(roadSpeedMultiplier * 100)}% caravan pace`
     : 'Firm roads';
-  const regionalRoute = brokerCount <= 0
-    ? `${routeCondition} · assign a broker to open regional trade`
-    : `${routeCondition} · next ${manualTrade.nextCooldownSeconds?.toFixed(1)}s settlement with ${brokerCount} ${brokerCount === 1 ? 'broker' : 'brokers'}`;
+  const regionalRoute = marketFireDisabled
+    ? 'Paused · repair fire damage before regional trade resumes'
+    : brokerCount <= 0
+      ? `${routeCondition} · assign a broker to open regional trade`
+      : `${routeCondition} · next ${manualTrade.nextCooldownSeconds?.toFixed(1)}s settlement with ${brokerCount} ${brokerCount === 1 ? 'broker' : 'brokers'}`;
   const specialtyPlan = marketplaceSpecialtyExportPlan(
     building,
     marketState.specialtyPriceMult,
@@ -71,9 +78,13 @@ export function renderMarketplaceInspector(
   const specialtyExportActive = specialtyQueue.units > 1e-6
     && specialtyPlan.saleAllowed
     && hasRoadAccess
+    && !marketFireDisabled
     && specialtyQueue.exportWorkers > 0;
-  const specialtyExportHeld = specialtyQueue.units > 1e-6 && !specialtyPlan.saleAllowed;
+  const specialtyExportHeld = specialtyQueue.units > 1e-6
+    && !specialtyPlan.saleAllowed
+    && !marketFireDisabled;
   const specialtyDesk = formatSpecialtyExportDesk(
+    marketFireDisabled,
     hasRoadAccess,
     building.assignedLabor,
     building.actionCooldown,
@@ -114,14 +125,19 @@ export function renderMarketplaceInspector(
   return {
     eyebrow: 'Building',
     title: label,
-    statusText: specialtyExportActive
-      ? `Brokering specialty exports at ${Math.round(specialtyPlan.marketRate * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
-      : specialtyExportHeld
-        ? `Holding specialty exports - regional rate ${Math.round(specialtyPlan.marketRate * 100)}%`
-      : manualTrade.ready
-        ? formatLinkedHomeStatus(connectedHomes)
-        : manualTrade.label,
-    statusState: specialtyExportActive || (manualTrade.ready && connectedHomes > 0) ? 'ok' : 'idle',
+    statusText: marketFireDisabled
+      ? manualTrade.label
+      : specialtyExportActive
+        ? `Brokering specialty exports at ${Math.round(specialtyPlan.marketRate * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
+        : specialtyExportHeld
+          ? `Holding specialty exports - regional rate ${Math.round(specialtyPlan.marketRate * 100)}%`
+          : manualTrade.ready
+            ? formatLinkedHomeStatus(connectedHomes)
+            : manualTrade.label,
+    statusState: !marketFireDisabled
+      && (specialtyExportActive || (manualTrade.ready && connectedHomes > 0))
+      ? 'ok'
+      : 'idle',
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
@@ -157,12 +173,14 @@ export function renderMarketplaceInspector(
 }
 
 function formatSpecialtyExportDesk(
+  fireDisabled: boolean,
   hasRoadAccess: boolean,
   assignedLabor: number,
   actionCooldown: number,
   queue: ReturnType<typeof marketplaceSpecialtyQueue>,
   plan: ReturnType<typeof marketplaceSpecialtyExportPlan>,
 ): string {
+  if (fireDisabled) return 'Paused - repair fire damage before brokers resume';
   if (queue.units <= 1e-6) return 'Ready - awaiting ale, honey, wine, or cloth hauls';
   if (!plan.saleAllowed) {
     return `Holding - ${Math.round(plan.marketRate * 100)}% regional rate below ${Math.round(plan.policy.minRate * 100)}% floor`;

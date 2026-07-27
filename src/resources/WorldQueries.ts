@@ -595,8 +595,12 @@ export class WorldQueries {
   }
 
   hasRoadPathToBuildingKind(ax: number, az: number, kind: BuildingKind): boolean {
+    const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
     return landmarkHasRoadPathToBuildingKind(
-      this.getGameState().buildings.values(),
+      [...state.buildings.values()].filter(
+        (building) => !fireDisabled.has(building.id),
+      ),
       ax,
       az,
       kind,
@@ -605,8 +609,12 @@ export class WorldQueries {
   }
 
   hasRoadPathToStaffedBuildingKind(ax: number, az: number, kind: BuildingKind): boolean {
+    const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
     return landmarkHasRoadPathToBuildingKind(
-      this.getGameState().buildings.values(),
+      [...state.buildings.values()].filter(
+        (building) => !fireDisabled.has(building.id),
+      ),
       ax,
       az,
       kind,

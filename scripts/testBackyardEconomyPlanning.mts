@@ -93,7 +93,11 @@ function state(input: {
   buildings?: BuildingState[];
   residences?: ResidenceState[];
   gardens?: BackyardGardenState[];
-}): Pick<GameState, 'seed' | 'tick' | 'buildings' | 'residences' | 'backyardGardens'> {
+  fireDisabledBuildingIds?: string[];
+}): Pick<
+  GameState,
+  'seed' | 'tick' | 'buildings' | 'residences' | 'backyardGardens' | 'fireIncidents'
+> {
   return {
     seed: input.seed ?? 77,
     tick: input.tick ?? 0,
@@ -105,6 +109,18 @@ function state(input: {
     ),
     backyardGardens: new Map(
       (input.gardens ?? []).map((candidate) => [candidate.id, candidate]),
+    ),
+    fireIncidents: new Map(
+      (input.fireDisabledBuildingIds ?? []).map((targetId) => [
+        `fire-${targetId}`,
+        {
+          id: `fire-${targetId}`,
+          targetKind: 'building',
+          targetId,
+        } as GameState['fireIncidents'] extends Map<string, infer Incident>
+          ? Incident
+          : never,
+      ]),
     ),
   };
 }
@@ -267,6 +283,45 @@ const unfinished = computeSettlementBackyardEconomyPlan({
 assert.equal(unfinished.marketLinkedGardens, 0);
 assert.equal(unfinished.currentDayRoutedActivity, 0);
 assert.ok(unfinished.currentDaySelfFood > 0);
+
+const burnedMarketState = state({
+  tick: september.simTick,
+  buildings: [building('burned-market', 'marketplace', 0)],
+  residences: [westHome],
+  gardens: [garden('burned-market-apples', westHome.id, 'apple_orchard')],
+  fireDisabledBuildingIds: ['burned-market'],
+});
+const burnedMarket = computeSettlementBackyardEconomyPlan({
+  state: burnedMarketState,
+  clock: september,
+  hydrology: 50,
+  taxRate: 0.25,
+  taxCollectionMultiplier: 1,
+  sabbathObserved: false,
+  roadComponentFor: () => 1,
+});
+assert.equal(burnedMarket.operationalMarketplaces, 0);
+assert.equal(burnedMarket.fireDisabledMarketplaces, 1);
+assert.equal(burnedMarket.marketLinkedGardens, 0);
+assert.equal(burnedMarket.marketUnlinkedGardens, 1);
+assert.equal(burnedMarket.currentDayRoutedActivity, 0);
+assert.match(
+  renderSettlementBackyardEconomyRows(burnedMarket),
+  /1 market fire-disabled/,
+);
+const burnedMarketWithoutTopology = computeSettlementBackyardEconomyPlan({
+  state: burnedMarketState,
+  clock: september,
+  hydrology: 50,
+  taxRate: 0.25,
+  taxCollectionMultiplier: 1,
+  sabbathObserved: false,
+});
+assert.equal(
+  burnedMarketWithoutTopology.marketLinkedGardens,
+  0,
+  'the no-topology fallback must require an operational market too',
+);
 
 const sunday = gameClock(0);
 assert.equal(sunday.isSunday, true);
@@ -481,6 +536,8 @@ const serverPolicySource = readFileSync(
 assert.doesNotMatch(serverStepSource, /residence_has_marketplace_access/);
 assert.match(serverStepSource, /marketplace_components_by_owner/);
 assert.match(serverStepSource, /road_components_at/);
+assert.match(serverStepSource, /building_disabled_by_fire\(ctx, building\.id\)/);
+assert.match(serverStepSource, /residence_disabled_by_fire\(ctx, residence\.id\)/);
 assert.match(
   serverStepSource,
   /backyard_garden_seasonal_multiplier\(kind, clock\.month, environment\)/,

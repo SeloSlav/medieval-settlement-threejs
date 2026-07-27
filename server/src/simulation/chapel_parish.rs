@@ -196,6 +196,7 @@ fn try_chapel_poor_relief(
             building.kind == "marketplace"
                 && building.construction_complete
                 && building.owner == chapel.owner
+                && !tick.building_disabled_by_fire(ctx, building.id)
         })
         .collect();
 

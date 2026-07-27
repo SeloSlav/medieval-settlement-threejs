@@ -34,6 +34,7 @@ export type SpecialtyExportAttentionKind =
   | 'producer-storage'
   | 'producer-labor'
   | 'producer-fire'
+  | 'producer-market-fire'
   | 'producer-receiving'
   | 'market-construction'
   | 'market-road'
@@ -64,6 +65,7 @@ export type SettlementSpecialtyExportRoadBranch = {
   receivingBlockedProducerStock: number;
   laborBlockedProducerStock: number;
   fireBlockedProducerStock: number;
+  marketFireBlockedProducerStock: number;
   roadStrandedProducerStock: number;
   storageBlockedProducerStock: number;
   marketQueueUnits: number;
@@ -107,6 +109,7 @@ export type SettlementSpecialtyExportPlan = {
   receivingBlockedProducerStock: number;
   laborBlockedProducerStock: number;
   fireBlockedProducerStock: number;
+  marketFireBlockedProducerStock: number;
   roadStrandedProducerStock: number;
   storageBlockedProducerStock: number;
   marketQueueUnits: number;
@@ -156,6 +159,7 @@ type ProducerRecord = {
 
 type BranchMarketCapacity = {
   completedMarkets: number;
+  fireDisabledMarkets: number;
   hasRoom: Record<SpecialtyExportCargoKind, boolean>;
   hasFreeReceivingRoom: Record<SpecialtyExportCargoKind, boolean>;
 };
@@ -183,6 +187,7 @@ const ATTENTION_PRIORITY: Record<SpecialtyExportAttentionKind, number> = {
   'producer-storage': 7,
   'market-fire': 7,
   'producer-fire': 7,
+  'producer-market-fire': 7,
   'market-labor': 6,
   'producer-labor': 6,
   'market-policy': 5,
@@ -254,6 +259,7 @@ function emptyCommodityMap(): Record<
 function emptyBranchMarketCapacity(): BranchMarketCapacity {
   return {
     completedMarkets: 0,
+    fireDisabledMarkets: 0,
     hasRoom: {
       ale: false,
       honey: false,
@@ -288,6 +294,7 @@ function specialtyBranch(
     receivingBlockedProducerStock: 0,
     laborBlockedProducerStock: 0,
     fireBlockedProducerStock: 0,
+    marketFireBlockedProducerStock: 0,
     roadStrandedProducerStock: 0,
     storageBlockedProducerStock: 0,
     marketQueueUnits: 0,
@@ -507,20 +514,24 @@ export function computeSettlementSpecialtyExportPlan(input: {
         capacity = emptyBranchMarketCapacity();
         marketCapacityByBranch.set(branch, capacity);
       }
-      capacity.completedMarkets += 1;
-      for (const commodity of SPECIALTY_EXPORT_CARGO_KINDS) {
-        if (
-          marketplaceCommodityRoom(
-            building,
-            commodity,
-            market.inboundByCommodity[commodity],
-          ) <= 1e-9
-        ) {
-          continue;
-        }
-        capacity.hasRoom[commodity] = true;
-        if (!market.hasInboundSupply) {
-          capacity.hasFreeReceivingRoom[commodity] = true;
+      if (fireBlocked) {
+        capacity.fireDisabledMarkets += 1;
+      } else {
+        capacity.completedMarkets += 1;
+        for (const commodity of SPECIALTY_EXPORT_CARGO_KINDS) {
+          if (
+            marketplaceCommodityRoom(
+              building,
+              commodity,
+              market.inboundByCommodity[commodity],
+            ) <= 1e-9
+          ) {
+            continue;
+          }
+          capacity.hasRoom[commodity] = true;
+          if (!market.hasInboundSupply) {
+            capacity.hasFreeReceivingRoom[commodity] = true;
+          }
         }
       }
     }
@@ -608,6 +619,7 @@ export function computeSettlementSpecialtyExportPlan(input: {
   let receivingBlockedProducerStock = 0;
   let laborBlockedProducerStock = 0;
   let fireBlockedProducerStock = 0;
+  let marketFireBlockedProducerStock = 0;
   let roadStrandedProducerStock = 0;
   let storageBlockedProducerStock = 0;
   let producerCount = 0;
@@ -619,24 +631,30 @@ export function computeSettlementSpecialtyExportPlan(input: {
     if (building.assignedLabor > 0) staffedProducerCount += 1;
     producerStock += stock;
     if (stock <= 1e-9) continue;
+    if (fireDisabled.has(building.id)) {
+      fireBlockedProducerStock += stock;
+      branch.fireBlockedProducerStock += stock;
+      recordAttention('producer-fire', building.id, stock);
+      continue;
+    }
 
     const marketCapacity = marketCapacityByBranch.get(branch);
     if (!marketCapacity || marketCapacity.completedMarkets === 0) {
-      roadStrandedProducerStock += stock;
-      branch.roadStrandedProducerStock += stock;
-      recordAttention('producer-road', building.id, stock);
+      if (marketCapacity && marketCapacity.fireDisabledMarkets > 0) {
+        marketFireBlockedProducerStock += stock;
+        branch.marketFireBlockedProducerStock += stock;
+        recordAttention('producer-market-fire', building.id, stock);
+      } else {
+        roadStrandedProducerStock += stock;
+        branch.roadStrandedProducerStock += stock;
+        recordAttention('producer-road', building.id, stock);
+      }
       continue;
     }
     if (!marketCapacity.hasRoom[commodity]) {
       storageBlockedProducerStock += stock;
       branch.storageBlockedProducerStock += stock;
       recordAttention('producer-storage', building.id, stock);
-      continue;
-    }
-    if (fireDisabled.has(building.id)) {
-      fireBlockedProducerStock += stock;
-      branch.fireBlockedProducerStock += stock;
-      recordAttention('producer-fire', building.id, stock);
       continue;
     }
     if (building.assignedLabor <= 0) {
@@ -696,6 +714,7 @@ export function computeSettlementSpecialtyExportPlan(input: {
     if (
       branch.roadStrandedProducerStock > 1e-9
       || branch.storageBlockedProducerStock > 1e-9
+      || branch.marketFireBlockedProducerStock > 1e-9
     ) {
       exposedProducerBranches += 1;
     }
@@ -727,6 +746,7 @@ export function computeSettlementSpecialtyExportPlan(input: {
     receivingBlockedProducerStock,
     laborBlockedProducerStock,
     fireBlockedProducerStock,
+    marketFireBlockedProducerStock,
     roadStrandedProducerStock,
     storageBlockedProducerStock,
     marketQueueUnits,

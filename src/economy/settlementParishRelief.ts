@@ -34,6 +34,7 @@ export type ParishReliefStatus =
   | 'below-coffer-threshold'
   | 'no-relief-home'
   | 'no-market-route'
+  | 'market-fire-disabled'
   | 'unaffordable'
   | 'household-storage-full'
   | 'not-due'
@@ -74,6 +75,7 @@ export type SettlementParishReliefPlan = {
   readyParishes: number;
   blockedParishes: number;
   reserveShortParishes: number;
+  marketFireBlockedParishes: number;
   firstAttentionResidenceId: string | null;
   parishes: Map<string, ChapelReliefPlan>;
 };
@@ -137,6 +139,12 @@ export function computeSettlementParishReliefPlan(
       building.kind === 'marketplace'
       && building.constructionComplete !== false,
   );
+  const operationalMarketplaces = completedMarketplaces.filter(
+    (marketplace) => !fireDisabledBuildingIds.has(marketplace.id),
+  );
+  const fireDisabledMarketplaces = completedMarketplaces.filter(
+    (marketplace) => fireDisabledBuildingIds.has(marketplace.id),
+  );
   const marketsById = new Map(
     completedMarketplaces.map((marketplace) => [marketplace.id, marketplace]),
   );
@@ -152,10 +160,18 @@ export function computeSettlementParishReliefPlan(
   );
   const marketClaims = claimResidenceRoutesByNearestSupplier(
     roadNetwork,
-    completedMarketplaces,
+    operationalMarketplaces,
     abandonedResidences,
     () => true,
   );
+  const fireBlockedMarketClaims = fireDisabledMarketplaces.length === 0
+    ? new Map()
+    : claimResidenceRoutesByNearestSupplier(
+        roadNetwork,
+        fireDisabledMarketplaces,
+        abandonedResidences,
+        () => true,
+      );
   const activeMarketTrips = new Set(
     [...state.deliveryTrips.values()].map((trip) => trip.buildingId),
   );
@@ -175,6 +191,7 @@ export function computeSettlementParishReliefPlan(
   let readyParishes = 0;
   let blockedParishes = 0;
   let reserveShortParishes = 0;
+  let marketFireBlockedParishes = 0;
 
   for (const chapel of completedChapels) {
     const assigned = assignedByChapel.get(chapel.id) ?? [];
@@ -194,6 +211,13 @@ export function computeSettlementParishReliefPlan(
     const routed = abandoned
       .filter((residence) => marketClaims.has(residence.id))
       .sort(compareLowestFoodResidence);
+    const fireBlockedRouted = abandoned
+      .filter(
+        (residence) =>
+          !marketClaims.has(residence.id)
+          && fireBlockedMarketClaims.has(residence.id),
+      )
+      .sort(compareLowestFoodResidence);
     const target = quote == null
       ? routed[0] ?? null
       : routed.find(
@@ -201,10 +225,14 @@ export function computeSettlementParishReliefPlan(
             RESIDENCE_FOOD_CAPACITY - getNeedStock(residence.needs, 'food') + 1e-6
               >= quote.amount,
         ) ?? null;
-    const fallbackTarget = target ?? routed[0] ?? abandoned
+    const fallbackTarget = target ?? routed[0] ?? fireBlockedRouted[0] ?? abandoned
       .slice()
       .sort(compareLowestFoodResidence)[0] ?? null;
-    const marketClaim = target == null ? null : marketClaims.get(target.id) ?? null;
+    const marketClaim = fallbackTarget == null
+      ? null
+      : marketClaims.get(fallbackTarget.id)
+        ?? fireBlockedMarketClaims.get(fallbackTarget.id)
+        ?? null;
     const marketplace = marketClaim == null
       ? null
       : marketsById.get(marketClaim.supplierId) ?? null;
@@ -223,7 +251,9 @@ export function computeSettlementParishReliefPlan(
     } else if (cofferGold < CHAPEL_CHARITY_MIN_COFFER_GOLD) {
       status = 'below-coffer-threshold';
     } else if (routed.length === 0) {
-      status = 'no-market-route';
+      status = fireBlockedRouted.length > 0
+        ? 'market-fire-disabled'
+        : 'no-market-route';
     } else if (quote == null) {
       status = 'unaffordable';
     } else if (target == null) {
@@ -284,6 +314,7 @@ export function computeSettlementParishReliefPlan(
         blockedParishes += 1;
       }
       if (plan.status === 'below-coffer-threshold') reserveShortParishes += 1;
+      if (plan.status === 'market-fire-disabled') marketFireBlockedParishes += 1;
     }
   }
 
@@ -308,6 +339,7 @@ export function computeSettlementParishReliefPlan(
     readyParishes,
     blockedParishes,
     reserveShortParishes,
+    marketFireBlockedParishes,
     firstAttentionResidenceId: firstAttention?.targetResidenceId ?? null,
     parishes,
   };
@@ -339,7 +371,8 @@ function statusPriority(status: ParishReliefStatus): number {
     case 'below-coffer-threshold':
     case 'unaffordable': return 2;
     case 'no-market-route':
-    case 'route-too-short': return 3;
+    case 'route-too-short':
+    case 'market-fire-disabled': return 3;
     default: return 4;
   }
 }
@@ -370,6 +403,7 @@ export function formatChapelPoorRelief(plan: ChapelReliefPlan): string {
       return `Held below ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold coffer threshold`;
     case 'no-relief-home': return 'No abandoned parish home needs a dole';
     case 'no-market-route': return 'Blocked · no shared parish-to-market route';
+    case 'market-fire-disabled': return 'Blocked · reachable marketplace is fire-damaged';
     case 'unaffordable': return `Blocked · ${plan.reliefBudget.toFixed(1)} gold cannot fund a full lot`;
     case 'household-storage-full': return 'Blocked · parish homes lack room for a full food lot';
     case 'not-due':

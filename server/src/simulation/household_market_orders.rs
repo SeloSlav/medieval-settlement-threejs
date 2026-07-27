@@ -34,7 +34,11 @@ pub fn step_household_market_orders(
         .db
         .building()
         .iter()
-        .filter(|building| building.kind == "marketplace" && building.construction_complete)
+        .filter(|building| {
+            building.kind == "marketplace"
+                && building.construction_complete
+                && !tick.building_disabled_by_fire(ctx, building.id)
+        })
         .collect();
 
     if marketplaces.is_empty() {

@@ -124,6 +124,7 @@ export function marketplaceManualTradeStatus(
   building: BuildingState,
   hasRoadAccess: boolean,
   roadSpeedMultiplier = 1,
+  fireDisabled = false,
 ): MarketplaceManualTradeStatus {
   const normalizedRoadSpeed = normalizeRoadSpeedMultiplier(roadSpeedMultiplier);
   const timing = {
@@ -133,6 +134,14 @@ export function marketplaceManualTradeStatus(
       normalizedRoadSpeed,
     ),
   };
+  if (fireDisabled) {
+    return {
+      ...timing,
+      ready: false,
+      label: 'Trade desk fire-disabled',
+      reason: 'Repair the fire-damaged marketplace before trading.',
+    };
+  }
   if (building.constructionComplete === false) {
     return {
       ...timing,

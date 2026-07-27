@@ -9,9 +9,11 @@ import {
   marketplaceSeedGrainProcurementPlan,
   nextMarketplaceStandingOrder,
 } from './marketplaceSeedPolicy.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 
 export type SettlementSeedProcurementAttention =
   | 'construction'
+  | 'fire'
   | 'labor'
   | 'road'
   | 'treasury'
@@ -35,6 +37,7 @@ export type SettlementSeedProcurementPlan = {
   potentialCoverage: number;
   uncoveredShortfall: number;
   constructionBlockedMarkets: number;
+  fireBlockedMarkets: number;
   laborBlockedMarkets: number;
   roadBlockedMarkets: number;
   treasuryBlockedMarkets: number;
@@ -71,7 +74,8 @@ export type SettlementSeedRoadPlan = {
 };
 
 type SettlementSeedProcurementInput = {
-  state: Pick<GameState, 'buildings' | 'deliveryTrips'>;
+  state: Pick<GameState, 'buildings' | 'deliveryTrips'>
+    & Partial<Pick<GameState, 'fireIncidents'>>;
   seedShortfall: number;
   seedGrainByHolding?: ReadonlyMap<string, number>;
   availableGold: number;
@@ -93,11 +97,12 @@ type MutableSeedRoadBranch = SettlementSeedRoadBranch & {
 
 const ATTENTION_PRIORITY: Record<SettlementSeedProcurementAttention, number> = {
   construction: 0,
-  labor: 1,
-  road: 2,
-  treasury: 3,
-  ironwork: 4,
-  cooldown: 5,
+  fire: 1,
+  labor: 2,
+  road: 3,
+  treasury: 4,
+  ironwork: 5,
+  cooldown: 6,
 };
 
 function positiveFinite(value: number | undefined): number {
@@ -374,12 +379,16 @@ export function computeSettlementSeedProcurementPlan(
   let targetStock = 0;
   let plannedImportLots = 0;
   let constructionBlockedMarkets = 0;
+  let fireBlockedMarkets = 0;
   let laborBlockedMarkets = 0;
   let roadBlockedMarkets = 0;
   let treasuryBlockedMarkets = 0;
   let ironworkQueuedMarkets = 0;
   let cooldownBlockedMarkets = 0;
   let firstAttention: AttentionCandidate | null = null;
+  const fireDisabled = fireDisabledBuildingIds(
+    input.state.fireIncidents?.values() ?? [],
+  );
 
   for (const building of input.state.buildings.values()) {
     const completed = building.constructionComplete !== false;
@@ -430,6 +439,9 @@ export function computeSettlementSeedProcurementPlan(
     if (building.constructionComplete === false) {
       constructionBlockedMarkets += 1;
       attention = 'construction';
+    } else if (fireDisabled.has(building.id)) {
+      fireBlockedMarkets += 1;
+      attention = 'fire';
     } else if (building.assignedLabor <= 0) {
       laborBlockedMarkets += 1;
       attention = 'labor';
@@ -491,6 +503,7 @@ export function computeSettlementSeedProcurementPlan(
     potentialCoverage,
     uncoveredShortfall: Math.max(0, seedShortfall - potentialCoverage),
     constructionBlockedMarkets,
+    fireBlockedMarkets,
     laborBlockedMarkets,
     roadBlockedMarkets,
     treasuryBlockedMarkets,

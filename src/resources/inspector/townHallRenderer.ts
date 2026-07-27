@@ -587,6 +587,7 @@ const SEED_PROCUREMENT_ATTENTION_LABELS: Record<
   string
 > = {
   construction: 'market unfinished',
+  fire: 'market fire damage',
   labor: 'broker labor missing',
   road: 'market road missing',
   treasury: 'treasury short',
@@ -747,6 +748,7 @@ function specialtyExportAttentionLabel(
     case 'producer-storage': return 'road-linked markets have no room for this cargo';
     case 'producer-labor': return 'producer stock is waiting for a worker and cart';
     case 'producer-fire': return 'producer hauling is suspended by fire';
+    case 'producer-market-fire': return 'producer hauling is blocked by a fire-disabled market';
     case 'producer-receiving': return 'every eligible market already has an inbound cart';
     case 'market-construction': return 'specialty stock is trapped at an unfinished market';
     case 'market-road': return 'market stock cannot reach regional buyers without road access';
@@ -806,6 +808,9 @@ export function renderSettlementSpecialtyExportRows(
       : '',
     plan.fireBlockedProducerStock > 0.05
       ? `${plan.fireBlockedProducerStock.toFixed(1)} fire-blocked`
+      : '',
+    plan.marketFireBlockedProducerStock > 0.05
+      ? `${plan.marketFireBlockedProducerStock.toFixed(1)} behind fire-disabled markets`
       : '',
     plan.busyProducerStock > 0.05
       ? `${plan.busyProducerStock.toFixed(1)} waiting for source carts to return`
@@ -873,15 +878,18 @@ export function renderSettlementBackyardEconomyRows(
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${plan.firstUnlinkedResidenceId}" aria-label="Inspect highest-value unlinked backyard">Inspect home</button>`;
   const roadState = plan.occupiedGardenBranches === 0
-    ? `${plan.marketLinkedGardens} / ${plan.occupiedGardens} occupied plots can reach a completed market`
+    ? `${plan.marketLinkedGardens} / ${plan.occupiedGardens} occupied plots can reach an operational market`
     : `${plan.matchedGardenBranches} / ${plan.occupiedGardenBranches} occupied garden branches reach one of ${plan.marketRoadBranches} market branches`;
+  const fireBlockedMarkets = plan.fireDisabledMarketplaces > 0
+    ? ` &middot; ${plan.fireDisabledMarketplaces} market${plan.fireDisabledMarketplaces === 1 ? '' : 's'} fire-disabled`
+    : '';
   const capped = plan.wealthCappedGardens > 0
     ? ` &middot; ${plan.wealthCappedGardens} ${plan.wealthCappedGardens === 1 ? 'household is' : 'households are'} at or near the wealth cap`
     : '';
 
   return `
     <li><span>Garden season</span><span>${productionState} &middot; ${environment} &middot; ${plan.currentDaySelfFood.toFixed(1)} home food at today's full workday conditions</span></li>
-    <li><span>Market-garden roads</span><span>${roadState} &middot; ${plan.marketLinkedGardens} linked, ${plan.marketUnlinkedGardens} unlinked${inspect}</span></li>
+    <li><span>Market-garden roads</span><span>${roadState} &middot; ${plan.marketLinkedGardens} linked, ${plan.marketUnlinkedGardens} unlinked${fireBlockedMarkets}${inspect}</span></li>
     <li><span>Garden trade outlook</span><span>${plan.currentDayRoutedActivity.toFixed(1)} gold routed today${plan.currentDayStrandedActivity > 0.05 ? ` &middot; ${plan.currentDayStrandedActivity.toFixed(1)} stranded` : ''} &middot; next 120 days: ${plan.horizonRoutedActivity.toFixed(1)} routed, ${plan.horizonStrandedActivity.toFixed(1)} stranded${capped}</span></li>
   `;
 }

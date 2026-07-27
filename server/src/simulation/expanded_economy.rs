@@ -1620,6 +1620,7 @@ fn dispatch_to_building_where(
             .filter_map(|target| {
                 if target.id == source.id
                     || !target.construction_complete
+                    || tick.building_disabled_by_fire(ctx, target.id)
                     || !target_kinds.contains(&target.kind.as_str())
                     || !target_is_eligible(&target)
                     || !processor_accepts_input(&target, commodity)
@@ -1956,6 +1957,7 @@ fn request_connected_commodity_with_source_availability(
             .filter_map(|source_id| ctx.db.building().id().find(&source_id))
             .filter_map(|source| {
                 if !source.construction_complete
+                    || tick.building_disabled_by_fire(ctx, source.id)
                     || !source_kinds.contains(&source.kind.as_str())
                     || (source.kind == "marketplace" && source.assigned_labor == 0)
                     || building_has_active_trip(ctx, source.id)
@@ -2075,6 +2077,7 @@ fn owner_has_connected_marketplace(
         .any(|market| {
             market.kind == "marketplace"
                 && market.construction_complete
+                && !tick.building_disabled_by_fire(ctx, market.id)
                 && network
                     .road_path_distance(building.x, building.z, market.x, market.z)
                     .is_some()

@@ -22,6 +22,7 @@ import {
 import {
   backyardGardenSeasonalMultiplier,
 } from './backyardGardenTick.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import {
   backyardGardenEconomyPerDay,
 } from './villageProjections.ts';
@@ -53,6 +54,8 @@ export type SettlementBackyardEconomyPlan = {
   producingTodayGardens: number;
   marketLinkedGardens: number;
   marketUnlinkedGardens: number;
+  operationalMarketplaces: number;
+  fireDisabledMarketplaces: number;
   marketRoadBranches: number;
   occupiedGardenBranches: number;
   matchedGardenBranches: number;
@@ -174,7 +177,10 @@ function horizonMultipliers(input: {
  * buildings, gardens, and residences and performs no route solves.
  */
 export function computeSettlementBackyardEconomyPlan(input: {
-  state: Pick<GameState, 'seed' | 'buildings' | 'residences' | 'backyardGardens'>;
+  state: Pick<
+    GameState,
+    'seed' | 'buildings' | 'residences' | 'backyardGardens'
+  > & Partial<Pick<GameState, 'fireIncidents'>>;
   clock: GameClock;
   hydrology: number;
   taxRate: number;
@@ -211,7 +217,11 @@ export function computeSettlementBackyardEconomyPlan(input: {
   }
 
   const marketComponents = new Set<string>();
-  let completedMarkets = 0;
+  let operationalMarketplaces = 0;
+  let fireDisabledMarketplaces = 0;
+  const fireDisabled = fireDisabledBuildingIds(
+    input.state.fireIncidents?.values() ?? [],
+  );
   for (const building of input.state.buildings.values()) {
     if (
       building.kind !== 'marketplace'
@@ -219,7 +229,11 @@ export function computeSettlementBackyardEconomyPlan(input: {
     ) {
       continue;
     }
-    completedMarkets += 1;
+    if (fireDisabled.has(building.id)) {
+      fireDisabledMarketplaces += 1;
+      continue;
+    }
+    operationalMarketplaces += 1;
     if (!input.roadComponentFor) continue;
     for (const key of componentKeys(input.roadComponentFor(building))) {
       marketComponents.add(key);
@@ -282,7 +296,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
     for (const key of keys) occupiedGardenBranches.add(key);
     const marketLinked = input.roadComponentFor
       ? keys.some((key) => marketComponents.has(key))
-      : completedMarkets > 0;
+      : operationalMarketplaces > 0;
     if (marketLinked) {
       marketLinkedGardens += 1;
       for (const key of keys) {
@@ -397,6 +411,8 @@ export function computeSettlementBackyardEconomyPlan(input: {
     producingTodayGardens,
     marketLinkedGardens,
     marketUnlinkedGardens,
+    operationalMarketplaces,
+    fireDisabledMarketplaces,
     marketRoadBranches: marketComponents.size,
     occupiedGardenBranches: occupiedGardenBranches.size,
     matchedGardenBranches: matchedGardenBranches.size,

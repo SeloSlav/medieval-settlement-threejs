@@ -29,12 +29,11 @@ pub fn step_backyard_gardens(
     // garden pass scales with gardens + markets instead of gardens x markets.
     let mut marketplace_components_by_owner: HashMap<spacetimedb::Identity, HashSet<u32>> =
         HashMap::new();
-    for marketplace in ctx
-        .db
-        .building()
-        .iter()
-        .filter(|building| building.kind == "marketplace" && building.construction_complete)
-    {
+    for marketplace in ctx.db.building().iter().filter(|building| {
+        building.kind == "marketplace"
+            && building.construction_complete
+            && !tick.building_disabled_by_fire(ctx, building.id)
+    }) {
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
@@ -54,7 +53,10 @@ pub fn step_backyard_gardens(
         if labor_and_logistics_paused(ctx, tick, residence.owner, clock) {
             continue;
         }
-        if residence.abandoned || residence.population == 0 {
+        if residence.abandoned
+            || residence.population == 0
+            || tick.residence_disabled_by_fire(ctx, residence.id)
+        {
             continue;
         }
         let has_market_access = tick

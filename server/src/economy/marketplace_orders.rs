@@ -49,7 +49,7 @@ pub fn order_food_commodity(
         .id()
         .find(&marketplace_id)
         .ok_or_else(|| "Marketplace not found.".to_string())?;
-    validate_order_marketplace(&building, owner)?;
+    validate_order_marketplace(ctx, tick, &building, owner)?;
     let original_building = building.clone();
 
     pay_market_gold(ctx, owner, gold_cost, payer, residence)?;
@@ -117,7 +117,7 @@ pub fn order_water_commodity(
         .id()
         .find(&marketplace_id)
         .ok_or_else(|| "Marketplace not found.".to_string())?;
-    validate_order_marketplace(&building, owner)?;
+    validate_order_marketplace(ctx, tick, &building, owner)?;
     let original_building = building.clone();
 
     pay_market_gold(ctx, owner, gold_cost, payer, residence)?;
@@ -158,6 +158,8 @@ pub fn order_water_commodity(
 }
 
 fn validate_order_marketplace(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
     building: &Building,
     owner: spacetimedb::Identity,
 ) -> Result<(), String> {
@@ -166,6 +168,9 @@ fn validate_order_marketplace(
     }
     if !building.construction_complete {
         return Err("Complete the marketplace before ordering goods.".to_string());
+    }
+    if tick.building_disabled_by_fire(ctx, building.id) {
+        return Err("Repair the fire-damaged marketplace before ordering goods.".to_string());
     }
     Ok(())
 }

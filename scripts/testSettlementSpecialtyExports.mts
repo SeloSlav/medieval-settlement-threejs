@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   computeSettlementSpecialtyExportPlan,
@@ -425,6 +426,26 @@ assert.equal(fireBlocked.fireBlockedProducerStock, 3);
 assert.equal(fireBlocked.fireBlockedMarketQueueUnits, 2);
 assert.equal(fireBlocked.activeBrokerMarkets, 0);
 
+const marketOnlyFire = computeSettlementSpecialtyExportPlan({
+  state: {
+    buildings: new Map([
+      [burningMarket.id, burningMarket],
+      [burningBrewery.id, burningBrewery],
+    ]),
+    deliveryTrips: new Map(),
+    fireIncidents: new Map([
+      ['market-fire', fireIncidents.get('market-fire')!],
+    ]),
+  },
+  marketRate: 1,
+  roadComponentFor: () => 1,
+});
+assert.equal(marketOnlyFire.fireBlockedProducerStock, 0);
+assert.equal(marketOnlyFire.marketFireBlockedProducerStock, 3);
+assert.equal(marketOnlyFire.dispatchReadyProducerStock, 0);
+assert.equal(marketOnlyFire.firstAttentionKind, 'producer-market-fire');
+assert.equal(marketOnlyFire.roadPlan?.exposedProducerBranches, 1);
+
 const perfBuildings = new Map<string, BuildingState>();
 for (let index = 0; index < 50_000; index += 1) {
   const branch = index % 200;
@@ -464,6 +485,19 @@ assert.equal(large.dispatchReadyProducerStock, 50_000);
 assert.ok(
   perfElapsed < 600,
   `100,000-building / 200-branch specialty export plan took ${perfElapsed.toFixed(1)} ms`,
+);
+
+const expandedEconomyServer = readFileSync(
+  'server/src/simulation/expanded_economy.rs',
+  'utf8',
+);
+assert.match(
+  expandedEconomyServer,
+  /target\.id == source\.id[\s\S]{0,180}building_disabled_by_fire\(ctx, target\.id\)/,
+);
+assert.match(
+  expandedEconomyServer,
+  /if !source\.construction_complete[\s\S]{0,180}building_disabled_by_fire\(ctx, source\.id\)/,
 );
 
 console.log(
