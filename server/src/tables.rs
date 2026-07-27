@@ -596,6 +596,12 @@ pub struct Residence {
     /// Shares the existing hold/low/normal/urgent construction vocabulary.
     #[default(2u8)]
     pub upgrade_priority: u8,
+    /// Zero when no backyard improvement is being built; otherwise the stable
+    /// `BackyardGardenKind` id. Physical-economy saves reuse the household
+    /// worksite fields above so materials remain at stores until carted here.
+    /// Appended for additive save compatibility; existing gardens stay complete.
+    #[default(0u8)]
+    pub backyard_project_kind: u8,
 }
 
 #[spacetimedb::table(

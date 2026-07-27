@@ -1,4 +1,5 @@
 import {
+  BACKYARD_GARDEN_KINDS,
   RESIDENCE_TIER2_CAPACITY,
   RESIDENCE_TIER2_GOLD_COST,
   RESIDENCE_TIER2_STONE_COST,
@@ -7,6 +8,7 @@ import {
   RESIDENCE_TIER3_GOLD_COST,
   RESIDENCE_TIER3_STONE_COST,
   RESIDENCE_TIER3_TIMBER_COST,
+  type BackyardGardenKind,
 } from '../generated/gameBalance.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
@@ -71,8 +73,7 @@ export type ResidenceUpgradeContext = {
 
 export type ResidenceUpgradeMaterial = 'timber' | 'stone' | 'gold';
 
-export type ResidenceUpgradeProject = {
-  targetTier: 1 | 2 | 3;
+export type ResidenceMaterialProject = {
   progress: number;
   priority: ConstructionPriority;
   priorityLabel: string;
@@ -85,6 +86,14 @@ export type ResidenceUpgradeProject = {
   materialReadiness: number;
   paid: boolean;
   blockers: string[];
+};
+
+export type ResidenceUpgradeProject = ResidenceMaterialProject & {
+  targetTier: 1 | 2 | 3;
+};
+
+export type ResidenceBackyardProject = ResidenceMaterialProject & {
+  kind: BackyardGardenKind;
 };
 
 type UpgradeDefinition = {
@@ -208,6 +217,28 @@ export function residenceUpgradeProject(
     || (targetTier !== 1 && targetTier !== 2 && targetTier !== 3)
   ) return null;
 
+  return {
+    targetTier,
+    ...residenceMaterialProject(residence, trips),
+  };
+}
+
+export function residenceBackyardProject(
+  residence: ResidenceState,
+  trips: Iterable<DeliveryTripState> = [],
+): ResidenceBackyardProject | null {
+  const kind = BACKYARD_GARDEN_KINDS[(residence.backyardProjectKind ?? 0) - 1];
+  if (!kind) return null;
+  return {
+    kind,
+    ...residenceMaterialProject(residence, trips),
+  };
+}
+
+function residenceMaterialProject(
+  residence: ResidenceState,
+  trips: Iterable<DeliveryTripState>,
+): ResidenceMaterialProject {
   const required = {
     timber: nonnegative(residence.upgradeRequiredTimber),
     stone: nonnegative(residence.upgradeRequiredStone),
@@ -261,7 +292,6 @@ export function residenceUpgradeProject(
   ];
 
   return {
-    targetTier,
     progress: Math.max(0, Math.min(1, residence.upgradeProgress ?? 0)),
     priority,
     priorityLabel: constructionPriorityLabel(priority),

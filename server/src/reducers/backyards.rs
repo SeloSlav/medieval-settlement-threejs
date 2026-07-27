@@ -2,14 +2,20 @@ use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::balance_generated::{backyard_garden_def_by_slug, BackyardGardenKind};
 use crate::burgage::{backyard_center, measure_zone_depth, Point2, ZoneCorners};
+use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::economy::{
     backyard_garden_cost, backyard_garden_salvage_refund, credit_treasury_stone,
-    credit_treasury_timber, spend_aggregate_stone, spend_aggregate_timber, total_stone,
-    total_timber,
+    credit_treasury_timber, reconcile_building_labor, spend_aggregate_stone,
+    spend_aggregate_timber, total_stone, total_timber, CommodityKind,
 };
 use crate::lifecycle::ensure_player_resources;
-use crate::simulation::{insert_reclamation_pile, ReclamationStock};
+use crate::reducers::residences::ensure_upgrade_source_route;
+use crate::residence_upgrade_policy::residence_project_active;
+use crate::roads::load_owner_road_network;
+use crate::simulation::{
+    cancel_trips_for_residence, clear_residence_project, insert_reclamation_pile, ReclamationStock,
+};
 use crate::tables::{BackyardGarden, Residence};
 
 #[reducer]
@@ -21,7 +27,7 @@ pub fn place_backyard_garden(
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
 
-    let residence = ctx
+    let mut residence = ctx
         .db
         .residence()
         .id()
@@ -49,6 +55,13 @@ pub fn place_backyard_garden(
     {
         return Err("This backyard already has a garden.".to_string());
     }
+    if residence_project_active(
+        residence.upgrade_target_tier,
+        residence.tier,
+        residence.backyard_project_kind,
+    ) {
+        return Err("This household already has improvement works underway.".to_string());
+    }
     let (backyard_x, backyard_z) = backyard_reclamation_position(ctx, &residence);
     if ctx.db.building().owner().filter(&owner).any(|building| {
         building.kind == "salvage_pile"
@@ -71,6 +84,41 @@ pub fn place_backyard_garden(
         return Err("Not enough stone for this garden.".to_string());
     }
 
+    let physical_economy = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if physical_economy {
+        let network = load_owner_road_network(ctx, owner)
+            .ok_or_else(|| "Backyard works require a road-linked material source.".to_string())?;
+        ensure_upgrade_source_route(
+            ctx,
+            &network,
+            &residence,
+            CommodityKind::Timber,
+            cost.timber,
+        )?;
+        ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Stone, cost.stone)?;
+
+        residence.backyard_project_kind = def.kind as u8;
+        residence.upgrade_progress = 0.0;
+        residence.upgrade_required_timber = cost.timber;
+        residence.upgrade_required_stone = cost.stone;
+        residence.upgrade_required_gold = 0.0;
+        residence.upgrade_delivered_timber = 0.0;
+        residence.upgrade_delivered_stone = 0.0;
+        residence.upgrade_delivered_gold = 0.0;
+        residence.upgrade_reserved_timber = cost.timber;
+        residence.upgrade_reserved_stone = cost.stone;
+        residence.upgrade_reserved_gold = 0.0;
+        residence.upgrade_assigned_labor = 0;
+        residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
+        ctx.db.residence().id().update(residence);
+        return Ok(());
+    }
+
     spend_aggregate_timber(ctx, owner, cost.timber)?;
     spend_aggregate_stone(ctx, owner, cost.stone)?;
 
@@ -87,7 +135,7 @@ pub fn place_backyard_garden(
 #[reducer]
 pub fn demolish_backyard_garden(ctx: &ReducerContext, residence_id: u64) -> Result<(), String> {
     let owner = ctx.sender();
-    let residence = ctx
+    let mut residence = ctx
         .db
         .residence()
         .id()
@@ -96,6 +144,27 @@ pub fn demolish_backyard_garden(ctx: &ReducerContext, residence_id: u64) -> Resu
 
     if residence.owner != owner {
         return Err("You do not own this residence.".to_string());
+    }
+
+    if residence.backyard_project_kind != 0 {
+        let refund = ReclamationStock {
+            timber: (residence.upgrade_delivered_timber
+                * crate::balance_generated::TIMBER_SALVAGE_FRACTION)
+                .round(),
+            stone: (residence.upgrade_delivered_stone
+                * crate::balance_generated::STONE_SALVAGE_FRACTION)
+                .round(),
+        };
+        let (x, z) = backyard_reclamation_position(ctx, &residence);
+        if !insert_reclamation_pile(ctx, owner, x, z, refund)? {
+            credit_treasury_timber(ctx, owner, refund.timber);
+            credit_treasury_stone(ctx, owner, refund.stone);
+        }
+        cancel_trips_for_residence(ctx, residence.id);
+        clear_residence_project(&mut residence);
+        ctx.db.residence().id().update(residence);
+        reconcile_building_labor(ctx, owner);
+        return Ok(());
     }
 
     let garden = ctx

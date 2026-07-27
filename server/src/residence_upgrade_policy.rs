@@ -2,6 +2,14 @@
 
 const EPSILON: f64 = 1e-6;
 
+pub fn residence_project_active(
+    target_tier: u8,
+    current_tier: u8,
+    backyard_project_kind: u8,
+) -> bool {
+    target_tier > current_tier || backyard_project_kind != 0
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ResidenceUpgradeWork {
     pub progress: f64,
@@ -93,6 +101,13 @@ mod tests {
         assert_eq!(residence_upgrade_household_contribution(3.0, 8.0), 3.0);
         assert_eq!(residence_upgrade_household_contribution(20.0, 8.0), 8.0);
         assert_eq!(residence_upgrade_household_contribution(-2.0, 8.0), 0.0);
+    }
+
+    #[test]
+    fn backyard_works_share_the_household_project_slot() {
+        assert!(residence_project_active(2, 1, 0));
+        assert!(residence_project_active(0, 1, 3));
+        assert!(!residence_project_active(0, 1, 0));
     }
 
     #[test]

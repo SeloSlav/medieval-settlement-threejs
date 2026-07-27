@@ -8,6 +8,7 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{building_commodity_cap, building_commodity_stock, CommodityKind};
+use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_building_supply_trip,
@@ -205,7 +206,13 @@ fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: Commodity
                 .residence()
                 .owner()
                 .filter(&site.owner)
-                .filter(|residence| residence.upgrade_target_tier > residence.tier)
+                .filter(|residence| {
+                    residence_project_active(
+                        residence.upgrade_target_tier,
+                        residence.tier,
+                        residence.backyard_project_kind,
+                    )
+                })
                 .map(|residence| match commodity {
                     CommodityKind::Timber => residence.upgrade_reserved_timber.max(0.0),
                     CommodityKind::Stone => residence.upgrade_reserved_stone.max(0.0),

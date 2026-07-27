@@ -8,6 +8,7 @@ use crate::constants::{
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_HOLD;
 use crate::db::*;
+use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::{
     building_fire_state, preserve_in_transit_cart_labor, staffed_cart_workers_by_building,
 };
@@ -66,18 +67,24 @@ fn total_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u
         .sum()
 }
 
-fn total_residence_upgrade_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+fn total_residence_project_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
     ctx.db
         .residence()
         .owner()
         .filter(&owner)
-        .filter(|residence| residence.upgrade_target_tier > residence.tier)
+        .filter(|residence| {
+            residence_project_active(
+                residence.upgrade_target_tier,
+                residence.tier,
+                residence.backyard_project_kind,
+            )
+        })
         .map(|residence| residence.upgrade_assigned_labor.min(1))
         .sum()
 }
 
 fn total_assigned_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    total_building_labor(ctx, owner).saturating_add(total_residence_upgrade_labor(ctx, owner))
+    total_building_labor(ctx, owner).saturating_add(total_residence_project_labor(ctx, owner))
 }
 
 fn total_free_hauler_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
@@ -119,7 +126,7 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
     let population_after_carts =
         total_population(ctx, owner).saturating_sub(total_free_hauler_labor(ctx, owner));
     let total_committed =
-        total_building_labor(ctx, owner).saturating_add(total_residence_upgrade_labor(ctx, owner));
+        total_building_labor(ctx, owner).saturating_add(total_residence_project_labor(ctx, owner));
     let mut excess = total_committed.saturating_sub(population_after_carts);
     if excess > 0 {
         let mut upgrades = ctx
@@ -128,8 +135,11 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
             .owner()
             .filter(&owner)
             .filter(|residence| {
-                residence.upgrade_target_tier > residence.tier
-                    && residence.upgrade_assigned_labor > 0
+                residence_project_active(
+                    residence.upgrade_target_tier,
+                    residence.tier,
+                    residence.backyard_project_kind,
+                ) && residence.upgrade_assigned_labor > 0
             })
             .collect::<Vec<_>>();
         upgrades.sort_by(|left, right| {
@@ -147,7 +157,7 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
         }
     }
     let assignable_population =
-        population_after_carts.saturating_sub(total_residence_upgrade_labor(ctx, owner));
+        population_after_carts.saturating_sub(total_residence_project_labor(ctx, owner));
     for (building_id, assigned_labor) in
         labor_reconciliation_updates(assignments, assignable_population)
     {

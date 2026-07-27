@@ -52,6 +52,7 @@ export function syncResidences(
       upgradeReservedGold: number;
       upgradeAssignedLabor: number;
       upgradePriority: number;
+      backyardProjectKind: number;
     }>;
     const residenceId = residenceClientId(row.id);
     residences.set(residenceId, {
@@ -85,6 +86,7 @@ export function syncResidences(
       upgradeReservedGold: Number(upgradeRow.upgradeReservedGold ?? 0),
       upgradeAssignedLabor: Number(upgradeRow.upgradeAssignedLabor ?? 0),
       upgradePriority: Number(upgradeRow.upgradePriority ?? 2),
+      backyardProjectKind: Number(upgradeRow.backyardProjectKind ?? 0),
     });
   }
   return residences;

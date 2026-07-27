@@ -339,6 +339,7 @@ export const Residence = __t.object("Residence", {
   upgradeReservedGold: __t.f64(),
   upgradeAssignedLabor: __t.u32(),
   upgradePriority: __t.u8(),
+  backyardProjectKind: __t.u8(),
 });
 export type Residence = __Infer<typeof Residence>;
 

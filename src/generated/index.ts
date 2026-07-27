@@ -82,8 +82,8 @@ import SetLaborStewardReserveReducer from "./set_labor_steward_reserve_reducer";
 import SetLivestockBreedingReserveReducer from "./set_livestock_breeding_reserve_reducer";
 import SetLivestockHaymakingPercentReducer from "./set_livestock_haymaking_percent_reducer";
 import SetLivestockSpeciesReducer from "./set_livestock_species_reducer";
-import SetMarketplaceIronworkTargetReducer from "./set_marketplace_ironwork_target_reducer";
 import SetMarketplaceGoldReserveTargetReducer from "./set_marketplace_gold_reserve_target_reducer";
+import SetMarketplaceIronworkTargetReducer from "./set_marketplace_ironwork_target_reducer";
 import SetMarketplaceSeedGrainTargetReducer from "./set_marketplace_seed_grain_target_reducer";
 import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specialty_export_policy_reducer";
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
@@ -452,8 +452,8 @@ const reducersSchema = __reducers(
   __reducerSchema("set_livestock_breeding_reserve", SetLivestockBreedingReserveReducer),
   __reducerSchema("set_livestock_haymaking_percent", SetLivestockHaymakingPercentReducer),
   __reducerSchema("set_livestock_species", SetLivestockSpeciesReducer),
-  __reducerSchema("set_marketplace_ironwork_target", SetMarketplaceIronworkTargetReducer),
   __reducerSchema("set_marketplace_gold_reserve_target", SetMarketplaceGoldReserveTargetReducer),
+  __reducerSchema("set_marketplace_ironwork_target", SetMarketplaceIronworkTargetReducer),
   __reducerSchema("set_marketplace_seed_grain_target", SetMarketplaceSeedGrainTargetReducer),
   __reducerSchema("set_marketplace_specialty_export_policy", SetMarketplaceSpecialtyExportPolicyReducer),
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),

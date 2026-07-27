@@ -16,6 +16,7 @@ use crate::economy::{
     restore_local_civic_receipts, withdraw_building_commodity, CommodityKind,
 };
 use crate::fire_policy::fire_response_load;
+use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
 use crate::simulation::delivery_cargo::{
@@ -551,7 +552,11 @@ pub fn try_start_residence_upgrade_supply_trip(
     available_free_haulers: u32,
 ) -> bool {
     if !origin.construction_complete
-        || residence.upgrade_target_tier <= residence.tier
+        || !residence_project_active(
+            residence.upgrade_target_tier,
+            residence.tier,
+            residence.backyard_project_kind,
+        )
         || origin.owner != residence.owner
         || tick.building_disabled_by_fire(ctx, origin.id)
         || tick.residence_disabled_by_fire(ctx, residence.id)
@@ -1185,7 +1190,13 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
         .residence()
         .id()
         .find(&trip.residence_id)
-        .is_some_and(|residence| residence.upgrade_target_tier > residence.tier)
+        .is_some_and(|residence| {
+            residence_project_active(
+                residence.upgrade_target_tier,
+                residence.tier,
+                residence.backyard_project_kind,
+            )
+        })
     {
         unload_residence_upgrade_material(ctx, trip, commodity);
     } else if let Some(need_kind) = ResidenceNeedKind::from_u8(trip.cargo_kind) {
@@ -1201,7 +1212,11 @@ fn unload_residence_upgrade_material(
     let Some(mut residence) = ctx.db.residence().id().find(&trip.residence_id) else {
         return;
     };
-    if residence.upgrade_target_tier <= residence.tier {
+    if !residence_project_active(
+        residence.upgrade_target_tier,
+        residence.tier,
+        residence.backyard_project_kind,
+    ) {
         return;
     }
     let room = match commodity {
@@ -1369,7 +1384,11 @@ fn return_trip_cargo_to_building(ctx: &ReducerContext, trip: &DeliveryTrip) {
                 )
             {
                 if let Some(mut residence) = ctx.db.residence().id().find(&trip.residence_id) {
-                    if residence.upgrade_target_tier > residence.tier {
+                    if residence_project_active(
+                        residence.upgrade_target_tier,
+                        residence.tier,
+                        residence.backyard_project_kind,
+                    ) {
                         match commodity {
                             CommodityKind::Timber => {
                                 residence.upgrade_reserved_timber += trip.amount

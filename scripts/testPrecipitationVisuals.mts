@@ -210,13 +210,15 @@ assert.match(roadMaterialSource, /applyRoadWeatherRoughness/);
 assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
 assert.match(terrainMaterialSource, /const stableColorNode = biomeBaseColor/);
+assert.match(terrainMaterialSource, /const rainMoisture = smoothstep/);
+assert.match(terrainMaterialSource, /const rainStableColorNode = rainMacroColor/);
 assert.match(
   terrainMaterialSource,
   /TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR = 0/,
 );
 assert.match(terrainMaterialSource, /float\(0\.1\)/);
 assert.match(terrainMaterialSource, /float\(0\.32\)/);
-assert.match(terrainMaterialSource, /buildTerrainWetMask\(moisture,\s*weather\)/);
+assert.match(terrainMaterialSource, /buildTerrainWetMask\(weatherMoisture,\s*weather\)/);
 assert.match(terrainMaterialSource, /vec3\(0\.78,\s*0\.82,\s*0\.78\)/);
 assert.match(terrainMaterialSource, /const rainNormalVisibility = mix/);
 assert.match(terrainMaterialSource, /const rainAoVisibility = mix/);
@@ -246,10 +248,14 @@ assert.match(
   terrainMaterialSource,
   /TERRAIN_FROST_COLOR_LIFT = \[0\.16,\s*0\.19,\s*0\.22\]/,
 );
-assert.match(terrainMaterialSource, /const shoreTextureVisibility = sub/);
+assert.match(terrainMaterialSource, /const shoreRainVisibility = sub/);
 assert.match(
   terrainMaterialSource,
-  /shoreUndercoat = shoreBlend[\s\S]*?mul\(shoreTextureVisibility\)/,
+  /const weatherResolvedShoreBlend = shoreBlend\.mul\(shoreRainVisibility\)/,
+);
+assert.match(
+  terrainMaterialSource,
+  /shoreUndercoat = weatherResolvedShoreBlend\.mul\(float\(0\.58\)/,
 );
 assert.match(sceneSource, /weather\.kind === 'snow'[\s\S]*?\? 0\.18/);
 assert.doesNotMatch(

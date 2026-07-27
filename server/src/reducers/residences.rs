@@ -25,7 +25,9 @@ use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{
     burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, is_on_quarry_pit,
 };
-use crate::residence_upgrade_policy::residence_upgrade_household_contribution;
+use crate::residence_upgrade_policy::{
+    residence_project_active, residence_upgrade_household_contribution,
+};
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::simulation::{
     building_fire_state, cancel_trips_for_residence, clear_backyard_garden_for_residence,
@@ -267,6 +269,7 @@ pub fn place_burgage_zone(
             upgrade_reserved_gold: 0.0,
             upgrade_assigned_labor: 0,
             upgrade_priority: crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL,
+            backyard_project_kind: 0,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {
@@ -309,7 +312,11 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     if residence_fire_state(ctx, residence.id).is_some() {
         return Err("Repair the fire-damaged residence before upgrading it.".to_string());
     }
-    if residence.upgrade_target_tier > residence.tier {
+    if residence_project_active(
+        residence.upgrade_target_tier,
+        residence.tier,
+        residence.backyard_project_kind,
+    ) {
         return Err("This household already has improvement works underway.".to_string());
     }
 
@@ -442,7 +449,11 @@ pub fn set_residence_upgrade_priority(
     if residence.owner != owner {
         return Err("You do not own this residence.".to_string());
     }
-    if residence.upgrade_target_tier <= residence.tier {
+    if !residence_project_active(
+        residence.upgrade_target_tier,
+        residence.tier,
+        residence.backyard_project_kind,
+    ) {
         return Err("This residence has no improvement works underway.".to_string());
     }
     residence.upgrade_priority = priority;
@@ -453,7 +464,7 @@ pub fn set_residence_upgrade_priority(
     Ok(())
 }
 
-fn ensure_upgrade_source_route(
+pub(crate) fn ensure_upgrade_source_route(
     ctx: &ReducerContext,
     network: &RoadNetwork,
     residence: &Residence,

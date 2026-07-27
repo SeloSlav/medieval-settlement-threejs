@@ -5,6 +5,7 @@ use crate::constants::{
     RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FOOD_CAPACITY, RESIDENCE_WATER_CAPACITY,
 };
 use crate::db::*;
+use crate::residence_upgrade_policy::residence_project_active;
 use crate::tables::{Building, Residence};
 
 use super::commodities::CommodityKind;
@@ -189,7 +190,13 @@ where
         .residence()
         .owner()
         .filter(&owner)
-        .filter(|residence| residence.upgrade_target_tier > residence.tier)
+        .filter(|residence| {
+            residence_project_active(
+                residence.upgrade_target_tier,
+                residence.tier,
+                residence.backyard_project_kind,
+            )
+        })
         .map(|residence| pick(&residence).max(0.0))
         .sum()
 }

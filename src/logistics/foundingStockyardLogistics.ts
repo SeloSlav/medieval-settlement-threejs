@@ -1,4 +1,8 @@
-import type { BuildingState, GameState } from '../resources/types.ts';
+import {
+  residenceHasActiveProject,
+  type BuildingState,
+  type GameState,
+} from '../resources/types.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import {
   STOREHOUSE_COMMODITIES,
@@ -82,7 +86,7 @@ function reservedPhysicalMaterial(
         );
   }
   for (const residence of state.residences.values()) {
-    if ((residence.upgradeTargetTier ?? residence.tier) <= residence.tier) continue;
+    if (!residenceHasActiveProject(residence)) continue;
     reserved += commodity === 'timber'
       ? finiteStock(residence.upgradeReservedTimber)
       : finiteStock(residence.upgradeReservedStone);

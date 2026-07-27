@@ -13,6 +13,7 @@ import {
 import { residenceSettlementReadiness } from '../src/economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
+  residenceBackyardProject,
   residenceUpgradeProject,
   type ResidenceUpgradeServices,
 } from '../src/economy/residenceUpgrade.ts';
@@ -252,6 +253,43 @@ assert.equal(
   'the authoritative builder should reuse the visible construction-worker routine',
 );
 
+const activeBackyard = residence('active-backyard', 1, 3);
+Object.assign(activeBackyard, {
+  backyardProjectKind: 3,
+  upgradeProgress: 0.2,
+  upgradeRequiredTimber: 6,
+  upgradeRequiredStone: 2,
+  upgradeDeliveredTimber: 2,
+  upgradeDeliveredStone: 0,
+  upgradeReservedTimber: 4,
+  upgradeReservedStone: 2,
+  upgradeAssignedLabor: 1,
+  upgradePriority: 1,
+});
+const backyardProject = residenceBackyardProject(activeBackyard);
+assert.ok(backyardProject);
+assert.equal(backyardProject.kind, 'vegetable_garden');
+assert.equal(backyardProject.priorityLabel, 'Low');
+assert.equal(backyardProject.materialReadiness, 0.25);
+assert.equal(residenceUpgradeProject(activeBackyard), null);
+assert.equal(
+  residenceUpgradeWorkplaces([activeBackyard]).length,
+  1,
+  'backyard works should use the same visible household builder path',
+);
+const backyardState = emptyGameState(
+  [Object.assign(building('backyard-camp', 'founders_camp', 0), {
+    timber: 100,
+    stone: 80,
+    assignedLabor: 0,
+  })],
+  [activeBackyard],
+  [],
+);
+assert.equal(computeResourceTotals(backyardState).timber, 96);
+assert.equal(computeResourceTotals(backyardState).stone, 78);
+assert.equal(computePopulationStats(backyardState).assigned, 1);
+
 const initialCottage = residence('initial-cottage', 0, 0);
 Object.assign(initialCottage, {
   populationCapacity: 3,
@@ -399,11 +437,20 @@ assert.match(upgradeSimulation, /upgrade_assigned_labor == 0[\s\S]*return/);
 assert.match(upgradeSimulation, /try_start_residence_upgrade_supply_trip/);
 assert.match(upgradeSimulation, /ensure_residence_needs\(ctx, residence_id\)/);
 assert.match(upgradeSimulation, /initial_cottage_works/);
+assert.match(
+  upgradeSimulation,
+  /backyard_project_kind[\s\S]*BackyardGardenKind::from_id[\s\S]*backyard_garden\(\)\.insert/,
+  'a productive garden row should only appear after its physical household project completes',
+);
 
 const deliveryTrips = source('../server/src/simulation/delivery_trips.rs');
 assert.match(deliveryTrips, /try_start_residence_upgrade_supply_trip/);
 assert.match(deliveryTrips, /unload_residence_upgrade_material/);
 assert.match(deliveryTrips, /upgrade_reserved_gold/);
+assert.match(deliveryTrips, /residence_project_active/);
+
+const residenceBinding = source('../src/generated/residence_table.ts');
+assert.match(residenceBinding, /backyardProjectKind: __t\.u8\(\)/);
 
 console.log(
   `residence upgrade physical-work tests passed (${performanceElapsed.toFixed(1)}ms / 100k summaries)`,

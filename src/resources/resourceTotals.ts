@@ -19,7 +19,12 @@ import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
 import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
-import type { BuildingKind, BuildingState, GameState } from './types.ts';
+import {
+  residenceHasActiveProject,
+  type BuildingKind,
+  type BuildingState,
+  type GameState,
+} from './types.ts';
 import {
   formatFirewoodRunwayDays,
   GAME_DAY_SECONDS,
@@ -168,7 +173,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   }
 
   for (const residence of state.residences?.values() ?? []) {
-    if ((residence.upgradeTargetTier ?? 0) > residence.tier) {
+    if (residenceHasActiveProject(residence)) {
       timber -= Math.max(0, residence.upgradeReservedTimber ?? 0);
       stone -= Math.max(0, residence.upgradeReservedStone ?? 0);
       gold -= Math.max(0, residence.upgradeReservedGold ?? 0);
@@ -279,7 +284,7 @@ export function computeUnreservedBuildingTimber(state: GameState): number {
     }
   }
   for (const residence of state.residences?.values() ?? []) {
-    if ((residence.upgradeTargetTier ?? 0) > residence.tier) {
+    if (residenceHasActiveProject(residence)) {
       reserved += Math.max(0, residence.upgradeReservedTimber ?? 0);
     }
   }
@@ -353,7 +358,7 @@ export function computeMarketplaceTradeAvailability(
   }
 
   for (const residence of state.residences?.values() ?? []) {
-    if ((residence.upgradeTargetTier ?? 0) <= residence.tier) continue;
+    if (!residenceHasActiveProject(residence)) continue;
     reservedResidenceTimber += Math.max(0, residence.upgradeReservedTimber ?? 0);
     reservedResidenceStone += Math.max(0, residence.upgradeReservedStone ?? 0);
   }
@@ -405,7 +410,7 @@ export function computePopulationStats(state: GameState): PopulationStats {
   }
   let residenceUpgradeAssigned = 0;
   for (const residence of state.residences?.values() ?? []) {
-    if ((residence.upgradeTargetTier ?? 0) > residence.tier) {
+    if (residenceHasActiveProject(residence)) {
       residenceUpgradeAssigned += Math.max(0, residence.upgradeAssignedLabor ?? 0);
     }
   }

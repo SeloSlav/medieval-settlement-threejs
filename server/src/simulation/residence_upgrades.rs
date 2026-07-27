@@ -6,8 +6,8 @@ use std::collections::{HashMap, HashSet};
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    CONSTRUCTION_WORK_PER_WORKER_PER_SEC, RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER3_CAPACITY,
-    TICK_DT,
+    BackyardGardenKind, CONSTRUCTION_WORK_PER_WORKER_PER_SEC, RESIDENCE_TIER2_CAPACITY,
+    RESIDENCE_TIER3_CAPACITY, TICK_DT,
 };
 use crate::construction_priority::{
     construction_priority_bucket, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
@@ -16,7 +16,8 @@ use crate::construction_priority::{
 use crate::db::*;
 use crate::economy::{available_building_labor, building_commodity_stock, CommodityKind};
 use crate::residence_upgrade_policy::{
-    advance_residence_upgrade, residence_upgrade_complete, ResidenceUpgradeWork,
+    advance_residence_upgrade, residence_project_active, residence_upgrade_complete,
+    ResidenceUpgradeWork,
 };
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
@@ -26,7 +27,7 @@ use crate::simulation::{
     ensure_residence_needs, labor_and_logistics_paused, GameClock, SimTickContext,
 };
 use crate::supply_policy::{construction_source_priority, select_supply_route_candidate};
-use crate::tables::{Building, Residence};
+use crate::tables::{BackyardGarden, Building, Residence};
 
 const UPGRADE_TREASURY_KINDS: &[&str] = &["town_hall", "founders_camp", "salvage_pile"];
 
@@ -35,12 +36,13 @@ pub fn step_residence_upgrades(ctx: &ReducerContext, tick: &SimTickContext, cloc
         spacetimedb::Identity,
         [Vec<u64>; CONSTRUCTION_PRIORITY_LEVELS],
     > = HashMap::new();
-    for mut residence in ctx
-        .db
-        .residence()
-        .iter()
-        .filter(|residence| residence.upgrade_target_tier > residence.tier)
-    {
+    for mut residence in ctx.db.residence().iter().filter(|residence| {
+        residence_project_active(
+            residence.upgrade_target_tier,
+            residence.tier,
+            residence.backyard_project_kind,
+        )
+    }) {
         let initial_cottage_works = residence.tier == 0 && residence.upgrade_target_tier == 1;
         let suspended = residence.abandoned
             || (residence.population == 0 && !initial_cottage_works)
@@ -318,18 +320,41 @@ fn advance_upgrade_work(
         ..work
     });
     if completed {
-        complete_upgrade(&mut residence);
+        let needs_changed = complete_project(ctx, &mut residence);
         let residence_id = residence.id;
         ctx.db.residence().id().update(residence);
-        // Needs depend on the new tier, so regenerate them only after the
-        // upgraded row is authoritative.
-        ensure_residence_needs(ctx, residence_id);
+        if needs_changed {
+            // Needs depend on the new tier, so regenerate them only after the
+            // upgraded row is authoritative.
+            ensure_residence_needs(ctx, residence_id);
+        }
         return;
     }
     ctx.db.residence().id().update(residence);
 }
 
-fn complete_upgrade(residence: &mut Residence) {
+fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
+    if residence.backyard_project_kind != 0 {
+        if BackyardGardenKind::from_id(residence.backyard_project_kind).is_some()
+            && ctx
+                .db
+                .backyard_garden()
+                .residence_id()
+                .filter(&residence.id)
+                .next()
+                .is_none()
+        {
+            ctx.db.backyard_garden().insert(BackyardGarden {
+                id: 0,
+                residence_id: residence.id,
+                owner: residence.owner,
+                kind: residence.backyard_project_kind,
+            });
+        }
+        clear_residence_project(residence);
+        return false;
+    }
+
     residence.tier = residence.upgrade_target_tier.min(3);
     residence.population_capacity = match residence.tier {
         2 => RESIDENCE_TIER2_CAPACITY,
@@ -337,6 +362,11 @@ fn complete_upgrade(residence: &mut Residence) {
         _ => residence.population_capacity,
     };
     residence.settlement_ticks = 0;
+    clear_residence_project(residence);
+    true
+}
+
+pub(crate) fn clear_residence_project(residence: &mut Residence) {
     residence.upgrade_target_tier = 0;
     residence.upgrade_progress = 0.0;
     residence.upgrade_required_timber = 0.0;
@@ -350,4 +380,5 @@ fn complete_upgrade(residence: &mut Residence) {
     residence.upgrade_reserved_gold = 0.0;
     residence.upgrade_assigned_labor = 0;
     residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
+    residence.backyard_project_kind = 0;
 }

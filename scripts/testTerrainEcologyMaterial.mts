@@ -15,6 +15,9 @@ import {
   TERRAIN_FROST_MASK_SCALE,
   TERRAIN_FROST_PATCH_MAX,
   TERRAIN_FROST_PATCH_MIN,
+  TERRAIN_SHORE_RAIN_FADE_END,
+  TERRAIN_SHORE_RAIN_FADE_START,
+  terrainShoreRainVisibility,
 } from '../src/terrain/TerrainGrassMaterial.ts';
 import { createRoadWeatherUniforms } from '../src/roads/RoadSurfaceMaterial.ts';
 import type {
@@ -49,6 +52,8 @@ assert.match(ecologySource, /fwidth\(grassUv\.y\)/);
 assert.match(ecologySource, /const closeMaterialDetail = zoomDetailGate\.mul\(footprintDetailGate\)/);
 assert.match(ecologySource, /const biomeBaseColor =/);
 assert.match(ecologySource, /const stableColorNode = biomeBaseColor/);
+assert.match(ecologySource, /const rainMoisture = smoothstep/);
+assert.match(ecologySource, /const rainStableColorNode = rainMacroColor/);
 assert.match(ecologySource, /const albedoDetailStrength = mix/);
 assert.match(ecologySource, /float\(0\.24\)/);
 assert.match(ecologySource, /const normalDetailStrength = mix/);
@@ -66,6 +71,24 @@ assert.doesNotMatch(
   /\bfract\b|\bfloor\b|\bmod\b/,
   'the ecological pass must not regress to visibly tiled hash/checker cells',
 );
+const rainMoistureStart = ecologySource.indexOf('const rainMoisture = smoothstep');
+const rainMoistureEnd = ecologySource.indexOf('const moisture = smoothstep');
+assert.ok(rainMoistureStart >= 0 && rainMoistureEnd > rainMoistureStart);
+const rainMoistureSource = ecologySource.slice(rainMoistureStart, rainMoistureEnd);
+assert.doesNotMatch(
+  rainMoistureSource,
+  /\bw\.|geometricNormal|slope|texture\(|sin\(/,
+  'full-rain drainage must use fragment macro/height fields, not vertex-biome or normal inputs',
+);
+const rainColorStart = ecologySource.indexOf('const rainMacro =');
+const rainColorEnd = ecologySource.indexOf('const stableColorNode =');
+assert.ok(rainColorStart >= 0 && rainColorEnd > rainColorStart);
+const rainColorSource = ecologySource.slice(rainColorStart, rainColorEnd);
+assert.doesNotMatch(
+  rainColorSource,
+  /\bw\.|geometricNormal|slope|texture\(|sin\(/,
+  'full-rain color must reuse fragment macro fields without vertex-biome derivatives or new samples',
+);
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,
   17,
@@ -82,7 +105,15 @@ assert.equal(
   'the ecological hierarchy must remain within the existing terrain draws',
 );
 assert.match(source, /applyTerrainWetColor/);
-assert.match(source, /buildTerrainWetMask\(moisture,\s*weather\)/);
+assert.match(
+  source,
+  /const weatherStableColor = mix\(\s*stableColor,\s*rainStableColor,\s*weather\.wetness/,
+);
+assert.match(
+  source,
+  /const weatherMoisture = mix\(\s*moisture,\s*rainMoisture,\s*weather\.wetness/,
+);
+assert.match(source, /buildTerrainWetMask\(weatherMoisture,\s*weather\)/);
 assert.match(source, /const rainDirtVisibility = mix/);
 assert.match(source, /applyTerrainRainHaze/);
 assert.match(source, /const flatFrostExposure = mix/);
@@ -93,7 +124,27 @@ assert.match(source, /buildTerrainFrostMask/);
 assert.match(source, /weather\.wetness/);
 assert.match(source, /weather\.frost/);
 assert.match(source, /const roadWearHalo =/);
-assert.match(source, /const shoreTextureVisibility = sub/);
+assert.match(source, /const shoreRainVisibility = sub/);
+assert.match(
+  source,
+  /const weatherResolvedShoreBlend = shoreBlend\.mul\(shoreRainVisibility\)/,
+);
+assert.match(
+  source,
+  /applyRiparianEcologyColor\([\s\S]*?weatherResolvedShoreBlend/,
+);
+assert.match(
+  source,
+  /applyCloseZoomDirtBlend\([\s\S]*?weatherResolvedShoreBlend/,
+);
+assert.match(
+  source,
+  /weatherResolvedShoreBlend\.mul\(float\(0\.82\)/,
+);
+assert.match(
+  source,
+  /max\(max\(weatherResolvedShoreBlend,\s*roadWear\)/,
+);
 assert.equal(
   TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR,
   0,
@@ -116,6 +167,64 @@ assert.equal(
   0,
   'full rain must remove the camera-proximity dirt texture transition',
 );
+assert.equal(TERRAIN_SHORE_RAIN_FADE_START, 0.08);
+assert.equal(TERRAIN_SHORE_RAIN_FADE_END, 0.72);
+assert.equal(
+  terrainShoreRainVisibility(0),
+  1,
+  'dry terrain must preserve the authored shore ecology exactly',
+);
+assert.equal(
+  terrainShoreRainVisibility(TERRAIN_SHORE_RAIN_FADE_START),
+  1,
+  'the shore mask must remain unchanged through the start of the rain fade',
+);
+assert.ok(
+  Math.abs(
+    terrainShoreRainVisibility(
+      (TERRAIN_SHORE_RAIN_FADE_START + TERRAIN_SHORE_RAIN_FADE_END) * 0.5,
+    ) - 0.5,
+  ) < 1e-12,
+  'the shared shore mask must fade smoothly rather than pop',
+);
+assert.equal(
+  terrainShoreRainVisibility(TERRAIN_SHORE_RAIN_FADE_END),
+  0,
+  'sustained rain must remove the broad vertex shore field from terrain shading',
+);
+assert.equal(
+  terrainShoreRainVisibility(1),
+  0,
+  'full rain must not leave a dotted shore-field contribution',
+);
+for (const wetness of [0, 0.25, 0.5, 0.75, 1]) {
+  const sampledAlbedoContribution = 1 - wetness;
+  const vertexStableContribution = wetness * (1 - wetness);
+  const fragmentStableContribution = wetness * wetness;
+  assert.ok(
+    Math.abs(
+      sampledAlbedoContribution
+      + vertexStableContribution
+      + fragmentStableContribution
+      - 1
+    ) < 1e-12,
+    `rain ecology contributions must remain energy-normalized at wetness ${wetness}`,
+  );
+  if (wetness === 0) {
+    assert.deepEqual(
+      [sampledAlbedoContribution, vertexStableContribution, fragmentStableContribution],
+      [1, 0, 0],
+      'dry terrain must remain entirely on the existing sampled color path',
+    );
+  }
+  if (wetness === 1) {
+    assert.deepEqual(
+      [sampledAlbedoContribution, vertexStableContribution, fragmentStableContribution],
+      [0, 0, 1],
+      'full rain must eliminate vertex-biome color influence',
+    );
+  }
+}
 const rawFrostMaskMin = TERRAIN_FROST_PATCH_MIN * TERRAIN_FROST_MASK_SCALE;
 const rawFrostMaskMax = TERRAIN_FROST_PATCH_MAX * TERRAIN_FROST_MASK_SCALE;
 assert.ok(

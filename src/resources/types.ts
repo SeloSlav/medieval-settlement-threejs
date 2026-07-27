@@ -232,7 +232,19 @@ export type ResidenceState = {
   upgradeAssignedLabor?: number;
   /** Shared construction priority: 0 hold, 1 low, 2 normal, 3 urgent. */
   upgradePriority?: number;
+  /** Stable backyard-garden kind id while a physical improvement worksite is active. */
+  backyardProjectKind?: number;
 };
+
+export function residenceHasActiveProject(
+  residence: Pick<
+    ResidenceState,
+    'tier' | 'upgradeTargetTier' | 'backyardProjectKind'
+  >,
+): boolean {
+  return (residence.upgradeTargetTier ?? 0) > residence.tier
+    || (residence.backyardProjectKind ?? 0) !== 0;
+}
 
 export type BackyardGardenState = {
   id: string;

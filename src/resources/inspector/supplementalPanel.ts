@@ -29,9 +29,12 @@ export function handleSupplementalPanelClick(
   const upgradePriority = eventTarget
     .closest<HTMLElement>('[data-residence-upgrade-priority]')
     ?.dataset.residenceUpgradePriority;
-  if (upgradePriority != null && target?.kind === 'residence') {
+  const projectResidence = target?.kind === 'residence' || target?.kind === 'backyard'
+    ? target.residence
+    : null;
+  if (upgradePriority != null && projectResidence) {
     void handlers.onSetResidenceUpgradePriority?.(
-      target.residence.id,
+      projectResidence.id,
       Number(upgradePriority),
     );
     return true;

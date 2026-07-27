@@ -42,11 +42,13 @@ import { gameClock } from '../../world/gameCalendar.ts';
 import { residenceSettlementReadiness } from '../../economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
+  residenceBackyardProject,
   residenceUpgradeProject,
   type ResidenceUpgradePlan,
   type ResidenceUpgradeProject,
   type ResidenceUpgradeServiceKind,
 } from '../../economy/residenceUpgrade.ts';
+import { backyardGardenLabel } from '../../residences/backyardGarden.ts';
 import {
   CONSTRUCTION_PRIORITIES,
   constructionPriorityLabel,
@@ -161,8 +163,12 @@ export function renderResidenceInspector(
     residence,
     context.gameState.deliveryTrips.values(),
   );
+  const backyardProject = residenceBackyardProject(
+    residence,
+    context.gameState.deliveryTrips.values(),
+  );
   const initialConstruction = residence.tier === 0 && upgradeProject?.targetTier === 1;
-  const upgradePlan = upgradeProject
+  const upgradePlan = upgradeProject || backyardProject
     ? null
     : evaluateResidenceUpgrade(
       residence,
@@ -360,6 +366,8 @@ export function renderResidenceInspector(
       <li><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : `${residence.tier} / 3`}</span></li>
       ${upgradeProject
         ? residenceUpgradeProjectRows(upgradeProject, initialConstruction)
+        : backyardProject
+          ? `<li><span>Household works</span><span>${backyardGardenLabel(backyardProject.kind)} · ${Math.round(backyardProject.progress * 100)}% complete · shares the construction queue</span></li>`
         : upgradePlan
           ? residenceUpgradeRows(upgradePlan, context.worldQueries.getBuildingLabel.bind(context.worldQueries))
           : ''}
@@ -430,6 +438,8 @@ export function renderResidenceInspector(
     labor: hiddenLabor(),
     supplementalPanelHtml: upgradeProject
       ? residenceUpgradeProjectPanel(upgradeProject, initialConstruction)
+      : backyardProject
+        ? `<p class="resource-inspector-note">${backyardGardenLabel(backyardProject.kind)} works are using this household's builder slot. Select the backyard marker to inspect carts, materials, priority, or cancel the project.</p>`
       : upgradePlan
         ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
         : '<p class="resource-inspector-note">This household has reached tier 3.</p>',

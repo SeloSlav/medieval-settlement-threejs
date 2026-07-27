@@ -1,7 +1,12 @@
 import type { ToastManager } from '../ui/ToastManager.ts';
 import type { SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
-import type { FarmCrop, GameState, LivestockSpecies } from '../resources/types.ts';
+import {
+  residenceHasActiveProject,
+  type FarmCrop,
+  type GameState,
+  type LivestockSpecies,
+} from '../resources/types.ts';
 import { describeBackyardGardenShortfall } from '../resources/buildingEconomy.ts';
 import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import type { FireTargetKind } from '../fires/fireIncident.ts';
@@ -158,6 +163,12 @@ export function createInspectorSpacetimeActions(
       }
       if (state.backyardGardens.has(residenceId)) {
         toastManager.show('This backyard already has a garden.', { variant: 'error' });
+        return;
+      }
+      if (residenceHasActiveProject(residence)) {
+        toastManager.show('This household already has improvement works underway.', {
+          variant: 'error',
+        });
         return;
       }
 

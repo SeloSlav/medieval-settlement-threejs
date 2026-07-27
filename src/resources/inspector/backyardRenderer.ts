@@ -18,6 +18,14 @@ import {
 import {
   backyardGardenSeasonStatus,
 } from '../../economy/backyardGardenTick.ts';
+import {
+  residenceBackyardProject,
+  type ResidenceBackyardProject,
+} from '../../economy/residenceUpgrade.ts';
+import {
+  CONSTRUCTION_PRIORITIES,
+  type ConstructionPriority,
+} from '../../logistics/constructionPriority.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { backyardGardenPlacement } from '../../residences/backyardPosition.ts';
 import { getNeedStock } from '../../residences/residenceNeeds.ts';
@@ -131,6 +139,13 @@ function renderEmptyBackyardPicker(
   zone: BurgageZoneState,
   context: InspectorRenderContext,
 ): InspectorView {
+  const project = residenceBackyardProject(
+    residence,
+    context.gameState.deliveryTrips.values(),
+  );
+  if (project) {
+    return renderBackyardProject(residence.parcelIndex, project);
+  }
   const totals = context.resourceTotals;
   const abandoned = residence.abandoned;
   const underConstruction = residence.tier === 0;
@@ -207,6 +222,72 @@ function renderEmptyBackyardPicker(
       <ul class="backyard-picker-list">${options}</ul>
     `,
   };
+}
+
+function renderBackyardProject(
+  parcelIndex: number,
+  project: ResidenceBackyardProject,
+): InspectorView {
+  const label = backyardGardenLabel(project.kind);
+  const incoming = project.incomingTrips.length === 0
+    ? 'None'
+    : project.incomingTrips.map((trip) =>
+      `${formatProjectAmount(trip.amount)} ${trip.cargoKind} <button type="button" class="inspector-jump-button" data-inspect-delivery-trip="${trip.id}" aria-label="Inspect incoming ${trip.cargoKind} cart">Inspect cart</button>`,
+    ).join(' · ');
+  const priorityButtons = CONSTRUCTION_PRIORITIES.map((priority) =>
+    backyardPriorityButton(priority, project.priority),
+  ).join('');
+
+  return {
+    eyebrow: 'Backyard worksite',
+    title: `${label} works`,
+    statusText: project.blockers[0]
+      ?? `${Math.round(project.progress * 100)}% complete`,
+    statusState: project.blockers.length === 0 ? 'ok' : 'warning',
+    detailsHtml: `
+      <li><span>Parcel</span><span>#${parcelIndex + 1}</span></li>
+      <li><span>Improvement</span><span>${label}</span></li>
+      <li><span>Builder progress</span><span>${Math.round(project.progress * 100)}%</span></li>
+      <li><span>Queue priority</span><span>${project.priorityLabel}</span></li>
+      <li><span>Builder</span><span>${project.assignedLabor > 0 ? '1 on backyard works' : 'Waiting for free labor'}</span></li>
+      <li><span>Timber onsite</span><span>${formatProjectAmount(project.delivered.timber)} / ${formatProjectAmount(project.required.timber)} · ${formatProjectAmount(project.reserved.timber)} at source</span></li>
+      <li><span>Stone onsite</span><span>${formatProjectAmount(project.delivered.stone)} / ${formatProjectAmount(project.required.stone)} · ${formatProjectAmount(project.reserved.stone)} at source</span></li>
+      <li><span>Incoming haul</span><span>${incoming}</span></li>
+      <li><span>Production</span><span>Begins only after the worksite is complete</span></li>
+    `,
+    demolish: {
+      visible: true,
+      label: 'Cancel backyard works',
+      hint: `Returns incoming carts and leaves recoverable delivered timber and stone in a visible pile at the backyard.`,
+    },
+    labor: hiddenLabor(),
+    supplementalPanelHtml: `
+      <p class="resource-inspector-note">A shared household builder and real source carts compete with cottages, house upgrades, and other construction.</p>
+      <div class="inspector-policy-control">
+        <span>Work priority</span>
+        <div class="inspector-policy-buttons">${priorityButtons}</div>
+      </div>
+    `,
+  };
+}
+
+function backyardPriorityButton(
+  priority: ConstructionPriority,
+  current: ConstructionPriority,
+): string {
+  const label = priority === 0
+    ? 'Hold'
+    : priority === 1
+      ? 'Low'
+      : priority === 2
+        ? 'Normal'
+        : 'Urgent';
+  return `<button type="button" data-residence-upgrade-priority="${priority}" aria-pressed="${priority === current}">${label}</button>`;
+}
+
+function formatProjectAmount(value: number): string {
+  const rounded = Math.round(value);
+  return Math.abs(value - rounded) < 0.05 ? String(rounded) : value.toFixed(1);
 }
 
 export function parseGardenPickerKind(button: HTMLElement): BackyardGardenKind | null {

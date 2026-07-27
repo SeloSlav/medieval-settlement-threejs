@@ -87,6 +87,7 @@ pub use reclamation::{insert_reclamation_pile, step_reclamation_piles, Reclamati
 pub use reforester::step_reforester;
 pub use residence_lifecycle::step_residence;
 pub use residence_needs::{clear_residence_needs, ensure_residence_needs};
+pub(crate) use residence_upgrades::clear_residence_project;
 pub use residence_upgrades::step_residence_upgrades;
 pub use seasonal_labor_steward::{
     call_up_active_seasonal_labor_for_owner, owner_has_staffed_town_hall,

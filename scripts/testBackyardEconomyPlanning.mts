@@ -477,6 +477,47 @@ assert.match(backyardView.detailsHtml, /Home food today/);
 assert.match(backyardView.detailsHtml, /Market activity today/);
 assert.match(backyardView.detailsHtml, /collection without a staffed clerk/);
 
+const backyardProjectHome: ResidenceState = {
+  ...westHome,
+  backyardProjectKind: 3,
+  upgradeProgress: 0.42,
+  upgradeRequiredTimber: 6,
+  upgradeRequiredStone: 2,
+  upgradeDeliveredTimber: 3,
+  upgradeDeliveredStone: 1,
+  upgradeReservedTimber: 2,
+  upgradeReservedStone: 1,
+  upgradeAssignedLabor: 1,
+  upgradePriority: 3,
+};
+const backyardProjectView = renderBackyardInspector(
+  {
+    kind: 'backyard',
+    residence: backyardProjectHome,
+    zone: { plotCount: 1 },
+    garden: null,
+  } as Parameters<typeof renderBackyardInspector>[0],
+  {
+    gameState: {
+      ...state({ residences: [backyardProjectHome] }),
+      deliveryTrips: new Map(),
+    } as GameState,
+    worldQueries: {
+      isResidenceConnectedToMarketplace: () => true,
+    } as unknown as WorldQueries,
+    worldHydrology: 50,
+    resourceTotals: {},
+    getEconomicActivityTaxRate: () => 0.25,
+    getParishPolicy: () => DEFAULT_PARISH_POLICY,
+  } as Parameters<typeof renderBackyardInspector>[1],
+);
+assert.equal(backyardProjectView.eyebrow, 'Backyard worksite');
+assert.equal(backyardProjectView.title, 'Vegetable garden works');
+assert.match(backyardProjectView.detailsHtml, /42%/);
+assert.match(backyardProjectView.detailsHtml, /Begins only after the worksite is complete/);
+assert.match(backyardProjectView.supplementalPanelHtml ?? '', /data-residence-upgrade-priority="3"/);
+assert.equal(backyardProjectView.demolish.label, 'Cancel backyard works');
+
 const touchNetwork = new RoadNetwork();
 touchNetwork.restore({
   nextNodeId: 5,
@@ -600,6 +641,18 @@ const serverMarketplaceTradeSource = readFileSync(
   new URL('../server/src/economy/marketplace_trade.rs', import.meta.url),
   'utf8',
 );
+const serverBackyardReducerSource = readFileSync(
+  new URL('../server/src/reducers/backyards.rs', import.meta.url),
+  'utf8',
+);
+const serverResidenceProjectsSource = readFileSync(
+  new URL('../server/src/simulation/residence_upgrades.rs', import.meta.url),
+  'utf8',
+);
+const backyardInspectorSource = readFileSync(
+  new URL('../src/resources/inspector/backyardRenderer.ts', import.meta.url),
+  'utf8',
+);
 assert.doesNotMatch(serverStepSource, /residence_has_marketplace_access/);
 assert.doesNotMatch(
   serverStepSource,
@@ -644,6 +697,25 @@ assert.match(
   /credit_marketplace_receipt_gold[\s\S]*physical_trade_staging_enabled[\s\S]*deposit_building_commodity/,
   'new saves should place garden tolls in the same physical market lockbox as export receipts',
 );
+assert.match(
+  serverBackyardReducerSource,
+  /if physical_economy[\s\S]*ensure_upgrade_source_route[\s\S]*backyard_project_kind = def\.kind as u8[\s\S]*upgrade_reserved_timber = cost\.timber[\s\S]*return Ok\(\(\)\)[\s\S]*spend_aggregate_timber/,
+  'physical backyard placement must queue reachable carted materials while legacy saves retain instant spending',
+);
+assert.match(
+  serverResidenceProjectsSource,
+  /backyard_project_kind[\s\S]*BackyardGardenKind::from_id[\s\S]*backyard_garden\(\)\.insert/,
+  'garden production must not exist before household builders finish the physical worksite',
+);
+assert.match(
+  serverBackyardReducerSource,
+  /demolish_backyard_garden[\s\S]*backyard_project_kind != 0[\s\S]*cancel_trips_for_residence[\s\S]*clear_residence_project/,
+  'canceling backyard works must return cart cargo and release its household builder',
+);
+assert.match(backyardInspectorSource, /Backyard worksite/);
+assert.match(backyardInspectorSource, /Production[\s\S]*Begins only after the worksite is complete/);
+assert.match(backyardInspectorSource, /data-residence-upgrade-priority/);
+assert.match(backyardInspectorSource, /Cancel backyard works/);
 
 console.log(
   `Backyard seasonal economy and road-ledger checks passed `

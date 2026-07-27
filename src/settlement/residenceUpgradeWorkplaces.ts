@@ -1,4 +1,8 @@
-import type { BuildingState, ResidenceState } from '../resources/types.ts';
+import {
+  residenceHasActiveProject,
+  type BuildingState,
+  type ResidenceState,
+} from '../resources/types.ts';
 
 export const RESIDENCE_UPGRADE_WORKPLACE_PREFIX = 'residence-upgrade:';
 
@@ -25,7 +29,7 @@ export function residenceUpgradeWorkplaces(
     const assignedLabor = Math.max(0, Math.min(1, Math.floor(
       residence.upgradeAssignedLabor ?? 0,
     )));
-    if ((residence.upgradeTargetTier ?? 0) <= residence.tier || assignedLabor === 0) {
+    if (!residenceHasActiveProject(residence) || assignedLabor === 0) {
       continue;
     }
     workplaces.push({
