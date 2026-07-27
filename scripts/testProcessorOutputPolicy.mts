@@ -4,8 +4,11 @@ import { performance } from 'node:perf_hooks';
 import {
   isProcessorOutputTargetKind,
   normalizeProcessorOutputTargetPercent,
+  PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES,
   PROCESSOR_OUTPUT_TARGET_KINDS,
+  PROCESSOR_OUTPUT_TARGET_PRESETS,
   processorAcceptsInput,
+  processorInputStagingCycles,
   processorNeedsInputs,
   processorOutputCommodity,
   processorOutputHeadroom,
@@ -45,6 +48,16 @@ assert.deepEqual(
 );
 assert.equal(normalizeProcessorOutputTargetPercent(undefined), 100);
 assert.equal(normalizeProcessorOutputTargetPercent(0), 100);
+assert.equal(PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES, 3);
+assert.deepEqual(
+  PROCESSOR_OUTPUT_TARGET_PRESETS.map((preset) => [
+    preset.percent,
+    processorInputStagingCycles(preset.percent),
+  ]),
+  [[25, 1], [50, 2], [75, 3], [100, 3]],
+);
+assert.equal(processorInputStagingCycles(undefined), 3);
+assert.equal(processorInputStagingCycles(0), 3);
 for (const percent of [25, 50, 75, 100]) {
   assert.equal(normalizeProcessorOutputTargetPercent(percent), percent);
 }
@@ -178,7 +191,10 @@ assert.match(generatedTable, /processorOutputTargetPercent:[\s\S]*processor_outp
 assert.match(generatedReducer, /buildingId:[\s\S]*targetPercent/);
 assert.match(sync, /processorOutputTargetPercent: row\.processorOutputTargetPercent/);
 assert.match(inspector, /data-processor-output-target/);
-assert.match(inspector, /production target, not a protected reserve/);
+assert.match(inspector, /stages \$\{stagingLabel\}/);
+assert.match(inspector, /sets both the on-site input staging depth and the finished-goods ceiling/);
+assert.match(inspector, /Routine input top-ups stop at the staged-cycle target/);
+assert.match(inspector, /last-resort overflow when normal storage cannot receive its cargo/);
 
 console.log(
   `processor output policy tests passed (${elapsed.toFixed(1)}ms for 100k checks)`,

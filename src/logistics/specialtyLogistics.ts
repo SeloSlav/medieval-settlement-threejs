@@ -1,4 +1,8 @@
 import {
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
   RESIDENCE_ALE_CAPACITY,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_CAPACITY,
@@ -14,7 +18,10 @@ import {
   roadPathDistance,
   roadPathDistancesFrom,
 } from './roadLogistics.ts';
-import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
+export const SPECIALTY_CONSUMPTION_SECONDS_PER_DAY =
+  CALENDAR_SECONDS_PER_DAY
+  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+  / CALENDAR_HOURS_PER_DAY;
 
 export const MONASTERY_MIN_PARISH_POPULATION = 12;
 
@@ -143,7 +150,7 @@ export function residencePreservedFoodRunwaySeconds(residence: ResidenceState): 
 export function residencePreservedFoodRunwayDays(residence: ResidenceState): number | null {
   const runwaySeconds = residencePreservedFoodRunwaySeconds(residence);
   if (runwaySeconds == null) return null;
-  return runwaySeconds / GAME_DAY_SECONDS;
+  return runwaySeconds / SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
 }
 
 export function residenceAleRunwaySeconds(residence: ResidenceState): number | null {
@@ -157,7 +164,7 @@ export function residenceAleRunwaySeconds(residence: ResidenceState): number | n
 export function residenceAleRunwayDays(residence: ResidenceState): number | null {
   const runwaySeconds = residenceAleRunwaySeconds(residence);
   if (runwaySeconds == null) return null;
-  return runwaySeconds / GAME_DAY_SECONDS;
+  return runwaySeconds / SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
 }
 
 export function residenceClothRunwaySeconds(residence: ResidenceState): number | null {
@@ -171,7 +178,7 @@ export function residenceClothRunwaySeconds(residence: ResidenceState): number |
 export function residenceClothRunwayDays(residence: ResidenceState): number | null {
   const runwaySeconds = residenceClothRunwaySeconds(residence);
   if (runwaySeconds == null) return null;
-  return runwaySeconds / GAME_DAY_SECONDS;
+  return runwaySeconds / SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
 }
 
 export function specialtyRunwaySeconds(

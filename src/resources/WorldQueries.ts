@@ -51,6 +51,7 @@ import { lodgeDeliveryTripSeconds, lodgeLaborSplit } from '../logistics/lodgeLog
 import { firewoodDeliveryTripSeconds } from '../logistics/deliveryLogistics.ts';
 import {
   industrialWaterRequirement,
+  industrialWaterTarget,
   isResidenceInWellRange,
   selectIndustrialWaterCandidate,
   wellDeliveryTripSeconds,
@@ -454,12 +455,17 @@ export class WorldQueries {
     }
     const candidates = [...state.buildings.values()].flatMap((candidate) => {
       const requiredPerCycle = industrialWaterRequirement(candidate.kind);
+      const desiredStock = industrialWaterTarget(
+        candidate.kind,
+        candidate.processorOutputTargetPercent,
+      );
       if (
         candidate.constructionComplete === false
         || candidate.assignedLabor <= 0
         || requiredPerCycle <= 0
+        || desiredStock <= 0
         || !processorAcceptsInput(candidate, 'water')
-        || candidate.water + 1e-6 >= requiredPerCycle
+        || candidate.water + 1e-6 >= desiredStock
         || inboundTargets.has(candidate.id)
       ) {
         return [];
@@ -475,7 +481,7 @@ export class WorldQueries {
       return [{
         building: candidate,
         requiredPerCycle,
-        stockRatio: Math.max(0, candidate.water) / requiredPerCycle,
+        stockRatio: Math.max(0, candidate.water) / desiredStock,
         distance,
       }];
     });
@@ -517,6 +523,14 @@ export class WorldQueries {
 
   getRoadPathDistance(ax: number, az: number, bx: number, bz: number): number | null {
     return roadPathDistance(this.getRoadNetwork(), ax, az, bx, bz);
+  }
+
+  getRoadComponentId(x: number, z: number): number | null {
+    return this.getRoadNetwork().getPathfinder().roadComponentAt(x, z);
+  }
+
+  getRoadComponentIds(x: number, z: number): readonly number[] {
+    return this.getRoadNetwork().getPathfinder().roadComponentsAt(x, z);
   }
 
   getRoadNetworkSnapshot(): RoadNetwork {

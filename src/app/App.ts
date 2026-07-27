@@ -657,6 +657,8 @@ export class App {
         freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
         sabbathObserved: snapshot.parishPolicy.sabbathObservanceEnabled
           && hasStaffedChapel(state.buildings.values()),
+        roadComponentFor: (entity) =>
+          this.roadNetwork!.getPathfinder().roadComponentAt(entity.x, entity.z),
       }),
       clock.month,
     );

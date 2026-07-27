@@ -78,6 +78,7 @@ import {
   isProcessorOutputTargetKind,
   normalizeProcessorOutputTargetPercent,
   PROCESSOR_OUTPUT_TARGET_PRESETS,
+  processorInputStagingCycles,
   processorOutputCommodity,
   processorOutputHeadroom,
   processorOutputTargetForBuilding,
@@ -688,6 +689,7 @@ export function renderExpandedBuildingInspector(
         building.kind === 'monastery' && !context.worldQueries.isMonasteryLinkedToChapel(building)
           ? MONASTERY_UNLINKED_PRODUCTIVITY
           : 1,
+        building.processorOutputTargetPercent,
       )}</span></li>`
     : '';
   const institutionalFoodRows = building.kind === 'smokehouse'
@@ -882,6 +884,8 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
     building.processorOutputTargetPercent,
   );
   const output = processorOutputCommodity(building.kind);
+  const stagingCycles = processorInputStagingCycles(percent);
+  const stagingLabel = `${stagingCycles} input ${stagingCycles === 1 ? 'cycle' : 'cycles'}`;
   const label = output === 'preservedFood' ? 'preserved food' : output;
   const stock = Math.max(0, building[output] ?? 0);
   const target = processorOutputTargetForBuilding(building) ?? 0;
@@ -893,11 +897,11 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       : 'Production paused at target';
   return `
     <div class="inspector-action-panel">
-      <p class="resource-inspector-note">Finished ${label} target · ${stock.toFixed(0)} stored / ${target.toFixed(0)} selected · ${pressure}</p>
+      <p class="resource-inspector-note">Stock policy · stages ${stagingLabel} · finished ${label} ${stock.toFixed(0)} / ${target.toFixed(0)} · ${pressure}</p>
       <div class="resource-action-row">${PROCESSOR_OUTPUT_TARGET_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">The workshop stops consuming and requesting production inputs at this ceiling. Finished-goods deliveries may draw below it and restart work; it is a production target, not a protected reserve. A cart already on the road may still arrive after you lower it.</p>
+      <p class="inspector-action-panel__hint">This policy sets both the on-site input staging depth and the finished-goods ceiling. Routine input top-ups stop at the staged-cycle target; a producer may still use the workshop as last-resort overflow when normal storage cannot receive its cargo. Finished-goods deliveries may draw below the ceiling and restart work. It is not a protected reserve, and a cart already on the road may still arrive after you lower it.</p>
     </div>
   `;
 }

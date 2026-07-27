@@ -339,6 +339,50 @@ const realRoadClaims = claimResidencesForFirewoodSuppliers(
 assert.equal(realRoadClaims.get('real-road-west'), 'real-road-west-lodge');
 assert.equal(realRoadClaims.get('real-road-east'), 'real-road-east-lodge');
 
+const branchNetwork = new RoadNetwork();
+branchNetwork.restore({
+  nextNodeId: 5,
+  nextEdgeId: 3,
+  nodes: [
+    { id: 'west-a', position: [0, 0, 0] },
+    { id: 'west-b', position: [40, 0, 0] },
+    { id: 'east-a', position: [100, 0, 0] },
+    { id: 'east-b', position: [140, 0, 0] },
+  ],
+  edges: [
+    {
+      id: 'west',
+      startNodeId: 'west-a',
+      endNodeId: 'west-b',
+      width: 4,
+      controlPoints: [[0, 0, 0], [40, 0, 0]],
+      sampledPath: [[0, 0, 0], [40, 0, 0]],
+      length: 40,
+      revision: 1,
+    },
+    {
+      id: 'east',
+      startNodeId: 'east-a',
+      endNodeId: 'east-b',
+      width: 4,
+      controlPoints: [[100, 0, 0], [140, 0, 0]],
+      sampledPath: [[100, 0, 0], [140, 0, 0]],
+      length: 40,
+      revision: 1,
+    },
+  ],
+});
+const branchPathfinder = branchNetwork.getPathfinder();
+const westComponent = branchPathfinder.roadComponentAt(5, 2);
+const eastComponent = branchPathfinder.roadComponentAt(105, 2);
+assert.notEqual(westComponent, null);
+assert.notEqual(eastComponent, null);
+assert.notEqual(westComponent, eastComponent);
+assert.equal(branchPathfinder.roadComponentAt(35, 2), westComponent);
+assert.equal(branchPathfinder.roadComponentAt(200, 200), null);
+assert.equal(branchPathfinder.roadConnected(5, 2, 35, 2), true);
+assert.equal(branchPathfinder.roadConnected(5, 2, 105, 2), false);
+
 console.log(
   `operational service territory tests passed (${territoryElapsedMs.toFixed(1)}ms for two `
     + `10k-home, eight-supplier maps; real-road batch ${batchedElapsedMs.toFixed(1)}ms vs `

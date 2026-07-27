@@ -138,7 +138,7 @@ assert.equal(
 );
 assert.match(
   getBuildingProcessorStatus(readyGranary, readyQueries)?.waterDetailHtml ?? '',
-  /On-site input buffer<\/span><span>1\.0 cycle · flour limits/,
+  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · flour limits/,
 );
 assert.match(
   getBuildingProcessorStatus(readyGranary, readyQueries)?.waterDetailHtml ?? '',
@@ -160,7 +160,7 @@ assert.match(
 );
 assert.match(
   getBuildingProcessorStatus(brewery, readyQueries)?.waterDetailHtml ?? '',
-  /On-site input buffer<\/span><span>0\.0 cycles · grain limits/,
+  /On-site input buffer<\/span><span>0\.0 cycles on site \/ 3 cycles staged · grain limits/,
 );
 assert.match(
   getBuildingProcessorStatus(brewery, readyQueries)?.waterDetailHtml ?? '',
@@ -206,7 +206,24 @@ assert.equal(
 );
 assert.match(
   getBuildingProcessorStatus(partialBrewery, noWellQueries)?.waterDetailHtml ?? '',
-  /On-site input buffer<\/span><span>0\.1 cycles · grain limits/,
+  /On-site input buffer<\/span><span>0\.1 cycles on site \/ 3 cycles staged · grain limits/,
+);
+
+const leanGranary = makeBuilding({
+  id: 'granary-lean',
+  kind: 'granary',
+  x: 0,
+  z: 0,
+  assignedLabor: 2,
+  processorOutputTargetPercent: 25,
+  flour: 3,
+  firewood: 1,
+  water: 2,
+});
+assert.match(
+  getBuildingProcessorStatus(leanGranary, readyQueries)?.waterDetailHtml ?? '',
+  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 1 cycle staged · flour limits/,
+  'the inspector should expose the selected input staging depth, not only output capacity',
 );
 
 const apiary = makeBuilding({

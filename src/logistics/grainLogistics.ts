@@ -9,6 +9,7 @@ import {
   normalizeStaffingPriority,
   type StaffingPriority,
 } from '../economy/staffingPriority.ts';
+import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
 
 export const GRAIN_DISPATCH_SOURCE_KINDS = ['threshing_barn', 'granary'] as const;
@@ -39,6 +40,7 @@ type GrainDestinationLike = Pick<
   | 'assignedLabor'
   | 'constructionComplete'
   | 'constructionPriority'
+  | 'processorOutputTargetPercent'
 >;
 
 export type RoutedGrainDestination<T extends GrainDestinationLike> = {
@@ -50,17 +52,27 @@ export type RoutedGrainDestination<T extends GrainDestinationLike> = {
   workPriority: StaffingPriority;
 };
 
-/** Mirrors the authoritative three-cycle working stock requested by processors. */
-export function grainInputTarget(
+function grainInputPerCycle(
   kind: GrainProcessorKind,
   productivity = 1,
 ): number {
-  const perCycle = kind === 'watermill'
+  return kind === 'watermill'
     ? WATERMILL_GRAIN_PER_CYCLE
     : kind === 'brewery'
       ? BREWERY_GRAIN_PER_CYCLE
       : MONASTERY_GRAIN_PER_CYCLE * Math.max(0, productivity);
-  return perCycle * GRAIN_INPUT_BUFFER_CYCLES;
+}
+
+/** Mirrors the authoritative stock-policy working buffer for grain processors. */
+export function grainInputTarget(
+  kind: GrainProcessorKind,
+  productivity = 1,
+  processorOutputTargetPercent: number | undefined = 100,
+): number {
+  const stagingCycles = kind === 'monastery'
+    ? GRAIN_INPUT_BUFFER_CYCLES
+    : processorInputStagingCycles(processorOutputTargetPercent);
+  return grainInputPerCycle(kind, productivity) * stagingCycles;
 }
 
 export function grainInputRunwayCycles(
@@ -68,10 +80,10 @@ export function grainInputRunwayCycles(
   stock: number,
   productivity = 1,
 ): number {
-  const target = grainInputTarget(kind, productivity);
-  return target <= 1e-6
+  const perCycle = grainInputPerCycle(kind, productivity);
+  return perCycle <= 1e-6
     ? Infinity
-    : Math.max(0, stock) * GRAIN_INPUT_BUFFER_CYCLES / target;
+    : Math.max(0, stock) / perCycle;
 }
 
 export function grainDispatchDuty(
@@ -80,7 +92,11 @@ export function grainDispatchDuty(
 ): GrainDispatchDuty | null {
   if (target.kind === 'granary') return 'granary-reserve';
   if (!(GRAIN_PROCESSOR_KINDS as readonly BuildingKind[]).includes(target.kind)) return null;
-  const desiredStock = grainInputTarget(target.kind as GrainProcessorKind, productivity);
+  const desiredStock = grainInputTarget(
+    target.kind as GrainProcessorKind,
+    productivity,
+    target.processorOutputTargetPercent,
+  );
   const operational = target.kind === 'monastery' || target.assignedLabor > 0;
   return operational && target.grain + 1e-6 < desiredStock
     ? 'working-buffer'
@@ -123,7 +139,11 @@ export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
     if (!duty) continue;
     const desiredStock = target.kind === 'granary'
       ? capacity
-      : grainInputTarget(target.kind as GrainProcessorKind, productivity);
+      : grainInputTarget(
+          target.kind as GrainProcessorKind,
+          productivity,
+          target.processorOutputTargetPercent,
+        );
     const runwayCycles = target.kind === 'granary'
       ? Infinity
       : grainInputRunwayCycles(target.kind as GrainProcessorKind, target.grain, productivity);
@@ -199,7 +219,11 @@ export function selectGrainProcessorTarget<T extends GrainDestinationLike>(
     ) continue;
     const kind = target.kind as GrainProcessorKind;
     const productivity = productivityFor(target);
-    const desiredStock = grainInputTarget(kind, productivity);
+    const desiredStock = grainInputTarget(
+      kind,
+      productivity,
+      target.processorOutputTargetPercent,
+    );
     if (desiredStock <= 1e-6 || target.grain + 1e-6 >= desiredStock) continue;
     const routeDistance = routeDistanceFor(target);
     if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
@@ -242,7 +266,8 @@ export function formatGrainWorkingBuffer(
   stock: number,
   kind: GrainProcessorKind,
   productivity = 1,
+  processorOutputTargetPercent: number | undefined = 100,
 ): string {
-  const target = grainInputTarget(kind, productivity);
+  const target = grainInputTarget(kind, productivity, processorOutputTargetPercent);
   return `${stock.toFixed(1)} / ${target.toFixed(1)} · farmstead or granary supply`;
 }

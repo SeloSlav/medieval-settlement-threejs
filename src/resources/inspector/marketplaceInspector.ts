@@ -16,6 +16,13 @@ import {
   marketplaceSpecialtyQueue,
 } from '../../economy/specialtyTrade.ts';
 import { marketplaceSeedCoveragePlan } from '../../economy/marketplaceSeedCoverage.ts';
+import {
+  computeSettlementHouseholdMarketPlan,
+  formatHouseholdMarketBranch,
+} from '../../economy/settlementHouseholdMarket.ts';
+import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
+import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import { gameClock } from '../../world/gameCalendar.ts';
 
 function formatLinkedHomeStatus(connectedHomes: number): string {
   if (connectedHomes <= 0) {
@@ -83,6 +90,26 @@ export function renderMarketplaceInspector(
       farmstead.z,
     ),
   );
+  const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
+  const householdMarketPlan = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
+    ? computeSettlementHouseholdMarketPlan({
+        state: context.gameState,
+        marketState,
+        roadNetwork: context.worldQueries.getRoadNetworkSnapshot(),
+        clock: gameClock(context.gameState.tick),
+        sabbathObserved: parishPolicy.sabbathObservanceEnabled
+          && hasStaffedChapel(context.gameState.buildings.values()),
+      })
+    : null;
+  const householdBranch = householdMarketPlan?.branches.get(building.id) ?? null;
+  const householdBranchLabel = householdMarketPlan == null
+    ? 'Route projection unavailable'
+    : formatHouseholdMarketBranch(householdBranch);
+  const householdBranchBottleneck = householdBranch == null
+    ? 'No assigned household orders'
+    : householdBranch.blockedHomes <= 0
+      ? 'No critical order blocked'
+      : `${householdBranch.blockedHomes} critical orders blocked or waiting - ${householdBranch.cooldownHomes} cooling down`;
 
   return {
     eyebrow: 'Building',
@@ -109,7 +136,9 @@ export function renderMarketplaceInspector(
       <li><span>Export stock</span><span>Treasury + road-linked building stores</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>
       <li><span>Backyard sales</span><span>Road-linked homes only</span></li>
-      <li><span>Household orders</span><span>Critical homes buy a full lot for their own cart; busy, resting, or blocked caravans wait without charging</span></li>
+      <li><span>Emergency branch</span><span>${householdBranchLabel}</span></li>
+      <li><span>Paid-cart queue</span><span>${householdBranchBottleneck}</span></li>
+      <li><span>Household orders</span><span>At 18h runway, homes buy a full food-first lot with savings; busy, resting, or blocked carts wait without charging</span></li>
     `,
     demolish: {
       visible: true,

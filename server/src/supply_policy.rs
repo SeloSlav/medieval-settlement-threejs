@@ -27,7 +27,6 @@ pub const FOOD_SUPPLIER_KINDS: &[&str] = &[
 pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "brewery", "monastery"];
 pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "brewery", "granary", "monastery"];
 pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
-pub const PROCESSOR_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
 pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
@@ -349,8 +348,7 @@ pub fn processor_input_dispatch_duty(
     processor_output_target_percent: u8,
 ) -> ProcessorInputDispatchDuty {
     if assigned_labor > 0
-        && stock + 1e-6
-            < processor_input_target(per_cycle, processor_output_target_percent)
+        && stock + 1e-6 < processor_input_target(per_cycle, processor_output_target_percent)
     {
         ProcessorInputDispatchDuty::WorkingBuffer
     } else {
@@ -521,7 +519,7 @@ mod tests {
         NeedDeliveryCandidate, ProcessorInputDispatchDuty, ALE_SUPPLIER_KINDS,
         CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS, GRAIN_CRITICAL_RUNWAY_CYCLES,
         GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES, GRAIN_PROCESSOR_KINDS,
-        PRESERVED_FOOD_SUPPLIER_KINDS, PROCESSOR_INPUT_BUFFER_CYCLES,
+        PRESERVED_FOOD_SUPPLIER_KINDS,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
@@ -640,7 +638,7 @@ mod tests {
     }
 
     #[test]
-    fn grain_processors_keep_only_a_small_working_buffer() {
+    fn grain_processors_stage_inputs_from_their_stock_policy() {
         assert_eq!(
             GRAIN_DISPATCH_TARGET_KINDS,
             &["watermill", "brewery", "granary", "monastery"]
@@ -651,11 +649,14 @@ mod tests {
         );
         assert_eq!(GRAIN_INPUT_BUFFER_CYCLES, 3.0);
         assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
-        assert_eq!(grain_input_target("watermill", 1.0), 9.0);
-        assert_eq!(grain_input_target("brewery", 1.0), 9.0);
-        assert_eq!(grain_input_target("monastery", 1.0), 6.0);
-        assert_eq!(grain_input_target("monastery", 0.45), 2.7);
-        assert_eq!(grain_input_target("granary", 1.0), 0.0);
+        assert_eq!(grain_input_target("watermill", 1.0, 25), 3.0);
+        assert_eq!(grain_input_target("watermill", 1.0, 50), 6.0);
+        assert_eq!(grain_input_target("watermill", 1.0, 75), 9.0);
+        assert_eq!(grain_input_target("watermill", 1.0, 100), 9.0);
+        assert_eq!(grain_input_target("brewery", 1.0, 50), 6.0);
+        assert_eq!(grain_input_target("monastery", 1.0, 25), 6.0);
+        assert_eq!(grain_input_target("monastery", 0.45, 100), 2.7);
+        assert_eq!(grain_input_target("granary", 1.0, 100), 0.0);
         assert_eq!(grain_input_runway_cycles("watermill", 6.0, 1.0), 2.0);
         assert_eq!(grain_input_runway_cycles("monastery", 1.8, 0.45), 2.0);
         assert_eq!(grain_work_priority(0), 2);
@@ -666,15 +667,21 @@ mod tests {
 
     #[test]
     fn direct_processor_inputs_restore_priority_buffers_before_overflow() {
-        assert_eq!(PROCESSOR_INPUT_BUFFER_CYCLES, 3.0);
-        assert_eq!(processor_input_target(2.0), 6.0);
+        assert_eq!(processor_input_target(2.0, 25), 2.0);
+        assert_eq!(processor_input_target(2.0, 50), 4.0);
+        assert_eq!(processor_input_target(2.0, 75), 6.0);
+        assert_eq!(processor_input_target(2.0, 100), 6.0);
         assert_eq!(processor_input_runway_cycles(3.0, 2.0), 1.5);
         assert_eq!(
-            processor_input_dispatch_duty(2, 3.0, 2.0),
+            processor_input_dispatch_duty(2, 3.0, 2.0, 50),
             ProcessorInputDispatchDuty::WorkingBuffer
         );
         assert_eq!(
-            processor_input_dispatch_duty(0, 0.0, 2.0),
+            processor_input_dispatch_duty(2, 3.0, 2.0, 25),
+            ProcessorInputDispatchDuty::WorkshopOverflow
+        );
+        assert_eq!(
+            processor_input_dispatch_duty(0, 0.0, 2.0, 100),
             ProcessorInputDispatchDuty::WorkshopOverflow
         );
         assert_eq!(

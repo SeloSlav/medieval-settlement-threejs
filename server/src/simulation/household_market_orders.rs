@@ -1,5 +1,7 @@
 //! Household auto-orders from marketplace when provender or water runway is critical.
 
+use std::collections::HashMap;
+
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
@@ -9,15 +11,15 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     best_affordable_food_commodity, best_affordable_water_commodity, ensure_market_state,
-    nearest_marketplace_for_residence, order_food_commodity, order_water_commodity,
-    scaled_gold_cost, MarketGoldPayer,
+    order_food_commodity, order_water_commodity, scaled_gold_cost, MarketGoldPayer,
 };
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::landmark_access::residence_has_marketplace_access;
+use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::marketplace_caravan::MarketCaravanDispatch;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
-    residence_food_runway_seconds, residence_water_runway_seconds,
+    claim_residences_by_nearest_supplier, residence_food_runway_seconds,
+    residence_water_runway_seconds,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::Building;
@@ -48,31 +50,56 @@ pub fn step_household_market_orders(
 
     for owner in owners {
         ensure_market_state(ctx, owner);
+        if labor_and_logistics_paused(ctx, tick, owner, clock) {
+            continue;
+        }
 
         let owner_marketplaces: Vec<Building> = marketplaces
             .iter()
             .filter(|building| building.owner == owner)
             .cloned()
             .collect();
+        if owner_marketplaces.is_empty() {
+            continue;
+        }
 
-        for residence in ctx.db.residence().owner().filter(&owner) {
-            if residence.abandoned
-                || residence.population == 0
-                || tick.residence_disabled_by_fire(ctx, residence.id)
-            {
-                continue;
-            }
-            if !residence_has_marketplace_access(tick, owner, &residence, &owner_marketplaces) {
-                continue;
-            }
-            if sim_tick.saturating_sub(residence.last_household_market_tick)
-                < HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS
-            {
-                continue;
-            }
+        let residences: Vec<_> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| {
+                !residence.abandoned
+                    && residence.population > 0
+                    && residence.household_wealth > 1e-9
+                    && !tick.residence_disabled_by_fire(ctx, residence.id)
+                    && sim_tick.saturating_sub(residence.last_household_market_tick)
+                        >= HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS
+            })
+            .collect();
+        if residences.is_empty() {
+            continue;
+        }
 
-            let Some(marketplace) =
-                nearest_marketplace_for_residence(tick, owner, &residence, &owner_marketplaces)
+        let Some(network) = tick.road_network(owner) else {
+            continue;
+        };
+        let marketplace_refs: Vec<&Building> = owner_marketplaces.iter().collect();
+        let marketplace_claims = claim_residences_by_nearest_supplier(
+            network,
+            &marketplace_refs,
+            &residences,
+            |_, _, _| true,
+        );
+        let marketplaces_by_id: HashMap<u64, &Building> = owner_marketplaces
+            .iter()
+            .map(|marketplace| (marketplace.id, marketplace))
+            .collect();
+
+        for residence in residences {
+            let Some(marketplace) = marketplace_claims
+                .get(&residence.id)
+                .and_then(|marketplace_id| marketplaces_by_id.get(marketplace_id))
             else {
                 continue;
             };
@@ -93,9 +120,6 @@ pub fn step_household_market_orders(
             }
 
             let wealth = residence.household_wealth;
-            if wealth <= 1e-9 {
-                continue;
-            }
             let Some(market) = ctx.db.market_state().owner().find(&owner) else {
                 continue;
             };

@@ -64,6 +64,7 @@ export type SettlementFarmPlan = {
   seedGrainShortfall: number;
   seedShortHoldings: number;
   firstSeedShortBuildingId: string | null;
+  seedGrainByHolding: ReadonlyMap<string, number>;
   rotation: CropRotationPlan;
   harvest: SettlementSeasonalWorkPlan;
   spring: SettlementSeasonalWorkPlan;
@@ -491,6 +492,7 @@ export function buildSettlementFarmPlan(
     if (fields) fields.push(field);
     else fieldsByHolding.set(field.farmsteadId, [field]);
   }
+  const seedGrainByHolding = new Map<string, number>();
 
   const total: SettlementFarmPlan = {
     holdingCount: fieldsByHolding.size,
@@ -506,6 +508,7 @@ export function buildSettlementFarmPlan(
     seedGrainShortfall: 0,
     seedShortHoldings: 0,
     firstSeedShortBuildingId: null,
+    seedGrainByHolding,
     rotation: emptyCropRotationPlan(),
     harvest: emptySettlementSeason(),
     spring: emptySettlementSeason(),
@@ -533,6 +536,7 @@ export function buildSettlementFarmPlan(
     total.cattleSupportedFields += plan.cattleSupportedFields;
     total.expectedHarvest += plan.expectedHarvest;
     total.seedGrainRequired += plan.seedGrainRequired;
+    seedGrainByHolding.set(farmsteadId, plan.seedGrainRequired);
     total.rotation.activeArea += plan.rotation.activeArea;
     total.rotation.nextRyeArea += plan.rotation.nextRyeArea;
     total.rotation.nextOatsArea += plan.rotation.nextOatsArea;

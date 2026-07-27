@@ -304,8 +304,9 @@ pub struct Building {
     /// carpenters start with a smaller one-company reserve.
     #[default(24u8)]
     pub carpenter_polearm_reserve: u8,
-    /// Order in which this company claims scarce treasury wages. Existing
-    /// saves remain at normal priority; ignored by other building kinds.
+    /// Order in which this company claims scarce weapons, routine supplies,
+    /// and treasury wages. Existing saves remain at normal priority; ignored
+    /// by other building kinds.
     #[default(1u8)]
     pub guardhouse_pay_priority: u8,
     /// Desired ironwork held at this marketplace in whole six-unit import lots.

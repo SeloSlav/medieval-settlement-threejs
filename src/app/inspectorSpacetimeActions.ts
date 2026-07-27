@@ -488,7 +488,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setGuardhousePayPriority(buildingId, payPriority),
-        'Could not update the guardhouse payroll priority.',
+        'Could not update the guardhouse company priority.',
       );
     },
     onSetGuardhouseFoodReserve: async (buildingId, reservePerGuard) => {

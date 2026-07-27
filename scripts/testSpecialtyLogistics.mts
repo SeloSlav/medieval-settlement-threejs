@@ -7,6 +7,10 @@ import {
   findRoadLinkedSupplierForResidence,
   peekNextSpecialtyDeliveryTarget,
   PRESERVED_FOOD_SUPPLIER_KINDS,
+  residenceAleRunwayDays,
+  residenceClothRunwayDays,
+  residencePreservedFoodRunwayDays,
+  SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
 } from '../src/logistics/specialtyLogistics.ts';
 import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
 import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
@@ -81,6 +85,25 @@ assert.deepEqual(ALE_SUPPLIER_KINDS, ['brewery', 'monastery']);
 assert.deepEqual(PRESERVED_FOOD_SUPPLIER_KINDS, ['smokehouse', 'pastoral_farmstead']);
 assert.deepEqual(CLOTH_SUPPLIER_KINDS, ['weaver']);
 assert.equal(PRESERVED_FOOD_SUPPLIER_KINDS.includes('granary'), false);
+assert.equal(SPECIALTY_CONSUMPTION_SECONDS_PER_DAY, 70);
+assert.equal(
+  residencePreservedFoodRunwayDays(
+    residence('preserved-runway', 0, 4, 'preservedFood', 7),
+  ),
+  6.25,
+);
+assert.equal(
+  residenceAleRunwayDays(residence('ale-runway', 0, 4, 'ale', 7)),
+  10,
+);
+assert.ok(
+  Math.abs(
+    (residenceClothRunwayDays(
+      residence('cloth-runway', 0, 10, 'cloth', 1),
+    ) ?? 0) - 7.936507936507937,
+  ) < 1e-9,
+  'household cloth runway must use the same 14-hour consumption window as the server',
+);
 
 const home = residence('home', 0, 4, 'preservedFood', 0);
 const granary = building('granary', 'granary', 1);

@@ -30,8 +30,9 @@ use crate::farming::{
 };
 use crate::frontier_economy_policy::{
     armed_guards, carpenter_polearm_shortfall, guard_upkeep, guardhouse_food_runway_days,
-    guardhouse_food_target, guardhouse_polearm_target, next_guard_readiness,
-    select_guardhouse_food_candidate, CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
+    guardhouse_food_target, guardhouse_polearm_coverage, guardhouse_polearm_target,
+    next_guard_readiness, select_guardhouse_armament_candidate, select_guardhouse_food_candidate,
+    CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
@@ -1523,7 +1524,7 @@ fn dispatch_polearms_to_guardhouse(
     let Some(network) = tick.road_network(source.owner) else {
         return;
     };
-    let Some((routed_target, desired_stock)) = select_supply_route_candidate(
+    let Some((routed_target, desired_stock)) = select_guardhouse_armament_candidate(
         tick.building_ids_for_kinds(ctx, source.owner, &["guardhouse"])
             .into_iter()
             .filter_map(|target_id| ctx.db.building().id().find(&target_id))
@@ -1553,6 +1554,13 @@ fn dispatch_polearms_to_guardhouse(
                         )
                     })
             }),
+        |candidate| candidate.0.building.guardhouse_pay_priority,
+        |candidate| {
+            guardhouse_polearm_coverage(
+                candidate.0.building.assigned_labor,
+                candidate.0.building.polearms,
+            )
+        },
         |candidate| candidate.0.distance,
         |candidate| candidate.0.building.id,
     ) else {

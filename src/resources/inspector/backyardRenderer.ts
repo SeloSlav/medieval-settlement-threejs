@@ -10,8 +10,18 @@ import {
 import { canAffordBackyardGarden } from '../buildingEconomy.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../../economy/villageEconomy.ts';
 import { buildBackyardEconomyView, formatBackyardSavingsLabel } from '../../economy/economyInspectorViews.ts';
-import { STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION } from '../../generated/gameBalance.ts';
+import {
+  STONE_SALVAGE_FRACTION,
+  TIMBER_SALVAGE_FRACTION,
+  TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
+} from '../../generated/gameBalance.ts';
+import {
+  backyardGardenSeasonStatus,
+} from '../../economy/backyardGardenTick.ts';
+import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { getNeedStock } from '../../residences/residenceNeeds.ts';
+import { gameClock } from '../../world/gameCalendar.ts';
+import { environmentFor } from '../../world/seasonPolicy.ts';
 import type { InspectableTarget } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
@@ -30,30 +40,79 @@ export function renderBackyardInspector(
   const foodStock = Math.round(getNeedStock(residence.needs, 'food'));
   const taxRate = context.getEconomicActivityTaxRate?.() ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
   const hasMarketAccess = context.worldQueries.isResidenceConnectedToMarketplace(residence);
-  const economy = buildBackyardEconomyView(garden.kind, residence.population, taxRate, hasMarketAccess);
+  const clock = gameClock(context.gameState.tick);
+  const environment = environmentFor(
+    context.gameState.seed,
+    context.worldHydrology,
+    clock,
+  );
+  const season = backyardGardenSeasonStatus(
+    garden.kind,
+    clock.month,
+    environment,
+  );
+  const parishPolicy = context.getParishPolicy?.();
+  const sabbathPaused = clock.isSunday
+    && Boolean(parishPolicy?.sabbathObservanceEnabled)
+    && hasStaffedChapel(context.gameState.buildings.values());
+  const staffedTownHall = Array.from(context.gameState.buildings.values()).some(
+    (building) =>
+      building.kind === 'town_hall'
+      && building.constructionComplete !== false
+      && building.assignedLabor > 0,
+  );
+  const taxCollectionMultiplier = staffedTownHall
+    ? 1
+    : TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER;
+  const seasonalMultiplier = sabbathPaused || residence.abandoned
+    ? 0
+    : season.multiplier;
+  const economy = buildBackyardEconomyView(
+    garden.kind,
+    residence.abandoned ? 0 : residence.population,
+    taxRate,
+    hasMarketAccess,
+    { seasonalMultiplier, taxCollectionMultiplier },
+  );
   const producesFood = def.foodPerPersonPerSec > 0;
+  const statusText = residence.abandoned
+    ? 'Paused — residence abandoned'
+    : sabbathPaused
+      ? 'Paused — Sunday Sabbath'
+      : !season.active
+        ? 'Dormant — out of season'
+        : hasMarketAccess
+          ? garden.kind === 'apple_orchard' || garden.kind === 'cherry_orchard'
+            ? 'Harvesting'
+            : 'Growing and trading'
+          : 'Growing — no marketplace link';
+  const statusState = residence.abandoned || !season.active
+    ? 'warning'
+    : sabbathPaused
+      ? 'idle'
+      : hasMarketAccess
+        ? 'ok'
+        : 'warning';
+  const taxLabel = economy.assessedTaxPerDay > economy.taxPerDay + 0.05
+    ? `~${economy.taxPerDay.toFixed(1)} collected of ${economy.assessedTaxPerDay.toFixed(1)} assessed`
+    : `~${economy.taxPerDay.toFixed(1)} gold`;
 
   return {
     eyebrow: 'Backyard',
     title: backyardGardenLabel(garden.kind),
-    statusText: residence.abandoned
-      ? 'Paused — residence abandoned'
-      : hasMarketAccess
-        ? 'Growing'
-        : 'Growing — no marketplace link',
-    statusState: residence.abandoned ? 'warning' : hasMarketAccess ? 'ok' : 'idle',
+    statusText,
+    statusState,
     detailsHtml: `
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population}</span></li>
+      <li><span>Seasonal output</span><span>${season.label}${sabbathPaused ? ' · paused today by parish policy' : ''}</span></li>
       ${producesFood
-        ? `<li><span>Home food share</span><span>${Math.round(def.foodSelfShare * 100)}% stays on the plot</span></li>
+        ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${Math.round(def.foodSelfShare * 100)}% of plot food stays home)</span></li>
            <li><span>Household food stock</span><span>${foodStock}</span></li>`
         : ''}
       <li><span>Marketplace link</span><span>${hasMarketAccess ? 'Road-connected' : 'None — sales paused'}</span></li>
-      <li><span>Economic activity</span><span>${hasMarketAccess
-        ? `Sells ${producesFood ? 'surplus produce & ' : ''}garden goods`
-        : 'Sales need a road path to a marketplace'}</span></li>
-      <li><span>Mayor tax (${economy.taxPercent})</span><span>${hasMarketAccess ? `~${economy.taxPerDay.toFixed(1)} gold / day` : '0 gold / day'}</span></li>
+      <li><span>Market activity today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · needs a road path to a completed marketplace' : seasonalMultiplier <= 1e-9 ? ' · no output today' : ''}</span></li>
+      <li><span>Mayor tax (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`}</span></li>
       <li><span>Household savings</span><span>${formatBackyardSavingsLabel(economy.netWealthPerDay, hasMarketAccess)}</span></li>
       <li><span>Build cost</span><span>${formatBackyardGardenCost(garden.kind)}</span></li>
     `,

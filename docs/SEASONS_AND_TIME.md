@@ -171,6 +171,72 @@ crop growth, pasture, firewood demand, and fresh-food loss. A deteriorating rout
 outlook explicitly recommends pre-hauling remote stock and regional orders. The
 calculation is constant-time and advisory: it changes no orders, labor, or saves.
 
+## Backyard food and household trade
+
+Backyard plots produce only during the ordinary 06:00–20:00 workday. Their home
+food and market activity share one seasonal multiplier: apple and cherry orchards
+concentrate the annual crop into September at twelve times the baseline daily
+yield; vegetable and herb beds run at full output in spring and summer, taper to
+55% in autumn, and sleep in winter; flowers run at 140% in spring, 100% in
+summer, 35% in autumn, and sleep in winter; hens run year-round but fall to 75%
+in winter. Summer drought multiplies exposed annual beds by another 55%, while
+orchards and sheltered hens retain their seasonal rate. A staffed chapel with
+Sunday observance pauses both home production and sale for the whole Sabbath.
+
+Home food does not require trade access. Gold activity does: the residence and a
+completed marketplace must share at least one cached road component. An unstaffed
+market may still receive household produce, matching the authoritative rule, but
+an unfinished or disconnected market cannot turn it into activity. The assessed
+tax follows the mayor's rate and productivity penalty; without any staffed,
+completed Town Hall, only the configured 60% is collected and the balance remains
+with the household. Wealth beyond the household cap is not stored.
+
+The backyard inspector reports today's full-workday food, routed activity,
+assessed versus collected tax, seasonal state, and the missing market or clerk
+when relevant. The Town Hall groups occupied plots and completed markets by every
+road component touching their access point, separates routed from stranded trade,
+shows home food, forecasts the next 120 days with deterministic weather and
+Sundays, and links to the highest-value unserved home. The client pass is linear
+in plots plus markets and performs no shortest-path solves. The server builds the
+same owner-scoped market-component sets once per tick instead of checking every
+garden against every market. No save field is added.
+
+## Household emergency market orders
+
+Occupied homes use their own saved gold as a last-resort provision buffer. When
+food runway, or water runway at a tier that consumes water, reaches 0.75 day
+(18 displayed hours), the household seeks its nearest completed marketplace by
+exact road distance. Equal routes use stable marketplace order. Market staffing
+is not required for this local baseline cart; construction completion and a
+usable road route are required.
+
+Food is tried before water. The household chooses the affordable offer with the
+most provision per current gold, and the regional food or firewood/water price
+multiplier is applied before affordability is tested. A full purchased lot must
+fit temporarily in marketplace storage and completely in the household cupboard.
+The market must have no other active cart. Gold, imported stock, and the
+household's 450-tick (90 simulation-second) cooldown commit only when that exact
+home's cart departs; blocked attempts are rolled back and never charge the home.
+A blocked food attempt may still fall through to a viable water lot when both
+needs are critical.
+
+Night hours and an observed Sunday Sabbath pause new household orders while
+consumption continues under the ordinary calendar rules, making Saturday
+stockpiling and short market branches valuable. Fire-disabled homes do not order.
+The residence inspector shows the current lot, price, route, and exact blocker.
+Each marketplace shows the critical and affordable homes for which it is the
+nearest market. The Town Hall totals settlement purchasing coverage, separates
+route, wealth, cooldown, cart, storage, rest, and fire bottlenecks, and links to
+the most urgent blocked home.
+
+The server assigns homes with one one-to-many road solve per completed market,
+rather than performing two pairwise route searches for every home. A paid named
+dispatch reads only its intended residence instead of scanning all residences
+again. The client uses the same batched route claim, offer order, capacity rules,
+and stable tie breaks; its read-only test projection evaluates 100,000 homes
+across eight markets in about 170 ms. Existing saves already contain the last
+successful order tick, and older client fixtures default it to zero.
+
 ## Daily Town Hall steward order
 
 Optional Town Hall stewards review labor only when the authoritative calendar
@@ -207,20 +273,153 @@ to the first site whose crew would change. It also reports whether the shared
 reserve will be met or remain temporarily short because productive crews stay
 assigned. It is read-only and runs only while the Town Hall inspector is open.
 
+The construction queue also keeps two views of its reservations. The ownership
+ledger continues to earmark material settlement-wide so placing or holding a
+project cannot spend the same timber or stone twice. Its physical road view
+matches the portion still awaiting pickup only with stock at completed sources
+on the same cached component as each road-required site. Founders' reserve
+transfers and loaded carts are already committed and stay outside that match.
+Buildings designed for off-road work retain their straight-line hauling ceiling
+from the source stock left after road-bound claims. The Town Hall therefore
+distinguishes actual settlement-wide scarcity from an otherwise sufficient pile
+stranded on another road branch and links to the highest-priority exposed claim.
+The audit reuses component identifiers, adds no save state or path solve, and is
+linear in buildings and active construction branches.
+
 The same completed-building work priority also governs scarce grain carts at
 watermills, breweries, and autonomous monasteries, plus industrial well-water
 carts at breweries and granary bakeries. Grain dispatch first selects the
-highest-priority tier that still needs its three-cycle working buffer, then the
-lowest cycle runway, shortest road route, and stable building order. Wells keep
+highest-priority tier that still needs its selected one-, two-, or three-cycle
+working buffer, then the lowest cycle runway, shortest road route, and stable
+building order. Wells keep
 fire response and household service ahead of industry, then apply the same tier,
-water-stock ratio, route, and stable-order sequence. This lets the player keep
+water-stock ratio against the selected staging target, route, and stable-order
+sequence. This lets the player keep
 staple milling or baking ahead of brewing and hospitality through a lean crop
 year without adding another priority field. Existing buildings remain normal.
 The same control also orders direct producer carts for the next link: flour
 from watermills to staffed granary bakeries, fresh food dispatched from
 granaries or swine holdings to smokehouses, and annual fleece sent to weavers.
-These routes restore three-cycle working buffers by priority before falling
-back to nearest-route overflow, so a high tier cannot absorb every warehouse.
+These routes restore the workshop stock policy's one-, two-, or three-cycle
+working buffer by priority before falling back to nearest-route overflow, so a
+high tier cannot absorb every warehouse. Lean, Balanced, Deep, and Fill also
+apply the same staging depth to bakery and smokehouse fuel plus well water;
+Fill remains the save-compatible three-cycle default.
+
+The crop-year grain account keeps its settlement-wide owned-stock view for
+strategic harvest, seed, fodder, and reserve planning, but processor runway has
+a second physical view. Sustained bread, ale, and monastery draw is grouped by
+the same cached road components used by real carts. Only releasable grain at a
+completed staffed farmstead or granary on that component counts as source
+reserve: each holding's field seed claim and every selected granary floor remain
+protected. Marketplace seed stock, livestock fodder, roadless stores, and
+surplus on a disconnected branch cannot cover a processor branch. The Town Hall
+shows how many drawing branches have a source, the weakest branch's equivalent
+days of source reserve, grain outside current processor branches, and a link to
+the first exposed processor. On-site workshop grain and cargo already committed
+to a workshop stay in the existing per-building buffer forecast, so the branch
+reserve neither reallocates locked inputs nor counts them twice. The reduction
+reuses component identifiers, adds no save state or shortest-path work, and is
+linear in buildings and active road branches.
+
+Seed recovery uses a related physical view rather than the settlement-wide grain
+total. Each completed farmstead's active field claim is reduced by grain already
+onsite and by carts already approaching it. The remaining claim can be covered
+only by completed granary stock, completed marketplace stock, and selected future
+market lots on the same cached road component. A market or granary on a remote
+branch therefore cannot make an isolated holding look ready for sowing, while
+joining the roads immediately restores the forecasted coverage. The Town Hall
+separately reports apparent coverage stranded by topology, recovery grain outside
+current branch gaps, and claims belonging to incomplete or orphaned holdings, then
+links to the weakest exposed farmstead. Future purchases remain excluded from the
+crop-year owned-stock balance until the broker actually buys them. This advisory
+reduction adds no save field or path solve and is linear in buildings, active
+grain carts, holdings, and road components.
+
+The Town Hall's sustained bread forecast matches watermill flour and granary
+bakery intake inside each road component rather than across the whole
+settlement. A productive mill on one isolated branch cannot conceal a bakery
+without flour on another. The ledger reports paired, mill-only, and bakery-only
+branches, quantifies the food throughput unavailable until roads connect, and
+links to the largest imbalance. It reuses the pathfinder's cached component map
+and performs no shortest-path solves.
+
+Prosperity throughput uses the same topology rule. Staffed smokehouses,
+breweries, and weavers contribute their preserved-food, ale, and cloth capacity
+only to their own road component. Each branch can sustain the smallest of those
+three resident-equivalent outputs; complete branch capacities are summed, while
+split specializations are reported as stranded installed capacity. Current
+tier-three residents and every vacant place in existing tier-three houses are
+audited against their own branch, and the first exposed home is inspectable.
+When previewing a tier-two promotion, the immediate occupants and the full
+house are compared with that specific branch rather than remote surplus.
+Upgrade authority remains with the existing physical service-route and resource
+checks. The forecast adds no save state or path solve and runs only for the Town
+Hall and tier-two residence inspectors that already request the production
+scan.
+
+The annual textile account now follows the physical sheep-to-loom step as well.
+Each completed holding's projected and currently secured clip is grouped on
+the same cached road component used when the livestock simulation dispatches
+wool. Installed loom capacity can consume only that branch's fleece, and the
+cloth produced there first covers current prosperous-house demand on that
+branch; any local remainder is reported as above household need rather than
+silently covering a disconnected home. A separate physical export ledger then
+decides whether that remainder can actually reach a market. The Town Hall retains the settlement-wide
+installed ceiling for long-range planning, then reports physically paired
+output, topology-stranded capacity, local household coverage, and the first
+exposed home or wool holding. Joined and independently complete satellite
+branches keep their full output.
+
+The current textile reserve uses the same physical scope. Cloth in an occupied
+tier-three cupboard, at a completed staffed weaver on that household's branch,
+or already aboard a cart bound for the home counts toward service runway.
+Treasury cloth, marketplace export stock, an unstaffed loom's inventory, and
+stock on a branch without current prosperous households remain in the owned
+total but cannot conceal a local service gap. The Town Hall reports the weakest
+branch, branches without a stocked loom route, and reserves below fourteen
+days—roughly one two-cloth delivery for a full ten-person household—then links
+to the first exposed home. Individual-house runway labels use the same
+seventy simulated seconds per calendar day (the 06:00–20:00 consumption
+window) as the aggregate forecast, instead of treating nighttime as active
+consumption. The reduction adds no save fields or path solves and remains
+linear in holdings, active textile branches, buildings, homes, and moving
+carts.
+
+Specialty exports now have their own physical road-branch account. Completed
+breweries, apiaries, vineyards, and weavers contribute the ale, honey, wine, or
+cloth still in their stores; local household deliveries and enabled monastery
+hospitality remain ahead of export in the authoritative dispatch order. The
+ledger matches those producers with completed marketplaces on the same cached
+road component, subtracts specialty cargo already approaching each market from
+that commodity's remaining storage room, and respects the one inbound-supply
+cart gate shared by the real dispatch code. It therefore distinguishes cargo
+that is ready to haul from cargo waiting for producer labor, a returning source
+cart, an occupied receiving slot, market storage, fire recovery, or a road
+connection. An unstaffed market can still receive cargo, matching the server,
+but that choice creates visible backpressure instead of implied income.
+
+The second half of the account follows the broker desk. Market stock and loaded
+inbound carts form its projected queue. A desk clears that queue only when the
+market is complete, staffed, safe, on a road, above its selected regional-price
+floor, and has a broker not occupied by a manual transaction. The Town Hall
+shows free-broker throughput, the slowest active queue, every blocked or
+price-held quantity, and a direct link to the largest high-priority failure.
+Road reconnection and labor reassignment change the forecast immediately. The
+reduction adds no save fields or simulation-tick scans, performs no shortest
+path solves, and remains linear in buildings, active carts, and road branches.
+
+The settlement reserve now has a second, physical road-branch view. For each
+occupied component it combines food and firewood already in household stores,
+stock at completed staffed household distributors, and carts already bound for
+that branch. The HUD warns from the weakest branch's spoilage-adjusted food
+runway and, during the cold half of the year, its winter-fuel runway; the Town
+Hall counts branches without a stocked food route or firewood distributor and
+links to the first exposed home. The settlement-wide total remains visible for
+strategic accounting, but treasury goods, inaccessible stores, and
+service-restricted monastery stock do not promise a delivery they cannot make.
+This reuses cached component identifiers, adds no save state or shortest-path
+work, and remains linear in buildings, carts, and homes.
 
 In conflict-enabled worlds, the same current multiplier converts each guardhouse's
 physical route to its nearest staffed watchtower into a time-equivalent muster
@@ -229,6 +428,36 @@ route near the dry-weather response limit becomes delayed. The selected guardhou
 route changes from green to amber or red as appropriate, and its inspector shows
 both physical and response-equivalent distance. This reuses the existing security
 report interval and road path result rather than adding per-tick pathfinding.
+
+The contested-world Town Hall also audits present armament by road component.
+A guard counts as armed now only from polearms already stored at that guardhouse.
+The next coverage tier adds non-returning carts actually bound for the company's
+remaining vacancies and finished stock held by a completed, staffed carpenter on
+the same component. Polearms in the founding treasury, surplus locked at another
+guardhouse, stock in an unstaffed carpenter, and stock on an armory-only component
+remain owned but do not promise current company cover. This matches the server:
+guardhouses do not redistribute their excess, while staffed carpenters dispatch
+finished weapons only along reachable roads.
+
+The ready-craft tier is deliberately narrower than a full production projection.
+It adds only the carpenter's selected reserve shortfall that can be made from
+timber and imported ironwork already onsite or on a non-returning cart bound for
+that workshop. Connected lumber-store and staffed-market stock is shown beside
+the remaining input claims, but is not counted as finished output before a cart
+actually commits it; other duties may still claim that source or its hauler.
+The weakest uncovered company is inspectable directly. Component lookup is
+cached, the ledger performs no route solve or save mutation, and the benchmark
+covers 100,000 buildings distributed across 200 components.
+
+The existing low, normal, or high guardhouse policy is a company priority rather
+than a wage-only switch. Guardhouses are already stepped from high to low for
+routine provisioning and payroll. A staffed carpenter now uses the same tier for
+its next reachable polearm cart; within that tier it restores the lowest armed
+share, then prefers the shorter road and stable building order. This prevents a
+nearby low-priority rear company from absorbing every scarce weapon while an
+explicitly urgent frontier company remains unarmed. Emergency granary food is
+still selected by lowest runway, because immediate starvation overrides standing
+company rank. The policy field and normal legacy default are unchanged.
 
 ## Persistent wild resources
 

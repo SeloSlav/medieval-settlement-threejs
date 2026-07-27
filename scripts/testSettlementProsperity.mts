@@ -38,6 +38,7 @@ const growth = {
   additionalClothPerDay: clothPerResident * 20,
 };
 const plan = computeSettlementProsperityPlan(production, growth);
+assert.equal(plan.roadPlan, null);
 assert.equal(plan.currentResidents, 50);
 assert.equal(plan.existingTierThreeVacancies, 20);
 assert.equal(plan.existingFullResidents, 70);
@@ -93,6 +94,161 @@ const noIndustry = computeSettlementProsperityPlan({
 assert.equal(noIndustry.installedResidentCapacity, 0);
 assert.equal(noIndustry.currentSustainable, true);
 
+const roadProduction = {
+  tierThreeResidents: 10,
+  preservedFoodOutputPerDay: preservedPerResident * 100,
+  preservedFoodDemandPerDay: preservedPerResident * 10,
+  aleOutputPerDay: alePerResident * 100,
+  aleDemandPerDay: alePerResident * 10,
+  clothOutputPerDay: clothPerResident * 100,
+  clothDemandPerDay: clothPerResident * 10,
+};
+const splitSpecialties = computeSettlementProsperityPlan({
+  ...roadProduction,
+  prosperityRoadBranches: new Map([
+    ['preserved', {
+      currentResidents: 10,
+      fullResidents: 20,
+      preservedFoodOutputPerDay: preservedPerResident * 100,
+      aleOutputPerDay: 0,
+      clothOutputPerDay: 0,
+      firstResidenceId: 'split-home',
+    }],
+    ['ale', {
+      currentResidents: 0,
+      fullResidents: 0,
+      preservedFoodOutputPerDay: 0,
+      aleOutputPerDay: alePerResident * 100,
+      clothOutputPerDay: 0,
+      firstResidenceId: null,
+    }],
+    ['cloth', {
+      currentResidents: 0,
+      fullResidents: 0,
+      preservedFoodOutputPerDay: 0,
+      aleOutputPerDay: 0,
+      clothOutputPerDay: clothPerResident * 100,
+      firstResidenceId: null,
+    }],
+  ]),
+});
+assert.equal(splitSpecialties.installedResidentCapacity, 100);
+assert.equal(splitSpecialties.roadPlan?.activeBranches, 3);
+assert.equal(splitSpecialties.roadPlan?.matchedBranches, 0);
+assert.equal(splitSpecialties.roadPlan?.roadMatchedResidentCapacity, 0);
+assert.equal(splitSpecialties.roadPlan?.fragmentationResidentCapacity, 100);
+assert.equal(splitSpecialties.roadPlan?.currentShortBranches, 1);
+assert.equal(splitSpecialties.roadPlan?.currentShortfallResidents, 10);
+assert.equal(splitSpecialties.roadPlan?.fullShortfallResidents, 20);
+assert.equal(splitSpecialties.roadPlan?.firstExposedResidenceId, 'split-home');
+assert.equal(splitSpecialties.currentSustainable, false);
+assert.equal(splitSpecialties.currentHeadroomResidents, -10);
+
+const joinedSpecialties = computeSettlementProsperityPlan({
+  ...roadProduction,
+  prosperityRoadBranches: new Map([
+    ['joined', {
+      currentResidents: 10,
+      fullResidents: 20,
+      preservedFoodOutputPerDay: preservedPerResident * 100,
+      aleOutputPerDay: alePerResident * 100,
+      clothOutputPerDay: clothPerResident * 100,
+      firstResidenceId: 'joined-home',
+    }],
+  ]),
+});
+assert.equal(joinedSpecialties.roadPlan?.activeBranches, 1);
+assert.equal(joinedSpecialties.roadPlan?.matchedBranches, 1);
+assert.equal(joinedSpecialties.roadPlan?.roadMatchedResidentCapacity, 100);
+assert.equal(joinedSpecialties.roadPlan?.fragmentationResidentCapacity, 0);
+assert.equal(joinedSpecialties.roadPlan?.currentShortfallResidents, 0);
+assert.equal(joinedSpecialties.roadPlan?.fullShortfallResidents, 0);
+assert.equal(joinedSpecialties.currentSustainable, true);
+
+const balancedSatelliteProduction = {
+  ...roadProduction,
+  tierThreeResidents: 20,
+  preservedFoodDemandPerDay: preservedPerResident * 20,
+  aleDemandPerDay: alePerResident * 20,
+  clothDemandPerDay: clothPerResident * 20,
+  prosperityRoadBranches: new Map([
+    ['west', {
+      currentResidents: 10,
+      fullResidents: 20,
+      preservedFoodOutputPerDay: preservedPerResident * 50,
+      aleOutputPerDay: alePerResident * 50,
+      clothOutputPerDay: clothPerResident * 50,
+      firstResidenceId: 'west-home',
+    }],
+    ['east', {
+      currentResidents: 10,
+      fullResidents: 20,
+      preservedFoodOutputPerDay: preservedPerResident * 50,
+      aleOutputPerDay: alePerResident * 50,
+      clothOutputPerDay: clothPerResident * 50,
+      firstResidenceId: 'east-home',
+    }],
+  ]),
+};
+const balancedSatellites = computeSettlementProsperityPlan(
+  balancedSatelliteProduction,
+);
+assert.equal(balancedSatellites.roadPlan?.matchedBranches, 2);
+assert.equal(balancedSatellites.roadPlan?.roadMatchedResidentCapacity, 100);
+assert.equal(balancedSatellites.roadPlan?.fragmentationResidentCapacity, 0);
+assert.equal(balancedSatellites.currentSustainable, true);
+
+const localPromotionPlan = computeSettlementProsperityPlan({
+  ...roadProduction,
+  prosperityRoadBranches: new Map([
+    ['tight', {
+      currentResidents: 0,
+      fullResidents: 0,
+      preservedFoodOutputPerDay: preservedPerResident * 5,
+      aleOutputPerDay: alePerResident * 5,
+      clothOutputPerDay: clothPerResident * 5,
+      firstResidenceId: null,
+    }],
+    ['remote', {
+      currentResidents: 10,
+      fullResidents: 10,
+      preservedFoodOutputPerDay: preservedPerResident * 95,
+      aleOutputPerDay: alePerResident * 95,
+      clothOutputPerDay: clothPerResident * 95,
+      firstResidenceId: 'remote-home',
+    }],
+  ]),
+});
+const localPromotion = projectTierThreeUpgrade(
+  localPromotionPlan,
+  { population: 6, abandoned: false },
+  10,
+  'tight',
+);
+assert.equal(localPromotion.roadBranchScoped, true);
+assert.equal(localPromotion.immediateResidents, 6);
+assert.equal(localPromotion.immediateSustainable, false);
+assert.equal(localPromotion.immediateHeadroomResidents, -1);
+assert.equal(localPromotion.fullPipelineSustainable, false);
+assert.equal(localPromotion.limitingLabel, 'preserved food');
+assert.equal(
+  projectTierThreeUpgrade(
+    localPromotionPlan,
+    { population: 6, abandoned: false },
+    10,
+  ).immediateSustainable,
+  true,
+  'the legacy aggregate projection demonstrates the disconnected false positive',
+);
+const roadlessPromotion = projectTierThreeUpgrade(
+  localPromotionPlan,
+  { population: 1, abandoned: false },
+  10,
+  'unroaded:residence:new-home',
+);
+assert.equal(roadlessPromotion.immediateHeadroomResidents, -1);
+assert.equal(roadlessPromotion.immediateSustainable, false);
+
 const started = performance.now();
 let capacityTotal = 0;
 for (let index = 0; index < 100_000; index += 1) {
@@ -106,9 +262,43 @@ assert.ok(
   `100,000 prosperity projections regressed (${elapsedMs.toFixed(1)} ms)`,
 );
 
+const largeRoadBranches = new Map();
+for (let index = 0; index < 100_000; index += 1) {
+  largeRoadBranches.set(`branch-${index}`, {
+    currentResidents: 1,
+    fullResidents: 1,
+    preservedFoodOutputPerDay: preservedPerResident,
+    aleOutputPerDay: alePerResident,
+    clothOutputPerDay: clothPerResident,
+    firstResidenceId: `home-${index}`,
+  });
+}
+const roadStarted = performance.now();
+const largeRoadPlan = computeSettlementProsperityPlan({
+  tierThreeResidents: 100_000,
+  preservedFoodOutputPerDay: preservedPerResident * 100_000,
+  preservedFoodDemandPerDay: preservedPerResident * 100_000,
+  aleOutputPerDay: alePerResident * 100_000,
+  aleDemandPerDay: alePerResident * 100_000,
+  clothOutputPerDay: clothPerResident * 100_000,
+  clothDemandPerDay: clothPerResident * 100_000,
+  prosperityRoadBranches: largeRoadBranches,
+});
+const roadElapsedMs = performance.now() - roadStarted;
+assert.equal(largeRoadPlan.roadPlan?.activeBranches, 100_000);
+assert.equal(largeRoadPlan.roadPlan?.matchedBranches, 100_000);
+assert.equal(largeRoadPlan.roadPlan?.roadMatchedResidentCapacity, 100_000);
+assert.equal(largeRoadPlan.roadPlan?.currentShortfallResidents, 0);
+assert.ok(
+  roadElapsedMs < 500,
+  `100,000 prosperity road branches regressed (${roadElapsedMs.toFixed(1)} ms)`,
+);
+
 const inspector = readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 assert.match(inspector, /Settlement prosperity/);
 assert.match(inspector, /Promotion load/);
+assert.match(inspector, /Local prosperity branch/);
+assert.match(inspector, /this road branch/);
 assert.match(inspector, /Immediate daily demand/);
 assert.match(inspector, /Warning: promoting the current occupants immediately exceeds/);
 assert.match(
@@ -119,6 +309,9 @@ assert.match(
 
 const townHall = readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
 assert.match(townHall, /Prosperity throughput/);
+assert.match(townHall, /Prosperity roads/);
+assert.match(townHall, /resident capacity stranded between specialized branches/);
+assert.match(townHall, /Inspect first prosperity road-branch shortfall/);
 assert.match(townHall, /Prosperous housing pipeline/);
 assert.match(townHall, /assumes staffed workshops remain fully supplied/);
 
@@ -131,7 +324,7 @@ assert.match(
 assert.match(resourceInspector, /computeSettlementProductionCapacity/);
 
 console.log(
-  `settlement prosperity tests passed (${elapsedMs.toFixed(1)} ms for 100,000 projections)`,
+  `settlement prosperity tests passed (${elapsedMs.toFixed(1)} ms for 100,000 projections; ${roadElapsedMs.toFixed(1)} ms for 100,000 road branches)`,
 );
 
 function approx(actual: number, expected: number): void {

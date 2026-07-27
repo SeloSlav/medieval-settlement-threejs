@@ -49,14 +49,14 @@ const schema = readFileSync('server/src/tables.rs', 'utf8');
 assert.match(
   schema,
   /#\[default\(1u8\)\]\s+pub guardhouse_pay_priority: u8/,
-  'existing saves must migrate to normal payroll priority',
+  'existing saves must migrate to normal company priority',
 );
 
 const reducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 assert.match(
   reducers,
   /set_guardhouse_pay_priority[\s\S]*?is_valid_guardhouse_pay_priority[\s\S]*?building\.guardhouse_pay_priority = pay_priority/,
-  'payroll priority must be owner-validated and server authoritative',
+  'company priority must remain owner-validated, server-authoritative, and save-compatible',
 );
 
 const simulation = readFileSync('server/src/reducers/simulation.rs', 'utf8');
@@ -69,13 +69,27 @@ assert.match(
 const inspector = readFileSync('src/resources/inspector/guardhouseRenderer.ts', 'utf8');
 assert.match(
   inspector,
-  /data-guardhouse-pay-priority[\s\S]*?server applies this order continuously/,
-  'guardhouse controls must explain the authoritative scarce-wage order',
+  /Company priority[\s\S]*?data-guardhouse-pay-priority[\s\S]*?lowest armed share first/,
+  'guardhouse controls must explain the shared equipment, provision, and wage order',
+);
+const townHallInspector = readFileSync(
+  'src/resources/inspector/townHallRenderer.ts',
+  'utf8',
+);
+assert.match(townHallInspector, /Next-day payroll/);
+assert.match(
+  townHallInspector,
+  /Company priorities[\s\S]*?governs scarce polearms, routine provisions, and wages/,
+  'the settlement ledger must expose aggregate funding and every assigned company priority',
+);
+const expandedEconomy = readFileSync(
+  'server/src/simulation/expanded_economy.rs',
+  'utf8',
 );
 assert.match(
-  readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8'),
-  /Next-day payroll[\s\S]*?Payroll priorities/,
-  'the settlement ledger must expose aggregate funding and priority counts',
+  expandedEconomy,
+  /dispatch_polearms_to_guardhouse[\s\S]*?select_guardhouse_armament_candidate[\s\S]*?guardhouse_pay_priority[\s\S]*?guardhouse_polearm_coverage[\s\S]*?distance[\s\S]*?building\.id/,
+  'carpenter weapon dispatch must apply priority, armed coverage, route, and stable id',
 );
 
 const performanceCompanies = Array.from(

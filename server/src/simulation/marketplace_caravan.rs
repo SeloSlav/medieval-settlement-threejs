@@ -72,21 +72,29 @@ pub fn try_dispatch_marketplace_caravan(
         return false;
     };
 
-    let eligible: Vec<Residence> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&building.owner)
-        .filter(|residence| {
-            if !need_kind.is_active_for_tier(residence.tier) {
-                return false;
-            }
-            if dispatch.include_abandoned {
-                return true;
-            }
-            !residence.abandoned && residence.population > 0
-        })
-        .collect();
+    let residence_is_eligible = |residence: &Residence| {
+        if residence.owner != building.owner || !need_kind.is_active_for_tier(residence.tier) {
+            return false;
+        }
+        dispatch.include_abandoned || (!residence.abandoned && residence.population > 0)
+    };
+    let eligible: Vec<Residence> = match dispatch.priority_residence_id {
+        Some(residence_id) => ctx
+            .db
+            .residence()
+            .id()
+            .find(&residence_id)
+            .filter(residence_is_eligible)
+            .into_iter()
+            .collect(),
+        None => ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&building.owner)
+            .filter(residence_is_eligible)
+            .collect(),
+    };
     let targets: Vec<Residence> = select_residence_for_need_delivery(
         network,
         building,

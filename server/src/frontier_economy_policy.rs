@@ -33,6 +33,14 @@ pub fn guardhouse_polearm_target(assigned_labor: u32) -> f64 {
     assigned_labor as f64
 }
 
+pub fn guardhouse_polearm_coverage(assigned_labor: u32, polearms: f64) -> f64 {
+    if assigned_labor == 0 {
+        1.0
+    } else {
+        armed_guards(assigned_labor, polearms) / assigned_labor as f64
+    }
+}
+
 pub fn is_valid_guardhouse_pay_priority(priority: u8) -> bool {
     (GUARDHOUSE_PAY_PRIORITY_LOW..=GUARDHOUSE_PAY_PRIORITY_HIGH).contains(&priority)
 }
@@ -85,11 +93,7 @@ pub fn armed_guards(assigned_labor: u32, polearms: f64) -> f64 {
     (assigned_labor as f64).min(polearms.floor().max(0.0))
 }
 
-pub fn guardhouse_food_target(
-    assigned_labor: u32,
-    polearms: f64,
-    reserve_per_guard: u8,
-) -> f64 {
+pub fn guardhouse_food_target(assigned_labor: u32, polearms: f64, reserve_per_guard: u8) -> f64 {
     let armed = armed_guards(assigned_labor, polearms);
     if armed <= 1e-9 {
         0.0
@@ -134,6 +138,48 @@ pub fn select_guardhouse_food_candidate<T>(
             distance_for(a),
             building_id_for(a),
             runway_for(b),
+            distance_for(b),
+            building_id_for(b),
+        )
+    })
+}
+
+pub fn compare_guardhouse_armament_candidates(
+    a_priority: u8,
+    a_coverage: f64,
+    a_distance: f64,
+    a_building_id: u64,
+    b_priority: u8,
+    b_coverage: f64,
+    b_distance: f64,
+    b_building_id: u64,
+) -> Ordering {
+    normalize_guardhouse_pay_priority(b_priority)
+        .cmp(&normalize_guardhouse_pay_priority(a_priority))
+        .then_with(|| a_coverage.total_cmp(&b_coverage))
+        .then_with(|| a_distance.total_cmp(&b_distance))
+        .then_with(|| a_building_id.cmp(&b_building_id))
+}
+
+/// Selects one reachable company for a carpenter's next weapon cart without
+/// sorting the full guardhouse roster. Company priority leads; equally
+/// important companies restore their lowest armed share before route length
+/// and stable building order break ties.
+pub fn select_guardhouse_armament_candidate<T>(
+    candidates: impl IntoIterator<Item = T>,
+    priority_for: impl Fn(&T) -> u8,
+    coverage_for: impl Fn(&T) -> f64,
+    distance_for: impl Fn(&T) -> f64,
+    building_id_for: impl Fn(&T) -> u64,
+) -> Option<T> {
+    candidates.into_iter().min_by(|a, b| {
+        compare_guardhouse_armament_candidates(
+            priority_for(a),
+            coverage_for(a),
+            distance_for(a),
+            building_id_for(a),
+            priority_for(b),
+            coverage_for(b),
             distance_for(b),
             building_id_for(b),
         )
@@ -210,6 +256,9 @@ mod tests {
     fn guardhouses_request_only_enough_weapons_for_assigned_guards() {
         assert_eq!(guardhouse_polearm_target(0), 0.0);
         assert_eq!(guardhouse_polearm_target(6), 6.0);
+        assert_eq!(guardhouse_polearm_coverage(6, 2.9), 2.0 / 6.0);
+        assert_eq!(guardhouse_polearm_coverage(4, 10.0), 1.0);
+        assert_eq!(guardhouse_polearm_coverage(0, 0.0), 1.0);
     }
 
     #[test]
@@ -312,6 +361,63 @@ mod tests {
             }),
             |candidate| candidate.1,
             |candidate| candidate.2,
+            |candidate| candidate.0,
+        );
+        assert_eq!(selected.map(|candidate| candidate.0), Some(99_999));
+        assert!(started.elapsed() < Duration::from_millis(100));
+    }
+
+    #[test]
+    fn company_priority_leads_armament_then_lowest_coverage_and_route() {
+        let selected = select_guardhouse_armament_candidate(
+            [
+                (9_u64, GUARDHOUSE_PAY_PRIORITY_NORMAL, 0.0_f64, 10.0_f64),
+                (7, GUARDHOUSE_PAY_PRIORITY_HIGH, 0.75, 120.0),
+                (3, GUARDHOUSE_PAY_PRIORITY_HIGH, 0.25, 80.0),
+                (2, GUARDHOUSE_PAY_PRIORITY_HIGH, 0.25, 20.0),
+            ],
+            |candidate| candidate.1,
+            |candidate| candidate.2,
+            |candidate| candidate.3,
+            |candidate| candidate.0,
+        );
+        assert_eq!(
+            selected,
+            Some((2, GUARDHOUSE_PAY_PRIORITY_HIGH, 0.25, 20.0))
+        );
+
+        let stable_tie = select_guardhouse_armament_candidate(
+            [
+                (8_u64, GUARDHOUSE_PAY_PRIORITY_NORMAL, 0.5_f64, 40.0_f64),
+                (4, GUARDHOUSE_PAY_PRIORITY_NORMAL, 0.5, 40.0),
+            ],
+            |candidate| candidate.1,
+            |candidate| candidate.2,
+            |candidate| candidate.3,
+            |candidate| candidate.0,
+        );
+        assert_eq!(stable_tie.map(|candidate| candidate.0), Some(4));
+    }
+
+    #[test]
+    fn armament_candidate_selection_stays_linear() {
+        let started = Instant::now();
+        let selected = select_guardhouse_armament_candidate(
+            (0..100_000).map(|index| {
+                (
+                    index as u64,
+                    if index == 99_999 {
+                        GUARDHOUSE_PAY_PRIORITY_HIGH
+                    } else {
+                        GUARDHOUSE_PAY_PRIORITY_NORMAL
+                    },
+                    (index % 6) as f64 / 6.0,
+                    (100_000 - index) as f64,
+                )
+            }),
+            |candidate| candidate.1,
+            |candidate| candidate.2,
+            |candidate| candidate.3,
             |candidate| candidate.0,
         );
         assert_eq!(selected.map(|candidate| candidate.0), Some(99_999));

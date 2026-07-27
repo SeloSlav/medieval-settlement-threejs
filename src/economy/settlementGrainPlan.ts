@@ -7,12 +7,21 @@ import {
   CALENDAR_WORK_START_HOUR,
   MONASTERY_GRAIN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
+import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import type { SettlementFarmPlan } from '../farming/farmWorkPlanning.ts';
-import type { SettlementGranaryReserve } from './granaryPolicy.ts';
+import {
+  granaryExportableGrain,
+  type SettlementGranaryReserve,
+} from './granaryPolicy.ts';
 import type { SettlementLivestockFodderPlan } from './livestockFodder.ts';
-import type { SettlementProductionCapacity } from './settlementProduction.ts';
+import {
+  productionRoadBranchKey,
+  type ProductionGrainRoadBranch,
+  type ProductionRoadComponentResolver,
+  type SettlementProductionCapacity,
+} from './settlementProduction.ts';
 import {
   normalizeStaffingPriority,
   STAFFING_PRIORITY_HIGH,
@@ -53,6 +62,28 @@ export type SettlementGrainPlan = {
   annualBalance: number;
   firstAttentionBuildingId: string | null;
   firstAttentionKind: GrainPlanAttentionKind | null;
+  roadPlan: SettlementGrainRoadPlan | null;
+};
+
+export type SettlementGrainRoadBranch = ProductionGrainRoadBranch & {
+  monasteryGrainPerDay: number;
+  processorGrainPerDay: number;
+  dispatchableSourceStock: number;
+  sourceRunwayDays: number;
+};
+
+export type SettlementGrainRoadPlan = {
+  activeBranches: number;
+  drawingBranches: number;
+  stockedDrawingBranches: number;
+  unstockedDrawingBranches: number;
+  processorGrainPerDay: number;
+  dispatchableSourceStock: number;
+  matchedSourceStock: number;
+  outsideProcessorBranchStock: number;
+  weakestSourceRunwayDays: number;
+  firstExposedBuildingId: string | null;
+  branches: ReadonlyMap<string, SettlementGrainRoadBranch>;
 };
 
 type SettlementGrainPlanInput = {
@@ -64,7 +95,9 @@ type SettlementGrainPlanInput = {
     | 'firstSeedShortBuildingId'
     | 'laborCoveredHarvest'
     | 'expectedHarvest'
-  >;
+  > & {
+    seedGrainByHolding?: ReadonlyMap<string, number>;
+  };
   livestockFodder: Pick<
     SettlementLivestockFodderPlan,
     | 'winterGrainNeed'
@@ -81,9 +114,12 @@ type SettlementGrainPlanInput = {
   production: Pick<
     SettlementProductionCapacity,
     'breadGrainPerDay' | 'aleGrainPerDay'
-  >;
+  > & {
+    grainRoadBranches?: ReadonlyMap<string, ProductionGrainRoadBranch> | null;
+  };
   sabbathObserved: boolean;
   monasteryProductivity: (building: BuildingState) => number;
+  roadComponentFor?: ProductionRoadComponentResolver;
 };
 
 type GrainTransit = {
@@ -101,6 +137,129 @@ const MONASTERY_CYCLES_PER_WORKDAY =
 
 function positiveFinite(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, value as number) : 0;
+}
+
+function earlierStableId(
+  current: string | null,
+  candidate: string,
+): string {
+  return current === null || compareStableEntityIds(candidate, current) < 0
+    ? candidate
+    : current;
+}
+
+function grainRoadBranch(
+  branches: Map<string, SettlementGrainRoadBranch>,
+  key: string,
+): SettlementGrainRoadBranch {
+  let branch = branches.get(key);
+  if (branch) return branch;
+  branch = {
+    breadGrainPerDay: 0,
+    aleGrainPerDay: 0,
+    monasteryGrainPerDay: 0,
+    processorGrainPerDay: 0,
+    dispatchableSourceStock: 0,
+    sourceRunwayDays: Number.POSITIVE_INFINITY,
+    firstProcessorId: null,
+  };
+  branches.set(key, branch);
+  return branch;
+}
+
+function initialGrainRoadBranches(
+  source: ReadonlyMap<string, ProductionGrainRoadBranch> | null | undefined,
+  componentFor: ProductionRoadComponentResolver | undefined,
+): Map<string, SettlementGrainRoadBranch> | null {
+  if (!source || !componentFor) return null;
+  const branches = new Map<string, SettlementGrainRoadBranch>();
+  for (const [key, production] of source) {
+    const breadGrainPerDay = positiveFinite(production.breadGrainPerDay);
+    const aleGrainPerDay = positiveFinite(production.aleGrainPerDay);
+    const processorGrainPerDay = breadGrainPerDay + aleGrainPerDay;
+    branches.set(key, {
+      ...production,
+      breadGrainPerDay,
+      aleGrainPerDay,
+      monasteryGrainPerDay: 0,
+      processorGrainPerDay,
+      dispatchableSourceStock: 0,
+      sourceRunwayDays: processorGrainPerDay > 1e-9
+        ? 0
+        : Number.POSITIVE_INFINITY,
+    });
+  }
+  return branches;
+}
+
+function buildGrainRoadPlan(
+  branches: Map<string, SettlementGrainRoadBranch> | null,
+): SettlementGrainRoadPlan | null {
+  if (!branches) return null;
+  let drawingBranches = 0;
+  let stockedDrawingBranches = 0;
+  let unstockedDrawingBranches = 0;
+  let processorGrainPerDay = 0;
+  let dispatchableSourceStock = 0;
+  let matchedSourceStock = 0;
+  let outsideProcessorBranchStock = 0;
+  let weakestSourceRunwayDays = Number.POSITIVE_INFINITY;
+  let firstExposedBuildingId: string | null = null;
+
+  for (const branch of branches.values()) {
+    const demand = positiveFinite(branch.breadGrainPerDay)
+      + positiveFinite(branch.aleGrainPerDay)
+      + positiveFinite(branch.monasteryGrainPerDay);
+    const sourceStock = positiveFinite(branch.dispatchableSourceStock);
+    branch.processorGrainPerDay = demand;
+    branch.dispatchableSourceStock = sourceStock;
+    branch.sourceRunwayDays = demand > 1e-9
+      ? sourceStock / demand
+      : Number.POSITIVE_INFINITY;
+    processorGrainPerDay += demand;
+    dispatchableSourceStock += sourceStock;
+    if (demand <= 1e-9) {
+      outsideProcessorBranchStock += sourceStock;
+      continue;
+    }
+    drawingBranches += 1;
+    matchedSourceStock += sourceStock;
+    if (sourceStock > 1e-9) stockedDrawingBranches += 1;
+    else unstockedDrawingBranches += 1;
+    if (
+      branch.firstProcessorId !== null
+      && (
+        branch.sourceRunwayDays < weakestSourceRunwayDays - 1e-9
+        || (
+          Math.abs(branch.sourceRunwayDays - weakestSourceRunwayDays) <= 1e-9
+          && (
+            firstExposedBuildingId === null
+            || compareStableEntityIds(
+              branch.firstProcessorId,
+              firstExposedBuildingId,
+            ) < 0
+          )
+        )
+      )
+    ) {
+      weakestSourceRunwayDays = branch.sourceRunwayDays;
+      firstExposedBuildingId = branch.firstProcessorId;
+    }
+  }
+
+  return {
+    activeBranches: branches.size,
+    drawingBranches,
+    stockedDrawingBranches,
+    unstockedDrawingBranches,
+    processorGrainPerDay,
+    dispatchableSourceStock,
+    matchedSourceStock,
+    outsideProcessorBranchStock,
+    weakestSourceRunwayDays,
+    firstExposedBuildingId,
+    branches,
+  };
 }
 
 function commitment(
@@ -160,11 +319,19 @@ function grainTransit(
  * Read-only crop-year allocation forecast. It connects grain already held or
  * traveling with the settlement's existing local reserve policies and current
  * staffed processing capacity; it neither reserves stock nor changes dispatch.
+ * With cached component IDs, the optional road plan separately compares local
+ * installed draw with only the staffed farmstead and granary surplus that can
+ * actually dispatch on that branch. Workshop buffers and carts remain in the
+ * per-building production forecast and are deliberately not counted twice.
  */
 export function computeSettlementGrainPlan(
   input: SettlementGrainPlanInput,
 ): SettlementGrainPlan {
   const transit = grainTransit(input.state);
+  const roadBranches = initialGrainRoadBranches(
+    input.production.grainRoadBranches,
+    input.roadComponentFor,
+  );
   let totalStock = positiveFinite(input.state.stockpile.grain) + transit.total;
   let monasteryGrainPerDay = 0;
   const processorPriorityCounts: Record<StaffingPriority, number> = {
@@ -175,9 +342,39 @@ export function computeSettlementGrainPlan(
   const workShare = input.sabbathObserved ? 6 / 7 : 1;
 
   for (const building of input.state.buildings.values()) {
-    totalStock += positiveFinite(building.grain);
+    const buildingGrain = positiveFinite(building.grain);
+    const completed = building.constructionComplete !== false;
+    totalStock += buildingGrain;
+    if (roadBranches && input.roadComponentFor && completed) {
+      const key = productionRoadBranchKey(
+        input.roadComponentFor(building),
+        'building',
+        building.id,
+      );
+      let dispatchableSourceStock = 0;
+      if (
+        building.assignedLabor > 0
+        && building.kind === 'threshing_barn'
+        && input.farmPlan.seedGrainByHolding
+      ) {
+        dispatchableSourceStock = Math.max(
+          0,
+          buildingGrain
+            - (input.farmPlan.seedGrainByHolding.get(building.id) ?? 0),
+        );
+      } else if (building.assignedLabor > 0 && building.kind === 'granary') {
+        dispatchableSourceStock = granaryExportableGrain(
+          buildingGrain,
+          building.granaryGrainReserve ?? 0,
+        );
+      }
+      if (dispatchableSourceStock > 1e-9) {
+        grainRoadBranch(roadBranches, key).dispatchableSourceStock +=
+          dispatchableSourceStock;
+      }
+    }
     if (
-      building.constructionComplete !== false
+      completed
       && (
         (building.kind === 'monastery')
         || (
@@ -190,17 +387,33 @@ export function computeSettlementGrainPlan(
         normalizeStaffingPriority(building.constructionPriority)
       ] += 1;
     }
-    if (building.kind !== 'monastery' || building.constructionComplete === false) {
+    if (building.kind !== 'monastery' || !completed) {
       continue;
     }
     const productivity = Math.min(
       1,
       positiveFinite(input.monasteryProductivity(building)),
     );
-    monasteryGrainPerDay += MONASTERY_CYCLES_PER_WORKDAY
+    const monasteryDailyDemand = MONASTERY_CYCLES_PER_WORKDAY
       * workShare
       * MONASTERY_GRAIN_PER_CYCLE
       * productivity;
+    monasteryGrainPerDay += monasteryDailyDemand;
+    if (roadBranches && input.roadComponentFor && monasteryDailyDemand > 1e-9) {
+      const branch = grainRoadBranch(
+        roadBranches,
+        productionRoadBranchKey(
+          input.roadComponentFor(building),
+          'building',
+          building.id,
+        ),
+      );
+      branch.monasteryGrainPerDay += monasteryDailyDemand;
+      branch.firstProcessorId = earlierStableId(
+        branch.firstProcessorId,
+        building.id,
+      );
+    }
   }
 
   const seed = commitment(
@@ -232,6 +445,7 @@ export function computeSettlementGrainPlan(
     + annualProcessorDemand;
   const laborCoveredHarvest = positiveFinite(input.farmPlan.laborCoveredHarvest);
   const potentialHarvest = positiveFinite(input.farmPlan.expectedHarvest);
+  const roadPlan = buildGrainRoadPlan(roadBranches);
 
   let firstAttentionBuildingId: string | null = null;
   let firstAttentionKind: GrainPlanAttentionKind | null = null;
@@ -275,5 +489,6 @@ export function computeSettlementGrainPlan(
     annualBalance: laborCoveredHarvest - annualCommitments,
     firstAttentionBuildingId,
     firstAttentionKind,
+    roadPlan,
   };
 }

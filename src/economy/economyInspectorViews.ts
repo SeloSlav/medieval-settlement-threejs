@@ -88,6 +88,9 @@ export function buildResidenceParishEconomyView(
 }
 
 export type BackyardEconomyView = {
+  activityPerDay: number;
+  selfFoodPerDay: number;
+  assessedTaxPerDay: number;
   taxPerDay: number;
   netWealthPerDay: number;
   taxPercent: string;
@@ -98,14 +101,21 @@ export function buildBackyardEconomyView(
   population: number,
   taxRate: number,
   hasMarketAccess: boolean,
+  options: {
+    seasonalMultiplier?: number;
+    taxCollectionMultiplier?: number;
+  } = {},
 ): BackyardEconomyView {
   const taxPercent = formatTaxRatePercent(taxRate);
-  if (!hasMarketAccess) {
-    return { taxPerDay: 0, netWealthPerDay: 0, taxPercent };
-  }
-
-  const economy = backyardGardenEconomyPerDay(kind, population, taxRate);
+  const economy = backyardGardenEconomyPerDay(kind, population, taxRate, {
+    seasonalMultiplier: options.seasonalMultiplier,
+    hasMarketAccess,
+    taxCollectionMultiplier: options.taxCollectionMultiplier,
+  });
   return {
+    activityPerDay: economy.activity,
+    selfFoodPerDay: economy.selfFood,
+    assessedTaxPerDay: economy.assessedTax,
     taxPerDay: economy.tax,
     netWealthPerDay: economy.net,
     taxPercent,

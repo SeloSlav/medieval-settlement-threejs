@@ -80,6 +80,9 @@ assert.equal(directlyDispatchedProcessorInputPerCycle('granary', 'flour'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('smokehouse', 'food'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'wool'), 3);
 assert.equal(processorInputTarget(2), 6);
+assert.equal(processorInputTarget(2, 25), 2);
+assert.equal(processorInputTarget(2, 50), 4);
+assert.equal(processorInputTarget(2, 75), 6);
 assert.equal(processorInputRunwayCycles(3, 2), 1.5);
 assert.equal(GRANARY_GRAIN_RESERVE_MAX, BUILDING_STORAGE_CAPS.granary.grain);
 assert.equal(normalizeGranaryGrainReserve(119.6), 120);
@@ -90,6 +93,14 @@ assert.equal(granaryExportableGrain(90, 120), 0);
 assert.equal(grainInputTarget('watermill'), 9);
 assert.equal(grainInputTarget('brewery'), 9);
 assert.equal(grainInputTarget('monastery'), 6);
+assert.equal(grainInputTarget('watermill', 1, 25), 3);
+assert.equal(grainInputTarget('watermill', 1, 50), 6);
+assert.equal(grainInputTarget('watermill', 1, 75), 9);
+assert.equal(
+  grainInputTarget('monastery', 1, 25),
+  6,
+  'the autonomous monastery keeps its own legacy buffer',
+);
 assert.equal(
   grainInputTarget('monastery', MONASTERY_UNLINKED_PRODUCTIVITY),
   2.7,
@@ -118,6 +129,7 @@ function grainDestination(
   x: number,
   grain: number,
   assignedLabor = kind === 'monastery' ? 0 : 2,
+  processorOutputTargetPercent = 100,
 ): BuildingState {
   return {
     id,
@@ -126,6 +138,7 @@ function grainDestination(
     z: 0,
     grain,
     assignedLabor,
+    processorOutputTargetPercent,
     constructionComplete: true,
   } as BuildingState;
 }
@@ -174,6 +187,27 @@ assert.equal(
   )?.target.id,
   idleBrewery.id,
   'workshop storage remains a last-resort outlet when no granary can receive grain',
+);
+const leanBufferedMill = grainDestination('lean-mill', 'watermill', 3, 3, 1, 25);
+const deepBufferedMill = grainDestination('deep-mill', 'watermill', 4, 3, 1, 75);
+assert.equal(
+  grainDispatchDuty(leanBufferedMill),
+  'workshop-overflow',
+  'Lean should stop staging grain after one complete cycle',
+);
+assert.equal(
+  grainDispatchDuty(deepBufferedMill),
+  'working-buffer',
+  'Deep should keep staging the same mill toward three cycles',
+);
+assert.equal(
+  selectGrainDispatchTarget(
+    [leanBufferedMill, deepBufferedMill],
+    'farm',
+    (target) => target.x,
+  )?.target.id,
+  deepBufferedMill.id,
+  'policy depth should affect real grain cart eligibility',
 );
 assert.equal(
   selectGrainDispatchTarget(
@@ -268,6 +302,7 @@ function processorInputDestination(
   stock: number,
   assignedLabor = 1,
   constructionPriority = 2,
+  processorOutputTargetPercent = 100,
 ): BuildingState {
   return {
     id,
@@ -279,6 +314,7 @@ function processorInputDestination(
     wool: kind === 'weaver' ? stock : 0,
     assignedLabor,
     constructionPriority,
+    processorOutputTargetPercent,
     constructionComplete: true,
   } as BuildingState;
 }
@@ -356,6 +392,28 @@ assert.equal(
   )?.target.id,
   highPrioritySmokehouse.id,
   'granary and swine food carts should restore high-priority preservation buffers first',
+);
+const leanBakery = processorInputDestination('15', 'granary', 3, 3, 1, 2, 25);
+const deepBakery = processorInputDestination('16', 'granary', 4, 3, 1, 2, 75);
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [leanBakery, deepBakery],
+    'watermill',
+    'flour',
+    (target) => target.x,
+  )?.target.id,
+  deepBakery.id,
+  'a one-cycle Lean bakery should stop claiming flour while a Deep bakery keeps staging',
+);
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [leanBakery],
+    'watermill',
+    'flour',
+    (target) => target.x,
+  )?.desiredStock,
+  BUILDING_STORAGE_CAPS.granary.flour,
+  'covered Lean workshops remain eligible only as ordinary overflow storage',
 );
 
 const perfTargets = Array.from({ length: 100_000 }, (_, index) =>
@@ -450,7 +508,7 @@ assert.match(supplyPolicy, /pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1\.0/)
 assert.match(supplyPolicy, /pub enum GrainDispatchDuty/);
 assert.match(supplyPolicy, /pub fn grain_work_priority/);
 assert.match(supplyPolicy, /pub fn select_grain_dispatch_candidate/);
-assert.match(supplyPolicy, /pub const PROCESSOR_INPUT_BUFFER_CYCLES: f64 = 3\.0/);
+assert.match(supplyPolicy, /processor_input_staging_cycles\(processor_output_target_percent\)/);
 assert.match(supplyPolicy, /pub enum ProcessorInputDispatchDuty/);
 assert.match(supplyPolicy, /pub fn select_processor_input_dispatch_candidate/);
 assert.match(supplyPolicy, /pub fn select_seed_grain_delivery_candidate/);

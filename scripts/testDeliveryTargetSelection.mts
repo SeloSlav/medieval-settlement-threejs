@@ -106,8 +106,19 @@ assert.doesNotMatch(
 
 const expandedEconomy = read('server/src/simulation/expanded_economy.rs');
 assert.ok(
-  (expandedEconomy.match(/select_supply_route_candidate\(/g) ?? []).length >= 2,
-  'processor push and pull routes should both choose one destination in one pass',
+  (expandedEconomy.match(/select_supply_route_candidate\(/g) ?? []).length >= 1,
+  'processor input pull routes should choose one source in one pass',
+);
+assert.match(
+  expandedEconomy,
+  /dispatch_polearms_to_guardhouse[\s\S]*?select_guardhouse_armament_candidate\(/,
+  'polearm push routes should use the one-pass company-priority selector',
+);
+const frontierEconomyPolicy = read('server/src/frontier_economy_policy.rs');
+assert.match(
+  frontierEconomyPolicy,
+  /select_guardhouse_armament_candidate<T>[\s\S]{0,700}\.min_by/,
+  'company-priority armament dispatch must remain a one-pass minimum selection',
 );
 assert.doesNotMatch(expandedEconomy, /(?:targets|sources)\.sort_by/);
 assert.ok(

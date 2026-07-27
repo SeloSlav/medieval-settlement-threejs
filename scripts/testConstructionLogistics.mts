@@ -412,6 +412,7 @@ assert.deepEqual(
   },
   'the highest-priority blocked site should lead the settlement queue',
 );
+assert.equal(constructionQueue.roadPlan, null);
 const constructionQueueRows = renderConstructionQueueRows(constructionQueue);
 assert.match(constructionQueueRows, /Construction queue/);
 assert.match(constructionQueueRows, /urgent 1 \/ normal 1 \/ low 1/);
@@ -421,6 +422,125 @@ assert.match(
   new RegExp(`data-inspect-building="${urgentOffRoadSite.id}"`),
 );
 assert.match(constructionQueueRows, /off-road materials/);
+
+const eastConstructionSource = buildingState({
+  id: 'east-construction-source',
+  kind: 'village_storehouse',
+  x: 0,
+  timber: 20,
+  stone: 10,
+});
+const remoteConstructionSource = buildingState({
+  id: 'remote-construction-source',
+  kind: 'village_storehouse',
+  x: 200,
+  timber: 100,
+  stone: 100,
+});
+const eastConstructionSite = buildingState({
+  id: 'east-construction-site',
+  kind: 'chapel',
+  x: 0,
+  assignedLabor: 1,
+  constructionComplete: false,
+  constructionProgress: 0,
+  constructionRequiredTimber: 30,
+  constructionRequiredStone: 10,
+  constructionReservedTimber: 30,
+  constructionReservedStone: 10,
+});
+const westConstructionSite = buildingState({
+  id: 'west-construction-site',
+  kind: 'marketplace',
+  x: 100,
+  assignedLabor: 1,
+  constructionComplete: false,
+  constructionProgress: 0,
+  constructionRequiredTimber: 20,
+  constructionReservedTimber: 20,
+  constructionPriority: CONSTRUCTION_PRIORITY_URGENT,
+});
+const offroadConstructionSite = buildingState({
+  id: 'offroad-construction-site',
+  kind: 'stone_quarry',
+  x: 100,
+  assignedLabor: 1,
+  constructionComplete: false,
+  constructionProgress: 0,
+  constructionRequiredTimber: 10,
+  constructionReservedTimber: 10,
+});
+const constructionRoadState = {
+  buildings: new Map([
+    eastConstructionSource,
+    remoteConstructionSource,
+    eastConstructionSite,
+    westConstructionSite,
+    offroadConstructionSite,
+  ].map((candidate) => [candidate.id, candidate])),
+  deliveryTrips: new Map<string, DeliveryTripState>(),
+};
+const constructionComponent = (candidate: BuildingState): number =>
+  candidate.x < 50 ? 1 : candidate.x < 150 ? 2 : 3;
+const splitConstructionRoads = computeSettlementConstructionPlan({
+  state: constructionRoadState,
+  hasRoadAccess: () => true,
+  roadComponentFor: constructionComponent,
+});
+assert.equal(splitConstructionRoads.roadPlan?.activeBranches, 3);
+assert.equal(splitConstructionRoads.roadPlan?.claimBranches, 2);
+assert.equal(splitConstructionRoads.roadPlan?.suppliedClaimBranches, 0);
+assert.equal(splitConstructionRoads.roadPlan?.exposedClaimBranches, 2);
+assert.equal(splitConstructionRoads.roadPlan?.roadBoundSites, 2);
+assert.equal(splitConstructionRoads.roadPlan?.offroadSites, 1);
+assert.deepEqual(splitConstructionRoads.roadPlan?.materials.timber, {
+  roadBoundClaim: 50,
+  matchedRoadBoundClaim: 20,
+  strandedRoadBoundClaim: 30,
+  offroadClaim: 10,
+  offroadPotentialCoverage: 10,
+  sourceStock: 120,
+  fragmentationCoverage: 30,
+  unmatchedSourceStock: 90,
+});
+assert.deepEqual(splitConstructionRoads.roadPlan?.materials.stone, {
+  roadBoundClaim: 10,
+  matchedRoadBoundClaim: 10,
+  strandedRoadBoundClaim: 0,
+  offroadClaim: 0,
+  offroadPotentialCoverage: 0,
+  sourceStock: 110,
+  fragmentationCoverage: 0,
+  unmatchedSourceStock: 100,
+});
+assert.equal(
+  splitConstructionRoads.roadPlan?.firstExposedBuildingId,
+  westConstructionSite.id,
+  'the urgent disconnected site should lead the road-stranded reservation audit',
+);
+const splitConstructionRows = renderConstructionQueueRows(splitConstructionRoads);
+assert.match(splitConstructionRows, /Construction roads/);
+assert.match(splitConstructionRows, /earmarked but stranded between road branches/);
+assert.match(splitConstructionRows, /off-road-capable sites can cover/);
+assert.match(
+  splitConstructionRows,
+  new RegExp(`data-inspect-building="${westConstructionSite.id}"`),
+);
+
+const joinedConstructionRoads = computeSettlementConstructionPlan({
+  state: constructionRoadState,
+  hasRoadAccess: () => true,
+  roadComponentFor: () => 1,
+});
+assert.equal(joinedConstructionRoads.roadPlan?.activeBranches, 1);
+assert.equal(joinedConstructionRoads.roadPlan?.claimBranches, 1);
+assert.equal(joinedConstructionRoads.roadPlan?.suppliedClaimBranches, 1);
+assert.equal(joinedConstructionRoads.roadPlan?.exposedClaimBranches, 0);
+assert.equal(
+  joinedConstructionRoads.roadPlan?.materials.timber.fragmentationCoverage,
+  0,
+);
+assert.equal(joinedConstructionRoads.roadPlan?.firstExposedBuildingId, null);
 
 const site = buildingState({
   id: 'site',
@@ -635,6 +755,44 @@ assert.ok(
   queueElapsedMs < 500,
   `100,000 construction sites took ${queueElapsedMs.toFixed(1)} ms to summarize`,
 );
+for (let index = 0; index < 100_000; index += 1) {
+  const candidate = largeQueueBuildings.get(String(index));
+  assert.ok(candidate);
+  candidate.x = Math.floor(index / 500);
+  if (index % 2 === 0) {
+    candidate.constructionComplete = true;
+    candidate.constructionRequiredTimber = 0;
+    candidate.constructionReservedTimber = 0;
+    candidate.timber = 10;
+  } else {
+    candidate.constructionReservedTimber = 10;
+  }
+}
+const constructionRoadPerfStarted = performance.now();
+const constructionRoadPerf = computeSettlementConstructionPlan({
+  state: {
+    buildings: largeQueueBuildings,
+    deliveryTrips: new Map(),
+  },
+  hasRoadAccess: () => true,
+  roadComponentFor: (candidate) => candidate.x,
+});
+const constructionRoadPerfElapsedMs =
+  performance.now() - constructionRoadPerfStarted;
+assert.equal(constructionRoadPerf.siteCount, 50_000);
+assert.equal(constructionRoadPerf.roadPlan?.activeBranches, 200);
+assert.equal(constructionRoadPerf.roadPlan?.claimBranches, 200);
+assert.equal(constructionRoadPerf.roadPlan?.suppliedClaimBranches, 200);
+assert.equal(constructionRoadPerf.roadPlan?.exposedClaimBranches, 0);
+assert.equal(constructionRoadPerf.roadPlan?.roadBoundSites, 50_000);
+assert.equal(
+  constructionRoadPerf.roadPlan?.materials.timber.matchedRoadBoundClaim,
+  500_000,
+);
+assert.ok(
+  constructionRoadPerfElapsedMs < 650,
+  `100,000-building construction road audit took ${constructionRoadPerfElapsedMs.toFixed(1)} ms`,
+);
 const visibleInbound = {
   ...outboundTrip,
   buildingId: stoneSource.id,
@@ -713,5 +871,5 @@ assert.match(
 assert.match(read('src/resources/ResourceInspector.ts'), /data-construction-priority/);
 
 console.log(
-  `construction logistics tests passed (${selectionElapsedMs.toFixed(1)} ms source selection; ${queueElapsedMs.toFixed(1)} ms queue summary for 100,000 sites)`,
+  `construction logistics tests passed (${selectionElapsedMs.toFixed(1)} ms source selection; ${queueElapsedMs.toFixed(1)} ms queue summary for 100,000 sites; ${constructionRoadPerfElapsedMs.toFixed(1)} ms for 100,000-building road audit)`,
 );

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   industrialWaterRequirement,
+  industrialWaterTarget,
   selectIndustrialWaterCandidate,
 } from '../src/logistics/waterLogistics.ts';
 import type { BuildingState } from '../src/resources/types.ts';
@@ -11,6 +12,7 @@ function makeBuilding(
   kind: BuildingState['kind'],
   water: number,
   constructionPriority = 2,
+  processorOutputTargetPercent = 100,
 ): BuildingState {
   return {
     id,
@@ -34,6 +36,7 @@ function makeBuilding(
     waterCapacity: 0,
     assignedLabor: 1,
     constructionPriority,
+    processorOutputTargetPercent,
     constructionComplete: true,
     constructionProgress: 1,
     constructionRequiredTimber: 0,
@@ -54,6 +57,11 @@ assert.ok(industrialWaterRequirement('granary') > 0);
 assert.ok(industrialWaterRequirement('brewery') > 0);
 assert.equal(industrialWaterRequirement('lumber_mill'), 0);
 assert.equal(industrialWaterRequirement('watermill'), 0);
+assert.equal(industrialWaterTarget('granary', 25), 2);
+assert.equal(industrialWaterTarget('granary', 50), 4);
+assert.equal(industrialWaterTarget('granary', 75), 6);
+assert.equal(industrialWaterTarget('granary', 100), 6);
+assert.equal(industrialWaterTarget('brewery', 50), 4);
 
 const candidates = [
   {
@@ -131,6 +139,9 @@ assert.match(wellSimulation, /CommodityKind::Water/);
 assert.match(wellSimulation, /building_has_inbound_supply_trip/);
 assert.match(wellSimulation, /tick\.building_disabled_by_fire\(ctx, candidate\.id\)/);
 assert.match(wellSimulation, /work_priority: candidate\.construction_priority/);
+assert.match(wellSimulation, /industrial_water_target/);
+assert.match(wellSimulation, /candidate\.water\.max\(0\.0\) \/ desired_stock/);
+assert.match(wellSimulation, /target\.processor_output_target_percent/);
 assert.match(
   wellSimulation,
   /tick\.building_ids_for_kinds\(ctx,\s*well\.owner,\s*INDUSTRIAL_WATER_BUILDING_KINDS\)/,
@@ -158,6 +169,8 @@ assert.match(
   /Fires first · households second · highest-priority emptiest workshop third/,
 );
 assert.match(wellInspector, /staffingPriorityLabel/);
+assert.match(wellInspector, /industrialWaterTarget/);
+assert.match(wellInspector, /staged water/);
 assert.match(wellInspector, /by visible cart/);
 assert.match(processorWaterStatus, /Water cart inbound/);
 assert.match(processorWaterStatus, /Waiting for well cart/);

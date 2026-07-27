@@ -1,6 +1,7 @@
 //! Medieval Road System — SpacetimeDB server module.
 //! Single-player localhost: anonymous identity per browser token; resources/buildings/roads scoped by owner.
 
+mod backyard_garden_policy;
 mod balance_generated;
 mod building_defs;
 mod burgage;

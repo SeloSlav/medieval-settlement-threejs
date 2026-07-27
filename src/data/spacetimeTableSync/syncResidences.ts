@@ -51,6 +51,7 @@ export function syncResidences(
       needs: needsByResidence.get(residenceId) ?? createDefaultNeeds(),
       abandoned: row.abandoned,
       householdWealth: Number(row.householdWealth ?? 0),
+      lastHouseholdMarketTick: Number(row.lastHouseholdMarketTick ?? 0),
     });
   }
   return residences;

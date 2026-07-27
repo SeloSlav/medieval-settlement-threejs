@@ -104,6 +104,33 @@ approx(fullWeek.aleDemandPerDay, 1.75);
 approx(fullWeek.preservedFoodDemandPerDay, 2.8);
 approx(fullWeek.clothDemandPerDay, 0.126);
 assert.equal(
+  fullWeek.prosperityRoadBranches,
+  null,
+  'legacy callers without a component resolver keep settlement-wide capacity',
+);
+assert.equal(fullWeek.grainRoadBranches, null);
+const localProsperityCapacity = computeSettlementProductionCapacity(
+  state,
+  false,
+  () => 'village',
+);
+assert.equal(localProsperityCapacity.prosperityRoadBranches?.size, 1);
+assert.equal(localProsperityCapacity.grainRoadBranches?.size, 1);
+const localProsperityBranch = localProsperityCapacity.prosperityRoadBranches
+  ?.values().next().value;
+assert.equal(localProsperityBranch?.currentResidents, 10);
+assert.equal(localProsperityBranch?.fullResidents, 10);
+approx(localProsperityBranch?.aleOutputPerDay ?? -1, fullWeek.aleOutputPerDay);
+approx(
+  localProsperityBranch?.preservedFoodOutputPerDay ?? -1,
+  fullWeek.preservedFoodOutputPerDay,
+);
+approx(localProsperityBranch?.clothOutputPerDay ?? -1, fullWeek.clothOutputPerDay);
+const localGrainBranch = localProsperityCapacity.grainRoadBranches
+  ?.values().next().value;
+approx(localGrainBranch?.breadGrainPerDay ?? -1, fullWeek.breadGrainPerDay);
+approx(localGrainBranch?.aleGrainPerDay ?? -1, fullWeek.aleGrainPerDay);
+assert.equal(
   grainChainBalanceLabel(fullWeek),
   'Balanced milling and baking capacity',
 );
@@ -298,6 +325,76 @@ approx(
 );
 assert.equal(targetedProduction.millOutputRoom.targetPercent, 25);
 
+const splitChainState = emptyGameState();
+const splitMill = building('split-mill', 'watermill', 1);
+splitMill.x = 0;
+splitChainState.buildings.set(splitMill.id, splitMill);
+const splitBakery = building('split-bakery', 'granary', 1);
+splitBakery.x = 100;
+splitChainState.buildings.set(splitBakery.id, splitBakery);
+const assumedConnectedChain = computeSettlementProductionCapacity(
+  splitChainState,
+  false,
+);
+const splitChain = computeSettlementProductionCapacity(
+  splitChainState,
+  false,
+  (candidate) => candidate.x < 50 ? 'west' : 'east',
+);
+assert.ok(
+  assumedConnectedChain.breadFoodCapacityPerDay > 0,
+  'the legacy aggregate demonstrates why disconnected capacity was overstated',
+);
+assert.equal(
+  splitChain.breadFoodCapacityPerDay,
+  0,
+  'mills and bakeries on disconnected branches cannot form a bread chain',
+);
+assert.equal(splitChain.grainChainRoads.activeBranches, 2);
+assert.equal(splitChain.grainChainRoads.matchedBranches, 0);
+assert.equal(splitChain.grainChainRoads.millOnlyBranches, 1);
+assert.equal(splitChain.grainChainRoads.bakeryOnlyBranches, 1);
+approx(
+  splitChain.grainChainRoads.hypotheticalFoodPerDay,
+  assumedConnectedChain.breadFoodCapacityPerDay,
+);
+approx(
+  splitChain.grainChainRoads.fragmentationFoodPerDay,
+  assumedConnectedChain.breadFoodCapacityPerDay,
+);
+assert.equal(
+  splitChain.grainChainRoads.firstImbalancedBuildingId,
+  splitBakery.id,
+  'the larger stranded side should be directly inspectable',
+);
+assert.match(grainChainBalanceLabel(splitChain), /Road-limited/);
+
+splitBakery.x = 10;
+const joinedChain = computeSettlementProductionCapacity(
+  splitChainState,
+  false,
+  () => 'joined',
+);
+approx(
+  joinedChain.breadFoodCapacityPerDay,
+  assumedConnectedChain.breadFoodCapacityPerDay,
+);
+assert.equal(joinedChain.grainChainRoads.activeBranches, 1);
+assert.equal(joinedChain.grainChainRoads.matchedBranches, 1);
+assert.equal(joinedChain.grainChainRoads.fragmentationFoodPerDay, 0);
+assert.equal(joinedChain.grainChainRoads.firstImbalancedBuildingId, null);
+
+const unroadedChain = computeSettlementProductionCapacity(
+  splitChainState,
+  false,
+  () => null,
+);
+assert.equal(
+  unroadedChain.breadFoodCapacityPerDay,
+  0,
+  'separate roadless workshops must not be treated as one shared branch',
+);
+
 const september = gameClockAtElapsedSeconds(
   6 * CALENDAR_DAYS_PER_MONTH * CALENDAR_SECONDS_PER_DAY,
 );
@@ -332,6 +429,8 @@ assert.equal(
 approx(farmPlan.seedGrainShortfall, 5.6);
 assert.equal(farmPlan.seedShortHoldings, 1);
 assert.equal(farmPlan.firstSeedShortBuildingId, shortFarm.id);
+approx(farmPlan.seedGrainByHolding.get(shortFarm.id) ?? -1, 5.6);
+assert.equal(farmPlan.seedGrainByHolding.get(stockedFarm.id), 0);
 assert.equal(farmPlan.harvest.shortfallWorkerDays, 0);
 assert.ok(farmPlan.spring.requiredWorkerDays > 0);
 assert.ok(
@@ -427,6 +526,7 @@ const grainPlanInput = {
     candidate.id === linkedMonastery.id ? 1 : 0.45,
 };
 const grainPlan = computeSettlementGrainPlan(grainPlanInput);
+assert.equal(grainPlan.roadPlan, null);
 approx(grainPlan.totalStock, 51);
 approx(grainPlan.inTransit, 16);
 assert.deepEqual(grainPlan.seed, { target: 10, protected: 6, shortfall: 4 });
@@ -467,6 +567,149 @@ const reserveAttention = computeSettlementGrainPlan(grainPlanInput);
 assert.equal(reserveAttention.firstAttentionKind, 'granary-reserve');
 assert.equal(reserveAttention.firstAttentionBuildingId, reserveGranary.id);
 
+const roadGrainState = emptyGameState();
+const roadMill = building('road-grain-mill', 'watermill', 1);
+roadMill.x = 0;
+roadGrainState.buildings.set(roadMill.id, roadMill);
+const roadBakery = building('road-grain-bakery', 'granary', 1);
+roadBakery.x = 0;
+roadBakery.grain = 30;
+roadBakery.granaryGrainReserve = 20;
+roadGrainState.buildings.set(roadBakery.id, roadBakery);
+const roadBrewery = building('road-grain-brewery', 'brewery', 1);
+roadBrewery.x = 100;
+roadGrainState.buildings.set(roadBrewery.id, roadBrewery);
+const remoteFarm = building('road-grain-farm', 'threshing_barn', 1);
+remoteFarm.x = 200;
+remoteFarm.grain = 100;
+roadGrainState.buildings.set(remoteFarm.id, remoteFarm);
+const roadGrainComponent = (candidate: Pick<BuildingState, 'x'>) =>
+  candidate.x < 50 ? 'bread' : candidate.x < 150 ? 'ale' : 'remote';
+const splitRoadProduction = computeSettlementProductionCapacity(
+  roadGrainState,
+  false,
+  roadGrainComponent,
+);
+assert.equal(splitRoadProduction.grainChainRoads.activeBranches, 1);
+assert.equal(splitRoadProduction.grainRoadBranches?.size, 2);
+const roadGrainInput = {
+  state: roadGrainState,
+  farmPlan: {
+    seedGrainRequired: 20,
+    seedGrainCovered: 20,
+    firstSeedShortBuildingId: null,
+    laborCoveredHarvest: 0,
+    expectedHarvest: 0,
+    seedGrainByHolding: new Map([[remoteFarm.id, 20]]),
+  },
+  livestockFodder: {
+    winterGrainNeed: 0,
+    winterReserveTarget: 0,
+    winterReserveStock: 0,
+    firstShortBuildingId: null,
+  },
+  granaryReserve: {
+    reserveTarget: 20,
+    protectedStock: 20,
+    firstShortGranaryId: null,
+  },
+  production: splitRoadProduction,
+  sabbathObserved: false,
+  monasteryProductivity: () => 1,
+  roadComponentFor: roadGrainComponent,
+};
+const splitRoadGrainPlan = computeSettlementGrainPlan(roadGrainInput);
+approx(splitRoadGrainPlan.processorRunwayDays, 1.5);
+assert.equal(splitRoadGrainPlan.roadPlan?.activeBranches, 3);
+assert.equal(splitRoadGrainPlan.roadPlan?.drawingBranches, 2);
+assert.equal(splitRoadGrainPlan.roadPlan?.stockedDrawingBranches, 1);
+assert.equal(splitRoadGrainPlan.roadPlan?.unstockedDrawingBranches, 1);
+approx(
+  splitRoadGrainPlan.roadPlan?.processorGrainPerDay ?? -1,
+  splitRoadGrainPlan.processorGrainPerDay,
+);
+approx(splitRoadGrainPlan.roadPlan?.dispatchableSourceStock ?? -1, 90);
+approx(splitRoadGrainPlan.roadPlan?.matchedSourceStock ?? -1, 10);
+approx(splitRoadGrainPlan.roadPlan?.outsideProcessorBranchStock ?? -1, 80);
+assert.equal(splitRoadGrainPlan.roadPlan?.weakestSourceRunwayDays, 0);
+assert.equal(
+  splitRoadGrainPlan.roadPlan?.firstExposedBuildingId,
+  roadBrewery.id,
+  'remote grain must not hide the unstocked brewery branch',
+);
+
+const joinedRoadProduction = computeSettlementProductionCapacity(
+  roadGrainState,
+  false,
+  () => 'joined',
+);
+const joinedRoadGrainPlan = computeSettlementGrainPlan({
+  ...roadGrainInput,
+  production: joinedRoadProduction,
+  roadComponentFor: () => 'joined',
+});
+assert.equal(joinedRoadGrainPlan.roadPlan?.activeBranches, 1);
+assert.equal(joinedRoadGrainPlan.roadPlan?.drawingBranches, 1);
+assert.equal(joinedRoadGrainPlan.roadPlan?.stockedDrawingBranches, 1);
+assert.equal(joinedRoadGrainPlan.roadPlan?.unstockedDrawingBranches, 0);
+approx(joinedRoadGrainPlan.roadPlan?.matchedSourceStock ?? -1, 90);
+assert.equal(joinedRoadGrainPlan.roadPlan?.outsideProcessorBranchStock, 0);
+approx(joinedRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1, 1.5);
+
+const abbeyRoadState = emptyGameState();
+const isolatedAbbey = building('isolated-abbey', 'monastery', 0);
+isolatedAbbey.x = 0;
+abbeyRoadState.buildings.set(isolatedAbbey.id, isolatedAbbey);
+const abbeyRemoteFarm = building('abbey-remote-farm', 'threshing_barn', 1);
+abbeyRemoteFarm.x = 100;
+abbeyRemoteFarm.grain = 40;
+abbeyRoadState.buildings.set(abbeyRemoteFarm.id, abbeyRemoteFarm);
+const abbeyComponent = (candidate: Pick<BuildingState, 'x'>) =>
+  candidate.x < 50 ? 'abbey' : 'remote';
+const abbeyProduction = computeSettlementProductionCapacity(
+  abbeyRoadState,
+  false,
+  abbeyComponent,
+);
+const abbeyGrainPlan = computeSettlementGrainPlan({
+  state: abbeyRoadState,
+  farmPlan: {
+    seedGrainRequired: 0,
+    seedGrainCovered: 0,
+    firstSeedShortBuildingId: null,
+    laborCoveredHarvest: 0,
+    expectedHarvest: 0,
+    seedGrainByHolding: new Map(),
+  },
+  livestockFodder: {
+    winterGrainNeed: 0,
+    winterReserveTarget: 0,
+    winterReserveStock: 0,
+    firstShortBuildingId: null,
+  },
+  granaryReserve: {
+    reserveTarget: 0,
+    protectedStock: 0,
+    firstShortGranaryId: null,
+  },
+  production: abbeyProduction,
+  sabbathObserved: false,
+  monasteryProductivity: () => 1,
+  roadComponentFor: abbeyComponent,
+});
+assert.equal(abbeyGrainPlan.roadPlan?.activeBranches, 2);
+assert.equal(abbeyGrainPlan.roadPlan?.drawingBranches, 1);
+assert.equal(abbeyGrainPlan.roadPlan?.unstockedDrawingBranches, 1);
+approx(
+  abbeyGrainPlan.roadPlan?.processorGrainPerDay ?? -1,
+  abbeyGrainPlan.monasteryGrainPerDay,
+);
+assert.equal(abbeyGrainPlan.roadPlan?.outsideProcessorBranchStock, 40);
+assert.equal(
+  abbeyGrainPlan.roadPlan?.firstExposedBuildingId,
+  isolatedAbbey.id,
+);
+
 const seedProcurementState = emptyGameState();
 const readySeedMarket = building('seed-market-2', 'marketplace', 1);
 readySeedMarket.marketplaceSeedGrainTarget = 48;
@@ -491,15 +734,18 @@ assert.equal(seedProcurement.targetMarkets, 3);
 assert.equal(seedProcurement.dueMarkets, 2);
 assert.equal(seedProcurement.readyMarkets, 1);
 assert.equal(seedProcurement.currentMarketStock, 25);
+assert.equal(seedProcurement.currentGranaryStock, 0);
 assert.equal(seedProcurement.targetStock, 120);
 assert.equal(seedProcurement.plannedImportLots, 3);
 assert.equal(seedProcurement.plannedImportGrain, 72);
+assert.equal(seedProcurement.inboundSeedGrain, 0);
 assert.equal(seedProcurement.affordableLotsAtCurrentRate, 1);
 assert.equal(seedProcurement.potentialCoverage, 60);
 assert.equal(seedProcurement.uncoveredShortfall, 0);
 assert.equal(seedProcurement.laborBlockedMarkets, 1);
 assert.equal(seedProcurement.firstAttentionMarketId, unstaffedSeedMarket.id);
 assert.equal(seedProcurement.firstAttentionKind, 'labor');
+assert.equal(seedProcurement.roadPlan, null);
 
 const frontierQueueMarket = building('frontier-seed-market', 'marketplace', 1);
 frontierQueueMarket.marketplaceSeedGrainTarget = 96;
@@ -535,8 +781,126 @@ const physicalSeedProcurement = computeSettlementSeedProcurementPlan({
 });
 assert.equal(physicalSeedProcurement.plannedImportGrain, 0);
 assert.equal(physicalSeedProcurement.currentMarketStock, 24);
+assert.equal(physicalSeedProcurement.currentGranaryStock, 0);
 assert.equal(physicalSeedProcurement.potentialCoverage, 24);
 assert.equal(physicalSeedProcurement.uncoveredShortfall, 16);
+assert.equal(physicalSeedProcurement.roadPlan, null);
+
+const seedRoadState = emptyGameState();
+const eastSeedFarm = building('east-seed-farm', 'threshing_barn', 1);
+eastSeedFarm.x = 0;
+seedRoadState.buildings.set(eastSeedFarm.id, eastSeedFarm);
+const westSeedFarm = building('west-seed-farm', 'threshing_barn', 1);
+westSeedFarm.x = 100;
+seedRoadState.buildings.set(westSeedFarm.id, westSeedFarm);
+const eastSeedMarket = building('east-seed-market', 'marketplace', 1);
+eastSeedMarket.x = 0;
+eastSeedMarket.grain = 10;
+eastSeedMarket.marketplaceSeedGrainTarget = 48;
+seedRoadState.buildings.set(eastSeedMarket.id, eastSeedMarket);
+const remoteSeedMarket = building('remote-seed-market', 'marketplace', 1);
+remoteSeedMarket.x = 200;
+remoteSeedMarket.grain = 100;
+seedRoadState.buildings.set(remoteSeedMarket.id, remoteSeedMarket);
+const eastSeedGranary = building('east-seed-granary', 'granary', 0);
+eastSeedGranary.x = 0;
+eastSeedGranary.grain = 10;
+seedRoadState.buildings.set(eastSeedGranary.id, eastSeedGranary);
+seedRoadState.deliveryTrips.set(
+  'west-seed-cart',
+  deliveryTrip('west-seed-cart', westSeedFarm.id, 5, 'outbound'),
+);
+const seedRoadRequirements = new Map([
+  [eastSeedFarm.id, 20],
+  [westSeedFarm.id, 20],
+]);
+const seedRoadComponent = (candidate: BuildingState): number =>
+  candidate.x < 50 ? 1 : candidate.x < 150 ? 2 : 3;
+const roadMatchedSeedProcurement = computeSettlementSeedProcurementPlan({
+  state: seedRoadState,
+  seedShortfall: 40,
+  seedGrainByHolding: seedRoadRequirements,
+  availableGold: 100,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+  roadComponentFor: seedRoadComponent,
+});
+assert.equal(roadMatchedSeedProcurement.seedShortfall, 35);
+assert.equal(roadMatchedSeedProcurement.currentMarketStock, 110);
+assert.equal(roadMatchedSeedProcurement.currentGranaryStock, 10);
+assert.equal(roadMatchedSeedProcurement.plannedImportGrain, 24);
+assert.equal(roadMatchedSeedProcurement.inboundSeedGrain, 5);
+assert.equal(roadMatchedSeedProcurement.potentialCoverage, 20);
+assert.equal(roadMatchedSeedProcurement.uncoveredShortfall, 15);
+assert.equal(roadMatchedSeedProcurement.roadPlan?.activeBranches, 3);
+assert.equal(roadMatchedSeedProcurement.roadPlan?.shortBranches, 2);
+assert.equal(roadMatchedSeedProcurement.roadPlan?.recoverableBranches, 1);
+assert.equal(roadMatchedSeedProcurement.roadPlan?.exposedBranches, 1);
+assert.equal(roadMatchedSeedProcurement.roadPlan?.fragmentationCoverage, 15);
+assert.equal(roadMatchedSeedProcurement.roadPlan?.unmatchedRecoveryGrain, 124);
+assert.equal(roadMatchedSeedProcurement.roadPlan?.unroutableShortfall, 0);
+assert.equal(
+  roadMatchedSeedProcurement.roadPlan?.firstExposedBuildingId,
+  westSeedFarm.id,
+);
+
+const joinedSeedProcurement = computeSettlementSeedProcurementPlan({
+  state: seedRoadState,
+  seedShortfall: 40,
+  seedGrainByHolding: seedRoadRequirements,
+  availableGold: 100,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+  roadComponentFor: () => 1,
+});
+assert.equal(joinedSeedProcurement.potentialCoverage, 35);
+assert.equal(joinedSeedProcurement.inboundSeedGrain, 5);
+assert.equal(joinedSeedProcurement.uncoveredShortfall, 0);
+assert.equal(joinedSeedProcurement.roadPlan?.activeBranches, 1);
+assert.equal(joinedSeedProcurement.roadPlan?.fragmentationCoverage, 0);
+assert.equal(joinedSeedProcurement.roadPlan?.exposedBranches, 0);
+
+const orphanedSeedProcurement = computeSettlementSeedProcurementPlan({
+  state: seedRoadState,
+  seedShortfall: 47,
+  seedGrainByHolding: new Map([
+    ...seedRoadRequirements,
+    ['missing-seed-farm', 7],
+  ]),
+  availableGold: 100,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+  roadComponentFor: seedRoadComponent,
+});
+assert.equal(orphanedSeedProcurement.seedShortfall, 42);
+assert.equal(orphanedSeedProcurement.potentialCoverage, 20);
+assert.equal(orphanedSeedProcurement.uncoveredShortfall, 22);
+assert.equal(orphanedSeedProcurement.roadPlan?.unroutableShortfall, 7);
+
+const granarySeedState = emptyGameState();
+const granarySeedFarm = building('granary-seed-farm', 'threshing_barn', 1);
+granarySeedState.buildings.set(granarySeedFarm.id, granarySeedFarm);
+const seedOnlyGranary = building('seed-only-granary', 'granary', 0);
+seedOnlyGranary.grain = 12;
+granarySeedState.buildings.set(seedOnlyGranary.id, seedOnlyGranary);
+const granarySeedProcurement = computeSettlementSeedProcurementPlan({
+  state: granarySeedState,
+  seedShortfall: 20,
+  seedGrainByHolding: new Map([[granarySeedFarm.id, 20]]),
+  availableGold: 0,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+  roadComponentFor: () => 1,
+});
+assert.equal(granarySeedProcurement.marketplaces, 0);
+assert.equal(granarySeedProcurement.currentGranaryStock, 12);
+assert.equal(granarySeedProcurement.inboundSeedGrain, 0);
+assert.equal(granarySeedProcurement.potentialCoverage, 12);
+assert.equal(granarySeedProcurement.uncoveredShortfall, 8);
 
 const cattleHolding = building('cattle-holding', 'pastoral_farmstead', 1);
 cattleHolding.x = 10;
@@ -617,6 +981,30 @@ assert.ok(
   elapsedMs < 200,
   `100,000-building production ledger took ${elapsedMs.toFixed(1)} ms`,
 );
+const branchedStarted = performance.now();
+const branchedPerfCapacity = computeSettlementProductionCapacity(
+  perfState,
+  false,
+  (candidate) => Math.floor(
+    Number(candidate.id.slice('processor-'.length)) / 500,
+  ),
+);
+const branchedElapsedMs = performance.now() - branchedStarted;
+assert.equal(branchedPerfCapacity.grainChainRoads.activeBranches, 200);
+assert.equal(branchedPerfCapacity.grainChainRoads.fragmentationFoodPerDay, 0);
+assert.equal(branchedPerfCapacity.prosperityRoadBranches?.size, 200);
+assert.equal(branchedPerfCapacity.grainRoadBranches?.size, 200);
+assert.ok(
+  Math.abs(
+    branchedPerfCapacity.breadFoodCapacityPerDay
+      - perfCapacity.breadFoodCapacityPerDay,
+  ) < 1e-6,
+  'locally balanced branches should retain the same real throughput',
+);
+assert.ok(
+  branchedElapsedMs < 250,
+  `100,000-building road-branch ledger took ${branchedElapsedMs.toFixed(1)} ms`,
+);
 
 for (let index = 0; index < 100_000; index += 1) {
   perfState.deliveryTrips.set(
@@ -659,12 +1047,17 @@ const perfGrainPlan = computeSettlementGrainPlan({
     protectedStock: 0,
     firstShortGranaryId: null,
   },
-  production: perfCapacity,
+  production: branchedPerfCapacity,
   sabbathObserved: false,
   monasteryProductivity: () => 1,
+  roadComponentFor: (candidate) => Math.floor(
+    Number(candidate.id.slice('processor-'.length)) / 500,
+  ),
 });
 const grainPerfElapsedMs = performance.now() - grainPerfStarted;
 assert.equal(perfGrainPlan.inTransit, 100_000);
+assert.equal(perfGrainPlan.roadPlan?.drawingBranches, 200);
+assert.equal(perfGrainPlan.roadPlan?.unstockedDrawingBranches, 200);
 assert.deepEqual(perfGrainPlan.processorPriorityCounts, {
   1: 0,
   2: 40_000,
@@ -723,6 +1116,45 @@ assert.ok(
   `100,000-market standing seed ledger took ${procurementPerfElapsedMs.toFixed(1)} ms`,
 );
 
+const seedTopologyRequirements = new Map<string, number>();
+for (let index = 0; index < 100_000; index += 1) {
+  const candidate = procurementPerfState.buildings.get(`seed-market-${index}`);
+  assert.ok(candidate);
+  candidate.x = Math.floor(index / 500);
+  candidate.assignedLabor = 1;
+  if (index % 2 === 0) {
+    candidate.grain = 24;
+    candidate.marketplaceSeedGrainTarget = 48;
+  } else {
+    candidate.kind = 'threshing_barn';
+    candidate.grain = 0;
+    seedTopologyRequirements.set(candidate.id, 24);
+  }
+}
+const seedTopologyStarted = performance.now();
+const seedTopologyPlan = computeSettlementSeedProcurementPlan({
+  state: procurementPerfState,
+  seedShortfall: 1_200_000,
+  seedGrainByHolding: seedTopologyRequirements,
+  availableGold: 1_000_000,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+  roadComponentFor: (candidate) => candidate.x,
+});
+const seedTopologyElapsedMs = performance.now() - seedTopologyStarted;
+assert.equal(seedTopologyPlan.marketplaces, 50_000);
+assert.equal(seedTopologyPlan.seedShortfall, 1_200_000);
+assert.equal(seedTopologyPlan.potentialCoverage, 1_200_000);
+assert.equal(seedTopologyPlan.roadPlan?.activeBranches, 200);
+assert.equal(seedTopologyPlan.roadPlan?.shortBranches, 200);
+assert.equal(seedTopologyPlan.roadPlan?.recoverableBranches, 200);
+assert.equal(seedTopologyPlan.roadPlan?.exposedBranches, 0);
+assert.ok(
+  seedTopologyElapsedMs < 300,
+  `100,000-building road-matched seed forecast took ${seedTopologyElapsedMs.toFixed(1)} ms`,
+);
+
 const townHallInspector = readFileSync(
   new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
   'utf8',
@@ -740,6 +1172,9 @@ assert.match(townHallInspector, /Cloth capacity/);
 assert.match(townHallInspector, /data-inspect-building=/);
 assert.match(townHallInspector, /processorBottleneckBuildingId/);
 assert.match(townHallInspector, /Mill \/ bakery balance/);
+assert.match(townHallInspector, /Grain-chain roads/);
+assert.match(townHallInspector, /unavailable until branches connect/);
+assert.match(townHallInspector, /Inspect most imbalanced grain-chain branch/);
 assert.match(townHallInspector, /Bread capacity/);
 assert.match(townHallInspector, /bakery intake/);
 assert.match(townHallInspector, /September harvest/);
@@ -749,12 +1184,22 @@ assert.match(townHallInspector, /Ox-supported fields/);
 assert.match(townHallInspector, /Grain allocation/);
 assert.match(townHallInspector, /Protected grain/);
 assert.match(townHallInspector, /Installed grain draw/);
+assert.match(townHallInspector, /Processor grain roads/);
+assert.match(townHallInspector, /weakest source reserve/);
+assert.match(townHallInspector, /workshop stocks and carts excluded/);
+assert.match(townHallInspector, /Inspect weakest processor grain road branch/);
 assert.match(townHallInspector, /Grain cart priorities/);
 assert.match(townHallInspector, /carts serve higher tiers first/);
 assert.match(townHallInspector, /Crop-year balance/);
 assert.match(townHallInspector, /imports excluded/);
 assert.match(townHallInspector, /Standing seed orders/);
 assert.match(townHallInspector, /Seed recovery ceiling/);
+assert.match(townHallInspector, /granary grain/);
+assert.match(townHallInspector, /on matching road branches/);
+assert.match(townHallInspector, /grain already approaching by cart/);
+assert.match(townHallInspector, /apparent coverage stranded by road layout/);
+assert.match(townHallInspector, /recovery grain outside current branch gaps/);
+assert.match(townHallInspector, /gap at incomplete or orphaned holdings/);
 assert.match(townHallInspector, /future purchases remain excluded from crop-year balance until bought/);
 assert.match(townHallInspector, /later lots reprice/);
 assert.match(townHallInspector, /computeSettlementSeedProcurementPlan/);
@@ -774,15 +1219,17 @@ assert.match(resourceInspector, /findBuildingTarget\(inspectBuildingId\)/);
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-field\]'\)/);
 assert.match(resourceInspector, /findFarmFieldTarget\(inspectFieldId\)/);
 assert.match(resourceInspector, /onFocusWorldPosition\?\./);
+assert.match(resourceInspector, /getRoadComponentId/);
 
 const worldQueries = readFileSync(
   new URL('../src/resources/WorldQueries.ts', import.meta.url),
   'utf8',
 );
 assert.match(worldQueries, /findFarmFieldTarget\(fieldId: string\)/);
+assert.match(worldQueries, /getRoadComponentId\(x: number, z: number\)/);
 
 console.log(
-  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets)`,
+  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 200 road branches; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,
 );
 
 function approx(actual: number, expected: number, message?: string): void {

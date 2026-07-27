@@ -43,6 +43,7 @@ type CityAdministrationPanelOptions = {
   getParishPolicy: () => ParishPolicyState;
   getMonasteryPolicy: () => MonasteryPolicyState;
   getWorldQueries?: () => WorldQueries | null;
+  getWorldHydrology?: () => number;
   onOpenChange?: (open: boolean) => void;
 };
 
@@ -193,24 +194,24 @@ export class CityAdministrationPanel {
       </div>
       <dl class="city-admin-panel__stats">
         <div class="city-admin-panel__stat">
-          <dt>Village activity (GDP)</dt>
-          <dd data-gdp-value>0 gold / day</dd>
+          <dt>Garden market activity today</dt>
+          <dd data-gdp-value>0 gold today</dd>
         </div>
         <div class="city-admin-panel__stat">
           <dt>Household wealth</dt>
           <dd data-household-wealth-value>0 gold saved</dd>
         </div>
         <div class="city-admin-panel__stat">
-          <dt>Household savings rate</dt>
-          <dd data-household-savings-value>0 gold / day</dd>
+          <dt>Household garden income today</dt>
+          <dd data-household-savings-value>0 gold today</dd>
         </div>
         <div class="city-admin-panel__stat">
           <dt>Trade productivity</dt>
           <dd data-productivity-value>100%</dd>
         </div>
         <div class="city-admin-panel__stat">
-          <dt>Mayor tax income</dt>
-          <dd data-tax-income-value>0 gold / day</dd>
+          <dt>Garden tax collected today</dt>
+          <dd data-tax-income-value>0 gold today</dd>
         </div>
         <div class="city-admin-panel__stat">
           <dt>Parish tithe (→ coffer)</dt>
@@ -522,6 +523,7 @@ export class CityAdministrationPanel {
     const readout = buildVillageAdminReadout({
       gameState: this.options.getGameState(),
       worldQueries: this.options.getWorldQueries?.() ?? null,
+      worldHydrology: this.options.getWorldHydrology?.() ?? 50,
       taxRate,
       parishPolicy,
     });

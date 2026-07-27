@@ -27,8 +27,14 @@ import {
   type DeliveryCargoKind,
   type DeliveryTripState,
 } from '../logistics/deliveryTrips.ts';
+import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
-import type { BuildingKind, BuildingState, GameState } from '../resources/types.ts';
+import type {
+  BuildingKind,
+  BuildingState,
+  GameState,
+  ResidenceState,
+} from '../resources/types.ts';
 import {
   normalizeProcessorOutputTargetPercent,
   processorOutputTargetForBuilding,
@@ -54,6 +60,8 @@ export type SettlementProductionCapacity = {
   flourOutputPerDay: number;
   bakeryFlourCapacityPerDay: number;
   breadFoodCapacityPerDay: number;
+  grainChainRoads: GrainChainRoadPlan;
+  grainRoadBranches: ReadonlyMap<string, ProductionGrainRoadBranch> | null;
   breadGrainPerDay: number;
   breadWaterPerDay: number;
   breadFirewoodPerDay: number;
@@ -69,6 +77,7 @@ export type SettlementProductionCapacity = {
   aleDemandPerDay: number;
   preservedFoodDemandPerDay: number;
   clothDemandPerDay: number;
+  prosperityRoadBranches: ReadonlyMap<string, ProsperityRoadBranch> | null;
 };
 
 export type ProcessorInput =
@@ -96,6 +105,47 @@ export type ProcessorOutputRoom = {
   targetPercent: number;
 };
 
+export type GrainChainRoadPlan = {
+  activeBranches: number;
+  matchedBranches: number;
+  millOnlyBranches: number;
+  bakeryOnlyBranches: number;
+  hypotheticalFoodPerDay: number;
+  fragmentationFoodPerDay: number;
+  firstImbalancedBuildingId: string | null;
+};
+
+export type ProductionGrainRoadBranch = {
+  breadGrainPerDay: number;
+  aleGrainPerDay: number;
+  firstProcessorId: string | null;
+};
+
+type ProductionRoadEntity = Pick<BuildingState | ResidenceState, 'id' | 'x' | 'z'>;
+
+export type ProductionRoadComponentResolver = (
+  entity: ProductionRoadEntity,
+) => string | number | null;
+
+export type ProsperityRoadBranch = {
+  currentResidents: number;
+  fullResidents: number;
+  preservedFoodOutputPerDay: number;
+  aleOutputPerDay: number;
+  clothOutputPerDay: number;
+  firstResidenceId: string | null;
+};
+
+export function productionRoadBranchKey(
+  component: string | number | null,
+  entityKind: 'building' | 'residence',
+  entityId: string,
+): string {
+  return component === null
+    ? `unroaded:${entityKind}:${entityId}`
+    : `component:${typeof component}:${String(component)}`;
+}
+
 const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
   / CALENDAR_HOURS_PER_DAY;
@@ -117,7 +167,19 @@ type ProcessorOverview = Pick<
   | 'breweryOutputRoom'
   | 'smokehouseOutputRoom'
   | 'weaverOutputRoom'
->;
+> & {
+  grainChainBranches: Map<string, GrainChainBranch>;
+  prosperityRoadBranches: Map<string, ProsperityRoadBranch> | null;
+};
+
+type GrainChainBranch = {
+  millWorkers: number;
+  bakeryWorkers: number;
+  breweryGrainPerDay: number;
+  firstMillId: string | null;
+  firstBakeryId: string | null;
+  firstBreweryId: string | null;
+};
 
 type TimedInputDelivery = {
   amount: number;
@@ -127,6 +189,99 @@ type TimedInputDelivery = {
 type TimedInputDeliveries = Map<string, Map<DeliveryCargoKind, TimedInputDelivery[]>>;
 
 type InputRunway = Omit<ProcessorInputBuffer, 'limitingInput' | 'buildingId'>;
+
+function grainChainBranchKey(
+  building: BuildingState,
+  componentFor: ProductionRoadComponentResolver | undefined,
+): string {
+  if (!componentFor) return 'settlement';
+  return productionRoadBranchKey(
+    componentFor(building),
+    'building',
+    building.id,
+  );
+}
+
+function prosperityRoadBranch(
+  branches: Map<string, ProsperityRoadBranch>,
+  key: string,
+): ProsperityRoadBranch {
+  let branch = branches.get(key);
+  if (branch) return branch;
+  branch = {
+    currentResidents: 0,
+    fullResidents: 0,
+    preservedFoodOutputPerDay: 0,
+    aleOutputPerDay: 0,
+    clothOutputPerDay: 0,
+    firstResidenceId: null,
+  };
+  branches.set(key, branch);
+  return branch;
+}
+
+function recordProsperityOutput(
+  branches: Map<string, ProsperityRoadBranch> | null,
+  building: BuildingState,
+  componentFor: ProductionRoadComponentResolver | undefined,
+  kind: 'preservedFood' | 'ale' | 'cloth',
+  outputPerDay: number,
+): void {
+  if (!branches || !componentFor) return;
+  const branch = prosperityRoadBranch(
+    branches,
+    productionRoadBranchKey(
+      componentFor(building),
+      'building',
+      building.id,
+    ),
+  );
+  if (kind === 'preservedFood') {
+    branch.preservedFoodOutputPerDay += outputPerDay;
+  } else if (kind === 'ale') {
+    branch.aleOutputPerDay += outputPerDay;
+  } else {
+    branch.clothOutputPerDay += outputPerDay;
+  }
+}
+
+function earlierStableId(current: string | null, candidate: string): string {
+  return current === null || compareStableEntityIds(candidate, current) < 0
+    ? candidate
+    : current;
+}
+
+function recordGrainRoadActivity(
+  branches: Map<string, GrainChainBranch>,
+  building: BuildingState,
+  role: 'mill' | 'bakery' | 'brewery',
+  componentFor: ProductionRoadComponentResolver | undefined,
+  grainPerDay = 0,
+): void {
+  const key = grainChainBranchKey(building, componentFor);
+  const branch = branches.get(key) ?? {
+    millWorkers: 0,
+    bakeryWorkers: 0,
+    breweryGrainPerDay: 0,
+    firstMillId: null,
+    firstBakeryId: null,
+    firstBreweryId: null,
+  };
+  if (role === 'mill') {
+    branch.millWorkers += building.assignedLabor;
+    branch.firstMillId = earlierStableId(branch.firstMillId, building.id);
+  } else if (role === 'bakery') {
+    branch.bakeryWorkers += building.assignedLabor;
+    branch.firstBakeryId = earlierStableId(branch.firstBakeryId, building.id);
+  } else {
+    branch.breweryGrainPerDay += Math.max(0, grainPerDay);
+    branch.firstBreweryId = earlierStableId(
+      branch.firstBreweryId,
+      building.id,
+    );
+  }
+  branches.set(key, branch);
+}
 
 function timedInputDeliveries(
   trips: Iterable<DeliveryTripState>,
@@ -259,6 +414,7 @@ function buildingInputRunway(
 function completedProcessorOverview(
   state: GameState,
   sabbathObserved: boolean,
+  componentFor: ProductionRoadComponentResolver | undefined,
 ): ProcessorOverview {
   const deliveries = timedInputDeliveries(state.deliveryTrips.values());
   const millCyclesPerWorker = cyclesPerCalendarDay('watermill', 1, sabbathObserved);
@@ -281,6 +437,10 @@ function completedProcessorOverview(
   let breweryOutputRoom: ProcessorOutputRoom | null = null;
   let smokehouseOutputRoom: ProcessorOutputRoom | null = null;
   let weaverOutputRoom: ProcessorOutputRoom | null = null;
+  const grainChainBranches = new Map<string, GrainChainBranch>();
+  const prosperityRoadBranches = componentFor
+    ? new Map<string, ProsperityRoadBranch>()
+    : null;
   for (const building of state.buildings.values()) {
     if (building.constructionComplete === false || building.assignedLabor <= 0) {
       continue;
@@ -288,6 +448,12 @@ function completedProcessorOverview(
     switch (building.kind) {
       case 'watermill': {
         millWorkers += building.assignedLabor;
+        recordGrainRoadActivity(
+          grainChainBranches,
+          building,
+          'mill',
+          componentFor,
+        );
         const cycles = millCyclesPerWorker * building.assignedLabor;
         millInputBuffer = updateFirstToStop(
           millInputBuffer,
@@ -315,6 +481,12 @@ function completedProcessorOverview(
       }
       case 'granary': {
         bakeryWorkers += building.assignedLabor;
+        recordGrainRoadActivity(
+          grainChainBranches,
+          building,
+          'bakery',
+          componentFor,
+        );
         const cycles = bakeryCyclesPerWorker * building.assignedLabor;
         let runway = buildingInputRunway(
           deliveries,
@@ -365,6 +537,20 @@ function completedProcessorOverview(
       case 'brewery': {
         breweryWorkers += building.assignedLabor;
         const cycles = breweryCyclesPerWorker * building.assignedLabor;
+        recordGrainRoadActivity(
+          grainChainBranches,
+          building,
+          'brewery',
+          componentFor,
+          cycles * BREWERY_GRAIN_PER_CYCLE,
+        );
+        recordProsperityOutput(
+          prosperityRoadBranches,
+          building,
+          componentFor,
+          'ale',
+          cycles * BREWERY_ALE_PER_CYCLE,
+        );
         let runway = buildingInputRunway(
           deliveries,
           building,
@@ -404,6 +590,13 @@ function completedProcessorOverview(
       case 'smokehouse': {
         smokehouseWorkers += building.assignedLabor;
         const cycles = smokehouseCyclesPerWorker * building.assignedLabor;
+        recordProsperityOutput(
+          prosperityRoadBranches,
+          building,
+          componentFor,
+          'preservedFood',
+          cycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+        );
         let runway = buildingInputRunway(
           deliveries,
           building,
@@ -443,6 +636,13 @@ function completedProcessorOverview(
       case 'weaver': {
         weaverWorkers += building.assignedLabor;
         const cycles = weaverCyclesPerWorker * building.assignedLabor;
+        recordProsperityOutput(
+          prosperityRoadBranches,
+          building,
+          componentFor,
+          'cloth',
+          cycles * WEAVER_CLOTH_PER_CYCLE,
+        );
         weaverInputBuffer = updateFirstToStop(
           weaverInputBuffer,
           buildingInputRunway(
@@ -487,6 +687,8 @@ function completedProcessorOverview(
     breweryOutputRoom,
     smokehouseOutputRoom,
     weaverOutputRoom,
+    grainChainBranches,
+    prosperityRoadBranches,
   };
 }
 
@@ -502,14 +704,129 @@ function cyclesPerCalendarDay(
   return WORKDAY_SECONDS * weeklyWorkShare * assignedLabor / interval;
 }
 
+function grainChainRoadPlan(
+  branches: ReadonlyMap<string, GrainChainBranch>,
+  sabbathObserved: boolean,
+  hypotheticalFoodPerDay: number,
+): GrainChainRoadPlan & {
+  matchedFoodPerDay: number;
+  grainRoadBranches: ReadonlyMap<string, ProductionGrainRoadBranch>;
+} {
+  let matchedFoodPerDay = 0;
+  let activeBranches = 0;
+  let matchedBranches = 0;
+  let millOnlyBranches = 0;
+  let bakeryOnlyBranches = 0;
+  let largestImbalance = 0;
+  let firstImbalancedBuildingId: string | null = null;
+  const grainRoadBranches = new Map<string, ProductionGrainRoadBranch>();
+
+  for (const [key, branch] of branches) {
+    const millCycles = cyclesPerCalendarDay(
+      'watermill',
+      branch.millWorkers,
+      sabbathObserved,
+    );
+    const bakeryCycles = cyclesPerCalendarDay(
+      'granary',
+      branch.bakeryWorkers,
+      sabbathObserved,
+    );
+    const millFlourPerDay = millCycles * WATERMILL_FLOUR_PER_CYCLE;
+    const bakeryFlourPerDay = bakeryCycles * GRANARY_FLOUR_PER_CYCLE;
+    const matchedFlourPerDay = Math.min(millFlourPerDay, bakeryFlourPerDay);
+    matchedFoodPerDay += matchedFlourPerDay
+      * GRANARY_FOOD_PER_CYCLE
+      / GRANARY_FLOUR_PER_CYCLE;
+    const breadGrainPerDay = matchedFlourPerDay
+      / WATERMILL_FLOUR_PER_CYCLE
+      * WATERMILL_GRAIN_PER_CYCLE;
+    let firstProcessorId = breadGrainPerDay > 1e-9
+      ? branch.firstMillId
+      : null;
+    if (
+      branch.breweryGrainPerDay > 1e-9
+      && branch.firstBreweryId !== null
+    ) {
+      firstProcessorId = earlierStableId(
+        firstProcessorId,
+        branch.firstBreweryId,
+      );
+    }
+    if (breadGrainPerDay > 1e-9 || branch.breweryGrainPerDay > 1e-9) {
+      grainRoadBranches.set(key, {
+        breadGrainPerDay,
+        aleGrainPerDay: branch.breweryGrainPerDay,
+        firstProcessorId,
+      });
+    }
+
+    if (branch.millWorkers <= 0 && branch.bakeryWorkers <= 0) continue;
+    activeBranches += 1;
+
+    if (branch.millWorkers > 0 && branch.bakeryWorkers > 0) {
+      matchedBranches += 1;
+    } else if (branch.millWorkers > 0) {
+      millOnlyBranches += 1;
+    } else if (branch.bakeryWorkers > 0) {
+      bakeryOnlyBranches += 1;
+    }
+
+    const imbalance = Math.abs(millFlourPerDay - bakeryFlourPerDay)
+      * GRANARY_FOOD_PER_CYCLE
+      / GRANARY_FLOUR_PER_CYCLE;
+    const candidateId = millFlourPerDay > bakeryFlourPerDay
+      ? branch.firstMillId
+      : branch.firstBakeryId;
+    if (
+      candidateId !== null
+      && (
+        imbalance > largestImbalance + 1e-9
+        || (
+          Math.abs(imbalance - largestImbalance) <= 1e-9
+          && (
+            firstImbalancedBuildingId === null
+            || compareStableEntityIds(candidateId, firstImbalancedBuildingId) < 0
+          )
+        )
+      )
+    ) {
+      largestImbalance = imbalance;
+      firstImbalancedBuildingId = candidateId;
+    }
+  }
+
+  const fragmentationFoodPerDay = Math.max(
+    0,
+    hypotheticalFoodPerDay - matchedFoodPerDay,
+  );
+  return {
+    activeBranches,
+    matchedBranches,
+    millOnlyBranches,
+    bakeryOnlyBranches,
+    hypotheticalFoodPerDay,
+    fragmentationFoodPerDay,
+    firstImbalancedBuildingId: fragmentationFoodPerDay > 0.05
+      ? firstImbalancedBuildingId
+      : null,
+    matchedFoodPerDay,
+    grainRoadBranches,
+  };
+}
+
 /**
  * Long-run installed workshop capacity using authoritative work hours, cycle
  * lengths, labor scaling, and Sabbath policy. Values deliberately assume full
  * input supply; the Town Hall labels them as capacity rather than production.
+ * When a component resolver is supplied, multi-stage bread capacity is matched
+ * inside real cart-connected road branches and sustained bread / ale grain draw
+ * is retained for the physical reserve ledger without any shortest-path solves.
  */
 export function computeSettlementProductionCapacity(
   state: GameState,
   sabbathObserved: boolean,
+  roadComponentFor?: ProductionRoadComponentResolver,
 ): SettlementProductionCapacity {
   const {
     millWorkers,
@@ -527,7 +844,9 @@ export function computeSettlementProductionCapacity(
     breweryOutputRoom,
     smokehouseOutputRoom,
     weaverOutputRoom,
-  } = completedProcessorOverview(state, sabbathObserved);
+    grainChainBranches,
+    prosperityRoadBranches,
+  } = completedProcessorOverview(state, sabbathObserved, roadComponentFor);
 
   const millCycles = cyclesPerCalendarDay('watermill', millWorkers, sabbathObserved);
   const bakeryCycles = cyclesPerCalendarDay('granary', bakeryWorkers, sabbathObserved);
@@ -541,9 +860,18 @@ export function computeSettlementProductionCapacity(
 
   const flourOutputPerDay = millCycles * WATERMILL_FLOUR_PER_CYCLE;
   const bakeryFlourCapacityPerDay = bakeryCycles * GRANARY_FLOUR_PER_CYCLE;
-  const breadFoodCapacityPerDay = Math.min(
+  const hypotheticalBreadFoodPerDay = Math.min(
     bakeryCycles * GRANARY_FOOD_PER_CYCLE,
     flourOutputPerDay * GRANARY_FOOD_PER_CYCLE / GRANARY_FLOUR_PER_CYCLE,
+  );
+  const {
+    matchedFoodPerDay: breadFoodCapacityPerDay,
+    grainRoadBranches,
+    ...grainChainRoads
+  } = grainChainRoadPlan(
+    grainChainBranches,
+    sabbathObserved,
+    hypotheticalBreadFoodPerDay,
   );
   const breadCyclesPerDay = breadFoodCapacityPerDay / GRANARY_FOOD_PER_CYCLE;
   const matchedFlourPerDay = breadCyclesPerDay * GRANARY_FLOUR_PER_CYCLE;
@@ -553,6 +881,22 @@ export function computeSettlementProductionCapacity(
   for (const residence of state.residences.values()) {
     if (!residence.abandoned && residence.tier >= 3) {
       tierThreeResidents += residence.population;
+      if (prosperityRoadBranches && roadComponentFor) {
+        const branch = prosperityRoadBranch(
+          prosperityRoadBranches,
+          productionRoadBranchKey(
+            roadComponentFor(residence),
+            'residence',
+            residence.id,
+          ),
+        );
+        branch.currentResidents += Math.max(0, residence.population);
+        branch.fullResidents += Math.max(0, residence.populationCapacity);
+        branch.firstResidenceId = earlierStableId(
+          branch.firstResidenceId,
+          residence.id,
+        );
+      }
     }
   }
 
@@ -576,6 +920,8 @@ export function computeSettlementProductionCapacity(
     flourOutputPerDay,
     bakeryFlourCapacityPerDay,
     breadFoodCapacityPerDay,
+    grainChainRoads,
+    grainRoadBranches: roadComponentFor ? grainRoadBranches : null,
     breadGrainPerDay: millCyclesForBread * WATERMILL_GRAIN_PER_CYCLE,
     breadWaterPerDay: breadCyclesPerDay * GRANARY_WATER_PER_CYCLE,
     breadFirewoodPerDay: breadCyclesPerDay * GRANARY_FIREWOOD_PER_CYCLE,
@@ -594,6 +940,7 @@ export function computeSettlementProductionCapacity(
       tierThreeResidents * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     clothDemandPerDay:
       tierThreeResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+    prosperityRoadBranches,
   };
 }
 
@@ -610,13 +957,18 @@ export function grainChainBalanceLabel(
   capacity: Pick<
     SettlementProductionCapacity,
     'millWorkers' | 'bakeryWorkers' | 'flourOutputPerDay' | 'bakeryFlourCapacityPerDay'
-  >,
+  > & {
+    grainChainRoads?: Pick<GrainChainRoadPlan, 'fragmentationFoodPerDay'>;
+  },
 ): string {
   if (capacity.millWorkers <= 0 && capacity.bakeryWorkers <= 0) {
     return 'No staffed mill or granary';
   }
   if (capacity.millWorkers <= 0) return 'Mill missing — granaries cannot receive flour';
   if (capacity.bakeryWorkers <= 0) return 'Granary missing — milled flour has no bakery';
+  if ((capacity.grainChainRoads?.fragmentationFoodPerDay ?? 0) > 0.05) {
+    return `Road-limited — ${capacity.grainChainRoads!.fragmentationFoodPerDay.toFixed(1)} food / day stranded between branches`;
+  }
   const difference = capacity.flourOutputPerDay - capacity.bakeryFlourCapacityPerDay;
   const tolerance = Math.max(
     0.5,

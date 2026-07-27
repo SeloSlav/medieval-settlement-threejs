@@ -1383,7 +1383,7 @@ pub fn set_guardhouse_pay_priority(
     pay_priority: u8,
 ) -> Result<(), String> {
     if !is_valid_guardhouse_pay_priority(pay_priority) {
-        return Err("Guardhouse payroll priority must be low, normal, or high.".to_string());
+        return Err("Guardhouse company priority must be low, normal, or high.".to_string());
     }
     let owner = ctx.sender();
     let mut building = ctx

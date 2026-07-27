@@ -7,6 +7,7 @@ use crate::balance_generated::{
 use crate::construction_priority::{
     CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT,
 };
+use crate::processor_output_policy::processor_input_staging_cycles;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IndustrialWaterCandidate {
@@ -33,6 +34,18 @@ fn normalized_work_priority(priority: u8) -> u8 {
             priority
         }
         _ => CONSTRUCTION_PRIORITY_NORMAL,
+    }
+}
+
+/// Workshop wells stage the same number of production cycles selected by the
+/// building's stock policy. Non-policy consumers retain their single-cycle
+/// requirement.
+pub fn industrial_water_target(building_kind: &str, processor_output_target_percent: u8) -> f64 {
+    let per_cycle = industrial_water_requirement(building_kind);
+    if INDUSTRIAL_WATER_BUILDING_KINDS.contains(&building_kind) {
+        per_cycle * processor_input_staging_cycles(processor_output_target_percent)
+    } else {
+        per_cycle
     }
 }
 
@@ -238,6 +251,16 @@ mod tests {
             MILL_WATER_PER_HARVEST
         );
         assert_eq!(industrial_water_requirement("watermill"), 0.0);
+    }
+
+    #[test]
+    fn industrial_water_targets_follow_the_workshop_stock_policy() {
+        assert_eq!(industrial_water_target("granary", 25), 2.0);
+        assert_eq!(industrial_water_target("granary", 50), 4.0);
+        assert_eq!(industrial_water_target("granary", 75), 6.0);
+        assert_eq!(industrial_water_target("granary", 100), 6.0);
+        assert_eq!(industrial_water_target("brewery", 50), 4.0);
+        assert_eq!(industrial_water_target("watermill", 25), 0.0);
     }
 
     #[test]

@@ -208,6 +208,8 @@ export type ResidenceState = {
   needs: ResidenceNeedsState;
   abandoned: boolean;
   householdWealth: number;
+  /** Last successful household-funded market dispatch; absent in older fixtures/saves. */
+  lastHouseholdMarketTick?: number;
 };
 
 export type BackyardGardenState = {

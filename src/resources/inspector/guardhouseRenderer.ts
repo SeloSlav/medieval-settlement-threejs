@@ -58,7 +58,7 @@ export function renderGuardhouseInspector(
     context.gameState.buildings.values(),
     context.resourceTotals.gold,
   ).find((entry) => entry.building.id === building.id);
-  const payPriority = normalizeGuardhousePayPriority(building.guardhousePayPriority);
+  const companyPriority = normalizeGuardhousePayPriority(building.guardhousePayPriority);
   const foodReserve = normalizeGuardhouseFoodReserve(building.guardhouseFoodReserve);
   const foodTarget = guardhouseFoodTarget(
     building.assignedLabor,
@@ -135,7 +135,7 @@ export function renderGuardhouseInspector(
       <li><span>Daily upkeep</span><span>${dailyFood.toFixed(1)} food · ${dailyWages.toFixed(1)} gold</span></li>
       <li><span>Food endurance</span><span>${building.food.toFixed(1)} on site · ${formatProvisionRunway(foodRunwayDays)}</span></li>
       <li><span>Ration policy</span><span>${guardhouseFoodReserveLabel(foodReserve)} · ${foodReserve} food per armed guard</span></li>
-      <li><span>Payroll priority</span><span>${guardhousePayPriorityLabel(payPriority)}</span></li>
+      <li><span>Company priority</span><span>${guardhousePayPriorityLabel(companyPriority)} · scarce polearms, routine provisions, and wages</span></li>
       <li><span>Next-day wages</span><span>${payroll ? `${payroll.fundedGold.toFixed(1)} / ${payroll.dailyWage.toFixed(1)} funded · claim ${payroll.claimPosition} of ${payroll.companyCount}` : armed > 0 ? 'Awaiting payroll forecast' : 'No armed guards to pay'}</span></li>
       <li><span>Treasury wages</span><span>${context.resourceTotals.gold.toFixed(1)} gold available across all companies</span></li>
       <li><span>Provision target</span><span>${armed > 0 ? `${foodTarget.toFixed(1)} food · ${formatProvisionRunway(targetRunwayDays)} when full · central granary intervenes below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days` : 'None until polearms arm the company'}</span></li>
@@ -145,7 +145,7 @@ export function renderGuardhouseInspector(
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats),
-    supplementalPanelHtml: `${renderRationReservePanel(foodReserve)}${renderPayrollPriorityPanel(payPriority)}`,
+    supplementalPanelHtml: `${renderRationReservePanel(foodReserve)}${renderCompanyPriorityPanel(companyPriority)}`,
   };
 }
 
@@ -161,14 +161,14 @@ function renderRationReservePanel(currentReserve: number): string {
   `;
 }
 
-function renderPayrollPriorityPanel(currentPriority: number): string {
+function renderCompanyPriorityPanel(currentPriority: number): string {
   return `
     <div class="inspector-action-panel">
-      <p class="resource-inspector-note">Payroll priority — when treasury gold cannot cover every armed company, high-priority guardhouses claim wages first. Companies at the same priority are paid in stable building order.</p>
+      <p class="resource-inspector-note">Company priority — high-priority guardhouses claim scarce carpenter-made polearms, routine food sources, and treasury wages before lower tiers. Emergency granary food still goes to the armed company with the lowest runway.</p>
       <div class="resource-action-row">${GUARDHOUSE_PAY_PRIORITIES
         .map((candidate) => `<button type="button" class="resource-action-button" data-guardhouse-pay-priority="${candidate.priority}" ${candidate.priority === currentPriority ? 'disabled' : ''}>${candidate.label}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">The forecast allocates one day of current treasury gold with no new income. The server applies this order continuously; food shortages can still reduce readiness even when wages are funded.</p>
+      <p class="inspector-action-panel__hint">Within one tier, polearms restore the lowest armed share first, then prefer the shorter road and stable building order. Payroll uses stable building order. The forecast allocates one day of current treasury gold with no new income; food shortages can still reduce readiness even when wages are funded.</p>
     </div>
   `;
 }

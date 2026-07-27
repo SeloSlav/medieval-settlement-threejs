@@ -58,6 +58,10 @@ const townHallInspector = readFileSync(
   new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
   'utf8',
 );
+const appSource = readFileSync(
+  new URL('../src/app/App.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   serverCalendar,
@@ -69,6 +73,8 @@ assert.match(residenceNeeds, /Sunday observance does not make provisions free/);
 assert.match(settlementHud, /Sunday stores/);
 assert.match(settlementHud, /Household buffers/);
 assert.match(settlementHud, /Local delivery buffer/);
+assert.match(settlementHud, /Road-branch audit/);
+assert.match(settlementHud, /Weakest occupied road branch/);
 assert.match(settlementHud, /guard food/);
 assert.match(settlementHud, /first local company/);
 assert.match(chapelInspector, /stock them before Saturday night/);
@@ -76,6 +82,12 @@ assert.match(guardhouseInspector, /Food endurance/);
 assert.match(guardhouseInspector, /PROVISION_WARNING_DAYS/);
 assert.match(townHallInspector, /first shortfall/);
 assert.match(townHallInspector, /Household delivery buffer/);
+assert.match(townHallInspector, /Road-branch provisions/);
+assert.match(townHallInspector, /first road-branch provision exposure/);
+assert.match(
+  appSource,
+  /computeSettlementProvisioning\([\s\S]*?roadComponentFor:[\s\S]*?roadComponentAt/,
+);
 
 const state = emptyGameState();
 state.stockpile.food = 72;
@@ -135,6 +147,7 @@ assert.equal(provisioning.sabbathReadyHouseholds, 0);
 assert.equal(provisioning.sabbathFoodShortHomes, 2);
 assert.equal(provisioning.sabbathFirewoodShortHomes, 1);
 assert.equal(provisioning.sabbathWaterShortHomes, 1);
+assert.equal(provisioning.roadBranches, null, 'legacy callers may omit road topology');
 assert.match(formatSabbathReadiness(provisioning), /0 \/ 2 homes stocked/);
 assert.equal(settlementProvisionLevel(provisioning, 10), 'critical');
 assert.equal(shouldShowProvisioning(provisioning, 10), true);
@@ -177,6 +190,146 @@ assert.equal(
   'critical',
   'an empty guardhouse must not be hidden by remote aggregate food',
 );
+
+const splitBranchState = emptyGameState();
+const splitHome = residence('split-home', 1, 4);
+splitHome.x = 0;
+splitHome.needs.food.stock = 4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+splitBranchState.residences.set(splitHome.id, splitHome);
+const remoteGranary = building('remote-granary', 'granary', 2, 0);
+remoteGranary.x = 100;
+remoteGranary.food = 300;
+splitBranchState.buildings.set(remoteGranary.id, remoteGranary);
+const splitBranches = computeSettlementProvisioning({
+  state: splitBranchState,
+  totals: computeResourceTotals(splitBranchState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: (entity) => entity.x < 50 ? 'west' : 'east',
+});
+assert.ok(
+  splitBranches.foodRunwayDays > 50,
+  'aggregate stores should demonstrate the false comfort of a remote granary',
+);
+assert.equal(splitBranches.householdBufferReadyHouseholds, 1);
+assert.equal(splitBranches.roadBranches?.activeBranches, 1);
+assert.equal(splitBranches.roadBranches?.foodSuppliedBranches, 0);
+assert.equal(splitBranches.roadBranches?.foodUnservedBranches, 1);
+assert.equal(splitBranches.roadBranches?.foodUnservedHouseholds, 1);
+assert.ok((splitBranches.roadBranches?.worstFoodRunwayDays ?? 99) <= 1.01);
+assert.equal(splitBranches.roadBranches?.firstExposedResidenceId, splitHome.id);
+assert.equal(
+  settlementProvisionLevel(splitBranches, 7),
+  'critical',
+  'one day of local food must not be hidden by stock on another road component',
+);
+
+splitBranchState.deliveryTrips.set('split-food-cart', {
+  id: 'split-food-cart',
+  buildingId: remoteGranary.id,
+  residenceId: splitHome.id,
+  destinationKind: 'residence',
+  targetBuildingId: null,
+  cargoKind: 'food',
+  amount: 30,
+  phase: 'outbound',
+  x: 100,
+  z: 0,
+  progress: 0,
+  speedMps: 2,
+  unloadSeconds: 3,
+  unloadRemaining: 3,
+  deliveryWorkers: 1,
+  pathDistance: 100,
+  travelSpeedMultiplier: 1,
+  routePolylineJson: '[]',
+});
+const splitWithArrival = computeSettlementProvisioning({
+  state: splitBranchState,
+  totals: computeResourceTotals(splitBranchState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: (entity) => entity.x < 50 ? 'west' : 'east',
+});
+assert.ok(
+  (splitWithArrival.roadBranches?.worstFoodRunwayDays ?? 0)
+    > (splitBranches.roadBranches?.worstFoodRunwayDays ?? 0),
+  'cargo already bound for the branch should extend its physical runway',
+);
+assert.equal(
+  splitWithArrival.roadBranches?.foodUnservedBranches,
+  1,
+  'one approaching load must count as stock without promising a repeatable route',
+);
+assert.equal(settlementProvisionLevel(splitWithArrival, 7), 'watch');
+
+const reconnectedBranches = computeSettlementProvisioning({
+  state: splitBranchState,
+  totals: computeResourceTotals(splitBranchState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: () => 'reconnected',
+});
+assert.equal(reconnectedBranches.roadBranches?.activeBranches, 1);
+assert.equal(reconnectedBranches.roadBranches?.foodSuppliedBranches, 1);
+assert.equal(reconnectedBranches.roadBranches?.foodUnservedBranches, 0);
+assert.ok((reconnectedBranches.roadBranches?.worstFoodRunwayDays ?? 0) > 50);
+assert.equal(reconnectedBranches.roadBranches?.firstExposedResidenceId, null);
+assert.equal(
+  settlementProvisionLevel(reconnectedBranches, 7),
+  'ready',
+  'reconnecting the same physical granary should restore the branch forecast',
+);
+
+const splitFuelState = emptyGameState();
+const splitFuelHome = residence('split-fuel-home', 2, 4);
+splitFuelHome.x = 0;
+splitFuelHome.needs.food.stock = 4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+splitFuelHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 50;
+splitFuelHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
+splitFuelState.residences.set(splitFuelHome.id, splitFuelHome);
+const localGranary = building('local-granary', 'granary', 2, 0);
+localGranary.x = 0;
+localGranary.food = 300;
+splitFuelState.buildings.set(localGranary.id, localGranary);
+const remoteLodge = building('remote-lodge', 'woodcutters_lodge', 2, 0);
+remoteLodge.x = 100;
+remoteLodge.firewood = 5_000;
+splitFuelState.buildings.set(remoteLodge.id, remoteLodge);
+const splitFuel = computeSettlementProvisioning({
+  state: splitFuelState,
+  totals: computeResourceTotals(splitFuelState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: (entity) => entity.x < 50 ? 'west' : 'east',
+});
+assert.equal(splitFuel.householdBufferReadyHouseholds, 1);
+assert.equal(splitFuel.roadBranches?.foodSuppliedBranches, 1);
+assert.equal(splitFuel.roadBranches?.firewoodSuppliedBranches, 0);
+assert.equal(splitFuel.roadBranches?.firewoodUnservedBranches, 1);
+assert.equal(splitFuel.roadBranches?.firewoodUnservedHouseholds, 1);
+assert.ok((splitFuel.roadBranches?.worstWinterFirewoodRunwayDays ?? 99) < 1);
+assert.equal(
+  settlementProvisionLevel(splitFuel, 10),
+  'critical',
+  'a remote fuel depot must not satisfy an isolated heated neighborhood',
+);
+
+const reconnectedFuel = computeSettlementProvisioning({
+  state: splitFuelState,
+  totals: computeResourceTotals(splitFuelState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: () => 1,
+});
+assert.equal(reconnectedFuel.roadBranches?.firewoodSuppliedBranches, 1);
+assert.equal(reconnectedFuel.roadBranches?.firewoodUnservedBranches, 0);
+assert.ok((reconnectedFuel.roadBranches?.worstWinterFirewoodRunwayDays ?? 0) > 30);
 
 const empty = computeSettlementProvisioning({
   state: emptyGameState(),
@@ -248,6 +401,38 @@ assert.equal(perfProvisioning.sabbathHouseholds, 10_000);
 assert.equal(perfProvisioning.sabbathReadyHouseholds, 0);
 assert.ok(elapsedMs < 250, `10,000-home provisioning forecast took ${elapsedMs.toFixed(1)} ms`);
 
+const roadPerfState = emptyGameState();
+for (let branch = 0; branch < 100; branch += 1) {
+  const granary = building(`perf-granary-${branch}`, 'granary', 2, 0);
+  granary.x = branch;
+  granary.food = 100_000;
+  roadPerfState.buildings.set(granary.id, granary);
+  for (let index = 0; index < 1_000; index += 1) {
+    const home = residence(`road-home-${branch}-${index}`, 1, 4);
+    home.x = branch;
+    roadPerfState.residences.set(home.id, home);
+  }
+}
+const roadPerfTotals = computeResourceTotals(roadPerfState);
+const roadStarted = performance.now();
+const roadPerfProvisioning = computeSettlementProvisioning({
+  state: roadPerfState,
+  totals: roadPerfTotals,
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: (entity) => entity.x,
+});
+const roadElapsedMs = performance.now() - roadStarted;
+assert.equal(roadPerfProvisioning.foodConsumers, 400_000);
+assert.equal(roadPerfProvisioning.roadBranches?.activeBranches, 100);
+assert.equal(roadPerfProvisioning.roadBranches?.foodSuppliedBranches, 100);
+assert.equal(roadPerfProvisioning.roadBranches?.foodUnservedBranches, 0);
+assert.ok(
+  roadElapsedMs < 250,
+  `100,000-home road provisioning forecast took ${roadElapsedMs.toFixed(1)} ms`,
+);
+
 const preparedState = emptyGameState();
 for (const [id, tier, population] of [
   ['prepared-1', 1, 3],
@@ -283,7 +468,9 @@ assert.equal(prepared.householdBufferReadyHouseholds, 3);
 assert.equal(prepared.householdBufferHouseholds, 3);
 assert.equal(formatHouseholdBufferReadiness(prepared), '3 / 3 homes buffered');
 
-console.log(`settlement provisioning tests passed (${elapsedMs.toFixed(1)} ms for 10,000 homes)`);
+console.log(
+  `settlement provisioning tests passed (${elapsedMs.toFixed(1)} ms for 10,000 homes; ${roadElapsedMs.toFixed(1)} ms for 100,000 homes across 100 road branches)`,
+);
 
 function building(
   id: string,

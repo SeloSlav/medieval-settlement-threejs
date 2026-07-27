@@ -1,36 +1,79 @@
 import {
   BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_KINDS,
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
   type BackyardGardenKind,
 } from '../generated/gameBalance.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
 import { totalChapelCofferGold } from '../resources/chapelCoffer.ts';
 import { payableChapelTithePerDay } from './householdWealth.ts';
-import { gardenMarketActivity, SECONDS_PER_DAY } from './gardenMarketActivity.ts';
+import { gardenMarketActivity } from './gardenMarketActivity.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
 
 export type BackyardGardenEconomyPerDay = {
   activity: number;
+  assessedTax: number;
   tax: number;
   net: number;
+  selfFood: number;
 };
+
+export const BACKYARD_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
+  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+  / CALENDAR_HOURS_PER_DAY;
 
 export function backyardGardenEconomyPerDay(
   kind: BackyardGardenKind,
   population: number,
   taxRate: number,
+  options: {
+    seasonalMultiplier?: number;
+    hasMarketAccess?: boolean;
+    taxCollectionMultiplier?: number;
+  } = {},
 ): BackyardGardenEconomyPerDay {
-  const activity = gardenMarketActivity(BACKYARD_GARDEN_DEFINITIONS[kind], population, SECONDS_PER_DAY);
-  const { adjusted, tax } = taxedEconomicActivity(activity, taxRate);
+  const def = BACKYARD_GARDEN_DEFINITIONS[kind];
+  const requestedSeasonalMultiplier = options.seasonalMultiplier ?? 1;
+  const seasonalMultiplier = Number.isFinite(requestedSeasonalMultiplier)
+    ? Math.max(0, requestedSeasonalMultiplier)
+    : 0;
+  const marketLinked = options.hasMarketAccess ?? true;
+  const baseActivity = marketLinked
+    ? gardenMarketActivity(def, population, BACKYARD_WORKDAY_SECONDS)
+      * seasonalMultiplier
+    : 0;
+  const { adjusted, tax: assessedTax } = taxedEconomicActivity(
+    baseActivity,
+    taxRate,
+  );
+  const requestedCollectionMultiplier = options.taxCollectionMultiplier ?? 1;
+  const collectionMultiplier = Number.isFinite(requestedCollectionMultiplier)
+    ? Math.max(0, requestedCollectionMultiplier)
+    : 0;
+  const tax = assessedTax * Math.min(1, collectionMultiplier);
+  const selfFood = def.foodPerPersonPerSec
+    * Math.max(0, population)
+    * BACKYARD_WORKDAY_SECONDS
+    * Math.max(0, Math.min(1, def.foodSelfShare))
+    * seasonalMultiplier;
   return {
     activity: adjusted,
+    assessedTax,
     tax,
     net: Math.max(0, adjusted - tax),
+    selfFood,
   };
 }
 
 export function backyardGardenActivityPerDay(kind: BackyardGardenKind, population: number): number {
-  return gardenMarketActivity(BACKYARD_GARDEN_DEFINITIONS[kind], population, SECONDS_PER_DAY);
+  return gardenMarketActivity(
+    BACKYARD_GARDEN_DEFINITIONS[kind],
+    population,
+    BACKYARD_WORKDAY_SECONDS,
+  );
 }
 
 export function backyardGardenTaxPerDay(

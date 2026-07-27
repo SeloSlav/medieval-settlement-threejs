@@ -23,11 +23,15 @@ import {
 import { monasteryHospitalityPlan } from '../../economy/monasteryHospitality.ts';
 import { computeSettlementLivestockFodderPlan } from '../../economy/livestockFodder.ts';
 import { buildVillageAdminReadout } from '../../economy/villageAdminReadout.ts';
+import type {
+  SettlementBackyardEconomyPlan,
+} from '../../economy/settlementBackyardEconomy.ts';
 import {
   computeSettlementProvisioning,
   formatHouseholdBufferReadiness,
   formatProvisionRunway,
   formatSabbathReadiness,
+  type SettlementRoadProvisioning,
   WINTER_RESERVE_DAYS,
 } from '../../economy/settlementProvisioning.ts';
 import {
@@ -41,6 +45,7 @@ import {
   computeSettlementGrainPlan,
   GRAIN_PLAN_DAYS_PER_YEAR,
   type SettlementGrainPlan,
+  type SettlementGrainRoadPlan,
 } from '../../economy/settlementGrainPlan.ts';
 import {
   computeSettlementSeedProcurementPlan,
@@ -52,12 +57,19 @@ import {
 } from '../../economy/marketplaceSeedPolicy.ts';
 import { marketplaceTradeOfferCost } from '../../economy/marketplaceTrade.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../../economy/regionalMarket.ts';
+import {
+  computeSettlementHouseholdMarketPlan,
+  formatHouseholdMarketBottlenecks,
+  formatHouseholdMarketPurchasingPower,
+  formatHouseholdMarketSettlementSummary,
+} from '../../economy/settlementHouseholdMarket.ts';
 import { computeSettlementGrowthPlan, type SettlementGrowthPlan } from '../../economy/settlementGrowth.ts';
 import {
   computeSettlementConstructionPlan,
   constructionQueueStatusLabel,
   type ConstructionMaterialQueue,
   type SettlementConstructionPlan,
+  type SettlementConstructionRoadPlan,
 } from '../../economy/settlementConstruction.ts';
 import {
   computeSettlementConstructionLaborPlan,
@@ -94,19 +106,32 @@ import {
   computeSettlementProductionCapacity,
   grainChainBalanceLabel,
   processorBottleneckBuildingId,
+  type GrainChainRoadPlan,
   type ProcessorInputBuffer,
   type ProcessorOutputRoom,
 } from '../../economy/settlementProduction.ts';
 import {
   computeSettlementProsperityPlan,
+  type ProsperityRoadPlan,
   type SettlementProsperityPlan,
 } from '../../economy/settlementProsperity.ts';
 import {
   computeSettlementTextilePlan,
   textileChainBalanceLabel,
   TEXTILE_PLAN_DAYS_PER_YEAR,
+  TEXTILE_RESERVE_WARNING_DAYS,
   type SettlementTextilePlan,
 } from '../../economy/settlementTextiles.ts';
+import {
+  computeSettlementArmamentPlan,
+  type SettlementArmamentPlan,
+} from '../../economy/settlementArmament.ts';
+import {
+  computeSettlementSpecialtyExportPlan,
+  type SettlementSpecialtyExportPlan,
+  type SpecialtyExportAttentionKind,
+  type SpecialtyExportCargoKind,
+} from '../../economy/settlementSpecialtyExports.ts';
 import {
   buildSettlementFarmPlan,
   type SettlementSeasonalWorkPlan,
@@ -123,8 +148,6 @@ import {
   formatTripPhaseLabel,
 } from '../../logistics/deliveryTrips.ts';
 import {
-  GUARDHOUSE_PAY_PRIORITY_HIGH,
-  GUARDHOUSE_PAY_PRIORITY_LOW,
   guardhousePayrollPlan,
 } from '../../security/guardhousePayrollPolicy.ts';
 import {
@@ -190,6 +213,44 @@ function processorInspectButton(
     : `<button type="button" class="inspector-jump-button" data-inspect-building="${buildingId}" aria-label="Inspect ${label} bottleneck">Inspect</button>`;
 }
 
+function formatGrainChainRoads(plan: GrainChainRoadPlan): string {
+  if (plan.activeBranches === 0) return 'No staffed mill or granary';
+  const pairing = `${plan.matchedBranches} / ${plan.activeBranches} ${
+    plan.activeBranches === 1 ? 'branch' : 'branches'
+  } pair milling and baking`;
+  const unpaired = [
+    plan.millOnlyBranches > 0 ? `${plan.millOnlyBranches} mill-only` : '',
+    plan.bakeryOnlyBranches > 0 ? `${plan.bakeryOnlyBranches} bakery-only` : '',
+  ].filter(Boolean).join(' · ');
+  if (plan.hypotheticalFoodPerDay <= 0.05) {
+    return `${pairing}${unpaired ? ` · ${unpaired}` : ''}`;
+  }
+  if (plan.fragmentationFoodPerDay <= 0.05) {
+    return `${pairing} · no throughput lost between road branches${
+      unpaired ? ` · ${unpaired}` : ''
+    }`;
+  }
+  const inspect = plan.firstImbalancedBuildingId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstImbalancedBuildingId}" aria-label="Inspect most imbalanced grain-chain branch">Inspect</button>`;
+  return `${pairing} · ${plan.fragmentationFoodPerDay.toFixed(1)} food / day unavailable until branches connect${
+    unpaired ? ` · ${unpaired}` : ''
+  }${inspect}`;
+}
+
+function formatRoadProvisioning(plan: SettlementRoadProvisioning | null): string {
+  if (plan === null) return 'Road ledger unavailable';
+  if (plan.activeBranches === 0) return 'No occupied road branches';
+  const food = `${plan.physicalFoodStock.toFixed(1)} physical food · ${plan.foodSuppliedBranches} / ${plan.activeBranches} branches have a stocked food route · weakest runway ${formatProvisionRunway(plan.worstFoodRunwayDays)}${plan.foodUnservedBranches > 0 ? ` · ${plan.foodUnservedHouseholds} homes across ${plan.foodUnservedBranches} ${plan.foodUnservedBranches === 1 ? 'branch' : 'branches'} have no stocked route` : ''}`;
+  const fuel = plan.heatedBranches === 0
+    ? 'no heated homes'
+    : `${plan.physicalFirewoodStock.toFixed(1)} physical fuel · ${plan.firewoodSuppliedBranches} / ${plan.heatedBranches} heated branches have a distributor · weakest winter runway ${formatProvisionRunway(plan.worstWinterFirewoodRunwayDays)}${plan.firewoodUnservedBranches > 0 ? ` · ${plan.firewoodUnservedHouseholds} heated homes have no distributor` : ''}`;
+  const inspect = plan.firstExposedResidenceId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${plan.firstExposedResidenceId}" aria-label="Inspect first road-branch provision exposure">Inspect</button>`;
+  return `${food} · winter fuel: ${fuel}${inspect}`;
+}
+
 function formatGrowthDuration(seconds: number | null): string {
   if (seconds === null) return 'Paused';
   if (seconds >= 120) return `~${Math.max(1, Math.round(seconds / 60))} min`;
@@ -214,11 +275,19 @@ function formatGrowthBottlenecks(plan: SettlementGrowthPlan): string {
 }
 
 function formatProsperityCapacity(plan: SettlementProsperityPlan): string {
-  if (plan.installedResidentCapacity <= 0) {
+  const usableCapacity = plan.roadPlan?.roadMatchedResidentCapacity
+    ?? plan.installedResidentCapacity;
+  if (usableCapacity <= 0) {
+    if (plan.roadPlan && plan.installedResidentCapacity > 0) {
+      return `No road branch contains the full prosperity chain · ${plan.installedResidentCapacity} resident capacity split between branches`;
+    }
     return `No complete staffed chain · ${plan.limitingLabel} limits prosperity`;
   }
+  if (plan.roadPlan && plan.roadPlan.currentShortfallResidents > 0) {
+    return `${plan.currentResidents} prosperous residents · ${plan.roadPlan.currentShortfallResidents} lack throughput on their own branch despite ${usableCapacity} road-matched capacity · ${plan.limitingLabel} limited`;
+  }
   const headroom = plan.currentHeadroomResidents;
-  return `${plan.currentResidents} / ${plan.installedResidentCapacity} prosperous residents at installed capacity · ${
+  return `${plan.currentResidents} / ${usableCapacity} prosperous residents at ${plan.roadPlan ? 'road-matched' : 'installed'} capacity · ${
     headroom >= 0
       ? `headroom for ${headroom}`
       : `short capacity for ${Math.abs(headroom)}`
@@ -227,11 +296,35 @@ function formatProsperityCapacity(plan: SettlementProsperityPlan): string {
 
 function formatProsperityHousingPipeline(plan: SettlementProsperityPlan): string {
   const headroom = plan.fullHousingHeadroomResidents;
+  const roadShortfall = plan.roadPlan?.fullShortfallResidents ?? 0;
   return `${plan.existingFullResidents} residents at full existing tier-3 housing · ${plan.existingTierThreeVacancies} vacant places · ${
-    headroom >= 0
+    roadShortfall > 0
+      ? `${roadShortfall} residents lack capacity on their own branch`
+      : headroom >= 0
       ? `${headroom} capacity remains`
       : `${Math.abs(headroom)} residents exceed installed capacity`
   }`;
+}
+
+function formatProsperityRoads(plan: ProsperityRoadPlan | null): string {
+  if (plan === null) return 'Road ledger unavailable';
+  if (plan.activeBranches === 0) {
+    return 'No staffed specialty chain or tier-3 housing';
+  }
+  const pairing = `${plan.matchedBranches} / ${plan.activeBranches} branches contain preserved-food, ale, and cloth capacity`;
+  const fragmentation = plan.fragmentationResidentCapacity > 0
+    ? ` · ${plan.fragmentationResidentCapacity} resident capacity stranded between specialized branches`
+    : ' · no installed capacity stranded';
+  const current = plan.currentShortfallResidents > 0
+    ? ` · ${plan.currentShortfallResidents} current residents short across ${plan.currentShortBranches} ${plan.currentShortBranches === 1 ? 'branch' : 'branches'}`
+    : ' · every current prosperous household has local capacity';
+  const pipeline = plan.fullShortfallResidents > 0
+    ? ` · full housing pipeline short ${plan.fullShortfallResidents} across ${plan.fullShortBranches} ${plan.fullShortBranches === 1 ? 'branch' : 'branches'}`
+    : ' · full tier-3 housing pipeline covered';
+  const inspect = plan.firstExposedResidenceId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${plan.firstExposedResidenceId}" aria-label="Inspect first prosperity road-branch shortfall">Inspect</button>`;
+  return `${pairing}${fragmentation}${current}${pipeline}${inspect}`;
 }
 
 function formatLaborSectorMix(plan: SettlementLaborPlan): string {
@@ -309,6 +402,50 @@ function formatConstructionMaterialCoverage(
   return `${covered.toFixed(0)} / ${material.remaining.toFixed(0)} ${label}`;
 }
 
+function formatConstructionRoads(
+  plan: SettlementConstructionRoadPlan,
+): string {
+  const timber = plan.materials.timber;
+  const stone = plan.materials.stone;
+  if (
+    timber.roadBoundClaim + stone.roadBoundClaim
+      + timber.offroadClaim + stone.offroadClaim
+    <= 0.05
+  ) {
+    return `No building-held material awaits pickup · ${timber.sourceStock.toFixed(0)} timber + ${stone.sourceStock.toFixed(0)} stone remain at completed sources`;
+  }
+  const roadCoverage =
+    timber.roadBoundClaim + stone.roadBoundClaim > 0.05
+      ? `${plan.suppliedClaimBranches} / ${plan.claimBranches} road-bound claim branches fully sourced · ${timber.matchedRoadBoundClaim.toFixed(0)} / ${timber.roadBoundClaim.toFixed(0)} timber + ${stone.matchedRoadBoundClaim.toFixed(0)} / ${stone.roadBoundClaim.toFixed(0)} stone matched`
+      : 'No road-bound physical claims';
+  const fragmentedTimber = timber.fragmentationCoverage;
+  const fragmentedStone = stone.fragmentationCoverage;
+  const fragmentation = fragmentedTimber + fragmentedStone > 0.05
+    ? ` · ${fragmentedTimber.toFixed(0)} timber + ${fragmentedStone.toFixed(0)} stone earmarked but stranded between road branches`
+    : '';
+  const scarceTimber = Math.max(
+    0,
+    timber.strandedRoadBoundClaim - timber.fragmentationCoverage,
+  );
+  const scarceStone = Math.max(
+    0,
+    stone.strandedRoadBoundClaim - stone.fragmentationCoverage,
+  );
+  const scarcity = scarceTimber + scarceStone > 0.05
+    ? ` · ${scarceTimber.toFixed(0)} timber + ${scarceStone.toFixed(0)} stone exceed all physical source stock`
+    : '';
+  const offroad = timber.offroadClaim + stone.offroadClaim > 0.05
+    ? ` · off-road-capable sites can cover ${timber.offroadPotentialCoverage.toFixed(0)} / ${timber.offroadClaim.toFixed(0)} timber + ${stone.offroadPotentialCoverage.toFixed(0)} / ${stone.offroadClaim.toFixed(0)} stone from remaining stores`
+    : '';
+  const unmatched = timber.unmatchedSourceStock + stone.unmatchedSourceStock > 0.05
+    ? ` · ${timber.unmatchedSourceStock.toFixed(0)} timber + ${stone.unmatchedSourceStock.toFixed(0)} stone remain outside matched claims`
+    : '';
+  const inspect = plan.firstExposedBuildingId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstExposedBuildingId}" aria-label="Inspect first road-stranded construction claim">Inspect</button>`;
+  return `${roadCoverage}${fragmentation}${scarcity}${offroad}${unmatched}${inspect} · founders' reserve and carts excluded`;
+}
+
 export function renderConstructionQueueRows(plan: SettlementConstructionPlan): string {
   if (plan.siteCount === 0) {
     return '<li><span>Construction queue</span><span>No building sites</span></li>';
@@ -323,12 +460,16 @@ export function renderConstructionQueueRows(plan: SettlementConstructionPlan): s
     : `${constructionQueueStatusLabel(plan.firstAttention.status)} <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttention.buildingId}" aria-label="Inspect first construction queue bottleneck">Inspect</button>`;
   const timber = plan.materials.timber;
   const stone = plan.materials.stone;
+  const roadRow = plan.roadPlan === null
+    ? ''
+    : `<li><span>Construction roads</span><span>${formatConstructionRoads(plan.roadPlan)}</span></li>`;
   return `
     <li><span>Construction queue</span><span>${queueLabel} · urgent ${priorities.urgent} / normal ${priorities.normal} / low ${priorities.low}</span></li>
     <li><span>Builder load</span><span>${plan.assignedBuilders} / ${plan.builderCapacity} assigned · ${plan.remainingBuilderDays.toFixed(1)} builder-days after supply</span></li>
     <li><span>Queue materials</span><span>${timber.delivered.toFixed(0)} / ${timber.required.toFixed(0)} timber delivered · ${stone.delivered.toFixed(0)} / ${stone.required.toFixed(0)} stone delivered</span></li>
     <li><span>Supply coverage</span><span>${formatConstructionMaterialCoverage('timber earmarked', timber)} · ${formatConstructionMaterialCoverage('stone earmarked', stone)}${timber.uncovered + stone.uncovered > 0.05 ? ` · ${timber.uncovered.toFixed(0)} timber + ${stone.uncovered.toFixed(0)} stone uncovered` : ''}</span></li>
     <li><span>Material movement</span><span>${timber.awaitingPickup.toFixed(0)} timber + ${stone.awaitingPickup.toFixed(0)} stone await pickup · ${timber.inTransit.toFixed(0)} + ${stone.inTransit.toFixed(0)} on carts · ${timber.foundersReserve.toFixed(0)} + ${stone.foundersReserve.toFixed(0)} in founders' reserve</span></li>
+    ${roadRow}
     <li><span>Queue attention</span><span>${attention}</span></li>
   `;
 }
@@ -395,7 +536,10 @@ export function renderSettlementGrainRows(plan: SettlementGrainPlan): string {
     : ` · ${attentionLabel} <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionBuildingId}" aria-label="Inspect ${attentionLabel}">Inspect</button>`;
   const runway = plan.processorGrainPerDay <= 1e-9
     ? 'no installed grain draw'
-    : `${formatProvisionRunway(plan.processorRunwayDays)} discretionary runway`;
+    : `${formatProvisionRunway(plan.processorRunwayDays)} settlement-ledger runway`;
+  const roadRow = plan.roadPlan === null
+    ? ''
+    : `<li><span>Processor grain roads</span><span>${formatProcessorGrainRoads(plan.roadPlan)}</span></li>`;
   const priority = plan.processorPriorityCounts;
   const priorityTotal = priority[1] + priority[2] + priority[3];
   const priorityRow = priorityTotal > 0
@@ -405,9 +549,31 @@ export function renderSettlementGrainRows(plan: SettlementGrainPlan): string {
     <li><span>Grain allocation</span><span>${plan.totalStock.toFixed(1)} owned · ${plan.inTransit.toFixed(1)} on carts · ${plan.discretionaryStock.toFixed(1)} discretionary after protected claims</span></li>
     <li><span>Protected grain</span><span>Seed ${plan.seed.protected.toFixed(1)} / ${plan.seed.target.toFixed(1)} · winter fodder ${plan.winterFodder.protected.toFixed(1)} / ${plan.winterFodder.target.toFixed(1)} · central reserve ${plan.granaryReserve.protected.toFixed(1)} / ${plan.granaryReserve.target.toFixed(1)}${attention}</span></li>
     <li><span>Installed grain draw</span><span>${plan.processorGrainPerDay.toFixed(1)} / day · bread ${plan.breadGrainPerDay.toFixed(1)} · ale ${plan.aleGrainPerDay.toFixed(1)} · monastery ${plan.monasteryGrainPerDay.toFixed(1)} · ${runway}</span></li>
+    ${roadRow}
     ${priorityRow}
     <li><span>Crop-year balance</span><span>${plan.laborCoveredHarvest.toFixed(1)} / ${plan.potentialHarvest.toFixed(1)} harvest covered · ${plan.annualCommitments.toFixed(1)} committed · ${balance} at current installed capacity over ${GRAIN_PLAN_DAYS_PER_YEAR} days; imports excluded</span></li>
   `;
+}
+
+function formatProcessorGrainRoads(plan: SettlementGrainRoadPlan): string {
+  if (plan.drawingBranches === 0) {
+    return `No road branch has sustained installed grain draw${
+      plan.dispatchableSourceStock > 0.05
+        ? ` · ${plan.dispatchableSourceStock.toFixed(1)} staffed farm / granary source grain available`
+        : ''
+    }`;
+  }
+  const inspect = plan.firstExposedBuildingId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstExposedBuildingId}" aria-label="Inspect weakest processor grain road branch">Inspect</button>`;
+  const outside = plan.outsideProcessorBranchStock > 0.05
+    ? ` · ${plan.outsideProcessorBranchStock.toFixed(1)} dispatchable grain on branches without current processor draw`
+    : '';
+  return `${plan.stockedDrawingBranches} / ${plan.drawingBranches} drawing ${
+    plan.drawingBranches === 1 ? 'branch has' : 'branches have'
+  } staffed farm / granary reserve · ${plan.matchedSourceStock.toFixed(1)} matched source grain · weakest source reserve ${
+    formatProvisionRunway(plan.weakestSourceRunwayDays)
+  } at installed draw${outside}${inspect} · workshop stocks and carts excluded`;
 }
 
 const SEED_PROCUREMENT_ATTENTION_LABELS: Record<
@@ -426,13 +592,6 @@ export function renderSettlementSeedProcurementRows(
   plan: SettlementSeedProcurementPlan,
   firstSeedShortBuildingId: string | null,
 ): string {
-  if (plan.marketplaces === 0) {
-    const holding = firstSeedShortBuildingId === null
-      ? ''
-      : ` <button type="button" class="inspector-jump-button" data-inspect-building="${firstSeedShortBuildingId}" aria-label="Inspect first seed-short holding">Inspect holding</button>`;
-    return `<li><span>Standing seed orders</span><span>No marketplace${plan.seedShortfall > 0.05 ? ` &middot; ${plan.seedShortfall.toFixed(1)} holding seed gap${holding}` : ''}</span></li>`;
-  }
-
   const marketAttention = plan.firstAttentionMarketId === null
     || plan.firstAttentionKind === null
     ? ''
@@ -443,16 +602,40 @@ export function renderSettlementSeedProcurementRows(
   const readiness = plan.dueMarkets > 0
     ? `${plan.readyMarkets} / ${plan.dueMarkets} due markets ready${queue}${marketAttention}`
     : 'all selected targets currently filled';
-  const orders = plan.targetMarkets === 0
-    ? 'Manual-only at every market'
-    : `${plan.plannedImportLots} future ${plan.plannedImportLots === 1 ? 'lot' : 'lots'} / ${plan.plannedImportGrain.toFixed(0)} grain due toward ${plan.targetStock.toFixed(0)} selected stock &middot; ${readiness}`;
+  const orders = plan.marketplaces === 0
+    ? 'No marketplace'
+    : plan.targetMarkets === 0
+      ? 'Manual-only at every market'
+      : `${plan.plannedImportLots} future ${plan.plannedImportLots === 1 ? 'lot' : 'lots'} / ${plan.plannedImportGrain.toFixed(0)} grain due toward ${plan.targetStock.toFixed(0)} selected stock &middot; ${readiness}`;
 
-  const holding = firstSeedShortBuildingId === null
+  const exposedHoldingId =
+    plan.roadPlan?.firstExposedBuildingId ?? firstSeedShortBuildingId;
+  const holding = exposedHoldingId === null
     ? ''
-    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${firstSeedShortBuildingId}" aria-label="Inspect first seed-short holding">Inspect holding</button>`;
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${exposedHoldingId}" aria-label="Inspect first seed-short holding">Inspect holding</button>`;
+  const recoverySources =
+    `${plan.currentMarketStock.toFixed(1)} market + ${plan.currentGranaryStock.toFixed(1)} granary grain`;
+  const roadScope = plan.roadPlan === null
+    ? ''
+    : ' on matching road branches';
+  const fragmentation = plan.roadPlan !== null
+    && plan.roadPlan.fragmentationCoverage > 0.05
+    ? ` &middot; ${plan.roadPlan.fragmentationCoverage.toFixed(1)} apparent coverage stranded by road layout`
+    : '';
+  const unmatched = plan.roadPlan !== null
+    && plan.roadPlan.unmatchedRecoveryGrain > 0.05
+    ? ` &middot; ${plan.roadPlan.unmatchedRecoveryGrain.toFixed(1)} recovery grain outside current branch gaps`
+    : '';
+  const unroutable = plan.roadPlan !== null
+    && plan.roadPlan.unroutableShortfall > 0.05
+    ? ` &middot; ${plan.roadPlan.unroutableShortfall.toFixed(1)} gap at incomplete or orphaned holdings`
+    : '';
+  const inbound = plan.inboundSeedGrain > 0.05
+    ? ` after ${plan.inboundSeedGrain.toFixed(1)} grain already approaching by cart`
+    : '';
   const recovery = plan.seedShortfall <= 0.05
-    ? `No current holding seed gap &middot; ${plan.currentMarketStock.toFixed(1)} physical market grain already counted in owned stock`
-    : `${plan.currentMarketStock.toFixed(1)} physical market grain + ${plan.plannedImportGrain.toFixed(0)} future grain could cover up to ${plan.potentialCoverage.toFixed(1)} / ${plan.seedShortfall.toFixed(1)} of the holding gap${plan.uncoveredShortfall > 0.05 ? ` &middot; ${plan.uncoveredShortfall.toFixed(1)} still exposed` : ''}${holding}`;
+    ? `No remaining holding seed gap${inbound} &middot; ${recoverySources} already counted in owned stock`
+    : `${recoverySources} + ${plan.plannedImportGrain.toFixed(0)} future imports could cover up to ${plan.potentialCoverage.toFixed(1)} / ${plan.seedShortfall.toFixed(1)} of the remaining holding gap${inbound}${roadScope}${plan.uncoveredShortfall > 0.05 ? ` &middot; ${plan.uncoveredShortfall.toFixed(1)} still exposed` : ''}${fragmentation}${unmatched}${unroutable}${holding}`;
   const treasury = plan.plannedImportLots > 0
     ? ` &middot; treasury funds ${plan.affordableLotsAtCurrentRate} / ${plan.plannedImportLots} lots at today's ${plan.nextLotGoldCost.toFixed(0)} gold rate; later lots reprice`
     : '';
@@ -463,11 +646,53 @@ export function renderSettlementSeedProcurementRows(
   `;
 }
 
+function renderSettlementTextileRoadRow(plan: SettlementTextilePlan): string {
+  const roads = plan.roadPlan;
+  if (roads === null || roads.activeBranches === 0) return '';
+  const fragmentation = roads.fragmentationClothPotential > 0.05
+    ? ` · ${roads.fragmentationClothPotential.toFixed(1)} cloth/year stranded until branches connect`
+    : ' · no cloth capacity stranded by topology';
+  const householdCoverage = roads.annualHouseholdClothDemand > 0.05
+    ? ` · ${roads.coveredHouseholdClothDemand.toFixed(1)} / ${roads.annualHouseholdClothDemand.toFixed(1)} local household need covered`
+    : ' · no current household cloth claim';
+  const exposure = roads.annualHouseholdClothShortfall > 0.05
+    ? ` · ${roads.annualHouseholdClothShortfall.toFixed(1)} local shortfall across ${roads.exposedHouseholdBranches} ${roads.exposedHouseholdBranches === 1 ? 'branch' : 'branches'}`
+    : ' · every current household branch covered';
+  const inspect = roads.firstExposedResidenceId !== null
+    ? ` <button type="button" class="inspector-jump-button" data-inspect-residence="${roads.firstExposedResidenceId}" aria-label="Inspect first textile road-branch shortfall">Inspect home</button>`
+    : roads.firstImbalancedBuildingId !== null
+      ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${roads.firstImbalancedBuildingId}" aria-label="Inspect first road-stranded wool holding">Inspect holding</button>`
+      : '';
+  const exportable = roads.annualExportableClothSurplus > 0.05
+    ? ` · ${roads.annualExportableClothSurplus.toFixed(1)} cloth/year remains above local household need; the specialty export ledger verifies market access separately`
+    : '';
+  const reserveInspect = roads.firstReserveExposedResidenceId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${roads.firstReserveExposedResidenceId}" aria-label="Inspect weakest current household textile reserve">Inspect home</button>`;
+  const currentServiceRow = roads.householdBranches === 0
+    ? ''
+    : `
+    <li><span>Textile service</span><span>${roads.stockedSupplierBranches} / ${roads.householdBranches} current household branches have a stocked staffed loom route · ${roads.serviceableClothStock.toFixed(1)} cloth in local cupboards, staffed looms, or approaching home carts · weakest reserve ${formatProvisionRunway(roads.worstHouseholdClothRunwayDays)} · ${roads.unservedHouseholdBranches} without a stocked loom route · ${roads.reserveWarningBranches} below ${TEXTILE_RESERVE_WARNING_DAYS} days${reserveInspect}</span></li>
+  `;
+
+  return `
+    <li><span>Textile roads</span><span>${roads.matchedBranches} / ${roads.activeBranches} active branches pair fleece and loom capacity (${roads.fleeceBranches} fleece · ${roads.loomBranches} loom) · ${roads.roadMatchedAnnualClothPotential.toFixed(1)} / ${plan.annualClothPotential.toFixed(1)} cloth/year physically paired${fragmentation}${householdCoverage}${exposure}${exportable}${inspect}</span></li>
+    ${currentServiceRow}
+  `;
+}
+
 export function renderSettlementTextileRows(plan: SettlementTextilePlan): string {
+  const roadRow = renderSettlementTextileRoadRow(plan);
+  const unavailableCloth = plan.unavailableHouseholdClothStock > 0.05
+    ? ` · ${plan.unavailableHouseholdClothStock.toFixed(1)} in treasury, export, idle, or disconnected stores`
+    : '';
+  const storesRow = `<li><span>Textile stores</span><span>${plan.woolStock.toFixed(1)} wool owned${plan.woolInTransit > 0.05 ? ` · ${plan.woolInTransit.toFixed(1)} on carts` : ''} · ${plan.clothStock.toFixed(1)} cloth owned${plan.clothInTransit > 0.05 ? ` · ${plan.clothInTransit.toFixed(1)} on carts` : ''} · ${plan.serviceableHouseholdClothStock.toFixed(1)} serviceable to current households${plan.householdClothInTransit > 0.05 ? ` including ${plan.householdClothInTransit.toFixed(1)} approaching homes` : ''}${unavailableCloth} · ${formatProvisionRunway(plan.clothReserveRunwayDays)} weakest household cloth reserve</span></li>`;
   if (plan.sheepHoldings === 0) {
     return `
       <li><span>Annual wool clip</span><span>No completed sheep holding</span></li>
+      ${storesRow}
       <li><span>Textile chain</span><span>${textileChainBalanceLabel(plan)} · ${plan.annualHouseholdClothDemand.toFixed(1)} cloth/year household demand</span></li>
+      ${roadRow}
     `;
   }
 
@@ -495,8 +720,203 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
   return `
     <li><span>Annual wool clip</span><span>${plan.shornHoldings} / ${plan.sheepHoldings} holdings shorn · ${plan.sheepHeadCount} sheep / ${plan.productiveSheepHeads.toFixed(1)} productive-head equivalent · ${plan.projectedAnnualWool.toFixed(1)} wool potential${clipRisk}${attention}</span></li>
     <li><span>Shearing readiness</span><span>${plan.readyPendingHoldings} pending and ready · ${plan.storageBlockedHoldings} storage-blocked · ${plan.staffingBlockedHoldings} unstaffed · ${plan.flockBlockedHoldings} flock-blocked · ${plan.missedHoldings} missed${blocked === 0 ? ' · no exposed clip' : ''}</span></li>
-    <li><span>Textile stores</span><span>${plan.woolStock.toFixed(1)} wool owned${plan.woolInTransit > 0.05 ? ` · ${plan.woolInTransit.toFixed(1)} on carts` : ''} · ${plan.clothStock.toFixed(1)} cloth owned${plan.clothInTransit > 0.05 ? ` · ${plan.clothInTransit.toFixed(1)} on carts` : ''} · ${formatProvisionRunway(plan.clothReserveRunwayDays)} household cloth reserve</span></li>
-    <li><span>Textile chain</span><span>${plan.annualClothPotential.toFixed(1)} cloth/year at current flock and loom labor vs ${plan.annualHouseholdClothDemand.toFixed(1)} household need · ${annualBalance} over ${TEXTILE_PLAN_DAYS_PER_YEAR} days · ${textileChainBalanceLabel(plan)}</span></li>
+    ${storesRow}
+    <li><span>Textile chain</span><span>${plan.annualClothPotential.toFixed(1)} cloth/year installed ceiling at current flock and loom labor vs ${plan.annualHouseholdClothDemand.toFixed(1)} household need · ${annualBalance} over ${TEXTILE_PLAN_DAYS_PER_YEAR} days · ${textileChainBalanceLabel(plan)}</span></li>
+    ${roadRow}
+  `;
+}
+
+function formatSpecialtyExportDuration(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds)) return 'no clearing estimate';
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  if (seconds < 3600) return `${(seconds / 60).toFixed(1)} min`;
+  return `${(seconds / 3600).toFixed(1)} h`;
+}
+
+function specialtyExportAttentionLabel(
+  kind: SpecialtyExportAttentionKind | null,
+): string {
+  switch (kind) {
+    case 'producer-road': return 'producer has no completed market on its road branch';
+    case 'producer-storage': return 'road-linked markets have no room for this cargo';
+    case 'producer-labor': return 'producer stock is waiting for a worker and cart';
+    case 'producer-fire': return 'producer hauling is suspended by fire';
+    case 'producer-receiving': return 'every eligible market already has an inbound cart';
+    case 'market-construction': return 'specialty stock is trapped at an unfinished market';
+    case 'market-road': return 'market stock cannot reach regional buyers without road access';
+    case 'market-labor': return 'market stock is waiting for a broker';
+    case 'market-fire': return 'market brokerage is suspended by fire';
+    case 'market-policy': return 'market stock is held below its selected price floor';
+    case 'market-manual-trade': return 'the sole broker is settling a manual trade';
+    case null: return '';
+  }
+}
+
+function specialtyExportCargoMix(
+  plan: SettlementSpecialtyExportPlan,
+): string {
+  const labels: Record<SpecialtyExportCargoKind, string> = {
+    ale: 'ale',
+    honey: 'honey',
+    wine: 'wine',
+    cloth: 'cloth',
+  };
+  const parts: string[] = [];
+  for (const commodity of ['ale', 'honey', 'wine', 'cloth'] as const) {
+    const ledger = plan.commodities[commodity];
+    const units = ledger.producerStock
+      + ledger.inTransitToMarkets
+      + ledger.marketQueue;
+    if (units > 0.05) parts.push(`${units.toFixed(1)} ${labels[commodity]}`);
+  }
+  return parts.length > 0 ? parts.join(' &middot; ') : 'no physical specialty stock';
+}
+
+export function renderSettlementSpecialtyExportRows(
+  plan: SettlementSpecialtyExportPlan,
+): string {
+  if (
+    plan.producers === 0
+    && plan.markets === 0
+    && plan.projectedMarketQueueUnits <= 0.05
+  ) {
+    return '';
+  }
+  const road = plan.roadPlan;
+  const roadRow = road === null
+    ? ''
+    : `
+      <li><span>Specialty export roads</span><span>${road.matchedBranches} / ${road.producerBranches} producer branches reach a completed market &middot; ${road.roadMatchedProducerStock.toFixed(1)} source units on market-connected branches &middot; ${road.roadStrandedProducerStock.toFixed(1)} stranded by topology &middot; ${road.staffedBrokerBranches} / ${road.marketBranches} market branches have a staffed, safe road desk &middot; ${road.exposedProducerBranches} source branches blocked by topology or market storage</span></li>
+    `;
+  const sourceBlocks = [
+    plan.roadStrandedProducerStock > 0.05
+      ? `${plan.roadStrandedProducerStock.toFixed(1)} without a market route`
+      : '',
+    plan.storageBlockedProducerStock > 0.05
+      ? `${plan.storageBlockedProducerStock.toFixed(1)} behind full destination stores`
+      : '',
+    plan.laborBlockedProducerStock > 0.05
+      ? `${plan.laborBlockedProducerStock.toFixed(1)} at unstaffed producers`
+      : '',
+    plan.fireBlockedProducerStock > 0.05
+      ? `${plan.fireBlockedProducerStock.toFixed(1)} fire-blocked`
+      : '',
+    plan.busyProducerStock > 0.05
+      ? `${plan.busyProducerStock.toFixed(1)} waiting for source carts to return`
+      : '',
+    plan.receivingBlockedProducerStock > 0.05
+      ? `${plan.receivingBlockedProducerStock.toFixed(1)} waiting for a market receiving slot`
+      : '',
+  ].filter(Boolean);
+  const blockedQueues = [
+    plan.roadBlockedMarketQueueUnits > 0.05
+      ? `${plan.roadBlockedMarketQueueUnits.toFixed(1)} road-blocked`
+      : '',
+    plan.constructionBlockedMarketQueueUnits > 0.05
+      ? `${plan.constructionBlockedMarketQueueUnits.toFixed(1)} at unfinished markets`
+      : '',
+    plan.laborBlockedMarketQueueUnits > 0.05
+      ? `${plan.laborBlockedMarketQueueUnits.toFixed(1)} without brokers`
+      : '',
+    plan.fireBlockedMarketQueueUnits > 0.05
+      ? `${plan.fireBlockedMarketQueueUnits.toFixed(1)} fire-blocked`
+      : '',
+    plan.policyHeldMarketQueueUnits > 0.05
+      ? `${plan.policyHeldMarketQueueUnits.toFixed(1)} held for price`
+      : '',
+    plan.manualTradeBlockedMarketQueueUnits > 0.05
+      ? `${plan.manualTradeBlockedMarketQueueUnits.toFixed(1)} behind manual settlement`
+      : '',
+  ].filter(Boolean);
+  const attentionId = plan.firstAttentionBuildingId
+    ?? plan.slowestActiveMarketId;
+  const attentionLabel = plan.firstAttentionBuildingId === null
+    ? 'slowest active specialty desk'
+    : specialtyExportAttentionLabel(plan.firstAttentionKind);
+  const inspect = attentionId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${attentionId}" aria-label="Inspect ${attentionLabel}">Inspect</button>`;
+  const slowest = plan.slowestActiveMarketClearSeconds === null
+    ? ''
+    : ` &middot; slowest active desk clears its current and approaching queue in ${formatSpecialtyExportDuration(plan.slowestActiveMarketClearSeconds)}`;
+  const activeQueue = plan.activeMarketQueueUnits > 0.05
+    ? `${plan.activeMarketQueueUnits.toFixed(1)} units at active desks`
+    : 'no stock at active desks';
+
+  return `
+    <li><span>Specialty pipeline</span><span>${plan.producerStock.toFixed(1)} at completed producers &middot; ${plan.dispatchReadyProducerStock.toFixed(1)} at sources with labor, a free cart, receiving room, and a market route; household and monastery dispatch still goes first &middot; ${plan.inTransitToMarkets.toFixed(1)} approaching markets &middot; ${plan.marketQueueUnits.toFixed(1)} already at market &middot; ${specialtyExportCargoMix(plan)}</span></li>
+    ${roadRow}
+    <li><span>Producer export blocks</span><span>${sourceBlocks.length > 0 ? sourceBlocks.join(' &middot; ') : 'No physical source-route, storage, labor, fire, or cart block'}</span></li>
+    <li><span>Specialty broker desks</span><span>${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets actively selling at the current ${Math.round(plan.marketRate * 100)}% regional rate &middot; ${plan.exportWorkers} free ${plan.exportWorkers === 1 ? 'broker' : 'brokers'} clear ${plan.exportRatePerSecond.toFixed(2)} units/s &middot; ${activeQueue}${slowest} &middot; ${plan.blockedMarketQueueUnits.toFixed(1)} blocked or held${blockedQueues.length > 0 ? ` (${blockedQueues.join(' &middot; ')})` : ''}${inspect}</span></li>
+  `;
+}
+
+export function renderSettlementBackyardEconomyRows(
+  plan: SettlementBackyardEconomyPlan,
+): string {
+  if (plan.occupiedGardens === 0) {
+    return `
+      <li><span>Backyard economy</span><span>No occupied household plot is producing</span></li>
+    `;
+  }
+  const environment = `${plan.currentEnvironment.season}, ${plan.currentEnvironment.weather}`;
+  const productionState = plan.currentSabbathPause
+    ? 'Sunday Sabbath pauses every plot today'
+    : `${plan.producingTodayGardens} / ${plan.occupiedGardens} occupied plots are in season`;
+  const inspect = plan.firstUnlinkedResidenceId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${plan.firstUnlinkedResidenceId}" aria-label="Inspect highest-value unlinked backyard">Inspect home</button>`;
+  const roadState = plan.occupiedGardenBranches === 0
+    ? `${plan.marketLinkedGardens} / ${plan.occupiedGardens} occupied plots can reach a completed market`
+    : `${plan.matchedGardenBranches} / ${plan.occupiedGardenBranches} occupied garden branches reach one of ${plan.marketRoadBranches} market branches`;
+  const capped = plan.wealthCappedGardens > 0
+    ? ` &middot; ${plan.wealthCappedGardens} ${plan.wealthCappedGardens === 1 ? 'household is' : 'households are'} at or near the wealth cap`
+    : '';
+
+  return `
+    <li><span>Garden season</span><span>${productionState} &middot; ${environment} &middot; ${plan.currentDaySelfFood.toFixed(1)} home food at today's full workday conditions</span></li>
+    <li><span>Market-garden roads</span><span>${roadState} &middot; ${plan.marketLinkedGardens} linked, ${plan.marketUnlinkedGardens} unlinked${inspect}</span></li>
+    <li><span>Garden trade outlook</span><span>${plan.currentDayRoutedActivity.toFixed(1)} gold routed today${plan.currentDayStrandedActivity > 0.05 ? ` &middot; ${plan.currentDayStrandedActivity.toFixed(1)} stranded` : ''} &middot; next 120 days: ${plan.horizonRoutedActivity.toFixed(1)} routed, ${plan.horizonStrandedActivity.toFixed(1)} stranded${capped}</span></li>
+  `;
+}
+
+export function renderSettlementArmamentRows(
+  plan: SettlementArmamentPlan,
+): string {
+  const inspect = plan.firstExposedGuardhouseId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstExposedGuardhouseId}" aria-label="Inspect first road-exposed guardhouse">Inspect company</button>`;
+  const finishedCoverage = plan.assignedGuards > 0
+    ? `${plan.armableFromFinishedStock} / ${plan.assignedGuards} armable after approaching carts and finished stock at staffed road-linked carpenters`
+    : 'No guards currently assigned';
+  const readyCraftCoverage = plan.assignedGuards > 0
+    ? ` &middot; ${plan.armableAfterReadyCrafts} / ${plan.assignedGuards} after polearms whose inputs are already onsite or approaching their carpenter`
+    : '';
+  const remainingGap = plan.unarmedAfterReadyCrafts > 0
+    ? ` &middot; ${plan.unarmedAfterReadyCrafts} still exposed${inspect}`
+    : plan.assignedGuards > 0
+      ? ' &middot; current establishment physically covered'
+      : '';
+  const unavailablePolearms = plan.unavailableFinishedPolearms > 0.05
+    ? ` &middot; ${plan.unavailableFinishedPolearms.toFixed(1)} in treasury, excess company stock, idle shops, or disconnected stores`
+    : '';
+  const unavailableIronwork = plan.unavailableIronwork > 0.05
+    ? ` &middot; ${plan.unavailableIronwork.toFixed(1)} ironwork outside a staffed armory route`
+    : '';
+  const roads = plan.roadPlan;
+  const roadRow = roads === null || roads.guardBranches === 0
+    ? ''
+    : `<li><span>Armory roads</span><span>${roads.staffedArmoryGuardBranches} / ${roads.guardBranches} guard branches have a staffed carpenter route &middot; ${roads.finishedStockCoveredBranches} covered by finished arms &middot; ${roads.readyCraftCoveredBranches} covered after ready crafts &middot; ${roads.exposedGuardBranches} still short &middot; ${roads.unservedGuardBranches} without staffed armory${roads.fragmentationGuards > 0.05 ? ` &middot; ${roads.fragmentationGuards.toFixed(1)} guards blocked by branch fragmentation` : ' &middot; no ready arms stranded by topology'}</span></li>`;
+  const workOrders = plan.staffedCarpenters === 0
+    ? 'No staffed carpenter can execute a polearm order'
+    : `${plan.readyArmoryOutput.toFixed(1)} / ${plan.selectedArmoryOutput.toFixed(1)} selected polearms have timber and ironwork onsite or approaching &middot; remaining targets claim ${plan.timberNeededForTargets.toFixed(1)} timber + ${plan.ironworkNeededForTargets.toFixed(1)} ironwork &middot; connected source branches currently hold ${plan.roadSourceTimber.toFixed(1)} timber + ${plan.roadSourceIronwork.toFixed(1)} ironwork before cart contention`;
+
+  return `
+    <li><span>Armed establishment</span><span>${plan.armedGuards} / ${plan.assignedGuards} guards armed onsite &middot; ${finishedCoverage}${readyCraftCoverage}${remainingGap}</span></li>
+    <li><span>Company priorities</span><span>${plan.highPriorityCompanies} high &middot; ${plan.normalPriorityCompanies} normal &middot; ${plan.lowPriorityCompanies} low &middot; governs scarce polearms, routine provisions, and wages</span></li>
+    ${roadRow}
+    <li><span>Armory work orders</span><span>${workOrders}</span></li>
+    <li><span>Military stores</span><span>${plan.polearmStock.toFixed(1)} polearms owned${plan.polearmsInTransit > 0.05 ? ` &middot; ${plan.polearmsInTransit.toFixed(1)} on carts` : ''} &middot; ${plan.serviceableFinishedPolearms.toFixed(1)} serviceable to current guard branches${unavailablePolearms} &middot; ${plan.ironworkStock.toFixed(1)} ironwork owned${plan.ironworkInTransit > 0.05 ? ` &middot; ${plan.ironworkInTransit.toFixed(1)} on carts` : ''} &middot; ${plan.serviceableIronwork.toFixed(1)} at staffed armories, approaching them, or in their staffed markets${unavailableIronwork}</span></li>
   `;
 }
 
@@ -716,14 +1136,17 @@ export function renderTownHallInspector(
     context.getLaborStewardReserve?.() ?? DEFAULT_LABOR_STEWARD_RESERVE,
   );
   const taxRate = context.getEconomicActivityTaxRate?.() ?? 0;
+  const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
   const readout = buildVillageAdminReadout({
     gameState: context.gameState,
     worldQueries: context.worldQueries,
+    worldHydrology: context.worldHydrology,
     taxRate,
-    parishPolicy: context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY,
+    parishPolicy,
   });
-  const collectionRate = staffed ? 100 : Math.round(TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER * 100);
-  const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
+  const collectionRate = staffedTownHallAvailable
+    ? 100
+    : Math.round(TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER * 100);
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const clock = gameClock(context.gameState.tick);
   const environment = environmentFor(context.gameState.seed, context.worldHydrology, clock);
@@ -757,6 +1180,9 @@ export function renderTownHallInspector(
     freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
     sabbathObserved: parishPolicy.sabbathObservanceEnabled
       && hasStaffedChapel(context.gameState.buildings.values()),
+    roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
+      ? (entity) => context.worldQueries.getRoadComponentId(entity.x, entity.z)
+      : undefined,
   });
   const freshFoodPreservationRows = renderFreshFoodPreservationRows(
     provisioning.foodPreservation,
@@ -798,6 +1224,12 @@ export function renderTownHallInspector(
     state: context.gameState,
     hasRoadAccess: (candidate) =>
       context.worldQueries.hasRoadAccess(candidate.x, candidate.z),
+    roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
+      ? (candidate) => context.worldQueries.getRoadComponentId(
+          candidate.x,
+          candidate.z,
+        )
+      : undefined,
   });
   const constructionLabor = computeSettlementConstructionLaborPlan(
     context.gameState,
@@ -857,15 +1289,6 @@ export function renderTownHallInspector(
   const payrollGoldDue = guardhousePayroll.reduce((sum, company) => sum + company.dailyWage, 0);
   const payrollGoldFunded = guardhousePayroll.reduce((sum, company) => sum + company.fundedGold, 0);
   const underfundedCompany = guardhousePayroll.find((company) => company.fundedRatio < 0.999);
-  const highPriorityCompanies = guardhousePayroll.filter(
-    (company) => company.priority === GUARDHOUSE_PAY_PRIORITY_HIGH,
-  ).length;
-  const lowPriorityCompanies = guardhousePayroll.filter(
-    (company) => company.priority === GUARDHOUSE_PAY_PRIORITY_LOW,
-  ).length;
-  const normalPriorityCompanies = guardhousePayroll.length
-    - highPriorityCompanies
-    - lowPriorityCompanies;
   let leanReserveCompanies = 0;
   let deepReserveCompanies = 0;
   let guardProvisionTarget = 0;
@@ -893,13 +1316,36 @@ export function renderTownHallInspector(
     ?? computeSettlementProductionCapacity(
       context.gameState,
       provisioning.sabbathObserved,
+      typeof context.worldQueries.getRoadComponentId === 'function'
+        ? (candidate) => context.worldQueries.getRoadComponentId(
+            candidate.x,
+            candidate.z,
+          )
+        : undefined,
     );
   const prosperity = computeSettlementProsperityPlan(production, growth);
   const textilePlan = computeSettlementTextilePlan({
     state: context.gameState,
     clock,
     production,
+    roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
+      ? (candidate) => context.worldQueries.getRoadComponentId(
+          candidate.x,
+          candidate.z,
+        )
+      : undefined,
   });
+  const armamentPlan = context.conflictEnabled
+    ? computeSettlementArmamentPlan({
+        state: context.gameState,
+        roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
+          ? (candidate) => context.worldQueries.getRoadComponentId(
+              candidate.x,
+              candidate.z,
+            )
+          : undefined,
+      })
+    : null;
   const processingWeek = `${production.capacityDaysPerWeek}-day working week · installed capacity if supplied`;
   const flourBalance = grainChainBalanceLabel(production);
   const farmPlan = buildSettlementFarmPlan(
@@ -919,11 +1365,41 @@ export function renderTownHallInspector(
       monasteryLinkedToChapel(candidate, growthChapels, roadPathDistance)
         ? 1
         : MONASTERY_UNLINKED_PRODUCTIVITY,
+    roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
+      ? (candidate) => context.worldQueries.getRoadComponentId(
+          candidate.x,
+          candidate.z,
+        )
+      : undefined,
   });
   const marketState = context.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE;
+  const householdMarketPlan = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
+    ? computeSettlementHouseholdMarketPlan({
+        state: context.gameState,
+        marketState,
+        roadNetwork: context.worldQueries.getRoadNetworkSnapshot(),
+        clock,
+        sabbathObserved: provisioning.sabbathObserved,
+      })
+    : null;
+  const householdMarketInspectButton =
+    householdMarketPlan?.firstAttentionResidenceId == null
+      ? ''
+      : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${householdMarketPlan.firstAttentionResidenceId}" aria-label="Inspect first emergency-market household">Inspect</button>`;
+  const specialtyExportPlan = computeSettlementSpecialtyExportPlan({
+    state: context.gameState,
+    marketRate: marketState.specialtyPriceMult,
+    roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
+      ? (candidate) => context.worldQueries.getRoadComponentId(
+          candidate.x,
+          candidate.z,
+        )
+      : undefined,
+  });
   const seedProcurement = computeSettlementSeedProcurementPlan({
     state: context.gameState,
     seedShortfall: farmPlan.seedGrainShortfall,
+    seedGrainByHolding: farmPlan.seedGrainByHolding,
     availableGold: context.resourceTotals.gold,
     nextLotGoldCost: marketplaceTradeOfferCost(
       MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
@@ -932,6 +1408,12 @@ export function renderTownHallInspector(
     conflictEnabled: context.conflictEnabled ?? false,
     hasRoadAccess: (candidate) =>
       context.worldQueries.hasRoadAccess(candidate.x, candidate.z),
+    roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
+      ? (candidate) => context.worldQueries.getRoadComponentId(
+          candidate.x,
+          candidate.z,
+        )
+      : undefined,
   });
   const centralGrainReserveRow = grainReserve.granaries === 0
     ? '<li><span>Central grain floor</span><span>No completed granary</span></li>'
@@ -1040,17 +1522,22 @@ export function renderTownHallInspector(
       <li><span>Growth bottlenecks</span><span>${formatGrowthBottlenecks(growth)}${growthInspectButton}</span></li>
       <li><span>At full housing</span><span>+${growth.additionalFoodPerDay.toFixed(1)} food/day · +${growth.additionalWaterPerDay.toFixed(1)} water/day · +${growth.additionalWinterFirewoodPerDay.toFixed(1)} winter firewood/day</span></li>
       ${growth.additionalPreservedFoodPerDay + growth.additionalAlePerDay + growth.additionalClothPerDay > 1e-6 ? `<li><span>Prosperous-house growth</span><span>+${growth.additionalPreservedFoodPerDay.toFixed(1)} preserved food/day · +${growth.additionalAlePerDay.toFixed(1)} ale/day · +${growth.additionalClothPerDay.toFixed(2)} cloth/day</span></li>` : ''}
-      <li><span>Village activity</span><span>${readout.gdpLabel}</span></li>
+      ${readout.backyardEconomy ? renderSettlementBackyardEconomyRows(readout.backyardEconomy) : ''}
       <li><span>Trade productivity</span><span>${readout.productivityLabel}</span></li>
       <li><span>Household wealth</span><span>${readout.householdWealthLabel}</span></li>
       <li><span>Household savings</span><span>${readout.householdSavingsLabel}</span></li>
-      <li><span>Assessed tax</span><span>${readout.taxIncomeLabel}</span></li>
-      <li><span>Collection capacity</span><span>${collectionRate}%${staffed ? '' : ' while unstaffed'}</span></li>
+      ${householdMarketPlan == null ? '' : `
+      <li><span>Emergency market orders</span><span>${formatHouseholdMarketSettlementSummary(householdMarketPlan)}</span></li>
+      <li><span>Emergency purchasing power</span><span>${formatHouseholdMarketPurchasingPower(householdMarketPlan)}</span></li>
+      <li><span>Emergency bottlenecks</span><span>${formatHouseholdMarketBottlenecks(householdMarketPlan)}${householdMarketInspectButton}</span></li>`}
+      <li><span>Garden tax collected</span><span>${readout.taxIncomeLabel}</span></li>
+      <li><span>Collection capacity</span><span>${collectionRate}%${staffedTownHallAvailable ? '' : ' without a staffed clerk'}</span></li>
       <li><span>Chapel tithe</span><span>${readout.chapelTitheLabel}</span></li>
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>
       <li><span>Parish coffers</span><span>${readout.cofferBalanceLabel}</span></li>
       <li><span>Parish ledger</span><span>${readout.parishLedgerLabel}</span></li>
       <li><span>Food reserve</span><span>${formatProvisionRunway(provisioning.foodRunwayDays)} · ${provisioning.totalFoodPerDay.toFixed(1)} consumed / day</span></li>
+      <li><span>Road-branch provisions</span><span>${formatRoadProvisioning(provisioning.roadBranches)}</span></li>
       ${freshFoodPreservationRows}
       <li><span>Household delivery buffer</span><span>${formatHouseholdBufferReadiness(provisioning)}</span></li>
       <li><span>Winter firewood</span><span>${Math.round(provisioning.firewoodStock)} / ${Math.ceil(provisioning.winterFirewoodNeed)} · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>
@@ -1064,29 +1551,28 @@ export function renderTownHallInspector(
       <li><span>Weaver buffers</span><span>Input ${formatProcessorInputBuffer(production.weaverInputBuffer)} · cloth room ${formatProcessorOutputRoom(production.weaverOutputRoom)} ${processorInspectButton('weaver', production.weaverInputBuffer, production.weaverOutputRoom)}</span></li>
       <li><span>Processing labor</span><span>${production.millWorkers} mill · ${production.bakeryWorkers} granary · ${production.breweryWorkers} brewing · ${production.smokehouseWorkers} preserving · ${production.weaverWorkers} weaving</span></li>
       <li><span>Mill / bakery balance</span><span>${production.flourOutputPerDay.toFixed(1)} flour made / ${production.bakeryFlourCapacityPerDay.toFixed(1)} bakery intake · ${flourBalance}</span></li>
+      <li><span>Grain-chain roads</span><span>${formatGrainChainRoads(production.grainChainRoads)}</span></li>
       <li><span>Bread capacity</span><span>${production.breadFoodCapacityPerDay.toFixed(1)} food / day vs ${provisioning.totalFoodPerDay.toFixed(1)} total demand · needs ${production.breadGrainPerDay.toFixed(1)} grain + ${production.breadWaterPerDay.toFixed(1)} water + ${production.breadFirewoodPerDay.toFixed(1)} firewood</span></li>
       <li><span>Ale capacity</span><span>${production.aleOutputPerDay.toFixed(1)} / day vs ${production.aleDemandPerDay.toFixed(1)} tier-3 demand · needs ${production.aleGrainPerDay.toFixed(1)} grain + ${production.aleWaterPerDay.toFixed(1)} water</span></li>
       <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day vs ${production.preservedFoodDemandPerDay.toFixed(1)} tier-3 demand · needs ${production.preservationFreshFoodPerDay.toFixed(1)} fresh food + ${production.preservationFirewoodPerDay.toFixed(1)} firewood</span></li>
       <li><span>Cloth capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-3 demand · needs ${production.clothWoolPerDay.toFixed(1)} wool</span></li>
       <li><span>Prosperity throughput</span><span>${formatProsperityCapacity(prosperity)}</span></li>
+      <li><span>Prosperity roads</span><span>${formatProsperityRoads(prosperity.roadPlan)}</span></li>
       <li><span>Prosperous housing pipeline</span><span>${formatProsperityHousingPipeline(prosperity)} · assumes staffed workshops remain fully supplied</span></li>
       ${renderSettlementTextileRows(textilePlan)}
+      ${renderSettlementSpecialtyExportRows(specialtyExportPlan)}
       ${renderSettlementGrainRows(grainPlan)}
       ${renderSettlementSeedProcurementRows(seedProcurement, farmPlan.firstSeedShortBuildingId)}
       ${monasteryHospitalityRow}
       ${farmPlanRows}
       ${centralGrainReserveRow}
       ${livestockFodderRows}
-      <li><span>Armed establishment</span><span>${provisioning.assignedGuards > 0
-        ? `${provisioning.armedGuards} / ${provisioning.assignedGuards} armed · ${provisioning.unarmedGuards} need polearms`
-        : 'No guard company assigned'}</span></li>
+      ${armamentPlan === null ? '' : renderSettlementArmamentRows(armamentPlan)}
       ${provisioning.armedGuards > 0 ? `<li><span>Guardhouse food</span><span>${provisioning.guardFoodStock.toFixed(1)} on site · first shortfall ${formatProvisionRunway(provisioning.guardProvisionRunwayDays)}</span></li>
       <li><span>Ration reserves</span><span>${provisioning.guardFoodStock.toFixed(1)} / ${guardProvisionTarget.toFixed(1)} food target · ${leanReserveCompanies} lean · ${standardReserveCompanies} company · ${deepReserveCompanies} deep</span></li>
       <li><span>Guard wages</span><span>${provisioning.guardWagePerDay.toFixed(1)} gold / day · ${formatProvisionRunway(provisioning.guardWageRunwayDays)}</span></li>
       <li><span>Next-day payroll</span><span>${payrollGoldFunded.toFixed(1)} / ${payrollGoldDue.toFixed(1)} gold funded${underfundedCompany ? ` · ${guardhousePayroll.filter((company) => company.fundedRatio < 0.999).length} companies at risk <button type="button" class="inspector-jump-button" data-inspect-building="${underfundedCompany.building.id}" aria-label="Inspect first underfunded guardhouse">Inspect</button>` : ' · all companies funded'}</span></li>
-      <li><span>Payroll priorities</span><span>${highPriorityCompanies} high · ${normalPriorityCompanies} normal · ${lowPriorityCompanies} low</span></li>` : ''}
-      ${context.conflictEnabled ? `<li><span>Imported ironwork</span><span>${Math.round(context.resourceTotals.ironwork)}</span></li>` : ''}
-      <li><span>Polearms on hand</span><span>${Math.round(context.resourceTotals.polearms)}</span></li>
+      ` : ''}
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats),

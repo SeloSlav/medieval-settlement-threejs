@@ -1,5 +1,7 @@
 use spacetimedb::ReducerContext;
+use std::collections::{HashMap, HashSet};
 
+use crate::backyard_garden_policy::backyard_garden_seasonal_multiplier;
 use crate::balance_generated::{backyard_garden_def, BackyardGardenKind, TICK_DT};
 use crate::db::*;
 use crate::economy::{
@@ -7,15 +9,14 @@ use crate::economy::{
     player_economic_activity_tax_rate, taxed_economic_activity,
     town_hall_tax_collection_multiplier,
 };
-use crate::season_policy::{EnvironmentState, Season, WeatherKind};
+use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::landmark_access::residence_has_marketplace_access;
 use crate::simulation::residence_needs::food;
 use crate::simulation::residence_needs::state::{find_need_mut, load_needs, persist_needs};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::tick_context::SimTickContext;
-use crate::tables::{Building, Residence};
+use crate::tables::Residence;
 
 pub fn step_backyard_gardens(
     ctx: &ReducerContext,
@@ -23,12 +24,25 @@ pub fn step_backyard_gardens(
     clock: &GameClock,
     environment: EnvironmentState,
 ) {
-    let marketplaces: Vec<Building> = ctx
+    // Backyard trade needs only road connectivity, not a shortest route. Cache
+    // each owner's complete set of market-bearing components once so the
+    // garden pass scales with gardens + markets instead of gardens x markets.
+    let mut marketplace_components_by_owner: HashMap<spacetimedb::Identity, HashSet<u32>> =
+        HashMap::new();
+    for marketplace in ctx
         .db
         .building()
         .iter()
         .filter(|building| building.kind == "marketplace" && building.construction_complete)
-        .collect();
+    {
+        let Some(network) = tick.road_network(marketplace.owner) else {
+            continue;
+        };
+        marketplace_components_by_owner
+            .entry(marketplace.owner)
+            .or_default()
+            .extend(network.road_components_at(marketplace.x, marketplace.z));
+    }
 
     for garden in ctx.db.backyard_garden().iter() {
         let Some(kind) = BackyardGardenKind::from_id(garden.kind) else {
@@ -43,8 +57,12 @@ pub fn step_backyard_gardens(
         if residence.abandoned || residence.population == 0 {
             continue;
         }
-        let has_market_access =
-            residence_has_marketplace_access(tick, garden.owner, &residence, &marketplaces);
+        let has_market_access = tick
+            .road_network(garden.owner)
+            .zip(marketplace_components_by_owner.get(&garden.owner))
+            .is_some_and(|(network, market_components)| {
+                network.has_any_road_component_at(residence.x, residence.z, market_components)
+            });
         step_one_garden(
             ctx,
             kind,
@@ -68,7 +86,7 @@ fn step_one_garden(
 ) {
     let def = backyard_garden_def(kind);
     let population = residence.population as f64;
-    let seasonal_multiplier = garden_seasonal_multiplier(kind, clock, environment);
+    let seasonal_multiplier = backyard_garden_seasonal_multiplier(kind, clock.month, environment);
     if seasonal_multiplier <= 1e-9 {
         return;
     }
@@ -99,48 +117,6 @@ fn step_one_garden(
     }
     if tax > 1e-9 {
         credit_treasury_gold(ctx, owner, tax);
-    }
-}
-
-fn garden_seasonal_multiplier(
-    kind: BackyardGardenKind,
-    clock: &GameClock,
-    environment: EnvironmentState,
-) -> f64 {
-    use BackyardGardenKind::*;
-    let base = match kind {
-        AppleOrchard | CherryOrchard => {
-            if clock.month == 9 {
-                12.0
-            } else {
-                0.0
-            }
-        }
-        VegetableGarden | HerbGarden => match environment.season {
-            Season::Spring | Season::Summer => 1.0,
-            Season::Autumn => 0.55,
-            Season::Winter => 0.0,
-        },
-        FlowerGarden => match environment.season {
-            Season::Spring => 1.4,
-            Season::Summer => 1.0,
-            Season::Autumn => 0.35,
-            Season::Winter => 0.0,
-        },
-        HenYard => {
-            if environment.season == Season::Winter {
-                0.75
-            } else {
-                1.0
-            }
-        }
-    };
-    if environment.weather == WeatherKind::Drought
-        && !matches!(kind, HenYard | AppleOrchard | CherryOrchard)
-    {
-        base * 0.55
-    } else {
-        base
     }
 }
 

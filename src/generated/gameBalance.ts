@@ -1140,6 +1140,7 @@ export const MARKET_CARAVAN_FIREWOOD_PER_DELIVERY = 5;
 export const MARKET_CARAVAN_DELIVERY_WORKERS = 1;
 export const MARKET_CARAVAN_LABOR_PER_WORKER = 1;
 export const HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS = 0.75;
+export const HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS = 450;
 
 export type MarketCommodityOffer = {
   id: string;

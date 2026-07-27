@@ -24,6 +24,7 @@ import type { WorldQueries } from '../WorldQueries.ts';
 import { specialtySeasonStatus } from '../../economy/specialtyTrade.ts';
 import {
   isProcessorOutputTargetKind,
+  processorInputStagingCycles,
   processorOutputHeadroom,
   processorOutputTargetForBuilding,
 } from '../../economy/processorOutputPolicy.ts';
@@ -185,7 +186,15 @@ function formatProcessorInputBufferRow(
     }
   }
   if (!limitingInput) return '';
-  const inputRow = `<li><span>On-site input buffer</span><span>${formatInputCycleCoverage(limitingCycles)} · ${limitingInput} limits</span></li>`;
+  const stagingCycles = isProcessorOutputTargetKind(building.kind)
+    ? processorInputStagingCycles(building.processorOutputTargetPercent)
+    : null;
+  const inputCoverage = isProcessorOutputTargetKind(building.kind)
+    ? `${formatInputCycleCoverage(limitingCycles)} on site / ${stagingCycles} ${
+        stagingCycles === 1 ? 'cycle' : 'cycles'
+      } staged`
+    : formatInputCycleCoverage(limitingCycles);
+  const inputRow = `<li><span>On-site input buffer</span><span>${inputCoverage} · ${limitingInput} limits</span></li>`;
   if (!profile.output || profile.outputPerCycle <= 1e-9) return inputRow;
   const outputLimit = processorOutputTargetForBuilding(building)
     ?? (buildingStorageCaps(building.kind)[profile.output] ?? 0);

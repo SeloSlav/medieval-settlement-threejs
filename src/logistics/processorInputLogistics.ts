@@ -8,6 +8,7 @@ import {
   normalizeStaffingPriority,
   type StaffingPriority,
 } from '../economy/staffingPriority.ts';
+import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
 
@@ -23,6 +24,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'assignedLabor'
   | 'constructionComplete'
   | 'constructionPriority'
+  | 'processorOutputTargetPercent'
   | 'flour'
   | 'food'
   | 'wool'
@@ -58,8 +60,12 @@ export function directlyDispatchedProcessorInputPerCycle(
   }
 }
 
-export function processorInputTarget(perCycle: number): number {
-  return Math.max(0, perCycle) * PROCESSOR_INPUT_BUFFER_CYCLES;
+export function processorInputTarget(
+  perCycle: number,
+  processorOutputTargetPercent: number | undefined = 100,
+): number {
+  return Math.max(0, perCycle)
+    * processorInputStagingCycles(processorOutputTargetPercent);
 }
 
 export function processorInputRunwayCycles(stock: number, perCycle: number): number {
@@ -68,8 +74,9 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
 
 /**
  * Mirrors source-side mill, granary/swine, and sheep-holding dispatch. Active
- * processors receive three-cycle working buffers by work priority, then lowest
- * runway and route. Once those buffers are covered, nearest storage overflow
+ * processors receive their selected stock-policy working buffers by work
+ * priority, then lowest runway and route. Once those buffers are covered,
+ * nearest storage overflow
  * resumes without letting a high tier monopolize full warehouses.
  */
 export function selectDirectProcessorInputTarget<
@@ -102,7 +109,10 @@ export function selectDirectProcessorInputTarget<
     if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
 
     const perCycle = directlyDispatchedProcessorInputPerCycle(target.kind, commodity);
-    const workingTarget = processorInputTarget(perCycle);
+    const workingTarget = processorInputTarget(
+      perCycle,
+      target.processorOutputTargetPercent,
+    );
     const duty: ProcessorInputDispatchDuty = target.assignedLabor > 0
       && stock + 1e-6 < workingTarget
       ? 'working-buffer'

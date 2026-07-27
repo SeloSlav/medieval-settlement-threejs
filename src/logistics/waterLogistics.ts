@@ -11,6 +11,7 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState.ts';
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { normalizeStaffingPriority } from '../economy/staffingPriority.ts';
+import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
 import { GAME_DAY_SECONDS } from './firewoodLogistics.ts';
 
 export {
@@ -46,6 +47,16 @@ export function industrialWaterRequirement(kind: BuildingKind): number {
     default:
       return 0;
   }
+}
+
+export function industrialWaterTarget(
+  kind: BuildingKind,
+  processorOutputTargetPercent: number | undefined = 100,
+): number {
+  const perCycle = industrialWaterRequirement(kind);
+  return kind === 'granary' || kind === 'brewery'
+    ? perCycle * processorInputStagingCycles(processorOutputTargetPercent)
+    : perCycle;
 }
 
 function compareCanonicalUint64Strings(a: string, b: string): number {

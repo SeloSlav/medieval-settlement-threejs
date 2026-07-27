@@ -87,6 +87,32 @@ export class RoadPathfinder {
     return nodesA != null && nodesB != null && this.shareComponent(nodesA, nodesB);
   }
 
+  /**
+   * Cached topological branch id for a road-accessible world position.
+   * Buildings on the same id can exchange carts without running Dijkstra.
+   */
+  roadComponentAt(x: number, z: number): number | null {
+    return this.roadComponentsAt(x, z)[0] ?? null;
+  }
+
+  /**
+   * Every cached topological branch touching a road-accessible position.
+   * A position can be equally close to endpoints from disconnected roads, so
+   * retaining the full set avoids an arbitrary branch choice at close passes.
+   */
+  roadComponentsAt(x: number, z: number): number[] {
+    const nodes = this.snapNodes(x, z);
+    if (!nodes) return [];
+    const components = this.getComponentByNode();
+    const selected = new Set<number>();
+    for (const nodeId of nodes) {
+      const component = components.get(nodeId);
+      if (component == null) continue;
+      selected.add(component);
+    }
+    return [...selected].sort((left, right) => left - right);
+  }
+
   roadPathRoute(
     ax: number,
     az: number,
@@ -278,6 +304,8 @@ export class RoadPathfinder {
       if (dist < bestDistance - 1e-6) {
         bestDistance = dist;
         bestNodes = [edge.startNodeId, edge.endNodeId];
+      } else if (Math.abs(dist - bestDistance) <= 1e-6) {
+        bestNodes.push(edge.startNodeId, edge.endNodeId);
       }
     }
 

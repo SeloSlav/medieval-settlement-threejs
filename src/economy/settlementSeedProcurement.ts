@@ -1,6 +1,10 @@
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import {
+  productionRoadBranchKey,
+  type ProductionRoadComponentResolver,
+} from './settlementProduction.ts';
+import {
   MARKETPLACE_SEED_GRAIN_IMPORT_LOT,
   marketplaceSeedGrainProcurementPlan,
   nextMarketplaceStandingOrder,
@@ -20,9 +24,11 @@ export type SettlementSeedProcurementPlan = {
   dueMarkets: number;
   readyMarkets: number;
   currentMarketStock: number;
+  currentGranaryStock: number;
   targetStock: number;
   plannedImportLots: number;
   plannedImportGrain: number;
+  inboundSeedGrain: number;
   affordableLotsAtCurrentRate: number;
   nextLotGoldCost: number;
   seedShortfall: number;
@@ -36,21 +42,53 @@ export type SettlementSeedProcurementPlan = {
   cooldownBlockedMarkets: number;
   firstAttentionMarketId: string | null;
   firstAttentionKind: SettlementSeedProcurementAttention | null;
+  roadPlan: SettlementSeedRoadPlan | null;
+};
+
+export type SettlementSeedRoadBranch = {
+  seedShortfall: number;
+  currentMarketStock: number;
+  currentGranaryStock: number;
+  plannedImportGrain: number;
+  potentialCoverage: number;
+  uncoveredShortfall: number;
+  firstShortBuildingId: string | null;
+};
+
+export type SettlementSeedRoadPlan = {
+  activeBranches: number;
+  shortBranches: number;
+  recoverableBranches: number;
+  exposedBranches: number;
+  seedShortfall: number;
+  potentialCoverage: number;
+  uncoveredShortfall: number;
+  fragmentationCoverage: number;
+  unmatchedRecoveryGrain: number;
+  unroutableShortfall: number;
+  firstExposedBuildingId: string | null;
+  branches: ReadonlyMap<string, SettlementSeedRoadBranch>;
 };
 
 type SettlementSeedProcurementInput = {
-  state: Pick<GameState, 'buildings'>;
+  state: Pick<GameState, 'buildings' | 'deliveryTrips'>;
   seedShortfall: number;
+  seedGrainByHolding?: ReadonlyMap<string, number>;
   availableGold: number;
   nextLotGoldCost: number;
   conflictEnabled: boolean;
   hasRoadAccess: (building: BuildingState) => boolean;
+  roadComponentFor?: ProductionRoadComponentResolver;
 };
 
 type AttentionCandidate = {
   buildingId: string;
   kind: SettlementSeedProcurementAttention;
   priority: number;
+};
+
+type MutableSeedRoadBranch = SettlementSeedRoadBranch & {
+  firstHoldingCoverage: number;
 };
 
 const ATTENTION_PRIORITY: Record<SettlementSeedProcurementAttention, number> = {
@@ -64,6 +102,228 @@ const ATTENTION_PRIORITY: Record<SettlementSeedProcurementAttention, number> = {
 
 function positiveFinite(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, value as number) : 0;
+}
+
+function seedRoadBranch(
+  branches: Map<string, MutableSeedRoadBranch>,
+  key: string,
+): MutableSeedRoadBranch {
+  let branch = branches.get(key);
+  if (branch) return branch;
+  branch = {
+    seedShortfall: 0,
+    currentMarketStock: 0,
+    currentGranaryStock: 0,
+    plannedImportGrain: 0,
+    potentialCoverage: 0,
+    uncoveredShortfall: 0,
+    firstShortBuildingId: null,
+    firstHoldingCoverage: Number.POSITIVE_INFINITY,
+  };
+  branches.set(key, branch);
+  return branch;
+}
+
+function inboundSeedByHolding(
+  state: Pick<GameState, 'deliveryTrips'>,
+): Map<string, number> {
+  const inbound = new Map<string, number>();
+  for (const trip of state.deliveryTrips.values()) {
+    if (
+      trip.phase === 'inbound'
+      || trip.destinationKind !== 'building'
+      || trip.targetBuildingId === null
+      || trip.cargoKind !== 'grain'
+      || trip.amount <= 1e-9
+    ) {
+      continue;
+    }
+    inbound.set(
+      trip.targetBuildingId,
+      (inbound.get(trip.targetBuildingId) ?? 0) + positiveFinite(trip.amount),
+    );
+  }
+  return inbound;
+}
+
+function seedRoadDemand(input: SettlementSeedProcurementInput): {
+  branches: Map<string, MutableSeedRoadBranch> | null;
+  seedShortfall: number;
+  unroutableShortfall: number;
+  inboundSeedGrain: number;
+} {
+  const fallbackShortfall = positiveFinite(input.seedShortfall);
+  if (!input.seedGrainByHolding || !input.roadComponentFor) {
+    return {
+      branches: null,
+      seedShortfall: fallbackShortfall,
+      unroutableShortfall: 0,
+      inboundSeedGrain: 0,
+    };
+  }
+
+  const branches = new Map<string, MutableSeedRoadBranch>();
+  const inbound = inboundSeedByHolding(input.state);
+  let preInboundShortfall = 0;
+  let routableShortfall = 0;
+  let unroutableShortfall = 0;
+  let inboundSeedGrain = 0;
+
+  for (const [buildingId, rawRequired] of input.seedGrainByHolding) {
+    const required = positiveFinite(rawRequired);
+    if (required <= 1e-9) continue;
+    const farmstead = input.state.buildings.get(buildingId);
+    if (
+      farmstead?.kind !== 'threshing_barn'
+      || farmstead.constructionComplete === false
+    ) {
+      preInboundShortfall += required;
+      unroutableShortfall += required;
+      continue;
+    }
+
+    const onsite = positiveFinite(farmstead.grain);
+    const preInboundGap = Math.max(0, required - onsite);
+    preInboundShortfall += preInboundGap;
+    const approaching = positiveFinite(inbound.get(buildingId));
+    inboundSeedGrain += Math.min(preInboundGap, approaching);
+    const shortfall = Math.max(0, preInboundGap - approaching);
+    if (shortfall <= 1e-9) continue;
+
+    const branch = seedRoadBranch(
+      branches,
+      productionRoadBranchKey(
+        input.roadComponentFor(farmstead),
+        'building',
+        farmstead.id,
+      ),
+    );
+    branch.seedShortfall += shortfall;
+    routableShortfall += shortfall;
+    const coverage = required > 1e-9
+      ? Math.min(1, (onsite + approaching) / required)
+      : 1;
+    if (
+      branch.firstShortBuildingId === null
+      || coverage < branch.firstHoldingCoverage - 1e-9
+      || (
+        Math.abs(coverage - branch.firstHoldingCoverage) <= 1e-9
+        && compareStableEntityIds(
+          farmstead.id,
+          branch.firstShortBuildingId,
+        ) < 0
+      )
+    ) {
+      branch.firstHoldingCoverage = coverage;
+      branch.firstShortBuildingId = farmstead.id;
+    }
+  }
+
+  unroutableShortfall += Math.max(
+    0,
+    fallbackShortfall - preInboundShortfall,
+  );
+  return {
+    branches,
+    seedShortfall: routableShortfall + unroutableShortfall,
+    unroutableShortfall,
+    inboundSeedGrain,
+  };
+}
+
+function buildSeedRoadPlan(input: {
+  branches: Map<string, MutableSeedRoadBranch> | null;
+  seedShortfall: number;
+  unroutableShortfall: number;
+  totalRecoveryGrain: number;
+}): SettlementSeedRoadPlan | null {
+  if (!input.branches) return null;
+  let shortBranches = 0;
+  let recoverableBranches = 0;
+  let exposedBranches = 0;
+  let potentialCoverage = 0;
+  let firstExposedBuildingId: string | null = null;
+  let firstExposureCoverage = Number.POSITIVE_INFINITY;
+  let firstExposureShortfall = 0;
+
+  for (const branch of input.branches.values()) {
+    const recoveryGrain = positiveFinite(branch.currentMarketStock)
+      + positiveFinite(branch.currentGranaryStock)
+      + positiveFinite(branch.plannedImportGrain);
+    branch.potentialCoverage = Math.min(branch.seedShortfall, recoveryGrain);
+    branch.uncoveredShortfall = Math.max(
+      0,
+      branch.seedShortfall - branch.potentialCoverage,
+    );
+    potentialCoverage += branch.potentialCoverage;
+    if (branch.seedShortfall <= 1e-9) continue;
+    shortBranches += 1;
+    if (branch.uncoveredShortfall <= 0.05) {
+      recoverableBranches += 1;
+      continue;
+    }
+    exposedBranches += 1;
+    const coverage = branch.seedShortfall > 1e-9
+      ? branch.potentialCoverage / branch.seedShortfall
+      : 1;
+    if (
+      branch.firstShortBuildingId !== null
+      && (
+        coverage < firstExposureCoverage - 1e-9
+        || (
+          Math.abs(coverage - firstExposureCoverage) <= 1e-9
+          && (
+            branch.uncoveredShortfall > firstExposureShortfall + 1e-9
+            || (
+              Math.abs(
+                branch.uncoveredShortfall - firstExposureShortfall,
+              ) <= 1e-9
+              && (
+                firstExposedBuildingId === null
+                || compareStableEntityIds(
+                  branch.firstShortBuildingId,
+                  firstExposedBuildingId,
+                ) < 0
+              )
+            )
+          )
+        )
+      )
+    ) {
+      firstExposureCoverage = coverage;
+      firstExposureShortfall = branch.uncoveredShortfall;
+      firstExposedBuildingId = branch.firstShortBuildingId;
+    }
+  }
+
+  const uncoveredShortfall = Math.max(
+    0,
+    input.seedShortfall - potentialCoverage,
+  );
+  const globalPotentialCoverage = Math.min(
+    input.seedShortfall,
+    input.totalRecoveryGrain,
+  );
+  return {
+    activeBranches: input.branches.size,
+    shortBranches,
+    recoverableBranches,
+    exposedBranches,
+    seedShortfall: input.seedShortfall,
+    potentialCoverage,
+    uncoveredShortfall,
+    fragmentationCoverage: Math.max(
+      0,
+      globalPotentialCoverage - potentialCoverage,
+    ),
+    unmatchedRecoveryGrain: Math.max(
+      0,
+      input.totalRecoveryGrain - potentialCoverage,
+    ),
+    unroutableShortfall: input.unroutableShortfall,
+    firstExposedBuildingId,
+    branches: input.branches,
+  };
 }
 
 function earlierAttention(
@@ -92,14 +352,17 @@ function earlierAttention(
 /**
  * Inspector-time settlement forecast for configured seed-grain imports.
  *
- * Physical marketplace grain remains part of the owned grain ledger. Only lots
- * which have not yet been bought appear as planned imports, so callers can show
- * the recovery ceiling without treating contingent purchases as present stock.
+ * Completed granary and marketplace stocks are grouped with seed-short holdings
+ * by cached road component. Grain already approaching a holding reduces its
+ * branch demand. Only lots which have not yet been bought appear as planned
+ * imports, so callers can show the recovery ceiling without treating contingent
+ * purchases as present stock.
  */
 export function computeSettlementSeedProcurementPlan(
   input: SettlementSeedProcurementInput,
 ): SettlementSeedProcurementPlan {
-  const seedShortfall = positiveFinite(input.seedShortfall);
+  const roadDemand = seedRoadDemand(input);
+  const seedShortfall = roadDemand.seedShortfall;
   const nextLotGoldCost = positiveFinite(input.nextLotGoldCost);
   const availableGold = positiveFinite(input.availableGold);
   let marketplaces = 0;
@@ -107,6 +370,7 @@ export function computeSettlementSeedProcurementPlan(
   let dueMarkets = 0;
   let readyMarkets = 0;
   let currentMarketStock = 0;
+  let currentGranaryStock = 0;
   let targetStock = 0;
   let plannedImportLots = 0;
   let constructionBlockedMarkets = 0;
@@ -118,14 +382,47 @@ export function computeSettlementSeedProcurementPlan(
   let firstAttention: AttentionCandidate | null = null;
 
   for (const building of input.state.buildings.values()) {
+    const completed = building.constructionComplete !== false;
+    if (building.kind === 'granary' && completed) {
+      const grain = positiveFinite(building.grain);
+      currentGranaryStock += grain;
+      if (roadDemand.branches && input.roadComponentFor) {
+        seedRoadBranch(
+          roadDemand.branches,
+          productionRoadBranchKey(
+            input.roadComponentFor(building),
+            'building',
+            building.id,
+          ),
+        ).currentGranaryStock += grain;
+      }
+      continue;
+    }
     if (building.kind !== 'marketplace') continue;
     marketplaces += 1;
-    currentMarketStock += positiveFinite(building.grain);
+    const currentStock = completed ? positiveFinite(building.grain) : 0;
+    currentMarketStock += currentStock;
+    let branch: MutableSeedRoadBranch | null = null;
+    if (roadDemand.branches && input.roadComponentFor) {
+      branch = seedRoadBranch(
+        roadDemand.branches,
+        productionRoadBranchKey(
+          input.roadComponentFor(building),
+          'building',
+          building.id,
+        ),
+      );
+      branch.currentMarketStock += currentStock;
+    }
     const procurement = marketplaceSeedGrainProcurementPlan(building);
     if (procurement.target <= 0) continue;
     targetMarkets += 1;
     targetStock += procurement.target;
     plannedImportLots += procurement.ordersToTarget;
+    if (branch) {
+      branch.plannedImportGrain +=
+        procurement.ordersToTarget * MARKETPLACE_SEED_GRAIN_IMPORT_LOT;
+    }
     if (!procurement.nextOrderDue) continue;
     dueMarkets += 1;
 
@@ -163,10 +460,16 @@ export function computeSettlementSeedProcurementPlan(
 
   const plannedImportGrain =
     plannedImportLots * MARKETPLACE_SEED_GRAIN_IMPORT_LOT;
-  const potentialCoverage = Math.min(
+  const totalRecoveryGrain =
+    currentMarketStock + currentGranaryStock + plannedImportGrain;
+  const roadPlan = buildSeedRoadPlan({
+    branches: roadDemand.branches,
     seedShortfall,
-    currentMarketStock + plannedImportGrain,
-  );
+    unroutableShortfall: roadDemand.unroutableShortfall,
+    totalRecoveryGrain,
+  });
+  const potentialCoverage = roadPlan?.potentialCoverage
+    ?? Math.min(seedShortfall, totalRecoveryGrain);
   const affordableLotsAtCurrentRate = nextLotGoldCost > 1e-9
     ? Math.min(plannedImportLots, Math.floor((availableGold + 1e-6) / nextLotGoldCost))
     : plannedImportLots;
@@ -177,9 +480,11 @@ export function computeSettlementSeedProcurementPlan(
     dueMarkets,
     readyMarkets,
     currentMarketStock,
+    currentGranaryStock,
     targetStock,
     plannedImportLots,
     plannedImportGrain,
+    inboundSeedGrain: roadDemand.inboundSeedGrain,
     affordableLotsAtCurrentRate,
     nextLotGoldCost,
     seedShortfall,
@@ -193,5 +498,6 @@ export function computeSettlementSeedProcurementPlan(
     cooldownBlockedMarkets,
     firstAttentionMarketId: firstAttention?.buildingId ?? null,
     firstAttentionKind: firstAttention?.kind ?? null,
+    roadPlan,
   };
 }

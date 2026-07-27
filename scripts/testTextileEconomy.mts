@@ -12,6 +12,10 @@ import {
   textileChainBalanceLabel,
 } from '../src/economy/settlementTextiles.ts';
 import {
+  productionRoadBranchKey,
+  type ProsperityRoadBranch,
+} from '../src/economy/settlementProduction.ts';
+import {
   BUILDING_STORAGE_CAPS,
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
@@ -33,6 +37,7 @@ import {
 } from '../src/residences/residenceNeedState.ts';
 import { getBuildingDefinition } from '../src/resources/buildings.ts';
 import { getBuildingProcessorStatus } from '../src/resources/inspector/buildingProcessorStatus.ts';
+import { renderSettlementTextileRows } from '../src/resources/inspector/townHallRenderer.ts';
 import {
   createEmptyStockpile,
   type BuildingState,
@@ -241,9 +246,16 @@ assert.equal(annualTextiles.woolInTransit, 6);
 assert.equal(annualTextiles.woolStock, 122);
 assert.equal(annualTextiles.clothInTransit, 2);
 assert.equal(annualTextiles.clothStock, 11);
+assert.equal(annualTextiles.householdClothStock, 3);
+assert.equal(annualTextiles.supplierClothStock, 5);
+assert.equal(annualTextiles.householdClothInTransit, 0);
+assert.equal(annualTextiles.serviceableHouseholdClothStock, 8);
+assert.equal(annualTextiles.unavailableHouseholdClothStock, 3);
+assert.equal(annualTextiles.clothReserveRunwayDays, 160);
 assert.equal(annualTextiles.annualClothPotential, 34);
 assert.equal(annualTextiles.annualHouseholdClothDemand, 6);
 assert.equal(annualTextiles.annualClothBalance, 28);
+assert.equal(annualTextiles.roadPlan, null);
 assert.match(textileChainBalanceLabel(annualTextiles), /covered/);
 
 const missedTextiles = computeSettlementTextilePlan({
@@ -260,6 +272,242 @@ assert.equal(missedTextiles.pendingHoldings, 0);
 assert.equal(missedTextiles.securedAnnualWool, 15);
 assert.match(textileChainBalanceLabel(missedTextiles), /Fleece-limited/);
 
+const textileRoadKey = (component: number): string =>
+  productionRoadBranchKey(component, 'building', `branch-${component}`);
+const roadTextileState = {
+  stockpile: createEmptyStockpile(),
+  buildings: new Map<string, BuildingState>(),
+  livestockHerds: new Map<string, LivestockHerdState>(),
+  residences: new Map<string, ResidenceState>(),
+  deliveryTrips: new Map<string, import('../src/logistics/deliveryTrips.ts').DeliveryTripState>(),
+};
+const westSheep = weaver({
+  id: 'west-sheep',
+  kind: 'pastoral_farmstead',
+  x: 0,
+});
+const eastSheep = weaver({
+  id: 'east-sheep',
+  kind: 'pastoral_farmstead',
+  x: 100,
+});
+roadTextileState.buildings.set(westSheep.id, westSheep);
+roadTextileState.buildings.set(eastSheep.id, eastSheep);
+roadTextileState.livestockHerds.set(
+  westSheep.id,
+  sheepHerd(westSheep.id, { lastShearingYear: 2, lastWoolOutput: 12 }),
+);
+roadTextileState.livestockHerds.set(
+  eastSheep.id,
+  sheepHerd(eastSheep.id, { lastShearingYear: 2, lastWoolOutput: 12 }),
+);
+const westHome = textileResidence('west-home', 1, 3);
+westHome.x = 0;
+westHome.needs.cloth = { stock: 2, deficitTicks: 0 };
+const eastHome = textileResidence('east-home', 1, 3);
+eastHome.x = 100;
+eastHome.needs.cloth = { stock: 1, deficitTicks: 0 };
+roadTextileState.residences.set(westHome.id, westHome);
+roadTextileState.residences.set(eastHome.id, eastHome);
+const westClothWeaver = weaver({
+  id: 'west-cloth-weaver',
+  x: 0,
+  cloth: 4,
+});
+const remoteClothWeaver = weaver({
+  id: 'remote-cloth-weaver',
+  x: 200,
+  cloth: 6,
+});
+const idleEastClothWeaver = weaver({
+  id: 'idle-east-cloth-weaver',
+  x: 100,
+  assignedLabor: 0,
+  cloth: 5,
+});
+roadTextileState.buildings.set(westClothWeaver.id, westClothWeaver);
+roadTextileState.buildings.set(remoteClothWeaver.id, remoteClothWeaver);
+roadTextileState.buildings.set(idleEastClothWeaver.id, idleEastClothWeaver);
+const approachingEastCloth = textileTrip(
+  'approaching-east-cloth',
+  'cloth',
+  2,
+  'outbound',
+);
+approachingEastCloth.destinationKind = 'residence';
+approachingEastCloth.targetBuildingId = null;
+approachingEastCloth.residenceId = eastHome.id;
+roadTextileState.deliveryTrips.set(
+  approachingEastCloth.id,
+  approachingEastCloth,
+);
+
+const splitTextileBranches = new Map<string, ProsperityRoadBranch>([
+  [textileRoadKey(1), {
+    currentResidents: 1,
+    fullResidents: 1,
+    preservedFoodOutputPerDay: 0,
+    aleOutputPerDay: 0,
+    clothOutputPerDay: 8 / 120,
+    firstResidenceId: westHome.id,
+  }],
+  [textileRoadKey(2), {
+    currentResidents: 1,
+    fullResidents: 1,
+    preservedFoodOutputPerDay: 0,
+    aleOutputPerDay: 0,
+    clothOutputPerDay: 0,
+    firstResidenceId: eastHome.id,
+  }],
+  [textileRoadKey(3), {
+    currentResidents: 0,
+    fullResidents: 0,
+    preservedFoodOutputPerDay: 0,
+    aleOutputPerDay: 0,
+    clothOutputPerDay: 8 / 120,
+    firstResidenceId: null,
+  }],
+]);
+const splitRoadTextiles = computeSettlementTextilePlan({
+  state: roadTextileState,
+  clock: { month: 6, year: 2 },
+  production: {
+    clothWoolPerDay: 24 / 120,
+    clothOutputPerDay: 16 / 120,
+    clothDemandPerDay: 8 / 120,
+    tierThreeResidents: 2,
+    prosperityRoadBranches: splitTextileBranches,
+  },
+  roadComponentFor: (candidate) =>
+    candidate.x < 50 ? 1 : candidate.x < 150 ? 2 : 3,
+});
+assert.equal(splitRoadTextiles.annualClothPotential, 16);
+assert.equal(splitRoadTextiles.roadPlan?.activeBranches, 3);
+assert.equal(splitRoadTextiles.roadPlan?.fleeceBranches, 2);
+assert.equal(splitRoadTextiles.roadPlan?.loomBranches, 2);
+assert.equal(splitRoadTextiles.roadPlan?.matchedBranches, 1);
+assert.equal(splitRoadTextiles.roadPlan?.projectedAnnualWool, 24);
+assert.equal(splitRoadTextiles.roadPlan?.roadMatchedAnnualClothPotential, 8);
+assert.equal(splitRoadTextiles.roadPlan?.fragmentationClothPotential, 8);
+assert.equal(splitRoadTextiles.roadPlan?.annualHouseholdClothDemand, 8);
+assert.equal(splitRoadTextiles.roadPlan?.coveredHouseholdClothDemand, 4);
+assert.equal(splitRoadTextiles.roadPlan?.annualHouseholdClothShortfall, 4);
+assert.equal(splitRoadTextiles.roadPlan?.annualExportableClothSurplus, 4);
+assert.equal(splitRoadTextiles.roadPlan?.exposedHouseholdBranches, 1);
+assert.equal(splitRoadTextiles.householdClothStock, 3);
+assert.equal(splitRoadTextiles.supplierClothStock, 10);
+assert.equal(splitRoadTextiles.householdClothInTransit, 2);
+assert.equal(splitRoadTextiles.serviceableHouseholdClothStock, 9);
+assert.equal(splitRoadTextiles.unavailableHouseholdClothStock, 11);
+assert.equal(splitRoadTextiles.clothReserveRunwayDays, 90);
+assert.equal(splitRoadTextiles.roadPlan?.householdBranches, 2);
+assert.equal(splitRoadTextiles.roadPlan?.stockedSupplierBranches, 1);
+assert.equal(splitRoadTextiles.roadPlan?.unservedHouseholdBranches, 1);
+assert.equal(splitRoadTextiles.roadPlan?.reserveWarningBranches, 0);
+assert.equal(splitRoadTextiles.roadPlan?.serviceableClothStock, 9);
+assert.equal(
+  splitRoadTextiles.roadPlan?.worstHouseholdClothRunwayDays,
+  90,
+);
+assert.equal(
+  splitRoadTextiles.roadPlan?.firstReserveExposedResidenceId,
+  eastHome.id,
+);
+assert.equal(splitRoadTextiles.roadPlan?.firstExposedResidenceId, eastHome.id);
+assert.equal(
+  splitRoadTextiles.roadPlan?.firstImbalancedBuildingId,
+  eastSheep.id,
+);
+assert.match(textileChainBalanceLabel(splitRoadTextiles), /Road-limited/);
+const splitTextileRows = renderSettlementTextileRows(splitRoadTextiles);
+assert.match(splitTextileRows, /1 \/ 3 active branches/);
+assert.match(splitTextileRows, /8\.0 \/ 16\.0 cloth\/year physically paired/);
+assert.match(splitTextileRows, /8\.0 cloth\/year stranded/);
+assert.match(splitTextileRows, /4\.0 local shortfall/);
+assert.match(splitTextileRows, /data-inspect-residence="east-home"/);
+assert.match(splitTextileRows, /1 \/ 2 current household branches/);
+assert.match(splitTextileRows, /9\.0 cloth in local cupboards/);
+assert.match(splitTextileRows, /weakest reserve 90 days/);
+assert.match(splitTextileRows, /11\.0 in treasury, export, idle, or disconnected stores/);
+
+const joinedRoadTextiles = computeSettlementTextilePlan({
+  state: roadTextileState,
+  clock: { month: 6, year: 2 },
+  production: {
+    clothWoolPerDay: 24 / 120,
+    clothOutputPerDay: 16 / 120,
+    clothDemandPerDay: 8 / 120,
+    tierThreeResidents: 2,
+    prosperityRoadBranches: new Map([
+      [textileRoadKey(1), {
+        currentResidents: 2,
+        fullResidents: 2,
+        preservedFoodOutputPerDay: 0,
+        aleOutputPerDay: 0,
+        clothOutputPerDay: 16 / 120,
+        firstResidenceId: westHome.id,
+      }],
+    ]),
+  },
+  roadComponentFor: () => 1,
+});
+assert.equal(joinedRoadTextiles.roadPlan?.activeBranches, 1);
+assert.equal(joinedRoadTextiles.roadPlan?.matchedBranches, 1);
+assert.equal(joinedRoadTextiles.roadPlan?.roadMatchedAnnualClothPotential, 16);
+assert.equal(joinedRoadTextiles.roadPlan?.fragmentationClothPotential, 0);
+assert.equal(joinedRoadTextiles.roadPlan?.coveredHouseholdClothDemand, 8);
+assert.equal(joinedRoadTextiles.roadPlan?.annualHouseholdClothShortfall, 0);
+assert.equal(joinedRoadTextiles.roadPlan?.annualExportableClothSurplus, 8);
+assert.equal(joinedRoadTextiles.serviceableHouseholdClothStock, 15);
+assert.equal(joinedRoadTextiles.unavailableHouseholdClothStock, 5);
+assert.equal(joinedRoadTextiles.roadPlan?.stockedSupplierBranches, 1);
+assert.equal(joinedRoadTextiles.roadPlan?.unservedHouseholdBranches, 0);
+assert.equal(joinedRoadTextiles.roadPlan?.worstHouseholdClothRunwayDays, 225);
+assert.match(
+  renderSettlementTextileRows(joinedRoadTextiles),
+  /no cloth capacity stranded by topology/,
+);
+
+const satelliteRoadTextiles = computeSettlementTextilePlan({
+  state: roadTextileState,
+  clock: { month: 6, year: 2 },
+  production: {
+    clothWoolPerDay: 24 / 120,
+    clothOutputPerDay: 16 / 120,
+    clothDemandPerDay: 8 / 120,
+    tierThreeResidents: 2,
+    prosperityRoadBranches: new Map([
+      [textileRoadKey(1), {
+        currentResidents: 1,
+        fullResidents: 1,
+        preservedFoodOutputPerDay: 0,
+        aleOutputPerDay: 0,
+        clothOutputPerDay: 8 / 120,
+        firstResidenceId: westHome.id,
+      }],
+      [textileRoadKey(2), {
+        currentResidents: 1,
+        fullResidents: 1,
+        preservedFoodOutputPerDay: 0,
+        aleOutputPerDay: 0,
+        clothOutputPerDay: 8 / 120,
+        firstResidenceId: eastHome.id,
+      }],
+    ]),
+  },
+  roadComponentFor: (candidate) => candidate.x < 50 ? 1 : 2,
+});
+assert.equal(satelliteRoadTextiles.roadPlan?.activeBranches, 2);
+assert.equal(satelliteRoadTextiles.roadPlan?.matchedBranches, 2);
+assert.equal(satelliteRoadTextiles.roadPlan?.roadMatchedAnnualClothPotential, 16);
+assert.equal(satelliteRoadTextiles.roadPlan?.fragmentationClothPotential, 0);
+assert.equal(satelliteRoadTextiles.roadPlan?.annualHouseholdClothShortfall, 0);
+assert.equal(satelliteRoadTextiles.roadPlan?.annualExportableClothSurplus, 8);
+assert.equal(satelliteRoadTextiles.serviceableHouseholdClothStock, 15);
+assert.equal(satelliteRoadTextiles.unavailableHouseholdClothStock, 5);
+assert.equal(satelliteRoadTextiles.roadPlan?.stockedSupplierBranches, 2);
+assert.equal(satelliteRoadTextiles.roadPlan?.unservedHouseholdBranches, 0);
+
 const perfTextiles = {
   stockpile: createEmptyStockpile(),
   buildings: new Map<string, BuildingState>(),
@@ -271,7 +519,12 @@ for (let index = 0; index < 100_000; index += 1) {
   const id = `sheep-${index}`;
   perfTextiles.buildings.set(
     id,
-    weaver({ id, kind: 'pastoral_farmstead', wool: index % 2 === 0 ? 0 : 110 }),
+    weaver({
+      id,
+      kind: 'pastoral_farmstead',
+      x: index % 200,
+      wool: index % 2 === 0 ? 0 : 110,
+    }),
   );
   perfTextiles.livestockHerds.set(id, sheepHerd(id));
 }
@@ -289,9 +542,48 @@ const textilePerfElapsedMs = performance.now() - textilePerfStarted;
 assert.equal(largeTextilePlan.sheepHoldings, 100_000);
 assert.equal(largeTextilePlan.storageBlockedHoldings, 50_000);
 assert.equal(largeTextilePlan.readyPendingHoldings, 50_000);
+assert.equal(largeTextilePlan.roadPlan, null);
 assert.ok(
   textilePerfElapsedMs < 350,
   `100,000-holding textile plan took ${textilePerfElapsedMs.toFixed(1)} ms`,
+);
+
+const perfRoadBranches = new Map<string, ProsperityRoadBranch>();
+for (let component = 0; component < 200; component += 1) {
+  perfRoadBranches.set(textileRoadKey(component), {
+    currentResidents: 0,
+    fullResidents: 0,
+    preservedFoodOutputPerDay: 0,
+    aleOutputPerDay: 0,
+    clothOutputPerDay: 50,
+    firstResidenceId: null,
+  });
+}
+const roadTextilePerfStarted = performance.now();
+const largeRoadTextilePlan = computeSettlementTextilePlan({
+  state: perfTextiles,
+  clock: { month: 6, year: 2 },
+  production: {
+    clothWoolPerDay: 15_000,
+    clothOutputPerDay: 10_000,
+    clothDemandPerDay: 0,
+    tierThreeResidents: 0,
+    prosperityRoadBranches: perfRoadBranches,
+  },
+  roadComponentFor: (candidate) => candidate.x,
+});
+const roadTextilePerfElapsedMs = performance.now() - roadTextilePerfStarted;
+assert.equal(largeRoadTextilePlan.roadPlan?.activeBranches, 200);
+assert.equal(largeRoadTextilePlan.roadPlan?.matchedBranches, 200);
+assert.equal(largeRoadTextilePlan.roadPlan?.householdBranches, 0);
+assert.equal(
+  largeRoadTextilePlan.roadPlan?.roadMatchedAnnualClothPotential,
+  1_200_000,
+);
+assert.equal(largeRoadTextilePlan.roadPlan?.fragmentationClothPotential, 0);
+assert.ok(
+  roadTextilePerfElapsedMs < 450,
+  `100,000-holding / 200-branch textile plan took ${roadTextilePerfElapsedMs.toFixed(1)} ms`,
 );
 
 const livestockSimulation = readFileSync('server/src/simulation/livestock.rs', 'utf8');
@@ -343,10 +635,12 @@ assert.match(townHallRenderer, /Annual wool clip/);
 assert.match(townHallRenderer, /Shearing readiness/);
 assert.match(townHallRenderer, /Textile stores/);
 assert.match(townHallRenderer, /Textile chain/);
+assert.match(townHallRenderer, /Textile roads/);
+assert.match(townHallRenderer, /cloth\/year physically paired/);
 assert.match(townHallRenderer, /first loft without full-clip room/);
 
 console.log(
-  `textile economy tests passed (${textilePerfElapsedMs.toFixed(1)} ms for 100,000 holdings)`,
+  `textile economy tests passed (${textilePerfElapsedMs.toFixed(1)} ms aggregate; ${roadTextilePerfElapsedMs.toFixed(1)} ms road-matched for 100,000 holdings)`,
 );
 
 function sheepHerd(

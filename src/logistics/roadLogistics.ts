@@ -86,7 +86,12 @@ export function isOperationalFoodSupplier(building: BuildingState): boolean {
     && (building.kind === 'monastery' || building.assignedLabor > 0);
 }
 
-function claimResidencesByNearestSupplier(
+export type ResidenceSupplierRouteClaim = {
+  supplierId: string;
+  distance: number;
+};
+
+export function claimResidenceRoutesByNearestSupplier(
   network: RoadNetwork,
   suppliers: readonly BuildingState[],
   residences: readonly ResidenceState[],
@@ -95,11 +100,8 @@ function claimResidencesByNearestSupplier(
     residence: ResidenceState,
     roadDistance: number,
   ) => boolean,
-): Map<string, string> {
-  const bestByResidence = new Map<string, {
-    supplierId: string;
-    distance: number;
-  }>();
+): Map<string, ResidenceSupplierRouteClaim> {
+  const bestByResidence = new Map<string, ResidenceSupplierRouteClaim>();
   const targets = residences.map((residence) => ({
     x: residence.x,
     z: residence.z,
@@ -134,10 +136,28 @@ function claimResidencesByNearestSupplier(
     }
   }
 
+  return bestByResidence;
+}
+
+export function claimResidencesByNearestSupplier(
+  network: RoadNetwork,
+  suppliers: readonly BuildingState[],
+  residences: readonly ResidenceState[],
+  candidateAllowed: (
+    supplier: BuildingState,
+    residence: ResidenceState,
+    roadDistance: number,
+  ) => boolean,
+): Map<string, string> {
   return new Map(
-    [...bestByResidence].map(([residenceId, best]) => [
+    [...claimResidenceRoutesByNearestSupplier(
+      network,
+      suppliers,
+      residences,
+      candidateAllowed,
+    )].map(([residenceId, claim]) => [
       residenceId,
-      best.supplierId,
+      claim.supplierId,
     ]),
   );
 }

@@ -956,7 +956,14 @@ export class ResourceInspector {
       this.options.getParishPolicy?.().sabbathObservanceEnabled ?? false
     ) && hasStaffedChapel(gameState.buildings.values());
     const settlementProduction = needsProductionForecast
-      ? computeSettlementProductionCapacity(gameState, sabbathObserved)
+      ? computeSettlementProductionCapacity(
+          gameState,
+          sabbathObserved,
+          (building) => this.options.worldQueries.getRoadComponentId(
+            building.x,
+            building.z,
+          ),
+        )
       : undefined;
     const view = renderInspectableTarget(target, {
       gameState,

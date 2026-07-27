@@ -31,7 +31,14 @@ import { formatWaterRunwayDays, residenceWaterRunwayDays } from '../../logistics
 import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
 import { effectiveResidenceSettleTicks } from '../../economy/chapelCommunity.ts';
 import { formatHouseholdWealth } from '../../economy/householdWealth.ts';
+import {
+  computeSettlementHouseholdMarketPlan,
+  formatHouseholdMarketResidenceStatus,
+} from '../../economy/settlementHouseholdMarket.ts';
+import { DEFAULT_REGIONAL_MARKET_STATE } from '../../economy/regionalMarket.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
+import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import { gameClock } from '../../world/gameCalendar.ts';
 import { residenceSettlementReadiness } from '../../economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
@@ -44,6 +51,7 @@ import {
   type SettlementProsperityPlan,
   type TierThreeUpgradeProjection,
 } from '../../economy/settlementProsperity.ts';
+import { productionRoadBranchKey } from '../../economy/settlementProduction.ts';
 import {
   buildResidenceCommunityContext,
   buildResidenceParishEconomyView,
@@ -123,15 +131,52 @@ export function renderResidenceInspector(
   const prosperityPlan = upgradePlan?.nextTier === 3 && context.settlementProduction
     ? computeSettlementProsperityPlan(context.settlementProduction)
     : null;
+  const prosperityRoadKey = prosperityPlan?.roadPlan
+    && typeof context.worldQueries.getRoadComponentId === 'function'
+    ? productionRoadBranchKey(
+        context.worldQueries.getRoadComponentId(residence.x, residence.z),
+        'residence',
+        residence.id,
+      )
+    : undefined;
   const tierThreeProjection = prosperityPlan && upgradePlan?.nextTier === 3
     ? projectTierThreeUpgrade(
         prosperityPlan,
         residence,
         upgradePlan.populationCapacity,
+        prosperityRoadKey,
       )
     : null;
   const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
+  const householdMarketPlan = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
+    ? computeSettlementHouseholdMarketPlan({
+        state: context.gameState,
+        marketState: context.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE,
+        roadNetwork: context.worldQueries.getRoadNetworkSnapshot(),
+        clock: gameClock(context.gameState.tick),
+        sabbathObserved: parishPolicy.sabbathObservanceEnabled
+          && hasStaffedChapel(context.gameState.buildings.values()),
+        residenceIds: new Set([residence.id]),
+      })
+    : null;
+  const householdMarket = householdMarketPlan?.residences.get(residence.id) ?? null;
+  const householdMarketplace = householdMarket?.marketplaceId == null
+    ? null
+    : context.gameState.buildings.get(householdMarket.marketplaceId) ?? null;
+  const householdMarketplaceLabel = householdMarketplace == null
+    ? 'marketplace'
+    : `${context.worldQueries.getBuildingLabel(householdMarketplace.kind)}${
+        householdMarket?.roadDistance == null
+          ? ''
+          : ` (${formatDeliveryRoadDistance(householdMarket.roadDistance)})`
+      }`;
+  const householdMarketStatus = householdMarketPlan == null
+    ? 'Route projection unavailable'
+    : formatHouseholdMarketResidenceStatus(
+        householdMarket,
+        householdMarketplaceLabel,
+      );
   const hasMonasteryCoverage = context.worldQueries.isResidenceInMonasteryCoverage(residence);
   const community = buildResidenceCommunityContext(
     servingChapel,
@@ -237,6 +282,8 @@ export function renderResidenceInspector(
         : ''}
       <li><span>Active needs</span><span>${activeNeedsLabel}</span></li>
       <li><span>Household wealth</span><span>${formatHouseholdWealth(residence.householdWealth)}</span></li>
+      <li><span>Emergency market</span><span>${householdMarketStatus}</span></li>
+      <li><span>Standing-order rule</span><span>At 18h food or active water runway - food first - household-funded full lot</span></li>
       ${parishEconomy.hasChapelAccess
         ? `<li><span>Parish tithe</span><span>~${parishEconomy.tithePerDay.toFixed(1)} gold / day when attending (${parishEconomy.attendancePercent}% chance${parishEconomy.wealthLimited ? ', wealth-limited' : ''}) → chapel coffer</span></li>`
         : ''}
@@ -314,8 +361,15 @@ function residenceProsperityRows(
   const immediateStatus = projection.immediateSustainable
     ? `${projection.immediateHeadroomResidents} resident capacity remains`
     : `short capacity for ${Math.abs(projection.immediateHeadroomResidents)} residents`;
+  const usableCapacity = plan.roadPlan?.roadMatchedResidentCapacity
+    ?? plan.installedResidentCapacity;
+  const localCapacity = projection.immediateResidents
+    + projection.immediateHeadroomResidents;
+  const localCurrentResidents = projection.immediateResidents
+    - projection.occupantsPromotedNow;
   return `
-    <li><span>Settlement prosperity</span><span>${plan.currentResidents} / ${plan.installedResidentCapacity} residents sustained · ${plan.limitingLabel} limited · assumes fully supplied staffed workshops</span></li>
+    <li><span>Settlement prosperity</span><span>${plan.currentResidents} / ${usableCapacity} road-matched residents at installed capacity${plan.roadPlan && plan.roadPlan.fragmentationResidentCapacity > 0 ? ` · ${plan.roadPlan.fragmentationResidentCapacity} capacity split between branches` : ''} · assumes fully supplied staffed workshops</span></li>
+    ${projection.roadBranchScoped ? `<li><span>Local prosperity branch</span><span>${localCurrentResidents} current / ${localCapacity} resident capacity · ${projection.limitingLabel} limited</span></li>` : ''}
     <li><span>Promotion load</span><span>+${projection.occupantsPromotedNow} prosperous consumers now · +${projection.targetHouseCapacity} with this house full · ${immediateStatus}</span></li>
     <li><span>Immediate daily demand</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} preserved food · +${projection.immediateDemand.ale.toFixed(2)} ale · +${projection.immediateDemand.cloth.toFixed(3)} cloth</span></li>
   `;
@@ -335,9 +389,9 @@ function residenceUpgradePanel(
   const throughput = prosperity && projection
     ? projection.immediateSustainable
       ? projection.fullPipelineSustainable
-        ? ` Installed capacity can sustain the current occupants and this house at full occupancy; ${prosperity.limitingLabel} is the tightest chain.`
-        : ` Current occupants fit, but filling this house would exceed installed ${prosperity.limitingLabel} capacity.`
-      : ` Warning: promoting the current occupants immediately exceeds installed ${prosperity.limitingLabel} capacity by ${Math.abs(projection.immediateHeadroomResidents)} residents.`
+        ? ` Installed capacity on ${projection.roadBranchScoped ? 'this road branch' : 'the settlement'} can sustain the current occupants and this house at full occupancy; ${projection.limitingLabel} is the tightest chain.`
+        : ` Current occupants fit, but filling this house would exceed installed ${projection.limitingLabel} capacity on ${projection.roadBranchScoped ? 'this road branch' : 'the settlement'}.`
+      : ` Warning: promoting the current occupants immediately exceeds installed ${projection.limitingLabel} capacity on ${projection.roadBranchScoped ? 'this road branch' : 'the settlement'} by ${Math.abs(projection.immediateHeadroomResidents)} residents.`
     : '';
   return `<button type="button" class="resource-action-button" data-action="upgrade-residence" ${plan.ready ? '' : 'disabled'}>Upgrade to tier ${plan.nextTier}</button><p class="resource-inspector-note">${status}${throughput} ${guidance}</p>`;
 }

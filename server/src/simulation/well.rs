@@ -7,7 +7,7 @@ use crate::constants::{
     WELL_WATER_PER_DELIVERY,
 };
 use crate::db::*;
-use crate::economy::{building_water_storage_cap, CommodityKind};
+use crate::economy::CommodityKind;
 use crate::hydrology::sample_hydrology_score;
 use crate::roads::RoadNetwork;
 use crate::season_policy::EnvironmentState;
@@ -33,9 +33,9 @@ use crate::simulation::{
 };
 use crate::tables::{Building, Residence};
 use crate::well_policy::{
-    industrial_water_requirement, prioritize_fire_response, select_industrial_water_candidate,
-    well_refill_amount, well_refill_workers, IndustrialWaterCandidate,
-    INDUSTRIAL_WATER_BUILDING_KINDS,
+    industrial_water_requirement, industrial_water_target, prioritize_fire_response,
+    select_industrial_water_candidate, well_refill_amount, well_refill_workers,
+    IndustrialWaterCandidate, INDUSTRIAL_WATER_BUILDING_KINDS,
 };
 
 pub fn step_well(
@@ -155,7 +155,10 @@ pub fn step_well(
                 },
             );
         } else if let Some(target) = industrial_target {
-            let needed = (building_water_storage_cap(&target.kind) - target.water).max(0.0);
+            let needed =
+                (industrial_water_target(&target.kind, target.processor_output_target_percent)
+                    - target.water)
+                    .max(0.0);
             try_start_building_supply_trip(
                 ctx,
                 tick,
@@ -214,12 +217,17 @@ fn select_industrial_water_target(
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .filter_map(|candidate| {
-                let required = industrial_water_requirement(&candidate.kind);
-                if required <= 1e-6
+                let required_per_cycle = industrial_water_requirement(&candidate.kind);
+                let desired_stock = industrial_water_target(
+                    &candidate.kind,
+                    candidate.processor_output_target_percent,
+                );
+                if required_per_cycle <= 1e-6
+                    || desired_stock <= 1e-6
                     || !candidate.construction_complete
                     || candidate.assigned_labor == 0
                     || !processor_accepts_input(&candidate, CommodityKind::Water)
-                    || candidate.water + 1e-6 >= required
+                    || candidate.water + 1e-6 >= desired_stock
                     || building_has_inbound_supply_trip(ctx, candidate.id)
                     || tick.building_disabled_by_fire(ctx, candidate.id)
                 {
@@ -230,7 +238,7 @@ fn select_industrial_water_target(
                 Some(IndustrialWaterCandidate {
                     building_id: candidate.id,
                     work_priority: candidate.construction_priority,
-                    stock_ratio: candidate.water.max(0.0) / required,
+                    stock_ratio: candidate.water.max(0.0) / desired_stock,
                     distance,
                 })
             }),

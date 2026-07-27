@@ -174,6 +174,7 @@ export function generateRegionalMarketTypeScript(balance: BalanceWithRegionalMar
     `export const MARKET_CARAVAN_DELIVERY_WORKERS = ${market.caravanDeliveryWorkers};`,
     `export const MARKET_CARAVAN_LABOR_PER_WORKER = ${market.caravanLaborPerWorker};`,
     `export const HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS = ${market.householdAutoBuyRunwayDays};`,
+    `export const HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS = ${market.householdAutoBuyCooldownTicks};`,
     '',
     'export type MarketCommodityOffer = {',
     '  id: string;',

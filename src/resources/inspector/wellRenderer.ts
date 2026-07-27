@@ -31,7 +31,7 @@ import {
 import {
   formatWaterRunwayDays,
   formatWellCrewSplit,
-  industrialWaterRequirement,
+  industrialWaterTarget,
   residenceWaterRunwayDays,
   wellLaborSplit,
   wellWaterPerDelivery,
@@ -77,7 +77,7 @@ export function renderWellInspector(
   const nextTargetLabel = nextHouseholdTarget
     ? formatNextWaterTargetLabel(nextHouseholdTarget)
     : nextIndustrialTarget
-      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} · ${staffingPriorityLabel(normalizeStaffingPriority(nextIndustrialTarget.constructionPriority))} priority (${nextIndustrialTarget.water.toFixed(1)} / ${industrialWaterRequirement(nextIndustrialTarget.kind)} water)`
+      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} · ${staffingPriorityLabel(normalizeStaffingPriority(nextIndustrialTarget.constructionPriority))} priority (${nextIndustrialTarget.water.toFixed(1)} / ${industrialWaterTarget(nextIndustrialTarget.kind, nextIndustrialTarget.processorOutputTargetPercent).toFixed(1)} staged water)`
       : 'None needing water';
   const activeTargetLabel = formatTripDestinationLabel(
     activeTrip,

@@ -4,6 +4,9 @@
 #[path = "../../src/balance_generated.rs"]
 pub mod balance_generated;
 
+#[path = "../../src/backyard_garden_policy.rs"]
+pub mod backyard_garden_policy;
+
 #[path = "../../src/constants.rs"]
 pub mod constants;
 

@@ -34,6 +34,7 @@ import {
   formatProvisionRunway,
   formatSabbathReadiness,
   HOUSEHOLD_BUFFER_WARNING_COVERAGE,
+  PROVISION_CRITICAL_DAYS,
   settlementProvisionLevel,
   shouldShowProvisioning,
   WINTER_RESERVE_DAYS,
@@ -356,20 +357,42 @@ export class SettlementHud {
       && provisioning.sabbathReadyHouseholds < provisioning.sabbathHouseholds;
     const householdBuffersShort = provisioning.householdBufferHouseholds > 0
       && provisioning.householdBufferCoverage < HOUSEHOLD_BUFFER_WARNING_COVERAGE;
+    const roadFoodCritical = provisioning.roadBranches !== null
+      && provisioning.roadBranches.worstFoodRunwayDays < PROVISION_CRITICAL_DAYS;
+    const roadFuelCritical = winterRelevant
+      && provisioning.roadBranches !== null
+      && provisioning.roadBranches.worstWinterFirewoodRunwayDays
+        < PROVISION_CRITICAL_DAYS;
+    const roadBranchShort = roadFoodCritical
+      || roadFuelCritical
+      || (
+        provisioning.roadBranches !== null
+        && (
+          provisioning.roadBranches.foodWarningBranches > 0
+          || (
+            winterRelevant
+            && provisioning.roadBranches.winterFirewoodWarningBranches > 0
+          )
+        )
+      );
     this.provisionAlert.hidden = !show;
     this.provisionAlert.dataset.level = level;
     this.panel.classList.toggle('has-provision-warning', level === 'watch');
     this.panel.classList.toggle('has-provision-critical', level === 'critical');
 
     this.provisionLabel.textContent = level === 'critical'
-      ? '⚠ Provision shortage'
+      ? roadFoodCritical || roadFuelCritical
+        ? '⚠ Isolated branch'
+        : '⚠ Provision shortage'
       : sabbathShort
         ? 'Sunday stores'
         : householdBuffersShort
           ? 'Household buffers'
-        : winterRelevant
-          ? '❄ Winter stores'
-          : '⚖ Provision watch';
+          : roadBranchShort
+            ? 'Road-branch stores'
+            : winterRelevant
+              ? '❄ Winter stores'
+              : '⚖ Provision watch';
     this.provisionDetail.textContent = [
       `food ${formatProvisionDays(provisioning.foodRunwayDays)}`,
       provisioning.heatedResidents > 0
@@ -377,6 +400,21 @@ export class SettlementHud {
         : null,
       provisioning.householdBufferHouseholds > 0
         ? `homes ${provisioning.householdBufferReadyHouseholds}/${provisioning.householdBufferHouseholds}`
+        : null,
+      provisioning.roadBranches !== null
+        && (
+          provisioning.roadBranches.foodWarningBranches > 0
+          || provisioning.roadBranches.foodUnservedBranches > 0
+        )
+        ? `weakest branch food ${formatProvisionDays(provisioning.roadBranches.worstFoodRunwayDays)}`
+        : null,
+      winterRelevant
+        && provisioning.roadBranches !== null
+        && (
+          provisioning.roadBranches.winterFirewoodWarningBranches > 0
+          || provisioning.roadBranches.firewoodUnservedBranches > 0
+        )
+        ? `branch fuel ${formatProvisionDays(provisioning.roadBranches.worstWinterFirewoodRunwayDays)}`
         : null,
       provisioning.assignedGuards > 0
         ? `arms ${provisioning.armedGuards}/${provisioning.assignedGuards}`
@@ -405,10 +443,13 @@ export class SettlementHud {
         : 'Tier-one households do not yet require household firewood.',
       `Fresh-food spoilage is currently ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}; ${Math.round(provisioning.protectedFoodShare * 100)}% is held in sheltered stores.`,
       `Local delivery buffer: ${formatHouseholdBufferReadiness(provisioning)}. Food, water, and provisions cover one workday; firewood covers the nightly no-cart interval.`,
+      provisioning.roadBranches === null
+        ? 'Road-branch provisioning is unavailable.'
+        : `Road-branch audit: ${provisioning.roadBranches.foodSuppliedBranches} / ${provisioning.roadBranches.activeBranches} occupied branches have a stocked food route; the weakest has ${formatProvisionRunway(provisioning.roadBranches.worstFoodRunwayDays)}. ${provisioning.roadBranches.heatedBranches > 0 ? `${provisioning.roadBranches.firewoodSuppliedBranches} / ${provisioning.roadBranches.heatedBranches} heated branches have a fuel distributor; the weakest holds ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at winter demand.` : 'No occupied home currently needs household fuel.'}`,
       provisioning.sabbathObserved
         ? `Sunday readiness: ${formatSabbathReadiness(provisioning)}. Labor and carts rest, but households keep consuming delivered provisions.`
         : 'Sunday labor follows the normal schedule.',
-      'Guard food and household buffers use local stores. Other runways use aggregate on-hand stores and assume no new production; disconnected stock may still be inaccessible.',
+      'Guard food and household buffers use local stores. Headline runways remain settlement-wide; road-branch runways count only household stocks, dispatch-capable stores, and cargo already arriving on that branch. Both assume no new production.',
     ].join(' · ');
 
     this.foodStat.dataset.tooltip = [
@@ -416,13 +457,19 @@ export class SettlementHud {
       `Current demand: ${provisioning.totalFoodPerDay.toFixed(1)} per day.`,
       `Current spoilage: ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}.`,
       `Spoilage-adjusted runway: ${formatProvisionRunway(provisioning.foodRunwayDays)}.`,
+      provisioning.roadBranches === null
+        ? null
+        : `Weakest occupied road branch: ${formatProvisionRunway(provisioning.roadBranches.worstFoodRunwayDays)} from physical household-usable stores.`,
       'Granaries reduce fresh-food spoilage but add a collection haul; disable intake at a granary to keep local suppliers serving nearby homes directly.',
-    ].join(' ');
+    ].filter(Boolean).join(' ');
     this.firewoodStat.dataset.tooltip = [
       'Firewood in treasury, woodcutter lodges, storehouses, and residence stocks combined.',
       `Current runway: ${formatProvisionRunway(provisioning.currentFirewoodRunwayDays)}.`,
       `Winter runway: ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} at frost demand.`,
-    ].join(' ');
+      provisioning.roadBranches === null || provisioning.roadBranches.heatedBranches === 0
+        ? null
+        : `Weakest heated road branch: ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at frost demand.`,
+    ].filter(Boolean).join(' ');
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
       ? `Treasury gold from taxed village activity. Armed guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current wage runway is ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
       : 'Treasury gold from taxed village economic activity. Select a staffed Town Hall to adjust tax policy.';

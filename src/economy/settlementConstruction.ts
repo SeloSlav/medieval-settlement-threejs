@@ -18,6 +18,10 @@ import {
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
+import {
+  productionRoadBranchKey,
+  type ProductionRoadComponentResolver,
+} from './settlementProduction.ts';
 
 const EPSILON = 1e-6;
 const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
@@ -77,10 +81,60 @@ export type SettlementConstructionPlan = {
   remainingBuilderDays: number;
   materials: Record<ConstructionMaterialKind, ConstructionMaterialQueue>;
   firstAttention: ConstructionQueueAttention | null;
+  roadPlan: SettlementConstructionRoadPlan | null;
+};
+
+export type ConstructionRoadMaterialPlan = {
+  roadBoundClaim: number;
+  matchedRoadBoundClaim: number;
+  strandedRoadBoundClaim: number;
+  offroadClaim: number;
+  offroadPotentialCoverage: number;
+  sourceStock: number;
+  fragmentationCoverage: number;
+  unmatchedSourceStock: number;
+};
+
+export type SettlementConstructionRoadBranch = {
+  claimSites: number;
+  timberClaim: number;
+  stoneClaim: number;
+  sourceTimberStock: number;
+  sourceStoneStock: number;
+  matchedTimber: number;
+  matchedStone: number;
+  strandedTimber: number;
+  strandedStone: number;
+};
+
+export type SettlementConstructionRoadPlan = {
+  activeBranches: number;
+  claimBranches: number;
+  suppliedClaimBranches: number;
+  exposedClaimBranches: number;
+  roadBoundSites: number;
+  offroadSites: number;
+  materials: Record<ConstructionMaterialKind, ConstructionRoadMaterialPlan>;
+  firstExposedBuildingId: string | null;
+  branches: ReadonlyMap<string, SettlementConstructionRoadBranch>;
 };
 
 type TransitAmounts = Record<ConstructionMaterialKind, number>;
 const ZERO_TRANSIT_AMOUNTS: TransitAmounts = { timber: 0, stone: 0 };
+type PriorityAmounts = [number, number, number, number];
+type PriorityBuildingIds = [
+  string | null,
+  string | null,
+  string | null,
+  string | null,
+];
+
+type MutableConstructionRoadBranch = SettlementConstructionRoadBranch & {
+  timberByPriority: PriorityAmounts;
+  stoneByPriority: PriorityAmounts;
+  firstTimberIdByPriority: PriorityBuildingIds;
+  firstStoneIdByPriority: PriorityBuildingIds;
+};
 
 function emptyTransitAmounts(): TransitAmounts {
   return { timber: 0, stone: 0 };
@@ -206,6 +260,276 @@ function addMaterialQueue(
   target.uncovered += source.uncovered;
 }
 
+function emptyPriorityAmounts(): PriorityAmounts {
+  return [0, 0, 0, 0];
+}
+
+function emptyPriorityBuildingIds(): PriorityBuildingIds {
+  return [null, null, null, null];
+}
+
+function constructionRoadBranch(
+  branches: Map<string, MutableConstructionRoadBranch>,
+  key: string,
+): MutableConstructionRoadBranch {
+  let branch = branches.get(key);
+  if (branch) return branch;
+  branch = {
+    claimSites: 0,
+    timberClaim: 0,
+    stoneClaim: 0,
+    sourceTimberStock: 0,
+    sourceStoneStock: 0,
+    matchedTimber: 0,
+    matchedStone: 0,
+    strandedTimber: 0,
+    strandedStone: 0,
+    timberByPriority: emptyPriorityAmounts(),
+    stoneByPriority: emptyPriorityAmounts(),
+    firstTimberIdByPriority: emptyPriorityBuildingIds(),
+    firstStoneIdByPriority: emptyPriorityBuildingIds(),
+  };
+  branches.set(key, branch);
+  return branch;
+}
+
+function recordRoadClaim(
+  branch: MutableConstructionRoadBranch,
+  material: ConstructionMaterialKind,
+  amount: number,
+  priority: ConstructionPriority,
+  buildingId: string,
+): void {
+  if (amount <= EPSILON) return;
+  const byPriority = material === 'timber'
+    ? branch.timberByPriority
+    : branch.stoneByPriority;
+  const ids = material === 'timber'
+    ? branch.firstTimberIdByPriority
+    : branch.firstStoneIdByPriority;
+  byPriority[priority] += amount;
+  if (
+    ids[priority] === null
+    || compareStableEntityIds(buildingId, ids[priority]) < 0
+  ) {
+    ids[priority] = buildingId;
+  }
+}
+
+type ExposedRoadClaim = {
+  buildingId: string;
+  priority: ConstructionPriority;
+};
+
+function firstUndercoveredRoadClaim(
+  branch: MutableConstructionRoadBranch,
+  material: ConstructionMaterialKind,
+): ExposedRoadClaim | null {
+  const byPriority = material === 'timber'
+    ? branch.timberByPriority
+    : branch.stoneByPriority;
+  const ids = material === 'timber'
+    ? branch.firstTimberIdByPriority
+    : branch.firstStoneIdByPriority;
+  let sourceStock = material === 'timber'
+    ? branch.sourceTimberStock
+    : branch.sourceStoneStock;
+  for (
+    let priority = CONSTRUCTION_PRIORITY_URGENT;
+    priority >= CONSTRUCTION_PRIORITY_HOLD;
+    priority -= 1
+  ) {
+    const claim = byPriority[priority];
+    if (claim <= EPSILON) continue;
+    if (sourceStock + EPSILON >= claim) {
+      sourceStock = Math.max(0, sourceStock - claim);
+      continue;
+    }
+    const buildingId = ids[priority];
+    if (buildingId === null) return null;
+    return {
+      buildingId,
+      priority: priority as ConstructionPriority,
+    };
+  }
+  return null;
+}
+
+function roadMaterialPlan(input: {
+  roadBoundClaim: number;
+  matchedRoadBoundClaim: number;
+  offroadClaim: number;
+  sourceStock: number;
+}): ConstructionRoadMaterialPlan {
+  const strandedRoadBoundClaim = Math.max(
+    0,
+    input.roadBoundClaim - input.matchedRoadBoundClaim,
+  );
+  const remainingSourceStock = Math.max(
+    0,
+    input.sourceStock - input.matchedRoadBoundClaim,
+  );
+  const offroadPotentialCoverage = Math.min(
+    input.offroadClaim,
+    remainingSourceStock,
+  );
+  return {
+    roadBoundClaim: input.roadBoundClaim,
+    matchedRoadBoundClaim: input.matchedRoadBoundClaim,
+    strandedRoadBoundClaim,
+    offroadClaim: input.offroadClaim,
+    offroadPotentialCoverage,
+    sourceStock: input.sourceStock,
+    fragmentationCoverage: Math.max(
+      0,
+      Math.min(input.roadBoundClaim, input.sourceStock)
+        - input.matchedRoadBoundClaim,
+    ),
+    unmatchedSourceStock: Math.max(
+      0,
+      remainingSourceStock - offroadPotentialCoverage,
+    ),
+  };
+}
+
+function buildConstructionRoadPlan(input: {
+  branches: Map<string, MutableConstructionRoadBranch> | null;
+  roadBoundSites: number;
+  offroadSites: number;
+  offroadClaims: TransitAmounts;
+}): SettlementConstructionRoadPlan | null {
+  if (input.branches === null) return null;
+  let claimBranches = 0;
+  let suppliedClaimBranches = 0;
+  let exposedClaimBranches = 0;
+  let roadBoundTimberClaim = 0;
+  let roadBoundStoneClaim = 0;
+  let matchedTimber = 0;
+  let matchedStone = 0;
+  let sourceTimberStock = 0;
+  let sourceStoneStock = 0;
+  let firstExposedBuildingId: string | null = null;
+  let firstExposedPriority = CONSTRUCTION_PRIORITY_HOLD;
+  let firstExposureRatio = Number.POSITIVE_INFINITY;
+  let firstExposureAmount = 0;
+
+  for (const branch of input.branches.values()) {
+    branch.matchedTimber = Math.min(
+      branch.timberClaim,
+      branch.sourceTimberStock,
+    );
+    branch.matchedStone = Math.min(
+      branch.stoneClaim,
+      branch.sourceStoneStock,
+    );
+    branch.strandedTimber = Math.max(
+      0,
+      branch.timberClaim - branch.matchedTimber,
+    );
+    branch.strandedStone = Math.max(
+      0,
+      branch.stoneClaim - branch.matchedStone,
+    );
+    roadBoundTimberClaim += branch.timberClaim;
+    roadBoundStoneClaim += branch.stoneClaim;
+    matchedTimber += branch.matchedTimber;
+    matchedStone += branch.matchedStone;
+    sourceTimberStock += branch.sourceTimberStock;
+    sourceStoneStock += branch.sourceStoneStock;
+
+    const claim = branch.timberClaim + branch.stoneClaim;
+    if (claim <= EPSILON) continue;
+    claimBranches += 1;
+    const exposure = branch.strandedTimber + branch.strandedStone;
+    if (exposure <= 0.05) {
+      suppliedClaimBranches += 1;
+      continue;
+    }
+    exposedClaimBranches += 1;
+
+    const timberCandidate = branch.strandedTimber > 0.05
+      ? firstUndercoveredRoadClaim(branch, 'timber')
+      : null;
+    const stoneCandidate = branch.strandedStone > 0.05
+      ? firstUndercoveredRoadClaim(branch, 'stone')
+      : null;
+    let candidate = timberCandidate;
+    if (
+      stoneCandidate !== null
+      && (
+        candidate === null
+        || stoneCandidate.priority > candidate.priority
+        || (
+          stoneCandidate.priority === candidate.priority
+          && compareStableEntityIds(
+            stoneCandidate.buildingId,
+            candidate.buildingId,
+          ) < 0
+        )
+      )
+    ) {
+      candidate = stoneCandidate;
+    }
+    if (candidate === null) continue;
+    const coverageRatio = claim > EPSILON
+      ? (branch.matchedTimber + branch.matchedStone) / claim
+      : 1;
+    if (
+      firstExposedBuildingId === null
+      || candidate.priority > firstExposedPriority
+      || (
+        candidate.priority === firstExposedPriority
+        && (
+          coverageRatio < firstExposureRatio - EPSILON
+          || (
+            Math.abs(coverageRatio - firstExposureRatio) <= EPSILON
+            && (
+              exposure > firstExposureAmount + EPSILON
+              || (
+                Math.abs(exposure - firstExposureAmount) <= EPSILON
+                && compareStableEntityIds(
+                  candidate.buildingId,
+                  firstExposedBuildingId,
+                ) < 0
+              )
+            )
+          )
+        )
+      )
+    ) {
+      firstExposedBuildingId = candidate.buildingId;
+      firstExposedPriority = candidate.priority;
+      firstExposureRatio = coverageRatio;
+      firstExposureAmount = exposure;
+    }
+  }
+
+  return {
+    activeBranches: input.branches.size,
+    claimBranches,
+    suppliedClaimBranches,
+    exposedClaimBranches,
+    roadBoundSites: input.roadBoundSites,
+    offroadSites: input.offroadSites,
+    materials: {
+      timber: roadMaterialPlan({
+        roadBoundClaim: roadBoundTimberClaim,
+        matchedRoadBoundClaim: matchedTimber,
+        offroadClaim: input.offroadClaims.timber,
+        sourceStock: sourceTimberStock,
+      }),
+      stone: roadMaterialPlan({
+        roadBoundClaim: roadBoundStoneClaim,
+        matchedRoadBoundClaim: matchedStone,
+        offroadClaim: input.offroadClaims.stone,
+        sourceStock: sourceStoneStock,
+      }),
+    },
+    firstExposedBuildingId,
+    branches: input.branches,
+  };
+}
+
 function statusForSite(input: {
   building: BuildingState;
   priority: ConstructionPriority;
@@ -289,8 +613,13 @@ export function constructionQueueStatusLabel(
 export function computeSettlementConstructionPlan(input: {
   state: Pick<GameState, 'buildings' | 'deliveryTrips'>;
   hasRoadAccess?: (building: BuildingState) => boolean;
+  roadComponentFor?: ProductionRoadComponentResolver;
 }): SettlementConstructionPlan {
   const transitBySite = constructionTransitBySite(input.state.deliveryTrips.values());
+  const roadBranches = input.roadComponentFor
+    ? new Map<string, MutableConstructionRoadBranch>()
+    : null;
+  const offroadClaims = emptyTransitAmounts();
   const priorityCounts: ConstructionQueuePriorityCounts = {
     held: 0,
     low: 0,
@@ -308,9 +637,29 @@ export function computeSettlementConstructionPlan(input: {
   let assignedBuilders = 0;
   let remainingBuilderDays = 0;
   let firstAttention: ConstructionQueueAttention | null = null;
+  let roadBoundSites = 0;
+  let offroadSites = 0;
 
   for (const building of input.state.buildings.values()) {
-    if (building.constructionComplete !== false) continue;
+    if (building.constructionComplete !== false) {
+      if (roadBranches && input.roadComponentFor) {
+        const timberStock = nonnegative(building.timber);
+        const stoneStock = nonnegative(building.stone);
+        if (timberStock > EPSILON || stoneStock > EPSILON) {
+          const branch = constructionRoadBranch(
+            roadBranches,
+            productionRoadBranchKey(
+              input.roadComponentFor(building),
+              'building',
+              building.id,
+            ),
+          );
+          branch.sourceTimberStock += timberStock;
+          branch.sourceStoneStock += stoneStock;
+        }
+      }
+      continue;
+    }
     siteCount += 1;
     const priority = normalizeConstructionPriority(building.constructionPriority);
     priorityCounts[priorityKey(priority)] += 1;
@@ -326,6 +675,44 @@ export function computeSettlementConstructionPlan(input: {
     const stone = materialValues(building, 'stone', transit.stone);
     addMaterialQueue(materials.timber, timber);
     addMaterialQueue(materials.stone, stone);
+    if (
+      roadBranches
+      && input.roadComponentFor
+      && timber.awaitingPickup + stone.awaitingPickup > EPSILON
+    ) {
+      if (BUILDING_DEFINITIONS[building.kind].requiresRoad) {
+        roadBoundSites += 1;
+        const branch = constructionRoadBranch(
+          roadBranches,
+          productionRoadBranchKey(
+            input.roadComponentFor(building),
+            'building',
+            building.id,
+          ),
+        );
+        branch.claimSites += 1;
+        branch.timberClaim += timber.awaitingPickup;
+        branch.stoneClaim += stone.awaitingPickup;
+        recordRoadClaim(
+          branch,
+          'timber',
+          timber.awaitingPickup,
+          priority,
+          building.id,
+        );
+        recordRoadClaim(
+          branch,
+          'stone',
+          stone.awaitingPickup,
+          priority,
+          building.id,
+        );
+      } else {
+        offroadSites += 1;
+        offroadClaims.timber += timber.awaitingPickup;
+        offroadClaims.stone += stone.awaitingPickup;
+      }
+    }
 
     if (priority !== CONSTRUCTION_PRIORITY_HOLD) {
       const requiredTotal = timber.required + stone.required;
@@ -371,5 +758,11 @@ export function computeSettlementConstructionPlan(input: {
     remainingBuilderDays,
     materials,
     firstAttention,
+    roadPlan: buildConstructionRoadPlan({
+      branches: roadBranches,
+      roadBoundSites,
+      offroadSites,
+      offroadClaims,
+    }),
   };
 }

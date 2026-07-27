@@ -203,6 +203,44 @@ impl RoadNetwork {
         self.share_component(&nodes_a, &nodes_b)
     }
 
+    /// Connected-component ids available from a building access point.
+    ///
+    /// A point can be equally close to endpoints from more than one
+    /// disconnected road graph, so callers receive the complete stable set
+    /// rather than one arbitrarily selected component.
+    pub fn road_components_at(&self, x: f64, z: f64) -> Vec<u32> {
+        let Some(nodes) = self.snap_nodes(x, z) else {
+            return Vec::new();
+        };
+        let mut components: Vec<u32> = nodes
+            .iter()
+            .filter_map(|node| self.component_by_node.get(node).copied())
+            .collect();
+        components.sort_unstable();
+        components.dedup();
+        components
+    }
+
+    /// Whether a road-accessible point touches any component in a cached set.
+    ///
+    /// This avoids allocating and sorting a second component vector for every
+    /// entity in high-frequency topology scans.
+    pub fn has_any_road_component_at(
+        &self,
+        x: f64,
+        z: f64,
+        target_components: &HashSet<u32>,
+    ) -> bool {
+        let Some(nodes) = self.snap_nodes(x, z) else {
+            return false;
+        };
+        nodes.iter().any(|node| {
+            self.component_by_node
+                .get(node)
+                .is_some_and(|component| target_components.contains(component))
+        })
+    }
+
     /// Shortest travel distance along the road graph, including off-road access legs.
     pub fn road_path_distance(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<f64> {
         let solve = self.shortest_path_solve(ax, az, bx, bz)?;
@@ -627,9 +665,14 @@ impl RoadNetwork {
                     continue;
                 };
                 let dist = distance_to_polyline(x, z, &edge.sampled_path);
-                if dist <= best_distance + 1e-6 && dist < best_distance - 1e-6 {
-                    best_distance = dist;
-                    best_nodes = vec![edge.start_node_id.clone(), edge.end_node_id.clone()];
+                if dist <= best_distance + 1e-6 {
+                    if dist < best_distance - 1e-6 {
+                        best_distance = dist;
+                        best_nodes = vec![edge.start_node_id.clone(), edge.end_node_id.clone()];
+                    } else if (dist - best_distance).abs() <= 1e-6 {
+                        best_nodes.push(edge.start_node_id.clone());
+                        best_nodes.push(edge.end_node_id.clone());
+                    }
                 }
             }
         }
@@ -834,7 +877,42 @@ fn append_polyline(path: &mut Vec<[f64; 2]>, segment: &[[f64; 2]]) {
 #[cfg(test)]
 mod tests {
     use super::RoadNetwork;
+    use std::collections::HashSet;
     use std::time::Instant;
+
+    #[test]
+    fn equidistant_disconnected_roads_retain_both_components() {
+        let network = RoadNetwork::from_snapshot_json(
+            r#"{
+                "nodes": [
+                    {"id":"left-south","position":[-5.0,0.0,0.0]},
+                    {"id":"left-north","position":[-5.0,0.0,20.0]},
+                    {"id":"right-south","position":[5.0,0.0,0.0]},
+                    {"id":"right-north","position":[5.0,0.0,20.0]}
+                ],
+                "edges": [
+                    {
+                        "startNodeId":"left-south",
+                        "endNodeId":"left-north",
+                        "width":4.0,
+                        "sampledPath":[[-5.0,0.0,0.0],[-5.0,0.0,20.0]]
+                    },
+                    {
+                        "startNodeId":"right-south",
+                        "endNodeId":"right-north",
+                        "width":4.0,
+                        "sampledPath":[[5.0,0.0,0.0],[5.0,0.0,20.0]]
+                    }
+                ]
+            }"#,
+        )
+        .expect("parallel road network should parse");
+
+        let components = network.road_components_at(0.0, 10.0);
+        assert_eq!(components.len(), 2);
+        let targets: HashSet<u32> = components.into_iter().collect();
+        assert!(network.has_any_road_component_at(0.0, 10.0, &targets,));
+    }
 
     #[test]
     fn precomputed_graph_preserves_routes_and_components() {
@@ -882,6 +960,19 @@ mod tests {
         );
         assert!(network.road_connected(0.0, 0.0, 20.0, 0.0));
         assert!(!network.road_connected(0.0, 0.0, 100.0, 0.0));
+        assert_eq!(
+            network.road_components_at(0.0, 0.0),
+            network.road_components_at(20.0, 0.0),
+        );
+        assert_ne!(
+            network.road_components_at(0.0, 0.0),
+            network.road_components_at(100.0, 0.0),
+        );
+        assert!(network.road_components_at(1000.0, 1000.0).is_empty());
+        let connected_components: HashSet<u32> =
+            network.road_components_at(0.0, 0.0).into_iter().collect();
+        assert!(network.has_any_road_component_at(20.0, 0.0, &connected_components,));
+        assert!(!network.has_any_road_component_at(100.0, 0.0, &connected_components,));
         assert!((network.road_path_distance(0.0, 0.0, 20.0, 0.0).unwrap() - 20.0).abs() < 1e-9);
         let batched =
             network.road_path_distances_from(0.0, 0.0, &[(20.0, 0.0), (100.0, 0.0), (12.0, 2.0)]);

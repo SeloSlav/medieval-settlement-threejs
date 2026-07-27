@@ -11,12 +11,7 @@ pub fn protected_wild_stock(node_kind: &str, max_yield: f64, percent: u8) -> f64
     max_yield.max(0.0) * normalize_harvest_reserve_percent(percent) as f64 / 100.0
 }
 
-pub fn harvestable_wild_stock(
-    node_kind: &str,
-    remaining: f64,
-    max_yield: f64,
-    percent: u8,
-) -> f64 {
+pub fn harvestable_wild_stock(node_kind: &str, remaining: f64, max_yield: f64, percent: u8) -> f64 {
     (remaining.max(0.0) - protected_wild_stock(node_kind, max_yield, percent)).max(0.0)
 }
 
