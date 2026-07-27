@@ -14,6 +14,7 @@ import type {
   GameState,
   LivestockHerdState,
 } from '../src/resources/types.ts';
+import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import { isOnRoadSurface } from '../src/roads/roadConnectivity.ts';
 import { changedBuildingPadBounds } from '../src/terrain/TerrainBuildingPads.ts';
@@ -296,6 +297,80 @@ function testSettlementSyncSkipsUnchangedDomains(): void {
     deliveries: 0,
     villagers: 0,
   });
+
+  const trip: DeliveryTripState = {
+    id: 'delivery-1',
+    buildingId: 'building-1',
+    residenceId: 'residence-1',
+    destinationKind: 'residence',
+    targetBuildingId: null,
+    cargoKind: 'firewood',
+    amount: 6,
+    phase: 'outbound',
+    x: 0,
+    z: 0,
+    progress: 0,
+    speedMps: 1.6,
+    unloadSeconds: 4,
+    unloadRemaining: 0,
+    deliveryWorkers: 1,
+    freeHaulerWorkers: 0,
+    pathDistance: 20,
+    travelSpeedMultiplier: 1,
+    routePolylineJson: '[]',
+  };
+  const tripStarted = {
+    ...current,
+    tick: current.tick + 1,
+    deliveryTrips: new Map([[trip.id, trip]]),
+  };
+  syncSettlementWorld(targets as never, tripStarted, current);
+  assert.equal(calls.deliveries, 1);
+  assert.equal(calls.villagers, 1, 'a new roster-backed cart crew should refresh workplace bodies');
+
+  const movedTrip = {
+    ...trip,
+    x: 8,
+    progress: 8,
+  };
+  const tripMoved = {
+    ...tripStarted,
+    tick: tripStarted.tick + 1,
+    deliveryTrips: new Map([[trip.id, movedTrip]]),
+  };
+  syncSettlementWorld(targets as never, tripMoved, tripStarted);
+  assert.equal(calls.deliveries, 2);
+  assert.equal(
+    calls.villagers,
+    1,
+    'cart heartbeat movement must not resync the full settlement crowd',
+  );
+
+  const freeCrewTrip = {
+    ...movedTrip,
+    freeHaulerWorkers: 1,
+  };
+  const tripCrewChanged = {
+    ...tripMoved,
+    tick: tripMoved.tick + 1,
+    deliveryTrips: new Map([[trip.id, freeCrewTrip]]),
+  };
+  syncSettlementWorld(targets as never, tripCrewChanged, tripMoved);
+  assert.equal(calls.deliveries, 3);
+  assert.equal(
+    calls.villagers,
+    2,
+    'changing whether a cart worker belongs to the workplace roster should refresh bodies',
+  );
+
+  const tripFinished = {
+    ...tripCrewChanged,
+    tick: tripCrewChanged.tick + 1,
+    deliveryTrips: new Map<string, DeliveryTripState>(),
+  };
+  syncSettlementWorld(targets as never, tripFinished, tripCrewChanged);
+  assert.equal(calls.deliveries, 4);
+  assert.equal(calls.villagers, 3, 'returning cart workers should reappear at their workplaces');
 }
 
 function testTreeVisualSyncSkipsUnchangedSnapshots(): void {

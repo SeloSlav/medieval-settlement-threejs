@@ -9,8 +9,10 @@ import {
 } from '../src/generated/gameBalance.ts';
 import {
   deliveryLegRemainingMeters,
+  deliveryWorkerPersonIdentity,
   onsiteBuildingLabor,
   rosteredCartWorkers,
+  rosteredCartWorkersByBuilding,
   tripDeliveryRemainingSeconds,
   type DeliveryTripState,
 } from '../src/logistics/deliveryTrips.ts';
@@ -63,6 +65,8 @@ const loadedTrip: DeliveryTripState = {
   travelSpeedMultiplier: 1,
   routePolylineJson: '[]',
 };
+assert.equal(deliveryWorkerPersonIdentity(loadedTrip), 'delivery:origin:hauler:0');
+assert.equal(deliveryWorkerPersonIdentity(loadedTrip, 2), 'delivery:origin:hauler:2');
 assert.equal(rosteredCartWorkers({ assignedLabor: 3 }, loadedTrip), 2);
 assert.equal(onsiteBuildingLabor({ assignedLabor: 3 }, loadedTrip), 1);
 assert.equal(
@@ -85,6 +89,32 @@ assert.equal(
   rosteredCartWorkers({ assignedLabor: 1 }, { ...loadedTrip, deliveryWorkers: 3 }),
   1,
   'a traveling crew cannot remove more workers than the origin still has rostered',
+);
+assert.deepEqual(
+  rosteredCartWorkersByBuilding(
+    new Map([
+      ['origin', { assignedLabor: 3 }],
+      ['free-origin', { assignedLabor: 2 }],
+    ]),
+    [
+      loadedTrip,
+      {
+        ...loadedTrip,
+        id: 'second-cart',
+        deliveryWorkers: 2,
+        freeHaulerWorkers: 1,
+      },
+      {
+        ...loadedTrip,
+        id: 'free-cart',
+        buildingId: 'free-origin',
+        deliveryWorkers: 2,
+        freeHaulerWorkers: 2,
+      },
+    ],
+  ),
+  new Map([['origin', 3]]),
+  'traveling roster counts should sum, clamp to staffing, and ignore free haulers',
 );
 assert.equal(
   tripDeliveryRemainingSeconds(loadedTrip),

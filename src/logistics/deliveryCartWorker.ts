@@ -18,7 +18,7 @@ const TARGET_HEIGHTS = {
   woman: 1.62,
 } as const;
 
-const WORKER_Z = 1.4;
+const CART_PULLER_Z = 1.4;
 const WORKER_LEAN_RADIANS = 0.08;
 const HANDLE_TARGETS = {
   left: new THREE.Vector3(0.264, 0.68, 1.225),
@@ -78,6 +78,7 @@ export type DeliveryCartWorkerVisual = {
   leftArm: ArmBones;
   rightArm: ArmBones;
   ownedMaterials: THREE.Material[];
+  pinsCartHandles: boolean;
 };
 
 export async function loadDeliveryCartWorkerSources(): Promise<DeliveryCartWorkerSources> {
@@ -131,6 +132,7 @@ export function createDeliveryCartWorkerSource(
 export function createDeliveryCartWorkerVisual(
   appearanceSeed: number,
   sources: DeliveryCartWorkerSources,
+  crewIndex = 0,
 ): DeliveryCartWorkerVisual {
   const variant = pickVillagerModelVariant(appearanceSeed);
   const source = sources[variant];
@@ -142,7 +144,8 @@ export function createDeliveryCartWorkerVisual(
   const scale = source.targetHeight / source.sourceHeight * heightJitter;
   model.scale.setScalar(scale);
   model.position.y = -source.bounds.min.y * scale + 0.012;
-  model.rotation.x = WORKER_LEAN_RADIANS;
+  const pinsCartHandles = crewIndex === 0;
+  model.rotation.x = pinsCartHandles ? WORKER_LEAN_RADIANS : 0;
 
   const ownedMaterials: THREE.Material[] = [];
   model.traverse((object) => {
@@ -175,8 +178,18 @@ export function createDeliveryCartWorkerVisual(
 
   const root = new THREE.Group();
   root.name = `Delivery cart worker (${variant})`;
-  root.position.z = WORKER_Z;
+  if (pinsCartHandles) {
+    root.position.z = CART_PULLER_Z;
+  } else {
+    const companionIndex = crewIndex - 1;
+    root.position.set(
+      companionIndex % 2 === 0 ? 0.86 : -0.86,
+      0,
+      0.48 - Math.floor(companionIndex / 2) * 0.68,
+    );
+  }
   root.userData.deliveryCartWorker = true;
+  root.userData.deliveryCartCrewIndex = crewIndex;
   root.userData.villagerGender = variant;
   root.add(model);
 
@@ -202,6 +215,7 @@ export function createDeliveryCartWorkerVisual(
     leftArm: findArmBones(model, 'L'),
     rightArm: findArmBones(model, 'R'),
     ownedMaterials,
+    pinsCartHandles,
   };
 }
 
@@ -222,7 +236,7 @@ export function updateDeliveryCartWorkerVisual(
     THREE.MathUtils.clamp(travelSpeed / 1.05, 0.78, 1.65),
   );
   visual.mixer.update(Math.min(0.08, Math.max(0, dt)));
-  pinHandsToCartHandles(visual);
+  if (visual.pinsCartHandles) pinHandsToCartHandles(visual);
 }
 
 export function disposeDeliveryCartWorkerVisual(

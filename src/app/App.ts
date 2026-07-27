@@ -208,6 +208,7 @@ export class App {
               treeRegistry: this.treeRegistry,
               farmFields: this.gameState.farmFields.values(),
               pastures: this.gameState.pastures.values(),
+              deliveryTrips: this.gameState.deliveryTrips.values(),
               roadNetwork: this.roadNetwork,
               foragingMonth: gameClock(this.gameState.tick).month,
             });

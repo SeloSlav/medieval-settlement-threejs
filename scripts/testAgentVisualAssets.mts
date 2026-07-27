@@ -201,6 +201,7 @@ assert.match(
 const worker = createDeliveryCartWorkerVisual(84525, deliveryWorkerSources);
 cartA.add(worker.root);
 assert.equal(worker.root.userData.deliveryCartWorker, true);
+assert.equal(worker.root.userData.deliveryCartCrewIndex, 0);
 assert.equal(worker.mode, 'walk');
 for (let index = 0; index < 12; index++) {
   updateDeliveryCartWorkerVisual(worker, 1 / 30, true, 1.05);
@@ -225,6 +226,17 @@ for (const [side, palmName] of [
 }
 updateDeliveryCartWorkerVisual(worker, 1 / 30, false, 0);
 assert.equal(worker.mode, 'idle', 'unloading workers should settle into an idle stance');
+
+const companion = createDeliveryCartWorkerVisual(84526, deliveryWorkerSources, 1);
+cartA.add(companion.root);
+assert.equal(companion.root.userData.deliveryCartCrewIndex, 1);
+assert.equal(companion.pinsCartHandles, false);
+assert.ok(
+  Math.abs(companion.root.position.x) > 0.8,
+  'additional cart hands should walk beside the cart instead of overlapping the puller',
+);
+updateDeliveryCartWorkerVisual(companion, 1 / 30, true, 1.05);
+disposeDeliveryCartWorkerVisual(companion);
 disposeDeliveryCartWorkerVisual(worker);
 disposeDeliveryCartMesh(cartA);
 disposeDeliveryCartMesh(cartB);

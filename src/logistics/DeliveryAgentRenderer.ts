@@ -46,7 +46,7 @@ const DELIVERY_ROUTE_Y_OFFSET = 0.24;
 
 type TripVisual = {
   mesh: THREE.Group;
-  worker: DeliveryCartWorkerVisual | null;
+  workers: DeliveryCartWorkerVisual[];
   polyline: PointXZ[];
   pathDistance: number;
   serverProgress: number;
@@ -125,6 +125,7 @@ export class DeliveryAgentRenderer {
         existing.pathDistance = pathDistance;
         this.applyAuthoritativeTripState(existing, trip);
         this.ensureCartMesh(existing, trip);
+        this.ensureWorkerCrew(existing, trip);
         continue;
       }
 
@@ -134,7 +135,7 @@ export class DeliveryAgentRenderer {
       this.group.add(mesh);
       const visual: TripVisual = {
         mesh,
-        worker: null,
+        workers: [],
         polyline,
         pathDistance,
         serverProgress: trip.progress,
@@ -146,7 +147,7 @@ export class DeliveryAgentRenderer {
         yaw: 0,
       };
       this.visuals.set(trip.id, visual);
-      this.ensureWorker(visual, trip);
+      this.ensureWorkerCrew(visual, trip);
     }
 
     for (const id of this.visuals.keys()) {
@@ -204,9 +205,9 @@ export class DeliveryAgentRenderer {
       visual.mesh.rotation.y = visual.phase === 'inbound'
         ? yaw + Math.PI
         : yaw;
-      if (visual.worker) {
+      for (const worker of visual.workers) {
         updateDeliveryCartWorkerVisual(
-          visual.worker,
+          worker,
           dt,
           visual.phase !== 'unloading',
           effectiveTravelSpeed,
@@ -357,22 +358,22 @@ export class DeliveryAgentRenderer {
     replacement.position.copy(visual.mesh.position);
     replacement.rotation.copy(visual.mesh.rotation);
     replacement.castShadow = visual.mesh.castShadow;
-    visual.worker?.root.removeFromParent();
+    for (const worker of visual.workers) worker.root.removeFromParent();
     this.group.remove(visual.mesh);
     disposeDeliveryCartMesh(visual.mesh);
-    if (visual.worker) replacement.add(visual.worker.root);
+    for (const worker of visual.workers) replacement.add(worker.root);
     this.group.add(replacement);
     visual.mesh = replacement;
-    this.ensureWorker(visual, trip);
+    this.ensureWorkerCrew(visual, trip);
   }
 
   private removeTrip(id: string): void {
     const visual = this.visuals.get(id);
     if (!visual) return;
-    if (visual.worker) {
-      disposeDeliveryCartWorkerVisual(visual.worker);
-      visual.worker = null;
+    for (const worker of visual.workers) {
+      disposeDeliveryCartWorkerVisual(worker);
     }
+    visual.workers.length = 0;
     disposeDeliveryCartMesh(visual.mesh);
     visual.mesh.removeFromParent();
     this.visuals.delete(id);
@@ -388,13 +389,23 @@ export class DeliveryAgentRenderer {
     });
   }
 
-  private ensureWorker(visual: TripVisual, trip: DeliveryTripState): void {
-    if (visual.worker || !this.cartSource || !this.workerSources) return;
-    visual.worker = createDeliveryCartWorkerVisual(
-      hashStringSeed(deliveryWorkerPersonIdentity(trip)),
-      this.workerSources,
-    );
-    visual.mesh.add(visual.worker.root);
+  private ensureWorkerCrew(visual: TripVisual, trip: DeliveryTripState): void {
+    const desiredCrewSize = Math.max(1, Math.floor(trip.deliveryWorkers));
+    while (visual.workers.length > desiredCrewSize) {
+      const worker = visual.workers.pop();
+      if (worker) disposeDeliveryCartWorkerVisual(worker);
+    }
+    if (!this.cartSource || !this.workerSources) return;
+    while (visual.workers.length < desiredCrewSize) {
+      const crewIndex = visual.workers.length;
+      const worker = createDeliveryCartWorkerVisual(
+        hashStringSeed(deliveryWorkerPersonIdentity(trip, crewIndex)),
+        this.workerSources,
+        crewIndex,
+      );
+      visual.workers.push(worker);
+      visual.mesh.add(worker.root);
+    }
   }
 
   private describeTrip(
@@ -478,7 +489,7 @@ export class DeliveryAgentRenderer {
       this.workerSources = sources;
       for (const [id, trip] of this.latestTrips) {
         const visual = this.visuals.get(id);
-        if (visual) this.ensureWorker(visual, trip);
+        if (visual) this.ensureWorkerCrew(visual, trip);
       }
     } catch (error) {
       console.warn('[Delivery carts] Rigged cart workers failed to load.', error);

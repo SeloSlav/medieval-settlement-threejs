@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import {
+  rosteredCartWorkersByBuilding,
+  type DeliveryTripState,
+} from '../logistics/deliveryTrips.ts';
 import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
 import { isOnRoadSurface } from '../roads/roadConnectivity.ts';
 import {
@@ -244,6 +248,7 @@ export class VillagerRenderer {
     } | null;
     farmFields: Iterable<FarmFieldState>;
     pastures: Iterable<PastureState>;
+    deliveryTrips?: Iterable<DeliveryTripState>;
     roadNetwork: RoadNetwork | null;
     foragingMonth?: number;
   }): void {
@@ -265,7 +270,12 @@ export class VillagerRenderer {
     ) ?? null;
     this.roadNetwork = options.roadNetwork;
 
-    const roster = allocateProductionWorkers(residences, buildings);
+    const travelingWorkers = rosteredCartWorkersByBuilding(
+      this.buildings,
+      options.deliveryTrips ?? [],
+    );
+    const roster = allocateProductionWorkers(residences, buildings, travelingWorkers);
+    const onSiteAssignments = roster.assignments.filter((assignment) => assignment.onSite);
     const slots = computeVillagerSlots(
       residences,
       this.roadNetwork,
@@ -369,7 +379,9 @@ export class VillagerRenderer {
       pastures,
       foragingMonth: options.foragingMonth,
     };
-    const workerBuildingIds = new Set(roster.assignments.map((assignment) => assignment.buildingId));
+    const workerBuildingIds = new Set(
+      onSiteAssignments.map((assignment) => assignment.buildingId),
+    );
     this.workerTargets = new Map();
     for (const buildingId of workerBuildingIds) {
       const building = this.buildings.get(buildingId);
@@ -377,7 +389,7 @@ export class VillagerRenderer {
       this.workerTargets.set(buildingId, collectWorkerTargets(building, targetInputs));
     }
 
-    for (const assignment of roster.assignments) {
+    for (const assignment of onSiteAssignments) {
       const building = this.buildings.get(assignment.buildingId);
       if (!building) continue;
       nextIds.add(assignment.id);

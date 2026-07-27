@@ -73,6 +73,37 @@ assert.equal(
   1,
   'nearby housed residents should be claimed before one starting-population fallback',
 );
+assert.ok(
+  roster.assignments.every((assignment) => assignment.onSite),
+  'workers without an active cart trip should remain visible at their workplaces',
+);
+
+const travelingRoster = allocateProductionWorkers(
+  [residenceA, residenceB],
+  [serviceWell, stoneCamp, lumberMill],
+  new Map([
+    ['building-1', 1],
+    ['building-2', 2],
+  ]),
+);
+assert.equal(
+  travelingRoster.assignments.length,
+  roster.assignments.length,
+  'traveling workers must stay claimed from the settlement population',
+);
+assert.deepEqual(
+  travelingRoster.assignments
+    .filter((assignment) => assignment.onSite)
+    .map((assignment) => assignment.id),
+  [
+    'worker:building-1:0',
+    'worker:building-3:0',
+    'worker:building-3:1',
+  ],
+  'only roster-backed cart crews should disappear from workplace bodies',
+);
+assert.equal(travelingRoster.remainingPopulationByResidence.get(residenceA.id), 0);
+assert.equal(travelingRoster.remainingPopulationByResidence.get(residenceB.id), 0);
 
 const homeSlots = computeVillagerSlots(
   [residenceA, residenceB],

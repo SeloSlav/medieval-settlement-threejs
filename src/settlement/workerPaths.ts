@@ -49,6 +49,7 @@ const PRODUCTION_WORKPLACE_KIND_SET = new Set<BuildingKind>(PRODUCTION_WORKPLACE
 const MAX_VISIBLE_WORKERS = 1024;
 const MAX_TARGETS_PER_BUILDING = 96;
 const MAX_PREFERRED_RESOURCE_WALK = 72;
+const NO_ROSTERED_CART_WORKERS: ReadonlyMap<string, number> = new Map();
 
 export type WorkerAssignment = {
   id: string;
@@ -56,6 +57,7 @@ export type WorkerAssignment = {
   slotIndex: number;
   homeResidenceId: string | null;
   personIdentity: string;
+  onSite: boolean;
 };
 
 export type WorkerRoster = {
@@ -139,6 +141,7 @@ export function isProductionWorkplaceKind(kind: BuildingKind): boolean {
 export function allocateProductionWorkers(
   residences: readonly ResidenceState[],
   buildings: readonly BuildingState[],
+  rosteredCartWorkersByBuilding: ReadonlyMap<string, number> = NO_ROSTERED_CART_WORKERS,
 ): WorkerRoster {
   const activeResidences = residences
     .filter((residence) => !residence.abandoned && residence.population > 0)
@@ -161,6 +164,11 @@ export function allocateProductionWorkers(
 
   for (const building of workplaces) {
     const workerCount = Math.max(0, Math.floor(building.assignedLabor));
+    const awayWorkerCount = Math.min(
+      workerCount,
+      Math.max(0, Math.floor(rosteredCartWorkersByBuilding.get(building.id) ?? 0)),
+    );
+    const onSiteWorkerCount = workerCount - awayWorkerCount;
     for (let slotIndex = 0; slotIndex < workerCount; slotIndex++) {
       if (assignments.length >= MAX_VISIBLE_WORKERS) break;
 
@@ -195,6 +203,7 @@ export function allocateProductionWorkers(
         slotIndex,
         homeResidenceId: home?.id ?? null,
         personIdentity,
+        onSite: slotIndex < onSiteWorkerCount,
       });
     }
   }

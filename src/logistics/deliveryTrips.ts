@@ -70,6 +70,43 @@ export function rosteredCartWorkers(
   );
 }
 
+/**
+ * Counts regular workplace staff who are physically traveling with active
+ * carts. Free founders' camp and institutional haulers do not belong to a
+ * producer's visible roster and therefore must not displace a workplace body.
+ */
+export function rosteredCartWorkersByBuilding(
+  buildings: ReadonlyMap<string, Pick<BuildingState, 'assignedLabor'>>,
+  trips: Iterable<DeliveryTripState>,
+): Map<string, number> {
+  const travelingWorkers = new Map<string, number>();
+  for (const trip of trips) {
+    if (!buildings.has(trip.buildingId)) continue;
+    const rosteredWorkers = Math.max(
+      0,
+      Math.floor(trip.deliveryWorkers) - Math.floor(trip.freeHaulerWorkers),
+    );
+    if (rosteredWorkers <= 0) continue;
+    travelingWorkers.set(
+      trip.buildingId,
+      (travelingWorkers.get(trip.buildingId) ?? 0) + rosteredWorkers,
+    );
+  }
+
+  for (const [buildingId, workerCount] of travelingWorkers) {
+    const building = buildings.get(buildingId);
+    if (!building) {
+      travelingWorkers.delete(buildingId);
+      continue;
+    }
+    travelingWorkers.set(
+      buildingId,
+      Math.min(Math.max(0, Math.floor(building.assignedLabor)), workerCount),
+    );
+  }
+  return travelingWorkers;
+}
+
 /** Mirrors the server's authoritative physical-presence rule. */
 export function onsiteBuildingLabor(
   building: Pick<BuildingState, 'assignedLabor'>,
@@ -79,8 +116,11 @@ export function onsiteBuildingLabor(
 }
 
 /** Stable identity for the regular hauler attached to a producer between trips. */
-export function deliveryWorkerPersonIdentity(trip: DeliveryTripState): string {
-  return `delivery:${trip.buildingId}:hauler:0`;
+export function deliveryWorkerPersonIdentity(
+  trip: DeliveryTripState,
+  crewIndex = 0,
+): string {
+  return `delivery:${trip.buildingId}:hauler:${Math.max(0, Math.floor(crewIndex))}`;
 }
 
 export function cargoKindFromId(value: number): DeliveryCargoKind | null {

@@ -60,6 +60,14 @@ export function syncSettlementWorld(
     state.deliveryTrips,
     previous.deliveryTrips,
   );
+  const workerCartCrewsChanged = !previous || !mapEntriesMatch(
+    state.deliveryTrips,
+    previous.deliveryTrips,
+    (current, prior) =>
+      current.buildingId === prior.buildingId
+      && current.deliveryWorkers === prior.deliveryWorkers
+      && current.freeHaulerWorkers === prior.freeHaulerWorkers,
+  );
   const fireIncidentsChanged = !previous || !mapEntriesShareValues(
     state.fireIncidents,
     previous.fireIncidents,
@@ -126,6 +134,7 @@ export function syncSettlementWorld(
     || workerTreePhasesChanged
     || workerFieldsChanged
     || workerPasturesChanged
+    || workerCartCrewsChanged
   ) {
     targets.villagers?.sync({
       residences: state.residences.values(),
@@ -136,6 +145,7 @@ export function syncSettlementWorld(
       treeRegistry: targets.getTreeRegistry(),
       farmFields: state.farmFields.values(),
       pastures: state.pastures.values(),
+      deliveryTrips: state.deliveryTrips.values(),
       roadNetwork: targets.getRoadNetwork(),
       foragingMonth: gameClock(state.tick).month,
     });
