@@ -468,8 +468,18 @@ assert.match(
 const appSource = read('src/app/App.ts');
 assert.match(
   appSource,
-  /syncPlacedBuildingTerrain\(\{[\s\S]*?forceMeshUpdate: true,[\s\S]*?\}\);\s*\/\/ Terrain sync[\s\S]*?this\.syncVisualQaFoundersCampFixture\(\);/,
-  'vegetation-ready terrain replay must restore the visual-QA camp afterwards',
+  /const presentationState = this\.getVisualQaPresentationState\(this\.gameState\);[\s\S]*?syncPlacedBuildingTerrain\(\{[\s\S]*?gameState: presentationState,[\s\S]*?forceMeshUpdate: true,[\s\S]*?\}\);\s*\/\/ Terrain sync[\s\S]*?this\.syncVisualQaFoundersCampFixture\(\);/,
+  'visual-QA terrain replay must flatten the fixture site and preserve its marker',
+);
+assert.match(
+  appSource,
+  /if \(this\.visualQaConditions\) \{[\s\S]*?this\.sessionLifecycle\.onReady\(\);[\s\S]*?\} else \{\s*this\.gameRuntime\.start\(\);\s*\}/,
+  'visual-QA capture mode must become presentation-ready without starting GameRuntime',
+);
+assert.match(
+  appSource,
+  /if \(!this\.visualQaConditions\) \{\s*session\.spacetimeStore\.setConnectErrorListener/,
+  'visual-QA capture mode must not install the SpacetimeDB reconnect/error path',
 );
 const townHallInspector = read('src/resources/inspector/townHallRenderer.ts');
 assert.match(townHallInspector, /Treasury chest/);

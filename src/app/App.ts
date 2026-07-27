@@ -289,13 +289,15 @@ export class App {
       },
     });
 
-    session.spacetimeStore.setConnectErrorListener((error) => {
-      console.warn('SpacetimeDB connection error:', error);
-      if (!session.spacetimeStore.isConnected) {
-        clearAuthoritativeWorldGeneration();
-      }
-      this.sessionLifecycle?.onBootConnectionFailure();
-    });
+    if (!this.visualQaConditions) {
+      session.spacetimeStore.setConnectErrorListener((error) => {
+        console.warn('SpacetimeDB connection error:', error);
+        if (!session.spacetimeStore.isConnected) {
+          clearAuthoritativeWorldGeneration();
+        }
+        this.sessionLifecycle?.onBootConnectionFailure();
+      });
+    }
 
     this.snapshotApplierDeps = {
       sceneManager: this.sceneManager,
@@ -323,7 +325,14 @@ export class App {
       },
     };
 
-    this.gameRuntime.start();
+    if (this.visualQaConditions) {
+      // Deterministic capture pages are intentionally offline: marking the
+      // local presentation ready prevents lifecycle retries without opening a
+      // SpacetimeDB connection or changing the ordinary runtime path.
+      this.sessionLifecycle.onReady();
+    } else {
+      this.gameRuntime.start();
+    }
 
     this.exposeDevHandles();
     this.exposeE2eHandles(session);
@@ -341,12 +350,14 @@ export class App {
     this.toolbar?.setZoomPercent(session.cameraController.getZoomPercent());
     this.lastTime = performance.now();
     this.fpsSampleStart = this.lastTime;
-    session.loadingScreen?.setProgress({
-      label: 'Connecting…',
-      detail: 'Syncing world with SpacetimeDB',
-      phase: 'connecting',
-      fraction: 0.35,
-    });
+    if (!this.visualQaConditions) {
+      session.loadingScreen?.setProgress({
+        label: 'Connecting…',
+        detail: 'Syncing world with SpacetimeDB',
+        phase: 'connecting',
+        fraction: 0.35,
+      });
+    }
     session.sceneManager.render(0, session.cameraController.getOrbitDistance());
     void new Promise<void>((resolve) => requestAnimationFrame(() => resolve())).then(() => {
       session.loadingScreen?.setProgress({
@@ -527,17 +538,17 @@ export class App {
     if (this.snapshotApplierDeps) {
       this.snapshotApplierDeps.forestVisualSync = this.forestVisualSync;
     }
+    const presentationState = this.getVisualQaPresentationState(this.gameState);
     this.buildingMarkers?.syncBuildings(
-      this.getVisualQaPresentedBuildings(this.gameState)
-        ?? this.gameState.buildings.values(),
-      this.gameState.livestockHerds,
+      presentationState.buildings.values(),
+      presentationState.livestockHerds,
     );
     this.worldMapUi?.minimap.syncBuildings(
-      buildBuildingWorldMapMarkers(this.gameState.buildings.values()),
+      buildBuildingWorldMapMarkers(presentationState.buildings.values()),
     );
     syncPlacedBuildingTerrain({
       sceneManager: this.sceneManager,
-      gameState: this.gameState,
+      gameState: presentationState,
       buildingMarkers: this.buildingMarkers,
       forceMeshUpdate: true,
     });
@@ -917,15 +928,16 @@ export class App {
     );
   }
 
+  private getVisualQaPresentationState(state: GameState): GameState {
+    this.getVisualQaPresentedBuildings(state);
+    return this.visualQaConditions && this.visualQaFoundersCampFixture
+      ? withVisualQaFoundersCampState(state, this.visualQaFoundersCampFixture)
+      : state;
+  }
+
   private syncResourceUi(): void {
     if (!this.gameState || !this.resourceInspector) return;
-    const presentationState = this.visualQaFoundersCampFixture
-      && this.visualQaConditions
-      ? withVisualQaFoundersCampState(
-          this.gameState,
-          this.visualQaFoundersCampFixture,
-        )
-      : this.gameState;
+    const presentationState = this.getVisualQaPresentationState(this.gameState);
     this.resourceInspector.setHud(
       computeResourceTotals(presentationState),
       computePopulationStats(presentationState),
