@@ -1,9 +1,10 @@
 use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::balance_generated::{
-    MONASTERY_COVERAGE_RADIUS, RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST,
-    RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_CAPACITY,
-    RESIDENCE_TIER3_GOLD_COST, RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST,
+    MONASTERY_COVERAGE_RADIUS, RESIDENCE_STONE_COST, RESIDENCE_TIER2_CAPACITY,
+    RESIDENCE_TIER2_GOLD_COST, RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST,
+    RESIDENCE_TIER3_CAPACITY, RESIDENCE_TIER3_GOLD_COST, RESIDENCE_TIER3_STONE_COST,
+    RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIMBER_COST,
 };
 use crate::burgage::{
     compute_burgage_layout, convex_zones_overlap, max_zone_depth, measure_zone_depth,
@@ -177,8 +178,22 @@ pub fn place_burgage_zone(
             cost.stone.round() as i64
         ));
     }
-    spend_aggregate_timber(ctx, owner, cost.timber)?;
-    spend_aggregate_stone(ctx, owner, cost.stone)?;
+    let physical_economy = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    let physical_road_network =
+        if physical_economy {
+            Some(load_owner_road_network(ctx, owner).ok_or_else(|| {
+                "Cottage works require a road-linked material source.".to_string()
+            })?)
+        } else {
+            spend_aggregate_timber(ctx, owner, cost.timber)?;
+            spend_aggregate_stone(ctx, owner, cost.stone)?;
+            None
+        };
 
     ctx.db.burgage_zone().insert(BurgageZone {
         id: 0,
@@ -215,26 +230,61 @@ pub fn place_burgage_zone(
             yaw: residence.yaw,
             population: 0,
             population_capacity,
-            tier: 1,
+            // Tier zero is a physical cottage worksite, not an occupied house.
+            // Existing saves never use it; their additive compatibility path
+            // above still creates the former completed tier-one residence.
+            tier: if physical_economy { 0 } else { 1 },
             settlement_ticks: 0,
             abandoned: false,
             household_wealth: 0.0,
             last_household_market_tick: 0,
-            upgrade_target_tier: 0,
+            upgrade_target_tier: if physical_economy { 1 } else { 0 },
             upgrade_progress: 0.0,
-            upgrade_required_timber: 0.0,
-            upgrade_required_stone: 0.0,
+            upgrade_required_timber: if physical_economy {
+                RESIDENCE_TIMBER_COST
+            } else {
+                0.0
+            },
+            upgrade_required_stone: if physical_economy {
+                RESIDENCE_STONE_COST
+            } else {
+                0.0
+            },
             upgrade_required_gold: 0.0,
             upgrade_delivered_timber: 0.0,
             upgrade_delivered_stone: 0.0,
             upgrade_delivered_gold: 0.0,
-            upgrade_reserved_timber: 0.0,
-            upgrade_reserved_stone: 0.0,
+            upgrade_reserved_timber: if physical_economy {
+                RESIDENCE_TIMBER_COST
+            } else {
+                0.0
+            },
+            upgrade_reserved_stone: if physical_economy {
+                RESIDENCE_STONE_COST
+            } else {
+                0.0
+            },
             upgrade_reserved_gold: 0.0,
             upgrade_assigned_labor: 0,
             upgrade_priority: crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL,
         });
         ensure_residence_needs(ctx, inserted.id);
+        if let Some(network) = physical_road_network.as_ref() {
+            ensure_upgrade_source_route(
+                ctx,
+                network,
+                &inserted,
+                CommodityKind::Timber,
+                RESIDENCE_TIMBER_COST,
+            )?;
+            ensure_upgrade_source_route(
+                ctx,
+                network,
+                &inserted,
+                CommodityKind::Stone,
+                RESIDENCE_STONE_COST,
+            )?;
+        }
     }
 
     Ok(())
@@ -563,11 +613,13 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
     }
 
     let zone_id = residence.zone_id;
-    let refund = residence_zone_cost(if residence_fire_state(ctx, residence_id).is_some() {
-        0
-    } else {
-        1
-    });
+    let refund = residence_zone_cost(
+        if residence_fire_state(ctx, residence_id).is_none() && residence.tier >= 1 {
+            1
+        } else {
+            0
+        },
+    );
     let recover_upgrade_materials = residence_fire_state(ctx, residence_id).is_none();
     let salvage = ResourceAmount {
         timber: ((refund.timber
@@ -631,11 +683,13 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
     }
 
     let residences: Vec<Residence> = ctx.db.residence().zone_id().filter(&zone_id).collect();
-    let intact_residence_count = residences
+    let completed_intact_residence_count = residences
         .iter()
-        .filter(|residence| residence_fire_state(ctx, residence.id).is_none())
+        .filter(|residence| {
+            residence.tier >= 1 && residence_fire_state(ctx, residence.id).is_none()
+        })
         .count() as u32;
-    let refund = residence_zone_cost(intact_residence_count);
+    let refund = residence_zone_cost(completed_intact_residence_count);
     let upgrade_timber = residences
         .iter()
         .filter(|residence| residence_fire_state(ctx, residence.id).is_none())
@@ -650,19 +704,12 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
         timber: ((refund.timber + upgrade_timber) * TIMBER_SALVAGE_FRACTION).round(),
         stone: ((refund.stone + upgrade_stone) * STONE_SALVAGE_FRACTION).round(),
     };
-    let base_salvage = if intact_residence_count > 0 {
+    let base_salvage = if completed_intact_residence_count > 0 {
         ReclamationStock {
             timber: (refund.timber * TIMBER_SALVAGE_FRACTION).round()
-                / intact_residence_count as f64,
-            stone: (refund.stone * STONE_SALVAGE_FRACTION).round() / intact_residence_count as f64,
-        }
-    } else {
-        ReclamationStock::default()
-    };
-    let per_intact_residence = if intact_residence_count > 0 {
-        ReclamationStock {
-            timber: base_salvage.timber,
-            stone: base_salvage.stone,
+                / completed_intact_residence_count as f64,
+            stone: (refund.stone * STONE_SALVAGE_FRACTION).round()
+                / completed_intact_residence_count as f64,
         }
     } else {
         ReclamationStock::default()
@@ -672,15 +719,20 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
         if residence_fire_state(ctx, residence.id).is_some() {
             continue;
         }
+        let completed_structure = if residence.tier >= 1 {
+            base_salvage
+        } else {
+            ReclamationStock::default()
+        };
         physical_reclamation |= insert_reclamation_pile(
             ctx,
             owner,
             residence.x,
             residence.z,
             ReclamationStock {
-                timber: per_intact_residence.timber
+                timber: completed_structure.timber
                     + (residence.upgrade_delivered_timber * TIMBER_SALVAGE_FRACTION),
-                stone: per_intact_residence.stone
+                stone: completed_structure.stone
                     + (residence.upgrade_delivered_stone * STONE_SALVAGE_FRACTION),
             },
         )?;

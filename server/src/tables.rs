@@ -546,7 +546,8 @@ pub struct Residence {
     pub yaw: f64,
     pub population: u32,
     pub population_capacity: u32,
-    /// 1 = cottage, 2 = house, 3 = prosperous house.
+    /// 0 = physical cottage worksite, 1 = cottage, 2 = house,
+    /// 3 = prosperous house. Existing saves only contain tiers 1-3.
     #[default(1)]
     pub tier: u8,
     pub settlement_ticks: u32,
@@ -557,8 +558,8 @@ pub struct Residence {
     /// Last sim tick this household auto-ordered provender from the marketplace.
     #[default(0u64)]
     pub last_household_market_tick: u64,
-    /// Zero when idle; otherwise the tier being built through a physical,
-    /// cart-supplied household improvement project.
+    /// Zero when idle; otherwise the tier being built through physical,
+    /// cart-supplied cottage construction or household improvement works.
     #[default(0u8)]
     pub upgrade_target_tier: u8,
     #[default(0.0)]

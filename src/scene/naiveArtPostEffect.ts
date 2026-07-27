@@ -6,7 +6,7 @@
  */
 export const CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED = true;
 
-export const CROATIAN_NAIVE_ART_NEIGHBOR_SAMPLE_COUNT = 9;
+export const CROATIAN_NAIVE_ART_NEIGHBOR_SAMPLE_COUNT = 5;
 
 /**
  * Shared values for the GLSL and TSL implementations. Keeping the two
@@ -17,13 +17,12 @@ export const CROATIAN_NAIVE_ART_STYLE = Object.freeze({
   bloomRadius: 0.36,
   bloomStrength: 0.14,
   bloomThreshold: 0.78,
-  cardinalWeight: 0.13,
+  cardinalWeight: 0.18,
   centerWeight: 0.28,
   colorfulness: 1.08,
   contourEnd: 0.38,
   contourStart: 0.11,
   contourStrength: 0.5,
-  diagonalWeight: 0.05,
   filterRadiusPixels: 1.25,
   grainScaleX: 593,
   grainScaleY: 341,
@@ -43,13 +42,9 @@ export type NaiveArtRgb = readonly [number, number, number];
 export type NaiveArtNeighborhood = Readonly<{
   center: NaiveArtRgb;
   north: NaiveArtRgb;
-  northEast: NaiveArtRgb;
   east: NaiveArtRgb;
-  southEast: NaiveArtRgb;
   south: NaiveArtRgb;
-  southWest: NaiveArtRgb;
   west: NaiveArtRgb;
-  northWest: NaiveArtRgb;
 }>;
 
 export type NaiveArtNeighborhoodResult = Readonly<{
@@ -79,10 +74,6 @@ export function filterCroatianNaiveArtNeighborhood(
     [neighborhood.east, style.cardinalWeight],
     [neighborhood.south, style.cardinalWeight],
     [neighborhood.west, style.cardinalWeight],
-    [neighborhood.northEast, style.diagonalWeight],
-    [neighborhood.southEast, style.diagonalWeight],
-    [neighborhood.southWest, style.diagonalWeight],
-    [neighborhood.northWest, style.diagonalWeight],
   ] as const;
 
   for (const [sample, spatialWeight] of neighbors) {
@@ -108,18 +99,14 @@ export function filterCroatianNaiveArtNeighborhood(
   ];
 
   const n = rgbLuma(neighborhood.north);
-  const ne = rgbLuma(neighborhood.northEast);
   const e = rgbLuma(neighborhood.east);
-  const se = rgbLuma(neighborhood.southEast);
   const s = rgbLuma(neighborhood.south);
-  const sw = rgbLuma(neighborhood.southWest);
   const w = rgbLuma(neighborhood.west);
-  const nw = rgbLuma(neighborhood.northWest);
-  const gradientX = ne + e * 2 + se - nw - w * 2 - sw;
-  const gradientY = sw + s * 2 + se - nw - n * 2 - ne;
+  const gradientX = e - w;
+  const gradientY = s - n;
   const filteredLuma = rgbLuma(filtered);
   const structureSignal =
-    (Math.abs(gradientX) + Math.abs(gradientY)) * 0.125
+    Math.hypot(gradientX, gradientY) * 0.5
     + Math.abs(centerLuma - filteredLuma) * 0.8;
 
   return {

@@ -168,6 +168,7 @@ const householdOrderSource = readFileSync(
 );
 const recoverySource = readFileSync(`${projectRoot}server/src/reducers/fire_recovery.rs`, 'utf8');
 const rendererSource = readFileSync(`${projectRoot}src/fires/FireEffectsRenderer.ts`, 'utf8');
+const effectSource = readFileSync(`${projectRoot}src/fires/FireEffect.ts`, 'utf8');
 const inspectorSource = readFileSync(`${projectRoot}src/resources/ResourceInspector.ts`, 'utf8');
 const generatedReducerSource = readFileSync(
   `${projectRoot}src/generated/repair_fire_damage_reducer.ts`,
@@ -228,11 +229,17 @@ assert.match(
   /Visible bucket-water suppression/,
   'unloading must have a visible water effect',
 );
-assert.match(rendererSource, /Animated structural flame/);
-assert.match(rendererSource, /Animated structural smoke/);
+assert.match(rendererSource, /createFireEffect/);
+assert.match(rendererSource, /Reusable structural fire/);
+assert.match(effectSource, /Animated fire flame/);
+assert.match(effectSource, /Animated fire smoke/);
+assert.match(effectSource, /Procedural reusable fire shader/);
+assert.match(effectSource, /Procedural reusable fire smoke shader/);
+assert.match(effectSource, /SpriteNodeMaterial/);
+assert.doesNotMatch(effectSource, /ConeGeometry/);
 assert.match(rendererSource, /visual\.incident\.status !== 'burning'/);
-assert.match(rendererSource, /visual\.flames\.length = 0/);
-assert.match(rendererSource, /visual\.smoke\.length = 0/);
+assert.match(rendererSource, /disposeFireEffect/);
+assert.match(rendererSource, /setFireEffectActive/);
 assert.doesNotMatch(
   fireSource,
   /cleanup_resolved_fires/,

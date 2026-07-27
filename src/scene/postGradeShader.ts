@@ -14,6 +14,8 @@ export const GRADE_HIGHLIGHT_ROLLOFF_END = 1.25;
 export const GRADE_HIGHLIGHT_DESATURATION = 0.085;
 export const GRADE_SHADOW_LIFT_START = 0.035;
 export const GRADE_SHADOW_LIFT_END = 0.28;
+export const GRADE_SHADOW_LIFT_EXPONENT = 0.76;
+export const GRADE_SHADOW_LIFT_STRENGTH = 0.52;
 
 export function buildGradeGlslVertexShader(): string {
   return `
@@ -33,6 +35,9 @@ export function buildGradeGlslFragmentShader(
   const [wr, wg, wb] = GRADE_WARMTH_TINT;
   const [nr, ng, nb] = GRADE_NIGHT_BLUE_TINT;
   const naiveArtFunctions = naiveArtEnabled ? buildNaiveArtGlslFunctions() : '';
+  const sourceColorInitialization = naiveArtEnabled
+    ? 'vec3 sourceColor;'
+    : 'vec3 sourceColor = texture2D(tDiffuse, vUv).rgb;';
   const naiveArtBasisApplication = naiveArtEnabled
     ? 'sourceColor = buildCroatianNaiveArtBasis(tDiffuse, vUv, inverseResolution, naiveArtStructureEdge);'
     : '';
@@ -57,7 +62,7 @@ export function buildGradeGlslFragmentShader(
     ${naiveArtFunctions}
 
     void main() {
-      vec3 sourceColor = texture2D(tDiffuse, vUv).rgb;
+      ${sourceColorInitialization}
       float naiveArtStructureEdge = 0.0;
       ${naiveArtBasisApplication}
       vec3 color = sourceColor;
@@ -71,8 +76,11 @@ export function buildGradeGlslFragmentShader(
         ${GRADE_SHADOW_LIFT_START},
         ${GRADE_SHADOW_LIFT_END},
         shadowLuma
-      )) * shadowLiftDrive * 0.82;
-      vec3 shadowCurve = pow(max(color, vec3(0.0)), vec3(0.68));
+      )) * shadowLiftDrive * ${GRADE_SHADOW_LIFT_STRENGTH};
+      vec3 shadowCurve = pow(
+        max(color, vec3(0.0)),
+        vec3(${GRADE_SHADOW_LIFT_EXPONENT})
+      );
       color = mix(color, shadowCurve, shadowLift);
       float highlightLuma = dot(color, vec3(${lr}, ${lg}, ${lb}));
       float highlightRolloff = smoothstep(
@@ -104,19 +112,20 @@ function buildNaiveArtGlslFunctions(): string {
       return dot(color, vec3(${lr}, ${lg}, ${lb}));
     }
 
-    float naiveArtBilateralWeight(vec3 center, vec3 sampleColor, float spatialWeight) {
-      float lumaDifference = abs(naiveArtLuma(sampleColor) - naiveArtLuma(center));
+    float naiveArtBilateralWeight(float centerLuma, float sampleLuma, float spatialWeight) {
+      float lumaDifference = abs(sampleLuma - centerLuma);
       return spatialWeight * exp(-lumaDifference * ${style.bilateralSharpness});
     }
 
     void naiveArtAccumulate(
       inout vec3 colorSum,
       inout float weightSum,
-      vec3 center,
+      float centerLuma,
       vec3 sampleColor,
+      float sampleLuma,
       float spatialWeight
     ) {
-      float weight = naiveArtBilateralWeight(center, sampleColor, spatialWeight);
+      float weight = naiveArtBilateralWeight(centerLuma, sampleLuma, spatialWeight);
       colorSum += sampleColor * weight;
       weightSum += weight;
     }
@@ -130,40 +139,29 @@ function buildNaiveArtGlslFunctions(): string {
       vec2 texel = inverseFrameSize * ${style.filterRadiusPixels};
       vec3 center = texture2D(sourceTexture, frameUv).rgb;
       vec3 north = texture2D(sourceTexture, frameUv + texel * vec2( 0.0,  1.0)).rgb;
-      vec3 northEast = texture2D(sourceTexture, frameUv + texel * vec2( 1.0,  1.0)).rgb;
       vec3 east = texture2D(sourceTexture, frameUv + texel * vec2( 1.0,  0.0)).rgb;
-      vec3 southEast = texture2D(sourceTexture, frameUv + texel * vec2( 1.0, -1.0)).rgb;
       vec3 south = texture2D(sourceTexture, frameUv + texel * vec2( 0.0, -1.0)).rgb;
-      vec3 southWest = texture2D(sourceTexture, frameUv + texel * vec2(-1.0, -1.0)).rgb;
       vec3 west = texture2D(sourceTexture, frameUv + texel * vec2(-1.0,  0.0)).rgb;
-      vec3 northWest = texture2D(sourceTexture, frameUv + texel * vec2(-1.0,  1.0)).rgb;
+      float centerLuma = naiveArtLuma(center);
+      float n = naiveArtLuma(north);
+      float e = naiveArtLuma(east);
+      float s = naiveArtLuma(south);
+      float w = naiveArtLuma(west);
 
       vec3 colorSum = center * ${style.centerWeight};
       float weightSum = ${style.centerWeight};
-      naiveArtAccumulate(colorSum, weightSum, center, north, ${style.cardinalWeight});
-      naiveArtAccumulate(colorSum, weightSum, center, east, ${style.cardinalWeight});
-      naiveArtAccumulate(colorSum, weightSum, center, south, ${style.cardinalWeight});
-      naiveArtAccumulate(colorSum, weightSum, center, west, ${style.cardinalWeight});
-      naiveArtAccumulate(colorSum, weightSum, center, northEast, ${style.diagonalWeight});
-      naiveArtAccumulate(colorSum, weightSum, center, southEast, ${style.diagonalWeight});
-      naiveArtAccumulate(colorSum, weightSum, center, southWest, ${style.diagonalWeight});
-      naiveArtAccumulate(colorSum, weightSum, center, northWest, ${style.diagonalWeight});
+      naiveArtAccumulate(colorSum, weightSum, centerLuma, north, n, ${style.cardinalWeight});
+      naiveArtAccumulate(colorSum, weightSum, centerLuma, east, e, ${style.cardinalWeight});
+      naiveArtAccumulate(colorSum, weightSum, centerLuma, south, s, ${style.cardinalWeight});
+      naiveArtAccumulate(colorSum, weightSum, centerLuma, west, w, ${style.cardinalWeight});
 
       vec3 filtered = colorSum / max(weightSum, 0.0001);
       vec3 painterlyColor = mix(center, filtered, ${style.painterlySmoothing});
-      float n = naiveArtLuma(north);
-      float ne = naiveArtLuma(northEast);
-      float e = naiveArtLuma(east);
-      float se = naiveArtLuma(southEast);
-      float s = naiveArtLuma(south);
-      float sw = naiveArtLuma(southWest);
-      float w = naiveArtLuma(west);
-      float nw = naiveArtLuma(northWest);
-      float gradientX = ne + 2.0 * e + se - nw - 2.0 * w - sw;
-      float gradientY = sw + 2.0 * s + se - nw - 2.0 * n - ne;
+      float gradientX = e - w;
+      float gradientY = s - n;
       float structureSignal =
-        (abs(gradientX) + abs(gradientY)) * 0.125
-        + abs(naiveArtLuma(center) - naiveArtLuma(filtered)) * 0.8;
+        length(vec2(gradientX, gradientY)) * 0.5
+        + abs(centerLuma - naiveArtLuma(filtered)) * 0.8;
       structureEdge = smoothstep(
         ${style.contourStart},
         ${style.contourEnd},
@@ -231,8 +229,11 @@ export function buildGradeWgslFunctionBody(): string {
       let shadowLiftDrive = max(gradeNightBlue, gradeWarmth * 0.45);
       let shadowLift = (
         1.0 - smoothstep(${GRADE_SHADOW_LIFT_START}, ${GRADE_SHADOW_LIFT_END}, shadowLuma)
-      ) * shadowLiftDrive * 0.82;
-      let shadowCurve = pow(max(nightTinted, vec3<f32>(0.0)), vec3<f32>(0.68));
+      ) * shadowLiftDrive * ${GRADE_SHADOW_LIFT_STRENGTH};
+      let shadowCurve = pow(
+        max(nightTinted, vec3<f32>(0.0)),
+        vec3<f32>(${GRADE_SHADOW_LIFT_EXPONENT})
+      );
       let shadowLifted = mix(nightTinted, shadowCurve, shadowLift);
       let highlightLuma = dot(shadowLifted, vec3<f32>(${lr}, ${lg}, ${lb}));
       let highlightRolloff = smoothstep(

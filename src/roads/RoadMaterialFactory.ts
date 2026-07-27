@@ -158,7 +158,11 @@ export class RoadMaterialFactory {
     if (!this.roadTextures || !this.terrainBlendTextures) {
       throw new Error('Textures are not loaded.');
     }
-    return createTerrainGrassMaterialWithRiverShore(this.terrainBlendTextures, this.roadTextures);
+    return createTerrainGrassMaterialWithRiverShore(
+      this.terrainBlendTextures,
+      this.roadTextures,
+      this.roadWeatherUniforms,
+    );
   }
 
   private createMaterials(): {
@@ -178,7 +182,10 @@ export class RoadMaterialFactory {
     );
     const roadEdge = createRoadEdgeMaterial(this.roadTextures, this.roadWeatherUniforms, true);
     const riverBank = createRiverBankMaterial(this.roadTextures);
-    const terrain = createTerrainGrassMaterial(this.terrainBlendTextures);
+    const terrain = createTerrainGrassMaterial(
+      this.terrainBlendTextures,
+      this.roadWeatherUniforms,
+    );
     const bridgeSupport = new THREE.MeshStandardMaterial({
       map: this.bridgeTextures.albedo,
       color: 0xa07850,

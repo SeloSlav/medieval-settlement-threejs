@@ -637,6 +637,133 @@ export function createResidenceMesh(seed = 0, tier: 1 | 2 | 3 = 1): THREE.Group 
   return group;
 }
 
+/**
+ * A tier-zero residence is a saved, authoritative cottage worksite. Keep the
+ * finished tier-one mesh nested and hidden so completion can swap to the
+ * ordinary house cleanly, while a small stone footing and timber frame make
+ * partial builder progress readable from the settlement camera.
+ */
+export function createInitialResidenceConstructionMesh(seed = 0): THREE.Group {
+  const marker = createResidenceMesh(seed, 1);
+  const works = marker.getObjectByName('ResidenceUpgradeWorks');
+  const completedStructure = new THREE.Group();
+  completedStructure.name = 'InitialCottageCompletedStructure';
+  for (const child of [...marker.children]) {
+    if (child === works) continue;
+    completedStructure.add(child);
+  }
+  completedStructure.visible = false;
+  marker.add(completedStructure);
+
+  const appearance = pickResidenceAppearance(seed);
+  const dimensions = dimensionsForTier(appearance.archetype, 1);
+  const halfWidth = dimensions.width * 0.5;
+  const halfDepth = dimensions.depth * 0.5;
+  const frame = new THREE.Group();
+  frame.name = 'InitialCottageConstructionFrame';
+  marker.add(frame);
+
+  const addProgressivePart = (
+    geometry: THREE.BufferGeometry,
+    material: THREE.Material,
+    position: THREE.Vector3,
+    revealAt: number,
+    rotation = new THREE.Euler(),
+  ): void => {
+    const part = addMesh(frame, geometry, material, position, rotation);
+    part.name = 'InitialCottageFrameSegment';
+    part.userData.revealAt = revealAt;
+  };
+
+  // Setting-out boards remain from the first moment, before a cart arrives.
+  addProgressivePart(
+    new THREE.BoxGeometry(dimensions.width + 0.3, 0.08, 0.12),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, 0.04, halfDepth + 0.12),
+    0,
+  );
+  addProgressivePart(
+    new THREE.BoxGeometry(dimensions.width + 0.3, 0.08, 0.12),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, 0.04, -halfDepth - 0.12),
+    0,
+  );
+  addProgressivePart(
+    new THREE.BoxGeometry(0.12, 0.08, dimensions.depth + 0.3),
+    timberMaterial('weathered'),
+    new THREE.Vector3(halfWidth + 0.12, 0.04, 0),
+    0,
+  );
+  addProgressivePart(
+    new THREE.BoxGeometry(0.12, 0.08, dimensions.depth + 0.3),
+    timberMaterial('weathered'),
+    new THREE.Vector3(-halfWidth - 0.12, 0.04, 0),
+    0,
+  );
+
+  const footingPositions = [
+    [-halfWidth, -halfDepth],
+    [0, -halfDepth],
+    [halfWidth, -halfDepth],
+    [-halfWidth, halfDepth],
+    [0, halfDepth],
+    [halfWidth, halfDepth],
+  ] as const;
+  footingPositions.forEach(([x, z], index) => {
+    addProgressivePart(
+      new THREE.BoxGeometry(index % 3 === 1 ? dimensions.width * 0.42 : 0.72, 0.32, 0.58),
+      stoneMaterial(index % 2 === 0 ? 'mid' : 'light'),
+      new THREE.Vector3(x, 0.16, z),
+      0.08 + index * 0.035,
+    );
+  });
+
+  const postHeight = 2.38;
+  const postPositions = [
+    [-halfWidth, -halfDepth],
+    [halfWidth, -halfDepth],
+    [-halfWidth, halfDepth],
+    [halfWidth, halfDepth],
+    [0, -halfDepth],
+    [0, halfDepth],
+  ] as const;
+  postPositions.forEach(([x, z], index) => {
+    addProgressivePart(
+      new THREE.BoxGeometry(0.2, postHeight, 0.2),
+      timberMaterial(index % 2 === 0 ? 'dark' : 'mid'),
+      new THREE.Vector3(x, 0.32 + postHeight * 0.5, z),
+      0.32 + index * 0.055,
+    );
+  });
+  addProgressivePart(
+    new THREE.BoxGeometry(dimensions.width + 0.18, 0.2, 0.2),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 0.32 + postHeight, -halfDepth),
+    0.68,
+  );
+  addProgressivePart(
+    new THREE.BoxGeometry(dimensions.width + 0.18, 0.2, 0.2),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 0.32 + postHeight, halfDepth),
+    0.74,
+  );
+  for (const side of [-1, 1] as const) {
+    addProgressivePart(
+      new THREE.BoxGeometry(dimensions.width * 0.7, 0.16, 0.16),
+      timberMaterial('mid'),
+      new THREE.Vector3(
+        side * dimensions.width * 0.17,
+        0.32 + postHeight + dimensions.ridgeHeight * 0.45,
+        0,
+      ),
+      side < 0 ? 0.82 : 0.9,
+      new THREE.Euler(0, 0, side * -0.58),
+    );
+  }
+  marker.userData.residenceTier = 0;
+  return marker;
+}
+
 const PREVIEW_OPACITY = 0.72;
 
 export function createResidencePreviewMesh(seed = 0): THREE.Group {
@@ -737,11 +864,16 @@ export class ResidenceMarkers {
       }
       if (!marker) {
         const appearanceSeed = hashStringSeed(residence.id);
-        marker = createResidenceMesh(appearanceSeed, residence.tier);
+        const completedTier = residence.tier === 0 ? null : residence.tier;
+        marker = completedTier == null
+          ? createInitialResidenceConstructionMesh(appearanceSeed)
+          : createResidenceMesh(appearanceSeed, completedTier);
         marker.userData.fpCollisionAggregate = true;
-        const shadowProxy = createResidenceShadowProxy(residence.tier);
-        shadowProxy.castShadow = areBuildingShadowsEnabled();
-        marker.add(shadowProxy);
+        if (completedTier != null) {
+          const shadowProxy = createResidenceShadowProxy(completedTier);
+          shadowProxy.castShadow = areBuildingShadowsEnabled();
+          marker.add(shadowProxy);
+        }
         this.root.add(marker);
         this.meshes.set(residence.id, marker);
 
@@ -766,9 +898,11 @@ export class ResidenceMarkers {
       this.residencePopulation.set(residence.id, residence.population);
       this.applyWindowGlowForResidence(marker, residence.id);
       syncFirewoodPile(marker, getNeedStock(residence.needs, 'firewood'));
+      syncInitialResidenceConstruction(marker, residence);
       syncResidenceUpgradeWorks(marker, residence);
-      if (!marker.getObjectByName('Building shadow proxy')) {
-        const shadowProxy = createResidenceShadowProxy(residence.tier);
+      const completedTier = residence.tier === 0 ? null : residence.tier;
+      if (completedTier != null && !marker.getObjectByName('Building shadow proxy')) {
+        const shadowProxy = createResidenceShadowProxy(completedTier);
         shadowProxy.castShadow = areBuildingShadowsEnabled();
         marker.add(shadowProxy);
       }
@@ -848,6 +982,22 @@ function disposeGroup(group: THREE.Group): void {
   });
 }
 
+export function syncInitialResidenceConstruction(
+  marker: THREE.Group,
+  residence: ResidenceState,
+): void {
+  const frame = marker.getObjectByName('InitialCottageConstructionFrame');
+  if (!(frame instanceof THREE.Group)) return;
+  const active = residence.tier === 0 && (residence.upgradeTargetTier ?? 0) === 1;
+  frame.visible = active;
+  if (!active) return;
+  const progress = Math.max(0, Math.min(1, residence.upgradeProgress ?? 0));
+  for (const child of frame.children) {
+    const revealAt = Number(child.userData.revealAt ?? 0);
+    child.visible = progress + 1e-6 >= revealAt;
+  }
+}
+
 export function syncResidenceUpgradeWorks(
   marker: THREE.Group,
   residence: ResidenceState,
@@ -857,6 +1007,13 @@ export function syncResidenceUpgradeWorks(
   const active = (residence.upgradeTargetTier ?? 0) > residence.tier;
   works.visible = active;
   if (!active) return;
+  const initialConstruction = residence.tier === 0
+    && (residence.upgradeTargetTier ?? 0) === 1;
+  for (const child of works.children) {
+    if (child.name.startsWith('UpgradeScaffold')) {
+      child.visible = !initialConstruction;
+    }
+  }
 
   const progress = Math.max(0, Math.min(1, residence.upgradeProgress ?? 0));
   const timberRemaining = Math.max(

@@ -20,10 +20,19 @@ import { createTreeSaplingMesh, updateTreeSaplingInstance } from './TreeSaplings
 import type { TreePhase } from '../resources/types.ts';
 import type { SeedThreeForestController } from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
+import { TERRAIN_DIRT_FAR_DISTANCE } from '../grass/grassLodMath.ts';
 
 const ROAD_CLEAR_MARGIN = 1.35;
 const BUILDING_CLEAR_MARGIN = 1.35;
 const UNDERGROWTH_CLEAR_MARGIN = 0.95;
+/**
+ * Forest-floor cards are close-detail dressing. Past this orbit band they are
+ * sub-pixel beneath the canopy but still submit three large, map-wide
+ * instanced draws. Keep a small hysteresis band so wheel zoom cannot flicker
+ * the group at the threshold.
+ */
+const UNDERGROWTH_HIDE_DISTANCE = TERRAIN_DIRT_FAR_DISTANCE + 8;
+const UNDERGROWTH_SHOW_DISTANCE = TERRAIN_DIRT_FAR_DISTANCE;
 
 export type ForestPlacementClearance = {
   roadNetwork?: RoadNetwork | null;
@@ -117,6 +126,7 @@ export class ForestManager {
   private removedRocks = new Set<number>();
   private treePhases = new Map<number, TreePhase>();
   private treeGrowthProgress = new Map<number, number>();
+  private undergrowthVisible = true;
 
   constructor(
     root: THREE.Group,
@@ -297,6 +307,17 @@ export class ForestManager {
         mesh.castShadow = enabled;
       }
     });
+  }
+
+  updateCameraState(cameraDistance: number, firstPersonActive: boolean): void {
+    if (!this.undergrowth) return;
+    const threshold = this.undergrowthVisible
+      ? UNDERGROWTH_HIDE_DISTANCE
+      : UNDERGROWTH_SHOW_DISTANCE;
+    const visible = firstPersonActive || cameraDistance <= threshold;
+    if (visible === this.undergrowthVisible) return;
+    this.undergrowthVisible = visible;
+    this.undergrowth.group.visible = visible;
   }
 
   syncRoadClearance(network: RoadNetwork | null): void {

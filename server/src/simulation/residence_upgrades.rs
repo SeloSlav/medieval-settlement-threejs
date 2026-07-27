@@ -41,8 +41,9 @@ pub fn step_residence_upgrades(ctx: &ReducerContext, tick: &SimTickContext, cloc
         .iter()
         .filter(|residence| residence.upgrade_target_tier > residence.tier)
     {
+        let initial_cottage_works = residence.tier == 0 && residence.upgrade_target_tier == 1;
         let suspended = residence.abandoned
-            || residence.population == 0
+            || (residence.population == 0 && !initial_cottage_works)
             || tick.residence_disabled_by_fire(ctx, residence.id)
             || construction_priority_bucket(residence.upgrade_priority)
                 == CONSTRUCTION_PRIORITY_HOLD as usize;

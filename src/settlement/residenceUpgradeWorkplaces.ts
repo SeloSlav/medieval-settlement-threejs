@@ -6,6 +6,12 @@ export function isResidenceUpgradeWorkplaceId(id: string): boolean {
   return id.startsWith(RESIDENCE_UPGRADE_WORKPLACE_PREFIX);
 }
 
+export function residenceIdForUpgradeWorkplace(id: string): string | null {
+  return isResidenceUpgradeWorkplaceId(id)
+    ? id.slice(RESIDENCE_UPGRADE_WORKPLACE_PREFIX.length)
+    : null;
+}
+
 /**
  * Client-only workplaces let the ordinary villager roster render the one
  * authoritative builder assigned to each household project. They never enter

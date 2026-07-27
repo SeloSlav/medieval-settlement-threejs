@@ -5,6 +5,7 @@ import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import { getBuildingPadParams } from './BuildingTerrainLayout.ts';
 
 export const BUILDING_SHADOW_PROXY_FLAG = 'buildingShadowProxy';
+export const BUILDING_DETAIL_SHADOW_CASTER_FLAG = 'buildingDetailShadowCaster';
 
 const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   founders_camp: 3.4,
@@ -69,6 +70,25 @@ export function createResidenceShadowProxy(tier: 1 | 2 | 3 = 1): THREE.Mesh {
 
 export function isBuildingShadowProxy(object: THREE.Object3D): boolean {
   return object.userData[BUILDING_SHADOW_PROXY_FLAG] === true;
+}
+
+export function markBuildingDetailShadowCaster(mesh: THREE.Mesh): void {
+  mesh.userData[BUILDING_DETAIL_SHADOW_CASTER_FLAG] = true;
+  mesh.castShadow = true;
+}
+
+export function isBuildingDetailShadowCaster(object: THREE.Object3D): boolean {
+  return object.userData[BUILDING_DETAIL_SHADOW_CASTER_FLAG] === true;
+}
+
+export function setBuildingDetailShadowsEnabled(
+  root: THREE.Object3D,
+  enabled: boolean,
+): void {
+  root.traverse((object) => {
+    if (!isBuildingDetailShadowCaster(object)) return;
+    (object as THREE.Mesh).castShadow = enabled;
+  });
 }
 
 function createShadowProxyMesh(geometry: THREE.BufferGeometry, height: number): THREE.Mesh {

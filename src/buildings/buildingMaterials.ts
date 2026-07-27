@@ -166,6 +166,7 @@ export type BuildingDetailMaterialKey =
   | 'water'
   | 'smoke'
   | 'earth'
+  | 'canvas'
   | 'foliage'
   | 'crop';
 
@@ -182,6 +183,7 @@ const DETAIL_MATERIAL_DEFINITIONS: Record<BuildingDetailMaterialKey, DetailMater
   water: { color: 0x315868, roughness: 0.32, metalness: 0.04 },
   smoke: { color: 0x77736d, roughness: 1, metalness: 0, transparent: true, opacity: 0.28, depthWrite: false },
   earth: { color: 0x6d5235, roughness: 1, metalness: 0 },
+  canvas: { color: 0xc8b58d, roughness: 0.98, metalness: 0, side: THREE.DoubleSide },
   foliage: { color: 0x526f3b, roughness: 1, metalness: 0 },
   crop: { color: 0xb69a48, roughness: 1, metalness: 0 },
 };

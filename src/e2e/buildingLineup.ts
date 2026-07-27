@@ -4,6 +4,11 @@ import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterial
 import { BUILDING_KINDS } from '../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { createConstructionSiteMesh } from '../buildings/ConstructionSiteMesh.ts';
+import { createPreferredRenderer } from '../scene/RendererBackend.ts';
+import {
+  animateFoundersCampfire,
+  FOUNDERS_CAMPFIRE_NAME,
+} from '../buildings/meshes/foundersCampMesh.ts';
 
 declare global {
   interface Window {
@@ -23,13 +28,12 @@ const root = document.querySelector<HTMLElement>('#lineup-root');
 const labels = document.querySelector<HTMLElement>('#labels');
 if (!root || !labels) throw new Error('Building lineup host is missing.');
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+const rendererBackend = await createPreferredRenderer();
+const renderer = rendererBackend.renderer as unknown as THREE.WebGLRenderer;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.08;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 root.prepend(renderer.domElement);
 
 const viewSpecs = [
@@ -110,7 +114,11 @@ const views = viewSpecs.map((spec) => {
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 160);
   const largest = Math.max(size.x, size.y * 1.2, size.z);
   const distance = Math.max(13, largest / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5))) * 1.24);
-  const direction = new THREE.Vector3(0.72, 0.56, 1).normalize();
+  const direction = new THREE.Vector3(
+    0.72,
+    0.56,
+    spec.mesh.name === "Founders' camp and open stockyard" ? -1 : 1,
+  ).normalize();
   const lookY = Math.max(1.2, size.y * 0.43);
   camera.position.copy(direction.multiplyScalar(distance)).add(new THREE.Vector3(0, lookY, 0));
   camera.lookAt(0, lookY, 0);
@@ -158,10 +166,28 @@ function render(): void {
   renderer.setScissorTest(false);
 }
 
-await initializeBuildingMaterialLibrary(renderer.capabilities.getMaxAnisotropy());
+await initializeBuildingMaterialLibrary(rendererBackend.maxAnisotropy);
 render();
 await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 render();
 window.__BUILDING_LINEUP_READY__ = true;
 document.body.dataset.ready = 'true';
+document.body.dataset.rendererBackend = rendererBackend.kind;
 window.addEventListener('resize', render);
+
+let previousFrameMs = performance.now();
+function animate(nowMs: number): void {
+  const dtSeconds = Math.min(0.1, Math.max(0, nowMs - previousFrameMs) / 1000);
+  previousFrameMs = nowMs;
+  for (const view of views) {
+    const campfire = view.scene.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
+    if (campfire instanceof THREE.Group) {
+      animateFoundersCampfire(campfire, dtSeconds);
+    }
+  }
+  render();
+  requestAnimationFrame(animate);
+}
+if (selectedKinds.length === 1 && selectedKinds[0] === 'founders_camp') {
+  requestAnimationFrame(animate);
+}

@@ -331,6 +331,11 @@ function appendRootColliders(root: THREE.Object3D, index: StaticColliderIndex): 
       if (child.userData.fpCollisionAggregate === true && isCollisionVisible(child)) {
         const collider = aggregateObjectCollider(child, false);
         if (collider) index.add(collider);
+      } else if (
+        child.userData.fpCollisionChildrenOnly === true
+        && isCollisionVisible(child)
+      ) {
+        appendExplicitAggregateColliders(child, index);
       }
     }
     return;
@@ -338,6 +343,21 @@ function appendRootColliders(root: THREE.Object3D, index: StaticColliderIndex): 
 
   const allowStep = root.name !== 'Burgage fencing' && root.name !== 'Fenced pastures';
   appendObjectColliders(root, index, allowStep);
+}
+
+function appendExplicitAggregateColliders(
+  object: THREE.Object3D,
+  index: StaticColliderIndex,
+): void {
+  if (!isCollisionVisible(object) || shouldSkipObject(object)) return;
+  if (object.userData.fpCollisionAggregate === true) {
+    const collider = aggregateObjectCollider(object, false);
+    if (collider) index.add(collider);
+    return;
+  }
+  for (const child of object.children) {
+    appendExplicitAggregateColliders(child, index);
+  }
 }
 
 function appendObjectColliders(

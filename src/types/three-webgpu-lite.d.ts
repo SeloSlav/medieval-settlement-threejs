@@ -44,6 +44,20 @@ declare module 'three/webgpu' {
     positionNode: unknown;
   }
 
+  export class MeshBasicNodeMaterial extends NodeMaterial {
+    color: THREE.Color;
+    transparent: boolean;
+    opacity: number;
+    depthWrite: boolean;
+    premultipliedAlpha: boolean;
+    constructor(parameters?: THREE.MaterialParameters);
+  }
+
+  export class SpriteNodeMaterial extends MeshBasicNodeMaterial {
+    rotation: number;
+    constructor(parameters?: THREE.MaterialParameters);
+  }
+
   export class MeshStandardNodeMaterial extends NodeMaterial {
     color: THREE.Color;
     metalness: number;
@@ -90,6 +104,10 @@ declare module 'three/webgpu' {
     dispose(): void;
     render(): void;
   }
+}
+
+declare module 'three/src/Three.TSL.js' {
+  export * from 'three/tsl';
 }
 
 declare module 'three/tsl' {

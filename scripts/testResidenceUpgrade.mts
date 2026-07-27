@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  RESIDENCE_STONE_COST,
+  RESIDENCE_TIMBER_COST,
   RESIDENCE_TIER2_GOLD_COST,
   RESIDENCE_TIER2_STONE_COST,
   RESIDENCE_TIER2_TIMBER_COST,
@@ -8,6 +10,7 @@ import {
   RESIDENCE_TIER3_STONE_COST,
   RESIDENCE_TIER3_TIMBER_COST,
 } from '../src/generated/gameBalance.ts';
+import { residenceSettlementReadiness } from '../src/economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
   residenceUpgradeProject,
@@ -24,6 +27,11 @@ import {
   computePopulationStats,
   computeResourceTotals,
 } from '../src/resources/resourceTotals.ts';
+import {
+  createInitialResidenceConstructionMesh,
+  syncInitialResidenceConstruction,
+} from '../src/residences/ResidenceMarkers.ts';
+import { activeResidenceNeedKinds } from '../src/residences/residenceNeedState.ts';
 import {
   createEmptyStockpile,
   type BuildingState,
@@ -244,6 +252,64 @@ assert.equal(
   'the authoritative builder should reuse the visible construction-worker routine',
 );
 
+const initialCottage = residence('initial-cottage', 0, 0);
+Object.assign(initialCottage, {
+  populationCapacity: 3,
+  upgradeTargetTier: 1,
+  upgradeProgress: 0.45,
+  upgradeRequiredTimber: RESIDENCE_TIMBER_COST,
+  upgradeRequiredStone: RESIDENCE_STONE_COST,
+  upgradeRequiredGold: 0,
+  upgradeDeliveredTimber: 4,
+  upgradeDeliveredStone: 5,
+  upgradeDeliveredGold: 0,
+  upgradeReservedTimber: 4,
+  upgradeReservedStone: 7,
+  upgradeReservedGold: 0,
+  upgradeAssignedLabor: 1,
+  upgradePriority: 2,
+});
+const initialProject = residenceUpgradeProject(initialCottage);
+assert.ok(initialProject);
+assert.equal(initialProject.targetTier, 1);
+assert.deepEqual(initialProject.required, {
+  timber: RESIDENCE_TIMBER_COST,
+  stone: RESIDENCE_STONE_COST,
+  gold: 0,
+});
+assert.doesNotMatch(
+  initialProject.blockers.join(' '),
+  /coin|gold|lockbox/i,
+  'founding cottages should grow from the material economy without a civic coin charge',
+);
+assert.equal(residenceUpgradeWorkplaces([initialCottage]).length, 1);
+assert.deepEqual(activeResidenceNeedKinds(initialCottage.tier), []);
+assert.equal(residenceSettlementReadiness(initialCottage).ready, false);
+const initialCottageState = emptyGameState([], [initialCottage], []);
+assert.equal(
+  computePopulationStats(initialCottageState).housingCapacity,
+  0,
+  'an unfinished frame must not provide housing capacity',
+);
+
+const initialMarker = createInitialResidenceConstructionMesh(7);
+const initialFrame = initialMarker.getObjectByName('InitialCottageConstructionFrame');
+const completedCottage = initialMarker.getObjectByName('InitialCottageCompletedStructure');
+assert.ok(initialFrame);
+assert.ok(completedCottage);
+assert.equal(completedCottage.visible, false);
+initialCottage.upgradeProgress = 0;
+syncInitialResidenceConstruction(initialMarker, initialCottage);
+const visibleAtStart = initialFrame.children.filter((child) => child.visible).length;
+initialCottage.upgradeProgress = 0.85;
+syncInitialResidenceConstruction(initialMarker, initialCottage);
+const visibleNearCompletion = initialFrame.children.filter((child) => child.visible).length;
+assert.ok(visibleAtStart > 0, 'setting-out boards should make an empty worksite readable');
+assert.ok(
+  visibleNearCompletion > visibleAtStart,
+  'the timber frame should visibly grow as authoritative progress advances',
+);
+
 const physicalState = emptyGameState(
   [Object.assign(building('camp', 'founders_camp', 0), {
     timber: 100,
@@ -277,6 +343,20 @@ assert.match(
 );
 assert.match(residenceReducer, /residence_upgrade_household_contribution/);
 assert.match(residenceReducer, /physical_founding_site_enabled/);
+assert.match(
+  residenceReducer,
+  /tier: if physical_economy \{ 0 \} else \{ 1 \}/,
+  'physical worlds should place unfinished cottage worksites',
+);
+assert.match(
+  residenceReducer,
+  /upgrade_target_tier: if physical_economy \{ 1 \} else \{ 0 \}/,
+);
+assert.match(
+  residenceReducer,
+  /RESIDENCE_TIMBER_COST[\s\S]*RESIDENCE_STONE_COST[\s\S]*ensure_upgrade_source_route/,
+  'founding cottage material must remain reserved at reachable physical sources',
+);
 assert.match(residenceReducer, /upgrade_reserved_timber = timber/);
 assert.match(residenceReducer, /upgrade_delivered_gold = household_contribution/);
 assert.match(residenceReducer, /spend_aggregate_timber\(ctx, owner, timber\)/);
@@ -300,6 +380,9 @@ assert.match(residenceInspector, /data-residence-upgrade-priority/);
 assert.match(residenceInspector, /Inspect incoming \$\{trip\.cargoKind\} cart/);
 assert.match(residenceInspector, /structural recovery required before settlement resumes/);
 assert.match(residenceInspector, /TIMBER_SALVAGE_FRACTION \* 100\)}% timber/);
+assert.match(residenceInspector, /Cottage construction is physical/);
+assert.match(residenceInspector, /founders remain at camp/);
+assert.match(residenceInspector, /Cancel cottage works/);
 
 const residenceMarkers = source('../src/residences/ResidenceMarkers.ts');
 assert.match(residenceMarkers, /ResidenceUpgradeWorks/);
@@ -307,12 +390,15 @@ assert.match(residenceMarkers, /UpgradeTimberSegment:/);
 assert.match(residenceMarkers, /UpgradeStoneSegment:/);
 assert.match(residenceMarkers, /upgradeProgress/);
 assert.match(residenceMarkers, /upgradeDeliveredTimber/);
+assert.match(residenceMarkers, /InitialCottageConstructionFrame/);
+assert.match(residenceMarkers, /InitialCottageFrameSegment/);
 
 const upgradeSimulation = source('../server/src/simulation/residence_upgrades.rs');
 assert.match(upgradeSimulation, /HashMap<[\s\S]*CONSTRUCTION_PRIORITY_LEVELS/);
 assert.match(upgradeSimulation, /upgrade_assigned_labor == 0[\s\S]*return/);
 assert.match(upgradeSimulation, /try_start_residence_upgrade_supply_trip/);
 assert.match(upgradeSimulation, /ensure_residence_needs\(ctx, residence_id\)/);
+assert.match(upgradeSimulation, /initial_cottage_works/);
 
 const deliveryTrips = source('../server/src/simulation/delivery_trips.rs');
 assert.match(deliveryTrips, /try_start_residence_upgrade_supply_trip/);

@@ -19,6 +19,7 @@ import {
   interpolatedSimElapsedSeconds,
   SettlementPresentationController,
 } from '../src/app/settlementSchedulePresentation.ts';
+import { parseVisualQaConditions } from '../src/app/visualQaConditions.ts';
 import type { GameState } from '../src/resources/types.ts';
 
 const secondsPerGameHour = CALENDAR_SECONDS_PER_DAY / 24;
@@ -207,6 +208,56 @@ assert.ok(
       ),
   ) < 1e-9,
   'each subsequent speed transition must continue from the displayed clock',
+);
+
+const winterQa = parseVisualQaConditions('?visualQa=winter');
+assert.ok(winterQa);
+const qaPresentation = new SettlementPresentationController(
+  () => presentationNowMs,
+  winterQa,
+);
+const qaSchedule = qaPresentation.sync(
+  emptyPresentationTargets,
+  {
+    simTick: anchorTick,
+    parishPolicy: DEFAULT_PARISH_POLICY,
+    gameSpeed: 120,
+  },
+  null,
+  true,
+);
+assert.ok(qaSchedule);
+assert.deepEqual(
+  [
+    qaSchedule.clock.month,
+    qaSchedule.clock.monthDay,
+    qaSchedule.clock.hour,
+    qaSchedule.clock.minute,
+  ],
+  [1, 15, 13, 0],
+  'visual-QA schedule must remain fixed independently of authoritative simulation time',
+);
+presentationNowMs += 5_000;
+qaPresentation.tick(emptyPresentationTargets);
+const repeatedQaSchedule = qaPresentation.sync(
+  emptyPresentationTargets,
+  {
+    simTick: anchorTick + 1,
+    parishPolicy: DEFAULT_PARISH_POLICY,
+    gameSpeed: 120,
+  },
+  null,
+  true,
+);
+assert.ok(repeatedQaSchedule);
+assert.deepEqual(
+  [
+    repeatedQaSchedule.clock.month,
+    repeatedQaSchedule.clock.monthDay,
+    repeatedQaSchedule.clock.hour,
+    repeatedQaSchedule.clock.minute,
+  ],
+  [1, 15, 13, 0],
 );
 
 const laborScheduleSource = readFileSync(

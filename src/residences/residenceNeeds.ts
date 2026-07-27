@@ -77,6 +77,12 @@ export function residenceNeedsStatus(
   },
   community: ResidenceCommunityContext = DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
 ): ResidenceNeedsStatus {
+  if (residence.tier === 0) {
+    return {
+      label: 'Cottage construction underway',
+      state: 'idle',
+    };
+  }
   if (residence.abandoned) {
     return describeAbandonedResidence(residence, supply, community);
   }
@@ -228,6 +234,7 @@ function describeDeficitWarning(
   residence: ResidenceState,
   community: ResidenceCommunityContext,
 ): ResidenceNeedsStatus | null {
+  if (residence.tier === 0) return null;
   const deficitTicks = maxActiveNeedDeficitTicks(residence.needs, residence.tier);
   if (deficitTicks <= 0) return null;
 

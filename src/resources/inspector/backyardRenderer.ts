@@ -133,6 +133,7 @@ function renderEmptyBackyardPicker(
 ): InspectorView {
   const totals = context.resourceTotals;
   const abandoned = residence.abandoned;
+  const underConstruction = residence.tier === 0;
   const placement = backyardGardenPlacement(residence, zone);
   const blockingPile = placement
     ? Array.from(context.gameState.buildings.values()).find(
@@ -146,10 +147,13 @@ function renderEmptyBackyardPicker(
     const tag = def.foodPerPersonPerSec > 0 ? 'Food' : 'Market';
     const cost = getBackyardGardenCost(kind);
     const affordable = !abandoned
+      && !underConstruction
       && blockingPile === null
       && canAffordBackyardGarden(totals, kind);
     const disabledReason = abandoned
       ? 'Cannot plant while the residence is abandoned.'
+      : underConstruction
+        ? 'Finish the cottage before improving its backyard.'
       : blockingPile
         ? 'Haul away the reclaimed timber and stone from this backyard first.'
       : affordable
@@ -180,10 +184,12 @@ function renderEmptyBackyardPicker(
     title: 'Empty backyard',
     statusText: abandoned
       ? 'Abandoned — gardens unavailable'
+      : underConstruction
+        ? 'Cottage construction must finish'
       : blockingPile
         ? 'Reclamation pile blocks rebuilding'
         : 'Pick a garden type',
-    statusState: abandoned || blockingPile ? 'warning' : 'neutral',
+    statusState: abandoned || underConstruction || blockingPile ? 'warning' : 'neutral',
     detailsHtml: `
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1} of ${zone.plotCount}</span></li>
       <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population}</span></li>
@@ -195,7 +201,9 @@ function renderEmptyBackyardPicker(
     supplementalPanelHtml: `
       <p class="resource-inspector-note">${blockingPile
         ? 'A free hauler needs a road-connected destination with room for both materials. Select the pile to inspect its route blockers.'
-        : 'Orchards and gardens cost timber and stone from your settlement stockpile.'}</p>
+        : underConstruction
+          ? 'The backyard stays unworked while founders live at camp and the cottage frame is raised.'
+          : 'Orchards and gardens cost timber and stone from your settlement stockpile.'}</p>
       <ul class="backyard-picker-list">${options}</ul>
     `,
   };

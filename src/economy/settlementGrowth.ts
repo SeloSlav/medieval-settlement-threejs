@@ -91,6 +91,9 @@ export function computeSettlementGrowthPlan(input: {
   );
 
   for (const residence of input.state.residences.values()) {
+    if (residence.tier === 0) {
+      continue;
+    }
     if (fireDisabled.has(residence.id)) {
       fireDisabledHomes += 1;
       fireDisabledResidents += Math.max(0, residence.population);

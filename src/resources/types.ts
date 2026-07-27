@@ -208,7 +208,8 @@ export type ResidenceState = {
   yaw: number;
   population: number;
   populationCapacity: number;
-  tier: 1 | 2 | 3;
+  /** Tier zero is a physical cottage worksite; completed homes use tiers 1-3. */
+  tier: 0 | 1 | 2 | 3;
   settlementTicks: number;
   needs: ResidenceNeedsState;
   abandoned: boolean;
@@ -216,7 +217,7 @@ export type ResidenceState = {
   /** Last successful household-funded market dispatch; absent in older fixtures/saves. */
   lastHouseholdMarketTick?: number;
   /** Target tier while physical household improvement works are active. */
-  upgradeTargetTier?: 0 | 2 | 3;
+  upgradeTargetTier?: 0 | 1 | 2 | 3;
   upgradeProgress?: number;
   upgradeRequiredTimber?: number;
   upgradeRequiredStone?: number;

@@ -389,7 +389,7 @@ export function computePopulationStats(state: GameState): PopulationStats {
   let housed = 0;
   let housingCapacity = 0;
   for (const residence of state.residences?.values() ?? []) {
-    if (residence.abandoned) continue;
+    if (residence.abandoned || residence.tier === 0) continue;
     housed += residence.population;
     housingCapacity += residence.populationCapacity;
   }

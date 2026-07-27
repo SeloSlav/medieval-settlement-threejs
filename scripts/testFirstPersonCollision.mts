@@ -15,6 +15,7 @@ import {
   resolveRoadAwareGroundY,
   sampleRoadSurfaceY,
 } from '../src/roads/RoadSurfaceSampling.ts';
+import { createFoundersCampMesh } from '../src/buildings/meshes/foundersCampMesh.ts';
 
 const root = new THREE.Group();
 root.name = 'Backyard gardens';
@@ -45,6 +46,10 @@ const buildingShell = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 2));
 buildingShell.position.y = 2;
 building.add(buildingShell);
 buildingRoot.add(building);
+
+const foundersCamp = createFoundersCampMesh();
+foundersCamp.position.set(32, 0, 0);
+buildingRoot.add(foundersCamp);
 
 const pastureParent = new THREE.Group();
 const pastureMarkers = new PastureMarkers(pastureParent, () => 0);
@@ -198,6 +203,37 @@ function resolveAt(
   assert.ok(
     Math.hypot(position.x - 10.5, position.z) > 0.01,
     'aggregate rotated building bounds should prevent entering structures',
+  );
+}
+
+{
+  collisionWorld.prepare(32, 0);
+  const velocity = new THREE.Vector3(1.2, 0, 0.35);
+  const position = new THREE.Vector3(32, 0.034, 0);
+  collisionWorld.resolvePlayer(position, 31.9, -0.05, velocity, {
+    bodyHeight: 1.78,
+    footRadius: FP_WALK_FOOT_RADIUS_XZ,
+    maxStepHeight: FP_WALK_STEP_UP_MARGIN,
+    grounded: true,
+  });
+  assert.deepEqual(
+    position.toArray(),
+    [32, 0.034, 0],
+    'the open founders camp grounds should not behave like one invisible building collider',
+  );
+
+  const tentPosition = new THREE.Vector3(29.1, 0.034, 2.8);
+  const tentVelocity = new THREE.Vector3(2, 0, 0);
+  collisionWorld.prepare(tentPosition.x, tentPosition.z);
+  collisionWorld.resolvePlayer(tentPosition, 26.8, 2.8, tentVelocity, {
+    bodyHeight: 1.78,
+    footRadius: FP_WALK_FOOT_RADIUS_XZ,
+    maxStepHeight: FP_WALK_STEP_UP_MARGIN,
+    grounded: true,
+  });
+  assert.ok(
+    Math.hypot(tentPosition.x - 29.1, tentPosition.z - 2.8) > 0.01,
+    'each canvas tent should retain its own first-person collider',
   );
 }
 

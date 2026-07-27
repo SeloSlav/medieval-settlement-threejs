@@ -8,11 +8,16 @@ import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import type { GameState } from '../resources/types.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import type { SettlementHud } from '../ui/SettlementHud.ts';
+import { gameClockAtElapsedSeconds } from '../world/gameCalendar.ts';
 import {
-  deriveInterpolatedSettlementSchedule,
+  deriveSettlementScheduleFromClock,
   settlementScheduleDirtyKey,
   type SettlementSchedule,
 } from '../world/settlementSchedule.ts';
+import {
+  applyVisualQaClock,
+  type VisualQaConditions,
+} from './visualQaConditions.ts';
 
 export type SettlementPresentationTargets = {
   settlementHud: SettlementHud | null;
@@ -60,9 +65,14 @@ export class SettlementPresentationController {
   > | null = null;
   private lastGameState: GameState | null = null;
   private readonly now: () => number;
+  private readonly visualQaConditions: VisualQaConditions | null;
 
-  constructor(now: () => number = () => performance.now()) {
+  constructor(
+    now: () => number = () => performance.now(),
+    visualQaConditions: VisualQaConditions | null = null,
+  ) {
     this.now = now;
+    this.visualQaConditions = visualQaConditions;
   }
 
   sync(
@@ -97,7 +107,7 @@ export class SettlementPresentationController {
       gameSpeed: snapshot.gameSpeed,
     };
 
-    const schedule = deriveInterpolatedSettlementSchedule(
+    const schedule = this.derivePresentationSchedule(
       elapsedSeconds,
       snapshot.parishPolicy,
       gameState,
@@ -111,7 +121,7 @@ export class SettlementPresentationController {
     if (!this.anchor || !this.lastSnapshot) return;
 
     const elapsedSeconds = this.elapsedSecondsAt(this.now());
-    const schedule = deriveInterpolatedSettlementSchedule(
+    const schedule = this.derivePresentationSchedule(
       elapsedSeconds,
       this.lastSnapshot.parishPolicy,
       this.lastGameState,
@@ -133,6 +143,21 @@ export class SettlementPresentationController {
       this.anchor.elapsedSeconds,
       driftSeconds,
       this.anchor.gameSpeed,
+    );
+  }
+
+  private derivePresentationSchedule(
+    elapsedSeconds: number,
+    parishPolicy: SpacetimeGameSnapshot['parishPolicy'],
+    gameState: GameState | null,
+  ): SettlementSchedule {
+    const clock = gameClockAtElapsedSeconds(elapsedSeconds);
+    return deriveSettlementScheduleFromClock(
+      this.visualQaConditions
+        ? applyVisualQaClock(clock, this.visualQaConditions)
+        : clock,
+      parishPolicy,
+      gameState,
     );
   }
 

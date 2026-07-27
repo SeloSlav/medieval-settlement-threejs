@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { isBuildingShadowProxy } from '../buildings/buildingShadowProxy.ts';
+import {
+  isBuildingDetailShadowCaster,
+  isBuildingShadowProxy,
+} from '../buildings/buildingShadowProxy.ts';
 import type { ForestManager } from '../props/ForestManager.ts';
 import {
   areBuildingShadowsEnabled,
@@ -40,7 +43,12 @@ function isTreeShadowCaster(mesh: THREE.Mesh): boolean {
 
 function setBuildingShadowProxiesEnabled(root: THREE.Object3D, enabled: boolean): void {
   root.traverse((object) => {
-    if (!isBuildingShadowProxy(object)) return;
+    if (
+      !isBuildingShadowProxy(object)
+      && !isBuildingDetailShadowCaster(object)
+    ) {
+      return;
+    }
     (object as THREE.Mesh).castShadow = enabled;
   });
 }

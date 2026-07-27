@@ -1,5 +1,6 @@
 ﻿import './style.css';
 import { App } from './app/App.ts';
+import { installVisualPerformanceHooksIfRequested } from './e2e/visualPerformanceHooks.ts';
 
 const root = document.querySelector<HTMLDivElement>('#app');
 
@@ -8,7 +9,9 @@ if (!root) {
 }
 
 const app = new App(root);
-app.start().catch((error) => {
+app.start().then(() => {
+  installVisualPerformanceHooksIfRequested(app);
+}).catch((error) => {
   console.error(error);
   const loading = document.getElementById('app-loading');
   if (loading) {

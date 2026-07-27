@@ -20,7 +20,7 @@ impl ResidenceNeedKind {
 
     pub fn is_active_for_tier(self, tier: u8) -> bool {
         match self {
-            Self::Food => true,
+            Self::Food => tier >= 1,
             Self::Firewood | Self::Water => tier >= 2,
             Self::PreservedFood | Self::Ale | Self::Cloth => tier >= 3,
         }
@@ -63,6 +63,7 @@ mod tests {
                 .count()
         };
 
+        assert_eq!(active_count(0), 0);
         assert_eq!(active_count(1), 1);
         assert_eq!(active_count(2), 3);
         assert_eq!(active_count(3), 6);

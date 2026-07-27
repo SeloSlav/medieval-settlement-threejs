@@ -8,6 +8,12 @@ import {
   roadWeatherProfile,
   standalonePrecipitationPreview,
 } from '../src/weather/precipitationPolicy.ts';
+import {
+  applyVisualQaClock,
+  applyVisualQaEnvironment,
+  parseVisualQaConditions,
+} from '../src/app/visualQaConditions.ts';
+import { gameClockAtElapsedSeconds } from '../src/world/gameCalendar.ts';
 
 function environment(
   weather: EnvironmentState['weather'],
@@ -55,6 +61,49 @@ assert.equal(precipitationPreviewEnvironment(environment('rain'), '?weather=clea
 assert.equal(standalonePrecipitationPreview('?weather=snow')?.season, 'winter');
 assert.equal(standalonePrecipitationPreview('?weather=autumn')?.season, 'autumn');
 assert.equal(standalonePrecipitationPreview('?weather=clear'), null);
+
+const daylightQa = parseVisualQaConditions('?visualQa=daylight');
+const moonlightQa = parseVisualQaConditions('?visualQa=moonlight');
+const rainQa = parseVisualQaConditions('?visualQa=rain');
+const winterQa = parseVisualQaConditions('?visualQa=winter');
+assert.equal(parseVisualQaConditions('?visualQa=unknown'), null);
+assert.ok(daylightQa);
+assert.ok(moonlightQa);
+assert.ok(rainQa);
+assert.ok(winterQa);
+assert.deepEqual(
+  {
+    season: applyVisualQaEnvironment(environment('frost'), daylightQa).season,
+    weather: applyVisualQaEnvironment(environment('frost'), daylightQa).weather,
+  },
+  { season: 'summer', weather: 'fair' },
+);
+assert.deepEqual(
+  {
+    season: applyVisualQaEnvironment(environment('fair'), rainQa).season,
+    weather: applyVisualQaEnvironment(environment('fair'), rainQa).weather,
+  },
+  { season: 'spring', weather: 'rain' },
+);
+assert.deepEqual(
+  {
+    season: applyVisualQaEnvironment(environment('rain'), winterQa).season,
+    weather: applyVisualQaEnvironment(environment('rain'), winterQa).weather,
+  },
+  { season: 'winter', weather: 'frost' },
+);
+const daylightClock = applyVisualQaClock(gameClockAtElapsedSeconds(0), daylightQa);
+const moonlightClock = applyVisualQaClock(gameClockAtElapsedSeconds(0), moonlightQa);
+assert.deepEqual(
+  [daylightClock.month, daylightClock.monthDay, daylightClock.hour, daylightClock.minute],
+  [6, 15, 13, 0],
+);
+assert.deepEqual(
+  [moonlightClock.month, moonlightClock.monthDay, moonlightClock.hour, moonlightClock.minute],
+  [8, 15, 23, 0],
+);
+assert.equal(daylightClock.isWorkHours, true);
+assert.equal(moonlightClock.isWorkHours, false);
 
 const fairRoad = roadWeatherProfile(environment('fair'));
 const rainRoad = roadWeatherProfile(environment('rain'));

@@ -15,7 +15,8 @@ export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
   'cloth',
 ];
 
-export function activeResidenceNeedKinds(tier: 1 | 2 | 3): ResidenceNeedKind[] {
+export function activeResidenceNeedKinds(tier: 0 | 1 | 2 | 3): ResidenceNeedKind[] {
+  if (tier === 0) return [];
   return RESIDENCE_NEED_KINDS.filter((kind) => {
     if (kind === 'food') return true;
     if (kind === 'firewood' || kind === 'water') return tier >= 2;
@@ -128,7 +129,7 @@ export function maxNeedDeficitTicks(needs: ResidenceNeedsState): number {
 
 export function maxActiveNeedDeficitTicks(
   needs: ResidenceNeedsState,
-  tier: 1 | 2 | 3,
+  tier: 0 | 1 | 2 | 3,
 ): number {
   return activeResidenceNeedKinds(tier).reduce(
     (max, kind) => Math.max(max, getNeedDeficitTicks(needs, kind)),

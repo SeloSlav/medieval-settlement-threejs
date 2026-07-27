@@ -43,6 +43,11 @@ import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { VillagerInspector } from '../ui/VillagerInspector.ts';
 import { SettlementPresentationController } from './settlementSchedulePresentation.ts';
+import {
+  applyVisualQaEnvironment,
+  parseVisualQaConditions,
+  standaloneVisualQaEnvironment,
+} from './visualQaConditions.ts';
 import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './spacetimeSnapshotApplier.ts';
 import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext } from './appBootstrap.ts';
 import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
@@ -129,7 +134,13 @@ export class App {
   private fpsFrameCount = 0;
   private fpsAccumulatedSeconds = 0;
   private ambientAudio: AmbientAudioController | null = null;
-  private readonly settlementPresentation = new SettlementPresentationController();
+  private readonly visualQaConditions = import.meta.env.DEV
+    ? parseVisualQaConditions(window.location.search)
+    : null;
+  private readonly settlementPresentation = new SettlementPresentationController(
+    () => performance.now(),
+    this.visualQaConditions,
+  );
   private showcaseViewApplied = false;
   private initialSettlementViewApplied = false;
   private lastSeenRaidTick: number | null = null;
@@ -146,11 +157,20 @@ export class App {
       syncToolbar: () => this.syncToolbar(),
     });
     const weatherPreview = import.meta.env.DEV
-      ? standalonePrecipitationPreview(window.location.search)
+      ? this.visualQaConditions
+        ? standaloneVisualQaEnvironment(this.visualQaConditions)
+        : standalonePrecipitationPreview(window.location.search)
       : null;
 
     if (isShowcaseMode()) {
       session.uiRoot.hidden = true;
+    }
+    if (this.visualQaConditions) {
+      document.documentElement.dataset.visualQa = this.visualQaConditions.preset;
+      console.info(
+        `[Visual QA] ${this.visualQaConditions.label} `
+        + `(${String(this.visualQaConditions.hour).padStart(2, '0')}:00)`,
+      );
     }
 
     this.liveContext = session.liveContext;
@@ -662,7 +682,6 @@ export class App {
       snapshot.worldGeneration?.hydrology ?? 50,
       clock,
     );
-    this.toolbar?.setSimulationState(snapshot.gameSpeed, environment, environmentOutlook);
     this.toolbar?.settlementHud.setProvisioningState(
       computeSettlementProvisioning({
         state,
@@ -678,8 +697,15 @@ export class App {
     );
     this.toolbar?.setConflictEnabled(snapshot.worldGeneration?.conflictMode === 'frontier');
     const presentationEnvironment = import.meta.env.DEV
-      ? precipitationPreviewEnvironment(environment, window.location.search)
+      ? this.visualQaConditions
+        ? applyVisualQaEnvironment(environment, this.visualQaConditions)
+        : precipitationPreviewEnvironment(environment, window.location.search)
       : environment;
+    this.toolbar?.setSimulationState(
+      snapshot.gameSpeed,
+      presentationEnvironment,
+      this.visualQaConditions ? undefined : environmentOutlook,
+    );
     this.sceneManager?.setEnvironment(presentationEnvironment);
     this.ambientAudio?.syncEnvironment(presentationEnvironment);
     this.toolbar?.settlementHud.setFireState(

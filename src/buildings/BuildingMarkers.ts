@@ -21,7 +21,10 @@ import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
-import { createBuildingShadowProxy } from './buildingShadowProxy.ts';
+import {
+  createBuildingShadowProxy,
+  setBuildingDetailShadowsEnabled,
+} from './buildingShadowProxy.ts';
 import { createBuildingMesh } from './BuildingMeshes.ts';
 import {
   MARKET_RECEIPT_VISUAL_CAPACITY,
@@ -38,6 +41,7 @@ import {
   FOUNDERS_CAMPFIRE_NAME,
   setFoundersCampfireNightLighting,
 } from './meshes/foundersCampMesh.ts';
+import { disposeFireEffect } from '../fires/FireEffect.ts';
 import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import {
   createConstructionSiteMesh,
@@ -358,11 +362,15 @@ export class BuildingMarkers {
             stoneRatio,
           );
       marker.userData.visualSignature = visualSignature;
-      marker.userData.fpCollisionAggregate = true;
-      if (operational) {
+      if (marker.userData.fpCollisionChildrenOnly !== true) {
+        marker.userData.fpCollisionAggregate = true;
+      }
+      if (operational && building.kind !== 'founders_camp') {
         const shadowProxy = createBuildingShadowProxy(building.kind);
         shadowProxy.castShadow = areBuildingShadowsEnabled();
         marker.add(shadowProxy);
+      } else if (operational) {
+        setBuildingDetailShadowsEnabled(marker, areBuildingShadowsEnabled());
       }
       marker.rotation.y = buildingPlacementYaw(
         building.kind,
@@ -387,7 +395,11 @@ export class BuildingMarkers {
     const y = this.terrain.getHeightAt(building.x, building.z);
     marker.position.set(building.x, y, building.z);
     if (operational) syncBuildingVisualState(marker, building, herd);
-    if (operational && !marker.getObjectByName('Building shadow proxy')) {
+    if (
+      operational
+      && building.kind !== 'founders_camp'
+      && !marker.getObjectByName('Building shadow proxy')
+    ) {
       const shadowProxy = createBuildingShadowProxy(building.kind);
       shadowProxy.castShadow = areBuildingShadowsEnabled();
       marker.add(shadowProxy);
@@ -407,7 +419,9 @@ export class BuildingMarkers {
 
   private unregisterFoundersCampfire(marker: THREE.Group): void {
     const campfire = marker.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
-    if (campfire instanceof THREE.Group) this.foundersCampfires.delete(campfire);
+    if (!(campfire instanceof THREE.Group)) return;
+    this.foundersCampfires.delete(campfire);
+    disposeFireEffect(campfire);
   }
 }
 

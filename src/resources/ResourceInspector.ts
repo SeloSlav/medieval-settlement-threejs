@@ -1107,7 +1107,7 @@ export class ResourceInspector {
         : `<div class="inspector-action-panel">
             <p class="inspector-action-panel__hint">${target.kind === 'building'
               ? 'Recovery reuses the existing site and enters the normal material-hauling and builder-work pipeline.'
-              : 'Residence construction is immediate; a rebuilt homestead returns vacant and can be settled again.'}</p>
+              : 'Fire recovery reuses the surviving homestead footprint; the rebuilt cottage returns vacant and can be settled again.'}</p>
             <button type="button" class="resource-action-button" data-fire-recovery ${
               coolingSeconds > 1e-6 || !canAffordRecovery ? 'disabled' : ''
             }>${coolingSeconds > 1e-6

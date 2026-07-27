@@ -133,4 +133,24 @@ mod tests {
         };
         assert!(residence_upgrade_complete(completed));
     }
+
+    #[test]
+    fn an_initial_cottage_needs_material_and_labor_but_no_coin() {
+        let work = ResidenceUpgradeWork {
+            progress: 0.0,
+            required_timber: 8.0,
+            required_stone: 12.0,
+            required_gold: 0.0,
+            delivered_timber: 8.0,
+            delivered_stone: 12.0,
+            delivered_gold: 0.0,
+            assigned_labor: 1,
+        };
+        assert_eq!(advance_residence_upgrade(work, 10.0, 1.0), 0.5);
+        assert!(!residence_upgrade_complete(work));
+        assert!(residence_upgrade_complete(ResidenceUpgradeWork {
+            progress: 1.0,
+            ..work
+        }));
+    }
 }

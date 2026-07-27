@@ -207,7 +207,7 @@ export class BurgageTool {
       if (validation.reason === 'too_small') return `Plot too shallow — pull the back edge farther from the road (~${Math.round(MIN_ZONE_DEPTH)}m min)`;
       if (validation.reason === 'too_deep') return `Plot too deep — shorten the backyard (max ~${Math.round(MAX_ZONE_DEPTH)}m)`;
       if (validation.reason === 'no_fit') return 'Too many plots for this frontage — press − to reduce plot count';
-      if (validation.reason === 'insufficient_resources') return 'Not enough timber or stone in treasury';
+      if (validation.reason === 'insufficient_resources') return 'Not enough timber or stone in available stores';
       if (validation.reason === 'no_road_frontage') return 'Frontage must face a connected road';
       if (validation.reason === 'overlaps_existing') return 'Overlaps an existing residence zone — adjust shape or plot count';
       if (validation.reason === 'overlaps_building') return 'Overlaps a building — choose a different spot';
@@ -220,7 +220,7 @@ export class BurgageTool {
     const frontageHint = frontageOptions > 1
       ? ` · frontage ${frontageEdgeLabel(this.frontageEdge)} (F to rotate)`
       : '';
-    return `${count} ${count === 1 ? 'home' : 'homes'} ready — ${cost.timber} timber, ${cost.stone} stone${frontageHint} · hammer or Enter to place`;
+    return `${count} cottage ${count === 1 ? 'worksite' : 'worksites'} queued — ${cost.timber} timber, ${cost.stone} stone reserved${frontageHint} · hammer or Enter to place`;
   }
 
   getLayoutHudState(): BurgageLayoutHudState | null {

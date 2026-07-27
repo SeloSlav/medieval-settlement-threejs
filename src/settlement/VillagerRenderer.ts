@@ -65,6 +65,7 @@ import {
 } from './workerPaths.ts';
 import {
   isResidenceUpgradeWorkplaceId,
+  residenceIdForUpgradeWorkplace,
   residenceUpgradeWorkplaces,
 } from './residenceUpgradeWorkplaces.ts';
 import type { WorkerToolKind } from './workerTools.ts';
@@ -684,6 +685,15 @@ export class VillagerRenderer {
     const residence = agent.residenceId
       ? this.residences.get(agent.residenceId) ?? null
       : null;
+    const upgradeResidenceId = workplace
+      ? residenceIdForUpgradeWorkplace(workplace.id)
+      : null;
+    const upgradeResidence = upgradeResidenceId
+      ? this.residences.get(upgradeResidenceId) ?? null
+      : null;
+    const upgradeWorkplaceLabel = upgradeResidence?.tier === 0
+      ? 'Cottage construction'
+      : 'Household improvement works';
     const name = villagerDisplayName(agent.personIdentity, agent.modelVariant);
     const onDuty = agent.role === 'worker'
       && (
@@ -709,11 +719,15 @@ export class VillagerRenderer {
         workplace?.kind ?? null,
         workplace?.constructionComplete === false,
       ),
-      activity: describeVillagerActivity(agent, workplace),
+      activity: describeVillagerActivity(
+        agent,
+        workplace,
+        upgradeWorkplaceLabel.toLocaleLowerCase(),
+      ),
       activityState: onDuty ? 'active' : 'ready',
       workplace: workplace
         ? isResidenceUpgradeWorkplaceId(workplace.id)
-          ? 'Household improvement works'
+          ? upgradeWorkplaceLabel
           : getBuildingDefinition(workplace.kind).label
         : 'Unassigned',
       household: residence
@@ -1547,10 +1561,11 @@ function pushPathPoint(path: PointXZ[], point: PointXZ): void {
 function describeVillagerActivity(
   agent: VillagerAgent,
   workplace: BuildingState | null,
+  residenceWorksLabel = 'household improvement works',
 ): string {
   const workplaceLabel = workplace
     ? isResidenceUpgradeWorkplaceId(workplace.id)
-      ? 'household improvement works'
+      ? residenceWorksLabel
       : getBuildingDefinition(workplace.kind).label
     : 'their workplace';
 

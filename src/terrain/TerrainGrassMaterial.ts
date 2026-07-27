@@ -20,6 +20,7 @@ import {
   DIRT_PROXIMITY_INNER_SQ,
   DIRT_PROXIMITY_OUTER_SQ,
 } from '../grass/grassLodMath.ts';
+import type { RoadWeatherUniforms } from '../roads/RoadSurfaceMaterial.ts';
 import type { TextureSet } from '../roads/RoadTextureLoader.ts';
 import type { TerrainBlendTextureSet } from '../roads/RoadTextureLoader.ts';
 
@@ -87,7 +88,61 @@ function buildGrassBlendNodes(textures: TerrainBlendTextureSet) {
   const dryAo = (texture(textures.dry.ao!, grassUv) as TslNode).r;
   const aoNode = meadowAo.mul(w.x).add(denseAo.mul(w.y)).add(dryAo.mul(w.z));
 
-  return { colorNode, normalNode, roughnessNode, aoNode, grassUv };
+  return { colorNode, normalNode, roughnessNode, aoNode, grassUv, macro };
+}
+
+function buildTerrainFrostMask(
+  macro: TslNode,
+  weather: RoadWeatherUniforms,
+  exposure: TslNode = float(1) as TslNode,
+): TslNode {
+  const patchiness = mix(
+    float(0.18) as TslNode,
+    float(0.52) as TslNode,
+    smoothstep(
+      float(0.24) as TslNode,
+      float(0.82) as TslNode,
+      macro,
+    ) as TslNode,
+  ) as TslNode;
+  return weather.frost
+    .mul(patchiness)
+    .mul(exposure)
+    .mul(float(0.42) as TslNode) as TslNode;
+}
+
+function applyTerrainFrostColor(
+  baseColor: TslNode,
+  macro: TslNode,
+  weather: RoadWeatherUniforms,
+  exposure?: TslNode,
+): TslNode {
+  const frostMask = buildTerrainFrostMask(macro, weather, exposure);
+  const luminance = baseColor.r
+    .mul(float(0.299) as TslNode)
+    .add(baseColor.g.mul(float(0.587) as TslNode))
+    .add(baseColor.b.mul(float(0.114) as TslNode));
+  const cooledGround = mix(
+    baseColor,
+    (vec3(luminance, luminance, luminance) as TslNode)
+      .mul(vec3(0.9, 0.96, 1) as TslNode)
+      .add(vec3(0.025, 0.032, 0.038) as TslNode) as TslNode,
+    float(0.6) as TslNode,
+  ) as TslNode;
+  return mix(baseColor, cooledGround, frostMask) as TslNode;
+}
+
+function applyTerrainFrostRoughness(
+  baseRoughness: TslNode,
+  macro: TslNode,
+  weather: RoadWeatherUniforms,
+  exposure?: TslNode,
+): TslNode {
+  return mix(
+    baseRoughness,
+    float(0.94) as TslNode,
+    buildTerrainFrostMask(macro, weather, exposure),
+  ) as TslNode;
 }
 
 function buildMuddyRoadColorNode(textures: TextureSet, grassUv: TslNode): TslNode {
@@ -156,16 +211,27 @@ function applyCloseZoomDirtBlend(
   return mix(dirtColor, meadowColor, meadowWeight) as TslNode;
 }
 
-export function createTerrainGrassMaterial(textures: TerrainBlendTextureSet): MeshStandardNodeMaterial {
+export function createTerrainGrassMaterial(
+  textures: TerrainBlendTextureSet,
+  weather: RoadWeatherUniforms,
+): MeshStandardNodeMaterial {
   const blendNodes = buildGrassBlendNodes(textures);
   const material = new MeshStandardNodeMaterial();
   material.name = 'Grass blend terrain';
   material.color.set(0xffffff);
   material.roughness = 1;
   material.metalness = 0;
-  material.colorNode = blendNodes.colorNode;
+  material.colorNode = applyTerrainFrostColor(
+    blendNodes.colorNode,
+    blendNodes.macro,
+    weather,
+  );
   material.normalNode = blendNodes.normalNode;
-  material.roughnessNode = blendNodes.roughnessNode;
+  material.roughnessNode = applyTerrainFrostRoughness(
+    blendNodes.roughnessNode,
+    blendNodes.macro,
+    weather,
+  );
   material.aoNode = blendNodes.aoNode;
   return material;
 }
@@ -188,6 +254,7 @@ function buildTrampledWearColorNode(textures: TextureSet, grassUv: TslNode): Tsl
 export function createTerrainGrassMaterialWithRiverShore(
   grassTextures: TerrainBlendTextureSet,
   roadTextures: TextureSet,
+  weather: RoadWeatherUniforms,
 ): MeshStandardNodeMaterial {
   const blendNodes = buildGrassBlendNodes(grassTextures);
   const mudColor = buildMuddyRoadColorNode(roadTextures, blendNodes.grassUv);
@@ -203,7 +270,23 @@ export function createTerrainGrassMaterialWithRiverShore(
   const grassWithShore = mix(blendNodes.colorNode, mudColor, shoreUndercoat) as TslNode;
   const meadowWithQuarry = mix(grassWithShore, quarryColor, quarryPad) as TslNode;
   const meadowWithWear = mix(meadowWithQuarry, wearColor, roadWear) as TslNode;
-  const colorNode = applyCloseZoomDirtBlend(meadowWithWear, dirtColor, shoreBlend, roadWear, quarryPad);
+  const baseColorNode = applyCloseZoomDirtBlend(
+    meadowWithWear,
+    dirtColor,
+    shoreBlend,
+    roadWear,
+    quarryPad,
+  );
+  const frostExposure = sub(
+    float(1) as TslNode,
+    shoreBlend.mul(float(0.82) as TslNode),
+  ) as TslNode;
+  const colorNode = applyTerrainFrostColor(
+    baseColorNode,
+    blendNodes.macro,
+    weather,
+    frostExposure,
+  );
 
   const roadRoughness = (texture(roadTextures.roughness, blendNodes.grassUv) as TslNode).r;
   const muddyRoughness = mix(roadRoughness, float(0.58) as TslNode, float(0.42) as TslNode);
@@ -218,10 +301,16 @@ export function createTerrainGrassMaterialWithRiverShore(
   const openGround = sub(float(1) as TslNode, max(max(shoreBlend, roadWear) as TslNode, quarryPad) as TslNode) as TslNode;
   const dirtAmount = zoomGate.mul(proximity).mul(openGround) as TslNode;
   const meadowWeight = sub(float(1) as TslNode, dirtAmount) as TslNode;
-  const roughnessNode = mix(
+  const baseRoughnessNode = mix(
     dirtRoughness,
     roughnessWithWear as TslNode,
     meadowWeight as TslNode,
+  ) as TslNode;
+  const roughnessNode = applyTerrainFrostRoughness(
+    baseRoughnessNode,
+    blendNodes.macro,
+    weather,
+    frostExposure,
   );
 
   const material = new MeshStandardNodeMaterial();

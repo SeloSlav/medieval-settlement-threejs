@@ -42,7 +42,9 @@ import {
   GRADE_HIGHLIGHT_ROLLOFF_START,
   GRADE_NIGHT_BLUE_TINT,
   GRADE_SHADOW_LIFT_END,
+  GRADE_SHADOW_LIFT_EXPONENT,
   GRADE_SHADOW_LIFT_START,
+  GRADE_SHADOW_LIFT_STRENGTH,
   GRADE_VIGNETTE_INNER,
   GRADE_VIGNETTE_OUTER,
   GRADE_WARMTH_TINT,
@@ -289,10 +291,10 @@ function buildGradeNode(
       shadowLuma,
     ))
     .mul(shadowLiftDrive)
-    .mul(float(0.82));
+    .mul(float(GRADE_SHADOW_LIFT_STRENGTH));
   const shadowCurve = pow(
     max(nightTinted, vec3(0)),
-    vec3(0.68),
+    vec3(GRADE_SHADOW_LIFT_EXPONENT),
   ) as TslNode;
   const shadowLifted = mix(nightTinted, shadowCurve, shadowLift) as TslNode;
   const highlightLuma = dot(shadowLifted, vec3(lr, lg, lb)) as TslNode;
@@ -337,30 +339,26 @@ function buildCroatianNaiveArtBasisNode(
 
   const center = sample(0, 0);
   const north = sample(0, 1);
-  const northEast = sample(1, 1);
   const east = sample(1, 0);
-  const southEast = sample(1, -1);
   const south = sample(0, -1);
-  const southWest = sample(-1, -1);
   const west = sample(-1, 0);
-  const northWest = sample(-1, 1);
   const centerLuma = luma(center);
+  const n = luma(north);
+  const e = luma(east);
+  const s = luma(south);
+  const w = luma(west);
 
   let colorSum = center.mul(float(style.centerWeight));
   let weightSum = float(style.centerWeight) as TslNode;
   const weightedNeighbors = [
-    [north, style.cardinalWeight],
-    [east, style.cardinalWeight],
-    [south, style.cardinalWeight],
-    [west, style.cardinalWeight],
-    [northEast, style.diagonalWeight],
-    [southEast, style.diagonalWeight],
-    [southWest, style.diagonalWeight],
-    [northWest, style.diagonalWeight],
+    [north, n, style.cardinalWeight],
+    [east, e, style.cardinalWeight],
+    [south, s, style.cardinalWeight],
+    [west, w, style.cardinalWeight],
   ] as const;
-  for (const [neighbor, spatialWeight] of weightedNeighbors) {
+  for (const [neighbor, neighborLuma, spatialWeight] of weightedNeighbors) {
     const rangeWeight = exp(
-      (abs(luma(neighbor).sub(centerLuma)) as TslNode)
+      (abs(neighborLuma.sub(centerLuma)) as TslNode)
         .mul(float(-style.bilateralSharpness)),
     ) as TslNode;
     const weight = rangeWeight.mul(float(spatialWeight));
@@ -375,29 +373,14 @@ function buildCroatianNaiveArtBasisNode(
     float(style.painterlySmoothing),
   ) as TslNode;
 
-  const n = luma(north);
-  const ne = luma(northEast);
-  const e = luma(east);
-  const se = luma(southEast);
-  const s = luma(south);
-  const sw = luma(southWest);
-  const w = luma(west);
-  const nw = luma(northWest);
-  const gradientX = ne
-    .add(e.mul(float(2)))
-    .add(se)
-    .sub(nw)
-    .sub(w.mul(float(2)))
-    .sub(sw);
-  const gradientY = sw
-    .add(s.mul(float(2)))
-    .add(se)
-    .sub(nw)
-    .sub(n.mul(float(2)))
-    .sub(ne);
-  const structureSignal = (abs(gradientX) as TslNode)
-    .add(abs(gradientY))
-    .mul(float(0.125))
+  const gradientX = e.sub(w);
+  const gradientY = s.sub(n);
+  const gradientMagnitude = pow(
+    gradientX.mul(gradientX).add(gradientY.mul(gradientY)),
+    float(0.5),
+  ) as TslNode;
+  const structureSignal = gradientMagnitude
+    .mul(float(0.5))
     .add(
       (abs(centerLuma.sub(luma(filtered))) as TslNode).mul(float(0.8)),
     );

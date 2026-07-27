@@ -161,8 +161,8 @@ const stats = getBuildingMaterialLibraryStats();
 if (stats.constructionMaterials > 20) {
   throw new Error(`Shared construction palette grew beyond 20 materials (${stats.constructionMaterials}).`);
 }
-if (stats.detailMaterials > 9) {
-  throw new Error(`Shared building-detail palette grew beyond 9 materials (${stats.detailMaterials}).`);
+if (stats.detailMaterials > 10) {
+  throw new Error(`Shared building-detail palette grew beyond 10 materials (${stats.detailMaterials}).`);
 }
 if (sharedMaterials.size > 29) {
   throw new Error(`All buildings should use at most 29 shared materials; found ${sharedMaterials.size}.`);
@@ -211,11 +211,11 @@ for (const tier of [1, 2, 3] as const) {
 }
 
 const finalStats = getBuildingMaterialLibraryStats();
-if (finalStats.constructionMaterials < 15 || finalStats.constructionMaterials > 20 || finalStats.detailMaterials !== 9) {
-  throw new Error(`Expected a 15–20 construction + 9 detail shared palette; found ${finalStats.constructionMaterials} + ${finalStats.detailMaterials}.`);
+if (finalStats.constructionMaterials < 15 || finalStats.constructionMaterials > 20 || finalStats.detailMaterials !== 10) {
+  throw new Error(`Expected a 15–20 construction + 10 detail shared palette; found ${finalStats.constructionMaterials} + ${finalStats.detailMaterials}.`);
 }
-if (sharedMaterials.size > 29) {
-  throw new Error(`Buildings and residences exceeded the 29 shared material ceiling (${sharedMaterials.size}).`);
+if (sharedMaterials.size > 30) {
+  throw new Error(`Buildings and residences exceeded the 30 shared material ceiling (${sharedMaterials.size}).`);
 }
 
 const indirectConstructionMaterials = [...sharedMaterials].filter(

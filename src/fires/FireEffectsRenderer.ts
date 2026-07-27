@@ -4,15 +4,19 @@ import type { BuildingState, ResidenceState } from '../resources/types.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import type { FireIncidentState } from './fireIncident.ts';
 import { hashStringSeed } from '../utils/random.ts';
+import {
+  createFireEffect,
+  disposeFireEffect,
+  setFireEffectActive,
+  updateFireEffect,
+  type FireEffect,
+} from './FireEffect.ts';
 
 type FireVisual = {
   root: THREE.Group;
-  flames: THREE.Mesh[];
-  smoke: THREE.Mesh[];
+  effect: FireEffect;
   rubble: THREE.Mesh[];
-  light: THREE.PointLight;
   incident: FireIncidentState;
-  phase: number;
 };
 
 type WaterJetVisual = {
@@ -23,31 +27,9 @@ type WaterJetVisual = {
   length: number;
 };
 
-const FLAME_GEOMETRY = new THREE.ConeGeometry(0.42, 1.7, 7);
-const SMOKE_GEOMETRY = new THREE.SphereGeometry(0.58, 7, 5);
 const RUBBLE_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
 const DROPLET_GEOMETRY = new THREE.SphereGeometry(0.065, 6, 4);
 const STREAM_GEOMETRY = new THREE.CylinderGeometry(0.035, 0.065, 1, 7);
-const FLAME_OUTER = new THREE.MeshBasicMaterial({
-  color: 0xf05a20,
-  transparent: true,
-  opacity: 0.72,
-  depthWrite: false,
-  blending: THREE.AdditiveBlending,
-});
-const FLAME_INNER = new THREE.MeshBasicMaterial({
-  color: 0xffd35a,
-  transparent: true,
-  opacity: 0.82,
-  depthWrite: false,
-  blending: THREE.AdditiveBlending,
-});
-const SMOKE_MATERIAL = new THREE.MeshLambertMaterial({
-  color: 0x2e3032,
-  transparent: true,
-  opacity: 0.34,
-  depthWrite: false,
-});
 const RUBBLE_MATERIAL = new THREE.MeshStandardMaterial({
   color: 0x24211e,
   roughness: 1,
@@ -117,27 +99,9 @@ export class FireEffectsRenderer {
   tick(dt: number): void {
     for (const visual of this.visuals.values()) {
       if (visual.incident.status !== 'burning') continue;
-      visual.phase += dt;
       const { incident } = visual;
       const intensity = THREE.MathUtils.clamp(incident.intensity, 0, 1);
-      for (const [index, flame] of visual.flames.entries()) {
-        const flicker = 0.84
-          + Math.sin(visual.phase * (7.5 + index * 0.8) + index * 2.17) * 0.14
-          + Math.sin(visual.phase * 13.1 + index) * 0.05;
-        flame.scale.y = Math.max(0.05, (0.5 + intensity * 1.15) * flicker);
-        flame.scale.x = 0.72 + intensity * 0.68 + (1 - flicker) * 0.3;
-        flame.scale.z = flame.scale.x;
-      }
-      for (const [index, smoke] of visual.smoke.entries()) {
-        const age = (visual.phase * (0.12 + intensity * 0.16) + index / visual.smoke.length) % 1;
-        smoke.position.y = 1.2 + age * (4.5 + intensity * 3.2);
-        smoke.position.x = Math.sin(age * 4.1 + index * 2.3) * (0.35 + age * 1.4);
-        smoke.position.z = Math.cos(age * 3.6 + index * 1.7) * (0.28 + age * 1.1);
-        smoke.scale.setScalar(0.55 + age * 1.6 + intensity * 0.45);
-        const material = smoke.material as THREE.MeshLambertMaterial;
-        material.opacity = 0.34 * Math.sin(Math.PI * age);
-      }
-      visual.light.intensity = 5 + intensity * 12 + Math.sin(visual.phase * 11.3) * 1.8;
+      updateFireEffect(visual.effect, dt, intensity);
     }
     this.syncWaterJets();
     for (const jet of this.waterJets.values()) {
@@ -155,14 +119,9 @@ export class FireEffectsRenderer {
     for (const jet of this.waterJets.values()) jet.root.removeFromParent();
     this.waterJets.clear();
     this.root.removeFromParent();
-    FLAME_GEOMETRY.dispose();
-    SMOKE_GEOMETRY.dispose();
     RUBBLE_GEOMETRY.dispose();
     DROPLET_GEOMETRY.dispose();
     STREAM_GEOMETRY.dispose();
-    FLAME_OUTER.dispose();
-    FLAME_INNER.dispose();
-    SMOKE_MATERIAL.dispose();
     RUBBLE_MATERIAL.dispose();
     WATER_MATERIAL.dispose();
   }
@@ -171,32 +130,22 @@ export class FireEffectsRenderer {
     const root = new THREE.Group();
     root.name = `Fire incident ${incident.id}`;
     const seed = hashStringSeed(incident.id);
-    const flames: THREE.Mesh[] = [];
-    const smoke: THREE.Mesh[] = [];
     const rubble: THREE.Mesh[] = [];
-
-    for (let index = 0; index < 7; index++) {
-      const angle = index / 7 * Math.PI * 2 + (seed % 37) * 0.07;
-      const radius = index === 0 ? 0 : 0.45 + (index % 3) * 0.32;
-      const flame = new THREE.Mesh(
-        FLAME_GEOMETRY,
-        index % 3 === 0 ? FLAME_INNER : FLAME_OUTER,
-      );
-      flame.name = 'Animated structural flame';
-      flame.position.set(Math.cos(angle) * radius, 0.85, Math.sin(angle) * radius);
-      flame.rotation.y = angle;
-      flame.renderOrder = 18;
-      root.add(flame);
-      flames.push(flame);
-    }
-
-    for (let index = 0; index < 9; index++) {
-      const puff = new THREE.Mesh(SMOKE_GEOMETRY, SMOKE_MATERIAL.clone());
-      puff.name = 'Animated structural smoke';
-      puff.renderOrder = 17;
-      root.add(puff);
-      smoke.push(puff);
-    }
+    const effect = createFireEffect({
+      name: 'Reusable structural fire',
+      scale: 1.45,
+      intensity: incident.intensity,
+      nightLighting: 1,
+      spread: 1.05,
+      flameCount: 8,
+      smokeCount: 10,
+      smokeRise: 5.8,
+      smokeDrift: 1.25,
+      smokeOpacity: 0.38,
+      lightDistance: 28,
+      lightIntensity: 17,
+    });
+    root.add(effect.root);
 
     for (let index = 0; index < 8; index++) {
       const angle = index / 8 * Math.PI * 2 + 0.4;
@@ -209,34 +158,14 @@ export class FireEffectsRenderer {
       rubble.push(piece);
     }
 
-    const light = new THREE.PointLight(0xff6a2b, 10, 28, 1.65);
-    light.name = 'Fire glow';
-    light.position.y = 1.2;
-    root.add(light);
-
-    return { root, flames, smoke, rubble, light, incident, phase: (seed % 100) / 10 };
+    effect.elapsedSeconds = (seed % 100) / 10;
+    return { root, effect, rubble, incident };
   }
 
   private applyIncidentState(visual: FireVisual): void {
     const burning = visual.incident.status === 'burning';
     const destroyed = visual.incident.status === 'destroyed';
-    for (const flame of visual.flames) flame.visible = burning;
-    for (const puff of visual.smoke) {
-      puff.visible = burning;
-    }
-    if (!burning) {
-      // Resolved incidents persist until repair, so retire their animated
-      // particles instead of paying the per-frame and object cost forever.
-      for (const flame of visual.flames) flame.removeFromParent();
-      visual.flames.length = 0;
-      for (const puff of visual.smoke) {
-        puff.removeFromParent();
-        (puff.material as THREE.Material).dispose();
-      }
-      visual.smoke.length = 0;
-      visual.light.intensity = 0;
-      visual.light.removeFromParent();
-    }
+    setFireEffectActive(visual.effect, burning);
     const visibleRubble = destroyed
       ? visual.rubble.length
       : Math.max(1, Math.ceil(visual.incident.damage * visual.rubble.length));
@@ -329,8 +258,6 @@ function orientCylinderBetween(
 }
 
 function disposeFireVisual(visual: FireVisual): void {
-  for (const smoke of visual.smoke) {
-    (smoke.material as THREE.Material).dispose();
-  }
+  disposeFireEffect(visual.effect);
   visual.root.removeFromParent();
 }

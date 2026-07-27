@@ -33,7 +33,7 @@ import { computePathBoundsXZ } from '../utils/pathGeometry.ts';
 import { RockSpatialIndex } from '../utils/rockSpatialIndex.ts';
 import { yieldToMain } from '../utils/yieldToMain.ts';
 import { createPostProcessor, type ScenePostProcessor } from './PostProcessing.ts';
-import { fitDirectionalLightShadow, computeViewShadowBounds, intersectTerrainBounds, updateDirectionalShadowCameraMatrices } from './fitDirectionalShadow.ts';
+import { fitDirectionalLightShadow, computeViewShadowBounds, intersectTerrainBounds } from './fitDirectionalShadow.ts';
 import {
   createPreferredRenderer,
   type RendererBackend,
@@ -81,6 +81,9 @@ export type SceneLoadProgress = {
   fraction: number;
 };
 
+const MOON_KEY_DIRECTION = new THREE.Vector3(-0.38, 0.82, 0.42).normalize();
+const SHADOW_KEY_REFRESH_DOT = Math.cos(THREE.MathUtils.degToRad(0.5));
+
 export class SceneManager {
   private readonly container: HTMLElement;
   readonly scene: THREE.Scene;
@@ -99,6 +102,8 @@ export class SceneManager {
   private readonly sky: SkyCloudMesh;
   private readonly precipitation: PrecipitationRenderer;
   private readonly sunDirection = new THREE.Vector3();
+  private readonly shadowKeyDirection = new THREE.Vector3();
+  private readonly lastShadowKeyDirection = new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN);
   private sunLight!: THREE.DirectionalLight;
   private hemiLight!: THREE.HemisphereLight;
   private ambientLight!: THREE.AmbientLight;
@@ -171,6 +176,7 @@ export class SceneManager {
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2600);
     this.camera.layers.disable(TREE_SHADOW_CAST_LAYER);
     this.sunDirection.setFromSphericalCoords(1, THREE.MathUtils.degToRad(43), THREE.MathUtils.degToRad(225));
+    this.shadowKeyDirection.copy(this.sunDirection);
     this.terrain = terrain;
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
     this.sky = new SkyCloudMesh({
@@ -518,6 +524,7 @@ export class SceneManager {
       cameraDistance,
       firstPersonActive,
     );
+    this.forestManager?.updateCameraState(cameraDistance, firstPersonActive);
     this.riverSystem.updateCameraState(
       this.camera.position,
       this.cameraTarget,
@@ -555,7 +562,7 @@ export class SceneManager {
       const shadowBounds = intersectTerrainBounds(viewBounds, this.terrain.bounds);
       fitDirectionalLightShadow(this.sunLight, {
         bounds: shadowBounds,
-        sunOffsetDir: this.sunDirection,
+        sunOffsetDir: this.shadowKeyDirection,
       });
       this.lastShadowTargetX = this.cameraTarget.x;
       this.lastShadowTargetZ = this.cameraTarget.z;
@@ -582,12 +589,16 @@ export class SceneManager {
 
   private shouldRefreshShadowMap(cameraDistance: number): boolean {
     if (!Number.isFinite(this.lastShadowTargetX)) return true;
-    const interval = this.buildInteractionActive ? 3 : 2;
+    // The fitted bounds carry 24% overscan, so the shadow camera can trail a
+    // moving view briefly without exposing an unshadowed edge. Redrawing the
+    // 2048px forest/building atlas every other frame caused avoidable frame
+    // spikes during pans and zooms.
+    const interval = this.buildInteractionActive ? 8 : 5;
     if (this.renderFrame % interval !== 0) return false;
     const dx = this.cameraTarget.x - this.lastShadowTargetX;
     const dz = this.cameraTarget.z - this.lastShadowTargetZ;
-    if (Math.hypot(dx, dz) > 10) return true;
-    return Math.abs(cameraDistance - this.lastShadowDistance) > 8;
+    if (Math.hypot(dx, dz) > 14) return true;
+    return Math.abs(cameraDistance - this.lastShadowDistance) > 12;
   }
 
   applyDayNight(state: DayNightLightingState): void {
@@ -603,40 +614,84 @@ export class SceneManager {
     const goldenHour = Math.max(state.dawnAmount, state.duskAmount);
     this.skyAnimationTime = state.skyAnimationTime;
     this.sunDirection.copy(state.sunDirection);
+    const moonBlend = THREE.MathUtils.smoothstep(state.nightAmount, 0.08, 0.92);
+    this.shadowKeyDirection
+      .copy(state.sunDirection)
+      .multiplyScalar(1 - moonBlend)
+      .addScaledVector(MOON_KEY_DIRECTION, moonBlend)
+      .normalize();
     this.sky.updateAtmosphere(state.dawnAmount, state.duskAmount);
     this.sky.updateSiderealAngle(state.siderealAngle);
-    this.sunLight.color.setHex(blendColorHex(state.sunColor, weather.fogTint, atmosphericBlend * 0.28));
-    this.sunLight.intensity = state.sunIntensity * weather.sunlightMultiplier;
+    this.sunLight.color.setHex(blendColorHex(
+      blendColorHex(state.sunColor, 0xa8c7e6, moonBlend),
+      weather.fogTint,
+      atmosphericBlend * 0.28,
+    ));
+    const daylightKey = state.sunIntensity
+      * weather.sunlightMultiplier
+      * (1 - moonBlend);
+    const moonKey = 0.34
+      * moonBlend
+      * THREE.MathUtils.lerp(1, 0.72, atmosphericBlend);
+    this.sunLight.intensity = daylightKey + moonKey;
     // Keep the sun parallel to the fitted shadow target — not world origin — so panning
     // does not skew directional shadows between shadow-map refits.
-    this.sunLight.position.copy(this.sunLight.target.position).addScaledVector(state.sunDirection, 180);
+    this.sunLight.position
+      .copy(this.sunLight.target.position)
+      .addScaledVector(this.shadowKeyDirection, 180);
     this.sunLight.updateMatrixWorld();
     this.sunLight.target.updateMatrixWorld();
-    updateDirectionalShadowCameraMatrices(this.sunLight);
+    const previousDirectionIsFinite = Number.isFinite(this.lastShadowKeyDirection.x);
+    if (
+      !previousDirectionIsFinite
+      || this.lastShadowKeyDirection.dot(this.shadowKeyDirection) < SHADOW_KEY_REFRESH_DOT
+    ) {
+      this.lastShadowKeyDirection.copy(this.shadowKeyDirection);
+      // applyDayNight runs every frame. Invalidate the fit only after the key
+      // moves far enough to matter; the next render refreshes the atlas once.
+      this.lastShadowTargetX = Number.NaN;
+    }
     this.hemiLight.color.setHex(blendColorHex(state.hemiSkyColor, weather.fogTint, atmosphericBlend * 0.48));
     this.hemiLight.groundColor.setHex(blendColorHex(state.hemiGroundColor, weather.fogTint, atmosphericBlend * 0.2));
-    this.hemiLight.intensity = state.hemiIntensity * THREE.MathUtils.lerp(1, 0.82, atmosphericBlend);
+    // Night hierarchy comes from a cool directional key and practical lights,
+    // not a global gray wash. Keep just enough hemispheric bounce to read the
+    // terrain while preserving true material shadows.
+    this.hemiLight.intensity = state.hemiIntensity
+      * THREE.MathUtils.lerp(1, 0.36, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.82, atmosphericBlend);
     this.ambientLight.color.setHex(blendColorHex(state.ambientColor, weather.fogTint, atmosphericBlend * 0.34));
-    this.ambientLight.intensity = state.ambientIntensity * THREE.MathUtils.lerp(1, 0.9, atmosphericBlend);
+    this.ambientLight.intensity = state.ambientIntensity
+      * THREE.MathUtils.lerp(1, 0.24, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.9, atmosphericBlend);
     setBuildingIndirectLightIntensity(
-      state.buildingIndirectIntensity * THREE.MathUtils.lerp(1, 0.84, atmosphericBlend),
+      state.buildingIndirectIntensity
+        * THREE.MathUtils.lerp(1, 0.72, state.nightAmount)
+        * THREE.MathUtils.lerp(1, 0.84, atmosphericBlend),
     );
     this.skyFillLight.color.setHex(blendColorHex(state.fillColor, weather.fogTint, atmosphericBlend * 0.4));
-    this.skyFillLight.intensity = state.fillIntensity * THREE.MathUtils.lerp(1, 0.86, atmosphericBlend);
+    this.skyFillLight.intensity = state.fillIntensity
+      * THREE.MathUtils.lerp(1, 0.45, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.86, atmosphericBlend);
     this.skyFillLight.position.copy(this.sunDirection).multiplyScalar(-90);
     this.skyFillLight.position.y += 65;
     // Gentle photographic adaptation preserves night legibility without
     // flattening noon or washing out the warm low sun.
     this.renderer.toneMappingExposure = THREE.MathUtils.clamp(
-      THREE.MathUtils.lerp(1.08, 1.55, state.nightAmount)
-        + goldenHour * 0.12
+      THREE.MathUtils.lerp(1.08, 1.28, state.nightAmount)
+        + goldenHour * 0.075
         + atmosphericBlend * 0.012,
       1.07,
-      1.58,
+      1.34,
     );
     if (this.scene.fog instanceof THREE.FogExp2) {
       this.scene.fog.color.setHex(blendColorHex(state.fogColor, weather.fogTint, atmosphericBlend));
       this.scene.fog.density = state.fogDensity * weather.fogDensityMultiplier;
+      this.scene.fog.density = THREE.MathUtils.clamp(
+        this.scene.fog.density
+          * THREE.MathUtils.lerp(1, 0.86, state.nightAmount),
+        0.00042,
+        0.0009,
+      );
     }
     this.postProcessor.setDayNightGrade({
       ...state.grade,

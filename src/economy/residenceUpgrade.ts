@@ -72,7 +72,7 @@ export type ResidenceUpgradeContext = {
 export type ResidenceUpgradeMaterial = 'timber' | 'stone' | 'gold';
 
 export type ResidenceUpgradeProject = {
-  targetTier: 2 | 3;
+  targetTier: 1 | 2 | 3;
   progress: number;
   priority: ConstructionPriority;
   priorityLabel: string;
@@ -203,7 +203,10 @@ export function residenceUpgradeProject(
   trips: Iterable<DeliveryTripState> = [],
 ): ResidenceUpgradeProject | null {
   const targetTier = residence.upgradeTargetTier ?? 0;
-  if (targetTier <= residence.tier || (targetTier !== 2 && targetTier !== 3)) return null;
+  if (
+    targetTier <= residence.tier
+    || (targetTier !== 1 && targetTier !== 2 && targetTier !== 3)
+  ) return null;
 
   const required = {
     timber: nonnegative(residence.upgradeRequiredTimber),

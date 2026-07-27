@@ -35,6 +35,9 @@ pub fn place_backyard_garden(
     if residence.abandoned {
         return Err("Cannot plant a backyard garden at an abandoned residence.".to_string());
     }
+    if residence.tier == 0 {
+        return Err("Finish the cottage before improving its backyard.".to_string());
+    }
 
     if ctx
         .db

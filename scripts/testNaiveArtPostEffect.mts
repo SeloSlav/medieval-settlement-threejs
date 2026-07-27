@@ -21,6 +21,16 @@ assert.match(enabledShader, /applyCroatianNaiveArtTone/);
 assert.match(enabledShader, /naiveArtBilateralWeight/);
 assert.match(enabledShader, /gradientX/);
 assert.match(enabledShader, /naiveArtPaperNoise/);
+assert.equal(
+  (enabledShader.match(/texture2D\(/g) ?? []).length,
+  5,
+  'the enabled WebGL grade pass should issue exactly five texture reads',
+);
+assert.doesNotMatch(
+  enabledShader,
+  /vec2\(\s*[+-]?1\.0,\s*[+-]?1\.0\)/,
+  'the five-tap kernel must not retain diagonal texture reads',
+);
 
 const disabledShader = buildGradeGlslFragmentShader(false);
 assert.doesNotMatch(disabledShader, /buildCroatianNaiveArtBasis/);
@@ -31,8 +41,8 @@ assert.match(disabledShader, /color = adjustSaturation\(color, saturation\)/);
 
 assert.equal(
   CROATIAN_NAIVE_ART_NEIGHBOR_SAMPLE_COUNT,
-  9,
-  'the painterly kernel should stay within a predictable nine-tap texture budget',
+  5,
+  'the painterly kernel should stay within a predictable five-tap texture budget',
 );
 
 const flatColor = rgb(0.42, 0.58, 0.24);
@@ -82,6 +92,18 @@ assert.ok(
   'a hard object boundary should produce a strong structural contour',
 );
 
+const horizontalHardEdgeResult = filterCroatianNaiveArtNeighborhood(
+  neighborhoodFromRows([
+    [light, light, light],
+    [shadow, shadow, shadow],
+    [shadow, shadow, shadow],
+  ]),
+);
+assert.ok(
+  Math.abs(horizontalHardEdgeResult.structureEdge - hardEdgeResult.structureEdge) < 1e-12,
+  'cardinal gradient magnitude should give horizontal and vertical contours equal strength',
+);
+
 assert.ok(
   CROATIAN_NAIVE_ART_STYLE.paletteSteps >= 5
     && CROATIAN_NAIVE_ART_STYLE.paletteSteps <= 10,
@@ -117,14 +139,10 @@ function neighborhoodFromRows(
   ],
 ): NaiveArtNeighborhood {
   return {
-    northWest: rows[0][0],
     north: rows[0][1],
-    northEast: rows[0][2],
     west: rows[1][0],
     center: rows[1][1],
     east: rows[1][2],
-    southWest: rows[2][0],
     south: rows[2][1],
-    southEast: rows[2][2],
   };
 }

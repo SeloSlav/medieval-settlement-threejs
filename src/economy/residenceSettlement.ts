@@ -42,6 +42,14 @@ export function residenceSettlementReadiness(
   residence: ResidenceState,
   community: ResidenceCommunityContext = DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
 ): ResidenceSettlementReadiness {
+  if (residence.tier === 0) {
+    return {
+      firstArrival: false,
+      ready: false,
+      buffers: [],
+      waitingOn: [],
+    };
+  }
   const firstArrival = residence.population === 0;
   const buffers = activeResidenceNeedKinds(residence.tier).map(
     (kind): ResidenceSettlementBuffer => {

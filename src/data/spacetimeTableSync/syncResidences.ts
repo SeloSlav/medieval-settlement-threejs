@@ -63,7 +63,7 @@ export function syncResidences(
       yaw: row.yaw,
       population: Number(row.population),
       populationCapacity: Number(row.populationCapacity ?? row.population),
-      tier: Math.max(1, Math.min(3, Number(row.tier ?? 1))) as 1 | 2 | 3,
+      tier: Math.max(0, Math.min(3, Number(row.tier ?? 1))) as 0 | 1 | 2 | 3,
       settlementTicks: Number(row.settlementTicks ?? 0),
       needs: needsByResidence.get(residenceId) ?? createDefaultNeeds(),
       abandoned: row.abandoned,
@@ -72,7 +72,7 @@ export function syncResidences(
       upgradeTargetTier: Math.max(
         0,
         Math.min(3, Number(upgradeRow.upgradeTargetTier ?? 0)),
-      ) as 0 | 2 | 3,
+      ) as 0 | 1 | 2 | 3,
       upgradeProgress: Number(upgradeRow.upgradeProgress ?? 0),
       upgradeRequiredTimber: Number(upgradeRow.upgradeRequiredTimber ?? 0),
       upgradeRequiredStone: Number(upgradeRow.upgradeRequiredStone ?? 0),

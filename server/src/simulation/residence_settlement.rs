@@ -14,7 +14,7 @@ pub fn step_residence_settlement(
     sabbath_observance: bool,
     needs: &[NeedState],
 ) {
-    if residence.abandoned || residence.population_capacity == 0 {
+    if residence.abandoned || residence.tier == 0 || residence.population_capacity == 0 {
         return;
     }
     if residence.population >= residence.population_capacity {

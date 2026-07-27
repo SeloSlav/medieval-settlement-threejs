@@ -8,6 +8,12 @@ import {
   FOUNDERS_CAMPFIRE_NAME,
   setFoundersCampfireNightLighting,
 } from '../src/buildings/meshes/foundersCampMesh.ts';
+import {
+  FIRE_EFFECT_FLAMES_NAME,
+  FIRE_EFFECT_LIGHT_NAME,
+  FIRE_EFFECT_SMOKE_NAME,
+} from '../src/fires/FireEffect.ts';
+import { isBuildingDetailShadowCaster } from '../src/buildings/buildingShadowProxy.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
@@ -63,18 +69,44 @@ assert.ok(timber instanceof THREE.Group);
 assert.ok(stone instanceof THREE.Group);
 assert.ok(chest instanceof THREE.Group);
 assert.ok(campfire instanceof THREE.Group);
-const campfireLight = campfire.getObjectByName('FoundingCampfireLight');
+assert.equal(mesh.userData.fpCollisionChildrenOnly, true);
+const tents = shelters.children.filter((child) => child.name === 'Founding canvas tent');
+assert.equal(tents.length, 3, 'the occupied camp should have three modeled canvas tents');
+assert.ok(
+  tents.every((tent) => tent.userData.fpCollisionAggregate === true),
+  'first-person collision should be attached to each tent rather than the whole campsite',
+);
+const shadowCasters: THREE.Object3D[] = [];
+mesh.traverse((object) => {
+  if (isBuildingDetailShadowCaster(object)) shadowCasters.push(object);
+});
+assert.ok(
+  shadowCasters.length >= 30,
+  'visible camp objects should cast their own silhouettes instead of using one blockout box',
+);
+const campfireLight = campfire.getObjectByName(FIRE_EFFECT_LIGHT_NAME);
 assert.ok(campfireLight instanceof THREE.PointLight);
 assert.ok(
-  campfire.children.some((child) => child.name === 'FoundingCampfireFlames'),
-  'the founders need a layered central fire instead of a static placeholder cone',
+  campfire.children.some((child) => child.name === FIRE_EFFECT_FLAMES_NAME),
+  'the founders need the reusable procedural flame effect',
 );
 assert.ok(
-  campfire.children.some((child) => child.name === 'FoundingCampfireSmoke'),
-  'the occupied campfire should emit animated smoke',
+  campfire.children.some((child) => child.name === FIRE_EFFECT_SMOKE_NAME),
+  'the reusable campfire effect should emit animated smoke',
 );
-const flame = campfire.getObjectByName('Animated founding campfire flame');
-assert.ok(flame instanceof THREE.Mesh);
+const flame = campfire.getObjectByName('Animated fire flame');
+assert.ok(flame instanceof THREE.Sprite);
+assert.ok(
+  (flame.material as THREE.Material).name.includes('Procedural reusable fire shader'),
+  'camp flames should use the shared GPU fire shader',
+);
+let hasConeFlame = false;
+campfire.traverse((object) => {
+  const candidate = object as THREE.Mesh;
+  hasConeFlame ||= candidate.name.startsWith('Animated fire')
+    && candidate.geometry instanceof THREE.ConeGeometry;
+});
+assert.equal(hasConeFlame, false, 'the campfire should not regress to cone-shaped flames');
 setFoundersCampfireNightLighting(campfire, 0);
 animateFoundersCampfire(campfire, 0.1);
 const daylightIntensity = campfireLight.intensity;
@@ -82,7 +114,7 @@ const daylightFlameScale = flame.scale.y;
 setFoundersCampfireNightLighting(campfire, 1);
 animateFoundersCampfire(campfire, 0.13);
 assert.ok(
-  campfireLight.intensity > daylightIntensity + 7,
+  campfireLight.intensity > daylightIntensity + 6,
   'the campfire must keep a strong warm light throughout the night',
 );
 assert.notEqual(
