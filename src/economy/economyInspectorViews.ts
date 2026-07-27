@@ -67,16 +67,20 @@ export function buildResidenceParishEconomyView(
     hasMonasteryCoverage,
   );
   const uncapped = residence.population > 0
-    ? payableChapelTithePerDay(
-        residence.population,
-        servingChapel.assignedLabor,
-        Number.POSITIVE_INFINITY,
-      )
-    : 0;
+      ? payableChapelTithePerDay(
+          residence.population,
+          servingChapel.assignedLabor,
+          Number.POSITIVE_INFINITY,
+          sabbathObservance,
+          hasMonasteryCoverage,
+        )
+      : 0;
   const tithePerDay = payableChapelTithePerDay(
     residence.population,
     servingChapel.assignedLabor,
     residence.householdWealth,
+    sabbathObservance,
+    hasMonasteryCoverage,
   );
 
   return {
@@ -144,6 +148,7 @@ export function buildChapelInspectorEconomyView(
   linkedPopulation: number,
   cofferCapacity: number,
   collectAction: string,
+  sabbathObservance = false,
 ): ChapelInspectorEconomyView {
   const staffed = isChapelStaffed(building);
   const cofferGold = chapelCofferGold(building);
@@ -157,7 +162,13 @@ export function buildChapelInspectorEconomyView(
     cofferGold,
     cofferCapacity,
     cofferFull,
-    titheLabel: staffed ? `${formatChapelTithePerDay(linkedPopulation, building.assignedLabor)} → coffer` : '—',
+    titheLabel: staffed
+      ? `${formatChapelTithePerDay(
+          linkedPopulation,
+          building.assignedLabor,
+          sabbathObservance,
+        )} → coffer`
+      : '—',
     attendanceLabel: staffed ? formatChapelAttendanceChance(building.assignedLabor) : '—',
     recoveryLabel: `${needsRequired} of ${needsTotal} needs · ${formatChapelRecoveryStockMultiplierPercent()} lower restock thresholds`,
     expense: {

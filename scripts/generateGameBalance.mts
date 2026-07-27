@@ -279,6 +279,8 @@ export type GameBalance = {
     chapelUnstaffedUpkeepFraction: number;
     chapelCharityGoldPerDay: number;
     chapelCharityMinCofferGold: number;
+    chapelPoorReliefGoldPerDispatch: number;
+    chapelPoorReliefIntervalDays: number;
     chapelAutoSweepIntervalTicks: number;
     chapelAutoSweepFraction: number;
     chapelCofferReserveDefault: number;
@@ -649,6 +651,8 @@ function generateRust(): string {
     `pub const CHAPEL_UNSTAFFED_UPKEEP_FRACTION: f64 = ${rustF64(b.population.chapelUnstaffedUpkeepFraction)};`,
     `pub const CHAPEL_CHARITY_GOLD_PER_DAY: f64 = ${rustF64(b.population.chapelCharityGoldPerDay)};`,
     `pub const CHAPEL_CHARITY_MIN_COFFER_GOLD: f64 = ${rustF64(b.population.chapelCharityMinCofferGold)};`,
+    `pub const CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH: f64 = ${rustF64(b.population.chapelPoorReliefGoldPerDispatch)};`,
+    `pub const CHAPEL_POOR_RELIEF_INTERVAL_DAYS: u64 = ${b.population.chapelPoorReliefIntervalDays};`,
     `pub const CHAPEL_AUTO_SWEEP_INTERVAL_TICKS: u64 = ${b.population.chapelAutoSweepIntervalTicks};`,
     `pub const CHAPEL_AUTO_SWEEP_FRACTION: f64 = ${rustF64(b.population.chapelAutoSweepFraction)};`,
     `pub const CHAPEL_COFFER_RESERVE_DEFAULT: f64 = ${rustF64(b.population.chapelCofferReserveDefault)};`,
@@ -1217,6 +1221,8 @@ function generateTypeScript(): string {
     `export const CHAPEL_UNSTAFFED_UPKEEP_FRACTION = ${b.population.chapelUnstaffedUpkeepFraction};`,
     `export const CHAPEL_CHARITY_GOLD_PER_DAY = ${b.population.chapelCharityGoldPerDay};`,
     `export const CHAPEL_CHARITY_MIN_COFFER_GOLD = ${b.population.chapelCharityMinCofferGold};`,
+    `export const CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH = ${b.population.chapelPoorReliefGoldPerDispatch};`,
+    `export const CHAPEL_POOR_RELIEF_INTERVAL_DAYS = ${b.population.chapelPoorReliefIntervalDays};`,
     `export const CHAPEL_AUTO_SWEEP_INTERVAL_TICKS = ${b.population.chapelAutoSweepIntervalTicks};`,
     `export const CHAPEL_AUTO_SWEEP_FRACTION = ${b.population.chapelAutoSweepFraction};`,
     `export const CHAPEL_COFFER_RESERVE_DEFAULT = ${b.population.chapelCofferReserveDefault};`,

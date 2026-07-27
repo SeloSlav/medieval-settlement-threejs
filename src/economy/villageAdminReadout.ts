@@ -92,10 +92,11 @@ export function buildVillageAdminReadout(input: {
     roadComponentFor,
   });
   const chapelTithe = worldQueries
-    ? estimateVillageChapelTithePerDay(
-        residences,
-        (residence) => worldQueries.getServingChapelForResidence(residence),
-      )
+      ? estimateVillageChapelTithePerDay(
+          residences,
+          (residence) => worldQueries.getServingChapelForResidence(residence),
+          parishPolicy.sabbathObservanceEnabled,
+        )
     : 0;
   const cofferBalance = totalChapelCofferGold(buildings);
   const parishExpense = sumPayableParishExpensePerDay(chapels);
@@ -120,7 +121,7 @@ export function buildVillageAdminReadout(input: {
     ),
     taxIncomeLabel: formatBackyardTax(backyardEconomy),
     chapelTitheLabel: hasStaffedChapelOnMap && worldQueries
-      ? `~${chapelTithe.toFixed(1)} gold / day`
+      ? `~${chapelTithe.toFixed(1)} gold / day${parishPolicy.sabbathObservanceEnabled ? ' (7-day average)' : ''}`
       : hasStaffedChapelOnMap ? '—' : 'Unstaffed chapel',
     parishExpenseLabel: chapels.length > 0
       ? `${formatParishGoldPerDay(parishExpense)} (coffer-limited)`

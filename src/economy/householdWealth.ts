@@ -4,11 +4,12 @@ import {
   CHAPEL_PRIEST_ATTENDANCE_BONUS,
   CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
   CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
+  CALENDAR_DAYS_PER_WEEK,
   HOUSEHOLD_MAX_WEALTH,
   MONASTERY_ATTENDANCE_BONUS,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
-import { SECONDS_PER_DAY } from './gardenMarketActivity.ts';
+import { GAME_WORKDAY_SECONDS } from '../world/gameCalendar.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
 
 export { HOUSEHOLD_MAX_WEALTH };
@@ -47,7 +48,10 @@ export function chapelTitheGoldPerTick(population: number): number {
     return 0;
   }
 
-  return population * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * SIM_TICK_SECONDS / SECONDS_PER_DAY;
+  return population
+    * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
+    * SIM_TICK_SECONDS
+    / GAME_WORKDAY_SECONDS;
 }
 
 export function chapelTitheGoldPerDay(population: number): number {
@@ -59,9 +63,21 @@ export function chapelTitheGoldPerDay(population: number): number {
 }
 
 /** Expected tithe when attending, before household wealth caps payment. */
-export function expectedChapelTithePerDay(population: number, assignedLabor: number): number {
-  const chance = chapelAttendanceChance(assignedLabor);
-  return chapelTitheGoldPerDay(population) * chance;
+export function expectedChapelTithePerDay(
+  population: number,
+  assignedLabor: number,
+  sabbathObservance = false,
+  hasMonasteryCoverage = false,
+): number {
+  const chance = chapelAttendanceChance(
+    assignedLabor,
+    sabbathObservance,
+    hasMonasteryCoverage,
+  );
+  const titheDayShare = sabbathObservance
+    ? (CALENDAR_DAYS_PER_WEEK - 1) / CALENDAR_DAYS_PER_WEEK
+    : 1;
+  return chapelTitheGoldPerDay(population) * chance * titheDayShare;
 }
 
 /** Conservative daily tithe estimate limited by current household wealth. */
@@ -69,8 +85,18 @@ export function payableChapelTithePerDay(
   population: number,
   assignedLabor: number,
   householdWealth: number,
+  sabbathObservance = false,
+  hasMonasteryCoverage = false,
 ): number {
-  return Math.min(expectedChapelTithePerDay(population, assignedLabor), householdWealth);
+  return Math.min(
+    expectedChapelTithePerDay(
+      population,
+      assignedLabor,
+      sabbathObservance,
+      hasMonasteryCoverage,
+    ),
+    householdWealth,
+  );
 }
 
 export function formatHouseholdWealth(wealth: number): string {

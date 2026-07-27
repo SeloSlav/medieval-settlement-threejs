@@ -5,16 +5,17 @@ import {
   CHAPEL_PRIEST_ATTENDANCE_BONUS,
   CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
   CHAPEL_COFFER_CAPACITY,
+  CALENDAR_DAYS_PER_WEEK,
   HOUSEHOLD_MAX_WEALTH,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
-import { SECONDS_PER_DAY } from '../src/economy/gardenMarketActivity.ts';
 import {
   chapelAttendanceChance,
   chapelTitheGoldPerTick,
   expectedChapelTithePerDay,
   householdNetIncomePerDay,
 } from '../src/economy/householdWealth.ts';
+import { GAME_WORKDAY_SECONDS } from '../src/world/gameCalendar.ts';
 import {
   estimateVillageChapelTithePerDay,
   estimateVillageHouseholdSavingsPerDay,
@@ -34,12 +35,37 @@ assert.equal(chapelAttendanceChance(2), 1);
 
 const tithePerTick = chapelTitheGoldPerTick(3);
 assert.ok(
-  Math.abs(tithePerTick - 3 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * SIM_TICK_SECONDS / SECONDS_PER_DAY) < 1e-9,
+  Math.abs(
+    tithePerTick
+    - 3 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * SIM_TICK_SECONDS / GAME_WORKDAY_SECONDS,
+  ) < 1e-9,
+);
+assert.ok(
+  Math.abs(
+    tithePerTick * GAME_WORKDAY_SECONDS / SIM_TICK_SECONDS
+    - 3 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
+  ) < 1e-9,
+  'a complete 06:00-20:00 workday must accrue the configured daily flat tithe',
 );
 
 const expectedDaily = expectedChapelTithePerDay(4, 1);
 assert.ok(
   Math.abs(expectedDaily - 4 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * chapelAttendanceChance(1)) < 1e-9,
+);
+const expectedSabbathAverage = expectedChapelTithePerDay(4, 1, true);
+assert.ok(
+  Math.abs(
+    expectedSabbathAverage
+    - 4
+      * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
+      * chapelAttendanceChance(1, true)
+      * (CALENDAR_DAYS_PER_WEEK - 1)
+      / CALENDAR_DAYS_PER_WEEK,
+  ) < 1e-9,
+);
+assert.ok(
+  expectedSabbathAverage < expectedDaily,
+  'the attendance bonus must not hide the coffer cost of a tithe-free Sunday',
 );
 
 const activity = 100;
@@ -89,6 +115,12 @@ const chapelTithe = estimateVillageChapelTithePerDay(
   () => ({ kind: 'chapel', assignedLabor: 1 } as never),
 );
 assert.ok(chapelTithe > 0);
+const sabbathChapelTithe = estimateVillageChapelTithePerDay(
+  residences.values(),
+  () => ({ kind: 'chapel', assignedLabor: 1 } as never),
+  true,
+);
+assert.ok(sabbathChapelTithe < chapelTithe);
 
 const savings = estimateVillageHouseholdSavingsPerDay(
   [{ kind: 'apple_orchard', residenceId: 'residence-1' }],

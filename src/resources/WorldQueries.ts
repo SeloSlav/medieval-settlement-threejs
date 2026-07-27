@@ -371,6 +371,26 @@ export class WorldQueries {
     };
   }
 
+  private activeParishChapels(state: GameState): BuildingState[] {
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    return [...state.buildings.values()].filter(
+      (building) =>
+        building.kind === 'chapel'
+        && building.constructionComplete !== false
+        && !fireDisabled.has(building.id),
+    );
+  }
+
+  private activeMonasteries(state: GameState): BuildingState[] {
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    return [...state.buildings.values()].filter(
+      (building) =>
+        building.kind === 'monastery'
+        && building.constructionComplete !== false
+        && !fireDisabled.has(building.id),
+    );
+  }
+
   private firewoodClaims(): FirewoodDeliveryClaimQueries {
     const { network, buildings, residences } = this.deliverySnapshot();
     return new FirewoodDeliveryClaimQueries(network, buildings, residences);
@@ -382,8 +402,10 @@ export class WorldQueries {
   }
 
   private foodClaims(): FoodDeliveryClaimQueries {
+    const state = this.getGameState();
     const { network, buildings, residences } = this.deliverySnapshot();
-    const chapels = buildings.filter((building) => building.kind === 'chapel');
+    const chapels = this.activeParishChapels(state);
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
     const probe = (ax: number, az: number, bx: number, bz: number) =>
       roadPathDistance(network, ax, az, bx, bz);
     return new FoodDeliveryClaimQueries(
@@ -394,6 +416,7 @@ export class WorldQueries {
         supplier.kind !== 'monastery'
         || (
           distance <= MONASTERY_COVERAGE_RADIUS
+          && !fireDisabled.has(supplier.id)
           && findServingChapel(residence, chapels, probe) != null
           && monasteryLinkedToChapel(supplier, chapels, probe)
         ),
@@ -593,12 +616,10 @@ export class WorldQueries {
   }
 
   getServingChapelForResidence(residence: ResidenceState): BuildingState | null {
-    const chapels = [...this.getGameState().buildings.values()].filter(
-      (building) => building.kind === 'chapel' && building.constructionComplete !== false,
-    );
+    const state = this.getGameState();
     return findServingChapel(
       residence,
-      chapels,
+      this.activeParishChapels(state),
       (a, b, c, d) => this.getRoadPathDistance(a, b, c, d),
     );
   }
@@ -640,28 +661,22 @@ export class WorldQueries {
 
   isResidenceInMonasteryCoverage(residence: ResidenceState): boolean {
     const state = this.getGameState();
-    const monasteries = [...state.buildings.values()].filter(
-      (building) => building.kind === 'monastery' && building.constructionComplete !== false,
-    );
-    const chapels = [...state.buildings.values()].filter(
-      (building) => building.kind === 'chapel' && building.constructionComplete !== false,
-    );
     return isResidenceInMonasteryCoverage(
       residence,
-      monasteries,
-      chapels,
+      this.activeMonasteries(state),
+      this.activeParishChapels(state),
       (a, b, c, d) => this.getRoadPathDistance(a, b, c, d),
     );
   }
 
   isMonasteryLinkedToChapel(monastery: BuildingState): boolean {
     const state = this.getGameState();
-    const chapels = [...state.buildings.values()].filter(
-      (building) => building.kind === 'chapel' && building.constructionComplete !== false,
-    );
+    if (fireDisabledBuildingIds(state.fireIncidents.values()).has(monastery.id)) {
+      return false;
+    }
     return monasteryLinkedToChapel(
       monastery,
-      chapels,
+      this.activeParishChapels(state),
       (a, b, c, d) => this.getRoadPathDistance(a, b, c, d),
     );
   }
@@ -762,9 +777,8 @@ export class WorldQueries {
   ): BuildingState | null {
     const state = this.getGameState();
     const network = this.getRoadNetwork();
-    const chapels = [...state.buildings.values()].filter(
-      (building) => building.kind === 'chapel' && building.constructionComplete !== false,
-    );
+    const chapels = this.activeParishChapels(state);
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
     const hasParishAccess = findServingChapel(
       residence,
       chapels,
@@ -783,6 +797,7 @@ export class WorldQueries {
         || (
           hasParishAccess
           && distance <= MONASTERY_COVERAGE_RADIUS
+          && !fireDisabled.has(building.id)
           && monasteryLinkedToChapel(
             building,
             chapels,

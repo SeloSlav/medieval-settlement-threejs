@@ -19,6 +19,10 @@ import {
   CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
   CHAPEL_UNSTAFFED_UPKEEP_FRACTION,
   CHAPEL_UPKEEP_GOLD_PER_DAY,
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
   MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER,
   MONASTERY_ATTENDANCE_BONUS,
   MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
@@ -28,7 +32,10 @@ import {
   RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
-import { SECONDS_PER_DAY } from '../src/economy/gardenMarketActivity.ts';
+
+const EXPECTED_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
+  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+  / CALENDAR_HOURS_PER_DAY;
 
 export function expectedEffectiveSettleTicks(
   hasChapelAccess: boolean,
@@ -100,7 +107,10 @@ export function expectedChapelTitheGoldPerTick(population: number): number {
   if (population <= 0) {
     return 0;
   }
-  return population * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * SIM_TICK_SECONDS / SECONDS_PER_DAY;
+  return population
+    * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
+    * SIM_TICK_SECONDS
+    / EXPECTED_WORKDAY_SECONDS;
 }
 
 export function expectedChapelPriestSalaryPerDay(assignedLabor: number): number {
@@ -165,6 +175,7 @@ export function expectedPayableAutoSweepPerDay(
   }
 
   const sweepPerInterval = excess * CHAPEL_AUTO_SWEEP_FRACTION;
-  const intervalsPerDay = SECONDS_PER_DAY / (CHAPEL_AUTO_SWEEP_INTERVAL_TICKS * SIM_TICK_SECONDS);
+  const intervalsPerDay = CALENDAR_SECONDS_PER_DAY
+    / (CHAPEL_AUTO_SWEEP_INTERVAL_TICKS * SIM_TICK_SECONDS);
   return sweepPerInterval * intervalsPerDay;
 }

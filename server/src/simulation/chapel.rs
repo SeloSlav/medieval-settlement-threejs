@@ -39,7 +39,8 @@ pub fn step_chapels(
             continue;
         }
 
-        let Some(chapel) = find_serving_chapel(tick, residence.owner, &residence, chapels) else {
+        let Some(chapel) = find_serving_chapel(ctx, tick, residence.owner, &residence, chapels)
+        else {
             continue;
         };
 
@@ -50,6 +51,7 @@ pub fn step_chapels(
                 residence.owner,
             );
         let has_monastery_coverage = residence_has_monastery_coverage(
+            ctx,
             tick,
             residence.owner,
             &residence,

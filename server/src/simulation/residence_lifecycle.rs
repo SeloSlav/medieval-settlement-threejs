@@ -23,9 +23,16 @@ pub fn step_residence(
     environment: EnvironmentState,
 ) {
     let residence_id = residence.id;
-    let has_chapel_access = residence_has_chapel_access(tick, residence.owner, &residence, chapels);
-    let has_monastery_coverage =
-        residence_has_monastery_coverage(tick, residence.owner, &residence, monasteries, chapels);
+    let has_chapel_access =
+        residence_has_chapel_access(ctx, tick, residence.owner, &residence, chapels);
+    let has_monastery_coverage = residence_has_monastery_coverage(
+        ctx,
+        tick,
+        residence.owner,
+        &residence,
+        monasteries,
+        chapels,
+    );
 
     step_residence_recovery(
         ctx,

@@ -237,6 +237,49 @@ and stable tie breaks; its read-only test projection evaluates 100,000 homes
 across eight markets in about 170 ms. Existing saves already contain the last
 successful order tick, and older client fixtures default it to zero.
 
+## Parish alms and Monday poor relief
+
+Every road-connected home belongs to exactly one completed staffed chapel: the
+chapel with the shortest exact road route. Equal routes use stable chapel order.
+This territory is shared by tithes, chapel settlement support, household
+recovery modifiers, and parish charity, so adding a second chapel creates a
+real spatial division rather than duplicating benefits across the same road
+component. Fire-disabled and unstaffed chapels do not claim a territory.
+
+After priest wages and upkeep, a chapel with at least 120 gold in its coffer
+gives the configured 0.12 gold/day alms stream to its poorest occupied parish
+household. The server credits the household first, observes the 200-gold
+household cap, then withdraws and records only the amount actually received.
+Equal-wealth households use stable residence order.
+
+Configured daily tithes, priest wages, upkeep, and alms are normalized across
+the 06:00-20:00 work window. They therefore total their displayed per-day rate
+instead of losing the 10 night hours when parish services pause. Automatic
+coffer sweep is an accounting transfer rather than a cart journey, so its
+global 900-tick cadence still fires when an interval lands at night; physical
+poor-relief imports remain subject to work and rest hours. When Sunday Sabbath
+is enabled, tithe forecasts use a seven-day average: the attendance bonus
+applies on the six collection days, while Sunday itself remains tithe-free.
+
+At the Monday 08:00 tick, each eligible parish may spend up to 14 coffer gold on
+one full regional food lot for recovery. It considers only abandoned homes in
+its own territory, assigns each to its nearest completed marketplace by exact
+road route, and selects the routed home with the lowest food stock and room for
+the entire lot. The current regional price determines which food offer has the
+best provision per gold. The import must fit in marketplace storage, the target
+cupboard must fit the full lot, the market cart must be free, and the route must
+be usable. The coffer and parish ledger change only after that named cart
+departs; a blocked order is free and waits until the next Monday.
+
+The cadence is derived from the global simulation tick, so no save migration or
+per-chapel timer is required. A low automatic coffer-sweep reserve can keep a
+parish below the 120-gold gate, deliberately prioritizing treasury liquidity
+over daily alms and recovery carts. Chapel and Town Hall inspectors show the
+exclusive territory, current recipient, live food lot, days until dispatch,
+shared-market cart/storage blockers, and the first affected home. The matching
+read-only projection uses one batched road solve per chapel and marketplace and
+evaluates 100,000 homes across eight of each in roughly 230 ms.
+
 ## Daily Town Hall steward order
 
 Optional Town Hall stewards review labor only when the authoritative calendar

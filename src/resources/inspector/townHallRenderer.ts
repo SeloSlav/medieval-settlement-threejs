@@ -63,6 +63,11 @@ import {
   formatHouseholdMarketPurchasingPower,
   formatHouseholdMarketSettlementSummary,
 } from '../../economy/settlementHouseholdMarket.ts';
+import {
+  computeSettlementParishReliefPlan,
+  formatSettlementParishCoverage,
+  formatSettlementParishRelief,
+} from '../../economy/settlementParishRelief.ts';
 import { computeSettlementGrowthPlan, type SettlementGrowthPlan } from '../../economy/settlementGrowth.ts';
 import {
   computeSettlementConstructionPlan,
@@ -143,6 +148,7 @@ import {
   isResidenceInMonasteryCoverage,
   monasteryLinkedToChapel,
 } from '../../logistics/landmarkAccess.ts';
+import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import {
   cargoKindLabel,
   formatTripPhaseLabel,
@@ -1189,10 +1195,17 @@ export function renderTownHallInspector(
     (kind) => context.worldQueries.getBuildingLabel(kind),
     (residenceId) => context.gameState.residences.get(residenceId)?.parcelIndex ?? null,
   );
+  const fireDisabled = fireDisabledBuildingIds(context.gameState.fireIncidents.values());
   const growthChapels = Array.from(context.gameState.buildings.values())
-    .filter((candidate) => candidate.kind === 'chapel');
+    .filter((candidate) =>
+      candidate.kind === 'chapel'
+      && candidate.constructionComplete !== false
+      && !fireDisabled.has(candidate.id));
   const growthMonasteries = Array.from(context.gameState.buildings.values())
-    .filter((candidate) => candidate.kind === 'monastery');
+    .filter((candidate) =>
+      candidate.kind === 'monastery'
+      && candidate.constructionComplete !== false
+      && !fireDisabled.has(candidate.id));
   const roadPathDistance = (ax: number, az: number, bx: number, bz: number): number | null =>
     context.worldQueries.getRoadPathDistance(ax, az, bx, bz);
   const growth = computeSettlementGrowthPlan({
@@ -1373,19 +1386,36 @@ export function renderTownHallInspector(
       : undefined,
   });
   const marketState = context.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE;
-  const householdMarketPlan = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
-    ? computeSettlementHouseholdMarketPlan({
+  const roadNetworkSnapshot =
+    typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
+      ? context.worldQueries.getRoadNetworkSnapshot()
+      : null;
+  const householdMarketPlan = roadNetworkSnapshot == null
+    ? null
+    : computeSettlementHouseholdMarketPlan({
         state: context.gameState,
         marketState,
-        roadNetwork: context.worldQueries.getRoadNetworkSnapshot(),
+        roadNetwork: roadNetworkSnapshot,
         clock,
         sabbathObserved: provisioning.sabbathObserved,
-      })
-    : null;
+      });
   const householdMarketInspectButton =
     householdMarketPlan?.firstAttentionResidenceId == null
       ? ''
       : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${householdMarketPlan.firstAttentionResidenceId}" aria-label="Inspect first emergency-market household">Inspect</button>`;
+  const parishReliefPlan = roadNetworkSnapshot == null
+    ? null
+    : computeSettlementParishReliefPlan({
+        state: context.gameState,
+        marketState,
+        roadNetwork: roadNetworkSnapshot,
+        clock,
+        sabbathObserved: provisioning.sabbathObserved,
+      });
+  const parishReliefInspectButton =
+    parishReliefPlan?.firstAttentionResidenceId == null
+      ? ''
+      : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${parishReliefPlan.firstAttentionResidenceId}" aria-label="Inspect first blocked parish-relief household">Inspect</button>`;
   const specialtyExportPlan = computeSettlementSpecialtyExportPlan({
     state: context.gameState,
     marketRate: marketState.specialtyPriceMult,
@@ -1536,6 +1566,10 @@ export function renderTownHallInspector(
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>
       <li><span>Parish coffers</span><span>${readout.cofferBalanceLabel}</span></li>
       <li><span>Parish ledger</span><span>${readout.parishLedgerLabel}</span></li>
+      ${parishReliefPlan == null ? '' : `
+      <li><span>Parish territories</span><span>${formatSettlementParishCoverage(parishReliefPlan)}</span></li>
+      <li><span>Daily parish alms</span><span>${parishReliefPlan.dailyAlmsRecipients} / ${parishReliefPlan.activeParishes} active parishes have an eligible poorest household</span></li>
+      <li><span>Monday poor relief</span><span>${formatSettlementParishRelief(parishReliefPlan)}${parishReliefInspectButton}</span></li>`}
       <li><span>Food reserve</span><span>${formatProvisionRunway(provisioning.foodRunwayDays)} · ${provisioning.totalFoodPerDay.toFixed(1)} consumed / day</span></li>
       <li><span>Road-branch provisions</span><span>${formatRoadProvisioning(provisioning.roadBranches)}</span></li>
       ${freshFoodPreservationRows}

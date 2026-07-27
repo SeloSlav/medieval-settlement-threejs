@@ -24,15 +24,13 @@ pub use commodities::{
 
 pub use aggregate_spend::{spend_aggregate_stone, spend_aggregate_timber};
 pub use chapel_coffer::{
-    chapel_coffer_gold, collect_chapel_coffer, deposit_chapel_coffer, deposit_coffer_in_place,
-    withdraw_coffer_in_place,
+    chapel_coffer_gold, collect_chapel_coffer, deposit_chapel_coffer, withdraw_coffer_in_place,
 };
 pub use garden_market_activity::garden_market_activity;
 pub use household_wealth::{credit_residence_wealth, debit_residence_wealth};
 pub use marketplace_orders::{
-    best_affordable_food_commodity, best_affordable_water_commodity,
-    nearest_marketplace_for_residence, order_food_commodity, order_water_commodity,
-    MarketGoldPayer,
+    best_affordable_food_commodity, best_affordable_water_commodity, order_food_commodity,
+    order_water_commodity, MarketGoldPayer,
 };
 pub use marketplace_trade::execute_marketplace_trade;
 pub(crate) use marketplace_trade::try_execute_standing_marketplace_import;

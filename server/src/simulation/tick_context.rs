@@ -39,6 +39,7 @@ pub struct SimTickContext {
     sabbath_observance_by_owner: RefCell<HashMap<Identity, bool>>,
     monastery_hospitality_by_owner: RefCell<HashMap<Identity, bool>>,
     staffed_chapel_by_owner: RefCell<HashMap<Identity, bool>>,
+    chapel_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     disabled_fire_targets: RefCell<Option<HashSet<(u8, u64)>>>,
     firewood_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     water_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
@@ -75,6 +76,7 @@ impl SimTickContext {
             sabbath_observance_by_owner: RefCell::new(HashMap::new()),
             monastery_hospitality_by_owner: RefCell::new(HashMap::new()),
             staffed_chapel_by_owner: RefCell::new(HashMap::new()),
+            chapel_claims: RefCell::new(HashMap::new()),
             disabled_fire_targets: RefCell::new(None),
             firewood_claims: RefCell::new(HashMap::new()),
             water_claims: RefCell::new(HashMap::new()),
@@ -169,6 +171,48 @@ impl SimTickContext {
     /// state so later phases preserve the previous fresh-read semantics.
     pub fn invalidate_staffed_chapel(&self, owner: Identity) {
         self.staffed_chapel_by_owner.borrow_mut().remove(&owner);
+        self.chapel_claims.borrow_mut().remove(&owner);
+    }
+
+    /// Return the one staffed chapel claiming this home by shortest exact road
+    /// route. A stable chapel id resolves equal-distance borders, so tithes,
+    /// settlement support, and parish relief all share deterministic,
+    /// non-overlapping territories.
+    pub fn chapel_for_residence(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        residence_id: u64,
+    ) -> Option<u64> {
+        if !self.chapel_claims.borrow().contains_key(&owner) {
+            let claims = self.build_chapel_claims(ctx, owner);
+            self.chapel_claims.borrow_mut().insert(owner, claims);
+        }
+        self.chapel_claims
+            .borrow()
+            .get(&owner)
+            .and_then(|claims| claims.get(&residence_id))
+            .copied()
+    }
+
+    fn build_chapel_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
+        let Some(network) = self.road_network(owner) else {
+            return HashMap::new();
+        };
+        let chapels: Vec<Building> = self
+            .building_ids_for_kinds(ctx, owner, &["chapel"])
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .filter(|chapel| {
+                chapel.kind == "chapel"
+                    && chapel.construction_complete
+                    && chapel.assigned_labor > 0
+                    && !self.building_disabled_by_fire(ctx, chapel.id)
+            })
+            .collect();
+        let residences: Vec<Residence> = ctx.db.residence().owner().filter(&owner).collect();
+        let chapel_refs: Vec<&Building> = chapels.iter().collect();
+        claim_residences_by_nearest_supplier(network, &chapel_refs, &residences, |_, _, _| true)
     }
 
     /// Fire incidents are immutable after `step_fires` for the rest of an

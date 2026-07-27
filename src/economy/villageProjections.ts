@@ -166,6 +166,7 @@ export function estimateVillageHouseholdSavingsPerDay(
 export function estimateVillageChapelTithePerDay(
   residences: Iterable<ResidenceState>,
   getServingChapel: (residence: ResidenceState) => BuildingState | null,
+  sabbathObservance = false,
 ): number {
   let total = 0;
   for (const residence of residences) {
@@ -182,6 +183,7 @@ export function estimateVillageChapelTithePerDay(
       residence.population,
       chapel.assignedLabor,
       residence.householdWealth,
+      sabbathObservance,
     );
   }
 

@@ -62,15 +62,28 @@ export function findServingChapel(
   chapels: Iterable<BuildingState>,
   probe: RoadPathProbe,
 ): BuildingState | null {
+  let best: BuildingState | null = null;
+  let bestDistance = Infinity;
   for (const chapel of chapels) {
     if (!isChapelStaffed(chapel)) {
       continue;
     }
-    if (isRoadPathConnected(probe, residence.x, residence.z, chapel.x, chapel.z)) {
-      return chapel;
+    const distance = probe(residence.x, residence.z, chapel.x, chapel.z);
+    if (distance == null || !Number.isFinite(distance)) {
+      continue;
+    }
+    if (
+      distance + 1e-6 < bestDistance
+      || (
+        Math.abs(distance - bestDistance) <= 1e-6
+        && (best == null || compareStableEntityIds(chapel.id, best.id) < 0)
+      )
+    ) {
+      best = chapel;
+      bestDistance = distance;
     }
   }
-  return null;
+  return best;
 }
 
 export function isResidenceConnectedToMarketplace(

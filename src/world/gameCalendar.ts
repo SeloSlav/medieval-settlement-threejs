@@ -149,3 +149,6 @@ export function laborPauseLabel(
 /** One in-game day for runway and per-day economy displays. */
 export const GAME_DAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 export const SECONDS_PER_DAY = CALENDAR_SECONDS_PER_DAY;
+export const GAME_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
+  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+  / CALENDAR_HOURS_PER_DAY;

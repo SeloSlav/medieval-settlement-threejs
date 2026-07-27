@@ -7,6 +7,9 @@ pub mod balance_generated;
 #[path = "../../src/backyard_garden_policy.rs"]
 pub mod backyard_garden_policy;
 
+#[path = "../../src/chapel_parish_policy.rs"]
+pub mod chapel_parish_policy;
+
 #[path = "../../src/constants.rs"]
 pub mod constants;
 

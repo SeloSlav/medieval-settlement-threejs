@@ -77,7 +77,6 @@ pub use production_labor_steward::{
 pub use reforester::step_reforester;
 pub use residence_lifecycle::step_residence;
 pub use residence_needs::{clear_residence_needs, ensure_residence_needs};
-pub use road_logistics::road_path_distance;
 pub use seasonal_labor_steward::{
     call_up_active_seasonal_labor_for_owner, owner_has_staffed_town_hall,
     recall_idle_seasonal_labor_for_owner, reconcile_seasonal_labor_for_owner,

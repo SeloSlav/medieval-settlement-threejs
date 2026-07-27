@@ -31,8 +31,6 @@ export type RegionalMarketBalance = {
   caravanFirewoodPerDelivery: number;
   householdAutoBuyRunwayDays: number;
   householdAutoBuyCooldownTicks: number;
-  chapelCharityWealthFraction: number;
-  chapelCharityReliefFraction: number;
 };
 
 type BalanceWithRegionalMarket = {
@@ -148,8 +146,6 @@ export function generateRegionalMarketRust(balance: BalanceWithRegionalMarket): 
     `pub const MARKET_CARAVAN_FIREWOOD_PER_DELIVERY: f64 = ${rustF64(market.caravanFirewoodPerDelivery)};`,
     `pub const HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS: f64 = ${rustF64(market.householdAutoBuyRunwayDays)};`,
     `pub const HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS: u64 = ${market.householdAutoBuyCooldownTicks};`,
-    `pub const CHAPEL_CHARITY_WEALTH_FRACTION: f64 = ${rustF64(market.chapelCharityWealthFraction)};`,
-    `pub const CHAPEL_CHARITY_RELIEF_FRACTION: f64 = ${rustF64(market.chapelCharityReliefFraction)};`,
     '',
   ];
 

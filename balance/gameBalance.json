@@ -156,9 +156,7 @@
     "caravanWaterPerDelivery": 3,
     "caravanFirewoodPerDelivery": 5,
     "householdAutoBuyRunwayDays": 0.75,
-    "householdAutoBuyCooldownTicks": 450,
-    "chapelCharityWealthFraction": 0.4,
-    "chapelCharityReliefFraction": 0.6
+    "householdAutoBuyCooldownTicks": 450
   },
   "marketCommodities": [
     {
@@ -264,6 +262,8 @@
     "chapelUnstaffedUpkeepFraction": 0.25,
     "chapelCharityGoldPerDay": 0.12,
     "chapelCharityMinCofferGold": 120,
+    "chapelPoorReliefGoldPerDispatch": 14,
+    "chapelPoorReliefIntervalDays": 7,
     "chapelAutoSweepIntervalTicks": 900,
     "chapelAutoSweepFraction": 0.5,
     "chapelCofferReserveDefault": 80,

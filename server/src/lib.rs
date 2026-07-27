@@ -5,6 +5,7 @@ mod backyard_garden_policy;
 mod balance_generated;
 mod building_defs;
 mod burgage;
+mod chapel_parish_policy;
 mod constants;
 mod construction_priority;
 mod db;

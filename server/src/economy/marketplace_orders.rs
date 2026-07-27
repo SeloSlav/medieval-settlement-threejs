@@ -16,8 +16,7 @@ use crate::economy::{
 };
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::{
-    road_path_distance, try_dispatch_marketplace_caravan, GameClock, MarketCaravanDispatch,
-    SimTickContext,
+    try_dispatch_marketplace_caravan, GameClock, MarketCaravanDispatch, SimTickContext,
 };
 use crate::tables::{Building, Residence};
 
@@ -205,42 +204,6 @@ pub fn best_affordable_water_commodity<'a>(
                 .partial_cmp(&right_value)
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
-}
-
-pub fn nearest_marketplace_for_residence<'a>(
-    tick: &SimTickContext,
-    owner: spacetimedb::Identity,
-    residence: &Residence,
-    marketplaces: &'a [Building],
-) -> Option<&'a Building> {
-    let mut best: Option<&Building> = None;
-    let mut best_distance = f64::INFINITY;
-
-    for marketplace in marketplaces {
-        if marketplace.owner != owner || marketplace.kind != "marketplace" {
-            continue;
-        }
-        let Some(distance) = tick.road_network(owner).and_then(|network| {
-            road_path_distance(
-                network,
-                residence.x,
-                residence.z,
-                marketplace.x,
-                marketplace.z,
-            )
-        }) else {
-            continue;
-        };
-        if distance + 1e-6 < best_distance
-            || ((distance - best_distance).abs() <= 1e-6
-                && best.map_or(true, |current| marketplace.id < current.id))
-        {
-            best_distance = distance;
-            best = Some(marketplace);
-        }
-    }
-
-    best
 }
 
 fn pay_market_gold(

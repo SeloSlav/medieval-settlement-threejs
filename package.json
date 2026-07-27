@@ -26,6 +26,7 @@
     "test:settlement-specialty-exports": "npx tsx scripts/testSettlementSpecialtyExports.mts",
     "test:backyard-economy-planning": "npx tsx scripts/testBackyardEconomyPlanning.mts",
     "test:household-market-contingency": "npx tsx scripts/testHouseholdMarketContingency.mts",
+    "test:parish-relief-planning": "npx tsx scripts/testParishReliefPlanning.mts",
     "test:marketplace-specialty-policy": "node --experimental-strip-types scripts/testMarketplaceSpecialtyPolicy.mts",
     "test:textile-economy": "npx tsx scripts/testTextileEconomy.mts",
     "test:monastery-hospitality": "node --experimental-strip-types scripts/testMonasteryHospitality.mts",

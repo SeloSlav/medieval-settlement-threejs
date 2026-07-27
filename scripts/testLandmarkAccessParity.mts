@@ -6,6 +6,7 @@ import {
   isResidenceConnectedToChapel,
   isResidenceConnectedToMarketplace,
 } from '../src/logistics/landmarkAccess.ts';
+import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import type { BuildingState, GameState, ResidenceState } from '../src/resources/types.ts';
 import { WorldQueries } from '../src/resources/WorldQueries.ts';
 
@@ -113,6 +114,7 @@ class StubWorldQueries extends WorldQueries {
 const gameState = {
   buildings: new Map(buildings.map((entry) => [entry.id, entry])),
   residences: new Map([[home.id, home]]),
+  fireIncidents: new Map(),
 } as unknown as GameState;
 
 const connectedQueries = new StubWorldQueries(true, gameState);
@@ -123,5 +125,34 @@ assert.equal(connectedQueries.isResidenceConnectedToChapel(home), true);
 const disconnectedQueries = new StubWorldQueries(false, gameState);
 assert.equal(disconnectedQueries.isResidenceConnectedToMarketplace(home), false);
 assert.equal(disconnectedQueries.getServingChapelForResidence(home), null);
+
+const chapelFire: FireIncidentState = {
+  id: 'fire-chapel',
+  targetKind: 'building',
+  targetId: staffedChapel.id,
+  x: staffedChapel.x,
+  z: staffedChapel.z,
+  ignitionSource: 'accident',
+  status: 'burning',
+  intensity: 0.5,
+  damage: 0.2,
+  waterDelivered: 0,
+  requiredWater: 8,
+  extinguishChance: 0,
+  startedTick: 1,
+  lastWaterTick: 0,
+  resolvedTick: 0,
+  responseWellId: null,
+};
+const fireDisabledState = {
+  ...gameState,
+  fireIncidents: new Map([[chapelFire.id, chapelFire]]),
+} as GameState;
+const fireDisabledQueries = new StubWorldQueries(true, fireDisabledState);
+assert.equal(
+  fireDisabledQueries.getServingChapelForResidence(home),
+  null,
+  'a fire-disabled chapel must not claim parish coverage in the client',
+);
 
 console.log('landmark access parity tests passed');

@@ -3,6 +3,7 @@ import {
   CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER,
   CHAPEL_RECOVERY_NEEDS_REQUIRED,
   CHAPEL_RECOVERY_STOCK_MULTIPLIER,
+  CALENDAR_DAYS_PER_WEEK,
   CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
   CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
   MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER,
@@ -92,11 +93,28 @@ export function recoveryNeedsRequired(
   return Math.min(policyRequired, activeNeedCount);
 }
 
-export function formatChapelTithePerDay(linkedPopulation: number, assignedLabor: number): string {
-  const expected = expectedChapelTithePerDay(linkedPopulation, assignedLabor);
-  const chance = Math.round(chapelAttendanceChance(assignedLabor) * 100);
+export function formatChapelTithePerDay(
+  linkedPopulation: number,
+  assignedLabor: number,
+  sabbathObservance = false,
+  hasMonasteryCoverage = false,
+): string {
+  const expected = expectedChapelTithePerDay(
+    linkedPopulation,
+    assignedLabor,
+    sabbathObservance,
+    hasMonasteryCoverage,
+  );
+  const chance = Math.round(chapelAttendanceChance(
+    assignedLabor,
+    sabbathObservance,
+    hasMonasteryCoverage,
+  ) * 100);
   const flat = chapelTitheGoldPerDay(linkedPopulation);
-  return `~${expected.toFixed(1)} gold / day (${chance}% attendance × ${flat.toFixed(1)} flat tithe)`;
+  const titheDays = sabbathObservance
+    ? ` × ${CALENDAR_DAYS_PER_WEEK - 1}/${CALENDAR_DAYS_PER_WEEK} tithe days`
+    : '';
+  return `~${expected.toFixed(1)} gold / day (${chance}% attendance${titheDays} × ${flat.toFixed(1)} flat tithe)`;
 }
 
 export function formatChapelSettlementBoostPercent(): string {

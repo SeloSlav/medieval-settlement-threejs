@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
   CHAPEL_COFFER_RESERVE_DEFAULT,
@@ -61,5 +62,18 @@ assert.ok(payableAutoSweepPerDay(200, 1, 80, true) > 0);
 assert.ok(Math.abs(
   payableAutoSweepPerDay(200, 1, 80, true) - expectedPayableAutoSweepPerDay(200, 1, 80, true),
 ) < 1e-9);
+
+const parishSimulation = readFileSync(
+  new URL('../server/src/simulation/chapel_parish.rs', import.meta.url),
+  'utf8',
+);
+assert.doesNotMatch(
+  parishSimulation,
+  /if is_parish_economy_paused\(clock\)\s*\{\s*return/,
+  'night hours must not silently discard a scheduled accounting-only coffer sweep',
+);
+assert.match(parishSimulation, /let auto_sweep_due = chapel_auto_sweep_due\(sim_tick\)/);
+assert.match(parishSimulation, /if !economy_active && !auto_sweep_due\s*\{\s*return/);
+assert.match(parishSimulation, /if economy_active\s*\{[\s\S]{0,500}chapel_priest_salary_per_tick/);
 
 console.log('chapel parish tests passed');

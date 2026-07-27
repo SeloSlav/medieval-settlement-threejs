@@ -12,6 +12,7 @@ const tests = [
   'test:settlement-specialty-exports',
   'test:backyard-economy-planning',
   'test:household-market-contingency',
+  'test:parish-relief-planning',
   'test:marketplace-specialty-policy',
   'test:textile-economy',
   'test:monastery-hospitality',

@@ -1,5 +1,5 @@
 use crate::balance_generated::{
-    ABANDON_AFTER_DEFICIT_TICKS, CALENDAR_SECONDS_PER_DAY, CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER,
+    ABANDON_AFTER_DEFICIT_TICKS, CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER,
     CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
     CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_RECOVERY_NEEDS_REQUIRED,
     CHAPEL_RECOVERY_STOCK_MULTIPLIER, CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
@@ -9,11 +9,10 @@ use crate::balance_generated::{
     MONASTERY_SETTLEMENT_TICKS_MULTIPLIER, RESIDENCE_RECOVERY_FIREWOOD_MIN,
     RESIDENCE_RECOVERY_FOOD_MIN, RESIDENCE_RECOVERY_WATER_MIN, RESIDENCE_SETTLE_TICKS,
     RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER, RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER,
-    RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER, TICK_DT,
+    RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER,
 };
+use crate::chapel_parish_policy::chapel_daily_gold_per_work_tick;
 use crate::simulation::residence_needs::ResidenceNeedKind;
-
-const SECONDS_PER_DAY: f64 = CALENDAR_SECONDS_PER_DAY;
 
 pub fn effective_settle_ticks(
     has_chapel_access: bool,
@@ -122,7 +121,7 @@ pub fn chapel_tithe_gold_per_tick(population: u32) -> f64 {
         return 0.0;
     }
 
-    population as f64 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * TICK_DT / SECONDS_PER_DAY
+    chapel_daily_gold_per_work_tick(population as f64 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY)
 }
 
 #[cfg(test)]
@@ -136,8 +135,9 @@ mod tests {
         CHAPEL_COMMUNITY_ATTENDANCE_BONUS, CHAPEL_PRIEST_ATTENDANCE_BONUS,
         CHAPEL_RECOVERY_NEEDS_REQUIRED, CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
         CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY, MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
-        RESIDENCE_SETTLE_TICKS, RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER, TICK_DT,
+        RESIDENCE_SETTLE_TICKS, RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER,
     };
+    use crate::chapel_parish_policy::chapel_daily_gold_per_work_tick;
     use crate::simulation::residence_needs::ResidenceNeedKind;
 
     #[test]
@@ -197,8 +197,7 @@ mod tests {
 
     #[test]
     fn chapel_tithe_gold_per_tick_matches_balance() {
-        let expected = 3.0 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * TICK_DT
-            / crate::balance_generated::CALENDAR_SECONDS_PER_DAY;
+        let expected = chapel_daily_gold_per_work_tick(3.0 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY);
         assert!((chapel_tithe_gold_per_tick(3) - expected).abs() < 1e-9);
     }
 }
