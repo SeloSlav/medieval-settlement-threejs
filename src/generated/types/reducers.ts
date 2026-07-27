@@ -61,6 +61,7 @@ import SetMarketplaceSpecialtyExportPolicyReducer from "../set_marketplace_speci
 import SetMonasteryPolicyReducer from "../set_monastery_policy_reducer";
 import SetProcessorOutputTargetReducer from "../set_processor_output_target_reducer";
 import SetProductionLaborStewardReducer from "../set_production_labor_steward_reducer";
+import SetResidenceUpgradePriorityReducer from "../set_residence_upgrade_priority_reducer";
 import SetSeasonalLaborStewardReducer from "../set_seasonal_labor_steward_reducer";
 import SetStorehousePolicyReducer from "../set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "../set_storehouse_stock_target_reducer";
@@ -124,6 +125,7 @@ export type SetMarketplaceSpecialtyExportPolicyParams = __Infer<typeof SetMarket
 export type SetMonasteryPolicyParams = __Infer<typeof SetMonasteryPolicyReducer>;
 export type SetProcessorOutputTargetParams = __Infer<typeof SetProcessorOutputTargetReducer>;
 export type SetProductionLaborStewardParams = __Infer<typeof SetProductionLaborStewardReducer>;
+export type SetResidenceUpgradePriorityParams = __Infer<typeof SetResidenceUpgradePriorityReducer>;
 export type SetSeasonalLaborStewardParams = __Infer<typeof SetSeasonalLaborStewardReducer>;
 export type SetStorehousePolicyParams = __Infer<typeof SetStorehousePolicyReducer>;
 export type SetStorehouseStockTargetParams = __Infer<typeof SetStorehouseStockTargetReducer>;

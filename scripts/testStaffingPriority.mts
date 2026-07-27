@@ -76,7 +76,13 @@ const residenceReducers = readFileSync(
 assert.match(populationPolicy, /effective_labor_priority/);
 assert.match(
   populationPolicy,
-  /construction_complete[\s\S]{0,250}effective_labor_priority\(\*a\)[\s\S]{0,160}building_id/,
+  /let group = usize::from\(assignment\.construction_complete\);[\s\S]{0,160}effective_labor_priority\(\*assignment\)[\s\S]{0,160}group \* 4 \+ priority/,
+  'construction work must still release before permanent work within the fixed priority buckets',
+);
+assert.match(
+  populationPolicy,
+  /BinaryHeap::from\([\s\S]{0,250}building_id/,
+  'equal-priority work must still release newer assignments first',
 );
 assert.match(population, /priority: building\.construction_priority/);
 assert.match(buildingReducers, /if building\.construction_complete/);

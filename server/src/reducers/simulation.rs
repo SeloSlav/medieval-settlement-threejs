@@ -12,10 +12,10 @@ use crate::simulation::{
     step_household_market_orders, step_hunters_hall, step_large_quarry, step_lumber_mill,
     step_marketplace_caravans, step_monastery, step_pastoral_farmstead,
     step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
-    step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
-    step_smokehouse, step_stone_quarry, step_swineherd, step_threshing_barn,
-    step_village_storehouses, step_vineyard, step_watermill, step_weaver, step_well,
-    step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
+    step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
+    step_settlement_security, step_smokehouse, step_stone_quarry, step_swineherd,
+    step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill, step_weaver,
+    step_well, step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
 };
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
@@ -130,6 +130,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let tick = SimTickContext::with_road_networks(road_networks);
     step_fires(ctx, &clock, environment, world_seed, sim_tick);
     step_construction_sites(ctx, &tick, &clock);
+    step_residence_upgrades(ctx, &tick, &clock);
     step_household_market_orders(ctx, &tick, &clock, sim_tick);
     step_marketplace_caravans(ctx, &clock, &tick, environment);
     step_seed_grain_distribution(ctx, &tick, &clock);

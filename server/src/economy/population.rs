@@ -57,13 +57,27 @@ pub fn settlement_population(housed: u32, physical_founding_site_enabled: bool) 
     }
 }
 
-fn total_assigned_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+fn total_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
     ctx.db
         .building()
         .owner()
         .filter(&owner)
         .map(|building| building.assigned_labor)
         .sum()
+}
+
+fn total_residence_upgrade_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    ctx.db
+        .residence()
+        .owner()
+        .filter(&owner)
+        .filter(|residence| residence.upgrade_target_tier > residence.tier)
+        .map(|residence| residence.upgrade_assigned_labor.min(1))
+        .sum()
+}
+
+fn total_assigned_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    total_building_labor(ctx, owner).saturating_add(total_residence_upgrade_labor(ctx, owner))
 }
 
 fn total_free_hauler_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
@@ -102,8 +116,38 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
         })
         .collect();
 
-    let assignable_population =
+    let population_after_carts =
         total_population(ctx, owner).saturating_sub(total_free_hauler_labor(ctx, owner));
+    let total_committed =
+        total_building_labor(ctx, owner).saturating_add(total_residence_upgrade_labor(ctx, owner));
+    let mut excess = total_committed.saturating_sub(population_after_carts);
+    if excess > 0 {
+        let mut upgrades = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| {
+                residence.upgrade_target_tier > residence.tier
+                    && residence.upgrade_assigned_labor > 0
+            })
+            .collect::<Vec<_>>();
+        upgrades.sort_by(|left, right| {
+            left.upgrade_priority
+                .cmp(&right.upgrade_priority)
+                .then_with(|| right.id.cmp(&left.id))
+        });
+        for mut residence in upgrades {
+            if excess == 0 {
+                break;
+            }
+            residence.upgrade_assigned_labor = 0;
+            excess -= 1;
+            ctx.db.residence().id().update(residence);
+        }
+    }
+    let assignable_population =
+        population_after_carts.saturating_sub(total_residence_upgrade_labor(ctx, owner));
     for (building_id, assigned_labor) in
         labor_reconciliation_updates(assignments, assignable_population)
     {

@@ -165,25 +165,29 @@ export class SceneManager {
     this.materials = materials;
     this.scene = new THREE.Scene();
     this.scene.background = null;
-    this.scene.fog = new THREE.FogExp2(0xc8def1, 0.00082);
-    this.camera = new THREE.PerspectiveCamera(54, 1, 0.1, 2600);
+    this.scene.fog = new THREE.FogExp2(0xc5d4d8, 0.00072);
+    // A slightly longer lens keeps the broad settlement readable while making
+    // the layered Dinaric landscape feel less miniaturised.
+    this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2600);
     this.camera.layers.disable(TREE_SHADOW_CAST_LAYER);
     this.sunDirection.setFromSphericalCoords(1, THREE.MathUtils.degToRad(43), THREE.MathUtils.degToRad(225));
     this.terrain = terrain;
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
     this.sky = new SkyCloudMesh({
       sunDirection: this.sunDirection,
-      cloudCoverage: 0.3,
-      cloudHeight: 185,
-      cloudThickness: 54,
-      cloudAbsorption: 0.42,
-      hazeStrength: 0.07,
+      cloudCoverage: 0.34,
+      cloudHeight: 210,
+      cloudThickness: 68,
+      cloudAbsorption: 0.46,
+      hazeStrength: 0.095,
       maxCloudDistance: 6200,
+      mieCoefficient: 0.0032,
+      mieDirectionalG: 0.6,
       radius: 1900,
-      rayleigh: 0.62,
-      turbidity: 1.2,
-      windSpeedX: 0.12,
-      windSpeedZ: 0.07,
+      rayleigh: 0.7,
+      turbidity: 1.45,
+      windSpeedX: 0.085,
+      windSpeedZ: 0.045,
       widthSegments: 56,
       heightSegments: 28,
       rendererBackend: backend.kind,
@@ -461,6 +465,9 @@ export class SceneManager {
     const height = Math.max(1, Math.floor(rect.height));
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    // One device pixel per CSS pixel is the quality/performance sweet spot for
+    // the dense ground-cover and close camera. Supersampling here turned the
+    // most detailed playable view into a sub-30 FPS presentation.
     const pixelRatio = Math.min(window.devicePixelRatio, 1);
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height, false);
@@ -539,7 +546,12 @@ export class SceneManager {
     this.mushroomPatchVisuals?.updateCameraState(cameraDistance, firstPersonActive);
     this.renderFrame++;
     if (this.shouldRefreshShadowMap(cameraDistance)) {
-      const viewBounds = computeViewShadowBounds(this.camera, this.cameraTarget, cameraDistance);
+      const viewBounds = computeViewShadowBounds(
+        this.camera,
+        this.cameraTarget,
+        cameraDistance,
+        1.24,
+      );
       const shadowBounds = intersectTerrainBounds(viewBounds, this.terrain.bounds);
       fitDirectionalLightShadow(this.sunLight, {
         bounds: shadowBounds,
@@ -588,6 +600,7 @@ export class SceneManager {
         : this.environment?.weather === 'drought'
           ? 0.16
           : 0;
+    const goldenHour = Math.max(state.dawnAmount, state.duskAmount);
     this.skyAnimationTime = state.skyAnimationTime;
     this.sunDirection.copy(state.sunDirection);
     this.sky.updateAtmosphere(state.dawnAmount, state.duskAmount);
@@ -610,7 +623,17 @@ export class SceneManager {
     );
     this.skyFillLight.color.setHex(blendColorHex(state.fillColor, weather.fogTint, atmosphericBlend * 0.4));
     this.skyFillLight.intensity = state.fillIntensity * THREE.MathUtils.lerp(1, 0.86, atmosphericBlend);
-    this.skyFillLight.position.copy(this.sunDirection).multiplyScalar(-90).add(new THREE.Vector3(0, 65, 0));
+    this.skyFillLight.position.copy(this.sunDirection).multiplyScalar(-90);
+    this.skyFillLight.position.y += 65;
+    // Gentle photographic adaptation preserves night legibility without
+    // flattening noon or washing out the warm low sun.
+    this.renderer.toneMappingExposure = THREE.MathUtils.clamp(
+      THREE.MathUtils.lerp(1.08, 1.55, state.nightAmount)
+        + goldenHour * 0.12
+        + atmosphericBlend * 0.012,
+      1.07,
+      1.58,
+    );
     if (this.scene.fog instanceof THREE.FogExp2) {
       this.scene.fog.color.setHex(blendColorHex(state.fogColor, weather.fogTint, atmosphericBlend));
       this.scene.fog.density = state.fogDensity * weather.fogDensityMultiplier;
@@ -886,23 +909,23 @@ export class SceneManager {
   }
 
   private addLighting(): void {
-    const hemi = new THREE.HemisphereLight(0xdff0ff, 0x56644a, 1.9);
+    const hemi = new THREE.HemisphereLight(0xd9e8ec, 0x59634f, 1.55);
     this.hemiLight = hemi;
     this.scene.add(hemi);
 
-    const ambient = new THREE.AmbientLight(0xb8d1ff, 0.2);
+    const ambient = new THREE.AmbientLight(0xb8c8d2, 0.18);
     this.ambientLight = ambient;
     this.scene.add(ambient);
 
-    const sun = new THREE.DirectionalLight(0xffefd2, 4.9);
+    const sun = new THREE.DirectionalLight(0xffefd2, 5.2);
     sun.name = 'Sun';
     sun.position.copy(this.sunDirection).multiplyScalar(180);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.bias = -0.00015;
-    sun.shadow.normalBias = 0.012;
-    sun.shadow.radius = 2.8;
-    sun.shadow.autoUpdate = true;
+    sun.shadow.bias = -0.00008;
+    sun.shadow.normalBias = 0.008;
+    sun.shadow.radius = 1.8;
+    sun.shadow.autoUpdate = false;
     sun.shadow.camera.layers.enable(TREE_SHADOW_CAST_LAYER);
     this.scene.add(sun);
     this.scene.add(sun.target);
@@ -910,7 +933,7 @@ export class SceneManager {
     fitDirectionalLightShadow(sun, { bounds: this.terrain.bounds, sunOffsetDir: this.sunDirection });
     this.refreshShadowMap();
 
-    const blueFill = new THREE.DirectionalLight(0x9fc8ff, 0.45);
+    const blueFill = new THREE.DirectionalLight(0xa8c6d8, 0.34);
     blueFill.name = 'Sky fill';
     this.skyFillLight = blueFill;
     blueFill.position.copy(this.sunDirection).multiplyScalar(-90).add(new THREE.Vector3(0, 65, 0));

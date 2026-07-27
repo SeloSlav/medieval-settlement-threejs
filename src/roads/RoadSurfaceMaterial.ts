@@ -4,7 +4,9 @@ import {
   float,
   mix,
   normalMap,
+  positionWorld,
   pow,
+  sin,
   smoothstep,
   sub,
   texture,
@@ -22,6 +24,7 @@ type TslNode = {
   b: TslNode;
   rgb: TslNode;
   x: TslNode;
+  z: TslNode;
 };
 
 type TslScalarUniform = TslNode & {
@@ -51,7 +54,43 @@ function greyCoolRoadColor(map: TslNode, desaturate: number, tint: [number, numb
 
 function buildRoadColorNode(textures: TextureSet, desaturate: number, tint: [number, number, number]): TslNode {
   const sample = texture(textures.albedo, uv() as TslNode) as TslNode;
-  return greyCoolRoadColor(sample, desaturate, tint);
+  const baseColor = greyCoolRoadColor(sample, desaturate, tint);
+  const world = positionWorld as TslNode;
+  const macroA = (sin(
+    world.x
+      .mul(float(0.043) as TslNode)
+      .add(world.z.mul(float(0.031) as TslNode)) as TslNode,
+  ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
+  const macroB = (sin(
+    world.x
+      .mul(float(-0.019) as TslNode)
+      .add(world.z.mul(float(0.067) as TslNode))
+      .add(float(1.73) as TslNode) as TslNode,
+  ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
+  const macro = macroA.mul(float(0.62) as TslNode).add(macroB.mul(float(0.38) as TslNode));
+  const macroTint = mix(
+    vec3(0.88, 0.84, 0.77) as TslNode,
+    vec3(1.04, 1.02, 0.97) as TslNode,
+    macro,
+  ) as TslNode;
+  return baseColor.mul(macroTint);
+}
+
+function buildRoadRutMask(textures: TextureSet): TslNode {
+  if (!textures.rutMask) return float(0) as TslNode;
+  return pow(
+    (texture(textures.rutMask, uv() as TslNode) as TslNode).r,
+    float(1.18) as TslNode,
+  ) as TslNode;
+}
+
+function applyRoadRutColor(baseColor: TslNode, rutMask: TslNode): TslNode {
+  const compacted = baseColor.mul(vec3(0.66, 0.62, 0.56) as TslNode);
+  return mix(
+    baseColor,
+    compacted,
+    rutMask.mul(float(0.44) as TslNode),
+  ) as TslNode;
 }
 
 function applyRoadWeatherColor(
@@ -100,7 +139,13 @@ function buildMuddyBankColorNode(textures: TextureSet): TslNode {
     float(0.34) as TslNode,
   ) as TslNode;
   const warmTint = desaturated.mul(vec3(0.72, 0.54, 0.38) as TslNode);
-  return warmTint.mul(float(0.86) as TslNode);
+  const wetEdge = pow((uv() as TslNode).x, float(1.35) as TslNode) as TslNode;
+  const dampTint = warmTint.mul(vec3(0.42, 0.38, 0.33) as TslNode);
+  return mix(
+    warmTint.mul(float(0.86) as TslNode),
+    dampTint,
+    wetEdge.mul(float(0.78) as TslNode),
+  ) as TslNode;
 }
 
 function buildBankOpacityNode(textures: TextureSet): TslNode {
@@ -142,7 +187,11 @@ export function createRoadCoreMaterial(
   material.polygonOffsetFactor = -2;
   material.polygonOffsetUnits = -2;
 
-  const dirtColor = buildRoadColorNode(dirtTextures, 0.72, [0.9, 0.9, 0.88]);
+  const rutMask = buildRoadRutMask(dirtTextures);
+  const dirtColor = applyRoadRutColor(
+    buildRoadColorNode(dirtTextures, 0.72, [0.9, 0.9, 0.88]),
+    rutMask,
+  );
   if (bridgeTextures) {
     const woodColor = buildRoadColorNode(bridgeTextures, 0.38, [1.02, 0.96, 0.88]);
     const bridgeBlend = pow(attribute('bridgeBlend', 'float') as TslNode, float(0.92) as TslNode) as TslNode;
@@ -153,7 +202,12 @@ export function createRoadCoreMaterial(
     const woodNormal = normalMap(texture(bridgeTextures.normal, uv()));
     material.normalNode = mix(dirtNormal, woodNormal, bridgeBlend);
 
-    const dirtRough = (texture(dirtTextures.roughness, uv() as TslNode) as TslNode).r;
+    const dirtRoughBase = (texture(dirtTextures.roughness, uv() as TslNode) as TslNode).r;
+    const dirtRough = mix(
+      dirtRoughBase,
+      float(0.58) as TslNode,
+      rutMask.mul(float(0.46) as TslNode),
+    ) as TslNode;
     const woodRough = (texture(bridgeTextures.roughness, uv() as TslNode) as TslNode).r;
     const surfaceRoughness = mix(
       dirtRough,
@@ -165,7 +219,12 @@ export function createRoadCoreMaterial(
   } else {
     material.colorNode = applyRoadWeatherColor(dirtColor, weather);
     material.normalNode = normalMap(texture(dirtTextures.normal, uv()));
-    const dirtRoughness = (texture(dirtTextures.roughness, uv() as TslNode) as TslNode).r;
+    const dirtRoughnessBase = (texture(dirtTextures.roughness, uv() as TslNode) as TslNode).r;
+    const dirtRoughness = mix(
+      dirtRoughnessBase,
+      float(0.58) as TslNode,
+      rutMask.mul(float(0.46) as TslNode),
+    ) as TslNode;
     material.roughnessNode = applyRoadWeatherRoughness(dirtRoughness, weather);
     if (dirtTextures.ao) material.aoNode = (texture(dirtTextures.ao, uv() as TslNode) as TslNode).r;
   }
@@ -220,7 +279,13 @@ export function createRiverBankMaterial(textures: TextureSet): MeshStandardNodeM
   material.colorNode = buildMuddyBankColorNode(textures);
   material.normalNode = normalMap(texture(textures.normal, uv()));
   const roughSample = (texture(textures.roughness, uv() as TslNode) as TslNode).r;
-  material.roughnessNode = mix(roughSample, float(0.58) as TslNode, float(0.42) as TslNode);
+  const baseRoughness = mix(roughSample, float(0.58) as TslNode, float(0.42) as TslNode);
+  const wetEdge = pow((uv() as TslNode).x, float(1.35) as TslNode) as TslNode;
+  material.roughnessNode = mix(
+    baseRoughness,
+    float(0.34) as TslNode,
+    wetEdge.mul(float(0.74) as TslNode),
+  );
   if (textures.ao) material.aoNode = (texture(textures.ao, uv() as TslNode) as TslNode).r;
   material.opacityNode = buildRiverBankOpacityNode(textures);
   return material;

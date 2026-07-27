@@ -3,11 +3,27 @@
   inset: 0;
   z-index: 10001;
   display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(10, 12, 9, 0.82);
-  backdrop-filter: blur(10px);
+  place-items: stretch start;
+  padding: clamp(22px, 4vw, 58px);
+  background:
+    linear-gradient(90deg, rgba(7, 11, 9, 0.88) 0%, rgba(7, 11, 9, 0.48) 47%, rgba(7, 11, 9, 0.06) 78%),
+    linear-gradient(0deg, rgba(8, 10, 8, 0.52) 0%, transparent 52%),
+    url('/assets/ui/world-setup-gorski-kotar-1550.webp') center / cover no-repeat,
+    #111510;
   pointer-events: auto;
+}
+
+.world-setup-backdrop::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  opacity: 0.26;
+  background-image:
+    radial-gradient(circle at 23% 17%, rgba(255, 244, 210, 0.18) 0 0.6px, transparent 0.9px),
+    radial-gradient(circle at 72% 64%, rgba(255, 255, 255, 0.12) 0 0.5px, transparent 0.8px);
+  background-size: 9px 11px, 13px 15px;
+  mix-blend-mode: soft-light;
 }
 
 .world-setup-backdrop[hidden] {
@@ -15,33 +31,45 @@
 }
 
 .world-setup-dialog {
-  width: min(560px, 100%);
-  max-height: calc(100vh - 48px);
+  position: relative;
+  z-index: 1;
+  width: min(590px, 100%);
+  max-height: calc(100vh - clamp(44px, 8vw, 116px));
   overflow: auto;
-  padding: 22px 24px 24px;
+  padding: 28px 30px 30px;
   color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: rgba(23, 25, 21, 0.96);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.38);
+  border: 1px solid rgba(231, 214, 174, 0.18);
+  border-radius: 3px;
+  background: linear-gradient(145deg, rgba(38, 37, 29, 0.96), rgba(17, 23, 18, 0.94));
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.58),
+    inset 3px 0 0 rgba(204, 160, 69, 0.72),
+    inset 0 1px 0 rgba(255, 244, 218, 0.08);
+  backdrop-filter: blur(22px) saturate(0.78);
+  scrollbar-color: rgba(215, 180, 99, 0.46) rgba(255, 255, 255, 0.04);
 }
 
 .world-setup-dialog__eyebrow {
   margin: 0;
   font-size: 11px;
-  letter-spacing: 0.08em;
+  font-weight: 750;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(196, 167, 99, 0.9);
+  color: rgba(219, 183, 99, 0.94);
 }
 
 .world-setup-dialog__title {
-  margin: 4px 0 8px;
-  font-size: 24px;
-  font-weight: 700;
+  margin: 7px 0 9px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.32);
 }
 
 .world-setup-dialog__intro {
-  margin: 0 0 18px;
+  max-width: 48ch;
+  margin: 0 0 22px;
   color: var(--muted);
   line-height: 1.5;
 }
@@ -71,10 +99,12 @@
   padding: 12px 10px;
   text-align: left;
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(238, 232, 220, 0.14);
+  border-radius: 3px;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
 }
 
 .world-setup-size-option strong {
@@ -87,8 +117,9 @@
 }
 
 .world-setup-size-option.is-selected {
-  border-color: rgba(215, 180, 99, 0.72);
-  background: rgba(215, 180, 99, 0.12);
+  border-color: rgba(215, 180, 99, 0.76);
+  background: linear-gradient(145deg, rgba(215, 180, 99, 0.2), rgba(215, 180, 99, 0.06));
+  box-shadow: inset 0 0 0 1px rgba(215, 180, 99, 0.12), 0 8px 20px rgba(0, 0, 0, 0.14);
 }
 
 .world-setup-mode-grid {
@@ -104,10 +135,11 @@
   padding: 12px;
   text-align: left;
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(238, 232, 220, 0.14);
+  border-radius: 3px;
   cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
 }
 
 .world-setup-mode-option strong {
@@ -122,13 +154,14 @@
 
 .world-setup-mode-option.is-selected {
   border-color: rgba(215, 180, 99, 0.72);
-  background: rgba(215, 180, 99, 0.12);
+  background: linear-gradient(145deg, rgba(215, 180, 99, 0.2), rgba(215, 180, 99, 0.06));
 }
 
 .world-setup-mode-option:hover,
 .world-setup-mode-option:focus-visible {
   background: rgba(255, 255, 255, 0.08);
   outline: none;
+  transform: translateY(-1px);
 }
 
 .world-setup-pressure {
@@ -143,6 +176,7 @@
 .world-setup-size-option:focus-visible {
   background: rgba(255, 255, 255, 0.08);
   outline: none;
+  transform: translateY(-1px);
 }
 
 .world-setup-slider-label {
@@ -160,6 +194,7 @@
 }
 
 .world-setup-slider {
+  accent-color: #d7b463;
   width: 100%;
   margin: 0 0 4px;
 }
@@ -183,7 +218,7 @@
   font: inherit;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 3px;
 }
 
 .world-setup-seed-input:focus-visible {
@@ -197,7 +232,7 @@
   font-weight: 600;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 3px;
   cursor: pointer;
 }
 
@@ -214,22 +249,38 @@
 }
 
 .world-setup-start {
-  padding: 12px 18px;
-  color: #1a1712;
-  font-weight: 700;
-  background: linear-gradient(180deg, #e4c57a, #c79a45);
-  border: none;
-  border-radius: 10px;
+  min-width: 168px;
+  padding: 13px 20px;
+  color: #18150f;
+  font-weight: 800;
+  letter-spacing: 0.025em;
+  background: linear-gradient(180deg, #ead08f, #c99c45);
+  border: 1px solid rgba(255, 239, 195, 0.34);
+  border-radius: 3px;
   cursor: pointer;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  transition: filter 150ms ease, transform 150ms ease, box-shadow 150ms ease;
 }
 
 .world-setup-start:hover,
 .world-setup-start:focus-visible {
   filter: brightness(1.05);
   outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.34);
 }
 
 @media (max-width: 560px) {
+  .world-setup-backdrop {
+    padding: 14px;
+    background-position: 58% center;
+  }
+
+  .world-setup-dialog {
+    max-height: calc(100vh - 28px);
+    padding: 22px 20px 24px;
+  }
+
   .world-setup-mode-grid {
     grid-template-columns: 1fr;
   }

@@ -309,15 +309,6 @@ export function createFoundersCampMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = "Founders' camp and open stockyard";
 
-  const earth = addMesh(
-    group,
-    new THREE.CircleGeometry(8.1, 28),
-    sharedBuildingDetailMaterial('earth'),
-    new THREE.Vector3(0, 0.025, 0),
-    new THREE.Euler(-Math.PI * 0.5, 0, 0),
-  );
-  earth.name = 'Founding stockyard trampled earth';
-
   const shelters = new THREE.Group();
   shelters.name = 'FoundingShelters';
   addAFrameShelter(shelters, -2.9, 2.8, 0.16);

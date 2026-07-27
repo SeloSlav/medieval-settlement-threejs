@@ -12,6 +12,7 @@ export type InspectorSpacetimeActions = {
   onDemolishBurgageZone: (zoneId: string) => Promise<void>;
   onDemolishResidence: (residenceId: string) => Promise<void>;
   onUpgradeResidence: (residenceId: string) => Promise<void>;
+  onSetResidenceUpgradePriority: (residenceId: string, priority: number) => Promise<void>;
   onRepairFireDamage: (targetKind: FireTargetKind, targetId: string) => Promise<void>;
   onPlaceBackyardGarden: (residenceId: string, kind: BackyardGardenKind) => Promise<void>;
   onDemolishBackyardGarden: (residenceId: string) => Promise<void>;
@@ -120,6 +121,14 @@ export function createInspectorSpacetimeActions(
       const store = requireReady();
       if (!store) return;
       await runReducer(() => store.upgradeResidence(residenceId), 'Residence upgrade failed.');
+    },
+    onSetResidenceUpgradePriority: async (residenceId, priority) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setResidenceUpgradePriority(residenceId, priority),
+        'Could not change household works priority.',
+      );
     },
     onRepairFireDamage: async (targetKind, targetId) => {
       const store = requireReady();

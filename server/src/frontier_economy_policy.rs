@@ -1,7 +1,7 @@
 pub use crate::balance_generated::{
     CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
-    GUARDHOUSE_FOOD_PER_GUARD_PER_DAY, GUARDHOUSE_READINESS_DECAY_PER_DAY,
-    GUARDHOUSE_PAYROLL_REORDER_DAYS, GUARDHOUSE_PAYROLL_TARGET_DAYS,
+    GUARDHOUSE_FOOD_PER_GUARD_PER_DAY, GUARDHOUSE_PAYROLL_REORDER_DAYS,
+    GUARDHOUSE_PAYROLL_TARGET_DAYS, GUARDHOUSE_READINESS_DECAY_PER_DAY,
     GUARDHOUSE_TRAINING_PER_DAY, GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
 };
 use std::cmp::Ordering;
@@ -123,8 +123,7 @@ pub fn guardhouse_payroll_target(armed: f64) -> f64 {
 
 pub fn guardhouse_payroll_reorder_point(armed: f64) -> f64 {
     guardhouse_daily_wage(armed)
-        * GUARDHOUSE_PAYROLL_REORDER_DAYS
-            .clamp(0.0, GUARDHOUSE_PAYROLL_TARGET_DAYS.max(0.0))
+        * GUARDHOUSE_PAYROLL_REORDER_DAYS.clamp(0.0, GUARDHOUSE_PAYROLL_TARGET_DAYS.max(0.0))
 }
 
 /// Returns the next physical pay-cart load. A company waits until its secured
@@ -306,21 +305,14 @@ mod tests {
         let armed = 6.0;
         let daily_wage = guardhouse_daily_wage(armed);
         assert!((guardhouse_payroll_target(armed) - daily_wage * 10.0).abs() < 1e-9);
-        assert!(
-            (guardhouse_payroll_reorder_point(armed) - daily_wage * 5.0).abs() < 1e-9
-        );
+        assert!((guardhouse_payroll_reorder_point(armed) - daily_wage * 5.0).abs() < 1e-9);
         assert_eq!(
             guardhouse_payroll_cart_load(armed, daily_wage * 5.0, 0.0, 100.0, 24.0),
             0.0,
         );
         assert!(
-            (guardhouse_payroll_cart_load(
-                armed,
-                daily_wage * 4.0,
-                0.0,
-                100.0,
-                24.0,
-            ) - daily_wage * 6.0)
+            (guardhouse_payroll_cart_load(armed, daily_wage * 4.0, 0.0, 100.0, 24.0,)
+                - daily_wage * 6.0)
                 .abs()
                 < 1e-9
         );
@@ -333,10 +325,7 @@ mod tests {
             0.0,
             "an approaching chest above the reorder point blocks a duplicate cart",
         );
-        assert_eq!(
-            guardhouse_payroll_cart_load(6.0, 0.0, 0.0, 7.0, 24.0),
-            7.0,
-        );
+        assert_eq!(guardhouse_payroll_cart_load(6.0, 0.0, 0.0, 7.0, 24.0), 7.0,);
         assert_eq!(
             guardhouse_payroll_cart_load(100.0, 0.0, 0.0, 100.0, 24.0),
             24.0,

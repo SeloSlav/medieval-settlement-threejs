@@ -100,6 +100,16 @@ export class GameTableSync {
     this.onChanged();
   }
 
+  syncResidences(connection: DbConnection): void {
+    const db = connection.db;
+    this.state.residences = syncResidences(
+      db.residence ? db.residence.iter() : [],
+      db.residence_need ? db.residence_need.iter() : [],
+      this.state.identityHex,
+    );
+    this.onChanged();
+  }
+
   attachHandlers(connection: DbConnection): void {
     const db = connection.db;
     let notifyPending = false;

@@ -5,7 +5,7 @@ use crate::constants::{
     RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FOOD_CAPACITY, RESIDENCE_WATER_CAPACITY,
 };
 use crate::db::*;
-use crate::tables::Building;
+use crate::tables::{Building, Residence};
 
 use super::commodities::CommodityKind;
 
@@ -40,14 +40,22 @@ pub fn residence_food_capacity() -> f64 {
 }
 
 pub fn total_timber(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    (treasury_timber(ctx, owner) + building_sum(ctx, owner, |building| building.timber)
-        - reserved_construction_total(ctx, owner, |building| building.construction_reserved_timber))
+    ((treasury_timber(ctx, owner) + building_sum(ctx, owner, |building| building.timber)
+        - reserved_construction_total(ctx, owner, |building| {
+            building.construction_reserved_timber
+        }))
+        - reserved_residence_upgrade_total(ctx, owner, |residence| {
+            residence.upgrade_reserved_timber
+        }))
     .max(0.0)
 }
 
 pub fn total_stone(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    (treasury_stone(ctx, owner) + building_sum(ctx, owner, |building| building.stone)
+    ((treasury_stone(ctx, owner) + building_sum(ctx, owner, |building| building.stone)
         - reserved_construction_total(ctx, owner, |building| building.construction_reserved_stone))
+        - reserved_residence_upgrade_total(ctx, owner, |residence| {
+            residence.upgrade_reserved_stone
+        }))
     .max(0.0)
 }
 
@@ -58,6 +66,8 @@ pub(crate) fn available_unreserved_building_timber(
     let stock = building_sum(ctx, owner, |building| building.timber);
     let reserved = reserved_construction_total(ctx, owner, |building| {
         (building.construction_reserved_timber - building.construction_treasury_timber).max(0.0)
+    }) + reserved_residence_upgrade_total(ctx, owner, |residence| {
+        residence.upgrade_reserved_timber
     });
     (stock - reserved).max(0.0)
 }
@@ -69,6 +79,8 @@ pub(crate) fn available_unreserved_building_stone(
     let stock = building_sum(ctx, owner, |building| building.stone);
     let reserved = reserved_construction_total(ctx, owner, |building| {
         (building.construction_reserved_stone - building.construction_treasury_stone).max(0.0)
+    }) + reserved_residence_upgrade_total(ctx, owner, |residence| {
+        residence.upgrade_reserved_stone
     });
     (stock - reserved).max(0.0)
 }
@@ -162,6 +174,23 @@ where
         .filter(&owner)
         .filter(|building| !building.construction_complete)
         .map(|building| pick(&building))
+        .sum()
+}
+
+fn reserved_residence_upgrade_total<F>(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    pick: F,
+) -> f64
+where
+    F: Fn(&Residence) -> f64,
+{
+    ctx.db
+        .residence()
+        .owner()
+        .filter(&owner)
+        .filter(|residence| residence.upgrade_target_tier > residence.tier)
+        .map(|residence| pick(&residence).max(0.0))
         .sum()
 }
 
@@ -288,7 +317,7 @@ pub fn treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 
         .find(&owner)
         .map(|resources| resources.gold.max(0.0))
         .unwrap_or(0.0);
-    ledger_gold
+    let physical_gold = ledger_gold
         + ctx
             .db
             .building()
@@ -302,7 +331,10 @@ pub fn treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 
                     )
             })
             .map(|building| building.gold.max(0.0))
-            .sum::<f64>()
+            .sum::<f64>();
+    (physical_gold
+        - reserved_residence_upgrade_total(ctx, owner, |residence| residence.upgrade_reserved_gold))
+    .max(0.0)
 }
 
 pub fn spend_treasury_gold(

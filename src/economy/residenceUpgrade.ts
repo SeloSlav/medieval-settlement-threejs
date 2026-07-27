@@ -10,6 +10,12 @@ import {
 } from '../generated/gameBalance.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
+import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
+import {
+  constructionPriorityLabel,
+  normalizeConstructionPriority,
+  type ConstructionPriority,
+} from '../logistics/constructionPriority.ts';
 
 export type ResidenceUpgradeServiceKind =
   | 'firewood'
@@ -53,10 +59,32 @@ export type ResidenceUpgradePlan = {
   resources: ResidenceUpgradeResourceCheck[];
   blockers: string[];
   ready: boolean;
+  householdContribution: number;
+  civicGoldRequired: number;
+  physicalEconomy: boolean;
 };
 
 export type ResidenceUpgradeContext = {
   fireDisabled?: boolean;
+  physicalEconomy?: boolean;
+};
+
+export type ResidenceUpgradeMaterial = 'timber' | 'stone' | 'gold';
+
+export type ResidenceUpgradeProject = {
+  targetTier: 2 | 3;
+  progress: number;
+  priority: ConstructionPriority;
+  priorityLabel: string;
+  assignedLabor: number;
+  required: Record<ResidenceUpgradeMaterial, number>;
+  delivered: Record<ResidenceUpgradeMaterial, number>;
+  reserved: Record<ResidenceUpgradeMaterial, number>;
+  incoming: Record<ResidenceUpgradeMaterial, number>;
+  incomingTrips: DeliveryTripState[];
+  materialReadiness: number;
+  paid: boolean;
+  blockers: string[];
 };
 
 type UpgradeDefinition = {
@@ -122,10 +150,15 @@ export function evaluateResidenceUpgrade(
       ready: input.supplier != null,
     };
   });
+  const physicalEconomy = context.physicalEconomy === true;
+  const householdContribution = physicalEconomy
+    ? Math.min(Math.max(0, residence.householdWealth), definition.gold)
+    : 0;
+  const civicGoldRequired = Math.max(0, definition.gold - householdContribution);
   const requiredResources = [
     ['timber', 'Timber', totals.timber, definition.timber],
     ['stone', 'Stone', totals.stone, definition.stone],
-    ['gold', 'Gold', totals.gold, definition.gold],
+    ['gold', physicalEconomy ? 'Civic gold' : 'Gold', totals.gold, civicGoldRequired],
   ] as const;
   const resources = requiredResources.map(
     ([kind, label, available, required]): ResidenceUpgradeResourceCheck => ({
@@ -159,7 +192,90 @@ export function evaluateResidenceUpgrade(
     resources,
     blockers,
     ready: blockers.length === 0,
+    householdContribution,
+    civicGoldRequired,
+    physicalEconomy,
   };
+}
+
+export function residenceUpgradeProject(
+  residence: ResidenceState,
+  trips: Iterable<DeliveryTripState> = [],
+): ResidenceUpgradeProject | null {
+  const targetTier = residence.upgradeTargetTier ?? 0;
+  if (targetTier <= residence.tier || (targetTier !== 2 && targetTier !== 3)) return null;
+
+  const required = {
+    timber: nonnegative(residence.upgradeRequiredTimber),
+    stone: nonnegative(residence.upgradeRequiredStone),
+    gold: nonnegative(residence.upgradeRequiredGold),
+  };
+  const delivered = {
+    timber: nonnegative(residence.upgradeDeliveredTimber),
+    stone: nonnegative(residence.upgradeDeliveredStone),
+    gold: nonnegative(residence.upgradeDeliveredGold),
+  };
+  const reserved = {
+    timber: nonnegative(residence.upgradeReservedTimber),
+    stone: nonnegative(residence.upgradeReservedStone),
+    gold: nonnegative(residence.upgradeReservedGold),
+  };
+  const incoming = { timber: 0, stone: 0, gold: 0 };
+  const incomingTrips: DeliveryTripState[] = [];
+  for (const trip of trips) {
+    if (
+      trip.destinationKind !== 'residence'
+      || trip.residenceId !== residence.id
+      || trip.phase === 'inbound'
+      || (trip.cargoKind !== 'timber'
+        && trip.cargoKind !== 'stone'
+        && trip.cargoKind !== 'gold')
+    ) {
+      continue;
+    }
+    incoming[trip.cargoKind] += Math.max(0, trip.amount);
+    incomingTrips.push(trip);
+  }
+  const structuralRequired = required.timber + required.stone;
+  const materialReadiness = structuralRequired <= 1e-6
+    ? 1
+    : Math.min(1, (delivered.timber + delivered.stone) / structuralRequired);
+  const priority = normalizeConstructionPriority(residence.upgradePriority);
+  const assignedLabor = Math.max(0, Math.floor(residence.upgradeAssignedLabor ?? 0));
+  const paid = delivered.gold + 1e-6 >= required.gold;
+  const blockers = [
+    ...(priority === 0 ? ['works held by player'] : []),
+    ...(assignedLabor === 0 && priority !== 0 ? ['waiting for a free builder'] : []),
+    ...(delivered.timber + incoming.timber + 1e-6 < required.timber
+      ? ['timber still reserved at source']
+      : []),
+    ...(delivered.stone + incoming.stone + 1e-6 < required.stone
+      ? ['stone still reserved at source']
+      : []),
+    ...(delivered.gold + incoming.gold + 1e-6 < required.gold
+      ? ['civic lockbox payment still at source']
+      : []),
+  ];
+
+  return {
+    targetTier,
+    progress: Math.max(0, Math.min(1, residence.upgradeProgress ?? 0)),
+    priority,
+    priorityLabel: constructionPriorityLabel(priority),
+    assignedLabor,
+    required,
+    delivered,
+    reserved,
+    incoming,
+    incomingTrips,
+    materialReadiness,
+    paid,
+    blockers,
+  };
+}
+
+function nonnegative(value: number | undefined): number {
+  return Number.isFinite(value) ? Math.max(0, value ?? 0) : 0;
 }
 
 function formatAmount(value: number): string {

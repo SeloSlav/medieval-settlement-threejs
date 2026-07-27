@@ -9,11 +9,10 @@ use crate::balance_generated::{
     MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_HONEY,
     MONASTERY_FEAST_WINE, MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE,
     MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
-    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
-    SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
-    VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
-    WEAVER_CLOTH_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+    TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE,
+    WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -52,12 +51,12 @@ use crate::simulation::delivery_trips::{
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::landmark_access::monastery_linked_to_chapel;
-use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
 use crate::simulation::residence_needs::{
     apply_need_delivery, load_needs, need_stock, ResidenceNeedKind,
 };
 use crate::simulation::road_logistics::select_residence_for_need_delivery;
 use crate::simulation::tick_context::SimTickContext;
+use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
 use crate::specialty_trade_policy::{apiary_is_active, vineyard_is_harvesting};
 use crate::supply_policy::{
     grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
@@ -879,13 +878,7 @@ pub fn step_monastery(
         );
     }
     run_monastery_feast(ctx, tick, clock, &mut monastery);
-    try_dispatch_local_civic_receipts(
-        ctx,
-        tick,
-        clock,
-        &mut monastery,
-        receipt_daily_income,
-    );
+    try_dispatch_local_civic_receipts(ctx, tick, clock, &mut monastery, receipt_daily_income);
     ctx.db.building().id().update(monastery);
 }
 
@@ -900,8 +893,7 @@ pub fn step_ferry_landing(
         && onsite_labor > 0
         && owner_has_connected_marketplace(ctx, tick, &building)
     {
-        let gold = FERRY_GOLD_PER_DAY * onsite_labor as f64 * TICK_DT
-            / CALENDAR_SECONDS_PER_DAY;
+        let gold = FERRY_GOLD_PER_DAY * onsite_labor as f64 * TICK_DT / CALENDAR_SECONDS_PER_DAY;
         credit_local_civic_receipts(ctx, &mut building, gold);
     }
     try_dispatch_local_civic_receipts(ctx, tick, clock, &mut building, FERRY_GOLD_PER_DAY);
@@ -1055,8 +1047,7 @@ pub fn step_guardhouse(
             upkeep.wage_due * upkeep.supply_ratio,
         );
     } else {
-        let _ =
-            spend_treasury_gold(ctx, building.owner, upkeep.wage_due * upkeep.supply_ratio);
+        let _ = spend_treasury_gold(ctx, building.owner, upkeep.wage_due * upkeep.supply_ratio);
     }
     building.action_cooldown = next_guard_readiness(
         building.action_cooldown,

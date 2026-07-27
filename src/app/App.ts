@@ -131,6 +131,7 @@ export class App {
   private ambientAudio: AmbientAudioController | null = null;
   private readonly settlementPresentation = new SettlementPresentationController();
   private showcaseViewApplied = false;
+  private initialSettlementViewApplied = false;
   private lastSeenRaidTick: number | null = null;
   private raidProjectionSignature = '';
   private projectedRaidTargets: ProjectedRaidTarget[] = [];
@@ -644,6 +645,7 @@ export class App {
     const projectedTargets = this.syncFrontierRiskFeedback(snapshot, state);
 
     this.applyShowcaseView(state);
+    this.applyInitialSettlementView(state);
 
     if (resourceUiNeedsSync(state, previous)) {
       this.syncResourceUi();
@@ -817,6 +819,34 @@ export class App {
 
     this.cameraController.applyShowcaseView(center.x, center.z);
     this.showcaseViewApplied = true;
+  }
+
+  /**
+   * A new settlement should open on its people and shelter, not on an anonymous
+   * map coordinate. Established towns retain the player's strategic camera.
+   */
+  private applyInitialSettlementView(state: GameState): void {
+    if (
+      isShowcaseMode()
+      || this.initialSettlementViewApplied
+      || !this.cameraController
+      || state.residences.size > 0
+    ) {
+      return;
+    }
+
+    const foundersCamp = [...state.buildings.values()]
+      .find((building) => building.kind === 'founders_camp');
+    if (!foundersCamp) return;
+
+    this.cameraController.applyShowcaseView(
+      foundersCamp.x,
+      foundersCamp.z,
+      (-42 * Math.PI) / 180,
+      (68 * Math.PI) / 180,
+      96,
+    );
+    this.initialSettlementViewApplied = true;
   }
 
   private syncResourceUi(): void {

@@ -215,6 +215,21 @@ export type ResidenceState = {
   householdWealth: number;
   /** Last successful household-funded market dispatch; absent in older fixtures/saves. */
   lastHouseholdMarketTick?: number;
+  /** Target tier while physical household improvement works are active. */
+  upgradeTargetTier?: 0 | 2 | 3;
+  upgradeProgress?: number;
+  upgradeRequiredTimber?: number;
+  upgradeRequiredStone?: number;
+  upgradeRequiredGold?: number;
+  upgradeDeliveredTimber?: number;
+  upgradeDeliveredStone?: number;
+  upgradeDeliveredGold?: number;
+  upgradeReservedTimber?: number;
+  upgradeReservedStone?: number;
+  upgradeReservedGold?: number;
+  upgradeAssignedLabor?: number;
+  /** Shared construction priority: 0 hold, 1 low, 2 normal, 3 urgent. */
+  upgradePriority?: number;
 };
 
 export type BackyardGardenState = {

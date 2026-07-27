@@ -45,11 +45,9 @@ pub fn step_backyard_gardens(
         {
             continue;
         }
-        let marketplace_id =
-            tick.marketplace_for_residence(ctx, garden.owner, residence.id);
-        let (tax_rate, collection_multiplier) = *tax_policy_by_owner
-            .entry(garden.owner)
-            .or_insert_with(|| {
+        let marketplace_id = tick.marketplace_for_residence(ctx, garden.owner, residence.id);
+        let (tax_rate, collection_multiplier) =
+            *tax_policy_by_owner.entry(garden.owner).or_insert_with(|| {
                 (
                     player_economic_activity_tax_rate(ctx, garden.owner),
                     town_hall_tax_collection_multiplier(ctx, garden.owner),

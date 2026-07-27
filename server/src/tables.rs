@@ -557,6 +557,39 @@ pub struct Residence {
     /// Last sim tick this household auto-ordered provender from the marketplace.
     #[default(0u64)]
     pub last_household_market_tick: u64,
+    /// Zero when idle; otherwise the tier being built through a physical,
+    /// cart-supplied household improvement project.
+    #[default(0u8)]
+    pub upgrade_target_tier: u8,
+    #[default(0.0)]
+    pub upgrade_progress: f64,
+    #[default(0.0)]
+    pub upgrade_required_timber: f64,
+    #[default(0.0)]
+    pub upgrade_required_stone: f64,
+    #[default(0.0)]
+    pub upgrade_required_gold: f64,
+    #[default(0.0)]
+    pub upgrade_delivered_timber: f64,
+    #[default(0.0)]
+    pub upgrade_delivered_stone: f64,
+    #[default(0.0)]
+    pub upgrade_delivered_gold: f64,
+    /// Unloaded stock still earmarked at physical sources. Reservations fall
+    /// as carts load, so cargo cannot be spent twice while traveling.
+    #[default(0.0)]
+    pub upgrade_reserved_timber: f64,
+    #[default(0.0)]
+    pub upgrade_reserved_stone: f64,
+    #[default(0.0)]
+    pub upgrade_reserved_gold: f64,
+    /// One visible builder at most; zero leaves the project queued without
+    /// consuming the settlement labor pool.
+    #[default(0u32)]
+    pub upgrade_assigned_labor: u32,
+    /// Shares the existing hold/low/normal/urgent construction vocabulary.
+    #[default(2u8)]
+    pub upgrade_priority: u8,
 }
 
 #[spacetimedb::table(

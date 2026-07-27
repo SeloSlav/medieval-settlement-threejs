@@ -344,6 +344,34 @@ export class SpacetimeGameStore {
     return spacetimeReducers.upgradeResidence(residenceId);
   }
 
+  async setResidenceUpgradePriority(residenceId: string, priority: number): Promise<void> {
+    const clampedPriority = Math.max(0, Math.min(3, Math.floor(priority)));
+    const previous = this.tableState.residences.get(residenceId);
+    if (previous) {
+      const nextResidences = new Map(this.tableState.residences);
+      nextResidences.set(residenceId, {
+        ...previous,
+        upgradePriority: clampedPriority,
+        upgradeAssignedLabor: clampedPriority === 0 ? 0 : previous.upgradeAssignedLabor,
+      });
+      this.tableState.residences = nextResidences;
+      this.emit();
+    }
+    try {
+      await spacetimeReducers.setResidenceUpgradePriority(residenceId, clampedPriority);
+      const connection = getConnection();
+      if (connection) this.tableSync.syncResidences(connection);
+    } catch (error) {
+      if (previous) {
+        const nextResidences = new Map(this.tableState.residences);
+        nextResidences.set(residenceId, previous);
+        this.tableState.residences = nextResidences;
+        this.emit();
+      }
+      throw error;
+    }
+  }
+
   repairFireDamage(targetKind: FireTargetKind, targetId: string): Promise<void> {
     return spacetimeReducers.repairFireDamage(targetKind, targetId);
   }

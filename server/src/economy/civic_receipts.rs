@@ -39,8 +39,7 @@ pub fn credit_local_civic_receipts(
 }
 
 pub fn mark_local_civic_receipts_dispatched(building: &mut Building, amount: f64) {
-    building.civic_receipts_gold =
-        (local_civic_receipts(building) - amount.max(0.0)).max(0.0);
+    building.civic_receipts_gold = (local_civic_receipts(building) - amount.max(0.0)).max(0.0);
 }
 
 pub fn restore_local_civic_receipts(building: &mut Building, amount: f64) {

@@ -31,6 +31,7 @@ mod processor_output_policy;
 mod quarry_balance;
 mod reducers;
 mod residence_settlement_policy;
+mod residence_upgrade_policy;
 mod roads;
 mod schedule;
 mod season_policy;

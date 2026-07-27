@@ -325,6 +325,19 @@ export const Residence = __t.object("Residence", {
   abandoned: __t.bool(),
   householdWealth: __t.f64(),
   lastHouseholdMarketTick: __t.u64(),
+  upgradeTargetTier: __t.u8(),
+  upgradeProgress: __t.f64(),
+  upgradeRequiredTimber: __t.f64(),
+  upgradeRequiredStone: __t.f64(),
+  upgradeRequiredGold: __t.f64(),
+  upgradeDeliveredTimber: __t.f64(),
+  upgradeDeliveredStone: __t.f64(),
+  upgradeDeliveredGold: __t.f64(),
+  upgradeReservedTimber: __t.f64(),
+  upgradeReservedStone: __t.f64(),
+  upgradeReservedGold: __t.f64(),
+  upgradeAssignedLabor: __t.u32(),
+  upgradePriority: __t.u8(),
 });
 export type Residence = __Infer<typeof Residence>;
 

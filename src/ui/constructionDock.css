@@ -20,15 +20,34 @@
 }
 
 .construction-dock {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgba(23, 25, 21, 0.58);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(12px);
+  gap: 6px;
+  padding: 7px;
+  overflow: hidden;
+  border: 1px solid rgba(210, 187, 134, 0.3);
+  border-radius: 13px;
+  background:
+    linear-gradient(110deg, rgba(255, 237, 194, 0.035), transparent 36%),
+    radial-gradient(ellipse at 50% 115%, rgba(134, 94, 37, 0.12), transparent 60%),
+    rgba(18, 21, 17, 0.84);
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.34),
+    0 3px 10px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 244, 215, 0.08);
+  backdrop-filter: blur(18px) saturate(0.82);
+}
+
+.construction-dock::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border: 1px solid rgba(235, 215, 168, 0.055);
+  border-radius: 9px;
+  pointer-events: none;
 }
 
 .construction-dock.is-session-blocked .construction-dock-button--hotkey {
@@ -38,51 +57,65 @@
 
 .construction-dock-button {
   position: relative;
-  width: 54px;
-  height: 54px;
+  width: 52px;
+  height: 52px;
   padding: 0;
   display: grid;
   place-items: center;
-  color: var(--ink);
-  background: rgba(238, 232, 220, 0.08);
-  border: 1px solid rgba(238, 232, 220, 0.16);
-  border-radius: 10px;
+  color: #e5ddce;
+  background:
+    linear-gradient(145deg, rgba(255, 244, 214, 0.075), transparent 46%),
+    linear-gradient(180deg, rgba(78, 75, 62, 0.32), rgba(29, 31, 26, 0.38));
+  border: 1px solid rgba(223, 210, 180, 0.15);
+  border-radius: 7px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.07),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
   cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
 }
 
 .construction-dock-button__hotkey {
   position: absolute;
-  right: 4px;
-  bottom: 4px;
+  right: 3px;
+  bottom: 3px;
   z-index: 2;
-  min-width: 18px;
-  padding: 2px 5px;
-  border: 1px solid rgba(215, 180, 99, 0.55);
-  border-radius: 5px;
-  background: rgba(16, 20, 26, 0.92);
-  color: var(--accent);
-  font-size: 11px;
+  min-width: 17px;
+  padding: 2px 4px;
+  border: 1px solid rgba(204, 172, 97, 0.48);
+  border-radius: 4px;
+  background: rgba(12, 14, 11, 0.88);
+  color: #e2c16e;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1.1;
   text-align: center;
   pointer-events: none;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 241, 201, 0.05);
 }
 
 .construction-dock-button svg {
-  width: 24px;
-  height: 24px;
+  width: 23px;
+  height: 23px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.65;
   stroke-linecap: round;
   stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
 }
 
 .construction-dock-button__icon {
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
+  filter: saturate(0.72) sepia(0.12);
 }
 
 .construction-dock-button--text span {
@@ -99,14 +132,41 @@
 
 .construction-dock-button:hover,
 .construction-dock-button:focus-visible {
-  border-color: rgba(215, 180, 99, 0.75);
+  color: #fff3d6;
+  border-color: rgba(215, 180, 99, 0.72);
+  background:
+    linear-gradient(145deg, rgba(255, 234, 184, 0.12), transparent 48%),
+    linear-gradient(180deg, rgba(98, 87, 61, 0.42), rgba(38, 38, 30, 0.5));
   outline: none;
+  transform: translateY(-1px);
 }
 
 .construction-dock-button.is-active {
-  color: #201d15;
-  background: var(--accent);
-  border-color: var(--accent);
+  color: #241d11;
+  background:
+    linear-gradient(145deg, #e3ca83, #b69142 72%);
+  border-color: #e2c77b;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 246, 206, 0.52),
+    inset 0 -2px 0 rgba(76, 53, 20, 0.25),
+    0 0 12px rgba(192, 146, 54, 0.16);
+}
+
+.construction-dock-button[data-action='water-overlay'],
+.construction-dock-button[data-action='settings'] {
+  margin-left: 5px;
+}
+
+.construction-dock-button[data-action='water-overlay']::before,
+.construction-dock-button[data-action='settings']::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: -7px;
+  width: 1px;
+  background: linear-gradient(transparent, rgba(213, 190, 139, 0.3), transparent);
+  pointer-events: none;
 }
 
 .construction-dock-button.has-active-tool:not(.is-active)::after {
@@ -117,8 +177,10 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 2px rgba(23, 25, 21, 0.85);
+  background: #dfbd67;
+  box-shadow:
+    0 0 0 2px rgba(23, 25, 21, 0.92),
+    0 0 7px rgba(222, 180, 84, 0.55);
 }
 
 .construction-menu {
@@ -301,6 +363,21 @@
   .road-tools,
   .construction-dock {
     justify-content: center;
+  }
+
+  .construction-dock {
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .construction-dock-button {
+    width: 46px;
+    height: 48px;
+  }
+
+  .construction-dock-button[data-action='water-overlay'],
+  .construction-dock-button[data-action='settings'] {
+    margin-left: 3px;
   }
 
   .construction-card__art {

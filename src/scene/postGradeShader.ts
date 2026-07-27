@@ -5,10 +5,15 @@ import {
 
 /** Shared grade math constants for WebGL + WebGPU post pipelines. */
 export const GRADE_LUMA_WEIGHTS = [0.2126, 0.7152, 0.0722] as const;
-export const GRADE_WARMTH_TINT = [1.03, 1.01, 0.97] as const;
-export const GRADE_NIGHT_BLUE_TINT = [0.82, 0.9, 1.12] as const;
-export const GRADE_VIGNETTE_INNER = 0.18;
-export const GRADE_VIGNETTE_OUTER = 0.78;
+export const GRADE_WARMTH_TINT = [1.025, 1.005, 0.975] as const;
+export const GRADE_NIGHT_BLUE_TINT = [0.9, 0.96, 1.08] as const;
+export const GRADE_VIGNETTE_INNER = 0.32;
+export const GRADE_VIGNETTE_OUTER = 0.9;
+export const GRADE_HIGHLIGHT_ROLLOFF_START = 0.68;
+export const GRADE_HIGHLIGHT_ROLLOFF_END = 1.25;
+export const GRADE_HIGHLIGHT_DESATURATION = 0.085;
+export const GRADE_SHADOW_LIFT_START = 0.035;
+export const GRADE_SHADOW_LIFT_END = 0.28;
 
 export function buildGradeGlslVertexShader(): string {
   return `
@@ -56,10 +61,30 @@ export function buildGradeGlslFragmentShader(
       float naiveArtStructureEdge = 0.0;
       ${naiveArtBasisApplication}
       vec3 color = sourceColor;
-      color = (color - 0.5) * contrast + 0.5;
       color = adjustSaturation(color, saturation);
+      color = (color - 0.5) * contrast + 0.5;
       color = mix(color, color * vec3(${wr}, ${wg}, ${wb}), warmth);
       color = mix(color, color * vec3(${nr}, ${ng}, ${nb}), nightBlue);
+      float shadowLuma = dot(color, vec3(${lr}, ${lg}, ${lb}));
+      float shadowLiftDrive = max(nightBlue, warmth * 0.45);
+      float shadowLift = (1.0 - smoothstep(
+        ${GRADE_SHADOW_LIFT_START},
+        ${GRADE_SHADOW_LIFT_END},
+        shadowLuma
+      )) * shadowLiftDrive * 0.82;
+      vec3 shadowCurve = pow(max(color, vec3(0.0)), vec3(0.68));
+      color = mix(color, shadowCurve, shadowLift);
+      float highlightLuma = dot(color, vec3(${lr}, ${lg}, ${lb}));
+      float highlightRolloff = smoothstep(
+        ${GRADE_HIGHLIGHT_ROLLOFF_START},
+        ${GRADE_HIGHLIGHT_ROLLOFF_END},
+        highlightLuma
+      );
+      color = mix(
+        color,
+        vec3(highlightLuma),
+        highlightRolloff * ${GRADE_HIGHLIGHT_DESATURATION}
+      );
       float distanceFromCenter = distance(vUv, vec2(0.5));
       float edge = smoothstep(${GRADE_VIGNETTE_INNER}, ${GRADE_VIGNETTE_OUTER}, distanceFromCenter);
       color *= mix(1.0, 1.0 - vignette, edge);
@@ -202,9 +227,27 @@ export function buildGradeWgslFunctionBody(): string {
       let contrasted = (saturated - vec3<f32>(0.5)) * gradeContrast + vec3<f32>(0.5);
       let warmed = mix(contrasted, contrasted * vec3<f32>(${wr}, ${wg}, ${wb}), gradeWarmth);
       let nightTinted = mix(warmed, warmed * vec3<f32>(${nr}, ${ng}, ${nb}), gradeNightBlue);
+      let shadowLuma = dot(nightTinted, vec3<f32>(${lr}, ${lg}, ${lb}));
+      let shadowLiftDrive = max(gradeNightBlue, gradeWarmth * 0.45);
+      let shadowLift = (
+        1.0 - smoothstep(${GRADE_SHADOW_LIFT_START}, ${GRADE_SHADOW_LIFT_END}, shadowLuma)
+      ) * shadowLiftDrive * 0.82;
+      let shadowCurve = pow(max(nightTinted, vec3<f32>(0.0)), vec3<f32>(0.68));
+      let shadowLifted = mix(nightTinted, shadowCurve, shadowLift);
+      let highlightLuma = dot(shadowLifted, vec3<f32>(${lr}, ${lg}, ${lb}));
+      let highlightRolloff = smoothstep(
+        ${GRADE_HIGHLIGHT_ROLLOFF_START},
+        ${GRADE_HIGHLIGHT_ROLLOFF_END},
+        highlightLuma
+      );
+      let highlightManaged = mix(
+        shadowLifted,
+        vec3<f32>(highlightLuma),
+        highlightRolloff * ${GRADE_HIGHLIGHT_DESATURATION}
+      );
       let distanceFromCenter = distance(frameUv, vec2<f32>(0.5));
       let edge = smoothstep(${GRADE_VIGNETTE_INNER}, ${GRADE_VIGNETTE_OUTER}, distanceFromCenter);
-      let graded = nightTinted * mix(1.0, 1.0 - gradeVignette, edge);
+      let graded = highlightManaged * mix(1.0, 1.0 - gradeVignette, edge);
       return vec4<f32>(max(graded, vec3<f32>(0.0)), inputColor.a);
   `;
 }

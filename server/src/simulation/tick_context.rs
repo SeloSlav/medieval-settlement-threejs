@@ -628,11 +628,7 @@ impl SimTickContext {
         crate::simulation::road_logistics::claim_residences_for_wells(network, &wells, &residences)
     }
 
-    fn build_marketplace_claims(
-        &self,
-        ctx: &ReducerContext,
-        owner: Identity,
-    ) -> HashMap<u64, u64> {
+    fn build_marketplace_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
         let Some(network) = self.road_network(owner) else {
             return HashMap::new();
         };
@@ -641,8 +637,7 @@ impl SimTickContext {
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .filter(|building| {
-                building.construction_complete
-                    && !self.building_disabled_by_fire(ctx, building.id)
+                building.construction_complete && !self.building_disabled_by_fire(ctx, building.id)
             })
             .collect();
         let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();
@@ -657,12 +652,9 @@ impl SimTickContext {
                     && !self.residence_disabled_by_fire(ctx, residence.id)
             })
             .collect();
-        claim_residences_by_nearest_supplier(
-            network,
-            &marketplace_refs,
-            &residences,
-            |_, _, _| true,
-        )
+        claim_residences_by_nearest_supplier(network, &marketplace_refs, &residences, |_, _, _| {
+            true
+        })
     }
 
     /// Returns the single nearest supplier assigned to this tier-3 household.

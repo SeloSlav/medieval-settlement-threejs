@@ -4,7 +4,7 @@ use crate::balance_generated::{
     STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
-use crate::economy::CommodityKind;
+use crate::economy::{treasury_gold, CommodityKind};
 use crate::frontier_economy_policy::guardhouse_payroll_cart_load;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_commodity_trip,
@@ -38,6 +38,10 @@ pub fn try_dispatch_guardhouse_payroll(
     let Some(network) = tick.road_network(guardhouse.owner) else {
         return false;
     };
+    let spendable_gold = treasury_gold(ctx, guardhouse.owner);
+    if spendable_gold <= 1e-9 {
+        return false;
+    }
 
     // The tick-local role index prevents a guardhouse roster from triggering a
     // whole-settlement scan. Kind order is the treasury preference order; ids
@@ -56,7 +60,7 @@ pub fn try_dispatch_guardhouse_payroll(
             armed_guards,
             guardhouse.gold,
             0.0,
-            source.gold,
+            source.gold.min(spendable_gold),
             STOREHOUSE_HAUL_PER_WORKER,
         );
         if load <= 1e-9 {

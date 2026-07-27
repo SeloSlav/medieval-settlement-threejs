@@ -535,6 +535,126 @@ pub fn try_start_building_supply_trip(
     )
 }
 
+/// Loads one reserved residence-improvement material and sends it to the
+/// occupied household over the same physical cart network as new construction.
+/// Staffed depots use their roster; unstaffed stores and civic-gold errands
+/// reserve one free villager for the full round trip.
+pub fn try_start_residence_upgrade_supply_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    origin: &mut Building,
+    residence: &mut Residence,
+    commodity: CommodityKind,
+    allow_offroad: bool,
+    available_free_haulers: u32,
+) -> bool {
+    if !origin.construction_complete
+        || residence.upgrade_target_tier <= residence.tier
+        || origin.owner != residence.owner
+        || tick.building_disabled_by_fire(ctx, origin.id)
+        || tick.residence_disabled_by_fire(ctx, residence.id)
+        || building_has_active_trip(ctx, origin.id)
+        || (origin.kind == "village_storehouse" && building_has_inbound_supply_trip(ctx, origin.id))
+        || labor_and_logistics_paused(ctx, tick, origin.owner, clock)
+    {
+        return false;
+    }
+
+    let reserved = match commodity {
+        CommodityKind::Timber => residence.upgrade_reserved_timber,
+        CommodityKind::Stone => residence.upgrade_reserved_stone,
+        CommodityKind::Gold => residence.upgrade_reserved_gold,
+        _ => 0.0,
+    }
+    .max(0.0);
+    if reserved <= 1e-6 {
+        return false;
+    }
+    let needs_free_hauler = origin.assigned_labor == 0 || commodity == CommodityKind::Gold;
+    let workers = if needs_free_hauler {
+        available_free_haulers.min(1)
+    } else {
+        origin.assigned_labor.min(2)
+    };
+    if workers == 0 {
+        return false;
+    }
+    let haul_per_worker = if commodity == CommodityKind::Gold
+        || (origin.kind == "village_storehouse" && origin.assigned_labor > 0)
+    {
+        STOREHOUSE_HAUL_PER_WORKER
+    } else {
+        CONSTRUCTION_HAUL_PER_WORKER
+    };
+    let load = building_commodity_stock(origin, commodity)
+        .min(reserved)
+        .min(haul_per_worker * workers as f64);
+    if load <= 1e-6 {
+        return false;
+    }
+    let route = network
+        .road_path_route(origin.x, origin.z, residence.x, residence.z)
+        .or_else(|| {
+            if !allow_offroad {
+                return None;
+            }
+            let distance =
+                ((residence.x - origin.x).powi(2) + (residence.z - origin.z).powi(2)).sqrt();
+            (distance > 1e-6).then_some(RoadPathRoute {
+                distance,
+                polyline: vec![[origin.x, origin.z], [residence.x, residence.z]],
+            })
+        });
+    let Some(route) = route else {
+        return false;
+    };
+
+    let mut source = origin.clone();
+    let withdrawn = withdraw_building_commodity(&mut source, commodity, load);
+    if withdrawn <= 1e-6 {
+        return false;
+    }
+    match commodity {
+        CommodityKind::Timber => {
+            residence.upgrade_reserved_timber =
+                (residence.upgrade_reserved_timber - withdrawn).max(0.0)
+        }
+        CommodityKind::Stone => {
+            residence.upgrade_reserved_stone =
+                (residence.upgrade_reserved_stone - withdrawn).max(0.0)
+        }
+        CommodityKind::Gold => {
+            residence.upgrade_reserved_gold = (residence.upgrade_reserved_gold - withdrawn).max(0.0)
+        }
+        _ => return false,
+    }
+    *origin = source.clone();
+    ctx.db.building().id().update(source.clone());
+    ctx.db.residence().id().update(residence.clone());
+    insert_trip(
+        ctx,
+        tick,
+        network,
+        StartTripSpec {
+            origin: source,
+            destination: TripDestination::Residence {
+                id: residence.id,
+                x: residence.x,
+                z: residence.z,
+            },
+            cargo_kind: commodity.as_u8(),
+            delivery_workers: workers,
+            speed_mps: CONSTRUCTION_DELIVERY_SPEED_MPS,
+            unload_seconds: CONSTRUCTION_DELIVERY_UNLOAD_SEC,
+            load_amount: withdrawn,
+        },
+        route,
+    );
+    true
+}
+
 /// Dispatch one visible bucket carrier from a staffed well. Fire response may
 /// leave the road for the last leg, but still uses the cached authoritative route.
 pub fn try_start_fire_response_trip(
@@ -1057,9 +1177,57 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
         }
     } else if trip.destination_kind == DELIVERY_DESTINATION_BUILDING {
         unload_commodity_to_building(ctx, trip, commodity);
+    } else if matches!(
+        commodity,
+        CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Gold
+    ) && ctx
+        .db
+        .residence()
+        .id()
+        .find(&trip.residence_id)
+        .is_some_and(|residence| residence.upgrade_target_tier > residence.tier)
+    {
+        unload_residence_upgrade_material(ctx, trip, commodity);
     } else if let Some(need_kind) = ResidenceNeedKind::from_u8(trip.cargo_kind) {
         unload_need_to_residence(ctx, trip, need_kind);
     }
+}
+
+fn unload_residence_upgrade_material(
+    ctx: &ReducerContext,
+    trip: &mut DeliveryTrip,
+    commodity: CommodityKind,
+) {
+    let Some(mut residence) = ctx.db.residence().id().find(&trip.residence_id) else {
+        return;
+    };
+    if residence.upgrade_target_tier <= residence.tier {
+        return;
+    }
+    let room = match commodity {
+        CommodityKind::Timber => {
+            (residence.upgrade_required_timber - residence.upgrade_delivered_timber).max(0.0)
+        }
+        CommodityKind::Stone => {
+            (residence.upgrade_required_stone - residence.upgrade_delivered_stone).max(0.0)
+        }
+        CommodityKind::Gold => {
+            (residence.upgrade_required_gold - residence.upgrade_delivered_gold).max(0.0)
+        }
+        _ => 0.0,
+    };
+    let delivered = trip.amount.min(room);
+    if delivered <= 1e-6 {
+        return;
+    }
+    match commodity {
+        CommodityKind::Timber => residence.upgrade_delivered_timber += delivered,
+        CommodityKind::Stone => residence.upgrade_delivered_stone += delivered,
+        CommodityKind::Gold => residence.upgrade_delivered_gold += delivered,
+        _ => {}
+    }
+    trip.amount = (trip.amount - delivered).max(0.0);
+    ctx.db.residence().id().update(residence);
 }
 
 fn carpenter_delivery_multiplier_for_origin(
@@ -1191,6 +1359,26 @@ fn return_trip_cargo_to_building(ctx: &ReducerContext, trip: &DeliveryTrip) {
                             _ => {}
                         }
                         ctx.db.building().id().update(site);
+                    }
+                }
+            }
+            if trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE
+                && matches!(
+                    commodity,
+                    CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Gold
+                )
+            {
+                if let Some(mut residence) = ctx.db.residence().id().find(&trip.residence_id) {
+                    if residence.upgrade_target_tier > residence.tier {
+                        match commodity {
+                            CommodityKind::Timber => {
+                                residence.upgrade_reserved_timber += trip.amount
+                            }
+                            CommodityKind::Stone => residence.upgrade_reserved_stone += trip.amount,
+                            CommodityKind::Gold => residence.upgrade_reserved_gold += trip.amount,
+                            _ => {}
+                        }
+                        ctx.db.residence().id().update(residence);
                     }
                 }
             }

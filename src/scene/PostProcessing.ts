@@ -17,6 +17,7 @@ import {
   max,
   mix,
   pass,
+  pow,
   screenSize,
   sin,
   smoothstep,
@@ -36,7 +37,12 @@ import {
   buildGradeGlslFragmentShader,
   buildGradeGlslVertexShader,
   GRADE_LUMA_WEIGHTS,
+  GRADE_HIGHLIGHT_DESATURATION,
+  GRADE_HIGHLIGHT_ROLLOFF_END,
+  GRADE_HIGHLIGHT_ROLLOFF_START,
   GRADE_NIGHT_BLUE_TINT,
+  GRADE_SHADOW_LIFT_END,
+  GRADE_SHADOW_LIFT_START,
   GRADE_VIGNETTE_INNER,
   GRADE_VIGNETTE_OUTER,
   GRADE_WARMTH_TINT,
@@ -271,13 +277,42 @@ function buildGradeNode(
     warmed.mul(vec3(nr, ng, nb)),
     nightBlueValue,
   ) as TslNode;
+  const shadowLuma = dot(nightTinted, vec3(lr, lg, lb)) as TslNode;
+  const shadowLiftDrive = max(
+    nightBlueValue,
+    (warmthValue as TslNode).mul(float(0.45)),
+  ) as TslNode;
+  const shadowLift = (float(1) as TslNode)
+    .sub(smoothstep(
+      float(GRADE_SHADOW_LIFT_START),
+      float(GRADE_SHADOW_LIFT_END),
+      shadowLuma,
+    ))
+    .mul(shadowLiftDrive)
+    .mul(float(0.82));
+  const shadowCurve = pow(
+    max(nightTinted, vec3(0)),
+    vec3(0.68),
+  ) as TslNode;
+  const shadowLifted = mix(nightTinted, shadowCurve, shadowLift) as TslNode;
+  const highlightLuma = dot(shadowLifted, vec3(lr, lg, lb)) as TslNode;
+  const highlightRolloff = smoothstep(
+    float(GRADE_HIGHLIGHT_ROLLOFF_START),
+    float(GRADE_HIGHLIGHT_ROLLOFF_END),
+    highlightLuma,
+  ) as TslNode;
+  const highlightManaged = mix(
+    shadowLifted,
+    vec3(highlightLuma),
+    highlightRolloff.mul(float(GRADE_HIGHLIGHT_DESATURATION)),
+  ) as TslNode;
   const distanceFromCenter = distance(uv(), vec2(0.5));
   const edge = smoothstep(
     float(GRADE_VIGNETTE_INNER),
     float(GRADE_VIGNETTE_OUTER),
     distanceFromCenter,
   );
-  const graded = nightTinted.mul(
+  const graded = highlightManaged.mul(
     mix(float(1), (float(1) as TslNode).sub(vignetteValue), edge),
   );
   const finalColor = naiveArtStructureEdge

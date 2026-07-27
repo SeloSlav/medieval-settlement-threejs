@@ -21,9 +21,9 @@ export class WorldSetupPanel {
     this.backdrop.innerHTML = `
       <form class="world-setup-dialog" aria-labelledby="world-setup-title">
         <p class="world-setup-dialog__eyebrow">New settlement</p>
-        <h1 id="world-setup-title" class="world-setup-dialog__title">Shape your world</h1>
+        <h1 id="world-setup-title" class="world-setup-dialog__title">Gorski Kotar, 1550</h1>
         <p class="world-setup-dialog__intro">
-          Choose the map scale and landscape character before roads, forests, and rivers are generated.
+          Shape a frontier valley where roads, rivers, and forest will decide how your settlement survives.
         </p>
 
         <section class="world-setup-section" aria-label="Map size">

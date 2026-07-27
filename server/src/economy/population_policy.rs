@@ -1,3 +1,5 @@
+use std::collections::BinaryHeap;
+
 use crate::construction_priority::{CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT};
 
 /// Labor requests cannot increase a building beyond the settlement's current population.
@@ -26,7 +28,7 @@ pub struct LaborAssignment {
 /// low-priority work releases first, then normal and high; equal priorities
 /// release newer assignments before older ones.
 pub fn labor_reconciliation_updates(
-    mut assignments: Vec<LaborAssignment>,
+    assignments: Vec<LaborAssignment>,
     total_population: u32,
 ) -> Vec<(u64, u32)> {
     let total_assigned = assignments
@@ -38,52 +40,94 @@ pub fn labor_reconciliation_updates(
         return Vec::new();
     }
 
-    assignments.sort_by(|a, b| {
-        a.construction_complete
-            .cmp(&b.construction_complete)
-            .then_with(|| effective_labor_priority(*a).cmp(&effective_labor_priority(*b)))
-            .then_with(|| b.building_id.cmp(&a.building_id))
-    });
-
     let mut targets = assignments
         .iter()
         .map(|assignment| assignment.assigned_labor)
         .collect::<Vec<_>>();
-    for (assignment, target) in assignments.iter().zip(targets.iter_mut()) {
-        if excess == 0 {
-            break;
-        }
-        let released = (*target)
-            .saturating_sub(assignment.minimum_labor)
-            .min(excess);
-        if released == 0 {
-            continue;
-        }
-        *target -= released;
-        excess -= released;
+    let mut bucket_members: [Vec<usize>; 8] = std::array::from_fn(|_| Vec::new());
+    for (index, assignment) in assignments.iter().enumerate() {
+        let group = usize::from(assignment.construction_complete);
+        let priority = effective_labor_priority(*assignment) as usize;
+        bucket_members[group * 4 + priority].push(index);
     }
+    let mut changed = vec![false; assignments.len()];
+    let mut changed_order = Vec::new();
+    release_labor_by_priority(
+        &assignments,
+        &mut targets,
+        &bucket_members,
+        &mut excess,
+        false,
+        &mut changed,
+        &mut changed_order,
+    );
 
     // If every worker who is physically at a workplace has already been
     // released, mark in-transit cart crews for release on return. The database
     // adapter moves that portion into the trip reservation, so it remains
     // committed until the cart row disappears instead of becoming free early.
-    for (assignment, target) in assignments.iter().zip(targets.iter_mut()) {
-        if excess == 0 {
-            break;
-        }
-        let planned_release = (*target).min(assignment.minimum_labor).min(excess);
-        if planned_release == 0 {
-            continue;
-        }
-        *target -= planned_release;
-        excess -= planned_release;
+    if excess > 0 {
+        release_labor_by_priority(
+            &assignments,
+            &mut targets,
+            &bucket_members,
+            &mut excess,
+            true,
+            &mut changed,
+            &mut changed_order,
+        );
     }
-    assignments
+    changed_order
         .into_iter()
-        .zip(targets)
-        .filter(|(assignment, target)| assignment.assigned_labor != *target)
-        .map(|(assignment, target)| (assignment.building_id, target))
+        .map(|index| (assignments[index].building_id, targets[index]))
         .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn release_labor_by_priority(
+    assignments: &[LaborAssignment],
+    targets: &mut [u32],
+    bucket_members: &[Vec<usize>; 8],
+    excess: &mut u32,
+    include_cart_floor: bool,
+    changed: &mut [bool],
+    changed_order: &mut Vec<usize>,
+) {
+    for members in bucket_members {
+        if *excess == 0 {
+            return;
+        }
+        // Heap construction is linear. Population loss normally releases only
+        // a few people, so we avoid sorting an entire 100k-building settlement
+        // merely to find the newest entries in the first eligible bucket.
+        let mut newest = BinaryHeap::from(
+            members
+                .iter()
+                .map(|index| (assignments[*index].building_id, *index))
+                .collect::<Vec<_>>(),
+        );
+        while let Some((_building_id, index)) = newest.pop() {
+            if *excess == 0 {
+                return;
+            }
+            let assignment = assignments[index];
+            let available = if include_cart_floor {
+                targets[index].min(assignment.minimum_labor)
+            } else {
+                targets[index].saturating_sub(assignment.minimum_labor)
+            };
+            let released = available.min(*excess);
+            if released == 0 {
+                continue;
+            }
+            targets[index] -= released;
+            *excess -= released;
+            if !changed[index] {
+                changed[index] = true;
+                changed_order.push(index);
+            }
+        }
+    }
 }
 
 fn effective_labor_priority(assignment: LaborAssignment) -> u8 {

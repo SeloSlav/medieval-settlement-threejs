@@ -58,6 +58,10 @@ type ResourceInspectorOptions = {
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
+  onSetResidenceUpgradePriority?: (
+    residenceId: string,
+    priority: number,
+  ) => void | Promise<void>;
   onRepairFireDamage?: (
     targetKind: 'building' | 'residence',
     targetId: string,
@@ -679,6 +683,7 @@ export class ResourceInspector {
       onCancelMarketplaceTradeOrder: this.options.onCancelMarketplaceTradeOrder,
       onCollectChapelCoffer: this.options.onCollectChapelCoffer,
       onUpgradeResidence: this.options.onUpgradeResidence,
+      onSetResidenceUpgradePriority: this.options.onSetResidenceUpgradePriority,
     });
   };
 

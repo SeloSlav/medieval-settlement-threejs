@@ -134,6 +134,22 @@ export async function upgradeResidence(residenceId: string): Promise<void> {
   await callReducer('upgradeResidence', 'upgrade_residence', { residenceId: serverId });
 }
 
+export async function setResidenceUpgradePriority(
+  residenceId: string,
+  priority: number,
+): Promise<void> {
+  const serverId = parseResidenceServerId(residenceId);
+  if (serverId === null) throw new Error('Invalid residence id.');
+  await callReducer(
+    'setResidenceUpgradePriority',
+    'set_residence_upgrade_priority',
+    {
+      residenceId: serverId,
+      priority: Math.max(0, Math.min(3, Math.floor(priority))),
+    },
+  );
+}
+
 export async function repairFireDamage(
   targetKind: FireTargetKind,
   targetId: string,

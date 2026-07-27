@@ -63,6 +63,10 @@ import {
   type WorkerActivityKind,
   type WorkerTarget,
 } from './workerPaths.ts';
+import {
+  isResidenceUpgradeWorkplaceId,
+  residenceUpgradeWorkplaces,
+} from './residenceUpgradeWorkplaces.ts';
 import type { WorkerToolKind } from './workerTools.ts';
 import {
   villagerDisplayName,
@@ -255,14 +259,18 @@ export class VillagerRenderer {
     const previousResidences = this.residences;
     const previousBuildings = this.buildings;
     const residences = [...options.residences];
-    const buildings = [...options.buildings];
+    const physicalBuildings = [...options.buildings];
+    const buildings = [
+      ...physicalBuildings,
+      ...residenceUpgradeWorkplaces(residences),
+    ];
     const quarries = [...options.quarries];
     const foragingNodes = [...options.foragingNodes];
     const farmFields = [...options.farmFields];
     const pastures = [...options.pastures];
     this.residences = new Map(residences.map((residence) => [residence.id, residence]));
     this.buildings = new Map(buildings.map((building) => [building.id, building]));
-    this.foundingCamp = buildings.find(
+    this.foundingCamp = physicalBuildings.find(
       (building) =>
         building.kind === 'founders_camp'
         && building.constructionComplete !== false
@@ -703,7 +711,11 @@ export class VillagerRenderer {
       ),
       activity: describeVillagerActivity(agent, workplace),
       activityState: onDuty ? 'active' : 'ready',
-      workplace: workplace ? getBuildingDefinition(workplace.kind).label : 'Unassigned',
+      workplace: workplace
+        ? isResidenceUpgradeWorkplaceId(workplace.id)
+          ? 'Household improvement works'
+          : getBuildingDefinition(workplace.kind).label
+        : 'Unassigned',
       household: residence
         ? `Tier ${residence.tier} home · ${residence.population} ${
           residence.population === 1 ? 'resident' : 'residents'
@@ -712,7 +724,11 @@ export class VillagerRenderer {
           ? "Founders' camp · no fixed household"
           : 'No fixed household',
       crew: workplace
-        ? `${workplace.assignedLabor} / ${getBuildingDefinition(workplace.kind).maxLabor} assigned`
+        ? `${workplace.assignedLabor} / ${
+          isResidenceUpgradeWorkplaceId(workplace.id)
+            ? 1
+            : getBuildingDefinition(workplace.kind).maxLabor
+        } assigned`
         : 'Free labor pool',
       pace: `${agent.walkSpeed.toFixed(1)} m/s off-road · ${
         (agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER).toFixed(1)
@@ -1533,7 +1549,9 @@ function describeVillagerActivity(
   workplace: BuildingState | null,
 ): string {
   const workplaceLabel = workplace
-    ? getBuildingDefinition(workplace.kind).label
+    ? isResidenceUpgradeWorkplaceId(workplace.id)
+      ? 'household improvement works'
+      : getBuildingDefinition(workplace.kind).label
     : 'their workplace';
 
   switch (agent.routinePhase) {

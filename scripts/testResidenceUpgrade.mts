@@ -10,8 +10,10 @@ import {
 } from '../src/generated/gameBalance.ts';
 import {
   evaluateResidenceUpgrade,
+  residenceUpgradeProject,
   type ResidenceUpgradeServices,
 } from '../src/economy/residenceUpgrade.ts';
+import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
   findRoadLinkedSupplierForResidence,
   findRoadLinkedUpgradeSupplierForResidence,
@@ -19,10 +21,18 @@ import {
 import { isResidenceInWellRange } from '../src/logistics/waterLogistics.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
+  computePopulationStats,
+  computeResourceTotals,
+} from '../src/resources/resourceTotals.ts';
+import {
   createEmptyStockpile,
   type BuildingState,
+  type GameState,
   type ResidenceState,
 } from '../src/resources/types.ts';
+import {
+  residenceUpgradeWorkplaces,
+} from '../src/settlement/residenceUpgradeWorkplaces.ts';
 
 const lodge = building('lodge', 'woodcutters_lodge', 2);
 const well = building('well', 'well', 3);
@@ -67,6 +77,30 @@ assert.equal(
   true,
   'an operational but temporarily empty route should remain upgrade-eligible',
 );
+
+const householdFundedResidence = residence('household-funded', 1, 3);
+householdFundedResidence.householdWealth = Math.max(1, RESIDENCE_TIER2_GOLD_COST - 2);
+const physicalPlan = evaluateResidenceUpgrade(
+  householdFundedResidence,
+  richTotals,
+  allServices,
+  { physicalEconomy: true },
+);
+assert.ok(physicalPlan);
+assert.equal(
+  physicalPlan.householdContribution,
+  Math.min(householdFundedResidence.householdWealth, RESIDENCE_TIER2_GOLD_COST),
+);
+assert.equal(
+  physicalPlan.civicGoldRequired,
+  RESIDENCE_TIER2_GOLD_COST - physicalPlan.householdContribution,
+);
+assert.equal(
+  physicalPlan.resources.find((resource) => resource.kind === 'gold')?.required,
+  physicalPlan.civicGoldRequired,
+  'only the civic remainder should be tested against the physical treasury',
+);
+
 const fireDisabledUpgrade = evaluateResidenceUpgrade(
   tierOne,
   richTotals,
@@ -127,7 +161,10 @@ assert.deepEqual(
   ],
 );
 assert.equal(tierThreePlan.ready, true);
-assert.equal(evaluateResidenceUpgrade(residence('tier-three', 3, 10), richTotals, allServices), null);
+assert.equal(
+  evaluateResidenceUpgrade(residence('tier-three', 3, 10), richTotals, allServices),
+  null,
+);
 
 const network = {
   getPathfinder: () => ({
@@ -170,17 +207,80 @@ assert.equal(
   'road connectivity alone must not bypass the physical well radius',
 );
 
-const residenceReducer = readFileSync(
-  new URL('../server/src/reducers/residences.rs', import.meta.url),
-  'utf8',
+const activeUpgrade = residence('active-upgrade', 1, 3);
+Object.assign(activeUpgrade, {
+  upgradeTargetTier: 2,
+  upgradeProgress: 0.25,
+  upgradeRequiredTimber: 18,
+  upgradeRequiredStone: 14,
+  upgradeRequiredGold: 8,
+  upgradeDeliveredTimber: 9,
+  upgradeDeliveredStone: 7,
+  upgradeDeliveredGold: 3,
+  upgradeReservedTimber: 5,
+  upgradeReservedStone: 4,
+  upgradeReservedGold: 3,
+  upgradeAssignedLabor: 1,
+  upgradePriority: 3,
+});
+const timberCart = deliveryTrip({
+  id: 'trip-upgrade-timber',
+  residenceId: activeUpgrade.id,
+  cargoKind: 'timber',
+  amount: 4,
+});
+const project = residenceUpgradeProject(activeUpgrade, [timberCart]);
+assert.ok(project);
+assert.equal(project.targetTier, 2);
+assert.equal(project.priorityLabel, 'Urgent');
+assert.equal(project.incoming.timber, 4);
+assert.equal(project.materialReadiness, 0.5);
+assert.match(project.blockers.join(' '), /civic lockbox payment still at source/);
+const workplaces = residenceUpgradeWorkplaces([activeUpgrade]);
+assert.equal(workplaces.length, 1);
+assert.equal(
+  workplaces[0]?.constructionComplete,
+  false,
+  'the authoritative builder should reuse the visible construction-worker routine',
 );
+
+const physicalState = emptyGameState(
+  [Object.assign(building('camp', 'founders_camp', 0), {
+    timber: 100,
+    stone: 80,
+    gold: 20,
+    assignedLabor: 0,
+  })],
+  [activeUpgrade],
+  [timberCart],
+);
+const committedTotals = computeResourceTotals(physicalState);
+assert.equal(committedTotals.timber, 95);
+assert.equal(committedTotals.stone, 76);
+assert.equal(committedTotals.gold, 17);
+assert.equal(computePopulationStats(physicalState).assigned, 2);
+
+const performanceStarted = performance.now();
+for (let index = 0; index < 100_000; index += 1) {
+  residenceUpgradeProject(activeUpgrade);
+}
+const performanceElapsed = performance.now() - performanceStarted;
+assert.ok(
+  performanceElapsed < 1_500,
+  `100k household project summaries should stay cheap (${performanceElapsed.toFixed(1)}ms)`,
+);
+
+const residenceReducer = source('../server/src/reducers/residences.rs');
 assert.match(
   residenceReducer,
   /ResidenceUpgradeService::Water[\s\S]*?position_within_well_service_radius/,
 );
-assert.match(residenceReducer, /let available_gold = treasury_gold\(ctx, owner\)/);
-assert.match(residenceReducer, /available_gold \+ 1e-6 < gold/);
-assert.match(residenceReducer, /Upgrade requires \{\} timber, \{\} stone, and \{\} gold/);
+assert.match(residenceReducer, /residence_upgrade_household_contribution/);
+assert.match(residenceReducer, /physical_founding_site_enabled/);
+assert.match(residenceReducer, /upgrade_reserved_timber = timber/);
+assert.match(residenceReducer, /upgrade_delivered_gold = household_contribution/);
+assert.match(residenceReducer, /spend_aggregate_timber\(ctx, owner, timber\)/);
+assert.match(residenceReducer, /set_residence_upgrade_priority/);
 assert.match(
   residenceReducer,
   /residence_fire_state\(ctx, residence\.id\)\.is_some\(\)[\s\S]*Repair the fire-damaged residence before upgrading it/,
@@ -191,17 +291,41 @@ assert.match(
   'fire-disabled suppliers must not satisfy authoritative upgrade services',
 );
 
-const residenceInspector = readFileSync(
-  new URL('../src/resources/inspector/residenceRenderer.ts', import.meta.url),
-  'utf8',
-);
+const residenceInspector = source('../src/resources/inspector/residenceRenderer.ts');
 assert.match(residenceInspector, /Tier \$\{plan\.nextTier\} services/);
 assert.match(residenceInspector, /Upgrade resources/);
 assert.match(residenceInspector, /plan\.ready \? '' : 'disabled'/);
+assert.match(residenceInspector, /Begin tier \$\{plan\.nextTier\} works/);
+assert.match(residenceInspector, /data-residence-upgrade-priority/);
+assert.match(residenceInspector, /Inspect incoming \$\{trip\.cargoKind\} cart/);
 assert.match(residenceInspector, /structural recovery required before settlement resumes/);
 assert.match(residenceInspector, /TIMBER_SALVAGE_FRACTION \* 100\)}% timber/);
 
-console.log('residence upgrade readiness tests passed');
+const residenceMarkers = source('../src/residences/ResidenceMarkers.ts');
+assert.match(residenceMarkers, /ResidenceUpgradeWorks/);
+assert.match(residenceMarkers, /UpgradeTimberSegment:/);
+assert.match(residenceMarkers, /UpgradeStoneSegment:/);
+assert.match(residenceMarkers, /upgradeProgress/);
+assert.match(residenceMarkers, /upgradeDeliveredTimber/);
+
+const upgradeSimulation = source('../server/src/simulation/residence_upgrades.rs');
+assert.match(upgradeSimulation, /HashMap<[\s\S]*CONSTRUCTION_PRIORITY_LEVELS/);
+assert.match(upgradeSimulation, /upgrade_assigned_labor == 0[\s\S]*return/);
+assert.match(upgradeSimulation, /try_start_residence_upgrade_supply_trip/);
+assert.match(upgradeSimulation, /ensure_residence_needs\(ctx, residence_id\)/);
+
+const deliveryTrips = source('../server/src/simulation/delivery_trips.rs');
+assert.match(deliveryTrips, /try_start_residence_upgrade_supply_trip/);
+assert.match(deliveryTrips, /unload_residence_upgrade_material/);
+assert.match(deliveryTrips, /upgrade_reserved_gold/);
+
+console.log(
+  `residence upgrade physical-work tests passed (${performanceElapsed.toFixed(1)}ms / 100k summaries)`,
+);
+
+function source(relativePath: string): string {
+  return readFileSync(new URL(relativePath, import.meta.url), 'utf8');
+}
 
 function residence(
   id: string,
@@ -271,5 +395,57 @@ function building(
     storehouseAcceptsTimber: true,
     storehouseAcceptsStone: true,
     storehouseAcceptsFirewood: true,
+  };
+}
+
+function deliveryTrip(
+  partial: Pick<
+    DeliveryTripState,
+    'id' | 'residenceId' | 'cargoKind' | 'amount'
+  > & Partial<DeliveryTripState>,
+): DeliveryTripState {
+  return {
+    buildingId: 'camp',
+    destinationKind: 'residence',
+    targetBuildingId: null,
+    phase: 'outbound',
+    x: 0,
+    z: 0,
+    progress: 0.2,
+    speedMps: 1,
+    unloadSeconds: 1,
+    unloadRemaining: 1,
+    deliveryWorkers: 1,
+    freeHaulerWorkers: 1,
+    pathDistance: 10,
+    travelSpeedMultiplier: 1,
+    routePolylineJson: '',
+    ...partial,
+  };
+}
+
+function emptyGameState(
+  buildings: BuildingState[],
+  residences: ResidenceState[],
+  trips: DeliveryTripState[],
+): GameState {
+  return {
+    seed: 1,
+    tick: 0,
+    physicalFoundingSiteEnabled: true,
+    stockpile: createEmptyStockpile(),
+    quarries: new Map(),
+    foragingNodes: new Map(),
+    trees: new Map(),
+    buildings: new Map(buildings.map((entry) => [entry.id, entry])),
+    farmFields: new Map(),
+    pastures: new Map(),
+    livestockHerds: new Map(),
+    burgageZones: new Map(),
+    residences: new Map(residences.map((entry) => [entry.id, entry])),
+    backyardGardens: new Map(),
+    deliveryTrips: new Map(trips.map((entry) => [entry.id, entry])),
+    fireIncidents: new Map(),
+    nextBuildingId: 1,
   };
 }

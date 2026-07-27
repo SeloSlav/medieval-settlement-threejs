@@ -10,6 +10,10 @@ export type SupplementalPanelHandlers = {
   onCancelMarketplaceTradeOrder?: (buildingId: string) => void | Promise<void>;
   onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
+  onSetResidenceUpgradePriority?: (
+    residenceId: string,
+    priority: number,
+  ) => void | Promise<void>;
 };
 
 export function handleSupplementalPanelClick(
@@ -20,6 +24,16 @@ export function handleSupplementalPanelClick(
   const upgradeButton = eventTarget.closest<HTMLElement>('[data-action="upgrade-residence"]');
   if (upgradeButton && target?.kind === 'residence') {
     void handlers.onUpgradeResidence?.(target.residence.id);
+    return true;
+  }
+  const upgradePriority = eventTarget
+    .closest<HTMLElement>('[data-residence-upgrade-priority]')
+    ?.dataset.residenceUpgradePriority;
+  if (upgradePriority != null && target?.kind === 'residence') {
+    void handlers.onSetResidenceUpgradePriority?.(
+      target.residence.id,
+      Number(upgradePriority),
+    );
     return true;
   }
   const tradeId = parseMarketplaceTradeId(eventTarget);

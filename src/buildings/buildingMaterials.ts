@@ -91,24 +91,27 @@ type MaterialDefinition = {
   metalness: number;
   textureFamily?: TextureFamily;
   normalScale?: number;
+  weathering?: BuildingWeatheringProfile;
 };
 
+type BuildingWeatheringProfile = 'plaster' | 'masonry' | 'timber' | 'roof';
+
 const MATERIAL_DEFINITIONS: Record<BuildingMaterialKey, MaterialDefinition> = {
-  plasterWhite: { color: 0xffffff, roughness: 0.92, metalness: 0, textureFamily: 'plaster', normalScale: 0.42 },
-  plasterYellow: { color: 0xeadc9f, roughness: 0.93, metalness: 0, textureFamily: 'plaster', normalScale: 0.42 },
-  plasterGrey: { color: 0xb8b4af, roughness: 0.94, metalness: 0, textureFamily: 'plaster', normalScale: 0.46 },
-  plasterOrange: { color: 0xe6b17e, roughness: 0.93, metalness: 0, textureFamily: 'plaster', normalScale: 0.44 },
-  masonryLight: { color: 0xf0e9dc, roughness: 0.96, metalness: 0, textureFamily: 'masonry', normalScale: 0.72 },
-  masonryMid: { color: 0xc5beb2, roughness: 0.97, metalness: 0, textureFamily: 'masonry', normalScale: 0.78 },
-  masonryDark: { color: 0x858688, roughness: 0.98, metalness: 0, textureFamily: 'masonry', normalScale: 0.82 },
-  timberDark: { color: 0x86664f, roughness: 0.91, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.62 },
-  timberMid: { color: 0xaa866b, roughness: 0.9, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.58 },
-  timberLight: { color: 0xc2a184, roughness: 0.9, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.55 },
-  timberWeathered: { color: 0xae9a87, roughness: 0.94, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.68 },
-  clayRed: { color: 0xffffff, roughness: 0.84, metalness: 0.01, textureFamily: 'clayTiles', normalScale: 0.74 },
-  clayDark: { color: 0xc58f84, roughness: 0.88, metalness: 0.01, textureFamily: 'clayTiles', normalScale: 0.78 },
-  shingle: { color: 0x806856, roughness: 0.95, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.72 },
-  slate: { color: 0x737980, roughness: 0.91, metalness: 0.02, textureFamily: 'masonry', normalScale: 0.48 },
+  plasterWhite: { color: 0xffffff, roughness: 0.92, metalness: 0, textureFamily: 'plaster', normalScale: 0.42, weathering: 'plaster' },
+  plasterYellow: { color: 0xeadc9f, roughness: 0.93, metalness: 0, textureFamily: 'plaster', normalScale: 0.42, weathering: 'plaster' },
+  plasterGrey: { color: 0xb8b4af, roughness: 0.94, metalness: 0, textureFamily: 'plaster', normalScale: 0.46, weathering: 'plaster' },
+  plasterOrange: { color: 0xe6b17e, roughness: 0.93, metalness: 0, textureFamily: 'plaster', normalScale: 0.44, weathering: 'plaster' },
+  masonryLight: { color: 0xf0e9dc, roughness: 0.96, metalness: 0, textureFamily: 'masonry', normalScale: 0.72, weathering: 'masonry' },
+  masonryMid: { color: 0xc5beb2, roughness: 0.97, metalness: 0, textureFamily: 'masonry', normalScale: 0.78, weathering: 'masonry' },
+  masonryDark: { color: 0x858688, roughness: 0.98, metalness: 0, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry' },
+  timberDark: { color: 0x86664f, roughness: 0.91, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.62, weathering: 'timber' },
+  timberMid: { color: 0xaa866b, roughness: 0.9, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.58, weathering: 'timber' },
+  timberLight: { color: 0xc2a184, roughness: 0.9, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.55, weathering: 'timber' },
+  timberWeathered: { color: 0xae9a87, roughness: 0.94, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.68, weathering: 'timber' },
+  clayRed: { color: 0xffffff, roughness: 0.84, metalness: 0.01, textureFamily: 'clayTiles', normalScale: 0.74, weathering: 'roof' },
+  clayDark: { color: 0xc58f84, roughness: 0.88, metalness: 0.01, textureFamily: 'clayTiles', normalScale: 0.78, weathering: 'roof' },
+  shingle: { color: 0x806856, roughness: 0.95, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.72, weathering: 'roof' },
+  slate: { color: 0x737980, roughness: 0.91, metalness: 0.02, textureFamily: 'masonry', normalScale: 0.48, weathering: 'roof' },
   metalIron: { color: 0x4a4846, roughness: 0.55, metalness: 0.72 },
   glass: { color: 0x3d4747, roughness: 0.4, metalness: 0.03 },
   moss: { color: GORSKI_PALETTE.moss, roughness: 0.98, metalness: 0 },
@@ -200,6 +203,8 @@ export function sharedBuildingMaterial(key: BuildingMaterialKey): THREE.MeshStan
   configureBuildingIndirectLight(material);
   material.name = `Shared building material: ${key}`;
   material.userData.sharedBuildingMaterial = true;
+  material.userData.buildingWeatheringProfile = definition.weathering;
+  material.vertexColors = definition.weathering !== undefined;
   if (definition.textureFamily) {
     material.userData.metricUvMeters = TEXTURE_METERS[definition.textureFamily];
   }
@@ -383,7 +388,11 @@ export function addMesh(
   rotation = new THREE.Euler(),
   scale = new THREE.Vector3(1, 1, 1),
 ): THREE.Mesh {
-  const mesh = new THREE.Mesh(prepareBuildingGeometryUvs(geometry, material), material);
+  const preparedGeometry = prepareBuildingGeometryUvs(geometry, material);
+  const mesh = new THREE.Mesh(
+    applyBuildingWeatheringVertexColors(preparedGeometry, material),
+    material,
+  );
   mesh.position.copy(position);
   mesh.rotation.copy(rotation);
   mesh.scale.copy(scale);
@@ -392,4 +401,83 @@ export function addMesh(
   mesh.receiveShadow = true;
   group.add(mesh);
   return mesh;
+}
+
+/**
+ * Adds stable, geometry-local age variation without another texture fetch or
+ * material permutation. The tint is carried by the existing vertex-color
+ * channel, so every shared wall/roof material keeps batching while foundations
+ * gain damp staining and roofs/wood stop reading as perfectly uniform blocks.
+ */
+function applyBuildingWeatheringVertexColors(
+  geometry: THREE.BufferGeometry,
+  material: THREE.Material,
+): THREE.BufferGeometry {
+  const profile = material.userData.buildingWeatheringProfile as BuildingWeatheringProfile | undefined;
+  if (!profile) return geometry;
+
+  const previousProfile = geometry.userData.buildingWeatheringProfile;
+  if (previousProfile === profile && geometry.hasAttribute('color')) return geometry;
+  const target = typeof previousProfile === 'string' ? geometry.clone() : geometry;
+  const position = target.getAttribute('position');
+  const normal = target.getAttribute('normal');
+  if (!position || !normal) return target;
+
+  target.computeBoundingBox();
+  const bounds = target.boundingBox;
+  if (!bounds) return target;
+  const height = Math.max(0.05, bounds.max.y - bounds.min.y);
+  const colors = new Float32Array(position.count * 3);
+
+  for (let i = 0; i < position.count; i++) {
+    const x = position.getX(i);
+    const y = position.getY(i);
+    const z = position.getZ(i);
+    const up = Math.max(0, normal.getY(i));
+    const heightT = THREE.MathUtils.clamp((y - bounds.min.y) / height, 0, 1);
+    const lowBand = 1 - smoothStep01(heightT / 0.34);
+    const broadNoise = 0.5 + 0.5 * Math.sin(x * 1.73 + z * 2.19 + y * 0.41);
+    const fineNoise = 0.5 + 0.5 * Math.sin(x * 7.91 - z * 5.37 + y * 3.17);
+    const variation = (broadNoise * 0.68 + fineNoise * 0.32 - 0.5) * 0.12;
+
+    let red = 1 + variation;
+    let green = 1 + variation;
+    let blue = 1 + variation;
+
+    if (profile === 'plaster') {
+      const rainStain = lowBand * (0.48 + broadNoise * 0.52);
+      red *= 1 - rainStain * 0.2;
+      green *= 1 - rainStain * 0.15;
+      blue *= 1 - rainStain * 0.23;
+    } else if (profile === 'masonry') {
+      const damp = lowBand * (0.58 + fineNoise * 0.42);
+      red *= 1 - damp * 0.25;
+      green *= 1 - damp * 0.2;
+      blue *= 1 - damp * 0.27;
+    } else if (profile === 'timber') {
+      const silvering = 0.06 * broadNoise + 0.08 * up;
+      red *= 1 - silvering * 0.55;
+      green *= 1 - silvering * 0.28;
+      blue *= 1 + silvering * 0.12;
+    } else {
+      const roofExposure = up * (0.55 + broadNoise * 0.45);
+      const lichen = roofExposure * fineNoise * 0.1;
+      red *= 1 - lichen * 0.7;
+      green *= 1 - lichen * 0.18;
+      blue *= 1 - lichen * 0.78;
+    }
+
+    colors[i * 3] = THREE.MathUtils.clamp(red, 0.58, 1.08);
+    colors[i * 3 + 1] = THREE.MathUtils.clamp(green, 0.58, 1.08);
+    colors[i * 3 + 2] = THREE.MathUtils.clamp(blue, 0.58, 1.08);
+  }
+
+  target.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  target.userData.buildingWeatheringProfile = profile;
+  return target;
+}
+
+function smoothStep01(value: number): number {
+  const t = THREE.MathUtils.clamp(value, 0, 1);
+  return t * t * (3 - 2 * t);
 }

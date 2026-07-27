@@ -88,6 +88,7 @@ import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specia
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
 import SetProcessorOutputTargetReducer from "./set_processor_output_target_reducer";
 import SetProductionLaborStewardReducer from "./set_production_labor_steward_reducer";
+import SetResidenceUpgradePriorityReducer from "./set_residence_upgrade_priority_reducer";
 import SetSeasonalLaborStewardReducer from "./set_seasonal_labor_steward_reducer";
 import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
@@ -456,6 +457,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),
   __reducerSchema("set_processor_output_target", SetProcessorOutputTargetReducer),
   __reducerSchema("set_production_labor_steward", SetProductionLaborStewardReducer),
+  __reducerSchema("set_residence_upgrade_priority", SetResidenceUpgradePriorityReducer),
   __reducerSchema("set_seasonal_labor_steward", SetSeasonalLaborStewardReducer),
   __reducerSchema("set_storehouse_policy", SetStorehousePolicyReducer),
   __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),

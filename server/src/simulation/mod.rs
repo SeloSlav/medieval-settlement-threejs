@@ -30,6 +30,7 @@ mod reforester;
 mod residence_lifecycle;
 pub mod residence_needs;
 mod residence_settlement;
+mod residence_upgrades;
 mod road_logistics;
 mod seasonal_labor_steward;
 mod settlement_security;
@@ -86,6 +87,7 @@ pub use reclamation::{insert_reclamation_pile, step_reclamation_piles, Reclamati
 pub use reforester::step_reforester;
 pub use residence_lifecycle::step_residence;
 pub use residence_needs::{clear_residence_needs, ensure_residence_needs};
+pub use residence_upgrades::step_residence_upgrades;
 pub use seasonal_labor_steward::{
     call_up_active_seasonal_labor_for_owner, owner_has_staffed_town_hall,
     recall_idle_seasonal_labor_for_owner, reconcile_seasonal_labor_for_owner,

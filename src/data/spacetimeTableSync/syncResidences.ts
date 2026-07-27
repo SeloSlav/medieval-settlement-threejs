@@ -36,6 +36,23 @@ export function syncResidences(
   const needsByResidence = buildNeedsByResidence(needRows);
   for (const row of residenceRows) {
     if (row.owner.toHexString() !== identityHex) continue;
+    // Additive server fields may be absent from an older generated binding
+    // during a rolling local migration; defaults keep those saves readable.
+    const upgradeRow = row as Residence & Partial<{
+      upgradeTargetTier: number;
+      upgradeProgress: number;
+      upgradeRequiredTimber: number;
+      upgradeRequiredStone: number;
+      upgradeRequiredGold: number;
+      upgradeDeliveredTimber: number;
+      upgradeDeliveredStone: number;
+      upgradeDeliveredGold: number;
+      upgradeReservedTimber: number;
+      upgradeReservedStone: number;
+      upgradeReservedGold: number;
+      upgradeAssignedLabor: number;
+      upgradePriority: number;
+    }>;
     const residenceId = residenceClientId(row.id);
     residences.set(residenceId, {
       id: residenceId,
@@ -52,6 +69,22 @@ export function syncResidences(
       abandoned: row.abandoned,
       householdWealth: Number(row.householdWealth ?? 0),
       lastHouseholdMarketTick: Number(row.lastHouseholdMarketTick ?? 0),
+      upgradeTargetTier: Math.max(
+        0,
+        Math.min(3, Number(upgradeRow.upgradeTargetTier ?? 0)),
+      ) as 0 | 2 | 3,
+      upgradeProgress: Number(upgradeRow.upgradeProgress ?? 0),
+      upgradeRequiredTimber: Number(upgradeRow.upgradeRequiredTimber ?? 0),
+      upgradeRequiredStone: Number(upgradeRow.upgradeRequiredStone ?? 0),
+      upgradeRequiredGold: Number(upgradeRow.upgradeRequiredGold ?? 0),
+      upgradeDeliveredTimber: Number(upgradeRow.upgradeDeliveredTimber ?? 0),
+      upgradeDeliveredStone: Number(upgradeRow.upgradeDeliveredStone ?? 0),
+      upgradeDeliveredGold: Number(upgradeRow.upgradeDeliveredGold ?? 0),
+      upgradeReservedTimber: Number(upgradeRow.upgradeReservedTimber ?? 0),
+      upgradeReservedStone: Number(upgradeRow.upgradeReservedStone ?? 0),
+      upgradeReservedGold: Number(upgradeRow.upgradeReservedGold ?? 0),
+      upgradeAssignedLabor: Number(upgradeRow.upgradeAssignedLabor ?? 0),
+      upgradePriority: Number(upgradeRow.upgradePriority ?? 2),
     });
   }
   return residences;

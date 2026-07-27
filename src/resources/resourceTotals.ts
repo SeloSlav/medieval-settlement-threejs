@@ -167,7 +167,12 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     }
   }
 
-  for (const residence of state.residences.values()) {
+  for (const residence of state.residences?.values() ?? []) {
+    if ((residence.upgradeTargetTier ?? 0) > residence.tier) {
+      timber -= Math.max(0, residence.upgradeReservedTimber ?? 0);
+      stone -= Math.max(0, residence.upgradeReservedStone ?? 0);
+      gold -= Math.max(0, residence.upgradeReservedGold ?? 0);
+    }
     firewood += getNeedStock(residence.needs, 'firewood');
     water += getNeedStock(residence.needs, 'water');
     food += getNeedStock(residence.needs, 'food');
@@ -177,12 +182,12 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   }
 
   cachedTotals = {
-    timber,
-    stone,
+    timber: Math.max(0, timber),
+    stone: Math.max(0, stone),
     firewood,
     water,
     food,
-    gold,
+    gold: Math.max(0, gold),
     grain,
     flour,
     ale,
@@ -273,6 +278,11 @@ export function computeUnreservedBuildingTimber(state: GameState): number {
       );
     }
   }
+  for (const residence of state.residences?.values() ?? []) {
+    if ((residence.upgradeTargetTier ?? 0) > residence.tier) {
+      reserved += Math.max(0, residence.upgradeReservedTimber ?? 0);
+    }
+  }
   return Math.max(0, timber - reserved);
 }
 
@@ -308,6 +318,8 @@ export function computeMarketplaceTradeAvailability(
   let reservedBuildingStone = 0;
   let reservedTreasuryTimber = 0;
   let reservedTreasuryStone = 0;
+  let reservedResidenceTimber = 0;
+  let reservedResidenceStone = 0;
 
   for (const building of state.buildings.values()) {
     allBuildingTimber += building.timber;
@@ -340,8 +352,20 @@ export function computeMarketplaceTradeAvailability(
     accessibleIronwork += building.ironwork ?? 0;
   }
 
-  const unreservedBuildingTimber = Math.max(0, allBuildingTimber - reservedBuildingTimber);
-  const unreservedBuildingStone = Math.max(0, allBuildingStone - reservedBuildingStone);
+  for (const residence of state.residences?.values() ?? []) {
+    if ((residence.upgradeTargetTier ?? 0) <= residence.tier) continue;
+    reservedResidenceTimber += Math.max(0, residence.upgradeReservedTimber ?? 0);
+    reservedResidenceStone += Math.max(0, residence.upgradeReservedStone ?? 0);
+  }
+
+  const unreservedBuildingTimber = Math.max(
+    0,
+    allBuildingTimber - reservedBuildingTimber - reservedResidenceTimber,
+  );
+  const unreservedBuildingStone = Math.max(
+    0,
+    allBuildingStone - reservedBuildingStone - reservedResidenceStone,
+  );
   const ledgerTimber = includeLegacyLedger
     ? Math.max(0, state.stockpile.timber - reservedTreasuryTimber)
     : 0;
@@ -364,7 +388,7 @@ export function computeMarketplaceTradeAvailability(
 export function computePopulationStats(state: GameState): PopulationStats {
   let housed = 0;
   let housingCapacity = 0;
-  for (const residence of state.residences.values()) {
+  for (const residence of state.residences?.values() ?? []) {
     if (residence.abandoned) continue;
     housed += residence.population;
     housingCapacity += residence.populationCapacity;
@@ -377,11 +401,17 @@ export function computePopulationStats(state: GameState): PopulationStats {
   for (const building of state.buildings.values()) {
     buildingAssigned += building.assignedLabor;
   }
+  let residenceUpgradeAssigned = 0;
+  for (const residence of state.residences?.values() ?? []) {
+    if ((residence.upgradeTargetTier ?? 0) > residence.tier) {
+      residenceUpgradeAssigned += Math.max(0, residence.upgradeAssignedLabor ?? 0);
+    }
+  }
   let cartAssigned = 0;
   for (const trip of state.deliveryTrips.values()) {
     cartAssigned += Math.max(0, trip.freeHaulerWorkers);
   }
-  const assigned = buildingAssigned + cartAssigned;
+  const assigned = buildingAssigned + residenceUpgradeAssigned + cartAssigned;
 
   return {
     total,

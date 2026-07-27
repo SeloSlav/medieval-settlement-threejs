@@ -205,8 +205,8 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
 
   const thicknessNode = mix(float(0.05) as TslNode, float(0.78) as TslNode, depthFactor) as TslNode;
   const specularIntensityNode = mix(
-    float(0.72) as TslNode,
-    float(1.35) as TslNode,
+    float(0.38) as TslNode,
+    float(0.76) as TslNode,
     (pow(shoreMask, float(1.55) as TslNode) as TslNode).add(depthFactor.mul(float(0.28) as TslNode) as TslNode) as TslNode,
   ) as TslNode;
 
@@ -242,14 +242,14 @@ export function getSharedRiverWaterMaterial(shoreMaps: RiverWaterShoreMaps): Mes
   material.color.set(0xffffff);
   material.transparent = true;
   material.opacity = 1;
-  material.roughness = 0.06;
+  material.roughness = 0.2;
   material.metalness = 0;
   material.ior = 1.33;
-  material.transmission = 1;
+  material.transmission = 0.82;
   material.thickness = 0.65;
   material.attenuationDistance = 1.75;
   material.attenuationColor = new THREE.Color(0.14, 0.22, 0.12);
-  material.specularIntensity = 1;
+  material.specularIntensity = 0.72;
   material.depthWrite = false;
   material.depthTest = true;
   material.side = THREE.FrontSide;

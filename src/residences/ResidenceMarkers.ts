@@ -360,6 +360,106 @@ function addWorkingLeanTo(
   );
 }
 
+function addResidenceUpgradeWorks(
+  residence: THREE.Group,
+  dimensions: HouseDimensions,
+): void {
+  const works = new THREE.Group();
+  works.name = 'ResidenceUpgradeWorks';
+  works.visible = false;
+  residence.add(works);
+
+  const halfWidth = dimensions.width * 0.5 + 0.48;
+  const halfDepth = dimensions.depth * 0.5 + 0.48;
+  const scaffoldHeight =
+    dimensions.foundationHeight + dimensions.groundHeight + dimensions.upperHeight + 0.65;
+  for (const x of [-halfWidth, halfWidth]) {
+    for (const z of [-halfDepth, halfDepth]) {
+      const post = addMesh(
+        works,
+        new THREE.CylinderGeometry(0.07, 0.085, scaffoldHeight, 7),
+        timberMaterial('weathered'),
+        new THREE.Vector3(x, scaffoldHeight * 0.5, z),
+      );
+      post.name = 'UpgradeScaffoldPost';
+    }
+  }
+  for (const y of [1.15, Math.max(2.25, scaffoldHeight * 0.58), scaffoldHeight - 0.18]) {
+    for (const z of [-halfDepth, halfDepth]) {
+      const rail = addMesh(
+        works,
+        new THREE.BoxGeometry(dimensions.width + 1.15, 0.1, 0.1),
+        timberMaterial('weathered'),
+        new THREE.Vector3(0, y, z),
+      );
+      rail.name = 'UpgradeScaffoldRail';
+    }
+    for (const x of [-halfWidth, halfWidth]) {
+      const rail = addMesh(
+        works,
+        new THREE.BoxGeometry(0.1, 0.1, dimensions.depth + 1.15),
+        timberMaterial('weathered'),
+        new THREE.Vector3(x, y, 0),
+      );
+      rail.name = 'UpgradeScaffoldRail';
+    }
+  }
+  for (const x of [-halfWidth, halfWidth]) {
+    const platform = addMesh(
+      works,
+      new THREE.BoxGeometry(0.58, 0.1, dimensions.depth + 1.05),
+      timberMaterial('weathered'),
+      new THREE.Vector3(x, Math.max(2.2, scaffoldHeight * 0.56), 0),
+    );
+    platform.name = 'UpgradeScaffoldPlatform';
+  }
+
+  const pileZ = halfDepth + 0.9;
+  for (let index = 0; index < 8; index += 1) {
+    const timber = addMesh(
+      works,
+      new THREE.CylinderGeometry(0.1, 0.12, 1.45, 7),
+      timberMaterial(index % 2 === 0 ? 'light' : 'weathered'),
+      new THREE.Vector3(
+        -halfWidth + 0.75 + (index % 2) * 0.23,
+        0.13 + Math.floor(index / 2) * 0.17,
+        pileZ + Math.floor(index / 2) * 0.04,
+      ),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+    timber.name = `UpgradeTimberSegment:${index}`;
+  }
+  for (let index = 0; index < 8; index += 1) {
+    const stone = addMesh(
+      works,
+      new THREE.BoxGeometry(0.34 + (index % 2) * 0.06, 0.24, 0.3),
+      stoneMaterial(index % 3 === 0 ? 'light' : 'mid'),
+      new THREE.Vector3(
+        halfWidth - 0.75 + (index % 2) * 0.28,
+        0.12 + Math.floor(index / 4) * 0.24,
+        pileZ + Math.floor((index % 4) / 2) * 0.3,
+      ),
+      new THREE.Euler(0, (index % 3 - 1) * 0.12, 0),
+    );
+    stone.name = `UpgradeStoneSegment:${index}`;
+  }
+  const lockbox = new THREE.Group();
+  lockbox.name = 'UpgradeCoinLockbox';
+  works.add(lockbox);
+  addMesh(
+    lockbox,
+    new THREE.BoxGeometry(0.48, 0.32, 0.34),
+    timberMaterial('dark'),
+    new THREE.Vector3(halfWidth - 0.1, 0.16, pileZ + 0.72),
+  );
+  addMesh(
+    lockbox,
+    new THREE.BoxGeometry(0.12, 0.16, 0.05),
+    sharedBuildingDetailMaterial('brass'),
+    new THREE.Vector3(halfWidth - 0.1, 0.22, pileZ + 0.9),
+  );
+}
+
 export function createResidenceMesh(seed = 0, tier: 1 | 2 | 3 = 1): THREE.Group {
   const appearance = pickResidenceAppearance(seed);
   const { facade, roof, archetype, entrySide, trim } = appearance;
@@ -532,6 +632,7 @@ export function createResidenceMesh(seed = 0, tier: 1 | 2 | 3 = 1): THREE.Group 
   firewoodPile.visible = false;
   group.add(firewoodPile);
   addLogPile(firewoodPile, entrySide * (halfW - 0.72), -halfD - 0.72, 0, 4, 2.15, 0.19);
+  addResidenceUpgradeWorks(group, dimensions);
 
   return group;
 }
@@ -665,6 +766,7 @@ export class ResidenceMarkers {
       this.residencePopulation.set(residence.id, residence.population);
       this.applyWindowGlowForResidence(marker, residence.id);
       syncFirewoodPile(marker, getNeedStock(residence.needs, 'firewood'));
+      syncResidenceUpgradeWorks(marker, residence);
       if (!marker.getObjectByName('Building shadow proxy')) {
         const shadowProxy = createResidenceShadowProxy(residence.tier);
         shadowProxy.castShadow = areBuildingShadowsEnabled();
@@ -744,4 +846,51 @@ function disposeGroup(group: THREE.Group): void {
       child.geometry.dispose();
     }
   });
+}
+
+export function syncResidenceUpgradeWorks(
+  marker: THREE.Group,
+  residence: ResidenceState,
+): void {
+  const works = marker.getObjectByName('ResidenceUpgradeWorks');
+  if (!(works instanceof THREE.Group)) return;
+  const active = (residence.upgradeTargetTier ?? 0) > residence.tier;
+  works.visible = active;
+  if (!active) return;
+
+  const progress = Math.max(0, Math.min(1, residence.upgradeProgress ?? 0));
+  const timberRemaining = Math.max(
+    0,
+    (residence.upgradeDeliveredTimber ?? 0)
+      - (residence.upgradeRequiredTimber ?? 0) * progress,
+  );
+  const stoneRemaining = Math.max(
+    0,
+    (residence.upgradeDeliveredStone ?? 0)
+      - (residence.upgradeRequiredStone ?? 0) * progress,
+  );
+  const timberFill = (residence.upgradeRequiredTimber ?? 0) <= 1e-6
+    ? 0
+    : timberRemaining / (residence.upgradeRequiredTimber ?? 1);
+  const stoneFill = (residence.upgradeRequiredStone ?? 0) <= 1e-6
+    ? 0
+    : stoneRemaining / (residence.upgradeRequiredStone ?? 1);
+  syncUpgradeMaterialSegments(works, 'UpgradeTimberSegment:', timberFill);
+  syncUpgradeMaterialSegments(works, 'UpgradeStoneSegment:', stoneFill);
+  const lockbox = works.getObjectByName('UpgradeCoinLockbox');
+  if (lockbox) {
+    lockbox.visible = (residence.upgradeDeliveredGold ?? 0) > 0.05 && progress < 0.999;
+  }
+}
+
+function syncUpgradeMaterialSegments(
+  works: THREE.Group,
+  prefix: string,
+  fill: number,
+): void {
+  const segments = works.children.filter((child) => child.name.startsWith(prefix));
+  const visibleCount = Math.ceil(Math.max(0, Math.min(1, fill)) * segments.length);
+  for (let index = 0; index < segments.length; index += 1) {
+    segments[index].visible = index < visibleCount;
+  }
 }

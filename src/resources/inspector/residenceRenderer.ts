@@ -42,9 +42,16 @@ import { gameClock } from '../../world/gameCalendar.ts';
 import { residenceSettlementReadiness } from '../../economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
+  residenceUpgradeProject,
   type ResidenceUpgradePlan,
+  type ResidenceUpgradeProject,
   type ResidenceUpgradeServiceKind,
 } from '../../economy/residenceUpgrade.ts';
+import {
+  CONSTRUCTION_PRIORITIES,
+  constructionPriorityLabel,
+  type ConstructionPriority,
+} from '../../logistics/constructionPriority.ts';
 import {
   computeSettlementProsperityPlan,
   projectTierThreeUpgrade,
@@ -116,10 +123,16 @@ export function renderResidenceInspector(
     ? servingClothSupplier
       ?? context.worldQueries.getClothUpgradeSupplierForResidence(residence)
     : servingClothSupplier;
-  const upgradePlan = evaluateResidenceUpgrade(
+  const upgradeProject = residenceUpgradeProject(
     residence,
-    context.resourceTotals,
-    {
+    context.gameState.deliveryTrips.values(),
+  );
+  const upgradePlan = upgradeProject
+    ? null
+    : evaluateResidenceUpgrade(
+      residence,
+      context.resourceTotals,
+      {
       firewood: {
         supplier: servingFirewoodSupplier,
         stocked: upgradeSupplierHasStock('firewood', servingFirewoodSupplier),
@@ -140,9 +153,12 @@ export function renderResidenceInspector(
         supplier: clothUpgradeSupplier,
         stocked: servingClothSupplier != null,
       },
-    },
-    { fireDisabled },
-  );
+      },
+      {
+        fireDisabled,
+        physicalEconomy: context.gameState.physicalFoundingSiteEnabled === true,
+      },
+    );
   const prosperityPlan = !fireDisabled
     && upgradePlan?.nextTier === 3
     && context.settlementProduction
@@ -295,7 +311,11 @@ export function renderResidenceInspector(
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population} / ${capacity}</span></li>
       <li><span>House tier</span><span>${residence.tier} / 3</span></li>
-      ${upgradePlan ? residenceUpgradeRows(upgradePlan, context.worldQueries.getBuildingLabel.bind(context.worldQueries)) : ''}
+      ${upgradeProject
+        ? residenceUpgradeProjectRows(upgradeProject)
+        : upgradePlan
+          ? residenceUpgradeRows(upgradePlan, context.worldQueries.getBuildingLabel.bind(context.worldQueries))
+          : ''}
       ${prosperityPlan && tierThreeProjection
         ? residenceProsperityRows(prosperityPlan, tierThreeProjection)
         : ''}
@@ -358,9 +378,11 @@ export function renderResidenceInspector(
         : undefined,
     },
     labor: hiddenLabor(),
-    supplementalPanelHtml: upgradePlan
-      ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
-      : '<p class="resource-inspector-note">This household has reached tier 3.</p>',
+    supplementalPanelHtml: upgradeProject
+      ? residenceUpgradeProjectPanel(upgradeProject)
+      : upgradePlan
+        ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
+        : '<p class="resource-inspector-note">This household has reached tier 3.</p>',
   };
 }
 
@@ -380,6 +402,27 @@ function residenceUpgradeRows(
   return `
     <li><span>Tier ${plan.nextTier} services</span><span>${services}</span></li>
     <li><span>Upgrade resources</span><span>${resources}</span></li>
+    ${plan.physicalEconomy
+      ? `<li><span>Upgrade funding</span><span>${formatUpgradeAmount(plan.householdContribution)} household coin · ${formatUpgradeAmount(plan.civicGoldRequired)} civic coin</span></li>`
+      : ''}
+  `;
+}
+
+function residenceUpgradeProjectRows(project: ResidenceUpgradeProject): string {
+  const incoming = project.incomingTrips.length === 0
+    ? 'None'
+    : project.incomingTrips.map((trip) =>
+      `${formatUpgradeAmount(trip.amount)} ${trip.cargoKind} <button type="button" class="inspector-jump-button" data-inspect-delivery-trip="${trip.id}" aria-label="Inspect incoming ${trip.cargoKind} cart">Inspect cart</button>`,
+    ).join(' · ');
+  return `
+    <li><span>Improvement target</span><span>Tier ${project.targetTier}</span></li>
+    <li><span>Builder progress</span><span>${Math.round(project.progress * 100)}%</span></li>
+    <li><span>Queue priority</span><span>${project.priorityLabel}</span></li>
+    <li><span>Builder</span><span>${project.assignedLabor > 0 ? '1 on household works' : 'Waiting for free labor'}</span></li>
+    <li><span>Timber onsite</span><span>${formatUpgradeAmount(project.delivered.timber)} / ${formatUpgradeAmount(project.required.timber)} · ${formatUpgradeAmount(project.reserved.timber)} reserved</span></li>
+    <li><span>Stone onsite</span><span>${formatUpgradeAmount(project.delivered.stone)} / ${formatUpgradeAmount(project.required.stone)} · ${formatUpgradeAmount(project.reserved.stone)} reserved</span></li>
+    <li><span>Coin onsite</span><span>${formatUpgradeAmount(project.delivered.gold)} / ${formatUpgradeAmount(project.required.gold)} · ${formatUpgradeAmount(project.reserved.gold)} reserved</span></li>
+    <li><span>Incoming haul</span><span>${incoming}</span></li>
   `;
 }
 
@@ -422,7 +465,28 @@ function residenceUpgradePanel(
         : ` Current occupants fit, but filling this house would exceed installed ${projection.limitingLabel} capacity on ${projection.roadBranchScoped ? 'this road branch' : 'the settlement'}.`
       : ` Warning: promoting the current occupants immediately exceeds installed ${projection.limitingLabel} capacity on ${projection.roadBranchScoped ? 'this road branch' : 'the settlement'} by ${Math.abs(projection.immediateHeadroomResidents)} residents.`
     : '';
-  return `<button type="button" class="resource-action-button" data-action="upgrade-residence" ${plan.ready ? '' : 'disabled'}>Upgrade to tier ${plan.nextTier}</button><p class="resource-inspector-note">${status}${throughput} ${guidance}</p>`;
+  const funding = plan.physicalEconomy
+    ? ` The household pays ${formatUpgradeAmount(plan.householdContribution)} coin from its own chest; ${formatUpgradeAmount(plan.civicGoldRequired)} coin is reserved in the civic treasury. Materials remain at their stores until a builder and cart can move them.`
+    : '';
+  return `<button type="button" class="resource-action-button" data-action="upgrade-residence" ${plan.ready ? '' : 'disabled'}>Begin tier ${plan.nextTier} works</button><p class="resource-inspector-note">${status}${throughput}${funding} ${guidance}</p>`;
+}
+
+function residenceUpgradeProjectPanel(project: ResidenceUpgradeProject): string {
+  const status = project.blockers.length === 0
+    ? 'Supplied and staffed; work advances as delivered material permits.'
+    : project.blockers.join(' · ');
+  return `<div class="inspector-action-panel">
+    <p class="resource-inspector-note">Household works are physical: one builder works from onsite timber and stone, while carts bring reserved stores and civic coin. ${status} Hold releases the builder and stops new carts without losing reservations.</p>
+    <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
+      residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
+  </div>`;
+}
+
+function residenceUpgradePriorityButton(
+  candidate: ConstructionPriority,
+  current: ConstructionPriority,
+): string {
+  return `<button type="button" class="resource-action-button" data-residence-upgrade-priority="${candidate}" ${candidate === current ? 'disabled' : ''}>${constructionPriorityLabel(candidate)}</button>`;
 }
 
 function upgradeSupplierHasStock(

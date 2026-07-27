@@ -17,6 +17,7 @@ type ParticleLayer = {
 
 const VOLUME_HEIGHT = 72;
 const VOLUME_FLOOR_BELOW_CAMERA = 20;
+const OVERVIEW_VOLUME_FLOOR_BELOW_CAMERA = 86;
 const BASE_VOLUME_RADIUS = 92;
 const RAIN_BASE_PARTICLES = 1_300;
 const SNOW_BASE_PARTICLES = 960;
@@ -51,8 +52,8 @@ export class PrecipitationRenderer {
       this.createLayer('rain', Math.round(RAIN_BASE_PARTICLES * 0.58), 0xe7f1f5, 1.75, 0.48, 1.18, 1.12, 0x9fbfd2),
     ];
     this.snowLayers = [
-      this.createLayer('snow', SNOW_BASE_PARTICLES, 0xf4fbff, 0.22, 0.82, 0.9, 0.88, 0xcbdde8),
-      this.createLayer('snow', Math.round(SNOW_BASE_PARTICLES * 0.62), 0xffffff, 0.38, 0.68, 1.15, 1.1, 0xdceaf2),
+      this.createLayer('snow', SNOW_BASE_PARTICLES, 0xe6eef2, 0.16, 0.58, 0.9, 0.88, 0xaebfc8),
+      this.createLayer('snow', Math.round(SNOW_BASE_PARTICLES * 0.62), 0xf1f5f6, 0.2, 0.4, 1.15, 1.1, 0xc4d0d5),
     ];
 
     for (const layer of [...this.rainLayers, ...this.snowLayers]) {
@@ -79,14 +80,28 @@ export class PrecipitationRenderer {
     const radius = firstPersonActive
       ? 34
       : THREE.MathUtils.clamp(cameraDistance * 0.58, 44, 175);
+    const precipitationFloorBelowCamera = firstPersonActive
+      ? VOLUME_FLOOR_BELOW_CAMERA
+      : THREE.MathUtils.lerp(
+        VOLUME_FLOOR_BELOW_CAMERA,
+        OVERVIEW_VOLUME_FLOOR_BELOW_CAMERA,
+        THREE.MathUtils.smoothstep(cameraDistance, 70, 260),
+      );
+    const overviewVisibility = firstPersonActive
+      ? 1
+      : THREE.MathUtils.lerp(
+        1,
+        0.12,
+        THREE.MathUtils.smoothstep(cameraDistance, 105, 260),
+      );
     this.group.position.set(
       this.camera.position.x,
-      this.camera.position.y - VOLUME_FLOOR_BELOW_CAMERA,
+      this.camera.position.y - precipitationFloorBelowCamera,
       this.camera.position.z,
     );
 
-    this.updateLayers(this.rainLayers, this.rainAmount, radius, 'rain', frameDt);
-    this.updateLayers(this.snowLayers, this.snowAmount, radius, 'snow', frameDt);
+    this.updateLayers(this.rainLayers, this.rainAmount * overviewVisibility, radius, 'rain', frameDt);
+    this.updateLayers(this.snowLayers, this.snowAmount * overviewVisibility, radius, 'snow', frameDt);
     this.applyVisibility();
   }
 
@@ -276,7 +291,7 @@ function createSnowflakeGeometry(): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   const positions: number[] = [];
   const uvs: number[] = [];
-  const halfSize = 0.48;
+  const halfSize = 0.4;
   appendVerticalQuad(
     positions,
     uvs,
@@ -292,14 +307,6 @@ function createSnowflakeGeometry(): THREE.BufferGeometry {
     new THREE.Vector3(0, -halfSize, halfSize),
     new THREE.Vector3(0, halfSize, halfSize),
     new THREE.Vector3(0, halfSize, -halfSize),
-  );
-  appendVerticalQuad(
-    positions,
-    uvs,
-    new THREE.Vector3(-halfSize, 0, -halfSize),
-    new THREE.Vector3(halfSize, 0, -halfSize),
-    new THREE.Vector3(halfSize, 0, halfSize),
-    new THREE.Vector3(-halfSize, 0, halfSize),
   );
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
@@ -341,11 +348,11 @@ function createSnowTexture(): THREE.DataTexture {
     const dy = y - 0.5;
     const radius = Math.hypot(dx, dy) * 2;
     if (radius >= 1) return 0;
-    const core = Math.exp(-(radius * radius) / 0.16);
+    const core = Math.exp(-(radius * radius) / 0.2);
     const angle = Math.atan2(dy, dx);
-    const arm = Math.pow(Math.abs(Math.cos(angle * 3)), 18)
+    const arm = Math.pow(Math.abs(Math.cos(angle * 3)), 12)
       * Math.exp(-Math.pow(radius - 0.48, 2) / 0.11);
-    return Math.max(core, arm * 0.72) * Math.pow(1 - radius, 0.28);
+    return Math.max(core, arm * 0.24) * Math.pow(1 - radius, 0.46);
   }, 'Procedural soft snowflake sprite');
 }
 

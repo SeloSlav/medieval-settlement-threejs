@@ -8,6 +8,7 @@ import {
   normalMap,
   pow,
   positionWorld,
+  sin,
   smoothstep,
   sub,
   texture,
@@ -46,10 +47,29 @@ function buildGrassBlendNodes(textures: TerrainBlendTextureSet) {
   const meadowColor = texture(textures.meadow.albedo, grassUv) as TslNode;
   const denseColor = texture(textures.dense.albedo, grassUv) as TslNode;
   const dryColor = texture(textures.dry.albedo, grassUv) as TslNode;
-  const colorNode = meadowColor.rgb
+  const blendedColor = meadowColor.rgb
     .mul(w.x)
     .add(denseColor.rgb.mul(w.y))
     .add(dryColor.rgb.mul(w.z));
+  const world = positionWorld as TslNode;
+  const macroA = (sin(
+    world.x
+      .mul(float(0.012) as TslNode)
+      .add(world.z.mul(float(0.009) as TslNode)) as TslNode,
+  ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
+  const macroB = (sin(
+    world.x
+      .mul(float(-0.026) as TslNode)
+      .add(world.z.mul(float(0.021) as TslNode))
+      .add(float(2.41) as TslNode) as TslNode,
+  ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
+  const macro = macroA.mul(float(0.66) as TslNode).add(macroB.mul(float(0.34) as TslNode));
+  const macroTint = mix(
+    vec3(0.9, 0.94, 0.85) as TslNode,
+    vec3(1.045, 1.025, 0.95) as TslNode,
+    macro,
+  ) as TslNode;
+  const colorNode = blendedColor.mul(macroTint);
 
   const meadowNormal = texture(textures.meadow.normal, grassUv) as TslNode;
   const denseNormal = texture(textures.dense.normal, grassUv) as TslNode;

@@ -93,13 +93,17 @@ export async function createPreferredRenderer(): Promise<RendererBackend> {
 function configureRenderer(renderer: SupportedRenderer): void {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  // Day/night presentation refines exposure every clock update. Keep startup
+  // neutral so the first frame does not flash brighter than the settled grade.
+  renderer.toneMappingExposure = 1.04;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0x86bdf1, 1);
+  renderer.setClearColor(0x9bb8c8, 1);
 
   const shadowMap = renderer.shadowMap as ShadowMapWithManualRefresh;
-  if ('autoUpdate' in shadowMap) shadowMap.autoUpdate = true;
+  // The expensive casters are static trees/buildings. SceneManager explicitly
+  // invalidates this map for camera, sun, construction, and preference changes.
+  if ('autoUpdate' in shadowMap) shadowMap.autoUpdate = false;
 }
 
 async function canUseWebGPU(): Promise<boolean> {
