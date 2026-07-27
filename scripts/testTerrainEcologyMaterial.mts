@@ -5,6 +5,16 @@ import * as THREE from 'three';
 import {
   createTerrainGrassMaterial,
   createTerrainGrassMaterialWithRiverShore,
+  TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR,
+  TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR,
+  TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR,
+  TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR,
+  TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR,
+  TERRAIN_FROST_COLOR_BLEND,
+  TERRAIN_FROST_COLOR_LIFT,
+  TERRAIN_FROST_MASK_SCALE,
+  TERRAIN_FROST_PATCH_MAX,
+  TERRAIN_FROST_PATCH_MIN,
 } from '../src/terrain/TerrainGrassMaterial.ts';
 import { createRoadWeatherUniforms } from '../src/roads/RoadSurfaceMaterial.ts';
 import type {
@@ -43,6 +53,7 @@ assert.match(ecologySource, /const albedoDetailStrength = mix/);
 assert.match(ecologySource, /float\(0\.24\)/);
 assert.match(ecologySource, /const normalDetailStrength = mix/);
 assert.match(ecologySource, /const rainNormalVisibility = mix/);
+assert.match(ecologySource, /const rainAoVisibility = mix/);
 assert.match(ecologySource, /float\(0\.1\)/);
 assert.match(ecologySource, /vec3\(0\.5, 0\.5, 1\)/);
 assert.match(ecologySource, /const roughnessDetailStrength = mix/);
@@ -74,12 +85,57 @@ assert.match(source, /applyTerrainWetColor/);
 assert.match(source, /buildTerrainWetMask\(moisture,\s*weather\)/);
 assert.match(source, /const rainDirtVisibility = mix/);
 assert.match(source, /applyTerrainRainHaze/);
-assert.match(source, /const frostExposure = mix/);
+assert.match(source, /const flatFrostExposure = mix/);
+assert.match(source, /const broadFrostExposure = smoothstep/);
+assert.match(source, /const ecologicalShelter = max/);
 assert.match(source, /blendNodes\.frostExposure/);
 assert.match(source, /buildTerrainFrostMask/);
 assert.match(source, /weather\.wetness/);
 assert.match(source, /weather\.frost/);
 assert.match(source, /const roadWearHalo =/);
+assert.match(source, /const shoreTextureVisibility = sub/);
+assert.equal(
+  TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR,
+  0,
+  'full rain must remove sampled albedo from the terrain result',
+);
+assert.ok(
+  TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR <= 0.05,
+  'full-rain normal detail must remain below the visible perspective-boundary floor',
+);
+assert.ok(
+  TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR <= 0.05,
+  'full-rain AO detail must remain below the visible perspective-boundary floor',
+);
+assert.ok(
+  TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR <= 0.1,
+  'full-rain roughness variation must remain restrained',
+);
+assert.equal(
+  TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR,
+  0,
+  'full rain must remove the camera-proximity dirt texture transition',
+);
+const rawFrostMaskMin = TERRAIN_FROST_PATCH_MIN * TERRAIN_FROST_MASK_SCALE;
+const rawFrostMaskMax = TERRAIN_FROST_PATCH_MAX * TERRAIN_FROST_MASK_SCALE;
+assert.ok(
+  rawFrostMaskMin <= 0.04,
+  'sheltered macro zones must retain their underlying green-brown terrain',
+);
+assert.ok(
+  rawFrostMaskMax >= 0.68 && rawFrostMaskMax <= 0.8,
+  'fully exposed macro zones must read as light frost rather than full snow cover',
+);
+assert.ok(
+  rawFrostMaskMax * TERRAIN_FROST_COLOR_BLEND >= 0.58,
+  'exposed frost must separate visibly from sheltered terrain at overview distance',
+);
+assert.ok(
+  TERRAIN_FROST_COLOR_LIFT[0] >= 0.14
+    && TERRAIN_FROST_COLOR_LIFT[2] > TERRAIN_FROST_COLOR_LIFT[1]
+    && TERRAIN_FROST_COLOR_LIFT[1] > TERRAIN_FROST_COLOR_LIFT[0],
+  'frost target must be visibly pale and progressively cool without becoming white',
+);
 assert.match(source, /function resolveTerrainWeather/);
 assert.match(source, /weather\?\.wetness \?\? \(float\(0\)/);
 

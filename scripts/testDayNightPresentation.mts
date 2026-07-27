@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import { computeDayNightState } from '../src/world/dayNightPresentation.ts';
 import { gameClockAtElapsedSeconds, type GameClock } from '../src/world/gameCalendar.ts';
@@ -21,15 +23,17 @@ assert.equal(springNight.isNight, true);
 assert.ok(springNight.nightAmount > 0.99);
 assert.equal(springNoon.nightAmount, 0);
 assert.ok(springNight.solarElevationDeg < -25, 'late night should place the sun well below the horizon');
-assert.equal(fixedSummerMoonlight.fogColor, 0x4b6174);
-assert.equal(fixedSummerMoonlight.fogDensity, 0.00078);
+assert.equal(fixedSummerMoonlight.fogColor, 0x506b80);
+assert.equal(fixedSummerMoonlight.fogDensity, 0.0007);
 assert.equal(fixedSummerMoonlight.grade.saturation, 0.88);
 assert.equal(fixedSummerMoonlight.grade.contrast, 0.98);
 assert.equal(fixedSummerMoonlight.grade.nightBlue, 0.24);
 assert.equal(fixedSummerMoonlight.grade.vignette, 0.065);
-assert.equal(fixedSummerMoonlight.hemiGroundColor, 0x4b606a);
-assert.equal(fixedSummerMoonlight.fillColor, 0xa6c4de);
-assert.equal(fixedSummerMoonlight.fillIntensity, 0.62);
+assert.equal(fixedSummerMoonlight.hemiSkyColor, 0x6888a7);
+assert.equal(fixedSummerMoonlight.hemiGroundColor, 0x516773);
+assert.equal(fixedSummerMoonlight.ambientColor, 0x778fa9);
+assert.equal(fixedSummerMoonlight.fillColor, 0xaccbe2);
+assert.equal(fixedSummerMoonlight.fillIntensity, 0.68);
 assert.equal(
   fixedWinterDaylight.grade.nightBlue,
   0.055,
@@ -90,6 +94,18 @@ assert.ok(
 assert.ok(
   subMinuteAngle < THREE.MathUtils.degToRad(0.1),
   'sub-minute solar motion should advance smoothly without a large step',
+);
+
+const projectRoot = fileURLToPath(new URL('../', import.meta.url));
+const sceneSource = readFileSync(`${projectRoot}src/scene/SceneManager.ts`, 'utf8');
+assert.match(sceneSource, /const moonKey = 0\.68/);
+assert.match(sceneSource, /lerp\(1,\s*0\.56,\s*state\.nightAmount\)/);
+assert.match(sceneSource, /lerp\(1,\s*0\.28,\s*state\.nightAmount\)/);
+assert.match(sceneSource, /lerp\(1,\s*0\.5,\s*state\.nightAmount\)/);
+assert.equal(
+  (sceneSource.match(/new THREE\.DirectionalLight\(/g) ?? []).length,
+  2,
+  'night readability must reuse the existing key and fill lights',
 );
 
 console.log('Day/night presentation tests passed.');

@@ -9,6 +9,7 @@ import {
   marketplaceSeedGrainProcurementPlan,
   nextMarketplaceStandingOrder,
 } from './marketplaceSeedPolicy.ts';
+import { marketplaceGoldReserveTarget } from './marketplaceGoldReserve.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 
 export type SettlementSeedProcurementAttention =
@@ -16,6 +17,9 @@ export type SettlementSeedProcurementAttention =
   | 'fire'
   | 'labor'
   | 'road'
+  | 'cash-policy'
+  | 'cash-inbound'
+  | 'cash-cart'
   | 'treasury'
   | 'ironwork'
   | 'cooldown';
@@ -32,7 +36,15 @@ export type SettlementSeedProcurementPlan = {
   plannedImportGrain: number;
   inboundSeedGrain: number;
   affordableLotsAtCurrentRate: number;
+  onsiteFundedLotsAtCurrentRate: number;
+  committedFundedLotsAtCurrentRate: number;
+  treasuryRefillLotsAtCurrentRate: number;
   nextLotGoldCost: number;
+  physicalCashEconomy: boolean;
+  availableTreasuryGold: number;
+  marketCofferGold: number;
+  inboundMarketGold: number;
+  selectedMarketReserveGold: number;
   seedShortfall: number;
   potentialCoverage: number;
   uncoveredShortfall: number;
@@ -40,6 +52,9 @@ export type SettlementSeedProcurementPlan = {
   fireBlockedMarkets: number;
   laborBlockedMarkets: number;
   roadBlockedMarkets: number;
+  cashPolicyBlockedMarkets: number;
+  cashInboundMarkets: number;
+  cashCartMarkets: number;
   treasuryBlockedMarkets: number;
   ironworkQueuedMarkets: number;
   cooldownBlockedMarkets: number;
@@ -75,7 +90,7 @@ export type SettlementSeedRoadPlan = {
 
 type SettlementSeedProcurementInput = {
   state: Pick<GameState, 'buildings' | 'deliveryTrips'>
-    & Partial<Pick<GameState, 'fireIncidents'>>;
+    & Partial<Pick<GameState, 'fireIncidents' | 'physicalFoundingSiteEnabled'>>;
   seedShortfall: number;
   seedGrainByHolding?: ReadonlyMap<string, number>;
   availableGold: number;
@@ -100,9 +115,12 @@ const ATTENTION_PRIORITY: Record<SettlementSeedProcurementAttention, number> = {
   fire: 1,
   labor: 2,
   road: 3,
-  treasury: 4,
-  ironwork: 5,
-  cooldown: 6,
+  'cash-policy': 4,
+  treasury: 5,
+  ironwork: 6,
+  cooldown: 7,
+  'cash-inbound': 8,
+  'cash-cart': 9,
 };
 
 function positiveFinite(value: number | undefined): number {
@@ -139,6 +157,28 @@ function inboundSeedByHolding(
       || trip.destinationKind !== 'building'
       || trip.targetBuildingId === null
       || trip.cargoKind !== 'grain'
+      || trip.amount <= 1e-9
+    ) {
+      continue;
+    }
+    inbound.set(
+      trip.targetBuildingId,
+      (inbound.get(trip.targetBuildingId) ?? 0) + positiveFinite(trip.amount),
+    );
+  }
+  return inbound;
+}
+
+function inboundGoldByMarket(
+  state: Pick<GameState, 'deliveryTrips'>,
+): Map<string, number> {
+  const inbound = new Map<string, number>();
+  for (const trip of state.deliveryTrips.values()) {
+    if (
+      trip.phase === 'inbound'
+      || trip.destinationKind !== 'building'
+      || trip.targetBuildingId === null
+      || trip.cargoKind !== 'gold'
       || trip.amount <= 1e-9
     ) {
       continue;
@@ -370,6 +410,12 @@ export function computeSettlementSeedProcurementPlan(
   const seedShortfall = roadDemand.seedShortfall;
   const nextLotGoldCost = positiveFinite(input.nextLotGoldCost);
   const availableGold = positiveFinite(input.availableGold);
+  const physicalCashEconomy =
+    input.state.physicalFoundingSiteEnabled === true;
+  const inboundMarketGoldById = physicalCashEconomy
+    ? inboundGoldByMarket(input.state)
+    : null;
+  let forecastTreasuryGold = availableGold;
   let marketplaces = 0;
   let targetMarkets = 0;
   let dueMarkets = 0;
@@ -378,10 +424,19 @@ export function computeSettlementSeedProcurementPlan(
   let currentGranaryStock = 0;
   let targetStock = 0;
   let plannedImportLots = 0;
+  let onsiteFundedLotsAtCurrentRate = 0;
+  let committedFundedLotsAtCurrentRate = 0;
+  let treasuryRefillLotsAtCurrentRate = 0;
+  let marketCofferGold = 0;
+  let inboundMarketGold = 0;
+  let selectedMarketReserveGold = 0;
   let constructionBlockedMarkets = 0;
   let fireBlockedMarkets = 0;
   let laborBlockedMarkets = 0;
   let roadBlockedMarkets = 0;
+  let cashPolicyBlockedMarkets = 0;
+  let cashInboundMarkets = 0;
+  let cashCartMarkets = 0;
   let treasuryBlockedMarkets = 0;
   let ironworkQueuedMarkets = 0;
   let cooldownBlockedMarkets = 0;
@@ -428,6 +483,57 @@ export function computeSettlementSeedProcurementPlan(
     targetMarkets += 1;
     targetStock += procurement.target;
     plannedImportLots += procurement.ordersToTarget;
+    const onsiteGold = physicalCashEconomy
+      ? positiveFinite(building.gold)
+      : 0;
+    const approachingGold = physicalCashEconomy
+      ? positiveFinite(inboundMarketGoldById?.get(building.id))
+      : 0;
+    const reserveTarget = physicalCashEconomy
+      ? marketplaceGoldReserveTarget(building)
+      : 0;
+    if (physicalCashEconomy) {
+      marketCofferGold += onsiteGold;
+      inboundMarketGold += approachingGold;
+      selectedMarketReserveGold += reserveTarget;
+      if (nextLotGoldCost <= 1e-9) {
+        onsiteFundedLotsAtCurrentRate += procurement.ordersToTarget;
+        committedFundedLotsAtCurrentRate += procurement.ordersToTarget;
+      } else {
+        const onsiteLots = Math.min(
+          procurement.ordersToTarget,
+          Math.floor((onsiteGold + 1e-6) / nextLotGoldCost),
+        );
+        const committedLots = Math.min(
+          procurement.ordersToTarget,
+          Math.floor(
+            (onsiteGold + approachingGold + 1e-6) / nextLotGoldCost,
+          ),
+        );
+        onsiteFundedLotsAtCurrentRate += onsiteLots;
+        committedFundedLotsAtCurrentRate += committedLots;
+        let simulatedMarketGold =
+          onsiteGold + approachingGold - committedLots * nextLotGoldCost;
+        let remainingOrders = procurement.ordersToTarget - committedLots;
+        while (
+          remainingOrders > 0
+          && reserveTarget + 1e-6 >= nextLotGoldCost
+          && forecastTreasuryGold > 1e-9
+        ) {
+          const refill = Math.min(
+            forecastTreasuryGold,
+            Math.max(0, reserveTarget - simulatedMarketGold),
+          );
+          if (refill <= 1e-9) break;
+          forecastTreasuryGold -= refill;
+          simulatedMarketGold += refill;
+          if (simulatedMarketGold + 1e-6 < nextLotGoldCost) break;
+          simulatedMarketGold -= nextLotGoldCost;
+          remainingOrders -= 1;
+          treasuryRefillLotsAtCurrentRate += 1;
+        }
+      }
+    }
     if (branch) {
       branch.plannedImportGrain +=
         procurement.ordersToTarget * MARKETPLACE_SEED_GRAIN_IMPORT_LOT;
@@ -454,9 +560,36 @@ export function computeSettlementSeedProcurementPlan(
     } else if (building.actionCooldown > 1e-6) {
       cooldownBlockedMarkets += 1;
       attention = 'cooldown';
-    } else if (nextLotGoldCost > availableGold + 1e-6) {
+    } else if (!physicalCashEconomy && nextLotGoldCost > availableGold + 1e-6) {
       treasuryBlockedMarkets += 1;
       attention = 'treasury';
+    } else if (
+      physicalCashEconomy
+      && onsiteGold + 1e-6 >= nextLotGoldCost
+    ) {
+      readyMarkets += 1;
+    } else if (
+      physicalCashEconomy
+      && onsiteGold + approachingGold + 1e-6 >= nextLotGoldCost
+    ) {
+      cashInboundMarkets += 1;
+      attention = 'cash-inbound';
+    } else if (
+      physicalCashEconomy
+      && reserveTarget + 1e-6 < nextLotGoldCost
+    ) {
+      cashPolicyBlockedMarkets += 1;
+      attention = 'cash-policy';
+    } else if (
+      physicalCashEconomy
+      && nextLotGoldCost
+        > onsiteGold + approachingGold + availableGold + 1e-6
+    ) {
+      treasuryBlockedMarkets += 1;
+      attention = 'treasury';
+    } else if (physicalCashEconomy) {
+      cashCartMarkets += 1;
+      attention = 'cash-cart';
     } else {
       readyMarkets += 1;
     }
@@ -482,9 +615,25 @@ export function computeSettlementSeedProcurementPlan(
   });
   const potentialCoverage = roadPlan?.potentialCoverage
     ?? Math.min(seedShortfall, totalRecoveryGrain);
-  const affordableLotsAtCurrentRate = nextLotGoldCost > 1e-9
-    ? Math.min(plannedImportLots, Math.floor((availableGold + 1e-6) / nextLotGoldCost))
-    : plannedImportLots;
+  if (!physicalCashEconomy) {
+    treasuryRefillLotsAtCurrentRate = nextLotGoldCost > 1e-9
+      ? Math.min(
+          plannedImportLots,
+          Math.floor((availableGold + 1e-6) / nextLotGoldCost),
+        )
+      : plannedImportLots;
+  }
+  if (!physicalCashEconomy) {
+    onsiteFundedLotsAtCurrentRate = 0;
+    committedFundedLotsAtCurrentRate = 0;
+  }
+  const affordableLotsAtCurrentRate = physicalCashEconomy
+    ? Math.min(
+        plannedImportLots,
+        committedFundedLotsAtCurrentRate
+          + treasuryRefillLotsAtCurrentRate,
+      )
+    : treasuryRefillLotsAtCurrentRate;
 
   return {
     marketplaces,
@@ -498,7 +647,15 @@ export function computeSettlementSeedProcurementPlan(
     plannedImportGrain,
     inboundSeedGrain: roadDemand.inboundSeedGrain,
     affordableLotsAtCurrentRate,
+    onsiteFundedLotsAtCurrentRate,
+    committedFundedLotsAtCurrentRate,
+    treasuryRefillLotsAtCurrentRate,
     nextLotGoldCost,
+    physicalCashEconomy,
+    availableTreasuryGold: availableGold,
+    marketCofferGold,
+    inboundMarketGold,
+    selectedMarketReserveGold,
     seedShortfall,
     potentialCoverage,
     uncoveredShortfall: Math.max(0, seedShortfall - potentialCoverage),
@@ -506,6 +663,9 @@ export function computeSettlementSeedProcurementPlan(
     fireBlockedMarkets,
     laborBlockedMarkets,
     roadBlockedMarkets,
+    cashPolicyBlockedMarkets,
+    cashInboundMarkets,
+    cashCartMarkets,
     treasuryBlockedMarkets,
     ironworkQueuedMarkets,
     cooldownBlockedMarkets,

@@ -176,6 +176,7 @@ declare module '@seedthree/core/forest-ecology.js' {
       neighborRadius?: number;
       minimumNeighbors?: number;
       minimumAnchorSpacing?: number;
+      edgeBandWidth?: number;
       maxAnchors?: number;
       maxSaplings?: number;
       maxUnderstory?: number;

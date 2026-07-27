@@ -481,6 +481,16 @@ assert.match(
   /if \(!this\.visualQaConditions\) \{\s*session\.spacetimeStore\.setConnectErrorListener/,
   'visual-QA capture mode must not install the SpacetimeDB reconnect/error path',
 );
+assert.match(
+  appSource,
+  /const offlineSnapshot = \{[\s\S]*?\.\.\.session\.spacetimeStore\.snapshot,[\s\S]*?connected: true,[\s\S]*?this\.settlementPresentation\.sync\([\s\S]*?offlineSnapshot,[\s\S]*?this\.getVisualQaPresentationState\(this\.gameState\),[\s\S]*?true,/,
+  'offline visual-QA must anchor the preset clock and lighting without connecting',
+);
+assert.match(
+  appSource,
+  /if \(!this\.visualQaConditions \|\| this\.gameState\.trees\.size > 0\) \{\s*this\.forestVisualSync\.syncAll\(this\.gameState\.trees\);\s*\}/,
+  'offline visual-QA must not hide generated trees with an empty replicated tree map',
+);
 const townHallInspector = read('src/resources/inspector/townHallRenderer.ts');
 assert.match(townHallInspector, /Treasury chest/);
 assert.match(townHallInspector, /incoming by handcart/);

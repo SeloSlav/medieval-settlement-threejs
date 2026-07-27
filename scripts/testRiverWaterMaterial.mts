@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import {
   disposeSharedRiverWaterMaterial,
   getSharedRiverWaterMaterial,
   normalizeRiverWaterNightAmount,
+  RIVER_BANK_BED_REVEAL,
   RIVER_DEEP_BACKDROP_STABILITY,
   RIVER_FLOW_HIGHLIGHT_STRENGTH,
   RIVER_FLOW_ROUGHNESS_FLOOR,
@@ -30,6 +33,7 @@ import {
   computeShoreStoneMoss,
   computeShoreStoneTint,
   computeShoreStoneVisualScale,
+  computeShoreStoneVisualVariation,
 } from '../src/rivers/riverShoreStoneAppearance.ts';
 
 const normal = new Float32Array(3);
@@ -66,13 +70,20 @@ assert.ok(computeWaterFeatherAlpha(0.2) < computeWaterFeatherAlpha(0.96));
 
 const stoneVisualA = computeShoreStoneVisualScale(12, -8);
 const stoneVisualB = computeShoreStoneVisualScale(25, 17);
-assert.ok(stoneVisualA >= 0.1 && stoneVisualA <= 1.15);
-assert.ok(stoneVisualB >= 0.1 && stoneVisualB <= 1.15);
+assert.ok(stoneVisualA >= 0.06 && stoneVisualA <= 1.28);
+assert.ok(stoneVisualB >= 0.06 && stoneVisualB <= 1.28);
 assert.notEqual(stoneVisualA, stoneVisualB);
 const stoneTint = computeShoreStoneTint(12, -8);
 assert.ok(stoneTint >= 0.5 && stoneTint <= 0.88);
 const stoneMoss = computeShoreStoneMoss(12, -8);
 assert.ok(stoneMoss >= 0 && stoneMoss <= 1);
+const stoneVariation = computeShoreStoneVisualVariation(12, -8);
+assert.ok(stoneVariation.aspect >= 0.64 && stoneVariation.aspect <= 1.5);
+assert.ok(stoneVariation.height >= 0.72 && stoneVariation.height <= 1.22);
+assert.ok(stoneVariation.yaw >= 0 && stoneVariation.yaw <= Math.PI * 2);
+assert.ok(Math.abs(stoneVariation.offsetX) <= 0.45);
+assert.ok(Math.abs(stoneVariation.offsetZ) <= 0.45);
+assert.ok(stoneVariation.sink >= 0.06 && stoneVariation.sink <= 0.26);
 
 const shoreTexture = new THREE.DataTexture(
   new Uint8Array([255, 0, 128, 0]),
@@ -97,10 +108,10 @@ assert.equal(
   RIVER_WATER_TRANSMISSION,
   'bounded normals must retain the river transmission path',
 );
-assert.equal(material.transmission, 0.82);
+assert.equal(material.transmission, 0.88);
 assert.equal(material.thickness, 0.65);
 assert.equal(material.attenuationDistance, RIVER_WATER_ATTENUATION_DISTANCE);
-assert.equal(material.attenuationDistance, 1.75);
+assert.equal(material.attenuationDistance, 2.6);
 assert.equal(
   RIVER_DEEP_BACKDROP_STABILITY,
   1,
@@ -111,8 +122,12 @@ assert.ok(
   'visual shore depth must settle quickly enough to avoid distance-field pool lobes',
 );
 assert.ok(
-  RIVER_OPTICAL_SHORE_EXPONENT >= 2.2 && RIVER_OPTICAL_SHORE_EXPONENT <= 2.8,
+  RIVER_OPTICAL_SHORE_EXPONENT >= 1.8 && RIVER_OPTICAL_SHORE_EXPONENT <= 2.2,
   'optical depth must reveal the near-bank bed without restoring broad distance lobes',
+);
+assert.ok(
+  RIVER_BANK_BED_REVEAL >= 0.65 && RIVER_BANK_BED_REVEAL <= 0.75,
+  'bank bed reveal must remain visible without replacing the channel body',
 );
 assert.ok(
   RIVER_FLOW_ROUGHNESS_FLOOR >= 0.31,
@@ -145,6 +160,22 @@ assert.equal(normalizeRiverWaterNightAmount(2), 1);
 assert.equal(normalizeRiverWaterNightAmount(Number.NaN), 0);
 setSharedRiverWaterNightAmount(1);
 setSharedRiverWaterNightAmount(0);
+
+const projectRoot = fileURLToPath(new URL('../', import.meta.url));
+const waterMaterialSource = readFileSync(
+  `${projectRoot}src/rivers/RiverWaterMaterial.ts`,
+  'utf8',
+);
+assert.match(waterMaterialSource, /vec3\(0\.02,\s*0\.043,\s*0\.055\)/);
+assert.match(
+  waterMaterialSource,
+  /mix\(float\(0\.62\)[\s\S]*?depthFactor/,
+);
+assert.equal(
+  (waterMaterialSource.match(/\btexture\(/g) ?? []).length,
+  1,
+  'night water-edge lift must not add texture samples',
+);
 
 disposeSharedRiverWaterMaterial();
 shoreTexture.dispose();

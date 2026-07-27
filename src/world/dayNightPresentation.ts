@@ -84,27 +84,27 @@ export function computeDayNightState(
   const sunIntensity = lerp(0.018, 5.2, Math.pow(sunVisible, 0.58))
     * lerp(0.8, 1, highSun);
 
-  let hemiSkyColor = lerpColor(0x607fa3, 0xd9e8ec, dayAmount);
+  let hemiSkyColor = lerpColor(0x6888a7, 0xd9e8ec, dayAmount);
   hemiSkyColor = lerpColor(hemiSkyColor, 0xdfa17a, dawn * 0.28);
   hemiSkyColor = lerpColor(hemiSkyColor, 0xb9634d, dusk * 0.36);
-  let hemiGroundColor = lerpColor(0x4b606a, 0x59634f, dayAmount);
+  let hemiGroundColor = lerpColor(0x516773, 0x59634f, dayAmount);
   hemiGroundColor = lerpColor(hemiGroundColor, 0x6a5147, dusk * 0.16);
   const hemiIntensity = lerp(1.35, 1.55, dayAmount) + goldenHour * 0.08;
 
-  let ambientColor = lerpColor(0x7189a6, 0xb8c8d2, dayAmount);
+  let ambientColor = lerpColor(0x778fa9, 0xb8c8d2, dayAmount);
   ambientColor = lerpColor(ambientColor, 0x8f7472, dawn * 0.2);
   ambientColor = lerpColor(ambientColor, 0x7c5751, dusk * 0.27);
   const ambientIntensity = lerp(0.5, 0.18, dayAmount);
   const buildingIndirectIntensity = lerp(0.02, 0.105, dayAmount);
 
-  let fillColor = lerpColor(0xa6c4de, 0xa8c6d8, dayAmount);
+  let fillColor = lerpColor(0xaccbe2, 0xa8c6d8, dayAmount);
   fillColor = lerpColor(fillColor, 0x88768e, goldenHour * 0.22);
-  const fillIntensity = lerp(0.62, 0.34, dayAmount);
+  const fillIntensity = lerp(0.68, 0.34, dayAmount);
 
-  let fogColor = lerpColor(0x4b6174, 0xc5d4d8, dayAmount);
+  let fogColor = lerpColor(0x506b80, 0xc5d4d8, dayAmount);
   fogColor = lerpColor(fogColor, 0xbc8c77, dawn * 0.34);
   fogColor = lerpColor(fogColor, 0xa36b5a, dusk * 0.3);
-  const fogDensity = lerp(0.00078, 0.00072, dayAmount) + goldenHour * 0.00008;
+  const fogDensity = lerp(0.0007, 0.00072, dayAmount) + goldenHour * 0.00008;
   const eveningWindowGlow = computeEveningWindowGlow(hour, night);
 
   return {

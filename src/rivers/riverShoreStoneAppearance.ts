@@ -31,12 +31,14 @@ function valueNoise2(x: number, z: number): number {
 export function computeShoreStoneVisualScale(x: number, z: number): number {
   const cluster = valueNoise2(x * 0.018 + 21.7, z * 0.018 - 4.9);
   const detail = valueNoise2(x * 0.115 - 8.3, z * 0.115 + 13.1);
+  const individual = valueNoise2(x * 0.39 + 5.8, z * 0.39 - 19.2);
   const clustered = smoothstep(0.46, 0.72, cluster);
   const presenceNoise = valueNoise2(x * 0.061 - 11.6, z * 0.061 + 7.2);
   const presence = smoothstep(0.58, 0.79, presenceNoise);
-  const clusteredPresence = Math.pow(clustered * presence, 1.35);
-  const scale = 0.1 + (1.15 - 0.1) * clusteredPresence * (0.78 + detail * 0.32);
-  return Math.max(0.1, Math.min(1.15, scale));
+  const individualPresence = 0.18 + smoothstep(0.16, 0.9, individual) * 0.82;
+  const clusteredPresence = Math.pow(clustered * presence * individualPresence, 1.18);
+  const scale = 0.06 + (1.28 - 0.06) * clusteredPresence * (0.62 + detail * 0.54);
+  return Math.max(0.06, Math.min(1.28, scale));
 }
 
 export function computeShoreStoneTint(x: number, z: number): number {
@@ -47,4 +49,33 @@ export function computeShoreStoneTint(x: number, z: number): number {
 
 export function computeShoreStoneMoss(x: number, z: number): number {
   return valueNoise2(x * 0.14 + 18.4, z * 0.14 - 12.7);
+}
+
+export type ShoreStoneVisualVariation = {
+  aspect: number;
+  height: number;
+  yaw: number;
+  offsetX: number;
+  offsetZ: number;
+  sink: number;
+};
+
+export function computeShoreStoneVisualVariation(
+  x: number,
+  z: number,
+): ShoreStoneVisualVariation {
+  const shape = valueNoise2(x * 0.31 - 7.4, z * 0.31 + 22.6);
+  const height = valueNoise2(x * 0.43 + 15.1, z * 0.43 - 8.8);
+  const yaw = valueNoise2(x * 0.37 - 24.2, z * 0.37 + 3.9);
+  const offsetX = valueNoise2(x * 0.23 + 11.8, z * 0.23 - 26.1);
+  const offsetZ = valueNoise2(x * 0.29 - 18.5, z * 0.29 + 14.7);
+  const sink = valueNoise2(x * 0.19 + 4.6, z * 0.19 - 31.4);
+  return {
+    aspect: 0.64 + shape * 0.86,
+    height: 0.72 + height * 0.5,
+    yaw: yaw * Math.PI * 2,
+    offsetX: (offsetX - 0.5) * 0.9,
+    offsetZ: (offsetZ - 0.5) * 0.9,
+    sink: 0.06 + sink * 0.2,
+  };
 }

@@ -730,7 +730,10 @@ const SEED_PROCUREMENT_ATTENTION_LABELS: Record<
   fire: 'market fire damage',
   labor: 'broker labor missing',
   road: 'market road missing',
-  treasury: 'treasury short',
+  'cash-policy': 'market cash reserve below the current lot price',
+  'cash-inbound': 'market cash handcart inbound',
+  'cash-cart': 'market awaiting a treasury handcart',
+  treasury: 'civic treasury short',
   ironwork: 'ironwork ahead in queue',
   cooldown: 'caravan cooldown',
 };
@@ -746,8 +749,29 @@ export function renderSettlementSeedProcurementRows(
   const queue = plan.ironworkQueuedMarkets > 0
     ? ` &middot; ${plan.ironworkQueuedMarkets} behind frontier ironwork`
     : '';
+  const physicalCashReadiness = plan.physicalCashEconomy
+    ? `${
+        plan.cashInboundMarkets > 0
+          ? ` &middot; ${plan.cashInboundMarkets} cash ${plan.cashInboundMarkets === 1 ? 'cart' : 'carts'} inbound`
+          : ''
+      }${
+        plan.cashCartMarkets > 0
+          ? ` &middot; ${plan.cashCartMarkets} awaiting treasury ${plan.cashCartMarkets === 1 ? 'cart' : 'carts'}`
+          : ''
+      }${
+        plan.cashPolicyBlockedMarkets > 0
+          ? ` &middot; ${plan.cashPolicyBlockedMarkets} reserve ${plan.cashPolicyBlockedMarkets === 1 ? 'target' : 'targets'} below the current lot price`
+          : ''
+      }${
+        plan.treasuryBlockedMarkets > 0
+          ? ` &middot; ${plan.treasuryBlockedMarkets} treasury-short`
+          : ''
+      }`
+    : '';
   const readiness = plan.dueMarkets > 0
-    ? `${plan.readyMarkets} / ${plan.dueMarkets} due markets ready${queue}${marketAttention}`
+    ? `${plan.readyMarkets} / ${plan.dueMarkets} due markets ${
+        plan.physicalCashEconomy ? 'have coin onsite' : 'ready'
+      }${queue}${physicalCashReadiness}${marketAttention}`
     : 'all selected targets currently filled';
   const orders = plan.marketplaces === 0
     ? 'No marketplace'
@@ -783,9 +807,11 @@ export function renderSettlementSeedProcurementRows(
   const recovery = plan.seedShortfall <= 0.05
     ? `No remaining holding seed gap${inbound} &middot; ${recoverySources} already counted in owned stock`
     : `${recoverySources} + ${plan.plannedImportGrain.toFixed(0)} future imports could cover up to ${plan.potentialCoverage.toFixed(1)} / ${plan.seedShortfall.toFixed(1)} of the remaining holding gap${inbound}${roadScope}${plan.uncoveredShortfall > 0.05 ? ` &middot; ${plan.uncoveredShortfall.toFixed(1)} still exposed` : ''}${fragmentation}${unmatched}${unroutable}${holding}`;
-  const treasury = plan.plannedImportLots > 0
-    ? ` &middot; treasury funds ${plan.affordableLotsAtCurrentRate} / ${plan.plannedImportLots} lots at today's ${plan.nextLotGoldCost.toFixed(0)} gold rate; later lots reprice`
-    : '';
+  const treasury = plan.plannedImportLots <= 0
+    ? ''
+    : plan.physicalCashEconomy
+      ? ` &middot; cash route ${plan.marketCofferGold.toFixed(0)} gold in selected market coffers + ${plan.inboundMarketGold.toFixed(0)} inbound &middot; ${plan.onsiteFundedLotsAtCurrentRate} / ${plan.plannedImportLots} lots buyable now, ${plan.committedFundedLotsAtCurrentRate} funded after inbound carts &middot; ${plan.availableTreasuryGold.toFixed(0)} civic gold is projected to fund ${plan.treasuryRefillLotsAtCurrentRate} further ${plan.treasuryRefillLotsAtCurrentRate === 1 ? 'lot' : 'lots'} through selected reserve targets at today's ${plan.nextLotGoldCost.toFixed(0)} gold rate &middot; selected market cash reserves total ${plan.selectedMarketReserveGold.toFixed(0)}; later lots reprice`
+      : ` &middot; treasury funds ${plan.affordableLotsAtCurrentRate} / ${plan.plannedImportLots} lots at today's ${plan.nextLotGoldCost.toFixed(0)} gold rate; later lots reprice`;
 
   return `
     <li><span>Standing seed orders</span><span>${orders}${treasury}</span></li>

@@ -96,11 +96,12 @@ const FOREST_EDGE_ECOLOGY_OPTS = {
   neighborRadius: 34,
   minimumNeighbors: 2,
   minimumAnchorSpacing: 9,
-  maxAnchors: 96,
-  maxSaplings: 96,
+  edgeBandWidth: 48,
+  maxAnchors: 71,
+  maxSaplings: 55,
   maxUnderstory: 192,
-  maxDeadwood: 32,
-  maxLitter: 192,
+  maxDeadwood: 24,
+  maxLitter: 140,
 };
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);

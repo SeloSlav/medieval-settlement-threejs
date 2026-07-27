@@ -773,6 +773,116 @@ assert.equal(seedProcurement.laborBlockedMarkets, 1);
 assert.equal(seedProcurement.firstAttentionMarketId, unstaffedSeedMarket.id);
 assert.equal(seedProcurement.firstAttentionKind, 'labor');
 assert.equal(seedProcurement.roadPlan, null);
+assert.equal(seedProcurement.physicalCashEconomy, false);
+assert.equal(seedProcurement.treasuryRefillLotsAtCurrentRate, 1);
+
+const physicalCashSeedState = emptyGameState();
+physicalCashSeedState.physicalFoundingSiteEnabled = true;
+const cashReadyMarket = building('cash-ready-market', 'marketplace', 1);
+cashReadyMarket.marketplaceSeedGrainTarget = 24;
+cashReadyMarket.marketplaceGoldReserveTarget = 32;
+cashReadyMarket.gold = 18;
+physicalCashSeedState.buildings.set(cashReadyMarket.id, cashReadyMarket);
+const cashInboundMarket = building('cash-inbound-market', 'marketplace', 1);
+cashInboundMarket.marketplaceSeedGrainTarget = 24;
+cashInboundMarket.marketplaceGoldReserveTarget = 32;
+cashInboundMarket.gold = 4;
+physicalCashSeedState.buildings.set(cashInboundMarket.id, cashInboundMarket);
+const inboundMarketCash = deliveryTrip(
+  'cash-to-market',
+  cashInboundMarket.id,
+  14,
+  'outbound',
+);
+inboundMarketCash.cargoKind = 'gold';
+physicalCashSeedState.deliveryTrips.set(inboundMarketCash.id, inboundMarketCash);
+const returningMarketCash = deliveryTrip(
+  'cash-returning',
+  cashInboundMarket.id,
+  99,
+  'inbound',
+);
+returningMarketCash.cargoKind = 'gold';
+physicalCashSeedState.deliveryTrips.set(returningMarketCash.id, returningMarketCash);
+const cashPolicyMarket = building('cash-policy-market', 'marketplace', 1);
+cashPolicyMarket.marketplaceSeedGrainTarget = 24;
+cashPolicyMarket.marketplaceGoldReserveTarget = 16;
+physicalCashSeedState.buildings.set(cashPolicyMarket.id, cashPolicyMarket);
+const cashCartMarket = building('cash-cart-market', 'marketplace', 1);
+cashCartMarket.marketplaceSeedGrainTarget = 24;
+cashCartMarket.marketplaceGoldReserveTarget = 32;
+physicalCashSeedState.buildings.set(cashCartMarket.id, cashCartMarket);
+const physicalCashSeedProcurement = computeSettlementSeedProcurementPlan({
+  state: physicalCashSeedState,
+  seedShortfall: 96,
+  availableGold: 18,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+});
+assert.equal(physicalCashSeedProcurement.physicalCashEconomy, true);
+assert.equal(physicalCashSeedProcurement.plannedImportLots, 4);
+assert.equal(physicalCashSeedProcurement.dueMarkets, 4);
+assert.equal(physicalCashSeedProcurement.readyMarkets, 1);
+assert.equal(physicalCashSeedProcurement.cashInboundMarkets, 1);
+assert.equal(physicalCashSeedProcurement.cashPolicyBlockedMarkets, 1);
+assert.equal(physicalCashSeedProcurement.cashCartMarkets, 1);
+assert.equal(physicalCashSeedProcurement.treasuryBlockedMarkets, 0);
+assert.equal(physicalCashSeedProcurement.firstAttentionMarketId, cashPolicyMarket.id);
+assert.equal(physicalCashSeedProcurement.firstAttentionKind, 'cash-policy');
+assert.equal(physicalCashSeedProcurement.marketCofferGold, 22);
+assert.equal(physicalCashSeedProcurement.inboundMarketGold, 14);
+assert.equal(physicalCashSeedProcurement.selectedMarketReserveGold, 112);
+assert.equal(physicalCashSeedProcurement.onsiteFundedLotsAtCurrentRate, 1);
+assert.equal(physicalCashSeedProcurement.committedFundedLotsAtCurrentRate, 2);
+assert.equal(physicalCashSeedProcurement.treasuryRefillLotsAtCurrentRate, 1);
+assert.equal(physicalCashSeedProcurement.affordableLotsAtCurrentRate, 3);
+
+const treasuryShortSeedState = emptyGameState();
+treasuryShortSeedState.physicalFoundingSiteEnabled = true;
+const treasuryShortSeedMarket = building(
+  'treasury-short-seed-market',
+  'marketplace',
+  1,
+);
+treasuryShortSeedMarket.marketplaceSeedGrainTarget = 48;
+treasuryShortSeedMarket.marketplaceGoldReserveTarget = 32;
+treasuryShortSeedState.buildings.set(
+  treasuryShortSeedMarket.id,
+  treasuryShortSeedMarket,
+);
+const treasuryShortSeedProcurement = computeSettlementSeedProcurementPlan({
+  state: treasuryShortSeedState,
+  seedShortfall: 24,
+  availableGold: 17,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+});
+assert.equal(treasuryShortSeedProcurement.readyMarkets, 0);
+assert.equal(treasuryShortSeedProcurement.cashCartMarkets, 0);
+assert.equal(treasuryShortSeedProcurement.treasuryBlockedMarkets, 1);
+assert.equal(treasuryShortSeedProcurement.firstAttentionKind, 'treasury');
+
+const reserveCompetitionState = emptyGameState();
+reserveCompetitionState.physicalFoundingSiteEnabled = true;
+for (const id of ['reserve-market-1', 'reserve-market-2']) {
+  const market = building(id, 'marketplace', 1);
+  market.marketplaceSeedGrainTarget = 24;
+  market.marketplaceGoldReserveTarget = 32;
+  reserveCompetitionState.buildings.set(market.id, market);
+}
+const reserveCompetitionPlan = computeSettlementSeedProcurementPlan({
+  state: reserveCompetitionState,
+  seedShortfall: 48,
+  availableGold: 36,
+  nextLotGoldCost: 18,
+  conflictEnabled: false,
+  hasRoadAccess: () => true,
+});
+assert.equal(reserveCompetitionPlan.cashCartMarkets, 2);
+assert.equal(reserveCompetitionPlan.treasuryRefillLotsAtCurrentRate, 1);
+assert.equal(reserveCompetitionPlan.affordableLotsAtCurrentRate, 1);
 
 const frontierQueueMarket = building('frontier-seed-market', 'marketplace', 1);
 frontierQueueMarket.marketplaceSeedGrainTarget = 96;
@@ -1252,6 +1362,10 @@ assert.match(townHallInspector, /recovery grain outside current branch gaps/);
 assert.match(townHallInspector, /gap at incomplete or orphaned holdings/);
 assert.match(townHallInspector, /future purchases remain excluded from crop-year balance until bought/);
 assert.match(townHallInspector, /later lots reprice/);
+assert.match(townHallInspector, /market cash reserve below the current lot price/);
+assert.match(townHallInspector, /market cash handcart inbound/);
+assert.match(townHallInspector, /cash route/);
+assert.match(townHallInspector, /selected market cash reserves total/);
 assert.match(townHallInspector, /computeSettlementSeedProcurementPlan/);
 assert.match(townHallInspector, /firstSeedShortBuildingId/);
 assert.match(townHallInspector, /firstShortGranaryId/);

@@ -69,10 +69,10 @@ export function precipitationProfile(
       fallSpeed: 4.4,
       windX: 1.15,
       windZ: 0.5,
-      sunlightMultiplier: 0.72,
-      fogDensityMultiplier: 1.08,
-      fogTint: 0xd8e3ea,
-      saturationMultiplier: 0.92,
+      sunlightMultiplier: 0.8,
+      fogDensityMultiplier: 1.02,
+      fogTint: 0xc6d4db,
+      saturationMultiplier: 0.97,
     };
   }
 

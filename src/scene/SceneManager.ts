@@ -614,7 +614,7 @@ export class SceneManager {
     const atmosphericBlend = weather.kind === 'rain'
       ? 0.42
       : weather.kind === 'snow'
-        ? 0.28
+        ? 0.18
         : this.environment?.weather === 'drought'
           ? 0.16
           : 0;
@@ -637,7 +637,7 @@ export class SceneManager {
     const daylightKey = state.sunIntensity
       * weather.sunlightMultiplier
       * (1 - moonBlend);
-    const moonKey = 0.62
+    const moonKey = 0.68
       * moonBlend
       * THREE.MathUtils.lerp(1, 0.72, atmosphericBlend);
     this.sunLight.intensity = daylightKey + moonKey;
@@ -664,11 +664,11 @@ export class SceneManager {
     // not a global gray wash. Keep just enough hemispheric bounce to read the
     // terrain while preserving true material shadows.
     this.hemiLight.intensity = state.hemiIntensity
-      * THREE.MathUtils.lerp(1, 0.5, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.56, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.82, atmosphericBlend);
     this.ambientLight.color.setHex(blendColorHex(state.ambientColor, weather.fogTint, atmosphericBlend * 0.34));
     this.ambientLight.intensity = state.ambientIntensity
-      * THREE.MathUtils.lerp(1, 0.24, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.28, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.9, atmosphericBlend);
     setBuildingIndirectLightIntensity(
       state.buildingIndirectIntensity
@@ -677,7 +677,7 @@ export class SceneManager {
     );
     this.skyFillLight.color.setHex(blendColorHex(state.fillColor, weather.fogTint, atmosphericBlend * 0.4));
     this.skyFillLight.intensity = state.fillIntensity
-      * THREE.MathUtils.lerp(1, 0.44, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.5, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.86, atmosphericBlend);
     // At night the real sun is below the horizon, so its inverse does not
     // provide a stable photographic fill. Blend to a fixed side/back direction

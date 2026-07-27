@@ -17,6 +17,7 @@ import {
   computeShoreStoneMoss,
   computeShoreStoneTint,
   computeShoreStoneVisualScale,
+  computeShoreStoneVisualVariation,
 } from './riverShoreStoneAppearance.ts';
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
 
@@ -77,7 +78,11 @@ export function createRiverShoreStones(
   const matrix = new THREE.Matrix4();
   const position = new THREE.Vector3();
   const quaternion = new THREE.Quaternion();
+  const visualQuaternion = new THREE.Quaternion();
+  const yawQuaternion = new THREE.Quaternion();
+  const upAxis = new THREE.Vector3(0, 1, 0);
   const scaleVector = new THREE.Vector3();
+  const visualPosition = new THREE.Vector3();
   const visualScaleVector = new THREE.Vector3();
   const stoneTint = new THREE.Color();
 
@@ -106,19 +111,32 @@ export function createRiverShoreStones(
       // Preserve the original collision bounds exactly; the following
       // world-position-driven scale/tint is presentation-only.
       setRockObstacleCollisionBounds(rock, variants[variantIndex], matrix);
-      const visualMatrix = matrix.clone();
       const visualScale = computeShoreStoneVisualScale(rock.x, rock.z);
-      visualScaleVector.set(visualScale, visualScale * 0.88, visualScale);
-      visualMatrix.scale(visualScaleVector);
-      visualMatrix.elements[13] -= rock.scale * (1 - visualScale) * 0.2;
+      const variation = computeShoreStoneVisualVariation(rock.x, rock.z);
+      visualPosition.copy(position);
+      visualPosition.x += variation.offsetX;
+      visualPosition.y -= rock.scale * variation.sink;
+      visualPosition.z += variation.offsetZ;
+      yawQuaternion.setFromAxisAngle(upAxis, variation.yaw);
+      visualQuaternion.copy(quaternion).multiply(yawQuaternion);
+      visualScaleVector.set(
+        scaleVector.x * visualScale * variation.aspect,
+        scaleVector.y * visualScale * variation.height,
+        scaleVector.z * visualScale / variation.aspect,
+      );
+      const visualMatrix = new THREE.Matrix4().compose(
+        visualPosition,
+        visualQuaternion,
+        visualScaleVector,
+      );
       mesh.setMatrixAt(rockIndex, visualMatrix);
       shadowMesh.setMatrixAt(rockIndex, visualMatrix);
       const tint = computeShoreStoneTint(rock.x, rock.z);
       const moss = computeShoreStoneMoss(rock.x, rock.z);
       stoneTint.setRGB(
-        tint * (0.92 - moss * 0.08),
-        tint * (0.84 + moss * 0.12),
-        tint * (0.74 + moss * 0.05),
+        tint * (0.98 - moss * 0.18),
+        tint * (0.82 + moss * 0.18),
+        tint * (0.69 + moss * 0.07),
       );
       mesh.setColorAt(rockIndex, stoneTint);
       instances.push({

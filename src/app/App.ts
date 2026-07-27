@@ -344,6 +344,24 @@ export class App {
     session.cameraController.applyRtsOrbitView();
     this.syncVisualQaFoundersCampFixture();
     if (this.visualQaConditions && this.gameState) {
+      const offlineSnapshot = {
+        ...session.spacetimeStore.snapshot,
+        connected: true,
+      };
+      this.settlementPresentation.sync(
+        {
+          settlementHud: this.toolbar?.settlementHud ?? null,
+          sceneManager: this.sceneManager,
+          buildingMarkers: this.buildingMarkers,
+          residenceMarkers: this.residenceMarkers,
+          villagers: this.villagers,
+          ambientAudio: this.ambientAudio,
+        },
+        offlineSnapshot,
+        this.getVisualQaPresentationState(this.gameState),
+        true,
+      );
+      this.syncResourceUi();
       this.applyInitialSettlementView(this.gameState);
     }
     session.cameraController.update(0);
@@ -534,7 +552,12 @@ export class App {
     this.treeRegistry = TreeRegistry.fromForestManager(forestManager);
     this.liveContext.treeRegistry = this.treeRegistry;
     this.forestVisualSync = new ForestVisualSync(forestManager);
-    this.forestVisualSync.syncAll(this.gameState.trees);
+    // Offline visual-QA has no replicated tree table. Preserve the freshly
+    // generated forest instead of interpreting that empty map as a harvested
+    // authoritative world; any later non-empty snapshot still syncs normally.
+    if (!this.visualQaConditions || this.gameState.trees.size > 0) {
+      this.forestVisualSync.syncAll(this.gameState.trees);
+    }
     if (this.snapshotApplierDeps) {
       this.snapshotApplierDeps.forestVisualSync = this.forestVisualSync;
     }
