@@ -6,6 +6,7 @@ import {
   watchtowerEffectiveRadius,
 } from '../../security/frontierSecurity.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
+import { gameClock } from '../../world/gameCalendar.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
@@ -29,7 +30,11 @@ export function renderWatchtowerInspector(
   const protectedSites = countSitesProtectedByWatchtower(building, context.gameState);
   const effectiveRadius = watchtowerEffectiveRadius(building, suspendedByFire);
   const settlementCoverage = Math.round(security.coverage * 100);
-  const threatLabel = frontierThreatLabel(security, { conflictMode: 'frontier' });
+  const threatLabel = frontierThreatLabel(
+    security,
+    { conflictMode: 'frontier' },
+    gameClock(context.gameState.tick).month,
+  );
 
   const status = suspendedByFire
     ? ['Fire outage — no warning coverage', 'warning'] as const

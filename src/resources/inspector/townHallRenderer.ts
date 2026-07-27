@@ -163,10 +163,15 @@ import {
   guardhousePayrollPlan,
 } from '../../security/guardhousePayrollPolicy.ts';
 import {
+  formatFrontierForecast,
+  formatFrontierRaidTiming,
+  formatRaidReport,
+  frontierThreatLabel,
   GUARDHOUSE_FOOD_RESERVE_DEEP,
   GUARDHOUSE_FOOD_RESERVE_LEAN,
   guardhouseFoodTarget,
   normalizeGuardhouseFoodReserve,
+  type SettlementSecurityState,
 } from '../../security/frontierSecurity.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
@@ -183,6 +188,26 @@ import {
   buildingRoadAccessRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+
+function renderFrontierSecurityRows(
+  security: SettlementSecurityState,
+  simTick: number,
+  month: number,
+  enemyPressure: number,
+): string {
+  const threat = frontierThreatLabel(
+    security,
+    { conflictMode: 'frontier' },
+    month,
+  );
+  const coverage = Math.round(security.coverage * 100);
+  return `
+    <li><span>Frontier timetable</span><span>${threat} · ${formatFrontierRaidTiming(security, simTick, month)} · enemy pressure ${Math.round(enemyPressure)}%</span></li>
+    <li><span>Watch and muster</span><span>${coverage}% of weighted holdings watched · ${security.staffedWatchtowers} staffed ${security.staffedWatchtowers === 1 ? 'watchtower' : 'watchtowers'} · ${security.readyGuards.toFixed(1)} / ${security.guardsRequired.toFixed(1)} guards ready · companies ${Math.round(security.defenseReadiness * 100)}% supplied, paid, and drilled</span></li>
+    <li><span>Projected incursion</span><span>${formatFrontierForecast(security, enemyPressure)}</span></li>
+    <li><span>Last incursion</span><span>${formatRaidReport(security)}</span></li>
+  `;
+}
 
 function formatSettlementFieldWork(plan: SettlementSeasonalWorkPlan): string {
   if (plan.requiredWorkerDays <= 1e-6) return 'No work scheduled';
@@ -1339,6 +1364,17 @@ export function renderTownHallInspector(
     : Math.round(TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER * 100);
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const clock = gameClock(context.gameState.tick);
+  const frontierSecurity = context.conflictEnabled
+    ? context.getSettlementSecurity?.() ?? null
+    : null;
+  const frontierSecurityRows = frontierSecurity === null
+    ? ''
+    : renderFrontierSecurityRows(
+        frontierSecurity,
+        context.gameState.tick,
+        clock.month,
+        context.enemyPressure ?? 0,
+      );
   const environment = environmentFor(context.gameState.seed, context.worldHydrology, clock);
   const environmentOutlook = nextDayEnvironmentOutlook(
     context.gameState.seed,
@@ -1820,6 +1856,7 @@ export function renderTownHallInspector(
       ${farmPlanRows}
       ${centralGrainReserveRow}
       ${livestockFodderRows}
+      ${frontierSecurityRows}
       ${armamentPlan === null ? '' : renderSettlementArmamentRows(armamentPlan)}
       ${provisioning.armedGuards > 0 ? `<li><span>Guardhouse food</span><span>${provisioning.guardFoodStock.toFixed(1)} on site · first shortfall ${formatProvisionRunway(provisioning.guardProvisionRunwayDays)}</span></li>
       <li><span>Ration reserves</span><span>${provisioning.guardFoodStock.toFixed(1)} / ${guardProvisionTarget.toFixed(1)} food target · ${leanReserveCompanies} lean · ${standardReserveCompanies} company · ${deepReserveCompanies} deep</span></li>

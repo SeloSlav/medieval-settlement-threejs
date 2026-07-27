@@ -73,6 +73,12 @@ export const GUARDHOUSE_FOOD_RESERVES = [
   },
 ] as const;
 export const WATCH_COVERAGE_CELL_SIZE = 128;
+export const FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS = 300;
+export const RAID_SEASON_START_MONTH = 4;
+export const RAID_SEASON_END_MONTH = 10;
+const CLOTH_RAID_VALUE_MULTIPLIER = 1.5;
+const IRONWORK_RAID_VALUE_MULTIPLIER = 2;
+const POLEARM_RAID_VALUE_MULTIPLIER = 4;
 
 type GuardhouseFoodCandidateLike = Pick<
   BuildingState,
@@ -261,13 +267,23 @@ export function formatFrontierForecast(
 export function frontierThreatLabel(
   security: SettlementSecurityState,
   settings: Pick<WorldGenerationSettings, 'conflictMode'> | null,
+  month?: number,
 ): string {
   if (settings?.conflictMode !== 'frontier') return 'Peaceful settlement';
   if (security.nextRaidTick <= 0) return 'Frontier quiet';
+  if (
+    month !== undefined
+    && !isFrontierRaidSeason(month)
+    && security.threat >= 0.9
+  ) return 'Winter campaign pause';
   if (security.threat >= 0.9) return 'Incursion imminent';
   if (security.threat >= 0.7) return 'Raiders reported';
   if (security.threat >= 0.4) return 'Frontier unrest';
   return 'Frontier watch';
+}
+
+export function isFrontierRaidSeason(month: number): boolean {
+  return month >= RAID_SEASON_START_MONTH && month <= RAID_SEASON_END_MONTH;
 }
 
 export function estimatedRaidDays(
@@ -277,6 +293,27 @@ export function estimatedRaidDays(
   if (security.nextRaidTick <= 0) return null;
   const ticksRemaining = Math.max(0, security.nextRaidTick - simTick);
   return ticksRemaining * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY;
+}
+
+export function formatFrontierRaidTiming(
+  security: SettlementSecurityState,
+  simTick: number,
+  month: number,
+): string {
+  const days = estimatedRaidDays(security, simTick);
+  if (days === null) {
+    return 'No incursion scheduled until the settlement reaches eight residents';
+  }
+  const campaignOpen = isFrontierRaidSeason(month);
+  if (!campaignOpen && days <= 0.1) {
+    return 'Threat clock elapsed · incursion waits for the April campaign season';
+  }
+  const countdown = days <= 0.1
+    ? 'Scouts may arrive now'
+    : `threat clock about ${Math.max(1, Math.ceil(days))} days`;
+  return campaignOpen
+    ? `${countdown} · April–October campaign season active`
+    : `${countdown} · November–March campaign pause can defer contact`;
 }
 
 export function formatRaidReport(security: SettlementSecurityState): string {
@@ -335,7 +372,10 @@ export type ProjectedRaidTarget = {
   label: string;
   protected: boolean;
   portableValue: number;
+  portableSummary: string;
 };
+
+type ProjectedRaidTargetCandidate = Omit<ProjectedRaidTarget, 'portableSummary'>;
 
 function normalizeRoadSpeedMultiplier(roadSpeedMultiplier: number): number {
   return Number.isFinite(roadSpeedMultiplier) && roadSpeedMultiplier > 0
@@ -465,8 +505,8 @@ export function projectRaidTargets(
     }));
   const watchIndex = buildWatchCoverageIndex(towers);
 
-  const selected: ProjectedRaidTarget[] = [];
-  const consider = (candidate: ProjectedRaidTarget): void => {
+  const selected: ProjectedRaidTargetCandidate[] = [];
+  const consider = (candidate: ProjectedRaidTargetCandidate): void => {
     let insertAt = selected.findIndex(
       (current) => compareProjectedRaidTargets(candidate, current) < 0,
     );
@@ -508,7 +548,14 @@ export function projectRaidTargets(
       portableValue: residence.householdWealth,
     });
   }
-  return selected;
+  return selected.map((target) => {
+    const portableSummary = target.kind === 'building'
+      ? buildingPortableRaidSummary(gameState.buildings.get(target.id))
+      : `${formatPortableStoreAmount(
+          gameState.residences.get(target.id)?.householdWealth ?? target.portableValue,
+        )} household gold`;
+    return { ...target, portableSummary };
+  });
 }
 
 export function formatProjectedRaidTargets(targets: readonly ProjectedRaidTarget[]): string {
@@ -516,7 +563,7 @@ export function formatProjectedRaidTargets(targets: readonly ProjectedRaidTarget
     return 'No stocked holding currently presents a likely raid target.';
   }
   const holdings = targets.map(
-    (target) => `${target.label} (${target.protected ? 'watched' : 'exposed'})`,
+    (target) => `${target.label} (${target.protected ? 'watched' : 'exposed'} · ${formatPortableStoreAmount(target.portableValue)} raid value · ${target.portableSummary})`,
   );
   return `Current likely ${targets.length === 1 ? 'target' : 'targets'}: ${holdings.join('; ')}. Warning rings appear as frontier unrest rises.`;
 }
@@ -570,9 +617,52 @@ function buildingPortableRaidValue(building: BuildingState): number {
     + Math.max(0, building.preservedFood)
     + Math.max(0, building.honey)
     + Math.max(0, building.wine)
-    + Math.max(0, building.ironwork ?? 0) * 2
-    + Math.max(0, building.polearms ?? 0) * 4
+    + Math.max(0, building.wool ?? 0)
+    + Math.max(0, building.cloth ?? 0) * CLOTH_RAID_VALUE_MULTIPLIER
+    + Math.max(0, building.ironwork ?? 0) * IRONWORK_RAID_VALUE_MULTIPLIER
+    + Math.max(0, building.polearms ?? 0) * POLEARM_RAID_VALUE_MULTIPLIER
     + Math.max(0, building.gold);
+}
+
+const RAID_PORTABLE_STORE_SUMMARY = [
+  ['timber', 'timber', 1],
+  ['firewood', 'firewood', 1],
+  ['food', 'food', 1],
+  ['grain', 'grain', 1],
+  ['flour', 'flour', 1],
+  ['ale', 'ale', 1],
+  ['preservedFood', 'preserved food', 1],
+  ['honey', 'honey', 1],
+  ['wine', 'wine', 1],
+  ['wool', 'wool', 1],
+  ['cloth', 'cloth', CLOTH_RAID_VALUE_MULTIPLIER],
+  ['ironwork', 'ironwork', IRONWORK_RAID_VALUE_MULTIPLIER],
+  ['polearms', 'polearms', POLEARM_RAID_VALUE_MULTIPLIER],
+  ['gold', 'gold', 1],
+] as const;
+
+function buildingPortableRaidSummary(building: BuildingState | undefined): string {
+  if (!building) return 'portable stores';
+  const stores = RAID_PORTABLE_STORE_SUMMARY
+    .map(([key, label, valueMultiplier], order) => {
+      const amount = Math.max(0, building[key] ?? 0);
+      return { label, amount, raidValue: amount * valueMultiplier, order };
+    })
+    .filter((store) => store.amount > 1e-9)
+    .sort((left, right) =>
+      right.raidValue - left.raidValue || left.order - right.order
+    )
+    .slice(0, 2);
+  return stores.length === 0
+    ? 'minor stores'
+    : stores
+        .map((store) => `${formatPortableStoreAmount(store.amount)} ${store.label}`)
+        .join(' + ');
+}
+
+function formatPortableStoreAmount(value: number): string {
+  const rounded = Math.round(Math.max(0, Number.isFinite(value) ? value : 0) * 10) / 10;
+  return Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1);
 }
 
 type WatchArea = { x: number; z: number; radius: number };
@@ -626,8 +716,8 @@ function watchCellKey(cellX: number, cellZ: number): string {
 }
 
 function compareProjectedRaidTargets(
-  left: ProjectedRaidTarget,
-  right: ProjectedRaidTarget,
+  left: ProjectedRaidTargetCandidate,
+  right: ProjectedRaidTargetCandidate,
 ): number {
   if (left.protected !== right.protected) return left.protected ? 1 : -1;
   if (left.portableValue !== right.portableValue) {

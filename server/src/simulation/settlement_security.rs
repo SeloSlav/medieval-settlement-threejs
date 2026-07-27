@@ -10,8 +10,8 @@ use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
     guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_forecast,
     scheduled_raid_ticks, select_raid_targets, threat_progress, tower_effective_radius,
-    RaidForecast, RaidTargetCandidate, RaidTargetKind, WatchArea, WatchCoverageIndex,
-    MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
+    RaidForecast, RaidPortableStores, RaidTargetCandidate, RaidTargetKind, WatchArea,
+    WatchCoverageIndex, MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{settlement_security, Building, Residence, SettlementSecurity};
 
@@ -302,20 +302,43 @@ fn settlement_exposure(
 }
 
 fn building_portable_value(building: &Building) -> f64 {
-    building.timber
-        + building.firewood
-        + building.food
-        + building.grain
-        + building.flour
-        + building.ale
-        + building.preserved_food
-        + building.honey
-        + building.wine
-        + building.wool
-        + building.cloth * 1.5
-        + building.ironwork * 2.0
-        + building.polearms * 4.0
-        + building.gold
+    building_portable_stores(building).raid_value()
+}
+
+fn building_portable_stores(building: &Building) -> RaidPortableStores {
+    RaidPortableStores {
+        timber: building.timber,
+        firewood: building.firewood,
+        food: building.food,
+        grain: building.grain,
+        flour: building.flour,
+        ale: building.ale,
+        preserved_food: building.preserved_food,
+        honey: building.honey,
+        wine: building.wine,
+        wool: building.wool,
+        cloth: building.cloth,
+        ironwork: building.ironwork,
+        polearms: building.polearms,
+        gold: building.gold,
+    }
+}
+
+fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores) {
+    building.timber = stores.timber;
+    building.firewood = stores.firewood;
+    building.food = stores.food;
+    building.grain = stores.grain;
+    building.flour = stores.flour;
+    building.ale = stores.ale;
+    building.preserved_food = stores.preserved_food;
+    building.honey = stores.honey;
+    building.wine = stores.wine;
+    building.wool = stores.wool;
+    building.cloth = stores.cloth;
+    building.ironwork = stores.ironwork;
+    building.polearms = stores.polearms;
+    building.gold = stores.gold;
 }
 
 fn settlement_guard_strength(
@@ -371,27 +394,10 @@ fn resolve_raid(
                 let Some(mut updated) = ctx.db.building().id().find(&target.id) else {
                     continue;
                 };
-                macro_rules! plunder {
-                    ($field:ident) => {{
-                        let lost = updated.$field * forecast.loss_fraction;
-                        updated.$field = (updated.$field - lost).max(0.0);
-                        goods_lost += lost;
-                    }};
-                }
-                plunder!(timber);
-                plunder!(firewood);
-                plunder!(food);
-                plunder!(grain);
-                plunder!(flour);
-                plunder!(ale);
-                plunder!(preserved_food);
-                plunder!(honey);
-                plunder!(wine);
-                plunder!(ironwork);
-                plunder!(polearms);
-                let lost_gold = updated.gold * forecast.loss_fraction;
-                updated.gold = (updated.gold - lost_gold).max(0.0);
-                wealth_lost += lost_gold;
+                let plunder = building_portable_stores(&updated).plunder(forecast.loss_fraction);
+                retain_unplundered_stores(&mut updated, plunder.remaining);
+                goods_lost += plunder.goods_lost;
+                wealth_lost += plunder.wealth_lost;
                 ctx.db.building().id().update(updated);
             }
             RaidTargetKind::Residence => {

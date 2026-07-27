@@ -3,6 +3,7 @@ import {
   formatCalendarDate,
   formatClockTime,
   formatWeekday,
+  gameClock,
 } from '../world/gameCalendar.ts';
 import type {
   EnvironmentState,
@@ -22,8 +23,8 @@ import {
 import type { FireIncidentState } from '../fires/fireIncident.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import {
-  estimatedRaidDays,
   formatFrontierForecast,
+  formatFrontierRaidTiming,
   formatRaidReport,
   frontierThreatLabel,
   type SettlementSecurityState,
@@ -319,14 +320,15 @@ export class SettlementHud {
     this.panel.classList.toggle('has-frontier-threat', enabled && security.threat >= 0.7);
     if (!enabled) return;
 
-    this.securityLabel.textContent = `🛡 ${frontierThreatLabel(security, world)}`;
-    const days = estimatedRaidDays(security, simTick);
+    const clock = gameClock(simTick);
+    this.securityLabel.textContent = `🛡 ${frontierThreatLabel(security, world, clock.month)}`;
     const coverage = Math.round(security.coverage * 100);
     const readyGuards = security.readyGuards.toFixed(security.readyGuards < 10 ? 1 : 0);
     const requiredGuards = security.guardsRequired.toFixed(security.guardsRequired < 10 ? 1 : 0);
-    this.securityDetail.textContent = days === null
-      ? `Pressure begins at 8 residents · ${readyGuards} guards ready`
-      : `${days <= 0.1 ? 'Scouts may arrive now' : `about ${Math.max(1, Math.ceil(days))} days`} · ${coverage}% watched · ${readyGuards}/${requiredGuards} ready${security.threat >= 0.4 && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
+    const timing = security.nextRaidTick <= 0
+      ? 'Pressure begins at 8 residents'
+      : formatFrontierRaidTiming(security, simTick, clock.month);
+    this.securityDetail.textContent = `${timing} · ${coverage}% watched · ${readyGuards}/${requiredGuards} ready${security.threat >= 0.4 && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
     this.securityAlert.dataset.threat = security.threat >= 0.9
       ? 'imminent'
       : security.threat >= 0.7

@@ -11,8 +11,10 @@ import {
   countSitesProtectedByWatchtower,
   estimatedRaidDays,
   formatFrontierForecast,
+  formatFrontierRaidTiming,
   formatProjectedRaidTargets,
   formatRaidReport,
+  FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS,
   frontierDefenseFireSignature,
   frontierThreatLabel,
   getGuardhouseMusterState,
@@ -22,6 +24,7 @@ import {
   guardhouseMusterEfficiency,
   guardhouseMusterResponseDistance,
   guardhouseMusterResponseBand,
+  isFrontierRaidSeason,
   projectRaidTargets,
   projectedRaidArsonChance,
   normalizeGuardhouseFoodReserve,
@@ -76,6 +79,11 @@ assert.equal(BUILDING_DEFINITIONS.guardhouse.requiresRoad, true);
 assert.equal(BUILDING_DEFINITIONS.guardhouse.maxLabor, 6);
 assert.equal(GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS, 3);
 assert.equal(WATCH_COVERAGE_CELL_SIZE, 128);
+assert.equal(FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS, 300);
+assert.equal(isFrontierRaidSeason(3), false);
+assert.equal(isFrontierRaidSeason(4), true);
+assert.equal(isFrontierRaidSeason(10), true);
+assert.equal(isFrontierRaidSeason(11), false);
 
 const tower = building('tower', 'watchtower', 0, 0, 1);
 assert.equal(Math.round(watchtowerEffectiveRadius(tower)), 148);
@@ -302,6 +310,36 @@ assert.deepEqual(
 projectionState.fireIncidents.clear();
 assert.match(formatProjectedRaidTargets(projectedTargets), /Current likely targets/);
 assert.match(formatProjectedRaidTargets(projectedTargets), /exposed/);
+assert.match(formatProjectedRaidTargets(projectedTargets), /raid value/);
+const textileTargetState = emptyGameState();
+textileTargetState.buildings.set(
+  'textile-store',
+  {
+    ...building('textile-store', 'weaver', 20, 0, 1),
+    wool: 4,
+    cloth: 12,
+  },
+);
+textileTargetState.buildings.set(
+  'timber-store',
+  {
+    ...building('timber-store', 'village_storehouse', 40, 0, 1),
+    timber: 21,
+  },
+);
+const textileTarget = projectRaidTargets(textileTargetState, 1)[0];
+assert.equal(
+  textileTarget?.id,
+  'textile-store',
+  'finished cloth must carry its authoritative 1.5x target value in client projections',
+);
+assert.equal(textileTarget?.portableValue, 22);
+assert.equal(textileTarget?.portableSummary, '12 cloth + 4 wool');
+assert.match(
+  formatProjectedRaidTargets([textileTarget!]),
+  /12 cloth \+ 4 wool/,
+  'likely-target feedback should explain the textile stock attracting the raid',
+);
 const negativeCoverageState = emptyGameState();
 negativeCoverageState.buildings.set(
   'negative-tower',
@@ -474,6 +512,27 @@ const security: SettlementSecurityState = {
 assert.equal(frontierThreatLabel(security, frontierSettings), 'Raiders reported');
 assert.equal(frontierThreatLabel(security, legacySettings), 'Peaceful settlement');
 assert.equal(estimatedRaidDays(security, 0), 30);
+const overdueRaid = {
+  ...security,
+  threat: 1,
+  nextRaidTick: 100,
+};
+assert.equal(
+  frontierThreatLabel(overdueRaid, frontierSettings, 1),
+  'Winter campaign pause',
+);
+assert.equal(
+  frontierThreatLabel(overdueRaid, frontierSettings, 5),
+  'Incursion imminent',
+);
+assert.match(
+  formatFrontierRaidTiming(overdueRaid, 101, 1),
+  /waits for the April campaign season/,
+);
+assert.match(
+  formatFrontierRaidTiming(overdueRaid, 101, 5),
+  /Scouts may arrive now.*campaign season active/,
+);
 assert.equal(
   formatFrontierForecast(security),
   '4.5 / 6.5 guards ready · 2 holdings at risk · about 8% portable stores per target',
@@ -548,6 +607,7 @@ assert.match(toolbar, /MILITARY_BUILD_MENU_ENTRIES/);
 assert.match(toolbar, /setConflictEnabled/);
 assert.match(settlementHud, /formatFrontierForecast/);
 assert.match(settlementHud, /formatFrontierForecast\(security, world\.enemyPressure\)/);
+assert.match(settlementHud, /formatFrontierRaidTiming/);
 assert.match(watchtowerInspector, /Projected defense/);
 assert.match(watchtowerInspector, /context\.enemyPressure/);
 assert.match(guardhouseInspector, /Projected raid/);
@@ -570,6 +630,11 @@ assert.match(
   /frontierDefenseFireSignature\(state\)/,
   'raid markers must invalidate immediately when a watch or guardhouse enters fire outage',
 );
+assert.match(
+  app,
+  /Math\.floor\(state\.tick\s*\/\s*FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS\)/,
+  'likely-target projections must refresh on every authoritative security cadence',
+);
 assert.match(serverSimulation, /SECURITY_UPDATE_INTERVAL_TICKS/);
 assert.match(serverSimulation, /WatchCoverageIndex::new/);
 assert.match(serverSimulation, /fn settlement_exposure/);
@@ -589,8 +654,13 @@ assert.match(
 assert.match(serverSimulation, /nearest_road_path_distance/);
 assert.match(serverSimulation, /select_raid_targets/);
 assert.match(serverSimulation, /RaidTargetKind::Residence/);
-assert.match(serverSimulation, /plunder!\(ironwork\)/);
-assert.match(serverSimulation, /plunder!\(polearms\)/);
+assert.match(serverSimulation, /building_portable_stores\(&updated\)\.plunder/);
+assert.match(serverSimulation, /retain_unplundered_stores/);
+assert.match(
+  serverSimulation,
+  /RaidPortableStores\s*\{[\s\S]*wool:\s*building\.wool,[\s\S]*cloth:\s*building\.cloth,/,
+  'authoritative raid valuation and removal must include raw wool and finished cloth',
+);
 assert.match(
   serverSimulation,
   /raid_arson_occurs[\s\S]*selected\.iter\(\)\.any[\s\S]*ignite_raid_target/,
@@ -599,6 +669,10 @@ assert.match(
 assert.match(serverPolicy, /pub fn raid_arson_chance/);
 assert.match(serverPolicy, /defense_ratio\.clamp/);
 assert.match(serverPolicy, /WATCH_COVERAGE_CELL_SIZE:\s*f64\s*=\s*128\.0/);
+assert.match(serverPolicy, /pub struct RaidPortableStores/);
+assert.match(serverPolicy, /plunder_good!\(wool\)/);
+assert.match(serverPolicy, /plunder_good!\(cloth\)/);
+assert.match(serverPolicy, /CLOTH_RAID_VALUE_MULTIPLIER:\s*f64\s*=\s*1\.5/);
 assert.match(serverFires, /pub fn ignite_raid_target/);
 assert.match(serverFires, /FIRE_SOURCE_RAID/);
 assert.match(frontierEconomy, /CARPENTER_TIMBER_PER_POLEARM/);
@@ -644,6 +718,9 @@ assert.match(guardhouseInspector, /data-guardhouse-food-reserve/);
 assert.match(guardhouseInspector, /lock up more fresh food here/);
 assert.match(townHallInspector, /Ration reserves/);
 assert.match(townHallInspector, /lean.*company.*deep/);
+assert.match(townHallInspector, /Frontier timetable/);
+assert.match(townHallInspector, /Watch and muster/);
+assert.match(townHallInspector, /Last incursion/);
 const buildingSchema = readFileSync('server/src/tables.rs', 'utf8');
 assert.match(
   buildingSchema,

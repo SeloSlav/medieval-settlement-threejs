@@ -11,6 +11,9 @@ pub const SECURITY_UPDATE_INTERVAL_TICKS: u64 = 300;
 pub const RAID_SEASON_START_MONTH: u32 = 4;
 pub const RAID_SEASON_END_MONTH: u32 = 10;
 pub const WATCH_COVERAGE_CELL_SIZE: f64 = 128.0;
+pub const CLOTH_RAID_VALUE_MULTIPLIER: f64 = 1.5;
+pub const IRONWORK_RAID_VALUE_MULTIPLIER: f64 = 2.0;
+pub const POLEARM_RAID_VALUE_MULTIPLIER: f64 = 4.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WatchArea {
@@ -85,6 +88,110 @@ pub struct RaidForecast {
     pub defense_ratio: f64,
     pub target_count: usize,
     pub loss_fraction: f64,
+}
+
+/// Physical stock that raiders can carry away from one reached building.
+///
+/// Keeping valuation and removal on the same record prevents a commodity from
+/// making a holding look attractive without being exposed to the resulting
+/// loss. Stone and water are deliberately absent because an incursion cannot
+/// practically carry them away.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct RaidPortableStores {
+    pub timber: f64,
+    pub firewood: f64,
+    pub food: f64,
+    pub grain: f64,
+    pub flour: f64,
+    pub ale: f64,
+    pub preserved_food: f64,
+    pub honey: f64,
+    pub wine: f64,
+    pub wool: f64,
+    pub cloth: f64,
+    pub ironwork: f64,
+    pub polearms: f64,
+    pub gold: f64,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct RaidPlunder {
+    pub remaining: RaidPortableStores,
+    pub goods_lost: f64,
+    pub wealth_lost: f64,
+}
+
+impl RaidPortableStores {
+    pub fn raid_value(self) -> f64 {
+        positive_store(self.timber)
+            + positive_store(self.firewood)
+            + positive_store(self.food)
+            + positive_store(self.grain)
+            + positive_store(self.flour)
+            + positive_store(self.ale)
+            + positive_store(self.preserved_food)
+            + positive_store(self.honey)
+            + positive_store(self.wine)
+            + positive_store(self.wool)
+            + positive_store(self.cloth) * CLOTH_RAID_VALUE_MULTIPLIER
+            + positive_store(self.ironwork) * IRONWORK_RAID_VALUE_MULTIPLIER
+            + positive_store(self.polearms) * POLEARM_RAID_VALUE_MULTIPLIER
+            + positive_store(self.gold)
+    }
+
+    pub fn plunder(self, loss_fraction: f64) -> RaidPlunder {
+        let fraction = if loss_fraction.is_finite() {
+            loss_fraction.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let mut remaining = self;
+        let mut goods_lost = 0.0;
+
+        macro_rules! plunder_good {
+            ($field:ident) => {{
+                let (stock_left, stock_lost) = plunder_store(self.$field, fraction);
+                remaining.$field = stock_left;
+                goods_lost += stock_lost;
+            }};
+        }
+
+        plunder_good!(timber);
+        plunder_good!(firewood);
+        plunder_good!(food);
+        plunder_good!(grain);
+        plunder_good!(flour);
+        plunder_good!(ale);
+        plunder_good!(preserved_food);
+        plunder_good!(honey);
+        plunder_good!(wine);
+        plunder_good!(wool);
+        plunder_good!(cloth);
+        plunder_good!(ironwork);
+        plunder_good!(polearms);
+        let (gold, wealth_lost) = plunder_store(self.gold, fraction);
+        remaining.gold = gold;
+
+        RaidPlunder {
+            remaining,
+            goods_lost,
+            wealth_lost,
+        }
+    }
+}
+
+fn positive_store(amount: f64) -> f64 {
+    if amount.is_finite() {
+        amount.max(0.0)
+    } else {
+        0.0
+    }
+}
+
+fn plunder_store(amount: f64, fraction: f64) -> (f64, f64) {
+    let stocked = positive_store(amount);
+    let lost = stocked * fraction;
+    ((stocked - lost).max(0.0), lost)
 }
 
 pub fn is_raid_season(month: u32) -> bool {
@@ -305,6 +412,38 @@ mod tests {
         assert!(is_raid_season(4));
         assert!(is_raid_season(10));
         assert!(!is_raid_season(12));
+    }
+
+    #[test]
+    fn textile_stores_are_valued_and_physically_plundered() {
+        let stores = RaidPortableStores {
+            wool: 20.0,
+            cloth: 10.0,
+            ..RaidPortableStores::default()
+        };
+        assert_eq!(stores.raid_value(), 35.0);
+
+        let plunder = stores.plunder(0.4);
+        assert_eq!(plunder.remaining.wool, 12.0);
+        assert_eq!(plunder.remaining.cloth, 6.0);
+        assert_eq!(plunder.goods_lost, 12.0);
+        assert_eq!(plunder.wealth_lost, 0.0);
+    }
+
+    #[test]
+    fn raid_plunder_separates_goods_from_gold_and_clamps_the_loss() {
+        let stores = RaidPortableStores {
+            food: 8.0,
+            polearms: 2.0,
+            gold: 5.0,
+            ..RaidPortableStores::default()
+        };
+        assert_eq!(stores.raid_value(), 21.0);
+
+        let plunder = stores.plunder(1.5);
+        assert_eq!(plunder.remaining, RaidPortableStores::default());
+        assert_eq!(plunder.goods_lost, 10.0);
+        assert_eq!(plunder.wealth_lost, 5.0);
     }
 
     #[test]
