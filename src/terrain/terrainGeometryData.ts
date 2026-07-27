@@ -4,6 +4,7 @@ import type { RiverField } from '../rivers/RiverField.ts';
 import type { WorldDimensions } from '../world/worldGenerationSettings.ts';
 import { sampleTerrainBlendWeights, sampleTerrainUv } from './TerrainBlendWeights.ts';
 import { sampleBaseTerrainHeight } from './TerrainHeight.ts';
+import { createHeightfieldNormals } from './terrainNormals.ts';
 
 // The end-to-end smoke verifies renderer/material compatibility and placement,
 // not production terrain tessellation. Keeping its software-rendered world
@@ -92,12 +93,10 @@ export async function buildTerrainGeometryData(
   }
 
   await yieldControl();
+  const normals = createHeightfieldNormals(positions, resolution);
   const geometry = new THREE.BufferGeometry();
-  geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
-  const normals = new Float32Array((geometry.getAttribute('normal') as THREE.BufferAttribute).array);
   const sphere = geometry.boundingSphere ?? new THREE.Sphere();
   geometry.dispose();
 

@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { BuildingTerrainLayout } from '../src/buildings/BuildingTerrainLayout.ts';
 import { sampleTerrainFenceBays } from '../src/residences/BurgageFencing.ts';
 import { residenceFootprintHeightDelta } from '../src/residences/burgagePlacementValidation.ts';
+import {
+  createHeightfieldNormals,
+  updateHeightfieldNormalsInRegion,
+} from '../src/terrain/terrainNormals.ts';
 
 const almostEqual = (actual: number, expected: number, epsilon = 1e-6): void => {
   assert.ok(
@@ -69,4 +73,54 @@ assert.ok(
   'the residence footprint sampler should detect an excessive cross-slope',
 );
 
+testRegionalTerrainNormalsMatchFullRecompute();
+
 console.log('Residence terrain adaptation checks passed.');
+
+function testRegionalTerrainNormalsMatchFullRecompute(): void {
+  const resolution = 11;
+  const positions = new Float32Array(resolution * resolution * 3);
+
+  for (let z = 0; z < resolution; z++) {
+    for (let x = 0; x < resolution; x++) {
+      const offset = (z * resolution + x) * 3;
+      positions[offset] = x * 1.3;
+      positions[offset + 1] = Math.sin(x * 0.37) * 0.8 + Math.cos(z * 0.29) * 0.55;
+      positions[offset + 2] = z * 1.3;
+    }
+  }
+
+  const regionalNormals = createHeightfieldNormals(positions, resolution);
+
+  const minX = 3;
+  const maxX = 7;
+  const minZ = 2;
+  const maxZ = 6;
+  for (let z = minZ; z <= maxZ; z++) {
+    for (let x = minX; x <= maxX; x++) {
+      const offset = (z * resolution + x) * 3;
+      positions[offset + 1] = 1.7 + (x - minX) * 0.04 - (z - minZ) * 0.03;
+    }
+  }
+
+  const expectedNormals = createHeightfieldNormals(positions, resolution);
+
+  updateHeightfieldNormalsInRegion(
+    positions,
+    regionalNormals,
+    resolution,
+    minX,
+    maxX,
+    minZ,
+    maxZ,
+  );
+
+  let maximumError = 0;
+  for (let index = 0; index < expectedNormals.length; index++) {
+    maximumError = Math.max(maximumError, Math.abs(regionalNormals[index] - expectedNormals[index]));
+  }
+  assert.ok(
+    maximumError === 0,
+    `regional terrain normals must match a full smooth-heightfield recompute, including its boundary (max error ${maximumError})`,
+  );
+}

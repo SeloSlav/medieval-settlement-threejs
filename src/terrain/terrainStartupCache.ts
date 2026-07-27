@@ -3,11 +3,12 @@ import type { SerializedRiverField } from '../rivers/RiverField.ts';
 import type { SerializedRiverLayout } from '../rivers/RiverLayout.ts';
 import type { WorldDimensions, WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { TERRAIN_RESOLUTION, type TerrainGeometryData } from './terrainGeometryData.ts';
+import { createHeightfieldNormals } from './terrainNormals.ts';
 
 const DATABASE_NAME = 'medieval-road-system-generated-world';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'terrain-startup';
-const CACHE_FORMAT_VERSION = 'terrain-startup-v1';
+const CACHE_FORMAT_VERSION = 'terrain-startup-v2-smooth-heightfield-normals';
 
 export type TerrainStartupData = {
   terrain: TerrainGeometryData;
@@ -33,7 +34,6 @@ type CompactTerrainStartupData = {
     resolution: number;
     terrainSize: number;
     heights: Float32Array;
-    normals: Int8Array;
     uvs: Float32Array;
     colors: Uint8Array;
     shoreBlends: Uint8Array;
@@ -96,16 +96,12 @@ function compact(data: TerrainStartupData): CompactTerrainStartupData {
   const { terrain } = data;
   const vertexCount = terrain.resolution * terrain.resolution;
   const heights = new Float32Array(vertexCount);
-  const normals = new Int8Array(vertexCount * 3);
   const colors = new Uint8Array(vertexCount * 3);
   const shoreBlends = new Uint8Array(vertexCount);
   const quarryPadBlends = new Uint8Array(vertexCount);
   for (let index = 0; index < vertexCount; index++) {
     heights[index] = terrain.positions[index * 3 + 1];
     const colorOffset = index * 3;
-    normals[colorOffset] = Math.round(terrain.normals[colorOffset] * 127);
-    normals[colorOffset + 1] = Math.round(terrain.normals[colorOffset + 1] * 127);
-    normals[colorOffset + 2] = Math.round(terrain.normals[colorOffset + 2] * 127);
     colors[colorOffset] = Math.round(terrain.colors[colorOffset] * 255);
     colors[colorOffset + 1] = Math.round(terrain.colors[colorOffset + 1] * 255);
     colors[colorOffset + 2] = Math.round(terrain.colors[colorOffset + 2] * 255);
@@ -119,7 +115,6 @@ function compact(data: TerrainStartupData): CompactTerrainStartupData {
       resolution: terrain.resolution,
       terrainSize: lastX - firstX,
       heights,
-      normals,
       uvs: terrain.uvs,
       colors,
       shoreBlends,
@@ -135,7 +130,6 @@ function expand(data: CompactTerrainStartupData): TerrainStartupData {
   const resolution = compactTerrain.resolution;
   const vertexCount = resolution * resolution;
   const positions = new Float32Array(vertexCount * 3);
-  const normals = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
   const shoreBlends = new Float32Array(vertexCount);
   const quarryPadBlends = new Float32Array(vertexCount);
@@ -156,16 +150,12 @@ function expand(data: CompactTerrainStartupData): TerrainStartupData {
       colors[colorOffset + 2] = compactTerrain.colors[colorOffset + 2] / 255;
       shoreBlends[index] = compactTerrain.shoreBlends[index] / 255;
       quarryPadBlends[index] = compactTerrain.quarryPadBlends[index] / 255;
-
-      const nx = compactTerrain.normals[positionOffset] / 127;
-      const ny = compactTerrain.normals[positionOffset + 1] / 127;
-      const nz = compactTerrain.normals[positionOffset + 2] / 127;
-      const inverseLength = 1 / Math.max(1e-6, Math.hypot(nx, ny, nz));
-      normals[positionOffset] = nx * inverseLength;
-      normals[positionOffset + 1] = ny * inverseLength;
-      normals[positionOffset + 2] = nz * inverseLength;
     }
   }
+  // Reconstruct the same smooth normal field as fresh generation. This avoids
+  // both storing redundant data and reviving fixed-grid lighting through lossy
+  // signed-byte normals on cached launches.
+  const normals = createHeightfieldNormals(positions, resolution);
 
   return {
     terrain: {

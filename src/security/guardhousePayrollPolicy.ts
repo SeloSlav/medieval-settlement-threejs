@@ -64,6 +64,16 @@ export type GuardhousePayrollLogisticsPlan = {
   status: GuardhousePayrollLogisticsStatus;
 };
 
+export type GuardhousePayrollDispatchPlan = {
+  reorderDueCompanies: number;
+  inboundCompanies: number;
+  projectedCarts: number;
+  projectedGold: number;
+  remainingTreasuryGold: number;
+  remainingFreeHaulers: number;
+  firstClaimBuildingId: string | null;
+};
+
 export function normalizeGuardhousePayPriority(priority: number | undefined): number {
   if (!Number.isFinite(priority)) return GUARDHOUSE_PAY_PRIORITY_NORMAL;
   return Math.max(
@@ -149,18 +159,7 @@ export function guardhousePayrollPlan(
   fireDisabledBuildingIds: ReadonlySet<string> = NO_FIRE_DISABLED_BUILDINGS,
   inTransitGoldByGuardhouse: ReadonlyMap<string, number> = new Map(),
 ): GuardhousePayrollEntry[] {
-  const companies = [...buildings]
-    .filter((building) =>
-      building.kind === 'guardhouse'
-      && building.constructionComplete !== false
-      && !fireDisabledBuildingIds.has(building.id)
-      && armedGuardCount(building.assignedLabor, building.polearms) > 0
-    )
-    .sort((left, right) => {
-      const priorityOrder = normalizeGuardhousePayPriority(right.guardhousePayPriority)
-        - normalizeGuardhousePayPriority(left.guardhousePayPriority);
-      return priorityOrder !== 0 ? priorityOrder : compareBuildingIds(left.id, right.id);
-    });
+  const companies = payrollCompanies(buildings, fireDisabledBuildingIds);
 
   let availableGold = Math.max(0, treasuryGold);
   return companies.map((building, index) => {
@@ -188,6 +187,117 @@ export function guardhousePayrollPlan(
       companyCount: companies.length,
     };
   });
+}
+
+/**
+ * Mirrors the physical server dispatch pass which runs before marketplace
+ * reserve carts. Residence-upgrade grants have already been removed from
+ * `treasuryGold`; this plan then allocates reachable, idle treasury chests and
+ * free haulers to due companies in pay-priority order.
+ */
+export function guardhousePayrollDispatchPlan(options: {
+  payroll: readonly GuardhousePayrollEntry[];
+  buildings: Iterable<BuildingState>;
+  trips: Iterable<DeliveryTripState>;
+  treasuryGold: number;
+  physicalEconomy: boolean;
+  freeHaulers: number;
+  roadComponentFor?: (building: BuildingState) => number | null;
+}): GuardhousePayrollDispatchPlan {
+  let remainingTreasuryGold = finiteStock(options.treasuryGold);
+  let remainingFreeHaulers = Math.max(0, Math.floor(options.freeHaulers));
+  const empty: GuardhousePayrollDispatchPlan = {
+    reorderDueCompanies: 0,
+    inboundCompanies: 0,
+    projectedCarts: 0,
+    projectedGold: 0,
+    remainingTreasuryGold,
+    remainingFreeHaulers,
+    firstClaimBuildingId: null,
+  };
+  if (!options.physicalEconomy || options.payroll.length === 0) return empty;
+
+  const buildings = [...options.buildings];
+  const treasurySeats = buildings
+    .filter(
+      (building) =>
+        building.constructionComplete !== false
+        && (
+          building.kind === 'town_hall'
+          || building.kind === 'founders_camp'
+          || building.kind === 'salvage_pile'
+        ),
+    )
+    .sort(compareTreasurySeats);
+
+  const treasuryIds = new Set(treasurySeats.map((building) => building.id));
+  const busySources = new Set<string>();
+  for (const trip of options.trips) {
+    if (treasuryIds.has(trip.buildingId)) busySources.add(trip.buildingId);
+  }
+  const roadComponents = new Map<string, number | null>();
+  const roadComponent = (building: BuildingState): number | null => {
+    if (!options.roadComponentFor) return 0;
+    if (!roadComponents.has(building.id)) {
+      roadComponents.set(building.id, options.roadComponentFor(building));
+    }
+    return roadComponents.get(building.id) ?? null;
+  };
+
+  let reorderDueCompanies = 0;
+  let inboundCompanies = 0;
+  let projectedCarts = 0;
+  let projectedGold = 0;
+  let firstClaimBuildingId: string | null = null;
+
+  for (const company of options.payroll) {
+    if (company.securedGold + 1e-9 >= company.reorderGold) continue;
+    reorderDueCompanies += 1;
+    if (company.inTransitGold > 1e-9) {
+      inboundCompanies += 1;
+      continue;
+    }
+    if (remainingTreasuryGold <= 1e-9 || remainingFreeHaulers <= 0) continue;
+    const companyRoadComponent = roadComponent(company.building);
+
+    for (const source of treasurySeats) {
+      if (
+        busySources.has(source.id)
+        || finiteStock(source.gold) <= 1e-9
+        || roadComponent(source) !== companyRoadComponent
+        || companyRoadComponent === null
+      ) {
+        continue;
+      }
+      const load = guardhousePayrollCartLoad({
+        armedGuards: company.armedGuards,
+        onsiteGold: company.onsiteGold,
+        inTransitGold: 0,
+        treasuryGold: Math.min(
+          finiteStock(source.gold),
+          remainingTreasuryGold,
+        ),
+      });
+      if (load <= 1e-9) continue;
+      busySources.add(source.id);
+      remainingTreasuryGold -= load;
+      remainingFreeHaulers -= 1;
+      projectedCarts += 1;
+      projectedGold += load;
+      firstClaimBuildingId ??= company.building.id;
+      break;
+    }
+  }
+
+  return {
+    reorderDueCompanies,
+    inboundCompanies,
+    projectedCarts,
+    projectedGold,
+    remainingTreasuryGold,
+    remainingFreeHaulers,
+    firstClaimBuildingId,
+  };
 }
 
 export function guardhousePayrollLogisticsPlan(options: {
@@ -328,6 +438,24 @@ function compareTreasurySeats(left: BuildingState, right: BuildingState): number
     return 2;
   };
   return priority(left) - priority(right) || compareBuildingIds(left.id, right.id);
+}
+
+function payrollCompanies(
+  buildings: Iterable<BuildingState>,
+  fireDisabledBuildingIds: ReadonlySet<string>,
+): BuildingState[] {
+  return [...buildings]
+    .filter((building) =>
+      building.kind === 'guardhouse'
+      && building.constructionComplete !== false
+      && !fireDisabledBuildingIds.has(building.id)
+      && armedGuardCount(building.assignedLabor, building.polearms) > 0
+    )
+    .sort((left, right) => {
+      const priorityOrder = normalizeGuardhousePayPriority(right.guardhousePayPriority)
+        - normalizeGuardhousePayPriority(left.guardhousePayPriority);
+      return priorityOrder !== 0 ? priorityOrder : compareBuildingIds(left.id, right.id);
+    });
 }
 
 function finiteStock(value: number | undefined): number {

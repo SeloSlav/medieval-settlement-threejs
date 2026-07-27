@@ -3,7 +3,7 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{BASE_SPEED_DENOMINATOR, BASE_SPEED_NUMERATOR, TICK_DT};
 use crate::db::*;
 use crate::economy::step_regional_markets;
-use crate::frontier_economy_policy::guardhouse_payroll_buckets;
+use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
     step_apiary, step_backyard_gardens, step_brewery, step_carpenter, step_chapel_parish,
     step_chapels, step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
@@ -15,7 +15,8 @@ use crate::simulation::{
     step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
     step_settlement_security, step_smokehouse, step_stone_quarry, step_swineherd,
     step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill, step_weaver,
-    step_well, step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
+    step_well, step_woodcutters_lodge, try_dispatch_guardhouse_payroll, SharedRoadNetworks,
+    SimTickContext,
 };
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
@@ -132,9 +133,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     step_construction_sites(ctx, &tick, &clock);
     step_residence_upgrades(ctx, &tick, &clock);
     step_household_market_orders(ctx, &tick, &clock, sim_tick);
-    step_marketplace_caravans(ctx, &clock, &tick, environment);
-    step_seed_grain_distribution(ctx, &tick, &clock);
-    step_regional_markets(ctx, sim_tick);
 
     let mut lumber_mill_ids: Vec<u64> = Vec::new();
     let mut reforester_ids: Vec<u64> = Vec::new();
@@ -212,6 +210,33 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             }
         }
     }
+
+    // Residence-upgrade grants are already reserved by the treasury ledger.
+    // Among unreserved coin, explicit company pay priorities get the first
+    // chance to send a lockbox. Marketplace working-cash targets then compete
+    // for the remaining free haulers, treasury chests, and gold. The later
+    // guardhouse step sees the inbound trip and will not dispatch twice.
+    let payroll_buckets = guardhouse_payroll_buckets(guardhouse_payroll_ids);
+    if conflict_enabled {
+        for payroll_bucket in payroll_buckets.iter().rev() {
+            for building_id in payroll_bucket {
+                let Some(building) = ctx.db.building().id().find(building_id) else {
+                    continue;
+                };
+                try_dispatch_guardhouse_payroll(
+                    ctx,
+                    &tick,
+                    &clock,
+                    &building,
+                    armed_guards(building.assigned_labor, building.polearms),
+                );
+            }
+        }
+    }
+
+    step_marketplace_caravans(ctx, &clock, &tick, environment);
+    step_seed_grain_distribution(ctx, &tick, &clock);
+    step_regional_markets(ctx, sim_tick);
 
     for building_id in reforester_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
@@ -330,10 +355,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .collect();
     step_village_storehouses(ctx, &tick, &clock, village_storehouses);
 
-    for payroll_bucket in guardhouse_payroll_buckets(guardhouse_payroll_ids)
-        .into_iter()
-        .rev()
-    {
+    for payroll_bucket in payroll_buckets.into_iter().rev() {
         for building_id in payroll_bucket {
             let Some(building) = ctx.db.building().id().find(&building_id) else {
                 continue;

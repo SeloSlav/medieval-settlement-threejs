@@ -29,7 +29,14 @@ pub fn try_dispatch_guardhouse_payroll(
     guardhouse: &Building,
     armed_guards: f64,
 ) -> bool {
-    if armed_guards <= 1e-9
+    let physical_economy = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&guardhouse.owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if !physical_economy
+        || armed_guards <= 1e-9
         || building_has_inbound_commodity_trip(ctx, guardhouse.id, CommodityKind::Gold)
         || available_free_haulers(ctx, guardhouse.owner) == 0
     {

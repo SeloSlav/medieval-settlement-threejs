@@ -6,10 +6,12 @@ type ProfileSubsystem =
   | 'post'
   | 'sky'
   | 'shadows'
+  | 'directLighting'
   | 'river'
   | 'riverSimulation'
   | 'riverRender'
   | 'terrain'
+  | 'precipitation'
   | 'groundcover'
   | 'forest'
   | 'ui';
@@ -21,8 +23,11 @@ type RuntimeSceneManager = {
   postProcessor: ScenePostProcessor;
   sky: THREE.Object3D;
   sunLight: THREE.DirectionalLight;
+  skyFillLight: THREE.DirectionalLight;
+  hemiLight: THREE.HemisphereLight;
   riverSystem: { group: THREE.Group; tick(dt: number, timeSec: number): void };
   terrain: { mesh: THREE.Mesh };
+  precipitation: { group: THREE.Group; update(dt: number, cameraDistance: number, firstPersonActive: boolean): void };
   grassField: { group: THREE.Group } | null;
   forestManager: { group: THREE.Group } | null;
   getPerformanceStats(): {
@@ -40,20 +45,37 @@ type RuntimeApp = {
 
 export type VisualPerformanceHooks = {
   readonly subsystems: readonly ProfileSubsystem[];
+  getSceneSummary(): SceneRenderableSummary[];
   getState(): Record<ProfileSubsystem, boolean>;
   getRendererStats(): ReturnType<RuntimeSceneManager['getPerformanceStats']>;
   reset(): void;
+  setObjectVisible(pathOrName: string, visible: boolean): string[];
   setEnabled(subsystem: ProfileSubsystem, enabled: boolean): void;
+};
+
+export type SceneRenderableSummary = {
+  path: string;
+  name: string;
+  type: string;
+  visible: boolean;
+  effectiveVisible: boolean;
+  renderOrder: number;
+  materials: string[];
+  vertices: number;
+  instances: number | null;
+  triangles: number | null;
 };
 
 const SUBSYSTEMS = [
   'post',
   'sky',
   'shadows',
+  'directLighting',
   'river',
   'riverSimulation',
   'riverRender',
   'terrain',
+  'precipitation',
   'groundcover',
   'forest',
   'ui',
@@ -73,9 +95,13 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
     skyVisible: manager.sky.visible,
     shadowsEnabled: manager.renderer.shadowMap.enabled,
     sunCastShadow: manager.sunLight.castShadow,
+    sunVisible: manager.sunLight.visible,
+    skyFillVisible: manager.skyFillLight.visible,
+    hemiVisible: manager.hemiLight.visible,
     riverVisible: manager.riverSystem.group.visible,
     riverTick: manager.riverSystem.tick,
     terrainVisible: manager.terrain.mesh.visible,
+    precipitationUpdate: manager.precipitation.update,
     // Vegetation is intentionally constructed after App.start resolves.
     // Both groups default visible when they appear, so the profiling baseline
     // must not capture their temporary pre-build absence as "disabled".
@@ -86,6 +112,10 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
     ProfileSubsystem,
     boolean
   >;
+  const diagnosticAmbient = new THREE.AmbientLight(0xffffff, 2);
+  diagnosticAmbient.name = 'Visual-profile neutral ambient diagnostic';
+  diagnosticAmbient.visible = false;
+  manager.scene.add(diagnosticAmbient);
   const hiddenUi = new Map<HTMLElement, { visibility: string; pointerEvents: string }>();
 
   const setUiVisible = (visible: boolean): void => {
@@ -129,6 +159,12 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
           shadowMap.needsUpdate = true;
         }
         break;
+      case 'directLighting':
+        manager.sunLight.visible = enabled && initial.sunVisible;
+        manager.skyFillLight.visible = enabled && initial.skyFillVisible;
+        manager.hemiLight.visible = enabled && initial.hemiVisible;
+        diagnosticAmbient.visible = !enabled;
+        break;
       case 'river':
         manager.riverSystem.group.visible = enabled && initial.riverVisible;
         manager.riverSystem.tick = enabled ? initial.riverTick : () => {};
@@ -141,6 +177,14 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
         break;
       case 'terrain':
         manager.terrain.mesh.visible = enabled && initial.terrainVisible;
+        break;
+      case 'precipitation':
+        manager.precipitation.update = enabled
+          ? initial.precipitationUpdate
+          : () => {
+            manager.precipitation.group.visible = false;
+          };
+        if (!enabled) manager.precipitation.group.visible = false;
         break;
       case 'groundcover':
         if (manager.grassField) {
@@ -160,6 +204,78 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
 
   const reset = (): void => {
     for (const subsystem of SUBSYSTEMS) setEnabled(subsystem, true);
+  };
+
+  const sceneEntries = (): Array<{ object: THREE.Object3D; path: string }> => {
+    const entries: Array<{ object: THREE.Object3D; path: string }> = [];
+    const visit = (parent: THREE.Object3D, parentPath: string): void => {
+      const labels = parent.children.map((child) =>
+        (child.name.trim() || child.type).replaceAll('/', '\u2215'),
+      );
+      for (let index = 0; index < parent.children.length; index++) {
+        const object = parent.children[index];
+        const label = labels[index];
+        const duplicateIndex = labels.slice(0, index).filter((entry) => entry === label).length;
+        const duplicateCount = labels.filter((entry) => entry === label).length;
+        const segment = duplicateCount > 1 ? `${label}[${duplicateIndex}]` : label;
+        const path = `${parentPath}/${segment}`;
+        entries.push({ object, path });
+        visit(object, path);
+      }
+    };
+    visit(manager.scene, manager.scene.name.trim() || manager.scene.type);
+    return entries;
+  };
+
+  const getSceneSummary = (): SceneRenderableSummary[] =>
+    sceneEntries()
+      .filter(({ object }) =>
+        object instanceof THREE.Mesh
+        || object instanceof THREE.Line
+        || object instanceof THREE.Points
+        || object instanceof THREE.Sprite,
+      )
+      .map(({ object, path }) => {
+        const renderable = object as THREE.Mesh<
+          THREE.BufferGeometry,
+          THREE.Material | THREE.Material[]
+        >;
+        const materials = Array.isArray(renderable.material)
+          ? renderable.material
+          : [renderable.material];
+        const vertices = renderable.geometry?.getAttribute('position')?.count ?? 0;
+        const instances = object instanceof THREE.InstancedMesh ? object.count : null;
+        const baseTriangles = object instanceof THREE.Mesh
+          ? (renderable.geometry.index?.count ?? vertices) / 3
+          : null;
+        let effectiveVisible = object.visible;
+        for (let parent = object.parent; parent && effectiveVisible; parent = parent.parent) {
+          effectiveVisible = parent.visible;
+        }
+        return {
+          path,
+          name: object.name,
+          type: object.type,
+          visible: object.visible,
+          effectiveVisible,
+          renderOrder: object.renderOrder,
+          materials: materials.map((material) => material?.name || material?.type || 'unknown'),
+          vertices,
+          instances,
+          triangles: baseTriangles === null
+            ? null
+            : baseTriangles * (instances ?? 1),
+        };
+      });
+
+  const setObjectVisible = (pathOrName: string, visible: boolean): string[] => {
+    const entries = sceneEntries();
+    const exactPathMatches = entries.filter(({ path }) => path === pathOrName);
+    const matches = exactPathMatches.length > 0
+      ? exactPathMatches
+      : entries.filter(({ object }) => object.name === pathOrName);
+    for (const { object } of matches) object.visible = visible;
+    return matches.map(({ path }) => path);
   };
 
   const requestedDisabled = new Set(
@@ -196,9 +312,11 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
 
   (window as typeof window & { __visualPerf?: VisualPerformanceHooks }).__visualPerf = {
     subsystems: SUBSYSTEMS,
+    getSceneSummary,
     getState: () => ({ ...state }),
     getRendererStats: () => manager.getPerformanceStats(),
     reset,
+    setObjectVisible,
     setEnabled,
   };
 }

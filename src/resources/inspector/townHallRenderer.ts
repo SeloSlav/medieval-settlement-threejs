@@ -160,6 +160,7 @@ import {
   formatTripPhaseLabel,
 } from '../../logistics/deliveryTrips.ts';
 import {
+  guardhousePayrollDispatchPlan,
   guardhousePayrollInTransitGold,
   guardhousePayrollPlan,
 } from '../../security/guardhousePayrollPolicy.ts';
@@ -1556,6 +1557,23 @@ export function renderTownHallInspector(
     fireDisabled,
     payrollInTransit,
   );
+  const payrollDispatch = guardhousePayrollDispatchPlan({
+    payroll: guardhousePayroll,
+    buildings: context.gameState.buildings.values(),
+    trips: context.gameState.deliveryTrips.values(),
+    treasuryGold: context.resourceTotals.gold,
+    physicalEconomy:
+      context.gameState.physicalFoundingSiteEnabled === true
+      && (context.conflictEnabled ?? false),
+    freeHaulers: context.populationStats.available,
+    roadComponentFor:
+      typeof context.worldQueries.getRoadComponentId === 'function'
+        ? (candidate) => context.worldQueries.getRoadComponentId(
+            candidate.x,
+            candidate.z,
+          )
+        : undefined,
+  });
   const payrollGoldDue = guardhousePayroll.reduce((sum, company) => sum + company.dailyWage, 0);
   const payrollGoldFunded = guardhousePayroll.reduce((sum, company) => sum + company.fundedGold, 0);
   const payrollGoldOnsite = guardhousePayroll.reduce((sum, company) => sum + company.onsiteGold, 0);
@@ -1711,7 +1729,10 @@ export function renderTownHallInspector(
     state: context.gameState,
     seedShortfall: farmPlan.seedGrainShortfall,
     seedGrainByHolding: farmPlan.seedGrainByHolding,
-    availableGold: context.resourceTotals.gold,
+    availableGold:
+      context.gameState.physicalFoundingSiteEnabled === true
+        ? payrollDispatch.remainingTreasuryGold
+        : context.resourceTotals.gold,
     nextLotGoldCost: marketplaceTradeOfferCost(
       MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
       marketState,
@@ -1907,6 +1928,11 @@ export function renderTownHallInspector(
       <li><span>Ration reserves</span><span>${provisioning.guardFoodStock.toFixed(1)} / ${guardProvisionTarget.toFixed(1)} food target · ${leanReserveCompanies} lean · ${standardReserveCompanies} company · ${deepReserveCompanies} deep</span></li>
       <li><span>Guard wages</span><span>${provisioning.guardWagePerDay.toFixed(1)} gold / day · ${formatProvisionRunway(provisioning.guardWageRunwayDays)} across treasury, pay chests, and incoming carts</span></li>
       <li><span>Physical payroll</span><span>${payrollGoldOnsite.toFixed(1)} in company chests · ${payrollGoldInTransit.toFixed(1)} on treasury carts · ${context.resourceTotals.gold.toFixed(1)} still spendable at civic treasuries</span></li>
+      <li><span>Civic cash priority</span><span>${
+        context.gameState.physicalFoundingSiteEnabled === true
+          ? `Residence-upgrade grants stay protected · ${payrollDispatch.reorderDueCompanies} ${payrollDispatch.reorderDueCompanies === 1 ? 'company' : 'companies'} below the pay-chest reorder point${payrollDispatch.inboundCompanies > 0 ? `, ${payrollDispatch.inboundCompanies} already receiving coin` : ''} · ${payrollDispatch.projectedCarts} reachable payroll ${payrollDispatch.projectedCarts === 1 ? 'cart claims' : 'carts claim'} ${payrollDispatch.projectedGold.toFixed(1)} gold before market reserve carts · ${payrollDispatch.remainingTreasuryGold.toFixed(1)} remains for market working cash${payrollDispatch.firstClaimBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${payrollDispatch.firstClaimBuildingId}" aria-label="Inspect first guardhouse payroll cash claim">Inspect first claim</button>` : ''}`
+          : 'Legacy treasury · direct spending follows simulation order'
+      }</span></li>
       <li><span>Next-day payroll</span><span>${payrollGoldFunded.toFixed(1)} / ${payrollGoldDue.toFixed(1)} gold secured or treasury-funded${underfundedCompany ? ` · ${guardhousePayroll.filter((company) => company.fundedRatio < 0.999).length} companies at risk <button type="button" class="inspector-jump-button" data-inspect-building="${underfundedCompany.building.id}" aria-label="Inspect first underfunded guardhouse">Inspect</button>` : ' · all companies funded'}</span></li>
       ` : ''}
     `,

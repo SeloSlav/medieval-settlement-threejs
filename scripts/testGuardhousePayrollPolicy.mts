@@ -14,6 +14,7 @@ import {
   GUARDHOUSE_PAY_PRIORITY_LOW,
   GUARDHOUSE_PAY_PRIORITY_NORMAL,
   guardhousePayrollCartLoad,
+  guardhousePayrollDispatchPlan,
   guardhousePayrollInTransitGold,
   guardhousePayrollLogisticsPlan,
   guardhousePayrollPlan,
@@ -151,6 +152,96 @@ assert.equal(enRouteLogistics.status, 'en-route');
 assert.equal(enRouteLogistics.securedGold, 16);
 assert.equal(enRouteLogistics.activeTrip?.id, incomingPayroll.id);
 
+const secondPhysicalCompany = guardhouse(
+  'building-21',
+  2,
+  GUARDHOUSE_PAY_PRIORITY_NORMAL,
+);
+const salvageTreasury = {
+  ...guardhouse('building-30', 0, GUARDHOUSE_PAY_PRIORITY_NORMAL),
+  kind: 'salvage_pile',
+  gold: 10,
+} as BuildingState;
+const physicalDispatchPayroll = guardhousePayrollPlan(
+  [secondPhysicalCompany, physicalCompany, townHall, salvageTreasury],
+  40,
+);
+const physicalDispatch = guardhousePayrollDispatchPlan({
+  payroll: physicalDispatchPayroll,
+  buildings: [
+    secondPhysicalCompany,
+    physicalCompany,
+    townHall,
+    salvageTreasury,
+  ],
+  trips: [],
+  treasuryGold: 40,
+  physicalEconomy: true,
+  freeHaulers: 2,
+  roadComponentFor: () => 1,
+});
+assert.equal(physicalDispatch.reorderDueCompanies, 2);
+assert.equal(physicalDispatch.projectedCarts, 2);
+assert.ok(Math.abs(physicalDispatch.projectedGold - 24) < 1e-9);
+assert.ok(Math.abs(physicalDispatch.remainingTreasuryGold - 16) < 1e-9);
+assert.equal(physicalDispatch.remainingFreeHaulers, 0);
+assert.equal(
+  physicalDispatch.firstClaimBuildingId,
+  physicalCompany.id,
+  'high-priority payroll must claim the first physical treasury cart',
+);
+const oneSourceDispatch = guardhousePayrollDispatchPlan({
+  payroll: physicalDispatchPayroll,
+  buildings: [secondPhysicalCompany, physicalCompany, townHall],
+  trips: [],
+  treasuryGold: 40,
+  physicalEconomy: true,
+  freeHaulers: 2,
+  roadComponentFor: () => 1,
+});
+assert.equal(oneSourceDispatch.projectedCarts, 1);
+assert.ok(Math.abs(oneSourceDispatch.projectedGold - 17) < 1e-9);
+assert.ok(
+  Math.abs(oneSourceDispatch.remainingTreasuryGold - 23) < 1e-9,
+  'one treasury chest must not promise simultaneous payroll and market carts',
+);
+const severedDispatch = guardhousePayrollDispatchPlan({
+  payroll: physicalDispatchPayroll,
+  buildings: [secondPhysicalCompany, physicalCompany, townHall],
+  trips: [],
+  treasuryGold: 40,
+  physicalEconomy: true,
+  freeHaulers: 2,
+  roadComponentFor: (candidate) =>
+    candidate.kind === 'town_hall' ? 1 : 2,
+});
+assert.equal(severedDispatch.projectedCarts, 0);
+assert.equal(severedDispatch.remainingTreasuryGold, 40);
+const partialInboundPayroll = {
+  ...incomingPayroll,
+  id: 'trip-partial',
+  amount: 2,
+};
+const inboundDispatchPayroll = guardhousePayrollPlan(
+  [physicalCompany, townHall],
+  40,
+  new Set(),
+  guardhousePayrollInTransitGold([partialInboundPayroll]),
+);
+const inboundDispatch = guardhousePayrollDispatchPlan({
+  payroll: inboundDispatchPayroll,
+  buildings: [physicalCompany, townHall],
+  trips: [partialInboundPayroll],
+  treasuryGold: 40,
+  physicalEconomy: true,
+  freeHaulers: 1,
+  roadComponentFor: () => 1,
+});
+assert.equal(inboundDispatch.reorderDueCompanies, 1);
+assert.equal(inboundDispatch.inboundCompanies, 1);
+assert.equal(inboundDispatch.projectedCarts, 0);
+assert.equal(inboundDispatch.remainingTreasuryGold, 40);
+
 const fireFilteredPayroll = guardhousePayrollPlan(
   [
     guardhouse('building-2', 2, GUARDHOUSE_PAY_PRIORITY_HIGH),
@@ -191,6 +282,11 @@ assert.match(
   /guardhouse_payroll_ids\.push[\s\S]*?guardhouse_payroll_buckets\(guardhouse_payroll_ids\)[\s\S]*?\.rev\(\)[\s\S]*?step_guardhouse/,
   'guardhouses must consume scarce wages from high to low priority outside mixed building order',
 );
+assert.match(
+  simulation,
+  /Residence-upgrade grants are already reserved[\s\S]*?if conflict_enabled[\s\S]*?try_dispatch_guardhouse_payroll\([\s\S]*?step_marketplace_caravans\(ctx/,
+  'physical payroll must claim treasury carts before marketplace working-cash refills',
+);
 
 const inspector = readFileSync('src/resources/inspector/guardhouseRenderer.ts', 'utf8');
 assert.match(
@@ -207,6 +303,11 @@ assert.match(
   /available_free_haulers[\s\S]*?building_ids_for_kinds[\s\S]*?PAYROLL_TREASURY_KINDS[\s\S]*?try_start_building_supply_trip[\s\S]*?CommodityKind::Gold/,
   'physical payroll must reserve free labor and move one lockbox over a real treasury road route',
 );
+assert.match(
+  guardhousePayrollSimulation,
+  /physical_founding_site_enabled[\s\S]*?if !physical_economy[\s\S]*?armed_guards/,
+  'the early payroll pass must preserve legacy abstract-treasury saves',
+);
 const deliveryTrips = readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 assert.match(
   deliveryTrips,
@@ -218,6 +319,9 @@ const townHallInspector = readFileSync(
   'utf8',
 );
 assert.match(townHallInspector, /Next-day payroll/);
+assert.match(townHallInspector, /Civic cash priority/);
+assert.match(townHallInspector, /before market reserve carts/);
+assert.match(townHallInspector, /payrollDispatch\.remainingTreasuryGold/);
 assert.match(
   townHallInspector,
   /Company priorities[\s\S]*?governs scarce polearms, routine provisions, and wages/,
@@ -306,9 +410,33 @@ assert.ok(
   performanceElapsed < 500,
   `100k-company client payroll forecast regressed (${performanceElapsed.toFixed(1)} ms)`,
 );
+const dispatchPerformanceStarted = performance.now();
+const performanceDispatch = guardhousePayrollDispatchPlan({
+  payroll: performancePlan,
+  buildings: [
+    ...performanceCompanies,
+    {
+      ...guardhouse('building-200000', 0, GUARDHOUSE_PAY_PRIORITY_NORMAL),
+      kind: 'town_hall',
+      gold: 10_000,
+    } as BuildingState,
+  ],
+  trips: [],
+  treasuryGold: 10_000,
+  physicalEconomy: true,
+  freeHaulers: 1,
+  roadComponentFor: () => 1,
+});
+const dispatchPerformanceElapsed =
+  performance.now() - dispatchPerformanceStarted;
+assert.equal(performanceDispatch.projectedCarts, 1);
+assert.ok(
+  dispatchPerformanceElapsed < 250,
+  `100k-company physical cash arbitration regressed (${dispatchPerformanceElapsed.toFixed(1)} ms)`,
+);
 
 console.log(
-  `guardhouse payroll policy tests passed (${performanceElapsed.toFixed(1)} ms for 100k companies / 50k fire outages)`,
+  `guardhouse payroll policy tests passed (${performanceElapsed.toFixed(1)} ms forecast + ${dispatchPerformanceElapsed.toFixed(1)} ms cash arbitration for 100k companies / 50k fire outages)`,
 );
 
 function guardhouse(
