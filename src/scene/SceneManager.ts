@@ -82,6 +82,7 @@ export type SceneLoadProgress = {
 };
 
 const MOON_KEY_DIRECTION = new THREE.Vector3(-0.38, 0.82, 0.42).normalize();
+const MOON_FILL_DIRECTION = new THREE.Vector3(0.52, 0.48, -0.71).normalize();
 const SHADOW_KEY_REFRESH_DOT = Math.cos(THREE.MathUtils.degToRad(0.5));
 
 export class SceneManager {
@@ -103,6 +104,7 @@ export class SceneManager {
   private readonly precipitation: PrecipitationRenderer;
   private readonly sunDirection = new THREE.Vector3();
   private readonly shadowKeyDirection = new THREE.Vector3();
+  private readonly skyFillDirection = new THREE.Vector3();
   private readonly lastShadowKeyDirection = new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN);
   private sunLight!: THREE.DirectionalLight;
   private hemiLight!: THREE.HemisphereLight;
@@ -516,6 +518,13 @@ export class SceneManager {
     if (this.vegetationBuildActive) return;
     const elapsed = performance.now() * 0.001;
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
+    const viewShadowBounds = computeViewShadowBounds(
+      this.camera,
+      this.cameraTarget,
+      cameraDistance,
+      1.24,
+    );
+    const shadowBounds = intersectTerrainBounds(viewShadowBounds, this.terrain.bounds);
     this.materials.updateWeather(dt);
     updateTerrainZoomBlend(this.terrain, cameraDistance, firstPersonActive);
     this.grassField?.updateCameraState(
@@ -524,7 +533,12 @@ export class SceneManager {
       cameraDistance,
       firstPersonActive,
     );
-    this.forestManager?.updateCameraState(cameraDistance, firstPersonActive);
+    this.forestManager?.updateCameraState(
+      this.camera,
+      cameraDistance,
+      firstPersonActive,
+      shadowBounds,
+    );
     this.riverSystem.updateCameraState(
       this.camera.position,
       this.cameraTarget,
@@ -553,13 +567,6 @@ export class SceneManager {
     this.mushroomPatchVisuals?.updateCameraState(cameraDistance, firstPersonActive);
     this.renderFrame++;
     if (this.shouldRefreshShadowMap(cameraDistance)) {
-      const viewBounds = computeViewShadowBounds(
-        this.camera,
-        this.cameraTarget,
-        cameraDistance,
-        1.24,
-      );
-      const shadowBounds = intersectTerrainBounds(viewBounds, this.terrain.bounds);
       fitDirectionalLightShadow(this.sunLight, {
         bounds: shadowBounds,
         sunOffsetDir: this.shadowKeyDirection,
@@ -623,14 +630,14 @@ export class SceneManager {
     this.sky.updateAtmosphere(state.dawnAmount, state.duskAmount);
     this.sky.updateSiderealAngle(state.siderealAngle);
     this.sunLight.color.setHex(blendColorHex(
-      blendColorHex(state.sunColor, 0xa8c7e6, moonBlend),
+      blendColorHex(state.sunColor, 0xb4cee8, moonBlend),
       weather.fogTint,
       atmosphericBlend * 0.28,
     ));
     const daylightKey = state.sunIntensity
       * weather.sunlightMultiplier
       * (1 - moonBlend);
-    const moonKey = 0.34
+    const moonKey = 0.52
       * moonBlend
       * THREE.MathUtils.lerp(1, 0.72, atmosphericBlend);
     this.sunLight.intensity = daylightKey + moonKey;
@@ -657,7 +664,7 @@ export class SceneManager {
     // not a global gray wash. Keep just enough hemispheric bounce to read the
     // terrain while preserving true material shadows.
     this.hemiLight.intensity = state.hemiIntensity
-      * THREE.MathUtils.lerp(1, 0.36, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.42, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.82, atmosphericBlend);
     this.ambientLight.color.setHex(blendColorHex(state.ambientColor, weather.fogTint, atmosphericBlend * 0.34));
     this.ambientLight.intensity = state.ambientIntensity
@@ -670,9 +677,17 @@ export class SceneManager {
     );
     this.skyFillLight.color.setHex(blendColorHex(state.fillColor, weather.fogTint, atmosphericBlend * 0.4));
     this.skyFillLight.intensity = state.fillIntensity
-      * THREE.MathUtils.lerp(1, 0.45, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.32, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.86, atmosphericBlend);
-    this.skyFillLight.position.copy(this.sunDirection).multiplyScalar(-90);
+    // At night the real sun is below the horizon, so its inverse does not
+    // provide a stable photographic fill. Blend to a fixed side/back direction
+    // that separates moonlit slopes without adding another light or shadow map.
+    this.skyFillDirection
+      .copy(this.sunDirection)
+      .multiplyScalar(-1)
+      .lerp(MOON_FILL_DIRECTION, moonBlend)
+      .normalize();
+    this.skyFillLight.position.copy(this.skyFillDirection).multiplyScalar(90);
     this.skyFillLight.position.y += 65;
     // Gentle photographic adaptation preserves night legibility without
     // flattening noon or washing out the warm low sun.
@@ -688,9 +703,9 @@ export class SceneManager {
       this.scene.fog.density = state.fogDensity * weather.fogDensityMultiplier;
       this.scene.fog.density = THREE.MathUtils.clamp(
         this.scene.fog.density
-          * THREE.MathUtils.lerp(1, 0.86, state.nightAmount),
+          * THREE.MathUtils.lerp(1, 1.06, state.nightAmount),
         0.00042,
-        0.0009,
+        0.001,
       );
     }
     this.postProcessor.setDayNightGrade({

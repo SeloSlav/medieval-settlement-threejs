@@ -7,6 +7,7 @@ const springDawn = computeDayNightState(clockAt(6.65, 3), false);
 const springNoon = computeDayNightState(clockAt(12.75, 3), false);
 const springDusk = computeDayNightState(clockAt(19, 3), false);
 const springNight = computeDayNightState(clockAt(23, 3), true);
+const fixedSummerMoonlight = computeDayNightState(clockAt(23, 8, 15), true);
 
 assert.ok(springDawn.dawnAmount > 0.7, 'sunrise should have a strong dawn envelope');
 assert.ok(springDusk.duskAmount > 0.7, 'sunset should have a strong dusk envelope');
@@ -19,6 +20,12 @@ assert.equal(springNight.isNight, true);
 assert.ok(springNight.nightAmount > 0.99);
 assert.equal(springNoon.nightAmount, 0);
 assert.ok(springNight.solarElevationDeg < -25, 'late night should place the sun well below the horizon');
+assert.equal(fixedSummerMoonlight.fogColor, 0x4b6174);
+assert.equal(fixedSummerMoonlight.fogDensity, 0.00078);
+assert.equal(fixedSummerMoonlight.grade.saturation, 0.88);
+assert.equal(fixedSummerMoonlight.grade.contrast, 0.98);
+assert.equal(fixedSummerMoonlight.grade.nightBlue, 0.21);
+assert.equal(fixedSummerMoonlight.grade.vignette, 0.065);
 
 const sunriseRgb = rgb(springDawn.sunColor);
 const sunsetRgb = rgb(springDusk.sunColor);
@@ -78,7 +85,7 @@ assert.ok(
 
 console.log('Day/night presentation tests passed.');
 
-function clockAt(hourValue: number, month: number): GameClock {
+function clockAt(hourValue: number, month: number, monthDay = 8): GameClock {
   const hour = Math.floor(hourValue);
   const minute = Math.round((hourValue - hour) * 60);
   return {
@@ -87,7 +94,7 @@ function clockAt(hourValue: number, month: number): GameClock {
     hour,
     minute,
     weekday: 0,
-    monthDay: 8,
+    monthDay,
     month,
     year: 1,
     isSunday: true,

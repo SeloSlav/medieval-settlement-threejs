@@ -55,24 +55,24 @@ export function precipitationProfile(
       fallSpeed: 30,
       windX: 4.2,
       windZ: 1.8,
-      sunlightMultiplier: 0.5,
-      fogDensityMultiplier: 1.55,
+      sunlightMultiplier: 0.32,
+      fogDensityMultiplier: 1.38,
       fogTint: 0x8295a1,
-      saturationMultiplier: 0.78,
+      saturationMultiplier: 0.7,
     };
   }
 
   if (environment.weather === 'frost') {
     return {
       kind: 'snow',
-      intensity: 0.62,
+      intensity: 0.78,
       fallSpeed: 4.4,
       windX: 1.15,
       windZ: 0.5,
       sunlightMultiplier: 0.72,
-      fogDensityMultiplier: 1.32,
+      fogDensityMultiplier: 1.08,
       fogTint: 0xd8e3ea,
-      saturationMultiplier: 0.84,
+      saturationMultiplier: 0.8,
     };
   }
 

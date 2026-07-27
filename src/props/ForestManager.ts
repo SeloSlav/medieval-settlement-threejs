@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
 import { pointWithinBuildingSiteClearance } from '../buildings/BuildingTerrainLayout.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
-import type { Terrain } from '../terrain/Terrain.ts';
+import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
 import type { RoadEdge } from '../roads/RoadEdge.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { distancePointToPolylineXZ, type RockObstacle } from '../utils/pathGeometry.ts';
@@ -19,6 +19,7 @@ import {
 import { createTreeSaplingMesh, updateTreeSaplingInstance } from './TreeSaplings.ts';
 import type { TreePhase } from '../resources/types.ts';
 import type { SeedThreeForestController } from '../vegetation/seedthree/seedThreeForestTypes.ts';
+import type { SeedThreeForestStructuralStats } from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
 import { TERRAIN_DIRT_FAR_DISTANCE } from '../grass/grassLodMath.ts';
 
@@ -309,7 +310,13 @@ export class ForestManager {
     });
   }
 
-  updateCameraState(cameraDistance: number, firstPersonActive: boolean): void {
+  updateCameraState(
+    camera: THREE.Camera,
+    cameraDistance: number,
+    firstPersonActive: boolean,
+    casterBounds: TerrainBounds,
+  ): void {
+    this.seedThreeForest?.updateCamera(camera, firstPersonActive, casterBounds);
     if (!this.undergrowth) return;
     const threshold = this.undergrowthVisible
       ? UNDERGROWTH_HIDE_DISTANCE
@@ -318,6 +325,10 @@ export class ForestManager {
     if (visible === this.undergrowthVisible) return;
     this.undergrowthVisible = visible;
     this.undergrowth.group.visible = visible;
+  }
+
+  getSeedThreeStructuralStats(): SeedThreeForestStructuralStats | null {
+    return this.seedThreeForest?.getStructuralStats() ?? null;
   }
 
   syncRoadClearance(network: RoadNetwork | null): void {

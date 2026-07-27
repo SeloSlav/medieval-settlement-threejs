@@ -2,8 +2,8 @@
   position: relative;
   isolation: isolate;
   display: grid;
-  gap: 10px;
-  padding: 12px 14px 13px;
+  gap: 8px;
+  padding: 11px 12px 12px;
   overflow: hidden;
   border: 1px solid rgba(213, 190, 139, 0.28);
   border-radius: 12px;
@@ -46,7 +46,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 2px 10px;
-  padding: 1px 1px 9px;
+  padding: 1px 1px 7px;
   border-bottom: 1px solid rgba(211, 188, 137, 0.18);
 }
 
@@ -62,7 +62,7 @@
 
 .settlement-hud__clock-time {
   grid-column: 1;
-  font-size: 22px;
+  font-size: 20px;
   font-family: Georgia, 'Times New Roman', serif;
   font-weight: 700;
   line-height: 0.98;
@@ -232,15 +232,16 @@
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px;
-  padding-top: 6px;
+  gap: 4px;
+  padding-top: 5px;
 }
 
 .settlement-hud__speed-button {
   display: grid;
   gap: 1px;
   min-width: 0;
-  padding: 5px 2px 4px;
+  min-height: 28px;
+  padding: 4px 2px 3px;
   border: 1px solid rgba(220, 202, 162, 0.14);
   border-radius: 4px;
   color: #a9a18f;
@@ -305,41 +306,106 @@
 .settlement-hud__perf {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  padding: 0 2px 9px;
+  gap: 14px;
+  padding: 0 2px 7px;
   border-bottom: 1px solid rgba(211, 188, 137, 0.14);
 }
 
 .settlement-hud__body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px 12px;
+  gap: 7px 10px;
 }
 
 .settlement-hud__stores {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px 8px;
-  padding-top: 9px;
+  margin: 0;
+  padding-top: 7px;
   border-top: 1px solid rgba(211, 188, 137, 0.14);
 }
 
-.settlement-hud__stores::before {
-  content: 'Stores & provisions';
-  grid-column: 1 / -1;
-  margin-bottom: 1px;
+.settlement-hud__stores-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 22px;
+  border-radius: 4px;
   color: #8f8878;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
+  list-style: none;
   text-transform: uppercase;
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.settlement-hud__stores-summary::-webkit-details-marker {
+  display: none;
+}
+
+.settlement-hud__stores-summary::before {
+  content: '›';
+  flex: 0 0 auto;
+  color: #9c8250;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15px;
+  line-height: 1;
+  transform: translateY(-1px);
+  transition: transform 140ms ease;
+}
+
+.settlement-hud__stores[open] > .settlement-hud__stores-summary::before {
+  transform: rotate(90deg) translateX(-1px);
+}
+
+.settlement-hud__stores-summary:hover,
+.settlement-hud__stores-summary:focus-visible {
+  color: #c5b792;
+  background: rgba(230, 210, 160, 0.035);
+  outline: none;
+}
+
+.settlement-hud__stores-summary:focus-visible {
+  box-shadow: 0 0 0 1px rgba(215, 180, 99, 0.62);
+}
+
+.settlement-hud__stores-status {
+  margin-left: auto;
+  color: #878174;
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.035em;
+  text-transform: none;
+}
+
+.settlement-hud__stores.has-stock .settlement-hud__stores-status {
+  color: #bca46c;
+}
+
+.settlement-hud__stores-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px 8px;
+  padding-top: 7px;
 }
 
 .settlement-hud__stat--store .settlement-hud__value {
   color: #c8ad75;
   font-size: 13px;
   opacity: 0.9;
+}
+
+.settlement-hud__stat.is-empty .settlement-hud__label {
+  color: #898477;
+}
+
+.settlement-hud__stat.is-empty .settlement-hud__value {
+  color: #85897d;
+  text-shadow: none;
+  opacity: 1;
 }
 
 .settlement-hud__stat {
@@ -362,7 +428,7 @@
 
 .settlement-hud__body > .settlement-hud__stat:nth-child(n + 7) {
   margin-top: 1px;
-  padding-top: 8px;
+  padding-top: 7px;
   border-top: 1px solid rgba(211, 188, 137, 0.1);
 }
 
@@ -471,7 +537,7 @@
     font-size: 15px;
   }
 
-  .settlement-hud__stores {
+  .settlement-hud__stores-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap-inline: 6px;
   }

@@ -56,6 +56,60 @@ declare module '@seedthree/core/branch-cards.js' {
   }): void;
 }
 
+declare module '@seedthree/core/forest-lod.js' {
+  import type { Camera } from 'three';
+
+  export type ForestLodItem = {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+  };
+
+  export type ForestLodOptions = {
+    cellSize?: number;
+    frustumPadding?: number;
+    nearDistance?: number;
+    lodHysteresis?: number;
+    minimumCameraMove?: number;
+    minimumDirectionAngle?: number;
+    casterBounds?: {
+      minX: number;
+      maxX: number;
+      minZ: number;
+      maxZ: number;
+    } | null;
+    casterPadding?: number;
+    force?: boolean;
+  };
+
+  export type ForestLodSelector = {
+    readonly items: readonly ForestLodItem[];
+    readonly revision: number;
+  };
+
+  export type ForestLodSelection = {
+    nearIndices: number[];
+    overviewIndices: number[];
+    visibleCount: number;
+    culledCount: number;
+    changed: boolean;
+    skipped: boolean;
+    revision: number;
+  };
+
+  export function createForestLodSelector(
+    items: readonly ForestLodItem[],
+    options?: ForestLodOptions,
+  ): ForestLodSelector;
+
+  export function selectForestLods(
+    selector: ForestLodSelector,
+    camera: Camera,
+    options?: ForestLodOptions,
+  ): ForestLodSelection;
+}
+
 declare module '@seedthree/core/rng.js' {
   export class Rng {
     constructor(seed: string | number);

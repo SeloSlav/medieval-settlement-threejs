@@ -23,7 +23,7 @@
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
-  width: min(300px, calc(100vw - 28px));
+  width: min(284px, calc(100vw - 28px));
 }
 
 .road-controls-header {

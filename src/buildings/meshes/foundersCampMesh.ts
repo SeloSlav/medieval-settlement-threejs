@@ -24,6 +24,322 @@ const TENT_HALF_WIDTH = 1.62;
 const TENT_HALF_DEPTH = 1.92;
 const TENT_EAVE_Y = 0.2;
 const TENT_RIDGE_Y = 2.32;
+let campGroundMaterial: THREE.MeshStandardMaterial | null = null;
+
+type CampInstance = {
+  position: THREE.Vector3;
+  rotation?: THREE.Euler;
+  scale?: THREE.Vector3;
+};
+
+function addCampInstances(
+  parent: THREE.Group,
+  name: string,
+  geometry: THREE.BufferGeometry,
+  material: THREE.Material,
+  instances: readonly CampInstance[],
+): THREE.InstancedMesh {
+  const mesh = new THREE.InstancedMesh(geometry, material, instances.length);
+  mesh.name = name;
+  mesh.receiveShadow = true;
+
+  const matrix = new THREE.Matrix4();
+  const quaternion = new THREE.Quaternion();
+  for (let index = 0; index < instances.length; index += 1) {
+    const instance = instances[index]!;
+    quaternion.setFromEuler(instance.rotation ?? new THREE.Euler());
+    matrix.compose(
+      instance.position,
+      quaternion,
+      instance.scale ?? new THREE.Vector3(1, 1, 1),
+    );
+    mesh.setMatrixAt(index, matrix);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.computeBoundingBox();
+  mesh.computeBoundingSphere();
+  parent.add(mesh);
+  return mesh;
+}
+
+function addCampGrounding(parent: THREE.Group): void {
+  const ground = addCampInstances(
+    parent,
+    'Feathered trampled founding yard',
+    new THREE.CircleGeometry(1, 32),
+    getCampGroundMaterial(),
+    [
+      {
+        position: new THREE.Vector3(-0.25, 0.034, 0.55),
+        rotation: new THREE.Euler(-Math.PI * 0.5, 0, -0.08),
+        scale: new THREE.Vector3(6.6, 4.7, 1),
+      },
+      {
+        position: new THREE.Vector3(0.55, 0.038, -1.65),
+        rotation: new THREE.Euler(-Math.PI * 0.5, 0, 0.22),
+        scale: new THREE.Vector3(3.7, 2.3, 1),
+      },
+      {
+        position: new THREE.Vector3(-4.22, 0.041, -1.7),
+        rotation: new THREE.Euler(-Math.PI * 0.5, 0, -0.36),
+        scale: new THREE.Vector3(2.75, 1.72, 1),
+      },
+      {
+        position: new THREE.Vector3(4.62, 0.044, -0.48),
+        rotation: new THREE.Euler(-Math.PI * 0.5, 0, 0.3),
+        scale: new THREE.Vector3(2.62, 1.62, 1),
+      },
+    ],
+  );
+  ground.userData.campGrounding = true;
+  ground.userData.fpNoCollision = true;
+}
+
+function getCampGroundMaterial(): THREE.MeshStandardMaterial {
+  if (campGroundMaterial) return campGroundMaterial;
+
+  const size = 64;
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const u = (x + 0.5) / size * 2 - 1;
+      const v = (y + 0.5) / size * 2 - 1;
+      const radius = Math.hypot(u, v);
+      const feather = 1 - THREE.MathUtils.smoothstep(radius, 0.46, 0.98);
+      const broadMottle = 0.82
+        + Math.sin(u * 8.7 + v * 3.1) * 0.08
+        + Math.sin(u * -3.9 + v * 11.3) * 0.06;
+      const centerBreakup = 0.9 + Math.sin((u + v) * 17.2) * 0.04;
+      const alpha = Math.round(
+        THREE.MathUtils.clamp(feather * broadMottle * centerBreakup, 0, 1) * 255,
+      );
+      const offset = (y * size + x) * 4;
+      data[offset] = alpha;
+      data[offset + 1] = alpha;
+      data[offset + 2] = alpha;
+      data[offset + 3] = 255;
+    }
+  }
+  const alphaMap = new THREE.DataTexture(
+    data,
+    size,
+    size,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+  alphaMap.name = 'Procedural feathered camp-ground opacity';
+  alphaMap.colorSpace = THREE.NoColorSpace;
+  alphaMap.wrapS = THREE.ClampToEdgeWrapping;
+  alphaMap.wrapT = THREE.ClampToEdgeWrapping;
+  alphaMap.minFilter = THREE.LinearMipmapLinearFilter;
+  alphaMap.magFilter = THREE.LinearFilter;
+  alphaMap.generateMipmaps = true;
+  alphaMap.needsUpdate = true;
+
+  campGroundMaterial = new THREE.MeshStandardMaterial({
+    color: 0x4b4338,
+    roughness: 1,
+    metalness: 0,
+    alphaMap,
+    transparent: true,
+    opacity: 0.42,
+    alphaTest: 0.018,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
+  campGroundMaterial.name = 'Shared feathered desaturated camp earth';
+  campGroundMaterial.userData.sharedBuildingMaterial = true;
+  return campGroundMaterial;
+}
+
+function addFoundingStandard(parent: THREE.Group): void {
+  const standard = new THREE.Group();
+  standard.name = 'Founding wool field standard';
+  standard.position.set(-6.12, 0, 1.15);
+
+  const pole = addMesh(
+    standard,
+    new THREE.CylinderGeometry(0.075, 0.1, 4.35, 7),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 2.18, 0),
+    new THREE.Euler(0, 0, -0.035),
+  );
+  pole.name = 'Founding standard pole';
+
+  const pennantGeometry = new THREE.BufferGeometry();
+  pennantGeometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute([
+      0.03, 4.07, 0.015,
+      1.78, 3.68, 0.015,
+      0.03, 3.26, 0.015,
+    ], 3),
+  );
+  pennantGeometry.setAttribute(
+    'uv',
+    new THREE.Float32BufferAttribute([
+      0, 1,
+      1, 0.5,
+      0, 0,
+    ], 2),
+  );
+  pennantGeometry.setIndex([0, 2, 1]);
+  pennantGeometry.computeVertexNormals();
+  const pennant = addMesh(
+    standard,
+    pennantGeometry,
+    sharedBuildingDetailMaterial('paintRed'),
+    new THREE.Vector3(),
+  );
+  pennant.name = 'Weathered red wool pennant';
+  pennant.userData.fpNoCollision = true;
+
+  parent.add(standard);
+}
+
+function addFoundingProvisions(parent: THREE.Group): void {
+  const provisions = new THREE.Group();
+  provisions.name = 'Founding provisions';
+
+  const barrelPositions = [
+    new THREE.Vector3(4.2, 0.6, 1.22),
+    new THREE.Vector3(5.28, 0.54, 1.02),
+  ];
+  addCampInstances(
+    provisions,
+    'Coopered provision barrels',
+    new THREE.CylinderGeometry(0.48, 0.52, 1.16, 10),
+    timberMaterial('weathered'),
+    barrelPositions.map((position, index) => ({
+      position,
+      rotation: new THREE.Euler(0, index * 0.23, index === 0 ? -0.035 : 0.04),
+    })),
+  );
+  addCampInstances(
+    provisions,
+    'Iron barrel hoops',
+    new THREE.TorusGeometry(0.49, 0.035, 5, 10),
+    metalMaterial('iron'),
+    barrelPositions.flatMap((position) => [0.27, 0.86].map((y) => ({
+      position: new THREE.Vector3(position.x, y, position.z),
+      rotation: new THREE.Euler(Math.PI * 0.5, 0, 0),
+    }))),
+  );
+
+  const basket = addMesh(
+    provisions,
+    new THREE.CylinderGeometry(0.43, 0.32, 0.58, 10, 1, true),
+    timberMaterial('light'),
+    new THREE.Vector3(5.98, 0.3, 1.58),
+  );
+  basket.name = 'Woven provision basket';
+  basket.userData.fpNoCollision = true;
+  const basketRim = addMesh(
+    provisions,
+    new THREE.TorusGeometry(0.43, 0.045, 5, 10),
+    timberMaterial('dark'),
+    new THREE.Vector3(5.98, 0.59, 1.58),
+    new THREE.Euler(Math.PI * 0.5, 0, 0),
+  );
+  basketRim.name = 'Woven basket rim';
+  basketRim.userData.fpNoCollision = true;
+  const basketContents = addMesh(
+    provisions,
+    new THREE.CircleGeometry(0.37, 10),
+    sharedBuildingDetailMaterial('crop'),
+    new THREE.Vector3(5.98, 0.575, 1.58),
+    new THREE.Euler(-Math.PI * 0.5, 0, 0),
+  );
+  basketContents.name = 'Dry provisions in basket';
+  basketContents.userData.fpNoCollision = true;
+
+  parent.add(provisions);
+}
+
+function addFoundingWorkyard(parent: THREE.Group): void {
+  const workyard = new THREE.Group();
+  workyard.name = 'Founding timber workyard';
+
+  addCampInstances(
+    workyard,
+    'Timber tool rack',
+    new THREE.BoxGeometry(1, 1, 1),
+    timberMaterial('dark'),
+    [
+      {
+        position: new THREE.Vector3(-5.35, 0.88, -0.05),
+        scale: new THREE.Vector3(0.15, 1.76, 0.15),
+      },
+      {
+        position: new THREE.Vector3(-3.65, 0.88, -0.05),
+        scale: new THREE.Vector3(0.15, 1.76, 0.15),
+      },
+      {
+        position: new THREE.Vector3(-4.5, 1.57, -0.05),
+        scale: new THREE.Vector3(1.86, 0.16, 0.16),
+      },
+    ],
+  );
+
+  const toolHandles = [
+    { x: -5.05, yaw: -0.07, roll: -0.1 },
+    { x: -4.52, yaw: 0.04, roll: 0.08 },
+    { x: -3.94, yaw: -0.03, roll: -0.06 },
+  ];
+  addCampInstances(
+    workyard,
+    'Long handled founding tools',
+    new THREE.CylinderGeometry(0.042, 0.052, 1.48, 6),
+    timberMaterial('light'),
+    toolHandles.map(({ x, yaw, roll }) => ({
+      position: new THREE.Vector3(x, 0.78, -0.2),
+      rotation: new THREE.Euler(roll, yaw, roll),
+    })),
+  );
+  addCampInstances(
+    workyard,
+    'Forged founding axe heads',
+    new THREE.ConeGeometry(0.18, 0.42, 4),
+    metalMaterial('iron'),
+    toolHandles.slice(0, 2).map(({ x }, index) => ({
+      position: new THREE.Vector3(x + (index === 0 ? -0.04 : 0.04), 1.48, -0.2),
+      rotation: new THREE.Euler(0, 0, Math.PI * 0.5),
+      scale: new THREE.Vector3(1, 1, 0.48),
+    })),
+  );
+
+  const block = addMesh(
+    workyard,
+    new THREE.CylinderGeometry(0.55, 0.63, 0.72, 9),
+    timberMaterial('dark'),
+    new THREE.Vector3(-4.48, 0.37, -1.2),
+  );
+  block.name = 'Founding chopping block';
+  addCampInstances(
+    workyard,
+    'Split firewood by chopping block',
+    new THREE.CylinderGeometry(0.1, 0.13, 0.86, 6),
+    timberMaterial('light'),
+    [
+      {
+        position: new THREE.Vector3(-5.18, 0.22, -1.3),
+        rotation: new THREE.Euler(Math.PI * 0.5, 0.2, 0),
+      },
+      {
+        position: new THREE.Vector3(-4.95, 0.25, -1.62),
+        rotation: new THREE.Euler(Math.PI * 0.5, -0.35, 0),
+      },
+      {
+        position: new THREE.Vector3(-3.85, 0.2, -1.38),
+        rotation: new THREE.Euler(Math.PI * 0.5, 0.65, 0),
+      },
+    ],
+  );
+
+  parent.add(workyard);
+}
 
 function addAFrameShelter(
   parent: THREE.Group,
@@ -371,8 +687,8 @@ function addCampfire(parent: THREE.Group): THREE.Group {
     smokeRise: 3.5,
     smokeDrift: 0.62,
     smokeOpacity: 0.27,
-    lightDistance: 13,
-    lightIntensity: 12,
+    lightDistance: 19,
+    lightIntensity: 19,
   });
   const campfire = fire.root;
   campfire.position.set(0.55, 0, -0.6);
@@ -462,6 +778,8 @@ export function createFoundersCampMesh(): THREE.Group {
   group.name = "Founders' camp and open stockyard";
   group.userData.fpCollisionChildrenOnly = true;
 
+  addCampGrounding(group);
+
   const shelters = new THREE.Group();
   shelters.name = 'FoundingShelters';
   addAFrameShelter(shelters, -3.7, 2.7, 0.3);
@@ -487,6 +805,9 @@ export function createFoundersCampMesh(): THREE.Group {
     leg.name = 'Camp bench leg';
   }
 
+  addFoundingStandard(shelters);
+  addFoundingProvisions(shelters);
+  addFoundingWorkyard(shelters);
   addTimberStock(group);
   addStoneStock(group);
   addTreasuryChest(group);
@@ -495,6 +816,7 @@ export function createFoundersCampMesh(): THREE.Group {
     if (
       mesh.isMesh
       && !mesh.name.startsWith('Animated fire')
+      && mesh.userData.campGrounding !== true
     ) {
       markBuildingDetailShadowCaster(mesh);
     }

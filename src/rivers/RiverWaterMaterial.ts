@@ -42,12 +42,12 @@ type TslNode = {
   rgb: TslNode;
 };
 
-const WATER_FOAM_COLOR = vec3(0.86, 0.93, 0.91) as TslNode;
-const MENISCUS_COLOR = vec3(0.93, 0.97, 0.95) as TslNode;
+const WATER_FOAM_COLOR = vec3(0.74, 0.86, 0.82) as TslNode;
+const MENISCUS_COLOR = vec3(0.8, 0.9, 0.86) as TslNode;
 const SHALLOW_WATER_TINT = vec3(0.24, 0.46, 0.42) as TslNode;
 const DEEP_WATER_TINT = vec3(0.08, 0.17, 0.15) as TslNode;
 const SHORE_LAP_MAX = 0.11;
-const SHORE_FOAM_MAX = 0.72;
+const SHORE_FOAM_MAX = 0.48;
 const FLOW_STREAK_STRENGTH = 0.28;
 const FLOW_WAVE_HEIGHT = 0.048;
 
@@ -160,7 +160,7 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     flowStreakA.mul(0.42).add(flowStreakB.mul(0.33)).add(flowStreakC.mul(0.25)) as TslNode,
   ).mul(float(FLOW_STREAK_STRENGTH) as TslNode) as TslNode;
 
-  const meniscus = (pow(shoreMask, float(2.6) as TslNode) as TslNode).mul(float(0.38) as TslNode) as TslNode;
+  const meniscus = (pow(shoreMask, float(2.8) as TslNode) as TslNode).mul(float(0.22) as TslNode) as TslNode;
   const waterTint = mix(SHALLOW_WATER_TINT, DEEP_WATER_TINT, depthFactor) as TslNode;
   const flowHighlight = vec3(0.34, 0.58, 0.54) as TslNode;
   const tintedBody = mix(waterTint, flowHighlight, flowShimmer) as TslNode;
@@ -205,8 +205,8 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
 
   const thicknessNode = mix(float(0.05) as TslNode, float(0.78) as TslNode, depthFactor) as TslNode;
   const specularIntensityNode = mix(
-    float(0.38) as TslNode,
-    float(0.76) as TslNode,
+    float(0.24) as TslNode,
+    float(0.5) as TslNode,
     (pow(shoreMask, float(1.55) as TslNode) as TslNode).add(depthFactor.mul(float(0.28) as TslNode) as TslNode) as TslNode,
   ) as TslNode;
 
@@ -242,14 +242,14 @@ export function getSharedRiverWaterMaterial(shoreMaps: RiverWaterShoreMaps): Mes
   material.color.set(0xffffff);
   material.transparent = true;
   material.opacity = 1;
-  material.roughness = 0.2;
+  material.roughness = 0.3;
   material.metalness = 0;
   material.ior = 1.33;
   material.transmission = 0.82;
   material.thickness = 0.65;
   material.attenuationDistance = 1.75;
   material.attenuationColor = new THREE.Color(0.14, 0.22, 0.12);
-  material.specularIntensity = 0.72;
+  material.specularIntensity = 0.5;
   material.depthWrite = false;
   material.depthTest = true;
   material.side = THREE.FrontSide;

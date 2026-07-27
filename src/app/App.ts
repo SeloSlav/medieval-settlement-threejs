@@ -869,8 +869,8 @@ export class App {
       foundersCamp.x,
       foundersCamp.z,
       (-42 * Math.PI) / 180,
-      (68 * Math.PI) / 180,
-      96,
+      (50 * Math.PI) / 180,
+      60,
     );
     this.initialSettlementViewApplied = true;
   }

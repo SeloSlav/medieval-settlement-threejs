@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import type { WebGPURenderer } from 'three/webgpu';
 import { buildTree, forestBarkMaterial } from '@seedthree/core/tree.js';
 import { forestCardMaterial } from '@seedthree/core/branch-cards.js';
+import {
+  createForestLodSelector,
+  selectForestLods,
+} from '@seedthree/core/forest-lod.js';
 import { Rng } from '@seedthree/core/rng.js';
 import type { Terrain } from '../../terrain/Terrain.ts';
 import type { ForestTreePlacement } from '../../props/forestPlacements.ts';
@@ -15,22 +19,20 @@ import { GORSKI_KOTAR_SPECIES } from './gorskiKotarPresets.ts';
 import { loadSeedThreeSpeciesAssets, type SeedThreeSpeciesAssets } from './seedThreeAssets.ts';
 import { ensureSeedThreeBranchCards } from './seedThreeBranchCards.ts';
 import type { SeedThreeForestController } from './seedThreeForestTypes.ts';
+import {
+  writeSeedThreeLodMatrices,
+  type SeedThreeInstancedLodSet as InstancedLodSet,
+  type SeedThreeTreeSlot as TreeSlot,
+} from './seedThreeForestCompaction.ts';
 import { yieldToMain } from '../../utils/yieldToMain.ts';
-
-type TreeSlot = {
-  layoutIndex: number;
-  matrix: THREE.Matrix4;
-  pos: THREE.Vector3;
-  visibleMatrix: THREE.Matrix4;
-};
 
 type SpeciesBucket = {
   preset: SeedThreePresetKey;
   slots: TreeSlot[];
-  lod2Set: {
-    branches: THREE.InstancedMesh | null;
-    cards: Array<THREE.InstancedMesh & { userData: Record<string, unknown> }>;
-  };
+  nearSet: InstancedLodSet;
+  overviewSet: InstancedLodSet;
+  nearSlotIndices: number[];
+  overviewSlotIndices: number[];
 };
 
 export type SeedThreeForestInstances = {
@@ -39,6 +41,17 @@ export type SeedThreeForestInstances = {
   buckets: SpeciesBucket[];
   slotByLayoutIndex: Array<{ bucketIndex: number; slotIndex: number } | null>;
   hiddenMatrix: THREE.Matrix4;
+  visibilitySelector: ReturnType<typeof createForestLodSelector>;
+  renderStats: SeedThreeForestRenderStats;
+};
+
+export type SeedThreeForestRenderStats = {
+  totalTrees: number;
+  visibleTrees: number;
+  nearTrees: number;
+  overviewTrees: number;
+  culledTrees: number;
+  revision: number;
 };
 
 const FOREST_LOD_OPTS = {
@@ -51,6 +64,10 @@ const FOREST_LOD_OPTS = {
   lod1Pct: 42,
   lod2Pct: 14,
 };
+
+const FOREST_NEAR_DISTANCE = 108;
+const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
+const FOREST_VISIBILITY_PADDING = 26;
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const COMPOSE_POS = new THREE.Vector3();
@@ -76,20 +93,17 @@ function findLodLevel(tree: THREE.LOD, lodName: string): THREE.Object3D | undefi
   return levels.find((level) => level.object.userData.lodName === lodName)?.object;
 }
 
-function createSpeciesBucket(
-  presetKey: SeedThreePresetKey,
+function createInstancedLodSet(
+  sourceLevel: THREE.Object3D | undefined,
   slots: TreeSlot[],
-  prototype: THREE.LOD,
   rng: Rng,
-): SpeciesBucket {
+  debugName: string,
+): InstancedLodSet {
   const groupCount = slots.length;
-  const lod2 = findLodLevel(prototype, 'LOD2');
-  const lod2Set: SpeciesBucket['lod2Set'] = { branches: null, cards: [] };
-  if (!lod2) {
-    return { preset: presetKey, slots, lod2Set };
-  }
+  const lodSet: InstancedLodSet = { branches: null, cards: [] };
+  if (!sourceLevel) return lodSet;
 
-  for (const child of lod2.children) {
+  for (const child of sourceLevel.children) {
     const instancedChild = child as THREE.InstancedMesh;
     if (child.type === 'Mesh' && !instancedChild.isInstancedMesh) {
       const mesh = child as THREE.Mesh;
@@ -98,10 +112,13 @@ function createSpeciesBucket(
       geo.setAttribute('aWindVec', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
       geo.setAttribute('aAnchorPos', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
       const im = new THREE.InstancedMesh(geo, forestBarkMaterial(mesh.material as THREE.Material), groupCount);
+      im.name = `${debugName} branches`;
       im.castShadow = true;
       im.receiveShadow = true;
+      // SeedThree performs conservative per-tree culling and compacts the live
+      // instances; the aggregate mesh bound is intentionally not consulted.
       im.frustumCulled = false;
-      lod2Set.branches = im;
+      lodSet.branches = im;
     } else if ((child as THREE.Group).isGroup) {
       for (const cardsMesh of (child as THREE.Group).children) {
         const instanced = cardsMesh as THREE.InstancedMesh;
@@ -137,6 +154,7 @@ function createSpeciesBucket(
         const im = new THREE.InstancedMesh(geo, fmat as THREE.Material, total) as THREE.InstancedMesh & {
           userData: Record<string, unknown>;
         };
+        im.name = `${debugName} cards`;
         im.castShadow = true;
         im.receiveShadow = true;
         im.frustumCulled = false;
@@ -151,59 +169,51 @@ function createSpeciesBucket(
         }
         im.userData.srcMatrices = snap;
         im.userData.weights = (instanced.userData.windWeights as Float32Array | undefined)?.slice() ?? null;
-        lod2Set.cards.push(im);
+        lodSet.cards.push(im);
       }
     }
   }
 
-  writeBucketMatrices(lod2Set, slots);
-  return { preset: presetKey, slots, lod2Set };
+  return lodSet;
 }
 
-function writeBucketMatrices(lod2Set: SpeciesBucket['lod2Set'], slots: TreeSlot[]): void {
-  if (lod2Set.branches) {
-    const windVec = lod2Set.branches.geometry.attributes.aWindVec as THREE.InstancedBufferAttribute;
-    const anchorPos = lod2Set.branches.geometry.attributes.aAnchorPos as THREE.InstancedBufferAttribute;
-    slots.forEach((slot, slotIndex) => {
-      lod2Set.branches!.setMatrixAt(slotIndex, slot.visibleMatrix);
-      windVec.setXYZ(slotIndex, 0, 1, 0);
-      anchorPos.setXYZ(slotIndex, slot.pos.x, slot.pos.y, slot.pos.z);
-    });
-    lod2Set.branches.instanceMatrix.needsUpdate = true;
-    windVec.needsUpdate = true;
-    anchorPos.needsUpdate = true;
-  }
-
-  const slotMatrix = new THREE.Matrix4();
-  const cardMatrix = new THREE.Matrix4();
-  const outMatrix = new THREE.Matrix4();
-  for (const im of lod2Set.cards) {
-    const k = im.userData.k as number;
-    const srcMatrices = im.userData.srcMatrices as Float32Array;
-    const weights = im.userData.weights as Float32Array | null;
-    const treeOrigin = im.geometry.attributes.aTreeOrigin as THREE.InstancedBufferAttribute;
-    const windVec = im.geometry.attributes.aWindVec as THREE.InstancedBufferAttribute;
-    const anchorPos = im.geometry.attributes.aAnchorPos as THREE.InstancedBufferAttribute;
-    let writeIndex = 0;
-    for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
-      const slot = slots[slotIndex];
-      slotMatrix.copy(slot.visibleMatrix);
-      for (let cardIndex = 0; cardIndex < k; cardIndex++) {
-        cardMatrix.fromArray(srcMatrices, cardIndex * 16);
-        outMatrix.multiplyMatrices(slotMatrix, cardMatrix);
-        im.setMatrixAt(writeIndex, outMatrix);
-        treeOrigin.setXYZ(writeIndex, slot.pos.x, slot.pos.y, slot.pos.z);
-        const weight = weights?.[cardIndex] ?? 0.5;
-        windVec.setXYZ(writeIndex, 0, weight, 0);
-        anchorPos.setXYZ(writeIndex, slot.pos.x, slot.pos.y, slot.pos.z);
-        writeIndex++;
-      }
-    }
-    im.instanceMatrix.needsUpdate = true;
-    treeOrigin.needsUpdate = true;
-    windVec.needsUpdate = true;
-    anchorPos.needsUpdate = true;
-  }
+function createSpeciesBucket(
+  presetKey: SeedThreePresetKey,
+  slots: TreeSlot[],
+  prototype: THREE.LOD,
+  rng: Rng,
+): SpeciesBucket {
+  const nearLevel = findLodLevel(prototype, 'LOD2');
+  // Prefer SeedThree's deepest authored overview rung; live visual validation
+  // confirms its reduced whole-limb cards retain a readable settlement-scale
+  // crown while materially reducing distant tree instances.
+  const overviewLevel = findLodLevel(prototype, 'LOD4')
+    ?? findLodLevel(prototype, 'LOD3')
+    ?? nearLevel;
+  const nearSet = createInstancedLodSet(
+    nearLevel,
+    slots,
+    rng,
+    `${presetKey} near LOD2`,
+  );
+  const overviewSet = createInstancedLodSet(
+    overviewLevel,
+    slots,
+    new Rng(`overview:${presetKey}`),
+    `${presetKey} overview ${overviewLevel?.userData.lodName ?? 'LOD2'}`,
+  );
+  const nearSlotIndices = slots.map((_, index) => index);
+  const overviewSlotIndices: number[] = [];
+  writeSeedThreeLodMatrices(nearSet, slots, nearSlotIndices);
+  writeSeedThreeLodMatrices(overviewSet, slots, overviewSlotIndices);
+  return {
+    preset: presetKey,
+    slots,
+    nearSet,
+    overviewSet,
+    nearSlotIndices,
+    overviewSlotIndices,
+  };
 }
 
 export async function createSeedThreeForest(
@@ -244,6 +254,10 @@ export async function createSeedThreeForest(
   }
 
   const placementsByPreset = new Map<SeedThreePresetKey, TreeSlot[]>();
+  const visibilityItems: Array<{ x: number; y: number; z: number; radius: number }> = Array.from(
+    { length: placements.length },
+    () => ({ x: 0, y: 0, z: 0, radius: 1 }),
+  );
   const slotByLayoutIndex: Array<{ bucketIndex: number; slotIndex: number } | null> = Array.from(
     { length: placements.length },
     () => null,
@@ -255,11 +269,26 @@ export async function createSeedThreeForest(
     const rootY = terrain.getHeightAt(placement.x, placement.z);
     const rotY = rng.range(0, Math.PI * 2);
     const matrix = composeTreeMatrix(placement.x, rootY - 0.15 * scale, placement.z, rotY, scale);
+    const speciesHeight = Number(GORSKI_KOTAR_SPECIES[preset]?.params?.scale ?? 20) * scale;
+    const visibilityRadius = Math.max(5, speciesHeight * 0.58);
+    const visibilityCenter = new THREE.Vector3(
+      placement.x,
+      rootY + speciesHeight * 0.5,
+      placement.z,
+    );
     const slot: TreeSlot = {
       layoutIndex,
       matrix,
       pos: new THREE.Vector3(placement.x, rootY, placement.z),
-      visibleMatrix: matrix.clone(),
+      visibilityCenter,
+      visibilityRadius,
+      enabled: true,
+    };
+    visibilityItems[layoutIndex] = {
+      x: visibilityCenter.x,
+      y: visibilityCenter.y,
+      z: visibilityCenter.z,
+      radius: visibilityRadius,
     };
     const bucket = placementsByPreset.get(preset) ?? [];
     bucket.push(slot);
@@ -283,16 +312,35 @@ export async function createSeedThreeForest(
   }
 
   for (const bucket of buckets) {
-    if (bucket.lod2Set.branches) group.add(bucket.lod2Set.branches);
-    for (const cardMesh of bucket.lod2Set.cards) group.add(cardMesh);
+    if (bucket.nearSet.branches) group.add(bucket.nearSet.branches);
+    for (const cardMesh of bucket.nearSet.cards) group.add(cardMesh);
+    if (bucket.overviewSet.branches) group.add(bucket.overviewSet.branches);
+    for (const cardMesh of bucket.overviewSet.cards) group.add(cardMesh);
   }
 
+  const visibilitySelector = createForestLodSelector(visibilityItems, {
+    cellSize: 48,
+    frustumPadding: FOREST_VISIBILITY_PADDING,
+    nearDistance: FOREST_NEAR_DISTANCE,
+    lodHysteresis: 14,
+    minimumCameraMove: 2.25,
+    minimumDirectionAngle: THREE.MathUtils.degToRad(1),
+  });
   return {
     group,
     placements,
     buckets,
     slotByLayoutIndex,
     hiddenMatrix,
+    visibilitySelector,
+    renderStats: {
+      totalTrees: placements.length,
+      visibleTrees: placements.length,
+      nearTrees: placements.length,
+      overviewTrees: 0,
+      culledTrees: 0,
+      revision: 0,
+    },
   };
 }
 
@@ -307,13 +355,101 @@ export function setSeedThreeTreeVisible(
   if (!bucket) return;
   const slot = bucket.slots[mapping.slotIndex];
   if (!slot) return;
-  slot.visibleMatrix = visible ? slot.matrix : forest.hiddenMatrix;
+  slot.enabled = visible;
 }
 
 export function commitSeedThreeForestMatrices(forest: SeedThreeForestInstances): void {
+  let totalTrees = 0;
+  let nearTrees = 0;
+  let overviewTrees = 0;
   for (const bucket of forest.buckets) {
-    writeBucketMatrices(bucket.lod2Set, bucket.slots);
+    writeSeedThreeLodMatrices(bucket.nearSet, bucket.slots, bucket.nearSlotIndices);
+    writeSeedThreeLodMatrices(bucket.overviewSet, bucket.slots, bucket.overviewSlotIndices);
+    totalTrees += bucket.slots.reduce(
+      (count, slot) => count + (slot.enabled ? 1 : 0),
+      0,
+    );
+    nearTrees += bucket.nearSlotIndices.reduce(
+      (count, slotIndex) => count + (bucket.slots[slotIndex]?.enabled ? 1 : 0),
+      0,
+    );
+    overviewTrees += bucket.overviewSlotIndices.reduce(
+      (count, slotIndex) => count + (bucket.slots[slotIndex]?.enabled ? 1 : 0),
+      0,
+    );
   }
+  const visibleTrees = nearTrees + overviewTrees;
+  forest.renderStats = {
+    totalTrees,
+    visibleTrees,
+    nearTrees,
+    overviewTrees,
+    culledTrees: Math.max(0, totalTrees - visibleTrees),
+    revision: forest.renderStats.revision,
+  };
+}
+
+export function updateSeedThreeForestCamera(
+  forest: SeedThreeForestInstances,
+  camera: THREE.Camera,
+  firstPersonActive: boolean,
+  casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
+): boolean {
+  const selection = selectForestLods(forest.visibilitySelector, camera, {
+    nearDistance: firstPersonActive
+      ? FOREST_FIRST_PERSON_NEAR_DISTANCE
+      : FOREST_NEAR_DISTANCE,
+    frustumPadding: firstPersonActive
+      ? FOREST_VISIBILITY_PADDING + 8
+      : FOREST_VISIBILITY_PADDING,
+    casterBounds,
+    // Matches the directional-shadow fitter's broad-canopy horizontal margin.
+    casterPadding: 14,
+  });
+  if (!selection.changed) return false;
+
+  for (const bucket of forest.buckets) {
+    bucket.nearSlotIndices = [];
+    bucket.overviewSlotIndices = [];
+  }
+  for (const layoutIndex of selection.nearIndices as number[]) {
+    const mapping = forest.slotByLayoutIndex[layoutIndex];
+    if (mapping) forest.buckets[mapping.bucketIndex]?.nearSlotIndices.push(mapping.slotIndex);
+  }
+  for (const layoutIndex of selection.overviewIndices as number[]) {
+    const mapping = forest.slotByLayoutIndex[layoutIndex];
+    if (mapping) forest.buckets[mapping.bucketIndex]?.overviewSlotIndices.push(mapping.slotIndex);
+  }
+  commitSeedThreeForestMatrices(forest);
+  forest.renderStats.revision = selection.revision;
+  return true;
+}
+
+export function getSeedThreeForestStructuralStats(forest: SeedThreeForestInstances): {
+  draws: number;
+  triangles: number;
+  instances: number;
+  trees: SeedThreeForestRenderStats;
+} {
+  let draws = 0;
+  let triangles = 0;
+  let instances = 0;
+  forest.group.traverse((object: THREE.Object3D) => {
+    const mesh = object as THREE.InstancedMesh;
+    if (!mesh.isInstancedMesh || mesh.count <= 0) return;
+    draws++;
+    instances += mesh.count;
+    const geometryTriangles = mesh.geometry.index
+      ? mesh.geometry.index.count / 3
+      : mesh.geometry.attributes.position.count / 3;
+    triangles += geometryTriangles * mesh.count;
+  });
+  return {
+    draws,
+    triangles: Math.round(triangles),
+    instances,
+    trees: { ...forest.renderStats },
+  };
 }
 
 export function setSeedThreeForestShadows(forest: SeedThreeForestInstances, enabled: boolean): void {
@@ -338,6 +474,9 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),
     showTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, true),
     commit: () => commitSeedThreeForestMatrices(forest),
+    updateCamera: (camera, firstPersonActive, casterBounds) =>
+      updateSeedThreeForestCamera(forest, camera, firstPersonActive, casterBounds),
+    getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
     setShadows: (enabled) => setSeedThreeForestShadows(forest, enabled),
     dispose: () => disposeSeedThreeForest(forest),
   };

@@ -90,6 +90,10 @@ const tests = [
   'test:rich-stone',
   'test:fishing',
   'test:foraging-ecology',
+  'test:river-simulation',
+  'test:river-water-material',
+  'test:seedthree-forest-compaction',
+  'test:terrain-ecology-material',
 ] as const;
 
 let failed = 0;

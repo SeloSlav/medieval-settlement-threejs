@@ -100,7 +100,7 @@ export function computeDayNightState(
   fillColor = lerpColor(fillColor, 0x88768e, goldenHour * 0.22);
   const fillIntensity = lerp(0.55, 0.34, dayAmount);
 
-  let fogColor = lerpColor(0x40556a, 0xc5d4d8, dayAmount);
+  let fogColor = lerpColor(0x4b6174, 0xc5d4d8, dayAmount);
   fogColor = lerpColor(fogColor, 0xbc8c77, dawn * 0.34);
   fogColor = lerpColor(fogColor, 0xa36b5a, dusk * 0.3);
   const fogDensity = lerp(0.00078, 0.00072, dayAmount) + goldenHour * 0.00008;
@@ -125,11 +125,11 @@ export function computeDayNightState(
     solarElevationDeg: elevationDeg,
     nightAmount: night,
     grade: {
-      saturation: lerp(0.84, 1, dayAmount) + dawn * 0.035 + dusk * 0.07,
-      contrast: lerp(0.96, 1.035, dayAmount) + dusk * 0.012,
+      saturation: lerp(0.88, 1, dayAmount) + dawn * 0.035 + dusk * 0.07,
+      contrast: lerp(0.98, 1.035, dayAmount) + dusk * 0.012,
       warmth: dawn * 0.28 + dusk * 0.4,
-      nightBlue: night * 0.15,
-      vignette: lerp(0.08, 0.05, dayAmount) + night * 0.01,
+      nightBlue: night * 0.21,
+      vignette: lerp(0.065, 0.05, dayAmount),
     },
     skyAnimationTime: simElapsedSeconds(clock.simTick),
     siderealAngle: computeSiderealAngle(clock, hour),

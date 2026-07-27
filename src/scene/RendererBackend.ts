@@ -97,7 +97,12 @@ function configureRenderer(renderer: SupportedRenderer): void {
   // neutral so the first frame does not flash brighter than the settled grade.
   renderer.toneMappingExposure = 1.04;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // The view-fitted 2048px atlas already supplies a dense texel footprint.
+  // Standard PCF keeps the same filtered, antialiased shadow silhouette while
+  // avoiding the much wider PCFSoft kernel on every shadow-receiving fragment.
+  // That cost is paid across the terrain and every forest card even when the
+  // cached atlas itself does not need a refresh.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.setClearColor(0x9bb8c8, 1);
 
   const shadowMap = renderer.shadowMap as ShadowMapWithManualRefresh;

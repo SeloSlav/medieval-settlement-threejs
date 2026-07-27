@@ -19,8 +19,9 @@ const VOLUME_HEIGHT = 72;
 const VOLUME_FLOOR_BELOW_CAMERA = 20;
 const OVERVIEW_VOLUME_FLOOR_BELOW_CAMERA = 86;
 const BASE_VOLUME_RADIUS = 92;
-const RAIN_BASE_PARTICLES = 1_300;
-const SNOW_BASE_PARTICLES = 960;
+const RAIN_BASE_PARTICLES = 1_800;
+const SNOW_BASE_PARTICLES = 1_400;
+const RAIN_INNER_RADIUS_FRACTION = 0.18;
 
 /**
  * Camera-local precipitation with a fixed particle budget.
@@ -48,12 +49,12 @@ export class PrecipitationRenderer {
     this.group.frustumCulled = false;
 
     this.rainLayers = [
-      this.createLayer('rain', RAIN_BASE_PARTICLES, 0xc8deea, 1.08, 0.68, 1, 0.92, 0x7ba9c5),
-      this.createLayer('rain', Math.round(RAIN_BASE_PARTICLES * 0.58), 0xe7f1f5, 1.75, 0.48, 1.18, 1.12, 0x9fbfd2),
+      this.createLayer('rain', RAIN_BASE_PARTICLES, 0xc8deea, 0.86, 0.68, 1, 0.92, 0x7ba9c5),
+      this.createLayer('rain', Math.round(RAIN_BASE_PARTICLES * 0.58), 0xe7f1f5, 1.25, 0.48, 1.18, 1.12, 0x9fbfd2),
     ];
     this.snowLayers = [
-      this.createLayer('snow', SNOW_BASE_PARTICLES, 0xe6eef2, 0.16, 0.58, 0.9, 0.88, 0xaebfc8),
-      this.createLayer('snow', Math.round(SNOW_BASE_PARTICLES * 0.62), 0xf1f5f6, 0.2, 0.4, 1.15, 1.1, 0xc4d0d5),
+      this.createLayer('snow', SNOW_BASE_PARTICLES, 0xe6eef2, 0.38, 0.58, 0.9, 0.88, 0xaebfc8),
+      this.createLayer('snow', Math.round(SNOW_BASE_PARTICLES * 0.62), 0xf1f5f6, 0.55, 0.4, 1.15, 1.1, 0xc4d0d5),
     ];
 
     for (const layer of [...this.rainLayers, ...this.snowLayers]) {
@@ -229,7 +230,10 @@ function createParticleInstances(
 
   for (let index = 0; index < count; index += 1) {
     const angle = rng() * Math.PI * 2;
-    const radius = Math.sqrt(rng());
+    const innerRadius = kind === 'rain' ? RAIN_INNER_RADIUS_FRACTION : 0;
+    const radius = Math.sqrt(
+      innerRadius * innerRadius + rng() * (1 - innerRadius * innerRadius),
+    );
     const x = Math.cos(angle) * radius * BASE_VOLUME_RADIUS;
     const z = Math.sin(angle) * radius * BASE_VOLUME_RADIUS;
     const y = rng() * VOLUME_HEIGHT;
@@ -262,7 +266,7 @@ function createRainStreakGeometry(): THREE.BufferGeometry {
   const positions: number[] = [];
   const uvs: number[] = [];
   const halfWidth = 0.025;
-  const halfHeight = 0.92;
+  const halfHeight = 0.42;
   const windLeanX = 0.13;
   const windLeanZ = 0.055;
   appendVerticalQuad(

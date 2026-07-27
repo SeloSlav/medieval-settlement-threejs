@@ -13,6 +13,10 @@ import {
 } from '../utils/pathGeometry.ts';
 import type { RiverField } from './RiverField.ts';
 import { buildRiverShoreCrossingGaps, isInRiverShoreCrossingGap } from './RiverShoreCrossingGaps.ts';
+import {
+  computeShoreStoneTint,
+  computeShoreStoneVisualScale,
+} from './riverShoreStoneAppearance.ts';
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
 
 type RockShadowMaterials = {
@@ -31,7 +35,7 @@ type ShoreStoneInstance = {
   mesh: THREE.InstancedMesh;
   shadowMesh: THREE.InstancedMesh;
   instanceIndex: number;
-  matrix: THREE.Matrix4;
+  visualMatrix: THREE.Matrix4;
 };
 
 export type RiverShoreStoneField = {
@@ -73,6 +77,8 @@ export function createRiverShoreStones(
   const position = new THREE.Vector3();
   const quaternion = new THREE.Quaternion();
   const scaleVector = new THREE.Vector3();
+  const visualScaleVector = new THREE.Vector3();
+  const stoneTint = new THREE.Color();
 
   buckets.forEach((bucket, variantIndex) => {
     if (bucket.length === 0) return;
@@ -96,18 +102,29 @@ export function createRiverShoreStones(
         rock.scale * (0.82 + rng() * 0.48),
       );
       matrix.compose(position, quaternion, scaleVector);
+      // Preserve the original collision bounds exactly; the following
+      // world-position-driven scale/tint is presentation-only.
       setRockObstacleCollisionBounds(rock, variants[variantIndex], matrix);
-      mesh.setMatrixAt(rockIndex, matrix);
-      shadowMesh.setMatrixAt(rockIndex, matrix);
+      const visualMatrix = matrix.clone();
+      const visualScale = computeShoreStoneVisualScale(rock.x, rock.z);
+      visualScaleVector.set(visualScale, visualScale * 0.88, visualScale);
+      visualMatrix.scale(visualScaleVector);
+      visualMatrix.elements[13] -= rock.scale * (1 - visualScale) * 0.1;
+      mesh.setMatrixAt(rockIndex, visualMatrix);
+      shadowMesh.setMatrixAt(rockIndex, visualMatrix);
+      const tint = computeShoreStoneTint(rock.x, rock.z);
+      stoneTint.setRGB(tint, tint * 0.97, tint * 0.9);
+      mesh.setColorAt(rockIndex, stoneTint);
       instances.push({
         placement: rock,
         mesh,
         shadowMesh,
         instanceIndex: rockIndex,
-        matrix: matrix.clone(),
+        visualMatrix,
       });
     });
     mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     shadowMesh.instanceMatrix.needsUpdate = true;
     group.add(mesh, shadowMesh);
   });
@@ -156,7 +173,7 @@ export function createRiverShoreStones(
       for (let index = 0; index < instances.length; index++) {
         if (nextRemoved.has(index) === removed.has(index)) continue;
         const instance = instances[index];
-        const instanceMatrix = nextRemoved.has(index) ? hiddenMatrix : instance.matrix;
+        const instanceMatrix = nextRemoved.has(index) ? hiddenMatrix : instance.visualMatrix;
         instance.mesh.setMatrixAt(instance.instanceIndex, instanceMatrix);
         instance.shadowMesh.setMatrixAt(instance.instanceIndex, instanceMatrix);
         instance.mesh.instanceMatrix.needsUpdate = true;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { RiverField } from './RiverField.ts';
 
 export const WATER_CLIP_FEATHER = -0.62;
-export const WATER_ALPHA_FEATHER_IN = 1.45;
+export const WATER_ALPHA_FEATHER_IN = 0.78;
 
 export type RiverWaterShoreMaps = {
   shoreTexture: THREE.DataTexture;
@@ -19,16 +19,16 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
 
 export function computeWaterFeatherAlpha(signed: number): number {
   return smoothstep(
-    WATER_CLIP_FEATHER - 0.18,
-    WATER_ALPHA_FEATHER_IN + 0.42,
+    WATER_CLIP_FEATHER - 0.12,
+    WATER_ALPHA_FEATHER_IN + 0.18,
     signed,
   );
 }
 
 export function computeWaterFoamBase(foamSigned: number): number {
   return foamSigned >= 0
-    ? 1 - smoothstep(0.12, 4.8, foamSigned)
-    : 1 - smoothstep(-0.28, 0.14, foamSigned);
+    ? 1 - smoothstep(0.08, 1.65, foamSigned)
+    : 1 - smoothstep(-0.24, 0.1, foamSigned);
 }
 
 function encodeFlowComponent(value: number): number {

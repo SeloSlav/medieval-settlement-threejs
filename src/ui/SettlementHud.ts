@@ -145,7 +145,12 @@ const SETTLEMENT_HUD_HTML = `
         <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>
       </div>
     </div>
-    <div class="settlement-hud__stores" aria-label="Specialty stores">
+    <details class="settlement-hud__stores" data-specialty-stores>
+      <summary class="settlement-hud__stores-summary">
+        <span>Stores & provisions</span>
+        <span class="settlement-hud__stores-status" data-specialty-stores-status>No specialty stock</span>
+      </summary>
+      <div class="settlement-hud__stores-grid" aria-label="Specialty stores">
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="grain" data-tooltip="Grain stored at physical holdings, granaries, markets, processors, and institutions. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Grain</span>
         <strong class="settlement-hud__value" data-stockpile="grain">0</strong>
@@ -196,7 +201,8 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="polearms">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="polearms" hidden></span>
       </div>
-    </div>
+      </div>
+    </details>
   </div>
 `;
 

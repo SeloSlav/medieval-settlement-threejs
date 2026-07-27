@@ -810,7 +810,39 @@ export class ResourceInspector {
         details.push(`+${formatTransitAmount(amount)} en route`);
       }
       transit.hidden = details.length === 0;
+      const stat = this.stockpileValues[resource]
+        .closest<HTMLElement>('.settlement-hud__stat');
+      stat?.classList.toggle(
+        'is-empty',
+        totals[resource] <= 1e-6 && details.length === 0,
+      );
       transit.textContent = details.join(' · ');
+    }
+    const specialtyResources = [
+      'grain',
+      'flour',
+      'ale',
+      'preservedFood',
+      'honey',
+      'wine',
+      'wool',
+      'cloth',
+      'ironwork',
+      'polearms',
+    ] as const;
+    const stockedSpecialties = specialtyResources.filter((resource) =>
+      totals[resource] > 1e-6 || (inTransit?.[resource] ?? 0) > 1e-6);
+    const specialtyStore = this.stockpileRoot.querySelector<HTMLElement>(
+      '[data-specialty-stores]',
+    );
+    const specialtyStoreStatus = this.stockpileRoot.querySelector<HTMLElement>(
+      '[data-specialty-stores-status]',
+    );
+    specialtyStore?.classList.toggle('has-stock', stockedSpecialties.length > 0);
+    if (specialtyStoreStatus) {
+      specialtyStoreStatus.textContent = stockedSpecialties.length === 0
+        ? 'No specialty stock'
+        : `${stockedSpecialties.length} ${stockedSpecialties.length === 1 ? 'stock' : 'stocks'} active`;
     }
     this.populationValue.textContent = population.total.toString();
     this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;

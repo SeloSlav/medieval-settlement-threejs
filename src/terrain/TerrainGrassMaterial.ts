@@ -53,24 +53,80 @@ function buildGrassBlendNodes(textures: TerrainBlendTextureSet) {
     .add(denseColor.rgb.mul(w.y))
     .add(dryColor.rgb.mul(w.z));
   const world = positionWorld as TslNode;
+  // Domain-warped oblique waves form broad ecological masses without another
+  // texture read or the obvious dots/checker cells produced by hash noise.
+  // Existing biome weights stay authoritative; this makes their lowland,
+  // meadow and dry-shoulder hierarchy legible from overview distance.
+  const macroWarp = sin(
+    world.x
+      .mul(float(0.0031) as TslNode)
+      .add(world.z.mul(float(-0.0043) as TslNode))
+      .add(float(1.73) as TslNode) as TslNode,
+  ) as TslNode;
   const macroA = (sin(
     world.x
-      .mul(float(0.012) as TslNode)
-      .add(world.z.mul(float(0.009) as TslNode)) as TslNode,
+      .mul(float(0.0076) as TslNode)
+      .add(world.z.mul(float(0.0049) as TslNode))
+      .add(macroWarp.mul(float(1.12) as TslNode)) as TslNode,
   ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
   const macroB = (sin(
     world.x
-      .mul(float(-0.026) as TslNode)
-      .add(world.z.mul(float(0.021) as TslNode))
+      .mul(float(-0.018) as TslNode)
+      .add(world.z.mul(float(0.013) as TslNode))
+      .add(macroWarp.mul(float(-1.67) as TslNode))
       .add(float(2.41) as TslNode) as TslNode,
   ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
-  const macro = macroA.mul(float(0.66) as TslNode).add(macroB.mul(float(0.34) as TslNode));
+  const macro = macroA.mul(float(0.68) as TslNode).add(macroB.mul(float(0.32) as TslNode));
+
+  const geometricNormal = attribute('normal', 'vec3') as TslNode;
+  const slope = smoothstep(
+    float(0.035) as TslNode,
+    float(0.2) as TslNode,
+    sub(float(1) as TslNode, geometricNormal.y) as TslNode,
+  ) as TslNode;
+  const lowland = sub(
+    float(1) as TslNode,
+    smoothstep(
+      float(-1.5) as TslNode,
+      float(13.5) as TslNode,
+      world.y,
+    ) as TslNode,
+  ) as TslNode;
+  const moisture = smoothstep(
+    float(0.18) as TslNode,
+    float(0.84) as TslNode,
+    w.y
+      .mul(float(0.38) as TslNode)
+      .add(lowland.mul(float(0.23) as TslNode))
+      .add(macro.mul(float(0.39) as TslNode)) as TslNode,
+  ) as TslNode;
+  const dryShoulder = smoothstep(
+    float(0.22) as TslNode,
+    float(0.86) as TslNode,
+    w.z
+      .mul(float(0.58) as TslNode)
+      .add(slope.mul(float(0.3) as TslNode))
+      .add(sub(float(0.12) as TslNode, lowland.mul(float(0.12) as TslNode)) as TslNode) as TslNode,
+  ) as TslNode;
   const macroTint = mix(
-    vec3(0.9, 0.94, 0.85) as TslNode,
-    vec3(1.045, 1.025, 0.95) as TslNode,
+    vec3(1.055, 1.015, 0.875) as TslNode,
+    vec3(0.755, 0.9, 0.7) as TslNode,
+    moisture.mul(float(0.68) as TslNode),
+  ) as TslNode;
+  const ecologyTint = mix(
+    macroTint,
+    vec3(1.06, 0.955, 0.76) as TslNode,
+    dryShoulder.mul(float(0.4) as TslNode),
+  ) as TslNode;
+  // The slow value drift is deliberately correlated with moisture instead of
+  // being another noise layer: open, better-drained ground catches light while
+  // broad damp folds hold a slightly deeper soil/grass value.
+  const broadSoilValue = mix(
+    vec3(1.045, 1.035, 0.965) as TslNode,
+    vec3(0.915, 0.945, 0.885) as TslNode,
     macro,
   ) as TslNode;
-  const colorNode = blendedColor.mul(macroTint);
+  const colorNode = blendedColor.mul(ecologyTint).mul(broadSoilValue);
 
   const meadowNormal = texture(textures.meadow.normal, grassUv) as TslNode;
   const denseNormal = texture(textures.dense.normal, grassUv) as TslNode;
@@ -91,14 +147,26 @@ function buildGrassBlendNodes(textures: TerrainBlendTextureSet) {
   return { colorNode, normalNode, roughnessNode, aoNode, grassUv, macro };
 }
 
+function applyRiparianEcologyColor(
+  baseColor: TslNode,
+  shoreBlend: TslNode,
+): TslNode {
+  const riparianReach = (pow(
+    shoreBlend,
+    float(0.38) as TslNode,
+  ) as TslNode).mul(float(0.34) as TslNode) as TslNode;
+  const coolBankColor = baseColor.mul(vec3(0.71, 0.84, 0.72) as TslNode);
+  return mix(baseColor, coolBankColor, riparianReach) as TslNode;
+}
+
 function buildTerrainFrostMask(
   macro: TslNode,
   weather: RoadWeatherUniforms,
   exposure: TslNode = float(1) as TslNode,
 ): TslNode {
   const patchiness = mix(
-    float(0.18) as TslNode,
-    float(0.52) as TslNode,
+    float(0.24) as TslNode,
+    float(0.74) as TslNode,
     smoothstep(
       float(0.24) as TslNode,
       float(0.82) as TslNode,
@@ -108,7 +176,36 @@ function buildTerrainFrostMask(
   return weather.frost
     .mul(patchiness)
     .mul(exposure)
-    .mul(float(0.42) as TslNode) as TslNode;
+    .mul(float(0.78) as TslNode) as TslNode;
+}
+
+function buildTerrainWetMask(
+  macro: TslNode,
+  weather: RoadWeatherUniforms,
+): TslNode {
+  const patchiness = mix(
+    float(0.26) as TslNode,
+    float(0.48) as TslNode,
+    smoothstep(
+      float(0.18) as TslNode,
+      float(0.82) as TslNode,
+      macro,
+    ) as TslNode,
+  ) as TslNode;
+  return weather.wetness.mul(patchiness) as TslNode;
+}
+
+function applyTerrainWetColor(
+  baseColor: TslNode,
+  macro: TslNode,
+  weather: RoadWeatherUniforms,
+): TslNode {
+  const wetTint = baseColor.mul(vec3(0.64, 0.72, 0.67) as TslNode);
+  return mix(
+    baseColor,
+    wetTint,
+    buildTerrainWetMask(macro, weather),
+  ) as TslNode;
 }
 
 function applyTerrainFrostColor(
@@ -117,19 +214,20 @@ function applyTerrainFrostColor(
   weather: RoadWeatherUniforms,
   exposure?: TslNode,
 ): TslNode {
+  const weatheredGround = applyTerrainWetColor(baseColor, macro, weather);
   const frostMask = buildTerrainFrostMask(macro, weather, exposure);
-  const luminance = baseColor.r
+  const luminance = weatheredGround.r
     .mul(float(0.299) as TslNode)
-    .add(baseColor.g.mul(float(0.587) as TslNode))
-    .add(baseColor.b.mul(float(0.114) as TslNode));
+    .add(weatheredGround.g.mul(float(0.587) as TslNode))
+    .add(weatheredGround.b.mul(float(0.114) as TslNode));
   const cooledGround = mix(
-    baseColor,
+    weatheredGround,
     (vec3(luminance, luminance, luminance) as TslNode)
-      .mul(vec3(0.9, 0.96, 1) as TslNode)
-      .add(vec3(0.025, 0.032, 0.038) as TslNode) as TslNode,
-    float(0.6) as TslNode,
+      .mul(vec3(0.98, 1.04, 1.08) as TslNode)
+      .add(vec3(0.05, 0.055, 0.06) as TslNode) as TslNode,
+    float(0.78) as TslNode,
   ) as TslNode;
-  return mix(baseColor, cooledGround, frostMask) as TslNode;
+  return mix(weatheredGround, cooledGround, frostMask) as TslNode;
 }
 
 function applyTerrainFrostRoughness(
@@ -138,8 +236,13 @@ function applyTerrainFrostRoughness(
   weather: RoadWeatherUniforms,
   exposure?: TslNode,
 ): TslNode {
-  return mix(
+  const wetRoughness = mix(
     baseRoughness,
+    float(0.56) as TslNode,
+    weather.wetness.mul(float(0.65) as TslNode),
+  ) as TslNode;
+  return mix(
+    wetRoughness,
     float(0.94) as TslNode,
     buildTerrainFrostMask(macro, weather, exposure),
   ) as TslNode;
@@ -267,7 +370,8 @@ export function createTerrainGrassMaterialWithRiverShore(
   const quarryPad = pow(attribute('quarryPadBlend', 'float') as TslNode, float(0.74) as TslNode) as TslNode;
   // Terrain undercoat only — bank mesh overlay carries the inner mud detail.
   const shoreUndercoat = shoreBlend.mul(float(0.58) as TslNode) as TslNode;
-  const grassWithShore = mix(blendNodes.colorNode, mudColor, shoreUndercoat) as TslNode;
+  const riparianGrass = applyRiparianEcologyColor(blendNodes.colorNode, shoreBlend);
+  const grassWithShore = mix(riparianGrass, mudColor, shoreUndercoat) as TslNode;
   const meadowWithQuarry = mix(grassWithShore, quarryColor, quarryPad) as TslNode;
   const meadowWithWear = mix(meadowWithQuarry, wearColor, roadWear) as TslNode;
   const baseColorNode = applyCloseZoomDirtBlend(
