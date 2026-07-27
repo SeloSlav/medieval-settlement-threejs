@@ -2,6 +2,8 @@ import { getBuildingCost } from '../buildingEconomy.ts';
 import {
   GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
   GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE,
+  GUARDHOUSE_PAYROLL_REORDER_DAYS,
+  GUARDHOUSE_PAYROLL_TARGET_DAYS,
   GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
 } from '../../generated/gameBalance.ts';
 import {
@@ -21,6 +23,8 @@ import {
 } from '../../security/frontierSecurity.ts';
 import {
   GUARDHOUSE_PAY_PRIORITIES,
+  guardhousePayrollInTransitGold,
+  guardhousePayrollLogisticsPlan,
   guardhousePayrollPlan,
   guardhousePayPriorityLabel,
   normalizeGuardhousePayPriority,
@@ -62,11 +66,24 @@ export function renderGuardhouseInspector(
   const guardRequirement = settlement?.guardsRequired ?? 0;
   const dailyFood = armed * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY;
   const dailyWages = armed * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY;
+  const payrollInTransit = guardhousePayrollInTransitGold(
+    context.gameState.deliveryTrips.values(),
+  );
   const payroll = guardhousePayrollPlan(
     context.gameState.buildings.values(),
     context.resourceTotals.gold,
     fireDisabled,
+    payrollInTransit,
   ).find((entry) => entry.building.id === building.id);
+  const payrollLogistics = guardhousePayrollLogisticsPlan({
+    guardhouse: building,
+    buildings: context.gameState.buildings.values(),
+    trips: context.gameState.deliveryTrips.values(),
+    physicalEconomy: context.gameState.physicalFoundingSiteEnabled === true,
+    freeHaulers: context.populationStats.available,
+    getRoadPathDistance: (ax, az, bx, bz) =>
+      context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
+  });
   const companyPriority = normalizeGuardhousePayPriority(building.guardhousePayPriority);
   const foodReserve = normalizeGuardhouseFoodReserve(building.guardhouseFoodReserve);
   const foodTarget = guardhouseFoodTarget(
@@ -105,6 +122,15 @@ export function renderGuardhouseInspector(
       ? ['Unarmed — awaiting carpenter-made polearms', 'warning'] as const
       : foodRunwayDays < 1
         ? ['Short on provisions — readiness is falling', 'warning'] as const
+        : isPayrollLogisticsBlocked(payrollLogistics.status)
+          ? [payrollLogisticsStatus(payrollLogistics.status), 'warning'] as const
+        : payrollLogistics.onsiteRunwayDays < 1
+          ? [
+              payrollLogistics.inTransitGold > 1e-6
+                ? 'Pay chest empty — treasury lockbox is still on the road'
+                : 'Pay chest empty — readiness is falling',
+              'warning',
+            ] as const
         : payroll && payroll.fundedRatio < 0.999
           ? [
               `Payroll shortfall — ${Math.round(payroll.fundedRatio * 100)}% of next-day wages funded after higher priorities`,
@@ -150,10 +176,12 @@ export function renderGuardhouseInspector(
       <li><span>Ration policy</span><span>${guardhouseFoodReserveLabel(foodReserve)} · ${foodReserve} food per armed guard</span></li>
       <li><span>Company priority</span><span>${guardhousePayPriorityLabel(companyPriority)} · scarce polearms, routine provisions, and wages</span></li>
       <li><span>Next-day wages</span><span>${suspendedByFire ? 'Suspended during fire recovery' : payroll ? `${payroll.fundedGold.toFixed(1)} / ${payroll.dailyWage.toFixed(1)} funded · claim ${payroll.claimPosition} of ${payroll.companyCount}` : armed > 0 ? 'Awaiting payroll forecast' : 'No armed guards to pay'}</span></li>
-      <li><span>Treasury wages</span><span>${context.resourceTotals.gold.toFixed(1)} gold available across all companies</span></li>
+      <li><span>Pay chest</span><span>${payrollLogistics.onsiteGold.toFixed(1)} / ${payrollLogistics.targetGold.toFixed(1)} gold · ${formatProvisionRunway(payrollLogistics.onsiteRunwayDays)} on site</span></li>
+      <li><span>Payroll route</span><span>${payrollLogisticsFeedback(payrollLogistics, context)}</span></li>
+      <li><span>Treasury wages</span><span>${context.resourceTotals.gold.toFixed(1)} spendable gold across all company claims</span></li>
       <li><span>Provision target</span><span>${suspendedByFire ? 'Suspended until fire recovery' : armed > 0 ? `${foodTarget.toFixed(1)} food · ${formatProvisionRunway(targetRunwayDays)} when full · central granary intervenes below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days` : 'None until polearms arm the company'}</span></li>
       <li><span>Provision priority</span><span>Producer and granary carts preserve household delivery reserves</span></li>
-      <li><span>Supply chain</span><span>Food by road · polearms from a staffed carpenter · ironwork imported at a staffed market</span></li>
+      <li><span>Supply chain</span><span>Food by road · polearms from a staffed carpenter · pay lockboxes from a civic treasury · ironwork imported at a staffed market</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
@@ -181,7 +209,55 @@ function renderCompanyPriorityPanel(currentPriority: number): string {
       <div class="resource-action-row">${GUARDHOUSE_PAY_PRIORITIES
         .map((candidate) => `<button type="button" class="resource-action-button" data-guardhouse-pay-priority="${candidate.priority}" ${candidate.priority === currentPriority ? 'disabled' : ''}>${candidate.label}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Within one tier, polearms restore the lowest armed share first, then prefer the shorter road and stable building order. Payroll uses stable building order. The forecast allocates one day of current treasury gold with no new income; food shortages can still reduce readiness even when wages are funded.</p>
+      <p class="inspector-action-panel__hint">Within one tier, polearms restore the lowest armed share first, then prefer the shorter road and stable building order. Payroll uses stable building order: a free hauler refills the local chest to ten days once it falls below five. The forecast allocates one day of current treasury and secured company gold with no new income.</p>
     </div>
   `;
+}
+
+function isPayrollLogisticsBlocked(
+  status: ReturnType<typeof guardhousePayrollLogisticsPlan>['status'],
+): boolean {
+  return status === 'no-treasury'
+    || status === 'no-gold'
+    || status === 'no-road'
+    || status === 'no-hauler'
+    || status === 'treasury-busy';
+}
+
+function payrollLogisticsStatus(
+  status: ReturnType<typeof guardhousePayrollLogisticsPlan>['status'],
+): string {
+  switch (status) {
+    case 'no-treasury': return 'No civic treasury can dispatch company pay';
+    case 'no-gold': return 'Treasury empty — company pay cannot be dispatched';
+    case 'no-road': return 'Payroll route severed — no treasury lockbox can reach this company';
+    case 'no-hauler': return 'Payroll waiting — no free hauler can leave the treasury';
+    case 'treasury-busy': return 'Payroll waiting — reachable treasury carts are already committed';
+    default: return 'Payroll logistics ready';
+  }
+}
+
+function payrollLogisticsFeedback(
+  plan: ReturnType<typeof guardhousePayrollLogisticsPlan>,
+  context: InspectorRenderContext,
+): string {
+  const sourceLabel = plan.source
+    ? context.worldQueries.getBuildingLabel(plan.source.kind)
+    : 'civic treasury';
+  const route = plan.routeDistance === null ? '' : ` · ${Math.round(plan.routeDistance)} m by road`;
+  const inspectTrip = plan.activeTrip
+    ? ` <button type="button" class="inspector-jump-button" data-inspect-delivery-trip="${plan.activeTrip.id}" aria-label="Inspect incoming payroll cart">Inspect cart</button>`
+    : '';
+  switch (plan.status) {
+    case 'inactive': return 'No armed guards require pay';
+    case 'legacy': return 'Legacy abstract treasury settlement';
+    case 'stocked':
+      return `Local chest above ${GUARDHOUSE_PAYROLL_REORDER_DAYS}-day reorder · next refill to ${GUARDHOUSE_PAYROLL_TARGET_DAYS} days`;
+    case 'en-route':
+      return `${plan.inTransitGold.toFixed(1)} gold from ${sourceLabel}${route}${inspectTrip}`;
+    case 'ready':
+      return `${plan.cartLoad.toFixed(1)} gold ready at ${sourceLabel}${route}`;
+    default:
+      return `${payrollLogisticsStatus(plan.status)}${route}`;
+  }
 }

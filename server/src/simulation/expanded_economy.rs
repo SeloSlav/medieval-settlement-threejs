@@ -52,7 +52,7 @@ use crate::simulation::delivery_trips::{
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::landmark_access::monastery_linked_to_chapel;
-use crate::simulation::try_dispatch_local_civic_receipts;
+use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
 use crate::simulation::residence_needs::{
     apply_need_delivery, load_needs, need_stock, ResidenceNeedKind,
 };
@@ -1022,7 +1022,20 @@ pub fn step_guardhouse(
         return;
     }
 
-    let available_gold = treasury_gold(ctx, building.owner);
+    let physical_payroll = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&building.owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if physical_payroll {
+        try_dispatch_guardhouse_payroll(ctx, tick, clock, &building, armed_guards);
+    }
+    let available_gold = if physical_payroll {
+        building.gold
+    } else {
+        treasury_gold(ctx, building.owner)
+    };
     let upkeep = guard_upkeep(
         armed_guards,
         building.food,
@@ -1035,7 +1048,16 @@ pub fn step_guardhouse(
         CommodityKind::Food,
         upkeep.food_due * upkeep.supply_ratio,
     );
-    let _ = spend_treasury_gold(ctx, building.owner, upkeep.wage_due * upkeep.supply_ratio);
+    if physical_payroll {
+        withdraw_building_commodity(
+            &mut building,
+            CommodityKind::Gold,
+            upkeep.wage_due * upkeep.supply_ratio,
+        );
+    } else {
+        let _ =
+            spend_treasury_gold(ctx, building.owner, upkeep.wage_due * upkeep.supply_ratio);
+    }
     building.action_cooldown = next_guard_readiness(
         building.action_cooldown,
         upkeep.supply_ratio,

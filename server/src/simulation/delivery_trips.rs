@@ -268,9 +268,12 @@ pub fn preserve_in_transit_cart_labor(
 }
 
 fn free_hauler_workers_for_trip(origin: &Building, cargo_kind: u8, delivery_workers: u32) -> u32 {
-    let is_chapel_gold_errand =
-        origin.kind == "chapel" && cargo_kind == CommodityKind::Gold.as_u8();
-    if origin.assigned_labor == 0 || is_chapel_gold_errand {
+    let is_free_gold_errand = cargo_kind == CommodityKind::Gold.as_u8()
+        && matches!(
+            origin.kind.as_str(),
+            "chapel" | "town_hall" | "founders_camp" | "salvage_pile"
+        );
+    if origin.assigned_labor == 0 || is_free_gold_errand {
         delivery_workers
     } else {
         0

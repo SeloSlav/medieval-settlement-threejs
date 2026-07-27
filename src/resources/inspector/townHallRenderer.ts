@@ -160,6 +160,7 @@ import {
   formatTripPhaseLabel,
 } from '../../logistics/deliveryTrips.ts';
 import {
+  guardhousePayrollInTransitGold,
   guardhousePayrollPlan,
 } from '../../security/guardhousePayrollPolicy.ts';
 import {
@@ -1520,13 +1521,22 @@ export function renderTownHallInspector(
   const yearRoundLaborInspectButton = yearRoundLaborInspectId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${yearRoundLaborInspectId}" aria-label="Inspect first year-round crew balance site">Inspect</button>`;
+  const payrollInTransit = guardhousePayrollInTransitGold(
+    context.gameState.deliveryTrips.values(),
+  );
   const guardhousePayroll = guardhousePayrollPlan(
     context.gameState.buildings.values(),
     context.resourceTotals.gold,
     fireDisabled,
+    payrollInTransit,
   );
   const payrollGoldDue = guardhousePayroll.reduce((sum, company) => sum + company.dailyWage, 0);
   const payrollGoldFunded = guardhousePayroll.reduce((sum, company) => sum + company.fundedGold, 0);
+  const payrollGoldOnsite = guardhousePayroll.reduce((sum, company) => sum + company.onsiteGold, 0);
+  const payrollGoldInTransit = guardhousePayroll.reduce(
+    (sum, company) => sum + company.inTransitGold,
+    0,
+  );
   const underfundedCompany = guardhousePayroll.find((company) => company.fundedRatio < 0.999);
   let leanReserveCompanies = 0;
   let deepReserveCompanies = 0;
@@ -1869,8 +1879,9 @@ export function renderTownHallInspector(
       ${armamentPlan === null ? '' : renderSettlementArmamentRows(armamentPlan)}
       ${provisioning.armedGuards > 0 ? `<li><span>Guardhouse food</span><span>${provisioning.guardFoodStock.toFixed(1)} on site · first shortfall ${formatProvisionRunway(provisioning.guardProvisionRunwayDays)}</span></li>
       <li><span>Ration reserves</span><span>${provisioning.guardFoodStock.toFixed(1)} / ${guardProvisionTarget.toFixed(1)} food target · ${leanReserveCompanies} lean · ${standardReserveCompanies} company · ${deepReserveCompanies} deep</span></li>
-      <li><span>Guard wages</span><span>${provisioning.guardWagePerDay.toFixed(1)} gold / day · ${formatProvisionRunway(provisioning.guardWageRunwayDays)}</span></li>
-      <li><span>Next-day payroll</span><span>${payrollGoldFunded.toFixed(1)} / ${payrollGoldDue.toFixed(1)} gold funded${underfundedCompany ? ` · ${guardhousePayroll.filter((company) => company.fundedRatio < 0.999).length} companies at risk <button type="button" class="inspector-jump-button" data-inspect-building="${underfundedCompany.building.id}" aria-label="Inspect first underfunded guardhouse">Inspect</button>` : ' · all companies funded'}</span></li>
+      <li><span>Guard wages</span><span>${provisioning.guardWagePerDay.toFixed(1)} gold / day · ${formatProvisionRunway(provisioning.guardWageRunwayDays)} across treasury, pay chests, and incoming carts</span></li>
+      <li><span>Physical payroll</span><span>${payrollGoldOnsite.toFixed(1)} in company chests · ${payrollGoldInTransit.toFixed(1)} on treasury carts · ${context.resourceTotals.gold.toFixed(1)} still spendable at civic treasuries</span></li>
+      <li><span>Next-day payroll</span><span>${payrollGoldFunded.toFixed(1)} / ${payrollGoldDue.toFixed(1)} gold secured or treasury-funded${underfundedCompany ? ` · ${guardhousePayroll.filter((company) => company.fundedRatio < 0.999).length} companies at risk <button type="button" class="inspector-jump-button" data-inspect-building="${underfundedCompany.building.id}" aria-label="Inspect first underfunded guardhouse">Inspect</button>` : ' · all companies funded'}</span></li>
       ` : ''}
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },

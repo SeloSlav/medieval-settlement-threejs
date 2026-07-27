@@ -55,6 +55,8 @@ export type SettlementProvisioning = {
   unarmedGuards: number;
   guardFoodStock: number;
   guardProvisionRunwayDays: number;
+  guardPayChestGold: number;
+  guardPayrollInTransitGold: number;
   householdBufferHouseholds: number;
   householdBufferReadyHouseholds: number;
   householdBufferCoverage: number;
@@ -506,6 +508,7 @@ export function computeSettlementProvisioning(input: {
   let assignedGuards = 0;
   let armedGuards = 0;
   let guardFoodStock = 0;
+  let guardPayChestGold = 0;
   let guardProvisionRunwayDays = Number.POSITIVE_INFINITY;
   for (const building of state.buildings.values()) {
     const fireDisabled = fireDisabledBuildings.has(building.id);
@@ -562,6 +565,7 @@ export function computeSettlementProvisioning(input: {
     );
     armedGuards += armedHere;
     guardFoodStock += Math.max(0, building.food);
+    guardPayChestGold += finiteStock(building.gold);
     if (armedHere > 0) {
       guardProvisionRunwayDays = Math.min(
         guardProvisionRunwayDays,
@@ -571,6 +575,21 @@ export function computeSettlementProvisioning(input: {
         ),
       );
     }
+  }
+
+  let guardPayrollInTransitGold = 0;
+  for (const trip of state.deliveryTrips.values()) {
+    if (
+      trip.destinationKind !== 'building'
+      || trip.targetBuildingId === null
+      || trip.cargoKind !== 'gold'
+      || trip.phase === 'inbound'
+      || fireDisabledBuildings.has(trip.targetBuildingId)
+      || state.buildings.get(trip.targetBuildingId)?.kind !== 'guardhouse'
+    ) {
+      continue;
+    }
+    guardPayrollInTransitGold += finiteStock(trip.amount);
   }
 
   if (roadProvisionBranches && roadComponentFor) {
@@ -689,6 +708,8 @@ export function computeSettlementProvisioning(input: {
     unarmedGuards: Math.max(0, assignedGuards - armedGuards),
     guardFoodStock,
     guardProvisionRunwayDays,
+    guardPayChestGold,
+    guardPayrollInTransitGold,
     householdBufferHouseholds,
     householdBufferReadyHouseholds,
     householdBufferCoverage: householdBufferHouseholds > 0
@@ -728,7 +749,10 @@ export function computeSettlementProvisioning(input: {
       ? usableFirewoodStock / winterFirewoodNeed
       : Number.POSITIVE_INFINITY,
     guardWagePerDay,
-    guardWageRunwayDays: runwayDays(totals.gold, guardWagePerDay),
+    guardWageRunwayDays: runwayDays(
+      totals.gold + guardPayChestGold + guardPayrollInTransitGold,
+      guardWagePerDay,
+    ),
     sabbathObserved,
     sabbathHouseholds,
     sabbathReadyHouseholds,

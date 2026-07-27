@@ -31,6 +31,9 @@ import {
   LOCAL_RECEIPT_VISUAL_CAPACITY,
 } from './meshes/expandedBuildingMeshes.ts';
 import {
+  GUARDHOUSE_PAYROLL_VISUAL_CAPACITY,
+} from './meshes/civicLogisticsBuildingMeshes.ts';
+import {
   animateFoundersCampfire,
   FOUNDERS_CAMPFIRE_NAME,
   setFoundersCampfireNightLighting,
@@ -470,6 +473,17 @@ function syncBuildingVisualState(
         'FerryReceiptSegment',
         localCivicReceiptGold(building),
         LOCAL_RECEIPT_VISUAL_CAPACITY,
+      );
+    }
+  }
+  if (building.kind === 'guardhouse') {
+    const chest = marker.getObjectByName('GuardhousePayrollChest');
+    if (chest instanceof THREE.Group) {
+      syncStockpileSegments(
+        chest,
+        'GuardhousePayrollSegment',
+        building.gold,
+        GUARDHOUSE_PAYROLL_VISUAL_CAPACITY,
       );
     }
   }

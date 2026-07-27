@@ -772,6 +772,7 @@ export class ResourceInspector {
     population: PopulationStats,
     inTransit?: ResourceTotals,
     goldAwaitingCollection = 0,
+    guardhousePayrollGold = 0,
   ): void {
     this.populationStats = population;
     this.stockpileValues.timber.textContent = Math.round(totals.timber).toString();
@@ -796,6 +797,9 @@ export class ResourceInspector {
       const details = [];
       if (resource === 'gold' && goldAwaitingCollection > 1e-6) {
         details.push(`+${formatTransitAmount(goldAwaitingCollection)} awaiting collection`);
+      }
+      if (resource === 'gold' && guardhousePayrollGold > 1e-6) {
+        details.push(`${formatTransitAmount(guardhousePayrollGold)} in company pay chests`);
       }
       if (amount > 1e-6) {
         details.push(`+${formatTransitAmount(amount)} en route`);

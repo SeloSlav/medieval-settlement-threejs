@@ -1,6 +1,7 @@
 pub use crate::balance_generated::{
     CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
     GUARDHOUSE_FOOD_PER_GUARD_PER_DAY, GUARDHOUSE_READINESS_DECAY_PER_DAY,
+    GUARDHOUSE_PAYROLL_REORDER_DAYS, GUARDHOUSE_PAYROLL_TARGET_DAYS,
     GUARDHOUSE_TRAINING_PER_DAY, GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
 };
 use std::cmp::Ordering;
@@ -110,6 +111,45 @@ pub fn guardhouse_food_runway_days(assigned_labor: u32, polearms: f64, food_stoc
     } else {
         food_stock.max(0.0) / daily_food
     }
+}
+
+pub fn guardhouse_daily_wage(armed: f64) -> f64 {
+    armed.max(0.0) * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY
+}
+
+pub fn guardhouse_payroll_target(armed: f64) -> f64 {
+    guardhouse_daily_wage(armed) * GUARDHOUSE_PAYROLL_TARGET_DAYS.max(0.0)
+}
+
+pub fn guardhouse_payroll_reorder_point(armed: f64) -> f64 {
+    guardhouse_daily_wage(armed)
+        * GUARDHOUSE_PAYROLL_REORDER_DAYS
+            .clamp(0.0, GUARDHOUSE_PAYROLL_TARGET_DAYS.max(0.0))
+}
+
+/// Returns the next physical pay-cart load. A company waits until its secured
+/// on-site and incoming pay falls below the reorder point, then requests enough
+/// to restore the full target without exceeding either treasury stock or one
+/// handcart. This avoids pathological fractional carts after every upkeep tick.
+pub fn guardhouse_payroll_cart_load(
+    armed: f64,
+    onsite_gold: f64,
+    incoming_gold: f64,
+    treasury_gold: f64,
+    cart_capacity: f64,
+) -> f64 {
+    let secured = onsite_gold.max(0.0) + incoming_gold.max(0.0);
+    if armed <= 1e-9
+        || secured + 1e-9 >= guardhouse_payroll_reorder_point(armed)
+        || treasury_gold <= 1e-9
+        || cart_capacity <= 1e-9
+    {
+        return 0.0;
+    }
+    (guardhouse_payroll_target(armed) - secured)
+        .max(0.0)
+        .min(treasury_gold.max(0.0))
+        .min(cart_capacity.max(0.0))
 }
 
 pub fn compare_guardhouse_food_candidates(
@@ -259,6 +299,52 @@ mod tests {
         assert_eq!(guardhouse_polearm_coverage(6, 2.9), 2.0 / 6.0);
         assert_eq!(guardhouse_polearm_coverage(4, 10.0), 1.0);
         assert_eq!(guardhouse_polearm_coverage(0, 0.0), 1.0);
+    }
+
+    #[test]
+    fn payroll_waits_for_the_reorder_point_then_refills_one_period() {
+        let armed = 6.0;
+        let daily_wage = guardhouse_daily_wage(armed);
+        assert!((guardhouse_payroll_target(armed) - daily_wage * 10.0).abs() < 1e-9);
+        assert!(
+            (guardhouse_payroll_reorder_point(armed) - daily_wage * 5.0).abs() < 1e-9
+        );
+        assert_eq!(
+            guardhouse_payroll_cart_load(armed, daily_wage * 5.0, 0.0, 100.0, 24.0),
+            0.0,
+        );
+        assert!(
+            (guardhouse_payroll_cart_load(
+                armed,
+                daily_wage * 4.0,
+                0.0,
+                100.0,
+                24.0,
+            ) - daily_wage * 6.0)
+                .abs()
+                < 1e-9
+        );
+    }
+
+    #[test]
+    fn payroll_cart_respects_incoming_coin_treasury_and_cart_limits() {
+        assert_eq!(
+            guardhouse_payroll_cart_load(6.0, 0.0, 12.0, 100.0, 24.0),
+            0.0,
+            "an approaching chest above the reorder point blocks a duplicate cart",
+        );
+        assert_eq!(
+            guardhouse_payroll_cart_load(6.0, 0.0, 0.0, 7.0, 24.0),
+            7.0,
+        );
+        assert_eq!(
+            guardhouse_payroll_cart_load(100.0, 0.0, 0.0, 100.0, 24.0),
+            24.0,
+        );
+        assert_eq!(
+            guardhouse_payroll_cart_load(0.0, 0.0, 0.0, 100.0, 24.0),
+            0.0,
+        );
     }
 
     #[test]

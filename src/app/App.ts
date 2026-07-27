@@ -22,6 +22,7 @@ import { ResourceInspector } from '../resources/ResourceInspector.ts';
 import {
   computeInTransitResourceTotals,
   computeGoldAwaitingCollection,
+  computeGuardhousePayrollGold,
   computePopulationStats,
   computeResourceTotals,
 } from '../resources/resourceTotals.ts';
@@ -825,6 +826,7 @@ export class App {
       computePopulationStats(this.gameState),
       computeInTransitResourceTotals(this.gameState.deliveryTrips.values()),
       computeGoldAwaitingCollection(this.gameState.buildings.values()),
+      computeGuardhousePayrollGold(this.gameState.buildings.values()),
     );
     this.resourceInspector.refreshSelection();
   }

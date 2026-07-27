@@ -15,6 +15,10 @@ import {
   LOCAL_RECEIPT_VISUAL_SEGMENTS,
 } from './meshes/expandedBuildingMeshes.ts';
 import {
+  GUARDHOUSE_PAYROLL_VISUAL_CAPACITY,
+  GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS,
+} from './meshes/civicLogisticsBuildingMeshes.ts';
+import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
   HAYLOFT_VISUAL_SEGMENTS,
@@ -126,6 +130,14 @@ export function buildingMarkerSignatures(
           LOCAL_RECEIPT_VISUAL_SEGMENTS,
         )}`
         : '';
+      const guardhousePayrollState = building.kind === 'guardhouse'
+        && building.constructionComplete !== false
+        ? `:payroll:${stockpileVisualLevel(
+          building.gold,
+          GUARDHOUSE_PAYROLL_VISUAL_CAPACITY,
+          GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS,
+        )}`
+        : '';
       const marketState = marketplaceVisualState(building);
       const hayState = building.kind === 'pastoral_farmstead'
         && building.constructionComplete !== false
@@ -159,7 +171,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${marketState}${timberState}${hayState}${woolState}${clothState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${hayState}${woolState}${clothState}`,
         collider: structural,
       };
     })

@@ -27,8 +27,18 @@ import {
   WATCHTOWER_ROOF_CENTER_Y,
   WATCHTOWER_ROOF_HEIGHT,
 } from '../watchtowerLayout.ts';
+import {
+  BUILDING_DEFINITIONS,
+  GUARDHOUSE_PAYROLL_TARGET_DAYS,
+  GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
+} from '../../generated/gameBalance.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
+export const GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS = 3;
+export const GUARDHOUSE_PAYROLL_VISUAL_CAPACITY =
+  BUILDING_DEFINITIONS.guardhouse.maxLabor
+  * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY
+  * GUARDHOUSE_PAYROLL_TARGET_DAYS;
 
 function addCrate(group: THREE.Group, x: number, y: number, z: number, scale = 1): void {
   addMesh(group, new THREE.BoxGeometry(1.0 * scale, 0.78 * scale, 0.82 * scale), timberMaterial('weathered'), new THREE.Vector3(x, y + 0.39 * scale, z));
@@ -71,6 +81,49 @@ function addTownHallTreasuryChest(group: THREE.Group): void {
     sharedBuildingDetailMaterial('brass'),
     new THREE.Vector3(3.75, 0.56, 3.62),
   );
+  group.add(chest);
+}
+
+function addGuardhousePayrollChest(group: THREE.Group): void {
+  const chest = new THREE.Group();
+  chest.name = 'GuardhousePayrollChest';
+  chest.visible = false;
+  const placements = [
+    [3.3, 0.06, 1.45],
+    [4.05, 0.06, 1.45],
+    [4.8, 0.06, 1.45],
+  ] as const;
+  placements.forEach(([x, y, z], index) => {
+    const segment = new THREE.Group();
+    segment.name = 'GuardhousePayrollSegment';
+    segment.visible = false;
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.62, 0.42, 0.5),
+      timberMaterial(index === 1 ? 'weathered' : 'dark'),
+      new THREE.Vector3(x, y + 0.23, z),
+    );
+    addMesh(
+      segment,
+      new THREE.CylinderGeometry(0.25, 0.25, 0.62, 8, 1, false, 0, Math.PI),
+      timberMaterial('weathered'),
+      new THREE.Vector3(x, y + 0.48, z),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.07, 0.48, 0.54),
+      metalMaterial('iron'),
+      new THREE.Vector3(x, y + 0.32, z),
+    );
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.14, 0.18, 0.08),
+      sharedBuildingDetailMaterial('brass'),
+      new THREE.Vector3(x, y + 0.32, z + 0.29),
+    );
+    chest.add(segment);
+  });
   group.add(chest);
 }
 
@@ -305,6 +358,7 @@ export function createGuardhouseMesh(): THREE.Group {
   addPolearmRack(group, 4.45, 1.68);
   addCrate(group, 5.55, 0.02, -0.1, 1.08);
   addCrate(group, 3.75, 0.02, -0.52, 0.75);
+  addGuardhousePayrollChest(group);
 
   // A compact palisade fragment frames the drill yard without implying a full wall system.
   for (let index = 0; index < 7; index += 1) {

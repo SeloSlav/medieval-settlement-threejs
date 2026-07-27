@@ -129,6 +129,7 @@ function addTreasuryChest(parent: THREE.Group): void {
 function addCampfire(parent: THREE.Group): THREE.Group {
   const campfire = new THREE.Group();
   campfire.name = FOUNDERS_CAMPFIRE_NAME;
+  campfire.position.set(0.55, 0, -0.6);
   campfire.userData.elapsedSeconds = 0;
   campfire.userData.nightLighting = 1;
 
@@ -136,9 +137,9 @@ function addCampfire(parent: THREE.Group): THREE.Group {
     const angle = index / 10 * Math.PI * 2;
     const stone = addMesh(
       campfire,
-      new THREE.DodecahedronGeometry(0.2 + (index % 2) * 0.035, 0),
+      new THREE.DodecahedronGeometry(0.22 + (index % 2) * 0.04, 0),
       stoneMaterial(index % 3 === 0 ? 'light' : 'mid'),
-      new THREE.Vector3(Math.cos(angle) * 0.72, 0.18, Math.sin(angle) * 0.72),
+      new THREE.Vector3(Math.cos(angle) * 0.82, 0.2, Math.sin(angle) * 0.82),
       new THREE.Euler(index * 0.13, angle, index * 0.19),
     );
     stone.name = 'Founding campfire hearth stone';
@@ -146,7 +147,7 @@ function addCampfire(parent: THREE.Group): THREE.Group {
 
   const embers = addMesh(
     campfire,
-    new THREE.CylinderGeometry(0.5, 0.58, 0.09, 12),
+    new THREE.CylinderGeometry(0.58, 0.67, 0.1, 12),
     sharedBuildingDetailMaterial('paintRed'),
     new THREE.Vector3(0, 0.14, 0),
   );
@@ -155,7 +156,7 @@ function addCampfire(parent: THREE.Group): THREE.Group {
   for (const [index, yaw] of [Math.PI * 0.25, -Math.PI * 0.25].entries()) {
     const log = addMesh(
       campfire,
-      new THREE.CylinderGeometry(0.11, 0.14, 1.35, 7),
+      new THREE.CylinderGeometry(0.12, 0.15, 1.55, 7),
       timberMaterial(index === 0 ? 'dark' : 'weathered'),
       new THREE.Vector3(0, 0.28 + index * 0.05, 0),
       new THREE.Euler(Math.PI * 0.5, yaw, 0),
@@ -166,17 +167,17 @@ function addCampfire(parent: THREE.Group): THREE.Group {
   const flames = new THREE.Group();
   flames.name = FOUNDERS_CAMPFIRE_FLAMES_NAME;
   const flameSpecs = [
-    { x: 0, z: 0, radius: 0.28, height: 0.95, phase: 0 },
-    { x: -0.23, z: 0.08, radius: 0.19, height: 0.7, phase: 1.7 },
-    { x: 0.21, z: 0.13, radius: 0.17, height: 0.64, phase: 3.1 },
-    { x: 0.08, z: -0.2, radius: 0.15, height: 0.57, phase: 4.6 },
+    { x: 0, z: 0, radius: 0.34, height: 1.18, phase: 0 },
+    { x: -0.26, z: 0.09, radius: 0.23, height: 0.84, phase: 1.7 },
+    { x: 0.25, z: 0.14, radius: 0.21, height: 0.78, phase: 3.1 },
+    { x: 0.1, z: -0.23, radius: 0.18, height: 0.68, phase: 4.6 },
   ];
   for (const [index, spec] of flameSpecs.entries()) {
     const flame = addMesh(
       flames,
       new THREE.ConeGeometry(spec.radius, spec.height, 7),
       sharedBuildingDetailMaterial(index === 0 ? 'paintOchre' : 'paintRed'),
-      new THREE.Vector3(spec.x, 0.35 + spec.height * 0.5, spec.z),
+      new THREE.Vector3(spec.x, 0.38 + spec.height * 0.5, spec.z),
     );
     flame.name = 'Animated founding campfire flame';
     flame.renderOrder = 18;

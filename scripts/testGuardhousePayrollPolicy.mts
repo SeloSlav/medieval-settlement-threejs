@@ -1,12 +1,24 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
+import * as THREE from 'three';
+import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
+import {
+  GUARDHOUSE_PAYROLL_VISUAL_CAPACITY,
+  GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS,
+} from '../src/buildings/meshes/civicLogisticsBuildingMeshes.ts';
 import type { BuildingState } from '../src/resources/types.ts';
 import {
   GUARDHOUSE_PAY_PRIORITY_HIGH,
   GUARDHOUSE_PAY_PRIORITY_LOW,
   GUARDHOUSE_PAY_PRIORITY_NORMAL,
+  guardhousePayrollCartLoad,
+  guardhousePayrollInTransitGold,
+  guardhousePayrollLogisticsPlan,
   guardhousePayrollPlan,
+  guardhousePayrollReorderPoint,
+  guardhousePayrollTarget,
   guardhousePayPriorityLabel,
   normalizeGuardhousePayPriority,
 } from '../src/security/guardhousePayrollPolicy.ts';
@@ -38,6 +50,106 @@ assert.ok(Math.abs(payroll[1].fundedRatio - (1.3 / 1.4)) < 1e-9);
 assert.equal(payroll[2].fundedRatio, 0);
 assert.equal(payroll[3].fundedRatio, 0);
 assert.deepEqual(payroll.map((company) => company.claimPosition), [1, 2, 3, 4]);
+assert.ok(Math.abs(guardhousePayrollTarget(6) - 21) < 1e-9);
+assert.ok(Math.abs(guardhousePayrollReorderPoint(6) - 10.5) < 1e-9);
+assert.equal(
+  guardhousePayrollCartLoad({
+    armedGuards: 6,
+    onsiteGold: 10.5,
+    inTransitGold: 0,
+    treasuryGold: 100,
+  }),
+  0,
+  'a company at the five-day reorder point must not dispatch fractional carts',
+);
+assert.ok(Math.abs(
+  guardhousePayrollCartLoad({
+    armedGuards: 6,
+    onsiteGold: 8.4,
+    inTransitGold: 0,
+    treasuryGold: 100,
+  }) - 12.6,
+) < 1e-9);
+
+const physicalCompany = guardhouse('building-20', 6, GUARDHOUSE_PAY_PRIORITY_HIGH);
+physicalCompany.x = 100;
+physicalCompany.gold = 4;
+const townHall = {
+  ...guardhouse('building-1', 0, GUARDHOUSE_PAY_PRIORITY_NORMAL),
+  kind: 'town_hall',
+  x: 0,
+  gold: 30,
+} as BuildingState;
+const readyLogistics = guardhousePayrollLogisticsPlan({
+  guardhouse: physicalCompany,
+  buildings: [physicalCompany, townHall],
+  trips: [],
+  physicalEconomy: true,
+  freeHaulers: 1,
+  getRoadPathDistance: () => 125,
+});
+assert.equal(readyLogistics.status, 'ready');
+assert.equal(readyLogistics.source?.id, townHall.id);
+assert.equal(readyLogistics.routeDistance, 125);
+assert.ok(Math.abs(readyLogistics.cartLoad - 17) < 1e-9);
+assert.equal(
+  guardhousePayrollLogisticsPlan({
+    guardhouse: physicalCompany,
+    buildings: [physicalCompany, townHall],
+    trips: [],
+    physicalEconomy: true,
+    freeHaulers: 0,
+    getRoadPathDistance: () => 125,
+  }).status,
+  'no-hauler',
+);
+assert.equal(
+  guardhousePayrollLogisticsPlan({
+    guardhouse: physicalCompany,
+    buildings: [physicalCompany, townHall],
+    trips: [],
+    physicalEconomy: true,
+    freeHaulers: 1,
+    getRoadPathDistance: () => null,
+  }).status,
+  'no-road',
+);
+const incomingPayroll = {
+  id: 'trip-1',
+  buildingId: townHall.id,
+  residenceId: null,
+  destinationKind: 'building',
+  targetBuildingId: physicalCompany.id,
+  cargoKind: 'gold',
+  amount: 12,
+  phase: 'outbound',
+  x: 50,
+  z: 0,
+  progress: 50,
+  speedMps: 2,
+  unloadSeconds: 3,
+  unloadRemaining: 3,
+  deliveryWorkers: 1,
+  freeHaulerWorkers: 1,
+  pathDistance: 125,
+  travelSpeedMultiplier: 1,
+  routePolylineJson: '[]',
+} as const;
+assert.equal(
+  guardhousePayrollInTransitGold([incomingPayroll]).get(physicalCompany.id),
+  12,
+);
+const enRouteLogistics = guardhousePayrollLogisticsPlan({
+  guardhouse: physicalCompany,
+  buildings: [physicalCompany, townHall],
+  trips: [incomingPayroll],
+  physicalEconomy: true,
+  freeHaulers: 0,
+  getRoadPathDistance: () => 125,
+});
+assert.equal(enRouteLogistics.status, 'en-route');
+assert.equal(enRouteLogistics.securedGold, 16);
+assert.equal(enRouteLogistics.activeTrip?.id, incomingPayroll.id);
 
 const fireFilteredPayroll = guardhousePayrollPlan(
   [
@@ -86,6 +198,21 @@ assert.match(
   /Company priority[\s\S]*?data-guardhouse-pay-priority[\s\S]*?lowest armed share first/,
   'guardhouse controls must explain the shared equipment, provision, and wage order',
 );
+const guardhousePayrollSimulation = readFileSync(
+  'server/src/simulation/guardhouse_payroll.rs',
+  'utf8',
+);
+assert.match(
+  guardhousePayrollSimulation,
+  /available_free_haulers[\s\S]*?building_ids_for_kinds[\s\S]*?PAYROLL_TREASURY_KINDS[\s\S]*?try_start_building_supply_trip[\s\S]*?CommodityKind::Gold/,
+  'physical payroll must reserve free labor and move one lockbox over a real treasury road route',
+);
+const deliveryTrips = readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
+assert.match(
+  deliveryTrips,
+  /is_free_gold_errand[\s\S]*?"town_hall"[\s\S]*?"founders_camp"[\s\S]*?"salvage_pile"/,
+  'treasury payroll carts must reserve free haulers instead of removing the Town Hall clerk',
+);
 const townHallInspector = readFileSync(
   'src/resources/inspector/townHallRenderer.ts',
   'utf8',
@@ -104,6 +231,53 @@ assert.match(
   expandedEconomy,
   /dispatch_polearms_to_guardhouse[\s\S]*?select_guardhouse_armament_candidate[\s\S]*?guardhouse_pay_priority[\s\S]*?guardhouse_polearm_coverage[\s\S]*?distance[\s\S]*?building\.id/,
   'carpenter weapon dispatch must apply priority, armed coverage, route, and stable id',
+);
+assert.match(
+  expandedEconomy,
+  /physical_payroll[\s\S]*?try_dispatch_guardhouse_payroll[\s\S]*?building\.gold[\s\S]*?CommodityKind::Gold[\s\S]*?else \{[\s\S]*?spend_treasury_gold/,
+  'new saves must consume local pay chests while legacy saves retain abstract treasury compatibility',
+);
+const commodities = readFileSync('server/src/economy/commodities.rs', 'utf8');
+assert.match(
+  commodities,
+  /CommodityKind::Gold[\s\S]*?"guardhouse"/,
+  'guardhouses must accept physical payroll coin',
+);
+const fires = readFileSync('server/src/simulation/fires.rs', 'utf8');
+assert.match(
+  fires,
+  /building\.gold = 0\.0/,
+  'a destroyed guardhouse must lose the coin stored in its pay chest',
+);
+const settlementSecurity = readFileSync(
+  'server/src/simulation/settlement_security.rs',
+  'utf8',
+);
+assert.match(
+  settlementSecurity,
+  /gold: building\.gold[\s\S]*?plunder\(forecast\.loss_fraction\)[\s\S]*?retain_unplundered_stores/,
+  'guardhouse pay chests must remain part of the portable stores exposed to raids',
+);
+assert.match(
+  inspector,
+  /Pay chest[\s\S]*?Payroll route[\s\S]*?pay lockboxes from a civic treasury/,
+  'the guardhouse inspector must expose local coin, route blockers, and the full supply chain',
+);
+const guardhouseMesh = createBuildingMesh('guardhouse');
+const payrollChest = guardhouseMesh.getObjectByName('GuardhousePayrollChest');
+assert.ok(payrollChest instanceof THREE.Group);
+assert.equal(
+  payrollChest.children.filter((child) => child.name === 'GuardhousePayrollSegment').length,
+  GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS,
+);
+assert.ok(Math.abs(GUARDHOUSE_PAYROLL_VISUAL_CAPACITY - 21) < 1e-9);
+const lowChest = guardhouse('building-90', 6, GUARDHOUSE_PAY_PRIORITY_NORMAL);
+lowChest.gold = 1;
+const fullChest = { ...lowChest, gold: GUARDHOUSE_PAYROLL_VISUAL_CAPACITY };
+assert.notEqual(
+  buildingMarkerSignatures(new Map([[lowChest.id, lowChest]])).visual,
+  buildingMarkerSignatures(new Map([[fullChest.id, fullChest]])).visual,
+  'pay-chest fill bands must refresh without rebuilding colliders',
 );
 
 const performanceCompanies = Array.from(
@@ -149,5 +323,8 @@ function guardhouse(
     assignedLabor: armedGuards,
     polearms: armedGuards,
     guardhousePayPriority: priority,
+    gold: 0,
+    x: 0,
+    z: 0,
   } as BuildingState;
 }

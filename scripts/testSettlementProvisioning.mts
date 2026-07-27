@@ -166,6 +166,48 @@ assert.equal(WINTER_RESERVE_DAYS, 30);
 assert.equal(HOUSEHOLD_BUFFER_WARNING_COVERAGE, 0.8);
 assert.equal(HOUSEHOLD_BUFFER_CRITICAL_COVERAGE, 0.5);
 
+const physicalPayrollState = emptyGameState();
+physicalPayrollState.stockpile.gold = 7;
+const payrollGuards = building('payroll-guards', 'guardhouse', 3, 2.9);
+payrollGuards.gold = 4;
+physicalPayrollState.buildings.set(payrollGuards.id, payrollGuards);
+const payrollTownHall = building('payroll-town-hall', 'townHall', 1, 0);
+physicalPayrollState.buildings.set(payrollTownHall.id, payrollTownHall);
+physicalPayrollState.deliveryTrips.set('guard-payroll-cart', {
+  id: 'guard-payroll-cart',
+  buildingId: payrollTownHall.id,
+  residenceId: null,
+  destinationKind: 'building',
+  targetBuildingId: payrollGuards.id,
+  cargoKind: 'gold',
+  amount: 3,
+  phase: 'outbound',
+  x: 0,
+  z: 0,
+  progress: 0,
+  speedMps: 2,
+  unloadSeconds: 3,
+  unloadRemaining: 3,
+  deliveryWorkers: 1,
+  freeHaulerWorkers: 1,
+  pathDistance: 20,
+  travelSpeedMultiplier: 1,
+  routePolylineJson: '[]',
+});
+const physicalPayroll = computeSettlementProvisioning({
+  state: physicalPayrollState,
+  totals: computeResourceTotals(physicalPayrollState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: true,
+});
+assert.equal(physicalPayroll.guardPayChestGold, 4);
+assert.equal(physicalPayroll.guardPayrollInTransitGold, 3);
+assert.ok(
+  Math.abs(physicalPayroll.guardWageRunwayDays - 20) < 1e-9,
+  'guard wage runway must include treasury gold, local pay chests, and outbound payroll carts',
+);
+
 state.fireIncidents.set('guardhouse-fire', {
   id: 'guardhouse-fire',
   targetKind: 'building',

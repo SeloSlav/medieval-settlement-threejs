@@ -35,6 +35,7 @@ import { ResourceInspector } from '../resources/ResourceInspector.ts';
 import {
   computeInTransitResourceTotals,
   computeGoldAwaitingCollection,
+  computeGuardhousePayrollGold,
   computePopulationStats,
   computeResourceTotals,
 } from '../resources/resourceTotals.ts';
@@ -775,6 +776,7 @@ export async function bootstrapAppSession(
     computePopulationStats(gameState),
     computeInTransitResourceTotals(gameState.deliveryTrips.values()),
     computeGoldAwaitingCollection(gameState.buildings.values()),
+    computeGuardhousePayrollGold(gameState.buildings.values()),
   );
 
   firstPersonController = new FirstPersonController({

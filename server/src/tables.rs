@@ -232,7 +232,7 @@ pub struct Building {
     pub storehouse_accepts_stone: bool,
     #[default(true)]
     pub storehouse_accepts_firewood: bool,
-    /// Chapel coffer gold (tithes); other buildings keep this at zero.
+    /// Physical coin held by civic, religious, trade, ferry, and guard buildings.
     #[default(0.0)]
     pub gold: f64,
     /// False while this row is a construction site rather than an operating building.
