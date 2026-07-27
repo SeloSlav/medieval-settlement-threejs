@@ -142,6 +142,7 @@ const presentation = new SettlementPresentationController(() => presentationNowM
 const emptyPresentationTargets = {
   settlementHud: null,
   sceneManager: null,
+  buildingMarkers: null,
   residenceMarkers: null,
   villagers: null,
   ambientAudio: null,

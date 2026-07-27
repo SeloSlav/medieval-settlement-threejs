@@ -119,6 +119,8 @@ export type BuildingState = {
   marketplacePendingTradeCode?: number;
   foundingShelterActive?: boolean;
   chapelMonasteryTitheDue?: number;
+  /** Source-held fares or gifts pledged to the civic treasury. */
+  civicReceiptsGold?: number;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {

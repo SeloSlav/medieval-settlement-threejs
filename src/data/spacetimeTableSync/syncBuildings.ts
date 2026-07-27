@@ -97,5 +97,6 @@ function buildingStateFromRow(
     marketplacePendingTradeCode: row.marketplacePendingTradeCode,
     foundingShelterActive: row.foundingShelterActive,
     chapelMonasteryTitheDue: row.chapelMonasteryTitheDue,
+    civicReceiptsGold: row.civicReceiptsGold,
   };
 }

@@ -12,6 +12,13 @@ import {
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
 
+export const FOUNDERS_CAMPFIRE_NAME = 'FoundingCampfire';
+const FOUNDERS_CAMPFIRE_FLAMES_NAME = 'FoundingCampfireFlames';
+const FOUNDERS_CAMPFIRE_SMOKE_NAME = 'FoundingCampfireSmoke';
+const FOUNDERS_CAMPFIRE_SPARKS_NAME = 'FoundingCampfireSparks';
+const FOUNDERS_CAMPFIRE_EMBERS_NAME = 'FoundingCampfireEmbers';
+const FOUNDERS_CAMPFIRE_LIGHT_NAME = 'FoundingCampfireLight';
+
 function addAFrameShelter(
   parent: THREE.Group,
   x: number,
@@ -119,6 +126,184 @@ function addTreasuryChest(parent: THREE.Group): void {
   parent.add(chest);
 }
 
+function addCampfire(parent: THREE.Group): THREE.Group {
+  const campfire = new THREE.Group();
+  campfire.name = FOUNDERS_CAMPFIRE_NAME;
+  campfire.userData.elapsedSeconds = 0;
+  campfire.userData.nightLighting = 1;
+
+  for (let index = 0; index < 10; index += 1) {
+    const angle = index / 10 * Math.PI * 2;
+    const stone = addMesh(
+      campfire,
+      new THREE.DodecahedronGeometry(0.2 + (index % 2) * 0.035, 0),
+      stoneMaterial(index % 3 === 0 ? 'light' : 'mid'),
+      new THREE.Vector3(Math.cos(angle) * 0.72, 0.18, Math.sin(angle) * 0.72),
+      new THREE.Euler(index * 0.13, angle, index * 0.19),
+    );
+    stone.name = 'Founding campfire hearth stone';
+  }
+
+  const embers = addMesh(
+    campfire,
+    new THREE.CylinderGeometry(0.5, 0.58, 0.09, 12),
+    sharedBuildingDetailMaterial('paintRed'),
+    new THREE.Vector3(0, 0.14, 0),
+  );
+  embers.name = FOUNDERS_CAMPFIRE_EMBERS_NAME;
+
+  for (const [index, yaw] of [Math.PI * 0.25, -Math.PI * 0.25].entries()) {
+    const log = addMesh(
+      campfire,
+      new THREE.CylinderGeometry(0.11, 0.14, 1.35, 7),
+      timberMaterial(index === 0 ? 'dark' : 'weathered'),
+      new THREE.Vector3(0, 0.28 + index * 0.05, 0),
+      new THREE.Euler(Math.PI * 0.5, yaw, 0),
+    );
+    log.name = 'Founding campfire crossed log';
+  }
+
+  const flames = new THREE.Group();
+  flames.name = FOUNDERS_CAMPFIRE_FLAMES_NAME;
+  const flameSpecs = [
+    { x: 0, z: 0, radius: 0.28, height: 0.95, phase: 0 },
+    { x: -0.23, z: 0.08, radius: 0.19, height: 0.7, phase: 1.7 },
+    { x: 0.21, z: 0.13, radius: 0.17, height: 0.64, phase: 3.1 },
+    { x: 0.08, z: -0.2, radius: 0.15, height: 0.57, phase: 4.6 },
+  ];
+  for (const [index, spec] of flameSpecs.entries()) {
+    const flame = addMesh(
+      flames,
+      new THREE.ConeGeometry(spec.radius, spec.height, 7),
+      sharedBuildingDetailMaterial(index === 0 ? 'paintOchre' : 'paintRed'),
+      new THREE.Vector3(spec.x, 0.35 + spec.height * 0.5, spec.z),
+    );
+    flame.name = 'Animated founding campfire flame';
+    flame.renderOrder = 18;
+    flame.userData.baseScale = flame.scale.clone();
+    flame.userData.flickerPhase = spec.phase;
+  }
+  campfire.add(flames);
+
+  const smoke = new THREE.Group();
+  smoke.name = FOUNDERS_CAMPFIRE_SMOKE_NAME;
+  for (let index = 0; index < 5; index += 1) {
+    const puff = addMesh(
+      smoke,
+      new THREE.SphereGeometry(0.2, 7, 5),
+      sharedBuildingDetailMaterial('smoke'),
+      new THREE.Vector3(0, 0.9 + index * 0.35, 0),
+    );
+    puff.name = 'Animated founding campfire smoke';
+    puff.renderOrder = 17;
+  }
+  campfire.add(smoke);
+
+  const sparks = new THREE.Group();
+  sparks.name = FOUNDERS_CAMPFIRE_SPARKS_NAME;
+  for (let index = 0; index < 6; index += 1) {
+    const spark = addMesh(
+      sparks,
+      new THREE.DodecahedronGeometry(0.035, 0),
+      sharedBuildingDetailMaterial('brass'),
+      new THREE.Vector3(0, 0.6, 0),
+    );
+    spark.name = 'Animated founding campfire spark';
+  }
+  campfire.add(sparks);
+
+  const light = new THREE.PointLight(0xff7a32, 10, 12, 1.7);
+  light.name = FOUNDERS_CAMPFIRE_LIGHT_NAME;
+  light.position.y = 0.9;
+  campfire.add(light);
+
+  parent.add(campfire);
+  return campfire;
+}
+
+export function setFoundersCampfireNightLighting(
+  campfire: THREE.Group,
+  nightLighting: number,
+): void {
+  campfire.userData.nightLighting = THREE.MathUtils.clamp(nightLighting, 0, 1);
+}
+
+export function animateFoundersCampfire(
+  campfire: THREE.Group,
+  dtSeconds: number,
+): void {
+  const elapsed = (Number(campfire.userData.elapsedSeconds) || 0)
+    + Math.max(0, dtSeconds);
+  campfire.userData.elapsedSeconds = elapsed;
+  const nightLighting = THREE.MathUtils.clamp(
+    Number(campfire.userData.nightLighting) || 0,
+    0,
+    1,
+  );
+
+  const flames = campfire.getObjectByName(FOUNDERS_CAMPFIRE_FLAMES_NAME);
+  if (flames instanceof THREE.Group) {
+    for (const [index, child] of flames.children.entries()) {
+      if (!(child instanceof THREE.Mesh)) continue;
+      const phase = Number(child.userData.flickerPhase) || index;
+      const baseScale = child.userData.baseScale instanceof THREE.Vector3
+        ? child.userData.baseScale
+        : new THREE.Vector3(1, 1, 1);
+      const flicker = 0.88
+        + Math.sin(elapsed * (8.4 + index * 0.65) + phase) * 0.13
+        + Math.sin(elapsed * 14.7 + phase * 1.9) * 0.045;
+      child.scale.set(
+        baseScale.x * (1.03 + (1 - flicker) * 0.38),
+        baseScale.y * flicker,
+        baseScale.z * (1.03 + (1 - flicker) * 0.38),
+      );
+      child.rotation.y = Math.sin(elapsed * 2.2 + phase) * 0.16;
+    }
+  }
+
+  const smoke = campfire.getObjectByName(FOUNDERS_CAMPFIRE_SMOKE_NAME);
+  if (smoke instanceof THREE.Group) {
+    for (const [index, child] of smoke.children.entries()) {
+      const age = (elapsed * 0.13 + index / Math.max(1, smoke.children.length)) % 1;
+      child.position.set(
+        Math.sin(age * 4.8 + index * 1.7) * (0.08 + age * 0.38) + age * 0.22,
+        0.82 + age * 2.15,
+        Math.cos(age * 4.1 + index * 2.1) * (0.06 + age * 0.24),
+      );
+      child.scale.setScalar(0.55 + age * 1.35);
+    }
+  }
+
+  const sparks = campfire.getObjectByName(FOUNDERS_CAMPFIRE_SPARKS_NAME);
+  if (sparks instanceof THREE.Group) {
+    for (const [index, child] of sparks.children.entries()) {
+      const age = (elapsed * 0.42 + index / Math.max(1, sparks.children.length)) % 1;
+      const angle = index * 2.17 + elapsed * 0.8;
+      child.visible = age < 0.78;
+      child.position.set(
+        Math.cos(angle) * (0.08 + age * 0.38),
+        0.5 + age * 1.45,
+        Math.sin(angle) * (0.08 + age * 0.3),
+      );
+    }
+  }
+
+  const embers = campfire.getObjectByName(FOUNDERS_CAMPFIRE_EMBERS_NAME);
+  if (embers instanceof THREE.Mesh) {
+    const pulse = 0.96 + Math.sin(elapsed * 5.7) * 0.045;
+    embers.scale.set(pulse, 1, pulse);
+  }
+
+  const light = campfire.getObjectByName(FOUNDERS_CAMPFIRE_LIGHT_NAME);
+  if (light instanceof THREE.PointLight) {
+    const baseIntensity = 1.8 + nightLighting * 9.2;
+    light.intensity = Math.max(
+      0,
+      baseIntensity + Math.sin(elapsed * 10.9) * (0.22 + nightLighting * 0.9),
+    );
+  }
+}
+
 export function createFoundersCampMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = "Founders' camp and open stockyard";
@@ -139,21 +324,7 @@ export function createFoundersCampMesh(): THREE.Group {
   addAFrameShelter(shelters, 3.7, 2.65, -0.2);
   group.add(shelters);
 
-  for (let index = 0; index < 8; index += 1) {
-    const angle = (index / 8) * Math.PI * 2;
-    addMesh(
-      shelters,
-      new THREE.DodecahedronGeometry(0.18, 0),
-      stoneMaterial('mid'),
-      new THREE.Vector3(Math.cos(angle) * 0.65, 0.17, Math.sin(angle) * 0.65),
-    );
-  }
-  addMesh(
-    shelters,
-    new THREE.ConeGeometry(0.34, 0.7, 6),
-    sharedBuildingDetailMaterial('paintOchre'),
-    new THREE.Vector3(0, 0.43, 0),
-  );
+  addCampfire(shelters);
   addMesh(
     shelters,
     new THREE.BoxGeometry(2.4, 0.18, 0.42),

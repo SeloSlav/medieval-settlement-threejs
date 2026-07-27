@@ -771,7 +771,7 @@ export class ResourceInspector {
     totals: ResourceTotals,
     population: PopulationStats,
     inTransit?: ResourceTotals,
-    marketGoldAwaitingCollection = 0,
+    goldAwaitingCollection = 0,
   ): void {
     this.populationStats = population;
     this.stockpileValues.timber.textContent = Math.round(totals.timber).toString();
@@ -794,8 +794,8 @@ export class ResourceInspector {
       const transit = this.stockpileTransitValues[resource];
       const amount = Math.max(0, inTransit?.[resource] ?? 0);
       const details = [];
-      if (resource === 'gold' && marketGoldAwaitingCollection > 1e-6) {
-        details.push(`+${formatTransitAmount(marketGoldAwaitingCollection)} at market`);
+      if (resource === 'gold' && goldAwaitingCollection > 1e-6) {
+        details.push(`+${formatTransitAmount(goldAwaitingCollection)} awaiting collection`);
       }
       if (amount > 1e-6) {
         details.push(`+${formatTransitAmount(amount)} en route`);

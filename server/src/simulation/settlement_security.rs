@@ -444,6 +444,10 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.ironwork = stores.ironwork;
     building.polearms = stores.polearms;
     building.gold = stores.gold;
+    building.civic_receipts_gold = building
+        .civic_receipts_gold
+        .max(0.0)
+        .min(building.gold.max(0.0));
 }
 
 fn retain_unplundered_treasury_stores(

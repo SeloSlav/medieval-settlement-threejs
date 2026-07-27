@@ -603,6 +603,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         gold: 0.0,
         founding_shelter_active: false,
         chapel_monastery_tithe_due: 0.0,
+        civic_receipts_gold: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1766,6 +1767,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             founding_shelter_active: false,
             marketplace_pending_trade_code: 0,
             chapel_monastery_tithe_due: 0.0,
+            civic_receipts_gold: 0.0,
             ..building
         });
         return Ok(());

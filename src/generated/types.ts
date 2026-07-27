@@ -77,6 +77,7 @@ export const Building = __t.object("Building", {
   foundingShelterActive: __t.bool(),
   marketplacePendingTradeCode: __t.u8(),
   chapelMonasteryTitheDue: __t.f64(),
+  civicReceiptsGold: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 

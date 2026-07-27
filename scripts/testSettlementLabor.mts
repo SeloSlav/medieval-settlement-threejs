@@ -352,7 +352,7 @@ assert.match(settlementHud, /data-stockpile-transit="timber"/);
 assert.match(settlementHud, /Loaded carts are shown separately/);
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-delivery-trip\]'\)/);
 assert.match(resourceInspector, /en route/);
-assert.match(resourceInspector, /at market/);
+assert.match(resourceInspector, /awaiting collection/);
 assert.match(villagerInspector, /selectDeliveryTrip\(tripId: string\): boolean/);
 assert.match(appBootstrap, /onInspectDeliveryTrip: \(tripId\)/);
 

@@ -367,6 +367,12 @@ pub struct Building {
     /// existing coffers begin with no outstanding monastic obligation.
     #[default(0.0)]
     pub chapel_monastery_tithe_due: f64,
+    /// Physical source-held fares and visitor gifts pledged to the civic
+    /// treasury. This subset of `gold` is unspendable until a handcart reaches
+    /// the Town Hall or founding lockbox. Monastery tithe money remains outside
+    /// this subset. Appended for additive save compatibility.
+    #[default(0.0)]
+    pub civic_receipts_gold: f64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

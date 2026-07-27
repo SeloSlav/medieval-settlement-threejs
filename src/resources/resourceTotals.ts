@@ -16,6 +16,7 @@ import {
 import type { MarketplaceTradeAvailability } from '../economy/marketplaceTrade.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
+import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { BuildingKind, BuildingState, GameState } from './types.ts';
@@ -216,10 +217,11 @@ export function computeInTransitResourceTotals(
 }
 
 /**
- * Foreign-trade proceeds and local market tolls are physically owned but
- * remain unavailable until a broker cart reaches a civic lockbox.
+ * Market proceeds, local tolls, ferry fares, and monastery visitor gifts are
+ * physically owned but remain unavailable until their cart reaches a civic
+ * lockbox.
  */
-export function computeMarketGoldAwaitingCollection(
+export function computeGoldAwaitingCollection(
   buildings: Iterable<BuildingState>,
 ): number {
   let gold = 0;
@@ -230,7 +232,9 @@ export function computeMarketGoldAwaitingCollection(
       && Number.isFinite(building.gold)
     ) {
       gold += Math.max(0, building.gold);
+      continue;
     }
+    gold += localCivicReceiptGold(building);
   }
   return gold;
 }

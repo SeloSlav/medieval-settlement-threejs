@@ -230,6 +230,7 @@ mod tests {
             marketplace_specialty_export_policy: 0,
             founding_shelter_active: false,
             chapel_monastery_tithe_due: 0.0,
+            civic_receipts_gold: 0.0,
         }
     }
 

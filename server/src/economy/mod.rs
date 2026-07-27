@@ -2,6 +2,7 @@
 
 mod aggregate_spend;
 mod chapel_coffer;
+mod civic_receipts;
 mod commodities;
 mod garden_market_activity;
 mod household_wealth;
@@ -26,6 +27,10 @@ pub use aggregate_spend::{spend_aggregate_stone, spend_aggregate_timber};
 pub use chapel_coffer::{
     chapel_coffer_gold, chapel_monastery_tithe_due, chapel_tithe_payment_room,
     collect_chapel_coffer, deposit_chapel_tithe, withdraw_coffer_in_place,
+};
+pub use civic_receipts::{
+    credit_local_civic_receipts, local_civic_receipts, mark_local_civic_receipts_dispatched,
+    restore_local_civic_receipts,
 };
 pub use garden_market_activity::garden_market_activity;
 pub use household_wealth::{credit_residence_wealth, debit_residence_wealth};

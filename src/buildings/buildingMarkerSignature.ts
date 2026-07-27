@@ -3,12 +3,17 @@ import {
   LIVESTOCK_HAY_STORAGE_CAPACITY,
 } from '../generated/gameBalance.ts';
 import type { BuildingState, LivestockHerdState } from '../resources/types.ts';
+import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import { constructionVisualSignature } from './ConstructionSiteMesh.ts';
 import {
   MARKET_RECEIPT_VISUAL_CAPACITY,
   MARKET_RECEIPT_VISUAL_SEGMENTS,
   MARKET_STAGING_VISUAL_SEGMENTS,
 } from './meshes/marketplaceMesh.ts';
+import {
+  LOCAL_RECEIPT_VISUAL_CAPACITY,
+  LOCAL_RECEIPT_VISUAL_SEGMENTS,
+} from './meshes/expandedBuildingMeshes.ts';
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
@@ -104,10 +109,22 @@ export function buildingMarkerSignatures(
       const treasuryState = (
         building.kind === 'town_hall'
         || building.kind === 'chapel'
-        || building.kind === 'monastery'
       )
         && building.constructionComplete !== false
         ? `:secured-gold:${building.gold > 1e-6 ? 1 : 0}`
+        : '';
+      const localReceiptState = (
+        building.kind === 'monastery'
+        || building.kind === 'ferry_landing'
+      )
+        && building.constructionComplete !== false
+        ? `:local-gold:${stockpileVisualLevel(
+          building.kind === 'monastery'
+            ? building.gold
+            : localCivicReceiptGold(building),
+          LOCAL_RECEIPT_VISUAL_CAPACITY,
+          LOCAL_RECEIPT_VISUAL_SEGMENTS,
+        )}`
         : '';
       const marketState = marketplaceVisualState(building);
       const hayState = building.kind === 'pastoral_farmstead'
@@ -142,7 +159,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${marketState}${timberState}${hayState}${woolState}${clothState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${marketState}${timberState}${hayState}${woolState}${clothState}`,
         collider: structural,
       };
     })

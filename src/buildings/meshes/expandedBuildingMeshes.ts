@@ -25,6 +25,10 @@ import {
   CLOTH_STOCKPILE_VISUAL_SEGMENTS,
   WOOL_STOCKPILE_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
+import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
+
+export const LOCAL_RECEIPT_VISUAL_SEGMENTS = 3;
+export const LOCAL_RECEIPT_VISUAL_CAPACITY = STOREHOUSE_HAUL_PER_WORKER;
 
 const earth = sharedBuildingDetailMaterial('earth');
 const crop = sharedBuildingDetailMaterial('crop');
@@ -69,37 +73,61 @@ function addCross(group: THREE.Group, x: number, y: number, z: number, scale = 1
   addMesh(group, new THREE.BoxGeometry(0.64 * scale, 0.12 * scale, 0.12 * scale), metalMaterial('iron'), new THREE.Vector3(x, y + 0.18 * scale, z));
 }
 
-function addMonasteryTreasuryChest(group: THREE.Group): void {
-  const chest = new THREE.Group();
-  chest.name = 'MonasteryTreasuryChest';
-  chest.visible = false;
-  addMesh(
-    chest,
-    new THREE.BoxGeometry(1.05, 0.58, 0.7),
-    timberMaterial('dark'),
-    new THREE.Vector3(-4.15, 0.52, 4.55),
-  );
-  addMesh(
-    chest,
-    new THREE.BoxGeometry(1.12, 0.19, 0.76),
-    timberMaterial('weathered'),
-    new THREE.Vector3(-4.15, 0.91, 4.55),
-  );
-  for (const x of [-4.5, -3.8]) {
+function addReceiptLockboxes(
+  group: THREE.Group,
+  containerName: string,
+  segmentName: string,
+  placements: readonly (readonly [number, number, number])[],
+): void {
+  const container = new THREE.Group();
+  container.name = containerName;
+  container.visible = false;
+  placements.forEach(([x, y, z], index) => {
+    const segment = new THREE.Group();
+    segment.name = segmentName;
+    segment.visible = false;
+    segment.position.set(x, y, z);
     addMesh(
-      chest,
-      new THREE.BoxGeometry(0.1, 0.82, 0.78),
-      metalMaterial('iron'),
-      new THREE.Vector3(x, 0.7, 4.55),
+      segment,
+      new THREE.BoxGeometry(0.58, 0.4, 0.48),
+      timberMaterial(index === 1 ? 'weathered' : 'dark'),
+      new THREE.Vector3(0, 0.22, 0),
     );
-  }
-  addMesh(
-    chest,
-    new THREE.BoxGeometry(0.2, 0.24, 0.12),
-    copper,
-    new THREE.Vector3(-4.15, 0.69, 4.94),
+    addMesh(
+      segment,
+      new THREE.CylinderGeometry(0.24, 0.24, 0.58, 8, 1, false, 0, Math.PI),
+      timberMaterial('weathered'),
+      new THREE.Vector3(0, 0.45, 0),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.065, 0.46, 0.52),
+      metalMaterial('iron'),
+      new THREE.Vector3(0, 0.3, 0),
+    );
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.13, 0.17, 0.08),
+      copper,
+      new THREE.Vector3(0, 0.3, 0.28),
+    );
+    container.add(segment);
+  });
+  group.add(container);
+}
+
+function addMonasteryTreasuryChest(group: THREE.Group): void {
+  addReceiptLockboxes(
+    group,
+    'MonasteryTreasuryChest',
+    'MonasteryGoldSegment',
+    [
+      [-4.15, 0.2, 4.55],
+      [-4.82, 0.12, 4.5],
+      [-3.48, 0.12, 4.5],
+    ],
   );
-  group.add(chest);
 }
 
 
@@ -424,6 +452,16 @@ export function createFerryLandingMesh(): THREE.Group {
     addMesh(group, new THREE.TorusGeometry(0.29, 0.045, 6, 12), timberMaterial('light'), new THREE.Vector3(x, 1.45, z), new THREE.Euler(Math.PI * 0.5, 0, 0));
   }
   addBarrel(group, -1.85, 1.5, 0.72);
+  addReceiptLockboxes(
+    group,
+    'FerryFareChest',
+    'FerryReceiptSegment',
+    [
+      [0, 0.18, 1.62],
+      [-0.67, 0.1, 1.58],
+      [0.67, 0.1, 1.58],
+    ],
+  );
   return group;
 }
 

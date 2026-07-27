@@ -13,7 +13,7 @@ use crate::db::*;
 use crate::economy::{
     available_building_labor, building_commodity_room, building_commodity_stock,
     chapel_monastery_tithe_due, credit_treasury_commodity, deposit_building_commodity,
-    withdraw_building_commodity, CommodityKind,
+    restore_local_civic_receipts, withdraw_building_commodity, CommodityKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::roads::{RoadNetwork, RoadPathRoute};
@@ -1247,6 +1247,11 @@ fn return_commodity_to_building(
         return;
     };
     let deposited = deposit_building_commodity(&mut building, commodity, amount);
+    if commodity == CommodityKind::Gold
+        && matches!(building.kind.as_str(), "monastery" | "ferry_landing")
+    {
+        restore_local_civic_receipts(&mut building, deposited);
+    }
     let remainder = (amount - deposited).max(0.0);
     if remainder > 1e-6 {
         credit_treasury_commodity(ctx, building.owner, commodity, remainder);

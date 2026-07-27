@@ -619,6 +619,7 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.wool = 0.0;
             building.cloth = 0.0;
             building.gold = 0.0;
+            building.civic_receipts_gold = 0.0;
             ctx.db.building().id().update(building);
         }
         FIRE_TARGET_RESIDENCE => {

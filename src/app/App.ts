@@ -21,7 +21,7 @@ import { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
 import {
   computeInTransitResourceTotals,
-  computeMarketGoldAwaitingCollection,
+  computeGoldAwaitingCollection,
   computePopulationStats,
   computeResourceTotals,
 } from '../resources/resourceTotals.ts';
@@ -428,10 +428,12 @@ export class App {
     this.settlementPresentation.tick({
       settlementHud: this.toolbar?.settlementHud ?? null,
       sceneManager: this.sceneManager,
+      buildingMarkers: this.buildingMarkers,
       residenceMarkers: this.residenceMarkers,
       villagers: this.villagers,
       ambientAudio: this.ambientAudio,
     });
+    this.buildingMarkers?.tick(dt);
     this.worldMapUi?.minimap.tick({ keyHeld: this.input?.isDown('g') ?? false });
     if (firstPersonActive) {
       this.firstPersonController?.update(dt);
@@ -691,6 +693,7 @@ export class App {
       {
         settlementHud: this.toolbar?.settlementHud ?? null,
         sceneManager: this.sceneManager,
+        buildingMarkers: this.buildingMarkers,
         residenceMarkers: this.residenceMarkers,
         villagers: this.villagers,
         ambientAudio: this.ambientAudio,
@@ -821,7 +824,7 @@ export class App {
       computeResourceTotals(this.gameState),
       computePopulationStats(this.gameState),
       computeInTransitResourceTotals(this.gameState.deliveryTrips.values()),
-      computeMarketGoldAwaitingCollection(this.gameState.buildings.values()),
+      computeGoldAwaitingCollection(this.gameState.buildings.values()),
     );
     this.resourceInspector.refreshSelection();
   }

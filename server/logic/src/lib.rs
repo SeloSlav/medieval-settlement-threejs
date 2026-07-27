@@ -10,6 +10,9 @@ pub mod backyard_garden_policy;
 #[path = "../../src/chapel_parish_policy.rs"]
 pub mod chapel_parish_policy;
 
+#[path = "../../src/civic_receipts_policy.rs"]
+pub mod civic_receipts_policy;
+
 #[path = "../../src/constants.rs"]
 pub mod constants;
 

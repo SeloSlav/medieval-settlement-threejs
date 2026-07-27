@@ -3,6 +3,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import {
+  animateFoundersCampfire,
+  FOUNDERS_CAMPFIRE_NAME,
+  setFoundersCampfireNightLighting,
+} from '../src/buildings/meshes/foundersCampMesh.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
@@ -52,10 +57,39 @@ const shelters = mesh.getObjectByName('FoundingShelters');
 const timber = mesh.getObjectByName('FoundingTimberStockpile');
 const stone = mesh.getObjectByName('FoundingStoneStockpile');
 const chest = mesh.getObjectByName('FoundingTreasuryChest');
+const campfire = mesh.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
 assert.ok(shelters instanceof THREE.Group);
 assert.ok(timber instanceof THREE.Group);
 assert.ok(stone instanceof THREE.Group);
 assert.ok(chest instanceof THREE.Group);
+assert.ok(campfire instanceof THREE.Group);
+const campfireLight = campfire.getObjectByName('FoundingCampfireLight');
+assert.ok(campfireLight instanceof THREE.PointLight);
+assert.ok(
+  campfire.children.some((child) => child.name === 'FoundingCampfireFlames'),
+  'the founders need a layered central fire instead of a static placeholder cone',
+);
+assert.ok(
+  campfire.children.some((child) => child.name === 'FoundingCampfireSmoke'),
+  'the occupied campfire should emit animated smoke',
+);
+const flame = campfire.getObjectByName('Animated founding campfire flame');
+assert.ok(flame instanceof THREE.Mesh);
+setFoundersCampfireNightLighting(campfire, 0);
+animateFoundersCampfire(campfire, 0.1);
+const daylightIntensity = campfireLight.intensity;
+const daylightFlameScale = flame.scale.y;
+setFoundersCampfireNightLighting(campfire, 1);
+animateFoundersCampfire(campfire, 0.13);
+assert.ok(
+  campfireLight.intensity > daylightIntensity + 7,
+  'the campfire must keep a strong warm light throughout the night',
+);
+assert.notEqual(
+  flame.scale.y,
+  daylightFlameScale,
+  'the campfire flame should visibly flicker',
+);
 const townHallMesh = createBuildingMesh('town_hall');
 assert.ok(
   townHallMesh.getObjectByName('TownHallTreasuryChest') instanceof THREE.Group,

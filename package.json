@@ -30,6 +30,7 @@
     "test:marketplace-specialty-policy": "node --experimental-strip-types scripts/testMarketplaceSpecialtyPolicy.mts",
     "test:textile-economy": "npx tsx scripts/testTextileEconomy.mts",
     "test:monastery-hospitality": "node --experimental-strip-types scripts/testMonasteryHospitality.mts",
+    "test:civic-receipts": "npx tsx scripts/testCivicReceipts.mts",
     "test:frontier-security": "node --experimental-strip-types scripts/testFrontierSecurity.mts",
     "test:frontier-armory": "node --experimental-strip-types scripts/testFrontierArmoryPolicy.mts",
     "test:settlement-armament": "npx tsx scripts/testSettlementArmament.mts",

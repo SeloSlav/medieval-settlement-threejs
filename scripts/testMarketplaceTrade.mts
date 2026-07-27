@@ -22,7 +22,7 @@ import {
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import {
-  computeMarketGoldAwaitingCollection,
+  computeGoldAwaitingCollection,
   computeMarketplaceTradeAvailability,
   computeResourceTotals,
 } from '../src/resources/resourceTotals.ts';
@@ -319,7 +319,7 @@ assert.equal(
   'gold waiting at a marketplace must not become spendable before its cart unloads',
 );
 assert.equal(
-  computeMarketGoldAwaitingCollection(proceedsState.buildings.values()),
+  computeGoldAwaitingCollection(proceedsState.buildings.values()),
   14,
   'the HUD should account separately for trade proceeds and tolls held at markets',
 );
@@ -551,7 +551,7 @@ assert.equal(largeAvailability.firewood, 5_005);
 assert.ok(elapsed < 250, `10k-building market stock scan took ${elapsed.toFixed(1)}ms`);
 const proceedsStarted = performance.now();
 assert.equal(
-  computeMarketGoldAwaitingCollection([
+  computeGoldAwaitingCollection([
     ...manyBuildings,
     marketWithProceeds,
   ]),

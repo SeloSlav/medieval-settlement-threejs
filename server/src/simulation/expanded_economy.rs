@@ -8,7 +8,8 @@ use crate::balance_generated::{
     GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE, GRANARY_WATER_PER_CYCLE,
     MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_HONEY,
     MONASTERY_FEAST_WINE, MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE,
-    MONASTERY_UNLINKED_PRODUCTIVITY, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
+    MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
+    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
     SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT,
     TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
     VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
@@ -19,7 +20,7 @@ use crate::burgage::{Point2, ZoneCorners};
 use crate::db::*;
 use crate::economy::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
-    credit_treasury_gold, deposit_building_commodity, spend_treasury_gold, treasury_gold,
+    credit_local_civic_receipts, deposit_building_commodity, spend_treasury_gold, treasury_gold,
     withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
@@ -51,6 +52,7 @@ use crate::simulation::delivery_trips::{
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::landmark_access::monastery_linked_to_chapel;
+use crate::simulation::try_dispatch_local_civic_receipts;
 use crate::simulation::residence_needs::{
     apply_need_delivery, load_needs, need_stock, ResidenceNeedKind,
 };
@@ -832,6 +834,7 @@ pub fn step_monastery(
     );
 
     let hospitality_enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
+    let mut receipt_daily_income = MONASTERY_PILGRIMAGE_GOLD_PER_DAY;
     if linked && owner_has_connected_marketplace(ctx, tick, &monastery) {
         // Honey abstracts both table use and beeswax for worship; wine supports
         // liturgy and guests. Both remain physical stores with an export value.
@@ -844,15 +847,16 @@ pub fn step_monastery(
         );
         withdraw_building_commodity(&mut monastery, CommodityKind::Honey, hospitality.honey_used);
         withdraw_building_commodity(&mut monastery, CommodityKind::Wine, hospitality.wine_used);
-        let gold = monastery_pilgrimage_gold(
+        receipt_daily_income = monastery_pilgrimage_gold(
             hospitality_enabled,
             hospitality.supply_ratio,
-            TICK_DT,
+            CALENDAR_SECONDS_PER_DAY,
             CALENDAR_SECONDS_PER_DAY,
         );
-        credit_treasury_gold(ctx, monastery.owner, gold);
+        let gold = receipt_daily_income * TICK_DT / CALENDAR_SECONDS_PER_DAY;
+        let credited = credit_local_civic_receipts(ctx, &mut monastery, gold);
         if let Some(mut treasury) = ctx.db.player_resources().owner().find(&monastery.owner) {
-            treasury.monastery_pilgrimage_gold_total += gold;
+            treasury.monastery_pilgrimage_gold_total += credited;
             ctx.db.player_resources().owner().update(treasury);
         }
     }
@@ -875,6 +879,13 @@ pub fn step_monastery(
         );
     }
     run_monastery_feast(ctx, tick, clock, &mut monastery);
+    try_dispatch_local_civic_receipts(
+        ctx,
+        tick,
+        clock,
+        &mut monastery,
+        receipt_daily_income,
+    );
     ctx.db.building().id().update(monastery);
 }
 
@@ -882,16 +893,18 @@ pub fn step_ferry_landing(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
-    building: Building,
+    mut building: Building,
 ) {
+    let onsite_labor = onsite_building_labor(ctx, &building);
     if !labor_and_logistics_paused(ctx, tick, building.owner, clock)
-        && building.assigned_labor > 0
+        && onsite_labor > 0
         && owner_has_connected_marketplace(ctx, tick, &building)
     {
-        let gold = FERRY_GOLD_PER_DAY * building.assigned_labor as f64 * TICK_DT
+        let gold = FERRY_GOLD_PER_DAY * onsite_labor as f64 * TICK_DT
             / CALENDAR_SECONDS_PER_DAY;
-        credit_treasury_gold(ctx, building.owner, gold);
+        credit_local_civic_receipts(ctx, &mut building, gold);
     }
+    try_dispatch_local_civic_receipts(ctx, tick, clock, &mut building, FERRY_GOLD_PER_DAY);
     ctx.db.building().id().update(building);
 }
 

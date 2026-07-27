@@ -6,6 +6,7 @@ import {
   CARPENTER_TIMBER_PER_POLEARM,
   FOOD_DELIVERY_SPEED_MPS,
   FOOD_DELIVERY_UNLOAD_SEC,
+  FERRY_GOLD_PER_DAY,
   FRESH_FOOD_STORAGE_GRANARY_FACTOR,
   GRAIN_TRANSFER_PER_TRIP,
   MONASTERY_CHARITY_FOOD_PER_DELIVERY,
@@ -87,6 +88,7 @@ import {
   processorOutputTargetForBuilding,
 } from '../../economy/processorOutputPolicy.ts';
 import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
+import { civicReceiptCollectionPlan } from '../../economy/civicReceipts.ts';
 
 const PROCESS: Record<string, string> = {
   threshing_barn: 'Farmstead crew works nearby drawn fields',
@@ -99,7 +101,7 @@ const PROCESS: Record<string, string> = {
   monastery: 'Tithes + food + hospitality stores → charity, feasts, pilgrimages',
   carpenter: 'Timber + imported iron heads → polearms and cartwright support',
   weaver: 'Annual sheep fleece → woven cloth → tier-3 households, then marketplace export',
-  ferry_landing: 'River crossing → regional trade income',
+  ferry_landing: 'River crossing → fares held at the landing → civic collection',
 };
 
 const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
@@ -527,6 +529,58 @@ function formatGranarySeedCart(
   return `${plan.nextDispatchAmount.toFixed(1)} grain &rarr; ${context.worldQueries.getBuildingLabel('threshing_barn')} at ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance}${collection} ${inspect}`;
 }
 
+function renderCivicReceiptRows(
+  building: BuildingState,
+  context: InspectorRenderContext,
+  dispatchThreshold: number,
+): string {
+  const plan = civicReceiptCollectionPlan({
+    source: building,
+    buildings: context.gameState.buildings.values(),
+    trips: context.gameState.deliveryTrips.values(),
+    physicalEconomy: context.gameState.physicalFoundingSiteEnabled === true,
+    dispatchThreshold,
+    getRoadPathDistance: (ax, az, bx, bz) =>
+      context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
+  });
+  const targetLabel = plan.target
+    ? context.worldQueries.getBuildingLabel(plan.target.kind)
+    : 'civic lockbox';
+  const route = plan.routeDistance == null
+    ? ''
+    : ` · ${plan.routeDistance.toFixed(0)} m by road`;
+  const inspect = plan.activeTrip
+    ? ` <button type="button" class="inspector-jump-button" data-inspect-delivery-trip="${plan.activeTrip.id}" aria-label="Inspect civic receipt cart">Inspect cart</button>`
+    : '';
+  const collection = (() => {
+    switch (plan.status) {
+      case 'legacy':
+        return 'Legacy settlement · income credits the treasury immediately';
+      case 'en-route':
+        return `${plan.inTransitGold.toFixed(1)} gold en route to ${targetLabel}${route}${inspect}`;
+      case 'no-treasury':
+        return `${plan.heldGold.toFixed(1)} gold held · complete a Town Hall or retain the founding lockbox`;
+      case 'no-road':
+        return `${plan.heldGold.toFixed(1)} gold ready · connect this source to ${targetLabel} by road`;
+      case 'ready':
+        return `${plan.heldGold.toFixed(1)} gold ready for one handcart to ${targetLabel}${route} · ${
+          building.kind === 'monastery'
+            ? 'needs a free villager'
+            : 'uses one ferry worker'
+        }`;
+      case 'accumulating':
+        return `${plan.heldGold.toFixed(1)} / ${plan.dispatchThreshold.toFixed(1)} gold toward the next daily collection batch`;
+    }
+  })();
+  const sourceLabel = building.kind === 'monastery' ? 'Civic visitor gifts' : 'Fare receipts';
+  const incomeRow = building.kind === 'ferry_landing'
+    ? `<li><span>Fare income</span><span>${FERRY_GOLD_PER_DAY.toFixed(2)} gold/day per onsite ferryman while marketplace-linked · one ferryman leaves the crossing with each cart</span></li>`
+    : '';
+  return `${incomeRow}
+      <li><span>${sourceLabel}</span><span>${plan.heldGold.toFixed(1)} gold secured at this source${plan.inTransitGold > 0.05 ? ` · ${plan.inTransitGold.toFixed(1)} already moving` : ''}</span></li>
+      <li><span>Civic collection</span><span>${collection}</span></li>`;
+}
+
 export function renderExpandedBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
   context: InspectorRenderContext,
@@ -597,7 +651,7 @@ export function renderExpandedBuildingInspector(
       <li><span>Honey runway</span><span>${formatHospitalityRunway(hospitality.honeyRunwayDays)} · ${hospitality.honeyPerDay.toFixed(1)}/day + feast use</span></li>
       <li><span>Wine runway</span><span>${formatHospitalityRunway(hospitality.wineRunwayDays)} · ${hospitality.winePerDay.toFixed(1)}/day + feast use</span></li>
       <li><span>Annual hospitality</span><span>${hospitality.honeyPerYear.toFixed(0)} honey + ${hospitality.winePerYear.toFixed(0)} wine at five feast days</span></li>
-      <li><span>Pilgrimage income</span><span>${hospitality.pilgrimageGoldPerDay.toFixed(2)} gold/day at current stores · requires chapel and market road link</span></li>`
+      <li><span>Pilgrimage income</span><span>${hospitality.pilgrimageGoldPerDay.toFixed(2)} gold/day at current stores · requires chapel and market road link · visitor gifts accrue here before collection</span></li>`
     : '';
   const monasteryTreasuryRows = building.kind === 'monastery'
     ? (() => {
@@ -609,8 +663,17 @@ export function renderExpandedBuildingInspector(
               && trip.phase !== 'inbound',
           )
           .reduce((sum, trip) => sum + trip.amount, 0);
-        return `<li><span>Monastery treasury</span><span>${building.gold.toFixed(1)} gold secured here${incomingTithe > 0.05 ? ` · ${incomingTithe.toFixed(1)} tithe incoming by handcart` : ''}</span></li>`;
+        return `<li><span>Monastery purse</span><span>${building.gold.toFixed(1)} gold secured here${incomingTithe > 0.05 ? ` · ${incomingTithe.toFixed(1)} tithe incoming by handcart` : ''}</span></li>`;
       })()
+    : '';
+  const civicReceiptRows = building.kind === 'monastery' || building.kind === 'ferry_landing'
+    ? renderCivicReceiptRows(
+        building,
+        context,
+        building.kind === 'monastery'
+          ? hospitality?.pilgrimageGoldPerDay ?? MONASTERY_PILGRIMAGE_GOLD_PER_DAY
+          : FERRY_GOLD_PER_DAY,
+      )
     : '';
   const granaryGrainDispatch = building.kind === 'granary'
     ? context.worldQueries.getNextGranaryGrainDispatch(building)
@@ -743,7 +806,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} imported ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} imported ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

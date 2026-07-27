@@ -28,6 +28,15 @@ import {
   MARKET_STAGING_VISUAL_SEGMENTS,
 } from './meshes/marketplaceMesh.ts';
 import {
+  LOCAL_RECEIPT_VISUAL_CAPACITY,
+} from './meshes/expandedBuildingMeshes.ts';
+import {
+  animateFoundersCampfire,
+  FOUNDERS_CAMPFIRE_NAME,
+  setFoundersCampfireNightLighting,
+} from './meshes/foundersCampMesh.ts';
+import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
+import {
   createConstructionSiteMesh,
 } from './ConstructionSiteMesh.ts';
 import { buildingMeshSignature } from './buildingMarkerSignature.ts';
@@ -59,6 +68,8 @@ export class BuildingMarkers {
   private readonly getRoadConditionSpeedMultiplier?: () => number;
   private readonly group = new THREE.Group();
   private readonly buildingMeshes = new Map<string, THREE.Group>();
+  private readonly foundersCampfires = new Set<THREE.Group>();
+  private foundersCampfireNightLighting = 0;
   private extentOverlayMesh: THREE.Mesh | null = null;
   private extentOverlayKind: BuildingKind | null = null;
   private readonly guardhouseMusterRoute: THREE.InstancedMesh<
@@ -132,6 +143,19 @@ export class BuildingMarkers {
     for (const id of this.buildingMeshes.keys()) {
       if (nextIds.has(id)) continue;
       this.removeBuilding(id);
+    }
+  }
+
+  setFoundersCampfireNightLighting(nightLighting: number): void {
+    this.foundersCampfireNightLighting = THREE.MathUtils.clamp(nightLighting, 0, 1);
+    for (const campfire of this.foundersCampfires) {
+      setFoundersCampfireNightLighting(campfire, this.foundersCampfireNightLighting);
+    }
+  }
+
+  tick(dtSeconds: number): void {
+    for (const campfire of this.foundersCampfires) {
+      animateFoundersCampfire(campfire, dtSeconds);
     }
   }
 
@@ -315,6 +339,7 @@ export class BuildingMarkers {
     const operational = building.constructionComplete !== false;
     const visualSignature = buildingMeshSignature(building);
     if (marker && marker.userData.visualSignature !== visualSignature) {
+      this.unregisterFoundersCampfire(marker);
       this.group.remove(marker);
       disposeObject3D(marker);
       this.buildingMeshes.delete(building.id);
@@ -344,6 +369,16 @@ export class BuildingMarkers {
       );
       this.buildingMeshes.set(building.id, marker);
       this.group.add(marker);
+      if (building.kind === 'founders_camp') {
+        const campfire = marker.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
+        if (campfire instanceof THREE.Group) {
+          setFoundersCampfireNightLighting(
+            campfire,
+            this.foundersCampfireNightLighting,
+          );
+          this.foundersCampfires.add(campfire);
+        }
+      }
     }
 
     const y = this.terrain.getHeightAt(building.x, building.z);
@@ -359,11 +394,17 @@ export class BuildingMarkers {
   private removeBuilding(id: string): void {
     const marker = this.buildingMeshes.get(id);
     if (!marker) return;
+    this.unregisterFoundersCampfire(marker);
     this.group.remove(marker);
     // Construction materials and textures belong to BuildingMaterialLibrary;
     // individual buildings own only their geometry.
     disposeObject3D(marker);
     this.buildingMeshes.delete(id);
+  }
+
+  private unregisterFoundersCampfire(marker: THREE.Group): void {
+    const campfire = marker.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
+    if (campfire instanceof THREE.Group) this.foundersCampfires.delete(campfire);
   }
 }
 
@@ -412,7 +453,25 @@ function syncBuildingVisualState(
   }
   if (building.kind === 'monastery') {
     const chest = marker.getObjectByName('MonasteryTreasuryChest');
-    if (chest) chest.visible = building.gold > 1e-6;
+    if (chest instanceof THREE.Group) {
+      syncStockpileSegments(
+        chest,
+        'MonasteryGoldSegment',
+        building.gold,
+        LOCAL_RECEIPT_VISUAL_CAPACITY,
+      );
+    }
+  }
+  if (building.kind === 'ferry_landing') {
+    const chest = marker.getObjectByName('FerryFareChest');
+    if (chest instanceof THREE.Group) {
+      syncStockpileSegments(
+        chest,
+        'FerryReceiptSegment',
+        localCivicReceiptGold(building),
+        LOCAL_RECEIPT_VISUAL_CAPACITY,
+      );
+    }
   }
   if (building.kind === 'salvage_pile') {
     const timber = marker.getObjectByName('SalvageTimberStockpile');

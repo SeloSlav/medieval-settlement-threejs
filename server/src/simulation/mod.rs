@@ -2,6 +2,7 @@ mod backyard_garden;
 mod chapel;
 mod chapel_community;
 mod chapel_parish;
+mod civic_receipts;
 mod construction;
 mod construction_labor_steward;
 mod delivery_cargo;
@@ -41,6 +42,7 @@ mod woodcutters_lodge;
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
 pub use chapel::step_chapels;
 pub use chapel_parish::{step_chapel_parish, try_start_chapel_treasury_trip};
+pub use civic_receipts::try_dispatch_local_civic_receipts;
 pub use construction::step_construction_sites;
 pub use construction_labor_steward::step_construction_labor_stewards;
 pub use delivery_trips::{

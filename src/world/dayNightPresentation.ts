@@ -34,6 +34,7 @@ export type DayNightLightingState = {
   dawnAmount: number;
   duskAmount: number;
   solarElevationDeg: number;
+  nightAmount: number;
   grade: DayNightGrade;
   skyAnimationTime: number;
   siderealAngle: number;
@@ -122,6 +123,7 @@ export function computeDayNightState(
     dawnAmount: dawn,
     duskAmount: dusk,
     solarElevationDeg: elevationDeg,
+    nightAmount: night,
     grade: {
       saturation: lerp(0.7, 1.02, dayAmount) + dawn * 0.08 + dusk * 0.14,
       contrast: lerp(0.95, 1.05, dayAmount) + dusk * 0.025,

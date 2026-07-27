@@ -16,6 +16,8 @@ assert.ok(springDawn.sunDirection.x > 0, 'the sun should rise in the east');
 assert.ok(springDusk.sunDirection.x < 0, 'the sun should set in the west');
 assert.ok(springNoon.solarElevationDeg > 40, 'the spring midday sun should be high');
 assert.equal(springNight.isNight, true);
+assert.ok(springNight.nightAmount > 0.99);
+assert.equal(springNoon.nightAmount, 0);
 assert.ok(springNight.solarElevationDeg < -25, 'late night should place the sun well below the horizon');
 
 const sunriseRgb = rgb(springDawn.sunColor);
