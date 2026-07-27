@@ -13,13 +13,14 @@ use crate::seasonal_labor_policy::{
 };
 use crate::tables::{farm_field, Building};
 
-use super::building_has_active_trip;
+use super::{building_fire_state, building_has_active_trip};
 
 pub fn owner_has_staffed_town_hall(ctx: &ReducerContext, owner: Identity) -> bool {
     ctx.db.building().owner().filter(&owner).any(|building| {
         building.kind == "town_hall"
             && building.construction_complete
             && building.assigned_labor > 0
+            && building_fire_state(ctx, building.id).is_none()
     })
 }
 
@@ -40,6 +41,12 @@ pub fn recall_idle_seasonal_labor_for_owner(
     let mut recalled = 0_u32;
 
     for mut building in buildings {
+        if building_fire_state(ctx, building.id).is_some() {
+            recalled = recalled.saturating_add(building.assigned_labor);
+            building.assigned_labor = 0;
+            ctx.db.building().id().update(building);
+            continue;
+        }
         let fields = if building.kind == "threshing_barn" {
             ctx.db
                 .farm_field()
@@ -120,13 +127,9 @@ fn call_up_active_seasonal_labor_for_owner_with_reserve(
         return 0;
     }
     let mut candidates = Vec::new();
-    for building in ctx
-        .db
-        .building()
-        .owner()
-        .filter(&owner)
-        .filter(|building| building.construction_complete)
-    {
+    for building in ctx.db.building().owner().filter(&owner).filter(|building| {
+        building.construction_complete && building_fire_state(ctx, building.id).is_none()
+    }) {
         let Some(def) = building_def(&building.kind) else {
             continue;
         };

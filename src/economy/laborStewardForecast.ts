@@ -78,7 +78,7 @@ export function computeSettlementLaborStewardForecast(
   state: Pick<
     GameState,
     'buildings' | 'deliveryTrips' | 'farmFields' | 'quarries' | 'foragingNodes'
-  >,
+  > & Partial<Pick<GameState, 'fireIncidents'>>,
   reviewMonth: number,
   availableLabor: number,
   policies: LaborStewardPolicySelection,

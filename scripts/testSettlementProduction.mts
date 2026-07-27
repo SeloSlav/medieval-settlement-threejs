@@ -1182,7 +1182,7 @@ const townHallInspector = readFileSync(
   new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
   'utf8',
 );
-assert.match(townHallInspector, /installed capacity if supplied/);
+assert.match(townHallInspector, /operational staffed capacity if supplied/);
 assert.match(townHallInspector, /Processing labor/);
 assert.match(townHallInspector, /First staffed site to stop/);
 assert.match(townHallInspector, /carts that unload before depletion/);

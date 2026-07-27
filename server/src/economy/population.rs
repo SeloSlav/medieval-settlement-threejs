@@ -8,6 +8,7 @@ use crate::constants::{
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_HOLD;
 use crate::db::*;
+use crate::simulation::building_fire_state;
 use crate::tables::Building;
 
 use super::population_policy::{
@@ -108,6 +109,10 @@ pub fn assign_building_labor(
         && requested_labor > 0
     {
         return Err("Resume this construction site before assigning builders.".to_string());
+    }
+    if requested_labor > building.assigned_labor && building_fire_state(ctx, building.id).is_some()
+    {
+        return Err("Repair this fire-damaged building before assigning more workers.".to_string());
     }
 
     let building_cap = if building.construction_complete {

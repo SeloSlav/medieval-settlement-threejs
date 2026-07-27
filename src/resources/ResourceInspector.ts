@@ -1053,6 +1053,15 @@ export class ResourceInspector {
       view.statusState = fire.status === 'burning' || fire.status === 'destroyed'
         ? 'warning'
         : 'warning';
+      if (target.kind === 'building' && view.labor.visible) {
+        view.labor = {
+          ...view.labor,
+          hint: target.building.assignedLabor > 0
+            ? `${target.building.assignedLabor} assigned ${target.building.assignedLabor === 1 ? 'worker is' : 'workers are'} idle during the outage. Workers may be recalled now; repair before assigning more.`
+            : 'Fire damage blocks new staffing until the structure is repaired.',
+          increaseDisabled: true,
+        };
+      }
       view.supplementalPanelHtml = fire.status === 'burning' || !recovery
         ? `<div class="inspector-action-panel">
             <p class="inspector-action-panel__hint">Keep a staffed, supplied well within work extent. Fire calls preempt routine water deliveries.</p>

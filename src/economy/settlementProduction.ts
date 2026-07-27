@@ -27,6 +27,7 @@ import {
   type DeliveryCargoKind,
   type DeliveryTripState,
 } from '../logistics/deliveryTrips.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type {
@@ -42,6 +43,9 @@ import {
 
 export type SettlementProductionCapacity = {
   capacityDaysPerWeek: number;
+  fireDisabledProcessorSites: number;
+  fireDisabledProcessorWorkers: number;
+  firstFireDisabledProcessorId: string | null;
   millWorkers: number;
   bakeryWorkers: number;
   breweryWorkers: number;
@@ -168,6 +172,9 @@ type ProcessorOverview = Pick<
   | 'smokehouseOutputRoom'
   | 'weaverOutputRoom'
 > & {
+  fireDisabledProcessorSites: number;
+  fireDisabledProcessorWorkers: number;
+  firstFireDisabledProcessorId: string | null;
   grainChainBranches: Map<string, GrainChainBranch>;
   prosperityRoadBranches: Map<string, ProsperityRoadBranch> | null;
 };
@@ -416,12 +423,16 @@ function completedProcessorOverview(
   sabbathObserved: boolean,
   componentFor: ProductionRoadComponentResolver | undefined,
 ): ProcessorOverview {
+  const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
   const deliveries = timedInputDeliveries(state.deliveryTrips.values());
   const millCyclesPerWorker = cyclesPerCalendarDay('watermill', 1, sabbathObserved);
   const bakeryCyclesPerWorker = cyclesPerCalendarDay('granary', 1, sabbathObserved);
   const breweryCyclesPerWorker = cyclesPerCalendarDay('brewery', 1, sabbathObserved);
   const smokehouseCyclesPerWorker = cyclesPerCalendarDay('smokehouse', 1, sabbathObserved);
   const weaverCyclesPerWorker = cyclesPerCalendarDay('weaver', 1, sabbathObserved);
+  let fireDisabledProcessorSites = 0;
+  let fireDisabledProcessorWorkers = 0;
+  let firstFireDisabledProcessorId: string | null = null;
   let millWorkers = 0;
   let bakeryWorkers = 0;
   let breweryWorkers = 0;
@@ -443,6 +454,23 @@ function completedProcessorOverview(
     : null;
   for (const building of state.buildings.values()) {
     if (building.constructionComplete === false || building.assignedLabor <= 0) {
+      continue;
+    }
+    if (fireDisabled.has(building.id)) {
+      if (
+        building.kind === 'watermill'
+        || building.kind === 'granary'
+        || building.kind === 'brewery'
+        || building.kind === 'smokehouse'
+        || building.kind === 'weaver'
+      ) {
+        fireDisabledProcessorSites += 1;
+        fireDisabledProcessorWorkers += Math.max(0, building.assignedLabor);
+        firstFireDisabledProcessorId = earlierStableId(
+          firstFireDisabledProcessorId,
+          building.id,
+        );
+      }
       continue;
     }
     switch (building.kind) {
@@ -672,6 +700,9 @@ function completedProcessorOverview(
     }
   }
   return {
+    fireDisabledProcessorSites,
+    fireDisabledProcessorWorkers,
+    firstFireDisabledProcessorId,
     millWorkers,
     bakeryWorkers,
     breweryWorkers,
@@ -829,6 +860,9 @@ export function computeSettlementProductionCapacity(
   roadComponentFor?: ProductionRoadComponentResolver,
 ): SettlementProductionCapacity {
   const {
+    fireDisabledProcessorSites,
+    fireDisabledProcessorWorkers,
+    firstFireDisabledProcessorId,
     millWorkers,
     bakeryWorkers,
     breweryWorkers,
@@ -902,6 +936,9 @@ export function computeSettlementProductionCapacity(
 
   return {
     capacityDaysPerWeek: sabbathObserved ? 6 : 7,
+    fireDisabledProcessorSites,
+    fireDisabledProcessorWorkers,
+    firstFireDisabledProcessorId,
     millWorkers,
     bakeryWorkers,
     breweryWorkers,

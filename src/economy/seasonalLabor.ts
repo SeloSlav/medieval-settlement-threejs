@@ -4,6 +4,7 @@ import {
   farmsteadExportableGrain,
   fieldStageAllowed,
 } from '../farming/farmWorkPlanning.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { BUILDING_DEFINITIONS } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { BuildingKind, BuildingState, FarmFieldState, GameState } from '../resources/types.ts';
@@ -28,6 +29,7 @@ export type SeasonalLaborKind = (typeof SEASONAL_LABOR_KINDS)[number];
 export type SeasonalLaborSitePlan = {
   buildingId: string;
   kind: SeasonalLaborKind;
+  reason: 'seasonal-dormant' | 'fire-disabled';
   assignedLabor: number;
   targetLabor: number;
   reclaimableWorkers: number;
@@ -36,6 +38,7 @@ export type SeasonalLaborSitePlan = {
 
 export type SettlementSeasonalLaborPlan = {
   dormantSites: number;
+  fireDisabledSites: number;
   reclaimableSites: number;
   reclaimableWorkers: number;
   retainedHaulers: number;
@@ -54,6 +57,7 @@ export type SeasonalLaborCallupAssignment = {
 
 export type SettlementSeasonalCallupPlan = {
   activeSites: number;
+  fireBlockedSites: number;
   understaffedSites: number;
   openPosts: number;
   callupWorkers: number;
@@ -61,6 +65,14 @@ export type SettlementSeasonalCallupPlan = {
   firstUnderstaffedBuildingId: string | null;
   assignments: SeasonalLaborCallupAssignment[];
 };
+
+type SeasonalLaborState =
+  Pick<GameState, 'buildings' | 'farmFields'>
+  & Partial<Pick<GameState, 'fireIncidents'>>;
+
+type SeasonalLaborRecallState =
+  SeasonalLaborState
+  & Pick<GameState, 'deliveryTrips'>;
 
 export function isSeasonalLaborKind(kind: BuildingKind): kind is SeasonalLaborKind {
   return (SEASONAL_LABOR_KINDS as readonly BuildingKind[]).includes(kind);
@@ -129,9 +141,12 @@ function hasOutboundSeasonalStock(
 }
 
 export function computeSettlementSeasonalLaborPlan(
-  state: Pick<GameState, 'buildings' | 'farmFields' | 'deliveryTrips'>,
+  state: SeasonalLaborRecallState,
   month: number,
 ): SettlementSeasonalLaborPlan {
+  const fireDisabled = fireDisabledBuildingIds(
+    state.fireIncidents?.values() ?? [],
+  );
   const fieldsByFarmstead = new Map<string, FarmFieldState[]>();
   for (const field of state.farmFields.values()) {
     const fields = fieldsByFarmstead.get(field.farmsteadId);
@@ -148,6 +163,7 @@ export function computeSettlementSeasonalLaborPlan(
 
   const sites: SeasonalLaborSitePlan[] = [];
   let dormantSites = 0;
+  let fireDisabledSites = 0;
   let reclaimableWorkers = 0;
   let reclaimableSites = 0;
   let retainedHaulers = 0;
@@ -159,6 +175,28 @@ export function computeSettlementSeasonalLaborPlan(
       || building.assignedLabor <= 0
       || !isSeasonalLaborKind(building.kind)
     ) {
+      continue;
+    }
+    if (fireDisabled.has(building.id)) {
+      fireDisabledSites += 1;
+      const reclaimable = Math.max(0, Math.floor(building.assignedLabor));
+      sites.push({
+        buildingId: building.id,
+        kind: building.kind,
+        reason: 'fire-disabled',
+        assignedLabor: building.assignedLabor,
+        targetLabor: 0,
+        reclaimableWorkers: reclaimable,
+        retainedHauler: false,
+      });
+      reclaimableWorkers += reclaimable;
+      reclaimableSites += 1;
+      if (
+        firstReclaimableBuildingId === null
+        || compareStableEntityIds(building.id, firstReclaimableBuildingId) < 0
+      ) {
+        firstReclaimableBuildingId = building.id;
+      }
       continue;
     }
     const fields = fieldsByFarmstead.get(building.id) ?? [];
@@ -184,6 +222,7 @@ export function computeSettlementSeasonalLaborPlan(
     sites.push({
       buildingId: building.id,
       kind: building.kind,
+      reason: 'seasonal-dormant',
       assignedLabor: building.assignedLabor,
       targetLabor,
       reclaimableWorkers: reclaimable,
@@ -201,6 +240,7 @@ export function computeSettlementSeasonalLaborPlan(
 
   return {
     dormantSites,
+    fireDisabledSites,
     reclaimableSites,
     reclaimableWorkers,
     retainedHaulers,
@@ -210,10 +250,13 @@ export function computeSettlementSeasonalLaborPlan(
 }
 
 export function computeSettlementSeasonalCallupPlan(
-  state: Pick<GameState, 'buildings' | 'farmFields'>,
+  state: SeasonalLaborState,
   month: number,
   availableLabor: number,
 ): SettlementSeasonalCallupPlan {
+  const fireDisabled = fireDisabledBuildingIds(
+    state.fireIncidents?.values() ?? [],
+  );
   const fieldsByFarmstead = new Map<string, FarmFieldState[]>();
   for (const field of state.farmFields.values()) {
     const fields = fieldsByFarmstead.get(field.farmsteadId);
@@ -227,6 +270,7 @@ export function computeSettlementSeasonalCallupPlan(
   type Candidate = SeasonalLaborCallupAssignment & { maxLabor: number };
   const priorityBuckets: Candidate[][] = [[], [], []];
   let activeSites = 0;
+  let fireBlockedSites = 0;
   let understaffedSites = 0;
   let openPosts = 0;
 
@@ -241,6 +285,10 @@ export function computeSettlementSeasonalCallupPlan(
       continue;
     }
     activeSites += 1;
+    if (fireDisabled.has(building.id)) {
+      fireBlockedSites += 1;
+      continue;
+    }
     const maxLabor = BUILDING_DEFINITIONS[building.kind].maxLabor;
     const assignedLabor = Math.max(0, Math.min(maxLabor, Math.floor(building.assignedLabor)));
     if (assignedLabor >= maxLabor) continue;
@@ -297,6 +345,7 @@ export function computeSettlementSeasonalCallupPlan(
   );
   return {
     activeSites,
+    fireBlockedSites,
     understaffedSites,
     openPosts,
     callupWorkers,

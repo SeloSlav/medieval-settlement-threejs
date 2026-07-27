@@ -1,4 +1,5 @@
 import { BUILDING_DEFINITIONS, type BuildingKind } from '../generated/gameBalance.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import { isSeasonalLaborKind } from './seasonalLabor.ts';
@@ -22,6 +23,8 @@ export type YearRoundLaborRotationAssignment = {
 
 export type SettlementYearRoundLaborRotation = {
   worksites: number;
+  fireDisabledSites: number;
+  fireRecalledWorkers: number;
   understaffedSites: number;
   openPosts: number;
   recalledWorkers: number;
@@ -41,12 +44,18 @@ export function isYearRoundLaborKind(kind: BuildingKind): boolean {
 }
 
 export function computeSettlementYearRoundLaborRotation(
-  state: Pick<GameState, 'buildings'>,
+  state: Pick<GameState, 'buildings'> & Partial<Pick<GameState, 'fireIncidents'>>,
   availableLabor: number,
 ): SettlementYearRoundLaborRotation {
+  const fireDisabled = fireDisabledBuildingIds(
+    state.fireIncidents?.values() ?? [],
+  );
   type Candidate = YearRoundLaborRotationAssignment & { maxLabor: number };
   const priorityBuckets: Candidate[][] = [[], [], []];
+  const fireAssignments: YearRoundLaborRotationAssignment[] = [];
   let worksites = 0;
+  let fireDisabledSites = 0;
+  let fireRecalledWorkers = 0;
   let understaffedSites = 0;
   let openPosts = 0;
 
@@ -67,6 +76,22 @@ export function computeSettlementYearRoundLaborRotation(
       Math.min(maxLabor, Math.floor(building.assignedLabor)),
     );
     const priority = normalizeStaffingPriority(building.constructionPriority);
+    if (fireDisabled.has(building.id)) {
+      fireDisabledSites += 1;
+      fireRecalledWorkers += assignedLabor;
+      if (assignedLabor > 0) {
+        fireAssignments.push({
+          buildingId: building.id,
+          kind: building.kind,
+          priority,
+          assignedLabor,
+          targetLabor: 0,
+          recalledWorkers: assignedLabor,
+          calledWorkers: 0,
+        });
+      }
+      continue;
+    }
     if (assignedLabor < maxLabor) {
       understaffedSites += 1;
       openPosts += maxLabor - assignedLabor;
@@ -88,10 +113,12 @@ export function computeSettlementYearRoundLaborRotation(
   }
 
   const freeLaborBefore = Math.max(0, Math.floor(availableLabor));
-  let workersRemaining = freeLaborBefore;
-  let recalledWorkers = 0;
+  let workersRemaining = freeLaborBefore + fireRecalledWorkers;
+  let recalledWorkers = fireRecalledWorkers;
   let calledWorkers = 0;
-  let firstRecalledBuildingId: string | null = null;
+  let firstRecalledBuildingId: string | null = fireAssignments
+    .map((assignment) => assignment.buildingId)
+    .sort(compareStableEntityIds)[0] ?? null;
 
   for (
     let destinationPriority = STAFFING_PRIORITY_HIGH;
@@ -144,19 +171,23 @@ export function computeSettlementYearRoundLaborRotation(
   const firstUnderstaffedBuildingId = orderedCandidates.find(
     (candidate) => candidate.assignedLabor < candidate.maxLabor,
   )?.buildingId ?? null;
-  const assignments = priorityBuckets
+  const assignments = fireAssignments.concat(priorityBuckets
     .flat()
     .filter((candidate) => candidate.targetLabor !== candidate.assignedLabor)
     .sort((left, right) => compareStableEntityIds(left.buildingId, right.buildingId))
-    .map(({ maxLabor: _maxLabor, ...assignment }) => assignment);
+    .map(({ maxLabor: _maxLabor, ...assignment }) => assignment))
+    .sort((left, right) => compareStableEntityIds(left.buildingId, right.buildingId));
 
   return {
     worksites,
+    fireDisabledSites,
+    fireRecalledWorkers,
     understaffedSites,
     openPosts,
     recalledWorkers,
     calledWorkers,
-    remainingOpenPosts: openPosts - calledWorkers + recalledWorkers,
+    remainingOpenPosts:
+      openPosts - calledWorkers + recalledWorkers - fireRecalledWorkers,
     freeLaborBefore,
     freeLaborAfter: workersRemaining,
     firstRecalledBuildingId,

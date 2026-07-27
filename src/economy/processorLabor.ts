@@ -54,6 +54,7 @@ export type SettlementProcessorLaborCallupPlan = {
   auditedSites: number;
   readySites: number;
   blockedSites: number;
+  fireBlockedSites: number;
   understaffedSites: number;
   openPosts: number;
   callupWorkers: number;
@@ -72,6 +73,14 @@ export type SettlementProductionStewardPlan = {
   availableLaborAfter: number;
   firstChangedBuildingId: string | null;
 };
+
+type ProductionLaborState =
+  Pick<GameState, 'buildings' | 'quarries' | 'foragingNodes'>
+  & Partial<Pick<GameState, 'fireIncidents'>>;
+
+type OperationalProductionLaborState =
+  Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>
+  & Partial<Pick<GameState, 'fireIncidents'>>;
 
 export function computeSettlementProcessorLaborRecallPlan(
   state: Pick<GameState, 'buildings' | 'deliveryTrips'>,
@@ -136,7 +145,7 @@ export function computeSettlementProcessorLaborRecallPlan(
 }
 
 export function computeSettlementProcessorLaborCallupPlan(
-  state: Pick<GameState, 'buildings' | 'quarries' | 'foragingNodes'>,
+  state: ProductionLaborState,
   availableLabor: number,
 ): SettlementProcessorLaborCallupPlan {
   return computeProcessorLaborCallupPlanWithReadiness(
@@ -147,7 +156,7 @@ export function computeSettlementProcessorLaborCallupPlan(
 }
 
 export function computeSettlementOperationalProcessorLaborCallupPlan(
-  state: Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>,
+  state: OperationalProductionLaborState,
   availableLabor: number,
 ): SettlementProcessorLaborCallupPlan {
   return computeProcessorLaborCallupPlanWithReadiness(
@@ -229,6 +238,7 @@ function computeProcessorLaborCallupPlanWithReadiness(
     auditedSites: readiness.auditedSites,
     readySites: readiness.readySites,
     blockedSites: readiness.blockedSites,
+    fireBlockedSites: readiness.fireDisabledSites,
     understaffedSites,
     openPosts,
     callupWorkers,
@@ -242,7 +252,7 @@ function computeProcessorLaborCallupPlanWithReadiness(
 /// synchronized game state: release safe stalled surplus, add it to the free
 /// pool, then deploy only to supplied or recovering production.
 export function computeSettlementProductionStewardPlan(
-  state: Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>,
+  state: OperationalProductionLaborState,
   month: number,
   availableLabor: number,
   laborReserve = 0,

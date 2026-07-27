@@ -3,6 +3,7 @@ import {
   harvestableWildStock,
 } from '../foraging/harvestReservePolicy.ts';
 import { isForagingHarvestAvailable } from '../foraging/foragingSeason.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type {
   DeliveryCargoKind,
   DeliveryTripState,
@@ -42,7 +43,8 @@ export type WorksiteStallReason =
   | 'input_empty'
   | 'output_blocked'
   | 'source_unavailable'
-  | 'reserve_protected';
+  | 'reserve_protected'
+  | 'fire_disabled';
 
 export type WorksiteStallSite = {
   buildingId: string;
@@ -65,6 +67,7 @@ export type SettlementWorksiteStallPlan = {
   outputStalledSites: number;
   sourceStalledSites: number;
   reserveStalledSites: number;
+  fireDisabledSites: number;
   dispatchDutySites: number;
   reclaimableSites: number;
   reclaimableWorkers: number;
@@ -80,8 +83,17 @@ export type SettlementProductionReadiness = {
   auditedSites: number;
   readySites: number;
   blockedSites: number;
+  fireDisabledSites: number;
   readyBuildingIds: ReadonlySet<string>;
 };
+
+type ProductionReadinessState =
+  Pick<GameState, 'buildings' | 'quarries' | 'foragingNodes'>
+  & Partial<Pick<GameState, 'fireIncidents'>>;
+
+type OperationalProductionReadinessState =
+  Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>
+  & Partial<Pick<GameState, 'fireIncidents'>>;
 
 type Positioned = { x: number; z: number };
 
@@ -167,6 +179,10 @@ function hasHigherAttention(
   if (current === null) return true;
   if (candidate.priority !== current.priority) {
     return candidate.priority > current.priority;
+  }
+  if (candidate.reason !== current.reason) {
+    if (candidate.reason === 'fire_disabled') return true;
+    if (current.reason === 'fire_disabled') return false;
   }
   return compareStableEntityIds(candidate.buildingId, current.buildingId) < 0;
 }
@@ -416,12 +432,16 @@ function wildStockStall(
 /// physical input network remains a separate planning constraint. Extraction
 /// sites additionally require local yard room and a usable source.
 export function computeSettlementProductionReadiness(
-  state: Pick<GameState, 'buildings' | 'quarries' | 'foragingNodes'>,
+  state: ProductionReadinessState,
 ): SettlementProductionReadiness {
   const quarryBuckets = buildSpatialBuckets(state.quarries.values());
   const nodeBuckets = buildSpatialBuckets(state.foragingNodes.values());
+  const fireDisabled = fireDisabledBuildingIds(
+    state.fireIncidents?.values() ?? [],
+  );
   const readyBuildingIds = new Set<string>();
   let auditedSites = 0;
+  let fireDisabledSites = 0;
 
   for (const building of state.buildings.values()) {
     if (
@@ -431,6 +451,10 @@ export function computeSettlementProductionReadiness(
       continue;
     }
     auditedSites += 1;
+    if (fireDisabled.has(building.id)) {
+      fireDisabledSites += 1;
+      continue;
+    }
 
     let ready: boolean;
     if (isProcessorOutputTargetKind(building.kind)) {
@@ -450,6 +474,7 @@ export function computeSettlementProductionReadiness(
     auditedSites,
     readySites: readyBuildingIds.size,
     blockedSites: auditedSites - readyBuildingIds.size,
+    fireDisabledSites,
     readyBuildingIds,
   };
 }
@@ -458,15 +483,19 @@ export function computeSettlementProductionReadiness(
 /// deployment forecast, a processor is ready only when every current input is
 /// on site or already approaching on a matching physical cart.
 export function computeSettlementOperationalProductionReadiness(
-  state: Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>,
+  state: OperationalProductionReadinessState,
 ): SettlementProductionReadiness {
   const quarryBuckets = buildSpatialBuckets(state.quarries.values());
   const nodeBuckets = buildSpatialBuckets(state.foragingNodes.values());
+  const fireDisabled = fireDisabledBuildingIds(
+    state.fireIncidents?.values() ?? [],
+  );
   const inboundCargoByBuilding = buildInboundCargoByBuilding(
     state.deliveryTrips.values(),
   );
   const readyBuildingIds = new Set<string>();
   let auditedSites = 0;
+  let fireDisabledSites = 0;
 
   for (const building of state.buildings.values()) {
     if (
@@ -476,6 +505,10 @@ export function computeSettlementOperationalProductionReadiness(
       continue;
     }
     auditedSites += 1;
+    if (fireDisabled.has(building.id)) {
+      fireDisabledSites += 1;
+      continue;
+    }
 
     let ready: boolean;
     if (isProcessorOutputTargetKind(building.kind)) {
@@ -500,16 +533,20 @@ export function computeSettlementOperationalProductionReadiness(
     auditedSites,
     readySites: readyBuildingIds.size,
     blockedSites: auditedSites - readyBuildingIds.size,
+    fireDisabledSites,
     readyBuildingIds,
   };
 }
 
 export function computeSettlementWorksiteStallPlan(
-  state: Pick<GameState, 'buildings' | 'deliveryTrips' | 'quarries' | 'foragingNodes'>,
+  state: OperationalProductionReadinessState,
   month: number,
 ): SettlementWorksiteStallPlan {
   const quarryBuckets = buildSpatialBuckets(state.quarries.values());
   const nodeBuckets = buildSpatialBuckets(state.foragingNodes.values());
+  const fireDisabled = fireDisabledBuildingIds(
+    state.fireIncidents?.values() ?? [],
+  );
   const activeOriginTrips = new Set<string>();
   const inboundCargoByBuilding = buildInboundCargoByBuilding(
     state.deliveryTrips.values(),
@@ -525,6 +562,7 @@ export function computeSettlementWorksiteStallPlan(
   let outputStalledSites = 0;
   let sourceStalledSites = 0;
   let reserveStalledSites = 0;
+  let fireDisabledSites = 0;
   let dispatchDutySites = 0;
   let reclaimableSites = 0;
   let reclaimableWorkers = 0;
@@ -546,7 +584,23 @@ export function computeSettlementWorksiteStallPlan(
 
     const activeOriginTrip = activeOriginTrips.has(building.id);
     let stall: WorksiteStallSite | 'supply_en_route' | null;
-    if (isProcessorOutputTargetKind(building.kind)) {
+    if (fireDisabled.has(building.id)) {
+      const kind = worksiteKind(building, month);
+      if (kind === null) continue;
+      const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
+      stall = {
+        buildingId: building.id,
+        kind,
+        reason: 'fire_disabled',
+        detail: 'fire damage suspends all production and dispatch until repaired',
+        assignedLabor,
+        assignedWorkers: assignedLabor,
+        targetLabor: 0,
+        reclaimableWorkers: assignedLabor,
+        priority: normalizeStaffingPriority(building.constructionPriority),
+        hasDispatchDuty: false,
+      };
+    } else if (isProcessorOutputTargetKind(building.kind)) {
       stall = processorStall(
         building as BuildingState & { kind: ProcessorOutputTargetKind },
         inboundCargoByBuilding.get(building.id),
@@ -583,6 +637,7 @@ export function computeSettlementWorksiteStallPlan(
     if (stall.reason === 'output_blocked') outputStalledSites += 1;
     if (stall.reason === 'source_unavailable') sourceStalledSites += 1;
     if (stall.reason === 'reserve_protected') reserveStalledSites += 1;
+    if (stall.reason === 'fire_disabled') fireDisabledSites += 1;
     if (hasHigherAttention(stall, firstAttention)) {
       firstAttention = stall;
     }
@@ -596,6 +651,7 @@ export function computeSettlementWorksiteStallPlan(
     outputStalledSites,
     sourceStalledSites,
     reserveStalledSites,
+    fireDisabledSites,
     dispatchDutySites,
     reclaimableSites,
     reclaimableWorkers,

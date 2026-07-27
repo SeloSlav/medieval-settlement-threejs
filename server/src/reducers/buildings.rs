@@ -892,6 +892,12 @@ pub fn recall_target_idle_processor_labor_for_owner(
         .collect();
     let mut recalled = 0_u32;
     for mut building in buildings {
+        if building_fire_state(ctx, building.id).is_some() {
+            recalled = recalled.saturating_add(building.assigned_labor);
+            building.assigned_labor = 0;
+            ctx.db.building().id().update(building);
+            continue;
+        }
         let has_active_trip = building_has_active_trip(ctx, building.id);
         let (stalled, supply_en_route, has_dispatch_duty) = match building.kind.as_str() {
             kind if is_processor_output_target_kind(kind) => {
@@ -981,13 +987,9 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
     }
     let (quarry_buckets, foraging_buckets) = worksite_source_buckets(ctx);
     let mut candidates = Vec::new();
-    for building in ctx
-        .db
-        .building()
-        .owner()
-        .filter(&owner)
-        .filter(|building| building.construction_complete)
-    {
+    for building in ctx.db.building().owner().filter(&owner).filter(|building| {
+        building.construction_complete && building_fire_state(ctx, building.id).is_none()
+    }) {
         let Some(def) = building_def(&building.kind) else {
             continue;
         };
@@ -1066,17 +1068,13 @@ pub fn call_up_target_ready_processor_labor(ctx: &ReducerContext) -> Result<(), 
 #[reducer]
 pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
     let owner = ctx.sender();
-    let has_staffed_town_hall = ctx.db.building().owner().filter(&owner).any(|building| {
-        building.kind == "town_hall"
-            && building.construction_complete
-            && building.assigned_labor > 0
-    });
-    if !has_staffed_town_hall {
+    if !owner_has_staffed_town_hall(ctx, owner) {
         return Err("A staffed Town Hall is required to balance year-round crews.".to_string());
     }
 
-    let available_labor = available_building_labor(ctx, owner);
+    let mut available_labor = available_building_labor(ctx, owner);
     let mut sites = Vec::new();
+    let mut fire_disabled_sites = Vec::new();
     for building in ctx
         .db
         .building()
@@ -1090,6 +1088,13 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         if !def.accepts_labor || !is_year_round_labor_kind(&building.kind) {
             continue;
         }
+        if building_fire_state(ctx, building.id).is_some() {
+            if building.assigned_labor > 0 {
+                available_labor = available_labor.saturating_add(building.assigned_labor);
+                fire_disabled_sites.push(building.id);
+            }
+            continue;
+        }
         sites.push(YearRoundLaborSite {
             building_id: building.id,
             priority: building.construction_priority,
@@ -1099,6 +1104,16 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
     }
 
     let rotation = year_round_labor_rotation(&sites, available_labor);
+    for building_id in fire_disabled_sites {
+        let Some(mut building) = ctx.db.building().id().find(&building_id) else {
+            continue;
+        };
+        if building.owner != owner || building.assigned_labor == 0 {
+            continue;
+        }
+        building.assigned_labor = 0;
+        ctx.db.building().id().update(building);
+    }
     for (building_id, target_labor) in rotation.targets {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;

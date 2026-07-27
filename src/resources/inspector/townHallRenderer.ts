@@ -935,22 +935,34 @@ export function renderSettlementArmamentRows(
 }
 
 function formatSeasonalLabor(plan: SettlementSeasonalLaborPlan): string {
-  if (plan.dormantSites === 0) return 'No staffed seasonal sites are dormant';
-  if (plan.reclaimableWorkers === 0) {
-    return `${plan.dormantSites} dormant ${plan.dormantSites === 1 ? 'site' : 'sites'} · ${plan.retainedHaulers} necessary ${plan.retainedHaulers === 1 ? 'hauler' : 'haulers'}`;
+  const fire = plan.fireDisabledSites > 0
+    ? `${plan.fireDisabledSites} fire-disabled ${plan.fireDisabledSites === 1 ? 'site' : 'sites'}`
+    : '';
+  if (plan.dormantSites === 0 && plan.fireDisabledSites === 0) {
+    return 'No staffed seasonal sites are dormant or fire-disabled';
   }
-  return `${plan.reclaimableWorkers} idle ${plan.reclaimableWorkers === 1 ? 'worker' : 'workers'} across ${plan.reclaimableSites} ${plan.reclaimableSites === 1 ? 'site' : 'sites'} · ${plan.retainedHaulers} ${plan.retainedHaulers === 1 ? 'hauler remains' : 'haulers remain'} for stored goods or active carts`;
+  if (plan.reclaimableWorkers === 0) {
+    const dormant = plan.dormantSites > 0
+      ? `${plan.dormantSites} dormant ${plan.dormantSites === 1 ? 'site' : 'sites'}`
+      : '';
+    return `${[dormant, fire].filter(Boolean).join(' · ')} · ${plan.retainedHaulers} necessary ${plan.retainedHaulers === 1 ? 'hauler' : 'haulers'}`;
+  }
+  return `${plan.reclaimableWorkers} idle ${plan.reclaimableWorkers === 1 ? 'worker' : 'workers'} across ${plan.reclaimableSites} ${plan.reclaimableSites === 1 ? 'site' : 'sites'}${fire ? ` · ${fire}` : ''} · ${plan.retainedHaulers} ${plan.retainedHaulers === 1 ? 'hauler remains' : 'haulers remain'} for stored goods or active carts`;
 }
 
 function formatSeasonalCallup(plan: SettlementSeasonalCallupPlan): string {
   if (plan.activeSites === 0) return 'No seasonal work window is open';
+  const fire = plan.fireBlockedSites > 0
+    ? ` · ${plan.fireBlockedSites} active ${plan.fireBlockedSites === 1 ? 'site is' : 'sites are'} fire-disabled`
+    : '';
   if (plan.understaffedSites === 0) {
-    return `${plan.activeSites} active seasonal ${plan.activeSites === 1 ? 'site is' : 'sites are'} fully staffed`;
+    const operationalSites = plan.activeSites - plan.fireBlockedSites;
+    return `${operationalSites} operational seasonal ${operationalSites === 1 ? 'site is' : 'sites are'} fully staffed${fire}`;
   }
   if (plan.callupWorkers === 0) {
-    return `${plan.openPosts} active seasonal ${plan.openPosts === 1 ? 'vacancy' : 'vacancies'} across ${plan.understaffedSites} ${plan.understaffedSites === 1 ? 'site' : 'sites'} · no free labor`;
+    return `${plan.openPosts} active seasonal ${plan.openPosts === 1 ? 'vacancy' : 'vacancies'} across ${plan.understaffedSites} ${plan.understaffedSites === 1 ? 'site' : 'sites'} · no free labor${fire}`;
   }
-  return `${plan.callupWorkers} free ${plan.callupWorkers === 1 ? 'worker can' : 'workers can'} fill ${plan.callupWorkers} of ${plan.openPosts} active seasonal ${plan.openPosts === 1 ? 'vacancy' : 'vacancies'} across ${plan.understaffedSites} ${plan.understaffedSites === 1 ? 'site' : 'sites'} · ${plan.remainingOpenPosts} remain`;
+  return `${plan.callupWorkers} free ${plan.callupWorkers === 1 ? 'worker can' : 'workers can'} fill ${plan.callupWorkers} of ${plan.openPosts} active seasonal ${plan.openPosts === 1 ? 'vacancy' : 'vacancies'} across ${plan.understaffedSites} ${plan.understaffedSites === 1 ? 'site' : 'sites'} · ${plan.remainingOpenPosts} remain${fire}`;
 }
 
 function formatProcessorLaborRecall(plan: SettlementProcessorLaborRecallPlan): string {
@@ -963,17 +975,25 @@ function formatProcessorLaborRecall(plan: SettlementProcessorLaborRecallPlan): s
 
 function formatYearRoundLaborRotation(plan: SettlementYearRoundLaborRotation): string {
   if (plan.worksites === 0) return 'No ordinary year-round worksite is built';
+  const fire = plan.fireDisabledSites > 0
+    ? `${plan.fireDisabledSites} fire-disabled ${plan.fireDisabledSites === 1 ? 'worksite releases' : 'worksites release'} ${plan.fireRecalledWorkers} ${plan.fireRecalledWorkers === 1 ? 'worker' : 'workers'}`
+    : '';
   if (plan.understaffedSites === 0) {
-    return `${plan.worksites} year-round ${plan.worksites === 1 ? 'worksite is' : 'worksites are'} fully staffed`;
+    const operationalSites = plan.worksites - plan.fireDisabledSites;
+    return `${operationalSites} operational year-round ${operationalSites === 1 ? 'worksite is' : 'worksites are'} fully staffed${fire ? ` · ${fire}` : ''}`;
   }
   if (plan.calledWorkers === 0) {
-    return `${plan.openPosts} open ${plan.openPosts === 1 ? 'post remains' : 'posts remain'} across ${plan.understaffedSites} year-round ${plan.understaffedSites === 1 ? 'worksite' : 'worksites'} · no free or strictly lower-priority labor can fill them`;
+    return `${plan.openPosts} open ${plan.openPosts === 1 ? 'post remains' : 'posts remain'} across ${plan.understaffedSites} year-round ${plan.understaffedSites === 1 ? 'worksite' : 'worksites'} · no free or strictly lower-priority labor can fill them${fire ? ` · ${fire}` : ''}`;
   }
-  const freeWorkersUsed = plan.calledWorkers - plan.recalledWorkers;
-  const source = plan.recalledWorkers > 0
-    ? `${plan.recalledWorkers} lower-priority ${plan.recalledWorkers === 1 ? 'worker moves' : 'workers move'}${freeWorkersUsed > 0 ? ` + ${freeWorkersUsed} from the free pool` : ''}`
-    : `${plan.calledWorkers} free ${plan.calledWorkers === 1 ? 'worker moves' : 'workers move'}`;
-  return `${source} into ${plan.calledWorkers} higher-priority or vacant ${plan.calledWorkers === 1 ? 'post' : 'posts'} · ${plan.remainingOpenPosts} open ${plan.remainingOpenPosts === 1 ? 'post remains' : 'posts remain'}`;
+  const priorityRecalled = plan.recalledWorkers - plan.fireRecalledWorkers;
+  const source = [
+    fire,
+    priorityRecalled > 0
+      ? `${priorityRecalled} lower-priority ${priorityRecalled === 1 ? 'worker moves' : 'workers move'}`
+      : '',
+    `${plan.calledWorkers} total ${plan.calledWorkers === 1 ? 'worker deploys' : 'workers deploy'}`,
+  ].filter(Boolean).join(' · ');
+  return `${source} into higher-priority or vacant posts · ${plan.remainingOpenPosts} open ${plan.remainingOpenPosts === 1 ? 'post remains' : 'posts remain'}`;
 }
 
 function formatWorksiteStalls(
@@ -986,6 +1006,7 @@ function formatWorksiteStalls(
       : `No stalls across ${plan.auditedSites} staffed workshops, quarries, hunting halls, or active fishing camps`;
   }
   const reasons = [
+    plan.fireDisabledSites > 0 ? `${plan.fireDisabledSites} fire-disabled` : '',
     plan.inputStalledSites > 0 ? `${plan.inputStalledSites} empty-input` : '',
     plan.outputStalledSites > 0 ? `${plan.outputStalledSites} output-blocked` : '',
     plan.sourceStalledSites > 0 ? `${plan.sourceStalledSites} without usable source` : '',
@@ -1011,16 +1032,19 @@ function formatWorksiteStalls(
 
 function formatProcessorLaborCallup(plan: SettlementProcessorLaborCallupPlan): string {
   if (plan.auditedSites === 0) return 'No managed production worksite is built';
+  const fire = plan.fireBlockedSites > 0
+    ? ` · ${plan.fireBlockedSites} fire-disabled`
+    : '';
   if (plan.readySites === 0) {
-    return `${plan.blockedSites} production ${plan.blockedSites === 1 ? 'site is' : 'sites are'} blocked by output capacity or an unusable local source`;
+    return `${plan.blockedSites} production ${plan.blockedSites === 1 ? 'site is' : 'sites are'} blocked by fire, output capacity, missing input, or an unusable local source${fire}`;
   }
   if (plan.understaffedSites === 0) {
-    return `${plan.readySites} ready production ${plan.readySites === 1 ? 'site is' : 'sites are'} fully staffed${plan.blockedSites > 0 ? ` · ${plan.blockedSites} blocked` : ''}`;
+    return `${plan.readySites} ready production ${plan.readySites === 1 ? 'site is' : 'sites are'} fully staffed${plan.blockedSites > 0 ? ` · ${plan.blockedSites} blocked` : ''}${fire}`;
   }
   if (plan.callupWorkers === 0) {
-    return `${plan.openPosts} open ${plan.openPosts === 1 ? 'post remains' : 'posts remain'} across ${plan.understaffedSites} ready production ${plan.understaffedSites === 1 ? 'site' : 'sites'} · no free labor${plan.blockedSites > 0 ? ` · ${plan.blockedSites} blocked` : ''}`;
+    return `${plan.openPosts} open ${plan.openPosts === 1 ? 'post remains' : 'posts remain'} across ${plan.understaffedSites} ready production ${plan.understaffedSites === 1 ? 'site' : 'sites'} · no free labor${plan.blockedSites > 0 ? ` · ${plan.blockedSites} blocked` : ''}${fire}`;
   }
-  return `${plan.callupWorkers} free ${plan.callupWorkers === 1 ? 'worker can' : 'workers can'} fill ${plan.callupWorkers} of ${plan.openPosts} ready production ${plan.openPosts === 1 ? 'post' : 'posts'} across ${plan.understaffedSites} ${plan.understaffedSites === 1 ? 'site' : 'sites'} · ${plan.remainingOpenPosts} remain${plan.blockedSites > 0 ? ` · ${plan.blockedSites} blocked` : ''}`;
+  return `${plan.callupWorkers} free ${plan.callupWorkers === 1 ? 'worker can' : 'workers can'} fill ${plan.callupWorkers} of ${plan.openPosts} ready production ${plan.openPosts === 1 ? 'post' : 'posts'} across ${plan.understaffedSites} ${plan.understaffedSites === 1 ? 'site' : 'sites'} · ${plan.remainingOpenPosts} remain${plan.blockedSites > 0 ? ` · ${plan.blockedSites} blocked` : ''}${fire}`;
 }
 
 function formatLaborStewardStage(
@@ -1133,12 +1157,16 @@ export function renderTownHallInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
-  const staffed = building.assignedLabor > 0;
+  const fireDisabled = fireDisabledBuildingIds(
+    context.gameState.fireIncidents.values(),
+  );
+  const staffed = building.assignedLabor > 0 && !fireDisabled.has(building.id);
   const staffedTownHallAvailable = Array.from(context.gameState.buildings.values()).some(
     (candidate) =>
       candidate.kind === 'town_hall'
       && candidate.constructionComplete !== false
-      && candidate.assignedLabor > 0,
+      && candidate.assignedLabor > 0
+      && !fireDisabled.has(candidate.id),
   );
   const seasonalLaborStewardEnabled =
     context.getSeasonalLaborStewardEnabled?.() ?? false;
@@ -1203,7 +1231,6 @@ export function renderTownHallInspector(
     (kind) => context.worldQueries.getBuildingLabel(kind),
     (residenceId) => context.gameState.residences.get(residenceId)?.parcelIndex ?? null,
   );
-  const fireDisabled = fireDisabledBuildingIds(context.gameState.fireIncidents.values());
   const growthChapels = Array.from(context.gameState.buildings.values())
     .filter((candidate) =>
       candidate.kind === 'chapel'
@@ -1367,7 +1394,10 @@ export function renderTownHallInspector(
           : undefined,
       })
     : null;
-  const processingWeek = `${production.capacityDaysPerWeek}-day working week · installed capacity if supplied`;
+  const processingWeek = `${production.capacityDaysPerWeek}-day working week · operational staffed capacity if supplied`;
+  const productionFireOutageRow = production.fireDisabledProcessorSites === 0
+    ? ''
+    : `<li><span>Processor fire outages</span><span>${production.fireDisabledProcessorWorkers} ${production.fireDisabledProcessorWorkers === 1 ? 'worker is' : 'workers are'} idle across ${production.fireDisabledProcessorSites} fire-disabled ${production.fireDisabledProcessorSites === 1 ? 'processor' : 'processors'}${production.firstFireDisabledProcessorId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${production.firstFireDisabledProcessorId}" aria-label="Inspect first fire-disabled processor">Inspect</button>`}</span></li>`;
   const flourBalance = grainChainBalanceLabel(production);
   const farmPlan = buildSettlementFarmPlan(
     context.gameState,
@@ -1585,6 +1615,7 @@ export function renderTownHallInspector(
       <li><span>Winter firewood</span><span>${Math.round(provisioning.firewoodStock)} / ${Math.ceil(provisioning.winterFirewoodNeed)} · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>
       ${provisioning.sabbathObserved ? `<li><span>Sunday household stores</span><span>${formatSabbathReadiness(provisioning)}</span></li>` : ''}
       <li><span>Processing basis</span><span>${processingWeek}</span></li>
+      ${productionFireOutageRow}
       <li><span>Processor buffer basis</span><span>First staffed site to stop or fill · onsite stock plus carts that unload before depletion</span></li>
       <li><span>Mill buffers</span><span>Input ${formatProcessorInputBuffer(production.millInputBuffer)} · flour room ${formatProcessorOutputRoom(production.millOutputRoom)} ${processorInspectButton('mill', production.millInputBuffer, production.millOutputRoom)}</span></li>
       <li><span>Granary bakery buffers</span><span>Input ${formatProcessorInputBuffer(production.bakeryInputBuffer)} · food room ${formatProcessorOutputRoom(production.bakeryOutputRoom)} ${processorInspectButton('granary bakery', production.bakeryInputBuffer, production.bakeryOutputRoom)}</span></li>
