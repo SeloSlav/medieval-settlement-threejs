@@ -152,6 +152,16 @@ assert.match(
   /free_hauler_workers_for_trip[\s\S]*free_hauler_workers,/,
   'new trips must persist their free-labor reservation',
 );
+assert.match(
+  deliveryTripServer,
+  /preserve_in_transit_cart_labor[\s\S]*free_hauler_workers[\s\S]*delivery_trip\(\)\.id\(\)\.update/,
+  'roster reductions must transfer traveling workers into the trip reservation',
+);
+assert.match(
+  read('server/src/year_round_labor_policy.rs'),
+  /minimum_labor[\s\S]*saturating_sub\(donor\.minimum_labor\)/,
+  'priority rotation must not reuse a staffed cart crew as donor labor',
+);
 assert.match(constructionServer, /construction_progress/);
 assert.match(constructionServer, /complete_site/);
 assert.match(constructionServer, /site_buckets/);

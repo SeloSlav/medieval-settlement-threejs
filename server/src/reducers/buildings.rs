@@ -55,7 +55,8 @@ use crate::simulation::{
     building_fire_state, building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_owner,
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
-    game_clock, owner_has_staffed_town_hall, recall_idle_seasonal_labor_for_owner,
+    game_clock, owner_has_staffed_town_hall, preserve_in_transit_cart_labor,
+    recall_idle_seasonal_labor_for_owner, staffed_cart_workers_by_building,
     try_start_chapel_treasury_trip, SimTickContext, FIRE_TARGET_BUILDING,
 };
 use crate::specialty_trade_policy::is_valid_specialty_export_policy;
@@ -690,7 +691,9 @@ pub(crate) fn rotate_construction_labor_for_owner_with_reserve(
         if building.owner != owner || building.construction_complete {
             continue;
         }
-        building.assigned_labor = target_labor.min(CONSTRUCTION_MAX_BUILDERS);
+        let target_labor = target_labor.min(CONSTRUCTION_MAX_BUILDERS);
+        preserve_in_transit_cart_labor(ctx, building.id, target_labor);
+        building.assigned_labor = target_labor;
         ctx.db.building().id().update(building);
     }
     rotation
@@ -918,7 +921,9 @@ pub fn recall_target_idle_processor_labor_for_owner(
     let mut recalled = 0_u32;
     for mut building in buildings {
         if building_fire_state(ctx, building.id).is_some() {
-            recalled = recalled.saturating_add(building.assigned_labor);
+            let newly_reserved = preserve_in_transit_cart_labor(ctx, building.id, 0);
+            recalled =
+                recalled.saturating_add(building.assigned_labor.saturating_sub(newly_reserved));
             building.assigned_labor = 0;
             ctx.db.building().id().update(building);
             continue;
@@ -975,7 +980,13 @@ pub fn recall_target_idle_processor_labor_for_owner(
         if target_labor >= building.assigned_labor {
             continue;
         }
-        recalled = recalled.saturating_add(building.assigned_labor - target_labor);
+        let newly_reserved = preserve_in_transit_cart_labor(ctx, building.id, target_labor);
+        recalled = recalled.saturating_add(
+            building
+                .assigned_labor
+                .saturating_sub(target_labor)
+                .saturating_sub(newly_reserved),
+        );
         building.assigned_labor = target_labor;
         ctx.db.building().id().update(building);
     }
@@ -1100,6 +1111,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
     let mut available_labor = available_building_labor(ctx, owner);
     let mut sites = Vec::new();
     let mut fire_disabled_sites = Vec::new();
+    let cart_floors = staffed_cart_workers_by_building(ctx, owner);
     for building in ctx
         .db
         .building()
@@ -1115,7 +1127,9 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         }
         if building_fire_state(ctx, building.id).is_some() {
             if building.assigned_labor > 0 {
-                available_labor = available_labor.saturating_add(building.assigned_labor);
+                let cart_floor = cart_floors.get(&building.id).copied().unwrap_or(0);
+                available_labor = available_labor
+                    .saturating_add(building.assigned_labor.saturating_sub(cart_floor));
                 fire_disabled_sites.push(building.id);
             }
             continue;
@@ -1124,6 +1138,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
             building_id: building.id,
             priority: building.construction_priority,
             assigned_labor: building.assigned_labor,
+            minimum_labor: cart_floors.get(&building.id).copied().unwrap_or(0),
             max_labor: def.max_labor,
         });
     }
@@ -1136,6 +1151,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         if building.owner != owner || building.assigned_labor == 0 {
             continue;
         }
+        preserve_in_transit_cart_labor(ctx, building.id, 0);
         building.assigned_labor = 0;
         ctx.db.building().id().update(building);
     }
@@ -1145,6 +1161,9 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         };
         if building.owner != owner || target_labor == building.assigned_labor {
             continue;
+        }
+        if target_labor < building.assigned_labor {
+            preserve_in_transit_cart_labor(ctx, building.id, target_labor);
         }
         building.assigned_labor = target_labor;
         ctx.db.building().id().update(building);
@@ -1191,6 +1210,7 @@ pub fn set_construction_priority(
     let was_held = building.construction_priority == CONSTRUCTION_PRIORITY_HOLD;
     building.construction_priority = priority;
     if priority == CONSTRUCTION_PRIORITY_HOLD {
+        preserve_in_transit_cart_labor(ctx, building.id, 0);
         building.assigned_labor = 0;
     } else if was_held && building.assigned_labor == 0 {
         building.assigned_labor = initial_construction_labor(available_building_labor(ctx, owner));

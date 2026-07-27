@@ -8,7 +8,9 @@ use crate::constants::{
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_HOLD;
 use crate::db::*;
-use crate::simulation::building_fire_state;
+use crate::simulation::{
+    building_fire_state, preserve_in_transit_cart_labor, staffed_cart_workers_by_building,
+};
 use crate::tables::Building;
 
 use super::population_policy::{
@@ -85,6 +87,7 @@ pub fn initial_construction_labor(available_labor: u32) -> u32 {
 
 /// Clamp building assignments immediately after residence population is lost.
 pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) {
+    let cart_floors = staffed_cart_workers_by_building(ctx, owner);
     let assignments = ctx
         .db
         .building()
@@ -93,6 +96,7 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
         .map(|building| LaborAssignment {
             building_id: building.id,
             assigned_labor: building.assigned_labor,
+            minimum_labor: cart_floors.get(&building.id).copied().unwrap_or(0),
             construction_complete: building.construction_complete,
             priority: building.construction_priority,
         })
@@ -106,6 +110,7 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
+        preserve_in_transit_cart_labor(ctx, building_id, assigned_labor);
         ctx.db.building().id().update(Building {
             assigned_labor,
             ..building
@@ -171,6 +176,7 @@ pub fn assign_building_labor(
         ));
     }
 
+    preserve_in_transit_cart_labor(ctx, building.id, requested_labor);
     ctx.db.building().id().update(Building {
         assigned_labor: requested_labor,
         ..building

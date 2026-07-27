@@ -13,7 +13,7 @@ use crate::seasonal_labor_policy::{
 };
 use crate::tables::{farm_field, Building};
 
-use super::{building_fire_state, building_has_active_trip};
+use super::{building_fire_state, building_has_active_trip, preserve_in_transit_cart_labor};
 
 pub fn owner_has_staffed_town_hall(ctx: &ReducerContext, owner: Identity) -> bool {
     ctx.db.building().owner().filter(&owner).any(|building| {
@@ -42,7 +42,9 @@ pub fn recall_idle_seasonal_labor_for_owner(
 
     for mut building in buildings {
         if building_fire_state(ctx, building.id).is_some() {
-            recalled = recalled.saturating_add(building.assigned_labor);
+            let newly_reserved = preserve_in_transit_cart_labor(ctx, building.id, 0);
+            recalled =
+                recalled.saturating_add(building.assigned_labor.saturating_sub(newly_reserved));
             building.assigned_labor = 0;
             ctx.db.building().id().update(building);
             continue;
@@ -97,7 +99,13 @@ pub fn recall_idle_seasonal_labor_for_owner(
         if target >= building.assigned_labor {
             continue;
         }
-        recalled = recalled.saturating_add(building.assigned_labor - target);
+        let newly_reserved = preserve_in_transit_cart_labor(ctx, building.id, target);
+        recalled = recalled.saturating_add(
+            building
+                .assigned_labor
+                .saturating_sub(target)
+                .saturating_sub(newly_reserved),
+        );
         building.assigned_labor = target;
         ctx.db.building().id().update(building);
     }

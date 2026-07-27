@@ -63,6 +63,7 @@ export function buildingDemolishHint(kind: BuildingKind): string {
 export function buildingLaborView(
   building: BuildingState,
   populationStats: PopulationStats,
+  worldQueries?: WorldQueries,
 ): InspectorLaborView {
   if (building.constructionComplete !== false && !buildingAcceptsLabor(building.kind)) {
     return {
@@ -90,11 +91,20 @@ export function buildingLaborView(
   const buildingCap = building.constructionComplete !== false
     ? buildingMaxLabor(building.kind)
     : CONSTRUCTION_MAX_BUILDERS;
+  const activeTrip = worldQueries?.getActiveDeliveryTrip?.(building) ?? null;
+  const cartWorkers = Math.max(0, activeTrip?.deliveryWorkers ?? 0);
+  const reservedOutsideRoster = Math.max(0, activeTrip?.freeHaulerWorkers ?? 0);
+  const rosteredCartWorkers = Math.max(0, cartWorkers - reservedOutsideRoster);
+  const cartLaborHint = cartWorkers <= 0
+    ? ''
+    : rosteredCartWorkers > 0
+      ? ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart; ${rosteredCartWorkers} ${rosteredCartWorkers === 1 ? 'rostered worker is' : 'rostered workers are'} still backed here, and roster reductions remain committed until return${reservedOutsideRoster > 0 ? ` (${reservedOutsideRoster} already reserved outside the roster)` : ''}.`
+      : ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart and already reserved outside this roster.`;
   return {
     visible: true,
     count: building.assignedLabor,
     hint: building.constructionComplete !== false
-      ? `${building.assignedLabor}/${buildingCap} workers here · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} freelance haulers` : ''}).`
+      ? `${building.assignedLabor}/${buildingCap} workers here · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
       : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available. Builders construct; unassigned workers fetch reserved stock, while staffed storehouses dispatch faster carts.`,
     decreaseDisabled: building.assignedLabor <= 0,
     increaseDisabled: building.assignedLabor >= maxLabor,

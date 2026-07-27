@@ -63,6 +63,6 @@ export function renderWatchtowerInspector(
       <li><span>Campaign season</span><span>Incursions pause from November through March</span></li>
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
-    labor: buildingLaborView(building, context.populationStats),
+    labor: buildingLaborView(building, context.populationStats, context.worldQueries),
   };
 }

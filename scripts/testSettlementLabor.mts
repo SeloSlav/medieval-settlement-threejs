@@ -10,6 +10,7 @@ import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { computeSettlementLaborPlan } from '../src/economy/settlementLabor.ts';
 import { computeSettlementHaulagePlan } from '../src/economy/settlementHaulage.ts';
 import { renderTownHallInspector } from '../src/resources/inspector/townHallRenderer.ts';
+import { buildingLaborView } from '../src/resources/inspector/buildingCommon.ts';
 import { withStaffingPriority } from '../src/resources/inspector/staffingPriorityRenderer.ts';
 import {
   computePopulationStats,
@@ -172,6 +173,10 @@ const renderedQueries = {
   getServingChapelForResidence: () => null,
   isMonasteryLinkedToChapel: () => false,
   findNearestRoadLinkedBuilding: () => null,
+  getActiveDeliveryTrip: (building: BuildingState) => (
+    [...renderedState.deliveryTrips.values()]
+      .find((tripState) => tripState.buildingId === building.id) ?? null
+  ),
 } as unknown as WorldQueries;
 const renderedInspector = withStaffingPriority(renderTownHallInspector(
   {
@@ -215,6 +220,25 @@ const activePopulation = computePopulationStats(renderedState);
 assert.equal(activePopulation.cartAssigned, 1);
 assert.equal(activePopulation.assigned, renderedPopulation.assigned + 1);
 assert.equal(activePopulation.available, renderedPopulation.available - 1);
+const activeCartLabor = buildingLaborView(
+  renderedWell,
+  activePopulation,
+  renderedQueries,
+);
+assert.match(activeCartLabor.hint, /1 worker is traveling with this cart/);
+assert.match(activeCartLabor.hint, /already reserved outside this roster/);
+const rosterBackedCartLabor = buildingLaborView(
+  renderedWell,
+  renderedPopulation,
+  {
+    getActiveDeliveryTrip: () => ({
+      ...renderedState.deliveryTrips.get('route')!,
+      freeHaulerWorkers: 0,
+    }),
+  } as unknown as WorldQueries,
+);
+assert.match(rosterBackedCartLabor.hint, /1 rostered worker is still backed here/);
+assert.match(rosterBackedCartLabor.hint, /roster reductions remain committed until return/);
 const activeHaulageInspector = renderTownHallInspector(
   {
     kind: 'building',
@@ -232,8 +256,8 @@ const activeHaulageInspector = renderTownHallInspector(
   },
 );
 assert.match(activeHaulageInspector.detailsHtml, /Haulage posture/);
-assert.match(activeHaulageInspector.detailsHtml, /1 drawn from free labor/);
-assert.match(activeHaulageInspector.detailsHtml, /1 on freelance carts/);
+assert.match(activeHaulageInspector.detailsHtml, /1 reserved outside building rosters/);
+assert.match(activeHaulageInspector.detailsHtml, /1 reserved on carts outside building rosters/);
 assert.match(activeHaulageInspector.detailsHtml, /Road commitment/);
 assert.match(activeHaulageInspector.detailsHtml, /Longest active haul/);
 assert.match(activeHaulageInspector.detailsHtml, /data-inspect-delivery-trip="route"/);

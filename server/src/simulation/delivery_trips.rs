@@ -1,12 +1,13 @@
 //! Authoritative road delivery agents — cargo unloads when the agent reaches the destination.
 
+use std::collections::HashMap;
+
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::CARPENTER_DELIVERY_SPEED_MULTIPLIER;
 use crate::balance_generated::{
-    CONSTRUCTION_DELIVERY_SPEED_MPS, CONSTRUCTION_DELIVERY_UNLOAD_SEC,
-    CONSTRUCTION_HAUL_PER_WORKER, FIRE_BUCKET_SPEED_MPS, FIRE_BUCKET_UNLOAD_SECONDS,
-    STOREHOUSE_HAUL_PER_WORKER,
+    CARPENTER_DELIVERY_SPEED_MULTIPLIER, CONSTRUCTION_DELIVERY_SPEED_MPS,
+    CONSTRUCTION_DELIVERY_UNLOAD_SEC, CONSTRUCTION_HAUL_PER_WORKER, FIRE_BUCKET_SPEED_MPS,
+    FIRE_BUCKET_UNLOAD_SECONDS, STOREHOUSE_HAUL_PER_WORKER,
 };
 use crate::db::*;
 use crate::economy::{
@@ -172,6 +173,66 @@ pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) 
 /// recorded on DeliveryTrip and already deducted by the authoritative labor budget.
 pub fn available_free_haulers(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
     available_building_labor(ctx, owner)
+}
+
+pub fn staffed_cart_workers_by_building(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> HashMap<u64, u32> {
+    let mut workers_by_building = HashMap::new();
+    for trip in ctx.db.delivery_trip().owner().filter(&owner) {
+        let staffed_workers = trip
+            .delivery_workers
+            .saturating_sub(trip.free_hauler_workers);
+        if staffed_workers == 0 {
+            continue;
+        }
+        workers_by_building
+            .entry(trip.building_id)
+            .and_modify(|workers: &mut u32| {
+                *workers = workers.saturating_add(staffed_workers);
+            })
+            .or_insert(staffed_workers);
+    }
+    workers_by_building
+}
+
+/// When a source roster is reduced mid-trip, the crew already on the road
+/// remains committed. Move any no-longer-backed cart workers into the trip's
+/// free-labor reservation instead of making them immediately assignable.
+pub fn preserve_in_transit_cart_labor(
+    ctx: &ReducerContext,
+    building_id: u64,
+    retained_building_labor: u32,
+) -> u32 {
+    let trips: Vec<DeliveryTrip> = ctx
+        .db
+        .delivery_trip()
+        .building_id()
+        .filter(&building_id)
+        .collect();
+    let mut remaining_roster_backing = retained_building_labor;
+    let mut newly_reserved = 0_u32;
+
+    for mut trip in trips {
+        let staffed_workers = trip
+            .delivery_workers
+            .saturating_sub(trip.free_hauler_workers);
+        let still_backed = staffed_workers.min(remaining_roster_backing);
+        remaining_roster_backing = remaining_roster_backing.saturating_sub(still_backed);
+        let released_workers = staffed_workers.saturating_sub(still_backed);
+        if released_workers == 0 {
+            continue;
+        }
+        trip.free_hauler_workers = trip
+            .free_hauler_workers
+            .saturating_add(released_workers)
+            .min(trip.delivery_workers);
+        newly_reserved = newly_reserved.saturating_add(released_workers);
+        ctx.db.delivery_trip().id().update(trip);
+    }
+
+    newly_reserved
 }
 
 fn free_hauler_workers_for_trip(origin: &Building, cargo_kind: u8, delivery_workers: u32) -> u32 {

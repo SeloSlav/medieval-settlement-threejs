@@ -691,9 +691,9 @@ pub struct DeliveryTrip {
     pub travel_speed_multiplier: f64,
     /// JSON array of `[x, z]` polyline samples for authoritative movement.
     pub route_polyline_json: String,
-    /// Villagers temporarily borrowed from the settlement's unassigned labor pool.
-    /// Staffed buildings provide their own cart crews, while unstaffed sources and
-    /// institutional errands such as chapel gold transfers reserve free labor.
+    /// Cart workers committed outside the origin building's current labor roster.
+    /// This includes free crews borrowed at departure and staffed haulers whose
+    /// building assignment was reduced while they were already on the road.
     #[default(0)]
     pub free_hauler_workers: u32,
 }

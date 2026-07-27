@@ -16,6 +16,7 @@ pub struct YearRoundLaborSite {
     pub building_id: u64,
     pub priority: u8,
     pub assigned_labor: u32,
+    pub minimum_labor: u32,
     pub max_labor: u32,
 }
 
@@ -57,6 +58,7 @@ pub fn year_round_labor_rotation(
     for site in sites.iter().copied() {
         let mut bounded = site;
         bounded.assigned_labor = bounded.assigned_labor.min(bounded.max_labor);
+        bounded.minimum_labor = bounded.minimum_labor.min(bounded.assigned_labor);
         let priority = normalize_staffing_priority(bounded.priority);
         buckets[(priority - CONSTRUCTION_PRIORITY_LOW) as usize]
             .push((bounded, bounded.assigned_labor));
@@ -85,7 +87,10 @@ pub fn year_round_labor_rotation(
                     if recall_needed == 0 {
                         break;
                     }
-                    let released = donor.assigned_labor.min(recall_needed);
+                    let released = donor
+                        .assigned_labor
+                        .saturating_sub(donor.minimum_labor)
+                        .min(recall_needed);
                     donor.assigned_labor -= released;
                     recall_needed -= released;
                     labor_remaining += released;
@@ -211,6 +216,20 @@ mod tests {
     }
 
     #[test]
+    fn in_transit_cart_crews_cannot_fund_another_workplace() {
+        let mut cart_source = site(30, CONSTRUCTION_PRIORITY_LOW, 2, 2);
+        cart_source.minimum_labor = 2;
+        let rotation = year_round_labor_rotation(
+            &[site(10, CONSTRUCTION_PRIORITY_URGENT, 0, 2), cart_source],
+            0,
+        );
+
+        assert!(rotation.targets.is_empty());
+        assert_eq!(rotation.recalled_workers, 0);
+        assert_eq!(rotation.called_workers, 0);
+    }
+
+    #[test]
     fn equal_priority_crews_are_not_reshuffled() {
         let rotation = year_round_labor_rotation(
             &[
@@ -272,6 +291,7 @@ mod tests {
             building_id,
             priority,
             assigned_labor,
+            minimum_labor: 0,
             max_labor,
         }
     }

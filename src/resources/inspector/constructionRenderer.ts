@@ -158,7 +158,7 @@ export function renderConstructionInspector(
       label: 'Cancel construction',
       hint: 'Cancels the worksite. Undelivered reservations are released; used materials remain here at the usual salvage rate, and carts already en route finish at the reclamation pile.',
     },
-    labor: buildingLaborView(building, context.populationStats),
+    labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: priorityControls,
   };
 }

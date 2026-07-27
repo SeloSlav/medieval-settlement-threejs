@@ -126,7 +126,7 @@ export function renderStorehouseInspector(
       ${buildingStorageRows(building, building.kind)}
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
-    labor: buildingLaborView(building, context.populationStats),
+    labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
         <p class="inspector-action-panel__hint">Storage works without staff. Assigned haulers first carry accepted firewood to claimed homes, then collect producer overflow; stored material also supports larger construction carts.</p>

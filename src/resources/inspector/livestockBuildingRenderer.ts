@@ -340,7 +340,7 @@ export function renderLivestockBuildingInspector(
         ? `Remove its ${pastures.length === 1 ? 'pasture' : 'pastures'} first. ${buildingDemolishHint(building.kind)}`
         : buildingDemolishHint(building.kind),
     },
-    labor: buildingLaborView(building, context.populationStats),
+    labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `${reserveControls}${haymakingControls}${pastureControls}${speciesControls ?? ''}`,
   };
 }

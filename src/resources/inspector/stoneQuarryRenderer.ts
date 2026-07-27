@@ -50,6 +50,6 @@ export function renderStoneQuarryInspector(
       visible: true,
       hint: buildingDemolishHint(building.kind),
     },
-    labor: buildingLaborView(building, context.populationStats),
+    labor: buildingLaborView(building, context.populationStats, context.worldQueries),
   };
 }

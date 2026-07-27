@@ -133,7 +133,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="housing">0/0</strong>
         <span class="settlement-hud__sub" data-stockpile="housing-sub">0 vacant</span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-tooltip="Workers free to assign. Labor equals population minus workers assigned to buildings or temporarily reserved for freelance cart runs. Select a Town Hall to compare permanent jobs, temporary builders, cart crews, live route load, sector staffing, and the workforce available when current housing fills.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-tooltip="Workers free to assign. Labor equals population minus workers assigned to buildings or reserved outside those rosters on active cart runs. Reducing a source roster does not free its traveling crew until the cart returns. Select a Town Hall to compare permanent jobs, temporary builders, cart crews, live route load, sector staffing, and the workforce available when current housing fills.">
         <span class="settlement-hud__label">Labor</span>
         <strong class="settlement-hud__value" data-stockpile="labor">0</strong>
         <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>

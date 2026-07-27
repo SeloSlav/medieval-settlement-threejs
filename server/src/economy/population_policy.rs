@@ -15,6 +15,7 @@ pub fn population_limit_blocks_labor_request(
 pub struct LaborAssignment {
     pub building_id: u64,
     pub assigned_labor: u32,
+    pub minimum_labor: u32,
     pub construction_complete: bool,
     pub priority: u8,
 }
@@ -44,19 +45,45 @@ pub fn labor_reconciliation_updates(
             .then_with(|| b.building_id.cmp(&a.building_id))
     });
 
-    let mut updates = Vec::new();
-    for assignment in assignments {
+    let mut targets = assignments
+        .iter()
+        .map(|assignment| assignment.assigned_labor)
+        .collect::<Vec<_>>();
+    for (assignment, target) in assignments.iter().zip(targets.iter_mut()) {
         if excess == 0 {
             break;
         }
-        let released = assignment.assigned_labor.min(excess);
+        let released = (*target)
+            .saturating_sub(assignment.minimum_labor)
+            .min(excess);
         if released == 0 {
             continue;
         }
-        updates.push((assignment.building_id, assignment.assigned_labor - released));
+        *target -= released;
         excess -= released;
     }
-    updates
+
+    // If every worker who is physically at a workplace has already been
+    // released, mark in-transit cart crews for release on return. The database
+    // adapter moves that portion into the trip reservation, so it remains
+    // committed until the cart row disappears instead of becoming free early.
+    for (assignment, target) in assignments.iter().zip(targets.iter_mut()) {
+        if excess == 0 {
+            break;
+        }
+        let planned_release = (*target).min(assignment.minimum_labor).min(excess);
+        if planned_release == 0 {
+            continue;
+        }
+        *target -= planned_release;
+        excess -= planned_release;
+    }
+    assignments
+        .into_iter()
+        .zip(targets)
+        .filter(|(assignment, target)| assignment.assigned_labor != *target)
+        .map(|(assignment, target)| (assignment.building_id, target))
+        .collect()
 }
 
 fn effective_labor_priority(assignment: LaborAssignment) -> u8 {
@@ -95,18 +122,21 @@ mod tests {
                 LaborAssignment {
                     building_id: 10,
                     assigned_labor: 3,
+                    minimum_labor: 0,
                     construction_complete: true,
                     priority: 2,
                 },
                 LaborAssignment {
                     building_id: 20,
                     assigned_labor: 2,
+                    minimum_labor: 0,
                     construction_complete: true,
                     priority: 2,
                 },
                 LaborAssignment {
                     building_id: 30,
                     assigned_labor: 4,
+                    minimum_labor: 0,
                     construction_complete: false,
                     priority: 2,
                 },
@@ -123,6 +153,7 @@ mod tests {
             vec![LaborAssignment {
                 building_id: 10,
                 assigned_labor: 2,
+                minimum_labor: 0,
                 construction_complete: true,
                 priority: 2,
             }],
@@ -138,18 +169,21 @@ mod tests {
                 LaborAssignment {
                     building_id: 10,
                     assigned_labor: 2,
+                    minimum_labor: 0,
                     construction_complete: true,
                     priority: 1,
                 },
                 LaborAssignment {
                     building_id: 20,
                     assigned_labor: 2,
+                    minimum_labor: 0,
                     construction_complete: true,
                     priority: 2,
                 },
                 LaborAssignment {
                     building_id: 30,
                     assigned_labor: 2,
+                    minimum_labor: 0,
                     construction_complete: true,
                     priority: 3,
                 },
@@ -167,12 +201,14 @@ mod tests {
                 LaborAssignment {
                     building_id: 10,
                     assigned_labor: 2,
+                    minimum_labor: 0,
                     construction_complete: true,
                     priority: 1,
                 },
                 LaborAssignment {
                     building_id: 20,
                     assigned_labor: 2,
+                    minimum_labor: 0,
                     construction_complete: false,
                     priority: 3,
                 },
@@ -184,18 +220,61 @@ mod tests {
     }
 
     #[test]
+    fn population_loss_releases_on_site_workers_before_cart_crews() {
+        let updates = labor_reconciliation_updates(
+            vec![
+                LaborAssignment {
+                    building_id: 10,
+                    assigned_labor: 2,
+                    minimum_labor: 2,
+                    construction_complete: true,
+                    priority: 1,
+                },
+                LaborAssignment {
+                    building_id: 20,
+                    assigned_labor: 2,
+                    minimum_labor: 0,
+                    construction_complete: true,
+                    priority: 2,
+                },
+            ],
+            2,
+        );
+
+        assert_eq!(updates, vec![(20, 0)]);
+    }
+
+    #[test]
+    fn unavoidable_cart_crew_release_is_deferred_until_return() {
+        let updates = labor_reconciliation_updates(
+            vec![LaborAssignment {
+                building_id: 10,
+                assigned_labor: 2,
+                minimum_labor: 2,
+                construction_complete: true,
+                priority: 1,
+            }],
+            0,
+        );
+
+        assert_eq!(updates, vec![(10, 0)]);
+    }
+
+    #[test]
     fn legacy_zero_priority_on_completed_buildings_behaves_as_normal() {
         let updates = labor_reconciliation_updates(
             vec![
                 LaborAssignment {
                     building_id: 10,
                     assigned_labor: 1,
+                    minimum_labor: 0,
                     construction_complete: true,
                     priority: 0,
                 },
                 LaborAssignment {
                     building_id: 20,
                     assigned_labor: 1,
+                    minimum_labor: 0,
                     construction_complete: true,
                     priority: 1,
                 },
@@ -212,6 +291,7 @@ mod tests {
             .map(|building_id| LaborAssignment {
                 building_id,
                 assigned_labor: 1,
+                minimum_labor: 0,
                 construction_complete: true,
                 priority: (building_id % 3 + 1) as u8,
             })

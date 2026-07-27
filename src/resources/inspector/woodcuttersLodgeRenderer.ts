@@ -145,7 +145,7 @@ export function renderWoodcuttersLodgeInspector(
       visible: true,
       hint: buildingDemolishHint(building.kind),
     },
-    labor: buildingLaborView(building, context.populationStats),
+    labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
         <p class="inspector-action-panel__hint">This lodge stops hauling and splitting timber before settlement-wide physical stock would fall below its chosen floor. Materials already reserved by active construction sites are protected separately.</p>

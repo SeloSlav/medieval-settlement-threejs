@@ -64,7 +64,7 @@ export function renderMarketplaceInspector(
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
   const connectedHomes = context.worldQueries.countRoadConnectedResidences(building, true);
-  const labor = buildingLaborView(building, context.populationStats);
+  const labor = buildingLaborView(building, context.populationStats, context.worldQueries);
   const hasRoadAccess = context.worldQueries.hasRoadAccess(building.x, building.z);
   const roadSpeedMultiplier = context.worldQueries.getRoadConditionSpeedMultiplier();
   const marketFireDisabled = fireDisabledBuildingIds(

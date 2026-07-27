@@ -157,7 +157,7 @@ export function renderGuardhouseInspector(
       ${buildingStorageRows(building, building.kind)}
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
-    labor: buildingLaborView(building, context.populationStats),
+    labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `${renderRationReservePanel(foodReserve)}${renderCompanyPriorityPanel(companyPriority)}`,
   };
 }
