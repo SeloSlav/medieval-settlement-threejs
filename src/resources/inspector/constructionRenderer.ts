@@ -1,4 +1,5 @@
 import { CONSTRUCTION_DELIVERY_UNLOAD_SEC } from '../../generated/gameBalance.ts';
+import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import { selectConstructionRouteSource } from '../../logistics/constructionLogistics.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
@@ -14,7 +15,14 @@ import {
 
 type ConstructionMaterial = 'timber' | 'stone';
 type SupplyResolution = {
-  state: 'ready-free' | 'ready-staffed' | 'busy' | 'no-hauler' | 'unreachable' | 'missing';
+  state:
+    | 'ready-free'
+    | 'ready-staffed'
+    | 'busy'
+    | 'no-hauler'
+    | 'unreachable'
+    | 'fire-disabled'
+    | 'missing';
   source: BuildingState | null;
   routeDistance: number | null;
 };
@@ -96,6 +104,10 @@ export function renderConstructionInspector(
         statusText = `No road route to ${amount} at ${sourceLabel}`;
         statusState = 'warning';
         break;
+      case 'fire-disabled':
+        statusText = `Reserved ${amount} is fire-quarantined at ${sourceLabel} — repair it or supply another store`;
+        statusState = 'warning';
+        break;
       case 'missing':
         statusText = `No completed building currently holds the reserved ${pendingMaterial}`;
         statusState = 'warning';
@@ -117,7 +129,7 @@ export function renderConstructionInspector(
   const nextSourceLabel = nextSource
     ? `${getBuildingDefinition(nextSource.kind).label}${
         nextSourceDistance == null ? '' : ` · ${Math.round(nextSourceDistance)}m haul`
-      }`
+      }${supply?.state === 'fire-disabled' ? ' · fire-disabled' : ''}`
     : 'None';
   const priorityControls = `<div class="inspector-action-panel">
       <p class="resource-inspector-note">Queue priority — urgent sites claim available carts and scarce stored material first. Hold stops hauling and builder work while retaining reservations.</p>
@@ -174,12 +186,20 @@ function resolveConstructionSupply(
     source.id !== site.id
     && source.constructionComplete !== false
     && source[material] > 1e-6);
+  const fireDisabled = fireDisabledBuildingIds(
+    context.gameState.fireIncidents.values(),
+  );
   const routeDistances = new Map<string, number>();
   const readySources: BuildingState[] = [];
   const waitingForLabor: BuildingState[] = [];
   const busy: BuildingState[] = [];
   const unreachable: BuildingState[] = [];
+  const fireBlocked: BuildingState[] = [];
   for (const source of sources) {
+    if (fireDisabled.has(source.id)) {
+      fireBlocked.push(source);
+      continue;
+    }
     const roadDistance = context.worldQueries.getRoadPathDistance(
       source.x,
       source.z,
@@ -233,6 +253,17 @@ function resolveConstructionSupply(
       state: 'busy',
       source: occupied.source,
       routeDistance: occupied.routeDistance,
+    };
+  }
+  const disabled = selectConstructionRouteSource(
+    fireBlocked,
+    (source) => directDistance(source, site),
+  );
+  if (disabled) {
+    return {
+      state: 'fire-disabled',
+      source: disabled.source,
+      routeDistance: null,
     };
   }
   const disconnected = selectConstructionRouteSource(

@@ -126,6 +126,7 @@ fn dispatch_reserved_stock(
         };
         if source.id == site.id
             || !source.construction_complete
+            || tick.building_disabled_by_fire(ctx, source.id)
             || building_has_active_trip(ctx, source.id)
             || (source.kind == "village_storehouse"
                 && building_has_inbound_supply_trip(ctx, source.id))

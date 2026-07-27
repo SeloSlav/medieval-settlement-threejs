@@ -15,6 +15,7 @@ import {
   normalizeConstructionPriority,
   type ConstructionPriority,
 } from '../logistics/constructionPriority.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
@@ -80,6 +81,10 @@ export type SettlementConstructionPlan = {
   builderCapacity: number;
   remainingBuilderDays: number;
   materials: Record<ConstructionMaterialKind, ConstructionMaterialQueue>;
+  fireDisabledSourceBuildings: number;
+  fireBlockedTimberStock: number;
+  fireBlockedStoneStock: number;
+  firstFireDisabledSourceId: string | null;
   firstAttention: ConstructionQueueAttention | null;
   roadPlan: SettlementConstructionRoadPlan | null;
 };
@@ -611,11 +616,15 @@ export function constructionQueueStatusLabel(
 }
 
 export function computeSettlementConstructionPlan(input: {
-  state: Pick<GameState, 'buildings' | 'deliveryTrips'>;
+  state: Pick<GameState, 'buildings' | 'deliveryTrips'>
+    & Partial<Pick<GameState, 'fireIncidents'>>;
   hasRoadAccess?: (building: BuildingState) => boolean;
   roadComponentFor?: ProductionRoadComponentResolver;
 }): SettlementConstructionPlan {
   const transitBySite = constructionTransitBySite(input.state.deliveryTrips.values());
+  const fireDisabled = fireDisabledBuildingIds(
+    input.state.fireIncidents?.values() ?? [],
+  );
   const roadBranches = input.roadComponentFor
     ? new Map<string, MutableConstructionRoadBranch>()
     : null;
@@ -639,12 +648,29 @@ export function computeSettlementConstructionPlan(input: {
   let firstAttention: ConstructionQueueAttention | null = null;
   let roadBoundSites = 0;
   let offroadSites = 0;
+  let fireDisabledSourceBuildings = 0;
+  let fireBlockedTimberStock = 0;
+  let fireBlockedStoneStock = 0;
+  let firstFireDisabledSourceId: string | null = null;
 
   for (const building of input.state.buildings.values()) {
     if (building.constructionComplete !== false) {
+      const timberStock = nonnegative(building.timber);
+      const stoneStock = nonnegative(building.stone);
+      if (
+        fireDisabled.has(building.id)
+        && (timberStock > EPSILON || stoneStock > EPSILON)
+      ) {
+        fireDisabledSourceBuildings += 1;
+        fireBlockedTimberStock += timberStock;
+        fireBlockedStoneStock += stoneStock;
+        firstFireDisabledSourceId = firstFireDisabledSourceId === null
+          || compareStableEntityIds(building.id, firstFireDisabledSourceId) < 0
+          ? building.id
+          : firstFireDisabledSourceId;
+        continue;
+      }
       if (roadBranches && input.roadComponentFor) {
-        const timberStock = nonnegative(building.timber);
-        const stoneStock = nonnegative(building.stone);
         if (timberStock > EPSILON || stoneStock > EPSILON) {
           const branch = constructionRoadBranch(
             roadBranches,
@@ -757,6 +783,10 @@ export function computeSettlementConstructionPlan(input: {
     builderCapacity: activeSites * CONSTRUCTION_MAX_BUILDERS,
     remainingBuilderDays,
     materials,
+    fireDisabledSourceBuildings,
+    fireBlockedTimberStock,
+    fireBlockedStoneStock,
+    firstFireDisabledSourceId,
     firstAttention,
     roadPlan: buildConstructionRoadPlan({
       branches: roadBranches,

@@ -32,6 +32,7 @@ import {
 import {
   computeSettlementConstructionPlan,
 } from '../src/economy/settlementConstruction.ts';
+import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
   CONSTRUCTION_PRIORITY_HOLD,
   CONSTRUCTION_PRIORITY_LOW,
@@ -162,6 +163,11 @@ assert.match(
   /tick\.construction_source_ids\(ctx, site\.owner, commodity\)/,
   'every site should inspect only the tick-local roster that began with the requested material',
 );
+assert.match(
+  constructionDispatch,
+  /tick\.building_disabled_by_fire\(ctx, source\.id\)/,
+  'site-driven construction dispatch must quarantine fire-damaged material sources',
+);
 assert.doesNotMatch(
   constructionDispatch,
   /ctx\.db\.building\(\)\.owner\(\)/,
@@ -197,6 +203,11 @@ assert.match(
   constructionTrip,
   /STOREHOUSE_HAUL_PER_WORKER/,
   'staffed storehouses should retain a batch-hauling advantage',
+);
+assert.match(
+  constructionTrip,
+  /tick\.building_disabled_by_fire\(ctx, origin\.id\)/,
+  'the trip-start boundary must reject a source that became fire-disabled',
 );
 
 const constructionInspector = read('src/resources/inspector/constructionRenderer.ts');
@@ -286,6 +297,27 @@ const buildingState = (
   storehouseAcceptsFirewood: true,
   constructionPriority: CONSTRUCTION_PRIORITY_NORMAL,
   ...overrides,
+});
+const fireIncident = (
+  targetId: string,
+  id = `fire-${targetId}`,
+): FireIncidentState => ({
+  id,
+  targetKind: 'building',
+  targetId,
+  x: 0,
+  z: 0,
+  ignitionSource: 'accident',
+  status: 'extinguished',
+  intensity: 0,
+  damage: 0.5,
+  waterDelivered: 10,
+  requiredWater: 10,
+  extinguishChance: 1,
+  startedTick: 1,
+  lastWaterTick: 2,
+  resolvedTick: 3,
+  responseWellId: null,
 });
 const urgentOffRoadSite = buildingState({
   id: 'queue-urgent',
@@ -542,6 +574,47 @@ assert.equal(
 );
 assert.equal(joinedConstructionRoads.roadPlan?.firstExposedBuildingId, null);
 
+const fireBlockedConstructionRoads = computeSettlementConstructionPlan({
+  state: {
+    ...constructionRoadState,
+    fireIncidents: new Map([
+      [
+        `fire-${remoteConstructionSource.id}`,
+        fireIncident(remoteConstructionSource.id),
+      ],
+    ]),
+  },
+  hasRoadAccess: () => true,
+  roadComponentFor: () => 1,
+});
+assert.equal(fireBlockedConstructionRoads.fireDisabledSourceBuildings, 1);
+assert.equal(fireBlockedConstructionRoads.fireBlockedTimberStock, 100);
+assert.equal(fireBlockedConstructionRoads.fireBlockedStoneStock, 100);
+assert.equal(
+  fireBlockedConstructionRoads.firstFireDisabledSourceId,
+  remoteConstructionSource.id,
+);
+assert.equal(
+  fireBlockedConstructionRoads.roadPlan?.materials.timber.sourceStock,
+  20,
+  'fire-damaged timber must not cover a construction reservation',
+);
+assert.equal(
+  fireBlockedConstructionRoads.roadPlan?.materials.stone.sourceStock,
+  10,
+  'fire-damaged stone must not cover a construction reservation',
+);
+assert.equal(fireBlockedConstructionRoads.roadPlan?.exposedClaimBranches, 1);
+const fireBlockedConstructionRows = renderConstructionQueueRows(
+  fireBlockedConstructionRoads,
+);
+assert.match(fireBlockedConstructionRows, /Fire-quarantined stores/);
+assert.match(fireBlockedConstructionRows, /100 timber \+ 100 stone unavailable/);
+assert.match(
+  fireBlockedConstructionRows,
+  new RegExp(`data-inspect-building="${remoteConstructionSource.id}"`),
+);
+
 const site = buildingState({
   id: 'site',
   kind: 'lumber_mill',
@@ -567,12 +640,14 @@ const constructionContext = (
     | null
     | ((ax: number, az: number, bx: number, bz: number) => number | null),
   inbound: DeliveryTripState | null = null,
+  fireIncidents = new Map<string, FireIncidentState>(),
 ) => {
   const buildings = new Map(sources.concat(site).map((building) => [building.id, building]));
   return {
     gameState: {
       buildings,
       deliveryTrips: new Map(inbound ? [[inbound.id, inbound]] : []),
+      fireIncidents,
     },
     worldQueries: {
       getInboundSupplyTrip: () => inbound,
@@ -628,6 +703,40 @@ const staffedStorehouse = buildingState({
   stone: 100,
   assignedLabor: 1,
 });
+const fireBlockedSourceView = renderConstructionInspector(
+  siteTarget,
+  constructionContext(
+    [stoneSource],
+    5,
+    30,
+    null,
+    new Map([
+      [`fire-${stoneSource.id}`, fireIncident(stoneSource.id)],
+    ]),
+  ) as never,
+);
+assert.equal(
+  fireBlockedSourceView.statusText,
+  "Reserved 15 stone is fire-quarantined at Stonecutter's camp — repair it or supply another store",
+);
+assert.match(fireBlockedSourceView.detailsHtml, /fire-disabled/);
+const healthyFallbackView = renderConstructionInspector(
+  siteTarget,
+  constructionContext(
+    [stoneSource, staffedStorehouse],
+    5,
+    30,
+    null,
+    new Map([
+      [`fire-${stoneSource.id}`, fireIncident(stoneSource.id)],
+    ]),
+  ) as never,
+);
+assert.equal(
+  healthyFallbackView.statusText,
+  'Storehouse crew preparing 15 stone',
+  'a healthy source must replace a fire-disabled preferred source',
+);
 assert.equal(
   renderConstructionInspector(
     siteTarget,
@@ -793,6 +902,34 @@ assert.ok(
   constructionRoadPerfElapsedMs < 650,
   `100,000-building construction road audit took ${constructionRoadPerfElapsedMs.toFixed(1)} ms`,
 );
+const constructionFirePerfIncidents = new Map<string, FireIncidentState>();
+for (let index = 0; index < 100_000; index += 4) {
+  const id = String(index);
+  constructionFirePerfIncidents.set(`fire-${id}`, fireIncident(id));
+}
+const constructionFirePerfStarted = performance.now();
+const constructionFirePerf = computeSettlementConstructionPlan({
+  state: {
+    buildings: largeQueueBuildings,
+    deliveryTrips: new Map(),
+    fireIncidents: constructionFirePerfIncidents,
+  },
+  hasRoadAccess: () => true,
+  roadComponentFor: (candidate) => candidate.x,
+});
+const constructionFirePerfElapsedMs =
+  performance.now() - constructionFirePerfStarted;
+assert.equal(constructionFirePerf.fireDisabledSourceBuildings, 25_000);
+assert.equal(constructionFirePerf.fireBlockedTimberStock, 250_000);
+assert.equal(
+  constructionFirePerf.roadPlan?.materials.timber.matchedRoadBoundClaim,
+  250_000,
+);
+assert.equal(constructionFirePerf.roadPlan?.exposedClaimBranches, 200);
+assert.ok(
+  constructionFirePerfElapsedMs < 800,
+  `100,000-building fire-aware construction road audit took ${constructionFirePerfElapsedMs.toFixed(1)} ms`,
+);
 const visibleInbound = {
   ...outboundTrip,
   buildingId: stoneSource.id,
@@ -871,5 +1008,5 @@ assert.match(
 assert.match(read('src/resources/ResourceInspector.ts'), /data-construction-priority/);
 
 console.log(
-  `construction logistics tests passed (${selectionElapsedMs.toFixed(1)} ms source selection; ${queueElapsedMs.toFixed(1)} ms queue summary for 100,000 sites; ${constructionRoadPerfElapsedMs.toFixed(1)} ms for 100,000-building road audit)`,
+  `construction logistics tests passed (${selectionElapsedMs.toFixed(1)} ms source selection; ${queueElapsedMs.toFixed(1)} ms queue summary for 100,000 sites; ${constructionRoadPerfElapsedMs.toFixed(1)} ms road audit; ${constructionFirePerfElapsedMs.toFixed(1)} ms fire-aware road audit for 100,000 buildings)`,
 );

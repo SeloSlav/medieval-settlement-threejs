@@ -418,7 +418,7 @@ function formatConstructionRoads(
       + timber.offroadClaim + stone.offroadClaim
     <= 0.05
   ) {
-    return `No building-held material awaits pickup · ${timber.sourceStock.toFixed(0)} timber + ${stone.sourceStock.toFixed(0)} stone remain at completed sources`;
+    return `No building-held material awaits pickup · ${timber.sourceStock.toFixed(0)} usable timber + ${stone.sourceStock.toFixed(0)} usable stone remain at completed sources`;
   }
   const roadCoverage =
     timber.roadBoundClaim + stone.roadBoundClaim > 0.05
@@ -438,7 +438,7 @@ function formatConstructionRoads(
     stone.strandedRoadBoundClaim - stone.fragmentationCoverage,
   );
   const scarcity = scarceTimber + scarceStone > 0.05
-    ? ` · ${scarceTimber.toFixed(0)} timber + ${scarceStone.toFixed(0)} stone exceed all physical source stock`
+    ? ` · ${scarceTimber.toFixed(0)} timber + ${scarceStone.toFixed(0)} stone exceed all usable source stock`
     : '';
   const offroad = timber.offroadClaim + stone.offroadClaim > 0.05
     ? ` · off-road-capable sites can cover ${timber.offroadPotentialCoverage.toFixed(0)} / ${timber.offroadClaim.toFixed(0)} timber + ${stone.offroadPotentialCoverage.toFixed(0)} / ${stone.offroadClaim.toFixed(0)} stone from remaining stores`
@@ -469,12 +469,16 @@ export function renderConstructionQueueRows(plan: SettlementConstructionPlan): s
   const roadRow = plan.roadPlan === null
     ? ''
     : `<li><span>Construction roads</span><span>${formatConstructionRoads(plan.roadPlan)}</span></li>`;
+  const fireBlockedRow = plan.fireDisabledSourceBuildings === 0
+    ? ''
+    : `<li><span>Fire-quarantined stores</span><span>${plan.fireBlockedTimberStock.toFixed(0)} timber + ${plan.fireBlockedStoneStock.toFixed(0)} stone unavailable across ${plan.fireDisabledSourceBuildings} fire-damaged ${plan.fireDisabledSourceBuildings === 1 ? 'source' : 'sources'} until repaired${plan.firstFireDisabledSourceId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstFireDisabledSourceId}" aria-label="Inspect first fire-disabled construction source">Inspect</button>`}</span></li>`;
   return `
     <li><span>Construction queue</span><span>${queueLabel} · urgent ${priorities.urgent} / normal ${priorities.normal} / low ${priorities.low}</span></li>
     <li><span>Builder load</span><span>${plan.assignedBuilders} / ${plan.builderCapacity} assigned · ${plan.remainingBuilderDays.toFixed(1)} builder-days after supply</span></li>
     <li><span>Queue materials</span><span>${timber.delivered.toFixed(0)} / ${timber.required.toFixed(0)} timber delivered · ${stone.delivered.toFixed(0)} / ${stone.required.toFixed(0)} stone delivered</span></li>
     <li><span>Supply coverage</span><span>${formatConstructionMaterialCoverage('timber earmarked', timber)} · ${formatConstructionMaterialCoverage('stone earmarked', stone)}${timber.uncovered + stone.uncovered > 0.05 ? ` · ${timber.uncovered.toFixed(0)} timber + ${stone.uncovered.toFixed(0)} stone uncovered` : ''}</span></li>
     <li><span>Material movement</span><span>${timber.awaitingPickup.toFixed(0)} timber + ${stone.awaitingPickup.toFixed(0)} stone await pickup · ${timber.inTransit.toFixed(0)} + ${stone.inTransit.toFixed(0)} on carts · ${timber.foundersReserve.toFixed(0)} + ${stone.foundersReserve.toFixed(0)} in founders' reserve</span></li>
+    ${fireBlockedRow}
     ${roadRow}
     <li><span>Queue attention</span><span>${attention}</span></li>
   `;

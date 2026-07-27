@@ -511,6 +511,7 @@ pub fn try_start_construction_supply_trip(
     if !origin.construction_complete
         || site.construction_complete
         || origin.owner != site.owner
+        || tick.building_disabled_by_fire(ctx, origin.id)
         || building_has_active_trip(ctx, origin.id)
         || (origin.kind == "village_storehouse" && building_has_inbound_supply_trip(ctx, origin.id))
     {
