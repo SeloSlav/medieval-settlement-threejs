@@ -33,6 +33,21 @@ pub fn storehouse_collection_headroom(stock: f64, capacity: f64, percent: u8) ->
     (storehouse_stock_target(capacity, percent) - stock.max(0.0)).max(0.0)
 }
 
+/// Applies the depot's intake gate before evaluating its selected collection
+/// ceiling. Founding-yard clearance and routine overflow collection share this
+/// rule so neither path can silently bypass the player's storage policy.
+pub fn storehouse_filtered_collection_headroom(
+    accepts: bool,
+    stock: f64,
+    capacity: f64,
+    percent: u8,
+) -> f64 {
+    if !accepts {
+        return 0.0;
+    }
+    storehouse_collection_headroom(stock, capacity, percent)
+}
+
 /// Fullest producers are relieved first. Stable ids make simultaneous overflow
 /// independent of table iteration and building construction order.
 pub fn compare_storehouse_source_priority(
@@ -64,8 +79,8 @@ mod tests {
     use super::{
         compare_storehouse_destination, compare_storehouse_source_priority,
         is_valid_storehouse_stock_target_percent, normalize_storehouse_stock_target_percent,
-        storehouse_collection_headroom, storehouse_stock_target,
-        STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        storehouse_collection_headroom, storehouse_filtered_collection_headroom,
+        storehouse_stock_target, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
     };
 
     #[test]
@@ -92,6 +107,18 @@ mod tests {
         assert_eq!(storehouse_collection_headroom(40.0, 360.0, 25), 50.0);
         assert_eq!(storehouse_collection_headroom(90.0, 360.0, 25), 0.0);
         assert_eq!(storehouse_collection_headroom(120.0, 360.0, 25), 0.0);
+    }
+
+    #[test]
+    fn physical_relocation_cannot_bypass_an_intake_filter() {
+        assert_eq!(
+            storehouse_filtered_collection_headroom(false, 0.0, 360.0, 100),
+            0.0
+        );
+        assert_eq!(
+            storehouse_filtered_collection_headroom(true, 40.0, 360.0, 25),
+            50.0
+        );
     }
 
     #[test]

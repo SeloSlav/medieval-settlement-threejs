@@ -141,15 +141,27 @@ const terrainMaterialSource = readFileSync(
 assert.match(rendererSource, /Two identical vertical tiles prevent a visible empty band/);
 assert.match(rendererSource, /const RAIN_BASE_PARTICLES = 1_800/);
 assert.match(rendererSource, /const SNOW_BASE_PARTICLES = 1_400/);
-assert.match(rendererSource, /const RAIN_INNER_RADIUS_FRACTION = 0\.18/);
+assert.match(rendererSource, /const VOLUME_FORWARD_BIAS_FRACTION = 0\.32/);
+assert.match(rendererSource, /const RAIN_NEAR_EXCLUSION_FRACTION = 0\.3/);
+assert.match(rendererSource, /const SNOW_NEAR_EXCLUSION_FRACTION = 0\.18/);
 assert.match(rendererSource, /const OVERVIEW_MIN_VOLUME_RADIUS = 60/);
 assert.match(rendererSource, /const OVERVIEW_VOLUME_RADIUS_SCALE = 0\.78/);
 assert.match(rendererSource, /const OVERVIEW_MAX_VOLUME_RADIUS = 185/);
 assert.match(rendererSource, /const halfHeight = 0\.42/);
 assert.match(rendererSource, /const halfWidth = 0\.06/);
-assert.match(rendererSource, /alphaTest:\s*kind === 'rain' \? 0\.012 : 0\.02/);
+assert.match(rendererSource, /alphaTest:\s*kind === 'rain' \? 0\.012 : 0\.035/);
 assert.match(rendererSource, /distance \* distance\) \/ 0\.028/);
 assert.match(rendererSource, /'Procedural rain streak sprite',\s*false/);
+assert.match(rendererSource, /this\.camera\.getWorldDirection\(this\.horizontalCameraForward\)/);
+assert.match(rendererSource, /this\.group\.rotation\.y = Math\.atan2/);
+assert.match(rendererSource, /BASE_VOLUME_RADIUS \* VOLUME_FORWARD_BIAS_FRACTION/);
+assert.match(rendererSource, /minimumNearDistance = BASE_VOLUME_RADIUS \* nearExclusion/);
+assert.match(rendererSource, /0xa9c3d1,\s*0\.72,\s*0\.52/);
+assert.match(rendererSource, /0xcbdde5,\s*1\.02,\s*0\.36/);
+assert.match(rendererSource, /0xe6eef2,\s*0\.32,\s*0\.58/);
+assert.match(rendererSource, /0xf1f5f6,\s*0\.43,\s*0\.4/);
+assert.match(rendererSource, /radius \* radius\) \/ 0\.075/);
+assert.match(rendererSource, /Math\.abs\(Math\.cos\(angle \* 3\)\), 18/);
 assert.match(
   rendererSource,
   /texture\.minFilter = generateMipmaps\s*\?\s*THREE\.LinearMipmapLinearFilter\s*:\s*THREE\.LinearFilter/,

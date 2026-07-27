@@ -51,14 +51,16 @@ const riverNightAmount = uniform(0) as ScalarUniform;
 const WATER_FOAM_COLOR = vec3(0.74, 0.86, 0.82) as TslNode;
 const MENISCUS_COLOR = vec3(0.8, 0.9, 0.86) as TslNode;
 const SHALLOW_WATER_TINT = vec3(0.17, 0.51, 0.49) as TslNode;
-const DEEP_WATER_TINT = vec3(0.035, 0.12, 0.105) as TslNode;
+const DEEP_WATER_TINT = vec3(0.095, 0.26, 0.22) as TslNode;
 const SHORE_LAP_MAX = 0.11;
 const SHORE_FOAM_MAX = 0.48;
-const FLOW_STREAK_STRENGTH = 0.56;
 const FLOW_WAVE_HEIGHT = 0.048;
 export const RIVER_WATER_TRANSMISSION = 0.82;
 export const RIVER_WATER_ATTENUATION_DISTANCE = 1.75;
 export const RIVER_DEEP_BACKDROP_STABILITY = 1;
+export const RIVER_VISUAL_SHORE_EXPONENT = 3.8;
+export const RIVER_FLOW_ROUGHNESS_FLOOR = 0.315;
+export const RIVER_FLOW_HIGHLIGHT_STRENGTH = 0.12;
 
 function decodeFlowDirection(shoreSample: TslNode): { flowDirX: TslNode; flowDirZ: TslNode } {
   const flowRaw = (vec2(shoreSample.b, shoreSample.a) as TslNode).mul(float(2) as TslNode).sub(float(1) as TslNode) as TslNode;
@@ -107,8 +109,15 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   const wz = worldPos.z;
   const { flowAlong, flowCross } = buildFlowCoordinates(wx, wz, flowDirX, flowDirZ);
   const shoreMask = pow(foamBaseAttr, float(1.05) as TslNode) as TslNode;
-  const depthFactor = pow(sub(float(1) as TslNode, foamBaseAttr) as TslNode, float(0.88) as TslNode) as TslNode;
-  const shallowFactor = shoreMask;
+  // The signed-distance texture has useful organic contour lobes for the
+  // shoreline, but mapping its broad ramp directly into all water optics made
+  // those lobes read as disconnected black pools. Compress it to an edge-only
+  // visual margin so the channel quickly settles into one continuous body.
+  const shallowFactor = pow(
+    shoreMask,
+    float(RIVER_VISUAL_SHORE_EXPONENT) as TslNode,
+  ) as TslNode;
+  const depthFactor = sub(float(1) as TslNode, shallowFactor) as TslNode;
   const channelMask = mix(shoreMask, float(1) as TslNode, pow(depthFactor, float(0.62) as TslNode) as TslNode) as TslNode;
 
   const lapA = sin(
@@ -152,7 +161,7 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     .add(0.5) as TslNode;
   const foamStrength = min(
     float(SHORE_FOAM_MAX) as TslNode,
-    (pow(shoreMask, float(1.45) as TslNode) as TslNode).mul(
+    (pow(shallowFactor, float(1.05) as TslNode) as TslNode).mul(
       (float(0.14) as TslNode)
         .add(foamNoise.mul(0.26))
         .add(foamWave.mul(0.22))
@@ -160,21 +169,29 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     ) as TslNode,
   ) as TslNode;
 
-  const flowStreakA = (sin(flowAlong.mul(0.44).sub(frameTime.mul(1.95)) as TslNode) as TslNode).mul(0.5).add(0.5) as TslNode;
-  const flowStreakB = (sin(flowCross.mul(1.65).add(frameTime.mul(0.72)) as TslNode) as TslNode).mul(0.5).add(0.5) as TslNode;
-  const flowStreakC = (sin(flowAlong.mul(0.18).sub(frameTime.mul(0.95)).add(flowCross.mul(0.31)) as TslNode) as TslNode)
+  const ribbonMeander = (sin(
+    flowAlong.mul(0.095).sub(frameTime.mul(0.58)) as TslNode,
+  ) as TslNode).mul(float(0.42) as TslNode) as TslNode;
+  const ribbonCarrier = (sin(
+    flowCross.mul(1.55).add(ribbonMeander) as TslNode,
+  ) as TslNode).mul(0.5).add(0.5) as TslNode;
+  const alongBreakupA = (sin(
+    flowAlong.mul(0.42).add(flowCross.mul(0.19)).sub(frameTime.mul(1.1)) as TslNode,
+  ) as TslNode).mul(0.5).add(0.5) as TslNode;
+  const alongBreakupB = (sin(
+    flowAlong.mul(0.83).sub(flowCross.mul(0.13)).sub(frameTime.mul(1.85)) as TslNode,
+  ) as TslNode)
     .mul(0.5)
     .add(0.5) as TslNode;
-  const flowCrestA = pow(flowStreakA, float(3.6) as TslNode) as TslNode;
-  const flowCrestC = pow(flowStreakC, float(5.2) as TslNode) as TslNode;
-  const crossBreakup = mix(float(0.46) as TslNode, float(1) as TslNode, flowStreakB) as TslNode;
-  const flowStructure = flowCrestA
-    .mul(float(0.58) as TslNode)
-    .add(flowCrestC.mul(float(0.42) as TslNode) as TslNode)
-    .mul(crossBreakup) as TslNode;
+  const alongBreakup = pow(
+    alongBreakupA.mul(0.58).add(alongBreakupB.mul(0.42)) as TslNode,
+    float(4.5) as TslNode,
+  ) as TslNode;
+  const ribbonCrest = pow(ribbonCarrier, float(13) as TslNode) as TslNode;
+  const flowStructure = ribbonCrest.mul(alongBreakup) as TslNode;
   const flowShimmer = depthFactor
     .mul(flowStructure)
-    .mul(float(FLOW_STREAK_STRENGTH) as TslNode) as TslNode;
+    .mul(float(RIVER_FLOW_HIGHLIGHT_STRENGTH) as TslNode) as TslNode;
 
   const viewDir = normalize((cameraPosition as TslNode).sub(worldPos) as TslNode) as TslNode;
   const viewDotUp = abs(dot(viewDir, vec3(0, 1, 0) as TslNode) as TslNode) as TslNode;
@@ -184,7 +201,7 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     .mul(riverNightAmount)
     .mul(mix(float(0.35) as TslNode, float(1) as TslNode, depthFactor) as TslNode)
     .mul(mix(float(0.65) as TslNode, float(1) as TslNode, viewDotUp) as TslNode) as TslNode;
-  const meniscus = (pow(shoreMask, float(2.8) as TslNode) as TslNode).mul(float(0.22) as TslNode) as TslNode;
+  const meniscus = (pow(shallowFactor, float(1.35) as TslNode) as TslNode).mul(float(0.22) as TslNode) as TslNode;
   const waterTint = mix(SHALLOW_WATER_TINT, DEEP_WATER_TINT, depthFactor) as TslNode;
   const flowHighlight = vec3(0.44, 0.72, 0.69) as TslNode;
   const tintedBody = mix(waterTint, flowHighlight, flowShimmer) as TslNode;
@@ -238,20 +255,20 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   const specularIntensityNode = mix(
     float(0.24) as TslNode,
     float(0.5) as TslNode,
-    (pow(shoreMask, float(1.55) as TslNode) as TslNode).add(depthFactor.mul(float(0.28) as TslNode) as TslNode) as TslNode,
+    (pow(shallowFactor, float(1.35) as TslNode) as TslNode).add(depthFactor.mul(float(0.28) as TslNode) as TslNode) as TslNode,
   ) as TslNode;
   const roughnessNode = mix(
     float(0.34) as TslNode,
-    float(0.245) as TslNode,
+    float(RIVER_FLOW_ROUGHNESS_FLOOR) as TslNode,
     min(
       float(1) as TslNode,
-      flowStructure.mul(depthFactor).mul(float(0.92) as TslNode) as TslNode,
+      flowStructure.mul(depthFactor).mul(float(0.62) as TslNode) as TslNode,
     ) as TslNode,
   ) as TslNode;
 
   const animatedFeather = pow(featherSample, float(0.92) as TslNode) as TslNode;
   const volumeOpacity = mix(float(0.46) as TslNode, float(0.74) as TslNode, depthFactor) as TslNode;
-  const surfaceFilm = shoreMask.mul(float(0.24) as TslNode).add(depthFactor.mul(float(0.14) as TslNode) as TslNode) as TslNode;
+  const surfaceFilm = shallowFactor.mul(float(0.24) as TslNode).add(depthFactor.mul(float(0.14) as TslNode) as TslNode) as TslNode;
   const opacityNode = animatedFeather.mul(
     min(float(0.9) as TslNode, volumeOpacity.add(surfaceFilm) as TslNode) as TslNode,
   ) as TslNode;

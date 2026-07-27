@@ -24,7 +24,9 @@ const OVERVIEW_VOLUME_RADIUS_SCALE = 0.78;
 const OVERVIEW_MAX_VOLUME_RADIUS = 185;
 const RAIN_BASE_PARTICLES = 1_800;
 const SNOW_BASE_PARTICLES = 1_400;
-const RAIN_INNER_RADIUS_FRACTION = 0.18;
+const VOLUME_FORWARD_BIAS_FRACTION = 0.32;
+const RAIN_NEAR_EXCLUSION_FRACTION = 0.3;
+const SNOW_NEAR_EXCLUSION_FRACTION = 0.18;
 
 /**
  * Camera-local precipitation with a fixed particle budget.
@@ -42,6 +44,7 @@ export class PrecipitationRenderer {
   private readonly rainLayers: ParticleLayer[];
   private readonly snowLayers: ParticleLayer[];
   private profile: PrecipitationProfile = precipitationProfile(null);
+  private readonly horizontalCameraForward = new THREE.Vector3(0, 0, -1);
   private rainAmount = 0;
   private snowAmount = 0;
   private elapsed = 0;
@@ -52,12 +55,12 @@ export class PrecipitationRenderer {
     this.group.frustumCulled = false;
 
     this.rainLayers = [
-      this.createLayer('rain', RAIN_BASE_PARTICLES, 0xc8deea, 0.86, 0.68, 1, 0.92, 0x7ba9c5),
-      this.createLayer('rain', Math.round(RAIN_BASE_PARTICLES * 0.58), 0xe7f1f5, 1.25, 0.48, 1.18, 1.12, 0x9fbfd2),
+      this.createLayer('rain', RAIN_BASE_PARTICLES, 0xa9c3d1, 0.72, 0.52, 1, 0.92, 0x6d91a6),
+      this.createLayer('rain', Math.round(RAIN_BASE_PARTICLES * 0.58), 0xcbdde5, 1.02, 0.36, 1.18, 1.12, 0x879fae),
     ];
     this.snowLayers = [
-      this.createLayer('snow', SNOW_BASE_PARTICLES, 0xe6eef2, 0.38, 0.58, 0.9, 0.88, 0xaebfc8),
-      this.createLayer('snow', Math.round(SNOW_BASE_PARTICLES * 0.62), 0xf1f5f6, 0.55, 0.4, 1.15, 1.1, 0xc4d0d5),
+      this.createLayer('snow', SNOW_BASE_PARTICLES, 0xe6eef2, 0.32, 0.58, 0.9, 0.88, 0xaebfc8),
+      this.createLayer('snow', Math.round(SNOW_BASE_PARTICLES * 0.62), 0xf1f5f6, 0.43, 0.4, 1.15, 1.1, 0xc4d0d5),
     ];
 
     for (const layer of [...this.rainLayers, ...this.snowLayers]) {
@@ -107,6 +110,15 @@ export class PrecipitationRenderer {
       this.camera.position.y - precipitationFloorBelowCamera,
       this.camera.position.z,
     );
+    this.camera.getWorldDirection(this.horizontalCameraForward);
+    this.horizontalCameraForward.y = 0;
+    if (this.horizontalCameraForward.lengthSq() > 1e-6) {
+      this.horizontalCameraForward.normalize();
+      this.group.rotation.y = Math.atan2(
+        -this.horizontalCameraForward.x,
+        -this.horizontalCameraForward.z,
+      );
+    }
 
     this.updateLayers(this.rainLayers, this.rainAmount * overviewVisibility, radius, 'rain', frameDt);
     this.updateLayers(this.snowLayers, this.snowAmount * overviewVisibility, radius, 'snow', frameDt);
@@ -142,7 +154,7 @@ export class PrecipitationRenderer {
       map: kind === 'rain' ? this.rainTexture : this.snowTexture,
       transparent: true,
       opacity: 0,
-      alphaTest: kind === 'rain' ? 0.012 : 0.02,
+      alphaTest: kind === 'rain' ? 0.012 : 0.035,
       depthTest: true,
       depthWrite: false,
       vertexColors: true,
@@ -236,13 +248,33 @@ function createParticleInstances(
   const color = new THREE.Color();
 
   for (let index = 0; index < count; index += 1) {
-    const angle = rng() * Math.PI * 2;
-    const innerRadius = kind === 'rain' ? RAIN_INNER_RADIUS_FRACTION : 0;
-    const radius = Math.sqrt(
-      innerRadius * innerRadius + rng() * (1 - innerRadius * innerRadius),
-    );
-    const x = Math.cos(angle) * radius * BASE_VOLUME_RADIUS;
-    const z = Math.sin(angle) * radius * BASE_VOLUME_RADIUS;
+    const nearExclusion = kind === 'rain'
+      ? RAIN_NEAR_EXCLUSION_FRACTION
+      : SNOW_NEAR_EXCLUSION_FRACTION;
+    let x = 0;
+    let z = 0;
+    // The local -Z axis is rotated onto the horizontal camera look direction
+    // each frame. Biasing the disk forward preserves overview coverage, while
+    // rejecting the camera-centered near zone prevents giant foreground cards.
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const angle = rng() * Math.PI * 2;
+      const radius = Math.sqrt(rng());
+      x = Math.cos(angle) * radius * BASE_VOLUME_RADIUS;
+      z = Math.sin(angle) * radius * BASE_VOLUME_RADIUS
+        - BASE_VOLUME_RADIUS * VOLUME_FORWARD_BIAS_FRACTION;
+      if (Math.hypot(x, z) >= BASE_VOLUME_RADIUS * nearExclusion) break;
+    }
+    const nearDistance = Math.hypot(x, z);
+    const minimumNearDistance = BASE_VOLUME_RADIUS * nearExclusion;
+    if (nearDistance < minimumNearDistance) {
+      if (nearDistance <= 1e-6) {
+        z = -minimumNearDistance;
+      } else {
+        const push = minimumNearDistance / nearDistance;
+        x *= push;
+        z *= push;
+      }
+    }
     const y = rng() * VOLUME_HEIGHT;
     const brightness = 0.48 + rng() * 0.52;
     color.copy(shadow).lerp(bright, brightness);
@@ -359,11 +391,14 @@ function createSnowTexture(): THREE.DataTexture {
     const dy = y - 0.5;
     const radius = Math.hypot(dx, dy) * 2;
     if (radius >= 1) return 0;
-    const core = Math.exp(-(radius * radius) / 0.2);
+    const core = Math.exp(-(radius * radius) / 0.075) * 0.82;
     const angle = Math.atan2(dy, dx);
-    const arm = Math.pow(Math.abs(Math.cos(angle * 3)), 12)
-      * Math.exp(-Math.pow(radius - 0.48, 2) / 0.11);
-    return Math.max(core, arm * 0.24) * Math.pow(1 - radius, 0.46);
+    const arm = Math.pow(Math.abs(Math.cos(angle * 3)), 18)
+      * Math.exp(-Math.pow(radius - 0.44, 2) / 0.16)
+      * (0.3 + radius * 0.7);
+    const branch = Math.pow(Math.abs(Math.cos(angle * 6 + 0.35)), 26)
+      * Math.exp(-Math.pow(radius - 0.62, 2) / 0.055);
+    return Math.max(core, arm * 0.72, branch * 0.2) * Math.pow(1 - radius, 0.38);
   }, 'Procedural soft snowflake sprite');
 }
 

@@ -8,6 +8,7 @@ import {
   storehouseCollectionHeadroom,
   storehouseCommodityTarget,
   storehouseCommodityTargetPercent,
+  storehouseFilteredCollectionHeadroom,
   storehouseStockTarget,
 } from '../src/economy/storehousePolicy.ts';
 import { computeSettlementLaborPlan } from '../src/economy/settlementLabor.ts';
@@ -40,6 +41,14 @@ assert.equal(storehouseCommodityTargetPercent(legacyStorehouse, 'timber'), 100);
 assert.equal(storehouseCommodityTarget(legacyStorehouse, 'timber'), 360);
 assert.equal(storehouseCommodityTarget(legacyStorehouse, 'stone'), 360);
 assert.equal(storehouseCommodityTarget(legacyStorehouse, 'firewood'), 280);
+assert.equal(storehouseFilteredCollectionHeadroom(legacyStorehouse, 'timber'), 260);
+assert.equal(
+  storehouseFilteredCollectionHeadroom(
+    { ...legacyStorehouse, storehouseAcceptsTimber: false },
+    'timber',
+  ),
+  0,
+);
 const legacyControls = renderStorehouseStockTargetControls(legacyStorehouse);
 assert.match(legacyControls, /Timber target/);
 assert.match(legacyControls, /100 stored \/ 360 selected/);
@@ -136,6 +145,7 @@ assert.match(
   /STOREHOUSE_STOCK_TARGET_PERCENTS: \[u8; 4\] = \[25, 50, 75, 100\]/,
 );
 assert.match(serverPolicySource, /pub fn storehouse_collection_headroom/);
+assert.match(serverPolicySource, /pub fn storehouse_filtered_collection_headroom/);
 assert.match(serverPolicySource, /pub fn compare_storehouse_source_priority/);
 assert.match(serverPolicySource, /pub fn compare_storehouse_destination/);
 assert.match(
@@ -143,7 +153,7 @@ assert.match(
   /set_storehouse_stock_target[\s\S]*is_valid_storehouse_stock_target_percent[\s\S]*"timber"[\s\S]*storehouse_timber_target_percent = target_percent[\s\S]*"stone"[\s\S]*storehouse_stone_target_percent = target_percent[\s\S]*"firewood"[\s\S]*storehouse_firewood_target_percent = target_percent/,
 );
 assert.match(storehouseStep, /fn storehouse_collection_room/);
-assert.match(storehouseStep, /storehouse_collection_headroom\(/);
+assert.match(storehouseStep, /storehouse_filtered_collection_headroom\(/);
 assert.match(storehouseStep, /idle_by_owner: HashMap<Identity, Vec<Building>>/);
 assert.match(
   storehouseStep,

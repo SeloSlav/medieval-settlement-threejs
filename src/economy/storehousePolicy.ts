@@ -106,3 +106,26 @@ export function storehouseAcceptsCommodity(
       ? building.storehouseAcceptsStone
       : building.storehouseAcceptsFirewood;
 }
+
+/** Shared intake-gated headroom used by producer overflow and founding-yard relocation. */
+export function storehouseFilteredCollectionHeadroom(
+  building: Pick<
+    BuildingState,
+    | 'timber'
+    | 'stone'
+    | 'firewood'
+    | 'storehouseAcceptsTimber'
+    | 'storehouseAcceptsStone'
+    | 'storehouseAcceptsFirewood'
+    | 'storehouseTimberTargetPercent'
+    | 'storehouseStoneTargetPercent'
+    | 'storehouseFirewoodTargetPercent'
+  >,
+  commodity: StorehouseCommodity,
+): number {
+  if (!storehouseAcceptsCommodity(building, commodity)) return 0;
+  const stock = Number.isFinite(building[commodity])
+    ? Math.max(0, building[commodity])
+    : 0;
+  return Math.max(0, storehouseCommodityTarget(building, commodity) - stock);
+}

@@ -21,7 +21,7 @@ use crate::simulation::road_logistics::select_residence_for_need_delivery;
 use crate::simulation::tick_context::SimTickContext;
 use crate::storehouse_policy::{
     compare_storehouse_destination, compare_storehouse_source_priority,
-    storehouse_collection_headroom,
+    storehouse_filtered_collection_headroom,
 };
 use crate::tables::{Building, Residence};
 
@@ -151,9 +151,7 @@ fn dispatch_overflow_collection_for_owner(
             .iter()
             .enumerate()
             .filter_map(|(index, storehouse)| {
-                if !storehouse_accepts_commodity(storehouse, source.commodity)
-                    || storehouse_collection_room(storehouse, source.commodity) <= 1e-6
-                {
+                if storehouse_collection_room(storehouse, source.commodity) <= 1e-6 {
                     return None;
                 }
                 let distance = network.road_path_distance(
@@ -219,7 +217,8 @@ fn storehouse_collection_room(storehouse: &Building, commodity: CommodityKind) -
         CommodityKind::Firewood => storehouse.storehouse_firewood_target_percent,
         _ => return 0.0,
     };
-    storehouse_collection_headroom(
+    storehouse_filtered_collection_headroom(
+        storehouse_accepts_commodity(storehouse, commodity),
         building_commodity_stock(storehouse, commodity),
         building_commodity_cap(&storehouse.kind, commodity),
         percent,

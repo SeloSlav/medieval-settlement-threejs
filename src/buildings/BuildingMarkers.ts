@@ -380,7 +380,10 @@ export class BuildingMarkers {
       );
       this.buildingMeshes.set(building.id, marker);
       this.group.add(marker);
-      if (building.kind === 'founders_camp') {
+      if (
+        building.kind === 'founders_camp'
+        && building.foundingShelterActive !== false
+      ) {
         const campfire = marker.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
         if (campfire instanceof THREE.Group) {
           setFoundersCampfireNightLighting(

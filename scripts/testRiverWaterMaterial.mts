@@ -5,6 +5,9 @@ import {
   getSharedRiverWaterMaterial,
   normalizeRiverWaterNightAmount,
   RIVER_DEEP_BACKDROP_STABILITY,
+  RIVER_FLOW_HIGHLIGHT_STRENGTH,
+  RIVER_FLOW_ROUGHNESS_FLOOR,
+  RIVER_VISUAL_SHORE_EXPONENT,
   RIVER_WATER_ATTENUATION_DISTANCE,
   RIVER_WATER_TRANSMISSION,
   setSharedRiverWaterNightAmount,
@@ -93,6 +96,19 @@ assert.equal(
   RIVER_DEEP_BACKDROP_STABILITY,
   1,
   'deep water must fully suppress false screen-space terrain and tree-shadow bands',
+);
+assert.ok(
+  RIVER_VISUAL_SHORE_EXPONENT >= 3.5,
+  'visual shore depth must settle quickly enough to avoid distance-field pool lobes',
+);
+assert.ok(
+  RIVER_FLOW_ROUGHNESS_FLOOR >= 0.31,
+  'flow roughness must not turn directional crests into black winter pools',
+);
+assert.ok(
+  RIVER_FLOW_HIGHLIGHT_STRENGTH >= 0.08
+    && RIVER_FLOW_HIGHLIGHT_STRENGTH <= 0.14,
+  'directional ribbons must remain restrained enough to avoid broad winter halos',
 );
 assert.equal(material.roughness, 0.3);
 assert.equal(material.specularIntensity, 0.5);

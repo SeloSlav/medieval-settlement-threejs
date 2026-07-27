@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import {
@@ -21,6 +22,7 @@ import {
   stockpileVisualLevel,
 } from '../src/buildings/buildingStockpileVisuals.ts';
 import { constructionSourcePriority } from '../src/logistics/constructionLogistics.ts';
+import { planFoundingStockyardRelocation } from '../src/logistics/foundingStockyardLogistics.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import {
   createEmptyStockpile,
@@ -232,6 +234,118 @@ assert.notEqual(
   'crossing zero gold must refresh the Town Hall chest visual',
 );
 
+const clearedCamp = {
+  ...camp,
+  foundingShelterActive: false,
+  timber: 48,
+  stone: 12,
+  firewood: 8,
+} satisfies BuildingState;
+const farStorehouse = {
+  ...camp,
+  id: '20',
+  kind: 'village_storehouse',
+  x: 80,
+  z: 0,
+  foundingShelterActive: false,
+  timber: 0,
+  stone: 0,
+  firewood: 0,
+  storehouseTimberTargetPercent: 100,
+  storehouseStoneTargetPercent: 100,
+  storehouseFirewoodTargetPercent: 100,
+} satisfies BuildingState;
+const nearStorehouse = {
+  ...farStorehouse,
+  id: '9',
+  x: 24,
+} satisfies BuildingState;
+const relocationState = {
+  ...physicalStock,
+  buildings: new Map([
+    [clearedCamp.id, clearedCamp],
+    [farStorehouse.id, farStorehouse],
+    [nearStorehouse.id, nearStorehouse],
+  ]),
+  residences: new Map<string, ResidenceState>(),
+  deliveryTrips: new Map(),
+} satisfies GameState;
+const relocation = planFoundingStockyardRelocation({
+  state: relocationState,
+  camp: clearedCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.equal(relocation.blocker, 'ready');
+assert.equal(relocation.commodity, 'timber');
+assert.equal(relocation.targetBuildingId, nearStorehouse.id);
+assert.equal(relocation.targetRoom, 48);
+assert.equal(relocation.routeDistance, 24);
+
+const occupiedCampPlan = planFoundingStockyardRelocation({
+  state: relocationState,
+  camp: { ...clearedCamp, foundingShelterActive: true },
+  availableLabor: 1,
+  roadPathDistance: () => 1,
+});
+assert.equal(
+  occupiedCampPlan.blocker,
+  'shelters',
+  'founding goods should remain at the occupied camp until its people are rehoused',
+);
+
+const targetFullStorehouse = {
+  ...nearStorehouse,
+  timber: BUILDING_STORAGE_CAPS.village_storehouse.timber * 0.25,
+  storehouseTimberTargetPercent: 25,
+  storehouseAcceptsStone: false,
+  storehouseAcceptsFirewood: false,
+} satisfies BuildingState;
+const targetFullState = {
+  ...relocationState,
+  buildings: new Map([
+    [clearedCamp.id, { ...clearedCamp, stone: 0, firewood: 0 }],
+    [targetFullStorehouse.id, targetFullStorehouse],
+  ]),
+} satisfies GameState;
+assert.equal(
+  planFoundingStockyardRelocation({
+    state: targetFullState,
+    camp: targetFullState.buildings.get(clearedCamp.id)!,
+    availableLabor: 1,
+    roadPathDistance: () => 20,
+  }).blocker,
+  'target-full',
+  'a low collection ceiling must remain a meaningful stockyard-clearance decision',
+);
+
+const reservedSite = {
+  ...farStorehouse,
+  id: 'worksite',
+  kind: 'well',
+  constructionComplete: false,
+  constructionReservedTimber: clearedCamp.timber,
+  constructionTreasuryTimber: 0,
+} satisfies BuildingState;
+const reservedState = {
+  ...relocationState,
+  buildings: new Map([
+    [clearedCamp.id, { ...clearedCamp, stone: 0, firewood: 0 }],
+    [nearStorehouse.id, nearStorehouse],
+    [reservedSite.id, reservedSite],
+  ]),
+} satisfies GameState;
+assert.equal(
+  planFoundingStockyardRelocation({
+    state: reservedState,
+    camp: reservedState.buildings.get(clearedCamp.id)!,
+    availableLabor: 1,
+    roadPathDistance: () => 20,
+  }).blocker,
+  'reserved',
+  'off-road construction reservations must remain at the camp instead of being silently relocated',
+);
+
 const bootstrapServer = read('server/src/reducers/bootstrap.rs');
 assert.match(bootstrapServer, /physical_founding_site_enabled/);
 assert.match(bootstrapServer, /kind: "founders_camp"/);
@@ -266,6 +380,10 @@ assert.match(foundingLifecycle, /building_has_active_trip/);
 assert.match(foundingLifecycle, /available_free_haulers/);
 assert.match(foundingLifecycle, /try_start_building_supply_trip/);
 assert.match(foundingLifecycle, /CommodityKind::Gold/);
+assert.match(foundingLifecycle, /try_start_stockyard_relocation/);
+assert.match(foundingLifecycle, /storehouse_filtered_collection_headroom/);
+assert.match(foundingLifecycle, /building_has_inbound_supply_trip/);
+assert.match(foundingLifecycle, /relocatable_stock/);
 assert.doesNotMatch(
   foundingLifecycle,
   /town_hall\.gold \+= site\.gold|site\.gold = 0\.0/,
@@ -276,9 +394,46 @@ assert.match(simulationReducer, /step_founding_sites\(ctx, &tick, &clock\)/);
 const foundersInspector = read('src/resources/inspector/foundersCampRenderer.ts');
 assert.match(foundersInspector, /connect the camp and Town Hall by road/);
 assert.match(foundersInspector, /awaiting the next free hauler/);
+assert.match(foundersInspector, /Permanent storage/);
+assert.match(foundersInspector, /planFoundingStockyardRelocation/);
+const buildingMarkersSource = read('src/buildings/BuildingMarkers.ts');
+assert.match(
+  buildingMarkersSource,
+  /building\.kind === 'founders_camp'\s*&& building\.foundingShelterActive !== false[\s\S]*?this\.foundersCampfires\.add/,
+  'a struck camp must not keep an invisible fire effect in the per-frame animation set',
+);
 const townHallInspector = read('src/resources/inspector/townHallRenderer.ts');
 assert.match(townHallInspector, /Treasury chest/);
 assert.match(townHallInspector, /incoming by handcart/);
+
+const perfBuildings = new Map<string, BuildingState>([
+  [clearedCamp.id, clearedCamp],
+]);
+for (let index = 100_000; index > 0; index -= 1) {
+  const id = String(index);
+  perfBuildings.set(id, {
+    ...nearStorehouse,
+    id,
+    x: index,
+  });
+}
+const perfState = {
+  ...relocationState,
+  buildings: perfBuildings,
+} satisfies GameState;
+const relocationStarted = performance.now();
+const perfRelocation = planFoundingStockyardRelocation({
+  state: perfState,
+  camp: clearedCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+const relocationElapsedMs = performance.now() - relocationStarted;
+assert.equal(perfRelocation.targetBuildingId, '1');
+assert.ok(
+  relocationElapsedMs < 1_000,
+  `100k-storehouse founding relocation plan took ${relocationElapsedMs.toFixed(1)}ms`,
+);
 
 function gameState(physical: boolean, housed: number): GameState {
   const residences = new Map<string, ResidenceState>();
@@ -311,4 +466,7 @@ function gameState(physical: boolean, housed: number): GameState {
   };
 }
 
-console.log('Founding-site logistics, population migration, placement, and visual checks passed.');
+console.log(
+  `Founding-site logistics, population migration, placement, and visual checks passed `
+  + `(${relocationElapsedMs.toFixed(1)}ms for 100k relocation candidates).`,
+);
