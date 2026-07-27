@@ -445,6 +445,7 @@ function trip(id: string, buildingId: string): DeliveryTripState {
     unloadSeconds: 1,
     unloadRemaining: 1,
     deliveryWorkers: 1,
+    freeHaulerWorkers: 0,
     pathDistance: 1,
     travelSpeedMultiplier: 1,
     routePolylineJson: '[]',

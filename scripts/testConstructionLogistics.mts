@@ -128,10 +128,29 @@ const constructionServer = read('server/src/simulation/construction.rs');
 assert.match(constructionServer, /construction_reserved_timber/);
 assert.match(constructionServer, /try_start_construction_supply_trip/);
 assert.match(constructionServer, /available_free_haulers/);
+const deliveryTripServer = read('server/src/simulation/delivery_trips.rs');
 assert.match(
-  read('server/src/simulation/delivery_trips.rs'),
-  /pub fn available_free_haulers[\s\S]*active_unstaffed_haulers[\s\S]*available_building_labor/,
-  'all unstaffed physical stores must share one free-cart labor budget',
+  deliveryTripServer,
+  /pub fn available_free_haulers[\s\S]*available_building_labor\(ctx, owner\)/,
+  'all freelance carts must share the authoritative settlement labor budget',
+);
+assert.doesNotMatch(
+  deliveryTripServer.slice(
+    deliveryTripServer.indexOf('pub fn available_free_haulers'),
+    deliveryTripServer.indexOf('pub fn building_has_inbound_commodity_trip'),
+  ),
+  /ctx\.db\.building/,
+  'checking free cart labor must not reload every active trip origin',
+);
+assert.match(
+  read('server/src/economy/population.rs'),
+  /delivery_trip\(\)[\s\S]*free_hauler_workers[\s\S]*available_building_labor/,
+  'freelance cart crews must be deducted by the authoritative population budget',
+);
+assert.match(
+  deliveryTripServer,
+  /free_hauler_workers_for_trip[\s\S]*free_hauler_workers,/,
+  'new trips must persist their free-labor reservation',
 );
 assert.match(constructionServer, /construction_progress/);
 assert.match(constructionServer, /complete_site/);
@@ -243,6 +262,7 @@ const returningTrip: DeliveryTripState = {
   unloadSeconds: 6,
   unloadRemaining: 0,
   deliveryWorkers: 1,
+  freeHaulerWorkers: 0,
   pathDistance: 10,
   travelSpeedMultiplier: 1,
   routePolylineJson: '',
@@ -671,6 +691,7 @@ const constructionContext = (
     populationStats: {
       total: 9,
       assigned: 4,
+      cartAssigned: 0,
       available,
       housingCapacity: 4,
       housed: 4,

@@ -47,6 +47,7 @@ export type DeliveryTripState = {
   unloadSeconds: number;
   unloadRemaining: number;
   deliveryWorkers: number;
+  freeHaulerWorkers: number;
   pathDistance: number;
   travelSpeedMultiplier: number;
   routePolylineJson: string;

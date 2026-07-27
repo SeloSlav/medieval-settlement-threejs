@@ -94,7 +94,7 @@ export function buildingLaborView(
     visible: true,
     count: building.assignedLabor,
     hint: building.constructionComplete !== false
-      ? `${building.assignedLabor}/${buildingCap} workers here · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} assigned).`
+      ? `${building.assignedLabor}/${buildingCap} workers here · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} freelance haulers` : ''}).`
       : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available. Builders construct; unassigned workers fetch reserved stock, while staffed storehouses dispatch faster carts.`,
     decreaseDisabled: building.assignedLabor <= 0,
     increaseDisabled: building.assignedLabor >= maxLabor,

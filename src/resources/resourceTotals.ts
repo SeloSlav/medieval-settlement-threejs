@@ -67,6 +67,7 @@ export type ResourceTotals = {
 export type PopulationStats = {
   total: number;
   assigned: number;
+  cartAssigned: number;
   available: number;
   housingCapacity: number;
   housed: number;
@@ -293,14 +294,20 @@ export function computePopulationStats(state: GameState): PopulationStats {
   const total = state.physicalFoundingSiteEnabled === true
     ? Math.max(STARTING_POPULATION, housed)
     : STARTING_POPULATION + housed;
-  let assigned = 0;
+  let buildingAssigned = 0;
   for (const building of state.buildings.values()) {
-    assigned += building.assignedLabor;
+    buildingAssigned += building.assignedLabor;
   }
+  let cartAssigned = 0;
+  for (const trip of state.deliveryTrips.values()) {
+    cartAssigned += Math.max(0, trip.freeHaulerWorkers);
+  }
+  const assigned = buildingAssigned + cartAssigned;
 
   return {
     total,
     assigned,
+    cartAssigned,
     available: Math.max(0, total - assigned),
     housingCapacity,
     housed,

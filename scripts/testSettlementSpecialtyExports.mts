@@ -87,6 +87,7 @@ function trip(
     unloadSeconds: 1,
     unloadRemaining: 1,
     deliveryWorkers: 1,
+    freeHaulerWorkers: 0,
     pathDistance: 100,
     travelSpeedMultiplier: 1,
     routePolylineJson: '[]',

@@ -64,8 +64,19 @@ fn total_assigned_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u
         .sum()
 }
 
+fn total_free_hauler_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    ctx.db
+        .delivery_trip()
+        .owner()
+        .filter(&owner)
+        .map(|trip| trip.free_hauler_workers)
+        .sum()
+}
+
 pub fn available_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    total_population(ctx, owner).saturating_sub(total_assigned_labor(ctx, owner))
+    total_population(ctx, owner).saturating_sub(
+        total_assigned_labor(ctx, owner).saturating_add(total_free_hauler_labor(ctx, owner)),
+    )
 }
 
 pub fn initial_construction_labor(available_labor: u32) -> u32 {
@@ -87,8 +98,10 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
         })
         .collect();
 
+    let assignable_population =
+        total_population(ctx, owner).saturating_sub(total_free_hauler_labor(ctx, owner));
     for (building_id, assigned_labor) in
-        labor_reconciliation_updates(assignments, total_population(ctx, owner))
+        labor_reconciliation_updates(assignments, assignable_population)
     {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -141,8 +154,9 @@ pub fn assign_building_labor(
         ));
     }
 
-    let assigned_elsewhere =
-        total_assigned_labor(ctx, owner).saturating_sub(building.assigned_labor);
+    let assigned_elsewhere = total_assigned_labor(ctx, owner)
+        .saturating_sub(building.assigned_labor)
+        .saturating_add(total_free_hauler_labor(ctx, owner));
     let population = total_population(ctx, owner);
     let max_allowed = population.saturating_sub(assigned_elsewhere);
     if population_limit_blocks_labor_request(
@@ -152,7 +166,7 @@ pub fn assign_building_labor(
         assigned_elsewhere,
     ) {
         return Err(format!(
-            "Only {} workers available ({} population assigned elsewhere).",
+            "Only {} workers available ({} population assigned elsewhere or hauling).",
             max_allowed, assigned_elsewhere
         ));
     }

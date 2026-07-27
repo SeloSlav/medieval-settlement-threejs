@@ -52,6 +52,7 @@ export function syncDeliveryTrips(
       unloadSeconds: row.unloadSeconds,
       unloadRemaining: row.unloadRemaining,
       deliveryWorkers: Number(row.deliveryWorkers),
+      freeHaulerWorkers: Number(row.freeHaulerWorkers ?? 0),
       pathDistance: Number(row.pathDistance ?? 0),
       travelSpeedMultiplier: Number(row.travelSpeedMultiplier ?? 1),
       routePolylineJson: row.routePolylineJson ?? '',

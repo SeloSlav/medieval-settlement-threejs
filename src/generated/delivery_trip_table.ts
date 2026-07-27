@@ -30,4 +30,5 @@ export default __t.row({
   pathDistance: __t.f64().name("path_distance"),
   travelSpeedMultiplier: __t.f64().name("travel_speed_multiplier"),
   routePolylineJson: __t.string().name("route_polyline_json"),
+  freeHaulerWorkers: __t.u32().name("free_hauler_workers"),
 });

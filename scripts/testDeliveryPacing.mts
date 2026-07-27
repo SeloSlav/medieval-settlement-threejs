@@ -56,6 +56,7 @@ const loadedTrip: DeliveryTripState = {
   unloadSeconds: 8,
   unloadRemaining: 0,
   deliveryWorkers: 2,
+  freeHaulerWorkers: 0,
   pathDistance: 150,
   travelSpeedMultiplier: 1,
   routePolylineJson: '[]',

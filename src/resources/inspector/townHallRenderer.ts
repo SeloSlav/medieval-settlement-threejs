@@ -428,7 +428,7 @@ export function renderSettlementHaulageRows(
     ? 'No measured road route'
     : `${cargoKindLabel(plan.longestRoute.cargoKind)} · ${Math.round(plan.longestRoute.oneWayDistance).toLocaleString()} m one way · ${formatTripPhaseLabel(plan.longestRoute.phase).toLocaleLowerCase()} · ${plan.longestRoute.remainingSeconds === null ? 'timing unresolved' : `${formatHaulageDuration(plan.longestRoute.remainingSeconds)} left`} <button type="button" class="inspector-jump-button" data-inspect-delivery-trip="${plan.longestRoute.tripId}" aria-label="Inspect longest active cart route">Inspect route</button>`;
   return `
-    <li><span>Haulage posture</span><span>${plan.activeTrips} active · ${plan.outboundTrips} outbound · ${plan.unloadingTrips} unloading · ${plan.returningTrips} returning empty · ${plan.deliveryWorkers} haulers committed</span></li>
+    <li><span>Haulage posture</span><span>${plan.activeTrips} active · ${plan.outboundTrips} outbound · ${plan.unloadingTrips} unloading · ${plan.returningTrips} returning empty · ${plan.deliveryWorkers} haulers committed${plan.freeHaulerWorkers > 0 ? ` · ${plan.freeHaulerWorkers} drawn from free labor` : ''}</span></li>
     <li><span>Cargo in motion</span><span>${plan.cargoInTransit.toFixed(1)} units aboard ${plan.loadedTrips} loaded ${plan.loadedTrips === 1 ? 'cart' : 'carts'} · busiest ${busiestCargo}${plan.emergencyTrips > 0 ? ` · ${plan.emergencyTrips} fire ${plan.emergencyTrips === 1 ? 'response' : 'responses'}` : ''}</span></li>
     <li><span>Road commitment</span><span>${Math.round(plan.totalOneWayDistance).toLocaleString()} m across ${plan.measuredTrips} measured ${plan.measuredTrips === 1 ? 'route' : 'routes'} · ${Math.round(plan.averageOneWayDistance).toLocaleString()} m average · ${formatHaulageDuration(plan.totalRemainingWorkerSeconds)} hauler-time remaining${unresolved}</span></li>
     <li><span>Longest active haul</span><span>${longest}</span></li>
@@ -1781,7 +1781,7 @@ export function renderTownHallInspector(
       <li><span>Role</span><span>Settlement government, taxation, and economic ledger</span></li>
       <li><span>Treasury chest</span><span>${building.gold.toFixed(0)} gold secured here${inboundTreasuryGold > 1e-6 ? ` · ${inboundTreasuryGold.toFixed(0)} incoming by handcart` : ''}</span></li>
       <li><span>Population</span><span>${context.populationStats.total}</span></li>
-      <li><span>Workforce</span><span>${context.populationStats.assigned} / ${context.populationStats.total} assigned · ${context.populationStats.available} free · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
+      <li><span>Workforce</span><span>${context.populationStats.assigned} / ${context.populationStats.total} committed${context.populationStats.cartAssigned > 0 ? ` · ${context.populationStats.cartAssigned} on freelance carts` : ''} · ${context.populationStats.available} free · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
       <li><span>Sector staffing</span><span>${formatLaborSectorMix(laborPlan)}</span></li>
       <li><span>Staffing priorities</span><span>${formatStaffingPriorities(laborPlan)}</span></li>
       <li><span>Seasonal steward</span><span>${seasonalLaborStewardStatus(seasonalLaborStewardEnabled, staffedTownHallAvailable)}</span></li>

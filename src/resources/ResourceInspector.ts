@@ -186,6 +186,7 @@ export class ResourceInspector {
   private populationStats: PopulationStats = {
     total: 0,
     assigned: 0,
+    cartAssigned: 0,
     available: 0,
     housingCapacity: 0,
     housed: 0,

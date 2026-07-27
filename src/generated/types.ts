@@ -116,6 +116,7 @@ export const DeliveryTrip = __t.object("DeliveryTrip", {
   pathDistance: __t.f64(),
   travelSpeedMultiplier: __t.f64(),
   routePolylineJson: __t.string(),
+  freeHaulerWorkers: __t.u32(),
 });
 export type DeliveryTrip = __Infer<typeof DeliveryTrip>;
 

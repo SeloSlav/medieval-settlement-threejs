@@ -88,12 +88,21 @@ assert.match(
   /ctx\.db\.building\(\)\.id\(\)\.find\(&monastery_id\)/,
   'the selected route must reload fresh monastery stock before dispatching its cart',
 );
+const deliveryTripSimulation = readFileSync(
+  new URL('../server/src/simulation/delivery_trips.rs', import.meta.url),
+  'utf8',
+);
 assert.match(chapelSimulation, /chapel_tithe_payment_room/);
 assert.match(chapelSimulation, /deposit_chapel_tithe/);
 assert.match(chapelSimulation, /available_free_haulers/);
 assert.match(chapelSimulation, /try_start_building_supply_trip/);
 assert.match(chapelSimulation, /CommodityKind::Gold/);
 assert.match(chapelSimulation, /free_haulers_by_owner/);
+assert.match(
+  deliveryTripSimulation,
+  /origin\.kind\s*==\s*"chapel"[\s\S]*CommodityKind::Gold[\s\S]*delivery_workers/,
+  'chapel gold errands must retain their borrowed free villager for the full trip',
+);
 assert.match(
   chapelSimulation,
   /if monastery_tithe_dispatch_due\(sim_tick\)/,

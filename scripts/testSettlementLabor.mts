@@ -101,6 +101,7 @@ const haulageTrips = new Map<string, DeliveryTripState>([
 const haulage = computeSettlementHaulagePlan(haulageTrips.values());
 assert.equal(haulage.activeTrips, 5);
 assert.equal(haulage.deliveryWorkers, 6);
+assert.equal(haulage.freeHaulerWorkers, 0);
 assert.equal(haulage.outboundTrips, 2);
 assert.equal(haulage.unloadingTrips, 1);
 assert.equal(haulage.returningTrips, 2);
@@ -189,7 +190,7 @@ const renderedInspector = withStaffingPriority(renderTownHallInspector(
   },
 ), renderedTownHall);
 assert.ok(renderedInspector.detailsHtml.includes(
-  `${renderedPopulation.assigned} / ${renderedPopulation.total} assigned · ${renderedPopulation.available} free · ${renderedPlan.openPermanentPosts} open permanent posts`,
+  `${renderedPopulation.assigned} / ${renderedPopulation.total} committed · ${renderedPopulation.available} free · ${renderedPlan.openPermanentPosts} open permanent posts`,
 ));
 assert.ok(renderedInspector.detailsHtml.includes(
   `At full housing labor</span><span>${renderedPlan.populationAtFullHousing} people`,
@@ -207,8 +208,13 @@ renderedState.deliveryTrips.set(
     ...haulageTrip('route', 'firewood', 'outbound', 420, 1, 8, 20, 1, 30, 30),
     buildingId: renderedWell.id,
     targetBuildingId: renderedMarket.id,
+    freeHaulerWorkers: 1,
   },
 );
+const activePopulation = computePopulationStats(renderedState);
+assert.equal(activePopulation.cartAssigned, 1);
+assert.equal(activePopulation.assigned, renderedPopulation.assigned + 1);
+assert.equal(activePopulation.available, renderedPopulation.available - 1);
 const activeHaulageInspector = renderTownHallInspector(
   {
     kind: 'building',
@@ -220,12 +226,14 @@ const activeHaulageInspector = renderTownHallInspector(
   {
     gameState: renderedState,
     worldQueries: renderedQueries,
-    populationStats: renderedPopulation,
+    populationStats: activePopulation,
     resourceTotals: computeResourceTotals(renderedState),
     worldHydrology: 0.5,
   },
 );
 assert.match(activeHaulageInspector.detailsHtml, /Haulage posture/);
+assert.match(activeHaulageInspector.detailsHtml, /1 drawn from free labor/);
+assert.match(activeHaulageInspector.detailsHtml, /1 on freelance carts/);
 assert.match(activeHaulageInspector.detailsHtml, /Road commitment/);
 assert.match(activeHaulageInspector.detailsHtml, /Longest active haul/);
 assert.match(activeHaulageInspector.detailsHtml, /data-inspect-delivery-trip="route"/);
@@ -369,6 +377,7 @@ function trip(id: string, buildingId: string, deliveryWorkers: number): Delivery
     unloadSeconds: 1,
     unloadRemaining: 1,
     deliveryWorkers,
+    freeHaulerWorkers: 0,
     pathDistance: 1,
     travelSpeedMultiplier: 1,
     routePolylineJson: '[]',

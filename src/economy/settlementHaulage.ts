@@ -20,6 +20,7 @@ export type HaulageTripSummary = {
 export type SettlementHaulagePlan = {
   activeTrips: number;
   deliveryWorkers: number;
+  freeHaulerWorkers: number;
   outboundTrips: number;
   unloadingTrips: number;
   returningTrips: number;
@@ -58,6 +59,7 @@ export function computeSettlementHaulagePlan(
   const plan: SettlementHaulagePlan = {
     activeTrips: 0,
     deliveryWorkers: 0,
+    freeHaulerWorkers: 0,
     outboundTrips: 0,
     unloadingTrips: 0,
     returningTrips: 0,
@@ -81,6 +83,7 @@ export function computeSettlementHaulagePlan(
     plan.activeTrips += 1;
     const deliveryWorkers = Math.max(0, trip.deliveryWorkers);
     plan.deliveryWorkers += deliveryWorkers;
+    plan.freeHaulerWorkers += Math.max(0, trip.freeHaulerWorkers);
     cargoTrips[trip.cargoKind] += 1;
 
     if (trip.phase === 'outbound') plan.outboundTrips += 1;

@@ -168,25 +168,20 @@ pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) 
         .is_some()
 }
 
-/// Free settlement labor still available to operate carts from unstaffed
-/// physical stores. Cart crews are not represented in assigned_labor, so
-/// every active trip whose current origin has no permanent crew is deducted.
+/// Free settlement labor still available to operate carts. Freelance crews are
+/// recorded on DeliveryTrip and already deducted by the authoritative labor budget.
 pub fn available_free_haulers(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    let active_unstaffed_haulers: u32 = ctx
-        .db
-        .delivery_trip()
-        .owner()
-        .filter(&owner)
-        .filter(|trip| {
-            ctx.db
-                .building()
-                .id()
-                .find(&trip.building_id)
-                .is_some_and(|origin| origin.assigned_labor == 0)
-        })
-        .map(|trip| trip.delivery_workers)
-        .sum();
-    available_building_labor(ctx, owner).saturating_sub(active_unstaffed_haulers)
+    available_building_labor(ctx, owner)
+}
+
+fn free_hauler_workers_for_trip(origin: &Building, cargo_kind: u8, delivery_workers: u32) -> u32 {
+    let is_chapel_gold_errand =
+        origin.kind == "chapel" && cargo_kind == CommodityKind::Gold.as_u8();
+    if origin.assigned_labor == 0 || is_chapel_gold_errand {
+        delivery_workers
+    } else {
+        0
+    }
 }
 
 /// Returns whether a matching commodity is still traveling to or unloading at
@@ -708,6 +703,8 @@ fn insert_trip(
         })
         .unwrap_or(1.0);
     let travel_speed_multiplier = cartwright_multiplier * road_condition_multiplier;
+    let free_hauler_workers =
+        free_hauler_workers_for_trip(&spec.origin, spec.cargo_kind, spec.delivery_workers);
 
     ctx.db.delivery_trip().insert(DeliveryTrip {
         id: 0,
@@ -729,6 +726,7 @@ fn insert_trip(
         path_distance: route.distance,
         travel_speed_multiplier,
         route_polyline_json: serialize_route_polyline(&route.polyline),
+        free_hauler_workers,
     });
 }
 
