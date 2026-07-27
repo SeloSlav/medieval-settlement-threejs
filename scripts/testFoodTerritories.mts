@@ -185,10 +185,18 @@ assert.match(tickContext, /food_claims:\s*RefCell/);
 assert.match(tickContext, /pub fn food_supplier_for/);
 assert.match(tickContext, /fn build_food_claims/);
 assert.match(tickContext, /MONASTERY_COVERAGE_RADIUS/);
+const foodClaimsSource = tickContext.slice(
+  tickContext.indexOf('fn build_food_claims'),
+);
 assert.match(
-  tickContext,
-  /is_food_supplier_operational[\s\S]{0,220}building\.food > 1e-6/,
+  foodClaimsSource,
+  /is_food_supplier_operational[\s\S]*building\.food > 1e-6/,
   'authoritative food claims must relinquish empty suppliers',
+);
+assert.match(
+  foodClaimsSource,
+  /!self\.building_disabled_by_fire\(ctx, building\.id\)[\s\S]*!self\.residence_disabled_by_fire\(ctx, residence\.id\)/,
+  'healthy suppliers must take over territory while damaged suppliers and homes are offline',
 );
 const expanded = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(

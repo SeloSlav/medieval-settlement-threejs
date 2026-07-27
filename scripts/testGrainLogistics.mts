@@ -582,6 +582,11 @@ assert.match(farmsteadDispatch, /select_grain_dispatch_candidate/);
 assert.match(farmsteadDispatch, /candidate\.building\.construction_priority/);
 assert.match(farmsteadDispatch, /GrainDispatchDuty::WorkingBuffer/);
 assert.match(farmsteadDispatch, /building_has_inbound_supply_trip/);
+assert.match(
+  farmsteadDispatch,
+  /tick\.building_disabled_by_fire\(ctx, target\.id\)/,
+  'farm grain must reroute around fire-disabled processors and granaries',
+);
 assert.match(farmsteadDispatch, /farmstead_exportable_grain\(source\.grain, seed_reserve\)/);
 assert.match(farmsteadDispatch, /\.min\(transferable_grain\)/);
 const granaryDispatch = expandedSimulation.slice(
@@ -590,6 +595,11 @@ const granaryDispatch = expandedSimulation.slice(
 );
 assert.match(granaryDispatch, /source\.assigned_labor == 0/);
 assert.match(granaryDispatch, /select_grain_dispatch_candidate/);
+assert.match(
+  granaryDispatch,
+  /tick\.building_disabled_by_fire\(ctx, target\.id\)/,
+  'granary grain must reroute around fire-disabled processors',
+);
 assert.match(granaryDispatch, /candidate\.building\.construction_priority/);
 assert.match(granaryDispatch, /GRAIN_PROCESSOR_KINDS/);
 assert.match(granaryDispatch, /building_has_inbound_supply_trip/);
@@ -636,6 +646,7 @@ assert.match(
 );
 assert.match(worldQueries, /getNextDirectProcessorInputDispatch/);
 assert.match(worldQueries, /selectDirectProcessorInputTarget/);
+assert.match(worldQueries, /private \*fireEnabledBuildings/);
 
 const shortReserveSummary = computeSettlementGranaryReserve({
   buildings: new Map([

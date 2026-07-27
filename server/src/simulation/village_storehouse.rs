@@ -113,7 +113,10 @@ fn dispatch_overflow_collection_for_owner(
         .into_iter()
         .filter_map(|building_id| ctx.db.building().id().find(&building_id))
         .filter_map(|source| {
-            if !source.construction_complete || building_has_active_trip(ctx, source.id) {
+            if !source.construction_complete
+                || tick.building_disabled_by_fire(ctx, source.id)
+                || building_has_active_trip(ctx, source.id)
+            {
                 return None;
             }
             let commodity = match source.kind.as_str() {

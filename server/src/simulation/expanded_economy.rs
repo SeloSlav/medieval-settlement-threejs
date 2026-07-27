@@ -1228,6 +1228,7 @@ fn dispatch_farmstead_grain(
             .filter_map(|target| {
                 if target.id == source.id
                     || !target.construction_complete
+                    || tick.building_disabled_by_fire(ctx, target.id)
                     || !GRAIN_DISPATCH_TARGET_KINDS.contains(&target.kind.as_str())
                     || !processor_accepts_input(&target, CommodityKind::Grain)
                     || building_commodity_room(&target, CommodityKind::Grain) <= 1e-6
@@ -1326,6 +1327,7 @@ fn next_granary_grain_dispatch(
             .filter_map(|target| {
                 if target.id == source.id
                     || !target.construction_complete
+                    || tick.building_disabled_by_fire(ctx, target.id)
                     || !GRAIN_PROCESSOR_KINDS.contains(&target.kind.as_str())
                     || (target.kind != "monastery" && target.assigned_labor == 0)
                     || !processor_accepts_input(&target, CommodityKind::Grain)
@@ -1431,6 +1433,7 @@ fn next_granary_guard_food_dispatch(
                 if target.id == source.id
                     || target.kind != "guardhouse"
                     || !target.construction_complete
+                    || tick.building_disabled_by_fire(ctx, target.id)
                     || target.assigned_labor == 0
                     || building_has_inbound_supply_trip(ctx, target.id)
                 {
@@ -1532,6 +1535,7 @@ fn dispatch_polearms_to_guardhouse(
                 if target.id == source.id
                     || target.kind != "guardhouse"
                     || !target.construction_complete
+                    || tick.building_disabled_by_fire(ctx, target.id)
                     || building_has_inbound_supply_trip(ctx, target.id)
                 {
                     return None;

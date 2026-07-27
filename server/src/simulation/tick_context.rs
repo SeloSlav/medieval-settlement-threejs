@@ -210,7 +210,13 @@ impl SimTickContext {
                     && !self.building_disabled_by_fire(ctx, chapel.id)
             })
             .collect();
-        let residences: Vec<Residence> = ctx.db.residence().owner().filter(&owner).collect();
+        let residences: Vec<Residence> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| !self.residence_disabled_by_fire(ctx, residence.id))
+            .collect();
         let chapel_refs: Vec<&Building> = chapels.iter().collect();
         claim_residences_by_nearest_supplier(network, &chapel_refs, &residences, |_, _, _| true)
     }
@@ -545,15 +551,22 @@ impl SimTickContext {
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .filter(|building| {
-                is_firewood_supplier_operational(
-                    &building.kind,
-                    building.construction_complete,
-                    building.assigned_labor,
-                    building.storehouse_accepts_firewood,
-                )
+                !self.building_disabled_by_fire(ctx, building.id)
+                    && is_firewood_supplier_operational(
+                        &building.kind,
+                        building.construction_complete,
+                        building.assigned_labor,
+                        building.storehouse_accepts_firewood,
+                    )
             })
             .collect();
-        let residences: Vec<Residence> = ctx.db.residence().owner().filter(&owner).collect();
+        let residences: Vec<Residence> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| !self.residence_disabled_by_fire(ctx, residence.id))
+            .collect();
         crate::simulation::road_logistics::claim_residences_for_firewood_suppliers(
             network,
             &suppliers,
@@ -570,14 +583,21 @@ impl SimTickContext {
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .filter(|building| {
-                is_well_supplier_operational(
-                    &building.kind,
-                    building.construction_complete,
-                    building.assigned_labor,
-                )
+                !self.building_disabled_by_fire(ctx, building.id)
+                    && is_well_supplier_operational(
+                        &building.kind,
+                        building.construction_complete,
+                        building.assigned_labor,
+                    )
             })
             .collect();
-        let residences: Vec<Residence> = ctx.db.residence().owner().filter(&owner).collect();
+        let residences: Vec<Residence> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| !self.residence_disabled_by_fire(ctx, residence.id))
+            .collect();
         crate::simulation::road_logistics::claim_residences_for_wells(network, &wells, &residences)
     }
 
@@ -636,6 +656,7 @@ impl SimTickContext {
                 building.kind == "chapel"
                     && building.construction_complete
                     && building.assigned_labor > 0
+                    && !self.building_disabled_by_fire(ctx, building.id)
             })
             .collect();
         let suppliers: Vec<&Building> = buildings
@@ -645,7 +666,8 @@ impl SimTickContext {
                     &building.kind,
                     building.construction_complete,
                     building.assigned_labor,
-                ) && supplier_kinds.contains(&building.kind.as_str())
+                ) && !self.building_disabled_by_fire(ctx, building.id)
+                    && supplier_kinds.contains(&building.kind.as_str())
                     && match need_kind {
                         ResidenceNeedKind::Ale => building.ale > 1e-6,
                         ResidenceNeedKind::PreservedFood => building.preserved_food > 1e-6,
@@ -667,6 +689,7 @@ impl SimTickContext {
                 !residence.abandoned
                     && residence.population > 0
                     && need_kind.is_active_for_tier(residence.tier)
+                    && !self.residence_disabled_by_fire(ctx, residence.id)
             })
             .collect();
         let parish_residences: HashSet<u64> = residences
@@ -706,6 +729,7 @@ impl SimTickContext {
                 building.kind == "chapel"
                     && building.construction_complete
                     && building.assigned_labor > 0
+                    && !self.building_disabled_by_fire(ctx, building.id)
             })
             .collect();
         let suppliers: Vec<&Building> = buildings
@@ -715,7 +739,8 @@ impl SimTickContext {
                     &building.kind,
                     building.construction_complete,
                     building.assigned_labor,
-                ) && building.food > 1e-6
+                ) && !self.building_disabled_by_fire(ctx, building.id)
+                    && building.food > 1e-6
                     && (building.kind != "monastery"
                         || chapels.iter().any(|chapel| {
                             network.road_connected(building.x, building.z, chapel.x, chapel.z)
@@ -727,7 +752,11 @@ impl SimTickContext {
             .residence()
             .owner()
             .filter(&owner)
-            .filter(|residence| !residence.abandoned && residence.population > 0)
+            .filter(|residence| {
+                !residence.abandoned
+                    && residence.population > 0
+                    && !self.residence_disabled_by_fire(ctx, residence.id)
+            })
             .collect();
         let parish_residences: HashSet<u64> = residences
             .iter()

@@ -168,6 +168,7 @@ fn dispatch_timber_supply_if_needed(
             .filter_map(|row| {
                 if row.kind != "lumber_mill"
                     || !row.construction_complete
+                    || tick.building_disabled_by_fire(ctx, row.id)
                     || building_has_active_trip(ctx, row.id)
                     || row.timber <= 1e-6
                 {

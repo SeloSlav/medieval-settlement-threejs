@@ -28,6 +28,7 @@ import {
 import {
   activeFireCount,
   fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
   fireForTarget,
   fireSourceLabel,
   type FireIncidentState,
@@ -79,6 +80,16 @@ assert.equal(fireForTarget([incident], 'residence', 'building-4'), null);
 assert.equal(fireSourceLabel('lightning'), 'Lightning strike');
 assert.equal(fireSourceLabel('raid'), 'Raiders set the holding alight');
 assert.deepEqual([...fireDisabledBuildingIds([incident])], ['building-4']);
+const residenceIncident: FireIncidentState = {
+  ...incident,
+  id: 'fire-2',
+  targetKind: 'residence',
+  targetId: 'residence-9',
+};
+assert.deepEqual(
+  [...fireDisabledResidenceIds([incident, residenceIncident])],
+  ['residence-9'],
+);
 
 assert.equal(fireRecoveryFraction(0.01, false), FIRE_MINIMUM_REPAIR_COST_FRACTION);
 assert.equal(
@@ -141,6 +152,7 @@ assert.equal(
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const wellSource = readFileSync(`${projectRoot}server/src/simulation/well.rs`, 'utf8');
 const tripSource = readFileSync(`${projectRoot}server/src/simulation/delivery_trips.rs`, 'utf8');
+const cargoSource = readFileSync(`${projectRoot}server/src/simulation/delivery_cargo.rs`, 'utf8');
 const fireSource = readFileSync(`${projectRoot}server/src/simulation/fires.rs`, 'utf8');
 const tickContextSource = readFileSync(
   `${projectRoot}server/src/simulation/tick_context.rs`,
@@ -159,6 +171,10 @@ const rendererSource = readFileSync(`${projectRoot}src/fires/FireEffectsRenderer
 const inspectorSource = readFileSync(`${projectRoot}src/resources/ResourceInspector.ts`, 'utf8');
 const generatedReducerSource = readFileSync(
   `${projectRoot}src/generated/repair_fire_damage_reducer.ts`,
+  'utf8',
+);
+const worldQueriesSource = readFileSync(
+  `${projectRoot}src/resources/WorldQueries.ts`,
   'utf8',
 );
 
@@ -181,6 +197,21 @@ assert.match(
   tripSource,
   /apply_fire_water\(ctx,\s*target_kind,\s*target_id,\s*trip\.amount,\s*sim_tick\)/,
   'water must affect the incident only when the trip unloads',
+);
+assert.match(
+  tripSource,
+  /pub fn try_start_delivery_trip[\s\S]*tick\.building_disabled_by_fire\(ctx, building\.id\)[\s\S]*tick\.residence_disabled_by_fire\(ctx, residence_id\)/,
+  'household dispatch must reject fire-disabled suppliers and destinations at the trip boundary',
+);
+assert.match(
+  tripSource,
+  /pub fn try_start_building_supply_trip[\s\S]*tick\.building_disabled_by_fire\(ctx, origin\.id\)[\s\S]*tick\.building_disabled_by_fire\(ctx, target\.id\)/,
+  'shared building dispatch must reject fire-disabled origins and targets',
+);
+assert.match(
+  cargoSource,
+  /target_is_operational: impl Fn\(u64\) -> bool[\s\S]*if !target_is_operational\(residence\.id\)/,
+  'cargo selection must skip disabled residences before reserving household stock',
 );
 assert.match(
   fireSource,
@@ -265,6 +296,16 @@ assert.match(
   tickContextSource,
   /pub fn residence_disabled_by_fire[\s\S]*target_disabled_by_fire/,
 );
+assert.ok(
+  (tickContextSource.match(/!self\.building_disabled_by_fire\(ctx, building\.id\)/g) ?? [])
+    .length >= 4,
+  'cached service territories must omit fire-disabled suppliers',
+);
+assert.ok(
+  (tickContextSource.match(/!self\.residence_disabled_by_fire\(ctx, residence\.id\)/g) ?? [])
+    .length >= 4,
+  'cached service territories must omit fire-disabled residences',
+);
 assert.equal(
   (simulationSource.match(/ctx\.db\.building\(\)\.iter\(\)/g) ?? []).length,
   1,
@@ -306,6 +347,18 @@ assert.match(generatedReducerSource, /targetKind: __t\.u8\(\)/);
 assert.match(generatedReducerSource, /targetId: __t\.u64\(\)/);
 assert.match(inspectorSource, /data-fire-recovery/);
 assert.match(inspectorSource, /normal material-hauling and builder-work pipeline/);
+assert.match(worldQueriesSource, /private \*fireEnabledBuildings/);
+assert.match(worldQueriesSource, /fireDisabledResidenceIds/);
+assert.match(
+  worldQueriesSource,
+  /findNearestRoadLinkedBuilding[\s\S]*fireDisabled\.has\(origin\.id\)[\s\S]*fireDisabled\.has\(candidate\.id\)/,
+  'client previews must reject fire-disabled building origins and targets',
+);
+assert.match(
+  worldQueriesSource,
+  /findNearestRoadLinkedResidence[\s\S]*fireDisabledBuildings\.has\(origin\.id\)[\s\S]*fireDisabledResidences\.has\(residence\.id\)/,
+  'client previews must reject fire-disabled household origins and targets',
+);
 
 const performanceIncidents: FireIncidentState[] = Array.from(
   { length: 100_000 },
@@ -318,8 +371,10 @@ const performanceIncidents: FireIncidentState[] = Array.from(
 );
 const disabledScanStarted = performance.now();
 const disabledIds = fireDisabledBuildingIds(performanceIncidents);
+const disabledResidenceIds = fireDisabledResidenceIds(performanceIncidents);
 const disabledScanElapsed = performance.now() - disabledScanStarted;
 assert.equal(disabledIds.size, 100_000);
+assert.equal(disabledResidenceIds.size, 0);
 assert.ok(
   disabledScanElapsed < 250,
   `100k-incident disabled-building scan regressed (${disabledScanElapsed.toFixed(1)} ms)`,

@@ -56,6 +56,16 @@ export function fireDisabledBuildingIds(
   return ids;
 }
 
+export function fireDisabledResidenceIds(
+  incidents: Iterable<FireIncidentState>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const incident of incidents) {
+    if (incident.targetKind === 'residence') ids.add(incident.targetId);
+  }
+  return ids;
+}
+
 export function fireForTarget(
   incidents: Iterable<FireIncidentState>,
   targetKind: FireTargetKind,

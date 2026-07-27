@@ -130,8 +130,12 @@ pub fn pick_delivery_target(
     batch: f64,
     targets: &[crate::tables::Residence],
     kind: ResidenceNeedKind,
+    target_is_operational: impl Fn(u64) -> bool,
 ) -> Option<(u64, f64, f64, f64)> {
     for residence in targets {
+        if !target_is_operational(residence.id) {
+            continue;
+        }
         let stock = need_stock(&load_needs(ctx, residence.id), kind);
         if !has_delivery_stock_room(kind, stock) {
             continue;

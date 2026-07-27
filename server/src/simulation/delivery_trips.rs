@@ -278,7 +278,10 @@ pub fn try_start_delivery_trip(
     unload_seconds: f64,
     per_delivery_amount: f64,
 ) -> bool {
-    if delivery_workers == 0 || building_has_active_trip(ctx, building.id) {
+    if delivery_workers == 0
+        || tick.building_disabled_by_fire(ctx, building.id)
+        || building_has_active_trip(ctx, building.id)
+    {
         return false;
     }
 
@@ -293,7 +296,9 @@ pub fn try_start_delivery_trip(
 
     let batch = per_delivery_amount * delivery_workers as f64;
     let Some((residence_id, residence_x, residence_z, load_amount)) =
-        pick_delivery_target(ctx, available, batch, targets, need_kind)
+        pick_delivery_target(ctx, available, batch, targets, need_kind, |residence_id| {
+            !tick.residence_disabled_by_fire(ctx, residence_id)
+        })
     else {
         return false;
     };
@@ -364,7 +369,11 @@ pub fn try_start_building_supply_trip(
     per_delivery_amount: f64,
     needed: f64,
 ) -> bool {
-    if delivery_workers == 0 || building_has_active_trip(ctx, origin.id) {
+    if delivery_workers == 0
+        || tick.building_disabled_by_fire(ctx, origin.id)
+        || tick.building_disabled_by_fire(ctx, target.id)
+        || building_has_active_trip(ctx, origin.id)
+    {
         return false;
     }
 

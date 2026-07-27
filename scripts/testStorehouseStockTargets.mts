@@ -170,6 +170,11 @@ assert.match(
   /dispatch_delivery_if_ready[\s\S]*idle_by_owner[\s\S]*dispatch_overflow_collection_for_owner/,
   'claimed household fuel must remain ahead of overflow collection',
 );
+assert.match(
+  storehouseStep,
+  /!source\.construction_complete[\s\S]*tick\.building_disabled_by_fire\(ctx, source\.id\)[\s\S]*building_has_active_trip\(ctx, source\.id\)/,
+  'depots must not collect overflow from fire-disabled producers',
+);
 assert.doesNotMatch(
   storehouseStep,
   /building_commodity_room\(&storehouse/,

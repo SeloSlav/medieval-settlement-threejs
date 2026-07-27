@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { residenceFirewoodRunwaySeconds, residenceHasFirewoodRoom } from '../src/logistics/firewoodLogistics.ts';
 import {
   lodgeFirewoodPerDelivery,
@@ -123,5 +124,15 @@ const heldStatus = resolveWoodcuttersLodgeStatus({
 });
 assert.match(heldStatus.statusText, /Holding timber for construction/);
 assert.equal(heldStatus.statusState, 'warning');
+
+const lodgeSimulation = readFileSync(
+  'server/src/simulation/woodcutters_lodge.rs',
+  'utf8',
+);
+assert.match(
+  lodgeSimulation,
+  /row\.kind != "lumber_mill"[\s\S]*tick\.building_disabled_by_fire\(ctx, row\.id\)/,
+  'lodges must not dispatch timber out of fire-disabled lumber mills',
+);
 
 console.log('lodge logistics tests passed');

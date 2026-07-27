@@ -76,7 +76,10 @@ import {
   carpenterDeliverySpeedMultiplier,
   hasRoadLinkedCarpenter,
 } from '../economy/carpenterSupport.ts';
-import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import {
+  fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
+} from '../fires/fireIncident.ts';
 import {
   selectCriticalGuardhouseFoodTarget,
   type RoutedGuardhouseFoodTarget,
@@ -360,14 +363,28 @@ export class WorldQueries {
     );
   }
 
+  private *fireEnabledBuildings(
+    state: GameState,
+    fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values()),
+  ): IterableIterator<BuildingState> {
+    for (const building of state.buildings.values()) {
+      if (!fireDisabled.has(building.id)) yield building;
+    }
+  }
+
   private deliverySnapshot() {
     const state = this.getGameState();
+    const fireDisabledResidences = fireDisabledResidenceIds(
+      state.fireIncidents.values(),
+    );
     return {
       network: this.getRoadNetwork(),
-      buildings: [...state.buildings.values()].filter(
+      buildings: [...this.fireEnabledBuildings(state)].filter(
         (building) => building.constructionComplete !== false,
       ),
-      residences: [...state.residences.values()],
+      residences: [...state.residences.values()].filter(
+        (residence) => !fireDisabledResidences.has(residence.id),
+      ),
     };
   }
 
@@ -441,8 +458,10 @@ export class WorldQueries {
 
   getRoadConnectedWells(building: BuildingState): BuildingState[] {
     const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (fireDisabled.has(building.id)) return [];
     const network = this.getRoadNetwork();
-    const wells = [...state.buildings.values()].filter(
+    const wells = [...this.fireEnabledBuildings(state, fireDisabled)].filter(
       (candidate) =>
         candidate.kind === 'well'
         && candidate.constructionComplete !== false
@@ -454,8 +473,10 @@ export class WorldQueries {
 
   getRoadConnectedWaterConsumers(well: BuildingState): BuildingState[] {
     const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (fireDisabled.has(well.id)) return [];
     const network = this.getRoadNetwork();
-    return [...state.buildings.values()].filter(
+    return [...this.fireEnabledBuildings(state, fireDisabled)].filter(
       (candidate) =>
         candidate.constructionComplete !== false
         && industrialWaterRequirement(candidate.kind) > 0
@@ -465,6 +486,8 @@ export class WorldQueries {
 
   getNextIndustrialWaterTargetForWell(well: BuildingState): BuildingState | null {
     const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (fireDisabled.has(well.id)) return null;
     const network = this.getRoadNetwork();
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
@@ -476,7 +499,9 @@ export class WorldQueries {
         inboundTargets.add(trip.targetBuildingId);
       }
     }
-    const candidates = [...state.buildings.values()].flatMap((candidate) => {
+    const candidates = [
+      ...this.fireEnabledBuildings(state, fireDisabled),
+    ].flatMap((candidate) => {
       const requiredPerCycle = industrialWaterRequirement(candidate.kind);
       const desiredStock = industrialWaterTarget(
         candidate.kind,
@@ -691,8 +716,10 @@ export class WorldQueries {
 
   getRoadConnectedMills(lodge: BuildingState): BuildingState[] {
     const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (fireDisabled.has(lodge.id)) return [];
     const network = this.getRoadNetwork();
-    const mills = [...state.buildings.values()].filter(
+    const mills = [...this.fireEnabledBuildings(state, fireDisabled)].filter(
       (building) =>
         building.kind === 'lumber_mill'
         && building.constructionComplete !== false
@@ -734,9 +761,13 @@ export class WorldQueries {
   }
 
   getServingPreservedFoodSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
     return findRoadLinkedSupplierForResidence(
       residence,
-      this.getGameState().buildings.values(),
+      this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'preservedFood',
     );
@@ -745,9 +776,13 @@ export class WorldQueries {
   getPreservedFoodUpgradeSupplierForResidence(
     residence: ResidenceState,
   ): BuildingState | null {
+    const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
     return findRoadLinkedUpgradeSupplierForResidence(
       residence,
-      this.getGameState().buildings.values(),
+      this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'preservedFood',
     );
@@ -762,18 +797,26 @@ export class WorldQueries {
   }
 
   getServingClothSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
     return findRoadLinkedSupplierForResidence(
       residence,
-      this.getGameState().buildings.values(),
+      this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'cloth',
     );
   }
 
   getClothUpgradeSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
     return findRoadLinkedUpgradeSupplierForResidence(
       residence,
-      this.getGameState().buildings.values(),
+      this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'cloth',
     );
@@ -784,6 +827,9 @@ export class WorldQueries {
     requireStock: boolean,
   ): BuildingState | null {
     const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
     const network = this.getRoadNetwork();
     const chapels = this.activeParishChapels(state);
     const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
@@ -797,7 +843,7 @@ export class WorldQueries {
       : findRoadLinkedUpgradeSupplierForResidence;
     return findSupplier(
       residence,
-      state.buildings.values(),
+      this.fireEnabledBuildings(state),
       network,
       'ale',
       (building, distance) =>
@@ -838,13 +884,17 @@ export class WorldQueries {
     isEligible: (candidate: BuildingState) => boolean = () => true,
   ): BuildingState | null {
     if (targetKinds.length === 0) return null;
+    const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (fireDisabled.has(origin.id)) return null;
     const network = this.getRoadNetwork();
     let best: BuildingState | null = null;
     let bestDistance = Infinity;
-    for (const candidate of this.getGameState().buildings.values()) {
+    for (const candidate of state.buildings.values()) {
       if (
         candidate.id === origin.id
         || candidate.constructionComplete === false
+        || fireDisabled.has(candidate.id)
         || !targetKinds.includes(candidate.kind)
         || !isEligible(candidate)
       ) continue;
@@ -880,6 +930,8 @@ export class WorldQueries {
     farmstead: BuildingState,
   ): RoutedGrainDestination<BuildingState> | null {
     const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (fireDisabled.has(farmstead.id)) return null;
     const exportableGrain = farmsteadExportableGrain(
       farmstead.grain,
       [...state.farmFields.values()]
@@ -898,7 +950,7 @@ export class WorldQueries {
       }
     }
     return selectGrainDispatchTarget(
-      state.buildings.values(),
+      this.fireEnabledBuildings(state, fireDisabled),
       farmstead.id,
       (target) => roadPathDistance(
         network,
@@ -942,6 +994,8 @@ export class WorldQueries {
       return null;
     }
     const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (fireDisabled.has(granary.id)) return null;
     const network = this.getRoadNetwork();
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
@@ -954,7 +1008,7 @@ export class WorldQueries {
       }
     }
     return selectGrainProcessorTarget(
-      state.buildings.values(),
+      this.fireEnabledBuildings(state, fireDisabled),
       granary.id,
       (target) => roadPathDistance(
         network,
@@ -977,6 +1031,8 @@ export class WorldQueries {
     commodity: DirectProcessorInputCommodity,
   ): RoutedProcessorInputDestination<BuildingState> | null {
     const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (fireDisabled.has(source.id)) return null;
     const network = this.getRoadNetwork();
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
@@ -989,7 +1045,7 @@ export class WorldQueries {
       }
     }
     return selectDirectProcessorInputTarget(
-      state.buildings.values(),
+      this.fireEnabledBuildings(state, fireDisabled),
       source.id,
       commodity,
       (target) => roadPathDistance(
@@ -1007,10 +1063,13 @@ export class WorldQueries {
   getNextGranaryGuardFoodDispatch(
     granary: BuildingState,
   ): RoutedGuardhouseFoodTarget<BuildingState> | null {
+    const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
     if (
       granary.kind !== 'granary'
       || granary.constructionComplete === false
       || granary.assignedLabor <= 0
+      || fireDisabled.has(granary.id)
     ) {
       return null;
     }
@@ -1022,7 +1081,6 @@ export class WorldQueries {
     );
     if (transferable <= 1e-6) return null;
 
-    const state = this.getGameState();
     const network = this.getRoadNetwork();
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
@@ -1035,7 +1093,7 @@ export class WorldQueries {
       }
     }
     return selectCriticalGuardhouseFoodTarget(
-      state.buildings.values(),
+      this.fireEnabledBuildings(state, fireDisabled),
       granary.id,
       (target) => roadPathDistance(
         network,
@@ -1052,11 +1110,23 @@ export class WorldQueries {
     origin: BuildingState,
     minTier: 1 | 2 | 3 = 1,
   ): ResidenceState | null {
+    const state = this.getGameState();
+    const fireDisabledBuildings = fireDisabledBuildingIds(
+      state.fireIncidents.values(),
+    );
+    if (fireDisabledBuildings.has(origin.id)) return null;
+    const fireDisabledResidences = fireDisabledResidenceIds(
+      state.fireIncidents.values(),
+    );
     const network = this.getRoadNetwork();
     let best: ResidenceState | null = null;
     let bestDistance = Infinity;
-    for (const residence of this.getGameState().residences.values()) {
-      if (residence.abandoned || residence.tier < minTier) continue;
+    for (const residence of state.residences.values()) {
+      if (
+        residence.abandoned
+        || residence.tier < minTier
+        || fireDisabledResidences.has(residence.id)
+      ) continue;
       const distance = roadPathDistance(network, origin.x, origin.z, residence.x, residence.z);
       if (distance == null) continue;
       if (
