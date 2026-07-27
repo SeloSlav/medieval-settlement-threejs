@@ -21,6 +21,7 @@ pub enum CommodityKind {
     Polearms,
     Wool,
     Cloth,
+    Gold,
 }
 
 impl CommodityKind {
@@ -41,6 +42,7 @@ impl CommodityKind {
             Self::Ironwork => 12,
             Self::Wool => 13,
             Self::Cloth => 14,
+            Self::Gold => 15,
         }
     }
 
@@ -61,6 +63,7 @@ impl CommodityKind {
             12 => Some(Self::Ironwork),
             13 => Some(Self::Wool),
             14 => Some(Self::Cloth),
+            15 => Some(Self::Gold),
             _ => None,
         }
     }
@@ -83,6 +86,7 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Polearms => building.polearms,
         CommodityKind::Wool => building.wool,
         CommodityKind::Cloth => building.cloth,
+        CommodityKind::Gold => building.gold,
     }
 }
 
@@ -106,6 +110,13 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Polearms => def.storage_polearms,
         CommodityKind::Wool => def.storage_wool,
         CommodityKind::Cloth => def.storage_cloth,
+        CommodityKind::Gold => {
+            if matches!(kind, "founders_camp" | "salvage_pile" | "town_hall") {
+                f64::MAX
+            } else {
+                0.0
+            }
+        }
     }
 }
 
@@ -136,6 +147,7 @@ pub fn withdraw_building_commodity(
         CommodityKind::Polearms => building.polearms -= withdrawn,
         CommodityKind::Wool => building.wool -= withdrawn,
         CommodityKind::Cloth => building.cloth -= withdrawn,
+        CommodityKind::Gold => building.gold -= withdrawn,
     }
     withdrawn
 }
@@ -162,6 +174,7 @@ pub fn deposit_building_commodity(
         CommodityKind::Polearms => building.polearms += deposited,
         CommodityKind::Wool => building.wool += deposited,
         CommodityKind::Cloth => building.cloth += deposited,
+        CommodityKind::Gold => building.gold += deposited,
     }
     deposited
 }
@@ -173,6 +186,10 @@ pub fn credit_treasury_commodity(
     amount: f64,
 ) {
     if amount <= 1e-6 {
+        return;
+    }
+    if kind == CommodityKind::Gold {
+        crate::economy::credit_treasury_gold(ctx, owner, amount);
         return;
     }
     let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
@@ -201,6 +218,7 @@ pub fn credit_treasury_commodity(
         CommodityKind::Polearms => treasury.polearms += amount,
         CommodityKind::Wool => treasury.wool += amount,
         CommodityKind::Cloth => treasury.cloth += amount,
+        CommodityKind::Gold => unreachable!("gold uses the physical treasury seat"),
     }
     ctx.db.player_resources().owner().update(treasury);
 }
@@ -216,6 +234,7 @@ fn physical_resource_depot(
         .filter(&owner)
         .filter(|building| {
             building.construction_complete
+                && building.kind != "salvage_pile"
                 && (building.kind == "founders_camp"
                     || building_commodity_cap(&building.kind, kind) > 0.0
                     || building.kind == "town_hall")
@@ -247,5 +266,6 @@ fn add_building_commodity(building: &mut Building, kind: CommodityKind, amount: 
         CommodityKind::Polearms => building.polearms += amount,
         CommodityKind::Wool => building.wool += amount,
         CommodityKind::Cloth => building.cloth += amount,
+        CommodityKind::Gold => building.gold += amount,
     }
 }

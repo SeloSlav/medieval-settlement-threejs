@@ -3,8 +3,8 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    CONSTRUCTION_DELIVERY_UNLOAD_SEC, CONSTRUCTION_TREASURY_TRANSFER_PER_SEC,
-    CONSTRUCTION_WORK_PER_WORKER_PER_SEC, FARMSTEAD_STARTER_SEED_GRAIN, TICK_DT,
+    CONSTRUCTION_TREASURY_TRANSFER_PER_SEC, CONSTRUCTION_WORK_PER_WORKER_PER_SEC,
+    FARMSTEAD_STARTER_SEED_GRAIN, TICK_DT,
 };
 use crate::building_defs::building_def;
 use crate::construction_priority::{
@@ -12,12 +12,12 @@ use crate::construction_priority::{
     CONSTRUCTION_PRIORITY_NORMAL,
 };
 use crate::db::*;
-use crate::economy::{available_building_labor, building_commodity_stock, CommodityKind};
+use crate::economy::{building_commodity_stock, CommodityKind};
 use crate::reducers::livestock::{starter_herd, SPECIES_CATTLE, SPECIES_SWINE};
 use crate::roads::RoadNetwork;
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, building_has_inbound_supply_trip, try_start_construction_supply_trip,
-    DELIVERY_DESTINATION_BUILDING,
+    available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
+    try_start_construction_supply_trip, DELIVERY_DESTINATION_BUILDING,
 };
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::supply_policy::{construction_source_priority, select_supply_route_candidate};
@@ -118,7 +118,7 @@ fn dispatch_reserved_stock(
         return;
     };
     let allow_offroad = building_def(&site.kind).is_some_and(|def| !def.requires_road);
-    let free_haulers = available_construction_haulers(ctx, site.owner);
+    let free_haulers = available_free_haulers(ctx, site.owner);
     let mut source_groups: [Vec<Building>; 8] = std::array::from_fn(|_| Vec::new());
     for source_id in tick.construction_source_ids(ctx, site.owner, commodity) {
         let Some(source) = ctx.db.building().id().find(&source_id) else {
@@ -279,33 +279,4 @@ fn site_has_inbound_cargo(ctx: &ReducerContext, site_id: u64, commodity: Commodi
             trip.destination_kind == DELIVERY_DESTINATION_BUILDING
                 && trip.cargo_kind == commodity.as_u8()
         })
-}
-
-fn available_construction_haulers(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    let active_free_haulers: u32 = ctx
-        .db
-        .delivery_trip()
-        .owner()
-        .filter(&owner)
-        .filter(|trip| {
-            if trip.destination_kind != DELIVERY_DESTINATION_BUILDING {
-                return false;
-            }
-            let is_construction_cargo =
-                matches!(
-                    CommodityKind::from_u8(trip.cargo_kind),
-                    Some(CommodityKind::Timber | CommodityKind::Stone)
-                ) && (trip.unload_seconds - CONSTRUCTION_DELIVERY_UNLOAD_SEC).abs() <= 1e-6;
-            let origin_is_unstaffed = ctx
-                .db
-                .building()
-                .id()
-                .find(&trip.building_id)
-                .is_some_and(|origin| origin.assigned_labor == 0);
-            is_construction_cargo && origin_is_unstaffed
-        })
-        .map(|trip| trip.delivery_workers)
-        .sum();
-
-    available_building_labor(ctx, owner).saturating_sub(active_free_haulers)
 }

@@ -10,8 +10,9 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_room, building_commodity_stock, credit_treasury_commodity,
-    deposit_building_commodity, withdraw_building_commodity, CommodityKind,
+    available_building_labor, building_commodity_room, building_commodity_stock,
+    credit_treasury_commodity, deposit_building_commodity, withdraw_building_commodity,
+    CommodityKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::roads::{RoadNetwork, RoadPathRoute};
@@ -165,6 +166,27 @@ pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) 
         .filter(&building_id)
         .next()
         .is_some()
+}
+
+/// Free settlement labor still available to operate carts from unstaffed
+/// physical stores. Cart crews are not represented in assigned_labor, so
+/// every active trip whose current origin has no permanent crew is deducted.
+pub fn available_free_haulers(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    let active_unstaffed_haulers: u32 = ctx
+        .db
+        .delivery_trip()
+        .owner()
+        .filter(&owner)
+        .filter(|trip| {
+            ctx.db
+                .building()
+                .id()
+                .find(&trip.building_id)
+                .is_some_and(|origin| origin.assigned_labor == 0)
+        })
+        .map(|trip| trip.delivery_workers)
+        .sum();
+    available_building_labor(ctx, owner).saturating_sub(active_unstaffed_haulers)
 }
 
 /// Returns whether a matching commodity is still traveling to or unloading at

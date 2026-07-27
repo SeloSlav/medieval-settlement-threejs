@@ -420,7 +420,7 @@ pub fn select_processor_input_dispatch_candidate<T>(
 /// settlement hauler and follow the staffed classes in the same order.
 pub fn construction_source_priority(kind: &str, assigned_labor: u32) -> u8 {
     let kind_priority = match kind {
-        "founders_camp" | "village_storehouse" => 0,
+        "founders_camp" | "salvage_pile" | "village_storehouse" => 0,
         "carpenter" => 1,
         "lumber_mill" | "stone_quarry" | "large_quarry" => 2,
         _ => 3,

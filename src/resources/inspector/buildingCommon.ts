@@ -57,7 +57,7 @@ export function buildingRoadAccessRow(worldQueries: WorldQueries, building: Buil
 export function buildingDemolishHint(kind: BuildingKind): string {
   const cost = getBuildingCost(kind);
   const refund = buildingSalvageRefund(kind);
-  return `Salvages about ${refund.timber} timber and ${refund.stone} stone (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber of ${formatBuildingCost(cost)}).`;
+  return `Leaves about ${refund.timber} timber and ${refund.stone} stone at this site (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber of ${formatBuildingCost(cost)}). Carts must recover it, and the footprint remains occupied until the pile is empty.`;
 }
 
 export function buildingLaborView(

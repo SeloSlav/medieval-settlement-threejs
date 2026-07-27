@@ -11,10 +11,11 @@ use crate::simulation::{
     step_founding_sites, step_fresh_food_spoilage, step_granary, step_guardhouse,
     step_household_market_orders, step_hunters_hall, step_large_quarry, step_lumber_mill,
     step_marketplace_caravans, step_monastery, step_pastoral_farmstead,
-    step_production_labor_stewards, step_reforester, step_residence, step_seasonal_labor_stewards,
-    step_seed_grain_distribution, step_settlement_security, step_smokehouse, step_stone_quarry,
-    step_swineherd, step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill,
-    step_weaver, step_well, step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
+    step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
+    step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
+    step_smokehouse, step_stone_quarry, step_swineherd, step_threshing_barn,
+    step_village_storehouses, step_vineyard, step_watermill, step_weaver, step_well,
+    step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
 };
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
@@ -147,6 +148,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let mut monastery_ids: Vec<u64> = Vec::new();
     let mut guardhouse_payroll_ids: Vec<(u8, u64)> = Vec::new();
     let mut village_storehouse_ids: Vec<u64> = Vec::new();
+    let mut reclamation_pile_ids: Vec<u64> = Vec::new();
     let mut expanded_ids: Vec<(crate::building_defs::BuildingSimKind, u64)> = Vec::new();
 
     for building in ctx.db.building().iter() {
@@ -156,6 +158,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         match building.kind.as_str() {
             "chapel" => chapel_ids.push(building.id),
             "monastery" => monastery_ids.push(building.id),
+            "salvage_pile" => reclamation_pile_ids.push(building.id),
             _ => {}
         }
         let Some(sim_kind) =
@@ -369,5 +372,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             environment,
         );
     }
+    step_reclamation_piles(ctx, &tick, &clock, reclamation_pile_ids);
     step_founding_sites(ctx);
 }

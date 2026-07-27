@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { BuildingKind } from '../resources/types.ts';
 import { createFoundersCampMesh } from './meshes/foundersCampMesh.ts';
+import { createSalvagePileMesh } from './meshes/salvagePileMesh.ts';
 import { createChapelMesh } from './meshes/chapelMesh.ts';
 import {
   createLumberMillMesh,
@@ -44,6 +45,8 @@ export function createBuildingMesh(kind: BuildingKind): THREE.Group {
   switch (kind) {
     case 'founders_camp':
       return createFoundersCampMesh();
+    case 'salvage_pile':
+      return createSalvagePileMesh();
     case 'lumber_mill':
       return createLumberMillMesh();
     case 'reforester':

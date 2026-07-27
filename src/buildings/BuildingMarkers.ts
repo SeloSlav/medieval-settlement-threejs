@@ -31,6 +31,9 @@ import { buildingMeshSignature } from './buildingMarkerSignature.ts';
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
+  SALVAGE_GOODS_VISUAL_CAPACITY,
+  SALVAGE_STONE_VISUAL_CAPACITY,
+  SALVAGE_TIMBER_VISUAL_CAPACITY,
   syncStockpileSegments,
 } from './buildingStockpileVisuals.ts';
 import {
@@ -395,6 +398,49 @@ function syncBuildingVisualState(
     if (chest) chest.visible = building.gold > 1e-6;
     marker.userData.foundingTimberSegments = FOUNDING_TIMBER_VISUAL_SEGMENTS;
     marker.userData.foundingStoneSegments = FOUNDING_STONE_VISUAL_SEGMENTS;
+  }
+  if (building.kind === 'salvage_pile') {
+    const timber = marker.getObjectByName('SalvageTimberStockpile');
+    if (timber instanceof THREE.Group) {
+      syncStockpileSegments(
+        timber,
+        'SalvageTimberSegment',
+        building.timber,
+        SALVAGE_TIMBER_VISUAL_CAPACITY,
+      );
+    }
+    const stone = marker.getObjectByName('SalvageStoneStockpile');
+    if (stone instanceof THREE.Group) {
+      syncStockpileSegments(
+        stone,
+        'SalvageStoneSegment',
+        building.stone,
+        SALVAGE_STONE_VISUAL_CAPACITY,
+      );
+    }
+    const goods = marker.getObjectByName('SalvageCratedGoods');
+    if (goods instanceof THREE.Group) {
+      syncStockpileSegments(
+        goods,
+        'SalvageGoodsSegment',
+        building.firewood
+          + building.water
+          + building.food
+          + building.grain
+          + building.flour
+          + building.ale
+          + building.preservedFood
+          + building.honey
+          + building.wine
+          + (building.ironwork ?? 0)
+          + (building.polearms ?? 0)
+          + (building.wool ?? 0)
+          + (building.cloth ?? 0),
+        SALVAGE_GOODS_VISUAL_CAPACITY,
+      );
+    }
+    const chest = marker.getObjectByName('SalvageTreasuryChest');
+    if (chest) chest.visible = building.gold > 1e-6;
   }
   if (building.kind === 'marketplace') {
     const timber = marker.getObjectByName('MarketTimberStaging');

@@ -123,6 +123,15 @@ function render(): void {
   const height = root!.clientHeight;
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
+  if (!closeUp) {
+    const halfVerticalFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
+    const distance = Math.max(
+      3.4,
+      2.55 / (Math.tan(halfVerticalFov) * camera.aspect),
+    );
+    camera.position.set(0, 0.92 + (distance - 3.4) * 0.055, distance);
+    camera.lookAt(0, 0.3, 0);
+  }
   camera.updateProjectionMatrix();
   renderer.render(scene, camera);
   requestAnimationFrame(render);

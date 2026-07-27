@@ -296,7 +296,10 @@ pub fn treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 
             .filter(&owner)
             .filter(|building| {
                 building.construction_complete
-                    && matches!(building.kind.as_str(), "founders_camp" | "town_hall")
+                    && matches!(
+                        building.kind.as_str(),
+                        "founders_camp" | "salvage_pile" | "town_hall"
+                    )
             })
             .map(|building| building.gold.max(0.0))
             .sum::<f64>()
@@ -330,16 +333,19 @@ pub fn spend_treasury_gold(
             .filter(&owner)
             .filter(|building| {
                 building.construction_complete
-                    && matches!(building.kind.as_str(), "founders_camp" | "town_hall")
+                    && matches!(
+                        building.kind.as_str(),
+                        "founders_camp" | "salvage_pile" | "town_hall"
+                    )
                     && building.gold > 1e-9
             })
             .collect::<Vec<_>>();
         seats.sort_by_key(|building| {
             (
-                if building.kind == "town_hall" {
-                    0_u8
-                } else {
-                    1_u8
+                match building.kind.as_str() {
+                    "town_hall" => 0_u8,
+                    "founders_camp" => 1,
+                    _ => 2,
                 },
                 building.id,
             )
@@ -369,14 +375,17 @@ fn physical_treasury_seat(ctx: &ReducerContext, owner: spacetimedb::Identity) ->
         .filter(&owner)
         .filter(|building| {
             building.construction_complete
-                && matches!(building.kind.as_str(), "founders_camp" | "town_hall")
+                && matches!(
+                    building.kind.as_str(),
+                    "founders_camp" | "salvage_pile" | "town_hall"
+                )
         })
         .min_by_key(|building| {
             (
-                if building.kind == "town_hall" {
-                    0_u8
-                } else {
-                    1_u8
+                match building.kind.as_str() {
+                    "town_hall" => 0_u8,
+                    "founders_camp" => 1,
+                    _ => 2,
                 },
                 building.id,
             )

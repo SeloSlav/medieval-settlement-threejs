@@ -275,8 +275,8 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
 
-    if kind == "founders_camp" {
-        return Err("The founders' camp is created automatically with a new settlement.".into());
+    if matches!(kind.as_str(), "founders_camp" | "salvage_pile") {
+        return Err("This temporary site is created automatically by the settlement.".into());
     }
 
     if kind != "large_quarry" && is_on_quarry_pit(ctx, x, z) {
@@ -1612,6 +1612,12 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
                 .to_string(),
         );
     }
+    if building.kind == "salvage_pile" {
+        return Err(
+            "A reclamation pile clears itself after its goods are physically recovered."
+                .to_string(),
+        );
+    }
     if building.kind == "threshing_barn"
         && ctx
             .db
@@ -1636,7 +1642,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     }
 
     let fire_damaged = building_fire_state(ctx, building_id).is_some();
-    let trip_cargo = drain_trips_for_building(ctx, building_id);
     clear_fire_for_target(ctx, FIRE_TARGET_BUILDING, building_id);
 
     let refund = if fire_damaged {
@@ -1658,9 +1663,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     };
     let recoverable = if fire_damaged { 0.0 } else { 1.0 };
 
-    // Remove the source before depositing recovered cargo. In physical-storage
-    // games this prevents a demolished town hall or storehouse from receiving
-    // its own salvage immediately before its row disappears.
     if ctx
         .db
         .livestock_herd()
@@ -1670,6 +1672,59 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     {
         ctx.db.livestock_herd().building_id().delete(&building_id);
     }
+
+    let physical_reclamation = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if physical_reclamation {
+        let salvage_def = building_def("salvage_pile")
+            .ok_or_else(|| "Reclamation pile balance is missing.".to_string())?;
+        ctx.db.building().id().update(Building {
+            kind: "salvage_pile".into(),
+            work_radius: salvage_def.work_radius,
+            action_cooldown: 0.0,
+            timber: refund.timber + building.timber * recoverable,
+            firewood: building.firewood * recoverable,
+            stone: refund.stone + building.stone * recoverable,
+            water: building.water * recoverable,
+            food: building.food * recoverable,
+            grain: building.grain * recoverable,
+            flour: building.flour * recoverable,
+            ale: building.ale * recoverable,
+            preserved_food: building.preserved_food * recoverable,
+            honey: building.honey * recoverable,
+            wine: building.wine * recoverable,
+            ironwork: building.ironwork * recoverable,
+            polearms: building.polearms * recoverable,
+            wool: building.wool * recoverable,
+            cloth: building.cloth * recoverable,
+            gold: building.gold * recoverable,
+            water_capacity: 0.0,
+            assigned_labor: 0,
+            construction_complete: true,
+            construction_progress: 1.0,
+            construction_required_timber: 0.0,
+            construction_required_stone: 0.0,
+            construction_delivered_timber: 0.0,
+            construction_delivered_stone: 0.0,
+            construction_reserved_timber: 0.0,
+            construction_reserved_stone: 0.0,
+            construction_treasury_timber: 0.0,
+            construction_treasury_stone: 0.0,
+            construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
+            founding_shelter_active: false,
+            marketplace_pending_trade_code: 0,
+            ..building
+        });
+        return Ok(());
+    }
+
+    // Legacy saves retain their abstract refunds. Remove the source before
+    // crediting recovered cargo so it cannot receive its own refund.
+    let trip_cargo = drain_trips_for_building(ctx, building_id);
     ctx.db.building().id().delete(building_id);
 
     credit_treasury_timber(

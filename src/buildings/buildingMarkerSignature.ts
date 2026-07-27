@@ -12,6 +12,12 @@ import {
   stockpileVisualLevel,
   TIMBER_STOCKPILE_VISUAL_SEGMENTS,
   WOOL_STOCKPILE_VISUAL_SEGMENTS,
+  SALVAGE_GOODS_VISUAL_CAPACITY,
+  SALVAGE_GOODS_VISUAL_SEGMENTS,
+  SALVAGE_STONE_VISUAL_CAPACITY,
+  SALVAGE_STONE_VISUAL_SEGMENTS,
+  SALVAGE_TIMBER_VISUAL_CAPACITY,
+  SALVAGE_TIMBER_VISUAL_SEGMENTS,
 } from './buildingStockpileVisuals.ts';
 
 export function buildingMeshSignature(building: BuildingState): string {
@@ -55,6 +61,41 @@ export function buildingMarkerSignatures(
           TIMBER_STOCKPILE_VISUAL_SEGMENTS,
         )}`
         : '';
+      const salvageGoods = building.firewood
+        + building.water
+        + building.food
+        + building.grain
+        + building.flour
+        + building.ale
+        + building.preservedFood
+        + building.honey
+        + building.wine
+        + (building.ironwork ?? 0)
+        + (building.polearms ?? 0)
+        + (building.wool ?? 0)
+        + (building.cloth ?? 0);
+      const salvageState = building.kind === 'salvage_pile'
+        && building.constructionComplete !== false
+        ? `:salvage:${
+          stockpileVisualLevel(
+            building.timber,
+            SALVAGE_TIMBER_VISUAL_CAPACITY,
+            SALVAGE_TIMBER_VISUAL_SEGMENTS,
+          )
+        }:${
+          stockpileVisualLevel(
+            building.stone,
+            SALVAGE_STONE_VISUAL_CAPACITY,
+            SALVAGE_STONE_VISUAL_SEGMENTS,
+          )
+        }:${
+          stockpileVisualLevel(
+            salvageGoods,
+            SALVAGE_GOODS_VISUAL_CAPACITY,
+            SALVAGE_GOODS_VISUAL_SEGMENTS,
+          )
+        }:${building.gold > 1e-6 ? 1 : 0}`
+        : '';
       const hayState = building.kind === 'pastoral_farmstead'
         && building.constructionComplete !== false
         ? `:hay:${stockpileVisualLevel(
@@ -87,7 +128,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${timberState}${hayState}${woolState}${clothState}`,
+        visual: `${structural}${foundingState}${salvageState}${timberState}${hayState}${woolState}${clothState}`,
         collider: structural,
       };
     })

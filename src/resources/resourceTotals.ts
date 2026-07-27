@@ -132,7 +132,11 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cloth += building.cloth ?? 0;
     ironwork += building.ironwork ?? 0;
     polearms += building.polearms ?? 0;
-    if (building.kind === 'founders_camp' || building.kind === 'town_hall') {
+    if (
+      building.kind === 'founders_camp'
+      || building.kind === 'salvage_pile'
+      || building.kind === 'town_hall'
+    ) {
       gold += building.gold;
     }
     if (building.constructionComplete === false) {

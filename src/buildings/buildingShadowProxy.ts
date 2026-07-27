@@ -8,6 +8,7 @@ export const BUILDING_SHADOW_PROXY_FLAG = 'buildingShadowProxy';
 
 const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   founders_camp: 3.4,
+  salvage_pile: 2.2,
   lumber_mill: 6.3,
   reforester: 5.5,
   woodcutters_lodge: 5.6,
@@ -94,6 +95,7 @@ function createBuildingShadowGeometry(
     case 'large_quarry':
       return new THREE.CylinderGeometry(params.radiusX * scale, params.radiusX * scale, height, 16);
     case 'founders_camp':
+    case 'salvage_pile':
     case 'lumber_mill':
     case 'reforester':
     case 'woodcutters_lodge':

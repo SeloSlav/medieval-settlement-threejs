@@ -3,6 +3,7 @@ import type { PlacementBuildMenuAction } from './buildMenuCards.ts';
 
 export const BUILDING_KIND_TO_MENU_ACTION: Record<BuildingKind, PlacementBuildMenuAction> = {
   founders_camp: 'village-storehouse',
+  salvage_pile: 'village-storehouse',
   lumber_mill: 'lumber-mill',
   reforester: 'reforester',
   stone_quarry: 'stone-quarry',

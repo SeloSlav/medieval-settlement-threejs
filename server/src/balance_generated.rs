@@ -462,6 +462,41 @@ const FOUNDERS_CAMP: BuildingDef = BuildingDef {
     sim_kind: None,
 };
 
+const SALVAGE_PILE: BuildingDef = BuildingDef {
+    kind: "salvage_pile",
+    cost_timber: 0.0,
+    cost_stone: 0.0,
+    storage_timber: 2000.0,
+    storage_firewood: 2000.0,
+    storage_stone: 2000.0,
+    storage_water: 2000.0,
+    storage_food: 2000.0,
+    storage_grain: 2000.0,
+    storage_flour: 2000.0,
+    storage_ale: 2000.0,
+    storage_preserved_food: 2000.0,
+    storage_honey: 2000.0,
+    storage_wine: 2000.0,
+    storage_wool: 2000.0,
+    storage_cloth: 2000.0,
+    storage_ironwork: 2000.0,
+    storage_polearms: 2000.0,
+    accepts_labor: false,
+    max_labor: 0,
+    work_radius: 0.0,
+    action_interval: 0.0,
+    pick_radius: 7.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: None,
+};
+
 const LUMBER_MILL: BuildingDef = BuildingDef {
     kind: "lumber_mill",
     cost_timber: 45.0,
@@ -1442,37 +1477,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[
-    FOUNDERS_CAMP,
-    LUMBER_MILL,
-    REFORESTER,
-    WOODCUTTERS_LODGE,
-    STONE_QUARRY,
-    LARGE_QUARRY,
-    WELL,
-    HUNTERS_HALL,
-    FORAGERS_SHED,
-    FISHING_CAMP,
-    CHAPEL,
-    MARKETPLACE,
-    TOWN_HALL,
-    VILLAGE_STOREHOUSE,
-    WATCHTOWER,
-    GUARDHOUSE,
-    THRESHING_BARN,
-    PASTORAL_FARMSTEAD,
-    SWINEHERD,
-    MONASTERY,
-    BREWERY,
-    SMOKEHOUSE,
-    GRANARY,
-    APIARY,
-    WATERMILL,
-    CARPENTER,
-    WEAVER,
-    FERRY_LANDING,
-    VINEYARD,
-];
+const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)
@@ -1586,14 +1591,7 @@ const BACKYARD_HEN_YARD: BackyardGardenDef = BackyardGardenDef {
     gold_per_person_per_sec: 0.002,
 };
 
-const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[
-    BACKYARD_APPLE_ORCHARD,
-    BACKYARD_CHERRY_ORCHARD,
-    BACKYARD_VEGETABLE_GARDEN,
-    BACKYARD_FLOWER_GARDEN,
-    BACKYARD_HERB_GARDEN,
-    BACKYARD_HEN_YARD,
-];
+const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[BACKYARD_APPLE_ORCHARD, BACKYARD_CHERRY_ORCHARD, BACKYARD_VEGETABLE_GARDEN, BACKYARD_FLOWER_GARDEN, BACKYARD_HERB_GARDEN, BACKYARD_HEN_YARD];
 
 pub fn backyard_garden_def(kind: BackyardGardenKind) -> &'static BackyardGardenDef {
     ALL_BACKYARD_GARDENS
@@ -1640,16 +1638,8 @@ impl TradeResource {
 
 #[derive(Clone, Copy, Debug)]
 pub enum MarketplaceTradeKind {
-    GoldBuy {
-        resource: TradeResource,
-        amount: f64,
-        gold_cost: f64,
-    },
-    GoldSell {
-        resource: TradeResource,
-        amount: f64,
-        gold_yield: f64,
-    },
+    GoldBuy { resource: TradeResource, amount: f64, gold_cost: f64 },
+    GoldSell { resource: TradeResource, amount: f64, gold_yield: f64 },
     Barter {
         give: TradeResource,
         give_amount: f64,
@@ -1775,20 +1765,7 @@ const TRADE_TIMBER_FOR_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[
-    TRADE_BUY_TIMBER,
-    TRADE_SELL_TIMBER,
-    TRADE_BUY_STONE,
-    TRADE_SELL_STONE,
-    TRADE_BUY_FIREWOOD,
-    TRADE_SELL_FIREWOOD,
-    TRADE_SELL_FOOD,
-    TRADE_BUY_SEED_GRAIN,
-    TRADE_BUY_IRONWORK,
-    TRADE_TIMBER_FOR_STONE,
-    TRADE_STONE_FOR_TIMBER,
-    TRADE_TIMBER_FOR_FIREWOOD,
-];
+const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_SELL_FOOD, TRADE_BUY_SEED_GRAIN, TRADE_BUY_IRONWORK, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
 
 pub fn marketplace_trade_offer(id: &str) -> Option<&'static MarketplaceTradeOffer> {
     ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)
@@ -1864,13 +1841,7 @@ const COMMODITY_BUY_CHEESE: MarketCommodityOffer = MarketCommodityOffer {
     base_gold_cost: 7.0,
 };
 
-const ALL_MARKET_COMMODITIES: &[MarketCommodityOffer] = &[
-    COMMODITY_BUY_PORK,
-    COMMODITY_BUY_LAMB,
-    COMMODITY_BUY_VEAL,
-    COMMODITY_BUY_KOBASICA,
-    COMMODITY_BUY_CHEESE,
-];
+const ALL_MARKET_COMMODITIES: &[MarketCommodityOffer] = &[COMMODITY_BUY_PORK, COMMODITY_BUY_LAMB, COMMODITY_BUY_VEAL, COMMODITY_BUY_KOBASICA, COMMODITY_BUY_CHEESE];
 
 pub fn all_market_food_commodities() -> &'static [MarketCommodityOffer] {
     ALL_MARKET_COMMODITIES
@@ -1908,17 +1879,12 @@ const WATER_COMMODITY_BUY_WATER_BARREL: MarketWaterCommodityOffer = MarketWaterC
     base_gold_cost: 8.0,
 };
 
-const ALL_MARKET_WATER_COMMODITIES: &[MarketWaterCommodityOffer] = &[
-    WATER_COMMODITY_BUY_WATER_CASK,
-    WATER_COMMODITY_BUY_WATER_BARREL,
-];
+const ALL_MARKET_WATER_COMMODITIES: &[MarketWaterCommodityOffer] = &[WATER_COMMODITY_BUY_WATER_CASK, WATER_COMMODITY_BUY_WATER_BARREL];
 
 pub fn all_market_water_commodities() -> &'static [MarketWaterCommodityOffer] {
     ALL_MARKET_WATER_COMMODITIES
 }
 
 pub fn market_water_commodity_offer(id: &str) -> Option<&'static MarketWaterCommodityOffer> {
-    ALL_MARKET_WATER_COMMODITIES
-        .iter()
-        .find(|offer| offer.id == id)
+    ALL_MARKET_WATER_COMMODITIES.iter().find(|offer| offer.id == id)
 }

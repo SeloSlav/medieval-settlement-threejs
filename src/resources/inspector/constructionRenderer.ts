@@ -156,7 +156,7 @@ export function renderConstructionInspector(
     demolish: {
       visible: true,
       label: 'Cancel construction',
-      hint: 'Cancels immediately. Undelivered reservations are released; delivered materials are salvaged at the usual demolition rate.',
+      hint: 'Cancels the worksite. Undelivered reservations are released; used materials remain here at the usual salvage rate, and carts already en route finish at the reclamation pile.',
     },
     labor: buildingLaborView(building, context.populationStats),
     supplementalPanelHtml: priorityControls,

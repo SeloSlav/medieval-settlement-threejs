@@ -27,6 +27,7 @@ pub struct DeliveryCargoTotals {
     pub polearms: f64,
     pub wool: f64,
     pub cloth: f64,
+    pub gold: f64,
 }
 
 impl DeliveryCargoTotals {
@@ -47,6 +48,7 @@ impl DeliveryCargoTotals {
             CommodityKind::Polearms => self.polearms += amount,
             CommodityKind::Wool => self.wool += amount,
             CommodityKind::Cloth => self.cloth += amount,
+            CommodityKind::Gold => self.gold += amount,
         }
     }
 }

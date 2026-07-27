@@ -127,7 +127,12 @@ for (const rafter of roofRafters) {
 const constructionServer = read('server/src/simulation/construction.rs');
 assert.match(constructionServer, /construction_reserved_timber/);
 assert.match(constructionServer, /try_start_construction_supply_trip/);
-assert.match(constructionServer, /available_construction_haulers/);
+assert.match(constructionServer, /available_free_haulers/);
+assert.match(
+  read('server/src/simulation/delivery_trips.rs'),
+  /pub fn available_free_haulers[\s\S]*active_unstaffed_haulers[\s\S]*available_building_labor/,
+  'all unstaffed physical stores must share one free-cart labor budget',
+);
 assert.match(constructionServer, /construction_progress/);
 assert.match(constructionServer, /complete_site/);
 assert.match(constructionServer, /site_buckets/);

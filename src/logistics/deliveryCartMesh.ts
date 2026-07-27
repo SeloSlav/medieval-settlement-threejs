@@ -129,6 +129,9 @@ function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
     case 'cloth':
       addClothLoad(group);
       break;
+    case 'gold':
+      addGoldLoad(group);
+      break;
     default: {
       const unreachable: never = kind;
       throw new Error(`Unknown cargo kind: ${unreachable}`);
@@ -165,6 +168,31 @@ function addFirewoodLoad(group: THREE.Group): void {
       new THREE.Vector3(x, 0.75, 0),
     );
   }
+}
+
+function addGoldLoad(group: THREE.Group): void {
+  addNamedMesh(
+    group,
+    'Treasury lockbox',
+    new THREE.BoxGeometry(0.7, 0.42, 0.5),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 0.67, 0),
+  );
+  addNamedMesh(
+    group,
+    'Treasury lockbox lid',
+    new THREE.CylinderGeometry(0.25, 0.25, 0.7, 8, 1, false, 0, Math.PI),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, 0.9, 0),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  );
+  addNamedMesh(
+    group,
+    'Treasury lockbox iron band',
+    new THREE.BoxGeometry(0.08, 0.48, 0.54),
+    metalMaterial(),
+    new THREE.Vector3(0, 0.74, 0),
+  );
 }
 
 function addWaterLoad(group: THREE.Group): void {

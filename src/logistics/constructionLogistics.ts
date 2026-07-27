@@ -13,12 +13,14 @@ export type RoutedConstructionSource<T extends ConstructionSourceLike> = {
 
 /**
  * Existing construction sourcing preference, kept explicit for client/server
- * parity: staffed founding stockyards and storehouses first, then carpenters,
- * primary producers, and other stores. An unstaffed source needs a free
- * settlement hauler and follows its staffed counterpart in the same class order.
+ * parity: founding stockyards, reclamation piles, and storehouses first, then
+ * carpenters, primary producers, and other stores. An unstaffed source needs a
+ * free settlement hauler and follows its staffed counterpart in the same class order.
  */
 export function constructionSourcePriority(source: ConstructionSourceLike): number {
-  const kindPriority = source.kind === 'founders_camp' || source.kind === 'village_storehouse'
+  const kindPriority = source.kind === 'founders_camp'
+    || source.kind === 'salvage_pile'
+    || source.kind === 'village_storehouse'
     ? 0
     : source.kind === 'carpenter'
       ? 1

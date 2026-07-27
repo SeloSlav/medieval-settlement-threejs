@@ -23,6 +23,7 @@ mod lodge_logistics;
 mod lumber_mill;
 mod marketplace_caravan;
 mod production_labor_steward;
+mod reclamation;
 mod reforester;
 mod residence_lifecycle;
 pub mod residence_needs;
@@ -76,6 +77,7 @@ pub use marketplace_caravan::{
 pub use production_labor_steward::{
     reconcile_target_production_labor_for_owner, step_production_labor_stewards,
 };
+pub use reclamation::step_reclamation_piles;
 pub use reforester::step_reforester;
 pub use residence_lifecycle::step_residence;
 pub use residence_needs::{clear_residence_needs, ensure_residence_needs};
