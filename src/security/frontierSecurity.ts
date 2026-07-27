@@ -8,6 +8,7 @@ import {
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
 import type { SettlementSecurity } from '../generated/types.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import { buildingKindLabel } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
@@ -299,14 +300,23 @@ export function formatRaidReport(security: SettlementSecurityState): string {
   return 'No incursion has reached the settlement.';
 }
 
-export function watchtowerEffectiveRadius(tower: BuildingState): number {
-  if (tower.kind !== 'watchtower' || !tower.constructionComplete || tower.assignedLabor <= 0) {
+export function watchtowerEffectiveRadius(
+  tower: BuildingState,
+  fireDisabled = false,
+): number {
+  if (
+    tower.kind !== 'watchtower'
+    || !tower.constructionComplete
+    || tower.assignedLabor <= 0
+    || fireDisabled
+  ) {
     return 0;
   }
   return tower.assignedLabor === 1 ? tower.workRadius * 0.78 : tower.workRadius;
 }
 
 export type GuardhouseMusterState = {
+  fireDisabled: boolean;
   routeDistance: number | null;
   responseDistance: number | null;
   linkedTowerId: string | null;
@@ -374,12 +384,29 @@ export function getGuardhouseMusterState(
   getRoadPathDistance: (ax: number, az: number, bx: number, bz: number) => number | null,
   roadSpeedMultiplier = 1,
 ): GuardhouseMusterState {
+  const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
+  const guardhouseFireDisabled = fireDisabled.has(guardhouse.id);
   const towers = [...gameState.buildings.values()].filter(
     (building) =>
       building.kind === 'watchtower'
       && building.constructionComplete !== false
-      && building.assignedLabor > 0,
+      && building.assignedLabor > 0
+      && !fireDisabled.has(building.id),
   );
+  const normalizedRoadSpeed = normalizeRoadSpeedMultiplier(roadSpeedMultiplier);
+  if (guardhouseFireDisabled) {
+    return {
+      fireDisabled: guardhouseFireDisabled,
+      routeDistance: null,
+      responseDistance: null,
+      linkedTowerId: null,
+      staffedTowers: towers.length,
+      roadSpeedMultiplier: normalizedRoadSpeed,
+      efficiency: 0,
+      rawReady: 0,
+      effectiveReady: 0,
+    };
+  }
   let routeDistance: number | null = null;
   let linkedTowerId: string | null = null;
   for (const tower of towers) {
@@ -392,13 +419,13 @@ export function getGuardhouseMusterState(
   }
   const armed = armedGuardCount(guardhouse.assignedLabor, guardhouse.polearms);
   const rawReady = armed * clamp01(guardhouse.actionCooldown);
-  const normalizedRoadSpeed = normalizeRoadSpeedMultiplier(roadSpeedMultiplier);
   const responseDistance = guardhouseMusterResponseDistance(
     routeDistance,
     normalizedRoadSpeed,
   );
   const efficiency = guardhouseMusterEfficiency(routeDistance, normalizedRoadSpeed);
   return {
+    fireDisabled: false,
     routeDistance,
     responseDistance,
     linkedTowerId,
@@ -422,12 +449,14 @@ export function projectRaidTargets(
   const limit = Math.max(0, Math.floor(targetCount));
   if (limit <= 0) return [];
 
+  const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
   const towers = [...gameState.buildings.values()]
     .filter(
       (building) =>
         building.kind === 'watchtower'
         && building.constructionComplete !== false
-        && building.assignedLabor > 0,
+        && building.assignedLabor > 0
+        && !fireDisabled.has(building.id),
     )
     .map((tower) => ({
       x: tower.x,
@@ -496,7 +525,8 @@ export function countSitesProtectedByWatchtower(
   tower: BuildingState,
   gameState: GameState,
 ): { buildings: number; homes: number; residents: number } {
-  const radius = watchtowerEffectiveRadius(tower);
+  const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
+  const radius = watchtowerEffectiveRadius(tower, fireDisabled.has(tower.id));
   if (radius <= 0) return { buildings: 0, homes: 0, residents: 0 };
   const radiusSquared = radius * radius;
   let buildings = 0;
@@ -513,6 +543,21 @@ export function countSitesProtectedByWatchtower(
     residents += residence.population;
   }
   return { buildings, homes, residents };
+}
+
+export function frontierDefenseFireSignature(
+  gameState: Pick<GameState, 'buildings' | 'fireIncidents'>,
+): string {
+  const disabledDefenseIds: string[] = [];
+  for (const incident of gameState.fireIncidents.values()) {
+    if (incident.targetKind !== 'building') continue;
+    const kind = gameState.buildings.get(incident.targetId)?.kind;
+    if (kind === 'watchtower' || kind === 'guardhouse') {
+      disabledDefenseIds.push(`${kind}:${incident.targetId}`);
+    }
+  }
+  disabledDefenseIds.sort();
+  return disabledDefenseIds.join('|');
 }
 
 function buildingPortableRaidValue(building: BuildingState): number {

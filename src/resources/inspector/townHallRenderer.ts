@@ -1034,9 +1034,17 @@ export function renderSettlementArmamentRows(
   const workOrders = plan.staffedCarpenters === 0
     ? 'No staffed carpenter can execute a polearm order'
     : `${plan.readyArmoryOutput.toFixed(1)} / ${plan.selectedArmoryOutput.toFixed(1)} selected polearms have timber and ironwork onsite or approaching &middot; remaining targets claim ${plan.timberNeededForTargets.toFixed(1)} timber + ${plan.ironworkNeededForTargets.toFixed(1)} ironwork &middot; connected source branches currently hold ${plan.roadSourceTimber.toFixed(1)} timber + ${plan.roadSourceIronwork.toFixed(1)} ironwork before cart contention`;
+  const fireOutages = (
+    plan.fireDisabledWatchtowers
+    + plan.fireDisabledGuardhouses
+    + plan.fireDisabledCarpenters
+  ) === 0
+    ? ''
+    : `<li><span>Defense fire outages</span><span>${plan.fireDisabledWatchtowers} staffed ${plan.fireDisabledWatchtowers === 1 ? 'watchtower' : 'watchtowers'} + ${plan.fireDisabledGuardhouses} ${plan.fireDisabledGuardhouses === 1 ? 'guardhouse' : 'guardhouses'} + ${plan.fireDisabledCarpenters} staffed ${plan.fireDisabledCarpenters === 1 ? 'armory' : 'armories'} offline &middot; ${plan.fireDisabledArmedGuards} equipped of ${plan.fireDisabledAssignedGuards} assigned guards unavailable${plan.firstFireDisabledDefenseBuildingId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstFireDisabledDefenseBuildingId}" aria-label="Inspect first fire-disabled defense building">Inspect outage</button>`}</span></li>`;
 
   return `
-    <li><span>Armed establishment</span><span>${plan.armedGuards} / ${plan.assignedGuards} guards armed onsite &middot; ${finishedCoverage}${readyCraftCoverage}${remainingGap}</span></li>
+    ${fireOutages}
+    <li><span>Armed establishment</span><span>${plan.armedGuards} / ${plan.assignedGuards} guards armed onsite &middot; ${plan.operationalGuardhouses} / ${plan.guardhouses} guardhouses operational &middot; ${finishedCoverage}${readyCraftCoverage}${remainingGap}</span></li>
     <li><span>Company priorities</span><span>${plan.highPriorityCompanies} high &middot; ${plan.normalPriorityCompanies} normal &middot; ${plan.lowPriorityCompanies} low &middot; governs scarce polearms, routine provisions, and wages</span></li>
     ${roadRow}
     <li><span>Armory work orders</span><span>${workOrders}</span></li>
@@ -1449,6 +1457,7 @@ export function renderTownHallInspector(
   const guardhousePayroll = guardhousePayrollPlan(
     context.gameState.buildings.values(),
     context.resourceTotals.gold,
+    fireDisabled,
   );
   const payrollGoldDue = guardhousePayroll.reduce((sum, company) => sum + company.dailyWage, 0);
   const payrollGoldFunded = guardhousePayroll.reduce((sum, company) => sum + company.fundedGold, 0);

@@ -39,6 +39,20 @@ assert.equal(payroll[2].fundedRatio, 0);
 assert.equal(payroll[3].fundedRatio, 0);
 assert.deepEqual(payroll.map((company) => company.claimPosition), [1, 2, 3, 4]);
 
+const fireFilteredPayroll = guardhousePayrollPlan(
+  [
+    guardhouse('building-2', 2, GUARDHOUSE_PAY_PRIORITY_HIGH),
+    guardhouse('building-10', 4, GUARDHOUSE_PAY_PRIORITY_HIGH),
+  ],
+  10,
+  new Set(['building-2']),
+);
+assert.deepEqual(
+  fireFilteredPayroll.map((company) => company.building.id),
+  ['building-10'],
+  'fire-disabled companies must neither consume wages nor displace the next payroll claim',
+);
+
 const legacy = guardhousePayrollPlan([
   guardhouse('building-5', 2, undefined),
 ], 1);
@@ -100,10 +114,19 @@ const performanceCompanies = Array.from(
     index % 3,
   ),
 );
+const performanceFireDisabled = new Set(
+  performanceCompanies
+    .filter((_, index) => index % 2 === 0)
+    .map((company) => company.id),
+);
 const performanceStarted = performance.now();
-const performancePlan = guardhousePayrollPlan(performanceCompanies, 10_000);
+const performancePlan = guardhousePayrollPlan(
+  performanceCompanies,
+  10_000,
+  performanceFireDisabled,
+);
 const performanceElapsed = performance.now() - performanceStarted;
-assert.equal(performancePlan.length, 100_000);
+assert.equal(performancePlan.length, 50_000);
 assert.equal(performancePlan[0].priority, GUARDHOUSE_PAY_PRIORITY_HIGH);
 assert.ok(
   performanceElapsed < 500,
@@ -111,7 +134,7 @@ assert.ok(
 );
 
 console.log(
-  `guardhouse payroll policy tests passed (${performanceElapsed.toFixed(1)} ms for 100k companies)`,
+  `guardhouse payroll policy tests passed (${performanceElapsed.toFixed(1)} ms for 100k companies / 50k fire outages)`,
 );
 
 function guardhouse(

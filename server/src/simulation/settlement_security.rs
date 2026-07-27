@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
@@ -131,7 +133,15 @@ fn step_owner_security(
         .iter()
         .map(|residence| residence.population)
         .sum::<u32>();
-    let towers = staffed_watch_coverage(&buildings);
+    let fire_disabled_buildings = ctx
+        .db
+        .fire_incident()
+        .owner()
+        .filter(&owner)
+        .filter(|incident| incident.target_kind == FIRE_TARGET_BUILDING)
+        .map(|incident| incident.target_id)
+        .collect::<HashSet<_>>();
+    let towers = staffed_watch_coverage(&buildings, &fire_disabled_buildings);
     let watch_index = WatchCoverageIndex::new(&towers);
     let exposure = settlement_exposure(&buildings, &residences, &watch_index);
     let coverage = if exposure.total_value > 1e-9 {
@@ -150,6 +160,7 @@ fn step_owner_security(
         &towers,
         road_network.as_ref(),
         environment.road_speed_multiplier(),
+        &fire_disabled_buildings,
     );
     state.ready_guards = ready_guards;
     state.defense_readiness = if assigned_guards > 0.0 {
@@ -217,10 +228,17 @@ fn step_owner_security(
     ctx.db.settlement_security().owner().update(state);
 }
 
-fn staffed_watch_coverage(buildings: &[Building]) -> Vec<WatchArea> {
+fn staffed_watch_coverage(
+    buildings: &[Building],
+    fire_disabled_buildings: &HashSet<u64>,
+) -> Vec<WatchArea> {
     buildings
         .iter()
-        .filter(|building| building.kind == "watchtower" && building.assigned_labor > 0)
+        .filter(|building| {
+            building.kind == "watchtower"
+                && building.assigned_labor > 0
+                && !fire_disabled_buildings.contains(&building.id)
+        })
         .filter_map(|tower| {
             let radius = tower_effective_radius(tower.work_radius, tower.assigned_labor);
             (radius > 0.0).then_some(WatchArea {
@@ -305,6 +323,7 @@ fn settlement_guard_strength(
     towers: &[WatchArea],
     road_network: Option<&RoadNetwork>,
     road_speed_multiplier: f64,
+    fire_disabled_buildings: &HashSet<u64>,
 ) -> (f64, f64) {
     let watch_positions = towers
         .iter()
@@ -312,7 +331,9 @@ fn settlement_guard_strength(
         .collect::<Vec<_>>();
     buildings
         .iter()
-        .filter(|building| building.kind == "guardhouse")
+        .filter(|building| {
+            building.kind == "guardhouse" && !fire_disabled_buildings.contains(&building.id)
+        })
         .fold((0.0, 0.0), |(ready, assigned), guardhouse| {
             let assigned_here = guardhouse.assigned_labor as f64;
             let armed_here = armed_guards(guardhouse.assigned_labor, guardhouse.polearms);

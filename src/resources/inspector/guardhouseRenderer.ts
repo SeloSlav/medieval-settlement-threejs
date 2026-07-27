@@ -25,6 +25,7 @@ import {
   guardhousePayPriorityLabel,
   normalizeGuardhousePayPriority,
 } from '../../security/guardhousePayrollPolicy.ts';
+import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
   buildingCostRows,
@@ -40,8 +41,15 @@ export function renderGuardhouseInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
-  const armed = armedGuardCount(building.assignedLabor, building.polearms);
-  const readiness = Math.max(0, Math.min(1, building.actionCooldown));
+  const fireDisabled = fireDisabledBuildingIds(
+    context.gameState.fireIncidents.values(),
+  );
+  const suspendedByFire = fireDisabled.has(building.id);
+  const equippedGuards = armedGuardCount(building.assignedLabor, building.polearms);
+  const armed = suspendedByFire ? 0 : equippedGuards;
+  const readiness = suspendedByFire
+    ? 0
+    : Math.max(0, Math.min(1, building.actionCooldown));
   const ready = armed * readiness;
   const muster = getGuardhouseMusterState(
     building,
@@ -57,11 +65,12 @@ export function renderGuardhouseInspector(
   const payroll = guardhousePayrollPlan(
     context.gameState.buildings.values(),
     context.resourceTotals.gold,
+    fireDisabled,
   ).find((entry) => entry.building.id === building.id);
   const companyPriority = normalizeGuardhousePayPriority(building.guardhousePayPriority);
   const foodReserve = normalizeGuardhouseFoodReserve(building.guardhouseFoodReserve);
   const foodTarget = guardhouseFoodTarget(
-    building.assignedLabor,
+    suspendedByFire ? 0 : building.assignedLabor,
     building.polearms,
     foodReserve,
   );
@@ -84,9 +93,13 @@ export function renderGuardhouseInspector(
     && muster.responseDistance != null
     && muster.roadSpeedMultiplier < 0.999
     ? `${Math.round(muster.roadSpeedMultiplier * 100)}% travel pace · ${Math.round(muster.routeDistance)} m responds like ${Math.round(muster.responseDistance)} m`
-    : 'Dry or firm road · normal response distance';
+    : suspendedByFire
+      ? 'Fire outage · no watch response'
+      : 'Dry or firm road · normal response distance';
 
-  const status = building.assignedLabor <= 0
+  const status = suspendedByFire
+    ? ['Fire outage — company cannot muster', 'warning'] as const
+    : building.assignedLabor <= 0
     ? ['Unstaffed — no guards can muster', 'warning'] as const
     : armed <= 0
       ? ['Unarmed — awaiting carpenter-made polearms', 'warning'] as const
@@ -125,7 +138,7 @@ export function renderGuardhouseInspector(
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Paid local guard company mustered by the watch</span></li>
-      <li><span>Armed guards</span><span>${armed} / ${building.assignedLabor} assigned</span></li>
+      <li><span>Armed guards</span><span>${equippedGuards} / ${building.assignedLabor} equipped${suspendedByFire ? ' · unavailable during fire recovery' : ''}</span></li>
       <li><span>Local readiness</span><span>${Math.round(readiness * 100)}% · ${ready.toFixed(1)} ready</span></li>
       <li><span>Watch muster</span><span>${muster.routeDistance == null ? `No staffed tower by road · ${Math.round(muster.efficiency * 100)}% local response` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
       <li><span>Road conditions</span><span>${roadConditionFeedback}</span></li>
@@ -136,9 +149,9 @@ export function renderGuardhouseInspector(
       <li><span>Food endurance</span><span>${building.food.toFixed(1)} on site · ${formatProvisionRunway(foodRunwayDays)}</span></li>
       <li><span>Ration policy</span><span>${guardhouseFoodReserveLabel(foodReserve)} · ${foodReserve} food per armed guard</span></li>
       <li><span>Company priority</span><span>${guardhousePayPriorityLabel(companyPriority)} · scarce polearms, routine provisions, and wages</span></li>
-      <li><span>Next-day wages</span><span>${payroll ? `${payroll.fundedGold.toFixed(1)} / ${payroll.dailyWage.toFixed(1)} funded · claim ${payroll.claimPosition} of ${payroll.companyCount}` : armed > 0 ? 'Awaiting payroll forecast' : 'No armed guards to pay'}</span></li>
+      <li><span>Next-day wages</span><span>${suspendedByFire ? 'Suspended during fire recovery' : payroll ? `${payroll.fundedGold.toFixed(1)} / ${payroll.dailyWage.toFixed(1)} funded · claim ${payroll.claimPosition} of ${payroll.companyCount}` : armed > 0 ? 'Awaiting payroll forecast' : 'No armed guards to pay'}</span></li>
       <li><span>Treasury wages</span><span>${context.resourceTotals.gold.toFixed(1)} gold available across all companies</span></li>
-      <li><span>Provision target</span><span>${armed > 0 ? `${foodTarget.toFixed(1)} food · ${formatProvisionRunway(targetRunwayDays)} when full · central granary intervenes below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days` : 'None until polearms arm the company'}</span></li>
+      <li><span>Provision target</span><span>${suspendedByFire ? 'Suspended until fire recovery' : armed > 0 ? `${foodTarget.toFixed(1)} food · ${formatProvisionRunway(targetRunwayDays)} when full · central granary intervenes below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days` : 'None until polearms arm the company'}</span></li>
       <li><span>Provision priority</span><span>Producer and granary carts preserve household delivery reserves</span></li>
       <li><span>Supply chain</span><span>Food by road · polearms from a staffed carpenter · ironwork imported at a staffed market</span></li>
       ${buildingStorageRows(building, building.kind)}

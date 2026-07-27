@@ -11,6 +11,7 @@ export const GUARDHOUSE_PAY_PRIORITIES = [
   { priority: GUARDHOUSE_PAY_PRIORITY_NORMAL, label: 'Normal' },
   { priority: GUARDHOUSE_PAY_PRIORITY_HIGH, label: 'High' },
 ] as const;
+const NO_FIRE_DISABLED_BUILDINGS: ReadonlySet<string> = new Set();
 
 export type GuardhousePayrollEntry = {
   building: BuildingState;
@@ -45,11 +46,13 @@ export function guardhousePayPriorityLabel(priority: number | undefined): string
 export function guardhousePayrollPlan(
   buildings: Iterable<BuildingState>,
   treasuryGold: number,
+  fireDisabledBuildingIds: ReadonlySet<string> = NO_FIRE_DISABLED_BUILDINGS,
 ): GuardhousePayrollEntry[] {
   const companies = [...buildings]
     .filter((building) =>
       building.kind === 'guardhouse'
       && building.constructionComplete !== false
+      && !fireDisabledBuildingIds.has(building.id)
       && armedGuardCount(building.assignedLabor, building.polearms) > 0
     )
     .sort((left, right) => {

@@ -62,6 +62,7 @@ import { SessionLifecycleController } from './SessionLifecycleController.ts';
 import { beginNewWorld } from './worldBootstrapFlow.ts';
 import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
 import {
+  frontierDefenseFireSignature,
   formatProjectedRaidTargets,
   formatRaidReport,
   projectRaidTargets,
@@ -755,6 +756,7 @@ export class App {
       security.threat.toFixed(6),
       security.coverage.toFixed(6),
       security.readyGuards.toFixed(6),
+      frontierDefenseFireSignature(state),
     ].join('|');
     if (signature !== this.raidProjectionSignature) {
       this.raidProjectionSignature = signature;

@@ -13,6 +13,7 @@ import {
   formatFrontierForecast,
   formatProjectedRaidTargets,
   formatRaidReport,
+  frontierDefenseFireSignature,
   frontierThreatLabel,
   getGuardhouseMusterState,
   guardhouseFoodReserveLabel,
@@ -34,6 +35,7 @@ import {
   type SettlementSecurityState,
 } from '../src/security/frontierSecurity.ts';
 import type { BuildingState, GameState, ResidenceState } from '../src/resources/types.ts';
+import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
   normalizeWorldGenerationSettings,
@@ -91,6 +93,15 @@ assert.deepEqual(countSitesProtectedByWatchtower(tower, state), {
   homes: 1,
   residents: 3,
 });
+state.fireIncidents.set('tower-fire', fire('tower-fire', tower.id));
+assert.equal(watchtowerEffectiveRadius(tower, true), 0);
+assert.deepEqual(
+  countSitesProtectedByWatchtower(tower, state),
+  { buildings: 0, homes: 0, residents: 0 },
+  'a fire-disabled watchtower must lose its warning coverage until repaired',
+);
+assert.equal(frontierDefenseFireSignature(state), `watchtower:${tower.id}`);
+state.fireIncidents.delete('tower-fire');
 
 assert.equal(guardhouseMusterEfficiency(120), 1);
 assert.equal(guardhouseMusterEfficiency(480), 0.825);
@@ -226,6 +237,29 @@ assert.ok(wetLinkedMuster.effectiveReady < linkedMuster.effectiveReady);
 const unlinkedMuster = getGuardhouseMusterState(guardhouse, musterState, () => null);
 assert.equal(unlinkedMuster.linkedTowerId, null);
 assert.equal(unlinkedMuster.effectiveReady, 1.6);
+musterState.fireIncidents.set('muster-watch-fire', fire('muster-watch-fire', musterTower.id));
+const watchFireMuster = getGuardhouseMusterState(
+  guardhouse,
+  musterState,
+  () => 480,
+);
+assert.equal(watchFireMuster.staffedTowers, 0);
+assert.equal(watchFireMuster.linkedTowerId, null);
+assert.equal(watchFireMuster.effectiveReady, 1.6);
+musterState.fireIncidents.set('company-fire', fire('company-fire', guardhouse.id));
+const companyFireMuster = getGuardhouseMusterState(
+  guardhouse,
+  musterState,
+  () => 480,
+);
+assert.equal(companyFireMuster.fireDisabled, true);
+assert.equal(companyFireMuster.rawReady, 0);
+assert.equal(companyFireMuster.effectiveReady, 0);
+assert.equal(
+  frontierDefenseFireSignature(musterState),
+  `guardhouse:${guardhouse.id}|watchtower:${musterTower.id}`,
+);
+musterState.fireIncidents.clear();
 
 const projectionState = emptyGameState();
 projectionState.buildings.set(tower.id, tower);
@@ -254,6 +288,18 @@ assert.deepEqual(
   projectRaidTargets(projectionState, 3).map((target) => target.id),
   ['15', '20', '10'],
 );
+projectionState.fireIncidents.set('projection-watch-fire', fire(
+  'projection-watch-fire',
+  tower.id,
+));
+assert.deepEqual(
+  projectRaidTargets(projectionState, 3).map(
+    (target) => [target.id, target.protected],
+  ),
+  [['10', false], ['15', false], ['20', false]],
+  'a burned watch must immediately expose holdings inside its former radius',
+);
+projectionState.fireIncidents.clear();
 assert.match(formatProjectedRaidTargets(projectedTargets), /Current likely targets/);
 assert.match(formatProjectedRaidTargets(projectedTargets), /exposed/);
 const negativeCoverageState = emptyGameState();
@@ -369,6 +415,39 @@ assert.ok(
   overlayCacheElapsedMs < 250,
   `10,000 cached frontier overlay refreshes took ${overlayCacheElapsedMs.toFixed(1)} ms`,
 );
+deploymentState.fireIncidents.set(
+  'deployment-watch-fire',
+  fire('deployment-watch-fire', deploymentTower.id),
+);
+deploymentMarkers.setBuildingExtentOverlay(
+  deploymentState.buildings.get(deploymentTower.id)!,
+  deploymentState,
+);
+assert.equal(
+  selectedExtent.visible,
+  false,
+  'a fire-disabled watch must hide its obsolete coverage ring',
+);
+deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+assert.equal(
+  musterRoute.visible,
+  false,
+  'a fire-disabled watch must invalidate a cached guardhouse muster route',
+);
+deploymentState.fireIncidents.clear();
+deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+assert.equal(musterRoute.visible, true);
+deploymentState.fireIncidents.set(
+  'deployment-company-fire',
+  fire('deployment-company-fire', deploymentGuardhouse.id),
+);
+deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+assert.equal(
+  musterRoute.visible,
+  false,
+  'a fire-disabled guardhouse must not display an operational muster route',
+);
+deploymentState.fireIncidents.clear();
 deploymentState.buildings.set(deploymentTower.id, { ...deploymentTower, assignedLabor: 0 });
 deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
 assert.equal(musterRoute.visible, false, 'an unstaffed watch must remove the muster route');
@@ -486,12 +565,27 @@ assert.match(buildingMarkers, /watchtowerEffectiveRadius/);
 assert.match(buildingMarkers, /MAX_GUARDHOUSE_MUSTER_DASHES\s*=\s*512/);
 assert.match(resourceInspector, /onSelectionChange\?\.\(latest\)/);
 assert.match(app, /resourceInspector\?\.refreshSelection\(\)/);
+assert.match(
+  app,
+  /frontierDefenseFireSignature\(state\)/,
+  'raid markers must invalidate immediately when a watch or guardhouse enters fire outage',
+);
 assert.match(serverSimulation, /SECURITY_UPDATE_INTERVAL_TICKS/);
 assert.match(serverSimulation, /WatchCoverageIndex::new/);
 assert.match(serverSimulation, /fn settlement_exposure/);
 assert.doesNotMatch(serverSimulation, /fn position_is_watched/);
 assert.doesNotMatch(serverSimulation, /fn raid_target_candidates/);
 assert.match(serverSimulation, /settlement_guard_strength/);
+assert.match(
+  serverSimulation,
+  /fire_disabled_buildings[\s\S]*?staffed_watch_coverage\(&buildings, &fire_disabled_buildings\)/,
+  'authoritative watch coverage must exclude fire-disabled towers from one owner-scoped set',
+);
+assert.match(
+  serverSimulation,
+  /settlement_guard_strength\([\s\S]*?&fire_disabled_buildings[\s\S]*?fire_disabled_buildings\.contains\(&building\.id\)/,
+  'authoritative raid readiness must exclude fire-disabled guardhouses',
+);
 assert.match(serverSimulation, /nearest_road_path_distance/);
 assert.match(serverSimulation, /select_raid_targets/);
 assert.match(serverSimulation, /RaidTargetKind::Residence/);
@@ -617,6 +711,12 @@ for (let index = 0; index < 1_000; index += 1) {
     ),
   };
   projectionPerfState.buildings.set(watch.id, watch);
+  if (index % 2 === 0) {
+    projectionPerfState.fireIncidents.set(
+      `perf-watch-fire-${index}`,
+      fire(`perf-watch-fire-${index}`, watch.id),
+    );
+  }
 }
 for (let index = 0; index < 100_000; index += 1) {
   projectionPerfState.buildings.set(
@@ -639,7 +739,7 @@ const projectionElapsedMs = performance.now() - projectionStarted;
 assert.equal(perfTargets.length, 3);
 assert.ok(
   projectionElapsedMs < 250,
-  `1,000-tower, 100,000-site bounded target projection took ${projectionElapsedMs.toFixed(1)} ms`,
+  `1,000-tower (500 fire-disabled), 100,000-site bounded target projection took ${projectionElapsedMs.toFixed(1)} ms`,
 );
 
 const guardFoodCandidates = Array.from({ length: 100_000 }, (_, index) => ({
@@ -667,7 +767,7 @@ assert.ok(
 );
 
 console.log(
-  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-tower/100,000-site target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-tower/500-outage/100,000-site target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
 );
 
 function building(
@@ -737,6 +837,27 @@ function residence(id: string, x: number, z: number, population: number): Reside
     },
     abandoned: false,
     householdWealth: 0,
+  };
+}
+
+function fire(id: string, targetId: string): FireIncidentState {
+  return {
+    id,
+    targetKind: 'building',
+    targetId,
+    x: 0,
+    z: 0,
+    ignitionSource: 'accident',
+    status: 'extinguished',
+    intensity: 0,
+    damage: 0.4,
+    waterDelivered: 6,
+    requiredWater: 6,
+    extinguishChance: 1,
+    startedTick: 0,
+    lastWaterTick: 0,
+    resolvedTick: 0,
+    responseWellId: null,
   };
 }
 

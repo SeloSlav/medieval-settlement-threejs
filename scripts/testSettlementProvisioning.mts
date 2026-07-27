@@ -29,6 +29,7 @@ import type {
   GameState,
   ResidenceState,
 } from '../src/resources/types.ts';
+import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 
 const serverCalendar = readFileSync(
   new URL('../server/src/simulation/game_calendar.rs', import.meta.url),
@@ -155,6 +156,24 @@ assert.equal(formatProvisionDays(provisioning.winterFirewoodRunwayDays), '15d');
 assert.equal(WINTER_RESERVE_DAYS, 30);
 assert.equal(HOUSEHOLD_BUFFER_WARNING_COVERAGE, 0.8);
 assert.equal(HOUSEHOLD_BUFFER_CRITICAL_COVERAGE, 0.5);
+
+state.fireIncidents.set('guardhouse-fire', {
+  id: 'guardhouse-fire',
+  targetKind: 'building',
+  targetId: guards.id,
+} as FireIncidentState);
+const fireSuspendedGuards = computeSettlementProvisioning({
+  state,
+  totals: computeResourceTotals(state),
+  currentFirewoodDemandMultiplier: 1.15,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: true,
+});
+assert.equal(fireSuspendedGuards.assignedGuards, 0);
+assert.equal(fireSuspendedGuards.armedGuards, 0);
+assert.equal(fireSuspendedGuards.guardFoodPerDay, 0);
+assert.equal(fireSuspendedGuards.guardWagePerDay, 0);
+state.fireIncidents.clear();
 
 const critical = computeSettlementProvisioning({
   state,

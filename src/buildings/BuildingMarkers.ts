@@ -15,6 +15,7 @@ import {
   guardhouseMusterResponseBand,
   watchtowerEffectiveRadius,
 } from '../security/frontierSecurity.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -74,11 +75,14 @@ export class BuildingMarkers {
     building: BuildingState | null,
     gameState?: GameState,
   ): void {
+    const fireDisabled = fireDisabledBuildingIds(
+      gameState?.fireIncidents.values() ?? [],
+    );
     const extent = building
       ? getBuildingExtent(building.kind, building.workRadius)
       : null;
     const radius = building?.kind === 'watchtower'
-      ? watchtowerEffectiveRadius(building)
+      ? watchtowerEffectiveRadius(building, fireDisabled.has(building.id))
       : extent?.radius ?? 0;
     if (!building || !extent || radius <= 0) {
       if (this.extentOverlayMesh) this.extentOverlayMesh.visible = false;
@@ -101,7 +105,7 @@ export class BuildingMarkers {
       this.extentOverlayMesh.scale.set(radius, 1, radius);
     }
 
-    this.syncGuardhouseMusterRoute(building, gameState);
+    this.syncGuardhouseMusterRoute(building, gameState, fireDisabled);
   }
 
   syncBuildings(
@@ -220,12 +224,14 @@ export class BuildingMarkers {
 
   private syncGuardhouseMusterRoute(
     building: BuildingState | null,
-    gameState?: GameState,
+    gameState: GameState | undefined,
+    fireDisabled: ReadonlySet<string>,
   ): void {
     const network = this.getRoadNetwork?.() ?? null;
     if (
       building?.kind !== 'guardhouse'
       || building.constructionComplete === false
+      || fireDisabled.has(building.id)
       || !gameState
       || !network
     ) {
@@ -241,6 +247,7 @@ export class BuildingMarkers {
         candidate.id,
         candidate.constructionComplete === false ? 0 : 1,
         candidate.assignedLabor,
+        fireDisabled.has(candidate.id) ? 1 : 0,
         candidate.x.toFixed(2),
         candidate.z.toFixed(2),
       ].join(':'));
@@ -250,6 +257,7 @@ export class BuildingMarkers {
       building.id,
       building.x.toFixed(2),
       building.z.toFixed(2),
+      fireDisabled.has(building.id) ? 1 : 0,
       network.getTopologyRevision(),
       roadSpeedMultiplier.toFixed(3),
       towerSignature.join('|'),

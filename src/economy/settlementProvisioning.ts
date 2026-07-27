@@ -34,6 +34,7 @@ import {
   type FreshFoodPreservation,
   spoilageAdjustedRunwayDays,
 } from './foodPreservation.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 
 export const WINTER_RESERVE_DAYS = CALENDAR_DAYS_PER_MONTH * 3;
 export const PROVISION_WARNING_DAYS = 5;
@@ -319,6 +320,7 @@ export function computeSettlementProvisioning(input: {
   const roadProvisionBranches = roadComponentFor
     ? new Map<string, RoadProvisionBranch>()
     : null;
+  const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
 
   const workdayFraction = Math.max(
     0,
@@ -521,6 +523,7 @@ export function computeSettlementProvisioning(input: {
       building.kind !== 'guardhouse'
       || building.constructionComplete === false
       || building.assignedLabor <= 0
+      || fireDisabled.has(building.id)
     ) {
       continue;
     }

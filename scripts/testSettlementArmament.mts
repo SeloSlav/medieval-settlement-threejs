@@ -92,6 +92,14 @@ function trip(
   };
 }
 
+function fireIncident(id: string, targetId: string): FireIncidentState {
+  return {
+    id,
+    targetKind: 'building',
+    targetId,
+  } as FireIncidentState;
+}
+
 const state = {
   stockpile: createEmptyStockpile(),
   buildings: new Map<string, BuildingState>(),
@@ -244,6 +252,45 @@ assert.equal(
 assert.equal(fireBlockedMarket.serviceableIronwork, 5);
 state.fireIncidents.delete('west-market-fire');
 
+const westWatch = building('west-watch', 'watchtower', 0, {
+  assignedLabor: 2,
+});
+state.buildings.set(westWatch.id, westWatch);
+for (const site of [westGuard, westCarpenter, westLumber, westWatch]) {
+  state.fireIncidents.set(
+    `${site.id}-fire`,
+    fireIncident(`${site.id}-fire`, site.id),
+  );
+}
+const fireDisabledDefense = computeSettlementArmamentPlan({
+  state,
+  roadComponentFor: (candidate) =>
+    candidate.x < 50 ? 1 : candidate.x < 150 ? 2 : 3,
+});
+assert.equal(fireDisabledDefense.guardhouses, 2);
+assert.equal(fireDisabledDefense.operationalGuardhouses, 1);
+assert.equal(fireDisabledDefense.assignedGuards, 4);
+assert.equal(fireDisabledDefense.armedGuards, 1);
+assert.equal(fireDisabledDefense.fireDisabledWatchtowers, 1);
+assert.equal(fireDisabledDefense.fireDisabledGuardhouses, 1);
+assert.equal(fireDisabledDefense.fireDisabledAssignedGuards, 4);
+assert.equal(fireDisabledDefense.fireDisabledArmedGuards, 2);
+assert.equal(fireDisabledDefense.fireDisabledCarpenters, 1);
+assert.equal(fireDisabledDefense.staffedCarpenters, 1);
+assert.equal(fireDisabledDefense.roadSourceTimber, 0);
+assert.equal(fireDisabledDefense.serviceableFinishedPolearms, 3);
+assert.equal(fireDisabledDefense.unavailableFinishedPolearms, 13);
+assert.equal(
+  fireDisabledDefense.firstFireDisabledDefenseBuildingId,
+  westCarpenter.id,
+);
+assert.match(
+  renderSettlementArmamentRows(fireDisabledDefense),
+  /Defense fire outages[\s\S]*1 staffed watchtower \+ 1 guardhouse \+ 1 staffed armory offline[\s\S]*2 equipped of 4 assigned guards unavailable[\s\S]*data-inspect-building="west-carpenter"/,
+);
+state.fireIncidents.clear();
+state.buildings.delete(westWatch.id);
+
 const joined = computeSettlementArmamentPlan({
   state,
   roadComponentFor: () => 1,
@@ -339,6 +386,7 @@ const performanceState = {
   stockpile: createEmptyStockpile(),
   buildings: new Map<string, BuildingState>(),
   deliveryTrips: new Map<string, DeliveryTripState>(),
+  fireIncidents: new Map<string, FireIncidentState>(),
 };
 for (let index = 0; index < 100_000; index += 1) {
   const isGuardhouse = index % 2 === 0;
@@ -357,6 +405,12 @@ for (let index = 0; index < 100_000; index += 1) {
         },
   );
   performanceState.buildings.set(site.id, site);
+  if (index % 4 === 0) {
+    performanceState.fireIncidents.set(
+      `armament-fire-${index}`,
+      fireIncident(`armament-fire-${index}`, site.id),
+    );
+  }
 }
 const performanceStarted = performance.now();
 const largePlan = computeSettlementArmamentPlan({
@@ -365,15 +419,17 @@ const largePlan = computeSettlementArmamentPlan({
 });
 const performanceElapsed = performance.now() - performanceStarted;
 assert.equal(largePlan.guardhouses, 50_000);
+assert.equal(largePlan.operationalGuardhouses, 25_000);
+assert.equal(largePlan.fireDisabledGuardhouses, 25_000);
 assert.equal(largePlan.staffedCarpenters, 50_000);
-assert.equal(largePlan.roadPlan?.activeBranches, 200);
-assert.equal(largePlan.roadPlan?.guardBranches, 100);
-assert.equal(largePlan.roadPlan?.unservedGuardBranches, 100);
+assert.equal(largePlan.roadPlan?.activeBranches, 150);
+assert.equal(largePlan.roadPlan?.guardBranches, 50);
+assert.equal(largePlan.roadPlan?.unservedGuardBranches, 50);
 assert.ok(
   performanceElapsed < 600,
   `100,000-building / 200-branch armament plan took ${performanceElapsed.toFixed(1)} ms`,
 );
 
 console.log(
-  `settlement armament tests passed (${performanceElapsed.toFixed(1)} ms for 100,000 buildings / 200 branches)`,
+  `settlement armament tests passed (${performanceElapsed.toFixed(1)} ms for 100,000 buildings / 25,000 outages / 200 road components)`,
 );

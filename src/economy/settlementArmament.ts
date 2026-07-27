@@ -64,9 +64,15 @@ export type SettlementArmamentRoadPlan = {
 
 export type SettlementArmamentPlan = {
   guardhouses: number;
+  operationalGuardhouses: number;
   assignedGuards: number;
   armedGuards: number;
   unarmedGuards: number;
+  fireDisabledWatchtowers: number;
+  fireDisabledGuardhouses: number;
+  fireDisabledAssignedGuards: number;
+  fireDisabledArmedGuards: number;
+  fireDisabledCarpenters: number;
   highPriorityCompanies: number;
   normalPriorityCompanies: number;
   lowPriorityCompanies: number;
@@ -90,6 +96,7 @@ export type SettlementArmamentPlan = {
   roadSourceTimber: number;
   roadSourceIronwork: number;
   firstExposedGuardhouseId: string | null;
+  firstFireDisabledDefenseBuildingId: string | null;
   roadPlan: SettlementArmamentRoadPlan | null;
 };
 
@@ -339,8 +346,15 @@ export function computeSettlementArmamentPlan(input: {
     input.state.fireIncidents?.values() ?? [],
   );
   let guardhouseCount = 0;
+  let operationalGuardhouseCount = 0;
   let assignedGuardCount = 0;
   let armedGuardCount = 0;
+  let fireDisabledWatchtowers = 0;
+  let fireDisabledGuardhouses = 0;
+  let fireDisabledAssignedGuards = 0;
+  let fireDisabledArmedGuards = 0;
+  let fireDisabledCarpenters = 0;
+  let firstFireDisabledDefenseBuildingId: string | null = null;
   let highPriorityCompanies = 0;
   let normalPriorityCompanies = 0;
   let lowPriorityCompanies = 0;
@@ -354,14 +368,38 @@ export function computeSettlementArmamentPlan(input: {
     ironworkStock += positive(building.ironwork);
     if (building.constructionComplete === false) continue;
 
+    const disabledByFire = fireDisabled.has(building.id);
     const branch = armamentBranch(
       branches,
       branchKey(building, input.roadComponentFor),
     );
+    if (
+      building.kind === 'watchtower'
+      && disabledByFire
+      && building.assignedLabor > 0
+    ) {
+      fireDisabledWatchtowers += 1;
+      firstFireDisabledDefenseBuildingId = earlierStableId(
+        firstFireDisabledDefenseBuildingId,
+        building.id,
+      );
+      continue;
+    }
     if (building.kind === 'guardhouse') {
+      guardhouseCount += 1;
+      if (disabledByFire) {
+        fireDisabledGuardhouses += 1;
+        fireDisabledAssignedGuards += assignedGuards(building);
+        fireDisabledArmedGuards += onsiteArmedGuards(building);
+        firstFireDisabledDefenseBuildingId = earlierStableId(
+          firstFireDisabledDefenseBuildingId,
+          building.id,
+        );
+        continue;
+      }
       const assigned = assignedGuards(building);
       const armed = onsiteArmedGuards(building);
-      guardhouseCount += 1;
+      operationalGuardhouseCount += 1;
       assignedGuardCount += assigned;
       armedGuardCount += armed;
       if (assigned > 0) {
@@ -402,6 +440,16 @@ export function computeSettlementArmamentPlan(input: {
     }
 
     if (building.kind === 'carpenter') {
+      if (disabledByFire) {
+        if (building.assignedLabor > 0) {
+          fireDisabledCarpenters += 1;
+          firstFireDisabledDefenseBuildingId = earlierStableId(
+            firstFireDisabledDefenseBuildingId,
+            building.id,
+          );
+        }
+        continue;
+      }
       const record: CarpenterRecord = {
         building,
         branch,
@@ -425,13 +473,16 @@ export function computeSettlementArmamentPlan(input: {
     if (
       building.kind === 'marketplace'
       && building.assignedLabor > 0
-      && !fireDisabled.has(building.id)
+      && !disabledByFire
     ) {
       branch.roadSourceIronwork += positive(building.ironwork);
     }
     if (
-      building.kind === 'lumber_mill'
-      || building.kind === 'village_storehouse'
+      (
+        building.kind === 'lumber_mill'
+        || building.kind === 'village_storehouse'
+      )
+      && !disabledByFire
     ) {
       branch.roadSourceTimber += positive(building.timber);
     }
@@ -575,9 +626,15 @@ export function computeSettlementArmamentPlan(input: {
 
   return {
     guardhouses: guardhouseCount,
+    operationalGuardhouses: operationalGuardhouseCount,
     assignedGuards: assignedGuardCount,
     armedGuards: armedGuardCount,
     unarmedGuards: Math.max(0, assignedGuardCount - armedGuardCount),
+    fireDisabledWatchtowers,
+    fireDisabledGuardhouses,
+    fireDisabledAssignedGuards,
+    fireDisabledArmedGuards,
+    fireDisabledCarpenters,
     highPriorityCompanies,
     normalPriorityCompanies,
     lowPriorityCompanies,
@@ -610,6 +667,7 @@ export function computeSettlementArmamentPlan(input: {
     roadSourceTimber,
     roadSourceIronwork,
     firstExposedGuardhouseId,
+    firstFireDisabledDefenseBuildingId,
     roadPlan,
   };
 }
