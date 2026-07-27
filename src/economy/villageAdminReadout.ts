@@ -11,8 +11,12 @@ import {
   summarizeHouseholdWealth,
 } from './villageProjections.ts';
 import { totalChapelCofferGold } from '../resources/chapelCoffer.ts';
-import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import {
+  fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
+} from '../fires/fireIncident.ts';
 import { hasStaffedChapel } from '../logistics/landmarkAccess.ts';
+import { claimResidenceRoutesByNearestSupplier } from '../logistics/roadLogistics.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import type { WorldQueries } from '../resources/WorldQueries.ts';
 import {
@@ -62,8 +66,19 @@ export function buildVillageAdminReadout(input: {
   const residences = [...gameState.residences.values()];
   const buildings = [...gameState.buildings.values()];
   const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
+  const fireDisabledHomes = fireDisabledResidenceIds(
+    gameState.fireIncidents.values(),
+  );
+  const operationalResidences = residences.filter(
+    (residence) => !fireDisabledHomes.has(residence.id),
+  );
   const chapels = buildings.filter(
     (building) => building.kind === 'chapel' && !fireDisabled.has(building.id),
+  );
+  const activeChapels = chapels.filter(
+    (chapel) =>
+      chapel.constructionComplete !== false
+      && chapel.assignedLabor > 0,
   );
   const wealthSummary = summarizeHouseholdWealth(residences);
   const staffedTownHallAvailable = buildings.some(
@@ -96,14 +111,49 @@ export function buildVillageAdminReadout(input: {
     sabbathObserved,
     roadComponentFor,
   });
-  const chapelTithe = worldQueries
-      ? estimateVillageChapelTithePerDay(
-          residences,
-          (residence) => worldQueries.getServingChapelForResidence(residence),
-          parishPolicy.sabbathObservanceEnabled,
-        )
-    : 0;
+  let chapelTithe = 0;
+  if (worldQueries) {
+    const roadNetwork = typeof worldQueries.getRoadNetworkSnapshot === 'function'
+      ? worldQueries.getRoadNetworkSnapshot()
+      : null;
+    if (roadNetwork) {
+      const claims = claimResidenceRoutesByNearestSupplier(
+        roadNetwork,
+        activeChapels,
+        operationalResidences,
+        () => true,
+      );
+      const chapelsById = new Map(
+        activeChapels.map((chapel) => [chapel.id, chapel]),
+      );
+      chapelTithe = estimateVillageChapelTithePerDay(
+        operationalResidences,
+        (residence) => {
+          const claim = claims.get(residence.id);
+          return claim == null
+            ? null
+            : chapelsById.get(claim.supplierId) ?? null;
+        },
+        parishPolicy.sabbathObservanceEnabled,
+      );
+    } else {
+      chapelTithe = estimateVillageChapelTithePerDay(
+        operationalResidences,
+        (residence) => worldQueries.getServingChapelForResidence(residence),
+        parishPolicy.sabbathObservanceEnabled,
+      );
+    }
+  }
   const cofferBalance = totalChapelCofferGold(buildings);
+  const structurallyQuarantinedCoffer = totalChapelCofferGold(
+    buildings.filter((building) =>
+      fireDisabled.has(building.id)
+      || building.constructionComplete === false),
+  );
+  const collectableCoffer = Math.max(
+    0,
+    cofferBalance - structurallyQuarantinedCoffer,
+  );
   const parishExpense = sumPayableParishExpensePerDay(chapels);
   const autoSweep = sumPayableAutoSweepPerDay(
     chapels,
@@ -134,7 +184,9 @@ export function buildVillageAdminReadout(input: {
     autoSweepLabel: parishPolicy.autoSweepEnabled
       ? `${formatParishGoldPerDay(autoSweep)} (rough est.)`
       : 'Off',
-    cofferBalanceLabel: `${cofferBalance.toFixed(1)} gold`,
+    cofferBalanceLabel: structurallyQuarantinedCoffer > 0.05
+      ? `${collectableCoffer.toFixed(1)} gold collectable / ${cofferBalance.toFixed(1)} owned · ${structurallyQuarantinedCoffer.toFixed(1)} sealed pending structural recovery`
+      : `${cofferBalance.toFixed(1)} gold`,
     parishLedgerLabel: `${parishLedgerTotal(parishPolicy).toFixed(1)} gold moved`,
     backyardEconomy,
   };

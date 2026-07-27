@@ -15,6 +15,7 @@ import {
   CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
   CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
 } from '../../generated/gameBalance.ts';
+import { fireForTarget } from '../../fires/fireIncident.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../../economy/regionalMarket.ts';
 import {
@@ -34,7 +35,15 @@ import type { InspectorRenderContext, InspectorView } from './renderInspectableT
 
 export const CHAPEL_COFFER_COLLECT_ACTION = 'collect-chapel-coffer';
 
-function formatLinkedHomeStatus(connectedHomes: number, linkedPopulation: number, staffed: boolean): string {
+function formatLinkedHomeStatus(
+  connectedHomes: number,
+  linkedPopulation: number,
+  staffed: boolean,
+  suspendedByFire: boolean,
+): string {
+  if (suspendedByFire) {
+    return 'Fire damage suspends parish services and seals the coffer';
+  }
   if (!staffed) {
     return 'Assign a priest to open parish services';
   }
@@ -55,7 +64,12 @@ export function renderChapelInspector(
   const { building } = target;
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
-  const staffed = isChapelStaffed(building);
+  const suspendedByFire = fireForTarget(
+    context.gameState.fireIncidents.values(),
+    'building',
+    building.id,
+  ) !== null;
+  const staffed = isChapelStaffed(building) && !suspendedByFire;
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
   const settlementRelief = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
     ? computeSettlementParishReliefPlan({
@@ -79,11 +93,11 @@ export function renderChapelInspector(
     CHAPEL_COFFER_COLLECT_ACTION,
     parishPolicy.sabbathObservanceEnabled,
   );
-  const cofferLabel = `${economy.cofferGold.toFixed(1)} / ${economy.cofferCapacity} gold${economy.cofferFull ? ' · full — overflow to treasury' : ''}`;
+  const cofferLabel = `${economy.cofferGold.toFixed(1)} / ${economy.cofferCapacity} gold${economy.cofferFull ? ' · full — overflow to treasury' : ''}${suspendedByFire ? ' · sealed until structural recovery' : ''}`;
   const reliefInspectButton = parishRelief?.targetResidenceId == null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${parishRelief.targetResidenceId}" aria-label="Inspect parish relief household">Inspect</button>`;
-  const collectButtonHtml = economy.cofferGold > 0.05
+  const collectButtonHtml = economy.cofferGold > 0.05 && !suspendedByFire
     ? `
       <button type="button" class="inspector-action-panel__button" data-action="${CHAPEL_COFFER_COLLECT_ACTION}">
         Collect coffer (${economy.cofferGold.toFixed(1)} gold)
@@ -92,7 +106,9 @@ export function renderChapelInspector(
     : '';
   const collectPanelHtml = `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Tithes fund this parish before surplus reaches the treasury.</p>
+      <p class="inspector-action-panel__hint">${suspendedByFire
+        ? 'Structural recovery is required before tithes, expenses, relief, or manual coffer collection resume.'
+        : 'Tithes fund this parish before surplus reaches the treasury.'}</p>
       ${collectButtonHtml}
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-auto-sweep ${parishPolicy.autoSweepEnabled ? 'checked' : ''} /><span>Auto-sweep surplus to treasury</span></label>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-sabbath ${parishPolicy.sabbathObservanceEnabled ? 'checked' : ''} /><span>Observe Sunday Sabbath</span></label>
@@ -106,17 +122,28 @@ export function renderChapelInspector(
   return {
     eyebrow: 'Building',
     title: label,
-    statusText: formatLinkedHomeStatus(connectedHomes, linkedPopulation, staffed),
-    statusState: staffed && connectedHomes > 0 ? 'ok' : staffed ? 'idle' : 'draft',
+    statusText: formatLinkedHomeStatus(
+      connectedHomes,
+      linkedPopulation,
+      staffed,
+      suspendedByFire,
+    ),
+    statusState: suspendedByFire
+      ? 'warning'
+      : staffed && connectedHomes > 0
+        ? 'ok'
+        : staffed
+          ? 'idle'
+          : 'draft',
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Purpose</span><span>Parish hub — tithes, settlement, resilience, and easier recovery</span></li>
-      <li><span>Priest</span><span>${staffed ? 'Serving the parish' : 'Unstaffed — benefits inactive'}</span></li>
+      <li><span>Priest</span><span>${suspendedByFire ? 'Displaced · parish work suspended' : staffed ? 'Serving the parish' : 'Unstaffed — benefits inactive'}</span></li>
       <li><span>Coffer</span><span>${cofferLabel}</span></li>
       <li><span>Parish territory</span><span>${parishRelief == null ? `${connectedHomes} road-linked homes` : formatChapelParishTerritory(parishRelief)}</span></li>
       <li><span>Tithe yield</span><span>${staffed ? economy.titheLabel : '—'}</span></li>
-      <li><span>Parish expenses</span><span>${formatChapelExpenseLabel(economy.expense, staffed)}</span></li>
+      <li><span>Parish expenses</span><span>${suspendedByFire ? 'Paused · no wages, upkeep, charity, or auto-sweep leaves the sealed coffer' : formatChapelExpenseLabel(economy.expense, staffed)}</span></li>
       ${parishRelief == null ? '' : `<li><span>Daily alms</span><span>${formatChapelDailyAlms(parishRelief)}</span></li>`}
       ${parishRelief == null ? '' : `<li><span>Monday poor relief</span><span>${formatChapelPoorRelief(parishRelief)}${reliefInspectButton}</span></li>`}
       <li><span>Attendance</span><span>${staffed ? economy.attendanceLabel : '—'}</span></li>

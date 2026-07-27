@@ -51,6 +51,7 @@ function building(overrides: Partial<BuildingState>): BuildingState {
 const marketplace = building({ id: 'b-market', kind: 'marketplace', x: 20, z: 10 });
 const staffedChapel = building({ id: 'b-chapel', kind: 'chapel', x: 10, z: 20, assignedLabor: 1 });
 const idleChapel = building({ id: 'b-chapel-idle', kind: 'chapel', x: 30, z: 30, assignedLabor: 0 });
+const monastery = building({ id: 'b-monastery', kind: 'monastery', x: 15, z: 15 });
 const home = residence();
 
 const connectedProbe = (ax: number, az: number, bx: number, bz: number): number | null => {
@@ -112,7 +113,7 @@ class StubWorldQueries extends WorldQueries {
 }
 
 const gameState = {
-  buildings: new Map(buildings.map((entry) => [entry.id, entry])),
+  buildings: new Map([...buildings, monastery].map((entry) => [entry.id, entry])),
   residences: new Map([[home.id, home]]),
   fireIncidents: new Map(),
 } as unknown as GameState;
@@ -121,6 +122,7 @@ const connectedQueries = new StubWorldQueries(true, gameState);
 assert.equal(connectedQueries.isResidenceConnectedToMarketplace(home), true);
 assert.equal(connectedQueries.getServingChapelForResidence(home)?.id, staffedChapel.id);
 assert.equal(connectedQueries.isResidenceConnectedToChapel(home), true);
+assert.equal(connectedQueries.isResidenceInMonasteryCoverage(home), true);
 
 const disconnectedQueries = new StubWorldQueries(false, gameState);
 assert.equal(disconnectedQueries.isResidenceConnectedToMarketplace(home), false);
@@ -153,6 +155,30 @@ assert.equal(
   fireDisabledQueries.getServingChapelForResidence(home),
   null,
   'a fire-disabled chapel must not claim parish coverage in the client',
+);
+
+const residenceFire: FireIncidentState = {
+  ...chapelFire,
+  id: 'fire-residence',
+  targetKind: 'residence',
+  targetId: home.id,
+  x: home.x,
+  z: home.z,
+};
+const residenceFireState = {
+  ...gameState,
+  fireIncidents: new Map([[residenceFire.id, residenceFire]]),
+} as GameState;
+const residenceFireQueries = new StubWorldQueries(true, residenceFireState);
+assert.equal(
+  residenceFireQueries.getServingChapelForResidence(home),
+  null,
+  'a fire-disabled household must leave the parish tithe territory',
+);
+assert.equal(
+  residenceFireQueries.isResidenceInMonasteryCoverage(home),
+  false,
+  'a fire-disabled household must not retain monastery community coverage',
 );
 
 console.log('landmark access parity tests passed');

@@ -650,6 +650,9 @@ export class WorldQueries {
 
   getServingChapelForResidence(residence: ResidenceState): BuildingState | null {
     const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
     return findServingChapel(
       residence,
       this.activeParishChapels(state),
@@ -694,6 +697,9 @@ export class WorldQueries {
 
   isResidenceInMonasteryCoverage(residence: ResidenceState): boolean {
     const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return false;
+    }
     return isResidenceInMonasteryCoverage(
       residence,
       this.activeMonasteries(state),

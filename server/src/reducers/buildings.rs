@@ -1545,6 +1545,26 @@ pub fn set_harvest_reserve_percent(
 pub fn collect_chapel_coffer(ctx: &ReducerContext, building_id: u64) -> Result<(), String> {
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
+    let chapel = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Chapel not found.".to_string())?;
+    if chapel.owner != owner {
+        return Err("You do not own this chapel.".to_string());
+    }
+    if chapel.kind != "chapel" {
+        return Err("Building is not a chapel.".to_string());
+    }
+    if !chapel.construction_complete {
+        return Err("The chapel is still under construction.".to_string());
+    }
+    if building_fire_state(ctx, building_id).is_some() {
+        return Err(
+            "Repair the fire-damaged chapel before collecting its sealed coffer.".to_string(),
+        );
+    }
     sweep_chapel_coffer(ctx, owner, building_id).map(|_| ())
 }
 

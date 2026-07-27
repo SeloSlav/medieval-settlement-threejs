@@ -10,6 +10,10 @@ import {
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
 import {
+  fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
+} from '../fires/fireIncident.ts';
+import {
   claimResidenceRoutesByNearestSupplier,
   compareStableEntityIds,
 } from '../logistics/roadLogistics.ts';
@@ -66,9 +70,16 @@ export type ChapelReliefPlan = {
 export type SettlementParishReliefPlan = {
   completedChapels: number;
   activeParishes: number;
+  fireDisabledChapels: number;
+  reconstructingChapels: number;
+  structurallyQuarantinedCofferGold: number;
+  firstUnavailableChapelId: string | null;
   assignedHomes: number;
   assignedPopulation: number;
   unassignedHomes: number;
+  fireDisabledHomes: number;
+  fireDisabledResidents: number;
+  fireDisabledReliefHomes: number;
   dailyAlmsRecipients: number;
   reliefHomes: number;
   dueNow: boolean;
@@ -117,22 +128,33 @@ export function computeSettlementParishReliefPlan(
   const daysUntilDispatch = chapelPoorReliefDaysUntilDispatch(state.tick);
   const logisticsPaused = !clock.isWorkHours
     || (clock.isSunday && input.sabbathObserved);
-  const fireDisabledBuildingIds = new Set<string>();
-  for (const incident of state.fireIncidents.values()) {
-    if (incident.targetKind === 'building') {
-      fireDisabledBuildingIds.add(incident.targetId);
-    }
-  }
+  const disabledBuildingIds = fireDisabledBuildingIds(
+    state.fireIncidents.values(),
+  );
+  const disabledResidenceIds = fireDisabledResidenceIds(
+    state.fireIncidents.values(),
+  );
 
-  const completedChapels = [...state.buildings.values()]
-    .filter((building) =>
-      building.kind === 'chapel'
-      && building.constructionComplete !== false)
+  const allChapels = [...state.buildings.values()]
+    .filter((building) => building.kind === 'chapel')
+    .sort((left, right) => compareStableEntityIds(left.id, right.id));
+  const completedChapels = allChapels.filter(
+    (chapel) => chapel.constructionComplete !== false,
+  );
+  const reconstructingChapels = allChapels.filter(
+    (chapel) =>
+      chapel.constructionComplete === false
+      && chapelCofferGold(chapel) > 0.05,
+  );
+  const fireDisabledChapels = completedChapels.filter(
+    (chapel) => disabledBuildingIds.has(chapel.id),
+  );
+  const unavailableChapels = [...fireDisabledChapels, ...reconstructingChapels]
     .sort((left, right) => compareStableEntityIds(left.id, right.id));
   const activeChapels = completedChapels.filter(
     (chapel) =>
       chapel.assignedLabor > 0
-      && !fireDisabledBuildingIds.has(chapel.id),
+      && !disabledBuildingIds.has(chapel.id),
   );
   const completedMarketplaces = [...state.buildings.values()].filter(
     (building) =>
@@ -140,22 +162,28 @@ export function computeSettlementParishReliefPlan(
       && building.constructionComplete !== false,
   );
   const operationalMarketplaces = completedMarketplaces.filter(
-    (marketplace) => !fireDisabledBuildingIds.has(marketplace.id),
+    (marketplace) => !disabledBuildingIds.has(marketplace.id),
   );
   const fireDisabledMarketplaces = completedMarketplaces.filter(
-    (marketplace) => fireDisabledBuildingIds.has(marketplace.id),
+    (marketplace) => disabledBuildingIds.has(marketplace.id),
   );
   const marketsById = new Map(
     completedMarketplaces.map((marketplace) => [marketplace.id, marketplace]),
   );
   const allResidences = [...state.residences.values()];
+  const operationalResidences = allResidences.filter(
+    (residence) => !disabledResidenceIds.has(residence.id),
+  );
+  const fireDisabledResidences = allResidences.filter(
+    (residence) => disabledResidenceIds.has(residence.id),
+  );
   const chapelClaims = claimResidenceRoutesByNearestSupplier(
     roadNetwork,
     activeChapels,
-    allResidences,
+    operationalResidences,
     () => true,
   );
-  const abandonedResidences = allResidences.filter(
+  const abandonedResidences = operationalResidences.filter(
     (residence) => residence.abandoned,
   );
   const marketClaims = claimResidenceRoutesByNearestSupplier(
@@ -178,7 +206,7 @@ export function computeSettlementParishReliefPlan(
   const assignedByChapel = new Map<string, ResidenceState[]>(
     completedChapels.map((chapel) => [chapel.id, []]),
   );
-  for (const residence of allResidences) {
+  for (const residence of operationalResidences) {
     const claim = chapelClaims.get(residence.id);
     if (claim) assignedByChapel.get(claim.supplierId)?.push(residence);
   }
@@ -237,12 +265,12 @@ export function computeSettlementParishReliefPlan(
       ? null
       : marketsById.get(marketClaim.supplierId) ?? null;
     const staffed = chapel.assignedLabor > 0
-      && !fireDisabledBuildingIds.has(chapel.id);
+      && !disabledBuildingIds.has(chapel.id);
 
     let status: ParishReliefStatus;
     if (chapel.constructionComplete === false) {
       status = 'unbuilt';
-    } else if (fireDisabledBuildingIds.has(chapel.id)) {
+    } else if (disabledBuildingIds.has(chapel.id)) {
       status = 'fire-disabled';
     } else if (chapel.assignedLabor <= 0) {
       status = 'unstaffed';
@@ -330,9 +358,27 @@ export function computeSettlementParishReliefPlan(
   return {
     completedChapels: completedChapels.length,
     activeParishes: activeChapels.length,
+    fireDisabledChapels: fireDisabledChapels.length,
+    reconstructingChapels: reconstructingChapels.length,
+    structurallyQuarantinedCofferGold: unavailableChapels.reduce(
+      (total, chapel) => total + chapelCofferGold(chapel),
+      0,
+    ),
+    firstUnavailableChapelId: unavailableChapels[0]?.id ?? null,
     assignedHomes,
     assignedPopulation,
-    unassignedHomes: Math.max(0, allResidences.length - chapelClaims.size),
+    unassignedHomes: Math.max(
+      0,
+      operationalResidences.length - chapelClaims.size,
+    ),
+    fireDisabledHomes: fireDisabledResidences.length,
+    fireDisabledResidents: fireDisabledResidences.reduce(
+      (total, residence) => total + Math.max(0, residence.population),
+      0,
+    ),
+    fireDisabledReliefHomes: fireDisabledResidences.filter(
+      (residence) => residence.abandoned,
+    ).length,
     dailyAlmsRecipients,
     reliefHomes,
     dueNow,
@@ -378,11 +424,17 @@ function statusPriority(status: ParishReliefStatus): number {
 }
 
 export function formatChapelParishTerritory(plan: ChapelReliefPlan): string {
+  if (plan.status === 'fire-disabled') {
+    return 'Parish territory suspended until structural recovery';
+  }
   if (!plan.staffed) return 'Inactive until a priest is assigned';
   return `${plan.assignedHomes} nearest-road homes · ${plan.assignedPopulation} villagers`;
 }
 
 export function formatChapelDailyAlms(plan: ChapelReliefPlan): string {
+  if (plan.status === 'fire-disabled') {
+    return 'Paused · coffer sealed during structural recovery';
+  }
   if (!plan.staffed) return 'Inactive';
   if (plan.cofferGold < CHAPEL_CHARITY_MIN_COFFER_GOLD) {
     return `Held below ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold`;
@@ -419,9 +471,18 @@ export function formatChapelPoorRelief(plan: ChapelReliefPlan): string {
 export function formatSettlementParishRelief(
   plan: SettlementParishReliefPlan,
 ): string {
-  if (plan.activeParishes === 0) return 'No active staffed parish';
+  if (plan.activeParishes === 0) {
+    const unavailableChapels = plan.fireDisabledChapels
+      + plan.reconstructingChapels;
+    return unavailableChapels > 0
+      ? `No active parish · ${plan.fireDisabledChapels} fire-disabled + ${plan.reconstructingChapels} reconstructing ${unavailableChapels === 1 ? 'chapel holds' : 'chapels hold'} ${plan.structurallyQuarantinedCofferGold.toFixed(1)} sealed gold`
+      : 'No active staffed parish';
+  }
   if (!plan.dueNow) {
-    return `${plan.activeParishes} parishes · ${plan.reliefHomes} abandoned homes in relief territory`;
+    const suspended = plan.fireDisabledReliefHomes > 0
+      ? ` · ${plan.fireDisabledReliefHomes} damaged abandoned ${plan.fireDisabledReliefHomes === 1 ? 'home waits' : 'homes wait'} for recovery`
+      : '';
+    return `${plan.activeParishes} parishes · ${plan.reliefHomes} operational abandoned homes in relief territory${suspended}`;
   }
   return `${plan.readyParishes} ready · ${plan.blockedParishes} blocked this Monday`;
 }
@@ -429,11 +490,20 @@ export function formatSettlementParishRelief(
 export function formatSettlementParishCoverage(
   plan: SettlementParishReliefPlan,
 ): string {
-  if (plan.activeParishes === 0) return 'No staffed chapel territories';
+  if (plan.activeParishes === 0) {
+    const unavailableChapels = plan.fireDisabledChapels
+      + plan.reconstructingChapels;
+    return unavailableChapels > 0
+      ? `No active territory · ${plan.fireDisabledChapels} fire-disabled + ${plan.reconstructingChapels} reconstructing ${unavailableChapels === 1 ? 'chapel' : 'chapels'}`
+      : 'No staffed chapel territories';
+  }
   const unassigned = plan.unassignedHomes > 0
-    ? ` · ${plan.unassignedHomes} off parish roads`
+    ? ` · ${plan.unassignedHomes} operational ${plan.unassignedHomes === 1 ? 'home' : 'homes'} off parish roads`
     : '';
-  return `${plan.assignedHomes} homes · ${plan.assignedPopulation} villagers${unassigned}`;
+  const fireDisabled = plan.fireDisabledHomes > 0
+    ? ` · ${plan.fireDisabledHomes} fire-disabled ${plan.fireDisabledHomes === 1 ? 'home' : 'homes'} / ${plan.fireDisabledResidents} ${plan.fireDisabledResidents === 1 ? 'resident' : 'residents'} outside parish finance until recovery`
+    : '';
+  return `${plan.assignedHomes} operational homes · ${plan.assignedPopulation} villagers${unassigned}${fireDisabled}`;
 }
 
 function formatDays(days: number): string {

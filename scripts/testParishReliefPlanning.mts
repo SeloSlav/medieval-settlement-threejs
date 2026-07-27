@@ -11,10 +11,16 @@ import {
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../src/economy/regionalMarket.ts';
+import { DEFAULT_PARISH_POLICY } from '../src/economy/chapelParish.ts';
+import { buildVillageAdminReadout } from '../src/economy/villageAdminReadout.ts';
 import {
   chapelPoorReliefDaysUntilDispatch,
   computeSettlementParishReliefPlan,
+  formatChapelDailyAlms,
+  formatChapelParishTerritory,
   formatChapelPoorRelief,
+  formatSettlementParishCoverage,
+  formatSettlementParishRelief,
   isChapelPoorReliefDue,
 } from '../src/economy/settlementParishRelief.ts';
 import { findServingChapel } from '../src/logistics/landmarkAccess.ts';
@@ -25,6 +31,7 @@ import type {
   GameState,
   ResidenceState,
 } from '../src/resources/types.ts';
+import type { WorldQueries } from '../src/resources/WorldQueries.ts';
 import { gameClock } from '../src/world/gameCalendar.ts';
 
 const dayTicks = Math.round(CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS);
@@ -418,6 +425,135 @@ assert.equal(
 );
 assert.equal(marketFireFallback.parishes.get('chapel')?.status, 'ready');
 
+const chapelFireState = state({
+  buildings: [chapel('burned-chapel', 0, { gold: 175 }), market('market', 10)],
+  homes: [poor],
+});
+chapelFireState.fireIncidents.set('chapel-fire', {
+  id: 'chapel-fire',
+  targetKind: 'building',
+  targetId: 'burned-chapel',
+} as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+const chapelFirePlan = computeSettlementParishReliefPlan({
+  state: chapelFireState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: gameClock(mondayTick),
+  sabbathObserved: false,
+});
+const burnedParish = chapelFirePlan.parishes.get('burned-chapel');
+assert.equal(chapelFirePlan.completedChapels, 1);
+assert.equal(chapelFirePlan.activeParishes, 0);
+assert.equal(chapelFirePlan.fireDisabledChapels, 1);
+assert.equal(chapelFirePlan.reconstructingChapels, 0);
+assert.equal(chapelFirePlan.structurallyQuarantinedCofferGold, 175);
+assert.equal(chapelFirePlan.firstUnavailableChapelId, 'burned-chapel');
+assert.equal(burnedParish?.status, 'fire-disabled');
+assert.equal(burnedParish?.assignedHomes, 0);
+assert.match(formatChapelParishTerritory(burnedParish!), /structural recovery/);
+assert.match(formatChapelDailyAlms(burnedParish!), /coffer sealed/);
+assert.match(formatSettlementParishCoverage(chapelFirePlan), /fire-disabled/);
+assert.match(formatSettlementParishRelief(chapelFirePlan), /175.0 sealed gold/);
+
+const reconstructionPlan = computeSettlementParishReliefPlan({
+  state: state({
+    buildings: [
+      chapel('reconstructing-chapel', 0, {
+        constructionComplete: false,
+        gold: 90,
+      }),
+    ],
+    homes: [comfortable],
+  }),
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: gameClock(mondayTick),
+  sabbathObserved: false,
+});
+assert.equal(reconstructionPlan.completedChapels, 0);
+assert.equal(reconstructionPlan.activeParishes, 0);
+assert.equal(reconstructionPlan.fireDisabledChapels, 0);
+assert.equal(reconstructionPlan.reconstructingChapels, 1);
+assert.equal(reconstructionPlan.structurallyQuarantinedCofferGold, 90);
+assert.equal(
+  reconstructionPlan.firstUnavailableChapelId,
+  'reconstructing-chapel',
+);
+assert.match(formatSettlementParishRelief(reconstructionPlan), /90.0 sealed gold/);
+
+const fireDisabledPoor = home('fire-disabled-poor', 18, {
+  householdWealth: 0,
+});
+const fireDisabledAbandoned = home('fire-disabled-abandoned', 24, {
+  abandoned: true,
+  population: 0,
+  householdWealth: 0,
+});
+const householdFireState = state({
+  buildings: [chapel('chapel', 0), market('market', 10)],
+  homes: [comfortable, fireDisabledPoor, fireDisabledAbandoned],
+});
+for (const residence of [fireDisabledPoor, fireDisabledAbandoned]) {
+  householdFireState.fireIncidents.set(`fire-${residence.id}`, {
+    id: `fire-${residence.id}`,
+    targetKind: 'residence',
+    targetId: residence.id,
+  } as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+}
+const householdFirePlan = computeSettlementParishReliefPlan({
+  state: householdFireState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: gameClock(mondayTick),
+  sabbathObserved: false,
+});
+const operationalParish = householdFirePlan.parishes.get('chapel');
+assert.equal(operationalParish?.assignedHomes, 1);
+assert.equal(operationalParish?.assignedPopulation, comfortable.population);
+assert.equal(operationalParish?.almsRecipientId, comfortable.id);
+assert.equal(operationalParish?.reliefHomes, 0);
+assert.equal(operationalParish?.targetResidenceId, null);
+assert.equal(operationalParish?.status, 'no-relief-home');
+assert.equal(householdFirePlan.fireDisabledHomes, 2);
+assert.equal(householdFirePlan.fireDisabledResidents, fireDisabledPoor.population);
+assert.equal(householdFirePlan.fireDisabledReliefHomes, 1);
+assert.equal(householdFirePlan.unassignedHomes, 0);
+assert.match(
+  formatSettlementParishCoverage(householdFirePlan),
+  /2 fire-disabled homes/,
+);
+
+const adminFireState = state({
+  buildings: [
+    chapel('safe-chapel', 0, { gold: 25 }),
+    chapel('burned-chapel', 100, { gold: 175 }),
+  ],
+  homes: [comfortable, fireDisabledPoor],
+});
+adminFireState.fireIncidents.set('admin-chapel-fire', {
+  id: 'admin-chapel-fire',
+  targetKind: 'building',
+  targetId: 'burned-chapel',
+} as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+adminFireState.fireIncidents.set('admin-home-fire', {
+  id: 'admin-home-fire',
+  targetKind: 'residence',
+  targetId: fireDisabledPoor.id,
+} as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+const adminReadout = buildVillageAdminReadout({
+  gameState: adminFireState,
+  worldQueries: {
+    getRoadNetworkSnapshot: () => euclideanNetwork,
+  } as unknown as WorldQueries,
+  taxRate: 0.2,
+  parishPolicy: DEFAULT_PARISH_POLICY,
+});
+assert.match(
+  adminReadout.cofferBalanceLabel,
+  /25.0 gold collectable \/ 200.0 owned · 175.0 sealed pending structural recovery/,
+);
+assert.match(adminReadout.chapelTitheLabel, /gold \/ day/);
+
 const perfChapels = Array.from(
   { length: 8 },
   (_, index) => chapel(`chapel-${index}`, index * 1_000),
@@ -440,6 +576,15 @@ const perfState = state({
   buildings: [...perfChapels, ...perfMarkets],
   homes: perfHomes,
 });
+for (let index = 0; index < perfHomes.length; index += 1) {
+  if (Math.floor(index / 8) % 4 !== 0) continue;
+  const residence = perfHomes[index];
+  perfState.fireIncidents.set(`fire-${residence.id}`, {
+    id: `fire-${residence.id}`,
+    targetKind: 'residence',
+    targetId: residence.id,
+  } as GameState['fireIncidents'] extends Map<string, infer Incident> ? Incident : never);
+}
 const perfStart = performance.now();
 const perfPlan = computeSettlementParishReliefPlan({
   state: perfState,
@@ -450,12 +595,34 @@ const perfPlan = computeSettlementParishReliefPlan({
 });
 const perfMs = performance.now() - perfStart;
 assert.equal(perfPlan.activeParishes, 8);
-assert.equal(perfPlan.assignedHomes, 100_000);
-assert.equal(perfPlan.reliefHomes, 10_000);
+assert.equal(perfPlan.assignedHomes, 75_000);
+assert.equal(perfPlan.fireDisabledHomes, 25_000);
+assert.equal(
+  perfPlan.reliefHomes,
+  perfHomes.filter(
+    (residence, index) =>
+      residence.abandoned && Math.floor(index / 8) % 4 !== 0,
+  ).length,
+);
 assert.equal(perfPlan.readyParishes, 8);
 assert.ok(
   perfMs < 2_500,
-  `100,000 homes across 8 parishes and markets took ${perfMs.toFixed(1)} ms`,
+  `100,000 homes with 25,000 fire outages across 8 parishes and markets took ${perfMs.toFixed(1)} ms`,
+);
+const adminPerfStart = performance.now();
+const adminPerf = buildVillageAdminReadout({
+  gameState: perfState,
+  worldQueries: {
+    getRoadNetworkSnapshot: () => euclideanNetwork,
+  } as unknown as WorldQueries,
+  taxRate: 0.2,
+  parishPolicy: DEFAULT_PARISH_POLICY,
+});
+const adminPerfMs = performance.now() - adminPerfStart;
+assert.match(adminPerf.chapelTitheLabel, /gold \/ day/);
+assert.ok(
+  adminPerfMs < 2_500,
+  `100,000-home fire-aware tithe readout took ${adminPerfMs.toFixed(1)} ms`,
 );
 
 const serverParish = readFileSync(
@@ -497,6 +664,27 @@ const chapelInspector = readFileSync(
 assert.match(chapelInspector, /Parish territory/);
 assert.match(chapelInspector, /Monday poor relief/);
 assert.match(chapelInspector, /low auto-sweep reserve prioritizes the treasury/);
+assert.match(chapelInspector, /sealed until structural recovery/);
+
+const buildingReducers = readFileSync(
+  'server/src/reducers/buildings.rs',
+  'utf8',
+);
+assert.match(
+  buildingReducers,
+  /collect_chapel_coffer[\s\S]{0,1600}building_fire_state\(ctx, building_id\)[\s\S]{0,300}sealed coffer/,
+  'manual collection must not bypass the fire quarantine on chapel gold',
+);
+
+const worldQueries = readFileSync(
+  'src/resources/WorldQueries.ts',
+  'utf8',
+);
+assert.match(
+  worldQueries,
+  /getServingChapelForResidence[\s\S]{0,300}fireDisabledResidenceIds/,
+  'client parish claims must exclude fire-disabled residences like the server tick cache',
+);
 
 const townHallInspector = readFileSync(
   'src/resources/inspector/townHallRenderer.ts',
@@ -505,7 +693,18 @@ const townHallInspector = readFileSync(
 assert.match(townHallInspector, /Parish territories/);
 assert.match(townHallInspector, /Daily parish alms/);
 assert.match(townHallInspector, /Monday poor relief/);
+assert.match(townHallInspector, /Parish structural outages/);
+assert.match(townHallInspector, /coffer gold sealed until structural recovery/);
+
+const residenceInspector = readFileSync(
+  'src/resources/inspector/residenceRenderer.ts',
+  'utf8',
+);
+assert.match(
+  residenceInspector,
+  /no tithe, alms, or relief claim until structural recovery/,
+);
 
 console.log(
-  `parish relief territory, cadence, blocker, and performance tests passed (${perfMs.toFixed(1)} ms for 100,000 homes / 8 parishes / 8 markets)`,
+  `parish relief territory, fire quarantine, cadence, blocker, and performance tests passed (${perfMs.toFixed(1)} ms relief + ${adminPerfMs.toFixed(1)} ms tithe for 100,000 homes / 25,000 outages / 8 parishes / 8 markets)`,
 );

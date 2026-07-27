@@ -1613,6 +1613,18 @@ export function renderTownHallInspector(
     parishReliefPlan?.firstAttentionResidenceId == null
       ? ''
       : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${parishReliefPlan.firstAttentionResidenceId}" aria-label="Inspect first blocked parish-relief household">Inspect</button>`;
+  const parishFireInspectButton =
+    parishReliefPlan?.firstUnavailableChapelId == null
+      ? ''
+      : ` <button type="button" class="inspector-jump-button" data-inspect-building="${parishReliefPlan.firstUnavailableChapelId}" aria-label="Inspect first structurally unavailable chapel">Inspect outage</button>`;
+  const parishFireOutageRow = parishReliefPlan == null
+    || (
+      parishReliefPlan.fireDisabledChapels === 0
+      && parishReliefPlan.reconstructingChapels === 0
+      && parishReliefPlan.fireDisabledHomes === 0
+    )
+    ? ''
+    : `<li><span>Parish structural outages</span><span>${parishReliefPlan.fireDisabledChapels} fire-disabled + ${parishReliefPlan.reconstructingChapels} reconstructing ${parishReliefPlan.fireDisabledChapels + parishReliefPlan.reconstructingChapels === 1 ? 'chapel' : 'chapels'} + ${parishReliefPlan.fireDisabledHomes} ${parishReliefPlan.fireDisabledHomes === 1 ? 'home' : 'homes'} outside parish finance · ${parishReliefPlan.structurallyQuarantinedCofferGold.toFixed(1)} coffer gold sealed until structural recovery${parishFireInspectButton}</span></li>`;
   const specialtyExportPlan = computeSettlementSpecialtyExportPlan({
     state: context.gameState,
     marketRate: marketState.specialtyPriceMult,
@@ -1681,6 +1693,7 @@ export function renderTownHallInspector(
     (candidate) =>
       candidate.kind === 'monastery'
       && candidate.constructionComplete !== false
+      && !fireDisabled.has(candidate.id)
       && monasteryLinkedToChapel(candidate, growthChapels, roadPathDistance)
       && context.worldQueries.findNearestRoadLinkedBuilding(
         candidate,
@@ -1766,6 +1779,7 @@ export function renderTownHallInspector(
       <li><span>Chapel tithe</span><span>${readout.chapelTitheLabel}</span></li>
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>
       <li><span>Parish coffers</span><span>${readout.cofferBalanceLabel}</span></li>
+      ${parishFireOutageRow}
       <li><span>Parish ledger</span><span>${readout.parishLedgerLabel}</span></li>
       ${parishReliefPlan == null ? '' : `
       <li><span>Parish territories</span><span>${formatSettlementParishCoverage(parishReliefPlan)}</span></li>

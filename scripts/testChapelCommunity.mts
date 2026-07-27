@@ -88,6 +88,24 @@ assert.match(
   /ctx\.db\.building\(\)\.id\(\)\.find\(&monastery_id\)/,
   'the selected route must still reload fresh monastery stock before crediting it',
 );
+const simulationReducer = readFileSync(
+  new URL('../server/src/reducers/simulation.rs', import.meta.url),
+  'utf8',
+);
+assert.match(
+  simulationReducer,
+  /for building in ctx\.db\.building\(\)\.iter\(\)[\s\S]{0,400}tick\.building_disabled_by_fire\(ctx, building\.id\)[\s\S]{0,500}"chapel" => chapel_ids\.push[\s\S]{0,100}"monastery" => monastery_ids\.push/,
+  'automatic parish finance and monastery tithe routes must receive only fire-safe structures',
+);
+const townHallInspector = readFileSync(
+  new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
+  'utf8',
+);
+assert.match(
+  townHallInspector,
+  /candidate\.kind === 'monastery'[\s\S]{0,160}!fireDisabled\.has\(candidate\.id\)[\s\S]{0,160}monasteryLinkedToChapel/,
+  'damaged monasteries must not promise hospitality or tithe-linked service in the Town Hall',
+);
 
 const householdCount = 100_000;
 const monasteryCount = 128;
