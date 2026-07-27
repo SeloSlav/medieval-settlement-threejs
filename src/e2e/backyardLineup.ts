@@ -29,11 +29,14 @@ root.prepend(renderer.domElement);
 const plants = await loadBackyardPlantCatalog(renderer.getMaxAnisotropy());
 windStrength.value = 0.85;
 
-const specs = [
+const focusFlower = new URLSearchParams(window.location.search).get('view') === 'flower-close';
+const allSpecs = [
   { kind: 'apple_orchard', label: 'Apple orchard' },
   { kind: 'cherry_orchard', label: 'Cherry orchard' },
   { kind: 'flower_garden', label: 'Flower garden' },
 ] as const;
+const specs = focusFlower ? allSpecs.slice(2) : allSpecs;
+if (focusFlower) labels.style.gridTemplateColumns = '1fr';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa6b29a);
@@ -42,6 +45,7 @@ const sun = new THREE.DirectionalLight(0xfff0cf, 3.4);
 sun.position.set(-9, 16, 11);
 scene.add(sun);
 
+let focusedFlowerY = 0.28;
 const gardens = specs.map((spec, index) => {
   const garden = createBackyardGardenMesh(spec.kind, {
     width: 6.2,
@@ -49,7 +53,17 @@ const gardens = specs.map((spec, index) => {
     seed: 4271 + index * 97,
     plants,
   });
-  garden.position.x = (index - 1) * 7.2;
+  garden.position.x = focusFlower ? 0 : (index - 1) * 7.2;
+  if (focusFlower) {
+    const cottageFlower = garden.children.find((child) => child.name.startsWith('Swaying cottage flower'));
+    if (cottageFlower) {
+      garden.position.x = -cottageFlower.position.x;
+      garden.position.z = -cottageFlower.position.z;
+      for (const child of garden.children) child.visible = child === cottageFlower;
+      const headAnchor = cottageFlower.children.find((child) => child.type === 'Group');
+      focusedFlowerY = cottageFlower.position.y + (headAnchor?.position.y ?? focusedFlowerY);
+    }
+  }
   scene.add(garden);
 
   const cell = document.createElement('div');
@@ -70,9 +84,14 @@ ground.rotation.x = -Math.PI * 0.5;
 ground.position.y = -0.04;
 scene.add(ground);
 
-const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-camera.position.set(0, 7.2, 16.5);
-camera.lookAt(0, 1.8, 0);
+const camera = new THREE.PerspectiveCamera(38, 1, focusFlower ? 0.01 : 0.1, 100);
+if (focusFlower) {
+  camera.position.set(0, focusedFlowerY + 0.3, 0.38);
+  camera.lookAt(0, focusedFlowerY, 0);
+} else {
+  camera.position.set(0, 7.2, 16.5);
+  camera.lookAt(0, 1.8, 0);
+}
 
 let running = true;
 function render(): void {

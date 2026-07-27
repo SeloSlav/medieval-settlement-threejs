@@ -146,6 +146,11 @@ pub struct PlayerResources {
     /// to reach the floor. Appended for additive save compatibility.
     #[default(0)]
     pub labor_steward_reserve: u32,
+    /// New settlements opt into physical founding stores and count the first
+    /// housed residents as rehoused founders rather than extra immigrants.
+    /// False preserves legacy saves that began with an abstract reserve.
+    #[default(false)]
+    pub physical_founding_site_enabled: bool,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -249,7 +254,7 @@ pub struct Building {
     pub construction_reserved_timber: f64,
     #[default(0.0)]
     pub construction_reserved_stone: f64,
-    /// Reserved portions backed by the abstract founding treasury instead of a building store.
+    /// Reserved portions backed by the legacy pre-founding-site ledger.
     #[default(0.0)]
     pub construction_treasury_timber: f64,
     #[default(0.0)]
@@ -345,6 +350,11 @@ pub struct Building {
     /// remain manual-only, and farmsteads must still collect the grain by road.
     #[default(0u8)]
     pub marketplace_seed_grain_target: u8,
+    /// Only meaningful for the automatically created founders' camp. Its
+    /// shelters remain visible while any of the original settlers are unhoused;
+    /// the stockyard can persist after the tents are struck.
+    #[default(false)]
+    pub founding_shelter_active: bool,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

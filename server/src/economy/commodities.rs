@@ -178,6 +178,13 @@ pub fn credit_treasury_commodity(
     let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
         return;
     };
+    if treasury.physical_founding_site_enabled {
+        if let Some(mut depot) = physical_resource_depot(ctx, owner, kind) {
+            add_building_commodity(&mut depot, kind, amount);
+            ctx.db.building().id().update(depot);
+            return;
+        }
+    }
     match kind {
         CommodityKind::Firewood => treasury.firewood += amount,
         CommodityKind::Water => treasury.water += amount,
@@ -196,4 +203,49 @@ pub fn credit_treasury_commodity(
         CommodityKind::Cloth => treasury.cloth += amount,
     }
     ctx.db.player_resources().owner().update(treasury);
+}
+
+fn physical_resource_depot(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    kind: CommodityKind,
+) -> Option<Building> {
+    ctx.db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| {
+            building.construction_complete
+                && (building.kind == "founders_camp"
+                    || building_commodity_cap(&building.kind, kind) > 0.0
+                    || building.kind == "town_hall")
+        })
+        .min_by_key(|building| match building.kind.as_str() {
+            "founders_camp" => (0_u8, building.id),
+            "village_storehouse" if building_commodity_cap(&building.kind, kind) > 0.0 => {
+                (1, building.id)
+            }
+            "town_hall" => (3, building.id),
+            _ => (2, building.id),
+        })
+}
+
+fn add_building_commodity(building: &mut Building, kind: CommodityKind, amount: f64) {
+    match kind {
+        CommodityKind::Firewood => building.firewood += amount,
+        CommodityKind::Water => building.water += amount,
+        CommodityKind::Food => building.food += amount,
+        CommodityKind::Timber => building.timber += amount,
+        CommodityKind::Grain => building.grain += amount,
+        CommodityKind::Flour => building.flour += amount,
+        CommodityKind::Ale => building.ale += amount,
+        CommodityKind::PreservedFood => building.preserved_food += amount,
+        CommodityKind::Honey => building.honey += amount,
+        CommodityKind::Wine => building.wine += amount,
+        CommodityKind::Stone => building.stone += amount,
+        CommodityKind::Ironwork => building.ironwork += amount,
+        CommodityKind::Polearms => building.polearms += amount,
+        CommodityKind::Wool => building.wool += amount,
+        CommodityKind::Cloth => building.cloth += amount,
+    }
 }

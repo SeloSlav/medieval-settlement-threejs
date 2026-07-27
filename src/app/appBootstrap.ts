@@ -61,10 +61,6 @@ import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts
 import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
 import { DEFAULT_MONASTERY_POLICY } from '../economy/monasteryPolicy.ts';
 import { beginNewWorld, resolveWorldGenerationSettings } from './worldBootstrapFlow.ts';
-import {
-  syncBuildingTerrainLayout,
-  syncPreviewTerrainPads,
-} from './placedBuildingTerrainSync.ts';
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { VillagerInspector } from '../ui/VillagerInspector.ts';
@@ -409,11 +405,6 @@ export async function bootstrapAppSession(
       return countTreesNearBuilding(liveContext.gameState, registry, x, z, radius).matureTrees;
     },
     getRoadNetwork: () => roadNetwork,
-    onPreviewChange: (preview) => {
-      syncBuildingTerrainLayout(sceneManager, liveContext.gameState);
-      syncPreviewTerrainPads(sceneManager, liveContext.gameState, preview);
-      bridge.syncToolbar();
-    },
     onModeChanged: () => bridge.syncToolbar(),
     onPlacementRejected: (reason) => {
       toastManager?.showMessageId(buildingPlacementReasonToToastId(reason), { variant: 'error' });

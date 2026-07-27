@@ -427,6 +427,41 @@ pub struct BuildingDef {
     pub sim_kind: Option<BuildingSimKind>,
 }
 
+const FOUNDERS_CAMP: BuildingDef = BuildingDef {
+    kind: "founders_camp",
+    cost_timber: 0.0,
+    cost_stone: 0.0,
+    storage_timber: 320.0,
+    storage_firewood: 160.0,
+    storage_stone: 280.0,
+    storage_water: 120.0,
+    storage_food: 160.0,
+    storage_grain: 160.0,
+    storage_flour: 120.0,
+    storage_ale: 80.0,
+    storage_preserved_food: 120.0,
+    storage_honey: 80.0,
+    storage_wine: 80.0,
+    storage_wool: 120.0,
+    storage_cloth: 80.0,
+    storage_ironwork: 80.0,
+    storage_polearms: 80.0,
+    accepts_labor: false,
+    max_labor: 0,
+    work_radius: 0.0,
+    action_interval: 0.0,
+    pick_radius: 8.0,
+    requires_road: false,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: None,
+};
+
 const LUMBER_MILL: BuildingDef = BuildingDef {
     kind: "lumber_mill",
     cost_timber: 45.0,
@@ -1408,6 +1443,7 @@ const VINEYARD: BuildingDef = BuildingDef {
 };
 
 const ALL: &[BuildingDef] = &[
+    FOUNDERS_CAMP,
     LUMBER_MILL,
     REFORESTER,
     WOODCUTTERS_LODGE,

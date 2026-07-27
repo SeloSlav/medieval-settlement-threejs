@@ -69,9 +69,10 @@ import {
   isSundayMassTime,
 } from './chapelMass.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
+import { STARTING_POPULATION } from '../generated/gameBalance.ts';
 
 type VillagerMode = VillagerRenderMode;
-type VillagerRole = 'resident' | 'worker';
+type VillagerRole = 'founder' | 'resident' | 'worker';
 type VillagerRoutinePhase =
   | 'work'
   | 'commuting_to_work'
@@ -169,6 +170,7 @@ export class VillagerRenderer {
   private residences = new Map<string, ResidenceState>();
   private buildings = new Map<string, BuildingState>();
   private workerTargets = new Map<string, WorkerTarget[]>();
+  private foundingCamp: BuildingState | null = null;
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
   private laborPaused = false;
@@ -255,6 +257,12 @@ export class VillagerRenderer {
     const pastures = [...options.pastures];
     this.residences = new Map(residences.map((residence) => [residence.id, residence]));
     this.buildings = new Map(buildings.map((building) => [building.id, building]));
+    this.foundingCamp = buildings.find(
+      (building) =>
+        building.kind === 'founders_camp'
+        && building.constructionComplete !== false
+        && building.foundingShelterActive !== false,
+    ) ?? null;
     this.roadNetwork = options.roadNetwork;
 
     const roster = allocateProductionWorkers(residences, buildings);
@@ -451,6 +459,79 @@ export class VillagerRenderer {
       }
     }
 
+    const housedPopulation = residences
+      .filter((residence) => !residence.abandoned)
+      .reduce((sum, residence) => sum + residence.population, 0);
+    const workingFounders = roster.assignments.filter(
+      (assignment) => assignment.personIdentity.startsWith('starting-population:'),
+    ).length;
+    const foundingCamp = this.foundingCamp;
+    const idleFounders = foundingCamp
+      ? Math.max(0, STARTING_POPULATION - housedPopulation - workingFounders)
+      : 0;
+    for (let slotIndex = 0; slotIndex < idleFounders; slotIndex += 1) {
+      if (!foundingCamp) break;
+      const founderIndex = workingFounders + slotIndex;
+      const personIdentity = `starting-population:${founderIndex}`;
+      const id = `founder-camp:${founderIndex}`;
+      nextIds.add(id);
+      const appearanceSeed = pickVillagerAppearanceSeed(personIdentity, 0);
+      let agent = this.agents.get(id);
+      if (!agent) {
+        const colors = pickVillagerColors(appearanceSeed);
+        agent = {
+          id,
+          personIdentity,
+          role: 'founder',
+          residenceId: null,
+          workplaceId: null,
+          workplaceSlot: -1,
+          slotIndex,
+          mode: 'idle',
+          routinePhase: 'home_outdoors',
+          pathPurpose: null,
+          path: [],
+          pathDistance: 0,
+          pathCursor: 0,
+          simPathCursor: 0,
+          displayPathCursor: 0,
+          workActivity: null,
+          workTarget: null,
+          workStopDistance: 0,
+          workRemaining: 0,
+          workPerformed: false,
+          idleRemaining: pickIdleDuration(appearanceSeed),
+          walkSpeed: pickWalkSpeed(appearanceSeed),
+          currentMoveSpeed: 0,
+          massChapelId: null,
+          appearanceSeed,
+          modelVariant: pickVillagerModelVariant(appearanceSeed),
+          tunicColor: colors.tunic,
+          skinColor: colors.skin,
+          hairColor: pickVillagerHairColor(appearanceSeed),
+          idleOffset: pickIdleOffset(foundingCamp.id, founderIndex),
+          pathSeed: appearanceSeed ^ 0x9e3779b9,
+          idleDirty: true,
+          nearestEdge: null,
+          x: foundingCamp.x,
+          z: foundingCamp.z,
+          y: 0,
+          yaw: 0,
+          simAccumulator: 0,
+          frozen: false,
+        };
+        this.agents.set(id, agent);
+      } else {
+        agent.personIdentity = personIdentity;
+        agent.role = 'founder';
+        agent.residenceId = null;
+        agent.workplaceId = null;
+        agent.workplaceSlot = -1;
+        agent.slotIndex = slotIndex;
+        agent.idleDirty = true;
+      }
+    }
+
     for (const id of [...this.agents.keys()]) {
       if (nextIds.has(id)) continue;
       this.agents.delete(id);
@@ -461,6 +542,8 @@ export class VillagerRenderer {
       if (agent.role === 'worker' && agent.routinePhase === 'work') {
         const building = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
         if (building) this.placeWorkerIdle(agent, building);
+      } else if (agent.role === 'founder') {
+        if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);
       } else {
         const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
         if (residence) this.placeIdle(agent, residence);
@@ -486,6 +569,11 @@ export class VillagerRenderer {
       if (agent.role === 'worker') {
         const workplace = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
         if (!workplace || workplace.assignedLabor <= agent.workplaceSlot) {
+          agent.frozen = true;
+          continue;
+        }
+      } else if (agent.role === 'founder') {
+        if (!this.foundingCamp) {
           agent.frozen = true;
           continue;
         }
@@ -592,9 +680,11 @@ export class VillagerRenderer {
         .map((part) => part[0] ?? '')
         .join('')
         .toLocaleUpperCase(),
-      eyebrow: agent.role === 'worker'
-        ? `Worker · ${onDuty ? 'On duty' : 'Off duty'}`
-        : 'Villager · Available labor',
+      eyebrow: agent.role === 'founder'
+        ? 'Founder · Awaiting housing'
+        : agent.role === 'worker'
+          ? `Worker · ${onDuty ? 'On duty' : 'Off duty'}`
+          : 'Villager · Available labor',
       occupation: villagerOccupation(
         workplace?.kind ?? null,
         workplace?.constructionComplete === false,
@@ -606,7 +696,9 @@ export class VillagerRenderer {
         ? `Tier ${residence.tier} home · ${residence.population} ${
           residence.population === 1 ? 'resident' : 'residents'
         }`
-        : 'No fixed household',
+        : agent.role === 'founder' || this.foundingCamp
+          ? "Founders' camp · no fixed household"
+          : 'No fixed household',
       crew: workplace
         ? `${workplace.assignedLabor} / ${getBuildingDefinition(workplace.kind).maxLabor} assigned`
         : 'Free labor pool',
@@ -626,6 +718,7 @@ export class VillagerRenderer {
       const workplace = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
       return Boolean(workplace && workplace.assignedLabor > agent.workplaceSlot);
     }
+    if (agent.role === 'founder') return this.foundingCamp !== null;
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     return Boolean(residence && !residence.abandoned && residence.population > 0);
   }
@@ -641,6 +734,8 @@ export class VillagerRenderer {
       if (agent.role === 'worker') {
         const workplace = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
         if (!workplace || workplace.assignedLabor <= agent.workplaceSlot) continue;
+      } else if (agent.role === 'founder') {
+        if (!this.foundingCamp) continue;
       } else {
         const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
         if (!residence || residence.abandoned || residence.population <= 0) continue;
@@ -942,6 +1037,10 @@ export class VillagerRenderer {
     }
     if (agent.routinePhase === 'returning_from_mass') return false;
 
+    if (agent.role === 'founder') {
+      return this.transitionToHomeState(agent, 'home_outdoors');
+    }
+
     if (agent.role === 'worker') {
       const shouldWork = this.clock.isWorkHours && !this.laborPaused;
       if (shouldWork) {
@@ -1020,13 +1119,18 @@ export class VillagerRenderer {
 
   private beginMassReturn(agent: VillagerAgent): boolean {
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
-    if (!residence) {
+    const destination = residence
+      ? residenceDoorPosition(residence)
+      : this.foundingCamp
+        ? this.foundingCampRestPosition(agent, this.foundingCamp)
+        : null;
+    if (!destination) {
       this.completeMassReturn(agent);
       return true;
     }
     const path = pickWorkerCommutePath(
       { x: agent.x, z: agent.z },
-      residenceDoorPosition(residence),
+      destination,
       this.roadNetwork,
     );
     if (!path || !this.beginJourney(agent, path, 'return_from_mass')) {
@@ -1058,13 +1162,17 @@ export class VillagerRenderer {
 
   private beginWorkerReturnHome(agent: VillagerAgent): boolean {
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
-    if (!residence) {
+    const destination = residence
+      ? residenceDoorPosition(residence)
+      : this.foundingCamp
+        ? this.foundingCampRestPosition(agent, this.foundingCamp)
+        : null;
+    if (!destination) {
       this.clearPath(agent);
       agent.routinePhase = 'indoors';
       return true;
     }
 
-    const destination = residenceDoorPosition(residence);
     const path = pickWorkerCommutePath(
       { x: agent.x, z: agent.z },
       destination,
@@ -1083,6 +1191,7 @@ export class VillagerRenderer {
     this.clearPath(agent);
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     if (residence) this.placeIdle(agent, residence);
+    else if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);
     agent.routinePhase = this.clock
       ? householdMemberHomeState(agent.personIdentity, this.clock)
       : 'home_outdoors';
@@ -1125,6 +1234,7 @@ export class VillagerRenderer {
     agent.routinePhase = homeState;
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     if (residence) this.placeIdle(agent, residence);
+    else if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
     return true;
   }
@@ -1265,6 +1375,25 @@ export class VillagerRenderer {
     agent.z = door.z + offsetZ;
     agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
     agent.yaw = residence.yaw + agent.idleOffset.yaw;
+  }
+
+  private foundingCampRestPosition(
+    agent: VillagerAgent,
+    camp: BuildingState,
+  ): PointXZ & { yaw: number } {
+    return {
+      x: camp.x + agent.idleOffset.x * 2.6,
+      z: camp.z + 0.4 + agent.idleOffset.z * 2.6,
+      yaw: agent.idleOffset.yaw,
+    };
+  }
+
+  private placeFounderIdle(agent: VillagerAgent, camp: BuildingState): void {
+    const rest = this.foundingCampRestPosition(agent, camp);
+    agent.x = rest.x;
+    agent.z = rest.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = rest.yaw;
   }
 
   private placeWorkerIdle(agent: VillagerAgent, building: BuildingState): void {
@@ -1448,6 +1577,7 @@ function describeVillagerActivity(
         ? `Working around ${workplaceLabel}`
         : `Working at ${workplaceLabel}`;
     case 'home_outdoors':
+      if (agent.role === 'founder') return "Waiting at the founders' camp";
       return agent.mode === 'walk' ? 'Walking near home' : 'Outside at home';
     case 'indoors':
       return 'At home';

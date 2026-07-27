@@ -483,6 +483,39 @@
     }
   },
   "buildings": {
+    "founders_camp": {
+      "label": "Founders' camp",
+      "cost": { "timber": 0, "stone": 0 },
+      "storage": {
+        "timber": 320,
+        "firewood": 160,
+        "stone": 280,
+        "water": 120,
+        "food": 160,
+        "grain": 160,
+        "flour": 120,
+        "ale": 80,
+        "preservedFood": 120,
+        "honey": 80,
+        "wine": 80,
+        "ironwork": 80,
+        "polearms": 80,
+        "wool": 120,
+        "cloth": 80
+      },
+      "workRadius": 0,
+      "pickRadius": 8,
+      "harvestInterval": 0,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 0,
+      "acceptsLabor": false,
+      "requiresRoad": false,
+      "facesRoad": false,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
+    },
     "lumber_mill": {
       "label": "Lumber mill",
       "cost": { "timber": 45, "stone": 15 },

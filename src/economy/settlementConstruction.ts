@@ -541,6 +541,7 @@ function statusForSite(input: {
   timber: ConstructionMaterialQueue;
   stone: ConstructionMaterialQueue;
   hasRoadAccess: () => boolean;
+  hasOffroadFoundingSupply: boolean;
 }): ConstructionQueueSiteStatus {
   const {
     building,
@@ -567,6 +568,7 @@ function statusForSite(input: {
   if (
     BUILDING_DEFINITIONS[building.kind].requiresRoad
     && !hasRoadAccess()
+    && !input.hasOffroadFoundingSupply
     && timber.awaitingPickup + stone.awaitingPickup > EPSILON
   ) {
     return 'off-road';
@@ -652,6 +654,12 @@ export function computeSettlementConstructionPlan(input: {
   let fireBlockedTimberStock = 0;
   let fireBlockedStoneStock = 0;
   let firstFireDisabledSourceId: string | null = null;
+  const foundingStockyard = [...input.state.buildings.values()].find(
+    (building) =>
+      building.kind === 'founders_camp'
+      && building.constructionComplete !== false
+      && !fireDisabled.has(building.id),
+  );
 
   for (const building of input.state.buildings.values()) {
     if (building.constructionComplete !== false) {
@@ -754,6 +762,13 @@ export function computeSettlementConstructionPlan(input: {
       timber,
       stone,
       hasRoadAccess: () => input.hasRoadAccess?.(building) ?? true,
+      hasOffroadFoundingSupply: Boolean(
+        foundingStockyard
+        && (
+          (timber.awaitingPickup > EPSILON && foundingStockyard.timber > EPSILON)
+          || (stone.awaitingPickup > EPSILON && foundingStockyard.stone > EPSILON)
+        ),
+      ),
     });
     statusCounts[status] += 1;
     if (

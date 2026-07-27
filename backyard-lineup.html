@@ -29,6 +29,14 @@
         background: rgba(28,29,22,.82); color: #f0e7d2; text-align: center;
         font-family: Georgia, serif; font-size: 15px; box-shadow: 0 2px 7px rgba(0,0,0,.18);
       }
+      .serve-notice {
+        position: absolute; inset: 50% auto auto 50%; z-index: 3; width: min(560px, calc(100% - 40px));
+        translate: -50% -50%; padding: 24px 26px; border: 1px solid rgba(224,192,120,.4);
+        border-radius: 6px; background: rgba(28,29,22,.96); color: #eee8dc;
+        box-shadow: 0 14px 40px rgba(0,0,0,.35); text-align: center;
+      }
+      .serve-notice p { margin: 0 0 14px; color: #cfc4ad; line-height: 1.5; }
+      .serve-notice a { color: #f2ce7c; font-weight: 700; }
     </style>
   </head>
   <body>
@@ -37,6 +45,19 @@
       <p>Branch, foliage, flower, and fruit attachment check</p>
     </header>
     <main id="lineup-root"><div id="labels" aria-hidden="true"></div></main>
+    <script>
+      if (window.location.protocol === 'file:') {
+        window.addEventListener('DOMContentLoaded', () => {
+          const notice = document.createElement('div');
+          notice.className = 'serve-notice';
+          notice.innerHTML = `
+            <p>This WebGPU lineup uses TypeScript modules and must be opened through the local Vite server.</p>
+            <a href="http://127.0.0.1:5173/backyard-lineup.html">Open the working lineup</a>
+          `;
+          document.querySelector('#lineup-root')?.append(notice);
+        });
+      }
+    </script>
     <script type="module" src="/src/e2e/backyardLineup.ts"></script>
   </body>
 </html>

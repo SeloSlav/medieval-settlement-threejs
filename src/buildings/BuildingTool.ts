@@ -10,9 +10,7 @@ import {
   validateBuildingPlacement,
 } from './BuildingPlacementValidation.ts';
 import type { BuildingMarkers } from './BuildingMarkers.ts';
-import type { BuildingTerrainSource } from './BuildingTerrainLayout.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
-import { getBuildingExtent } from './buildingExtents.ts';
 import {
   buildingCostWithCarpenterSupport,
   hasRoadLinkedCarpenter,
@@ -38,6 +36,7 @@ type BuildingPlacementRedoEntry = {
 const BUILDING_POSITION_TOLERANCE = 0.75;
 const BUILDING_SYNC_WAIT_MS = 2000;
 const BUILDING_SYNC_POLL_MS = 50;
+const PREVIEW_VALIDATION_INTERVAL_MS = 110;
 
 function isTypingTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
@@ -57,7 +56,6 @@ type BuildingToolOptions = {
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number;
   getRoadNetwork?: () => RoadNetwork;
-  onPreviewChange?: (preview: BuildingTerrainSource | null) => void;
   onModeChanged: () => void;
   onPlacementRejected?: (reason: BuildingPlacementFailureReason) => void;
   onPlacementFailed?: (message: string) => void;
@@ -75,11 +73,12 @@ export class BuildingTool {
   private pointerDirty = false;
   private lastPreviewX = Number.NaN;
   private lastPreviewZ = Number.NaN;
+  private lastValidatedX = Number.NaN;
+  private lastValidatedZ = Number.NaN;
   private lastPreviewValidation: BuildingPlacementResult | null = null;
-  private lastTerrainPreviewX = Number.NaN;
-  private lastTerrainPreviewZ = Number.NaN;
-  private readonly previewMoveThreshold = 0.35;
-  private readonly terrainPreviewMoveThreshold = 0.45;
+  private lastValidationTime = 0;
+  private validationDirty = false;
+  private readonly previewMoveThreshold = 0.18;
   private readonly undoStack: BuildingPlacementUndoEntry[] = [];
   private readonly redoStack: BuildingPlacementRedoEntry[] = [];
   private placementPending = false;
@@ -133,7 +132,6 @@ export class BuildingTool {
     this.resetPreviewCache();
     if (mode === 'off') {
       this.clearPreview();
-      this.options.onPreviewChange?.(null);
     } else {
       this.refreshPreview();
     }
@@ -148,13 +146,14 @@ export class BuildingTool {
     if (this.mode === 'off') return;
     if (this.options.isBlocked()) {
       this.clearPreview();
-      this.options.onPreviewChange?.(null);
       return;
     }
     if (this.pointerDirty) {
       this.pointerDirty = false;
       this.processPointerHover();
+      return;
     }
+    this.maybeRefreshDeferredValidation();
   }
 
   dispose(): void {
@@ -202,7 +201,6 @@ export class BuildingTool {
   private readonly onPointerLeave = (): void => {
     this.pointerInside = false;
     this.clearPreview();
-    this.options.onPreviewChange?.(null);
   };
 
   private readonly onPointerMove = (event: MouseEvent): void => {
@@ -216,11 +214,10 @@ export class BuildingTool {
     const point = this.options.terrainProjector.pick(this.pointerX, this.pointerY);
     if (!point) {
       this.clearPreview();
-      this.options.onPreviewChange?.(null);
       return;
     }
 
-    const resolved = this.resolvePoint(this.mode as BuildingKind, point.x, point.z);
+    const resolved = this.resolvePoint(this.mode as BuildingKind, point.x, point.z, false);
     const dx = resolved.x - this.lastPreviewX;
     const dz = resolved.z - this.lastPreviewZ;
     if (Number.isFinite(this.lastPreviewX) && Math.hypot(dx, dz) < this.previewMoveThreshold) {
@@ -245,7 +242,7 @@ export class BuildingTool {
     const point = this.options.terrainProjector.pick(event.clientX, event.clientY);
     if (!point) return;
 
-    const resolved = this.resolvePoint(this.mode, point.x, point.z);
+    const resolved = this.resolvePoint(this.mode, point.x, point.z, true);
     const validation = this.validate(this.mode, resolved.x, resolved.z);
     if (!validation.ok) {
       event.preventDefault();
@@ -265,15 +262,12 @@ export class BuildingTool {
 
   private async placeAt(kind: BuildingKind, x: number, z: number): Promise<void> {
     const beforeIds = new Set(this.options.getState().buildings.keys());
-    const pendingSource = { kind, x, z };
     this.options.markers.showPendingPlacement(kind, x, z);
-    this.options.onPreviewChange?.(pendingSource);
     try {
       await this.options.onPlaceBuilding(kind, x, z);
       this.placementPending = false;
       const buildingId = await waitForPlacedBuilding(this.options.getState, beforeIds, kind, x, z);
       this.options.markers.clearPendingPlacement();
-      this.options.onPreviewChange?.(null);
       if (buildingId) {
         this.undoStack.push({ buildingId, kind, x, z });
         this.redoStack.length = 0;
@@ -284,7 +278,6 @@ export class BuildingTool {
       this.options.onPlacementFailed?.(message);
       this.placementPending = false;
       this.options.markers.clearPendingPlacement();
-      this.options.onPreviewChange?.(null);
       if (!this.options.isBlocked()) this.setMode(kind);
       return;
     }
@@ -337,71 +330,92 @@ export class BuildingTool {
   private refreshPreview(): void {
     if (this.mode === 'off' || this.options.isBlocked()) {
       this.clearPreview();
-      this.options.onPreviewChange?.(null);
       return;
     }
 
     const point = this.options.terrainProjector.pick(this.pointerX, this.pointerY);
     if (!point) {
       this.clearPreview();
-      this.options.onPreviewChange?.(null);
       return;
     }
 
-    const resolved = this.resolvePoint(this.mode, point.x, point.z);
+    const resolved = this.resolvePoint(this.mode, point.x, point.z, false);
     this.refreshPreviewAt(new THREE.Vector3(resolved.x, point.y, resolved.z));
   }
 
   private refreshPreviewAt(point: THREE.Vector3): void {
     if (this.mode === 'off') return;
     const kind = this.mode;
-    const definition = getBuildingDefinition(kind);
-    const extent = getBuildingExtent(kind, definition.workRadius);
-    const validation = this.validateAt(point.x, point.z);
-    this.updateTerrainPreview(point.x, point.z);
+    this.lastPreviewX = point.x;
+    this.lastPreviewZ = point.z;
+    const validation = this.getPreviewValidation(point.x, point.z);
     this.options.markers.setPlacementPreview(
       kind,
       point.x,
       point.z,
-      extent?.radius ?? 0,
       validation.ok,
       true,
     );
   }
 
-  private validateAt(x: number, z: number): BuildingPlacementResult {
-    const dx = x - this.lastPreviewX;
-    const dz = z - this.lastPreviewZ;
-    if (this.lastPreviewValidation && Number.isFinite(this.lastPreviewX) && Math.hypot(dx, dz) < 0.02) {
+  private getPreviewValidation(x: number, z: number): BuildingPlacementResult {
+    const dx = x - this.lastValidatedX;
+    const dz = z - this.lastValidatedZ;
+    if (this.lastPreviewValidation && Number.isFinite(this.lastValidatedX) && Math.hypot(dx, dz) < 0.02) {
+      this.validationDirty = false;
       return this.lastPreviewValidation;
     }
 
+    this.validationDirty = true;
+    if (
+      this.lastPreviewValidation
+      && performance.now() - this.lastValidationTime < PREVIEW_VALIDATION_INTERVAL_MS
+    ) {
+      return this.lastPreviewValidation;
+    }
+    return this.runPreviewValidation(x, z);
+  }
+
+  private runPreviewValidation(x: number, z: number): BuildingPlacementResult {
     const result = this.validate(this.mode as BuildingKind, x, z);
-    this.lastPreviewX = x;
-    this.lastPreviewZ = z;
+    this.lastValidatedX = x;
+    this.lastValidatedZ = z;
     this.lastPreviewValidation = result;
+    this.lastValidationTime = performance.now();
+    this.validationDirty = false;
     return result;
+  }
+
+  private maybeRefreshDeferredValidation(): void {
+    if (
+      !this.validationDirty
+      || this.mode === 'off'
+      || !Number.isFinite(this.lastPreviewX)
+      || performance.now() - this.lastValidationTime < PREVIEW_VALIDATION_INTERVAL_MS
+    ) {
+      return;
+    }
+
+    const kind = this.mode;
+    const validation = this.runPreviewValidation(this.lastPreviewX, this.lastPreviewZ);
+    this.options.markers.setPlacementPreview(
+      kind,
+      this.lastPreviewX,
+      this.lastPreviewZ,
+      validation.ok,
+      true,
+    );
   }
 
   private resetPreviewCache(): void {
     this.pointerDirty = false;
     this.lastPreviewX = Number.NaN;
     this.lastPreviewZ = Number.NaN;
+    this.lastValidatedX = Number.NaN;
+    this.lastValidatedZ = Number.NaN;
     this.lastPreviewValidation = null;
-    this.lastTerrainPreviewX = Number.NaN;
-    this.lastTerrainPreviewZ = Number.NaN;
-  }
-
-  private updateTerrainPreview(x: number, z: number): void {
-    const dx = x - this.lastTerrainPreviewX;
-    const dz = z - this.lastTerrainPreviewZ;
-    if (Number.isFinite(this.lastTerrainPreviewX) && Math.hypot(dx, dz) < this.terrainPreviewMoveThreshold) {
-      return;
-    }
-
-    this.lastTerrainPreviewX = x;
-    this.lastTerrainPreviewZ = z;
-    this.options.onPreviewChange?.({ kind: this.mode as BuildingKind, x, z });
+    this.lastValidationTime = 0;
+    this.validationDirty = false;
   }
 
   private validate(kind: BuildingKind, x: number, z: number) {
@@ -425,7 +439,12 @@ export class BuildingTool {
     });
   }
 
-  private resolvePoint(kind: BuildingKind, x: number, z: number): { x: number; z: number } {
+  private resolvePoint(
+    kind: BuildingKind,
+    x: number,
+    z: number,
+    validateCandidates: boolean,
+  ): { x: number; z: number } {
     const state = this.options.getState();
     const resolved = resolveBuildingPlacementPoint(
       kind,
@@ -435,16 +454,20 @@ export class BuildingTool {
     );
     if (kind !== 'foragers_shed') return resolved;
 
-    const initialValidation = this.validate(kind, resolved.x, resolved.z);
-    if (initialValidation.ok || initialValidation.reason === 'insufficient_resources') {
-      return resolved;
-    }
-    for (const candidate of foragerPlacementCandidates(
+    const candidates = foragerPlacementCandidates(
       x,
       z,
       state.foragingNodes.values(),
-    )) {
-      if (this.validate(kind, candidate.x, candidate.z).ok) return candidate;
+    );
+    if (!validateCandidates) {
+      return candidates[0] ?? resolved;
+    }
+
+    for (const candidate of candidates) {
+      const validation = this.validate(kind, candidate.x, candidate.z);
+      if (validation.ok || validation.reason === 'insufficient_resources') {
+        return candidate;
+      }
     }
     return resolved;
   }

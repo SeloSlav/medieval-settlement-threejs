@@ -50,6 +50,7 @@ export const LABOR_SECTOR_LABELS: Record<LaborSector, string> = {
 };
 
 const BUILDING_LABOR_SECTORS: Record<BuildingKind, LaborSector> = {
+  founders_camp: 'logistics',
   lumber_mill: 'materials',
   reforester: 'materials',
   stone_quarry: 'materials',

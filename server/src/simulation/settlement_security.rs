@@ -9,11 +9,14 @@ use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
     guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_forecast,
-    raid_holding_vulnerability, scheduled_raid_ticks, select_raid_targets, threat_progress,
-    tower_effective_radius, RaidForecast, RaidPortableStores, RaidTargetCandidate, RaidTargetKind,
-    WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
+    raid_holding_vulnerability, raidable_treasury_timber, scheduled_raid_ticks,
+    select_raid_targets, threat_progress, tower_effective_radius, RaidForecast, RaidPortableStores,
+    RaidTargetCandidate, RaidTargetKind, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
+    SECURITY_UPDATE_INTERVAL_TICKS,
 };
-use crate::tables::{settlement_security, Building, Residence, SettlementSecurity};
+use crate::tables::{
+    settlement_security, Building, PlayerResources, Residence, SettlementSecurity,
+};
 
 use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 
@@ -140,9 +143,16 @@ fn step_owner_security(
         .filter(|incident| incident.target_kind == FIRE_TARGET_BUILDING)
         .map(|incident| incident.target_id)
         .collect::<HashSet<_>>();
+    let treasury_stores = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .map(|resources| treasury_portable_stores(&resources, &buildings))
+        .unwrap_or_default();
     let towers = staffed_watch_coverage(&buildings, &fire_disabled_buildings);
     let watch_index = WatchCoverageIndex::new(&towers);
-    let exposure = settlement_exposure(&buildings, &residences, &watch_index);
+    let exposure = settlement_exposure(&buildings, &residences, treasury_stores, &watch_index);
     let coverage = if exposure.total_value > 1e-9 {
         (exposure.protected_value / exposure.total_value).clamp(0.0, 1.0)
     } else {
@@ -204,6 +214,7 @@ fn step_owner_security(
             enemy_pressure,
             world_seed ^ sim_tick ^ population as u64,
             sim_tick,
+            treasury_stores,
         );
         state.last_raid_tick = sim_tick;
         state.last_goods_lost = goods_lost;
@@ -253,11 +264,12 @@ fn staffed_watch_coverage(
 fn settlement_exposure(
     buildings: &[Building],
     residences: &[Residence],
+    treasury_stores: RaidPortableStores,
     watch_index: &WatchCoverageIndex,
 ) -> SettlementExposure {
     let mut protected_value = 0.0;
     let mut total_value = 0.0;
-    let mut raid_targets = Vec::with_capacity(buildings.len() + residences.len());
+    let mut raid_targets = Vec::with_capacity(buildings.len() + residences.len() + 1);
     for building in buildings
         .iter()
         .filter(|building| building.kind != "watchtower")
@@ -298,6 +310,23 @@ fn settlement_exposure(
             });
         }
     }
+    let treasury_value = treasury_stores.raid_value();
+    if treasury_value > 1e-9 {
+        if let Some((kind, id, x, z)) = treasury_anchor(buildings, residences) {
+            let vulnerable_value = raid_holding_vulnerability(false, treasury_value);
+            let protected = watch_index.contains(x, z);
+            total_value += vulnerable_value;
+            if protected {
+                protected_value += vulnerable_value;
+            }
+            raid_targets.push(RaidTargetCandidate {
+                kind,
+                id,
+                protected,
+                value: treasury_value,
+            });
+        }
+    }
     SettlementExposure {
         protected_value,
         total_value,
@@ -328,6 +357,78 @@ fn building_portable_stores(building: &Building) -> RaidPortableStores {
     }
 }
 
+fn treasury_portable_stores(
+    treasury: &PlayerResources,
+    buildings: &[Building],
+) -> RaidPortableStores {
+    let reserved_timber = buildings
+        .iter()
+        .map(|building| building.construction_treasury_timber.max(0.0))
+        .sum::<f64>();
+    RaidPortableStores {
+        timber: raidable_treasury_timber(treasury.timber, reserved_timber),
+        firewood: treasury.firewood,
+        food: treasury.food,
+        grain: treasury.grain,
+        flour: treasury.flour,
+        ale: treasury.ale,
+        preserved_food: treasury.preserved_food,
+        honey: treasury.honey,
+        wine: treasury.wine,
+        wool: treasury.wool,
+        cloth: treasury.cloth,
+        ironwork: treasury.ironwork,
+        polearms: treasury.polearms,
+        gold: treasury.gold,
+    }
+}
+
+fn treasury_anchor(
+    buildings: &[Building],
+    residences: &[Residence],
+) -> Option<(RaidTargetKind, u64, f64, f64)> {
+    let town_hall = buildings
+        .iter()
+        .filter(|building| building.kind == "town_hall")
+        .min_by_key(|building| building.id);
+    let completed_holding = buildings
+        .iter()
+        .filter(|building| {
+            building.construction_complete
+                && building.kind != "watchtower"
+                && building.kind != "guardhouse"
+        })
+        .min_by_key(|building| building.id);
+    if let Some(building) = town_hall.or(completed_holding) {
+        return Some((
+            RaidTargetKind::TreasuryAtBuilding,
+            building.id,
+            building.x,
+            building.z,
+        ));
+    }
+    if let Some(residence) = residences.iter().min_by_key(|residence| residence.id) {
+        return Some((
+            RaidTargetKind::TreasuryAtResidence,
+            residence.id,
+            residence.x,
+            residence.z,
+        ));
+    }
+    buildings
+        .iter()
+        .filter(|building| building.kind != "watchtower" && building.kind != "guardhouse")
+        .min_by_key(|building| building.id)
+        .map(|building| {
+            (
+                RaidTargetKind::TreasuryAtBuilding,
+                building.id,
+                building.x,
+                building.z,
+            )
+        })
+}
+
 fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores) {
     building.timber = stores.timber;
     building.firewood = stores.firewood;
@@ -343,6 +444,48 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.ironwork = stores.ironwork;
     building.polearms = stores.polearms;
     building.gold = stores.gold;
+}
+
+fn retain_unplundered_treasury_stores(
+    treasury: &mut PlayerResources,
+    before: RaidPortableStores,
+    remaining: RaidPortableStores,
+) {
+    macro_rules! subtract_loss {
+        ($field:ident) => {{
+            let lost = portable_store_loss(before.$field, remaining.$field);
+            treasury.$field = (treasury.$field - lost).max(0.0);
+        }};
+    }
+
+    subtract_loss!(timber);
+    subtract_loss!(firewood);
+    subtract_loss!(food);
+    subtract_loss!(grain);
+    subtract_loss!(flour);
+    subtract_loss!(ale);
+    subtract_loss!(preserved_food);
+    subtract_loss!(honey);
+    subtract_loss!(wine);
+    subtract_loss!(wool);
+    subtract_loss!(cloth);
+    subtract_loss!(ironwork);
+    subtract_loss!(polearms);
+    subtract_loss!(gold);
+}
+
+fn portable_store_loss(before: f64, remaining: f64) -> f64 {
+    let stocked = if before.is_finite() {
+        before.max(0.0)
+    } else {
+        0.0
+    };
+    let retained = if remaining.is_finite() {
+        remaining.max(0.0)
+    } else {
+        0.0
+    };
+    (stocked - retained).max(0.0)
 }
 
 fn settlement_guard_strength(
@@ -386,6 +529,7 @@ fn resolve_raid(
     enemy_pressure: u8,
     entropy: u64,
     sim_tick: u64,
+    treasury_stores: RaidPortableStores,
 ) -> (f64, f64, bool) {
     if forecast.target_count == 0 || forecast.loss_fraction <= 1e-9 {
         return (0.0, 0.0, false);
@@ -420,14 +564,32 @@ fn resolve_raid(
                     ..residence
                 });
             }
+            RaidTargetKind::TreasuryAtBuilding | RaidTargetKind::TreasuryAtResidence => {
+                let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
+                    continue;
+                };
+                let plunder = treasury_stores.plunder(forecast.loss_fraction);
+                retain_unplundered_treasury_stores(
+                    &mut treasury,
+                    treasury_stores,
+                    plunder.remaining,
+                );
+                goods_lost += plunder.goods_lost;
+                wealth_lost += plunder.wealth_lost;
+                ctx.db.player_resources().owner().update(treasury);
+            }
         }
     }
 
     let arson_started = raid_arson_occurs(enemy_pressure, forecast.defense_ratio, entropy)
         && selected.iter().any(|target| {
             let target_kind = match target.kind {
-                RaidTargetKind::Building => FIRE_TARGET_BUILDING,
-                RaidTargetKind::Residence => FIRE_TARGET_RESIDENCE,
+                RaidTargetKind::Building | RaidTargetKind::TreasuryAtBuilding => {
+                    FIRE_TARGET_BUILDING
+                }
+                RaidTargetKind::Residence | RaidTargetKind::TreasuryAtResidence => {
+                    FIRE_TARGET_RESIDENCE
+                }
             };
             ignite_raid_target(ctx, owner, target_kind, target.id, sim_tick)
         });

@@ -72,6 +72,8 @@ fn watch_cell(value: f64) -> i32 {
 pub enum RaidTargetKind {
     Building,
     Residence,
+    TreasuryAtBuilding,
+    TreasuryAtResidence,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -192,6 +194,13 @@ pub fn raid_holding_vulnerability(construction_complete: bool, portable_value: f
     } else {
         stored_exposure
     }
+}
+
+/// Only treasury timber not already promised to active construction can be
+/// carried away. Reservations remain backed so a raid cannot leave a site
+/// permanently waiting for material the authoritative queue still claims.
+pub fn raidable_treasury_timber(timber: f64, reserved_timber: f64) -> f64 {
+    (positive_store(timber) - positive_store(reserved_timber)).max(0.0)
 }
 
 fn positive_store(amount: f64) -> f64 {
@@ -451,6 +460,14 @@ mod tests {
         assert_eq!(raid_holding_vulnerability(false, 0.0), 0.0);
         assert_eq!(raid_holding_vulnerability(false, 30.0), 1.0);
         assert_eq!(raid_holding_vulnerability(false, f64::NAN), 0.0);
+    }
+
+    #[test]
+    fn construction_reservations_remain_backed_when_treasury_stores_are_raided() {
+        assert_eq!(raidable_treasury_timber(80.0, 30.0), 50.0);
+        assert_eq!(raidable_treasury_timber(20.0, 30.0), 0.0);
+        assert_eq!(raidable_treasury_timber(f64::NAN, 10.0), 0.0);
+        assert_eq!(raidable_treasury_timber(20.0, f64::NAN), 20.0);
     }
 
     #[test]

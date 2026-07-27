@@ -74,6 +74,7 @@ export const Building = __t.object("Building", {
   processorOutputTargetPercent: __t.u8(),
   guardhouseFoodReserve: __t.u8(),
   marketplaceSeedGrainTarget: __t.u8(),
+  foundingShelterActive: __t.bool(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -282,6 +283,7 @@ export const PlayerResources = __t.object("PlayerResources", {
   constructionLaborStewardEnabled: __t.bool(),
   productionLaborStewardEnabled: __t.bool(),
   laborStewardReserve: __t.u32(),
+  physicalFoundingSiteEnabled: __t.bool(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

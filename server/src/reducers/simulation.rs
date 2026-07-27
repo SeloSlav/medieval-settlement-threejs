@@ -8,13 +8,13 @@ use crate::simulation::{
     step_apiary, step_backyard_gardens, step_brewery, step_carpenter, step_chapel_parish,
     step_chapels, step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
     step_ferry_landing, step_fires, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
-    step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_market_orders,
-    step_hunters_hall, step_large_quarry, step_lumber_mill, step_marketplace_caravans,
-    step_monastery, step_pastoral_farmstead, step_production_labor_stewards, step_reforester,
-    step_residence, step_seasonal_labor_stewards, step_seed_grain_distribution,
-    step_settlement_security, step_smokehouse, step_stone_quarry, step_swineherd,
-    step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill, step_weaver,
-    step_well, step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
+    step_founding_sites, step_fresh_food_spoilage, step_granary, step_guardhouse,
+    step_household_market_orders, step_hunters_hall, step_large_quarry, step_lumber_mill,
+    step_marketplace_caravans, step_monastery, step_pastoral_farmstead,
+    step_production_labor_stewards, step_reforester, step_residence, step_seasonal_labor_stewards,
+    step_seed_grain_distribution, step_settlement_security, step_smokehouse, step_stone_quarry,
+    step_swineherd, step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill,
+    step_weaver, step_well, step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
 };
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
@@ -369,4 +369,5 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             environment,
         );
     }
+    step_founding_sites(ctx);
 }

@@ -146,8 +146,14 @@ fn dispatch_reserved_stock(
     for sources in source_groups {
         let selected = select_supply_route_candidate(
             sources.into_iter().filter_map(|source| {
-                construction_route_distance(&network, &source, site, allow_offroad)
-                    .map(|distance| (source, distance))
+                let source_allows_offroad = source.kind == "founders_camp";
+                construction_route_distance(
+                    &network,
+                    &source,
+                    site,
+                    allow_offroad || source_allows_offroad,
+                )
+                .map(|distance| (source, distance))
             }),
             |candidate| candidate.1,
             |candidate| candidate.0.id,
@@ -155,6 +161,7 @@ fn dispatch_reserved_stock(
         let Some((mut source, _distance)) = selected else {
             continue;
         };
+        let source_allows_offroad = source.kind == "founders_camp";
         if try_start_construction_supply_trip(
             ctx,
             tick,
@@ -163,7 +170,7 @@ fn dispatch_reserved_stock(
             &mut source,
             site,
             commodity,
-            allow_offroad,
+            allow_offroad || source_allows_offroad,
             free_haulers,
         ) {
             return;

@@ -396,6 +396,87 @@ assert.deepEqual(
   { buildings: 1, homes: 0, residents: 0 },
   'watch coverage should include vulnerable reconstruction stores but not empty worksites',
 );
+const treasuryTargetState = emptyGameState();
+treasuryTargetState.stockpile.timber = 50;
+treasuryTargetState.stockpile.stone = 500;
+treasuryTargetState.stockpile.water = 500;
+treasuryTargetState.stockpile.cloth = 20;
+treasuryTargetState.stockpile.gold = 10;
+treasuryTargetState.buildings.set(
+  '40',
+  building('40', 'town_hall', 20, 0, 1),
+);
+treasuryTargetState.buildings.set(
+  '50',
+  {
+    ...building('50', 'village_storehouse', 40, 0, 0),
+    constructionComplete: false,
+    constructionProgress: 0.5,
+    constructionTreasuryTimber: 30,
+  },
+);
+treasuryTargetState.buildings.set(
+  '60',
+  {
+    ...building('60', 'village_storehouse', 170, 0, 1),
+    timber: 55,
+  },
+);
+const treasuryTargets = projectRaidTargets(treasuryTargetState, 3);
+assert.deepEqual(
+  treasuryTargets.map((target) => [target.kind, target.id]),
+  [
+    ['treasury', '40'],
+    ['building', '60'],
+  ],
+  'unreserved treasury goods must compete in the same bounded raid budget as physical stores',
+);
+assert.equal(treasuryTargets[0]?.portableValue, 60);
+assert.equal(treasuryTargets[0]?.portableSummary, '20 cloth + 20 timber');
+assert.equal(treasuryTargets[0]?.label, 'Settlement treasury at Town Hall');
+treasuryTargetState.buildings.set(tower.id, tower);
+assert.deepEqual(
+  projectRaidTargets(treasuryTargetState, 2).map(
+    (target) => [target.kind, target.protected],
+  ),
+  [
+    ['building', false],
+    ['treasury', true],
+  ],
+  'an exposed store must remain preferable to a richer treasury seat inside watch coverage',
+);
+const householdTreasuryState = emptyGameState();
+householdTreasuryState.stockpile.gold = 25;
+householdTreasuryState.residences.set(
+  '7',
+  residence('7', 80, 0, 3),
+);
+assert.deepEqual(
+  projectRaidTargets(householdTreasuryState, 1).map(
+    (target) => [target.kind, target.id, target.portableValue],
+  ),
+  [['treasury', '7', 25]],
+  'before a civic holding exists, the oldest occupied home must keep the treasury physical',
+);
+const rebuildingTreasuryState = emptyGameState();
+rebuildingTreasuryState.stockpile.gold = 15;
+rebuildingTreasuryState.buildings.set(
+  '1',
+  building('1', 'village_storehouse', 20, 0, 1),
+);
+rebuildingTreasuryState.buildings.set(
+  '9',
+  {
+    ...building('9', 'town_hall', 80, 0, 0),
+    constructionComplete: false,
+    constructionProgress: 0,
+  },
+);
+assert.equal(
+  projectRaidTargets(rebuildingTreasuryState, 1)[0]?.label,
+  'Settlement treasury at Town Hall worksite',
+  'a Town Hall reconstruction must not teleport the treasury to a safer holding',
+);
 const negativeCoverageState = emptyGameState();
 negativeCoverageState.buildings.set(
   'negative-tower',
@@ -613,6 +694,15 @@ assert.match(
   }),
   /set one reached holding alight/,
 );
+assert.match(
+  formatRaidReport({
+    ...security,
+    lastOutcome: 'plundered',
+    lastGoodsLost: 0,
+    lastWealthLost: 9,
+  }),
+  /household, parish, and treasury wealth/,
+);
 
 const mesh = createBuildingMesh('watchtower');
 let meshCount = 0;
@@ -712,6 +802,27 @@ assert.match(serverSimulation, /select_raid_targets/);
 assert.match(serverSimulation, /RaidTargetKind::Residence/);
 assert.match(serverSimulation, /building_portable_stores\(&updated\)\.plunder/);
 assert.match(serverSimulation, /retain_unplundered_stores/);
+assert.match(
+  serverSimulation,
+  /fn treasury_portable_stores[\s\S]*raidable_treasury_timber\(treasury\.timber, reserved_timber\)/,
+  'authoritative treasury exposure must preserve timber already promised to construction',
+);
+assert.match(
+  serverSimulation,
+  /fn treasury_anchor[\s\S]*"town_hall"[\s\S]*TreasuryAtResidence/,
+  'the treasury seat must prefer a Town Hall and retain a physical household fallback',
+);
+assert.match(
+  serverSimulation,
+  /RaidTargetKind::TreasuryAtBuilding \| RaidTargetKind::TreasuryAtResidence[\s\S]*treasury_stores\.plunder[\s\S]*player_resources\(\)\.owner\(\)\.update\(treasury\)/,
+  'a selected treasury target must remove the same portable stores that attracted the raid',
+);
+const treasuryStoreSource = serverSimulation.slice(
+  serverSimulation.indexOf('fn treasury_portable_stores'),
+  serverSimulation.indexOf('fn treasury_anchor'),
+);
+assert.doesNotMatch(treasuryStoreSource, /stone:\s*treasury\.stone/);
+assert.doesNotMatch(treasuryStoreSource, /water:\s*treasury\.water/);
 assert.doesNotMatch(
   serverSimulation,
   /\.filter\(\|building\| building\.construction_complete\)\s*\.collect::<Vec<Building>>/,
@@ -743,6 +854,9 @@ assert.match(serverPolicy, /defense_ratio\.clamp/);
 assert.match(serverPolicy, /WATCH_COVERAGE_CELL_SIZE:\s*f64\s*=\s*128\.0/);
 assert.match(serverPolicy, /pub struct RaidPortableStores/);
 assert.match(serverPolicy, /pub fn raid_holding_vulnerability/);
+assert.match(serverPolicy, /pub fn raidable_treasury_timber/);
+assert.match(serverPolicy, /TreasuryAtBuilding/);
+assert.match(serverPolicy, /TreasuryAtResidence/);
 assert.match(serverPolicy, /plunder_good!\(wool\)/);
 assert.match(serverPolicy, /plunder_good!\(cloth\)/);
 assert.match(serverPolicy, /CLOTH_RAID_VALUE_MULTIPLIER:\s*f64\s*=\s*1\.5/);

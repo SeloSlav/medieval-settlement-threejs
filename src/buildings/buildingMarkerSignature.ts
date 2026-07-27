@@ -5,6 +5,8 @@ import {
 import type { BuildingState, LivestockHerdState } from '../resources/types.ts';
 import { constructionVisualSignature } from './ConstructionSiteMesh.ts';
 import {
+  FOUNDING_STONE_VISUAL_SEGMENTS,
+  FOUNDING_TIMBER_VISUAL_SEGMENTS,
   HAYLOFT_VISUAL_SEGMENTS,
   CLOTH_STOCKPILE_VISUAL_SEGMENTS,
   stockpileVisualLevel,
@@ -29,6 +31,22 @@ export function buildingMarkerSignatures(
 ): { visual: string; collider: string } {
   const entries = [...buildings.values()]
     .map((building) => {
+      const foundingState = building.kind === 'founders_camp'
+        && building.constructionComplete !== false
+        ? `:founding:${building.foundingShelterActive !== false ? 1 : 0}:${
+          stockpileVisualLevel(
+            building.timber,
+            BUILDING_STORAGE_CAPS.founders_camp.timber,
+            FOUNDING_TIMBER_VISUAL_SEGMENTS,
+          )
+        }:${
+          stockpileVisualLevel(
+            building.stone,
+            BUILDING_STORAGE_CAPS.founders_camp.stone,
+            FOUNDING_STONE_VISUAL_SEGMENTS,
+          )
+        }:${building.gold > 1e-6 ? 1 : 0}`
+        : '';
       const timberState = building.kind === 'lumber_mill'
         && building.constructionComplete !== false
         ? `:timber:${stockpileVisualLevel(
@@ -69,7 +87,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${timberState}${hayState}${woolState}${clothState}`,
+        visual: `${structural}${foundingState}${timberState}${hayState}${woolState}${clothState}`,
         collider: structural,
       };
     })

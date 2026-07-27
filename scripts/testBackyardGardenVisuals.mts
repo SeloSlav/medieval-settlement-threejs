@@ -116,11 +116,45 @@ const flowerDetail = createBackyardGardenMesh('flower_garden', { width: 6.2, dep
 let petalCount = 0;
 let modeledFlowerMeshes = 0;
 let texturedRoseCards = 0;
+let texturedStemCount = 0;
+let roundedPetalVertexCount = 0;
+let largestCottageHeadDiameter = 0;
+let largestStemDiameter = 0;
+let modeledStemLeafCount = 0;
 let swayingBloom: THREE.Object3D | null = null;
 flowerDetail.traverse((object) => {
   petalCount += Number(object.userData.petalCount ?? 0);
   if (object.name === 'Modeled rose blossom' || object.name === 'Modeled cottage flower') {
     modeledFlowerMeshes += 1;
+    roundedPetalVertexCount = Math.max(
+      roundedPetalVertexCount,
+      (object as THREE.Mesh).geometry.getAttribute('position').count,
+    );
+    if (object.name === 'Modeled cottage flower') {
+      largestCottageHeadDiameter = Math.max(
+        largestCottageHeadDiameter,
+        Number(object.userData.realWorldDiameterM ?? 0),
+      );
+    }
+  }
+  if (object.name === 'Flower stem') {
+    const mesh = object as THREE.Mesh<THREE.CylinderGeometry, THREE.MeshStandardMaterial>;
+    texturedStemCount += 1;
+    largestStemDiameter = Math.max(
+      largestStemDiameter,
+      Number(object.userData.maxDiameterM ?? 0),
+    );
+    assert.equal(mesh.material.name, 'Textured wildflower stem material');
+    assert.ok(mesh.material.map, 'flower stems should carry fiber albedo detail');
+    assert.ok(mesh.material.normalMap, 'flower stems should carry fine surface relief');
+    assert.ok(mesh.material.roughnessMap, 'flower stems should carry roughness variation');
+  }
+  if (object.name === 'Flower stem leaf') {
+    modeledStemLeafCount += 1;
+    assert.ok(
+      (object as THREE.Mesh).geometry.getAttribute('position').count >= 18,
+      'stem leaves should use a curved lanceolate mesh instead of a faceted sphere',
+    );
   }
   if (object.name === 'Textured rose blossom card') {
     texturedRoseCards += 1;
@@ -134,6 +168,17 @@ flowerDetail.traverse((object) => {
 });
 assert.ok(petalCount >= 100, 'flower gardens should use modeled petals instead of colored orb placeholders');
 assert.ok(modeledFlowerMeshes <= 60, 'petals should be consolidated per blossom to protect draw-call cost');
+assert.ok(roundedPetalVertexCount >= 150, 'flower heads should use rounded, cupped petal geometry');
+assert.ok(
+  largestCottageHeadDiameter > 0 && largestCottageHeadDiameter <= 0.065,
+  'cottage flower heads should remain within a realistic 4–6.5 cm scale',
+);
+assert.ok(
+  largestStemDiameter > 0 && largestStemDiameter <= 0.007,
+  'cottage flower stems should remain no wider than 7 mm',
+);
+assert.ok(texturedStemCount >= 12, 'each cottage flower should carry a textured stem');
+assert.ok(modeledStemLeafCount >= texturedStemCount * 2, 'each cottage flower should carry modeled leaves');
 assert.ok(texturedRoseCards >= 24, 'each rose shrub should carry botanically readable textured blossoms');
 assert.ok(swayingBloom, 'rose bushes should expose animated bloom anchors');
 animateBackyardGardenMesh(flowerDetail, 0);

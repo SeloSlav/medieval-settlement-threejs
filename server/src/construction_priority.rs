@@ -47,7 +47,7 @@ fn nonnegative(value: f64) -> f64 {
 }
 
 /// Builders can make immediate progress when delivered materials are ahead of
-/// the frame, or when the founders' treasury reserve can be moved onto site.
+/// the frame, or when a legacy reserve can be moved onto site.
 pub fn construction_labor_ready(
     required_timber: f64,
     required_stone: f64,

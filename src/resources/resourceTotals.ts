@@ -113,6 +113,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let cloth = state.stockpile.cloth;
   let ironwork = state.stockpile.ironwork ?? 0;
   let polearms = state.stockpile.polearms ?? 0;
+  let gold = state.stockpile.gold;
 
   for (const building of state.buildings.values()) {
     timber += building.timber;
@@ -130,6 +131,9 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cloth += building.cloth ?? 0;
     ironwork += building.ironwork ?? 0;
     polearms += building.polearms ?? 0;
+    if (building.kind === 'founders_camp' || building.kind === 'town_hall') {
+      gold += building.gold;
+    }
     if (building.constructionComplete === false) {
       timber -= building.constructionReservedTimber;
       stone -= building.constructionReservedStone;
@@ -151,7 +155,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     firewood,
     water,
     food,
-    gold: state.stockpile.gold,
+    gold,
     grain,
     flour,
     ale,
@@ -170,8 +174,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
 /**
  * Physical timber held at buildings after subtracting active construction
  * reservations backed by those stores. This mirrors the authoritative lodge
- * conversion check; founding-treasury timber is deliberately excluded because
- * mill-to-lodge supply trips can only load physical building stock.
+ * conversion check.
  */
 export function computeUnreservedBuildingTimber(state: GameState): number {
   let timber = 0;
@@ -196,7 +199,7 @@ export type RoadConnectionQuery = (
 ) => boolean;
 
 /**
- * Manual exports can draw only from the founding treasury and completed stores
+ * Manual exports can draw only from the legacy reserve and completed stores
  * that can physically reach this marketplace. Household need stocks are never
  * exposed, and construction reservations remain protected.
  */
@@ -257,7 +260,7 @@ export function computeMarketplaceTradeAvailability(
     stone:
       Math.max(0, state.stockpile.stone - reservedTreasuryStone)
       + Math.min(accessibleStone, unreservedBuildingStone),
-    gold: state.stockpile.gold,
+    gold: computeResourceTotals(state).gold,
     firewood: state.stockpile.firewood + accessibleFirewood,
     food: state.stockpile.food + accessibleFood,
     grain: state.stockpile.grain + accessibleGrain,
@@ -274,7 +277,9 @@ export function computePopulationStats(state: GameState): PopulationStats {
     housingCapacity += residence.populationCapacity;
   }
 
-  const total = STARTING_POPULATION + housed;
+  const total = state.physicalFoundingSiteEnabled === true
+    ? Math.max(STARTING_POPULATION, housed)
+    : STARTING_POPULATION + housed;
   let assigned = 0;
   for (const building of state.buildings.values()) {
     assigned += building.assignedLabor;

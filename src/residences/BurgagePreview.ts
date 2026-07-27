@@ -1,343 +1,162 @@
 import * as THREE from 'three';
+import {
+  clearOverlayGeometry,
+  polygonSegments,
+  updateTerrainPolygonFanGeometry,
+  updateTerrainQuadGeometry,
+  updateTerrainRibbonGeometry,
+  type TerrainOverlaySegment,
+} from '../placement/TerrainOverlayGeometry.ts';
+import type { Point2 } from '../utils/polygonGeometry.ts';
+import { disposeObject3D } from '../utils/dispose.ts';
 import type { BurgageLayoutResult } from './burgageLayout.ts';
 import { getParcelDividerSegments } from './burgageLayout.ts';
-import { createResidencePreviewMesh } from './ResidenceMarkers.ts';
 
-const VALID_ZONE_COLOR = 0x8ec07c;
-const INVALID_ZONE_COLOR = 0xd45d4a;
-const VALID_ZONE_FILL = 0x8ec07c;
-const INVALID_ZONE_FILL = 0xd45d4a;
-const PLACING_ZONE_OUTLINE_COLOR = 0xd8e8ff;
-const PLACING_FRONTAGE_COLOR = PLACING_ZONE_OUTLINE_COLOR;
-const PLACING_DEPTH_GUIDE_COLOR = 0x7ec8ff;
-const PLACED_CORNER_COLOR = 0xffd56a;
-const PLACING_CORNER_COLOR = 0xffffff;
-const HOVER_CORNER_COLOR = PLACING_CORNER_COLOR;
-const OUTLINE_LIFT = 0.38;
-const FRONTAGE_OUTLINE_LIFT = 0.46;
-const PARCEL_FILL_COLOR = 0xc9b07f;
-const PARCEL_LINE_COLOR = 0xe8d4a8;
-const DIVIDER_LINE_COLOR = 0xf2e3b7;
-const MAX_PARCEL_FILLS = 12;
-const MAX_HOUSE_PREVIEWS = 12;
-const DASH_LENGTH = 1.8;
-const DASH_GAP = 1.0;
+const VALID_COLOR = 0xfffdf5;
+const INVALID_COLOR = 0xff5d50;
+const FILL_LIFT = 0.105;
+const BORDER_LIFT = 0.17;
+const FRONTAGE_LIFT = 0.205;
+const DIVIDER_LIFT = 0.155;
+const MARKER_LIFT = 0.2;
+const BORDER_DASH_LENGTH = 1.5;
+const BORDER_DASH_GAP = 0.82;
 
-type EdgeSegment = readonly [THREE.Vector3, THREE.Vector3];
-type LineObject = THREE.LineSegments | THREE.Line;
-type GeometryObject = THREE.Mesh | LineObject;
-
-function replaceGeometry(object: GeometryObject): THREE.BufferGeometry {
-  object.geometry.dispose();
-  const geometry = new THREE.BufferGeometry();
-  object.geometry = geometry;
-  return geometry;
+function cornersSignature(corners: readonly THREE.Vector3[]): string {
+  return corners
+    .map((corner) => `${corner.x.toFixed(2)},${corner.z.toFixed(2)}`)
+    .join('|');
 }
 
-function writeTriangleFan(
-  geometry: THREE.BufferGeometry,
-  points: THREE.Vector3[],
-  getHeightAt: (x: number, z: number) => number,
-  lift: number,
-): boolean {
-  if (points.length < 3) return false;
-
-  const triangleCount = points.length - 2;
-  const vertices = new Float32Array(triangleCount * 9);
-  let offset = 0;
-  for (let i = 1; i < points.length - 1; i++) {
-    for (const index of [0, i, i + 1]) {
-      const point = points[index];
-      vertices[offset++] = point.x;
-      vertices[offset++] = getHeightAt(point.x, point.z) + lift;
-      vertices[offset++] = point.z;
-    }
-  }
-
-  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-  return true;
-}
-
-function assignTriangleFanMesh(
-  mesh: THREE.Mesh,
-  points: THREE.Vector3[],
-  getHeightAt: (x: number, z: number) => number,
-  lift: number,
-): boolean {
-  const geometry = replaceGeometry(mesh);
-  const filled = writeTriangleFan(geometry, points, getHeightAt, lift);
-  mesh.visible = filled;
-  return filled;
-}
-
-function assignLineSegments(line: LineObject, positions: number[]): void {
-  const geometry = replaceGeometry(line);
-  if (positions.length === 0) {
-    line.visible = false;
-    return;
-  }
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  line.visible = true;
-}
-
-function collectEdges(points: THREE.Vector3[], closeLoop: boolean): EdgeSegment[] {
-  const edges: EdgeSegment[] = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    edges.push([points[i], points[i + 1]]);
-  }
-  if (closeLoop && points.length >= 4) {
-    edges.push([points[points.length - 1], points[0]]);
-  }
-  return edges;
-}
-
-function buildSolidEdgePositions(edges: EdgeSegment[]): number[] {
-  const positions: number[] = [];
-  for (const [start, end] of edges) {
-    positions.push(start.x, start.y, start.z, end.x, end.y, end.z);
-  }
-  return positions;
-}
-
-function buildDashedEdgePositions(edges: EdgeSegment[]): number[] {
-  const positions: number[] = [];
-  const step = DASH_LENGTH + DASH_GAP;
-
-  for (const [start, end] of edges) {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const dz = end.z - start.z;
-    const length = Math.hypot(dx, dy, dz);
-    if (length < 0.2) continue;
-
-    const dirX = dx / length;
-    const dirY = dy / length;
-    const dirZ = dz / length;
-
-    let traveled = DASH_GAP * 0.5;
-    while (traveled + DASH_LENGTH <= length) {
-      const dashStart = traveled;
-      const dashEnd = traveled + DASH_LENGTH;
-      positions.push(
-        start.x + dirX * dashStart,
-        start.y + dirY * dashStart,
-        start.z + dirZ * dashStart,
-        start.x + dirX * dashEnd,
-        start.y + dirY * dashEnd,
-        start.z + dirZ * dashEnd,
-      );
-      traveled += step;
-    }
-  }
-
-  return positions;
-}
-
-function cornersSignature(corners: THREE.Vector3[]): string {
-  return corners.map((corner) => `${corner.x.toFixed(2)},${corner.z.toFixed(2)}`).join('|');
-}
-
-function outlineSignature(outline: THREE.Vector3[] | null | undefined): string {
+function outlineSignature(outline: readonly THREE.Vector3[] | null | undefined): string {
   if (!outline || outline.length === 0) return 'none';
-  return outline.map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`).join('|');
+  return cornersSignature(outline);
 }
 
 function layoutSignature(layout: BurgageLayoutResult | null): string {
   if (!layout) return 'none';
   return [
     layout.plotCount,
-    layout.parcels.map((parcel) => parcel.polygon.map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`).join(':')).join('|'),
-    layout.residences.map((residence) => `${residence.x.toFixed(2)},${residence.z.toFixed(2)},${residence.yaw.toFixed(3)}`).join('|'),
+    getParcelDividerSegments(layout)
+      .map(([start, end]) => (
+        `${start.x.toFixed(2)},${start.z.toFixed(2)}-${end.x.toFixed(2)},${end.z.toFixed(2)}`
+      ))
+      .join('|'),
   ].join(';');
+}
+
+function toPoint2(point: THREE.Vector3): Point2 {
+  return { x: point.x, z: point.z };
+}
+
+function setGeometryVisible(mesh: THREE.Mesh): void {
+  const position = mesh.geometry.getAttribute('position');
+  mesh.visible = Boolean(position && position.count > 0);
+}
+
+function createOverlayMaterial(color: number, opacity: number): THREE.MeshBasicMaterial {
+  return new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    depthTest: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
 }
 
 export class BurgagePreview {
   readonly group = new THREE.Group();
-  private readonly zoneOutline: THREE.LineSegments;
-  private readonly frontageOutline: THREE.LineSegments;
-  private readonly depthGuide: THREE.LineSegments;
-  private readonly zoneOutlinePlacing: THREE.LineBasicMaterial;
-  private readonly frontageOutlinePlacing: THREE.LineBasicMaterial;
-  private readonly depthGuideMaterial: THREE.LineBasicMaterial;
-  private readonly zoneOutlineSolid: THREE.LineBasicMaterial;
-  private readonly placedCornerMaterial: THREE.MeshBasicMaterial;
   private readonly zoneFill: THREE.Mesh;
-  private readonly parcelFillMeshes: THREE.Mesh[];
-  private readonly parcelFillMaterial: THREE.MeshBasicMaterial;
-  private readonly parcelLines: THREE.LineSegments;
-  private readonly dividerLines: THREE.LineSegments;
+  private readonly zoneBorder: THREE.Mesh;
+  private readonly frontageBorder: THREE.Mesh;
+  private readonly depthGuide: THREE.Mesh;
+  private readonly dividerLines: THREE.Mesh;
   private readonly cornerMarkers: THREE.InstancedMesh;
   private readonly hoverMarker: THREE.Mesh;
-  private readonly housePreviewMeshes: THREE.Group[];
+  private readonly cornerMatrix = new THREE.Matrix4();
   private lastGeometrySignature = '';
   private lastValid: boolean | null = null;
-  private readonly cornerMatrix = new THREE.Matrix4();
+  private lastPlacing = false;
 
   constructor() {
-    this.group.name = 'Residence preview';
+    this.group.name = 'Terrain-hugging residence plot preview';
     this.group.frustumCulled = false;
-
-    this.zoneOutlinePlacing = new THREE.LineBasicMaterial({
-      color: PLACING_ZONE_OUTLINE_COLOR,
-      transparent: true,
-      opacity: 0.82,
-      depthTest: false,
-      depthWrite: false,
-    });
-    this.frontageOutlinePlacing = new THREE.LineBasicMaterial({
-      color: PLACING_FRONTAGE_COLOR,
-      transparent: true,
-      opacity: 0.98,
-      depthTest: false,
-      depthWrite: false,
-    });
-    this.zoneOutlineSolid = new THREE.LineBasicMaterial({
-      color: VALID_ZONE_COLOR,
-      transparent: true,
-      opacity: 0.95,
-      depthTest: false,
-      depthWrite: false,
-    });
-    this.zoneOutline = new THREE.LineSegments(
-      new THREE.BufferGeometry(),
-      this.zoneOutlinePlacing,
-    );
-    this.zoneOutline.renderOrder = 14;
-    this.zoneOutline.frustumCulled = false;
-    this.zoneOutline.visible = false;
-    this.group.add(this.zoneOutline);
-
-    this.frontageOutline = new THREE.LineSegments(
-      new THREE.BufferGeometry(),
-      this.frontageOutlinePlacing,
-    );
-    this.frontageOutline.renderOrder = 18;
-    this.frontageOutline.frustumCulled = false;
-    this.frontageOutline.visible = false;
-    this.group.add(this.frontageOutline);
-
-    this.depthGuideMaterial = new THREE.LineBasicMaterial({
-      color: PLACING_DEPTH_GUIDE_COLOR,
-      transparent: true,
-      opacity: 0.9,
-      depthTest: false,
-      depthWrite: false,
-    });
-    this.depthGuide = new THREE.LineSegments(
-      new THREE.BufferGeometry(),
-      this.depthGuideMaterial,
-    );
-    this.depthGuide.renderOrder = 17;
-    this.depthGuide.frustumCulled = false;
-    this.depthGuide.visible = false;
-    this.group.add(this.depthGuide);
+    this.group.visible = false;
 
     this.zoneFill = new THREE.Mesh(
       new THREE.BufferGeometry(),
-      new THREE.MeshBasicMaterial({
-        color: VALID_ZONE_FILL,
-        transparent: true,
-        opacity: 0.28,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        depthTest: false,
-      }),
+      createOverlayMaterial(VALID_COLOR, 0.105),
     );
+    this.zoneFill.name = 'Residence plot fill';
     this.zoneFill.renderOrder = 12;
     this.zoneFill.frustumCulled = false;
-    this.zoneFill.visible = false;
     this.group.add(this.zoneFill);
 
-    this.parcelFillMaterial = new THREE.MeshBasicMaterial({
-      color: PARCEL_FILL_COLOR,
-      transparent: true,
-      opacity: 0.18,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      depthTest: false,
-    });
-    this.parcelFillMeshes = [];
-    for (let i = 0; i < MAX_PARCEL_FILLS; i++) {
-      const mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.parcelFillMaterial);
-      mesh.renderOrder = 12;
-      mesh.frustumCulled = false;
-      mesh.visible = false;
-      this.parcelFillMeshes.push(mesh);
-      this.group.add(mesh);
-    }
-
-    this.parcelLines = new THREE.LineSegments(
+    this.zoneBorder = new THREE.Mesh(
       new THREE.BufferGeometry(),
-      new THREE.LineBasicMaterial({
-        color: PARCEL_LINE_COLOR,
-        transparent: true,
-        opacity: 0.9,
-        depthTest: false,
-        depthWrite: false,
-      }),
+      createOverlayMaterial(VALID_COLOR, 0.9),
     );
-    this.parcelLines.renderOrder = 13;
-    this.parcelLines.frustumCulled = false;
-    this.parcelLines.visible = false;
-    this.group.add(this.parcelLines);
+    this.zoneBorder.name = 'Residence plot dotted border';
+    this.zoneBorder.renderOrder = 15;
+    this.zoneBorder.frustumCulled = false;
+    this.group.add(this.zoneBorder);
 
-    this.dividerLines = new THREE.LineSegments(
+    this.frontageBorder = new THREE.Mesh(
       new THREE.BufferGeometry(),
-      new THREE.LineBasicMaterial({
-        color: DIVIDER_LINE_COLOR,
-        transparent: true,
-        opacity: 0.95,
-        depthTest: false,
-        depthWrite: false,
-      }),
+      createOverlayMaterial(VALID_COLOR, 0.98),
     );
-    this.dividerLines.renderOrder = 13;
+    this.frontageBorder.name = 'Residence frontage dotted border';
+    this.frontageBorder.renderOrder = 16;
+    this.frontageBorder.frustumCulled = false;
+    this.group.add(this.frontageBorder);
+
+    this.depthGuide = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      createOverlayMaterial(VALID_COLOR, 0.72),
+    );
+    this.depthGuide.name = 'Residence depth guide';
+    this.depthGuide.renderOrder = 16;
+    this.depthGuide.frustumCulled = false;
+    this.group.add(this.depthGuide);
+
+    this.dividerLines = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      createOverlayMaterial(VALID_COLOR, 0.76),
+    );
+    this.dividerLines.name = 'Residence parcel dividers';
+    this.dividerLines.renderOrder = 14;
     this.dividerLines.frustumCulled = false;
-    this.dividerLines.visible = false;
     this.group.add(this.dividerLines);
 
-    const cornerGeometry = new THREE.SphereGeometry(0.72, 10, 10);
-    this.placedCornerMaterial = new THREE.MeshBasicMaterial({
-      color: PLACED_CORNER_COLOR,
-      transparent: true,
-      opacity: 0.98,
-      depthWrite: false,
-      depthTest: false,
-    });
+    const cornerGeometry = new THREE.RingGeometry(0.25, 0.46, 20);
+    cornerGeometry.rotateX(-Math.PI * 0.5);
     this.cornerMarkers = new THREE.InstancedMesh(
       cornerGeometry,
-      this.placedCornerMaterial,
+      createOverlayMaterial(VALID_COLOR, 0.96),
       4,
     );
-    this.cornerMarkers.renderOrder = 16;
+    this.cornerMarkers.name = 'Residence plot anchors';
+    this.cornerMarkers.renderOrder = 17;
     this.cornerMarkers.frustumCulled = false;
     this.cornerMarkers.count = 0;
     this.cornerMarkers.visible = false;
     this.group.add(this.cornerMarkers);
 
+    const hoverGeometry = new THREE.RingGeometry(0.22, 0.52, 20);
+    hoverGeometry.rotateX(-Math.PI * 0.5);
     this.hoverMarker = new THREE.Mesh(
-      new THREE.SphereGeometry(0.55, 10, 10),
-      new THREE.MeshBasicMaterial({
-        color: HOVER_CORNER_COLOR,
-        transparent: true,
-        opacity: 0.72,
-        depthWrite: false,
-        depthTest: false,
-      }),
+      hoverGeometry,
+      createOverlayMaterial(VALID_COLOR, 0.82),
     );
-    this.hoverMarker.renderOrder = 16;
+    this.hoverMarker.name = 'Residence plot hover anchor';
+    this.hoverMarker.renderOrder = 17;
     this.hoverMarker.frustumCulled = false;
     this.hoverMarker.visible = false;
     this.group.add(this.hoverMarker);
-
-    this.housePreviewMeshes = [];
-    for (let i = 0; i < MAX_HOUSE_PREVIEWS; i++) {
-      // Preview slot index only — placed homes derive colors from residence id hash.
-      const mesh = createResidencePreviewMesh(i + 1);
-      mesh.visible = false;
-      this.housePreviewMeshes.push(mesh);
-      this.group.add(mesh);
-    }
   }
 
   update(
@@ -348,7 +167,7 @@ export class BurgagePreview {
     placing = false,
     placementStage = 0,
     hoverPoint: THREE.Vector3 | null = null,
-    frontageEdge = 0,
+    _frontageEdge = 0,
     outlinePolygon: THREE.Vector3[] | null = null,
     frontagePointCount = 0,
     placedPoints: THREE.Vector3[] = [],
@@ -359,12 +178,28 @@ export class BurgagePreview {
       return;
     }
 
-    const hoverSignature = hoverPoint ? `${hoverPoint.x.toFixed(2)},${hoverPoint.z.toFixed(2)}` : 'none';
-    const geometrySignature = `${cornersSignature(corners)}|${outlineSignature(outlinePolygon)}|${hoverSignature}|${layoutSignature(layout)}|${placing ? 1 : 0}|${placementStage}|${frontageEdge}|${frontagePointCount}|${cornersSignature(placedPoints)}|${depthGuide ? `${depthGuide.from.x},${depthGuide.from.z}-${depthGuide.to.x},${depthGuide.to.z}` : 'none'}`;
+    const hoverSignature = hoverPoint
+      ? `${hoverPoint.x.toFixed(2)},${hoverPoint.z.toFixed(2)}`
+      : 'none';
+    const guideSignature = depthGuide
+      ? `${depthGuide.from.x.toFixed(2)},${depthGuide.from.z.toFixed(2)}-${depthGuide.to.x.toFixed(2)},${depthGuide.to.z.toFixed(2)}`
+      : 'none';
+    const geometrySignature = [
+      cornersSignature(corners),
+      outlineSignature(outlinePolygon),
+      hoverSignature,
+      layoutSignature(layout),
+      placing ? 1 : 0,
+      placementStage,
+      frontagePointCount,
+      cornersSignature(placedPoints),
+      guideSignature,
+    ].join('|');
     const geometryChanged = geometrySignature !== this.lastGeometrySignature;
-    const validityChanged = valid !== this.lastValid;
+    const validityChanged = valid !== this.lastValid || placing !== this.lastPlacing;
 
     if (!geometryChanged && !validityChanged) return;
+    this.lastPlacing = placing;
 
     if (geometryChanged) {
       this.lastGeometrySignature = geometrySignature;
@@ -389,14 +224,25 @@ export class BurgagePreview {
   }
 
   setValidity(valid: boolean): void {
-    if (valid === this.lastValid) return;
     this.lastValid = valid;
-    const edgeColor = valid ? VALID_ZONE_COLOR : INVALID_ZONE_COLOR;
-    const fillColor = valid ? VALID_ZONE_FILL : INVALID_ZONE_FILL;
-    (this.zoneFill.material as THREE.MeshBasicMaterial).color.setHex(fillColor);
-    if (this.zoneOutline.material === this.zoneOutlineSolid) {
-      this.zoneOutlineSolid.color.setHex(edgeColor);
+    const color = valid || this.lastPlacing ? VALID_COLOR : INVALID_COLOR;
+    for (const object of [
+      this.zoneFill,
+      this.zoneBorder,
+      this.frontageBorder,
+      this.depthGuide,
+      this.dividerLines,
+      this.cornerMarkers,
+      this.hoverMarker,
+    ]) {
+      const material = object.material;
+      if (material instanceof THREE.MeshBasicMaterial) {
+        material.color.setHex(color);
+      }
     }
+    (this.zoneFill.material as THREE.MeshBasicMaterial).opacity = valid || this.lastPlacing
+      ? 0.105
+      : 0.085;
   }
 
   private rebuildGeometry(
@@ -413,206 +259,163 @@ export class BurgagePreview {
     depthGuide: { from: THREE.Vector3; to: THREE.Vector3 } | null,
   ): void {
     this.group.visible = true;
-    const edgeColor = valid ? VALID_ZONE_COLOR : INVALID_ZONE_COLOR;
-    const fillColor = valid ? VALID_ZONE_FILL : INVALID_ZONE_FILL;
-    (this.zoneFill.material as THREE.MeshBasicMaterial).color.setHex(fillColor);
+    this.lastPlacing = placing;
+    this.setValidity(valid);
 
     const markerSource = placedPoints.length > 0
       ? placedPoints
-      : corners.slice(0, placing && corners.length >= 4 ? 4 : Math.min(placementStage, corners.length, 4));
-
+      : corners.slice(0, Math.min(placementStage, corners.length, 4));
     this.cornerMarkers.count = markerSource.length;
     this.cornerMarkers.visible = markerSource.length > 0;
-    for (let i = 0; i < markerSource.length; i++) {
-      const corner = markerSource[i];
-      const y = getHeightAt(corner.x, corner.z) + 0.42;
-      const scale = i < 2 && placing && placementStage <= 2 ? 1.12 : 1;
+    for (let index = 0; index < markerSource.length; index += 1) {
+      const point = markerSource[index]!;
+      const scale = index < 2 && placing && placementStage <= 2 ? 1.08 : 1;
       this.cornerMatrix.compose(
-        new THREE.Vector3(corner.x, y, corner.z),
+        new THREE.Vector3(
+          point.x,
+          getHeightAt(point.x, point.z) + MARKER_LIFT,
+          point.z,
+        ),
         new THREE.Quaternion(),
         new THREE.Vector3(scale, scale, scale),
       );
-      this.cornerMarkers.setMatrixAt(i, this.cornerMatrix);
+      this.cornerMarkers.setMatrixAt(index, this.cornerMatrix);
     }
     this.cornerMarkers.instanceMatrix.needsUpdate = markerSource.length > 0;
 
-    if (depthGuide && placing && placementStage === 2) {
-      assignLineSegments(this.depthGuide, buildDashedEdgePositions([[depthGuide.from, depthGuide.to]]));
-      this.depthGuide.visible = true;
-    } else {
-      replaceGeometry(this.depthGuide);
-      this.depthGuide.visible = false;
-    }
-
     if (hoverPoint && placing && placementStage < 4) {
-      const y = getHeightAt(hoverPoint.x, hoverPoint.z) + 0.36;
-      this.hoverMarker.position.set(hoverPoint.x, y, hoverPoint.z);
+      this.hoverMarker.position.set(
+        hoverPoint.x,
+        getHeightAt(hoverPoint.x, hoverPoint.z) + MARKER_LIFT,
+        hoverPoint.z,
+      );
       this.hoverMarker.visible = true;
     } else {
       this.hoverMarker.visible = false;
     }
 
-    const outlineSource = outlinePolygon && outlinePolygon.length >= 2
-      ? outlinePolygon
-      : corners;
-    const lifted = outlineSource.map((corner) => {
-      const y = getHeightAt(corner.x, corner.z) + OUTLINE_LIFT;
-      return new THREE.Vector3(corner.x, y, corner.z);
-    });
+    if (depthGuide && placing && placementStage === 2) {
+      updateTerrainRibbonGeometry(
+        this.depthGuide.geometry,
+        [[toPoint2(depthGuide.from), toPoint2(depthGuide.to)]],
+        getHeightAt,
+        {
+          width: 0.12,
+          lift: BORDER_LIFT,
+          sampleSpacing: 0.9,
+          dashLength: 0.85,
+          gapLength: 0.7,
+        },
+      );
+      setGeometryVisible(this.depthGuide);
+    } else {
+      clearOverlayGeometry(this.depthGuide.geometry);
+      this.depthGuide.visible = false;
+    }
 
-    const closeLoop = lifted.length >= 4 && (!placing || placementStage >= 2);
-    const edges = collectEdges(lifted, closeLoop);
+    const outlineSource = outlinePolygon && outlinePolygon.length >= 2
+      ? outlinePolygon.map(toPoint2)
+      : corners.map(toPoint2);
+    const closeLoop = outlineSource.length >= 4 && (!placing || placementStage >= 2);
+    const edges = polygonSegments(outlineSource, closeLoop);
     const resolvedFrontageCount = Math.min(
       Math.max(frontagePointCount, 0),
-      lifted.length,
+      outlineSource.length,
     );
     const frontageEdges = resolvedFrontageCount >= 2
       ? edges.slice(0, resolvedFrontageCount - 1)
-      : edges;
-    const zoneEdges = resolvedFrontageCount >= 2 && closeLoop
-      ? [...edges.slice(resolvedFrontageCount - 1, resolvedFrontageCount), ...edges.slice(resolvedFrontageCount)]
-      : resolvedFrontageCount >= 2
-        ? edges.slice(resolvedFrontageCount - 1)
+      : placing && outlineSource.length >= 2
+        ? edges
         : [];
+    const zoneEdges: TerrainOverlaySegment[] = resolvedFrontageCount >= 2
+      ? edges.slice(resolvedFrontageCount - 1)
+      : placing
+        ? []
+        : edges;
 
-    if (placing) {
-      this.zoneOutline.material = this.zoneOutlinePlacing;
-      this.zoneOutlinePlacing.color.setHex(PLACING_ZONE_OUTLINE_COLOR);
-      assignLineSegments(this.zoneOutline, buildDashedEdgePositions(zoneEdges));
+    updateTerrainRibbonGeometry(
+      this.zoneBorder.geometry,
+      zoneEdges,
+      getHeightAt,
+      {
+        width: 0.18,
+        lift: BORDER_LIFT,
+        sampleSpacing: 0.95,
+        dashLength: BORDER_DASH_LENGTH,
+        gapLength: BORDER_DASH_GAP,
+      },
+    );
+    setGeometryVisible(this.zoneBorder);
 
-      const frontageEdgeSegments: EdgeSegment[] = frontageEdges.map(([start, end]) => [
-        new THREE.Vector3(start.x, getHeightAt(start.x, start.z) + FRONTAGE_OUTLINE_LIFT, start.z),
-        new THREE.Vector3(end.x, getHeightAt(end.x, end.z) + FRONTAGE_OUTLINE_LIFT, end.z),
-      ]);
-      assignLineSegments(this.frontageOutline, buildDashedEdgePositions(frontageEdgeSegments));
-      this.frontageOutline.material = this.frontageOutlinePlacing;
-      this.frontageOutlinePlacing.color.setHex(PLACING_FRONTAGE_COLOR);
-    } else {
-      this.zoneOutline.material = this.zoneOutlineSolid;
-      this.zoneOutlineSolid.color.setHex(edgeColor);
-      assignLineSegments(this.zoneOutline, buildSolidEdgePositions(edges));
-      replaceGeometry(this.frontageOutline);
-      this.frontageOutline.visible = false;
-    }
+    updateTerrainRibbonGeometry(
+      this.frontageBorder.geometry,
+      frontageEdges,
+      getHeightAt,
+      {
+        width: 0.24,
+        lift: FRONTAGE_LIFT,
+        sampleSpacing: 0.9,
+        dashLength: BORDER_DASH_LENGTH,
+        gapLength: BORDER_DASH_GAP,
+      },
+    );
+    setGeometryVisible(this.frontageBorder);
 
     if (closeLoop) {
-      assignTriangleFanMesh(this.zoneFill, lifted, getHeightAt, 0.14);
+      if (corners.length === 4) {
+        updateTerrainQuadGeometry(
+          this.zoneFill.geometry,
+          corners.map(toPoint2) as [Point2, Point2, Point2, Point2],
+          getHeightAt,
+          FILL_LIFT,
+          9,
+          9,
+        );
+      } else {
+        updateTerrainPolygonFanGeometry(
+          this.zoneFill.geometry,
+          outlineSource,
+          getHeightAt,
+          FILL_LIFT,
+        );
+      }
+      setGeometryVisible(this.zoneFill);
     } else {
-      replaceGeometry(this.zoneFill);
+      clearOverlayGeometry(this.zoneFill.geometry);
       this.zoneFill.visible = false;
     }
 
-    const parcelPositions: number[] = [];
-    const dividerPositions: number[] = [];
-    let parcelFillCount = 0;
-
-    if (layout) {
-      for (const parcel of layout.parcels) {
-        const poly = parcel.polygon.map((point) => new THREE.Vector3(point.x, 0, point.z));
-        if (parcelFillCount < MAX_PARCEL_FILLS) {
-          assignTriangleFanMesh(this.parcelFillMeshes[parcelFillCount], poly, getHeightAt, 0.16);
-          parcelFillCount += 1;
-        }
-
-        const outline = poly.map((point) => {
-          const y = getHeightAt(point.x, point.z) + 0.18;
-          return new THREE.Vector3(point.x, y, point.z);
-        });
-        for (let i = 0; i < outline.length; i++) {
-          const a = outline[i];
-          const b = outline[(i + 1) % outline.length];
-          parcelPositions.push(a.x, a.y, a.z, b.x, b.y, b.z);
-        }
-      }
-
-      for (const [start, end] of getParcelDividerSegments(layout)) {
-        const aY = getHeightAt(start.x, start.z) + 0.2;
-        const bY = getHeightAt(end.x, end.z) + 0.2;
-        dividerPositions.push(start.x, aY, start.z, end.x, bY, end.z);
-      }
-    }
-
-    for (let i = parcelFillCount; i < MAX_PARCEL_FILLS; i++) {
-      replaceGeometry(this.parcelFillMeshes[i]);
-      this.parcelFillMeshes[i].visible = false;
-    }
-
-    assignLineSegments(this.parcelLines, parcelPositions);
-    assignLineSegments(this.dividerLines, dividerPositions);
-
-    const houseCount = layout?.residences.length ?? 0;
-    for (let i = 0; i < houseCount; i++) {
-      const residence = layout!.residences[i];
-      const mesh = this.housePreviewMeshes[i];
-      const y = getHeightAt(residence.x, residence.z);
-      mesh.position.set(residence.x, y, residence.z);
-      mesh.rotation.y = residence.yaw;
-      mesh.visible = true;
-    }
-    for (let i = houseCount; i < MAX_HOUSE_PREVIEWS; i++) {
-      this.housePreviewMeshes[i].visible = false;
-    }
+    const dividerSegments = layout
+      ? getParcelDividerSegments(layout).map(
+          ([start, end]) => [start, end] as TerrainOverlaySegment,
+        )
+      : [];
+    updateTerrainRibbonGeometry(
+      this.dividerLines.geometry,
+      dividerSegments,
+      getHeightAt,
+      {
+        width: 0.12,
+        lift: DIVIDER_LIFT,
+        sampleSpacing: 0.85,
+      },
+    );
+    setGeometryVisible(this.dividerLines);
   }
 
   clear(): void {
     this.lastGeometrySignature = '';
     this.lastValid = null;
+    this.lastPlacing = false;
     this.group.visible = false;
     this.cornerMarkers.count = 0;
     this.cornerMarkers.visible = false;
-    this.cornerMarkers.instanceMatrix.needsUpdate = true;
     this.hoverMarker.visible = false;
-    replaceGeometry(this.zoneOutline);
-    this.zoneOutline.visible = false;
-    replaceGeometry(this.frontageOutline);
-    this.frontageOutline.visible = false;
-    replaceGeometry(this.depthGuide);
-    this.depthGuide.visible = false;
-    replaceGeometry(this.zoneFill);
-    this.zoneFill.visible = false;
-    for (const mesh of this.housePreviewMeshes) {
-      mesh.visible = false;
-    }
-    replaceGeometry(this.parcelLines);
-    this.parcelLines.visible = false;
-    replaceGeometry(this.dividerLines);
-    this.dividerLines.visible = false;
-    for (const mesh of this.parcelFillMeshes) {
-      replaceGeometry(mesh);
-      mesh.visible = false;
-    }
   }
 
   dispose(): void {
-    this.zoneOutline.geometry.dispose();
-    this.frontageOutline.geometry.dispose();
-    this.zoneOutlinePlacing.dispose();
-    this.frontageOutlinePlacing.dispose();
-    this.zoneOutlineSolid.dispose();
-    this.zoneFill.geometry.dispose();
-    (this.zoneFill.material as THREE.Material).dispose();
-    for (const mesh of this.parcelFillMeshes) {
-      mesh.geometry.dispose();
-    }
-    this.parcelFillMaterial.dispose();
-    this.parcelLines.geometry.dispose();
-    (this.parcelLines.material as THREE.Material).dispose();
-    this.dividerLines.geometry.dispose();
-    (this.dividerLines.material as THREE.Material).dispose();
-    this.cornerMarkers.geometry.dispose();
-    (this.cornerMarkers.material as THREE.Material).dispose();
-    this.hoverMarker.geometry.dispose();
-    (this.hoverMarker.material as THREE.Material).dispose();
-    for (const mesh of this.housePreviewMeshes) {
-      mesh.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          const material = child.material;
-          if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
-          else material.dispose();
-        }
-      });
-    }
+    disposeObject3D(this.group, true);
+    this.group.removeFromParent();
     this.group.clear();
   }
 }

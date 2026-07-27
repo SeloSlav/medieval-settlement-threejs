@@ -13,8 +13,8 @@ use crate::db::*;
 use crate::economy::{
     credit_treasury_stone, credit_treasury_timber, reconcile_building_labor,
     residence_population_for_parcel, residence_zone_cost, spend_aggregate_stone,
-    spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber, ResourceAmount,
-    STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
+    spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber, treasury_gold,
+    ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{
@@ -280,16 +280,10 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             "Tier 3 requires staffed road-linked preserved-food, ale, and cloth suppliers (a linked monastery can supply ale).".to_string()
         });
     }
-    let treasury_gold = ctx
-        .db
-        .player_resources()
-        .owner()
-        .find(&owner)
-        .map(|resources| resources.gold)
-        .unwrap_or(0.0);
+    let available_gold = treasury_gold(ctx, owner);
     if total_timber(ctx, owner) + 1e-6 < timber
         || total_stone(ctx, owner) + 1e-6 < stone
-        || treasury_gold + 1e-6 < gold
+        || available_gold + 1e-6 < gold
     {
         return Err(format!(
             "Upgrade requires {} timber, {} stone, and {} gold.",

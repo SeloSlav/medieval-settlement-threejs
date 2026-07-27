@@ -31,6 +31,7 @@ type TerrainPadSite = BuildingPadParams & {
 };
 
 const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
+  founders_camp: { radiusX: 8.6, radiusZ: 7.2, innerFade: 0.88, outerFade: 1.28 },
   lumber_mill: { radiusX: 10.2, radiusZ: 4.8, innerFade: 0.86, outerFade: 1.38 },
   reforester: { radiusX: 4.4, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.32 },
   woodcutters_lodge: { radiusX: 4.6, radiusZ: 4.3, innerFade: 0.88, outerFade: 1.34 },

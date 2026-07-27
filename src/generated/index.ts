@@ -36,6 +36,7 @@ import {
 // Import all reducer arg schemas
 import AssignBuildingLaborReducer from "./assign_building_labor_reducer";
 import BootstrapForagingReducer from "./bootstrap_foraging_reducer";
+import BootstrapFoundingSiteReducer from "./bootstrap_founding_site_reducer";
 import BootstrapQuarriesReducer from "./bootstrap_quarries_reducer";
 import BootstrapTreesReducer from "./bootstrap_trees_reducer";
 import CallUpActiveSeasonalLaborReducer from "./call_up_active_seasonal_labor_reducer";
@@ -402,6 +403,7 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("assign_building_labor", AssignBuildingLaborReducer),
   __reducerSchema("bootstrap_foraging", BootstrapForagingReducer),
+  __reducerSchema("bootstrap_founding_site", BootstrapFoundingSiteReducer),
   __reducerSchema("bootstrap_quarries", BootstrapQuarriesReducer),
   __reducerSchema("bootstrap_trees", BootstrapTreesReducer),
   __reducerSchema("call_up_active_seasonal_labor", CallUpActiveSeasonalLaborReducer),

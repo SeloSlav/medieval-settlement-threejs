@@ -50,8 +50,8 @@ pub use storage::{
     credit_treasury_firewood, credit_treasury_food, credit_treasury_gold, credit_treasury_stone,
     credit_treasury_timber, credit_treasury_water, deposit_building, deposit_building_food,
     deposit_building_water, residence_firewood_capacity, residence_food_capacity,
-    residence_water_capacity, spend_treasury_gold, total_stone, total_timber, withdraw_building,
-    withdraw_building_food, withdraw_building_water,
+    residence_water_capacity, spend_treasury_gold, total_stone, total_timber, treasury_gold,
+    withdraw_building, withdraw_building_food, withdraw_building_water,
 };
 pub use village_economy::{
     clamp_economic_activity_tax_rate, player_economic_activity_tax_rate, taxed_economic_activity,

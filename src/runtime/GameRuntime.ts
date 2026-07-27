@@ -20,6 +20,7 @@ export type GameRuntimeCallbacks = {
   onConnectError: (error: unknown) => void;
   onBootstrapFailed?: (error: unknown) => void;
   onSessionReady?: () => void;
+  getTerrainHeight?: (x: number, z: number) => number;
 };
 
 export class GameRuntime {
@@ -154,7 +155,11 @@ export class GameRuntime {
     if (authoritative?.configured) {
       applyAuthoritativeWorldGeneration(authoritative);
     }
-    await this.store.bootstrapWorld(this.registry, this.worldLayout);
+    await this.store.bootstrapWorld(
+      this.registry,
+      this.worldLayout,
+      this.callbacks.getTerrainHeight,
+    );
     this.bootstrapComplete = true;
     this.syncRoads(this.store.snapshot);
     this.tryEmitSessionReady();

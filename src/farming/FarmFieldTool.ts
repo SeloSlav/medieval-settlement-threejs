@@ -27,6 +27,7 @@ import {
 } from './farmFieldMath.ts';
 
 const MIN_CLICK_DISTANCE = 1.5;
+const PREVIEW_VALIDATION_INTERVAL_MS = 110;
 const CROPS: readonly FarmCrop[] = ['rye', 'oats', 'fallow'];
 
 export type LandParcelMode = 'field' | 'pasture';
@@ -92,6 +93,9 @@ export class FarmFieldTool {
   private pointerClientX = 0;
   private pointerClientY = 0;
   private pointerDirty = false;
+  private previewCorners: FarmFieldCorners | null = null;
+  private validationDirty = false;
+  private lastValidationTime = 0;
   private validation: Validation = { ok: false, reason: 'too_small', corners: null };
 
   constructor(options: FarmFieldToolOptions) {
@@ -208,6 +212,7 @@ export class FarmFieldTool {
   }
 
   commitDraft(): void {
+    this.validation = this.validate(this.resolvePreviewCorners());
     if (!this.validation.ok) {
       this.options.onPlacementRejected?.(this.validation.reason);
       return;
@@ -234,12 +239,17 @@ export class FarmFieldTool {
   }
 
   update(): void {
-    if (!this.enabled || this.options.isBlocked() || !this.pointerDirty) return;
-    this.pointerDirty = false;
-    if (!this.pointerInside) return;
-    const point = this.options.terrainProjector.pick(this.pointerClientX, this.pointerClientY);
-    this.hoverPoint = point ? { x: point.x, z: point.z } : null;
-    this.refreshPreview();
+    if (!this.enabled || this.options.isBlocked()) return;
+    if (this.pointerDirty) {
+      this.pointerDirty = false;
+      if (!this.pointerInside) return;
+      const point = this.options.terrainProjector.pick(this.pointerClientX, this.pointerClientY);
+      this.hoverPoint = point ? { x: point.x, z: point.z } : null;
+      this.refreshPreviewVisual();
+      this.maybeRunDeferredValidation();
+      return;
+    }
+    this.maybeRunDeferredValidation();
   }
 
   dispose(): void {
@@ -336,18 +346,52 @@ export class FarmFieldTool {
   private clearDraft(): void {
     this.points = [];
     this.fixedCorners = null;
+    this.previewCorners = null;
+    this.validationDirty = false;
+    this.lastValidationTime = 0;
     this.validation = { ok: false, reason: 'too_small', corners: null };
     this.preview.show(null, false, this.mode === 'pasture' ? 'fallow' : this.crop);
   }
 
   private refreshPreview(): void {
-    const corners = this.fixedCorners ?? (
+    const corners = this.resolvePreviewCorners();
+    this.previewCorners = corners;
+    this.validation = this.validate(corners);
+    this.validationDirty = false;
+    this.lastValidationTime = performance.now();
+    this.preview.show(corners, this.validation.ok, this.mode === 'pasture' ? 'fallow' : this.crop);
+  }
+
+  private refreshPreviewVisual(): void {
+    const corners = this.resolvePreviewCorners();
+    this.previewCorners = corners;
+    this.validationDirty = true;
+    this.preview.show(corners, this.validation.ok, this.mode === 'pasture' ? 'fallow' : this.crop);
+  }
+
+  private resolvePreviewCorners(): FarmFieldCorners | null {
+    return this.fixedCorners ?? (
       this.points.length === 2 && this.hoverPoint
         ? rectangleFromBaseline(this.points[0], this.points[1], this.hoverPoint)
         : null
     );
-    this.validation = this.validate(corners);
-    this.preview.show(corners, this.validation.ok, this.mode === 'pasture' ? 'fallow' : this.crop);
+  }
+
+  private maybeRunDeferredValidation(): void {
+    if (
+      !this.validationDirty
+      || performance.now() - this.lastValidationTime < PREVIEW_VALIDATION_INTERVAL_MS
+    ) {
+      return;
+    }
+    this.validation = this.validate(this.previewCorners);
+    this.validationDirty = false;
+    this.lastValidationTime = performance.now();
+    this.preview.show(
+      this.previewCorners,
+      this.validation.ok,
+      this.mode === 'pasture' ? 'fallow' : this.crop,
+    );
   }
 
   private validate(corners: FarmFieldCorners | null): Validation {

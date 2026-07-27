@@ -7,6 +7,8 @@ use crate::constants::{
 use crate::db::*;
 use crate::tables::Building;
 
+use super::commodities::CommodityKind;
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StorageCaps {
     pub timber: f64,
@@ -89,9 +91,8 @@ pub(crate) fn available_unreserved_treasury_stone(
     (treasury_stone(ctx, owner) - reserved).max(0.0)
 }
 
-/// Splits a new construction reservation between inventories held at buildings
-/// and the abstract founding treasury. Building stock is preferred so completed
-/// storehouses and producers remain the physical source of later cart loads.
+/// Splits a new construction reservation between physical building inventories
+/// and the legacy abstract reserve retained only for pre-founding-site saves.
 pub fn construction_treasury_reservation(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -107,8 +108,8 @@ pub fn construction_treasury_reservation(
 
 /// Repair sites may already hold usable material. The caller records the
 /// consumed onsite portion as delivered, then reserves only the remainder
-/// from other stores or the treasury so the site never dispatches a cart to
-/// itself.
+/// from other stores or the legacy reserve so the site never dispatches a cart
+/// to itself.
 pub fn construction_treasury_reservation_excluding_building(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -243,53 +244,23 @@ pub fn building_food_storage_cap(kind: &str) -> f64 {
 }
 
 pub fn credit_treasury_timber(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    if amount <= 0.0 {
-        return;
-    }
-    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
-        treasury.timber += amount;
-        ctx.db.player_resources().owner().update(treasury);
-    }
+    crate::economy::credit_treasury_commodity(ctx, owner, CommodityKind::Timber, amount);
 }
 
 pub fn credit_treasury_stone(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    if amount <= 0.0 {
-        return;
-    }
-    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
-        treasury.stone += amount;
-        ctx.db.player_resources().owner().update(treasury);
-    }
+    crate::economy::credit_treasury_commodity(ctx, owner, CommodityKind::Stone, amount);
 }
 
 pub fn credit_treasury_firewood(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    if amount <= 0.0 {
-        return;
-    }
-    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
-        treasury.firewood += amount;
-        ctx.db.player_resources().owner().update(treasury);
-    }
+    crate::economy::credit_treasury_commodity(ctx, owner, CommodityKind::Firewood, amount);
 }
 
 pub fn credit_treasury_water(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    if amount <= 0.0 {
-        return;
-    }
-    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
-        treasury.water += amount;
-        ctx.db.player_resources().owner().update(treasury);
-    }
+    crate::economy::credit_treasury_commodity(ctx, owner, CommodityKind::Water, amount);
 }
 
 pub fn credit_treasury_food(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    if amount <= 0.0 {
-        return;
-    }
-    if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
-        treasury.food += amount;
-        ctx.db.player_resources().owner().update(treasury);
-    }
+    crate::economy::credit_treasury_commodity(ctx, owner, CommodityKind::Food, amount);
 }
 
 pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
@@ -297,9 +268,38 @@ pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, 
         return;
     }
     if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
+        if treasury.physical_founding_site_enabled {
+            if let Some(mut seat) = physical_treasury_seat(ctx, owner) {
+                seat.gold += amount;
+                ctx.db.building().id().update(seat);
+                return;
+            }
+        }
         treasury.gold += amount;
         ctx.db.player_resources().owner().update(treasury);
     }
+}
+
+pub fn treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    let ledger_gold = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .map(|resources| resources.gold.max(0.0))
+        .unwrap_or(0.0);
+    ledger_gold
+        + ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .filter(|building| {
+                building.construction_complete
+                    && matches!(building.kind.as_str(), "founders_camp" | "town_hall")
+            })
+            .map(|building| building.gold.max(0.0))
+            .sum::<f64>()
 }
 
 pub fn spend_treasury_gold(
@@ -310,18 +310,77 @@ pub fn spend_treasury_gold(
     if amount <= 0.0 {
         return Ok(());
     }
+    let available = treasury_gold(ctx, owner);
+    if available + 1e-6 < amount {
+        return Err(format!(
+            "Not enough gold (need {} more).",
+            (amount - available).round() as i64
+        ));
+    }
     let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
         return Err("Not enough gold.".to_string());
     };
-    if treasury.gold + 1e-6 < amount {
-        return Err(format!(
-            "Not enough gold (need {} more).",
-            (amount - treasury.gold).round() as i64
-        ));
+
+    if treasury.physical_founding_site_enabled {
+        let mut remaining = amount;
+        let mut seats = ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .filter(|building| {
+                building.construction_complete
+                    && matches!(building.kind.as_str(), "founders_camp" | "town_hall")
+                    && building.gold > 1e-9
+            })
+            .collect::<Vec<_>>();
+        seats.sort_by_key(|building| {
+            (
+                if building.kind == "town_hall" {
+                    0_u8
+                } else {
+                    1_u8
+                },
+                building.id,
+            )
+        });
+        for mut seat in seats {
+            let paid = seat.gold.min(remaining);
+            seat.gold -= paid;
+            remaining -= paid;
+            ctx.db.building().id().update(seat);
+            if remaining <= 1e-9 {
+                return Ok(());
+            }
+        }
+        treasury.gold = (treasury.gold - remaining).max(0.0);
+        ctx.db.player_resources().owner().update(treasury);
+        return Ok(());
     }
     treasury.gold -= amount;
     ctx.db.player_resources().owner().update(treasury);
     Ok(())
+}
+
+fn physical_treasury_seat(ctx: &ReducerContext, owner: spacetimedb::Identity) -> Option<Building> {
+    ctx.db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| {
+            building.construction_complete
+                && matches!(building.kind.as_str(), "founders_camp" | "town_hall")
+        })
+        .min_by_key(|building| {
+            (
+                if building.kind == "town_hall" {
+                    0_u8
+                } else {
+                    1_u8
+                },
+                building.id,
+            )
+        })
 }
 
 fn treasury_timber(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {

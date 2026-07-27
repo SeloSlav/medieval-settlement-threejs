@@ -15,7 +15,8 @@ export type PlacementBuildMenuAction =
   | 'residences';
 
 export type BuildMenuAction = PlacementBuildMenuAction;
-type PlacementArtKey = BuildingKind | 'residences';
+type PlayerPlaceableBuildingKind = Exclude<BuildingKind, 'founders_camp'>;
+type PlacementArtKey = PlayerPlaceableBuildingKind | 'residences';
 export type BuildMenuEntry = { kind: 'placement'; action: PlacementBuildMenuAction; artKey: PlacementArtKey };
 
 const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
@@ -72,7 +73,8 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   swineherd: ['Woodland swineherd', 'X', 'Raises pigs on mature woodland mast. Felling its pannage trees forces inefficient grain feeding and reduces output.'],
 };
 
-const action = (kind: BuildingKind): PlacementBuildMenuAction => kind.replaceAll('_', '-') as PlacementBuildMenuAction;
+const action = (kind: PlayerPlaceableBuildingKind): PlacementBuildMenuAction =>
+  kind.replaceAll('_', '-') as PlacementBuildMenuAction;
 const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
   kind: 'placement',
   action: artKey === 'residences'

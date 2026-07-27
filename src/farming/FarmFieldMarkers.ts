@@ -1,5 +1,13 @@
 import * as THREE from 'three';
+import {
+  clearOverlayGeometry,
+  polygonSegments,
+  updateTerrainQuadGeometry,
+  updateTerrainRibbonGeometry,
+  type TerrainOverlaySegment,
+} from '../placement/TerrainOverlayGeometry.ts';
 import type { FarmCrop, FarmFieldStage, FarmFieldState } from '../resources/types.ts';
+import { disposeObject3D } from '../utils/dispose.ts';
 import { bilinearPoint, type FarmFieldCorners } from './farmFieldMath.ts';
 
 const GRID_STEPS = 10;
@@ -145,22 +153,150 @@ export class FarmFieldMarkers {
 export class FarmFieldPreview {
   readonly group = new THREE.Group();
   private readonly getHeightAt: (x: number, z: number) => number;
+  private readonly fill: THREE.Mesh;
+  private readonly border: THREE.Mesh;
+  private readonly guides: THREE.Mesh;
+  private lastSignature = '';
 
   constructor(getHeightAt: (x: number, z: number) => number) {
     this.getHeightAt = getHeightAt;
-    this.group.name = 'Farm field preview';
+    this.group.name = 'Terrain-hugging farmland preview';
+    this.group.frustumCulled = false;
+    this.group.visible = false;
+
+    this.fill = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({
+        color: 0xfffdf5,
+        transparent: true,
+        opacity: 0.11,
+        depthTest: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      }),
+    );
+    this.fill.name = 'Farmland preview fill';
+    this.fill.renderOrder = 12;
+    this.fill.frustumCulled = false;
+    this.group.add(this.fill);
+
+    this.guides = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({
+        color: 0xfffdf5,
+        transparent: true,
+        opacity: 0.48,
+        depthTest: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -3,
+        polygonOffsetUnits: -3,
+      }),
+    );
+    this.guides.name = 'Farmland internal guides';
+    this.guides.renderOrder = 14;
+    this.guides.frustumCulled = false;
+    this.group.add(this.guides);
+
+    this.border = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({
+        color: 0xfffdf5,
+        transparent: true,
+        opacity: 0.94,
+        depthTest: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -4,
+        polygonOffsetUnits: -4,
+      }),
+    );
+    this.border.name = 'Farmland dotted border';
+    this.border.renderOrder = 15;
+    this.border.frustumCulled = false;
+    this.group.add(this.border);
   }
 
-  show(corners: FarmFieldCorners | null, valid: boolean, crop: FarmCrop): void {
-    disposeObject(this.group);
-    if (!corners) return;
-    const color = valid ? fieldColor(crop, 'growing') : 0xa43b2f;
-    this.group.add(createSurface(corners, this.getHeightAt, color, 0.48));
-    this.group.add(createOutline(corners, this.getHeightAt, valid ? 0xe5cf76 : 0xff5f4f));
+  show(corners: FarmFieldCorners | null, valid: boolean, _crop: FarmCrop): void {
+    if (!corners) {
+      this.lastSignature = '';
+      this.group.visible = false;
+      return;
+    }
+
+    const signature = `${valid ? 1 : 0}|${corners
+      .map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`)
+      .join('|')}`;
+    if (signature === this.lastSignature) return;
+    this.lastSignature = signature;
+    this.group.visible = true;
+
+    const color = valid ? 0xfffdf5 : 0xff5d50;
+    for (const mesh of [this.fill, this.guides, this.border]) {
+      (mesh.material as THREE.MeshBasicMaterial).color.setHex(color);
+    }
+    (this.fill.material as THREE.MeshBasicMaterial).opacity = valid ? 0.11 : 0.085;
+
+    updateTerrainQuadGeometry(
+      this.fill.geometry,
+      corners,
+      this.getHeightAt,
+      0.095,
+      9,
+      9,
+    );
+    updateTerrainRibbonGeometry(
+      this.border.geometry,
+      polygonSegments(corners),
+      this.getHeightAt,
+      {
+        width: 0.18,
+        lift: 0.16,
+        sampleSpacing: 0.9,
+        dashLength: 1.5,
+        gapLength: 0.82,
+      },
+    );
+
+    const width = Math.hypot(
+      corners[1].x - corners[0].x,
+      corners[1].z - corners[0].z,
+    );
+    const guideCount = Math.max(1, Math.min(16, Math.round(width / 5.2)));
+    const guideSegments: TerrainOverlaySegment[] = [];
+    for (let index = 1; index < guideCount; index += 1) {
+      const u = index / guideCount;
+      guideSegments.push([
+        bilinearPoint(corners, u, 0),
+        bilinearPoint(corners, u, 1),
+      ]);
+    }
+    updateTerrainRibbonGeometry(
+      this.guides.geometry,
+      guideSegments,
+      this.getHeightAt,
+      {
+        width: 0.075,
+        lift: 0.135,
+        sampleSpacing: 0.8,
+      },
+    );
+    this.guides.visible = Boolean(
+      this.guides.geometry.getAttribute('position')?.count,
+    );
   }
 
   dispose(): void {
-    disposeObject(this.group);
+    clearOverlayGeometry(this.fill.geometry);
+    clearOverlayGeometry(this.border.geometry);
+    clearOverlayGeometry(this.guides.geometry);
+    disposeObject3D(this.group, true);
     this.group.removeFromParent();
+    this.group.clear();
   }
 }

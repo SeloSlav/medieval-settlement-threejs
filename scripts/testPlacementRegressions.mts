@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as THREE from 'three';
 import { getBuildingSiteClearanceSearchRadius } from '../src/buildings/BuildingTerrainLayout.ts';
 import { PlacementClearanceSpatialIndex } from '../src/placement/PlacementClearanceSpatialIndex.ts';
+import {
+  polygonSegments,
+  updateTerrainQuadGeometry,
+  updateTerrainRibbonGeometry,
+} from '../src/placement/TerrainOverlayGeometry.ts';
 import { QuarryLayout, quarrySiteOverlapsRiver } from '../src/quarries/QuarryLayout.ts';
 import { burgageZoneTouchesWater } from '../src/residences/burgagePlacementValidation.ts';
 import { RiverLayout } from '../src/rivers/RiverLayout.ts';
@@ -108,9 +114,55 @@ function testBurgageWaterValidationSamplesTheWholeZone(): void {
   );
 }
 
+function testPlacementOverlaysFollowTerrainHeight(): void {
+  const corners = [
+    { x: -5, z: -4 },
+    { x: 6, z: -4 },
+    { x: 6, z: 5 },
+    { x: -5, z: 5 },
+  ] as const;
+  const heightAt = (x: number, z: number) => Math.sin(x * 0.2) + Math.cos(z * 0.15);
+
+  const fillGeometry = new THREE.BufferGeometry();
+  updateTerrainQuadGeometry(fillGeometry, corners, heightAt, 0.1, 5, 5);
+  const fillPositions = fillGeometry.getAttribute('position') as THREE.BufferAttribute;
+  for (let index = 0; index < fillPositions.count; index++) {
+    assert.ok(
+      Math.abs(
+        fillPositions.getY(index)
+        - (heightAt(fillPositions.getX(index), fillPositions.getZ(index)) + 0.1)
+      ) < 1e-5,
+      'placement fill vertices must stay just above the sampled terrain',
+    );
+  }
+
+  const borderGeometry = new THREE.BufferGeometry();
+  updateTerrainRibbonGeometry(
+    borderGeometry,
+    polygonSegments(corners),
+    heightAt,
+    { width: 0.2, lift: 0.16, sampleSpacing: 0.75, dashLength: 1.4, gapLength: 0.8 },
+  );
+  const borderPositions = borderGeometry.getAttribute('position') as THREE.BufferAttribute;
+  assert.ok(borderPositions.count > 16, 'dotted footprint border should be terrain-sampled');
+  for (let index = 0; index < borderPositions.count; index++) {
+    assert.ok(
+      Math.abs(
+        borderPositions.getY(index)
+        - (heightAt(borderPositions.getX(index), borderPositions.getZ(index)) + 0.16)
+      ) < 1e-5,
+      'placement border vertices must stay just above the sampled terrain',
+    );
+  }
+
+  fillGeometry.dispose();
+  borderGeometry.dispose();
+}
+
 testClearanceSpatialIndexKeepsNearbyCandidates();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
+testPlacementOverlaysFollowTerrainHeight();
 
 const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const placementValidation = readFileSync('server/src/placement_validation.rs', 'utf8');

@@ -1,134 +1,141 @@
 import * as THREE from 'three';
+import {
+  polygonSegments,
+  updateTerrainQuadGeometry,
+  updateTerrainRibbonGeometry,
+} from '../placement/TerrainOverlayGeometry.ts';
 import type { BuildingKind } from '../resources/types.ts';
-import { getBuildingPadParams } from './BuildingTerrainLayout.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
+import { getBuildingPadParams } from './BuildingTerrainLayout.ts';
 
 const PREVIEW_COLORS = {
-  valid: 0x00cc66,
-  invalid: 0xff4444,
+  valid: 0xfffdf5,
+  invalid: 0xff5d50,
 } as const;
 
-const PREVIEW_OPACITY = 0.48;
+const FOOTPRINT_SCALE = 0.92;
+const FOOTPRINT_FILL_LIFT = 0.105;
+const FOOTPRINT_BORDER_LIFT = 0.145;
+const FOOTPRINT_BORDER_WIDTH = 0.34;
 const PREVIEW_RENDER_ORDER = 12;
-
-const PREVIEW_HEIGHT: Record<BuildingKind, number> = {
-  lumber_mill: 6.3,
-  reforester: 5.5,
-  woodcutters_lodge: 5.6,
-  stone_quarry: 6.4,
-  large_quarry: 9.2,
-  well: 4.7,
-  hunters_hall: 5.7,
-  foragers_shed: 4.9,
-  fishing_camp: 5.2,
-  chapel: 9.5,
-  marketplace: 5.3,
-  town_hall: 9.2,
-  village_storehouse: 6.7,
-  watchtower: 10.8,
-  guardhouse: 6.5,
-  threshing_barn: 7.1,
-  monastery: 9.8,
-  brewery: 6.7,
-  smokehouse: 6.9,
-  granary: 6.9,
-  apiary: 4.8,
-  watermill: 7.2,
-  carpenter: 5.8,
-  weaver: 5.7,
-  ferry_landing: 4.8,
-  vineyard: 4.2,
-  pastoral_farmstead: 6.4,
-  swineherd: 4.7,
-};
 
 export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Building preview';
-  group.add(createPreviewSilhouette(kind, PREVIEW_COLORS.valid, PREVIEW_OPACITY));
+  group.name = 'Terrain-hugging building footprint';
+  group.userData.previewKind = kind;
   group.frustumCulled = false;
   group.renderOrder = PREVIEW_RENDER_ORDER;
+
+  const fill = new THREE.Mesh(
+    new THREE.BufferGeometry(),
+    new THREE.MeshBasicMaterial({
+      color: PREVIEW_COLORS.valid,
+      transparent: true,
+      opacity: 0.2,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }),
+  );
+  fill.name = 'Building footprint fill';
+  fill.userData.previewRole = 'fill';
+  fill.renderOrder = PREVIEW_RENDER_ORDER;
+  fill.frustumCulled = false;
+  group.add(fill);
+
+  const border = new THREE.Mesh(
+    new THREE.BufferGeometry(),
+    new THREE.MeshBasicMaterial({
+      color: PREVIEW_COLORS.valid,
+      transparent: true,
+      opacity: 0.94,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
+    }),
+  );
+  border.name = 'Building footprint border';
+  border.userData.previewRole = 'border';
+  border.renderOrder = PREVIEW_RENDER_ORDER + 1;
+  border.frustumCulled = false;
+  group.add(border);
+
   return group;
 }
 
-export function updateBuildingPreviewAppearance(group: THREE.Group, valid: boolean): void {
+export function updateBuildingPreviewGeometry(
+  group: THREE.Group,
+  kind: BuildingKind,
+  x: number,
+  z: number,
+  yaw: number,
+  getHeightAt: (x: number, z: number) => number,
+): void {
+  const params = getBuildingPadParams(kind);
+  const halfWidth = params.radiusX * params.innerFade * FOOTPRINT_SCALE;
+  const halfDepth = params.radiusZ * params.innerFade * FOOTPRINT_SCALE;
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+  const worldPoint = (localX: number, localZ: number) => ({
+    x: x + localX * cos - localZ * sin,
+    z: z + localX * sin + localZ * cos,
+  });
+  const corners = [
+    worldPoint(-halfWidth, -halfDepth),
+    worldPoint(halfWidth, -halfDepth),
+    worldPoint(halfWidth, halfDepth),
+    worldPoint(-halfWidth, halfDepth),
+  ] as const;
+
+  const fill = group.getObjectByName('Building footprint fill');
+  if (fill instanceof THREE.Mesh) {
+    updateTerrainQuadGeometry(
+      fill.geometry,
+      corners,
+      getHeightAt,
+      FOOTPRINT_FILL_LIFT,
+      7,
+      7,
+    );
+  }
+
+  const border = group.getObjectByName('Building footprint border');
+  if (border instanceof THREE.Mesh) {
+    updateTerrainRibbonGeometry(
+      border.geometry,
+      polygonSegments(corners),
+      getHeightAt,
+      {
+        width: FOOTPRINT_BORDER_WIDTH,
+        lift: FOOTPRINT_BORDER_LIFT,
+        sampleSpacing: 0.95,
+      },
+    );
+  }
+}
+
+export function updateBuildingPreviewAppearance(
+  group: THREE.Group,
+  valid: boolean,
+): void {
   const color = valid ? PREVIEW_COLORS.valid : PREVIEW_COLORS.invalid;
   group.traverse((object) => {
-    const mesh = object as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const material = mesh.material;
+    if (!(object instanceof THREE.Mesh)) return;
+    const material = object.material;
     if (!(material instanceof THREE.MeshBasicMaterial)) return;
     material.color.setHex(color);
+    material.opacity = object.userData.previewRole === 'border'
+      ? valid ? 0.94 : 0.98
+      : valid ? 0.2 : 0.18;
   });
 }
 
 export function disposeBuildingPreviewMesh(group: THREE.Group): void {
   disposeObject3D(group, true);
-}
-
-function createPreviewSilhouette(kind: BuildingKind, colorHex: number, opacity: number): THREE.Mesh {
-  const params = getBuildingPadParams(kind);
-  const scale = params.innerFade * 0.92;
-  const height = PREVIEW_HEIGHT[kind];
-  const geometry = createPreviewFootprintGeometry(kind, params, scale, height);
-  const material = new THREE.MeshBasicMaterial({
-    color: colorHex,
-    transparent: true,
-    opacity,
-    depthTest: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.y = height * 0.5;
-  mesh.castShadow = false;
-  mesh.receiveShadow = false;
-  mesh.frustumCulled = false;
-  mesh.renderOrder = PREVIEW_RENDER_ORDER;
-  return mesh;
-}
-
-function createPreviewFootprintGeometry(
-  kind: BuildingKind,
-  params: ReturnType<typeof getBuildingPadParams>,
-  scale: number,
-  height: number,
-): THREE.BufferGeometry {
-  switch (kind) {
-    case 'stone_quarry':
-    case 'large_quarry':
-      return new THREE.CylinderGeometry(params.radiusX * scale, params.radiusX * scale, height, 24);
-    case 'lumber_mill':
-      return new THREE.BoxGeometry(params.radiusX * 2 * scale, height, params.radiusZ * 2 * scale);
-    case 'reforester':
-    case 'woodcutters_lodge':
-    case 'well':
-    case 'hunters_hall':
-    case 'foragers_shed':
-    case 'fishing_camp':
-    case 'chapel':
-    case 'marketplace':
-    case 'town_hall':
-    case 'village_storehouse':
-    case 'watchtower':
-    case 'guardhouse':
-    case 'threshing_barn':
-    case 'monastery':
-    case 'brewery':
-    case 'smokehouse':
-    case 'granary':
-    case 'apiary':
-    case 'watermill':
-    case 'carpenter':
-    case 'weaver':
-    case 'ferry_landing':
-    case 'vineyard':
-    case 'pastoral_farmstead':
-    case 'swineherd':
-      return new THREE.BoxGeometry(params.radiusX * 2 * scale, height, params.radiusZ * 2 * scale);
-    default: {
-      const unreachable: never = kind;
-      return unreachable;
-    }
-  }
 }

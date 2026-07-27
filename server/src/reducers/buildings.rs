@@ -14,7 +14,7 @@ use crate::construction_priority::{
 use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, available_building_labor, building_commodity_cap,
-    building_commodity_stock, building_cost, building_salvage_refund, chapel_coffer_gold,
+    building_commodity_stock, building_cost, building_salvage_refund,
     collect_chapel_coffer as sweep_chapel_coffer, construction_treasury_reservation,
     credit_treasury_commodity, credit_treasury_firewood, credit_treasury_food,
     credit_treasury_gold, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
@@ -257,6 +257,10 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     let def = building_def_or_err(&kind)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
+
+    if kind == "founders_camp" {
+        return Err("The founders' camp is created automatically with a new settlement.".into());
+    }
 
     if kind != "large_quarry" && is_on_quarry_pit(ctx, x, z) {
         return Err("Cannot build on a quarry pit.".to_string());
@@ -577,6 +581,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         storehouse_firewood_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         gold: 0.0,
+        founding_shelter_active: false,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1583,6 +1588,12 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     if building.owner != owner {
         return Err("You do not own this building.".to_string());
     }
+    if building.kind == "founders_camp" {
+        return Err(
+            "The founders' camp clears itself after its people are housed and its stores are moved."
+                .to_string(),
+        );
+    }
     if building.kind == "threshing_barn"
         && ctx
             .db
@@ -1628,6 +1639,21 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         }
     };
     let recoverable = if fire_damaged { 0.0 } else { 1.0 };
+
+    // Remove the source before depositing recovered cargo. In physical-storage
+    // games this prevents a demolished town hall or storehouse from receiving
+    // its own salvage immediately before its row disappears.
+    if ctx
+        .db
+        .livestock_herd()
+        .building_id()
+        .find(&building_id)
+        .is_some()
+    {
+        ctx.db.livestock_herd().building_id().delete(&building_id);
+    }
+    ctx.db.building().id().delete(building_id);
+
     credit_treasury_timber(
         ctx,
         owner,
@@ -1649,7 +1675,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         (building.water + trip_cargo.water) * recoverable,
     );
     credit_treasury_food(ctx, owner, (building.food + trip_cargo.food) * recoverable);
-    credit_treasury_gold(ctx, owner, chapel_coffer_gold(&building) * recoverable);
+    credit_treasury_gold(ctx, owner, building.gold * recoverable);
     credit_treasury_commodity(
         ctx,
         owner,
@@ -1710,17 +1736,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         CommodityKind::Cloth,
         (building.cloth + trip_cargo.cloth) * recoverable,
     );
-
-    if ctx
-        .db
-        .livestock_herd()
-        .building_id()
-        .find(&building_id)
-        .is_some()
-    {
-        ctx.db.livestock_herd().building_id().delete(&building_id);
-    }
-    ctx.db.building().id().delete(building_id);
 
     Ok(())
 }

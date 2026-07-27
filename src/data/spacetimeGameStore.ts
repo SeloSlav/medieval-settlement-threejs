@@ -103,6 +103,7 @@ export type SpacetimeGameSnapshot = {
   connected: boolean;
   identityHex: string | null;
   stockpile: ResourceStockpile;
+  physicalFoundingSiteEnabled: boolean;
   economicActivityTaxRate: number;
   seasonalLaborStewardEnabled: boolean;
   constructionLaborStewardEnabled: boolean;
@@ -139,6 +140,7 @@ function createEmptyTableState(): GameTableSyncState {
     gameSpeed: 1,
     worldGeneration: null,
     stockpile: createEmptyStockpile(),
+    physicalFoundingSiteEnabled: false,
     economicActivityTaxRate: ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
     seasonalLaborStewardEnabled: DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
     constructionLaborStewardEnabled: DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
@@ -162,6 +164,16 @@ function createEmptyTableState(): GameTableSyncState {
     settlementSecurity: { ...DEFAULT_SETTLEMENT_SECURITY },
     roads: null,
   };
+}
+
+function tableStatePopulation(state: GameTableSyncState): number {
+  const housed = Array.from(state.residences.values()).reduce(
+    (total, residence) => total + (residence.abandoned ? 0 : residence.population),
+    0,
+  );
+  return state.physicalFoundingSiteEnabled
+    ? Math.max(STARTING_POPULATION, housed)
+    : STARTING_POPULATION + housed;
 }
 
 export class SpacetimeGameStore {
@@ -202,6 +214,7 @@ export class SpacetimeGameStore {
       connected: this.isConnected,
       identityHex: state.identityHex,
       stockpile: this.snapshotRecord(state.stockpile),
+      physicalFoundingSiteEnabled: state.physicalFoundingSiteEnabled,
       economicActivityTaxRate: state.economicActivityTaxRate,
       seasonalLaborStewardEnabled: state.seasonalLaborStewardEnabled,
       constructionLaborStewardEnabled: state.constructionLaborStewardEnabled,
@@ -285,6 +298,7 @@ export class SpacetimeGameStore {
     return {
       seed,
       tick: snapshot.simTick,
+      physicalFoundingSiteEnabled: snapshot.physicalFoundingSiteEnabled,
       stockpile: snapshot.stockpile,
       quarries: snapshot.quarries,
       foragingNodes: snapshot.foragingNodes,
@@ -547,12 +561,7 @@ export class SpacetimeGameStore {
     recalledWorkers: number;
     calledWorkers: number;
   }> {
-    const totalPopulation = STARTING_POPULATION + Array.from(
-      this.tableState.residences.values(),
-    ).reduce(
-      (total, residence) => total + (residence.abandoned ? 0 : residence.population),
-      0,
-    );
+    const totalPopulation = tableStatePopulation(this.tableState);
     const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
       (total, building) => total + building.assignedLabor,
       0,
@@ -604,12 +613,7 @@ export class SpacetimeGameStore {
   }
 
   async callUpActiveSeasonalLabor(): Promise<number> {
-    const totalPopulation = STARTING_POPULATION + Array.from(
-      this.tableState.residences.values(),
-    ).reduce(
-      (total, residence) => total + (residence.abandoned ? 0 : residence.population),
-      0,
-    );
+    const totalPopulation = tableStatePopulation(this.tableState);
     const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
       (total, building) => total + building.assignedLabor,
       0,
@@ -657,12 +661,7 @@ export class SpacetimeGameStore {
   }
 
   async callUpTargetReadyProcessorLabor(): Promise<number> {
-    const totalPopulation = STARTING_POPULATION + Array.from(
-      this.tableState.residences.values(),
-    ).reduce(
-      (total, residence) => total + (residence.abandoned ? 0 : residence.population),
-      0,
-    );
+    const totalPopulation = tableStatePopulation(this.tableState);
     const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
       (total, building) => total + building.assignedLabor,
       0,
@@ -691,12 +690,7 @@ export class SpacetimeGameStore {
     recalledWorkers: number;
     calledWorkers: number;
   }> {
-    const totalPopulation = STARTING_POPULATION + Array.from(
-      this.tableState.residences.values(),
-    ).reduce(
-      (total, residence) => total + (residence.abandoned ? 0 : residence.population),
-      0,
-    );
+    const totalPopulation = tableStatePopulation(this.tableState);
     const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
       (total, building) => total + building.assignedLabor,
       0,
@@ -797,8 +791,12 @@ export class SpacetimeGameStore {
     this.roadSyncFailedListener = listener;
   }
 
-  bootstrapWorld(registry: WorldLayoutRegistry, worldLayout: WorldLayout): Promise<void> {
-    return spacetimeReducers.bootstrapWorld(registry, worldLayout);
+  bootstrapWorld(
+    registry: WorldLayoutRegistry,
+    worldLayout: WorldLayout,
+    getHeightAt?: (x: number, z: number) => number,
+  ): Promise<void> {
+    return spacetimeReducers.bootstrapWorld(registry, worldLayout, getHeightAt);
   }
 
   queueRoadSync(snapshot: RoadNetworkSnapshot): void {

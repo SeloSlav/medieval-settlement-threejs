@@ -46,4 +46,5 @@ export default __t.row({
   constructionLaborStewardEnabled: __t.bool().name("construction_labor_steward_enabled"),
   productionLaborStewardEnabled: __t.bool().name("production_labor_steward_enabled"),
   laborStewardReserve: __t.u32().name("labor_steward_reserve"),
+  physicalFoundingSiteEnabled: __t.bool().name("physical_founding_site_enabled"),
 });

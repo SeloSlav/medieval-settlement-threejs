@@ -27,6 +27,7 @@ export type GameTableSyncState = {
   gameSpeed: GameSpeed;
   worldGeneration: AuthoritativeWorldGeneration | null;
   stockpile: ResourceStockpile;
+  physicalFoundingSiteEnabled: boolean;
   economicActivityTaxRate: number;
   seasonalLaborStewardEnabled: boolean;
   constructionLaborStewardEnabled: boolean;

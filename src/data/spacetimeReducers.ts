@@ -10,7 +10,10 @@ import type {
 } from '../resources/types.ts';
 import type { WorldLayout } from '../resources/WorldLayout.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
-import { computeWorldBootstrapDataFromLayout } from '../world/worldBootstrapData.ts';
+import {
+  computeWorldBootstrapDataFromLayout,
+  selectFoundingSite,
+} from '../world/worldBootstrapData.ts';
 import { settingsToConfigurePayload } from '../world/worldConfigAuthority.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
@@ -593,6 +596,7 @@ export async function configureWorld(settings: WorldGenerationSettings): Promise
 export async function bootstrapWorld(
   registry: WorldLayoutRegistry,
   worldLayout: WorldLayout,
+  getHeightAt?: (x: number, z: number) => number,
 ): Promise<void> {
   const bootstrap = computeWorldBootstrapDataFromLayout(worldLayout);
   const quarries = bootstrap.quarries.length > 0
@@ -642,6 +646,8 @@ export async function bootstrapWorld(
   await callReducer('bootstrapQuarries', 'bootstrap_quarries', { quarries });
   await callReducer('bootstrapForaging', 'bootstrap_foraging', { nodes });
   await callReducer('bootstrapTrees', 'bootstrap_trees', { trees });
+  const foundingSite = selectFoundingSite(worldLayout, getHeightAt);
+  await callReducer('bootstrapFoundingSite', 'bootstrap_founding_site', foundingSite);
 }
 
 export async function syncRoadNetwork(snapshotJson: string): Promise<void> {

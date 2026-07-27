@@ -27,11 +27,16 @@ import {
   createConstructionSiteMesh,
 } from './ConstructionSiteMesh.ts';
 import { buildingMeshSignature } from './buildingMarkerSignature.ts';
-import { syncStockpileSegments } from './buildingStockpileVisuals.ts';
+import {
+  FOUNDING_STONE_VISUAL_SEGMENTS,
+  FOUNDING_TIMBER_VISUAL_SEGMENTS,
+  syncStockpileSegments,
+} from './buildingStockpileVisuals.ts';
 import {
   createBuildingPreviewMesh,
   disposeBuildingPreviewMesh,
   updateBuildingPreviewAppearance,
+  updateBuildingPreviewGeometry,
 } from './BuildingPlacementPreview.ts';
 
 type BuildingMarkersOptions = {
@@ -54,7 +59,6 @@ export class BuildingMarkers {
     THREE.MeshBasicMaterial
   >;
   private guardhouseMusterSignature = '';
-  private previewMesh: THREE.Mesh | null = null;
   private previewBuilding: THREE.Group | null = null;
   private previewKind: BuildingKind | null = null;
   private previewValid: boolean | null = null;
@@ -125,7 +129,6 @@ export class BuildingMarkers {
   }
 
   clearPlacementPreview(): void {
-    if (this.previewMesh) this.previewMesh.visible = false;
     if (this.previewBuilding) this.previewBuilding.visible = false;
     this.previewValid = null;
     this.lastPreviewSignature = '';
@@ -152,25 +155,15 @@ export class BuildingMarkers {
     kind: BuildingKind,
     x: number,
     z: number,
-    extentRadius: number,
     valid: boolean,
     visible: boolean,
   ): void {
-    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${valid ? 1 : 0}|${visible ? 1 : 0}|${extentRadius.toFixed(1)}`;
+    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${valid ? 1 : 0}|${visible ? 1 : 0}`;
     if (signature === this.lastPreviewSignature) return;
     this.lastPreviewSignature = signature;
     if (!visible) {
-      if (this.previewMesh) this.previewMesh.visible = false;
       if (this.previewBuilding) this.previewBuilding.visible = false;
       return;
-    }
-
-    const ringColor = valid ? 0x00cc66 : 0xff4444;
-    if (!this.previewMesh) {
-      this.previewMesh = createRadiusRing(ringColor, 0.22);
-      this.group.add(this.previewMesh);
-    } else if (this.previewValid !== valid) {
-      (this.previewMesh.material as THREE.MeshBasicMaterial).color.setHex(ringColor);
     }
 
     if (!this.previewBuilding || this.previewKind !== kind) {
@@ -180,31 +173,28 @@ export class BuildingMarkers {
       }
       this.previewBuilding = createBuildingPreviewMesh(kind);
       this.previewKind = kind;
-      this.previewValid = valid;
-      this.previewBuilding.rotation.y = buildingPlacementYaw(kind, x, z, this.getRoadNetwork?.() ?? null);
+      this.previewValid = null;
       this.group.add(this.previewBuilding);
-    } else if (this.previewValid !== valid) {
+    }
+    if (this.previewValid !== valid) {
       updateBuildingPreviewAppearance(this.previewBuilding, valid);
       this.previewValid = valid;
     }
 
-    const y = this.terrain.getHeightAt(x, z);
     const yaw = buildingPlacementYaw(kind, x, z, this.getRoadNetwork?.() ?? null);
-    this.previewMesh.visible = extentRadius > 0;
-    this.previewMesh.position.set(x, y + 0.2, z);
-    this.previewMesh.scale.set(extentRadius, 1, extentRadius);
-
+    updateBuildingPreviewGeometry(
+      this.previewBuilding,
+      kind,
+      x,
+      z,
+      yaw,
+      this.terrain.getHeightAt.bind(this.terrain),
+    );
     this.previewBuilding.visible = true;
-    this.previewBuilding.rotation.y = yaw;
-    this.previewBuilding.position.set(x, y, z);
   }
 
   dispose(): void {
     this.clearPendingPlacement();
-    if (this.previewMesh) {
-      disposeObject3D(this.previewMesh);
-      this.previewMesh = null;
-    }
     if (this.previewBuilding) {
       disposeBuildingPreviewMesh(this.previewBuilding);
       this.previewBuilding = null;
@@ -379,6 +369,32 @@ function syncBuildingVisualState(
   building: BuildingState,
   herd?: LivestockHerdState,
 ): void {
+  if (building.kind === 'founders_camp') {
+    const shelters = marker.getObjectByName('FoundingShelters');
+    if (shelters) shelters.visible = building.foundingShelterActive !== false;
+    const timber = marker.getObjectByName('FoundingTimberStockpile');
+    if (timber instanceof THREE.Group) {
+      syncStockpileSegments(
+        timber,
+        'FoundingTimberSegment',
+        building.timber,
+        BUILDING_STORAGE_CAPS.founders_camp.timber,
+      );
+    }
+    const stone = marker.getObjectByName('FoundingStoneStockpile');
+    if (stone instanceof THREE.Group) {
+      syncStockpileSegments(
+        stone,
+        'FoundingStoneSegment',
+        building.stone,
+        BUILDING_STORAGE_CAPS.founders_camp.stone,
+      );
+    }
+    const chest = marker.getObjectByName('FoundingTreasuryChest');
+    if (chest) chest.visible = building.gold > 1e-6;
+    marker.userData.foundingTimberSegments = FOUNDING_TIMBER_VISUAL_SEGMENTS;
+    marker.userData.foundingStoneSegments = FOUNDING_STONE_VISUAL_SEGMENTS;
+  }
   if (building.kind === 'lumber_mill') {
     const stockpile = marker.getObjectByName('TimberStockpile');
     if (stockpile instanceof THREE.Group) {

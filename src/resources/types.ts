@@ -116,6 +116,7 @@ export type BuildingState = {
   marketplaceIronworkTarget?: number;
   marketplaceSpecialtyExportPolicy?: number;
   marketplaceSeedGrainTarget?: number;
+  foundingShelterActive?: boolean;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {
@@ -227,6 +228,7 @@ export type ResourceStockpile = Record<ResourceKind, number> & {
 export type GameState = {
   seed: number;
   tick: number;
+  physicalFoundingSiteEnabled?: boolean;
   stockpile: ResourceStockpile;
   quarries: Map<string, ResourceNodeState>;
   foragingNodes: Map<string, ForagingNodeState>;

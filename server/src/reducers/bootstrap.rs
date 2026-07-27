@@ -1,9 +1,15 @@
 use spacetimedb::{reducer, ReducerContext};
 
+use crate::building_defs::building_def;
+use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::foraging_policy::preserves_runtime_location_during_bootstrap;
+use crate::granary_policy::GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT;
+use crate::lifecycle::ensure_player_resources;
+use crate::processor_output_policy::PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT;
 use crate::quarry_balance::preserve_extracted_stone;
-use crate::tables::{ForagingNode, Quarry, TreeEntity};
+use crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT;
+use crate::tables::{Building, ForagingNode, Quarry, TreeEntity, WorldConfig};
 use crate::types::{ForagingBootstrap, QuarryBootstrap, TreeBootstrap};
 
 #[reducer]
@@ -117,6 +123,141 @@ pub fn bootstrap_trees(ctx: &ReducerContext, trees: Vec<TreeBootstrap>) -> Resul
             wood_yield: tree.wood_yield.max(1.0),
             x: tree.x,
             z: tree.z,
+        });
+    }
+    Ok(())
+}
+
+/// Establishes the one physical starting point for a new settlement. Existing
+/// saves with any player-authored settlement rows keep their legacy accounting;
+/// repeated bootstrap calls are intentionally idempotent.
+#[reducer]
+pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(), String> {
+    if !x.is_finite() || !z.is_finite() || x.abs() > 10_000.0 || z.abs() > 10_000.0 {
+        return Err("Founding-site coordinates are invalid.".into());
+    }
+
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Player resources are unavailable.".into());
+    };
+    if resources.physical_founding_site_enabled {
+        return Ok(());
+    }
+
+    let has_existing_settlement = ctx.db.building().owner().filter(&owner).next().is_some()
+        || ctx.db.residence().owner().filter(&owner).next().is_some()
+        || ctx
+            .db
+            .burgage_zone()
+            .owner()
+            .filter(&owner)
+            .next()
+            .is_some();
+    if has_existing_settlement {
+        // Additive migration rule: never inject a free camp into a developed
+        // legacy save or reinterpret its established population.
+        return Ok(());
+    }
+
+    let def = building_def("founders_camp")
+        .ok_or_else(|| "Founders' camp balance definition is missing.".to_string())?;
+    ctx.db.building().insert(Building {
+        id: 0,
+        owner,
+        kind: "founders_camp".into(),
+        x,
+        z,
+        work_radius: 0.0,
+        action_cooldown: 0.0,
+        timber: resources.timber.max(0.0),
+        firewood: resources.firewood.max(0.0),
+        stone: resources.stone.max(0.0),
+        water: resources.water.max(0.0),
+        food: resources.food.max(0.0),
+        grain: resources.grain.max(0.0),
+        flour: resources.flour.max(0.0),
+        ale: resources.ale.max(0.0),
+        preserved_food: resources.preserved_food.max(0.0),
+        honey: resources.honey.max(0.0),
+        wine: resources.wine.max(0.0),
+        ironwork: resources.ironwork.max(0.0),
+        polearms: resources.polearms.max(0.0),
+        wool: resources.wool.max(0.0),
+        cloth: resources.cloth.max(0.0),
+        water_capacity: def.storage_water,
+        assigned_labor: 0,
+        storehouse_accepts_timber: true,
+        storehouse_accepts_stone: true,
+        storehouse_accepts_firewood: true,
+        gold: resources.gold.max(0.0),
+        construction_complete: true,
+        construction_progress: 1.0,
+        construction_required_timber: 0.0,
+        construction_required_stone: 0.0,
+        construction_delivered_timber: 0.0,
+        construction_delivered_stone: 0.0,
+        construction_reserved_timber: 0.0,
+        construction_reserved_stone: 0.0,
+        construction_treasury_timber: 0.0,
+        construction_treasury_stone: 0.0,
+        granary_accepts_fresh_food: true,
+        granary_households_first: false,
+        construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
+        woodcutter_timber_reserve: 0.0,
+        granary_grain_reserve: 0.0,
+        harvest_reserve_percent: 0,
+        carpenter_polearm_reserve: 0,
+        guardhouse_pay_priority: 0,
+        marketplace_ironwork_target: 0,
+        marketplace_specialty_export_policy: 0,
+        granary_fresh_food_target_percent: GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
+        storehouse_timber_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        storehouse_stone_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        storehouse_firewood_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
+        guardhouse_food_reserve: 0,
+        marketplace_seed_grain_target: 0,
+        founding_shelter_active: true,
+    });
+
+    resources.timber = 0.0;
+    resources.firewood = 0.0;
+    resources.stone = 0.0;
+    resources.water = 0.0;
+    resources.food = 0.0;
+    resources.grain = 0.0;
+    resources.flour = 0.0;
+    resources.ale = 0.0;
+    resources.preserved_food = 0.0;
+    resources.honey = 0.0;
+    resources.wine = 0.0;
+    resources.ironwork = 0.0;
+    resources.polearms = 0.0;
+    resources.wool = 0.0;
+    resources.cloth = 0.0;
+    resources.gold = 0.0;
+    resources.physical_founding_site_enabled = true;
+    ctx.db.player_resources().owner().update(resources);
+
+    let clearance = def.pick_radius * 1.35;
+    let clearance_sq = clearance * clearance;
+    let cleared_tree_ids = ctx
+        .db
+        .tree_entity()
+        .iter()
+        .filter(|tree| (tree.x - x).powi(2) + (tree.z - z).powi(2) <= clearance_sq)
+        .map(|tree| tree.tree_id)
+        .collect::<Vec<_>>();
+    for tree_id in cleared_tree_ids {
+        ctx.db.tree_entity().tree_id().delete(&tree_id);
+    }
+
+    if let Some(config) = ctx.db.world_config().id().find(&0) {
+        ctx.db.world_config().id().update(WorldConfig {
+            next_building_id: config.next_building_id.saturating_add(1),
+            ..config
         });
     }
     Ok(())

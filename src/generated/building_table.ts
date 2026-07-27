@@ -66,4 +66,5 @@ export default __t.row({
   processorOutputTargetPercent: __t.u8().name("processor_output_target_percent"),
   guardhouseFoodReserve: __t.u8().name("guardhouse_food_reserve"),
   marketplaceSeedGrainTarget: __t.u8().name("marketplace_seed_grain_target"),
+  foundingShelterActive: __t.bool().name("founding_shelter_active"),
 });

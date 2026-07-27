@@ -12,6 +12,7 @@ mod fires;
 mod food_spoilage;
 mod food_supplier;
 mod foraging_respawn;
+mod founding_site;
 mod game_calendar;
 mod household_market_orders;
 mod labor_schedule;
@@ -61,6 +62,7 @@ pub use fires::{
 pub use food_spoilage::step_fresh_food_spoilage;
 pub use food_supplier::{step_fishing_camp, step_foragers_shed, step_hunters_hall};
 pub use foraging_respawn::step_foraging_lifecycle;
+pub use founding_site::step_founding_sites;
 pub use game_calendar::game_clock;
 pub use game_calendar::GameClock;
 pub use household_market_orders::step_household_market_orders;

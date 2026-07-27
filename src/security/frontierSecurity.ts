@@ -9,7 +9,7 @@ import {
 } from '../generated/gameBalance.ts';
 import type { SettlementSecurity } from '../generated/types.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
-import type { BuildingState, GameState } from '../resources/types.ts';
+import type { BuildingState, GameState, ResidenceState } from '../resources/types.ts';
 import { buildingKindLabel } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 
@@ -327,7 +327,7 @@ export function formatRaidReport(security: SettlementSecurityState): string {
     const wealth = Math.round(security.lastWealthLost);
     const losses = [
       goods > 0 ? `${goods} portable goods` : '',
-      wealth > 0 ? `${wealth} gold in household and parish wealth` : '',
+      wealth > 0 ? `${wealth} gold in household, parish, and treasury wealth` : '',
     ].filter(Boolean);
     const arson = security.lastOutcome === 'arson'
       ? ' and set one reached holding alight'
@@ -365,7 +365,7 @@ export type GuardhouseMusterState = {
 };
 
 export type ProjectedRaidTarget = {
-  kind: 'building' | 'residence';
+  kind: 'building' | 'residence' | 'treasury';
   id: string;
   x: number;
   z: number;
@@ -376,6 +376,23 @@ export type ProjectedRaidTarget = {
 };
 
 type ProjectedRaidTargetCandidate = Omit<ProjectedRaidTarget, 'portableSummary'>;
+
+type PortableRaidStoresLike = {
+  timber: number;
+  firewood: number;
+  food: number;
+  grain: number;
+  flour: number;
+  ale: number;
+  preservedFood: number;
+  honey: number;
+  wine: number;
+  wool?: number;
+  cloth?: number;
+  ironwork?: number;
+  polearms?: number;
+  gold: number;
+};
 
 function normalizeRoadSpeedMultiplier(roadSpeedMultiplier: number): number {
   return Number.isFinite(roadSpeedMultiplier) && roadSpeedMultiplier > 0
@@ -490,19 +507,36 @@ export function projectRaidTargets(
   if (limit <= 0) return [];
 
   const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
-  const towers = [...gameState.buildings.values()]
-    .filter(
-      (building) =>
-        building.kind === 'watchtower'
-        && building.constructionComplete !== false
-        && building.assignedLabor > 0
-        && !fireDisabled.has(building.id),
-    )
-    .map((tower) => ({
-      x: tower.x,
-      z: tower.z,
-      radius: watchtowerEffectiveRadius(tower),
-    }));
+  const towers: WatchArea[] = [];
+  let reservedTreasuryTimber = 0;
+  let townHallAnchor: BuildingState | null = null;
+  let completedHoldingAnchor: BuildingState | null = null;
+  let anyHoldingAnchor: BuildingState | null = null;
+  for (const building of gameState.buildings.values()) {
+    reservedTreasuryTimber += positivePortableAmount(
+      building.constructionTreasuryTimber,
+    );
+    if (
+      building.kind === 'watchtower'
+      && building.constructionComplete !== false
+      && building.assignedLabor > 0
+      && !fireDisabled.has(building.id)
+    ) {
+      towers.push({
+        x: building.x,
+        z: building.z,
+        radius: watchtowerEffectiveRadius(building),
+      });
+    }
+    if (building.kind === 'town_hall') {
+      townHallAnchor = earlierBuilding(townHallAnchor, building);
+    }
+    if (building.kind === 'watchtower' || building.kind === 'guardhouse') continue;
+    anyHoldingAnchor = earlierBuilding(anyHoldingAnchor, building);
+    if (building.constructionComplete !== false) {
+      completedHoldingAnchor = earlierBuilding(completedHoldingAnchor, building);
+    }
+  }
   const watchIndex = buildWatchCoverageIndex(towers);
 
   const selected: ProjectedRaidTargetCandidate[] = [];
@@ -518,7 +552,7 @@ export function projectRaidTargets(
 
   for (const building of gameState.buildings.values()) {
     if (building.kind === 'watchtower') continue;
-    const portableValue = buildingPortableRaidValue(building);
+    const portableValue = portableRaidValue(building);
     if (portableValue <= 1e-9) continue;
     consider({
       kind: 'building',
@@ -530,14 +564,16 @@ export function projectRaidTargets(
       portableValue,
     });
   }
+  let residenceAnchor: ResidenceState | null = null;
   for (const residence of gameState.residences.values()) {
+    if (residence.abandoned || residence.population <= 0) continue;
     if (
-      residence.abandoned
-      || residence.population <= 0
-      || residence.householdWealth <= 1e-9
+      residenceAnchor === null
+      || compareStableIds(residence.id, residenceAnchor.id) < 0
     ) {
-      continue;
+      residenceAnchor = residence;
     }
+    if (residence.householdWealth <= 1e-9) continue;
     consider({
       kind: 'residence',
       id: residence.id,
@@ -548,12 +584,56 @@ export function projectRaidTargets(
       portableValue: residence.householdWealth,
     });
   }
+  const treasuryStores: PortableRaidStoresLike = {
+    ...gameState.stockpile,
+    timber: raidableTreasuryTimber(
+      gameState.stockpile.timber,
+      reservedTreasuryTimber,
+    ),
+  };
+  const treasuryValue = portableRaidValue(treasuryStores);
+  const buildingAnchor = townHallAnchor ?? completedHoldingAnchor;
+  const treasuryAnchor = buildingAnchor
+    ? {
+        id: buildingAnchor.id,
+        x: buildingAnchor.x,
+        z: buildingAnchor.z,
+        label: `${buildingKindLabel(buildingAnchor.kind)}${buildingAnchor.constructionComplete === false ? ' worksite' : ''}`,
+      }
+    : residenceAnchor
+      ? {
+          id: residenceAnchor.id,
+          x: residenceAnchor.x,
+          z: residenceAnchor.z,
+          label: `Tier ${residenceAnchor.tier} household`,
+        }
+      : anyHoldingAnchor
+        ? {
+            id: anyHoldingAnchor.id,
+            x: anyHoldingAnchor.x,
+            z: anyHoldingAnchor.z,
+            label: `${buildingKindLabel(anyHoldingAnchor.kind)} worksite`,
+          }
+        : null;
+  if (treasuryValue > 1e-9 && treasuryAnchor) {
+    consider({
+      kind: 'treasury',
+      id: treasuryAnchor.id,
+      x: treasuryAnchor.x,
+      z: treasuryAnchor.z,
+      label: `Settlement treasury at ${treasuryAnchor.label}`,
+      protected: positionIsWatched(treasuryAnchor.x, treasuryAnchor.z, watchIndex),
+      portableValue: treasuryValue,
+    });
+  }
   return selected.map((target) => {
     const portableSummary = target.kind === 'building'
-      ? buildingPortableRaidSummary(gameState.buildings.get(target.id))
-      : `${formatPortableStoreAmount(
-          gameState.residences.get(target.id)?.householdWealth ?? target.portableValue,
-        )} household gold`;
+      ? portableRaidSummary(gameState.buildings.get(target.id))
+      : target.kind === 'treasury'
+        ? portableRaidSummary(treasuryStores)
+        : `${formatPortableStoreAmount(
+            gameState.residences.get(target.id)?.householdWealth ?? target.portableValue,
+          )} household gold`;
     return { ...target, portableSummary };
   });
 }
@@ -584,7 +664,7 @@ export function countSitesProtectedByWatchtower(
       building.id === tower.id
       || (
         building.constructionComplete === false
-        && buildingPortableRaidValue(building) <= 1e-9
+        && portableRaidValue(building) <= 1e-9
       )
     ) continue;
     if (distanceSquared(tower, building) <= radiusSquared) buildings += 1;
@@ -613,21 +693,21 @@ export function frontierDefenseFireSignature(
   return disabledDefenseIds.join('|');
 }
 
-function buildingPortableRaidValue(building: BuildingState): number {
-  return Math.max(0, building.timber)
-    + Math.max(0, building.firewood)
-    + Math.max(0, building.food)
-    + Math.max(0, building.grain)
-    + Math.max(0, building.flour)
-    + Math.max(0, building.ale)
-    + Math.max(0, building.preservedFood)
-    + Math.max(0, building.honey)
-    + Math.max(0, building.wine)
-    + Math.max(0, building.wool ?? 0)
-    + Math.max(0, building.cloth ?? 0) * CLOTH_RAID_VALUE_MULTIPLIER
-    + Math.max(0, building.ironwork ?? 0) * IRONWORK_RAID_VALUE_MULTIPLIER
-    + Math.max(0, building.polearms ?? 0) * POLEARM_RAID_VALUE_MULTIPLIER
-    + Math.max(0, building.gold);
+function portableRaidValue(stores: PortableRaidStoresLike): number {
+  return positivePortableAmount(stores.timber)
+    + positivePortableAmount(stores.firewood)
+    + positivePortableAmount(stores.food)
+    + positivePortableAmount(stores.grain)
+    + positivePortableAmount(stores.flour)
+    + positivePortableAmount(stores.ale)
+    + positivePortableAmount(stores.preservedFood)
+    + positivePortableAmount(stores.honey)
+    + positivePortableAmount(stores.wine)
+    + positivePortableAmount(stores.wool)
+    + positivePortableAmount(stores.cloth) * CLOTH_RAID_VALUE_MULTIPLIER
+    + positivePortableAmount(stores.ironwork) * IRONWORK_RAID_VALUE_MULTIPLIER
+    + positivePortableAmount(stores.polearms) * POLEARM_RAID_VALUE_MULTIPLIER
+    + positivePortableAmount(stores.gold);
 }
 
 const RAID_PORTABLE_STORE_SUMMARY = [
@@ -647,11 +727,11 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['gold', 'gold', 1],
 ] as const;
 
-function buildingPortableRaidSummary(building: BuildingState | undefined): string {
-  if (!building) return 'portable stores';
+function portableRaidSummary(storesLike: PortableRaidStoresLike | undefined): string {
+  if (!storesLike) return 'portable stores';
   const stores = RAID_PORTABLE_STORE_SUMMARY
     .map(([key, label, valueMultiplier], order) => {
-      const amount = Math.max(0, building[key] ?? 0);
+      const amount = positivePortableAmount(storesLike[key]);
       return { label, amount, raidValue: amount * valueMultiplier, order };
     })
     .filter((store) => store.amount > 1e-9)
@@ -664,6 +744,26 @@ function buildingPortableRaidSummary(building: BuildingState | undefined): strin
     : stores
         .map((store) => `${formatPortableStoreAmount(store.amount)} ${store.label}`)
         .join(' + ');
+}
+
+function positivePortableAmount(value: number | undefined): number {
+  return Number.isFinite(value) ? Math.max(0, value ?? 0) : 0;
+}
+
+function raidableTreasuryTimber(timber: number, reservedTimber: number): number {
+  return Math.max(
+    0,
+    positivePortableAmount(timber) - positivePortableAmount(reservedTimber),
+  );
+}
+
+function earlierBuilding(
+  current: BuildingState | null,
+  candidate: BuildingState,
+): BuildingState {
+  return current === null || compareStableIds(candidate.id, current.id) < 0
+    ? candidate
+    : current;
 }
 
 function formatPortableStoreAmount(value: number): string {
@@ -731,16 +831,38 @@ function compareProjectedRaidTargets(
   }
   const idOrder = compareStableIds(left.id, right.id);
   if (idOrder !== 0) return idOrder;
-  return left.kind === right.kind ? 0 : left.kind === 'building' ? -1 : 1;
+  if (left.kind === right.kind) return 0;
+  const kindOrder: Record<ProjectedRaidTarget['kind'], number> = {
+    building: 0,
+    residence: 1,
+    treasury: 2,
+  };
+  return kindOrder[left.kind] - kindOrder[right.kind];
 }
 
 function compareStableIds(left: string, right: string): number {
-  if (/^\d+$/.test(left) && /^\d+$/.test(right)) {
-    const leftId = BigInt(left);
-    const rightId = BigInt(right);
+  if (isUnsignedIntegerId(left) && isUnsignedIntegerId(right)) {
+    let leftStart = 0;
+    let rightStart = 0;
+    while (leftStart + 1 < left.length && left.charCodeAt(leftStart) === 48) leftStart += 1;
+    while (rightStart + 1 < right.length && right.charCodeAt(rightStart) === 48) rightStart += 1;
+    const leftLength = left.length - leftStart;
+    const rightLength = right.length - rightStart;
+    if (leftLength !== rightLength) return leftLength - rightLength;
+    const leftId = left.slice(leftStart);
+    const rightId = right.slice(rightStart);
     return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
   }
-  return left.localeCompare(right);
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function isUnsignedIntegerId(value: string): boolean {
+  if (value.length === 0) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code < 48 || code > 57) return false;
+  }
+  return true;
 }
 
 function distanceSquared(

@@ -38,7 +38,21 @@ fn total_population(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
         .filter(|residence| !residence.abandoned)
         .map(|residence| residence.population)
         .sum();
-    STARTING_POPULATION.saturating_add(from_residences)
+    let physical_founding_site_enabled = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    settlement_population(from_residences, physical_founding_site_enabled)
+}
+
+pub fn settlement_population(housed: u32, physical_founding_site_enabled: bool) -> u32 {
+    if physical_founding_site_enabled {
+        STARTING_POPULATION.max(housed)
+    } else {
+        STARTING_POPULATION.saturating_add(housed)
+    }
 }
 
 fn total_assigned_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
@@ -156,8 +170,8 @@ pub fn building_accepts_labor(kind: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::initial_construction_labor;
-    use crate::balance_generated::CONSTRUCTION_MAX_BUILDERS;
+    use super::{initial_construction_labor, settlement_population};
+    use crate::balance_generated::{CONSTRUCTION_MAX_BUILDERS, STARTING_POPULATION};
 
     #[test]
     fn new_sites_take_available_builders_up_to_the_construction_cap() {
@@ -166,6 +180,23 @@ mod tests {
         assert_eq!(
             initial_construction_labor(CONSTRUCTION_MAX_BUILDERS + 3),
             CONSTRUCTION_MAX_BUILDERS,
+        );
+    }
+
+    #[test]
+    fn physical_founders_move_into_early_housing_before_immigration_grows_population() {
+        assert_eq!(settlement_population(0, true), STARTING_POPULATION);
+        assert_eq!(
+            settlement_population(STARTING_POPULATION - 1, true),
+            STARTING_POPULATION
+        );
+        assert_eq!(
+            settlement_population(STARTING_POPULATION + 2, true),
+            STARTING_POPULATION + 2
+        );
+        assert_eq!(
+            settlement_population(STARTING_POPULATION, false),
+            STARTING_POPULATION * 2
         );
     }
 }

@@ -50,6 +50,7 @@ const FAMILY_NAMES = [
 ] as const;
 
 const OCCUPATIONS: Record<BuildingKind, string> = {
+  founders_camp: 'Founder',
   lumber_mill: 'Lumberjack',
   reforester: 'Forester',
   woodcutters_lodge: 'Woodcutter',

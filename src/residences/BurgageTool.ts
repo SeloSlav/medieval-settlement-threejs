@@ -184,7 +184,7 @@ export class BurgageTool {
   getStatusDetail(): string | null {
     if (!this.enabled) return null;
     if (this.placementStage === 0) {
-      return 'Click along the road to start the frontage (gold dashed line)';
+      return 'Click along the road to start the frontage (white dotted line)';
     }
     if (this.placementStage === 1) {
       return 'Click along the road to set the other end of the frontage';

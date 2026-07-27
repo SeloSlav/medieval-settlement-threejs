@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Placement Overlay Visual QA</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #181b14; }
+      body { display: grid; grid-template-rows: 72px 1fr; }
+      header {
+        display: flex; align-items: center; justify-content: space-between; padding: 0 28px;
+        border-bottom: 1px solid rgba(235,225,198,.24);
+        background: linear-gradient(180deg, #292d22, #1c2118); color: #f2eee4;
+      }
+      h1 { margin: 0; font-family: Georgia, serif; font-size: 25px; font-weight: 600; letter-spacing: .02em; }
+      header p { margin: 0; color: #c7c0ad; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+      main { position: relative; min-height: 0; }
+      canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      #labels { position: absolute; inset: 0; pointer-events: none; }
+      .label {
+        position: absolute; transform: translate(-50%, -50%); padding: 7px 11px;
+        border: 1px solid rgba(240,234,218,.3); border-radius: 4px;
+        background: rgba(26,29,21,.82); color: #f5f0e3; box-shadow: 0 4px 12px rgba(0,0,0,.24);
+        font-family: Georgia, serif; font-size: 13px; letter-spacing: .04em; backdrop-filter: blur(4px);
+      }
+      .label:nth-child(1) { left: 22%; top: 87%; }
+      .label:nth-child(2) { left: 51%; top: 87%; }
+      .label:nth-child(3) { left: 80%; top: 87%; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Placement Overlay Visual QA</h1>
+      <p>Terrain contact · border rhythm · internal plot guides</p>
+    </header>
+    <main id="placement-root">
+      <div id="labels" aria-hidden="true">
+        <div class="label">Building footprint</div>
+        <div class="label">Residence plots</div>
+        <div class="label">Farmland rows</div>
+      </div>
+    </main>
+    <script type="module" src="/src/e2e/placementLineup.ts"></script>
+  </body>
+</html>

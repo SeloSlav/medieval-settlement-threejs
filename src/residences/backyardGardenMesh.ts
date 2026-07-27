@@ -16,6 +16,74 @@ export type BackyardGardenMeshOptions = {
   plants?: BackyardPlantCatalog | null;
 };
 
+const FLOWER_STEM_MAP_SIZE = 64;
+
+function createFlowerStemMaps(): {
+  albedo: THREE.DataTexture;
+  normal: THREE.DataTexture;
+  roughness: THREE.DataTexture;
+} {
+  const albedoPixels = new Uint8Array(FLOWER_STEM_MAP_SIZE * FLOWER_STEM_MAP_SIZE * 4);
+  const normalPixels = new Uint8Array(FLOWER_STEM_MAP_SIZE * FLOWER_STEM_MAP_SIZE * 4);
+  const roughnessPixels = new Uint8Array(FLOWER_STEM_MAP_SIZE * FLOWER_STEM_MAP_SIZE * 4);
+
+  for (let y = 0; y < FLOWER_STEM_MAP_SIZE; y++) {
+    const v = y / FLOWER_STEM_MAP_SIZE;
+    const nodeBand = Math.exp(-Math.pow((v * 3.2) % 1 - 0.5, 2) / 0.006);
+    for (let x = 0; x < FLOWER_STEM_MAP_SIZE; x++) {
+      const offset = (y * FLOWER_STEM_MAP_SIZE + x) * 4;
+      const fiber = Math.sin(x * 0.78 + y * 0.13)
+        + Math.sin(x * 2.41 - y * 0.07) * 0.35;
+      const grain = ((x * 37 + y * 53 + x * y * 3) % 31) / 30 - 0.5;
+      const highlight = fiber * 4 + grain * 5 - nodeBand * 13;
+
+      albedoPixels[offset] = THREE.MathUtils.clamp(63 + highlight, 34, 88);
+      albedoPixels[offset + 1] = THREE.MathUtils.clamp(101 + highlight * 1.35, 55, 134);
+      albedoPixels[offset + 2] = THREE.MathUtils.clamp(48 + highlight * 0.75, 29, 72);
+      albedoPixels[offset + 3] = 255;
+
+      normalPixels[offset] = THREE.MathUtils.clamp(128 + fiber * 7, 105, 151);
+      normalPixels[offset + 1] = THREE.MathUtils.clamp(128 - nodeBand * 9 + grain * 3, 108, 140);
+      normalPixels[offset + 2] = 252;
+      normalPixels[offset + 3] = 255;
+
+      const roughness = THREE.MathUtils.clamp(226 + grain * 14 + nodeBand * 13, 197, 247);
+      roughnessPixels[offset] = roughness;
+      roughnessPixels[offset + 1] = roughness;
+      roughnessPixels[offset + 2] = roughness;
+      roughnessPixels[offset + 3] = 255;
+    }
+  }
+
+  const createMap = (pixels: Uint8Array, name: string, srgb = false): THREE.DataTexture => {
+    const texture = new THREE.DataTexture(
+      pixels,
+      FLOWER_STEM_MAP_SIZE,
+      FLOWER_STEM_MAP_SIZE,
+      THREE.RGBAFormat,
+      THREE.UnsignedByteType,
+    );
+    texture.name = name;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 3);
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = true;
+    if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  };
+
+  return {
+    albedo: createMap(albedoPixels, 'Wildflower stem fiber albedo', true),
+    normal: createMap(normalPixels, 'Wildflower stem fiber normal'),
+    roughness: createMap(roughnessPixels, 'Wildflower stem roughness'),
+  };
+}
+
+const FLOWER_STEM_MAPS = createFlowerStemMaps();
+
 const MATERIALS = {
   soil: new THREE.MeshStandardMaterial({ color: 0x4b3828, roughness: 0.97 }),
   darkSoil: new THREE.MeshStandardMaterial({ color: 0x35271d, roughness: 0.98 }),
@@ -26,16 +94,35 @@ const MATERIALS = {
   stone: sharedBuildingMaterial('masonryMid'),
   leaf: new THREE.MeshStandardMaterial({ color: 0x527a3d, roughness: 0.9 }),
   leafLight: new THREE.MeshStandardMaterial({ color: 0x739650, roughness: 0.9 }),
-  herb: new THREE.MeshStandardMaterial({ color: 0x66834e, roughness: 0.91 }),
-  herbSilver: new THREE.MeshStandardMaterial({ color: 0x829078, roughness: 0.92 }),
+  herb: new THREE.MeshStandardMaterial({
+    color: 0x66834e,
+    roughness: 0.91,
+    side: THREE.DoubleSide,
+  }),
+  herbSilver: new THREE.MeshStandardMaterial({
+    color: 0x829078,
+    roughness: 0.92,
+    side: THREE.DoubleSide,
+  }),
   apple: new THREE.MeshStandardMaterial({ color: 0xb94332, roughness: 0.76 }),
   appleGold: new THREE.MeshStandardMaterial({ color: 0xd99b3a, roughness: 0.76 }),
   cherry: new THREE.MeshStandardMaterial({ color: 0x7f1f2f, roughness: 0.72 }),
   flowerCenter: new THREE.MeshStandardMaterial({ color: 0xd8aa3f, roughness: 0.82 }),
   flowerVertex: new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    roughness: 0.8,
+    roughness: 0.72,
     vertexColors: true,
+    side: THREE.DoubleSide,
+  }),
+  flowerStem: new THREE.MeshStandardMaterial({
+    name: 'Textured wildflower stem material',
+    color: 0xffffff,
+    map: FLOWER_STEM_MAPS.albedo,
+    normalMap: FLOWER_STEM_MAPS.normal,
+    normalScale: new THREE.Vector2(0.32, 0.32),
+    roughnessMap: FLOWER_STEM_MAPS.roughness,
+    roughness: 0.92,
+    metalness: 0,
   }),
   cabbage: new THREE.MeshStandardMaterial({ color: 0x759c5c, roughness: 0.9 }),
   squash: new THREE.MeshStandardMaterial({ color: 0x4d7939, roughness: 0.9 }),
@@ -117,6 +204,7 @@ function addFlowerHead(
   const color = (material as THREE.MeshStandardMaterial).color?.clone()
     ?? new THREE.Color(0xffffff);
   const parts: THREE.BufferGeometry[] = [];
+  const petalGeometry = createRoundedPetalGeometry();
   const addPetalLayer = (
     count: number,
     radius: number,
@@ -127,7 +215,7 @@ function addFlowerHead(
     for (let index = 0; index < count; index++) {
       const angle = yawOffset + (index / count) * Math.PI * 2;
       parts.push(coloredFlowerPart(
-        new THREE.SphereGeometry(0.1, 7, 4),
+        petalGeometry.clone(),
         color,
         new THREE.Vector3(Math.sin(angle) * radius, layerY, Math.cos(angle) * radius),
         new THREE.Euler(0, angle, 0),
@@ -139,17 +227,18 @@ function addFlowerHead(
 
   const petalCount = rose ? 12 : 6;
   if (rose) {
-    addPetalLayer(7, 0.09, new THREE.Vector3(0.58, 0.24, 1.16), 0, 0);
-    addPetalLayer(5, 0.045, new THREE.Vector3(0.45, 0.24, 0.82), Math.PI / 5, 0.025);
+    addPetalLayer(7, 0.011, new THREE.Vector3(1, 0.86, 1), 0, 0);
+    addPetalLayer(5, 0.0035, new THREE.Vector3(0.72, 0.88, 0.68), Math.PI / 5, 0.004);
   } else {
-    addPetalLayer(6, 0.105, new THREE.Vector3(0.52, 0.2, 1.2), 0, 0);
+    addPetalLayer(6, 0.01, new THREE.Vector3(0.92, 0.9, 1), 0, 0);
   }
+  petalGeometry.dispose();
   parts.push(coloredFlowerPart(
-    new THREE.SphereGeometry(rose ? 0.055 : 0.06, 8, 5),
+    new THREE.SphereGeometry(rose ? 0.0065 : 0.008, 12, 7),
     rose ? color.clone().multiplyScalar(0.72) : MATERIALS.flowerCenter.color,
-    new THREE.Vector3(0, rose ? 0.045 : 0.025, 0),
+    new THREE.Vector3(0, rose ? 0.006 : 0.004, 0),
     new THREE.Euler(),
-    rose ? new THREE.Vector3(1, 0.7, 1) : new THREE.Vector3(1, 1, 1),
+    rose ? new THREE.Vector3(1, 0.68, 1) : new THREE.Vector3(1, 0.74, 1),
     scale,
   ));
 
@@ -167,7 +256,103 @@ function addFlowerHead(
     rose ? 'Modeled rose blossom' : 'Modeled cottage flower',
   );
   mesh.userData.petalCount = petalCount;
+  mesh.userData.realWorldDiameterM = 0.088 * scale;
   return flower;
+}
+
+/**
+ * A gently cupped, rounded petal in metres. Six longitudinal sections and a
+ * center rib keep the silhouette soft without turning each small bloom into a
+ * high-poly prop.
+ */
+function createRoundedPetalGeometry(): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  const lengths = [0, 0.006, 0.014, 0.023, 0.03, 0.034] as const;
+  const halfWidths = [0.0015, 0.0085, 0.0135, 0.0145, 0.0095, 0.0028] as const;
+  const cupHeights = [0, 0.0012, 0.0034, 0.0054, 0.0062, 0.005] as const;
+  const shade = [0.7, 0.82, 0.95, 1, 1.06, 1.1] as const;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+
+  for (let row = 0; row < lengths.length; row++) {
+    for (let column = 0; column < 3; column++) {
+      const across = column - 1;
+      const edgeCurl = Math.abs(across) * cupHeights[row]! * 0.28;
+      positions.push(
+        across * halfWidths[row]!,
+        cupHeights[row]! - edgeCurl,
+        lengths[row]!,
+      );
+      uvs.push(column * 0.5, row / (lengths.length - 1));
+      colors.push(shade[row]!, shade[row]!, shade[row]!);
+    }
+  }
+
+  for (let row = 0; row < lengths.length - 1; row++) {
+    const lower = row * 3;
+    const upper = (row + 1) * 3;
+    indices.push(
+      lower, upper, upper + 1,
+      lower, upper + 1, lower + 1,
+      lower + 1, upper + 1, upper + 2,
+      lower + 1, upper + 2, lower + 2,
+    );
+  }
+
+  geometry.setIndex(indices);
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function createLanceolateFlowerLeafGeometry(
+  length: number,
+  halfWidth: number,
+): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  const rowFractions = [0, 0.2, 0.46, 0.7, 0.88, 1] as const;
+  const widthFactors = [0.08, 0.58, 1, 0.88, 0.48, 0.04] as const;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  for (let row = 0; row < rowFractions.length; row++) {
+    const t = rowFractions[row]!;
+    const width = halfWidth * widthFactors[row]!;
+    const curl = Math.sin(t * Math.PI) * length * 0.075;
+    for (let column = 0; column < 3; column++) {
+      const across = column - 1;
+      positions.push(
+        t * length,
+        curl - Math.abs(across) * curl * 0.3,
+        across * width,
+      );
+      uvs.push(t, column * 0.5);
+    }
+  }
+
+  for (let row = 0; row < rowFractions.length - 1; row++) {
+    const lower = row * 3;
+    const upper = (row + 1) * 3;
+    indices.push(
+      lower, upper + 1, upper,
+      lower, lower + 1, upper + 1,
+      lower + 1, upper + 2, upper + 1,
+      lower + 1, lower + 2, upper + 2,
+    );
+  }
+
+  geometry.setIndex(indices);
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  return geometry;
 }
 
 function addTexturedRoseCard(
@@ -201,10 +386,11 @@ function coloredFlowerPart(
   geometry.applyMatrix4(matrix);
   const vertexCount = geometry.getAttribute('position').count;
   const colors = new Float32Array(vertexCount * 3);
+  const sourceColors = geometry.getAttribute('color');
   for (let index = 0; index < vertexCount; index++) {
-    colors[index * 3] = color.r;
-    colors[index * 3 + 1] = color.g;
-    colors[index * 3 + 2] = color.b;
+    colors[index * 3] = color.r * (sourceColors?.getX(index) ?? 1);
+    colors[index * 3 + 1] = color.g * (sourceColors?.getY(index) ?? 1);
+    colors[index * 3 + 2] = color.b * (sourceColors?.getZ(index) ?? 1);
   }
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   return geometry;
@@ -540,7 +726,7 @@ function addRoseShrub(
       0.62 + (bloom % 3) * 0.045,
       true,
     );
-    addTexturedRoseCard(bloomRoot, roseCard, 0.25 + (bloom % 3) * 0.015);
+    addTexturedRoseCard(bloomRoot, roseCard, 0.052 + (bloom % 3) * 0.003);
     registerBackyardSway(
       group,
       bloomRoot,
@@ -572,16 +758,16 @@ function addFlowerGarden(
     const side = i % 2 ? 1 : -1;
     const x = side * (width * 0.16 + rng() * width * 0.26);
     const z = (rng() - 0.5) * depth * 0.72;
-    const h = 0.22 + rng() * 0.28;
+    const h = 0.18 + rng() * 0.22;
     const wildflower = new THREE.Group();
     wildflower.name = `Swaying cottage flower ${i + 1}`;
     wildflower.position.set(x, 0.08, z);
     wildflower.rotation.y = rng() * Math.PI * 2;
     group.add(wildflower);
-    addMesh(
+    const stem = addMesh(
       wildflower,
-      new THREE.CylinderGeometry(0.012, 0.018, h, 5),
-      MATERIALS.herb,
+      new THREE.CylinderGeometry(0.0022, 0.0035, h, 8, 3),
+      MATERIALS.flowerStem,
       0,
       h * 0.5,
       0,
@@ -589,16 +775,21 @@ function addFlowerGarden(
       undefined,
       'Flower stem',
     );
+    stem.userData.maxDiameterM = 0.007;
     for (const direction of [-1, 1]) {
       addMesh(
         wildflower,
-        new THREE.SphereGeometry(0.07, 6, 4),
+        createLanceolateFlowerLeafGeometry(0.06, 0.013),
         i % 2 ? MATERIALS.herb : MATERIALS.herbSilver,
-        direction * 0.055,
+        0,
         h * (direction < 0 ? 0.42 : 0.62),
         0,
-        new THREE.Euler(0, 0, direction * 0.52),
-        new THREE.Vector3(1.15, 0.18, 0.55),
+        new THREE.Euler(
+          0,
+          direction < 0 ? Math.PI : 0,
+          direction * 0.38,
+        ),
+        undefined,
         'Flower stem leaf',
       );
     }

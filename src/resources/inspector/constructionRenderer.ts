@@ -150,7 +150,7 @@ export function renderConstructionInspector(
       <li><span>Incoming haul</span><span>${incomingLabel}</span></li>
       <li><span>Material source</span><span>${nextSourceLabel}</span></li>
       <li><span>Reserved at stores</span><span>${formatAmount(timberPending)} timber · ${formatAmount(stonePending)} stone</span></li>
-      <li><span>Founders’ reserve</span><span>${formatAmount(building.constructionTreasuryTimber)} timber · ${formatAmount(building.constructionTreasuryStone)} stone</span></li>
+      <li><span>Legacy ledger reserve</span><span>${formatAmount(building.constructionTreasuryTimber)} timber · ${formatAmount(building.constructionTreasuryStone)} stone</span></li>
       ${buildingRoadAccessRow(context.worldQueries, building)}
     `,
     demolish: {
@@ -207,7 +207,9 @@ function resolveConstructionSupply(
       site.z,
     );
     const routeDistance = roadDistance ?? (
-      requiresRoad ? null : directDistance(source, site)
+      !requiresRoad || source.kind === 'founders_camp'
+        ? directDistance(source, site)
+        : null
     );
     if (routeDistance == null) {
       unreachable.push(source);

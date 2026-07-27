@@ -94,6 +94,7 @@
     "test:storehouse-stock-targets": "node --experimental-strip-types scripts/testStorehouseStockTargets.mts",
     "test:processor-output-targets": "node --experimental-strip-types scripts/testProcessorOutputPolicy.mts",
     "test:construction-logistics": "node --experimental-strip-types scripts/testConstructionLogistics.mts",
+    "test:founding-site": "npx tsx scripts/testFoundingSite.mts",
     "test:delivery-pacing": "node --experimental-strip-types scripts/testDeliveryPacing.mts",
     "test:delivery-target-selection": "node --experimental-strip-types scripts/testDeliveryTargetSelection.mts",
     "test:quarry-balance": "node --experimental-strip-types scripts/testQuarryBalance.mts",

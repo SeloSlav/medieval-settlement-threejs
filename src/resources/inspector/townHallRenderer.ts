@@ -612,7 +612,7 @@ export function renderConstructionQueueRows(plan: SettlementConstructionPlan): s
     <li><span>Builder load</span><span>${plan.assignedBuilders} / ${plan.builderCapacity} assigned · ${plan.remainingBuilderDays.toFixed(1)} builder-days after supply</span></li>
     <li><span>Queue materials</span><span>${timber.delivered.toFixed(0)} / ${timber.required.toFixed(0)} timber delivered · ${stone.delivered.toFixed(0)} / ${stone.required.toFixed(0)} stone delivered</span></li>
     <li><span>Supply coverage</span><span>${formatConstructionMaterialCoverage('timber earmarked', timber)} · ${formatConstructionMaterialCoverage('stone earmarked', stone)}${timber.uncovered + stone.uncovered > 0.05 ? ` · ${timber.uncovered.toFixed(0)} timber + ${stone.uncovered.toFixed(0)} stone uncovered` : ''}</span></li>
-    <li><span>Material movement</span><span>${timber.awaitingPickup.toFixed(0)} timber + ${stone.awaitingPickup.toFixed(0)} stone await pickup · ${timber.inTransit.toFixed(0)} + ${stone.inTransit.toFixed(0)} on carts · ${timber.foundersReserve.toFixed(0)} + ${stone.foundersReserve.toFixed(0)} in founders' reserve</span></li>
+    <li><span>Material movement</span><span>${timber.awaitingPickup.toFixed(0)} timber + ${stone.awaitingPickup.toFixed(0)} stone await pickup · ${timber.inTransit.toFixed(0)} + ${stone.inTransit.toFixed(0)} on carts · ${timber.foundersReserve.toFixed(0)} + ${stone.foundersReserve.toFixed(0)} in legacy ledger reserve</span></li>
     ${fireBlockedRow}
     ${roadRow}
     <li><span>Queue attention</span><span>${attention}</span></li>
@@ -1289,7 +1289,7 @@ function formatFreshFoodLossSite(
 ): string {
   if (site === null) return 'No fresh food currently spoiling';
   if (site.source === 'treasury') {
-    return `Founding treasury · ${site.stock.toFixed(1)} food · ${formatFreshFoodLoss(site.spoilagePerDay)}`;
+    return `Legacy treasury reserve · ${site.stock.toFixed(1)} food · ${formatFreshFoodLoss(site.spoilagePerDay)}`;
   }
   if (site.source === 'building' && site.id !== null && site.buildingKind !== null) {
     return `${getBuildingLabel(site.buildingKind)} · ${site.stock.toFixed(1)} food · ${formatFreshFoodLoss(site.spoilagePerDay)} <button type="button" class="inspector-jump-button" data-inspect-building="${site.id}" aria-label="Inspect largest fresh-food loss">Inspect</button>`;

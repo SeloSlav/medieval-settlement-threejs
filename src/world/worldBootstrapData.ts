@@ -45,6 +45,23 @@ export type WorldBootstrapData = {
   trees: WorldBootstrapTree[];
 };
 
+export type FoundingSitePosition = {
+  x: number;
+  z: number;
+};
+
+const FOUNDING_SITE_SAMPLE_OFFSETS = [
+  [0, 0],
+  [10, 0],
+  [-10, 0],
+  [0, 10],
+  [0, -10],
+  [7, 7],
+  [-7, 7],
+  [7, -7],
+  [-7, -7],
+] as const;
+
 /** Headless bootstrap for scripts — rebuilds river/quarry blocking without full terrain mesh. */
 export function computeWorldBootstrapDataHeadless(
   settings: WorldGenerationSettings = DEFAULT_WORLD_GENERATION_SETTINGS,
@@ -111,4 +128,67 @@ export function computeWorldBootstrapDataFromLayout(worldLayout: WorldLayout): W
     gameRespawnCandidates: worldLayout.foragingLayout.gameRespawnCandidates,
     trees,
   };
+}
+
+/**
+ * Select a deterministic, buildable village origin near the centre of the map.
+ * Terrain height is supplied by the rendered terrain when available, so the
+ * opening camp favours a broad bench instead of an arbitrary steep hillside.
+ */
+export function selectFoundingSite(
+  worldLayout: WorldLayout,
+  getHeightAt: (x: number, z: number) => number = () => 0,
+): FoundingSitePosition {
+  const dims = resolveWorldDimensions(worldLayout.settings.mapSize);
+  const riverField = RiverField.fromLayout({
+    bounds: Terrain.fullBounds(dims.terrainSize),
+    layout: worldLayout.riverLayout,
+  });
+  const resourceAnchors = WorldLayoutRegistry.fromWorldLayout(worldLayout).definitionList;
+  const candidates: FoundingSitePosition[] = [];
+  const seedAngle = ((worldLayout.seed >>> 0) / 0x1_0000_0000) * Math.PI * 2;
+
+  for (let ring = 0; ring <= 8; ring += 1) {
+    const count = ring === 0 ? 1 : 12 + ring * 4;
+    const radius = ring * 22;
+    for (let index = 0; index < count; index += 1) {
+      const angle = seedAngle + (index / count) * Math.PI * 2 + ring * 0.31;
+      candidates.push({
+        x: Math.cos(angle) * radius,
+        z: Math.sin(angle) * radius,
+      });
+    }
+  }
+
+  let best: { position: FoundingSitePosition; score: number } | null = null;
+  for (const position of candidates) {
+    if (
+      Math.abs(position.x) > dims.playableHalf - 18
+      || Math.abs(position.z) > dims.playableHalf - 18
+      || resourceAnchors.some(
+        (resource) => Math.hypot(resource.x - position.x, resource.z - position.z) < 18,
+      )
+    ) {
+      continue;
+    }
+    const footprintIsClear = FOUNDING_SITE_SAMPLE_OFFSETS.every(([offsetX, offsetZ]) => {
+      const x = position.x + offsetX;
+      const z = position.z + offsetZ;
+      return !riverField.isBlockedForProps(x, z)
+        && !worldLayout.quarryLayout.isBlockedForProps(x, z);
+    });
+    if (!footprintIsClear) continue;
+
+    const heights = FOUNDING_SITE_SAMPLE_OFFSETS.map(([offsetX, offsetZ]) =>
+      getHeightAt(position.x + offsetX, position.z + offsetZ)
+    );
+    const relief = Math.max(...heights) - Math.min(...heights);
+    const centreDistance = Math.hypot(position.x, position.z);
+    const score = relief * 48 + centreDistance * 0.14;
+    if (!best || score < best.score) {
+      best = { position, score };
+    }
+  }
+
+  return best?.position ?? { x: 0, z: 0 };
 }

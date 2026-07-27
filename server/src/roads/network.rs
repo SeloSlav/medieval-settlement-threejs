@@ -1078,9 +1078,5 @@ mod tests {
              batch {batched_elapsed:?}, pairwise {pairwise_elapsed:?}",
             targets.len()
         );
-        println!(
-            "{} household routes: batched {batched_elapsed:?}, pairwise {pairwise_elapsed:?}",
-            targets.len()
-        );
     }
 }

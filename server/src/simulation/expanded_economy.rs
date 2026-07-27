@@ -19,7 +19,7 @@ use crate::burgage::{Point2, ZoneCorners};
 use crate::db::*;
 use crate::economy::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
-    credit_treasury_gold, deposit_building_commodity, spend_treasury_gold,
+    credit_treasury_gold, deposit_building_commodity, spend_treasury_gold, treasury_gold,
     withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
@@ -1005,17 +1005,11 @@ pub fn step_guardhouse(
         return;
     }
 
-    let treasury_gold = ctx
-        .db
-        .player_resources()
-        .owner()
-        .find(&building.owner)
-        .map(|resources| resources.gold)
-        .unwrap_or(0.0);
+    let available_gold = treasury_gold(ctx, building.owner);
     let upkeep = guard_upkeep(
         armed_guards,
         building.food,
-        treasury_gold,
+        available_gold,
         TICK_DT,
         CALENDAR_SECONDS_PER_DAY,
     );

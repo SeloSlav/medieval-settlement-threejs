@@ -8,6 +8,7 @@ import { type Infer as __Infer } from "spacetimedb";
 // Import all reducer arg schemas
 import AssignBuildingLaborReducer from "../assign_building_labor_reducer";
 import BootstrapForagingReducer from "../bootstrap_foraging_reducer";
+import BootstrapFoundingSiteReducer from "../bootstrap_founding_site_reducer";
 import BootstrapQuarriesReducer from "../bootstrap_quarries_reducer";
 import BootstrapTreesReducer from "../bootstrap_trees_reducer";
 import CallUpActiveSeasonalLaborReducer from "../call_up_active_seasonal_labor_reducer";
@@ -69,6 +70,7 @@ import UpgradeResidenceReducer from "../upgrade_residence_reducer";
 
 export type AssignBuildingLaborParams = __Infer<typeof AssignBuildingLaborReducer>;
 export type BootstrapForagingParams = __Infer<typeof BootstrapForagingReducer>;
+export type BootstrapFoundingSiteParams = __Infer<typeof BootstrapFoundingSiteReducer>;
 export type BootstrapQuarriesParams = __Infer<typeof BootstrapQuarriesReducer>;
 export type BootstrapTreesParams = __Infer<typeof BootstrapTreesReducer>;
 export type CallUpActiveSeasonalLaborParams = __Infer<typeof CallUpActiveSeasonalLaborReducer>;

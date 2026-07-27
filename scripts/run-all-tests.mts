@@ -80,6 +80,7 @@ const tests = [
   'test:storehouse-stock-targets',
   'test:processor-output-targets',
   'test:construction-logistics',
+  'test:founding-site',
   'test:delivery-pacing',
   'test:delivery-target-selection',
   'test:quarry-balance',

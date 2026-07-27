@@ -17,6 +17,7 @@ import { renderConstructionInspector } from './constructionRenderer.ts';
 import { renderWatchtowerInspector } from './watchtowerRenderer.ts';
 import { renderGuardhouseInspector } from './guardhouseRenderer.ts';
 import { withStaffingPriority } from './staffingPriorityRenderer.ts';
+import { renderFoundersCampInspector } from './foundersCampRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -27,6 +28,8 @@ export function renderBuildingInspector(
     return renderConstructionInspector(target, context);
   }
   switch (building.kind) {
+    case 'founders_camp':
+      return renderFoundersCampInspector(target, context);
     case 'chapel':
       return withStaffingPriority(renderChapelInspector(target, context), building);
     case 'marketplace':

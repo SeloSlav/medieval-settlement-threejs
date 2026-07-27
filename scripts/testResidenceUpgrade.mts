@@ -178,7 +178,8 @@ assert.match(
   residenceReducer,
   /ResidenceUpgradeService::Water[\s\S]*?position_within_well_service_radius/,
 );
-assert.match(residenceReducer, /treasury_gold \+ 1e-6 < gold/);
+assert.match(residenceReducer, /let available_gold = treasury_gold\(ctx, owner\)/);
+assert.match(residenceReducer, /available_gold \+ 1e-6 < gold/);
 assert.match(residenceReducer, /Upgrade requires \{\} timber, \{\} stone, and \{\} gold/);
 assert.match(
   residenceReducer,

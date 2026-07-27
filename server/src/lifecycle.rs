@@ -128,6 +128,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         construction_labor_steward_enabled: CONSTRUCTION_LABOR_STEWARD_DEFAULT,
         production_labor_steward_enabled: PRODUCTION_LABOR_STEWARD_DEFAULT,
         labor_steward_reserve: crate::labor_steward_policy::LABOR_STEWARD_RESERVE_DEFAULT,
+        physical_founding_site_enabled: false,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

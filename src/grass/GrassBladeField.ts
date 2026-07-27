@@ -742,17 +742,21 @@ function writeSeedThreeWildflowerChunkInstances(
     writeEuler.set(Math.cos(leanDirection) * lean, yaw, Math.sin(leanDirection) * lean, 'YXZ');
     writeQuaternion.setFromEuler(writeEuler);
     writePosition.set(x, rootY, z);
+    const placementVariant =
+      (paletteOffset + localPlacements.length - 1) % SEEDTHREE_WILDFLOWER_VARIANTS.length;
+    const variant = SEEDTHREE_WILDFLOWER_VARIANTS[placementVariant]!;
     const heightScale =
-      THREE.MathUtils.lerp(0.7, 1.16, Math.pow(rng(), 0.68))
-      * THREE.MathUtils.lerp(1, 0.86, density);
-    const widthScale = heightScale * THREE.MathUtils.lerp(0.84, 1.16, rng());
+      THREE.MathUtils.lerp(variant.heightScale[0], variant.heightScale[1], Math.pow(rng(), 0.68))
+      * THREE.MathUtils.lerp(1, 0.9, density);
+    const widthScale = THREE.MathUtils.lerp(
+      variant.widthScale[0],
+      variant.widthScale[1],
+      rng(),
+    );
     writeScale.set(widthScale, heightScale, widthScale);
     writeMatrix.compose(writePosition, writeQuaternion, writeScale);
 
-    const placementVariant =
-      (paletteOffset + localPlacements.length - 1) % SEEDTHREE_WILDFLOWER_VARIANTS.length;
     if (instanceIndex < startIndex + maxInstances) {
-      const variant = SEEDTHREE_WILDFLOWER_VARIANTS[placementVariant]!;
       entry.mesh.setMatrixAt(instanceIndex, writeMatrix);
       entry.anchorAttr.setXYZW(
         instanceIndex,
