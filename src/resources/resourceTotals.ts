@@ -216,8 +216,8 @@ export function computeInTransitResourceTotals(
 }
 
 /**
- * Foreign-trade proceeds at a marketplace are physically owned but remain
- * unavailable for spending until a broker cart reaches a civic lockbox.
+ * Foreign-trade proceeds and local market tolls are physically owned but
+ * remain unavailable until a broker cart reaches a civic lockbox.
  */
 export function computeMarketGoldAwaitingCollection(
   buildings: Iterable<BuildingState>,

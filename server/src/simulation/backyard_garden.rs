@@ -1,11 +1,11 @@
 use spacetimedb::ReducerContext;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::backyard_garden_policy::backyard_garden_seasonal_multiplier;
 use crate::balance_generated::{backyard_garden_def, BackyardGardenKind, TICK_DT};
 use crate::db::*;
 use crate::economy::{
-    credit_residence_wealth, credit_treasury_gold, garden_market_activity,
+    credit_marketplace_receipt_gold, credit_residence_wealth, garden_market_activity,
     player_economic_activity_tax_rate, taxed_economic_activity,
     town_hall_tax_collection_multiplier,
 };
@@ -24,25 +24,11 @@ pub fn step_backyard_gardens(
     clock: &GameClock,
     environment: EnvironmentState,
 ) {
-    // Backyard trade needs only road connectivity, not a shortest route. Cache
-    // each owner's complete set of market-bearing components once so the
-    // garden pass scales with gardens + markets instead of gardens x markets.
-    let mut marketplace_components_by_owner: HashMap<spacetimedb::Identity, HashSet<u32>> =
-        HashMap::new();
-    for marketplace in ctx.db.building().iter().filter(|building| {
-        building.kind == "marketplace"
-            && building.construction_complete
-            && !tick.building_disabled_by_fire(ctx, building.id)
-    }) {
-        let Some(network) = tick.road_network(marketplace.owner) else {
-            continue;
-        };
-        marketplace_components_by_owner
-            .entry(marketplace.owner)
-            .or_default()
-            .extend(network.road_components_at(marketplace.x, marketplace.z));
-    }
-
+    // The tick context builds one exact nearest-market road territory per
+    // owner and shares it with household emergency orders. Aggregate tolls so
+    // a large town still updates each physical market coffer only once.
+    let mut tax_policy_by_owner: HashMap<spacetimedb::Identity, (f64, f64)> = HashMap::new();
+    let mut market_tolls_by_market: HashMap<u64, f64> = HashMap::new();
     for garden in ctx.db.backyard_garden().iter() {
         let Some(kind) = BackyardGardenKind::from_id(garden.kind) else {
             continue;
@@ -59,21 +45,41 @@ pub fn step_backyard_gardens(
         {
             continue;
         }
-        let has_market_access = tick
-            .road_network(garden.owner)
-            .zip(marketplace_components_by_owner.get(&garden.owner))
-            .is_some_and(|(network, market_components)| {
-                network.has_any_road_component_at(residence.x, residence.z, market_components)
+        let marketplace_id =
+            tick.marketplace_for_residence(ctx, garden.owner, residence.id);
+        let (tax_rate, collection_multiplier) = *tax_policy_by_owner
+            .entry(garden.owner)
+            .or_insert_with(|| {
+                (
+                    player_economic_activity_tax_rate(ctx, garden.owner),
+                    town_hall_tax_collection_multiplier(ctx, garden.owner),
+                )
             });
-        step_one_garden(
+        let toll = step_one_garden(
             ctx,
             kind,
             &residence,
-            garden.owner,
-            has_market_access,
+            marketplace_id.is_some(),
+            tax_rate,
+            collection_multiplier,
             clock,
             environment,
         );
+        if let Some(marketplace_id) = marketplace_id {
+            if toll > 1e-9 {
+                *market_tolls_by_market.entry(marketplace_id).or_default() += toll;
+            }
+        }
+    }
+
+    let mut market_tolls: Vec<(u64, f64)> = market_tolls_by_market.into_iter().collect();
+    market_tolls.sort_by_key(|(marketplace_id, _)| *marketplace_id);
+    for (marketplace_id, toll) in market_tolls {
+        let Some(mut marketplace) = ctx.db.building().id().find(&marketplace_id) else {
+            continue;
+        };
+        credit_marketplace_receipt_gold(ctx, &mut marketplace, toll);
+        ctx.db.building().id().update(marketplace);
     }
 }
 
@@ -81,16 +87,17 @@ fn step_one_garden(
     ctx: &ReducerContext,
     kind: BackyardGardenKind,
     residence: &Residence,
-    owner: spacetimedb::Identity,
     has_market_access: bool,
+    tax_rate: f64,
+    collection_multiplier: f64,
     clock: &GameClock,
     environment: EnvironmentState,
-) {
+) -> f64 {
     let def = backyard_garden_def(kind);
     let population = residence.population as f64;
     let seasonal_multiplier = backyard_garden_seasonal_multiplier(kind, clock.month, environment);
     if seasonal_multiplier <= 1e-9 {
-        return;
+        return 0.0;
     }
 
     if def.food_per_person_per_sec > 1e-9 {
@@ -102,24 +109,21 @@ fn step_one_garden(
     }
 
     if !has_market_access {
-        return;
+        return 0.0;
     }
 
     let economic_activity = garden_market_activity(def, population, TICK_DT) * seasonal_multiplier;
     if economic_activity <= 1e-9 {
-        return;
+        return 0.0;
     }
 
-    let tax_rate = player_economic_activity_tax_rate(ctx, owner);
     let (adjusted, assessed_tax) = taxed_economic_activity(economic_activity, tax_rate);
-    let tax = assessed_tax * town_hall_tax_collection_multiplier(ctx, owner);
+    let tax = assessed_tax * collection_multiplier;
     let net_wealth = (adjusted - tax).max(0.0);
     if net_wealth > 1e-9 {
         credit_residence_wealth(ctx, residence.id, net_wealth);
     }
-    if tax > 1e-9 {
-        credit_treasury_gold(ctx, owner, tax);
-    }
+    tax
 }
 
 fn deposit_self_food(ctx: &ReducerContext, residence_id: u64, amount: f64) {

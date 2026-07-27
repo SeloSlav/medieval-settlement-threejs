@@ -470,7 +470,7 @@ fn apply_marketplace_trade(
                 .id()
                 .find(&building_id)
                 .ok_or_else(|| "Marketplace not found.".to_string())?;
-            credit_marketplace_export_gold(
+            credit_marketplace_receipt_gold(
                 ctx,
                 &mut settlement_market,
                 scaled_gold_yield(amount, multiplier),
@@ -593,11 +593,11 @@ fn physical_trade_staging_enabled(ctx: &ReducerContext, owner: spacetimedb::Iden
         .is_some_and(|resources| resources.physical_founding_site_enabled)
 }
 
-/// New settlements keep foreign-trade proceeds in the market row until a
-/// visible cart delivers them to a civic lockbox. Legacy saves preserve their
-/// abstract treasury credit so the additive founding-site flag remains the
-/// compatibility boundary for the whole physical economy.
-pub(crate) fn credit_marketplace_export_gold(
+/// New settlements keep foreign-trade proceeds and local market tolls in the
+/// market row until a visible cart delivers them to a civic lockbox. Legacy
+/// saves preserve their abstract treasury credit so the additive founding-site
+/// flag remains the compatibility boundary for the whole physical economy.
+pub(crate) fn credit_marketplace_receipt_gold(
     ctx: &ReducerContext,
     marketplace: &mut Building,
     amount: f64,

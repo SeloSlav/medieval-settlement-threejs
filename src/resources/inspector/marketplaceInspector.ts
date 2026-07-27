@@ -221,10 +221,10 @@ export function renderMarketplaceInspector(
       <li><span>Regional route</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueue.units.toFixed(1)} units - about ${specialtyQueue.goldValue.toFixed(1)} gold</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
-      <li><span>Export proceeds</span><span>${proceedsCollection}</span></li>
+      <li><span>Market receipts</span><span>${proceedsCollection}</span></li>
       <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this market by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>
-      <li><span>Backyard sales</span><span>Road-linked homes only</span></li>
+      <li><span>Backyard sales</span><span>Road-linked homes trade here; activity tolls enter this market lockbox</span></li>
       <li><span>Emergency branch</span><span>${householdBranchLabel}</span></li>
       <li><span>Paid-cart queue</span><span>${householdBranchBottleneck}</span></li>
       <li><span>Household orders</span><span>At 18h runway, homes buy a full food-first lot with savings; busy, resting, or blocked carts wait without charging</span></li>
@@ -265,7 +265,7 @@ function formatMarketplaceProceedsCollection(options: {
   treasuryRouteAvailable: boolean;
 }): string {
   if (!options.physicalEconomy) {
-    return 'Legacy settlement - sales credit the treasury immediately';
+    return 'Legacy settlement - sales and tolls credit the treasury immediately';
   }
   if (
     options.activeTrip?.cargoKind === 'gold'
@@ -277,9 +277,9 @@ function formatMarketplaceProceedsCollection(options: {
   }
   const held = Math.max(0, options.market.gold);
   if (held <= 1e-6) {
-    return 'No proceeds awaiting collection';
+    return 'No market receipts awaiting collection';
   }
-  const lockbox = `${held.toFixed(1)} gold in the visible market lockbox`;
+  const lockbox = `${held.toFixed(1)} gold in the visible receipts lockbox`;
   if (options.marketFireDisabled) {
     return `${lockbox} - sealed until fire recovery`;
   }

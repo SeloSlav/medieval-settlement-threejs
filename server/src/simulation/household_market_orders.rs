@@ -18,8 +18,7 @@ use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::marketplace_caravan::MarketCaravanDispatch;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
-    claim_residences_by_nearest_supplier, residence_food_runway_seconds,
-    residence_water_runway_seconds,
+    residence_food_runway_seconds, residence_water_runway_seconds,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::Building;
@@ -85,25 +84,15 @@ pub fn step_household_market_orders(
             continue;
         }
 
-        let Some(network) = tick.road_network(owner) else {
-            continue;
-        };
-        let marketplace_refs: Vec<&Building> = owner_marketplaces.iter().collect();
-        let marketplace_claims = claim_residences_by_nearest_supplier(
-            network,
-            &marketplace_refs,
-            &residences,
-            |_, _, _| true,
-        );
         let marketplaces_by_id: HashMap<u64, &Building> = owner_marketplaces
             .iter()
             .map(|marketplace| (marketplace.id, marketplace))
             .collect();
 
         for residence in residences {
-            let Some(marketplace) = marketplace_claims
-                .get(&residence.id)
-                .and_then(|marketplace_id| marketplaces_by_id.get(marketplace_id))
+            let Some(marketplace) = tick
+                .marketplace_for_residence(ctx, owner, residence.id)
+                .and_then(|marketplace_id| marketplaces_by_id.get(&marketplace_id))
             else {
                 continue;
             };

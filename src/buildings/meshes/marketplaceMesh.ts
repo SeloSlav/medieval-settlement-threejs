@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
 import {
   addMesh,
   metalMaterial,
@@ -10,6 +11,9 @@ import { addTriangularGableWall } from '../meshPrimitives.ts';
 import { addBarrel, addCrate } from './buildingMeshKit.ts';
 
 export const MARKET_STAGING_VISUAL_SEGMENTS = 5;
+export const MARKET_RECEIPT_VISUAL_SEGMENTS = 3;
+export const MARKET_RECEIPT_VISUAL_CAPACITY =
+  STOREHOUSE_HAUL_PER_WORKER * MARKET_RECEIPT_VISUAL_SEGMENTS;
 
 function addMarketTable(group: THREE.Group, x: number, z: number, rotation = 0): void {
   const table = new THREE.Group();
@@ -97,25 +101,37 @@ function addMarketProceedsChest(group: THREE.Group): void {
   chest.name = 'MarketProceedsChest';
   chest.visible = false;
   chest.position.set(2.6, 0.25, -1.45);
-  addMesh(
-    chest,
-    new THREE.BoxGeometry(0.92, 0.52, 0.62),
-    timberMaterial('dark'),
-    new THREE.Vector3(0, 0.28, 0),
-  );
-  addMesh(
-    chest,
-    new THREE.CylinderGeometry(0.31, 0.31, 0.92, 8, 1, false, 0, Math.PI),
-    timberMaterial('weathered'),
-    new THREE.Vector3(0, 0.57, 0),
-    new THREE.Euler(0, 0, Math.PI * 0.5),
-  );
-  addMesh(
-    chest,
-    new THREE.BoxGeometry(0.09, 0.58, 0.67),
-    metalMaterial('iron'),
-    new THREE.Vector3(0, 0.38, 0),
-  );
+  for (let index = 0; index < MARKET_RECEIPT_VISUAL_SEGMENTS; index += 1) {
+    const segment = new THREE.Group();
+    segment.name = 'MarketReceiptSegment';
+    segment.visible = false;
+    const [x, y, z] = [
+      [0, 0.08, 0.1],
+      [-0.62, 0, 0],
+      [0.62, 0, 0],
+    ][index];
+    segment.position.set(x, y, z);
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.58, 0.4, 0.48),
+      timberMaterial(index === 1 ? 'weathered' : 'dark'),
+      new THREE.Vector3(0, 0.22, 0),
+    );
+    addMesh(
+      segment,
+      new THREE.CylinderGeometry(0.24, 0.24, 0.58, 8, 1, false, 0, Math.PI),
+      timberMaterial('weathered'),
+      new THREE.Vector3(0, 0.45, 0),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.065, 0.46, 0.52),
+      metalMaterial('iron'),
+      new THREE.Vector3(0, 0.3, 0),
+    );
+    chest.add(segment);
+  }
   group.add(chest);
 }
 

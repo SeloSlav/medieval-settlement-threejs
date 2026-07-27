@@ -95,7 +95,7 @@ export function renderBackyardInspector(
         ? 'ok'
         : 'warning';
   const taxLabel = economy.assessedTaxPerDay > economy.taxPerDay + 0.05
-    ? `~${economy.taxPerDay.toFixed(1)} collected of ${economy.assessedTaxPerDay.toFixed(1)} assessed`
+    ? `~${economy.taxPerDay.toFixed(1)} levied at market of ${economy.assessedTaxPerDay.toFixed(1)} assessed`
     : `~${economy.taxPerDay.toFixed(1)} gold`;
 
   return {
@@ -113,7 +113,7 @@ export function renderBackyardInspector(
         : ''}
       <li><span>Marketplace link</span><span>${hasMarketAccess ? 'Road-connected' : 'None — sales paused'}</span></li>
       <li><span>Market activity today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · needs a road path to a completed marketplace' : seasonalMultiplier <= 1e-9 ? ' · no output today' : ''}</span></li>
-      <li><span>Mayor tax (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`}</span></li>
+      <li><span>Market toll (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`} · waits in the serving market lockbox</span></li>
       <li><span>Household savings</span><span>${formatBackyardSavingsLabel(economy.netWealthPerDay, hasMarketAccess)}</span></li>
       <li><span>Build cost</span><span>${formatBackyardGardenCost(garden.kind)}</span></li>
     `,

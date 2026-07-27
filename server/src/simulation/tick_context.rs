@@ -45,6 +45,7 @@ pub struct SimTickContext {
     water_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     food_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     food_claim_counts: RefCell<HashMap<Identity, HashMap<u64, u32>>>,
+    marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     specialty_claims: RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
     farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
     cattle_field_sources_by_owner: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
@@ -82,6 +83,7 @@ impl SimTickContext {
             water_claims: RefCell::new(HashMap::new()),
             food_claims: RefCell::new(HashMap::new()),
             food_claim_counts: RefCell::new(HashMap::new()),
+            marketplace_claims: RefCell::new(HashMap::new()),
             specialty_claims: RefCell::new(HashMap::new()),
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
             cattle_field_sources_by_owner: RefCell::new(HashMap::new()),
@@ -506,6 +508,27 @@ impl SimTickContext {
             .copied()
     }
 
+    /// Returns the nearest operational marketplace by exact road distance.
+    /// Garden trade and emergency household orders share this once-per-owner
+    /// territory map, so adding spatially useful markets matters without
+    /// repeating Dijkstra searches in each economy pass.
+    pub fn marketplace_for_residence(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        residence_id: u64,
+    ) -> Option<u64> {
+        if !self.marketplace_claims.borrow().contains_key(&owner) {
+            let claims = self.build_marketplace_claims(ctx, owner);
+            self.marketplace_claims.borrow_mut().insert(owner, claims);
+        }
+        self.marketplace_claims
+            .borrow()
+            .get(&owner)
+            .and_then(|claims| claims.get(&residence_id))
+            .copied()
+    }
+
     /// Returns how many households depend on a routine food supplier. Granary
     /// surplus intake uses this cached inverse count to protect local cart loads
     /// without rescanning all homes for every candidate source.
@@ -603,6 +626,43 @@ impl SimTickContext {
             .filter(|residence| !self.residence_disabled_by_fire(ctx, residence.id))
             .collect();
         crate::simulation::road_logistics::claim_residences_for_wells(network, &wells, &residences)
+    }
+
+    fn build_marketplace_claims(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+    ) -> HashMap<u64, u64> {
+        let Some(network) = self.road_network(owner) else {
+            return HashMap::new();
+        };
+        let marketplaces: Vec<Building> = self
+            .building_ids_for_kinds(ctx, owner, &["marketplace"])
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .filter(|building| {
+                building.construction_complete
+                    && !self.building_disabled_by_fire(ctx, building.id)
+            })
+            .collect();
+        let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();
+        let residences: Vec<Residence> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| {
+                !residence.abandoned
+                    && residence.population > 0
+                    && !self.residence_disabled_by_fire(ctx, residence.id)
+            })
+            .collect();
+        claim_residences_by_nearest_supplier(
+            network,
+            &marketplace_refs,
+            &residences,
+            |_, _, _| true,
+        )
     }
 
     /// Returns the single nearest supplier assigned to this tier-3 household.

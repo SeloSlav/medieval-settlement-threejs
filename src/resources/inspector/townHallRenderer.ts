@@ -1819,7 +1819,7 @@ export function renderTownHallInspector(
       <li><span>Emergency market orders</span><span>${formatHouseholdMarketSettlementSummary(householdMarketPlan)}</span></li>
       <li><span>Emergency purchasing power</span><span>${formatHouseholdMarketPurchasingPower(householdMarketPlan)}</span></li>
       <li><span>Emergency bottlenecks</span><span>${formatHouseholdMarketBottlenecks(householdMarketPlan)}${householdMarketInspectButton}</span></li>`}
-      <li><span>Garden tax collected</span><span>${readout.taxIncomeLabel}</span></li>
+      <li><span>Garden tolls levied</span><span>${readout.taxIncomeLabel}</span></li>
       <li><span>Collection capacity</span><span>${collectionRate}%${staffedTownHallAvailable ? '' : ' without a staffed clerk'}</span></li>
       <li><span>Chapel tithe</span><span>${readout.chapelTitheLabel}</span></li>
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>

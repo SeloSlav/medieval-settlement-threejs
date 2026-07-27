@@ -35,7 +35,7 @@ pub use marketplace_orders::{
 };
 pub use marketplace_trade::execute_marketplace_trade;
 pub(crate) use marketplace_trade::{
-    credit_marketplace_export_gold, pending_marketplace_trade_commodity,
+    credit_marketplace_receipt_gold, pending_marketplace_trade_commodity,
     try_advance_pending_marketplace_trade, try_execute_standing_marketplace_import,
 };
 pub(crate) use marketplace_trade_policy::marketplace_proceeds_cart_load;

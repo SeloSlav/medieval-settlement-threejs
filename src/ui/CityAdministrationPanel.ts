@@ -210,7 +210,7 @@ export class CityAdministrationPanel {
           <dd data-productivity-value>100%</dd>
         </div>
         <div class="city-admin-panel__stat">
-          <dt>Garden tax collected today</dt>
+          <dt>Garden tolls levied today</dt>
           <dd data-tax-income-value>0 gold today</dd>
         </div>
         <div class="city-admin-panel__stat">

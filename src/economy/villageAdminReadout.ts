@@ -209,9 +209,9 @@ function formatBackyardTax(plan: SettlementBackyardEconomyPlan): string {
   const collected = plan.currentDayCollectedTax;
   const assessed = plan.currentDayAssessedTax;
   if (collected + 0.05 < assessed) {
-    return `~${collected.toFixed(1)} gold collected of ${assessed.toFixed(1)} assessed today`;
+    return `~${collected.toFixed(1)} gold levied at markets of ${assessed.toFixed(1)} assessed today`;
   }
-  return `~${collected.toFixed(1)} gold collected today`;
+  return `~${collected.toFixed(1)} gold levied at markets today`;
 }
 
 function emptyReadout(taxRate: number, parishPolicy: ParishPolicyState): VillageAdminReadout {

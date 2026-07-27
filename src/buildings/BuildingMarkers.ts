@@ -23,7 +23,10 @@ import { buildingPlacementYaw } from './buildingPlacement.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
 import { createBuildingShadowProxy } from './buildingShadowProxy.ts';
 import { createBuildingMesh } from './BuildingMeshes.ts';
-import { MARKET_STAGING_VISUAL_SEGMENTS } from './meshes/marketplaceMesh.ts';
+import {
+  MARKET_RECEIPT_VISUAL_CAPACITY,
+  MARKET_STAGING_VISUAL_SEGMENTS,
+} from './meshes/marketplaceMesh.ts';
 import {
   createConstructionSiteMesh,
 } from './ConstructionSiteMesh.ts';
@@ -456,7 +459,14 @@ function syncBuildingVisualState(
   }
   if (building.kind === 'marketplace') {
     const proceedsChest = marker.getObjectByName('MarketProceedsChest');
-    if (proceedsChest) proceedsChest.visible = building.gold > 1e-6;
+    if (proceedsChest instanceof THREE.Group) {
+      syncStockpileSegments(
+        proceedsChest,
+        'MarketReceiptSegment',
+        building.gold,
+        MARKET_RECEIPT_VISUAL_CAPACITY,
+      );
+    }
     const timber = marker.getObjectByName('MarketTimberStaging');
     if (timber instanceof THREE.Group) {
       syncStockpileSegments(

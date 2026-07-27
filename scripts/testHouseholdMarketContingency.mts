@@ -544,7 +544,16 @@ const householdServer = readFileSync(
   'server/src/simulation/household_market_orders.rs',
   'utf8',
 );
-assert.match(householdServer, /claim_residences_by_nearest_supplier\(/);
+const tickContextServer = readFileSync(
+  'server/src/simulation/tick_context.rs',
+  'utf8',
+);
+assert.match(householdServer, /marketplace_for_residence\(/);
+assert.match(
+  tickContextServer,
+  /build_marketplace_claims[\s\S]*claim_residences_by_nearest_supplier\(/,
+  'household orders and garden tolls should share one exact nearest-market territory',
+);
 assert.match(householdServer, /labor_and_logistics_paused\(ctx, tick, owner, clock\)/);
 assert.match(householdServer, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.doesNotMatch(householdServer, /residence_has_marketplace_access/);

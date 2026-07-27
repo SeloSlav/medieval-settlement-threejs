@@ -437,7 +437,7 @@ const readout = buildVillageAdminReadout({
 });
 assert.ok(readout.backyardEconomy);
 assert.match(readout.gdpLabel, /gold today/);
-assert.match(readout.taxIncomeLabel, /collected/);
+assert.match(readout.taxIncomeLabel, /levied at markets/);
 const scalarReadout = buildVillageAdminReadout({
   gameState: {
     ...splitState,
@@ -588,10 +588,32 @@ const serverPolicySource = readFileSync(
   new URL('../server/src/backyard_garden_policy.rs', import.meta.url),
   'utf8',
 );
+const serverTickContextSource = readFileSync(
+  new URL('../server/src/simulation/tick_context.rs', import.meta.url),
+  'utf8',
+);
+const serverHouseholdMarketOrdersSource = readFileSync(
+  new URL('../server/src/simulation/household_market_orders.rs', import.meta.url),
+  'utf8',
+);
+const serverMarketplaceTradeSource = readFileSync(
+  new URL('../server/src/economy/marketplace_trade.rs', import.meta.url),
+  'utf8',
+);
 assert.doesNotMatch(serverStepSource, /residence_has_marketplace_access/);
-assert.match(serverStepSource, /marketplace_components_by_owner/);
-assert.match(serverStepSource, /road_components_at/);
-assert.match(serverStepSource, /building_disabled_by_fire\(ctx, building\.id\)/);
+assert.doesNotMatch(
+  serverStepSource,
+  /credit_treasury_gold/,
+  'garden tolls must not teleport from a household into the civic treasury',
+);
+assert.match(serverStepSource, /market_tolls_by_market/);
+assert.match(serverStepSource, /marketplace_for_residence/);
+assert.match(serverStepSource, /credit_marketplace_receipt_gold/);
+assert.match(
+  serverStepSource,
+  /market_tolls\.sort_by_key[\s\S]*for \(marketplace_id, toll\) in market_tolls/,
+  'tax receipts should aggregate and update each serving market once in stable order',
+);
 assert.match(serverStepSource, /residence_disabled_by_fire\(ctx, residence\.id\)/);
 assert.match(
   serverStepSource,
@@ -600,6 +622,28 @@ assert.match(
 assert.match(serverPolicySource, /AppleOrchard \| CherryOrchard/);
 assert.match(serverPolicySource, /month == 9/);
 assert.match(serverPolicySource, /base \* 0\.55/);
+assert.match(serverTickContextSource, /marketplace_claims/);
+assert.match(serverTickContextSource, /building_disabled_by_fire\(ctx, building\.id\)/);
+assert.match(
+  serverTickContextSource,
+  /build_marketplace_claims[\s\S]*claim_residences_by_nearest_supplier/,
+  'garden trade should use an exact nearest-market road territory cached once per owner',
+);
+assert.match(
+  serverHouseholdMarketOrdersSource,
+  /marketplace_for_residence/,
+  'household emergency orders should share the cached nearest-market territory',
+);
+assert.doesNotMatch(
+  serverHouseholdMarketOrdersSource,
+  /claim_residences_by_nearest_supplier/,
+  'household orders must not rebuild a territory already shared by the tick context',
+);
+assert.match(
+  serverMarketplaceTradeSource,
+  /credit_marketplace_receipt_gold[\s\S]*physical_trade_staging_enabled[\s\S]*deposit_building_commodity/,
+  'new saves should place garden tolls in the same physical market lockbox as export receipts',
+);
 
 console.log(
   `Backyard seasonal economy and road-ledger checks passed `

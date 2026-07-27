@@ -13,7 +13,7 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_stock, credit_marketplace_export_gold, marketplace_proceeds_cart_load,
+    building_commodity_stock, credit_marketplace_receipt_gold, marketplace_proceeds_cart_load,
     pending_marketplace_trade_commodity, physical_treasury_seat, record_specialty_market_export,
     try_advance_pending_marketplace_trade, try_execute_standing_marketplace_import,
     withdraw_building_commodity, CommodityKind,
@@ -328,7 +328,7 @@ fn sell_marketplace_specialties(
             break;
         }
     }
-    credit_marketplace_export_gold(ctx, building, revenue);
+    credit_marketplace_receipt_gold(ctx, building, revenue);
     record_specialty_market_export(ctx, building.owner, units_sold);
     revenue > 1e-6
 }

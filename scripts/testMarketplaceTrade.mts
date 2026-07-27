@@ -44,6 +44,7 @@ import {
 import { renderMarketplaceTradePanel } from '../src/resources/inspector/marketplaceTradeRenderer.ts';
 import {
   createMarketplaceMesh,
+  MARKET_RECEIPT_VISUAL_SEGMENTS,
   MARKET_STAGING_VISUAL_SEGMENTS,
 } from '../src/buildings/meshes/marketplaceMesh.ts';
 
@@ -135,6 +136,11 @@ assert.equal(
   marketProceedsChest.visible,
   false,
   'the market lockbox should remain hidden until export gold is physically present',
+);
+assert.equal(
+  marketProceedsChest.children.filter((child) => child.name === 'MarketReceiptSegment').length,
+  MARKET_RECEIPT_VISUAL_SEGMENTS,
+  'market receipts should show a bounded number of cartload-sized lockboxes',
 );
 for (const [groupName, segmentPrefix] of [
   ['MarketTimberStaging', 'MarketTimberStageSegment'],
@@ -315,12 +321,20 @@ assert.equal(
 assert.equal(
   computeMarketGoldAwaitingCollection(proceedsState.buildings.values()),
   14,
-  'the HUD should account separately for export proceeds held at markets',
+  'the HUD should account separately for trade proceeds and tolls held at markets',
 );
 assert.notEqual(
   buildingMarkerCollectionSignature(new Map([[marketplace.id, marketplace]])),
   buildingMarkerCollectionSignature(new Map([[marketWithProceeds.id, marketWithProceeds]])),
-  'a market lockbox must refresh when export proceeds arrive or depart',
+  'a market lockbox must refresh when market receipts arrive or depart',
+);
+assert.notEqual(
+  buildingMarkerCollectionSignature(new Map([[marketWithProceeds.id, marketWithProceeds]])),
+  buildingMarkerCollectionSignature(new Map([[
+    marketWithProceeds.id,
+    { ...marketWithProceeds, gold: 50 },
+  ]])),
+  'market receipt visuals must grow and decline in bounded cartload-sized steps',
 );
 assert.notEqual(
   buildingMarkerCollectionSignature(new Map([[marketplace.id, marketplace]])),
@@ -664,7 +678,7 @@ assert.match(
   'staging must not record a sale or regional price movement before the cart unloads',
 );
 assert.match(marketplaceTradeSource, /try_advance_pending_marketplace_trade/);
-assert.match(marketplaceTradeSource, /credit_marketplace_export_gold/);
+assert.match(marketplaceTradeSource, /credit_marketplace_receipt_gold/);
 assert.match(marketplaceTradeSource, /pending_trade_code[\s\S]*"sell_timber" => Some\(1\)/);
 assert.match(marketplaceTradeSource, /MarketplaceTradeOutcome::Settled[\s\S]*clear_pending_marketplace_trade/);
 assert.match(
@@ -711,8 +725,8 @@ assert.match(marketplaceOrderSource, /building_disabled_by_fire\(ctx, building\.
 assert.match(marketplaceInspectorSource, /Regional route/);
 assert.match(marketplaceInspectorSource, /getRoadConditionSpeedMultiplier/);
 assert.match(marketplaceInspectorSource, /marketFireDisabled/);
-assert.match(marketplaceInspectorSource, /Export proceeds/);
-assert.match(marketplaceInspectorSource, /visible market lockbox/);
+assert.match(marketplaceInspectorSource, /Market receipts/);
+assert.match(marketplaceInspectorSource, /visible receipts lockbox/);
 assert.match(marketplaceTradeRendererSource, /current regional road conditions/);
 assert.match(marketplaceTradeRendererSource, /visible source carts/);
 assert.match(marketplaceTradeRendererSource, /settle it automatically/);

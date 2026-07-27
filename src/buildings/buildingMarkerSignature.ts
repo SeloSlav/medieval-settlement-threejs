@@ -4,7 +4,11 @@ import {
 } from '../generated/gameBalance.ts';
 import type { BuildingState, LivestockHerdState } from '../resources/types.ts';
 import { constructionVisualSignature } from './ConstructionSiteMesh.ts';
-import { MARKET_STAGING_VISUAL_SEGMENTS } from './meshes/marketplaceMesh.ts';
+import {
+  MARKET_RECEIPT_VISUAL_CAPACITY,
+  MARKET_RECEIPT_VISUAL_SEGMENTS,
+  MARKET_STAGING_VISUAL_SEGMENTS,
+} from './meshes/marketplaceMesh.ts';
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
@@ -192,5 +196,11 @@ function marketplaceVisualState(building: BuildingState): string {
       cratedCapacity,
       MARKET_STAGING_VISUAL_SEGMENTS,
     )
-  }:${building.gold > 1e-6 ? 1 : 0}`;
+  }:${
+    stockpileVisualLevel(
+      building.gold,
+      MARKET_RECEIPT_VISUAL_CAPACITY,
+      MARKET_RECEIPT_VISUAL_SEGMENTS,
+    )
+  }`;
 }
