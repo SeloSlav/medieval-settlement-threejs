@@ -4,6 +4,18 @@ export type SeedThreeForestStructuralStats = {
   draws: number;
   triangles: number;
   instances: number;
+  ecology: {
+    counts: {
+      anchors: number;
+      saplings: number;
+      understory: number;
+      deadwood: number;
+      litter: number;
+    };
+    draws: number;
+    instances: number;
+    triangles: number;
+  };
   trees: {
     totalTrees: number;
     visibleTrees: number;

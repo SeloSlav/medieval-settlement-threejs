@@ -26,10 +26,12 @@ const TENT_HALF_DEPTH = 1.92;
 const TENT_EAVE_Y = 0.2;
 const TENT_RIDGE_Y = 2.32;
 let campGroundMaterial: THREE.MeshStandardMaterial | null = null;
+let tentCanvasMaterial: THREE.MeshStandardMaterial | null = null;
 
 type CampInstance = {
   position: THREE.Vector3;
   rotation?: THREE.Euler;
+  quaternion?: THREE.Quaternion;
   scale?: THREE.Vector3;
 };
 
@@ -48,7 +50,8 @@ function addCampInstances(
   const quaternion = new THREE.Quaternion();
   for (let index = 0; index < instances.length; index += 1) {
     const instance = instances[index]!;
-    quaternion.setFromEuler(instance.rotation ?? new THREE.Euler());
+    if (instance.quaternion) quaternion.copy(instance.quaternion);
+    else quaternion.setFromEuler(instance.rotation ?? new THREE.Euler());
     matrix.compose(
       instance.position,
       quaternion,
@@ -138,12 +141,12 @@ function getCampGroundMaterial(): THREE.MeshStandardMaterial {
   alphaMap.needsUpdate = true;
 
   campGroundMaterial = new THREE.MeshStandardMaterial({
-    color: 0x4b4338,
+    color: 0x39332c,
     roughness: 1,
     metalness: 0,
     alphaMap,
     transparent: true,
-    opacity: 0.42,
+    opacity: 0.56,
     alphaTest: 0.018,
     depthWrite: false,
     polygonOffset: true,
@@ -153,6 +156,74 @@ function getCampGroundMaterial(): THREE.MeshStandardMaterial {
   campGroundMaterial.name = 'Shared feathered desaturated camp earth';
   campGroundMaterial.userData.sharedBuildingMaterial = true;
   return campGroundMaterial;
+}
+
+function getAgedTentCanvasMaterial(_variant: number): THREE.MeshStandardMaterial {
+  if (tentCanvasMaterial) return tentCanvasMaterial;
+
+  const size = 64;
+  const data = new Uint8Array(size * size * 4);
+  const [baseRed, baseGreen, baseBlue] = [166, 148, 111] as const;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const u = (x + 0.5) / size;
+      const v = (y + 0.5) / size;
+      const broadFold = Math.sin(v * Math.PI * 9) * 0.055;
+      const weave = (
+        Math.sin(u * 49.7 + v * 17.3)
+        + Math.sin(u * -21.1 + v * 43.9)
+      ) * 0.018;
+      const lowerMud = 1 - THREE.MathUtils.smoothstep(Math.min(u, v), 0.04, 0.29);
+      const splash = Math.max(
+        0,
+        Math.sin(v * 37.1) * Math.sin(u * 29.3),
+      );
+      const damp = lowerMud * (0.22 + splash * 0.13);
+      const age = 1 + broadFold + weave;
+      const offset = (y * size + x) * 4;
+      data[offset] = Math.round(THREE.MathUtils.clamp(
+        baseRed * age * (1 - damp * 0.7),
+        0,
+        255,
+      ));
+      data[offset + 1] = Math.round(THREE.MathUtils.clamp(
+        baseGreen * age * (1 - damp * 0.58),
+        0,
+        255,
+      ));
+      data[offset + 2] = Math.round(THREE.MathUtils.clamp(
+        baseBlue * age * (1 - damp * 0.5),
+        0,
+        255,
+      ));
+      data[offset + 3] = 255;
+    }
+  }
+  const map = new THREE.DataTexture(
+    data,
+    size,
+    size,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+  map.name = 'Procedural aged founding canvas';
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = THREE.ClampToEdgeWrapping;
+  map.wrapT = THREE.ClampToEdgeWrapping;
+  map.minFilter = THREE.LinearMipmapLinearFilter;
+  map.magFilter = THREE.LinearFilter;
+  map.generateMipmaps = true;
+  map.needsUpdate = true;
+
+  // Hydrate the existing shared canvas material instead of adding one shader
+  // permutation per tent. Geometry, seams, patches, and lived-in props retain
+  // the camp's variation while the building-material ceiling stays flat.
+  tentCanvasMaterial = sharedBuildingDetailMaterial('canvas');
+  tentCanvasMaterial.color.setHex(0xffffff);
+  tentCanvasMaterial.map = map;
+  tentCanvasMaterial.roughness = 0.96;
+  tentCanvasMaterial.needsUpdate = true;
+  return tentCanvasMaterial;
 }
 
 function addFoundingFootTraffic(parent: THREE.Group): void {
@@ -378,6 +449,166 @@ function addFoundingWorkyard(parent: THREE.Group): void {
   parent.add(workyard);
 }
 
+function addFoundingUtilityStores(parent: THREE.Group): void {
+  const stores = new THREE.Group();
+  stores.name = 'Founders lived-in utility stores';
+
+  addCampInstances(
+    stores,
+    'Asymmetric founding supply crates',
+    new THREE.BoxGeometry(1, 1, 1),
+    timberMaterial('mid'),
+    [
+      {
+        position: new THREE.Vector3(5.56, 0.43, -1.42),
+        rotation: new THREE.Euler(0, 0.18, 0),
+        scale: new THREE.Vector3(0.98, 0.84, 0.82),
+      },
+      {
+        position: new THREE.Vector3(4.65, 0.36, -1.66),
+        rotation: new THREE.Euler(0, -0.12, 0),
+        scale: new THREE.Vector3(0.76, 0.7, 0.72),
+      },
+      {
+        position: new THREE.Vector3(5.2, 1.03, -1.34),
+        rotation: new THREE.Euler(0.03, 0.08, -0.02),
+        scale: new THREE.Vector3(0.68, 0.54, 0.62),
+      },
+    ],
+  );
+  addCampInstances(
+    stores,
+    'Dark crate braces',
+    new THREE.BoxGeometry(1, 1, 1),
+    timberMaterial('dark'),
+    [
+      {
+        position: new THREE.Vector3(5.56, 0.52, -1.84),
+        rotation: new THREE.Euler(0, 0.18, 0),
+        scale: new THREE.Vector3(0.86, 0.1, 0.06),
+      },
+      {
+        position: new THREE.Vector3(4.65, 0.43, -2.03),
+        rotation: new THREE.Euler(0, -0.12, 0),
+        scale: new THREE.Vector3(0.66, 0.09, 0.055),
+      },
+      {
+        position: new THREE.Vector3(5.2, 1.08, -1.66),
+        rotation: new THREE.Euler(0.03, 0.08, -0.02),
+        scale: new THREE.Vector3(0.58, 0.085, 0.05),
+      },
+    ],
+  );
+  const sacks = addCampInstances(
+    stores,
+    'Slumped canvas provision sacks',
+    new THREE.SphereGeometry(0.5, 8, 6),
+    getAgedTentCanvasMaterial(1),
+    [
+      {
+        position: new THREE.Vector3(4.2, 0.38, -1.04),
+        rotation: new THREE.Euler(0.04, 0.24, -0.2),
+        scale: new THREE.Vector3(0.72, 0.9, 0.58),
+      },
+      {
+        position: new THREE.Vector3(4.65, 0.31, -0.82),
+        rotation: new THREE.Euler(-0.08, -0.32, 0.34),
+        scale: new THREE.Vector3(0.64, 0.72, 0.54),
+      },
+      {
+        position: new THREE.Vector3(5.08, 0.27, -0.72),
+        rotation: new THREE.Euler(0.13, 0.15, -0.48),
+        scale: new THREE.Vector3(0.58, 0.63, 0.52),
+      },
+    ],
+  );
+  sacks.userData.fpNoCollision = true;
+
+  const wheel = addMesh(
+    stores,
+    new THREE.TorusGeometry(0.68, 0.075, 7, 18),
+    timberMaterial('dark'),
+    new THREE.Vector3(5.92, 0.78, -0.9),
+    new THREE.Euler(0.04, -0.18, 0.08),
+  );
+  wheel.name = 'Spare founding cart wheel';
+  wheel.userData.fpNoCollision = true;
+  const spokes = addCampInstances(
+    stores,
+    'Spare wheel spokes',
+    new THREE.BoxGeometry(0.1, 1.22, 0.085),
+    timberMaterial('weathered'),
+    Array.from({ length: 6 }, (_, index) => ({
+      position: new THREE.Vector3(5.92, 0.78, -0.9),
+      rotation: new THREE.Euler(0.04, -0.18, index * Math.PI / 6 + 0.08),
+    })),
+  );
+  spokes.userData.fpNoCollision = true;
+
+  const firewoodPlacements: CampInstance[] = [];
+  for (let row = 0; row < 3; row += 1) {
+    for (let column = 0; column < 4 - row; column += 1) {
+      firewoodPlacements.push({
+        position: new THREE.Vector3(
+          1.95 + column * 0.38 + row * 0.18,
+          0.18 + row * 0.23,
+          -2.12 + (column % 2) * 0.06,
+        ),
+        rotation: new THREE.Euler(Math.PI * 0.5, 0, Math.PI * 0.5),
+      });
+    }
+  }
+  const firewood = addCampInstances(
+    stores,
+    'Stacked cut camp firewood',
+    new THREE.CylinderGeometry(0.105, 0.13, 1.55, 6),
+    timberMaterial('light'),
+    firewoodPlacements,
+  );
+  firewood.userData.fpNoCollision = true;
+
+  const prepBoard = addMesh(
+    stores,
+    new THREE.BoxGeometry(1.78, 0.14, 0.68),
+    timberMaterial('weathered'),
+    new THREE.Vector3(-0.95, 0.78, -2.15),
+    new THREE.Euler(0, -0.16, 0),
+  );
+  prepBoard.name = 'Camp cook preparation board';
+  const prepLegs = addCampInstances(
+    stores,
+    'Camp preparation trestles',
+    new THREE.BoxGeometry(0.14, 0.72, 0.14),
+    timberMaterial('dark'),
+    [
+      { position: new THREE.Vector3(-1.6, 0.38, -2.05) },
+      { position: new THREE.Vector3(-0.3, 0.38, -2.25) },
+    ],
+  );
+  prepLegs.userData.fpNoCollision = true;
+  const cookware = addCampInstances(
+    stores,
+    'Iron bowls and kettle by fire',
+    new THREE.SphereGeometry(0.22, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.58),
+    metalMaterial('iron'),
+    [
+      {
+        position: new THREE.Vector3(-1.2, 0.89, -2.11),
+        rotation: new THREE.Euler(Math.PI, 0, 0),
+        scale: new THREE.Vector3(1.2, 0.48, 1),
+      },
+      {
+        position: new THREE.Vector3(-0.72, 0.89, -2.18),
+        rotation: new THREE.Euler(Math.PI, 0.2, 0),
+        scale: new THREE.Vector3(0.92, 0.42, 0.86),
+      },
+    ],
+  );
+  cookware.userData.fpNoCollision = true;
+
+  parent.add(stores);
+}
+
 function addLivedInTextiles(parent: THREE.Group): void {
   const textiles = new THREE.Group();
   textiles.name = 'Founders drying wool and blankets';
@@ -431,12 +662,13 @@ function addAFrameShelter(
   shelter.position.set(x, 0, z);
   shelter.rotation.y = yaw;
   shelter.userData.fpCollisionAggregate = true;
+  const canvasMaterial = getAgedTentCanvasMaterial(fabricVariant);
 
   for (const side of [-1, 1] as const) {
     const panel = addMesh(
       shelter,
       createTentSideGeometry(side),
-      sharedBuildingDetailMaterial('canvas'),
+      canvasMaterial,
       new THREE.Vector3(),
     );
     panel.name = 'Weathered tent side';
@@ -449,6 +681,7 @@ function addAFrameShelter(
     -0.72 + fabricVariant * 0.34,
     sharedBuildingDetailMaterial(fabricVariant === 1 ? 'paintOchre' : 'paintRed'),
   );
+  addTentCanvasSeams(shelter);
 
   const back = addMesh(
     shelter,
@@ -457,7 +690,7 @@ function addAFrameShelter(
       TENT_HALF_WIDTH,
       TENT_HALF_DEPTH,
     ),
-    sharedBuildingDetailMaterial('canvas'),
+    canvasMaterial,
     new THREE.Vector3(),
   );
   back.name = 'Tent rear canvas';
@@ -479,7 +712,7 @@ function addAFrameShelter(
     const front = addMesh(
       shelter,
       createTentFrontPanelGeometry(side),
-      sharedBuildingDetailMaterial('canvas'),
+      canvasMaterial,
       new THREE.Vector3(),
     );
     front.name = side < 0 ? 'Left tied tent flap' : 'Right tied tent flap';
@@ -548,8 +781,8 @@ function addAFrameShelter(
 }
 
 function createTentSideGeometry(side: -1 | 1): THREE.BufferGeometry {
-  const acrossSegments = 4;
-  const lengthSegments = 8;
+  const acrossSegments = 6;
+  const lengthSegments = 12;
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
@@ -560,9 +793,17 @@ function createTentSideGeometry(side: -1 | 1): THREE.BufferGeometry {
     const endTension = Math.sin(v * Math.PI);
     for (let acrossIndex = 0; acrossIndex <= acrossSegments; acrossIndex += 1) {
       const u = acrossIndex / acrossSegments;
-      const x = side * TENT_HALF_WIDTH * (1 - u);
-      const sag = Math.sin(u * Math.PI) * endTension * 0.065;
-      const y = THREE.MathUtils.lerp(TENT_EAVE_Y, TENT_RIDGE_Y, u) - sag;
+      const sag = Math.sin(u * Math.PI) * endTension * 0.095;
+      const fold = Math.sin(v * Math.PI * 7 + side * 0.57)
+        * Math.sin(v * Math.PI)
+        * (0.025 + (1 - u) * 0.045);
+      const x = side * (
+        TENT_HALF_WIDTH * (1 - u)
+        + fold * 0.78
+      );
+      const y = THREE.MathUtils.lerp(TENT_EAVE_Y, TENT_RIDGE_Y, u)
+        - sag
+        + fold * 0.42;
       positions.push(x, y, z);
       uvs.push(u, v);
     }
@@ -689,6 +930,49 @@ function addTentRepairPatch(
   patch.userData.fpNoCollision = true;
 }
 
+function addTentCanvasSeams(shelter: THREE.Group): void {
+  const seams: CampInstance[] = [];
+  for (const side of [-1, 1] as const) {
+    seams.push(cylinderInstanceBetween(
+      new THREE.Vector3(side * TENT_HALF_WIDTH, TENT_EAVE_Y + 0.035, -TENT_HALF_DEPTH),
+      new THREE.Vector3(side * TENT_HALF_WIDTH, TENT_EAVE_Y + 0.035, TENT_HALF_DEPTH),
+      0.028,
+    ));
+    for (const z of [-0.82, 0.86]) {
+      seams.push(cylinderInstanceBetween(
+        new THREE.Vector3(0, TENT_RIDGE_Y + 0.012, z),
+        new THREE.Vector3(side * TENT_HALF_WIDTH, TENT_EAVE_Y + 0.025, z),
+        0.022,
+      ));
+    }
+  }
+  const seamMesh = addCampInstances(
+    shelter,
+    'Dark stitched canvas edge and tension seams',
+    new THREE.CylinderGeometry(1, 1, 1, 5),
+    timberMaterial('dark'),
+    seams,
+  );
+  seamMesh.userData.fpNoCollision = true;
+}
+
+function cylinderInstanceBetween(
+  from: THREE.Vector3,
+  to: THREE.Vector3,
+  radius: number,
+): CampInstance {
+  const direction = to.clone().sub(from);
+  const length = direction.length();
+  return {
+    position: from.clone().add(to).multiplyScalar(0.5),
+    quaternion: new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      direction.normalize(),
+    ),
+    scale: new THREE.Vector3(radius, length, radius),
+  };
+}
+
 function addPoleBetween(
   parent: THREE.Group,
   from: THREE.Vector3,
@@ -716,8 +1000,8 @@ function addRopeBetween(
     parent,
     from,
     to,
-    0.018,
-    timberMaterial('weathered'),
+    0.03,
+    timberMaterial('dark'),
     5,
   );
   rope.name = 'Taut tent guy rope';
@@ -750,9 +1034,9 @@ function addCylinderBetween(
 function addTentStake(parent: THREE.Group, x: number, z: number): void {
   const stake = addMesh(
     parent,
-    new THREE.CylinderGeometry(0.035, 0.055, 0.42, 6),
-    timberMaterial('weathered'),
-    new THREE.Vector3(x, 0.12, z),
+    new THREE.CylinderGeometry(0.055, 0.082, 0.54, 6),
+    timberMaterial('dark'),
+    new THREE.Vector3(x, 0.15, z),
     new THREE.Euler(0.17, 0, -0.12),
   );
   stake.name = 'Tent stake';
@@ -1026,6 +1310,7 @@ export function createFoundersCampMesh(): THREE.Group {
   addFoundingStandard(shelters);
   addFoundingProvisions(shelters);
   addFoundingWorkyard(shelters);
+  addFoundingUtilityStores(shelters);
   addLivedInTextiles(shelters);
   addTimberStock(group);
   addStoneStock(group);

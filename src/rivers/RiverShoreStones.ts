@@ -14,6 +14,7 @@ import {
 import type { RiverField } from './RiverField.ts';
 import { buildRiverShoreCrossingGaps, isInRiverShoreCrossingGap } from './RiverShoreCrossingGaps.ts';
 import {
+  computeShoreStoneMoss,
   computeShoreStoneTint,
   computeShoreStoneVisualScale,
 } from './riverShoreStoneAppearance.ts';
@@ -113,7 +114,12 @@ export function createRiverShoreStones(
       mesh.setMatrixAt(rockIndex, visualMatrix);
       shadowMesh.setMatrixAt(rockIndex, visualMatrix);
       const tint = computeShoreStoneTint(rock.x, rock.z);
-      stoneTint.setRGB(tint, tint * 0.97, tint * 0.9);
+      const moss = computeShoreStoneMoss(rock.x, rock.z);
+      stoneTint.setRGB(
+        tint * (0.92 - moss * 0.08),
+        tint * (0.84 + moss * 0.12),
+        tint * (0.74 + moss * 0.05),
+      );
       mesh.setColorAt(rockIndex, stoneTint);
       instances.push({
         placement: rock,

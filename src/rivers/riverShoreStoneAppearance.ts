@@ -29,17 +29,22 @@ function valueNoise2(x: number, z: number): number {
 }
 
 export function computeShoreStoneVisualScale(x: number, z: number): number {
-  const cluster = valueNoise2(x * 0.026 + 21.7, z * 0.026 - 4.9);
-  const detail = valueNoise2(x * 0.11 - 8.3, z * 0.11 + 13.1);
-  const clustered = smoothstep(0.28, 0.78, cluster);
-  const presenceNoise = valueNoise2(x * 0.043 - 11.6, z * 0.043 + 7.2);
-  const presence = smoothstep(0.4, 0.72, presenceNoise);
-  const clusteredPresence = presence * (0.58 + clustered * 0.42);
-  const scale = (0.18 + (1.04 - 0.18) * clusteredPresence) * (0.9 + detail * 0.1);
-  return Math.max(0.18, Math.min(1.04, scale));
+  const cluster = valueNoise2(x * 0.018 + 21.7, z * 0.018 - 4.9);
+  const detail = valueNoise2(x * 0.115 - 8.3, z * 0.115 + 13.1);
+  const clustered = smoothstep(0.46, 0.72, cluster);
+  const presenceNoise = valueNoise2(x * 0.061 - 11.6, z * 0.061 + 7.2);
+  const presence = smoothstep(0.58, 0.79, presenceNoise);
+  const clusteredPresence = Math.pow(clustered * presence, 1.35);
+  const scale = 0.1 + (1.15 - 0.1) * clusteredPresence * (0.78 + detail * 0.32);
+  return Math.max(0.1, Math.min(1.15, scale));
 }
 
 export function computeShoreStoneTint(x: number, z: number): number {
-  const weathering = valueNoise2(x * 0.075 + 3.6, z * 0.075 - 17.4);
-  return 0.58 + (0.9 - 0.58) * weathering;
+  const weathering = valueNoise2(x * 0.065 + 3.6, z * 0.065 - 17.4);
+  const fineGrain = valueNoise2(x * 0.17 - 6.1, z * 0.17 + 9.8);
+  return 0.5 + (0.88 - 0.5) * (weathering * 0.72 + fineGrain * 0.28);
+}
+
+export function computeShoreStoneMoss(x: number, z: number): number {
+  return valueNoise2(x * 0.14 + 18.4, z * 0.14 - 12.7);
 }

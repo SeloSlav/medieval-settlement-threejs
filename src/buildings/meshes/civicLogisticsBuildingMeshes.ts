@@ -32,6 +32,11 @@ import {
   GUARDHOUSE_PAYROLL_TARGET_DAYS,
   GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
 } from '../../generated/gameBalance.ts';
+import {
+  STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+  STOREHOUSE_STONE_VISUAL_SEGMENTS,
+  STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
+} from '../buildingStockpileVisuals.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
 export const GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS = 3;
@@ -224,19 +229,69 @@ export function createVillageStorehouseMesh(): THREE.Group {
   addCrate(group, 4.0, 0.92, 4.28, 0.82);
   addCrate(group, 3.45, 1.75, 4.25, 0.72);
 
-  // Separate visible bays for timber, firewood, and quarried stone reinforce specialization.
-  for (let row = 0; row < 3; row++) for (let i = 0; i < 5; i++) {
-    addMesh(group, new THREE.CylinderGeometry(0.15, 0.18, 2.25, 8), timberMaterial(row % 2 ? 'mid' : 'light'), new THREE.Vector3(-5.5 + i * 0.43, 0.24 + row * 0.32, -4.15), new THREE.Euler(0, 0, Math.PI * 0.5));
+  // Separate inventory-driven bays make each physical bulk store readable at
+  // overview distance. Segments are grouped rather than recreated as stock
+  // changes, so hauling updates visibility without adding draw calls or churn.
+  const timberStock = new THREE.Group();
+  timberStock.name = 'StorehouseTimberStockpile';
+  timberStock.visible = false;
+  for (let i = 0; i < STOREHOUSE_TIMBER_VISUAL_SEGMENTS; i++) {
+    const segment = new THREE.Group();
+    segment.name = 'StorehouseTimberSegment';
+    segment.visible = false;
+    for (let row = 0; row < 3; row++) {
+      addMesh(
+        segment,
+        new THREE.CylinderGeometry(0.15, 0.18, 2.25, 8),
+        timberMaterial(row % 2 ? 'mid' : 'light'),
+        new THREE.Vector3(-5.5 + i * 0.43, 0.24 + row * 0.32, -4.15),
+        new THREE.Euler(0, 0, Math.PI * 0.5),
+      );
+    }
+    timberStock.add(segment);
   }
-  for (let i = 0; i < 9; i++) {
+  group.add(timberStock);
+
+  const stoneStock = new THREE.Group();
+  stoneStock.name = 'StorehouseStoneStockpile';
+  stoneStock.visible = false;
+  for (let i = 0; i < STOREHOUSE_STONE_VISUAL_SEGMENTS; i++) {
+    const segment = new THREE.Group();
+    segment.name = 'StorehouseStoneSegment';
+    segment.visible = false;
     const x = 3.2 + (i % 3) * 0.55;
     const z = -4.5 + Math.floor(i / 3) * 0.5;
-    addMesh(group, new THREE.DodecahedronGeometry(0.38 + (i % 2) * 0.08, 0), stoneMaterial(i % 3 === 0 ? 'mortar' : 'mid'), new THREE.Vector3(x, 0.3 + Math.floor(i / 6) * 0.35, z), new THREE.Euler(i * 0.2, i * 0.31, 0));
+    addMesh(
+      segment,
+      new THREE.DodecahedronGeometry(0.38 + (i % 2) * 0.08, 0),
+      stoneMaterial(i % 3 === 0 ? 'mortar' : 'mid'),
+      new THREE.Vector3(x, 0.3 + Math.floor(i / 6) * 0.35, z),
+      new THREE.Euler(i * 0.2, i * 0.31, 0),
+    );
+    stoneStock.add(segment);
   }
+  group.add(stoneStock);
+
   addMesh(group, new THREE.BoxGeometry(3.4, 0.12, 2.2), timberMaterial('dark'), new THREE.Vector3(0, 0.08, -4.2));
-  for (let row = 0; row < 3; row++) for (let i = 0; i < 6; i++) {
-    addMesh(group, new THREE.CylinderGeometry(0.12, 0.15, 0.95, 7), timberMaterial('dark'), new THREE.Vector3(-1.25 + i * 0.48, 0.2 + row * 0.27, -4.2), new THREE.Euler(0, 0, Math.PI * 0.5));
+  const firewoodStock = new THREE.Group();
+  firewoodStock.name = 'StorehouseFirewoodStockpile';
+  firewoodStock.visible = false;
+  for (let i = 0; i < STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS; i++) {
+    const segment = new THREE.Group();
+    segment.name = 'StorehouseFirewoodSegment';
+    segment.visible = false;
+    for (let row = 0; row < 3; row++) {
+      addMesh(
+        segment,
+        new THREE.CylinderGeometry(0.12, 0.15, 0.95, 7),
+        timberMaterial('dark'),
+        new THREE.Vector3(-1.25 + i * 0.48, 0.2 + row * 0.27, -4.2),
+        new THREE.Euler(0, 0, Math.PI * 0.5),
+      );
+    }
+    firewoodStock.add(segment);
   }
+  group.add(firewoodStock);
   addMesh(group, new THREE.BoxGeometry(0.7, 0.06, 1.8), earth, new THREE.Vector3(-0.4, 0.06, 6.35));
   return group;
 }

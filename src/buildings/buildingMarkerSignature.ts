@@ -32,6 +32,9 @@ import {
   SALVAGE_STONE_VISUAL_SEGMENTS,
   SALVAGE_TIMBER_VISUAL_CAPACITY,
   SALVAGE_TIMBER_VISUAL_SEGMENTS,
+  STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+  STOREHOUSE_STONE_VISUAL_SEGMENTS,
+  STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
 } from './buildingStockpileVisuals.ts';
 
 export function buildingMeshSignature(building: BuildingState): string {
@@ -130,6 +133,28 @@ export function buildingMarkerSignatures(
           LOCAL_RECEIPT_VISUAL_SEGMENTS,
         )}`
         : '';
+      const storehouseState = building.kind === 'village_storehouse'
+        && building.constructionComplete !== false
+        ? `:storehouse:${
+          stockpileVisualLevel(
+            building.timber,
+            BUILDING_STORAGE_CAPS.village_storehouse.timber,
+            STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
+          )
+        }:${
+          stockpileVisualLevel(
+            building.stone,
+            BUILDING_STORAGE_CAPS.village_storehouse.stone,
+            STOREHOUSE_STONE_VISUAL_SEGMENTS,
+          )
+        }:${
+          stockpileVisualLevel(
+            building.firewood,
+            BUILDING_STORAGE_CAPS.village_storehouse.firewood,
+            STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+          )
+        }`
+        : '';
       const guardhousePayrollState = building.kind === 'guardhouse'
         && building.constructionComplete !== false
         ? `:payroll:${stockpileVisualLevel(
@@ -171,7 +196,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${hayState}${woolState}${clothState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${clothState}`,
         collider: structural,
       };
     })

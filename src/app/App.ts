@@ -866,11 +866,11 @@ export class App {
     if (!foundersCamp) return;
 
     this.cameraController.applyShowcaseView(
-      foundersCamp.x,
-      foundersCamp.z,
+      foundersCamp.x - 5,
+      foundersCamp.z + 4.5,
       (-42 * Math.PI) / 180,
-      (48 * Math.PI) / 180,
-      52,
+      (44 * Math.PI) / 180,
+      42,
     );
     this.initialSettlementViewApplied = true;
   }

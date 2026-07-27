@@ -7,6 +7,11 @@ import {
   createForestLodSelector,
   selectForestLods,
 } from '@seedthree/core/forest-lod.js';
+import {
+  buildForestEdgeEcology,
+  createForestEdgeEcology,
+  type ForestEcologyStats,
+} from '@seedthree/core/forest-ecology.js';
 import { Rng } from '@seedthree/core/rng.js';
 import type { Terrain } from '../../terrain/Terrain.ts';
 import { CENTRAL_CLEARING_RADIUS } from '../../props/forestField.ts';
@@ -42,6 +47,7 @@ type SpeciesBucket = {
 
 export type SeedThreeForestInstances = {
   group: THREE.Group;
+  ecology: ReturnType<typeof buildForestEdgeEcology>;
   placements: ForestTreePlacement[];
   buckets: SpeciesBucket[];
   slotByLayoutIndex: Array<{ bucketIndex: number; slotIndex: number } | null>;
@@ -83,6 +89,18 @@ const FOREST_SUCCESSION_OPTS = {
   maxOffset: 7.2,
   minScale: 0.3,
   maxScale: 0.46,
+};
+const FOREST_EDGE_ECOLOGY_OPTS = {
+  protectedRadius: CENTRAL_CLEARING_RADIUS + 18,
+  outerRadius: 175,
+  neighborRadius: 34,
+  minimumNeighbors: 2,
+  minimumAnchorSpacing: 9,
+  maxAnchors: 96,
+  maxSaplings: 96,
+  maxUnderstory: 192,
+  maxDeadwood: 32,
+  maxLitter: 192,
 };
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -392,6 +410,17 @@ export async function createSeedThreeForest(
       successionByPreset.set(source.preset, successionSlots);
     }
   });
+  const ecologySpecs = createForestEdgeEcology(
+    visibilityItems,
+    {
+      ...FOREST_EDGE_ECOLOGY_OPTS,
+      isBlockedAt: (x, z) => isBlockedAt?.(x, z) ?? false,
+    },
+  );
+  const ecology = buildForestEdgeEcology(ecologySpecs, {
+    name: 'SeedThree layered Gorski clearing-edge ecology',
+    getHeightAt: (x, z) => terrain.getHeightAt(x, z),
+  });
 
   const buckets: SpeciesBucket[] = [];
   const successionByLayoutIndex: Array<Array<{ bucketIndex: number; slotIndex: number }>> =
@@ -428,6 +457,7 @@ export async function createSeedThreeForest(
     for (const cardMesh of bucket.overviewSet.cards) group.add(cardMesh);
     for (const cardMesh of bucket.successionSet.cards) group.add(cardMesh);
   }
+  group.add(ecology.group);
 
   const visibilitySelector = createForestLodSelector(visibilityItems, {
     cellSize: 48,
@@ -439,6 +469,7 @@ export async function createSeedThreeForest(
   });
   return {
     group,
+    ecology,
     placements,
     buckets,
     slotByLayoutIndex,
@@ -560,6 +591,7 @@ export function getSeedThreeForestStructuralStats(forest: SeedThreeForestInstanc
   triangles: number;
   instances: number;
   trees: SeedThreeForestRenderStats;
+  ecology: ForestEcologyStats;
 } {
   let draws = 0;
   let triangles = 0;
@@ -579,6 +611,10 @@ export function getSeedThreeForestStructuralStats(forest: SeedThreeForestInstanc
     triangles: Math.round(triangles),
     instances,
     trees: { ...forest.renderStats },
+    ecology: {
+      ...forest.ecology.stats,
+      counts: { ...forest.ecology.stats.counts },
+    },
   };
 }
 
@@ -594,9 +630,11 @@ export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
   forest.group.traverse((object: THREE.Object3D) => {
     const mesh = object as THREE.InstancedMesh;
     if (!mesh.isInstancedMesh) return;
+    if (mesh.userData.forestEcology === true) return;
     if (mesh.geometry.userData.forestClone) mesh.geometry.dispose();
     mesh.dispose();
   });
+  forest.ecology.dispose();
 }
 
 export function createSeedThreeForestController(forest: SeedThreeForestInstances): SeedThreeForestController {

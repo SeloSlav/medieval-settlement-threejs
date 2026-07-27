@@ -21,8 +21,11 @@ import {
   computeWaterFeatherAlpha,
   computeWaterFoamBase,
   type RiverWaterShoreMaps,
+  WATER_ALPHA_FEATHER_IN,
+  WATER_FOAM_REACH,
 } from '../src/rivers/riverWaterShoreMaps.ts';
 import {
+  computeShoreStoneMoss,
   computeShoreStoneTint,
   computeShoreStoneVisualScale,
 } from '../src/rivers/riverShoreStoneAppearance.ts';
@@ -52,18 +55,22 @@ assert.equal(
 
 assert.ok(computeWaterFoamBase(0.2) > computeWaterFoamBase(0.9));
 assert.ok(computeWaterFoamBase(0.9) > computeWaterFoamBase(1.6));
+assert.equal(computeWaterFoamBase(WATER_FOAM_REACH), 0);
 assert.equal(computeWaterFoamBase(1.65), 0);
 assert.equal(computeWaterFoamBase(2.5), 0);
+assert.ok(WATER_ALPHA_FEATHER_IN <= 0.5);
 assert.ok(computeWaterFeatherAlpha(-0.6) < computeWaterFeatherAlpha(0.2));
 assert.ok(computeWaterFeatherAlpha(0.2) < computeWaterFeatherAlpha(0.96));
 
 const stoneVisualA = computeShoreStoneVisualScale(12, -8);
 const stoneVisualB = computeShoreStoneVisualScale(25, 17);
-assert.ok(stoneVisualA >= 0.18 && stoneVisualA <= 1.04);
-assert.ok(stoneVisualB >= 0.18 && stoneVisualB <= 1.04);
+assert.ok(stoneVisualA >= 0.1 && stoneVisualA <= 1.15);
+assert.ok(stoneVisualB >= 0.1 && stoneVisualB <= 1.15);
 assert.notEqual(stoneVisualA, stoneVisualB);
 const stoneTint = computeShoreStoneTint(12, -8);
-assert.ok(stoneTint >= 0.58 && stoneTint <= 0.9);
+assert.ok(stoneTint >= 0.5 && stoneTint <= 0.88);
+const stoneMoss = computeShoreStoneMoss(12, -8);
+assert.ok(stoneMoss >= 0 && stoneMoss <= 1);
 
 const shoreTexture = new THREE.DataTexture(
   new Uint8Array([255, 0, 128, 0]),
@@ -106,9 +113,9 @@ assert.ok(
   'flow roughness must not turn directional crests into black winter pools',
 );
 assert.ok(
-  RIVER_FLOW_HIGHLIGHT_STRENGTH >= 0.08
-    && RIVER_FLOW_HIGHLIGHT_STRENGTH <= 0.14,
-  'directional ribbons must remain restrained enough to avoid broad winter halos',
+  RIVER_FLOW_HIGHLIGHT_STRENGTH >= 0.15
+    && RIVER_FLOW_HIGHLIGHT_STRENGTH <= 0.2,
+  'broken micro-flow must remain visible without becoming broad winter halos',
 );
 assert.equal(material.roughness, 0.3);
 assert.equal(material.specularIntensity, 0.5);

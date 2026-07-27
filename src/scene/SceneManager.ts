@@ -664,7 +664,7 @@ export class SceneManager {
     // not a global gray wash. Keep just enough hemispheric bounce to read the
     // terrain while preserving true material shadows.
     this.hemiLight.intensity = state.hemiIntensity
-      * THREE.MathUtils.lerp(1, 0.46, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.5, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.82, atmosphericBlend);
     this.ambientLight.color.setHex(blendColorHex(state.ambientColor, weather.fogTint, atmosphericBlend * 0.34));
     this.ambientLight.intensity = state.ambientIntensity
@@ -677,7 +677,7 @@ export class SceneManager {
     );
     this.skyFillLight.color.setHex(blendColorHex(state.fillColor, weather.fogTint, atmosphericBlend * 0.4));
     this.skyFillLight.intensity = state.fillIntensity
-      * THREE.MathUtils.lerp(1, 0.36, state.nightAmount)
+      * THREE.MathUtils.lerp(1, 0.44, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.86, atmosphericBlend);
     // At night the real sun is below the horizon, so its inverse does not
     // provide a stable photographic fill. Blend to a fixed side/back direction

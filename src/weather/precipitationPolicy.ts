@@ -51,7 +51,7 @@ export function precipitationProfile(
   if (environment.weather === 'rain') {
     return {
       kind: 'rain',
-      intensity: 0.9,
+      intensity: 0.78,
       fallSpeed: 30,
       windX: 4.2,
       windZ: 1.8,

@@ -54,6 +54,9 @@ import {
   SALVAGE_STONE_VISUAL_CAPACITY,
   SALVAGE_TIMBER_VISUAL_CAPACITY,
   syncStockpileSegments,
+  STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+  STOREHOUSE_STONE_VISUAL_SEGMENTS,
+  STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
 } from './buildingStockpileVisuals.ts';
 import {
   createBuildingPreviewMesh,
@@ -592,6 +595,38 @@ function syncBuildingVisualState(
       );
     }
     marker.userData.marketStagingSegments = MARKET_STAGING_VISUAL_SEGMENTS;
+  }
+  if (building.kind === 'village_storehouse') {
+    const timber = marker.getObjectByName('StorehouseTimberStockpile');
+    if (timber instanceof THREE.Group) {
+      syncStockpileSegments(
+        timber,
+        'StorehouseTimberSegment',
+        building.timber,
+        BUILDING_STORAGE_CAPS.village_storehouse.timber,
+      );
+    }
+    const stone = marker.getObjectByName('StorehouseStoneStockpile');
+    if (stone instanceof THREE.Group) {
+      syncStockpileSegments(
+        stone,
+        'StorehouseStoneSegment',
+        building.stone,
+        BUILDING_STORAGE_CAPS.village_storehouse.stone,
+      );
+    }
+    const firewood = marker.getObjectByName('StorehouseFirewoodStockpile');
+    if (firewood instanceof THREE.Group) {
+      syncStockpileSegments(
+        firewood,
+        'StorehouseFirewoodSegment',
+        building.firewood,
+        BUILDING_STORAGE_CAPS.village_storehouse.firewood,
+      );
+    }
+    marker.userData.storehouseTimberSegments = STOREHOUSE_TIMBER_VISUAL_SEGMENTS;
+    marker.userData.storehouseStoneSegments = STOREHOUSE_STONE_VISUAL_SEGMENTS;
+    marker.userData.storehouseFirewoodSegments = STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS;
   }
   if (building.kind === 'lumber_mill') {
     const stockpile = marker.getObjectByName('TimberStockpile');

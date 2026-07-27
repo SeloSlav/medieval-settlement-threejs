@@ -48,19 +48,20 @@ type ScalarUniform = TslNode & {
 };
 
 const riverNightAmount = uniform(0) as ScalarUniform;
-const WATER_FOAM_COLOR = vec3(0.74, 0.86, 0.82) as TslNode;
-const MENISCUS_COLOR = vec3(0.8, 0.9, 0.86) as TslNode;
-const SHALLOW_WATER_TINT = vec3(0.17, 0.51, 0.49) as TslNode;
-const DEEP_WATER_TINT = vec3(0.095, 0.26, 0.22) as TslNode;
+const WATER_FOAM_COLOR = vec3(0.52, 0.7, 0.66) as TslNode;
+const MENISCUS_COLOR = vec3(0.57, 0.75, 0.7) as TslNode;
+const SHALLOW_WATER_TINT = vec3(0.145, 0.46, 0.44) as TslNode;
+const DEEP_WATER_TINT = vec3(0.085, 0.235, 0.205) as TslNode;
+const DEEP_WATER_LIGHT_TINT = vec3(0.115, 0.295, 0.265) as TslNode;
 const SHORE_LAP_MAX = 0.11;
-const SHORE_FOAM_MAX = 0.48;
+const SHORE_FOAM_MAX = 0.24;
 const FLOW_WAVE_HEIGHT = 0.048;
 export const RIVER_WATER_TRANSMISSION = 0.82;
 export const RIVER_WATER_ATTENUATION_DISTANCE = 1.75;
 export const RIVER_DEEP_BACKDROP_STABILITY = 1;
 export const RIVER_VISUAL_SHORE_EXPONENT = 3.8;
 export const RIVER_FLOW_ROUGHNESS_FLOOR = 0.315;
-export const RIVER_FLOW_HIGHLIGHT_STRENGTH = 0.12;
+export const RIVER_FLOW_HIGHLIGHT_STRENGTH = 0.18;
 
 function decodeFlowDirection(shoreSample: TslNode): { flowDirX: TslNode; flowDirZ: TslNode } {
   const flowRaw = (vec2(shoreSample.b, shoreSample.a) as TslNode).mul(float(2) as TslNode).sub(float(1) as TslNode) as TslNode;
@@ -150,45 +151,55 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     position.z,
   ) as TslNode;
 
-  const foamNoise = (sin(flowAlong.mul(0.19).add(flowCross.mul(0.17)).add(frameTime.mul(0.44)) as TslNode) as TslNode)
+  const foamNoise = (sin(flowAlong.mul(0.41).add(flowCross.mul(0.73)).add(frameTime.mul(0.44)) as TslNode) as TslNode)
     .mul(0.5)
     .add(0.5) as TslNode;
-  const foamWave = (sin(frameTime.mul(4.4).add(flowAlong.mul(0.19)).sub(flowCross.mul(0.16)) as TslNode) as TslNode)
+  const foamWave = (sin(frameTime.mul(4.4).add(flowAlong.mul(0.68)).sub(flowCross.mul(0.51)) as TslNode) as TslNode)
     .mul(0.5)
     .add(0.5) as TslNode;
-  const foamPulse = (sin(frameTime.mul(6.1).add(flowAlong.mul(0.11)).sub(flowCross.mul(0.27)) as TslNode) as TslNode)
+  const foamPulse = (sin(frameTime.mul(6.1).add(flowAlong.mul(0.29)).sub(flowCross.mul(0.93)) as TslNode) as TslNode)
     .mul(0.5)
     .add(0.5) as TslNode;
   const foamStrength = min(
     float(SHORE_FOAM_MAX) as TslNode,
     (pow(shallowFactor, float(1.05) as TslNode) as TslNode).mul(
-      (float(0.14) as TslNode)
-        .add(foamNoise.mul(0.26))
-        .add(foamWave.mul(0.22))
-        .add(foamPulse.mul(0.18)) as TslNode,
+      (float(0.025) as TslNode)
+        .add(foamNoise.mul(0.11))
+        .add(foamWave.mul(0.07))
+        .add(foamPulse.mul(0.05)) as TslNode,
     ) as TslNode,
   ) as TslNode;
 
   const ribbonMeander = (sin(
     flowAlong.mul(0.095).sub(frameTime.mul(0.58)) as TslNode,
-  ) as TslNode).mul(float(0.42) as TslNode) as TslNode;
-  const ribbonCarrier = (sin(
-    flowCross.mul(1.55).add(ribbonMeander) as TslNode,
+  ) as TslNode).mul(float(0.31) as TslNode) as TslNode;
+  const ribbonCarrierA = (sin(
+    flowCross.mul(1.85).add(ribbonMeander) as TslNode,
+  ) as TslNode).mul(0.5).add(0.5) as TslNode;
+  const ribbonCarrierB = (sin(
+    flowCross
+      .mul(3.45)
+      .sub(ribbonMeander.mul(float(0.72) as TslNode) as TslNode)
+      .add(flowAlong.mul(float(0.028) as TslNode) as TslNode) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;
   const alongBreakupA = (sin(
-    flowAlong.mul(0.42).add(flowCross.mul(0.19)).sub(frameTime.mul(1.1)) as TslNode,
+    flowAlong.mul(0.48).add(flowCross.mul(0.11)).sub(frameTime.mul(1.15)) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;
   const alongBreakupB = (sin(
-    flowAlong.mul(0.83).sub(flowCross.mul(0.13)).sub(frameTime.mul(1.85)) as TslNode,
+    flowAlong.mul(0.93).sub(flowCross.mul(0.17)).sub(frameTime.mul(1.9)) as TslNode,
   ) as TslNode)
     .mul(0.5)
     .add(0.5) as TslNode;
-  const alongBreakup = pow(
-    alongBreakupA.mul(0.58).add(alongBreakupB.mul(0.42)) as TslNode,
-    float(4.5) as TslNode,
-  ) as TslNode;
-  const ribbonCrest = pow(ribbonCarrier, float(13) as TslNode) as TslNode;
-  const flowStructure = ribbonCrest.mul(alongBreakup) as TslNode;
+  const ribbonCrestA = pow(ribbonCarrierA, float(7.5) as TslNode) as TslNode;
+  const ribbonCrestB = pow(ribbonCarrierB, float(9) as TslNode) as TslNode;
+  const flowStructure = ribbonCrestA
+    .mul(pow(alongBreakupA, float(2.3) as TslNode) as TslNode)
+    .mul(float(0.64) as TslNode)
+    .add(
+      ribbonCrestB
+        .mul(pow(alongBreakupB, float(2.8) as TslNode) as TslNode)
+        .mul(float(0.36) as TslNode) as TslNode,
+    ) as TslNode;
   const flowShimmer = depthFactor
     .mul(flowStructure)
     .mul(float(RIVER_FLOW_HIGHLIGHT_STRENGTH) as TslNode) as TslNode;
@@ -201,12 +212,29 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     .mul(riverNightAmount)
     .mul(mix(float(0.35) as TslNode, float(1) as TslNode, depthFactor) as TslNode)
     .mul(mix(float(0.65) as TslNode, float(1) as TslNode, viewDotUp) as TslNode) as TslNode;
-  const meniscus = (pow(shallowFactor, float(1.35) as TslNode) as TslNode).mul(float(0.22) as TslNode) as TslNode;
-  const waterTint = mix(SHALLOW_WATER_TINT, DEEP_WATER_TINT, depthFactor) as TslNode;
-  const flowHighlight = vec3(0.44, 0.72, 0.69) as TslNode;
+  const meniscus = (pow(shallowFactor, float(1.55) as TslNode) as TslNode).mul(float(0.1) as TslNode) as TslNode;
+  const depthVeilA = (sin(
+    worldPos.x.mul(0.09).add(worldPos.z.mul(0.071)).add(frameTime.mul(0.025)) as TslNode,
+  ) as TslNode).mul(0.5).add(0.5) as TslNode;
+  const depthVeilB = (sin(
+    worldPos.x.mul(0.21).sub(worldPos.z.mul(0.17)).sub(frameTime.mul(0.018)) as TslNode,
+  ) as TslNode).mul(0.5).add(0.5) as TslNode;
+  const depthVeil = depthVeilA.mul(0.62).add(depthVeilB.mul(0.38)) as TslNode;
+  const layeredDeepTint = mix(DEEP_WATER_TINT, DEEP_WATER_LIGHT_TINT, depthVeil) as TslNode;
+  const waterTint = mix(SHALLOW_WATER_TINT, layeredDeepTint, depthFactor) as TslNode;
+  const flowHighlight = vec3(0.34, 0.56, 0.54) as TslNode;
   const tintedBody = mix(waterTint, flowHighlight, flowShimmer) as TslNode;
   const bodyColor = mix(tintedBody, WATER_FOAM_COLOR, foamStrength) as TslNode;
-  const colorNode = mix(bodyColor, MENISCUS_COLOR, meniscus) as TslNode;
+  const meniscusBody = mix(bodyColor, MENISCUS_COLOR, meniscus) as TslNode;
+  const skyReturn = (pow(
+    sub(float(1) as TslNode, viewDotUp) as TslNode,
+    float(0.95) as TslNode,
+  ) as TslNode).mul(float(0.12) as TslNode) as TslNode;
+  const colorNode = mix(
+    meniscusBody,
+    vec3(0.24, 0.38, 0.4) as TslNode,
+    skyReturn,
+  ) as TslNode;
   const bedNoiseA = (sin(worldPos.x.mul(0.11).add(worldPos.z.mul(0.09)) as TslNode) as TslNode)
     .mul(0.5)
     .add(0.5) as TslNode;

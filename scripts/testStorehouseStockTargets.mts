@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
+import * as THREE from 'three';
+import { buildingMarkerCollectionSignature } from '../src/buildings/buildingMarkerSignature.ts';
+import {
+  STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+  STOREHOUSE_STONE_VISUAL_SEGMENTS,
+  STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
+  syncStockpileSegments,
+} from '../src/buildings/buildingStockpileVisuals.ts';
+import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import {
   STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
   STOREHOUSE_STOCK_TARGET_PRESETS,
@@ -78,6 +87,83 @@ assert.match(distributedControls, /90 stored \/ 180 selected/);
 assert.match(distributedControls, /90 collection headroom/);
 assert.match(distributedControls, /210 stored \/ 210 selected/);
 assert.match(distributedControls, /At collection target/);
+
+const storehouseMesh = createBuildingMesh('village_storehouse');
+const timberBay = storehouseMesh.getObjectByName('StorehouseTimberStockpile');
+const stoneBay = storehouseMesh.getObjectByName('StorehouseStoneStockpile');
+const firewoodBay = storehouseMesh.getObjectByName('StorehouseFirewoodStockpile');
+assert.ok(timberBay instanceof THREE.Group);
+assert.ok(stoneBay instanceof THREE.Group);
+assert.ok(firewoodBay instanceof THREE.Group);
+assert.equal(
+  timberBay.children.filter((child) => child.name === 'StorehouseTimberSegment').length,
+  STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
+);
+assert.equal(
+  stoneBay.children.filter((child) => child.name === 'StorehouseStoneSegment').length,
+  STOREHOUSE_STONE_VISUAL_SEGMENTS,
+);
+assert.equal(
+  firewoodBay.children.filter((child) => child.name === 'StorehouseFirewoodSegment').length,
+  STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+);
+assert.equal(timberBay.visible, false, 'an empty storehouse must not render a full timber bay');
+assert.equal(stoneBay.visible, false, 'an empty storehouse must not render a full stone bay');
+assert.equal(firewoodBay.visible, false, 'an empty storehouse must not render a full fuel bay');
+assert.equal(
+  syncStockpileSegments(
+    timberBay,
+    'StorehouseTimberSegment',
+    181,
+    360,
+  ),
+  3,
+  'timber stacks must expose a readable half-capacity state',
+);
+assert.equal(
+  syncStockpileSegments(
+    stoneBay,
+    'StorehouseStoneSegment',
+    180,
+    360,
+  ),
+  5,
+  'stone stacks must expose a readable half-capacity state',
+);
+assert.equal(
+  syncStockpileSegments(
+    firewoodBay,
+    'StorehouseFirewoodSegment',
+    70,
+    280,
+  ),
+  2,
+  'fuel stacks must expose a readable quarter-capacity state',
+);
+assert.equal(
+  syncStockpileSegments(
+    timberBay,
+    'StorehouseTimberSegment',
+    0,
+    360,
+  ),
+  0,
+);
+assert.equal(timberBay.visible, false, 'the last construction withdrawal must clear the bay');
+
+const emptyVisual = makeStorehouse({ timber: 0, stone: 0, firewood: 0 });
+const firstTimberStack = { ...emptyVisual, timber: 1 };
+const sameTimberBand = { ...emptyVisual, timber: 20 };
+assert.notEqual(
+  buildingMarkerCollectionSignature(new Map([[emptyVisual.id, emptyVisual]])),
+  buildingMarkerCollectionSignature(new Map([[firstTimberStack.id, firstTimberStack]])),
+  'the marker sync must run when an empty timber bay gains its first physical stack',
+);
+assert.equal(
+  buildingMarkerCollectionSignature(new Map([[firstTimberStack.id, firstTimberStack]])),
+  buildingMarkerCollectionSignature(new Map([[sameTimberBand.id, sameTimberBand]])),
+  'stock changes inside one visual band must not rebuild or resync storehouse markers',
+);
 
 const networkPlan = computeSettlementLaborPlan({
   state: {

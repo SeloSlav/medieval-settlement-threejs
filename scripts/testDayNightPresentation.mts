@@ -27,6 +27,9 @@ assert.equal(fixedSummerMoonlight.grade.saturation, 0.88);
 assert.equal(fixedSummerMoonlight.grade.contrast, 0.98);
 assert.equal(fixedSummerMoonlight.grade.nightBlue, 0.24);
 assert.equal(fixedSummerMoonlight.grade.vignette, 0.065);
+assert.equal(fixedSummerMoonlight.hemiGroundColor, 0x4b606a);
+assert.equal(fixedSummerMoonlight.fillColor, 0xa6c4de);
+assert.equal(fixedSummerMoonlight.fillIntensity, 0.62);
 assert.equal(
   fixedWinterDaylight.grade.nightBlue,
   0.055,

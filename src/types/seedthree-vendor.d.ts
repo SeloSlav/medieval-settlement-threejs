@@ -134,6 +134,70 @@ declare module '@seedthree/core/forest-lod.js' {
   ): ForestCanopyCompanion[][];
 }
 
+declare module '@seedthree/core/forest-ecology.js' {
+  import type * as THREE from 'three';
+
+  export type ForestEcologyPlacement = {
+    x: number;
+    z: number;
+    scale?: number;
+    length?: number;
+    rotation: number;
+    variant: number;
+    sourceIndex: number;
+  };
+
+  export type ForestEdgeEcology = {
+    saplings: ForestEcologyPlacement[];
+    understory: ForestEcologyPlacement[];
+    deadwood: ForestEcologyPlacement[];
+    litter: ForestEcologyPlacement[];
+    anchorCount: number;
+  };
+
+  export type ForestEcologyStats = {
+    counts: {
+      anchors: number;
+      saplings: number;
+      understory: number;
+      deadwood: number;
+      litter: number;
+    };
+    draws: number;
+    instances: number;
+    triangles: number;
+  };
+
+  export function createForestEdgeEcology(
+    items: readonly Array<{ x: number; z: number }>,
+    options?: {
+      protectedRadius?: number;
+      outerRadius?: number;
+      neighborRadius?: number;
+      minimumNeighbors?: number;
+      minimumAnchorSpacing?: number;
+      maxAnchors?: number;
+      maxSaplings?: number;
+      maxUnderstory?: number;
+      maxDeadwood?: number;
+      maxLitter?: number;
+      isBlockedAt?: (x: number, z: number) => boolean;
+    },
+  ): ForestEdgeEcology;
+
+  export function buildForestEdgeEcology(
+    ecology: ForestEdgeEcology,
+    options?: {
+      name?: string;
+      getHeightAt?: (x: number, z: number) => number;
+    },
+  ): {
+    group: THREE.Group;
+    stats: ForestEcologyStats;
+    dispose(): void;
+  };
+}
+
 declare module '@seedthree/core/rng.js' {
   export class Rng {
     constructor(seed: string | number);
