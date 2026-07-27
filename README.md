@@ -203,6 +203,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 
 - WebGPU renderer preferred with automatic WebGL fallback.
 - Dual post-processing pipeline: WebGL bloom + color grade, or WebGPU TSL bloom + daylight grade.
+- Scene-wide Croatian naïve-art treatment with painted tonal bands, chromatic contours, and subtle pigment texture. Flip the code-only `CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED` flag in `src/scene/naiveArtPostEffect.ts` to disable it without changing the UI.
 - Progressive loading screen with staged status labels while the world initializes.
 - Contextual tip cards for camera, walk, and road modes — toggle off via the game menu.
 - Game menu with persistent "turn off tips" preference stored in `localStorage`.

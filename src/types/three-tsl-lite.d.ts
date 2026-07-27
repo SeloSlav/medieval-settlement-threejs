@@ -5,6 +5,8 @@ declare module 'three/tsl' {
   export const cameraPosition: unknown;
   export const cameraViewMatrix: unknown;
   export const dot: (a: unknown, b: unknown) => unknown;
+  export const floor: (value: unknown) => unknown;
+  export const fract: (value: unknown) => unknown;
   export const modelWorldMatrix: unknown;
   export const positionLocal: unknown;
   export const positionGeometry: unknown;

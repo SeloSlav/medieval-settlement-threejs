@@ -6,8 +6,29 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { RenderPipeline, type WebGPURenderer } from 'three/webgpu';
-import { distance, dot, float, max, mix, pass, smoothstep, uniform, uv, vec2, vec3, vec4 } from 'three/tsl';
+import {
+  distance,
+  dot,
+  float,
+  floor,
+  fract,
+  fwidth,
+  max,
+  mix,
+  pass,
+  sin,
+  smoothstep,
+  uniform,
+  uv,
+  vec2,
+  vec3,
+  vec4,
+} from 'three/tsl';
 import type { DayNightGrade } from '../world/dayNightPresentation.ts';
+import {
+  CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED,
+  CROATIAN_NAIVE_ART_STYLE,
+} from './naiveArtPostEffect.ts';
 import { applyDayNightGradeUniforms, DEFAULT_DAY_NIGHT_GRADE } from './postGrade.ts';
 import {
   buildGradeGlslFragmentShader,
@@ -168,6 +189,7 @@ type TslNode = {
   a: TslNode;
   rgb: TslNode;
   add(value: unknown): TslNode;
+  div(value: unknown): TslNode;
   mul(value: unknown): TslNode;
   sub(value: unknown): TslNode;
 };
@@ -206,5 +228,78 @@ function buildGradeNode(
   const graded = nightTinted.mul(
     mix(float(1), (float(1) as TslNode).sub(vignetteValue), edge),
   );
-  return vec4(max(graded, vec3(0)), inputColor.a);
+  const finalColor = CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED
+    ? buildCroatianNaiveArtNode(graded)
+    : graded;
+  return vec4(max(finalColor, vec3(0)), inputColor.a);
+}
+
+function buildCroatianNaiveArtNode(inputColorValue: unknown): TslNode {
+  const style = CROATIAN_NAIVE_ART_STYLE;
+  const inputColor = inputColorValue as TslNode;
+  const positiveColor = max(inputColor, vec3(0)) as TslNode;
+  const [lr, lg, lb] = GRADE_LUMA_WEIGHTS;
+  const originalLuma = dot(positiveColor, vec3(lr, lg, lb)) as TslNode;
+  const openColor = mix(vec3(originalLuma), positiveColor, float(style.colorfulness)) as TslNode;
+
+  const safeLuma = max(originalLuma, float(0.025)) as TslNode;
+  const paintedLuma = (floor(
+    safeLuma.mul(float(style.paletteSteps)).add(float(0.5)),
+  ) as TslNode).div(float(style.paletteSteps));
+  const paletteEdgeGuard = (float(1) as TslNode).sub(
+    smoothstep(float(0.02), float(0.09), fwidth(originalLuma)),
+  );
+  const lumaScale = mix(
+    float(1),
+    paintedLuma.div(safeLuma),
+    paletteEdgeGuard.mul(float(style.paletteStrength)),
+  ) as TslNode;
+  let paintedColor = openColor.mul(lumaScale);
+
+  const shadow = (float(1) as TslNode).sub(
+    smoothstep(float(style.shadowStart), float(style.shadowEnd), originalLuma),
+  );
+  const underpaintedShadow = paintedColor
+    .mul(vec3(...style.shadowTint))
+    .add(vec3(...style.shadowUnderpaint));
+  paintedColor = mix(
+    paintedColor,
+    underpaintedShadow,
+    shadow.mul(float(style.shadowUnderpaintStrength)),
+  ) as TslNode;
+
+  const paintedColorLuma = dot(paintedColor, vec3(lr, lg, lb));
+  const contourSignal = fwidth(paintedColorLuma) as TslNode;
+  const contour = smoothstep(
+    float(style.contourStart),
+    float(style.contourEnd),
+    contourSignal,
+  ) as TslNode;
+  const chromaticInk = paintedColor
+    .mul(vec3(0.19, 0.17, 0.14))
+    .add(vec3(0.018, 0.013, 0.009));
+  paintedColor = mix(
+    paintedColor,
+    chromaticInk,
+    contour.mul(float(style.contourStrength)),
+  ) as TslNode;
+
+  const pigmentCell = floor(
+    (uv() as TslNode).mul(vec2(style.grainScaleX, style.grainScaleY)),
+  );
+  const pigment = (fract(
+    (sin(dot(pigmentCell, vec2(12.9898, 78.233))) as TslNode).mul(float(43758.5453)),
+  ) as TslNode)
+    .sub(float(0.5))
+    .mul(float(style.grainStrength));
+  const pigmentTint = vec3(
+    pigment,
+    pigment.mul(float(0.94)),
+    pigment.mul(float(0.82)),
+  ) as TslNode;
+  const pigmentVisibility = (float(1) as TslNode).sub(contour.mul(float(0.65)));
+  return max(
+    paintedColor.add(pigmentTint.mul(pigmentVisibility)),
+    vec3(0),
+  ) as TslNode;
 }

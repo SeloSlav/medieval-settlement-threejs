@@ -49,6 +49,7 @@ const tests = [
   'test:seasons',
   'test:weather-visuals',
   'test:day-night',
+  'test:naive-art-post',
   'test:celestial-sky',
   'test:fires',
   'test:fire-recovery-planning',
