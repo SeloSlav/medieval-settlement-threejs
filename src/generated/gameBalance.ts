@@ -235,6 +235,7 @@ export const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM = 6;
 export const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION = 0.5;
 export const BREWERY_GRAIN_PER_CYCLE = 3;
 export const BREWERY_WATER_PER_CYCLE = 2;
+export const BREWERY_FIREWOOD_PER_CYCLE = 1;
 export const BREWERY_ALE_PER_CYCLE = 4;
 export const WEAVER_WOOL_PER_CYCLE = 3;
 export const WEAVER_CLOTH_PER_CYCLE = 2;
@@ -1037,7 +1038,7 @@ export const BUILDING_STORAGE_CAPS = {
   pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120 },
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, ale: 120, preservedFood: 80, honey: 160, wine: 120 },
-  brewery: { timber: 0, firewood: 0, stone: 0, water: 100, grain: 140, ale: 200 },
+  brewery: { timber: 0, firewood: 40, stone: 0, water: 100, grain: 140, ale: 200 },
   smokehouse: { timber: 0, firewood: 40, stone: 0, food: 120, preservedFood: 180 },
   granary: { timber: 0, firewood: 60, stone: 0, water: 120, food: 340, grain: 420, flour: 260, preservedFood: 180 },
   apiary: { timber: 0, firewood: 0, stone: 0, food: 40, honey: 140 },

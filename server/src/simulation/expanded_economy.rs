@@ -1,8 +1,9 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    APIARY_FOOD_PER_CYCLE, APIARY_HONEY_PER_CYCLE, BREWERY_ALE_PER_CYCLE, BREWERY_GRAIN_PER_CYCLE,
-    BREWERY_WATER_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, FARM_GROWTH_SECONDS,
+    APIARY_FOOD_PER_CYCLE, APIARY_HONEY_PER_CYCLE, BREWERY_ALE_PER_CYCLE,
+    BREWERY_FIREWOOD_PER_CYCLE, BREWERY_GRAIN_PER_CYCLE, BREWERY_WATER_PER_CYCLE,
+    CALENDAR_SECONDS_PER_DAY, FARM_GROWTH_SECONDS,
     FARM_WORK_METERS_PER_WORKER_PER_SEC, FERRY_GOLD_PER_DAY, FOOD_DELIVERY_SPEED_MPS,
     FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP, GRANARY_FIREWOOD_PER_CYCLE,
     GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE, GRANARY_WATER_PER_CYCLE,
@@ -619,6 +620,17 @@ pub fn step_brewery(
     building: Building,
 ) {
     let mut brewery = building;
+    let input_staging_cycles =
+        processor_input_staging_cycles(brewery.processor_output_target_percent);
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &brewery,
+        CommodityKind::Firewood,
+        &["woodcutters_lodge", "village_storehouse"],
+        BREWERY_FIREWOOD_PER_CYCLE * input_staging_cycles,
+    );
     brewery = step_processor(
         ctx,
         tick,
@@ -627,6 +639,7 @@ pub fn step_brewery(
         &[
             (CommodityKind::Grain, BREWERY_GRAIN_PER_CYCLE),
             (CommodityKind::Water, BREWERY_WATER_PER_CYCLE),
+            (CommodityKind::Firewood, BREWERY_FIREWOOD_PER_CYCLE),
         ],
         &[(CommodityKind::Ale, BREWERY_ALE_PER_CYCLE)],
     );
@@ -1171,7 +1184,10 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
             commodity,
             CommodityKind::Flour | CommodityKind::Water | CommodityKind::Firewood
         ),
-        "brewery" => matches!(commodity, CommodityKind::Grain | CommodityKind::Water),
+        "brewery" => matches!(
+            commodity,
+            CommodityKind::Grain | CommodityKind::Water | CommodityKind::Firewood
+        ),
         "smokehouse" => {
             matches!(commodity, CommodityKind::Food | CommodityKind::Firewood)
         }

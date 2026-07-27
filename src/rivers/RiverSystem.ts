@@ -8,6 +8,7 @@ import { createRiverBankMeshes } from './RiverBankMesh.ts';
 import { createRiverReeds, type RiverReedField } from './RiverReeds.ts';
 import { createRiverShoreStones } from './RiverShoreStones.ts';
 import { createRiverWaterMesh, disposeSharedRiverWaterMaterial } from './RiverWaterMesh.ts';
+import { setSharedRiverWaterNightAmount } from './RiverWaterMaterial.ts';
 import type { RockObstacle } from '../utils/pathGeometry.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
@@ -47,6 +48,7 @@ export type RiverSystem = {
     cameraDistance: number,
     firstPersonActive?: boolean,
   ) => void;
+  setNightAmount: (nightAmount: number) => void;
   tick: (dt: number, timeSec: number) => void;
   dispose: () => void;
 };
@@ -140,6 +142,7 @@ export async function createRiverSystem(
     updateCameraState: (cameraPosition, cameraTarget, cameraDistance, firstPersonActive) => {
       reeds?.updateCameraState(cameraPosition, cameraTarget, cameraDistance, firstPersonActive);
     },
+    setNightAmount: setSharedRiverWaterNightAmount,
     tick: (dt, timeSec) => waterController?.tick(dt, timeSec),
     dispose: () => {
       disposed = true;

@@ -362,6 +362,7 @@ export type GameBalance = {
     householdFoodReserveCapacityFraction: number;
     breweryGrainPerCycle: number;
     breweryWaterPerCycle: number;
+    breweryFirewoodPerCycle: number;
     breweryAlePerCycle: number;
     weaverWoolPerCycle: number;
     weaverClothPerCycle: number;
@@ -732,6 +733,7 @@ function generateRust(): string {
     `pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = ${rustF64(b.production.householdFoodReserveCapacityFraction)};`,
     `pub const BREWERY_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.breweryGrainPerCycle)};`,
     `pub const BREWERY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.breweryWaterPerCycle)};`,
+    `pub const BREWERY_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.breweryFirewoodPerCycle)};`,
     `pub const BREWERY_ALE_PER_CYCLE: f64 = ${rustF64(b.production.breweryAlePerCycle)};`,
     `pub const WEAVER_WOOL_PER_CYCLE: f64 = ${rustF64(b.production.weaverWoolPerCycle)};`,
     `pub const WEAVER_CLOTH_PER_CYCLE: f64 = ${rustF64(b.production.weaverClothPerCycle)};`,
@@ -1303,6 +1305,7 @@ function generateTypeScript(): string {
     `export const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION = ${b.production.householdFoodReserveCapacityFraction};`,
     `export const BREWERY_GRAIN_PER_CYCLE = ${b.production.breweryGrainPerCycle};`,
     `export const BREWERY_WATER_PER_CYCLE = ${b.production.breweryWaterPerCycle};`,
+    `export const BREWERY_FIREWOOD_PER_CYCLE = ${b.production.breweryFirewoodPerCycle};`,
     `export const BREWERY_ALE_PER_CYCLE = ${b.production.breweryAlePerCycle};`,
     `export const WEAVER_WOOL_PER_CYCLE = ${b.production.weaverWoolPerCycle};`,
     `export const WEAVER_CLOTH_PER_CYCLE = ${b.production.weaverClothPerCycle};`,

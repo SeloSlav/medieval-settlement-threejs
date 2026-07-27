@@ -1,5 +1,6 @@
 import {
   BREWERY_ALE_PER_CYCLE,
+  BREWERY_FIREWOOD_PER_CYCLE,
   BREWERY_GRAIN_PER_CYCLE,
   BREWERY_WATER_PER_CYCLE,
   GRANARY_FIREWOOD_PER_CYCLE,
@@ -84,6 +85,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     waterPerCycle: BREWERY_WATER_PER_CYCLE,
     inputs: [
       { key: 'grain', label: 'grain', required: BREWERY_GRAIN_PER_CYCLE, deliveryHint: 'farmstead or granary deliveries may supply' },
+      { key: 'firewood', label: 'firewood', required: BREWERY_FIREWOOD_PER_CYCLE, deliveryHint: 'lodge or storehouse deliveries may supply' },
     ],
     output: 'ale',
     outputPerCycle: BREWERY_ALE_PER_CYCLE,

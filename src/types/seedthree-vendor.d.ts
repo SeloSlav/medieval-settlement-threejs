@@ -91,6 +91,8 @@ declare module '@seedthree/core/forest-lod.js' {
   export type ForestLodSelection = {
     nearIndices: number[];
     overviewIndices: number[];
+    /** Trees intersecting the padded camera frustum, excluding shadow-only casters. */
+    viewIndices: number[];
     visibleCount: number;
     culledCount: number;
     changed: boolean;
@@ -108,6 +110,28 @@ declare module '@seedthree/core/forest-lod.js' {
     camera: Camera,
     options?: ForestLodOptions,
   ): ForestLodSelection;
+
+  export type ForestCanopyCompanion = {
+    offsetX: number;
+    offsetZ: number;
+    scale: number;
+    rotation: number;
+  };
+
+  export type ForestCanopyCompanionOptions = {
+    neighborRadius?: number;
+    maxCompanions?: number;
+    denseNeighborCount?: number;
+    minOffset?: number;
+    maxOffset?: number;
+    minScale?: number;
+    maxScale?: number;
+  };
+
+  export function createForestCanopyCompanions(
+    items: readonly ForestLodItem[],
+    options?: ForestCanopyCompanionOptions,
+  ): ForestCanopyCompanion[][];
 }
 
 declare module '@seedthree/core/rng.js' {

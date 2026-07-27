@@ -98,7 +98,7 @@ assert.match(staffingRenderer, /data-staffing-priority/);
 assert.match(staffingRenderer, /This does not hire workers automatically/);
 assert.match(staffingRenderer, /Labor & cart priority/);
 assert.match(staffingRenderer, /Cart priority/);
-assert.match(staffingRenderer, /Grain and well-water/);
+assert.match(staffingRenderer, /Grain, well-water, and firewood/);
 assert.match(staffingRenderer, /Flour and well-water/);
 assert.match(staffingRenderer, /Dispatched fresh food/);
 assert.match(staffingRenderer, /Wool/);

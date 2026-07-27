@@ -142,7 +142,18 @@ assert.match(rendererSource, /Two identical vertical tiles prevent a visible emp
 assert.match(rendererSource, /const RAIN_BASE_PARTICLES = 1_800/);
 assert.match(rendererSource, /const SNOW_BASE_PARTICLES = 1_400/);
 assert.match(rendererSource, /const RAIN_INNER_RADIUS_FRACTION = 0\.18/);
+assert.match(rendererSource, /const OVERVIEW_MIN_VOLUME_RADIUS = 60/);
+assert.match(rendererSource, /const OVERVIEW_VOLUME_RADIUS_SCALE = 0\.78/);
+assert.match(rendererSource, /const OVERVIEW_MAX_VOLUME_RADIUS = 185/);
 assert.match(rendererSource, /const halfHeight = 0\.42/);
+assert.match(rendererSource, /const halfWidth = 0\.06/);
+assert.match(rendererSource, /alphaTest:\s*kind === 'rain' \? 0\.012 : 0\.02/);
+assert.match(rendererSource, /distance \* distance\) \/ 0\.028/);
+assert.match(rendererSource, /'Procedural rain streak sprite',\s*false/);
+assert.match(
+  rendererSource,
+  /texture\.minFilter = generateMipmaps\s*\?\s*THREE\.LinearMipmapLinearFilter\s*:\s*THREE\.LinearFilter/,
+);
 assert.equal(
   (rendererSource.match(/this\.createLayer\('rain'/g) ?? []).length,
   2,

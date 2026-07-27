@@ -198,6 +198,7 @@ const partialBrewery = makeBuilding({
   assignedLabor: 1,
   grain: 0.25,
   water: 0.25,
+  firewood: 0.25,
 });
 assert.equal(
   getBuildingProcessorStatus(partialBrewery, noWellQueries)?.statusText,
@@ -207,6 +208,22 @@ assert.equal(
 assert.match(
   getBuildingProcessorStatus(partialBrewery, noWellQueries)?.waterDetailHtml ?? '',
   /On-site input buffer<\/span><span>0\.1 cycles on site \/ 3 cycles staged · grain limits/,
+);
+
+const fuelStarvedBrewery = makeBuilding({
+  id: 'brewery-no-fuel',
+  kind: 'brewery',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  grain: 3,
+  water: 2,
+  firewood: 0,
+});
+assert.match(
+  getBuildingProcessorStatus(fuelStarvedBrewery, noWellQueries)?.statusText ?? '',
+  /Waiting for firewood/,
+  'brewing must report its physical firing-fuel bottleneck',
 );
 
 const leanGranary = makeBuilding({

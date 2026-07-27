@@ -141,7 +141,9 @@ unfinished sowing cannot spill into winter.
 Winter's advantage is preservation and freedom for non-agricultural labor. Logging,
 mining, stone gathering, construction, crafting, trade, ordinary hunting, and
 threshing stored wheat have no general seasonal shutdown, but their road haulage is
-slower.
+slower. Granary ovens, smokehouses, and brewhouses also remain productive only while
+their physical firewood buffers are supplied, so ale production competes with baking,
+preservation, and the sharply higher household heating claim.
 
 ## Seasonal road logistics
 

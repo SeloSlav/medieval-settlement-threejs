@@ -18,6 +18,7 @@ import {
   sub,
   texture,
   time,
+  uniform,
   vec2,
   vec3,
   viewportSafeUV,
@@ -42,14 +43,21 @@ type TslNode = {
   rgb: TslNode;
 };
 
+type ScalarUniform = TslNode & {
+  value: number;
+};
+
+const riverNightAmount = uniform(0) as ScalarUniform;
 const WATER_FOAM_COLOR = vec3(0.74, 0.86, 0.82) as TslNode;
 const MENISCUS_COLOR = vec3(0.8, 0.9, 0.86) as TslNode;
-const SHALLOW_WATER_TINT = vec3(0.24, 0.46, 0.42) as TslNode;
-const DEEP_WATER_TINT = vec3(0.08, 0.17, 0.15) as TslNode;
+const SHALLOW_WATER_TINT = vec3(0.17, 0.51, 0.49) as TslNode;
+const DEEP_WATER_TINT = vec3(0.035, 0.12, 0.105) as TslNode;
 const SHORE_LAP_MAX = 0.11;
 const SHORE_FOAM_MAX = 0.48;
-const FLOW_STREAK_STRENGTH = 0.28;
+const FLOW_STREAK_STRENGTH = 0.56;
 const FLOW_WAVE_HEIGHT = 0.048;
+export const RIVER_WATER_TRANSMISSION = 0.82;
+export const RIVER_WATER_ATTENUATION_DISTANCE = 1.75;
 
 function decodeFlowDirection(shoreSample: TslNode): { flowDirX: TslNode; flowDirZ: TslNode } {
   const flowRaw = (vec2(shoreSample.b, shoreSample.a) as TslNode).mul(float(2) as TslNode).sub(float(1) as TslNode) as TslNode;
@@ -156,19 +164,31 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   const flowStreakC = (sin(flowAlong.mul(0.18).sub(frameTime.mul(0.95)).add(flowCross.mul(0.31)) as TslNode) as TslNode)
     .mul(0.5)
     .add(0.5) as TslNode;
-  const flowShimmer = depthFactor.mul(
-    flowStreakA.mul(0.42).add(flowStreakB.mul(0.33)).add(flowStreakC.mul(0.25)) as TslNode,
-  ).mul(float(FLOW_STREAK_STRENGTH) as TslNode) as TslNode;
-
-  const meniscus = (pow(shoreMask, float(2.8) as TslNode) as TslNode).mul(float(0.22) as TslNode) as TslNode;
-  const waterTint = mix(SHALLOW_WATER_TINT, DEEP_WATER_TINT, depthFactor) as TslNode;
-  const flowHighlight = vec3(0.34, 0.58, 0.54) as TslNode;
-  const tintedBody = mix(waterTint, flowHighlight, flowShimmer) as TslNode;
-  const bodyColor = mix(tintedBody, WATER_FOAM_COLOR, foamStrength) as TslNode;
-  const colorNode = mix(bodyColor, MENISCUS_COLOR, meniscus) as TslNode;
+  const flowCrestA = pow(flowStreakA, float(3.6) as TslNode) as TslNode;
+  const flowCrestC = pow(flowStreakC, float(5.2) as TslNode) as TslNode;
+  const crossBreakup = mix(float(0.46) as TslNode, float(1) as TslNode, flowStreakB) as TslNode;
+  const flowStructure = flowCrestA
+    .mul(float(0.58) as TslNode)
+    .add(flowCrestC.mul(float(0.42) as TslNode) as TslNode)
+    .mul(crossBreakup) as TslNode;
+  const flowShimmer = depthFactor
+    .mul(flowStructure)
+    .mul(float(FLOW_STREAK_STRENGTH) as TslNode) as TslNode;
 
   const viewDir = normalize((cameraPosition as TslNode).sub(worldPos) as TslNode) as TslNode;
   const viewDotUp = abs(dot(viewDir, vec3(0, 1, 0) as TslNode) as TslNode) as TslNode;
+  // Reuse the existing depth and view factors for a restrained night-only sky
+  // return. This adds no texture lookup, pass, or draw and is exactly zero by day.
+  const nightSkyReturn = (vec3(0.014, 0.032, 0.043) as TslNode)
+    .mul(riverNightAmount)
+    .mul(mix(float(0.35) as TslNode, float(1) as TslNode, depthFactor) as TslNode)
+    .mul(mix(float(0.65) as TslNode, float(1) as TslNode, viewDotUp) as TslNode) as TslNode;
+  const meniscus = (pow(shoreMask, float(2.8) as TslNode) as TslNode).mul(float(0.22) as TslNode) as TslNode;
+  const waterTint = mix(SHALLOW_WATER_TINT, DEEP_WATER_TINT, depthFactor) as TslNode;
+  const flowHighlight = vec3(0.44, 0.72, 0.69) as TslNode;
+  const tintedBody = mix(waterTint, flowHighlight, flowShimmer) as TslNode;
+  const bodyColor = mix(tintedBody, WATER_FOAM_COLOR, foamStrength) as TslNode;
+  const colorNode = mix(bodyColor, MENISCUS_COLOR, meniscus) as TslNode;
   const bedNoiseA = (sin(worldPos.x.mul(0.11).add(worldPos.z.mul(0.09)) as TslNode) as TslNode)
     .mul(0.5)
     .add(0.5) as TslNode;
@@ -209,6 +229,14 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     float(0.5) as TslNode,
     (pow(shoreMask, float(1.55) as TslNode) as TslNode).add(depthFactor.mul(float(0.28) as TslNode) as TslNode) as TslNode,
   ) as TslNode;
+  const roughnessNode = mix(
+    float(0.34) as TslNode,
+    float(0.245) as TslNode,
+    min(
+      float(1) as TslNode,
+      flowStructure.mul(depthFactor).mul(float(0.92) as TslNode) as TslNode,
+    ) as TslNode,
+  ) as TslNode;
 
   const animatedFeather = pow(featherSample, float(0.92) as TslNode) as TslNode;
   const volumeOpacity = mix(float(0.46) as TslNode, float(0.74) as TslNode, depthFactor) as TslNode;
@@ -220,11 +248,13 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   return {
     positionNode,
     colorNode,
+    emissiveNode: nightSkyReturn,
     opacityNode,
     backdropNode,
     backdropAlphaNode,
     thicknessNode,
     specularIntensityNode,
+    roughnessNode,
   };
 }
 
@@ -245,9 +275,9 @@ export function getSharedRiverWaterMaterial(shoreMaps: RiverWaterShoreMaps): Mes
   material.roughness = 0.3;
   material.metalness = 0;
   material.ior = 1.33;
-  material.transmission = 0.82;
+  material.transmission = RIVER_WATER_TRANSMISSION;
   material.thickness = 0.65;
-  material.attenuationDistance = 1.75;
+  material.attenuationDistance = RIVER_WATER_ATTENUATION_DISTANCE;
   material.attenuationColor = new THREE.Color(0.14, 0.22, 0.12);
   material.specularIntensity = 0.5;
   material.depthWrite = false;
@@ -258,14 +288,24 @@ export function getSharedRiverWaterMaterial(shoreMaps: RiverWaterShoreMaps): Mes
   material.polygonOffsetUnits = -1;
   material.positionNode = nodes.positionNode;
   material.colorNode = nodes.colorNode;
+  (material as MeshPhysicalNodeMaterial & { emissiveNode: unknown }).emissiveNode = nodes.emissiveNode;
   material.opacityNode = nodes.opacityNode;
   material.backdropNode = nodes.backdropNode;
   material.backdropAlphaNode = nodes.backdropAlphaNode;
   material.thicknessNode = nodes.thicknessNode;
   material.specularIntensityNode = nodes.specularIntensityNode;
+  material.roughnessNode = nodes.roughnessNode;
   sharedWaterMaterial = material;
   sharedShoreMaps = shoreMaps;
   return sharedWaterMaterial;
+}
+
+export function normalizeRiverWaterNightAmount(amount: number): number {
+  return THREE.MathUtils.clamp(Number.isFinite(amount) ? amount : 0, 0, 1);
+}
+
+export function setSharedRiverWaterNightAmount(amount: number): void {
+  riverNightAmount.value = normalizeRiverWaterNightAmount(amount);
 }
 
 export function disposeSharedRiverWaterMaterial(): void {

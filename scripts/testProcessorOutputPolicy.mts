@@ -117,6 +117,16 @@ assert.equal(
 const cappedBrewery = processor('1', 'brewery', 25);
 cappedBrewery.ale = processorOutputTargetForBuilding(cappedBrewery) ?? 0;
 const openBrewery = processor('2', 'brewery', 25);
+assert.equal(
+  processorAcceptsInput(cappedBrewery, 'firewood'),
+  false,
+  'a capped brewhouse must stop tying up firewood in an idle input buffer',
+);
+assert.equal(
+  processorAcceptsInput(openBrewery, 'firewood'),
+  true,
+  'an open brewhouse should accept firing fuel',
+);
 const selected = selectGrainProcessorTarget(
   [cappedBrewery, openBrewery],
   'central-granary',

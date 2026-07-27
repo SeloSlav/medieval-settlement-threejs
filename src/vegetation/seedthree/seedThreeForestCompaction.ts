@@ -7,6 +7,8 @@ export type SeedThreeTreeSlot = {
   visibilityCenter: THREE.Vector3;
   visibilityRadius: number;
   enabled: boolean;
+  /** Render-only crowns inherit the visibility/harvest state of a gameplay tree. */
+  visibilityParent?: SeedThreeTreeSlot;
 };
 
 export type SeedThreeInstancedLodSet = {
@@ -30,7 +32,7 @@ export function writeSeedThreeLodMatrices(
     let writeIndex = 0;
     for (const slotIndex of selectedSlotIndices) {
       const slot = slots[slotIndex];
-      if (!slot?.enabled) continue;
+      if (!slot?.enabled || slot.visibilityParent?.enabled === false) continue;
       lodSet.branches.setMatrixAt(writeIndex, slot.matrix);
       windVec.setXYZ(writeIndex, 0, 1, 0);
       anchorPos.setXYZ(writeIndex, slot.pos.x, slot.pos.y, slot.pos.z);
@@ -55,7 +57,7 @@ export function writeSeedThreeLodMatrices(
     let writeIndex = 0;
     for (const slotIndex of selectedSlotIndices) {
       const slot = slots[slotIndex];
-      if (!slot?.enabled) continue;
+      if (!slot?.enabled || slot.visibilityParent?.enabled === false) continue;
       slotMatrix.copy(slot.matrix);
       for (let cardIndex = 0; cardIndex < cardsPerTree; cardIndex++) {
         cardMatrix.fromArray(srcMatrices, cardIndex * 16);

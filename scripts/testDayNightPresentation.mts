@@ -8,6 +8,7 @@ const springNoon = computeDayNightState(clockAt(12.75, 3), false);
 const springDusk = computeDayNightState(clockAt(19, 3), false);
 const springNight = computeDayNightState(clockAt(23, 3), true);
 const fixedSummerMoonlight = computeDayNightState(clockAt(23, 8, 15), true);
+const fixedWinterDaylight = computeDayNightState(clockAt(13, 1, 15), false);
 
 assert.ok(springDawn.dawnAmount > 0.7, 'sunrise should have a strong dawn envelope');
 assert.ok(springDusk.duskAmount > 0.7, 'sunset should have a strong dusk envelope');
@@ -24,8 +25,13 @@ assert.equal(fixedSummerMoonlight.fogColor, 0x4b6174);
 assert.equal(fixedSummerMoonlight.fogDensity, 0.00078);
 assert.equal(fixedSummerMoonlight.grade.saturation, 0.88);
 assert.equal(fixedSummerMoonlight.grade.contrast, 0.98);
-assert.equal(fixedSummerMoonlight.grade.nightBlue, 0.21);
+assert.equal(fixedSummerMoonlight.grade.nightBlue, 0.24);
 assert.equal(fixedSummerMoonlight.grade.vignette, 0.065);
+assert.equal(
+  fixedWinterDaylight.grade.nightBlue,
+  0.055,
+  'winter daylight should retain a restrained cool shadow floor',
+);
 
 const sunriseRgb = rgb(springDawn.sunColor);
 const sunsetRgb = rgb(springDusk.sunColor);

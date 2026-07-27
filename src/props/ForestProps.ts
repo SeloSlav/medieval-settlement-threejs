@@ -126,6 +126,7 @@ export async function createForestProps(
       maxAnisotropy,
       options?.treeSeed ?? 0x5eedf0a5,
       options.webgpuRenderer as WebGPURenderer,
+      isBlockedAt,
     );
     const seedThreeController = seedThree.createSeedThreeForestController(seedThreeForest);
     const treeInstances = createStubForestInstances(allTreePlacements);

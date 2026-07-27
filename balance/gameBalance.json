@@ -345,6 +345,7 @@
     "householdFoodReserveCapacityFraction": 0.5,
     "breweryGrainPerCycle": 3,
     "breweryWaterPerCycle": 2,
+    "breweryFirewoodPerCycle": 1,
     "breweryAlePerCycle": 4,
     "weaverWoolPerCycle": 3,
     "weaverClothPerCycle": 2,
@@ -892,7 +893,7 @@
     "brewery": {
       "label": "Brewhouse",
       "cost": { "timber": 48, "stone": 36 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 100, "grain": 140, "ale": 200 },
+      "storage": { "timber": 0, "firewood": 40, "stone": 0, "water": 100, "grain": 140, "ale": 200 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 7,

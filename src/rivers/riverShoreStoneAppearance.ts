@@ -32,10 +32,14 @@ export function computeShoreStoneVisualScale(x: number, z: number): number {
   const cluster = valueNoise2(x * 0.026 + 21.7, z * 0.026 - 4.9);
   const detail = valueNoise2(x * 0.11 - 8.3, z * 0.11 + 13.1);
   const clustered = smoothstep(0.28, 0.78, cluster);
-  return 0.68 + (1.02 - 0.68) * (clustered * 0.72 + detail * 0.28);
+  const presenceNoise = valueNoise2(x * 0.043 - 11.6, z * 0.043 + 7.2);
+  const presence = smoothstep(0.4, 0.72, presenceNoise);
+  const clusteredPresence = presence * (0.58 + clustered * 0.42);
+  const scale = (0.18 + (1.04 - 0.18) * clusteredPresence) * (0.9 + detail * 0.1);
+  return Math.max(0.18, Math.min(1.04, scale));
 }
 
 export function computeShoreStoneTint(x: number, z: number): number {
   const weathering = valueNoise2(x * 0.075 + 3.6, z * 0.075 - 17.4);
-  return 0.7 + (0.92 - 0.7) * weathering;
+  return 0.58 + (0.9 - 0.58) * weathering;
 }

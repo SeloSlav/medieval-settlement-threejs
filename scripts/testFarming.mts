@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
+  BREWERY_FIREWOOD_PER_CYCLE,
   FARM_LARGE_FIELD_EFFICIENCY_FLOOR,
   FARM_MIN_FIELD_AREA,
   FARM_MIN_FIELD_EDGE,
@@ -135,6 +136,7 @@ assert.equal(MILL_WATER_PER_HARVEST, 0, 'lumber should not consume well water');
 assert.equal(WATERMILL_WATER_PER_CYCLE, 0, 'a river-powered mill should not consume well water');
 assert.ok(GRANARY_WATER_PER_CYCLE > 0, 'bakery production should consume well water');
 assert.ok(GRANARY_FIREWOOD_PER_CYCLE > 0, 'bakery production should consume fuel');
+assert.ok(BREWERY_FIREWOOD_PER_CYCLE > 0, 'brewing should consume firing fuel');
 assert.ok(FARM_RYE_SEED_GRAIN_PER_SQUARE_METER > 0);
 assert.ok(FARM_OATS_SEED_GRAIN_PER_SQUARE_METER > FARM_RYE_SEED_GRAIN_PER_SQUARE_METER);
 assert.ok(

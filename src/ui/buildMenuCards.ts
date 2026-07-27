@@ -63,7 +63,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   threshing_barn: ['Farmstead', 'T', 'Road-linked labor hub that ploughs, sows, tends, harvests, and stores grain from surrounding fields.'],
   watermill: ['Grain watermill', 'M', 'Uses a river wheel to grind grain into flour. Must touch open water.'],
   granary: ['Village granary', 'N', 'Stores grain and flour, bakes staple food, and collects wild-food surplus.'],
-  brewery: ['Brewhouse', 'B', 'Brews grain and water into ale for prosperous households and export.'],
+  brewery: ['Brewhouse', 'B', 'Boils grain and water over firewood into ale for prosperous households and export.'],
   smokehouse: ['Smokehouse', 'Q', 'Preserves fresh food with firewood for tier-three households.'],
   apiary: ['Forest apiary', 'A', 'Produces seasonal honey and food. Hospitality-enabled monasteries take honey before market export.'],
   carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10% and move connected carts 18% faster.'],

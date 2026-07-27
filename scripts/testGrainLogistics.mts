@@ -491,8 +491,17 @@ assert.match(watermillStep, /step_processor/);
 assert.match(watermillStep, /CommodityKind::Flour/);
 
 const breweryStep = functionSection('step_brewery', 'step_smokehouse');
-assert.doesNotMatch(breweryStep, /request_connected_commodity/);
+assert.match(
+  breweryStep,
+  /request_connected_commodity[\s\S]*CommodityKind::Firewood[\s\S]*"woodcutters_lodge"[\s\S]*"village_storehouse"/,
+  'a brewhouse should pull a bounded physical fuel buffer from its connected timber economy',
+);
 assert.match(breweryStep, /step_processor/);
+assert.match(
+  breweryStep,
+  /CommodityKind::Firewood,\s*BREWERY_FIREWOOD_PER_CYCLE/,
+  'authoritative ale batches must consume their firing fuel',
+);
 
 const monasteryStep = functionSection('step_monastery', 'step_ferry_landing');
 assert.doesNotMatch(monasteryStep, /request_connected_commodity/);

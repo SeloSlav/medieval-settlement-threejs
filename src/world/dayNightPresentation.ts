@@ -74,6 +74,7 @@ export function computeDayNightState(
   const dusk = hour >= SOLAR_NOON_HOUR ? twilight : 0;
   const goldenHour = Math.max(dawn, dusk);
   const isNight = elevationDeg < -6;
+  const winterShadowFloor = clock.month === 12 || clock.month <= 2 ? 0.055 : 0;
 
   const sunVisible = smoothstep(-1.5, 4, elevationDeg);
   const highSun = smoothstep(7, 48, elevationDeg);
@@ -83,10 +84,10 @@ export function computeDayNightState(
   const sunIntensity = lerp(0.018, 5.2, Math.pow(sunVisible, 0.58))
     * lerp(0.8, 1, highSun);
 
-  let hemiSkyColor = lerpColor(0x526f93, 0xd9e8ec, dayAmount);
+  let hemiSkyColor = lerpColor(0x607fa3, 0xd9e8ec, dayAmount);
   hemiSkyColor = lerpColor(hemiSkyColor, 0xdfa17a, dawn * 0.28);
   hemiSkyColor = lerpColor(hemiSkyColor, 0xb9634d, dusk * 0.36);
-  let hemiGroundColor = lerpColor(0x35464f, 0x59634f, dayAmount);
+  let hemiGroundColor = lerpColor(0x42545d, 0x59634f, dayAmount);
   hemiGroundColor = lerpColor(hemiGroundColor, 0x6a5147, dusk * 0.16);
   const hemiIntensity = lerp(1.35, 1.55, dayAmount) + goldenHour * 0.08;
 
@@ -96,7 +97,7 @@ export function computeDayNightState(
   const ambientIntensity = lerp(0.5, 0.18, dayAmount);
   const buildingIndirectIntensity = lerp(0.02, 0.105, dayAmount);
 
-  let fillColor = lerpColor(0x89a9cf, 0xa8c6d8, dayAmount);
+  let fillColor = lerpColor(0x94b5d4, 0xa8c6d8, dayAmount);
   fillColor = lerpColor(fillColor, 0x88768e, goldenHour * 0.22);
   const fillIntensity = lerp(0.55, 0.34, dayAmount);
 
@@ -128,7 +129,7 @@ export function computeDayNightState(
       saturation: lerp(0.88, 1, dayAmount) + dawn * 0.035 + dusk * 0.07,
       contrast: lerp(0.98, 1.035, dayAmount) + dusk * 0.012,
       warmth: dawn * 0.28 + dusk * 0.4,
-      nightBlue: night * 0.21,
+      nightBlue: Math.max(night * 0.24, winterShadowFloor),
       vignette: lerp(0.065, 0.05, dayAmount),
     },
     skyAnimationTime: simElapsedSeconds(clock.simTick),

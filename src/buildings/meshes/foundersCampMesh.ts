@@ -20,6 +20,7 @@ import { markBuildingDetailShadowCaster } from '../buildingShadowProxy.ts';
 
 export const FOUNDERS_CAMPFIRE_NAME = 'FoundingCampfire';
 const FOUNDERS_CAMPFIRE_EMBERS_NAME = 'FoundingCampfireEmbers';
+const FOUNDERS_CAMPFIRE_LIT_SMOKE_NAME = 'FoundingCampfireLitSmoke';
 const TENT_HALF_WIDTH = 1.62;
 const TENT_HALF_DEPTH = 1.92;
 const TENT_EAVE_Y = 0.2;
@@ -152,6 +153,42 @@ function getCampGroundMaterial(): THREE.MeshStandardMaterial {
   campGroundMaterial.name = 'Shared feathered desaturated camp earth';
   campGroundMaterial.userData.sharedBuildingMaterial = true;
   return campGroundMaterial;
+}
+
+function addFoundingFootTraffic(parent: THREE.Group): void {
+  const footprints: CampInstance[] = [];
+  const trail = [
+    [-0.72, -2.74, -0.18],
+    [-0.42, -2.18, 0.12],
+    [-0.15, -1.58, -0.1],
+    [0.16, -1.02, 0.16],
+    [0.38, -0.42, -0.12],
+    [0.02, 0.38, 0.1],
+    [-0.32, 1.08, -0.14],
+    [-0.18, 1.82, 0.12],
+  ] as const;
+  for (const [index, [x, z, angle]] of trail.entries()) {
+    for (const side of [-1, 1] as const) {
+      footprints.push({
+        position: new THREE.Vector3(
+          x + side * 0.13,
+          0.052 + index * 0.0004,
+          z + side * 0.1,
+        ),
+        rotation: new THREE.Euler(-Math.PI * 0.5, 0, angle + side * 0.04),
+        scale: new THREE.Vector3(0.13, 0.32, 1),
+      });
+    }
+  }
+  const traffic = addCampInstances(
+    parent,
+    'Founders boot-worn foot trail',
+    new THREE.CircleGeometry(1, 8),
+    getCampGroundMaterial(),
+    footprints,
+  );
+  traffic.userData.campGrounding = true;
+  traffic.userData.fpNoCollision = true;
 }
 
 function addFoundingStandard(parent: THREE.Group): void {
@@ -341,11 +378,53 @@ function addFoundingWorkyard(parent: THREE.Group): void {
   parent.add(workyard);
 }
 
+function addLivedInTextiles(parent: THREE.Group): void {
+  const textiles = new THREE.Group();
+  textiles.name = 'Founders drying wool and blankets';
+
+  addRopeBetween(
+    textiles,
+    new THREE.Vector3(-2.92, 1.66, 1.72),
+    new THREE.Vector3(2.72, 1.55, 1.92),
+  );
+  const redCloths = addCampInstances(
+    textiles,
+    'Drying red wool cloths',
+    new THREE.BoxGeometry(1, 1, 0.035),
+    sharedBuildingDetailMaterial('paintRed'),
+    [
+      {
+        position: new THREE.Vector3(-1.34, 1.26, 1.79),
+        rotation: new THREE.Euler(0.03, -0.04, 0.045),
+        scale: new THREE.Vector3(0.68, 0.72, 1),
+      },
+      {
+        position: new THREE.Vector3(1.48, 1.25, 1.88),
+        rotation: new THREE.Euler(-0.025, 0.06, -0.035),
+        scale: new THREE.Vector3(0.58, 0.62, 1),
+      },
+    ],
+  );
+  redCloths.userData.fpNoCollision = true;
+  const ochreCloth = addMesh(
+    textiles,
+    new THREE.BoxGeometry(0.82, 0.84, 0.035),
+    sharedBuildingDetailMaterial('paintOchre'),
+    new THREE.Vector3(0.12, 1.2, 1.84),
+    new THREE.Euler(0.02, 0.03, 0.028),
+  );
+  ochreCloth.name = 'Drying ochre wool blanket';
+  ochreCloth.userData.fpNoCollision = true;
+
+  parent.add(textiles);
+}
+
 function addAFrameShelter(
   parent: THREE.Group,
   x: number,
   z: number,
   yaw: number,
+  fabricVariant: number,
 ): void {
   const shelter = new THREE.Group();
   shelter.name = 'Founding canvas tent';
@@ -362,6 +441,14 @@ function addAFrameShelter(
     );
     panel.name = 'Weathered tent side';
   }
+  addTentRepairPatch(
+    shelter,
+    fabricVariant % 2 === 0 ? -1 : 1,
+    0.2 + (fabricVariant % 3) * 0.08,
+    0.54 + (fabricVariant % 2) * 0.08,
+    -0.72 + fabricVariant * 0.34,
+    sharedBuildingDetailMaterial(fabricVariant === 1 ? 'paintOchre' : 'paintRed'),
+  );
 
   const back = addMesh(
     shelter,
@@ -444,7 +531,13 @@ function addAFrameShelter(
   const bedroll = addMesh(
     shelter,
     new THREE.CylinderGeometry(0.22, 0.22, 1.5, 12),
-    sharedBuildingDetailMaterial('paintRed'),
+    sharedBuildingDetailMaterial(
+      fabricVariant === 0
+        ? 'paintRed'
+        : fabricVariant === 1
+          ? 'paintOchre'
+          : 'paintBlue',
+    ),
     new THREE.Vector3(-0.62, 0.24, -0.82),
     new THREE.Euler(0, 0, Math.PI * 0.5),
   );
@@ -535,6 +628,65 @@ function createTentGeometry(
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
+}
+
+function addTentRepairPatch(
+  shelter: THREE.Group,
+  side: -1 | 1,
+  uMin: number,
+  uMax: number,
+  centerZ: number,
+  material: THREE.Material,
+): void {
+  const halfLength = 0.48;
+  const normal = new THREE.Vector3(
+    side * (TENT_RIDGE_Y - TENT_EAVE_Y),
+    TENT_HALF_WIDTH,
+    0,
+  ).normalize().multiplyScalar(0.018);
+  const point = (u: number, z: number): THREE.Vector3 => new THREE.Vector3(
+    side * TENT_HALF_WIDTH * (1 - u) + normal.x,
+    THREE.MathUtils.lerp(TENT_EAVE_Y, TENT_RIDGE_Y, u) + normal.y,
+    z,
+  );
+  const lowerNear = point(uMin, centerZ - halfLength);
+  const lowerFar = point(uMin + 0.025, centerZ + halfLength);
+  const upperNear = point(uMax, centerZ - halfLength * 0.9);
+  const upperFar = point(uMax - 0.018, centerZ + halfLength * 0.92);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute([
+      lowerNear.x, lowerNear.y, lowerNear.z,
+      lowerFar.x, lowerFar.y, lowerFar.z,
+      upperNear.x, upperNear.y, upperNear.z,
+      upperFar.x, upperFar.y, upperFar.z,
+    ], 3),
+  );
+  geometry.setAttribute(
+    'uv',
+    new THREE.Float32BufferAttribute([
+      0, 0,
+      1, 0,
+      0, 1,
+      1, 1,
+    ], 2),
+  );
+  geometry.setIndex(side > 0
+    ? [0, 2, 1, 1, 2, 3]
+    : [0, 1, 2, 1, 3, 2]);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+
+  const patch = addMesh(
+    shelter,
+    geometry,
+    material,
+    new THREE.Vector3(),
+  );
+  patch.name = 'Hand-stitched colored canvas repair';
+  patch.userData.fpNoCollision = true;
 }
 
 function addPoleBetween(
@@ -675,6 +827,69 @@ function addTreasuryChest(parent: THREE.Group): void {
   parent.add(chest);
 }
 
+function addFirelitCampSmoke(campfire: THREE.Group): void {
+  const smoke = addCampInstances(
+    campfire,
+    FOUNDERS_CAMPFIRE_LIT_SMOKE_NAME,
+    new THREE.IcosahedronGeometry(0.52, 1),
+    sharedBuildingDetailMaterial('smoke'),
+    Array.from({ length: 5 }, (_, index) => ({
+      position: new THREE.Vector3(0, 1.05 + index * 0.68, 0),
+      scale: new THREE.Vector3(
+        0.58 + index * 0.16,
+        0.76 + index * 0.2,
+        0.58 + index * 0.16,
+      ),
+    })),
+  );
+  smoke.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  smoke.renderOrder = 16;
+  smoke.userData.campSmoke = true;
+  smoke.userData.fpNoCollision = true;
+  campfire.userData.litSmokeElapsedSeconds = 0;
+}
+
+function animateFirelitCampSmoke(
+  campfire: THREE.Group,
+  dtSeconds: number,
+): void {
+  const smoke = campfire.getObjectByName(FOUNDERS_CAMPFIRE_LIT_SMOKE_NAME);
+  if (!(smoke instanceof THREE.InstancedMesh)) return;
+
+  const elapsed = Math.max(
+    0,
+    Number(campfire.userData.litSmokeElapsedSeconds ?? 0) + Math.max(0, dtSeconds),
+  );
+  campfire.userData.litSmokeElapsedSeconds = elapsed;
+  const matrix = new THREE.Matrix4();
+  const quaternion = new THREE.Quaternion();
+  const position = new THREE.Vector3();
+  const scale = new THREE.Vector3();
+  for (let index = 0; index < smoke.count; index += 1) {
+    const age = (elapsed * 0.115 + index / smoke.count) % 1;
+    const phase = index * 2.37;
+    const curl = age * Math.PI * 1.7 + phase;
+    const breadth = 0.4 + age * 0.95;
+    position.set(
+      Math.sin(curl) * (0.1 + age * 0.48) + age * 0.26,
+      1.02 + age * 4.25,
+      Math.cos(curl * 0.82) * (0.08 + age * 0.34),
+    );
+    quaternion.setFromAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      curl * 0.38,
+    );
+    scale.set(
+      breadth * 1.03,
+      breadth * (1.24 + age * 0.22),
+      breadth * 0.82,
+    );
+    matrix.compose(position, quaternion, scale);
+    smoke.setMatrixAt(index, matrix);
+  }
+  smoke.instanceMatrix.needsUpdate = true;
+}
+
 function addCampfire(parent: THREE.Group): THREE.Group {
   const fire = createFireEffect({
     name: FOUNDERS_CAMPFIRE_NAME,
@@ -686,9 +901,9 @@ function addCampfire(parent: THREE.Group): THREE.Group {
     smokeCount: 7,
     smokeRise: 3.5,
     smokeDrift: 0.62,
-    smokeOpacity: 0.27,
-    lightDistance: 19,
-    lightIntensity: 19,
+    smokeOpacity: 0.3,
+    lightDistance: 23,
+    lightIntensity: 22,
   });
   const campfire = fire.root;
   campfire.position.set(0.55, 0, -0.6);
@@ -754,6 +969,7 @@ function addCampfire(parent: THREE.Group): THREE.Group {
     new THREE.Vector3(0, 1.58, 0),
     new THREE.Vector3(0, 1.18, 0),
   );
+  addFirelitCampSmoke(campfire);
 
   parent.add(campfire);
   return campfire;
@@ -771,6 +987,7 @@ export function animateFoundersCampfire(
   dtSeconds: number,
 ): void {
   updateFireEffect(campfire, dtSeconds, 0.82);
+  animateFirelitCampSmoke(campfire, dtSeconds);
 }
 
 export function createFoundersCampMesh(): THREE.Group {
@@ -779,12 +996,13 @@ export function createFoundersCampMesh(): THREE.Group {
   group.userData.fpCollisionChildrenOnly = true;
 
   addCampGrounding(group);
+  addFoundingFootTraffic(group);
 
   const shelters = new THREE.Group();
   shelters.name = 'FoundingShelters';
-  addAFrameShelter(shelters, -3.7, 2.7, 0.3);
-  addAFrameShelter(shelters, -0.1, 4.15, 0);
-  addAFrameShelter(shelters, 3.7, 2.7, -0.3);
+  addAFrameShelter(shelters, -3.7, 2.7, 0.3, 0);
+  addAFrameShelter(shelters, -0.1, 4.15, 0, 1);
+  addAFrameShelter(shelters, 3.7, 2.7, -0.3, 2);
   group.add(shelters);
 
   addCampfire(shelters);
@@ -808,6 +1026,7 @@ export function createFoundersCampMesh(): THREE.Group {
   addFoundingStandard(shelters);
   addFoundingProvisions(shelters);
   addFoundingWorkyard(shelters);
+  addLivedInTextiles(shelters);
   addTimberStock(group);
   addStoneStock(group);
   addTreasuryChest(group);
@@ -817,6 +1036,7 @@ export function createFoundersCampMesh(): THREE.Group {
       mesh.isMesh
       && !mesh.name.startsWith('Animated fire')
       && mesh.userData.campGrounding !== true
+      && mesh.userData.campSmoke !== true
     ) {
       markBuildingDetailShadowCaster(mesh);
     }

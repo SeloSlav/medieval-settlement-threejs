@@ -275,7 +275,8 @@ export function updateFireEffect(
     puff.sprite.scale.set(smokeScale * 1.18, smokeScale, 1);
     puff.opacity.value = effect.smokeOpacity
       * Math.sin(Math.PI * age)
-      * (0.42 + effect.intensity * 0.58);
+      * (0.42 + effect.intensity * 0.58)
+      * (0.84 + effect.nightLighting * 0.28);
   }
 
   for (const [index, spark] of effect.sparks.entries()) {

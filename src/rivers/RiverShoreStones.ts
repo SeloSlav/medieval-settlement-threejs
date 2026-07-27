@@ -109,7 +109,7 @@ export function createRiverShoreStones(
       const visualScale = computeShoreStoneVisualScale(rock.x, rock.z);
       visualScaleVector.set(visualScale, visualScale * 0.88, visualScale);
       visualMatrix.scale(visualScaleVector);
-      visualMatrix.elements[13] -= rock.scale * (1 - visualScale) * 0.1;
+      visualMatrix.elements[13] -= rock.scale * (1 - visualScale) * 0.2;
       mesh.setMatrixAt(rockIndex, visualMatrix);
       shadowMesh.setMatrixAt(rockIndex, visualMatrix);
       const tint = computeShoreStoneTint(rock.x, rock.z);

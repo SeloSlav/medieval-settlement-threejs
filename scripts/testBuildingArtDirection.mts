@@ -164,8 +164,13 @@ if (stats.constructionMaterials > 20) {
 if (stats.detailMaterials > 10) {
   throw new Error(`Shared building-detail palette grew beyond 10 materials (${stats.detailMaterials}).`);
 }
-if (sharedMaterials.size > 29) {
-  throw new Error(`All buildings should use at most 29 shared materials; found ${sharedMaterials.size}.`);
+// The instanced vineyard foliage and founding camp's feathered ground each need
+// one globally shared material outside the opaque construction/detail library.
+const externalSharedMaterialAllowance = 2;
+const buildingMaterialCeiling =
+  stats.constructionMaterials + stats.detailMaterials + externalSharedMaterialAllowance;
+if (sharedMaterials.size > buildingMaterialCeiling) {
+  throw new Error(`All buildings should use at most ${buildingMaterialCeiling} shared materials; found ${sharedMaterials.size}.`);
 }
 if (texturedMeshCount === 0 || largestMetricUvSpan <= 1.5) {
   throw new Error('Building meshes are not receiving repeatable metric UV coordinates.');
@@ -214,8 +219,12 @@ const finalStats = getBuildingMaterialLibraryStats();
 if (finalStats.constructionMaterials < 15 || finalStats.constructionMaterials > 20 || finalStats.detailMaterials !== 10) {
   throw new Error(`Expected a 15–20 construction + 10 detail shared palette; found ${finalStats.constructionMaterials} + ${finalStats.detailMaterials}.`);
 }
-if (sharedMaterials.size > 30) {
-  throw new Error(`Buildings and residences exceeded the 30 shared material ceiling (${sharedMaterials.size}).`);
+const finalMaterialCeiling =
+  finalStats.constructionMaterials
+  + finalStats.detailMaterials
+  + externalSharedMaterialAllowance;
+if (sharedMaterials.size > finalMaterialCeiling) {
+  throw new Error(`Buildings and residences exceeded the ${finalMaterialCeiling} shared material ceiling (${sharedMaterials.size}).`);
 }
 
 const indirectConstructionMaterials = [...sharedMaterials].filter(

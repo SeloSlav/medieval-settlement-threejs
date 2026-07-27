@@ -97,6 +97,20 @@ assert.equal(nearSet.branches.count, 1, 'restored tree should return to its sele
 nearSet.branches.getMatrixAt(0, matrix);
 assert.equal(matrix.elements[12], 10, 'restored tree should recover its exact source transform');
 
+const companionSet = makeLodSet(1);
+const companion: SeedThreeTreeSlot = {
+  ...slot(0, 14),
+  visibilityParent: slots[0],
+};
+writeSeedThreeLodMatrices(companionSet, [companion], [0]);
+assert.equal(companionSet.cards[0].count, 1,
+  'render-only canopy companion should follow a visible gameplay tree');
+slots[0]!.enabled = false;
+writeSeedThreeLodMatrices(companionSet, [companion], [0]);
+assert.equal(companionSet.cards[0].count, 0,
+  'harvesting a gameplay tree must also hide its render-only canopy companions');
+slots[0]!.enabled = true;
+
 for (const set of [nearSet, overviewSet]) {
   set.branches.geometry.dispose();
   (set.branches.material as THREE.Material).dispose();
@@ -104,6 +118,12 @@ for (const set of [nearSet, overviewSet]) {
     cards.geometry.dispose();
     (cards.material as THREE.Material).dispose();
   }
+}
+companionSet.branches.geometry.dispose();
+(companionSet.branches.material as THREE.Material).dispose();
+for (const cards of companionSet.cards) {
+  cards.geometry.dispose();
+  (cards.material as THREE.Material).dispose();
 }
 
 console.log('test:seedthree-forest-compaction passed');

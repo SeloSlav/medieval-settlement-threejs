@@ -19,6 +19,9 @@ const VOLUME_HEIGHT = 72;
 const VOLUME_FLOOR_BELOW_CAMERA = 20;
 const OVERVIEW_VOLUME_FLOOR_BELOW_CAMERA = 86;
 const BASE_VOLUME_RADIUS = 92;
+const OVERVIEW_MIN_VOLUME_RADIUS = 60;
+const OVERVIEW_VOLUME_RADIUS_SCALE = 0.78;
+const OVERVIEW_MAX_VOLUME_RADIUS = 185;
 const RAIN_BASE_PARTICLES = 1_800;
 const SNOW_BASE_PARTICLES = 1_400;
 const RAIN_INNER_RADIUS_FRACTION = 0.18;
@@ -80,7 +83,11 @@ export class PrecipitationRenderer {
 
     const radius = firstPersonActive
       ? 34
-      : THREE.MathUtils.clamp(cameraDistance * 0.58, 44, 175);
+      : THREE.MathUtils.clamp(
+        cameraDistance * OVERVIEW_VOLUME_RADIUS_SCALE,
+        OVERVIEW_MIN_VOLUME_RADIUS,
+        OVERVIEW_MAX_VOLUME_RADIUS,
+      );
     const precipitationFloorBelowCamera = firstPersonActive
       ? VOLUME_FLOOR_BELOW_CAMERA
       : THREE.MathUtils.lerp(
@@ -135,7 +142,7 @@ export class PrecipitationRenderer {
       map: kind === 'rain' ? this.rainTexture : this.snowTexture,
       transparent: true,
       opacity: 0,
-      alphaTest: kind === 'rain' ? 0.035 : 0.02,
+      alphaTest: kind === 'rain' ? 0.012 : 0.02,
       depthTest: true,
       depthWrite: false,
       vertexColors: true,
@@ -265,7 +272,7 @@ function createRainStreakGeometry(): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   const positions: number[] = [];
   const uvs: number[] = [];
-  const halfWidth = 0.025;
+  const halfWidth = 0.06;
   const halfHeight = 0.42;
   const windLeanX = 0.13;
   const windLeanZ = 0.055;
@@ -340,10 +347,10 @@ function createRainTexture(): THREE.DataTexture {
     const vertical = Math.sin(Math.PI * y);
     const center = 0.5;
     const distance = Math.abs(x - center);
-    const core = Math.exp(-(distance * distance) / 0.0015);
+    const core = Math.exp(-(distance * distance) / 0.028);
     const head = Math.exp(-Math.pow(y - 0.82, 2) / 0.03);
     return core * Math.pow(Math.max(0, vertical), 0.34) * (0.72 + head * 0.28);
-  }, 'Procedural rain streak sprite');
+  }, 'Procedural rain streak sprite', false);
 }
 
 function createSnowTexture(): THREE.DataTexture {
@@ -364,6 +371,7 @@ function createParticleTexture(
   size: number,
   sampleAlpha: (x: number, y: number) => number,
   name: string,
+  generateMipmaps = true,
 ): THREE.DataTexture {
   const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y += 1) {
@@ -384,9 +392,11 @@ function createParticleTexture(
   const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
   texture.name = name;
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.minFilter = generateMipmaps
+    ? THREE.LinearMipmapLinearFilter
+    : THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
+  texture.generateMipmaps = generateMipmaps;
   texture.needsUpdate = true;
   return texture;
 }

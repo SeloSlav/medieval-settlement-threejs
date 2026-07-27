@@ -39,6 +39,7 @@ state.buildings.set(bakery.id, bakery);
 const brewery = building('brewery', 'brewery', 1);
 brewery.grain = 45;
 brewery.water = 40;
+brewery.firewood = 15;
 brewery.ale = 140;
 state.buildings.set(brewery.id, brewery);
 const smokehouse = building('smokehouse', 'smokehouse', 1);
@@ -73,6 +74,7 @@ approx(fullWeek.breadFirewoodPerDay, 40 / 3);
 approx(fullWeek.aleOutputPerDay, 40);
 approx(fullWeek.aleGrainPerDay, 30);
 approx(fullWeek.aleWaterPerDay, 20);
+approx(fullWeek.aleFirewoodPerDay, 10);
 approx(fullWeek.preservedFoodOutputPerDay, 35);
 approx(fullWeek.preservationFreshFoodPerDay, 35);
 approx(fullWeek.preservationFirewoodPerDay, 35 / 3);
@@ -180,6 +182,7 @@ for (const key of [
   'aleOutputPerDay',
   'aleGrainPerDay',
   'aleWaterPerDay',
+  'aleFirewoodPerDay',
   'preservedFoodOutputPerDay',
   'preservationFreshFoodPerDay',
   'preservationFirewoodPerDay',

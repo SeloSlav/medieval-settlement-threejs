@@ -88,7 +88,7 @@ const campfireLight = campfire.getObjectByName(FIRE_EFFECT_LIGHT_NAME);
 assert.ok(campfireLight instanceof THREE.PointLight);
 assert.equal(
   campfireLight.distance,
-  19,
+  23,
   'the founding fire should cast a readable practical-light pool across the occupied camp',
 );
 assert.ok(
@@ -119,7 +119,7 @@ const daylightFlameScale = flame.scale.y;
 setFoundersCampfireNightLighting(campfire, 1);
 animateFoundersCampfire(campfire, 0.13);
 assert.ok(
-  campfireLight.intensity > daylightIntensity + 10,
+  campfireLight.intensity > daylightIntensity + 12,
   'the campfire must keep a strong warm light throughout the night',
 );
 assert.notEqual(

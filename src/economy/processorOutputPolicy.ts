@@ -69,7 +69,7 @@ const INPUTS_BY_KIND: Record<
 > = {
   watermill: ['grain'],
   granary: ['flour', 'water', 'firewood'],
-  brewery: ['grain', 'water'],
+  brewery: ['grain', 'water', 'firewood'],
   smokehouse: ['food', 'firewood'],
   weaver: ['wool'],
 };

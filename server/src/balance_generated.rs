@@ -234,6 +234,7 @@ pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = 6.0;
 pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = 0.5;
 pub const BREWERY_GRAIN_PER_CYCLE: f64 = 3.0;
 pub const BREWERY_WATER_PER_CYCLE: f64 = 2.0;
+pub const BREWERY_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const BREWERY_ALE_PER_CYCLE: f64 = 4.0;
 pub const WEAVER_WOOL_PER_CYCLE: f64 = 3.0;
 pub const WEAVER_CLOTH_PER_CYCLE: f64 = 2.0;
@@ -1169,7 +1170,7 @@ const BREWERY: BuildingDef = BuildingDef {
     cost_timber: 48.0,
     cost_stone: 36.0,
     storage_timber: 0.0,
-    storage_firewood: 0.0,
+    storage_firewood: 40.0,
     storage_stone: 0.0,
     storage_water: 100.0,
     storage_food: 0.0,

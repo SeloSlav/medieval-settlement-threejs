@@ -3,6 +3,10 @@ import * as THREE from 'three';
 import {
   disposeSharedRiverWaterMaterial,
   getSharedRiverWaterMaterial,
+  normalizeRiverWaterNightAmount,
+  RIVER_WATER_ATTENUATION_DISTANCE,
+  RIVER_WATER_TRANSMISSION,
+  setSharedRiverWaterNightAmount,
 } from '../src/rivers/RiverWaterMaterial.ts';
 import {
   MAX_RIVER_WATER_NORMAL_SLOPE,
@@ -51,11 +55,11 @@ assert.ok(computeWaterFeatherAlpha(0.2) < computeWaterFeatherAlpha(0.96));
 
 const stoneVisualA = computeShoreStoneVisualScale(12, -8);
 const stoneVisualB = computeShoreStoneVisualScale(25, 17);
-assert.ok(stoneVisualA >= 0.68 && stoneVisualA <= 1.02);
-assert.ok(stoneVisualB >= 0.68 && stoneVisualB <= 1.02);
+assert.ok(stoneVisualA >= 0.18 && stoneVisualA <= 1.04);
+assert.ok(stoneVisualB >= 0.18 && stoneVisualB <= 1.04);
 assert.notEqual(stoneVisualA, stoneVisualB);
 const stoneTint = computeShoreStoneTint(12, -8);
-assert.ok(stoneTint >= 0.7 && stoneTint <= 0.92);
+assert.ok(stoneTint >= 0.58 && stoneTint <= 0.9);
 
 const shoreTexture = new THREE.DataTexture(
   new Uint8Array([255, 0, 128, 0]),
@@ -77,17 +81,31 @@ const material = getSharedRiverWaterMaterial(shoreMaps);
 
 assert.equal(
   material.transmission,
-  0.82,
+  RIVER_WATER_TRANSMISSION,
   'bounded normals must retain the river transmission path',
 );
+assert.equal(material.transmission, 0.82);
 assert.equal(material.thickness, 0.65);
+assert.equal(material.attenuationDistance, RIVER_WATER_ATTENUATION_DISTANCE);
+assert.equal(material.attenuationDistance, 1.75);
 assert.equal(material.roughness, 0.3);
 assert.equal(material.specularIntensity, 0.5);
+assert.ok(material.roughnessNode, 'directional flow must modulate reflected highlight roughness');
+assert.ok(
+  (material as typeof material & { emissiveNode?: unknown }).emissiveNode,
+  'river must retain its night-only sky-return node',
+);
 assert.ok(material.backdropNode, 'river must retain its depth-aware backdrop refraction');
 assert.ok(material.backdropAlphaNode, 'river must retain depth-aware backdrop blending');
 assert.equal(material.transparent, true);
 assert.equal(material.depthWrite, false);
 assert.equal(material.depthTest, true);
+assert.equal(normalizeRiverWaterNightAmount(-1), 0);
+assert.equal(normalizeRiverWaterNightAmount(0.42), 0.42);
+assert.equal(normalizeRiverWaterNightAmount(2), 1);
+assert.equal(normalizeRiverWaterNightAmount(Number.NaN), 0);
+setSharedRiverWaterNightAmount(1);
+setSharedRiverWaterNightAmount(0);
 
 disposeSharedRiverWaterMaterial();
 shoreTexture.dispose();

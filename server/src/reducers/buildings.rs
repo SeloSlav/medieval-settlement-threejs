@@ -769,7 +769,11 @@ fn processor_input_commodities(kind: &str) -> &'static [CommodityKind] {
         CommodityKind::Water,
         CommodityKind::Firewood,
     ];
-    const BREWERY: [CommodityKind; 2] = [CommodityKind::Grain, CommodityKind::Water];
+    const BREWERY: [CommodityKind; 3] = [
+        CommodityKind::Grain,
+        CommodityKind::Water,
+        CommodityKind::Firewood,
+    ];
     const SMOKEHOUSE: [CommodityKind; 2] = [CommodityKind::Food, CommodityKind::Firewood];
     const WEAVER: [CommodityKind; 1] = [CommodityKind::Wool];
 

@@ -94,7 +94,7 @@ const PROCESS: Record<string, string> = {
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + river power → flour',
   granary: 'Buffers grain for processors, bakes staple food, and shelters road-hauled fresh food',
-  brewery: 'Grain + water → ale',
+  brewery: 'Grain + water + firewood → ale',
   smokehouse: 'Fresh food + firewood → preserved food',
   apiary: 'April-September forest forage → food, monastery hospitality, or export honey',
   vineyard: 'September-October grape harvest → food, monastery hospitality, or export wine',

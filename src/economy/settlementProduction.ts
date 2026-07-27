@@ -1,5 +1,6 @@
 import {
   BREWERY_ALE_PER_CYCLE,
+  BREWERY_FIREWOOD_PER_CYCLE,
   BREWERY_GRAIN_PER_CYCLE,
   BREWERY_WATER_PER_CYCLE,
   BUILDING_STORAGE_CAPS,
@@ -75,6 +76,7 @@ export type SettlementProductionCapacity = {
   aleOutputPerDay: number;
   aleGrainPerDay: number;
   aleWaterPerDay: number;
+  aleFirewoodPerDay: number;
   preservedFoodOutputPerDay: number;
   preservationFreshFoodPerDay: number;
   preservationFirewoodPerDay: number;
@@ -602,6 +604,16 @@ function completedProcessorOverview(
           runway = waterRunway;
           limitingInput = 'water';
         }
+        const firewoodRunway = buildingInputRunway(
+          deliveries,
+          building,
+          'firewood',
+          cycles * BREWERY_FIREWOOD_PER_CYCLE,
+        );
+        if (firewoodRunway.days < runway.days) {
+          runway = firewoodRunway;
+          limitingInput = 'firewood';
+        }
         breweryInputBuffer = updateFirstToStop(
           breweryInputBuffer,
           runway,
@@ -986,6 +998,7 @@ export function computeSettlementProductionCapacity(
     aleOutputPerDay: breweryCycles * BREWERY_ALE_PER_CYCLE,
     aleGrainPerDay: breweryCycles * BREWERY_GRAIN_PER_CYCLE,
     aleWaterPerDay: breweryCycles * BREWERY_WATER_PER_CYCLE,
+    aleFirewoodPerDay: breweryCycles * BREWERY_FIREWOOD_PER_CYCLE,
     preservedFoodOutputPerDay: smokehouseCycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     preservationFreshFoodPerDay: smokehouseCycles * SMOKEHOUSE_FOOD_PER_CYCLE,
     preservationFirewoodPerDay: smokehouseCycles * SMOKEHOUSE_FIREWOOD_PER_CYCLE,

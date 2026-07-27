@@ -3,6 +3,7 @@ import {
   attribute,
   cameraPosition,
   float,
+  fwidth,
   max,
   mix,
   normalMap,
@@ -52,6 +53,37 @@ function buildGrassBlendNodes(textures: TerrainBlendTextureSet) {
     .mul(w.x)
     .add(denseColor.rgb.mul(w.y))
     .add(dryColor.rgb.mul(w.z));
+  const zoomDetailGate = attribute('dirtZoomGate', 'float') as TslNode;
+  const texelFootprint = max(
+    fwidth(grassUv.x) as TslNode,
+    fwidth(grassUv.y) as TslNode,
+  ) as TslNode;
+  const footprintDetailGate = sub(
+    float(1) as TslNode,
+    smoothstep(
+      float(0.0012) as TslNode,
+      float(0.0036) as TslNode,
+      texelFootprint,
+    ) as TslNode,
+  ) as TslNode;
+  const closeMaterialDetail = zoomDetailGate.mul(footprintDetailGate) as TslNode;
+  // These are the measured linear-space averages of the three existing grass
+  // albedos. At overview distance they behave like stable mip-tail colors,
+  // while the original samples fade back to full strength for close/FP views.
+  const biomeBaseColor = (vec3(0.1, 0.108, 0.04) as TslNode)
+    .mul(w.x)
+    .add((vec3(0.05, 0.055, 0.029) as TslNode).mul(w.y))
+    .add((vec3(0.18, 0.17, 0.078) as TslNode).mul(w.z));
+  const albedoDetailStrength = mix(
+    float(0.44) as TslNode,
+    float(1) as TslNode,
+    closeMaterialDetail,
+  ) as TslNode;
+  const resolvedAlbedo = mix(
+    biomeBaseColor,
+    blendedColor,
+    albedoDetailStrength,
+  ) as TslNode;
   const world = positionWorld as TslNode;
   // Domain-warped oblique waves form broad ecological masses without another
   // texture read or the obvious dots/checker cells produced by hash noise.
@@ -126,23 +158,53 @@ function buildGrassBlendNodes(textures: TerrainBlendTextureSet) {
     vec3(0.915, 0.945, 0.885) as TslNode,
     macro,
   ) as TslNode;
-  const colorNode = blendedColor.mul(ecologyTint).mul(broadSoilValue);
+  const colorNode = resolvedAlbedo.mul(ecologyTint).mul(broadSoilValue);
 
   const meadowNormal = texture(textures.meadow.normal, grassUv) as TslNode;
   const denseNormal = texture(textures.dense.normal, grassUv) as TslNode;
   const dryNormal = texture(textures.dry.normal, grassUv) as TslNode;
   const blendedNormalSample = meadowNormal.mul(w.x).add(denseNormal.mul(w.y)).add(dryNormal.mul(w.z));
-  const normalNode = normalMap(blendedNormalSample);
+  const normalDetailStrength = mix(
+    float(0.28) as TslNode,
+    float(1) as TslNode,
+    closeMaterialDetail,
+  ) as TslNode;
+  const resolvedNormalSample = mix(
+    vec3(0.5, 0.5, 1) as TslNode,
+    blendedNormalSample,
+    normalDetailStrength,
+  ) as TslNode;
+  const normalNode = normalMap(resolvedNormalSample);
 
   const meadowRoughness = (texture(textures.meadow.roughness, grassUv) as TslNode).r;
   const denseRoughness = (texture(textures.dense.roughness, grassUv) as TslNode).r;
   const dryRoughness = (texture(textures.dry.roughness, grassUv) as TslNode).r;
-  const roughnessNode = meadowRoughness.mul(w.x).add(denseRoughness.mul(w.y)).add(dryRoughness.mul(w.z));
+  const blendedRoughness = meadowRoughness.mul(w.x).add(denseRoughness.mul(w.y)).add(dryRoughness.mul(w.z));
+  const roughnessDetailStrength = mix(
+    float(0.44) as TslNode,
+    float(1) as TslNode,
+    closeMaterialDetail,
+  ) as TslNode;
+  const roughnessNode = mix(
+    float(0.86) as TslNode,
+    blendedRoughness,
+    roughnessDetailStrength,
+  ) as TslNode;
 
   const meadowAo = (texture(textures.meadow.ao!, grassUv) as TslNode).r;
   const denseAo = (texture(textures.dense.ao!, grassUv) as TslNode).r;
   const dryAo = (texture(textures.dry.ao!, grassUv) as TslNode).r;
-  const aoNode = meadowAo.mul(w.x).add(denseAo.mul(w.y)).add(dryAo.mul(w.z));
+  const blendedAo = meadowAo.mul(w.x).add(denseAo.mul(w.y)).add(dryAo.mul(w.z));
+  const aoDetailStrength = mix(
+    float(0.46) as TslNode,
+    float(1) as TslNode,
+    closeMaterialDetail,
+  ) as TslNode;
+  const aoNode = mix(
+    float(1) as TslNode,
+    blendedAo,
+    aoDetailStrength,
+  ) as TslNode;
 
   return { colorNode, normalNode, roughnessNode, aoNode, grassUv, macro };
 }
