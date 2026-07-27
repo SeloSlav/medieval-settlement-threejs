@@ -68,4 +68,5 @@ export default __t.row({
   marketplaceSeedGrainTarget: __t.u8().name("marketplace_seed_grain_target"),
   foundingShelterActive: __t.bool().name("founding_shelter_active"),
   marketplacePendingTradeCode: __t.u8().name("marketplace_pending_trade_code"),
+  chapelMonasteryTitheDue: __t.f64().name("chapel_monastery_tithe_due"),
 });

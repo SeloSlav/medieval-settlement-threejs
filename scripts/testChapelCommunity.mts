@@ -86,8 +86,77 @@ assert.doesNotMatch(
 assert.match(
   chapelSimulation,
   /ctx\.db\.building\(\)\.id\(\)\.find\(&monastery_id\)/,
-  'the selected route must still reload fresh monastery stock before crediting it',
+  'the selected route must reload fresh monastery stock before dispatching its cart',
 );
+assert.match(chapelSimulation, /chapel_tithe_payment_room/);
+assert.match(chapelSimulation, /deposit_chapel_tithe/);
+assert.match(chapelSimulation, /available_free_haulers/);
+assert.match(chapelSimulation, /try_start_building_supply_trip/);
+assert.match(chapelSimulation, /CommodityKind::Gold/);
+assert.match(chapelSimulation, /free_haulers_by_owner/);
+assert.match(
+  chapelSimulation,
+  /if monastery_tithe_dispatch_due\(sim_tick\)/,
+  'daily monastery remittance must leave the shared chapel doorway available for Town Hall carts',
+);
+assert.doesNotMatch(
+  chapelSimulation,
+  /monastery\.gold\s*\+=/,
+  'monastery tithe must not teleport from household attendance into the monastery',
+);
+const chapelCofferSource = readFileSync(
+  new URL('../server/src/economy/chapel_coffer.rs', import.meta.url),
+  'utf8',
+);
+assert.match(chapelCofferSource, /chapel_monastery_tithe_due/);
+assert.match(chapelCofferSource, /chapel_tithe_payment_room/);
+assert.match(
+  chapelCofferSource,
+  /building\.gold\s*-\s*chapel_monastery_tithe_due\(building\)/,
+  'the pledged purse must not fund parish wages, upkeep, or charity',
+);
+const deliverySource = readFileSync(
+  new URL('../server/src/simulation/delivery_trips.rs', import.meta.url),
+  'utf8',
+);
+assert.match(
+  deliverySource,
+  /monastery_tithe_delivery[\s\S]{0,800}monastery_tithe_paid_total\s*\+=\s*deposited/,
+  'lifetime monastery tithe must advance only when the cart unloads',
+);
+assert.match(
+  deliverySource,
+  /restore_monastery_purse[\s\S]{0,900}chapel_monastery_tithe_due/,
+  'a cancelled tithe cart must restore its pledged purse at the chapel',
+);
+const buildingTable = readFileSync(
+  new URL('../server/src/tables.rs', import.meta.url),
+  'utf8',
+);
+assert.match(
+  buildingTable,
+  /#\[default\(0\.0\)\]\s+pub chapel_monastery_tithe_due: f64/,
+  'existing saves must default to no newly invented tithe obligation',
+);
+const commoditySource = readFileSync(
+  new URL('../server/src/economy/commodities.rs', import.meta.url),
+  'utf8',
+);
+assert.match(
+  commoditySource,
+  /"chapel"\s*\|\s*"monastery"\s*\|\s*"town_hall"/,
+  'gold carts must be able to return to chapel and unload at monastery or Town Hall',
+);
+const chapelMesh = readFileSync(
+  new URL('../src/buildings/meshes/chapelMesh.ts', import.meta.url),
+  'utf8',
+);
+const monasteryMesh = readFileSync(
+  new URL('../src/buildings/meshes/expandedBuildingMeshes.ts', import.meta.url),
+  'utf8',
+);
+assert.match(chapelMesh, /ChapelCofferChest/);
+assert.match(monasteryMesh, /MonasteryTreasuryChest/);
 const simulationReducer = readFileSync(
   new URL('../server/src/reducers/simulation.rs', import.meta.url),
   'utf8',

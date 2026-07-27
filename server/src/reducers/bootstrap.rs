@@ -229,6 +229,7 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
         marketplace_seed_grain_target: 0,
         marketplace_pending_trade_code: 0,
         founding_shelter_active: true,
+        chapel_monastery_tithe_due: 0.0,
     });
 
     resources.timber = 0.0;

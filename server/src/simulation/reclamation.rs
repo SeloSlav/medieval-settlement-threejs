@@ -147,6 +147,7 @@ pub fn insert_reclamation_pile(
         marketplace_seed_grain_target: 0,
         founding_shelter_active: false,
         marketplace_pending_trade_code: 0,
+        chapel_monastery_tithe_due: 0.0,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

@@ -96,5 +96,6 @@ function buildingStateFromRow(
     marketplaceSeedGrainTarget: row.marketplaceSeedGrainTarget,
     marketplacePendingTradeCode: row.marketplacePendingTradeCode,
     foundingShelterActive: row.foundingShelterActive,
+    chapelMonasteryTitheDue: row.chapelMonasteryTitheDue,
   };
 }

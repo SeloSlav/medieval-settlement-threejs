@@ -11,8 +11,8 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     available_building_labor, building_commodity_room, building_commodity_stock,
-    credit_treasury_commodity, deposit_building_commodity, withdraw_building_commodity,
-    CommodityKind,
+    chapel_monastery_tithe_due, credit_treasury_commodity, deposit_building_commodity,
+    withdraw_building_commodity, CommodityKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::roads::{RoadNetwork, RoadPathRoute};
@@ -1029,10 +1029,24 @@ fn unload_commodity_to_building(
         }
         return;
     }
+    let monastery_tithe_delivery = commodity == CommodityKind::Gold
+        && target.kind == "monastery"
+        && ctx
+            .db
+            .building()
+            .id()
+            .find(&trip.building_id)
+            .is_some_and(|origin| origin.kind == "chapel");
     let deposited = deposit_building_commodity(&mut target, commodity, trip.amount);
     if deposited > 1e-6 {
         trip.amount = (trip.amount - deposited).max(0.0);
         ctx.db.building().id().update(target);
+        if monastery_tithe_delivery {
+            if let Some(mut resources) = ctx.db.player_resources().owner().find(&trip.owner) {
+                resources.monastery_tithe_paid_total += deposited;
+                ctx.db.player_resources().owner().update(resources);
+            }
+        }
     }
 }
 
@@ -1086,7 +1100,28 @@ fn return_trip_cargo_to_building(ctx: &ReducerContext, trip: &DeliveryTrip) {
                     }
                 }
             }
-            return_commodity_to_building(ctx, trip.building_id, commodity, trip.amount)
+            let restore_monastery_purse = commodity == CommodityKind::Gold
+                && ctx
+                    .db
+                    .building()
+                    .id()
+                    .find(&trip.building_id)
+                    .is_some_and(|origin| origin.kind == "chapel")
+                && ctx
+                    .db
+                    .building()
+                    .id()
+                    .find(&trip.target_building_id)
+                    .is_some_and(|target| target.kind == "monastery");
+            return_commodity_to_building(ctx, trip.building_id, commodity, trip.amount);
+            if restore_monastery_purse {
+                if let Some(mut chapel) = ctx.db.building().id().find(&trip.building_id) {
+                    chapel.chapel_monastery_tithe_due = (chapel_monastery_tithe_due(&chapel)
+                        + trip.amount)
+                        .min(chapel.gold.max(0.0));
+                    ctx.db.building().id().update(chapel);
+                }
+            }
         }
         None => {}
     }

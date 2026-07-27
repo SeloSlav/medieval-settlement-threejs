@@ -96,9 +96,13 @@ export function buildingMarkerSignatures(
           )
         }:${building.gold > 1e-6 ? 1 : 0}`
         : '';
-      const treasuryState = building.kind === 'town_hall'
+      const treasuryState = (
+        building.kind === 'town_hall'
+        || building.kind === 'chapel'
+        || building.kind === 'monastery'
+      )
         && building.constructionComplete !== false
-        ? `:treasury:${building.gold > 1e-6 ? 1 : 0}`
+        ? `:secured-gold:${building.gold > 1e-6 ? 1 : 0}`
         : '';
       const hayState = building.kind === 'pastoral_farmstead'
         && building.constructionComplete !== false

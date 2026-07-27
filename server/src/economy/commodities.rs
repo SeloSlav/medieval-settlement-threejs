@@ -111,7 +111,10 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Wool => def.storage_wool,
         CommodityKind::Cloth => def.storage_cloth,
         CommodityKind::Gold => {
-            if matches!(kind, "founders_camp" | "salvage_pile" | "town_hall") {
+            if matches!(
+                kind,
+                "founders_camp" | "salvage_pile" | "chapel" | "monastery" | "town_hall"
+            ) {
                 f64::MAX
             } else {
                 0.0

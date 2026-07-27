@@ -403,6 +403,14 @@ function syncBuildingVisualState(
     const chest = marker.getObjectByName('TownHallTreasuryChest');
     if (chest) chest.visible = building.gold > 1e-6;
   }
+  if (building.kind === 'chapel') {
+    const chest = marker.getObjectByName('ChapelCofferChest');
+    if (chest) chest.visible = building.gold > 1e-6;
+  }
+  if (building.kind === 'monastery') {
+    const chest = marker.getObjectByName('MonasteryTreasuryChest');
+    if (chest) chest.visible = building.gold > 1e-6;
+  }
   if (building.kind === 'salvage_pile') {
     const timber = marker.getObjectByName('SalvageTimberStockpile');
     if (timber instanceof THREE.Group) {

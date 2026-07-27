@@ -76,6 +76,7 @@ export const Building = __t.object("Building", {
   marketplaceSeedGrainTarget: __t.u8(),
   foundingShelterActive: __t.bool(),
   marketplacePendingTradeCode: __t.u8(),
+  chapelMonasteryTitheDue: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 

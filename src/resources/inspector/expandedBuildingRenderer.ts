@@ -596,6 +596,19 @@ export function renderExpandedBuildingInspector(
       <li><span>Annual hospitality</span><span>${hospitality.honeyPerYear.toFixed(0)} honey + ${hospitality.winePerYear.toFixed(0)} wine at five feast days</span></li>
       <li><span>Pilgrimage income</span><span>${hospitality.pilgrimageGoldPerDay.toFixed(2)} gold/day at current stores · requires chapel and market road link</span></li>`
     : '';
+  const monasteryTreasuryRows = building.kind === 'monastery'
+    ? (() => {
+        const incomingTithe = Array.from(context.gameState.deliveryTrips.values())
+          .filter(
+            (trip) =>
+              trip.targetBuildingId === building.id
+              && trip.cargoKind === 'gold'
+              && trip.phase !== 'inbound',
+          )
+          .reduce((sum, trip) => sum + trip.amount, 0);
+        return `<li><span>Monastery treasury</span><span>${building.gold.toFixed(1)} gold secured here${incomingTithe > 0.05 ? ` · ${incomingTithe.toFixed(1)} tithe incoming by handcart` : ''}</span></li>`;
+      })()
+    : '';
   const granaryGrainDispatch = building.kind === 'granary'
     ? context.worldQueries.getNextGranaryGrainDispatch(building)
     : null;
@@ -727,7 +740,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} imported ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${institutionalFoodRows}${monasteryHospitalityRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} imported ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

@@ -69,6 +69,39 @@ function addCross(group: THREE.Group, x: number, y: number, z: number, scale = 1
   addMesh(group, new THREE.BoxGeometry(0.64 * scale, 0.12 * scale, 0.12 * scale), metalMaterial('iron'), new THREE.Vector3(x, y + 0.18 * scale, z));
 }
 
+function addMonasteryTreasuryChest(group: THREE.Group): void {
+  const chest = new THREE.Group();
+  chest.name = 'MonasteryTreasuryChest';
+  chest.visible = false;
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(1.05, 0.58, 0.7),
+    timberMaterial('dark'),
+    new THREE.Vector3(-4.15, 0.52, 4.55),
+  );
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(1.12, 0.19, 0.76),
+    timberMaterial('weathered'),
+    new THREE.Vector3(-4.15, 0.91, 4.55),
+  );
+  for (const x of [-4.5, -3.8]) {
+    addMesh(
+      chest,
+      new THREE.BoxGeometry(0.1, 0.82, 0.78),
+      metalMaterial('iron'),
+      new THREE.Vector3(x, 0.7, 4.55),
+    );
+  }
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(0.2, 0.24, 0.12),
+    copper,
+    new THREE.Vector3(-4.15, 0.69, 4.94),
+  );
+  group.add(chest);
+}
+
 
 export function createThreshingBarnMesh(): THREE.Group {
   const group = new THREE.Group();
@@ -116,6 +149,7 @@ export function createMonasteryMesh(): THREE.Group {
     addMesh(group, new THREE.BoxGeometry(2.0, 0.18, 1.15), earth, new THREE.Vector3(x, 0.09, z));
     for (let i = -2; i <= 2; i++) addMesh(group, new THREE.SphereGeometry(0.13, 6, 4), leaf, new THREE.Vector3(x + i * 0.38, 0.27, z));
   }
+  addMonasteryTreasuryChest(group);
   return group;
 }
 

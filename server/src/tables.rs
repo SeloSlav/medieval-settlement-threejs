@@ -361,6 +361,12 @@ pub struct Building {
     /// Appended for additive save compatibility; existing saves have no order.
     #[default(0u8)]
     pub marketplace_pending_trade_code: u8,
+    /// Gold physically held at a chapel but pledged to a road-linked monastery.
+    /// This subset of `gold` is unavailable for parish expenses until a free
+    /// hauler carries it away. Appended for additive save compatibility;
+    /// existing coffers begin with no outstanding monastic obligation.
+    #[default(0.0)]
+    pub chapel_monastery_tithe_due: f64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

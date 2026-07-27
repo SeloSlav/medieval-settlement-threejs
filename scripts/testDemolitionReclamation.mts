@@ -150,7 +150,8 @@ assert.match(commodities, /Self::Gold => 15/);
 assert.match(commodities, /building\.kind != "salvage_pile"/);
 assert.match(
   commodities,
-  /"founders_camp" \| "salvage_pile" \| "town_hall"/,
+  /"founders_camp" \| "salvage_pile" \| "chapel" \| "monastery" \| "town_hall"/,
+  'gold storage must cover every physical treasury, coffer, and salvage lockbox',
 );
 const storage = read('server/src/economy/storage.rs');
 assert.match(

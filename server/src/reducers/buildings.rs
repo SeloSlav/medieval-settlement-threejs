@@ -14,11 +14,12 @@ use crate::construction_priority::{
 use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, available_building_labor, building_commodity_cap,
-    building_commodity_stock, building_cost, building_salvage_refund,
+    building_commodity_stock, building_cost, building_salvage_refund, chapel_coffer_gold,
     collect_chapel_coffer as sweep_chapel_coffer, construction_treasury_reservation,
     credit_treasury_commodity, credit_treasury_firewood, credit_treasury_food,
     credit_treasury_gold, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
-    initial_construction_labor, total_stone, total_timber, CommodityKind,
+    initial_construction_labor, record_parish_ledger, total_stone, total_timber, CommodityKind,
+    ParishLedgerKind,
 };
 use crate::foraging_policy::harvest_available;
 use crate::frontier_economy_policy::{
@@ -55,7 +56,7 @@ use crate::simulation::{
     building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_owner,
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
     game_clock, owner_has_staffed_town_hall, recall_idle_seasonal_labor_for_owner,
-    FIRE_TARGET_BUILDING,
+    try_start_chapel_treasury_trip, SimTickContext, FIRE_TARGET_BUILDING,
 };
 use crate::specialty_trade_policy::is_valid_specialty_export_policy;
 use crate::storehouse_policy::{
@@ -600,6 +601,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         gold: 0.0,
         founding_shelter_active: false,
+        chapel_monastery_tithe_due: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1588,7 +1590,33 @@ pub fn collect_chapel_coffer(ctx: &ReducerContext, building_id: u64) -> Result<(
             "Repair the fire-damaged chapel before collecting its sealed coffer.".to_string(),
         );
     }
-    sweep_chapel_coffer(ctx, owner, building_id).map(|_| ())
+    let physical = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if !physical {
+        return sweep_chapel_coffer(ctx, owner, building_id).map(|_| ());
+    }
+
+    let mut chapel = chapel;
+    let tick = SimTickContext::new(ctx);
+    let clock = game_clock(
+        ctx.db
+            .world_config()
+            .id()
+            .find(&0)
+            .map(|config| config.sim_tick)
+            .unwrap_or(0),
+    );
+    let requested = chapel_coffer_gold(&chapel);
+    let loaded = try_start_chapel_treasury_trip(ctx, &tick, &clock, &mut chapel, requested)?;
+    if loaded > 1e-9 {
+        ctx.db.building().id().update(chapel);
+        record_parish_ledger(ctx, owner, ParishLedgerKind::ManualCollect, loaded);
+    }
+    Ok(())
 }
 
 #[reducer]
@@ -1717,6 +1745,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
             founding_shelter_active: false,
             marketplace_pending_trade_code: 0,
+            chapel_monastery_tithe_due: 0.0,
             ..building
         });
         return Ok(());

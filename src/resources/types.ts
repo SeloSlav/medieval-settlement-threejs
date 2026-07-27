@@ -118,6 +118,7 @@ export type BuildingState = {
   marketplaceSeedGrainTarget?: number;
   marketplacePendingTradeCode?: number;
   foundingShelterActive?: boolean;
+  chapelMonasteryTitheDue?: number;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {

@@ -32,6 +32,39 @@ function createChapelMaterials(): ChapelMaterials {
   };
 }
 
+function addParishCoffer(group: THREE.Group, frontZ: number): void {
+  const chest = new THREE.Group();
+  chest.name = 'ChapelCofferChest';
+  chest.visible = false;
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(0.88, 0.48, 0.58),
+    timberMaterial('dark'),
+    new THREE.Vector3(-1.58, 0.58, frontZ + 0.38),
+  );
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(0.94, 0.18, 0.64),
+    timberMaterial('weathered'),
+    new THREE.Vector3(-1.58, 0.91, frontZ + 0.38),
+  );
+  for (const x of [-1.88, -1.28]) {
+    addMesh(
+      chest,
+      new THREE.BoxGeometry(0.09, 0.72, 0.66),
+      metalMaterial('iron'),
+      new THREE.Vector3(x, 0.7, frontZ + 0.38),
+    );
+  }
+  addMesh(
+    chest,
+    new THREE.BoxGeometry(0.18, 0.22, 0.1),
+    sharedBuildingDetailMaterial('brass'),
+    new THREE.Vector3(-1.58, 0.67, frontZ + 0.7),
+  );
+  group.add(chest);
+}
+
 function createLancetGeometry(width: number, height: number, depth: number): THREE.ExtrudeGeometry {
   const springY = height * 0.58;
   const shape = new THREE.Shape();
@@ -391,6 +424,7 @@ export function createChapelMesh(): THREE.Group {
   }
 
   addPlankDoor(group, materials, frontZ, foundationHeight + 0.08);
+  addParishCoffer(group, frontZ);
   addFolkFrieze(group, materials, frontZ, wallTop - 0.46);
 
   for (let step = 0; step < 3; step++) {

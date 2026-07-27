@@ -1,6 +1,6 @@
-//! Chapel coffer gold is stored on `Building.gold` for chapel buildings only.
-//! Tithes deposit here first; parish expenses withdraw in-place; overflow and
-//! manual collect credit player treasury.
+//! Chapel gold is stored on `Building.gold`. The ordinary coffer is the portion
+//! available to parish expenses; `chapel_monastery_tithe_due` is a physically
+//! colocated but sealed purse that must leave by cart.
 
 use spacetimedb::ReducerContext;
 
@@ -12,7 +12,18 @@ use crate::tables::Building;
 
 pub fn chapel_coffer_gold(building: &Building) -> f64 {
     if building.kind == "chapel" {
-        building.gold
+        (building.gold - chapel_monastery_tithe_due(building)).max(0.0)
+    } else {
+        0.0
+    }
+}
+
+pub fn chapel_monastery_tithe_due(building: &Building) -> f64 {
+    if building.kind == "chapel" {
+        building
+            .chapel_monastery_tithe_due
+            .max(0.0)
+            .min(building.gold.max(0.0))
     } else {
         0.0
     }
@@ -20,6 +31,57 @@ pub fn chapel_coffer_gold(building: &Building) -> f64 {
 
 pub fn chapel_coffer_capacity() -> f64 {
     CHAPEL_COFFER_CAPACITY
+}
+
+/// Maximum gross tithe that can be accepted without disembodied overflow.
+/// The monastic share occupies its own sealed purse; only the parish share
+/// consumes ordinary coffer capacity.
+pub fn chapel_tithe_payment_room(
+    ctx: &ReducerContext,
+    chapel_id: u64,
+    monastery_share: f64,
+) -> f64 {
+    let Some(chapel) = ctx.db.building().id().find(&chapel_id) else {
+        return 0.0;
+    };
+    if chapel.kind != "chapel" {
+        return 0.0;
+    }
+    let parish_fraction = 1.0 - monastery_share.clamp(0.0, 0.8);
+    let parish_room = (chapel_coffer_capacity() - chapel_coffer_gold(&chapel)).max(0.0);
+    if parish_fraction <= 1e-9 {
+        f64::MAX
+    } else {
+        parish_room / parish_fraction
+    }
+}
+
+/// Deposits one household payment into the physical chapel chest, separating
+/// the pledged monastery purse from parish-operating funds. Returns
+/// `(parish_gold, monastery_gold)` actually stored.
+pub fn deposit_chapel_tithe(
+    ctx: &ReducerContext,
+    chapel_id: u64,
+    paid: f64,
+    monastery_share: f64,
+) -> (f64, f64) {
+    if paid <= 1e-9 {
+        return (0.0, 0.0);
+    }
+    let Some(mut chapel) = ctx.db.building().id().find(&chapel_id) else {
+        return (0.0, 0.0);
+    };
+    if chapel.kind != "chapel" {
+        return (0.0, 0.0);
+    }
+
+    chapel.chapel_monastery_tithe_due = chapel_monastery_tithe_due(&chapel);
+    let monastery_gold = paid * monastery_share.clamp(0.0, 0.8);
+    let parish_gold = deposit_coffer_in_place(&mut chapel, (paid - monastery_gold).max(0.0));
+    chapel.gold += monastery_gold;
+    chapel.chapel_monastery_tithe_due += monastery_gold;
+    ctx.db.building().id().update(chapel);
+    (parish_gold, monastery_gold)
 }
 
 pub fn deposit_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
@@ -54,24 +116,10 @@ pub fn withdraw_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
 pub fn clear_coffer_in_place(chapel: &mut Building) -> f64 {
     let collected = chapel_coffer_gold(chapel);
     if chapel.kind == "chapel" {
-        chapel.gold = 0.0;
+        chapel.chapel_monastery_tithe_due = chapel_monastery_tithe_due(chapel);
+        chapel.gold = chapel.chapel_monastery_tithe_due;
     }
     collected
-}
-
-/// Deposit tithe gold into a chapel coffer. Returns amount actually stored.
-pub fn deposit_chapel_coffer(ctx: &ReducerContext, chapel_id: u64, amount: f64) -> f64 {
-    let Some(mut chapel) = ctx.db.building().id().find(&chapel_id) else {
-        return 0.0;
-    };
-
-    let deposited = deposit_coffer_in_place(&mut chapel, amount);
-    if deposited <= 1e-9 {
-        return 0.0;
-    }
-
-    ctx.db.building().id().update(chapel);
-    deposited
 }
 
 pub fn collect_chapel_coffer(
@@ -117,7 +165,7 @@ fn validate_chapel_owner(chapel: &Building, owner: spacetimedb::Identity) -> Res
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_coffer_capacity, chapel_coffer_gold, deposit_coffer_in_place,
+        chapel_coffer_capacity, chapel_coffer_gold, clear_coffer_in_place, deposit_coffer_in_place,
         withdraw_coffer_in_place,
     };
     use crate::tables::Building;
@@ -181,6 +229,7 @@ mod tests {
             marketplace_pending_trade_code: 0,
             marketplace_specialty_export_policy: 0,
             founding_shelter_active: false,
+            chapel_monastery_tithe_due: 0.0,
         }
     }
 
@@ -208,5 +257,23 @@ mod tests {
     fn deposit_respects_capacity() {
         let mut chapel = sample_chapel(chapel_coffer_capacity() - 2.0);
         assert!((deposit_coffer_in_place(&mut chapel, 10.0) - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn monastery_purse_is_not_spendable_parish_gold() {
+        let mut chapel = sample_chapel(30.0);
+        chapel.chapel_monastery_tithe_due = 12.0;
+        assert!((chapel_coffer_gold(&chapel) - 18.0).abs() < 1e-9);
+        assert!((withdraw_coffer_in_place(&mut chapel, 40.0) - 18.0).abs() < 1e-9);
+        assert!((chapel.gold - 12.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn clearing_coffer_leaves_monastery_purse_in_place() {
+        let mut chapel = sample_chapel(30.0);
+        chapel.chapel_monastery_tithe_due = 12.0;
+        assert!((clear_coffer_in_place(&mut chapel) - 18.0).abs() < 1e-9);
+        assert!((chapel.gold - 12.0).abs() < 1e-9);
+        assert!((chapel.chapel_monastery_tithe_due - 12.0).abs() < 1e-9);
     }
 }

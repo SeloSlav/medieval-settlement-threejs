@@ -40,7 +40,7 @@ mod woodcutters_lodge;
 
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
 pub use chapel::step_chapels;
-pub use chapel_parish::step_chapel_parish;
+pub use chapel_parish::{step_chapel_parish, try_start_chapel_treasury_trip};
 pub use construction::step_construction_sites;
 pub use construction_labor_steward::step_construction_labor_stewards;
 pub use delivery_trips::{
