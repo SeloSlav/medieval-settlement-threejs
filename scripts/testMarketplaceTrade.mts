@@ -10,6 +10,7 @@ import {
   formatTradeAvailabilitySummary,
   marketplaceManualTradeCooldown,
   marketplaceManualTradeStatus,
+  marketplacePendingTradeOffer,
   marketplaceTradeOfferCost,
   marketplaceTradeStagingPlan,
   marketplaceTradeOffersBySection,
@@ -365,8 +366,8 @@ const stagingPanel = renderMarketplaceTradePanel(
   true,
   new Set(),
 );
-assert.match(stagingPanel, /Stage 6 stone at this market/);
-assert.match(stagingPanel, /visible source cart/);
+assert.match(stagingPanel, /Order 6 stone staged at this market/);
+assert.match(stagingPanel, /visible source carts/);
 const inboundStagingPanel = renderMarketplaceTradePanel(
   marketplace,
   availability,
@@ -380,8 +381,40 @@ const inboundStagingPanel = renderMarketplaceTradePanel(
 assert.match(inboundStagingPanel, /stone staging cart inbound/);
 assert.match(
   inboundStagingPanel,
-  /disabled aria-disabled="true"[\s\S]*Stage 6 stone at this market/,
+  /disabled aria-disabled="true"[\s\S]*Order 6 stone staged at this market/,
   'the same commodity cannot order a second inbound staging cart',
+);
+assert.equal(marketplacePendingTradeOffer(2)?.id, 'sell_stone');
+assert.equal(marketplacePendingTradeOffer(0), null);
+assert.equal(marketplacePendingTradeOffer(99), null);
+const pendingMarketplace = {
+  ...marketplace,
+  marketplacePendingTradeCode: 2,
+};
+const pendingTradeStatus = marketplaceManualTradeStatus(pendingMarketplace, true);
+assert.equal(pendingTradeStatus.ready, false);
+assert.equal(pendingTradeStatus.label, 'Bulk order staging');
+const pendingTradePanel = renderMarketplaceTradePanel(
+  pendingMarketplace,
+  availability,
+  DEFAULT_REGIONAL_MARKET_STATE,
+  pendingTradeStatus,
+  false,
+  undefined,
+  true,
+  new Set(['stone']),
+);
+assert.match(pendingTradePanel, /Active bulk order/);
+assert.match(pendingTradePanel, /Sell 10 stone for 14 gold/);
+assert.match(pendingTradePanel, /stone cart inbound · 4 of 10 physically staged/);
+assert.match(pendingTradePanel, /aria-valuenow="40"/);
+assert.match(pendingTradePanel, /Cancel bulk order/);
+assert.match(pendingTradePanel, /Already-dispatched carts still unload here/);
+assert.match(pendingTradePanel, /final gold value follows the rate when brokers settle/);
+assert.match(
+  pendingTradePanel,
+  /disabled aria-disabled="true"[\s\S]*This market is already staging a bulk order/,
+  'a pending bulk order occupies the manual trade desk',
 );
 
 assert.equal(marketplaceManualTradeStatus({ ...marketplace, assignedLabor: 0 }, true).ready, false);
@@ -513,6 +546,42 @@ const marketplaceTradeRendererSource = readFileSync(
   new URL('../src/resources/inspector/marketplaceTradeRenderer.ts', import.meta.url),
   'utf8',
 );
+const marketplaceCaravanSource = readFileSync(
+  new URL('../server/src/simulation/marketplace_caravan.rs', import.meta.url),
+  'utf8',
+);
+const marketplaceReducerSource = readFileSync(
+  new URL('../server/src/reducers/marketplace_trade.rs', import.meta.url),
+  'utf8',
+);
+const buildingTableSource = readFileSync(
+  new URL('../server/src/tables.rs', import.meta.url),
+  'utf8',
+);
+const generatedBuildingSource = readFileSync(
+  new URL('../src/generated/building_table.ts', import.meta.url),
+  'utf8',
+);
+const generatedCancelReducerSource = readFileSync(
+  new URL('../src/generated/cancel_marketplace_trade_order_reducer.ts', import.meta.url),
+  'utf8',
+);
+const buildingSyncSource = readFileSync(
+  new URL('../src/data/spacetimeTableSync/syncBuildings.ts', import.meta.url),
+  'utf8',
+);
+const supplementalPanelSource = readFileSync(
+  new URL('../src/resources/inspector/supplementalPanel.ts', import.meta.url),
+  'utf8',
+);
+const inspectorActionsSource = readFileSync(
+  new URL('../src/app/inspectorSpacetimeActions.ts', import.meta.url),
+  'utf8',
+);
+const spacetimeReducersSource = readFileSync(
+  new URL('../src/data/spacetimeReducers.ts', import.meta.url),
+  'utf8',
+);
 assert.match(marketplaceTradeSource, /road_connected/);
 assert.match(marketplaceTradeSource, /deposit_marketplace_resource/);
 assert.match(marketplaceTradeSource, /market-accessible/);
@@ -527,8 +596,34 @@ assert.match(
 );
 assert.match(
   marketplaceTradeSource,
-  /PhysicalMarketSpend::Staged[\s\S]*return Ok\(\(\)\)/,
+  /PhysicalMarketSpend::Staged[\s\S]*return Ok\(MarketplaceTradeOutcome::Staged\)/,
   'staging must not record a sale or regional price movement before the cart unloads',
+);
+assert.match(marketplaceTradeSource, /try_advance_pending_marketplace_trade/);
+assert.match(marketplaceTradeSource, /pending_trade_code[\s\S]*"sell_timber" => Some\(1\)/);
+assert.match(marketplaceTradeSource, /MarketplaceTradeOutcome::Settled[\s\S]*clear_pending_marketplace_trade/);
+assert.match(
+  marketplaceCaravanSource,
+  /clock\.sim_tick % 5 == building_id % 5[\s\S]*try_advance_pending_marketplace_trade/,
+  'only active orders should advance on the existing staggered market cadence',
+);
+assert.match(
+  marketplaceCaravanSource,
+  /pending_commodity != Some\(CommodityKind::Firewood\)[\s\S]*pending_commodity != Some\(CommodityKind::Food\)/,
+  'routine household caravans must not consume stock committed to a pending export',
+);
+assert.match(marketplaceReducerSource, /cancel_marketplace_trade_order/);
+assert.match(marketplaceReducerSource, /already withdrawn into a delivery trip remains/);
+assert.match(buildingTableSource, /#\[default\(0u8\)\][\s\S]*marketplace_pending_trade_code: u8/);
+assert.match(generatedBuildingSource, /marketplacePendingTradeCode: __t\.u8\(\)/);
+assert.match(generatedCancelReducerSource, /buildingId: __t\.u64\(\)/);
+assert.match(buildingSyncSource, /marketplacePendingTradeCode: row\.marketplacePendingTradeCode/);
+assert.match(supplementalPanelSource, /cancel-marketplace-trade-order/);
+assert.match(supplementalPanelSource, /onCancelMarketplaceTradeOrder/);
+assert.match(inspectorActionsSource, /store\.cancelMarketplaceTradeOrder\(buildingId\)/);
+assert.match(
+  spacetimeReducersSource,
+  /cancelMarketplaceTradeOrder[\s\S]*cancel_marketplace_trade_order/,
 );
 assert.match(marketplaceTradeSource, /contested-frontier worlds/);
 assert.match(marketplaceTradeSource, /current_road_speed_multiplier/);
@@ -544,8 +639,10 @@ assert.match(marketplaceInspectorSource, /Regional route/);
 assert.match(marketplaceInspectorSource, /getRoadConditionSpeedMultiplier/);
 assert.match(marketplaceInspectorSource, /marketFireDisabled/);
 assert.match(marketplaceTradeRendererSource, /current regional road conditions/);
-assert.match(marketplaceTradeRendererSource, /visible source cart/);
-assert.match(marketplaceTradeRendererSource, /settle after unloading/);
+assert.match(marketplaceTradeRendererSource, /visible source carts/);
+assert.match(marketplaceTradeRendererSource, /settle it automatically/);
+assert.match(marketplaceTradeRendererSource, /cancel-marketplace-trade-order/);
+assert.doesNotMatch(marketplaceTradeRendererSource, /click again after unloading/);
 
 console.log(
   `marketplace trade tests passed (10k stock scan ${elapsed.toFixed(1)}ms; `

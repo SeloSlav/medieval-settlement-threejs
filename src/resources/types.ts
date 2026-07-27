@@ -116,6 +116,7 @@ export type BuildingState = {
   marketplaceIronworkTarget?: number;
   marketplaceSpecialtyExportPolicy?: number;
   marketplaceSeedGrainTarget?: number;
+  marketplacePendingTradeCode?: number;
   foundingShelterActive?: boolean;
 };
 

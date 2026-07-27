@@ -12,7 +12,8 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_stock, credit_treasury_gold, record_specialty_market_export,
+    building_commodity_stock, credit_treasury_gold, pending_marketplace_trade_commodity,
+    record_specialty_market_export, try_advance_pending_marketplace_trade,
     try_execute_standing_marketplace_import, withdraw_building_commodity, CommodityKind,
 };
 use crate::season_policy::EnvironmentState;
@@ -167,6 +168,7 @@ pub fn step_marketplace_caravans(
                 && (building.action_cooldown > 1e-6
                     || building.marketplace_seed_grain_target > 0
                     || building.marketplace_ironwork_target > 0
+                    || building.marketplace_pending_trade_code != 0
                     || building.firewood > 1e-6
                     || building.food > 1e-6
                     || building.water > 1e-6
@@ -182,13 +184,29 @@ pub fn step_marketplace_caravans(
 
     for building_id in marketplace_ids {
         if clock.sim_tick % 5 == building_id % 5 {
-            try_execute_standing_marketplace_import(
-                ctx,
-                tick,
-                clock,
-                building_id,
-                environment.road_speed_multiplier(),
-            );
+            let has_pending_order = ctx
+                .db
+                .building()
+                .id()
+                .find(&building_id)
+                .is_some_and(|building| building.marketplace_pending_trade_code != 0);
+            if has_pending_order {
+                try_advance_pending_marketplace_trade(
+                    ctx,
+                    tick,
+                    clock,
+                    building_id,
+                    environment.road_speed_multiplier(),
+                );
+            } else {
+                try_execute_standing_marketplace_import(
+                    ctx,
+                    tick,
+                    clock,
+                    building_id,
+                    environment.road_speed_multiplier(),
+                );
+            }
         }
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -202,7 +220,8 @@ pub fn step_marketplace_caravans(
             changed = true;
         }
         changed |= sell_marketplace_specialties(ctx, tick, clock, &mut building);
-        if building.firewood > 1e-6 {
+        let pending_commodity = pending_marketplace_trade_commodity(&building);
+        if building.firewood > 1e-6 && pending_commodity != Some(CommodityKind::Firewood) {
             changed |= try_dispatch_marketplace_caravan(
                 ctx,
                 clock,
@@ -213,7 +232,10 @@ pub fn step_marketplace_caravans(
                 dispatch,
             );
         }
-        if !building_has_active_trip(ctx, building.id) && building.food > 1e-6 {
+        if !building_has_active_trip(ctx, building.id)
+            && building.food > 1e-6
+            && pending_commodity != Some(CommodityKind::Food)
+        {
             changed |= try_dispatch_marketplace_caravan(
                 ctx,
                 clock,

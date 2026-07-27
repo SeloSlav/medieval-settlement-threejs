@@ -24,6 +24,18 @@ import type { BuildingState } from '../resources/types.ts';
 
 export type MarketplaceTradeAvailability = Record<TradeResourceKind | 'gold', number>;
 
+// Stable save codes mirror the authoritative server mapping. They are
+// intentionally independent of balance-file presentation order.
+const PENDING_TRADE_IDS: Record<number, string> = {
+  1: 'sell_timber',
+  2: 'sell_stone',
+  3: 'sell_firewood',
+  4: 'sell_food',
+  5: 'timber_for_stone',
+  6: 'stone_for_timber',
+  7: 'timber_for_firewood',
+};
+
 const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   timber: 'Timber',
   stone: 'Stone',
@@ -65,6 +77,14 @@ export function marketplaceTradeOfferCost(
       return unhandled;
     }
   }
+}
+
+export function marketplacePendingTradeOffer(
+  code: number | undefined,
+): MarketplaceTradeOffer | null {
+  const tradeId = PENDING_TRADE_IDS[Math.floor(code ?? 0)];
+  if (!tradeId) return null;
+  return MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === tradeId) ?? null;
 }
 
 export type MarketplaceTradeStagingPlan = {
@@ -215,6 +235,14 @@ export function marketplaceManualTradeStatus(
       ready: false,
       label: `Brokers settling caravan · ${building.actionCooldown.toFixed(1)}s`,
       reason: `The brokers need another ${building.actionCooldown.toFixed(1)} seconds.`,
+    };
+  }
+  if (marketplacePendingTradeOffer(building.marketplacePendingTradeCode)) {
+    return {
+      ...timing,
+      ready: false,
+      label: 'Bulk order staging',
+      reason: 'This market is already staging a bulk order. Let it settle or cancel it first.',
     };
   }
   return {

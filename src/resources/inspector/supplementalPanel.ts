@@ -7,6 +7,7 @@ import type { InspectableTarget } from '../types.ts';
 export type SupplementalPanelHandlers = {
   onPlaceBackyardGarden?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
   onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
+  onCancelMarketplaceTradeOrder?: (buildingId: string) => void | Promise<void>;
   onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
 };
@@ -24,6 +25,17 @@ export function handleSupplementalPanelClick(
   const tradeId = parseMarketplaceTradeId(eventTarget);
   if (tradeId && target?.kind === 'building' && target.building.kind === 'marketplace') {
     void handlers.onMarketplaceTrade?.(target.building.id, tradeId);
+    return true;
+  }
+  const cancelTradeOrder = eventTarget.closest<HTMLElement>(
+    '[data-inspector-action="cancel-marketplace-trade-order"]',
+  );
+  if (
+    cancelTradeOrder
+    && target?.kind === 'building'
+    && target.building.kind === 'marketplace'
+  ) {
+    void handlers.onCancelMarketplaceTradeOrder?.(target.building.id);
     return true;
   }
 

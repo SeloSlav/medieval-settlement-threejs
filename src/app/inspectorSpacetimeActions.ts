@@ -24,6 +24,7 @@ export type InspectorSpacetimeActions = {
   onBalanceYearRoundLabor: () => Promise<void>;
   onSetConstructionPriority: (buildingId: string, priority: number) => Promise<void>;
   onMarketplaceTrade: (buildingId: string, tradeId: string) => Promise<void>;
+  onCancelMarketplaceTradeOrder: (buildingId: string) => Promise<void>;
   onCollectChapelCoffer: (buildingId: string) => Promise<void>;
   onDemolishFarmField: (fieldId: string) => Promise<void>;
   onSetFarmFieldCrop: (fieldId: string, crop: FarmCrop) => Promise<void>;
@@ -270,6 +271,16 @@ export function createInspectorSpacetimeActions(
         () => store.marketplaceTrade(buildingId, tradeId),
         'Marketplace trade failed.',
       );
+    },
+    onCancelMarketplaceTradeOrder: async (buildingId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.cancelMarketplaceTradeOrder(buildingId);
+        toastManager.show(
+          'Bulk order canceled. Any dispatched cart will still unload its physical cargo here.',
+        );
+      }, 'Could not cancel the marketplace order.');
     },
     onCollectChapelCoffer: async (buildingId) => {
       const store = requireReady();

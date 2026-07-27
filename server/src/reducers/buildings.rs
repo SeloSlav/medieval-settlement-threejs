@@ -252,6 +252,23 @@ fn has_foraging_in_radius(
     false
 }
 
+/// Building IDs are settlement-global because the public table key is global,
+/// while founding bootstrap is owner-scoped. Use the world counter but also
+/// skip any occupied key so migrated multi-identity worlds cannot panic when an
+/// older auto-increment sequence lags behind existing rows.
+pub(crate) fn next_available_building_id(
+    ctx: &ReducerContext,
+    preferred: u64,
+) -> Result<u64, String> {
+    let mut candidate = preferred.max(1);
+    while ctx.db.building().id().find(&candidate).is_some() {
+        candidate = candidate
+            .checked_add(1)
+            .ok_or_else(|| "No building IDs remain available.".to_string())?;
+    }
+    Ok(candidate)
+}
+
 #[reducer]
 pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Result<(), String> {
     let def = building_def_or_err(&kind)?;
@@ -509,7 +526,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         ctx.db.tree_entity().tree_id().delete(&tree_id);
     }
 
-    let building_id = config.next_building_id;
+    let building_id = next_available_building_id(ctx, config.next_building_id)?;
     let carpenter_polearm_reserve = if kind == "carpenter" {
         CARPENTER_POLEARM_RESERVE_DEFAULT
     } else {
@@ -526,7 +543,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         0
     };
     ctx.db.building().insert(Building {
-        id: 0,
+        id: building_id,
         owner,
         kind,
         x,
@@ -574,6 +591,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         guardhouse_food_reserve,
         marketplace_ironwork_target: 0,
         marketplace_seed_grain_target: 0,
+        marketplace_pending_trade_code: 0,
         marketplace_specialty_export_policy: 0,
         granary_fresh_food_target_percent: GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
         storehouse_timber_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,

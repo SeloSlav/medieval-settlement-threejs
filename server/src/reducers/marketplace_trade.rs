@@ -32,3 +32,33 @@ pub fn marketplace_trade(
 
     Ok(())
 }
+
+#[reducer]
+pub fn cancel_marketplace_trade_order(
+    ctx: &ReducerContext,
+    building_id: u64,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Marketplace not found.".to_string())?;
+
+    if building.owner != owner {
+        return Err("You do not own this marketplace.".to_string());
+    }
+    if building.kind != "marketplace" {
+        return Err("Only marketplaces can hold bulk trade orders.".to_string());
+    }
+    if building.marketplace_pending_trade_code == 0 {
+        return Err("This marketplace has no pending bulk trade order.".to_string());
+    }
+
+    // Cargo already withdrawn into a delivery trip remains physical and will
+    // unload at the market; cancellation only releases the broker's order.
+    building.marketplace_pending_trade_code = 0;
+    ctx.db.building().id().update(building);
+    Ok(())
+}

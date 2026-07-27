@@ -752,6 +752,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.marketplaceTrade(buildingId, tradeId);
   }
 
+  cancelMarketplaceTradeOrder(buildingId: string): Promise<void> {
+    return spacetimeReducers.cancelMarketplaceTradeOrder(buildingId);
+  }
+
   collectChapelCoffer(buildingId: string): Promise<void> {
     return spacetimeReducers.collectChapelCoffer(buildingId);
   }

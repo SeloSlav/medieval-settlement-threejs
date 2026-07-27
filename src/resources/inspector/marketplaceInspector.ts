@@ -10,7 +10,12 @@ import {
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { renderMarketplaceTradePanel } from './marketplaceTradeRenderer.ts';
 import { formatMarketplaceCaravanCrew } from '../../economy/regionalMarket.ts';
-import { marketplaceManualTradeStatus } from '../../economy/marketplaceTrade.ts';
+import {
+  describeMarketplaceTradeOfferForMarket,
+  marketplaceManualTradeStatus,
+  marketplacePendingTradeOffer,
+  marketplaceTradeStagingPlan,
+} from '../../economy/marketplaceTrade.ts';
 import {
   marketplaceSpecialtyExportPlan,
   marketplaceSpecialtyQueue,
@@ -76,6 +81,13 @@ export function renderMarketplaceInspector(
       inboundBulkResources.add(trip.cargoKind as TradeResourceKind);
     }
   }
+  const pendingOffer = marketplacePendingTradeOffer(building.marketplacePendingTradeCode);
+  const pendingStaging = pendingOffer
+    ? marketplaceTradeStagingPlan(building, pendingOffer, physicalEconomy, inboundBulkResources)
+    : null;
+  const pendingOrderLabel = pendingOffer && pendingStaging
+    ? `${describeMarketplaceTradeOfferForMarket(pendingOffer, marketState)} · ${pendingStaging.localStock.toFixed(0)} / ${pendingStaging.required.toFixed(0)} staged`
+    : 'None';
   const manualTrade = marketplaceManualTradeStatus(
     building,
     hasRoadAccess,
@@ -148,6 +160,8 @@ export function renderMarketplaceInspector(
     title: label,
     statusText: marketFireDisabled
       ? manualTrade.label
+      : pendingOffer
+        ? `Staging bulk order · ${pendingStaging?.localStock.toFixed(0)} / ${pendingStaging?.required.toFixed(0)} at market`
       : specialtyExportActive
         ? `Brokering specialty exports at ${Math.round(specialtyPlan.marketRate * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
         : specialtyExportHeld
@@ -167,6 +181,7 @@ export function renderMarketplaceInspector(
       <li><span>Linked homes</span><span>${connectedHomes}</span></li>
       <li><span>Caravan crew</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>
       <li><span>Bulk trade desk</span><span>${manualTrade.label}</span></li>
+      <li><span>Active bulk order</span><span>${pendingOrderLabel}</span></li>
       <li><span>Regional route</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueue.units.toFixed(1)} units - about ${specialtyQueue.goldValue.toFixed(1)} gold</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>

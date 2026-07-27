@@ -355,6 +355,12 @@ pub struct Building {
     /// the stockyard can persist after the tents are struck.
     #[default(false)]
     pub founding_shelter_active: bool,
+    /// Stable compact code for one cart-staged manual export or barter order
+    /// awaiting physical stock. The offer itself remains balance-defined, and
+    /// progress is derived from marketplace stock and delivery trips.
+    /// Appended for additive save compatibility; existing saves have no order.
+    #[default(0u8)]
+    pub marketplace_pending_trade_code: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

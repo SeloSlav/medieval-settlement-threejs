@@ -33,7 +33,10 @@ pub use marketplace_orders::{
     order_water_commodity, MarketGoldPayer,
 };
 pub use marketplace_trade::execute_marketplace_trade;
-pub(crate) use marketplace_trade::try_execute_standing_marketplace_import;
+pub(crate) use marketplace_trade::{
+    pending_marketplace_trade_commodity, try_advance_pending_marketplace_trade,
+    try_execute_standing_marketplace_import,
+};
 pub use parish_accounting::{
     clamp_chapel_coffer_reserve_gold, record_parish_ledger, ParishLedgerKind,
 };

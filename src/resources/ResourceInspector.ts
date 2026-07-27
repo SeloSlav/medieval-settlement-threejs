@@ -73,6 +73,7 @@ type ResourceInspectorOptions = {
   onBalanceYearRoundLabor?: () => void | Promise<void>;
   onSetConstructionPriority?: (buildingId: string, priority: number) => void | Promise<void>;
   onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
+  onCancelMarketplaceTradeOrder?: (buildingId: string) => void | Promise<void>;
   onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
   onSetEconomicActivityTaxRate?: (taxRate: number) => void | Promise<void>;
   onSetSeasonalLaborSteward?: (enabled: boolean) => void | Promise<void>;
@@ -666,6 +667,7 @@ export class ResourceInspector {
     handleSupplementalPanelClick(this.selectedTarget, event.target as HTMLElement, {
       onPlaceBackyardGarden: this.options.onPlaceBackyardGarden,
       onMarketplaceTrade: this.options.onMarketplaceTrade,
+      onCancelMarketplaceTradeOrder: this.options.onCancelMarketplaceTradeOrder,
       onCollectChapelCoffer: this.options.onCollectChapelCoffer,
       onUpgradeResidence: this.options.onUpgradeResidence,
     });

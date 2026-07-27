@@ -8,6 +8,7 @@ use crate::granary_policy::GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT;
 use crate::lifecycle::ensure_player_resources;
 use crate::processor_output_policy::PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT;
 use crate::quarry_balance::preserve_extracted_stone;
+use crate::reducers::buildings::next_available_building_id;
 use crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT;
 use crate::tables::{Building, ForagingNode, Quarry, TreeEntity, WorldConfig};
 use crate::types::{ForagingBootstrap, QuarryBootstrap, TreeBootstrap};
@@ -163,8 +164,15 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
 
     let def = building_def("founders_camp")
         .ok_or_else(|| "Founders' camp balance definition is missing.".to_string())?;
+    let config = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .ok_or_else(|| "World not initialized.".to_string())?;
+    let building_id = next_available_building_id(ctx, config.next_building_id)?;
     ctx.db.building().insert(Building {
-        id: 0,
+        id: building_id,
         owner,
         kind: "founders_camp".into(),
         x,
@@ -219,6 +227,7 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         guardhouse_food_reserve: 0,
         marketplace_seed_grain_target: 0,
+        marketplace_pending_trade_code: 0,
         founding_shelter_active: true,
     });
 
@@ -254,11 +263,11 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
         ctx.db.tree_entity().tree_id().delete(&tree_id);
     }
 
-    if let Some(config) = ctx.db.world_config().id().find(&0) {
-        ctx.db.world_config().id().update(WorldConfig {
-            next_building_id: config.next_building_id.saturating_add(1),
-            ..config
-        });
-    }
+    ctx.db.world_config().id().update(WorldConfig {
+        next_building_id: building_id
+            .checked_add(1)
+            .ok_or_else(|| "No building IDs remain available.".to_string())?,
+        ..config
+    });
     Ok(())
 }

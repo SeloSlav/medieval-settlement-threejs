@@ -75,6 +75,7 @@ export const Building = __t.object("Building", {
   guardhouseFoodReserve: __t.u8(),
   marketplaceSeedGrainTarget: __t.u8(),
   foundingShelterActive: __t.bool(),
+  marketplacePendingTradeCode: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 

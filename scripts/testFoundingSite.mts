@@ -147,6 +147,20 @@ assert.match(bootstrapServer, /physical_founding_site_enabled/);
 assert.match(bootstrapServer, /kind: "founders_camp"/);
 assert.match(bootstrapServer, /resources\.timber = 0\.0/);
 assert.match(bootstrapServer, /tree_entity\(\)\.tree_id\(\)\.delete/);
+assert.match(bootstrapServer, /next_available_building_id\(ctx, config\.next_building_id\)/);
+assert.match(
+  bootstrapServer,
+  /insert\(Building \{[\s\S]*?id: building_id,/,
+  'a founding camp must use the world building ID counter instead of an auto-increment sentinel',
+);
+const buildingReducer = read('server/src/reducers/buildings.rs');
+assert.match(buildingReducer, /fn next_available_building_id/);
+assert.match(buildingReducer, /while ctx\.db\.building\(\)\.id\(\)\.find\(&candidate\)\.is_some\(\)/);
+assert.match(
+  buildingReducer,
+  /let building_id = next_available_building_id\(ctx, config\.next_building_id\)\?;/,
+  'ordinary building placement must share the collision-safe allocator',
+);
 
 const constructionServer = read('server/src/simulation/construction.rs');
 assert.match(

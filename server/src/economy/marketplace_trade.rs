@@ -49,10 +49,12 @@ pub fn execute_marketplace_trade(
     let tick = SimTickContext::new(ctx);
     let marketplace = validate_marketplace(ctx, &tick, owner, building_id)?;
 
-    let result = if let Some(commodity) = market_commodity_offer(trade_id) {
-        execute_food_commodity_trade(ctx, &tick, owner, building_id, commodity)
+    let outcome = if let Some(commodity) = market_commodity_offer(trade_id) {
+        execute_food_commodity_trade(ctx, &tick, owner, building_id, commodity)?;
+        MarketplaceTradeOutcome::Settled
     } else if let Some(commodity) = market_water_commodity_offer(trade_id) {
-        execute_water_commodity_trade(ctx, &tick, owner, building_id, commodity)
+        execute_water_commodity_trade(ctx, &tick, owner, building_id, commodity)?;
+        MarketplaceTradeOutcome::Settled
     } else {
         let offer = marketplace_trade_offer(trade_id)
             .ok_or_else(|| format!("Unknown trade offer: {trade_id}"))?;
@@ -82,9 +84,19 @@ pub fn execute_marketplace_trade(
             &marketplace,
             network,
             offer,
-        )
+        )?
     };
-    result?;
+    if outcome == MarketplaceTradeOutcome::Staged {
+        let mut updated = ctx
+            .db
+            .building()
+            .id()
+            .find(&building_id)
+            .ok_or_else(|| "Marketplace not found.".to_string())?;
+        updated.marketplace_pending_trade_code = pending_trade_code(trade_id)
+            .ok_or_else(|| "This trade cannot be persisted as a staged order.".to_string())?;
+        ctx.db.building().id().update(updated);
+    }
     start_manual_trade_cooldown(
         ctx,
         building_id,
@@ -109,6 +121,7 @@ pub fn try_execute_standing_marketplace_import(
         || tick.building_disabled_by_fire(ctx, marketplace.id)
         || marketplace.assigned_labor == 0
         || marketplace.action_cooldown > 1e-6
+        || marketplace.marketplace_pending_trade_code != 0
         || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
     {
         return false;
@@ -171,8 +184,7 @@ pub fn try_execute_standing_marketplace_import(
         &marketplace,
         network,
         offer,
-    )
-    .is_err()
+    ) != Ok(MarketplaceTradeOutcome::Settled)
     {
         return false;
     }
@@ -285,6 +297,12 @@ fn validate_marketplace(
     if tick.building_disabled_by_fire(ctx, building.id) {
         return Err("Repair the fire-damaged marketplace before trading.".to_string());
     }
+    if building.marketplace_pending_trade_code != 0 {
+        return Err(
+            "This marketplace is already staging a bulk order. Let it settle or cancel it first."
+                .to_string(),
+        );
+    }
     let has_road_access = tick
         .road_network(owner)
         .map(|network| {
@@ -346,6 +364,42 @@ fn current_game_clock(ctx: &ReducerContext) -> GameClock {
     )
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MarketplaceTradeOutcome {
+    Settled,
+    Staged,
+}
+
+// These codes are explicit rather than derived from balance-file ordering.
+// Once written to a save they must continue to identify the same order even if
+// its presentation order changes later.
+fn pending_trade_code(trade_id: &str) -> Option<u8> {
+    match trade_id {
+        "sell_timber" => Some(1),
+        "sell_stone" => Some(2),
+        "sell_firewood" => Some(3),
+        "sell_food" => Some(4),
+        "timber_for_stone" => Some(5),
+        "stone_for_timber" => Some(6),
+        "timber_for_firewood" => Some(7),
+        _ => None,
+    }
+}
+
+fn pending_trade_offer(code: u8) -> Option<&'static MarketplaceTradeOffer> {
+    let trade_id = match code {
+        1 => "sell_timber",
+        2 => "sell_stone",
+        3 => "sell_firewood",
+        4 => "sell_food",
+        5 => "timber_for_stone",
+        6 => "stone_for_timber",
+        7 => "timber_for_firewood",
+        _ => return None,
+    };
+    marketplace_trade_offer(trade_id)
+}
+
 fn apply_marketplace_trade(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -355,7 +409,7 @@ fn apply_marketplace_trade(
     marketplace: &Building,
     network: &RoadNetwork,
     offer: &MarketplaceTradeOffer,
-) -> Result<(), String> {
+) -> Result<MarketplaceTradeOutcome, String> {
     ensure_market_state(ctx, owner);
     let market = ctx
         .db
@@ -388,9 +442,9 @@ fn apply_marketplace_trade(
                 )? == PhysicalMarketSpend::Staged
                 {
                     // The first click orders a visible inbound cart. Regional
-                    // prices and payment change only after the player settles
-                    // the trade from stock physically present at this market.
-                    return Ok(());
+                    // prices and payment change only after the persistent order
+                    // has its full lot physically present at this market.
+                    return Ok(MarketplaceTradeOutcome::Staged);
                 }
             } else {
                 spend_market_accessible_resource(
@@ -418,7 +472,100 @@ fn apply_marketplace_trade(
     }
 
     record_trade_effects(ctx, owner, offer);
-    Ok(())
+    Ok(MarketplaceTradeOutcome::Settled)
+}
+
+/// Advances one save-persistent physical export order. It is called on the
+/// marketplace scheduler's existing staggered cadence, so inactive markets add
+/// no route-search work. Failed attempts remain pending: fire, Sabbath, labor,
+/// storage pressure, busy carts, and lost road access are all readable pauses
+/// rather than destructive failures.
+pub(crate) fn try_advance_pending_marketplace_trade(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building_id: u64,
+    road_speed_multiplier: f64,
+) -> bool {
+    let Some(marketplace) = ctx.db.building().id().find(&building_id) else {
+        return false;
+    };
+    if marketplace.marketplace_pending_trade_code == 0 {
+        return false;
+    }
+
+    let Some(offer) = pending_trade_offer(marketplace.marketplace_pending_trade_code) else {
+        clear_pending_marketplace_trade(ctx, building_id);
+        return true;
+    };
+    if !physical_trade_staging_enabled(ctx, marketplace.owner)
+        || !matches!(trade_spend(offer), TradeSpend::Resource(_))
+    {
+        clear_pending_marketplace_trade(ctx, building_id);
+        return true;
+    }
+    if marketplace.kind != "marketplace"
+        || !marketplace.construction_complete
+        || tick.building_disabled_by_fire(ctx, marketplace.id)
+        || marketplace.assigned_labor == 0
+        || marketplace.action_cooldown > 1e-6
+        || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
+    {
+        return false;
+    }
+    let Some(network) = tick.road_network(marketplace.owner) else {
+        return false;
+    };
+    if network.nearest_distance(marketplace.x, marketplace.z) > BUILDING_ROAD_ACCESS_DISTANCE {
+        return false;
+    }
+
+    match apply_marketplace_trade(
+        ctx,
+        tick,
+        clock,
+        marketplace.owner,
+        building_id,
+        &marketplace,
+        network,
+        offer,
+    ) {
+        Ok(MarketplaceTradeOutcome::Settled) => {
+            clear_pending_marketplace_trade(ctx, building_id);
+            start_manual_trade_cooldown(
+                ctx,
+                building_id,
+                marketplace.assigned_labor,
+                road_speed_multiplier,
+            );
+            true
+        }
+        Ok(MarketplaceTradeOutcome::Staged) => {
+            start_manual_trade_cooldown(
+                ctx,
+                building_id,
+                marketplace.assigned_labor,
+                road_speed_multiplier,
+            );
+            true
+        }
+        Err(_) => false,
+    }
+}
+
+pub(crate) fn pending_marketplace_trade_commodity(building: &Building) -> Option<CommodityKind> {
+    let offer = pending_trade_offer(building.marketplace_pending_trade_code)?;
+    match trade_spend(offer) {
+        TradeSpend::Resource(leg) => Some(trade_commodity(leg.resource)),
+        TradeSpend::Gold(_) => None,
+    }
+}
+
+fn clear_pending_marketplace_trade(ctx: &ReducerContext, building_id: u64) {
+    if let Some(mut marketplace) = ctx.db.building().id().find(&building_id) {
+        marketplace.marketplace_pending_trade_code = 0;
+        ctx.db.building().id().update(marketplace);
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -734,6 +881,34 @@ fn spend_market_accessible_resource(
         withdraw_treasury_trade_stock(ctx, owner, resource, remaining)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{pending_trade_code, pending_trade_offer};
+
+    #[test]
+    fn pending_trade_codes_are_stable_and_reversible() {
+        let expected = [
+            (1, "sell_timber"),
+            (2, "sell_stone"),
+            (3, "sell_firewood"),
+            (4, "sell_food"),
+            (5, "timber_for_stone"),
+            (6, "stone_for_timber"),
+            (7, "timber_for_firewood"),
+        ];
+        for (code, trade_id) in expected {
+            assert_eq!(pending_trade_code(trade_id), Some(code));
+            assert_eq!(
+                pending_trade_offer(code).map(|offer| offer.id),
+                Some(trade_id)
+            );
+        }
+        assert_eq!(pending_trade_code("buy_timber"), None);
+        assert!(pending_trade_offer(0).is_none());
+        assert!(pending_trade_offer(255).is_none());
+    }
 }
 
 fn market_exportable_building_stock(building: &Building, resource: TradeResource) -> f64 {

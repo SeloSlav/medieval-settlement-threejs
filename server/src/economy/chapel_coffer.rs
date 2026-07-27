@@ -178,6 +178,7 @@ mod tests {
             guardhouse_food_reserve: 0,
             marketplace_ironwork_target: 0,
             marketplace_seed_grain_target: 0,
+            marketplace_pending_trade_code: 0,
             marketplace_specialty_export_policy: 0,
             founding_shelter_active: false,
         }

@@ -94,6 +94,7 @@ function buildingStateFromRow(
     marketplaceIronworkTarget: row.marketplaceIronworkTarget,
     marketplaceSpecialtyExportPolicy: row.marketplaceSpecialtyExportPolicy,
     marketplaceSeedGrainTarget: row.marketplaceSeedGrainTarget,
+    marketplacePendingTradeCode: row.marketplacePendingTradeCode,
     foundingShelterActive: row.foundingShelterActive,
   };
 }

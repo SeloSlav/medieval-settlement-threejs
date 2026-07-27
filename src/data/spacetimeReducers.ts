@@ -565,6 +565,18 @@ export async function marketplaceTrade(buildingId: string, tradeId: string): Pro
   });
 }
 
+export async function cancelMarketplaceTradeOrder(buildingId: string): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) {
+    throw new Error('Invalid marketplace id.');
+  }
+  await callReducer(
+    'cancelMarketplaceTradeOrder',
+    'cancel_marketplace_trade_order',
+    { buildingId: serverId },
+  );
+}
+
 export async function collectChapelCoffer(buildingId: string): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
   if (serverId === null) {

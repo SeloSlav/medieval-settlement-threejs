@@ -12,6 +12,7 @@ import {
   formatTradeAvailabilitySummary,
   MARKET_COMMODITIES,
   MARKET_WATER_COMMODITIES,
+  marketplacePendingTradeOffer,
   marketplaceTradeOfferCost,
   marketplaceTradeStagingPlan,
   marketplaceTradeOffersBySection,
@@ -42,7 +43,10 @@ import {
 import type {
   MarketplaceSeedCoveragePlan,
 } from '../../economy/marketplaceSeedCoverage.ts';
-import type { TradeResourceKind } from '../../generated/gameBalance.ts';
+import type {
+  MarketplaceTradeOffer,
+  TradeResourceKind,
+} from '../../generated/gameBalance.ts';
 import {
   MARKETPLACE_SPECIALTY_EXPORT_POLICIES,
   marketplaceSpecialtyExportPlan,
@@ -63,6 +67,7 @@ export function renderMarketplaceTradePanel(
   const ironworkProcurement = marketplaceIronworkProcurementPlan(building);
   const seedGrainProcurement = marketplaceSeedGrainProcurementPlan(building);
   const nextStandingOrder = nextMarketplaceStandingOrder(building, conflictEnabled);
+  const pendingOffer = marketplacePendingTradeOffer(building.marketplacePendingTradeCode);
   const nextTurnaround = manualTrade.nextCooldownSeconds == null
     ? 'Each broker shortens the trade desk turnaround.'
     : `Each broker shortens the trade desk turnaround; current regional road conditions make the next settlement ${manualTrade.nextCooldownSeconds.toFixed(1)}s.`;
@@ -86,7 +91,7 @@ export function renderMarketplaceTradePanel(
         ? priceTag ?? 'Regional caravan rates'
         : 'Direct barter — no gold involved';
     const actionTitle = staging.requiresStaging && staging.resource
-      ? `Stage ${staging.missing.toFixed(0)} ${staging.resource} at this market`
+      ? `Order ${staging.missing.toFixed(0)} ${staging.resource} staged at this market`
       : describeMarketplaceTradeOfferForMarket(offer, marketState);
     const hint = manualTrade.reason
       ?? (!affordable
@@ -94,9 +99,9 @@ export function renderMarketplaceTradePanel(
         : !hasRoom
           ? 'Marketplace storage lacks room for the full shipment'
           : staging.inbound && staging.resource
-            ? `${staging.resource} staging cart inbound · settle after unloading`
+            ? `${staging.resource} staging cart inbound · order settles automatically`
             : staging.requiresStaging && staging.resource
-              ? `${staging.localStock.toFixed(0)} / ${staging.required.toFixed(0)} at market · click to dispatch the nearest free source cart`
+              ? `${staging.localStock.toFixed(0)} / ${staging.required.toFixed(0)} at market · one order dispatches follow-up source carts`
               : marketHint);
     return `
       <li class="marketplace-trade-row">
@@ -174,9 +179,19 @@ export function renderMarketplaceTradePanel(
     <div class="marketplace-trade-panel">
       <p class="marketplace-trade-bulletin">${marketState.bulletin}</p>
       <p class="marketplace-trade-intro">${physicalEconomy
-        ? 'Bulk exports settle only from goods physically staged at this market. If a full lot exists elsewhere on its road network, the first click dispatches a visible source cart; click again after unloading to sell or barter it. Construction and household reserves remain protected.'
+        ? 'Bulk exports settle only from goods physically staged at this market. One order dispatches visible source carts until its full lot arrives, then brokers settle it automatically at the prevailing regional rate. Construction and household reserves remain protected.'
         : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here and wait for broker capacity. Imports arrive at this market; farmsteads may collect seed grain by road, while construction carts and household caravans haul other orders onward.</p>
       <p class="marketplace-trade-depth">${manualTrade.label}. ${nextTurnaround}</p>
+      ${pendingOffer
+        ? renderPendingMarketplaceOrder(
+            building,
+            pendingOffer,
+            marketState,
+            manualTrade,
+            physicalEconomy,
+            inboundBulkResources,
+          )
+        : ''}
       <p class="marketplace-trade-rates" aria-label="Current regional rates">${formatRegionalRateSummary(marketState)}</p>
       <p class="marketplace-trade-depth">${formatMarketDepthHint()}</p>
       <p class="marketplace-trade-stock">${formatTradeAvailabilitySummary(availability)}</p>
@@ -218,6 +233,54 @@ export function renderMarketplaceTradePanel(
         <ul class="marketplace-trade-list">${sections.barter.map(renderOffer).join('')}</ul>
       </section>
     </div>`;
+}
+
+function renderPendingMarketplaceOrder(
+  building: BuildingState,
+  offer: MarketplaceTradeOffer,
+  marketState: RegionalMarketState,
+  manualTrade: MarketplaceManualTradeStatus,
+  physicalEconomy: boolean,
+  inboundBulkResources: ReadonlySet<TradeResourceKind>,
+): string {
+  const staging = marketplaceTradeStagingPlan(
+    building,
+    offer,
+    physicalEconomy,
+    inboundBulkResources,
+  );
+  const progress = staging.required > 1e-6
+    ? Math.max(0, Math.min(100, (staging.localStock / staging.required) * 100))
+    : 100;
+  let status: string;
+  if (staging.missing <= 1e-6) {
+    status = building.actionCooldown > 1e-6
+      ? `Full lot staged · brokers settle automatically in about ${building.actionCooldown.toFixed(1)}s`
+      : 'Full lot staged · automatic settlement queued at the current regional rate';
+  } else if (staging.inbound && staging.resource) {
+    status = `${staging.resource} cart inbound · ${staging.localStock.toFixed(0)} of ${staging.required.toFixed(0)} physically staged`;
+  } else if (manualTrade.label !== 'Bulk order staging') {
+    status = `${manualTrade.label} · ${staging.localStock.toFixed(0)} of ${staging.required.toFixed(0)} physically staged`;
+  } else {
+    status = `Awaiting a free road-linked ${staging.resource ?? 'supply'} cart · ${staging.localStock.toFixed(0)} of ${staging.required.toFixed(0)} staged`;
+  }
+
+  return `
+    <section class="marketplace-trade-section marketplace-trade-section--pending" aria-label="Active bulk order">
+      <h3 class="marketplace-trade-section__title">Active bulk order</h3>
+      <p class="marketplace-trade-stock"><strong>${describeMarketplaceTradeOfferForMarket(offer, marketState)}</strong></p>
+      <p class="marketplace-trade-depth">${status}</p>
+      <p class="marketplace-trade-depth" role="progressbar" aria-label="Physical staging progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}">${Math.round(progress)}% staged · final gold value follows the rate when brokers settle</p>
+      <button
+        type="button"
+        class="marketplace-trade-option"
+        data-inspector-action="cancel-marketplace-trade-order"
+        data-building-id="${building.id}"
+      >
+        <span class="marketplace-trade-option__title">Cancel bulk order</span>
+        <span class="marketplace-trade-option__hint">Already-dispatched carts still unload here; staged goods remain physical market stock.</span>
+      </button>
+    </section>`;
 }
 
 function renderSpecialtyExportPolicy(
