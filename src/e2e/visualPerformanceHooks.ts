@@ -7,6 +7,8 @@ type ProfileSubsystem =
   | 'sky'
   | 'shadows'
   | 'river'
+  | 'riverSimulation'
+  | 'riverRender'
   | 'terrain'
   | 'groundcover'
   | 'forest'
@@ -49,6 +51,8 @@ const SUBSYSTEMS = [
   'sky',
   'shadows',
   'river',
+  'riverSimulation',
+  'riverRender',
   'terrain',
   'groundcover',
   'forest',
@@ -128,6 +132,12 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
       case 'river':
         manager.riverSystem.group.visible = enabled && initial.riverVisible;
         manager.riverSystem.tick = enabled ? initial.riverTick : () => {};
+        break;
+      case 'riverSimulation':
+        manager.riverSystem.tick = enabled ? initial.riverTick : () => {};
+        break;
+      case 'riverRender':
+        manager.riverSystem.group.visible = enabled && initial.riverVisible;
         break;
       case 'terrain':
         manager.terrain.mesh.visible = enabled && initial.terrainVisible;
