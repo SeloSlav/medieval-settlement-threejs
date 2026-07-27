@@ -7,6 +7,10 @@ import {
   WEAVER_CLOTH_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../generated/gameBalance.ts';
+import {
+  fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
+} from '../fires/fireIncident.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { GameState } from '../resources/types.ts';
@@ -27,6 +31,7 @@ export const TEXTILE_PLAN_DAYS_PER_YEAR =
 export const TEXTILE_RESERVE_WARNING_DAYS = 14;
 
 export type TextileAttentionKind =
+  | 'fire'
   | 'storage'
   | 'staffing'
   | 'flock'
@@ -82,6 +87,7 @@ export type SettlementTextileRoadPlan = {
 export type SettlementTextilePlan = {
   sheepHoldings: number;
   staffedSheepHoldings: number;
+  fireDisabledSheepHoldings: number;
   sheepHeadCount: number;
   productiveSheepHeads: number;
   shornHoldings: number;
@@ -101,6 +107,9 @@ export type SettlementTextilePlan = {
   householdClothStock: number;
   supplierClothStock: number;
   householdClothInTransit: number;
+  fireDisabledWeavers: number;
+  fireDisabledProsperousHomes: number;
+  fireQuarantinedClothStock: number;
   serviceableHouseholdClothStock: number;
   unavailableHouseholdClothStock: number;
   annualWeaverWoolCapacity: number;
@@ -124,6 +133,7 @@ type TextileProduction = Pick<
 >>;
 
 const ATTENTION_PRIORITY: Record<TextileAttentionKind, number> = {
+  fire: 5,
   storage: 4,
   staffing: 3,
   flock: 2,
@@ -436,13 +446,14 @@ export function computeSettlementTextilePlan(input: {
   state: Pick<
     GameState,
     'stockpile' | 'buildings' | 'livestockHerds' | 'residences' | 'deliveryTrips'
-  >;
+  > & Partial<Pick<GameState, 'fireIncidents'>>;
   clock: Pick<GameClock, 'month' | 'year'>;
   production: TextileProduction;
   roadComponentFor?: ProductionRoadComponentResolver;
 }): SettlementTextilePlan {
   let sheepHoldings = 0;
   let staffedSheepHoldings = 0;
+  let fireDisabledSheepHoldings = 0;
   let sheepHeadCount = 0;
   let productiveSheepHeads = 0;
   let shornHoldings = 0;
@@ -459,6 +470,12 @@ export function computeSettlementTextilePlan(input: {
   const roadBranches = input.roadComponentFor
     ? createTextileRoadBranches(input.production)
     : null;
+  const fireDisabledBuildings = fireDisabledBuildingIds(
+    input.state.fireIncidents?.values() ?? [],
+  );
+  const fireDisabledResidences = fireDisabledResidenceIds(
+    input.state.fireIncidents?.values() ?? [],
+  );
 
   const recordAttention = (kind: TextileAttentionKind, buildingId: string): void => {
     if (
@@ -503,12 +520,29 @@ export function computeSettlementTextilePlan(input: {
         building.id,
       );
     }
-    if (building.assignedLabor > 0) staffedSheepHoldings += 1;
     sheepHeadCount += Math.max(0, herd.headCount);
     const projectedFleece = projectedSheepFleece(herd);
     productiveSheepHeads += projectedFleece
       / Math.max(1e-9, SHEEP_WOOL_PER_SHEARING_PER_HEAD);
     const shornThisYear = (herd.lastShearingYear ?? 0) === input.clock.year;
+    if (fireDisabledBuildings.has(building.id)) {
+      const blockedAnnualWool = shornThisYear
+        ? positive(herd.lastWoolOutput)
+        : projectedFleece;
+      fireDisabledSheepHoldings += 1;
+      projectedAnnualWool += blockedAnnualWool;
+      if (roadBranch) roadBranch.projectedAnnualWool += blockedAnnualWool;
+      if (shornThisYear) {
+        shornHoldings += 1;
+      } else if (input.clock.month > SHEEP_SHEARING_END_MONTH) {
+        missedHoldings += 1;
+      } else {
+        pendingHoldings += 1;
+      }
+      recordAttention('fire', building.id);
+      continue;
+    }
+    if (building.assignedLabor > 0) staffedSheepHoldings += 1;
 
     if (shornThisYear) {
       const storedClip = positive(herd.lastWoolOutput);
@@ -554,6 +588,9 @@ export function computeSettlementTextilePlan(input: {
   let householdClothStock = 0;
   let supplierClothStock = 0;
   let householdClothInTransit = 0;
+  let fireDisabledWeavers = 0;
+  let fireDisabledProsperousHomes = 0;
+  let fireQuarantinedClothStock = 0;
   for (const building of input.state.buildings.values()) {
     woolStock += positive(building.wool);
     const buildingCloth = positive(building.cloth);
@@ -563,6 +600,11 @@ export function computeSettlementTextilePlan(input: {
       && building.constructionComplete !== false
       && building.assignedLabor > 0
     ) {
+      if (fireDisabledBuildings.has(building.id)) {
+        fireDisabledWeavers += 1;
+        fireQuarantinedClothStock += buildingCloth;
+        continue;
+      }
       supplierClothStock += buildingCloth;
       if (roadBranches && input.roadComponentFor) {
         const branch = textileRoadBranch(
@@ -582,6 +624,11 @@ export function computeSettlementTextilePlan(input: {
     const residenceCloth = positive(getNeedStock(residence.needs, 'cloth'));
     clothStock += residenceCloth;
     if (!residence.abandoned && residence.population > 0 && residence.tier >= 3) {
+      if (fireDisabledResidences.has(residence.id)) {
+        fireDisabledProsperousHomes += 1;
+        fireQuarantinedClothStock += residenceCloth;
+        continue;
+      }
       householdClothStock += residenceCloth;
       if (roadBranches && input.roadComponentFor) {
         const branch = textileRoadBranch(
@@ -619,6 +666,10 @@ export function computeSettlementTextilePlan(input: {
         && residence.population > 0
         && residence.tier >= 3
       ) {
+        if (fireDisabledResidences.has(residence.id)) {
+          fireQuarantinedClothStock += tripCloth;
+          continue;
+        }
         householdClothInTransit += tripCloth;
         if (roadBranches && input.roadComponentFor) {
           const branch = textileRoadBranch(
@@ -673,6 +724,7 @@ export function computeSettlementTextilePlan(input: {
   return {
     sheepHoldings,
     staffedSheepHoldings,
+    fireDisabledSheepHoldings,
     sheepHeadCount,
     productiveSheepHeads,
     shornHoldings,
@@ -692,6 +744,9 @@ export function computeSettlementTextilePlan(input: {
     householdClothStock,
     supplierClothStock,
     householdClothInTransit,
+    fireDisabledWeavers,
+    fireDisabledProsperousHomes,
+    fireQuarantinedClothStock,
     serviceableHouseholdClothStock,
     unavailableHouseholdClothStock: Math.max(
       0,

@@ -21,8 +21,9 @@ use crate::placement_validation::{
     burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, is_on_quarry_pit,
 };
 use crate::simulation::{
-    cancel_trips_for_residence, clear_backyard_garden_for_residence, clear_fire_for_target,
-    clear_residence_needs, ensure_residence_needs, residence_fire_state, FIRE_TARGET_RESIDENCE,
+    building_fire_state, cancel_trips_for_residence, clear_backyard_garden_for_residence,
+    clear_fire_for_target, clear_residence_needs, ensure_residence_needs, residence_fire_state,
+    FIRE_TARGET_RESIDENCE,
 };
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
@@ -236,6 +237,9 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     if residence.abandoned || residence.population == 0 {
         return Err("Only an occupied residence can be upgraded.".to_string());
     }
+    if residence_fire_state(ctx, residence.id).is_some() {
+        return Err("Repair the fire-damaged residence before upgrading it.".to_string());
+    }
 
     let next_tier = residence.tier.saturating_add(1);
     let (timber, stone, gold, capacity, required_services): (
@@ -316,7 +320,13 @@ fn has_connected_services(
     let Some(network) = crate::roads::load_owner_road_network(ctx, residence.owner) else {
         return false;
     };
-    let buildings: Vec<_> = ctx.db.building().owner().filter(&residence.owner).collect();
+    let buildings: Vec<_> = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&residence.owner)
+        .filter(|building| building_fire_state(ctx, building.id).is_none())
+        .collect();
     let staffed_chapels: Vec<_> = buildings
         .iter()
         .filter(|building| {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
+import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
   canStoreFullSheepClip,
@@ -231,6 +232,7 @@ const annualTextiles = computeSettlementTextilePlan({
 });
 assert.equal(annualTextiles.sheepHoldings, 3);
 assert.equal(annualTextiles.staffedSheepHoldings, 2);
+assert.equal(annualTextiles.fireDisabledSheepHoldings, 0);
 assert.equal(annualTextiles.sheepHeadCount, 18);
 assert.equal(annualTextiles.shornHoldings, 1);
 assert.equal(annualTextiles.pendingHoldings, 2);
@@ -249,6 +251,9 @@ assert.equal(annualTextiles.clothStock, 11);
 assert.equal(annualTextiles.householdClothStock, 3);
 assert.equal(annualTextiles.supplierClothStock, 5);
 assert.equal(annualTextiles.householdClothInTransit, 0);
+assert.equal(annualTextiles.fireDisabledWeavers, 0);
+assert.equal(annualTextiles.fireDisabledProsperousHomes, 0);
+assert.equal(annualTextiles.fireQuarantinedClothStock, 0);
 assert.equal(annualTextiles.serviceableHouseholdClothStock, 8);
 assert.equal(annualTextiles.unavailableHouseholdClothStock, 3);
 assert.equal(annualTextiles.clothReserveRunwayDays, 160);
@@ -428,7 +433,66 @@ assert.match(splitTextileRows, /data-inspect-residence="east-home"/);
 assert.match(splitTextileRows, /1 \/ 2 current household branches/);
 assert.match(splitTextileRows, /9\.0 cloth in local cupboards/);
 assert.match(splitTextileRows, /weakest reserve 90 days/);
-assert.match(splitTextileRows, /11\.0 in treasury, export, idle, or disconnected stores/);
+assert.match(
+  splitTextileRows,
+  /11\.0 in treasury, export, fire quarantine, idle, or disconnected stores/,
+);
+
+const fireAwareTextiles = computeSettlementTextilePlan({
+  state: {
+    ...roadTextileState,
+    fireIncidents: new Map([
+      ['west-sheep-fire', {
+        id: 'west-sheep-fire',
+        targetKind: 'building',
+        targetId: westSheep.id,
+      } as FireIncidentState],
+      ['west-weaver-fire', {
+        id: 'west-weaver-fire',
+        targetKind: 'building',
+        targetId: westClothWeaver.id,
+      } as FireIncidentState],
+      ['east-home-fire', {
+        id: 'east-home-fire',
+        targetKind: 'residence',
+        targetId: eastHome.id,
+      } as FireIncidentState],
+    ]),
+  },
+  clock: { month: 6, year: 2 },
+  production: {
+    clothWoolPerDay: 12 / 120,
+    clothOutputPerDay: 8 / 120,
+    clothDemandPerDay: 4 / 120,
+    tierThreeResidents: 1,
+    prosperityRoadBranches: new Map([
+      [textileRoadKey(1), {
+        currentResidents: 1,
+        fullResidents: 1,
+        preservedFoodOutputPerDay: 0,
+        aleOutputPerDay: 0,
+        clothOutputPerDay: 0,
+        firstResidenceId: westHome.id,
+      }],
+    ]),
+  },
+  roadComponentFor: (candidate) =>
+    candidate.x < 50 ? 1 : candidate.x < 150 ? 2 : 3,
+});
+assert.equal(fireAwareTextiles.fireDisabledSheepHoldings, 1);
+assert.equal(fireAwareTextiles.staffedSheepHoldings, 1);
+assert.equal(fireAwareTextiles.securedAnnualWool, 12);
+assert.equal(fireAwareTextiles.firstAttentionKind, 'fire');
+assert.equal(fireAwareTextiles.firstAttentionBuildingId, westSheep.id);
+assert.equal(fireAwareTextiles.fireDisabledWeavers, 1);
+assert.equal(fireAwareTextiles.fireDisabledProsperousHomes, 1);
+assert.equal(fireAwareTextiles.fireQuarantinedClothStock, 7);
+assert.equal(fireAwareTextiles.householdClothStock, 2);
+assert.equal(fireAwareTextiles.householdClothInTransit, 0);
+assert.equal(fireAwareTextiles.roadPlan?.householdBranches, 1);
+assert.match(renderSettlementTextileRows(fireAwareTextiles), /Textile fire outages/);
+assert.match(renderSettlementTextileRows(fireAwareTextiles), /7\.0 cloth/);
+assert.match(renderSettlementTextileRows(fireAwareTextiles), /first fire-disabled sheep holding/);
 
 const joinedRoadTextiles = computeSettlementTextilePlan({
   state: roadTextileState,

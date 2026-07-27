@@ -24,6 +24,7 @@ import {
   type ResidenceNeedKind,
 } from '../src/residences/residenceNeedState.ts';
 import type { ResidenceState } from '../src/resources/types.ts';
+import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 
 const vacantState = stateWith(residence('vacant', 1, 0, 3, 50));
 const vacantPlan = computeSettlementGrowthPlan({ state: vacantState });
@@ -106,8 +107,34 @@ assert.equal(mixedPlan.fullHomes, 1);
 assert.equal(mixedPlan.abandonedHomes, 1);
 assert.equal(mixedPlan.candidateHomes, 2);
 
+const fireDisabledGrowthHome = residence('fire-growth-home', 3, 6, 10);
+for (const kind of ['food', 'firewood', 'water', 'preservedFood', 'ale', 'cloth'] as const) {
+  stockToThreshold(fireDisabledGrowthHome, kind);
+}
+const fireDisabledGrowthPlan = computeSettlementGrowthPlan({
+  state: {
+    residences: new Map([[fireDisabledGrowthHome.id, fireDisabledGrowthHome]]),
+    fireIncidents: new Map([['growth-fire', {
+      id: 'growth-fire',
+      targetKind: 'residence',
+      targetId: fireDisabledGrowthHome.id,
+    } as FireIncidentState]]),
+  },
+});
+assert.equal(fireDisabledGrowthPlan.vacantSlots, 0);
+assert.equal(fireDisabledGrowthPlan.candidateHomes, 0);
+assert.equal(fireDisabledGrowthPlan.progressingHomes, 0);
+assert.equal(fireDisabledGrowthPlan.nextArrivalSeconds, null);
+assert.equal(fireDisabledGrowthPlan.fireDisabledHomes, 1);
+assert.equal(fireDisabledGrowthPlan.fireDisabledResidents, 6);
+assert.equal(fireDisabledGrowthPlan.fireDisabledHousingCapacity, 10);
+assert.equal(fireDisabledGrowthPlan.fireDisabledVacantSlots, 4);
+assert.equal(fireDisabledGrowthPlan.additionalFoodPerDay, 0);
+assert.equal(fireDisabledGrowthPlan.additionalPreservedFoodPerDay, 0);
+
 const perfResidences = new Map<string, ResidenceState>();
-for (let index = 0; index < 10_000; index += 1) {
+const perfFires = new Map<string, FireIncidentState>();
+for (let index = 0; index < 100_000; index += 1) {
   const home = residence(
     `perf-${index}`,
     index % 3 === 0 ? 3 : index % 3 === 1 ? 2 : 1,
@@ -120,16 +147,27 @@ for (let index = 0; index < 10_000; index += 1) {
     }
   }
   perfResidences.set(home.id, home);
+  if (index % 4 === 0) {
+    perfFires.set(`perf-fire-${index}`, {
+      id: `perf-fire-${index}`,
+      targetKind: 'residence',
+      targetId: home.id,
+    } as FireIncidentState);
+  }
 }
 const started = performance.now();
 const perfPlan = computeSettlementGrowthPlan({
-  state: { residences: perfResidences },
+  state: {
+    residences: perfResidences,
+    fireIncidents: perfFires,
+  },
   communityForResidence: () => DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
 });
 const elapsedMs = performance.now() - started;
-assert.equal(perfPlan.candidateHomes, 10_000);
-assert.equal(perfPlan.progressingHomes, 5_000);
-assert.ok(elapsedMs < 250, `10,000-home growth forecast took ${elapsedMs.toFixed(1)} ms`);
+assert.equal(perfPlan.candidateHomes, 75_000);
+assert.equal(perfPlan.progressingHomes, 25_000);
+assert.equal(perfPlan.fireDisabledHomes, 25_000);
+assert.ok(elapsedMs < 350, `100,000-home fire-aware growth forecast took ${elapsedMs.toFixed(1)} ms`);
 
 const townHallInspector = readFileSync(
   new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
@@ -150,6 +188,8 @@ const settlementHud = readFileSync(
 assert.match(townHallInspector, /Housing pipeline/);
 assert.match(townHallInspector, /Growth bottlenecks/);
 assert.match(townHallInspector, /At full housing/);
+assert.match(townHallInspector, /operational vacant places/);
+assert.match(townHallInspector, /fire-disabled homes/);
 assert.match(townHallInspector, /Prosperous-house growth/);
 assert.match(townHallInspector, /data-inspect-residence/);
 assert.match(townHallInspector, /const growthChapels = Array\.from/);
@@ -162,7 +202,7 @@ assert.match(resourceInspector, /findResidenceTarget\(inspectResidenceId\)/);
 assert.match(worldQueries, /findResidenceTarget\(residenceId: string\)/);
 assert.match(settlementHud, /later arrivals require every need active at that house tier/);
 
-console.log(`settlement growth forecast tests passed (${elapsedMs.toFixed(1)} ms for 10,000 homes)`);
+console.log(`settlement growth forecast tests passed (${elapsedMs.toFixed(1)} ms for 100,000 homes / 25,000 fire outages)`);
 
 function stateWith(...residences: ResidenceState[]): { residences: Map<string, ResidenceState> } {
   return { residences: new Map(residences.map((home) => [home.id, home])) };

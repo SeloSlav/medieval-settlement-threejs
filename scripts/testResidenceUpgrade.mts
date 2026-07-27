@@ -67,6 +67,18 @@ assert.equal(
   true,
   'an operational but temporarily empty route should remain upgrade-eligible',
 );
+const fireDisabledUpgrade = evaluateResidenceUpgrade(
+  tierOne,
+  richTotals,
+  allServices,
+  { fireDisabled: true },
+);
+assert.ok(fireDisabledUpgrade);
+assert.equal(fireDisabledUpgrade.ready, false);
+assert.match(
+  fireDisabledUpgrade.blockers.join(' '),
+  /repair fire damage before upgrading/,
+);
 
 const noWaterPlan = evaluateResidenceUpgrade(tierOne, richTotals, {
   ...allServices,
@@ -168,6 +180,15 @@ assert.match(
 );
 assert.match(residenceReducer, /treasury_gold \+ 1e-6 < gold/);
 assert.match(residenceReducer, /Upgrade requires \{\} timber, \{\} stone, and \{\} gold/);
+assert.match(
+  residenceReducer,
+  /residence_fire_state\(ctx, residence\.id\)\.is_some\(\)[\s\S]*Repair the fire-damaged residence before upgrading it/,
+);
+assert.match(
+  residenceReducer,
+  /filter\(\|building\| building_fire_state\(ctx, building\.id\)\.is_none\(\)\)/,
+  'fire-disabled suppliers must not satisfy authoritative upgrade services',
+);
 
 const residenceInspector = readFileSync(
   new URL('../src/resources/inspector/residenceRenderer.ts', import.meta.url),
@@ -176,6 +197,7 @@ const residenceInspector = readFileSync(
 assert.match(residenceInspector, /Tier \$\{plan\.nextTier\} services/);
 assert.match(residenceInspector, /Upgrade resources/);
 assert.match(residenceInspector, /plan\.ready \? '' : 'disabled'/);
+assert.match(residenceInspector, /structural recovery required before settlement resumes/);
 assert.match(residenceInspector, /TIMBER_SALVAGE_FRACTION \* 100\)}% timber/);
 
 console.log('residence upgrade readiness tests passed');

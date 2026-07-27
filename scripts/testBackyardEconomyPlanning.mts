@@ -94,6 +94,7 @@ function state(input: {
   residences?: ResidenceState[];
   gardens?: BackyardGardenState[];
   fireDisabledBuildingIds?: string[];
+  fireDisabledResidenceIds?: string[];
 }): Pick<
   GameState,
   'seed' | 'tick' | 'buildings' | 'residences' | 'backyardGardens' | 'fireIncidents'
@@ -111,13 +112,26 @@ function state(input: {
       (input.gardens ?? []).map((candidate) => [candidate.id, candidate]),
     ),
     fireIncidents: new Map(
-      (input.fireDisabledBuildingIds ?? []).map((targetId) => [
-        `fire-${targetId}`,
-        {
-          id: `fire-${targetId}`,
-          targetKind: 'building',
-          targetId,
-        } as GameState['fireIncidents'] extends Map<string, infer Incident>
+      [
+        ...(input.fireDisabledBuildingIds ?? []).map((targetId) => [
+          `fire-building-${targetId}`,
+          {
+            id: `fire-building-${targetId}`,
+            targetKind: 'building',
+            targetId,
+          },
+        ] as const),
+        ...(input.fireDisabledResidenceIds ?? []).map((targetId) => [
+          `fire-residence-${targetId}`,
+          {
+            id: `fire-residence-${targetId}`,
+            targetKind: 'residence',
+            targetId,
+          },
+        ] as const),
+      ].map(([id, incident]) => [
+        id,
+        incident as GameState['fireIncidents'] extends Map<string, infer Incident>
           ? Incident
           : never,
       ]),
@@ -323,6 +337,34 @@ assert.equal(
   'the no-topology fallback must require an operational market too',
 );
 
+const burnedGardenHome = residence('burned-garden-home', 0);
+const burnedGarden = computeSettlementBackyardEconomyPlan({
+  state: state({
+    tick: september.simTick,
+    buildings: [building('garden-market', 'marketplace', 0)],
+    residences: [burnedGardenHome],
+    gardens: [garden('burned-home-apples', burnedGardenHome.id, 'apple_orchard')],
+    fireDisabledResidenceIds: [burnedGardenHome.id],
+  }),
+  clock: september,
+  hydrology: 50,
+  taxRate: 0.25,
+  taxCollectionMultiplier: 1,
+  sabbathObserved: false,
+  roadComponentFor: () => 1,
+});
+assert.equal(burnedGarden.gardens, 1);
+assert.equal(burnedGarden.occupiedGardens, 0);
+assert.equal(burnedGarden.fireDisabledGardens, 1);
+assert.equal(burnedGarden.fireDisabledGardenResidents, 4);
+assert.equal(burnedGarden.currentDaySelfFood, 0);
+assert.equal(burnedGarden.currentDayRoutedActivity, 0);
+assert.equal(burnedGarden.horizonRoutedActivity, 0);
+assert.match(
+  renderSettlementBackyardEconomyRows(burnedGarden),
+  /1 plot is suspended by residence fire damage/,
+);
+
 const sunday = gameClock(0);
 assert.equal(sunday.isSunday, true);
 const sabbathState = state({
@@ -481,6 +523,7 @@ assert.equal(
 const largeResidences = new Map<string, ResidenceState>();
 const largeGardens = new Map<string, BackyardGardenState>();
 const largeBuildings = new Map<string, BuildingState>();
+const largeFireIncidents: GameState['fireIncidents'] = new Map();
 for (let branch = 0; branch < 200; branch += 1) {
   const market = building(
     `market-${branch}`,
@@ -500,6 +543,15 @@ for (let index = 0; index < 100_000; index += 1) {
       index % 2 === 0 ? 'vegetable_garden' : 'hen_yard',
     ),
   );
+  if (index % 4 === 0) {
+    largeFireIncidents.set(`home-fire-${index}`, {
+      id: `home-fire-${index}`,
+      targetKind: 'residence',
+      targetId: home.id,
+    } as GameState['fireIncidents'] extends Map<string, infer Incident>
+      ? Incident
+      : never);
+  }
 }
 const performanceStart = performance.now();
 const largePlan = computeSettlementBackyardEconomyPlan({
@@ -508,6 +560,7 @@ const largePlan = computeSettlementBackyardEconomyPlan({
     buildings: largeBuildings,
     residences: largeResidences,
     backyardGardens: largeGardens,
+    fireIncidents: largeFireIncidents,
   },
   clock: nonSundayClockInMonth(5),
   hydrology: 50,
@@ -517,9 +570,11 @@ const largePlan = computeSettlementBackyardEconomyPlan({
   roadComponentFor: (candidate) => Math.round(candidate.x),
 });
 const performanceMs = performance.now() - performanceStart;
-assert.equal(largePlan.occupiedGardens, 100_000);
-assert.equal(largePlan.marketLinkedGardens, 100_000);
-assert.equal(largePlan.matchedGardenBranches, 200);
+assert.equal(largePlan.occupiedGardens, 75_000);
+assert.equal(largePlan.fireDisabledGardens, 25_000);
+assert.equal(largePlan.marketLinkedGardens, 75_000);
+assert.equal(largePlan.occupiedGardenBranches, 150);
+assert.equal(largePlan.matchedGardenBranches, 150);
 assert.ok(
   performanceMs < 1_500,
   `100k gardens across 200 branches should remain linear (${performanceMs.toFixed(1)}ms)`,

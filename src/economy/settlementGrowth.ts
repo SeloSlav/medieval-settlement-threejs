@@ -12,6 +12,7 @@ import {
   SIM_TICK_SECONDS,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../generated/gameBalance.ts';
+import { fireDisabledResidenceIds } from '../fires/fireIncident.ts';
 import {
   DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
   type ResidenceCommunityContext,
@@ -29,6 +30,10 @@ export type SettlementGrowthPlan = {
   firstArrivalHomes: number;
   fullHomes: number;
   abandonedHomes: number;
+  fireDisabledHomes: number;
+  fireDisabledResidents: number;
+  fireDisabledHousingCapacity: number;
+  fireDisabledVacantSlots: number;
   nextArrivalSeconds: number | null;
   waitingOnHomes: Record<ResidenceNeedKind, number>;
   firstPausedResidenceId: string | null;
@@ -50,7 +55,8 @@ const EMPTY_WAITING_COUNTS = (): Record<ResidenceNeedKind, number> => ({
 });
 
 export function computeSettlementGrowthPlan(input: {
-  state: Pick<GameState, 'residences'>;
+  state: Pick<GameState, 'residences'>
+    & Partial<Pick<GameState, 'fireIncidents'>>;
   communityForResidence?: (residence: ResidenceState) => ResidenceCommunityContext;
 }): SettlementGrowthPlan {
   const communityForResidence = input.communityForResidence
@@ -68,6 +74,10 @@ export function computeSettlementGrowthPlan(input: {
   let firstArrivalHomes = 0;
   let fullHomes = 0;
   let abandonedHomes = 0;
+  let fireDisabledHomes = 0;
+  let fireDisabledResidents = 0;
+  let fireDisabledHousingCapacity = 0;
+  let fireDisabledVacantSlots = 0;
   let nextArrivalSeconds = Number.POSITIVE_INFINITY;
   let firstPausedResidenceId: string | null = null;
   let additionalFoodPerDay = 0;
@@ -76,8 +86,21 @@ export function computeSettlementGrowthPlan(input: {
   let additionalPreservedFoodPerDay = 0;
   let additionalAlePerDay = 0;
   let additionalClothPerDay = 0;
+  const fireDisabled = fireDisabledResidenceIds(
+    input.state.fireIncidents?.values() ?? [],
+  );
 
   for (const residence of input.state.residences.values()) {
+    if (fireDisabled.has(residence.id)) {
+      fireDisabledHomes += 1;
+      fireDisabledResidents += Math.max(0, residence.population);
+      fireDisabledHousingCapacity += Math.max(0, residence.populationCapacity);
+      fireDisabledVacantSlots += Math.max(
+        0,
+        residence.populationCapacity - residence.population,
+      );
+      continue;
+    }
     if (residence.abandoned) {
       abandonedHomes += 1;
       continue;
@@ -136,6 +159,10 @@ export function computeSettlementGrowthPlan(input: {
     firstArrivalHomes,
     fullHomes,
     abandonedHomes,
+    fireDisabledHomes,
+    fireDisabledResidents,
+    fireDisabledHousingCapacity,
+    fireDisabledVacantSlots,
     nextArrivalSeconds: Number.isFinite(nextArrivalSeconds) ? nextArrivalSeconds : null,
     waitingOnHomes,
     firstPausedResidenceId,

@@ -270,7 +270,11 @@ function formatGrowthDuration(seconds: number | null): string {
 }
 
 function formatGrowthBottlenecks(plan: SettlementGrowthPlan): string {
-  if (plan.candidateHomes === 0) return 'No vacant housing';
+  if (plan.candidateHomes === 0) {
+    return plan.fireDisabledVacantSlots > 0
+      ? `${plan.fireDisabledVacantSlots} vacant ${plan.fireDisabledVacantSlots === 1 ? 'place is' : 'places are'} offline pending structural recovery`
+      : 'No vacant housing';
+  }
   if (plan.pausedHomes === 0) return 'All admitting homes hold their required buffers';
   const labels: Array<[keyof SettlementGrowthPlan['waitingOnHomes'], string]> = [
     ['food', 'food'],
@@ -801,25 +805,33 @@ function renderSettlementTextileRoadRow(plan: SettlementTextilePlan): string {
 export function renderSettlementTextileRows(plan: SettlementTextilePlan): string {
   const roadRow = renderSettlementTextileRoadRow(plan);
   const unavailableCloth = plan.unavailableHouseholdClothStock > 0.05
-    ? ` · ${plan.unavailableHouseholdClothStock.toFixed(1)} in treasury, export, idle, or disconnected stores`
+    ? ` · ${plan.unavailableHouseholdClothStock.toFixed(1)} in treasury, export, fire quarantine, idle, or disconnected stores`
     : '';
   const storesRow = `<li><span>Textile stores</span><span>${plan.woolStock.toFixed(1)} wool owned${plan.woolInTransit > 0.05 ? ` · ${plan.woolInTransit.toFixed(1)} on carts` : ''} · ${plan.clothStock.toFixed(1)} cloth owned${plan.clothInTransit > 0.05 ? ` · ${plan.clothInTransit.toFixed(1)} on carts` : ''} · ${plan.serviceableHouseholdClothStock.toFixed(1)} serviceable to current households${plan.householdClothInTransit > 0.05 ? ` including ${plan.householdClothInTransit.toFixed(1)} approaching homes` : ''}${unavailableCloth} · ${formatProvisionRunway(plan.clothReserveRunwayDays)} weakest household cloth reserve</span></li>`;
+  const fireRow = plan.fireDisabledSheepHoldings
+    + plan.fireDisabledWeavers
+    + plan.fireDisabledProsperousHomes === 0
+    ? ''
+    : `<li><span>Textile fire outages</span><span>${plan.fireDisabledSheepHoldings} sheep ${plan.fireDisabledSheepHoldings === 1 ? 'holding' : 'holdings'} + ${plan.fireDisabledWeavers} staffed ${plan.fireDisabledWeavers === 1 ? 'loom' : 'looms'} + ${plan.fireDisabledProsperousHomes} prosperous ${plan.fireDisabledProsperousHomes === 1 ? 'home' : 'homes'} offline · ${plan.fireQuarantinedClothStock.toFixed(1)} cloth at affected looms, cupboards, or approaching carts unavailable until recovery</span></li>`;
   if (plan.sheepHoldings === 0) {
     return `
       <li><span>Annual wool clip</span><span>No completed sheep holding</span></li>
+      ${fireRow}
       ${storesRow}
       <li><span>Textile chain</span><span>${textileChainBalanceLabel(plan)} · ${plan.annualHouseholdClothDemand.toFixed(1)} cloth/year household demand</span></li>
       ${roadRow}
     `;
   }
 
-  const attentionLabel = plan.firstAttentionKind === 'storage'
-    ? 'first loft without full-clip room'
-    : plan.firstAttentionKind === 'staffing'
-      ? 'first unstaffed sheep holding'
-      : plan.firstAttentionKind === 'flock'
-        ? 'first unproductive flock'
-        : 'first flock that missed shearing';
+  const attentionLabel = plan.firstAttentionKind === 'fire'
+    ? 'first fire-disabled sheep holding'
+    : plan.firstAttentionKind === 'storage'
+      ? 'first loft without full-clip room'
+      : plan.firstAttentionKind === 'staffing'
+        ? 'first unstaffed sheep holding'
+        : plan.firstAttentionKind === 'flock'
+          ? 'first unproductive flock'
+          : 'first flock that missed shearing';
   const attention = plan.firstAttentionBuildingId === null
     ? ''
     : ` · ${attentionLabel} <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionBuildingId}" aria-label="Inspect ${attentionLabel}">Inspect</button>`;
@@ -832,11 +844,13 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
   const blocked = plan.storageBlockedHoldings
     + plan.staffingBlockedHoldings
     + plan.flockBlockedHoldings
-    + plan.missedHoldings;
+    + plan.missedHoldings
+    + plan.fireDisabledSheepHoldings;
 
   return `
     <li><span>Annual wool clip</span><span>${plan.shornHoldings} / ${plan.sheepHoldings} holdings shorn · ${plan.sheepHeadCount} sheep / ${plan.productiveSheepHeads.toFixed(1)} productive-head equivalent · ${plan.projectedAnnualWool.toFixed(1)} wool potential${clipRisk}${attention}</span></li>
-    <li><span>Shearing readiness</span><span>${plan.readyPendingHoldings} pending and ready · ${plan.storageBlockedHoldings} storage-blocked · ${plan.staffingBlockedHoldings} unstaffed · ${plan.flockBlockedHoldings} flock-blocked · ${plan.missedHoldings} missed${blocked === 0 ? ' · no exposed clip' : ''}</span></li>
+    <li><span>Shearing readiness</span><span>${plan.readyPendingHoldings} pending and ready · ${plan.storageBlockedHoldings} storage-blocked · ${plan.staffingBlockedHoldings} unstaffed · ${plan.flockBlockedHoldings} flock-blocked · ${plan.fireDisabledSheepHoldings} fire-disabled · ${plan.missedHoldings} missed${blocked === 0 ? ' · no exposed clip' : ''}</span></li>
+    ${fireRow}
     ${storesRow}
     <li><span>Textile chain</span><span>${plan.annualClothPotential.toFixed(1)} cloth/year installed ceiling at current flock and loom labor vs ${plan.annualHouseholdClothDemand.toFixed(1)} household need · ${annualBalance} over ${TEXTILE_PLAN_DAYS_PER_YEAR} days · ${textileChainBalanceLabel(plan)}</span></li>
     ${roadRow}
@@ -977,7 +991,7 @@ export function renderSettlementBackyardEconomyRows(
 ): string {
   if (plan.occupiedGardens === 0) {
     return `
-      <li><span>Backyard economy</span><span>No occupied household plot is producing</span></li>
+      <li><span>Backyard economy</span><span>No operational occupied household plot is producing${plan.fireDisabledGardens > 0 ? ` · ${plan.fireDisabledGardens} ${plan.fireDisabledGardens === 1 ? 'plot is' : 'plots are'} suspended by residence fire damage` : ''}</span></li>
     `;
   }
   const environment = `${plan.currentEnvironment.season}, ${plan.currentEnvironment.weather}`;
@@ -993,12 +1007,15 @@ export function renderSettlementBackyardEconomyRows(
   const fireBlockedMarkets = plan.fireDisabledMarketplaces > 0
     ? ` &middot; ${plan.fireDisabledMarketplaces} market${plan.fireDisabledMarketplaces === 1 ? '' : 's'} fire-disabled`
     : '';
+  const fireBlockedGardens = plan.fireDisabledGardens > 0
+    ? ` &middot; ${plan.fireDisabledGardens} occupied ${plan.fireDisabledGardens === 1 ? 'plot' : 'plots'} (${plan.fireDisabledGardenResidents} ${plan.fireDisabledGardenResidents === 1 ? 'resident' : 'residents'}) suspended by household fire damage`
+    : '';
   const capped = plan.wealthCappedGardens > 0
     ? ` &middot; ${plan.wealthCappedGardens} ${plan.wealthCappedGardens === 1 ? 'household is' : 'households are'} at or near the wealth cap`
     : '';
 
   return `
-    <li><span>Garden season</span><span>${productionState} &middot; ${environment} &middot; ${plan.currentDaySelfFood.toFixed(1)} home food at today's full workday conditions</span></li>
+    <li><span>Garden season</span><span>${productionState} &middot; ${environment} &middot; ${plan.currentDaySelfFood.toFixed(1)} home food at today's full workday conditions${fireBlockedGardens}</span></li>
     <li><span>Market-garden roads</span><span>${roadState} &middot; ${plan.marketLinkedGardens} linked, ${plan.marketUnlinkedGardens} unlinked${fireBlockedMarkets}${inspect}</span></li>
     <li><span>Garden trade outlook</span><span>${plan.currentDayRoutedActivity.toFixed(1)} gold routed today${plan.currentDayStrandedActivity > 0.05 ? ` &middot; ${plan.currentDayStrandedActivity.toFixed(1)} stranded` : ''} &middot; next 120 days: ${plan.horizonRoutedActivity.toFixed(1)} routed, ${plan.horizonStrandedActivity.toFixed(1)} stranded${capped}</span></li>
   `;
@@ -1536,6 +1553,10 @@ export function renderTownHallInspector(
   const productionFireOutageRow = production.fireDisabledProcessorSites === 0
     ? ''
     : `<li><span>Processor fire outages</span><span>${production.fireDisabledProcessorWorkers} ${production.fireDisabledProcessorWorkers === 1 ? 'worker is' : 'workers are'} idle across ${production.fireDisabledProcessorSites} fire-disabled ${production.fireDisabledProcessorSites === 1 ? 'processor' : 'processors'}${production.firstFireDisabledProcessorId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${production.firstFireDisabledProcessorId}" aria-label="Inspect first fire-disabled processor">Inspect</button>`}</span></li>`;
+  const prosperityHouseholdFireOutageRow =
+    production.fireDisabledTierThreeHomes === 0
+      ? ''
+      : `<li><span>Prosperity household outages</span><span>${production.fireDisabledTierThreeResidents} prosperous ${production.fireDisabledTierThreeResidents === 1 ? 'resident is' : 'residents are'} excluded from active preserved-food, ale, and cloth demand across ${production.fireDisabledTierThreeHomes} fire-disabled ${production.fireDisabledTierThreeHomes === 1 ? 'home' : 'homes'} · ${production.fireDisabledTierThreeHousingCapacity} prosperous places return to the housing pipeline after recovery</span></li>`;
   const flourBalance = grainChainBalanceLabel(production);
   const farmPlan = buildSettlementFarmPlan(
     context.gameState,
@@ -1727,8 +1748,8 @@ export function renderTownHallInspector(
       ${renderConstructionQueueRows(constructionPlan)}
       <li><span>Construction crews</span><span>${formatConstructionLabor(constructionLabor)}${constructionLaborInspectButton}</span></li>
       ${renderStorehouseNetworkRows(laborPlan.storehouseNetwork)}
-      <li><span>Housing pipeline</span><span>${growth.vacantSlots} vacant places · ${growth.progressingHomes} / ${growth.candidateHomes} homes admitting settlers${growth.firstArrivalHomes > 0 ? ` · ${growth.firstArrivalHomes} awaiting first household` : ''}${growth.abandonedHomes > 0 ? ` · ${growth.abandonedHomes} abandoned` : ''}</span></li>
-      <li><span>Next settler</span><span>${growth.nextArrivalSeconds === null ? growth.vacantSlots > 0 ? 'Paused until household buffers recover' : 'No vacant housing' : formatGrowthDuration(growth.nextArrivalSeconds)}</span></li>
+      <li><span>Housing pipeline</span><span>${growth.vacantSlots} operational vacant places · ${growth.progressingHomes} / ${growth.candidateHomes} homes admitting settlers${growth.firstArrivalHomes > 0 ? ` · ${growth.firstArrivalHomes} awaiting first household` : ''}${growth.abandonedHomes > 0 ? ` · ${growth.abandonedHomes} abandoned` : ''}${growth.fireDisabledHomes > 0 ? ` · ${growth.fireDisabledHomes} fire-disabled homes / ${growth.fireDisabledHousingCapacity} places offline` : ''}</span></li>
+      <li><span>Next settler</span><span>${growth.nextArrivalSeconds === null ? growth.vacantSlots > 0 ? 'Paused until household buffers recover' : growth.fireDisabledVacantSlots > 0 ? `${growth.fireDisabledVacantSlots} vacant places return after structural recovery` : 'No vacant housing' : formatGrowthDuration(growth.nextArrivalSeconds)}</span></li>
       <li><span>Growth bottlenecks</span><span>${formatGrowthBottlenecks(growth)}${growthInspectButton}</span></li>
       <li><span>At full housing</span><span>+${growth.additionalFoodPerDay.toFixed(1)} food/day · +${growth.additionalWaterPerDay.toFixed(1)} water/day · +${growth.additionalWinterFirewoodPerDay.toFixed(1)} winter firewood/day</span></li>
       ${growth.additionalPreservedFoodPerDay + growth.additionalAlePerDay + growth.additionalClothPerDay > 1e-6 ? `<li><span>Prosperous-house growth</span><span>+${growth.additionalPreservedFoodPerDay.toFixed(1)} preserved food/day · +${growth.additionalAlePerDay.toFixed(1)} ale/day · +${growth.additionalClothPerDay.toFixed(2)} cloth/day</span></li>` : ''}
@@ -1760,6 +1781,7 @@ export function renderTownHallInspector(
       ${provisioning.sabbathObserved ? `<li><span>Sunday household stores</span><span>${formatSabbathReadiness(provisioning)}</span></li>` : ''}
       <li><span>Processing basis</span><span>${processingWeek}</span></li>
       ${productionFireOutageRow}
+      ${prosperityHouseholdFireOutageRow}
       <li><span>Processor buffer basis</span><span>First staffed site to stop or fill · onsite stock plus carts that unload before depletion</span></li>
       <li><span>Mill buffers</span><span>Input ${formatProcessorInputBuffer(production.millInputBuffer)} · flour room ${formatProcessorOutputRoom(production.millOutputRoom)} ${processorInspectButton('mill', production.millInputBuffer, production.millOutputRoom)}</span></li>
       <li><span>Granary bakery buffers</span><span>Input ${formatProcessorInputBuffer(production.bakeryInputBuffer)} · food room ${formatProcessorOutputRoom(production.bakeryOutputRoom)} ${processorInspectButton('granary bakery', production.bakeryInputBuffer, production.bakeryOutputRoom)}</span></li>

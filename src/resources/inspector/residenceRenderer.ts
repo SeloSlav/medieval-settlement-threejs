@@ -52,6 +52,7 @@ import {
   type TierThreeUpgradeProjection,
 } from '../../economy/settlementProsperity.ts';
 import { productionRoadBranchKey } from '../../economy/settlementProduction.ts';
+import { fireForTarget } from '../../fires/fireIncident.ts';
 import {
   buildResidenceCommunityContext,
   buildResidenceParishEconomyView,
@@ -71,6 +72,11 @@ export function renderResidenceInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { residence, zone, residenceCount } = target;
+  const fireDisabled = fireForTarget(
+    context.gameState.fireIncidents.values(),
+    'residence',
+    residence.id,
+  ) !== null;
   const singleCost = residenceZoneCost(1);
   const singleRefund = residenceZoneSalvageRefund(1);
   const plotCost = residenceZoneCost(residenceCount);
@@ -127,8 +133,11 @@ export function renderResidenceInspector(
         stocked: servingClothSupplier != null,
       },
     },
+    { fireDisabled },
   );
-  const prosperityPlan = upgradePlan?.nextTier === 3 && context.settlementProduction
+  const prosperityPlan = !fireDisabled
+    && upgradePlan?.nextTier === 3
+    && context.settlementProduction
     ? computeSettlementProsperityPlan(context.settlementProduction)
     : null;
   const prosperityRoadKey = prosperityPlan?.roadPlan
@@ -245,7 +254,9 @@ export function renderResidenceInspector(
     community.sabbathObservance,
     community.hasMonasteryCoverage,
   );
-  const settleEtaSeconds = settlersRemaining > 0 && settlementReadiness.ready
+  const settleEtaSeconds = settlersRemaining > 0
+    && settlementReadiness.ready
+    && !fireDisabled
     ? Math.max(
         1,
         Math.round((settleTicks - residence.settlementTicks) * SIM_TICK_SECONDS),
@@ -290,8 +301,14 @@ export function renderResidenceInspector(
       ${settleEtaSeconds != null && !residence.abandoned
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — next in ~${formatSettleEta(settleEtaSeconds)}</span></li>`
         : ''}
-      ${settlersRemaining > 0 && !residence.abandoned && !settlementReadiness.ready
+      ${settlersRemaining > 0
+        && !residence.abandoned
+        && !fireDisabled
+        && !settlementReadiness.ready
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — paused for ${formatSettlementWait(settlementReadiness.waitingOn)}</span></li>`
+        : ''}
+      ${settlersRemaining > 0 && !residence.abandoned && fireDisabled
+        ? `<li><span>Settlers</span><span>${settlersRemaining} pending — structural recovery required before settlement resumes</span></li>`
         : ''}
       <li><span>Food stock</span><span>${Math.round(getNeedStock(residence.needs, 'food'))} / ${RESIDENCE_FOOD_CAPACITY}</span></li>
       <li><span>Food runway</span><span>${foodRunwayLabel}</span></li>

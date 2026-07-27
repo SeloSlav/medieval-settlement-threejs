@@ -27,7 +27,10 @@ import {
   type DeliveryCargoKind,
   type DeliveryTripState,
 } from '../logistics/deliveryTrips.ts';
-import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import {
+  fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
+} from '../fires/fireIncident.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type {
@@ -78,6 +81,9 @@ export type SettlementProductionCapacity = {
   clothOutputPerDay: number;
   clothWoolPerDay: number;
   tierThreeResidents: number;
+  fireDisabledTierThreeHomes: number;
+  fireDisabledTierThreeResidents: number;
+  fireDisabledTierThreeHousingCapacity: number;
   aleDemandPerDay: number;
   preservedFoodDemandPerDay: number;
   clothDemandPerDay: number;
@@ -912,8 +918,23 @@ export function computeSettlementProductionCapacity(
   const millCyclesForBread = matchedFlourPerDay / WATERMILL_FLOUR_PER_CYCLE;
 
   let tierThreeResidents = 0;
+  let fireDisabledTierThreeHomes = 0;
+  let fireDisabledTierThreeResidents = 0;
+  let fireDisabledTierThreeHousingCapacity = 0;
+  const fireDisabledResidences = fireDisabledResidenceIds(
+    state.fireIncidents.values(),
+  );
   for (const residence of state.residences.values()) {
     if (!residence.abandoned && residence.tier >= 3) {
+      if (fireDisabledResidences.has(residence.id)) {
+        fireDisabledTierThreeHomes += 1;
+        fireDisabledTierThreeResidents += Math.max(0, residence.population);
+        fireDisabledTierThreeHousingCapacity += Math.max(
+          0,
+          residence.populationCapacity,
+        );
+        continue;
+      }
       tierThreeResidents += residence.population;
       if (prosperityRoadBranches && roadComponentFor) {
         const branch = prosperityRoadBranch(
@@ -971,6 +992,9 @@ export function computeSettlementProductionCapacity(
     clothOutputPerDay: weaverCycles * WEAVER_CLOTH_PER_CYCLE,
     clothWoolPerDay: weaverCycles * WEAVER_WOOL_PER_CYCLE,
     tierThreeResidents,
+    fireDisabledTierThreeHomes,
+    fireDisabledTierThreeResidents,
+    fireDisabledTierThreeHousingCapacity,
     aleDemandPerDay:
       tierThreeResidents * RESIDENCE_ALE_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     preservedFoodDemandPerDay:

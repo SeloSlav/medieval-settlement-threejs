@@ -55,6 +55,10 @@ export type ResidenceUpgradePlan = {
   ready: boolean;
 };
 
+export type ResidenceUpgradeContext = {
+  fireDisabled?: boolean;
+};
+
 type UpgradeDefinition = {
   nextTier: 2 | 3;
   populationCapacity: number;
@@ -103,6 +107,7 @@ export function evaluateResidenceUpgrade(
   residence: ResidenceState,
   totals: Pick<ResourceTotals, 'timber' | 'stone' | 'gold'>,
   serviceInputs: ResidenceUpgradeServices,
+  context: ResidenceUpgradeContext = {},
 ): ResidenceUpgradePlan | null {
   const definition = definitionForTier(residence.tier);
   if (!definition) return null;
@@ -135,6 +140,7 @@ export function evaluateResidenceUpgrade(
   const occupied = !residence.abandoned && residence.population > 0;
   const blockers = [
     ...(!occupied ? ['occupied household required'] : []),
+    ...(context.fireDisabled ? ['repair fire damage before upgrading'] : []),
     ...services.filter((service) => !service.ready).map(
       (service) => `${service.label.toLowerCase()} route missing`,
     ),

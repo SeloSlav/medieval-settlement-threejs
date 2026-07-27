@@ -10,6 +10,7 @@ import { computeSettlementGrainPlan } from '../src/economy/settlementGrainPlan.t
 import { computeSettlementSeedProcurementPlan } from '../src/economy/settlementSeedProcurement.ts';
 import { buildSettlementFarmPlan } from '../src/farming/farmWorkPlanning.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
+import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
@@ -100,6 +101,7 @@ approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5);
 assert.equal(fullWeek.millInputBuffer.buildingId, mill.id);
 assert.equal(fullWeek.millOutputRoom?.buildingId, mill.id);
 assert.equal(fullWeek.tierThreeResidents, 10);
+assert.equal(fullWeek.fireDisabledTierThreeHomes, 0);
 approx(fullWeek.aleDemandPerDay, 1.75);
 approx(fullWeek.preservedFoodDemandPerDay, 2.8);
 approx(fullWeek.clothDemandPerDay, 0.126);
@@ -126,6 +128,28 @@ approx(
   fullWeek.preservedFoodOutputPerDay,
 );
 approx(localProsperityBranch?.clothOutputPerDay ?? -1, fullWeek.clothOutputPerDay);
+state.fireIncidents.set('tier-three-home-fire', {
+  id: 'tier-three-home-fire',
+  targetKind: 'residence',
+  targetId: 'tier-three-home',
+} as FireIncidentState);
+const fireSuspendedProsperity = computeSettlementProductionCapacity(
+  state,
+  false,
+  () => 'village',
+);
+assert.equal(fireSuspendedProsperity.tierThreeResidents, 0);
+assert.equal(fireSuspendedProsperity.fireDisabledTierThreeHomes, 1);
+assert.equal(fireSuspendedProsperity.fireDisabledTierThreeResidents, 10);
+assert.equal(fireSuspendedProsperity.fireDisabledTierThreeHousingCapacity, 10);
+assert.equal(fireSuspendedProsperity.aleDemandPerDay, 0);
+assert.equal(fireSuspendedProsperity.preservedFoodDemandPerDay, 0);
+assert.equal(fireSuspendedProsperity.clothDemandPerDay, 0);
+const fireSuspendedProsperityBranch = fireSuspendedProsperity
+  .prosperityRoadBranches?.values().next().value;
+assert.equal(fireSuspendedProsperityBranch?.currentResidents, 0);
+assert.equal(fireSuspendedProsperityBranch?.fullResidents, 0);
+state.fireIncidents.clear();
 const localGrainBranch = localProsperityCapacity.grainRoadBranches
   ?.values().next().value;
 approx(localGrainBranch?.breadGrainPerDay ?? -1, fullWeek.breadGrainPerDay);

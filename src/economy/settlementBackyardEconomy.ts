@@ -22,7 +22,10 @@ import {
 import {
   backyardGardenSeasonalMultiplier,
 } from './backyardGardenTick.ts';
-import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import {
+  fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
+} from '../fires/fireIncident.ts';
 import {
   backyardGardenEconomyPerDay,
 } from './villageProjections.ts';
@@ -50,6 +53,8 @@ export type BackyardGardenKindPlan = {
 export type SettlementBackyardEconomyPlan = {
   gardens: number;
   occupiedGardens: number;
+  fireDisabledGardens: number;
+  fireDisabledGardenResidents: number;
   seasonallyActiveGardens: number;
   producingTodayGardens: number;
   marketLinkedGardens: number;
@@ -219,7 +224,9 @@ export function computeSettlementBackyardEconomyPlan(input: {
   const marketComponents = new Set<string>();
   let operationalMarketplaces = 0;
   let fireDisabledMarketplaces = 0;
-  const fireDisabled = fireDisabledBuildingIds(
+  const incidents = input.state.fireIncidents?.values() ?? [];
+  const fireDisabledBuildings = fireDisabledBuildingIds(incidents);
+  const fireDisabledResidences = fireDisabledResidenceIds(
     input.state.fireIncidents?.values() ?? [],
   );
   for (const building of input.state.buildings.values()) {
@@ -229,7 +236,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
     ) {
       continue;
     }
-    if (fireDisabled.has(building.id)) {
+    if (fireDisabledBuildings.has(building.id)) {
       fireDisabledMarketplaces += 1;
       continue;
     }
@@ -242,6 +249,8 @@ export function computeSettlementBackyardEconomyPlan(input: {
 
   let gardens = 0;
   let occupiedGardens = 0;
+  let fireDisabledGardens = 0;
+  let fireDisabledGardenResidents = 0;
   let seasonallyActiveGardens = 0;
   let producingTodayGardens = 0;
   let marketLinkedGardens = 0;
@@ -275,6 +284,11 @@ export function computeSettlementBackyardEconomyPlan(input: {
       || residence.abandoned
       || residence.population <= 0
     ) {
+      continue;
+    }
+    if (fireDisabledResidences.has(residence.id)) {
+      fireDisabledGardens += 1;
+      fireDisabledGardenResidents += residence.population;
       continue;
     }
     occupiedGardens += 1;
@@ -407,6 +421,8 @@ export function computeSettlementBackyardEconomyPlan(input: {
   return {
     gardens,
     occupiedGardens,
+    fireDisabledGardens,
+    fireDisabledGardenResidents,
     seasonallyActiveGardens,
     producingTodayGardens,
     marketLinkedGardens,
