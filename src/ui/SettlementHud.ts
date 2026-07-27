@@ -100,29 +100,35 @@ const SETTLEMENT_HUD_HTML = `
       </div>
     </div>
     <div class="settlement-hud__body">
-      <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip="Timber in your treasury plus lumber stored at mills and lodges. Building costs spend treasury first, then pull from building storage.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip="Unreserved timber stored at physical yards, mills, and depots. Material loaded on carts is shown separately and cannot be spent until unloaded.">
         <span class="settlement-hud__label">Timber</span>
         <strong class="settlement-hud__value" data-stockpile="timber">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="timber" hidden></span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="stone" data-tooltip="Stone in your treasury plus quarry camp storage. Construction spends treasury first, then quarry storage.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="stone" data-tooltip="Unreserved stone stored at physical quarry yards and depots. Material loaded on carts is shown separately and cannot be spent until unloaded.">
         <span class="settlement-hud__label">Stone</span>
         <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="stone" hidden></span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="firewood" data-tooltip="Firewood held in treasury, woodcutter lodges, and residence stocks combined.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="firewood" data-tooltip="Firewood stored at physical lodges, depots, markets, and homes. Loaded carts are shown separately until unloading.">
         <span class="settlement-hud__label">Firewood</span>
         <strong class="settlement-hud__value" data-stockpile="firewood">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="firewood" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" data-tooltip="Water in treasury, wells, and residence stocks combined.">
+      <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" data-tooltip="Water stored at physical wells, workplaces, and homes. Loaded carts and fire buckets are shown separately until delivery.">
         <span class="settlement-hud__label">Water</span>
         <strong class="settlement-hud__value" data-stockpile="water">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="water" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food" data-tooltip="Food in treasury, supplier buildings, and residence stocks combined.">
+      <div class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food" data-tooltip="Food stored at physical producers, granaries, markets, institutions, and homes. Loaded carts are shown separately until unloading.">
         <span class="settlement-hud__label">Food</span>
         <strong class="settlement-hud__value" data-stockpile="food">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip="Treasury gold from taxed village economic activity. Select a staffed Town Hall to adjust tax policy.">
+      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip="Spendable civic gold secured in the founders' lockbox, reclamation chests, or Town Hall treasury. Parish and monastery coffers remain separate; moving lockboxes are shown until unloading.">
         <span class="settlement-hud__label">Gold</span>
         <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>
       </div>
       <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-tooltip="Total population: starting townsfolk plus residents who have moved into homes.">
         <span class="settlement-hud__label">Population</span>
@@ -140,45 +146,55 @@ const SETTLEMENT_HUD_HTML = `
       </div>
     </div>
     <div class="settlement-hud__stores" aria-label="Specialty stores">
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="grain" data-tooltip="Grain in treasury and farmstead storage.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="grain" data-tooltip="Grain stored at physical holdings, granaries, markets, processors, and institutions. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Grain</span>
         <strong class="settlement-hud__value" data-stockpile="grain">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="grain" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flour" data-tooltip="Flour in treasury and mill or granary storage.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flour" data-tooltip="Flour stored at physical mills, granaries, markets, and bakeries. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Flour</span>
         <strong class="settlement-hud__value" data-stockpile="flour">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="flour" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Ale in treasury, brewhouses, monasteries, and tier-3 homes.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Ale stored at physical breweries, markets, monasteries, and prosperous homes. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Ale</span>
         <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Preserved food in treasury, smokehouses, and tier-3 homes.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Preserved food stored at physical smokehouses, granaries, markets, institutions, and prosperous homes. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Preserved</span>
         <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="preservedFood" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Honey in treasury, apiaries, marketplaces, and monastery hospitality stores. Enabled monasteries consume it before producers export surplus.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Honey stored at physical apiaries, markets, and monastery hospitality stores. Enabled monasteries consume it before producers export surplus; loaded carts are shown separately.">
         <span class="settlement-hud__label">Honey</span>
         <strong class="settlement-hud__value" data-stockpile="honey">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="honey" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="Wine in treasury, vineyards, marketplaces, and monastery hospitality stores. Enabled monasteries consume it before producers export surplus.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="Wine stored at physical vineyards, markets, and monastery hospitality stores. Enabled monasteries consume it before producers export surplus; loaded carts are shown separately.">
         <span class="settlement-hud__label">Wine</span>
         <strong class="settlement-hud__value" data-stockpile="wine">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wine" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Unspun sheep fleece in treasury, pastoral holdings, and weavers' stores. Sheep are shorn once each year in early summer.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Unspun fleece stored at physical pastoral holdings and weavers. Sheep are shorn once each year in early summer; loaded carts are shown separately.">
         <span class="settlement-hud__label">Wool</span>
         <strong class="settlement-hud__value" data-stockpile="wool">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wool" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Woven cloth in treasury, weavers' workshops, tier-3 homes, and marketplaces awaiting export.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Woven cloth stored at physical weavers, prosperous homes, and markets awaiting export. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Cloth</span>
         <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Imported wrought-iron spearheads and fittings in treasury, marketplaces, and carpenter workshops. A staffed marketplace must order them; road carts haul them to a carpenter." hidden>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Imported wrought-iron heads and fittings stored at physical markets and carpenter workshops. Road carts haul them onward and are shown separately." hidden>
         <span class="settlement-hud__label">Ironwork</span>
         <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ironwork" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="Polearms in treasury, carpenter workshops, and guardhouses. One is required for each paid guard." hidden>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="Polearms stored at physical carpenter workshops and guardhouses. One is required for each paid guard; loaded weapon carts are shown separately." hidden>
         <span class="settlement-hud__label">Polearms</span>
         <strong class="settlement-hud__value" data-stockpile="polearms">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="polearms" hidden></span>
       </div>
     </div>
   </div>
@@ -466,7 +482,7 @@ export class SettlementHud {
     ].join(' · ');
 
     this.foodStat.dataset.tooltip = [
-      `${provisioning.foodStock.toFixed(1)} food is owned across the treasury, buildings, and homes; ${provisioning.usableFoodStock.toFixed(1)} is currently accessible.`,
+      `${provisioning.foodStock.toFixed(1)} food is stored across physical buildings and homes; ${provisioning.usableFoodStock.toFixed(1)} is currently accessible. Loaded carts are shown separately beneath the stored total.`,
       provisioning.fireQuarantinedFoodStock > 0.05
         ? `${provisioning.fireQuarantinedFoodStock.toFixed(1)} food is quarantined at fire-damaged sites and does not extend the runway.`
         : null,
@@ -479,7 +495,7 @@ export class SettlementHud {
       'Granaries reduce fresh-food spoilage but add a collection haul; disable intake at a granary to keep local suppliers serving nearby homes directly.',
     ].filter(Boolean).join(' ');
     this.firewoodStat.dataset.tooltip = [
-      `${provisioning.firewoodStock.toFixed(1)} firewood is owned across the treasury, buildings, and homes; ${provisioning.usableFirewoodStock.toFixed(1)} is currently accessible.`,
+      `${provisioning.firewoodStock.toFixed(1)} firewood is stored across physical buildings and homes; ${provisioning.usableFirewoodStock.toFixed(1)} is currently accessible. Loaded carts are shown separately beneath the stored total.`,
       provisioning.fireQuarantinedFirewoodStock > 0.05
         ? `${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood is quarantined at fire-damaged sites and does not extend the runway.`
         : null,
@@ -490,8 +506,8 @@ export class SettlementHud {
         : `Weakest heated road branch: ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at frost demand.`,
     ].filter(Boolean).join(' ');
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
-      ? `Treasury gold from taxed village activity. Armed guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current wage runway is ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
-      : 'Treasury gold from taxed village economic activity. Select a staffed Town Hall to adjust tax policy.';
+      ? `Spendable civic gold is secured at physical settlement lockboxes. Armed guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current wage runway is ${formatProvisionRunway(provisioning.guardWageRunwayDays)}. Gold en route appears separately and becomes spendable only after unloading.`
+      : "Spendable civic gold is secured at the founders' lockbox, reclamation chests, or Town Hall treasury. Parish and monastery coffers remain separate; moving lockboxes appear until unloading.";
   }
 
   clearProvisioningState(): void {

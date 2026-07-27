@@ -3,6 +3,7 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import {
+  HUD_RESOURCE_KINDS,
   computeResourceTotals,
   computeMarketplaceTradeAvailability,
   maxAssignableLabor,
@@ -164,6 +165,7 @@ export class ResourceInspector {
     'timber' | 'stone' | 'firewood' | 'water' | 'food' | 'gold' | 'grain' | 'flour' | 'ale' | 'preservedFood' | 'honey' | 'wine' | 'wool' | 'cloth' | 'ironwork' | 'polearms',
     HTMLElement
   >;
+  private readonly stockpileTransitValues: Record<keyof ResourceTotals, HTMLElement>;
   private readonly populationValue: HTMLElement;
   private readonly housingValue: HTMLElement;
   private readonly housingSub: HTMLElement;
@@ -264,6 +266,12 @@ export class ResourceInspector {
       ironwork: this.mustElement(options.uiRoot, '[data-stockpile="ironwork"]'),
       polearms: this.mustElement(options.uiRoot, '[data-stockpile="polearms"]'),
     };
+    this.stockpileTransitValues = Object.fromEntries(
+      HUD_RESOURCE_KINDS.map((resource) => [
+        resource,
+        this.mustElement(options.uiRoot, `[data-stockpile-transit="${resource}"]`),
+      ]),
+    ) as Record<keyof ResourceTotals, HTMLElement>;
     this.populationValue = this.mustElement(options.uiRoot, '[data-stockpile="population"]');
     this.housingValue = this.mustElement(options.uiRoot, '[data-stockpile="housing"]');
     this.housingSub = this.mustElement(options.uiRoot, '[data-stockpile="housing-sub"]');
@@ -759,7 +767,11 @@ export class ResourceInspector {
     void this.options.onAssignBuildingLabor?.(building.id, Math.min(maxLabor, building.assignedLabor + 1));
   };
 
-  setHud(totals: ResourceTotals, population: PopulationStats): void {
+  setHud(
+    totals: ResourceTotals,
+    population: PopulationStats,
+    inTransit?: ResourceTotals,
+  ): void {
     this.populationStats = population;
     this.stockpileValues.timber.textContent = Math.round(totals.timber).toString();
     this.stockpileValues.stone.textContent = Math.round(totals.stone).toString();
@@ -777,6 +789,14 @@ export class ResourceInspector {
     this.stockpileValues.cloth.textContent = Math.round(totals.cloth).toString();
     this.stockpileValues.ironwork.textContent = Math.round(totals.ironwork).toString();
     this.stockpileValues.polearms.textContent = Math.round(totals.polearms).toString();
+    for (const resource of HUD_RESOURCE_KINDS) {
+      const transit = this.stockpileTransitValues[resource];
+      const amount = Math.max(0, inTransit?.[resource] ?? 0);
+      transit.hidden = amount <= 1e-6;
+      transit.textContent = amount > 1e-6
+        ? `+${formatTransitAmount(amount)} en route`
+        : '';
+    }
     this.populationValue.textContent = population.total.toString();
     this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;
     this.housingSub.textContent = population.vacant === 1
@@ -1145,6 +1165,14 @@ export class ResourceInspector {
     if (!element) throw new Error(`Missing resource inspector button ${selector}`);
     return element;
   }
+}
+
+function formatTransitAmount(amount: number): string {
+  if (Math.abs(amount - Math.round(amount)) <= 1e-6) {
+    return Math.round(amount).toLocaleString();
+  }
+  if (amount < 0.1) return amount.toFixed(2);
+  return amount.toFixed(1);
 }
 
 function createSelectionMarker(): THREE.Mesh {

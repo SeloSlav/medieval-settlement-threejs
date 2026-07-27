@@ -19,7 +19,11 @@ import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
 import type { GameState } from '../resources/types.ts';
 import { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
-import { computePopulationStats, computeResourceTotals } from '../resources/resourceTotals.ts';
+import {
+  computeInTransitResourceTotals,
+  computePopulationStats,
+  computeResourceTotals,
+} from '../resources/resourceTotals.ts';
 import { computeSettlementProvisioning } from '../economy/settlementProvisioning.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
@@ -815,6 +819,7 @@ export class App {
     this.resourceInspector.setHud(
       computeResourceTotals(this.gameState),
       computePopulationStats(this.gameState),
+      computeInTransitResourceTotals(this.gameState.deliveryTrips.values()),
     );
     this.resourceInspector.refreshSelection();
   }

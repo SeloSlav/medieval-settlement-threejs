@@ -318,6 +318,10 @@
   line-height: 1.2;
 }
 
+.settlement-hud__sub--transit {
+  color: #d6a85e;
+}
+
 .settlement-hud__stat--gold .settlement-hud__value {
   color: #e8c86a;
 }

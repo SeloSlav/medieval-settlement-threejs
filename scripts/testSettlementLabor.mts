@@ -13,6 +13,7 @@ import { renderTownHallInspector } from '../src/resources/inspector/townHallRend
 import { buildingLaborView } from '../src/resources/inspector/buildingCommon.ts';
 import { withStaffingPriority } from '../src/resources/inspector/staffingPriorityRenderer.ts';
 import {
+  computeInTransitResourceTotals,
   computePopulationStats,
   computeResourceTotals,
 } from '../src/resources/resourceTotals.ts';
@@ -121,6 +122,16 @@ assert.equal(haulage.totalRemainingTripSeconds, 755);
 assert.equal(haulage.totalRemainingWorkerSeconds, 830);
 assert.equal(haulage.longestRoute?.tripId, '2');
 assert.equal(haulage.longestRoute?.remainingSeconds, 50);
+const inTransit = computeInTransitResourceTotals(haulageTrips.values());
+assert.equal(inTransit.firewood, 8);
+assert.equal(inTransit.food, 4);
+assert.equal(inTransit.water, 2);
+assert.equal(inTransit.timber, 0, 'an empty returning cart should not report cargo');
+assert.equal(
+  Object.values(inTransit).reduce((sum, amount) => sum + amount, 0),
+  haulage.cargoInTransit,
+  'the HUD transit ledger should account for every loaded physical cart exactly once',
+);
 
 const laborSurplus = computeSettlementLaborPlan({
   state: { buildings: new Map([['1', building('1', 'well', 0)]]), deliveryTrips: new Map() },
@@ -289,6 +300,9 @@ const perfPlan = computeSettlementLaborPlan({
   vacantHousingSlots: 20_000,
 });
 const elapsedMs = performance.now() - started;
+const cargoStarted = performance.now();
+const perfCargo = computeInTransitResourceTotals(perfTrips.values());
+const cargoElapsedMs = performance.now() - cargoStarted;
 assert.equal(perfPlan.sectors.provisions.worksites, 20_000);
 assert.equal(perfPlan.sectors.materials.worksites, 20_000);
 assert.equal(perfPlan.sectors.logistics.worksites, 20_000);
@@ -297,8 +311,13 @@ assert.equal(perfPlan.sectors.defense.worksites, 20_000);
 assert.equal(perfPlan.haulage.activeTrips, 100_000);
 assert.equal(perfPlan.haulage.loadedTrips, 100_000);
 assert.equal(perfPlan.haulage.cargoInTransit, 100_000);
+assert.equal(perfCargo.food, 100_000);
 assert.equal(perfPlan.haulage.longestRoute?.tripId, '0');
 assert.ok(elapsedMs < 250, `100,000-building workforce plan took ${elapsedMs.toFixed(1)} ms`);
+assert.ok(
+  cargoElapsedMs < 100,
+  `100,000-cart HUD cargo ledger took ${cargoElapsedMs.toFixed(1)} ms`,
+);
 
 const townHallInspector = readFileSync(
   new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
@@ -329,11 +348,14 @@ assert.match(townHallInspector, /Haulage posture/);
 assert.match(townHallInspector, /data-inspect-delivery-trip/);
 assert.match(townHallInspector, /data-inspect-building/);
 assert.match(settlementHud, /compare permanent jobs, temporary builders, cart crews/);
+assert.match(settlementHud, /data-stockpile-transit="timber"/);
+assert.match(settlementHud, /Loaded carts are shown separately/);
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-delivery-trip\]'\)/);
+assert.match(resourceInspector, /en route/);
 assert.match(villagerInspector, /selectDeliveryTrip\(tripId: string\): boolean/);
 assert.match(appBootstrap, /onInspectDeliveryTrip: \(tripId\)/);
 
-console.log(`settlement workforce and haulage plan tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings + 100,000 trips)`);
+console.log(`settlement workforce and haulage plan tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings + 100,000 trips; ${cargoElapsedMs.toFixed(1)} ms cargo ledger)`);
 
 function building(
   id: string,

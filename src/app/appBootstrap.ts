@@ -32,7 +32,11 @@ import { createInitialGameState } from '../resources/GameState.ts';
 import type { GameState } from '../resources/types.ts';
 import { countTreesNearBuilding } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
-import { computePopulationStats, computeResourceTotals } from '../resources/resourceTotals.ts';
+import {
+  computeInTransitResourceTotals,
+  computePopulationStats,
+  computeResourceTotals,
+} from '../resources/resourceTotals.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldQueries } from '../resources/WorldQueries.ts';
@@ -768,6 +772,7 @@ export async function bootstrapAppSession(
   resourceInspector.setHud(
     computeResourceTotals(gameState),
     computePopulationStats(gameState),
+    computeInTransitResourceTotals(gameState.deliveryTrips.values()),
   );
 
   firstPersonController = new FirstPersonController({

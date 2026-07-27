@@ -14,6 +14,7 @@ import {
   type StorageCaps,
 } from '../generated/gameBalance.ts';
 import type { MarketplaceTradeAvailability } from '../economy/marketplaceTrade.ts';
+import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
@@ -63,6 +64,25 @@ export type ResourceTotals = {
   ironwork: number;
   polearms: number;
 };
+
+export const HUD_RESOURCE_KINDS = [
+  'timber',
+  'stone',
+  'firewood',
+  'water',
+  'food',
+  'gold',
+  'grain',
+  'flour',
+  'ale',
+  'preservedFood',
+  'honey',
+  'wine',
+  'wool',
+  'cloth',
+  'ironwork',
+  'polearms',
+] as const satisfies readonly (keyof ResourceTotals)[];
 
 export type PopulationStats = {
   total: number;
@@ -175,6 +195,24 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   };
   cachedState = state;
   return cachedTotals;
+}
+
+/**
+ * Loaded goods are still owned and physically represented by their cart, but
+ * they are not spendable at a store or destination until unloading. Keep this
+ * ledger separate from `computeResourceTotals` so readable HUD feedback never
+ * lets client affordability previews promise cargo that the server cannot use.
+ */
+export function computeInTransitResourceTotals(
+  trips: Iterable<DeliveryTripState>,
+): ResourceTotals {
+  const totals = emptyResourceTotals();
+  for (const trip of trips) {
+    const amount = Number.isFinite(trip.amount) ? Math.max(0, trip.amount) : 0;
+    if (amount <= 1e-6) continue;
+    totals[trip.cargoKind] += amount;
+  }
+  return totals;
 }
 
 /**
@@ -325,4 +363,25 @@ export function maxAssignableLabor(
     ? buildingMaxLabor(building.kind)
     : CONSTRUCTION_MAX_BUILDERS;
   return Math.min(fromPool, buildingCap);
+}
+
+function emptyResourceTotals(): ResourceTotals {
+  return {
+    timber: 0,
+    stone: 0,
+    firewood: 0,
+    water: 0,
+    food: 0,
+    gold: 0,
+    grain: 0,
+    flour: 0,
+    ale: 0,
+    preservedFood: 0,
+    honey: 0,
+    wine: 0,
+    wool: 0,
+    cloth: 0,
+    ironwork: 0,
+    polearms: 0,
+  };
 }
