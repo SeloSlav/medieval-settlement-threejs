@@ -37,7 +37,7 @@ import {
 } from '../../economy/settlementHouseholdMarket.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../../economy/regionalMarket.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
-import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { residenceSettlementReadiness } from '../../economy/residenceSettlement.ts';
 import {
@@ -156,7 +156,7 @@ export function renderResidenceInspector(
         roadNetwork: context.worldQueries.getRoadNetworkSnapshot(),
         clock: gameClock(context.gameState.tick),
         sabbathObserved: parishPolicy.sabbathObservanceEnabled
-          && hasStaffedChapel(context.gameState.buildings.values()),
+          && settlementHasStaffedChapel(context.gameState),
         residenceIds: new Set([residence.id]),
       })
     : null;

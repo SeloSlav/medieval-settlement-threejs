@@ -11,6 +11,7 @@ import {
   summarizeHouseholdWealth,
 } from './villageProjections.ts';
 import { totalChapelCofferGold } from '../resources/chapelCoffer.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { hasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import type { WorldQueries } from '../resources/WorldQueries.ts';
@@ -60,13 +61,17 @@ export function buildVillageAdminReadout(input: {
 
   const residences = [...gameState.residences.values()];
   const buildings = [...gameState.buildings.values()];
-  const chapels = buildings.filter((building) => building.kind === 'chapel');
+  const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
+  const chapels = buildings.filter(
+    (building) => building.kind === 'chapel' && !fireDisabled.has(building.id),
+  );
   const wealthSummary = summarizeHouseholdWealth(residences);
   const staffedTownHallAvailable = buildings.some(
     (building) =>
       building.kind === 'town_hall'
       && building.constructionComplete !== false
-      && building.assignedLabor > 0,
+      && building.assignedLabor > 0
+      && !fireDisabled.has(building.id),
   );
   const taxCollectionMultiplier = staffedTownHallAvailable
     ? 1

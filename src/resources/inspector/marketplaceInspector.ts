@@ -21,7 +21,7 @@ import {
   formatHouseholdMarketBranch,
 } from '../../economy/settlementHouseholdMarket.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
-import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 
@@ -109,7 +109,7 @@ export function renderMarketplaceInspector(
         roadNetwork: context.worldQueries.getRoadNetworkSnapshot(),
         clock: gameClock(context.gameState.tick),
         sabbathObserved: parishPolicy.sabbathObservanceEnabled
-          && hasStaffedChapel(context.gameState.buildings.values()),
+          && settlementHasStaffedChapel(context.gameState),
       })
     : null;
   const householdBranch = householdMarketPlan?.branches.get(building.id) ?? null;

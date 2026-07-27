@@ -18,7 +18,7 @@ import {
 import {
   backyardGardenSeasonStatus,
 } from '../../economy/backyardGardenTick.ts';
-import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { getNeedStock } from '../../residences/residenceNeeds.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
@@ -54,7 +54,7 @@ export function renderBackyardInspector(
   const parishPolicy = context.getParishPolicy?.();
   const sabbathPaused = clock.isSunday
     && Boolean(parishPolicy?.sabbathObservanceEnabled)
-    && hasStaffedChapel(context.gameState.buildings.values());
+    && settlementHasStaffedChapel(context.gameState);
   const staffedTownHall = Array.from(context.gameState.buildings.values()).some(
     (building) =>
       building.kind === 'town_hall'

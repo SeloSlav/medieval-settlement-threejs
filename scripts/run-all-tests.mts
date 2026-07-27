@@ -51,6 +51,7 @@ const tests = [
   'test:day-night',
   'test:celestial-sky',
   'test:fires',
+  'test:fire-recovery-planning',
   'test:world-config',
   'test:startup-chunking',
   'test:connection-recovery',

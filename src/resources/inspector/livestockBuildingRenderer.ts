@@ -21,7 +21,7 @@ import {
   LIVESTOCK_HAY_STORAGE_CAPACITY,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
 } from '../../generated/gameBalance.ts';
-import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
@@ -94,7 +94,7 @@ export function renderLivestockBuildingInspector(
   const livestockPolicy = herd ? livestockPolicyDefinition(herd.species) : null;
   const sabbathObserved = Boolean(
     context.getParishPolicy?.().sabbathObservanceEnabled
-      && hasStaffedChapel(context.gameState.buildings.values()),
+      && settlementHasStaffedChapel(context.gameState),
   );
   const fodderPlan = herd
     ? projectLivestockFodderHolding(

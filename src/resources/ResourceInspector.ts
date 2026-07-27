@@ -33,7 +33,7 @@ import {
 } from '../economy/storehousePolicy.ts';
 import { isProcessorOutputTargetKind } from '../economy/processorOutputPolicy.ts';
 import { computeSettlementProductionCapacity } from '../economy/settlementProduction.ts';
-import { hasStaffedChapel } from '../logistics/landmarkAccess.ts';
+import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -954,7 +954,7 @@ export class ResourceInspector {
     );
     const sabbathObserved = (
       this.options.getParishPolicy?.().sabbathObservanceEnabled ?? false
-    ) && hasStaffedChapel(gameState.buildings.values());
+    ) && settlementHasStaffedChapel(gameState);
     const settlementProduction = needsProductionForecast
       ? computeSettlementProductionCapacity(
           gameState,

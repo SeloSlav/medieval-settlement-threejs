@@ -68,7 +68,7 @@ import {
   type ProjectedRaidTarget,
 } from '../security/frontierSecurity.ts';
 import { FrontierRiskMarkers } from '../security/FrontierRiskMarkers.ts';
-import { hasStaffedChapel } from '../logistics/landmarkAccess.ts';
+import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHooks.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
@@ -656,7 +656,7 @@ export class App {
         currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
         freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
         sabbathObserved: snapshot.parishPolicy.sabbathObservanceEnabled
-          && hasStaffedChapel(state.buildings.values()),
+          && settlementHasStaffedChapel(state),
         roadComponentFor: (entity) =>
           this.roadNetwork!.getPathfinder().roadComponentAt(entity.x, entity.z),
       }),

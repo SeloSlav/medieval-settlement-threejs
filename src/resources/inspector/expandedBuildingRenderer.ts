@@ -69,7 +69,7 @@ import {
   type SeedGrainSourceCoveragePlan,
 } from '../../economy/marketplaceSeedCoverage.ts';
 import { computeCattleFieldSupport } from '../../farming/cattleFieldSupport.ts';
-import { hasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
@@ -752,7 +752,7 @@ function renderFarmsteadPlanning(
   const parish = context.getParishPolicy?.();
   const sabbathObserved = Boolean(
     parish?.sabbathObservanceEnabled
-    && hasStaffedChapel(context.gameState.buildings.values()),
+    && settlementHasStaffedChapel(context.gameState),
   );
   const cattleSupport = computeCattleFieldSupport(context.gameState);
   const plan = buildFarmsteadWorkPlan(

@@ -1,4 +1,10 @@
-import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import type {
+  BuildingKind,
+  BuildingState,
+  GameState,
+  ResidenceState,
+} from '../resources/types.ts';
 import { MONASTERY_COVERAGE_RADIUS } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
 
@@ -23,6 +29,18 @@ export function isChapelStaffed(building: BuildingState): boolean {
 export function hasStaffedChapel(buildings: Iterable<BuildingState>): boolean {
   for (const building of buildings) {
     if (isChapelStaffed(building)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function settlementHasStaffedChapel(
+  state: Pick<GameState, 'buildings' | 'fireIncidents'>,
+): boolean {
+  const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+  for (const building of state.buildings.values()) {
+    if (isChapelStaffed(building) && !fireDisabled.has(building.id)) {
       return true;
     }
   }

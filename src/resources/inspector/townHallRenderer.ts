@@ -48,6 +48,12 @@ import {
   type SettlementGrainRoadPlan,
 } from '../../economy/settlementGrainPlan.ts';
 import {
+  computeSettlementFireRecoveryPlan,
+  type SettlementFireRecoveryPlan,
+  type SettlementFireRecoveryTarget,
+} from '../../economy/settlementFireRecovery.ts';
+import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
+import {
   computeSettlementSeedProcurementPlan,
   type SettlementSeedProcurementAttention,
   type SettlementSeedProcurementPlan,
@@ -144,9 +150,9 @@ import {
 import { buildResidenceCommunityContext } from '../../economy/economyInspectorViews.ts';
 import {
   findServingChapel,
-  hasStaffedChapel,
   isResidenceInMonasteryCoverage,
   monasteryLinkedToChapel,
+  settlementHasStaffedChapel,
 } from '../../logistics/landmarkAccess.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import {
@@ -406,6 +412,106 @@ function formatConstructionMaterialCoverage(
 ): string {
   const covered = material.foundersReserve + material.awaitingPickup + material.inTransit;
   return `${covered.toFixed(0)} / ${material.remaining.toFixed(0)} ${label}`;
+}
+
+export function renderSettlementFireRecoveryRows(
+  plan: SettlementFireRecoveryPlan,
+  getBuildingLabel: (kind: BuildingKind) => string,
+): string {
+  if (plan.incidentCount === 0) {
+    return '<li><span>Fire recovery</span><span>No active fires or damaged structures</span></li>';
+  }
+  const activeInspect = fireRecoveryInspectButton(
+    plan.firstActiveTarget,
+    'Inspect most urgent active fire',
+  );
+  const recoveryInspect = fireRecoveryInspectButton(
+    plan.firstRecoveryTarget,
+    'Inspect next fire-recovery priority',
+  );
+  const activePriority = plan.firstActiveTarget === null
+    ? ''
+    : ` · ${fireRecoveryTargetLabel(plan.firstActiveTarget, getBuildingLabel)} ${
+        plan.firstActiveTarget.responseWellId === null
+          ? 'is unanswered'
+          : `has the highest current intensity (${Math.round(
+              plan.firstActiveTarget.intensity * 100,
+            )}%)`
+      }${activeInspect}`;
+  const active = plan.burningCount === 0
+    ? 'No structures currently burning'
+    : `${plan.respondedBurningCount} / ${plan.burningCount} assigned a well response · ${plan.responseWaterRemaining.toFixed(1)} bucket water still requested${
+        plan.unrespondedBurningCount > 0
+          ? ` · ${plan.unrespondedBurningCount} without a responder`
+          : ''
+      }${activePriority}`;
+  const outage = `${plan.buildingOutages} building ${
+    plan.buildingOutages === 1 ? 'outage' : 'outages'
+  } + ${plan.residenceOutages} ${
+    plan.residenceOutages === 1 ? 'home' : 'homes'
+  } offline · ${plan.suspendedWorkers} assigned ${
+    plan.suspendedWorkers === 1 ? 'worker' : 'workers'
+  } suspended · ${plan.affectedResidents} current ${
+    plan.affectedResidents === 1 ? 'resident' : 'residents'
+  } disrupted · ${plan.offlineHousingCapacity} housing capacity unavailable`;
+  const queue = `${plan.readyRecoveryCount} ready · ${plan.coolingRecoveryCount} cooling · ${
+    plan.extinguishedCount
+  } ${plan.extinguishedCount === 1 ? 'repair' : 'repairs'} + ${
+    plan.destroyedCount
+  } ${plan.destroyedCount === 1 ? 'rebuild' : 'rebuilds'}${
+    plan.firstRecoveryTarget === null
+      ? ''
+      : ` · ${fireRecoveryTargetLabel(plan.firstRecoveryTarget, getBuildingLabel)} ${
+          plan.firstRecoveryTarget.coolingSeconds <= 1e-6
+            ? `is next (${staffingPriorityLabel(
+                plan.firstRecoveryTarget.workPriority,
+              ).toLocaleLowerCase()} work priority)`
+            : `cools in ~${Math.ceil(plan.firstRecoveryTarget.coolingSeconds)}s`
+        }${recoveryInspect}`
+  }`;
+  const shortfalls = [
+    plan.timberShortfall > 0.05 ? `${plan.timberShortfall.toFixed(1)} timber short` : '',
+    plan.stoneShortfall > 0.05 ? `${plan.stoneShortfall.toFixed(1)} stone short` : '',
+  ].filter(Boolean);
+  const readyMaterials = plan.readyRecoveryCount === 0
+    ? 'none ready to commit'
+    : `${plan.readyTimberCost.toFixed(1)} timber + ${plan.readyStoneCost.toFixed(1)} stone ready to commit`;
+  const materials = `${readyMaterials} · ${plan.estimatedTimberCost.toFixed(1)} timber + ${
+    plan.estimatedStoneCost.toFixed(1)
+  } stone current minimum liability${
+    plan.burningCount > 0 ? ' · burning damage can raise it' : ''
+  } · ${plan.carpenterSupportedTargets} ${
+    plan.carpenterSupportedTargets === 1 ? 'target has' : 'targets have'
+  } road-linked carpenter support${
+    shortfalls.length > 0 ? ` · ${shortfalls.join(' · ')}` : ' · currently covered'
+  }`;
+  return `
+    <li><span>Fire response</span><span>${active}</span></li>
+    <li><span>Structural outages</span><span>${outage}</span></li>
+    <li><span>Recovery queue</span><span>${queue}</span></li>
+    <li><span>Recovery materials</span><span>${materials}</span></li>
+  `;
+}
+
+function fireRecoveryTargetLabel(
+  target: SettlementFireRecoveryTarget,
+  getBuildingLabel: (kind: BuildingKind) => string,
+): string {
+  if (target.buildingKind !== null) return getBuildingLabel(target.buildingKind);
+  return target.residenceParcelIndex === null
+    ? 'Residence'
+    : `Residence parcel #${target.residenceParcelIndex + 1}`;
+}
+
+function fireRecoveryInspectButton(
+  target: SettlementFireRecoveryTarget | null,
+  ariaLabel: string,
+): string {
+  if (target === null) return '';
+  const attribute = target.targetKind === 'building'
+    ? 'data-inspect-building'
+    : 'data-inspect-residence';
+  return ` <button type="button" class="inspector-jump-button" ${attribute}="${target.targetId}" aria-label="${ariaLabel}">Inspect</button>`;
 }
 
 function formatConstructionRoads(
@@ -1225,7 +1331,7 @@ export function renderTownHallInspector(
     currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
     freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
     sabbathObserved: parishPolicy.sabbathObservanceEnabled
-      && hasStaffedChapel(context.gameState.buildings.values()),
+      && settlementHasStaffedChapel(context.gameState),
     roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
       ? (entity) => context.worldQueries.getRoadComponentId(entity.x, entity.z)
       : undefined,
@@ -1282,6 +1388,12 @@ export function renderTownHallInspector(
           candidate.z,
         )
       : undefined,
+  });
+  const fireRecoveryPlan = computeSettlementFireRecoveryPlan({
+    state: context.gameState,
+    resources: context.resourceTotals,
+    roadComponentIdsFor: (candidate) =>
+      context.worldQueries.getRoadComponentIds(candidate.x, candidate.z),
   });
   const constructionLabor = computeSettlementConstructionLaborPlan(
     context.gameState,
@@ -1585,6 +1697,10 @@ export function renderTownHallInspector(
       <li><span>At full housing labor</span><span>${formatFullHousingLabor(laborPlan)}</span></li>
       <li><span>Work in motion</span><span>${formatWorkInMotion(laborPlan)}</span></li>
       ${renderSettlementHaulageRows(laborPlan.haulage)}
+      ${renderSettlementFireRecoveryRows(
+        fireRecoveryPlan,
+        (kind) => context.worldQueries.getBuildingLabel(kind),
+      )}
       <li><span>Next dawn outlook</span><span>${nextDawnOutlook}</span></li>
       ${renderConstructionQueueRows(constructionPlan)}
       <li><span>Construction crews</span><span>${formatConstructionLabor(constructionLabor)}${constructionLaborInspectButton}</span></li>

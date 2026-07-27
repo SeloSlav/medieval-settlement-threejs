@@ -159,7 +159,11 @@ impl SimTickContext {
             .building_ids_for_kinds(ctx, owner, &["chapel"])
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
-            .any(|building| building.construction_complete && building.assigned_labor > 0);
+            .any(|building| {
+                building.construction_complete
+                    && building.assigned_labor > 0
+                    && !self.building_disabled_by_fire(ctx, building.id)
+            });
         self.staffed_chapel_by_owner
             .borrow_mut()
             .insert(owner, staffed);
