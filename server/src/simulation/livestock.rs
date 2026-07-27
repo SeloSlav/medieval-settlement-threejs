@@ -35,6 +35,7 @@ use crate::livestock_policy::{
 };
 use crate::reducers::livestock::{SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE};
 use crate::season_policy::{EnvironmentState, Season};
+use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::expanded_economy::{
     dispatch_need, dispatch_to_building, request_connected_commodity,
 };
@@ -92,8 +93,9 @@ fn step_livestock_building(
     herd.supplied_capacity = herd.pasture_capacity.min(herd.head_count as f64);
 
     let paused = labor_and_logistics_paused(ctx, tick, building.owner, clock);
-    building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
-    if !paused && building.assigned_labor > 0 {
+    let onsite_labor = onsite_building_labor(ctx, &building);
+    if !paused && onsite_labor > 0 {
+        building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
         let unsupported = (herd.head_count as f64 - herd.pasture_capacity).max(0.0);
         let grain_per_head = species_grain_per_unsupported_head(herd.species);
         let immediate_grain_buffer = unsupported * grain_per_head * 2.0;
@@ -150,7 +152,7 @@ fn step_livestock_building(
                 &mut building,
                 &mut herd,
             );
-            let labor = building.assigned_labor.max(1) as f64;
+            let labor = onsite_labor as f64;
             building.action_cooldown = building_def(&building.kind)
                 .map(|def| def.action_interval / labor)
                 .unwrap_or(10.0);

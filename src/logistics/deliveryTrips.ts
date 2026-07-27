@@ -59,6 +59,25 @@ export type TripEndpoint = {
   destinationZ: number;
 };
 
+export function rosteredCartWorkers(
+  building: Pick<BuildingState, 'assignedLabor'>,
+  trip: DeliveryTripState | null | undefined,
+): number {
+  if (!trip) return 0;
+  return Math.min(
+    Math.max(0, building.assignedLabor),
+    Math.max(0, trip.deliveryWorkers - trip.freeHaulerWorkers),
+  );
+}
+
+/** Mirrors the server's authoritative physical-presence rule. */
+export function onsiteBuildingLabor(
+  building: Pick<BuildingState, 'assignedLabor'>,
+  trip: DeliveryTripState | null | undefined,
+): number {
+  return Math.max(0, building.assignedLabor - rosteredCartWorkers(building, trip));
+}
+
 /** Stable identity for the regular hauler attached to a producer between trips. */
 export function deliveryWorkerPersonIdentity(trip: DeliveryTripState): string {
   return `delivery:${trip.buildingId}:hauler:0`;

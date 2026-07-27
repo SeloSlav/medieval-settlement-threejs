@@ -17,7 +17,8 @@ use crate::simulation::delivery_supplier::{
     DeliveryDispatchConfig,
 };
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, building_has_inbound_supply_trip, try_start_building_supply_trip,
+    building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
+    try_start_building_supply_trip,
 };
 use crate::simulation::expanded_economy::processor_accepts_input;
 use crate::simulation::game_calendar::GameClock;
@@ -85,15 +86,7 @@ pub fn step_well(
     well.water_capacity = capacity;
     well.action_cooldown = (well.action_cooldown - TICK_DT).max(0.0);
 
-    let workers_away = ctx
-        .db
-        .delivery_trip()
-        .building_id()
-        .filter(&well.id)
-        .next()
-        .map(|trip| trip.delivery_workers.min(well.assigned_labor))
-        .unwrap_or(0);
-    let available_labor = well.assigned_labor.saturating_sub(workers_away);
+    let available_labor = onsite_building_labor(ctx, &well);
     let split = lodge_labor_split(available_labor);
     let single_worker = available_labor == 1;
     let delivery_ready = !fire_response_needed

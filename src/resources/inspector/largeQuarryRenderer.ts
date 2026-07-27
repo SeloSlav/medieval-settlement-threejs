@@ -9,6 +9,7 @@ import {
   buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 
 export function renderLargeQuarryInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -21,14 +22,20 @@ export function renderLargeQuarryInspector(
     quarry.isRich && Math.hypot(quarry.x - building.x, quarry.z - building.z) <= 2.5
   );
   const storageFull = building.stone >= caps.stone - 1e-6;
-  const active = building.assignedLabor > 0 && richDeposit != null && !storageFull;
-  const cycleSeconds = laborScaledInterval(definition.harvestInterval, building.assignedLabor);
+  const onsiteLabor = onsiteBuildingLabor(
+    building,
+    context.worldQueries.getActiveDeliveryTrip(building),
+  );
+  const active = onsiteLabor > 0 && richDeposit != null && !storageFull;
+  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor);
 
   return {
     eyebrow: 'Underground quarry',
     title: context.worldQueries.getBuildingLabel(building.kind),
-    statusText: building.assignedLabor === 0
-      ? 'Idle — assign workers to the underground quarry'
+    statusText: onsiteLabor === 0
+      ? building.assignedLabor > 0
+        ? 'Extraction paused - the full roster is away with its cart'
+        : 'Idle - assign workers to the underground quarry'
       : storageFull
         ? 'Paused — stone storage is full'
         : !richDeposit
@@ -39,7 +46,7 @@ export function renderLargeQuarryInspector(
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       <li><span>Source</span><span>Rich underground stone · inexhaustible</span></li>
       <li><span>Surface reserve</span><span>Separate · ${Math.round(richDeposit?.remaining ?? 0)} remaining</span></li>
-      <li><span>Production interval</span><span>${building.assignedLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : `${definition.harvestInterval}s`} (${building.assignedLabor} workers)</span></li>
+      <li><span>Production interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {

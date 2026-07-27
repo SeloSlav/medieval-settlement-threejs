@@ -9,6 +9,8 @@ import {
 } from '../src/generated/gameBalance.ts';
 import {
   deliveryLegRemainingMeters,
+  onsiteBuildingLabor,
+  rosteredCartWorkers,
   tripDeliveryRemainingSeconds,
   type DeliveryTripState,
 } from '../src/logistics/deliveryTrips.ts';
@@ -61,6 +63,29 @@ const loadedTrip: DeliveryTripState = {
   travelSpeedMultiplier: 1,
   routePolylineJson: '[]',
 };
+assert.equal(rosteredCartWorkers({ assignedLabor: 3 }, loadedTrip), 2);
+assert.equal(onsiteBuildingLabor({ assignedLabor: 3 }, loadedTrip), 1);
+assert.equal(
+  onsiteBuildingLabor(
+    { assignedLabor: 3 },
+    { ...loadedTrip, freeHaulerWorkers: 1 },
+  ),
+  2,
+  'only the roster-backed part of a mixed cart crew should reduce on-site work',
+);
+assert.equal(
+  onsiteBuildingLabor(
+    { assignedLabor: 3 },
+    { ...loadedTrip, freeHaulerWorkers: 2 },
+  ),
+  3,
+  'free founding and institutional haulers must not reduce building production',
+);
+assert.equal(
+  rosteredCartWorkers({ assignedLabor: 1 }, { ...loadedTrip, deliveryWorkers: 3 }),
+  1,
+  'a traveling crew cannot remove more workers than the origin still has rostered',
+);
 assert.equal(
   tripDeliveryRemainingSeconds(loadedTrip),
   31,
@@ -152,6 +177,27 @@ assert.deepEqual(parseCounts(20), { before: 50, after: 30 });
 assert.deepEqual(parseCounts(120), { before: 150, after: 30 });
 
 const deliveryServer = read('server/src/simulation/delivery_trips.rs');
+assert.match(
+  deliveryServer,
+  /pub fn onsite_building_labor[\s\S]*?delivery_trip\(\)[\s\S]*?building_id\(\)[\s\S]*?free_hauler_workers/,
+  'on-site labor must use the indexed origin trip and exclude free haulers',
+);
+for (const productionFile of [
+  'lumber_mill.rs',
+  'stone_quarry.rs',
+  'large_quarry.rs',
+  'food_supplier.rs',
+  'woodcutters_lodge.rs',
+  'well.rs',
+  'expanded_economy.rs',
+  'livestock.rs',
+]) {
+  assert.match(
+    read(`server/src/simulation/${productionFile}`),
+    /onsite_building_labor/,
+    `${productionFile} must use physically present labor for work throughput`,
+  );
+}
 assert.match(
   deliveryServer,
   /cartwright_multiplier \* road_condition_multiplier/,

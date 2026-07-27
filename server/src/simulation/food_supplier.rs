@@ -15,6 +15,7 @@ use crate::simulation::delivery_supplier::{
     delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
     DeliveryDispatchConfig,
 };
+use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::lodge_logistics::lodge_labor_split;
@@ -89,9 +90,12 @@ fn step_food_supplier(
     let network = tick.road_network(building.owner);
 
     let mut supplier = building;
-    supplier.action_cooldown = (supplier.action_cooldown - TICK_DT).max(0.0);
-
-    let split = lodge_labor_split(supplier.assigned_labor);
+    let onsite_labor = onsite_building_labor(ctx, &supplier);
+    let mut split = lodge_labor_split(supplier.assigned_labor);
+    split.processing = split.processing.min(onsite_labor);
+    if split.processing > 0 {
+        supplier.action_cooldown = (supplier.action_cooldown - TICK_DT).max(0.0);
+    }
     let single_worker = supplier.assigned_labor == 1;
     let harvest_ready = split.processing > 0 && supplier.action_cooldown <= 0.0;
     let delivery_ready = network.is_some()

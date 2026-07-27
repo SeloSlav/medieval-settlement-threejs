@@ -21,6 +21,7 @@ import {
   formatTripBuildingDestinationLabel,
   formatTripDestinationLabel,
   formatTripPhaseLabel,
+  onsiteBuildingLabor,
 } from '../../logistics/deliveryTrips.ts';
 import { hydrologyGradeLabel, wellCapacityFromHydrology } from '../../hydrology/sampleHydrology.ts';
 import { sampleAuthoritativeHydrologyScore } from '../../hydrology/sampleAuthoritativeHydrology.ts';
@@ -66,7 +67,7 @@ export function renderWellInspector(
     : context.worldQueries.getNextIndustrialWaterTargetForWell(building);
   const nextDeliveryTarget = nextHouseholdTarget ?? nextIndustrialTarget;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
-  const availableLabor = Math.max(0, building.assignedLabor - (activeTrip?.deliveryWorkers ?? 0));
+  const availableLabor = onsiteBuildingLabor(building, activeTrip);
   const drawingWorkers = activeTrip || !nextDeliveryTarget
     ? availableLabor
     : Math.max(0, availableLabor - 1);

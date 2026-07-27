@@ -13,6 +13,7 @@ import {
 } from './buildingCommon.ts';
 import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 
 export function renderLumberMillInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -23,7 +24,11 @@ export function renderLumberMillInspector(
   const cost = getBuildingCost(building.kind);
   const definition = getBuildingDefinition(building.kind);
   const processorStatus = getBuildingProcessorStatus(building, context.worldQueries, { matureTrees });
-  const cycleSeconds = laborScaledInterval(definition.harvestInterval, building.assignedLabor);
+  const onsiteLabor = onsiteBuildingLabor(
+    building,
+    context.worldQueries.getActiveDeliveryTrip(building),
+  );
+  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor);
 
   return {
     eyebrow: 'Building',
@@ -35,7 +40,7 @@ export function renderLumberMillInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${processorStatus?.waterDetailHtml ?? ''}
       ${buildingExtentRow(building.kind)}
-      <li><span>Harvest interval</span><span>${building.assignedLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : `${definition.harvestInterval}s`} (${building.assignedLabor} workers)</span></li>
+      <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}
       ${buildingStorageRows(building, building.kind)}
     `,

@@ -23,6 +23,7 @@ import {
   CONSTRUCTION_PRIORITY_HOLD,
   normalizeConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
+import { onsiteBuildingLabor, rosteredCartWorkers } from '../../logistics/deliveryTrips.ts';
 
 export function buildingStorageRows(
   building: BuildingState,
@@ -94,11 +95,12 @@ export function buildingLaborView(
   const activeTrip = worldQueries?.getActiveDeliveryTrip?.(building) ?? null;
   const cartWorkers = Math.max(0, activeTrip?.deliveryWorkers ?? 0);
   const reservedOutsideRoster = Math.max(0, activeTrip?.freeHaulerWorkers ?? 0);
-  const rosteredCartWorkers = Math.max(0, cartWorkers - reservedOutsideRoster);
+  const rosteredWorkersAway = rosteredCartWorkers(building, activeTrip);
+  const onsiteWorkers = onsiteBuildingLabor(building, activeTrip);
   const cartLaborHint = cartWorkers <= 0
     ? ''
-    : rosteredCartWorkers > 0
-      ? ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart; ${rosteredCartWorkers} ${rosteredCartWorkers === 1 ? 'rostered worker is' : 'rostered workers are'} still backed here, and roster reductions remain committed until return${reservedOutsideRoster > 0 ? ` (${reservedOutsideRoster} already reserved outside the roster)` : ''}.`
+    : rosteredWorkersAway > 0
+      ? ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart; ${rosteredWorkersAway} ${rosteredWorkersAway === 1 ? 'rostered worker is' : 'rostered workers are'} away, leaving ${onsiteWorkers} on site. Production and work timers use only the on-site crew until return${reservedOutsideRoster > 0 ? ` (${reservedOutsideRoster} additional ${reservedOutsideRoster === 1 ? 'hauler is' : 'haulers are'} reserved outside the roster)` : ''}.`
       : ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart and already reserved outside this roster.`;
   return {
     visible: true,

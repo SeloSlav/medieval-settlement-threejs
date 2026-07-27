@@ -45,7 +45,8 @@ use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_cargo::has_delivery_stock_room;
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
-    building_has_inbound_supply_trip, try_start_building_supply_trip, try_start_delivery_trip,
+    building_has_inbound_supply_trip, onsite_building_labor, try_start_building_supply_trip,
+    try_start_delivery_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -115,6 +116,7 @@ pub fn step_threshing_barn(
         .filter(&building.id)
         .collect();
     let work_allowed = !labor_and_logistics_paused(ctx, tick, building.owner, clock);
+    let onsite_labor = onsite_building_labor(ctx, &building);
     let seed_reserve = step_farmstead_fields(
         ctx,
         tick,
@@ -122,6 +124,7 @@ pub fn step_threshing_barn(
         clock,
         environment,
         work_allowed,
+        onsite_labor,
         fields,
     );
     tick.set_farmstead_seed_reserve(ctx, building.owner, building.id, seed_reserve);
@@ -365,6 +368,7 @@ fn step_farmstead_fields(
     clock: &GameClock,
     environment: EnvironmentState,
     work_allowed: bool,
+    onsite_labor: u32,
     mut fields: Vec<FarmField>,
 ) -> f64 {
     let cattle_support: std::collections::HashMap<u64, (f64, f64)> = fields
@@ -428,7 +432,7 @@ fn step_farmstead_fields(
     }
 
     let mut work_budget = if work_allowed {
-        farmstead.assigned_labor as f64 * FARM_WORK_METERS_PER_WORKER_PER_SEC * TICK_DT
+        onsite_labor as f64 * FARM_WORK_METERS_PER_WORKER_PER_SEC * TICK_DT
     } else {
         0.0
     };
@@ -935,12 +939,13 @@ pub fn step_carpenter(
         );
     }
 
-    if cycle_ready(ctx, tick, clock, &mut building, false)
-        && polearm_shortfall > 1e-6
-        && building.timber + 1e-6 >= CARPENTER_TIMBER_PER_POLEARM
-        && building.ironwork + 1e-6 >= CARPENTER_IRONWORK_PER_POLEARM
-        && building_commodity_room(&building, CommodityKind::Polearms) + 1e-6 >= 1.0
-    {
+    let ready_labor = cycle_labor_if_ready(ctx, tick, clock, &mut building, false);
+    if let Some(labor) = ready_labor.filter(|_| {
+        polearm_shortfall > 1e-6
+            && building.timber + 1e-6 >= CARPENTER_TIMBER_PER_POLEARM
+            && building.ironwork + 1e-6 >= CARPENTER_IRONWORK_PER_POLEARM
+            && building_commodity_room(&building, CommodityKind::Polearms) + 1e-6 >= 1.0
+    }) {
         withdraw_building_commodity(
             &mut building,
             CommodityKind::Timber,
@@ -952,7 +957,6 @@ pub fn step_carpenter(
             CARPENTER_IRONWORK_PER_POLEARM,
         );
         deposit_building_commodity(&mut building, CommodityKind::Polearms, 1.0);
-        let labor = building.assigned_labor as f64;
         reset_cycle(&mut building, labor);
     }
     dispatch_polearms_to_guardhouse(ctx, tick, clock, &mut building);
@@ -1035,10 +1039,9 @@ fn step_simple_producer(
     mut building: Building,
     outputs: &[(CommodityKind, f64)],
 ) -> Building {
-    if !cycle_ready(ctx, tick, clock, &mut building, false) {
+    let Some(labor) = cycle_labor_if_ready(ctx, tick, clock, &mut building, false) else {
         return building;
-    }
-    let labor = building.assigned_labor.max(1) as f64;
+    };
     for (kind, amount) in outputs {
         deposit_building_commodity(&mut building, *kind, *amount);
     }
@@ -1054,10 +1057,9 @@ fn step_processor(
     inputs: &[(CommodityKind, f64)],
     outputs: &[(CommodityKind, f64)],
 ) -> Building {
-    if !cycle_ready(ctx, tick, clock, &mut building, false) {
+    let Some(labor) = cycle_labor_if_ready(ctx, tick, clock, &mut building, false) else {
         return building;
-    }
-    let labor = building.assigned_labor.max(1) as f64;
+    };
     let output_target_percent = building.processor_output_target_percent;
     process_batch(
         &mut building,
@@ -1078,7 +1080,7 @@ fn step_autonomous_processor(
     inputs: &[(CommodityKind, f64)],
     outputs: &[(CommodityKind, f64)],
 ) -> Building {
-    if !cycle_ready(ctx, tick, clock, &mut building, true) {
+    if cycle_labor_if_ready(ctx, tick, clock, &mut building, true).is_none() {
         return building;
     }
     process_batch(&mut building, inputs, outputs, 1.0, None);
@@ -1173,18 +1175,30 @@ fn commodity_transfer_per_trip(commodity: CommodityKind) -> f64 {
     }
 }
 
-fn cycle_ready(
+fn cycle_labor_if_ready(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
     building: &mut Building,
     autonomous: bool,
-) -> bool {
+) -> Option<f64> {
     if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
-        return false;
+        return None;
     }
+    let labor = if autonomous {
+        1.0
+    } else {
+        let onsite_labor = onsite_building_labor(ctx, building);
+        if onsite_labor == 0 {
+            return None;
+        }
+        onsite_labor as f64
+    };
     building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
-    building.action_cooldown <= 1e-6 && (autonomous || building.assigned_labor > 0)
+    if building.action_cooldown > 1e-6 {
+        return None;
+    }
+    Some(labor)
 }
 
 fn reset_cycle(building: &mut Building, labor: f64) {

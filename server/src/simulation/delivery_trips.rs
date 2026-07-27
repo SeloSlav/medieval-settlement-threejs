@@ -197,6 +197,38 @@ pub fn staffed_cart_workers_by_building(
     workers_by_building
 }
 
+fn rostered_cart_workers(
+    assigned_labor: u32,
+    delivery_workers: u32,
+    free_hauler_workers: u32,
+) -> u32 {
+    delivery_workers
+        .saturating_sub(free_hauler_workers)
+        .min(assigned_labor)
+}
+
+/// Workers physically present to perform the origin building's work. The
+/// building-id index makes this one bounded lookup, while subtracting only the
+/// part of the cart crew still backed by this roster preserves genuinely free
+/// founding, reclamation, and chapel errands.
+pub fn onsite_building_labor(ctx: &ReducerContext, building: &Building) -> u32 {
+    let workers_away = ctx
+        .db
+        .delivery_trip()
+        .building_id()
+        .filter(&building.id)
+        .map(|trip| {
+            rostered_cart_workers(
+                building.assigned_labor,
+                trip.delivery_workers,
+                trip.free_hauler_workers,
+            )
+        })
+        .fold(0_u32, u32::saturating_add)
+        .min(building.assigned_labor);
+    building.assigned_labor.saturating_sub(workers_away)
+}
+
 /// When a source roster is reduced mid-trip, the crew already on the road
 /// remains committed. Move any no-longer-backed cart workers into the trip's
 /// free-labor reservation instead of making them immediately assignable.
@@ -1220,4 +1252,23 @@ fn return_commodity_to_building(
         credit_treasury_commodity(ctx, building.owner, commodity, remainder);
     }
     ctx.db.building().id().update(building);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rostered_cart_workers;
+
+    #[test]
+    fn rostered_cart_workers_excludes_free_haulers() {
+        assert_eq!(rostered_cart_workers(3, 2, 0), 2);
+        assert_eq!(rostered_cart_workers(3, 2, 1), 1);
+        assert_eq!(rostered_cart_workers(3, 2, 2), 0);
+    }
+
+    #[test]
+    fn rostered_cart_workers_cannot_exceed_current_roster() {
+        assert_eq!(rostered_cart_workers(1, 3, 0), 1);
+        assert_eq!(rostered_cart_workers(0, 3, 0), 0);
+        assert_eq!(rostered_cart_workers(1, 3, 2), 1);
+    }
 }

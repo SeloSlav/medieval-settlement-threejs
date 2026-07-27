@@ -1,6 +1,6 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
-import { buildingStorageCaps, laborScaledInterval } from '../resourceTotals.ts';
+import { buildingStorageCaps } from '../resourceTotals.ts';
 import type { BuildingKind, InspectableTarget, ResourceNodeState } from '../types.ts';
 import {
   buildingCostRows,
@@ -11,7 +11,11 @@ import {
   buildingExtentRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
-import { formatTripDestinationLabel, formatTripPhaseLabel } from '../../logistics/deliveryTrips.ts';
+import {
+  formatTripDestinationLabel,
+  formatTripPhaseLabel,
+  onsiteBuildingLabor,
+} from '../../logistics/deliveryTrips.ts';
 import {
   formatDeliveryRoadDistance,
   formatDeliveryTripDuration,
@@ -163,13 +167,15 @@ export function renderHarvestBuildingInspector(
     : null;
   const foodPerTrip = foodPerDelivery(crew.delivering);
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
+  const onsiteLabor = onsiteBuildingLabor(building, activeTrip);
+  const processingWorkers = Math.min(crew.harvesting, onsiteLabor);
   const tripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
-  const harvesting = building.assignedLabor > 0
+  const harvesting = processingWorkers > 0
     && nearestNode != null
     && harvestableStock > 1e-6
     && seasonAvailable;
   const canDeliver = crew.delivering > 0 && onRoad && building.food > 0 && nextDeliveryTarget != null && !activeTrip;
-  const cycleSeconds = laborScaledInterval(definition.harvestInterval, building.assignedLabor);
+  const cycleSeconds = definition.harvestInterval;
 
   let statusText: string;
   let statusState: InspectorView['statusState'];
@@ -260,7 +266,7 @@ export function renderHarvestBuildingInspector(
       ${buildingExtentRow(building.kind)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Crew split</span><span>${formatFoodCrewSplit(building.assignedLabor)}</span></li>
-      <li><span>Harvest interval</span><span>${building.assignedLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : `${definition.harvestInterval}s`} (${building.assignedLabor} workers)</span></li>
+      <li><span>Harvest interval</span><span>${processingWorkers > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${processingWorkers} harvesting / ${building.assignedLabor} assigned)</span></li>
       <li><span>Road-linked homes</span><span>${building.food <= 1e-6 ? 'Yielding while stores are empty' : claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
       <li><span>Local food reserve</span><span>${localFoodReserve.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>
       ${reserveRows}

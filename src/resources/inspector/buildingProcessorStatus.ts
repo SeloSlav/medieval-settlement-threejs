@@ -34,6 +34,7 @@ import {
   wellWaterStatusIssue,
   type WellWaterAssessment,
 } from './buildingWaterStatus.ts';
+import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 
 export type BuildingProcessorContext = {
   matureTrees?: number;
@@ -214,6 +215,7 @@ function buildProcessorStatus(
   building: BuildingState,
   profile: ProcessorProfile,
   waterAssessment: WellWaterAssessment | null,
+  onsiteLabor: number,
 ): BuildingProcessorStatus {
   const waterDetailHtml = formatWellWaterDetailRows(
     waterAssessment,
@@ -223,9 +225,11 @@ function buildProcessorStatus(
   const processorDetailHtml = waterDetailHtml
     + formatProcessorInputBufferRow(building, profile);
 
-  if (profile.requiresLabor && building.assignedLabor === 0) {
+  if (profile.requiresLabor && onsiteLabor === 0) {
     return {
-      statusText: profile.idleNoWorkersLabel,
+      statusText: building.assignedLabor > 0
+        ? 'Work paused - the full roster is away with its cart'
+        : profile.idleNoWorkersLabel,
       statusState: 'idle',
       waterDetailHtml: processorDetailHtml,
     };
@@ -273,6 +277,7 @@ function getLumberMillStatus(
   building: BuildingState,
   worldQueries: WorldQueries,
   matureTrees: number,
+  onsiteLabor: number,
 ): BuildingProcessorStatus {
   const storageCaps = buildingStorageCaps('lumber_mill');
   const waterAssessment = assessWellWaterSupply(building, worldQueries, MILL_WATER_PER_HARVEST);
@@ -283,9 +288,11 @@ function getLumberMillStatus(
     'None — timber is air-seasoned',
   );
 
-  if (building.assignedLabor === 0) {
+  if (onsiteLabor === 0) {
     return {
-      statusText: 'Idle — assign labor to harvest timber',
+      statusText: building.assignedLabor > 0
+        ? 'Harvest paused - the full roster is away with its cart'
+        : 'Idle - assign labor to harvest timber',
       statusState: 'idle',
       waterDetailHtml,
     };
@@ -368,10 +375,16 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
   };
 }
 
-function getFerryStatus(building: BuildingState, worldQueries: WorldQueries): BuildingProcessorStatus {
-  if (building.assignedLabor === 0) {
+function getFerryStatus(
+  building: BuildingState,
+  worldQueries: WorldQueries,
+  onsiteLabor: number,
+): BuildingProcessorStatus {
+  if (onsiteLabor === 0) {
     return {
-      statusText: 'Idle — assign workers to operate the ferry',
+      statusText: building.assignedLabor > 0
+        ? 'Crossing paused - the full roster is away with its cart'
+        : 'Idle - assign workers to operate the ferry',
       statusState: 'idle',
       waterDetailHtml: '',
     };
@@ -397,10 +410,15 @@ function getSimpleLaborStatus(
   building: BuildingState,
   operatingLabel: string,
   idleLabel: string,
+  onsiteLabor: number,
 ): BuildingProcessorStatus {
-  const staffed = building.assignedLabor > 0;
+  const staffed = onsiteLabor > 0;
   return {
-    statusText: staffed ? operatingLabel : idleLabel,
+    statusText: staffed
+      ? operatingLabel
+      : building.assignedLabor > 0
+        ? 'Work paused - the full roster is away with its cart'
+        : idleLabel,
     statusState: staffed ? 'active' : 'idle',
     waterDetailHtml: '',
   };
@@ -411,33 +429,39 @@ export function getBuildingProcessorStatus(
   worldQueries: WorldQueries,
   context: BuildingProcessorContext = {},
 ): BuildingProcessorStatus | null {
+  const onsiteLabor = onsiteBuildingLabor(
+    building,
+    worldQueries.getActiveDeliveryTrip?.(building) ?? null,
+  );
   const profile = PROCESSOR_PROFILES[building.kind];
   if (profile) {
     const waterAssessment = assessWellWaterSupply(building, worldQueries, profile.waterPerCycle);
-    return buildProcessorStatus(building, profile, waterAssessment);
+    return buildProcessorStatus(building, profile, waterAssessment, onsiteLabor);
   }
 
   switch (building.kind) {
     case 'lumber_mill':
-      return getLumberMillStatus(building, worldQueries, context.matureTrees ?? 0);
+      return getLumberMillStatus(building, worldQueries, context.matureTrees ?? 0, onsiteLabor);
     case 'monastery':
       return getMonasteryStatus(building, worldQueries);
     case 'ferry_landing':
-      return getFerryStatus(building, worldQueries);
+      return getFerryStatus(building, worldQueries, onsiteLabor);
     case 'threshing_barn':
       return getSimpleLaborStatus(
         building,
         'Managing farm fields',
         'Idle — assign workers to work the fields',
+        onsiteLabor,
       );
     case 'apiary':
     case 'vineyard':
-      return getSeasonalProducerStatus(building, context.month);
+      return getSeasonalProducerStatus(building, context.month, onsiteLabor);
     case 'carpenter':
       return getSimpleLaborStatus(
         building,
         'Supporting construction and cartwright work',
         'Idle — assign workers to the workshop',
+        onsiteLabor,
       );
     default: {
       const definition = getBuildingDefinition(building.kind);
@@ -446,6 +470,7 @@ export function getBuildingProcessorStatus(
         building,
         'Operating',
         'Awaiting workers',
+        onsiteLabor,
       );
     }
   }
@@ -454,12 +479,15 @@ export function getBuildingProcessorStatus(
 function getSeasonalProducerStatus(
   building: BuildingState,
   month: number | undefined,
+  onsiteLabor: number,
 ): BuildingProcessorStatus {
-  if (building.assignedLabor === 0) {
+  if (onsiteLabor === 0) {
     return {
-      statusText: building.kind === 'apiary'
-        ? 'Idle - assign workers to tend the apiary'
-        : 'Idle - assign workers to tend the vineyard',
+      statusText: building.assignedLabor > 0
+        ? 'Seasonal work paused - the full roster is away with its cart'
+        : building.kind === 'apiary'
+          ? 'Idle - assign workers to tend the apiary'
+          : 'Idle - assign workers to tend the vineyard',
       statusState: 'idle',
       waterDetailHtml: '',
     };

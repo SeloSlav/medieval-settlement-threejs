@@ -15,6 +15,7 @@ import type { FarmCrop, InspectableTarget } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
+import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 
 const STAGE_LABEL = {
   ploughing: 'Ploughing',
@@ -58,10 +59,13 @@ export function renderFarmFieldInspector(
   const remainingWorkerDays = fieldWorkerDays(
     currentFieldWorkRemaining(field, cattleSupport?.ploughWorkMultiplier),
   );
-  const crewDays = farmstead && farmstead.assignedLabor > 0
-    ? remainingWorkerDays / farmstead.assignedLabor
+  const onsiteLabor = farmstead
+    ? onsiteBuildingLabor(farmstead, context.worldQueries.getActiveDeliveryTrip(farmstead))
+    : 0;
+  const crewDays = farmstead && onsiteLabor > 0
+    ? remainingWorkerDays / onsiteLabor
     : null;
-  const active = Boolean(farmstead && farmstead.assignedLabor > 0 && field.priority > 0);
+  const active = Boolean(farmstead && onsiteLabor > 0 && field.priority > 0);
   const month = gameClock(context.gameState.tick).month;
   const seasonalWindow = field.stage === 'harvesting'
     ? 'September harvest'
@@ -82,8 +86,10 @@ export function renderFarmFieldInspector(
       ? 'Paused by priority'
       : !stageAllowed
         ? `${STAGE_LABEL[field.stage]} waiting · ${seasonalWindow}`
-        : farmstead.assignedLabor === 0 && field.stage !== 'growing'
-          ? 'Waiting for farmstead workers'
+        : onsiteLabor === 0 && field.stage !== 'growing'
+          ? farmstead.assignedLabor > 0
+            ? 'Field work paused - the farm crew is away with its cart'
+            : 'Waiting for farmstead workers'
           : seedBlocked
             ? `Sowing halted · ${seedRemaining.toFixed(1)} seed grain still needed`
             : `${STAGE_LABEL[field.stage]} · ${stageProgress}%`;
@@ -111,7 +117,7 @@ export function renderFarmFieldInspector(
       <li><span>Ox support</span><span>${cattleSupport
         ? `Active from nearby cattle · ${Math.round((1 - cattleSupport.ploughWorkMultiplier) * 100)}% less ploughing · +${Math.round(cattleSupport.fertilityBonus * 100)} fertility after cycle`
         : 'None · requires a top-two priority slot and healthy, supplied cattle within range'}</span></li>
-      <li><span>Farmstead</span><span>${farmstead ? `${farmstead.assignedLabor} workers · ${Math.round(farmstead.grain)} grain stored` : 'Missing'}</span></li>
+      <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${Math.round(farmstead.grain)} grain stored` : 'Missing'}</span></li>
       <li><span>Moisture</span><span>${Math.round(field.moisture * 100)}% · ${moistureFit}% crop fit</span></li>
       <li><span>Current-cycle soil</span><span>${Math.round(field.fertility * 100)}% → ${projectedFertility}% fertility</span></li>
       <li><span>Planned-cycle soil</span><span>${projectedFertility}% → ${Math.round(plannedFertility * 100)}% after ${cropLabel(field.nextCrop).toLowerCase()} · before future manure</span></li>

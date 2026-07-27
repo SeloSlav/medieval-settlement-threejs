@@ -6,6 +6,7 @@ use crate::db::*;
 use crate::economy::{
     building_storage_caps, building_water_storage_cap, deposit_building, withdraw_building_water,
 };
+use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::spatial::find_nearest_mature_tree;
@@ -28,6 +29,11 @@ pub fn step_lumber_mill(
     let interval = def.action_interval;
     let work_radius = def.work_radius;
 
+    let onsite_labor = onsite_building_labor(ctx, &building);
+    if onsite_labor == 0 {
+        return;
+    }
+
     let cooldown = (building.action_cooldown - TICK_DT).max(0.0);
     if cooldown > 0.0 {
         ctx.db.building().id().update(Building {
@@ -37,15 +43,7 @@ pub fn step_lumber_mill(
         return;
     }
 
-    if building.assigned_labor == 0 {
-        ctx.db.building().id().update(Building {
-            action_cooldown: interval,
-            ..building
-        });
-        return;
-    }
-
-    let labor_interval = interval / building.assigned_labor as f64;
+    let labor_interval = interval / onsite_labor as f64;
 
     let caps = building_storage_caps(&building.kind);
     let timber_room = (caps.timber - building.timber).max(0.0);

@@ -32,7 +32,10 @@ import type { BuildingKind, BuildingState, InspectableTarget } from '../types.ts
 import { buildingDemolishHint, buildingExtentRow, buildingLaborView, buildingRoadAccessRow, buildingStorageRows } from './buildingCommon.ts';
 import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
 import { renderInboundSupplyRow, renderOutboundDeliveryRows, type DeliveryStatusContext } from './deliveryStatusRows.ts';
-import type { DeliveryTripState } from '../../logistics/deliveryTrips.ts';
+import {
+  onsiteBuildingLabor,
+  type DeliveryTripState,
+} from '../../logistics/deliveryTrips.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import {
   DEFAULT_MONASTERY_POLICY,
@@ -768,9 +771,13 @@ function renderFarmsteadPlanning(
     && settlementHasStaffedChapel(context.gameState),
   );
   const cattleSupport = computeCattleFieldSupport(context.gameState);
+  const onsiteLabor = onsiteBuildingLabor(
+    building,
+    context.worldQueries.getActiveDeliveryTrip(building),
+  );
   const plan = buildFarmsteadWorkPlan(
     fields,
-    building.assignedLabor,
+    onsiteLabor,
     clock,
     sabbathObserved,
     cattleSupport,
@@ -830,8 +837,14 @@ function renderFarmsteadPlanning(
   if (plan.activeFields === 0) {
     return { rows, statusText: 'All linked fields are paused', statusState: 'idle' };
   }
-  if (building.assignedLabor <= 0) {
-    return { rows, statusText: 'Fields waiting — assign a farm crew', statusState: 'warning' };
+  if (onsiteLabor <= 0) {
+    return {
+      rows,
+      statusText: building.assignedLabor > 0
+        ? 'Field work paused - the farm crew is away with its cart'
+        : 'Fields waiting - assign a farm crew',
+      statusState: 'warning',
+    };
   }
   if (onsiteSeedShortfall > 0.05 && inboundSeed > 0.05) {
     return {

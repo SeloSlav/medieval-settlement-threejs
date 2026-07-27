@@ -4,6 +4,7 @@ use crate::building_defs::building_def;
 use crate::constants::{STONE_PER_HARVEST, TICK_DT};
 use crate::db::*;
 use crate::economy::{building_storage_caps, deposit_building};
+use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::spatial::find_nearest_quarry;
@@ -26,6 +27,11 @@ pub fn step_stone_quarry(
     let interval = def.action_interval;
     let work_radius = def.work_radius;
 
+    let onsite_labor = onsite_building_labor(ctx, &building);
+    if onsite_labor == 0 {
+        return;
+    }
+
     let cooldown = (building.action_cooldown - TICK_DT).max(0.0);
     if cooldown > 0.0 {
         ctx.db.building().id().update(Building {
@@ -35,15 +41,7 @@ pub fn step_stone_quarry(
         return;
     }
 
-    if building.assigned_labor == 0 {
-        ctx.db.building().id().update(Building {
-            action_cooldown: interval,
-            ..building
-        });
-        return;
-    }
-
-    let labor_interval = interval / building.assigned_labor as f64;
+    let labor_interval = interval / onsite_labor as f64;
 
     let caps = building_storage_caps(&building.kind);
     if building.stone >= caps.stone - 1e-6 {

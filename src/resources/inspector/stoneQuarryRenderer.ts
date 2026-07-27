@@ -10,6 +10,7 @@ import {
   buildingExtentRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 
 export function renderStoneQuarryInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -26,14 +27,20 @@ export function renderStoneQuarryInspector(
     building.z,
     building.workRadius,
   );
-  const active = building.assignedLabor > 0 && nearestQuarry != null && !storageFull;
-  const cycleSeconds = laborScaledInterval(definition.harvestInterval, building.assignedLabor);
+  const onsiteLabor = onsiteBuildingLabor(
+    building,
+    context.worldQueries.getActiveDeliveryTrip(building),
+  );
+  const active = onsiteLabor > 0 && nearestQuarry != null && !storageFull;
+  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor);
 
   return {
     eyebrow: 'Building',
     title: label,
-    statusText: building.assignedLabor === 0
-      ? 'Idle — assign labor to extract stone'
+    statusText: onsiteLabor === 0
+      ? building.assignedLabor > 0
+        ? 'Extraction paused - the full roster is away with its cart'
+        : 'Idle - assign labor to extract stone'
       : storageFull
         ? 'Paused — stone storage is full'
         : nearestQuarry
@@ -43,7 +50,7 @@ export function renderStoneQuarryInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
       ${buildingExtentRow(building.kind)}
-      <li><span>Harvest interval</span><span>${building.assignedLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : `${definition.harvestInterval}s`} (${building.assignedLabor} workers)</span></li>
+      <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {

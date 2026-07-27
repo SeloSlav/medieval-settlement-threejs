@@ -25,7 +25,11 @@ import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
-import { cargoKindLabel, formatTripPhaseLabel } from '../../logistics/deliveryTrips.ts';
+import {
+  cargoKindLabel,
+  formatTripPhaseLabel,
+  onsiteBuildingLabor,
+} from '../../logistics/deliveryTrips.ts';
 import {
   householdFoodReserve,
   institutionalFoodSurplus,
@@ -119,7 +123,9 @@ export function renderLivestockBuildingInspector(
     && (storageCaps.preservedFood ?? 0) - building.preservedFood + 1e-6
       >= livestockPolicy.slaughterPreservedFoodPerHead,
   );
-  const active = Boolean(herd && pastures.length > 0 && building.assignedLabor > 0 && herd.health >= 0.45);
+  const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
+  const onsiteLabor = onsiteBuildingLabor(building, activeTrip);
+  const active = Boolean(herd && pastures.length > 0 && onsiteLabor > 0 && herd.health >= 0.45);
   const foodTerritory = context.worldQueries.getClaimedResidencesForFoodSupplier(building);
   const householdReserveRow = building.kind === 'swineherd'
     || (building.kind === 'pastoral_farmstead' && context.conflictEnabled)
@@ -134,7 +140,6 @@ export function renderLivestockBuildingInspector(
   const nextPreservedTarget = building.kind === 'pastoral_farmstead'
     ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'preservedFood')
     : null;
-  const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const nextWoolDispatch = herd?.species === 'sheep'
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'wool')
     : null;
@@ -149,8 +154,10 @@ export function renderLivestockBuildingInspector(
     ? 'Awaiting herd records'
     : pastures.length === 0
       ? 'Draw a fenced pasture'
-      : building.assignedLabor === 0
-        ? 'Awaiting herders'
+      : onsiteLabor === 0
+        ? building.assignedLabor > 0
+          ? 'Herd work paused - the full crew is away with its cart'
+          : 'Awaiting herders'
         : winterReserveAtRisk
           ? `Winter grain reserve short ${fodderPlan!.winterReserveShortfall.toFixed(1)}`
         : herd.species === 'sheep' && shearingWindow && !shornThisYear

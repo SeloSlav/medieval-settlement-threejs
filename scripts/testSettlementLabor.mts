@@ -237,8 +237,8 @@ const rosterBackedCartLabor = buildingLaborView(
     }),
   } as unknown as WorldQueries,
 );
-assert.match(rosterBackedCartLabor.hint, /1 rostered worker is still backed here/);
-assert.match(rosterBackedCartLabor.hint, /roster reductions remain committed until return/);
+assert.match(rosterBackedCartLabor.hint, /1 rostered worker is away, leaving 0 on site/);
+assert.match(rosterBackedCartLabor.hint, /Production and work timers use only the on-site crew until return/);
 const activeHaulageInspector = renderTownHallInspector(
   {
     kind: 'building',

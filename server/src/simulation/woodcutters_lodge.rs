@@ -17,7 +17,8 @@ use crate::simulation::delivery_supplier::{
     DeliveryDispatchConfig,
 };
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, building_has_inbound_supply_trip, try_start_timber_supply_trip,
+    building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
+    try_start_timber_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -50,9 +51,12 @@ pub fn step_woodcutters_lodge(
     };
 
     let mut lodge = building;
-    lodge.action_cooldown = (lodge.action_cooldown - TICK_DT).max(0.0);
-
-    let split = lodge_labor_split(lodge.assigned_labor);
+    let onsite_labor = onsite_building_labor(ctx, &lodge);
+    let mut split = lodge_labor_split(lodge.assigned_labor);
+    split.processing = split.processing.min(onsite_labor);
+    if split.processing > 0 {
+        lodge.action_cooldown = (lodge.action_cooldown - TICK_DT).max(0.0);
+    }
     let single_worker = lodge.assigned_labor == 1;
     let process_ready = split.processing > 0 && lodge.action_cooldown <= 0.0;
     let delivery_ready = delivery_work_ready(split.delivering, lodge.firewood > 0.0, lodge.id, ctx);
