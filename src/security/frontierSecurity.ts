@@ -517,7 +517,7 @@ export function projectRaidTargets(
   };
 
   for (const building of gameState.buildings.values()) {
-    if (building.constructionComplete === false || building.kind === 'watchtower') continue;
+    if (building.kind === 'watchtower') continue;
     const portableValue = buildingPortableRaidValue(building);
     if (portableValue <= 1e-9) continue;
     consider({
@@ -525,7 +525,7 @@ export function projectRaidTargets(
       id: building.id,
       x: building.x,
       z: building.z,
-      label: buildingKindLabel(building.kind),
+      label: `${buildingKindLabel(building.kind)}${building.constructionComplete === false ? ' worksite' : ''}`,
       protected: positionIsWatched(building.x, building.z, watchIndex),
       portableValue,
     });
@@ -580,7 +580,13 @@ export function countSitesProtectedByWatchtower(
   let homes = 0;
   let residents = 0;
   for (const building of gameState.buildings.values()) {
-    if (building.id === tower.id || !building.constructionComplete) continue;
+    if (
+      building.id === tower.id
+      || (
+        building.constructionComplete === false
+        && buildingPortableRaidValue(building) <= 1e-9
+      )
+    ) continue;
     if (distanceSquared(tower, building) <= radiusSquared) buildings += 1;
   }
   for (const residence of gameState.residences.values()) {

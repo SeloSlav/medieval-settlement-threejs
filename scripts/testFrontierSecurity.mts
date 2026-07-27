@@ -340,6 +340,62 @@ assert.match(
   /12 cloth \+ 4 wool/,
   'likely-target feedback should explain the textile stock attracting the raid',
 );
+const reconstructionTargetState = emptyGameState();
+reconstructionTargetState.buildings.set(
+  'rebuilding-weaver',
+  {
+    ...building('rebuilding-weaver', 'weaver', 20, 0, 0),
+    constructionComplete: false,
+    constructionProgress: 0,
+    wool: 4,
+    cloth: 12,
+  },
+);
+reconstructionTargetState.buildings.set(
+  'finished-store',
+  {
+    ...building('finished-store', 'village_storehouse', 40, 0, 1),
+    timber: 21,
+  },
+);
+reconstructionTargetState.buildings.set(
+  'empty-building-site',
+  {
+    ...building('empty-building-site', 'village_storehouse', 60, 0, 0),
+    constructionComplete: false,
+    constructionProgress: 0.5,
+  },
+);
+const reconstructionTargets = projectRaidTargets(reconstructionTargetState, 3);
+assert.deepEqual(
+  reconstructionTargets.map((target) => target.id),
+  ['rebuilding-weaver', 'finished-store'],
+  'reconstruction must not hide retained stores, while empty construction sites stay irrelevant',
+);
+assert.equal(reconstructionTargets[0]?.label, "Weaver's workshop worksite");
+assert.equal(reconstructionTargets[0]?.portableSummary, '12 cloth + 4 wool');
+const reconstructionCoverageState = emptyGameState();
+reconstructionCoverageState.buildings.set(tower.id, tower);
+reconstructionCoverageState.buildings.set(
+  'covered-reconstruction',
+  {
+    ...building('covered-reconstruction', 'weaver', 100, 0, 0),
+    constructionComplete: false,
+    cloth: 5,
+  },
+);
+reconstructionCoverageState.buildings.set(
+  'covered-empty-site',
+  {
+    ...building('covered-empty-site', 'weaver', 110, 0, 0),
+    constructionComplete: false,
+  },
+);
+assert.deepEqual(
+  countSitesProtectedByWatchtower(tower, reconstructionCoverageState),
+  { buildings: 1, homes: 0, residents: 0 },
+  'watch coverage should include vulnerable reconstruction stores but not empty worksites',
+);
 const negativeCoverageState = emptyGameState();
 negativeCoverageState.buildings.set(
   'negative-tower',
@@ -656,6 +712,22 @@ assert.match(serverSimulation, /select_raid_targets/);
 assert.match(serverSimulation, /RaidTargetKind::Residence/);
 assert.match(serverSimulation, /building_portable_stores\(&updated\)\.plunder/);
 assert.match(serverSimulation, /retain_unplundered_stores/);
+assert.doesNotMatch(
+  serverSimulation,
+  /\.filter\(\|building\| building\.construction_complete\)\s*\.collect::<Vec<Building>>/,
+  'authoritative security must load stock-bearing reconstruction sites',
+);
+assert.match(
+  serverSimulation,
+  /fn staffed_watch_coverage[\s\S]*?building\.construction_complete[\s\S]*?building\.kind == "watchtower"/,
+  'unfinished watchtowers must not provide warning after the owner roster includes worksites',
+);
+assert.match(
+  serverSimulation,
+  /fn settlement_guard_strength[\s\S]*?building\.construction_complete[\s\S]*?building\.kind == "guardhouse"/,
+  'unfinished guardhouses must not provide defense after the owner roster includes worksites',
+);
+assert.match(serverSimulation, /raid_holding_vulnerability\(building\.construction_complete, portable_value\)/);
 assert.match(
   serverSimulation,
   /RaidPortableStores\s*\{[\s\S]*wool:\s*building\.wool,[\s\S]*cloth:\s*building\.cloth,/,
@@ -670,6 +742,7 @@ assert.match(serverPolicy, /pub fn raid_arson_chance/);
 assert.match(serverPolicy, /defense_ratio\.clamp/);
 assert.match(serverPolicy, /WATCH_COVERAGE_CELL_SIZE:\s*f64\s*=\s*128\.0/);
 assert.match(serverPolicy, /pub struct RaidPortableStores/);
+assert.match(serverPolicy, /pub fn raid_holding_vulnerability/);
 assert.match(serverPolicy, /plunder_good!\(wool\)/);
 assert.match(serverPolicy, /plunder_good!\(cloth\)/);
 assert.match(serverPolicy, /CLOTH_RAID_VALUE_MULTIPLIER:\s*f64\s*=\s*1\.5/);

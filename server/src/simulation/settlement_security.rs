@@ -9,9 +9,9 @@ use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
     guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_forecast,
-    scheduled_raid_ticks, select_raid_targets, threat_progress, tower_effective_radius,
-    RaidForecast, RaidPortableStores, RaidTargetCandidate, RaidTargetKind, WatchArea,
-    WatchCoverageIndex, MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
+    raid_holding_vulnerability, scheduled_raid_ticks, select_raid_targets, threat_progress,
+    tower_effective_radius, RaidForecast, RaidPortableStores, RaidTargetCandidate, RaidTargetKind,
+    WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{settlement_security, Building, Residence, SettlementSecurity};
 
@@ -120,7 +120,6 @@ fn step_owner_security(
         .building()
         .owner()
         .filter(&owner)
-        .filter(|building| building.construction_complete)
         .collect::<Vec<Building>>();
     let residences = ctx
         .db
@@ -235,7 +234,8 @@ fn staffed_watch_coverage(
     buildings
         .iter()
         .filter(|building| {
-            building.kind == "watchtower"
+            building.construction_complete
+                && building.kind == "watchtower"
                 && building.assigned_labor > 0
                 && !fire_disabled_buildings.contains(&building.id)
         })
@@ -263,7 +263,11 @@ fn settlement_exposure(
         .filter(|building| building.kind != "watchtower")
     {
         let portable_value = building_portable_value(building);
-        let vulnerable_value = 1.0 + portable_value / 30.0;
+        let vulnerable_value =
+            raid_holding_vulnerability(building.construction_complete, portable_value);
+        if vulnerable_value <= 1e-9 {
+            continue;
+        }
         let protected = watch_index.contains(building.x, building.z);
         total_value += vulnerable_value;
         if protected {
@@ -355,7 +359,9 @@ fn settlement_guard_strength(
     buildings
         .iter()
         .filter(|building| {
-            building.kind == "guardhouse" && !fire_disabled_buildings.contains(&building.id)
+            building.construction_complete
+                && building.kind == "guardhouse"
+                && !fire_disabled_buildings.contains(&building.id)
         })
         .fold((0.0, 0.0), |(ready, assigned), guardhouse| {
             let assigned_here = guardhouse.assigned_labor as f64;

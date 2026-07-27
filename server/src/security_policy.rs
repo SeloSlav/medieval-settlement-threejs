@@ -180,6 +180,20 @@ impl RaidPortableStores {
     }
 }
 
+/// Relative warning coverage demand created by one building. Completed
+/// holdings retain their ordinary structural exposure, while an unfinished
+/// site matters only when portable stores are still physically present there.
+/// This keeps empty construction sites out of frontier reports without making
+/// reconstruction a way to hide stock from an incursion.
+pub fn raid_holding_vulnerability(construction_complete: bool, portable_value: f64) -> f64 {
+    let stored_exposure = positive_store(portable_value) / 30.0;
+    if construction_complete {
+        1.0 + stored_exposure
+    } else {
+        stored_exposure
+    }
+}
+
 fn positive_store(amount: f64) -> f64 {
     if amount.is_finite() {
         amount.max(0.0)
@@ -428,6 +442,15 @@ mod tests {
         assert_eq!(plunder.remaining.cloth, 6.0);
         assert_eq!(plunder.goods_lost, 12.0);
         assert_eq!(plunder.wealth_lost, 0.0);
+    }
+
+    #[test]
+    fn reconstruction_keeps_stored_goods_exposed_without_counting_empty_sites() {
+        assert_eq!(raid_holding_vulnerability(true, 0.0), 1.0);
+        assert_eq!(raid_holding_vulnerability(true, 30.0), 2.0);
+        assert_eq!(raid_holding_vulnerability(false, 0.0), 0.0);
+        assert_eq!(raid_holding_vulnerability(false, 30.0), 1.0);
+        assert_eq!(raid_holding_vulnerability(false, f64::NAN), 0.0);
     }
 
     #[test]
