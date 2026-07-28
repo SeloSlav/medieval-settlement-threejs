@@ -13,6 +13,8 @@ pub const COMBAT_STATE_LOOTING: u8 = 2;
 pub const COMBAT_STATE_RETREATING: u8 = 3;
 pub const COMBAT_STATE_RETURNING: u8 = 4;
 pub const COMBAT_STATE_DOWNED: u8 = 5;
+pub const COMBAT_STATE_WOUNDED_RETURNING: u8 = 6;
+pub const COMBAT_STATE_RECOVERING: u8 = 7;
 
 pub const COMBAT_TARGET_BUILDING: u8 = 0;
 pub const COMBAT_TARGET_RESIDENCE: u8 = 1;
@@ -21,6 +23,7 @@ pub const COMBAT_TARGET_TREASURY_BUILDING: u8 = 3;
 pub const COMBAT_TARGET_TREASURY_RESIDENCE: u8 = 4;
 
 pub const GUARD_SPEED_MPS: f64 = 1.42;
+pub const WOUNDED_GUARD_SPEED_MPS: f64 = 0.68;
 pub const RAIDER_SPEED_MPS: f64 = 1.34;
 pub const MELEE_RANGE_METERS: f64 = 2.15;
 pub const GUARD_INTERCEPT_RANGE_METERS: f64 = 22.0;
@@ -29,6 +32,8 @@ pub const HOLDING_CONTACT_RANGE_METERS: f64 = 2.8;
 pub const LOOT_SECONDS: f64 = 4.0;
 pub const DOWNED_LINGER_TICKS: u64 = 40;
 pub const MAP_EDGE_INSET_METERS: f64 = 9.0;
+pub const MIN_GUARD_RECOVERY_DAYS: f64 = 3.0;
+pub const MAX_GUARD_RECOVERY_DAYS: f64 = 5.0;
 
 pub fn raid_party_size(enemy_pressure: u8) -> u32 {
     // Mirrors the established 2.5 + pressure * 0.065 raid-strength curve,
@@ -136,6 +141,26 @@ pub fn per_raider_loot_fraction(total_fraction: f64, assigned_raiders: u32) -> f
     total_fraction.clamp(0.0, 1.0) / assigned_raiders as f64
 }
 
+pub fn guard_recovery_ticks(readiness: f64, ticks_per_day: u64) -> u64 {
+    let readiness = if readiness.is_finite() {
+        readiness.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let recovery_days =
+        MAX_GUARD_RECOVERY_DAYS - readiness * (MAX_GUARD_RECOVERY_DAYS - MIN_GUARD_RECOVERY_DAYS);
+    (recovery_days * ticks_per_day.max(1) as f64)
+        .round()
+        .max(1.0) as u64
+}
+
+pub fn combat_state_blocks_guard_slot(state: u8) -> bool {
+    matches!(
+        state,
+        COMBAT_STATE_DOWNED | COMBAT_STATE_WOUNDED_RETURNING | COMBAT_STATE_RECOVERING
+    )
+}
+
 pub fn distance_squared(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
     let dx = bx - ax;
     let dz = bz - az;
@@ -207,6 +232,25 @@ mod tests {
         assert!((per_raider_loot_fraction(0.3, 3) - 0.1).abs() < 1e-9);
         assert_eq!(per_raider_loot_fraction(0.3, 0), 0.0);
         assert_eq!(per_raider_loot_fraction(f64::NAN, 2), 0.0);
+    }
+
+    #[test]
+    fn wounded_guards_recover_faster_when_their_company_was_ready() {
+        assert_eq!(guard_recovery_ticks(0.0, 240), 1_200);
+        assert_eq!(guard_recovery_ticks(0.5, 240), 960);
+        assert_eq!(guard_recovery_ticks(1.0, 240), 720);
+        assert_eq!(guard_recovery_ticks(f64::NAN, 240), 1_200);
+    }
+
+    #[test]
+    fn only_persistent_casualty_states_block_a_future_muster_slot() {
+        assert!(combat_state_blocks_guard_slot(COMBAT_STATE_DOWNED));
+        assert!(combat_state_blocks_guard_slot(
+            COMBAT_STATE_WOUNDED_RETURNING
+        ));
+        assert!(combat_state_blocks_guard_slot(COMBAT_STATE_RECOVERING));
+        assert!(!combat_state_blocks_guard_slot(COMBAT_STATE_RETURNING));
+        assert!(!combat_state_blocks_guard_slot(COMBAT_STATE_FIGHTING));
     }
 
     #[test]

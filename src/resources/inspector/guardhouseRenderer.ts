@@ -35,6 +35,10 @@ import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
+  guardRecoveryRemainingDays,
+  type CombatAgentState,
+} from '../../security/combatAgents.ts';
+import {
   buildingCostRows,
   buildingDemolishHint,
   buildingLaborView,
@@ -53,7 +57,16 @@ export function renderGuardhouseInspector(
   );
   const suspendedByFire = fireDisabled.has(building.id);
   const equippedGuards = armedGuardCount(building.assignedLabor, building.polearms);
-  const armed = suspendedByFire ? 0 : equippedGuards;
+  const companyAgents = [...(context.combatAgents ?? [])].filter((agent) =>
+    agent.faction === 'guard' && agent.sourceBuildingId === building.id);
+  const woundedAgents = companyAgents.filter(isWoundedGuard);
+  const fieldedGuards = companyAgents.length - woundedAgents.length;
+  const casualtyLaborFloor = woundedAgents.reduce(
+    (floor, agent) => Math.max(floor, agent.sourceSlot + 1),
+    0,
+  );
+  const fitEquippedGuards = Math.max(0, equippedGuards - woundedAgents.length);
+  const armed = suspendedByFire ? 0 : fitEquippedGuards;
   const readiness = suspendedByFire
     ? 0
     : Math.max(0, Math.min(1, building.actionCooldown));
@@ -68,8 +81,11 @@ export function renderGuardhouseInspector(
     : false;
   const settlementReady = settlement?.readyGuards ?? ready;
   const guardRequirement = settlement?.guardsRequired ?? 0;
-  const dailyFood = armed * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY;
-  const dailyWages = armed * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY;
+  // Casualties still occupy the roster and consume company support while
+  // unavailable for a later muster.
+  const supportedGuards = suspendedByFire ? 0 : equippedGuards;
+  const dailyFood = supportedGuards * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY;
+  const dailyWages = supportedGuards * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY;
   const payrollInTransit = guardhousePayrollInTransitGold(
     context.gameState.deliveryTrips.values(),
   );
@@ -121,6 +137,11 @@ export function renderGuardhouseInspector(
       ]),
     ),
   );
+  const effectiveReady = armed * readiness * muster.efficiency;
+  const recoveryFeedback = formatGuardRecoveryFeedback(
+    woundedAgents,
+    context.gameState.tick,
+  );
   const orderedMusterPost = orderedMusterPostId === null
     ? null
     : musterPostOptions.find((option) => option.tower.id === orderedMusterPostId)
@@ -156,8 +177,13 @@ export function renderGuardhouseInspector(
     ? ['Fire outage — company cannot muster', 'warning'] as const
     : building.assignedLabor <= 0
     ? ['Unstaffed — no guards can muster', 'warning'] as const
-    : armed <= 0
+    : equippedGuards <= 0
       ? ['Unarmed — awaiting carpenter-made polearms', 'warning'] as const
+      : woundedAgents.length > 0
+        ? [
+            `${woundedAgents.length} wounded — ${fitEquippedGuards} fit for muster`,
+            'warning',
+          ] as const
       : foodRunwayDays < 1
         ? ['Short on provisions — readiness is falling', 'warning'] as const
         : isPayrollLogisticsBlocked(payrollLogistics.status)
@@ -198,6 +224,16 @@ export function renderGuardhouseInspector(
                   ? [`Company ready — settlement needs ${(guardRequirement - settlementReady).toFixed(1)} more guards`, 'warning'] as const
                   : ['Guard company ready', 'ok'] as const;
 
+  const labor = buildingLaborView(
+    building,
+    context.populationStats,
+    context.worldQueries,
+  );
+  if (woundedAgents.length > 0) {
+    labor.decreaseDisabled = building.assignedLabor <= casualtyLaborFloor;
+    labor.hint += ` Wounded guards retain their roster positions; assignments through slot ${casualtyLaborFloor} cannot be released until recovery.`;
+  }
+
   return {
     eyebrow: 'Frontier defense',
     title: context.worldQueries.getBuildingLabel(building.kind),
@@ -207,13 +243,16 @@ export function renderGuardhouseInspector(
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Paid local guard company mustered by the watch</span></li>
+      ${woundedAgents.length > 0 ? `<li><span>Wounded company</span><span>${recoveryFeedback}</span></li>` : ''}
+      ${fieldedGuards > 0 ? `<li><span>In the field</span><span>${fieldedGuards} guard${fieldedGuards === 1 ? '' : 's'} physically deployed</span></li>` : ''}
+      <li><span>Fit for muster</span><span>${fitEquippedGuards} of ${equippedGuards} equipped guards available</span></li>
       <li><span>Armed guards</span><span>${equippedGuards} / ${building.assignedLabor} equipped${suspendedByFire ? ' · unavailable during fire recovery' : ''}</span></li>
       <li><span>Local readiness</span><span>${Math.round(readiness * 100)}% · ${ready.toFixed(1)} ready</span></li>
       <li><span>Muster order</span><span>${orderedMusterPostId === null ? 'Nearest staffed watch by road' : `Hold for Watch #${orderedMusterPostId} unless the order is changed`}</span></li>
       <li><span>Watch muster</span><span>${muster.routeDistance == null ? `${missingMusterRoute}; no district reinforcement` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
       <li><span>Alert posture</span><span>${frontierAlert ? muster.linkedTowerId && armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard' : 'guards'} visibly answering the linked watch by road` : 'Frontier alert active, but this company has no equipped road-linked response' : 'Ordinary drill at the guardhouse until raiders are reported during campaign season'}</span></li>
       <li><span>Road conditions</span><span>${roadConditionFeedback}</span></li>
-      <li><span>Effective company</span><span>${muster.effectiveReady.toFixed(1)} guards after signal and travel</span></li>
+      <li><span>Effective company</span><span>${effectiveReady.toFixed(1)} guards after casualties, signal, and travel</span></li>
       <li><span>Settlement defense</span><span>${settlementReady.toFixed(1)}${guardRequirement > 0 ? ` / ${guardRequirement.toFixed(1)} required` : ''}</span></li>
       <li><span>Projected raid</span><span>${settlement ? formatFrontierForecast(settlement, context.enemyPressure) : 'Awaiting frontier reports'}</span></li>
       <li><span>Daily upkeep</span><span>${dailyFood.toFixed(1)} food · ${dailyWages.toFixed(1)} gold</span></li>
@@ -229,13 +268,54 @@ export function renderGuardhouseInspector(
       <li><span>Supply chain</span><span>Food by road · polearms from a staffed carpenter · pay lockboxes from a civic treasury · ironwork imported at a staffed market</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
-    demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
-    labor: buildingLaborView(building, context.populationStats, context.worldQueries),
+    demolish: woundedAgents.length > 0
+      ? {
+          visible: false,
+          hint: 'The guardhouse must remain standing while wounded guards recuperate here.',
+        }
+      : { visible: true, hint: buildingDemolishHint(building.kind) },
+    labor,
     supplementalPanelHtml: `${renderMusterPostPanel(
       orderedMusterPostId,
       musterPostOptions,
     )}${renderRationReservePanel(foodReserve)}${renderCompanyPriorityPanel(companyPriority)}`,
   };
+}
+
+function isWoundedGuard(agent: CombatAgentState): boolean {
+  return agent.status === 'downed'
+    || agent.status === 'wounded-returning'
+    || agent.status === 'recovering';
+}
+
+function formatGuardRecoveryFeedback(
+  agents: readonly CombatAgentState[],
+  simTick: number,
+): string {
+  const downed = agents.filter((agent) => agent.status === 'downed').length;
+  const returning = agents.filter(
+    (agent) => agent.status === 'wounded-returning',
+  ).length;
+  const recovering = agents.filter(
+    (agent) => agent.status === 'recovering',
+  );
+  const parts = [
+    downed > 0 ? `${downed} awaiting evacuation` : '',
+    returning > 0 ? `${returning} limping back` : '',
+    recovering.length > 0 ? `${recovering.length} recuperating on site` : '',
+  ].filter(Boolean);
+  if (recovering.length > 0) {
+    const remainingDays = Math.max(
+      ...recovering.map((agent) =>
+        guardRecoveryRemainingDays(agent, simTick)),
+    );
+    parts.push(
+      remainingDays < 1
+        ? 'under one day to full recovery'
+        : `up to ${Math.ceil(remainingDays)} days to full recovery`,
+    );
+  }
+  return parts.join(' · ');
 }
 
 type MusterPostOption = {

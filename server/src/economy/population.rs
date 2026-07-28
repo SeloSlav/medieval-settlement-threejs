@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::CONSTRUCTION_MAX_BUILDERS;
@@ -8,6 +10,7 @@ use crate::constants::{
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_HOLD;
 use crate::db::*;
+use crate::raid_agent_policy::{combat_state_blocks_guard_slot, COMBAT_FACTION_GUARD};
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::{
     building_fire_state, preserve_in_transit_cart_labor, staffed_cart_workers_by_building,
@@ -49,10 +52,7 @@ fn total_population(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
         .map_or(true, |resources| {
             resources.legacy_unhoused_population_bonus_enabled
         });
-    settlement_population(
-        from_residences,
-        legacy_unhoused_population_bonus_enabled,
-    )
+    settlement_population(from_residences, legacy_unhoused_population_bonus_enabled)
 }
 
 pub fn settlement_population(housed: u32, legacy_unhoused_population_bonus_enabled: bool) -> u32 {
@@ -64,12 +64,83 @@ pub fn settlement_population(housed: u32, legacy_unhoused_population_bonus_enabl
 }
 
 fn total_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    let casualty_floors = guardhouse_casualty_floors(ctx, owner);
+    if casualty_floors.is_empty() {
+        return ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .map(|building| building.assigned_labor)
+            .sum();
+    }
     ctx.db
         .building()
         .owner()
         .filter(&owner)
-        .map(|building| building.assigned_labor)
+        .map(|building| {
+            building
+                .assigned_labor
+                .max(casualty_floors.get(&building.id).copied().unwrap_or(0))
+        })
         .sum()
+}
+
+pub fn guardhouse_casualty_floors(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> HashMap<u64, u32> {
+    let mut floors = HashMap::<u64, u32>::new();
+    for agent in ctx
+        .db
+        .combat_agent()
+        .owner()
+        .filter(&owner)
+        .filter(|agent| {
+            agent.faction == COMBAT_FACTION_GUARD
+                && agent.source_building_id > 0
+                && combat_state_blocks_guard_slot(agent.state)
+        })
+    {
+        // Roster indices are stable. Keeping only the casualty count would let
+        // a wound in slot 5 be bypassed by shrinking the company and spawning
+        // a different person into the reindexed slot 0.
+        floors
+            .entry(agent.source_building_id)
+            .and_modify(|floor| *floor = (*floor).max(agent.source_slot.saturating_add(1)))
+            .or_insert_with(|| agent.source_slot.saturating_add(1));
+    }
+    floors
+}
+
+pub fn guardhouse_casualty_floor(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    building_id: u64,
+) -> u32 {
+    guardhouse_casualty_floors(ctx, owner)
+        .get(&building_id)
+        .copied()
+        .unwrap_or(0)
+}
+
+pub fn guardhouse_casualty_count(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    building_id: u64,
+) -> u32 {
+    ctx.db
+        .combat_agent()
+        .owner()
+        .filter(&owner)
+        .filter(|agent| {
+            agent.faction == COMBAT_FACTION_GUARD
+                && agent.source_building_id == building_id
+                && combat_state_blocks_guard_slot(agent.state)
+        })
+        .map(|agent| agent.source_slot)
+        .collect::<HashSet<_>>()
+        .len() as u32
 }
 
 fn total_residence_project_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
@@ -115,17 +186,25 @@ pub fn initial_construction_labor(available_labor: u32) -> u32 {
 /// Clamp building assignments immediately after residence population is lost.
 pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) {
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
+    let casualty_floors = guardhouse_casualty_floors(ctx, owner);
     let assignments = ctx
         .db
         .building()
         .owner()
         .filter(&owner)
-        .map(|building| LaborAssignment {
-            building_id: building.id,
-            assigned_labor: building.assigned_labor,
-            minimum_labor: cart_floors.get(&building.id).copied().unwrap_or(0),
-            construction_complete: building.construction_complete,
-            priority: building.construction_priority,
+        .map(|building| {
+            let minimum_labor = cart_floors
+                .get(&building.id)
+                .copied()
+                .unwrap_or(0)
+                .max(casualty_floors.get(&building.id).copied().unwrap_or(0));
+            LaborAssignment {
+                building_id: building.id,
+                assigned_labor: building.assigned_labor.max(minimum_labor),
+                minimum_labor,
+                construction_complete: building.construction_complete,
+                priority: building.construction_priority,
+            }
         })
         .collect();
 
@@ -207,6 +286,15 @@ pub fn assign_building_labor(
     {
         return Err("Repair this fire-damaged building before assigning more workers.".to_string());
     }
+    let casualty_floor = guardhouse_casualty_floor(ctx, owner, building.id);
+    if requested_labor < casualty_floor {
+        let casualty_count = guardhouse_casualty_count(ctx, owner, building.id);
+        return Err(format!(
+            "{} wounded guard{} remain committed to this company until recovery.",
+            casualty_count,
+            if casualty_count == 1 { "" } else { "s" },
+        ));
+    }
 
     let building_cap = if building.construction_complete {
         building_max_labor(&building.kind)
@@ -220,8 +308,12 @@ pub fn assign_building_labor(
         ));
     }
 
+    let current_commitment =
+        building
+            .assigned_labor
+            .max(guardhouse_casualty_floor(ctx, owner, building.id));
     let assigned_elsewhere = total_assigned_labor(ctx, owner)
-        .saturating_sub(building.assigned_labor)
+        .saturating_sub(current_commitment)
         .saturating_add(total_free_hauler_labor(ctx, owner));
     let population = total_population(ctx, owner);
     let max_allowed = population.saturating_sub(assigned_elsewhere);

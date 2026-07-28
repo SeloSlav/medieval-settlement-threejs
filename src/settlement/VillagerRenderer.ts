@@ -1060,7 +1060,11 @@ export class VillagerRenderer {
         hairColor: ordinaryGuard?.hairColor
           ?? pickVillagerHairColor(appearanceSeed),
         tool: 'spear',
-        movementSpeed: combat.faction === 'guard' ? 1.42 : 1.34,
+        movementSpeed: combat.status === 'wounded-returning'
+          ? 0.68
+          : combat.faction === 'guard'
+            ? 1.42
+            : 1.34,
         active: true,
       });
     }
@@ -2911,9 +2915,11 @@ function combatRenderMode(
     case 'fighting': return 'fight';
     case 'looting': return 'gather';
     case 'downed': return 'rest';
+    case 'recovering': return 'rest';
     case 'advancing':
     case 'retreating':
     case 'returning':
+    case 'wounded-returning':
       return 'walk';
   }
 }

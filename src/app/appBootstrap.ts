@@ -800,6 +800,7 @@ export async function bootstrapAppSession(
       spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY,
     getMarketState: () => spacetimeStore.snapshot.marketState,
     getSettlementSecurity: () => spacetimeStore.snapshot.settlementSecurity,
+    getCombatAgents: () => spacetimeStore.snapshot.combatAgents.values(),
     getConflictEnabled: () =>
       spacetimeStore.snapshot.worldGeneration?.configured === true
       && spacetimeStore.snapshot.worldGeneration.conflictMode === 'frontier',

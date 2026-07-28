@@ -89,7 +89,10 @@ import {
   type ProjectedRaidTarget,
 } from '../security/frontierSecurity.ts';
 import { FrontierRiskMarkers } from '../security/FrontierRiskMarkers.ts';
-import { formatLiveCombatSummary } from '../security/combatAgents.ts';
+import {
+  formatLiveCombatSummary,
+  type CombatAgentState,
+} from '../security/combatAgents.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHooks.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
@@ -155,6 +158,7 @@ export class App {
   private initialSettlementViewApplied = false;
   private lastSeenRaidTick: number | null = null;
   private raidProjectionSignature = '';
+  private combatInspectorSignature = '';
   private projectedRaidTargets: ProjectedRaidTarget[] = [];
   private disposed = false;
 
@@ -712,6 +716,7 @@ export class App {
       if (!this.visualQaConditions) this.buildingMarkers?.setEnvironment(null);
       this.toolbar?.setConflictEnabled(false);
       this.clearFrontierRiskFeedback();
+      this.combatInspectorSignature = '';
       this.villagers?.setCombatAgents(new Map());
       this.toolbar?.settlementHud.setSecurityState(
         snapshot.settlementSecurity,
@@ -726,6 +731,13 @@ export class App {
 
     const previous = this.gameState;
     this.gameState = state;
+    const nextCombatInspectorSignature = combatInspectorSignature(
+      snapshot.combatAgents.values(),
+      snapshot.simTick,
+    );
+    const combatInspectorChanged =
+      nextCombatInspectorSignature !== this.combatInspectorSignature;
+    this.combatInspectorSignature = nextCombatInspectorSignature;
     this.villagers?.setCombatAgents(snapshot.combatAgents);
     if (this.liveContext) {
       this.liveContext.gameState = state;
@@ -742,7 +754,10 @@ export class App {
     this.notifyFireChanges(state, previous);
     this.notifySecurityChanges(snapshot);
     const projectedTargets = this.syncFrontierRiskFeedback(snapshot, state);
-    const liveCombat = formatLiveCombatSummary(snapshot.combatAgents.values());
+    const liveCombat = formatLiveCombatSummary(
+      snapshot.combatAgents.values(),
+      snapshot.simTick,
+    );
     const frontierDetail = [liveCombat, projectedTargets]
       .filter((detail): detail is string => Boolean(detail))
       .join(' ');
@@ -753,6 +768,8 @@ export class App {
 
     if (resourceUiNeedsSync(state, previous)) {
       this.syncResourceUi();
+    } else if (combatInspectorChanged) {
+      this.resourceInspector?.refreshSelection();
     }
     this.syncToolbar();
     const clock = gameClock(snapshot.simTick);
@@ -1134,4 +1151,17 @@ function resourceUiNeedsSync(current: GameState, previous: GameState | null): bo
     || current.backyardGardens !== previous.backyardGardens
     || current.deliveryTrips !== previous.deliveryTrips
     || current.fireIncidents !== previous.fireIncidents;
+}
+
+function combatInspectorSignature(
+  agents: Iterable<CombatAgentState>,
+  simTick: number,
+): string {
+  let hasRecoveringGuard = false;
+  const entries = [...agents].map((agent) => {
+    hasRecoveringGuard ||= agent.status === 'recovering';
+    return `${agent.id}:${agent.sourceBuildingId ?? ''}:${agent.status}:${agent.stateChangedTick}`;
+  });
+  entries.sort();
+  return `${entries.join('|')}${hasRecoveringGuard ? `@${simTick}` : ''}`;
 }

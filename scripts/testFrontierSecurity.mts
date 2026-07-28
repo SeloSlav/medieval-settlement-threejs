@@ -61,6 +61,8 @@ import {
 } from '../src/world/worldGenerationSettings.ts';
 import {
   formatLiveCombatSummary,
+  guardRecoveryRemainingDays,
+  guardRecoveryTicks,
   type CombatAgentState,
 } from '../src/security/combatAgents.ts';
 import {
@@ -1454,6 +1456,7 @@ const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs'
 const serverPolicy = readFileSync('server/src/security_policy.rs', 'utf8');
 const serverFires = readFileSync('server/src/simulation/fires.rs', 'utf8');
 const serverBuildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
+const serverPopulation = readFileSync('server/src/economy/population.rs', 'utf8');
 const serverTables = readFileSync('server/src/tables.rs', 'utf8');
 const generatedCombatAgent = readFileSync('src/generated/combat_agent_table.ts', 'utf8');
 const clientCombatAgents = readFileSync('src/security/combatAgents.ts', 'utf8');
@@ -1704,6 +1707,33 @@ assert.match(serverRaidAgentPolicy, /pub const HOLDING_CONTACT_RANGE_METERS/);
 assert.match(serverRaidAgentPolicy, /pub const LOOT_SECONDS:\s*f64\s*=\s*4\.0/);
 assert.match(serverRaidAgentPolicy, /\.clamp\(3\.0,\s*12\.0\)/);
 assert.match(serverRaidAgentPolicy, /fn movement_never_teleports_past_contact/);
+assert.match(serverRaidAgentPolicy, /pub fn guard_recovery_ticks/);
+assert.match(serverRaidAgentPolicy, /pub fn combat_state_blocks_guard_slot/);
+assert.match(
+  serverRaidAgents,
+  /COMBAT_STATE_WOUNDED_RETURNING[\s\S]*WOUNDED_GUARD_SPEED_MPS[\s\S]*COMBAT_STATE_RECOVERING/,
+  'a downed guard must physically return before recuperating at the source guardhouse',
+);
+assert.match(
+  serverRaidAgents,
+  /unavailable_guard_slots[\s\S]*unavailable_slots\.contains\(&\(guardhouse\.id, slot\)\)/,
+  'wounded roster slots must not spawn again in a later raid',
+);
+assert.match(
+  serverSimulation,
+  /unavailable_guard_slots[\s\S]*fn settlement_guard_districts[\s\S]*unavailable_guard_slots\.contains/,
+  'the settlement defense forecast must subtract persistent guard casualties',
+);
+assert.match(
+  serverPopulation,
+  /guardhouse_casualty_floor[\s\S]*requested_labor < casualty_floor/,
+  'labor reassignment must not release a wounded guard into another workplace',
+);
+assert.match(
+  serverBuildingReducers,
+  /This guardhouse shelters[\s\S]*wait for recovery before demolition/,
+  'a guardhouse with recuperating agents must remain physically present',
+);
 assert.match(
   serverTables,
   /accessor = combat_agent,[\s\S]*public,[\s\S]*pub struct CombatAgent[\s\S]*pub x: f64,[\s\S]*pub health: f64,[\s\S]*pub carried_loot_json: String/,
@@ -1713,7 +1743,10 @@ assert.match(generatedCombatAgent, /x: __t\.f64\(\)/);
 assert.match(generatedCombatAgent, /health: __t\.f64\(\)/);
 assert.match(generatedCombatAgent, /carriedLootJson: __t\.string\(\)/);
 assert.match(app, /villagers\?\.setCombatAgents\(snapshot\.combatAgents\)/);
-assert.match(app, /formatLiveCombatSummary\(snapshot\.combatAgents\.values\(\)\)/);
+assert.match(
+  app,
+  /formatLiveCombatSummary\([\s\S]*snapshot\.combatAgents\.values\(\),[\s\S]*snapshot\.simTick/,
+);
 assert.match(
   villagerRenderer,
   /for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*id: `combat:\$\{combat\.id\}`[\s\S]*tool: 'spear'/,
@@ -1756,7 +1789,16 @@ assert.match(clientCombatAgents, /status:\s*CombatAgentStatus/);
   ]);
   assert.match(liveSummary ?? '', /1 raider/);
   assert.match(liveSummary ?? '', /1 guard/);
-  assert.match(liveSummary ?? '', /1 raider \/ 1 guard down/);
+  assert.match(liveSummary ?? '', /1 raider down · 1 guard wounded/);
+  const recovering = combatant('g3', 'guard', 'recovering');
+  const recoveryTicks = guardRecoveryTicks(recovering.readiness);
+  assert.ok(recoveryTicks > 0);
+  assert.ok(guardRecoveryRemainingDays(recovering, 400) >= 3);
+  assert.ok(guardRecoveryRemainingDays(recovering, 400 + recoveryTicks) <= 1e-9);
+  assert.match(
+    formatLiveCombatSummary([recovering], 400) ?? '',
+    /Company aftermath: 1 wounded guard unavailable · up to 4 days remaining/,
+  );
   assert.equal(formatLiveCombatSummary([]), undefined);
 }
 assert.match(serverPolicy, /pub fn raid_arson_chance/);

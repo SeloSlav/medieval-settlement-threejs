@@ -27,6 +27,7 @@ import {
   residenceFireRecoveryQuote,
 } from '../fires/fireRecovery.ts';
 import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
+import type { CombatAgentState } from '../security/combatAgents.ts';
 import { formatBuildingCost } from './buildingEconomy.ts';
 import {
   isStorehouseCommodity,
@@ -54,6 +55,7 @@ type ResourceInspectorOptions = {
   getMonasteryPolicy?: () => MonasteryPolicyState;
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
+  getCombatAgents?: () => Iterable<CombatAgentState>;
   getConflictEnabled?: () => boolean;
   getEnemyPressure?: () => number;
   getWorldHydrology?: () => number;
@@ -1196,6 +1198,9 @@ export class ResourceInspector {
       getMarketState: () => this.options.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE,
       ...(this.options.getSettlementSecurity
         ? { getSettlementSecurity: this.options.getSettlementSecurity }
+        : {}),
+      ...(this.options.getCombatAgents
+        ? { combatAgents: this.options.getCombatAgents() }
         : {}),
     });
     const fire = target.kind === 'building'

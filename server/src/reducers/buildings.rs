@@ -18,8 +18,8 @@ use crate::economy::{
     collect_chapel_coffer as sweep_chapel_coffer, construction_treasury_reservation,
     credit_treasury_commodity, credit_treasury_firewood, credit_treasury_food,
     credit_treasury_gold, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
-    initial_construction_labor, record_parish_ledger, total_stone, total_timber, CommodityKind,
-    ParishLedgerKind,
+    guardhouse_casualty_count, guardhouse_casualty_floors, initial_construction_labor,
+    record_parish_ledger, total_stone, total_timber, CommodityKind, ParishLedgerKind,
 };
 use crate::foraging_policy::harvest_available;
 use crate::frontier_economy_policy::{
@@ -854,8 +854,8 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         }
         let wool_en_route =
             building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Wool);
-        let flax_available = has_flax
-            || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Flax);
+        let flax_available =
+            has_flax || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Flax);
         let water_available = has_water
             || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Water);
         return (true, wool_en_route || (flax_available && water_available));
@@ -1191,6 +1191,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
     let mut sites = Vec::new();
     let mut fire_disabled_sites = Vec::new();
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
+    let casualty_floors = guardhouse_casualty_floors(ctx, owner);
     for building in ctx
         .db
         .building()
@@ -1206,7 +1207,11 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         }
         if building_fire_state(ctx, building.id).is_some() {
             if building.assigned_labor > 0 {
-                let cart_floor = cart_floors.get(&building.id).copied().unwrap_or(0);
+                let cart_floor = cart_floors
+                    .get(&building.id)
+                    .copied()
+                    .unwrap_or(0)
+                    .max(casualty_floors.get(&building.id).copied().unwrap_or(0));
                 available_labor = available_labor
                     .saturating_add(building.assigned_labor.saturating_sub(cart_floor));
                 fire_disabled_sites.push(building.id);
@@ -1217,7 +1222,11 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
             building_id: building.id,
             priority: building.construction_priority,
             assigned_labor: building.assigned_labor,
-            minimum_labor: cart_floors.get(&building.id).copied().unwrap_or(0),
+            minimum_labor: cart_floors
+                .get(&building.id)
+                .copied()
+                .unwrap_or(0)
+                .max(casualty_floors.get(&building.id).copied().unwrap_or(0)),
             max_labor: def.max_labor,
         });
     }
@@ -1230,8 +1239,9 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         if building.owner != owner || building.assigned_labor == 0 {
             continue;
         }
-        preserve_in_transit_cart_labor(ctx, building.id, 0);
-        building.assigned_labor = 0;
+        let casualty_floor = casualty_floors.get(&building.id).copied().unwrap_or(0);
+        preserve_in_transit_cart_labor(ctx, building.id, casualty_floor);
+        building.assigned_labor = casualty_floor;
         ctx.db.building().id().update(building);
     }
     for (building_id, target_labor) in rotation.targets {
@@ -1807,6 +1817,16 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             "A reclamation pile clears itself after its goods are physically recovered."
                 .to_string(),
         );
+    }
+    if building.kind == "guardhouse" {
+        let wounded = guardhouse_casualty_count(ctx, owner, building.id);
+        if wounded > 0 {
+            return Err(format!(
+                "This guardhouse shelters {} wounded guard{}; wait for recovery before demolition.",
+                wounded,
+                if wounded == 1 { "" } else { "s" },
+            ));
+        }
     }
     if building.kind == "threshing_barn"
         && ctx

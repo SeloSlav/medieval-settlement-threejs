@@ -5,6 +5,7 @@ import type { MarketplaceTradeAvailability } from '../../economy/marketplaceTrad
 import type { RegionalMarketState } from '../../economy/regionalMarket.ts';
 import type { GameState, InspectableTarget } from '../types.ts';
 import type { SettlementSecurityState } from '../../security/frontierSecurity.ts';
+import type { CombatAgentState } from '../../security/combatAgents.ts';
 import type { SettlementProductionCapacity } from '../../economy/settlementProduction.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import { renderBackyardInspector } from './backyardRenderer.ts';
@@ -66,6 +67,7 @@ export type InspectorRenderContext = {
   ) => MarketplaceTradeAvailability;
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
+  combatAgents?: Iterable<CombatAgentState>;
 };
 
 export function hiddenLabor(): InspectorLaborView {

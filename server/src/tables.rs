@@ -809,7 +809,8 @@ pub struct CombatAgent {
     pub max_health: f64,
     /// Guard provision/pay readiness captured when the company marches.
     pub readiness: f64,
-    /// 0 advancing, 1 fighting, 2 looting, 3 retreating, 4 returning, 5 downed.
+    /// 0 advancing, 1 fighting, 2 looting, 3 retreating, 4 returning,
+    /// 5 downed, 6 wounded return, 7 recuperating at the guardhouse.
     pub state: u8,
     pub attack_cooldown: f64,
     pub loot_progress: f64,

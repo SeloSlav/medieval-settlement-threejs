@@ -6,15 +6,16 @@ use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::frontier_economy_policy::armed_guards;
 use crate::raid_agent_policy::{
-    distance_squared, formation_spawn, guard_attack_interval, guard_damage, move_toward,
-    per_raider_loot_fraction, raid_entry_point, raid_party_size, raider_attack_interval,
-    raider_damage, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER, COMBAT_STATE_ADVANCING,
-    COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RETREATING,
-    COMBAT_STATE_RETURNING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
+    combat_state_blocks_guard_slot, distance_squared, formation_spawn, guard_attack_interval,
+    guard_damage, guard_recovery_ticks, move_toward, per_raider_loot_fraction, raid_entry_point,
+    raid_party_size, raider_attack_interval, raider_damage, COMBAT_FACTION_GUARD,
+    COMBAT_FACTION_RAIDER, COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING,
+    COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING,
+    COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
     COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE,
     DOWNED_LINGER_TICKS, GUARD_INTERCEPT_RANGE_METERS, GUARD_SPEED_MPS,
     HOLDING_CONTACT_RANGE_METERS, LOOT_SECONDS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
-    RAIDER_SPEED_MPS,
+    RAIDER_SPEED_MPS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::RoadNetwork;
 use crate::security_policy::{
@@ -66,6 +67,8 @@ pub fn start_live_raid(
 
     // An interrupted legacy deployment must not leave an invisible company
     // consuming a guardhouse roster when the next authoritative raid starts.
+    // Persistent wounded guards are deliberately retained: their exact roster
+    // slots remain unavailable until those same agents recuperate.
     for stale in ctx
         .db
         .combat_agent()
@@ -73,6 +76,9 @@ pub fn start_live_raid(
         .filter(&owner)
         .collect::<Vec<_>>()
     {
+        if stale.faction == COMBAT_FACTION_GUARD && combat_state_blocks_guard_slot(stale.state) {
+            continue;
+        }
         ctx.db.combat_agent().id().delete(stale.id);
     }
 
@@ -175,6 +181,7 @@ fn spawn_responding_guards(
         .iter()
         .map(|tower| tower.source_id)
         .collect::<Vec<_>>();
+    let unavailable_slots = unavailable_guard_slots(ctx, owner);
     let mut total = 0_u32;
 
     for guardhouse in buildings.iter().filter(|building| {
@@ -215,6 +222,9 @@ fn spawn_responding_guards(
         let readiness =
             (guardhouse.action_cooldown * (0.72 + muster_readiness * 0.28)).clamp(0.05, 1.0);
         for slot in 0..armed {
+            if unavailable_slots.contains(&(guardhouse.id, slot)) {
+                continue;
+            }
             let (x, z) = formation_spawn(guardhouse.x, guardhouse.z, target.x, target.z, slot);
             let max_health = 70.0 + readiness * 30.0;
             ctx.db.combat_agent().insert(CombatAgent {
@@ -272,12 +282,17 @@ pub fn step_live_raids(
         if active_keys.contains(&(agent.owner, agent.raid_id)) {
             continue;
         }
-        if agent.state == COMBAT_STATE_DOWNED
+        let agent_id = agent.id;
+        if agent.faction == COMBAT_FACTION_GUARD {
+            if step_recovering_guard(ctx, agent, sim_tick) {
+                continue;
+            }
+        } else if agent.state == COMBAT_STATE_DOWNED
             && sim_tick.saturating_sub(agent.state_changed_tick) < DOWNED_LINGER_TICKS
         {
             continue;
         }
-        ctx.db.combat_agent().id().delete(agent.id);
+        ctx.db.combat_agent().id().delete(agent_id);
     }
 }
 
@@ -319,7 +334,9 @@ fn step_one_live_raid(ctx: &ReducerContext, active: ActiveRaid, sim_tick: u64, w
 
     for agent in agents.values_mut() {
         if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
-            if sim_tick.saturating_sub(agent.state_changed_tick) >= DOWNED_LINGER_TICKS {
+            if agent.faction == COMBAT_FACTION_RAIDER
+                && sim_tick.saturating_sub(agent.state_changed_tick) >= DOWNED_LINGER_TICKS
+            {
                 delete_ids.insert(agent.id);
             }
             continue;
@@ -608,25 +625,60 @@ fn return_guards_and_finalize(
     sim_tick: u64,
     world_seed: u64,
 ) {
-    let mut living_guards = 0_u32;
+    let mut guards_still_returning = 0_u32;
     for agent in agents.values_mut() {
-        if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
-            if sim_tick.saturating_sub(agent.state_changed_tick) >= DOWNED_LINGER_TICKS {
+        if agent.faction != COMBAT_FACTION_GUARD {
+            if agent.state != COMBAT_STATE_DOWNED
+                || sim_tick.saturating_sub(agent.state_changed_tick) >= DOWNED_LINGER_TICKS
+            {
                 ctx.db.combat_agent().id().delete(agent.id);
             }
             continue;
         }
-        if agent.faction != COMBAT_FACTION_GUARD {
-            ctx.db.combat_agent().id().delete(agent.id);
+
+        if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
+            if sim_tick.saturating_sub(agent.state_changed_tick) < DOWNED_LINGER_TICKS {
+                guards_still_returning += 1;
+                continue;
+            }
+            agent.state = COMBAT_STATE_WOUNDED_RETURNING;
+            agent.state_changed_tick = sim_tick;
+            agent.health = 1.0;
+        }
+
+        if agent.state == COMBAT_STATE_WOUNDED_RETURNING {
+            guards_still_returning += 1;
+            if distance_squared(agent.x, agent.z, agent.home_x, agent.home_z)
+                <= ARRIVAL_RANGE_METERS * ARRIVAL_RANGE_METERS
+            {
+                agent.x = agent.home_x;
+                agent.z = agent.home_z;
+                agent.state = COMBAT_STATE_RECOVERING;
+                agent.state_changed_tick = sim_tick;
+            } else {
+                (agent.x, agent.z) = move_toward(
+                    agent.x,
+                    agent.z,
+                    agent.home_x,
+                    agent.home_z,
+                    WOUNDED_GUARD_SPEED_MPS * TICK_DT,
+                );
+            }
+            ctx.db.combat_agent().id().update(agent.clone());
             continue;
         }
+
+        if agent.state == COMBAT_STATE_RECOVERING {
+            continue;
+        }
+
         if distance_squared(agent.x, agent.z, agent.home_x, agent.home_z)
             <= ARRIVAL_RANGE_METERS * ARRIVAL_RANGE_METERS
         {
             ctx.db.combat_agent().id().delete(agent.id);
             continue;
         }
-        living_guards += 1;
+        guards_still_returning += 1;
         agent.state = COMBAT_STATE_RETURNING;
         (agent.x, agent.z) = move_toward(
             agent.x,
@@ -637,7 +689,7 @@ fn return_guards_and_finalize(
         );
         ctx.db.combat_agent().id().update(agent.clone());
     }
-    if living_guards > 0 {
+    if guards_still_returning > 0 {
         return;
     }
 
@@ -671,6 +723,64 @@ fn return_guards_and_finalize(
     security.threat = 0.0;
     ctx.db.settlement_security().owner().update(security);
     ctx.db.active_raid().owner().delete(&latest.owner);
+}
+
+fn step_recovering_guard(ctx: &ReducerContext, mut agent: CombatAgent, sim_tick: u64) -> bool {
+    if agent.state == COMBAT_STATE_DOWNED {
+        if sim_tick.saturating_sub(agent.state_changed_tick) < DOWNED_LINGER_TICKS {
+            return true;
+        }
+        agent.state = COMBAT_STATE_WOUNDED_RETURNING;
+        agent.state_changed_tick = sim_tick;
+        agent.health = 1.0;
+    }
+    if agent.state == COMBAT_STATE_WOUNDED_RETURNING {
+        if distance_squared(agent.x, agent.z, agent.home_x, agent.home_z)
+            <= ARRIVAL_RANGE_METERS * ARRIVAL_RANGE_METERS
+        {
+            agent.x = agent.home_x;
+            agent.z = agent.home_z;
+            agent.state = COMBAT_STATE_RECOVERING;
+            agent.state_changed_tick = sim_tick;
+        } else {
+            (agent.x, agent.z) = move_toward(
+                agent.x,
+                agent.z,
+                agent.home_x,
+                agent.home_z,
+                WOUNDED_GUARD_SPEED_MPS * TICK_DT,
+            );
+        }
+        ctx.db.combat_agent().id().update(agent);
+        return true;
+    }
+    if agent.state != COMBAT_STATE_RECOVERING {
+        return false;
+    }
+    let ticks_per_day = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round() as u64;
+    if sim_tick.saturating_sub(agent.state_changed_tick)
+        >= guard_recovery_ticks(agent.readiness, ticks_per_day)
+    {
+        return false;
+    }
+    true
+}
+
+pub(super) fn unavailable_guard_slots(
+    ctx: &ReducerContext,
+    owner: Identity,
+) -> HashSet<(u64, u32)> {
+    ctx.db
+        .combat_agent()
+        .owner()
+        .filter(&owner)
+        .filter(|agent| {
+            agent.faction == COMBAT_FACTION_GUARD
+                && combat_state_blocks_guard_slot(agent.state)
+                && agent.source_building_id > 0
+        })
+        .map(|agent| (agent.source_building_id, agent.source_slot))
+        .collect()
 }
 
 fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock {

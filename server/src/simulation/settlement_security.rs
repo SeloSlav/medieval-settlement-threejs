@@ -23,6 +23,7 @@ use crate::tables::{
 };
 
 use super::fires::FIRE_TARGET_BUILDING;
+use super::raid_agents::unavailable_guard_slots;
 use super::{start_live_raid, LiveRaidTarget};
 
 struct SettlementExposure {
@@ -172,12 +173,14 @@ fn step_owner_security(
     let sheltered_residences =
         settlement_refuge_assignments(&residences, &watch_index, &refuge_index);
     let road_network = load_owner_road_network(ctx, owner);
+    let unavailable_guard_slots = unavailable_guard_slots(ctx, owner);
     let (district_ready_guards, assigned_guards, readiness_by_watch) = settlement_guard_districts(
         &buildings,
         &towers,
         road_network.as_ref(),
         environment.road_speed_multiplier(),
         &fire_disabled_buildings,
+        &unavailable_guard_slots,
     );
     let exposure = settlement_exposure(
         &buildings,
@@ -860,6 +863,7 @@ fn settlement_guard_districts(
     road_network: Option<&RoadNetwork>,
     road_speed_multiplier: f64,
     fire_disabled_buildings: &HashSet<u64>,
+    unavailable_guard_slots: &HashSet<(u64, u32)>,
 ) -> (f64, f64, HashMap<u64, f64>) {
     let watch_positions = towers
         .iter()
@@ -879,7 +883,12 @@ fn settlement_guard_districts(
             && !fire_disabled_buildings.contains(&building.id)
     }) {
         assigned += guardhouse.assigned_labor as f64;
-        let armed_here = armed_guards(guardhouse.assigned_labor, guardhouse.polearms);
+        let armed_slots = armed_guards(guardhouse.assigned_labor, guardhouse.polearms)
+            .floor()
+            .max(0.0) as u32;
+        let armed_here = (0..armed_slots)
+            .filter(|slot| !unavailable_guard_slots.contains(&(guardhouse.id, *slot)))
+            .count() as f64;
         if armed_here <= 1e-9 {
             continue;
         }
