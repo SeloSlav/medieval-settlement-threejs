@@ -391,7 +391,7 @@ export class SettlementHud {
     const timing = security.nextRaidTick <= 0
       ? 'Pressure begins at 8 residents'
       : formatFrontierRaidTiming(security, simTick, clock.month);
-    this.securityDetail.textContent = `${timing} · ${coverage}% watched · ${readyGuards}/${requiredGuards} ready${security.threat >= 0.4 && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
+    this.securityDetail.textContent = `${timing} · ${coverage}% watched · weakest district ${readyGuards}/${requiredGuards}${security.threat >= 0.4 && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
     this.securityAlert.dataset.threat = security.threat >= 0.9
       ? 'imminent'
       : security.threat >= 0.7
@@ -402,13 +402,13 @@ export class SettlementHud {
     this.securityAlert.dataset.tooltip = [
       `Enemy pressure: ${world.enemyPressure}%`,
       `Staffed watchtowers: ${security.staffedWatchtowers}`,
-      `Ready paid guards: ${readyGuards}`,
-      `Guard readiness: ${Math.round(security.defenseReadiness * 100)}%`,
+      `Weakest likely watch district: ${readyGuards}/${requiredGuards} guards`,
+      `Companies supplied, paid, drilled, and road-linked: ${Math.round(security.defenseReadiness * 100)}%`,
       `Protected settlement value: ${coverage}%`,
       formatFrontierForecast(security, world.enemyPressure),
       projectedTargets,
       'One watchman provides 78% of a tower’s full radius; two provide full coverage.',
-      'Armed guards need provisions and wages. A short road route to a staffed tower gives a full muster; long or missing signal routes reduce effective strength.',
+      'Each armed company reinforces only its nearest road-linked staffed tower. Short routes give a full muster; long, soft, or missing routes weaken that watch district.',
       'Incursions strike the richest exposed holdings first; watched holdings remain vulnerable if the guard muster is insufficient.',
       formatRaidReport(security),
     ].filter(Boolean).join(' · ');

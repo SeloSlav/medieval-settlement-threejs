@@ -211,7 +211,7 @@ function renderFrontierSecurityRows(
   const coverage = Math.round(security.coverage * 100);
   return `
     <li><span>Frontier timetable</span><span>${threat} · ${formatFrontierRaidTiming(security, simTick, month)} · enemy pressure ${Math.round(enemyPressure)}%</span></li>
-    <li><span>Watch and muster</span><span>${coverage}% of weighted holdings watched · ${security.staffedWatchtowers} staffed ${security.staffedWatchtowers === 1 ? 'watchtower' : 'watchtowers'} · ${security.readyGuards.toFixed(1)} / ${security.guardsRequired.toFixed(1)} guards ready · companies ${Math.round(security.defenseReadiness * 100)}% supplied, paid, and drilled</span></li>
+    <li><span>Watch districts</span><span>${coverage}% of weighted holdings watched · ${security.staffedWatchtowers} staffed ${security.staffedWatchtowers === 1 ? 'watchtower' : 'watchtowers'} · weakest likely district ${security.readyGuards.toFixed(1)} / ${security.guardsRequired.toFixed(1)} guards · companies ${Math.round(security.defenseReadiness * 100)}% supplied, paid, drilled, and road-linked</span></li>
     <li><span>Projected incursion</span><span>${formatFrontierForecast(security, enemyPressure)}</span></li>
     <li><span>Last incursion</span><span>${formatRaidReport(security)}</span></li>
   `;

@@ -327,7 +327,11 @@ assert.ok(
 assert.ok(wetLinkedMuster.effectiveReady < linkedMuster.effectiveReady);
 const unlinkedMuster = getGuardhouseMusterState(guardhouse, musterState, () => null);
 assert.equal(unlinkedMuster.linkedTowerId, null);
-assert.equal(unlinkedMuster.effectiveReady, 1.6);
+assert.equal(
+  unlinkedMuster.effectiveReady,
+  0,
+  'an unlinked company must not reinforce a watch district on another road branch',
+);
 musterState.fireIncidents.set('muster-watch-fire', fire('muster-watch-fire', musterTower.id));
 const watchFireMuster = getGuardhouseMusterState(
   guardhouse,
@@ -336,7 +340,7 @@ const watchFireMuster = getGuardhouseMusterState(
 );
 assert.equal(watchFireMuster.staffedTowers, 0);
 assert.equal(watchFireMuster.linkedTowerId, null);
-assert.equal(watchFireMuster.effectiveReady, 1.6);
+assert.equal(watchFireMuster.effectiveReady, 0);
 musterState.fireIncidents.set('company-fire', fire('company-fire', guardhouse.id));
 const companyFireMuster = getGuardhouseMusterState(
   guardhouse,
@@ -394,6 +398,95 @@ projectionState.fireIncidents.clear();
 assert.match(formatProjectedRaidTargets(projectedTargets), /Current likely targets/);
 assert.match(formatProjectedRaidTargets(projectedTargets), /exposed/);
 assert.match(formatProjectedRaidTargets(projectedTargets), /raid value/);
+
+const districtRoads = new RoadNetwork();
+districtRoads.addRoadPath([
+  new THREE.Vector3(-20, 0, 0),
+  new THREE.Vector3(220, 0, 0),
+]);
+districtRoads.addRoadPath([
+  new THREE.Vector3(-20, 0, 300),
+  new THREE.Vector3(220, 0, 300),
+]);
+const districtState = emptyGameState();
+const westWatch = building('west-watch', 'watchtower', 40, 0, 2);
+const eastWatch = building('east-watch', 'watchtower', 40, 300, 2);
+const westCompany = {
+  ...building('west-company', 'guardhouse', 0, 0, 4),
+  polearms: 4,
+  actionCooldown: 1,
+};
+const richWestStore = {
+  ...building('rich-west-store', 'village_storehouse', 100, 0, 1),
+  timber: 200,
+};
+const leanEastStore = {
+  ...building('lean-east-store', 'village_storehouse', 100, 300, 1),
+  timber: 20,
+};
+for (const site of [
+  westWatch,
+  eastWatch,
+  westCompany,
+  richWestStore,
+  leanEastStore,
+]) {
+  districtState.buildings.set(site.id, site);
+}
+const districtProjection = projectRaidTargets(districtState, 1, {
+  enemyPressure: 50,
+  roadNetwork: districtRoads,
+});
+assert.equal(
+  districtProjection[0]?.id,
+  leanEastStore.id,
+  'a rich guarded branch must not hide a leaner watch district with no road-linked company',
+);
+assert.equal(districtProjection[0]?.protected, true);
+assert.equal(districtProjection[0]?.localReadyGuards, 0);
+assert.ok((districtProjection[0]?.estimatedLossFraction ?? 0) > 0);
+assert.match(
+  formatProjectedRaidTargets(districtProjection),
+  /0 \/ 5\.8 district guards/,
+);
+
+const eastCompany = {
+  ...building('east-company', 'guardhouse', 0, 300, 4),
+  polearms: 4,
+  actionCooldown: 1,
+};
+districtState.buildings.set(eastCompany.id, eastCompany);
+const balancedDistrictProjection = projectRaidTargets(districtState, 1, {
+  enemyPressure: 50,
+  roadNetwork: districtRoads,
+});
+assert.equal(
+  balancedDistrictProjection[0]?.id,
+  richWestStore.id,
+  'once both branches muster equally, the richer holding should again determine raid priority',
+);
+assert.ok((balancedDistrictProjection[0]?.localReadyGuards ?? 0) > 3.9);
+districtState.fireIncidents.set(
+  'east-watch-outage',
+  fire('east-watch-outage', eastWatch.id),
+);
+const fireDisabledDistrictProjection = projectRaidTargets(districtState, 1, {
+  enemyPressure: 50,
+  roadNetwork: districtRoads,
+});
+assert.equal(
+  fireDisabledDistrictProjection[0]?.id,
+  leanEastStore.id,
+  'a burning district watch must immediately expose its local branch',
+);
+assert.equal(fireDisabledDistrictProjection[0]?.protected, false);
+assert.equal(fireDisabledDistrictProjection[0]?.localReadyGuards, 0);
+assert.match(
+  formatProjectedRaidTargets(fireDisabledDistrictProjection),
+  /no warned guard district/,
+);
+districtState.fireIncidents.clear();
+
 const refugeProjectionState = emptyGameState();
 const refuge = building('refuge', 'palisaded_refuge', 100, 0, 0);
 refugeProjectionState.buildings.set(refuge.id, refuge);
@@ -928,7 +1021,7 @@ assert.match(
 );
 assert.equal(
   formatFrontierForecast(security),
-  '4.5 / 6.5 guards ready · 2 holdings at risk · up to 8% portable stores per target',
+  '4.5 / 6.5 guards in the weakest likely watch district · 2 holdings at risk · up to 8% portable stores per target',
 );
 
 assert.ok(Math.abs(projectedRaidArsonChance(security, 65) - 0.0789692307) < 1e-8);
@@ -1008,6 +1101,7 @@ const buildingMarkers = readFileSync('src/buildings/BuildingMarkers.ts', 'utf8')
 const villagerRenderer = readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
 const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 const app = readFileSync('src/app/App.ts', 'utf8');
+const clientSecurity = readFileSync('src/security/frontierSecurity.ts', 'utf8');
 const serverSimulation = readFileSync('server/src/simulation/settlement_security.rs', 'utf8');
 const frontierEconomy = readFileSync('server/src/frontier_economy_policy.rs', 'utf8');
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
@@ -1076,13 +1170,27 @@ assert.match(
 );
 assert.match(
   app,
+  /projectRaidTargets\([\s\S]*enemyPressure:[\s\S]*roadNetwork:[\s\S]*roadSpeedMultiplier/,
+  'risk markers must rank targets with the same road, pressure, and weather inputs as the authority',
+);
+assert.match(
+  clientSecurity,
+  /guardReadinessByWatchDistrict[\s\S]*roadPathDistancesFrom[\s\S]*projectedTargetDistrictDefense/,
+  'the client must batch each company route and keep readiness inside its claimed watch district',
+);
+assert.match(
+  app,
   /frontierRiskMarkers\?\.trackDeliveryTrips\(state\.deliveryTrips\)/,
   'a selected loaded cart warning must follow its authoritative live position without a full rescan',
 );
 assert.match(serverSimulation, /SECURITY_UPDATE_INTERVAL_TICKS/);
 assert.match(serverSimulation, /WatchCoverageIndex::new/);
 assert.match(serverSimulation, /active_palisaded_refuge_coverage/);
-assert.match(serverSimulation, /raid_target_loss_fraction\(forecast\.loss_fraction, target\.sheltered\)/);
+assert.match(
+  serverSimulation,
+  /raid_target_loss_fraction\(outcome\.loss_fraction, target\.sheltered\)/,
+  'each reached holding must lose stock according to its own watch-district defense',
+);
 assert.match(
   serverBuildingReducers,
   /kind == "palisaded_refuge"[\s\S]*building\.kind == "guardhouse" && building\.construction_complete/,
@@ -1090,7 +1198,7 @@ assert.match(
 assert.match(serverSimulation, /fn settlement_exposure/);
 assert.doesNotMatch(serverSimulation, /fn position_is_watched/);
 assert.doesNotMatch(serverSimulation, /fn raid_target_candidates/);
-assert.match(serverSimulation, /settlement_guard_strength/);
+assert.match(serverSimulation, /settlement_guard_districts/);
 assert.match(
   serverSimulation,
   /fire_disabled_buildings[\s\S]*?staffed_watch_coverage\(&buildings, &fire_disabled_buildings\)/,
@@ -1098,11 +1206,12 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /settlement_guard_strength\([\s\S]*?&fire_disabled_buildings[\s\S]*?fire_disabled_buildings\.contains\(&building\.id\)/,
+  /settlement_guard_districts\([\s\S]*?&fire_disabled_buildings[\s\S]*?fire_disabled_buildings\.contains\(&building\.id\)/,
   'authoritative raid readiness must exclude fire-disabled guardhouses',
 );
-assert.match(serverSimulation, /nearest_road_path_distance/);
-assert.match(serverSimulation, /select_raid_targets/);
+assert.match(serverSimulation, /road_path_distances_from/);
+assert.match(serverSimulation, /readiness_by_watch/);
+assert.match(serverSimulation, /raid_district_forecast/);
 assert.match(serverSimulation, /RaidTargetKind::Residence/);
 assert.match(serverSimulation, /RaidTargetKind::DeliveryTrip/);
 assert.match(serverSimulation, /building_portable_stores\(&updated\)\.plunder/);
@@ -1140,7 +1249,7 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /fn settlement_guard_strength[\s\S]*?building\.construction_complete[\s\S]*?building\.kind == "guardhouse"/,
+  /fn settlement_guard_districts[\s\S]*?building\.construction_complete[\s\S]*?building\.kind == "guardhouse"/,
   'unfinished guardhouses must not provide defense after the owner roster includes worksites',
 );
 assert.match(serverSimulation, /raid_holding_vulnerability\(building\.construction_complete, portable_value\)/);
@@ -1151,7 +1260,7 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /raid_arson_occurs[\s\S]*selected\.iter\(\)\.any[\s\S]*ignite_raid_target/,
+  /raid_arson_occurs[\s\S]*district_forecast\.selected\.iter\(\)\.any[\s\S]*ignite_raid_target/,
   'one bounded arson attempt should reuse only holdings already reached by the raid',
 );
 assert.match(
@@ -1226,7 +1335,8 @@ assert.match(guardhouseInspector, /lock up more fresh food here/);
 assert.match(townHallInspector, /Ration reserves/);
 assert.match(townHallInspector, /lean.*company.*deep/);
 assert.match(townHallInspector, /Frontier timetable/);
-assert.match(townHallInspector, /Watch and muster/);
+assert.match(townHallInspector, /Watch districts/);
+assert.match(townHallInspector, /weakest likely district/);
 assert.match(townHallInspector, /Last incursion/);
 const buildingSchema = readFileSync('server/src/tables.rs', 'utf8');
 assert.match(
@@ -1342,6 +1452,62 @@ assert.ok(
   `1,000 towers plus 1,000 refuges (half fire-disabled), 100,000-site bounded target projection took ${projectionElapsedMs.toFixed(1)} ms`,
 );
 
+const districtPerfRoads = new RoadNetwork();
+districtPerfRoads.addRoadPath([
+  new THREE.Vector3(-20, 0, 0),
+  new THREE.Vector3(4_020, 0, 0),
+]);
+const districtPerfState = emptyGameState();
+for (let index = 0; index < 40; index += 1) {
+  const watch = building(
+    `district-perf-watch-${index}`,
+    'watchtower',
+    50 + index * 100,
+    0,
+    2,
+  );
+  districtPerfState.buildings.set(watch.id, watch);
+}
+for (let index = 0; index < 10; index += 1) {
+  const company = {
+    ...building(
+      `district-perf-company-${index}`,
+      'guardhouse',
+      20 + index * 400,
+      0,
+      6,
+    ),
+    polearms: 6,
+    actionCooldown: 1,
+  };
+  districtPerfState.buildings.set(company.id, company);
+}
+for (let index = 0; index < 10_000; index += 1) {
+  const site = {
+    ...building(
+      `district-perf-store-${index}`,
+      'village_storehouse',
+      index % 4_000,
+      24,
+      1,
+    ),
+    timber: index + 1,
+  };
+  districtPerfState.buildings.set(site.id, site);
+}
+const districtProjectionStarted = performance.now();
+const districtPerfTargets = projectRaidTargets(districtPerfState, 3, {
+  enemyPressure: 80,
+  roadNetwork: districtPerfRoads,
+  roadSpeedMultiplier: SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+});
+const districtProjectionElapsedMs = performance.now() - districtProjectionStarted;
+assert.equal(districtPerfTargets.length, 3);
+assert.ok(
+  districtProjectionElapsedMs < 500,
+  `40-watch/10-company/10,000-holding district projection took ${districtProjectionElapsedMs.toFixed(1)} ms`,
+);
+
 projectionPerfState.buildings.clear();
 projectionPerfState.fireIncidents.clear();
 const shelterPerfState = projectionPerfState;
@@ -1445,7 +1611,7 @@ assert.ok(
 );
 
 console.log(
-  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${districtProjectionElapsedMs.toFixed(1)} ms for 40-watch/10-company/10,000-holding district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
 );
 
 function building(

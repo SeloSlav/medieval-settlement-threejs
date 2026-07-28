@@ -14,6 +14,7 @@ import type {
   DeliveryCargoKind,
   DeliveryTripState,
 } from '../logistics/deliveryTrips.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, GameState, ResidenceState } from '../resources/types.ts';
 import { buildingKindLabel } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
@@ -258,15 +259,15 @@ export function formatFrontierForecast(
   const required = formatGuardCount(security.guardsRequired);
   if (security.targetsAtRisk <= 0) {
     return security.readyGuards + 1e-6 >= security.guardsRequired
-      ? `${ready} / ${required} guards ready · projected raid can be fully repelled`
-      : `${ready} / ${required} guards ready · no stocked holding currently presents a raid target`;
+      ? `${ready} / ${required} guards in the weakest likely watch district · projected raid can be fully repelled`
+      : `${ready} / ${required} guards in the weakest likely watch district · no stocked holding currently presents a raid target`;
   }
   const targets = `${security.targetsAtRisk} holding${security.targetsAtRisk === 1 ? '' : 's'} at risk`;
   const loss = `up to ${Math.round(security.estimatedLossFraction * 100)}% portable stores per target`;
   const arson = enemyPressure == null
     ? ''
     : ` · ${Math.round(projectedRaidArsonChance(security, enemyPressure) * 100)}% chance of one raid fire`;
-  return `${ready} / ${required} guards ready · ${targets} · ${loss}${arson}`;
+  return `${ready} / ${required} guards in the weakest likely watch district · ${targets} · ${loss}${arson}`;
 }
 
 export function frontierThreatLabel(
@@ -379,9 +380,22 @@ export type ProjectedRaidTarget = {
   sheltered: boolean;
   portableValue: number;
   portableSummary: string;
+  localReadyGuards: number | null;
+  localGuardsRequired: number | null;
+  estimatedLossFraction: number | null;
 };
 
 type ProjectedRaidTargetCandidate = Omit<ProjectedRaidTarget, 'portableSummary'>;
+type ProjectedRaidTargetInput = Omit<
+  ProjectedRaidTargetCandidate,
+  'localReadyGuards' | 'localGuardsRequired' | 'estimatedLossFraction'
+>;
+
+export type RaidTargetProjectionOptions = {
+  enemyPressure: number;
+  roadNetwork: RoadNetwork;
+  roadSpeedMultiplier?: number;
+};
 
 export function raidTargetCanShelter(
   kind: ProjectedRaidTarget['kind'],
@@ -497,7 +511,9 @@ export function getGuardhouseMusterState(
     routeDistance,
     normalizedRoadSpeed,
   );
-  const efficiency = guardhouseMusterEfficiency(routeDistance, normalizedRoadSpeed);
+  const efficiency = routeDistance == null
+    ? 0
+    : guardhouseMusterEfficiency(routeDistance, normalizedRoadSpeed);
   return {
     fireDisabled: false,
     routeDistance,
@@ -519,6 +535,7 @@ export function getGuardhouseMusterState(
 export function projectRaidTargets(
   gameState: GameState,
   targetCount: number,
+  options?: RaidTargetProjectionOptions,
 ): ProjectedRaidTarget[] {
   const limit = Math.max(0, Math.floor(targetCount));
   if (limit <= 0) return [];
@@ -541,6 +558,7 @@ export function projectRaidTargets(
       && !fireDisabled.has(building.id)
     ) {
       towers.push({
+        id: building.id,
         x: building.x,
         z: building.z,
         radius: watchtowerEffectiveRadius(building),
@@ -553,6 +571,7 @@ export function projectRaidTargets(
       && building.workRadius > 0
     ) {
       refuges.push({
+        id: building.id,
         x: building.x,
         z: building.z,
         radius: building.workRadius,
@@ -573,9 +592,35 @@ export function projectRaidTargets(
   }
   const watchIndex = buildWatchCoverageIndex(towers);
   const refugeIndex = buildWatchCoverageIndex(refuges);
+  const districtReadiness = options
+    ? guardReadinessByWatchDistrict(
+        gameState,
+        towers,
+        fireDisabled,
+        options,
+      )
+    : null;
 
   const selected: ProjectedRaidTargetCandidate[] = [];
-  const consider = (candidate: ProjectedRaidTargetCandidate): void => {
+  const consider = (input: ProjectedRaidTargetInput): void => {
+    const district = options && districtReadiness
+      ? projectedTargetDistrictDefense(
+          input.x,
+          input.z,
+          input.protected,
+          watchIndex,
+          districtReadiness,
+          options.enemyPressure,
+        )
+      : {
+          localReadyGuards: null,
+          localGuardsRequired: null,
+          estimatedLossFraction: null,
+        };
+    const candidate: ProjectedRaidTargetCandidate = {
+      ...input,
+      ...district,
+    };
     let insertAt = selected.findIndex(
       (current) => compareProjectedRaidTargets(candidate, current) < 0,
     );
@@ -707,7 +752,14 @@ export function formatProjectedRaidTargets(targets: readonly ProjectedRaidTarget
   }
   const holdings = targets.map((target) => {
     const shelter = target.sheltered ? ' · household sheltered' : '';
-    return `${target.label} (${target.protected ? 'watched' : 'exposed'}${shelter} · ${formatPortableStoreAmount(target.portableValue)} raid value · ${target.portableSummary})`;
+    const district = target.localReadyGuards == null
+      || target.localGuardsRequired == null
+      || target.estimatedLossFraction == null
+      ? ''
+      : target.protected
+        ? ` · ${formatGuardCount(target.localReadyGuards)} / ${formatGuardCount(target.localGuardsRequired)} district guards · up to ${Math.round(target.estimatedLossFraction * 100)}% loss`
+        : ` · no warned guard district · up to ${Math.round(target.estimatedLossFraction * 100)}% loss`;
+    return `${target.label} (${target.protected ? 'watched' : 'exposed'}${shelter}${district} · ${formatPortableStoreAmount(target.portableValue)} raid value · ${target.portableSummary})`;
   });
   return `Current likely ${targets.length === 1 ? 'target' : 'targets'}: ${holdings.join('; ')}. Warning rings appear as frontier unrest rises.`;
 }
@@ -789,6 +841,7 @@ export function countHouseholdsShelteredByPalisadedRefuge(
     const towerRadius = watchtowerEffectiveRadius(building);
     if (towerRadius <= 0) continue;
     towers.push({
+      id: building.id,
       x: building.x,
       z: building.z,
       radius: towerRadius,
@@ -968,7 +1021,7 @@ function formatPortableStoreAmount(value: number): string {
   return Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1);
 }
 
-type WatchArea = { x: number; z: number; radius: number };
+type WatchArea = { id: string; x: number; z: number; radius: number };
 type WatchCoverageIndex = Map<string, WatchArea[]>;
 
 function buildWatchCoverageIndex(towers: readonly WatchArea[]): WatchCoverageIndex {
@@ -996,18 +1049,131 @@ function buildWatchCoverageIndex(towers: readonly WatchArea[]): WatchCoverageInd
   return cells;
 }
 
+function guardReadinessByWatchDistrict(
+  gameState: GameState,
+  towers: readonly WatchArea[],
+  fireDisabled: ReadonlySet<string>,
+  options: RaidTargetProjectionOptions,
+): Map<string, number> {
+  const readiness = new Map<string, number>();
+  if (towers.length === 0) return readiness;
+  const pathfinder = options.roadNetwork.getPathfinder();
+  const towerPoints = towers.map((tower) => ({ x: tower.x, z: tower.z }));
+  for (const guardhouse of gameState.buildings.values()) {
+    if (
+      guardhouse.kind !== 'guardhouse'
+      || guardhouse.constructionComplete === false
+      || fireDisabled.has(guardhouse.id)
+    ) continue;
+    const armed = armedGuardCount(guardhouse.assignedLabor, guardhouse.polearms);
+    const rawReady = armed * clamp01(guardhouse.actionCooldown);
+    if (rawReady <= 1e-9) continue;
+    const distances = pathfinder.roadPathDistancesFrom(
+      guardhouse.x,
+      guardhouse.z,
+      towerPoints,
+    );
+    let nearestIndex = -1;
+    let nearestDistance = Infinity;
+    for (let index = 0; index < towers.length; index += 1) {
+      const distance = distances[index];
+      if (distance == null || !Number.isFinite(distance)) continue;
+      if (
+        distance < nearestDistance - 1e-6
+        || (
+          Math.abs(distance - nearestDistance) <= 1e-6
+          && (
+            nearestIndex < 0
+            || compareStableIds(towers[index]!.id, towers[nearestIndex]!.id) < 0
+          )
+        )
+      ) {
+        nearestIndex = index;
+        nearestDistance = distance;
+      }
+    }
+    if (nearestIndex < 0) continue;
+    const tower = towers[nearestIndex]!;
+    const effective = rawReady * guardhouseMusterEfficiency(
+      nearestDistance,
+      options.roadSpeedMultiplier ?? 1,
+    );
+    readiness.set(tower.id, (readiness.get(tower.id) ?? 0) + effective);
+  }
+  return readiness;
+}
+
+function projectedTargetDistrictDefense(
+  x: number,
+  z: number,
+  watched: boolean,
+  watchIndex: WatchCoverageIndex,
+  readinessByWatch: ReadonlyMap<string, number>,
+  enemyPressure: number,
+): Pick<
+  ProjectedRaidTargetCandidate,
+  'localReadyGuards' | 'localGuardsRequired' | 'estimatedLossFraction'
+> {
+  const localReadyGuards = watched
+    ? watchAreasContaining(x, z, watchIndex).reduce(
+        (total, tower) => total + Math.max(0, readinessByWatch.get(tower.id) ?? 0),
+        0,
+      )
+    : 0;
+  const localGuardsRequired = raidGuardsRequiredForTarget(enemyPressure, watched);
+  const defenseRatio = clamp01(localReadyGuards / Math.max(1e-9, localGuardsRequired));
+  return {
+    localReadyGuards,
+    localGuardsRequired,
+    estimatedLossFraction: guardedRaidLossForTarget(
+      enemyPressure,
+      watched,
+      defenseRatio,
+    ),
+  };
+}
+
+function raidGuardsRequiredForTarget(enemyPressure: number, watched: boolean): number {
+  const pressure = Math.max(0, Math.min(100, enemyPressure));
+  const strength = 2.5 + pressure * 0.065;
+  return strength / (watched ? 1 : 0.65);
+}
+
+function guardedRaidLossForTarget(
+  enemyPressure: number,
+  watched: boolean,
+  defenseRatio: number,
+): number {
+  const pressure = clamp01(enemyPressure / 100);
+  const exposedLoss = 0.12 + pressure * 0.2;
+  const warnedLoss = exposedLoss * (1 - (watched ? 1 : 0) * 0.88);
+  const defense = clamp01(defenseRatio);
+  return defense >= 1 - 1e-9
+    ? 0
+    : clamp01(warnedLoss * (1 - defense * 0.8));
+}
+
+function watchAreasContaining(
+  x: number,
+  z: number,
+  index: WatchCoverageIndex,
+): WatchArea[] {
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return [];
+  return (index.get(watchCellKey(watchCell(x), watchCell(z))) ?? []).filter(
+    (tower) => {
+      const dx = x - tower.x;
+      const dz = z - tower.z;
+      return dx * dx + dz * dz <= tower.radius * tower.radius;
+    },
+  );
+}
+
 function positionIsWatched(
   x: number,
   z: number,
   index: WatchCoverageIndex,
 ): boolean {
-  if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
-  const towers = index.get(watchCellKey(watchCell(x), watchCell(z)));
-  return towers?.some((tower) => {
-    const dx = x - tower.x;
-    const dz = z - tower.z;
-    return dx * dx + dz * dz <= tower.radius * tower.radius;
-  }) ?? false;
+  return watchAreasContaining(x, z, index).length > 0;
 }
 
 function watchCell(value: number): number {
@@ -1022,6 +1188,13 @@ function compareProjectedRaidTargets(
   left: ProjectedRaidTargetCandidate,
   right: ProjectedRaidTargetCandidate,
 ): number {
+  if (
+    left.estimatedLossFraction != null
+    && right.estimatedLossFraction != null
+    && Math.abs(left.estimatedLossFraction - right.estimatedLossFraction) > 1e-9
+  ) {
+    return right.estimatedLossFraction - left.estimatedLossFraction;
+  }
   if (left.protected !== right.protected) return left.protected ? 1 : -1;
   if (left.portableValue !== right.portableValue) {
     return right.portableValue - left.portableValue;

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use spacetimedb::{Identity, ReducerContext};
 
@@ -9,11 +9,11 @@ use crate::frontier_economy_policy::armed_guards;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
-    guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_forecast,
+    guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_district_forecast,
     raid_holding_vulnerability, raid_target_can_shelter, raid_target_loss_fraction,
-    raidable_treasury_timber, scheduled_raid_ticks,
-    select_raid_targets, threat_progress, tower_effective_radius, RaidForecast, RaidPortableStores,
-    RaidTargetCandidate, RaidTargetKind, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
+    raidable_treasury_timber, scheduled_raid_ticks, threat_progress, tower_effective_radius,
+    RaidDistrictForecast, RaidPortableStores, RaidTargetCandidate, RaidTargetDefenseCandidate,
+    RaidTargetKind, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
     SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{
@@ -25,7 +25,7 @@ use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDEN
 struct SettlementExposure {
     protected_value: f64,
     total_value: f64,
-    raid_targets: Vec<RaidTargetCandidate>,
+    raid_targets: Vec<RaidTargetDefenseCandidate>,
 }
 
 pub fn ensure_settlement_security(ctx: &ReducerContext, owner: Identity) {
@@ -163,6 +163,14 @@ fn step_owner_security(
     let watch_index = WatchCoverageIndex::new(&towers);
     let refuges = active_palisaded_refuge_coverage(&buildings, &fire_disabled_buildings);
     let refuge_index = WatchCoverageIndex::new(&refuges);
+    let road_network = load_owner_road_network(ctx, owner);
+    let (district_ready_guards, assigned_guards, readiness_by_watch) = settlement_guard_districts(
+        &buildings,
+        &towers,
+        road_network.as_ref(),
+        environment.road_speed_multiplier(),
+        &fire_disabled_buildings,
+    );
     let exposure = settlement_exposure(
         &buildings,
         &residences,
@@ -170,6 +178,7 @@ fn step_owner_security(
         treasury_stores,
         &watch_index,
         &refuge_index,
+        &readiness_by_watch,
     );
     let coverage = if exposure.total_value > 1e-9 {
         (exposure.protected_value / exposure.total_value).clamp(0.0, 1.0)
@@ -181,20 +190,12 @@ fn step_owner_security(
     state.protected_value = exposure.protected_value;
     state.total_value = exposure.total_value;
     state.staffed_watchtowers = towers.len() as u32;
-    let road_network = load_owner_road_network(ctx, owner);
-    let (ready_guards, assigned_guards) = settlement_guard_strength(
-        &buildings,
-        &towers,
-        road_network.as_ref(),
-        environment.road_speed_multiplier(),
-        &fire_disabled_buildings,
-    );
-    state.ready_guards = ready_guards;
     state.defense_readiness = if assigned_guards > 0.0 {
-        (ready_guards / assigned_guards).clamp(0.0, 1.0)
+        (district_ready_guards / assigned_guards).clamp(0.0, 1.0)
     } else {
         0.0
     };
+    state.ready_guards = district_ready_guards;
     state.guards_required = 0.0;
     state.targets_at_risk = 0;
     state.estimated_loss_fraction = 0.0;
@@ -207,7 +208,9 @@ fn step_owner_security(
     }
 
     let raid_targets = exposure.raid_targets;
-    let forecast = raid_forecast(enemy_pressure, coverage, ready_guards, raid_targets.len());
+    let district_forecast = raid_district_forecast(enemy_pressure, &raid_targets);
+    let forecast = district_forecast.forecast;
+    state.ready_guards = district_forecast.frontline_ready_guards;
     state.guards_required = forecast.guards_required;
     state.targets_at_risk = forecast.target_count as u32;
     state.estimated_loss_fraction = forecast.loss_fraction;
@@ -227,8 +230,7 @@ fn step_owner_security(
         let (goods_lost, wealth_lost, arson_started) = resolve_raid(
             ctx,
             owner,
-            &raid_targets,
-            forecast,
+            &district_forecast,
             enemy_pressure,
             world_seed ^ sim_tick ^ population as u64,
             sim_tick,
@@ -271,6 +273,7 @@ fn staffed_watch_coverage(
         .filter_map(|tower| {
             let radius = tower_effective_radius(tower.work_radius, tower.assigned_labor);
             (radius > 0.0).then_some(WatchArea {
+                source_id: tower.id,
                 x: tower.x,
                 z: tower.z,
                 radius,
@@ -292,6 +295,7 @@ fn active_palisaded_refuge_coverage(
                 && !fire_disabled_buildings.contains(&building.id)
         })
         .map(|refuge| WatchArea {
+            source_id: refuge.id,
             x: refuge.x,
             z: refuge.z,
             radius: refuge.work_radius,
@@ -306,6 +310,7 @@ fn settlement_exposure(
     treasury_stores: RaidPortableStores,
     watch_index: &WatchCoverageIndex,
     refuge_index: &WatchCoverageIndex,
+    readiness_by_watch: &HashMap<u64, f64>,
 ) -> SettlementExposure {
     let mut protected_value = 0.0;
     let mut total_value = 0.0;
@@ -327,16 +332,19 @@ fn settlement_exposure(
             protected_value += vulnerable_value;
         }
         if portable_value > 1e-9 {
-            raid_targets.push(RaidTargetCandidate {
-                kind: RaidTargetKind::Building,
-                id: building.id,
-                protected,
-                sheltered: raid_target_can_shelter(
-                    RaidTargetKind::Building,
+            raid_targets.push(RaidTargetDefenseCandidate {
+                target: RaidTargetCandidate {
+                    kind: RaidTargetKind::Building,
+                    id: building.id,
                     protected,
-                    false,
+                    sheltered: raid_target_can_shelter(RaidTargetKind::Building, protected, false),
+                    value: portable_value,
+                },
+                local_ready_guards: watch_index.defended_readiness(
+                    building.x,
+                    building.z,
+                    readiness_by_watch,
                 ),
-                value: portable_value,
             });
         }
     }
@@ -348,16 +356,23 @@ fn settlement_exposure(
             protected_value += vulnerable_value;
         }
         if residence.household_wealth > 1e-9 {
-            raid_targets.push(RaidTargetCandidate {
-                kind: RaidTargetKind::Residence,
-                id: residence.id,
-                protected,
-                sheltered: raid_target_can_shelter(
-                    RaidTargetKind::Residence,
+            raid_targets.push(RaidTargetDefenseCandidate {
+                target: RaidTargetCandidate {
+                    kind: RaidTargetKind::Residence,
+                    id: residence.id,
                     protected,
-                    refuge_index.contains(residence.x, residence.z),
+                    sheltered: raid_target_can_shelter(
+                        RaidTargetKind::Residence,
+                        protected,
+                        refuge_index.contains(residence.x, residence.z),
+                    ),
+                    value: residence.household_wealth,
+                },
+                local_ready_guards: watch_index.defended_readiness(
+                    residence.x,
+                    residence.z,
+                    readiness_by_watch,
                 ),
-                value: residence.household_wealth,
             });
         }
     }
@@ -375,16 +390,15 @@ fn settlement_exposure(
         if protected {
             protected_value += vulnerable_value;
         }
-        raid_targets.push(RaidTargetCandidate {
-            kind: RaidTargetKind::DeliveryTrip,
-            id: trip.id,
-            protected,
-            sheltered: raid_target_can_shelter(
-                RaidTargetKind::DeliveryTrip,
+        raid_targets.push(RaidTargetDefenseCandidate {
+            target: RaidTargetCandidate {
+                kind: RaidTargetKind::DeliveryTrip,
+                id: trip.id,
                 protected,
-                false,
-            ),
-            value: portable_value,
+                sheltered: raid_target_can_shelter(RaidTargetKind::DeliveryTrip, protected, false),
+                value: portable_value,
+            },
+            local_ready_guards: watch_index.defended_readiness(trip.x, trip.z, readiness_by_watch),
         });
     }
     let treasury_value = treasury_stores.raid_value();
@@ -396,16 +410,15 @@ fn settlement_exposure(
             if protected {
                 protected_value += vulnerable_value;
             }
-            raid_targets.push(RaidTargetCandidate {
-                kind,
-                id,
-                protected,
-                sheltered: raid_target_can_shelter(
+            raid_targets.push(RaidTargetDefenseCandidate {
+                target: RaidTargetCandidate {
                     kind,
+                    id,
                     protected,
-                    false,
-                ),
-                value: treasury_value,
+                    sheltered: raid_target_can_shelter(kind, protected, false),
+                    value: treasury_value,
+                },
+                local_ready_guards: watch_index.defended_readiness(x, z, readiness_by_watch),
             });
         }
     }
@@ -642,59 +655,79 @@ fn portable_store_loss(before: f64, remaining: f64) -> f64 {
     (stocked - retained).max(0.0)
 }
 
-fn settlement_guard_strength(
+fn settlement_guard_districts(
     buildings: &[Building],
     towers: &[WatchArea],
     road_network: Option<&RoadNetwork>,
     road_speed_multiplier: f64,
     fire_disabled_buildings: &HashSet<u64>,
-) -> (f64, f64) {
+) -> (f64, f64, HashMap<u64, f64>) {
     let watch_positions = towers
         .iter()
         .map(|tower| (tower.x, tower.z))
         .collect::<Vec<_>>();
-    buildings
-        .iter()
-        .filter(|building| {
-            building.construction_complete
-                && building.kind == "guardhouse"
-                && !fire_disabled_buildings.contains(&building.id)
-        })
-        .fold((0.0, 0.0), |(ready, assigned), guardhouse| {
-            let assigned_here = guardhouse.assigned_labor as f64;
-            let armed_here = armed_guards(guardhouse.assigned_labor, guardhouse.polearms);
-            let muster_distance = road_network.and_then(|network| {
-                network.nearest_road_path_distance(guardhouse.x, guardhouse.z, &watch_positions)
-            });
-            let muster_efficiency =
-                guardhouse_muster_efficiency(muster_distance, road_speed_multiplier);
-            (
-                ready + armed_here * guardhouse.action_cooldown.clamp(0.0, 1.0) * muster_efficiency,
-                assigned + assigned_here,
-            )
-        })
+    let mut total_ready = 0.0;
+    let mut assigned = 0.0;
+    let mut readiness_by_watch = HashMap::new();
+
+    for guardhouse in buildings.iter().filter(|building| {
+        building.construction_complete
+            && building.kind == "guardhouse"
+            && !fire_disabled_buildings.contains(&building.id)
+    }) {
+        assigned += guardhouse.assigned_labor as f64;
+        let armed_here = armed_guards(guardhouse.assigned_labor, guardhouse.polearms);
+        if armed_here <= 1e-9 {
+            continue;
+        }
+        let Some(network) = road_network else {
+            continue;
+        };
+        let distances =
+            network.road_path_distances_from(guardhouse.x, guardhouse.z, &watch_positions);
+        let nearest = towers
+            .iter()
+            .zip(distances)
+            .filter_map(|(tower, distance)| distance.map(|distance| (tower, distance)))
+            .min_by(
+                |(left_tower, left_distance), (right_tower, right_distance)| {
+                    left_distance
+                        .total_cmp(right_distance)
+                        .then_with(|| left_tower.source_id.cmp(&right_tower.source_id))
+                },
+            );
+        let Some((tower, muster_distance)) = nearest else {
+            continue;
+        };
+        let muster_efficiency =
+            guardhouse_muster_efficiency(Some(muster_distance), road_speed_multiplier);
+        let effective = armed_here * guardhouse.action_cooldown.clamp(0.0, 1.0) * muster_efficiency;
+        total_ready += effective;
+        *readiness_by_watch.entry(tower.source_id).or_insert(0.0) += effective;
+    }
+
+    (total_ready, assigned, readiness_by_watch)
 }
 
 fn resolve_raid(
     ctx: &ReducerContext,
     owner: Identity,
-    candidates: &[RaidTargetCandidate],
-    forecast: RaidForecast,
+    district_forecast: &RaidDistrictForecast,
     enemy_pressure: u8,
     entropy: u64,
     sim_tick: u64,
     treasury_stores: RaidPortableStores,
 ) -> (f64, f64, bool) {
-    if forecast.target_count == 0 || forecast.loss_fraction <= 1e-9 {
+    if district_forecast.selected.is_empty() || district_forecast.forecast.loss_fraction <= 1e-9 {
         return (0.0, 0.0, false);
     }
     let mut goods_lost = 0.0;
     let mut wealth_lost = 0.0;
-    let selected = select_raid_targets(candidates, forecast.target_count);
 
-    for target in &selected {
+    for outcome in &district_forecast.selected {
+        let target = outcome.target;
         let target_loss_fraction =
-            raid_target_loss_fraction(forecast.loss_fraction, target.sheltered);
+            raid_target_loss_fraction(outcome.loss_fraction, target.sheltered);
         match target.kind {
             RaidTargetKind::Building => {
                 let Some(mut updated) = ctx.db.building().id().find(&target.id) else {
@@ -747,21 +780,23 @@ fn resolve_raid(
         }
     }
 
-    let arson_started = raid_arson_occurs(enemy_pressure, forecast.defense_ratio, entropy)
-        && selected.iter().any(|target| {
-            let target_kind = match target.kind {
-                RaidTargetKind::Building | RaidTargetKind::TreasuryAtBuilding => {
-                    FIRE_TARGET_BUILDING
-                }
-                RaidTargetKind::Residence | RaidTargetKind::TreasuryAtResidence => {
-                    FIRE_TARGET_RESIDENCE
-                }
-                // The cart has already paid the raid loss. Arson remains bound
-                // to a reached structure or occupied home.
-                RaidTargetKind::DeliveryTrip => return false,
-            };
-            ignite_raid_target(ctx, owner, target_kind, target.id, sim_tick)
-        });
+    let arson_started = raid_arson_occurs(
+        enemy_pressure,
+        district_forecast.forecast.defense_ratio,
+        entropy,
+    ) && district_forecast.selected.iter().any(|outcome| {
+        let target = outcome.target;
+        let target_kind = match target.kind {
+            RaidTargetKind::Building | RaidTargetKind::TreasuryAtBuilding => FIRE_TARGET_BUILDING,
+            RaidTargetKind::Residence | RaidTargetKind::TreasuryAtResidence => {
+                FIRE_TARGET_RESIDENCE
+            }
+            // The cart has already paid the raid loss. Arson remains bound
+            // to a reached structure or occupied home.
+            RaidTargetKind::DeliveryTrip => return false,
+        };
+        ignite_raid_target(ctx, owner, target_kind, target.id, sim_tick)
+    });
 
     (goods_lost, wealth_lost, arson_started)
 }

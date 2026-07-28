@@ -876,8 +876,23 @@ export class App {
     ].join('|');
     if (signature !== this.raidProjectionSignature) {
       this.raidProjectionSignature = signature;
+      const roadSpeedMultiplier = environmentFor(
+        state.seed,
+        snapshot.worldGeneration?.hydrology ?? 50,
+        gameClock(snapshot.simTick),
+      ).roadTravelSpeedMultiplier;
       this.projectedRaidTargets = enabled
-        ? projectRaidTargets(state, security.targetsAtRisk)
+        ? projectRaidTargets(
+            state,
+            security.targetsAtRisk,
+            this.roadNetwork
+              ? {
+                  enemyPressure: snapshot.worldGeneration?.enemyPressure ?? 0,
+                  roadNetwork: this.roadNetwork,
+                  roadSpeedMultiplier,
+                }
+              : undefined,
+          )
         : [];
       this.frontierRiskMarkers?.sync(
         this.projectedRaidTargets,

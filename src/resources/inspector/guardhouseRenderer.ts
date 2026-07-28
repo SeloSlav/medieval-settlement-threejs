@@ -143,7 +143,7 @@ export function renderGuardhouseInspector(
               : muster.efficiency < 0.999
                 ? [
                     muster.routeDistance == null
-                      ? `No staffed tower link — ${Math.round(muster.efficiency * 100)}% local response`
+                      ? 'No staffed tower link — company cannot reinforce a warned district'
                       : muster.responseDistance != null
                         && muster.routeDistance <= GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE
                         && muster.responseDistance > GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE

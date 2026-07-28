@@ -18,6 +18,7 @@ pub const POLEARM_RAID_VALUE_MULTIPLIER: f64 = 4.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WatchArea {
+    pub source_id: u64,
     pub x: f64,
     pub z: f64,
     pub radius: f64,
@@ -63,6 +64,42 @@ impl WatchCoverageIndex {
                 })
             })
     }
+
+    /// Effective guards assigned to every watch district covering this point.
+    ///
+    /// Each company belongs to one nearest road-linked tower, so overlapping
+    /// warning circles may combine distinct companies without counting any
+    /// one company twice.
+    pub fn defended_readiness(
+        &self,
+        x: f64,
+        z: f64,
+        readiness_by_watch: &HashMap<u64, f64>,
+    ) -> f64 {
+        if !x.is_finite() || !z.is_finite() {
+            return 0.0;
+        }
+        self.cells
+            .get(&(watch_cell(x), watch_cell(z)))
+            .map(|areas| {
+                areas
+                    .iter()
+                    .filter(|area| {
+                        let dx = x - area.x;
+                        let dz = z - area.z;
+                        dx * dx + dz * dz <= area.radius * area.radius
+                    })
+                    .map(|area| {
+                        readiness_by_watch
+                            .get(&area.source_id)
+                            .copied()
+                            .unwrap_or(0.0)
+                            .max(0.0)
+                    })
+                    .sum::<f64>()
+            })
+            .unwrap_or(0.0)
+    }
 }
 
 fn watch_cell(value: f64) -> i32 {
@@ -93,6 +130,28 @@ pub struct RaidForecast {
     pub defense_ratio: f64,
     pub target_count: usize,
     pub loss_fraction: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RaidTargetDefenseCandidate {
+    pub target: RaidTargetCandidate,
+    pub local_ready_guards: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RaidTargetOutcome {
+    pub target: RaidTargetCandidate,
+    pub local_ready_guards: f64,
+    pub guards_required: f64,
+    pub defense_ratio: f64,
+    pub loss_fraction: f64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RaidDistrictForecast {
+    pub frontline_ready_guards: f64,
+    pub forecast: RaidForecast,
+    pub selected: Vec<RaidTargetOutcome>,
 }
 
 /// Physical stock that raiders can carry away from one reached building.
@@ -379,6 +438,7 @@ pub fn guarded_raid_target_count(enemy_pressure: u8, defense_ratio: f64) -> usiz
         .max(1.0) as usize
 }
 
+#[cfg(test)]
 pub fn raid_forecast(
     enemy_pressure: u8,
     coverage: f64,
@@ -392,6 +452,94 @@ pub fn raid_forecast(
         target_count: guarded_raid_target_count(enemy_pressure, defense_ratio)
             .min(available_targets),
         loss_fraction: guarded_raid_loss_fraction(enemy_pressure, coverage, ready_guards),
+    }
+}
+
+/// Evaluate the actual watch district that can answer each physical holding.
+///
+/// A provisioned company is assigned to one nearest road-linked watchtower by
+/// the simulation. Only that tower's warning area receives its effective
+/// strength. The bounded selector then prefers the holdings with the greatest
+/// remaining loss, so a fully defended central district cannot hide an
+/// undefended satellite branch behind a settlement-wide guard total.
+pub fn raid_district_forecast(
+    enemy_pressure: u8,
+    candidates: &[RaidTargetDefenseCandidate],
+) -> RaidDistrictForecast {
+    if candidates.is_empty() {
+        return RaidDistrictForecast {
+            frontline_ready_guards: 0.0,
+            forecast: RaidForecast {
+                guards_required: 0.0,
+                defense_ratio: 0.0,
+                target_count: 0,
+                loss_fraction: 0.0,
+            },
+            selected: Vec::new(),
+        };
+    }
+
+    let base_limit = raid_target_count(enemy_pressure).min(candidates.len());
+    let mut highest_risk = Vec::with_capacity(base_limit);
+    for candidate in candidates {
+        let coverage = if candidate.target.protected { 1.0 } else { 0.0 };
+        let local_ready_guards = if candidate.target.protected {
+            candidate.local_ready_guards.max(0.0)
+        } else {
+            0.0
+        };
+        let required = guards_required(enemy_pressure, coverage);
+        let defense_ratio = guard_defense_ratio(enemy_pressure, coverage, local_ready_guards);
+        let outcome = RaidTargetOutcome {
+            target: candidate.target,
+            local_ready_guards,
+            guards_required: required,
+            defense_ratio,
+            loss_fraction: guarded_raid_loss_fraction(enemy_pressure, coverage, local_ready_guards),
+        };
+        let insert_at = highest_risk
+            .iter()
+            .position(|current| compare_raid_target_outcomes(&outcome, current).is_lt())
+            .unwrap_or(highest_risk.len());
+        if insert_at < base_limit {
+            highest_risk.insert(insert_at, outcome);
+            highest_risk.truncate(base_limit);
+        } else if highest_risk.len() < base_limit {
+            highest_risk.push(outcome);
+        }
+    }
+
+    let Some(frontline) = highest_risk.first().copied() else {
+        return RaidDistrictForecast {
+            frontline_ready_guards: 0.0,
+            forecast: RaidForecast {
+                guards_required: 0.0,
+                defense_ratio: 0.0,
+                target_count: 0,
+                loss_fraction: 0.0,
+            },
+            selected: Vec::new(),
+        };
+    };
+    let target_limit =
+        guarded_raid_target_count(enemy_pressure, frontline.defense_ratio).min(highest_risk.len());
+    highest_risk.truncate(target_limit);
+    highest_risk.retain(|outcome| outcome.loss_fraction > 1e-9);
+    let loss_fraction = highest_risk
+        .first()
+        .map(|outcome| outcome.loss_fraction)
+        .unwrap_or(0.0);
+    let target_count = highest_risk.len();
+
+    RaidDistrictForecast {
+        frontline_ready_guards: frontline.local_ready_guards,
+        forecast: RaidForecast {
+            guards_required: frontline.guards_required,
+            defense_ratio: frontline.defense_ratio,
+            target_count,
+            loss_fraction,
+        },
+        selected: highest_risk,
     }
 }
 
@@ -412,6 +560,7 @@ pub fn raid_arson_occurs(enemy_pressure: u8, defense_ratio: f64, entropy: u64) -
     unit_hash(entropy) < raid_arson_chance(enemy_pressure, defense_ratio)
 }
 
+#[cfg(test)]
 pub fn select_raid_targets(
     candidates: &[RaidTargetCandidate],
     target_count: usize,
@@ -436,6 +585,12 @@ pub fn select_raid_targets(
 fn compare_raid_candidates(a: &RaidTargetCandidate, b: &RaidTargetCandidate) -> Ordering {
     compare_raid_targets(a.protected, a.value, a.id, b.protected, b.value, b.id)
         .then_with(|| a.kind.cmp(&b.kind))
+}
+
+fn compare_raid_target_outcomes(a: &RaidTargetOutcome, b: &RaidTargetOutcome) -> Ordering {
+    b.loss_fraction
+        .total_cmp(&a.loss_fraction)
+        .then_with(|| compare_raid_candidates(&a.target, &b.target))
 }
 
 pub fn compare_raid_targets(
@@ -540,11 +695,13 @@ mod tests {
     fn watch_index_preserves_exact_radius_checks_across_negative_cells() {
         let areas = [
             WatchArea {
+                source_id: 1,
                 x: -130.0,
                 z: -20.0,
                 radius: 148.2,
             },
             WatchArea {
+                source_id: 2,
                 x: 190.0,
                 z: 190.0,
                 radius: 190.0,
@@ -568,6 +725,7 @@ mod tests {
     fn watch_index_stays_bounded_with_many_holdings_and_towers() {
         let areas = (0..1_000)
             .map(|index| WatchArea {
+                source_id: index as u64,
                 x: (index % 40) as f64 * 320.0,
                 z: (index / 40) as f64 * 320.0,
                 radius: 190.0,
@@ -588,6 +746,93 @@ mod tests {
             started.elapsed() < std::time::Duration::from_millis(250),
             "1,000 towers and 100,000 holdings should use nearby watch buckets"
         );
+    }
+
+    #[test]
+    fn watch_district_readiness_uses_only_towers_covering_the_target() {
+        let areas = [
+            WatchArea {
+                source_id: 1,
+                x: 0.0,
+                z: 0.0,
+                radius: 100.0,
+            },
+            WatchArea {
+                source_id: 2,
+                x: 180.0,
+                z: 0.0,
+                radius: 100.0,
+            },
+        ];
+        let index = WatchCoverageIndex::new(&areas);
+        let readiness = HashMap::from([(1, 4.0), (2, 2.5)]);
+        assert_eq!(index.defended_readiness(-50.0, 0.0, &readiness), 4.0);
+        assert_eq!(index.defended_readiness(230.0, 0.0, &readiness), 2.5);
+        assert_eq!(
+            index.defended_readiness(90.0, 0.0, &readiness),
+            6.5,
+            "overlapping districts may combine distinct assigned companies"
+        );
+        assert_eq!(index.defended_readiness(500.0, 0.0, &readiness), 0.0);
+    }
+
+    #[test]
+    fn guarded_central_branch_cannot_hide_an_undefended_watch_district() {
+        let rich_central = RaidTargetDefenseCandidate {
+            target: RaidTargetCandidate {
+                kind: RaidTargetKind::Building,
+                id: 1,
+                protected: true,
+                sheltered: false,
+                value: 100.0,
+            },
+            local_ready_guards: 6.0,
+        };
+        let lean_satellite = RaidTargetDefenseCandidate {
+            target: RaidTargetCandidate {
+                kind: RaidTargetKind::Building,
+                id: 2,
+                protected: true,
+                sheltered: false,
+                value: 20.0,
+            },
+            local_ready_guards: 0.0,
+        };
+        let exposed_cart = RaidTargetDefenseCandidate {
+            target: RaidTargetCandidate {
+                kind: RaidTargetKind::DeliveryTrip,
+                id: 3,
+                protected: false,
+                sheltered: false,
+                value: 10.0,
+            },
+            // Guards elsewhere never defend an unwarned road position.
+            local_ready_guards: 100.0,
+        };
+        let forecast = raid_district_forecast(50, &[rich_central, lean_satellite, exposed_cart]);
+        assert_eq!(forecast.frontline_ready_guards, 0.0);
+        assert_eq!(forecast.selected[0].target.id, exposed_cart.target.id);
+        assert!(forecast
+            .selected
+            .iter()
+            .any(|outcome| outcome.target.id == lean_satellite.target.id));
+        assert!(!forecast
+            .selected
+            .iter()
+            .any(|outcome| outcome.target.id == rich_central.target.id));
+
+        let balanced = raid_district_forecast(
+            50,
+            &[
+                rich_central,
+                RaidTargetDefenseCandidate {
+                    local_ready_guards: 6.0,
+                    ..lean_satellite
+                },
+            ],
+        );
+        assert!(balanced.selected.is_empty());
+        assert!(balanced.frontline_ready_guards >= balanced.forecast.guards_required);
     }
 
     #[test]
@@ -647,10 +892,7 @@ mod tests {
     #[test]
     fn palisaded_refuge_reduces_warned_household_loss_without_granting_immunity() {
         let reached_loss = 0.5;
-        assert_eq!(
-            raid_target_loss_fraction(reached_loss, false),
-            reached_loss
-        );
+        assert_eq!(raid_target_loss_fraction(reached_loss, false), reached_loss);
         assert!(
             (raid_target_loss_fraction(reached_loss, true)
                 - reached_loss * PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER)

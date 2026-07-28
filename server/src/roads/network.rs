@@ -249,6 +249,7 @@ impl RoadNetwork {
     /// Shortest road distance from one origin to any target, with one graph
     /// traversal regardless of target count. This is suited to periodic
     /// service/muster checks where only the nearest reachable site matters.
+    #[cfg(test)]
     pub fn nearest_road_path_distance(
         &self,
         ax: f64,
