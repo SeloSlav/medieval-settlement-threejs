@@ -88,6 +88,13 @@ const KITCHEN_CROP_TEXTURE_PATHS = {
   cabbage: '/assets/textures/vegetation/kitchen_crops/cabbage_leaf.png',
   carrot: '/assets/textures/vegetation/kitchen_crops/carrot_frond.png',
   turnip: '/assets/textures/vegetation/kitchen_crops/turnip_leaf.png',
+  bean: '/assets/textures/vegetation/kitchen_crops/bean_vine.png',
+} as const;
+
+const KITCHEN_HERB_TEXTURE_PATHS = {
+  parsley: '/assets/textures/vegetation/kitchen_herbs/parsley_clump.png',
+  rosemary: '/assets/textures/vegetation/kitchen_herbs/rosemary_clump.png',
+  sage: '/assets/textures/vegetation/kitchen_herbs/sage_clump.png',
 } as const;
 
 function loadKitchenCropTexture(path: string, name: string): THREE.Texture | null {
@@ -105,6 +112,13 @@ const KITCHEN_CROP_TEXTURES = {
   cabbage: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.cabbage, 'Generated cabbage leaf cutout'),
   carrot: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.carrot, 'Generated carrot frond cutout'),
   turnip: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.turnip, 'Generated turnip leaf cutout'),
+  bean: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.bean, 'Generated climbing bean vine cutout'),
+} as const;
+
+const KITCHEN_HERB_TEXTURES = {
+  parsley: loadKitchenCropTexture(KITCHEN_HERB_TEXTURE_PATHS.parsley, 'Generated parsley clump cutout'),
+  rosemary: loadKitchenCropTexture(KITCHEN_HERB_TEXTURE_PATHS.rosemary, 'Generated rosemary clump cutout'),
+  sage: loadKitchenCropTexture(KITCHEN_HERB_TEXTURE_PATHS.sage, 'Generated sage clump cutout'),
 } as const;
 
 const MATERIALS = {
@@ -147,38 +161,77 @@ const MATERIALS = {
     roughness: 0.92,
     metalness: 0,
   }),
-  cabbage: new THREE.MeshStandardMaterial({ color: 0x759c5c, roughness: 0.9 }),
   cabbageLeafCard: new THREE.MeshStandardMaterial({
     name: 'Generated cabbage leaf material',
-    color: 0xc2d3b3,
+    color: 0xffffff,
     map: KITCHEN_CROP_TEXTURES.cabbage,
+    emissive: 0x182014,
+    emissiveIntensity: 0.16,
     roughness: 0.92,
     transparent: true,
     alphaTest: 0.16,
     side: THREE.DoubleSide,
   }),
-  carrotRoot: new THREE.MeshStandardMaterial({ color: 0xc86d28, roughness: 0.86 }),
   carrotFrondCard: new THREE.MeshStandardMaterial({
     name: 'Generated carrot frond material',
-    color: 0x8aaa6d,
+    color: 0xffffff,
     map: KITCHEN_CROP_TEXTURES.carrot,
+    emissive: 0x182014,
+    emissiveIntensity: 0.18,
     roughness: 0.91,
     transparent: true,
     alphaTest: 0.16,
     side: THREE.DoubleSide,
   }),
-  turnipRoot: new THREE.MeshStandardMaterial({ color: 0xd8cfaa, roughness: 0.88 }),
-  turnipShoulder: new THREE.MeshStandardMaterial({ color: 0x8a526b, roughness: 0.86 }),
   turnipLeafCard: new THREE.MeshStandardMaterial({
     name: 'Generated turnip leaf material',
-    color: 0x9db17a,
+    color: 0xffffff,
     map: KITCHEN_CROP_TEXTURES.turnip,
+    emissive: 0x182014,
+    emissiveIntensity: 0.16,
     roughness: 0.92,
     transparent: true,
     alphaTest: 0.16,
     side: THREE.DoubleSide,
   }),
-  squash: new THREE.MeshStandardMaterial({ color: 0x4d7939, roughness: 0.9 }),
+  beanVineCard: new THREE.MeshStandardMaterial({
+    name: 'Generated bean vine material',
+    color: 0xffffff,
+    map: KITCHEN_CROP_TEXTURES.bean,
+    emissive: 0x14200f,
+    emissiveIntensity: 0.16,
+    roughness: 0.91,
+    transparent: true,
+    alphaTest: 0.16,
+    side: THREE.DoubleSide,
+  }),
+  parsleyCard: new THREE.MeshStandardMaterial({
+    name: 'Generated parsley material',
+    color: 0xffffff,
+    map: KITCHEN_HERB_TEXTURES.parsley,
+    roughness: 0.92,
+    transparent: true,
+    alphaTest: 0.16,
+    side: THREE.DoubleSide,
+  }),
+  rosemaryCard: new THREE.MeshStandardMaterial({
+    name: 'Generated rosemary material',
+    color: 0xffffff,
+    map: KITCHEN_HERB_TEXTURES.rosemary,
+    roughness: 0.94,
+    transparent: true,
+    alphaTest: 0.16,
+    side: THREE.DoubleSide,
+  }),
+  sageCard: new THREE.MeshStandardMaterial({
+    name: 'Generated sage material',
+    color: 0xffffff,
+    map: KITCHEN_HERB_TEXTURES.sage,
+    roughness: 0.96,
+    transparent: true,
+    alphaTest: 0.16,
+    side: THREE.DoubleSide,
+  }),
   terracotta: new THREE.MeshStandardMaterial({ color: 0x9b4c36, roughness: 0.88 }),
   water: sharedBuildingDetailMaterial('water'),
 } as const;
@@ -646,35 +699,37 @@ function addCabbage(group: THREE.Group, x: number, z: number, seed: number): voi
   const rng = mulberry32(seed);
   const plant = new THREE.Group();
   plant.name = 'Cabbage plant';
-  plant.position.set(x, 0.1, z);
+  plant.position.set(x, 0.02, z);
   plant.rotation.y = rng() * Math.PI * 2;
   group.add(plant);
 
   for (let leaf = 0; leaf < 7; leaf++) {
     const angle = leaf / 7 * Math.PI * 2 + rng() * 0.14;
     const card = createRootedLeafCard(
-      0.34 + rng() * 0.07,
-      0.48 + rng() * 0.08,
+      0.21 + rng() * 0.035,
+      0.29 + rng() * 0.04,
       MATERIALS.cabbageLeafCard,
       'Textured cabbage outer leaf',
     );
-    card.position.y = 0.035;
-    card.rotation.set(-0.98 - rng() * 0.18, angle, (rng() - 0.5) * 0.12);
+    card.position.y = 0.02;
+    card.rotation.set(-1.18 - rng() * 0.14, angle, (rng() - 0.5) * 0.1);
     plant.add(card);
   }
-  for (let layer = 0; layer < 4; layer++) {
-    const angle = (layer / 4) * Math.PI * 2;
-    addMesh(
-      plant,
-      new THREE.SphereGeometry(0.17, 10, 7),
-      layer % 2 ? MATERIALS.cabbage : MATERIALS.leafLight,
-      Math.cos(angle) * 0.085,
-      0.19 + rng() * 0.025,
-      Math.sin(angle) * 0.085,
-      new THREE.Euler(-0.18, angle, 0.22),
-      new THREE.Vector3(1.08, 0.58, 0.78),
-      'Layered cabbage heart',
+  for (let layer = 0; layer < 6; layer++) {
+    const angle = (layer / 6) * Math.PI * 2 + rng() * 0.1;
+    const card = createRootedLeafCard(
+      0.13 + rng() * 0.02,
+      0.17 + rng() * 0.025,
+      MATERIALS.cabbageLeafCard,
+      'Textured curled cabbage heart leaf',
     );
+    card.position.set(
+      Math.cos(angle) * 0.055,
+      0.035 + (layer % 2) * 0.012,
+      Math.sin(angle) * 0.055,
+    );
+    card.rotation.set(-0.42 - rng() * 0.12, angle, (rng() - 0.5) * 0.1);
+    plant.add(card);
   }
 }
 
@@ -682,40 +737,18 @@ function addCarrot(group: THREE.Group, x: number, z: number, seed: number): void
   const rng = mulberry32(seed);
   const plant = new THREE.Group();
   plant.name = 'Carrot plant';
-  plant.position.set(x, 0.1, z);
+  plant.position.set(x, 0.02, z);
   plant.rotation.y = rng() * Math.PI * 2;
   group.add(plant);
-  addMesh(
-    plant,
-    new THREE.ConeGeometry(0.075, 0.3, 9),
-    MATERIALS.carrotRoot,
-    0,
-    0.01,
-    0,
-    new THREE.Euler(Math.PI, 0, 0),
-    new THREE.Vector3(1, 1, 1),
-    'Carrot root shoulder',
-  );
-  addMesh(
-    plant,
-    new THREE.SphereGeometry(0.078, 9, 6),
-    MATERIALS.carrotRoot,
-    0,
-    0.105,
-    0,
-    undefined,
-    new THREE.Vector3(1, 0.58, 1),
-    'Carrot crown',
-  );
-  for (let frond = 0; frond < 3; frond++) {
+  for (let frond = 0; frond < 2; frond++) {
     const card = createRootedLeafCard(
-      0.31 + rng() * 0.06,
-      0.44 + rng() * 0.08,
+      0.28 + rng() * 0.045,
+      0.38 + rng() * 0.055,
       MATERIALS.carrotFrondCard,
       'Textured carrot frond',
     );
-    card.position.y = 0.1;
-    card.rotation.set((rng() - 0.5) * 0.16, frond / 3 * Math.PI, (rng() - 0.5) * 0.2);
+    card.position.y = 0.015;
+    card.rotation.set((rng() - 0.5) * 0.1, frond * Math.PI * 0.5, (rng() - 0.5) * 0.12);
     plant.add(card);
   }
 }
@@ -724,41 +757,18 @@ function addTurnip(group: THREE.Group, x: number, z: number, seed: number): void
   const rng = mulberry32(seed);
   const plant = new THREE.Group();
   plant.name = 'Turnip plant';
-  plant.position.set(x, 0.1, z);
+  plant.position.set(x, 0.02, z);
   plant.rotation.y = rng() * Math.PI * 2;
   group.add(plant);
-  addMesh(
-    plant,
-    new THREE.SphereGeometry(0.115, 10, 7),
-    MATERIALS.turnipRoot,
-    0,
-    0.075,
-    0,
-    undefined,
-    new THREE.Vector3(1, 0.9, 1),
-    'Turnip root bulb',
-  );
-  addMesh(
-    plant,
-    new THREE.SphereGeometry(0.108, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.44),
-    MATERIALS.turnipShoulder,
-    0,
-    0.13,
-    0,
-    undefined,
-    new THREE.Vector3(1, 0.62, 1),
-    'Purple turnip shoulder',
-  );
-  for (let leaf = 0; leaf < 5; leaf++) {
-    const angle = leaf / 5 * Math.PI * 2 + rng() * 0.16;
+  for (let leaf = 0; leaf < 2; leaf++) {
     const card = createRootedLeafCard(
-      0.25 + rng() * 0.055,
-      0.38 + rng() * 0.08,
+      0.36 + rng() * 0.045,
+      0.29 + rng() * 0.035,
       MATERIALS.turnipLeafCard,
       'Textured turnip leaf',
     );
-    card.position.y = 0.13;
-    card.rotation.set(-0.32 - rng() * 0.28, angle, (rng() - 0.5) * 0.12);
+    card.position.y = 0.015;
+    card.rotation.set(-0.16 - rng() * 0.12, leaf * Math.PI * 0.5, (rng() - 0.5) * 0.08);
     plant.add(card);
   }
 }
@@ -772,9 +782,17 @@ function addBeanTrellis(group: THREE.Group, x: number, z: number, length: number
     addMesh(trellis, new THREE.CylinderGeometry(0.035, 0.05, topY, 6), MATERIALS.darkTimber, x + dx, topY * 0.5, z, new THREE.Euler(0, 0, dx * 0.025));
   }
   addMesh(trellis, new THREE.CylinderGeometry(0.035, 0.035, length + 0.12, 6), MATERIALS.darkTimber, x, topY, z, new THREE.Euler(0, 0, Math.PI * 0.5), undefined, 'BeanTrellis');
-  for (let i = 0; i < 11; i++) {
-    const dx = -length * 0.48 + (length * 0.96 * i) / 10;
-    addMesh(trellis, new THREE.SphereGeometry(0.12, 6, 4), i % 2 ? MATERIALS.leaf : MATERIALS.squash, x + dx, 0.3 + (i % 4) * 0.28, z, new THREE.Euler(0, i, 0), new THREE.Vector3(1, 0.55, 0.45));
+  for (let vine = 0; vine < 7; vine++) {
+    const dx = -length * 0.46 + (length * 0.92 * vine) / 6;
+    const card = createRootedLeafCard(
+      0.36 + (vine % 3) * 0.04,
+      1.08 + (vine % 2) * 0.16,
+      MATERIALS.beanVineCard,
+      'Textured climbing bean vine',
+    );
+    card.position.set(x + dx, 0.08, z + (vine % 2 ? 0.015 : -0.015));
+    card.rotation.y = (vine % 2 ? 1 : -1) * 0.08;
+    trellis.add(card);
   }
 }
 
@@ -946,15 +964,33 @@ function addFlowerGarden(
 
 function addHerbClump(group: THREE.Group, x: number, z: number, kind: number, seed: number): void {
   const rng = mulberry32(seed);
-  const material = kind % 2 ? MATERIALS.herbSilver : MATERIALS.herb;
-  const stalks = 5 + (kind % 3);
-  for (let i = 0; i < stalks; i++) {
-    const angle = (i / stalks) * Math.PI * 2;
-    const h = 0.25 + rng() * 0.3;
-    addMesh(group, new THREE.CylinderGeometry(0.012, 0.018, h, 5), material, x + Math.cos(angle) * 0.11, 0.16 + h * 0.5, z + Math.sin(angle) * 0.11, new THREE.Euler(Math.cos(angle) * 0.16, 0, -Math.sin(angle) * 0.16));
-    addMesh(group, new THREE.SphereGeometry(0.095, 6, 4), material, x + Math.cos(angle) * 0.17, 0.18 + h, z + Math.sin(angle) * 0.17, undefined, new THREE.Vector3(1, 0.45, 0.65));
-    if (kind === 2 && i % 2 === 0) addMesh(group, new THREE.IcosahedronGeometry(0.045, 0), FLOWER_MATERIALS[3], x + Math.cos(angle) * 0.17, 0.25 + h, z + Math.sin(angle) * 0.17);
+  const herbKind = (['parsley', 'rosemary', 'sage'] as const)[kind % 3]!;
+  const material = {
+    parsley: MATERIALS.parsleyCard,
+    rosemary: MATERIALS.rosemaryCard,
+    sage: MATERIALS.sageCard,
+  }[herbKind];
+  const dimensions = {
+    parsley: { width: 0.52, height: 0.52 },
+    rosemary: { width: 0.44, height: 0.68 },
+    sage: { width: 0.56, height: 0.58 },
+  }[herbKind];
+  const clump = new THREE.Group();
+  clump.name = `Textured ${herbKind} clump`;
+  clump.position.set(x, 0.06, z);
+  clump.rotation.y = rng() * Math.PI;
+  group.add(clump);
+  for (let cardIndex = 0; cardIndex < 3; cardIndex++) {
+    const card = createRootedLeafCard(
+      dimensions.width * (0.9 + rng() * 0.16),
+      dimensions.height * (0.9 + rng() * 0.16),
+      material,
+      `Textured ${herbKind} herb card`,
+    );
+    card.rotation.y = cardIndex / 3 * Math.PI + (rng() - 0.5) * 0.12;
+    clump.add(card);
   }
+  registerBackyardSway(group, clump, seed * 0.0013, 0.006, 0.025);
 }
 
 function addDryingRack(group: THREE.Group, x: number, z: number): void {
@@ -962,9 +998,22 @@ function addDryingRack(group: THREE.Group, x: number, z: number): void {
     addMesh(group, new THREE.CylinderGeometry(0.035, 0.05, 1.2, 6), MATERIALS.darkTimber, x + dx, 0.6, z);
   }
   addMesh(group, new THREE.CylinderGeometry(0.035, 0.035, 1.25, 6), MATERIALS.darkTimber, x, 1.16, z, new THREE.Euler(0, 0, Math.PI * 0.5), undefined, 'HerbDryingRack');
+  const bundleMaterials = [
+    MATERIALS.parsleyCard,
+    MATERIALS.rosemaryCard,
+    MATERIALS.sageCard,
+  ] as const;
   for (let i = 0; i < 4; i++) {
     const dx = -0.42 + i * 0.28;
-    addMesh(group, new THREE.CylinderGeometry(0.035, 0.08, 0.5, 6), i % 2 ? MATERIALS.herbSilver : MATERIALS.herb, x + dx, 0.82, z, new THREE.Euler(0, 0, Math.PI));
+    const bundle = createRootedLeafCard(
+      0.22,
+      0.38 + (i % 2) * 0.04,
+      bundleMaterials[i % bundleMaterials.length]!,
+      'Textured hanging herb bundle',
+    );
+    bundle.position.set(x + dx, 1.12, z);
+    bundle.rotation.set(0, (i % 2 ? 1 : -1) * 0.12, Math.PI);
+    group.add(bundle);
   }
 }
 
@@ -1000,6 +1049,22 @@ function addHenYard(group: THREE.Group, width: number, depth: number, seed: numb
   addMesh(group, new THREE.BoxGeometry(0.62, 0.72, 0.08), MATERIALS.darkSoil, coopX + 0.35, 0.58, coopZ + coopDepth * 0.52, new THREE.Euler(), undefined, 'HenCoopDoor');
   for (let rung = 0; rung < 4; rung++) {
     addMesh(group, new THREE.BoxGeometry(0.82, 0.07, 0.08), MATERIALS.wicker, coopX + 0.35, 0.18 + rung * 0.18, coopZ + coopDepth * 0.68 + rung * 0.12);
+  }
+  const enclosure = new THREE.Group();
+  enclosure.name = 'Hen yard enclosure fence';
+  group.add(enclosure);
+  for (const x of [-width * 0.48, width * 0.48]) {
+    for (const z of [-depth * 0.44, depth * 0.44]) {
+      addMesh(enclosure, new THREE.CylinderGeometry(0.045, 0.06, 0.95, 6), MATERIALS.darkTimber, x, 0.48, z);
+    }
+  }
+  for (const z of [-depth * 0.44, depth * 0.44]) {
+    addMesh(enclosure, new THREE.BoxGeometry(width * 0.96, 0.055, 0.055), MATERIALS.wicker, 0, 0.45, z);
+    addMesh(enclosure, new THREE.BoxGeometry(width * 0.96, 0.055, 0.055), MATERIALS.wicker, 0, 0.78, z);
+  }
+  for (const x of [-width * 0.48, width * 0.48]) {
+    addMesh(enclosure, new THREE.BoxGeometry(0.055, 0.055, depth * 0.88), MATERIALS.wicker, x, 0.45, 0);
+    addMesh(enclosure, new THREE.BoxGeometry(0.055, 0.055, depth * 0.88), MATERIALS.wicker, x, 0.78, 0);
   }
   // Lightweight fallback birds are replaced by the freely licensed animated asset when available.
   for (let i = 0; i < Math.max(3, Math.min(6, Math.round(width * depth / 6))); i++) {

@@ -6,7 +6,8 @@ import {
   syncStockpileSegments,
 } from './buildingStockpileVisuals.ts';
 
-export const BREWERY_GRAIN_VISUAL_SEGMENTS = 2;
+export const BREWERY_BARLEY_VISUAL_SEGMENTS = 2;
+export const BREWERY_MALT_VISUAL_SEGMENTS = 2;
 export const BREWERY_ALE_VISUAL_SEGMENTS = 3;
 export const HUNTERS_FOOD_VISUAL_SEGMENTS = 4;
 export const FORAGERS_FOOD_VISUAL_SEGMENTS = 4;
@@ -43,9 +44,15 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
     case 'brewery':
       return `:food-store:${
         stockpileVisualLevel(
-          building.grain,
-          BUILDING_STORAGE_CAPS.brewery.grain,
-          BREWERY_GRAIN_VISUAL_SEGMENTS,
+          building.barley ?? 0,
+          BUILDING_STORAGE_CAPS.brewery.barley,
+          BREWERY_BARLEY_VISUAL_SEGMENTS,
+        )
+      }:${
+        stockpileVisualLevel(
+          building.malt ?? 0,
+          BUILDING_STORAGE_CAPS.brewery.malt,
+          BREWERY_MALT_VISUAL_SEGMENTS,
         )
       }:${
         stockpileVisualLevel(
@@ -77,8 +84,8 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
     case 'granary':
       return `:food-store:${
         stockpileVisualLevel(
-          building.grain,
-          BUILDING_STORAGE_CAPS.granary.grain,
+          building.grain + (building.barley ?? 0),
+          BUILDING_STORAGE_CAPS.granary.grain + BUILDING_STORAGE_CAPS.granary.barley,
           GRANARY_GRAIN_VISUAL_SEGMENTS,
         )
       }:${
@@ -142,10 +149,17 @@ export function syncFoodStockpileVisuals(
     case 'brewery':
       syncNamedStockpile(
         marker,
-        'BreweryGrainStockpile',
-        'BreweryGrainSegment',
-        building.grain,
-        BUILDING_STORAGE_CAPS.brewery.grain,
+        'BreweryBarleyStockpile',
+        'BreweryBarleySegment',
+        building.barley ?? 0,
+        BUILDING_STORAGE_CAPS.brewery.barley,
+      );
+      syncNamedStockpile(
+        marker,
+        'BreweryMaltStockpile',
+        'BreweryMaltSegment',
+        building.malt ?? 0,
+        BUILDING_STORAGE_CAPS.brewery.malt,
       );
       syncNamedStockpile(
         marker,
@@ -183,8 +197,8 @@ export function syncFoodStockpileVisuals(
         marker,
         'GranaryGrainStockpile',
         'GranaryGrainSegment',
-        building.grain,
-        BUILDING_STORAGE_CAPS.granary.grain,
+        building.grain + (building.barley ?? 0),
+        BUILDING_STORAGE_CAPS.granary.grain + BUILDING_STORAGE_CAPS.granary.barley,
       );
       syncNamedStockpile(
         marker,

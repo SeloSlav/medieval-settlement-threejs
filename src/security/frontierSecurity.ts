@@ -386,6 +386,8 @@ type PortableRaidStoresLike = {
   firewood: number;
   food: number;
   grain: number;
+  barley?: number;
+  malt?: number;
   flour: number;
   ale: number;
   preservedFood: number;
@@ -717,6 +719,8 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.firewood)
     + positivePortableAmount(stores.food)
     + positivePortableAmount(stores.grain)
+    + positivePortableAmount(stores.barley)
+    + positivePortableAmount(stores.malt)
     + positivePortableAmount(stores.flour)
     + positivePortableAmount(stores.ale)
     + positivePortableAmount(stores.preservedFood)
@@ -734,6 +738,8 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['firewood', 'firewood', 1],
   ['food', 'food', 1],
   ['grain', 'grain', 1],
+  ['barley', 'barley', 1],
+  ['malt', 'malt', 1],
   ['flour', 'flour', 1],
   ['ale', 'ale', 1],
   ['preservedFood', 'preserved food', 1],
@@ -770,6 +776,8 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   firewood: 1,
   food: 1,
   grain: 1,
+  barley: 1,
+  malt: 1,
   flour: 1,
   ale: 1,
   preservedFood: 1,

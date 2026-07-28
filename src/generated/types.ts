@@ -79,6 +79,8 @@ export const Building = __t.object("Building", {
   chapelMonasteryTitheDue: __t.f64(),
   civicReceiptsGold: __t.f64(),
   marketplaceGoldReserveTarget: __t.u8(),
+  barley: __t.f64(),
+  malt: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -292,6 +294,8 @@ export const PlayerResources = __t.object("PlayerResources", {
   laborStewardReserve: __t.u32(),
   physicalFoundingSiteEnabled: __t.bool(),
   legacyUnhousedPopulationBonusEnabled: __t.bool(),
+  barley: __t.f64(),
+  malt: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

@@ -37,7 +37,7 @@ bakery.firewood = 42;
 bakery.food = 228;
 state.buildings.set(bakery.id, bakery);
 const brewery = building('brewery', 'brewery', 1);
-brewery.grain = 45;
+brewery.barley = 45;
 brewery.water = 40;
 brewery.firewood = 15;
 brewery.ale = 140;
@@ -71,10 +71,10 @@ approx(fullWeek.breadFoodCapacityPerDay, 160 / 3);
 approx(fullWeek.breadGrainPerDay, 30);
 approx(fullWeek.breadWaterPerDay, 80 / 3);
 approx(fullWeek.breadFirewoodPerDay, 40 / 3);
-approx(fullWeek.aleOutputPerDay, 40);
-approx(fullWeek.aleGrainPerDay, 30);
-approx(fullWeek.aleWaterPerDay, 20);
-approx(fullWeek.aleFirewoodPerDay, 10);
+approx(fullWeek.aleOutputPerDay, 20);
+approx(fullWeek.aleBarleyPerDay, 15);
+approx(fullWeek.aleWaterPerDay, 15);
+approx(fullWeek.aleFirewoodPerDay, 5);
 approx(fullWeek.preservedFoodOutputPerDay, 35);
 approx(fullWeek.preservationFreshFoodPerDay, 35);
 approx(fullWeek.preservationFirewoodPerDay, 35 / 3);
@@ -88,8 +88,8 @@ assert.ok(fullWeek.bakeryInputBuffer);
 approx(fullWeek.bakeryInputBuffer.days, 2);
 assert.equal(fullWeek.bakeryInputBuffer.limitingInput, 'flour');
 assert.ok(fullWeek.breweryInputBuffer);
-approx(fullWeek.breweryInputBuffer.days, 1.5);
-assert.equal(fullWeek.breweryInputBuffer.limitingInput, 'grain');
+approx(fullWeek.breweryInputBuffer.days, 8 / 3);
+assert.equal(fullWeek.breweryInputBuffer.limitingInput, 'water');
 assert.ok(fullWeek.smokehouseInputBuffer);
 approx(fullWeek.smokehouseInputBuffer.days, 1.5);
 assert.equal(fullWeek.smokehouseInputBuffer.limitingInput, 'firewood');
@@ -98,7 +98,7 @@ approx(fullWeek.weaverInputBuffer.days, 1.5);
 assert.equal(fullWeek.weaverInputBuffer.limitingInput, 'wool');
 approx(fullWeek.millOutputRoom?.days ?? -1, 2);
 approx(fullWeek.bakeryOutputRoom?.days ?? -1, 2);
-approx(fullWeek.breweryOutputRoom?.days ?? -1, 1.5);
+approx(fullWeek.breweryOutputRoom?.days ?? -1, 3);
 approx(fullWeek.smokehouseOutputRoom?.days ?? -1, 1.5);
 approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5);
 
@@ -182,7 +182,6 @@ state.fireIncidents.clear();
 const localGrainBranch = localProsperityCapacity.grainRoadBranches
   ?.values().next().value;
 approx(localGrainBranch?.breadGrainPerDay ?? -1, fullWeek.breadGrainPerDay);
-approx(localGrainBranch?.aleGrainPerDay ?? -1, fullWeek.aleGrainPerDay);
 assert.equal(
   grainChainBalanceLabel(fullWeek),
   'Balanced milling and baking capacity',
@@ -207,7 +206,7 @@ for (const key of [
   'breadWaterPerDay',
   'breadFirewoodPerDay',
   'aleOutputPerDay',
-  'aleGrainPerDay',
+  'aleBarleyPerDay',
   'aleWaterPerDay',
   'aleFirewoodPerDay',
   'preservedFoodOutputPerDay',
@@ -240,12 +239,12 @@ assert.ok(sabbathWeek.smokehouseInputBuffer);
 assert.ok(sabbathWeek.weaverInputBuffer);
 approx(sabbathWeek.millInputBuffer.days, 2 * 7 / 6);
 approx(sabbathWeek.bakeryInputBuffer.days, 2 * 7 / 6);
-approx(sabbathWeek.breweryInputBuffer.days, 1.5 * 7 / 6);
+approx(sabbathWeek.breweryInputBuffer.days, 8 / 3 * 7 / 6);
 approx(sabbathWeek.smokehouseInputBuffer.days, 1.5 * 7 / 6);
 approx(sabbathWeek.weaverInputBuffer.days, 1.5 * 7 / 6);
 approx(sabbathWeek.millOutputRoom?.days ?? -1, 2 * 7 / 6);
 approx(sabbathWeek.bakeryOutputRoom?.days ?? -1, 2 * 7 / 6);
-approx(sabbathWeek.breweryOutputRoom?.days ?? -1, 1.5 * 7 / 6);
+approx(sabbathWeek.breweryOutputRoom?.days ?? -1, 3 * 7 / 6);
 approx(sabbathWeek.smokehouseOutputRoom?.days ?? -1, 1.5 * 7 / 6);
 approx(sabbathWeek.weaverOutputRoom?.days ?? -1, 1.5 * 7 / 6);
 
@@ -527,9 +526,9 @@ grainState.buildings.set(linkedMonastery.id, linkedMonastery);
 const unlinkedMonastery = building('unlinked-monastery', 'monastery', 0);
 unlinkedMonastery.grain = 1;
 grainState.buildings.set(unlinkedMonastery.id, unlinkedMonastery);
-const grainBrewery = building('grain-brewery', 'brewery', 1);
-grainBrewery.constructionPriority = 1;
-grainState.buildings.set(grainBrewery.id, grainBrewery);
+const lowPriorityMill = building('low-priority-mill', 'watermill', 1);
+lowPriorityMill.constructionPriority = 1;
+grainState.buildings.set(lowPriorityMill.id, lowPriorityMill);
 grainState.deliveryTrips.set(
   'seed-trip',
   deliveryTrip('seed-trip', seedFarm.id, 2, 'outbound'),
@@ -544,7 +543,7 @@ grainState.deliveryTrips.set(
 );
 grainState.deliveryTrips.set(
   'processor-trip',
-  deliveryTrip('processor-trip', grainBrewery.id, 3, 'outbound'),
+  deliveryTrip('processor-trip', lowPriorityMill.id, 3, 'outbound'),
 );
 grainState.deliveryTrips.set(
   'return-trip',
@@ -573,7 +572,6 @@ const grainPlanInput = {
   },
   production: {
     breadGrainPerDay: 2,
-    aleGrainPerDay: 1,
   },
   sabbathObserved: false,
   monasteryProductivity: (candidate: BuildingState) =>
@@ -601,11 +599,11 @@ assert.deepEqual(grainPlan.granaryReserve, { target: 20, protected: 16, shortfal
 approx(grainPlan.totalProtected, 29);
 approx(grainPlan.discretionaryStock, 22);
 approx(grainPlan.monasteryGrainPerDay, 203 / 12);
-approx(grainPlan.processorGrainPerDay, 239 / 12);
-approx(grainPlan.processorRunwayDays, 264 / 239);
-approx(grainPlan.annualProcessorDemand, 2_390);
-approx(grainPlan.annualCommitments, 2_420);
-approx(grainPlan.annualBalance, -2_320);
+approx(grainPlan.processorGrainPerDay, 227 / 12);
+approx(grainPlan.processorRunwayDays, 264 / 227);
+approx(grainPlan.annualProcessorDemand, 2_270);
+approx(grainPlan.annualCommitments, 2_300);
+approx(grainPlan.annualBalance, -2_200);
 assert.deepEqual(grainPlan.processorPriorityCounts, { 1: 1, 2: 2, 3: 1 });
 assert.equal(grainPlan.firstAttentionKind, 'seed');
 assert.equal(grainPlan.firstAttentionBuildingId, seedFarm.id);
@@ -615,7 +613,7 @@ const sabbathGrainPlan = computeSettlementGrainPlan({
   sabbathObserved: true,
 });
 approx(sabbathGrainPlan.monasteryGrainPerDay, 14.5);
-approx(sabbathGrainPlan.processorGrainPerDay, 17.5);
+approx(sabbathGrainPlan.processorGrainPerDay, 16.5);
 
 grainState.deliveryTrips.set(
   'seed-trip',
@@ -642,22 +640,22 @@ roadBakery.x = 0;
 roadBakery.grain = 30;
 roadBakery.granaryGrainReserve = 20;
 roadGrainState.buildings.set(roadBakery.id, roadBakery);
-const roadBrewery = building('road-grain-brewery', 'brewery', 1);
-roadBrewery.x = 100;
-roadGrainState.buildings.set(roadBrewery.id, roadBrewery);
+const roadMonastery = building('road-grain-monastery', 'monastery', 0);
+roadMonastery.x = 100;
+roadGrainState.buildings.set(roadMonastery.id, roadMonastery);
 const remoteFarm = building('road-grain-farm', 'threshing_barn', 1);
 remoteFarm.x = 200;
 remoteFarm.grain = 100;
 roadGrainState.buildings.set(remoteFarm.id, remoteFarm);
 const roadGrainComponent = (candidate: Pick<BuildingState, 'x'>) =>
-  candidate.x < 50 ? 'bread' : candidate.x < 150 ? 'ale' : 'remote';
+  candidate.x < 50 ? 'bread' : candidate.x < 150 ? 'monastery' : 'remote';
 const splitRoadProduction = computeSettlementProductionCapacity(
   roadGrainState,
   false,
   roadGrainComponent,
 );
 assert.equal(splitRoadProduction.grainChainRoads.activeBranches, 1);
-assert.equal(splitRoadProduction.grainRoadBranches?.size, 2);
+assert.equal(splitRoadProduction.grainRoadBranches?.size, 1);
 const roadGrainInput = {
   state: roadGrainState,
   farmPlan: {
@@ -685,7 +683,7 @@ const roadGrainInput = {
   roadComponentFor: roadGrainComponent,
 };
 const splitRoadGrainPlan = computeSettlementGrainPlan(roadGrainInput);
-approx(splitRoadGrainPlan.processorRunwayDays, 1.5);
+approx(splitRoadGrainPlan.processorRunwayDays, 2.16);
 assert.equal(splitRoadGrainPlan.roadPlan?.activeBranches, 3);
 assert.equal(splitRoadGrainPlan.roadPlan?.drawingBranches, 2);
 assert.equal(splitRoadGrainPlan.roadPlan?.stockedDrawingBranches, 1);
@@ -700,8 +698,8 @@ approx(splitRoadGrainPlan.roadPlan?.outsideProcessorBranchStock ?? -1, 80);
 assert.equal(splitRoadGrainPlan.roadPlan?.weakestSourceRunwayDays, 0);
 assert.equal(
   splitRoadGrainPlan.roadPlan?.firstExposedBuildingId,
-  roadBrewery.id,
-  'remote grain must not hide the unstocked brewery branch',
+  roadMonastery.id,
+  'remote grain must not hide the unstocked monastery branch',
 );
 
 const joinedRoadProduction = computeSettlementProductionCapacity(
@@ -720,7 +718,7 @@ assert.equal(joinedRoadGrainPlan.roadPlan?.stockedDrawingBranches, 1);
 assert.equal(joinedRoadGrainPlan.roadPlan?.unstockedDrawingBranches, 0);
 approx(joinedRoadGrainPlan.roadPlan?.matchedSourceStock ?? -1, 90);
 assert.equal(joinedRoadGrainPlan.roadPlan?.outsideProcessorBranchStock, 0);
-approx(joinedRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1, 1.5);
+approx(joinedRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1, 2.16);
 
 const abbeyRoadState = emptyGameState();
 const isolatedAbbey = building('isolated-abbey', 'monastery', 0);
@@ -1376,13 +1374,15 @@ assert.match(townHallInspector, /unavailable until branches connect/);
 assert.match(townHallInspector, /Inspect most imbalanced grain-chain branch/);
 assert.match(townHallInspector, /Bread capacity/);
 assert.match(townHallInspector, /bakery intake/);
-assert.match(townHallInspector, /September harvest/);
+assert.match(townHallInspector, /September grain/);
+assert.match(townHallInspector, /September barley/);
 assert.match(townHallInspector, /Seed on holdings/);
 assert.match(townHallInspector, /Spring crop labor/);
 assert.match(townHallInspector, /Ox-supported fields/);
 assert.match(townHallInspector, /Grain allocation/);
 assert.match(townHallInspector, /Protected grain/);
 assert.match(townHallInspector, /Installed grain draw/);
+assert.match(townHallInspector, /two workshop cycles per batch/);
 assert.match(townHallInspector, /Processor grain roads/);
 assert.match(townHallInspector, /weakest source reserve/);
 assert.match(townHallInspector, /workshop stocks and carts excluded/);

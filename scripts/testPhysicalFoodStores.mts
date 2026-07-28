@@ -5,7 +5,8 @@ import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
   BREWERY_ALE_VISUAL_SEGMENTS,
-  BREWERY_GRAIN_VISUAL_SEGMENTS,
+  BREWERY_BARLEY_VISUAL_SEGMENTS,
+  BREWERY_MALT_VISUAL_SEGMENTS,
   FISHING_FOOD_VISUAL_SEGMENTS,
   FORAGERS_FOOD_VISUAL_SEGMENTS,
   foodStockpileVisualSignature,
@@ -32,7 +33,8 @@ const stockGroups: readonly StockGroupExpectation[] = [
   ['hunters_hall', 'HuntersFoodStockpile', 'HuntersFoodSegment', HUNTERS_FOOD_VISUAL_SEGMENTS],
   ['foragers_shed', 'ForagersFoodStockpile', 'ForagersFoodSegment', FORAGERS_FOOD_VISUAL_SEGMENTS],
   ['fishing_camp', 'FishingFoodStockpile', 'FishingFoodSegment', FISHING_FOOD_VISUAL_SEGMENTS],
-  ['brewery', 'BreweryGrainStockpile', 'BreweryGrainSegment', BREWERY_GRAIN_VISUAL_SEGMENTS],
+  ['brewery', 'BreweryBarleyStockpile', 'BreweryBarleySegment', BREWERY_BARLEY_VISUAL_SEGMENTS],
+  ['brewery', 'BreweryMaltStockpile', 'BreweryMaltSegment', BREWERY_MALT_VISUAL_SEGMENTS],
   ['brewery', 'BreweryAleStockpile', 'BreweryAleSegment', BREWERY_ALE_VISUAL_SEGMENTS],
   ['smokehouse', 'SmokehouseFirewoodStockpile', 'SmokehouseFirewoodSegment', SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS],
   ['smokehouse', 'SmokehouseFreshFoodStockpile', 'SmokehouseFreshFoodSegment', SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS],
@@ -68,10 +70,11 @@ for (const [kind, containerName, segmentName, food, expected] of supplierExpecta
   assertVisibleSegments(marker, containerName, segmentName, 0);
 }
 
-const brewery = building('brewery', { grain: 71, ale: 67 });
+const brewery = building('brewery', { barley: 71, malt: 13, ale: 67 });
 const breweryMarker = createBuildingMesh('brewery');
 syncFoodStockpileVisuals(breweryMarker, brewery);
-assertVisibleSegments(breweryMarker, 'BreweryGrainStockpile', 'BreweryGrainSegment', 2);
+assertVisibleSegments(breweryMarker, 'BreweryBarleyStockpile', 'BreweryBarleySegment', 2);
+assertVisibleSegments(breweryMarker, 'BreweryMaltStockpile', 'BreweryMaltSegment', 1);
 assertVisibleSegments(breweryMarker, 'BreweryAleStockpile', 'BreweryAleSegment', 2);
 
 const smokehouse = building('smokehouse', {
@@ -100,7 +103,7 @@ assertVisibleSegments(
   2,
 );
 
-const granary = building('granary', { grain: 141, food: 261 });
+const granary = building('granary', { grain: 141, barley: 160, food: 261 });
 const granaryMarker = createBuildingMesh('granary');
 syncFoodStockpileVisuals(granaryMarker, granary);
 assertVisibleSegments(granaryMarker, 'GranaryGrainStockpile', 'GranaryGrainSegment', 2);
@@ -128,7 +131,7 @@ assertVisibleSegments(
 const emptyGranary = building('granary');
 const firstGrainSack = building('granary', { grain: 1 });
 const sameGrainBand = building('granary', { grain: 100 });
-const secondGrainBand = building('granary', { grain: 141 });
+const secondGrainBand = building('granary', { grain: 201 });
 const emptySignatures = buildingMarkerSignatures(
   new Map([[emptyGranary.id, emptyGranary]]),
 );

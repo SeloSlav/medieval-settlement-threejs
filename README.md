@@ -238,7 +238,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 | Toggle road tool | `R` or click **Roads** in the construction dock |
 | Open build menu (settlement essentials) | `B` or click **Build** in the construction dock |
 | Open industry menu (production & trade) | `V` or click **Industry** in the construction dock |
-| Open defenses menu (contested frontier only) | `D` or click **Defenses** in the construction dock |
+| Open defenses menu (contested frontier only) | `X` or click **Defenses** in the construction dock |
 | Toggle hydrology / water map | `M` or click **Water map** in the construction dock |
 | Place road point | Left-click on terrain |
 | Undo last placed point while drawing | Right-click |

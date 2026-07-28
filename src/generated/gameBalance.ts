@@ -237,9 +237,13 @@ export const GRANARY_FIREWOOD_PER_CYCLE = 1;
 export const GRANARY_FOOD_PER_CYCLE = 4;
 export const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM = 6;
 export const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION = 0.5;
-export const BREWERY_GRAIN_PER_CYCLE = 3;
-export const BREWERY_WATER_PER_CYCLE = 2;
-export const BREWERY_FIREWOOD_PER_CYCLE = 1;
+export const BREWERY_BARLEY_PER_MALT_CYCLE = 3;
+export const BREWERY_MALTING_WATER_PER_CYCLE = 1;
+export const BREWERY_MALTING_FIREWOOD_PER_CYCLE = 0.5;
+export const BREWERY_MALT_PER_CYCLE = 3;
+export const BREWERY_MALT_PER_ALE_CYCLE = 3;
+export const BREWERY_BREWING_WATER_PER_CYCLE = 2;
+export const BREWERY_BREWING_FIREWOOD_PER_CYCLE = 0.5;
 export const BREWERY_ALE_PER_CYCLE = 4;
 export const WEAVER_WOOL_PER_CYCLE = 3;
 export const WEAVER_CLOTH_PER_CYCLE = 2;
@@ -293,6 +297,7 @@ export const FARM_HARVEST_WORK_PER_SQUARE_METER = 0.8;
 export const FARM_GROWTH_SECONDS = 6000;
 export const FARM_BASE_GRAIN_PER_SQUARE_METER = 0.08;
 export const FARMSTEAD_STARTER_SEED_GRAIN = 24;
+export const FARMSTEAD_STARTER_BARLEY_SEED = 24;
 export const FARM_EARLY_HARVEST_MONTH = 8;
 export const FARM_EARLY_HARVEST_MINIMUM_GROWTH = 0.55;
 export const FARM_EARLY_HARVEST_RIPENESS_FACTOR = 0.85;
@@ -302,7 +307,7 @@ export const FARM_FIELD_SALVAGE_FRACTION = 0;
 
 export const FARM_CROP_KINDS = ["rye","oats","fallow","barley","flax","wheat"] as const;
 export type FarmCropKind = (typeof FARM_CROP_KINDS)[number];
-export type FarmCropProduce = 'grain' | 'fibre' | 'none';
+export type FarmCropProduce = 'grain' | 'barley' | 'fibre' | 'none';
 export type FarmWorkSeason = 'spring' | 'autumn';
 export type FarmCropDefinition = {
   kind: FarmCropKind;
@@ -377,7 +382,7 @@ export const FARM_CROP_DEFINITIONS = {
     "kind": "barley",
     "id": 3,
     "label": "Barley",
-    "produce": "grain",
+    "produce": "barley",
     "workSeason": "spring",
     "seedGrainPerSquareMeter": 0.013,
     "yieldMultiplier": 0.91,
@@ -505,6 +510,8 @@ export type StorageCaps = {
   water?: number;
   food?: number;
   grain?: number;
+  barley?: number;
+  malt?: number;
   flour?: number;
   ale?: number;
   preservedFood?: number;
@@ -1143,8 +1150,8 @@ export const BUILDING_COSTS = {
 } as const satisfies Record<BuildingKind, BuildingResourceCost>;
 
 export const BUILDING_STORAGE_CAPS = {
-  founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, cloth: 80, ironwork: 80, polearms: 80 },
-  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, cloth: 2000, ironwork: 2000, polearms: 2000 },
+  founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, cloth: 80, ironwork: 80, polearms: 80 },
+  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, cloth: 2000, ironwork: 2000, polearms: 2000 },
   lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0 },
@@ -1155,18 +1162,18 @@ export const BUILDING_STORAGE_CAPS = {
   foragers_shed: { timber: 0, firewood: 0, stone: 0, food: 80 },
   fishing_camp: { timber: 0, firewood: 0, stone: 0, food: 120 },
   chapel: { timber: 0, firewood: 0, stone: 0 },
-  marketplace: { timber: 60, firewood: 80, stone: 60, water: 48, food: 96, grain: 48, ale: 140, honey: 100, wine: 120, cloth: 120, ironwork: 48 },
+  marketplace: { timber: 60, firewood: 80, stone: 60, water: 48, food: 96, grain: 48, barley: 72, ale: 140, honey: 100, wine: 120, cloth: 120, ironwork: 48 },
   town_hall: { timber: 0, firewood: 0, stone: 0 },
   village_storehouse: { timber: 360, firewood: 280, stone: 360 },
   watchtower: { timber: 0, firewood: 0, stone: 0 },
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
-  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 280, wool: 180 },
+  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, wool: 180 },
   pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120 },
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, ale: 120, preservedFood: 80, honey: 160, wine: 120 },
-  brewery: { timber: 0, firewood: 40, stone: 0, water: 100, grain: 140, ale: 200 },
+  brewery: { timber: 0, firewood: 40, stone: 0, water: 120, barley: 96, malt: 48, ale: 200 },
   smokehouse: { timber: 0, firewood: 40, stone: 0, food: 120, preservedFood: 180 },
-  granary: { timber: 0, firewood: 60, stone: 0, water: 120, food: 340, grain: 420, flour: 260, preservedFood: 180 },
+  granary: { timber: 0, firewood: 60, stone: 0, water: 120, food: 340, grain: 360, barley: 240, flour: 260, preservedFood: 180 },
   apiary: { timber: 0, firewood: 0, stone: 0, food: 40, honey: 140 },
   watermill: { timber: 0, firewood: 0, stone: 0, water: 80, grain: 180, flour: 260 },
   carpenter: { timber: 140, firewood: 0, stone: 0, ironwork: 18, polearms: 24 },
@@ -1242,7 +1249,7 @@ export const BACKYARD_GARDEN_COSTS = {
 
 export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = 8;
 
-export const TRADE_RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'food', 'grain', 'ironwork'] as const;
+export const TRADE_RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'food', 'grain', 'barley', 'ironwork'] as const;
 export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];
 
 export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';
@@ -1253,6 +1260,7 @@ export const TRADE_RESOURCE_SPEND_SCOPES = {
   firewood: 'marketAccessible',
   food: 'marketAccessible',
   grain: 'marketAccessible',
+  barley: 'marketAccessible',
   ironwork: 'marketAccessible',
 } as const satisfies Record<TradeResourceKind, TradeResourceSpendScope>;
 
@@ -1295,6 +1303,7 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"sell_firewood","kind":"goldSell","resource":"firewood","amount":10,"goldYield":5},
   {"id":"sell_food","kind":"goldSell","resource":"food","amount":10,"goldYield":8},
   {"id":"buy_seed_grain","kind":"goldBuy","resource":"grain","amount":24,"goldCost":18},
+  {"id":"buy_barley_seed","kind":"goldBuy","resource":"barley","amount":24,"goldCost":15},
   {"id":"buy_ironwork","kind":"goldBuy","resource":"ironwork","amount":6,"goldCost":12},
   {"id":"timber_for_stone","kind":"barter","give":"timber","giveAmount":25,"receive":"stone","receiveAmount":10},
   {"id":"stone_for_timber","kind":"barter","give":"stone","giveAmount":10,"receive":"timber","receiveAmount":20},

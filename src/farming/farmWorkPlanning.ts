@@ -36,11 +36,13 @@ export type FarmsteadWorkPlan = {
   pausedFields: number;
   cattleSupportedFields: number;
   expectedHarvest: number;
+  expectedBarleyHarvest: number;
   expectedFibreHarvest: number;
   harvest: SeasonalWorkPlan;
   spring: SeasonalWorkPlan;
   autumn: SeasonalWorkPlan;
   seedGrainRequired: number;
+  seedBarleyRequired: number;
   rotation: CropRotationPlan;
 };
 
@@ -59,14 +61,20 @@ export type SettlementFarmPlan = {
   cattleSupportedFields: number;
   expectedHarvest: number;
   laborCoveredHarvest: number;
+  expectedBarleyHarvest: number;
+  laborCoveredBarleyHarvest: number;
   expectedFibreHarvest: number;
   laborCoveredFibreHarvest: number;
   seedGrainRequired: number;
   seedGrainCovered: number;
   seedGrainShortfall: number;
+  seedBarleyRequired: number;
+  seedBarleyCovered: number;
+  seedBarleyShortfall: number;
   seedShortHoldings: number;
   firstSeedShortBuildingId: string | null;
   seedGrainByHolding: ReadonlyMap<string, number>;
+  seedBarleyByHolding: ReadonlyMap<string, number>;
   rotation: CropRotationPlan;
   harvest: SettlementSeasonalWorkPlan;
   spring: SettlementSeasonalWorkPlan;
@@ -86,11 +94,15 @@ export type CropRotationPlan = {
   afterPlannedAverageFertility: number;
   afterYearThreeAverageFertility: number;
   plannedHarvest: number;
+  plannedBarleyHarvest: number;
   plannedFibreHarvest: number;
   plannedSeedGrainRequired: number;
+  plannedSeedBarleyRequired: number;
   yearThreeHarvest: number;
+  yearThreeBarleyHarvest: number;
   yearThreeFibreHarvest: number;
   yearThreeSeedGrainRequired: number;
+  yearThreeSeedBarleyRequired: number;
   restoringFields: number;
   decliningFields: number;
   yearThreeRestoringFields: number;
@@ -181,6 +193,19 @@ export function fieldSeedGrainRemaining(field: FarmFieldState): number {
   const unseededFraction = field.stage === 'sowing'
     ? 1 - Math.max(0, Math.min(1, field.stageProgress))
     : 1;
+  if (FARM_CROP_DEFINITIONS[plannedCrop].produce === 'barley') return 0;
+  return seedGrainRequired(field.area, plannedCrop) * unseededFraction;
+}
+
+export function fieldSeedBarleyRemaining(field: FarmFieldState): number {
+  if (field.priority <= 0) return 0;
+  const plannedCrop = field.stage === 'ploughing' || field.stage === 'sowing'
+    ? field.crop
+    : field.nextCrop;
+  if (FARM_CROP_DEFINITIONS[plannedCrop].produce !== 'barley') return 0;
+  const unseededFraction = field.stage === 'sowing'
+    ? 1 - Math.max(0, Math.min(1, field.stageProgress))
+    : 1;
   return seedGrainRequired(field.area, plannedCrop) * unseededFraction;
 }
 
@@ -207,6 +232,12 @@ export function fieldStageAllowed(field: FarmFieldState, month: number): boolean
     return month >= crop.growthStartMonth && month <= crop.growthEndMonth;
   }
   return month >= crop.workStartMonth && month <= crop.workEndMonth;
+}
+
+export function farmsteadSeedBarleyRequired(fields: Iterable<FarmFieldState>): number {
+  let required = 0;
+  for (const field of fields) required += fieldSeedBarleyRemaining(field);
+  return required;
 }
 
 /** Third planned crop, with old two-cycle saves repeating their next crop. */
@@ -357,11 +388,13 @@ function buildFarmsteadWorkPlanWithWindows(
   let pausedFields = 0;
   let cattleSupportedFields = 0;
   let expectedHarvest = 0;
+  let expectedBarleyHarvest = 0;
   let expectedFibreHarvest = 0;
   let harvestWork = 0;
   let springWork = 0;
   let autumnWork = 0;
   let seedGrain = 0;
+  let seedBarley = 0;
   const rotation = emptyCropRotationPlan();
   let currentFertilityArea = 0;
   let afterCurrentFertilityArea = 0;
@@ -409,8 +442,13 @@ function buildFarmsteadWorkPlanWithWindows(
     });
     const plannedProduce = FARM_CROP_DEFINITIONS[field.nextCrop].produce;
     if (plannedProduce === 'grain') rotation.plannedHarvest += plannedYield;
+    else if (plannedProduce === 'barley') rotation.plannedBarleyHarvest += plannedYield;
     else if (plannedProduce === 'fibre') rotation.plannedFibreHarvest += plannedYield;
-    rotation.plannedSeedGrainRequired += seedGrainRequired(area, field.nextCrop);
+    if (plannedProduce === 'barley') {
+      rotation.plannedSeedBarleyRequired += seedGrainRequired(area, field.nextCrop);
+    } else {
+      rotation.plannedSeedGrainRequired += seedGrainRequired(area, field.nextCrop);
+    }
     const yearThreeYield = expectedFieldYield({
       ...field,
       crop: thirdCrop,
@@ -418,10 +456,17 @@ function buildFarmsteadWorkPlanWithWindows(
     });
     const yearThreeProduce = FARM_CROP_DEFINITIONS[thirdCrop].produce;
     if (yearThreeProduce === 'grain') rotation.yearThreeHarvest += yearThreeYield;
+    else if (yearThreeProduce === 'barley') {
+      rotation.yearThreeBarleyHarvest += yearThreeYield;
+    }
     else if (yearThreeProduce === 'fibre') {
       rotation.yearThreeFibreHarvest += yearThreeYield;
     }
-    rotation.yearThreeSeedGrainRequired += seedGrainRequired(area, thirdCrop);
+    if (yearThreeProduce === 'barley') {
+      rotation.yearThreeSeedBarleyRequired += seedGrainRequired(area, thirdCrop);
+    } else {
+      rotation.yearThreeSeedGrainRequired += seedGrainRequired(area, thirdCrop);
+    }
     if (afterPlannedFertility > afterCurrentFertility + 1e-9) {
       rotation.restoringFields += 1;
     } else if (afterPlannedFertility < afterCurrentFertility - 1e-9) {
@@ -457,6 +502,7 @@ function buildFarmsteadWorkPlanWithWindows(
       rotation.weakestYearThreeFieldId = field.id;
     }
     seedGrain += fieldSeedGrainRemaining(field);
+    seedBarley += fieldSeedBarleyRemaining(field);
     const currentProduce = FARM_CROP_DEFINITIONS[field.crop].produce;
     if (currentProduce !== 'none') {
       const fieldYield = activeFieldHarvestYield(field);
@@ -464,6 +510,7 @@ function buildFarmsteadWorkPlanWithWindows(
         ? Math.max(0, fieldYield - field.currentYield)
         : fieldYield;
       if (currentProduce === 'grain') expectedHarvest += remainingYield;
+      else if (currentProduce === 'barley') expectedBarleyHarvest += remainingYield;
       else expectedFibreHarvest += remainingYield;
       harvestWork += field.stage === 'harvesting'
         ? currentFieldWorkRemaining(field)
@@ -490,6 +537,7 @@ function buildFarmsteadWorkPlanWithWindows(
     pausedFields,
     cattleSupportedFields,
     expectedHarvest,
+    expectedBarleyHarvest,
     expectedFibreHarvest,
     harvest: seasonalPlan(
       harvestWork,
@@ -507,6 +555,7 @@ function buildFarmsteadWorkPlanWithWindows(
       windows.autumn,
     ),
     seedGrainRequired: seedGrain,
+    seedBarleyRequired: seedBarley,
     rotation,
   };
 }
@@ -554,11 +603,15 @@ function emptyCropRotationPlan(): CropRotationPlan {
     afterPlannedAverageFertility: 0,
     afterYearThreeAverageFertility: 0,
     plannedHarvest: 0,
+    plannedBarleyHarvest: 0,
     plannedFibreHarvest: 0,
     plannedSeedGrainRequired: 0,
+    plannedSeedBarleyRequired: 0,
     yearThreeHarvest: 0,
+    yearThreeBarleyHarvest: 0,
     yearThreeFibreHarvest: 0,
     yearThreeSeedGrainRequired: 0,
+    yearThreeSeedBarleyRequired: 0,
     restoringFields: 0,
     decliningFields: 0,
     yearThreeRestoringFields: 0,
@@ -617,6 +670,7 @@ export function buildSettlementFarmPlan(
     else fieldsByHolding.set(field.farmsteadId, [field]);
   }
   const seedGrainByHolding = new Map<string, number>();
+  const seedBarleyByHolding = new Map<string, number>();
 
   const total: SettlementFarmPlan = {
     holdingCount: fieldsByHolding.size,
@@ -627,14 +681,20 @@ export function buildSettlementFarmPlan(
     cattleSupportedFields: 0,
     expectedHarvest: 0,
     laborCoveredHarvest: 0,
+    expectedBarleyHarvest: 0,
+    laborCoveredBarleyHarvest: 0,
     expectedFibreHarvest: 0,
     laborCoveredFibreHarvest: 0,
     seedGrainRequired: 0,
     seedGrainCovered: 0,
     seedGrainShortfall: 0,
+    seedBarleyRequired: 0,
+    seedBarleyCovered: 0,
+    seedBarleyShortfall: 0,
     seedShortHoldings: 0,
     firstSeedShortBuildingId: null,
     seedGrainByHolding,
+    seedBarleyByHolding,
     rotation: emptyCropRotationPlan(),
     harvest: emptySettlementSeason(),
     spring: emptySettlementSeason(),
@@ -654,6 +714,7 @@ export function buildSettlementFarmPlan(
       && farmstead.constructionComplete !== false;
     const workers = operational ? Math.max(0, farmstead.assignedLabor) : 0;
     const grain = operational ? Math.max(0, farmstead.grain) : 0;
+    const barley = operational ? Math.max(0, farmstead.barley ?? 0) : 0;
     if (workers > 0) total.staffedHoldings += 1;
     if (!operational) total.orphanedFields += fields.length;
 
@@ -662,9 +723,12 @@ export function buildSettlementFarmPlan(
     total.pausedFields += plan.pausedFields;
     total.cattleSupportedFields += plan.cattleSupportedFields;
     total.expectedHarvest += plan.expectedHarvest;
+    total.expectedBarleyHarvest += plan.expectedBarleyHarvest;
     total.expectedFibreHarvest += plan.expectedFibreHarvest;
     total.seedGrainRequired += plan.seedGrainRequired;
+    total.seedBarleyRequired += plan.seedBarleyRequired;
     seedGrainByHolding.set(farmsteadId, plan.seedGrainRequired);
+    seedBarleyByHolding.set(farmsteadId, plan.seedBarleyRequired);
     total.rotation.activeArea += plan.rotation.activeArea;
     total.rotation.cyclicArea += plan.rotation.cyclicArea;
     total.rotation.nextRyeArea += plan.rotation.nextRyeArea;
@@ -684,13 +748,20 @@ export function buildSettlementFarmPlan(
     afterYearThreeFertilityArea += plan.rotation.afterYearThreeAverageFertility
       * plan.rotation.activeArea;
     total.rotation.plannedHarvest += plan.rotation.plannedHarvest;
+    total.rotation.plannedBarleyHarvest += plan.rotation.plannedBarleyHarvest;
     total.rotation.plannedFibreHarvest += plan.rotation.plannedFibreHarvest;
     total.rotation.plannedSeedGrainRequired +=
       plan.rotation.plannedSeedGrainRequired;
+    total.rotation.plannedSeedBarleyRequired +=
+      plan.rotation.plannedSeedBarleyRequired;
     total.rotation.yearThreeHarvest += plan.rotation.yearThreeHarvest;
+    total.rotation.yearThreeBarleyHarvest +=
+      plan.rotation.yearThreeBarleyHarvest;
     total.rotation.yearThreeFibreHarvest += plan.rotation.yearThreeFibreHarvest;
     total.rotation.yearThreeSeedGrainRequired +=
       plan.rotation.yearThreeSeedGrainRequired;
+    total.rotation.yearThreeSeedBarleyRequired +=
+      plan.rotation.yearThreeSeedBarleyRequired;
     total.rotation.restoringFields += plan.rotation.restoringFields;
     total.rotation.decliningFields += plan.rotation.decliningFields;
     total.rotation.yearThreeRestoringFields += plan.rotation.yearThreeRestoringFields;
@@ -747,11 +818,21 @@ export function buildSettlementFarmPlan(
     total.seedGrainCovered += Math.min(grain, plan.seedGrainRequired);
     const seedShortfall = Math.max(0, plan.seedGrainRequired - grain);
     total.seedGrainShortfall += seedShortfall;
-    if (seedShortfall > 0.05) {
+    total.seedBarleyCovered += Math.min(barley, plan.seedBarleyRequired);
+    const barleySeedShortfall = Math.max(
+      0,
+      plan.seedBarleyRequired - barley,
+    );
+    total.seedBarleyShortfall += barleySeedShortfall;
+    if (seedShortfall > 0.05 || barleySeedShortfall > 0.05) {
       total.seedShortHoldings += 1;
-      const seedCoverage = plan.seedGrainRequired > 1e-9
+      const grainCoverage = plan.seedGrainRequired > 1e-9
         ? Math.min(1, grain / plan.seedGrainRequired)
         : 1;
+      const barleyCoverage = plan.seedBarleyRequired > 1e-9
+        ? Math.min(1, barley / plan.seedBarleyRequired)
+        : 1;
+      const seedCoverage = Math.min(grainCoverage, barleyCoverage);
       if (
         farmstead !== undefined
         && (
@@ -778,6 +859,8 @@ export function buildSettlementFarmPlan(
         plan.harvest.availableWorkerDays / plan.harvest.requiredWorkerDays,
       );
     total.laborCoveredHarvest += plan.expectedHarvest * harvestCoverage;
+    total.laborCoveredBarleyHarvest +=
+      plan.expectedBarleyHarvest * harvestCoverage;
     total.laborCoveredFibreHarvest += plan.expectedFibreHarvest * harvestCoverage;
     addSettlementSeason(total.harvest, plan.harvest);
     addSettlementSeason(total.spring, plan.spring);

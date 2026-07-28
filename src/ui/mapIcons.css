@@ -40,6 +40,11 @@
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
 }
 
+.quarry-map-icons.is-interaction-blocked .quarry-map-icon,
+.foraging-map-icons.is-interaction-blocked .foraging-map-icon {
+  pointer-events: none;
+}
+
 .map-resource-icon-glyph {
   display: block;
   width: 22px;

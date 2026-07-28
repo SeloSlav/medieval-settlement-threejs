@@ -278,8 +278,18 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
 
-    if matches!(kind.as_str(), "founders_camp" | "salvage_pile") {
+    if kind == "salvage_pile" {
         return Err("This temporary site is created automatically by the settlement.".into());
+    }
+    if kind != "founders_camp"
+        && !ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&owner)
+            .is_some_and(|resources| resources.physical_founding_site_enabled)
+    {
+        return Err("Place the founders' camp before building the settlement.".into());
     }
 
     if kind != "large_quarry" && is_on_quarry_pit(ctx, x, z) {
@@ -465,6 +475,10 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         return Err("Too close to another building.".to_string());
     }
 
+    if kind == "founders_camp" {
+        return crate::reducers::bootstrap::place_founding_camp(ctx, x, z);
+    }
+
     let cost = building_cost(&kind)?;
     let carpenter_discount = road_network
         .as_ref()
@@ -606,6 +620,8 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         founding_shelter_active: false,
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
+        barley: 0.0,
+        malt: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -772,7 +788,7 @@ fn processor_input_commodities(kind: &str) -> &'static [CommodityKind] {
         CommodityKind::Firewood,
     ];
     const BREWERY: [CommodityKind; 3] = [
-        CommodityKind::Grain,
+        CommodityKind::Barley,
         CommodityKind::Water,
         CommodityKind::Firewood,
     ];
@@ -797,7 +813,12 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
     let missing_inputs: Vec<CommodityKind> = processor_input_commodities(&building.kind)
         .iter()
         .copied()
-        .filter(|commodity| building_commodity_stock(building, *commodity) <= 1e-6)
+        .filter(|commodity| {
+            building_commodity_stock(building, *commodity) <= 1e-6
+                && !(building.kind == "brewery"
+                    && *commodity == CommodityKind::Barley
+                    && building.malt > 1e-6)
+        })
         .collect();
     if missing_inputs.is_empty() {
         return (false, false);
@@ -1891,6 +1912,18 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         owner,
         CommodityKind::Cloth,
         (building.cloth + trip_cargo.cloth) * recoverable,
+    );
+    credit_treasury_commodity(
+        ctx,
+        owner,
+        CommodityKind::Barley,
+        (building.barley + trip_cargo.barley) * recoverable,
+    );
+    credit_treasury_commodity(
+        ctx,
+        owner,
+        CommodityKind::Malt,
+        (building.malt + trip_cargo.malt) * recoverable,
     );
 
     Ok(())

@@ -42,6 +42,7 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   firewood: 'Firewood',
   food: 'Food',
   grain: 'Grain',
+  barley: 'Barley',
   ironwork: 'Ironwork',
   gold: 'Gold',
 };

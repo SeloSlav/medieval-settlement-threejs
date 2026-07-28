@@ -64,6 +64,8 @@ export const FOUNDING_RELOCATION_COMMODITIES = [
   'firewood',
   'food',
   'grain',
+  'barley',
+  'malt',
   'flour',
   'preservedFood',
   'ale',
@@ -136,11 +138,15 @@ function foundingDestinationPriority(
   switch (commodity) {
     case 'food':
     case 'grain':
+    case 'barley':
     case 'flour':
     case 'preservedFood':
       if (building.kind === 'granary') return 0;
+      if (commodity === 'barley' && building.kind === 'brewery') return 0;
       if (building.kind === 'marketplace') return 1;
       return 3;
+    case 'malt':
+      return building.kind === 'brewery' ? 0 : 3;
     case 'ale':
     case 'honey':
     case 'wine':

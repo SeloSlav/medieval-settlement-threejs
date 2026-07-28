@@ -295,6 +295,7 @@ assert.deepEqual(availability, {
   firewood: 17,
   food: 11,
   grain: 60,
+  barley: 0,
   ironwork: 9,
 });
 const physicalTradeState: GameState = {

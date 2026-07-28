@@ -104,7 +104,7 @@ const PROCESS: Record<string, string> = {
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + river power → flour',
   granary: 'Buffers grain for processors, bakes staple food, and shelters road-hauled fresh food',
-  brewery: 'Grain + water + firewood → ale',
+  brewery: 'Barley + water + firewood → malt → ale',
   smokehouse: 'Fresh food + firewood → preserved food',
   apiary: 'April-September forest forage → food, monastery hospitality, or export honey',
   vineyard: 'September-October grape harvest → food, monastery hospitality, or export wine',
@@ -151,7 +151,9 @@ function buildingHasOutboundStock(
           building.granaryGrainReserve ?? 0,
         ) > 1e-6;
     case 'brewery':
-      return building.ale > 0;
+      return (building.barley ?? 0) > 0
+        || (building.malt ?? 0) > 0
+        || building.ale > 0;
     case 'smokehouse':
       return building.preservedFood > 0;
     case 'apiary':
@@ -239,7 +241,9 @@ function outboundTripTarget(
   seedPlan: SeedGrainSourceCoveragePlan | null = null,
 ): { id?: string; x: number; z: number } | null {
   if (building.kind === 'threshing_barn') {
-    return context.worldQueries.getNextFarmGrainDispatch(building)?.target ?? null;
+    return context.worldQueries.getNextFarmGrainDispatch(building)?.target
+      ?? context.worldQueries.getNextFarmBarleyDispatch(building)?.target
+      ?? null;
   }
   if (building.kind === 'watermill') {
     return context.worldQueries.getNextDirectProcessorInputDispatch(
@@ -825,7 +829,6 @@ export function renderExpandedBuildingInspector(
       <li><span>Sheltered storage</span><span>${Math.round((1 - FRESH_FOOD_STORAGE_GRANARY_FACTOR) * 100)}% less spoilage · ${formatFreshFoodLoss(building.food * environment.freshFoodSpoilageFractionPerDay * FRESH_FOOD_STORAGE_GRANARY_FACTOR)}</span></li>`
     : '';
   const grainProcessorRows = building.kind === 'watermill'
-    || building.kind === 'brewery'
     || building.kind === 'monastery'
     ? `<li><span>Grain working buffer</span><span>${formatGrainWorkingBuffer(
         building.grain,
@@ -922,8 +925,12 @@ function renderFarmsteadPlanning(
   );
   const storageCaps = buildingStorageCaps(building.kind);
   const grainRoom = Math.max(0, (storageCaps.grain ?? 0) - building.grain);
+  const barley = Math.max(0, building.barley ?? 0);
+  const barleyRoom = Math.max(0, (storageCaps.barley ?? 0) - barley);
   const fibreRoom = Math.max(0, (storageCaps.wool ?? 0) - (building.wool ?? 0));
   const haulingRequired = plan.expectedHarvest > grainRoom + 1e-6;
+  const barleyHaulingRequired =
+    plan.expectedBarleyHarvest > barleyRoom + 1e-6;
   const fibreHaulingRequired = plan.expectedFibreHarvest > fibreRoom + 1e-6;
   const seasonalRisk = plan.harvest.shortfallWorkerDays > 0.05
     || plan.spring.shortfallWorkerDays > 0.05
@@ -932,12 +939,24 @@ function renderFarmsteadPlanning(
   const inboundSeed = inboundSupply?.cargoKind === 'grain'
     ? Math.max(0, inboundSupply.amount)
     : 0;
+  const inboundBarleySeed = inboundSupply?.cargoKind === 'barley'
+    ? Math.max(0, inboundSupply.amount)
+    : 0;
   const onsiteSeedShortfall = Math.max(0, plan.seedGrainRequired - building.grain);
+  const onsiteBarleySeedShortfall = Math.max(
+    0,
+    plan.seedBarleyRequired - barley,
+  );
   const seedShortfall = Math.max(
     0,
     plan.seedGrainRequired - building.grain - inboundSeed,
   );
+  const barleySeedShortfall = Math.max(
+    0,
+    plan.seedBarleyRequired - barley - inboundBarleySeed,
+  );
   const exportableGrain = Math.max(0, building.grain - plan.seedGrainRequired);
+  const exportableBarley = Math.max(0, barley - plan.seedBarleyRequired);
   const grainDispatch = context.worldQueries.getNextFarmGrainDispatch(building);
   const grainRoutingLabel = grainDispatch == null
     ? exportableGrain > 1e-6
@@ -950,6 +969,18 @@ function renderFarmsteadPlanning(
       : grainDispatch.duty === 'granary-reserve'
         ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · central reserve`
         : `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · emergency overflow`;
+  const barleyDispatch = context.worldQueries.getNextFarmBarleyDispatch(building);
+  const barleyRoutingLabel = barleyDispatch == null
+    ? exportableBarley > 1e-6
+      ? 'No road-linked brewhouse capacity'
+      : barley > 1e-6 && plan.seedBarleyRequired > 1e-6
+        ? 'Held for linked barley fields'
+        : 'No barley awaiting haul'
+    : `${context.worldQueries.getBuildingLabel(barleyDispatch.target.kind)} · ${
+      barleyDispatch.duty === 'working-buffer'
+        ? `${staffingPriorityLabel(barleyDispatch.workPriority)} priority · ${Math.max(0, barleyDispatch.target.barley ?? 0).toFixed(1)} / ${barleyDispatch.desiredStock.toFixed(1)} malting buffer`
+        : 'overflow store'
+    }`;
   const weakestYearThreeField = plan.rotation.weakestYearThreeFieldId === null
     || plan.rotation.lowestYearThreeFertility === null
     ? ''
@@ -961,8 +992,8 @@ function renderFarmsteadPlanning(
       <li><span>Year 3 rotation</span><span>${FARM_CROPS.filter((crop) => plan.rotation.yearThreeAreaByCrop[crop] > 0.5).map((crop) => `${Math.round(plan.rotation.yearThreeAreaByCrop[crop])} m² ${cropLabel(crop).toLowerCase()}`).join(' · ')}</span></li>
       <li><span>Cyclic coverage</span><span>${Math.round(plan.rotation.cyclicArea)} / ${Math.round(plan.rotation.activeArea)} m² explicitly scheduled · remaining land repeats Year 2</span></li>
       <li><span>Soil trajectory</span><span>${Math.round(plan.rotation.currentAverageFertility * 100)}% now → ${Math.round(plan.rotation.afterCurrentAverageFertility * 100)}% after Year 1 → ${Math.round(plan.rotation.afterPlannedAverageFertility * 100)}% after Year 2 → ${Math.round(plan.rotation.afterYearThreeAverageFertility * 100)}% after Year 3${weakestYearThreeField}</span></li>
-      <li><span>Year 2 potential</span><span>${plan.rotation.plannedHarvest.toFixed(1)} grain · ${plan.rotation.plannedFibreHarvest.toFixed(1)} flax fibre · ${plan.rotation.plannedSeedGrainRequired.toFixed(1)} seed · ${plan.rotation.restoringFields} restore / ${plan.rotation.decliningFields} draw soil</span></li>
-      <li><span>Year 3 potential</span><span>${plan.rotation.yearThreeHarvest.toFixed(1)} grain · ${plan.rotation.yearThreeFibreHarvest.toFixed(1)} flax fibre · ${plan.rotation.yearThreeSeedGrainRequired.toFixed(1)} seed · ${plan.rotation.yearThreeRestoringFields} restore / ${plan.rotation.yearThreeDecliningFields} draw soil · current moisture, future manure excluded</span></li>
+      <li><span>Year 2 potential</span><span>${plan.rotation.plannedHarvest.toFixed(1)} bread grain · ${plan.rotation.plannedBarleyHarvest.toFixed(1)} barley · ${plan.rotation.plannedFibreHarvest.toFixed(1)} flax fibre · seed ${plan.rotation.plannedSeedGrainRequired.toFixed(1)} grain + ${plan.rotation.plannedSeedBarleyRequired.toFixed(1)} barley · ${plan.rotation.restoringFields} restore / ${plan.rotation.decliningFields} draw soil</span></li>
+      <li><span>Year 3 potential</span><span>${plan.rotation.yearThreeHarvest.toFixed(1)} bread grain · ${plan.rotation.yearThreeBarleyHarvest.toFixed(1)} barley · ${plan.rotation.yearThreeFibreHarvest.toFixed(1)} flax fibre · seed ${plan.rotation.yearThreeSeedGrainRequired.toFixed(1)} grain + ${plan.rotation.yearThreeSeedBarleyRequired.toFixed(1)} barley · ${plan.rotation.yearThreeRestoringFields} restore / ${plan.rotation.yearThreeDecliningFields} draw soil · current moisture, future manure excluded</span></li>
     `;
   const rows = `
     <li><span>Linked fields</span><span>${plan.activeFields} active${plan.pausedFields > 0 ? ` · ${plan.pausedFields} paused` : ''}</span></li>
@@ -972,12 +1003,16 @@ function renderFarmsteadPlanning(
     <li><span>Spring crop labor</span><span>${formatSeasonalWork(plan.spring)}</span></li>
     <li><span>Autumn crop labor</span><span>${formatSeasonalWork(plan.autumn)}</span></li>
     <li><span>Seed grain</span><span>${Math.min(building.grain, plan.seedGrainRequired).toFixed(1)} onsite${inboundSeed > 0.05 ? ` + ${inboundSeed.toFixed(1)} inbound` : ''} / ${plan.seedGrainRequired.toFixed(1)} protected${seedShortfall > 0.05 ? ` · still short ${seedShortfall.toFixed(1)}` : ''}</span></li>
+    <li><span>Barley seed</span><span>${Math.min(barley, plan.seedBarleyRequired).toFixed(1)} onsite${inboundBarleySeed > 0.05 ? ` + ${inboundBarleySeed.toFixed(1)} inbound` : ''} / ${plan.seedBarleyRequired.toFixed(1)} protected${barleySeedShortfall > 0.05 ? ` · still short ${barleySeedShortfall.toFixed(1)}` : ''}</span></li>
     <li><span>Exportable grain</span><span>${exportableGrain.toFixed(1)} after sowing reserve</span></li>
-    <li><span>${clock.month === 9 ? 'Harvest remaining' : 'Harvest potential'}</span><span>${plan.expectedHarvest.toFixed(1)} grain</span></li>
+    <li><span>Exportable barley</span><span>${exportableBarley.toFixed(1)} after sowing reserve</span></li>
+    <li><span>${clock.month === 9 ? 'Harvest remaining' : 'Harvest potential'}</span><span>${plan.expectedHarvest.toFixed(1)} bread grain · ${plan.expectedBarleyHarvest.toFixed(1)} barley</span></li>
     <li><span>Flax fibre potential</span><span>${plan.expectedFibreHarvest.toFixed(1)} fibre</span></li>
     <li><span>Harvest storage</span><span>${grainRoom.toFixed(1)} onsite room${haulingRequired ? ' · road hauling required' : ' · fits onsite'}</span></li>
+    <li><span>Barley storage</span><span>${barleyRoom.toFixed(1)} onsite room${barleyHaulingRequired ? ' · brewery / granary hauling required' : ' · fits onsite'}</span></li>
     <li><span>Fibre storage</span><span>${fibreRoom.toFixed(1)} onsite room${fibreHaulingRequired ? ' · weaver hauling required' : ' · fits onsite'}</span></li>
     <li><span>Next grain haul</span><span>${grainRoutingLabel}</span></li>
+    <li><span>Next barley haul</span><span>${barleyRoutingLabel}</span></li>
     <li><span>Grain policy</span><span>Linked-field seed · processor work priority · lowest cycle runway · granary · overflow</span></li>
   `;
 
@@ -996,27 +1031,33 @@ function renderFarmsteadPlanning(
       statusState: 'warning',
     };
   }
-  if (onsiteSeedShortfall > 0.05 && inboundSeed > 0.05) {
+  if (
+    (onsiteSeedShortfall > 0.05 && inboundSeed > 0.05)
+    || (onsiteBarleySeedShortfall > 0.05 && inboundBarleySeed > 0.05)
+  ) {
     return {
       rows,
-      statusText: seedShortfall > 0.05
-        ? `Seed cart inbound — ${seedShortfall.toFixed(1)} grain will still be needed`
+      statusText: seedShortfall > 0.05 || barleySeedShortfall > 0.05
+        ? `Seed cart inbound — still short ${seedShortfall.toFixed(1)} grain and ${barleySeedShortfall.toFixed(1)} barley`
         : 'Seed cart inbound — sowing resumes after unloading',
       statusState: 'warning',
     };
   }
-  if (seedShortfall > 0.05 && (clock.month >= 9 || clock.month <= 4)) {
+  if (
+    (seedShortfall > 0.05 || barleySeedShortfall > 0.05)
+    && (clock.month >= 9 || clock.month <= 4)
+  ) {
     return {
       rows,
-      statusText: `Sowing at risk — connect stored or market-imported grain, or pause fields (short ${seedShortfall.toFixed(1)})`,
+      statusText: `Sowing at risk — connect stored or market-imported seed, or pause fields (short ${seedShortfall.toFixed(1)} grain + ${barleySeedShortfall.toFixed(1)} barley)`,
       statusState: 'warning',
     };
   }
   if (seasonalRisk) {
     return { rows, statusText: 'Season at risk — add labor or pause low-priority fields', statusState: 'warning' };
   }
-  if ((haulingRequired || fibreHaulingRequired) && clock.month === 9) {
-    return { rows, statusText: 'Harvest needs continuous grain or fibre hauling', statusState: 'warning' };
+  if ((haulingRequired || barleyHaulingRequired || fibreHaulingRequired) && clock.month === 9) {
+    return { rows, statusText: 'Harvest needs continuous grain, barley, or fibre hauling', statusState: 'warning' };
   }
   return { rows, statusText: 'Farm calendar on plan', statusState: 'active' };
 }
@@ -1045,7 +1086,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
         .map((preset) => `<button type="button" class="resource-action-button" data-granary-fresh-food-target="${preset.percent}" title="${preset.hint}" ${freshFoodTargetPercent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
         .join('')}</div>
       <p class="inspector-action-panel__hint">Current target ${freshFoodTarget.toFixed(0)} food. Intake stops at this level, but household, smokehouse, and guard carts may continue drawing stock.</p>
-      <p class="resource-inspector-note">Strategic grain floor — mills, brewers, monasteries, and foreign sales cannot draw below it. Linked farmsteads may still take this grain when they need seed.</p>
+      <p class="resource-inspector-note">Strategic grain floor — mills, monasteries, and foreign sales cannot draw below it. Linked farmsteads may still take this grain when they need seed. Brewing barley has its own physical reserve.</p>
       <div class="resource-action-row">${GRANARY_GRAIN_RESERVE_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-granary-grain-reserve="${preset.reserve}" ${grainReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
         .join('')}</div>

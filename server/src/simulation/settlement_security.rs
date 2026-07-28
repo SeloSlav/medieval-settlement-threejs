@@ -391,6 +391,8 @@ fn building_portable_stores(building: &Building) -> RaidPortableStores {
         ironwork: building.ironwork,
         polearms: building.polearms,
         gold: building.gold,
+        barley: building.barley,
+        malt: building.malt,
     }
 }
 
@@ -412,6 +414,8 @@ fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortableStores {
         Some(CommodityKind::Ironwork) => stores.ironwork = amount,
         Some(CommodityKind::Polearms) => stores.polearms = amount,
         Some(CommodityKind::Gold) => stores.gold = amount,
+        Some(CommodityKind::Barley) => stores.barley = amount,
+        Some(CommodityKind::Malt) => stores.malt = amount,
         // Raiders do not select bulk stone or water as plunder even when a
         // settlement cart happens to be carrying it.
         Some(CommodityKind::Stone | CommodityKind::Water) | None => {}
@@ -435,6 +439,8 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Ironwork) => stores.ironwork,
         Some(CommodityKind::Polearms) => stores.polearms,
         Some(CommodityKind::Gold) => stores.gold,
+        Some(CommodityKind::Barley) => stores.barley,
+        Some(CommodityKind::Malt) => stores.malt,
         Some(CommodityKind::Stone | CommodityKind::Water) | None => 0.0,
     }
 }
@@ -462,6 +468,8 @@ fn treasury_portable_stores(
         ironwork: treasury.ironwork,
         polearms: treasury.polearms,
         gold: treasury.gold,
+        barley: treasury.barley,
+        malt: treasury.malt,
     }
 }
 
@@ -526,6 +534,8 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.ironwork = stores.ironwork;
     building.polearms = stores.polearms;
     building.gold = stores.gold;
+    building.barley = stores.barley;
+    building.malt = stores.malt;
     building.civic_receipts_gold = building
         .civic_receipts_gold
         .max(0.0)
@@ -558,6 +568,8 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(ironwork);
     subtract_loss!(polearms);
     subtract_loss!(gold);
+    subtract_loss!(barley);
+    subtract_loss!(malt);
 }
 
 fn portable_store_loss(before: f64, remaining: f64) -> f64 {

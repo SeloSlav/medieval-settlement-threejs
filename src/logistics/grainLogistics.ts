@@ -1,5 +1,4 @@
 import {
-  BREWERY_GRAIN_PER_CYCLE,
   BUILDING_STORAGE_CAPS,
   MONASTERY_GRAIN_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
@@ -13,10 +12,9 @@ import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts
 import { compareStableEntityIds } from './roadLogistics.ts';
 
 export const GRAIN_DISPATCH_SOURCE_KINDS = ['threshing_barn', 'granary'] as const;
-export const GRAIN_PROCESSOR_KINDS = ['watermill', 'brewery', 'monastery'] as const;
+export const GRAIN_PROCESSOR_KINDS = ['watermill', 'monastery'] as const;
 export const GRAIN_DISPATCH_TARGET_KINDS = [
   'watermill',
-  'brewery',
   'granary',
   'monastery',
 ] as const;
@@ -25,7 +23,7 @@ export const GRAIN_CRITICAL_RUNWAY_CYCLES = 1;
 
 export type GrainProcessorKind = Extract<
   BuildingKind,
-  'watermill' | 'brewery' | 'monastery'
+  'watermill' | 'monastery'
 >;
 export type GrainDispatchDuty =
   | 'working-buffer'
@@ -58,9 +56,7 @@ function grainInputPerCycle(
 ): number {
   return kind === 'watermill'
     ? WATERMILL_GRAIN_PER_CYCLE
-    : kind === 'brewery'
-      ? BREWERY_GRAIN_PER_CYCLE
-      : MONASTERY_GRAIN_PER_CYCLE * Math.max(0, productivity);
+    : MONASTERY_GRAIN_PER_CYCLE * Math.max(0, productivity);
 }
 
 /** Mirrors the authoritative stock-policy working buffer for grain processors. */

@@ -52,6 +52,8 @@ function buildingStateFromRow(
     water: row.water,
     food: row.food,
     grain: row.grain,
+    barley: row.barley,
+    malt: row.malt,
     flour: row.flour,
     ale: row.ale,
     preservedFood: row.preservedFood,

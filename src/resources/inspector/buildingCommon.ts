@@ -38,6 +38,8 @@ export function buildingStorageRows(
     caps.water != null && caps.water > 0 ? `<li><span>Water stored</span><span>${Math.round(building.water)} / ${caps.water}</span></li>` : '',
     caps.food != null && caps.food > 0 ? `<li><span>Food stored</span><span>${Math.round(building.food)} / ${caps.food}</span></li>` : '',
     caps.grain != null && caps.grain > 0 ? `<li><span>Grain stored</span><span>${Math.round(building.grain)} / ${caps.grain}</span></li>` : '',
+    caps.barley != null && caps.barley > 0 ? `<li><span>Barley stored</span><span>${Math.round(building.barley ?? 0)} / ${caps.barley}</span></li>` : '',
+    caps.malt != null && caps.malt > 0 ? `<li><span>Malt stored</span><span>${Math.round(building.malt ?? 0)} / ${caps.malt}</span></li>` : '',
     caps.flour != null && caps.flour > 0 ? `<li><span>Flour stored</span><span>${Math.round(building.flour)} / ${caps.flour}</span></li>` : '',
     caps.ale != null && caps.ale > 0 ? `<li><span>Ale stored</span><span>${Math.round(building.ale)} / ${caps.ale}</span></li>` : '',
     caps.preservedFood != null && caps.preservedFood > 0 ? `<li><span>Preserved food</span><span>${Math.round(building.preservedFood)} / ${caps.preservedFood}</span></li>` : '',

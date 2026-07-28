@@ -33,6 +33,8 @@ function makeBuilding(partial: Partial<BuildingState> & Pick<BuildingState, 'id'
     water: 0,
     food: 0,
     grain: 0,
+    barley: 0,
+    malt: 0,
     flour: 0,
     ale: 0,
     preservedFood: 0,
@@ -152,19 +154,19 @@ const brewery = makeBuilding({
   z: 0,
   assignedLabor: 1,
   water: 2,
-  grain: 0,
+  barley: 0,
 });
 assert.match(
   getBuildingProcessorStatus(brewery, readyQueries)?.statusText ?? '',
-  /Waiting for grain/,
+  /Waiting for malt/,
 );
 assert.match(
   getBuildingProcessorStatus(brewery, readyQueries)?.waterDetailHtml ?? '',
-  /On-site input buffer<\/span><span>0\.0 cycles on site \/ 3 cycles staged · grain limits/,
+  /Current brewing step<\/span><span>Brewing malt into ale · 0\.0 cycles · malt limits/,
 );
 assert.match(
   getBuildingProcessorStatus(brewery, readyQueries)?.waterDetailHtml ?? '',
-  /Output room<\/span><span>50 cycles · ale before 200 target/,
+  /Ale output room<\/span><span>50 cycles · ale before 200 target/,
 );
 
 const cappedBrewery = makeBuilding({
@@ -178,7 +180,7 @@ const cappedBrewery = makeBuilding({
 });
 assert.equal(
   getBuildingProcessorStatus(cappedBrewery, noWellQueries)?.statusText,
-  'Output target reached — production paused',
+  'Ale target reached — malting and brewing paused',
   'a reached target should explain the deliberate pause before irrelevant input warnings',
 );
 assert.equal(
@@ -187,7 +189,7 @@ assert.equal(
 );
 assert.match(
   getBuildingProcessorStatus(cappedBrewery, noWellQueries)?.waterDetailHtml ?? '',
-  /Output room<\/span><span>0\.0 cycles · ale before 50 target/,
+  /Ale output room<\/span><span>0\.0 cycles · ale before 50 target/,
 );
 
 const partialBrewery = makeBuilding({
@@ -196,18 +198,18 @@ const partialBrewery = makeBuilding({
   x: 0,
   z: 0,
   assignedLabor: 1,
-  grain: 0.25,
+  barley: 0.25,
   water: 0.25,
   firewood: 0.25,
 });
 assert.equal(
   getBuildingProcessorStatus(partialBrewery, noWellQueries)?.statusText,
-  'Brewing ale',
+  'Floor-malting barley',
   'fractional on-site inputs should remain productive because the server scales partial batches',
 );
 assert.match(
   getBuildingProcessorStatus(partialBrewery, noWellQueries)?.waterDetailHtml ?? '',
-  /On-site input buffer<\/span><span>0\.1 cycles on site \/ 3 cycles staged · grain limits/,
+  /Current brewing step<\/span><span>Floor-malting barley · 0\.1 cycles · barley limits/,
 );
 
 const fuelStarvedBrewery = makeBuilding({
@@ -216,7 +218,7 @@ const fuelStarvedBrewery = makeBuilding({
   x: 0,
   z: 0,
   assignedLabor: 1,
-  grain: 3,
+  barley: 3,
   water: 2,
   firewood: 0,
 });

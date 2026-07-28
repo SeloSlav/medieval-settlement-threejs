@@ -4,7 +4,7 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
     CONSTRUCTION_TREASURY_TRANSFER_PER_SEC, CONSTRUCTION_WORK_PER_WORKER_PER_SEC,
-    FARMSTEAD_STARTER_SEED_GRAIN, TICK_DT,
+    FARMSTEAD_STARTER_BARLEY_SEED, FARMSTEAD_STARTER_SEED_GRAIN, TICK_DT,
 };
 use crate::building_defs::building_def;
 use crate::construction_priority::{
@@ -245,6 +245,7 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
         // efficient field. Later expansion must come from its own harvest or a
         // road-linked granary, avoiding a first-crop grain deadlock.
         site.grain += FARMSTEAD_STARTER_SEED_GRAIN;
+        site.barley += FARMSTEAD_STARTER_BARLEY_SEED;
     } else if site.kind == "pastoral_farmstead"
         && ctx
             .db

@@ -385,9 +385,16 @@ export function createBreweryMesh(): THREE.Group {
   addMesh(group, new THREE.CylinderGeometry(0.16, 0.16, 1.6, 8), copper, new THREE.Vector3(3.45, 2.0, 4.15));
   addSegmentedStockProps(
     group,
-    'BreweryGrainStockpile',
-    'BreweryGrainSegment',
+    'BreweryBarleyStockpile',
+    'BreweryBarleySegment',
     [[1.7, 0, 4.3, 0.9], [1.15, 0, 4.25, 0.75]],
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
+  addSegmentedStockProps(
+    group,
+    'BreweryMaltStockpile',
+    'BreweryMaltSegment',
+    [[4.75, 0, 3.75, 0.86], [5.2, 0, 4.15, 0.72]],
     (segment, scale) => addSack(segment, 0, 0, scale),
   );
   return group;

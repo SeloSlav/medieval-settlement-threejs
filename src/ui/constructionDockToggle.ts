@@ -21,6 +21,7 @@ export function handleDockHotkey(key: string, toggles: readonly DockToggle[]): b
   const normalized = key.toLowerCase();
   for (const toggle of toggles) {
     if (!toggle.hotkey || toggle.hotkey.toLowerCase() !== normalized) continue;
+    if (toggle.button.hidden || toggle.button.disabled) continue;
     toggleDockControl(toggle);
     return true;
   }

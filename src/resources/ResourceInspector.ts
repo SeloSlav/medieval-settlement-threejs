@@ -182,10 +182,7 @@ export class ResourceInspector {
   private readonly detailDisclosure: HTMLDetailsElement;
   private readonly detailDisclosureCount: HTMLElement;
   private readonly stockpileRoot: HTMLElement;
-  private readonly stockpileValues: Record<
-    'timber' | 'stone' | 'firewood' | 'water' | 'food' | 'gold' | 'grain' | 'flour' | 'ale' | 'preservedFood' | 'honey' | 'wine' | 'wool' | 'cloth' | 'ironwork' | 'polearms',
-    HTMLElement
-  >;
+  private readonly stockpileValues: Record<keyof ResourceTotals, HTMLElement>;
   private readonly stockpileTransitValues: Record<keyof ResourceTotals, HTMLElement>;
   private readonly populationValue: HTMLElement;
   private readonly housingValue: HTMLElement;
@@ -297,6 +294,8 @@ export class ResourceInspector {
       food: this.mustElement(options.uiRoot, '[data-stockpile="food"]'),
       gold: this.mustElement(options.uiRoot, '[data-stockpile="gold"]'),
       grain: this.mustElement(options.uiRoot, '[data-stockpile="grain"]'),
+      barley: this.mustElement(options.uiRoot, '[data-stockpile="barley"]'),
+      malt: this.mustElement(options.uiRoot, '[data-stockpile="malt"]'),
       flour: this.mustElement(options.uiRoot, '[data-stockpile="flour"]'),
       ale: this.mustElement(options.uiRoot, '[data-stockpile="ale"]'),
       preservedFood: this.mustElement(options.uiRoot, '[data-stockpile="preservedFood"]'),
@@ -857,6 +856,8 @@ export class ResourceInspector {
     this.stockpileValues.food.textContent = Math.round(totals.food).toString();
     this.stockpileValues.gold.textContent = totals.gold.toFixed(1);
     this.stockpileValues.grain.textContent = Math.round(totals.grain).toString();
+    this.stockpileValues.barley.textContent = Math.round(totals.barley).toString();
+    this.stockpileValues.malt.textContent = Math.round(totals.malt).toString();
     this.stockpileValues.flour.textContent = Math.round(totals.flour).toString();
     this.stockpileValues.ale.textContent = Math.round(totals.ale).toString();
     this.stockpileValues.preservedFood.textContent = Math.round(totals.preservedFood).toString();
@@ -890,6 +891,8 @@ export class ResourceInspector {
     }
     const specialtyResources = [
       'grain',
+      'barley',
+      'malt',
       'flour',
       'ale',
       'preservedFood',

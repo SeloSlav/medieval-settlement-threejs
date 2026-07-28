@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
 use crate::balance_generated::{
-    BREWERY_GRAIN_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
-    HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, MONASTERY_GRAIN_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
+    HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
+    MONASTERY_GRAIN_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
 };
 use crate::processor_output_policy::processor_input_staging_cycles;
 
@@ -24,8 +24,8 @@ pub const FOOD_SUPPLIER_KINDS: &[&str] = &[
     "swineherd",
     "monastery",
 ];
-pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "brewery", "monastery"];
-pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "brewery", "granary", "monastery"];
+pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "monastery"];
+pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "granary", "monastery"];
 pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
@@ -41,11 +41,10 @@ pub fn grain_input_target(
 ) -> f64 {
     let per_cycle = match kind {
         "watermill" => WATERMILL_GRAIN_PER_CYCLE,
-        "brewery" => BREWERY_GRAIN_PER_CYCLE,
         "monastery" => MONASTERY_GRAIN_PER_CYCLE * productivity.max(0.0),
         _ => 0.0,
     };
-    let staging_cycles = if matches!(kind, "watermill" | "brewery") {
+    let staging_cycles = if kind == "watermill" {
         processor_input_staging_cycles(processor_output_target_percent)
     } else {
         GRAIN_INPUT_BUFFER_CYCLES
@@ -56,7 +55,6 @@ pub fn grain_input_target(
 pub fn grain_input_runway_cycles(kind: &str, stock: f64, productivity: f64) -> f64 {
     let per_cycle = match kind {
         "watermill" => WATERMILL_GRAIN_PER_CYCLE,
-        "brewery" => BREWERY_GRAIN_PER_CYCLE,
         "monastery" => MONASTERY_GRAIN_PER_CYCLE * productivity.max(0.0),
         _ => 0.0,
     };
@@ -641,11 +639,11 @@ mod tests {
     fn grain_processors_stage_inputs_from_their_stock_policy() {
         assert_eq!(
             GRAIN_DISPATCH_TARGET_KINDS,
-            &["watermill", "brewery", "granary", "monastery"]
+            &["watermill", "granary", "monastery"]
         );
         assert_eq!(
             GRAIN_PROCESSOR_KINDS,
-            &["watermill", "brewery", "monastery"]
+            &["watermill", "monastery"]
         );
         assert_eq!(GRAIN_INPUT_BUFFER_CYCLES, 3.0);
         assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
@@ -653,7 +651,7 @@ mod tests {
         assert_eq!(grain_input_target("watermill", 1.0, 50), 6.0);
         assert_eq!(grain_input_target("watermill", 1.0, 75), 9.0);
         assert_eq!(grain_input_target("watermill", 1.0, 100), 9.0);
-        assert_eq!(grain_input_target("brewery", 1.0, 50), 6.0);
+        assert_eq!(grain_input_target("brewery", 1.0, 50), 0.0);
         assert_eq!(grain_input_target("monastery", 1.0, 25), 6.0);
         assert_eq!(grain_input_target("monastery", 0.45, 100), 2.7);
         assert_eq!(grain_input_target("granary", 1.0, 100), 0.0);

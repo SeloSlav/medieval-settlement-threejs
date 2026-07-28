@@ -130,15 +130,31 @@ pub fn bootstrap_trees(ctx: &ReducerContext, trees: Vec<TreeBootstrap>) -> Resul
     Ok(())
 }
 
-/// Establishes the one physical starting point for a new settlement. Existing
-/// saves with any player-authored settlement rows keep their legacy accounting;
-/// repeated bootstrap calls are intentionally idempotent.
-#[reducer]
-pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(), String> {
+fn validate_founding_site_coordinates(x: f64, z: f64) -> Result<(), String> {
     if !x.is_finite() || !z.is_finite() || x.abs() > 10_000.0 || z.abs() > 10_000.0 {
         return Err("Founding-site coordinates are invalid.".into());
     }
+    Ok(())
+}
 
+fn owner_has_existing_settlement(ctx: &ReducerContext, owner: spacetimedb::Identity) -> bool {
+    ctx.db.building().owner().filter(&owner).next().is_some()
+        || ctx.db.residence().owner().filter(&owner).next().is_some()
+        || ctx
+            .db
+            .burgage_zone()
+            .owner()
+            .filter(&owner)
+            .next()
+            .is_some()
+}
+
+/// Migrates developed legacy saves to physical storage without choosing a
+/// starting point for a fresh settlement. New players place their camp through
+/// the ordinary building-placement reducer once the world has loaded.
+#[reducer]
+pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(), String> {
+    validate_founding_site_coordinates(x, z)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
     let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
@@ -148,15 +164,7 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
         return Ok(());
     }
 
-    let has_existing_settlement = ctx.db.building().owner().filter(&owner).next().is_some()
-        || ctx.db.residence().owner().filter(&owner).next().is_some()
-        || ctx
-            .db
-            .burgage_zone()
-            .owner()
-            .filter(&owner)
-            .next()
-            .is_some();
+    let has_existing_settlement = owner_has_existing_settlement(ctx, owner);
     if has_existing_settlement {
         // Developed legacy saves keep their historic population accounting but
         // no longer keep spendable goods in a disembodied ledger. The existing
@@ -165,7 +173,22 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
         resources.physical_founding_site_enabled = true;
         ctx.db.player_resources().owner().update(resources);
         materialize_physical_resource_ledger_at(ctx, owner, Some((x, z)))?;
-        return Ok(());
+    }
+    Ok(())
+}
+
+/// Establishes the one physical starting point chosen by a new player. The
+/// caller performs the same terrain and overlap validation as other buildings
+/// before entering this founding-specific resource transfer.
+pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Result<(), String> {
+    validate_founding_site_coordinates(x, z)?;
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Player resources are unavailable.".into());
+    };
+    if resources.physical_founding_site_enabled || owner_has_existing_settlement(ctx, owner) {
+        return Err("This settlement already has a founding site.".into());
     }
 
     let def = building_def("founders_camp")
@@ -239,6 +262,8 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
         founding_shelter_active: true,
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
+        barley: resources.barley.max(0.0),
+        malt: resources.malt.max(0.0),
     });
 
     resources.timber = 0.0;
@@ -257,6 +282,8 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
     resources.wool = 0.0;
     resources.cloth = 0.0;
     resources.gold = 0.0;
+    resources.barley = 0.0;
+    resources.malt = 0.0;
     resources.physical_founding_site_enabled = true;
     resources.legacy_unhoused_population_bonus_enabled = false;
     ctx.db.player_resources().owner().update(resources);

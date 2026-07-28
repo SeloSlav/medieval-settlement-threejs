@@ -71,4 +71,6 @@ export default __t.row({
   chapelMonasteryTitheDue: __t.f64().name("chapel_monastery_tithe_due"),
   civicReceiptsGold: __t.f64().name("civic_receipts_gold"),
   marketplaceGoldReserveTarget: __t.u8().name("marketplace_gold_reserve_target"),
+  barley: __t.f64(),
+  malt: __t.f64(),
 });

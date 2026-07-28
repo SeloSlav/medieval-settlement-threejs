@@ -29,9 +29,12 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
       return 'a Village Storehouse with intake enabled';
     case 'food':
     case 'grain':
+    case 'barley':
     case 'flour':
     case 'preservedFood':
       return 'a Granary or another compatible provision store';
+    case 'malt':
+      return 'a Brewhouse with dry malt storage';
     case 'ale':
     case 'honey':
     case 'wine':

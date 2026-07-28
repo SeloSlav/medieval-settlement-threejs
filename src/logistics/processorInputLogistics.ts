@@ -1,4 +1,5 @@
 import {
+  BREWERY_BARLEY_PER_MALT_CYCLE,
   BUILDING_STORAGE_CAPS,
   GRANARY_FLOUR_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
@@ -14,7 +15,7 @@ import { compareStableEntityIds } from './roadLogistics.ts';
 
 export const PROCESSOR_INPUT_BUFFER_CYCLES = 3;
 
-export type DirectProcessorInputCommodity = 'flour' | 'food' | 'wool';
+export type DirectProcessorInputCommodity = 'barley' | 'flour' | 'food' | 'wool';
 export type ProcessorInputDispatchDuty = 'working-buffer' | 'workshop-overflow';
 
 type ProcessorInputDestinationLike = Pick<
@@ -28,6 +29,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'flour'
   | 'food'
   | 'wool'
+  | 'barley'
 >;
 
 export type RoutedProcessorInputDestination<T extends ProcessorInputDestinationLike> = {
@@ -40,6 +42,7 @@ export type RoutedProcessorInputDestination<T extends ProcessorInputDestinationL
 };
 
 const TARGET_KIND: Record<DirectProcessorInputCommodity, BuildingKind> = {
+  barley: 'brewery',
   flour: 'granary',
   food: 'smokehouse',
   wool: 'weaver',
@@ -51,6 +54,8 @@ export function directlyDispatchedProcessorInputPerCycle(
 ): number {
   if (targetKind !== TARGET_KIND[commodity]) return 0;
   switch (commodity) {
+    case 'barley':
+      return BREWERY_BARLEY_PER_MALT_CYCLE;
     case 'flour':
       return GRANARY_FLOUR_PER_CYCLE;
     case 'food':

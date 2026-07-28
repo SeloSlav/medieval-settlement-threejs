@@ -471,6 +471,8 @@ assert.deepEqual(
     'firewood',
     'food',
     'grain',
+    'barley',
+    'malt',
     'flour',
     'preservedFood',
     'ale',

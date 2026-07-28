@@ -28,6 +28,7 @@ export function isBuilderHudMode(mode: ToolbarStats['mode']): boolean {
 }
 
 const PLACEMENT_STATUS_HINTS: Partial<Record<BuildingKind, string>> = {
+  founders_camp: ' — this choice establishes your settlement',
   fishing_camp: ' — keep the camp on land; the finite shoal must be inside its work extent',
   town_hall: ' — requires 24 people, a church, a marketplace, and road access',
   village_storehouse: ' — road-linked haulers collect producer overflow',
@@ -99,6 +100,12 @@ export function describeBuilderHelp(mode: ToolbarStats['mode']): string {
           <li><span>Undo last point</span><span class="road-controls-key">R-click or Backspace</span></li>
           <li><span>Fence pasture</span><span class="road-controls-key">Hammer or Enter</span></li>
           <li><span>Cancel / exit</span><span class="road-controls-key">Esc</span></li>
+        `;
+    case 'founders_camp':
+      return `
+          <li><span>Choose camp site</span><span class="road-controls-key">L-click</span></li>
+          <li><span>Look for clear, dry ground</span><span class="road-controls-hint">placement preview turns valid</span></li>
+          <li><span>Cancel tool</span><span class="road-controls-key">Esc</span></li>
         `;
     case 'idle':
       return '';

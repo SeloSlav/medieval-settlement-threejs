@@ -55,6 +55,88 @@
   pointer-events: none;
 }
 
+.starter-camp-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 64px;
+  padding: 10px 22px 10px 16px;
+  color: #241d11;
+  border: 1px solid #e2c77b;
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(255, 247, 211, 0.58), transparent 42%),
+    linear-gradient(135deg, #e3ca83, #b69142 74%);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(37, 29, 15, 0.32),
+    inset 0 1px 0 rgba(255, 250, 224, 0.68);
+  cursor: pointer;
+  transition: transform 130ms ease, filter 130ms ease, box-shadow 130ms ease;
+}
+
+.starter-camp-button[hidden] {
+  display: none;
+}
+
+.starter-camp-button:hover,
+.starter-camp-button:focus-visible {
+  filter: brightness(1.07);
+  outline: none;
+  transform: translateY(-2px);
+  box-shadow:
+    0 20px 46px rgba(0, 0, 0, 0.44),
+    0 0 0 2px rgba(236, 209, 137, 0.3),
+    inset 0 1px 0 rgba(255, 250, 224, 0.72);
+}
+
+.starter-camp-button.is-active {
+  color: #f4ead4;
+  border-color: rgba(226, 199, 123, 0.78);
+  background:
+    linear-gradient(145deg, rgba(255, 238, 193, 0.12), transparent 46%),
+    rgba(26, 29, 23, 0.92);
+}
+
+.starter-camp-button:disabled {
+  opacity: 0.52;
+  cursor: wait;
+  filter: saturate(0.45);
+  transform: none;
+}
+
+.starter-camp-button svg {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.starter-camp-button__copy {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.starter-camp-button__copy strong {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  line-height: 1.05;
+  letter-spacing: 0.015em;
+}
+
+.starter-camp-button__copy small {
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.25;
+  opacity: 0.76;
+}
+
 .construction-dock-button {
   position: relative;
   width: 52px;
@@ -77,6 +159,10 @@
     border-color 120ms ease,
     background-color 120ms ease,
     transform 120ms ease;
+}
+
+.construction-dock-button[hidden] {
+  display: none;
 }
 
 .construction-dock-button__hotkey {

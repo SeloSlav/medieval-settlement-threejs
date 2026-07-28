@@ -236,9 +236,13 @@ pub const GRANARY_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const GRANARY_FOOD_PER_CYCLE: f64 = 4.0;
 pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = 6.0;
 pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = 0.5;
-pub const BREWERY_GRAIN_PER_CYCLE: f64 = 3.0;
-pub const BREWERY_WATER_PER_CYCLE: f64 = 2.0;
-pub const BREWERY_FIREWOOD_PER_CYCLE: f64 = 1.0;
+pub const BREWERY_BARLEY_PER_MALT_CYCLE: f64 = 3.0;
+pub const BREWERY_MALTING_WATER_PER_CYCLE: f64 = 1.0;
+pub const BREWERY_MALTING_FIREWOOD_PER_CYCLE: f64 = 0.5;
+pub const BREWERY_MALT_PER_CYCLE: f64 = 3.0;
+pub const BREWERY_MALT_PER_ALE_CYCLE: f64 = 3.0;
+pub const BREWERY_BREWING_WATER_PER_CYCLE: f64 = 2.0;
+pub const BREWERY_BREWING_FIREWOOD_PER_CYCLE: f64 = 0.5;
 pub const BREWERY_ALE_PER_CYCLE: f64 = 4.0;
 pub const WEAVER_WOOL_PER_CYCLE: f64 = 3.0;
 pub const WEAVER_CLOTH_PER_CYCLE: f64 = 2.0;
@@ -292,6 +296,7 @@ pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = 0.8;
 pub const FARM_GROWTH_SECONDS: f64 = 6000.0;
 pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = 0.08;
 pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = 24.0;
+pub const FARMSTEAD_STARTER_BARLEY_SEED: f64 = 24.0;
 pub const FARM_EARLY_HARVEST_MONTH: u32 = 8;
 pub const FARM_EARLY_HARVEST_MINIMUM_GROWTH: f64 = 0.55;
 pub const FARM_EARLY_HARVEST_RIPENESS_FACTOR: f64 = 0.85;
@@ -369,6 +374,7 @@ pub const SWINE_HEALTH_LOSS_PER_CYCLE: f64 = 0.09;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FarmCropProduce {
     Grain,
+    Barley,
     Fibre,
     None,
 }
@@ -460,7 +466,7 @@ pub const FARM_CROP_BARLEY: FarmCropDef = FarmCropDef {
     id: FARM_CROP_BARLEY_ID,
     slug: "barley",
     label: "Barley",
-    produce: FarmCropProduce::Grain,
+    produce: FarmCropProduce::Barley,
     work_season: FarmWorkSeason::Spring,
     seed_grain_per_square_meter: 0.013,
     yield_multiplier: 0.91,
@@ -564,6 +570,8 @@ pub struct BuildingDef {
     pub storage_water: f64,
     pub storage_food: f64,
     pub storage_grain: f64,
+    pub storage_barley: f64,
+    pub storage_malt: f64,
     pub storage_flour: f64,
     pub storage_ale: f64,
     pub storage_preserved_food: f64,
@@ -599,6 +607,8 @@ const FOUNDERS_CAMP: BuildingDef = BuildingDef {
     storage_water: 120.0,
     storage_food: 160.0,
     storage_grain: 160.0,
+    storage_barley: 120.0,
+    storage_malt: 80.0,
     storage_flour: 120.0,
     storage_ale: 80.0,
     storage_preserved_food: 120.0,
@@ -634,6 +644,8 @@ const SALVAGE_PILE: BuildingDef = BuildingDef {
     storage_water: 2000.0,
     storage_food: 2000.0,
     storage_grain: 2000.0,
+    storage_barley: 2000.0,
+    storage_malt: 2000.0,
     storage_flour: 2000.0,
     storage_ale: 2000.0,
     storage_preserved_food: 2000.0,
@@ -669,6 +681,8 @@ const LUMBER_MILL: BuildingDef = BuildingDef {
     storage_water: 48.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -704,6 +718,8 @@ const REFORESTER: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -739,6 +755,8 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -774,6 +792,8 @@ const STONE_QUARRY: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -809,6 +829,8 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -844,6 +866,8 @@ const WELL: BuildingDef = BuildingDef {
     storage_water: 100.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -879,6 +903,8 @@ const HUNTERS_HALL: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 100.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -914,6 +940,8 @@ const FORAGERS_SHED: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 80.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -949,6 +977,8 @@ const FISHING_CAMP: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 120.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -984,6 +1014,8 @@ const CHAPEL: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1019,6 +1051,8 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_water: 48.0,
     storage_food: 96.0,
     storage_grain: 48.0,
+    storage_barley: 72.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 140.0,
     storage_preserved_food: 0.0,
@@ -1054,6 +1088,8 @@ const TOWN_HALL: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1089,6 +1125,8 @@ const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1124,6 +1162,8 @@ const WATCHTOWER: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1159,6 +1199,8 @@ const GUARDHOUSE: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 72.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1193,7 +1235,9 @@ const THRESHING_BARN: BuildingDef = BuildingDef {
     storage_stone: 0.0,
     storage_water: 0.0,
     storage_food: 0.0,
-    storage_grain: 280.0,
+    storage_grain: 240.0,
+    storage_barley: 180.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1229,6 +1273,8 @@ const PASTORAL_FARMSTEAD: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 120.0,
     storage_grain: 90.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 70.0,
@@ -1264,6 +1310,8 @@ const SWINEHERD: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 150.0,
     storage_grain: 120.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1299,6 +1347,8 @@ const MONASTERY: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 180.0,
     storage_grain: 180.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 120.0,
     storage_preserved_food: 80.0,
@@ -1331,9 +1381,11 @@ const BREWERY: BuildingDef = BuildingDef {
     storage_timber: 0.0,
     storage_firewood: 40.0,
     storage_stone: 0.0,
-    storage_water: 100.0,
+    storage_water: 120.0,
     storage_food: 0.0,
-    storage_grain: 140.0,
+    storage_grain: 0.0,
+    storage_barley: 96.0,
+    storage_malt: 48.0,
     storage_flour: 0.0,
     storage_ale: 200.0,
     storage_preserved_food: 0.0,
@@ -1369,6 +1421,8 @@ const SMOKEHOUSE: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 120.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 180.0,
@@ -1403,7 +1457,9 @@ const GRANARY: BuildingDef = BuildingDef {
     storage_stone: 0.0,
     storage_water: 120.0,
     storage_food: 340.0,
-    storage_grain: 420.0,
+    storage_grain: 360.0,
+    storage_barley: 240.0,
+    storage_malt: 0.0,
     storage_flour: 260.0,
     storage_ale: 0.0,
     storage_preserved_food: 180.0,
@@ -1439,6 +1495,8 @@ const APIARY: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 40.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1474,6 +1532,8 @@ const WATERMILL: BuildingDef = BuildingDef {
     storage_water: 80.0,
     storage_food: 0.0,
     storage_grain: 180.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 260.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1509,6 +1569,8 @@ const CARPENTER: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1544,6 +1606,8 @@ const WEAVER: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1579,6 +1643,8 @@ const FERRY_LANDING: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 0.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1614,6 +1680,8 @@ const VINEYARD: BuildingDef = BuildingDef {
     storage_water: 0.0,
     storage_food: 40.0,
     storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
     storage_flour: 0.0,
     storage_ale: 0.0,
     storage_preserved_food: 0.0,
@@ -1775,6 +1843,7 @@ pub enum TradeResource {
     Firewood,
     Food,
     Grain,
+    Barley,
     Ironwork,
 }
 
@@ -1793,6 +1862,7 @@ impl TradeResource {
             Self::Firewood => TradeResourceSpendScope::MarketAccessible,
             Self::Food => TradeResourceSpendScope::MarketAccessible,
             Self::Grain => TradeResourceSpendScope::MarketAccessible,
+            Self::Barley => TradeResourceSpendScope::MarketAccessible,
             Self::Ironwork => TradeResourceSpendScope::MarketAccessible,
         }
     }
@@ -1888,6 +1958,15 @@ const TRADE_BUY_SEED_GRAIN: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
+const TRADE_BUY_BARLEY_SEED: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_barley_seed",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Barley,
+        amount: 24.0,
+        gold_cost: 15.0,
+    },
+};
+
 const TRADE_BUY_IRONWORK: MarketplaceTradeOffer = MarketplaceTradeOffer {
     id: "buy_ironwork",
     kind: MarketplaceTradeKind::GoldBuy {
@@ -1927,7 +2006,7 @@ const TRADE_TIMBER_FOR_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_SELL_FOOD, TRADE_BUY_SEED_GRAIN, TRADE_BUY_IRONWORK, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
+const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_SELL_FOOD, TRADE_BUY_SEED_GRAIN, TRADE_BUY_BARLEY_SEED, TRADE_BUY_IRONWORK, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
 
 pub fn marketplace_trade_offer(id: &str) -> Option<&'static MarketplaceTradeOffer> {
     ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)

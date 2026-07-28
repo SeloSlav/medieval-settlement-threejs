@@ -7,6 +7,10 @@ import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import { FrontierRiskMarkers } from '../src/security/FrontierRiskMarkers.ts';
 import {
+  handleDockHotkey,
+  type DockToggle,
+} from '../src/ui/constructionDockToggle.ts';
+import {
   armedGuardCount,
   countSitesProtectedByWatchtower,
   estimatedRaidDays,
@@ -801,6 +805,29 @@ assert.match(setupPanel, /Contested frontier/);
 assert.match(setupPanel, /enemy pressure/i);
 assert.match(toolbar, /MILITARY_BUILD_MENU_ENTRIES/);
 assert.match(toolbar, /setConflictEnabled/);
+assert.match(toolbar, /data-tooltip="Defenses \(X\)"/);
+assert.match(toolbar, /hotkey: 'x'/);
+assert.doesNotMatch(toolbar, /hotkey: 'd'/);
+{
+  let active = false;
+  const button = { hidden: true, disabled: false } as HTMLButtonElement;
+  const toggle: DockToggle = {
+    button,
+    hotkey: 'x',
+    getActive: () => active,
+    setActive: (next) => {
+      active = next;
+    },
+  };
+  assert.equal(handleDockHotkey('x', [toggle]), false, 'hidden frontier controls must not consume hotkeys');
+  assert.equal(active, false);
+  button.hidden = false;
+  assert.equal(handleDockHotkey('X', [toggle]), true, 'visible frontier controls should accept hotkeys');
+  assert.equal(active, true);
+  button.disabled = true;
+  assert.equal(handleDockHotkey('x', [toggle]), false, 'disabled frontier controls must not consume hotkeys');
+  assert.equal(active, true);
+}
 assert.match(settlementHud, /formatFrontierForecast/);
 assert.match(settlementHud, /formatFrontierForecast\(security, world\.enemyPressure\)/);
 assert.match(settlementHud, /formatFrontierRaidTiming/);

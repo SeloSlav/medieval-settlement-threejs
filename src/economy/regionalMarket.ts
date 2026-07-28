@@ -52,6 +52,7 @@ export function priceMultiplierFor(
       return state.firewoodPriceMult;
     case 'food':
     case 'grain':
+    case 'barley':
       return state.foodPriceMult;
     default: {
       const unhandled: never = resource;
@@ -141,6 +142,9 @@ export function describeMarketplaceTradeOfferWithPrices(
       const gold = effectiveTradeGoldCost(offer, state);
       if (offer.id === 'buy_seed_grain') {
         return `Import ${offer.amount} seed grain for ${gold} gold`;
+      }
+      if (offer.id === 'buy_barley_seed') {
+        return `Import ${offer.amount} barley seed for ${gold} gold`;
       }
       return `Buy ${offer.amount} ${resourceLabel(offer.resource).toLowerCase()} for ${gold} gold`;
     }

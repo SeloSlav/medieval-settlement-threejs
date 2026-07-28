@@ -156,6 +156,16 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="grain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="grain" hidden></span>
       </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="barley" data-tooltip="Brewing barley stored at physical farmsteads, granaries, markets, and brewhouses. Barley seed remains protected at its holding; loaded carts are shown separately.">
+        <span class="settlement-hud__label">Barley</span>
+        <strong class="settlement-hud__value" data-stockpile="barley">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="barley" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="malt" data-tooltip="Kiln-dried malt held physically at brewhouses between malting and brewing cycles.">
+        <span class="settlement-hud__label">Malt</span>
+        <strong class="settlement-hud__value" data-stockpile="malt">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="malt" hidden></span>
+      </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flour" data-tooltip="Flour stored at physical mills, granaries, markets, and bakeries. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Flour</span>
         <strong class="settlement-hud__value" data-stockpile="flour">0</strong>

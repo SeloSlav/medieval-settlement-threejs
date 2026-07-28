@@ -60,6 +60,8 @@ export type ResourceTotals = {
   food: number;
   gold: number;
   grain: number;
+  barley: number;
+  malt: number;
   flour: number;
   ale: number;
   preservedFood: number;
@@ -79,6 +81,8 @@ export const HUD_RESOURCE_KINDS = [
   'food',
   'gold',
   'grain',
+  'barley',
+  'malt',
   'flour',
   'ale',
   'preservedFood',
@@ -138,6 +142,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let water = ledger?.water ?? 0;
   let food = ledger?.food ?? 0;
   let grain = ledger?.grain ?? 0;
+  let barley = ledger?.barley ?? 0;
+  let malt = ledger?.malt ?? 0;
   let flour = ledger?.flour ?? 0;
   let ale = ledger?.ale ?? 0;
   let preservedFood = ledger?.preservedFood ?? 0;
@@ -156,6 +162,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     water += building.water;
     food += building.food;
     grain += building.grain;
+    barley += building.barley ?? 0;
+    malt += building.malt ?? 0;
     flour += building.flour;
     ale += building.ale;
     preservedFood += building.preservedFood;
@@ -200,6 +208,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     food,
     gold: Math.max(0, gold),
     grain,
+    barley,
+    malt,
     flour,
     ale,
     preservedFood,
@@ -324,6 +334,7 @@ export function computeMarketplaceTradeAvailability(
   let accessibleFirewood = 0;
   let accessibleFood = 0;
   let accessibleGrain = 0;
+  let accessibleBarley = 0;
   let accessibleIronwork = 0;
   let reservedBuildingTimber = 0;
   let reservedBuildingStone = 0;
@@ -360,6 +371,7 @@ export function computeMarketplaceTradeAvailability(
     accessibleGrain += building.kind === 'granary'
       ? granaryExportableGrain(building.grain, building.granaryGrainReserve ?? 0)
       : building.grain;
+    accessibleBarley += building.barley ?? 0;
     accessibleIronwork += building.ironwork ?? 0;
   }
 
@@ -394,6 +406,7 @@ export function computeMarketplaceTradeAvailability(
     firewood: (includeLegacyLedger ? state.stockpile.firewood : 0) + accessibleFirewood,
     food: (includeLegacyLedger ? state.stockpile.food : 0) + accessibleFood,
     grain: (includeLegacyLedger ? state.stockpile.grain : 0) + accessibleGrain,
+    barley: (includeLegacyLedger ? (state.stockpile.barley ?? 0) : 0) + accessibleBarley,
     ironwork: (includeLegacyLedger ? (state.stockpile.ironwork ?? 0) : 0) + accessibleIronwork,
   };
 }
@@ -460,6 +473,8 @@ function emptyResourceTotals(): ResourceTotals {
     food: 0,
     gold: 0,
     grain: 0,
+    barley: 0,
+    malt: 0,
     flour: 0,
     ale: 0,
     preservedFood: 0,

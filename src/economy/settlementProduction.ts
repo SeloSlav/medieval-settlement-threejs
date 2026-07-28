@@ -1,8 +1,11 @@
 import {
   BREWERY_ALE_PER_CYCLE,
-  BREWERY_FIREWOOD_PER_CYCLE,
-  BREWERY_GRAIN_PER_CYCLE,
-  BREWERY_WATER_PER_CYCLE,
+  BREWERY_BARLEY_PER_MALT_CYCLE,
+  BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+  BREWERY_BREWING_WATER_PER_CYCLE,
+  BREWERY_MALT_PER_CYCLE,
+  BREWERY_MALTING_FIREWOOD_PER_CYCLE,
+  BREWERY_MALTING_WATER_PER_CYCLE,
   BUILDING_STORAGE_CAPS,
   CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
@@ -75,7 +78,7 @@ export type SettlementProductionCapacity = {
   breadWaterPerDay: number;
   breadFirewoodPerDay: number;
   aleOutputPerDay: number;
-  aleGrainPerDay: number;
+  aleBarleyPerDay: number;
   aleWaterPerDay: number;
   aleFirewoodPerDay: number;
   preservedFoodOutputPerDay: number;
@@ -94,6 +97,7 @@ export type SettlementProductionCapacity = {
 };
 
 export type ProcessorInput =
+  | 'barley'
   | 'grain'
   | 'flour'
   | 'water'
@@ -130,7 +134,6 @@ export type GrainChainRoadPlan = {
 
 export type ProductionGrainRoadBranch = {
   breadGrainPerDay: number;
-  aleGrainPerDay: number;
   firstProcessorId: string | null;
 };
 
@@ -191,10 +194,8 @@ type ProcessorOverview = Pick<
 type GrainChainBranch = {
   millWorkers: number;
   bakeryWorkers: number;
-  breweryGrainPerDay: number;
   firstMillId: string | null;
   firstBakeryId: string | null;
-  firstBreweryId: string | null;
 };
 
 type TimedInputDelivery = {
@@ -270,31 +271,22 @@ function earlierStableId(current: string | null, candidate: string): string {
 function recordGrainRoadActivity(
   branches: Map<string, GrainChainBranch>,
   building: BuildingState,
-  role: 'mill' | 'bakery' | 'brewery',
+  role: 'mill' | 'bakery',
   componentFor: ProductionRoadComponentResolver | undefined,
-  grainPerDay = 0,
 ): void {
   const key = grainChainBranchKey(building, componentFor);
   const branch = branches.get(key) ?? {
     millWorkers: 0,
     bakeryWorkers: 0,
-    breweryGrainPerDay: 0,
     firstMillId: null,
     firstBakeryId: null,
-    firstBreweryId: null,
   };
   if (role === 'mill') {
     branch.millWorkers += building.assignedLabor;
     branch.firstMillId = earlierStableId(branch.firstMillId, building.id);
-  } else if (role === 'bakery') {
+  } else {
     branch.bakeryWorkers += building.assignedLabor;
     branch.firstBakeryId = earlierStableId(branch.firstBakeryId, building.id);
-  } else {
-    branch.breweryGrainPerDay += Math.max(0, grainPerDay);
-    branch.firstBreweryId = earlierStableId(
-      branch.firstBreweryId,
-      building.id,
-    );
   }
   branches.set(key, branch);
 }
@@ -579,33 +571,40 @@ function completedProcessorOverview(
       }
       case 'brewery': {
         breweryWorkers += building.assignedLabor;
-        const cycles = breweryCyclesPerWorker * building.assignedLabor;
-        recordGrainRoadActivity(
-          grainChainBranches,
-          building,
-          'brewery',
-          componentFor,
-          cycles * BREWERY_GRAIN_PER_CYCLE,
-        );
+        const workCycles = breweryCyclesPerWorker * building.assignedLabor;
+        const aleCycles = workCycles / 2;
         recordProsperityOutput(
           prosperityRoadBranches,
           building,
           componentFor,
           'ale',
-          cycles * BREWERY_ALE_PER_CYCLE,
+          aleCycles * BREWERY_ALE_PER_CYCLE,
         );
         let runway = buildingInputRunway(
           deliveries,
           building,
-          'grain',
-          cycles * BREWERY_GRAIN_PER_CYCLE,
+          'barley',
+          aleCycles * BREWERY_BARLEY_PER_MALT_CYCLE,
         );
-        let limitingInput: ProcessorInput = 'grain';
+        if (aleCycles > 1e-9 && (building.malt ?? 0) > 1e-9) {
+          const maltAsBarley = (building.malt ?? 0)
+            / BREWERY_MALT_PER_CYCLE
+            * BREWERY_BARLEY_PER_MALT_CYCLE;
+          runway = inputRunway(
+            Math.max(0, building.barley ?? 0) + maltAsBarley,
+            aleCycles * BREWERY_BARLEY_PER_MALT_CYCLE,
+            deliveries.get(building.id)?.get('barley'),
+          );
+        }
+        let limitingInput: ProcessorInput = 'barley';
         const waterRunway = buildingInputRunway(
           deliveries,
           building,
           'water',
-          cycles * BREWERY_WATER_PER_CYCLE,
+          aleCycles * (
+            BREWERY_MALTING_WATER_PER_CYCLE
+            + BREWERY_BREWING_WATER_PER_CYCLE
+          ),
         );
         if (waterRunway.days < runway.days) {
           runway = waterRunway;
@@ -615,7 +614,10 @@ function completedProcessorOverview(
           deliveries,
           building,
           'firewood',
-          cycles * BREWERY_FIREWOOD_PER_CYCLE,
+          aleCycles * (
+            BREWERY_MALTING_FIREWOOD_PER_CYCLE
+            + BREWERY_BREWING_FIREWOOD_PER_CYCLE
+          ),
         );
         if (firewoodRunway.days < runway.days) {
           runway = firewoodRunway;
@@ -633,7 +635,7 @@ function completedProcessorOverview(
             building.ale,
             processorOutputTargetForBuilding(building)
               ?? (BUILDING_STORAGE_CAPS.brewery.ale ?? 0),
-            cycles * BREWERY_ALE_PER_CYCLE,
+            aleCycles * BREWERY_ALE_PER_CYCLE,
           ),
           building.id,
           normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
@@ -804,22 +806,12 @@ function grainChainRoadPlan(
     const breadGrainPerDay = matchedFlourPerDay
       / WATERMILL_FLOUR_PER_CYCLE
       * WATERMILL_GRAIN_PER_CYCLE;
-    let firstProcessorId = breadGrainPerDay > 1e-9
+    const firstProcessorId = breadGrainPerDay > 1e-9
       ? branch.firstMillId
       : null;
-    if (
-      branch.breweryGrainPerDay > 1e-9
-      && branch.firstBreweryId !== null
-    ) {
-      firstProcessorId = earlierStableId(
-        firstProcessorId,
-        branch.firstBreweryId,
-      );
-    }
-    if (breadGrainPerDay > 1e-9 || branch.breweryGrainPerDay > 1e-9) {
+    if (breadGrainPerDay > 1e-9) {
       grainRoadBranches.set(key, {
         breadGrainPerDay,
-        aleGrainPerDay: branch.breweryGrainPerDay,
         firstProcessorId,
       });
     }
@@ -883,7 +875,7 @@ function grainChainRoadPlan(
  * lengths, labor scaling, and Sabbath policy. Values deliberately assume full
  * input supply; the Town Hall labels them as capacity rather than production.
  * When a component resolver is supplied, multi-stage bread capacity is matched
- * inside real cart-connected road branches and sustained bread / ale grain draw
+ * inside real cart-connected road branches and sustained bread-grain draw
  * is retained for the physical reserve ledger without any shortest-path solves.
  */
 export function computeSettlementProductionCapacity(
@@ -933,6 +925,7 @@ export function computeSettlementProductionCapacity(
   );
   const bakeryCycles = cyclesPerCalendarDay('granary', bakeryWorkers, sabbathObserved);
   const breweryCycles = cyclesPerCalendarDay('brewery', breweryWorkers, sabbathObserved);
+  const breweryAleCycles = breweryCycles / 2;
   const smokehouseCycles = cyclesPerCalendarDay(
     'smokehouse',
     smokehouseWorkers,
@@ -1027,10 +1020,16 @@ export function computeSettlementProductionCapacity(
     breadGrainPerDay: millCyclesForBread * WATERMILL_GRAIN_PER_CYCLE,
     breadWaterPerDay: breadCyclesPerDay * GRANARY_WATER_PER_CYCLE,
     breadFirewoodPerDay: breadCyclesPerDay * GRANARY_FIREWOOD_PER_CYCLE,
-    aleOutputPerDay: breweryCycles * BREWERY_ALE_PER_CYCLE,
-    aleGrainPerDay: breweryCycles * BREWERY_GRAIN_PER_CYCLE,
-    aleWaterPerDay: breweryCycles * BREWERY_WATER_PER_CYCLE,
-    aleFirewoodPerDay: breweryCycles * BREWERY_FIREWOOD_PER_CYCLE,
+    aleOutputPerDay: breweryAleCycles * BREWERY_ALE_PER_CYCLE,
+    aleBarleyPerDay: breweryAleCycles * BREWERY_BARLEY_PER_MALT_CYCLE,
+    aleWaterPerDay: breweryAleCycles * (
+      BREWERY_MALTING_WATER_PER_CYCLE
+      + BREWERY_BREWING_WATER_PER_CYCLE
+    ),
+    aleFirewoodPerDay: breweryAleCycles * (
+      BREWERY_MALTING_FIREWOOD_PER_CYCLE
+      + BREWERY_BREWING_FIREWOOD_PER_CYCLE
+    ),
     preservedFoodOutputPerDay: smokehouseCycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     preservationFreshFoodPerDay: smokehouseCycles * SMOKEHOUSE_FOOD_PER_CYCLE,
     preservationFirewoodPerDay: smokehouseCycles * SMOKEHOUSE_FIREWOOD_PER_CYCLE,

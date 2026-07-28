@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as THREE from 'three';
 import {
@@ -56,10 +56,20 @@ for (const kind of kinds) {
   assert.ok(size.x <= 7.5, `${kind} should stay inside a 6.2m parcel with modest foliage overhang`);
   assert.ok(size.z <= 7.5, `${kind} should stay inside a 5.4m backyard with modest foliage overhang`);
   assert.ok(size.y > 0.4, `${kind} should have readable vertical structure`);
-  assert.ok(
-    names.every((name) => !/fence/i.test(name)),
-    `${kind} should leave all fencing to the parcel perimeter renderer`,
-  );
+  const fenceNames = names.filter((name) => /fence/i.test(name));
+  if (kind === 'hen_yard') {
+    assert.deepEqual(
+      fenceNames,
+      ['Hen yard enclosure fence'],
+      'hen yards should retain their functional animal enclosure',
+    );
+  } else {
+    assert.deepEqual(
+      fenceNames,
+      [],
+      `${kind} should leave fencing to the parcel perimeter renderer`,
+    );
+  }
 
   if (terrainBackedKinds.has(kind)) {
     let hasArtificialGroundPlane = false;
@@ -124,7 +134,48 @@ assert.ok(
   vegetableNames.includes('Bean and pea trellis'),
   'beans and peas should remain represented without replacing a root-crop bed',
 );
+assert.ok(
+  vegetableNames.filter((name) => name === 'Textured climbing bean vine').length >= 7,
+  'the trellis should use realistic climbing-vine cutouts instead of colored leaf balls',
+);
+for (const primitiveName of [
+  'Layered cabbage heart',
+  'Carrot root shoulder',
+  'Carrot crown',
+  'Turnip root bulb',
+  'Purple turnip shoulder',
+]) {
+  assert.ok(
+    !vegetableNames.includes(primitiveName),
+    `visible vegetable detail should not fall back to primitive ${primitiveName} geometry`,
+  );
+}
 disposeBackyardGardenMesh(vegetableDetail);
+
+const herbDetail = createBackyardGardenMesh('herb_garden', {
+  width: 6.2,
+  depth: 5.4,
+  seed: 4271,
+});
+const herbNames: string[] = [];
+herbDetail.traverse((object) => {
+  if (object.name) herbNames.push(object.name);
+});
+for (const herb of ['parsley', 'rosemary', 'sage']) {
+  assert.ok(
+    herbNames.some((name) => name === `Textured ${herb} clump`),
+    `herb gardens should contain a realistic textured ${herb} crop`,
+  );
+  assert.ok(
+    herbNames.filter((name) => name === `Textured ${herb} herb card`).length >= 3,
+    `${herb} clumps should use crossed photographic cards for depth`,
+  );
+}
+assert.ok(
+  herbNames.filter((name) => name === 'Textured hanging herb bundle').length === 4,
+  'the drying rack should use textured herb bundles instead of primitive cones',
+);
+disposeBackyardGardenMesh(herbDetail);
 
 const appleDetail = createBackyardGardenMesh('apple_orchard', { width: 6.2, depth: 5.4, seed: 4271 });
 const cherryDetail = createBackyardGardenMesh('cherry_orchard', { width: 6.2, depth: 5.4, seed: 4271 });
@@ -254,6 +305,14 @@ const backyardGardenSource = readFileSync(
   join(process.cwd(), 'src/residences/backyardGardenMesh.ts'),
   'utf8',
 );
+const backyardChickenSource = readFileSync(
+  join(process.cwd(), 'src/residences/backyardChickenAssets.ts'),
+  'utf8',
+);
+const backyardLineupSource = readFileSync(
+  join(process.cwd(), 'src/e2e/backyardLineup.ts'),
+  'utf8',
+);
 assert.match(
   backyardGardenSource,
   /rose_blossom_card\.png/,
@@ -266,6 +325,19 @@ for (const textureName of ['cabbage_leaf.png', 'carrot_frond.png', 'turnip_leaf.
     `vegetable rendering should reference ${textureName}`,
   );
 }
+for (const texturePath of [
+  'public/assets/textures/vegetation/kitchen_crops/bean_vine.png',
+  'public/assets/textures/vegetation/kitchen_herbs/parsley_clump.png',
+  'public/assets/textures/vegetation/kitchen_herbs/rosemary_clump.png',
+  'public/assets/textures/vegetation/kitchen_herbs/sage_clump.png',
+]) {
+  assert.ok(existsSync(join(process.cwd(), texturePath)), `${texturePath} should be packaged`);
+  assert.match(
+    backyardGardenSource,
+    new RegExp(texturePath.split('/').at(-1)!.replace('.', '\\.')),
+    `${texturePath} should be referenced by the backyard renderer`,
+  );
+}
 assert.doesNotMatch(
   backyardGardenSource,
   /addFallbackTree|CylinderGeometry\(0\.14, 0\.24|IcosahedronGeometry\(0\.74/,
@@ -274,7 +346,7 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   backyardGardenSource,
   /addLowWattleFence|Backyard wattle fence/,
-  'backyard detail meshes must leave fencing to the parcel perimeter renderer',
+  'orchard detail meshes must leave fencing to the parcel perimeter renderer',
 );
 assert.match(
   backyardGardenSource,
@@ -290,6 +362,16 @@ assert.match(
   backyardAssetSource,
   /WIND_DIR\.x \* weight[\s\S]*WIND_DIR\.z \* weight/,
   'backyard foliage wind must be stored in plant/object space without inverse leaf-scale amplification',
+);
+assert.match(
+  backyardChickenSource,
+  /quaternius-chicken\.glb/,
+  'backyard hens should retain the CC0 Quaternius animated model source',
+);
+assert.match(
+  backyardLineupSource,
+  /loadBackyardChickenSource\(\)[\s\S]*?removeBackyardChickenFallbacks\(garden\)/,
+  'the backyard lineup should replace procedural birds with the same model source as gameplay',
 );
 
 console.log('Backyard garden visual system passed.');

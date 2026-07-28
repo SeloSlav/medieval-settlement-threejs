@@ -12,7 +12,7 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::CommodityKind;
-use crate::farming::field_seed_grain_remaining;
+use crate::farming::{field_seed_crop, field_seed_grain_remaining, CROP_BARLEY};
 use crate::monastery_hospitality_policy::monastery_feast_surplus;
 use crate::roads::RoadNetwork;
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
@@ -50,6 +50,7 @@ pub struct SimTickContext {
     marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     specialty_claims: RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
     farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
+    farmstead_barley_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
     cattle_field_sources_by_owner: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
 }
 
@@ -88,6 +89,7 @@ impl SimTickContext {
             marketplace_claims: RefCell::new(HashMap::new()),
             specialty_claims: RefCell::new(HashMap::new()),
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
+            farmstead_barley_seed_reserves: RefCell::new(HashMap::new()),
             cattle_field_sources_by_owner: RefCell::new(HashMap::new()),
         }
     }
@@ -370,6 +372,21 @@ impl SimTickContext {
             .unwrap_or(0.0)
     }
 
+    pub fn farmstead_barley_seed_reserve_for(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        farmstead_id: u64,
+    ) -> f64 {
+        self.ensure_farmstead_seed_reserves(ctx, owner);
+        self.farmstead_barley_seed_reserves
+            .borrow()
+            .get(&owner)
+            .and_then(|reserves| reserves.get(&farmstead_id))
+            .copied()
+            .unwrap_or(0.0)
+    }
+
     /// Keeps the cache current when this substep advances field work after a
     /// processor has already caused the owner-wide reserve map to be built.
     pub fn set_farmstead_seed_reserve(
@@ -387,11 +404,27 @@ impl SimTickContext {
             .insert(farmstead_id, reserve.max(0.0));
     }
 
+    pub fn set_farmstead_barley_seed_reserve(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        farmstead_id: u64,
+        reserve: f64,
+    ) {
+        self.ensure_farmstead_seed_reserves(ctx, owner);
+        self.farmstead_barley_seed_reserves
+            .borrow_mut()
+            .entry(owner)
+            .or_default()
+            .insert(farmstead_id, reserve.max(0.0));
+    }
+
     fn ensure_farmstead_seed_reserves(&self, ctx: &ReducerContext, owner: Identity) {
         if self.farmstead_seed_reserves.borrow().contains_key(&owner) {
             return;
         }
         let mut reserves = HashMap::new();
+        let mut barley_reserves = HashMap::new();
         for field in ctx.db.farm_field().owner().filter(&owner) {
             let reserve = field_seed_grain_remaining(
                 field.area,
@@ -401,11 +434,18 @@ impl SimTickContext {
                 field.stage_progress,
                 field.priority,
             );
-            *reserves.entry(field.farmstead_id).or_insert(0.0) += reserve;
+            if field_seed_crop(field.crop, field.next_crop, field.stage) == CROP_BARLEY {
+                *barley_reserves.entry(field.farmstead_id).or_insert(0.0) += reserve;
+            } else {
+                *reserves.entry(field.farmstead_id).or_insert(0.0) += reserve;
+            }
         }
         self.farmstead_seed_reserves
             .borrow_mut()
             .insert(owner, reserves);
+        self.farmstead_barley_seed_reserves
+            .borrow_mut()
+            .insert(owner, barley_reserves);
     }
 
     /// Cattle select at most a handful of priority fields from geometry and

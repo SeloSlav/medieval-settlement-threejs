@@ -62,6 +62,7 @@ export class BuildToolbar {
   private readonly waterOverlayButton: HTMLButtonElement;
   private readonly cityAdminButton: HTMLButtonElement;
   private readonly settingsButton: HTMLButtonElement;
+  private readonly starterCampButton: HTMLButtonElement;
   private readonly buildButton: HTMLButtonElement;
   private readonly basicBuildMenu: HTMLElement;
   private readonly agricultureBuildMenu: HTMLElement;
@@ -92,6 +93,7 @@ export class BuildToolbar {
   private readonly compassHud: CompassHud;
   private gameMenu: GameMenu | null = null;
   private firstPersonActive = false;
+  private starterCampRequired = false;
   private basicBuildMenuOpen = false;
   private agricultureBuildMenuOpen = false;
   private ruralIndustryBuildMenuOpen = false;
@@ -149,6 +151,7 @@ export class BuildToolbar {
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target) || this.isGameMenuOpen()) return;
     if (!this.gameplayEnabled) return;
+    if (this.starterCampRequired) return;
     if (event.altKey || event.ctrlKey || event.metaKey) return;
 
     const key = event.key.toLowerCase();
@@ -235,6 +238,7 @@ export class BuildToolbar {
       onOpenRoads: () => void;
       onBuildRoad: () => void;
       onSelectBuilding: (kind: BuildingKind) => void;
+      onPlaceStarterCamp: () => void;
       onSelectResidences: () => void;
       onToggleCityAdministration: () => void;
       onSetWaterOverlay?: (active: boolean) => void;
@@ -324,6 +328,20 @@ export class BuildToolbar {
           <div class="builder-status-bar" data-builder-status hidden></div>
         </div>
 
+        <button type="button" class="starter-camp-button" data-action="place-starter-camp" aria-pressed="false" hidden>
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M5 26 16 7l11 19" />
+            <path d="M9 26h14" />
+            <path d="M16 7v19" />
+            <path d="M12 26c0-4 1.4-7 4-9 2.6 2 4 5 4 9" />
+            <path d="M22 8c2.4 1.1 3.8 3.1 4.1 5.8" />
+          </svg>
+          <span class="starter-camp-button__copy">
+            <strong>Place starter camp</strong>
+            <small>Choose where your settlement begins</small>
+          </span>
+        </button>
+
         <nav class="construction-dock" data-construction-dock aria-label="Construction tools">
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="road" data-tooltip="Roads (R)" aria-label="Roads (R)" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -361,13 +379,13 @@ export class BuildToolbar {
           </svg>
           <span class="construction-dock-button__hotkey" aria-hidden="true">V</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="military-build-menu" data-tooltip="Defenses (D)" aria-label="Military menu (D)" aria-controls="military-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false" hidden>
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="military-build-menu" data-tooltip="Defenses (X)" aria-label="Military menu (X)" aria-controls="military-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 3 5 6v5c0 4.7 2.8 8.2 7 10 4.2-1.8 7-5.3 7-10V6l-7-3Z" />
             <path d="M9 14h6" />
             <path d="M10 14V9h4v5" />
           </svg>
-          <span class="construction-dock-button__hotkey" aria-hidden="true">D</span>
+          <span class="construction-dock-button__hotkey" aria-hidden="true">X</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--water" data-action="water-overlay" data-tooltip="Water map (M)" aria-label="Water map (M)" aria-pressed="false">
           <span class="construction-dock-button__icon" aria-hidden="true">💧</span>
@@ -462,6 +480,7 @@ export class BuildToolbar {
     this.waterOverlayButton = this.mustButton(root, '[data-action="water-overlay"]');
     this.cityAdminButton = this.mustButton(root, '[data-action="city-admin"]');
     this.settingsButton = this.mustButton(root, '[data-action="settings"]');
+    this.starterCampButton = this.mustButton(root, '[data-action="place-starter-camp"]');
     this.buildButton = this.mustButton(root, '[data-action="commit-build"]');
     this.basicBuildMenu = this.mustElement(root, '[data-build-menu="basic"]');
     this.agricultureBuildMenu = this.mustElement(root, '[data-build-menu="agriculture"]');
@@ -509,7 +528,7 @@ export class BuildToolbar {
     };
     this.militaryBuildMenuToggle = {
       button: this.militaryBuildMenuButton,
-      hotkey: 'd',
+      hotkey: 'x',
       getActive: () => this.militaryBuildMenuOpen,
       setActive: (active) => this.setMilitaryBuildMenuOpen(active),
     };
@@ -550,6 +569,7 @@ export class BuildToolbar {
       this.closeAllBuildMenus();
       this.gameMenu?.toggle();
     });
+    this.starterCampButton.addEventListener('click', handlers.onPlaceStarterCamp);
     this.bindBuildMenuClicks(this.basicBuildMenu, () => this.setBasicBuildMenuOpen(false));
     this.bindBuildMenuClicks(this.agricultureBuildMenu, () => this.setAgricultureBuildMenuOpen(false));
     this.bindBuildMenuClicks(this.ruralIndustryBuildMenu, () => this.setRuralIndustryBuildMenuOpen(false));
@@ -585,7 +605,8 @@ export class BuildToolbar {
     this.militaryBuildMenuButton.disabled = !enabled || !this.conflictEnabled;
     this.waterOverlayButton.disabled = !enabled || this.cropSuitabilityActive;
     this.cityAdminButton.disabled = !enabled;
-    this.settlementHud.setSpeedControlsEnabled(enabled);
+    this.starterCampButton.disabled = !enabled;
+    this.settlementHud.setSpeedControlsEnabled(enabled && !this.starterCampRequired);
     if (!enabled) {
       this.closeAllBuildMenus();
       dismissDockToggles(this.dockToggles);
@@ -593,6 +614,20 @@ export class BuildToolbar {
         this.applyWaterOverlay(false);
       }
     }
+  }
+
+  setStarterCampRequired(required: boolean): void {
+    if (this.starterCampRequired === required) {
+      this.syncPrimaryHudVisibility();
+      return;
+    }
+    this.starterCampRequired = required;
+    if (required) {
+      this.closeAllBuildMenus();
+      dismissDockToggles(this.dockToggles);
+    }
+    this.settlementHud.setSpeedControlsEnabled(this.gameplayEnabled && !required);
+    this.syncPrimaryHudVisibility();
   }
 
   private applyWaterOverlay(active: boolean, notify = true): void {
@@ -609,6 +644,9 @@ export class BuildToolbar {
 
   setStats(stats: ToolbarStats): void {
     this.hudMode = stats.mode;
+    const placingStarterCamp = stats.mode === 'founders_camp';
+    this.starterCampButton.classList.toggle('is-active', placingStarterCamp);
+    this.starterCampButton.setAttribute('aria-pressed', String(placingStarterCamp));
     const roadMode = stats.mode === 'road';
     this.roadButton.classList.toggle('is-active', roadMode);
     this.roadButton.setAttribute('aria-pressed', String(roadMode));
@@ -742,7 +780,7 @@ export class BuildToolbar {
     this.firstPersonActive = active;
     this.root.classList.toggle('is-first-person', active);
     this.fpModePanel.classList.toggle('is-active', active);
-    this.constructionDock.hidden = active;
+    this.syncPrimaryHudVisibility();
     this.zoomStat.hidden = active;
     this.compassHud.setVisible(active);
     if (active) {
@@ -754,6 +792,11 @@ export class BuildToolbar {
       this.builderStatusBar.hidden = true;
     }
     this.syncBuilderControlsPanel();
+  }
+
+  private syncPrimaryHudVisibility(): void {
+    this.starterCampButton.hidden = this.firstPersonActive || !this.starterCampRequired;
+    this.constructionDock.hidden = this.firstPersonActive || this.starterCampRequired;
   }
 
   private syncBuilderControlsPanel(): void {

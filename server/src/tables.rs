@@ -159,6 +159,14 @@ pub struct PlayerResources {
     /// the first completed homes instead of arriving as extra immigrants.
     #[default(true)]
     pub legacy_unhoused_population_bonus_enabled: bool,
+    /// Threshed spring barley retained separately from bread grain so it can
+    /// seed barley fields or enter the physical malting chain.
+    #[default(0.0)]
+    pub barley: f64,
+    /// Germinated and kiln-dried barley recovered from legacy or demolished
+    /// stores. New production normally remains at the brewhouse.
+    #[default(0.0)]
+    pub malt: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -386,6 +394,14 @@ pub struct Building {
     /// the former one-lot purchasing capacity as the save-compatible default.
     #[default(32u8)]
     pub marketplace_gold_reserve_target: u8,
+    /// Threshed brewing barley. Appended so existing saves retain zero stock
+    /// until a barley field is harvested or seed is imported.
+    #[default(0.0)]
+    pub barley: f64,
+    /// Germinated and kiln-dried barley awaiting the copper. Kept physically
+    /// at the brewhouse and appended for additive save compatibility.
+    #[default(0.0)]
+    pub malt: f64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

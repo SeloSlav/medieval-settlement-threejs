@@ -6,6 +6,13 @@ import {
   createBackyardGardenMesh,
   disposeBackyardGardenMesh,
 } from '../residences/backyardGardenMesh.ts';
+import {
+  createBackyardChickenModel,
+  disposeBackyardChickenSource,
+  loadBackyardChickenSource,
+  removeBackyardChickenFallbacks,
+} from '../residences/backyardChickenAssets.ts';
+import { mulberry32 } from '../utils/random.ts';
 import { loadBackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
 
 declare global {
@@ -29,24 +36,42 @@ root.prepend(renderer.domElement);
 const view = new URLSearchParams(window.location.search).get('view');
 const focusFlower = view === 'flower-close';
 const focusVegetable = view === 'vegetable-close';
-const plants = focusVegetable
+const focusHerb = view === 'herb-close';
+const focusHen = view === 'hen-close';
+const focusSingle = focusFlower || focusVegetable || focusHerb || focusHen;
+const plants = focusVegetable || focusHerb || focusHen
   ? null
   : await loadBackyardPlantCatalog(renderer.getMaxAnisotropy());
+const chickenSource = focusFlower || focusVegetable || focusHerb
+  ? null
+  : await loadBackyardChickenSource().catch((error: unknown) => {
+    console.warn('[Backyard lineup] Could not load the Quaternius chicken pack.', error);
+    return null;
+  });
 if (plants) windStrength.value = 0.85;
 const allSpecs = [
   { kind: 'apple_orchard', label: 'Apple orchard' },
   { kind: 'cherry_orchard', label: 'Cherry orchard' },
-  { kind: 'vegetable_garden', label: 'Cabbage · carrots · turnips' },
+  { kind: 'vegetable_garden', label: 'Vegetable garden' },
   { kind: 'flower_garden', label: 'Flower garden' },
+  { kind: 'herb_garden', label: 'Herb garden' },
+  { kind: 'hen_yard', label: 'Hen yard' },
 ] as const;
 const specs = focusFlower
   ? allSpecs.slice(3)
   : focusVegetable
     ? allSpecs.slice(2, 3)
-    : allSpecs;
-labels.style.gridTemplateColumns = focusFlower || focusVegetable
+    : focusHerb
+      ? allSpecs.slice(4, 5)
+      : focusHen
+        ? allSpecs.slice(5, 6)
+        : allSpecs;
+labels.style.gridTemplateColumns = focusSingle
   ? '1fr'
-  : `repeat(${specs.length}, minmax(0, 1fr))`;
+  : 'repeat(3, minmax(0, 1fr))';
+labels.style.gridTemplateRows = focusSingle
+  ? '1fr'
+  : 'repeat(2, minmax(0, 1fr))';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa6b29a);
@@ -56,6 +81,7 @@ sun.position.set(-9, 16, 11);
 scene.add(sun);
 
 let focusedFlowerY = 0.28;
+const chickenMixers: THREE.AnimationMixer[] = [];
 const gardens = specs.map((spec, index) => {
   const garden = createBackyardGardenMesh(spec.kind, {
     width: 6.2,
@@ -63,9 +89,12 @@ const gardens = specs.map((spec, index) => {
     seed: 4271 + index * 97,
     plants,
   });
-  garden.position.x = focusFlower || focusVegetable
-    ? 0
-    : (index - (specs.length - 1) * 0.5) * 7.2;
+  if (focusSingle) {
+    garden.position.x = 0;
+  } else {
+    garden.position.x = (index % 3 - 1) * 7.2;
+    garden.position.z = (Math.floor(index / 3) - 0.5) * 6.4;
+  }
   if (focusFlower) {
     const cottageFlower = garden.children.find((child) => child.name.startsWith('Swaying cottage flower'));
     if (cottageFlower) {
@@ -75,6 +104,33 @@ const gardens = specs.map((spec, index) => {
       const headAnchor = cottageFlower.children.find((child) => child.type === 'Group');
       focusedFlowerY = cottageFlower.position.y + (headAnchor?.position.y ?? focusedFlowerY);
     }
+  }
+  if (spec.kind === 'hen_yard' && chickenSource) {
+    removeBackyardChickenFallbacks(garden);
+    for (let chickenIndex = 0; chickenIndex < 5; chickenIndex++) {
+      const random = mulberry32(4271 ^ Math.imul(chickenIndex + 1, 0x45d9f3b));
+      const model = createBackyardChickenModel(
+        chickenSource,
+        0.45 * THREE.MathUtils.lerp(0.88, 1.08, random()),
+      );
+      const root = new THREE.Group();
+      root.name = 'Rigged lineup hen';
+      root.position.set(
+        THREE.MathUtils.lerp(-0.3, 2.25, random()),
+        0,
+        THREE.MathUtils.lerp(-0.9, 1.8, random()),
+      );
+      root.rotation.y = random() * Math.PI * 2;
+      root.add(model);
+      garden.add(root);
+      const mixer = new THREE.AnimationMixer(model);
+      const idle = mixer.clipAction(chickenSource.idle, model);
+      idle.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+      idle.play();
+      idle.time = random() * Math.max(0.01, chickenSource.idle.duration);
+      chickenMixers.push(mixer);
+    }
+    garden.userData.usesQuaterniusChickenPack = true;
   }
   scene.add(garden);
 
@@ -89,7 +145,7 @@ const gardens = specs.map((spec, index) => {
 });
 
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(29, 14),
+  new THREE.PlaneGeometry(29, 19),
   new THREE.MeshStandardMaterial({ color: 0x65794a, roughness: 1 }),
 );
 ground.rotation.x = -Math.PI * 0.5;
@@ -103,16 +159,26 @@ if (focusFlower) {
 } else if (focusVegetable) {
   camera.position.set(4.9, 4.7, 6.4);
   camera.lookAt(0, 0.38, -0.1);
+} else if (focusHerb) {
+  camera.position.set(4.6, 3.9, 6.1);
+  camera.lookAt(0, 0.42, -0.15);
+} else if (focusHen) {
+  camera.position.set(5.4, 3.7, 7.2);
+  camera.lookAt(0, 0.65, 0.05);
 } else {
-  camera.position.set(0, 7.7, 19.8);
-  camera.lookAt(0, 1.8, 0);
+  camera.position.set(0, 12.2, 21.8);
+  camera.lookAt(0, 1.25, 0);
 }
 
 let running = true;
+let previousElapsedSeconds = performance.now() * 0.001;
 function render(): void {
   if (!running) return;
   const elapsedSeconds = performance.now() * 0.001;
+  const dtSeconds = Math.min(0.08, Math.max(0, elapsedSeconds - previousElapsedSeconds));
+  previousElapsedSeconds = elapsedSeconds;
   for (const garden of gardens) animateBackyardGardenMesh(garden, elapsedSeconds);
+  for (const mixer of chickenMixers) mixer.update(dtSeconds);
   const width = root!.clientWidth;
   const height = root!.clientHeight;
   renderer.setSize(width, height, false);
@@ -130,6 +196,8 @@ document.body.dataset.ready = 'true';
 
 window.addEventListener('beforeunload', () => {
   running = false;
+  for (const mixer of chickenMixers) mixer.stopAllAction();
   for (const garden of gardens) disposeBackyardGardenMesh(garden);
+  if (chickenSource) disposeBackyardChickenSource(chickenSource.scene);
   renderer.dispose();
 });

@@ -1,8 +1,12 @@
 import {
   BREWERY_ALE_PER_CYCLE,
-  BREWERY_FIREWOOD_PER_CYCLE,
-  BREWERY_GRAIN_PER_CYCLE,
-  BREWERY_WATER_PER_CYCLE,
+  BREWERY_BARLEY_PER_MALT_CYCLE,
+  BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+  BREWERY_BREWING_WATER_PER_CYCLE,
+  BREWERY_MALT_PER_ALE_CYCLE,
+  BREWERY_MALT_PER_CYCLE,
+  BREWERY_MALTING_FIREWOOD_PER_CYCLE,
+  BREWERY_MALTING_WATER_PER_CYCLE,
   GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_FLOUR_PER_CYCLE,
   GRANARY_FOOD_PER_CYCLE,
@@ -51,7 +55,7 @@ export type BuildingProcessorStatus = {
   waterDetailHtml: string;
 };
 
-type StockKey = 'timber' | 'firewood' | 'stone' | 'water' | 'food' | 'grain' | 'flour' | 'ale' | 'preservedFood' | 'wool' | 'cloth';
+type StockKey = 'timber' | 'firewood' | 'stone' | 'water' | 'food' | 'grain' | 'barley' | 'malt' | 'flour' | 'ale' | 'preservedFood' | 'wool' | 'cloth';
 
 type InputRequirement = {
   key: StockKey;
@@ -82,18 +86,6 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     outputPerCycle: GRANARY_FOOD_PER_CYCLE,
     operatingLabel: 'Baking staple food',
     idleNoWorkersLabel: 'Idle — assign workers to bake food',
-  },
-  brewery: {
-    requiresLabor: true,
-    waterPerCycle: BREWERY_WATER_PER_CYCLE,
-    inputs: [
-      { key: 'grain', label: 'grain', required: BREWERY_GRAIN_PER_CYCLE, deliveryHint: 'farmstead or granary deliveries may supply' },
-      { key: 'firewood', label: 'firewood', required: BREWERY_FIREWOOD_PER_CYCLE, deliveryHint: 'lodge or storehouse deliveries may supply' },
-    ],
-    output: 'ale',
-    outputPerCycle: BREWERY_ALE_PER_CYCLE,
-    operatingLabel: 'Brewing ale',
-    idleNoWorkersLabel: 'Idle — assign workers to brew ale',
   },
   smokehouse: {
     requiresLabor: true,
@@ -278,6 +270,123 @@ function buildProcessorStatus(
   };
 }
 
+function getBreweryStatus(
+  building: BuildingState,
+  worldQueries: WorldQueries,
+  onsiteLabor: number,
+): BuildingProcessorStatus {
+  const barley = Math.max(0, building.barley ?? 0);
+  const malt = Math.max(0, building.malt ?? 0);
+  const stagingCycles = processorInputStagingCycles(
+    building.processorOutputTargetPercent,
+  );
+  const maltTarget = Math.min(
+    BREWERY_MALT_PER_ALE_CYCLE * stagingCycles,
+    buildingStorageCaps('brewery').malt ?? 0,
+  );
+  const shouldMalt = barley > 1e-6 && malt + 1e-6 < maltTarget;
+  const inputs: InputRequirement[] = shouldMalt
+    ? [
+      {
+        key: 'barley',
+        label: 'barley',
+        required: BREWERY_BARLEY_PER_MALT_CYCLE,
+        deliveryHint: 'farmstead or granary deliveries may supply',
+      },
+      {
+        key: 'firewood',
+        label: 'firewood',
+        required: BREWERY_MALTING_FIREWOOD_PER_CYCLE,
+        deliveryHint: 'lodge or storehouse deliveries may supply',
+      },
+    ]
+    : [
+      {
+        key: 'malt',
+        label: 'malt',
+        required: BREWERY_MALT_PER_ALE_CYCLE,
+        deliveryHint: 'barley must first be malted here',
+      },
+      {
+        key: 'firewood',
+        label: 'firewood',
+        required: BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+        deliveryHint: 'lodge or storehouse deliveries may supply',
+      },
+    ];
+  const waterPerCycle = shouldMalt
+    ? BREWERY_MALTING_WATER_PER_CYCLE
+    : BREWERY_BREWING_WATER_PER_CYCLE;
+  const waterAssessment = assessWellWaterSupply(
+    building,
+    worldQueries,
+    waterPerCycle,
+  );
+  const waterDetailHtml = formatWellWaterDetailRows(waterAssessment);
+  let limitingCycles = Math.max(0, building.water) / waterPerCycle;
+  let limitingInput = 'water';
+  for (const input of inputs) {
+    const cycles = stockAmount(building, input.key) / input.required;
+    if (cycles < limitingCycles) {
+      limitingCycles = cycles;
+      limitingInput = input.label;
+    }
+  }
+  const outputLimit = processorOutputTargetForBuilding(building)
+    ?? (buildingStorageCaps('brewery').ale ?? 0);
+  const outputRoomCycles = (processorOutputHeadroom(building) ?? 0)
+    / BREWERY_ALE_PER_CYCLE;
+  const processRows = `
+    <li><span>Current brewing step</span><span>${shouldMalt ? 'Floor-malting barley' : 'Brewing malt into ale'} · ${formatInputCycleCoverage(limitingCycles)} · ${limitingInput} limits</span></li>
+    <li><span>Malt working buffer</span><span>${malt.toFixed(1)} / ${maltTarget.toFixed(1)} staged · ${BREWERY_MALT_PER_CYCLE.toFixed(1)} malt per malting cycle</span></li>
+    <li><span>Ale output room</span><span>${formatInputCycleCoverage(outputRoomCycles)} · ale before ${outputLimit.toFixed(0)} target</span></li>
+    <li><span>Process design</span><span>One malting cycle + one brewing cycle per ale batch</span></li>
+  `;
+  const detailHtml = waterDetailHtml + processRows;
+
+  if (onsiteLabor === 0) {
+    return {
+      statusText: building.assignedLabor > 0
+        ? 'Work paused - the full roster is away with its cart'
+        : 'Idle — assign workers to malt barley and brew ale',
+      statusState: 'idle',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  if (isOutputAtLimit(building, 'brewery', 'ale')) {
+    return {
+      statusText: 'Ale target reached — malting and brewing paused',
+      statusState: 'idle',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  const waterIssue = building.water > 1e-6
+    ? null
+    : wellWaterStatusIssue(waterAssessment);
+  if (waterIssue) {
+    return {
+      statusText: waterIssue,
+      statusState: 'warning',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  const missingInput = firstMissingInput(building, inputs);
+  if (missingInput) {
+    return {
+      statusText: formatMissingInput(missingInput),
+      statusState: 'warning',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  return {
+    statusText: shouldMalt
+      ? 'Floor-malting barley'
+      : 'Brewing malt into ale',
+    statusState: 'active',
+    waterDetailHtml: detailHtml,
+  };
+}
+
 function getLumberMillStatus(
   building: BuildingState,
   worldQueries: WorldQueries,
@@ -438,6 +547,9 @@ export function getBuildingProcessorStatus(
     building,
     worldQueries.getActiveDeliveryTrip?.(building) ?? null,
   );
+  if (building.kind === 'brewery') {
+    return getBreweryStatus(building, worldQueries, onsiteLabor);
+  }
   const profile = PROCESSOR_PROFILES[building.kind];
   if (profile) {
     const waterAssessment = assessWellWaterSupply(building, worldQueries, profile.waterPerCycle);

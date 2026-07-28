@@ -26,6 +26,8 @@ type BuildingBalance = {
     water?: number;
     food?: number;
     grain?: number;
+    barley?: number;
+    malt?: number;
     flour?: number;
     ale?: number;
     preservedFood?: number;
@@ -64,7 +66,7 @@ type BackyardGardenBalance = {
 type FarmCropBalance = {
   id: number;
   label: string;
-  produce: 'grain' | 'fibre' | 'none';
+  produce: 'grain' | 'barley' | 'fibre' | 'none';
   workSeason: 'spring' | 'autumn';
   seedGrainPerSquareMeter: number;
   yieldMultiplier: number;
@@ -381,9 +383,13 @@ export type GameBalance = {
     granaryFoodPerCycle: number;
     householdFoodReservePerClaim: number;
     householdFoodReserveCapacityFraction: number;
-    breweryGrainPerCycle: number;
-    breweryWaterPerCycle: number;
-    breweryFirewoodPerCycle: number;
+    breweryBarleyPerMaltCycle: number;
+    breweryMaltingWaterPerCycle: number;
+    breweryMaltingFirewoodPerCycle: number;
+    breweryMaltPerCycle: number;
+    breweryMaltPerAleCycle: number;
+    breweryBrewingWaterPerCycle: number;
+    breweryBrewingFirewoodPerCycle: number;
     breweryAlePerCycle: number;
     weaverWoolPerCycle: number;
     weaverClothPerCycle: number;
@@ -438,6 +444,7 @@ export type GameBalance = {
     growthSeconds: number;
     baseGrainPerSquareMeter: number;
     farmsteadStarterSeedGrain: number;
+    farmsteadStarterBarleySeed: number;
     earlyHarvestMonth: number;
     earlyHarvestMinimumGrowth: number;
     earlyHarvestRipenessFactor: number;
@@ -765,9 +772,13 @@ function generateRust(): string {
     `pub const GRANARY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.granaryFoodPerCycle)};`,
     `pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = ${rustF64(b.production.householdFoodReservePerClaim)};`,
     `pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = ${rustF64(b.production.householdFoodReserveCapacityFraction)};`,
-    `pub const BREWERY_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.breweryGrainPerCycle)};`,
-    `pub const BREWERY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.breweryWaterPerCycle)};`,
-    `pub const BREWERY_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.breweryFirewoodPerCycle)};`,
+    `pub const BREWERY_BARLEY_PER_MALT_CYCLE: f64 = ${rustF64(b.production.breweryBarleyPerMaltCycle)};`,
+    `pub const BREWERY_MALTING_WATER_PER_CYCLE: f64 = ${rustF64(b.production.breweryMaltingWaterPerCycle)};`,
+    `pub const BREWERY_MALTING_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.breweryMaltingFirewoodPerCycle)};`,
+    `pub const BREWERY_MALT_PER_CYCLE: f64 = ${rustF64(b.production.breweryMaltPerCycle)};`,
+    `pub const BREWERY_MALT_PER_ALE_CYCLE: f64 = ${rustF64(b.production.breweryMaltPerAleCycle)};`,
+    `pub const BREWERY_BREWING_WATER_PER_CYCLE: f64 = ${rustF64(b.production.breweryBrewingWaterPerCycle)};`,
+    `pub const BREWERY_BREWING_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.breweryBrewingFirewoodPerCycle)};`,
     `pub const BREWERY_ALE_PER_CYCLE: f64 = ${rustF64(b.production.breweryAlePerCycle)};`,
     `pub const WEAVER_WOOL_PER_CYCLE: f64 = ${rustF64(b.production.weaverWoolPerCycle)};`,
     `pub const WEAVER_CLOTH_PER_CYCLE: f64 = ${rustF64(b.production.weaverClothPerCycle)};`,
@@ -821,6 +832,7 @@ function generateRust(): string {
     `pub const FARM_GROWTH_SECONDS: f64 = ${rustF64(b.farming.growthSeconds)};`,
     `pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.baseGrainPerSquareMeter)};`,
     `pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = ${rustF64(b.farming.farmsteadStarterSeedGrain)};`,
+    `pub const FARMSTEAD_STARTER_BARLEY_SEED: f64 = ${rustF64(b.farming.farmsteadStarterBarleySeed)};`,
     `pub const FARM_EARLY_HARVEST_MONTH: u32 = ${b.farming.earlyHarvestMonth};`,
     `pub const FARM_EARLY_HARVEST_MINIMUM_GROWTH: f64 = ${rustF64(b.farming.earlyHarvestMinimumGrowth)};`,
     `pub const FARM_EARLY_HARVEST_RIPENESS_FACTOR: f64 = ${rustF64(b.farming.earlyHarvestRipenessFactor)};`,
@@ -900,6 +912,7 @@ function generateRust(): string {
   lines.push('#[derive(Clone, Copy, Debug, PartialEq, Eq)]');
   lines.push('pub enum FarmCropProduce {');
   lines.push('    Grain,');
+  lines.push('    Barley,');
   lines.push('    Fibre,');
   lines.push('    None,');
   lines.push('}');
@@ -932,7 +945,13 @@ function generateRust(): string {
   for (const kind of farmCropKinds) {
     const crop = b.farming.crops[kind];
     const constName = kind.toUpperCase();
-    const produce = crop.produce === 'grain' ? 'Grain' : crop.produce === 'fibre' ? 'Fibre' : 'None';
+    const produce = crop.produce === 'grain'
+      ? 'Grain'
+      : crop.produce === 'barley'
+        ? 'Barley'
+        : crop.produce === 'fibre'
+          ? 'Fibre'
+          : 'None';
     const workSeason = crop.workSeason === 'spring' ? 'Spring' : 'Autumn';
     lines.push(`pub const FARM_CROP_${constName}_ID: u8 = ${crop.id};`);
     lines.push(`pub const FARM_CROP_${constName}: FarmCropDef = FarmCropDef {`);
@@ -1004,6 +1023,8 @@ function generateRust(): string {
   lines.push('    pub storage_water: f64,');
   lines.push('    pub storage_food: f64,');
   lines.push('    pub storage_grain: f64,');
+  lines.push('    pub storage_barley: f64,');
+  lines.push('    pub storage_malt: f64,');
   lines.push('    pub storage_flour: f64,');
   lines.push('    pub storage_ale: f64,');
   lines.push('    pub storage_preserved_food: f64,');
@@ -1043,6 +1064,8 @@ function generateRust(): string {
     lines.push(`    storage_water: ${rustF64(def.storage.water ?? 0)},`);
     lines.push(`    storage_food: ${rustF64(def.storage.food ?? 0)},`);
     lines.push(`    storage_grain: ${rustF64(def.storage.grain ?? 0)},`);
+    lines.push(`    storage_barley: ${rustF64(def.storage.barley ?? 0)},`);
+    lines.push(`    storage_malt: ${rustF64(def.storage.malt ?? 0)},`);
     lines.push(`    storage_flour: ${rustF64(def.storage.flour ?? 0)},`);
     lines.push(`    storage_ale: ${rustF64(def.storage.ale ?? 0)},`);
     lines.push(`    storage_preserved_food: ${rustF64(def.storage.preservedFood ?? 0)},`);
@@ -1411,9 +1434,13 @@ function generateTypeScript(): string {
     `export const GRANARY_FOOD_PER_CYCLE = ${b.production.granaryFoodPerCycle};`,
     `export const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM = ${b.production.householdFoodReservePerClaim};`,
     `export const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION = ${b.production.householdFoodReserveCapacityFraction};`,
-    `export const BREWERY_GRAIN_PER_CYCLE = ${b.production.breweryGrainPerCycle};`,
-    `export const BREWERY_WATER_PER_CYCLE = ${b.production.breweryWaterPerCycle};`,
-    `export const BREWERY_FIREWOOD_PER_CYCLE = ${b.production.breweryFirewoodPerCycle};`,
+    `export const BREWERY_BARLEY_PER_MALT_CYCLE = ${b.production.breweryBarleyPerMaltCycle};`,
+    `export const BREWERY_MALTING_WATER_PER_CYCLE = ${b.production.breweryMaltingWaterPerCycle};`,
+    `export const BREWERY_MALTING_FIREWOOD_PER_CYCLE = ${b.production.breweryMaltingFirewoodPerCycle};`,
+    `export const BREWERY_MALT_PER_CYCLE = ${b.production.breweryMaltPerCycle};`,
+    `export const BREWERY_MALT_PER_ALE_CYCLE = ${b.production.breweryMaltPerAleCycle};`,
+    `export const BREWERY_BREWING_WATER_PER_CYCLE = ${b.production.breweryBrewingWaterPerCycle};`,
+    `export const BREWERY_BREWING_FIREWOOD_PER_CYCLE = ${b.production.breweryBrewingFirewoodPerCycle};`,
     `export const BREWERY_ALE_PER_CYCLE = ${b.production.breweryAlePerCycle};`,
     `export const WEAVER_WOOL_PER_CYCLE = ${b.production.weaverWoolPerCycle};`,
     `export const WEAVER_CLOTH_PER_CYCLE = ${b.production.weaverClothPerCycle};`,
@@ -1467,6 +1494,7 @@ function generateTypeScript(): string {
     `export const FARM_GROWTH_SECONDS = ${b.farming.growthSeconds};`,
     `export const FARM_BASE_GRAIN_PER_SQUARE_METER = ${b.farming.baseGrainPerSquareMeter};`,
     `export const FARMSTEAD_STARTER_SEED_GRAIN = ${b.farming.farmsteadStarterSeedGrain};`,
+    `export const FARMSTEAD_STARTER_BARLEY_SEED = ${b.farming.farmsteadStarterBarleySeed};`,
     `export const FARM_EARLY_HARVEST_MONTH = ${b.farming.earlyHarvestMonth};`,
     `export const FARM_EARLY_HARVEST_MINIMUM_GROWTH = ${b.farming.earlyHarvestMinimumGrowth};`,
     `export const FARM_EARLY_HARVEST_RIPENESS_FACTOR = ${b.farming.earlyHarvestRipenessFactor};`,
@@ -1476,7 +1504,7 @@ function generateTypeScript(): string {
     '',
     `export const FARM_CROP_KINDS = ${JSON.stringify(farmCropKinds)} as const;`,
     'export type FarmCropKind = (typeof FARM_CROP_KINDS)[number];',
-    "export type FarmCropProduce = 'grain' | 'fibre' | 'none';",
+    "export type FarmCropProduce = 'grain' | 'barley' | 'fibre' | 'none';",
     "export type FarmWorkSeason = 'spring' | 'autumn';",
     'export type FarmCropDefinition = {',
     '  kind: FarmCropKind;',
@@ -1576,6 +1604,8 @@ function generateTypeScript(): string {
     '  water?: number;',
     '  food?: number;',
     '  grain?: number;',
+    '  barley?: number;',
+    '  malt?: number;',
     '  flour?: number;',
     '  ale?: number;',
     '  preservedFood?: number;',
@@ -1648,6 +1678,8 @@ function generateTypeScript(): string {
     const water = def.storage.water ?? 0;
     const food = def.storage.food ?? 0;
     const grain = def.storage.grain ?? 0;
+    const barley = def.storage.barley ?? 0;
+    const malt = def.storage.malt ?? 0;
     const flour = def.storage.flour ?? 0;
     const ale = def.storage.ale ?? 0;
     const preservedFood = def.storage.preservedFood ?? 0;
@@ -1661,6 +1693,8 @@ function generateTypeScript(): string {
     if (water > 0) extras.push(`water: ${water}`);
     if (food > 0) extras.push(`food: ${food}`);
     if (grain > 0) extras.push(`grain: ${grain}`);
+    if (barley > 0) extras.push(`barley: ${barley}`);
+    if (malt > 0) extras.push(`malt: ${malt}`);
     if (flour > 0) extras.push(`flour: ${flour}`);
     if (ale > 0) extras.push(`ale: ${ale}`);
     if (preservedFood > 0) extras.push(`preservedFood: ${preservedFood}`);

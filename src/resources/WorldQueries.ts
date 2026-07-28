@@ -41,7 +41,10 @@ import {
   type RoutedProcessorInputDestination,
 } from '../logistics/processorInputLogistics.ts';
 import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
-import { farmsteadExportableGrain } from '../farming/farmWorkPlanning.ts';
+import {
+  farmsteadExportableGrain,
+  farmsteadSeedBarleyRequired,
+} from '../farming/farmWorkPlanning.ts';
 import {
   foodLaborSplit,
   foodSupplierDeliveryTripSeconds,
@@ -998,6 +1001,21 @@ export class WorldQueries {
       (target) => inboundTargets.has(target.id),
       (target) => processorAcceptsInput(target, 'grain'),
     );
+  }
+
+  getNextFarmBarleyDispatch(
+    farmstead: BuildingState,
+  ): RoutedProcessorInputDestination<BuildingState> | null {
+    if (farmstead.kind !== 'threshing_barn') return null;
+    const state = this.getGameState();
+    const fields = [...state.farmFields.values()]
+      .filter((field) => field.farmsteadId === farmstead.id);
+    const exportableBarley = Math.max(
+      0,
+      (farmstead.barley ?? 0) - farmsteadSeedBarleyRequired(fields),
+    );
+    if (exportableBarley <= 1e-6) return null;
+    return this.getNextDirectProcessorInputDispatch(farmstead, 'barley');
   }
 
   getClaimedResidencesForSpecialtySupplier(

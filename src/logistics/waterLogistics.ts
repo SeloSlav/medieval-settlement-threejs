@@ -1,5 +1,6 @@
 import {
-  BREWERY_WATER_PER_CYCLE,
+  BREWERY_BREWING_WATER_PER_CYCLE,
+  BREWERY_MALTING_WATER_PER_CYCLE,
   GRANARY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
   RESIDENCE_WATER_CAPACITY,
@@ -41,7 +42,7 @@ export function industrialWaterRequirement(kind: BuildingKind): number {
     case 'granary':
       return GRANARY_WATER_PER_CYCLE;
     case 'brewery':
-      return BREWERY_WATER_PER_CYCLE;
+      return BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE;
     case 'lumber_mill':
       return MILL_WATER_PER_HARVEST;
     default:

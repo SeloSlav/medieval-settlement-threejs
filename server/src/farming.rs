@@ -241,6 +241,15 @@ pub fn seed_grain_required(area: f64, crop: u8) -> f64 {
     area.max(0.0) * crop_seed_grain_per_square_meter(crop)
 }
 
+/// Crop whose seed must be protected for the field's next unfinished sowing.
+pub fn field_seed_crop(crop: u8, next_crop: u8, stage: u8) -> u8 {
+    if matches!(stage, STAGE_PLOUGHING | STAGE_SOWING) {
+        crop
+    } else {
+        next_crop
+    }
+}
+
 /// Grain still protected at a farmstead for this field's next sowing.
 ///
 /// Ploughing and partially sown fields reserve the current crop. Growing and
@@ -257,11 +266,7 @@ pub fn field_seed_grain_remaining(
     if priority == 0 {
         return 0.0;
     }
-    let planned_crop = if matches!(stage, STAGE_PLOUGHING | STAGE_SOWING) {
-        crop
-    } else {
-        next_crop
-    };
+    let planned_crop = field_seed_crop(crop, next_crop, stage);
     let unseeded_fraction = if stage == STAGE_SOWING {
         1.0 - stage_progress.clamp(0.0, 1.0)
     } else {
@@ -401,7 +406,7 @@ mod tests {
         assert!(crop_growth_allowed(CROP_RYE, 6));
         assert!(crop_growth_allowed(CROP_OATS, 6));
         assert_eq!(crop_produce(CROP_FLAX), FarmCropProduce::Fibre);
-        assert_eq!(crop_produce(CROP_BARLEY), FarmCropProduce::Grain);
+        assert_eq!(crop_produce(CROP_BARLEY), FarmCropProduce::Barley);
         assert!(valid_crop(CROP_WHEAT));
         assert!(!valid_crop(99));
     }
@@ -523,5 +528,7 @@ mod tests {
         );
         assert!((farmstead_exportable_grain(30.0, 19.2) - 10.8).abs() < 1e-9);
         assert_eq!(farmstead_exportable_grain(10.0, 19.2), 0.0);
+        assert_eq!(field_seed_crop(CROP_BARLEY, CROP_RYE, STAGE_SOWING), CROP_BARLEY);
+        assert_eq!(field_seed_crop(CROP_RYE, CROP_BARLEY, STAGE_GROWING), CROP_BARLEY);
     }
 }

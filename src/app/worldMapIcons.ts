@@ -10,7 +10,11 @@ import {
 import type { CameraController } from '../camera/CameraController.ts';
 import type { FirstPersonController } from '../camera/FirstPersonController.ts';
 import type { PlacementInteractionGate } from '../input/PlacementInteractionGate.ts';
-import { isOverlayBlocked, isWorldInspectionBlocked } from '../input/PlacementInteractionGate.ts';
+import {
+  isOverlayBlocked,
+  isWorldInspectionBlocked,
+  isWorldResourceIconVisibilityBlocked,
+} from '../input/PlacementInteractionGate.ts';
 import type { GameState } from '../resources/types.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
@@ -65,6 +69,7 @@ export function createWorldMapUi(options: {
     getZoomPercent,
     onQuarrySelect,
     isBlocked: () => isWorldInspectionBlocked(placementGate),
+    isVisibilityBlocked: () => isWorldResourceIconVisibilityBlocked(placementGate),
   });
 
   const foraging = new ForagingMapIcons({
@@ -77,6 +82,7 @@ export function createWorldMapUi(options: {
     getForagingNodes: () => getGameState().foragingNodes,
     onForagingSelect,
     isBlocked: () => isWorldInspectionBlocked(placementGate),
+    isVisibilityBlocked: () => isWorldResourceIconVisibilityBlocked(placementGate),
   });
 
   const minimap = TerrainMinimapOverlay.create({

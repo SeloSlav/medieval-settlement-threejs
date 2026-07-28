@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Backyard Plant Lineup</title>
+    <title>Backyard Attachment Lineup</title>
     <style>
       :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
       * { box-sizing: border-box; }
@@ -25,6 +25,7 @@
         pointer-events: none;
       }
       .cell { position: relative; border-right: 1px solid rgba(229,214,176,.16); }
+      .cell:nth-child(-n + 3) { border-bottom: 1px solid rgba(229,214,176,.16); }
       .label {
         position: absolute; left: 20px; right: 20px; bottom: 16px; padding: 7px 10px;
         border: 1px solid rgba(25,24,18,.42); border-radius: 3px;
@@ -43,7 +44,7 @@
   </head>
   <body>
     <header>
-      <h1>Backyard Plant Lineup</h1>
+      <h1>Backyard Attachment Lineup</h1>
       <p><a class="lineup-link" href="/wildflower-lineup.html">World wildflowers →</a></p>
     </header>
     <main id="lineup-root"><div id="labels" aria-hidden="true"></div></main>

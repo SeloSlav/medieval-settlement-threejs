@@ -1,30 +1,30 @@
 export type MarketplaceBarterOffer = {
   id: string;
   kind: 'barter';
-  give: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork';
+  give: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork';
   giveAmount: number;
-  receive: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork';
+  receive: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork';
   receiveAmount: number;
 };
 
 export type MarketplaceTradeBalance = {
   bulkTradeCooldownSeconds: number;
   resourceSpendScopes: Record<
-    'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork',
+    'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork',
     'marketAccessible' | 'treasury'
   >;
   offers: Array<
     | {
         id: string;
         kind: 'goldBuy';
-        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork';
+        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork';
         amount: number;
         goldCost: number;
       }
     | {
         id: string;
         kind: 'goldSell';
-        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'ironwork';
+        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork';
         amount: number;
         goldYield: number;
       }
@@ -57,6 +57,7 @@ export function generateMarketplaceTradeRust(balance: BalanceWithMarketplaceTrad
     '    Firewood,',
     '    Food,',
     '    Grain,',
+    '    Barley,',
     '    Ironwork,',
     '}',
     '',
@@ -154,7 +155,7 @@ export function generateMarketplaceTradeTypeScript(balance: BalanceWithMarketpla
   const lines: string[] = [
     `export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = ${trade.bulkTradeCooldownSeconds};`,
     '',
-    "export const TRADE_RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'food', 'grain', 'ironwork'] as const;",
+    "export const TRADE_RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'food', 'grain', 'barley', 'ironwork'] as const;",
     'export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];',
     '',
     "export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';",

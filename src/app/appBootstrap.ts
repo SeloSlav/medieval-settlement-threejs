@@ -201,6 +201,12 @@ export async function bootstrapAppSession(
   const layoutRegistry = WorldLayoutRegistry.fromWorldLayout(sceneManager.worldLayout);
   const gameState = createInitialGameState(layoutRegistry, getDraftWorldGeneration().seed);
   const liveContext: SessionLiveContext = { gameState, treeRegistry: null };
+  const isSettlementFounded = (): boolean => (
+    liveContext.gameState.physicalFoundingSiteEnabled === true
+    || liveContext.gameState.buildings.size > 0
+    || liveContext.gameState.residences.size > 0
+    || liveContext.gameState.burgageZones.size > 0
+  );
   const input = new InputManager(sceneManager.renderer.domElement);
   const spacetimeStore = new SpacetimeGameStore();
   const sessionGate = new SessionConnectionGate();
@@ -302,8 +308,10 @@ export async function bootstrapAppSession(
   });
   const placementGate: PlacementInteractionGate = {
     isSessionReady: () => sessionGate.isReady(),
+    isSettlementFounded,
     isRoadToolEnabled: () => false,
     isBuildingToolEnabled: () => false,
+    isStarterCampPlacementActive: () => false,
     isBurgageToolEnabled: () => false,
     isFarmFieldToolEnabled: () => false,
     isFirstPersonActive: () => false,
@@ -613,6 +621,27 @@ export async function bootstrapAppSession(
       }
       roadTool.commitDraft();
     },
+    onPlaceStarterCamp: () => {
+      if (!sessionGate.isReady()) {
+        toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
+        return;
+      }
+      const wasActive = buildingTool.getMode() === 'founders_camp';
+      buildingTool.setMode('founders_camp');
+      if (buildingTool.getMode() !== 'founders_camp') return;
+      roadTool.setEnabled(false);
+      burgageTool.setEnabled(false);
+      farmFieldTool.setEnabled(false);
+      resourceInspector?.clearSelection();
+      villagerInspector?.clearSelection();
+      if (!wasActive) {
+        toastManager?.show(
+          'Choose clear, dry ground for your founders. This will become the heart of your settlement.',
+          { variant: 'info', durationMs: 6000 },
+        );
+      }
+      bridge.syncToolbar();
+    },
     onSelectBuilding: (kind: BuildingKind) => {
       if (!sessionGate.isReady()) {
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
@@ -813,7 +842,7 @@ export async function bootstrapAppSession(
       return { x: target.x, z: target.z, yaw: cameraController.getYaw() };
     },
     isMenuOpen: () => toolbar.isGameMenuOpen(),
-    isSessionReady: () => sessionGate.isReady(),
+    isSessionReady: () => sessionGate.isReady() && isSettlementFounded(),
     onModeChange: (active) => {
       cameraController.setInputEnabled(!active && !toolbar.isGameMenuOpen());
       toolbar.setFirstPersonMode(active);
@@ -831,6 +860,9 @@ export async function bootstrapAppSession(
 
   placementGate.isRoadToolEnabled = () => roadTool.isEnabled();
   placementGate.isBuildingToolEnabled = () => buildingTool.isEnabled();
+  placementGate.isStarterCampPlacementActive = () => (
+    buildingTool.getMode() === 'founders_camp'
+  );
   placementGate.isBurgageToolEnabled = () => burgageTool.isEnabled();
   placementGate.isFarmFieldToolEnabled = () => farmFieldTool.isEnabled();
   placementGate.isFirstPersonActive = () => firstPersonController.isActive();

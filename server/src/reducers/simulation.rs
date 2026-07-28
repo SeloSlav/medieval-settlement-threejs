@@ -31,6 +31,12 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     // A physical settlement never exposes the compatibility ledger as a
     // spendable treasury. Migrate old balances even while time is paused.
     materialize_all_physical_resource_ledgers(ctx);
+    // A fresh world remains at its opening hour while the player surveys the
+    // land. Placing the founders' camp creates the first building and starts
+    // calendar/economy progression on the following scheduler heartbeat.
+    if ctx.db.building().iter().next().is_none() && ctx.db.residence().iter().next().is_none() {
+        return;
+    }
     if config.game_speed == 0 {
         return;
     }

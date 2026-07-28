@@ -22,10 +22,12 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 16] = [
+const RECOVERY_ORDER: [CommodityKind; 18] = [
     CommodityKind::Gold,
     CommodityKind::Food,
     CommodityKind::Grain,
+    CommodityKind::Barley,
+    CommodityKind::Malt,
     CommodityKind::Flour,
     CommodityKind::PreservedFood,
     CommodityKind::Ale,
@@ -59,6 +61,8 @@ pub struct ReclamationStock {
     pub wool: f64,
     pub cloth: f64,
     pub gold: f64,
+    pub barley: f64,
+    pub malt: f64,
 }
 
 impl ReclamationStock {
@@ -129,6 +133,14 @@ impl ReclamationStock {
                 gold: amount,
                 ..Self::default()
             },
+            CommodityKind::Barley => Self {
+                barley: amount,
+                ..Self::default()
+            },
+            CommodityKind::Malt => Self {
+                malt: amount,
+                ..Self::default()
+            },
         }
     }
 
@@ -156,6 +168,8 @@ impl ReclamationStock {
             wool: resources.wool.max(0.0),
             cloth: resources.cloth.max(0.0),
             gold: resources.gold.max(0.0),
+            barley: resources.barley.max(0.0),
+            malt: resources.malt.max(0.0),
         }
     }
 
@@ -177,6 +191,8 @@ impl ReclamationStock {
             CommodityKind::Wool => self.wool,
             CommodityKind::Cloth => self.cloth,
             CommodityKind::Gold => self.gold,
+            CommodityKind::Barley => self.barley,
+            CommodityKind::Malt => self.malt,
         }
     }
 
@@ -197,6 +213,8 @@ impl ReclamationStock {
         building.wool += self.wool;
         building.cloth += self.cloth;
         building.gold += self.gold;
+        building.barley += self.barley;
+        building.malt += self.malt;
     }
 }
 
@@ -217,6 +235,8 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.wool = 0.0;
     resources.cloth = 0.0;
     resources.gold = 0.0;
+    resources.barley = 0.0;
+    resources.malt = 0.0;
 }
 
 fn recovery_pile_position_beside_building(
@@ -388,6 +408,8 @@ pub fn insert_reclamation_pile(
             crate::marketplace_procurement_policy::MARKETPLACE_GOLD_RESERVE_DEFAULT,
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
+        barley: stock.barley.max(0.0),
+        malt: stock.malt.max(0.0),
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id
@@ -688,12 +710,19 @@ pub(crate) fn reclamation_destination_priority(
         },
         CommodityKind::Food
         | CommodityKind::Grain
+        | CommodityKind::Barley
         | CommodityKind::Flour
         | CommodityKind::PreservedFood => match kind {
             "granary" => Some(0),
+            "brewery" if commodity == CommodityKind::Barley => Some(0),
             "marketplace" => Some(1),
             "founders_camp" => Some(2),
             _ => Some(3),
+        },
+        CommodityKind::Malt => match kind {
+            "brewery" => Some(0),
+            "founders_camp" => Some(1),
+            _ => Some(2),
         },
         CommodityKind::Ale | CommodityKind::Honey | CommodityKind::Wine => match kind {
             "marketplace" => Some(0),

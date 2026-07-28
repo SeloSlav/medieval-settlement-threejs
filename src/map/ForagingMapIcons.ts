@@ -25,6 +25,7 @@ type ForagingMapIconsOptions = {
   getZoomPercent: () => number;
   onForagingSelect: (nodeId: string) => void;
   isBlocked: () => boolean;
+  isVisibilityBlocked?: () => boolean;
 };
 
 type ForagingIconEntry = {
@@ -54,13 +55,15 @@ export class ForagingMapIcons {
   }
 
   update(): void {
+    const interactionBlocked = this.options.isBlocked();
+    this.root.classList.toggle('is-interaction-blocked', interactionBlocked);
     const frame = beginMapIconFrame(
       this.root,
       this.options.domElement,
       this.options.terrain,
       this.options.getCamera,
       this.options.getZoomPercent,
-      this.options.isBlocked,
+      this.options.isVisibilityBlocked ?? this.options.isBlocked,
     );
     if (!frame) return;
 

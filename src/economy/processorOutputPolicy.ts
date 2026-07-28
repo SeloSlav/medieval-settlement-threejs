@@ -21,6 +21,7 @@ export type ProcessorOutputCommodity =
 
 export type ProcessorInputCommodity =
   | 'grain'
+  | 'barley'
   | 'flour'
   | 'water'
   | 'firewood'
@@ -69,7 +70,7 @@ const INPUTS_BY_KIND: Record<
 > = {
   watermill: ['grain'],
   granary: ['flour', 'water', 'firewood'],
-  brewery: ['grain', 'water', 'firewood'],
+  brewery: ['barley', 'water', 'firewood'],
   smokehouse: ['food', 'firewood'],
   weaver: ['wool'],
 };

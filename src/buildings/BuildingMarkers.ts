@@ -604,6 +604,8 @@ function syncBuildingVisualState(
           + building.water
           + building.food
           + building.grain
+          + (building.barley ?? 0)
+          + (building.malt ?? 0)
           + building.flour
           + building.ale
           + building.preservedFood
@@ -650,11 +652,16 @@ function syncBuildingVisualState(
     const crates = marker.getObjectByName('MarketCratedGoodsStaging');
     if (crates instanceof THREE.Group) {
       const stagedCratedGoods =
-        building.firewood + building.food + building.grain + (building.ironwork ?? 0);
+        building.firewood
+        + building.food
+        + building.grain
+        + (building.barley ?? 0)
+        + (building.ironwork ?? 0);
       const cratedCapacity =
         BUILDING_STORAGE_CAPS.marketplace.firewood
         + BUILDING_STORAGE_CAPS.marketplace.food
         + BUILDING_STORAGE_CAPS.marketplace.grain
+        + (BUILDING_STORAGE_CAPS.marketplace.barley ?? 0)
         + (BUILDING_STORAGE_CAPS.marketplace.ironwork ?? 0);
       syncStockpileSegments(
         crates,

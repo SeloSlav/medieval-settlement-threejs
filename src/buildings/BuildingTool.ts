@@ -268,7 +268,7 @@ export class BuildingTool {
       this.placementPending = false;
       const buildingId = await waitForPlacedBuilding(this.options.getState, beforeIds, kind, x, z);
       this.options.markers.clearPendingPlacement();
-      if (buildingId) {
+      if (buildingId && kind !== 'founders_camp') {
         this.undoStack.push({ buildingId, kind, x, z });
         this.redoStack.length = 0;
       }

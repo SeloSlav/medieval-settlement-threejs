@@ -1,7 +1,8 @@
 //! Pure well-yield policy shared by the authoritative simulation and native tests.
 
 use crate::balance_generated::{
-    BREWERY_WATER_PER_CYCLE, GRANARY_WATER_PER_CYCLE, MILL_WATER_PER_HARVEST,
+    BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE,
+    GRANARY_WATER_PER_CYCLE, MILL_WATER_PER_HARVEST,
     WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
 };
 use crate::construction_priority::{
@@ -22,7 +23,7 @@ pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &["granary", "brewery"];
 pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     match building_kind {
         "granary" => GRANARY_WATER_PER_CYCLE,
-        "brewery" => BREWERY_WATER_PER_CYCLE,
+        "brewery" => BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE,
         "lumber_mill" => MILL_WATER_PER_HARVEST,
         _ => 0.0,
     }
@@ -244,7 +245,7 @@ mod tests {
         );
         assert_eq!(
             industrial_water_requirement("brewery"),
-            BREWERY_WATER_PER_CYCLE
+            BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE
         );
         assert_eq!(
             industrial_water_requirement("lumber_mill"),
@@ -259,7 +260,7 @@ mod tests {
         assert_eq!(industrial_water_target("granary", 50), 4.0);
         assert_eq!(industrial_water_target("granary", 75), 6.0);
         assert_eq!(industrial_water_target("granary", 100), 6.0);
-        assert_eq!(industrial_water_target("brewery", 50), 4.0);
+        assert_eq!(industrial_water_target("brewery", 50), 6.0);
         assert_eq!(industrial_water_target("watermill", 25), 0.0);
     }
 

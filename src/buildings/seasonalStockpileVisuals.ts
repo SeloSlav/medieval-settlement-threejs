@@ -17,8 +17,9 @@ export function seasonalStockpileVisualSignature(building: BuildingState): strin
   switch (building.kind) {
     case 'threshing_barn':
       return `:seasonal-store:${stockpileVisualLevel(
-        building.grain,
-        BUILDING_STORAGE_CAPS.threshing_barn.grain,
+        building.grain + (building.barley ?? 0),
+        BUILDING_STORAGE_CAPS.threshing_barn.grain
+          + (BUILDING_STORAGE_CAPS.threshing_barn.barley ?? 0),
         THRESHING_GRAIN_VISUAL_SEGMENTS,
       )}`;
     case 'apiary':
@@ -64,8 +65,9 @@ export function syncSeasonalStockpileVisuals(
         marker,
         'ThreshingGrainStockpile',
         'ThreshingGrainSegment',
-        building.grain,
-        BUILDING_STORAGE_CAPS.threshing_barn.grain,
+        building.grain + (building.barley ?? 0),
+        BUILDING_STORAGE_CAPS.threshing_barn.grain
+          + (BUILDING_STORAGE_CAPS.threshing_barn.barley ?? 0),
       );
       break;
     case 'apiary':

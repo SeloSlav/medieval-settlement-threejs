@@ -1,7 +1,12 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { backyardGardenPlacement } from './backyardPosition.ts';
+import {
+  createBackyardChickenModel,
+  disposeBackyardChickenSource,
+  loadBackyardChickenSource,
+  removeBackyardChickenFallbacks,
+  type BackyardChickenSource,
+} from './backyardChickenAssets.ts';
 import {
   animateBackyardGardenMesh,
   createBackyardGardenMesh,
@@ -12,14 +17,6 @@ import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import type { BackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
 import { isWithinCrowdView } from '../settlement/crowdView.ts';
-
-type ChickenSource = {
-  scene: THREE.Group;
-  bounds: THREE.Box3;
-  height: number;
-  idle: THREE.AnimationClip;
-  walk: THREE.AnimationClip;
-};
 
 type ChickenVisual = {
   root: THREE.Group;
@@ -60,7 +57,7 @@ export class BackyardGardenMarkers {
   private readonly meshes = new Map<string, THREE.Group>();
   private readonly chickens = new Map<string, ChickenVisual[]>();
   private plants: BackyardPlantCatalog | null = null;
-  private chickenSource: ChickenSource | null = null;
+  private chickenSource: BackyardChickenSource | null = null;
   private latestInput: ReplayableGardenSyncInput | null = null;
   private disposed = false;
 
@@ -68,10 +65,10 @@ export class BackyardGardenMarkers {
     this.root.name = 'Backyard gardens';
     parent.add(this.root);
 
-    void loadChickenSource().then(
+    void loadBackyardChickenSource().then(
       (source) => {
         if (this.disposed) {
-          disposeChickenSource(source.scene);
+          disposeBackyardChickenSource(source.scene);
           return;
         }
         this.chickenSource = source;
@@ -231,33 +228,16 @@ export class BackyardGardenMarkers {
     seed: number,
   ): void {
     if (!this.chickenSource) return;
-    const fallbackBirds: THREE.Object3D[] = [];
-    marker.traverse((object) => {
-      if (object.name === 'HenFallback') fallbackBirds.push(object);
-    });
-    for (const fallback of fallbackBirds) {
-      fallback.traverse((object) => {
-        const mesh = object as THREE.Mesh;
-        if (mesh.isMesh) mesh.geometry.dispose();
-      });
-      fallback.removeFromParent();
-    }
+    removeBackyardChickenFallbacks(marker);
 
     const count = Math.max(3, Math.min(6, Math.round(width * depth / 6)));
     const visuals: ChickenVisual[] = [];
     for (let index = 0; index < count; index++) {
       const random = mulberry32(seed ^ Math.imul(index + 1, 0x45d9f3b));
-      const model = cloneSkinned(this.chickenSource.scene) as THREE.Group;
-      const scale = (0.45 / this.chickenSource.height) * THREE.MathUtils.lerp(0.88, 1.08, random());
-      model.scale.setScalar(scale);
-      model.position.y = -this.chickenSource.bounds.min.y * scale + 0.015;
-      model.traverse((object) => {
-        const mesh = object as THREE.SkinnedMesh;
-        if (!mesh.isSkinnedMesh) return;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.frustumCulled = false;
-      });
+      const model = createBackyardChickenModel(
+        this.chickenSource,
+        0.45 * THREE.MathUtils.lerp(0.88, 1.08, random()),
+      );
       const root = new THREE.Group();
       root.name = 'Rigged roaming hen';
       root.add(model);
@@ -313,7 +293,7 @@ export class BackyardGardenMarkers {
       disposeBackyardGardenMesh(marker);
     }
     this.meshes.clear();
-    if (this.chickenSource) disposeChickenSource(this.chickenSource.scene);
+    if (this.chickenSource) disposeBackyardChickenSource(this.chickenSource.scene);
     this.chickenSource = null;
     this.root.removeFromParent();
   }
@@ -325,39 +305,4 @@ function sampleChickenPoint(width: number, depth: number, random: () => number):
     x: THREE.MathUtils.lerp(-width * 0.05, width * 0.38, random()),
     z: THREE.MathUtils.lerp(-depth * 0.18, depth * 0.34, random()),
   };
-}
-
-async function loadChickenSource(): Promise<ChickenSource> {
-  const gltf = await new GLTFLoader().loadAsync('/assets/models/livestock/quaternius-chicken.glb');
-  const bounds = new THREE.Box3().setFromObject(gltf.scene);
-  const height = bounds.max.y - bounds.min.y;
-  const findClip = (name: string): THREE.AnimationClip | undefined => gltf.animations.find((clip) => {
-    const normalized = clip.name.toLowerCase();
-    return normalized === name || normalized.endsWith(`|${name}`);
-  });
-  const idle = findClip('idle');
-  const walk = findClip('walk');
-  if (!idle || !walk || height <= 0.001) throw new Error('Chicken GLB is missing its rigged idle/walk set.');
-  return { scene: gltf.scene, bounds, height, idle, walk };
-}
-
-function disposeChickenSource(source: THREE.Object3D): void {
-  const geometries = new Set<THREE.BufferGeometry>();
-  const materials = new Set<THREE.Material>();
-  const textures = new Set<THREE.Texture>();
-  source.traverse((object) => {
-    const mesh = object as THREE.Mesh;
-    if (mesh.geometry) geometries.add(mesh.geometry);
-    const meshMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of meshMaterials) {
-      if (!material) continue;
-      materials.add(material);
-      for (const value of Object.values(material)) {
-        if (value instanceof THREE.Texture) textures.add(value);
-      }
-    }
-  });
-  for (const texture of textures) texture.dispose();
-  for (const material of materials) material.dispose();
-  for (const geometry of geometries) geometry.dispose();
 }

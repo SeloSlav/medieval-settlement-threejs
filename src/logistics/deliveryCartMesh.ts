@@ -94,6 +94,8 @@ function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
       addFoodLoad(group);
       break;
     case 'grain':
+    case 'barley':
+    case 'malt':
       addGrainLoad(group);
       break;
     case 'flour':

@@ -50,7 +50,6 @@ export type SettlementGrainPlan = {
   totalProtected: number;
   discretionaryStock: number;
   breadGrainPerDay: number;
-  aleGrainPerDay: number;
   monasteryGrainPerDay: number;
   processorGrainPerDay: number;
   processorRunwayDays: number;
@@ -114,7 +113,7 @@ type SettlementGrainPlanInput = {
   >;
   production: Pick<
     SettlementProductionCapacity,
-    'breadGrainPerDay' | 'aleGrainPerDay'
+    'breadGrainPerDay'
   > & {
     grainRoadBranches?: ReadonlyMap<string, ProductionGrainRoadBranch> | null;
   };
@@ -157,7 +156,6 @@ function grainRoadBranch(
   if (branch) return branch;
   branch = {
     breadGrainPerDay: 0,
-    aleGrainPerDay: 0,
     monasteryGrainPerDay: 0,
     processorGrainPerDay: 0,
     dispatchableSourceStock: 0,
@@ -176,12 +174,10 @@ function initialGrainRoadBranches(
   const branches = new Map<string, SettlementGrainRoadBranch>();
   for (const [key, production] of source) {
     const breadGrainPerDay = positiveFinite(production.breadGrainPerDay);
-    const aleGrainPerDay = positiveFinite(production.aleGrainPerDay);
-    const processorGrainPerDay = breadGrainPerDay + aleGrainPerDay;
+    const processorGrainPerDay = breadGrainPerDay;
     branches.set(key, {
       ...production,
       breadGrainPerDay,
-      aleGrainPerDay,
       monasteryGrainPerDay: 0,
       processorGrainPerDay,
       dispatchableSourceStock: 0,
@@ -209,7 +205,6 @@ function buildGrainRoadPlan(
 
   for (const branch of branches.values()) {
     const demand = positiveFinite(branch.breadGrainPerDay)
-      + positiveFinite(branch.aleGrainPerDay)
       + positiveFinite(branch.monasteryGrainPerDay);
     const sourceStock = positiveFinite(branch.dispatchableSourceStock);
     branch.processorGrainPerDay = demand;
@@ -441,9 +436,8 @@ export function computeSettlementGrainPlan(
     + granaryReserve.protected;
   const discretionaryStock = Math.max(0, totalStock - totalProtected);
   const breadGrainPerDay = positiveFinite(input.production.breadGrainPerDay);
-  const aleGrainPerDay = positiveFinite(input.production.aleGrainPerDay);
   const processorGrainPerDay =
-    breadGrainPerDay + aleGrainPerDay + monasteryGrainPerDay;
+    breadGrainPerDay + monasteryGrainPerDay;
   const annualProcessorDemand = processorGrainPerDay * GRAIN_PLAN_DAYS_PER_YEAR;
   const annualCommitments = seed.target
     + positiveFinite(input.livestockFodder.winterGrainNeed)
@@ -480,7 +474,6 @@ export function computeSettlementGrainPlan(
     totalProtected,
     discretionaryStock,
     breadGrainPerDay,
-    aleGrainPerDay,
     monasteryGrainPerDay,
     processorGrainPerDay,
     processorRunwayDays: processorGrainPerDay > 1e-9

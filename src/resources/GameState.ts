@@ -98,6 +98,8 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     water: 0,
     food: 0,
     grain: 0,
+    barley: 0,
+    malt: 0,
     flour: 0,
     ale: 0,
     preservedFood: 0,

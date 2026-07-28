@@ -690,6 +690,7 @@ fn stage_or_spend_physical_market_resource(
         TradeResource::Firewood
         | TradeResource::Food
         | TradeResource::Grain
+        | TradeResource::Barley
         | TradeResource::Ironwork => f64::INFINITY,
     };
     let remote_budget = (unreserved_budget - local_stock).max(0.0);
@@ -824,6 +825,7 @@ fn trade_commodity(resource: TradeResource) -> CommodityKind {
         TradeResource::Firewood => CommodityKind::Firewood,
         TradeResource::Food => CommodityKind::Food,
         TradeResource::Grain => CommodityKind::Grain,
+        TradeResource::Barley => CommodityKind::Barley,
         TradeResource::Ironwork => CommodityKind::Ironwork,
     }
 }
@@ -835,6 +837,7 @@ fn trade_resource_name(resource: TradeResource) -> &'static str {
         TradeResource::Firewood => "firewood",
         TradeResource::Food => "food",
         TradeResource::Grain => "grain",
+        TradeResource::Barley => "barley",
         TradeResource::Ironwork => "ironwork",
     }
 }
@@ -903,6 +906,7 @@ fn spend_market_accessible_resource(
         TradeResource::Firewood
         | TradeResource::Food
         | TradeResource::Grain
+        | TradeResource::Barley
         | TradeResource::Ironwork => connected_stock,
     };
     if treasury_available + building_budget + 1e-6 < amount {
@@ -1011,6 +1015,13 @@ fn treasury_trade_stock(
             .find(&owner)
             .map(|row| row.grain)
             .unwrap_or(0.0),
+        TradeResource::Barley => ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&owner)
+            .map(|row| row.barley)
+            .unwrap_or(0.0),
         TradeResource::Ironwork => ctx
             .db
             .player_resources()
@@ -1046,6 +1057,7 @@ fn withdraw_treasury_trade_stock(
         TradeResource::Firewood => treasury.firewood -= amount,
         TradeResource::Food => treasury.food -= amount,
         TradeResource::Grain => treasury.grain -= amount,
+        TradeResource::Barley => treasury.barley -= amount,
         TradeResource::Ironwork => treasury.ironwork -= amount,
     }
     ctx.db.player_resources().owner().update(treasury);

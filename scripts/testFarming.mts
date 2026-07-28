@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
-  BREWERY_FIREWOOD_PER_CYCLE,
+  BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+  BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   FARM_CROP_DEFINITIONS,
   FARM_CROP_KINDS,
   FARM_EARLY_HARVEST_MINIMUM_GROWTH,
@@ -12,6 +13,7 @@ import {
   FARM_MIN_FIELD_EDGE,
   FARM_OPTIMAL_FIELD_AREA,
   FARMSTEAD_STARTER_SEED_GRAIN,
+  FARMSTEAD_STARTER_BARLEY_SEED,
   GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
@@ -223,7 +225,11 @@ assert.equal(MILL_WATER_PER_HARVEST, 0, 'lumber should not consume well water');
 assert.equal(WATERMILL_WATER_PER_CYCLE, 0, 'a river-powered mill should not consume well water');
 assert.ok(GRANARY_WATER_PER_CYCLE > 0, 'bakery production should consume well water');
 assert.ok(GRANARY_FIREWOOD_PER_CYCLE > 0, 'bakery production should consume fuel');
-assert.ok(BREWERY_FIREWOOD_PER_CYCLE > 0, 'brewing should consume firing fuel');
+assert.ok(
+  BREWERY_MALTING_FIREWOOD_PER_CYCLE
+    + BREWERY_BREWING_FIREWOOD_PER_CYCLE > 0,
+  'malting and brewing should consume firing fuel',
+);
 assert.deepEqual(FARM_CROP_KINDS, ['rye', 'oats', 'fallow', 'barley', 'flax', 'wheat']);
 assert.deepEqual(
   FARM_CROP_KINDS.map((crop) => FARM_CROP_DEFINITIONS[crop].id),
@@ -236,11 +242,16 @@ assert.ok(
     > FARM_CROP_DEFINITIONS.rye.seedGrainPerSquareMeter,
 );
 assert.equal(FARM_CROP_DEFINITIONS.flax.produce, 'fibre');
-assert.equal(FARM_CROP_DEFINITIONS.barley.produce, 'grain');
+assert.equal(FARM_CROP_DEFINITIONS.barley.produce, 'barley');
 assert.equal(FARM_CROP_DEFINITIONS.wheat.workSeason, 'autumn');
 assert.ok(
   FARMSTEAD_STARTER_SEED_GRAIN >= seedGrainRequired(FARM_OPTIMAL_FIELD_AREA, 'oats'),
   'a new holding should be able to sow one efficient oats field',
+);
+assert.ok(
+  FARMSTEAD_STARTER_BARLEY_SEED
+    >= seedGrainRequired(FARM_OPTIMAL_FIELD_AREA, 'barley'),
+  'a new holding should be able to sow one efficient barley field',
 );
 
 const planningField: FarmFieldState = {
@@ -397,7 +408,13 @@ const mixedCropPlan = buildFarmsteadWorkPlan([
 ], 2, september, false);
 assert.ok(mixedCropPlan.expectedHarvest > 0, 'grain crops should remain in the food harvest forecast');
 assert.ok(mixedCropPlan.expectedFibreHarvest > 0, 'flax should receive its own textile harvest forecast');
-assert.ok(mixedCropPlan.rotation.plannedHarvest > 0, 'barley should count toward next-cycle grain');
+assert.equal(mixedCropPlan.rotation.plannedHarvest, 0);
+assert.ok(
+  mixedCropPlan.rotation.plannedBarleyHarvest > 0,
+  'barley should receive its own next-cycle harvest forecast',
+);
+assert.equal(mixedCropPlan.rotation.plannedSeedGrainRequired, 0);
+assert.ok(mixedCropPlan.rotation.plannedSeedBarleyRequired > 0);
 assert.equal(mixedCropPlan.rotation.plannedFibreHarvest, 0);
 assert.equal(mixedCropPlan.rotation.nextAreaByCrop.barley, planningField.area);
 assert.equal(staffedPlan.rotation.activeArea, planningField.area);
@@ -719,7 +736,8 @@ assert.match(
   'the October deadline must close partial harvests instead of erasing their soil cost',
 );
 assert.match(farmSimulation, /seed_grain_required\(field\.area, field\.crop\)/);
-assert.match(farmSimulation, /withdraw_building_commodity\(farmstead, CommodityKind::Grain, seed_used\)/);
+assert.match(farmSimulation, /withdraw_building_commodity\(farmstead, seed_commodity, seed_used\)/);
+assert.match(farmSimulation, /field\.crop == CROP_BARLEY[\s\S]*CommodityKind::Barley/);
 assert.match(farmSimulation, /crop_growth_allowed\(field\.crop, clock\.month\)/);
 assert.match(farmSimulation, /field_work_allowed\(field\.stage, field\.crop, clock\.month\)/);
 assert.match(
@@ -739,11 +757,12 @@ assert.match(
 );
 assert.match(
   farmSimulation,
-  /let request = \(target\.required - target\.building\.grain\)[\s\S]*\.min\(source\.grain\.max\(0\.0\)\)/,
+  /let request = \(target\.required - building_commodity_stock\(&target\.building, commodity\)\)[\s\S]*\.min\(source_stock\.max\(0\.0\)\)/,
   'seed distribution may draw through a granary floor but only for the selected holding claim',
 );
 const constructionSimulation = fs.readFileSync('server/src/simulation/construction.rs', 'utf8');
 assert.match(constructionSimulation, /site\.grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);
+assert.match(constructionSimulation, /site\.barley \+= FARMSTEAD_STARTER_BARLEY_SEED/);
 const farmFieldReducers = fs.readFileSync('server/src/reducers/farm_fields.rs', 'utf8');
 assert.match(farmFieldReducers, /initial_field_fertility\(moisture, slope\)/);
 assert.match(farmFieldReducers, /is_valid_convex_quadrilateral/);

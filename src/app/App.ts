@@ -600,6 +600,12 @@ export class App {
 
   private syncToolbar(): void {
     if (!this.toolbar || !this.roadNetwork || !this.roadTool || !this.roadSelection || !this.buildingTool || !this.burgageTool || !this.farmFieldTool) return;
+    const starterCampRequired = !this.visualQaConditions
+      && this.gameState?.physicalFoundingSiteEnabled !== true
+      && (this.gameState?.buildings.size ?? 0) === 0
+      && (this.gameState?.residences.size ?? 0) === 0
+      && (this.gameState?.burgageZones.size ?? 0) === 0;
+    this.toolbar.setStarterCampRequired(starterCampRequired);
     const buildingMode = this.buildingTool.getMode();
     const placementEconomy = this.buildingTool.getPlacementEconomy();
     const burgageEnabled = this.burgageTool.isEnabled();

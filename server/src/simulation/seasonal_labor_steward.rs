@@ -4,7 +4,8 @@ use crate::building_defs::building_def;
 use crate::db::*;
 use crate::economy::available_building_labor;
 use crate::farming::{
-    farmstead_exportable_grain, field_seed_grain_remaining, field_work_allowed, STAGE_GROWING,
+    farmstead_exportable_grain, field_seed_crop, field_seed_grain_remaining, field_work_allowed,
+    CROP_BARLEY, STAGE_GROWING,
 };
 use crate::labor_steward_policy::{seasonal_labor_steward_review_due, steward_deployable_labor};
 use crate::seasonal_labor_policy::{
@@ -64,25 +65,29 @@ pub fn recall_idle_seasonal_labor_for_owner(
                 && field.stage_progress < 1.0 - 1e-9
                 && field_work_allowed(field.stage, field.crop, month)
         });
-        let seed_grain_required: f64 = fields
-            .iter()
-            .map(|field| {
-                field_seed_grain_remaining(
+        let (seed_grain_required, barley_seed_required) =
+            fields.iter().fold((0.0, 0.0), |(grain, barley), field| {
+                let reserve = field_seed_grain_remaining(
                     field.area,
                     field.crop,
                     field.next_crop,
                     field.stage,
                     field.stage_progress,
                     field.priority,
-                )
-            })
-            .sum();
+                );
+                if field_seed_crop(field.crop, field.next_crop, field.stage) == CROP_BARLEY {
+                    (grain, barley + reserve)
+                } else {
+                    (grain + reserve, barley)
+                }
+            });
         let has_outbound_stock = match building.kind.as_str() {
             "foragers_shed" | "fishing_camp" => building.food > 1e-6,
             "apiary" => building.food > 1e-6 || building.honey > 1e-6,
             "vineyard" => building.food > 1e-6 || building.wine > 1e-6,
             "threshing_barn" => {
                 farmstead_exportable_grain(building.grain, seed_grain_required) > 1e-6
+                    || farmstead_exportable_grain(building.barley, barley_seed_required) > 1e-6
             }
             _ => false,
         };

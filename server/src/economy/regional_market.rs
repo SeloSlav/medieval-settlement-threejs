@@ -46,6 +46,7 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         // Seed grain follows the regional food-crop market without widening
         // the persisted market-state schema.
         TradeResource::Grain => state.food_price_mult,
+        TradeResource::Barley => state.food_price_mult,
         // Imported spearheads and fittings follow the regional mineral market.
         TradeResource::Ironwork => state.stone_price_mult,
     }
@@ -137,6 +138,10 @@ pub fn record_market_trade(
                 adjust_supply_index(state.regional_food_supply, direction, amount);
         }
         TradeResource::Grain => {
+            state.regional_food_supply =
+                adjust_supply_index(state.regional_food_supply, direction, amount);
+        }
+        TradeResource::Barley => {
             state.regional_food_supply =
                 adjust_supply_index(state.regional_food_supply, direction, amount);
         }

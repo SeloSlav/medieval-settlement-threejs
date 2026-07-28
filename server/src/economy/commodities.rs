@@ -22,6 +22,8 @@ pub enum CommodityKind {
     Wool,
     Cloth,
     Gold,
+    Barley,
+    Malt,
 }
 
 impl CommodityKind {
@@ -43,6 +45,8 @@ impl CommodityKind {
             Self::Wool => 13,
             Self::Cloth => 14,
             Self::Gold => 15,
+            Self::Barley => 16,
+            Self::Malt => 17,
         }
     }
 
@@ -64,6 +68,8 @@ impl CommodityKind {
             13 => Some(Self::Wool),
             14 => Some(Self::Cloth),
             15 => Some(Self::Gold),
+            16 => Some(Self::Barley),
+            17 => Some(Self::Malt),
             _ => None,
         }
     }
@@ -87,6 +93,8 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Wool => building.wool,
         CommodityKind::Cloth => building.cloth,
         CommodityKind::Gold => building.gold,
+        CommodityKind::Barley => building.barley,
+        CommodityKind::Malt => building.malt,
     }
 }
 
@@ -127,6 +135,8 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
                 0.0
             }
         }
+        CommodityKind::Barley => def.storage_barley,
+        CommodityKind::Malt => def.storage_malt,
     }
 }
 
@@ -158,6 +168,8 @@ pub fn withdraw_building_commodity(
         CommodityKind::Wool => building.wool -= withdrawn,
         CommodityKind::Cloth => building.cloth -= withdrawn,
         CommodityKind::Gold => building.gold -= withdrawn,
+        CommodityKind::Barley => building.barley -= withdrawn,
+        CommodityKind::Malt => building.malt -= withdrawn,
     }
     withdrawn
 }
@@ -185,6 +197,8 @@ pub fn deposit_building_commodity(
         CommodityKind::Wool => building.wool += deposited,
         CommodityKind::Cloth => building.cloth += deposited,
         CommodityKind::Gold => building.gold += deposited,
+        CommodityKind::Barley => building.barley += deposited,
+        CommodityKind::Malt => building.malt += deposited,
     }
     deposited
 }
@@ -222,6 +236,8 @@ pub fn credit_treasury_commodity(
         CommodityKind::Wool => treasury.wool += amount,
         CommodityKind::Cloth => treasury.cloth += amount,
         CommodityKind::Gold => unreachable!("gold uses the physical treasury seat"),
+        CommodityKind::Barley => treasury.barley += amount,
+        CommodityKind::Malt => treasury.malt += amount,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);
