@@ -385,6 +385,8 @@ export type GameBalance = {
     monasteryHospitalityBonusGoldPerDay: number;
     monasteryHospitalityHoneyPerDay: number;
     monasteryHospitalityWinePerDay: number;
+    monasteryFeastFood: number;
+    monasteryFeastAle: number;
     monasteryFeastHoney: number;
     monasteryFeastWine: number;
     monasteryUnlinkedProductivity: number;
@@ -756,6 +758,8 @@ function generateRust(): string {
     `pub const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityBonusGoldPerDay)};`,
     `pub const MONASTERY_HOSPITALITY_HONEY_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityHoneyPerDay)};`,
     `pub const MONASTERY_HOSPITALITY_WINE_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityWinePerDay)};`,
+    `pub const MONASTERY_FEAST_FOOD: f64 = ${rustF64(b.production.monasteryFeastFood)};`,
+    `pub const MONASTERY_FEAST_ALE: f64 = ${rustF64(b.production.monasteryFeastAle)};`,
     `pub const MONASTERY_FEAST_HONEY: f64 = ${rustF64(b.production.monasteryFeastHoney)};`,
     `pub const MONASTERY_FEAST_WINE: f64 = ${rustF64(b.production.monasteryFeastWine)};`,
     `pub const MONASTERY_UNLINKED_PRODUCTIVITY: f64 = ${rustF64(b.production.monasteryUnlinkedProductivity)};`,
@@ -1328,6 +1332,8 @@ function generateTypeScript(): string {
     `export const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY = ${b.production.monasteryHospitalityBonusGoldPerDay};`,
     `export const MONASTERY_HOSPITALITY_HONEY_PER_DAY = ${b.production.monasteryHospitalityHoneyPerDay};`,
     `export const MONASTERY_HOSPITALITY_WINE_PER_DAY = ${b.production.monasteryHospitalityWinePerDay};`,
+    `export const MONASTERY_FEAST_FOOD = ${b.production.monasteryFeastFood};`,
+    `export const MONASTERY_FEAST_ALE = ${b.production.monasteryFeastAle};`,
     `export const MONASTERY_FEAST_HONEY = ${b.production.monasteryFeastHoney};`,
     `export const MONASTERY_FEAST_WINE = ${b.production.monasteryFeastWine};`,
     `export const MONASTERY_UNLINKED_PRODUCTIVITY = ${b.production.monasteryUnlinkedProductivity};`,

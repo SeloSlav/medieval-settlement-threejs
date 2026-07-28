@@ -42,6 +42,12 @@ import {
   VINEYARD_FOOD_VISUAL_SEGMENTS,
   VINEYARD_WINE_VISUAL_SEGMENTS,
 } from '../seasonalStockpileVisuals.ts';
+import {
+  MONASTERY_ALE_VISUAL_SEGMENTS,
+  MONASTERY_FOOD_VISUAL_SEGMENTS,
+  MONASTERY_HONEY_VISUAL_SEGMENTS,
+  MONASTERY_WINE_VISUAL_SEGMENTS,
+} from '../monasteryStockpileVisuals.ts';
 import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
 import { addStockedPolearmRack } from './polearmRack.ts';
 
@@ -127,6 +133,25 @@ function addHoneyJar(group: THREE.Group, scale: number): void {
     new THREE.Vector3(0, 0.51 * scale, 0),
     new THREE.Euler(Math.PI * 0.5, 0, 0),
   );
+}
+
+function addWineCask(group: THREE.Group, scale: number): void {
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(0.3 * scale, 0.3 * scale, 0.68 * scale, 10),
+    timberMaterial('mid'),
+    new THREE.Vector3(0, 0.32 * scale, 0),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  );
+  for (const x of [-0.25, 0.25]) {
+    addMesh(
+      group,
+      new THREE.TorusGeometry(0.3 * scale, 0.022 * scale, 5, 10),
+      timberMaterial('dark'),
+      new THREE.Vector3(x * scale, 0.32 * scale, 0),
+      new THREE.Euler(0, Math.PI * 0.5, 0),
+    );
+  }
 }
 
 type StockPropPlacement = readonly [
@@ -282,6 +307,50 @@ export function createMonasteryMesh(): THREE.Group {
     addMesh(group, new THREE.BoxGeometry(2.0, 0.18, 1.15), earth, new THREE.Vector3(x, 0.09, z));
     for (let i = -2; i <= 2; i++) addMesh(group, new THREE.SphereGeometry(0.13, 6, 4), leaf, new THREE.Vector3(x + i * 0.38, 0.27, z));
   }
+  addSegmentedStockProps(
+    group,
+    'MonasteryFoodStockpile',
+    'MonasteryFoodSegment',
+    ([
+      [-5.9, 0, 4.95, 1.05],
+      [-5.15, 0, 5.05, 0.92],
+      [-4.55, 0, 4.92, 0.82],
+    ] as const).slice(0, MONASTERY_FOOD_VISUAL_SEGMENTS),
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
+  addSegmentedStockProps(
+    group,
+    'MonasteryAleStockpile',
+    'MonasteryAleSegment',
+    ([
+      [2.05, 0, 4.95, 0.9],
+      [2.7, 0, 4.92, 0.78],
+      [2.35, 0, 5.55, 0.7],
+    ] as const).slice(0, MONASTERY_ALE_VISUAL_SEGMENTS),
+    (segment, scale) => addBarrel(segment, 0, 0, scale),
+  );
+  addSegmentedStockProps(
+    group,
+    'MonasteryHoneyStockpile',
+    'MonasteryHoneySegment',
+    ([
+      [-0.55, 0, 4.95, 1.35],
+      [0.0, 0, 4.98, 1.18],
+      [0.48, 0, 4.92, 1.02],
+    ] as const).slice(0, MONASTERY_HONEY_VISUAL_SEGMENTS),
+    (segment, scale) => addHoneyJar(segment, scale),
+  );
+  addSegmentedStockProps(
+    group,
+    'MonasteryWineStockpile',
+    'MonasteryWineSegment',
+    ([
+      [0.98, 0, 5.0, 0.92],
+      [1.55, 0, 4.95, 0.8],
+      [1.28, 0, 5.55, 0.7],
+    ] as const).slice(0, MONASTERY_WINE_VISUAL_SEGMENTS),
+    (segment, scale) => addWineCask(segment, scale),
+  );
   addMonasteryTreasuryChest(group);
   return group;
 }

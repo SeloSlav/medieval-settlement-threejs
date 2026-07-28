@@ -368,6 +368,8 @@
     "monasteryHospitalityBonusGoldPerDay": 1.5,
     "monasteryHospitalityHoneyPerDay": 0.8,
     "monasteryHospitalityWinePerDay": 0.5,
+    "monasteryFeastFood": 18,
+    "monasteryFeastAle": 10,
     "monasteryFeastHoney": 4,
     "monasteryFeastWine": 3,
     "monasteryUnlinkedProductivity": 0.45,

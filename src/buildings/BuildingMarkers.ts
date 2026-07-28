@@ -73,6 +73,7 @@ import { syncBulkStockpileVisuals } from './bulkStockpileVisuals.ts';
 import { syncArmoryStockpileVisuals } from './armoryStockpileVisuals.ts';
 import { syncSeasonalStockpileVisuals } from './seasonalStockpileVisuals.ts';
 import { syncMarketplaceSpecialtyStockpileVisuals } from './marketplaceSpecialtyStockpileVisuals.ts';
+import { syncMonasteryStockpileVisuals } from './monasteryStockpileVisuals.ts';
 
 type BuildingMarkersOptions = {
   terrain: Terrain;
@@ -722,6 +723,7 @@ function syncBuildingVisualState(
   syncArmoryStockpileVisuals(marker, building);
   syncSeasonalStockpileVisuals(marker, building);
   syncMarketplaceSpecialtyStockpileVisuals(marker, building);
+  syncMonasteryStockpileVisuals(marker, building);
 }
 
 const BUILDING_EXTENT_COLORS: Partial<Record<BuildingKind, number>> = {

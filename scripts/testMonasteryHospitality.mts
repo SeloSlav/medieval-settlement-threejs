@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   BUILDING_STORAGE_CAPS,
+  CALENDAR_DAYS_PER_MONTH,
+  MONASTERY_FEAST_ALE,
+  MONASTERY_FEAST_FOOD,
   MONASTERY_FEAST_HONEY,
   MONASTERY_FEAST_WINE,
   MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
@@ -12,8 +15,11 @@ import {
   SPECIALTY_EXPORT_GOLD_PER_WINE,
 } from '../src/generated/gameBalance.ts';
 import {
+  MONASTERY_FEASTS,
+  monasteryFeastReadiness,
   monasteryHospitalityPlan,
   monasteryHospitalityStatusLabel,
+  nextMonasteryFeast,
 } from '../src/economy/monasteryHospitality.ts';
 
 const full = monasteryHospitalityPlan({ honey: 80, wine: 50 }, true);
@@ -23,6 +29,8 @@ assert.equal(full.honeyRunwayDays, 100);
 assert.equal(full.wineRunwayDays, 100);
 assert.equal(full.honeyPerYear, 116);
 assert.equal(full.winePerYear, 75);
+assert.equal(full.feastFoodPerYear, 90);
+assert.equal(full.feastAlePerYear, 50);
 assert.equal(monasteryHospitalityStatusLabel(full), 'Fully provisioned');
 
 const honeyOnly = monasteryHospitalityPlan({ honey: 8, wine: 0 }, true);
@@ -37,14 +45,66 @@ assert.equal(disabled.honeyPerDay, 0);
 assert.equal(disabled.winePerDay, 0);
 assert.equal(disabled.honeyPerYear, 0);
 assert.equal(disabled.winePerYear, 0);
+assert.equal(disabled.feastFoodPerYear, 0);
+assert.equal(disabled.feastAlePerYear, 0);
 assert.match(monasteryHospitalityStatusLabel(disabled), /remain exportable/);
 
+assert.equal(MONASTERY_FEAST_FOOD, 18);
+assert.equal(MONASTERY_FEAST_ALE, 10);
 assert.equal(MONASTERY_HOSPITALITY_HONEY_PER_DAY, 0.8);
 assert.equal(MONASTERY_HOSPITALITY_WINE_PER_DAY, 0.5);
 assert.equal(MONASTERY_FEAST_HONEY, 4);
 assert.equal(MONASTERY_FEAST_WINE, 3);
 assert.equal(BUILDING_STORAGE_CAPS.monastery.honey, 160);
 assert.equal(BUILDING_STORAGE_CAPS.monastery.wine, 120);
+assert.deepEqual(
+  MONASTERY_FEASTS.map(({ month, monthDay }) => [month, monthDay]),
+  [[1, 2], [6, 10], [8, 5], [9, 5], [12, 9]],
+  'all five observances must map onto reachable dates in the ten-day calendar',
+);
+assert.ok(
+  MONASTERY_FEASTS.every(({ monthDay }) =>
+    monthDay >= 1 && monthDay <= CALENDAR_DAYS_PER_MONTH
+  ),
+);
+
+const readyFeast = monasteryFeastReadiness({
+  food: MONASTERY_FEAST_FOOD,
+  ale: MONASTERY_FEAST_ALE,
+  honey: MONASTERY_FEAST_HONEY,
+  wine: MONASTERY_FEAST_WINE,
+});
+assert.equal(readyFeast.ready, true);
+const shortFeast = monasteryFeastReadiness({
+  food: 17,
+  ale: 8,
+  honey: 1.5,
+  wine: 0,
+});
+assert.deepEqual(shortFeast, {
+  ready: false,
+  missingFood: 1,
+  missingAle: 2,
+  missingHoney: 2.5,
+  missingWine: 3,
+});
+
+const beforeSaintsPeterAndPaul = nextMonasteryFeast({
+  month: 6,
+  monthDay: 10,
+  hour: 11,
+  minute: 0,
+});
+assert.equal(beforeSaintsPeterAndPaul.name, 'Saints Peter and Paul');
+assert.ok(Math.abs(beforeSaintsPeterAndPaul.daysUntil - 1 / 24) < 1e-9);
+const afterSaintsPeterAndPaul = nextMonasteryFeast({
+  month: 6,
+  monthDay: 10,
+  hour: 12,
+  minute: 0,
+});
+assert.equal(afterSaintsPeterAndPaul.name, 'Assumption');
+assert.equal(afterSaintsPeterAndPaul.daysUntil, 15);
 assert.equal(
   MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
   3.5,
@@ -60,6 +120,19 @@ assert.ok(
 );
 
 const server = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+const rustHospitalityPolicy = fs.readFileSync(
+  'server/src/monastery_hospitality_policy.rs',
+  'utf8',
+);
+const rustFeastSchedule = rustHospitalityPolicy
+  .match(/MONASTERY_FEAST_DATES[\s\S]*?=\s*\[([\s\S]*?)\];/)?.[1]
+  ?.matchAll(/\((\d+),\s*(\d+)\)/g);
+assert.ok(rustFeastSchedule, 'the authoritative Rust feast schedule must remain readable');
+assert.deepEqual(
+  [...rustFeastSchedule].map((match) => [Number(match[1]), Number(match[2])]),
+  MONASTERY_FEASTS.map(({ month, monthDay }) => [month, monthDay]),
+  'client deadlines must exactly mirror the authoritative feast schedule',
+);
 assert.match(
   server,
   /dispatch_need\([\s\S]*?ResidenceNeedKind::Food[\s\S]*?dispatch_monastery_hospitality\([\s\S]*?CommodityKind::Honey[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Honey[\s\S]*?&\["marketplace"\]/,
@@ -77,8 +150,13 @@ assert.match(
 );
 assert.match(
   server,
-  /withdraw_building_commodity\(monastery, CommodityKind::Honey, MONASTERY_FEAST_HONEY\)[\s\S]*?withdraw_building_commodity\(monastery, CommodityKind::Wine, MONASTERY_FEAST_WINE\)/,
-  'fixed feast days must create visible seasonal reserve draws',
+  /is_monastery_feast_day[\s\S]*?distance <= MONASTERY_COVERAGE_RADIUS[\s\S]*?if residences\.is_empty\(\)[\s\S]*?monastery_feast_batch[\s\S]*?if !batch\.ready[\s\S]*?MONASTERY_FEAST_FOOD[\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?MONASTERY_FEAST_HONEY[\s\S]*?MONASTERY_FEAST_WINE/,
+  'reachable feast days must require eligible nearby homes and a complete physical batch before any withdrawal',
+);
+assert.match(
+  server,
+  /let prosperous_homes[\s\S]*?MONASTERY_FEAST_ALE \/ prosperous_homes as f64[\s\S]*?home\.tier >= 3[\s\S]*?ResidenceNeedKind::Ale/,
+  'feast ale must be divided only among the homes that can receive it',
 );
 assert.match(
   fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8'),
@@ -92,13 +170,13 @@ assert.match(
 );
 assert.match(
   fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8'),
-  /Annual hospitality[\s\S]*?Pilgrimage income[\s\S]*?Provision hospitality and feast days/,
-  'the monastery inspector must expose annual stock targets, income, and the export tradeoff',
+  /Next feast[\s\S]*?Feast pantry[\s\S]*?Annual hospitality[\s\S]*?Pilgrimage income[\s\S]*?Provision hospitality and feast days/,
+  'the monastery inspector must expose the next deadline, reserve readiness, annual targets, income, and export tradeoff',
 );
 assert.match(
   fs.readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8'),
-  /Monastery hospitality[\s\S]*?annual target/,
-  'the settlement ledger must expose aggregate hospitality planning',
+  /Monastery hospitality[\s\S]*?annual target[\s\S]*?Next feast reserve/,
+  'the settlement ledger must expose aggregate hospitality and feast-reserve planning',
 );
 
 const performanceStarted = performance.now();
@@ -108,6 +186,12 @@ for (let index = 0; index < 100_000; index += 1) {
     { honey: index % 160, wine: index % 120 },
     true,
   ).pilgrimageGoldPerDay;
+  checksum += monasteryFeastReadiness({
+    food: index % 320,
+    ale: index % 160,
+    honey: index % 160,
+    wine: index % 120,
+  }).missingFood;
 }
 const performanceElapsed = performance.now() - performanceStarted;
 assert.ok(checksum > 0);

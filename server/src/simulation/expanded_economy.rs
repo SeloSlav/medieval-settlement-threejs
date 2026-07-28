@@ -7,8 +7,9 @@ use crate::balance_generated::{
     FERRY_GOLD_PER_DAY, FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
     GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE,
     GRANARY_WATER_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
-    MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE, MONASTERY_FOOD_PER_CYCLE,
-    MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
+    MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
+    MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
+    MONASTERY_UNLINKED_PRODUCTIVITY,
     SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
     VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE,
@@ -36,7 +37,10 @@ use crate::frontier_economy_policy::{
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
-use crate::monastery_hospitality_policy::{monastery_hospitality_use, monastery_pilgrimage_gold};
+use crate::monastery_hospitality_policy::{
+    is_monastery_feast_day, monastery_feast_batch, monastery_hospitality_use,
+    monastery_pilgrimage_gold,
+};
 use crate::processor_output_policy::{
     processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
     ProcessorOutputKind,
@@ -874,6 +878,10 @@ pub fn step_monastery(
         }
     }
     if linked {
+        // Scheduled communal hospitality claims its complete pantry batch
+        // before ordinary household carts. This makes feast preparation a
+        // predictable reserve decision instead of a race with the noon route.
+        run_monastery_feast(ctx, tick, clock, &mut monastery);
         dispatch_monastery_covered_need(
             ctx,
             tick,
@@ -891,7 +899,6 @@ pub fn step_monastery(
             3.0,
         );
     }
-    run_monastery_feast(ctx, tick, clock, &mut monastery);
     try_dispatch_local_civic_receipts(ctx, tick, clock, &mut monastery, receipt_daily_income);
     ctx.db.building().id().update(monastery);
 }
@@ -2079,24 +2086,18 @@ fn run_monastery_feast(
     monastery: &mut Building,
 ) {
     let first_tick_of_minute = clock.sim_tick % (60.0 / TICK_DT).round() as u64 == 0;
-    let feast_day = matches!(
-        (clock.month, clock.month_day),
-        (1, 6) | (6, 29) | (8, 15) | (9, 14) | (12, 25)
-    );
     let enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
-    if !enabled || !feast_day || clock.hour != 12 || clock.minute != 0 || !first_tick_of_minute {
+    if !enabled
+        || !is_monastery_feast_day(clock.month, clock.month_day)
+        || clock.hour != 12
+        || clock.minute != 0
+        || !first_tick_of_minute
+    {
         return;
     }
     let Some(network) = tick.road_network(monastery.owner) else {
         return;
     };
-    let available_food = withdraw_building_commodity(monastery, CommodityKind::Food, 18.0);
-    let available_ale = withdraw_building_commodity(monastery, CommodityKind::Ale, 10.0);
-    if available_food <= 1e-6 && available_ale <= 1e-6 {
-        return;
-    }
-    withdraw_building_commodity(monastery, CommodityKind::Honey, MONASTERY_FEAST_HONEY);
-    withdraw_building_commodity(monastery, CommodityKind::Wine, MONASTERY_FEAST_WINE);
     let residences: Vec<Residence> = ctx
         .db
         .residence()
@@ -2104,25 +2105,49 @@ fn run_monastery_feast(
         .filter(&monastery.owner)
         .filter(|home| {
             !home.abandoned
+                && home.population > 0
                 && network
                     .road_path_distance(monastery.x, monastery.z, home.x, home.z)
-                    .is_some()
+                    .is_some_and(|distance| distance <= MONASTERY_COVERAGE_RADIUS)
         })
         .collect();
-    let count = residences.len().max(1) as f64;
+    if residences.is_empty() {
+        return;
+    }
+    let batch = monastery_feast_batch(
+        monastery.food,
+        monastery.ale,
+        monastery.honey,
+        monastery.wine,
+    );
+    if !batch.ready {
+        return;
+    }
+
+    // Every withdrawal is now backed by a complete batch and at least one
+    // eligible recipient. No partial feast stock can vanish.
+    withdraw_building_commodity(monastery, CommodityKind::Food, MONASTERY_FEAST_FOOD);
+    withdraw_building_commodity(monastery, CommodityKind::Ale, MONASTERY_FEAST_ALE);
+    withdraw_building_commodity(monastery, CommodityKind::Honey, MONASTERY_FEAST_HONEY);
+    withdraw_building_commodity(monastery, CommodityKind::Wine, MONASTERY_FEAST_WINE);
+    let food_share = MONASTERY_FEAST_FOOD / residences.len() as f64;
+    let prosperous_homes = residences
+        .iter()
+        .filter(|home| home.tier >= 3)
+        .count();
+    let ale_share = if prosperous_homes > 0 {
+        MONASTERY_FEAST_ALE / prosperous_homes as f64
+    } else {
+        0.0
+    };
     for home in &residences {
-        apply_need_delivery(
-            ctx,
-            home.id,
-            ResidenceNeedKind::Food,
-            available_food / count,
-        );
+        apply_need_delivery(ctx, home.id, ResidenceNeedKind::Food, food_share);
         if home.tier >= 3 {
-            apply_need_delivery(ctx, home.id, ResidenceNeedKind::Ale, available_ale / count);
+            apply_need_delivery(ctx, home.id, ResidenceNeedKind::Ale, ale_share);
         }
     }
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&monastery.owner) {
-        resources.monastery_food_charity_total += available_food;
+        resources.monastery_food_charity_total += MONASTERY_FEAST_FOOD;
         ctx.db.player_resources().owner().update(resources);
     }
 }

@@ -5,6 +5,10 @@ import {
   CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
   ECONOMIC_ACTIVITY_TAX_RATE_MAX,
   ECONOMIC_ACTIVITY_TAX_RATE_MIN,
+  MONASTERY_FEAST_ALE,
+  MONASTERY_FEAST_FOOD,
+  MONASTERY_FEAST_HONEY,
+  MONASTERY_FEAST_WINE,
   MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
   MONASTERY_HOSPITALITY_HONEY_PER_DAY,
   MONASTERY_HOSPITALITY_WINE_PER_DAY,
@@ -166,7 +170,9 @@ export class CityAdministrationPanel {
         <p class="city-admin-panel__intro city-admin-panel__intro--compact">
           Apiaries and vineyards supply each linked monastery before exporting. Daily use is
           ${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey and
-          ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine, plus five feast-day draws;
+          ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine. Five annual observances each wait
+          for a complete ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_ALE} ale +
+          ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_WINE} wine batch;
           full stores add ${MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY.toFixed(1)} pilgrimage gold/day
           to the ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} baseline. Disable this to preserve all specialty goods for trade.
         </p>

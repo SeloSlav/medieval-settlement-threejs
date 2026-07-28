@@ -10,6 +10,10 @@ import {
   FRESH_FOOD_STORAGE_GRANARY_FACTOR,
   GRAIN_TRANSFER_PER_TRIP,
   MONASTERY_CHARITY_FOOD_PER_DELIVERY,
+  MONASTERY_FEAST_ALE,
+  MONASTERY_FEAST_FOOD,
+  MONASTERY_FEAST_HONEY,
+  MONASTERY_FEAST_WINE,
   MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
   MONASTERY_HOSPITALITY_HONEY_PER_DAY,
   MONASTERY_HOSPITALITY_WINE_PER_DAY,
@@ -46,8 +50,12 @@ import {
 } from '../../economy/monasteryPolicy.ts';
 import {
   formatHospitalityRunway,
+  formatMonasteryFeastReadiness,
+  formatNextMonasteryFeast,
+  monasteryFeastReadiness,
   monasteryHospitalityPlan,
   monasteryHospitalityStatusLabel,
+  nextMonasteryFeast,
 } from '../../economy/monasteryHospitality.ts';
 import { formatFreshFoodLoss } from '../../economy/foodPreservation.ts';
 import {
@@ -637,20 +645,29 @@ export function renderExpandedBuildingInspector(
       )
     : null;
   const logisticsRows = renderLogisticsRows(building, context, granarySeedPlan);
+  const clock = gameClock(context.gameState.tick);
   const environment = environmentFor(
     context.gameState.seed,
     context.worldHydrology,
-    gameClock(context.gameState.tick),
+    clock,
   );
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const hospitality = building.kind === 'monastery'
     ? monasteryHospitalityPlan(building, monasteryPolicy.feastsEnabled)
     : null;
+  const feastReadiness = building.kind === 'monastery'
+    ? monasteryFeastReadiness(building)
+    : null;
+  const nextFeast = building.kind === 'monastery'
+    ? nextMonasteryFeast(clock)
+    : null;
   const monasteryHospitalityRows = hospitality
     ? `<li><span>Hospitality</span><span>${monasteryHospitalityStatusLabel(hospitality)}</span></li>
       <li><span>Honey runway</span><span>${formatHospitalityRunway(hospitality.honeyRunwayDays)} · ${hospitality.honeyPerDay.toFixed(1)}/day + feast use</span></li>
       <li><span>Wine runway</span><span>${formatHospitalityRunway(hospitality.wineRunwayDays)} · ${hospitality.winePerDay.toFixed(1)}/day + feast use</span></li>
-      <li><span>Annual hospitality</span><span>${hospitality.honeyPerYear.toFixed(0)} honey + ${hospitality.winePerYear.toFixed(0)} wine at five feast days</span></li>
+      <li><span>Next feast</span><span>${nextFeast ? formatNextMonasteryFeast(nextFeast) : 'No observance scheduled'}</span></li>
+      <li><span>Feast pantry</span><span>${feastReadiness ? formatMonasteryFeastReadiness(feastReadiness) : 'Unavailable'} · full batch required</span></li>
+      <li><span>Annual hospitality</span><span>${hospitality.feastFoodPerYear.toFixed(0)} feast food + ${hospitality.feastAlePerYear.toFixed(0)} feast ale + ${hospitality.honeyPerYear.toFixed(0)} honey + ${hospitality.winePerYear.toFixed(0)} wine</span></li>
       <li><span>Pilgrimage income</span><span>${hospitality.pilgrimageGoldPerDay.toFixed(2)} gold/day at current stores · requires chapel and market road link · visitor gifts accrue here before collection</span></li>`
     : '';
   const monasteryTreasuryRows = building.kind === 'monastery'
@@ -1025,7 +1042,7 @@ function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
     <div class="inspector-action-panel">
       <p class="inspector-action-panel__hint">The monastery decides how much parish tithe supports alms and whether apiaries and vineyards provision hospitality before exporting their surplus.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
-      <p class="inspector-action-panel__hint">Enabled monasteries consume ${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey and ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine per day, with extra feast-day use, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Disable this to leave all honey and wine available for export.</p>
+      <p class="inspector-action-panel__hint">Enabled monasteries consume ${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey and ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine per day, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Each of five observances also waits for one complete ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_ALE} ale + ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_WINE} wine batch; short pantries preserve every ingredient. Disable this to leave all honey and wine available for export.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-monastery-tithe min="0" max="80" step="5" value="${Math.round(policy.titheShare * 100)}" />
       <div class="city-admin-panel__range-hints"><span>Chapel keeps all</span><span>Monastery-led</span></div>

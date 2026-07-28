@@ -1,9 +1,20 @@
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import {
   MONASTERY_CHARITY_FOOD_PER_DELIVERY,
   MONASTERY_COVERAGE_RADIUS,
 } from '../src/generated/gameBalance.ts';
 import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
+import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
+import {
+  MONASTERY_ALE_VISUAL_SEGMENTS,
+  MONASTERY_FOOD_VISUAL_SEGMENTS,
+  MONASTERY_HONEY_VISUAL_SEGMENTS,
+  MONASTERY_WINE_VISUAL_SEGMENTS,
+  monasteryStockpileVisualSignature,
+  syncMonasteryStockpileVisuals,
+} from '../src/buildings/monasteryStockpileVisuals.ts';
 import {
   findLinkedMonasteryInCoverage,
   isResidenceInMonasteryCoverage,
@@ -145,4 +156,90 @@ if (!smallParishResult.ok) {
   assert.equal(smallParishResult.reason, 'requires_parish_population');
 }
 
-console.log('monastery polish tests passed');
+const monasteryMarker = createBuildingMesh('monastery');
+const pantryGroups = [
+  ['MonasteryFoodStockpile', 'MonasteryFoodSegment', MONASTERY_FOOD_VISUAL_SEGMENTS],
+  ['MonasteryAleStockpile', 'MonasteryAleSegment', MONASTERY_ALE_VISUAL_SEGMENTS],
+  ['MonasteryHoneyStockpile', 'MonasteryHoneySegment', MONASTERY_HONEY_VISUAL_SEGMENTS],
+  ['MonasteryWineStockpile', 'MonasteryWineSegment', MONASTERY_WINE_VISUAL_SEGMENTS],
+] as const;
+for (const [containerName, segmentName, expectedSegments] of pantryGroups) {
+  const container = monasteryMarker.getObjectByName(containerName);
+  assert.ok(container instanceof THREE.Group, `${containerName} must exist on the monastery mesh`);
+  assert.equal(
+    container.children.filter((child) => child.name === segmentName).length,
+    expectedSegments,
+  );
+  assert.equal(container.visible, false, `${containerName} must begin empty`);
+}
+
+const stockedMonastery = building({
+  id: 'stocked-monastery',
+  constructionComplete: true,
+  food: 61,
+  ale: 41,
+  honey: 81,
+  wine: 41,
+});
+syncMonasteryStockpileVisuals(monasteryMarker, stockedMonastery);
+for (const [containerName, segmentName, expectedVisible] of [
+  ['MonasteryFoodStockpile', 'MonasteryFoodSegment', 2],
+  ['MonasteryAleStockpile', 'MonasteryAleSegment', 2],
+  ['MonasteryHoneyStockpile', 'MonasteryHoneySegment', 2],
+  ['MonasteryWineStockpile', 'MonasteryWineSegment', 2],
+] as const) {
+  const container = monasteryMarker.getObjectByName(containerName) as THREE.Group;
+  assert.equal(container.visible, true);
+  assert.equal(
+    container.children.filter((child) => child.name === segmentName && child.visible).length,
+    expectedVisible,
+  );
+}
+
+const emptyMonastery = building({
+  id: stockedMonastery.id,
+  constructionComplete: true,
+});
+syncMonasteryStockpileVisuals(monasteryMarker, emptyMonastery);
+for (const [containerName, segmentName] of pantryGroups) {
+  const container = monasteryMarker.getObjectByName(containerName) as THREE.Group;
+  assert.equal(container.visible, false);
+  assert.equal(
+    container.children.filter((child) => child.name === segmentName && child.visible).length,
+    0,
+  );
+}
+
+const emptyMap = new Map([[emptyMonastery.id, emptyMonastery]]);
+const stockedMap = new Map([[stockedMonastery.id, stockedMonastery]]);
+const emptySignatures = buildingMarkerSignatures(emptyMap);
+const stockedSignatures = buildingMarkerSignatures(stockedMap);
+assert.notEqual(emptySignatures.visual, stockedSignatures.visual);
+assert.equal(
+  emptySignatures.collider,
+  stockedSignatures.collider,
+  'pantry bands must never rebuild first-person colliders',
+);
+assert.match(monasteryStockpileVisualSignature(stockedMonastery), /:monastery-pantry:2:2:2:2$/);
+
+const performanceStarted = performance.now();
+let visualChecksum = 0;
+for (let index = 0; index < 100_000; index += 1) {
+  visualChecksum += monasteryStockpileVisualSignature(building({
+    constructionComplete: true,
+    food: index % 320,
+    ale: index % 160,
+    honey: index % 160,
+    wine: index % 120,
+  })).length;
+}
+const performanceElapsed = performance.now() - performanceStarted;
+assert.ok(visualChecksum > 0);
+assert.ok(
+  performanceElapsed < 250,
+  `100k monastery pantry signatures regressed (${performanceElapsed.toFixed(1)} ms)`,
+);
+
+console.log(
+  `monastery polish tests passed (${performanceElapsed.toFixed(1)} ms for 100k pantry signatures)`,
+);

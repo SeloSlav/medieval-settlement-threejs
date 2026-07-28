@@ -20,7 +20,12 @@ import {
   computeSettlementLaborStewardForecast,
   type SettlementLaborStewardForecast,
 } from '../../economy/laborStewardForecast.ts';
-import { monasteryHospitalityPlan } from '../../economy/monasteryHospitality.ts';
+import {
+  formatNextMonasteryFeast,
+  monasteryFeastReadiness,
+  monasteryHospitalityPlan,
+  nextMonasteryFeast,
+} from '../../economy/monasteryHospitality.ts';
 import { computeSettlementLivestockFodderPlan } from '../../economy/livestockFodder.ts';
 import { buildVillageAdminReadout } from '../../economy/villageAdminReadout.ts';
 import type {
@@ -1815,10 +1820,23 @@ export function renderTownHallInspector(
     (sum, plan) => sum + plan.winePerYear,
     0,
   );
+  const feastFoodPerYear = hospitalityPlans.reduce(
+    (sum, plan) => sum + plan.feastFoodPerYear,
+    0,
+  );
+  const feastAlePerYear = hospitalityPlans.reduce(
+    (sum, plan) => sum + plan.feastAlePerYear,
+    0,
+  );
+  const feastReadyMonasteries = linkedMonasteries.filter(
+    (candidate) => monasteryFeastReadiness(candidate).ready,
+  ).length;
+  const nextFeast = nextMonasteryFeast(clock);
   const monasteryHospitalityRow = linkedMonasteries.length === 0
     ? '<li><span>Monastery hospitality</span><span>No chapel-and-market-linked monastery</span></li>'
     : monasteryPolicy.feastsEnabled
-      ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} fully supplied · ${hospitalityGoldPerDay.toFixed(2)} pilgrimage gold/day before handcart collection · annual target ${hospitalityHoneyPerYear.toFixed(0)} honey + ${hospitalityWinePerYear.toFixed(0)} wine</span></li>`
+      ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} fully supplied · ${hospitalityGoldPerDay.toFixed(2)} pilgrimage gold/day before handcart collection · annual target ${hospitalityHoneyPerYear.toFixed(0)} honey + ${hospitalityWinePerYear.toFixed(0)} wine</span></li>
+        <li><span>Next feast reserve</span><span>${formatNextMonasteryFeast(nextFeast)} · ${feastReadyMonasteries} / ${linkedMonasteries.length} pantries ready · annual batches require ${feastFoodPerYear.toFixed(0)} food + ${feastAlePerYear.toFixed(0)} ale settlement-wide</span></li>`
       : `<li><span>Monastery hospitality</span><span>Disabled · ${hospitalityGoldPerDay.toFixed(2)} baseline pilgrimage gold/day before handcart collection · honey and wine remain exportable</span></li>`;
   const inboundTreasuryGold = Array.from(context.gameState.deliveryTrips.values())
     .filter(
