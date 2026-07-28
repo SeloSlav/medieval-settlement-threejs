@@ -149,6 +149,10 @@ export function marketplaceSpecialtyExportRate(building: BuildingState): number 
 }
 
 export type MarketplaceSpecialtyQueue = {
+  aleUnits: number;
+  honeyUnits: number;
+  wineUnits: number;
+  clothUnits: number;
   units: number;
   goldValue: number;
   exportWorkers: number;
@@ -164,6 +168,10 @@ export function marketplaceSpecialtyQueue(
   const unitsPerSecond = marketplaceSpecialtyExportRate(building);
   const boundedRate = Number.isFinite(marketRate) ? Math.max(0, marketRate) : 0;
   return {
+    aleUnits: building.ale,
+    honeyUnits: building.honey,
+    wineUnits: building.wine,
+    clothUnits: building.cloth ?? 0,
     units,
     goldValue:
       (
@@ -176,6 +184,27 @@ export function marketplaceSpecialtyQueue(
     unitsPerSecond,
     clearSeconds: units > 1e-6 && unitsPerSecond > 1e-6 ? units / unitsPerSecond : null,
   };
+}
+
+export function formatMarketplaceSpecialtyQueue(
+  queue: Pick<
+    MarketplaceSpecialtyQueue,
+    'aleUnits' | 'honeyUnits' | 'wineUnits' | 'clothUnits' | 'units' | 'goldValue'
+  >,
+): string {
+  const stored = [
+    ['ale', queue.aleUnits],
+    ['honey', queue.honeyUnits],
+    ['wine', queue.wineUnits],
+    ['cloth', queue.clothUnits],
+  ] as const;
+  const readable = stored
+    .filter(([, units]) => units > 1e-6)
+    .map(([label, units]) => `${units.toFixed(1)} ${label}`);
+  if (readable.length === 0) {
+    return 'Empty - awaiting ale, honey, wine, or cloth carts';
+  }
+  return `${readable.join(' · ')} · ${queue.units.toFixed(1)} total · about ${queue.goldValue.toFixed(1)} gold`;
 }
 
 export type MarketplaceSpecialtyExportPlan = {

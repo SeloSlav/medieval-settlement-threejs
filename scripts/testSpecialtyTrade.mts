@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   apiaryIsActive,
+  formatMarketplaceSpecialtyQueue,
   marketplaceSpecialtyQueue,
   specialtySeasonStatus,
   vineyardIsHarvesting,
@@ -59,7 +60,19 @@ const busyMarket = makeMarket({
 });
 const busyQueue = marketplaceSpecialtyQueue(busyMarket);
 assert.equal(busyQueue.units, 21);
+assert.equal(busyQueue.aleUnits, 10);
+assert.equal(busyQueue.honeyUnits, 5);
+assert.equal(busyQueue.wineUnits, 2);
+assert.equal(busyQueue.clothUnits, 4);
 assert.equal(busyQueue.goldValue, 24.7);
+assert.equal(
+  formatMarketplaceSpecialtyQueue(busyQueue),
+  '10.0 ale · 5.0 honey · 2.0 wine · 4.0 cloth · 21.0 total · about 24.7 gold',
+);
+assert.equal(
+  formatMarketplaceSpecialtyQueue(marketplaceSpecialtyQueue(makeMarket())),
+  'Empty - awaiting ale, honey, wine, or cloth carts',
+);
 assert.equal(busyQueue.exportWorkers, 1);
 assert.equal(busyQueue.unitsPerSecond, 0.45);
 assert.ok(Math.abs((busyQueue.clearSeconds ?? 0) - 21 / 0.45) < 1e-9);

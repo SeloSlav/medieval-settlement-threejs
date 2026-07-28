@@ -40,6 +40,7 @@ import { foodStockpileVisualSignature } from './foodStockpileVisuals.ts';
 import { bulkStockpileVisualSignature } from './bulkStockpileVisuals.ts';
 import { armoryStockpileVisualSignature } from './armoryStockpileVisuals.ts';
 import { seasonalStockpileVisualSignature } from './seasonalStockpileVisuals.ts';
+import { marketplaceSpecialtyStockpileVisualSignature } from './marketplaceSpecialtyStockpileVisuals.ts';
 
 export function buildingMeshSignature(building: BuildingState): string {
   if (building.constructionComplete !== false) {
@@ -196,6 +197,8 @@ export function buildingMarkerSignatures(
       const bulkStockState = bulkStockpileVisualSignature(building);
       const armoryStockState = armoryStockpileVisualSignature(building);
       const seasonalStockState = seasonalStockpileVisualSignature(building);
+      const marketplaceSpecialtyStockState =
+        marketplaceSpecialtyStockpileVisualSignature(building);
       const structural = [
         building.id,
         building.x.toFixed(2),
@@ -204,7 +207,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${clothState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${clothState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}`,
         collider: structural,
       };
     })

@@ -17,6 +17,7 @@ import {
   marketplaceTradeStagingPlan,
 } from '../../economy/marketplaceTrade.ts';
 import {
+  formatMarketplaceSpecialtyQueue,
   marketplaceSpecialtyExportPlan,
   marketplaceSpecialtyQueue,
 } from '../../economy/specialtyTrade.ts';
@@ -155,6 +156,7 @@ export function renderMarketplaceInspector(
     marketState.specialtyPriceMult,
   );
   const specialtyQueue = marketplaceSpecialtyQueue(building, marketState.specialtyPriceMult);
+  const specialtyQueueLabel = formatMarketplaceSpecialtyQueue(specialtyQueue);
   const specialtyExportActive = specialtyQueue.units > 1e-6
     && specialtyPlan.saleAllowed
     && hasRoadAccess
@@ -230,7 +232,7 @@ export function renderMarketplaceInspector(
       <li><span>Bulk trade desk</span><span>${manualTrade.label}</span></li>
       <li><span>Active bulk order</span><span>${pendingOrderLabel}</span></li>
       <li><span>Regional route</span><span>${regionalRoute}</span></li>
-      <li><span>Specialty queue</span><span>${specialtyQueue.units.toFixed(1)} units - about ${specialtyQueue.goldValue.toFixed(1)} gold</span></li>
+      <li><span>Specialty queue</span><span>${specialtyQueueLabel}</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
       <li><span>Market coffer</span><span>${proceedsCollection}</span></li>
       <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this market by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
