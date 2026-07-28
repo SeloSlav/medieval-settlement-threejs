@@ -8,6 +8,9 @@ import {
 
 export const BREWERY_GRAIN_VISUAL_SEGMENTS = 2;
 export const BREWERY_ALE_VISUAL_SEGMENTS = 3;
+export const HUNTERS_FOOD_VISUAL_SEGMENTS = 4;
+export const FORAGERS_FOOD_VISUAL_SEGMENTS = 4;
+export const FISHING_FOOD_VISUAL_SEGMENTS = 3;
 export const SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS = 2;
 export const SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS = 3;
@@ -19,6 +22,24 @@ export const WATERMILL_FLOUR_VISUAL_SEGMENTS = 3;
 export function foodStockpileVisualSignature(building: BuildingState): string {
   if (building.constructionComplete === false) return '';
   switch (building.kind) {
+    case 'hunters_hall':
+      return foodSupplierVisualSignature(
+        building,
+        BUILDING_STORAGE_CAPS.hunters_hall.food,
+        HUNTERS_FOOD_VISUAL_SEGMENTS,
+      );
+    case 'foragers_shed':
+      return foodSupplierVisualSignature(
+        building,
+        BUILDING_STORAGE_CAPS.foragers_shed.food,
+        FORAGERS_FOOD_VISUAL_SEGMENTS,
+      );
+    case 'fishing_camp':
+      return foodSupplierVisualSignature(
+        building,
+        BUILDING_STORAGE_CAPS.fishing_camp.food,
+        FISHING_FOOD_VISUAL_SEGMENTS,
+      );
     case 'brewery':
       return `:food-store:${
         stockpileVisualLevel(
@@ -91,6 +112,33 @@ export function syncFoodStockpileVisuals(
   building: BuildingState,
 ): void {
   switch (building.kind) {
+    case 'hunters_hall':
+      syncNamedStockpile(
+        marker,
+        'HuntersFoodStockpile',
+        'HuntersFoodSegment',
+        building.food,
+        BUILDING_STORAGE_CAPS.hunters_hall.food,
+      );
+      break;
+    case 'foragers_shed':
+      syncNamedStockpile(
+        marker,
+        'ForagersFoodStockpile',
+        'ForagersFoodSegment',
+        building.food,
+        BUILDING_STORAGE_CAPS.foragers_shed.food,
+      );
+      break;
+    case 'fishing_camp':
+      syncNamedStockpile(
+        marker,
+        'FishingFoodStockpile',
+        'FishingFoodSegment',
+        building.food,
+        BUILDING_STORAGE_CAPS.fishing_camp.food,
+      );
+      break;
     case 'brewery':
       syncNamedStockpile(
         marker,
@@ -163,6 +211,14 @@ export function syncFoodStockpileVisuals(
       );
       break;
   }
+}
+
+function foodSupplierVisualSignature(
+  building: BuildingState,
+  capacity: number,
+  segments: number,
+): string {
+  return `:food-store:${stockpileVisualLevel(building.food, capacity, segments)}`;
 }
 
 function granaryProvisionStock(building: BuildingState): number {

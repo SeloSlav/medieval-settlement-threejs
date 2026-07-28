@@ -137,6 +137,9 @@ function addDryingLeanTo(group: THREE.Group, halfW: number): void {
     highEdge: 'negativeX',
     name: "Hunter's hall drying lean-to roof",
   });
+  const foodStockpile = new THREE.Group();
+  foodStockpile.name = 'HuntersFoodStockpile';
+  foodStockpile.visible = false;
   for (const z of [-1.25, -0.42, 0.42, 1.25]) {
     addMesh(
       group,
@@ -144,16 +147,20 @@ function addDryingLeanTo(group: THREE.Group, halfW: number): void {
       timberMaterial('weathered'),
       new THREE.Vector3(centerX, 1.52, z),
     );
+    const segment = new THREE.Group();
+    segment.name = 'HuntersFoodSegment';
     for (const x of [centerX - 0.33, centerX + 0.33]) {
       addMesh(
-        group,
+        segment,
         new THREE.ConeGeometry(0.14, 0.58, 7),
         timberMaterial('mid'),
         new THREE.Vector3(x, 1.2, z),
         new THREE.Euler(Math.PI, 0, 0),
       );
     }
+    foodStockpile.add(segment);
   }
+  group.add(foodStockpile);
 }
 
 /** Broad hunting hall with a deep side rack and unmistakable stone chimney. */
@@ -203,15 +210,26 @@ function addHerbPorch(group: THREE.Group, frontZ: number): void {
     timberMaterial('weathered'),
     new THREE.Vector3(0, 2.15, porchZ),
   );
+  const foodStockpile = new THREE.Group();
+  foodStockpile.name = 'ForagersFoodStockpile';
+  foodStockpile.visible = false;
   for (let i = 0; i < 7; i++) {
+    const segmentIndex = Math.min(3, Math.floor(i / 2));
+    let segment = foodStockpile.children[segmentIndex] as THREE.Group | undefined;
+    if (!segment) {
+      segment = new THREE.Group();
+      segment.name = 'ForagersFoodSegment';
+      foodStockpile.add(segment);
+    }
     addMesh(
-      group,
+      segment,
       new THREE.ConeGeometry(0.16, 0.55 + (i % 2) * 0.12, 7),
       sharedBuildingDetailMaterial('foliage'),
       new THREE.Vector3(-1.55 + i * 0.52, 1.83, porchZ),
       new THREE.Euler(Math.PI, 0, 0),
     );
   }
+  group.add(foodStockpile);
   for (const x of [-1.4, 1.45]) {
     addMesh(
       group,
@@ -274,16 +292,23 @@ function addFishingRack(group: THREE.Group, centerX: number, centerZ: number): v
       new THREE.Vector3(x, 1.62, centerZ),
     );
   }
+  const foodStockpile = new THREE.Group();
+  foodStockpile.name = 'FishingFoodStockpile';
+  foodStockpile.visible = false;
   for (const x of [centerX - 0.78, centerX, centerX + 0.78]) {
+    const segment = new THREE.Group();
+    segment.name = 'FishingFoodSegment';
     const fish = addMesh(
-      group,
+      segment,
       new THREE.ConeGeometry(0.16, 0.62, 7),
       metalMaterial('steel'),
       new THREE.Vector3(x, 1.48, centerZ + 0.08),
       new THREE.Euler(0, 0, Math.PI),
     );
     fish.name = 'Drying river fish';
+    foodStockpile.add(segment);
   }
+  group.add(foodStockpile);
 }
 
 function addWickerFishTrap(group: THREE.Group, x: number, z: number, scale = 1): void {

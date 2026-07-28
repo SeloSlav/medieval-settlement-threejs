@@ -6,9 +6,12 @@ import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignatu
 import {
   BREWERY_ALE_VISUAL_SEGMENTS,
   BREWERY_GRAIN_VISUAL_SEGMENTS,
+  FISHING_FOOD_VISUAL_SEGMENTS,
+  FORAGERS_FOOD_VISUAL_SEGMENTS,
   foodStockpileVisualSignature,
   GRANARY_GRAIN_VISUAL_SEGMENTS,
   GRANARY_PROVISION_VISUAL_SEGMENTS,
+  HUNTERS_FOOD_VISUAL_SEGMENTS,
   SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS,
   SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS,
   SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS,
@@ -26,6 +29,9 @@ type StockGroupExpectation = readonly [
 ];
 
 const stockGroups: readonly StockGroupExpectation[] = [
+  ['hunters_hall', 'HuntersFoodStockpile', 'HuntersFoodSegment', HUNTERS_FOOD_VISUAL_SEGMENTS],
+  ['foragers_shed', 'ForagersFoodStockpile', 'ForagersFoodSegment', FORAGERS_FOOD_VISUAL_SEGMENTS],
+  ['fishing_camp', 'FishingFoodStockpile', 'FishingFoodSegment', FISHING_FOOD_VISUAL_SEGMENTS],
   ['brewery', 'BreweryGrainStockpile', 'BreweryGrainSegment', BREWERY_GRAIN_VISUAL_SEGMENTS],
   ['brewery', 'BreweryAleStockpile', 'BreweryAleSegment', BREWERY_ALE_VISUAL_SEGMENTS],
   ['smokehouse', 'SmokehouseFirewoodStockpile', 'SmokehouseFirewoodSegment', SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS],
@@ -47,6 +53,19 @@ for (const [kind, containerName, segmentName, segmentCount] of stockGroups) {
     segmentCount,
     `${containerName} must expose its configured visual capacity`,
   );
+}
+
+const supplierExpectations = [
+  ['hunters_hall', 'HuntersFoodStockpile', 'HuntersFoodSegment', 51, 3],
+  ['foragers_shed', 'ForagersFoodStockpile', 'ForagersFoodSegment', 41, 3],
+  ['fishing_camp', 'FishingFoodStockpile', 'FishingFoodSegment', 81, 3],
+] as const;
+for (const [kind, containerName, segmentName, food, expected] of supplierExpectations) {
+  const marker = createBuildingMesh(kind);
+  syncFoodStockpileVisuals(marker, building(kind, { food }));
+  assertVisibleSegments(marker, containerName, segmentName, expected);
+  syncFoodStockpileVisuals(marker, building(kind));
+  assertVisibleSegments(marker, containerName, segmentName, 0);
 }
 
 const brewery = building('brewery', { grain: 71, ale: 67 });
@@ -130,7 +149,15 @@ assert.notEqual(
 );
 
 const perfBuildings = Array.from({ length: 100_000 }, (_, index) => {
-  const kinds = ['brewery', 'smokehouse', 'granary', 'watermill'] as const;
+  const kinds = [
+    'hunters_hall',
+    'foragers_shed',
+    'fishing_camp',
+    'brewery',
+    'smokehouse',
+    'granary',
+    'watermill',
+  ] as const;
   return building(kinds[index % kinds.length], {
     grain: index % 421,
     flour: index % 261,
