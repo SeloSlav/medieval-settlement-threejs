@@ -32,6 +32,7 @@ import {
   guardhouseMusterResponseDistance,
   guardhouseMusterResponseBand,
   isFrontierRaidSeason,
+  isPalisadedRefugeRallyActive,
   palisadedRefugeEffectiveRadius,
   palisadedRefugeHouseholdLossFraction,
   projectRaidTargets,
@@ -59,6 +60,7 @@ import {
   BUILDING_COSTS,
   BUILDING_STORAGE_CAPS,
   PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
+  PALISADED_REFUGE_RALLY_THREAT_THRESHOLD,
   PALISADED_REFUGE_RESIDENT_CAPACITY,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
@@ -81,6 +83,41 @@ const frontierSettings = normalizeWorldGenerationSettings({
 assert.equal(frontierSettings.conflictMode, 'frontier');
 assert.equal(frontierSettings.enemyPressure, 65);
 assert.equal(PALISADED_REFUGE_RESIDENT_CAPACITY, 32);
+assert.equal(PALISADED_REFUGE_RALLY_THREAT_THRESHOLD, 0.7);
+assert.equal(
+  isPalisadedRefugeRallyActive(
+    { nextRaidTick: 10_000, threat: 0.7 },
+    true,
+    5,
+  ),
+  true,
+);
+assert.equal(
+  isPalisadedRefugeRallyActive(
+    { nextRaidTick: 10_000, threat: 0.699 },
+    true,
+    5,
+  ),
+  false,
+);
+assert.equal(
+  isPalisadedRefugeRallyActive(
+    { nextRaidTick: 10_000, threat: 0.95 },
+    true,
+    1,
+  ),
+  false,
+  'winter campaign pauses must not keep families crowded into refuges',
+);
+assert.equal(
+  isPalisadedRefugeRallyActive(
+    { nextRaidTick: 10_000, threat: 0.95 },
+    false,
+    5,
+  ),
+  false,
+  'peaceful worlds must never start a civilian rally',
+);
 assert.equal(normalizeWorldGenerationSettings({
   ...frontierSettings,
   conflictMode: 'peaceful',
@@ -662,6 +699,24 @@ const shelterByCapacityHome = new Map(
 );
 assert.equal(shelterByCapacityHome.get('capacity-overflow-20'), true);
 assert.equal(shelterByCapacityHome.get('capacity-no-room-8'), false);
+const cachedCapacityTargets = projectRaidTargets(
+  refugeCapacityState,
+  10,
+  {
+    enemyPressure: 55,
+    roadNetwork: new RoadNetwork(),
+    refugeShelterPlan: capacityPlan,
+  },
+);
+assert.deepEqual(
+  cachedCapacityTargets
+    .filter((target) => target.kind === 'residence')
+    .map((target) => [target.id, target.sheltered]),
+  capacityTargets
+    .filter((target) => target.kind === 'residence')
+    .map((target) => [target.id, target.sheltered]),
+  'raid markers must reuse the same household assignments that drive visible refuge rallies',
+);
 assert.deepEqual(
   countHouseholdsShelteredByPalisadedRefuge(
     capacityRefugeA,
@@ -1267,6 +1322,8 @@ assert.match(guardhouseInspector, /Inspect linked watchtower/);
 assert.match(refugeInspector, /Warned demand/);
 assert.match(refugeInspector, /Resident capacity/);
 assert.match(refugeInspector, /Nearest-household claims/);
+assert.match(refugeInspector, /Alert state/);
+assert.match(refugeInspector, /Rally underway/);
 assert.match(refugeInspector, /Household coin sheltered/);
 assert.match(refugeInspector, /building inventories, loaded carts, and Town Hall treasury remain where stored/);
 assert.match(townHallInspector, /Civilian refuge capacity/);
@@ -1293,6 +1350,16 @@ assert.match(
   app,
   /projectRaidTargets\([\s\S]*enemyPressure:[\s\S]*roadNetwork:[\s\S]*roadSpeedMultiplier/,
   'risk markers must rank targets with the same road, pressure, and weather inputs as the authority',
+);
+assert.match(
+  app,
+  /computeRefugeShelterPlan\(state\)[\s\S]*refugeShelterPlan: refugePlan[\s\S]*setRefugeAlert/,
+  'one cached household assignment must drive raid markers and visible refuge rallies',
+);
+assert.match(
+  clientSecurity,
+  /options\?\.refugeShelterPlan \?\? assignRefugeHouseholds/,
+  'cached alert assignments must avoid a duplicate settlement-wide household sort',
 );
 assert.match(
   clientSecurity,
@@ -1734,6 +1801,23 @@ assert.ok(
   refugeAssignmentElapsedMs < 750,
   `1,000-refuge, 100,000-home capacity assignment took ${refugeAssignmentElapsedMs.toFixed(1)} ms`,
 );
+const cachedRefugeProjectionStarted = performance.now();
+const cachedRefugePerfTargets = projectRaidTargets(
+  refugeAssignmentPerfState,
+  3,
+  {
+    enemyPressure: 80,
+    roadNetwork: new RoadNetwork(),
+    refugeShelterPlan: refugeAssignmentPlan,
+  },
+);
+const cachedRefugeProjectionElapsedMs =
+  performance.now() - cachedRefugeProjectionStarted;
+assert.equal(cachedRefugePerfTargets.length, 0);
+assert.ok(
+  cachedRefugeProjectionElapsedMs < 350,
+  `cached 1,000-refuge, 100,000-home target projection took ${cachedRefugeProjectionElapsedMs.toFixed(1)} ms`,
+);
 refugeAssignmentPerfState.buildings.clear();
 refugeAssignmentPerfState.residences.clear();
 
@@ -1782,7 +1866,7 @@ assert.ok(
 );
 
 console.log(
-  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${districtProjectionElapsedMs.toFixed(1)} ms for 40-watch/10-company/10,000-holding district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${refugeAssignmentElapsedMs.toFixed(1)} ms for 1,000-refuge/100,000-home capacity assignment; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${districtProjectionElapsedMs.toFixed(1)} ms for 40-watch/10-company/10,000-holding district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${refugeAssignmentElapsedMs.toFixed(1)} ms for 1,000-refuge/100,000-home capacity assignment; ${cachedRefugeProjectionElapsedMs.toFixed(1)} ms for cached 1,000-refuge/100,000-home target projection; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
 );
 
 function building(

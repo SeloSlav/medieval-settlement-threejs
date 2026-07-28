@@ -78,10 +78,12 @@ import { SessionLifecycleController } from './SessionLifecycleController.ts';
 import { beginNewWorld } from './worldBootstrapFlow.ts';
 import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
 import {
+  computeRefugeShelterPlan,
   FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS,
   frontierDefenseFireSignature,
   formatProjectedRaidTargets,
   formatRaidReport,
+  isPalisadedRefugeRallyActive,
   projectRaidTargets,
   type ProjectedRaidTarget,
 } from '../security/frontierSecurity.ts';
@@ -876,11 +878,15 @@ export class App {
     ].join('|');
     if (signature !== this.raidProjectionSignature) {
       this.raidProjectionSignature = signature;
+      const clock = gameClock(snapshot.simTick);
       const roadSpeedMultiplier = environmentFor(
         state.seed,
         snapshot.worldGeneration?.hydrology ?? 50,
-        gameClock(snapshot.simTick),
+        clock,
       ).roadTravelSpeedMultiplier;
+      const refugePlan = enabled
+        ? computeRefugeShelterPlan(state)
+        : null;
       this.projectedRaidTargets = enabled
         ? projectRaidTargets(
             state,
@@ -890,10 +896,19 @@ export class App {
                   enemyPressure: snapshot.worldGeneration?.enemyPressure ?? 0,
                   roadNetwork: this.roadNetwork,
                   roadSpeedMultiplier,
+                  refugeShelterPlan: refugePlan ?? undefined,
                 }
               : undefined,
           )
         : [];
+      this.villagers?.setRefugeAlert(
+        isPalisadedRefugeRallyActive(
+          security,
+          enabled,
+          clock.month,
+        ),
+        refugePlan?.refugeByResidence,
+      );
       this.frontierRiskMarkers?.sync(
         this.projectedRaidTargets,
         security.threat,
@@ -908,6 +923,7 @@ export class App {
   private clearFrontierRiskFeedback(): void {
     this.raidProjectionSignature = '';
     this.projectedRaidTargets = [];
+    this.villagers?.setRefugeAlert(false);
     this.frontierRiskMarkers?.sync([], 0, false);
   }
 

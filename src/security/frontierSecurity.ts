@@ -6,6 +6,7 @@ import {
   GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE,
   GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
   PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
+  PALISADED_REFUGE_RALLY_THREAT_THRESHOLD,
   PALISADED_REFUGE_RESIDENT_CAPACITY,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
@@ -293,6 +294,17 @@ export function isFrontierRaidSeason(month: number): boolean {
   return month >= RAID_SEASON_START_MONTH && month <= RAID_SEASON_END_MONTH;
 }
 
+export function isPalisadedRefugeRallyActive(
+  security: Pick<SettlementSecurityState, 'nextRaidTick' | 'threat'>,
+  conflictEnabled: boolean,
+  month: number,
+): boolean {
+  return conflictEnabled
+    && security.nextRaidTick > 0
+    && security.threat + 1e-9 >= PALISADED_REFUGE_RALLY_THREAT_THRESHOLD
+    && isFrontierRaidSeason(month);
+}
+
 export function estimatedRaidDays(
   security: SettlementSecurityState,
   simTick: number,
@@ -396,6 +408,7 @@ export type RaidTargetProjectionOptions = {
   enemyPressure: number;
   roadNetwork: RoadNetwork;
   roadSpeedMultiplier?: number;
+  refugeShelterPlan?: RefugeShelterPlan;
 };
 
 export type RefugeShelterPlan = {
@@ -608,7 +621,7 @@ export function projectRaidTargets(
   }
   const watchIndex = buildWatchCoverageIndex(towers);
   const refugeIndex = buildWatchCoverageIndex(refuges);
-  const refugePlan = assignRefugeHouseholds(
+  const refugePlan = options?.refugeShelterPlan ?? assignRefugeHouseholds(
     gameState,
     watchIndex,
     refugeIndex,

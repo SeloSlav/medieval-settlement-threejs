@@ -9,6 +9,12 @@ import {
 } from '../src/residences/householdRoutine.ts';
 import { pickWorkerCommutePath } from '../src/settlement/workerPaths.ts';
 import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
+import {
+  PALISADED_REFUGE_RALLY_SLOT_COUNT,
+  palisadedRefugeGateInside,
+  palisadedRefugeGateOutside,
+  palisadedRefugeRallyPosition,
+} from '../src/settlement/palisadedRefugeRally.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
   PEDESTRIAN_ROAD_SPEED_MULTIPLIER,
@@ -124,6 +130,30 @@ const chapel = {
   ...building('routine-chapel', 28, 0),
   kind: 'chapel' as const,
 };
+const refuge = {
+  ...building('routine-refuge', 40, 0),
+  kind: 'palisaded_refuge' as const,
+  assignedLabor: 0,
+  workRadius: 68,
+};
+const rallyPositions = Array.from(
+  { length: PALISADED_REFUGE_RALLY_SLOT_COUNT },
+  (_, slot) => palisadedRefugeRallyPosition(refuge, slot),
+);
+assert.equal(
+  new Set(rallyPositions.map((position) => `${position.x}:${position.z}`)).size,
+  32,
+  'every resident place in the compact refuge must remain visually distinct',
+);
+assert.ok(
+  rallyPositions.every(
+    (position) =>
+      Math.abs(position.x - refuge.x) <= 4.3
+      && Math.abs(position.z - refuge.z) <= 3,
+  ),
+  'rally places must stay inside the authored palisade',
+);
+assert.ok(palisadedRefugeGateOutside(refuge).z > palisadedRefugeGateInside(refuge).z);
 const parishRoads = new RoadNetwork();
 parishRoads.addRoadPath([
   new THREE.Vector3(-5, 0, 0),
@@ -131,7 +161,7 @@ parishRoads.addRoadPath([
 ]);
 villagers.sync({
   residences: [home],
-  buildings: [workplace, chapel],
+  buildings: [workplace, chapel, refuge],
   quarries: [],
   foragingNodes: [],
   trees: new Map(),
@@ -145,11 +175,15 @@ villagers.setSchedule(fullClock(19), false);
 const agents = (
   villagers as unknown as {
     agents: Map<string, {
+      personIdentity: string;
       routinePhase: string;
       pathPurpose: string | null;
       simPathCursor: number;
       ambientBehavior: string | null;
       mode: string;
+      refugeId: string | null;
+      x: number;
+      z: number;
     }>;
   }
 ).agents;
@@ -218,7 +252,73 @@ assert.equal(worker.pathPurpose, 'return_from_mass');
 for (let step = 0; step < 1200; step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.notEqual(worker.pathPurpose, 'return_from_mass');
+
+villagers.setRefugeAlert(true, new Map([[home.id, refuge.id]]));
+assert.equal(worker.routinePhase, 'going_to_refuge');
+assert.equal(worker.pathPurpose, 'refuge_rally');
+for (let step = 0; step < 1600; step++) villagers.tick(0.05);
+assert.equal(worker.routinePhase, 'at_refuge');
+assert.equal(worker.pathPurpose, null);
+assert.match(
+  villagers.inspectVillager(worker.personIdentity)?.activity ?? '',
+  /Sheltering with their household/,
+);
+assert.ok(
+  Math.hypot(worker.x - refuge.x, worker.z - refuge.z) < 5.5,
+  'assigned household members must visibly finish inside their physical refuge',
+);
+
+villagers.setRefugeAlert(false);
+assert.equal(worker.routinePhase, 'returning_from_refuge');
+assert.equal(worker.pathPurpose, 'return_from_refuge');
+for (let step = 0; step < 1800; step++) villagers.tick(0.05);
+assert.equal(worker.routinePhase, 'work');
+assert.equal(worker.refugeId, null);
 villagers.dispose();
+await new Promise((resolve) => setTimeout(resolve, 0));
+
+const defenseVillagers = new VillagerRenderer({
+  parent: new THREE.Group(),
+  getGameSpeed: () => 1,
+  getHeightAt: () => 0,
+});
+const defenseHome = residence('defense-home', 0, 0);
+const guardhouse = {
+  ...building('routine-guardhouse', 12, 0),
+  kind: 'guardhouse' as const,
+  polearms: 1,
+};
+defenseVillagers.sync({
+  residences: [defenseHome],
+  buildings: [guardhouse, refuge],
+  quarries: [],
+  foragingNodes: [],
+  trees: new Map(),
+  treeRegistry: null,
+  farmFields: [],
+  pastures: [],
+  roadNetwork: parishRoads,
+});
+defenseVillagers.setSchedule(fullClock(12), false);
+defenseVillagers.setRefugeAlert(
+  true,
+  new Map([[defenseHome.id, refuge.id]]),
+);
+const defenseAgents = (
+  defenseVillagers as unknown as {
+    agents: Map<string, { routinePhase: string; pathPurpose: string | null }>;
+  }
+).agents;
+assert.equal(
+  defenseAgents.get('worker:routine-guardhouse:0')?.routinePhase,
+  'work',
+  'watch and guard crews must stay at their defensive posts while civilians rally',
+);
+assert.notEqual(
+  defenseAgents.get('worker:routine-guardhouse:0')?.pathPurpose,
+  'refuge_rally',
+);
+defenseVillagers.dispose();
 await new Promise((resolve) => setTimeout(resolve, 0));
 console.warn = originalWarn;
 

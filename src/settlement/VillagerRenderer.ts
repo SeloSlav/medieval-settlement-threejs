@@ -100,6 +100,11 @@ import {
   CHAPEL_GATHERING_AMBIENT_CYCLE_SECONDS,
   planChapelGatheringBehaviors,
 } from './chapelGatheringBehaviors.ts';
+import {
+  palisadedRefugeGateInside,
+  palisadedRefugeGateOutside,
+  palisadedRefugeRallyPosition,
+} from './palisadedRefugeRally.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import { STARTING_POPULATION } from '../generated/gameBalance.ts';
 import {
@@ -117,6 +122,9 @@ type VillagerRoutinePhase =
   | 'going_to_mass'
   | 'at_mass'
   | 'returning_from_mass'
+  | 'going_to_refuge'
+  | 'at_refuge'
+  | 'returning_from_refuge'
   | HouseholdHomeState;
 type VillagerPathPurpose =
   | 'home_wander'
@@ -125,11 +133,14 @@ type VillagerPathPurpose =
   | 'return_home'
   | 'chapel_mass'
   | 'return_from_mass'
+  | 'refuge_rally'
+  | 'return_from_refuge'
   | 'ambient'
   | null;
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
 const CAMP_SEAT_RELEASE_DISTANCE = 0.8;
+const NO_REFUGE_ASSIGNMENTS: ReadonlyMap<string, string> = new Map();
 
 type PendingCampSeatAssignment = {
   assignment: AmbientBehaviorAssignment;
@@ -162,6 +173,8 @@ type VillagerAgent = {
   walkSpeed: number;
   currentMoveSpeed: number;
   massChapelId: string | null;
+  refugeId: string | null;
+  refugeSlot: number;
   appearanceSeed: number;
   modelVariant: VillagerModelVariant;
   tunicColor: number;
@@ -229,6 +242,8 @@ export class VillagerRenderer {
   private chapelAmbientSignature = '';
   private massChapels: BuildingState[] = [];
   private massChapelClaims = new Map<string, MassChapelClaim>();
+  private refugeAlertActive = false;
+  private refugeAssignments: ReadonlyMap<string, string> = new Map();
   private fireDisabledResidenceIds = new Set<string>();
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
@@ -252,6 +267,28 @@ export class VillagerRenderer {
     }
     changed = this.syncCampAmbientAssignments() || changed;
     changed = this.syncChapelAmbientAssignments() || changed;
+    if (changed) this.pushRenderState();
+  }
+
+  setRefugeAlert(
+    active: boolean,
+    assignments: ReadonlyMap<string, string> = NO_REFUGE_ASSIGNMENTS,
+  ): void {
+    const nextAssignments = active ? assignments : NO_REFUGE_ASSIGNMENTS;
+    if (
+      this.refugeAlertActive === active
+      && refugeAssignmentMapsEqual(this.refugeAssignments, nextAssignments)
+    ) {
+      return;
+    }
+
+    this.refugeAlertActive = active;
+    this.refugeAssignments = nextAssignments;
+    this.syncRefugeRallySlots();
+    let changed = false;
+    for (const agent of this.agents.values()) {
+      changed = this.reconcileRoutine(agent) || changed;
+    }
     if (changed) this.pushRenderState();
   }
 
@@ -411,6 +448,8 @@ export class VillagerRenderer {
             walkSpeed: pickWalkSpeed(appearanceSeed),
             currentMoveSpeed: 0,
             massChapelId: null,
+            refugeId: null,
+            refugeSlot: -1,
             appearanceSeed,
             modelVariant: pickVillagerModelVariant(appearanceSeed),
             tunicColor: colors.tunic,
@@ -503,6 +542,8 @@ export class VillagerRenderer {
           walkSpeed: pickWalkSpeed(appearanceSeed),
           currentMoveSpeed: 0,
           massChapelId: null,
+          refugeId: null,
+          refugeSlot: -1,
           appearanceSeed,
           modelVariant: pickVillagerModelVariant(appearanceSeed),
           tunicColor: colors.tunic,
@@ -596,6 +637,8 @@ export class VillagerRenderer {
           walkSpeed: pickWalkSpeed(appearanceSeed),
           currentMoveSpeed: 0,
           massChapelId: null,
+          refugeId: null,
+          refugeSlot: -1,
           appearanceSeed,
           modelVariant: pickVillagerModelVariant(appearanceSeed),
           tunicColor: colors.tunic,
@@ -635,6 +678,7 @@ export class VillagerRenderer {
       if (nextIds.has(id)) continue;
       this.agents.delete(id);
     }
+    this.syncRefugeRallySlots();
 
     for (const agent of this.agents.values()) {
       if (agent.mode !== 'idle' || !agent.idleDirty) continue;
@@ -692,7 +736,9 @@ export class VillagerRenderer {
       const commuteMustAdvance = agent.pathPurpose === 'return_home'
         || agent.pathPurpose === 'commute_to_work'
         || agent.pathPurpose === 'chapel_mass'
-        || agent.pathPurpose === 'return_from_mass';
+        || agent.pathPurpose === 'return_from_mass'
+        || agent.pathPurpose === 'refuge_rally'
+        || agent.pathPurpose === 'return_from_refuge';
       if (agent.frozen && !commuteMustAdvance) continue;
 
       agent.simAccumulator += simulationDt;
@@ -1042,6 +1088,12 @@ export class VillagerRenderer {
         case 'return_from_mass':
           this.completeMassReturn(agent);
           break;
+        case 'refuge_rally':
+          this.completeRefugeArrival(agent);
+          break;
+        case 'return_from_refuge':
+          this.completeRefugeReturn(agent);
+          break;
         case 'worker_work_loop':
           this.resetWorkerToIdle(agent);
           break;
@@ -1080,7 +1132,11 @@ export class VillagerRenderer {
 
   private readDisplayYaw(agent: VillagerAgent): number {
     if (agent.mode !== 'walk') {
-      if (agent.routinePhase === 'work' || agent.routinePhase === 'at_mass') {
+      if (
+        agent.routinePhase === 'work'
+        || agent.routinePhase === 'at_mass'
+        || agent.routinePhase === 'at_refuge'
+      ) {
         return agent.yaw;
       }
       const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
@@ -1198,8 +1254,89 @@ export class VillagerRenderer {
     agent.idleDirty = false;
   }
 
+  private syncRefugeRallySlots(): void {
+    const rosters = new Map<string, VillagerAgent[]>();
+    if (this.refugeAlertActive) {
+      for (const agent of this.agents.values()) {
+        const refuge = this.assignedRefugeForResidence(agent);
+        if (!refuge) continue;
+        const roster = rosters.get(refuge.id);
+        if (roster) roster.push(agent);
+        else rosters.set(refuge.id, [agent]);
+      }
+    }
+
+    const assignedSlots = new Map<string, number>();
+    for (const roster of rosters.values()) {
+      roster.sort((left, right) =>
+        left.personIdentity < right.personIdentity
+          ? -1
+          : left.personIdentity > right.personIdentity
+            ? 1
+            : 0
+      );
+      for (let slot = 0; slot < roster.length; slot += 1) {
+        assignedSlots.set(roster[slot]!.id, slot);
+      }
+    }
+    for (const agent of this.agents.values()) {
+      const slot = assignedSlots.get(agent.id);
+      if (slot !== undefined) {
+        agent.refugeSlot = slot;
+      } else if (
+        agent.routinePhase !== 'going_to_refuge'
+        && agent.routinePhase !== 'at_refuge'
+        && agent.routinePhase !== 'returning_from_refuge'
+      ) {
+        agent.refugeId = null;
+        agent.refugeSlot = -1;
+      }
+    }
+  }
+
+  private isDefenseDutyAgent(agent: VillagerAgent): boolean {
+    if (agent.role !== 'worker' || !agent.workplaceId) return false;
+    const kind = this.buildings.get(agent.workplaceId)?.kind;
+    return kind === 'watchtower' || kind === 'guardhouse';
+  }
+
+  private assignedRefugeForResidence(agent: VillagerAgent): BuildingState | null {
+    if (
+      !this.refugeAlertActive
+      || !agent.residenceId
+      || this.isDefenseDutyAgent(agent)
+    ) return null;
+    const refugeId = this.refugeAssignments.get(agent.residenceId);
+    const refuge = refugeId ? this.buildings.get(refugeId) : null;
+    return refuge?.kind === 'palisaded_refuge'
+      && refuge.constructionComplete !== false
+      ? refuge
+      : null;
+  }
+
   private reconcileRoutine(agent: VillagerAgent): boolean {
     if (!this.clock) return false;
+    const refuge = this.assignedRefugeForResidence(agent);
+    if (refuge) {
+      if (
+        agent.refugeId === refuge.id
+        && (
+          agent.routinePhase === 'going_to_refuge'
+          || agent.routinePhase === 'at_refuge'
+        )
+      ) {
+        return false;
+      }
+      return this.beginRefugeJourney(agent, refuge);
+    }
+    if (
+      agent.routinePhase === 'going_to_refuge'
+      || agent.routinePhase === 'at_refuge'
+    ) {
+      return this.beginRefugeReturn(agent);
+    }
+    if (agent.routinePhase === 'returning_from_refuge') return false;
+
     const homeState = householdMemberHomeState(agent.personIdentity, this.clock);
     const chapel = this.findMassChapel(agent);
     const shouldAttendMass = isSundayMassTime(
@@ -1350,6 +1487,128 @@ export class VillagerRenderer {
     this.syncChapelAmbientAssignments();
   }
 
+  private beginRefugeJourney(
+    agent: VillagerAgent,
+    refuge: BuildingState,
+  ): boolean {
+    const destination = palisadedRefugeRallyPosition(
+      refuge,
+      Math.max(0, agent.refugeSlot),
+    );
+    const outside = palisadedRefugeGateOutside(refuge);
+    const inside = palisadedRefugeGateInside(refuge);
+    const previousRefuge = agent.refugeId && agent.refugeId !== refuge.id
+      ? this.buildings.get(agent.refugeId) ?? null
+      : null;
+    const departure = previousRefuge?.kind === 'palisaded_refuge'
+      && agent.routinePhase === 'at_refuge'
+      ? [
+          { x: agent.x, z: agent.z },
+          palisadedRefugeGateInside(previousRefuge),
+          palisadedRefugeGateOutside(previousRefuge),
+        ]
+      : [{ x: agent.x, z: agent.z }];
+    const departureOutside = departure[departure.length - 1]!;
+    const approach = pickWorkerCommutePath(
+      departureOutside,
+      outside,
+      this.roadNetwork,
+    ) ?? [departureOutside, outside];
+    const routedApproach = this.routePath(approach) ?? approach;
+    const path = joinPolylines(
+      joinPolylines(departure, routedApproach),
+      [outside, inside, destination],
+    );
+
+    this.chapelAmbientAssignments.delete(agent.id);
+    agent.massChapelId = null;
+    agent.refugeId = refuge.id;
+    if (!this.beginPreparedJourney(agent, path, 'refuge_rally')) {
+      this.completeRefugeArrival(agent);
+      return true;
+    }
+    agent.routinePhase = 'going_to_refuge';
+    this.syncChapelAmbientAssignments();
+    return true;
+  }
+
+  private completeRefugeArrival(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    const refuge = agent.refugeId
+      ? this.buildings.get(agent.refugeId) ?? null
+      : null;
+    if (!refuge || refuge.kind !== 'palisaded_refuge') {
+      agent.routinePhase = 'home_outdoors';
+      return;
+    }
+    const destination = palisadedRefugeRallyPosition(
+      refuge,
+      Math.max(0, agent.refugeSlot),
+    );
+    agent.x = destination.x;
+    agent.z = destination.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = destination.yaw;
+    agent.routinePhase = 'at_refuge';
+    agent.idleRemaining = 60;
+    agent.idleDirty = false;
+  }
+
+  private beginRefugeReturn(agent: VillagerAgent): boolean {
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    const destination = residence
+      ? residenceDoorPosition(residence)
+      : this.foundingCamp
+        ? this.foundingCampRestPosition(agent, this.foundingCamp)
+        : null;
+    if (!destination) {
+      this.completeRefugeReturn(agent);
+      return true;
+    }
+
+    const currentRefuge = agent.refugeId
+      ? this.buildings.get(agent.refugeId) ?? null
+      : null;
+    const egress = currentRefuge?.kind === 'palisaded_refuge'
+      && agent.routinePhase === 'at_refuge'
+      ? [
+          { x: agent.x, z: agent.z },
+          palisadedRefugeGateInside(currentRefuge),
+          palisadedRefugeGateOutside(currentRefuge),
+        ]
+      : [{ x: agent.x, z: agent.z }];
+    const outside = egress[egress.length - 1]!;
+    const returnPath = pickWorkerCommutePath(
+      outside,
+      destination,
+      this.roadNetwork,
+    ) ?? [outside, destination];
+    const routedReturn = this.routePath(returnPath) ?? returnPath;
+    const path = joinPolylines(egress, routedReturn);
+    if (!this.beginPreparedJourney(agent, path, 'return_from_refuge')) {
+      this.completeRefugeReturn(agent);
+      return true;
+    }
+    agent.routinePhase = 'returning_from_refuge';
+    return true;
+  }
+
+  private completeRefugeReturn(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    agent.refugeId = null;
+    agent.refugeSlot = -1;
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    if (residence) this.placeIdle(agent, residence);
+    else if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);
+    agent.routinePhase = 'home_outdoors';
+    agent.idleRemaining = 1;
+    this.reconcileRoutine(agent);
+  }
+
   private beginWorkerReturnHome(agent: VillagerAgent): boolean {
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     const destination = residence
@@ -1438,11 +1697,24 @@ export class VillagerRenderer {
     >,
   ): boolean {
     const routedPath = this.routePath(path);
-    const pathDistance = routedPath ? polylineLengthXZ(routedPath) : 0;
+    return routedPath
+      ? this.beginPreparedJourney(agent, routedPath, purpose)
+      : false;
+  }
+
+  private beginPreparedJourney(
+    agent: VillagerAgent,
+    path: PointXZ[],
+    purpose: Exclude<
+      VillagerPathPurpose,
+      'home_wander' | 'worker_work_loop' | 'ambient' | null
+    >,
+  ): boolean {
+    const pathDistance = polylineLengthXZ(path);
     if (pathDistance < 0.25) return false;
     agent.mode = 'walk';
     agent.pathPurpose = purpose;
-    agent.path = routedPath!;
+    agent.path = path;
     agent.pathDistance = pathDistance;
     agent.pathCursor = 0;
     agent.simPathCursor = 0;
@@ -1488,6 +1760,17 @@ export class VillagerRenderer {
       agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
     }
     this.clearPath(agent);
+    if (purpose === 'refuge_rally') {
+      agent.routinePhase = 'home_outdoors';
+      const refuge = this.assignedRefugeForResidence(agent);
+      if (refuge) this.beginRefugeJourney(agent, refuge);
+      return;
+    }
+    if (purpose === 'return_from_refuge') {
+      agent.routinePhase = 'at_refuge';
+      this.beginRefugeReturn(agent);
+      return;
+    }
     if (purpose === 'chapel_mass') {
       agent.massChapelId = null;
       agent.ambientBehavior = null;
@@ -1984,6 +2267,11 @@ export class VillagerRenderer {
 
   private workerToolFor(agent: VillagerAgent): WorkerToolKind | null {
     if (agent.role !== 'worker' || !agent.workplaceId) return null;
+    if (
+      agent.routinePhase === 'going_to_refuge'
+      || agent.routinePhase === 'at_refuge'
+      || agent.routinePhase === 'returning_from_refuge'
+    ) return null;
     const workplace = this.buildings.get(agent.workplaceId);
     if (workplace?.constructionComplete === false) return 'hammer';
     const kind = workplace?.kind;
@@ -2054,6 +2342,18 @@ function pushPathPoint(path: PointXZ[], point: PointXZ): void {
   path.push({ ...point });
 }
 
+function refugeAssignmentMapsEqual(
+  left: ReadonlyMap<string, string>,
+  right: ReadonlyMap<string, string>,
+): boolean {
+  if (left === right) return true;
+  if (left.size !== right.size) return false;
+  for (const [residenceId, refugeId] of left) {
+    if (right.get(residenceId) !== refugeId) return false;
+  }
+  return true;
+}
+
 function describeVillagerActivity(
   agent: VillagerAgent,
   workplace: BuildingState | null,
@@ -2082,6 +2382,12 @@ function describeVillagerActivity(
       return 'Attending Sunday mass';
     case 'returning_from_mass':
       return 'Walking home from Sunday mass';
+    case 'going_to_refuge':
+      return 'Rallying through the palisaded refuge gate';
+    case 'at_refuge':
+      return 'Sheltering with their household during the frontier alert';
+    case 'returning_from_refuge':
+      return 'Returning from the civilian refuge';
     case 'work':
       if (workplace?.kind === 'watchtower') {
         return 'Keeping watch from the frontier gallery';
