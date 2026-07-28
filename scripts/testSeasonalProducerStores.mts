@@ -71,7 +71,7 @@ for (const [kind, containerName, segmentName, segmentCount] of stockGroups) {
 const threshingMarker = createBuildingMesh('threshing_barn');
 syncSeasonalStockpileVisuals(
   threshingMarker,
-  building('threshing_barn', { grain: 150 }),
+  building('threshing_barn', { grain: 150, barley: 100 }),
 );
 assertVisibleSegments(
   threshingMarker,

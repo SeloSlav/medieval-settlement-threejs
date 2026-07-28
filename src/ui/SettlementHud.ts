@@ -84,7 +84,8 @@ const SETTLEMENT_HUD_HTML = `
       <div
         class="settlement-hud__stat settlement-hud__stat--perf"
         tabindex="0"
-        data-tooltip="Frames per second. Turns amber below 60 and gold at 85 or higher."
+        data-stat-row="fps"
+        data-tooltip="Frames per second. Turns red below 60 and green at 85 or higher."
       >
         <span class="settlement-hud__label">FPS</span>
         <strong class="settlement-hud__value settlement-hud__value--fps" data-stat="fps">--</strong>
@@ -146,9 +147,13 @@ const SETTLEMENT_HUD_HTML = `
       </div>
     </div>
     <details class="settlement-hud__stores" data-specialty-stores>
-      <summary class="settlement-hud__stores-summary">
-        <span>Stores & provisions</span>
-        <span class="settlement-hud__stores-status" data-specialty-stores-status>No specialty stock</span>
+      <summary
+        class="settlement-hud__stores-summary"
+        aria-label="Stores and provisions, no specialty stock"
+        data-tooltip="Open specialty stores and provisions"
+      >
+        <span class="settlement-hud__stores-label">Stores</span>
+        <strong class="settlement-hud__stores-status" data-specialty-stores-status>0</strong>
       </summary>
       <div class="settlement-hud__stores-grid" aria-label="Specialty stores">
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="grain" data-tooltip="Grain stored at physical holdings, granaries, markets, processors, and institutions. Loaded carts are shown separately.">

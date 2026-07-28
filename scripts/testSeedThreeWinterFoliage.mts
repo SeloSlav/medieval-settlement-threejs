@@ -73,10 +73,15 @@ function foliageClock(month: number, monthDay: number) {
   return { month, monthDay, hour: 12, preciseHour: 12 } as any;
 }
 
-assert.equal(deciduousFoliageForClock(foliageClock(3, 8)).dormancy, 1);
-const aprilLeafOut = deciduousFoliageForClock(foliageClock(4, 6));
-assert.ok(aprilLeafOut.springFlush > 0.4 && aprilLeafOut.springFlush < 0.7);
-assert.ok(aprilLeafOut.dormancy > 0.3 && aprilLeafOut.dormancy < 0.6);
+const openingMarchFoliage = deciduousFoliageForClock(foliageClock(3, 1));
+assert.ok(openingMarchFoliage.springFlush > 0.8);
+assert.ok(openingMarchFoliage.dormancy < 0.2);
+const lateMarchFoliage = deciduousFoliageForClock(foliageClock(3, 8));
+assert.ok(lateMarchFoliage.springFlush > 0.95);
+assert.ok(lateMarchFoliage.dormancy < 0.05);
+const aprilMaturation = deciduousFoliageForClock(foliageClock(4, 6));
+assert.ok(aprilMaturation.springFlush > 0.4 && aprilMaturation.springFlush < 0.6);
+assert.equal(aprilMaturation.dormancy, 0);
 assert.deepEqual(
   deciduousFoliageForClock(foliageClock(7, 6)),
   { springFlush: 0, autumnColor: 0, dormancy: 0 },

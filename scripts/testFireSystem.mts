@@ -315,8 +315,8 @@ assert.ok(
 );
 assert.equal(
   (simulationSource.match(/ctx\.db\.building\(\)\.iter\(\)/g) ?? []).length,
-  1,
-  'the main substep should classify all buildings once, not rescan for faith rosters',
+  2,
+  'the substep may perform one O(1) empty-world gate before its single full classification pass',
 );
 assert.match(
   simulationSource,

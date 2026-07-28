@@ -61,7 +61,7 @@ assert.equal(industrialWaterTarget('granary', 25), 2);
 assert.equal(industrialWaterTarget('granary', 50), 4);
 assert.equal(industrialWaterTarget('granary', 75), 6);
 assert.equal(industrialWaterTarget('granary', 100), 6);
-assert.equal(industrialWaterTarget('brewery', 50), 4);
+assert.equal(industrialWaterTarget('brewery', 50), 6);
 
 const candidates = [
   {

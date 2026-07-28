@@ -40,24 +40,33 @@ function monthProgress(clock: GameClock): number {
 /**
  * Calendar presentation for broadleaf trees and European larch.
  *
- * Mountain-valley deciduous trees stay bare through March, leaf out through
- * April with a pale spring flush, mature during May, color from late September
- * through October, and shed progressively during November.
+ * A restrained late-February leaf-out gives a new March world a welcoming
+ * green canopy. The remaining leaves fill in through March, the pale spring
+ * flush matures during April, autumn color starts in late September, and
+ * foliage sheds progressively during November.
  */
 export function deciduousFoliageForClock(
   clock: GameClock,
 ): DeciduousFoliagePresentation {
   const progress = monthProgress(clock);
 
-  if (clock.month === 4) {
-    const leafOut = smooth(progress);
+  if (clock.month === 2) {
+    const leafOut = 0.82 * smooth((progress - 0.72) / 0.28);
     return {
       springFlush: leafOut,
       autumnColor: 0,
       dormancy: 1 - leafOut,
     };
   }
-  if (clock.month === 5) {
+  if (clock.month === 3) {
+    const leafOut = 0.82 + 0.18 * smooth(progress);
+    return {
+      springFlush: leafOut,
+      autumnColor: 0,
+      dormancy: 1 - leafOut,
+    };
+  }
+  if (clock.month === 4) {
     return {
       springFlush: 1 - smooth(progress),
       autumnColor: 0,
@@ -86,7 +95,7 @@ export function deciduousFoliageForClock(
       dormancy: smooth(progress),
     };
   }
-  if (clock.month === 12 || clock.month <= 3) {
+  if (clock.month === 12 || clock.month === 1) {
     return {
       springFlush: 0,
       autumnColor: 0,

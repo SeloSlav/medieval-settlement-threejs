@@ -233,6 +233,8 @@ mod tests {
             founding_shelter_active: false,
             chapel_monastery_tithe_due: 0.0,
             civic_receipts_gold: 0.0,
+            barley: 0.0,
+            malt: 0.0,
         }
     }
 

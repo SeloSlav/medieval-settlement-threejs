@@ -170,16 +170,16 @@ const lateFebruarySnow = snowCoverageForClock(
 assert.ok(lateDecemberSnow > winterEnvironment.snowCoverage);
 assert.ok(lateJanuarySnow > lateDecemberSnow);
 assert.ok(lateJanuarySnow > 0.95);
-assert.ok(lateFebruarySnow > 0.15);
+assert.ok(lateFebruarySnow < 0.02);
 assert.ok(lateFebruarySnow < lateDecemberSnow);
-const earlyMarchSnow = snowCoverageForClock(
+const openingMarchSnow = snowCoverageForClock(
   gameClock(CALENDAR_DAYS_PER_MONTH * 12 * dayTicks),
 );
-const midMarchSnow = snowCoverageForClock(
-  gameClock((CALENDAR_DAYS_PER_MONTH * 12 + 14) * dayTicks),
+const lateMarchSnow = snowCoverageForClock(
+  gameClock((CALENDAR_DAYS_PER_MONTH * 12 + 9) * dayTicks),
 );
-assert.ok(Math.abs(earlyMarchSnow - lateFebruarySnow) < 0.02);
-assert.equal(midMarchSnow, 0);
+assert.equal(openingMarchSnow, 0);
+assert.equal(lateMarchSnow, 0);
 assert.equal(winterEnvironment.roadTravelSpeedMultiplier, 0.72);
 assert.equal(
   winterEnvironment.watermillThroughputMultiplier,

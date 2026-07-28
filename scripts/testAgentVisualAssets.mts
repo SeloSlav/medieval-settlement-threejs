@@ -163,6 +163,8 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   food: 'Fresh food basket',
   timber: 'Timber pole 1',
   grain: 'Grain sack',
+  barley: 'Grain sack',
+  malt: 'Grain sack',
   flour: 'Flour sack',
   ale: 'Ale keg',
   preservedFood: 'Preserved food crock 1',

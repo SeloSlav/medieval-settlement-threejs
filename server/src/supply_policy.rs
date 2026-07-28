@@ -759,7 +759,7 @@ mod tests {
         );
         assert_eq!(
             grain_dispatch_duty("brewery", 0, 0.0, 9.0),
-            Some(GrainDispatchDuty::WorkshopOverflow)
+            None
         );
         assert_eq!(
             grain_dispatch_duty("granary", 0, 0.0, 0.0),

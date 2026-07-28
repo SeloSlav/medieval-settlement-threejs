@@ -14,7 +14,7 @@ import {
   processorOutputHeadroom,
   processorOutputTargetForBuilding,
 } from '../src/economy/processorOutputPolicy.ts';
-import { selectGrainProcessorTarget } from '../src/logistics/grainLogistics.ts';
+import { selectDirectProcessorInputTarget } from '../src/logistics/processorInputLogistics.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
 function processor(
@@ -28,6 +28,8 @@ function processor(
     x: 0,
     z: 0,
     grain: 0,
+    barley: 0,
+    malt: 0,
     flour: 0,
     food: 0,
     ale: 0,
@@ -127,18 +129,18 @@ assert.equal(
   true,
   'an open brewhouse should accept firing fuel',
 );
-const selected = selectGrainProcessorTarget(
+const selected = selectDirectProcessorInputTarget(
   [cappedBrewery, openBrewery],
   'central-granary',
+  'barley',
   () => 10,
-  () => 1,
   () => false,
-  (target) => processorAcceptsInput(target, 'grain'),
+  (target) => processorAcceptsInput(target, 'barley'),
 );
 assert.equal(
   selected?.target.id,
   openBrewery.id,
-  'grain arbitration should skip a processor whose output target is met',
+  'barley arbitration should skip a processor whose ale target is met',
 );
 
 const candidates = Array.from({ length: 100_000 }, (_, index) => {
@@ -151,7 +153,7 @@ const candidates = Array.from({ length: 100_000 }, (_, index) => {
 const started = performance.now();
 let requestingInputs = 0;
 for (const candidate of candidates) {
-  if (processorAcceptsInput(candidate, 'grain')) requestingInputs += 1;
+  if (processorAcceptsInput(candidate, 'barley')) requestingInputs += 1;
 }
 const elapsed = performance.now() - started;
 assert.equal(requestingInputs, 1);

@@ -97,13 +97,9 @@ export function snowCoverageForClock(clock: GameClock): number {
   }
   if (clock.month === 12) return 0.16 + 0.56 * smooth(dayProgress);
   if (clock.month === 1) return 0.72 + 0.28 * smooth(dayProgress);
-  // Retain patchy cover through February and the first part of March rather
-  // than erasing the terrain on the instant that the calendar reaches spring.
-  if (clock.month === 2) return 1 - 0.78 * smooth(dayProgress);
-  if (clock.month === 3) {
-    const thaw = Math.max(0, Math.min(1, dayProgress / 0.38));
-    return 0.22 * (1 - smooth(thaw));
-  }
+  // Let the winter cover retreat completely during February so a new game can
+  // open on 1 March with readable green ground and no lingering snow patches.
+  if (clock.month === 2) return 1 - smooth(dayProgress);
   return 0;
 }
 
@@ -259,7 +255,7 @@ export function describeEnvironment(environment: EnvironmentState): {
   }
   return {
     title: 'Spring',
-    detail: 'Early-March snow retreats in sheltered patches as berries and mushrooms replenish, fish reproduce, sheep shearing resumes, and autumn-sown crops grow again. March and April are the emergency window for spring oats; frequent rain helps growth and wells but slows dirt roads, threatens exposed supplies, and can bring lightning fires.',
+    detail: 'The settled snow has cleared and fresh canopy is returning as berries and mushrooms replenish, fish reproduce, sheep shearing resumes, and autumn-sown crops grow again. March and April are the emergency window for spring oats; frequent rain helps growth and wells but slows dirt roads, threatens exposed supplies, and can bring lightning fires.',
     symbol: '❀',
   };
 }

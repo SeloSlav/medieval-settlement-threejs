@@ -79,10 +79,10 @@ select:focus-visible {
 .settlement-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 194px minmax(0, 1fr) 50px;
+  grid-template-columns: 194px 48px minmax(0, 1fr) 76px;
   align-items: stretch;
   gap: 8px;
-  width: min(960px, calc(100vw - 116px));
+  width: min(1120px, calc(100vw - 64px));
   min-height: 70px;
   padding: 7px 8px;
   overflow: visible;
@@ -225,7 +225,42 @@ select:focus-visible {
 }
 
 .settlement-hud__perf {
+  display: grid;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid rgba(218, 194, 139, 0.14);
+}
+
+.settlement-hud__perf [data-stat-row='zoom'] {
   display: none;
+}
+
+.settlement-hud__stat--perf {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  min-height: 100%;
+  padding: 6px 4px;
+  border: 0;
+  text-align: center;
+}
+
+.settlement-hud__stat--perf::before {
+  display: none;
+}
+
+.settlement-hud__stat--perf .settlement-hud__label,
+.settlement-hud__stat--perf .settlement-hud__value {
+  grid-column: 1;
+  justify-self: center;
+}
+
+.settlement-hud.is-low .settlement-hud__value--fps {
+  color: var(--ui-danger);
+}
+
+.settlement-hud.is-fast .settlement-hud__value--fps {
+  color: #c8dd9f;
 }
 
 .settlement-hud__body {
@@ -244,6 +279,7 @@ select:focus-visible {
   align-items: center;
   gap: 0 5px;
   min-width: 0;
+  min-height: 100%;
   padding: 6px 7px;
   border-left: 1px solid rgba(216, 191, 134, 0.09);
   cursor: help;
@@ -334,6 +370,11 @@ select:focus-visible {
   transform: translateX(-50%);
 }
 
+.settlement-hud__body > [data-resource='housing'] .settlement-hud__sub,
+.settlement-hud__body > [data-resource='labor'] .settlement-hud__sub {
+  display: none;
+}
+
 .settlement-hud__stat.is-empty {
   opacity: 0.48;
 }
@@ -353,39 +394,57 @@ select:focus-visible {
 
 .settlement-hud__stores-summary {
   display: grid;
-  place-items: center;
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  gap: 0 5px;
   width: 100%;
   height: 100%;
   min-height: 54px;
-  padding: 0;
+  padding: 6px 7px;
   color: #b8a77f;
-  font-size: 0;
   list-style: none;
 }
 
 .settlement-hud__stores-summary::before {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
   content: '\25A3';
   color: #c7ac6e;
   font-family: var(--ui-display);
-  font-size: 23px;
+  font-size: 20px;
+  line-height: 1;
+  text-align: center;
   transform: none;
 }
 
-.settlement-hud__stores-summary::after {
-  content: 'STORES';
-  margin-top: -10px;
+.settlement-hud__stores-label {
+  grid-column: 2;
+  grid-row: 2;
+  overflow: hidden;
   color: #817865;
   font: 800 7px/1 Inter, ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.settlement-hud__stores-status {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  color: #e1dbc9;
+  font-family: var(--ui-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .settlement-hud__stores[open] > .settlement-hud__stores-summary::before {
   color: var(--ui-brass-bright);
   transform: none;
-}
-
-.settlement-hud__stores-summary > span {
-  display: none;
 }
 
 .settlement-hud__stores-grid {
@@ -1772,8 +1831,8 @@ select:focus-visible {
 
 @media (max-width: 1080px) {
   .settlement-hud {
-    grid-template-columns: 174px minmax(0, 1fr) 46px;
-    width: min(880px, calc(100vw - 94px));
+    grid-template-columns: 174px 44px minmax(0, 1fr) 68px;
+    width: min(930px, calc(100vw - 70px));
   }
 
   .settlement-hud__body {
@@ -1796,9 +1855,32 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 128px minmax(0, 1fr) 42px;
+    grid-template-columns: 128px 40px minmax(0, 1fr) 48px;
     width: calc(100vw - 14px);
     min-height: 60px;
+  }
+
+  .settlement-hud__stores-summary {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
+    gap: 0;
+    padding: 5px 3px;
+  }
+
+  .settlement-hud__stores-summary::before {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 17px;
+  }
+
+  .settlement-hud__stores-label {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
+  }
+
+  .settlement-hud__stores-status {
+    display: none;
   }
 
   .settlement-hud__clock {
@@ -1886,14 +1968,14 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 116px minmax(0, 1fr) 38px;
+    grid-template-columns: 108px 36px minmax(0, 1fr) 44px;
   }
 
   .settlement-hud__body {
-    grid-template-columns: repeat(3, minmax(42px, 1fr));
+    grid-template-columns: repeat(2, minmax(54px, 1fr));
   }
 
-  .settlement-hud__body > .settlement-hud__stat:nth-child(n + 4) {
+  .settlement-hud__body > .settlement-hud__stat:nth-child(n + 3) {
     display: none;
   }
 

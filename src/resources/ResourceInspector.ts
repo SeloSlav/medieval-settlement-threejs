@@ -911,11 +911,19 @@ export class ResourceInspector {
     const specialtyStoreStatus = this.stockpileRoot.querySelector<HTMLElement>(
       '[data-specialty-stores-status]',
     );
+    const specialtyStoreSummary = specialtyStore?.querySelector<HTMLElement>(
+      '.settlement-hud__stores-summary',
+    );
     specialtyStore?.classList.toggle('has-stock', stockedSpecialties.length > 0);
     if (specialtyStoreStatus) {
-      specialtyStoreStatus.textContent = stockedSpecialties.length === 0
+      specialtyStoreStatus.textContent = stockedSpecialties.length.toString();
+    }
+    if (specialtyStoreSummary) {
+      const storeDescription = stockedSpecialties.length === 0
         ? 'No specialty stock'
         : `${stockedSpecialties.length} ${stockedSpecialties.length === 1 ? 'stock' : 'stocks'} active`;
+      specialtyStoreSummary.dataset.tooltip = `${storeDescription}. Open specialty stores and provisions.`;
+      specialtyStoreSummary.setAttribute('aria-label', `Stores and provisions, ${storeDescription.toLowerCase()}`);
     }
     this.populationValue.textContent = population.total.toString();
     this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;
