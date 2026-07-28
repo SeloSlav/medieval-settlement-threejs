@@ -44,7 +44,7 @@ pub fn step_residence(
     }
     let needs = load_needs(ctx, residence.id);
 
-    if !tick.owner_has_active_raid(ctx, residence.owner) {
+    if !tick.owner_has_active_raider_threat(ctx, residence.owner) {
         let sabbath_observance =
             crate::simulation::labor_schedule::owner_sabbath_observance_enabled(
                 ctx,

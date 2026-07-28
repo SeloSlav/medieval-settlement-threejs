@@ -90,6 +90,7 @@ import {
 import { FrontierRiskMarkers } from '../security/FrontierRiskMarkers.ts';
 import {
   formatLiveCombatSummary,
+  hasActiveRaiderThreat,
   type CombatAgentState,
 } from '../security/combatAgents.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
@@ -738,6 +739,7 @@ export class App {
       nextCombatInspectorSignature !== this.combatInspectorSignature;
     this.combatInspectorSignature = nextCombatInspectorSignature;
     this.villagers?.setCombatAgents(snapshot.combatAgents);
+    const raidThreatActive = hasActiveRaiderThreat(snapshot.combatAgents.values());
     if (this.liveContext) {
       this.liveContext.gameState = state;
     }
@@ -752,7 +754,11 @@ export class App {
     this.syncVisualQaFoundersCampFixture();
     this.notifyFireChanges(state, previous);
     this.notifySecurityChanges(snapshot);
-    const projectedTargets = this.syncFrontierRiskFeedback(snapshot, state);
+    const projectedTargets = this.syncFrontierRiskFeedback(
+      snapshot,
+      state,
+      raidThreatActive,
+    );
     const liveCombat = formatLiveCombatSummary(
       snapshot.combatAgents.values(),
       snapshot.simTick,
@@ -819,6 +825,7 @@ export class App {
       snapshot.simTick,
       frontierDetail || undefined,
       snapshot.activeRaid,
+      raidThreatActive,
     );
     this.settlementPresentation.sync(
       {
@@ -886,6 +893,7 @@ export class App {
   private syncFrontierRiskFeedback(
     snapshot: SpacetimeGameSnapshot,
     state: GameState,
+    raidThreatActive: boolean,
   ): string | undefined {
     const enabled = snapshot.worldGeneration?.configured === true
       && snapshot.worldGeneration.conflictMode === 'frontier';
@@ -898,7 +906,7 @@ export class App {
       security.threat.toFixed(6),
       security.coverage.toFixed(6),
       security.readyGuards.toFixed(6),
-      snapshot.activeRaid?.raidId ?? 'all-clear',
+      raidThreatActive ? 'incursion' : 'all-clear',
       Math.floor(state.tick / FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS),
       frontierDefenseFireSignature(state),
     ].join('|');
@@ -936,7 +944,7 @@ export class App {
           )
         : [];
       this.villagers?.setFrontierAlert(
-        enabled && snapshot.activeRaid !== null,
+        enabled && raidThreatActive,
         refugePlan?.refugeByResidence,
         guardhouseMusterPlan?.assignmentsByGuardhouse,
       );

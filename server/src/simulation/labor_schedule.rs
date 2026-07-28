@@ -23,17 +23,18 @@ pub fn owner_sabbath_observance_enabled(
     tick.sabbath_observance_enabled(ctx, owner)
 }
 
-/// Ordinary work and logistics halt during a live incursion, at night, and
-/// during Sunday sabbath when a staffed chapel and the policy are both active.
-/// Fire-response trips deliberately bypass this helper at their dispatch and
-/// movement call sites.
+/// Ordinary work and logistics halt while a capable hostile raider remains on
+/// the map, at night, and during Sunday sabbath when a staffed chapel and the
+/// policy are both active. Returning guards and downed raiders remain visible
+/// aftermath, but no longer hold every civilian at refuge. Fire-response trips
+/// deliberately bypass this helper at their dispatch and movement call sites.
 pub fn labor_and_logistics_paused(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     owner: Identity,
     clock: &GameClock,
 ) -> bool {
-    if tick.owner_has_active_raid(ctx, owner) {
+    if tick.owner_has_active_raider_threat(ctx, owner) {
         return true;
     }
 

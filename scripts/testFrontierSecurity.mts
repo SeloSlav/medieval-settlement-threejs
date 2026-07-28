@@ -63,6 +63,8 @@ import {
   guardCompanyRosterSummary,
   guardRecoveryRemainingDays,
   guardRecoveryTicks,
+  hasActiveRaiderThreat,
+  isActiveRaiderThreat,
   type CombatAgentState,
 } from '../src/security/combatAgents.ts';
 import { syncActiveRaid } from '../src/security/activeRaid.ts';
@@ -184,7 +186,7 @@ assert.deepEqual(activeRaid, {
 assert.equal(
   syncActiveRaid([], 'settlement-owner'),
   null,
-  'the missing live-incursion row is the authoritative all-clear signal',
+  'the raid-result lifecycle clears when its server row is removed',
 );
 assert.equal(PALISADED_REFUGE_BREACH_SECONDS, 12);
 assert.equal(raidTargetCanShelter('residence', true, true), true);
@@ -1517,6 +1519,10 @@ const serverLaborSchedule = readFileSync(
   'server/src/simulation/labor_schedule.rs',
   'utf8',
 );
+const serverTickContext = readFileSync(
+  'server/src/simulation/tick_context.rs',
+  'utf8',
+);
 const serverResidenceLifecycle = readFileSync(
   'server/src/simulation/residence_lifecycle.rs',
   'utf8',
@@ -1579,18 +1585,23 @@ assert.match(gameTableSubscriptions, /'active_raid'/);
 assert.match(gameTableSync, /syncActiveRaid/);
 assert.match(
   serverLaborSchedule,
-  /tick\.owner_has_active_raid\(ctx, owner\)/,
-  'every ordinary producer and cart must share the authoritative emergency stop',
+  /tick\.owner_has_active_raider_threat\(ctx, owner\)/,
+  'every ordinary producer and cart must share the agent-authoritative emergency stop',
 );
 assert.match(
   serverResidenceLifecycle,
-  /if !tick\.owner_has_active_raid\(ctx, residence\.owner\)[\s\S]*step_residence_settlement/,
-  'new household settlement must not progress while an incursion is physically active',
+  /if !tick\.owner_has_active_raider_threat\(ctx, residence\.owner\)[\s\S]*step_residence_settlement/,
+  'new household settlement must not progress while a capable hostile is physically active',
 );
 assert.match(
   app,
-  /setFrontierAlert\([\s\S]*enabled && snapshot\.activeRaid !== null/,
-  'civilian rally and guard muster presentation must begin only for a replicated live raid',
+  /setFrontierAlert\([\s\S]*enabled && raidThreatActive/,
+  'civilian rally and guard muster presentation must follow replicated hostile agents',
+);
+assert.match(
+  serverTickContext,
+  /combat_agent\(\)[\s\S]*owner\(\)[\s\S]*filter\(&owner\)[\s\S]*combat_agent_is_active_raider_threat/,
+  'the emergency-stop cache must use the owner-indexed live-agent table',
 );
 assert.match(clientSecurity, /live contact still resolves the fight/);
 assert.match(watchtowerInspector, /Projected defense/);
@@ -1998,6 +2009,34 @@ assert.match(clientCombatAgents, /breaching a refuge/);
   ]);
   assert.match(liveSummary ?? '', /1 raider/);
   assert.match(liveSummary ?? '', /1 guard/);
+  assert.equal(
+    hasActiveRaiderThreat([
+      combatant('r1', 'raider', 'advancing'),
+      combatant('g1', 'guard', 'fighting'),
+    ]),
+    true,
+  );
+  assert.equal(
+    hasActiveRaiderThreat([
+      combatant('r2', 'raider', 'downed'),
+      combatant('g4', 'guard', 'returning'),
+    ]),
+    false,
+    'downed raiders and returning guards are visible aftermath, not a settlement-wide work stop',
+  );
+  assert.equal(
+    isActiveRaiderThreat(combatant('r3', 'raider', 'retreating')),
+    true,
+    'civilians remain rallied until the last capable raider physically escapes',
+  );
+  assert.equal(
+    isActiveRaiderThreat({
+      ...combatant('r4', 'raider', 'advancing'),
+      health: Number.POSITIVE_INFINITY,
+    }),
+    false,
+    'malformed replicated health must not create a permanent client-only alarm',
+  );
   assert.match(liveSummary ?? '', /1 raider down · 1 guard wounded/);
   const breaching = {
     ...combatant('r3', 'raider', 'looting'),

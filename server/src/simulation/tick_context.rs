@@ -14,6 +14,7 @@ use crate::db::*;
 use crate::economy::CommodityKind;
 use crate::farming::{field_seed_crop, field_seed_grain_remaining, CROP_BARLEY};
 use crate::monastery_hospitality_policy::monastery_feast_surplus;
+use crate::raid_agent_policy::combat_agent_is_active_raider_threat;
 use crate::roads::RoadNetwork;
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
@@ -38,7 +39,7 @@ pub type SharedRoadNetworks = Arc<HashMap<Identity, RoadNetwork>>;
 pub struct SimTickContext {
     road_networks: SharedRoadNetworks,
     building_index: RefCell<Option<HashMap<Identity, OwnerBuildingIndex>>>,
-    active_raid_by_owner: RefCell<HashMap<Identity, bool>>,
+    active_raider_threat_by_owner: RefCell<HashMap<Identity, bool>>,
     sabbath_observance_by_owner: RefCell<HashMap<Identity, bool>>,
     monastery_hospitality_by_owner: RefCell<HashMap<Identity, bool>>,
     staffed_chapel_by_owner: RefCell<HashMap<Identity, bool>>,
@@ -79,7 +80,7 @@ impl SimTickContext {
         Self {
             road_networks,
             building_index: RefCell::new(None),
-            active_raid_by_owner: RefCell::new(HashMap::new()),
+            active_raider_threat_by_owner: RefCell::new(HashMap::new()),
             sabbath_observance_by_owner: RefCell::new(HashMap::new()),
             monastery_hospitality_by_owner: RefCell::new(HashMap::new()),
             staffed_chapel_by_owner: RefCell::new(HashMap::new()),
@@ -108,16 +109,39 @@ impl SimTickContext {
             .unwrap_or(false)
     }
 
-    /// A raid row cannot be inserted or cleared during the economy phase of
-    /// one simulation transaction. Every producer, worksite, and cart can
-    /// therefore share one indexed lookup per owner while the live combat
-    /// agents continue to move and fight in their earlier simulation phase.
-    pub fn owner_has_active_raid(&self, ctx: &ReducerContext, owner: Identity) -> bool {
-        if let Some(active) = self.active_raid_by_owner.borrow().get(&owner).copied() {
+    /// Combat rows cannot change during the economy phase of one simulation
+    /// substep. Every producer, worksite, and cart therefore shares one
+    /// owner-indexed scan while hostile agents move and fight in the earlier
+    /// combat phase. Returning guards and downed raiders do not extend the
+    /// civilian emergency stop.
+    pub fn owner_has_active_raider_threat(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+    ) -> bool {
+        if let Some(active) = self
+            .active_raider_threat_by_owner
+            .borrow()
+            .get(&owner)
+            .copied()
+        {
             return active;
         }
-        let active = ctx.db.active_raid().owner().find(&owner).is_some();
-        self.active_raid_by_owner.borrow_mut().insert(owner, active);
+        let active = ctx
+            .db
+            .combat_agent()
+            .owner()
+            .filter(&owner)
+            .any(|agent| {
+                combat_agent_is_active_raider_threat(
+                    agent.faction,
+                    agent.state,
+                    agent.health,
+                )
+            });
+        self.active_raider_threat_by_owner
+            .borrow_mut()
+            .insert(owner, active);
         active
     }
 

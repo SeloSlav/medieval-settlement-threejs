@@ -21,6 +21,7 @@ import {
 } from '../src/app/settlementSchedulePresentation.ts';
 import { parseVisualQaConditions } from '../src/app/visualQaConditions.ts';
 import type { GameState } from '../src/resources/types.ts';
+import type { CombatAgentState } from '../src/security/combatAgents.ts';
 
 const secondsPerGameHour = CALENDAR_SECONDS_PER_DAY / 24;
 const secondsPerGameMinute = secondsPerGameHour / 60;
@@ -149,13 +150,38 @@ const emptyPresentationTargets = {
   ambientAudio: null,
 };
 const anchorTick = 3_700;
+const noCombatAgents = new Map<string, CombatAgentState>();
+const activeCombatAgents = new Map<string, CombatAgentState>([
+  ['raider:42', {
+    id: 'raider:42',
+    raidId: '42',
+    faction: 'raider',
+    sourceBuildingId: null,
+    sourceSlot: 0,
+    targetKind: 'building',
+    targetId: 'building:9',
+    x: 20,
+    z: 30,
+    homeX: 300,
+    homeZ: 300,
+    health: 80,
+    maxHealth: 80,
+    readiness: 0,
+    status: 'advancing',
+    attackCooldown: 0,
+    lootProgress: 0,
+    carryingLoot: false,
+    raidAnchorBuildingId: null,
+    stateChangedTick: anchorTick,
+  }],
+]);
 const ultraSchedule = presentation.sync(
   emptyPresentationTargets,
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 120,
-    activeRaid: null,
+    combatAgents: noCombatAgents,
   },
   null,
   true,
@@ -169,7 +195,7 @@ const scenicSchedule = presentation.sync(
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 1,
-    activeRaid: null,
+    combatAgents: noCombatAgents,
   },
   null,
   true,
@@ -196,7 +222,7 @@ const normalSchedule = presentation.sync(
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 5,
-    activeRaid: null,
+    combatAgents: noCombatAgents,
   },
   null,
   true,
@@ -219,16 +245,7 @@ const raidSchedule = presentation.sync(
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 5,
-    activeRaid: {
-      raidId: '42',
-      startedTick: anchorTick,
-      enemyPressure: 50,
-      initialRaiders: 4,
-      initialGuards: 3,
-      goodsLost: 0,
-      wealthLost: 0,
-      arsonStarted: false,
-    },
+    combatAgents: activeCombatAgents,
   },
   null,
   true,
@@ -237,7 +254,7 @@ assert.ok(raidSchedule);
 assert.equal(
   raidSchedule.laborPaused,
   true,
-  'an authoritative live raid must stop visible civilian work immediately',
+  'a capable hostile agent must stop visible civilian work immediately',
 );
 
 const winterQa = parseVisualQaConditions('?visualQa=winter');
@@ -252,7 +269,7 @@ const qaSchedule = qaPresentation.sync(
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 120,
-    activeRaid: null,
+    combatAgents: noCombatAgents,
   },
   null,
   true,
@@ -276,7 +293,7 @@ const repeatedQaSchedule = qaPresentation.sync(
     simTick: anchorTick + 1,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 120,
-    activeRaid: null,
+    combatAgents: noCombatAgents,
   },
   null,
   true,

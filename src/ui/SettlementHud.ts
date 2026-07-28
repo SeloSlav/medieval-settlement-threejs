@@ -379,12 +379,13 @@ export class SettlementHud {
     simTick: number,
     projectedTargets?: string,
     activeRaid?: ActiveRaidState | null,
+    raidThreatActive = false,
   ): void {
     const enabled = world?.configured === true && world.conflictMode === 'frontier';
     this.securityAlert.hidden = !enabled;
     this.panel.classList.toggle(
       'has-frontier-threat',
-      enabled && (activeRaid != null || security.threat >= 0.7),
+      enabled && (raidThreatActive || security.threat >= 0.7),
     );
     if (!enabled) return;
 
@@ -396,11 +397,13 @@ export class SettlementHud {
     const timing = security.nextRaidTick <= 0
       ? 'Pressure begins at 8 residents'
       : formatFrontierRaidTiming(security, simTick, clock.month);
-    const mobilization = activeRaid
+    const mobilization = raidThreatActive
       ? 'Live incursion: civilian labor and ordinary carts halted'
-      : timing;
+      : activeRaid
+        ? 'All clear: the company is returning'
+        : timing;
     this.securityDetail.textContent = `${mobilization} · ${coverage}% watched · weakest district ${readyGuards}/${requiredGuards}${security.threat >= 0.4 && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
-    this.securityAlert.dataset.threat = activeRaid != null || security.threat >= 0.9
+    this.securityAlert.dataset.threat = raidThreatActive || security.threat >= 0.9
       ? 'imminent'
       : security.threat >= 0.7
         ? 'high'
@@ -413,9 +416,11 @@ export class SettlementHud {
       `Weakest likely watch district: ${readyGuards}/${requiredGuards} guards`,
       `Companies supplied, paid, drilled, and road-linked: ${Math.round(security.defenseReadiness * 100)}%`,
       `Protected settlement value: ${coverage}%`,
-      activeRaid
-        ? `Settlement mobilized since tick ${activeRaid.startedTick}: production, construction, migration, and ordinary carts are halted until the company returns; household consumption and fire response continue.`
-        : undefined,
+      raidThreatActive && activeRaid
+        ? `Settlement mobilized since tick ${activeRaid.startedTick}: production, construction, migration, and ordinary carts remain halted until the last capable raider physically escapes or falls; household consumption and fire response continue.`
+        : activeRaid
+          ? 'The last hostile is clear: ordinary work and carts have resumed while the company physically returns and casualties are recovered.'
+          : undefined,
       formatFrontierForecast(security, world.enemyPressure),
       projectedTargets,
       'One watchman provides 78% of a tower’s full radius; two provide full coverage.',

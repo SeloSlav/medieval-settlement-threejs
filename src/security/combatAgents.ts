@@ -66,6 +66,27 @@ export function isWoundedGuard(agent: CombatAgentState): boolean {
   );
 }
 
+export function isActiveRaiderThreat(agent: CombatAgentState): boolean {
+  return agent.faction === 'raider'
+    && Number.isFinite(agent.health)
+    && agent.health > 0
+    && (
+      agent.status === 'advancing'
+      || agent.status === 'fighting'
+      || agent.status === 'looting'
+      || agent.status === 'retreating'
+    );
+}
+
+export function hasActiveRaiderThreat(
+  agents: Iterable<CombatAgentState>,
+): boolean {
+  for (const agent of agents) {
+    if (isActiveRaiderThreat(agent)) return true;
+  }
+  return false;
+}
+
 export function guardCompanyRosterSummary(
   agents: Iterable<CombatAgentState>,
   sourceBuildingId: string,

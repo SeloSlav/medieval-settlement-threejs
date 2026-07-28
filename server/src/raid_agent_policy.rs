@@ -304,6 +304,22 @@ pub fn combat_state_commits_guard_labor(state: u8) -> bool {
     )
 }
 
+/// Civilian emergency posture follows hostile people still capable of acting
+/// on the map. A downed raider, returning guard, or recuperating casualty may
+/// keep the raid aftermath visible without freezing the settlement economy.
+pub fn combat_agent_is_active_raider_threat(faction: u8, state: u8, health: f64) -> bool {
+    faction == COMBAT_FACTION_RAIDER
+        && health.is_finite()
+        && health > 0.0
+        && matches!(
+            state,
+            COMBAT_STATE_ADVANCING
+                | COMBAT_STATE_FIGHTING
+                | COMBAT_STATE_LOOTING
+                | COMBAT_STATE_RETREATING
+        )
+}
+
 pub fn distance_squared(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
     let dx = bx - ax;
     let dz = bz - az;
@@ -592,6 +608,37 @@ mod tests {
             assert!(combat_state_commits_guard_labor(state));
         }
         assert!(!combat_state_commits_guard_labor(u8::MAX));
+    }
+
+    #[test]
+    fn only_physically_active_raiders_hold_the_settlement_under_alarm() {
+        for state in [
+            COMBAT_STATE_ADVANCING,
+            COMBAT_STATE_FIGHTING,
+            COMBAT_STATE_LOOTING,
+            COMBAT_STATE_RETREATING,
+        ] {
+            assert!(combat_agent_is_active_raider_threat(
+                COMBAT_FACTION_RAIDER,
+                state,
+                1.0,
+            ));
+        }
+        assert!(!combat_agent_is_active_raider_threat(
+            COMBAT_FACTION_RAIDER,
+            COMBAT_STATE_DOWNED,
+            0.0,
+        ));
+        assert!(!combat_agent_is_active_raider_threat(
+            COMBAT_FACTION_GUARD,
+            COMBAT_STATE_FIGHTING,
+            80.0,
+        ));
+        assert!(!combat_agent_is_active_raider_threat(
+            COMBAT_FACTION_RAIDER,
+            COMBAT_STATE_ADVANCING,
+            f64::NAN,
+        ));
     }
 
     #[test]

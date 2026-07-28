@@ -18,6 +18,7 @@ import {
   applyVisualQaClock,
   type VisualQaConditions,
 } from './visualQaConditions.ts';
+import { hasActiveRaiderThreat } from '../security/combatAgents.ts';
 
 export type SettlementPresentationTargets = {
   settlementHud: SettlementHud | null;
@@ -61,7 +62,7 @@ export class SettlementPresentationController {
   private anchor: SnapshotAnchor | null = null;
   private lastSnapshot: Pick<
     SpacetimeGameSnapshot,
-    'simTick' | 'parishPolicy' | 'gameSpeed' | 'activeRaid'
+    'simTick' | 'parishPolicy' | 'gameSpeed' | 'combatAgents'
   > | null = null;
   private lastGameState: GameState | null = null;
   private readonly now: () => number;
@@ -79,7 +80,7 @@ export class SettlementPresentationController {
     targets: SettlementPresentationTargets,
     snapshot: Pick<
       SpacetimeGameSnapshot,
-      'simTick' | 'parishPolicy' | 'gameSpeed' | 'activeRaid'
+      'simTick' | 'parishPolicy' | 'gameSpeed' | 'combatAgents'
     >,
     gameState: GameState | null,
     connected: boolean,
@@ -90,10 +91,11 @@ export class SettlementPresentationController {
       return null;
     }
 
+    const raidThreatActive = hasActiveRaiderThreat(snapshot.combatAgents.values());
     const dirtyKey = [
       settlementScheduleDirtyKey(snapshot, gameState),
       snapshot.gameSpeed,
-      snapshot.activeRaid?.raidId ?? 'all-clear',
+      raidThreatActive ? 'incursion' : 'all-clear',
     ].join('|');
     if (dirtyKey === this.lastDirtyKey) {
       return null;
@@ -118,7 +120,7 @@ export class SettlementPresentationController {
       elapsedSeconds,
       snapshot.parishPolicy,
       gameState,
-      snapshot.activeRaid !== null,
+      raidThreatActive,
     );
     this.applyPresentation(targets, schedule);
     return schedule;
@@ -133,7 +135,7 @@ export class SettlementPresentationController {
       elapsedSeconds,
       this.lastSnapshot.parishPolicy,
       this.lastGameState,
-      this.lastSnapshot.activeRaid !== null,
+      hasActiveRaiderThreat(this.lastSnapshot.combatAgents.values()),
     );
     this.applyPresentation(targets, schedule);
   }
@@ -159,7 +161,7 @@ export class SettlementPresentationController {
     elapsedSeconds: number,
     parishPolicy: SpacetimeGameSnapshot['parishPolicy'],
     gameState: GameState | null,
-    activeRaid: boolean,
+    raidThreatActive: boolean,
   ): SettlementSchedule {
     const clock = gameClockAtElapsedSeconds(elapsedSeconds);
     const schedule = deriveSettlementScheduleFromClock(
@@ -169,7 +171,7 @@ export class SettlementPresentationController {
       parishPolicy,
       gameState,
     );
-    return activeRaid && !schedule.laborPaused
+    return raidThreatActive && !schedule.laborPaused
       ? { ...schedule, laborPaused: true }
       : schedule;
   }
