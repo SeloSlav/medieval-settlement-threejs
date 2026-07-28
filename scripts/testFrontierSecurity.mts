@@ -1806,7 +1806,7 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /let contact_range = raid_contact_range\(active_raid_anchor_id\)[\s\S]*contact_distance > contact_range \* contact_range[\s\S]*move_toward\([\s\S]*return;[\s\S]*agent\.state = COMBAT_STATE_LOOTING[\s\S]*agent\.loot_progress \+= elapsed_seconds[\s\S]*plunder_raid_target_at_contact/,
+  /let contact_range = raid_contact_range\(active_raid_anchor_id, agent\.target_kind\)[\s\S]*contact_distance > contact_range \* contact_range[\s\S]*move_toward\([\s\S]*return;[\s\S]*agent\.state = COMBAT_STATE_LOOTING[\s\S]*agent\.loot_progress \+= elapsed_seconds[\s\S]*plunder_raid_target_at_contact/,
   'stock removal must remain unreachable until the authoritative raider enters contact range and finishes looting',
 );
 assert.match(
@@ -1831,13 +1831,23 @@ assert.match(
 );
 assert.match(
   serverRaidAgentPolicy,
-  /PALISADED_REFUGE_ASSAULT_RADIUS_METERS[\s\S]*pub fn refuge_assault_position[\s\S]*pub fn raid_contact_range/,
-  'the refuge breach target and contact envelope must be explicit, pure policy',
+  /PALISADED_REFUGE_ASSAULT_RADIUS_METERS[\s\S]*pub fn refuge_assault_position[\s\S]*pub fn holding_assault_position[\s\S]*pub fn raid_contact_range/,
+  'stationary holding assault targets and contact envelopes must be explicit, pure policy',
+);
+assert.match(
+  serverRaidAgents,
+  /fn raid_target_assault_position[\s\S]*building_def\(&building\.kind\)[\s\S]*holding_assault_position\([\s\S]*RESIDENCE_ASSAULT_OUTER_RADIUS_METERS[\s\S]*COMBAT_TARGET_DELIVERY_TRIP[\s\S]*delivery_trip\(\)[\s\S]*trip\.owner == owner[\s\S]*trip\.x, trip\.z/,
+  'buildings, homes, and treasury seats must use exterior contact while moving carts retain their live position',
+);
+assert.match(
+  serverRaidAgentPolicy,
+  /1\.0 - \(1\.0 - total_fraction\)\.powf\(1\.0 \/ assigned_raiders as f64\)/,
+  'per-raider contact shares must compose to the declared total rather than compounding below it',
 );
 assert.match(
   villagerRenderer,
-  /combat\.raidAnchorBuildingId !== null[\s\S]*case 'looting': return breachingRefuge \? 'fight' : 'gather'/,
-  'a live refuge breach must visibly use the armed combat animation instead of generic gathering',
+  /combat\.targetKind !== 'cart'[\s\S]*case 'looting': return attackingHolding \? 'fight' : 'gather'/,
+  'live forced entry at a stationary holding must use armed strikes while cart plunder remains a rummaging action',
 );
 assert.match(
   serverRaidAgents,
@@ -2072,6 +2082,10 @@ assert.match(clientCombatAgents, /breaching a refuge/);
   assert.match(
     formatLiveCombatSummary([breaching]) ?? '',
     /1 raider breaching a refuge/,
+  );
+  assert.match(
+    formatLiveCombatSummary([combatant('r6', 'raider', 'looting')]) ?? '',
+    /1 raider looting a holding/,
   );
   const recovering = combatant('g3', 'guard', 'recovering');
   const recoveryTicks = guardRecoveryTicks(recovering.readiness);

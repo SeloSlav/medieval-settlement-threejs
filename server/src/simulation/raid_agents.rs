@@ -2,22 +2,23 @@ use std::collections::{HashMap, HashSet};
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
+use crate::balance_generated::{building_def, CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::raid_agent_policy::{
     combat_state_blocks_guard_slot, distance_squared, formation_spawn, guard_attack_interval,
-    guard_breaks_route_for, guard_damage, guard_recovery_ticks, move_along_route, move_toward,
-    nearest_emergency_guard_target, per_raider_loot_fraction, raid_contact_duration,
-    raid_contact_range, raid_entry_point, raid_party_size, raider_attack_interval, raider_damage,
-    refuge_assault_position, route_shortcut_is_worthwhile, select_guard_muster_slots,
-    EmergencyGuardTarget, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
+    guard_breaks_route_for, guard_damage, guard_recovery_ticks, holding_assault_position,
+    move_along_route, move_toward, nearest_emergency_guard_target, per_raider_loot_fraction,
+    raid_contact_duration, raid_contact_range, raid_entry_point, raid_party_size,
+    raider_attack_interval, raider_damage, refuge_assault_position, route_shortcut_is_worthwhile,
+    select_guard_muster_slots, EmergencyGuardTarget, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
     COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING,
     COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING,
     COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING,
     COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE,
     COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE, DOWNED_LINGER_SECONDS,
-    GUARD_SPEED_MPS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
-    RAIDER_OFFROAD_ROUTE_MULTIPLIER, RAIDER_SPEED_MPS, WOUNDED_GUARD_SPEED_MPS,
+    DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS, GUARD_SPEED_MPS, MELEE_RANGE_METERS,
+    RAIDER_ENGAGE_RANGE_METERS, RAIDER_OFFROAD_ROUTE_MULTIPLIER, RAIDER_SPEED_MPS,
+    RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::security_policy::{
@@ -32,9 +33,7 @@ use super::delivery_trips::{deserialize_route_polyline, serialize_route_polyline
 use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use super::reclamation::ReclamationStock;
 use super::recover_stock_at;
-use super::settlement_security::{
-    plunder_raid_target_at_contact, raid_target_position, ContactRaidPlunder,
-};
+use super::settlement_security::{plunder_raid_target_at_contact, ContactRaidPlunder};
 
 const EPSILON: f64 = 1e-9;
 const ARRIVAL_RANGE_METERS: f64 = 2.4;
@@ -117,7 +116,15 @@ pub fn start_live_raid(
             let (target_x, target_z) = if target.raid_anchor_building_id > 0 {
                 refuge_assault_position(target.x, target.z, entry_x, entry_z)
             } else {
-                (target.x, target.z)
+                raid_target_assault_position(
+                    ctx,
+                    owner,
+                    target.kind,
+                    target.id,
+                    entry_x,
+                    entry_z,
+                )
+                .unwrap_or((target.x, target.z))
             };
             build_incursion_route(road_network, entry_x, entry_z, target_x, target_z)
         })
@@ -735,7 +742,7 @@ fn step_raider(
         return;
     };
     let contact_distance = distance_squared(agent.x, agent.z, target_x, target_z);
-    let contact_range = raid_contact_range(active_raid_anchor_id);
+    let contact_range = raid_contact_range(active_raid_anchor_id, agent.target_kind);
     if contact_distance > contact_range * contact_range {
         agent.state = COMBAT_STATE_ADVANCING;
         agent.loot_progress = 0.0;
@@ -1021,7 +1028,68 @@ fn raid_agent_target_position(
             return Some((assault_x, assault_z, anchor.id));
         }
     }
-    raid_target_position(ctx, agent.target_kind, agent.target_id).map(|(x, z)| (x, z, 0))
+    raid_target_assault_position(
+        ctx,
+        agent.owner,
+        agent.target_kind,
+        agent.target_id,
+        agent.home_x,
+        agent.home_z,
+    )
+    .map(|(x, z)| (x, z, 0))
+}
+
+fn raid_target_assault_position(
+    ctx: &ReducerContext,
+    owner: Identity,
+    target_kind: u8,
+    target_id: u64,
+    approach_x: f64,
+    approach_z: f64,
+) -> Option<(f64, f64)> {
+    match target_kind {
+        COMBAT_TARGET_BUILDING | COMBAT_TARGET_TREASURY_BUILDING => {
+            let building = ctx
+                .db
+                .building()
+                .id()
+                .find(&target_id)
+                .filter(|building| building.owner == owner)?;
+            let outer_radius = building_def(&building.kind)
+                .map(|definition| definition.pick_radius)
+                .unwrap_or(DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS);
+            Some(holding_assault_position(
+                building.x,
+                building.z,
+                approach_x,
+                approach_z,
+                outer_radius,
+            ))
+        }
+        COMBAT_TARGET_RESIDENCE | COMBAT_TARGET_TREASURY_RESIDENCE => {
+            let residence = ctx
+                .db
+                .residence()
+                .id()
+                .find(&target_id)
+                .filter(|residence| residence.owner == owner)?;
+            Some(holding_assault_position(
+                residence.x,
+                residence.z,
+                approach_x,
+                approach_z,
+                RESIDENCE_ASSAULT_OUTER_RADIUS_METERS,
+            ))
+        }
+        COMBAT_TARGET_DELIVERY_TRIP => ctx
+            .db
+            .delivery_trip()
+            .id()
+            .find(&target_id)
+            .filter(|trip| trip.owner == owner)
+            .map(|trip| (trip.x, trip.z)),
+        _ => None,
+    }
 }
 
 fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid, sim_tick: u64) {

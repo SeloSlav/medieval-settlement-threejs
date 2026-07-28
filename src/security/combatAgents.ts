@@ -213,6 +213,7 @@ export function formatLiveCombatSummary(
   let woundedGuards = 0;
   let recoveringGuards = 0;
   let breachingRefuges = 0;
+  let lootingHoldings = 0;
   let raiderHealth = 0;
   let guardHealth = 0;
   let longestRecoveryDays = 0;
@@ -224,6 +225,8 @@ export function formatLiveCombatSummary(
         raiderHealth += agent.health / agent.maxHealth;
         if (agent.status === 'looting' && agent.raidAnchorBuildingId) {
           breachingRefuges += 1;
+        } else if (agent.status === 'looting') {
+          lootingHoldings += 1;
         }
       }
     } else if (
@@ -287,7 +290,10 @@ export function formatLiveCombatSummary(
   const refugeAssault = breachingRefuges > 0
     ? ` | ${breachingRefuges} raider${breachingRefuges === 1 ? '' : 's'} breaching a refuge`
     : '';
-  return `Live incursion: ${raiders} raider${raiders === 1 ? '' : 's'}${raiderStrength} | ${guards} guard${guards === 1 ? '' : 's'}${guardStrength}${refugeAssault}${casualties}.`;
+  const holdingLoot = lootingHoldings > 0
+    ? ` | ${lootingHoldings} raider${lootingHoldings === 1 ? '' : 's'} looting ${lootingHoldings === 1 ? 'a holding' : 'holdings'}`
+    : '';
+  return `Live incursion: ${raiders} raider${raiders === 1 ? '' : 's'}${raiderStrength} | ${guards} guard${guards === 1 ? '' : 's'}${guardStrength}${refugeAssault}${holdingLoot}${casualties}.`;
 }
 
 export function guardRecoveryTicks(readiness: number): number {

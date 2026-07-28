@@ -1053,7 +1053,7 @@ export class VillagerRenderer {
         variant: ordinaryGuard?.modelVariant ?? 'man',
         mode: combatRenderMode(
           combat.status,
-          combat.raidAnchorBuildingId !== null,
+          combat.targetKind !== 'cart',
         ),
         tunicColor: ordinaryGuard?.tunicColor
           ?? (combat.faction === 'raider'
@@ -2913,11 +2913,11 @@ function combatAppearanceSeed(agent: CombatAgentState): number {
 
 function combatRenderMode(
   status: CombatAgentState['status'],
-  breachingRefuge: boolean,
+  attackingHolding: boolean,
 ): VillagerRenderMode {
   switch (status) {
     case 'fighting': return 'fight';
-    case 'looting': return breachingRefuge ? 'fight' : 'gather';
+    case 'looting': return attackingHolding ? 'fight' : 'gather';
     case 'downed': return 'rest';
     case 'recovering': return 'rest';
     case 'advancing':

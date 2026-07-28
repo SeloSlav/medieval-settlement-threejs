@@ -33,14 +33,16 @@ pub const MELEE_RANGE_METERS: f64 = 2.15;
 pub const GUARD_INTERCEPT_RANGE_METERS: f64 = 22.0;
 pub const RAIDER_ENGAGE_RANGE_METERS: f64 = 14.0;
 pub const HOLDING_CONTACT_RANGE_METERS: f64 = 2.8;
+pub const STATIC_HOLDING_CONTACT_RANGE_METERS: f64 = 0.7;
+pub const RESIDENCE_ASSAULT_OUTER_RADIUS_METERS: f64 = 5.5;
+pub const DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS: f64 = 8.0;
 // The authored refuge stakes extend to 7.45 m from the building anchor.
 // Keeping the assault point one breach-contact radius beyond that envelope
 // guarantees a raider can never begin breaching from inside the palisade,
 // even if the final road leg approaches from an unexpected direction.
 pub const PALISADED_REFUGE_OUTER_RADIUS_METERS: f64 = 7.45;
-pub const PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS: f64 = 0.7;
 pub const PALISADED_REFUGE_ASSAULT_RADIUS_METERS: f64 =
-    PALISADED_REFUGE_OUTER_RADIUS_METERS + PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS;
+    PALISADED_REFUGE_OUTER_RADIUS_METERS + STATIC_HOLDING_CONTACT_RANGE_METERS;
 pub const LOOT_SECONDS: f64 = 4.0;
 pub const DOWNED_LINGER_SECONDS: f64 = 8.0;
 pub const MAP_EDGE_INSET_METERS: f64 = 9.0;
@@ -292,30 +294,77 @@ pub fn refuge_assault_position(
     approach_x: f64,
     approach_z: f64,
 ) -> (f64, f64) {
-    let refuge_x = if refuge_x.is_finite() { refuge_x } else { 0.0 };
-    let refuge_z = if refuge_z.is_finite() { refuge_z } else { 0.0 };
+    assault_position_at_radius(
+        refuge_x,
+        refuge_z,
+        approach_x,
+        approach_z,
+        PALISADED_REFUGE_ASSAULT_RADIUS_METERS,
+    )
+}
+
+/// Places a raider just beyond a stationary holding's conservative outer
+/// envelope on the side from which that raider entered the map. The extra
+/// contact radius keeps the entire accepted contact disc outside the model,
+/// even when an authored building yaw is unavailable to the authority.
+pub fn holding_assault_position(
+    holding_x: f64,
+    holding_z: f64,
+    approach_x: f64,
+    approach_z: f64,
+    outer_radius: f64,
+) -> (f64, f64) {
+    let outer_radius = if outer_radius.is_finite() {
+        outer_radius.max(0.0)
+    } else {
+        0.0
+    };
+    assault_position_at_radius(
+        holding_x,
+        holding_z,
+        approach_x,
+        approach_z,
+        outer_radius + STATIC_HOLDING_CONTACT_RANGE_METERS,
+    )
+}
+
+fn assault_position_at_radius(
+    holding_x: f64,
+    holding_z: f64,
+    approach_x: f64,
+    approach_z: f64,
+    assault_radius: f64,
+) -> (f64, f64) {
+    let holding_x = if holding_x.is_finite() { holding_x } else { 0.0 };
+    let holding_z = if holding_z.is_finite() { holding_z } else { 0.0 };
     let approach_x = if approach_x.is_finite() {
         approach_x
     } else {
-        refuge_x
+        holding_x
     };
     let approach_z = if approach_z.is_finite() {
         approach_z
     } else {
-        refuge_z
+        holding_z
     };
-    let (outward_x, outward_z) = normalized_direction(refuge_x, refuge_z, approach_x, approach_z);
+    let assault_radius = if assault_radius.is_finite() {
+        assault_radius.max(0.0)
+    } else {
+        0.0
+    };
+    let (outward_x, outward_z) =
+        normalized_direction(holding_x, holding_z, approach_x, approach_z);
     (
-        refuge_x + outward_x * PALISADED_REFUGE_ASSAULT_RADIUS_METERS,
-        refuge_z + outward_z * PALISADED_REFUGE_ASSAULT_RADIUS_METERS,
+        holding_x + outward_x * assault_radius,
+        holding_z + outward_z * assault_radius,
     )
 }
 
-pub fn raid_contact_range(raid_anchor_building_id: u64) -> f64 {
-    if raid_anchor_building_id == 0 {
+pub fn raid_contact_range(raid_anchor_building_id: u64, target_kind: u8) -> f64 {
+    if raid_anchor_building_id == 0 && target_kind == COMBAT_TARGET_DELIVERY_TRIP {
         HOLDING_CONTACT_RANGE_METERS
     } else {
-        PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS
+        STATIC_HOLDING_CONTACT_RANGE_METERS
     }
 }
 
@@ -339,7 +388,14 @@ pub fn per_raider_loot_fraction(total_fraction: f64, assigned_raiders: u32) -> f
     if assigned_raiders == 0 || !total_fraction.is_finite() {
         return 0.0;
     }
-    total_fraction.clamp(0.0, 1.0) / assigned_raiders as f64
+    let total_fraction = total_fraction.clamp(0.0, 1.0);
+    if total_fraction <= 0.0 || total_fraction >= 1.0 {
+        return total_fraction;
+    }
+    // Contact plunder applies to the stock remaining after earlier carriers.
+    // This complementary share makes n successful contacts remove exactly the
+    // advertised total: 1 - (1 - share)^n == total_fraction.
+    1.0 - (1.0 - total_fraction).powf(1.0 / assigned_raiders as f64)
 }
 
 pub fn guard_recovery_ticks(readiness: f64, ticks_per_day: u64) -> u64 {
@@ -619,10 +675,17 @@ mod tests {
         assert_eq!(raid_contact_duration(0), LOOT_SECONDS);
         assert!(raid_contact_duration(42) > raid_contact_duration(0));
         assert_eq!(raid_contact_duration(42), PALISADED_REFUGE_BREACH_SECONDS);
-        assert_eq!(raid_contact_range(0), HOLDING_CONTACT_RANGE_METERS);
         assert_eq!(
-            raid_contact_range(42),
-            PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS,
+            raid_contact_range(0, COMBAT_TARGET_DELIVERY_TRIP),
+            HOLDING_CONTACT_RANGE_METERS,
+        );
+        assert_eq!(
+            raid_contact_range(0, COMBAT_TARGET_BUILDING),
+            STATIC_HOLDING_CONTACT_RANGE_METERS,
+        );
+        assert_eq!(
+            raid_contact_range(42, COMBAT_TARGET_RESIDENCE),
+            STATIC_HOLDING_CONTACT_RANGE_METERS,
         );
     }
 
@@ -636,7 +699,7 @@ mod tests {
                 < 1e-9,
         );
         assert!(
-            PALISADED_REFUGE_ASSAULT_RADIUS_METERS - PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS
+            PALISADED_REFUGE_ASSAULT_RADIUS_METERS - STATIC_HOLDING_CONTACT_RANGE_METERS
                 >= PALISADED_REFUGE_OUTER_RADIUS_METERS,
             "the whole breach contact envelope must remain outside the authored stakes",
         );
@@ -644,6 +707,29 @@ mod tests {
         let fallback = refuge_assault_position(f64::NAN, f64::NAN, f64::NAN, f64::NAN);
         assert_eq!(fallback.0, 0.0);
         assert_eq!(fallback.1, PALISADED_REFUGE_ASSAULT_RADIUS_METERS);
+    }
+
+    #[test]
+    fn ordinary_holdings_are_contacted_outside_their_physical_envelope() {
+        let building = holding_assault_position(10.0, 20.0, 10.0, -100.0, 11.0);
+        let distance_to_center = distance(building.0, building.1, 10.0, 20.0);
+        assert!(
+            (distance_to_center - (11.0 + STATIC_HOLDING_CONTACT_RANGE_METERS)).abs() < 1e-9,
+        );
+        assert!(
+            distance_to_center - raid_contact_range(0, COMBAT_TARGET_BUILDING) >= 11.0,
+            "the entire accepted contact disc must stay beyond the building envelope",
+        );
+
+        let home = holding_assault_position(
+            0.0,
+            0.0,
+            100.0,
+            0.0,
+            RESIDENCE_ASSAULT_OUTER_RADIUS_METERS,
+        );
+        assert!(home.0 > RESIDENCE_ASSAULT_OUTER_RADIUS_METERS);
+        assert_eq!(home.1, 0.0);
     }
 
     #[test]
@@ -763,8 +849,18 @@ mod tests {
     }
 
     #[test]
-    fn loot_is_divided_across_only_the_raiders_who_reach_the_holding() {
-        assert!((per_raider_loot_fraction(0.3, 3) - 0.1).abs() < 1e-9);
+    fn loot_shares_compose_to_the_declared_target_budget() {
+        let total_fraction = 0.3;
+        let assigned_raiders = 3;
+        let share = per_raider_loot_fraction(total_fraction, assigned_raiders);
+        let realized = 1.0 - (1.0 - share).powi(assigned_raiders as i32);
+        assert!((realized - total_fraction).abs() < 1e-12);
+        assert!(
+            share > total_fraction / assigned_raiders as f64,
+            "simple division would compound against remaining stock and undershoot the budget",
+        );
+        assert_eq!(per_raider_loot_fraction(0.0, 3), 0.0);
+        assert_eq!(per_raider_loot_fraction(1.0, 3), 1.0);
         assert_eq!(per_raider_loot_fraction(0.3, 0), 0.0);
         assert_eq!(per_raider_loot_fraction(f64::NAN, 2), 0.0);
     }
@@ -844,7 +940,12 @@ mod tests {
             let (entry_x, entry_z) =
                 raid_entry_point(index, 17.0, -23.0, playable_half_for_map_size(1));
             let moved = move_toward(entry_x, entry_z, 17.0, -23.0, 0.335);
-            checksum += moved.0 * 1e-9 + moved.1 * 1e-9;
+            let assault =
+                holding_assault_position(17.0, -23.0, entry_x, entry_z, 11.0);
+            checksum += moved.0 * 1e-9
+                + moved.1 * 1e-9
+                + assault.0 * 1e-10
+                + assault.1 * 1e-10;
         }
         assert!(checksum.is_finite());
         assert!(
