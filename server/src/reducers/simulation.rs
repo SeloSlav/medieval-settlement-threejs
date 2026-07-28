@@ -79,6 +79,16 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
         // can never reserve an invisible balance between scheduler heartbeats.
         materialize_all_physical_resource_ledgers(ctx);
     }
+    // Live people and carts share the same wall-clock movement cadence. Raid
+    // agents therefore advance on every scheduler heartbeat at the selected
+    // speed instead of waiting for sparse economy/calendar substeps.
+    step_live_raids(
+        ctx,
+        config.sim_tick,
+        config.seed,
+        config.conflict_enabled,
+        TICK_DT * speed as f64,
+    );
     if ctx.db.sim_pacing_state().id().find(&0).is_some() {
         ctx.db.sim_pacing_state().id().update(SimPacingState {
             id: 0,
@@ -146,8 +156,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         enemy_pressure,
         environment,
     );
-    step_live_raids(ctx, sim_tick, world_seed, conflict_enabled);
-
     let tick = SimTickContext::with_road_networks(road_networks);
     step_fires(ctx, &clock, environment, world_seed, sim_tick);
     step_construction_sites(ctx, &tick, &clock);

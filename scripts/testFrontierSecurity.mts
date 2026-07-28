@@ -1578,7 +1578,7 @@ assert.match(settlementHud, /formatFrontierForecast\(security, world\.enemyPress
 assert.match(settlementHud, /formatFrontierRaidTiming/);
 assert.match(
   settlementHud,
-  /Live incursion: civilian labor and ordinary carts halted/,
+  /Live incursion: labor halted, new cart departures stopped/,
 );
 assert.match(serverTables, /table\(accessor = active_raid, public\)/);
 assert.match(gameTableSubscriptions, /'active_raid'/);
@@ -1805,8 +1805,13 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /contact_distance > HOLDING_CONTACT_RANGE_METERS \* HOLDING_CONTACT_RANGE_METERS[\s\S]*move_toward\([\s\S]*return;[\s\S]*agent\.state = COMBAT_STATE_LOOTING[\s\S]*agent\.loot_progress \+= TICK_DT[\s\S]*plunder_raid_target_at_contact/,
+  /contact_distance > HOLDING_CONTACT_RANGE_METERS \* HOLDING_CONTACT_RANGE_METERS[\s\S]*move_toward\([\s\S]*return;[\s\S]*agent\.state = COMBAT_STATE_LOOTING[\s\S]*agent\.loot_progress \+= elapsed_seconds[\s\S]*plunder_raid_target_at_contact/,
   'stock removal must remain unreachable until the authoritative raider enters contact range and finishes looting',
+);
+assert.match(
+  serverRaidAgents,
+  /agent\.attack_cooldown = DOWNED_LINGER_SECONDS/,
+  'battlefield aftermath must use wall-clock combat time rather than sparse economy ticks',
 );
 assert.match(
   serverRaidAgents,

@@ -812,6 +812,8 @@ pub struct CombatAgent {
     /// 0 advancing, 1 fighting, 2 looting, 3 retreating, 4 returning,
     /// 5 downed, 6 wounded return, 7 recuperating at the guardhouse.
     pub state: u8,
+    /// Seconds until the next strike; while downed, seconds of readable
+    /// battlefield linger remaining before removal or wounded evacuation.
     pub attack_cooldown: f64,
     pub loot_progress: f64,
     /// This agent's share of the target's contact-gated raid loss.

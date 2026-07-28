@@ -39,6 +39,7 @@ import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
 import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
 import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
+import { raidWithdrawingCartCount } from '../logistics/deliveryTrips.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { VillagerInspector } from '../ui/VillagerInspector.ts';
@@ -740,6 +741,10 @@ export class App {
     this.combatInspectorSignature = nextCombatInspectorSignature;
     this.villagers?.setCombatAgents(snapshot.combatAgents);
     const raidThreatActive = hasActiveRaiderThreat(snapshot.combatAgents.values());
+    const withdrawingCarts = raidWithdrawingCartCount(
+      snapshot.deliveryTrips.values(),
+      raidThreatActive,
+    );
     if (this.liveContext) {
       this.liveContext.gameState = state;
     }
@@ -826,6 +831,7 @@ export class App {
       frontierDetail || undefined,
       snapshot.activeRaid,
       raidThreatActive,
+      withdrawingCarts,
     );
     this.settlementPresentation.sync(
       {

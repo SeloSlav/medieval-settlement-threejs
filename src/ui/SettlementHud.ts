@@ -380,6 +380,7 @@ export class SettlementHud {
     projectedTargets?: string,
     activeRaid?: ActiveRaidState | null,
     raidThreatActive = false,
+    withdrawingCarts = 0,
   ): void {
     const enabled = world?.configured === true && world.conflictMode === 'frontier';
     this.securityAlert.hidden = !enabled;
@@ -398,7 +399,11 @@ export class SettlementHud {
       ? 'Pressure begins at 8 residents'
       : formatFrontierRaidTiming(security, simTick, clock.month);
     const mobilization = raidThreatActive
-      ? 'Live incursion: civilian labor and ordinary carts halted'
+      ? `Live incursion: labor halted, new cart departures stopped${
+          withdrawingCarts > 0
+            ? ` · ${withdrawingCarts} handcart${withdrawingCarts === 1 ? '' : 's'} withdrawing`
+            : ''
+        }`
       : activeRaid
         ? 'All clear: the company is returning'
         : timing;
@@ -417,10 +422,13 @@ export class SettlementHud {
       `Companies supplied, paid, drilled, and road-linked: ${Math.round(security.defenseReadiness * 100)}%`,
       `Protected settlement value: ${coverage}%`,
       raidThreatActive && activeRaid
-        ? `Settlement mobilized since tick ${activeRaid.startedTick}: production, construction, migration, and ordinary carts remain halted until the last capable raider physically escapes or falls; household consumption and fire response continue.`
+        ? `Settlement mobilized since tick ${activeRaid.startedTick}: production, construction, migration, and new ordinary-cart departures remain halted until the last capable raider physically escapes or falls. Active carters reverse toward their origins with cargo still exposed, while fire response and household consumption continue.`
         : activeRaid
           ? 'The last hostile is clear: ordinary work and carts have resumed while the company physically returns and casualties are recovered.'
           : undefined,
+      raidThreatActive && withdrawingCarts > 0
+        ? `${withdrawingCarts} ordinary handcart${withdrawingCarts === 1 ? ' is' : 's are'} physically withdrawing; raiders can still intercept the moving cargo.`
+        : undefined,
       formatFrontierForecast(security, world.enemyPressure),
       projectedTargets,
       'One watchman provides 78% of a tower’s full radius; two provide full coverage.',

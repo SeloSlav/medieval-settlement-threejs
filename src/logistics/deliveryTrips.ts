@@ -123,6 +123,20 @@ export function onsiteBuildingLabor(
   return Math.max(0, building.assignedLabor - rosteredCartWorkers(building, trip));
 }
 
+export function raidWithdrawingCartCount(
+  trips: Iterable<DeliveryTripState>,
+  activeRaiderThreat: boolean,
+): number {
+  if (!activeRaiderThreat) return 0;
+  let count = 0;
+  for (const trip of trips) {
+    if (trip.destinationKind !== 'fire' && trip.phase === 'inbound') {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 /** Stable identity for the regular hauler attached to a producer between trips. */
 export function deliveryWorkerPersonIdentity(
   trip: DeliveryTripState,

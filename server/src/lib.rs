@@ -10,6 +10,7 @@ mod civic_receipts_policy;
 mod constants;
 mod construction_priority;
 mod db;
+mod delivery_trip_policy;
 mod economy;
 mod farming;
 mod fire_policy;

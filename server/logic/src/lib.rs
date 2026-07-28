@@ -16,6 +16,9 @@ pub mod civic_receipts_policy;
 #[path = "../../src/constants.rs"]
 pub mod constants;
 
+#[path = "../../src/delivery_trip_policy.rs"]
+pub mod delivery_trip_policy;
+
 #[path = "../../src/roads/network.rs"]
 pub mod road_network;
 

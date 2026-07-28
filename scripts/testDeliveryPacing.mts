@@ -11,6 +11,7 @@ import {
   deliveryLegRemainingMeters,
   deliveryWorkerPersonIdentity,
   onsiteBuildingLabor,
+  raidWithdrawingCartCount,
   rosteredCartWorkers,
   rosteredCartWorkersByBuilding,
   tripDeliveryRemainingSeconds,
@@ -141,6 +142,19 @@ assert.equal(
   tripDeliveryRemainingSeconds({ ...loadedTrip, phase: 'inbound' }),
   Infinity,
 );
+assert.equal(
+  raidWithdrawingCartCount(
+    [
+      { ...loadedTrip, phase: 'inbound' },
+      { ...loadedTrip, id: 'fire-cart', destinationKind: 'fire', phase: 'inbound' },
+      { ...loadedTrip, id: 'outbound-cart', phase: 'outbound' },
+    ],
+    true,
+  ),
+  1,
+  'only ordinary carts already facing home should be reported as withdrawing',
+);
+assert.equal(raidWithdrawingCartCount([{ ...loadedTrip, phase: 'inbound' }], false), 0);
 
 const simulationReducer = read('server/src/reducers/simulation.rs');
 const tickContext = read('server/src/simulation/tick_context.rs');
@@ -149,11 +163,21 @@ assert.match(
   /step_delivery_trips\([\s\S]*?TICK_DT \* speed as f64[\s\S]*?\);/,
   'authoritative deliveries must advance on each scheduler heartbeat at the selected game speed',
 );
+assert.match(
+  simulationReducer,
+  /step_live_raids\([\s\S]*?TICK_DT \* speed as f64[\s\S]*?\);/,
+  'live combatants must share the cart heartbeat and selected movement speed',
+);
 const oneSimStep = simulationReducer.slice(simulationReducer.indexOf('fn run_one_sim_tick'));
 assert.doesNotMatch(
   oneSimStep,
   /step_delivery_trips\(/,
   'delivery movement must not also advance on sparse economy/calendar substeps',
+);
+assert.doesNotMatch(
+  oneSimStep,
+  /step_live_raids\(/,
+  'combat movement must not also advance on sparse economy/calendar substeps',
 );
 assert.match(
   tickContext,
@@ -244,8 +268,23 @@ assert.equal(DELIVERY_ROAD_SPEED_MULTIPLIER, 1.35);
 assert.match(deliveryServer, /DELIVERY_ROAD_SPEED_MULTIPLIER: f64 = 1\.35/);
 assert.match(
   deliveryServer,
-  /fn recall_trip_to_origin[\s\S]*restore_trip_target_reservation[\s\S]*DeliveryTripPhase::Inbound[\s\S]*delivery_trip\(\)\.id\(\)\.update\(trip\)/,
+  /fn recall_trip_to_origin[\s\S]*restore_trip_target_reservation[\s\S]*prepare_trip_return_leg[\s\S]*delivery_trip\(\)\.id\(\)\.update\(trip\)/,
   'a cancelled delivery should turn around with the same trip row, cargo, and committed crew',
+);
+assert.match(
+  deliveryServer,
+  /RaidCartPosture::Recall[\s\S]*recall_trip_to_origin_during_raid/,
+  'an outward ordinary cart must physically reverse when a capable raider is on the map',
+);
+assert.match(
+  deliveryServer,
+  /RaidCartPosture::ReturnHome[\s\S]*emergency alarm overrides night and sabbath rest/,
+  'a homeward cart must keep moving during the emergency instead of freezing on the road',
+);
+assert.match(
+  deliveryServer,
+  /fn recall_trip_to_origin_during_raid[\s\S]*prepare_trip_return_leg[\s\S]*finish_inbound_trip/,
+  'raid recall must preserve the trip and settle cargo only after its physical return',
 );
 assert.match(
   deliveryServer,

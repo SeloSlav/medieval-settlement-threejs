@@ -15,7 +15,7 @@ use crate::raid_agent_policy::{
     COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING,
     COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING,
     COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE,
-    COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE, DOWNED_LINGER_TICKS,
+    COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE, DOWNED_LINGER_SECONDS,
     GUARD_SPEED_MPS, HOLDING_CONTACT_RANGE_METERS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
     RAIDER_OFFROAD_ROUTE_MULTIPLIER, RAIDER_SPEED_MPS, WOUNDED_GUARD_SPEED_MPS,
 };
@@ -371,9 +371,13 @@ pub fn step_live_raids(
     sim_tick: u64,
     world_seed: u64,
     conflict_enabled: bool,
+    elapsed_seconds: f64,
 ) {
     if !conflict_enabled {
         clear_all_live_raids(ctx);
+        return;
+    }
+    if !elapsed_seconds.is_finite() || elapsed_seconds <= 0.0 {
         return;
     }
 
@@ -383,7 +387,13 @@ pub fn step_live_raids(
         .map(|raid| (raid.owner, raid.raid_id))
         .collect::<HashSet<_>>();
     for raid in active_raids {
-        step_one_live_raid(ctx, raid, sim_tick, world_seed);
+        step_one_live_raid(
+            ctx,
+            raid,
+            sim_tick,
+            world_seed,
+            elapsed_seconds,
+        );
     }
 
     // Downed agents linger briefly for readable aftermath, after their raid
@@ -394,13 +404,17 @@ pub fn step_live_raids(
         }
         let agent_id = agent.id;
         if agent.faction == COMBAT_FACTION_GUARD {
-            if step_recovering_guard(ctx, agent, sim_tick) {
+            if step_recovering_guard(ctx, agent, sim_tick, elapsed_seconds) {
                 continue;
             }
-        } else if agent.state == COMBAT_STATE_DOWNED
-            && sim_tick.saturating_sub(agent.state_changed_tick) < DOWNED_LINGER_TICKS
-        {
-            continue;
+        } else if agent.state == COMBAT_STATE_DOWNED {
+            let mut lingering = agent;
+            lingering.attack_cooldown =
+                (lingering.attack_cooldown - elapsed_seconds).max(0.0);
+            if lingering.attack_cooldown > EPSILON {
+                ctx.db.combat_agent().id().update(lingering);
+                continue;
+            }
         }
         ctx.db.combat_agent().id().delete(agent_id);
     }
@@ -519,7 +533,13 @@ fn clear_raider_incursion_routes(ctx: &ReducerContext, owner: Identity) {
     }
 }
 
-fn step_one_live_raid(ctx: &ReducerContext, active: ActiveRaid, sim_tick: u64, world_seed: u64) {
+fn step_one_live_raid(
+    ctx: &ReducerContext,
+    active: ActiveRaid,
+    sim_tick: u64,
+    world_seed: u64,
+    elapsed_seconds: f64,
+) {
     let mut agents = ctx
         .db
         .combat_agent()
@@ -540,7 +560,15 @@ fn step_one_live_raid(ctx: &ReducerContext, active: ActiveRaid, sim_tick: u64, w
         .count();
 
     if living_raiders == 0 {
-        return_guards_and_finalize(ctx, active, agents, &guard_routes, sim_tick, world_seed);
+        return_guards_and_finalize(
+            ctx,
+            active,
+            agents,
+            &guard_routes,
+            sim_tick,
+            world_seed,
+            elapsed_seconds,
+        );
         return;
     }
 
@@ -550,14 +578,13 @@ fn step_one_live_raid(ctx: &ReducerContext, active: ActiveRaid, sim_tick: u64, w
 
     for agent in agents.values_mut() {
         if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
-            if agent.faction == COMBAT_FACTION_RAIDER
-                && sim_tick.saturating_sub(agent.state_changed_tick) >= DOWNED_LINGER_TICKS
-            {
+            agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
+            if agent.faction == COMBAT_FACTION_RAIDER && agent.attack_cooldown <= EPSILON {
                 delete_ids.insert(agent.id);
             }
             continue;
         }
-        agent.attack_cooldown = (agent.attack_cooldown - TICK_DT).max(0.0);
+        agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
         if agent.faction == COMBAT_FACTION_RAIDER {
             step_raider(
                 ctx,
@@ -568,6 +595,7 @@ fn step_one_live_raid(ctx: &ReducerContext, active: ActiveRaid, sim_tick: u64, w
                 &mut damage_by_agent,
                 &mut delete_ids,
                 sim_tick,
+                elapsed_seconds,
             );
         } else {
             step_guard(
@@ -576,6 +604,7 @@ fn step_one_live_raid(ctx: &ReducerContext, active: ActiveRaid, sim_tick: u64, w
                 guard_routes.get(&agent.source_building_id),
                 &mut damage_by_agent,
                 sim_tick,
+                elapsed_seconds,
             );
         }
     }
@@ -611,6 +640,7 @@ fn step_raider(
     damage_by_agent: &mut HashMap<u64, f64>,
     delete_ids: &mut HashSet<u64>,
     sim_tick: u64,
+    elapsed_seconds: f64,
 ) {
     if agent.state == COMBAT_STATE_RETREATING {
         if distance_squared(agent.x, agent.z, agent.home_x, agent.home_z)
@@ -627,22 +657,24 @@ fn step_raider(
                 direct_home_distance,
                 remaining_route_distance,
                 RAIDER_OFFROAD_ROUTE_MULTIPLIER,
-            ) {
+            ) && agent.route_progress > EPSILON
+            {
                 let route_move = move_along_route(
                     agent.x,
                     agent.z,
                     agent.route_progress,
                     route.path_distance,
                     &route.polyline,
-                    RAIDER_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * TICK_DT,
+                    RAIDER_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * elapsed_seconds,
                     false,
                 );
                 agent.x = route_move.x;
                 agent.z = route_move.z;
                 agent.route_progress = route_move.progress;
-                if !route_move.reached_end {
-                    return;
-                }
+                // Spend at most this heartbeat's movement budget. If the edge
+                // lies beyond the cached road endpoint, cross-country escape
+                // begins on the next replicated update.
+                return;
             }
         }
         (agent.x, agent.z) = move_toward(
@@ -650,7 +682,7 @@ fn step_raider(
             agent.z,
             agent.home_x,
             agent.home_z,
-            RAIDER_SPEED_MPS * TICK_DT,
+            RAIDER_SPEED_MPS * elapsed_seconds,
         );
         return;
     }
@@ -671,6 +703,7 @@ fn step_raider(
             raider_attack_interval(active.enemy_pressure),
             damage_by_agent,
             sim_tick,
+            elapsed_seconds,
         );
         return;
     }
@@ -697,22 +730,22 @@ fn step_raider(
                 // from its cached endpoint, retreat can still rejoin that
                 // endpoint or take another worthwhile cross-country shortcut.
                 agent.route_progress = route.path_distance;
-            } else {
+            } else if agent.route_progress + EPSILON < route.path_distance {
                 let route_move = move_along_route(
                     agent.x,
                     agent.z,
                     agent.route_progress,
                     route.path_distance,
                     &route.polyline,
-                    RAIDER_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * TICK_DT,
+                    RAIDER_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * elapsed_seconds,
                     true,
                 );
                 agent.x = route_move.x;
                 agent.z = route_move.z;
                 agent.route_progress = route_move.progress;
-                if !route_move.reached_end {
-                    return;
-                }
+                // Do not spend the same heartbeat's movement budget twice
+                // when the road endpoint is reached partway through it.
+                return;
             }
         }
         (agent.x, agent.z) = move_toward(
@@ -720,13 +753,13 @@ fn step_raider(
             agent.z,
             target_x,
             target_z,
-            RAIDER_SPEED_MPS * TICK_DT,
+            RAIDER_SPEED_MPS * elapsed_seconds,
         );
         return;
     }
 
     agent.state = COMBAT_STATE_LOOTING;
-    agent.loot_progress += TICK_DT;
+    agent.loot_progress += elapsed_seconds;
     if agent.loot_progress + EPSILON < raid_contact_duration(active_raid_anchor_id) {
         return;
     }
@@ -749,6 +782,7 @@ fn step_guard(
     muster_route: Option<&CachedCombatPath>,
     damage_by_agent: &mut HashMap<u64, f64>,
     sim_tick: u64,
+    elapsed_seconds: f64,
 ) {
     let emergency_enemy = snapshots
         .iter()
@@ -780,25 +814,28 @@ fn step_guard(
             guard_attack_interval(agent.readiness),
             damage_by_agent,
             sim_tick,
+            elapsed_seconds,
         );
         return;
     }
 
     if let Some(route) = muster_route {
-        let route_move = move_along_route(
-            agent.x,
-            agent.z,
-            agent.route_progress,
-            route.path_distance,
-            &route.polyline,
-            GUARD_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * TICK_DT,
-            true,
-        );
-        agent.x = route_move.x;
-        agent.z = route_move.z;
-        agent.route_progress = route_move.progress;
-        if !route_move.reached_end {
+        if agent.route_progress + EPSILON < route.path_distance {
+            let route_move = move_along_route(
+                agent.x,
+                agent.z,
+                agent.route_progress,
+                route.path_distance,
+                &route.polyline,
+                GUARD_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * elapsed_seconds,
+                true,
+            );
+            agent.x = route_move.x;
+            agent.z = route_move.z;
+            agent.route_progress = route_move.progress;
             agent.state = COMBAT_STATE_ADVANCING;
+            // Contact pursuit begins next heartbeat if this step reaches the
+            // post, preserving one speed budget per replicated update.
             return;
         }
     }
@@ -824,6 +861,7 @@ fn step_guard(
         guard_attack_interval(agent.readiness),
         damage_by_agent,
         sim_tick,
+        elapsed_seconds,
     );
 }
 
@@ -865,6 +903,7 @@ fn engage_agent(
     attack_interval: f64,
     damage_by_agent: &mut HashMap<u64, f64>,
     sim_tick: u64,
+    elapsed_seconds: f64,
 ) {
     let distance = distance_squared(agent.x, agent.z, enemy.x, enemy.z);
     if distance <= MELEE_RANGE_METERS * MELEE_RANGE_METERS {
@@ -879,7 +918,13 @@ fn engage_agent(
         return;
     }
     agent.state = COMBAT_STATE_ADVANCING;
-    (agent.x, agent.z) = move_toward(agent.x, agent.z, enemy.x, enemy.z, speed * TICK_DT);
+    (agent.x, agent.z) = move_toward(
+        agent.x,
+        agent.z,
+        enemy.x,
+        enemy.z,
+        speed * elapsed_seconds,
+    );
 }
 
 fn record_contact_plunder(
@@ -960,7 +1005,7 @@ fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid
     agent.health = 0.0;
     agent.state = COMBAT_STATE_DOWNED;
     agent.state_changed_tick = sim_tick;
-    agent.attack_cooldown = 0.0;
+    agent.attack_cooldown = DOWNED_LINGER_SECONDS;
     agent.loot_progress = 0.0;
     if agent.faction != COMBAT_FACTION_RAIDER || agent.carried_loot_json.is_empty() {
         return;
@@ -994,21 +1039,30 @@ fn return_guards_and_finalize(
     guard_routes: &GuardMusterPaths,
     sim_tick: u64,
     world_seed: u64,
+    elapsed_seconds: f64,
 ) {
     let mut guards_still_returning = 0_u32;
     for agent in agents.values_mut() {
         if agent.faction != COMBAT_FACTION_GUARD {
-            if agent.state != COMBAT_STATE_DOWNED
-                || sim_tick.saturating_sub(agent.state_changed_tick) >= DOWNED_LINGER_TICKS
-            {
+            if agent.state == COMBAT_STATE_DOWNED {
+                agent.attack_cooldown =
+                    (agent.attack_cooldown - elapsed_seconds).max(0.0);
+                if agent.attack_cooldown > EPSILON {
+                    ctx.db.combat_agent().id().update(agent.clone());
+                    continue;
+                }
+            }
+            if agent.state != COMBAT_STATE_DOWNED || agent.attack_cooldown <= EPSILON {
                 ctx.db.combat_agent().id().delete(agent.id);
             }
             continue;
         }
 
         if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
-            if sim_tick.saturating_sub(agent.state_changed_tick) < DOWNED_LINGER_TICKS {
+            agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
+            if agent.attack_cooldown > EPSILON {
                 guards_still_returning += 1;
+                ctx.db.combat_agent().id().update(agent.clone());
                 continue;
             }
             agent.state = COMBAT_STATE_WOUNDED_RETURNING;
@@ -1030,6 +1084,7 @@ fn return_guards_and_finalize(
                     agent,
                     guard_routes.get(&agent.source_building_id),
                     WOUNDED_GUARD_SPEED_MPS,
+                    elapsed_seconds,
                 );
             }
             ctx.db.combat_agent().id().update(agent.clone());
@@ -1052,6 +1107,7 @@ fn return_guards_and_finalize(
             agent,
             guard_routes.get(&agent.source_building_id),
             GUARD_SPEED_MPS,
+            elapsed_seconds,
         );
         ctx.db.combat_agent().id().update(agent.clone());
     }
@@ -1099,6 +1155,7 @@ fn move_guard_home(
     agent: &mut CombatAgent,
     muster_route: Option<&CachedCombatPath>,
     speed_mps: f64,
+    elapsed_seconds: f64,
 ) {
     if let Some(route) = muster_route {
         let route_move = move_along_route(
@@ -1107,7 +1164,7 @@ fn move_guard_home(
             agent.route_progress,
             route.path_distance,
             &route.polyline,
-            speed_mps * COMBAT_ROAD_SPEED_MULTIPLIER * TICK_DT,
+            speed_mps * COMBAT_ROAD_SPEED_MULTIPLIER * elapsed_seconds,
             false,
         );
         agent.x = route_move.x;
@@ -1120,13 +1177,20 @@ fn move_guard_home(
         agent.z,
         agent.home_x,
         agent.home_z,
-        speed_mps * TICK_DT,
+        speed_mps * elapsed_seconds,
     );
 }
 
-fn step_recovering_guard(ctx: &ReducerContext, mut agent: CombatAgent, sim_tick: u64) -> bool {
+fn step_recovering_guard(
+    ctx: &ReducerContext,
+    mut agent: CombatAgent,
+    sim_tick: u64,
+    elapsed_seconds: f64,
+) -> bool {
     if agent.state == COMBAT_STATE_DOWNED {
-        if sim_tick.saturating_sub(agent.state_changed_tick) < DOWNED_LINGER_TICKS {
+        agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
+        if agent.attack_cooldown > EPSILON {
+            ctx.db.combat_agent().id().update(agent);
             return true;
         }
         agent.state = COMBAT_STATE_WOUNDED_RETURNING;
@@ -1147,7 +1211,7 @@ fn step_recovering_guard(ctx: &ReducerContext, mut agent: CombatAgent, sim_tick:
                 agent.z,
                 agent.home_x,
                 agent.home_z,
-                WOUNDED_GUARD_SPEED_MPS * TICK_DT,
+                WOUNDED_GUARD_SPEED_MPS * elapsed_seconds,
             );
         }
         ctx.db.combat_agent().id().update(agent);

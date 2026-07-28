@@ -10,6 +10,8 @@ use crate::balance_generated::{
     FIRE_BUCKET_UNLOAD_SECONDS, HOUSEHOLD_MAX_WEALTH, STOREHOUSE_HAUL_PER_WORKER,
 };
 use crate::db::*;
+pub use crate::delivery_trip_policy::DeliveryTripPhase;
+use crate::delivery_trip_policy::{raid_cart_posture, RaidCartPosture};
 use crate::economy::{
     available_building_labor, building_commodity_room, building_commodity_stock,
     chapel_coffer_gold, chapel_monastery_tithe_due, credit_residence_wealth,
@@ -69,28 +71,6 @@ pub const DELIVERY_DESTINATION_RESIDENCE: u8 = 0;
 pub const DELIVERY_DESTINATION_BUILDING: u8 = 1;
 pub const DELIVERY_DESTINATION_FIRE: u8 = 2;
 pub const DELIVERY_DESTINATION_RESIDENCE_WEALTH: u8 = 3;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DeliveryTripPhase {
-    Outbound = 0,
-    Unloading = 1,
-    Inbound = 2,
-}
-
-impl DeliveryTripPhase {
-    pub fn from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self::Outbound),
-            1 => Some(Self::Unloading),
-            2 => Some(Self::Inbound),
-            _ => None,
-        }
-    }
-
-    pub fn as_u8(self) -> u8 {
-        self as u8
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TripCargoKind {
@@ -1029,10 +1009,30 @@ fn step_one_trip(
     mut trip: DeliveryTrip,
     elapsed_seconds: f64,
 ) {
-    if trip.destination_kind != DELIVERY_DESTINATION_FIRE
-        && labor_and_logistics_paused(ctx, tick, trip.owner, clock)
-    {
+    let Some(initial_phase) = DeliveryTripPhase::from_u8(trip.phase) else {
+        settle_stranded_trip(ctx, trip);
         return;
+    };
+    let fire_response = trip.destination_kind == DELIVERY_DESTINATION_FIRE;
+    let raid_posture = raid_cart_posture(
+        !fire_response && tick.owner_has_active_raider_threat(ctx, trip.owner),
+        fire_response,
+        initial_phase,
+    );
+    match raid_posture {
+        RaidCartPosture::Recall => {
+            recall_trip_to_origin_during_raid(ctx, trip);
+            return;
+        }
+        RaidCartPosture::ReturnHome => {
+            // The emergency alarm overrides night and sabbath rest only long
+            // enough for this already-returning cart to reach its origin.
+        }
+        RaidCartPosture::Ordinary => {
+            if !fire_response && labor_and_logistics_paused(ctx, tick, trip.owner, clock) {
+                return;
+            }
+        }
     }
 
     let Some(network) = tick.road_network(trip.owner) else {
@@ -1458,27 +1458,20 @@ fn recalled_inbound_progress(phase: DeliveryTripPhase, path_distance: f64, progr
     }
 }
 
-/// Preserve the trip row, cargo, and labor commitment while a cancelled load
-/// turns around. Clearing the destination identifiers records that its
-/// reservation has already been restored and prevents a second restoration
-/// when the cart reaches home.
-fn recall_trip_to_origin(ctx: &ReducerContext, mut trip: DeliveryTrip) {
-    release_trip_fire_claim(ctx, &trip);
-    restore_trip_target_reservation(ctx, &trip);
-
+/// Set the existing cart row onto its physical return leg. Cached routes
+/// reverse exactly; compatibility rows without one receive a straight return
+/// from their current authoritative position. False means the cart is already
+/// at its origin and can be settled in this transaction.
+fn prepare_trip_return_leg(ctx: &ReducerContext, trip: &mut DeliveryTrip) -> bool {
     let phase = DeliveryTripPhase::from_u8(trip.phase);
     let has_stored_route = trip.path_distance > 1e-6
         && deserialize_route_polyline(&trip.route_polyline_json)
             .is_some_and(|polyline| polyline.len() >= 2);
-    trip.residence_id = 0;
-    trip.target_building_id = 0;
-    trip.unload_remaining = 0.0;
 
     if let Some(phase) = phase.filter(|_| has_stored_route) {
         trip.progress = recalled_inbound_progress(phase, trip.path_distance, trip.progress);
         trip.phase = DeliveryTripPhase::Inbound.as_u8();
-        ctx.db.delivery_trip().id().update(trip);
-        return;
+        return true;
     }
 
     // Old saves may predate cached route geometry. Rebase their return leg from
@@ -1491,13 +1484,44 @@ fn recall_trip_to_origin(ctx: &ReducerContext, mut trip: DeliveryTrip) {
             trip.phase = DeliveryTripPhase::Inbound.as_u8();
             trip.route_polyline_json =
                 serialize_route_polyline(&[[origin.x, origin.z], [trip.x, trip.z]]);
-            ctx.db.delivery_trip().id().update(trip);
-            return;
+            return true;
         }
+    }
+    false
+}
+
+/// Preserve the trip row, cargo, and labor commitment while a cancelled load
+/// turns around. Clearing the destination identifiers records that its
+/// reservation has already been restored and prevents a second restoration
+/// when the cart reaches home.
+fn recall_trip_to_origin(ctx: &ReducerContext, mut trip: DeliveryTrip) {
+    release_trip_fire_claim(ctx, &trip);
+    restore_trip_target_reservation(ctx, &trip);
+
+    trip.residence_id = 0;
+    trip.target_building_id = 0;
+    trip.unload_remaining = 0.0;
+
+    if prepare_trip_return_leg(ctx, &mut trip) {
+        ctx.db.delivery_trip().id().update(trip);
+        return;
     }
 
     return_trip_cargo_to_origin(ctx, &trip);
     ctx.db.delivery_trip().id().delete(trip.id);
+}
+
+/// A capable raider alarm recalls ordinary carters without teleporting cargo
+/// or releasing their crew. Unlike a player-cancelled order, the destination
+/// reservation remains bound to this physical load until it reaches home;
+/// retaining the destination also preserves parish and construction metadata.
+fn recall_trip_to_origin_during_raid(ctx: &ReducerContext, mut trip: DeliveryTrip) {
+    trip.unload_remaining = 0.0;
+    if prepare_trip_return_leg(ctx, &mut trip) {
+        ctx.db.delivery_trip().id().update(trip);
+        return;
+    }
+    finish_inbound_trip(ctx, trip);
 }
 
 fn return_trip_cargo_to_building(ctx: &ReducerContext, trip: &DeliveryTrip) {
