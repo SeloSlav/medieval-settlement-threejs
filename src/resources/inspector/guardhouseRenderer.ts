@@ -35,7 +35,9 @@ import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
+  guardCompanyRosterSummary,
   guardRecoveryRemainingDays,
+  isWoundedGuard,
   type CombatAgentState,
 } from '../../security/combatAgents.ts';
 import {
@@ -60,10 +62,9 @@ export function renderGuardhouseInspector(
   const companyAgents = [...(context.combatAgents ?? [])].filter((agent) =>
     agent.faction === 'guard' && agent.sourceBuildingId === building.id);
   const woundedAgents = companyAgents.filter(isWoundedGuard);
-  const fieldedGuards = companyAgents.length - woundedAgents.length;
-  const casualtyLaborFloor = woundedAgents.reduce(
-    (floor, agent) => Math.max(floor, agent.sourceSlot + 1),
-    0,
+  const roster = guardCompanyRosterSummary(
+    companyAgents,
+    building.id,
   );
   const fitEquippedGuards = Math.max(0, equippedGuards - woundedAgents.length);
   const armed = suspendedByFire ? 0 : fitEquippedGuards;
@@ -235,9 +236,9 @@ export function renderGuardhouseInspector(
     context.populationStats,
     context.worldQueries,
   );
-  if (woundedAgents.length > 0) {
-    labor.decreaseDisabled = building.assignedLabor <= casualtyLaborFloor;
-    labor.hint += ` Wounded guards retain their roster positions; assignments through slot ${casualtyLaborFloor} cannot be released until recovery.`;
+  if (roster.rosterFloor > 0) {
+    labor.decreaseDisabled = building.assignedLabor <= roster.rosterFloor;
+    labor.hint += ` Deployed, returning, and recovering guards remain the same rostered villagers; assignments through slot ${roster.rosterFloor} cannot be released until those guards physically return and finish recovery.`;
   }
 
   return {
@@ -250,7 +251,8 @@ export function renderGuardhouseInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Paid local guard company warned by the watch or mobilized by visible contact</span></li>
       ${woundedAgents.length > 0 ? `<li><span>Wounded company</span><span>${recoveryFeedback}</span></li>` : ''}
-      ${fieldedGuards > 0 ? `<li><span>In the field</span><span>${fieldedGuards} guard${fieldedGuards === 1 ? '' : 's'} physically deployed</span></li>` : ''}
+      ${roster.fieldedGuards > 0 ? `<li><span>In the field</span><span>${roster.fieldedGuards} guard${roster.fieldedGuards === 1 ? '' : 's'} physically deployed or returning</span></li>` : ''}
+      ${roster.rosterFloor > 0 ? `<li><span>Roster lock</span><span>Slots 1–${roster.rosterFloor} remain committed until every represented guard is home and fit</span></li>` : ''}
       <li><span>Fit for muster</span><span>${fitEquippedGuards} of ${equippedGuards} equipped guards available</span></li>
       <li><span>Armed guards</span><span>${equippedGuards} / ${building.assignedLabor} equipped${suspendedByFire ? ' · unavailable during fire recovery' : ''}</span></li>
       <li><span>Local readiness</span><span>${Math.round(readiness * 100)}% · ${ready.toFixed(1)} ready</span></li>
@@ -276,10 +278,10 @@ export function renderGuardhouseInspector(
       <li><span>Supply chain</span><span>Food by road · polearms from a staffed carpenter · pay lockboxes from a civic treasury · ironwork imported at a staffed market</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
-    demolish: woundedAgents.length > 0
+    demolish: companyAgents.length > 0
       ? {
           visible: false,
-          hint: 'The guardhouse must remain standing while wounded guards recuperate here.',
+          hint: 'The guardhouse must remain standing while company members are deployed, returning, or recovering.',
         }
       : { visible: true, hint: buildingDemolishHint(building.kind) },
     labor,
@@ -288,12 +290,6 @@ export function renderGuardhouseInspector(
       musterPostOptions,
     )}${renderRationReservePanel(foodReserve)}${renderCompanyPriorityPanel(companyPriority)}`,
   };
-}
-
-function isWoundedGuard(agent: CombatAgentState): boolean {
-  return agent.status === 'downed'
-    || agent.status === 'wounded-returning'
-    || agent.status === 'recovering';
 }
 
 function formatGuardRecoveryFeedback(

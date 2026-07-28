@@ -9,7 +9,7 @@ use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
 use crate::db::*;
 use crate::economy::{
     available_building_labor, building_cost, construction_treasury_reservation_excluding_building,
-    guardhouse_casualty_count, initial_construction_labor, reconcile_building_labor,
+    guardhouse_roster_count, initial_construction_labor, reconcile_building_labor,
     spend_aggregate_stone, spend_aggregate_timber, total_stone, total_timber, CommodityKind,
 };
 use crate::fire_recovery_policy::{fire_recovery_cost, FireRecoveryCost};
@@ -88,10 +88,9 @@ fn repair_building(
     if !building.construction_complete {
         return Err("This building is already being reconstructed.".to_string());
     }
-    if building.kind == "guardhouse" && guardhouse_casualty_count(ctx, owner, building.id) > 0 {
+    if building.kind == "guardhouse" && guardhouse_roster_count(ctx, owner, building.id) > 0 {
         return Err(
-            "Wounded guards are still sheltering here; begin reconstruction after their recovery."
-                .to_string(),
+            "This company still has guards deployed, returning, or recovering; begin reconstruction after every guard has returned and recovered.".to_string(),
         );
     }
 

@@ -287,6 +287,23 @@ pub fn combat_state_blocks_guard_slot(state: u8) -> bool {
     )
 }
 
+/// Every live guard row is still one specific villager on the source
+/// guardhouse roster. Fit guards release their slot only after physically
+/// reaching home and being removed; casualties retain it through recovery.
+pub fn combat_state_commits_guard_labor(state: u8) -> bool {
+    matches!(
+        state,
+        COMBAT_STATE_ADVANCING
+            | COMBAT_STATE_FIGHTING
+            | COMBAT_STATE_LOOTING
+            | COMBAT_STATE_RETREATING
+            | COMBAT_STATE_RETURNING
+            | COMBAT_STATE_DOWNED
+            | COMBAT_STATE_WOUNDED_RETURNING
+            | COMBAT_STATE_RECOVERING
+    )
+}
+
 pub fn distance_squared(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
     let dx = bx - ax;
     let dz = bz - az;
@@ -558,6 +575,23 @@ mod tests {
         assert!(combat_state_blocks_guard_slot(COMBAT_STATE_RECOVERING));
         assert!(!combat_state_blocks_guard_slot(COMBAT_STATE_RETURNING));
         assert!(!combat_state_blocks_guard_slot(COMBAT_STATE_FIGHTING));
+    }
+
+    #[test]
+    fn every_live_guard_state_commits_the_same_villager_to_the_company() {
+        for state in [
+            COMBAT_STATE_ADVANCING,
+            COMBAT_STATE_FIGHTING,
+            COMBAT_STATE_LOOTING,
+            COMBAT_STATE_RETREATING,
+            COMBAT_STATE_RETURNING,
+            COMBAT_STATE_DOWNED,
+            COMBAT_STATE_WOUNDED_RETURNING,
+            COMBAT_STATE_RECOVERING,
+        ] {
+            assert!(combat_state_commits_guard_labor(state));
+        }
+        assert!(!combat_state_commits_guard_labor(u8::MAX));
     }
 
     #[test]

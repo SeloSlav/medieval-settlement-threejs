@@ -60,6 +60,7 @@ import {
 } from '../src/world/worldGenerationSettings.ts';
 import {
   formatLiveCombatSummary,
+  guardCompanyRosterSummary,
   guardRecoveryRemainingDays,
   guardRecoveryTicks,
   type CombatAgentState,
@@ -1834,6 +1835,7 @@ assert.match(serverRaidAgentPolicy, /fn unlinked_companies_choose_the_nearest_at
 assert.match(serverRaidAgentPolicy, /fn cached_company_routes_stay_cheap_for_a_large_guard_response/);
 assert.match(serverRaidAgentPolicy, /pub fn guard_recovery_ticks/);
 assert.match(serverRaidAgentPolicy, /pub fn combat_state_blocks_guard_slot/);
+assert.match(serverRaidAgentPolicy, /pub fn combat_state_commits_guard_labor/);
 assert.match(
   serverRaidAgents,
   /COMBAT_STATE_WOUNDED_RETURNING[\s\S]*WOUNDED_GUARD_SPEED_MPS[\s\S]*COMBAT_STATE_RECOVERING/,
@@ -1851,14 +1853,21 @@ assert.match(
 );
 assert.match(
   serverPopulation,
-  /guardhouse_casualty_floor[\s\S]*requested_labor < casualty_floor/,
-  'labor reassignment must not release a wounded guard into another workplace',
+  /guardhouse_roster_floor[\s\S]*requested_labor < roster_floor/,
+  'labor reassignment must not duplicate a deployed, returning, or recovering guard in another workplace',
 );
 assert.match(
   serverBuildingReducers,
-  /This guardhouse shelters[\s\S]*wait for recovery before demolition/,
-  'a guardhouse with recuperating agents must remain physically present',
+  /let roster_floors = guardhouse_roster_floors[\s\S]*minimum_labor:[\s\S]*roster_floors/,
+  'automatic year-round labor balancing must preserve every live company roster slot',
 );
+assert.match(
+  serverBuildingReducers,
+  /guardhouse_roster_count[\s\S]*wait until every guard has returned and recovered before demolition/,
+  'a guardhouse with live company agents must remain physically present',
+);
+assert.match(guardhouseInspector, /Roster lock/);
+assert.match(guardhouseInspector, /physically return and finish recovery/);
 assert.match(
   serverTables,
   /accessor = combat_agent,[\s\S]*public,[\s\S]*pub struct CombatAgent[\s\S]*pub x: f64,[\s\S]*pub health: f64,[\s\S]*pub carried_loot_json: String/,
@@ -1937,6 +1946,33 @@ assert.match(clientCombatAgents, /breaching a refuge/);
   assert.match(
     formatLiveCombatSummary([recovering], 400) ?? '',
     /Company aftermath: 1 wounded guard unavailable · up to 4 days remaining/,
+  );
+  const fielded = {
+    ...combatant('g4', 'guard', 'returning'),
+    sourceSlot: 1,
+  };
+  const highSlotCasualty = {
+    ...recovering,
+    sourceSlot: 4,
+  };
+  assert.deepEqual(
+    guardCompanyRosterSummary(
+      [
+        fielded,
+        highSlotCasualty,
+        {
+          ...combatant('g5', 'guard', 'fighting'),
+          sourceBuildingId: 'building:8',
+        },
+      ],
+      'building:7',
+    ),
+    {
+      rosterFloor: 5,
+      fieldedGuards: 1,
+      woundedGuards: 1,
+    },
+    'live guard rows must keep their stable source roster slots committed',
   );
   assert.equal(formatLiveCombatSummary([]), undefined);
 }

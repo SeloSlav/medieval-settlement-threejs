@@ -18,7 +18,7 @@ use crate::economy::{
     collect_chapel_coffer as sweep_chapel_coffer, construction_treasury_reservation,
     credit_treasury_commodity, credit_treasury_firewood, credit_treasury_food,
     credit_treasury_gold, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
-    guardhouse_casualty_count, guardhouse_casualty_floors, initial_construction_labor,
+    guardhouse_roster_count, guardhouse_roster_floors, initial_construction_labor,
     record_parish_ledger, total_stone, total_timber, CommodityKind, ParishLedgerKind,
 };
 use crate::foraging_policy::harvest_available;
@@ -1191,7 +1191,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
     let mut sites = Vec::new();
     let mut fire_disabled_sites = Vec::new();
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
-    let casualty_floors = guardhouse_casualty_floors(ctx, owner);
+    let roster_floors = guardhouse_roster_floors(ctx, owner);
     for building in ctx
         .db
         .building()
@@ -1211,7 +1211,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
                     .get(&building.id)
                     .copied()
                     .unwrap_or(0)
-                    .max(casualty_floors.get(&building.id).copied().unwrap_or(0));
+                    .max(roster_floors.get(&building.id).copied().unwrap_or(0));
                 available_labor = available_labor
                     .saturating_add(building.assigned_labor.saturating_sub(cart_floor));
                 fire_disabled_sites.push(building.id);
@@ -1226,7 +1226,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
                 .get(&building.id)
                 .copied()
                 .unwrap_or(0)
-                .max(casualty_floors.get(&building.id).copied().unwrap_or(0)),
+                .max(roster_floors.get(&building.id).copied().unwrap_or(0)),
             max_labor: def.max_labor,
         });
     }
@@ -1239,9 +1239,9 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         if building.owner != owner || building.assigned_labor == 0 {
             continue;
         }
-        let casualty_floor = casualty_floors.get(&building.id).copied().unwrap_or(0);
-        preserve_in_transit_cart_labor(ctx, building.id, casualty_floor);
-        building.assigned_labor = casualty_floor;
+        let roster_floor = roster_floors.get(&building.id).copied().unwrap_or(0);
+        preserve_in_transit_cart_labor(ctx, building.id, roster_floor);
+        building.assigned_labor = roster_floor;
         ctx.db.building().id().update(building);
     }
     for (building_id, target_labor) in rotation.targets {
@@ -1819,12 +1819,12 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         );
     }
     if building.kind == "guardhouse" {
-        let wounded = guardhouse_casualty_count(ctx, owner, building.id);
-        if wounded > 0 {
+        let committed = guardhouse_roster_count(ctx, owner, building.id);
+        if committed > 0 {
             return Err(format!(
-                "This guardhouse shelters {} wounded guard{}; wait for recovery before demolition.",
-                wounded,
-                if wounded == 1 { "" } else { "s" },
+                "This company still has {} guard{} deployed, returning, or recovering; wait until every guard has returned and recovered before demolition.",
+                committed,
+                if committed == 1 { "" } else { "s" },
             ));
         }
     }

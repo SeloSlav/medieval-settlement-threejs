@@ -52,6 +52,41 @@ export type CombatAgentState = {
   stateChangedTick: number;
 };
 
+export type GuardCompanyRosterSummary = {
+  rosterFloor: number;
+  fieldedGuards: number;
+  woundedGuards: number;
+};
+
+export function isWoundedGuard(agent: CombatAgentState): boolean {
+  return agent.faction === 'guard' && (
+    agent.status === 'downed'
+    || agent.status === 'wounded-returning'
+    || agent.status === 'recovering'
+  );
+}
+
+export function guardCompanyRosterSummary(
+  agents: Iterable<CombatAgentState>,
+  sourceBuildingId: string,
+): GuardCompanyRosterSummary {
+  let rosterFloor = 0;
+  let fieldedGuards = 0;
+  let woundedGuards = 0;
+  for (const agent of agents) {
+    if (
+      agent.faction !== 'guard'
+      || agent.sourceBuildingId !== sourceBuildingId
+    ) {
+      continue;
+    }
+    rosterFloor = Math.max(rosterFloor, agent.sourceSlot + 1);
+    if (isWoundedGuard(agent)) woundedGuards += 1;
+    else fieldedGuards += 1;
+  }
+  return { rosterFloor, fieldedGuards, woundedGuards };
+}
+
 export function syncCombatAgents(
   rows: Iterable<CombatAgent>,
   identityHex: string | null,

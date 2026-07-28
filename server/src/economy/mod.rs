@@ -48,8 +48,8 @@ pub use parish_accounting::{
     clamp_chapel_coffer_reserve_gold, record_parish_ledger, ParishLedgerKind,
 };
 pub use population::{
-    assign_building_labor, available_building_labor, guardhouse_casualty_count,
-    guardhouse_casualty_floors, initial_construction_labor, reconcile_building_labor,
+    assign_building_labor, available_building_labor, guardhouse_roster_count,
+    guardhouse_roster_floors, initial_construction_labor, reconcile_building_labor,
     residence_population_for_parcel,
 };
 pub(crate) use regional_market::record_specialty_market_export;
