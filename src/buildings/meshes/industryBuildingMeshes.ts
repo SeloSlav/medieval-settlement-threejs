@@ -293,6 +293,25 @@ function addChoppingShelter(group: THREE.Group, halfW: number): void {
   );
 }
 
+function createWoodcuttersFirewoodStockpile(): THREE.Group {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'WoodcuttersFirewoodStockpile';
+  stockpile.visible = false;
+  const positions = [
+    [-2.45, -3.72],
+    [-0.78, -3.72],
+    [0.89, -3.72],
+    [2.56, -3.72],
+  ] as const;
+  for (const [x, z] of positions) {
+    const segment = new THREE.Group();
+    segment.name = 'WoodcuttersFirewoodSegment';
+    addLogPile(segment, x, z, 0, 3, 1.42, 0.14);
+    stockpile.add(segment);
+  }
+  return stockpile;
+}
+
 /** Firewood workshop with a stone-and-lime lodge and dedicated chopping shelter. */
 export function createWoodcuttersLodgeMesh(): THREE.Group {
   const group = new THREE.Group();
@@ -309,5 +328,6 @@ export function createWoodcuttersLodgeMesh(): THREE.Group {
   addPlankDoor(group, -1.25, 0.76, shell.frontZ + 0.02, 1.0, 1.9);
   addSmallWindow(group, 1.35, 1.82, shell.frontZ + 0.02, 0.82, 1.0);
   addChoppingShelter(group, shell.halfW);
+  group.add(createWoodcuttersFirewoodStockpile());
   return group;
 }

@@ -205,7 +205,7 @@ export class RoadMaterialFactory {
       color: 0xcbd7cb,
       roughness: 0.9,
       metalness: 0,
-      vertexColors: false,
+      vertexColors: true,
     });
     const bridgeSupport = new THREE.MeshStandardMaterial({
       map: this.bridgeTextures.albedo,

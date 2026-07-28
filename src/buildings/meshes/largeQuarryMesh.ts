@@ -134,6 +134,9 @@ function addWorkPlatforms(group: THREE.Group): void {
 }
 
 function addStoneYard(group: THREE.Group): void {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'LargeQuarryStockpile';
+  stockpile.visible = false;
   const stacks = [
     [-8.4, -5.3, 0],
     [-7.4, -3.8, Math.PI * 0.5],
@@ -142,6 +145,7 @@ function addStoneYard(group: THREE.Group): void {
   ] as const;
   for (const [x, z, yaw] of stacks) {
     const stack = new THREE.Group();
+    stack.name = 'LargeQuarryStockSegment';
     stack.position.set(x, 0, z);
     stack.rotation.y = yaw;
     for (const [bx, by] of [[-0.65, 0.38], [0.65, 0.38], [0, 1.08]] as const) {
@@ -152,8 +156,9 @@ function addStoneYard(group: THREE.Group): void {
         new THREE.Vector3(bx, by, 0),
       );
     }
-    group.add(stack);
+    stockpile.add(stack);
   }
+  group.add(stockpile);
 
   for (let index = 0; index < 14; index++) {
     const angle = index / 14 * Math.PI * 2 + 0.16;

@@ -142,6 +142,7 @@ const terrainMaterialSource = readFileSync(
   `${projectRoot}src/terrain/TerrainGrassMaterial.ts`,
   'utf8',
 );
+const terrainSource = readFileSync(`${projectRoot}src/terrain/Terrain.ts`, 'utf8');
 const roadEdgeMaterialSource = exportedFunctionSource(
   roadMaterialSource,
   'createRoadEdgeMaterial',
@@ -282,7 +283,7 @@ assert.match(
   /this\.rainTerrainTexture\?\.dispose\(\)/,
   'the factory must release its generated rain albedo',
 );
-assert.match(roadFactorySource, /vertexColors:\s*false/);
+assert.match(roadFactorySource, /vertexColors:\s*true/);
 assert.match(roadFactorySource, /function createRainTerrainAlbedoTexture/);
 assert.match(roadFactorySource, /function tileableValueNoise/);
 assert.match(roadFactorySource, /THREE\.RepeatWrapping/);
@@ -312,6 +313,21 @@ assert.match(
   sceneSource,
   /this\.fairTerrainMaterial\s*=\s*terrain\.mesh\.material as THREE\.Material/,
   'SceneManager must retain the generated fair-weather shore material',
+);
+assert.match(
+  sceneSource,
+  /this\.terrain\.setRainColorMode\(environment\.weather\s*===\s*'rain'\)/,
+  'rain must enable the precomputed macro and shoreline color field',
+);
+assert.match(terrainSource, /private readonly rainColorAttr:\s*THREE\.BufferAttribute/);
+assert.match(terrainSource, /function createRainColorAttribute/);
+assert.match(terrainSource, /const lowToMiddle = rainSmoothStep/);
+assert.match(terrainSource, /const middleToHigh = rainSmoothStep/);
+assert.match(terrainSource, /const shoreBlend = Math\.sqrt/);
+assert.match(
+  terrainSource,
+  /THREE\.MathUtils\.lerp\(r,\s*1\.35,\s*shoreBlend\)[\s\S]*?THREE\.MathUtils\.lerp\(g,\s*0\.72,\s*shoreBlend\)[\s\S]*?THREE\.MathUtils\.lerp\(b,\s*0\.25,\s*shoreBlend\)/,
+  'rain shoreline colors must retain a distinct warm wet-bank family',
 );
 assert.match(
   sceneSource,

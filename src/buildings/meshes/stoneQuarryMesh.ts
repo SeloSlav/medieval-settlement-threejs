@@ -9,8 +9,14 @@ import {
 } from '../buildingMaterials.ts';
 import { addGableShell, addPlankDoor, addSmallWindow } from './buildingMeshKit.ts';
 
-function addCutBlockStack(group: THREE.Group, x: number, z: number, rotation = 0): void {
+function addCutBlockStack(
+  group: THREE.Group,
+  x: number,
+  z: number,
+  rotation = 0,
+): void {
   const stack = new THREE.Group();
+  stack.name = 'StoneQuarryStockSegment';
   stack.position.set(x, 0, z);
   stack.rotation.y = rotation;
   const blocks = [
@@ -29,6 +35,16 @@ function addCutBlockStack(group: THREE.Group, x: number, z: number, rotation = 0
     );
   }
   group.add(stack);
+}
+
+function createStoneStockpile(): THREE.Group {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'StoneQuarryStockpile';
+  stockpile.visible = false;
+  addCutBlockStack(stockpile, 5.85, -4.75, 0.05);
+  addCutBlockStack(stockpile, 7.2, -1.6, Math.PI * 0.5);
+  addCutBlockStack(stockpile, -4.9, -5.6, -0.08);
+  return stockpile;
 }
 
 function addRubble(group: THREE.Group): void {
@@ -162,8 +178,6 @@ export function createStoneQuarryMesh(): THREE.Group {
   addDerrick(group);
   addStonecuttersShelter(group);
   addStonecuttingBench(group);
-  addCutBlockStack(group, 5.85, -4.75, 0.05);
-  addCutBlockStack(group, 7.2, -1.6, Math.PI * 0.5);
-  addCutBlockStack(group, -4.9, -5.6, -0.08);
+  group.add(createStoneStockpile());
   return group;
 }

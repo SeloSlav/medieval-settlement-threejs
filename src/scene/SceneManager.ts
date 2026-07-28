@@ -729,6 +729,7 @@ export class SceneManager {
 
   setEnvironment(environment: EnvironmentState): void {
     this.environment = environment;
+    this.terrain.setRainColorMode(environment.weather === 'rain');
     this.terrain.mesh.material = environment.weather === 'rain'
       ? this.materials.rainTerrain
       : this.fairTerrainMaterial;

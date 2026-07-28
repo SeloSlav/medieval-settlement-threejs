@@ -37,6 +37,7 @@ import {
   STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
 } from './buildingStockpileVisuals.ts';
 import { foodStockpileVisualSignature } from './foodStockpileVisuals.ts';
+import { bulkStockpileVisualSignature } from './bulkStockpileVisuals.ts';
 
 export function buildingMeshSignature(building: BuildingState): string {
   if (building.constructionComplete !== false) {
@@ -190,6 +191,7 @@ export function buildingMarkerSignatures(
         )}`
         : '';
       const foodStockState = foodStockpileVisualSignature(building);
+      const bulkStockState = bulkStockpileVisualSignature(building);
       const structural = [
         building.id,
         building.x.toFixed(2),
@@ -198,7 +200,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${clothState}${foodStockState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${clothState}${foodStockState}${bulkStockState}`,
         collider: structural,
       };
     })
