@@ -53,6 +53,7 @@
       "monastery": 0.65,
       "marketplace": 0.8,
       "residence": 1,
+      "cart": 1.25,
       "treasury": 1.2
     }
   },

@@ -1,5 +1,6 @@
 import {
   BUILDING_STORAGE_CAPS,
+  FRESH_FOOD_STORAGE_CART_FACTOR,
   FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
   FRESH_FOOD_STORAGE_GRANARY_FACTOR,
   FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR,
@@ -13,7 +14,7 @@ import type { BuildingKind, GameState } from '../resources/types.ts';
 import { granaryFreshFoodTarget } from './granaryPolicy.ts';
 
 export type FreshFoodLossSite = {
-  source: 'treasury' | 'building' | 'residence';
+  source: 'treasury' | 'building' | 'residence' | 'trip';
   id: string | null;
   buildingKind: BuildingKind | null;
   stock: number;
@@ -36,6 +37,7 @@ export type FreshFoodPreservation = {
   totalStock: number;
   usableStock: number;
   quarantinedStock: number;
+  transitStock: number;
   protectedStock: number;
   exposedStock: number;
   protectedShare: number;
@@ -47,6 +49,7 @@ export type FreshFoodPreservation = {
   usableSpoilageFractionPerDay: number;
   spoilagePerDay: number;
   quarantinedSpoilagePerDay: number;
+  transitSpoilagePerDay: number;
   largestLossSite: FreshFoodLossSite | null;
   granaryNetwork: GranaryFreshFoodNetwork;
 };
@@ -88,6 +91,8 @@ export function analyzeFreshFoodPreservation(
   let usableWeightedStock = usableStock * FRESH_FOOD_STORAGE_TREASURY_FACTOR;
   let quarantinedStock = 0;
   let quarantinedWeightedStock = 0;
+  let transitStock = 0;
+  let transitWeightedStock = 0;
   let protectedStock = 0;
   let usableProtectedStock = 0;
   let largestLossSite: FreshFoodLossSite | null = null;
@@ -158,6 +163,24 @@ export function analyzeFreshFoodPreservation(
     }
   }
 
+  for (const trip of state.deliveryTrips.values()) {
+    if (trip.cargoKind !== 'food') continue;
+    const stock = finiteStock(trip.amount);
+    if (stock <= 0) continue;
+    totalStock += stock;
+    weightedStock += stock * FRESH_FOOD_STORAGE_CART_FACTOR;
+    transitStock += stock;
+    transitWeightedStock += stock * FRESH_FOOD_STORAGE_CART_FACTOR;
+    largestLossSite = largerLossSite(largestLossSite, {
+      source: 'trip',
+      id: trip.id,
+      buildingKind: null,
+      stock,
+      storageFactor: FRESH_FOOD_STORAGE_CART_FACTOR,
+      spoilagePerDay: stock * FRESH_FOOD_STORAGE_CART_FACTOR * ambientRate,
+    });
+  }
+
   for (const residence of state.residences.values()) {
     const stock = finiteStock(getNeedStock(residence.needs, 'food'));
     const fireDisabled = options.fireDisabledResidenceIds?.has(residence.id) ?? false;
@@ -187,6 +210,7 @@ export function analyzeFreshFoodPreservation(
     totalStock,
     usableStock,
     quarantinedStock,
+    transitStock,
     protectedStock,
     exposedStock: Math.max(0, totalStock - protectedStock),
     protectedShare: totalStock > 1e-9 ? protectedStock / totalStock : 0,
@@ -200,6 +224,7 @@ export function analyzeFreshFoodPreservation(
     usableSpoilageFractionPerDay: ambientRate * usableEffectiveStorageFactor,
     spoilagePerDay: ambientRate * weightedStock,
     quarantinedSpoilagePerDay: ambientRate * quarantinedWeightedStock,
+    transitSpoilagePerDay: ambientRate * transitWeightedStock,
     largestLossSite,
     granaryNetwork,
   };

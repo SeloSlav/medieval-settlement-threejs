@@ -171,6 +171,7 @@ export type GameBalance = {
       monastery: number;
       marketplace: number;
       residence: number;
+      cart: number;
       treasury: number;
     };
   };
@@ -553,6 +554,7 @@ function generateRust(): string {
     `pub const FRESH_FOOD_STORAGE_MONASTERY_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.monastery)};`,
     `pub const FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.marketplace)};`,
     `pub const FRESH_FOOD_STORAGE_RESIDENCE_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.residence)};`,
+    `pub const FRESH_FOOD_STORAGE_CART_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.cart)};`,
     `pub const FRESH_FOOD_STORAGE_TREASURY_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.treasury)};`,
     '',
     `pub const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY: f64 = ${rustF64(b.fires.lightningIgnitionChancePerRainDay)};`,
@@ -1128,6 +1130,7 @@ function generateTypeScript(): string {
     `export const FRESH_FOOD_STORAGE_MONASTERY_FACTOR = ${b.seasons.freshFoodStorageFactors.monastery};`,
     `export const FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR = ${b.seasons.freshFoodStorageFactors.marketplace};`,
     `export const FRESH_FOOD_STORAGE_RESIDENCE_FACTOR = ${b.seasons.freshFoodStorageFactors.residence};`,
+    `export const FRESH_FOOD_STORAGE_CART_FACTOR = ${b.seasons.freshFoodStorageFactors.cart};`,
     `export const FRESH_FOOD_STORAGE_TREASURY_FACTOR = ${b.seasons.freshFoodStorageFactors.treasury};`,
     '',
     `export const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY = ${b.fires.lightningIgnitionChancePerRainDay};`,

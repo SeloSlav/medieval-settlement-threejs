@@ -120,7 +120,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="water">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="water" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food" data-tooltip="Food stored at physical producers, granaries, markets, institutions, and homes. Loaded carts are shown separately until unloading.">
+      <div class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food" data-tooltip="Food stored at physical producers, granaries, markets, institutions, and homes. Loaded carts are shown separately, remain unavailable until unloading, and keep spoiling on the road.">
         <span class="settlement-hud__label">Food</span>
         <strong class="settlement-hud__value" data-stockpile="food">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>

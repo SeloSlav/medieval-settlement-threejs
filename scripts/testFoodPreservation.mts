@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  FRESH_FOOD_STORAGE_CART_FACTOR,
   FRESH_FOOD_STORAGE_GRANARY_FACTOR,
   FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR,
   FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
@@ -12,6 +13,7 @@ import {
   buildingFreshFoodStorageFactor,
   spoilageAdjustedRunwayDays,
 } from '../src/economy/foodPreservation.ts';
+import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { renderFreshFoodPreservationRows } from '../src/resources/inspector/townHallRenderer.ts';
 import type {
   BuildingState,
@@ -66,6 +68,35 @@ assert.equal(
   0,
   'physical food planning must ignore compatibility-ledger stock',
 );
+
+const cartState = emptyGameState();
+cartState.deliveryTrips.set('outbound-food', deliveryTrip('outbound-food', 'food', 24, 'outbound'));
+cartState.deliveryTrips.set('returning-food', deliveryTrip('returning-food', 'food', 6, 'inbound'));
+cartState.deliveryTrips.set(
+  'preserved-food',
+  deliveryTrip('preserved-food', 'preservedFood', 40, 'outbound'),
+);
+const cartPreservation = analyzeFreshFoodPreservation(cartState, ambientSpoilage);
+assert.equal(cartPreservation.totalStock, 30);
+assert.equal(cartPreservation.usableStock, 0);
+assert.equal(cartPreservation.transitStock, 30);
+assert.ok(
+  Math.abs(
+    cartPreservation.transitSpoilagePerDay
+    - 30 * FRESH_FOOD_STORAGE_CART_FACTOR * ambientSpoilage
+  ) < 1e-9,
+);
+assert.equal(cartPreservation.largestLossSite?.source, 'trip');
+assert.equal(cartPreservation.largestLossSite?.id, 'outbound-food');
+const cartRows = renderFreshFoodPreservationRows(
+  cartPreservation,
+  (kind) => kind,
+  () => null,
+);
+assert.match(cartRows, /Food on carts/);
+assert.match(cartRows, /30\.0 exposed in loaded or returning handcarts/);
+assert.match(cartRows, /unavailable until unloaded/);
+assert.match(cartRows, /Loaded handcart · 24\.0 food/);
 
 const adjustedRunway = spoilageAdjustedRunwayDays(
   preservation.totalStock,
@@ -273,6 +304,11 @@ assert.match(
   /for building in ctx\.db\.building\(\)\.iter\(\)[\s\S]*building\.food[\s\S]*storage_factor/,
   'damaged building stores remain in the server-wide fresh-food spoilage pass',
 );
+assert.match(
+  serverFoodSpoilage,
+  /delivery_trip\(\)[\s\S]*CommodityKind::Food\.as_u8\(\)[\s\S]*FRESH_FOOD_STORAGE_CART_FACTOR[\s\S]*delivery_trip\(\)\.id\(\)\.update/,
+  'loaded fresh food must keep spoiling in the authoritative delivery row',
+);
 
 const perfState = emptyGameState();
 for (let index = 0; index < 10_000; index += 1) {
@@ -307,9 +343,24 @@ assert.ok(
   `100,000-granary preservation diagnostics took ${granaryElapsedMs.toFixed(1)} ms`,
 );
 
+const cartPerfState = emptyGameState();
+for (let index = 0; index < 100_000; index += 1) {
+  const id = `food-cart-${index}`;
+  cartPerfState.deliveryTrips.set(id, deliveryTrip(id, 'food', 6, 'outbound'));
+}
+const cartStarted = performance.now();
+const cartPerfResult = analyzeFreshFoodPreservation(cartPerfState, 0.018);
+const cartElapsedMs = performance.now() - cartStarted;
+assert.equal(cartPerfResult.transitStock, 600_000);
+assert.ok(
+  cartElapsedMs < 500,
+  `100,000-cart preservation diagnostics took ${cartElapsedMs.toFixed(1)} ms`,
+);
+
 console.log(
   `food preservation tests passed (${elapsedMs.toFixed(1)} ms for 10,000 homes; `
-  + `${granaryElapsedMs.toFixed(1)} ms for 100,000 granaries)`,
+  + `${granaryElapsedMs.toFixed(1)} ms for 100,000 granaries; `
+  + `${cartElapsedMs.toFixed(1)} ms for 100,000 carts)`,
 );
 
 function building(
@@ -377,6 +428,35 @@ function residence(id: string, food: number): ResidenceState {
     },
     abandoned: false,
     householdWealth: 0,
+  };
+}
+
+function deliveryTrip(
+  id: string,
+  cargoKind: DeliveryTripState['cargoKind'],
+  amount: number,
+  phase: DeliveryTripState['phase'],
+): DeliveryTripState {
+  return {
+    id,
+    buildingId: `origin-${id}`,
+    residenceId: `destination-${id}`,
+    destinationKind: 'residence',
+    targetBuildingId: null,
+    cargoKind,
+    amount,
+    phase,
+    x: 0,
+    z: 0,
+    progress: 0,
+    speedMps: 1.6,
+    unloadSeconds: 2,
+    unloadRemaining: 0,
+    deliveryWorkers: 1,
+    freeHaulerWorkers: 0,
+    pathDistance: 100,
+    travelSpeedMultiplier: 1,
+    routePolylineJson: '[[0,0],[100,0]]',
   };
 }
 

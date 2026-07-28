@@ -1311,9 +1311,13 @@ export function renderFreshFoodPreservationRows(
   const quarantine = preservation.quarantinedStock > 0.05
     ? `<li><span>Fire-quarantined food</span><span>${preservation.quarantinedStock.toFixed(1)} inaccessible until recovery · ${formatFreshFoodLoss(preservation.quarantinedSpoilagePerDay)} still spoiling in damaged buildings</span></li>`
     : '';
+  const transit = preservation.transitStock > 0.05
+    ? `<li><span>Food on carts</span><span>${preservation.transitStock.toFixed(1)} exposed in loaded or returning handcarts · ${formatFreshFoodLoss(preservation.transitSpoilagePerDay)} · unavailable until unloaded</span></li>`
+    : '';
   return `
     <li><span>Fresh-food spoilage</span><span>${formatFreshFoodLoss(preservation.spoilagePerDay)} · ${Math.round(preservation.usableProtectedShare * 100)}% of usable food in sheltered stores</span></li>
     ${quarantine}
+    ${transit}
     <li><span>Largest fresh-food loss</span><span>${hotspot}</span></li>
     <li><span>Granary intake network</span><span>${formatGranaryFreshFoodNetwork(preservation.granaryNetwork)}</span></li>
   `;
@@ -1335,6 +1339,9 @@ function formatFreshFoodLossSite(
     const parcelIndex = getResidenceParcelIndex(site.id);
     const label = parcelIndex === null ? 'Residence' : `Residence parcel #${parcelIndex + 1}`;
     return `${label} · ${site.stock.toFixed(1)} food · ${formatFreshFoodLoss(site.spoilagePerDay)} <button type="button" class="inspector-jump-button" data-inspect-residence="${site.id}" aria-label="Inspect largest household fresh-food loss">Inspect</button>`;
+  }
+  if (site.source === 'trip') {
+    return `Loaded handcart · ${site.stock.toFixed(1)} food · ${formatFreshFoodLoss(site.spoilagePerDay)}`;
   }
   return 'No fresh food currently spoiling';
 }
