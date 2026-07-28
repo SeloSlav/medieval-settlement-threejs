@@ -155,6 +155,7 @@ const ultraSchedule = presentation.sync(
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 120,
+    activeRaid: null,
   },
   null,
   true,
@@ -168,6 +169,7 @@ const scenicSchedule = presentation.sync(
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 1,
+    activeRaid: null,
   },
   null,
   true,
@@ -194,6 +196,7 @@ const normalSchedule = presentation.sync(
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 5,
+    activeRaid: null,
   },
   null,
   true,
@@ -210,6 +213,33 @@ assert.ok(
   'each subsequent speed transition must continue from the displayed clock',
 );
 
+const raidSchedule = presentation.sync(
+  emptyPresentationTargets,
+  {
+    simTick: anchorTick,
+    parishPolicy: DEFAULT_PARISH_POLICY,
+    gameSpeed: 5,
+    activeRaid: {
+      raidId: '42',
+      startedTick: anchorTick,
+      enemyPressure: 50,
+      initialRaiders: 4,
+      initialGuards: 3,
+      goodsLost: 0,
+      wealthLost: 0,
+      arsonStarted: false,
+    },
+  },
+  null,
+  true,
+);
+assert.ok(raidSchedule);
+assert.equal(
+  raidSchedule.laborPaused,
+  true,
+  'an authoritative live raid must stop visible civilian work immediately',
+);
+
 const winterQa = parseVisualQaConditions('?visualQa=winter');
 assert.ok(winterQa);
 const qaPresentation = new SettlementPresentationController(
@@ -222,6 +252,7 @@ const qaSchedule = qaPresentation.sync(
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 120,
+    activeRaid: null,
   },
   null,
   true,
@@ -245,6 +276,7 @@ const repeatedQaSchedule = qaPresentation.sync(
     simTick: anchorTick + 1,
     parishPolicy: DEFAULT_PARISH_POLICY,
     gameSpeed: 120,
+    activeRaid: null,
   },
   null,
   true,

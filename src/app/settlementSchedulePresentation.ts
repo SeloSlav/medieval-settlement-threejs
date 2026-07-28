@@ -61,7 +61,7 @@ export class SettlementPresentationController {
   private anchor: SnapshotAnchor | null = null;
   private lastSnapshot: Pick<
     SpacetimeGameSnapshot,
-    'simTick' | 'parishPolicy' | 'gameSpeed'
+    'simTick' | 'parishPolicy' | 'gameSpeed' | 'activeRaid'
   > | null = null;
   private lastGameState: GameState | null = null;
   private readonly now: () => number;
@@ -77,7 +77,10 @@ export class SettlementPresentationController {
 
   sync(
     targets: SettlementPresentationTargets,
-    snapshot: Pick<SpacetimeGameSnapshot, 'simTick' | 'parishPolicy' | 'gameSpeed'>,
+    snapshot: Pick<
+      SpacetimeGameSnapshot,
+      'simTick' | 'parishPolicy' | 'gameSpeed' | 'activeRaid'
+    >,
     gameState: GameState | null,
     connected: boolean,
   ): SettlementSchedule | null {
@@ -87,7 +90,11 @@ export class SettlementPresentationController {
       return null;
     }
 
-    const dirtyKey = `${settlementScheduleDirtyKey(snapshot, gameState)}|${snapshot.gameSpeed}`;
+    const dirtyKey = [
+      settlementScheduleDirtyKey(snapshot, gameState),
+      snapshot.gameSpeed,
+      snapshot.activeRaid?.raidId ?? 'all-clear',
+    ].join('|');
     if (dirtyKey === this.lastDirtyKey) {
       return null;
     }
@@ -111,6 +118,7 @@ export class SettlementPresentationController {
       elapsedSeconds,
       snapshot.parishPolicy,
       gameState,
+      snapshot.activeRaid !== null,
     );
     this.applyPresentation(targets, schedule);
     return schedule;
@@ -125,6 +133,7 @@ export class SettlementPresentationController {
       elapsedSeconds,
       this.lastSnapshot.parishPolicy,
       this.lastGameState,
+      this.lastSnapshot.activeRaid !== null,
     );
     this.applyPresentation(targets, schedule);
   }
@@ -150,15 +159,19 @@ export class SettlementPresentationController {
     elapsedSeconds: number,
     parishPolicy: SpacetimeGameSnapshot['parishPolicy'],
     gameState: GameState | null,
+    activeRaid: boolean,
   ): SettlementSchedule {
     const clock = gameClockAtElapsedSeconds(elapsedSeconds);
-    return deriveSettlementScheduleFromClock(
+    const schedule = deriveSettlementScheduleFromClock(
       this.visualQaConditions
         ? applyVisualQaClock(clock, this.visualQaConditions)
         : clock,
       parishPolicy,
       gameState,
     );
+    return activeRaid && !schedule.laborPaused
+      ? { ...schedule, laborPaused: true }
+      : schedule;
   }
 
   private applyPresentation(targets: SettlementPresentationTargets, schedule: SettlementSchedule): void {

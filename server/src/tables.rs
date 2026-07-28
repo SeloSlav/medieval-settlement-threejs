@@ -759,7 +759,7 @@ pub struct SettlementSecurity {
 /// One live hostile incursion per settlement. The row accumulates only results
 /// produced by physical combat agents reaching holdings; it never resolves
 /// losses on its own.
-#[spacetimedb::table(accessor = active_raid)]
+#[spacetimedb::table(accessor = active_raid, public)]
 #[derive(Clone)]
 pub struct ActiveRaid {
     #[primary_key]

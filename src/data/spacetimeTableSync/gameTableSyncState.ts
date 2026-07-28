@@ -21,6 +21,7 @@ import type { GameSpeed } from '../../world/gameSpeed.ts';
 import type { FireIncidentState } from '../../fires/fireIncident.ts';
 import type { SettlementSecurityState } from '../../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../../security/combatAgents.ts';
+import type { ActiveRaidState } from '../../security/activeRaid.ts';
 
 export type GameTableSyncState = {
   identityHex: string | null;
@@ -51,6 +52,7 @@ export type GameTableSyncState = {
   deliveryTrips: Map<string, DeliveryTripState>;
   fireIncidents: Map<string, FireIncidentState>;
   combatAgents: Map<string, CombatAgentState>;
+  activeRaid: ActiveRaidState | null;
   settlementSecurity: SettlementSecurityState;
   roads: RoadNetworkSnapshot | null;
 };

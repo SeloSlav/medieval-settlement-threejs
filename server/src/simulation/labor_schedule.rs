@@ -23,13 +23,20 @@ pub fn owner_sabbath_observance_enabled(
     tick.sabbath_observance_enabled(ctx, owner)
 }
 
-/// Night hours and Sunday sabbath (when staffed chapel + policy enabled).
+/// Ordinary work and logistics halt during a live incursion, at night, and
+/// during Sunday sabbath when a staffed chapel and the policy are both active.
+/// Fire-response trips deliberately bypass this helper at their dispatch and
+/// movement call sites.
 pub fn labor_and_logistics_paused(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     owner: Identity,
     clock: &GameClock,
 ) -> bool {
+    if tick.owner_has_active_raid(ctx, owner) {
+        return true;
+    }
+
     if !is_work_hours(clock) {
         return true;
     }

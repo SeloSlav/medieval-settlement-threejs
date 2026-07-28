@@ -22,6 +22,7 @@ import {
 } from '../world/gameSpeed.ts';
 import type { FireIncidentState } from '../fires/fireIncident.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
+import type { ActiveRaidState } from '../security/activeRaid.ts';
 import {
   formatFrontierForecast,
   formatFrontierRaidTiming,
@@ -377,10 +378,14 @@ export class SettlementHud {
     world: AuthoritativeWorldGeneration | null,
     simTick: number,
     projectedTargets?: string,
+    activeRaid?: ActiveRaidState | null,
   ): void {
     const enabled = world?.configured === true && world.conflictMode === 'frontier';
     this.securityAlert.hidden = !enabled;
-    this.panel.classList.toggle('has-frontier-threat', enabled && security.threat >= 0.7);
+    this.panel.classList.toggle(
+      'has-frontier-threat',
+      enabled && (activeRaid != null || security.threat >= 0.7),
+    );
     if (!enabled) return;
 
     const clock = gameClock(simTick);
@@ -391,8 +396,11 @@ export class SettlementHud {
     const timing = security.nextRaidTick <= 0
       ? 'Pressure begins at 8 residents'
       : formatFrontierRaidTiming(security, simTick, clock.month);
-    this.securityDetail.textContent = `${timing} · ${coverage}% watched · weakest district ${readyGuards}/${requiredGuards}${security.threat >= 0.4 && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
-    this.securityAlert.dataset.threat = security.threat >= 0.9
+    const mobilization = activeRaid
+      ? 'Live incursion: civilian labor and ordinary carts halted'
+      : timing;
+    this.securityDetail.textContent = `${mobilization} · ${coverage}% watched · weakest district ${readyGuards}/${requiredGuards}${security.threat >= 0.4 && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
+    this.securityAlert.dataset.threat = activeRaid != null || security.threat >= 0.9
       ? 'imminent'
       : security.threat >= 0.7
         ? 'high'
@@ -405,6 +413,9 @@ export class SettlementHud {
       `Weakest likely watch district: ${readyGuards}/${requiredGuards} guards`,
       `Companies supplied, paid, drilled, and road-linked: ${Math.round(security.defenseReadiness * 100)}%`,
       `Protected settlement value: ${coverage}%`,
+      activeRaid
+        ? `Settlement mobilized since tick ${activeRaid.startedTick}: production, construction, migration, and ordinary carts are halted until the company returns; household consumption and fire response continue.`
+        : undefined,
       formatFrontierForecast(security, world.enemyPressure),
       projectedTargets,
       'One watchman provides 78% of a tower’s full radius; two provide full coverage.',

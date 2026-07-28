@@ -48,6 +48,7 @@ import type {
 import { createEmptyStockpile } from '../resources/types.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
+import type { ActiveRaidState } from '../security/activeRaid.ts';
 import type { FireIncidentState } from '../fires/fireIncident.ts';
 import {
   DEFAULT_SETTLEMENT_SECURITY,
@@ -127,6 +128,7 @@ export type SpacetimeGameSnapshot = {
   deliveryTrips: Map<string, DeliveryTripState>;
   fireIncidents: Map<string, FireIncidentState>;
   combatAgents: Map<string, CombatAgentState>;
+  activeRaid: ActiveRaidState | null;
   settlementSecurity: SettlementSecurityState;
   roads: RoadNetworkSnapshot | null;
   simTick: number;
@@ -166,6 +168,7 @@ function createEmptyTableState(): GameTableSyncState {
     deliveryTrips: new Map(),
     fireIncidents: new Map(),
     combatAgents: new Map(),
+    activeRaid: null,
     settlementSecurity: { ...DEFAULT_SETTLEMENT_SECURITY },
     roads: null,
   };
@@ -242,6 +245,7 @@ export class SpacetimeGameStore {
       deliveryTrips: this.snapshotMap(state.deliveryTrips),
       fireIncidents: this.snapshotMap(state.fireIncidents),
       combatAgents: this.snapshotMap(state.combatAgents),
+      activeRaid: state.activeRaid ? this.snapshotRecord(state.activeRaid) : null,
       settlementSecurity: this.snapshotRecord(state.settlementSecurity),
       roads: this.snapshotRoads(state.roads),
       simTick: state.simTick,

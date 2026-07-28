@@ -65,6 +65,7 @@ import {
   guardRecoveryTicks,
   type CombatAgentState,
 } from '../src/security/combatAgents.ts';
+import { syncActiveRaid } from '../src/security/activeRaid.ts';
 import {
   BUILDING_DEFINITIONS,
   BUILDING_COSTS,
@@ -155,6 +156,36 @@ assert.deepEqual(BUILDING_COSTS.palisaded_refuge, {
   timber: 72,
   stone: 30,
 });
+
+const activeRaid = syncActiveRaid(
+  [{
+    owner: { toHexString: () => 'settlement-owner' },
+    raidId: 42n,
+    startedTick: 8_000n,
+    enemyPressure: 65,
+    initialRaiders: 7,
+    initialGuards: 5,
+    goodsLost: 1.25,
+    wealthLost: 0.5,
+    arsonStarted: false,
+  } as never],
+  'settlement-owner',
+);
+assert.deepEqual(activeRaid, {
+  raidId: '42',
+  startedTick: 8_000,
+  enemyPressure: 65,
+  initialRaiders: 7,
+  initialGuards: 5,
+  goodsLost: 1.25,
+  wealthLost: 0.5,
+  arsonStarted: false,
+});
+assert.equal(
+  syncActiveRaid([], 'settlement-owner'),
+  null,
+  'the missing live-incursion row is the authoritative all-clear signal',
+);
 assert.equal(PALISADED_REFUGE_BREACH_SECONDS, 12);
 assert.equal(raidTargetCanShelter('residence', true, true), true);
 assert.equal(raidTargetCanShelter('residence', false, true), false);
@@ -1482,12 +1513,28 @@ const serverFires = readFileSync('server/src/simulation/fires.rs', 'utf8');
 const serverBuildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const serverPopulation = readFileSync('server/src/economy/population.rs', 'utf8');
 const serverTables = readFileSync('server/src/tables.rs', 'utf8');
+const serverLaborSchedule = readFileSync(
+  'server/src/simulation/labor_schedule.rs',
+  'utf8',
+);
+const serverResidenceLifecycle = readFileSync(
+  'server/src/simulation/residence_lifecycle.rs',
+  'utf8',
+);
 const generatedCombatAgent = readFileSync('src/generated/combat_agent_table.ts', 'utf8');
 const generatedRaidIncursionRoute = readFileSync(
   'src/generated/raid_incursion_route_table.ts',
   'utf8',
 );
 const clientCombatAgents = readFileSync('src/security/combatAgents.ts', 'utf8');
+const gameTableSubscriptions = readFileSync(
+  'src/data/gameTableSubscriptions.ts',
+  'utf8',
+);
+const gameTableSync = readFileSync(
+  'src/data/spacetimeTableSync/gameTableSync.ts',
+  'utf8',
+);
 const inspectorActions = readFileSync('src/app/inspectorSpacetimeActions.ts', 'utf8');
 const spacetimeReducers = readFileSync('src/data/spacetimeReducers.ts', 'utf8');
 const buildingSync = readFileSync('src/data/spacetimeTableSync/syncBuildings.ts', 'utf8');
@@ -1523,6 +1570,28 @@ assert.doesNotMatch(toolbar, /hotkey: 'd'/);
 assert.match(settlementHud, /formatFrontierForecast/);
 assert.match(settlementHud, /formatFrontierForecast\(security, world\.enemyPressure\)/);
 assert.match(settlementHud, /formatFrontierRaidTiming/);
+assert.match(
+  settlementHud,
+  /Live incursion: civilian labor and ordinary carts halted/,
+);
+assert.match(serverTables, /table\(accessor = active_raid, public\)/);
+assert.match(gameTableSubscriptions, /'active_raid'/);
+assert.match(gameTableSync, /syncActiveRaid/);
+assert.match(
+  serverLaborSchedule,
+  /tick\.owner_has_active_raid\(ctx, owner\)/,
+  'every ordinary producer and cart must share the authoritative emergency stop',
+);
+assert.match(
+  serverResidenceLifecycle,
+  /if !tick\.owner_has_active_raid\(ctx, residence\.owner\)[\s\S]*step_residence_settlement/,
+  'new household settlement must not progress while an incursion is physically active',
+);
+assert.match(
+  app,
+  /setFrontierAlert\([\s\S]*enabled && snapshot\.activeRaid !== null/,
+  'civilian rally and guard muster presentation must begin only for a replicated live raid',
+);
 assert.match(clientSecurity, /live contact still resolves the fight/);
 assert.match(watchtowerInspector, /Projected defense/);
 assert.match(watchtowerInspector, /context\.enemyPressure/);

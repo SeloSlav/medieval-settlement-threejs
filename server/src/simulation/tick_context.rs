@@ -38,6 +38,7 @@ pub type SharedRoadNetworks = Arc<HashMap<Identity, RoadNetwork>>;
 pub struct SimTickContext {
     road_networks: SharedRoadNetworks,
     building_index: RefCell<Option<HashMap<Identity, OwnerBuildingIndex>>>,
+    active_raid_by_owner: RefCell<HashMap<Identity, bool>>,
     sabbath_observance_by_owner: RefCell<HashMap<Identity, bool>>,
     monastery_hospitality_by_owner: RefCell<HashMap<Identity, bool>>,
     staffed_chapel_by_owner: RefCell<HashMap<Identity, bool>>,
@@ -78,6 +79,7 @@ impl SimTickContext {
         Self {
             road_networks,
             building_index: RefCell::new(None),
+            active_raid_by_owner: RefCell::new(HashMap::new()),
             sabbath_observance_by_owner: RefCell::new(HashMap::new()),
             monastery_hospitality_by_owner: RefCell::new(HashMap::new()),
             staffed_chapel_by_owner: RefCell::new(HashMap::new()),
@@ -104,6 +106,19 @@ impl SimTickContext {
         self.road_network(owner)
             .map(|network| network.road_connected(ax, az, bx, bz))
             .unwrap_or(false)
+    }
+
+    /// A raid row cannot be inserted or cleared during the economy phase of
+    /// one simulation transaction. Every producer, worksite, and cart can
+    /// therefore share one indexed lookup per owner while the live combat
+    /// agents continue to move and fight in their earlier simulation phase.
+    pub fn owner_has_active_raid(&self, ctx: &ReducerContext, owner: Identity) -> bool {
+        if let Some(active) = self.active_raid_by_owner.borrow().get(&owner).copied() {
+            return active;
+        }
+        let active = ctx.db.active_raid().owner().find(&owner).is_some();
+        self.active_raid_by_owner.borrow_mut().insert(owner, active);
+        active
     }
 
     /// Owner policy cannot change inside one simulation reducer transaction.

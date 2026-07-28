@@ -11,6 +11,7 @@ import { syncBurgageZones } from './syncBurgageZones.ts';
 import { syncDeliveryTrips } from './syncDeliveryTrips.ts';
 import { syncFireIncidents } from './syncFireIncidents.ts';
 import { syncCombatAgents } from './syncCombatAgents.ts';
+import { syncActiveRaid } from '../../security/activeRaid.ts';
 import { syncForagingNodes } from './syncForagingNodes.ts';
 import { syncFarmFields } from './syncFarmFields.ts';
 import { syncLivestockHerds, syncPastures } from './syncLivestock.ts';
@@ -86,6 +87,10 @@ export class GameTableSync {
     );
     this.state.combatAgents = syncCombatAgents(
       db.combat_agent ? db.combat_agent.iter() : [],
+      this.state.identityHex,
+    );
+    this.state.activeRaid = syncActiveRaid(
+      db.active_raid ? db.active_raid.iter() : [],
       this.state.identityHex,
     );
     this.state.roads = syncRoadNetwork(
@@ -322,6 +327,13 @@ export class GameTableSync {
       );
       db.combat_agent.onDelete((_ctx, row) => combatChanges.delete(row));
     }
+
+    bindTable(db.active_raid, () => {
+      this.state.activeRaid = syncActiveRaid(
+        db.active_raid ? db.active_raid.iter() : [],
+        this.state.identityHex,
+      );
+    });
 
     bindTable(db.road_network_state, () => {
       this.state.roads = syncRoadNetwork(

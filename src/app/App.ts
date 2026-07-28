@@ -84,7 +84,6 @@ import {
   frontierDefenseFireSignature,
   formatProjectedRaidTargets,
   formatRaidReport,
-  isFrontierAlertActive,
   projectRaidTargets,
   type ProjectedRaidTarget,
 } from '../security/frontierSecurity.ts';
@@ -819,6 +818,7 @@ export class App {
       snapshot.worldGeneration,
       snapshot.simTick,
       frontierDetail || undefined,
+      snapshot.activeRaid,
     );
     this.settlementPresentation.sync(
       {
@@ -898,6 +898,7 @@ export class App {
       security.threat.toFixed(6),
       security.coverage.toFixed(6),
       security.readyGuards.toFixed(6),
+      snapshot.activeRaid?.raidId ?? 'all-clear',
       Math.floor(state.tick / FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS),
       frontierDefenseFireSignature(state),
     ].join('|');
@@ -935,11 +936,7 @@ export class App {
           )
         : [];
       this.villagers?.setFrontierAlert(
-        isFrontierAlertActive(
-          security,
-          enabled,
-          clock.month,
-        ),
+        enabled && snapshot.activeRaid !== null,
         refugePlan?.refugeByResidence,
         guardhouseMusterPlan?.assignmentsByGuardhouse,
       );
