@@ -101,7 +101,7 @@ export const REED_LOD_OPACITY_POWER = 2;
  * is still faint at overview scale. Keep the terrain's continuous dirt blend,
  * but delay the 3D clumps until their silhouettes read as grass.
  */
-export const GRASS_BLADE_LOD_VISIBILITY_THRESHOLD = 0.52;
+export const GRASS_BLADE_LOD_VISIBILITY_THRESHOLD = 0.96;
 export const GRASS_BLADE_LOD_OPACITY_POWER = 1.35;
 
 export function grassBladeRevealOpacity(cameraDistance: number): number {

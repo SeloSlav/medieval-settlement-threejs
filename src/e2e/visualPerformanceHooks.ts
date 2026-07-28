@@ -9,6 +9,9 @@ type ProfileSubsystem =
   | 'river'
   | 'riverSimulation'
   | 'riverRender'
+  | 'precipitation'
+  | 'selection'
+  | 'preview'
   | 'terrain'
   | 'groundcover'
   | 'forest'
@@ -22,6 +25,9 @@ type RuntimeSceneManager = {
   sky: THREE.Object3D;
   sunLight: THREE.DirectionalLight;
   riverSystem: { group: THREE.Group; tick(dt: number, timeSec: number): void };
+  precipitation: { group: THREE.Group };
+  selectionGroup: THREE.Group;
+  previewGroup: THREE.Group;
   terrain: { mesh: THREE.Mesh };
   grassField: { group: THREE.Group } | null;
   forestManager: { group: THREE.Group } | null;
@@ -53,6 +59,9 @@ const SUBSYSTEMS = [
   'river',
   'riverSimulation',
   'riverRender',
+  'precipitation',
+  'selection',
+  'preview',
   'terrain',
   'groundcover',
   'forest',
@@ -75,6 +84,9 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
     sunCastShadow: manager.sunLight.castShadow,
     riverVisible: manager.riverSystem.group.visible,
     riverTick: manager.riverSystem.tick,
+    precipitationVisible: manager.precipitation.group.visible,
+    selectionVisible: manager.selectionGroup.visible,
+    previewVisible: manager.previewGroup.visible,
     terrainVisible: manager.terrain.mesh.visible,
     // Vegetation is intentionally constructed after App.start resolves.
     // Both groups default visible when they appear, so the profiling baseline
@@ -138,6 +150,15 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
         break;
       case 'riverRender':
         manager.riverSystem.group.visible = enabled && initial.riverVisible;
+        break;
+      case 'precipitation':
+        manager.precipitation.group.visible = enabled && initial.precipitationVisible;
+        break;
+      case 'selection':
+        manager.selectionGroup.visible = enabled && initial.selectionVisible;
+        break;
+      case 'preview':
+        manager.previewGroup.visible = enabled && initial.previewVisible;
         break;
       case 'terrain':
         manager.terrain.mesh.visible = enabled && initial.terrainVisible;

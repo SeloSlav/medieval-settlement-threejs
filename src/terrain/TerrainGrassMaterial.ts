@@ -693,6 +693,10 @@ export function createTerrainGrassMaterialWithRiverShore(
     ) as TslNode,
   ) as TslNode;
   const weatherResolvedShoreBlend = shoreBlend.mul(shoreRainVisibility) as TslNode;
+  // Authored road meshes carry the wet-road silhouette. The sub-pixel terrain
+  // undercoat can quantize into dotted paths once rain smooths the meadow, so
+  // fade only that redundant vertex mask with the same sustained-rain gate.
+  const weatherResolvedRoadWear = roadWear.mul(shoreRainVisibility) as TslNode;
   const shoreUndercoat = weatherResolvedShoreBlend.mul(float(0.58) as TslNode);
   const riparianGrass = applyRiparianEcologyColor(
     blendNodes.colorNode,
@@ -714,17 +718,21 @@ export function createTerrainGrassMaterialWithRiverShore(
     quarryColor,
     quarryPad,
   ) as TslNode;
-  const meadowWithWear = mix(meadowWithQuarry, wearColor, roadWear) as TslNode;
+  const meadowWithWear = mix(
+    meadowWithQuarry,
+    wearColor,
+    weatherResolvedRoadWear,
+  ) as TslNode;
   const stableMeadowWithWear = mix(
     stableMeadowWithQuarry,
     wearColor,
-    roadWear,
+    weatherResolvedRoadWear,
   ) as TslNode;
   const baseColorNode = applyCloseZoomDirtBlend(
     meadowWithWear,
     dirtColor,
     weatherResolvedShoreBlend,
-    roadWear,
+    weatherResolvedRoadWear,
     quarryPad,
     resolvedWeather,
   );
@@ -732,7 +740,7 @@ export function createTerrainGrassMaterialWithRiverShore(
     stableMeadowWithWear,
     dirtColor,
     weatherResolvedShoreBlend,
-    roadWear,
+    weatherResolvedRoadWear,
     quarryPad,
     resolvedWeather,
   );
@@ -762,12 +770,19 @@ export function createTerrainGrassMaterialWithRiverShore(
   const dirtRoughness = mix(roadRoughness, float(0.82) as TslNode, float(0.24) as TslNode);
   const roughnessWithShore = mix(blendNodes.roughnessNode, muddyRoughness, shoreUndercoat);
   const roughnessWithQuarry = mix(roughnessWithShore, quarryRoughness, quarryPad);
-  const roughnessWithWear = mix(roughnessWithQuarry, wornRoughness, roadWear);
+  const roughnessWithWear = mix(
+    roughnessWithQuarry,
+    wornRoughness,
+    weatherResolvedRoadWear,
+  );
   const zoomGate = attribute('dirtZoomGate', 'float') as TslNode;
   const proximity = buildProximityDirtMask();
   const openGround = sub(
     float(1) as TslNode,
-    max(max(weatherResolvedShoreBlend, roadWear) as TslNode, quarryPad) as TslNode,
+    max(
+      max(weatherResolvedShoreBlend, weatherResolvedRoadWear) as TslNode,
+      quarryPad,
+    ) as TslNode,
   ) as TslNode;
   const rainDirtVisibility = mix(
     float(1) as TslNode,

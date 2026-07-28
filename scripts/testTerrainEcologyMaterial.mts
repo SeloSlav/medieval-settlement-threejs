@@ -58,6 +58,7 @@ assert.match(ecologySource, /const albedoDetailStrength = mix/);
 assert.match(ecologySource, /float\(0\.24\)/);
 assert.match(ecologySource, /const normalDetailStrength = mix/);
 assert.match(ecologySource, /const rainNormalVisibility = mix/);
+assert.match(source, /const weatherResolvedRoadWear = roadWear\.mul\(shoreRainVisibility\)/);
 assert.match(ecologySource, /const rainAoVisibility = mix/);
 assert.match(ecologySource, /float\(0\.1\)/);
 assert.match(ecologySource, /vec3\(0\.5, 0\.5, 1\)/);
@@ -148,7 +149,7 @@ assert.match(
 );
 assert.match(
   source,
-  /max\(max\(weatherResolvedShoreBlend,\s*roadWear\)/,
+  /max\(\s*max\(weatherResolvedShoreBlend,\s*weatherResolvedRoadWear\)/,
 );
 assert.equal(
   TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR,
