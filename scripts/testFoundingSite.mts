@@ -777,6 +777,11 @@ assert.match(
 );
 assert.match(
   appSource,
+  /syncSettlementWorld\(this\.snapshotApplierDeps\.settlementWorld,\s*presentationState\)/,
+  'visual-QA terrain completion must preserve the fixture founders as well as the camp marker',
+);
+assert.match(
+  appSource,
   /if \(this\.visualQaConditions\) \{[\s\S]*?this\.sessionLifecycle\.onReady\(\);[\s\S]*?\} else \{\s*this\.gameRuntime\.start\(\);\s*\}/,
   'visual-QA capture mode must become presentation-ready without starting GameRuntime',
 );

@@ -308,6 +308,11 @@ assert.doesNotMatch(
 );
 assert.match(
   shoreStoneSource,
+  /shadowMesh\.castShadow = false[\s\S]*?shadowMesh\.visible = false/,
+  'sub-pixel shoreline stones must not merge into a dark dotted shadow contour',
+);
+assert.match(
+  shoreStoneSource,
   /placementIndex\.hasPointWithin\(x, z, 0\.72 \+ scale \* 0\.38\)/,
   'river-bank stones must retain dense non-overlapping continuous placement',
 );

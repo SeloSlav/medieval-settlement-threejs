@@ -81,6 +81,14 @@ import {
   chapelGatheringPoint,
   isSundayMassTime,
 } from './chapelMass.ts';
+import type {
+  AmbientBehaviorAssignment,
+  AmbientBehaviorKind,
+} from './ambientBehaviors.ts';
+import {
+  FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS,
+  planFoundersCampAmbientBehaviors,
+} from './foundersCampBehaviors.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import { STARTING_POPULATION } from '../generated/gameBalance.ts';
 
@@ -101,6 +109,7 @@ type VillagerPathPurpose =
   | 'return_home'
   | 'chapel_mass'
   | 'return_from_mass'
+  | 'ambient'
   | null;
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
@@ -114,6 +123,7 @@ type VillagerAgent = {
   workplaceSlot: number;
   slotIndex: number;
   mode: VillagerMode;
+  ambientBehavior: AmbientBehaviorKind | null;
   routinePhase: VillagerRoutinePhase;
   pathPurpose: VillagerPathPurpose;
   path: PointXZ[];
@@ -185,6 +195,10 @@ export class VillagerRenderer {
   private buildings = new Map<string, BuildingState>();
   private workerTargets = new Map<string, WorkerTarget[]>();
   private foundingCamp: BuildingState | null = null;
+  private campAmbientAssignments = new Map<string, AmbientBehaviorAssignment>();
+  private campAmbientCycleIndex = 0;
+  private campAmbientElapsedSeconds = 0;
+  private campAmbientSignature = '';
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
   private laborPaused = false;
@@ -205,6 +219,7 @@ export class VillagerRenderer {
     for (const agent of this.agents.values()) {
       changed = this.reconcileRoutine(agent) || changed;
     }
+    changed = this.syncCampAmbientAssignments() || changed;
     if (changed) this.pushRenderState();
   }
 
@@ -264,6 +279,7 @@ export class VillagerRenderer {
   }): void {
     const previousResidences = this.residences;
     const previousBuildings = this.buildings;
+    const previousFoundingCamp = this.foundingCamp;
     const residences = [...options.residences];
     const physicalBuildings = [...options.buildings];
     const buildings = [
@@ -331,6 +347,7 @@ export class VillagerRenderer {
             workplaceSlot: -1,
             slotIndex,
             mode: 'idle',
+            ambientBehavior: null,
             routinePhase: 'home_outdoors',
             pathPurpose: null,
             path: [],
@@ -367,6 +384,7 @@ export class VillagerRenderer {
         } else {
           agent.personIdentity = personIdentity;
           agent.role = 'resident';
+          agent.ambientBehavior = null;
           agent.residenceId = residenceId;
           agent.workplaceId = null;
           agent.workplaceSlot = -1;
@@ -422,6 +440,7 @@ export class VillagerRenderer {
           workplaceSlot: assignment.slotIndex,
           slotIndex: assignment.slotIndex,
           mode: 'idle',
+          ambientBehavior: null,
           routinePhase: 'work',
           pathPurpose: null,
           path: [],
@@ -459,6 +478,7 @@ export class VillagerRenderer {
         const previousHomeResidenceId = agent.residenceId;
         agent.personIdentity = assignment.personIdentity;
         agent.role = 'worker';
+        agent.ambientBehavior = null;
         agent.residenceId = assignment.homeResidenceId;
         agent.workplaceId = assignment.buildingId;
         agent.workplaceSlot = assignment.slotIndex;
@@ -514,6 +534,7 @@ export class VillagerRenderer {
           workplaceSlot: -1,
           slotIndex,
           mode: 'idle',
+          ambientBehavior: null,
           routinePhase: 'home_outdoors',
           pathPurpose: null,
           path: [],
@@ -554,7 +575,14 @@ export class VillagerRenderer {
         agent.workplaceId = null;
         agent.workplaceSlot = -1;
         agent.slotIndex = slotIndex;
-        agent.idleDirty = true;
+        if (
+          !previousFoundingCamp
+          || previousFoundingCamp.id !== foundingCamp.id
+          || previousFoundingCamp.x !== foundingCamp.x
+          || previousFoundingCamp.z !== foundingCamp.z
+        ) {
+          agent.idleDirty = true;
+        }
       }
     }
 
@@ -583,6 +611,7 @@ export class VillagerRenderer {
       }
     }
 
+    this.syncCampAmbientAssignments();
     this.pushRenderState();
   }
 
@@ -590,6 +619,7 @@ export class VillagerRenderer {
     this.lastView = view;
     const realDt = Math.max(0, dt);
     const simulationDt = realDt * this.getGameSpeed();
+    this.advanceCampAmbientCycle(simulationDt);
 
     for (const agent of this.agents.values()) {
       if (agent.role === 'worker') {
@@ -894,8 +924,18 @@ export class VillagerRenderer {
       return;
     }
 
+    if (
+      agent.mode === 'sit'
+      || agent.mode === 'rest'
+      || agent.mode === 'talk'
+    ) {
+      agent.currentMoveSpeed = 0;
+      return;
+    }
+
     if (agent.mode === 'idle') {
       agent.currentMoveSpeed = 0;
+      if (agent.ambientBehavior) return;
       agent.idleRemaining -= dt;
       if (agent.idleRemaining <= 0) {
         if (agent.routinePhase === 'work' && agent.role === 'worker') {
@@ -962,6 +1002,9 @@ export class VillagerRenderer {
           if (residence) this.resetToIdle(agent, residence);
           break;
         }
+        case 'ambient':
+          this.completeCampAmbientArrival(agent);
+          break;
         default:
           this.clearPath(agent);
           break;
@@ -1255,6 +1298,7 @@ export class VillagerRenderer {
       : 'home_outdoors';
     agent.routinePhase = 'returning_from_mass';
     this.transitionToHomeState(agent, homeState);
+    this.syncCampAmbientAssignments();
   }
 
   private beginWorkerReturnHome(agent: VillagerAgent): boolean {
@@ -1339,7 +1383,10 @@ export class VillagerRenderer {
   private beginJourney(
     agent: VillagerAgent,
     path: PointXZ[],
-    purpose: Exclude<VillagerPathPurpose, 'home_wander' | 'worker_work_loop' | null>,
+    purpose: Exclude<
+      VillagerPathPurpose,
+      'home_wander' | 'worker_work_loop' | 'ambient' | null
+    >,
   ): boolean {
     const routedPath = this.routePath(path);
     const pathDistance = routedPath ? polylineLengthXZ(routedPath) : 0;
@@ -1352,6 +1399,7 @@ export class VillagerRenderer {
     agent.simPathCursor = 0;
     agent.displayPathCursor = 0;
     this.clearWorkerActivity(agent);
+    agent.ambientBehavior = null;
     agent.idleDirty = false;
     return true;
   }
@@ -1399,6 +1447,11 @@ export class VillagerRenderer {
       this.completeMassReturn(agent);
       return;
     }
+    if (purpose === 'ambient') {
+      agent.ambientBehavior = null;
+      agent.idleRemaining = 1;
+      return;
+    }
     if (purpose === 'commute_to_work') agent.routinePhase = 'home_outdoors';
     if (purpose === 'return_home' || purpose === 'worker_work_loop') {
       agent.routinePhase = 'work';
@@ -1424,6 +1477,7 @@ export class VillagerRenderer {
 
   private resetToIdle(agent: VillagerAgent, residence: ResidenceState): void {
     agent.mode = 'idle';
+    agent.ambientBehavior = null;
     agent.pathPurpose = null;
     agent.path = [];
     agent.pathDistance = 0;
@@ -1440,6 +1494,7 @@ export class VillagerRenderer {
   private resetWorkerToIdle(agent: VillagerAgent): void {
     const building = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
     agent.mode = 'idle';
+    agent.ambientBehavior = null;
     agent.routinePhase = 'work';
     agent.pathPurpose = null;
     agent.path = [];
@@ -1474,6 +1529,116 @@ export class VillagerRenderer {
     agent.yaw = residence.yaw + agent.idleOffset.yaw;
   }
 
+  private advanceCampAmbientCycle(dtSeconds: number): void {
+    if (!this.foundingCamp || dtSeconds <= 0) return;
+    this.campAmbientElapsedSeconds += dtSeconds;
+    const completedCycles = Math.floor(
+      this.campAmbientElapsedSeconds / FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS,
+    );
+    if (completedCycles <= 0) return;
+
+    this.campAmbientElapsedSeconds %= FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS;
+    this.campAmbientCycleIndex += completedCycles;
+    this.syncCampAmbientAssignments();
+  }
+
+  private syncCampAmbientAssignments(): boolean {
+    const camp = this.foundingCamp;
+    const candidates = camp
+      ? [...this.agents.values()]
+        .filter(
+          (agent) =>
+            agent.role === 'founder'
+            && agent.routinePhase === 'home_outdoors',
+        )
+        .sort((a, b) => a.personIdentity.localeCompare(b.personIdentity))
+      : [];
+    const signature = camp
+      ? [
+          camp.id,
+          camp.x,
+          camp.z,
+          this.campAmbientCycleIndex,
+          ...candidates.map((agent) => agent.id),
+        ].join(':')
+      : '';
+    if (signature === this.campAmbientSignature) return false;
+    this.campAmbientSignature = signature;
+
+    this.campAmbientAssignments = camp
+      ? planFoundersCampAmbientBehaviors(
+          camp,
+          candidates.map((agent) => agent.id),
+          this.campAmbientCycleIndex,
+        )
+      : new Map();
+    for (const agent of candidates) this.applyCampAmbientAssignment(agent);
+    return true;
+  }
+
+  private applyCampAmbientAssignment(agent: VillagerAgent): void {
+    const assignment = this.campAmbientAssignments.get(agent.id);
+    if (!assignment || agent.routinePhase !== 'home_outdoors') return;
+    agent.ambientBehavior = assignment.kind;
+
+    const path = assignment.kind === 'wander' && assignment.waypoints?.length
+      ? [
+          { x: agent.x, z: agent.z },
+          ...assignment.waypoints.map((point) => ({ ...point })),
+        ]
+      : [
+          { x: agent.x, z: agent.z },
+          { ...(assignment.approach ?? assignment.destination) },
+        ];
+    const routedPath = this.routePath(path);
+    const pathDistance = routedPath ? polylineLengthXZ(routedPath) : 0;
+    if (!routedPath || pathDistance < 0.25) {
+      this.completeCampAmbientArrival(agent);
+      return;
+    }
+
+    agent.mode = 'walk';
+    agent.pathPurpose = 'ambient';
+    agent.path = routedPath;
+    agent.pathDistance = pathDistance;
+    agent.pathCursor = 0;
+    agent.simPathCursor = 0;
+    agent.displayPathCursor = 0;
+    agent.currentMoveSpeed = 0;
+    this.clearWorkerActivity(agent);
+    agent.idleDirty = false;
+  }
+
+  private completeCampAmbientArrival(agent: VillagerAgent): void {
+    const assignment = this.campAmbientAssignments.get(agent.id);
+    this.clearPath(agent);
+    if (!assignment || agent.routinePhase !== 'home_outdoors') {
+      agent.ambientBehavior = null;
+      return;
+    }
+
+    agent.ambientBehavior = assignment.kind;
+    agent.x = assignment.destination.x;
+    agent.z = assignment.destination.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z)
+      + 0.02
+      + (assignment.groundOffset ?? 0);
+    if (assignment.lookAt) {
+      agent.yaw = Math.atan2(
+        assignment.lookAt.x - agent.x,
+        assignment.lookAt.z - agent.z,
+      );
+    }
+    agent.mode = assignment.kind === 'wander' || assignment.kind === 'idle'
+      ? 'idle'
+      : assignment.kind;
+    agent.idleRemaining = Math.max(
+      1,
+      FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS - this.campAmbientElapsedSeconds,
+    );
+    agent.idleDirty = false;
+  }
+
   private foundingCampRestPosition(
     agent: VillagerAgent,
     camp: BuildingState,
@@ -1487,6 +1652,7 @@ export class VillagerRenderer {
 
   private placeFounderIdle(agent: VillagerAgent, camp: BuildingState): void {
     const rest = this.foundingCampRestPosition(agent, camp);
+    agent.ambientBehavior = null;
     agent.x = rest.x;
     agent.z = rest.z;
     agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
@@ -1519,6 +1685,16 @@ export class VillagerRenderer {
   }
 
   private resolveAgentY(agent: VillagerAgent): number {
+    const ambient = this.campAmbientAssignments.get(agent.id);
+    if (
+      ambient
+      && agent.routinePhase === 'home_outdoors'
+      && agent.mode !== 'walk'
+    ) {
+      return this.resolveGroundY(agent.x, agent.z)
+        + 0.02
+        + (ambient.groundOffset ?? 0);
+    }
     if (
       agent.role === 'worker'
       && agent.routinePhase === 'work'
@@ -1677,7 +1853,15 @@ function describeVillagerActivity(
         ? `Working around ${workplaceLabel}`
         : `Working at ${workplaceLabel}`;
     case 'home_outdoors':
-      if (agent.role === 'founder') return "Waiting at the founders' camp";
+      if (agent.role === 'founder') {
+        switch (agent.ambientBehavior) {
+          case 'wander': return "Walking around the founders' camp";
+          case 'sit': return 'Sitting on the camp bench';
+          case 'rest': return 'Resting beside the campfire';
+          case 'talk': return 'Talking with another founder';
+          default: return "Waiting at the founders' camp";
+        }
+      }
       return agent.mode === 'walk' ? 'Walking near home' : 'Outside at home';
     case 'indoors':
       return 'At home';

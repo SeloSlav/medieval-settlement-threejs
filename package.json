@@ -99,6 +99,7 @@
     "test:livestock": "npx tsx scripts/testLivestock.mts",
     "test:livestock-policy": "node --experimental-strip-types scripts/testLivestockPolicy.mts",
     "test:agent-visuals": "node --experimental-strip-types scripts/testAgentVisualAssets.mts",
+    "test:ambient-behaviors": "node --experimental-strip-types scripts/testAmbientBehaviors.mts",
     "test:worker-agents": "node --experimental-strip-types scripts/testWorkerAgents.mts",
     "test:household-routines": "node --experimental-strip-types scripts/testHouseholdRoutines.mts",
     "test:civic-logistics": "npx tsx scripts/testCivicLogistics.mts",

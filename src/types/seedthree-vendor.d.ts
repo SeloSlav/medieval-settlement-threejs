@@ -308,6 +308,19 @@ declare module '@seedthree/core/cattails.js' {
     roughness: string;
     translucency: string;
   };
+  export const CATTAIL_CARD_REFERENCE_HEIGHT: number;
+  export const CATTAIL_HEIGHT_PROFILE: Readonly<{
+    youngMinMeters: number;
+    youngMaxMeters: number;
+    matureMinMeters: number;
+    matureMaxMeters: number;
+    tallMinMeters: number;
+    tallMaxMeters: number;
+  }>;
+  export function sampleCattailHeightMeters(
+    wetEdge: number,
+    random?: () => number,
+  ): number;
   export function createCattailGeometry(
     overrides?: Partial<{
       quads: number;

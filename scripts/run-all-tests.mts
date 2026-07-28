@@ -81,6 +81,7 @@ const tests = [
   'test:livestock',
   'test:livestock-policy',
   'test:agent-visuals',
+  'test:ambient-behaviors',
   'test:worker-agents',
   'test:household-routines',
   'test:civic-logistics',

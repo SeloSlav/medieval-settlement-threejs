@@ -580,7 +580,7 @@ export class App {
     // presentation-only fallback afterwards when visual QA has no server camp.
     this.syncVisualQaFoundersCampFixture();
     if (this.snapshotApplierDeps) {
-      syncSettlementWorld(this.snapshotApplierDeps.settlementWorld, this.gameState);
+      syncSettlementWorld(this.snapshotApplierDeps.settlementWorld, presentationState);
     }
     this.burgageFencing?.syncZones(
       this.gameState.burgageZones.values(),

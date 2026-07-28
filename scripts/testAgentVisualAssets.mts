@@ -72,6 +72,10 @@ for (const asset of villagerAssets) {
     clips.some((name) => name.endsWith('_walk') || name.endsWith('|walk')),
     `${asset.variant} villager must retain an authored walk animation`,
   );
+  assert.ok(
+    clips.some((name) => name.endsWith('_sitting') || name.endsWith('|sitting')),
+    `${asset.variant} villager must retain the authored ambient sitting animation`,
+  );
 
   let sourceMesh: THREE.SkinnedMesh | null = null;
   gltf.scene.traverse((object) => {

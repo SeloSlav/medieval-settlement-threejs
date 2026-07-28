@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import {
+  CATTAIL_CARD_REFERENCE_HEIGHT,
   CATTAIL_TEXTURE_FILES,
   createCattailGeometry,
+  sampleCattailHeightMeters,
 } from '@seedthree/core/cattails.js';
 import {
   grassEdgeFadeFromFocusDistance,
@@ -25,7 +27,7 @@ import type { RiverField } from './RiverField.ts';
 type ReedPlacement = {
   x: number;
   z: number;
-  scale: number;
+  heightMeters: number;
   yaw: number;
   tiltX: number;
   tiltZ: number;
@@ -61,11 +63,6 @@ const composeEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const composeColor = new THREE.Color();
 /** Caps peak reed opacity so shoreline tufts stay muted against meadow grass. */
 const REED_PEAK_OPACITY = 0.9;
-/**
- * Standing first-person eye height is 1.55 m. Keep most mature cattails above
- * that sightline, with the tallest wet-edge clumps approaching three metres.
- */
-const REED_HEIGHT_MULTIPLIER = 1.28;
 const REED_SHORE_MIN = 0.55;
 const REED_SHORE_MAX = 4.8;
 
@@ -266,7 +263,7 @@ function createReedPlacements(riverField: RiverField, rng: () => number): ReedPl
       const placement = {
         x: px,
         z: pz,
-        scale: resolveReedScale(shore, rng),
+        heightMeters: resolveReedHeightMeters(shore, rng),
         yaw: rng() * Math.PI * 2,
         tiltX: (rng() - 0.5) * 0.14,
         tiltZ: (rng() - 0.5) * 0.12,
@@ -313,7 +310,7 @@ function appendGridReedPlacements(
       const placement = {
         x,
         z,
-        scale: resolveReedScale(shore, rng),
+        heightMeters: resolveReedHeightMeters(shore, rng),
         yaw: rng() * Math.PI * 2,
         tiltX: (rng() - 0.5) * 0.12,
         tiltZ: (rng() - 0.5) * 0.1,
@@ -390,31 +387,21 @@ function resolveReedScaleVector(
   scaleVector: THREE.Vector3,
   fade = 1,
 ): THREE.Vector3 {
-  const width = (0.46 + placement.scale * 0.2) * fade;
-  const height = placement.scale * REED_HEIGHT_MULTIPLIER * fade;
+  const width = THREE.MathUtils.clamp(
+    0.5 + placement.heightMeters * 0.14,
+    0.6,
+    0.94,
+  ) * fade;
+  const height = (placement.heightMeters / CATTAIL_CARD_REFERENCE_HEIGHT) * fade;
   return scaleVector.set(width, height, width);
 }
 
 /**
- * Taller near the water line, shorter on the outer muddy fringe. The broad
- * distribution deliberately mixes young reeds with shoulder-high and
- * overhead mature cattails instead of scaling every shoreline clump alike.
+ * SeedThree owns the physical cattail height cohorts; the river habitat only
+ * supplies normalized wet-edge proximity. This keeps the visible population
+ * in real metres instead of an ambiguous ground-cover scale.
  */
-function resolveReedScale(shore: number, rng: () => number): number {
+function resolveReedHeightMeters(shore: number, rng: () => number): number {
   const shoreT = THREE.MathUtils.clamp((shore - REED_SHORE_MIN) / (REED_SHORE_MAX - REED_SHORE_MIN), 0, 1);
-  const inlandCurve = Math.pow(shoreT, 0.82);
-  const minScale = THREE.MathUtils.lerp(1.3, 0.72, inlandCurve);
-  const maxScale = THREE.MathUtils.lerp(2.15, 1.35, Math.pow(shoreT, 0.72));
-  const roll = Math.pow(rng(), 0.9);
-  let scale = THREE.MathUtils.lerp(minScale, maxScale, roll);
-
-  // Young shoots break up the silhouette, especially toward the dry fringe.
-  if (rng() < THREE.MathUtils.lerp(0.1, 0.28, shoreT)) {
-    scale *= THREE.MathUtils.lerp(0.62, 0.82, rng());
-  } else if (shoreT < 0.38 && rng() < 0.16) {
-    // A few exceptionally mature cattails punctuate the wettest edge.
-    scale *= THREE.MathUtils.lerp(1.08, 1.2, rng());
-  }
-
-  return scale;
+  return sampleCattailHeightMeters(1 - shoreT, rng);
 }

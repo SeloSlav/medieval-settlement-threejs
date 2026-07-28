@@ -148,26 +148,28 @@ function buildMuddyBankColorNode(textures: TextureSet): TslNode {
   ) as TslNode;
 }
 
-function buildBankOpacityNode(textures: TextureSet): TslNode {
+function buildBankOpacityNode(_textures: TextureSet): TslNode {
   const uvNode = uv() as TslNode;
-  const radialFade = pow(
-    smoothstep(float(0.08) as TslNode, float(0.96) as TslNode, uvNode.x),
-    float(0.62) as TslNode,
-  ) as TslNode;
-  const edgeMaskSample = textures.edgeMask
-    ? (texture(textures.edgeMask, uvNode) as TslNode).r
-    : (float(1) as TslNode);
-  return radialFade.mul(edgeMaskSample).mul(float(0.94) as TslNode);
+  // The old striped edge-mask texture turned into a dotted one-pixel contour
+  // when the shoulder was minified. An analytic feather has a true-zero outer
+  // band and stays continuous at every camera scale.
+  return (smoothstep(
+    float(0.08) as TslNode,
+    float(0.82) as TslNode,
+    uvNode.x,
+  ) as TslNode).mul(float(0.94) as TslNode) as TslNode;
 }
 
 function buildRiverBankOpacityNode(): TslNode {
   const uvNode = uv() as TslNode;
-  // Inner strip stays opaque; only the outer ~40% fades to grass — avoids double-fading with terrain.
-  const radialFade = pow(
-    smoothstep(float(0) as TslNode, float(0.36) as TslNode, uvNode.x),
-    float(0.72) as TslNode,
-  ) as TslNode;
-  return radialFade.mul(float(0.94) as TslNode);
+  // Leave a true-zero outer band before the bank begins its broad analytic
+  // fade. A sublinear power here amplified tiny raster coverage into a dark
+  // stitched contour around the river.
+  return (smoothstep(
+    float(0.08) as TslNode,
+    float(0.62) as TslNode,
+    uvNode.x,
+  ) as TslNode).mul(float(0.94) as TslNode) as TslNode;
 }
 
 export function createRoadCoreMaterial(

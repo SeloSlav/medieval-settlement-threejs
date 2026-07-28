@@ -267,10 +267,15 @@ assert.match(
   /material\.opacityNode\s*=\s*buildRiverBankOpacityNode\(\)/,
   'river-bank mud must retain its analytic radial opacity path',
 );
+assert.doesNotMatch(
+  roadEdgeOpacitySource,
+  /edgeMask|texture\(/,
+  'road-edge opacity must not minify a striped texture into a dotted contour',
+);
 assert.match(
   roadEdgeOpacitySource,
-  /texture\(textures\.edgeMask,\s*uvNode\)/,
-  'road-edge opacity must retain its textured edge mask',
+  /smoothstep\([\s\S]*?float\(0\.08\)[\s\S]*?float\(0\.82\)[\s\S]*?uvNode\.x/,
+  'road-edge opacity must use a continuous analytic feather with a true-zero outer band',
 );
 assert.doesNotMatch(
   riverBankOpacitySource,
@@ -279,8 +284,8 @@ assert.doesNotMatch(
 );
 assert.match(
   riverBankOpacitySource,
-  /smoothstep\(float\(0\)[\s\S]*?float\(0\.36\)[\s\S]*?uvNode\.x\)/,
-  'river-bank opacity must retain its analytic bank-width feather',
+  /smoothstep\([\s\S]*?float\(0\.08\)[\s\S]*?float\(0\.62\)[\s\S]*?uvNode\.x/,
+  'river-bank opacity must use a broad analytic feather with a true-zero outer band',
 );
 assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
@@ -399,7 +404,7 @@ assert.match(
 );
 assert.match(
   terrainMaterialSource,
-  /shoreUndercoat = weatherResolvedShoreBlend\.mul\(float\(0\.58\)/,
+  /shoreUndercoat = terrainColorShoreBlend\.mul\(float\(0\.58\)/,
 );
 assert.match(sceneSource, /weather\.kind === 'snow'[\s\S]*?\? 0\.18/);
 assert.doesNotMatch(

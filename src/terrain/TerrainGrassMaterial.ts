@@ -54,6 +54,16 @@ export const TERRAIN_FROST_COLOR_BLEND = 0.86;
 export const TERRAIN_FROST_COLOR_LIFT = [0.16, 0.19, 0.22] as const;
 export const TERRAIN_SHORE_RAIN_FADE_START = 0.08;
 export const TERRAIN_SHORE_RAIN_FADE_END = 0.72;
+export const TERRAIN_SHORE_BLEND_FLOOR = 0.045;
+export const TERRAIN_ROAD_WEAR_BLEND_FLOOR = 0.055;
+
+export function stableTerrainBlendWeight(
+  raw: number,
+  floor: number,
+): number {
+  const t = Math.max(0, Math.min(1, (raw - floor) / (1 - floor)));
+  return t * t * (3 - 2 * t);
+}
 
 export function terrainShoreRainVisibility(wetness: number): number {
   const t = Math.max(
@@ -325,10 +335,10 @@ function applyRiparianEcologyColor(
   baseColor: TslNode,
   shoreBlend: TslNode,
 ): TslNode {
-  const riparianReach = (pow(
-    shoreBlend,
-    float(0.38) as TslNode,
-  ) as TslNode).mul(float(0.34) as TslNode) as TslNode;
+  // Keep the outer bank tail proportional to actual coverage. A fractional
+  // power here used to turn tiny interpolated mask values into a dark,
+  // sub-pixel contour around the whole river.
+  const riparianReach = shoreBlend.mul(float(0.34) as TslNode) as TslNode;
   const coolBankColor = baseColor.mul(vec3(0.71, 0.84, 0.72) as TslNode);
   return mix(baseColor, coolBankColor, riparianReach) as TslNode;
 }
@@ -705,12 +715,20 @@ export function createTerrainGrassMaterialWithRiverShore(
   const quarryColor = buildQuarryRockColorNode(roadTextures, blendNodes.grassUv);
   const wearColor = buildTrampledWearColorNode(roadTextures, blendNodes.grassUv);
   const shoreBlendRaw = attribute('shoreBlend', 'float') as TslNode;
-  const shoreBlend = pow(shoreBlendRaw, float(0.82) as TslNode) as TslNode;
+  // Drop interpolation residue to a true zero, then ease the authored mask
+  // over its full remaining range. Sublinear powers amplify near-zero vertex
+  // tails and collapse them into dotted one-pixel rings at overview zoom.
+  const shoreBlend = smoothstep(
+    float(TERRAIN_SHORE_BLEND_FLOOR) as TslNode,
+    float(1) as TslNode,
+    shoreBlendRaw,
+  ) as TslNode;
   const roadWearRaw = attribute('roadWearBlend', 'float') as TslNode;
-  const roadWearCore = pow(roadWearRaw, float(0.62) as TslNode) as TslNode;
-  const roadWearHalo = (pow(roadWearRaw, float(0.32) as TslNode) as TslNode)
-    .mul(float(0.18) as TslNode) as TslNode;
-  const roadWear = max(roadWearCore, roadWearHalo) as TslNode;
+  const roadWear = smoothstep(
+    float(TERRAIN_ROAD_WEAR_BLEND_FLOOR) as TslNode,
+    float(1) as TslNode,
+    roadWearRaw,
+  ) as TslNode;
   const quarryPad = pow(
     attribute('quarryPadBlend', 'float') as TslNode,
     float(0.74) as TslNode,
@@ -733,6 +751,12 @@ export function createTerrainGrassMaterialWithRiverShore(
   // undercoat can quantize into dotted paths once rain smooths the meadow, so
   // fade only that redundant vertex mask with the same sustained-rain gate.
   const weatherResolvedRoadWear = roadWear.mul(shoreRainVisibility) as TslNode;
+  // River banks and road shoulders have dedicated, continuously feathered
+  // meshes. Keep vertex masks for close-dirt exclusion, but do not tint the
+  // exposed terrain with them: even a well-clamped vertex field can collapse
+  // to a one-pixel contour at strategic zoom levels.
+  const terrainColorShoreBlend = float(0) as TslNode;
+  const terrainColorRoadWear = float(0) as TslNode;
   const dirtAmount = buildCloseZoomDirtAmount(
     weatherResolvedShoreBlend,
     weatherResolvedRoadWear,
@@ -744,14 +768,14 @@ export function createTerrainGrassMaterialWithRiverShore(
   // instead of the soil snapping in before the authored vegetation.
   const dirtSurfaceAmount = dirtAmount;
   const meadowWeight = sub(float(1) as TslNode, dirtSurfaceAmount) as TslNode;
-  const shoreUndercoat = weatherResolvedShoreBlend.mul(float(0.58) as TslNode);
+  const shoreUndercoat = terrainColorShoreBlend.mul(float(0.58) as TslNode);
   const riparianGrass = applyRiparianEcologyColor(
     blendNodes.colorNode,
-    weatherResolvedShoreBlend,
+    terrainColorShoreBlend,
   );
   const stableRiparianGrass = applyRiparianEcologyColor(
     blendNodes.stableColorNode,
-    weatherResolvedShoreBlend,
+    terrainColorShoreBlend,
   );
   const grassWithShore = mix(riparianGrass, mudColor, shoreUndercoat) as TslNode;
   const stableGrassWithShore = mix(
@@ -768,12 +792,12 @@ export function createTerrainGrassMaterialWithRiverShore(
   const meadowWithWear = mix(
     meadowWithQuarry,
     wearColor,
-    weatherResolvedRoadWear,
+    terrainColorRoadWear,
   ) as TslNode;
   const stableMeadowWithWear = mix(
     stableMeadowWithQuarry,
     wearColor,
-    weatherResolvedRoadWear,
+    terrainColorRoadWear,
   ) as TslNode;
   const baseColorNode = applyCloseZoomDirtBlend(
     meadowWithWear,
@@ -803,7 +827,7 @@ export function createTerrainGrassMaterialWithRiverShore(
   );
   const frostExposure = (sub(
     float(1) as TslNode,
-    weatherResolvedShoreBlend.mul(float(0.82) as TslNode),
+    terrainColorShoreBlend.mul(float(0.82) as TslNode),
   ) as TslNode).mul(blendNodes.frostExposure) as TslNode;
   const colorNode = applyTerrainFrostColor(
     wetBaseColorNode,
@@ -821,7 +845,7 @@ export function createTerrainGrassMaterialWithRiverShore(
   const roughnessWithWear = mix(
     roughnessWithQuarry,
     wornRoughness,
-    weatherResolvedRoadWear,
+    terrainColorRoadWear,
   );
   const baseRoughnessNode = mix(
     dirtSurface.roughnessNode,

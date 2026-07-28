@@ -94,7 +94,11 @@ export function createRiverShoreStones(
     const shadowMesh = new THREE.InstancedMesh(shadowGeometry, shadowMaterials.shadowCast, bucket.length);
     shadowMesh.name = `River shore boulder shadows ${variantIndex + 1}`;
     shadowMesh.layers.set(TREE_SHADOW_CAST_LAYER);
-    shadowMesh.castShadow = true;
+    // Hundreds of sub-pixel rock shadows merged into a dark dotted contour at
+    // overview zoom. The stones retain their material shading and still
+    // receive the world shadow atlas without this redundant shadow pass.
+    shadowMesh.castShadow = false;
+    shadowMesh.visible = false;
     shadowMesh.receiveShadow = false;
     shadowMesh.customDepthMaterial = shadowMaterials.shadowDepth;
     bucket.forEach((rock, rockIndex) => {

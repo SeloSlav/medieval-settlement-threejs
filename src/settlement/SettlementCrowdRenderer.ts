@@ -37,6 +37,9 @@ export type VillagerModelVariant = keyof typeof MODEL_URLS;
 export type VillagerRenderMode =
   | 'idle'
   | 'walk'
+  | 'sit'
+  | 'rest'
+  | 'talk'
   | 'chop'
   | 'mine'
   | 'gather'
@@ -395,6 +398,9 @@ export class SettlementCrowdRenderer {
     const actions: Record<VillagerRenderMode, THREE.AnimationAction> = {
       idle: mixer.clipAction(source.clips.idle, model),
       walk: mixer.clipAction(source.clips.walk, model),
+      sit: mixer.clipAction(source.clips.sit, model),
+      rest: mixer.clipAction(source.clips.rest, model),
+      talk: mixer.clipAction(source.clips.talk, model),
       chop: mixer.clipAction(source.clips.chop, model),
       mine: mixer.clipAction(source.clips.mine, model),
       gather: mixer.clipAction(source.clips.gather, model),
@@ -403,13 +409,23 @@ export class SettlementCrowdRenderer {
       tend: mixer.clipAction(source.clips.tend, model),
       build: mixer.clipAction(source.clips.build, model),
     };
-    for (const action of Object.values(actions)) {
+    for (const [mode, action] of Object.entries(actions) as Array<
+      [VillagerRenderMode, THREE.AnimationAction]
+    >) {
       action.enabled = true;
-      action.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+      if (mode === 'sit' || mode === 'rest') {
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+      } else {
+        action.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+      }
     }
     actions.walk.setEffectiveTimeScale(
       1.06 * Math.max(0.65, agent.movementSpeed / NOMINAL_WALK_SPEED),
     );
+    actions.sit.setEffectiveTimeScale(1.15);
+    actions.rest.setEffectiveTimeScale(0.72);
+    actions.talk.setEffectiveTimeScale(0.82);
     actions.chop.setEffectiveTimeScale(1.08);
     actions.mine.setEffectiveTimeScale(0.9);
     actions.gather.setEffectiveTimeScale(0.92);
@@ -418,8 +434,10 @@ export class SettlementCrowdRenderer {
     actions.tend.setEffectiveTimeScale(0.9);
     actions.build.setEffectiveTimeScale(1.08);
     actions[agent.mode].play();
-    actions[agent.mode].time =
-      (agent.appearanceSeed % 997) / 997 * actions[agent.mode].getClip().duration;
+    if (agent.mode !== 'sit' && agent.mode !== 'rest') {
+      actions[agent.mode].time =
+        (agent.appearanceSeed % 997) / 997 * actions[agent.mode].getClip().duration;
+    }
 
     return {
       id: agent.id,
@@ -546,10 +564,15 @@ async function loadVillagerSource(
   }
   const idle = findAnimationClip(gltf.animations, 'idle');
   const walk = findAnimationClip(gltf.animations, 'walk');
+  const sitting = findAnimationClip(gltf.animations, 'sitting');
   const swing = findAnimationClip(gltf.animations, 'swordslash');
-  if (!idle || !walk || !swing) {
-    throw new Error(`Missing idle/walk/swing clips in ${url}`);
+  if (!idle || !walk || !sitting || !swing) {
+    throw new Error(`Missing idle/walk/sitting/swing clips in ${url}`);
   }
+  const sit = sitting.clone();
+  sit.name = `${sitting.name}:ambient-sit`;
+  const rest = createRestAnimationClip(sitting);
+  const talk = createTalkAnimationClip(gltf.scene, idle);
   const chop = swing.clone();
   chop.name = `${swing.name}:worker-chop`;
   const mine = swing.clone();
@@ -566,8 +589,116 @@ async function loadVillagerSource(
     bounds,
     sourceHeight,
     targetHeight,
-    clips: { idle, walk, chop, mine, gather, plant, fish, tend, build },
+    clips: {
+      idle,
+      walk,
+      sit,
+      rest,
+      talk,
+      chop,
+      mine,
+      gather,
+      plant,
+      fish,
+      tend,
+      build,
+    },
   };
+}
+
+/**
+ * Keeps the pack's authored sitting transition but relaxes the upper body into
+ * a visibly different fireside rest pose.
+ */
+function createRestAnimationClip(
+  sitting: THREE.AnimationClip,
+): THREE.AnimationClip {
+  const clip = sitting.clone();
+  clip.name = `${sitting.name}:ambient-rest`;
+  const offsets = new Map<string, THREE.Euler>([
+    ['Abdomen.quaternion', new THREE.Euler(0.2, 0, 0.05)],
+    ['Torso.quaternion', new THREE.Euler(0.16, 0, -0.04)],
+    ['Neck.quaternion', new THREE.Euler(-0.12, 0.06, 0)],
+    ['UpperArmL.quaternion', new THREE.Euler(0.1, 0, -0.08)],
+    ['UpperArmR.quaternion', new THREE.Euler(0.12, 0, 0.08)],
+  ]);
+  const pose = new THREE.Quaternion();
+  const offset = new THREE.Quaternion();
+  for (const track of clip.tracks) {
+    const rotation = offsets.get(track.name);
+    if (!rotation || !(track instanceof THREE.QuaternionKeyframeTrack)) continue;
+    offset.setFromEuler(rotation);
+    for (let index = 0; index < track.values.length; index += 4) {
+      pose.fromArray(track.values, index).multiply(offset).normalize();
+      pose.toArray(track.values, index);
+    }
+  }
+  return clip.optimize();
+}
+
+/**
+ * Builds a restrained conversational loop over the authored idle body motion.
+ * Partners face one another in the behavior planner; this clip supplies the
+ * asymmetrical hand and head gestures that make the exchange readable.
+ */
+function createTalkAnimationClip(
+  scene: THREE.Object3D,
+  idle: THREE.AnimationClip,
+): THREE.AnimationClip {
+  const controlledBones = new Set([
+    'Abdomen',
+    'Torso',
+    'Neck',
+    'UpperArmL',
+    'LowerArmL',
+    'UpperArmR',
+    'LowerArmR',
+  ]);
+  const tracks = idle.tracks
+    .filter((track) => !controlledBones.has(track.name.split('.')[0]!))
+    .map((track) => track.clone());
+  const duration = idle.duration;
+  const times = [0, 0.16, 0.34, 0.52, 0.72, 0.86, 1].map(
+    (fraction) => fraction * duration,
+  );
+  const gesture = [0, 0.2, 0.66, 0.25, 0.78, 0.18, 0];
+  const answer = [0, -0.12, 0.16, -0.08, 0.12, -0.05, 0];
+
+  const addRotation = (
+    boneName: string,
+    xScale: number,
+    yScale = 0,
+    zScale = 0,
+  ): void => {
+    const bone = scene.getObjectByName(boneName);
+    if (!bone) return;
+    const values: number[] = [];
+    for (let index = 0; index < times.length; index += 1) {
+      const poseOffset = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        gesture[index]! * xScale,
+        answer[index]! * yScale,
+        gesture[index]! * zScale,
+        'XYZ',
+      ));
+      const pose = bone.quaternion.clone().multiply(poseOffset).normalize();
+      values.push(pose.x, pose.y, pose.z, pose.w);
+    }
+    tracks.push(new THREE.QuaternionKeyframeTrack(
+      `${boneName}.quaternion`,
+      times,
+      values,
+    ));
+  };
+
+  addRotation('Abdomen', 0.05, 0.22, 0.05);
+  addRotation('Torso', 0.08, 0.3, 0.08);
+  addRotation('Neck', -0.06, -0.48, -0.05);
+  addRotation('UpperArmL', 0.12, 0.08, -0.16);
+  addRotation('LowerArmL', 0.18, 0, -0.12);
+  addRotation('UpperArmR', 0.42, -0.1, 0.34);
+  addRotation('LowerArmR', 0.58, 0, 0.18);
+
+  return new THREE.AnimationClip('Villager_Ambient_Talk', duration, tracks).optimize();
 }
 
 /**

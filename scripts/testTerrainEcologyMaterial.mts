@@ -15,8 +15,11 @@ import {
   TERRAIN_FROST_MASK_SCALE,
   TERRAIN_FROST_PATCH_MAX,
   TERRAIN_FROST_PATCH_MIN,
+  TERRAIN_ROAD_WEAR_BLEND_FLOOR,
+  TERRAIN_SHORE_BLEND_FLOOR,
   TERRAIN_SHORE_RAIN_FADE_END,
   TERRAIN_SHORE_RAIN_FADE_START,
+  stableTerrainBlendWeight,
   terrainShoreRainVisibility,
 } from '../src/terrain/TerrainGrassMaterial.ts';
 import { createRoadWeatherUniforms } from '../src/roads/RoadSurfaceMaterial.ts';
@@ -68,7 +71,15 @@ assert.match(ecologySource, /const roughnessDetailStrength = mix/);
 assert.match(ecologySource, /const aoDetailStrength = mix/);
 assert.match(ecologySource, /float\(0\.3\)/);
 assert.match(ecologySource, /function applyRiparianEcologyColor/);
-assert.match(ecologySource, /pow\([\s\S]*?shoreBlend,[\s\S]*?float\(0\.38\)/);
+assert.match(
+  ecologySource,
+  /const riparianReach = shoreBlend\.mul\(float\(0\.34\)/,
+);
+assert.doesNotMatch(
+  ecologySource,
+  /pow\([\s\S]*?shoreBlend,[\s\S]*?float\(0\.[0-9]+\)/,
+  'riparian color must not amplify near-zero shore coverage into a dark contour',
+);
 assert.doesNotMatch(
   ecologySource,
   /\bfract\b|\bfloor\b|\bmod\b/,
@@ -156,7 +167,19 @@ assert.match(source, /blendNodes\.frostExposure/);
 assert.match(source, /buildTerrainFrostMask/);
 assert.match(source, /weather\.wetness/);
 assert.match(source, /weather\.frost/);
-assert.match(source, /const roadWearHalo =/);
+assert.doesNotMatch(
+  source,
+  /const roadWearHalo =/,
+  'road wear must not restore a sublinear near-zero halo around the road mesh',
+);
+assert.match(
+  source,
+  /const shoreBlend = smoothstep\([\s\S]*?TERRAIN_SHORE_BLEND_FLOOR/,
+);
+assert.match(
+  source,
+  /const roadWear = smoothstep\([\s\S]*?TERRAIN_ROAD_WEAR_BLEND_FLOOR/,
+);
 assert.match(source, /const shoreRainVisibility = sub/);
 assert.match(
   source,
@@ -164,7 +187,13 @@ assert.match(
 );
 assert.match(
   source,
-  /applyRiparianEcologyColor\([\s\S]*?weatherResolvedShoreBlend/,
+  /const terrainColorShoreBlend = float\(0\)/,
+  'the exposed terrain must leave river color blending to the feathered bank mesh',
+);
+assert.match(
+  source,
+  /const terrainColorRoadWear = float\(0\)/,
+  'the exposed terrain must leave road color blending to the feathered shoulder mesh',
 );
 assert.match(
   source,
@@ -172,7 +201,7 @@ assert.match(
 );
 assert.match(
   source,
-  /weatherResolvedShoreBlend\.mul\(float\(0\.82\)/,
+  /terrainColorShoreBlend\.mul\(float\(0\.82\)/,
 );
 assert.match(
   source,
@@ -202,6 +231,29 @@ assert.equal(
 );
 assert.equal(TERRAIN_SHORE_RAIN_FADE_START, 0.08);
 assert.equal(TERRAIN_SHORE_RAIN_FADE_END, 0.72);
+assert.equal(
+  stableTerrainBlendWeight(TERRAIN_SHORE_BLEND_FLOOR * 0.5, TERRAIN_SHORE_BLEND_FLOOR),
+  0,
+  'sub-floor river interpolation residue must resolve to exact zero',
+);
+assert.equal(
+  stableTerrainBlendWeight(TERRAIN_ROAD_WEAR_BLEND_FLOOR, TERRAIN_ROAD_WEAR_BLEND_FLOOR),
+  0,
+  'the road-wear floor must resolve to exact zero',
+);
+assert.equal(
+  stableTerrainBlendWeight(1, TERRAIN_SHORE_BLEND_FLOOR),
+  1,
+  'the stable river mask must retain full authored coverage',
+);
+assert.ok(
+  stableTerrainBlendWeight(0.1, TERRAIN_SHORE_BLEND_FLOOR) < 0.02,
+  'low river coverage must stay visually negligible instead of being power-amplified',
+);
+assert.ok(
+  stableTerrainBlendWeight(0.1, TERRAIN_ROAD_WEAR_BLEND_FLOOR) < 0.02,
+  'low road coverage must stay visually negligible instead of becoming a dark halo',
+);
 assert.equal(
   terrainShoreRainVisibility(0),
   1,
