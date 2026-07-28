@@ -9,12 +9,12 @@ use crate::frontier_economy_policy::armed_guards;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
-    guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_district_forecast,
-    raid_holding_vulnerability, raid_target_can_shelter, raid_target_loss_fraction,
-    raidable_treasury_timber, scheduled_raid_ticks, threat_progress, tower_effective_radius,
-    RaidDistrictForecast, RaidPortableStores, RaidTargetCandidate, RaidTargetDefenseCandidate,
-    RaidTargetKind, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
-    SECURITY_UPDATE_INTERVAL_TICKS,
+    assign_refuge_households, guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs,
+    raid_district_forecast, raid_holding_vulnerability, raid_target_can_shelter,
+    raid_target_loss_fraction, raidable_treasury_timber, scheduled_raid_ticks, threat_progress,
+    tower_effective_radius, RaidDistrictForecast, RaidPortableStores, RaidTargetCandidate,
+    RaidTargetDefenseCandidate, RaidTargetKind, RefugeHouseholdCandidate, WatchArea,
+    WatchCoverageIndex, MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{
     settlement_security, Building, DeliveryTrip, PlayerResources, Residence, SettlementSecurity,
@@ -163,6 +163,8 @@ fn step_owner_security(
     let watch_index = WatchCoverageIndex::new(&towers);
     let refuges = active_palisaded_refuge_coverage(&buildings, &fire_disabled_buildings);
     let refuge_index = WatchCoverageIndex::new(&refuges);
+    let sheltered_residences =
+        settlement_refuge_assignments(&residences, &watch_index, &refuge_index);
     let road_network = load_owner_road_network(ctx, owner);
     let (district_ready_guards, assigned_guards, readiness_by_watch) = settlement_guard_districts(
         &buildings,
@@ -177,7 +179,7 @@ fn step_owner_security(
         &delivery_trips,
         treasury_stores,
         &watch_index,
-        &refuge_index,
+        &sheltered_residences,
         &readiness_by_watch,
     );
     let coverage = if exposure.total_value > 1e-9 {
@@ -303,13 +305,38 @@ fn active_palisaded_refuge_coverage(
         .collect()
 }
 
+fn settlement_refuge_assignments(
+    residences: &[Residence],
+    watch_index: &WatchCoverageIndex,
+    refuge_index: &WatchCoverageIndex,
+) -> HashSet<u64> {
+    let mut candidates = Vec::new();
+    for residence in residences.iter().filter(|residence| {
+        !residence.abandoned
+            && residence.population > 0
+            && watch_index.contains(residence.x, residence.z)
+    }) {
+        for refuge in refuge_index.covering_areas(residence.x, residence.z) {
+            let dx = residence.x - refuge.x;
+            let dz = residence.z - refuge.z;
+            candidates.push(RefugeHouseholdCandidate {
+                residence_id: residence.id,
+                refuge_id: refuge.source_id,
+                residents: residence.population,
+                distance_squared: dx * dx + dz * dz,
+            });
+        }
+    }
+    assign_refuge_households(candidates).into_keys().collect()
+}
+
 fn settlement_exposure(
     buildings: &[Building],
     residences: &[Residence],
     delivery_trips: &[DeliveryTrip],
     treasury_stores: RaidPortableStores,
     watch_index: &WatchCoverageIndex,
-    refuge_index: &WatchCoverageIndex,
+    sheltered_residences: &HashSet<u64>,
     readiness_by_watch: &HashMap<u64, f64>,
 ) -> SettlementExposure {
     let mut protected_value = 0.0;
@@ -364,7 +391,7 @@ fn settlement_exposure(
                     sheltered: raid_target_can_shelter(
                         RaidTargetKind::Residence,
                         protected,
-                        refuge_index.contains(residence.x, residence.z),
+                        sheltered_residences.contains(&residence.id),
                     ),
                     value: residence.household_wealth,
                 },

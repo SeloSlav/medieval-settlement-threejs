@@ -170,6 +170,7 @@ import {
   guardhousePayrollPlan,
 } from '../../security/guardhousePayrollPolicy.ts';
 import {
+  computeRefugeShelterPlan,
   formatFrontierForecast,
   formatFrontierRaidTiming,
   formatRaidReport,
@@ -178,6 +179,7 @@ import {
   GUARDHOUSE_FOOD_RESERVE_LEAN,
   guardhouseFoodTarget,
   normalizeGuardhouseFoodReserve,
+  type RefugeShelterPlan,
   type SettlementSecurityState,
 } from '../../security/frontierSecurity.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
@@ -199,6 +201,7 @@ import type { InspectorRenderContext, InspectorView } from './renderInspectableT
 
 function renderFrontierSecurityRows(
   security: SettlementSecurityState,
+  refugePlan: RefugeShelterPlan,
   simTick: number,
   month: number,
   enemyPressure: number,
@@ -209,9 +212,21 @@ function renderFrontierSecurityRows(
     month,
   );
   const coverage = Math.round(security.coverage * 100);
+  const refugeCapacity = refugePlan.activeRefuges <= 0
+    ? 'No active palisaded refuge'
+    : `${refugePlan.assignedResidents} / ${refugePlan.totalResidentCapacity} warned residents assigned across ${refugePlan.activeRefuges} ${
+        refugePlan.activeRefuges === 1 ? 'refuge' : 'refuges'
+      }${
+        refugePlan.unassignedWarnedResidents > 0
+          ? ` · ${refugePlan.unassignedWarnedResidents} warned residents in reach still lack whole-household room`
+          : refugePlan.warnedHomesInReach > 0
+            ? ' · every warned household in refuge reach has room'
+            : ' · no warned households currently in refuge reach'
+      }`;
   return `
     <li><span>Frontier timetable</span><span>${threat} · ${formatFrontierRaidTiming(security, simTick, month)} · enemy pressure ${Math.round(enemyPressure)}%</span></li>
     <li><span>Watch districts</span><span>${coverage}% of weighted holdings watched · ${security.staffedWatchtowers} staffed ${security.staffedWatchtowers === 1 ? 'watchtower' : 'watchtowers'} · weakest likely district ${security.readyGuards.toFixed(1)} / ${security.guardsRequired.toFixed(1)} guards · companies ${Math.round(security.defenseReadiness * 100)}% supplied, paid, drilled, and road-linked</span></li>
+    <li><span>Civilian refuge capacity</span><span>${refugeCapacity}</span></li>
     <li><span>Projected incursion</span><span>${formatFrontierForecast(security, enemyPressure)}</span></li>
     <li><span>Last incursion</span><span>${formatRaidReport(security)}</span></li>
   `;
@@ -1413,10 +1428,14 @@ export function renderTownHallInspector(
   const frontierSecurity = context.conflictEnabled
     ? context.getSettlementSecurity?.() ?? null
     : null;
+  const refugeShelterPlan = frontierSecurity === null
+    ? null
+    : computeRefugeShelterPlan(context.gameState);
   const frontierSecurityRows = frontierSecurity === null
     ? ''
     : renderFrontierSecurityRows(
         frontierSecurity,
+        refugeShelterPlan!,
         context.gameState.tick,
         clock.month,
         context.enemyPressure ?? 0,

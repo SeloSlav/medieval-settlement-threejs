@@ -122,7 +122,8 @@
     "guardhouseLongMusterRoadDistance": 720,
     "guardhouseLongMusterEfficiency": 0.65,
     "guardhouseUnlinkedMusterEfficiency": 0.4,
-    "palisadedRefugeHouseholdLossMultiplier": 0.6
+    "palisadedRefugeHouseholdLossMultiplier": 0.6,
+    "palisadedRefugeResidentCapacity": 32
   },
   "marketplaceTrade": {
     "bulkTradeCooldownSeconds": 8,

@@ -13,6 +13,7 @@ import {
 } from '../src/ui/constructionDockToggle.ts';
 import {
   armedGuardCount,
+  computeRefugeShelterPlan,
   countHouseholdsShelteredByPalisadedRefuge,
   countSitesProtectedByWatchtower,
   estimatedRaidDays,
@@ -58,6 +59,7 @@ import {
   BUILDING_COSTS,
   BUILDING_STORAGE_CAPS,
   PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
+  PALISADED_REFUGE_RESIDENT_CAPACITY,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 
@@ -78,6 +80,7 @@ const frontierSettings = normalizeWorldGenerationSettings({
 });
 assert.equal(frontierSettings.conflictMode, 'frontier');
 assert.equal(frontierSettings.enemyPressure, 65);
+assert.equal(PALISADED_REFUGE_RESIDENT_CAPACITY, 32);
 assert.equal(normalizeWorldGenerationSettings({
   ...frontierSettings,
   conflictMode: 'peaceful',
@@ -518,9 +521,15 @@ assert.deepEqual(
   {
     homesInReach: 1,
     residentsInReach: 4,
+    warnedHomesInReach: 0,
+    warnedResidentsInReach: 0,
     shelteredHomes: 0,
     shelteredResidents: 0,
     shelteredWealth: 0,
+    unassignedWarnedHomes: 0,
+    unassignedWarnedResidents: 0,
+    residentCapacity: 32,
+    remainingResidentCapacity: 32,
   },
   'proximity without a staffed-watch warning must not teleport a household into shelter',
 );
@@ -531,9 +540,15 @@ assert.deepEqual(
   {
     homesInReach: 1,
     residentsInReach: 4,
+    warnedHomesInReach: 1,
+    warnedResidentsInReach: 4,
     shelteredHomes: 1,
     shelteredResidents: 4,
     shelteredWealth: 20,
+    unassignedWarnedHomes: 0,
+    unassignedWarnedResidents: 0,
+    residentCapacity: 32,
+    remainingResidentCapacity: 28,
   },
 );
 const refugeTargets = projectRaidTargets(refugeProjectionState, 4);
@@ -596,6 +611,107 @@ assert.equal(
   frontierDefenseFireSignature(refugeProjectionState),
   `palisaded_refuge:${refuge.id}`,
 );
+
+const refugeCapacityState = emptyGameState();
+const capacityWatch = building('capacity-watch', 'watchtower', 40, 0, 2);
+const capacityRefugeA = building('capacity-refuge-a', 'palisaded_refuge', 0, 0, 0);
+const capacityRefugeB = building('capacity-refuge-b', 'palisaded_refuge', 80, 0, 0);
+for (const site of [capacityWatch, capacityRefugeA, capacityRefugeB]) {
+  refugeCapacityState.buildings.set(site.id, site);
+}
+const capacityHomes = [
+  { id: 'capacity-a-20', x: -5, population: 20 },
+  { id: 'capacity-a-12', x: -10, population: 12 },
+  { id: 'capacity-b-12', x: 80, population: 12 },
+  { id: 'capacity-overflow-20', x: 40, population: 20 },
+  { id: 'capacity-no-room-8', x: 15, population: 8 },
+] as const;
+for (const [index, home] of capacityHomes.entries()) {
+  refugeCapacityState.residences.set(home.id, {
+    ...residence(home.id, home.x, 0, home.population),
+    householdWealth: 10 + index,
+  });
+}
+const capacityPlan = computeRefugeShelterPlan(refugeCapacityState);
+assert.equal(capacityPlan.activeRefuges, 2);
+assert.equal(capacityPlan.residentCapacityPerRefuge, 32);
+assert.equal(capacityPlan.totalResidentCapacity, 64);
+assert.equal(capacityPlan.warnedHomesInReach, 5);
+assert.equal(capacityPlan.warnedResidentsInReach, 72);
+assert.equal(capacityPlan.assignedHomes, 4);
+assert.equal(capacityPlan.assignedResidents, 64);
+assert.equal(capacityPlan.unassignedWarnedHomes, 1);
+assert.equal(capacityPlan.unassignedWarnedResidents, 8);
+assert.equal(capacityPlan.residentsByRefuge.get(capacityRefugeA.id), 32);
+assert.equal(capacityPlan.residentsByRefuge.get(capacityRefugeB.id), 32);
+assert.equal(
+  capacityPlan.refugeByResidence.get('capacity-overflow-20'),
+  capacityRefugeB.id,
+  'a whole household must try an overlapping second refuge when its nearest enclosure is full',
+);
+assert.equal(
+  capacityPlan.refugeByResidence.has('capacity-no-room-8'),
+  false,
+  'a household must remain exposed when no overlapping enclosure has room for everyone',
+);
+const capacityTargets = projectRaidTargets(refugeCapacityState, 10);
+const shelterByCapacityHome = new Map(
+  capacityTargets
+    .filter((target) => target.kind === 'residence')
+    .map((target) => [target.id, target.sheltered]),
+);
+assert.equal(shelterByCapacityHome.get('capacity-overflow-20'), true);
+assert.equal(shelterByCapacityHome.get('capacity-no-room-8'), false);
+assert.deepEqual(
+  countHouseholdsShelteredByPalisadedRefuge(
+    capacityRefugeA,
+    refugeCapacityState,
+  ),
+  {
+    homesInReach: 4,
+    residentsInReach: 60,
+    warnedHomesInReach: 4,
+    warnedResidentsInReach: 60,
+    shelteredHomes: 2,
+    shelteredResidents: 32,
+    shelteredWealth: 21,
+    unassignedWarnedHomes: 1,
+    unassignedWarnedResidents: 8,
+    residentCapacity: 32,
+    remainingResidentCapacity: 0,
+  },
+);
+refugeCapacityState.fireIncidents.set(
+  'capacity-refuge-a-fire',
+  fire('capacity-refuge-a-fire', capacityRefugeA.id),
+);
+const fireReducedCapacityPlan = computeRefugeShelterPlan(refugeCapacityState);
+assert.equal(fireReducedCapacityPlan.activeRefuges, 1);
+assert.equal(fireReducedCapacityPlan.totalResidentCapacity, 32);
+assert.equal(fireReducedCapacityPlan.assignedResidents, 32);
+assert.equal(
+  fireReducedCapacityPlan.refugeByResidence.has('capacity-a-20'),
+  false,
+  'fire must remove the enclosure and recalculate household claims immediately',
+);
+
+const refugeTieState = emptyGameState();
+const tieWatch = building('tie-watch', 'watchtower', 40, 0, 2);
+const tieRefuge20 = building('20', 'palisaded_refuge', 80, 0, 0);
+const tieRefuge10 = building('10', 'palisaded_refuge', 0, 0, 0);
+for (const site of [tieWatch, tieRefuge20, tieRefuge10]) {
+  refugeTieState.buildings.set(site.id, site);
+}
+refugeTieState.residences.set(
+  'tie-home',
+  residence('tie-home', 40, 0, 4),
+);
+assert.equal(
+  computeRefugeShelterPlan(refugeTieState).refugeByResidence.get('tie-home'),
+  tieRefuge10.id,
+  'equidistant refuge claims must use stable IDs rather than map insertion order',
+);
+
 const cartRiskState = emptyGameState();
 cartRiskState.buildings.set(tower.id, tower);
 cartRiskState.deliveryTrips.set(
@@ -1148,8 +1264,13 @@ assert.match(guardhouseInspector, /Road conditions/);
 assert.match(guardhouseInspector, /Soft-road delay/);
 assert.match(guardhouseInspector, /Effective company/);
 assert.match(guardhouseInspector, /Inspect linked watchtower/);
+assert.match(refugeInspector, /Warned demand/);
+assert.match(refugeInspector, /Resident capacity/);
+assert.match(refugeInspector, /Nearest-household claims/);
 assert.match(refugeInspector, /Household coin sheltered/);
-assert.match(refugeInspector, /Does not protect building inventories/);
+assert.match(refugeInspector, /building inventories, loaded carts, and Town Hall treasury remain where stored/);
+assert.match(townHallInspector, /Civilian refuge capacity/);
+assert.match(townHallInspector, /computeRefugeShelterPlan/);
 assert.match(frontierMarkers, /InstancedMesh/);
 assert.match(frontierMarkers, /RAID_TARGET_MARKER_THREAT_THRESHOLD/);
 assert.match(frontierMarkers, /MAX_RAID_TARGET_MARKERS\s*=\s*4/);
@@ -1186,6 +1307,10 @@ assert.match(
 assert.match(serverSimulation, /SECURITY_UPDATE_INTERVAL_TICKS/);
 assert.match(serverSimulation, /WatchCoverageIndex::new/);
 assert.match(serverSimulation, /active_palisaded_refuge_coverage/);
+assert.match(serverSimulation, /settlement_refuge_assignments/);
+assert.match(serverSimulation, /RefugeHouseholdCandidate/);
+assert.match(serverPolicy, /assign_refuge_households/);
+assert.match(serverPolicy, /PALISADED_REFUGE_RESIDENT_CAPACITY/);
 assert.match(
   serverSimulation,
   /raid_target_loss_fraction\(outcome\.loss_fraction, target\.sheltered\)/,
@@ -1566,6 +1691,52 @@ shelterPerfState.buildings.clear();
 shelterPerfState.residences.clear();
 shelterPerfState.fireIncidents.clear();
 
+const refugeAssignmentPerfState = emptyGameState();
+for (let refugeIndex = 0; refugeIndex < 1_000; refugeIndex += 1) {
+  const centerX = (refugeIndex % 40) * 160;
+  const centerZ = Math.floor(refugeIndex / 40) * 160;
+  const perfWatch = building(
+    `capacity-perf-watch-${refugeIndex}`,
+    'watchtower',
+    centerX,
+    centerZ,
+    2,
+  );
+  const perfRefuge = building(
+    `capacity-perf-refuge-${refugeIndex}`,
+    'palisaded_refuge',
+    centerX,
+    centerZ,
+    0,
+  );
+  refugeAssignmentPerfState.buildings.set(perfWatch.id, perfWatch);
+  refugeAssignmentPerfState.buildings.set(perfRefuge.id, perfRefuge);
+  for (let householdIndex = 0; householdIndex < 100; householdIndex += 1) {
+    const id = `capacity-perf-home-${refugeIndex}-${householdIndex}`;
+    const xOffset = ((householdIndex % 10) - 4.5) * 8;
+    const zOffset = (Math.floor(householdIndex / 10) - 4.5) * 8;
+    refugeAssignmentPerfState.residences.set(
+      id,
+      residence(id, centerX + xOffset, centerZ + zOffset, 1),
+    );
+  }
+}
+const refugeAssignmentStarted = performance.now();
+const refugeAssignmentPlan = computeRefugeShelterPlan(
+  refugeAssignmentPerfState,
+);
+const refugeAssignmentElapsedMs =
+  performance.now() - refugeAssignmentStarted;
+assert.equal(refugeAssignmentPlan.warnedHomesInReach, 100_000);
+assert.equal(refugeAssignmentPlan.assignedResidents, 32_000);
+assert.equal(refugeAssignmentPlan.unassignedWarnedResidents, 68_000);
+assert.ok(
+  refugeAssignmentElapsedMs < 750,
+  `1,000-refuge, 100,000-home capacity assignment took ${refugeAssignmentElapsedMs.toFixed(1)} ms`,
+);
+refugeAssignmentPerfState.buildings.clear();
+refugeAssignmentPerfState.residences.clear();
+
 const cartProjectionPerfState = emptyGameState();
 for (let index = 0; index < 100_000; index += 1) {
   const id = `${index + 1}`;
@@ -1611,7 +1782,7 @@ assert.ok(
 );
 
 console.log(
-  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${districtProjectionElapsedMs.toFixed(1)} ms for 40-watch/10-company/10,000-holding district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${districtProjectionElapsedMs.toFixed(1)} ms for 40-watch/10-company/10,000-holding district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${refugeAssignmentElapsedMs.toFixed(1)} ms for 1,000-refuge/100,000-home capacity assignment; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
 );
 
 function building(

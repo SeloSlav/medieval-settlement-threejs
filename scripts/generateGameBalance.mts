@@ -261,6 +261,7 @@ export type GameBalance = {
     guardhouseLongMusterEfficiency: number;
     guardhouseUnlinkedMusterEfficiency: number;
     palisadedRefugeHouseholdLossMultiplier: number;
+    palisadedRefugeResidentCapacity: number;
   };
   population: {
     starting: number;
@@ -658,6 +659,7 @@ function generateRust(): string {
     `pub const GUARDHOUSE_LONG_MUSTER_EFFICIENCY: f64 = ${rustF64(b.frontierEconomy.guardhouseLongMusterEfficiency)};`,
     `pub const GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY: f64 = ${rustF64(b.frontierEconomy.guardhouseUnlinkedMusterEfficiency)};`,
     `pub const PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER: f64 = ${rustF64(b.frontierEconomy.palisadedRefugeHouseholdLossMultiplier)};`,
+    `pub const PALISADED_REFUGE_RESIDENT_CAPACITY: u32 = ${b.frontierEconomy.palisadedRefugeResidentCapacity};`,
     '',
     `pub const STARTING_POPULATION: u32 = ${b.population.starting};`,
     `pub const POPULATION_PER_RESIDENCE: u32 = ${b.population.perResidence};`,
@@ -1326,6 +1328,7 @@ function generateTypeScript(): string {
     `export const GUARDHOUSE_LONG_MUSTER_EFFICIENCY = ${b.frontierEconomy.guardhouseLongMusterEfficiency};`,
     `export const GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY = ${b.frontierEconomy.guardhouseUnlinkedMusterEfficiency};`,
     `export const PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER = ${b.frontierEconomy.palisadedRefugeHouseholdLossMultiplier};`,
+    `export const PALISADED_REFUGE_RESIDENT_CAPACITY = ${b.frontierEconomy.palisadedRefugeResidentCapacity};`,
     '',
     `export const STARTING_POPULATION = ${b.population.starting};`,
     `export const POPULATION_PER_RESIDENCE = ${b.population.perResidence};`,

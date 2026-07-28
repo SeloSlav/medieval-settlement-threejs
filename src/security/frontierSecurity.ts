@@ -6,6 +6,7 @@ import {
   GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE,
   GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
   PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
+  PALISADED_REFUGE_RESIDENT_CAPACITY,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
 import type { SettlementSecurity } from '../generated/types.ts';
@@ -397,6 +398,21 @@ export type RaidTargetProjectionOptions = {
   roadSpeedMultiplier?: number;
 };
 
+export type RefugeShelterPlan = {
+  activeRefuges: number;
+  residentCapacityPerRefuge: number;
+  totalResidentCapacity: number;
+  warnedHomesInReach: number;
+  warnedResidentsInReach: number;
+  assignedHomes: number;
+  assignedResidents: number;
+  unassignedWarnedHomes: number;
+  unassignedWarnedResidents: number;
+  refugeByResidence: ReadonlyMap<string, string>;
+  residentsByRefuge: ReadonlyMap<string, number>;
+  warnedResidenceIds: ReadonlySet<string>;
+};
+
 export function raidTargetCanShelter(
   kind: ProjectedRaidTarget['kind'],
   watched: boolean,
@@ -592,6 +608,12 @@ export function projectRaidTargets(
   }
   const watchIndex = buildWatchCoverageIndex(towers);
   const refugeIndex = buildWatchCoverageIndex(refuges);
+  const refugePlan = assignRefugeHouseholds(
+    gameState,
+    watchIndex,
+    refugeIndex,
+    refuges.length,
+  );
   const districtReadiness = options
     ? guardReadinessByWatchDistrict(
         gameState,
@@ -684,7 +706,7 @@ export function projectRaidTargets(
       sheltered: raidTargetCanShelter(
         'residence',
         protectedByWatch,
-        positionIsWatched(residence.x, residence.z, refugeIndex),
+        refugePlan.refugeByResidence.has(residence.id),
       ),
       portableValue: residence.householdWealth,
     });
@@ -806,70 +828,131 @@ export function palisadedRefugeEffectiveRadius(
   return Math.max(0, refuge.workRadius);
 }
 
+export function computeRefugeShelterPlan(
+  gameState: GameState,
+): RefugeShelterPlan {
+  const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
+  const towers: WatchArea[] = [];
+  const refuges: WatchArea[] = [];
+  for (const building of gameState.buildings.values()) {
+    if (
+      building.kind === 'watchtower'
+      && building.constructionComplete !== false
+      && building.assignedLabor > 0
+      && !fireDisabled.has(building.id)
+    ) {
+      const radius = watchtowerEffectiveRadius(building);
+      if (radius > 0) {
+        towers.push({
+          id: building.id,
+          x: building.x,
+          z: building.z,
+          radius,
+        });
+      }
+    } else if (
+      building.kind === 'palisaded_refuge'
+      && building.constructionComplete !== false
+      && !fireDisabled.has(building.id)
+      && building.workRadius > 0
+    ) {
+      refuges.push({
+        id: building.id,
+        x: building.x,
+        z: building.z,
+        radius: building.workRadius,
+      });
+    }
+  }
+  return assignRefugeHouseholds(
+    gameState,
+    buildWatchCoverageIndex(towers),
+    buildWatchCoverageIndex(refuges),
+    refuges.length,
+  );
+}
+
 export function countHouseholdsShelteredByPalisadedRefuge(
   refuge: BuildingState,
   gameState: GameState,
 ): {
   homesInReach: number;
   residentsInReach: number;
+  warnedHomesInReach: number;
+  warnedResidentsInReach: number;
   shelteredHomes: number;
   shelteredResidents: number;
   shelteredWealth: number;
+  unassignedWarnedHomes: number;
+  unassignedWarnedResidents: number;
+  residentCapacity: number;
+  remainingResidentCapacity: number;
 } {
   const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
   const radius = palisadedRefugeEffectiveRadius(
     refuge,
     fireDisabled.has(refuge.id),
   );
+  const empty = {
+    homesInReach: 0,
+    residentsInReach: 0,
+    warnedHomesInReach: 0,
+    warnedResidentsInReach: 0,
+    shelteredHomes: 0,
+    shelteredResidents: 0,
+    shelteredWealth: 0,
+    unassignedWarnedHomes: 0,
+    unassignedWarnedResidents: 0,
+    residentCapacity: PALISADED_REFUGE_RESIDENT_CAPACITY,
+    remainingResidentCapacity: PALISADED_REFUGE_RESIDENT_CAPACITY,
+  };
   if (radius <= 0) {
-    return {
-      homesInReach: 0,
-      residentsInReach: 0,
-      shelteredHomes: 0,
-      shelteredResidents: 0,
-      shelteredWealth: 0,
-    };
+    return empty;
   }
-  const towers: WatchArea[] = [];
-  for (const building of gameState.buildings.values()) {
-    if (
-      building.kind !== 'watchtower'
-      || building.constructionComplete === false
-      || building.assignedLabor <= 0
-      || fireDisabled.has(building.id)
-    ) continue;
-    const towerRadius = watchtowerEffectiveRadius(building);
-    if (towerRadius <= 0) continue;
-    towers.push({
-      id: building.id,
-      x: building.x,
-      z: building.z,
-      radius: towerRadius,
-    });
-  }
-  const watchIndex = buildWatchCoverageIndex(towers);
+  const plan = computeRefugeShelterPlan(gameState);
   const radiusSquared = radius * radius;
   let homesInReach = 0;
   let residentsInReach = 0;
+  let warnedHomesInReach = 0;
+  let warnedResidentsInReach = 0;
   let shelteredHomes = 0;
   let shelteredResidents = 0;
   let shelteredWealth = 0;
+  let unassignedWarnedHomes = 0;
+  let unassignedWarnedResidents = 0;
   for (const residence of gameState.residences.values()) {
     if (residence.abandoned || residence.population <= 0) continue;
     if (distanceSquared(refuge, residence) > radiusSquared) continue;
     homesInReach += 1;
     residentsInReach += residence.population;
-    if (!positionIsWatched(residence.x, residence.z, watchIndex)) continue;
-    shelteredHomes += 1;
-    shelteredResidents += residence.population;
-    shelteredWealth += positivePortableAmount(residence.householdWealth);
+    if (!plan.warnedResidenceIds.has(residence.id)) continue;
+    warnedHomesInReach += 1;
+    warnedResidentsInReach += residence.population;
+    const assignedRefuge = plan.refugeByResidence.get(residence.id);
+    if (assignedRefuge === refuge.id) {
+      shelteredHomes += 1;
+      shelteredResidents += residence.population;
+      shelteredWealth += positivePortableAmount(residence.householdWealth);
+    } else if (assignedRefuge == null) {
+      unassignedWarnedHomes += 1;
+      unassignedWarnedResidents += residence.population;
+    }
   }
   return {
     homesInReach,
     residentsInReach,
+    warnedHomesInReach,
+    warnedResidentsInReach,
     shelteredHomes,
     shelteredResidents,
     shelteredWealth,
+    unassignedWarnedHomes,
+    unassignedWarnedResidents,
+    residentCapacity: PALISADED_REFUGE_RESIDENT_CAPACITY,
+    remainingResidentCapacity: Math.max(
+      0,
+      PALISADED_REFUGE_RESIDENT_CAPACITY - shelteredResidents,
+    ),
   };
 }
 
@@ -1047,6 +1130,100 @@ function buildWatchCoverageIndex(towers: readonly WatchArea[]): WatchCoverageInd
     }
   }
   return cells;
+}
+
+type RefugeAssignmentCandidate = {
+  residenceId: string;
+  refugeId: string;
+  residents: number;
+  distanceSquared: number;
+};
+
+function assignRefugeHouseholds(
+  gameState: GameState,
+  watchIndex: WatchCoverageIndex,
+  refugeIndex: WatchCoverageIndex,
+  activeRefuges: number,
+): RefugeShelterPlan {
+  const refugeByResidence = new Map<string, string>();
+  const residentsByRefuge = new Map<string, number>();
+  const warnedResidenceIds = new Set<string>();
+  const candidates: RefugeAssignmentCandidate[] = [];
+  let warnedHomesInReach = 0;
+  let warnedResidentsInReach = 0;
+
+  if (activeRefuges > 0) {
+    for (const residence of gameState.residences.values()) {
+      if (residence.abandoned || residence.population <= 0) continue;
+      if (!positionIsWatched(residence.x, residence.z, watchIndex)) continue;
+      const refuges = watchAreasContaining(
+        residence.x,
+        residence.z,
+        refugeIndex,
+      );
+      if (refuges.length === 0) continue;
+      const residents = Math.max(0, Math.floor(residence.population));
+      warnedResidenceIds.add(residence.id);
+      warnedHomesInReach += 1;
+      warnedResidentsInReach += residents;
+      for (const refuge of refuges) {
+        const dx = residence.x - refuge.x;
+        const dz = residence.z - refuge.z;
+        candidates.push({
+          residenceId: residence.id,
+          refugeId: refuge.id,
+          residents,
+          distanceSquared: dx * dx + dz * dz,
+        });
+      }
+    }
+  }
+
+  candidates.sort((left, right) => {
+    if (left.distanceSquared !== right.distanceSquared) {
+      return left.distanceSquared - right.distanceSquared;
+    }
+    const residenceOrder = compareStableIds(
+      left.residenceId,
+      right.residenceId,
+    );
+    return residenceOrder !== 0
+      ? residenceOrder
+      : compareStableIds(left.refugeId, right.refugeId);
+  });
+
+  let assignedResidents = 0;
+  for (const candidate of candidates) {
+    if (
+      candidate.residents <= 0
+      || candidate.residents > PALISADED_REFUGE_RESIDENT_CAPACITY
+      || refugeByResidence.has(candidate.residenceId)
+    ) continue;
+    const occupied = residentsByRefuge.get(candidate.refugeId) ?? 0;
+    const nextOccupied = occupied + candidate.residents;
+    if (nextOccupied > PALISADED_REFUGE_RESIDENT_CAPACITY) continue;
+    residentsByRefuge.set(candidate.refugeId, nextOccupied);
+    refugeByResidence.set(candidate.residenceId, candidate.refugeId);
+    assignedResidents += candidate.residents;
+  }
+
+  return {
+    activeRefuges,
+    residentCapacityPerRefuge: PALISADED_REFUGE_RESIDENT_CAPACITY,
+    totalResidentCapacity:
+      activeRefuges * PALISADED_REFUGE_RESIDENT_CAPACITY,
+    warnedHomesInReach,
+    warnedResidentsInReach,
+    assignedHomes: refugeByResidence.size,
+    assignedResidents,
+    unassignedWarnedHomes:
+      warnedHomesInReach - refugeByResidence.size,
+    unassignedWarnedResidents:
+      warnedResidentsInReach - assignedResidents,
+    refugeByResidence,
+    residentsByRefuge,
+    warnedResidenceIds,
+  };
 }
 
 function guardReadinessByWatchDistrict(

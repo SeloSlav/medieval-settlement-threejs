@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::balance_generated::{
     GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE, GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
     GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE, GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
-    PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
+    PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER, PALISADED_REFUGE_RESIDENT_CAPACITY,
 };
 
 pub const MIN_FRONTIER_POPULATION: u32 = 8;
@@ -51,18 +51,24 @@ impl WatchCoverageIndex {
     }
 
     pub fn contains(&self, x: f64, z: f64) -> bool {
-        if !x.is_finite() || !z.is_finite() {
-            return false;
-        }
-        self.cells
-            .get(&(watch_cell(x), watch_cell(z)))
-            .is_some_and(|areas| {
-                areas.iter().any(|area| {
-                    let dx = x - area.x;
-                    let dz = z - area.z;
-                    dx * dx + dz * dz <= area.radius * area.radius
-                })
-            })
+        self.covering_areas(x, z).next().is_some()
+    }
+
+    /// Exact areas covering one point, drawn only from its coarse spatial cell.
+    ///
+    /// Refuge assignment uses the source ID and squared distance to choose one
+    /// nearest enclosure without rescanning every refuge for every household.
+    pub fn covering_areas(&self, x: f64, z: f64) -> impl Iterator<Item = &WatchArea> {
+        let areas = if x.is_finite() && z.is_finite() {
+            self.cells.get(&(watch_cell(x), watch_cell(z)))
+        } else {
+            None
+        };
+        areas.into_iter().flatten().filter(move |area| {
+            let dx = x - area.x;
+            let dz = z - area.z;
+            dx * dx + dz * dz <= area.radius * area.radius
+        })
     }
 
     /// Effective guards assigned to every watch district covering this point.
@@ -76,29 +82,15 @@ impl WatchCoverageIndex {
         z: f64,
         readiness_by_watch: &HashMap<u64, f64>,
     ) -> f64 {
-        if !x.is_finite() || !z.is_finite() {
-            return 0.0;
-        }
-        self.cells
-            .get(&(watch_cell(x), watch_cell(z)))
-            .map(|areas| {
-                areas
-                    .iter()
-                    .filter(|area| {
-                        let dx = x - area.x;
-                        let dz = z - area.z;
-                        dx * dx + dz * dz <= area.radius * area.radius
-                    })
-                    .map(|area| {
-                        readiness_by_watch
-                            .get(&area.source_id)
-                            .copied()
-                            .unwrap_or(0.0)
-                            .max(0.0)
-                    })
-                    .sum::<f64>()
+        self.covering_areas(x, z)
+            .map(|area| {
+                readiness_by_watch
+                    .get(&area.source_id)
+                    .copied()
+                    .unwrap_or(0.0)
+                    .max(0.0)
             })
-            .unwrap_or(0.0)
+            .sum::<f64>()
     }
 }
 
@@ -152,6 +144,58 @@ pub struct RaidDistrictForecast {
     pub frontline_ready_guards: f64,
     pub forecast: RaidForecast,
     pub selected: Vec<RaidTargetOutcome>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RefugeHouseholdCandidate {
+    pub residence_id: u64,
+    pub refuge_id: u64,
+    pub residents: u32,
+    pub distance_squared: f64,
+}
+
+/// Assign whole warned households to the nearest refuge with room.
+///
+/// A household first tries its closest enclosure and may overflow to another
+/// overlapping refuge when the nearer yard is already full. Stable IDs settle
+/// exact spatial ties. Whole-household admission keeps the raid loss rule
+/// legible: a family's coin is either carried inside or remains at home.
+pub fn assign_refuge_households(
+    mut candidates: Vec<RefugeHouseholdCandidate>,
+) -> HashMap<u64, u64> {
+    candidates.retain(|candidate| {
+        candidate.residents > 0
+            && candidate.residents <= PALISADED_REFUGE_RESIDENT_CAPACITY
+            && candidate.distance_squared.is_finite()
+            && candidate.distance_squared >= 0.0
+    });
+    candidates.sort_by(|left, right| {
+        left.distance_squared
+            .total_cmp(&right.distance_squared)
+            .then_with(|| left.residence_id.cmp(&right.residence_id))
+            .then_with(|| left.refuge_id.cmp(&right.refuge_id))
+    });
+
+    let mut assignments = HashMap::new();
+    let mut residents_by_refuge: HashMap<u64, u32> = HashMap::new();
+    for candidate in candidates {
+        if assignments.contains_key(&candidate.residence_id) {
+            continue;
+        }
+        let occupied = residents_by_refuge
+            .get(&candidate.refuge_id)
+            .copied()
+            .unwrap_or(0);
+        let Some(next_occupied) = occupied.checked_add(candidate.residents) else {
+            continue;
+        };
+        if next_occupied > PALISADED_REFUGE_RESIDENT_CAPACITY {
+            continue;
+        }
+        residents_by_refuge.insert(candidate.refuge_id, next_occupied);
+        assignments.insert(candidate.residence_id, candidate.refuge_id);
+    }
+    assignments
 }
 
 /// Physical stock that raiders can carry away from one reached building.
@@ -774,6 +818,94 @@ mod tests {
             "overlapping districts may combine distinct assigned companies"
         );
         assert_eq!(index.defended_readiness(500.0, 0.0, &readiness), 0.0);
+    }
+
+    #[test]
+    fn refuge_capacity_overflows_whole_households_to_a_second_enclosure() {
+        let assignments = assign_refuge_households(vec![
+            RefugeHouseholdCandidate {
+                residence_id: 1,
+                refuge_id: 10,
+                residents: 20,
+                distance_squared: 1.0,
+            },
+            RefugeHouseholdCandidate {
+                residence_id: 1,
+                refuge_id: 20,
+                residents: 20,
+                distance_squared: 100.0,
+            },
+            RefugeHouseholdCandidate {
+                residence_id: 2,
+                refuge_id: 10,
+                residents: 12,
+                distance_squared: 2.0,
+            },
+            RefugeHouseholdCandidate {
+                residence_id: 3,
+                refuge_id: 10,
+                residents: 20,
+                distance_squared: 4.0,
+            },
+            RefugeHouseholdCandidate {
+                residence_id: 3,
+                refuge_id: 20,
+                residents: 20,
+                distance_squared: 9.0,
+            },
+            RefugeHouseholdCandidate {
+                residence_id: 4,
+                refuge_id: 20,
+                residents: 13,
+                distance_squared: 11.0,
+            },
+        ]);
+        assert_eq!(assignments.get(&1), Some(&10));
+        assert_eq!(assignments.get(&2), Some(&10));
+        assert_eq!(assignments.get(&3), Some(&20));
+        assert_eq!(
+            assignments.get(&4),
+            None,
+            "a household may not be split when the remaining refuge capacity is too small"
+        );
+    }
+
+    #[test]
+    fn refuge_assignment_uses_stable_ids_for_exact_distance_ties() {
+        let assignments = assign_refuge_households(vec![
+            RefugeHouseholdCandidate {
+                residence_id: 7,
+                refuge_id: 200,
+                residents: 4,
+                distance_squared: 25.0,
+            },
+            RefugeHouseholdCandidate {
+                residence_id: 7,
+                refuge_id: 100,
+                residents: 4,
+                distance_squared: 25.0,
+            },
+        ]);
+        assert_eq!(assignments.get(&7), Some(&100));
+    }
+
+    #[test]
+    fn refuge_assignment_stays_bounded_at_large_settlement_scale() {
+        let candidates = (0..100_000)
+            .map(|index| RefugeHouseholdCandidate {
+                residence_id: index,
+                refuge_id: index / 8,
+                residents: 4,
+                distance_squared: (index % 8) as f64,
+            })
+            .collect::<Vec<_>>();
+        let started = std::time::Instant::now();
+        let assignments = assign_refuge_households(candidates);
+        assert_eq!(assignments.len(), 100_000);
+        assert!(
+            started.elapsed() < std::time::Duration::from_millis(500),
+            "100,000 household-to-refuge candidates should remain interactive"
+        );
     }
 
     #[test]
