@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import {
   CELESTIAL_SKY_EPOCH,
   createCelestialStarMap,
+  equirectangularHorizontalSplatScale,
   precessEquatorialCoordinate,
 } from '../src/sky/CelestialStarMap.ts';
 import {
@@ -52,6 +53,25 @@ assert.ok(
   precessionDistance > THREE.MathUtils.degToRad(5)
     && precessionDistance < THREE.MathUtils.degToRad(8),
   'the historical epoch should visibly account for roughly 450 years of axial precession',
+);
+
+assert.ok(
+  Math.abs(
+    equirectangularHorizontalSplatScale(
+      45.6,
+      map.image.width,
+      map.image.height,
+    ) - 1 / Math.cos(THREE.MathUtils.degToRad(45.6)),
+  ) < 0.01,
+  'star splats around the Gorski Kotar zenith should remain circular on the sphere',
+);
+assert.ok(
+  equirectangularHorizontalSplatScale(
+    86.8,
+    map.image.width,
+    map.image.height,
+  ) > 15,
+  'near-polar star splats should compensate for equirectangular convergence',
 );
 
 const springAngle = computeSiderealAngle(

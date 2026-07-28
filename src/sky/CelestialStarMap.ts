@@ -135,12 +135,18 @@ function drawCatalogStars(
           : magnitude < 4.6
             ? 0.8
             : 0.52;
+    const horizontalRadius = radius * equirectangularHorizontalSplatScale(
+      coordinate.declinationDeg,
+      width,
+      height,
+    );
     drawStarGlow(
       pixels,
       width,
       height,
       point.x,
       point.y,
+      Math.min(horizontalRadius, width / 3.4),
       radius,
       starColor(colorIndex),
       brightness / 255,
@@ -207,12 +213,18 @@ function drawGreatCircleSegment(
       : start;
     const coordinate = vectorEquatorial(vector);
     const point = texturePoint(coordinate, width, height);
+    const horizontalRadius = 0.62 * equirectangularHorizontalSplatScale(
+      coordinate.declinationDeg,
+      width,
+      height,
+    );
     drawConstellationGlow(
       pixels,
       width,
       height,
       point.x,
       point.y,
+      Math.min(horizontalRadius, width / 3.4),
       0.62,
       0.018,
     );
@@ -225,18 +237,22 @@ function drawStarGlow(
   height: number,
   centerX: number,
   centerY: number,
-  radius: number,
+  radiusX: number,
+  radiusY: number,
   color: readonly [number, number, number],
   strength: number,
 ): void {
-  const extent = Math.max(1, Math.ceil(radius * 1.7));
-  const sigmaSquared = Math.max(0.22, radius * radius * 0.48);
-  for (let offsetY = -extent; offsetY <= extent; offsetY += 1) {
+  const extentX = Math.max(1, Math.ceil(radiusX * 1.7));
+  const extentY = Math.max(1, Math.ceil(radiusY * 1.7));
+  const sigmaXSquared = Math.max(0.22, radiusX * radiusX * 0.48);
+  const sigmaYSquared = Math.max(0.22, radiusY * radiusY * 0.48);
+  for (let offsetY = -extentY; offsetY <= extentY; offsetY += 1) {
     const y = Math.round(centerY + offsetY);
     if (y < 0 || y >= height) continue;
-    for (let offsetX = -extent; offsetX <= extent; offsetX += 1) {
-      const distanceSquared = offsetX * offsetX + offsetY * offsetY;
-      const amount = strength * Math.exp(-distanceSquared / (2 * sigmaSquared));
+    for (let offsetX = -extentX; offsetX <= extentX; offsetX += 1) {
+      const gaussianDistance = offsetX * offsetX / (2 * sigmaXSquared)
+        + offsetY * offsetY / (2 * sigmaYSquared);
+      const amount = strength * Math.exp(-gaussianDistance);
       if (amount < 0.012) continue;
       const x = positiveModulo(Math.round(centerX + offsetX), width);
       const pixelIndex = (y * width + x) * 4;
@@ -253,17 +269,21 @@ function drawConstellationGlow(
   height: number,
   centerX: number,
   centerY: number,
-  radius: number,
+  radiusX: number,
+  radiusY: number,
   strength: number,
 ): void {
-  const extent = Math.max(1, Math.ceil(radius * 1.7));
-  const sigmaSquared = Math.max(0.22, radius * radius * 0.48);
-  for (let offsetY = -extent; offsetY <= extent; offsetY += 1) {
+  const extentX = Math.max(1, Math.ceil(radiusX * 1.7));
+  const extentY = Math.max(1, Math.ceil(radiusY * 1.7));
+  const sigmaXSquared = Math.max(0.22, radiusX * radiusX * 0.48);
+  const sigmaYSquared = Math.max(0.22, radiusY * radiusY * 0.48);
+  for (let offsetY = -extentY; offsetY <= extentY; offsetY += 1) {
     const y = Math.round(centerY + offsetY);
     if (y < 0 || y >= height) continue;
-    for (let offsetX = -extent; offsetX <= extent; offsetX += 1) {
-      const distanceSquared = offsetX * offsetX + offsetY * offsetY;
-      const amount = strength * Math.exp(-distanceSquared / (2 * sigmaSquared));
+    for (let offsetX = -extentX; offsetX <= extentX; offsetX += 1) {
+      const gaussianDistance = offsetX * offsetX / (2 * sigmaXSquared)
+        + offsetY * offsetY / (2 * sigmaYSquared);
+      const amount = strength * Math.exp(-gaussianDistance);
       if (amount < 0.012) continue;
       const x = positiveModulo(Math.round(centerX + offsetX), width);
       const alphaIndex = (y * width + x) * 4 + 3;
@@ -317,6 +337,24 @@ function texturePoint(
     x: wrapDegrees(coordinate.rightAscensionDeg) / 360 * width,
     y: (0.5 - coordinate.declinationDeg / 180) * (height - 1),
   };
+}
+
+/**
+ * Equirectangular texels narrow toward the celestial poles. Expanding a
+ * catalog splat horizontally by this factor makes it circular on the sphere
+ * and prevents the radial "all stars meet here" artifact.
+ */
+export function equirectangularHorizontalSplatScale(
+  declinationDeg: number,
+  width: number,
+  height: number,
+): number {
+  const cosDeclination = Math.max(
+    Math.abs(Math.cos(declinationDeg * DEG_TO_RAD)),
+    1 / 64,
+  );
+  const textureAspectCorrection = width / Math.max(2 * (height - 1), 1);
+  return textureAspectCorrection / cosDeclination;
 }
 
 function wrapDegrees(value: number): number {
