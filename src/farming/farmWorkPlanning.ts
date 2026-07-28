@@ -75,20 +75,30 @@ export type SettlementFarmPlan = {
 
 export type CropRotationPlan = {
   activeArea: number;
+  cyclicArea: number;
   nextRyeArea: number;
   nextOatsArea: number;
   nextFallowArea: number;
   nextAreaByCrop: Record<FarmCrop, number>;
+  yearThreeAreaByCrop: Record<FarmCrop, number>;
   currentAverageFertility: number;
   afterCurrentAverageFertility: number;
   afterPlannedAverageFertility: number;
+  afterYearThreeAverageFertility: number;
   plannedHarvest: number;
   plannedFibreHarvest: number;
   plannedSeedGrainRequired: number;
+  yearThreeHarvest: number;
+  yearThreeFibreHarvest: number;
+  yearThreeSeedGrainRequired: number;
   restoringFields: number;
   decliningFields: number;
+  yearThreeRestoringFields: number;
+  yearThreeDecliningFields: number;
   weakestFieldId: string | null;
   lowestPlannedFertility: number | null;
+  weakestYearThreeFieldId: string | null;
+  lowestYearThreeFertility: number | null;
 };
 
 export type EarlyHarvestAvailability = {
@@ -197,6 +207,11 @@ export function fieldStageAllowed(field: FarmFieldState, month: number): boolean
     return month >= crop.growthStartMonth && month <= crop.growthEndMonth;
   }
   return month >= crop.workStartMonth && month <= crop.workEndMonth;
+}
+
+/** Third planned crop, with old two-cycle saves repeating their next crop. */
+export function yearThreeCrop(field: FarmFieldState): FarmCrop {
+  return field.followingCrop ?? field.nextCrop;
 }
 
 export function earlyHarvestYieldMultiplier(growthProgress: number): number {
@@ -351,6 +366,7 @@ function buildFarmsteadWorkPlanWithWindows(
   let currentFertilityArea = 0;
   let afterCurrentFertilityArea = 0;
   let afterPlannedFertilityArea = 0;
+  let afterYearThreeFertilityArea = 0;
 
   for (const field of fields) {
     if (field.priority <= 0) {
@@ -370,11 +386,19 @@ function buildFarmsteadWorkPlanWithWindows(
       afterCurrentFertility,
       field.nextCrop,
     );
+    const thirdCrop = yearThreeCrop(field);
+    const afterYearThreeFertility = projectedCropFertility(
+      afterPlannedFertility,
+      thirdCrop,
+    );
     rotation.activeArea += area;
+    if (field.followingCrop != null) rotation.cyclicArea += area;
     currentFertilityArea += currentFertility * area;
     afterCurrentFertilityArea += afterCurrentFertility * area;
     afterPlannedFertilityArea += afterPlannedFertility * area;
+    afterYearThreeFertilityArea += afterYearThreeFertility * area;
     rotation.nextAreaByCrop[field.nextCrop] += area;
+    rotation.yearThreeAreaByCrop[thirdCrop] += area;
     if (field.nextCrop === 'rye') rotation.nextRyeArea += area;
     else if (field.nextCrop === 'oats') rotation.nextOatsArea += area;
     else if (field.nextCrop === 'fallow') rotation.nextFallowArea += area;
@@ -387,10 +411,26 @@ function buildFarmsteadWorkPlanWithWindows(
     if (plannedProduce === 'grain') rotation.plannedHarvest += plannedYield;
     else if (plannedProduce === 'fibre') rotation.plannedFibreHarvest += plannedYield;
     rotation.plannedSeedGrainRequired += seedGrainRequired(area, field.nextCrop);
+    const yearThreeYield = expectedFieldYield({
+      ...field,
+      crop: thirdCrop,
+      fertility: afterPlannedFertility,
+    });
+    const yearThreeProduce = FARM_CROP_DEFINITIONS[thirdCrop].produce;
+    if (yearThreeProduce === 'grain') rotation.yearThreeHarvest += yearThreeYield;
+    else if (yearThreeProduce === 'fibre') {
+      rotation.yearThreeFibreHarvest += yearThreeYield;
+    }
+    rotation.yearThreeSeedGrainRequired += seedGrainRequired(area, thirdCrop);
     if (afterPlannedFertility > afterCurrentFertility + 1e-9) {
       rotation.restoringFields += 1;
     } else if (afterPlannedFertility < afterCurrentFertility - 1e-9) {
       rotation.decliningFields += 1;
+    }
+    if (afterYearThreeFertility > afterPlannedFertility + 1e-9) {
+      rotation.yearThreeRestoringFields += 1;
+    } else if (afterYearThreeFertility < afterPlannedFertility - 1e-9) {
+      rotation.yearThreeDecliningFields += 1;
     }
     if (
       rotation.lowestPlannedFertility === null
@@ -403,6 +443,18 @@ function buildFarmsteadWorkPlanWithWindows(
     ) {
       rotation.lowestPlannedFertility = afterPlannedFertility;
       rotation.weakestFieldId = field.id;
+    }
+    if (
+      rotation.lowestYearThreeFertility === null
+      || afterYearThreeFertility < rotation.lowestYearThreeFertility - 1e-9
+      || (
+        Math.abs(afterYearThreeFertility - rotation.lowestYearThreeFertility) <= 1e-9
+        && rotation.weakestYearThreeFieldId !== null
+        && compareStableEntityIds(field.id, rotation.weakestYearThreeFieldId) < 0
+      )
+    ) {
+      rotation.lowestYearThreeFertility = afterYearThreeFertility;
+      rotation.weakestYearThreeFieldId = field.id;
     }
     seedGrain += fieldSeedGrainRemaining(field);
     const currentProduce = FARM_CROP_DEFINITIONS[field.crop].produce;
@@ -430,6 +482,7 @@ function buildFarmsteadWorkPlanWithWindows(
     currentFertilityArea,
     afterCurrentFertilityArea,
     afterPlannedFertilityArea,
+    afterYearThreeFertilityArea,
   );
 
   return {
@@ -485,22 +538,35 @@ function emptyCropRotationPlan(): CropRotationPlan {
   const nextAreaByCrop = Object.fromEntries(
     FARM_CROPS.map((crop) => [crop, 0]),
   ) as Record<FarmCrop, number>;
+  const yearThreeAreaByCrop = Object.fromEntries(
+    FARM_CROPS.map((crop) => [crop, 0]),
+  ) as Record<FarmCrop, number>;
   return {
     activeArea: 0,
+    cyclicArea: 0,
     nextRyeArea: 0,
     nextOatsArea: 0,
     nextFallowArea: 0,
     nextAreaByCrop,
+    yearThreeAreaByCrop,
     currentAverageFertility: 0,
     afterCurrentAverageFertility: 0,
     afterPlannedAverageFertility: 0,
+    afterYearThreeAverageFertility: 0,
     plannedHarvest: 0,
     plannedFibreHarvest: 0,
     plannedSeedGrainRequired: 0,
+    yearThreeHarvest: 0,
+    yearThreeFibreHarvest: 0,
+    yearThreeSeedGrainRequired: 0,
     restoringFields: 0,
     decliningFields: 0,
+    yearThreeRestoringFields: 0,
+    yearThreeDecliningFields: 0,
     weakestFieldId: null,
     lowestPlannedFertility: null,
+    weakestYearThreeFieldId: null,
+    lowestYearThreeFertility: null,
   };
 }
 
@@ -509,6 +575,7 @@ function normalizeCropRotationFertility(
   currentFertilityArea: number,
   afterCurrentFertilityArea: number,
   afterPlannedFertilityArea: number,
+  afterYearThreeFertilityArea: number,
 ): void {
   if (rotation.activeArea <= 1e-9) return;
   rotation.currentAverageFertility =
@@ -517,6 +584,8 @@ function normalizeCropRotationFertility(
     afterCurrentFertilityArea / rotation.activeArea;
   rotation.afterPlannedAverageFertility =
     afterPlannedFertilityArea / rotation.activeArea;
+  rotation.afterYearThreeAverageFertility =
+    afterYearThreeFertilityArea / rotation.activeArea;
 }
 
 function addSettlementSeason(
@@ -577,6 +646,7 @@ export function buildSettlementFarmPlan(
   let currentFertilityArea = 0;
   let afterCurrentFertilityArea = 0;
   let afterPlannedFertilityArea = 0;
+  let afterYearThreeFertilityArea = 0;
 
   for (const [farmsteadId, fields] of fieldsByHolding) {
     const farmstead = state.buildings.get(farmsteadId);
@@ -596,11 +666,14 @@ export function buildSettlementFarmPlan(
     total.seedGrainRequired += plan.seedGrainRequired;
     seedGrainByHolding.set(farmsteadId, plan.seedGrainRequired);
     total.rotation.activeArea += plan.rotation.activeArea;
+    total.rotation.cyclicArea += plan.rotation.cyclicArea;
     total.rotation.nextRyeArea += plan.rotation.nextRyeArea;
     total.rotation.nextOatsArea += plan.rotation.nextOatsArea;
     total.rotation.nextFallowArea += plan.rotation.nextFallowArea;
     for (const crop of FARM_CROPS) {
       total.rotation.nextAreaByCrop[crop] += plan.rotation.nextAreaByCrop[crop];
+      total.rotation.yearThreeAreaByCrop[crop] +=
+        plan.rotation.yearThreeAreaByCrop[crop];
     }
     currentFertilityArea += plan.rotation.currentAverageFertility
       * plan.rotation.activeArea;
@@ -608,12 +681,20 @@ export function buildSettlementFarmPlan(
       * plan.rotation.activeArea;
     afterPlannedFertilityArea += plan.rotation.afterPlannedAverageFertility
       * plan.rotation.activeArea;
+    afterYearThreeFertilityArea += plan.rotation.afterYearThreeAverageFertility
+      * plan.rotation.activeArea;
     total.rotation.plannedHarvest += plan.rotation.plannedHarvest;
     total.rotation.plannedFibreHarvest += plan.rotation.plannedFibreHarvest;
     total.rotation.plannedSeedGrainRequired +=
       plan.rotation.plannedSeedGrainRequired;
+    total.rotation.yearThreeHarvest += plan.rotation.yearThreeHarvest;
+    total.rotation.yearThreeFibreHarvest += plan.rotation.yearThreeFibreHarvest;
+    total.rotation.yearThreeSeedGrainRequired +=
+      plan.rotation.yearThreeSeedGrainRequired;
     total.rotation.restoringFields += plan.rotation.restoringFields;
     total.rotation.decliningFields += plan.rotation.decliningFields;
+    total.rotation.yearThreeRestoringFields += plan.rotation.yearThreeRestoringFields;
+    total.rotation.yearThreeDecliningFields += plan.rotation.yearThreeDecliningFields;
     if (
       plan.rotation.lowestPlannedFertility !== null
       && (
@@ -637,6 +718,31 @@ export function buildSettlementFarmPlan(
       total.rotation.lowestPlannedFertility =
         plan.rotation.lowestPlannedFertility;
       total.rotation.weakestFieldId = plan.rotation.weakestFieldId;
+    }
+    if (
+      plan.rotation.lowestYearThreeFertility !== null
+      && (
+        total.rotation.lowestYearThreeFertility === null
+        || plan.rotation.lowestYearThreeFertility
+          < total.rotation.lowestYearThreeFertility - 1e-9
+        || (
+          Math.abs(
+            plan.rotation.lowestYearThreeFertility
+              - total.rotation.lowestYearThreeFertility,
+          ) <= 1e-9
+          && plan.rotation.weakestYearThreeFieldId !== null
+          && total.rotation.weakestYearThreeFieldId !== null
+          && compareStableEntityIds(
+            plan.rotation.weakestYearThreeFieldId,
+            total.rotation.weakestYearThreeFieldId,
+          ) < 0
+        )
+      )
+    ) {
+      total.rotation.lowestYearThreeFertility =
+        plan.rotation.lowestYearThreeFertility;
+      total.rotation.weakestYearThreeFieldId =
+        plan.rotation.weakestYearThreeFieldId;
     }
     total.seedGrainCovered += Math.min(grain, plan.seedGrainRequired);
     const seedShortfall = Math.max(0, plan.seedGrainRequired - grain);
@@ -683,6 +789,7 @@ export function buildSettlementFarmPlan(
     currentFertilityArea,
     afterCurrentFertilityArea,
     afterPlannedFertilityArea,
+    afterYearThreeFertilityArea,
   );
 
   return total;

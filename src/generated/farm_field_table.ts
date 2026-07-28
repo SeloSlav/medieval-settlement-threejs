@@ -35,4 +35,5 @@ export default __t.row({
   lastYield: __t.f64().name("last_yield"),
   currentYield: __t.f64().name("current_yield"),
   harvestYieldMultiplier: __t.f64().name("harvest_yield_multiplier"),
+  followingCrop: __t.u8().name("following_crop"),
 });

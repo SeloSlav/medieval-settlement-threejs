@@ -20,6 +20,9 @@ pub const STAGE_PLOUGHING: u8 = 0;
 pub const STAGE_SOWING: u8 = 1;
 pub const STAGE_GROWING: u8 = 2;
 pub const STAGE_HARVESTING: u8 = 3;
+/// Save-compatible sentinel: the field repeats `next_crop` after the current
+/// cycle until the player explicitly schedules a third crop.
+pub const NO_FOLLOWING_CROP: u8 = u8::MAX;
 
 fn crop_definition(crop: u8) -> &'static FarmCropDef {
     farm_crop_def(crop).unwrap_or(&FARM_CROP_RYE)
@@ -27,6 +30,19 @@ fn crop_definition(crop: u8) -> &'static FarmCropDef {
 
 pub fn valid_crop(crop: u8) -> bool {
     farm_crop_def(crop).is_some()
+}
+
+/// Advances the authoritative current/next/following crop queue.
+///
+/// Explicit three-year plans rotate A → B → C → A. Legacy fields have the
+/// sentinel in their third slot and preserve the former behavior by repeating
+/// B indefinitely after A finishes.
+pub fn advance_crop_rotation(crop: u8, next_crop: u8, following_crop: u8) -> (u8, u8, u8) {
+    if valid_crop(following_crop) {
+        (next_crop, following_crop, crop)
+    } else {
+        (next_crop, next_crop, NO_FOLLOWING_CROP)
+    }
 }
 
 pub fn crop_produce(crop: u8) -> FarmCropProduce {
@@ -347,6 +363,22 @@ mod tests {
         assert_eq!(crop_produce(CROP_BARLEY), FarmCropProduce::Grain);
         assert!(valid_crop(CROP_WHEAT));
         assert!(!valid_crop(99));
+    }
+
+    #[test]
+    fn three_year_rotation_cycles_while_legacy_fields_repeat_the_next_crop() {
+        assert_eq!(
+            advance_crop_rotation(CROP_RYE, CROP_OATS, CROP_FALLOW),
+            (CROP_OATS, CROP_FALLOW, CROP_RYE)
+        );
+        assert_eq!(
+            advance_crop_rotation(CROP_OATS, CROP_FALLOW, CROP_RYE),
+            (CROP_FALLOW, CROP_RYE, CROP_OATS)
+        );
+        assert_eq!(
+            advance_crop_rotation(CROP_RYE, CROP_OATS, NO_FOLLOWING_CROP),
+            (CROP_OATS, CROP_OATS, NO_FOLLOWING_CROP)
+        );
     }
 
     #[test]

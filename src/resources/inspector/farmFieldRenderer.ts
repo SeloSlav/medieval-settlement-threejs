@@ -20,6 +20,7 @@ import {
   projectedCropFertility,
   projectedFieldFertility,
   seedGrainRequired,
+  yearThreeCrop,
 } from '../../farming/farmWorkPlanning.ts';
 import { FARM_CROPS, type FarmCrop, type InspectableTarget } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
@@ -36,8 +37,12 @@ const STAGE_LABEL = {
 
 const PRIORITY_LABEL = ['Paused', 'Normal', 'High', 'Urgent'] as const;
 
-function cropButton(crop: FarmCrop, current: FarmCrop, disabled: boolean): string {
-  return `<button type="button" class="resource-action-button" data-field-crop="${crop}" ${disabled || crop === current ? 'disabled' : ''}>${cropLabel(crop)}</button>`;
+function cropButton(
+  crop: FarmCrop,
+  current: FarmCrop | null,
+  dataAttribute: 'data-field-crop' | 'data-field-following-crop',
+): string {
+  return `<button type="button" class="resource-action-button" ${dataAttribute}="${crop}" ${crop === current ? 'disabled' : ''}>${cropLabel(crop)}</button>`;
 }
 
 export function renderFarmFieldInspector(
@@ -66,6 +71,15 @@ export function renderFarmFieldInspector(
     fertility: projectedFertilityValue,
   });
   const plannedSeed = seedGrainRequired(field.area, field.nextCrop);
+  const thirdCrop = yearThreeCrop(field);
+  const yearThreeFertility = projectedCropFertility(plannedFertility, thirdCrop);
+  const yearThreeYield = expectedFieldYield({
+    ...field,
+    crop: thirdCrop,
+    fertility: plannedFertility,
+  });
+  const yearThreeSeed = seedGrainRequired(field.area, thirdCrop);
+  const cyclicRotation = field.followingCrop != null;
   const remainingWorkerDays = fieldWorkerDays(
     currentFieldWorkRemaining(field, cattleSupport?.ploughWorkMultiplier),
   );
@@ -104,8 +118,13 @@ export function renderFarmFieldInspector(
               : `${STAGE_LABEL[field.stage]} · ${stageProgress}%`;
 
   const cropControls = `<div class="inspector-action-panel">
-      <p class="resource-inspector-note">Next crop — schedule rotation at any point in the cycle.</p>
-      <div class="resource-action-row">${FARM_CROPS.map((crop) => cropButton(crop, field.nextCrop, false)).join('')}</div>
+      <p class="resource-inspector-note">Year 2 crop — schedule the next cycle without changing the crop already in the ground.</p>
+      <div class="resource-action-row">${FARM_CROPS.map((crop) => cropButton(crop, field.nextCrop, 'data-field-crop')).join('')}</div>
+      <p class="resource-inspector-note">Year 3 crop — choosing one enables a repeating ${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → Year 3 cycle. Future manure is not promised.</p>
+      <div class="resource-action-row">
+        ${FARM_CROPS.map((crop) => cropButton(crop, field.followingCrop ?? null, 'data-field-following-crop')).join('')}
+        <button type="button" class="resource-action-button" data-field-following-clear ${cyclicRotation ? '' : 'disabled'}>Repeat Year 2</button>
+      </div>
     </div>`;
   const priorityControls = `<div class="inspector-action-panel">
       <p class="resource-inspector-note">Farmstead work priority — also decides which nearby fields receive the limited ox team. Ties favor the older field.</p>
@@ -130,7 +149,7 @@ export function renderFarmFieldInspector(
     detailsHtml: `
       <li><span>Area</span><span>${Math.round(field.area)} m²</span></li>
       <li><span>Stage</span><span>${STAGE_LABEL[field.stage]} · ${stageProgress}%</span></li>
-      <li><span>Next crop</span><span>${cropLabel(field.nextCrop)}</span></li>
+      <li><span>Three-year rotation</span><span>${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → ${cropLabel(thirdCrop)}${cyclicRotation ? ` → ${cropLabel(field.crop)}` : ' · Year 3 repeats until scheduled'}</span></li>
       <li><span>Crop calendar</span><span>${cropCalendarLabel(field.crop)}</span></li>
       <li><span>Priority</span><span>${PRIORITY_LABEL[field.priority] ?? 'Normal'}</span></li>
       <li><span>Ox support</span><span>${cattleSupport
@@ -139,13 +158,15 @@ export function renderFarmFieldInspector(
       <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${Math.round(farmstead.grain)} grain stored` : 'Missing'}</span></li>
       <li><span>Moisture</span><span>${Math.round(field.moisture * 100)}% · ${moistureFit}% crop fit</span></li>
       <li><span>Current-cycle soil</span><span>${Math.round(field.fertility * 100)}% → ${projectedFertility}% fertility</span></li>
-      <li><span>Planned-cycle soil</span><span>${projectedFertility}% → ${Math.round(plannedFertility * 100)}% after ${cropLabel(field.nextCrop).toLowerCase()} · before future manure</span></li>
+      <li><span>Year 2 soil</span><span>${projectedFertility}% → ${Math.round(plannedFertility * 100)}% after ${cropLabel(field.nextCrop).toLowerCase()}</span></li>
+      <li><span>Year 3 soil</span><span>${Math.round(plannedFertility * 100)}% → ${Math.round(yearThreeFertility * 100)}% after ${cropLabel(thirdCrop).toLowerCase()} · future manure excluded</span></li>
       <li><span>Average slope</span><span>${field.averageSlopeDegrees.toFixed(1)}°</span></li>
       <li><span>Shape efficiency</span><span>${shape}%</span></li>
       <li><span>Size efficiency</span><span>${sizeEfficiency}% · full through ${FARM_OPTIMAL_FIELD_AREA.toLocaleString()} m²</span></li>
       <li><span>Expected harvest</span><span>${cropProduce(field.crop) === 'none' ? 'Restores fertility' : `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)}`}</span></li>
       ${earlyHarvestLocked ? `<li><span>Harvest decision</span><span>Early cut · ${Math.round((field.harvestYieldMultiplier ?? 1) * 100)}% of normal yield locked</span></li>` : ''}
       <li><span>Next-crop potential</span><span>${cropProduce(field.nextCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${plannedYield.toFixed(1)} ${cropHarvestUnit(field.nextCrop)} at current moisture · ${plannedSeed.toFixed(1)} seed`}</span></li>
+      <li><span>Year 3 potential</span><span>${cropProduce(thirdCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${yearThreeYield.toFixed(1)} ${cropHarvestUnit(thirdCrop)} at current moisture · ${yearThreeSeed.toFixed(1)} seed`}</span></li>
       <li><span>Protected seed</span><span>${seedRemaining <= 1e-6 ? 'None' : `${seedRemaining.toFixed(1)} grain · ${field.stage === 'ploughing' || field.stage === 'sowing' ? cropLabel(field.crop) : cropLabel(field.nextCrop)}`}</span></li>
       ${field.stage === 'growing' ? '' : `<li><span>Work remaining</span><span>${remainingWorkerDays.toFixed(1)} worker-days${crewDays == null ? ' · assign a crew' : ` · ${crewDays.toFixed(1)} days for this crew`}</span></li>`}
       ${field.stage === 'harvesting' ? `<li><span>Brought in</span><span>${field.currentYield.toFixed(1)} / ${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)}</span></li>` : ''}

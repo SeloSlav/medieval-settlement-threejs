@@ -49,6 +49,7 @@ import {
   projectedCropFertility,
   projectedFieldFertility,
   seedGrainRequired,
+  yearThreeCrop,
 } from '../src/farming/farmWorkPlanning.ts';
 import { gameClockAtElapsedSeconds } from '../src/world/gameCalendar.ts';
 import type {
@@ -172,6 +173,7 @@ const planningField: FarmFieldState = {
   fertility: 0.9,
   crop: 'rye',
   nextCrop: 'fallow',
+  followingCrop: null,
   stage: 'harvesting',
   stageProgress: 0.25,
   priority: 1,
@@ -194,6 +196,16 @@ assert.ok(
 assert.equal(
   projectedFieldFertility(planningField, CATTLE_FERTILITY_BONUS),
   projectedFieldFertility(planningField) + CATTLE_FERTILITY_BONUS,
+);
+assert.equal(
+  yearThreeCrop(planningField),
+  planningField.nextCrop,
+  'legacy two-slot fields must repeat Year 2 until the player opts into a cycle',
+);
+assert.equal(
+  yearThreeCrop({ ...planningField, followingCrop: 'oats' }),
+  'oats',
+  'an explicit third slot must drive the Year 3 forecast',
 );
 assert.equal(fieldSeedGrainRemaining(planningField), 0, 'planned fallow needs no seed');
 assert.equal(
@@ -315,9 +327,42 @@ assert.equal(staffedPlan.rotation.decliningFields, 0);
 assert.equal(staffedPlan.rotation.plannedHarvest, 0);
 assert.equal(staffedPlan.rotation.plannedSeedGrainRequired, 0);
 assert.equal(staffedPlan.rotation.weakestFieldId, planningField.id);
+assert.equal(staffedPlan.rotation.cyclicArea, 0);
+assert.equal(staffedPlan.rotation.yearThreeAreaByCrop.fallow, planningField.area);
+assert.equal(staffedPlan.rotation.yearThreeHarvest, 0);
+assert.equal(staffedPlan.rotation.yearThreeSeedGrainRequired, 0);
 assert.ok(
   staffedPlan.rotation.afterPlannedAverageFertility
     > staffedPlan.rotation.afterCurrentAverageFertility,
+);
+assert.equal(
+  staffedPlan.rotation.afterYearThreeAverageFertility,
+  projectedCropFertility(
+    projectedCropFertility(projectedFieldFertility(planningField), 'fallow'),
+    'fallow',
+  ),
+  'unscheduled legacy land should honestly forecast another worked fallow',
+);
+const cyclicPlan = buildFarmsteadWorkPlan(
+  [{ ...planningField, followingCrop: 'oats' }],
+  1,
+  september,
+  false,
+);
+assert.equal(cyclicPlan.rotation.cyclicArea, planningField.area);
+assert.equal(cyclicPlan.rotation.yearThreeAreaByCrop.oats, planningField.area);
+assert.ok(cyclicPlan.rotation.yearThreeHarvest > 0);
+assert.equal(cyclicPlan.rotation.yearThreeFibreHarvest, 0);
+assert.equal(
+  cyclicPlan.rotation.yearThreeSeedGrainRequired,
+  seedGrainRequired(planningField.area, 'oats'),
+);
+assert.equal(
+  cyclicPlan.rotation.afterYearThreeAverageFertility,
+  projectedCropFertility(
+    projectedCropFertility(projectedFieldFertility(planningField), 'fallow'),
+    'oats',
+  ),
 );
 assert.ok(staffedPlan.harvest.requiredWorkerDays > 0);
 assert.equal(
@@ -540,18 +585,26 @@ assert.match(farmFieldTool, /corners\.some\(\(point\)/, 'the whole parcel must s
 const farmsteadInspector = fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const livestockInspector = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
 const farmFieldInspector = fs.readFileSync('src/resources/inspector/farmFieldRenderer.ts', 'utf8');
+const townHallInspector = fs.readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
 assert.match(farmsteadInspector, /data-land-parcel="field"/, 'farmsteads need a contextual field-layout action');
 assert.match(livestockInspector, /data-land-parcel="pasture"/, 'livestock holdings need a contextual pasture action');
 assert.match(farmFieldInspector, /Ox support/);
 assert.match(farmFieldInspector, /priority.*limited ox team/i);
 assert.match(farmsteadInspector, /Ox-supported fields/);
 assert.match(farmFieldInspector, /Current-cycle soil/);
-assert.match(farmFieldInspector, /Planned-cycle soil/);
+assert.match(farmFieldInspector, /Three-year rotation/);
+assert.match(farmFieldInspector, /Year 3 soil/);
 assert.match(farmFieldInspector, /Next-crop potential/);
+assert.match(farmFieldInspector, /Year 3 potential/);
+assert.match(farmFieldInspector, /data-field-following-crop/);
+assert.match(farmFieldInspector, /data-field-following-clear/);
 assert.match(farmFieldInspector, /future manure/);
-assert.match(farmsteadInspector, /Next rotation/);
+assert.match(farmsteadInspector, /Year 3 rotation/);
+assert.match(farmsteadInspector, /Cyclic coverage/);
 assert.match(farmsteadInspector, /Soil trajectory/);
 assert.match(farmsteadInspector, /data-inspect-field=/);
+assert.match(townHallInspector, /Year 3 rotation/);
+assert.match(townHallInspector, /Cyclic coverage/);
 assert.match(farmFieldInspector, /data-field-early-harvest/);
 assert.match(farmFieldInspector, /Waiting until September keeps 100% yield/);
 
@@ -592,5 +645,23 @@ const farmFieldReducers = fs.readFileSync('server/src/reducers/farm_fields.rs', 
 assert.match(farmFieldReducers, /pub fn start_farm_field_early_harvest/);
 assert.match(farmFieldReducers, /early_harvest_available\(/);
 assert.match(farmFieldReducers, /field\.harvest_yield_multiplier = early_harvest_yield_multiplier/);
+assert.match(farmFieldReducers, /pub fn set_farm_field_following_crop/);
+assert.match(
+  farmFieldReducers,
+  /if crop != NO_FOLLOWING_CROP[\s\S]*validate_crop\(crop\)/,
+);
+const setNextCropReducer = farmFieldReducers.match(
+  /pub fn set_farm_field_crop[\s\S]*?\n}\n/,
+)?.[0] ?? '';
+assert.match(setNextCropReducer, /field\.next_crop = crop/);
+assert.doesNotMatch(
+  setNextCropReducer,
+  /field\.crop = crop/,
+  'scheduling Year 2 must not overwrite the crop already being worked',
+);
+assert.match(
+  farmSimulation,
+  /advance_crop_rotation\(field\.crop, field\.next_crop, field\.following_crop\)/,
+);
 
 console.log('farming and water-chain tests passed');

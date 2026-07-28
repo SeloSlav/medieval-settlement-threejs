@@ -1408,9 +1408,12 @@ assert.match(townHallInspector, /selected market cash reserves total/);
 assert.match(townHallInspector, /computeSettlementSeedProcurementPlan/);
 assert.match(townHallInspector, /firstSeedShortBuildingId/);
 assert.match(townHallInspector, /firstShortGranaryId/);
-assert.match(townHallInspector, /Next rotation/);
+assert.match(townHallInspector, /Year 2 rotation/);
+assert.match(townHallInspector, /Year 3 rotation/);
+assert.match(townHallInspector, /Cyclic coverage/);
 assert.match(townHallInspector, /Soil trajectory/);
-assert.match(townHallInspector, /Next-cycle potential/);
+assert.match(townHallInspector, /Year 2 potential/);
+assert.match(townHallInspector, /Year 3 potential/);
 assert.match(townHallInspector, /data-inspect-field=/);
 
 const resourceInspector = readFileSync(

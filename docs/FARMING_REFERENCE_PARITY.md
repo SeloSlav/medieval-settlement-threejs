@@ -7,10 +7,10 @@ References:
 - [Polygon — How to use farms and grow crops in Manor Lords](https://www.polygon.com/manor-lords-guides/24139739/farm-farming-field-crop-emmer-wheat-flax-barley-harvest-grow/)
 - [Manor Lords official wiki — Field](https://wiki.hoodedhorse.com/Manor_Lords/Field)
 
-The project is feature-matched on the core annual field loop and reference crop
-roster, with spring oats retained as a regional addition. It is not an exact
-clone of the three-year rotation UI. This pass did not add a technology tree,
-development unlocks, or a Heavy Plow unlock.
+The project is feature-matched on the core annual field loop, three-year
+rotation planning, and reference crop roster, with spring oats retained as a
+regional addition. This pass did not add a technology tree, development
+unlocks, or a Heavy Plow unlock.
 
 ## Parity matrix
 
@@ -24,7 +24,7 @@ development unlocks, or a Heavy Plow unlock.
 | Harvest season | Autumn harvest, normally beginning in September | Mature cereals enter harvest in September; uncollected crop closes at the October deadline | Matched |
 | Crop fertility | Crop suitability/fertility guides field placement and yield | Persistent field fertility, moisture, slope, drought/rain response, and crop-specific moisture suitability affect yield | Partial — no separate crop-fertility heatmaps |
 | Fallow | Resting a field restores fertility and yields nothing | Fallow produces no grain and restores persistent fertility when worked | Matched |
-| Crop rotation | Three yearly slots can rotate crops and fallow | Current crop plus one scheduled next crop, with two-cycle soil and yield forecasts | Partial — two-cycle plan, not three UI slots |
+| Crop rotation | Three yearly slots can rotate crops and fallow | Explicit Year 1, Year 2, and Year 3 crops rotate cyclically after completed or failed seasons, with soil, seed, and output forecasts at field, holding, and settlement scale | Matched |
 | Crop roster | Wheat/emmer, barley, flax, rye, and fallow | Mountain rye, spring oats, barley, fibre flax, wheat–rye maslin, and fallow | Matched, with oats as a regional addition |
 | Grain food chain | Wheat/rye is threshed, milled into flour, and baked into bread | Harvested cereal becomes physical grain; watermill makes flour; staffed granary bakery turns flour, water, and firewood into food | Matched at commodity-chain level |
 | Barley/ale chain | Barley becomes malt and then ale | The brewhouse currently consumes generic grain, water, and firewood directly to make ale | Partial — no distinct barley or malt commodity |
@@ -56,9 +56,9 @@ stalks, `?view=overview&clean=1` checks terrain contact and field coverage, and
 
 ## Deliberately deferred gaps
 
-Malt and linen/retting intermediates, crop-specific fertility overlays, and a
-three-slot rotation control remain separate gameplay work. Barley deliberately
-joins generic grain and flax deliberately joins the
+Malt and linen/retting intermediates and crop-specific fertility overlays remain
+separate gameplay work. Barley deliberately joins generic grain and flax
+deliberately joins the
 raw-textile channel so both crops participate in existing physical logistics
 without a save-schema migration. Development unlocks and Heavy Plow technology
 remain out of scope until explicitly requested.

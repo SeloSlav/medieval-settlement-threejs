@@ -24,10 +24,10 @@ use crate::economy::{
     withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
-    crop_growth_allowed, crop_produce, expected_grain_yield, farmstead_exportable_grain,
-    fertility_after_harvest, field_seed_grain_remaining, field_work_allowed, seed_grain_required,
-    shape_efficiency, sowing_window_missed, work_required, CROP_FALLOW, STAGE_GROWING,
-    STAGE_HARVESTING, STAGE_PLOUGHING, STAGE_SOWING,
+    advance_crop_rotation, crop_growth_allowed, crop_produce, expected_grain_yield,
+    farmstead_exportable_grain, fertility_after_harvest, field_seed_grain_remaining,
+    field_work_allowed, seed_grain_required, shape_efficiency, sowing_window_missed, work_required,
+    CROP_FALLOW, STAGE_GROWING, STAGE_HARVESTING, STAGE_PLOUGHING, STAGE_SOWING,
 };
 use crate::frontier_economy_policy::{
     armed_guards, carpenter_polearm_shortfall, guard_upkeep, guardhouse_food_runway_days,
@@ -600,7 +600,7 @@ fn finish_field_cycle_with_manure(field: &mut FarmField, harvested: f64, manure_
     field.harvest_count = field.harvest_count.saturating_add(1);
     field.fertility =
         (fertility_after_harvest(field.crop, field.fertility) + manure_bonus).clamp(0.0, 1.0);
-    field.crop = field.next_crop;
+    advance_field_rotation(field);
     field.stage = STAGE_PLOUGHING;
     field.stage_progress = 0.0;
 }
@@ -609,9 +609,17 @@ fn fail_field_cycle(field: &mut FarmField) {
     field.last_yield = 0.0;
     field.current_yield = 0.0;
     field.harvest_yield_multiplier = 1.0;
-    field.crop = field.next_crop;
+    advance_field_rotation(field);
     field.stage = STAGE_PLOUGHING;
     field.stage_progress = 0.0;
+}
+
+fn advance_field_rotation(field: &mut FarmField) {
+    let (crop, next_crop, following_crop) =
+        advance_crop_rotation(field.crop, field.next_crop, field.following_crop);
+    field.crop = crop;
+    field.next_crop = next_crop;
+    field.following_crop = following_crop;
 }
 
 fn field_corners(field: &FarmField) -> ZoneCorners {

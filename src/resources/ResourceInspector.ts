@@ -150,6 +150,10 @@ type ResourceInspectorOptions = {
   ) => void | Promise<void>;
   onDemolishFarmField?: (fieldId: string) => void | Promise<void>;
   onSetFarmFieldCrop?: (fieldId: string, crop: FarmCrop) => void | Promise<void>;
+  onSetFarmFieldFollowingCrop?: (
+    fieldId: string,
+    crop: FarmCrop | null,
+  ) => void | Promise<void>;
   onSetFarmFieldPriority?: (fieldId: string, priority: number) => void | Promise<void>;
   onStartFarmFieldEarlyHarvest?: (fieldId: string) => void | Promise<void>;
   onDemolishPasture?: (pastureId: string) => void | Promise<void>;
@@ -481,6 +485,20 @@ export class ResourceInspector {
       const crop = (event.target as HTMLElement).closest<HTMLElement>('[data-field-crop]')?.dataset.fieldCrop;
       if (crop != null && FARM_CROPS.includes(crop as FarmCrop)) {
         void this.options.onSetFarmFieldCrop?.(this.selectedTarget.field.id, crop as FarmCrop);
+        return;
+      }
+      const followingCrop = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-field-following-crop]')
+        ?.dataset.fieldFollowingCrop;
+      if (followingCrop != null && FARM_CROPS.includes(followingCrop as FarmCrop)) {
+        void this.options.onSetFarmFieldFollowingCrop?.(
+          this.selectedTarget.field.id,
+          followingCrop as FarmCrop,
+        );
+        return;
+      }
+      if ((event.target as HTMLElement).closest('[data-field-following-clear]')) {
+        void this.options.onSetFarmFieldFollowingCrop?.(this.selectedTarget.field.id, null);
         return;
       }
       const priorityValue = (event.target as HTMLElement).closest<HTMLElement>('[data-field-priority]')?.dataset.fieldPriority;

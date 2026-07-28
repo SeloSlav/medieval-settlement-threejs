@@ -34,6 +34,7 @@ export type InspectorSpacetimeActions = {
   onCollectChapelCoffer: (buildingId: string) => Promise<void>;
   onDemolishFarmField: (fieldId: string) => Promise<void>;
   onSetFarmFieldCrop: (fieldId: string, crop: FarmCrop) => Promise<void>;
+  onSetFarmFieldFollowingCrop: (fieldId: string, crop: FarmCrop | null) => Promise<void>;
   onSetFarmFieldPriority: (fieldId: string, priority: number) => Promise<void>;
   onStartFarmFieldEarlyHarvest: (fieldId: string) => Promise<void>;
   onDemolishPasture: (pastureId: string) => Promise<void>;
@@ -324,6 +325,14 @@ export function createInspectorSpacetimeActions(
       const store = requireReady();
       if (!store) return;
       await runReducer(() => store.setFarmFieldCrop(fieldId, crop), 'Could not change field crop.');
+    },
+    onSetFarmFieldFollowingCrop: async (fieldId, crop) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setFarmFieldFollowingCrop(fieldId, crop),
+        'Could not change the field rotation.',
+      );
     },
     onSetFarmFieldPriority: async (fieldId, priority) => {
       const store = requireReady();

@@ -950,12 +950,19 @@ function renderFarmsteadPlanning(
       : grainDispatch.duty === 'granary-reserve'
         ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · central reserve`
         : `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · emergency overflow`;
+  const weakestYearThreeField = plan.rotation.weakestYearThreeFieldId === null
+    || plan.rotation.lowestYearThreeFertility === null
+    ? ''
+    : ` · weakest Year 3 ${Math.round(plan.rotation.lowestYearThreeFertility * 100)}% <button type="button" class="inspector-jump-button" data-inspect-field="${plan.rotation.weakestYearThreeFieldId}" aria-label="Inspect weakest Year 3 field">Inspect</button>`;
   const rotationRows = plan.rotation.activeArea <= 1e-9
-    ? '<li><span>Next rotation</span><span>No active field area planned</span></li>'
+    ? '<li><span>Three-year rotation</span><span>No active field area planned</span></li>'
     : `
-      <li><span>Next rotation</span><span>${FARM_CROPS.filter((crop) => plan.rotation.nextAreaByCrop[crop] > 0.5).map((crop) => `${Math.round(plan.rotation.nextAreaByCrop[crop])} m² ${cropLabel(crop).toLowerCase()}`).join(' · ')}</span></li>
-      <li><span>Soil trajectory</span><span>${Math.round(plan.rotation.currentAverageFertility * 100)}% now → ${Math.round(plan.rotation.afterCurrentAverageFertility * 100)}% after current crops → ${Math.round(plan.rotation.afterPlannedAverageFertility * 100)}% after the plan${plan.rotation.weakestFieldId && plan.rotation.lowestPlannedFertility !== null ? ` · weakest ${Math.round(plan.rotation.lowestPlannedFertility * 100)}% <button type="button" class="inspector-jump-button" data-inspect-field="${plan.rotation.weakestFieldId}" aria-label="Inspect weakest planned field">Inspect</button>` : ''}</span></li>
-      <li><span>Next-cycle potential</span><span>${plan.rotation.plannedHarvest.toFixed(1)} grain · ${plan.rotation.plannedFibreHarvest.toFixed(1)} flax fibre at current moisture · ${plan.rotation.plannedSeedGrainRequired.toFixed(1)} seed · future manure excluded</span></li>
+      <li><span>Year 2 rotation</span><span>${FARM_CROPS.filter((crop) => plan.rotation.nextAreaByCrop[crop] > 0.5).map((crop) => `${Math.round(plan.rotation.nextAreaByCrop[crop])} m² ${cropLabel(crop).toLowerCase()}`).join(' · ')}</span></li>
+      <li><span>Year 3 rotation</span><span>${FARM_CROPS.filter((crop) => plan.rotation.yearThreeAreaByCrop[crop] > 0.5).map((crop) => `${Math.round(plan.rotation.yearThreeAreaByCrop[crop])} m² ${cropLabel(crop).toLowerCase()}`).join(' · ')}</span></li>
+      <li><span>Cyclic coverage</span><span>${Math.round(plan.rotation.cyclicArea)} / ${Math.round(plan.rotation.activeArea)} m² explicitly scheduled · remaining land repeats Year 2</span></li>
+      <li><span>Soil trajectory</span><span>${Math.round(plan.rotation.currentAverageFertility * 100)}% now → ${Math.round(plan.rotation.afterCurrentAverageFertility * 100)}% after Year 1 → ${Math.round(plan.rotation.afterPlannedAverageFertility * 100)}% after Year 2 → ${Math.round(plan.rotation.afterYearThreeAverageFertility * 100)}% after Year 3${weakestYearThreeField}</span></li>
+      <li><span>Year 2 potential</span><span>${plan.rotation.plannedHarvest.toFixed(1)} grain · ${plan.rotation.plannedFibreHarvest.toFixed(1)} flax fibre · ${plan.rotation.plannedSeedGrainRequired.toFixed(1)} seed · ${plan.rotation.restoringFields} restore / ${plan.rotation.decliningFields} draw soil</span></li>
+      <li><span>Year 3 potential</span><span>${plan.rotation.yearThreeHarvest.toFixed(1)} grain · ${plan.rotation.yearThreeFibreHarvest.toFixed(1)} flax fibre · ${plan.rotation.yearThreeSeedGrainRequired.toFixed(1)} seed · ${plan.rotation.yearThreeRestoringFields} restore / ${plan.rotation.yearThreeDecliningFields} draw soil · current moisture, future manure excluded</span></li>
     `;
   const rows = `
     <li><span>Linked fields</span><span>${plan.activeFields} active${plan.pausedFields > 0 ? ` · ${plan.pausedFields} paused` : ''}</span></li>

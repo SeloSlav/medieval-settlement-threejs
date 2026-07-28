@@ -448,6 +448,11 @@ pub struct FarmField {
     /// cannot restore the sacrificed crop.
     #[default(1.0)]
     pub harvest_yield_multiplier: f64,
+    /// Third crop in an optional cyclic plan. A valid crop rotates current,
+    /// next, and following slots after every cycle; 255 preserves the legacy
+    /// behavior where `next_crop` repeats indefinitely.
+    #[default(255u8)]
+    pub following_crop: u8,
 }
 
 /// A player-drawn grazing parcel tied to a pastoral farmstead or woodland swineherd.

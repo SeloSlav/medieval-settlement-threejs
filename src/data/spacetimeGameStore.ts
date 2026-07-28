@@ -414,6 +414,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setFarmFieldCrop(fieldId, crop);
   }
 
+  setFarmFieldFollowingCrop(fieldId: string, crop: FarmCrop | null): Promise<void> {
+    return spacetimeReducers.setFarmFieldFollowingCrop(fieldId, crop);
+  }
+
   setFarmFieldPriority(fieldId: string, priority: number): Promise<void> {
     return spacetimeReducers.setFarmFieldPriority(fieldId, priority);
   }

@@ -8,7 +8,7 @@ use crate::db::*;
 use crate::farming::{
     centroid, corners_from_values, early_harvest_available, early_harvest_yield_multiplier,
     edge_lengths, is_valid_rectangle, point_in_field, polygon_area, valid_crop, STAGE_HARVESTING,
-    STAGE_PLOUGHING,
+    STAGE_PLOUGHING, NO_FOLLOWING_CROP,
 };
 use crate::hydrology::sample_hydrology_score;
 use crate::placement_validation::{building_pick_radius, is_on_quarry_pit, is_open_water};
@@ -192,6 +192,7 @@ pub fn place_farm_field(
         last_yield: 0.0,
         current_yield: 0.0,
         harvest_yield_multiplier: 1.0,
+        following_crop: NO_FOLLOWING_CROP,
     });
     Ok(())
 }
@@ -201,9 +202,21 @@ pub fn set_farm_field_crop(ctx: &ReducerContext, field_id: u64, crop: u8) -> Res
     validate_crop(crop)?;
     let mut field = owned_field(ctx, field_id)?;
     field.next_crop = crop;
-    if field.stage == STAGE_PLOUGHING {
-        field.crop = crop;
+    ctx.db.farm_field().id().update(field);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_farm_field_following_crop(
+    ctx: &ReducerContext,
+    field_id: u64,
+    crop: u8,
+) -> Result<(), String> {
+    if crop != NO_FOLLOWING_CROP {
+        validate_crop(crop)?;
     }
+    let mut field = owned_field(ctx, field_id)?;
+    field.following_crop = crop;
     ctx.db.farm_field().id().update(field);
     Ok(())
 }

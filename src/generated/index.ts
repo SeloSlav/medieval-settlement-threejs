@@ -70,6 +70,7 @@ import SetConstructionLaborStewardReducer from "./set_construction_labor_steward
 import SetConstructionPriorityReducer from "./set_construction_priority_reducer";
 import SetEconomicActivityTaxRateReducer from "./set_economic_activity_tax_rate_reducer";
 import SetFarmFieldCropReducer from "./set_farm_field_crop_reducer";
+import SetFarmFieldFollowingCropReducer from "./set_farm_field_following_crop_reducer";
 import SetFarmFieldPriorityReducer from "./set_farm_field_priority_reducer";
 import SetGameSpeedReducer from "./set_game_speed_reducer";
 import SetGranaryFreshFoodTargetReducer from "./set_granary_fresh_food_target_reducer";
@@ -441,6 +442,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_construction_priority", SetConstructionPriorityReducer),
   __reducerSchema("set_economic_activity_tax_rate", SetEconomicActivityTaxRateReducer),
   __reducerSchema("set_farm_field_crop", SetFarmFieldCropReducer),
+  __reducerSchema("set_farm_field_following_crop", SetFarmFieldFollowingCropReducer),
   __reducerSchema("set_farm_field_priority", SetFarmFieldPriorityReducer),
   __reducerSchema("set_game_speed", SetGameSpeedReducer),
   __reducerSchema("set_granary_fresh_food_target", SetGranaryFreshFoodTargetReducer),

@@ -28,6 +28,7 @@ export function syncFarmFields(
       fertility: row.fertility,
       crop: FARM_CROPS[row.crop] ?? 'rye',
       nextCrop: FARM_CROPS[row.nextCrop] ?? 'rye',
+      followingCrop: FARM_CROPS[row.followingCrop] ?? null,
       stage: STAGES[row.stage] ?? 'ploughing',
       stageProgress: row.stageProgress,
       priority: row.priority,

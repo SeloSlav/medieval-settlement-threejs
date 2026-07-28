@@ -203,6 +203,18 @@ export async function setFarmFieldCrop(fieldId: string, crop: FarmCrop): Promise
   await callReducer('setFarmFieldCrop', 'set_farm_field_crop', { fieldId: serverId, crop: cropId(crop) });
 }
 
+export async function setFarmFieldFollowingCrop(
+  fieldId: string,
+  crop: FarmCrop | null,
+): Promise<void> {
+  const serverId = parseFarmFieldServerId(fieldId);
+  if (serverId === null) throw new Error('Invalid farm field id.');
+  await callReducer('setFarmFieldFollowingCrop', 'set_farm_field_following_crop', {
+    fieldId: serverId,
+    crop: crop === null ? 255 : cropId(crop),
+  });
+}
+
 export async function setFarmFieldPriority(fieldId: string, priority: number): Promise<void> {
   const serverId = parseFarmFieldServerId(fieldId);
   if (serverId === null) throw new Error('Invalid farm field id.');

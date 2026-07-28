@@ -154,6 +154,8 @@ export type FarmFieldState = {
   fertility: number;
   crop: FarmCrop;
   nextCrop: FarmCrop;
+  /** Third slot in an explicit A → B → C rotation; absent repeats `nextCrop`. */
+  followingCrop?: FarmCrop | null;
   stage: FarmFieldStage;
   stageProgress: number;
   priority: number;
