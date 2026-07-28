@@ -11,7 +11,7 @@ import { setActiveRiverLayout, setActiveQuarryLayout, getActivePlacedBuildingLay
 import { loadTerrainStartupData } from '../terrain/loadTerrainStartupData.ts';
 import { createQuarrySystem, type QuarrySystem } from '../quarries/QuarrySystem.ts';
 import { createWorldLayout, type WorldLayout } from '../resources/WorldLayout.ts';
-import type { ForagingNodeState, ResourceNodeState } from '../resources/types.ts';
+import type { FarmCrop, ForagingNodeState, ResourceNodeState } from '../resources/types.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
 import { forestDensityScale } from '../world/worldGenerationSettings.ts';
@@ -45,6 +45,7 @@ import { TREE_SHADOW_CAST_LAYER } from './SceneLayers.ts';
 import { subscribeShadowPreferences } from './shadowPreference.ts';
 import { applyMaxAnisotropy, beginProgressiveStartupTextureLoad, type SceneStartupTextures } from './startupTextures.ts';
 import { HydrologyOverlay } from '../hydrology/HydrologyOverlay.ts';
+import { CropSuitabilityOverlay } from '../farming/CropSuitabilityOverlay.ts';
 import {
   isHydrologyOverlayEnabled,
   subscribeHydrologyOverlayPreference,
@@ -130,6 +131,8 @@ export class SceneManager {
   private readonly riverSystem: RiverSystem;
   private readonly quarrySystem: QuarrySystem;
   private hydrologyOverlay: HydrologyOverlay | null = null;
+  private cropSuitabilityOverlay: CropSuitabilityOverlay | null = null;
+  private cropSuitabilityCrop: FarmCrop | null = null;
   readonly worldLayout: WorldLayout;
 
   get riverField() {
@@ -464,6 +467,10 @@ export class SceneManager {
   }
 
   setHydrologyOverlayVisible(visible: boolean): void {
+    if (this.cropSuitabilityCrop !== null) {
+      this.hydrologyOverlay?.setVisible(false);
+      return;
+    }
     if (visible && !this.hydrologyOverlay) {
       this.hydrologyOverlay = new HydrologyOverlay({
         terrain: this.terrain,
@@ -472,6 +479,25 @@ export class SceneManager {
       });
     }
     this.hydrologyOverlay?.setVisible(visible);
+  }
+
+  setCropSuitabilityOverlayCrop(crop: FarmCrop | null): void {
+    if (crop === this.cropSuitabilityCrop) return;
+    this.cropSuitabilityCrop = crop;
+    if (crop !== null) {
+      if (!this.cropSuitabilityOverlay) {
+        this.cropSuitabilityOverlay = new CropSuitabilityOverlay({
+          terrain: this.terrain,
+          parent: this.scene,
+        });
+      }
+      this.cropSuitabilityOverlay.setCrop(crop);
+      this.cropSuitabilityOverlay.setVisible(true);
+      this.hydrologyOverlay?.setVisible(false);
+      return;
+    }
+    this.cropSuitabilityOverlay?.setVisible(false);
+    this.setHydrologyOverlayVisible(isHydrologyOverlayEnabled());
   }
 
   resize(): void {
@@ -928,6 +954,9 @@ export class SceneManager {
     this.unsubscribeConstellationPreference = null;
     this.hydrologyOverlay?.dispose();
     this.hydrologyOverlay = null;
+    this.cropSuitabilityOverlay?.dispose();
+    this.cropSuitabilityOverlay = null;
+    this.cropSuitabilityCrop = null;
     for (const visual of this.edgeVisuals.values()) disposeObject3D(visual.group);
     this.edgeVisuals.clear();
     if (this.forestManager) {

@@ -146,6 +146,13 @@ pub fn slope_suitability(average_slope_degrees: f64) -> f64 {
     (1.0 - average_slope_degrees.max(0.0) * FARM_SLOPE_PENALTY_PER_DEGREE).clamp(0.35, 1.0)
 }
 
+/// Predicts the soil quality of newly cleared arable land from the same
+/// groundwater and slope samples used during authoritative field placement.
+pub fn initial_field_fertility(moisture: f64, average_slope_degrees: f64) -> f64 {
+    (0.62 + moisture.clamp(0.0, 1.0) * 0.30 - average_slope_degrees.max(0.0) * 0.006)
+        .clamp(0.35, 0.95)
+}
+
 pub fn yield_suitability(
     crop: u8,
     moisture: f64,
@@ -363,6 +370,14 @@ mod tests {
         assert_eq!(crop_produce(CROP_BARLEY), FarmCropProduce::Grain);
         assert!(valid_crop(CROP_WHEAT));
         assert!(!valid_crop(99));
+    }
+
+    #[test]
+    fn initial_field_fertility_rewards_well_drained_gentle_ground() {
+        assert!((initial_field_fertility(0.5, 0.0) - 0.77).abs() < 1e-9);
+        assert!(initial_field_fertility(0.7, 2.0) > initial_field_fertility(0.3, 12.0));
+        assert!((initial_field_fertility(10.0, 0.0) - 0.92).abs() < 1e-9);
+        assert_eq!(initial_field_fertility(0.0, 100.0), 0.35);
     }
 
     #[test]

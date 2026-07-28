@@ -7,8 +7,8 @@ use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_f
 use crate::db::*;
 use crate::farming::{
     centroid, corners_from_values, early_harvest_available, early_harvest_yield_multiplier,
-    edge_lengths, is_valid_rectangle, point_in_field, polygon_area, valid_crop, STAGE_HARVESTING,
-    STAGE_PLOUGHING, NO_FOLLOWING_CROP,
+    edge_lengths, initial_field_fertility, is_valid_rectangle, point_in_field, polygon_area,
+    valid_crop, NO_FOLLOWING_CROP, STAGE_HARVESTING, STAGE_PLOUGHING,
 };
 use crate::hydrology::sample_hydrology_score;
 use crate::placement_validation::{building_pick_radius, is_on_quarry_pit, is_open_water};
@@ -166,7 +166,7 @@ pub fn place_farm_field(
     }
 
     let moisture = sample_hydrology_score(center.x, center.z).clamp(0.0, 1.0);
-    let initial_fertility = (0.62 + moisture * 0.30 - slope * 0.006).clamp(0.35, 0.95);
+    let initial_fertility = initial_field_fertility(moisture, slope);
     ctx.db.farm_field().insert(FarmField {
         id: 0,
         owner,

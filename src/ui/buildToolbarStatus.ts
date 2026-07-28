@@ -1,5 +1,6 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { BUILDING_KINDS } from '../generated/gameBalance.ts';
+import type { FarmCrop } from '../resources/types.ts';
 import { formatBuildingCost, getBuildingCost } from '../resources/buildingEconomy.ts';
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
@@ -9,6 +10,7 @@ export type ToolbarStats = {
   hasDraft: boolean;
   mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'idle';
   statusDetail?: string | null;
+  farmCrop?: FarmCrop;
   buildingCost?: BuildingResourceCost;
   carpenterSupported?: boolean;
 };

@@ -69,6 +69,43 @@ export function moistureSuitability(crop: FarmCrop, moisture: number): number {
   return Math.max(0.25, Math.min(1, 0.25 + Math.max(0, Math.min(1, base)) * 0.75));
 }
 
+/** Mirrors the authoritative starting-fertility rule used when a field is placed. */
+export function initialFieldFertility(
+  moisture: number,
+  averageSlopeDegrees: number,
+): number {
+  return Math.max(
+    0.35,
+    Math.min(
+      0.95,
+      0.62
+        + Math.max(0, Math.min(1, moisture)) * 0.30
+        - Math.max(0, averageSlopeDegrees) * 0.006,
+    ),
+  );
+}
+
+/**
+ * Normalized first-crop productivity at a point before parcel shape and size.
+ * Fallow shows predicted starting soil because it has no crop yield.
+ */
+export function cropSiteSuitability(
+  crop: FarmCrop,
+  moisture: number,
+  averageSlopeDegrees: number,
+): number {
+  const fertility = initialFieldFertility(moisture, averageSlopeDegrees);
+  if (cropProduce(crop) === 'none') return fertility / 0.95;
+  const slope = Math.max(
+    0.35,
+    Math.min(1, 1 - Math.max(0, averageSlopeDegrees) * FARM_SLOPE_PENALTY_PER_DEGREE),
+  );
+  return Math.max(
+    0,
+    Math.min(1, moistureSuitability(crop, moisture) * (fertility / 0.95) * slope),
+  );
+}
+
 export function expectedFieldYield(field: Pick<FarmFieldState, 'area' | 'crop' | 'moisture' | 'fertility' | 'averageSlopeDegrees' | 'corners'>): number {
   const definition = cropDefinition(field.crop);
   if (definition.produce === 'none') return 0;

@@ -15,12 +15,15 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { convexPolygonsOverlap2, type Point2 } from '../utils/polygonGeometry.ts';
 import { FarmFieldPreview } from './FarmFieldMarkers.ts';
 import {
+  cropHarvestUnit,
   cropLabel,
+  cropSiteSuitability,
+  expectedFieldYield,
   fieldArea,
   fieldCentroid,
   fieldEdgeLengths,
   fieldSizeEfficiency,
-  moistureSuitability,
+  initialFieldFertility,
   rectangleFromBaseline,
   sampleAverageSlopeDegrees,
   type FarmFieldCorners,
@@ -169,11 +172,13 @@ export class FarmFieldTool {
     const index = FARM_CROPS.indexOf(this.crop);
     this.crop = FARM_CROPS[(index + 1) % FARM_CROPS.length];
     this.refreshPreview();
-    const moisture = this.validation.moisture ?? 0.5;
-    const suitability = Math.round(moistureSuitability(this.crop, moisture) * 100);
-    const recommendation = this.crop === 'fallow'
-      ? 'restores fertility after harvest'
-      : `${suitability}% moisture suitability`;
+    const moisture = this.validation.moisture;
+    const slope = this.validation.slope;
+    const recommendation = moisture == null || slope == null
+      ? 'site map updated'
+      : this.crop === 'fallow'
+        ? `${Math.round(initialFieldFertility(moisture, slope) * 100)}% predicted starting soil`
+        : `${Math.round(cropSiteSuitability(this.crop, moisture, slope) * 100)}% site potential here`;
     this.options.onCropChanged?.(this.crop, recommendation);
     this.options.onModeChanged();
   }
@@ -183,18 +188,41 @@ export class FarmFieldTool {
     if (this.points.length === 0 && !this.fixedCorners) {
       return this.mode === 'pasture'
         ? 'Click to start the pasture baseline · keep the parcel inside this holding’s work extent'
-        : `Click to start the field baseline · crop: ${cropLabel(this.crop)} (C to change) · keep it inside this farmstead’s work extent`;
+        : `Click to start the field baseline · ${cropLabel(this.crop)} suitability map visible (C to change) · keep it inside this farmstead’s work extent`;
     }
     if (this.points.length === 1) return `Click to set the other end of the ${parcel} baseline`;
     if (!this.fixedCorners) return `Click to set ${parcel} depth`;
     if (!this.validation.ok) return this.failureDetail(this.validation.reason);
-    const area = Math.round(fieldArea(this.validation.corners));
+    const exactArea = fieldArea(this.validation.corners);
+    const area = Math.round(exactArea);
     const slope = this.validation.slope.toFixed(1);
     const moisture = Math.round(this.validation.moisture * 100);
     if (this.mode === 'pasture') {
       return `${area} m² pasture · ${slope}° slope · ${moisture}% moisture · hammer or Enter to place`;
     }
-    return `${cropLabel(this.crop)} · ${area} m² · ${Math.round(fieldSizeEfficiency(area) * 100)}% size efficiency · ${slope}° slope · ${moisture}% moisture · hammer or Enter to place`;
+    const startingFertility = initialFieldFertility(
+      this.validation.moisture,
+      this.validation.slope,
+    );
+    const sitePotential = Math.round(
+      cropSiteSuitability(
+        this.crop,
+        this.validation.moisture,
+        this.validation.slope,
+      ) * 100,
+    );
+    const firstHarvest = expectedFieldYield({
+      area: exactArea,
+      crop: this.crop,
+      moisture: this.validation.moisture,
+      fertility: startingFertility,
+      averageSlopeDegrees: this.validation.slope,
+      corners: this.validation.corners,
+    });
+    const yieldDetail = this.crop === 'fallow'
+      ? `${Math.round(startingFertility * 100)}% starting soil`
+      : `${sitePotential}% site · ${firstHarvest.toFixed(1)} ${cropHarvestUnit(this.crop)} first harvest`;
+    return `${cropLabel(this.crop)} · ${area} m² · ${yieldDetail} · ${Math.round(fieldSizeEfficiency(exactArea) * 100)}% size efficiency · ${slope}° slope · ${moisture}% moisture · hammer or Enter to place`;
   }
 
   getBuildButtonPosition(): { clientX: number; clientY: number } | null {

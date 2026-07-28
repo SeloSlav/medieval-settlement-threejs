@@ -604,6 +604,9 @@ export class App {
     const placementEconomy = this.buildingTool.getPlacementEconomy();
     const burgageEnabled = this.burgageTool.isEnabled();
     const farmFieldEnabled = this.farmFieldTool.isEnabled();
+    const fieldPlacementEnabled = farmFieldEnabled
+      && this.farmFieldTool.getMode() === 'field';
+    const farmCrop = fieldPlacementEnabled ? this.farmFieldTool.getCrop() : null;
     const stats: ToolbarStats = {
       canBuild: farmFieldEnabled ? this.farmFieldTool.isDraftBuildable() : burgageEnabled ? this.burgageTool.isDraftBuildable() : this.roadTool.isDraftBuildable(),
       hasDraft: farmFieldEnabled ? this.farmFieldTool.hasDraft() : burgageEnabled ? this.burgageTool.hasDraft() : this.roadTool.hasDraft(),
@@ -617,9 +620,11 @@ export class App {
             ? 'idle'
             : buildingMode,
       statusDetail: farmFieldEnabled ? this.farmFieldTool.getStatusDetail() : burgageEnabled ? this.burgageTool.getStatusDetail() : null,
+      farmCrop: farmCrop ?? undefined,
       buildingCost: placementEconomy?.cost,
       carpenterSupported: placementEconomy?.carpenterSupported,
     };
+    this.sceneManager?.setCropSuitabilityOverlayCrop(farmCrop);
     this.toolbar.setStats(stats);
     this.updateBuildButtonPosition();
   }

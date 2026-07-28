@@ -75,6 +75,67 @@
   border-top: 1px solid rgba(238, 232, 220, 0.1);
 }
 
+.crop-suitability-legend {
+  display: grid;
+  gap: 7px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(238, 232, 220, 0.1);
+}
+
+.crop-suitability-legend[hidden] {
+  display: none;
+}
+
+.crop-suitability-legend header,
+.crop-suitability-labels {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.crop-suitability-legend header strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.crop-suitability-legend header span,
+.crop-suitability-labels,
+.crop-suitability-legend p {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.crop-suitability-scale {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: 9px;
+  overflow: hidden;
+  border: 1px solid rgba(238, 232, 220, 0.18);
+  border-radius: 3px;
+}
+
+.crop-suitability-scale__poor {
+  background: rgb(117, 48, 38);
+}
+
+.crop-suitability-scale__marginal {
+  background: rgb(190, 112, 42);
+}
+
+.crop-suitability-scale__good {
+  background: rgb(156, 158, 56);
+}
+
+.crop-suitability-scale__prime {
+  background: rgb(48, 142, 76);
+}
+
+.crop-suitability-legend p {
+  margin: 0;
+  line-height: 1.35;
+}
+
 .road-controls-help-title {
   margin: 0 0 8px;
   color: var(--muted);

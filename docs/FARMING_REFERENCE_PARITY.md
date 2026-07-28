@@ -22,7 +22,7 @@ unlocks, or a Heavy Plow unlock.
 | Work stages | Plough, sow, grow, harvest | Authoritative `ploughing`, `sowing`, `growing`, and `harvesting` stages with normalized progress | Matched |
 | Visible stages | Soil, crop growth, ripe crop, and cleared harvest are readable in the world | Terrain-hugging worked soil and furrows; crop-specific rye ears, oat panicles, barley awns, maslin heads, and blue flax; ragged harvest boundary; cut stubble; fallow cover | Matched |
 | Harvest season | Autumn harvest, normally beginning in September | Mature cereals enter harvest in September; uncollected crop closes at the October deadline | Matched |
-| Crop fertility | Crop suitability/fertility guides field placement and yield | Persistent field fertility, moisture, slope, drought/rain response, and crop-specific moisture suitability affect yield | Partial — no separate crop-fertility heatmaps |
+| Crop fertility | Crop suitability/fertility guides field placement and yield | Field layout automatically shows a crop-specific terrain map combining authoritative groundwater, predicted starting soil, and slope; persistent fertility, drought/rain response, and the same factors drive actual yield | Matched |
 | Fallow | Resting a field restores fertility and yields nothing | Fallow produces no grain and restores persistent fertility when worked | Matched |
 | Crop rotation | Three yearly slots can rotate crops and fallow | Explicit Year 1, Year 2, and Year 3 crops rotate cyclically after completed or failed seasons, with soil, seed, and output forecasts at field, holding, and settlement scale | Matched |
 | Crop roster | Wheat/emmer, barley, flax, rye, and fallow | Mountain rye, spring oats, barley, fibre flax, wheat–rye maslin, and fallow | Matched, with oats as a regional addition |
@@ -56,9 +56,8 @@ stalks, `?view=overview&clean=1` checks terrain contact and field coverage, and
 
 ## Deliberately deferred gaps
 
-Malt and linen/retting intermediates and crop-specific fertility overlays remain
-separate gameplay work. Barley deliberately joins generic grain and flax
-deliberately joins the
+Malt and linen/retting intermediates remain separate gameplay work. Barley
+deliberately joins generic grain and flax deliberately joins the
 raw-textile channel so both crops participate in existing physical logistics
 without a save-schema migration. Development unlocks and Heavy Plow technology
 remain out of scope until explicitly requested.

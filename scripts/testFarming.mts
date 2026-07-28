@@ -31,10 +31,17 @@ import {
   fieldEdgeLengths,
   fieldShapeEfficiency,
   fieldSizeEfficiency,
+  cropSiteSuitability,
+  initialFieldFertility,
   moistureSuitability,
   rectangleFromBaseline,
   sampleAverageSlopeDegrees,
 } from '../src/farming/farmFieldMath.ts';
+import {
+  CROP_SUITABILITY_OVERLAY_RESOLUTION,
+  cropSuitabilityColor,
+  rasterizeCropSuitability,
+} from '../src/farming/CropSuitabilityOverlay.ts';
 import {
   activeFieldHarvestYield,
   buildFarmsteadWorkPlan,
@@ -81,6 +88,39 @@ const oatsDry = moistureSuitability('oats', 0.38);
 const oatsWet = moistureSuitability('oats', 0.58);
 assert.ok(ryeDry > oatsDry, 'rye should be the better crop on drier ground');
 assert.ok(oatsWet > moistureSuitability('rye', 0.58), 'oats should be the better crop on wetter ground');
+assert.equal(initialFieldFertility(0.5, 0), 0.77);
+assert.ok(Math.abs(initialFieldFertility(10, 0) - 0.92) < 1e-9);
+assert.equal(initialFieldFertility(0, 100), 0.35);
+assert.ok(
+  cropSiteSuitability('rye', FARM_CROP_DEFINITIONS.rye.moistureIdeal, 1)
+    > cropSiteSuitability('rye', 0.95, 14),
+  'the placement map should reward crop-matched gentle ground',
+);
+assert.ok(
+  cropSiteSuitability('oats', 0.58, 2)
+    > cropSiteSuitability('rye', 0.58, 2),
+  'crop cycling must materially change the spatial recommendation',
+);
+const poorSuitabilityColor = cropSuitabilityColor(0.1);
+const primeSuitabilityColor = cropSuitabilityColor(0.95);
+assert.ok(poorSuitabilityColor.r > poorSuitabilityColor.g);
+assert.ok(primeSuitabilityColor.g > primeSuitabilityColor.r);
+const suitabilityRasterStarted = performance.now();
+const suitabilityRaster = rasterizeCropSuitability({
+  crop: 'rye',
+  resolution: CROP_SUITABILITY_OVERLAY_RESOLUTION,
+  bounds: { minX: -410, maxX: 410, minZ: -410, maxZ: 410 },
+  sampleMoisture: (x, z) => 0.38 + Math.sin(x * 0.01) * Math.cos(z * 0.01) * 0.1,
+  sampleSlopeDegrees: (x, z) => Math.abs(x + z) * 0.005,
+});
+assert.equal(
+  suitabilityRaster.length,
+  CROP_SUITABILITY_OVERLAY_RESOLUTION ** 2 * 4,
+);
+assert.ok(
+  performance.now() - suitabilityRasterStarted < 150,
+  'the complete placement raster should generate below interactive latency',
+);
 
 const goodYield = expectedFieldYield({
   area: 400,
@@ -581,6 +621,25 @@ const farmFieldTool = fs.readFileSync('src/farming/FarmFieldTool.ts', 'utf8');
 assert.match(farmFieldTool, /state\.buildings\.get\(this\.farmsteadId\)/, 'parcel placement must stay pinned to the selected holding');
 assert.doesNotMatch(farmFieldTool, /let distance = Number\.POSITIVE_INFINITY/, 'parcel placement must not silently choose the nearest holding');
 assert.match(farmFieldTool, /corners\.some\(\(point\)/, 'the whole parcel must stay inside the selected work extent');
+assert.match(farmFieldTool, /cropSiteSuitability/);
+assert.match(farmFieldTool, /first harvest/);
+assert.match(farmFieldTool, /suitability map visible/);
+
+const cropSuitabilityOverlay = fs.readFileSync(
+  'src/farming/CropSuitabilityOverlay.ts',
+  'utf8',
+);
+const sceneManager = fs.readFileSync('src/scene/SceneManager.ts', 'utf8');
+const appSource = fs.readFileSync('src/app/App.ts', 'utf8');
+const buildToolbar = fs.readFileSync('src/ui/BuildToolbar.ts', 'utf8');
+assert.match(cropSuitabilityOverlay, /createDrapedOverlayGeometry/);
+assert.match(cropSuitabilityOverlay, /sampleAuthoritativeHydrologyScore/);
+assert.match(cropSuitabilityOverlay, /private readonly textures = new Map/);
+assert.match(sceneManager, /setCropSuitabilityOverlayCrop/);
+assert.match(sceneManager, /this\.hydrologyOverlay\?\.setVisible\(false\)/);
+assert.match(appSource, /setCropSuitabilityOverlayCrop\(farmCrop\)/);
+assert.match(buildToolbar, /data-crop-suitability-legend/);
+assert.match(buildToolbar, /first-crop site potential/);
 
 const farmsteadInspector = fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const livestockInspector = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
@@ -642,6 +701,7 @@ assert.match(
 const constructionSimulation = fs.readFileSync('server/src/simulation/construction.rs', 'utf8');
 assert.match(constructionSimulation, /site\.grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);
 const farmFieldReducers = fs.readFileSync('server/src/reducers/farm_fields.rs', 'utf8');
+assert.match(farmFieldReducers, /initial_field_fertility\(moisture, slope\)/);
 assert.match(farmFieldReducers, /pub fn start_farm_field_early_harvest/);
 assert.match(farmFieldReducers, /early_harvest_available\(/);
 assert.match(farmFieldReducers, /field\.harvest_yield_multiplier = early_harvest_yield_multiplier/);

@@ -37,6 +37,7 @@ import type {
   NextDayEnvironmentOutlook,
 } from '../world/seasonPolicy.ts';
 import { gameSpeedForHotkey, type GameSpeed } from '../world/gameSpeed.ts';
+import { cropLabel } from '../farming/farmFieldMath.ts';
 
 export type { ToolbarStats };
 
@@ -84,6 +85,8 @@ export class BuildToolbar {
   private readonly zoomStat: HTMLElement;
   private readonly builderPanelTitle: HTMLElement;
   private readonly builderHelpList: HTMLElement;
+  private readonly cropSuitabilityLegend: HTMLElement;
+  private readonly cropSuitabilityTitle: HTMLElement;
   private readonly builderStatusBar: HTMLElement;
   private readonly root: HTMLElement;
   private readonly compassHud: CompassHud;
@@ -141,6 +144,7 @@ export class BuildToolbar {
   private cityAdministrationOpen = false;
   private gameplayEnabled = true;
   private conflictEnabled = false;
+  private cropSuitabilityActive = false;
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target) || this.isGameMenuOpen()) return;
@@ -272,6 +276,21 @@ export class BuildToolbar {
               <li><span>Redo change</span><span class="road-controls-key">Ctrl + Y</span></li>
               <li><span>Cancel / exit</span><span class="road-controls-key">Esc</span></li>
             </ul>
+          </section>
+
+          <section class="crop-suitability-legend" data-crop-suitability-legend hidden aria-label="Crop suitability legend">
+            <header>
+              <strong data-crop-suitability-title>Crop suitability</strong>
+              <span>first-crop site potential</span>
+            </header>
+            <div class="crop-suitability-scale" aria-hidden="true">
+              <span class="crop-suitability-scale__poor"></span>
+              <span class="crop-suitability-scale__marginal"></span>
+              <span class="crop-suitability-scale__good"></span>
+              <span class="crop-suitability-scale__prime"></span>
+            </div>
+            <div class="crop-suitability-labels"><span>Poor</span><span>Marginal</span><span>Good</span><span>Prime</span></div>
+            <p>Combines groundwater, predicted starting soil, and slope. Parcel size and shape still affect final yield.</p>
           </section>
         </aside>
       </div>
@@ -451,6 +470,8 @@ export class BuildToolbar {
     this.builderControlsPanel = this.mustElement(root, '[data-road-controls-panel]');
     this.builderPanelTitle = this.mustElement(this.builderControlsPanel, '.road-controls-title');
     this.builderHelpList = this.mustElement(this.builderControlsPanel, '.road-controls-list');
+    this.cropSuitabilityLegend = this.mustElement(root, '[data-crop-suitability-legend]');
+    this.cropSuitabilityTitle = this.mustElement(root, '[data-crop-suitability-title]');
     this.burgageLayoutHud = this.mustElement(root, '[data-burgage-layout-hud]');
     this.burgagePlotDecreaseButton = this.mustButton(root, '[data-action="burgage-plot-decrease"]');
     this.burgagePlotIncreaseButton = this.mustButton(root, '[data-action="burgage-plot-increase"]');
@@ -562,7 +583,7 @@ export class BuildToolbar {
     this.agricultureBuildMenuButton.disabled = !enabled;
     this.ruralIndustryBuildMenuButton.disabled = !enabled;
     this.militaryBuildMenuButton.disabled = !enabled || !this.conflictEnabled;
-    this.waterOverlayButton.disabled = !enabled;
+    this.waterOverlayButton.disabled = !enabled || this.cropSuitabilityActive;
     this.cityAdminButton.disabled = !enabled;
     this.settlementHud.setSpeedControlsEnabled(enabled);
     if (!enabled) {
@@ -605,6 +626,16 @@ export class BuildToolbar {
     if (isBuilderHudMode(stats.mode)) {
       this.builderPanelTitle.textContent = describeBuilderTitle(stats.mode);
       this.builderHelpList.innerHTML = describeBuilderHelp(stats.mode);
+    }
+    const cropSuitabilityVisible = stats.mode === 'farm-fields' && stats.farmCrop != null;
+    this.cropSuitabilityActive = cropSuitabilityVisible;
+    this.cropSuitabilityLegend.hidden = !cropSuitabilityVisible;
+    this.waterOverlayButton.disabled = !this.gameplayEnabled || cropSuitabilityVisible;
+    this.waterOverlayButton.dataset.tooltip = cropSuitabilityVisible
+      ? 'Crop suitability map is active during field layout'
+      : 'Water map (M)';
+    if (cropSuitabilityVisible) {
+      this.cropSuitabilityTitle.textContent = `${cropLabel(stats.farmCrop!)} suitability`;
     }
     const statusText = describeToolbarStatus(stats);
     this.builderStatusBar.textContent = statusText;
