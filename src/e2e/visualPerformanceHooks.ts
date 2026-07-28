@@ -13,6 +13,9 @@ type ProfileSubsystem =
   | 'selection'
   | 'preview'
   | 'terrain'
+  | 'terrainMaterial'
+  | 'terrainSurfaceDetail'
+  | 'terrainColor'
   | 'groundcover'
   | 'forest'
   | 'ui';
@@ -63,6 +66,9 @@ const SUBSYSTEMS = [
   'selection',
   'preview',
   'terrain',
+  'terrainMaterial',
+  'terrainSurfaceDetail',
+  'terrainColor',
   'groundcover',
   'forest',
   'ui',
@@ -88,6 +94,7 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
     selectionVisible: manager.selectionGroup.visible,
     previewVisible: manager.previewGroup.visible,
     terrainVisible: manager.terrain.mesh.visible,
+    terrainMaterial: manager.terrain.mesh.material,
     // Vegetation is intentionally constructed after App.start resolves.
     // Both groups default visible when they appear, so the profiling baseline
     // must not capture their temporary pre-build absence as "disabled".
@@ -99,6 +106,25 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
     boolean
   >;
   const hiddenUi = new Map<HTMLElement, { visibility: string; pointerEvents: string }>();
+  const flatTerrainMaterial = new THREE.MeshStandardMaterial({
+    color: 0x69754f,
+    roughness: 1,
+    metalness: 0,
+  });
+  const terrainNodeMaterial = initial.terrainMaterial as THREE.Material & {
+    colorNode?: unknown;
+    emissiveNode?: unknown;
+    normalNode?: unknown;
+    roughnessNode?: unknown;
+    aoNode?: unknown;
+  };
+  const terrainSurfaceNodes = {
+    colorNode: terrainNodeMaterial.colorNode,
+    emissiveNode: terrainNodeMaterial.emissiveNode,
+    normalNode: terrainNodeMaterial.normalNode,
+    roughnessNode: terrainNodeMaterial.roughnessNode,
+    aoNode: terrainNodeMaterial.aoNode,
+  };
 
   const setUiVisible = (visible: boolean): void => {
     if (visible) {
@@ -162,6 +188,22 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
         break;
       case 'terrain':
         manager.terrain.mesh.visible = enabled && initial.terrainVisible;
+        break;
+      case 'terrainMaterial':
+        manager.terrain.mesh.material = enabled
+          ? initial.terrainMaterial
+          : flatTerrainMaterial;
+        break;
+      case 'terrainSurfaceDetail':
+        terrainNodeMaterial.normalNode = enabled ? terrainSurfaceNodes.normalNode : null;
+        terrainNodeMaterial.roughnessNode = enabled ? terrainSurfaceNodes.roughnessNode : null;
+        terrainNodeMaterial.aoNode = enabled ? terrainSurfaceNodes.aoNode : null;
+        terrainNodeMaterial.needsUpdate = true;
+        break;
+      case 'terrainColor':
+        terrainNodeMaterial.colorNode = enabled ? terrainSurfaceNodes.colorNode : null;
+        terrainNodeMaterial.emissiveNode = enabled ? terrainSurfaceNodes.emissiveNode : null;
+        terrainNodeMaterial.needsUpdate = true;
         break;
       case 'groundcover':
         if (manager.grassField) {

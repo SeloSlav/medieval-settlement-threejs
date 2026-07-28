@@ -59,6 +59,10 @@ assert.match(ecologySource, /float\(0\.24\)/);
 assert.match(ecologySource, /const normalDetailStrength = mix/);
 assert.match(ecologySource, /const rainNormalVisibility = mix/);
 assert.match(source, /const weatherResolvedRoadWear = roadWear\.mul\(shoreRainVisibility\)/);
+assert.match(
+  source,
+  /emissiveNode = colorNode[\s\S]*?resolvedWeather\.wetness[\s\S]*?float\(0\.24\)/,
+);
 assert.match(ecologySource, /const rainAoVisibility = mix/);
 assert.match(ecologySource, /float\(0\.1\)/);
 assert.match(ecologySource, /vec3\(0\.5, 0\.5, 1\)/);

@@ -812,6 +812,12 @@ export function createTerrainGrassMaterialWithRiverShore(
   material.roughness = 1;
   material.metalness = 0;
   material.colorNode = colorNode;
+  // Rain is dominated by diffuse skylight rather than a hard directional key.
+  // A restrained wetness-only lift keeps narrow carved faces from resolving
+  // as black sub-pixel dashes while preserving the physical heightfield.
+  (material as MeshStandardNodeMaterial & { emissiveNode: unknown }).emissiveNode = colorNode
+    .mul(resolvedWeather.wetness as unknown as TslNode)
+    .mul(float(0.24) as TslNode) as TslNode;
   material.normalNode = blendNodes.normalNode;
   material.roughnessNode = roughnessNode;
   material.aoNode = blendNodes.aoNode;
