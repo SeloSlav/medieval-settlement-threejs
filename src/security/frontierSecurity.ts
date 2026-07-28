@@ -9,6 +9,10 @@ import {
 } from '../generated/gameBalance.ts';
 import type { SettlementSecurity } from '../generated/types.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import type {
+  DeliveryCargoKind,
+  DeliveryTripState,
+} from '../logistics/deliveryTrips.ts';
 import type { BuildingState, GameState, ResidenceState } from '../resources/types.ts';
 import { buildingKindLabel } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
@@ -365,7 +369,7 @@ export type GuardhouseMusterState = {
 };
 
 export type ProjectedRaidTarget = {
-  kind: 'building' | 'residence' | 'treasury';
+  kind: 'building' | 'residence' | 'cart' | 'treasury';
   id: string;
   x: number;
   z: number;
@@ -564,6 +568,19 @@ export function projectRaidTargets(
       portableValue,
     });
   }
+  for (const trip of gameState.deliveryTrips.values()) {
+    const portableValue = deliveryTripRaidValue(trip);
+    if (portableValue <= 1e-9) continue;
+    consider({
+      kind: 'cart',
+      id: trip.id,
+      x: trip.x,
+      z: trip.z,
+      label: `Loaded ${deliveryCargoLabel(trip.cargoKind)} handcart`,
+      protected: positionIsWatched(trip.x, trip.z, watchIndex),
+      portableValue,
+    });
+  }
   let residenceAnchor: ResidenceState | null = null;
   for (const residence of gameState.residences.values()) {
     if (residence.abandoned || residence.population <= 0) continue;
@@ -629,6 +646,8 @@ export function projectRaidTargets(
   return selected.map((target) => {
     const portableSummary = target.kind === 'building'
       ? portableRaidSummary(gameState.buildings.get(target.id))
+      : target.kind === 'cart'
+        ? deliveryTripRaidSummary(gameState.deliveryTrips.get(target.id))
       : target.kind === 'treasury'
         ? portableRaidSummary(treasuryStores)
         : `${formatPortableStoreAmount(
@@ -746,6 +765,42 @@ function portableRaidSummary(storesLike: PortableRaidStoresLike | undefined): st
         .join(' + ');
 }
 
+const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
+  timber: 1,
+  firewood: 1,
+  food: 1,
+  grain: 1,
+  flour: 1,
+  ale: 1,
+  preservedFood: 1,
+  honey: 1,
+  wine: 1,
+  wool: 1,
+  cloth: CLOTH_RAID_VALUE_MULTIPLIER,
+  ironwork: IRONWORK_RAID_VALUE_MULTIPLIER,
+  polearms: POLEARM_RAID_VALUE_MULTIPLIER,
+  gold: 1,
+};
+
+function deliveryTripRaidValue(trip: DeliveryTripState): number {
+  return positivePortableAmount(trip.amount)
+    * (DELIVERY_CARGO_RAID_VALUE[trip.cargoKind] ?? 0);
+}
+
+function deliveryTripRaidSummary(trip: DeliveryTripState | undefined): string {
+  if (!trip) return 'cargo on the road';
+  return `${formatPortableStoreAmount(trip.amount)} ${deliveryCargoLabel(
+    trip.cargoKind,
+  )} on the road`;
+}
+
+function deliveryCargoLabel(kind: DeliveryCargoKind): string {
+  switch (kind) {
+    case 'preservedFood': return 'preserved food';
+    default: return kind;
+  }
+}
+
 function positivePortableAmount(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, value ?? 0) : 0;
 }
@@ -835,7 +890,8 @@ function compareProjectedRaidTargets(
   const kindOrder: Record<ProjectedRaidTarget['kind'], number> = {
     building: 0,
     residence: 1,
-    treasury: 2,
+    cart: 2,
+    treasury: 3,
   };
   return kindOrder[left.kind] - kindOrder[right.kind];
 }

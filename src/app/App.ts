@@ -715,6 +715,7 @@ export class App {
     this.notifyFireChanges(state, previous);
     this.notifySecurityChanges(snapshot);
     const projectedTargets = this.syncFrontierRiskFeedback(snapshot, state);
+    this.frontierRiskMarkers?.trackDeliveryTrips(state.deliveryTrips);
 
     this.applyShowcaseView(state);
     this.applyInitialSettlementView(state);

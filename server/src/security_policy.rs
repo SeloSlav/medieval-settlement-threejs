@@ -72,6 +72,7 @@ fn watch_cell(value: f64) -> i32 {
 pub enum RaidTargetKind {
     Building,
     Residence,
+    DeliveryTrip,
     TreasuryAtBuilding,
     TreasuryAtResidence,
 }

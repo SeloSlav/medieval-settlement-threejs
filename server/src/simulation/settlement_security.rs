@@ -4,6 +4,7 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
+use crate::economy::CommodityKind;
 use crate::frontier_economy_policy::armed_guards;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
@@ -15,7 +16,7 @@ use crate::security_policy::{
     SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{
-    settlement_security, Building, PlayerResources, Residence, SettlementSecurity,
+    settlement_security, Building, DeliveryTrip, PlayerResources, Residence, SettlementSecurity,
 };
 
 use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
@@ -131,6 +132,13 @@ fn step_owner_security(
         .filter(&owner)
         .filter(|residence| !residence.abandoned && residence.population > 0)
         .collect::<Vec<Residence>>();
+    let delivery_trips = ctx
+        .db
+        .delivery_trip()
+        .owner()
+        .filter(&owner)
+        .filter(|trip| trip.amount > 1e-9)
+        .collect::<Vec<DeliveryTrip>>();
     let population = residences
         .iter()
         .map(|residence| residence.population)
@@ -152,7 +160,13 @@ fn step_owner_security(
         .unwrap_or_default();
     let towers = staffed_watch_coverage(&buildings, &fire_disabled_buildings);
     let watch_index = WatchCoverageIndex::new(&towers);
-    let exposure = settlement_exposure(&buildings, &residences, treasury_stores, &watch_index);
+    let exposure = settlement_exposure(
+        &buildings,
+        &residences,
+        &delivery_trips,
+        treasury_stores,
+        &watch_index,
+    );
     let coverage = if exposure.total_value > 1e-9 {
         (exposure.protected_value / exposure.total_value).clamp(0.0, 1.0)
     } else {
@@ -264,12 +278,14 @@ fn staffed_watch_coverage(
 fn settlement_exposure(
     buildings: &[Building],
     residences: &[Residence],
+    delivery_trips: &[DeliveryTrip],
     treasury_stores: RaidPortableStores,
     watch_index: &WatchCoverageIndex,
 ) -> SettlementExposure {
     let mut protected_value = 0.0;
     let mut total_value = 0.0;
-    let mut raid_targets = Vec::with_capacity(buildings.len() + residences.len() + 1);
+    let mut raid_targets =
+        Vec::with_capacity(buildings.len() + residences.len() + delivery_trips.len() + 1);
     for building in buildings
         .iter()
         .filter(|building| building.kind != "watchtower")
@@ -309,6 +325,27 @@ fn settlement_exposure(
                 value: residence.household_wealth,
             });
         }
+    }
+    // Once stock leaves a holding it remains physically exposed on the road.
+    // Moving cargo therefore cannot be used as a raid-proof inventory slot,
+    // while staffed watches still protect compact logistics corridors.
+    for trip in delivery_trips {
+        let portable_value = delivery_trip_portable_stores(trip).raid_value();
+        if portable_value <= 1e-9 {
+            continue;
+        }
+        let vulnerable_value = raid_holding_vulnerability(false, portable_value);
+        let protected = watch_index.contains(trip.x, trip.z);
+        total_value += vulnerable_value;
+        if protected {
+            protected_value += vulnerable_value;
+        }
+        raid_targets.push(RaidTargetCandidate {
+            kind: RaidTargetKind::DeliveryTrip,
+            id: trip.id,
+            protected,
+            value: portable_value,
+        });
     }
     let treasury_value = treasury_stores.raid_value();
     if treasury_value > 1e-9 {
@@ -354,6 +391,51 @@ fn building_portable_stores(building: &Building) -> RaidPortableStores {
         ironwork: building.ironwork,
         polearms: building.polearms,
         gold: building.gold,
+    }
+}
+
+fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortableStores {
+    let amount = trip.amount.max(0.0);
+    let mut stores = RaidPortableStores::default();
+    match CommodityKind::from_u8(trip.cargo_kind) {
+        Some(CommodityKind::Timber) => stores.timber = amount,
+        Some(CommodityKind::Firewood) => stores.firewood = amount,
+        Some(CommodityKind::Food) => stores.food = amount,
+        Some(CommodityKind::Grain) => stores.grain = amount,
+        Some(CommodityKind::Flour) => stores.flour = amount,
+        Some(CommodityKind::Ale) => stores.ale = amount,
+        Some(CommodityKind::PreservedFood) => stores.preserved_food = amount,
+        Some(CommodityKind::Honey) => stores.honey = amount,
+        Some(CommodityKind::Wine) => stores.wine = amount,
+        Some(CommodityKind::Wool) => stores.wool = amount,
+        Some(CommodityKind::Cloth) => stores.cloth = amount,
+        Some(CommodityKind::Ironwork) => stores.ironwork = amount,
+        Some(CommodityKind::Polearms) => stores.polearms = amount,
+        Some(CommodityKind::Gold) => stores.gold = amount,
+        // Raiders do not select bulk stone or water as plunder even when a
+        // settlement cart happens to be carrying it.
+        Some(CommodityKind::Stone | CommodityKind::Water) | None => {}
+    }
+    stores
+}
+
+fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) -> f64 {
+    match CommodityKind::from_u8(cargo_kind) {
+        Some(CommodityKind::Timber) => stores.timber,
+        Some(CommodityKind::Firewood) => stores.firewood,
+        Some(CommodityKind::Food) => stores.food,
+        Some(CommodityKind::Grain) => stores.grain,
+        Some(CommodityKind::Flour) => stores.flour,
+        Some(CommodityKind::Ale) => stores.ale,
+        Some(CommodityKind::PreservedFood) => stores.preserved_food,
+        Some(CommodityKind::Honey) => stores.honey,
+        Some(CommodityKind::Wine) => stores.wine,
+        Some(CommodityKind::Wool) => stores.wool,
+        Some(CommodityKind::Cloth) => stores.cloth,
+        Some(CommodityKind::Ironwork) => stores.ironwork,
+        Some(CommodityKind::Polearms) => stores.polearms,
+        Some(CommodityKind::Gold) => stores.gold,
+        Some(CommodityKind::Stone | CommodityKind::Water) | None => 0.0,
     }
 }
 
@@ -568,6 +650,16 @@ fn resolve_raid(
                     ..residence
                 });
             }
+            RaidTargetKind::DeliveryTrip => {
+                let Some(mut trip) = ctx.db.delivery_trip().id().find(&target.id) else {
+                    continue;
+                };
+                let plunder = delivery_trip_portable_stores(&trip).plunder(forecast.loss_fraction);
+                trip.amount = delivery_trip_remaining_amount(trip.cargo_kind, plunder.remaining);
+                goods_lost += plunder.goods_lost;
+                wealth_lost += plunder.wealth_lost;
+                ctx.db.delivery_trip().id().update(trip);
+            }
             RaidTargetKind::TreasuryAtBuilding | RaidTargetKind::TreasuryAtResidence => {
                 let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
                     continue;
@@ -594,6 +686,9 @@ fn resolve_raid(
                 RaidTargetKind::Residence | RaidTargetKind::TreasuryAtResidence => {
                     FIRE_TARGET_RESIDENCE
                 }
+                // The cart has already paid the raid loss. Arson remains bound
+                // to a reached structure or occupied home.
+                RaidTargetKind::DeliveryTrip => return false,
             };
             ignite_raid_target(ctx, owner, target_kind, target.id, sim_tick)
         });

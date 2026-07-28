@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ProjectedRaidTarget } from './frontierSecurity.ts';
 
@@ -11,6 +12,8 @@ type FrontierRiskMarkersOptions = {
 };
 
 type MarkerPosition = {
+  targetKind: ProjectedRaidTarget['kind'];
+  targetId: string;
   x: number;
   y: number;
   z: number;
@@ -96,13 +99,49 @@ export class FrontierRiskMarkers {
     if (enabled && this.threat >= RAID_TARGET_MARKER_THREAT_THRESHOLD) {
       for (const target of targets.slice(0, MAX_RAID_TARGET_MARKERS)) {
         this.positions.push({
+          targetKind: target.kind,
+          targetId: target.id,
           x: target.x,
           y: this.terrain.getHeightAt(target.x, target.z),
           z: target.z,
-          height: target.kind === 'residence' ? 6.2 : 8.2,
+          height: target.kind === 'residence'
+            ? 6.2
+            : target.kind === 'cart'
+              ? 3.8
+              : 8.2,
         });
       }
     }
+    this.rings.count = this.positions.length;
+    this.beacons.count = this.positions.length;
+    this.group.visible = this.positions.length > 0;
+    this.updateInstances();
+  }
+
+  /**
+   * Keeps the bounded warning overlay attached to an authoritative moving
+   * handcart without repeating the settlement-wide target projection.
+   */
+  trackDeliveryTrips(
+    trips: ReadonlyMap<string, Pick<DeliveryTripState, 'x' | 'z'>>,
+  ): void {
+    let changed = false;
+    for (let index = this.positions.length - 1; index >= 0; index -= 1) {
+      const marker = this.positions[index]!;
+      if (marker.targetKind !== 'cart') continue;
+      const trip = trips.get(marker.targetId);
+      if (!trip) {
+        this.positions.splice(index, 1);
+        changed = true;
+        continue;
+      }
+      if (trip.x === marker.x && trip.z === marker.z) continue;
+      marker.x = trip.x;
+      marker.z = trip.z;
+      marker.y = this.terrain.getHeightAt(trip.x, trip.z);
+      changed = true;
+    }
+    if (!changed) return;
     this.rings.count = this.positions.length;
     this.beacons.count = this.positions.length;
     this.group.visible = this.positions.length > 0;

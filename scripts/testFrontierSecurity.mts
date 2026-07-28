@@ -39,6 +39,7 @@ import {
 } from '../src/security/frontierSecurity.ts';
 import type { BuildingState, GameState, ResidenceState } from '../src/resources/types.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
+import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
   normalizeWorldGenerationSettings,
@@ -311,6 +312,41 @@ projectionState.fireIncidents.clear();
 assert.match(formatProjectedRaidTargets(projectedTargets), /Current likely targets/);
 assert.match(formatProjectedRaidTargets(projectedTargets), /exposed/);
 assert.match(formatProjectedRaidTargets(projectedTargets), /raid value/);
+const cartRiskState = emptyGameState();
+cartRiskState.buildings.set(tower.id, tower);
+cartRiskState.deliveryTrips.set(
+  '30',
+  deliveryTrip('30', 'food', 60, 170, 0),
+);
+cartRiskState.deliveryTrips.set(
+  '31',
+  deliveryTrip('31', 'polearms', 10, 100, 0),
+);
+cartRiskState.deliveryTrips.set(
+  '32',
+  deliveryTrip('32', 'water', 500, 175, 0),
+);
+cartRiskState.deliveryTrips.set(
+  '33',
+  deliveryTrip('33', 'stone', 500, 180, 0),
+);
+const cartTargets = projectRaidTargets(cartRiskState, 4);
+assert.deepEqual(
+  cartTargets.map((target) => [
+    target.kind,
+    target.id,
+    target.protected,
+    target.portableValue,
+  ]),
+  [
+    ['cart', '30', false, 60],
+    ['cart', '31', true, 40],
+  ],
+  'loaded portable goods must remain raid targets, while bulk stone and water stay unattractive',
+);
+assert.equal(cartTargets[0]?.label, 'Loaded food handcart');
+assert.equal(cartTargets[0]?.portableSummary, '60 food on the road');
+assert.match(formatProjectedRaidTargets(cartTargets), /Loaded food handcart/);
 const textileTargetState = emptyGameState();
 textileTargetState.buildings.set(
   'textile-store',
@@ -514,6 +550,20 @@ ringInstances.getMatrixAt(0, markerMatrix);
 assert.ok(
   markerMatrix.elements.every(Number.isFinite),
   'pooled risk marker transforms should remain finite',
+);
+riskMarkers.sync(cartTargets.slice(0, 1), 0.7, true);
+riskMarkers.trackDeliveryTrips(new Map([
+  ['30', { x: 44, z: -12 }],
+]));
+riskMarkers.tick(0.016);
+ringInstances.getMatrixAt(0, markerMatrix);
+assert.equal(markerMatrix.elements[12], 44);
+assert.equal(markerMatrix.elements[14], -12);
+riskMarkers.trackDeliveryTrips(new Map());
+assert.equal(
+  ringInstances.count,
+  0,
+  'a cart warning must clear as soon as that authoritative trip finishes',
 );
 riskMarkers.dispose();
 assert.equal(markerParent.children.length, 0);
@@ -781,6 +831,11 @@ assert.match(
   /Math\.floor\(state\.tick\s*\/\s*FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS\)/,
   'likely-target projections must refresh on every authoritative security cadence',
 );
+assert.match(
+  app,
+  /frontierRiskMarkers\?\.trackDeliveryTrips\(state\.deliveryTrips\)/,
+  'a selected loaded cart warning must follow its authoritative live position without a full rescan',
+);
 assert.match(serverSimulation, /SECURITY_UPDATE_INTERVAL_TICKS/);
 assert.match(serverSimulation, /WatchCoverageIndex::new/);
 assert.match(serverSimulation, /fn settlement_exposure/);
@@ -800,6 +855,7 @@ assert.match(
 assert.match(serverSimulation, /nearest_road_path_distance/);
 assert.match(serverSimulation, /select_raid_targets/);
 assert.match(serverSimulation, /RaidTargetKind::Residence/);
+assert.match(serverSimulation, /RaidTargetKind::DeliveryTrip/);
 assert.match(serverSimulation, /building_portable_stores\(&updated\)\.plunder/);
 assert.match(serverSimulation, /retain_unplundered_stores/);
 assert.match(
@@ -848,6 +904,21 @@ assert.match(
   serverSimulation,
   /raid_arson_occurs[\s\S]*selected\.iter\(\)\.any[\s\S]*ignite_raid_target/,
   'one bounded arson attempt should reuse only holdings already reached by the raid',
+);
+assert.match(
+  serverSimulation,
+  /fn delivery_trip_portable_stores[\s\S]*CommodityKind::Gold[\s\S]*CommodityKind::Stone \| CommodityKind::Water/,
+  'authoritative cart exposure must value portable cargo while excluding bulk water and stone',
+);
+assert.match(
+  serverSimulation,
+  /RaidTargetKind::DeliveryTrip[\s\S]*delivery_trip_portable_stores\(&trip\)\.plunder[\s\S]*trip\.amount[\s\S]*delivery_trip\(\)\.id\(\)\.update\(trip\)/,
+  'a selected cart must lose cargo from the same authoritative trip row that attracted the raid',
+);
+assert.match(
+  serverSimulation,
+  /RaidTargetKind::DeliveryTrip => return false/,
+  'cart interception must not turn a moving cart into a structural arson target',
 );
 assert.match(serverPolicy, /pub fn raid_arson_chance/);
 assert.match(serverPolicy, /defense_ratio\.clamp/);
@@ -1006,6 +1077,26 @@ assert.ok(
   `1,000-tower (500 fire-disabled), 100,000-site bounded target projection took ${projectionElapsedMs.toFixed(1)} ms`,
 );
 
+const cartProjectionPerfState = emptyGameState();
+for (let index = 0; index < 100_000; index += 1) {
+  const id = `${index + 1}`;
+  cartProjectionPerfState.deliveryTrips.set(
+    id,
+    deliveryTrip(id, 'food', index + 1, index % 500, Math.floor(index / 500) * 8),
+  );
+}
+const cartProjectionStarted = performance.now();
+const cartPerfTargets = projectRaidTargets(cartProjectionPerfState, 3);
+const cartProjectionElapsedMs = performance.now() - cartProjectionStarted;
+assert.deepEqual(
+  cartPerfTargets.map((target) => target.id),
+  ['100000', '99999', '99998'],
+);
+assert.ok(
+  cartProjectionElapsedMs < 250,
+  `100,000-cart bounded target projection took ${cartProjectionElapsedMs.toFixed(1)} ms`,
+);
+
 const guardFoodCandidates = Array.from({ length: 100_000 }, (_, index) => ({
   ...building(
     `guard-${index}`,
@@ -1031,7 +1122,7 @@ assert.ok(
 );
 
 console.log(
-  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-tower/500-outage/100,000-site target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-tower/500-outage/100,000-site target projection; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
 );
 
 function building(
@@ -1101,6 +1192,36 @@ function residence(id: string, x: number, z: number, population: number): Reside
     },
     abandoned: false,
     householdWealth: 0,
+  };
+}
+
+function deliveryTrip(
+  id: string,
+  cargoKind: DeliveryTripState['cargoKind'],
+  amount: number,
+  x: number,
+  z: number,
+): DeliveryTripState {
+  return {
+    id,
+    buildingId: `origin-${id}`,
+    residenceId: `destination-${id}`,
+    destinationKind: 'residence',
+    targetBuildingId: null,
+    cargoKind,
+    amount,
+    phase: 'outbound',
+    x,
+    z,
+    progress: 0,
+    speedMps: 1.6,
+    unloadSeconds: 2,
+    unloadRemaining: 0,
+    deliveryWorkers: 1,
+    freeHaulerWorkers: 0,
+    pathDistance: 100,
+    travelSpeedMultiplier: 1,
+    routePolylineJson: '[[0,0],[100,0]]',
   };
 }
 
