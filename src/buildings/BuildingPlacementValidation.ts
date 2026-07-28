@@ -31,6 +31,7 @@ export type BuildingPlacementFailureReason =
   | 'no_trees_in_range'
   | 'on_road'
   | 'insufficient_resources'
+  | 'requires_completed_guardhouse'
   | 'requires_staffed_chapel'
   | 'requires_parish_population';
 
@@ -66,6 +67,10 @@ export function validateBuildingPlacement(
   z: number,
   context: BuildingPlacementContext,
 ): BuildingPlacementResult {
+  // Placement performs several independent checks over the same snapshot.
+  // Materialize one-shot Map iterators once so prerequisite and separation
+  // checks cannot accidentally see an exhausted collection.
+  const buildings = [...context.buildings];
   const fishingFootprintTouchesWater = kind === 'fishing_camp'
     && sampleBuildingFootprintPoints(kind, x, z).some((point) => context.isWaterAt(point.x, point.z));
   if (kind !== 'large_quarry' && (context.isWaterAt(x, z) || fishingFootprintTouchesWater)) {
@@ -112,7 +117,7 @@ export function validateBuildingPlacement(
     }
   }
 
-  if (overlapsSameKindFunctionalExtent(kind, x, z, context.buildings)) {
+  if (overlapsSameKindFunctionalExtent(kind, x, z, buildings)) {
     return { ok: false, reason: 'overlapping_extent' };
   }
 
@@ -154,7 +159,7 @@ export function validateBuildingPlacement(
   }
 
   if (kind === 'monastery') {
-    if (!hasStaffedChapel(context.buildings)) {
+    if (!hasStaffedChapel(buildings)) {
       return { ok: false, reason: 'requires_staffed_chapel' };
     }
     if (parishPopulation(context.residences) < MONASTERY_MIN_PARISH_POPULATION) {
@@ -162,8 +167,19 @@ export function validateBuildingPlacement(
     }
   }
 
+  if (
+    kind === 'palisaded_refuge'
+    && !buildings.some(
+      (building) =>
+        building.kind === 'guardhouse'
+        && building.constructionComplete !== false,
+    )
+  ) {
+    return { ok: false, reason: 'requires_completed_guardhouse' };
+  }
+
   const carpenterSupported = hasRoadLinkedCarpenter(
-    context.buildings,
+    buildings,
     context.roadNetwork,
     { x, z },
     context.fireDisabledBuildingIds,
@@ -176,7 +192,7 @@ export function validateBuildingPlacement(
   const definition = getBuildingDefinition(kind);
   const minSeparation = definition.pickRadius * 1.85;
 
-  for (const building of context.buildings) {
+  for (const building of buildings) {
     const other = getBuildingDefinition(building.kind);
     const required = Math.max(minSeparation, (definition.pickRadius + other.pickRadius) * 0.9);
     if (Math.hypot(building.x - x, building.z - z) < required) {

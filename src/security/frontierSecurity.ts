@@ -5,6 +5,7 @@ import {
   GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
   GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE,
   GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
+  PALISADED_REFUGE_LOSS_MULTIPLIER,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
 import type { SettlementSecurity } from '../generated/types.ts';
@@ -261,11 +262,11 @@ export function formatFrontierForecast(
       : `${ready} / ${required} guards ready · no stocked holding currently presents a raid target`;
   }
   const targets = `${security.targetsAtRisk} holding${security.targetsAtRisk === 1 ? '' : 's'} at risk`;
-  const loss = `${Math.round(security.estimatedLossFraction * 100)}% portable stores per target`;
+  const loss = `up to ${Math.round(security.estimatedLossFraction * 100)}% portable stores per target`;
   const arson = enemyPressure == null
     ? ''
     : ` · ${Math.round(projectedRaidArsonChance(security, enemyPressure) * 100)}% chance of one raid fire`;
-  return `${ready} / ${required} guards ready · ${targets} · about ${loss}${arson}`;
+  return `${ready} / ${required} guards ready · ${targets} · ${loss}${arson}`;
 }
 
 export function frontierThreatLabel(
@@ -375,6 +376,7 @@ export type ProjectedRaidTarget = {
   z: number;
   label: string;
   protected: boolean;
+  fortified: boolean;
   portableValue: number;
   portableSummary: string;
 };
@@ -515,6 +517,7 @@ export function projectRaidTargets(
 
   const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
   const towers: WatchArea[] = [];
+  const refuges: WatchArea[] = [];
   let reservedTreasuryTimber = 0;
   let townHallAnchor: BuildingState | null = null;
   let completedHoldingAnchor: BuildingState | null = null;
@@ -535,16 +538,33 @@ export function projectRaidTargets(
         radius: watchtowerEffectiveRadius(building),
       });
     }
+    if (
+      building.kind === 'palisaded_refuge'
+      && building.constructionComplete !== false
+      && !fireDisabled.has(building.id)
+      && building.workRadius > 0
+    ) {
+      refuges.push({
+        x: building.x,
+        z: building.z,
+        radius: building.workRadius,
+      });
+    }
     if (building.kind === 'town_hall') {
       townHallAnchor = earlierBuilding(townHallAnchor, building);
     }
-    if (building.kind === 'watchtower' || building.kind === 'guardhouse') continue;
+    if (
+      building.kind === 'watchtower'
+      || building.kind === 'guardhouse'
+      || building.kind === 'palisaded_refuge'
+    ) continue;
     anyHoldingAnchor = earlierBuilding(anyHoldingAnchor, building);
     if (building.constructionComplete !== false) {
       completedHoldingAnchor = earlierBuilding(completedHoldingAnchor, building);
     }
   }
   const watchIndex = buildWatchCoverageIndex(towers);
+  const refugeIndex = buildWatchCoverageIndex(refuges);
 
   const selected: ProjectedRaidTargetCandidate[] = [];
   const consider = (candidate: ProjectedRaidTargetCandidate): void => {
@@ -568,6 +588,7 @@ export function projectRaidTargets(
       z: building.z,
       label: `${buildingKindLabel(building.kind)}${building.constructionComplete === false ? ' worksite' : ''}`,
       protected: positionIsWatched(building.x, building.z, watchIndex),
+      fortified: positionIsWatched(building.x, building.z, refugeIndex),
       portableValue,
     });
   }
@@ -581,6 +602,7 @@ export function projectRaidTargets(
       z: trip.z,
       label: `Loaded ${deliveryCargoLabel(trip.cargoKind)} handcart`,
       protected: positionIsWatched(trip.x, trip.z, watchIndex),
+      fortified: positionIsWatched(trip.x, trip.z, refugeIndex),
       portableValue,
     });
   }
@@ -601,6 +623,7 @@ export function projectRaidTargets(
       z: residence.z,
       label: `Tier ${residence.tier} household (${residence.population} resident${residence.population === 1 ? '' : 's'})`,
       protected: positionIsWatched(residence.x, residence.z, watchIndex),
+      fortified: positionIsWatched(residence.x, residence.z, refugeIndex),
       portableValue: residence.householdWealth,
     });
   }
@@ -643,6 +666,7 @@ export function projectRaidTargets(
       z: treasuryAnchor.z,
       label: `Settlement treasury at ${treasuryAnchor.label}`,
       protected: positionIsWatched(treasuryAnchor.x, treasuryAnchor.z, watchIndex),
+      fortified: positionIsWatched(treasuryAnchor.x, treasuryAnchor.z, refugeIndex),
       portableValue: treasuryValue,
     });
   }
@@ -664,9 +688,10 @@ export function formatProjectedRaidTargets(targets: readonly ProjectedRaidTarget
   if (targets.length === 0) {
     return 'No stocked holding currently presents a likely raid target.';
   }
-  const holdings = targets.map(
-    (target) => `${target.label} (${target.protected ? 'watched' : 'exposed'} · ${formatPortableStoreAmount(target.portableValue)} raid value · ${target.portableSummary})`,
-  );
+  const holdings = targets.map((target) => {
+    const fortification = target.fortified ? ' · palisaded' : '';
+    return `${target.label} (${target.protected ? 'watched' : 'exposed'}${fortification} · ${formatPortableStoreAmount(target.portableValue)} raid value · ${target.portableSummary})`;
+  });
   return `Current likely ${targets.length === 1 ? 'target' : 'targets'}: ${holdings.join('; ')}. Warning rings appear as frontier unrest rises.`;
 }
 
@@ -700,6 +725,136 @@ export function countSitesProtectedByWatchtower(
   return { buildings, homes, residents };
 }
 
+export function palisadedRefugeEffectiveRadius(
+  refuge: BuildingState,
+  fireDisabled = false,
+): number {
+  if (
+    refuge.kind !== 'palisaded_refuge'
+    || refuge.constructionComplete === false
+    || fireDisabled
+  ) return 0;
+  return Math.max(0, refuge.workRadius);
+}
+
+export function countSitesProtectedByPalisadedRefuge(
+  refuge: BuildingState,
+  gameState: GameState,
+): {
+  buildings: number;
+  homes: number;
+  carts: number;
+  residents: number;
+  portableValue: number;
+  treasuryValue: number;
+} {
+  const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
+  const radius = palisadedRefugeEffectiveRadius(
+    refuge,
+    fireDisabled.has(refuge.id),
+  );
+  if (radius <= 0) {
+    return {
+      buildings: 0,
+      homes: 0,
+      carts: 0,
+      residents: 0,
+      portableValue: 0,
+      treasuryValue: 0,
+    };
+  }
+  const radiusSquared = radius * radius;
+  let buildings = 0;
+  let homes = 0;
+  let carts = 0;
+  let residents = 0;
+  let portableValue = 0;
+  let treasuryValue = 0;
+  let reservedTreasuryTimber = 0;
+  let townHallAnchor: BuildingState | null = null;
+  let completedHoldingAnchor: BuildingState | null = null;
+  let anyHoldingAnchor: BuildingState | null = null;
+  for (const building of gameState.buildings.values()) {
+    reservedTreasuryTimber += positivePortableAmount(
+      building.constructionTreasuryTimber,
+    );
+    if (building.kind === 'town_hall') {
+      townHallAnchor = earlierBuilding(townHallAnchor, building);
+    }
+    if (
+      building.kind !== 'watchtower'
+      && building.kind !== 'guardhouse'
+      && building.kind !== 'palisaded_refuge'
+    ) {
+      anyHoldingAnchor = earlierBuilding(anyHoldingAnchor, building);
+      if (building.constructionComplete !== false) {
+        completedHoldingAnchor = earlierBuilding(completedHoldingAnchor, building);
+      }
+    }
+    if (
+      building.id === refuge.id
+      || distanceSquared(refuge, building) > radiusSquared
+      || (
+        building.constructionComplete === false
+        && portableRaidValue(building) <= 1e-9
+      )
+    ) continue;
+    buildings += 1;
+    portableValue += portableRaidValue(building);
+  }
+  let residenceAnchor: ResidenceState | null = null;
+  for (const residence of gameState.residences.values()) {
+    if (residence.abandoned || residence.population <= 0) continue;
+    if (
+      residenceAnchor === null
+      || compareStableIds(residence.id, residenceAnchor.id) < 0
+    ) {
+      residenceAnchor = residence;
+    }
+    if (distanceSquared(refuge, residence) > radiusSquared) continue;
+    homes += 1;
+    residents += residence.population;
+    portableValue += positivePortableAmount(residence.householdWealth);
+  }
+  for (const trip of gameState.deliveryTrips.values()) {
+    if (distanceSquared(refuge, trip) > radiusSquared) continue;
+    const value = deliveryTripRaidValue(trip);
+    if (value <= 1e-9) continue;
+    carts += 1;
+    portableValue += value;
+  }
+  const treasuryAnchor =
+    townHallAnchor
+    ?? completedHoldingAnchor
+    ?? residenceAnchor
+    ?? anyHoldingAnchor;
+  if (
+    treasuryAnchor
+    && distanceSquared(refuge, treasuryAnchor) <= radiusSquared
+  ) {
+    treasuryValue = portableRaidValue({
+      ...gameState.stockpile,
+      timber: raidableTreasuryTimber(
+        gameState.stockpile.timber,
+        reservedTreasuryTimber,
+      ),
+    });
+    portableValue += treasuryValue;
+  }
+  return {
+    buildings,
+    homes,
+    carts,
+    residents,
+    portableValue,
+    treasuryValue,
+  };
+}
+
+export function palisadedRefugeLossFraction(lossFraction: number): number {
+  return clamp01(lossFraction) * PALISADED_REFUGE_LOSS_MULTIPLIER;
+}
+
 export function frontierDefenseFireSignature(
   gameState: Pick<GameState, 'buildings' | 'fireIncidents'>,
 ): string {
@@ -707,7 +862,11 @@ export function frontierDefenseFireSignature(
   for (const incident of gameState.fireIncidents.values()) {
     if (incident.targetKind !== 'building') continue;
     const kind = gameState.buildings.get(incident.targetId)?.kind;
-    if (kind === 'watchtower' || kind === 'guardhouse') {
+    if (
+      kind === 'watchtower'
+      || kind === 'guardhouse'
+      || kind === 'palisaded_refuge'
+    ) {
       disabledDefenseIds.push(`${kind}:${incident.targetId}`);
     }
   }

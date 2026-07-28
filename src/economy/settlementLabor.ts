@@ -67,6 +67,7 @@ const BUILDING_LABOR_SECTORS: Record<BuildingKind, LaborSector> = {
   village_storehouse: 'logistics',
   watchtower: 'defense',
   guardhouse: 'defense',
+  palisaded_refuge: 'defense',
   threshing_barn: 'provisions',
   monastery: 'civic',
   brewery: 'provisions',

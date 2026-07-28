@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use crate::balance_generated::{
     GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE, GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
     GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE, GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
+    PALISADED_REFUGE_LOSS_MULTIPLIER,
 };
 
 pub const MIN_FRONTIER_POPULATION: u32 = 8;
@@ -82,6 +83,7 @@ pub struct RaidTargetCandidate {
     pub kind: RaidTargetKind,
     pub id: u64,
     pub protected: bool,
+    pub fortified: bool,
     pub value: f64,
 }
 
@@ -341,6 +343,22 @@ pub fn guarded_raid_loss_fraction(enemy_pressure: u8, coverage: f64, ready_guard
         0.0
     } else {
         raid_loss_fraction(enemy_pressure, coverage) * (1.0 - defense * 0.8)
+    }
+}
+
+/// A compact palisaded refuge protects the portable stores at its actual map
+/// location. It reduces removal after a raid reaches the holding; it does not
+/// replace warning coverage, guards, or the risk of arson.
+pub fn raid_target_loss_fraction(loss_fraction: f64, fortified: bool) -> f64 {
+    let base = if loss_fraction.is_finite() {
+        loss_fraction.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    if fortified {
+        base * PALISADED_REFUGE_LOSS_MULTIPLIER
+    } else {
+        base
     }
 }
 
@@ -619,6 +637,23 @@ mod tests {
     }
 
     #[test]
+    fn palisaded_refuge_reduces_local_plunder_without_granting_immunity() {
+        let reached_loss = 0.5;
+        assert_eq!(
+            raid_target_loss_fraction(reached_loss, false),
+            reached_loss
+        );
+        assert!(
+            (raid_target_loss_fraction(reached_loss, true)
+                - reached_loss * PALISADED_REFUGE_LOSS_MULTIPLIER)
+                .abs()
+                < 1e-9
+        );
+        assert!(raid_target_loss_fraction(1.0, true) > 0.0);
+        assert_eq!(raid_target_loss_fraction(f64::NAN, true), 0.0);
+    }
+
+    #[test]
     fn pressure_increases_the_number_of_exposed_targets() {
         assert_eq!(raid_target_count(10), 1);
         assert_eq!(raid_target_count(50), 2);
@@ -705,12 +740,14 @@ mod tests {
                 kind: RaidTargetKind::Building,
                 id: 1,
                 protected: true,
+                fortified: false,
                 value: 100.0,
             },
             RaidTargetCandidate {
                 kind: RaidTargetKind::Residence,
                 id: 2,
                 protected: true,
+                fortified: false,
                 value: 50.0,
             },
         ];
@@ -723,6 +760,7 @@ mod tests {
             kind: RaidTargetKind::Residence,
             id: 2,
             protected: false,
+            fortified: false,
             value: 40.0,
         };
         let targets = [
@@ -730,6 +768,7 @@ mod tests {
                 kind: RaidTargetKind::Building,
                 id: 1,
                 protected: false,
+                fortified: false,
                 value: 20.0,
             },
             exposed_home,
@@ -737,6 +776,7 @@ mod tests {
                 kind: RaidTargetKind::Building,
                 id: 3,
                 protected: true,
+                fortified: false,
                 value: 100.0,
             },
         ];
@@ -754,6 +794,7 @@ mod tests {
                 },
                 id,
                 protected: id % 3 == 0,
+                fortified: id % 5 == 0,
                 value: id as f64,
             })
             .collect::<Vec<_>>();

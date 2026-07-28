@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import { FrontierRiskMarkers } from '../src/security/FrontierRiskMarkers.ts';
 import {
@@ -12,6 +13,7 @@ import {
 } from '../src/ui/constructionDockToggle.ts';
 import {
   armedGuardCount,
+  countSitesProtectedByPalisadedRefuge,
   countSitesProtectedByWatchtower,
   estimatedRaidDays,
   formatFrontierForecast,
@@ -29,6 +31,8 @@ import {
   guardhouseMusterResponseDistance,
   guardhouseMusterResponseBand,
   isFrontierRaidSeason,
+  palisadedRefugeEffectiveRadius,
+  palisadedRefugeLossFraction,
   projectRaidTargets,
   projectedRaidArsonChance,
   normalizeGuardhouseFoodReserve,
@@ -50,7 +54,9 @@ import {
 } from '../src/world/worldGenerationSettings.ts';
 import {
   BUILDING_DEFINITIONS,
+  BUILDING_COSTS,
   BUILDING_STORAGE_CAPS,
+  PALISADED_REFUGE_LOSS_MULTIPLIER,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 
@@ -82,6 +88,68 @@ assert.equal(BUILDING_DEFINITIONS.watchtower.maxLabor, 2);
 assert.equal(BUILDING_DEFINITIONS.watchtower.workRadius, 190);
 assert.equal(BUILDING_DEFINITIONS.guardhouse.requiresRoad, true);
 assert.equal(BUILDING_DEFINITIONS.guardhouse.maxLabor, 6);
+assert.equal(BUILDING_DEFINITIONS.palisaded_refuge.requiresRoad, true);
+assert.equal(BUILDING_DEFINITIONS.palisaded_refuge.acceptsLabor, false);
+assert.equal(BUILDING_DEFINITIONS.palisaded_refuge.workRadius, 68);
+assert.deepEqual(BUILDING_COSTS.palisaded_refuge, {
+  timber: 72,
+  stone: 30,
+});
+assert.equal(PALISADED_REFUGE_LOSS_MULTIPLIER, 0.6);
+assert.equal(palisadedRefugeLossFraction(0.5), 0.3);
+const refugePlacementContext = {
+  buildings: [] as BuildingState[],
+  residences: [],
+  burgageZones: [],
+  farmFields: [],
+  pastures: [],
+  quarries: [],
+  foragingNodes: [],
+  stockpile: { timber: 500, stone: 500 },
+  isWaterAt: () => false,
+  getNaturalHeightAt: () => 0,
+};
+const noGuardRefugePlacement = validateBuildingPlacement(
+  'palisaded_refuge',
+  0,
+  0,
+  refugePlacementContext,
+);
+assert.equal(noGuardRefugePlacement.ok, false);
+if (!noGuardRefugePlacement.ok) {
+  assert.equal(noGuardRefugePlacement.reason, 'requires_completed_guardhouse');
+}
+const unfinishedGuardRefugePlacement = validateBuildingPlacement(
+  'palisaded_refuge',
+  0,
+  0,
+  {
+    ...refugePlacementContext,
+    buildings: [{
+      ...building('unfinished-guard', 'guardhouse', 200, 0, 0),
+      constructionComplete: false,
+    }],
+  },
+);
+assert.equal(unfinishedGuardRefugePlacement.ok, false);
+if (!unfinishedGuardRefugePlacement.ok) {
+  assert.equal(
+    unfinishedGuardRefugePlacement.reason,
+    'requires_completed_guardhouse',
+  );
+}
+assert.deepEqual(
+  validateBuildingPlacement('palisaded_refuge', 0, 0, {
+    ...refugePlacementContext,
+    buildings: new Map([
+      [
+        'completed-guard',
+        building('completed-guard', 'guardhouse', 200, 0, 0),
+      ],
+    ]).values(),
+  }),
+  { ok: true },
+);
 assert.equal(GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS, 3);
 assert.equal(WATCH_COVERAGE_CELL_SIZE, 128);
 assert.equal(FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS, 300);
@@ -316,6 +384,97 @@ projectionState.fireIncidents.clear();
 assert.match(formatProjectedRaidTargets(projectedTargets), /Current likely targets/);
 assert.match(formatProjectedRaidTargets(projectedTargets), /exposed/);
 assert.match(formatProjectedRaidTargets(projectedTargets), /raid value/);
+const refugeProjectionState = emptyGameState();
+const refuge = building('refuge', 'palisaded_refuge', 100, 0, 0);
+refugeProjectionState.buildings.set(refuge.id, refuge);
+refugeProjectionState.buildings.set(
+  'inside-refuge-store',
+  {
+    ...building('inside-refuge-store', 'village_storehouse', 145, 0, 1),
+    timber: 40,
+  },
+);
+refugeProjectionState.buildings.set(
+  'outside-refuge-store',
+  {
+    ...building('outside-refuge-store', 'village_storehouse', 180, 0, 1),
+    timber: 60,
+  },
+);
+refugeProjectionState.residences.set(
+  'inside-refuge-home',
+  { ...residence('inside-refuge-home', 130, 0, 4), householdWealth: 20 },
+);
+refugeProjectionState.deliveryTrips.set(
+  'inside-refuge-cart',
+  deliveryTrip('inside-refuge-cart', 'food', 15, 125, 0),
+);
+assert.equal(palisadedRefugeEffectiveRadius(refuge), 68);
+assert.deepEqual(
+  countSitesProtectedByPalisadedRefuge(refuge, refugeProjectionState),
+  {
+    buildings: 1,
+    homes: 1,
+    carts: 1,
+    residents: 4,
+    portableValue: 75,
+    treasuryValue: 0,
+  },
+);
+refugeProjectionState.buildings.set(
+  'refuge-town-hall',
+  building('refuge-town-hall', 'town_hall', 115, 0, 0),
+);
+refugeProjectionState.stockpile.gold = 50;
+const refugeWithTreasury = countSitesProtectedByPalisadedRefuge(
+  refuge,
+  refugeProjectionState,
+);
+assert.equal(refugeWithTreasury.treasuryValue, 50);
+assert.equal(
+  refugeWithTreasury.portableValue,
+  125,
+  'the settlement treasury must be protected only when its physical Town Hall seat lies inside',
+);
+refugeProjectionState.buildings.set(
+  'refuge-town-hall',
+  building('refuge-town-hall', 'town_hall', 190, 0, 0),
+);
+assert.equal(
+  countSitesProtectedByPalisadedRefuge(refuge, refugeProjectionState)
+    .treasuryValue,
+  0,
+  'moving the physical treasury seat outside must remove its refuge protection',
+);
+refugeProjectionState.stockpile.gold = 0;
+refugeProjectionState.buildings.delete('refuge-town-hall');
+const refugeTargets = projectRaidTargets(refugeProjectionState, 4);
+assert.deepEqual(
+  refugeTargets.map((target) => [target.id, target.fortified]),
+  [
+    ['outside-refuge-store', false],
+    ['inside-refuge-store', true],
+    ['inside-refuge-home', true],
+    ['inside-refuge-cart', true],
+  ],
+  'only portable stores at real positions inside the completed refuge should be fortified',
+);
+assert.match(formatProjectedRaidTargets(refugeTargets), /palisaded/);
+refugeProjectionState.fireIncidents.set(
+  'refuge-fire',
+  fire('refuge-fire', refuge.id),
+);
+assert.equal(palisadedRefugeEffectiveRadius(refuge, true), 0);
+assert.ok(
+  projectRaidTargets(refugeProjectionState, 4).every(
+    (target) => !target.fortified,
+  ),
+  'a fire-disabled timber refuge must stop reducing local losses',
+);
+assert.equal(
+  frontierDefenseFireSignature(refugeProjectionState),
+  `palisaded_refuge:${refuge.id}`,
+);
 const cartRiskState = emptyGameState();
 cartRiskState.buildings.set(tower.id, tower);
 cartRiskState.deliveryTrips.set(
@@ -726,7 +885,7 @@ assert.match(
 );
 assert.equal(
   formatFrontierForecast(security),
-  '4.5 / 6.5 guards ready · 2 holdings at risk · about 8% portable stores per target',
+  '4.5 / 6.5 guards ready · 2 holdings at risk · up to 8% portable stores per target',
 );
 
 assert.ok(Math.abs(projectedRaidArsonChance(security, 65) - 0.0789692307) < 1e-8);
@@ -784,11 +943,22 @@ guardhouseMesh.traverse((object) => {
 assert.ok(guardhouseMeshCount >= 35, 'guardhouse should show lodging, drill shelter, polearm rack, stores, and a modest palisade');
 assert.ok(guardhouseMaxY >= 5, 'guardhouse needs a readable steep-roof silhouette');
 
+const refugeMesh = createBuildingMesh('palisaded_refuge');
+assert.ok(
+  refugeMesh.getObjectByName('Refuge palisade stakes') instanceof THREE.InstancedMesh,
+  'the many refuge stakes should render in one bounded instanced draw',
+);
+assert.ok(
+  refugeMesh.getObjectByName('Refuge shelter roof'),
+  'the enclosure needs a visible civilian shelter, not only a decorative fence',
+);
+
 const setupPanel = readFileSync('src/ui/WorldSetupPanel.ts', 'utf8');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 const settlementHud = readFileSync('src/ui/SettlementHud.ts', 'utf8');
 const watchtowerInspector = readFileSync('src/resources/inspector/watchtowerRenderer.ts', 'utf8');
 const guardhouseInspector = readFileSync('src/resources/inspector/guardhouseRenderer.ts', 'utf8');
+const refugeInspector = readFileSync('src/resources/inspector/palisadedRefugeRenderer.ts', 'utf8');
 const townHallInspector = readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
 const frontierMarkers = readFileSync('src/security/FrontierRiskMarkers.ts', 'utf8');
 const buildingMarkers = readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
@@ -800,6 +970,7 @@ const frontierEconomy = readFileSync('server/src/frontier_economy_policy.rs', 'u
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const serverPolicy = readFileSync('server/src/security_policy.rs', 'utf8');
 const serverFires = readFileSync('server/src/simulation/fires.rs', 'utf8');
+const serverBuildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 assert.match(setupPanel, /Peaceful settlement/);
 assert.match(setupPanel, /Contested frontier/);
 assert.match(setupPanel, /enemy pressure/i);
@@ -840,6 +1011,8 @@ assert.match(guardhouseInspector, /Road conditions/);
 assert.match(guardhouseInspector, /Soft-road delay/);
 assert.match(guardhouseInspector, /Effective company/);
 assert.match(guardhouseInspector, /Inspect linked watchtower/);
+assert.match(refugeInspector, /Portable raid value/);
+assert.match(refugeInspector, /Reduces carried-off stores by 40%/);
 assert.match(frontierMarkers, /InstancedMesh/);
 assert.match(frontierMarkers, /RAID_TARGET_MARKER_THREAT_THRESHOLD/);
 assert.match(frontierMarkers, /MAX_RAID_TARGET_MARKERS\s*=\s*4/);
@@ -865,6 +1038,12 @@ assert.match(
 );
 assert.match(serverSimulation, /SECURITY_UPDATE_INTERVAL_TICKS/);
 assert.match(serverSimulation, /WatchCoverageIndex::new/);
+assert.match(serverSimulation, /active_palisaded_refuge_coverage/);
+assert.match(serverSimulation, /raid_target_loss_fraction\(forecast\.loss_fraction, target\.fortified\)/);
+assert.match(
+  serverBuildingReducers,
+  /kind == "palisaded_refuge"[\s\S]*building\.kind == "guardhouse" && building\.construction_complete/,
+);
 assert.match(serverSimulation, /fn settlement_exposure/);
 assert.doesNotMatch(serverSimulation, /fn position_is_watched/);
 assert.doesNotMatch(serverSimulation, /fn raid_target_candidates/);
@@ -1042,6 +1221,10 @@ assert.ok(
   'guardhouse needs a finished construction-menu card',
 );
 assert.ok(
+  statSync('public/assets/ui/build-menu/cards/palisaded-refuge.webp').size > 20_000,
+  'the palisaded refuge needs a finished construction-menu card',
+);
+assert.ok(
   statSync('public/assets/models/worker-tools/quaternius-spear.glb').size > 100_000,
   'guard drills need the audited CC0 spear model',
 );
@@ -1073,10 +1256,22 @@ for (let index = 0; index < 1_000; index += 1) {
     ),
   };
   projectionPerfState.buildings.set(watch.id, watch);
+  const perfRefuge = building(
+    `perf-refuge-${index}`,
+    'palisaded_refuge',
+    (index % 40) * 320 + 90,
+    Math.floor(index / 40) * 320,
+    0,
+  );
+  projectionPerfState.buildings.set(perfRefuge.id, perfRefuge);
   if (index % 2 === 0) {
     projectionPerfState.fireIncidents.set(
       `perf-watch-fire-${index}`,
       fire(`perf-watch-fire-${index}`, watch.id),
+    );
+    projectionPerfState.fireIncidents.set(
+      `perf-refuge-fire-${index}`,
+      fire(`perf-refuge-fire-${index}`, perfRefuge.id),
     );
   }
 }
@@ -1101,7 +1296,7 @@ const projectionElapsedMs = performance.now() - projectionStarted;
 assert.equal(perfTargets.length, 3);
 assert.ok(
   projectionElapsedMs < 250,
-  `1,000-tower (500 fire-disabled), 100,000-site bounded target projection took ${projectionElapsedMs.toFixed(1)} ms`,
+  `1,000 towers plus 1,000 refuges (half fire-disabled), 100,000-site bounded target projection took ${projectionElapsedMs.toFixed(1)} ms`,
 );
 
 const cartProjectionPerfState = emptyGameState();
@@ -1149,7 +1344,7 @@ assert.ok(
 );
 
 console.log(
-  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-tower/500-outage/100,000-site target projection; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
 );
 
 function building(
@@ -1164,7 +1359,11 @@ function building(
     kind,
     x,
     z,
-    workRadius: kind === 'watchtower' ? 190 : 0,
+    workRadius: kind === 'watchtower'
+      ? 190
+      : kind === 'palisaded_refuge'
+        ? 68
+        : 0,
     actionCooldown: 0,
     timber: 0,
     firewood: 0,

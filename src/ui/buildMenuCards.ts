@@ -12,6 +12,7 @@ export type PlacementBuildMenuAction =
   | 'town-hall' | 'village-storehouse'
   | 'watchtower'
   | 'guardhouse'
+  | 'palisaded-refuge'
   | 'residences';
 
 export type BuildMenuAction = PlacementBuildMenuAction;
@@ -30,6 +31,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   town_hall: '/assets/ui/build-menu/cards/town-hall.webp', village_storehouse: '/assets/ui/build-menu/cards/village-storehouse.webp',
   watchtower: '/assets/ui/build-menu/cards/watchtower.webp',
   guardhouse: '/assets/ui/build-menu/cards/guardhouse.webp',
+  palisaded_refuge: '/assets/ui/build-menu/cards/palisaded-refuge.webp',
   threshing_barn: '/assets/ui/build-menu/cards/threshing-barn.webp',
   monastery: '/assets/ui/build-menu/cards/monastery.webp', brewery: '/assets/ui/build-menu/cards/brewery.webp',
   smokehouse: '/assets/ui/build-menu/cards/smokehouse.webp', granary: '/assets/ui/build-menu/cards/granary.webp',
@@ -51,6 +53,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   village_storehouse: ['Village storehouse', 'S', 'Hauls surplus timber, stone, and firewood from producers into shared construction stock. Never stores food.'],
   watchtower: ['Frontier watchtower', 'W', 'Staffed hill tower warns nearby homes and stores, reducing losses when raiders cross the frontier.'],
   guardhouse: ['Frontier guardhouse', 'G', 'Paid guards consume labor, provisions, wages, and carpenter-made polearms. Polearms need market-imported ironwork. Requires a completed watchtower.'],
+  palisaded_refuge: ['Palisaded refuge', 'R', 'A compact timber-and-earth enclosure reduces portable losses at nearby stores, homes, and carts. Fire suspends protection. Requires a completed guardhouse.'],
   ferry_landing: ['Ferry landing', 'J', 'A staffed river crossing and modest source of trade income. Must touch open water.'],
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
@@ -103,7 +106,7 @@ export const RURAL_INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 /** Conflict-enabled early warning and settlement defenses. */
 export const MILITARY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('watchtower'), entry('guardhouse'),
+  entry('watchtower'), entry('guardhouse'), entry('palisaded_refuge'),
 ];
 
 export const BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [

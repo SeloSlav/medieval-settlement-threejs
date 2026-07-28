@@ -26,6 +26,7 @@ export const TOAST_MESSAGES = {
   'building.placement.no_trees_in_range': 'No mature trees within work range',
   'building.placement.on_road': 'Cannot build on a road',
   'building.placement.insufficient_resources': 'Not enough timber or stone',
+  'building.placement.requires_completed_guardhouse': 'Complete a frontier guardhouse before enclosing a palisaded refuge',
   'building.placement.requires_staffed_chapel': 'A staffed church is required before founding a monastery',
   'building.placement.requires_parish_population': 'The parish needs at least 12 residents before founding a monastery',
   'burgage.placement.water': 'Cannot place residences on water',
@@ -138,6 +139,8 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.on_road';
     case 'insufficient_resources':
       return 'building.placement.insufficient_resources';
+    case 'requires_completed_guardhouse':
+      return 'building.placement.requires_completed_guardhouse';
     case 'requires_staffed_chapel':
       return 'building.placement.requires_staffed_chapel';
     case 'requires_parish_population':

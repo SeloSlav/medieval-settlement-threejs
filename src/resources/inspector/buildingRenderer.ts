@@ -16,6 +16,7 @@ import { renderStorehouseInspector } from './storehouseRenderer.ts';
 import { renderConstructionInspector } from './constructionRenderer.ts';
 import { renderWatchtowerInspector } from './watchtowerRenderer.ts';
 import { renderGuardhouseInspector } from './guardhouseRenderer.ts';
+import { renderPalisadedRefugeInspector } from './palisadedRefugeRenderer.ts';
 import { withStaffingPriority } from './staffingPriorityRenderer.ts';
 import { renderFoundersCampInspector } from './foundersCampRenderer.ts';
 import { renderSalvagePileInspector } from './salvagePileRenderer.ts';
@@ -45,6 +46,8 @@ export function renderBuildingInspector(
       return withStaffingPriority(renderWatchtowerInspector(target, context), building);
     case 'guardhouse':
       return withStaffingPriority(renderGuardhouseInspector(target, context), building);
+    case 'palisaded_refuge':
+      return renderPalisadedRefugeInspector(target, context);
     case 'lumber_mill':
       return withStaffingPriority(renderLumberMillInspector(target, context), building);
     case 'woodcutters_lodge':

@@ -435,3 +435,172 @@ export function createGuardhouseMesh(): THREE.Group {
   addMesh(group, new THREE.BoxGeometry(0.18, 0.08, 6.45), earth, new THREE.Vector3(6.62, 0.05, 0));
   return group;
 }
+
+export function createPalisadedRefugeMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'Palisaded refuge';
+
+  // A low packed-earth and local-stone footing keeps the enclosure plausible
+  // on wet mountain ground without turning it into a masonry fort.
+  const earthBerm = new THREE.Mesh(
+    new THREE.TorusGeometry(7.45, 0.46, 6, 48),
+    earth,
+  );
+  earthBerm.name = 'Refuge earth berm';
+  earthBerm.rotation.x = Math.PI * 0.5;
+  earthBerm.scale.y = 0.76;
+  earthBerm.position.y = 0.18;
+  earthBerm.receiveShadow = true;
+  group.add(earthBerm);
+
+  const stoneDrain = new THREE.Mesh(
+    new THREE.TorusGeometry(7.1, 0.23, 5, 40),
+    stoneMaterial('mid'),
+  );
+  stoneDrain.name = 'Refuge stone drainage ring';
+  stoneDrain.rotation.x = Math.PI * 0.5;
+  stoneDrain.scale.y = 0.76;
+  stoneDrain.position.y = 0.27;
+  stoneDrain.receiveShadow = true;
+  group.add(stoneDrain);
+
+  const stakePositions: Array<{ x: number; z: number; height: number }> = [];
+  const stakeCount = 52;
+  for (let index = 0; index < stakeCount; index += 1) {
+    const angle = index / stakeCount * Math.PI * 2;
+    const x = Math.sin(angle) * 7.45;
+    const z = Math.cos(angle) * 5.65;
+    // Leave a useful two-leaf opening on the road-facing side.
+    if (z > 4.8 && Math.abs(x) < 1.65) continue;
+    stakePositions.push({
+      x,
+      z,
+      height: 2.45 + ((index * 17) % 5) * 0.08,
+    });
+  }
+
+  // Two instanced draws keep the many irregular stakes cheap at settlement scale.
+  const stakeGeometry = new THREE.CylinderGeometry(0.16, 0.21, 1, 6);
+  const stakeMaterial = timberMaterial('weathered');
+  const stakes = new THREE.InstancedMesh(
+    stakeGeometry,
+    stakeMaterial,
+    stakePositions.length,
+  );
+  stakes.name = 'Refuge palisade stakes';
+  const tipGeometry = new THREE.ConeGeometry(0.205, 0.48, 6);
+  const tips = new THREE.InstancedMesh(
+    tipGeometry,
+    timberMaterial('dark'),
+    stakePositions.length,
+  );
+  tips.name = 'Refuge palisade stake tips';
+  const transform = new THREE.Object3D();
+  for (let index = 0; index < stakePositions.length; index += 1) {
+    const stake = stakePositions[index];
+    transform.position.set(stake.x, 0.42 + stake.height * 0.5, stake.z);
+    transform.rotation.set(0, index * 0.37, 0);
+    transform.scale.set(1, stake.height, 1);
+    transform.updateMatrix();
+    stakes.setMatrixAt(index, transform.matrix);
+
+    transform.position.y = 0.42 + stake.height + 0.24;
+    transform.scale.set(1, 1, 1);
+    transform.updateMatrix();
+    tips.setMatrixAt(index, transform.matrix);
+  }
+  stakes.instanceMatrix.needsUpdate = true;
+  tips.instanceMatrix.needsUpdate = true;
+  stakes.castShadow = true;
+  stakes.receiveShadow = true;
+  tips.castShadow = true;
+  group.add(stakes, tips);
+
+  // Rough horizontal bindings make the wall read as a built enclosure rather
+  // than a decorative ring of isolated posts.
+  const railMaterial = timberMaterial('dark');
+  for (let segment = 0; segment < 12; segment += 1) {
+    const angle = (segment + 0.5) / 12 * Math.PI * 2;
+    if (Math.cos(angle) > 0.82) continue;
+    const x = Math.sin(angle) * 7.05;
+    const z = Math.cos(angle) * 5.35;
+    const tangent = Math.atan2(
+      Math.sin(angle) * 5.65,
+      Math.cos(angle) * 7.45,
+    );
+    for (const y of [1.08, 2.08]) {
+      addMesh(
+        group,
+        new THREE.BoxGeometry(3.55, 0.15, 0.16),
+        railMaterial,
+        new THREE.Vector3(x, y, z),
+        new THREE.Euler(0, tangent, 0),
+      );
+    }
+  }
+
+  // Heavier gate posts and two open leaves keep the refuge visually permeable:
+  // goods and households can actually shelter inside it during an incursion.
+  for (const x of [-1.72, 1.72]) {
+    addMesh(
+      group,
+      new THREE.CylinderGeometry(0.25, 0.3, 3.25, 7),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 1.88, 5.25),
+    );
+  }
+  addMesh(
+    group,
+    new THREE.BoxGeometry(4.0, 0.3, 0.34),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 3.42, 5.25),
+  );
+  for (const [x, yaw] of [[-2.38, -0.72], [2.38, 0.72]] as const) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(1.48, 2.35, 0.18),
+      timberMaterial('weathered'),
+      new THREE.Vector3(x, 1.42, 5.88),
+      new THREE.Euler(0, yaw, 0),
+    );
+  }
+
+  // A small covered store and sleeping bench explain the refuge's civilian
+  // role without adding an abstract garrison or a second labor system.
+  for (const x of [-3.55, 0.15]) {
+    for (const z of [-2.85, 0.35]) {
+      addMesh(
+        group,
+        new THREE.BoxGeometry(0.2, 2.45, 0.2),
+        timberMaterial('dark'),
+        new THREE.Vector3(x, 1.42, z),
+      );
+    }
+  }
+  addLeanToRoof(group, {
+    width: 4.55,
+    depth: 4.0,
+    thickness: 0.18,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(-1.7, 2.82, -1.25),
+    pitch: 0.18,
+    highEdge: 'negativeX',
+    name: 'Refuge shelter roof',
+  });
+  addMesh(
+    group,
+    new THREE.BoxGeometry(3.3, 0.2, 0.7),
+    timberMaterial('mid'),
+    new THREE.Vector3(-1.65, 0.55, -2.25),
+  );
+  addCrate(group, -2.8, 0.04, -0.15, 0.82);
+  addCrate(group, -1.65, 0.04, 0.12, 0.68);
+  addMesh(
+    group,
+    new THREE.BoxGeometry(3.5, 0.08, 2.55),
+    earth,
+    new THREE.Vector3(-1.7, 0.06, -1.25),
+  );
+
+  return group;
+}

@@ -317,7 +317,10 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     // placement checks. Reuse one snapshot for overlap, landmark, and carpenter checks.
     let road_network = load_owner_road_network(ctx, owner);
 
-    if matches!(kind.as_str(), "watchtower" | "guardhouse") {
+    if matches!(
+        kind.as_str(),
+        "watchtower" | "guardhouse" | "palisaded_refuge"
+    ) {
         let conflict_enabled = ctx
             .db
             .world_config()
@@ -341,6 +344,19 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     {
         return Err(
             "Complete a frontier watchtower before establishing a paid guardhouse.".to_string(),
+        );
+    }
+
+    if kind == "palisaded_refuge"
+        && !ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .any(|building| building.kind == "guardhouse" && building.construction_complete)
+    {
+        return Err(
+            "Complete a frontier guardhouse before enclosing a palisaded refuge.".to_string(),
         );
     }
 

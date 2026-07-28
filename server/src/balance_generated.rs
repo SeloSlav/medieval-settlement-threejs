@@ -117,6 +117,7 @@ pub const GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE: f64 = 240.0;
 pub const GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE: f64 = 720.0;
 pub const GUARDHOUSE_LONG_MUSTER_EFFICIENCY: f64 = 0.65;
 pub const GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY: f64 = 0.4;
+pub const PALISADED_REFUGE_LOSS_MULTIPLIER: f64 = 0.6;
 
 pub const STARTING_POPULATION: u32 = 5;
 pub const POPULATION_PER_RESIDENCE: u32 = 3;
@@ -1246,6 +1247,44 @@ const GUARDHOUSE: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Guardhouse),
 };
 
+const PALISADED_REFUGE: BuildingDef = BuildingDef {
+    kind: "palisaded_refuge",
+    cost_timber: 72.0,
+    cost_stone: 30.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 0.0,
+    storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
+    storage_flax: 0.0,
+    storage_flour: 0.0,
+    storage_ale: 0.0,
+    storage_preserved_food: 0.0,
+    storage_honey: 0.0,
+    storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
+    storage_polearms: 0.0,
+    accepts_labor: false,
+    max_labor: 0,
+    work_radius: 68.0,
+    action_interval: 0.0,
+    pick_radius: 11.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: None,
+};
+
 const THRESHING_BARN: BuildingDef = BuildingDef {
     kind: "threshing_barn",
     cost_timber: 44.0,
@@ -1740,7 +1779,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
+const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)

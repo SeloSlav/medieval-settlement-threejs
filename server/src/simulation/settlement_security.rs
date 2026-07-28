@@ -10,7 +10,8 @@ use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
     guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_forecast,
-    raid_holding_vulnerability, raidable_treasury_timber, scheduled_raid_ticks,
+    raid_holding_vulnerability, raid_target_loss_fraction, raidable_treasury_timber,
+    scheduled_raid_ticks,
     select_raid_targets, threat_progress, tower_effective_radius, RaidForecast, RaidPortableStores,
     RaidTargetCandidate, RaidTargetKind, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
     SECURITY_UPDATE_INTERVAL_TICKS,
@@ -160,12 +161,15 @@ fn step_owner_security(
         .unwrap_or_default();
     let towers = staffed_watch_coverage(&buildings, &fire_disabled_buildings);
     let watch_index = WatchCoverageIndex::new(&towers);
+    let refuges = active_palisaded_refuge_coverage(&buildings, &fire_disabled_buildings);
+    let refuge_index = WatchCoverageIndex::new(&refuges);
     let exposure = settlement_exposure(
         &buildings,
         &residences,
         &delivery_trips,
         treasury_stores,
         &watch_index,
+        &refuge_index,
     );
     let coverage = if exposure.total_value > 1e-9 {
         (exposure.protected_value / exposure.total_value).clamp(0.0, 1.0)
@@ -275,12 +279,33 @@ fn staffed_watch_coverage(
         .collect()
 }
 
+fn active_palisaded_refuge_coverage(
+    buildings: &[Building],
+    fire_disabled_buildings: &HashSet<u64>,
+) -> Vec<WatchArea> {
+    buildings
+        .iter()
+        .filter(|building| {
+            building.construction_complete
+                && building.kind == "palisaded_refuge"
+                && building.work_radius > 0.0
+                && !fire_disabled_buildings.contains(&building.id)
+        })
+        .map(|refuge| WatchArea {
+            x: refuge.x,
+            z: refuge.z,
+            radius: refuge.work_radius,
+        })
+        .collect()
+}
+
 fn settlement_exposure(
     buildings: &[Building],
     residences: &[Residence],
     delivery_trips: &[DeliveryTrip],
     treasury_stores: RaidPortableStores,
     watch_index: &WatchCoverageIndex,
+    refuge_index: &WatchCoverageIndex,
 ) -> SettlementExposure {
     let mut protected_value = 0.0;
     let mut total_value = 0.0;
@@ -306,6 +331,7 @@ fn settlement_exposure(
                 kind: RaidTargetKind::Building,
                 id: building.id,
                 protected,
+                fortified: refuge_index.contains(building.x, building.z),
                 value: portable_value,
             });
         }
@@ -322,6 +348,7 @@ fn settlement_exposure(
                 kind: RaidTargetKind::Residence,
                 id: residence.id,
                 protected,
+                fortified: refuge_index.contains(residence.x, residence.z),
                 value: residence.household_wealth,
             });
         }
@@ -344,6 +371,7 @@ fn settlement_exposure(
             kind: RaidTargetKind::DeliveryTrip,
             id: trip.id,
             protected,
+            fortified: refuge_index.contains(trip.x, trip.z),
             value: portable_value,
         });
     }
@@ -360,6 +388,7 @@ fn settlement_exposure(
                 kind,
                 id,
                 protected,
+                fortified: refuge_index.contains(x, z),
                 value: treasury_value,
             });
         }
@@ -491,6 +520,7 @@ fn treasury_anchor(
             building.construction_complete
                 && building.kind != "watchtower"
                 && building.kind != "guardhouse"
+                && building.kind != "palisaded_refuge"
         })
         .min_by_key(|building| building.id);
     if let Some(building) = town_hall.or(completed_holding) {
@@ -511,7 +541,11 @@ fn treasury_anchor(
     }
     buildings
         .iter()
-        .filter(|building| building.kind != "watchtower" && building.kind != "guardhouse")
+        .filter(|building| {
+            building.kind != "watchtower"
+                && building.kind != "guardhouse"
+                && building.kind != "palisaded_refuge"
+        })
         .min_by_key(|building| building.id)
         .map(|building| {
             (
@@ -643,12 +677,14 @@ fn resolve_raid(
     let selected = select_raid_targets(candidates, forecast.target_count);
 
     for target in &selected {
+        let target_loss_fraction =
+            raid_target_loss_fraction(forecast.loss_fraction, target.fortified);
         match target.kind {
             RaidTargetKind::Building => {
                 let Some(mut updated) = ctx.db.building().id().find(&target.id) else {
                     continue;
                 };
-                let plunder = building_portable_stores(&updated).plunder(forecast.loss_fraction);
+                let plunder = building_portable_stores(&updated).plunder(target_loss_fraction);
                 retain_unplundered_stores(&mut updated, plunder.remaining);
                 goods_lost += plunder.goods_lost;
                 wealth_lost += plunder.wealth_lost;
@@ -658,7 +694,7 @@ fn resolve_raid(
                 let Some(residence) = ctx.db.residence().id().find(&target.id) else {
                     continue;
                 };
-                let lost = residence.household_wealth * forecast.loss_fraction;
+                let lost = residence.household_wealth * target_loss_fraction;
                 if lost <= 1e-9 {
                     continue;
                 }
@@ -672,7 +708,7 @@ fn resolve_raid(
                 let Some(mut trip) = ctx.db.delivery_trip().id().find(&target.id) else {
                     continue;
                 };
-                let plunder = delivery_trip_portable_stores(&trip).plunder(forecast.loss_fraction);
+                let plunder = delivery_trip_portable_stores(&trip).plunder(target_loss_fraction);
                 trip.amount = delivery_trip_remaining_amount(trip.cargo_kind, plunder.remaining);
                 goods_lost += plunder.goods_lost;
                 wealth_lost += plunder.wealth_lost;
@@ -682,7 +718,7 @@ fn resolve_raid(
                 let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
                     continue;
                 };
-                let plunder = treasury_stores.plunder(forecast.loss_fraction);
+                let plunder = treasury_stores.plunder(target_loss_fraction);
                 retain_unplundered_treasury_stores(
                     &mut treasury,
                     treasury_stores,

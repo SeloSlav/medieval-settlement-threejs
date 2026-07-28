@@ -67,6 +67,7 @@ const OCCUPATIONS: Record<BuildingKind, string> = {
   village_storehouse: 'Storehouse hauler',
   watchtower: 'Watchman',
   guardhouse: 'Frontier guard',
+  palisaded_refuge: 'Refuge keeper',
   threshing_barn: 'Farmhand',
   pastoral_farmstead: 'Herder',
   swineherd: 'Swineherd',

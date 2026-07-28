@@ -48,6 +48,7 @@ const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   village_storehouse: { radiusX: 6.3, radiusZ: 5.2, innerFade: 0.88, outerFade: 1.3 },
   watchtower: { radiusX: 3.0, radiusZ: 3.0, innerFade: 0.9, outerFade: 1.3 },
   guardhouse: { radiusX: 6.8, radiusZ: 4.8, innerFade: 0.88, outerFade: 1.3 },
+  palisaded_refuge: { radiusX: 9.2, radiusZ: 7.2, innerFade: 0.88, outerFade: 1.28 },
   threshing_barn: { radiusX: 6.5, radiusZ: 5.0, innerFade: 0.88, outerFade: 1.3 },
   monastery: { radiusX: 9.5, radiusZ: 6.8, innerFade: 0.86, outerFade: 1.35 },
   brewery: { radiusX: 5.6, radiusZ: 4.7, innerFade: 0.88, outerFade: 1.3 },

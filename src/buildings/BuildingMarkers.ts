@@ -14,6 +14,7 @@ import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import {
   getGuardhouseMusterState,
   guardhouseMusterResponseBand,
+  palisadedRefugeEffectiveRadius,
   watchtowerEffectiveRadius,
 } from '../security/frontierSecurity.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
@@ -128,6 +129,8 @@ export class BuildingMarkers {
       : null;
     const radius = building?.kind === 'watchtower'
       ? watchtowerEffectiveRadius(building, fireDisabled.has(building.id))
+      : building?.kind === 'palisaded_refuge'
+        ? palisadedRefugeEffectiveRadius(building, fireDisabled.has(building.id))
       : extent?.radius ?? 0;
     if (!building || !extent || radius <= 0) {
       if (this.extentOverlayMesh) this.extentOverlayMesh.visible = false;
@@ -785,6 +788,7 @@ const BUILDING_EXTENT_COLORS: Partial<Record<BuildingKind, number>> = {
   threshing_barn: 0xb8894c,
   monastery: 0xe4dfd2,
   watchtower: 0xe0ad4f,
+  palisaded_refuge: 0xb87945,
 };
 
 function buildingExtentColor(kind: BuildingKind): number {

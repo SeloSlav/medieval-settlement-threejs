@@ -50,6 +50,14 @@ export function getBuildingExtent(kind: BuildingKind, workRadius: number): Build
     };
   }
 
+  if (kind === 'palisaded_refuge' && workRadius > 0) {
+    return {
+      type: 'coverage',
+      label: 'Refuge protection',
+      radius: workRadius,
+    };
+  }
+
   if (!WORK_EXTENT_KINDS.has(kind) || workRadius <= 0) return null;
 
   return {
