@@ -25,6 +25,7 @@ pub const COMBAT_TARGET_TREASURY_RESIDENCE: u8 = 4;
 pub const GUARD_SPEED_MPS: f64 = 1.42;
 pub const WOUNDED_GUARD_SPEED_MPS: f64 = 0.68;
 pub const RAIDER_SPEED_MPS: f64 = 1.34;
+pub const RAIDER_OFFROAD_ROUTE_MULTIPLIER: f64 = 1.55;
 pub const MELEE_RANGE_METERS: f64 = 2.15;
 pub const GUARD_INTERCEPT_RANGE_METERS: f64 = 22.0;
 pub const RAIDER_ENGAGE_RANGE_METERS: f64 = 14.0;
@@ -34,6 +35,7 @@ pub const DOWNED_LINGER_TICKS: u64 = 40;
 pub const MAP_EDGE_INSET_METERS: f64 = 9.0;
 pub const MIN_GUARD_RECOVERY_DAYS: f64 = 3.0;
 pub const MAX_GUARD_RECOVERY_DAYS: f64 = 5.0;
+pub const ROUTE_SHORTCUT_MARGIN_METERS: f64 = 8.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RouteMove {
@@ -194,11 +196,30 @@ pub fn guard_breaks_route_for(
 ) -> bool {
     distance_squared(guard_x, guard_z, enemy_x, enemy_z)
         <= GUARD_INTERCEPT_RANGE_METERS * GUARD_INTERCEPT_RANGE_METERS
-        || (same_target
-            && matches!(
-                enemy_state,
-                COMBAT_STATE_FIGHTING | COMBAT_STATE_LOOTING
-            ))
+        || (same_target && matches!(enemy_state, COMBAT_STATE_FIGHTING | COMBAT_STATE_LOOTING))
+}
+
+/// Roads are a preference, never a compulsory maze. A combatant cuts across
+/// country only when the remaining road route is materially worse after the
+/// configured off-road effort penalty.
+pub fn route_shortcut_is_worthwhile(
+    direct_distance: f64,
+    remaining_route_distance: f64,
+    offroad_distance_multiplier: f64,
+) -> bool {
+    if !direct_distance.is_finite()
+        || !remaining_route_distance.is_finite()
+        || direct_distance < 0.0
+        || remaining_route_distance < 0.0
+    {
+        return false;
+    }
+    let multiplier = if offroad_distance_multiplier.is_finite() {
+        offroad_distance_multiplier.max(1.0)
+    } else {
+        1.0
+    };
+    direct_distance * multiplier + ROUTE_SHORTCUT_MARGIN_METERS < remaining_route_distance
 }
 
 pub fn guard_damage(readiness: f64) -> f64 {
@@ -259,12 +280,7 @@ fn sample_polyline(polyline: &[[f64; 2]], meters: f64) -> (f64, f64) {
     }
     let mut remaining = meters;
     for window in polyline.windows(2) {
-        let segment_length = distance(
-            window[0][0],
-            window[0][1],
-            window[1][0],
-            window[1][1],
-        );
+        let segment_length = distance(window[0][0], window[0][1], window[1][0], window[1][1]);
         if remaining <= segment_length + 1e-9 {
             let t = if segment_length <= 1e-9 {
                 0.0
@@ -350,15 +366,7 @@ mod tests {
         assert_eq!(first.progress, 6.0);
         assert!(!first.reached_end);
 
-        let bend = move_along_route(
-            first.x,
-            first.z,
-            first.progress,
-            20.0,
-            &route,
-            6.0,
-            true,
-        );
+        let bend = move_along_route(first.x, first.z, first.progress, 20.0, &route, 6.0, true);
         assert_eq!((bend.x, bend.z), (10.0, 2.0));
         assert!(distance_squared(first.x, first.z, bend.x, bend.z) <= 36.0 + 1e-9);
 
@@ -379,6 +387,25 @@ mod tests {
         assert_eq!((home.x, home.z), (0.0, 0.0));
         assert_eq!(home.progress, 0.0);
         assert!(home.reached_end);
+    }
+
+    #[test]
+    fn combat_routes_are_preferences_not_rails() {
+        assert!(!route_shortcut_is_worthwhile(
+            100.0,
+            160.0,
+            RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+        ));
+        assert!(route_shortcut_is_worthwhile(
+            100.0,
+            180.0,
+            RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+        ));
+        assert!(!route_shortcut_is_worthwhile(
+            f64::NAN,
+            180.0,
+            RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+        ));
     }
 
     #[test]
@@ -494,14 +521,7 @@ mod tests {
     fn polyline_length_for_test(polyline: &[[f64; 2]]) -> f64 {
         polyline
             .windows(2)
-            .map(|window| {
-                distance(
-                    window[0][0],
-                    window[0][1],
-                    window[1][0],
-                    window[1][1],
-                )
-            })
+            .map(|window| distance(window[0][0], window[0][1], window[1][0], window[1][1]))
             .sum()
     }
 }

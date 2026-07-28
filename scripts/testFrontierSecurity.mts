@@ -1451,6 +1451,7 @@ const clientSecurity = readFileSync('src/security/frontierSecurity.ts', 'utf8');
 const serverSimulation = readFileSync('server/src/simulation/settlement_security.rs', 'utf8');
 const serverRaidAgents = readFileSync('server/src/simulation/raid_agents.rs', 'utf8');
 const serverRaidAgentPolicy = readFileSync('server/src/raid_agent_policy.rs', 'utf8');
+const serverRoadNetwork = readFileSync('server/src/roads/network.rs', 'utf8');
 const frontierEconomy = readFileSync('server/src/frontier_economy_policy.rs', 'utf8');
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const serverPolicy = readFileSync('server/src/security_policy.rs', 'utf8');
@@ -1459,6 +1460,10 @@ const serverBuildingReducers = readFileSync('server/src/reducers/buildings.rs', 
 const serverPopulation = readFileSync('server/src/economy/population.rs', 'utf8');
 const serverTables = readFileSync('server/src/tables.rs', 'utf8');
 const generatedCombatAgent = readFileSync('src/generated/combat_agent_table.ts', 'utf8');
+const generatedRaidIncursionRoute = readFileSync(
+  'src/generated/raid_incursion_route_table.ts',
+  'utf8',
+);
 const clientCombatAgents = readFileSync('src/security/combatAgents.ts', 'utf8');
 const inspectorActions = readFileSync('src/app/inspectorSpacetimeActions.ts', 'utf8');
 const spacetimeReducers = readFileSync('src/data/spacetimeReducers.ts', 'utf8');
@@ -1502,6 +1507,7 @@ assert.match(guardhouseInspector, /context\.enemyPressure/);
 assert.match(guardhouseInspector, /Watch muster/);
 assert.match(guardhouseInspector, /Alert posture/);
 assert.match(guardhouseInspector, /breaking cross-country for nearby or active attacks/);
+assert.match(guardhouseInspector, /Raiders physically enter from the frontier/);
 assert.match(guardhouseInspector, /Muster underway/);
 assert.match(guardhouseInspector, /Road conditions/);
 assert.match(guardhouseInspector, /Soft-road delay/);
@@ -1700,6 +1706,31 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
+  /road_path_route_from_external_access/,
+  'raiders should resolve their approach through the target road component',
+);
+assert.match(
+  serverRaidAgents,
+  /raid_incursion_route\(\)\.insert/,
+  'each raider must retain an authoritative road approach and escape path',
+);
+assert.match(
+  serverRoadNetwork,
+  /road_path_route_from_external_access[\s\S]*shortest_node_distances_from[\s\S]*offroad_multiplier[\s\S]*append_polyline/,
+  'the external approach must join only the road component that actually serves its target',
+);
+assert.match(
+  serverRaidAgentPolicy,
+  /route_shortcut_is_worthwhile[\s\S]*ROUTE_SHORTCUT_MARGIN_METERS[\s\S]*remaining_route_distance/,
+  'combat routes must remain a preference when cross-country movement is materially better',
+);
+assert.match(
+  serverRaidAgents,
+  /COMBAT_STATE_RETREATING[\s\S]*move_along_route\([\s\S]*false[\s\S]*COMBAT_STATE_ADVANCING[\s\S]*move_along_route\([\s\S]*true/,
+  'raiders must advance and carry loot back out along the cached physical route',
+);
+assert.match(
+  serverRaidAgents,
   /guard_breaks_route_for[\s\S]*engage_agent\([\s\S]*move_along_route/,
   'nearby enemies and attacks already in contact must override the preferred road march',
 );
@@ -1756,6 +1787,8 @@ assert.match(generatedCombatAgent, /x: __t\.f64\(\)/);
 assert.match(generatedCombatAgent, /health: __t\.f64\(\)/);
 assert.match(generatedCombatAgent, /carriedLootJson: __t\.string\(\)/);
 assert.match(generatedCombatAgent, /routeProgress: __t\.f64\(\)/);
+assert.match(generatedRaidIncursionRoute, /combatAgentId: __t\.u64\(\)\.primaryKey\(\)/);
+assert.match(generatedRaidIncursionRoute, /routePolylineJson: __t\.string\(\)/);
 assert.match(app, /villagers\?\.setCombatAgents\(snapshot\.combatAgents\)/);
 assert.match(
   app,

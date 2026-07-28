@@ -335,6 +335,60 @@ impl RoadNetwork {
         })
     }
 
+    /// Route an off-network approach into the road component that serves the
+    /// destination, then continue on the canonical road path.
+    ///
+    /// Incursions begin at the map edge, beyond ordinary building snap range.
+    /// A weighted access leg prefers joining the target's connected road
+    /// branch early without pretending that off-road movement is impossible.
+    /// Only one Dijkstra tree and one final route solve are required.
+    pub fn road_path_route_from_external_access(
+        &self,
+        ax: f64,
+        az: f64,
+        bx: f64,
+        bz: f64,
+        offroad_distance_multiplier: f64,
+    ) -> Option<RoadPathRoute> {
+        let distances_to_target = self.shortest_node_distances_from(bx, bz)?;
+        let offroad_multiplier = if offroad_distance_multiplier.is_finite() {
+            offroad_distance_multiplier.max(1.0)
+        } else {
+            1.0
+        };
+        let gateway_id = distances_to_target
+            .iter()
+            .filter_map(|(node_id, road_distance)| {
+                let &(nx, nz) = self.nodes.get(node_id)?;
+                let access_distance = distance(ax, az, nx, nz);
+                let weighted_distance = access_distance * offroad_multiplier + road_distance;
+                weighted_distance.is_finite().then_some((
+                    node_id,
+                    weighted_distance,
+                    access_distance,
+                ))
+            })
+            .min_by(
+                |(left_id, left_weighted, left_access),
+                 (right_id, right_weighted, right_access)| {
+                    left_weighted
+                        .total_cmp(right_weighted)
+                        .then_with(|| left_access.total_cmp(right_access))
+                        .then_with(|| left_id.cmp(right_id))
+                },
+            )
+            .map(|(node_id, _, _)| node_id)?;
+        let &(gateway_x, gateway_z) = self.nodes.get(gateway_id)?;
+        let road_route = self.road_path_route(gateway_x, gateway_z, bx, bz)?;
+        let mut polyline = Vec::with_capacity(road_route.polyline.len() + 1);
+        append_point(&mut polyline, ax, az);
+        append_polyline(&mut polyline, &road_route.polyline);
+        Some(RoadPathRoute {
+            distance: Self::polyline_length_xz(&polyline),
+            polyline,
+        })
+    }
+
     fn shortest_node_distances_from(&self, ax: f64, az: f64) -> Option<HashMap<String, f64>> {
         let start_nodes = self.snap_nodes(ax, az)?;
         let mut distances: HashMap<String, f64> = HashMap::new();
@@ -947,6 +1001,27 @@ mod tests {
                 .any(|point| point[1].abs() < 1e-9),
             "a same-node route must include its road attachment instead of cutting directly"
         );
+
+        let incursion_route = network
+            .road_path_route_from_external_access(-100.0, 5.0, 20.0, 0.0, 1.6)
+            .expect("an external approach should join the target road component");
+        assert_eq!(incursion_route.polyline.first(), Some(&[-100.0, 5.0]));
+        assert!(
+            incursion_route
+                .polyline
+                .iter()
+                .any(|point| point[0].abs() < 1e-9 && point[1].abs() < 1e-9),
+            "the weighted approach should join the connected branch at its outer gateway"
+        );
+        assert!(
+            incursion_route.polyline.iter().all(|point| point[0] < 90.0),
+            "a nearer disconnected road must never attract the incursion route"
+        );
+        assert!(
+            (incursion_route.distance - RoadNetwork::polyline_length_xz(&incursion_route.polyline))
+                .abs()
+                < 1e-9
+        );
     }
 
     #[test]
@@ -971,6 +1046,51 @@ mod tests {
         // former stale-entry check rejected this initial queue entry.
         let route = network.road_path_route(-2.0006, 1.0, 12.0, 1.0);
         assert!(route.is_some(), "connected off-road access legs must route");
+    }
+
+    #[test]
+    fn bounded_external_incursion_routes_scale_to_long_road_branches() {
+        const NODE_COUNT: usize = 1_000;
+        let nodes = (0..NODE_COUNT)
+            .map(|index| {
+                serde_json::json!({
+                    "id": format!("n{index}"),
+                    "position": [index as f64 * 4.0, 0.0, 0.0],
+                })
+            })
+            .collect::<Vec<_>>();
+        let edges = (0..NODE_COUNT - 1)
+            .map(|index| {
+                let start = index as f64 * 4.0;
+                let end = (index + 1) as f64 * 4.0;
+                serde_json::json!({
+                    "startNodeId": format!("n{index}"),
+                    "endNodeId": format!("n{}", index + 1),
+                    "width": 4.2,
+                    "sampledPath": [[start, 0.0, 0.0], [end, 0.0, 0.0]],
+                })
+            })
+            .collect::<Vec<_>>();
+        let snapshot = serde_json::json!({ "nodes": nodes, "edges": edges }).to_string();
+        let network = RoadNetwork::from_snapshot_json(&snapshot).expect("long road branch");
+        let started = Instant::now();
+        for flank in 0..4 {
+            let route = network
+                .road_path_route_from_external_access(
+                    -500.0,
+                    flank as f64 * 8.0,
+                    (NODE_COUNT - 1) as f64 * 4.0,
+                    0.0,
+                    1.55,
+                )
+                .expect("each bounded raid target route should resolve");
+            assert_eq!(route.polyline.first().map(|point| point[0]), Some(-500.0));
+            assert!(route.distance > 4_000.0);
+        }
+        assert!(
+            started.elapsed().as_secs_f64() < 1.0,
+            "four incursion targets on a 1,000-node road branch should remain a start-of-raid cost"
+        );
     }
 
     #[test]

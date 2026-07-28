@@ -369,6 +369,15 @@ export const QuarryBootstrap = __t.object("QuarryBootstrap", {
 });
 export type QuarryBootstrap = __Infer<typeof QuarryBootstrap>;
 
+export const RaidIncursionRoute = __t.object("RaidIncursionRoute", {
+  combatAgentId: __t.u64(),
+  owner: __t.identity(),
+  raidId: __t.u64(),
+  pathDistance: __t.f64(),
+  routePolylineJson: __t.string(),
+});
+export type RaidIncursionRoute = __Infer<typeof RaidIncursionRoute>;
+
 export const Residence = __t.object("Residence", {
   id: __t.u64(),
   zoneId: __t.u64(),

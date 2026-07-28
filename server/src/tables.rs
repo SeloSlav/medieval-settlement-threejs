@@ -819,8 +819,8 @@ pub struct CombatAgent {
     /// JSON `RaidPortableStores` physically carried until escape or recovery.
     pub carried_loot_json: String,
     pub state_changed_tick: u64,
-    /// Distance reached along the company's cached muster road. Combat can
-    /// interrupt this without losing the point the guard should later rejoin.
+    /// Distance reached along this agent's cached combat route. Fighting can
+    /// interrupt it without losing the road point to rejoin or reverse toward.
     #[default(0.0)]
     pub route_progress: f64,
 }
@@ -840,6 +840,25 @@ pub struct GuardMusterRoute {
     /// stable route key and avoids duplicating the same polyline per guard.
     #[primary_key]
     pub source_building_id: u64,
+    pub owner: Identity,
+    pub raid_id: u64,
+    pub path_distance: f64,
+    pub route_polyline_json: String,
+}
+
+/// Server-only approach and escape route for one hostile combatant.
+///
+/// The path starts at that raider's exact map-edge formation position, joins
+/// the road component serving its target, and is retained until the incursion
+/// ends so stolen goods must leave along the same physical route.
+#[spacetimedb::table(
+    accessor = raid_incursion_route,
+    index(accessor = owner, btree(columns = [owner]))
+)]
+#[derive(Clone)]
+pub struct RaidIncursionRoute {
+    #[primary_key]
+    pub combat_agent_id: u64,
     pub owner: Identity,
     pub raid_id: u64,
     pub path_distance: f64,

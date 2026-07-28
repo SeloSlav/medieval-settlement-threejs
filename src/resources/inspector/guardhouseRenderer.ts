@@ -251,6 +251,7 @@ export function renderGuardhouseInspector(
       <li><span>Muster order</span><span>${orderedMusterPostId === null ? 'Nearest staffed watch by road' : `Hold for Watch #${orderedMusterPostId} unless the order is changed`}</span></li>
       <li><span>Watch muster</span><span>${muster.routeDistance == null ? `${missingMusterRoute}; no district reinforcement` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
       <li><span>Alert posture</span><span>${frontierAlert ? muster.linkedTowerId && armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard' : 'guards'} taking the linked watch road, then breaking cross-country for nearby or active attacks` : 'Frontier alert active, but this company has no equipped road-linked response' : 'Ordinary drill at the guardhouse until raiders are reported during campaign season'}</span></li>
+      <li><span>Hostile approach</span><span>Raiders physically enter from the frontier and favor the road branch serving their target, but cut across country to fight, chase a moving cart, or avoid a major detour</span></li>
       <li><span>Road conditions</span><span>${roadConditionFeedback}</span></li>
       <li><span>Effective company</span><span>${effectiveReady.toFixed(1)} guards after casualties, signal, and travel</span></li>
       <li><span>Settlement defense</span><span>${settlementReady.toFixed(1)}${guardRequirement > 0 ? ` / ${guardRequirement.toFixed(1)} required` : ''}</span></li>

@@ -119,6 +119,7 @@ import MarketStateRow from "./market_state_table";
 import PastureRow from "./pasture_table";
 import PlayerResourcesRow from "./player_resources_table";
 import QuarryRow from "./quarry_table";
+import RaidIncursionRouteRow from "./raid_incursion_route_table";
 import ResidenceRow from "./residence_table";
 import ResidenceNeedRow from "./residence_need_table";
 import RoadNetworkStateRow from "./road_network_state_table";
@@ -351,6 +352,20 @@ const tablesSchema = __schema({
       { name: 'quarry_quarry_id_key', constraint: 'unique', columns: ['quarryId'] },
     ],
   }, QuarryRow),
+  raid_incursion_route: __table({
+    name: 'raid_incursion_route',
+    indexes: [
+      { name: 'combat_agent_id', algorithm: 'btree', columns: [
+        'combatAgentId',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'raid_incursion_route_combat_agent_id_key', constraint: 'unique', columns: ['combatAgentId'] },
+    ],
+  }, RaidIncursionRouteRow),
   residence: __table({
     name: 'residence',
     indexes: [
