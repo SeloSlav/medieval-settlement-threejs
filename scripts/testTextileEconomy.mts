@@ -26,6 +26,8 @@ import {
   SPECIALTY_EXPORT_GOLD_PER_CLOTH,
   TEXTILE_TRANSFER_PER_TRIP,
   WEAVER_CLOTH_PER_CYCLE,
+  WEAVER_FLAX_PER_CYCLE,
+  WEAVER_FLAX_WATER_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import {
@@ -85,6 +87,8 @@ assert.equal(SHEEP_SHEARING_START_MONTH, 6);
 assert.equal(SHEEP_SHEARING_END_MONTH, 7);
 assert.equal(SHEEP_WOOL_PER_SHEARING_PER_HEAD, 3);
 assert.equal(WEAVER_WOOL_PER_CYCLE, 3);
+assert.equal(WEAVER_FLAX_PER_CYCLE, 3);
+assert.equal(WEAVER_FLAX_WATER_PER_CYCLE, 1);
 assert.equal(WEAVER_CLOTH_PER_CYCLE, 2);
 assert.equal(TEXTILE_TRANSFER_PER_TRIP, 12);
 assert.equal(SPECIALTY_EXPORT_GOLD_PER_CLOTH, 1.5);
@@ -92,6 +96,9 @@ assert.equal(RESIDENCE_CLOTH_CAPACITY, 8);
 assert.equal(RESIDENCE_CLOTH_PER_PERSON_PER_SEC, 0.00018);
 assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.wool, 120);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.wool, 90);
+assert.equal(BUILDING_STORAGE_CAPS.weaver.flax, 90);
+assert.equal(BUILDING_STORAGE_CAPS.weaver.water, 24);
+assert.equal(BUILDING_STORAGE_CAPS.threshing_barn.flax, 180);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.cloth, 90);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.cloth, 120);
 assert.equal(sheepFleeceOutput(4.5), 13.5);
@@ -116,7 +123,9 @@ assert.match(renderBuildMenuCards(), /weaver\.webp/);
 
 assert.equal(cargoKindFromId(13), 'wool');
 assert.equal(cargoKindFromId(14), 'cloth');
-assert.equal(cargoKindLabel('wool'), 'Raw textile fibre');
+assert.equal(cargoKindFromId(18), 'flax');
+assert.equal(cargoKindLabel('wool'), 'Wool fleece');
+assert.equal(cargoKindLabel('flax'), 'Flax fibre');
 assert.equal(cargoKindLabel('cloth'), 'Cloth');
 assert.equal(needKindFromId(14), 'cloth');
 assert.equal(createDefaultNeeds().cloth.stock, 0);
@@ -138,7 +147,19 @@ assert.equal(
     weaver({ wool: WEAVER_WOOL_PER_CYCLE, cloth: BUILDING_STORAGE_CAPS.weaver.cloth }),
     worldQueries,
   )?.statusText,
-  'Output target reached — production paused',
+  'Cloth target reached - weaving paused',
+);
+const flaxWorldQueries = {
+  getRoadConnectedWells: () => [weaver({ id: 'well-1', kind: 'well', water: 8 })],
+  getInboundSupplyTrip: () => null,
+  getRoadPathDistance: () => 20,
+} as unknown as WorldQueries;
+assert.equal(
+  getBuildingProcessorStatus(
+    weaver({ flax: WEAVER_FLAX_PER_CYCLE, water: WEAVER_FLAX_WATER_PER_CYCLE }),
+    flaxWorldQueries,
+  )?.statusText,
+  'Preparing flax and weaving linen cloth',
 );
 
 const emptyVisual = buildingMarkerSignatures(
@@ -153,6 +174,9 @@ const sameBundle = buildingMarkerSignatures(
 const firstClothBundle = buildingMarkerSignatures(
   new Map([['weaver-1', weaver({ wool: 2, cloth: 1 })]]),
 ).visual;
+const firstFlaxBundle = buildingMarkerSignatures(
+  new Map([['weaver-1', weaver({ flax: 1 })]]),
+).visual;
 assert.notEqual(firstBundle, emptyVisual);
 assert.equal(
   sameBundle,
@@ -160,6 +184,7 @@ assert.equal(
   'small textile stock changes inside one bundle must not rebuild the workshop mesh',
 );
 assert.notEqual(firstClothBundle, sameBundle);
+assert.notEqual(firstFlaxBundle, emptyVisual);
 
 const textileState = {
   stockpile: createEmptyStockpile(),
@@ -289,7 +314,7 @@ const missedTextiles = computeSettlementTextilePlan({
 assert.equal(missedTextiles.missedHoldings, 2);
 assert.equal(missedTextiles.pendingHoldings, 0);
 assert.equal(missedTextiles.securedAnnualWool, 15);
-assert.match(textileChainBalanceLabel(missedTextiles), /Fleece-limited/);
+assert.match(textileChainBalanceLabel(missedTextiles), /Raw-fibre-limited/);
 
 const textileRoadKey = (component: number): string =>
   productionRoadBranchKey(component, 'building', `branch-${component}`);
@@ -683,7 +708,12 @@ assert.doesNotMatch(livestockSimulation, /credit_treasury_gold/);
 assert.match(expandedEconomy, /pub fn step_weaver/);
 assert.match(
   expandedEconomy,
-  /CommodityKind::Wool, WEAVER_WOOL_PER_CYCLE[\s\S]*CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE/,
+  /CommodityKind::Flax, WEAVER_FLAX_PER_CYCLE[\s\S]*CommodityKind::Water[\s\S]*WEAVER_FLAX_WATER_PER_CYCLE[\s\S]*CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE/,
+);
+assert.match(expandedEconomy, /CommodityKind::Wool, WEAVER_WOOL_PER_CYCLE/);
+assert.match(
+  expandedEconomy,
+  /FarmCropProduce::Fibre => Some\(CommodityKind::Flax\)/,
 );
 assert.match(expandedEconomy, /CommodityKind::Cloth,[\s\S]{0,120}&\["marketplace"\]/);
 assert.match(
@@ -699,6 +729,7 @@ assert.match(
 assert.match(marketplaceCaravan, /CommodityKind::Cloth, SPECIALTY_EXPORT_GOLD_PER_CLOTH/);
 assert.match(commodities, /Self::Wool => 13/);
 assert.match(commodities, /Self::Cloth => 14/);
+assert.match(commodities, /Self::Flax => 18/);
 assert.match(
   residenceNeedState,
   /missing_cloth[\s\S]*legacy_tier >= 3[\s\S]*RESIDENCE_CLOTH_CAPACITY/,
@@ -771,7 +802,7 @@ function textileResidence(
 
 function textileTrip(
   id: string,
-  cargoKind: 'wool' | 'cloth',
+  cargoKind: 'wool' | 'flax' | 'cloth',
   amount: number,
   phase: 'outbound' | 'unloading' | 'inbound',
 ): import('../src/logistics/deliveryTrips.ts').DeliveryTripState {

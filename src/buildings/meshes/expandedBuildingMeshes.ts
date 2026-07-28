@@ -23,6 +23,7 @@ import {
 } from './buildingMeshKit.ts';
 import {
   CLOTH_STOCKPILE_VISUAL_SEGMENTS,
+  FLAX_STOCKPILE_VISUAL_SEGMENTS,
   WOOL_STOCKPILE_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
 import {
@@ -82,6 +83,25 @@ function addSheaf(group: THREE.Group, x: number, z: number, scale = 1): void {
 function addSack(group: THREE.Group, x: number, z: number, scale = 1): void {
   addMesh(group, new THREE.SphereGeometry(0.45 * scale, 8, 6), canvas, new THREE.Vector3(x, 0.42 * scale, z), new THREE.Euler(0, 0, -0.08), new THREE.Vector3(0.82, 1.35, 0.72));
   addMesh(group, new THREE.CylinderGeometry(0.07 * scale, 0.14 * scale, 0.24 * scale, 7), canvas, new THREE.Vector3(x, 0.94 * scale, z));
+}
+
+function addFlaxBundle(group: THREE.Group, x: number, z: number, scale = 1): void {
+  for (let stem = -3; stem <= 3; stem += 1) {
+    addMesh(
+      group,
+      new THREE.CylinderGeometry(0.018 * scale, 0.025 * scale, 1.3 * scale, 5),
+      crop,
+      new THREE.Vector3(x + stem * 0.07 * scale, 0.68 * scale, z),
+      new THREE.Euler(0, 0, stem % 2 === 0 ? 0.04 : -0.04),
+    );
+  }
+  addMesh(
+    group,
+    new THREE.TorusGeometry(0.28 * scale, 0.035 * scale, 5, 10),
+    timberMaterial('light'),
+    new THREE.Vector3(x, 0.66 * scale, z),
+    new THREE.Euler(Math.PI * 0.5, 0, 0),
+  );
 }
 
 function addProduceBasket(
@@ -269,6 +289,18 @@ export function createThreshingBarnMesh(): THREE.Group {
       .slice(0, THRESHING_GRAIN_VISUAL_SEGMENTS)
       .map((x) => [x, 0, 4.35, 1.05] as const),
     (segment, scale) => addSheaf(segment, 0, 0, scale),
+  );
+  addSegmentedStockProps(
+    group,
+    'ThreshingFlaxStockpile',
+    'ThreshingFlaxSegment',
+    ([
+      [-4.85, 0, -4.35, 1.0],
+      [-4.08, 0, -4.42, 0.9],
+      [4.78, 0, -4.35, 0.95],
+      [5.45, 0, -4.4, 0.82],
+    ] as const).slice(0, FLAX_STOCKPILE_VISUAL_SEGMENTS),
+    (segment, scale) => addFlaxBundle(segment, 0, 0, scale),
   );
   // A low handcart and flails make the yard read as threshing rather than storage.
   addMesh(group, new THREE.BoxGeometry(2.5, 0.42, 1.45), timberMaterial('weathered'), new THREE.Vector3(3.1, 0.82, 4.65));
@@ -683,6 +715,21 @@ function createWeaverWoolStockpile(): THREE.Group {
   return stockpile;
 }
 
+function createWeaverFlaxStockpile(): THREE.Group {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'WeaverFlaxStockpile';
+  stockpile.visible = false;
+  stockpile.position.set(-3.75, 0, -3.55);
+  for (let index = 0; index < FLAX_STOCKPILE_VISUAL_SEGMENTS; index++) {
+    const segment = new THREE.Group();
+    segment.name = 'FlaxStockSegment';
+    segment.position.set((index % 2) * 0.72, 0, Math.floor(index / 2) * 0.72);
+    addFlaxBundle(segment, 0, 0, index % 2 ? 0.88 : 1);
+    stockpile.add(segment);
+  }
+  return stockpile;
+}
+
 function createClothStockpile(): THREE.Group {
   const stockpile = new THREE.Group();
   stockpile.name = 'ClothStockpile';
@@ -760,6 +807,7 @@ export function createWeaverMesh(): THREE.Group {
   addMesh(group, new THREE.CylinderGeometry(0.07, 0.07, 1.15, 8), timberMaterial('light'), new THREE.Vector3(5.15, 0.92, 1.25), new THREE.Euler(0, 0, Math.PI * 0.5));
 
   group.add(createWeaverWoolStockpile());
+  group.add(createWeaverFlaxStockpile());
   group.add(createClothStockpile());
   return group;
 }

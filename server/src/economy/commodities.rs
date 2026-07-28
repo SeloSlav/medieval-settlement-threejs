@@ -24,6 +24,7 @@ pub enum CommodityKind {
     Gold,
     Barley,
     Malt,
+    Flax,
 }
 
 impl CommodityKind {
@@ -47,6 +48,7 @@ impl CommodityKind {
             Self::Gold => 15,
             Self::Barley => 16,
             Self::Malt => 17,
+            Self::Flax => 18,
         }
     }
 
@@ -70,6 +72,7 @@ impl CommodityKind {
             15 => Some(Self::Gold),
             16 => Some(Self::Barley),
             17 => Some(Self::Malt),
+            18 => Some(Self::Flax),
             _ => None,
         }
     }
@@ -95,6 +98,7 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Gold => building.gold,
         CommodityKind::Barley => building.barley,
         CommodityKind::Malt => building.malt,
+        CommodityKind::Flax => building.flax,
     }
 }
 
@@ -137,6 +141,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         }
         CommodityKind::Barley => def.storage_barley,
         CommodityKind::Malt => def.storage_malt,
+        CommodityKind::Flax => def.storage_flax,
     }
 }
 
@@ -170,6 +175,7 @@ pub fn withdraw_building_commodity(
         CommodityKind::Gold => building.gold -= withdrawn,
         CommodityKind::Barley => building.barley -= withdrawn,
         CommodityKind::Malt => building.malt -= withdrawn,
+        CommodityKind::Flax => building.flax -= withdrawn,
     }
     withdrawn
 }
@@ -199,6 +205,7 @@ pub fn deposit_building_commodity(
         CommodityKind::Gold => building.gold += deposited,
         CommodityKind::Barley => building.barley += deposited,
         CommodityKind::Malt => building.malt += deposited,
+        CommodityKind::Flax => building.flax += deposited,
     }
     deposited
 }
@@ -238,6 +245,7 @@ pub fn credit_treasury_commodity(
         CommodityKind::Gold => unreachable!("gold uses the physical treasury seat"),
         CommodityKind::Barley => treasury.barley += amount,
         CommodityKind::Malt => treasury.malt += amount,
+        CommodityKind::Flax => treasury.flax += amount,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);

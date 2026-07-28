@@ -358,6 +358,8 @@
     "breweryBrewingFirewoodPerCycle": 0.5,
     "breweryAlePerCycle": 4,
     "weaverWoolPerCycle": 3,
+    "weaverFlaxPerCycle": 3,
+    "weaverFlaxWaterPerCycle": 1,
     "weaverClothPerCycle": 2,
     "textileTransferPerTrip": 12,
     "smokehouseFoodPerCycle": 3,
@@ -611,6 +613,7 @@
         "ironwork": 80,
         "polearms": 80,
         "wool": 120,
+        "flax": 120,
         "cloth": 80
       },
       "workRadius": 0,
@@ -646,6 +649,7 @@
         "ironwork": 2000,
         "polearms": 2000,
         "wool": 2000,
+        "flax": 2000,
         "cloth": 2000
       },
       "workRadius": 0,
@@ -926,7 +930,7 @@
     "threshing_barn": {
       "label": "Farmstead and threshing barn",
       "cost": { "timber": 44, "stone": 16 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 240, "barley": 180, "wool": 180 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 240, "barley": 180, "flax": 180 },
       "workRadius": 150,
       "pickRadius": 9,
       "harvestInterval": 6,
@@ -1110,7 +1114,7 @@
     "weaver": {
       "label": "Weaver's workshop",
       "cost": { "timber": 38, "stone": 16 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "wool": 90, "cloth": 90 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 24, "wool": 90, "flax": 90, "cloth": 90 },
       "workRadius": 0,
       "pickRadius": 8,
       "harvestInterval": 8,

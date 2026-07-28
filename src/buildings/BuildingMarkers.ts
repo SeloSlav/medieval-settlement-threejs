@@ -614,6 +614,7 @@ function syncBuildingVisualState(
           + (building.ironwork ?? 0)
           + (building.polearms ?? 0)
           + (building.wool ?? 0)
+          + (building.flax ?? 0)
           + (building.cloth ?? 0),
         SALVAGE_GOODS_VISUAL_CAPACITY,
       );
@@ -752,6 +753,15 @@ function syncBuildingVisualState(
         'ClothStockSegment',
         building.cloth ?? 0,
         BUILDING_STORAGE_CAPS.weaver.cloth ?? 0,
+      );
+    }
+    const flax = marker.getObjectByName('WeaverFlaxStockpile');
+    if (flax instanceof THREE.Group) {
+      syncStockpileSegments(
+        flax,
+        'FlaxStockSegment',
+        building.flax ?? 0,
+        BUILDING_STORAGE_CAPS.weaver.flax ?? 0,
       );
     }
   }

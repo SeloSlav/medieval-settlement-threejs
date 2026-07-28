@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'grain', 'barley', 'malt', 'flour', 'ale', 'preservedFood', 'honey', 'wine', 'wool', 'cloth'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'grain', 'barley', 'malt', 'flour', 'ale', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -90,6 +90,7 @@ export type BuildingState = {
   honey: number;
   wine: number;
   wool?: number;
+  flax?: number;
   cloth?: number;
   ironwork?: number;
   polearms?: number;
@@ -344,7 +345,7 @@ export type InspectableTarget =
     };
 
 export function createEmptyStockpile(): ResourceStockpile {
-  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, barley: 0, malt: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, cloth: 0, ironwork: 0, polearms: 0, gold: 0 };
+  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, barley: 0, malt: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, flax: 0, cloth: 0, ironwork: 0, polearms: 0, gold: 0 };
 }
 
 export function isResourceKind(value: string): value is ResourceKind {

@@ -6,6 +6,9 @@ References:
 
 - [Polygon — How to use farms and grow crops in Manor Lords](https://www.polygon.com/manor-lords-guides/24139739/farm-farming-field-crop-emmer-wheat-flax-barley-harvest-grow/)
 - [Manor Lords official wiki — Field](https://wiki.hoodedhorse.com/Manor_Lords/Field)
+- [Croatian Encyclopedia — flax processing](https://www.enciklopedija.hr/Clanak/lan?handler=ButtonSnimi)
+- [Ethnographic Museum Zagreb — textile tools and raw materials](https://katalog.emz.hr/hr/Zbirke/Zbirka%20tekstilnih%20alatki%20i%20sirovina_46)
+- [Hrčak — Croatian peasant flax production](https://hrcak.srce.hr/48526)
 
 The project is feature-matched on the core annual field loop, three-year
 rotation planning, and reference crop roster, with spring oats retained as a
@@ -28,7 +31,7 @@ unlocks, or a Heavy Plow unlock.
 | Crop roster | Wheat/emmer, barley, flax, rye, and fallow | Mountain rye, spring oats, barley, fibre flax, wheat–rye maslin, and fallow | Matched, with oats as a regional addition |
 | Grain food chain | Wheat/rye is threshed, milled into flour, and baked into bread | Harvested cereal becomes physical grain; watermill makes flour; staffed granary bakery turns flour, water, and firewood into food | Matched at commodity-chain level |
 | Barley/ale chain | Barley becomes malt and then ale | Barley is harvested, seeded, stored, traded, and hauled separately from bread grain; the brewhouse spends one fueled, watered work cycle floor-malting it and a second cycle brewing physical malt into ale | Matched |
-| Flax/linen chain | Flax becomes linen | Flax is pulled as fibre, stored separately at the farmstead, and physically carted to the weaver through the shared raw-textile channel; the weaver makes cloth | Partial — no separate retting or linen intermediate |
+| Flax/linen chain | Flax becomes linen | Flax is pulled into a distinct physical commodity, stored at the farmstead, carted to the weaver, and combined there with hauled well water before cloth is made; sheep fleece remains a separate dry route | Matched at commodity-chain abstraction — retting, breaking, spinning, and weaving are folded into the water-bound workshop cycle |
 | Field priority | Players can prioritize field work | Fields have four priority states, including paused, and the farm plan schedules higher priorities first | Matched |
 | Early harvest | A player may force an early harvest | In August, a crop at 55% growth may be cut to spread labor or secure emergency stores; its current ripeness permanently locks 47–85% of normal yield, while waiting for September keeps 100% | Matched |
 | Ox/plough support | Ox ploughing is tied to a development and Farmhouse upgrade | Healthy cattle can support the two highest-priority nearby fields without an unlock tree | Different by design |
@@ -56,8 +59,9 @@ stalks, `?view=overview&clean=1` checks terrain contact and field coverage, and
 
 ## Deliberately deferred gaps
 
-Malt and linen/retting intermediates remain separate gameplay work. Barley
-deliberately joins generic grain and flax deliberately joins the
-raw-textile channel so both crops participate in existing physical logistics
-without a save-schema migration. Development unlocks and Heavy Plow technology
+Flax retting and yarn remain deliberately folded into the weaver's
+water-consuming flax recipe instead of becoming two one-use intermediate
+commodities or a standalone retting-pit building. This preserves the
+historically important water and hauling constraint while keeping the
+production chain readable. Development unlocks and Heavy Plow technology
 remain out of scope until explicitly requested.

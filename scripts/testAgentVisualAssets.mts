@@ -174,6 +174,7 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   polearms: 'Polearm shaft 1',
   ironwork: 'Ironwork spearhead 1',
   wool: 'Wool fleece bundle 1',
+  flax: 'Flax bundle 1 stem 1',
   cloth: 'Woven cloth roll 1',
   gold: 'Treasury lockbox',
 };

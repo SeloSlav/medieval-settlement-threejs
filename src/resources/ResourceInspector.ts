@@ -302,6 +302,7 @@ export class ResourceInspector {
       honey: this.mustElement(options.uiRoot, '[data-stockpile="honey"]'),
       wine: this.mustElement(options.uiRoot, '[data-stockpile="wine"]'),
       wool: this.mustElement(options.uiRoot, '[data-stockpile="wool"]'),
+      flax: this.mustElement(options.uiRoot, '[data-stockpile="flax"]'),
       cloth: this.mustElement(options.uiRoot, '[data-stockpile="cloth"]'),
       ironwork: this.mustElement(options.uiRoot, '[data-stockpile="ironwork"]'),
       polearms: this.mustElement(options.uiRoot, '[data-stockpile="polearms"]'),
@@ -864,6 +865,7 @@ export class ResourceInspector {
     this.stockpileValues.honey.textContent = Math.round(totals.honey).toString();
     this.stockpileValues.wine.textContent = Math.round(totals.wine).toString();
     this.stockpileValues.wool.textContent = Math.round(totals.wool).toString();
+    this.stockpileValues.flax.textContent = Math.round(totals.flax).toString();
     this.stockpileValues.cloth.textContent = Math.round(totals.cloth).toString();
     this.stockpileValues.ironwork.textContent = Math.round(totals.ironwork).toString();
     this.stockpileValues.polearms.textContent = Math.round(totals.polearms).toString();
@@ -899,6 +901,7 @@ export class ResourceInspector {
       'honey',
       'wine',
       'wool',
+      'flax',
       'cloth',
       'ironwork',
       'polearms',

@@ -264,6 +264,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         civic_receipts_gold: 0.0,
         barley: resources.barley.max(0.0),
         malt: resources.malt.max(0.0),
+        flax: resources.flax.max(0.0),
     });
 
     resources.timber = 0.0;
@@ -284,6 +285,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.gold = 0.0;
     resources.barley = 0.0;
     resources.malt = 0.0;
+    resources.flax = 0.0;
     resources.physical_founding_site_enabled = true;
     resources.legacy_unhoused_population_bonus_enabled = false;
     ctx.db.player_resources().owner().update(resources);

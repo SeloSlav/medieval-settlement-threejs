@@ -21,7 +21,7 @@ use crate::storehouse_policy::storehouse_filtered_collection_headroom;
 use crate::tables::Building;
 
 const EPSILON: f64 = 1e-6;
-const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 17] = [
+const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 18] = [
     CommodityKind::Timber,
     CommodityKind::Stone,
     CommodityKind::Firewood,
@@ -36,6 +36,7 @@ const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 17] = [
     CommodityKind::Wine,
     CommodityKind::Cloth,
     CommodityKind::Wool,
+    CommodityKind::Flax,
     CommodityKind::Ironwork,
     CommodityKind::Polearms,
     CommodityKind::Water,
@@ -319,6 +320,7 @@ fn has_portable_stock(building: &Building) -> bool {
         building.gold,
         building.barley,
         building.malt,
+        building.flax,
     ]
     .into_iter()
     .any(|amount| amount > EPSILON)

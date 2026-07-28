@@ -110,7 +110,7 @@ const PROCESS: Record<string, string> = {
   vineyard: 'September-October grape harvest → food, monastery hospitality, or export wine',
   monastery: 'Tithes + food + hospitality stores → charity, feasts, pilgrimages',
   carpenter: 'Timber + imported iron heads → polearms and cartwright support',
-  weaver: 'Annual sheep fleece → woven cloth → tier-3 households, then marketplace export',
+  weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-3 households, then marketplace export',
   ferry_landing: 'River crossing → fares held at the landing → civic collection',
 };
 
@@ -141,7 +141,9 @@ function buildingHasOutboundStock(
 ): boolean {
   switch (building.kind) {
     case 'threshing_barn':
-      return building.grain > protectedSeedGrain + 1e-6;
+      return building.grain > protectedSeedGrain + 1e-6
+        || (building.barley ?? 0) > 1e-6
+        || (building.flax ?? 0) > 1e-6;
     case 'watermill':
       return building.flour > 0;
     case 'granary':
@@ -218,7 +220,7 @@ function cargoPerTripLabel(building: BuildingState): string | null {
 function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
   switch (kind) {
     case 'threshing_barn':
-      return ['watermill', 'brewery', 'granary', 'monastery'];
+      return ['watermill', 'brewery', 'granary', 'monastery', 'weaver'];
     case 'watermill':
       return ['granary'];
     case 'granary':
@@ -243,6 +245,10 @@ function outboundTripTarget(
   if (building.kind === 'threshing_barn') {
     return context.worldQueries.getNextFarmGrainDispatch(building)?.target
       ?? context.worldQueries.getNextFarmBarleyDispatch(building)?.target
+      ?? context.worldQueries.getNextDirectProcessorInputDispatch(
+        building,
+        'flax',
+      )?.target
       ?? null;
   }
   if (building.kind === 'watermill') {
@@ -927,7 +933,7 @@ function renderFarmsteadPlanning(
   const grainRoom = Math.max(0, (storageCaps.grain ?? 0) - building.grain);
   const barley = Math.max(0, building.barley ?? 0);
   const barleyRoom = Math.max(0, (storageCaps.barley ?? 0) - barley);
-  const fibreRoom = Math.max(0, (storageCaps.wool ?? 0) - (building.wool ?? 0));
+  const fibreRoom = Math.max(0, (storageCaps.flax ?? 0) - (building.flax ?? 0));
   const haulingRequired = plan.expectedHarvest > grainRoom + 1e-6;
   const barleyHaulingRequired =
     plan.expectedBarleyHarvest > barleyRoom + 1e-6;

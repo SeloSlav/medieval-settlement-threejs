@@ -167,6 +167,10 @@ pub struct PlayerResources {
     /// stores. New production normally remains at the brewhouse.
     #[default(0.0)]
     pub malt: f64,
+    /// Pulled flax stems and dressed plant fibre recovered from legacy or
+    /// demolished stores. New harvests remain physically distinct from fleece.
+    #[default(0.0)]
+    pub flax: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -402,6 +406,10 @@ pub struct Building {
     /// at the brewhouse and appended for additive save compatibility.
     #[default(0.0)]
     pub malt: f64,
+    /// Pulled flax awaiting water-assisted retting, breaking, spinning, and
+    /// weaving at the workshop yard. Appended for additive save compatibility.
+    #[default(0.0)]
+    pub flax: f64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

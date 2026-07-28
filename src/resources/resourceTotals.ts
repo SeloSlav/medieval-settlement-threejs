@@ -62,6 +62,7 @@ export type ResourceTotals = {
   grain: number;
   barley: number;
   malt: number;
+  flax: number;
   flour: number;
   ale: number;
   preservedFood: number;
@@ -83,6 +84,7 @@ export const HUD_RESOURCE_KINDS = [
   'grain',
   'barley',
   'malt',
+  'flax',
   'flour',
   'ale',
   'preservedFood',
@@ -144,6 +146,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let grain = ledger?.grain ?? 0;
   let barley = ledger?.barley ?? 0;
   let malt = ledger?.malt ?? 0;
+  let flax = ledger?.flax ?? 0;
   let flour = ledger?.flour ?? 0;
   let ale = ledger?.ale ?? 0;
   let preservedFood = ledger?.preservedFood ?? 0;
@@ -164,6 +167,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     grain += building.grain;
     barley += building.barley ?? 0;
     malt += building.malt ?? 0;
+    flax += building.flax ?? 0;
     flour += building.flour;
     ale += building.ale;
     preservedFood += building.preservedFood;
@@ -210,6 +214,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     grain,
     barley,
     malt,
+    flax,
     flour,
     ale,
     preservedFood,
@@ -475,6 +480,7 @@ function emptyResourceTotals(): ResourceTotals {
     grain: 0,
     barley: 0,
     malt: 0,
+    flax: 0,
     flour: 0,
     ale: 0,
     preservedFood: 0,

@@ -622,6 +622,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         civic_receipts_gold: 0.0,
         barley: 0.0,
         malt: 0.0,
+        flax: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -793,7 +794,11 @@ fn processor_input_commodities(kind: &str) -> &'static [CommodityKind] {
         CommodityKind::Firewood,
     ];
     const SMOKEHOUSE: [CommodityKind; 2] = [CommodityKind::Food, CommodityKind::Firewood];
-    const WEAVER: [CommodityKind; 1] = [CommodityKind::Wool];
+    const WEAVER: [CommodityKind; 3] = [
+        CommodityKind::Wool,
+        CommodityKind::Flax,
+        CommodityKind::Water,
+    ];
 
     match kind {
         "watermill" => &WATERMILL,
@@ -808,6 +813,22 @@ fn processor_input_commodities(kind: &str) -> &'static [CommodityKind] {
 fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (bool, bool) {
     if processor_output_room(building).is_some_and(|headroom| headroom <= 1e-6) {
         return (true, false);
+    }
+
+    if building.kind == "weaver" {
+        let has_wool = building.wool > 1e-6;
+        let has_flax = building.flax > 1e-6;
+        let has_water = building.water > 1e-6;
+        if has_wool || (has_flax && has_water) {
+            return (false, false);
+        }
+        let wool_en_route =
+            building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Wool);
+        let flax_available = has_flax
+            || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Flax);
+        let water_available = has_water
+            || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Water);
+        return (true, wool_en_route || (flax_available && water_available));
     }
 
     let missing_inputs: Vec<CommodityKind> = processor_input_commodities(&building.kind)
@@ -1802,6 +1823,9 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             polearms: building.polearms * recoverable,
             wool: building.wool * recoverable,
             cloth: building.cloth * recoverable,
+            barley: building.barley * recoverable,
+            malt: building.malt * recoverable,
+            flax: building.flax * recoverable,
             gold: building.gold * recoverable,
             water_capacity: 0.0,
             assigned_labor: 0,
@@ -1924,6 +1948,12 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         owner,
         CommodityKind::Malt,
         (building.malt + trip_cargo.malt) * recoverable,
+    );
+    credit_treasury_commodity(
+        ctx,
+        owner,
+        CommodityKind::Flax,
+        (building.flax + trip_cargo.flax) * recoverable,
     );
 
     Ok(())

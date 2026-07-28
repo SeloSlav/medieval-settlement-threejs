@@ -34,6 +34,7 @@ fn physical_resource_stock(ctx: &ReducerContext, owner: spacetimedb::Identity) -
         stock.ironwork += building.ironwork.max(0.0);
         stock.polearms += building.polearms.max(0.0);
         stock.wool += building.wool.max(0.0);
+        stock.flax += building.flax.max(0.0);
         stock.cloth += building.cloth.max(0.0);
         if matches!(
             building.kind.as_str(),
@@ -91,6 +92,7 @@ pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), St
         amount,
     );
     resources.wool = top_up_ledger(resources.wool, physical.map_or(0.0, |s| s.wool), amount);
+    resources.flax = top_up_ledger(resources.flax, physical.map_or(0.0, |s| s.flax), amount);
     resources.cloth = top_up_ledger(resources.cloth, physical.map_or(0.0, |s| s.cloth), amount);
     ctx.db.player_resources().owner().update(resources);
     materialize_physical_resource_ledger(ctx, owner)?;

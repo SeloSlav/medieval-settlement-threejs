@@ -23,6 +23,7 @@ import {
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
   HAYLOFT_VISUAL_SEGMENTS,
   CLOTH_STOCKPILE_VISUAL_SEGMENTS,
+  FLAX_STOCKPILE_VISUAL_SEGMENTS,
   stockpileVisualLevel,
   TIMBER_STOCKPILE_VISUAL_SEGMENTS,
   WOOL_STOCKPILE_VISUAL_SEGMENTS,
@@ -98,6 +99,7 @@ export function buildingMarkerSignatures(
         + (building.ironwork ?? 0)
         + (building.polearms ?? 0)
         + (building.wool ?? 0)
+        + (building.flax ?? 0)
         + (building.cloth ?? 0);
       const salvageState = building.kind === 'salvage_pile'
         && building.constructionComplete !== false
@@ -196,6 +198,14 @@ export function buildingMarkerSignatures(
           CLOTH_STOCKPILE_VISUAL_SEGMENTS,
         )}`
         : '';
+      const flaxState = building.kind === 'weaver'
+        && building.constructionComplete !== false
+        ? `:flax:${stockpileVisualLevel(
+          building.flax ?? 0,
+          BUILDING_STORAGE_CAPS.weaver.flax ?? 0,
+          FLAX_STOCKPILE_VISUAL_SEGMENTS,
+        )}`
+        : '';
       const foodStockState = foodStockpileVisualSignature(building);
       const bulkStockState = bulkStockpileVisualSignature(building);
       const armoryStockState = armoryStockpileVisualSignature(building);
@@ -211,7 +221,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${clothState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${flaxState}${clothState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
         collider: structural,
       };
     })

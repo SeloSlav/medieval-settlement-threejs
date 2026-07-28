@@ -80,6 +80,8 @@ approx(fullWeek.preservationFreshFoodPerDay, 35);
 approx(fullWeek.preservationFirewoodPerDay, 35 / 3);
 approx(fullWeek.clothOutputPerDay, 17.5);
 approx(fullWeek.clothWoolPerDay, 26.25);
+approx(fullWeek.clothFlaxPerDay, 26.25);
+approx(fullWeek.clothFlaxWaterPerDay, 8.75);
 assert.equal(fullWeek.watermillThroughputMultiplier, 1);
 assert.ok(fullWeek.millInputBuffer);
 approx(fullWeek.millInputBuffer.days, 2);
@@ -101,6 +103,19 @@ approx(fullWeek.bakeryOutputRoom?.days ?? -1, 2);
 approx(fullWeek.breweryOutputRoom?.days ?? -1, 3);
 approx(fullWeek.smokehouseOutputRoom?.days ?? -1, 1.5);
 approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5);
+
+weaver.wool = 0;
+weaver.flax = 39.375;
+weaver.water = 13.125;
+const flaxWeek = computeSettlementProductionCapacity(state, false);
+assert.equal(flaxWeek.weaverInputBuffer?.limitingInput, 'flax');
+approx(flaxWeek.weaverInputBuffer?.days ?? -1, 1.5);
+weaver.water = 4;
+const waterLimitedFlaxWeek = computeSettlementProductionCapacity(state, false);
+assert.equal(waterLimitedFlaxWeek.weaverInputBuffer?.limitingInput, 'water');
+weaver.wool = 39.375;
+weaver.flax = 0;
+weaver.water = 0;
 
 const frostWeek = computeSettlementProductionCapacity(
   state,

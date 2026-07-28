@@ -80,6 +80,7 @@ assert.equal(directlyDispatchedProcessorInputPerCycle('granary', 'flour'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('brewery', 'barley'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('smokehouse', 'food'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'wool'), 3);
+assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'flax'), 3);
 assert.equal(processorInputTarget(2), 6);
 assert.equal(processorInputTarget(2, 25), 2);
 assert.equal(processorInputTarget(2, 50), 4);
@@ -591,8 +592,8 @@ assert.match(farmsteadStep, /dispatch_farmstead_grain/);
 assert.doesNotMatch(farmsteadStep, /request_connected_seed_grain/);
 assert.match(
   farmsteadStep,
-  /dispatch_to_building\([\s\S]{0,200}CommodityKind::Wool,[\s\S]{0,80}&\["weaver"\]/,
-  'field flax must leave the farmstead through the raw-textile delivery channel',
+  /dispatch_to_building\([\s\S]{0,200}CommodityKind::Flax,[\s\S]{0,80}&\["weaver"\]/,
+  'field flax must leave the farmstead as its distinct physical commodity',
 );
 assert.doesNotMatch(
   farmsteadStep,
@@ -678,6 +679,7 @@ assert.match(expandedSimulation, /\("granary", CommodityKind::Flour\)/);
 assert.match(expandedSimulation, /\("brewery", CommodityKind::Barley\)/);
 assert.match(expandedSimulation, /\("smokehouse", CommodityKind::Food\)/);
 assert.match(expandedSimulation, /\("weaver", CommodityKind::Wool\)/);
+assert.match(expandedSimulation, /\("weaver", CommodityKind::Flax\)/);
 assert.match(expandedSimulation, /select_processor_input_dispatch_candidate/);
 assert.match(
   expandedSimulation,

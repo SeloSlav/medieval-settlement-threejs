@@ -50,4 +50,5 @@ export default __t.row({
   legacyUnhousedPopulationBonusEnabled: __t.bool().name("legacy_unhoused_population_bonus_enabled"),
   barley: __t.f64(),
   malt: __t.f64(),
+  flax: __t.f64(),
 });

@@ -24,6 +24,8 @@ import {
   WATERMILL_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
+  WEAVER_FLAX_PER_CYCLE,
+  WEAVER_FLAX_WATER_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import {
@@ -86,6 +88,8 @@ export type SettlementProductionCapacity = {
   preservationFirewoodPerDay: number;
   clothOutputPerDay: number;
   clothWoolPerDay: number;
+  clothFlaxPerDay: number;
+  clothFlaxWaterPerDay: number;
   tierThreeResidents: number;
   fireDisabledTierThreeHomes: number;
   fireDisabledTierThreeResidents: number;
@@ -103,7 +107,8 @@ export type ProcessorInput =
   | 'water'
   | 'firewood'
   | 'fresh food'
-  | 'wool';
+  | 'wool'
+  | 'flax';
 
 export type ProcessorInputBuffer = {
   days: number;
@@ -698,15 +703,43 @@ function completedProcessorOverview(
           'cloth',
           cycles * WEAVER_CLOTH_PER_CYCLE,
         );
-        weaverInputBuffer = updateFirstToStop(
-          weaverInputBuffer,
-          buildingInputRunway(
+        const woolCycles = Math.max(0, building.wool ?? 0)
+          / Math.max(1e-6, WEAVER_WOOL_PER_CYCLE);
+        const flaxCycles = Math.min(
+          Math.max(0, building.flax ?? 0)
+            / Math.max(1e-6, WEAVER_FLAX_PER_CYCLE),
+          Math.max(0, building.water)
+            / Math.max(1e-6, WEAVER_FLAX_WATER_PER_CYCLE),
+        );
+        const usesFlax = (
+          (building.flax ?? 0) > 1e-6
+          && (building.wool ?? 0) <= 1e-6
+        ) || flaxCycles > woolCycles + 1e-9;
+        let runway = buildingInputRunway(
+          deliveries,
+          building,
+          usesFlax ? 'flax' : 'wool',
+          cycles * (
+            usesFlax ? WEAVER_FLAX_PER_CYCLE : WEAVER_WOOL_PER_CYCLE
+          ),
+        );
+        let limitingInput: ProcessorInput = usesFlax ? 'flax' : 'wool';
+        if (usesFlax) {
+          const waterRunway = buildingInputRunway(
             deliveries,
             building,
-            'wool',
-            cycles * WEAVER_WOOL_PER_CYCLE,
-          ),
-          'wool',
+            'water',
+            cycles * WEAVER_FLAX_WATER_PER_CYCLE,
+          );
+          if (waterRunway.days < runway.days) {
+            runway = waterRunway;
+            limitingInput = 'water';
+          }
+        }
+        weaverInputBuffer = updateFirstToStop(
+          weaverInputBuffer,
+          runway,
+          limitingInput,
           building.id,
         );
         weaverOutputRoom = updateFirstToFill(
@@ -1035,6 +1068,9 @@ export function computeSettlementProductionCapacity(
     preservationFirewoodPerDay: smokehouseCycles * SMOKEHOUSE_FIREWOOD_PER_CYCLE,
     clothOutputPerDay: weaverCycles * WEAVER_CLOTH_PER_CYCLE,
     clothWoolPerDay: weaverCycles * WEAVER_WOOL_PER_CYCLE,
+    clothFlaxPerDay: weaverCycles * WEAVER_FLAX_PER_CYCLE,
+    clothFlaxWaterPerDay:
+      weaverCycles * WEAVER_FLAX_WATER_PER_CYCLE,
     tierThreeResidents,
     fireDisabledTierThreeHomes,
     fireDisabledTierThreeResidents,

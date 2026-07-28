@@ -28,6 +28,7 @@ type BuildingBalance = {
     grain?: number;
     barley?: number;
     malt?: number;
+    flax?: number;
     flour?: number;
     ale?: number;
     preservedFood?: number;
@@ -392,6 +393,8 @@ export type GameBalance = {
     breweryBrewingFirewoodPerCycle: number;
     breweryAlePerCycle: number;
     weaverWoolPerCycle: number;
+    weaverFlaxPerCycle: number;
+    weaverFlaxWaterPerCycle: number;
     weaverClothPerCycle: number;
     textileTransferPerTrip: number;
     smokehouseFoodPerCycle: number;
@@ -781,6 +784,8 @@ function generateRust(): string {
     `pub const BREWERY_BREWING_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.breweryBrewingFirewoodPerCycle)};`,
     `pub const BREWERY_ALE_PER_CYCLE: f64 = ${rustF64(b.production.breweryAlePerCycle)};`,
     `pub const WEAVER_WOOL_PER_CYCLE: f64 = ${rustF64(b.production.weaverWoolPerCycle)};`,
+    `pub const WEAVER_FLAX_PER_CYCLE: f64 = ${rustF64(b.production.weaverFlaxPerCycle)};`,
+    `pub const WEAVER_FLAX_WATER_PER_CYCLE: f64 = ${rustF64(b.production.weaverFlaxWaterPerCycle)};`,
     `pub const WEAVER_CLOTH_PER_CYCLE: f64 = ${rustF64(b.production.weaverClothPerCycle)};`,
     `pub const TEXTILE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.production.textileTransferPerTrip)};`,
     `pub const SMOKEHOUSE_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseFoodPerCycle)};`,
@@ -1025,6 +1030,7 @@ function generateRust(): string {
   lines.push('    pub storage_grain: f64,');
   lines.push('    pub storage_barley: f64,');
   lines.push('    pub storage_malt: f64,');
+  lines.push('    pub storage_flax: f64,');
   lines.push('    pub storage_flour: f64,');
   lines.push('    pub storage_ale: f64,');
   lines.push('    pub storage_preserved_food: f64,');
@@ -1066,6 +1072,7 @@ function generateRust(): string {
     lines.push(`    storage_grain: ${rustF64(def.storage.grain ?? 0)},`);
     lines.push(`    storage_barley: ${rustF64(def.storage.barley ?? 0)},`);
     lines.push(`    storage_malt: ${rustF64(def.storage.malt ?? 0)},`);
+    lines.push(`    storage_flax: ${rustF64(def.storage.flax ?? 0)},`);
     lines.push(`    storage_flour: ${rustF64(def.storage.flour ?? 0)},`);
     lines.push(`    storage_ale: ${rustF64(def.storage.ale ?? 0)},`);
     lines.push(`    storage_preserved_food: ${rustF64(def.storage.preservedFood ?? 0)},`);
@@ -1443,6 +1450,8 @@ function generateTypeScript(): string {
     `export const BREWERY_BREWING_FIREWOOD_PER_CYCLE = ${b.production.breweryBrewingFirewoodPerCycle};`,
     `export const BREWERY_ALE_PER_CYCLE = ${b.production.breweryAlePerCycle};`,
     `export const WEAVER_WOOL_PER_CYCLE = ${b.production.weaverWoolPerCycle};`,
+    `export const WEAVER_FLAX_PER_CYCLE = ${b.production.weaverFlaxPerCycle};`,
+    `export const WEAVER_FLAX_WATER_PER_CYCLE = ${b.production.weaverFlaxWaterPerCycle};`,
     `export const WEAVER_CLOTH_PER_CYCLE = ${b.production.weaverClothPerCycle};`,
     `export const TEXTILE_TRANSFER_PER_TRIP = ${b.production.textileTransferPerTrip};`,
     `export const SMOKEHOUSE_FOOD_PER_CYCLE = ${b.production.smokehouseFoodPerCycle};`,
@@ -1606,6 +1615,7 @@ function generateTypeScript(): string {
     '  grain?: number;',
     '  barley?: number;',
     '  malt?: number;',
+    '  flax?: number;',
     '  flour?: number;',
     '  ale?: number;',
     '  preservedFood?: number;',
@@ -1686,6 +1696,7 @@ function generateTypeScript(): string {
     const honey = def.storage.honey ?? 0;
     const wine = def.storage.wine ?? 0;
     const wool = def.storage.wool ?? 0;
+    const flax = def.storage.flax ?? 0;
     const cloth = def.storage.cloth ?? 0;
     const ironwork = def.storage.ironwork ?? 0;
     const polearms = def.storage.polearms ?? 0;
@@ -1701,6 +1712,7 @@ function generateTypeScript(): string {
     if (honey > 0) extras.push(`honey: ${honey}`);
     if (wine > 0) extras.push(`wine: ${wine}`);
     if (wool > 0) extras.push(`wool: ${wool}`);
+    if (flax > 0) extras.push(`flax: ${flax}`);
     if (cloth > 0) extras.push(`cloth: ${cloth}`);
     if (ironwork > 0) extras.push(`ironwork: ${ironwork}`);
     if (polearms > 0) extras.push(`polearms: ${polearms}`);

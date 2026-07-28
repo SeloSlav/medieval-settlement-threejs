@@ -3,6 +3,7 @@ import {
   BUILDING_STORAGE_CAPS,
   GRANARY_FLOUR_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
+  WEAVER_FLAX_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import {
@@ -15,7 +16,12 @@ import { compareStableEntityIds } from './roadLogistics.ts';
 
 export const PROCESSOR_INPUT_BUFFER_CYCLES = 3;
 
-export type DirectProcessorInputCommodity = 'barley' | 'flour' | 'food' | 'wool';
+export type DirectProcessorInputCommodity =
+  | 'barley'
+  | 'flour'
+  | 'food'
+  | 'wool'
+  | 'flax';
 export type ProcessorInputDispatchDuty = 'working-buffer' | 'workshop-overflow';
 
 type ProcessorInputDestinationLike = Pick<
@@ -29,6 +35,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'flour'
   | 'food'
   | 'wool'
+  | 'flax'
   | 'barley'
 >;
 
@@ -46,6 +53,7 @@ const TARGET_KIND: Record<DirectProcessorInputCommodity, BuildingKind> = {
   flour: 'granary',
   food: 'smokehouse',
   wool: 'weaver',
+  flax: 'weaver',
 };
 
 export function directlyDispatchedProcessorInputPerCycle(
@@ -62,6 +70,8 @@ export function directlyDispatchedProcessorInputPerCycle(
       return SMOKEHOUSE_FOOD_PER_CYCLE;
     case 'wool':
       return WEAVER_WOOL_PER_CYCLE;
+    case 'flax':
+      return WEAVER_FLAX_PER_CYCLE;
   }
 }
 

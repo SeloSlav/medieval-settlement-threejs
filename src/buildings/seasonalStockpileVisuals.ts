@@ -7,6 +7,7 @@ import {
 } from './buildingStockpileVisuals.ts';
 
 export const THRESHING_GRAIN_VISUAL_SEGMENTS = 4;
+export const THRESHING_FLAX_VISUAL_SEGMENTS = 4;
 export const APIARY_FOOD_VISUAL_SEGMENTS = 2;
 export const APIARY_HONEY_VISUAL_SEGMENTS = 3;
 export const VINEYARD_FOOD_VISUAL_SEGMENTS = 2;
@@ -21,6 +22,10 @@ export function seasonalStockpileVisualSignature(building: BuildingState): strin
         BUILDING_STORAGE_CAPS.threshing_barn.grain
           + (BUILDING_STORAGE_CAPS.threshing_barn.barley ?? 0),
         THRESHING_GRAIN_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
+        building.flax ?? 0,
+        BUILDING_STORAGE_CAPS.threshing_barn.flax ?? 0,
+        THRESHING_FLAX_VISUAL_SEGMENTS,
       )}`;
     case 'apiary':
       return `:seasonal-store:${
@@ -68,6 +73,13 @@ export function syncSeasonalStockpileVisuals(
         building.grain + (building.barley ?? 0),
         BUILDING_STORAGE_CAPS.threshing_barn.grain
           + (BUILDING_STORAGE_CAPS.threshing_barn.barley ?? 0),
+      );
+      syncNamedStockpile(
+        marker,
+        'ThreshingFlaxStockpile',
+        'ThreshingFlaxSegment',
+        building.flax ?? 0,
+        BUILDING_STORAGE_CAPS.threshing_barn.flax ?? 0,
       );
       break;
     case 'apiary':

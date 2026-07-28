@@ -15,7 +15,8 @@ use crate::balance_generated::{
     SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT,
     TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
     VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
-    WEAVER_CLOTH_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
+    WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -158,7 +159,7 @@ pub fn step_threshing_barn(
             tick,
             clock,
             &mut building,
-            CommodityKind::Wool,
+            CommodityKind::Flax,
             &["weaver"],
         );
         dispatch_farmstead_grain(ctx, tick, clock, &mut building, seed_reserve);
@@ -542,7 +543,7 @@ fn step_farmstead_fields(
         let harvest_commodity = match crop_produce(field.crop) {
             FarmCropProduce::Grain => Some(CommodityKind::Grain),
             FarmCropProduce::Barley => Some(CommodityKind::Barley),
-            FarmCropProduce::Fibre => Some(CommodityKind::Wool),
+            FarmCropProduce::Fibre => Some(CommodityKind::Flax),
             FarmCropProduce::None => None,
         };
         let mut spent = work_budget.min(remaining);
@@ -783,12 +784,41 @@ pub fn step_weaver(
     building: Building,
 ) {
     let starting_cloth = building.cloth;
+    let input_staging_cycles =
+        processor_input_staging_cycles(building.processor_output_target_percent);
+    let flax_route_present = building.flax > 1e-6
+        || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Flax);
+    if flax_route_present {
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            &building,
+            CommodityKind::Water,
+            &["well"],
+            WEAVER_FLAX_WATER_PER_CYCLE * input_staging_cycles,
+        );
+    }
+    let inputs = if weaver_prefers_flax(building.wool, building.flax, building.water) {
+        [
+            (CommodityKind::Flax, WEAVER_FLAX_PER_CYCLE),
+            (
+                CommodityKind::Water,
+                WEAVER_FLAX_WATER_PER_CYCLE,
+            ),
+        ]
+    } else {
+        [
+            (CommodityKind::Wool, WEAVER_WOOL_PER_CYCLE),
+            (CommodityKind::Water, 0.0),
+        ]
+    };
     let mut weaver = step_processor(
         ctx,
         tick,
         clock,
         building,
-        &[(CommodityKind::Wool, WEAVER_WOOL_PER_CYCLE)],
+        &inputs,
         &[(CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE)],
     );
     if starting_cloth <= 1e-6 && weaver.cloth > 1e-6 {
@@ -808,6 +838,14 @@ pub fn step_weaver(
         &["marketplace"],
     );
     ctx.db.building().id().update(weaver);
+}
+
+fn weaver_prefers_flax(wool: f64, flax: f64, water: f64) -> bool {
+    let wool_cycles = wool.max(0.0) / WEAVER_WOOL_PER_CYCLE.max(1e-6);
+    let flax_cycles = (flax.max(0.0) / WEAVER_FLAX_PER_CYCLE.max(1e-6)).min(
+        water.max(0.0) / WEAVER_FLAX_WATER_PER_CYCLE.max(1e-6),
+    );
+    (flax > 1e-6 && wool <= 1e-6) || flax_cycles > wool_cycles + 1e-9
 }
 
 pub fn step_smokehouse(
@@ -1335,7 +1373,10 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
         "smokehouse" => {
             matches!(commodity, CommodityKind::Food | CommodityKind::Firewood)
         }
-        "weaver" => commodity == CommodityKind::Wool,
+        "weaver" => matches!(
+            commodity,
+            CommodityKind::Wool | CommodityKind::Flax | CommodityKind::Water
+        ),
         _ => false,
     }
 }
@@ -1356,7 +1397,9 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
 
 fn commodity_transfer_per_trip(commodity: CommodityKind) -> f64 {
     match commodity {
-        CommodityKind::Wool | CommodityKind::Cloth => TEXTILE_TRANSFER_PER_TRIP,
+        CommodityKind::Wool | CommodityKind::Flax | CommodityKind::Cloth => {
+            TEXTILE_TRANSFER_PER_TRIP
+        }
         _ => GRAIN_TRANSFER_PER_TRIP,
     }
 }
@@ -1942,6 +1985,7 @@ fn directly_dispatched_processor_input_per_cycle(
         ("granary", CommodityKind::Flour) => GRANARY_FLOUR_PER_CYCLE,
         ("smokehouse", CommodityKind::Food) => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("weaver", CommodityKind::Wool) => WEAVER_WOOL_PER_CYCLE,
+        ("weaver", CommodityKind::Flax) => WEAVER_FLAX_PER_CYCLE,
         ("brewery", CommodityKind::Barley) => BREWERY_BARLEY_PER_MALT_CYCLE,
         _ => 0.0,
     }
@@ -2297,6 +2341,7 @@ fn request_connected_commodity_with_source_availability(
                     || tick.building_disabled_by_fire(ctx, source.id)
                     || !source_kinds.contains(&source.kind.as_str())
                     || (source.kind == "marketplace" && source.assigned_labor == 0)
+                    || (source.kind == "well" && source.assigned_labor == 0)
                     || building_has_active_trip(ctx, source.id)
                 {
                     return None;

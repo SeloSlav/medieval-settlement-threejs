@@ -7,6 +7,7 @@ import {
   APIARY_FOOD_VISUAL_SEGMENTS,
   APIARY_HONEY_VISUAL_SEGMENTS,
   THRESHING_GRAIN_VISUAL_SEGMENTS,
+  THRESHING_FLAX_VISUAL_SEGMENTS,
   VINEYARD_FOOD_VISUAL_SEGMENTS,
   VINEYARD_WINE_VISUAL_SEGMENTS,
   syncSeasonalStockpileVisuals,
@@ -29,6 +30,12 @@ const stockGroups = [
     'ThreshingGrainStockpile',
     'ThreshingGrainSegment',
     THRESHING_GRAIN_VISUAL_SEGMENTS,
+  ],
+  [
+    'threshing_barn',
+    'ThreshingFlaxStockpile',
+    'ThreshingFlaxSegment',
+    THRESHING_FLAX_VISUAL_SEGMENTS,
   ],
   [
     'apiary',
@@ -71,12 +78,18 @@ for (const [kind, containerName, segmentName, segmentCount] of stockGroups) {
 const threshingMarker = createBuildingMesh('threshing_barn');
 syncSeasonalStockpileVisuals(
   threshingMarker,
-  building('threshing_barn', { grain: 150, barley: 100 }),
+  building('threshing_barn', { grain: 150, barley: 100, flax: 91 }),
 );
 assertVisibleSegments(
   threshingMarker,
   'ThreshingGrainStockpile',
   'ThreshingGrainSegment',
+  3,
+);
+assertVisibleSegments(
+  threshingMarker,
+  'ThreshingFlaxStockpile',
+  'ThreshingFlaxSegment',
   3,
 );
 
@@ -202,7 +215,7 @@ function building(
   kind: BuildingKind,
   stocks: Partial<Pick<
     BuildingState,
-    'food' | 'grain' | 'honey' | 'wine'
+    'food' | 'grain' | 'barley' | 'flax' | 'honey' | 'wine'
   >> = {},
 ): BuildingState {
   return {

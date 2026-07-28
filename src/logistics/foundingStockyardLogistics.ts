@@ -73,6 +73,7 @@ export const FOUNDING_RELOCATION_COMMODITIES = [
   'wine',
   'cloth',
   'wool',
+  'flax',
   'ironwork',
   'polearms',
   'water',
@@ -164,6 +165,10 @@ function foundingDestinationPriority(
     case 'wool':
       if (building.kind === 'weaver') return 0;
       if (building.kind === 'pastoral_farmstead') return 1;
+      return 3;
+    case 'flax':
+      if (building.kind === 'weaver') return 0;
+      if (building.kind === 'threshing_barn') return 1;
       return 3;
     case 'cloth':
       if (building.kind === 'marketplace') return 0;

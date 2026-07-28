@@ -73,4 +73,5 @@ export default __t.row({
   marketplaceGoldReserveTarget: __t.u8().name("marketplace_gold_reserve_target"),
   barley: __t.f64(),
   malt: __t.f64(),
+  flax: __t.f64(),
 });

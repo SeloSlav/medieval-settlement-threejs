@@ -860,7 +860,7 @@ function renderSettlementTextileRoadRow(plan: SettlementTextilePlan): string {
   `;
 
   return `
-    <li><span>Textile roads</span><span>${roads.matchedBranches} / ${roads.activeBranches} active branches pair fleece and loom capacity (${roads.fleeceBranches} fleece · ${roads.loomBranches} loom) · ${roads.roadMatchedAnnualClothPotential.toFixed(1)} / ${plan.annualClothPotential.toFixed(1)} cloth/year physically paired${fragmentation}${householdCoverage}${exposure}${exportable}${inspect}</span></li>
+    <li><span>Textile roads</span><span>${roads.matchedBranches} / ${roads.activeBranches} active branches pair raw fibre and loom capacity (${roads.fleeceBranches} wool · ${roads.flaxBranches} flax · ${roads.loomBranches} loom) · ${roads.roadMatchedAnnualClothPotential.toFixed(1)} / ${plan.annualClothPotential.toFixed(1)} cloth/year physically paired${fragmentation}${householdCoverage}${exposure}${exportable}${inspect}</span></li>
     ${currentServiceRow}
   `;
 }
@@ -870,7 +870,7 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
   const unavailableCloth = plan.unavailableHouseholdClothStock > 0.05
     ? ` · ${plan.unavailableHouseholdClothStock.toFixed(1)} in treasury, export, fire quarantine, idle, or disconnected stores`
     : '';
-  const storesRow = `<li><span>Textile stores</span><span>${plan.woolStock.toFixed(1)} wool owned${plan.woolInTransit > 0.05 ? ` · ${plan.woolInTransit.toFixed(1)} on carts` : ''} · ${plan.clothStock.toFixed(1)} cloth owned${plan.clothInTransit > 0.05 ? ` · ${plan.clothInTransit.toFixed(1)} on carts` : ''} · ${plan.serviceableHouseholdClothStock.toFixed(1)} serviceable to current households${plan.householdClothInTransit > 0.05 ? ` including ${plan.householdClothInTransit.toFixed(1)} approaching homes` : ''}${unavailableCloth} · ${formatProvisionRunway(plan.clothReserveRunwayDays)} weakest household cloth reserve</span></li>`;
+  const storesRow = `<li><span>Textile stores</span><span>${plan.woolStock.toFixed(1)} wool owned${plan.woolInTransit > 0.05 ? ` · ${plan.woolInTransit.toFixed(1)} on carts` : ''} · ${plan.flaxStock.toFixed(1)} flax owned${plan.flaxInTransit > 0.05 ? ` · ${plan.flaxInTransit.toFixed(1)} on carts` : ''} · ${plan.clothStock.toFixed(1)} cloth owned${plan.clothInTransit > 0.05 ? ` · ${plan.clothInTransit.toFixed(1)} on carts` : ''} · ${plan.serviceableHouseholdClothStock.toFixed(1)} serviceable to current households${plan.householdClothInTransit > 0.05 ? ` including ${plan.householdClothInTransit.toFixed(1)} approaching homes` : ''}${unavailableCloth} · ${formatProvisionRunway(plan.clothReserveRunwayDays)} weakest household cloth reserve</span></li>`;
   const fireRow = plan.fireDisabledSheepHoldings
     + plan.fireDisabledWeavers
     + plan.fireDisabledProsperousHomes === 0
@@ -879,6 +879,7 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
   if (plan.sheepHoldings === 0) {
     return `
       <li><span>Annual wool clip</span><span>No completed sheep holding</span></li>
+      <li><span>Flax route</span><span>${plan.flaxStock.toFixed(1)} harvested fibre owned · requires loom labor and hauled water</span></li>
       ${fireRow}
       ${storesRow}
       <li><span>Textile chain</span><span>${textileChainBalanceLabel(plan)} · ${plan.annualHouseholdClothDemand.toFixed(1)} cloth/year household demand</span></li>
@@ -915,7 +916,7 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
     <li><span>Shearing readiness</span><span>${plan.readyPendingHoldings} pending and ready · ${plan.storageBlockedHoldings} storage-blocked · ${plan.staffingBlockedHoldings} unstaffed · ${plan.flockBlockedHoldings} flock-blocked · ${plan.fireDisabledSheepHoldings} fire-disabled · ${plan.missedHoldings} missed${blocked === 0 ? ' · no exposed clip' : ''}</span></li>
     ${fireRow}
     ${storesRow}
-    <li><span>Textile chain</span><span>${plan.annualClothPotential.toFixed(1)} cloth/year installed ceiling at current flock and loom labor vs ${plan.annualHouseholdClothDemand.toFixed(1)} household need · ${annualBalance} over ${TEXTILE_PLAN_DAYS_PER_YEAR} days · ${textileChainBalanceLabel(plan)}</span></li>
+    <li><span>Textile chain</span><span>${plan.annualClothPotential.toFixed(1)} cloth/year installed ceiling from projected wool, physical flax, and loom labor vs ${plan.annualHouseholdClothDemand.toFixed(1)} household need · ${annualBalance} over ${TEXTILE_PLAN_DAYS_PER_YEAR} days · flax assumes a supplied water route · ${textileChainBalanceLabel(plan)}</span></li>
     ${roadRow}
   `;
 }
@@ -1947,7 +1948,7 @@ export function renderTownHallInspector(
       <li><span>Bread capacity</span><span>${production.breadFoodCapacityPerDay.toFixed(1)} food / day vs ${provisioning.totalFoodPerDay.toFixed(1)} total demand · needs ${production.breadGrainPerDay.toFixed(1)} grain + ${production.breadWaterPerDay.toFixed(1)} water + ${production.breadFirewoodPerDay.toFixed(1)} firewood</span></li>
       <li><span>Ale capacity</span><span>${production.aleOutputPerDay.toFixed(1)} / day vs ${production.aleDemandPerDay.toFixed(1)} tier-3 demand · two workshop cycles per batch · needs ${production.aleBarleyPerDay.toFixed(1)} barley + ${production.aleWaterPerDay.toFixed(1)} water + ${production.aleFirewoodPerDay.toFixed(1)} firewood</span></li>
       <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day vs ${production.preservedFoodDemandPerDay.toFixed(1)} tier-3 demand · needs ${production.preservationFreshFoodPerDay.toFixed(1)} fresh food + ${production.preservationFirewoodPerDay.toFixed(1)} firewood</span></li>
-      <li><span>Cloth capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-3 demand · needs ${production.clothWoolPerDay.toFixed(1)} wool</span></li>
+      <li><span>Cloth capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-3 demand · choose ${production.clothWoolPerDay.toFixed(1)} wool, or ${production.clothFlaxPerDay.toFixed(1)} flax + ${production.clothFlaxWaterPerDay.toFixed(1)} hauled water</span></li>
       <li><span>Prosperity throughput</span><span>${formatProsperityCapacity(prosperity)}</span></li>
       <li><span>Prosperity roads</span><span>${formatProsperityRoads(prosperity.roadPlan)}</span></li>
       <li><span>Prosperous housing pipeline</span><span>${formatProsperityHousingPipeline(prosperity)} · assumes staffed workshops remain fully supplied</span></li>

@@ -14,6 +14,7 @@ export const SALVAGE_STONE_VISUAL_CAPACITY = 160;
 export const SALVAGE_GOODS_VISUAL_CAPACITY = 140;
 export const HAYLOFT_VISUAL_SEGMENTS = 8;
 export const WOOL_STOCKPILE_VISUAL_SEGMENTS = 4;
+export const FLAX_STOCKPILE_VISUAL_SEGMENTS = 4;
 export const CLOTH_STOCKPILE_VISUAL_SEGMENTS = 4;
 
 export function stockpileVisualLevel(

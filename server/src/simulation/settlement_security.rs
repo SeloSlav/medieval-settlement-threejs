@@ -393,6 +393,7 @@ fn building_portable_stores(building: &Building) -> RaidPortableStores {
         gold: building.gold,
         barley: building.barley,
         malt: building.malt,
+        flax: building.flax,
     }
 }
 
@@ -416,6 +417,7 @@ fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortableStores {
         Some(CommodityKind::Gold) => stores.gold = amount,
         Some(CommodityKind::Barley) => stores.barley = amount,
         Some(CommodityKind::Malt) => stores.malt = amount,
+        Some(CommodityKind::Flax) => stores.flax = amount,
         // Raiders do not select bulk stone or water as plunder even when a
         // settlement cart happens to be carrying it.
         Some(CommodityKind::Stone | CommodityKind::Water) | None => {}
@@ -441,6 +443,7 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Gold) => stores.gold,
         Some(CommodityKind::Barley) => stores.barley,
         Some(CommodityKind::Malt) => stores.malt,
+        Some(CommodityKind::Flax) => stores.flax,
         Some(CommodityKind::Stone | CommodityKind::Water) | None => 0.0,
     }
 }
@@ -470,6 +473,7 @@ fn treasury_portable_stores(
         gold: treasury.gold,
         barley: treasury.barley,
         malt: treasury.malt,
+        flax: treasury.flax,
     }
 }
 
@@ -536,6 +540,7 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.gold = stores.gold;
     building.barley = stores.barley;
     building.malt = stores.malt;
+    building.flax = stores.flax;
     building.civic_receipts_gold = building
         .civic_receipts_gold
         .max(0.0)
@@ -570,6 +575,7 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(gold);
     subtract_loss!(barley);
     subtract_loss!(malt);
+    subtract_loss!(flax);
 }
 
 fn portable_store_loss(before: f64, remaining: f64) -> f64 {

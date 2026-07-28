@@ -613,7 +613,7 @@ fn building_flammability(building: &Building) -> f64 {
     }
     let stored_fuel = building.firewood
         + building.timber * 0.35
-        + (building.grain + building.barley + building.malt) * 0.08;
+        + (building.grain + building.barley + building.malt + building.flax) * 0.08;
     base * (1.0 + (stored_fuel / 160.0).clamp(0.0, 0.75))
 }
 
@@ -634,6 +634,7 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.grain = 0.0;
             building.barley = 0.0;
             building.malt = 0.0;
+            building.flax = 0.0;
             building.flour = 0.0;
             building.ale = 0.0;
             building.preserved_food = 0.0;

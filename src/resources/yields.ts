@@ -62,6 +62,8 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} wine`;
     case 'wool':
       return `${Math.round(amount)} wool`;
+    case 'flax':
+      return `${Math.round(amount)} flax fibre`;
     case 'cloth':
       return `${Math.round(amount)} cloth`;
     default: {

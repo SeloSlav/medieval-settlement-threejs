@@ -394,6 +394,7 @@ type PortableRaidStoresLike = {
   honey: number;
   wine: number;
   wool?: number;
+  flax?: number;
   cloth?: number;
   ironwork?: number;
   polearms?: number;
@@ -727,6 +728,7 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.honey)
     + positivePortableAmount(stores.wine)
     + positivePortableAmount(stores.wool)
+    + positivePortableAmount(stores.flax)
     + positivePortableAmount(stores.cloth) * CLOTH_RAID_VALUE_MULTIPLIER
     + positivePortableAmount(stores.ironwork) * IRONWORK_RAID_VALUE_MULTIPLIER
     + positivePortableAmount(stores.polearms) * POLEARM_RAID_VALUE_MULTIPLIER
@@ -746,6 +748,7 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['honey', 'honey', 1],
   ['wine', 'wine', 1],
   ['wool', 'wool', 1],
+  ['flax', 'flax fibre', 1],
   ['cloth', 'cloth', CLOTH_RAID_VALUE_MULTIPLIER],
   ['ironwork', 'ironwork', IRONWORK_RAID_VALUE_MULTIPLIER],
   ['polearms', 'polearms', POLEARM_RAID_VALUE_MULTIPLIER],
@@ -784,6 +787,7 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   honey: 1,
   wine: 1,
   wool: 1,
+  flax: 1,
   cloth: CLOTH_RAID_VALUE_MULTIPLIER,
   ironwork: IRONWORK_RAID_VALUE_MULTIPLIER,
   polearms: POLEARM_RAID_VALUE_MULTIPLIER,

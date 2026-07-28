@@ -117,6 +117,7 @@ pub struct RaidPortableStores {
     pub gold: f64,
     pub barley: f64,
     pub malt: f64,
+    pub flax: f64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -144,6 +145,7 @@ impl RaidPortableStores {
             + positive_store(self.gold)
             + positive_store(self.barley)
             + positive_store(self.malt)
+            + positive_store(self.flax)
     }
 
     pub fn plunder(self, loss_fraction: f64) -> RaidPlunder {
@@ -178,6 +180,7 @@ impl RaidPortableStores {
         plunder_good!(polearms);
         plunder_good!(barley);
         plunder_good!(malt);
+        plunder_good!(flax);
         let (gold, wealth_lost) = plunder_store(self.gold, fraction);
         remaining.gold = gold;
 

@@ -135,6 +135,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         legacy_unhoused_population_bonus_enabled: true,
         barley: 0.0,
         malt: 0.0,
+        flax: 0.0,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

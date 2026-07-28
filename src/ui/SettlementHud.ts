@@ -201,6 +201,11 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="wool">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wool" hidden></span>
       </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="Harvested flax fibre stored at physical farmsteads and weavers. Weavers need hauled water to prepare flax before weaving; loaded carts are shown separately.">
+        <span class="settlement-hud__label">Flax</span>
+        <strong class="settlement-hud__value" data-stockpile="flax">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="flax" hidden></span>
+      </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Woven cloth stored at physical weavers, prosperous homes, and markets awaiting export. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Cloth</span>
         <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>

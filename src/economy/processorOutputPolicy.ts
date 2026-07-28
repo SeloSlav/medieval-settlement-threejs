@@ -26,7 +26,8 @@ export type ProcessorInputCommodity =
   | 'water'
   | 'firewood'
   | 'food'
-  | 'wool';
+  | 'wool'
+  | 'flax';
 
 export const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT = 100;
 export const PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES = 3;
@@ -72,7 +73,7 @@ const INPUTS_BY_KIND: Record<
   granary: ['flour', 'water', 'firewood'],
   brewery: ['barley', 'water', 'firewood'],
   smokehouse: ['food', 'firewood'],
-  weaver: ['wool'],
+  weaver: ['wool', 'flax', 'water'],
 };
 
 export function isProcessorOutputTargetKind(

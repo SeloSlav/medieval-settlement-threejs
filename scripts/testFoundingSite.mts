@@ -480,6 +480,7 @@ assert.deepEqual(
     'wine',
     'cloth',
     'wool',
+    'flax',
     'ironwork',
     'polearms',
     'water',
@@ -515,6 +516,7 @@ const permanentStorageCases = [
   ['wine', 'marketplace'],
   ['cloth', 'marketplace'],
   ['wool', 'weaver'],
+  ['flax', 'weaver'],
   ['ironwork', 'carpenter'],
   ['polearms', 'guardhouse'],
   ['water', 'well'],
@@ -732,7 +734,7 @@ assert.match(foundingLifecycle, /building_has_inbound_supply_trip/);
 assert.match(foundingLifecycle, /relocatable_stock/);
 assert.match(
   foundingLifecycle,
-  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*17\]/,
+  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*18\]/,
   'all portable non-gold commodities must participate in founding-yard clearance',
 );
 for (const variant of [

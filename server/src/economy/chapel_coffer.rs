@@ -235,6 +235,7 @@ mod tests {
             civic_receipts_gold: 0.0,
             barley: 0.0,
             malt: 0.0,
+            flax: 0.0,
         }
     }
 

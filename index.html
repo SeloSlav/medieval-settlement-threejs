@@ -3,24 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#171a15" />
+    <meta name="theme-color" content="#667a45" />
     <meta name="color-scheme" content="dark" />
+    <link rel="preload" as="image" href="/assets/ui/selo-empire-splash.webp" type="image/webp" />
     <!--
       PRODUCTION METADATA — agents/LLMs: before shipping to production, replace the
       <title>, meta description, and Open Graph values below with the project's final
       marketing copy (not dev/README draft text). Add og:image and twitter:card when a
       share image exists; set og:url to the canonical production URL.
     -->
-    <title>Gorski Kotar 1550 — A Mountain Settlement</title>
+    <title>Selo Empire — A Mountain Settlement</title>
     <meta
       name="description"
-      content="Build a living 1550 frontier settlement in the forests, rivers, and limestone valleys of Gorski Kotar."
+      content="Build Selo Empire, a living 1550 frontier settlement in the forests, rivers, and limestone valleys of Gorski Kotar."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Gorski Kotar 1550 — A Mountain Settlement" />
+    <meta property="og:title" content="Selo Empire — A Mountain Settlement" />
     <meta
       property="og:description"
-      content="Build a living 1550 frontier settlement in the forests, rivers, and limestone valleys of Gorski Kotar."
+      content="Build Selo Empire, a living 1550 frontier settlement in the forests, rivers, and limestone valleys of Gorski Kotar."
     />
     <meta property="og:locale" content="en_US" />
     <style>
@@ -40,12 +41,12 @@
         z-index: 9999;
         display: grid;
         place-items: end start;
-        padding: clamp(28px, 6vw, 82px);
+        padding: clamp(24px, 4.5vw, 68px);
         background:
-          linear-gradient(90deg, rgba(8, 12, 10, 0.9) 0%, rgba(8, 12, 10, 0.52) 38%, rgba(8, 12, 10, 0.08) 72%),
-          linear-gradient(0deg, rgba(8, 10, 8, 0.72) 0%, rgba(8, 10, 8, 0) 48%),
-          url('/assets/ui/world-setup-gorski-kotar-1550.webp') center / cover no-repeat,
-          #171a15;
+          linear-gradient(90deg, rgba(250, 241, 216, 0.28) 0%, rgba(250, 241, 216, 0.08) 38%, rgba(250, 241, 216, 0) 68%),
+          linear-gradient(0deg, rgba(32, 40, 22, 0.42) 0%, rgba(32, 40, 22, 0.04) 46%),
+          url('/assets/ui/selo-empire-splash.webp') center / cover no-repeat,
+          #667a45;
         transition: opacity 420ms ease, visibility 420ms ease;
       }
 
@@ -55,25 +56,49 @@
         pointer-events: none;
       }
 
+      .app-loading-layout {
+        display: grid;
+        gap: 14px;
+        justify-items: start;
+        width: min(560px, calc(100vw - 48px));
+      }
+
+      .app-loading-logo {
+        display: block;
+        width: min(520px, 100%);
+        height: auto;
+        margin-left: -6px;
+        filter:
+          drop-shadow(0 2px 1px rgba(31, 22, 11, 0.7))
+          drop-shadow(0 12px 24px rgba(24, 31, 16, 0.36));
+      }
+
       .app-loading-card {
         display: grid;
-        gap: 12px;
+        gap: 10px;
         justify-items: start;
-        width: min(400px, calc(100vw - 48px));
-        padding: 22px 24px 24px;
+        box-sizing: border-box;
+        width: min(410px, 100%);
+        padding: 18px 22px 20px;
         overflow: hidden;
         text-align: left;
         font-family: Georgia, 'Times New Roman', serif;
-        border: 1px solid rgba(228, 204, 146, 0.2);
+        color: #2f291d;
+        border: 1px solid rgba(91, 65, 28, 0.36);
         border-radius: 3px;
-        background: linear-gradient(135deg, rgba(37, 36, 27, 0.94), rgba(17, 22, 18, 0.92));
-        box-shadow: 0 26px 80px rgba(0, 0, 0, 0.48), inset 3px 0 0 rgba(207, 165, 76, 0.72);
-        backdrop-filter: blur(18px) saturate(0.8);
+        background:
+          linear-gradient(135deg, rgba(250, 243, 221, 0.95), rgba(224, 207, 169, 0.92)),
+          rgba(239, 226, 194, 0.92);
+        box-shadow:
+          0 22px 60px rgba(30, 35, 20, 0.32),
+          inset 3px 0 0 rgba(139, 93, 31, 0.78),
+          inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(14px) saturate(0.88);
       }
 
       .app-loading-kicker {
         margin: 0 0 2px;
-        color: #d6b86e;
+        color: #73501d;
         font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Arial, sans-serif;
         font-size: 10px;
         font-weight: 750;
@@ -85,14 +110,14 @@
         width: 34px;
         height: 34px;
         border-radius: 50%;
-        border: 2px solid rgba(238, 232, 220, 0.14);
-        border-top-color: #d7b463;
+        border: 2px solid rgba(82, 65, 35, 0.18);
+        border-top-color: #8e6428;
         animation: app-loading-spin 900ms linear infinite;
       }
 
       .app-loading-percent {
         margin: 0;
-        color: #d7b463;
+        color: #75511d;
         font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Arial, sans-serif;
         font-size: 15px;
         font-weight: 700;
@@ -104,7 +129,7 @@
         width: 100%;
         height: 3px;
         border-radius: 999px;
-        background: rgba(238, 232, 220, 0.12);
+        background: rgba(72, 57, 31, 0.16);
         overflow: hidden;
       }
 
@@ -113,7 +138,7 @@
         width: var(--loading-progress, 0%);
         height: 100%;
         border-radius: inherit;
-        background: linear-gradient(90deg, #b89245 0%, #e0c078 100%);
+        background: linear-gradient(90deg, #7d5720 0%, #b98b3d 100%);
         transition: width 180ms ease;
       }
 
@@ -122,6 +147,10 @@
         font-size: 20px;
         font-weight: 650;
         letter-spacing: 0.01em;
+      }
+
+      #app-loading .app-loading-label {
+        color: #2f291d;
       }
 
       .app-loading-detail {
@@ -134,6 +163,10 @@
         line-height: 1.35;
       }
 
+      #app-loading .app-loading-detail {
+        color: #5d5545;
+      }
+
       .app-loading-recovery-hint {
         margin: 0;
         color: #9a927d;
@@ -141,6 +174,10 @@
         font-size: 11px;
         font-weight: 500;
         line-height: 1.45;
+      }
+
+      #app-loading .app-loading-recovery-hint {
+        color: #6e6553;
       }
 
       .app-loading-recovery-hint[hidden],
@@ -155,10 +192,10 @@
       .app-loading-retry {
         margin-top: 4px;
         padding: 10px 18px;
-        border: 1px solid rgba(215, 180, 99, 0.45);
+        border: 1px solid rgba(112, 76, 26, 0.46);
         border-radius: 8px;
-        background: rgba(215, 180, 99, 0.12);
-        color: #eee8dc;
+        background: rgba(138, 94, 33, 0.1);
+        color: #3d301c;
         font: inherit;
         font-size: 13px;
         font-weight: 600;
@@ -166,16 +203,16 @@
       }
 
       .app-loading-retry:hover {
-        background: rgba(215, 180, 99, 0.22);
+        background: rgba(138, 94, 33, 0.18);
       }
 
       .app-loading-recovery {
         margin-top: 2px;
         padding: 10px 18px;
-        border: 1px solid rgba(188, 178, 156, 0.28);
+        border: 1px solid rgba(92, 79, 56, 0.25);
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.04);
-        color: #d8d0c0;
+        background: rgba(255, 255, 255, 0.22);
+        color: #554b3b;
         font: inherit;
         font-size: 13px;
         font-weight: 600;
@@ -183,7 +220,7 @@
       }
 
       .app-loading-recovery:hover {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.38);
       }
 
       .session-connection-overlay {
@@ -218,38 +255,74 @@
       @media (max-width: 640px) {
         #app-loading {
           place-items: end stretch;
-          padding: 18px;
-          background-position: 58% center;
+          padding: 16px;
+          background-position: 60% center;
+        }
+
+        .app-loading-layout {
+          width: 100%;
+          justify-items: stretch;
+        }
+
+        .app-loading-logo {
+          width: min(88vw, 460px);
+          margin: 0 auto;
         }
 
         .app-loading-card {
           width: 100%;
         }
       }
+
+      @media (max-height: 620px) {
+        .app-loading-layout {
+          gap: 8px;
+        }
+
+        .app-loading-logo {
+          width: min(360px, 58vw);
+        }
+
+        .app-loading-card {
+          gap: 7px;
+          padding: 13px 18px 15px;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="app-loading" aria-live="polite" aria-busy="true">
-      <div class="app-loading-card">
-        <p class="app-loading-kicker">Gorski Kotar · Anno Domini 1550</p>
-        <div class="app-loading-spinner" aria-hidden="true"></div>
-        <p class="app-loading-percent" data-loading-percent aria-hidden="true">0%</p>
-        <p class="app-loading-label" data-loading-label>Starting world…</p>
-        <p class="app-loading-detail" data-loading-detail>Preparing renderer</p>
-        <p class="app-loading-recovery-hint" data-loading-recovery-hint hidden></p>
-        <div
-          class="app-loading-progress"
-          role="progressbar"
-          aria-label="Overall loading progress"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-valuenow="0"
-          data-loading-bar
-        >
-          <span class="app-loading-progress__fill" aria-hidden="true"></span>
+      <div class="app-loading-layout">
+        <img
+          class="app-loading-logo"
+          src="/assets/ui/selo-empire-logo.png"
+          alt="Selo Empire"
+          width="1200"
+          height="650"
+          fetchpriority="high"
+          decoding="sync"
+        />
+        <div class="app-loading-card">
+          <p class="app-loading-kicker">Gorski Kotar · Anno Domini 1550</p>
+          <div class="app-loading-spinner" aria-hidden="true"></div>
+          <p class="app-loading-percent" data-loading-percent aria-hidden="true">0%</p>
+          <p class="app-loading-label" data-loading-label>Starting world…</p>
+          <p class="app-loading-detail" data-loading-detail>Preparing renderer</p>
+          <p class="app-loading-recovery-hint" data-loading-recovery-hint hidden></p>
+          <div
+            class="app-loading-progress"
+            role="progressbar"
+            aria-label="Overall loading progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            data-loading-bar
+          >
+            <span class="app-loading-progress__fill" aria-hidden="true"></span>
+          </div>
+          <button type="button" class="app-loading-retry" data-loading-retry hidden>Retry connection</button>
+          <button type="button" class="app-loading-recovery" data-loading-recovery hidden>Start new world…</button>
         </div>
-        <button type="button" class="app-loading-retry" data-loading-retry hidden>Retry connection</button>
-        <button type="button" class="app-loading-recovery" data-loading-recovery hidden>Start new world…</button>
       </div>
     </div>
     <div id="app"></div>

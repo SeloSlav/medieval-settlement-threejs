@@ -5,6 +5,7 @@ import {
   SHEEP_SHEARING_END_MONTH,
   SHEEP_WOOL_PER_SHEARING_PER_HEAD,
   WEAVER_CLOTH_PER_CYCLE,
+  WEAVER_FLAX_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import {
@@ -40,6 +41,7 @@ export type TextileAttentionKind =
 export type SettlementTextileRoadBranch = {
   sheepHoldings: number;
   projectedAnnualWool: number;
+  flaxStock: number;
   securedAnnualWool: number;
   annualWeaverWoolCapacity: number;
   annualWeaverClothCapacity: number;
@@ -56,16 +58,19 @@ export type SettlementTextileRoadBranch = {
   currentClothRunwayDays: number;
   hasStockedSupplier: boolean;
   firstWoolBuildingId: string | null;
+  firstFlaxBuildingId: string | null;
   firstResidenceId: string | null;
 };
 
 export type SettlementTextileRoadPlan = {
   activeBranches: number;
   fleeceBranches: number;
+  flaxBranches: number;
   loomBranches: number;
   matchedBranches: number;
   exposedHouseholdBranches: number;
   projectedAnnualWool: number;
+  flaxStock: number;
   roadMatchedAnnualClothPotential: number;
   fragmentationClothPotential: number;
   annualHouseholdClothDemand: number;
@@ -102,6 +107,8 @@ export type SettlementTextilePlan = {
   annualWoolAtRisk: number;
   woolStock: number;
   woolInTransit: number;
+  flaxStock: number;
+  flaxInTransit: number;
   clothStock: number;
   clothInTransit: number;
   householdClothStock: number;
@@ -163,6 +170,7 @@ function textileRoadBranch(
   branch = {
     sheepHoldings: 0,
     projectedAnnualWool: 0,
+    flaxStock: 0,
     securedAnnualWool: 0,
     annualWeaverWoolCapacity: annualWeaverClothCapacity
       * WEAVER_WOOL_PER_CYCLE
@@ -185,6 +193,7 @@ function textileRoadBranch(
     currentClothRunwayDays: Number.POSITIVE_INFINITY,
     hasStockedSupplier: false,
     firstWoolBuildingId: null,
+    firstFlaxBuildingId: null,
     firstResidenceId: source?.firstResidenceId ?? null,
   };
   branches.set(key, branch);
@@ -213,10 +222,12 @@ function buildTextileRoadPlan(
 ): SettlementTextileRoadPlan {
   const branches = new Map<string, SettlementTextileRoadBranch>();
   let fleeceBranches = 0;
+  let flaxBranches = 0;
   let loomBranches = 0;
   let matchedBranches = 0;
   let exposedHouseholdBranches = 0;
   let projectedAnnualWool = 0;
+  let flaxStock = 0;
   let roadMatchedAnnualClothPotential = 0;
   let annualHouseholdClothDemand = 0;
   let coveredHouseholdClothDemand = 0;
@@ -237,9 +248,11 @@ function buildTextileRoadPlan(
   let firstImbalance = 0;
 
   for (const [key, branch] of source) {
-    const clothFromProjectedClip = branch.projectedAnnualWool
+    const clothFromProjectedClip = (
+      branch.projectedAnnualWool + branch.flaxStock
+    )
       * WEAVER_CLOTH_PER_CYCLE
-      / WEAVER_WOOL_PER_CYCLE;
+      / WEAVER_FLAX_PER_CYCLE;
     branch.annualClothPotential = Math.min(
       branch.annualWeaverClothCapacity,
       clothFromProjectedClip,
@@ -266,11 +279,13 @@ function buildTextileRoadPlan(
         : Number.POSITIVE_INFINITY;
 
     const relevant = branch.sheepHoldings > 0
+      || branch.flaxStock > 1e-9
       || branch.annualWeaverClothCapacity > 1e-9
       || branch.annualHouseholdClothDemand > 1e-9;
     if (!relevant) continue;
     branches.set(key, branch);
     projectedAnnualWool += branch.projectedAnnualWool;
+    flaxStock += branch.flaxStock;
     roadMatchedAnnualClothPotential += branch.annualClothPotential;
     annualHouseholdClothDemand += branch.annualHouseholdClothDemand;
     coveredHouseholdClothDemand += branch.coveredHouseholdClothDemand;
@@ -324,9 +339,10 @@ function buildTextileRoadPlan(
     }
 
     if (branch.projectedAnnualWool > 1e-9) fleeceBranches += 1;
+    if (branch.flaxStock > 1e-9) flaxBranches += 1;
     if (branch.annualWeaverClothCapacity > 1e-9) loomBranches += 1;
     if (
-      branch.projectedAnnualWool > 1e-9
+      (branch.projectedAnnualWool > 1e-9 || branch.flaxStock > 1e-9)
       && branch.annualWeaverClothCapacity > 1e-9
     ) {
       matchedBranches += 1;
@@ -374,7 +390,7 @@ function buildTextileRoadPlan(
       clothFromProjectedClip - branch.annualClothPotential,
     );
     if (
-      branch.firstWoolBuildingId !== null
+      (branch.firstWoolBuildingId !== null || branch.firstFlaxBuildingId !== null)
       && (
         strandedClipPotential > firstImbalance + 1e-9
         || (
@@ -383,7 +399,7 @@ function buildTextileRoadPlan(
           && (
             firstImbalancedBuildingId === null
             || compareStableEntityIds(
-              branch.firstWoolBuildingId,
+              branch.firstWoolBuildingId ?? branch.firstFlaxBuildingId!,
               firstImbalancedBuildingId,
             ) < 0
           )
@@ -391,17 +407,20 @@ function buildTextileRoadPlan(
       )
     ) {
       firstImbalance = strandedClipPotential;
-      firstImbalancedBuildingId = branch.firstWoolBuildingId;
+      firstImbalancedBuildingId =
+        branch.firstWoolBuildingId ?? branch.firstFlaxBuildingId;
     }
   }
 
   return {
     activeBranches: branches.size,
     fleeceBranches,
+    flaxBranches,
     loomBranches,
     matchedBranches,
     exposedHouseholdBranches,
     projectedAnnualWool,
+    flaxStock,
     roadMatchedAnnualClothPotential,
     fragmentationClothPotential: Math.max(
       0,
@@ -585,6 +604,7 @@ export function computeSettlementTextilePlan(input: {
 
   const includeLegacyLedger = input.state.physicalFoundingSiteEnabled !== true;
   let woolStock = includeLegacyLedger ? positive(input.state.stockpile.wool) : 0;
+  let flaxStock = includeLegacyLedger ? positive(input.state.stockpile.flax) : 0;
   let clothStock = includeLegacyLedger ? positive(input.state.stockpile.cloth) : 0;
   let householdClothStock = 0;
   let supplierClothStock = 0;
@@ -594,6 +614,28 @@ export function computeSettlementTextilePlan(input: {
   let fireQuarantinedClothStock = 0;
   for (const building of input.state.buildings.values()) {
     woolStock += positive(building.wool);
+    const buildingFlax = positive(building.flax);
+    flaxStock += buildingFlax;
+    if (
+      buildingFlax > 1e-9
+      && !fireDisabledBuildings.has(building.id)
+      && roadBranches
+      && input.roadComponentFor
+    ) {
+      const branch = textileRoadBranch(
+        roadBranches,
+        productionRoadBranchKey(
+          input.roadComponentFor(building),
+          'building',
+          building.id,
+        ),
+      );
+      branch.flaxStock += buildingFlax;
+      branch.firstFlaxBuildingId = earlierStableId(
+        branch.firstFlaxBuildingId,
+        building.id,
+      );
+    }
     const buildingCloth = positive(building.cloth);
     clothStock += buildingCloth;
     if (
@@ -650,10 +692,12 @@ export function computeSettlementTextilePlan(input: {
   }
 
   let woolInTransit = 0;
+  let flaxInTransit = 0;
   let clothInTransit = 0;
   for (const trip of input.state.deliveryTrips.values()) {
     if (trip.phase === 'inbound') continue;
     if (trip.cargoKind === 'wool') woolInTransit += positive(trip.amount);
+    if (trip.cargoKind === 'flax') flaxInTransit += positive(trip.amount);
     if (trip.cargoKind === 'cloth') {
       const tripCloth = positive(trip.amount);
       clothInTransit += tripCloth;
@@ -691,15 +735,16 @@ export function computeSettlementTextilePlan(input: {
     }
   }
   woolStock += woolInTransit;
+  flaxStock += flaxInTransit;
   clothStock += clothInTransit;
 
   const annualWeaverWoolCapacity =
     positive(input.production.clothWoolPerDay) * TEXTILE_PLAN_DAYS_PER_YEAR;
   const annualWeaverClothCapacity =
     positive(input.production.clothOutputPerDay) * TEXTILE_PLAN_DAYS_PER_YEAR;
-  const clothFromProjectedClip = projectedAnnualWool
+  const clothFromProjectedClip = (projectedAnnualWool + flaxStock)
     * WEAVER_CLOTH_PER_CYCLE
-    / WEAVER_WOOL_PER_CYCLE;
+    / WEAVER_FLAX_PER_CYCLE;
   const annualClothPotential = Math.min(
     annualWeaverClothCapacity,
     clothFromProjectedClip,
@@ -740,6 +785,8 @@ export function computeSettlementTextilePlan(input: {
     annualWoolAtRisk: Math.max(0, projectedAnnualWool - securedAnnualWool),
     woolStock,
     woolInTransit,
+    flaxStock,
+    flaxInTransit,
     clothStock,
     clothInTransit,
     householdClothStock,
@@ -760,7 +807,7 @@ export function computeSettlementTextilePlan(input: {
     annualClothBalance: annualClothPotential - annualHouseholdClothDemand,
     woolCapacitySurplus: Math.max(
       0,
-      projectedAnnualWool - annualWeaverWoolCapacity,
+      projectedAnnualWool + flaxStock - annualWeaverWoolCapacity,
     ),
     clothReserveRunwayDays,
     firstAttentionBuildingId,
@@ -770,30 +817,30 @@ export function computeSettlementTextilePlan(input: {
 }
 
 export function textileChainBalanceLabel(plan: SettlementTextilePlan): string {
-  if (plan.sheepHoldings === 0 || plan.projectedAnnualWool <= 1e-9) {
+  if (plan.projectedAnnualWool + plan.flaxStock <= 1e-9) {
     return plan.annualHouseholdClothDemand <= 1e-9
-      ? 'No prosperous-house demand or productive sheep industry'
-      : 'Fleece missing · establish a healthy sheep holding';
+      ? 'No prosperous-house demand or raw textile supply'
+      : 'Raw fibre missing · raise sheep or secure a flax harvest';
   }
   if (plan.annualWeaverClothCapacity <= 1e-9) {
-    return 'Weaving missing · annual fleece cannot become cloth';
+    return 'Weaving missing · wool and flax cannot become cloth';
   }
   if (
     plan.roadPlan !== null
     && plan.roadPlan.fragmentationClothPotential > 0.05
   ) {
     return plan.roadPlan.annualHouseholdClothShortfall > 0.05
-      ? 'Road-limited · connect local fleece, looms, and prosperous homes'
-      : 'Split textile chain · connect fleece and loom branches before export';
+      ? 'Road-limited · connect raw fibre, looms, and prosperous homes'
+      : 'Split textile chain · connect raw fibre and loom branches before export';
   }
   if (plan.annualHouseholdClothDemand <= 1e-9) {
     return 'No prosperous-house demand · annual cloth can be exported';
   }
   if (plan.woolCapacitySurplus > 0.05) {
-    return 'Weaving-limited · add loom labor before more sheep';
+    return 'Weaving-limited · add loom labor before more sheep or flax';
   }
   if (plan.annualClothBalance < -0.05) {
-    return 'Fleece-limited · household demand exceeds the annual clip';
+    return 'Raw-fibre-limited · household demand exceeds secured wool and flax';
   }
   return 'Household textiles covered · remaining cloth can be exported';
 }

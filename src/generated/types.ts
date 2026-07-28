@@ -81,6 +81,7 @@ export const Building = __t.object("Building", {
   marketplaceGoldReserveTarget: __t.u8(),
   barley: __t.f64(),
   malt: __t.f64(),
+  flax: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -296,6 +297,7 @@ export const PlayerResources = __t.object("PlayerResources", {
   legacyUnhousedPopulationBonusEnabled: __t.bool(),
   barley: __t.f64(),
   malt: __t.f64(),
+  flax: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

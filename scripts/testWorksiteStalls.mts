@@ -109,7 +109,7 @@ assert.equal(winterPlan.supplyEnRouteSites, 1);
 assert.equal(winterPlan.supplyEnRouteWorkers, 2);
 assert.equal(winterPlan.firstReclaimableBuildingId, starvedWeaver.id);
 assert.equal(winterPlan.firstAttention?.buildingId, starvedWeaver.id);
-assert.equal(winterPlan.firstAttention?.detail, 'no wool on site');
+assert.equal(winterPlan.firstAttention?.detail, 'no wool or flax on site');
 assert.equal(
   winterPlan.sites.find((site) => site.buildingId === reserveHunter.id)?.assignedWorkers,
   2,
@@ -174,7 +174,7 @@ const inspector = renderTownHallInspector(
 assert.match(inspector.detailsHtml, /Production stalls/);
 assert.match(inspector.detailsHtml, /2 production workers are stalled across 1 site/);
 assert.match(inspector.detailsHtml, /2 safely recallable/);
-assert.match(inspector.detailsHtml, /first Weaver's workshop: no wool on site/);
+assert.match(inspector.detailsHtml, /first Weaver's workshop: no wool or flax on site/);
 assert.match(inspector.detailsHtml, /data-inspect-building="20"/);
 assert.match(
   inspector.supplementalPanelHtml ?? '',

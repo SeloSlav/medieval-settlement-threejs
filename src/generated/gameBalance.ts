@@ -246,6 +246,8 @@ export const BREWERY_BREWING_WATER_PER_CYCLE = 2;
 export const BREWERY_BREWING_FIREWOOD_PER_CYCLE = 0.5;
 export const BREWERY_ALE_PER_CYCLE = 4;
 export const WEAVER_WOOL_PER_CYCLE = 3;
+export const WEAVER_FLAX_PER_CYCLE = 3;
+export const WEAVER_FLAX_WATER_PER_CYCLE = 1;
 export const WEAVER_CLOTH_PER_CYCLE = 2;
 export const TEXTILE_TRANSFER_PER_TRIP = 12;
 export const SMOKEHOUSE_FOOD_PER_CYCLE = 3;
@@ -512,6 +514,7 @@ export type StorageCaps = {
   grain?: number;
   barley?: number;
   malt?: number;
+  flax?: number;
   flour?: number;
   ale?: number;
   preservedFood?: number;
@@ -1150,8 +1153,8 @@ export const BUILDING_COSTS = {
 } as const satisfies Record<BuildingKind, BuildingResourceCost>;
 
 export const BUILDING_STORAGE_CAPS = {
-  founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, cloth: 80, ironwork: 80, polearms: 80 },
-  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, cloth: 2000, ironwork: 2000, polearms: 2000 },
+  founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 80, polearms: 80 },
+  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000 },
   lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0 },
@@ -1167,7 +1170,7 @@ export const BUILDING_STORAGE_CAPS = {
   village_storehouse: { timber: 360, firewood: 280, stone: 360 },
   watchtower: { timber: 0, firewood: 0, stone: 0 },
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
-  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, wool: 180 },
+  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180 },
   pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120 },
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, ale: 120, preservedFood: 80, honey: 160, wine: 120 },
@@ -1177,7 +1180,7 @@ export const BUILDING_STORAGE_CAPS = {
   apiary: { timber: 0, firewood: 0, stone: 0, food: 40, honey: 140 },
   watermill: { timber: 0, firewood: 0, stone: 0, water: 80, grain: 180, flour: 260 },
   carpenter: { timber: 140, firewood: 0, stone: 0, ironwork: 18, polearms: 24 },
-  weaver: { timber: 0, firewood: 0, stone: 0, wool: 90, cloth: 90 },
+  weaver: { timber: 0, firewood: 0, stone: 0, water: 24, wool: 90, flax: 90, cloth: 90 },
   ferry_landing: { timber: 0, firewood: 0, stone: 0 },
   vineyard: { timber: 0, firewood: 0, stone: 0, food: 40, wine: 180 },
 } as const satisfies Record<BuildingKind, StorageCaps>;

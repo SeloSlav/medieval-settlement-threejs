@@ -282,6 +282,26 @@ function processorStall(
     };
   }
 
+  if (building.kind === 'weaver') {
+    const hasWool = (building.wool ?? 0) > 1e-6;
+    const hasFlax = (building.flax ?? 0) > 1e-6;
+    const hasWater = building.water > 1e-6;
+    if (hasWool || (hasFlax && hasWater)) return null;
+    const woolAvailable = hasWool || inboundCargo?.has('wool') === true;
+    const flaxAvailable = hasFlax || inboundCargo?.has('flax') === true;
+    const waterAvailable = hasWater || inboundCargo?.has('water') === true;
+    if (woolAvailable || (flaxAvailable && waterAvailable)) {
+      return 'supply_en_route';
+    }
+    return {
+      ...base,
+      reason: 'input_empty',
+      detail: flaxAvailable
+        ? 'no water on site for flax preparation'
+        : 'no wool or flax on site',
+    };
+  }
+
   const missingInputs = missingProcessorInputs(building);
   if (missingInputs.length === 0) return null;
   const inputsWithoutCart = missingInputs.filter(

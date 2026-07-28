@@ -20,6 +20,8 @@ import {
   WATERMILL_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
+  WEAVER_FLAX_PER_CYCLE,
+  WEAVER_FLAX_WATER_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../buildings.ts';
@@ -55,7 +57,7 @@ export type BuildingProcessorStatus = {
   waterDetailHtml: string;
 };
 
-type StockKey = 'timber' | 'firewood' | 'stone' | 'water' | 'food' | 'grain' | 'barley' | 'malt' | 'flour' | 'ale' | 'preservedFood' | 'wool' | 'cloth';
+type StockKey = 'timber' | 'firewood' | 'stone' | 'water' | 'food' | 'grain' | 'barley' | 'malt' | 'flour' | 'ale' | 'preservedFood' | 'wool' | 'flax' | 'cloth';
 
 type InputRequirement = {
   key: StockKey;
@@ -109,17 +111,6 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     outputPerCycle: WATERMILL_FLOUR_PER_CYCLE,
     operatingLabel: 'Milling grain into flour',
     idleNoWorkersLabel: 'Idle — assign workers to run the mill',
-  },
-  weaver: {
-    requiresLabor: true,
-    waterPerCycle: 0,
-    inputs: [
-      { key: 'wool', label: 'wool', required: WEAVER_WOOL_PER_CYCLE, deliveryHint: 'staffed sheep holdings dispatch annual fleece by road' },
-    ],
-    output: 'cloth',
-    outputPerCycle: WEAVER_CLOTH_PER_CYCLE,
-    operatingLabel: 'Weaving wool into cloth',
-    idleNoWorkersLabel: 'Idle — assign weavers to work the loom',
   },
 };
 
@@ -387,6 +378,95 @@ function getBreweryStatus(
   };
 }
 
+function weaverPrefersFlax(building: BuildingState): boolean {
+  const wool = Math.max(0, building.wool ?? 0);
+  const flax = Math.max(0, building.flax ?? 0);
+  const water = Math.max(0, building.water);
+  const woolCycles = wool / Math.max(1e-6, WEAVER_WOOL_PER_CYCLE);
+  const flaxCycles = Math.min(
+    flax / Math.max(1e-6, WEAVER_FLAX_PER_CYCLE),
+    water / Math.max(1e-6, WEAVER_FLAX_WATER_PER_CYCLE),
+  );
+  return (flax > 1e-6 && wool <= 1e-6) || flaxCycles > woolCycles + 1e-9;
+}
+
+function getWeaverStatus(
+  building: BuildingState,
+  worldQueries: WorldQueries,
+  onsiteLabor: number,
+): BuildingProcessorStatus {
+  const usesFlax = weaverPrefersFlax(building);
+  const input = usesFlax
+    ? {
+        key: 'flax' as const,
+        label: 'flax fibre',
+        required: WEAVER_FLAX_PER_CYCLE,
+        hint: 'farmstead carts supply harvested flax',
+      }
+    : {
+        key: 'wool' as const,
+        label: 'wool fleece',
+        required: WEAVER_WOOL_PER_CYCLE,
+        hint: 'staffed sheep holdings dispatch annual fleece',
+      };
+  const waterAssessment = usesFlax
+    ? assessWellWaterSupply(building, worldQueries, WEAVER_FLAX_WATER_PER_CYCLE)
+    : null;
+  const routeCycles = usesFlax
+    ? Math.min(
+        Math.max(0, building.flax ?? 0) / WEAVER_FLAX_PER_CYCLE,
+        Math.max(0, building.water) / WEAVER_FLAX_WATER_PER_CYCLE,
+      )
+    : Math.max(0, building.wool ?? 0) / WEAVER_WOOL_PER_CYCLE;
+  const waterRows = formatWellWaterDetailRows(
+    waterAssessment,
+    usesFlax ? undefined : 'None - wool preparation is a dry process',
+  );
+  const detailHtml = waterRows + `
+    <li><span>Selected textile route</span><span>${usesFlax ? 'Flax + hauled water' : 'Annual sheep fleece'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
+    <li><span>${usesFlax ? 'Flax' : 'Wool'} working stock</span><span>${stockAmount(building, input.key).toFixed(1)} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
+    <li><span>Alternative input</span><span>${usesFlax ? `${Math.max(0, building.wool ?? 0).toFixed(1)} wool` : `${Math.max(0, building.flax ?? 0).toFixed(1)} flax + ${Math.max(0, building.water).toFixed(1)} water`} onsite</span></li>
+    <li><span>Cloth yield</span><span>${WEAVER_CLOTH_PER_CYCLE.toFixed(1)} per completed cycle</span></li>
+  `;
+  if (onsiteLabor === 0) {
+    return {
+      statusText: building.assignedLabor > 0
+        ? 'Work paused - the full roster is away with its cart'
+        : 'Idle - assign weavers to work the loom',
+      statusState: 'idle',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  if (isOutputAtLimit(building, 'weaver', 'cloth')) {
+    return {
+      statusText: 'Cloth target reached - weaving paused',
+      statusState: 'idle',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  if (usesFlax && building.water <= 1e-6) {
+    return {
+      statusText: wellWaterStatusIssue(waterAssessment) ?? 'Waiting for hauled water',
+      statusState: 'warning',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  if (stockAmount(building, input.key) <= 1e-6) {
+    return {
+      statusText: `Waiting for ${input.label}`,
+      statusState: 'warning',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  return {
+    statusText: usesFlax
+      ? 'Preparing flax and weaving linen cloth'
+      : 'Weaving wool into cloth',
+    statusState: 'active',
+    waterDetailHtml: detailHtml,
+  };
+}
+
 function getLumberMillStatus(
   building: BuildingState,
   worldQueries: WorldQueries,
@@ -549,6 +629,9 @@ export function getBuildingProcessorStatus(
   );
   if (building.kind === 'brewery') {
     return getBreweryStatus(building, worldQueries, onsiteLabor);
+  }
+  if (building.kind === 'weaver') {
+    return getWeaverStatus(building, worldQueries, onsiteLabor);
   }
   const profile = PROCESSOR_PROFILES[building.kind];
   if (profile) {
