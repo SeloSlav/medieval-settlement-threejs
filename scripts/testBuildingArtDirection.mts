@@ -49,6 +49,7 @@ const modelNames = new Set<string>();
 const sharedMaterials = new Set<THREE.Material>();
 let texturedMeshCount = 0;
 let largestMetricUvSpan = 0;
+let churchHeight = 0;
 const expectedLeanToRoofs = new Map<string, number>([
   ['lumber_mill', 1],
   ['woodcutters_lodge', 1],
@@ -145,6 +146,7 @@ for (const kind of BUILDING_KINDS) {
   if (![size.x, size.y, size.z].every(Number.isFinite) || size.x <= 0 || size.y <= 0 || size.z <= 0) {
     throw new Error(`${kind} produced invalid model bounds.`);
   }
+  if (kind === 'chapel') churchHeight = size.y;
 }
 
 for (const [kind, expectedCount] of expectedLeanToRoofs) {
@@ -191,6 +193,7 @@ for (const kind of BUILDING_KINDS) {
 }
 
 let residenceCount = 0;
+let tallestResidenceHeight = 0;
 for (const tier of [1, 2, 3] as const) {
   for (let seed = 0; seed < 18; seed++) {
     const residence = createResidenceMesh(seed, tier);
@@ -209,6 +212,10 @@ for (const tier of [1, 2, 3] as const) {
         sharedMaterials.add(material);
       }
     });
+    tallestResidenceHeight = Math.max(
+      tallestResidenceHeight,
+      new THREE.Box3().setFromObject(residence).getSize(new THREE.Vector3()).y,
+    );
     residenceCount += 1;
     disposeObject3D(residence);
     windowMaterial.dispose();
@@ -225,6 +232,11 @@ const finalMaterialCeiling =
   + externalSharedMaterialAllowance;
 if (sharedMaterials.size > finalMaterialCeiling) {
   throw new Error(`Buildings and residences exceeded the ${finalMaterialCeiling} shared material ceiling (${sharedMaterials.size}).`);
+}
+if (churchHeight < tallestResidenceHeight * 1.2) {
+  throw new Error(
+    `Parish church must stand at least 20% above the residence skyline (${churchHeight.toFixed(2)} vs ${tallestResidenceHeight.toFixed(2)}).`,
+  );
 }
 
 const indirectConstructionMaterials = [...sharedMaterials].filter(

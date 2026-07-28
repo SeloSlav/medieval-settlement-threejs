@@ -1378,7 +1378,7 @@ assert.match(townHallInspector, /Bread capacity/);
 assert.match(townHallInspector, /bakery intake/);
 assert.match(townHallInspector, /September harvest/);
 assert.match(townHallInspector, /Seed on holdings/);
-assert.match(townHallInspector, /Spring oats labor/);
+assert.match(townHallInspector, /Spring crop labor/);
 assert.match(townHallInspector, /Ox-supported fields/);
 assert.match(townHallInspector, /Grain allocation/);
 assert.match(townHallInspector, /Protected grain/);

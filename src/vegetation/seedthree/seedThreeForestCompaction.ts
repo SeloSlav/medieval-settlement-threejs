@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+const DECIDUOUS_TREE_ORIGIN_Y_OFFSET = 2048;
+
 export type SeedThreeTreeSlot = {
   layoutIndex: number;
   matrix: THREE.Matrix4;
@@ -7,6 +9,8 @@ export type SeedThreeTreeSlot = {
   visibilityCenter: THREE.Vector3;
   visibilityRadius: number;
   enabled: boolean;
+  /** Broadleaf or larch instance eligible for seasonal color and leaf drop. */
+  seasonalDeciduous?: boolean;
   /** Render-only crowns inherit the visibility/harvest state of a gameplay tree. */
   visibilityParent?: SeedThreeTreeSlot;
 };
@@ -63,7 +67,16 @@ export function writeSeedThreeLodMatrices(
         cardMatrix.fromArray(srcMatrices, cardIndex * 16);
         outMatrix.multiplyMatrices(slotMatrix, cardMatrix);
         im.setMatrixAt(writeIndex, outMatrix);
-        treeOrigin.setXYZ(writeIndex, slot.pos.x, slot.pos.y, slot.pos.z);
+        // Pack the tree-level deciduous bit into the existing origin buffer.
+        // Forest cards already sit at WebGPU's portable eight-buffer limit.
+        treeOrigin.setXYZ(
+          writeIndex,
+          slot.pos.x,
+          slot.pos.y + (slot.seasonalDeciduous
+            ? DECIDUOUS_TREE_ORIGIN_Y_OFFSET
+            : 0),
+          slot.pos.z,
+        );
         const weight = weights?.[cardIndex] ?? 0.5;
         windVec.setXYZ(writeIndex, 0, weight, 0);
         anchorPos.setXYZ(writeIndex, slot.pos.x, slot.pos.y, slot.pos.z);

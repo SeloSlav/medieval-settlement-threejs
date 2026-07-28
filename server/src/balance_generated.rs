@@ -33,7 +33,7 @@ pub const DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER: f64 = 0.65;
 pub const SPRING_FIREWOOD_DEMAND_MULTIPLIER: f64 = 1.0;
 pub const SUMMER_FIREWOOD_DEMAND_MULTIPLIER: f64 = 0.7;
 pub const AUTUMN_FIREWOOD_DEMAND_MULTIPLIER: f64 = 1.15;
-pub const WINTER_FIREWOOD_DEMAND_MULTIPLIER: f64 = 1.8;
+pub const WINTER_FIREWOOD_DEMAND_MULTIPLIER: f64 = 2.0;
 pub const SPRING_PASTURE_CAPACITY_MULTIPLIER: f64 = 1.15;
 pub const SUMMER_PASTURE_CAPACITY_MULTIPLIER: f64 = 1.0;
 pub const AUTUMN_PASTURE_CAPACITY_MULTIPLIER: f64 = 0.9;
@@ -291,16 +291,7 @@ pub const FARM_SOW_WORK_PER_SQUARE_METER: f64 = 0.55;
 pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = 0.8;
 pub const FARM_GROWTH_SECONDS: f64 = 6000.0;
 pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = 0.08;
-pub const FARM_RYE_SEED_GRAIN_PER_SQUARE_METER: f64 = 0.012;
-pub const FARM_OATS_SEED_GRAIN_PER_SQUARE_METER: f64 = 0.014;
 pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = 24.0;
-pub const FARM_RYE_MOISTURE_IDEAL: f64 = 0.38;
-pub const FARM_RYE_MOISTURE_TOLERANCE: f64 = 0.52;
-pub const FARM_OATS_MOISTURE_IDEAL: f64 = 0.58;
-pub const FARM_OATS_MOISTURE_TOLERANCE: f64 = 0.46;
-pub const FARM_RYE_FERTILITY_DRAIN: f64 = 0.08;
-pub const FARM_OATS_FERTILITY_DRAIN: f64 = 0.06;
-pub const FARM_FALLOW_FERTILITY_RESTORE: f64 = 0.18;
 pub const FARM_SLOPE_PENALTY_PER_DEGREE: f64 = 0.025;
 pub const FARM_MAX_ACCEPTED_SLOPE_DEGREES: f64 = 18.0;
 pub const FARM_FIELD_SALVAGE_FRACTION: f64 = 0.0;
@@ -371,6 +362,165 @@ pub const SWINE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = 0.5;
 pub const SWINE_BREEDING_PER_CYCLE: f64 = 0.022;
 pub const SWINE_HEALTH_RECOVERY_PER_CYCLE: f64 = 0.03;
 pub const SWINE_HEALTH_LOSS_PER_CYCLE: f64 = 0.09;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FarmCropProduce {
+    Grain,
+    Fibre,
+    None,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FarmWorkSeason {
+    Spring,
+    Autumn,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct FarmCropDef {
+    pub id: u8,
+    pub slug: &'static str,
+    pub label: &'static str,
+    pub produce: FarmCropProduce,
+    pub work_season: FarmWorkSeason,
+    pub seed_grain_per_square_meter: f64,
+    pub yield_multiplier: f64,
+    pub moisture_ideal: f64,
+    pub moisture_tolerance: f64,
+    pub fertility_delta: f64,
+    pub work_start_month: u8,
+    pub work_end_month: u8,
+    pub growth_start_month: u8,
+    pub growth_end_month: u8,
+    pub calendar_label: &'static str,
+}
+
+pub const FARM_CROP_RYE_ID: u8 = 0;
+pub const FARM_CROP_RYE: FarmCropDef = FarmCropDef {
+    id: FARM_CROP_RYE_ID,
+    slug: "rye",
+    label: "Rye",
+    produce: FarmCropProduce::Grain,
+    work_season: FarmWorkSeason::Autumn,
+    seed_grain_per_square_meter: 0.012,
+    yield_multiplier: 0.96,
+    moisture_ideal: 0.38,
+    moisture_tolerance: 0.52,
+    fertility_delta: -0.08,
+    work_start_month: 10,
+    work_end_month: 11,
+    growth_start_month: 3,
+    growth_end_month: 8,
+    calendar_label: "Winter rye · till/sow Oct–Nov · grow Mar–Aug · harvest September",
+};
+
+pub const FARM_CROP_OATS_ID: u8 = 1;
+pub const FARM_CROP_OATS: FarmCropDef = FarmCropDef {
+    id: FARM_CROP_OATS_ID,
+    slug: "oats",
+    label: "Oats",
+    produce: FarmCropProduce::Grain,
+    work_season: FarmWorkSeason::Spring,
+    seed_grain_per_square_meter: 0.014,
+    yield_multiplier: 0.88,
+    moisture_ideal: 0.58,
+    moisture_tolerance: 0.46,
+    fertility_delta: -0.06,
+    work_start_month: 3,
+    work_end_month: 4,
+    growth_start_month: 4,
+    growth_end_month: 8,
+    calendar_label: "Spring oats · till/sow Mar–Apr · grow Apr–Aug · harvest September",
+};
+
+pub const FARM_CROP_FALLOW_ID: u8 = 2;
+pub const FARM_CROP_FALLOW: FarmCropDef = FarmCropDef {
+    id: FARM_CROP_FALLOW_ID,
+    slug: "fallow",
+    label: "Worked fallow",
+    produce: FarmCropProduce::None,
+    work_season: FarmWorkSeason::Autumn,
+    seed_grain_per_square_meter: 0.0,
+    yield_multiplier: 0.0,
+    moisture_ideal: 0.5,
+    moisture_tolerance: 1.0,
+    fertility_delta: 0.18,
+    work_start_month: 10,
+    work_end_month: 11,
+    growth_start_month: 3,
+    growth_end_month: 8,
+    calendar_label: "Worked fallow · plough Oct–Nov · recover Mar–Aug",
+};
+
+pub const FARM_CROP_BARLEY_ID: u8 = 3;
+pub const FARM_CROP_BARLEY: FarmCropDef = FarmCropDef {
+    id: FARM_CROP_BARLEY_ID,
+    slug: "barley",
+    label: "Barley",
+    produce: FarmCropProduce::Grain,
+    work_season: FarmWorkSeason::Spring,
+    seed_grain_per_square_meter: 0.013,
+    yield_multiplier: 0.91,
+    moisture_ideal: 0.45,
+    moisture_tolerance: 0.4,
+    fertility_delta: -0.07,
+    work_start_month: 3,
+    work_end_month: 4,
+    growth_start_month: 4,
+    growth_end_month: 8,
+    calendar_label: "Spring barley · till/sow Mar–Apr · grow Apr–Aug · harvest September",
+};
+
+pub const FARM_CROP_FLAX_ID: u8 = 4;
+pub const FARM_CROP_FLAX: FarmCropDef = FarmCropDef {
+    id: FARM_CROP_FLAX_ID,
+    slug: "flax",
+    label: "Flax",
+    produce: FarmCropProduce::Fibre,
+    work_season: FarmWorkSeason::Spring,
+    seed_grain_per_square_meter: 0.011,
+    yield_multiplier: 0.58,
+    moisture_ideal: 0.55,
+    moisture_tolerance: 0.36,
+    fertility_delta: -0.07,
+    work_start_month: 3,
+    work_end_month: 4,
+    growth_start_month: 4,
+    growth_end_month: 8,
+    calendar_label: "Fibre flax · till/sow Mar–Apr · grow Apr–Aug · pull in September",
+};
+
+pub const FARM_CROP_WHEAT_ID: u8 = 5;
+pub const FARM_CROP_WHEAT: FarmCropDef = FarmCropDef {
+    id: FARM_CROP_WHEAT_ID,
+    slug: "wheat",
+    label: "Wheat–rye maslin",
+    produce: FarmCropProduce::Grain,
+    work_season: FarmWorkSeason::Autumn,
+    seed_grain_per_square_meter: 0.014,
+    yield_multiplier: 1.08,
+    moisture_ideal: 0.44,
+    moisture_tolerance: 0.36,
+    fertility_delta: -0.12,
+    work_start_month: 10,
+    work_end_month: 11,
+    growth_start_month: 3,
+    growth_end_month: 8,
+    calendar_label: "Wheat–rye maslin · till/sow Oct–Nov · grow Mar–Aug · harvest September",
+};
+
+pub const ALL_FARM_CROPS: &[FarmCropDef] = &[
+    FARM_CROP_RYE,
+    FARM_CROP_OATS,
+    FARM_CROP_FALLOW,
+    FARM_CROP_BARLEY,
+    FARM_CROP_FLAX,
+    FARM_CROP_WHEAT,
+];
+
+pub fn farm_crop_def(id: u8) -> Option<&'static FarmCropDef> {
+    ALL_FARM_CROPS.iter().find(|def| def.id == id)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BuildingSimKind {
@@ -844,7 +994,7 @@ const CHAPEL: BuildingDef = BuildingDef {
     max_labor: 1,
     work_radius: 0.0,
     action_interval: 0.0,
-    pick_radius: 7.0,
+    pick_radius: 9.0,
     requires_road: true,
     requires_mature_trees: false,
     requires_quarry_stone: false,
@@ -1046,7 +1196,7 @@ const THRESHING_BARN: BuildingDef = BuildingDef {
     storage_preserved_food: 0.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
-    storage_wool: 0.0,
+    storage_wool: 180.0,
     storage_cloth: 0.0,
     storage_ironwork: 0.0,
     storage_polearms: 0.0,

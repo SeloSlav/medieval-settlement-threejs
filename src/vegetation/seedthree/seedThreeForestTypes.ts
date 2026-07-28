@@ -1,4 +1,5 @@
 import type { Camera } from 'three';
+import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 
 export type SeedThreeForestStructuralStats = {
   draws: number;
@@ -37,7 +38,7 @@ export type SeedThreeForestController = {
     casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
   ): boolean;
   getStructuralStats(): SeedThreeForestStructuralStats;
-  setDeciduousDormancy(amount: number): void;
+  setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void;
   setShadows(enabled: boolean): void;
   dispose(): void;
 };

@@ -3,7 +3,7 @@ import type { WebGPURenderer } from 'three/webgpu';
 import { buildTree, forestBarkMaterial } from '@seedthree/core/tree.js';
 import {
   forestCardMaterial,
-  setForestCardDormancy,
+  setForestCardSeason,
 } from '@seedthree/core/branch-cards.js';
 import {
   createForestLodSelector,
@@ -13,9 +13,10 @@ import { Rng } from '@seedthree/core/rng.js';
 import type { Terrain } from '../../terrain/Terrain.ts';
 import type { ForestTreePlacement } from '../../props/forestPlacements.ts';
 import {
+  autumnFoliageColorForPreset,
   GORSKI_KOTAR_PRESETS,
+  gorskiKotarSpeciesIsDeciduous,
   resolveSeedThreePreset,
-  seedThreePresetIsDeciduous,
   seedThreeScaleForPreset,
   type SeedThreePresetKey,
 } from './gorskiKotarSpecies.ts';
@@ -30,6 +31,7 @@ import {
 } from './seedThreeForestCompaction.ts';
 import { stabilizeSeedThreeForestCardMaterial } from './seedThreeForestMaterial.ts';
 import { yieldToMain } from '../../utils/yieldToMain.ts';
+import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 
 type SpeciesBucket = {
   preset: SeedThreePresetKey;
@@ -48,7 +50,7 @@ export type SeedThreeForestInstances = {
   hiddenMatrix: THREE.Matrix4;
   visibilitySelector: ReturnType<typeof createForestLodSelector>;
   seasonalCardMaterials: THREE.Material[];
-  deciduousDormancy: number;
+  deciduousFoliage: DeciduousFoliagePresentation;
   renderStats: SeedThreeForestRenderStats;
 };
 
@@ -124,6 +126,7 @@ function createInstancedLodSet(
     seasonalDeciduous?: boolean;
     seasonalCardMaterials?: Set<THREE.Material>;
     canopyTint?: readonly [number, number, number];
+    autumnColor?: readonly [number, number, number];
     toneVariation?: number;
   } = {},
 ): InstancedLodSet {
@@ -165,7 +168,12 @@ function createInstancedLodSet(
         geo.setAttribute('aWindVec', new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3));
         geo.setAttribute('aAnchorPos', new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3));
 
-        const rebuilt = new Set(['aThickness', 'aTreeOrigin', 'aWindVec', 'aAnchorPos']);
+        const rebuilt = new Set([
+          'aThickness',
+          'aTreeOrigin',
+          'aWindVec',
+          'aAnchorPos',
+        ]);
         for (const [name, attr] of Object.entries(instanced.geometry.attributes)) {
           const instancedAttr = attr as THREE.InstancedBufferAttribute;
           if (!instancedAttr.isInstancedBufferAttribute || rebuilt.has(name)) continue;
@@ -185,6 +193,7 @@ function createInstancedLodSet(
             : forestCardMaterial(instanced.material as THREE.Material, {
                 seasonalDeciduous: options.seasonalDeciduous,
                 canopyTint: options.canopyTint,
+                autumnColor: options.autumnColor,
                 toneVariation: options.toneVariation,
               })) as THREE.Material,
         );
@@ -233,14 +242,17 @@ function createSpeciesBucket(
     ?? findLodLevel(prototype, 'LOD4')
     ?? nearLevel;
   const overviewTone = OVERVIEW_CANOPY_TONE[presetKey];
+  const seasonalDeciduous = slots.some((slot) => slot.seasonalDeciduous);
+  const autumnColor = autumnFoliageColorForPreset(presetKey);
   const nearSet = createInstancedLodSet(
     nearLevel,
     slots,
     rng,
     `${presetKey} near LOD2`,
     {
-      seasonalDeciduous: seedThreePresetIsDeciduous(presetKey),
+      seasonalDeciduous,
       seasonalCardMaterials,
+      autumnColor,
     },
   );
   const overviewSet = createInstancedLodSet(
@@ -249,9 +261,10 @@ function createSpeciesBucket(
     new Rng(`overview:${presetKey}`),
     `${presetKey} overview ${overviewLevel?.userData.lodName ?? 'LOD2'}`,
     {
-      seasonalDeciduous: seedThreePresetIsDeciduous(presetKey),
+      seasonalDeciduous,
       seasonalCardMaterials,
       canopyTint: overviewTone.tint,
+      autumnColor,
       toneVariation: overviewTone.variation,
     },
   );
@@ -336,6 +349,7 @@ export async function createSeedThreeForest(
       visibilityCenter,
       visibilityRadius,
       enabled: true,
+      seasonalDeciduous: gorskiKotarSpeciesIsDeciduous(placement.species),
     };
     visibilityItems[layoutIndex] = {
       x: visibilityCenter.x,
@@ -394,7 +408,11 @@ export async function createSeedThreeForest(
     hiddenMatrix,
     visibilitySelector,
     seasonalCardMaterials: [...seasonalCardMaterials],
-    deciduousDormancy: 0,
+    deciduousFoliage: {
+      springFlush: 0,
+      autumnColor: 0,
+      dormancy: 0,
+    },
     renderStats: {
       totalTrees: placements.length,
       visibleTrees: placements.length,
@@ -546,15 +564,35 @@ export function setSeedThreeForestShadows(forest: SeedThreeForestInstances, enab
   });
 }
 
-export function setSeedThreeForestDeciduousDormancy(
+export function setSeedThreeForestDeciduousFoliage(
   forest: SeedThreeForestInstances,
-  amount: number,
+  presentation: DeciduousFoliagePresentation,
 ): void {
-  const next = THREE.MathUtils.clamp(Number.isFinite(amount) ? amount : 0, 0, 1);
-  if (forest.deciduousDormancy === next) return;
-  forest.deciduousDormancy = next;
+  const next = {
+    springFlush: THREE.MathUtils.clamp(
+      Number.isFinite(presentation.springFlush) ? presentation.springFlush : 0,
+      0,
+      1,
+    ),
+    autumnColor: THREE.MathUtils.clamp(
+      Number.isFinite(presentation.autumnColor) ? presentation.autumnColor : 0,
+      0,
+      1,
+    ),
+    dormancy: THREE.MathUtils.clamp(
+      Number.isFinite(presentation.dormancy) ? presentation.dormancy : 0,
+      0,
+      1,
+    ),
+  };
+  if (
+    forest.deciduousFoliage.springFlush === next.springFlush
+    && forest.deciduousFoliage.autumnColor === next.autumnColor
+    && forest.deciduousFoliage.dormancy === next.dormancy
+  ) return;
+  forest.deciduousFoliage = next;
   for (const material of forest.seasonalCardMaterials) {
-    setForestCardDormancy(material, next);
+    setForestCardSeason(material, next);
   }
 }
 
@@ -575,7 +613,8 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     updateCamera: (camera, firstPersonActive, casterBounds) =>
       updateSeedThreeForestCamera(forest, camera, firstPersonActive, casterBounds),
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
-    setDeciduousDormancy: (amount) => setSeedThreeForestDeciduousDormancy(forest, amount),
+    setDeciduousFoliage: (presentation) =>
+      setSeedThreeForestDeciduousFoliage(forest, presentation),
     setShadows: (enabled) => setSeedThreeForestShadows(forest, enabled),
     dispose: () => disposeSeedThreeForest(forest),
   };

@@ -42,7 +42,7 @@ const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   hunters_hall: { radiusX: 5.2, radiusZ: 4.8, innerFade: 0.88, outerFade: 1.34 },
   foragers_shed: { radiusX: 4.2, radiusZ: 3.8, innerFade: 0.88, outerFade: 1.3 },
   fishing_camp: { radiusX: 5.4, radiusZ: 4.5, innerFade: 0.88, outerFade: 1.3 },
-  chapel: { radiusX: 3.4, radiusZ: 4.2, innerFade: 0.9, outerFade: 1.28 },
+  chapel: { radiusX: 4.25, radiusZ: 5.25, innerFade: 0.9, outerFade: 1.28 },
   marketplace: { radiusX: 4.2, radiusZ: 3.4, innerFade: 0.9, outerFade: 1.3 },
   town_hall: { radiusX: 7.2, radiusZ: 5.8, innerFade: 0.88, outerFade: 1.32 },
   village_storehouse: { radiusX: 6.3, radiusZ: 5.2, innerFade: 0.88, outerFade: 1.3 },

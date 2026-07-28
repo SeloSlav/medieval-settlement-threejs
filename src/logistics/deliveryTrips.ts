@@ -222,7 +222,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'ironwork':
       return 'Ironwork';
     case 'wool':
-      return 'Wool';
+      return 'Raw textile fibre';
     case 'cloth':
       return 'Cloth';
     case 'gold':

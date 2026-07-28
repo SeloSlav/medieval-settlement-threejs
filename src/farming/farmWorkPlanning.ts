@@ -6,17 +6,13 @@ import {
   CALENDAR_SUNDAY_WEEKDAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
-  FARM_FALLOW_FERTILITY_RESTORE,
+  FARM_CROP_DEFINITIONS,
   FARM_HARVEST_WORK_PER_SQUARE_METER,
-  FARM_OATS_FERTILITY_DRAIN,
-  FARM_OATS_SEED_GRAIN_PER_SQUARE_METER,
   FARM_PLOUGH_WORK_PER_SQUARE_METER,
-  FARM_RYE_FERTILITY_DRAIN,
-  FARM_RYE_SEED_GRAIN_PER_SQUARE_METER,
   FARM_SOW_WORK_PER_SQUARE_METER,
   FARM_WORK_METERS_PER_WORKER_PER_SEC,
 } from '../generated/gameBalance.ts';
-import type { FarmCrop, FarmFieldState, GameState } from '../resources/types.ts';
+import { FARM_CROPS, type FarmCrop, type FarmFieldState, type GameState } from '../resources/types.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import {
@@ -37,6 +33,7 @@ export type FarmsteadWorkPlan = {
   pausedFields: number;
   cattleSupportedFields: number;
   expectedHarvest: number;
+  expectedFibreHarvest: number;
   harvest: SeasonalWorkPlan;
   spring: SeasonalWorkPlan;
   autumn: SeasonalWorkPlan;
@@ -59,6 +56,8 @@ export type SettlementFarmPlan = {
   cattleSupportedFields: number;
   expectedHarvest: number;
   laborCoveredHarvest: number;
+  expectedFibreHarvest: number;
+  laborCoveredFibreHarvest: number;
   seedGrainRequired: number;
   seedGrainCovered: number;
   seedGrainShortfall: number;
@@ -76,10 +75,12 @@ export type CropRotationPlan = {
   nextRyeArea: number;
   nextOatsArea: number;
   nextFallowArea: number;
+  nextAreaByCrop: Record<FarmCrop, number>;
   currentAverageFertility: number;
   afterCurrentAverageFertility: number;
   afterPlannedAverageFertility: number;
   plannedHarvest: number;
+  plannedFibreHarvest: number;
   plannedSeedGrainRequired: number;
   restoringFields: number;
   decliningFields: number;
@@ -130,11 +131,7 @@ export function projectedCropFertility(
   crop: FarmCrop,
   cattleFertilityBonus = 0,
 ): number {
-  const delta = crop === 'fallow'
-    ? FARM_FALLOW_FERTILITY_RESTORE
-    : crop === 'oats'
-      ? -FARM_OATS_FERTILITY_DRAIN
-      : -FARM_RYE_FERTILITY_DRAIN;
+  const delta = FARM_CROP_DEFINITIONS[crop].fertilityDelta;
   return Math.max(0.2, Math.min(1, fertility + delta + cattleFertilityBonus));
 }
 
@@ -150,9 +147,7 @@ export function projectedFieldFertility(
 }
 
 export function cropSeedGrainPerSquareMeter(crop: FarmCrop): number {
-  if (crop === 'rye') return FARM_RYE_SEED_GRAIN_PER_SQUARE_METER;
-  if (crop === 'oats') return FARM_OATS_SEED_GRAIN_PER_SQUARE_METER;
-  return 0;
+  return FARM_CROP_DEFINITIONS[crop].seedGrainPerSquareMeter;
 }
 
 export function seedGrainRequired(area: number, crop: FarmCrop): number {
@@ -184,25 +179,18 @@ export function farmsteadExportableGrain(
 }
 
 export function fieldStageAllowed(field: FarmFieldState, month: number): boolean {
-  if (field.stage === 'harvesting') return month === 9;
-  if (field.stage === 'growing') {
-    return field.crop === 'oats'
-      ? month >= 4 && month <= 8
-      : month >= 3 && month <= 8;
+  const crop = FARM_CROP_DEFINITIONS[field.crop];
+  if (field.stage === 'harvesting') {
+    return month === crop.growthEndMonth % CALENDAR_MONTHS_PER_YEAR + 1;
   }
-  return field.crop === 'oats'
-    ? month === 3 || month === 4
-    : month === 10 || month === 11;
+  if (field.stage === 'growing') {
+    return month >= crop.growthStartMonth && month <= crop.growthEndMonth;
+  }
+  return month >= crop.workStartMonth && month <= crop.workEndMonth;
 }
 
 export function cropCalendarLabel(crop: FarmCrop): string {
-  if (crop === 'oats') {
-    return 'Spring oats · till/sow Mar–Apr · grow Apr–Aug · harvest September';
-  }
-  if (crop === 'fallow') {
-    return 'Worked fallow · plough Oct–Nov · recover Mar–Aug';
-  }
-  return 'Winter rye · till/sow Oct–Nov · grow Mar–Aug · harvest September';
+  return FARM_CROP_DEFINITIONS[crop].calendarLabel;
 }
 
 function productiveSecondsInWindow(
@@ -301,6 +289,7 @@ function buildFarmsteadWorkPlanWithWindows(
   let pausedFields = 0;
   let cattleSupportedFields = 0;
   let expectedHarvest = 0;
+  let expectedFibreHarvest = 0;
   let harvestWork = 0;
   let springWork = 0;
   let autumnWork = 0;
@@ -332,14 +321,18 @@ function buildFarmsteadWorkPlanWithWindows(
     currentFertilityArea += currentFertility * area;
     afterCurrentFertilityArea += afterCurrentFertility * area;
     afterPlannedFertilityArea += afterPlannedFertility * area;
+    rotation.nextAreaByCrop[field.nextCrop] += area;
     if (field.nextCrop === 'rye') rotation.nextRyeArea += area;
     else if (field.nextCrop === 'oats') rotation.nextOatsArea += area;
-    else rotation.nextFallowArea += area;
-    rotation.plannedHarvest += expectedFieldYield({
+    else if (field.nextCrop === 'fallow') rotation.nextFallowArea += area;
+    const plannedYield = expectedFieldYield({
       ...field,
       crop: field.nextCrop,
       fertility: afterCurrentFertility,
     });
+    const plannedProduce = FARM_CROP_DEFINITIONS[field.nextCrop].produce;
+    if (plannedProduce === 'grain') rotation.plannedHarvest += plannedYield;
+    else if (plannedProduce === 'fibre') rotation.plannedFibreHarvest += plannedYield;
     rotation.plannedSeedGrainRequired += seedGrainRequired(area, field.nextCrop);
     if (afterPlannedFertility > afterCurrentFertility + 1e-9) {
       rotation.restoringFields += 1;
@@ -359,18 +352,21 @@ function buildFarmsteadWorkPlanWithWindows(
       rotation.weakestFieldId = field.id;
     }
     seedGrain += fieldSeedGrainRemaining(field);
-    if (field.crop !== 'fallow') {
+    const currentProduce = FARM_CROP_DEFINITIONS[field.crop].produce;
+    if (currentProduce !== 'none') {
       const fieldYield = expectedFieldYield(field);
-      expectedHarvest += field.stage === 'harvesting'
+      const remainingYield = field.stage === 'harvesting'
         ? Math.max(0, fieldYield - field.currentYield)
         : fieldYield;
+      if (currentProduce === 'grain') expectedHarvest += remainingYield;
+      else expectedFibreHarvest += remainingYield;
       harvestWork += field.stage === 'harvesting'
         ? currentFieldWorkRemaining(field)
         : fullStageWork(field, FARM_HARVEST_WORK_PER_SQUARE_METER);
     }
 
     const scheduledWork = remainingTillageAndSowingWork(field, support);
-    if (plannedFieldWorkCrop(field) === 'oats') {
+    if (FARM_CROP_DEFINITIONS[plannedFieldWorkCrop(field)].workSeason === 'spring') {
       springWork += scheduledWork;
     } else {
       autumnWork += scheduledWork;
@@ -388,6 +384,7 @@ function buildFarmsteadWorkPlanWithWindows(
     pausedFields,
     cattleSupportedFields,
     expectedHarvest,
+    expectedFibreHarvest,
     harvest: seasonalPlan(
       harvestWork,
       workers,
@@ -432,15 +429,20 @@ function emptySettlementSeason(): SettlementSeasonalWorkPlan {
 }
 
 function emptyCropRotationPlan(): CropRotationPlan {
+  const nextAreaByCrop = Object.fromEntries(
+    FARM_CROPS.map((crop) => [crop, 0]),
+  ) as Record<FarmCrop, number>;
   return {
     activeArea: 0,
     nextRyeArea: 0,
     nextOatsArea: 0,
     nextFallowArea: 0,
+    nextAreaByCrop,
     currentAverageFertility: 0,
     afterCurrentAverageFertility: 0,
     afterPlannedAverageFertility: 0,
     plannedHarvest: 0,
+    plannedFibreHarvest: 0,
     plannedSeedGrainRequired: 0,
     restoringFields: 0,
     decliningFields: 0,
@@ -503,6 +505,8 @@ export function buildSettlementFarmPlan(
     cattleSupportedFields: 0,
     expectedHarvest: 0,
     laborCoveredHarvest: 0,
+    expectedFibreHarvest: 0,
+    laborCoveredFibreHarvest: 0,
     seedGrainRequired: 0,
     seedGrainCovered: 0,
     seedGrainShortfall: 0,
@@ -535,12 +539,16 @@ export function buildSettlementFarmPlan(
     total.pausedFields += plan.pausedFields;
     total.cattleSupportedFields += plan.cattleSupportedFields;
     total.expectedHarvest += plan.expectedHarvest;
+    total.expectedFibreHarvest += plan.expectedFibreHarvest;
     total.seedGrainRequired += plan.seedGrainRequired;
     seedGrainByHolding.set(farmsteadId, plan.seedGrainRequired);
     total.rotation.activeArea += plan.rotation.activeArea;
     total.rotation.nextRyeArea += plan.rotation.nextRyeArea;
     total.rotation.nextOatsArea += plan.rotation.nextOatsArea;
     total.rotation.nextFallowArea += plan.rotation.nextFallowArea;
+    for (const crop of FARM_CROPS) {
+      total.rotation.nextAreaByCrop[crop] += plan.rotation.nextAreaByCrop[crop];
+    }
     currentFertilityArea += plan.rotation.currentAverageFertility
       * plan.rotation.activeArea;
     afterCurrentFertilityArea += plan.rotation.afterCurrentAverageFertility
@@ -548,6 +556,7 @@ export function buildSettlementFarmPlan(
     afterPlannedFertilityArea += plan.rotation.afterPlannedAverageFertility
       * plan.rotation.activeArea;
     total.rotation.plannedHarvest += plan.rotation.plannedHarvest;
+    total.rotation.plannedFibreHarvest += plan.rotation.plannedFibreHarvest;
     total.rotation.plannedSeedGrainRequired +=
       plan.rotation.plannedSeedGrainRequired;
     total.rotation.restoringFields += plan.rotation.restoringFields;
@@ -610,6 +619,7 @@ export function buildSettlementFarmPlan(
         plan.harvest.availableWorkerDays / plan.harvest.requiredWorkerDays,
       );
     total.laborCoveredHarvest += plan.expectedHarvest * harvestCoverage;
+    total.laborCoveredFibreHarvest += plan.expectedFibreHarvest * harvestCoverage;
     addSettlementSeason(total.harvest, plan.harvest);
     addSettlementSeason(total.spring, plan.spring);
     addSettlementSeason(total.autumn, plan.autumn);

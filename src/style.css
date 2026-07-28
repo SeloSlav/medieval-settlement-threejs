@@ -13,6 +13,7 @@
 @import url('./ui/cityAdmin.css');
 @import url('./ui/worldSetup.css');
 @import url('./ui/buildChrome.css');
+@import url('./ui/polishedGameUi.css');
 
 :root {
   --ink: #eee8dc;

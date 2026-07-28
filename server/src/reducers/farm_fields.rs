@@ -7,7 +7,7 @@ use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_f
 use crate::db::*;
 use crate::farming::{
     centroid, corners_from_values, edge_lengths, is_valid_rectangle, point_in_field, polygon_area,
-    CROP_FALLOW, CROP_OATS, CROP_RYE, STAGE_PLOUGHING,
+    valid_crop, STAGE_PLOUGHING,
 };
 use crate::hydrology::sample_hydrology_score;
 use crate::placement_validation::{building_pick_radius, is_on_quarry_pit, is_open_water};
@@ -238,7 +238,7 @@ fn owned_field(ctx: &ReducerContext, field_id: u64) -> Result<FarmField, String>
 }
 
 fn validate_crop(crop: u8) -> Result<(), String> {
-    if matches!(crop, CROP_RYE | CROP_OATS | CROP_FALLOW) {
+    if valid_crop(crop) {
         Ok(())
     } else {
         Err("Unknown field crop.".to_string())

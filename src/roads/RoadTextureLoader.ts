@@ -68,14 +68,17 @@ export class RoadTextureLoader {
     const [meadow, dense, dry] = await Promise.all([
       this.loadTerrainBlendSet('/assets/textures/terrain/manor_grass_meadow'),
       this.loadTerrainBlendSet('/assets/textures/terrain/manor_grass_dense'),
-      this.loadTerrainBlendSet('/assets/textures/terrain/manor_grass_dry'),
+      this.loadTerrainBlendSet(
+        '/assets/textures/terrain/manor_grass_dry',
+        '/assets/textures/terrain/manor_grass_dry/snow_albedo_atlas.png',
+      ),
     ]);
     return { meadow, dense, dry };
   }
 
-  private async loadTerrainBlendSet(base: string): Promise<TextureSet> {
+  private async loadTerrainBlendSet(base: string, albedoUrl = `${base}/albedo.png`): Promise<TextureSet> {
     const [albedo, normal, roughness, ao, height] = await Promise.all([
-      this.load(`${base}/albedo.png`, true, THREE.MirroredRepeatWrapping),
+      this.load(albedoUrl, true, THREE.MirroredRepeatWrapping),
       this.load(`${base}/normal.png`, false, THREE.MirroredRepeatWrapping),
       this.load(`${base}/roughness.png`, false, THREE.MirroredRepeatWrapping),
       this.load(`${base}/ao.png`, false, THREE.MirroredRepeatWrapping),
@@ -88,4 +91,3 @@ export class RoadTextureLoader {
     return loadBitmapTexture(url, this.maxAnisotropy, { srgb, wrapping });
   }
 }
-

@@ -181,13 +181,14 @@ import {
   type SettlementSecurityState,
 } from '../../security/frontierSecurity.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
+import { cropLabel } from '../../farming/farmFieldMath.ts';
 import {
   describeNextDayEnvironmentOutlook,
   environmentFor,
   nextDayEnvironmentOutlook,
 } from '../../world/seasonPolicy.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
-import type { BuildingKind, InspectableTarget } from '../types.ts';
+import { FARM_CROPS, type BuildingKind, type InspectableTarget } from '../types.ts';
 import {
   buildingCostRows,
   buildingDemolishHint,
@@ -1723,7 +1724,7 @@ export function renderTownHallInspector(
   const parishFireInspectButton =
     parishReliefPlan?.firstUnavailableChapelId == null
       ? ''
-      : ` <button type="button" class="inspector-jump-button" data-inspect-building="${parishReliefPlan.firstUnavailableChapelId}" aria-label="Inspect first structurally unavailable chapel">Inspect outage</button>`;
+      : ` <button type="button" class="inspector-jump-button" data-inspect-building="${parishReliefPlan.firstUnavailableChapelId}" aria-label="Inspect first structurally unavailable church">Inspect outage</button>`;
   const parishFireOutageRow = parishReliefPlan == null
     || (
       parishReliefPlan.fireDisabledChapels === 0
@@ -1731,7 +1732,7 @@ export function renderTownHallInspector(
       && parishReliefPlan.fireDisabledHomes === 0
     )
     ? ''
-    : `<li><span>Parish structural outages</span><span>${parishReliefPlan.fireDisabledChapels} fire-disabled + ${parishReliefPlan.reconstructingChapels} reconstructing ${parishReliefPlan.fireDisabledChapels + parishReliefPlan.reconstructingChapels === 1 ? 'chapel' : 'chapels'} + ${parishReliefPlan.fireDisabledHomes} ${parishReliefPlan.fireDisabledHomes === 1 ? 'home' : 'homes'} outside parish finance · ${parishReliefPlan.structurallyQuarantinedCofferGold.toFixed(1)} coffer gold sealed until structural recovery${parishFireInspectButton}</span></li>`;
+    : `<li><span>Parish structural outages</span><span>${parishReliefPlan.fireDisabledChapels} fire-disabled + ${parishReliefPlan.reconstructingChapels} reconstructing ${parishReliefPlan.fireDisabledChapels + parishReliefPlan.reconstructingChapels === 1 ? 'church' : 'churches'} + ${parishReliefPlan.fireDisabledHomes} ${parishReliefPlan.fireDisabledHomes === 1 ? 'home' : 'homes'} outside parish finance · ${parishReliefPlan.structurallyQuarantinedCofferGold.toFixed(1)} coffer gold sealed until structural recovery${parishFireInspectButton}</span></li>`;
   const specialtyExportPlan = computeSettlementSpecialtyExportPlan({
     state: context.gameState,
     marketRate: marketState.specialtyPriceMult,
@@ -1774,21 +1775,22 @@ export function renderTownHallInspector(
   const rotationRows = farmPlan.rotation.activeArea <= 1e-9
     ? '<li><span>Next rotation</span><span>No active field area planned</span></li>'
     : `
-      <li><span>Next rotation</span><span>${Math.round(farmPlan.rotation.nextRyeArea).toLocaleString()} m² rye · ${Math.round(farmPlan.rotation.nextOatsArea).toLocaleString()} m² oats · ${Math.round(farmPlan.rotation.nextFallowArea).toLocaleString()} m² worked fallow</span></li>
+      <li><span>Next rotation</span><span>${FARM_CROPS.filter((crop) => farmPlan.rotation.nextAreaByCrop[crop] > 0.5).map((crop) => `${Math.round(farmPlan.rotation.nextAreaByCrop[crop]).toLocaleString()} m² ${cropLabel(crop).toLowerCase()}`).join(' · ')}</span></li>
       <li><span>Soil trajectory</span><span>${Math.round(farmPlan.rotation.currentAverageFertility * 100)}% now → ${Math.round(farmPlan.rotation.afterCurrentAverageFertility * 100)}% after current crops → ${Math.round(farmPlan.rotation.afterPlannedAverageFertility * 100)}% after the plan${weakestRotationField}</span></li>
-      <li><span>Next-cycle potential</span><span>${farmPlan.rotation.plannedHarvest.toFixed(1)} grain at current moisture · ${farmPlan.rotation.plannedSeedGrainRequired.toFixed(1)} seed · ${farmPlan.rotation.restoringFields} fields restore / ${farmPlan.rotation.decliningFields} draw soil · future manure excluded</span></li>
+      <li><span>Next-cycle potential</span><span>${farmPlan.rotation.plannedHarvest.toFixed(1)} grain · ${farmPlan.rotation.plannedFibreHarvest.toFixed(1)} flax fibre at current moisture · ${farmPlan.rotation.plannedSeedGrainRequired.toFixed(1)} seed · ${farmPlan.rotation.restoringFields} fields restore / ${farmPlan.rotation.decliningFields} draw soil · future manure excluded</span></li>
     `;
   const farmPlanRows = farmPlan.holdingCount === 0
     ? '<li><span>Cereal plan</span><span>No farm fields linked</span></li>'
     : `
-      <li><span>Cereal fields</span><span>${farmPlan.activeFields} active${farmPlan.pausedFields > 0 ? ` · ${farmPlan.pausedFields} paused` : ''} across ${farmPlan.holdingCount} holdings${farmPlan.orphanedFields > 0 ? ` · ${farmPlan.orphanedFields} orphaned` : ''}</span></li>
+      <li><span>Arable fields</span><span>${farmPlan.activeFields} active${farmPlan.pausedFields > 0 ? ` · ${farmPlan.pausedFields} paused` : ''} across ${farmPlan.holdingCount} holdings${farmPlan.orphanedFields > 0 ? ` · ${farmPlan.orphanedFields} orphaned` : ''}</span></li>
       <li><span>Ox-supported fields</span><span>${farmPlan.cattleSupportedFields} / ${farmPlan.activeFields} active · plough labor includes current cattle coverage</span></li>
       <li><span>September harvest</span><span>${farmPlan.laborCoveredHarvest.toFixed(1)} / ${farmPlan.expectedHarvest.toFixed(1)} grain covered by current crews</span></li>
+      <li><span>September flax</span><span>${farmPlan.laborCoveredFibreHarvest.toFixed(1)} / ${farmPlan.expectedFibreHarvest.toFixed(1)} fibre covered by current crews</span></li>
       <li><span>Seed on holdings</span><span>${farmPlan.seedGrainCovered.toFixed(1)} / ${farmPlan.seedGrainRequired.toFixed(1)} protected onsite${farmPlan.seedGrainShortfall > 0.05 ? ` · short ${farmPlan.seedGrainShortfall.toFixed(1)} across ${farmPlan.seedShortHoldings} holdings${farmPlan.firstSeedShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${farmPlan.firstSeedShortBuildingId}" aria-label="Inspect first seed shortfall">Inspect</button>` : ''}` : ''}</span></li>
       ${rotationRows}
       <li><span>September field labor</span><span>${formatSettlementFieldWork(farmPlan.harvest)}</span></li>
-      <li><span>Spring oats labor</span><span>${formatSettlementFieldWork(farmPlan.spring)}</span></li>
-      <li><span>Autumn rye/fallow labor</span><span>${formatSettlementFieldWork(farmPlan.autumn)}</span></li>
+      <li><span>Spring crop labor</span><span>${formatSettlementFieldWork(farmPlan.spring)}</span></li>
+      <li><span>Autumn crop labor</span><span>${formatSettlementFieldWork(farmPlan.autumn)}</span></li>
     `;
   const livestockFodderRows = livestockFodder.holdingCount === 0
     ? '<li><span>Winter herd plan</span><span>No livestock holdings</span></li>'
@@ -1908,7 +1910,7 @@ export function renderTownHallInspector(
       <li><span>Emergency bottlenecks</span><span>${formatHouseholdMarketBottlenecks(householdMarketPlan)}${householdMarketInspectButton}</span></li>`}
       <li><span>Garden tolls levied</span><span>${readout.taxIncomeLabel}</span></li>
       <li><span>Collection capacity</span><span>${collectionRate}%${staffedTownHallAvailable ? '' : ' without a staffed clerk'}</span></li>
-      <li><span>Chapel tithe</span><span>${readout.chapelTitheLabel}</span></li>
+      <li><span>Church tithe</span><span>${readout.chapelTitheLabel}</span></li>
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>
       <li><span>Parish coffers</span><span>${readout.cofferBalanceLabel}</span></li>
       ${parishFireOutageRow}
@@ -1970,7 +1972,7 @@ export function renderTownHallInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">The Town Hall sets the settlement-wide activity tax. Chapel and monastery policy remain at those buildings.</p>
+        <p class="inspector-action-panel__hint">The Town Hall sets the settlement-wide activity tax. Church and monastery policy remain at those buildings.</p>
         <label class="city-admin-panel__slider-label">
           <span>Activity tax rate</span>
           <strong data-policy-tax-rate-value>${Math.round(taxRate * 100)}%</strong>

@@ -2,7 +2,7 @@
 
 This document is the source of truth for settlement architecture. Read it before creating or substantially revising any building or residence model.
 
-The canonical reference is the chapel in `src/buildings/meshes/chapelMesh.ts`. New work should belong to the same village without copying the chapel literally.
+The canonical reference is the parish church (the legacy `chapel` kind) in `src/buildings/meshes/chapelMesh.ts`. New work should belong to the same village without copying the church literally.
 
 ## Locked direction
 
@@ -34,7 +34,7 @@ Do not trade silhouette clarity for more small geometry. Details that disappear 
 - Allow modest hand-built irregularity: alternating stone sizes, slight rotations, uneven courses, and restrained color variation.
 - Keep doors, windows, steps, tools, and carts believable relative to villagers.
 
-Every building gets one signature silhouette feature. Examples include the chapel belfry, the mill's long saw hall, a quarry derrick, or the well's shelter roof. Do not give every building a tower, cross-gable, or ornamental roof.
+Every building gets one signature silhouette feature. Examples include the church belfry, the mill's long saw hall, a quarry derrick, or the well's shelter roof. Do not give every building a tower, cross-gable, or ornamental roof.
 
 ## Materials and color
 
@@ -49,7 +49,7 @@ Use `src/buildings/buildingMaterials.ts` as the palette authority.
 - Deep terracotta red: important tiled roofs and restrained painted accents.
 - Brown wood shingles: humble, woodland, and utility buildings.
 - Near-black iron: straps, hinges, tools, cranks, and structural hardware.
-- Muted brass: rare focal hardware such as the chapel bell.
+- Muted brass: rare focal hardware such as the church bell.
 
 ### Accent rules
 
@@ -96,7 +96,7 @@ Do not build close details until the first two levels work.
 
 | Building | Signature read | Material emphasis | Functional evidence |
 | --- | --- | --- | --- |
-| Chapel | Open oak belfry over a compact nave | Limewash, limestone, red tile, restrained folk trim | Bell, entrance steps, parish wall |
+| Parish church | Open oak belfry over a prominent nave | Limewash, limestone, red tile, restrained folk trim | Bell, entrance steps, parish wall |
 | Residence | Steep domestic gable with chimney and lived-in asymmetry | Limewash or timber, stone base, tile/shingle roof | Firewood, porch, shutters, small household props |
 | Well | Sheltered vertical frame over a circular stone curb | Limestone, dark timber, iron | Crank, rope, bucket, worn apron |
 | Lumber mill | Long, low saw hall with a dominant roof | Timber frame, stone plinth, red tile | Saw, intake bay, log stacks |
@@ -204,7 +204,7 @@ Before considering a model complete:
 - [ ] It has exactly one dominant signature feature.
 - [ ] Roof, wall, foundation, frame, and openings separate clearly.
 - [ ] Its props communicate gameplay function.
-- [ ] It belongs beside the chapel without copying the chapel.
+- [ ] It belongs beside the church without copying the church.
 - [ ] It uses the shared palette and restrained accents.
 - [ ] Doors, windows, steps, tools, and structural supports are plausibly scaled.
 - [ ] It contains controlled asymmetry or hand-built variation.
@@ -215,7 +215,7 @@ Before considering a model complete:
 
 ## Workflow for the next model
 
-1. Read this document and inspect the chapel mesh.
+1. Read this document and inspect the church mesh.
 2. Name the building's signature silhouette and functional props before coding.
 3. Block the largest masses and review at settlement distance.
 4. Establish material blocks and mid-scale structure.

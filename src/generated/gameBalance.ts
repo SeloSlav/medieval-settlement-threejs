@@ -35,7 +35,7 @@ export const DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER = 0.65;
 export const SPRING_FIREWOOD_DEMAND_MULTIPLIER = 1;
 export const SUMMER_FIREWOOD_DEMAND_MULTIPLIER = 0.7;
 export const AUTUMN_FIREWOOD_DEMAND_MULTIPLIER = 1.15;
-export const WINTER_FIREWOOD_DEMAND_MULTIPLIER = 1.8;
+export const WINTER_FIREWOOD_DEMAND_MULTIPLIER = 2;
 export const SPRING_PASTURE_CAPACITY_MULTIPLIER = 1.15;
 export const SUMMER_PASTURE_CAPACITY_MULTIPLIER = 1;
 export const AUTUMN_PASTURE_CAPACITY_MULTIPLIER = 0.9;
@@ -292,19 +292,136 @@ export const FARM_SOW_WORK_PER_SQUARE_METER = 0.55;
 export const FARM_HARVEST_WORK_PER_SQUARE_METER = 0.8;
 export const FARM_GROWTH_SECONDS = 6000;
 export const FARM_BASE_GRAIN_PER_SQUARE_METER = 0.08;
-export const FARM_RYE_SEED_GRAIN_PER_SQUARE_METER = 0.012;
-export const FARM_OATS_SEED_GRAIN_PER_SQUARE_METER = 0.014;
 export const FARMSTEAD_STARTER_SEED_GRAIN = 24;
-export const FARM_RYE_MOISTURE_IDEAL = 0.38;
-export const FARM_RYE_MOISTURE_TOLERANCE = 0.52;
-export const FARM_OATS_MOISTURE_IDEAL = 0.58;
-export const FARM_OATS_MOISTURE_TOLERANCE = 0.46;
-export const FARM_RYE_FERTILITY_DRAIN = 0.08;
-export const FARM_OATS_FERTILITY_DRAIN = 0.06;
-export const FARM_FALLOW_FERTILITY_RESTORE = 0.18;
 export const FARM_SLOPE_PENALTY_PER_DEGREE = 0.025;
 export const FARM_MAX_ACCEPTED_SLOPE_DEGREES = 18;
 export const FARM_FIELD_SALVAGE_FRACTION = 0;
+
+export const FARM_CROP_KINDS = ["rye","oats","fallow","barley","flax","wheat"] as const;
+export type FarmCropKind = (typeof FARM_CROP_KINDS)[number];
+export type FarmCropProduce = 'grain' | 'fibre' | 'none';
+export type FarmWorkSeason = 'spring' | 'autumn';
+export type FarmCropDefinition = {
+  kind: FarmCropKind;
+  id: number;
+  label: string;
+  produce: FarmCropProduce;
+  workSeason: FarmWorkSeason;
+  seedGrainPerSquareMeter: number;
+  yieldMultiplier: number;
+  moistureIdeal: number;
+  moistureTolerance: number;
+  fertilityDelta: number;
+  workStartMonth: number;
+  workEndMonth: number;
+  growthStartMonth: number;
+  growthEndMonth: number;
+  calendarLabel: string;
+};
+export const FARM_CROP_DEFINITIONS = {
+  "rye": {
+    "kind": "rye",
+    "id": 0,
+    "label": "Rye",
+    "produce": "grain",
+    "workSeason": "autumn",
+    "seedGrainPerSquareMeter": 0.012,
+    "yieldMultiplier": 0.96,
+    "moistureIdeal": 0.38,
+    "moistureTolerance": 0.52,
+    "fertilityDelta": -0.08,
+    "workStartMonth": 10,
+    "workEndMonth": 11,
+    "growthStartMonth": 3,
+    "growthEndMonth": 8,
+    "calendarLabel": "Winter rye · till/sow Oct–Nov · grow Mar–Aug · harvest September"
+  },
+  "oats": {
+    "kind": "oats",
+    "id": 1,
+    "label": "Oats",
+    "produce": "grain",
+    "workSeason": "spring",
+    "seedGrainPerSquareMeter": 0.014,
+    "yieldMultiplier": 0.88,
+    "moistureIdeal": 0.58,
+    "moistureTolerance": 0.46,
+    "fertilityDelta": -0.06,
+    "workStartMonth": 3,
+    "workEndMonth": 4,
+    "growthStartMonth": 4,
+    "growthEndMonth": 8,
+    "calendarLabel": "Spring oats · till/sow Mar–Apr · grow Apr–Aug · harvest September"
+  },
+  "fallow": {
+    "kind": "fallow",
+    "id": 2,
+    "label": "Worked fallow",
+    "produce": "none",
+    "workSeason": "autumn",
+    "seedGrainPerSquareMeter": 0,
+    "yieldMultiplier": 0,
+    "moistureIdeal": 0.5,
+    "moistureTolerance": 1,
+    "fertilityDelta": 0.18,
+    "workStartMonth": 10,
+    "workEndMonth": 11,
+    "growthStartMonth": 3,
+    "growthEndMonth": 8,
+    "calendarLabel": "Worked fallow · plough Oct–Nov · recover Mar–Aug"
+  },
+  "barley": {
+    "kind": "barley",
+    "id": 3,
+    "label": "Barley",
+    "produce": "grain",
+    "workSeason": "spring",
+    "seedGrainPerSquareMeter": 0.013,
+    "yieldMultiplier": 0.91,
+    "moistureIdeal": 0.45,
+    "moistureTolerance": 0.4,
+    "fertilityDelta": -0.07,
+    "workStartMonth": 3,
+    "workEndMonth": 4,
+    "growthStartMonth": 4,
+    "growthEndMonth": 8,
+    "calendarLabel": "Spring barley · till/sow Mar–Apr · grow Apr–Aug · harvest September"
+  },
+  "flax": {
+    "kind": "flax",
+    "id": 4,
+    "label": "Flax",
+    "produce": "fibre",
+    "workSeason": "spring",
+    "seedGrainPerSquareMeter": 0.011,
+    "yieldMultiplier": 0.58,
+    "moistureIdeal": 0.55,
+    "moistureTolerance": 0.36,
+    "fertilityDelta": -0.07,
+    "workStartMonth": 3,
+    "workEndMonth": 4,
+    "growthStartMonth": 4,
+    "growthEndMonth": 8,
+    "calendarLabel": "Fibre flax · till/sow Mar–Apr · grow Apr–Aug · pull in September"
+  },
+  "wheat": {
+    "kind": "wheat",
+    "id": 5,
+    "label": "Wheat–rye maslin",
+    "produce": "grain",
+    "workSeason": "autumn",
+    "seedGrainPerSquareMeter": 0.014,
+    "yieldMultiplier": 1.08,
+    "moistureIdeal": 0.44,
+    "moistureTolerance": 0.36,
+    "fertilityDelta": -0.12,
+    "workStartMonth": 10,
+    "workEndMonth": 11,
+    "growthStartMonth": 3,
+    "growthEndMonth": 8,
+    "calendarLabel": "Wheat–rye maslin · till/sow Oct–Nov · grow Mar–Aug · harvest September"
+  }
+} as const satisfies Record<FarmCropKind, FarmCropDefinition>;
 
 export const LIVESTOCK_MIN_PASTURE_AREA = 64;
 export const LIVESTOCK_MIN_PASTURE_EDGE = 6;
@@ -628,9 +745,9 @@ export const BUILDING_DEFINITIONS = {
   },
   chapel: {
     kind: 'chapel',
-    label: "Chapel",
+    label: "Church",
     workRadius: 0,
-    pickRadius: 7,
+    pickRadius: 9,
     harvestInterval: 0,
     regrowRatePerSecond: 0,
     maxLabor: 1,
@@ -1040,7 +1157,7 @@ export const BUILDING_STORAGE_CAPS = {
   village_storehouse: { timber: 360, firewood: 280, stone: 360 },
   watchtower: { timber: 0, firewood: 0, stone: 0 },
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
-  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 280 },
+  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 280, wool: 180 },
   pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120 },
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, ale: 120, preservedFood: 80, honey: 160, wine: 120 },

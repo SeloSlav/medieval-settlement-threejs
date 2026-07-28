@@ -75,7 +75,7 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
     entries: [
       { action: 'Residence plots', keys: 'H' },
       { action: 'Well', keys: 'E' },
-      { action: 'Chapel', keys: 'C' },
+      { action: 'Church', keys: 'C' },
       { action: 'Monastery', keys: 'O' },
       { action: 'Marketplace', keys: 'P' },
       { action: 'Ferry landing', keys: 'J' },

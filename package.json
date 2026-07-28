@@ -85,6 +85,7 @@
     "test:chapel-bell-schedule": "npx tsx scripts/testChapelBellSchedule.mts",
     "test:expanded-settlement": "npx tsx scripts/testExpandedSettlement.mts",
     "test:farming": "npx tsx scripts/testFarming.mts",
+    "test:farm-field-visuals": "npx tsx scripts/testFarmFieldVisuals.mts",
     "test:grain-logistics": "node --experimental-strip-types scripts/testGrainLogistics.mts",
     "test:monastery-polish": "npx tsx scripts/testMonasteryPolish.mts",
     "test:backyard-gardens": "npx tsx scripts/testBackyardGardenVisuals.mts",

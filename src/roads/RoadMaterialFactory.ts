@@ -178,7 +178,11 @@ export class RoadMaterialFactory {
     rainTerrain: THREE.MeshStandardMaterial;
     bridgeSupport: THREE.MeshStandardMaterial;
   } {
-    if (!this.roadTextures || !this.bridgeTextures || !this.terrainBlendTextures) {
+    if (
+      !this.roadTextures
+      || !this.bridgeTextures
+      || !this.terrainBlendTextures
+    ) {
       throw new Error('Textures are not loaded.');
     }
     const road = createRoadCoreMaterial(
@@ -225,7 +229,10 @@ export class RoadMaterialFactory {
   }
 }
 
-function createPlaceholderTextureSet(wrapping: THREE.Wrapping, includeRoadMasks: boolean): TextureSet {
+function createPlaceholderTextureSet(
+  wrapping: THREE.Wrapping,
+  includeRoadMasks: boolean,
+): TextureSet {
   const set: TextureSet = {
     albedo: createPlaceholderTexture([104, 122, 76, 255], true, wrapping),
     normal: createPlaceholderTexture([128, 128, 255, 255], false, wrapping),

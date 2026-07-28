@@ -19,6 +19,7 @@ import {
 import type { TreePhase } from '../resources/types.ts';
 import type { SeedThreeForestController } from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import type { SeedThreeForestStructuralStats } from '../vegetation/seedthree/seedThreeForestTypes.ts';
+import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
 import { TERRAIN_DIRT_FAR_DISTANCE } from '../grass/grassLodMath.ts';
 
@@ -179,8 +180,8 @@ export class ForestManager {
     return this.activeRockPlacements;
   }
 
-  setDeciduousDormancy(amount: number): void {
-    this.seedThreeForest?.setDeciduousDormancy(amount);
+  setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void {
+    this.seedThreeForest?.setDeciduousFoliage(presentation);
   }
 
   isTreeLayoutActiveForCollision(layoutIndex: number): boolean {

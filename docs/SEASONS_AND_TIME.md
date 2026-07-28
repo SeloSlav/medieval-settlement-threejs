@@ -131,7 +131,7 @@ unfinished sowing cannot spill into winter.
 - Pasture capacity falls to 35%, so grain reserves are needed to support herd size.
 - Livestock breeding falls to 60%.
 - Sheep produce no wool income.
-- Household firewood demand rises to 180% and continues through nights and
+- Household firewood demand rises to 200% and continues through nights and
   sabbaths. An unsupplied higher-tier residence accumulates its ordinary firewood
   deficit and can eventually be abandoned.
 - Vegetable, herb, and flower garden work stops. Hens continue at 75%.
@@ -165,6 +165,24 @@ the longer settlement time, so a weather change does not rewrite an active order
 Additional brokers remain the economic counterplay, while the marketplace
 inspector previews the next order's current-condition turnaround. Local cartwright
 support does not speed foreign caravans before they reach the settlement.
+
+Winter ground cover is derived from the same calendar without save state: a light
+dusting begins during the last third of November, cover builds through December,
+reaches its maximum in January, and thaws into sheltered remnants during February
+and the first part of March. Settled snow is independent of the day's precipitation,
+so it can remain during a fair spell or a rainy thaw. The terrain shader reveals a
+generated seamless snow surface over the existing ecological grass/dirt material
+using the shared road frost uniform. Snow and dry grass share one packed albedo
+sampler, preserving the portable 16-texture WebGPU limit and adding no terrain mesh
+or draw call.
+
+Forest color follows the calendar independently of weather. Broadleaf trees and
+European larch leaf out gradually during April with a pale spring flush, mature
+during May, begin changing in late September, reach species-specific gold, copper,
+orange, or red during October, and shed progressively through November. Silver fir,
+spruce, Scots pine, and black pine remain evergreen. The per-tree deciduous flag is
+packed into an existing forest-card instance buffer, so the seasonal treatment adds
+no texture, vertex buffer, mesh, or draw call.
 
 The seasonal HUD tooltip and staffed or unstaffed Town Hall ledger also show a
 deterministic next-dawn outlook. It uses the same seed, hydrology, calendar, and

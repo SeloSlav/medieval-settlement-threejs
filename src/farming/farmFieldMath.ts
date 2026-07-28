@@ -1,13 +1,12 @@
 import {
   FARM_BASE_GRAIN_PER_SQUARE_METER,
+  FARM_CROP_DEFINITIONS,
   FARM_LARGE_FIELD_EFFICIENCY_EXPONENT,
   FARM_LARGE_FIELD_EFFICIENCY_FLOOR,
-  FARM_OATS_MOISTURE_IDEAL,
-  FARM_OATS_MOISTURE_TOLERANCE,
   FARM_OPTIMAL_FIELD_AREA,
-  FARM_RYE_MOISTURE_IDEAL,
-  FARM_RYE_MOISTURE_TOLERANCE,
   FARM_SLOPE_PENALTY_PER_DEGREE,
+  type FarmCropDefinition,
+  type FarmCropProduce,
 } from '../generated/gameBalance.ts';
 import type { FarmCrop, FarmFieldState } from '../resources/types.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
@@ -62,18 +61,21 @@ export function fieldSizeEfficiency(area: number): number {
 }
 
 export function moistureSuitability(crop: FarmCrop, moisture: number): number {
-  if (crop === 'fallow') return 1;
-  const ideal = crop === 'oats' ? FARM_OATS_MOISTURE_IDEAL : FARM_RYE_MOISTURE_IDEAL;
-  const tolerance = crop === 'oats' ? FARM_OATS_MOISTURE_TOLERANCE : FARM_RYE_MOISTURE_TOLERANCE;
+  const definition = cropDefinition(crop);
+  if (definition.produce === 'none') return 1;
+  const ideal = definition.moistureIdeal;
+  const tolerance = definition.moistureTolerance;
   const base = 1 - Math.abs(Math.max(0, Math.min(1, moisture)) - ideal) / Math.max(1e-6, tolerance);
   return Math.max(0.25, Math.min(1, 0.25 + Math.max(0, Math.min(1, base)) * 0.75));
 }
 
 export function expectedFieldYield(field: Pick<FarmFieldState, 'area' | 'crop' | 'moisture' | 'fertility' | 'averageSlopeDegrees' | 'corners'>): number {
-  if (field.crop === 'fallow') return 0;
+  const definition = cropDefinition(field.crop);
+  if (definition.produce === 'none') return 0;
   const slope = Math.max(0.35, Math.min(1, 1 - field.averageSlopeDegrees * FARM_SLOPE_PENALTY_PER_DEGREE));
   return field.area
     * FARM_BASE_GRAIN_PER_SQUARE_METER
+    * definition.yieldMultiplier
     * moistureSuitability(field.crop, field.moisture)
     * Math.max(0.2, Math.min(1, field.fertility))
     * slope
@@ -109,5 +111,18 @@ export function bilinearPoint(corners: FarmFieldCorners, u: number, v: number): 
 }
 
 export function cropLabel(crop: FarmCrop): string {
-  return crop === 'rye' ? 'Rye' : crop === 'oats' ? 'Oats' : 'Fallow';
+  return cropDefinition(crop).label;
+}
+
+export function cropDefinition(crop: FarmCrop): FarmCropDefinition {
+  return FARM_CROP_DEFINITIONS[crop];
+}
+
+export function cropProduce(crop: FarmCrop): FarmCropProduce {
+  return cropDefinition(crop).produce;
+}
+
+export function cropHarvestUnit(crop: FarmCrop): string {
+  const produce = cropProduce(crop);
+  return produce === 'fibre' ? 'flax fibre' : produce === 'grain' ? 'grain' : 'fertility';
 }

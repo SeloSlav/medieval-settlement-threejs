@@ -116,7 +116,7 @@ assert.match(renderBuildMenuCards(), /weaver\.webp/);
 
 assert.equal(cargoKindFromId(13), 'wool');
 assert.equal(cargoKindFromId(14), 'cloth');
-assert.equal(cargoKindLabel('wool'), 'Wool');
+assert.equal(cargoKindLabel('wool'), 'Raw textile fibre');
 assert.equal(cargoKindLabel('cloth'), 'Cloth');
 assert.equal(needKindFromId(14), 'cloth');
 assert.equal(createDefaultNeeds().cloth.stock, 0);

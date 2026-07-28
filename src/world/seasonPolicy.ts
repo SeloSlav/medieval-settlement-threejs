@@ -33,6 +33,10 @@ import {
   gameClock,
   type GameClock,
 } from './gameCalendar.ts';
+import {
+  deciduousFoliageForClock,
+  type DeciduousFoliagePresentation,
+} from './deciduousFoliagePolicy.ts';
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 export type WeatherKind = 'fair' | 'rain' | 'drought' | 'frost';
@@ -40,6 +44,10 @@ export type WeatherKind = 'fair' | 'rain' | 'drought' | 'frost';
 export type EnvironmentState = {
   season: Season;
   weather: WeatherKind;
+  /** Presentation-only settled snow coverage, derived from the calendar. */
+  snowCoverage: number;
+  /** Presentation-only color and leaf-retention state for deciduous foliage. */
+  deciduousFoliage: DeciduousFoliagePresentation;
   cropGrowthMultiplier: number;
   firewoodDemandMultiplier: number;
   pastureCapacityMultiplier: number;
@@ -67,6 +75,38 @@ export function watermillThroughputForWeather(weather: WeatherKind): number {
   return 1;
 }
 
+export function snowCoverageForClock(clock: GameClock): number {
+  const dayProgress = Math.max(
+    0,
+    Math.min(
+      1,
+      (
+        clock.monthDay
+        - 1
+        + (clock.preciseHour ?? clock.hour) / 24
+      ) / CALENDAR_DAYS_PER_MONTH,
+    ),
+  );
+  const smooth = (progress: number): number =>
+    progress * progress * (3 - 2 * progress);
+  // First dusting during the last third of November. Starting at zero with a
+  // flat easing tangent prevents a visible seasonal pop.
+  if (clock.month === 11) {
+    const onset = Math.max(0, Math.min(1, (dayProgress - 0.64) / 0.36));
+    return 0.16 * smooth(onset);
+  }
+  if (clock.month === 12) return 0.16 + 0.56 * smooth(dayProgress);
+  if (clock.month === 1) return 0.72 + 0.28 * smooth(dayProgress);
+  // Retain patchy cover through February and the first part of March rather
+  // than erasing the terrain on the instant that the calendar reaches spring.
+  if (clock.month === 2) return 1 - 0.78 * smooth(dayProgress);
+  if (clock.month === 3) {
+    const thaw = Math.max(0, Math.min(1, dayProgress / 0.38));
+    return 0.22 * (1 - smooth(thaw));
+  }
+  return 0;
+}
+
 export function environmentFor(
   seed: number,
   hydrology: number,
@@ -84,6 +124,8 @@ export function environmentFor(
   return {
     season,
     weather,
+    snowCoverage: snowCoverageForClock(clock),
+    deciduousFoliage: deciduousFoliageForClock(clock),
     cropGrowthMultiplier: weather === 'rain'
       ? SPRING_RAIN_CROP_GROWTH_MULTIPLIER
       : weather === 'drought'
@@ -194,29 +236,30 @@ export function describeEnvironment(environment: EnvironmentState): {
     };
   }
   if (environment.season === 'winter') {
+    const snowCover = Math.round(environment.snowCoverage * 100);
     return {
       title: 'Winter frost',
-      detail: `Forage and fishing stop, pasture is scarce, sheep cannot be shorn, homes burn more firewood, and iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%.${roadDetail}`,
+      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, and sheep shearing stop; release those crews to logging, construction, hunting, or processing the autumn crop. Higher-tier homes burn twice their normal firewood, pasture is scarce, and iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%.${roadDetail}`,
       symbol: '❄',
     };
   }
   if (environment.season === 'autumn') {
     return {
       title: 'Autumn',
-      detail: `Harvest crops in September; plough and sow during October and November.${roadDetail}`,
+      detail: `Call farm crews home for the September harvest, then plough and sow during October and November or lose unfinished fields at winter. Gather the last berries, stock firewood, and begin threshing grain and processing the harvest; the first light snow can settle late in November.${roadDetail}`,
       symbol: '♨',
     };
   }
   if (environment.season === 'summer') {
     return {
       title: 'Summer',
-      detail: 'Crops and forage continue growing; drought remains the main seasonal risk.',
+      detail: 'Crops and forage continue growing while most farm labor is free. Finish manpower-heavy construction and industry, gather remaining berries, and recall distant militia before September; drought can still ruin exposed crops and strain wells, pasture, fish, and mills.',
       symbol: '☀',
     };
   }
   return {
     title: 'Spring',
-    detail: 'Crops resume growth; fish reproduce; berries and mushrooms replenish.',
+    detail: 'Early-March snow retreats in sheltered patches as berries and mushrooms replenish, fish reproduce, sheep shearing resumes, and autumn-sown crops grow again. March and April are the emergency window for spring oats; frequent rain helps growth and wells but slows dirt roads, threatens exposed supplies, and can bring lightning fires.',
     symbol: '❀',
   };
 }

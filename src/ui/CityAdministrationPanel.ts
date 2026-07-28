@@ -111,7 +111,7 @@ export class CityAdministrationPanel {
         <button type="button" class="city-admin-panel__close" data-action="close" aria-label="Close">×</button>
       </header>
       <p class="city-admin-panel__intro">
-        Set trade tax and parish coffer policy. Tithes land in chapel coffers first; salary, upkeep, and charity
+        Set trade tax and parish coffer policy. Tithes land in church coffers first; salary, upkeep, and charity
         spend from the coffer before you collect or auto-sweep surplus into treasury.
       </p>
       <label class="city-admin-panel__slider-label" for="city-admin-tax-slider">
@@ -139,7 +139,7 @@ export class CityAdministrationPanel {
         </label>
         <label class="city-admin-panel__toggle">
           <input type="checkbox" data-sabbath-toggle />
-          <span>Observe Sunday sabbath (staffed chapel)</span>
+          <span>Observe Sunday sabbath (staffed church)</span>
         </label>
         <p class="city-admin-panel__intro city-admin-panel__intro--compact">
           Sabbath pauses work and deliveries every Sunday when a priest is assigned. Households still consume
@@ -190,7 +190,7 @@ export class CityAdministrationPanel {
           value="30"
         />
         <div class="city-admin-panel__range-hints">
-          <span>0% — chapel keeps all tithe</span>
+          <span>0% — church keeps all tithe</span>
           <span>80% — monastery-led parish</span>
         </div>
         <div class="city-admin-panel__stat city-admin-panel__stat--inline">

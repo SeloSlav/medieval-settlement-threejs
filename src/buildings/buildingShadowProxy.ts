@@ -19,7 +19,7 @@ const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   hunters_hall: 5.7,
   foragers_shed: 4.9,
   fishing_camp: 5.2,
-  chapel: 9.5,
+  chapel: 11.9,
   marketplace: 5.3,
   town_hall: 9.2,
   village_storehouse: 6.7,

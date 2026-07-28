@@ -46,10 +46,19 @@ declare module '@seedthree/core/branch-cards.js' {
     options?: {
       seasonalDeciduous?: boolean;
       canopyTint?: readonly [number, number, number];
+      autumnColor?: readonly [number, number, number];
       toneVariation?: number;
     },
   ): THREE.Material;
   export function setForestCardDormancy(material: THREE.Material, amount: number): boolean;
+  export function setForestCardSeason(
+    material: THREE.Material,
+    state: {
+      springFlush: number;
+      autumnColor: number;
+      dormancy: number;
+    },
+  ): boolean;
 
   export function bakeBranchCards(
     renderer: unknown,

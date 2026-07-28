@@ -20,6 +20,13 @@ type ChapelMaterials = {
   ochrePaint: THREE.MeshStandardMaterial;
 };
 
+/**
+ * The saved/server kind remains `chapel`, but the player-facing building is a
+ * parish church. Keep the scale on a nested authored-model group so runtime
+ * helpers (notably the shadow proxy) can still attach to an unscaled root.
+ */
+export const PARISH_CHURCH_MODEL_SCALE = 1.25;
+
 function createChapelMaterials(): ChapelMaterials {
   return {
     limewash: residenceFacadeMaterial('white'),
@@ -367,13 +374,17 @@ function addBellTower(
 }
 
 /**
- * Gorski village chapel: compact limewashed nave, hand-laid limestone base,
- * deep tile roof and an open oak belfry. This is the visual benchmark for the
- * settlement's grounded, crafted architectural language.
+ * Gorski parish church: limewashed nave, hand-laid limestone base, deep tile
+ * roof and an open oak belfry. The underlying chapel asset is enlarged as one
+ * authored unit so it reads as the settlement's spiritual landmark.
  */
 export function createChapelMesh(): THREE.Group {
+  const root = new THREE.Group();
+  root.name = 'Parish Church';
   const group = new THREE.Group();
-  group.name = 'Chapel';
+  group.name = 'Parish Church authored model';
+  group.scale.setScalar(PARISH_CHURCH_MODEL_SCALE);
+  root.add(group);
   const materials = createChapelMaterials();
   const roofMaterial = sharedBuildingMaterial('slate');
 
@@ -514,5 +525,5 @@ export function createChapelMesh(): THREE.Group {
     }
   }
 
-  return group;
+  return root;
 }

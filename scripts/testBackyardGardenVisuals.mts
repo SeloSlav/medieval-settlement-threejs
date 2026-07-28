@@ -89,6 +89,39 @@ shallow.traverse((object) => {
 assert.equal(shallowTrees, 2, 'shallow plots should reduce orchard count instead of flattening trees');
 disposeBackyardGardenMesh(shallow);
 
+const vegetableDetail = createBackyardGardenMesh('vegetable_garden', {
+  width: 6.2,
+  depth: 5.4,
+  seed: 4271,
+});
+const vegetableNames: string[] = [];
+vegetableDetail.traverse((object) => {
+  if (object.name) vegetableNames.push(object.name);
+});
+for (const cropName of ['CabbageRows', 'CarrotRows', 'TurnipRows']) {
+  assert.ok(
+    vegetableNames.includes(cropName),
+    `vegetable gardens should devote a visible planting bed to ${cropName}`,
+  );
+}
+assert.ok(
+  vegetableNames.filter((name) => name === 'Textured cabbage outer leaf').length >= 28,
+  'cabbages should use layered botanical leaf cutouts',
+);
+assert.ok(
+  vegetableNames.filter((name) => name === 'Textured carrot frond').length >= 18,
+  'carrots should expose feathery foliage above their modeled roots',
+);
+assert.ok(
+  vegetableNames.filter((name) => name === 'Textured turnip leaf').length >= 20,
+  'turnips should expose broad leaf rosettes above their bulbs',
+);
+assert.ok(
+  vegetableNames.includes('Bean and pea trellis'),
+  'beans and peas should remain represented without replacing a root-crop bed',
+);
+disposeBackyardGardenMesh(vegetableDetail);
+
 const appleDetail = createBackyardGardenMesh('apple_orchard', { width: 6.2, depth: 5.4, seed: 4271 });
 const cherryDetail = createBackyardGardenMesh('cherry_orchard', { width: 6.2, depth: 5.4, seed: 4271 });
 let appleFruitCount = 0;
@@ -222,6 +255,13 @@ assert.match(
   /rose_blossom_card\.png/,
   'rose rendering should retain its dedicated blossom texture',
 );
+for (const textureName of ['cabbage_leaf.png', 'carrot_frond.png', 'turnip_leaf.png']) {
+  assert.match(
+    backyardGardenSource,
+    new RegExp(textureName.replace('.', '\\.')),
+    `vegetable rendering should reference ${textureName}`,
+  );
+}
 assert.doesNotMatch(
   backyardGardenSource,
   /addFallbackTree|CylinderGeometry\(0\.14, 0\.24|IcosahedronGeometry\(0\.74/,

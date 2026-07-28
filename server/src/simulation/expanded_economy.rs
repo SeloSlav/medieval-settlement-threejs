@@ -1,7 +1,7 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    APIARY_FOOD_PER_CYCLE, APIARY_HONEY_PER_CYCLE, BREWERY_ALE_PER_CYCLE,
+    FarmCropProduce, APIARY_FOOD_PER_CYCLE, APIARY_HONEY_PER_CYCLE, BREWERY_ALE_PER_CYCLE,
     BREWERY_FIREWOOD_PER_CYCLE, BREWERY_GRAIN_PER_CYCLE, BREWERY_WATER_PER_CYCLE,
     CALENDAR_SECONDS_PER_DAY, FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC,
     FERRY_GOLD_PER_DAY, FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
@@ -9,11 +9,11 @@ use crate::balance_generated::{
     GRANARY_WATER_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
     MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
     MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
-    MONASTERY_UNLINKED_PRODUCTIVITY,
-    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
-    TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
-    VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE,
-    WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    MONASTERY_UNLINKED_PRODUCTIVITY, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
+    SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
+    VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
+    WEAVER_CLOTH_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -24,10 +24,10 @@ use crate::economy::{
     withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
-    crop_growth_allowed, expected_grain_yield, farmstead_exportable_grain, fertility_after_harvest,
-    field_seed_grain_remaining, field_work_allowed, seed_grain_required, shape_efficiency,
-    sowing_window_missed, work_required, CROP_FALLOW, STAGE_GROWING, STAGE_HARVESTING,
-    STAGE_PLOUGHING, STAGE_SOWING,
+    crop_growth_allowed, crop_produce, expected_grain_yield, farmstead_exportable_grain,
+    fertility_after_harvest, field_seed_grain_remaining, field_work_allowed, seed_grain_required,
+    shape_efficiency, sowing_window_missed, work_required, CROP_FALLOW, STAGE_GROWING,
+    STAGE_HARVESTING, STAGE_PLOUGHING, STAGE_SOWING,
 };
 use crate::frontier_economy_policy::{
     armed_guards, carpenter_polearm_shortfall, guard_upkeep, guardhouse_food_runway_days,
@@ -143,6 +143,14 @@ pub fn step_threshing_barn(
     tick.set_farmstead_seed_reserve(ctx, building.owner, building.id, seed_reserve);
     if !labor_and_logistics_paused(ctx, tick, building.owner, clock) && building.assigned_labor > 0
     {
+        dispatch_to_building(
+            ctx,
+            tick,
+            clock,
+            &mut building,
+            CommodityKind::Wool,
+            &["weaver"],
+        );
         dispatch_farmstead_grain(ctx, tick, clock, &mut building, seed_reserve);
     }
     ctx.db.building().id().update(building);
@@ -490,11 +498,16 @@ fn step_farmstead_fields(
         } else {
             None
         };
+        let harvest_commodity = match crop_produce(field.crop) {
+            FarmCropProduce::Grain => Some(CommodityKind::Grain),
+            FarmCropProduce::Fibre => Some(CommodityKind::Wool),
+            FarmCropProduce::None => None,
+        };
         let mut spent = work_budget.min(remaining);
-        if let Some(expected) = expected_harvest {
+        if let (Some(expected), Some(commodity)) = (expected_harvest, harvest_commodity) {
             if expected > 1e-9 {
                 let storage_limited_work =
-                    required * building_commodity_room(farmstead, CommodityKind::Grain) / expected;
+                    required * building_commodity_room(farmstead, commodity) / expected;
                 spent = spent.min(storage_limited_work);
             }
         }
@@ -518,9 +531,9 @@ fn step_farmstead_fields(
                 seed_required * (field.stage_progress - previous_progress).clamp(0.0, 1.0);
             withdraw_building_commodity(farmstead, CommodityKind::Grain, seed_used);
         }
-        if let Some(expected) = expected_harvest {
+        if let (Some(expected), Some(commodity)) = (expected_harvest, harvest_commodity) {
             let harvested = expected * (field.stage_progress - previous_progress).max(0.0);
-            let deposited = deposit_building_commodity(farmstead, CommodityKind::Grain, harvested);
+            let deposited = deposit_building_commodity(farmstead, commodity, harvested);
             field.current_yield += deposited;
         }
         if field.stage_progress < 1.0 - 1e-9 {

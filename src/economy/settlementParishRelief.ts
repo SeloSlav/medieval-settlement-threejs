@@ -559,7 +559,7 @@ export function formatChapelDailyAlms(plan: ChapelReliefPlan): string {
   switch (plan.almsStatus) {
     case 'legacy':
       return `Poorest parish household · ${CHAPEL_CHARITY_GOLD_PER_DAY.toFixed(2)} gold/day`;
-    case 'unbuilt': return 'Complete the chapel first';
+    case 'unbuilt': return 'Complete the church first';
     case 'unstaffed': return 'Inactive until a priest is assigned';
     case 'fire-disabled': return 'Paused · coffer sealed during structural recovery';
     case 'below-coffer-threshold':
@@ -567,7 +567,7 @@ export function formatChapelDailyAlms(plan: ChapelReliefPlan): string {
     case 'no-recipient': return 'No occupied household can receive alms';
     case 'in-transit':
       return `${plan.almsGoldInTransit.toFixed(2)} gold purse en route to the poorest household`;
-    case 'returning': return 'Undelivered alms purse returning to the chapel';
+    case 'returning': return 'Undelivered alms purse returning to the church';
     case 'cooling-down': {
       const workdays = CHAPEL_WORKDAY_SECONDS <= 1e-9
         ? 0
@@ -576,8 +576,8 @@ export function formatChapelDailyAlms(plan: ChapelReliefPlan): string {
     }
     case 'closed': return `${purseAmount.toFixed(2)} gold purse ready · parish errands are resting`;
     case 'chapel-cart-busy':
-      return `${purseAmount.toFixed(2)} gold purse waiting · chapel cart is busy`;
-    case 'no-route': return 'Blocked · poorest household has no chapel road route';
+      return `${purseAmount.toFixed(2)} gold purse waiting · church cart is busy`;
+    case 'no-route': return 'Blocked · poorest household has no church road route';
     case 'route-too-short': return 'Blocked · route needs a usable road segment';
     case 'ready': {
       const distance = plan.almsRoadDistance == null
@@ -593,9 +593,9 @@ export function formatChapelPoorRelief(plan: ChapelReliefPlan): string {
     ? null
     : `${plan.quote.label} · ${plan.quote.amount} food · ${plan.quote.goldCost} gold`;
   switch (plan.status) {
-    case 'unbuilt': return 'Complete the chapel first';
+    case 'unbuilt': return 'Complete the church first';
     case 'unstaffed': return 'Assign a priest to form a parish';
-    case 'fire-disabled': return 'Paused by chapel fire damage';
+    case 'fire-disabled': return 'Paused by church fire damage';
     case 'below-coffer-threshold':
       return `Held below ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold coffer threshold`;
     case 'no-relief-home': return 'No abandoned parish home needs a dole';
@@ -620,7 +620,7 @@ export function formatSettlementParishRelief(
     const unavailableChapels = plan.fireDisabledChapels
       + plan.reconstructingChapels;
     return unavailableChapels > 0
-      ? `No active parish · ${plan.fireDisabledChapels} fire-disabled + ${plan.reconstructingChapels} reconstructing ${unavailableChapels === 1 ? 'chapel holds' : 'chapels hold'} ${plan.structurallyQuarantinedCofferGold.toFixed(1)} sealed gold`
+      ? `No active parish · ${plan.fireDisabledChapels} fire-disabled + ${plan.reconstructingChapels} reconstructing ${unavailableChapels === 1 ? 'church holds' : 'churches hold'} ${plan.structurallyQuarantinedCofferGold.toFixed(1)} sealed gold`
       : 'No active staffed parish';
   }
   if (!plan.dueNow) {
@@ -639,8 +639,8 @@ export function formatSettlementParishCoverage(
     const unavailableChapels = plan.fireDisabledChapels
       + plan.reconstructingChapels;
     return unavailableChapels > 0
-      ? `No active territory · ${plan.fireDisabledChapels} fire-disabled + ${plan.reconstructingChapels} reconstructing ${unavailableChapels === 1 ? 'chapel' : 'chapels'}`
-      : 'No staffed chapel territories';
+      ? `No active territory · ${plan.fireDisabledChapels} fire-disabled + ${plan.reconstructingChapels} reconstructing ${unavailableChapels === 1 ? 'church' : 'churches'}`
+      : 'No staffed church territories';
   }
   const unassigned = plan.unassignedHomes > 0
     ? ` · ${plan.unassignedHomes} operational ${plan.unassignedHomes === 1 ? 'home' : 'homes'} off parish roads`

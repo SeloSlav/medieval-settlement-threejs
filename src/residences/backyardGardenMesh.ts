@@ -84,6 +84,29 @@ function createFlowerStemMaps(): {
 
 const FLOWER_STEM_MAPS = createFlowerStemMaps();
 
+const KITCHEN_CROP_TEXTURE_PATHS = {
+  cabbage: '/assets/textures/vegetation/kitchen_crops/cabbage_leaf.png',
+  carrot: '/assets/textures/vegetation/kitchen_crops/carrot_frond.png',
+  turnip: '/assets/textures/vegetation/kitchen_crops/turnip_leaf.png',
+} as const;
+
+function loadKitchenCropTexture(path: string, name: string): THREE.Texture | null {
+  if (typeof document === 'undefined') return null;
+  const texture = new THREE.TextureLoader().load(path);
+  texture.name = name;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = 4;
+  return texture;
+}
+
+const KITCHEN_CROP_TEXTURES = {
+  cabbage: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.cabbage, 'Generated cabbage leaf cutout'),
+  carrot: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.carrot, 'Generated carrot frond cutout'),
+  turnip: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.turnip, 'Generated turnip leaf cutout'),
+} as const;
+
 const MATERIALS = {
   soil: new THREE.MeshStandardMaterial({ color: 0x4b3828, roughness: 0.97 }),
   darkSoil: new THREE.MeshStandardMaterial({ color: 0x35271d, roughness: 0.98 }),
@@ -125,6 +148,36 @@ const MATERIALS = {
     metalness: 0,
   }),
   cabbage: new THREE.MeshStandardMaterial({ color: 0x759c5c, roughness: 0.9 }),
+  cabbageLeafCard: new THREE.MeshStandardMaterial({
+    name: 'Generated cabbage leaf material',
+    color: 0xc2d3b3,
+    map: KITCHEN_CROP_TEXTURES.cabbage,
+    roughness: 0.92,
+    transparent: true,
+    alphaTest: 0.16,
+    side: THREE.DoubleSide,
+  }),
+  carrotRoot: new THREE.MeshStandardMaterial({ color: 0xc86d28, roughness: 0.86 }),
+  carrotFrondCard: new THREE.MeshStandardMaterial({
+    name: 'Generated carrot frond material',
+    color: 0x8aaa6d,
+    map: KITCHEN_CROP_TEXTURES.carrot,
+    roughness: 0.91,
+    transparent: true,
+    alphaTest: 0.16,
+    side: THREE.DoubleSide,
+  }),
+  turnipRoot: new THREE.MeshStandardMaterial({ color: 0xd8cfaa, roughness: 0.88 }),
+  turnipShoulder: new THREE.MeshStandardMaterial({ color: 0x8a526b, roughness: 0.86 }),
+  turnipLeafCard: new THREE.MeshStandardMaterial({
+    name: 'Generated turnip leaf material',
+    color: 0x9db17a,
+    map: KITCHEN_CROP_TEXTURES.turnip,
+    roughness: 0.92,
+    transparent: true,
+    alphaTest: 0.16,
+    side: THREE.DoubleSide,
+  }),
   squash: new THREE.MeshStandardMaterial({ color: 0x4d7939, roughness: 0.9 }),
   terracotta: new THREE.MeshStandardMaterial({ color: 0x9b4c36, roughness: 0.88 }),
   water: sharedBuildingDetailMaterial('water'),
@@ -607,61 +660,190 @@ function addOrchard(
   addSteppingStones(group, -depth * 0.46, depth * 0.34, seed);
 }
 
+function createRootedLeafCard(
+  width: number,
+  height: number,
+  material: THREE.Material,
+  name: string,
+): THREE.Mesh {
+  const geometry = new THREE.PlaneGeometry(width, height, 1, 1);
+  geometry.translate(0, height * 0.5, 0);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = name;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
 function addCabbage(group: THREE.Group, x: number, z: number, seed: number): void {
   const rng = mulberry32(seed);
-  for (let layer = 0; layer < 5; layer++) {
-    const angle = (layer / 5) * Math.PI * 2;
+  const plant = new THREE.Group();
+  plant.name = 'Cabbage plant';
+  plant.position.set(x, 0.1, z);
+  plant.rotation.y = rng() * Math.PI * 2;
+  group.add(plant);
+
+  for (let leaf = 0; leaf < 7; leaf++) {
+    const angle = leaf / 7 * Math.PI * 2 + rng() * 0.14;
+    const card = createRootedLeafCard(
+      0.34 + rng() * 0.07,
+      0.48 + rng() * 0.08,
+      MATERIALS.cabbageLeafCard,
+      'Textured cabbage outer leaf',
+    );
+    card.position.y = 0.035;
+    card.rotation.set(-0.98 - rng() * 0.18, angle, (rng() - 0.5) * 0.12);
+    plant.add(card);
+  }
+  for (let layer = 0; layer < 4; layer++) {
+    const angle = (layer / 4) * Math.PI * 2;
     addMesh(
-      group,
-      new THREE.SphereGeometry(0.18, 7, 5),
+      plant,
+      new THREE.SphereGeometry(0.17, 10, 7),
       layer % 2 ? MATERIALS.cabbage : MATERIALS.leafLight,
-      x + Math.cos(angle) * 0.1,
-      0.21 + rng() * 0.035,
-      z + Math.sin(angle) * 0.1,
-      new THREE.Euler(0, angle, 0),
-      new THREE.Vector3(1.2, 0.42, 0.72),
+      Math.cos(angle) * 0.085,
+      0.19 + rng() * 0.025,
+      Math.sin(angle) * 0.085,
+      new THREE.Euler(-0.18, angle, 0.22),
+      new THREE.Vector3(1.08, 0.58, 0.78),
+      'Layered cabbage heart',
     );
   }
 }
 
+function addCarrot(group: THREE.Group, x: number, z: number, seed: number): void {
+  const rng = mulberry32(seed);
+  const plant = new THREE.Group();
+  plant.name = 'Carrot plant';
+  plant.position.set(x, 0.1, z);
+  plant.rotation.y = rng() * Math.PI * 2;
+  group.add(plant);
+  addMesh(
+    plant,
+    new THREE.ConeGeometry(0.075, 0.3, 9),
+    MATERIALS.carrotRoot,
+    0,
+    0.01,
+    0,
+    new THREE.Euler(Math.PI, 0, 0),
+    new THREE.Vector3(1, 1, 1),
+    'Carrot root shoulder',
+  );
+  addMesh(
+    plant,
+    new THREE.SphereGeometry(0.078, 9, 6),
+    MATERIALS.carrotRoot,
+    0,
+    0.105,
+    0,
+    undefined,
+    new THREE.Vector3(1, 0.58, 1),
+    'Carrot crown',
+  );
+  for (let frond = 0; frond < 3; frond++) {
+    const card = createRootedLeafCard(
+      0.31 + rng() * 0.06,
+      0.44 + rng() * 0.08,
+      MATERIALS.carrotFrondCard,
+      'Textured carrot frond',
+    );
+    card.position.y = 0.1;
+    card.rotation.set((rng() - 0.5) * 0.16, frond / 3 * Math.PI, (rng() - 0.5) * 0.2);
+    plant.add(card);
+  }
+}
+
+function addTurnip(group: THREE.Group, x: number, z: number, seed: number): void {
+  const rng = mulberry32(seed);
+  const plant = new THREE.Group();
+  plant.name = 'Turnip plant';
+  plant.position.set(x, 0.1, z);
+  plant.rotation.y = rng() * Math.PI * 2;
+  group.add(plant);
+  addMesh(
+    plant,
+    new THREE.SphereGeometry(0.115, 10, 7),
+    MATERIALS.turnipRoot,
+    0,
+    0.075,
+    0,
+    undefined,
+    new THREE.Vector3(1, 0.9, 1),
+    'Turnip root bulb',
+  );
+  addMesh(
+    plant,
+    new THREE.SphereGeometry(0.108, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.44),
+    MATERIALS.turnipShoulder,
+    0,
+    0.13,
+    0,
+    undefined,
+    new THREE.Vector3(1, 0.62, 1),
+    'Purple turnip shoulder',
+  );
+  for (let leaf = 0; leaf < 5; leaf++) {
+    const angle = leaf / 5 * Math.PI * 2 + rng() * 0.16;
+    const card = createRootedLeafCard(
+      0.25 + rng() * 0.055,
+      0.38 + rng() * 0.08,
+      MATERIALS.turnipLeafCard,
+      'Textured turnip leaf',
+    );
+    card.position.y = 0.13;
+    card.rotation.set(-0.32 - rng() * 0.28, angle, (rng() - 0.5) * 0.12);
+    plant.add(card);
+  }
+}
+
 function addBeanTrellis(group: THREE.Group, x: number, z: number, length: number): void {
+  const trellis = new THREE.Group();
+  trellis.name = 'Bean and pea trellis';
+  group.add(trellis);
   const topY = 1.35;
   for (const dx of [-length * 0.5, 0, length * 0.5]) {
-    addMesh(group, new THREE.CylinderGeometry(0.035, 0.05, topY, 6), MATERIALS.darkTimber, x + dx, topY * 0.5, z, new THREE.Euler(0, 0, dx * 0.025));
+    addMesh(trellis, new THREE.CylinderGeometry(0.035, 0.05, topY, 6), MATERIALS.darkTimber, x + dx, topY * 0.5, z, new THREE.Euler(0, 0, dx * 0.025));
   }
-  addMesh(group, new THREE.CylinderGeometry(0.035, 0.035, length + 0.12, 6), MATERIALS.darkTimber, x, topY, z, new THREE.Euler(0, 0, Math.PI * 0.5), undefined, 'BeanTrellis');
+  addMesh(trellis, new THREE.CylinderGeometry(0.035, 0.035, length + 0.12, 6), MATERIALS.darkTimber, x, topY, z, new THREE.Euler(0, 0, Math.PI * 0.5), undefined, 'BeanTrellis');
   for (let i = 0; i < 11; i++) {
     const dx = -length * 0.48 + (length * 0.96 * i) / 10;
-    addMesh(group, new THREE.SphereGeometry(0.12, 6, 4), i % 2 ? MATERIALS.leaf : MATERIALS.squash, x + dx, 0.3 + (i % 4) * 0.28, z, new THREE.Euler(0, i, 0), new THREE.Vector3(1, 0.55, 0.45));
+    addMesh(trellis, new THREE.SphereGeometry(0.12, 6, 4), i % 2 ? MATERIALS.leaf : MATERIALS.squash, x + dx, 0.3 + (i % 4) * 0.28, z, new THREE.Euler(0, i, 0), new THREE.Vector3(1, 0.55, 0.45));
   }
 }
 
 function addVegetableGarden(group: THREE.Group, width: number, depth: number, seed: number): void {
   addMesh(group, new THREE.BoxGeometry(width, 0.04, depth), MATERIALS.path, 0, 0.02, 0);
-  const bedCount = width > 5.4 ? 3 : 2;
-  const gap = 0.42;
+  const bedCount = 3;
+  const gap = 0.3;
   const bedWidth = (width - gap * (bedCount + 1)) / bedCount;
-  const bedDepth = Math.max(1.2, depth - 0.65);
+  const bedDepth = Math.max(1.15, depth - (depth > 3.2 ? 1.25 : 0.62));
+  const bedZ = depth > 3.2 ? -0.34 : 0;
+  const cropRows = [
+    { name: 'CabbageRows', add: addCabbage, spacing: 0.58 },
+    { name: 'CarrotRows', add: addCarrot, spacing: 0.4 },
+    { name: 'TurnipRows', add: addTurnip, spacing: 0.48 },
+  ] as const;
   for (let bed = 0; bed < bedCount; bed++) {
     const x = -width * 0.5 + gap + bedWidth * 0.5 + bed * (bedWidth + gap);
-    addSoilBed(group, x, 0, bedWidth, bedDepth);
-    if (bed === bedCount - 1 && depth > 3.2) {
-      addBeanTrellis(group, x, 0, bedWidth * 0.75);
-      continue;
-    }
-    const cols = Math.max(2, Math.floor(bedWidth / 0.52));
-    const rows = Math.max(2, Math.floor(bedDepth / 0.65));
+    addSoilBed(group, x, bedZ, bedWidth, bedDepth);
+    const cropGroup = new THREE.Group();
+    cropGroup.name = cropRows[bed]!.name;
+    group.add(cropGroup);
+    const spacing = cropRows[bed]!.spacing;
+    const cols = Math.max(2, Math.floor(bedWidth / spacing));
+    const rows = Math.max(2, Math.floor(bedDepth / spacing));
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        addCabbage(
-          group,
-          x - ((cols - 1) * 0.48) * 0.5 + col * 0.48,
-          -((rows - 1) * 0.61) * 0.5 + row * 0.61,
+        cropRows[bed]!.add(
+          cropGroup,
+          x - ((cols - 1) * spacing) * 0.5 + col * spacing,
+          bedZ - ((rows - 1) * spacing) * 0.5 + row * spacing,
           seed + bed * 101 + row * 17 + col,
         );
       }
     }
   }
+  if (depth > 3.2) addBeanTrellis(group, 0, depth * 0.36, width * 0.78);
   addBasket(group, width * 0.38, -depth * 0.38, false, MATERIALS.apple);
 }
 

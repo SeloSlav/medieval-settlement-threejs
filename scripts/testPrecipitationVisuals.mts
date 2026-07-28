@@ -14,6 +14,7 @@ import {
   parseVisualQaConditions,
 } from '../src/app/visualQaConditions.ts';
 import { gameClockAtElapsedSeconds } from '../src/world/gameCalendar.ts';
+import { deciduousFoliageForSeasonPreview } from '../src/world/deciduousFoliagePolicy.ts';
 
 function environment(
   weather: EnvironmentState['weather'],
@@ -26,6 +27,8 @@ function environment(
   return {
     season,
     weather,
+    snowCoverage: weather === 'frost' ? 1 : 0,
+    deciduousFoliage: deciduousFoliageForSeasonPreview(season),
     cropGrowthMultiplier: 1,
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
@@ -62,6 +65,15 @@ assert.equal(drought.kind, 'none');
 assert.ok(drought.sunlightMultiplier > 1);
 assert.equal(precipitationPreviewEnvironment(environment('fair'), '?weather=rain').weather, 'rain');
 assert.equal(precipitationPreviewEnvironment(environment('fair'), '?weather=snow').weather, 'frost');
+assert.equal(precipitationPreviewEnvironment(environment('fair'), '?weather=snow').snowCoverage, 1);
+assert.deepEqual(
+  roadWeatherProfile({ ...environment('rain'), snowCoverage: 0.22 }),
+  { wetness: 1, frost: 0.22 },
+);
+assert.deepEqual(
+  roadWeatherProfile({ ...environment('fair', 'spring'), snowCoverage: 0.12 }),
+  { wetness: 0, frost: 0.12 },
+);
 assert.equal(
   precipitationPreviewEnvironment(environment('fair'), '?weather=autumn').season,
   'autumn',
@@ -74,12 +86,24 @@ assert.equal(standalonePrecipitationPreview('?weather=clear'), null);
 const daylightQa = parseVisualQaConditions('?visualQa=daylight');
 const moonlightQa = parseVisualQaConditions('?visualQa=moonlight');
 const rainQa = parseVisualQaConditions('?visualQa=rain');
+const autumnQa = parseVisualQaConditions('?visualQa=autumn');
 const winterQa = parseVisualQaConditions('?visualQa=winter');
 assert.equal(parseVisualQaConditions('?visualQa=unknown'), null);
 assert.ok(daylightQa);
 assert.ok(moonlightQa);
 assert.ok(rainQa);
+assert.ok(autumnQa);
 assert.ok(winterQa);
+assert.deepEqual(
+  {
+    season: applyVisualQaEnvironment(environment('fair'), autumnQa).season,
+    foliage: applyVisualQaEnvironment(environment('fair'), autumnQa).deciduousFoliage,
+  },
+  {
+    season: 'autumn',
+    foliage: { springFlush: 0, autumnColor: 1, dormancy: 0.18 },
+  },
+);
 assert.deepEqual(
   {
     season: applyVisualQaEnvironment(environment('frost'), daylightQa).season,
@@ -140,6 +164,10 @@ const roadMaterialSource = readFileSync(
 );
 const roadFactorySource = readFileSync(
   `${projectRoot}src/roads/RoadMaterialFactory.ts`,
+  'utf8',
+);
+const roadTextureLoaderSource = readFileSync(
+  `${projectRoot}src/roads/RoadTextureLoader.ts`,
   'utf8',
 );
 const terrainMaterialSource = readFileSync(
@@ -288,6 +316,12 @@ assert.match(
   'river-bank opacity must use a broad analytic feather with a true-zero outer band',
 );
 assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
+assert.doesNotMatch(roadFactorySource, /loadTerrainSnowTextures|terrainSnowTextures/);
+assert.match(
+  roadTextureLoaderSource,
+  /manor_grass_dry\/snow_albedo_atlas\.png/,
+  'the terrain pipeline must load the packed dry-grass and generated-snow atlas',
+);
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
 assert.match(roadFactorySource, /readonly rainTerrain!:\s*THREE\.MeshStandardMaterial/);
 assert.match(
@@ -390,12 +424,22 @@ assert.match(
 );
 assert.match(terrainMaterialSource, /const broadFrostExposure = smoothstep/);
 assert.match(terrainMaterialSource, /const ecologicalShelter = max/);
-assert.match(terrainMaterialSource, /TERRAIN_FROST_PATCH_MAX = 0\.86/);
-assert.match(terrainMaterialSource, /TERRAIN_FROST_MASK_SCALE = 0\.82/);
-assert.match(terrainMaterialSource, /TERRAIN_FROST_COLOR_BLEND = 0\.86/);
+assert.match(terrainMaterialSource, /function buildTerrainSnowNodes/);
+assert.match(terrainMaterialSource, /const revealStart = sub/);
+assert.match(terrainMaterialSource, /weather\.frost\.mul/);
+assert.match(terrainMaterialSource, /function packedDrySnowUv/);
+assert.match(terrainMaterialSource, /packedDrySnowUv\(grassUv,\s*true\)/);
+assert.doesNotMatch(
+  terrainMaterialSource,
+  /texture\(textures\.(?:height|normal|roughness|ao)!?,\s*packedDrySnowUv\(grassUv,\s*true\)/,
+  'snow must reuse the packed albedo sampler instead of exceeding portable WebGPU limits',
+);
+assert.match(terrainMaterialSource, /TERRAIN_SNOW_TEXTURE_WEIGHT = 0\.54/);
+assert.match(terrainMaterialSource, /TERRAIN_SNOW_MAX_COVERAGE = 0\.96/);
 assert.match(
   terrainMaterialSource,
-  /TERRAIN_FROST_COLOR_LIFT = \[0\.16,\s*0\.19,\s*0\.22\]/,
+  /applyTerrainSnowColor\([\s\S]*?snowNodes\.colorNode,[\s\S]*?snowNodes\.mask/,
+  'snow albedo must overlap the authored terrain through the accumulation mask',
 );
 assert.match(terrainMaterialSource, /const shoreRainVisibility = sub/);
 assert.match(

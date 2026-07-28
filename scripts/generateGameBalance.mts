@@ -61,6 +61,23 @@ type BackyardGardenBalance = {
   goldPerPersonPerSec: number;
 };
 
+type FarmCropBalance = {
+  id: number;
+  label: string;
+  produce: 'grain' | 'fibre' | 'none';
+  workSeason: 'spring' | 'autumn';
+  seedGrainPerSquareMeter: number;
+  yieldMultiplier: number;
+  moistureIdeal: number;
+  moistureTolerance: number;
+  fertilityDelta: number;
+  workStartMonth: number;
+  workEndMonth: number;
+  growthStartMonth: number;
+  growthEndMonth: number;
+  calendarLabel: string;
+};
+
 type LivestockSpeciesBalance = {
   starterHerd: number;
   maxHerd: number;
@@ -420,16 +437,8 @@ export type GameBalance = {
     harvestWorkPerSquareMeter: number;
     growthSeconds: number;
     baseGrainPerSquareMeter: number;
-    ryeSeedGrainPerSquareMeter: number;
-    oatsSeedGrainPerSquareMeter: number;
     farmsteadStarterSeedGrain: number;
-    ryeMoistureIdeal: number;
-    ryeMoistureTolerance: number;
-    oatsMoistureIdeal: number;
-    oatsMoistureTolerance: number;
-    ryeFertilityDrain: number;
-    oatsFertilityDrain: number;
-    fallowFertilityRestore: number;
+    crops: Record<string, FarmCropBalance>;
     slopePenaltyPerDegree: number;
     maxAcceptedSlopeDegrees: number;
     fieldSalvageFraction: number;
@@ -465,6 +474,18 @@ const balance = JSON.parse(readFileSync(balancePath, 'utf8')) as GameBalance;
 
 const buildingKinds = Object.keys(balance.buildings);
 const backyardGardenKinds = Object.keys(balance.backyardGardens);
+const farmCropKinds = Object.keys(balance.farming.crops);
+const farmCropIds = new Set<number>();
+for (const [index, kind] of farmCropKinds.entries()) {
+  const crop = balance.farming.crops[kind];
+  if (crop.id !== index) {
+    throw new Error(`Farm crop "${kind}" must keep contiguous id ${index}; received ${crop.id}.`);
+  }
+  if (farmCropIds.has(crop.id)) {
+    throw new Error(`Farm crop id ${crop.id} is duplicated.`);
+  }
+  farmCropIds.add(crop.id);
+}
 const simKindByKind: Record<string, string | null> = {
   lumber_mill: 'LumberMill',
   reforester: 'Reforester',
@@ -796,16 +817,7 @@ function generateRust(): string {
     `pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = ${rustF64(b.farming.harvestWorkPerSquareMeter)};`,
     `pub const FARM_GROWTH_SECONDS: f64 = ${rustF64(b.farming.growthSeconds)};`,
     `pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.baseGrainPerSquareMeter)};`,
-    `pub const FARM_RYE_SEED_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.ryeSeedGrainPerSquareMeter)};`,
-    `pub const FARM_OATS_SEED_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.oatsSeedGrainPerSquareMeter)};`,
     `pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = ${rustF64(b.farming.farmsteadStarterSeedGrain)};`,
-    `pub const FARM_RYE_MOISTURE_IDEAL: f64 = ${rustF64(b.farming.ryeMoistureIdeal)};`,
-    `pub const FARM_RYE_MOISTURE_TOLERANCE: f64 = ${rustF64(b.farming.ryeMoistureTolerance)};`,
-    `pub const FARM_OATS_MOISTURE_IDEAL: f64 = ${rustF64(b.farming.oatsMoistureIdeal)};`,
-    `pub const FARM_OATS_MOISTURE_TOLERANCE: f64 = ${rustF64(b.farming.oatsMoistureTolerance)};`,
-    `pub const FARM_RYE_FERTILITY_DRAIN: f64 = ${rustF64(b.farming.ryeFertilityDrain)};`,
-    `pub const FARM_OATS_FERTILITY_DRAIN: f64 = ${rustF64(b.farming.oatsFertilityDrain)};`,
-    `pub const FARM_FALLOW_FERTILITY_RESTORE: f64 = ${rustF64(b.farming.fallowFertilityRestore)};`,
     `pub const FARM_SLOPE_PENALTY_PER_DEGREE: f64 = ${rustF64(b.farming.slopePenaltyPerDegree)};`,
     `pub const FARM_MAX_ACCEPTED_SLOPE_DEGREES: f64 = ${rustF64(b.farming.maxAcceptedSlopeDegrees)};`,
     `pub const FARM_FIELD_SALVAGE_FRACTION: f64 = ${rustF64(b.farming.fieldSalvageFraction)};`,
@@ -878,6 +890,74 @@ function generateRust(): string {
     `pub const SWINE_HEALTH_LOSS_PER_CYCLE: f64 = ${rustF64(b.livestock.swine.healthLossPerCycle)};`,
     '',
   ];
+
+  lines.push('#[derive(Clone, Copy, Debug, PartialEq, Eq)]');
+  lines.push('pub enum FarmCropProduce {');
+  lines.push('    Grain,');
+  lines.push('    Fibre,');
+  lines.push('    None,');
+  lines.push('}');
+  lines.push('');
+  lines.push('#[derive(Clone, Copy, Debug, PartialEq, Eq)]');
+  lines.push('pub enum FarmWorkSeason {');
+  lines.push('    Spring,');
+  lines.push('    Autumn,');
+  lines.push('}');
+  lines.push('');
+  lines.push('#[derive(Clone, Copy, Debug)]');
+  lines.push('pub struct FarmCropDef {');
+  lines.push('    pub id: u8,');
+  lines.push('    pub slug: &\'static str,');
+  lines.push('    pub label: &\'static str,');
+  lines.push('    pub produce: FarmCropProduce,');
+  lines.push('    pub work_season: FarmWorkSeason,');
+  lines.push('    pub seed_grain_per_square_meter: f64,');
+  lines.push('    pub yield_multiplier: f64,');
+  lines.push('    pub moisture_ideal: f64,');
+  lines.push('    pub moisture_tolerance: f64,');
+  lines.push('    pub fertility_delta: f64,');
+  lines.push('    pub work_start_month: u8,');
+  lines.push('    pub work_end_month: u8,');
+  lines.push('    pub growth_start_month: u8,');
+  lines.push('    pub growth_end_month: u8,');
+  lines.push('    pub calendar_label: &\'static str,');
+  lines.push('}');
+  lines.push('');
+  for (const kind of farmCropKinds) {
+    const crop = b.farming.crops[kind];
+    const constName = kind.toUpperCase();
+    const produce = crop.produce === 'grain' ? 'Grain' : crop.produce === 'fibre' ? 'Fibre' : 'None';
+    const workSeason = crop.workSeason === 'spring' ? 'Spring' : 'Autumn';
+    lines.push(`pub const FARM_CROP_${constName}_ID: u8 = ${crop.id};`);
+    lines.push(`pub const FARM_CROP_${constName}: FarmCropDef = FarmCropDef {`);
+    lines.push(`    id: FARM_CROP_${constName}_ID,`);
+    lines.push(`    slug: ${JSON.stringify(kind)},`);
+    lines.push(`    label: ${JSON.stringify(crop.label)},`);
+    lines.push(`    produce: FarmCropProduce::${produce},`);
+    lines.push(`    work_season: FarmWorkSeason::${workSeason},`);
+    lines.push(`    seed_grain_per_square_meter: ${rustF64(crop.seedGrainPerSquareMeter)},`);
+    lines.push(`    yield_multiplier: ${rustF64(crop.yieldMultiplier)},`);
+    lines.push(`    moisture_ideal: ${rustF64(crop.moistureIdeal)},`);
+    lines.push(`    moisture_tolerance: ${rustF64(crop.moistureTolerance)},`);
+    lines.push(`    fertility_delta: ${rustF64(crop.fertilityDelta)},`);
+    lines.push(`    work_start_month: ${crop.workStartMonth},`);
+    lines.push(`    work_end_month: ${crop.workEndMonth},`);
+    lines.push(`    growth_start_month: ${crop.growthStartMonth},`);
+    lines.push(`    growth_end_month: ${crop.growthEndMonth},`);
+    lines.push(`    calendar_label: ${JSON.stringify(crop.calendarLabel)},`);
+    lines.push('};');
+    lines.push('');
+  }
+  lines.push('pub const ALL_FARM_CROPS: &[FarmCropDef] = &[');
+  for (const kind of farmCropKinds) {
+    lines.push(`    FARM_CROP_${kind.toUpperCase()},`);
+  }
+  lines.push('];');
+  lines.push('');
+  lines.push('pub fn farm_crop_def(id: u8) -> Option<&\'static FarmCropDef> {');
+  lines.push('    ALL_FARM_CROPS.iter().find(|def| def.id == id)');
+  lines.push('}');
+  lines.push('');
 
   lines.push('#[derive(Clone, Copy, Debug, PartialEq, Eq)]');
   lines.push('pub enum BuildingSimKind {');
@@ -1079,6 +1159,12 @@ function generateRust(): string {
 
 function generateTypeScript(): string {
   const b = balance;
+  const farmCropDefinitions = Object.fromEntries(
+    farmCropKinds.map((kind) => {
+      const crop = b.farming.crops[kind];
+      return [kind, { kind, ...crop }];
+    }),
+  );
   const lines: string[] = [
     '// Generated by scripts/generateGameBalance.mts — do not edit.',
     '',
@@ -1374,19 +1460,33 @@ function generateTypeScript(): string {
     `export const FARM_HARVEST_WORK_PER_SQUARE_METER = ${b.farming.harvestWorkPerSquareMeter};`,
     `export const FARM_GROWTH_SECONDS = ${b.farming.growthSeconds};`,
     `export const FARM_BASE_GRAIN_PER_SQUARE_METER = ${b.farming.baseGrainPerSquareMeter};`,
-    `export const FARM_RYE_SEED_GRAIN_PER_SQUARE_METER = ${b.farming.ryeSeedGrainPerSquareMeter};`,
-    `export const FARM_OATS_SEED_GRAIN_PER_SQUARE_METER = ${b.farming.oatsSeedGrainPerSquareMeter};`,
     `export const FARMSTEAD_STARTER_SEED_GRAIN = ${b.farming.farmsteadStarterSeedGrain};`,
-    `export const FARM_RYE_MOISTURE_IDEAL = ${b.farming.ryeMoistureIdeal};`,
-    `export const FARM_RYE_MOISTURE_TOLERANCE = ${b.farming.ryeMoistureTolerance};`,
-    `export const FARM_OATS_MOISTURE_IDEAL = ${b.farming.oatsMoistureIdeal};`,
-    `export const FARM_OATS_MOISTURE_TOLERANCE = ${b.farming.oatsMoistureTolerance};`,
-    `export const FARM_RYE_FERTILITY_DRAIN = ${b.farming.ryeFertilityDrain};`,
-    `export const FARM_OATS_FERTILITY_DRAIN = ${b.farming.oatsFertilityDrain};`,
-    `export const FARM_FALLOW_FERTILITY_RESTORE = ${b.farming.fallowFertilityRestore};`,
     `export const FARM_SLOPE_PENALTY_PER_DEGREE = ${b.farming.slopePenaltyPerDegree};`,
     `export const FARM_MAX_ACCEPTED_SLOPE_DEGREES = ${b.farming.maxAcceptedSlopeDegrees};`,
     `export const FARM_FIELD_SALVAGE_FRACTION = ${b.farming.fieldSalvageFraction};`,
+    '',
+    `export const FARM_CROP_KINDS = ${JSON.stringify(farmCropKinds)} as const;`,
+    'export type FarmCropKind = (typeof FARM_CROP_KINDS)[number];',
+    "export type FarmCropProduce = 'grain' | 'fibre' | 'none';",
+    "export type FarmWorkSeason = 'spring' | 'autumn';",
+    'export type FarmCropDefinition = {',
+    '  kind: FarmCropKind;',
+    '  id: number;',
+    '  label: string;',
+    '  produce: FarmCropProduce;',
+    '  workSeason: FarmWorkSeason;',
+    '  seedGrainPerSquareMeter: number;',
+    '  yieldMultiplier: number;',
+    '  moistureIdeal: number;',
+    '  moistureTolerance: number;',
+    '  fertilityDelta: number;',
+    '  workStartMonth: number;',
+    '  workEndMonth: number;',
+    '  growthStartMonth: number;',
+    '  growthEndMonth: number;',
+    '  calendarLabel: string;',
+    '};',
+    `export const FARM_CROP_DEFINITIONS = ${JSON.stringify(farmCropDefinitions, null, 2)} as const satisfies Record<FarmCropKind, FarmCropDefinition>;`,
     '',
     `export const LIVESTOCK_MIN_PASTURE_AREA = ${b.livestock.minPastureArea};`,
     `export const LIVESTOCK_MIN_PASTURE_EDGE = ${b.livestock.minPastureEdge};`,

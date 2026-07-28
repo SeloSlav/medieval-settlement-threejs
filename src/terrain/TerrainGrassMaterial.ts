@@ -4,6 +4,7 @@ import {
   bumpMap,
   cameraPosition,
   float,
+  fract,
   fwidth,
   max,
   mix,
@@ -16,6 +17,7 @@ import {
   sub,
   texture,
   uv,
+  vec2,
   vec3,
   vertexColor,
 } from 'three/tsl';
@@ -47,11 +49,10 @@ export const TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR = 0.04;
 export const TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR = 0.04;
 export const TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR = 0.08;
 export const TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR = 1;
-export const TERRAIN_FROST_PATCH_MIN = 0.04;
-export const TERRAIN_FROST_PATCH_MAX = 0.86;
-export const TERRAIN_FROST_MASK_SCALE = 0.82;
-export const TERRAIN_FROST_COLOR_BLEND = 0.86;
-export const TERRAIN_FROST_COLOR_LIFT = [0.16, 0.19, 0.22] as const;
+export const TERRAIN_SNOW_REVEAL_WIDTH = 0.2;
+export const TERRAIN_SNOW_REVEAL_RANGE = 1.22;
+export const TERRAIN_SNOW_TEXTURE_WEIGHT = 0.54;
+export const TERRAIN_SNOW_MAX_COVERAGE = 0.96;
 export const TERRAIN_SHORE_RAIN_FADE_START = 0.08;
 export const TERRAIN_SHORE_RAIN_FADE_END = 0.72;
 export const TERRAIN_SHORE_BLEND_FLOOR = 0.045;
@@ -87,6 +88,17 @@ function resolveTerrainWeather(
   };
 }
 
+function packedDrySnowUv(grassUv: TslNode, snow: boolean): TslNode {
+  const tileUv = fract(grassUv) as TslNode;
+  // Texture.flipY maps the atlas image's lower snow half to the low-V UV half.
+  return vec2(
+    tileUv.x,
+    tileUv.y
+      .mul(float(0.496) as TslNode)
+      .add(float(snow ? 0.002 : 0.502) as TslNode),
+  ) as TslNode;
+}
+
 function buildGrassBlendNodes(
   textures: TerrainBlendTextureSet,
   weather: RoadWeatherUniforms,
@@ -98,7 +110,10 @@ function buildGrassBlendNodes(
 
   const meadowColor = texture(textures.meadow.albedo, grassUv) as TslNode;
   const denseColor = texture(textures.dense.albedo, grassUv) as TslNode;
-  const dryColor = texture(textures.dry.albedo, grassUv) as TslNode;
+  const dryColor = texture(
+    textures.dry.albedo,
+    packedDrySnowUv(grassUv, false),
+  ) as TslNode;
   const blendedColor = meadowColor.rgb
     .mul(w.x)
     .add(denseColor.rgb.mul(w.y))
@@ -343,24 +358,53 @@ function applyRiparianEcologyColor(
   return mix(baseColor, coolBankColor, riparianReach) as TslNode;
 }
 
-function buildTerrainFrostMask(
+function buildTerrainSnowNodes(
+  textures: TextureSet,
+  grassUv: TslNode,
   macro: TslNode,
   weather: RoadWeatherUniforms,
   exposure: TslNode = float(1) as TslNode,
-): TslNode {
-  const patchiness = mix(
-    float(TERRAIN_FROST_PATCH_MIN) as TslNode,
-    float(TERRAIN_FROST_PATCH_MAX) as TslNode,
-    smoothstep(
-      float(0.26) as TslNode,
-      float(0.66) as TslNode,
-      macro,
-    ) as TslNode,
+): {
+  colorNode: TslNode;
+  roughnessNode: TslNode;
+  aoNode: TslNode;
+  mask: TslNode;
+} {
+  // Snow shares the dry-grass albedo sampler through a two-surface atlas.
+  // Keeping the binding count unchanged preserves the WebGPU portable
+  // fragment-stage limit while still providing authored snow micro-detail.
+  const colorSample = texture(
+    textures.albedo,
+    packedDrySnowUv(grassUv, true),
   ) as TslNode;
-  return weather.frost
-    .mul(patchiness)
+  const textureRelief = colorSample.r
+    .mul(float(0.72) as TslNode)
+    .add(colorSample.b.mul(float(0.28) as TslNode)) as TslNode;
+  const revealSignal = mix(
+    macro,
+    textureRelief,
+    float(TERRAIN_SNOW_TEXTURE_WEIGHT) as TslNode,
+  ) as TslNode;
+  // Move the reveal threshold through the macro field and snow micro-height as
+  // coverage grows. This produces expanding settled patches rather than a
+  // uniform white cross-fade over every grass texel.
+  const revealStart = sub(
+    float(1.01) as TslNode,
+    weather.frost.mul(float(TERRAIN_SNOW_REVEAL_RANGE) as TslNode),
+  ) as TslNode;
+  const mask = (smoothstep(
+    revealStart,
+    revealStart.add(float(TERRAIN_SNOW_REVEAL_WIDTH) as TslNode),
+    revealSignal,
+  ) as TslNode)
     .mul(exposure)
-    .mul(float(TERRAIN_FROST_MASK_SCALE) as TslNode) as TslNode;
+    .mul(float(TERRAIN_SNOW_MAX_COVERAGE) as TslNode) as TslNode;
+  return {
+    colorNode: colorSample.rgb,
+    roughnessNode: float(0.95) as TslNode,
+    aoNode: float(0.98) as TslNode,
+    mask,
+  };
 }
 
 function buildTerrainWetMask(
@@ -452,36 +496,19 @@ function applyTerrainWetColor(
   return applyTerrainRainHaze(wetGround, weather);
 }
 
-function applyTerrainFrostColor(
+function applyTerrainSnowColor(
   baseColor: TslNode,
-  macro: TslNode,
-  weather: RoadWeatherUniforms,
-  exposure?: TslNode,
+  snowColor: TslNode,
+  snowMask: TslNode,
 ): TslNode {
-  const frostMask = buildTerrainFrostMask(macro, weather, exposure);
-  const luminance = baseColor.r
-    .mul(float(0.299) as TslNode)
-    .add(baseColor.g.mul(float(0.587) as TslNode))
-    .add(baseColor.b.mul(float(0.114) as TslNode));
-  const cooledGround = mix(
-    baseColor,
-    (vec3(luminance, luminance, luminance) as TslNode)
-      .mul(vec3(0.94, 1.01, 1.08) as TslNode)
-      .add(vec3(
-        TERRAIN_FROST_COLOR_LIFT[0],
-        TERRAIN_FROST_COLOR_LIFT[1],
-        TERRAIN_FROST_COLOR_LIFT[2],
-      ) as TslNode) as TslNode,
-    float(TERRAIN_FROST_COLOR_BLEND) as TslNode,
-  ) as TslNode;
-  return mix(baseColor, cooledGround, frostMask) as TslNode;
+  return mix(baseColor, snowColor, snowMask) as TslNode;
 }
 
-function applyTerrainFrostRoughness(
+function applyTerrainSnowRoughness(
   baseRoughness: TslNode,
-  macro: TslNode,
+  snowRoughness: TslNode,
+  snowMask: TslNode,
   weather: RoadWeatherUniforms,
-  exposure?: TslNode,
 ): TslNode {
   const wetRoughness = mix(
     baseRoughness,
@@ -492,8 +519,8 @@ function applyTerrainFrostRoughness(
   ) as TslNode;
   return mix(
     wetRoughness,
-    float(0.94) as TslNode,
-    buildTerrainFrostMask(macro, weather, exposure),
+    snowRoughness,
+    snowMask,
   ) as TslNode;
 }
 
@@ -669,19 +696,30 @@ export function createTerrainGrassMaterial(
     blendNodes.rainMoisture,
     resolvedWeather,
   );
-  material.colorNode = applyTerrainFrostColor(
-    wetColorNode,
+  const snowNodes = buildTerrainSnowNodes(
+    textures.dry,
+    blendNodes.grassUv,
     blendNodes.macro,
     resolvedWeather,
     blendNodes.frostExposure,
   );
+  material.colorNode = applyTerrainSnowColor(
+    wetColorNode,
+    snowNodes.colorNode,
+    snowNodes.mask,
+  );
   material.normalNode = blendNodes.normalNode;
-  material.roughnessNode = applyTerrainFrostRoughness(
+  material.roughnessNode = applyTerrainSnowRoughness(
     blendNodes.roughnessNode,
-    blendNodes.macro,
+    snowNodes.roughnessNode,
+    snowNodes.mask,
     resolvedWeather,
   );
-  material.aoNode = blendNodes.aoNode;
+  material.aoNode = mix(
+    blendNodes.aoNode,
+    snowNodes.aoNode,
+    snowNodes.mask,
+  ) as TslNode;
   return material;
 }
 
@@ -825,15 +863,21 @@ export function createTerrainGrassMaterialWithRiverShore(
     blendNodes.rainMoisture,
     resolvedWeather,
   );
-  const frostExposure = (sub(
+  const snowExposure = (sub(
     float(1) as TslNode,
-    terrainColorShoreBlend.mul(float(0.82) as TslNode),
+    shoreBlend.mul(float(0.82) as TslNode),
   ) as TslNode).mul(blendNodes.frostExposure) as TslNode;
-  const colorNode = applyTerrainFrostColor(
-    wetBaseColorNode,
+  const snowNodes = buildTerrainSnowNodes(
+    grassTextures.dry,
+    blendNodes.grassUv,
     blendNodes.macro,
     resolvedWeather,
-    frostExposure,
+    snowExposure,
+  );
+  const colorNode = applyTerrainSnowColor(
+    wetBaseColorNode,
+    snowNodes.colorNode,
+    snowNodes.mask,
   );
 
   const roadRoughness = (texture(roadTextures.roughness, blendNodes.grassUv) as TslNode).r;
@@ -852,12 +896,24 @@ export function createTerrainGrassMaterialWithRiverShore(
     roughnessWithWear as TslNode,
     meadowWeight as TslNode,
   ) as TslNode;
-  const roughnessNode = applyTerrainFrostRoughness(
+  const roughnessNode = applyTerrainSnowRoughness(
     baseRoughnessNode,
-    blendNodes.macro,
+    snowNodes.roughnessNode,
+    snowNodes.mask,
     resolvedWeather,
-    frostExposure,
   );
+  const baseNormalNode = normalize(
+    mix(
+      blendNodes.normalNode,
+      dirtSurface.normalNode,
+      dirtSurfaceAmount,
+    ) as TslNode,
+  ) as TslNode;
+  const baseAoNode = mix(
+    blendNodes.aoNode,
+    dirtSurface.aoNode,
+    dirtSurfaceAmount,
+  ) as TslNode;
 
   const material = new MeshStandardNodeMaterial();
   material.name = 'Grass blend terrain with river shore';
@@ -865,18 +921,12 @@ export function createTerrainGrassMaterialWithRiverShore(
   material.roughness = 1;
   material.metalness = 0;
   material.colorNode = colorNode;
-  material.normalNode = normalize(
-    mix(
-      blendNodes.normalNode,
-      dirtSurface.normalNode,
-      dirtSurfaceAmount,
-    ) as TslNode,
-  ) as TslNode;
+  material.normalNode = baseNormalNode;
   material.roughnessNode = roughnessNode;
   material.aoNode = mix(
-    blendNodes.aoNode,
-    dirtSurface.aoNode,
-    dirtSurfaceAmount,
+    baseAoNode,
+    snowNodes.aoNode,
+    snowNodes.mask,
   ) as TslNode;
   return material;
 }

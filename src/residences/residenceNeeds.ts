@@ -179,7 +179,7 @@ function describeAbandonedResidence(
   if (residenceRecoveryReady(recovery, community)) {
     return {
       label: community.hasChapelAccess
-        ? 'Restocking complete — chapel parish welcomes settlers back'
+        ? 'Restocking complete — church parish welcomes settlers back'
         : 'Restocking complete — settlers return once supply holds',
       state: 'idle',
     };
@@ -220,7 +220,7 @@ function describeAwaitingSettlers(
   const chapelNote = community.hasChapelAccess
     ? community.hasMonasteryCoverage
       ? ' (parish + monastery coverage)'
-      : ' (staffed chapel)'
+      : ' (staffed church)'
     : '';
   return {
     label: capacity > 0

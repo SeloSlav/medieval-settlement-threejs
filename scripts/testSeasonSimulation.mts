@@ -8,6 +8,7 @@ import {
   DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
   SIM_REALTIME_RATE,
   SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
+  WINTER_FIREWOOD_DEMAND_MULTIPLIER,
   WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import { gameClock } from '../src/world/gameCalendar.ts';
@@ -26,6 +27,7 @@ import {
   environmentFor,
   nextDayEnvironmentOutlook,
   seasonForMonth,
+  snowCoverageForClock,
 } from '../src/world/seasonPolicy.ts';
 import { GAME_CONTROL_SECTIONS } from '../src/ui/gameControlsReference.ts';
 
@@ -43,6 +45,7 @@ assert.equal(seasonForMonth(3), 'spring');
 assert.equal(seasonForMonth(8), 'summer');
 assert.equal(seasonForMonth(9), 'autumn');
 assert.equal(seasonForMonth(12), 'winter');
+assert.equal(WINTER_FIREWOOD_DEMAND_MULTIPLIER, 2);
 
 assert.deepEqual(GAME_SPEEDS, [0, 1, 5, 20, 120]);
 assert.deepEqual(PLAYER_GAME_SPEEDS, [1, 5, 20, 120]);
@@ -150,6 +153,33 @@ assert.match(autumnOutlookDescription, /fresh-food loss/);
 const winterClock = gameClock(CALENDAR_DAYS_PER_MONTH * 9 * dayTicks);
 const winterEnvironment = environmentFor(12345, 50, winterClock);
 assert.equal(winterEnvironment.season, 'winter');
+const lateNovemberSnow = snowCoverageForClock(
+  gameClock((CALENDAR_DAYS_PER_MONTH * 9 - 1) * dayTicks),
+);
+assert.ok(lateNovemberSnow > 0.1);
+assert.ok(winterEnvironment.snowCoverage > lateNovemberSnow);
+const lateDecemberSnow = snowCoverageForClock(
+  gameClock((CALENDAR_DAYS_PER_MONTH * 10 - 1) * dayTicks),
+);
+const lateJanuarySnow = snowCoverageForClock(
+  gameClock((CALENDAR_DAYS_PER_MONTH * 11 - 1) * dayTicks),
+);
+const lateFebruarySnow = snowCoverageForClock(
+  gameClock((CALENDAR_DAYS_PER_MONTH * 12 - 1) * dayTicks),
+);
+assert.ok(lateDecemberSnow > winterEnvironment.snowCoverage);
+assert.ok(lateJanuarySnow > lateDecemberSnow);
+assert.ok(lateJanuarySnow > 0.95);
+assert.ok(lateFebruarySnow > 0.15);
+assert.ok(lateFebruarySnow < lateDecemberSnow);
+const earlyMarchSnow = snowCoverageForClock(
+  gameClock(CALENDAR_DAYS_PER_MONTH * 12 * dayTicks),
+);
+const midMarchSnow = snowCoverageForClock(
+  gameClock((CALENDAR_DAYS_PER_MONTH * 12 + 14) * dayTicks),
+);
+assert.ok(Math.abs(earlyMarchSnow - lateFebruarySnow) < 0.02);
+assert.equal(midMarchSnow, 0);
 assert.equal(winterEnvironment.roadTravelSpeedMultiplier, 0.72);
 assert.equal(
   winterEnvironment.watermillThroughputMultiplier,

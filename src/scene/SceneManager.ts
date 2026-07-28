@@ -364,7 +364,9 @@ export class SceneManager {
     });
     // Environment sync can precede deferred vegetation creation. Seed the new
     // forest from the retained presentation state before its first scene frame.
-    this.forestManager.setDeciduousDormancy(this.environment?.season === 'winter' ? 1 : 0);
+    if (this.environment) {
+      this.forestManager.setDeciduousFoliage(this.environment.deciduousFoliage);
+    }
     const isForagingSiteBlocked = (x: number, z: number) =>
       this.riverSystem.isBlockedAt(x, z) || this.quarrySystem.isBlockedAt(x, z);
     const deerVisualsPromise = createDeerWildlifeVisuals(
@@ -740,7 +742,7 @@ export class SceneManager {
     this.terrain.mesh.receiveShadow = true;
     this.materials.setEnvironment(environment);
     this.precipitation.setEnvironment(environment);
-    this.forestManager?.setDeciduousDormancy(environment.season === 'winter' ? 1 : 0);
+    this.forestManager?.setDeciduousFoliage(environment.deciduousFoliage);
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }
 

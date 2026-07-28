@@ -7,13 +7,21 @@ export type ResourceNodeKind = (typeof RESOURCE_NODE_KINDS)[number];
 export const TREE_PHASES = ['stump', 'growing', 'mature'] as const;
 export type TreePhase = (typeof TREE_PHASES)[number];
 
-import { BUILDING_KINDS, type BuildingKind } from '../generated/gameBalance.ts';
+import {
+  BUILDING_KINDS,
+  FARM_CROP_KINDS,
+  type BuildingKind,
+  type FarmCropKind,
+} from '../generated/gameBalance.ts';
 import type { ResidenceNeedsState } from '../residences/residenceNeedState.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import type { FireIncidentState } from '../fires/fireIncident.ts';
 
 export type { BuildingKind };
 export { BUILDING_KINDS };
+
+export const FARM_CROPS = FARM_CROP_KINDS;
+export type FarmCrop = FarmCropKind;
 
 export type ResourceNodeDefinition = {
   id: string;
@@ -128,8 +136,6 @@ export function isBuildingOperational(building: BuildingState): boolean {
   return building.constructionComplete !== false;
 }
 
-export const FARM_CROPS = ['rye', 'oats', 'fallow'] as const;
-export type FarmCrop = (typeof FARM_CROPS)[number];
 export const FARM_FIELD_STAGES = ['ploughing', 'sowing', 'growing', 'harvesting'] as const;
 export type FarmFieldStage = (typeof FARM_FIELD_STAGES)[number];
 

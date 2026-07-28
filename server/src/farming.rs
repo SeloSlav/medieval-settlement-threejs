@@ -1,22 +1,36 @@
 use crate::balance_generated::{
-    FARM_BASE_GRAIN_PER_SQUARE_METER, FARM_FALLOW_FERTILITY_RESTORE,
-    FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_LARGE_FIELD_EFFICIENCY_EXPONENT,
-    FARM_LARGE_FIELD_EFFICIENCY_FLOOR, FARM_OATS_FERTILITY_DRAIN, FARM_OATS_MOISTURE_IDEAL,
-    FARM_OATS_MOISTURE_TOLERANCE, FARM_OATS_SEED_GRAIN_PER_SQUARE_METER, FARM_OPTIMAL_FIELD_AREA,
-    FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_RYE_FERTILITY_DRAIN, FARM_RYE_MOISTURE_IDEAL,
-    FARM_RYE_MOISTURE_TOLERANCE, FARM_RYE_SEED_GRAIN_PER_SQUARE_METER,
-    FARM_SLOPE_PENALTY_PER_DEGREE, FARM_SOW_WORK_PER_SQUARE_METER,
+    farm_crop_def, FarmCropDef, FarmCropProduce, FARM_BASE_GRAIN_PER_SQUARE_METER,
+    FARM_CROP_BARLEY_ID, FARM_CROP_FALLOW_ID, FARM_CROP_FLAX_ID, FARM_CROP_OATS_ID, FARM_CROP_RYE,
+    FARM_CROP_RYE_ID, FARM_CROP_WHEAT_ID, FARM_HARVEST_WORK_PER_SQUARE_METER,
+    FARM_LARGE_FIELD_EFFICIENCY_EXPONENT, FARM_LARGE_FIELD_EFFICIENCY_FLOOR,
+    FARM_OPTIMAL_FIELD_AREA, FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_SLOPE_PENALTY_PER_DEGREE,
+    FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
 
-pub const CROP_RYE: u8 = 0;
-pub const CROP_OATS: u8 = 1;
-pub const CROP_FALLOW: u8 = 2;
+pub const CROP_RYE: u8 = FARM_CROP_RYE_ID;
+pub const CROP_OATS: u8 = FARM_CROP_OATS_ID;
+pub const CROP_FALLOW: u8 = FARM_CROP_FALLOW_ID;
+pub const CROP_BARLEY: u8 = FARM_CROP_BARLEY_ID;
+pub const CROP_FLAX: u8 = FARM_CROP_FLAX_ID;
+pub const CROP_WHEAT: u8 = FARM_CROP_WHEAT_ID;
 
 pub const STAGE_PLOUGHING: u8 = 0;
 pub const STAGE_SOWING: u8 = 1;
 pub const STAGE_GROWING: u8 = 2;
 pub const STAGE_HARVESTING: u8 = 3;
+
+fn crop_definition(crop: u8) -> &'static FarmCropDef {
+    farm_crop_def(crop).unwrap_or(&FARM_CROP_RYE)
+}
+
+pub fn valid_crop(crop: u8) -> bool {
+    farm_crop_def(crop).is_some()
+}
+
+pub fn crop_produce(crop: u8) -> FarmCropProduce {
+    crop_definition(crop).produce
+}
 
 pub fn corners_from_values(values: [f64; 8]) -> ZoneCorners {
     ZoneCorners {
@@ -102,14 +116,11 @@ pub fn field_size_efficiency(area: f64) -> f64 {
 }
 
 pub fn moisture_suitability(crop: u8, moisture: f64) -> f64 {
-    if crop == CROP_FALLOW {
+    let definition = crop_definition(crop);
+    if definition.produce == FarmCropProduce::None {
         return 1.0;
     }
-    let (ideal, tolerance) = if crop == CROP_OATS {
-        (FARM_OATS_MOISTURE_IDEAL, FARM_OATS_MOISTURE_TOLERANCE)
-    } else {
-        (FARM_RYE_MOISTURE_IDEAL, FARM_RYE_MOISTURE_TOLERANCE)
-    };
+    let (ideal, tolerance) = (definition.moisture_ideal, definition.moisture_tolerance);
     let base = 1.0 - (moisture.clamp(0.0, 1.0) - ideal).abs() / tolerance.max(1e-6);
     (0.25 + base.clamp(0.0, 1.0) * 0.75).clamp(0.25, 1.0)
 }
@@ -139,11 +150,13 @@ pub fn expected_grain_yield(
     average_slope_degrees: f64,
     shape: f64,
 ) -> f64 {
-    if crop == CROP_FALLOW {
+    let definition = crop_definition(crop);
+    if definition.produce == FarmCropProduce::None {
         return 0.0;
     }
     area.max(0.0)
         * FARM_BASE_GRAIN_PER_SQUARE_METER
+        * definition.yield_multiplier
         * yield_suitability(crop, moisture, fertility, average_slope_degrees, shape)
         * field_size_efficiency(area)
 }
@@ -159,11 +172,7 @@ pub fn work_required(stage: u8, area: f64, shape: f64) -> f64 {
 }
 
 pub fn crop_seed_grain_per_square_meter(crop: u8) -> f64 {
-    match crop {
-        CROP_RYE => FARM_RYE_SEED_GRAIN_PER_SQUARE_METER,
-        CROP_OATS => FARM_OATS_SEED_GRAIN_PER_SQUARE_METER,
-        _ => 0.0,
-    }
+    crop_definition(crop).seed_grain_per_square_meter
 }
 
 pub fn seed_grain_required(area: f64, crop: u8) -> f64 {
@@ -204,40 +213,32 @@ pub fn farmstead_exportable_grain(stock: f64, seed_grain_required: f64) -> f64 {
     (stock.max(0.0) - seed_grain_required.max(0.0)).max(0.0)
 }
 
-/// Mountain rye is autumn-sown before winter dormancy. Oats are spring-sown,
-/// spreading peak farm labor across two historically plausible work windows.
+/// Each crop uses its balance-driven historical sowing and growth calendar.
 pub fn field_work_allowed(stage: u8, crop: u8, month: u32) -> bool {
+    let definition = crop_definition(crop);
     match stage {
-        STAGE_HARVESTING => month == 9,
-        STAGE_PLOUGHING | STAGE_SOWING if crop == CROP_OATS => matches!(month, 3 | 4),
-        STAGE_PLOUGHING | STAGE_SOWING => matches!(month, 10 | 11),
+        STAGE_HARVESTING => month == u32::from(definition.growth_end_month % 12 + 1),
+        STAGE_PLOUGHING | STAGE_SOWING => {
+            month >= u32::from(definition.work_start_month)
+                && month <= u32::from(definition.work_end_month)
+        }
         _ => false,
     }
 }
 
 pub fn crop_growth_allowed(crop: u8, month: u32) -> bool {
-    if crop == CROP_OATS {
-        matches!(month, 4..=8)
-    } else {
-        matches!(month, 3..=8)
-    }
+    let definition = crop_definition(crop);
+    month >= u32::from(definition.growth_start_month)
+        && month <= u32::from(definition.growth_end_month)
 }
 
 pub fn sowing_window_missed(stage: u8, crop: u8, month: u32) -> bool {
-    stage == STAGE_SOWING
-        && if crop == CROP_OATS {
-            month == 5
-        } else {
-            month == 12
-        }
+    let definition = crop_definition(crop);
+    stage == STAGE_SOWING && month == u32::from(definition.work_end_month % 12 + 1)
 }
 
 pub fn fertility_after_harvest(crop: u8, fertility: f64) -> f64 {
-    match crop {
-        CROP_FALLOW => (fertility + FARM_FALLOW_FERTILITY_RESTORE).min(1.0),
-        CROP_OATS => (fertility - FARM_OATS_FERTILITY_DRAIN).max(0.2),
-        _ => (fertility - FARM_RYE_FERTILITY_DRAIN).max(0.2),
-    }
+    (fertility + crop_definition(crop).fertility_delta).clamp(0.2, 1.0)
 }
 
 pub fn point_in_field(point: Point2, corners: &ZoneCorners) -> bool {
@@ -297,7 +298,7 @@ mod tests {
         let optimal_yield = expected_grain_yield(
             FARM_OPTIMAL_FIELD_AREA,
             CROP_RYE,
-            FARM_RYE_MOISTURE_IDEAL,
+            crop_definition(CROP_RYE).moisture_ideal,
             1.0,
             0.0,
             1.0,
@@ -305,7 +306,7 @@ mod tests {
         let large_yield = expected_grain_yield(
             FARM_OPTIMAL_FIELD_AREA * 2.0,
             CROP_RYE,
-            FARM_RYE_MOISTURE_IDEAL,
+            crop_definition(CROP_RYE).moisture_ideal,
             1.0,
             0.0,
             1.0,
@@ -315,15 +316,22 @@ mod tests {
     }
 
     #[test]
-    fn crop_calendars_split_rye_and_oats_labor() {
+    fn crop_calendars_split_autumn_and_spring_labor() {
         assert!(field_work_allowed(STAGE_SOWING, CROP_RYE, 10));
         assert!(!field_work_allowed(STAGE_SOWING, CROP_RYE, 3));
         assert!(field_work_allowed(STAGE_SOWING, CROP_OATS, 3));
+        assert!(field_work_allowed(STAGE_SOWING, CROP_BARLEY, 3));
+        assert!(field_work_allowed(STAGE_SOWING, CROP_FLAX, 3));
+        assert!(field_work_allowed(STAGE_SOWING, CROP_WHEAT, 10));
         assert!(!field_work_allowed(STAGE_SOWING, CROP_OATS, 10));
         assert!(sowing_window_missed(STAGE_SOWING, CROP_RYE, 12));
         assert!(sowing_window_missed(STAGE_SOWING, CROP_OATS, 5));
         assert!(crop_growth_allowed(CROP_RYE, 6));
         assert!(crop_growth_allowed(CROP_OATS, 6));
+        assert_eq!(crop_produce(CROP_FLAX), FarmCropProduce::Fibre);
+        assert_eq!(crop_produce(CROP_BARLEY), FarmCropProduce::Grain);
+        assert!(valid_crop(CROP_WHEAT));
+        assert!(!valid_crop(99));
     }
 
     #[test]

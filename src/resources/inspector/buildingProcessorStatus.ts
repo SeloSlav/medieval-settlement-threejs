@@ -342,7 +342,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
 
   if (!linked) {
     return {
-      statusText: 'Reduced output — link to a staffed chapel by road',
+      statusText: 'Reduced output — link to a staffed church by road',
       statusState: 'warning',
       waterDetailHtml: '',
     };

@@ -3,6 +3,7 @@ import { createBuildingMesh } from '../buildings/BuildingMeshes.ts';
 import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterials.ts';
 import { BUILDING_KINDS } from '../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
+import { createResidenceMesh } from '../residences/ResidenceMarkers.ts';
 import { createConstructionSiteMesh } from '../buildings/ConstructionSiteMesh.ts';
 import { createPreferredRenderer } from '../scene/RendererBackend.ts';
 import {
@@ -19,9 +20,12 @@ declare global {
 const lineupParams = new URLSearchParams(window.location.search);
 const requestedKind = lineupParams.get('kind');
 const showStockedState = lineupParams.get('stocked') === '1';
-const selectedKinds = requestedKind && BUILDING_KINDS.includes(requestedKind as (typeof BUILDING_KINDS)[number])
-  ? [requestedKind as (typeof BUILDING_KINDS)[number]]
-  : BUILDING_KINDS;
+const compareResidences = lineupParams.get('compare') === 'residences';
+const selectedKinds = compareResidences
+  ? []
+  : requestedKind && BUILDING_KINDS.includes(requestedKind as (typeof BUILDING_KINDS)[number])
+    ? [requestedKind as (typeof BUILDING_KINDS)[number]]
+    : BUILDING_KINDS;
 const STOCKED_PREVIEW_PREFIXES = [
   'MarketTimberStageSegment',
   'MarketStoneStageSegment',
@@ -63,11 +67,13 @@ const STOCKED_PREVIEW_PREFIXES = [
   'MonasteryWineStockpile',
   'MonasteryWineSegment',
 ] as const;
-const COLS = selectedKinds.length === 1 ? 1 : 7;
-const ROWS = selectedKinds.length === 1 ? 1 : 4;
+const COLS = compareResidences ? 4 : selectedKinds.length === 1 ? 1 : 7;
+const ROWS = compareResidences || selectedKinds.length === 1 ? 1 : 4;
 const root = document.querySelector<HTMLElement>('#lineup-root');
 const labels = document.querySelector<HTMLElement>('#labels');
 if (!root || !labels) throw new Error('Building lineup host is missing.');
+labels.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
+labels.style.gridTemplateRows = `repeat(${ROWS}, minmax(0, 1fr))`;
 
 const rendererBackend = await createPreferredRenderer();
 const renderer = rendererBackend.renderer as unknown as THREE.WebGLRenderer;
@@ -77,26 +83,43 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.08;
 root.prepend(renderer.domElement);
 
-const viewSpecs = [
-  ...selectedKinds.map((kind) => {
-    const mesh = createBuildingMesh(kind);
-    if (showStockedState) {
-      mesh.traverse((object) => {
-        if (STOCKED_PREVIEW_PREFIXES.some((prefix) => object.name.startsWith(prefix))) {
-          object.visible = true;
+const viewSpecs = compareResidences
+  ? [
+      { mesh: createBuildingMesh('chapel'), label: 'Church' },
+      { mesh: createResidenceMesh(1, 1), label: 'Residence · tier 1' },
+      { mesh: createResidenceMesh(2, 2), label: 'Residence · tier 2' },
+      { mesh: createResidenceMesh(3, 3), label: 'Residence · tier 3' },
+    ]
+  : [
+      ...selectedKinds.map((kind) => {
+        const mesh = createBuildingMesh(kind);
+        if (showStockedState) {
+          mesh.traverse((object) => {
+            if (STOCKED_PREVIEW_PREFIXES.some((prefix) => object.name.startsWith(prefix))) {
+              object.visible = true;
+            }
+          });
         }
-      });
-    }
-    return {
-      mesh,
-      label: `${getBuildingDefinition(kind).label}${showStockedState && kind === 'marketplace' ? ' · staged export lots' : ''}`,
-    };
-  }),
-  {
-    mesh: createConstructionSiteMesh('village_storehouse', 0.75, 0.9, 1),
-    label: 'Storehouse construction · 75%',
-  },
-].slice(0, selectedKinds.length === 1 ? 1 : undefined);
+        return {
+          mesh,
+          label: `${getBuildingDefinition(kind).label}${showStockedState && kind === 'marketplace' ? ' · staged export lots' : ''}`,
+        };
+      }),
+      {
+        mesh: createConstructionSiteMesh('village_storehouse', 0.75, 0.9, 1),
+        label: 'Storehouse construction · 75%',
+      },
+    ].slice(0, selectedKinds.length === 1 ? 1 : undefined);
+
+const comparisonLargest = compareResidences
+  ? Math.max(...viewSpecs.map(({ mesh }) => {
+      const size = new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3());
+      return Math.max(size.x, size.y * 1.2, size.z);
+    }))
+  : null;
+const comparisonLookY = compareResidences
+  ? new THREE.Box3().setFromObject(viewSpecs[0]!.mesh).getSize(new THREE.Vector3()).y * 0.4
+  : null;
 
 const views = viewSpecs.map((spec) => {
   const scene = new THREE.Scene();
@@ -149,14 +172,14 @@ const views = viewSpecs.map((spec) => {
   scene.add(sun);
 
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 160);
-  const largest = Math.max(size.x, size.y * 1.2, size.z);
+  const largest = comparisonLargest ?? Math.max(size.x, size.y * 1.2, size.z);
   const distance = Math.max(13, largest / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5))) * 1.24);
   const direction = new THREE.Vector3(
     0.72,
     0.56,
     spec.mesh.name === "Founders' camp and open stockyard" ? -1 : 1,
   ).normalize();
-  const lookY = Math.max(1.2, size.y * 0.43);
+  const lookY = comparisonLookY ?? Math.max(1.2, size.y * 0.43);
   camera.position.copy(direction.multiplyScalar(distance)).add(new THREE.Vector3(0, lookY, 0));
   camera.lookAt(0, lookY, 0);
 

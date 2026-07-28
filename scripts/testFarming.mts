@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   BREWERY_FIREWOOD_PER_CYCLE,
+  FARM_CROP_DEFINITIONS,
+  FARM_CROP_KINDS,
   FARM_LARGE_FIELD_EFFICIENCY_FLOOR,
   FARM_MIN_FIELD_AREA,
   FARM_MIN_FIELD_EDGE,
-  FARM_OATS_SEED_GRAIN_PER_SQUARE_METER,
   FARM_OPTIMAL_FIELD_AREA,
-  FARM_RYE_SEED_GRAIN_PER_SQUARE_METER,
   FARMSTEAD_STARTER_SEED_GRAIN,
   GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_WATER_PER_CYCLE,
@@ -137,8 +137,20 @@ assert.equal(WATERMILL_WATER_PER_CYCLE, 0, 'a river-powered mill should not cons
 assert.ok(GRANARY_WATER_PER_CYCLE > 0, 'bakery production should consume well water');
 assert.ok(GRANARY_FIREWOOD_PER_CYCLE > 0, 'bakery production should consume fuel');
 assert.ok(BREWERY_FIREWOOD_PER_CYCLE > 0, 'brewing should consume firing fuel');
-assert.ok(FARM_RYE_SEED_GRAIN_PER_SQUARE_METER > 0);
-assert.ok(FARM_OATS_SEED_GRAIN_PER_SQUARE_METER > FARM_RYE_SEED_GRAIN_PER_SQUARE_METER);
+assert.deepEqual(FARM_CROP_KINDS, ['rye', 'oats', 'fallow', 'barley', 'flax', 'wheat']);
+assert.deepEqual(
+  FARM_CROP_KINDS.map((crop) => FARM_CROP_DEFINITIONS[crop].id),
+  [0, 1, 2, 3, 4, 5],
+  'legacy rye/oats/fallow ids must remain stable while new crops append',
+);
+assert.ok(FARM_CROP_DEFINITIONS.rye.seedGrainPerSquareMeter > 0);
+assert.ok(
+  FARM_CROP_DEFINITIONS.oats.seedGrainPerSquareMeter
+    > FARM_CROP_DEFINITIONS.rye.seedGrainPerSquareMeter,
+);
+assert.equal(FARM_CROP_DEFINITIONS.flax.produce, 'fibre');
+assert.equal(FARM_CROP_DEFINITIONS.barley.produce, 'grain');
+assert.equal(FARM_CROP_DEFINITIONS.wheat.workSeason, 'autumn');
 assert.ok(
   FARMSTEAD_STARTER_SEED_GRAIN >= seedGrainRequired(FARM_OPTIMAL_FIELD_AREA, 'oats'),
   'a new holding should be able to sow one efficient oats field',
@@ -221,6 +233,21 @@ const september = gameClockAtElapsedSeconds(
 const staffedPlan = buildFarmsteadWorkPlan([planningField], 1, september, false);
 const sabbathPlan = buildFarmsteadWorkPlan([planningField], 1, september, true);
 const unstaffedPlan = buildFarmsteadWorkPlan([planningField], 0, september, false);
+const mixedCropPlan = buildFarmsteadWorkPlan([
+  planningField,
+  {
+    ...planningField,
+    id: 'field-flax',
+    crop: 'flax',
+    nextCrop: 'barley',
+    currentYield: 0,
+  },
+], 2, september, false);
+assert.ok(mixedCropPlan.expectedHarvest > 0, 'grain crops should remain in the food harvest forecast');
+assert.ok(mixedCropPlan.expectedFibreHarvest > 0, 'flax should receive its own textile harvest forecast');
+assert.ok(mixedCropPlan.rotation.plannedHarvest > 0, 'barley should count toward next-cycle grain');
+assert.equal(mixedCropPlan.rotation.plannedFibreHarvest, 0);
+assert.equal(mixedCropPlan.rotation.nextAreaByCrop.barley, planningField.area);
 assert.equal(staffedPlan.rotation.activeArea, planningField.area);
 assert.equal(staffedPlan.rotation.nextFallowArea, planningField.area);
 assert.equal(staffedPlan.rotation.restoringFields, 1);

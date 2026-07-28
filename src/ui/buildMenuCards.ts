@@ -44,10 +44,10 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
 const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, description: string]> = {
   residences: ['Residence', 'H', 'Lay out homesteads along a road; homes can grow through three distinct tiers.'],
   well: ['Well', 'E', 'Draws groundwater and dispatches it to road-linked homes.'],
-  chapel: ['Chapel', 'C', 'A staffed parish chapel collects tithes and supports nearby households.'],
+  chapel: ['Church', 'C', 'A staffed parish church collects tithes and supports nearby households.'],
   monastery: ['Pauline monastery', 'O', 'A hillside parish institution turning grain, optional honey-and-wine hospitality, and tithes into charity and pilgrim income.'],
   marketplace: ['Marketplace', 'P', 'Trade hub for household produce, emergency seed grain, and specialty exports.'],
-  town_hall: ['Town Hall', 'T', 'Physical seat of settlement government, taxation, and the economic ledger. Requires a chapel, marketplace, and 24 people.'],
+  town_hall: ['Town Hall', 'T', 'Physical seat of settlement government, taxation, and the economic ledger. Requires a church, marketplace, and 24 people.'],
   village_storehouse: ['Village storehouse', 'S', 'Hauls surplus timber, stone, and firewood from producers into shared construction stock. Never stores food.'],
   watchtower: ['Frontier watchtower', 'W', 'Staffed hill tower warns nearby homes and stores, reducing losses when raiders cross the frontier.'],
   guardhouse: ['Frontier guardhouse', 'G', 'Paid guards consume labor, provisions, wages, and carpenter-made polearms. Polearms need market-imported ironwork. Requires a completed watchtower.'],
@@ -67,7 +67,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   smokehouse: ['Smokehouse', 'Q', 'Preserves fresh food with firewood for tier-three households.'],
   apiary: ['Forest apiary', 'A', 'Produces seasonal honey and food. Hospitality-enabled monasteries take honey before market export.'],
   carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10% and move connected carts 18% faster.'],
-  weaver: ["Weaver's workshop", 'I', 'Turns the annual wool clip into household textiles, then exports the surplus.'],
+  weaver: ["Weaver's workshop", 'I', 'Turns sheep wool and field-grown flax fibre into household textiles, then exports the surplus.'],
   vineyard: ['Vineyard terrace', 'V', 'An autumn hillside harvest yields food and wine for monastery hospitality or high-value export.'],
   pastoral_farmstead: ['Pastoral farmstead', 'D', 'Keeps cattle for dairy, manure, and ox power, or sheep for upland cheese and an annual wool clip for local weaving. Draw fenced pastures within its work extent.'],
   swineherd: ['Woodland swineherd', 'X', 'Raises pigs on mature woodland mast. Felling its pannage trees forces inefficient grain feeding and reduces output.'],
@@ -124,9 +124,10 @@ export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_
     const cost = entry.artKey === 'residences'
       ? `${formatBuildingCost(residenceZoneCost(1))} per home`
       : formatBuildingCost(getBuildingCost(entry.artKey as BuildingKind));
-    return `<button type="button" class="construction-card" data-action="${entry.action}" data-hotkey="${hotkey}" aria-label="${title} (${hotkey})">
+    return `<button type="button" class="construction-card" data-action="${entry.action}" data-hotkey="${hotkey}" data-tooltip="${description} · Cost: ${cost}" aria-label="${title} (${hotkey})">
       <img class="construction-card__art" data-src="${BUILD_CARD_ART[entry.artKey]}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
       <span class="construction-card__hotkey" aria-hidden="true">${hotkey}</span>
+      <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span>${cost}</span></span>
       <span class="construction-card__tooltip" role="tooltip"><span class="construction-card__tooltip-title">${title} (${hotkey})</span><span class="construction-card__tooltip-desc">${description}</span><span class="construction-card__tooltip-cost">Cost: ${cost}</span></span>
     </button>`;
   }).join('');

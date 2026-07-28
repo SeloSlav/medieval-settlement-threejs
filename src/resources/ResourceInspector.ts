@@ -10,7 +10,7 @@ import {
   type PopulationStats,
   type ResourceTotals,
 } from './resourceTotals.ts';
-import type { FarmCrop, GameState, InspectableTarget, LivestockSpecies } from './types.ts';
+import { FARM_CROPS, type FarmCrop, type GameState, type InspectableTarget, type LivestockSpecies } from './types.ts';
 import type { WorldQueries } from './WorldQueries.ts';
 import { renderInspectableTarget } from './inspector/renderInspectableTarget.ts';
 import { handleSupplementalPanelClick } from './inspector/supplementalPanel.ts';
@@ -169,7 +169,13 @@ export class ResourceInspector {
   private readonly eyebrow: HTMLElement;
   private readonly title: HTMLElement;
   private readonly status: HTMLElement;
+  private readonly heroArt: HTMLElement;
+  private readonly heroSymbol: HTMLElement;
+  private readonly closeButton: HTMLButtonElement;
   private readonly detailList: HTMLElement;
+  private readonly secondaryDetailList: HTMLElement;
+  private readonly detailDisclosure: HTMLDetailsElement;
+  private readonly detailDisclosureCount: HTMLElement;
   private readonly stockpileRoot: HTMLElement;
   private readonly stockpileValues: Record<
     'timber' | 'stone' | 'firewood' | 'water' | 'food' | 'gold' | 'grain' | 'flour' | 'ale' | 'preservedFood' | 'honey' | 'wine' | 'wool' | 'cloth' | 'ironwork' | 'polearms',
@@ -193,6 +199,7 @@ export class ResourceInspector {
   private readonly supplementalPanelSection: HTMLElement;
   private readonly marker: THREE.Mesh;
   private selectedTarget: InspectableTarget | null = null;
+  private renderedIdentity = '';
   private selectedX = 0;
   private selectedZ = 0;
   private populationStats: PopulationStats = {
@@ -213,19 +220,30 @@ export class ResourceInspector {
       `
       <aside class="resource-inspector-panel" data-resource-inspector hidden aria-label="Resource inspector">
         <header class="road-controls-header resource-inspector-header">
-          <div>
+          <div class="resource-inspector-hero-art" data-inspector-hero aria-hidden="true">
+            <span class="resource-inspector-hero-symbol" data-inspector-symbol>◆</span>
+          </div>
+          <div class="resource-inspector-heading">
             <p class="road-controls-eyebrow" data-inspector-eyebrow>Resources</p>
             <h2 class="road-controls-title" data-inspector-title>Select a site</h2>
-            <p class="road-controls-status" data-inspector-status>Click terrain to inspect quarries, buildings, residences, or river access.</p>
+            <p class="road-controls-status resource-inspector-status" data-inspector-status>Click terrain to inspect quarries, buildings, residences, or river access.</p>
           </div>
+          <button class="resource-inspector-close" type="button" data-inspector-close aria-label="Close inspector">×</button>
         </header>
         <div class="resource-inspector-scroll">
-          <section class="resource-inspector-details" aria-label="Resource details">
+          <section class="resource-inspector-details" aria-label="At a glance">
             <ul class="road-controls-list" data-inspector-details></ul>
+            <details class="resource-inspector-ledger" data-inspector-ledger>
+              <summary>
+                <span>Full ledger</span>
+                <span data-inspector-ledger-count>0 details</span>
+              </summary>
+              <ul class="road-controls-list resource-inspector-ledger-list" data-inspector-secondary-details></ul>
+            </details>
           </section>
           <section class="resource-inspector-labor" data-inspector-labor hidden aria-label="Labor assignment">
             <div class="resource-inspector-labor-row">
-              <span>Assigned labor</span>
+              <span class="resource-inspector-labor-label"><span aria-hidden="true">⚒</span> Workforce</span>
               <div class="resource-inspector-labor-controls">
                 <button type="button" class="resource-inspector-labor-button" data-action="labor-decrease" aria-label="Decrease labor">−</button>
                 <strong data-inspector-labor-count>0</strong>
@@ -234,9 +252,9 @@ export class ResourceInspector {
             </div>
             <p class="resource-inspector-labor-hint" data-inspector-labor-hint></p>
           </section>
+          <section class="resource-inspector-supplemental" data-inspector-supplemental hidden aria-label="Inspector actions"></section>
         </div>
         <footer class="resource-inspector-footer">
-          <section class="resource-inspector-supplemental" data-inspector-supplemental hidden aria-label="Inspector actions"></section>
           <section class="resource-inspector-actions" data-inspector-actions hidden aria-label="Building actions">
             <button type="button" class="resource-inspector-demolish" data-action="demolish-primary">
               Demolish
@@ -256,7 +274,15 @@ export class ResourceInspector {
     this.eyebrow = this.mustElement(options.uiRoot, '[data-inspector-eyebrow]');
     this.title = this.mustElement(options.uiRoot, '[data-inspector-title]');
     this.status = this.mustElement(options.uiRoot, '[data-inspector-status]');
+    this.heroArt = this.mustElement(options.uiRoot, '[data-inspector-hero]');
+    this.heroSymbol = this.mustElement(options.uiRoot, '[data-inspector-symbol]');
+    this.closeButton = this.mustButton(options.uiRoot, '[data-inspector-close]');
     this.detailList = this.mustElement(options.uiRoot, '[data-inspector-details]');
+    this.secondaryDetailList = this.mustElement(options.uiRoot, '[data-inspector-secondary-details]');
+    const detailDisclosure = options.uiRoot.querySelector<HTMLDetailsElement>('[data-inspector-ledger]');
+    if (!detailDisclosure) throw new Error('Missing resource inspector ledger');
+    this.detailDisclosure = detailDisclosure;
+    this.detailDisclosureCount = this.mustElement(options.uiRoot, '[data-inspector-ledger-count]');
     this.stockpileRoot = this.mustElement(options.uiRoot, '[data-settlement-hud]');
     this.stockpileValues = {
       timber: this.mustElement(options.uiRoot, '[data-stockpile="timber"]'),
@@ -311,7 +337,12 @@ export class ResourceInspector {
     this.demolishSecondaryButton.addEventListener('click', this.onDemolishSecondaryClick);
     this.laborDecrease.addEventListener('click', this.onLaborDecrease);
     this.laborIncrease.addEventListener('click', this.onLaborIncrease);
+    this.closeButton.addEventListener('click', this.onCloseClick);
   }
+
+  private readonly onCloseClick = (): void => {
+    this.clearSelection(true);
+  };
 
   private readonly onDemolishPrimaryClick = (): void => {
     if (!this.selectedTarget) return;
@@ -443,8 +474,8 @@ export class ResourceInspector {
     }
     if (this.selectedTarget?.kind === 'farm-field') {
       const crop = (event.target as HTMLElement).closest<HTMLElement>('[data-field-crop]')?.dataset.fieldCrop;
-      if (crop === 'rye' || crop === 'oats' || crop === 'fallow') {
-        void this.options.onSetFarmFieldCrop?.(this.selectedTarget.field.id, crop);
+      if (crop != null && FARM_CROPS.includes(crop as FarmCrop)) {
+        void this.options.onSetFarmFieldCrop?.(this.selectedTarget.field.id, crop as FarmCrop);
         return;
       }
       const priorityValue = (event.target as HTMLElement).closest<HTMLElement>('[data-field-priority]')?.dataset.fieldPriority;
@@ -958,6 +989,7 @@ export class ResourceInspector {
     this.supplementalPanelSection.removeEventListener('change', this.onSupplementalChange);
     this.laborDecrease.removeEventListener('click', this.onLaborDecrease);
     this.laborIncrease.removeEventListener('click', this.onLaborIncrease);
+    this.closeButton.removeEventListener('click', this.onCloseClick);
     this.options.sceneManager.selectionGroup.remove(this.marker);
     disposeObject3D(this.marker);
     this.panel.remove();
@@ -983,7 +1015,11 @@ export class ResourceInspector {
   };
 
   private selectTarget(target: InspectableTarget): void {
+    const previousIdentity = inspectableIdentity(this.selectedTarget);
     this.selectedTarget = target;
+    if (previousIdentity !== inspectableIdentity(target)) {
+      this.detailDisclosure.open = false;
+    }
     if (target.kind === 'quarry') {
       this.selectedX = target.definition.x;
       this.selectedZ = target.definition.z;
@@ -1029,6 +1065,15 @@ export class ResourceInspector {
   }
 
   private renderTarget(target: InspectableTarget): void {
+    const identity = inspectableIdentity(target);
+    const preservePolicyState = this.renderedIdentity === identity;
+    const openPolicyIndices = new Set(
+      preservePolicyState
+        ? Array.from(
+            this.supplementalPanelSection.querySelectorAll<HTMLDetailsElement>('.inspector-policy-card'),
+          ).flatMap((card, index) => (card.open ? [index] : []))
+        : [],
+    );
     const gameState = this.options.getState();
     const resourceTotals = computeResourceTotals(gameState);
     const needsProductionForecast = (
@@ -1182,7 +1227,8 @@ export class ResourceInspector {
     this.title.textContent = view.title;
     this.status.textContent = view.statusText;
     this.status.dataset.state = view.statusState;
-    this.detailList.innerHTML = view.detailsHtml;
+    this.applyPresentation(target);
+    this.renderDetails(view.detailsHtml);
 
     this.demolishSection.hidden = !view.demolish.visible;
     this.demolishButton.textContent = view.demolish.label ?? 'Demolish';
@@ -1210,10 +1256,88 @@ export class ResourceInspector {
     if (view.supplementalPanelHtml) {
       this.supplementalPanelSection.hidden = false;
       this.supplementalPanelSection.innerHTML = view.supplementalPanelHtml;
+      this.organizeSupplementalPanel(openPolicyIndices, preservePolicyState);
     } else {
       this.supplementalPanelSection.hidden = true;
       this.supplementalPanelSection.innerHTML = '';
     }
+    this.renderedIdentity = identity;
+  }
+
+  private applyPresentation(target: InspectableTarget): void {
+    const presentation = inspectablePresentation(target);
+    this.panel.dataset.inspectorKind = presentation.kind;
+    this.heroSymbol.textContent = presentation.symbol;
+    this.heroArt.style.backgroundImage = presentation.image
+      ? `linear-gradient(90deg, rgba(15, 17, 13, 0.06), rgba(15, 17, 13, 0.64)), url("${presentation.image}")`
+      : '';
+    this.heroArt.classList.toggle('has-art', Boolean(presentation.image));
+  }
+
+  private renderDetails(detailsHtml: string): void {
+    this.detailList.innerHTML = detailsHtml;
+    const rows = [...this.detailList.children]
+      .filter((element): element is HTMLElement => element instanceof HTMLElement);
+    const ranked = rows.map((row, index) => {
+      const label = row.firstElementChild?.textContent?.trim() ?? '';
+      const value = row.lastElementChild?.textContent?.trim() ?? '';
+      decorateInspectorRow(row, label, value);
+      return {
+        row,
+        index,
+        score: inspectorRowScore(row, label, value, index),
+      };
+    });
+    const primaryTarget = Math.min(6, Math.max(3, Math.ceil(rows.length * 0.22)));
+    const primaryRows = new Set(
+      [...ranked]
+        .sort((a, b) => b.score - a.score || a.index - b.index)
+        .slice(0, primaryTarget)
+        .map(({ row }) => row),
+    );
+    for (const { row } of ranked) {
+      if (row.querySelector('button, input, select, progress')) primaryRows.add(row);
+    }
+
+    const primary = rows.filter((row) => primaryRows.has(row));
+    const secondary = rows.filter((row) => !primaryRows.has(row));
+    this.detailList.replaceChildren(...primary);
+    this.secondaryDetailList.replaceChildren(...secondary);
+    this.detailDisclosure.hidden = secondary.length === 0;
+    this.detailDisclosureCount.textContent = secondary.length === 1
+      ? '1 detail'
+      : `${secondary.length} details`;
+  }
+
+  private organizeSupplementalPanel(
+    openPolicyIndices: ReadonlySet<number>,
+    preserveState: boolean,
+  ): void {
+    const panels = [...this.supplementalPanelSection.children]
+      .filter((element): element is HTMLElement =>
+        element instanceof HTMLElement
+        && element.classList.contains('inspector-action-panel'));
+    if (panels.length < 3) return;
+
+    panels.forEach((panel, index) => {
+      const titleSource = panel.querySelector(
+        '.city-admin-panel__slider-label span, .city-admin-panel__toggle span, button, .inspector-policy-select',
+      );
+      const fallback = panel.querySelector('.inspector-action-panel__hint')
+        ?.textContent
+        ?.split(/[.!?]/)[0]
+        ?.trim();
+      const title = titleSource?.textContent?.trim() || fallback || `Policy ${index + 1}`;
+      const disclosure = document.createElement('details');
+      disclosure.className = 'inspector-policy-card';
+      disclosure.open = preserveState ? openPolicyIndices.has(index) : index === 0;
+      const summary = document.createElement('summary');
+      summary.innerHTML = `<span aria-hidden="true">${inspectorPolicyIcon(title)}</span><strong></strong><span aria-hidden="true">+</span>`;
+      const strong = summary.querySelector('strong');
+      if (strong) strong.textContent = title.length > 54 ? `${title.slice(0, 51)}…` : title;
+      panel.before(disclosure);
+      disclosure.append(summary, panel);
+    });
   }
 
   private updateMarker(): void {
@@ -1247,6 +1371,206 @@ function formatTransitAmount(amount: number): string {
   }
   if (amount < 0.1) return amount.toFixed(2);
   return amount.toFixed(1);
+}
+
+type InspectorPresentation = {
+  kind: string;
+  symbol: string;
+  image?: string;
+};
+
+const BUILDING_INSPECTOR_ART: Partial<Record<string, string>> = {
+  apiary: 'apiary.webp',
+  brewery: 'brewery.webp',
+  carpenter: 'carpenter.webp',
+  chapel: 'chapel.webp',
+  ferry_landing: 'ferry-landing.webp',
+  fishing_camp: 'fishing-camp.webp',
+  foragers_shed: 'foragers-hut.webp',
+  founders_camp: 'residence.webp',
+  granary: 'granary.webp',
+  guardhouse: 'guardhouse.webp',
+  hunters_hall: 'hunter-hall.webp',
+  large_quarry: 'large-quarry.webp',
+  lumber_mill: 'lumber-mill.webp',
+  marketplace: 'market.webp',
+  monastery: 'monastery.webp',
+  pastoral_farmstead: 'pastoral-farmstead.webp',
+  reforester: 'reforester.webp',
+  salvage_pile: 'village-storehouse.webp',
+  smokehouse: 'smokehouse.webp',
+  stone_quarry: 'stonecutters-camp.webp',
+  swineherd: 'swineherd.webp',
+  threshing_barn: 'threshing-barn.webp',
+  town_hall: 'town-hall.webp',
+  village_storehouse: 'village-storehouse.webp',
+  vineyard: 'vineyard.webp',
+  watchtower: 'watchtower.webp',
+  watermill: 'watermill.webp',
+  weaver: 'weaver.webp',
+  well: 'water-well.webp',
+  woodcutters_lodge: 'woodcutters-lodge.webp',
+};
+
+function inspectableIdentity(target: InspectableTarget | null): string {
+  if (!target) return '';
+  switch (target.kind) {
+    case 'building': return `building:${target.building.id}`;
+    case 'residence': return `residence:${target.residence.id}`;
+    case 'backyard': return `backyard:${target.residence.id}`;
+    case 'farm-field': return `field:${target.field.id}`;
+    case 'pasture': return `pasture:${target.pasture.id}`;
+    case 'quarry': return `quarry:${target.definition.id}`;
+    case 'foraging': return `foraging:${target.definition.id}`;
+    case 'river': return `river:${target.x.toFixed(1)}:${target.z.toFixed(1)}`;
+  }
+}
+
+function inspectablePresentation(target: InspectableTarget): InspectorPresentation {
+  if (target.kind === 'building') {
+    const file = BUILDING_INSPECTOR_ART[target.building.kind];
+    const civic = target.building.kind === 'town_hall'
+      || target.building.kind === 'chapel'
+      || target.building.kind === 'monastery';
+    const agricultural = target.building.kind === 'threshing_barn'
+      || target.building.kind === 'pastoral_farmstead'
+      || target.building.kind === 'swineherd'
+      || target.building.kind === 'apiary'
+      || target.building.kind === 'vineyard';
+    const storage = target.building.kind === 'granary'
+      || target.building.kind === 'village_storehouse'
+      || target.building.kind === 'salvage_pile';
+    return {
+      kind: civic ? 'civic' : agricultural ? 'agriculture' : storage ? 'storage' : 'building',
+      symbol: civic ? '\u269C' : agricultural ? '\u2748' : storage ? '\u25A3' : '\u2692',
+      ...(file ? { image: `/assets/ui/build-menu/cards/${file}` } : {}),
+    };
+  }
+  if (target.kind === 'residence' || target.kind === 'backyard') {
+    return {
+      kind: 'residence',
+      symbol: '\u2302',
+      image: '/assets/ui/build-menu/cards/residence.webp',
+    };
+  }
+  if (target.kind === 'farm-field') {
+    return {
+      kind: 'agriculture',
+      symbol: '\u2748',
+      image: '/assets/ui/build-menu/cards/grain-field.webp',
+    };
+  }
+  if (target.kind === 'pasture') {
+    return {
+      kind: 'agriculture',
+      symbol: '\u2748',
+      image: '/assets/ui/build-menu/cards/pasture.webp',
+    };
+  }
+  if (target.kind === 'quarry') {
+    return {
+      kind: 'resource',
+      symbol: '\u25C6',
+      image: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
+    };
+  }
+  if (target.kind === 'foraging') {
+    return {
+      kind: 'resource',
+      symbol: '\u2767',
+      image: '/assets/ui/build-menu/cards/foragers-hut.webp',
+    };
+  }
+  return {
+    kind: 'water',
+    symbol: '\u224B',
+    image: '/assets/ui/build-menu/cards/ferry-landing.webp',
+  };
+}
+
+function decorateInspectorRow(row: HTMLElement, label: string, value: string): void {
+  const normalized = `${label} ${value}`.toLowerCase();
+  const labelElement = row.firstElementChild;
+  const valueElement = row.lastElementChild;
+  labelElement?.classList.add('inspector-detail-label');
+  valueElement?.classList.add('inspector-detail-value');
+  const icon = document.createElement('span');
+  icon.className = 'inspector-row-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = inspectorDetailIcon(normalized);
+  row.prepend(icon);
+  if (/(\bfire\b|burn|destroy|danger|critical|blocked|short|starv|damage|exposed|unserved)/.test(normalized)) {
+    row.dataset.state = 'warning';
+  } else if (/(ready|complete|healthy|connected|active|staffed|supplied|secure)/.test(normalized)) {
+    row.dataset.state = 'positive';
+  } else {
+    delete row.dataset.state;
+  }
+
+  const ratio = value.match(/(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+  const percent = value.match(/(-?\d+(?:\.\d+)?)\s*%/);
+  const denominator = ratio ? Number(ratio[2]) : 0;
+  const meter = ratio && denominator > 0
+    ? (Number(ratio[1]) / denominator) * 100
+    : percent
+      ? Number(percent[1])
+      : null;
+  if (meter !== null && Number.isFinite(meter)) {
+    row.classList.add('has-meter');
+    row.style.setProperty('--inspector-meter', `${Math.max(0, Math.min(100, meter))}%`);
+  } else {
+    row.classList.remove('has-meter');
+    row.style.removeProperty('--inspector-meter');
+  }
+}
+
+function inspectorRowScore(
+  row: HTMLElement,
+  label: string,
+  value: string,
+  index: number,
+): number {
+  const normalizedLabel = label.toLowerCase();
+  const normalizedValue = value.toLowerCase();
+  const normalized = `${normalizedLabel} ${normalizedValue}`;
+  let score = index === 0 ? 18 : index === 1 ? 8 : 0;
+  if (row.querySelector('button, input, select, progress')) score += 100;
+  if (/(\bfire\b|burn|destroy|danger|critical|blocked|short|starv|damage|exposed|unserved)/.test(normalized)) score += 30;
+  if (/(status|progress|assigned|workforce|population|household|resident|active cart|crop|yield|output|input|condition|priority|coverage|readiness|runway)/.test(normalizedLabel)) score += 16;
+  if (/(role|current|available|vacant|capacity|service|production|health|security|threat)/.test(normalizedLabel)) score += 10;
+  const ratio = normalizedValue.match(/(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+  if (ratio) score += Number(ratio[1]) > 0 ? 10 : -8;
+  if (/\d+(?:\.\d+)?\s*%/.test(normalizedValue)) score += 6;
+  if (/(stored|storage|stock)/.test(normalizedLabel)) score += 3;
+  if (/(lifecycle|clearance|permanent storage|construction supply|placement|access rule|final clearance)/.test(normalizedLabel)) score -= 9;
+  if (value.length > 72) score -= 12;
+  if (index > 12) score -= 2;
+  return score;
+}
+
+function inspectorDetailIcon(normalized: string): string {
+  if (/(timber|firewood|wood|log)/.test(normalized)) return '\u2571';
+  if (/(\bfire\b|burn|damage)/.test(normalized)) return '!';
+  if (/(labor|worker|staff|builder|crew)/.test(normalized)) return '\u2692';
+  if (/(stone|quarry|rock)/.test(normalized)) return '\u25C6';
+  if (/(water|river|well|ferry)/.test(normalized)) return '\u224B';
+  if (/(food|grain|flour|ale|honey|wine|crop|yield|field|fertility)/.test(normalized)) return '\u2767';
+  if (/(house|resident|population|shelter|home|vacant)/.test(normalized)) return '\u2302';
+  if (/(road|cart|route|delivery|haul)/.test(normalized)) return '\u21C4';
+  if (/(gold|coin|tax|receipt|wealth|wage)/.test(normalized)) return '\u25C9';
+  if (/(guard|watch|security|threat|arm|polearm)/.test(normalized)) return '\u2726';
+  if (/(stored|storage|stock|capacity|warehouse)/.test(normalized)) return '\u25A3';
+  return '\u25C7';
+}
+
+function inspectorPolicyIcon(title: string): string {
+  const normalized = title.toLowerCase();
+  if (/(tax|gold|receipt|wage|trade)/.test(normalized)) return '\u25C9';
+  if (/(labor|worker|construction|production|staff)/.test(normalized)) return '\u2692';
+  if (/(food|grain|harvest|fresh|reserve)/.test(normalized)) return '\u2767';
+  if (/(guard|watch|security|arm)/.test(normalized)) return '\u2726';
+  if (/(water|river)/.test(normalized)) return '\u224B';
+  return '\u2699';
 }
 
 function createSelectionMarker(): THREE.Mesh {

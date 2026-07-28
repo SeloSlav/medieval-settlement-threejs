@@ -546,7 +546,7 @@ assert.match(expandedInspector, /getNextDirectProcessorInputDispatch/);
 assert.match(expandedInspector, /overflow after active bakery buffers/);
 assert.match(expandedInspector, /Next preservation buffer/);
 assert.match(expandedInspector, /critical, preempts food cart/);
-assert.match(expandedInspector, /Spring oats labor/);
+assert.match(expandedInspector, /Spring crop labor/);
 assert.match(expandedInspector, /Seed grain/);
 assert.match(expandedInspector, /onsite.*inbound/);
 assert.match(expandedInspector, /Seed cart inbound/);
@@ -556,7 +556,16 @@ assert.match(processorStatus, /farmstead or granary deliveries may supply/);
 const farmsteadStep = functionSection('step_threshing_barn', 'step_watermill');
 assert.match(farmsteadStep, /dispatch_farmstead_grain/);
 assert.doesNotMatch(farmsteadStep, /request_connected_seed_grain/);
-assert.doesNotMatch(farmsteadStep, /dispatch_to_building/);
+assert.match(
+  farmsteadStep,
+  /dispatch_to_building\([\s\S]{0,200}CommodityKind::Wool,[\s\S]{0,80}&\["weaver"\]/,
+  'field flax must leave the farmstead through the raw-textile delivery channel',
+);
+assert.doesNotMatch(
+  farmsteadStep,
+  /dispatch_to_building\([\s\S]{0,200}CommodityKind::Grain/,
+  'farm grain must keep using the seed-reserve-aware dispatch path',
+);
 const seedDistribution = expandedSimulation.slice(
   expandedSimulation.indexOf('pub fn step_seed_grain_distribution'),
   expandedSimulation.indexOf('pub fn step_watermill'),

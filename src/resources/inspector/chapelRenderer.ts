@@ -116,13 +116,13 @@ export function renderChapelInspector(
       );
   const cofferLabel = `${economy.cofferGold.toFixed(1)} / ${economy.cofferCapacity} gold${economy.cofferFull ? ' · full — new parish tithes wait for cart capacity' : ''}${suspendedByFire ? ' · sealed until structural recovery' : ''}`;
   const collectBlocker = suspendedByFire
-    ? 'Repair the chapel before its sealed chest can move.'
+    ? 'Repair the church before its sealed chest can move.'
     : activeGoldTrip
-      ? 'Wait for the chapel handcart to return.'
+      ? 'Wait for the church handcart to return.'
       : completedTownHall === null
         ? 'Complete a Town Hall before collecting parish coffers.'
         : townHallRoadDistance === null
-          ? 'Connect the chapel and Town Hall by road.'
+          ? 'Connect the church and Town Hall by road.'
           : context.populationStats.available <= 0
             ? 'A free villager is needed to carry the coffer.'
             : !clock.isWorkHours || (clock.isSunday && parishPolicy.sabbathObservanceEnabled)
@@ -156,7 +156,7 @@ export function renderChapelInspector(
       <p class="inspector-action-panel__hint">Sabbath pauses work and carts for +${Math.round(CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS * 100)}% attendance and +${Math.round(CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS * 100)}% settlement speed. Households still consume delivered provisions, so stock them before Saturday night.</p>
       <label class="city-admin-panel__slider-label"><span>Coffer reserve</span><strong data-policy-chapel-reserve-value>${Math.round(parishPolicy.cofferReserveGold)} gold</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-chapel-reserve min="${CHAPEL_COFFER_RESERVE_MIN}" max="${CHAPEL_COFFER_RESERVE_MAX}" step="5" value="${Math.round(parishPolicy.cofferReserveGold)}" />
-      <p class="inspector-action-panel__hint">Keep at least ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold after wages and upkeep. In physical-economy settlements, one day of alms leaves as a visible purse carried by a free villager; long or blocked roads and chapel-cart contention delay it. Monday poor relief may spend up to ${CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH} gold per dispatch.</p>
+      <p class="inspector-action-panel__hint">Keep at least ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold after wages and upkeep. In physical-economy settlements, one day of alms leaves as a visible purse carried by a free villager; long or blocked roads and church-cart contention delay it. Monday poor relief may spend up to ${CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH} gold per dispatch.</p>
     </div>
   `;
 

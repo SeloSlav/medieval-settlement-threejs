@@ -33,7 +33,7 @@ import {
   formatGrainWorkingBuffer,
   GRAIN_CRITICAL_RUNWAY_CYCLES,
 } from '../../logistics/grainLogistics.ts';
-import type { BuildingKind, BuildingState, InspectableTarget } from '../types.ts';
+import { FARM_CROPS, type BuildingKind, type BuildingState, type InspectableTarget } from '../types.ts';
 import { buildingDemolishHint, buildingExtentRow, buildingLaborView, buildingRoadAccessRow, buildingStorageRows } from './buildingCommon.ts';
 import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
 import { renderInboundSupplyRow, renderOutboundDeliveryRows, type DeliveryStatusContext } from './deliveryStatusRows.ts';
@@ -77,6 +77,7 @@ import {
   farmsteadSeedGrainRequired,
   type SeasonalWorkPlan,
 } from '../../farming/farmWorkPlanning.ts';
+import { cropLabel } from '../../farming/farmFieldMath.ts';
 import {
   seedGrainSourceCoveragePlan,
   type SeedGrainSourceCoveragePlan,
@@ -715,7 +716,7 @@ export function renderExpandedBuildingInspector(
       <li><span>Next feast</span><span>${nextFeast ? formatNextMonasteryFeast(nextFeast) : 'No observance scheduled'}</span></li>
       <li><span>Feast pantry</span><span>${feastReadiness ? formatMonasteryFeastReadiness(feastReadiness) : 'Unavailable'} · one complete batch protected from routine use</span></li>
       <li><span>Annual hospitality</span><span>${hospitality.feastFoodPerYear.toFixed(0)} feast food + ${hospitality.feastAlePerYear.toFixed(0)} feast ale + ${hospitality.honeyPerYear.toFixed(0)} honey + ${hospitality.winePerYear.toFixed(0)} wine</span></li>
-      <li><span>Pilgrimage income</span><span>${hospitality.pilgrimageGoldPerDay.toFixed(2)} gold/day at current stores · requires chapel and market road link · visitor gifts accrue here before collection</span></li>`
+      <li><span>Pilgrimage income</span><span>${hospitality.pilgrimageGoldPerDay.toFixed(2)} gold/day at current stores · requires church and market road link · visitor gifts accrue here before collection</span></li>`
     : '';
   const monasteryTreasuryRows = building.kind === 'monastery'
     ? (() => {
@@ -919,8 +920,11 @@ function renderFarmsteadPlanning(
     sabbathObserved,
     cattleSupport,
   );
-  const grainRoom = Math.max(0, (buildingStorageCaps(building.kind).grain ?? 0) - building.grain);
+  const storageCaps = buildingStorageCaps(building.kind);
+  const grainRoom = Math.max(0, (storageCaps.grain ?? 0) - building.grain);
+  const fibreRoom = Math.max(0, (storageCaps.wool ?? 0) - (building.wool ?? 0));
   const haulingRequired = plan.expectedHarvest > grainRoom + 1e-6;
+  const fibreHaulingRequired = plan.expectedFibreHarvest > fibreRoom + 1e-6;
   const seasonalRisk = plan.harvest.shortfallWorkerDays > 0.05
     || plan.spring.shortfallWorkerDays > 0.05
     || plan.autumn.shortfallWorkerDays > 0.05;
@@ -949,21 +953,23 @@ function renderFarmsteadPlanning(
   const rotationRows = plan.rotation.activeArea <= 1e-9
     ? '<li><span>Next rotation</span><span>No active field area planned</span></li>'
     : `
-      <li><span>Next rotation</span><span>${Math.round(plan.rotation.nextRyeArea)} m² rye · ${Math.round(plan.rotation.nextOatsArea)} m² oats · ${Math.round(plan.rotation.nextFallowArea)} m² worked fallow</span></li>
+      <li><span>Next rotation</span><span>${FARM_CROPS.filter((crop) => plan.rotation.nextAreaByCrop[crop] > 0.5).map((crop) => `${Math.round(plan.rotation.nextAreaByCrop[crop])} m² ${cropLabel(crop).toLowerCase()}`).join(' · ')}</span></li>
       <li><span>Soil trajectory</span><span>${Math.round(plan.rotation.currentAverageFertility * 100)}% now → ${Math.round(plan.rotation.afterCurrentAverageFertility * 100)}% after current crops → ${Math.round(plan.rotation.afterPlannedAverageFertility * 100)}% after the plan${plan.rotation.weakestFieldId && plan.rotation.lowestPlannedFertility !== null ? ` · weakest ${Math.round(plan.rotation.lowestPlannedFertility * 100)}% <button type="button" class="inspector-jump-button" data-inspect-field="${plan.rotation.weakestFieldId}" aria-label="Inspect weakest planned field">Inspect</button>` : ''}</span></li>
-      <li><span>Next-cycle potential</span><span>${plan.rotation.plannedHarvest.toFixed(1)} grain at current moisture · ${plan.rotation.plannedSeedGrainRequired.toFixed(1)} seed · future manure excluded</span></li>
+      <li><span>Next-cycle potential</span><span>${plan.rotation.plannedHarvest.toFixed(1)} grain · ${plan.rotation.plannedFibreHarvest.toFixed(1)} flax fibre at current moisture · ${plan.rotation.plannedSeedGrainRequired.toFixed(1)} seed · future manure excluded</span></li>
     `;
   const rows = `
     <li><span>Linked fields</span><span>${plan.activeFields} active${plan.pausedFields > 0 ? ` · ${plan.pausedFields} paused` : ''}</span></li>
     <li><span>Ox-supported fields</span><span>${plan.cattleSupportedFields} / ${plan.activeFields} active · labor forecast includes faster ploughing</span></li>
     ${rotationRows}
     <li><span>September labor</span><span>${formatSeasonalWork(plan.harvest)}</span></li>
-    <li><span>Spring oats labor</span><span>${formatSeasonalWork(plan.spring)}</span></li>
-    <li><span>Autumn rye/fallow labor</span><span>${formatSeasonalWork(plan.autumn)}</span></li>
+    <li><span>Spring crop labor</span><span>${formatSeasonalWork(plan.spring)}</span></li>
+    <li><span>Autumn crop labor</span><span>${formatSeasonalWork(plan.autumn)}</span></li>
     <li><span>Seed grain</span><span>${Math.min(building.grain, plan.seedGrainRequired).toFixed(1)} onsite${inboundSeed > 0.05 ? ` + ${inboundSeed.toFixed(1)} inbound` : ''} / ${plan.seedGrainRequired.toFixed(1)} protected${seedShortfall > 0.05 ? ` · still short ${seedShortfall.toFixed(1)}` : ''}</span></li>
     <li><span>Exportable grain</span><span>${exportableGrain.toFixed(1)} after sowing reserve</span></li>
     <li><span>${clock.month === 9 ? 'Harvest remaining' : 'Harvest potential'}</span><span>${plan.expectedHarvest.toFixed(1)} grain</span></li>
+    <li><span>Flax fibre potential</span><span>${plan.expectedFibreHarvest.toFixed(1)} fibre</span></li>
     <li><span>Harvest storage</span><span>${grainRoom.toFixed(1)} onsite room${haulingRequired ? ' · road hauling required' : ' · fits onsite'}</span></li>
+    <li><span>Fibre storage</span><span>${fibreRoom.toFixed(1)} onsite room${fibreHaulingRequired ? ' · weaver hauling required' : ' · fits onsite'}</span></li>
     <li><span>Next grain haul</span><span>${grainRoutingLabel}</span></li>
     <li><span>Grain policy</span><span>Linked-field seed · processor work priority · lowest cycle runway · granary · overflow</span></li>
   `;
@@ -1002,8 +1008,8 @@ function renderFarmsteadPlanning(
   if (seasonalRisk) {
     return { rows, statusText: 'Season at risk — add labor or pause low-priority fields', statusState: 'warning' };
   }
-  if (haulingRequired && clock.month === 9) {
-    return { rows, statusText: 'Harvest needs continuous grain hauling', statusState: 'warning' };
+  if ((haulingRequired || fibreHaulingRequired) && clock.month === 9) {
+    return { rows, statusText: 'Harvest needs continuous grain or fibre hauling', statusState: 'warning' };
   }
   return { rows, statusText: 'Farm calendar on plan', statusState: 'active' };
 }
@@ -1102,7 +1108,7 @@ function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
       <p class="inspector-action-panel__hint">Enabled monasteries protect one complete ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_ALE} ale + ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_WINE} wine batch. Breweries refill only the ale shortfall; charity and daily hospitality use only stock above the floor. Daily hospitality consumes ${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey and ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Disable this to release the protected batch into household supply and export.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-monastery-tithe min="0" max="80" step="5" value="${Math.round(policy.titheShare * 100)}" />
-      <div class="city-admin-panel__range-hints"><span>Chapel keeps all</span><span>Monastery-led</span></div>
+      <div class="city-admin-panel__range-hints"><span>Church keeps all</span><span>Monastery-led</span></div>
       <p class="inspector-action-panel__hint">Lifetime: ${formatMonasteryTithePaidTotal(policy.tithePaidTotal)} · ${formatMonasteryPilgrimageTotal(policy.pilgrimageGoldTotal)} · ${formatMonasteryFoodCharityTotal(policy.foodCharityTotal)}</p>
     </div>
   `;

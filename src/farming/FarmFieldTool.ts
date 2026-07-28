@@ -10,7 +10,7 @@ import {
 } from '../generated/gameBalance.ts';
 import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import { buildingFootprintPolygonFromState, burgageZonePolygon } from '../placement/placementConflicts.ts';
-import type { BuildingState, FarmCrop, GameState } from '../resources/types.ts';
+import { FARM_CROPS, type BuildingState, type FarmCrop, type GameState } from '../resources/types.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { convexPolygonsOverlap2, type Point2 } from '../utils/polygonGeometry.ts';
 import { FarmFieldPreview } from './FarmFieldMarkers.ts';
@@ -28,7 +28,6 @@ import {
 
 const MIN_CLICK_DISTANCE = 1.5;
 const PREVIEW_VALIDATION_INTERVAL_MS = 110;
-const CROPS: readonly FarmCrop[] = ['rye', 'oats', 'fallow'];
 
 export type LandParcelMode = 'field' | 'pasture';
 export type FarmFieldPlacementFailureReason =
@@ -167,8 +166,8 @@ export class FarmFieldTool {
 
   cycleCrop(): void {
     if (!this.enabled || this.mode !== 'field') return;
-    const index = CROPS.indexOf(this.crop);
-    this.crop = CROPS[(index + 1) % CROPS.length];
+    const index = FARM_CROPS.indexOf(this.crop);
+    this.crop = FARM_CROPS[(index + 1) % FARM_CROPS.length];
     this.refreshPreview();
     const moisture = this.validation.moisture ?? 0.5;
     const suitability = Math.round(moistureSuitability(this.crop, moisture) * 100);

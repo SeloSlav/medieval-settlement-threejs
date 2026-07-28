@@ -5,6 +5,7 @@ import {
   CALENDAR_WORK_START_HOUR,
 } from '../generated/gameBalance.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
+import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolicy.ts';
 import {
   watermillThroughputForWeather,
   type EnvironmentState,
@@ -12,7 +13,7 @@ import {
   type WeatherKind,
 } from '../world/seasonPolicy.ts';
 
-export type VisualQaPreset = 'daylight' | 'moonlight' | 'rain' | 'winter';
+export type VisualQaPreset = 'daylight' | 'moonlight' | 'rain' | 'autumn' | 'winter';
 
 export type VisualQaConditions = {
   preset: VisualQaPreset;
@@ -52,6 +53,15 @@ const PRESETS: Readonly<Record<VisualQaPreset, VisualQaConditions>> = {
     season: 'spring',
     weather: 'rain',
   },
+  autumn: {
+    preset: 'autumn',
+    label: 'Peak autumn foliage at midday',
+    month: 10,
+    monthDay: 6,
+    hour: 13,
+    season: 'autumn',
+    weather: 'fair',
+  },
   winter: {
     preset: 'winter',
     label: 'Winter frost and snow at midday',
@@ -81,6 +91,8 @@ export function applyVisualQaEnvironment(
     ...environment,
     season: conditions.season,
     weather: conditions.weather,
+    snowCoverage: conditions.weather === 'frost' ? 1 : 0,
+    deciduousFoliage: deciduousFoliageForSeasonPreview(conditions.season),
     watermillThroughputMultiplier: watermillThroughputForWeather(
       conditions.weather,
     ),
@@ -93,6 +105,8 @@ export function standaloneVisualQaEnvironment(
   return applyVisualQaEnvironment({
     season: 'summer',
     weather: 'fair',
+    snowCoverage: 0,
+    deciduousFoliage: deciduousFoliageForSeasonPreview('summer'),
     cropGrowthMultiplier: 1,
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
@@ -133,5 +147,6 @@ function isVisualQaPreset(value: string): value is VisualQaPreset {
   return value === 'daylight'
     || value === 'moonlight'
     || value === 'rain'
+    || value === 'autumn'
     || value === 'winter';
 }

@@ -69,6 +69,43 @@ def save_height_maps(albedo: Image.Image, out_dir: Path, *, road: bool) -> None:
     normal.save(out_dir / "normal.png")
 
 
+def save_snow_maps(albedo: Image.Image, out_dir: Path) -> None:
+    """Derive restrained snow micro-surface maps from the generated albedo."""
+    gray = ImageOps.grayscale(albedo)
+    height = ImageEnhance.Contrast(gray).enhance(1.18)
+    height = height.filter(ImageFilter.GaussianBlur(1.2))
+    height.save(out_dir / "height.png")
+
+    # Settled snow is broadly rough, with the slightly darker compressed
+    # granules providing just enough variation to catch close-camera light.
+    rough = ImageOps.autocontrast(gray)
+    rough = rough.point(lambda value: int(212 + value * 0.15))
+    rough = rough.filter(ImageFilter.GaussianBlur(0.7))
+    rough.save(out_dir / "roughness.png")
+
+    ao = ImageOps.invert(height.filter(ImageFilter.GaussianBlur(4.0)))
+    ao = ImageOps.autocontrast(ao).point(lambda value: int(210 + value * 0.15))
+    ao.save(out_dir / "ao.png")
+
+    normal = height_to_normal(height, strength=2.1)
+    normal.save(out_dir / "normal.png")
+
+
+def save_dry_snow_albedo_atlas(
+    dry_albedo_path: Path,
+    snow_albedo: Image.Image,
+    out_path: Path,
+) -> None:
+    dry = Image.open(dry_albedo_path).convert("RGB")
+    if dry.size != snow_albedo.size:
+        dry = dry.resize(snow_albedo.size, Image.Resampling.LANCZOS)
+    width, height = snow_albedo.size
+    atlas = Image.new("RGB", (width, height * 2))
+    atlas.paste(dry, (0, 0))
+    atlas.paste(snow_albedo, (0, height))
+    atlas.save(out_path)
+
+
 def height_to_normal(height: Image.Image, strength: float) -> Image.Image:
     width, height_px = height.size
     src = height.load()
@@ -127,33 +164,53 @@ def make_rut_mask(out_dir: Path, size: int = 512) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--road-source", required=True)
-    parser.add_argument("--grass-source", required=True)
+    parser.add_argument("--road-source")
+    parser.add_argument("--grass-source")
+    parser.add_argument("--snow-source")
     args = parser.parse_args()
 
-    road_dir = Path("public/assets/textures/roads/medieval_dirt")
-    grass_dir = Path("public/assets/textures/terrain/grass_ground")
-    road_dir.mkdir(parents=True, exist_ok=True)
-    grass_dir.mkdir(parents=True, exist_ok=True)
+    if not any((args.road_source, args.grass_source, args.snow_source)):
+        parser.error("provide at least one texture source")
 
-    road = ensure_square_tile(Path(args.road_source))
-    grass = ensure_square_tile(Path(args.grass_source))
-    road.save(road_dir / "albedo.png")
-    grass.save(grass_dir / "albedo.png")
+    if args.road_source:
+        road_dir = Path("public/assets/textures/roads/medieval_dirt")
+        road_dir.mkdir(parents=True, exist_ok=True)
+        road = ensure_square_tile(Path(args.road_source))
+        road.save(road_dir / "albedo.png")
+        save_height_maps(road, road_dir, road=True)
+        make_edge_mask(road_dir)
+        make_rut_mask(road_dir)
+        (road_dir / "README.md").write_text(
+            "Medieval dirt road PBR texture set. Albedo was generated with Codex built-in image generation for this prototype; normal, roughness, AO, height, edge_mask, and rut_mask were derived locally by scripts/derive_pbr_maps.py.\n",
+            encoding="utf-8",
+        )
 
-    save_height_maps(road, road_dir, road=True)
-    save_height_maps(grass, grass_dir, road=False)
-    make_edge_mask(road_dir)
-    make_rut_mask(road_dir)
+    if args.grass_source:
+        grass_dir = Path("public/assets/textures/terrain/grass_ground")
+        grass_dir.mkdir(parents=True, exist_ok=True)
+        grass = ensure_square_tile(Path(args.grass_source))
+        grass.save(grass_dir / "albedo.png")
+        save_height_maps(grass, grass_dir, road=False)
+        (grass_dir / "README.md").write_text(
+            "Grass-ground PBR texture set. Albedo was generated with Codex built-in image generation for this prototype; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py.\n",
+            encoding="utf-8",
+        )
 
-    (road_dir / "README.md").write_text(
-        "Medieval dirt road PBR texture set. Albedo was generated with Codex built-in image generation for this prototype; normal, roughness, AO, height, edge_mask, and rut_mask were derived locally by scripts/derive_pbr_maps.py.\n",
-        encoding="utf-8",
-    )
-    (grass_dir / "README.md").write_text(
-        "Grass-ground PBR texture set. Albedo was generated with Codex built-in image generation for this prototype; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py.\n",
-        encoding="utf-8",
-    )
+    if args.snow_source:
+        snow_dir = Path("public/assets/textures/terrain/snow_ground")
+        snow_dir.mkdir(parents=True, exist_ok=True)
+        snow = ensure_square_tile(Path(args.snow_source))
+        snow.save(snow_dir / "albedo.png")
+        save_snow_maps(snow, snow_dir)
+        save_dry_snow_albedo_atlas(
+            Path("public/assets/textures/terrain/manor_grass_dry/albedo.png"),
+            snow,
+            Path("public/assets/textures/terrain/manor_grass_dry/snow_albedo_atlas.png"),
+        )
+        (snow_dir / "README.md").write_text(
+            "Settled snow PBR texture set. Albedo was generated with Codex built-in image generation for this project, then processed locally for seamless tiling; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. The runtime albedo is packed with dry grass in manor_grass_dry/snow_albedo_atlas.png to stay within the terrain shader's 16-sampler portability limit.\n",
+            encoding="utf-8",
+        )
 
 
 if __name__ == "__main__":

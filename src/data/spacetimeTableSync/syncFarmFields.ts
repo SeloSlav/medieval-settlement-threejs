@@ -1,8 +1,7 @@
 import type { FarmField } from '../../generated/types.ts';
 import { buildingClientId, farmFieldClientId } from '../spacetimeIds.ts';
-import type { FarmCrop, FarmFieldStage, FarmFieldState } from '../../resources/types.ts';
+import { FARM_CROPS, type FarmFieldStage, type FarmFieldState } from '../../resources/types.ts';
 
-const CROPS: readonly FarmCrop[] = ['rye', 'oats', 'fallow'];
 const STAGES: readonly FarmFieldStage[] = ['ploughing', 'sowing', 'growing', 'harvesting'];
 
 export function syncFarmFields(
@@ -27,8 +26,8 @@ export function syncFarmFields(
       averageSlopeDegrees: row.averageSlopeDegrees,
       moisture: row.moisture,
       fertility: row.fertility,
-      crop: CROPS[row.crop] ?? 'rye',
-      nextCrop: CROPS[row.nextCrop] ?? 'rye',
+      crop: FARM_CROPS[row.crop] ?? 'rye',
+      nextCrop: FARM_CROPS[row.nextCrop] ?? 'rye',
       stage: STAGES[row.stage] ?? 'ploughing',
       stageProgress: row.stageProgress,
       priority: row.priority,

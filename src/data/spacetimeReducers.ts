@@ -1,4 +1,5 @@
 import type { DbConnection } from '../generated/index.ts';
+import { FARM_CROP_DEFINITIONS } from '../generated/gameBalance.ts';
 import { getConnection } from '../network/spacetimedbClient.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
 import type { FireTargetKind } from '../fires/fireIncident.ts';
@@ -172,7 +173,7 @@ export async function grantCheatResources(amount: number): Promise<void> {
   await callReducer('grantCheatResources', 'grant_cheat_resources', { amount });
 }
 
-const cropId = (crop: FarmCrop): number => crop === 'oats' ? 1 : crop === 'fallow' ? 2 : 0;
+const cropId = (crop: FarmCrop): number => FARM_CROP_DEFINITIONS[crop].id;
 
 export async function placeFarmField(input: {
   farmsteadId: string;

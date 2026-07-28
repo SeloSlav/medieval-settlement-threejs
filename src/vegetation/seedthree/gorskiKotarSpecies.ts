@@ -89,7 +89,42 @@ const DECIDUOUS_PRESETS = new Set<SeedThreePresetKey>([
   'sweetgum',
 ]);
 
-/** Presets whose broad leaves should drop during winter dormancy. */
+const DECIDUOUS_SPECIES = new Set<GorskiKotarTreeSpecies>([
+  'beech',
+  'sycamoreMaple',
+  'norwayMaple',
+  'ash',
+  'wychElm',
+  'lime',
+  'hornbeam',
+  'sessileOak',
+  'larch',
+]);
+
+const AUTUMN_FOLIAGE_COLOR: Partial<
+  Record<SeedThreePresetKey, readonly [number, number, number]>
+> = {
+  americanBeech: [0.96, 0.46, 0.08],
+  whiteOak: [0.76, 0.32, 0.06],
+  redMaple: [0.95, 0.18, 0.04],
+  sweetgum: [1, 0.58, 0.1],
+  // Used only by larch instances; silver-fir instances sharing the proxy carry
+  // a zero deciduous attribute and retain their evergreen needles.
+  douglasFir: [1, 0.64, 0.08],
+};
+
+/** Presets made entirely from deciduous gameplay species. */
 export function seedThreePresetIsDeciduous(preset: SeedThreePresetKey): boolean {
   return DECIDUOUS_PRESETS.has(preset);
+}
+
+/** Tree-level classification keeps deciduous larch separate from its fir proxy. */
+export function gorskiKotarSpeciesIsDeciduous(species: string): boolean {
+  return DECIDUOUS_SPECIES.has(species as GorskiKotarTreeSpecies);
+}
+
+export function autumnFoliageColorForPreset(
+  preset: SeedThreePresetKey,
+): readonly [number, number, number] {
+  return AUTUMN_FOLIAGE_COLOR[preset] ?? [0.94, 0.48, 0.08];
 }

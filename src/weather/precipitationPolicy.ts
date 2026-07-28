@@ -3,6 +3,7 @@ import {
   type EnvironmentState,
 } from '../world/seasonPolicy.ts';
 import { FRESH_FOOD_SPOILAGE_SPRING_PER_DAY } from '../generated/gameBalance.ts';
+import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolicy.ts';
 
 export type PrecipitationKind = 'none' | 'rain' | 'snow';
 
@@ -106,10 +107,17 @@ export function roadWeatherProfile(
   environment: EnvironmentState | null,
 ): RoadWeatherProfile {
   if (!environment) return FAIR_ROAD_PROFILE;
-  if (environment.weather === 'rain') return { wetness: 1, frost: 0 };
-  if (environment.weather === 'frost') return { wetness: 0, frost: 1 };
-  if (environment.season === 'autumn') return { wetness: 0.55, frost: 0 };
-  return FAIR_ROAD_PROFILE;
+  const settledSnow = Math.max(0, Math.min(1, environment.snowCoverage));
+  if (environment.weather === 'rain') {
+    return { wetness: 1, frost: settledSnow };
+  }
+  if (environment.weather === 'frost') {
+    return { wetness: 0, frost: settledSnow };
+  }
+  if (environment.season === 'autumn') {
+    return { wetness: 0.55, frost: settledSnow };
+  }
+  return { wetness: 0, frost: settledSnow };
 }
 
 /** Development-only visual override used for deterministic weather art checks. */
@@ -123,6 +131,8 @@ export function precipitationPreviewEnvironment(
       ...environment,
       season: 'spring',
       weather: 'rain',
+      snowCoverage: 0,
+      deciduousFoliage: deciduousFoliageForSeasonPreview('spring'),
       watermillThroughputMultiplier: watermillThroughputForWeather('rain'),
     };
   }
@@ -131,6 +141,8 @@ export function precipitationPreviewEnvironment(
       ...environment,
       season: 'winter',
       weather: 'frost',
+      snowCoverage: 1,
+      deciduousFoliage: deciduousFoliageForSeasonPreview('winter'),
       watermillThroughputMultiplier: watermillThroughputForWeather('frost'),
     };
   }
@@ -139,6 +151,8 @@ export function precipitationPreviewEnvironment(
       ...environment,
       season: 'autumn',
       weather: 'fair',
+      snowCoverage: 0,
+      deciduousFoliage: deciduousFoliageForSeasonPreview('autumn'),
       watermillThroughputMultiplier: 1,
     };
   }
@@ -146,6 +160,7 @@ export function precipitationPreviewEnvironment(
     return {
       ...environment,
       weather: 'fair',
+      snowCoverage: 0,
       watermillThroughputMultiplier: 1,
     };
   }
@@ -160,6 +175,8 @@ export function standalonePrecipitationPreview(
   return precipitationPreviewEnvironment({
     season: 'spring',
     weather: 'fair',
+    snowCoverage: 0,
+    deciduousFoliage: deciduousFoliageForSeasonPreview('spring'),
     cropGrowthMultiplier: 1,
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,

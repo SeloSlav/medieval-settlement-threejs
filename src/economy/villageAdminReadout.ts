@@ -177,7 +177,7 @@ export function buildVillageAdminReadout(input: {
     taxIncomeLabel: formatBackyardTax(backyardEconomy),
     chapelTitheLabel: hasStaffedChapelOnMap && worldQueries
       ? `~${chapelTithe.toFixed(1)} gold / day${parishPolicy.sabbathObservanceEnabled ? ' (7-day average)' : ''}`
-      : hasStaffedChapelOnMap ? '—' : 'Unstaffed chapel',
+      : hasStaffedChapelOnMap ? '—' : 'Unstaffed church',
     parishExpenseLabel: chapels.length > 0
       ? `${formatParishGoldPerDay(parishExpense)} (coffer-limited)`
       : 'No chapel',

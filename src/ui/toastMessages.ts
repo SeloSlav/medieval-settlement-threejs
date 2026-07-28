@@ -26,7 +26,7 @@ export const TOAST_MESSAGES = {
   'building.placement.no_trees_in_range': 'No mature trees within work range',
   'building.placement.on_road': 'Cannot build on a road',
   'building.placement.insufficient_resources': 'Not enough timber or stone',
-  'building.placement.requires_staffed_chapel': 'A staffed chapel is required before founding a monastery',
+  'building.placement.requires_staffed_chapel': 'A staffed church is required before founding a monastery',
   'building.placement.requires_parish_population': 'The parish needs at least 12 residents before founding a monastery',
   'burgage.placement.water': 'Cannot place residences on water',
   'burgage.placement.too_steep': 'The slope is too steep here',
