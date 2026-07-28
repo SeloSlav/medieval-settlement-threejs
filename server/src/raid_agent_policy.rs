@@ -27,6 +27,7 @@ pub const COMBAT_TARGET_TREASURY_RESIDENCE: u8 = 4;
 pub const GUARD_SPEED_MPS: f64 = 1.42;
 pub const WOUNDED_GUARD_SPEED_MPS: f64 = 0.68;
 pub const RAIDER_SPEED_MPS: f64 = 1.34;
+pub const COMBAT_ROAD_SPEED_MULTIPLIER: f64 = 1.35;
 pub const RAIDER_OFFROAD_ROUTE_MULTIPLIER: f64 = 1.55;
 pub const MELEE_RANGE_METERS: f64 = 2.15;
 pub const GUARD_INTERCEPT_RANGE_METERS: f64 = 22.0;
@@ -45,6 +46,14 @@ pub struct RouteMove {
     pub z: f64,
     pub progress: f64,
     pub reached_end: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EmergencyGuardTarget {
+    pub kind: u8,
+    pub id: u64,
+    pub x: f64,
+    pub z: f64,
 }
 
 pub fn raid_party_size(enemy_pressure: u8) -> u32 {
@@ -284,6 +293,28 @@ pub fn distance_squared(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
     dx * dx + dz * dz
 }
 
+/// Selects the physically nearest attacked holding for a company that has no
+/// usable watch-road deployment. Stable target identity resolves exact ties so
+/// every replay and client sees the same local alarm response.
+pub fn nearest_emergency_guard_target(
+    origin_x: f64,
+    origin_z: f64,
+    targets: &[EmergencyGuardTarget],
+) -> Option<usize> {
+    targets
+        .iter()
+        .enumerate()
+        .filter(|(_, target)| target.x.is_finite() && target.z.is_finite())
+        .min_by(|(left_index, left), (right_index, right)| {
+            distance_squared(origin_x, origin_z, left.x, left.z)
+                .total_cmp(&distance_squared(origin_x, origin_z, right.x, right.z))
+                .then_with(|| left.kind.cmp(&right.kind))
+                .then_with(|| left.id.cmp(&right.id))
+                .then_with(|| left_index.cmp(right_index))
+        })
+        .map(|(index, _)| index)
+}
+
 fn sample_polyline(polyline: &[[f64; 2]], meters: f64) -> (f64, f64) {
     if polyline.is_empty() {
         return (0.0, 0.0);
@@ -404,6 +435,8 @@ mod tests {
 
     #[test]
     fn combat_routes_are_preferences_not_rails() {
+        assert!(COMBAT_ROAD_SPEED_MULTIPLIER > 1.0);
+        assert!(COMBAT_ROAD_SPEED_MULTIPLIER <= RAIDER_OFFROAD_ROUTE_MULTIPLIER);
         assert!(!route_shortcut_is_worthwhile(
             100.0,
             160.0,
@@ -425,10 +458,7 @@ mod tests {
     fn refuge_protection_is_a_physical_breach_window() {
         assert_eq!(raid_contact_duration(0), LOOT_SECONDS);
         assert!(raid_contact_duration(42) > raid_contact_duration(0));
-        assert_eq!(
-            raid_contact_duration(42),
-            PALISADED_REFUGE_BREACH_SECONDS
-        );
+        assert_eq!(raid_contact_duration(42), PALISADED_REFUGE_BREACH_SECONDS);
     }
 
     #[test]
@@ -457,6 +487,51 @@ mod tests {
             true,
             COMBAT_STATE_ADVANCING,
         ));
+    }
+
+    #[test]
+    fn unlinked_companies_choose_the_nearest_attacked_holding_stably() {
+        let targets = [
+            EmergencyGuardTarget {
+                kind: COMBAT_TARGET_RESIDENCE,
+                id: 20,
+                x: 30.0,
+                z: 0.0,
+            },
+            EmergencyGuardTarget {
+                kind: COMBAT_TARGET_BUILDING,
+                id: 30,
+                x: -30.0,
+                z: 0.0,
+            },
+            EmergencyGuardTarget {
+                kind: COMBAT_TARGET_BUILDING,
+                id: 10,
+                x: 12.0,
+                z: 0.0,
+            },
+        ];
+        assert_eq!(nearest_emergency_guard_target(0.0, 0.0, &targets), Some(2),);
+
+        let tied = [
+            EmergencyGuardTarget {
+                kind: COMBAT_TARGET_RESIDENCE,
+                id: 10,
+                x: 10.0,
+                z: 0.0,
+            },
+            EmergencyGuardTarget {
+                kind: COMBAT_TARGET_BUILDING,
+                id: 20,
+                x: -10.0,
+                z: 0.0,
+            },
+        ];
+        assert_eq!(
+            nearest_emergency_guard_target(0.0, 0.0, &tied),
+            Some(1),
+            "target kind and stable identity must break equal-distance ties",
+        );
     }
 
     #[test]

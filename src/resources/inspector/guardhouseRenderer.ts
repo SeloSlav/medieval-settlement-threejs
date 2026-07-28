@@ -138,6 +138,7 @@ export function renderGuardhouseInspector(
     ),
   );
   const effectiveReady = armed * readiness * muster.efficiency;
+  const emergencyReady = armed * readiness * muster.emergencyEfficiency;
   const recoveryFeedback = formatGuardRecoveryFeedback(
     woundedAgents,
     context.gameState.tick,
@@ -202,11 +203,16 @@ export function renderGuardhouseInspector(
             ] as const
           : foodRunwayDays < PROVISION_WARNING_DAYS
             ? [`Provision reserve low — ${formatProvisionRunway(foodRunwayDays)} on site`, 'warning'] as const
-            : frontierAlert && armed > 0 && muster.linkedTowerId
-              ? [
-                  `Muster underway — ${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} marching to the linked watch`,
-                  'active',
-                ] as const
+            : frontierAlert && armed > 0
+              ? muster.linkedTowerId
+                ? [
+                    `Muster underway — ${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} marching to the linked watch`,
+                    'active',
+                  ] as const
+                : [
+                    `Cross-country response — ${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} heading directly for the nearest attacked holding`,
+                    'active',
+                  ] as const
             : readiness < 0.99
               ? ['Drilling and mustering', 'active'] as const
               : muster.efficiency < 0.999
@@ -242,18 +248,19 @@ export function renderGuardhouseInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Role</span><span>Paid local guard company mustered by the watch</span></li>
+      <li><span>Role</span><span>Paid local guard company warned by the watch or mobilized by visible contact</span></li>
       ${woundedAgents.length > 0 ? `<li><span>Wounded company</span><span>${recoveryFeedback}</span></li>` : ''}
       ${fieldedGuards > 0 ? `<li><span>In the field</span><span>${fieldedGuards} guard${fieldedGuards === 1 ? '' : 's'} physically deployed</span></li>` : ''}
       <li><span>Fit for muster</span><span>${fitEquippedGuards} of ${equippedGuards} equipped guards available</span></li>
       <li><span>Armed guards</span><span>${equippedGuards} / ${building.assignedLabor} equipped${suspendedByFire ? ' · unavailable during fire recovery' : ''}</span></li>
       <li><span>Local readiness</span><span>${Math.round(readiness * 100)}% · ${ready.toFixed(1)} ready</span></li>
       <li><span>Muster order</span><span>${orderedMusterPostId === null ? 'Nearest staffed watch by road' : `Hold for Watch #${orderedMusterPostId} unless the order is changed`}</span></li>
-      <li><span>Watch muster</span><span>${muster.routeDistance == null ? `${missingMusterRoute}; no district reinforcement` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
-      <li><span>Alert posture</span><span>${frontierAlert ? muster.linkedTowerId && armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard' : 'guards'} taking the linked watch road, then breaking cross-country for nearby or active attacks` : 'Frontier alert active, but this company has no equipped road-linked response' : 'Ordinary drill at the guardhouse until raiders are reported during campaign season'}</span></li>
+      <li><span>Watch muster</span><span>${muster.routeDistance == null ? `${missingMusterRoute}; no early district reinforcement` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
+      <li><span>Alert posture</span><span>${frontierAlert ? muster.linkedTowerId && armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard' : 'guards'} taking the faster linked watch road, then breaking cross-country for nearby or active attacks` : armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} physically formed at this guardhouse and heading directly across country for the nearest attacked holding` : 'Frontier alert active, but this company has no fit equipped guards' : 'Ordinary drill at the guardhouse until raiders are reported during campaign season'}</span></li>
       <li><span>Hostile approach</span><span>Raiders physically enter from the frontier and favor the road branch serving their target, but cut across country to fight, chase a moving cart, or avoid a major detour</span></li>
       <li><span>Road conditions</span><span>${roadConditionFeedback}</span></li>
-      <li><span>Effective company</span><span>${effectiveReady.toFixed(1)} guards after casualties, signal, and travel</span></li>
+      <li><span>Warned response</span><span>${effectiveReady.toFixed(1)} guards in the linked watch forecast after casualties, signal, and travel</span></li>
+      <li><span>Cross-country reserve</span><span>${emergencyReady.toFixed(1)} effective direct response if no usable bell-and-road route exists; these agents deploy physically but are not credited to a specific watch-district forecast</span></li>
       <li><span>Settlement defense</span><span>${settlementReady.toFixed(1)}${guardRequirement > 0 ? ` / ${guardRequirement.toFixed(1)} required` : ''}</span></li>
       <li><span>Projected raid</span><span>${settlement ? formatFrontierForecast(settlement, context.enemyPressure) : 'Awaiting frontier reports'}</span></li>
       <li><span>Daily upkeep</span><span>${dailyFood.toFixed(1)} food · ${dailyWages.toFixed(1)} gold</span></li>

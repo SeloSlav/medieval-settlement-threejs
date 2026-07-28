@@ -409,6 +409,7 @@ export class SettlementHud {
       projectedTargets,
       'One watchman provides 78% of a tower’s full radius; two provide full coverage.',
       'Each armed company reinforces only its nearest road-linked staffed tower. Short routes give a full muster; long, soft, or missing routes weaken that watch district.',
+      'Unlinked armed companies still materialize at their guardhouse and immediately head cross-country for the nearest attacked holding. They are not credited to a specific watch-district forecast; linked roads remain the faster coordinated response.',
       'Incursions strike the richest exposed holdings first; watched holdings remain vulnerable if the guard muster is insufficient.',
       formatRaidReport(security),
     ].filter(Boolean).join(' · ');

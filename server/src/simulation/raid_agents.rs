@@ -8,14 +8,15 @@ use crate::frontier_economy_policy::armed_guards;
 use crate::raid_agent_policy::{
     combat_state_blocks_guard_slot, distance_squared, formation_spawn, guard_attack_interval,
     guard_breaks_route_for, guard_damage, guard_recovery_ticks, move_along_route, move_toward,
-    per_raider_loot_fraction, raid_contact_duration, raid_entry_point, raid_party_size,
-    raider_attack_interval, raider_damage, route_shortcut_is_worthwhile, COMBAT_FACTION_GUARD,
-    COMBAT_FACTION_RAIDER, COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING,
-    COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING,
-    COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING,
-    COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING,
-    COMBAT_TARGET_TREASURY_RESIDENCE, DOWNED_LINGER_TICKS, GUARD_SPEED_MPS,
-    HOLDING_CONTACT_RANGE_METERS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
+    nearest_emergency_guard_target, per_raider_loot_fraction, raid_contact_duration,
+    raid_entry_point, raid_party_size, raider_attack_interval, raider_damage,
+    route_shortcut_is_worthwhile, EmergencyGuardTarget, COMBAT_FACTION_GUARD,
+    COMBAT_FACTION_RAIDER, COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING,
+    COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING,
+    COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING,
+    COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE,
+    COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE, DOWNED_LINGER_TICKS,
+    GUARD_SPEED_MPS, HOLDING_CONTACT_RANGE_METERS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
     RAIDER_OFFROAD_ROUTE_MULTIPLIER, RAIDER_SPEED_MPS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::{RoadNetwork, RoadPathRoute};
@@ -73,6 +74,7 @@ pub fn start_live_raid(
     buildings: &[Building],
     towers: &[WatchArea],
     road_network: Option<&RoadNetwork>,
+    fire_disabled_buildings: &HashSet<u64>,
 ) -> Option<LiveRaidStart> {
     if targets.is_empty() || ctx.db.active_raid().owner().find(&owner).is_some() {
         return None;
@@ -176,6 +178,7 @@ pub fn start_live_raid(
         buildings,
         towers,
         road_network,
+        fire_disabled_buildings,
     );
     if let Some(mut active) = ctx.db.active_raid().owner().find(&owner) {
         active.initial_guards = guard_count;
@@ -238,13 +241,8 @@ fn spawn_responding_guards(
     buildings: &[Building],
     towers: &[WatchArea],
     road_network: Option<&RoadNetwork>,
+    fire_disabled_buildings: &HashSet<u64>,
 ) -> u32 {
-    let Some(network) = road_network else {
-        return 0;
-    };
-    if towers.is_empty() {
-        return 0;
-    }
     let watch_positions = towers
         .iter()
         .map(|tower| (tower.x, tower.z))
@@ -253,11 +251,23 @@ fn spawn_responding_guards(
         .iter()
         .map(|tower| tower.source_id)
         .collect::<Vec<_>>();
+    let emergency_targets = targets
+        .iter()
+        .map(|target| EmergencyGuardTarget {
+            kind: target.kind,
+            id: target.id,
+            x: target.x,
+            z: target.z,
+        })
+        .collect::<Vec<_>>();
     let unavailable_slots = unavailable_guard_slots(ctx, owner);
     let mut total = 0_u32;
 
     for guardhouse in buildings.iter().filter(|building| {
-        building.owner == owner && building.construction_complete && building.kind == "guardhouse"
+        building.owner == owner
+            && building.construction_complete
+            && building.kind == "guardhouse"
+            && !fire_disabled_buildings.contains(&building.id)
     }) {
         let armed = armed_guards(guardhouse.assigned_labor, guardhouse.polearms)
             .floor()
@@ -265,46 +275,60 @@ fn spawn_responding_guards(
         if armed == 0 || guardhouse.action_cooldown <= 0.05 {
             continue;
         }
-        let distances =
-            network.road_path_distances_from(guardhouse.x, guardhouse.z, &watch_positions);
-        let Some((watch_index, muster_distance)) = select_guardhouse_muster_watch(
-            guardhouse.guardhouse_muster_watchtower_id,
-            &watchtower_ids,
-            &distances,
-        ) else {
-            continue;
-        };
-        let tower = towers[watch_index];
-        let Some(target) = targets
-            .iter()
-            .filter(|target| {
-                distance_squared(target.x, target.z, tower.x, tower.z)
-                    <= tower.radius * tower.radius
-            })
-            .min_by(|left, right| {
-                distance_squared(left.x, left.z, tower.x, tower.z)
-                    .total_cmp(&distance_squared(right.x, right.z, tower.x, tower.z))
-                    .then_with(|| left.id.cmp(&right.id))
-            })
-            .copied()
-        else {
-            continue;
-        };
-        let muster_readiness = guardhouse_muster_efficiency(Some(muster_distance), 1.0);
+
+        // A staffed watch and usable road give early warning and a cached
+        // deployment route. They are an advantage, not permission for armed
+        // villagers to defend themselves: an unlinked company still forms at
+        // its guardhouse and immediately heads cross-country for the nearest
+        // attacked holding once a live incursion begins.
+        let linked_deployment = road_network.and_then(|network| {
+            let distances =
+                network.road_path_distances_from(guardhouse.x, guardhouse.z, &watch_positions);
+            let (watch_index, muster_distance) = select_guardhouse_muster_watch(
+                guardhouse.guardhouse_muster_watchtower_id,
+                &watchtower_ids,
+                &distances,
+            )?;
+            let tower = towers[watch_index];
+            let target = targets
+                .iter()
+                .filter(|target| {
+                    distance_squared(target.x, target.z, tower.x, tower.z)
+                        <= tower.radius * tower.radius
+                })
+                .min_by(|left, right| {
+                    distance_squared(left.x, left.z, tower.x, tower.z)
+                        .total_cmp(&distance_squared(right.x, right.z, tower.x, tower.z))
+                        .then_with(|| left.kind.cmp(&right.kind))
+                        .then_with(|| left.id.cmp(&right.id))
+                })
+                .copied()?;
+            let route = network.road_path_route(guardhouse.x, guardhouse.z, tower.x, tower.z)?;
+            Some((target, muster_distance, route))
+        });
+        let (target, muster_distance, muster_route) =
+            if let Some((target, distance, route)) = linked_deployment {
+                (target, Some(distance), Some(route))
+            } else {
+                let Some(target_index) =
+                    nearest_emergency_guard_target(guardhouse.x, guardhouse.z, &emergency_targets)
+                else {
+                    continue;
+                };
+                (targets[target_index], None, None)
+            };
+        let muster_readiness = guardhouse_muster_efficiency(muster_distance, 1.0);
         let readiness =
             (guardhouse.action_cooldown * (0.72 + muster_readiness * 0.28)).clamp(0.05, 1.0);
-        let Some(muster_route) =
-            network.road_path_route(guardhouse.x, guardhouse.z, tower.x, tower.z)
-        else {
-            continue;
-        };
-        ctx.db.guard_muster_route().insert(GuardMusterRoute {
-            source_building_id: guardhouse.id,
-            owner,
-            raid_id,
-            path_distance: muster_route.distance,
-            route_polyline_json: serialize_route_polyline(&muster_route.polyline),
-        });
+        if let Some(muster_route) = muster_route {
+            ctx.db.guard_muster_route().insert(GuardMusterRoute {
+                source_building_id: guardhouse.id,
+                owner,
+                raid_id,
+                path_distance: muster_route.distance,
+                route_polyline_json: serialize_route_polyline(&muster_route.polyline),
+            });
+        }
         for slot in 0..armed {
             if unavailable_slots.contains(&(guardhouse.id, slot)) {
                 continue;
@@ -610,7 +634,7 @@ fn step_raider(
                     agent.route_progress,
                     route.path_distance,
                     &route.polyline,
-                    RAIDER_SPEED_MPS * TICK_DT,
+                    RAIDER_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * TICK_DT,
                     false,
                 );
                 agent.x = route_move.x;
@@ -651,8 +675,7 @@ fn step_raider(
         return;
     }
 
-    let Some((target_x, target_z, active_raid_anchor_id)) =
-        raid_agent_target_position(ctx, agent)
+    let Some((target_x, target_z, active_raid_anchor_id)) = raid_agent_target_position(ctx, agent)
     else {
         agent.state = COMBAT_STATE_RETREATING;
         agent.state_changed_tick = sim_tick;
@@ -681,7 +704,7 @@ fn step_raider(
                     agent.route_progress,
                     route.path_distance,
                     &route.polyline,
-                    RAIDER_SPEED_MPS * TICK_DT,
+                    RAIDER_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * TICK_DT,
                     true,
                 );
                 agent.x = route_move.x;
@@ -768,7 +791,7 @@ fn step_guard(
             agent.route_progress,
             route.path_distance,
             &route.polyline,
-            GUARD_SPEED_MPS * TICK_DT,
+            GUARD_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * TICK_DT,
             true,
         );
         agent.x = route_move.x;
@@ -930,8 +953,7 @@ fn raid_agent_target_position(
             return Some((anchor.x, anchor.z, anchor.id));
         }
     }
-    raid_target_position(ctx, agent.target_kind, agent.target_id)
-        .map(|(x, z)| (x, z, 0))
+    raid_target_position(ctx, agent.target_kind, agent.target_id).map(|(x, z)| (x, z, 0))
 }
 
 fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid, sim_tick: u64) {
@@ -1085,7 +1107,7 @@ fn move_guard_home(
             agent.route_progress,
             route.path_distance,
             &route.polyline,
-            speed_mps * TICK_DT,
+            speed_mps * COMBAT_ROAD_SPEED_MULTIPLIER * TICK_DT,
             false,
         );
         agent.x = route_move.x;

@@ -347,8 +347,8 @@ export function formatFrontierRaidTiming(
 export function formatRaidReport(security: SettlementSecurityState): string {
   if (security.lastOutcome === 'averted') {
     return security.readyGuards > 0
-      ? 'Watch bells mustered the paid guards and the incursion was turned away.'
-      : 'Watch bells scattered the raiders before stores were reached.';
+      ? 'Live guards stopped or drove off the incursion before raiders secured any stores.'
+      : 'The raiders withdrew without securing portable stores; no loss was resolved off-map.';
   }
   if (security.lastOutcome === 'plundered' || security.lastOutcome === 'arson') {
     const goods = Math.round(security.lastGoodsLost);
@@ -390,6 +390,8 @@ export type GuardhouseMusterState = {
   efficiency: number;
   rawReady: number;
   effectiveReady: number;
+  emergencyEfficiency: number;
+  emergencyReady: number;
 };
 
 export type GuardhouseMusterAssignment = {
@@ -599,6 +601,8 @@ export function getGuardhouseMusterState(
       efficiency: 0,
       rawReady: 0,
       effectiveReady: 0,
+      emergencyEfficiency: 0,
+      emergencyReady: 0,
     };
   }
   const distances = towers.map((tower) =>
@@ -620,6 +624,7 @@ export function getGuardhouseMusterState(
     : towers[linkedTowerIndex]!.id;
   const armed = armedGuardCount(guardhouse.assignedLabor, guardhouse.polearms);
   const rawReady = armed * clamp01(guardhouse.actionCooldown);
+  const emergencyEfficiency = guardhouseMusterEfficiency(null, normalizedRoadSpeed);
   const responseDistance = guardhouseMusterResponseDistance(
     routeDistance,
     normalizedRoadSpeed,
@@ -637,6 +642,8 @@ export function getGuardhouseMusterState(
     efficiency,
     rawReady,
     effectiveReady: rawReady * efficiency,
+    emergencyEfficiency,
+    emergencyReady: rawReady * emergencyEfficiency,
   };
 }
 

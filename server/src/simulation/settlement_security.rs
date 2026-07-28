@@ -296,6 +296,7 @@ fn step_owner_security(
             &buildings,
             &towers,
             road_network.as_ref(),
+            &fire_disabled_buildings,
         )
         .is_some()
         {

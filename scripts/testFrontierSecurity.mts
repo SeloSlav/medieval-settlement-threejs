@@ -431,6 +431,16 @@ assert.equal(
   0,
   'an unlinked company must not reinforce a watch district on another road branch',
 );
+assert.equal(
+  unlinkedMuster.emergencyEfficiency,
+  0.4,
+  'an unlinked company should retain the established local contact-response efficiency',
+);
+assert.equal(
+  unlinkedMuster.emergencyReady,
+  1.6,
+  'armed guards must remain a visible physical reserve even without early warning',
+);
 musterState.fireIncidents.set('muster-watch-fire', fire('muster-watch-fire', musterTower.id));
 const watchFireMuster = getGuardhouseMusterState(
   guardhouse,
@@ -449,6 +459,7 @@ const companyFireMuster = getGuardhouseMusterState(
 assert.equal(companyFireMuster.fireDisabled, true);
 assert.equal(companyFireMuster.rawReady, 0);
 assert.equal(companyFireMuster.effectiveReady, 0);
+assert.equal(companyFireMuster.emergencyReady, 0);
 assert.equal(
   frontierDefenseFireSignature(musterState),
   `guardhouse:${guardhouse.id}|watchtower:${musterTower.id}`,
@@ -1521,9 +1532,12 @@ assert.match(guardhouseInspector, /Alert posture/);
 assert.match(guardhouseInspector, /breaking cross-country for nearby or active attacks/);
 assert.match(guardhouseInspector, /Raiders physically enter from the frontier/);
 assert.match(guardhouseInspector, /Muster underway/);
+assert.match(guardhouseInspector, /Cross-country response/);
 assert.match(guardhouseInspector, /Road conditions/);
 assert.match(guardhouseInspector, /Soft-road delay/);
-assert.match(guardhouseInspector, /Effective company/);
+assert.match(guardhouseInspector, /Warned response/);
+assert.match(guardhouseInspector, /Cross-country reserve/);
+assert.match(guardhouseInspector, /heading directly across country/);
 assert.match(guardhouseInspector, /Inspect linked watchtower/);
 assert.match(guardhouseInspector, /Muster order/);
 assert.match(guardhouseInspector, /Nearest staffed watch/);
@@ -1545,6 +1559,10 @@ assert.match(refugeInspector, /No automatic loss reduction/);
 assert.match(refugeInspector, /building inventories, loaded carts, and Town Hall treasury remain where stored/);
 assert.match(townHallInspector, /Civilian refuge capacity/);
 assert.match(townHallInspector, /computeRefugeShelterPlan/);
+assert.match(townHallInspector, /still deploy cross-country/);
+assert.match(settlementHud, /Unlinked armed companies still materialize/);
+assert.match(clientSecurity, /no loss was resolved off-map/);
+assert.doesNotMatch(clientSecurity, /Watch bells scattered the raiders/);
 assert.match(frontierMarkers, /InstancedMesh/);
 assert.match(frontierMarkers, /RAID_TARGET_MARKER_THREAT_THRESHOLD/);
 assert.match(frontierMarkers, /MAX_RAID_TARGET_MARKERS\s*=\s*4/);
@@ -1731,6 +1749,31 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
+  /nearest_emergency_guard_target\([\s\S]*guardhouse\.x,[\s\S]*guardhouse\.z,[\s\S]*emergency_targets[\s\S]*targets\[target_index\], None, None/,
+  'every fit armed company must materialize against its nearest attacked holding when no watch route is usable',
+);
+assert.match(
+  serverRaidAgents,
+  /fire_disabled_buildings\.contains\(&building\.id\)/,
+  'a burning guardhouse must not materialize an emergency company',
+);
+assert.match(
+  serverRaidAgents,
+  /if let Some\(route\) = muster_route \{[\s\S]*move_along_route\([\s\S]*nearest_enemy_within\(agent, snapshots, COMBAT_FACTION_RAIDER, f64::INFINITY, true\)/,
+  'road-linked companies should take their route while unlinked companies fall through to direct pursuit',
+);
+assert.doesNotMatch(
+  serverRaidAgents,
+  /let Some\(route\) = muster_route else/,
+  'a missing route must not make a physical guard company wait while a live incursion is active',
+);
+assert.doesNotMatch(
+  serverRaidAgents,
+  /let Some\(network\) = road_network else \{\s*return 0;/,
+  'missing roads must never erase otherwise fit armed defenders from the live simulation',
+);
+assert.match(
+  serverRaidAgents,
   /road_path_route\(guardhouse\.x, guardhouse\.z, tower\.x, tower\.z\)[\s\S]*guard_muster_route\(\)\.insert/,
   'each responding company must cache the real road approach selected by its watch assignment',
 );
@@ -1754,6 +1797,12 @@ assert.match(
   /route_shortcut_is_worthwhile[\s\S]*ROUTE_SHORTCUT_MARGIN_METERS[\s\S]*remaining_route_distance/,
   'combat routes must remain a preference when cross-country movement is materially better',
 );
+assert.match(
+  serverRaidAgents,
+  /move_along_route\([\s\S]*COMBAT_ROAD_SPEED_MULTIPLIER/,
+  'taking the preferred road path must provide a real movement advantage rather than only visual routing',
+);
+assert.match(serverRaidAgentPolicy, /pub const COMBAT_ROAD_SPEED_MULTIPLIER:\s*f64\s*=\s*1\.35/);
 assert.match(
   serverRaidAgents,
   /COMBAT_STATE_RETREATING[\s\S]*move_along_route\([\s\S]*false[\s\S]*COMBAT_STATE_ADVANCING[\s\S]*move_along_route\([\s\S]*true/,
@@ -1781,6 +1830,7 @@ assert.match(serverRaidAgentPolicy, /pub fn raid_contact_duration/);
 assert.match(serverRaidAgentPolicy, /\.clamp\(3\.0,\s*12\.0\)/);
 assert.match(serverRaidAgentPolicy, /fn movement_never_teleports_past_contact/);
 assert.match(serverRaidAgentPolicy, /fn imminent_or_active_attacks_override_route_discipline/);
+assert.match(serverRaidAgentPolicy, /fn unlinked_companies_choose_the_nearest_attacked_holding_stably/);
 assert.match(serverRaidAgentPolicy, /fn cached_company_routes_stay_cheap_for_a_large_guard_response/);
 assert.match(serverRaidAgentPolicy, /pub fn guard_recovery_ticks/);
 assert.match(serverRaidAgentPolicy, /pub fn combat_state_blocks_guard_slot/);
