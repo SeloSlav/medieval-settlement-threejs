@@ -96,6 +96,12 @@ export const HUD_RESOURCE_KINDS = [
   'polearms',
 ] as const satisfies readonly (keyof ResourceTotals)[];
 
+export type HudResourceKind = (typeof HUD_RESOURCE_KINDS)[number];
+
+export function isHudResourceKind(value: string): value is HudResourceKind {
+  return (HUD_RESOURCE_KINDS as readonly string[]).includes(value);
+}
+
 export type PopulationStats = {
   total: number;
   assigned: number;

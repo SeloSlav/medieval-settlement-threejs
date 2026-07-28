@@ -33,11 +33,17 @@ import type { GameState } from '../resources/types.ts';
 import { countTreesNearBuilding } from '../resources/ForestVisualSync.ts';
 import { ResourceInspector } from '../resources/ResourceInspector.ts';
 import {
+  formatLocatedResourceAmount,
+  locatePhysicalResource,
+  resourceDisplayLabel,
+} from '../resources/resourceLocator.ts';
+import {
   computeInTransitResourceTotals,
   computeGoldAwaitingCollection,
   computeGuardhousePayrollGold,
   computePopulationStats,
   computeResourceTotals,
+  type HudResourceKind,
 } from '../resources/resourceTotals.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type { TreeRegistry } from '../resources/TreeRegistry.ts';
@@ -829,6 +835,60 @@ export async function bootstrapAppSession(
     computeGoldAwaitingCollection(gameState.buildings.values()),
     computeGuardhousePayrollGold(gameState.buildings.values()),
   );
+  let lastLocatedResource: HudResourceKind | null = null;
+  let locatedResourceIndex = 0;
+  toolbar.settlementHud.setResourceLocator((resource) => {
+    if (isWorldInspectionBlocked(placementGate)) {
+      toastManager.show(
+        sessionGate.isReady()
+          ? 'Finish or cancel the active tool before locating settlement stock.'
+          : 'Connect to the settlement before locating physical stock.',
+        { variant: 'info', durationMs: 3200 },
+      );
+      return;
+    }
+
+    const locations = locatePhysicalResource(liveContext.gameState, resource);
+    if (locations.length === 0) {
+      lastLocatedResource = null;
+      locatedResourceIndex = 0;
+      toastManager.show(
+        `No physical ${resourceDisplayLabel(resource).toLowerCase()} is currently stored or loaded on a cart.`,
+        { variant: 'info', durationMs: 3200 },
+      );
+      return;
+    }
+
+    locatedResourceIndex = lastLocatedResource === resource
+      ? (locatedResourceIndex + 1) % locations.length
+      : 0;
+    lastLocatedResource = resource;
+    const location = locations[locatedResourceIndex];
+
+    if (location.kind === 'legacy-ledger') {
+      resourceInspector.clearSelection();
+      villagerInspector.clearSelection();
+    } else if (location.kind === 'delivery') {
+      resourceInspector.clearSelection();
+      villagerInspector.selectDeliveryTrip(location.id);
+      cameraController.focusWorldPosition(location.x, location.z);
+    } else {
+      villagerInspector.clearSelection();
+      if (location.kind === 'building') {
+        resourceInspector.selectBuilding(location.id);
+      } else {
+        resourceInspector.selectResidence(location.id);
+      }
+      cameraController.focusWorldPosition(location.x, location.z);
+    }
+
+    toastManager.show(
+      `${resourceDisplayLabel(resource)} ${formatLocatedResourceAmount(location.amount)}`
+        + ` · ${location.label} · ${location.detail}`
+        + ` · ${locatedResourceIndex + 1}/${locations.length}`,
+      { variant: 'info', durationMs: 4000 },
+    );
+  });
 
   firstPersonController = new FirstPersonController({
     camera: sceneManager.camera,

@@ -966,6 +966,12 @@ export class ResourceInspector {
     this.selectTarget(target);
   }
 
+  selectResidence(residenceId: string): void {
+    const target = this.options.worldQueries.findResidenceTarget(residenceId);
+    if (!target) return;
+    this.selectTarget(target);
+  }
+
   refreshSelection(): void {
     if (!this.selectedTarget) return;
     const latest = this.options.worldQueries.findInspectableTarget(this.selectedX, this.selectedZ);

@@ -46,6 +46,7 @@
     "test:physical-food-stores": "npx tsx scripts/testPhysicalFoodStores.mts",
     "test:physical-bulk-stores": "npx tsx scripts/testPhysicalBulkStores.mts",
     "test:physical-armory-stores": "npx tsx scripts/testPhysicalArmoryStores.mts",
+    "test:resource-locator": "npx tsx scripts/testResourceLocator.mts",
     "test:seasonal-producer-stores": "npx tsx scripts/testSeasonalProducerStores.mts",
     "test:physical-marketplace-specialties": "npx tsx scripts/testPhysicalMarketplaceSpecialties.mts",
     "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",

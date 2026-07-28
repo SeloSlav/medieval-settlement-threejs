@@ -43,6 +43,11 @@ import {
 } from '../economy/settlementProvisioning.ts';
 import { formatFreshFoodLoss } from '../economy/foodPreservation.ts';
 import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority.ts';
+import {
+  HUD_RESOURCE_KINDS,
+  isHudResourceKind,
+  type HudResourceKind,
+} from '../resources/resourceTotals.ts';
 
 const SETTLEMENT_HUD_HTML = `
   <div class="settlement-hud" data-settlement-hud data-fps-panel aria-label="Settlement overview" aria-live="polite">
@@ -250,6 +255,7 @@ export class SettlementHud {
   private readonly speedButtons: HTMLButtonElement[];
   private readonly fpsValue: HTMLElement;
   private readonly zoomValue: HTMLElement;
+  private onLocateResource: ((resource: HudResourceKind) => void) | null = null;
   readonly zoomStat: HTMLElement;
 
   constructor(parent: HTMLElement, onSetGameSpeed?: (speed: GameSpeed) => void) {
@@ -292,6 +298,21 @@ export class SettlementHud {
     this.fpsValue = this.mustElement('[data-stat="fps"]');
     this.zoomValue = this.mustElement('[data-stat="zoom"]');
     this.zoomStat = this.mustElement('[data-stat-row="zoom"]');
+    for (const resource of HUD_RESOURCE_KINDS) {
+      const row = this.mustElement(`[data-resource="${resource}"]`);
+      const label = row.querySelector<HTMLElement>('.settlement-hud__label')
+        ?.textContent
+        ?.trim() || resource;
+      row.classList.add('is-resource-locator');
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `${label}: locate physical holdings`);
+    }
+    this.panel.addEventListener('click', this.onResourceRowClick);
+    this.panel.addEventListener('keydown', this.onResourceRowKeyDown);
+  }
+
+  setResourceLocator(handler: ((resource: HudResourceKind) => void) | null): void {
+    this.onLocateResource = handler;
   }
 
   setSimulationState(
@@ -568,6 +589,31 @@ export class SettlementHud {
   setZoomPercent(zoomPercent: number): void {
     const displayZoom = Math.max(0, Math.round(zoomPercent));
     this.zoomValue.textContent = `${displayZoom}%`;
+  }
+
+  private readonly onResourceRowClick = (event: MouseEvent): void => {
+    this.activateResourceRow(event.target);
+  };
+
+  private readonly onResourceRowKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (!this.resourceFromTarget(event.target)) return;
+    event.preventDefault();
+    this.activateResourceRow(event.target);
+  };
+
+  private activateResourceRow(target: EventTarget | null): void {
+    const resource = this.resourceFromTarget(target);
+    if (resource) this.onLocateResource?.(resource);
+  }
+
+  private resourceFromTarget(target: EventTarget | null): HudResourceKind | null {
+    const element = target instanceof HTMLElement
+      ? target.closest<HTMLElement>('[data-resource]')
+      : null;
+    if (!element || !this.panel.contains(element)) return null;
+    const resource = element.dataset.resource;
+    return resource && isHudResourceKind(resource) ? resource : null;
   }
 
   private mustElement(selector: string): HTMLElement {
