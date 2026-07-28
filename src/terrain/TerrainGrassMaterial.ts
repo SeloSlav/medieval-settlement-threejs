@@ -41,9 +41,9 @@ type TslNode = {
 };
 
 export const TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR = 0;
-export const TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR = 0.04;
-export const TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR = 0.04;
-export const TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR = 0.08;
+export const TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR = 0;
+export const TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR = 0;
+export const TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR = 0;
 export const TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR = 0;
 export const TERRAIN_FROST_PATCH_MIN = 0.04;
 export const TERRAIN_FROST_PATCH_MAX = 0.86;
@@ -176,13 +176,7 @@ function buildGrassBlendNodes(
   // broad ecological variation without tracing the stepped elevation samples
   // of carved drainage channels or exposing vertex-biome derivative changes
   // along the terrain triangle split.
-  const rainMoisture = smoothstep(
-    float(0.16) as TslNode,
-    float(0.84) as TslNode,
-    macroA
-      .mul(float(0.36) as TslNode)
-      .add(macroB.mul(float(0.64) as TslNode)) as TslNode,
-  ) as TslNode;
+  const rainMoisture = macroA;
   const moisture = smoothstep(
     float(0.18) as TslNode,
     float(0.84) as TslNode,
@@ -276,22 +270,18 @@ function buildGrassBlendNodes(
     vec3(0.875, 0.925, 0.855) as TslNode,
     macro,
   ) as TslNode;
-  const rainMacro = macroA
-    .mul(float(0.62) as TslNode)
-    .add(macroB.mul(float(0.38) as TslNode)) as TslNode;
   const rainMacroColor = mix(
-    vec3(0.076, 0.088, 0.038) as TslNode,
-    vec3(0.118, 0.122, 0.052) as TslNode,
-    rainMacro,
+    vec3(0.092, 0.099, 0.044) as TslNode,
+    vec3(0.107, 0.112, 0.049) as TslNode,
+    macroA,
   ) as TslNode;
   const rainDrainageTint = mix(
-    vec3(1.02, 1.01, 0.94) as TslNode,
-    vec3(0.82, 0.91, 0.83) as TslNode,
-    rainMoisture.mul(float(0.45) as TslNode),
+    vec3(1.01, 1, 0.97) as TslNode,
+    vec3(0.94, 0.97, 0.93) as TslNode,
+    rainMoisture.mul(float(0.34) as TslNode),
   ) as TslNode;
   const rainStableColorNode = rainMacroColor
-    .mul(rainDrainageTint)
-    .mul(broadSoilValue) as TslNode;
+    .mul(rainDrainageTint) as TslNode;
   const stableColorNode = biomeBaseColor.mul(hierarchyTint).mul(broadSoilValue);
   const colorNode = resolvedAlbedo.mul(hierarchyTint).mul(broadSoilValue);
 
@@ -616,6 +606,7 @@ export function createTerrainGrassMaterial(
   const material = new MeshStandardNodeMaterial();
   material.name = 'Grass blend terrain';
   material.color.set(0xffffff);
+  material.vertexColors = false;
   material.roughness = 1;
   material.metalness = 0;
   const wetColorNode = applyTerrainWetColor(
@@ -756,12 +747,21 @@ export function createTerrainGrassMaterialWithRiverShore(
     float(1) as TslNode,
     weatherResolvedShoreBlend.mul(float(0.82) as TslNode),
   ) as TslNode).mul(blendNodes.frostExposure) as TslNode;
-  const colorNode = applyTerrainFrostColor(
+  const weatherColorNode = applyTerrainFrostColor(
     wetBaseColorNode,
     blendNodes.macro,
     resolvedWeather,
     frostExposure,
   );
+  const colorNode = mix(
+    weatherColorNode,
+    vec3(0.101, 0.108, 0.052) as TslNode,
+    smoothstep(
+      float(0.72) as TslNode,
+      float(0.96) as TslNode,
+      resolvedWeather.wetness,
+    ) as TslNode,
+  ) as TslNode;
 
   const roadRoughness = (texture(roadTextures.roughness, blendNodes.grassUv) as TslNode).r;
   const muddyRoughness = mix(roadRoughness, float(0.58) as TslNode, float(0.42) as TslNode);
@@ -809,15 +809,10 @@ export function createTerrainGrassMaterialWithRiverShore(
   const material = new MeshStandardNodeMaterial();
   material.name = 'Grass blend terrain with river shore';
   material.color.set(0xffffff);
+  material.vertexColors = false;
   material.roughness = 1;
   material.metalness = 0;
   material.colorNode = colorNode;
-  // Rain is dominated by diffuse skylight rather than a hard directional key.
-  // A restrained wetness-only lift keeps narrow carved faces from resolving
-  // as black sub-pixel dashes while preserving the physical heightfield.
-  (material as MeshStandardNodeMaterial & { emissiveNode: unknown }).emissiveNode = colorNode
-    .mul(resolvedWeather.wetness as unknown as TslNode)
-    .mul(float(0.24) as TslNode) as TslNode;
   material.normalNode = blendNodes.normalNode;
   material.roughnessNode = roughnessNode;
   material.aoNode = blendNodes.aoNode;

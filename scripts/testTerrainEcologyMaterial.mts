@@ -52,17 +52,13 @@ assert.match(ecologySource, /fwidth\(grassUv\.y\)/);
 assert.match(ecologySource, /const closeMaterialDetail = zoomDetailGate\.mul\(footprintDetailGate\)/);
 assert.match(ecologySource, /const biomeBaseColor =/);
 assert.match(ecologySource, /const stableColorNode = biomeBaseColor/);
-assert.match(ecologySource, /const rainMoisture = smoothstep/);
+assert.match(ecologySource, /const rainMoisture = macroA/);
 assert.match(ecologySource, /const rainStableColorNode = rainMacroColor/);
 assert.match(ecologySource, /const albedoDetailStrength = mix/);
 assert.match(ecologySource, /float\(0\.24\)/);
 assert.match(ecologySource, /const normalDetailStrength = mix/);
 assert.match(ecologySource, /const rainNormalVisibility = mix/);
 assert.match(source, /const weatherResolvedRoadWear = roadWear\.mul\(shoreRainVisibility\)/);
-assert.match(
-  source,
-  /emissiveNode = colorNode[\s\S]*?resolvedWeather\.wetness[\s\S]*?float\(0\.24\)/,
-);
 assert.match(ecologySource, /const rainAoVisibility = mix/);
 assert.match(ecologySource, /float\(0\.1\)/);
 assert.match(ecologySource, /vec3\(0\.5, 0\.5, 1\)/);
@@ -76,7 +72,7 @@ assert.doesNotMatch(
   /\bfract\b|\bfloor\b|\bmod\b/,
   'the ecological pass must not regress to visibly tiled hash/checker cells',
 );
-const rainMoistureStart = ecologySource.indexOf('const rainMoisture = smoothstep');
+const rainMoistureStart = ecologySource.indexOf('const rainMoisture = macroA');
 const rainMoistureEnd = ecologySource.indexOf('const moisture = smoothstep');
 assert.ok(rainMoistureStart >= 0 && rainMoistureEnd > rainMoistureStart);
 const rainMoistureSource = ecologySource.slice(rainMoistureStart, rainMoistureEnd);
@@ -85,12 +81,12 @@ assert.doesNotMatch(
   /\bw\.|lowland|world\.y|geometricNormal|slope|texture\(|sin\(/,
   'full-rain drainage must use fragment macro fields, not vertex-biome, height, or normal inputs',
 );
-assert.match(
+assert.doesNotMatch(
   rainMoistureSource,
-  /macroA[\s\S]*?float\(0\.36\)[\s\S]*?macroB[\s\S]*?float\(0\.64\)/,
-  'full-rain drainage must retain a normalized blend of the existing fragment macro fields',
+  /macroB/,
+  'full-rain drainage must avoid high-frequency macro interference contours',
 );
-const rainColorStart = ecologySource.indexOf('const rainMacro =');
+const rainColorStart = ecologySource.indexOf('const rainMacroColor =');
 const rainColorEnd = ecologySource.indexOf('const stableColorNode =');
 assert.ok(rainColorStart >= 0 && rainColorEnd > rainColorStart);
 const rainColorSource = ecologySource.slice(rainColorStart, rainColorEnd);
@@ -98,6 +94,15 @@ assert.doesNotMatch(
   rainColorSource,
   /\bw\.|geometricNormal|slope|texture\(|sin\(/,
   'full-rain color must reuse fragment macro fields without vertex-biome derivatives or new samples',
+);
+assert.doesNotMatch(
+  rainColorSource,
+  /macroB/,
+  'full-rain color must avoid high-frequency macro interference contours',
+);
+assert.match(
+  source,
+  /const colorNode = mix\([\s\S]*?vec3\(0\.101, 0\.108, 0\.052\)[\s\S]*?float\(0\.72\)[\s\S]*?float\(0\.96\)[\s\S]*?resolvedWeather\.wetness/,
 );
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,

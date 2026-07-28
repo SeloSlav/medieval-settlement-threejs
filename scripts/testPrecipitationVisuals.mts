@@ -270,7 +270,7 @@ assert.match(
 assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
 assert.match(terrainMaterialSource, /const stableColorNode = biomeBaseColor/);
-assert.match(terrainMaterialSource, /const rainMoisture = smoothstep/);
+assert.match(terrainMaterialSource, /const rainMoisture = macroA/);
 assert.match(terrainMaterialSource, /const rainStableColorNode = rainMacroColor/);
 assert.match(
   terrainMaterialSource,
@@ -288,17 +288,18 @@ assert.match(terrainMaterialSource, /float\(32400\)/);
 assert.match(terrainMaterialSource, /float\(0\.72\)/);
 assert.match(
   terrainMaterialSource,
-  /TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR = 0\.08/,
+  /TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR = 0/,
 );
 assert.match(terrainMaterialSource, /const rainDirtVisibility = mix/);
 assert.match(
   terrainMaterialSource,
-  /TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR = 0\.04/,
+  /TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR = 0/,
 );
 assert.match(
   terrainMaterialSource,
-  /TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR = 0\.04/,
+  /TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR = 0/,
 );
+assert.match(terrainMaterialSource, /material\.vertexColors = false/);
 assert.match(terrainMaterialSource, /const broadFrostExposure = smoothstep/);
 assert.match(terrainMaterialSource, /const ecologicalShelter = max/);
 assert.match(terrainMaterialSource, /TERRAIN_FROST_PATCH_MAX = 0\.86/);
