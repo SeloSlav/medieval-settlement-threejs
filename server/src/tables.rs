@@ -148,9 +148,17 @@ pub struct PlayerResources {
     pub labor_steward_reserve: u32,
     /// New settlements opt into physical founding stores and count the first
     /// housed residents as rehoused founders rather than extra immigrants.
-    /// False preserves legacy saves that began with an abstract reserve.
+    /// Developed legacy saves enable physical storage during bootstrap while
+    /// retaining their population contract in the adjacent compatibility flag.
     #[default(false)]
     pub physical_founding_site_enabled: bool,
+    /// Existing saves historically counted the five initial villagers in
+    /// addition to every housed resident. Keep that population contract while
+    /// allowing their resource ledger to migrate into physical map stores.
+    /// Fresh founding camps disable the bonus because their founders move into
+    /// the first completed homes instead of arriving as extra immigrants.
+    #[default(true)]
+    pub legacy_unhoused_population_bonus_enabled: bool,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]

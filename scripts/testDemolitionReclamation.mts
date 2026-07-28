@@ -115,6 +115,11 @@ assert.match(
 );
 assert.match(
   reclamation,
+  /pub fn materialize_physical_resource_ledger_at[\s\S]*fallback_position[\s\S]*insert_reclamation_pile/,
+  'zoning-only legacy settlements need a deterministic on-map fallback for migrated goods',
+);
+assert.match(
+  reclamation,
   /pub fn recover_stock_beside_building[\s\S]*recover_stock_at/,
   'returned overflow should stay beside the source that could no longer hold it',
 );

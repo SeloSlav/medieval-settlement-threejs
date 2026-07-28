@@ -47,4 +47,5 @@ export default __t.row({
   productionLaborStewardEnabled: __t.bool().name("production_labor_steward_enabled"),
   laborStewardReserve: __t.u32().name("labor_steward_reserve"),
   physicalFoundingSiteEnabled: __t.bool().name("physical_founding_site_enabled"),
+  legacyUnhousedPopulationBonusEnabled: __t.bool().name("legacy_unhoused_population_bonus_enabled"),
 });

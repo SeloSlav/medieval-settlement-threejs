@@ -328,6 +328,13 @@ assert.equal(
   STARTING_POPULATION + 3,
   'legacy saves retain additive population accounting',
 );
+const migratedLegacyPopulation = gameState(true, 3);
+migratedLegacyPopulation.legacyUnhousedPopulationBonusEnabled = true;
+assert.equal(
+  computePopulationStats(migratedLegacyPopulation).total,
+  STARTING_POPULATION + 3,
+  'physicalizing a developed save must not reinterpret its established population',
+);
 
 const physicalStock = gameState(true, 0);
 physicalStock.stockpile.gold = 2;
@@ -681,6 +688,16 @@ assert.match(bootstrapServer, /tree_entity\(\)\.tree_id\(\)\.delete/);
 assert.match(bootstrapServer, /next_available_building_id\(ctx, config\.next_building_id\)/);
 assert.match(
   bootstrapServer,
+  /has_existing_settlement[\s\S]*resources\.physical_founding_site_enabled = true;[\s\S]*materialize_physical_resource_ledger_at\(ctx, owner, Some\(\(x, z\)\)\)/,
+  'developed legacy saves must materialize their ledger without receiving a founders camp',
+);
+assert.match(
+  bootstrapServer,
+  /resources\.legacy_unhoused_population_bonus_enabled = false;/,
+  'only a fresh founders camp may replace additive legacy population accounting',
+);
+assert.match(
+  bootstrapServer,
   /insert\(Building \{[\s\S]*?id: building_id,/,
   'a founding camp must use the world building ID counter instead of an auto-increment sentinel',
 );
@@ -869,6 +886,7 @@ function gameState(physical: boolean, housed: number): GameState {
     seed: 1,
     tick: 0,
     physicalFoundingSiteEnabled: physical,
+    legacyUnhousedPopulationBonusEnabled: !physical,
     stockpile: createEmptyStockpile(),
     quarries: new Map(),
     foragingNodes: new Map(),

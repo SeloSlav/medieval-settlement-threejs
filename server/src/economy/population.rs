@@ -41,20 +41,25 @@ fn total_population(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
         .filter(|residence| !residence.abandoned)
         .map(|residence| residence.population)
         .sum();
-    let physical_founding_site_enabled = ctx
+    let legacy_unhoused_population_bonus_enabled = ctx
         .db
         .player_resources()
         .owner()
         .find(&owner)
-        .is_some_and(|resources| resources.physical_founding_site_enabled);
-    settlement_population(from_residences, physical_founding_site_enabled)
+        .map_or(true, |resources| {
+            resources.legacy_unhoused_population_bonus_enabled
+        });
+    settlement_population(
+        from_residences,
+        legacy_unhoused_population_bonus_enabled,
+    )
 }
 
-pub fn settlement_population(housed: u32, physical_founding_site_enabled: bool) -> u32 {
-    if physical_founding_site_enabled {
-        STARTING_POPULATION.max(housed)
-    } else {
+pub fn settlement_population(housed: u32, legacy_unhoused_population_bonus_enabled: bool) -> u32 {
+    if legacy_unhoused_population_bonus_enabled {
         STARTING_POPULATION.saturating_add(housed)
+    } else {
+        STARTING_POPULATION.max(housed)
     }
 }
 
@@ -260,18 +265,18 @@ mod tests {
     }
 
     #[test]
-    fn physical_founders_move_into_early_housing_before_immigration_grows_population() {
-        assert_eq!(settlement_population(0, true), STARTING_POPULATION);
+    fn physical_founders_move_into_early_housing_while_legacy_population_stays_additive() {
+        assert_eq!(settlement_population(0, false), STARTING_POPULATION);
         assert_eq!(
-            settlement_population(STARTING_POPULATION - 1, true),
+            settlement_population(STARTING_POPULATION - 1, false),
             STARTING_POPULATION
         );
         assert_eq!(
-            settlement_population(STARTING_POPULATION + 2, true),
+            settlement_population(STARTING_POPULATION + 2, false),
             STARTING_POPULATION + 2
         );
         assert_eq!(
-            settlement_population(STARTING_POPULATION, false),
+            settlement_population(STARTING_POPULATION, true),
             STARTING_POPULATION * 2
         );
     }

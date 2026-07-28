@@ -9,6 +9,7 @@ use crate::lifecycle::ensure_player_resources;
 use crate::processor_output_policy::PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT;
 use crate::quarry_balance::preserve_extracted_stone;
 use crate::reducers::buildings::next_available_building_id;
+use crate::simulation::materialize_physical_resource_ledger_at;
 use crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT;
 use crate::tables::{Building, ForagingNode, Quarry, TreeEntity, WorldConfig};
 use crate::types::{ForagingBootstrap, QuarryBootstrap, TreeBootstrap};
@@ -157,8 +158,13 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
             .next()
             .is_some();
     if has_existing_settlement {
-        // Additive migration rule: never inject a free camp into a developed
-        // legacy save or reinterpret its established population.
+        // Developed legacy saves keep their historic population accounting but
+        // no longer keep spendable goods in a disembodied ledger. The existing
+        // materializer creates one visible recovery pile beside the civic seat
+        // (or at this deterministic fallback when only zoning exists).
+        resources.physical_founding_site_enabled = true;
+        ctx.db.player_resources().owner().update(resources);
+        materialize_physical_resource_ledger_at(ctx, owner, Some((x, z)))?;
         return Ok(());
     }
 
@@ -252,6 +258,7 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
     resources.cloth = 0.0;
     resources.gold = 0.0;
     resources.physical_founding_site_enabled = true;
+    resources.legacy_unhoused_population_bonus_enabled = false;
     ctx.db.player_resources().owner().update(resources);
 
     let clearance = def.pick_radius * 1.35;

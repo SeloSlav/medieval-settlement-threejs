@@ -15,6 +15,7 @@ import type { GameTableSyncState } from './gameTableSyncState.ts';
 export function syncPlayerResources(rows: Iterable<PlayerResources>, state: GameTableSyncState): void {
   state.stockpile = createEmptyStockpile();
   state.physicalFoundingSiteEnabled = false;
+  state.legacyUnhousedPopulationBonusEnabled = true;
   state.economicActivityTaxRate = ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
   state.seasonalLaborStewardEnabled = DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;
   state.constructionLaborStewardEnabled = DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED;
@@ -49,6 +50,8 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       polearms: row.polearms ?? 0,
     };
     state.physicalFoundingSiteEnabled = row.physicalFoundingSiteEnabled ?? false;
+    state.legacyUnhousedPopulationBonusEnabled =
+      row.legacyUnhousedPopulationBonusEnabled ?? true;
     state.economicActivityTaxRate = row.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
     state.seasonalLaborStewardEnabled = row.seasonalLaborStewardEnabled
       ?? DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;

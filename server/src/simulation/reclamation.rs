@@ -290,8 +290,8 @@ fn recovery_pile_position_beside_building(
 
 /// Material recovered in the physical world must remain where it was left
 /// rather than appearing in a remote depot. The temporary Building row reuses
-/// the existing cart, marker, inspector, save, and collision paths. Legacy
-/// settlements keep their old abstract refund path.
+/// the existing cart, marker, inspector, save, and collision paths. A legacy
+/// settlement keeps its abstract refund path only until bootstrap migration.
 pub fn insert_reclamation_pile(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -470,6 +470,18 @@ pub fn materialize_physical_resource_ledger(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> Result<bool, String> {
+    materialize_physical_resource_ledger_at(ctx, owner, None)
+}
+
+/// Variant used by the founding bootstrap when a legacy save contains only
+/// zoning rows and therefore has no completed structure to anchor its migrated
+/// stock. The deterministic founding-site coordinate keeps those goods on-map
+/// without inventing a second founder population or a free permanent store.
+pub fn materialize_physical_resource_ledger_at(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    fallback_position: Option<(f64, f64)>,
+) -> Result<bool, String> {
     let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
         return Ok(false);
     };
@@ -522,6 +534,8 @@ pub fn materialize_physical_resource_ledger(
         .min_by_key(|residence| residence.id)
     {
         (residence.x + 3.25, residence.z)
+    } else if let Some(position) = fallback_position {
+        position
     } else {
         return Ok(false);
     };

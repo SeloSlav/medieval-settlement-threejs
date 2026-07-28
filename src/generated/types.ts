@@ -290,6 +290,7 @@ export const PlayerResources = __t.object("PlayerResources", {
   productionLaborStewardEnabled: __t.bool(),
   laborStewardReserve: __t.u32(),
   physicalFoundingSiteEnabled: __t.bool(),
+  legacyUnhousedPopulationBonusEnabled: __t.bool(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

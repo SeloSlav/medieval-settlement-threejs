@@ -104,6 +104,7 @@ export type SpacetimeGameSnapshot = {
   identityHex: string | null;
   stockpile: ResourceStockpile;
   physicalFoundingSiteEnabled: boolean;
+  legacyUnhousedPopulationBonusEnabled: boolean;
   economicActivityTaxRate: number;
   seasonalLaborStewardEnabled: boolean;
   constructionLaborStewardEnabled: boolean;
@@ -141,6 +142,7 @@ function createEmptyTableState(): GameTableSyncState {
     worldGeneration: null,
     stockpile: createEmptyStockpile(),
     physicalFoundingSiteEnabled: false,
+    legacyUnhousedPopulationBonusEnabled: true,
     economicActivityTaxRate: ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
     seasonalLaborStewardEnabled: DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
     constructionLaborStewardEnabled: DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
@@ -171,9 +173,9 @@ function tableStatePopulation(state: GameTableSyncState): number {
     (total, residence) => total + (residence.abandoned ? 0 : residence.population),
     0,
   );
-  return state.physicalFoundingSiteEnabled
-    ? Math.max(STARTING_POPULATION, housed)
-    : STARTING_POPULATION + housed;
+  return state.legacyUnhousedPopulationBonusEnabled
+    ? STARTING_POPULATION + housed
+    : Math.max(STARTING_POPULATION, housed);
 }
 
 export class SpacetimeGameStore {
@@ -215,6 +217,7 @@ export class SpacetimeGameStore {
       identityHex: state.identityHex,
       stockpile: this.snapshotRecord(state.stockpile),
       physicalFoundingSiteEnabled: state.physicalFoundingSiteEnabled,
+      legacyUnhousedPopulationBonusEnabled: state.legacyUnhousedPopulationBonusEnabled,
       economicActivityTaxRate: state.economicActivityTaxRate,
       seasonalLaborStewardEnabled: state.seasonalLaborStewardEnabled,
       constructionLaborStewardEnabled: state.constructionLaborStewardEnabled,
@@ -299,6 +302,7 @@ export class SpacetimeGameStore {
       seed,
       tick: snapshot.simTick,
       physicalFoundingSiteEnabled: snapshot.physicalFoundingSiteEnabled,
+      legacyUnhousedPopulationBonusEnabled: snapshot.legacyUnhousedPopulationBonusEnabled,
       stockpile: snapshot.stockpile,
       quarries: snapshot.quarries,
       foragingNodes: snapshot.foragingNodes,

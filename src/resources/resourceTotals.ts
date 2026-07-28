@@ -407,9 +407,11 @@ export function computePopulationStats(state: GameState): PopulationStats {
     housingCapacity += residence.populationCapacity;
   }
 
-  const total = state.physicalFoundingSiteEnabled === true
-    ? Math.max(STARTING_POPULATION, housed)
-    : STARTING_POPULATION + housed;
+  const legacyPopulationBonus = state.legacyUnhousedPopulationBonusEnabled
+    ?? state.physicalFoundingSiteEnabled !== true;
+  const total = legacyPopulationBonus
+    ? STARTING_POPULATION + housed
+    : Math.max(STARTING_POPULATION, housed);
   let buildingAssigned = 0;
   for (const building of state.buildings.values()) {
     buildingAssigned += building.assignedLabor;

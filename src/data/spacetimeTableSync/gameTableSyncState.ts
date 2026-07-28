@@ -28,6 +28,7 @@ export type GameTableSyncState = {
   worldGeneration: AuthoritativeWorldGeneration | null;
   stockpile: ResourceStockpile;
   physicalFoundingSiteEnabled: boolean;
+  legacyUnhousedPopulationBonusEnabled: boolean;
   economicActivityTaxRate: number;
   seasonalLaborStewardEnabled: boolean;
   constructionLaborStewardEnabled: boolean;

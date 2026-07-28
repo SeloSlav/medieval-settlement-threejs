@@ -273,6 +273,7 @@ export type GameState = {
   seed: number;
   tick: number;
   physicalFoundingSiteEnabled?: boolean;
+  legacyUnhousedPopulationBonusEnabled?: boolean;
   stockpile: ResourceStockpile;
   quarries: Map<string, ResourceNodeState>;
   foragingNodes: Map<string, ForagingNodeState>;
