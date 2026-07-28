@@ -28,7 +28,7 @@ import {
   sampleFishBreach,
 } from '../src/foraging/FishWildlifeVisuals.ts';
 import { claimResidencesForFoodSuppliers } from '../src/logistics/roadLogistics.ts';
-import { FISH_ICON_SVG } from '../src/map/resourceMapIconGlyphs.ts';
+import { FISH_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
 import {
@@ -187,8 +187,8 @@ assert.equal(
   'an empty fishing camp must yield household service until its next catch',
 );
 
-assert.ok(FISH_ICON_SVG.includes('currentColor'));
-assert.ok(!FISH_ICON_SVG.includes('<image'), 'resource marker should use the same inline glyph treatment as other resources');
+assert.ok(FISH_ICON_HTML.includes('map-resource-icon-glyph--fish'));
+assert.ok(!FISH_ICON_HTML.includes('<img'), 'resource marker should use the shared atlas-backed glyph treatment');
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 assert.ok(

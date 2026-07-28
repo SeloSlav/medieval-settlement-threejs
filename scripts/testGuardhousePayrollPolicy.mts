@@ -359,7 +359,7 @@ const settlementSecurity = readFileSync(
 );
 assert.match(
   settlementSecurity,
-  /gold: building\.gold[\s\S]*?plunder\(forecast\.loss_fraction\)[\s\S]*?retain_unplundered_stores/,
+  /fn building_portable_stores[\s\S]*?gold: building\.gold[\s\S]*?RaidTargetKind::Building[\s\S]*?building_portable_stores\(&updated\)\.plunder\(target_loss_fraction\)[\s\S]*?retain_unplundered_stores/,
   'guardhouse pay chests must remain part of the portable stores exposed to raids',
 );
 assert.match(

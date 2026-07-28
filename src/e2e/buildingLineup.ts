@@ -10,6 +10,17 @@ import {
   animateFoundersCampfire,
   FOUNDERS_CAMPFIRE_NAME,
 } from '../buildings/meshes/foundersCampMesh.ts';
+import {
+  FOUNDERS_CAMP_BENCH_SEAT,
+  FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
+  type FoundersCampSeatLandmark,
+} from '../buildings/foundersCampLandmarks.ts';
+import {
+  seatedVillagerContactHeight,
+  SettlementCrowdRenderer,
+  type CrowdRenderAgent,
+  type VillagerModelVariant,
+} from '../settlement/SettlementCrowdRenderer.ts';
 
 declare global {
   interface Window {
@@ -20,6 +31,7 @@ declare global {
 const lineupParams = new URLSearchParams(window.location.search);
 const requestedKind = lineupParams.get('kind');
 const showStockedState = lineupParams.get('stocked') === '1';
+const showCampSeating = lineupParams.get('seating') === '1';
 const compareResidences = lineupParams.get('compare') === 'residences';
 const selectedKinds = compareResidences
   ? []
@@ -183,6 +195,28 @@ const views = viewSpecs.map((spec) => {
   camera.position.copy(direction.multiplyScalar(distance)).add(new THREE.Vector3(0, lookY, 0));
   camera.lookAt(0, lookY, 0);
 
+  const campSeating = building.name === "Founders' camp and open stockyard"
+    && showCampSeating
+    ? createCampSeatingPreview(scene, building)
+    : null;
+  if (campSeating) {
+    const benchFocus = building.localToWorld(new THREE.Vector3(
+      FOUNDERS_CAMP_BENCH_SEAT.supportPosition.x,
+      FOUNDERS_CAMP_BENCH_SEAT.surfaceHeight,
+      FOUNDERS_CAMP_BENCH_SEAT.supportPosition.z,
+    ));
+    const stumpFocus = building.localToWorld(new THREE.Vector3(
+      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
+      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.surfaceHeight,
+      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
+    ));
+    const seatFocus = benchFocus.add(stumpFocus).multiplyScalar(0.5);
+    camera.position.copy(new THREE.Vector3(0.72, 0.46, -1).normalize())
+      .multiplyScalar(9)
+      .add(seatFocus);
+    camera.lookAt(seatFocus);
+  }
+
   const cell = document.createElement('div');
   cell.className = 'cell';
   const label = document.createElement('div');
@@ -190,7 +224,7 @@ const views = viewSpecs.map((spec) => {
   label.textContent = spec.label;
   cell.append(label);
   labels.append(cell);
-  return { scene, camera };
+  return { scene, camera, campSeating };
 });
 
 for (let index = views.length; index < COLS * ROWS; index++) {
@@ -244,10 +278,92 @@ function animate(nowMs: number): void {
     if (campfire instanceof THREE.Group) {
       animateFoundersCampfire(campfire, dtSeconds);
     }
+    view.campSeating?.renderer.syncAgents(
+      view.campSeating.agents,
+      {
+        centerX: 0,
+        centerZ: 0,
+        viewRadius: 80,
+        shadowRadius: 80,
+      },
+      dtSeconds,
+    );
   }
   render();
   requestAnimationFrame(animate);
 }
 if (selectedKinds.length === 1 && selectedKinds[0] === 'founders_camp') {
   requestAnimationFrame(animate);
+}
+
+function createCampSeatingPreview(
+  scene: THREE.Scene,
+  camp: THREE.Group,
+): {
+  renderer: SettlementCrowdRenderer;
+  agents: CrowdRenderAgent[];
+} {
+  camp.updateMatrixWorld(true);
+  const seats: ReadonlyArray<{
+    landmark: FoundersCampSeatLandmark;
+    variant: VillagerModelVariant;
+    appearanceSeed: number;
+    tunicColor: number;
+  }> = [
+    {
+      landmark: FOUNDERS_CAMP_BENCH_SEAT,
+      variant: 'man',
+      appearanceSeed: 0x0080_0000,
+      tunicColor: 0x6d402c,
+    },
+    {
+      landmark: FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
+      variant: 'woman',
+      appearanceSeed: 0x007f_0000,
+      tunicColor: 0x4e5f77,
+    },
+  ];
+  const campGroundY = camp.localToWorld(new THREE.Vector3()).y;
+  const agents = seats.map((seat, index): CrowdRenderAgent => {
+    const destination = camp.localToWorld(new THREE.Vector3(
+      seat.landmark.destination.x,
+      0,
+      seat.landmark.destination.z,
+    ));
+    const lookAt = camp.localToWorld(new THREE.Vector3(
+      seat.landmark.lookAt.x,
+      0,
+      seat.landmark.lookAt.z,
+    ));
+    return {
+      id: `camp-seat-preview-${index}`,
+      slot: index,
+      x: destination.x,
+      y: campGroundY
+        + seat.landmark.surfaceHeight
+        - seatedVillagerContactHeight(seat.variant, seat.appearanceSeed),
+      z: destination.z,
+      yaw: Math.atan2(lookAt.x - destination.x, lookAt.z - destination.z),
+      appearanceSeed: seat.appearanceSeed,
+      variant: seat.variant,
+      mode: seat.landmark.behavior,
+      tunicColor: seat.tunicColor,
+      skinColor: 0xb87952,
+      hairColor: 0x3a2418,
+      tool: null,
+      movementSpeed: 0,
+      active: true,
+    };
+  });
+  const crowdParent = new THREE.Group();
+  crowdParent.name = 'Camp seating preview';
+  scene.add(crowdParent);
+  const renderer = new SettlementCrowdRenderer({ parent: crowdParent });
+  renderer.syncAgents(agents, {
+    centerX: 0,
+    centerZ: 0,
+    viewRadius: 80,
+    shadowRadius: 80,
+  });
+  return { renderer, agents };
 }

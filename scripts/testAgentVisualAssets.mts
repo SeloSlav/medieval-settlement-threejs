@@ -470,4 +470,21 @@ assert.match(workerToolLicense, /kenney\.nl\/assets\/survival-kit/);
 assert.match(workerToolLicense, /poly\.pizza\/m\/3zA9NtYBEi/);
 assert.match(workerToolLicense, /Quaternius/);
 
+const buildingLineupSource = fs.readFileSync('src/e2e/buildingLineup.ts', 'utf8');
+assert.match(
+  buildingLineupSource,
+  /showCampSeating[\s\S]*FOUNDERS_CAMP_BENCH_SEAT[\s\S]*FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT/,
+  'the deterministic building lineup should expose both founding-camp seating landmarks',
+);
+assert.match(
+  buildingLineupSource,
+  /surfaceHeight[\s\S]*seatedVillagerContactHeight/,
+  'the camp seating showcase should preserve rig contact height against each prop',
+);
+assert.match(
+  buildingLineupSource,
+  /campSeating\?\.renderer\.syncAgents/,
+  'the camp seating showcase should update the same crowd renderer used in play',
+);
+
 console.log('villager and delivery-cart asset tests passed');

@@ -631,6 +631,8 @@ export class App {
         : burgageEnabled
           ? this.burgageTool.getStatusDetail()
           : this.buildingTool.getStatusDetail(),
+      placementBlocked: buildingMode !== 'off'
+        && this.buildingTool.isPlacementBlocked(),
       farmCrop: farmCrop ?? undefined,
       buildingCost: placementEconomy?.cost,
       carpenterSupported: placementEconomy?.carpenterSupported,

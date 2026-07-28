@@ -63,6 +63,7 @@ type BuildingToolOptions = {
   getRoadNetwork?: () => RoadNetwork;
   onModeChanged: () => void;
   onPlacementPreviewChanged?: () => void;
+  describePlacementFailure?: (reason: BuildingPlacementFailureReason) => string;
   onPlacementRejected?: (reason: BuildingPlacementFailureReason) => void;
   onPlacementFailed?: (message: string) => void;
   onUndoFailed?: (message: string) => void;
@@ -369,6 +370,10 @@ export class BuildingTool {
     return this.placementStatusDetail;
   }
 
+  isPlacementBlocked(): boolean {
+    return this.lastPreviewValidation?.ok === false;
+  }
+
   invalidatePreview(): void {
     if (
       this.mode === 'off'
@@ -449,7 +454,14 @@ export class BuildingTool {
     z: number,
     validation: BuildingPlacementResult,
   ): void {
-    if (kind !== 'founders_camp' || !validation.ok) {
+    if (!validation.ok) {
+      const detail = this.options.describePlacementFailure?.(
+        validation.reason,
+      ) ?? `Placement blocked: ${validation.reason}`;
+      this.setPlacementStatusDetail(detail);
+      return;
+    }
+    if (kind !== 'founders_camp') {
       this.setPlacementStatusDetail(null);
       return;
     }

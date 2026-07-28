@@ -32,7 +32,7 @@ import {
   gamePatchSpawnRadius,
 } from '../src/foraging/foragingYields.ts';
 import { forestDensityAt } from '../src/props/forestField.ts';
-import { MUSHROOM_ICON_SVG } from '../src/map/resourceMapIconGlyphs.ts';
+import { MUSHROOM_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
 import { computeWorldBootstrapDataHeadless } from '../src/world/worldBootstrapData.ts';
@@ -280,9 +280,8 @@ assert.ok(
   'visible hunters should return when population growth creates harvestable surplus',
 );
 
-assert.ok(MUSHROOM_ICON_SVG.includes('currentColor'));
-assert.ok(!MUSHROOM_ICON_SVG.includes('<image'));
-assert.ok(MUSHROOM_ICON_SVG.includes('foraging-map-icon-glyph--mushrooms'));
+assert.ok(MUSHROOM_ICON_HTML.includes('map-resource-icon-glyph--mushrooms'));
+assert.ok(!MUSHROOM_ICON_HTML.includes('<img'));
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const generatedForaging = JSON.parse(readFileSync(

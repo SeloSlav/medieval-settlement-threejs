@@ -18,6 +18,10 @@ import {
   MAP_SIZE_PRESETS,
   scaledRiverDrain,
 } from '../src/world/worldGenerationSettings.ts';
+import {
+  describeBuildingPlacementBlocker,
+  describeToolbarStatus,
+} from '../src/ui/buildToolbarStatus.ts';
 
 function testClearanceSpatialIndexKeepsNearbyCandidates(): void {
   const stonecutter = { kind: 'stone_quarry' as const, x: 47, z: -47 };
@@ -164,11 +168,56 @@ testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
 testPlacementOverlaysFollowTerrainHeight();
 
+assert.equal(
+  describeBuildingPlacementBlocker('requires_shore'),
+  'Blocked: This building must be placed beside open water',
+);
+assert.equal(
+  describeToolbarStatus({
+    canBuild: false,
+    hasDraft: false,
+    mode: 'fishing_camp',
+    statusDetail: describeBuildingPlacementBlocker('requires_shore'),
+    placementBlocked: true,
+    buildingCost: { timber: 20, stone: 8 },
+  }),
+  'Blocked: This building must be placed beside open water | Cost 20 timber, 8 stone',
+);
+assert.equal(
+  describeBuildingPlacementBlocker('water'),
+  'Blocked: Cannot build on water',
+);
+
 const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const placementValidation = readFileSync('server/src/placement_validation.rs', 'utf8');
 const residenceReducer = readFileSync('server/src/reducers/residences.rs', 'utf8');
 const farmFieldReducer = readFileSync('server/src/reducers/farm_fields.rs', 'utf8');
 const livestockReducer = readFileSync('server/src/reducers/livestock.rs', 'utf8');
+const buildingTool = readFileSync('src/buildings/BuildingTool.ts', 'utf8');
+const app = readFileSync('src/app/App.ts', 'utf8');
+const buildToolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
+const buildChrome = readFileSync('src/ui/buildChrome.css', 'utf8');
+
+assert.match(
+  buildingTool,
+  /if \(!validation\.ok\)[\s\S]*describePlacementFailure\?\.\([\s\S]*validation\.reason/,
+  'invalid building previews should publish the canonical rejection reason',
+);
+assert.match(
+  app,
+  /placementBlocked: buildingMode !== 'off'[\s\S]*isPlacementBlocked\(\)/,
+  'the toolbar should receive the live building-preview warning state',
+);
+assert.match(
+  buildToolbar,
+  /stats\.placementBlocked[\s\S]*\? 'warning'/,
+  'blocked previews should take precedence over the normal active tool state',
+);
+assert.match(
+  buildChrome,
+  /\.builder-status-bar\[data-state='warning'\][\s\S]*border-color[\s\S]*color/,
+  'blocked placement guidance should have a distinct warning treatment',
+);
 
 assert.match(
   buildingReducer,

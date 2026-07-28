@@ -1,19 +1,28 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { BUILDING_KINDS } from '../generated/gameBalance.ts';
+import type { BuildingPlacementFailureReason } from '../buildings/BuildingPlacementValidation.ts';
 import type { FarmCrop } from '../resources/types.ts';
 import { formatBuildingCost, getBuildingCost } from '../resources/buildingEconomy.ts';
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
+import { buildingPlacementReasonToToastId, getToastMessage } from './toastMessages.ts';
 
 export type ToolbarStats = {
   canBuild: boolean;
   hasDraft: boolean;
   mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'idle';
   statusDetail?: string | null;
+  placementBlocked?: boolean;
   farmCrop?: FarmCrop;
   buildingCost?: BuildingResourceCost;
   carpenterSupported?: boolean;
 };
+
+export function describeBuildingPlacementBlocker(
+  reason: BuildingPlacementFailureReason,
+): string {
+  return `Blocked: ${getToastMessage(buildingPlacementReasonToToastId(reason))}`;
+}
 
 export function isBuildingToolMode(mode: ToolbarStats['mode']): mode is BuildingKind {
   return (BUILDING_KINDS as readonly string[]).includes(mode);
@@ -127,7 +136,14 @@ export function describeBuilderHelp(mode: ToolbarStats['mode']): string {
 
 export function describeToolbarStatus(stats: ToolbarStats): string {
   if (isBuildingToolMode(stats.mode)) {
-    if (stats.statusDetail) return stats.statusDetail;
+    if (stats.statusDetail) {
+      if (!stats.placementBlocked) return stats.statusDetail;
+      const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
+      const materialCost = cost.timber > 0 || cost.stone > 0
+        ? ` | Cost ${formatBuildingCost(cost)}`
+        : '';
+      return `${stats.statusDetail}${materialCost}`;
+    }
     const hint = PLACEMENT_STATUS_HINTS[stats.mode] ?? '';
     const label = getBuildingDefinition(stats.mode).label;
     const cost = stats.buildingCost ?? getBuildingCost(stats.mode);

@@ -197,7 +197,7 @@ for (const asset of [
 }
 
 const mapIconSource = fs.readFileSync('src/map/ForagingMapIcons.ts', 'utf8');
-assert.match(mapIconSource, /GAME_ICON_SVG/, 'the high-zoom game resource marker should remain defined');
+assert.match(mapIconSource, /GAME_ICON_HTML/, 'the high-zoom game resource marker should remain defined');
 assert.match(
   mapIconSource,
   /foraging-map-icon--game/,

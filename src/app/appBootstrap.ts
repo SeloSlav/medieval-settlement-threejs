@@ -80,6 +80,7 @@ import { saveWorldGenerationSettings } from '../world/worldGenerationSettings.ts
 import { getDraftWorldGeneration, setDraftWorldGeneration } from '../world/worldGenerationContext.ts';
 import { mountTooltips } from '../ui/tooltips.ts';
 import { setHydrologyOverlayEnabled, isHydrologyOverlayEnabled } from '../scene/hydrologyOverlayPreference.ts';
+import { describeBuildingPlacementBlocker } from '../ui/buildToolbarStatus.ts';
 import {
   roadPlacementReasonToToastId,
   buildingPlacementReasonToToastId,
@@ -433,6 +434,7 @@ export async function bootstrapAppSession(
     getRoadNetwork: () => roadNetwork,
     onModeChanged: () => bridge.syncToolbar(),
     onPlacementPreviewChanged: () => bridge.syncToolbar(),
+    describePlacementFailure: describeBuildingPlacementBlocker,
     onPlacementRejected: (reason) => {
       ambientAudio.playUiSound('error');
       toastManager?.showMessageId(buildingPlacementReasonToToastId(reason), { variant: 'error' });

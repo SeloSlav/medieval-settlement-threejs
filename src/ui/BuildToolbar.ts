@@ -614,11 +614,13 @@ export class BuildToolbar {
     this.buildButton.classList.toggle('is-ready', stats.canBuild);
     this.buildButton.classList.toggle('has-draft', stats.hasDraft);
     this.statusLabel.textContent = describeToolbarStatus(stats);
-    this.statusLabel.dataset.state = stats.canBuild
-      ? 'ready'
-      : isBuilderHudMode(stats.mode)
-        ? (stats.hasDraft ? 'draft' : 'active')
-        : 'idle';
+    this.statusLabel.dataset.state = stats.placementBlocked
+      ? 'warning'
+      : stats.canBuild
+        ? 'ready'
+        : isBuilderHudMode(stats.mode)
+          ? (stats.hasDraft ? 'draft' : 'active')
+          : 'idle';
     if (isBuilderHudMode(stats.mode)) {
       this.builderPanelTitle.textContent = describeBuilderTitle(stats.mode);
       this.builderHelpList.innerHTML = describeBuilderHelp(stats.mode);
