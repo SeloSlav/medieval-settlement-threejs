@@ -5,7 +5,12 @@ import {
   CALENDAR_WORK_START_HOUR,
 } from '../generated/gameBalance.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
-import type { EnvironmentState, Season, WeatherKind } from '../world/seasonPolicy.ts';
+import {
+  watermillThroughputForWeather,
+  type EnvironmentState,
+  type Season,
+  type WeatherKind,
+} from '../world/seasonPolicy.ts';
 
 export type VisualQaPreset = 'daylight' | 'moonlight' | 'rain' | 'winter';
 
@@ -76,6 +81,9 @@ export function applyVisualQaEnvironment(
     ...environment,
     season: conditions.season,
     weather: conditions.weather,
+    watermillThroughputMultiplier: watermillThroughputForWeather(
+      conditions.weather,
+    ),
   };
 }
 
@@ -90,6 +98,7 @@ export function standaloneVisualQaEnvironment(
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: 0,
     roadTravelSpeedMultiplier: 1,
+    watermillThroughputMultiplier: 1,
   }, conditions);
 }
 

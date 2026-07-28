@@ -3,16 +3,18 @@ use crate::balance_generated::{
     AUTUMN_ROAD_SPEED_MULTIPLIER, CALENDAR_DAYS_PER_MONTH, CALENDAR_SECONDS_PER_DAY,
     DROUGHT_CROP_GROWTH_MULTIPLIER, DROUGHT_FISH_LOSS_FRACTION_PER_DAY,
     DROUGHT_FORAGE_REGROWTH_MULTIPLIER, DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
-    DROUGHT_WELL_REFILL_MULTIPLIER, FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
+    DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER, DROUGHT_WELL_REFILL_MULTIPLIER,
+    FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
     FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY, FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
     FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY, FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
     SPRING_BREEDING_MULTIPLIER, SPRING_FIREWOOD_DEMAND_MULTIPLIER,
     SPRING_PASTURE_CAPACITY_MULTIPLIER, SPRING_RAIN_CHANCE, SPRING_RAIN_CROP_GROWTH_MULTIPLIER,
-    SPRING_RAIN_ROAD_SPEED_MULTIPLIER, SPRING_RAIN_WELL_REFILL_MULTIPLIER, SUMMER_DROUGHT_CHANCE,
-    SUMMER_DROUGHT_DURATION_DAYS, SUMMER_FIREWOOD_DEMAND_MULTIPLIER,
+    SPRING_RAIN_ROAD_SPEED_MULTIPLIER, SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
+    SPRING_RAIN_WELL_REFILL_MULTIPLIER, SUMMER_DROUGHT_CHANCE, SUMMER_DROUGHT_DURATION_DAYS,
+    SUMMER_FIREWOOD_DEMAND_MULTIPLIER,
     SUMMER_PASTURE_CAPACITY_MULTIPLIER, WINTER_BREEDING_MULTIPLIER,
     WINTER_FIREWOOD_DEMAND_MULTIPLIER, WINTER_PASTURE_CAPACITY_MULTIPLIER,
-    WINTER_ROAD_SPEED_MULTIPLIER,
+    WINTER_ROAD_SPEED_MULTIPLIER, WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 };
 use crate::simulation::GameClock;
 
@@ -127,6 +129,19 @@ impl EnvironmentState {
             _ => 1.0,
         }
     }
+
+    /// Mountain streams offer strong spring power, lose head during drought,
+    /// and keep turning under frost only after millers clear ice and debris.
+    /// The wheel never becomes a binary seasonal shutdown, preserving useful
+    /// winter labor while making flour reserves and duplicate mills valuable.
+    pub fn watermill_throughput_multiplier(self) -> f64 {
+        match self.weather {
+            WeatherKind::Rain => SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Drought => DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Frost => WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Fair => 1.0,
+        }
+    }
 }
 
 pub fn season_for_month(month: u32) -> Season {
@@ -236,5 +251,31 @@ mod tests {
         assert!(rain.road_speed_multiplier() < autumn.road_speed_multiplier());
         assert!(frost.road_speed_multiplier() < rain.road_speed_multiplier());
         assert!(frost.road_speed_multiplier() > 0.5);
+    }
+
+    #[test]
+    fn river_power_rewards_spring_milling_and_winter_flour_reserves() {
+        let rain = EnvironmentState {
+            season: Season::Spring,
+            weather: WeatherKind::Rain,
+        };
+        let fair = EnvironmentState {
+            season: Season::Autumn,
+            weather: WeatherKind::Fair,
+        };
+        let drought = EnvironmentState {
+            season: Season::Summer,
+            weather: WeatherKind::Drought,
+        };
+        let frost = EnvironmentState {
+            season: Season::Winter,
+            weather: WeatherKind::Frost,
+        };
+        assert!(rain.watermill_throughput_multiplier() > fair.watermill_throughput_multiplier());
+        assert!(drought.watermill_throughput_multiplier() < fair.watermill_throughput_multiplier());
+        assert!(
+            frost.watermill_throughput_multiplier() < drought.watermill_throughput_multiplier()
+        );
+        assert!(frost.watermill_throughput_multiplier() > 0.0);
     }
 }

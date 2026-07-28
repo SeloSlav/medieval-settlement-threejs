@@ -89,8 +89,10 @@ export class BuildingMarkers {
   private readonly group = new THREE.Group();
   private readonly buildingMeshes = new Map<string, THREE.Group>();
   private readonly foundersCampfires = new Set<THREE.Group>();
+  private readonly watermillWheels = new Set<THREE.Group>();
   private foundersCampfireNightLighting = 0;
   private foundersCampWinterAccumulation = false;
+  private watermillThroughputMultiplier = 1;
   private extentOverlayMesh: THREE.Mesh | null = null;
   private extentOverlayKind: BuildingKind | null = null;
   private readonly guardhouseMusterRoute: THREE.InstancedMesh<
@@ -174,7 +176,16 @@ export class BuildingMarkers {
     }
   }
 
-  setEnvironment(environment: Pick<EnvironmentState, 'season'> | null): void {
+  setEnvironment(
+    environment: Pick<
+      EnvironmentState,
+      'season' | 'watermillThroughputMultiplier'
+    > | null,
+  ): void {
+    this.watermillThroughputMultiplier = Math.max(
+      0,
+      environment?.watermillThroughputMultiplier ?? 1,
+    );
     const winterAccumulation = environment?.season === 'winter';
     if (winterAccumulation === this.foundersCampWinterAccumulation) return;
     this.foundersCampWinterAccumulation = winterAccumulation;
@@ -187,6 +198,12 @@ export class BuildingMarkers {
   tick(dtSeconds: number): void {
     for (const campfire of this.foundersCampfires) {
       animateFoundersCampfire(campfire, dtSeconds);
+    }
+    const wheelRotation = Math.min(Math.max(dtSeconds, 0), 0.1)
+      * 0.55
+      * this.watermillThroughputMultiplier;
+    for (const wheel of this.watermillWheels) {
+      wheel.rotation.x -= wheelRotation;
     }
   }
 
@@ -371,6 +388,7 @@ export class BuildingMarkers {
     const visualSignature = buildingMeshSignature(building);
     if (marker && marker.userData.visualSignature !== visualSignature) {
       this.unregisterFoundersCampfire(marker);
+      this.unregisterWatermillWheel(marker);
       this.group.remove(marker);
       disposeObject3D(marker);
       this.buildingMeshes.delete(building.id);
@@ -404,6 +422,7 @@ export class BuildingMarkers {
       );
       this.buildingMeshes.set(building.id, marker);
       this.group.add(marker);
+      this.registerWatermillWheel(marker);
       if (building.kind === 'founders_camp') {
         setFoundersCampWinterAccumulation(
           marker,
@@ -443,6 +462,7 @@ export class BuildingMarkers {
     const marker = this.buildingMeshes.get(id);
     if (!marker) return;
     this.unregisterFoundersCampfire(marker);
+    this.unregisterWatermillWheel(marker);
     this.group.remove(marker);
     // Construction materials and textures belong to BuildingMaterialLibrary;
     // individual buildings own only their geometry.
@@ -455,6 +475,16 @@ export class BuildingMarkers {
     if (!(campfire instanceof THREE.Group)) return;
     this.foundersCampfires.delete(campfire);
     disposeFireEffect(campfire);
+  }
+
+  private registerWatermillWheel(marker: THREE.Group): void {
+    const wheel = marker.getObjectByName('Watermill wheel');
+    if (wheel instanceof THREE.Group) this.watermillWheels.add(wheel);
+  }
+
+  private unregisterWatermillWheel(marker: THREE.Group): void {
+    const wheel = marker.getObjectByName('Watermill wheel');
+    if (wheel instanceof THREE.Group) this.watermillWheels.delete(wheel);
   }
 }
 

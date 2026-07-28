@@ -255,16 +255,18 @@ pub fn step_watermill(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
+    environment: EnvironmentState,
     building: Building,
 ) {
     let mut mill = building;
-    mill = step_processor(
+    mill = step_processor_at_rate(
         ctx,
         tick,
         clock,
         mill,
         &[(CommodityKind::Grain, WATERMILL_GRAIN_PER_CYCLE)],
         &[(CommodityKind::Flour, WATERMILL_FLOUR_PER_CYCLE)],
+        environment.watermill_throughput_multiplier(),
     );
     dispatch_to_building(
         ctx,
@@ -1108,11 +1110,30 @@ fn step_processor(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
-    mut building: Building,
+    building: Building,
     inputs: &[(CommodityKind, f64)],
     outputs: &[(CommodityKind, f64)],
 ) -> Building {
-    let Some(labor) = cycle_labor_if_ready(ctx, tick, clock, &mut building, false) else {
+    step_processor_at_rate(ctx, tick, clock, building, inputs, outputs, 1.0)
+}
+
+fn step_processor_at_rate(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    mut building: Building,
+    inputs: &[(CommodityKind, f64)],
+    outputs: &[(CommodityKind, f64)],
+    throughput_multiplier: f64,
+) -> Building {
+    let Some(labor) = cycle_labor_if_ready_at_rate(
+        ctx,
+        tick,
+        clock,
+        &mut building,
+        false,
+        throughput_multiplier,
+    ) else {
         return building;
     };
     let output_target_percent = building.processor_output_target_percent;
@@ -1240,6 +1261,17 @@ fn cycle_labor_if_ready(
     building: &mut Building,
     autonomous: bool,
 ) -> Option<f64> {
+    cycle_labor_if_ready_at_rate(ctx, tick, clock, building, autonomous, 1.0)
+}
+
+fn cycle_labor_if_ready_at_rate(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: &mut Building,
+    autonomous: bool,
+    throughput_multiplier: f64,
+) -> Option<f64> {
     if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
         return None;
     }
@@ -1252,7 +1284,8 @@ fn cycle_labor_if_ready(
         }
         onsite_labor as f64
     };
-    building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
+    building.action_cooldown =
+        (building.action_cooldown - TICK_DT * throughput_multiplier.max(0.0)).max(0.0);
     if building.action_cooldown > 1e-6 {
         return None;
     }

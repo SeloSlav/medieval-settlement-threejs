@@ -35,6 +35,8 @@ import {
 import { isProcessorOutputTargetKind } from '../economy/processorOutputPolicy.ts';
 import { computeSettlementProductionCapacity } from '../economy/settlementProduction.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
+import { gameClock } from '../world/gameCalendar.ts';
+import { environmentFor } from '../world/seasonPolicy.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -1047,6 +1049,11 @@ export class ResourceInspector {
             building.x,
             building.z,
           ),
+          environmentFor(
+            gameState.seed,
+            this.options.getWorldHydrology?.() ?? 50,
+            gameClock(gameState.tick),
+          ).watermillThroughputMultiplier,
         )
       : undefined;
     const view = renderInspectableTarget(target, {

@@ -298,6 +298,11 @@ for (const kind of expanded) {
   assert.ok([size.x, size.y, size.z].every(Number.isFinite), `${kind} bounds must be finite`);
   assert.ok(size.x > 1 && size.y > 1 && size.z > 1, `${kind} must have a visible three-dimensional footprint`);
 }
+const watermillModel = createBuildingMesh('watermill');
+assert.ok(
+  watermillModel.getObjectByName('Watermill wheel') instanceof THREE.Group,
+  'the river-power animation needs one stable wheel group',
+);
 
 const tierSizes = ([1, 2, 3] as const).map((tier) =>
   new THREE.Box3().setFromObject(createResidenceMesh(42, tier)).getSize(new THREE.Vector3()),
@@ -326,6 +331,20 @@ assert.doesNotMatch(
   /sources\.sort_by_key\(\|source\| source\.id\)/,
   'building age must not override industrial clustering and road layout',
 );
+assert.match(
+  expandedSimulation,
+  /step_processor_at_rate\([\s\S]*environment\.watermill_throughput_multiplier\(\)/,
+  'authoritative watermill cycles must use the live river-power multiplier',
+);
+const watermillInspector = fs.readFileSync(
+  'src/resources/inspector/expandedBuildingRenderer.ts',
+  'utf8',
+);
+assert.match(watermillInspector, /River power/);
+assert.match(watermillInspector, /stockpile before frost and drought/);
+const buildingMarkers = fs.readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
+assert.match(buildingMarkers, /watermillThroughputMultiplier/);
+assert.match(buildingMarkers, /wheel\.rotation\.x/);
 const placementReducer = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
 assert.match(
   placementReducer,

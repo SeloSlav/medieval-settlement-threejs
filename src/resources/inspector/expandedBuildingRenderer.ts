@@ -686,6 +686,18 @@ export function renderExpandedBuildingInspector(
     context.worldHydrology,
     clock,
   );
+  const seasonalProcessorStatus = building.kind === 'watermill'
+    && processorStatus?.statusState === 'active'
+    && Math.abs(environment.watermillThroughputMultiplier - 1) > 1e-6
+    ? {
+        statusText: environment.watermillThroughputMultiplier > 1
+          ? `Strong spring flow · ${Math.round(environment.watermillThroughputMultiplier * 100)}% milling speed`
+          : `${environment.weather === 'frost' ? 'Iced mill race' : 'Low stream flow'} · ${Math.round(environment.watermillThroughputMultiplier * 100)}% milling speed`,
+        statusState: environment.watermillThroughputMultiplier > 1
+          ? 'active' as const
+          : 'warning' as const,
+      }
+    : null;
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const hospitality = building.kind === 'monastery'
     ? monasteryHospitalityPlan(building, monasteryPolicy.feastsEnabled)
@@ -823,6 +835,16 @@ export function renderExpandedBuildingInspector(
         building.processorOutputTargetPercent,
       )}</span></li>`
     : '';
+  const watermillPowerRows = building.kind === 'watermill'
+    ? `<li><span>River power</span><span>${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput · ${environment.weather === 'rain'
+        ? 'strong spring flow'
+        : environment.weather === 'drought'
+          ? 'low summer stream'
+          : environment.weather === 'frost'
+            ? 'ice and debris slow the race'
+            : 'normal flow'}</span></li>
+      <li><span>Seasonal planning</span><span>Flour capacity follows live river power · stockpile before frost and drought</span></li>`
+    : '';
   const institutionalFoodRows = building.kind === 'smokehouse'
     ? '<li><span>Fresh-food priority</span><span>Collects central surplus only · household delivery reserves stay local</span></li>'
     : '';
@@ -856,9 +878,9 @@ export function renderExpandedBuildingInspector(
   return {
     eyebrow: 'Settlement building',
     title: definition.label,
-    statusText: carpenterStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
-    statusState: carpenterStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} imported ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
+    statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} imported ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

@@ -552,12 +552,16 @@ export function createWatermillMesh(): THREE.Group {
   addPlankDoor(group, -1.7, 1.64, shell.frontZ + 0.03, 1.0, 1.9);
   addSmallWindow(group, 1.5, 2.85, shell.frontZ + 0.03, 0.78, 0.96);
   const wheelX = 5.25;
-  addMesh(group, new THREE.TorusGeometry(2.15, 0.16, 8, 24), timberMaterial('dark'), new THREE.Vector3(wheelX, 2.15, 0), new THREE.Euler(0, Math.PI * 0.5, 0));
-  for (let i = 0; i < 12; i++) addMesh(group, new THREE.BoxGeometry(0.13, 4.05, 0.22), timberMaterial('weathered'), new THREE.Vector3(wheelX, 2.15, 0), new THREE.Euler(i * Math.PI / 12, 0, Math.PI * 0.5));
-  addMesh(group, new THREE.CylinderGeometry(0.26, 0.26, 2.2, 10), metalMaterial('iron'), new THREE.Vector3(wheelX, 2.15, 0), new THREE.Euler(0, 0, Math.PI * 0.5));
+  const wheel = new THREE.Group();
+  wheel.name = 'Watermill wheel';
+  wheel.position.set(wheelX, 2.15, 0);
+  group.add(wheel);
+  addMesh(wheel, new THREE.TorusGeometry(2.15, 0.16, 8, 24), timberMaterial('dark'), new THREE.Vector3(), new THREE.Euler(0, Math.PI * 0.5, 0));
+  for (let i = 0; i < 12; i++) addMesh(wheel, new THREE.BoxGeometry(0.13, 4.05, 0.22), timberMaterial('weathered'), new THREE.Vector3(), new THREE.Euler(i * Math.PI / 12, 0, Math.PI * 0.5));
+  addMesh(wheel, new THREE.CylinderGeometry(0.26, 0.26, 2.2, 10), metalMaterial('iron'), new THREE.Vector3(), new THREE.Euler(0, 0, Math.PI * 0.5));
   for (let i = 0; i < 12; i++) {
     const angle = i * Math.PI / 6;
-    addMesh(group, new THREE.BoxGeometry(0.4, 0.72, 1.05), timberMaterial('weathered'), new THREE.Vector3(wheelX, 2.15 + Math.sin(angle) * 2.18, Math.cos(angle) * 2.18), new THREE.Euler(angle, 0, 0));
+    addMesh(wheel, new THREE.BoxGeometry(0.4, 0.72, 1.05), timberMaterial('weathered'), new THREE.Vector3(0, Math.sin(angle) * 2.18, Math.cos(angle) * 2.18), new THREE.Euler(angle, 0, 0));
   }
   // Millrace trough and grain handling props distinguish flour milling from saw work.
   addMesh(group, new THREE.BoxGeometry(1.6, 0.3, 7.8), stoneMaterial('mid'), new THREE.Vector3(wheelX + 0.65, 0.25, 0));

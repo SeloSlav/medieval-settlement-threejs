@@ -80,6 +80,7 @@ approx(fullWeek.preservationFreshFoodPerDay, 35);
 approx(fullWeek.preservationFirewoodPerDay, 35 / 3);
 approx(fullWeek.clothOutputPerDay, 17.5);
 approx(fullWeek.clothWoolPerDay, 26.25);
+assert.equal(fullWeek.watermillThroughputMultiplier, 1);
 assert.ok(fullWeek.millInputBuffer);
 approx(fullWeek.millInputBuffer.days, 2);
 assert.equal(fullWeek.millInputBuffer.limitingInput, 'grain');
@@ -100,6 +101,32 @@ approx(fullWeek.bakeryOutputRoom?.days ?? -1, 2);
 approx(fullWeek.breweryOutputRoom?.days ?? -1, 1.5);
 approx(fullWeek.smokehouseOutputRoom?.days ?? -1, 1.5);
 approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5);
+
+const frostWeek = computeSettlementProductionCapacity(
+  state,
+  false,
+  undefined,
+  0.45,
+);
+assert.equal(frostWeek.watermillThroughputMultiplier, 0.45);
+approx(frostWeek.flourOutputPerDay, fullWeek.flourOutputPerDay * 0.45);
+approx(
+  frostWeek.bakeryFlourCapacityPerDay,
+  fullWeek.bakeryFlourCapacityPerDay,
+  'river power must not change installed bakery capacity',
+);
+approx(
+  frostWeek.breadFoodCapacityPerDay,
+  fullWeek.breadFoodCapacityPerDay * 0.45,
+);
+approx(
+  frostWeek.millInputBuffer?.days ?? -1,
+  (fullWeek.millInputBuffer?.days ?? -1) / 0.45,
+);
+approx(
+  frostWeek.millOutputRoom?.days ?? -1,
+  (fullWeek.millOutputRoom?.days ?? -1) / 0.45,
+);
 assert.equal(fullWeek.millInputBuffer.buildingId, mill.id);
 assert.equal(fullWeek.millOutputRoom?.buildingId, mill.id);
 assert.equal(fullWeek.tierThreeResidents, 10);

@@ -5,7 +5,10 @@ import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_MONTHS_PER_YEAR,
   CALENDAR_SECONDS_PER_DAY,
+  DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
   SIM_REALTIME_RATE,
+  SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
+  WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import { gameClock } from '../src/world/gameCalendar.ts';
 import {
@@ -93,6 +96,10 @@ for (let year = 1; year <= 20 && !droughtFound; year += 1) {
     droughtFound = true;
     assert.ok(environment.cropGrowthMultiplier < 1);
     assert.ok(environment.pastureCapacityMultiplier < 1);
+    assert.equal(
+      environment.watermillThroughputMultiplier,
+      DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
+    );
     break;
   }
 }
@@ -105,7 +112,12 @@ for (let springDay = 0; springDay < CALENDAR_DAYS_PER_MONTH * 3; springDay += 1)
   if (environment.weather !== 'rain') continue;
   rainFound = true;
   assert.equal(environment.roadTravelSpeedMultiplier, 0.82);
+  assert.equal(
+    environment.watermillThroughputMultiplier,
+    SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
+  );
   assert.match(describeEnvironment(environment).detail, /carts travel 18% slower/i);
+  assert.match(describeEnvironment(environment).detail, /mill streams reach 115% power/i);
   break;
 }
 assert.equal(rainFound, true, 'a wet Gorski Kotar spring should expose muddy-road logistics');
@@ -114,6 +126,7 @@ const autumnClock = gameClock(CALENDAR_DAYS_PER_MONTH * 6 * dayTicks);
 const autumnEnvironment = environmentFor(12345, 50, autumnClock);
 assert.equal(autumnEnvironment.season, 'autumn');
 assert.equal(autumnEnvironment.roadTravelSpeedMultiplier, 0.9);
+assert.equal(autumnEnvironment.watermillThroughputMultiplier, 1);
 assert.match(describeEnvironment(autumnEnvironment).detail, /carts travel 10% slower/i);
 
 const lastSummerDay = gameClock((CALENDAR_DAYS_PER_MONTH * 6 - 1) * dayTicks);
@@ -138,7 +151,19 @@ const winterClock = gameClock(CALENDAR_DAYS_PER_MONTH * 9 * dayTicks);
 const winterEnvironment = environmentFor(12345, 50, winterClock);
 assert.equal(winterEnvironment.season, 'winter');
 assert.equal(winterEnvironment.roadTravelSpeedMultiplier, 0.72);
+assert.equal(
+  winterEnvironment.watermillThroughputMultiplier,
+  WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
+);
 assert.match(describeEnvironment(winterEnvironment).detail, /carts travel 28% slower/i);
+assert.match(describeEnvironment(winterEnvironment).detail, /flour throughput to 45%/i);
+
+const lastAutumnDay = gameClock((CALENDAR_DAYS_PER_MONTH * 9 - 1) * dayTicks);
+const winterOutlookDescription = describeNextDayEnvironmentOutlook(
+  environmentFor(12345, 50, lastAutumnDay),
+  nextDayEnvironmentOutlook(12345, 50, lastAutumnDay),
+);
+assert.match(winterOutlookDescription, /watermill power 45%/i);
 
 let outlookChecksum = 0;
 const outlookStarted = performance.now();

@@ -1,4 +1,7 @@
-import type { EnvironmentState } from '../world/seasonPolicy.ts';
+import {
+  watermillThroughputForWeather,
+  type EnvironmentState,
+} from '../world/seasonPolicy.ts';
 import { FRESH_FOOD_SPOILAGE_SPRING_PER_DAY } from '../generated/gameBalance.ts';
 
 export type PrecipitationKind = 'none' | 'rain' | 'snow';
@@ -115,10 +118,37 @@ export function precipitationPreviewEnvironment(
   search: string,
 ): EnvironmentState {
   const requested = new URLSearchParams(search).get('weather');
-  if (requested === 'rain') return { ...environment, season: 'spring', weather: 'rain' };
-  if (requested === 'snow') return { ...environment, season: 'winter', weather: 'frost' };
-  if (requested === 'autumn') return { ...environment, season: 'autumn', weather: 'fair' };
-  if (requested === 'clear') return { ...environment, weather: 'fair' };
+  if (requested === 'rain') {
+    return {
+      ...environment,
+      season: 'spring',
+      weather: 'rain',
+      watermillThroughputMultiplier: watermillThroughputForWeather('rain'),
+    };
+  }
+  if (requested === 'snow') {
+    return {
+      ...environment,
+      season: 'winter',
+      weather: 'frost',
+      watermillThroughputMultiplier: watermillThroughputForWeather('frost'),
+    };
+  }
+  if (requested === 'autumn') {
+    return {
+      ...environment,
+      season: 'autumn',
+      weather: 'fair',
+      watermillThroughputMultiplier: 1,
+    };
+  }
+  if (requested === 'clear') {
+    return {
+      ...environment,
+      weather: 'fair',
+      watermillThroughputMultiplier: 1,
+    };
+  }
   return environment;
 }
 
@@ -135,5 +165,6 @@ export function standalonePrecipitationPreview(
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
     roadTravelSpeedMultiplier: 1,
+    watermillThroughputMultiplier: 1,
   }, search);
 }

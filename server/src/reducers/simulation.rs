@@ -335,7 +335,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
                 step_apiary(ctx, &tick, &clock, building)
             }
             crate::building_defs::BuildingSimKind::Watermill => {
-                step_watermill(ctx, &tick, &clock, building)
+                step_watermill(ctx, &tick, &clock, environment, building)
             }
             crate::building_defs::BuildingSimKind::Carpenter => {
                 step_carpenter(ctx, &tick, &clock, building)

@@ -61,7 +61,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   foragers_shed: ["Forager's shed", 'Y', 'Gathers seasonal berries or deep-forest mushrooms and provisions homes.'],
   fishing_camp: ['Fishing camp', 'Z', 'Catches from a finite river population that reproduces in spring; overfishing can cause extinction.'],
   threshing_barn: ['Farmstead', 'T', 'Road-linked labor hub that ploughs, sows, tends, harvests, and stores grain from surrounding fields.'],
-  watermill: ['Grain watermill', 'M', 'Uses a river wheel to grind grain into flour. Must touch open water.'],
+  watermill: ['Grain watermill', 'M', 'Uses seasonal river power to grind grain into flour. Spring rain speeds it; drought and frost slow it. Must touch open water.'],
   granary: ['Village granary', 'N', 'Stores grain and flour, bakes staple food, and collects wild-food surplus.'],
   brewery: ['Brewhouse', 'B', 'Boils grain and water over firewood into ale for prosperous households and export.'],
   smokehouse: ['Smokehouse', 'Q', 'Preserves fresh food with firewood for tier-three households.'],

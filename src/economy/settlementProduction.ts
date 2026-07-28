@@ -47,6 +47,7 @@ import {
 
 export type SettlementProductionCapacity = {
   capacityDaysPerWeek: number;
+  watermillThroughputMultiplier: number;
   fireDisabledProcessorSites: number;
   fireDisabledProcessorWorkers: number;
   firstFireDisabledProcessorId: string | null;
@@ -430,10 +431,16 @@ function completedProcessorOverview(
   state: GameState,
   sabbathObserved: boolean,
   componentFor: ProductionRoadComponentResolver | undefined,
+  watermillThroughputMultiplier: number,
 ): ProcessorOverview {
   const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
   const deliveries = timedInputDeliveries(state.deliveryTrips.values());
-  const millCyclesPerWorker = cyclesPerCalendarDay('watermill', 1, sabbathObserved);
+  const millCyclesPerWorker = cyclesPerCalendarDay(
+    'watermill',
+    1,
+    sabbathObserved,
+    watermillThroughputMultiplier,
+  );
   const bakeryCyclesPerWorker = cyclesPerCalendarDay('granary', 1, sabbathObserved);
   const breweryCyclesPerWorker = cyclesPerCalendarDay('brewery', 1, sabbathObserved);
   const smokehouseCyclesPerWorker = cyclesPerCalendarDay('smokehouse', 1, sabbathObserved);
@@ -745,18 +752,24 @@ function cyclesPerCalendarDay(
   kind: BuildingKind,
   assignedLabor: number,
   sabbathObserved: boolean,
+  throughputMultiplier = 1,
 ): number {
   if (assignedLabor <= 0) return 0;
   const interval = getBuildingDefinition(kind).harvestInterval;
   if (interval <= 1e-6) return 0;
   const weeklyWorkShare = sabbathObserved ? 6 / 7 : 1;
-  return WORKDAY_SECONDS * weeklyWorkShare * assignedLabor / interval;
+  return WORKDAY_SECONDS
+    * weeklyWorkShare
+    * assignedLabor
+    * Math.max(0, throughputMultiplier)
+    / interval;
 }
 
 function grainChainRoadPlan(
   branches: ReadonlyMap<string, GrainChainBranch>,
   sabbathObserved: boolean,
   hypotheticalFoodPerDay: number,
+  watermillThroughputMultiplier: number,
 ): GrainChainRoadPlan & {
   matchedFoodPerDay: number;
   grainRoadBranches: ReadonlyMap<string, ProductionGrainRoadBranch>;
@@ -775,6 +788,7 @@ function grainChainRoadPlan(
       'watermill',
       branch.millWorkers,
       sabbathObserved,
+      watermillThroughputMultiplier,
     );
     const bakeryCycles = cyclesPerCalendarDay(
       'granary',
@@ -876,7 +890,13 @@ export function computeSettlementProductionCapacity(
   state: GameState,
   sabbathObserved: boolean,
   roadComponentFor?: ProductionRoadComponentResolver,
+  watermillThroughputMultiplier = 1,
 ): SettlementProductionCapacity {
+  const normalizedWatermillThroughput = Number.isFinite(
+    watermillThroughputMultiplier,
+  )
+    ? Math.max(0, watermillThroughputMultiplier)
+    : 1;
   const {
     fireDisabledProcessorSites,
     fireDisabledProcessorWorkers,
@@ -898,9 +918,19 @@ export function computeSettlementProductionCapacity(
     weaverOutputRoom,
     grainChainBranches,
     prosperityRoadBranches,
-  } = completedProcessorOverview(state, sabbathObserved, roadComponentFor);
+  } = completedProcessorOverview(
+    state,
+    sabbathObserved,
+    roadComponentFor,
+    normalizedWatermillThroughput,
+  );
 
-  const millCycles = cyclesPerCalendarDay('watermill', millWorkers, sabbathObserved);
+  const millCycles = cyclesPerCalendarDay(
+    'watermill',
+    millWorkers,
+    sabbathObserved,
+    normalizedWatermillThroughput,
+  );
   const bakeryCycles = cyclesPerCalendarDay('granary', bakeryWorkers, sabbathObserved);
   const breweryCycles = cyclesPerCalendarDay('brewery', breweryWorkers, sabbathObserved);
   const smokehouseCycles = cyclesPerCalendarDay(
@@ -924,6 +954,7 @@ export function computeSettlementProductionCapacity(
     grainChainBranches,
     sabbathObserved,
     hypotheticalBreadFoodPerDay,
+    normalizedWatermillThroughput,
   );
   const breadCyclesPerDay = breadFoodCapacityPerDay / GRANARY_FOOD_PER_CYCLE;
   const matchedFlourPerDay = breadCyclesPerDay * GRANARY_FLOUR_PER_CYCLE;
@@ -969,6 +1000,7 @@ export function computeSettlementProductionCapacity(
 
   return {
     capacityDaysPerWeek: sabbathObserved ? 6 : 7,
+    watermillThroughputMultiplier: normalizedWatermillThroughput,
     fireDisabledProcessorSites,
     fireDisabledProcessorWorkers,
     firstFireDisabledProcessorId,

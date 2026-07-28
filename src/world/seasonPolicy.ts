@@ -6,6 +6,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   DROUGHT_CROP_GROWTH_MULTIPLIER,
   DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
+  DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
   FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
   FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY,
   FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
@@ -16,6 +17,7 @@ import {
   SPRING_RAIN_CHANCE,
   SPRING_RAIN_CROP_GROWTH_MULTIPLIER,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+  SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
   SUMMER_DROUGHT_CHANCE,
   SUMMER_DROUGHT_DURATION_DAYS,
   SUMMER_FIREWOOD_DEMAND_MULTIPLIER,
@@ -24,6 +26,7 @@ import {
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
   WINTER_PASTURE_CAPACITY_MULTIPLIER,
   WINTER_ROAD_SPEED_MULTIPLIER,
+  WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 } from '../generated/gameBalance.ts';
 import {
   formatCalendarDate,
@@ -42,6 +45,7 @@ export type EnvironmentState = {
   pastureCapacityMultiplier: number;
   freshFoodSpoilageFractionPerDay: number;
   roadTravelSpeedMultiplier: number;
+  watermillThroughputMultiplier: number;
 };
 
 export type NextDayEnvironmentOutlook = {
@@ -54,6 +58,13 @@ export function seasonForMonth(month: number): Season {
   if (month >= 6 && month <= 8) return 'summer';
   if (month >= 9 && month <= 11) return 'autumn';
   return 'winter';
+}
+
+export function watermillThroughputForWeather(weather: WeatherKind): number {
+  if (weather === 'rain') return SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER;
+  if (weather === 'drought') return DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER;
+  if (weather === 'frost') return WINTER_WATERMILL_THROUGHPUT_MULTIPLIER;
+  return 1;
 }
 
 export function environmentFor(
@@ -107,6 +118,7 @@ export function environmentFor(
         : season === 'autumn'
           ? AUTUMN_ROAD_SPEED_MULTIPLIER
           : 1,
+    watermillThroughputMultiplier: watermillThroughputForWeather(weather),
   };
 }
 
@@ -146,6 +158,9 @@ export function describeNextDayEnvironmentOutlook(
   if (Math.abs(next.pastureCapacityMultiplier - 1) > 1e-6) {
     pressures.push(`pasture ${Math.round(next.pastureCapacityMultiplier * 100)}%`);
   }
+  if (Math.abs(next.watermillThroughputMultiplier - 1) > 1e-6) {
+    pressures.push(`watermill power ${Math.round(next.watermillThroughputMultiplier * 100)}%`);
+  }
   if (Math.abs(next.firewoodDemandMultiplier - 1) > 1e-6) {
     pressures.push(`firewood demand ${Math.round(next.firewoodDemandMultiplier * 100)}%`);
   }
@@ -167,21 +182,21 @@ export function describeEnvironment(environment: EnvironmentState): {
   if (environment.weather === 'drought') {
     return {
       title: 'Summer drought',
-      detail: 'Crops and forage grow slowly; ponds lose fish; wells refill slowly; fresh food spoils faster.',
+      detail: `Crops and forage grow slowly; ponds lose fish; wells refill slowly; fresh food spoils faster. Low streams hold watermills to ${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput.`,
       symbol: '☀',
     };
   }
   if (environment.weather === 'rain') {
     return {
       title: 'Spring rain',
-      detail: `Crops grow faster, wells refill faster, and berries and mushrooms replenish.${roadDetail}`,
+      detail: `Crops grow faster, wells refill faster, berries and mushrooms replenish, and mill streams reach ${Math.round(environment.watermillThroughputMultiplier * 100)}% power.${roadDetail}`,
       symbol: '☂',
     };
   }
   if (environment.season === 'winter') {
     return {
       title: 'Winter frost',
-      detail: `Forage and fishing stop, pasture is scarce, sheep cannot be shorn, and homes burn more firewood.${roadDetail}`,
+      detail: `Forage and fishing stop, pasture is scarce, sheep cannot be shorn, homes burn more firewood, and iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%.${roadDetail}`,
       symbol: '❄',
     };
   }

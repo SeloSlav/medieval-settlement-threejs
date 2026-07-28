@@ -1631,6 +1631,7 @@ export function renderTownHallInspector(
             candidate.z,
           )
         : undefined,
+      environment.watermillThroughputMultiplier,
     );
   const prosperity = computeSettlementProsperityPlan(production, growth);
   const textilePlan = computeSettlementTextilePlan({
@@ -1655,7 +1656,7 @@ export function renderTownHallInspector(
           : undefined,
       })
     : null;
-  const processingWeek = `${production.capacityDaysPerWeek}-day working week · operational staffed capacity if supplied`;
+  const processingWeek = `${production.capacityDaysPerWeek}-day working week · operational staffed capacity if supplied · river mills at ${Math.round(production.watermillThroughputMultiplier * 100)}% power`;
   const productionFireOutageRow = production.fireDisabledProcessorSites === 0
     ? ''
     : `<li><span>Processor fire outages</span><span>${production.fireDisabledProcessorWorkers} ${production.fireDisabledProcessorWorkers === 1 ? 'worker is' : 'workers are'} idle across ${production.fireDisabledProcessorSites} fire-disabled ${production.fireDisabledProcessorSites === 1 ? 'processor' : 'processors'}${production.firstFireDisabledProcessorId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${production.firstFireDisabledProcessorId}" aria-label="Inspect first fire-disabled processor">Inspect</button>`}</span></li>`;
