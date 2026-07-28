@@ -82,6 +82,7 @@ export const Building = __t.object("Building", {
   barley: __t.f64(),
   malt: __t.f64(),
   flax: __t.f64(),
+  guardhouseMusterWatchtowerId: __t.u64(),
 });
 export type Building = __Infer<typeof Building>;
 

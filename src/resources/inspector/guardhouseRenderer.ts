@@ -20,6 +20,7 @@ import {
   guardhouseMusterResponseBand,
   GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
   isFrontierAlertActive,
+  normalizeGuardhouseMusterWatchtowerId,
   normalizeGuardhouseFoodReserve,
 } from '../../security/frontierSecurity.ts';
 import {
@@ -31,7 +32,7 @@ import {
   normalizeGuardhousePayPriority,
 } from '../../security/guardhousePayrollPolicy.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
-import type { InspectableTarget } from '../types.ts';
+import type { BuildingState, InspectableTarget } from '../types.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
   buildingCostRows,
@@ -57,12 +58,6 @@ export function renderGuardhouseInspector(
     ? 0
     : Math.max(0, Math.min(1, building.actionCooldown));
   const ready = armed * readiness;
-  const muster = getGuardhouseMusterState(
-    building,
-    context.gameState,
-    (ax, az, bx, bz) => context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
-    context.worldQueries.getRoadConditionSpeedMultiplier(),
-  );
   const settlement = context.getSettlementSecurity?.();
   const frontierAlert = settlement
     ? isFrontierAlertActive(
@@ -106,6 +101,30 @@ export function renderGuardhouseInspector(
   const foodRunwayDays = dailyFood > 1e-9
     ? Math.max(0, building.food) / dailyFood
     : Number.POSITIVE_INFINITY;
+  const orderedMusterPostId = normalizeGuardhouseMusterWatchtowerId(
+    building.guardhouseMusterWatchtowerId,
+  );
+  const musterPostOptions = guardhouseMusterPostOptions(
+    building,
+    context,
+    fireDisabled,
+  );
+  const muster = getGuardhouseMusterState(
+    building,
+    context.gameState,
+    (ax, az, bx, bz) => context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
+    context.worldQueries.getRoadConditionSpeedMultiplier(),
+    new Map(
+      musterPostOptions.map((option) => [
+        option.tower.id,
+        option.routeDistance,
+      ]),
+    ),
+  );
+  const orderedMusterPost = orderedMusterPostId === null
+    ? null
+    : musterPostOptions.find((option) => option.tower.id === orderedMusterPostId)
+      ?? null;
   const linkedWatchButton = muster.linkedTowerId
     ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${muster.linkedTowerId}" aria-label="Inspect linked watchtower">Inspect watch</button>`
     : '';
@@ -122,6 +141,16 @@ export function renderGuardhouseInspector(
     : suspendedByFire
       ? 'Fire outage · no watch response'
       : 'Dry or firm road · normal response distance';
+
+  const missingMusterRoute = orderedMusterPostId === null
+    ? 'No staffed tower by road'
+    : orderedMusterPost === null
+      ? 'Ordered watch no longer exists; automatic reassignment suspended'
+      : orderedMusterPost.fireDisabled
+        ? 'Ordered watch is in fire recovery; automatic reassignment suspended'
+        : orderedMusterPost.tower.assignedLabor <= 0
+          ? 'Ordered watch is unstaffed; automatic reassignment suspended'
+          : 'Ordered watch route severed; automatic reassignment suspended';
 
   const status = suspendedByFire
     ? ['Fire outage — company cannot muster', 'warning'] as const
@@ -180,7 +209,8 @@ export function renderGuardhouseInspector(
       <li><span>Role</span><span>Paid local guard company mustered by the watch</span></li>
       <li><span>Armed guards</span><span>${equippedGuards} / ${building.assignedLabor} equipped${suspendedByFire ? ' · unavailable during fire recovery' : ''}</span></li>
       <li><span>Local readiness</span><span>${Math.round(readiness * 100)}% · ${ready.toFixed(1)} ready</span></li>
-      <li><span>Watch muster</span><span>${muster.routeDistance == null ? `No staffed tower by road · ${Math.round(muster.efficiency * 100)}% local response` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
+      <li><span>Muster order</span><span>${orderedMusterPostId === null ? 'Nearest staffed watch by road' : `Hold for Watch #${orderedMusterPostId} unless the order is changed`}</span></li>
+      <li><span>Watch muster</span><span>${muster.routeDistance == null ? `${missingMusterRoute}; no district reinforcement` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
       <li><span>Alert posture</span><span>${frontierAlert ? muster.linkedTowerId && armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard' : 'guards'} visibly answering the linked watch by road` : 'Frontier alert active, but this company has no equipped road-linked response' : 'Ordinary drill at the guardhouse until raiders are reported during campaign season'}</span></li>
       <li><span>Road conditions</span><span>${roadConditionFeedback}</span></li>
       <li><span>Effective company</span><span>${muster.effectiveReady.toFixed(1)} guards after signal and travel</span></li>
@@ -201,8 +231,81 @@ export function renderGuardhouseInspector(
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
-    supplementalPanelHtml: `${renderRationReservePanel(foodReserve)}${renderCompanyPriorityPanel(companyPriority)}`,
+    supplementalPanelHtml: `${renderMusterPostPanel(
+      orderedMusterPostId,
+      musterPostOptions,
+    )}${renderRationReservePanel(foodReserve)}${renderCompanyPriorityPanel(companyPriority)}`,
   };
+}
+
+type MusterPostOption = {
+  tower: BuildingState;
+  routeDistance: number | null;
+  fireDisabled: boolean;
+};
+
+function guardhouseMusterPostOptions(
+  guardhouse: BuildingState,
+  context: InspectorRenderContext,
+  fireDisabled: ReadonlySet<string>,
+): MusterPostOption[] {
+  const towers = [...context.gameState.buildings.values()]
+    .filter((candidate) =>
+      candidate.kind === 'watchtower'
+      && candidate.constructionComplete !== false);
+  if (towers.length === 0) return [];
+
+  const distances = context.worldQueries
+    .getRoadNetworkSnapshot()
+    .getPathfinder()
+    .roadPathDistancesFrom(
+      guardhouse.x,
+      guardhouse.z,
+      towers.map((tower) => ({ x: tower.x, z: tower.z })),
+    );
+  return towers
+    .map((tower, index) => ({
+      tower,
+      routeDistance: distances[index] ?? null,
+      fireDisabled: fireDisabled.has(tower.id),
+    }))
+    .sort((left, right) => {
+      if (left.routeDistance === null) {
+        if (right.routeDistance !== null) return 1;
+      } else if (right.routeDistance === null) {
+        return -1;
+      } else if (Math.abs(left.routeDistance - right.routeDistance) > 1e-6) {
+        return left.routeDistance - right.routeDistance;
+      }
+      return left.tower.id.localeCompare(right.tower.id, undefined, {
+        numeric: true,
+      });
+    });
+}
+
+function renderMusterPostPanel(
+  orderedMusterPostId: string | null,
+  options: readonly MusterPostOption[],
+): string {
+  const automatic = `<button type="button" class="resource-action-button" data-guardhouse-muster-watchtower="auto" ${orderedMusterPostId === null ? 'disabled' : ''}>Nearest staffed watch</button>`;
+  const posts = options.map((option) => {
+    const route = option.routeDistance === null
+      ? 'no road'
+      : `${Math.round(option.routeDistance)} m`;
+    const state = option.fireDisabled
+      ? 'fire outage'
+      : option.tower.assignedLabor <= 0
+        ? 'unstaffed'
+        : `${option.tower.assignedLabor} watch${option.tower.assignedLabor === 1 ? 'man' : 'men'}`;
+    return `<button type="button" class="resource-action-button" data-guardhouse-muster-watchtower="${option.tower.id}" title="${route} by road · ${state}" ${orderedMusterPostId === option.tower.id ? 'disabled' : ''}>Watch #${option.tower.id} · ${route}</button>`;
+  }).join('');
+  return `
+    <div class="inspector-action-panel">
+      <p class="resource-inspector-note">Muster post — leave the company on its nearest staffed road-linked watch, or bind it to one completed post. An explicit order can reinforce a chosen district, but it keeps waiting when that watch is unstaffed, burning, or cut off instead of quietly moving elsewhere.</p>
+      <div class="resource-action-row">${automatic}${posts}</div>
+      <p class="inspector-action-panel__hint">${options.length === 0 ? 'Complete a watchtower before issuing a company order.' : 'Long and weather-softened routes reduce the company strength that arrives in time. Hover a post for staffing and outage state.'}</p>
+    </div>
+  `;
 }
 
 function renderRationReservePanel(currentReserve: number): string {

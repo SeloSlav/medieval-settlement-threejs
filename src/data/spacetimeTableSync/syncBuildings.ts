@@ -94,6 +94,10 @@ function buildingStateFromRow(
     carpenterPolearmReserve: row.carpenterPolearmReserve,
     guardhousePayPriority: row.guardhousePayPriority,
     guardhouseFoodReserve: row.guardhouseFoodReserve,
+    guardhouseMusterWatchtowerId: row.guardhouseMusterWatchtowerId == null
+      || row.guardhouseMusterWatchtowerId === 0n
+      ? undefined
+      : row.guardhouseMusterWatchtowerId.toString(),
     marketplaceIronworkTarget: row.marketplaceIronworkTarget,
     marketplaceGoldReserveTarget: row.marketplaceGoldReserveTarget,
     marketplaceSpecialtyExportPolicy: row.marketplaceSpecialtyExportPolicy,

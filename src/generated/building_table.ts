@@ -74,4 +74,5 @@ export default __t.row({
   barley: __t.f64(),
   malt: __t.f64(),
   flax: __t.f64(),
+  guardhouseMusterWatchtowerId: __t.u64().name("guardhouse_muster_watchtower_id"),
 });

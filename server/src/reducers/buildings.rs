@@ -652,6 +652,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         barley: 0.0,
         malt: 0.0,
         flax: 0.0,
+        guardhouse_muster_watchtower_id: 0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1563,6 +1564,44 @@ pub fn set_guardhouse_food_reserve(
 }
 
 #[reducer]
+pub fn set_guardhouse_muster_post(
+    ctx: &ReducerContext,
+    building_id: u64,
+    watchtower_id: u64,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let mut guardhouse = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Guardhouse not found.".to_string())?;
+    if guardhouse.owner != owner
+        || guardhouse.kind != "guardhouse"
+        || !guardhouse.construction_complete
+    {
+        return Err("You do not own this completed guardhouse.".to_string());
+    }
+    if watchtower_id != 0 {
+        let watchtower = ctx
+            .db
+            .building()
+            .id()
+            .find(&watchtower_id)
+            .ok_or_else(|| "Muster watchtower not found.".to_string())?;
+        if watchtower.owner != owner
+            || watchtower.kind != "watchtower"
+            || !watchtower.construction_complete
+        {
+            return Err("Choose one of your completed frontier watchtowers.".to_string());
+        }
+    }
+    guardhouse.guardhouse_muster_watchtower_id = watchtower_id;
+    ctx.db.building().id().update(guardhouse);
+    Ok(())
+}
+
+#[reducer]
 pub fn set_marketplace_ironwork_target(
     ctx: &ReducerContext,
     building_id: u64,
@@ -1813,6 +1852,23 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         }
     };
     let recoverable = if fire_damaged { 0.0 } else { 1.0 };
+
+    if building.kind == "watchtower" {
+        let assigned_guardhouses = ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .filter(|candidate| {
+                candidate.kind == "guardhouse"
+                    && candidate.guardhouse_muster_watchtower_id == building_id
+            })
+            .collect::<Vec<_>>();
+        for mut guardhouse in assigned_guardhouses {
+            guardhouse.guardhouse_muster_watchtower_id = 0;
+            ctx.db.building().id().update(guardhouse);
+        }
+    }
 
     if ctx
         .db

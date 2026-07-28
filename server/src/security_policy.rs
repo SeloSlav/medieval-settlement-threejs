@@ -415,6 +415,47 @@ pub fn guardhouse_muster_efficiency(road_distance: Option<f64>, road_speed_multi
     (1.0 + (GUARDHOUSE_LONG_MUSTER_EFFICIENCY - 1.0) * progress).clamp(0.0, 1.0)
 }
 
+/// Resolves a company's road-linked watch order without hiding a broken
+/// explicit deployment behind automatic reassignment. Zero means nearest
+/// reachable staffed watch; a non-zero post must itself be present and
+/// reachable. Stable watch identity resolves equal automatic routes.
+pub fn select_guardhouse_muster_watch(
+    ordered_watchtower_id: u64,
+    watchtower_ids: &[u64],
+    road_distances: &[Option<f64>],
+) -> Option<(usize, f64)> {
+    if ordered_watchtower_id != 0 {
+        let index = watchtower_ids
+            .iter()
+            .position(|watchtower_id| *watchtower_id == ordered_watchtower_id)?;
+        let distance = road_distances
+            .get(index)
+            .copied()
+            .flatten()
+            .filter(|distance| distance.is_finite())?
+            .max(0.0);
+        return Some((index, distance));
+    }
+
+    watchtower_ids
+        .iter()
+        .enumerate()
+        .filter_map(|(index, watchtower_id)| {
+            road_distances
+                .get(index)
+                .copied()
+                .flatten()
+                .filter(|distance| distance.is_finite())
+                .map(|distance| (index, *watchtower_id, distance.max(0.0)))
+        })
+        .min_by(|left, right| {
+            left.2
+                .total_cmp(&right.2)
+                .then_with(|| left.1.cmp(&right.1))
+        })
+        .map(|(index, _, distance)| (index, distance))
+}
+
 pub fn raid_loss_fraction(enemy_pressure: u8, coverage: f64) -> f64 {
     let pressure = enemy_pressure.min(100) as f64 / 100.0;
     let exposed_loss = 0.12 + pressure * 0.2;
@@ -1010,6 +1051,37 @@ mod tests {
             guardhouse_muster_efficiency(None, spring_rain_speed),
             GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
             "ground conditions must not double-penalize an already unlinked company"
+        );
+    }
+
+    #[test]
+    fn explicit_muster_posts_do_not_silently_fall_back() {
+        let watchtower_ids = [20, 10];
+        let distances = [Some(90.0), Some(140.0)];
+        assert_eq!(
+            select_guardhouse_muster_watch(0, &watchtower_ids, &distances),
+            Some((0, 90.0)),
+            "automatic companies should answer the nearest staffed watch"
+        );
+        assert_eq!(
+            select_guardhouse_muster_watch(10, &watchtower_ids, &distances),
+            Some((1, 140.0)),
+            "an explicit order should override the nearer post"
+        );
+        assert_eq!(
+            select_guardhouse_muster_watch(10, &watchtower_ids, &[Some(90.0), None]),
+            None,
+            "a severed ordered route must not fall back to another district"
+        );
+        assert_eq!(
+            select_guardhouse_muster_watch(99, &watchtower_ids, &distances),
+            None,
+            "an unavailable ordered post must leave the company unlinked"
+        );
+        assert_eq!(
+            select_guardhouse_muster_watch(0, &[20, 10], &[Some(100.0), Some(100.0)]),
+            Some((1, 100.0)),
+            "automatic equal routes should use stable watch identity"
         );
     }
 

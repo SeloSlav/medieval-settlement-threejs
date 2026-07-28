@@ -128,6 +128,10 @@ type ResourceInspectorOptions = {
     buildingId: string,
     reservePerGuard: number,
   ) => void | Promise<void>;
+  onSetGuardhouseMusterPost?: (
+    buildingId: string,
+    watchtowerId: string | null,
+  ) => void | Promise<void>;
   onSetMarketplaceIronworkTarget?: (
     buildingId: string,
     ironworkTarget: number,
@@ -623,6 +627,16 @@ export class ResourceInspector {
         void this.options.onSetGuardhousePayPriority?.(
           this.selectedTarget.building.id,
           Number(priorityValue),
+        );
+        return;
+      }
+      const musterWatchtowerId = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-guardhouse-muster-watchtower]')
+        ?.dataset.guardhouseMusterWatchtower;
+      if (musterWatchtowerId != null) {
+        void this.options.onSetGuardhouseMusterPost?.(
+          this.selectedTarget.building.id,
+          musterWatchtowerId === 'auto' ? null : musterWatchtowerId,
         );
         return;
       }

@@ -522,11 +522,61 @@ export function guardhouseMusterResponseBand(
   return normalized >= 0.75 ? 'delayed' : 'weak';
 }
 
+export function normalizeGuardhouseMusterWatchtowerId(
+  watchtowerId: string | undefined,
+): string | null {
+  const normalized = watchtowerId?.trim();
+  return normalized && normalized !== '0' ? normalized : null;
+}
+
+/**
+ * Resolves one persisted company order against the operational watch roster.
+ * Explicit orders never fall back to another district when their post is
+ * unstaffed, burning, or disconnected; automatic companies retain the
+ * save-compatible nearest-route behavior with stable ties.
+ */
+export function selectGuardhouseMusterWatchIndex(
+  orderedWatchtowerId: string | null,
+  towers: readonly Pick<BuildingState, 'id'>[],
+  roadDistances: readonly (number | null)[],
+): number {
+  if (orderedWatchtowerId !== null) {
+    const index = towers.findIndex((tower) => tower.id === orderedWatchtowerId);
+    const distance = index < 0 ? null : roadDistances[index];
+    return distance != null && Number.isFinite(distance) ? index : -1;
+  }
+
+  let nearestIndex = -1;
+  let nearestDistance = Infinity;
+  for (let index = 0; index < towers.length; index += 1) {
+    const distance = roadDistances[index];
+    if (distance == null || !Number.isFinite(distance)) continue;
+    if (
+      distance < nearestDistance - 1e-6
+      || (
+        Math.abs(distance - nearestDistance) <= 1e-6
+        && (
+          nearestIndex < 0
+          || compareStableIds(
+            towers[index]!.id,
+            towers[nearestIndex]!.id,
+          ) < 0
+        )
+      )
+    ) {
+      nearestIndex = index;
+      nearestDistance = distance;
+    }
+  }
+  return nearestIndex;
+}
+
 export function getGuardhouseMusterState(
   guardhouse: BuildingState,
   gameState: GameState,
   getRoadPathDistance: (ax: number, az: number, bx: number, bz: number) => number | null,
   roadSpeedMultiplier = 1,
+  roadDistancesByWatch?: ReadonlyMap<string, number | null>,
 ): GuardhouseMusterState {
   const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
   const guardhouseFireDisabled = fireDisabled.has(guardhouse.id);
@@ -551,26 +601,23 @@ export function getGuardhouseMusterState(
       effectiveReady: 0,
     };
   }
-  let routeDistance: number | null = null;
-  let linkedTowerId: string | null = null;
-  for (const tower of towers) {
-    const candidate = getRoadPathDistance(guardhouse.x, guardhouse.z, tower.x, tower.z);
-    if (candidate == null) continue;
-    if (
-      routeDistance == null
-      || candidate < routeDistance - 1e-6
-      || (
-        Math.abs(candidate - routeDistance) <= 1e-6
-        && (
-          linkedTowerId == null
-          || compareStableIds(tower.id, linkedTowerId) < 0
-        )
-      )
-    ) {
-      routeDistance = candidate;
-      linkedTowerId = tower.id;
-    }
-  }
+  const distances = towers.map((tower) =>
+    roadDistancesByWatch?.has(tower.id)
+      ? roadDistancesByWatch.get(tower.id) ?? null
+      : getRoadPathDistance(guardhouse.x, guardhouse.z, tower.x, tower.z));
+  const linkedTowerIndex = selectGuardhouseMusterWatchIndex(
+    normalizeGuardhouseMusterWatchtowerId(
+      guardhouse.guardhouseMusterWatchtowerId,
+    ),
+    towers,
+    distances,
+  );
+  const routeDistance = linkedTowerIndex < 0
+    ? null
+    : distances[linkedTowerIndex] ?? null;
+  const linkedTowerId = linkedTowerIndex < 0
+    ? null
+    : towers[linkedTowerIndex]!.id;
   const armed = armedGuardCount(guardhouse.assignedLabor, guardhouse.polearms);
   const rawReady = armed * clamp01(guardhouse.actionCooldown);
   const responseDistance = guardhouseMusterResponseDistance(
@@ -647,45 +694,31 @@ export function computeGuardhouseMusterPlan(
       guardhouse.z,
       towerPoints,
     );
-    let nearestIndex = -1;
-    let nearestDistance = Infinity;
-    for (let index = 0; index < towers.length; index += 1) {
-      const distance = distances[index];
-      if (distance == null || !Number.isFinite(distance)) continue;
-      if (
-        distance < nearestDistance - 1e-6
-        || (
-          Math.abs(distance - nearestDistance) <= 1e-6
-          && (
-            nearestIndex < 0
-            || compareStableIds(
-              towers[index]!.id,
-              towers[nearestIndex]!.id,
-            ) < 0
-          )
-        )
-      ) {
-        nearestIndex = index;
-        nearestDistance = distance;
-      }
-    }
-    if (nearestIndex < 0) continue;
+    const linkedTowerIndex = selectGuardhouseMusterWatchIndex(
+      normalizeGuardhouseMusterWatchtowerId(
+        guardhouse.guardhouseMusterWatchtowerId,
+      ),
+      towers,
+      distances,
+    );
+    if (linkedTowerIndex < 0) continue;
 
-    const tower = towers[nearestIndex]!;
+    const tower = towers[linkedTowerIndex]!;
+    const routeDistance = distances[linkedTowerIndex]!;
     const rawReady = armed * clamp01(guardhouse.actionCooldown);
     const responseDistance = guardhouseMusterResponseDistance(
-      nearestDistance,
+      routeDistance,
       normalizedRoadSpeed,
     )!;
     const efficiency = guardhouseMusterEfficiency(
-      nearestDistance,
+      routeDistance,
       normalizedRoadSpeed,
     );
     const effectiveReady = rawReady * efficiency;
     assignmentsByGuardhouse.set(guardhouse.id, {
       guardhouseId: guardhouse.id,
       towerId: tower.id,
-      routeDistance: nearestDistance,
+      routeDistance,
       responseDistance,
       efficiency,
       rawReady,

@@ -69,6 +69,10 @@ export type InspectorSpacetimeActions = {
   onSetCarpenterPolearmReserve: (buildingId: string, polearmReserve: number) => Promise<void>;
   onSetGuardhousePayPriority: (buildingId: string, payPriority: number) => Promise<void>;
   onSetGuardhouseFoodReserve: (buildingId: string, reservePerGuard: number) => Promise<void>;
+  onSetGuardhouseMusterPost: (
+    buildingId: string,
+    watchtowerId: string | null,
+  ) => Promise<void>;
   onSetMarketplaceIronworkTarget: (buildingId: string, ironworkTarget: number) => Promise<void>;
   onSetMarketplaceGoldReserveTarget: (
     buildingId: string,
@@ -550,6 +554,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setGuardhouseFoodReserve(buildingId, reservePerGuard),
         'Could not update the guardhouse ration reserve.',
+      );
+    },
+    onSetGuardhouseMusterPost: async (buildingId, watchtowerId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setGuardhouseMusterPost(buildingId, watchtowerId),
+        'Could not update the guardhouse muster post.',
       );
     },
     onSetMarketplaceIronworkTarget: async (buildingId, ironworkTarget) => {

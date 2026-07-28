@@ -410,6 +410,12 @@ pub struct Building {
     /// weaving at the workshop yard. Appended for additive save compatibility.
     #[default(0.0)]
     pub flax: f64,
+    /// Explicit watch post this guard company must answer. Zero keeps the
+    /// save-compatible nearest-staffed-watch behavior; ignored by other kinds.
+    /// The order remains through temporary staffing or fire outages so a
+    /// disrupted frontier plan cannot silently reassign itself.
+    #[default(0u64)]
+    pub guardhouse_muster_watchtower_id: u64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

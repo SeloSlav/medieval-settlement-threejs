@@ -555,6 +555,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setGuardhouseFoodReserve(buildingId, reservePerGuard);
   }
 
+  setGuardhouseMusterPost(buildingId: string, watchtowerId: string | null): Promise<void> {
+    return spacetimeReducers.setGuardhouseMusterPost(buildingId, watchtowerId);
+  }
+
   setMarketplaceIronworkTarget(buildingId: string, ironworkTarget: number): Promise<void> {
     return spacetimeReducers.setMarketplaceIronworkTarget(buildingId, ironworkTarget);
   }

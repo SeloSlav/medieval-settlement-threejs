@@ -35,6 +35,7 @@ import {
   isFrontierAlertActive,
   isFrontierRaidSeason,
   isPalisadedRefugeRallyActive,
+  normalizeGuardhouseMusterWatchtowerId,
   palisadedRefugeEffectiveRadius,
   palisadedRefugeHouseholdLossFraction,
   projectRaidTargets,
@@ -42,6 +43,7 @@ import {
   raidTargetCanShelter,
   normalizeGuardhouseFoodReserve,
   selectCriticalGuardhouseFoodTarget,
+  selectGuardhouseMusterWatchIndex,
   watchtowerEffectiveRadius,
   GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
   GUARDHOUSE_FOOD_RESERVE_DEEP,
@@ -259,6 +261,36 @@ assert.equal(guardhouseMusterEfficiency(null, SPRING_RAIN_ROAD_SPEED_MULTIPLIER)
 assert.equal(guardhouseMusterResponseBand(1), 'full');
 assert.equal(guardhouseMusterResponseBand(0.825), 'delayed');
 assert.equal(guardhouseMusterResponseBand(0.65), 'weak');
+assert.equal(normalizeGuardhouseMusterWatchtowerId(undefined), null);
+assert.equal(normalizeGuardhouseMusterWatchtowerId('0'), null);
+assert.equal(normalizeGuardhouseMusterWatchtowerId(' 42 '), '42');
+assert.equal(
+  selectGuardhouseMusterWatchIndex(
+    null,
+    [{ id: '20' }, { id: '10' }],
+    [100, 100],
+  ),
+  1,
+  'automatic equal-distance posts should use stable watch identity',
+);
+assert.equal(
+  selectGuardhouseMusterWatchIndex(
+    '20',
+    [{ id: '20' }, { id: '10' }],
+    [140, 90],
+  ),
+  0,
+  'an explicit post should override a nearer watch',
+);
+assert.equal(
+  selectGuardhouseMusterWatchIndex(
+    '20',
+    [{ id: '20' }, { id: '10' }],
+    [null, 90],
+  ),
+  -1,
+  'a severed explicit post must not silently fall back to another district',
+);
 
 const musterState = emptyGameState();
 const musterTower = { ...tower, assignedLabor: 2 };
@@ -362,6 +394,18 @@ assert.equal(linkedMuster.linkedTowerId, musterTower.id);
 assert.equal(linkedMuster.efficiency, 0.825);
 assert.equal(linkedMuster.rawReady, 4);
 assert.equal(linkedMuster.effectiveReady, 3.3);
+assert.equal(
+  getGuardhouseMusterState(
+    guardhouse,
+    musterState,
+    () => {
+      throw new Error('precomputed watch routes should avoid another path solve');
+    },
+    1,
+    new Map([[musterTower.id, 480]]),
+  ).linkedTowerId,
+  musterTower.id,
+);
 const wetLinkedMuster = getGuardhouseMusterState(
   guardhouse,
   musterState,
@@ -608,6 +652,48 @@ assert.equal(
   ).linkedTowerId,
   earlierTieWatch.id,
   'the selected-company inspector must show the same stable tied watch',
+);
+const orderedTieCompany = {
+  ...tiedCompany,
+  guardhouseMusterWatchtowerId: laterTieWatch.id,
+};
+tiedMusterState.buildings.set(orderedTieCompany.id, orderedTieCompany);
+assert.equal(
+  computeGuardhouseMusterPlan(
+    tiedMusterState,
+    tiedMusterRoads,
+  ).assignmentsByGuardhouse.get(orderedTieCompany.id)?.towerId,
+  laterTieWatch.id,
+  'a persisted muster order must override automatic nearest/stable selection',
+);
+assert.equal(
+  getGuardhouseMusterState(
+    orderedTieCompany,
+    tiedMusterState,
+    () => 50,
+  ).linkedTowerId,
+  laterTieWatch.id,
+  'the guardhouse inspector must honor the same persisted post order',
+);
+tiedMusterState.buildings.set(laterTieWatch.id, {
+  ...laterTieWatch,
+  assignedLabor: 0,
+});
+assert.equal(
+  computeGuardhouseMusterPlan(
+    tiedMusterState,
+    tiedMusterRoads,
+  ).assignmentsByGuardhouse.has(orderedTieCompany.id),
+  false,
+  'an unstaffed ordered post must leave the company waiting rather than moving to the active watch',
+);
+assert.equal(
+  getGuardhouseMusterState(
+    orderedTieCompany,
+    tiedMusterState,
+    () => 50,
+  ).linkedTowerId,
+  null,
 );
 
 const refugeProjectionState = emptyGameState();
@@ -1362,6 +1448,11 @@ const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs'
 const serverPolicy = readFileSync('server/src/security_policy.rs', 'utf8');
 const serverFires = readFileSync('server/src/simulation/fires.rs', 'utf8');
 const serverBuildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
+const serverTables = readFileSync('server/src/tables.rs', 'utf8');
+const inspectorActions = readFileSync('src/app/inspectorSpacetimeActions.ts', 'utf8');
+const spacetimeReducers = readFileSync('src/data/spacetimeReducers.ts', 'utf8');
+const buildingSync = readFileSync('src/data/spacetimeTableSync/syncBuildings.ts', 'utf8');
+const generatedReducers = readFileSync('src/generated/types/reducers.ts', 'utf8');
 assert.match(setupPanel, /Peaceful settlement/);
 assert.match(setupPanel, /Contested frontier/);
 assert.match(setupPanel, /enemy pressure/i);
@@ -1404,6 +1495,15 @@ assert.match(guardhouseInspector, /Road conditions/);
 assert.match(guardhouseInspector, /Soft-road delay/);
 assert.match(guardhouseInspector, /Effective company/);
 assert.match(guardhouseInspector, /Inspect linked watchtower/);
+assert.match(guardhouseInspector, /Muster order/);
+assert.match(guardhouseInspector, /Nearest staffed watch/);
+assert.match(guardhouseInspector, /data-guardhouse-muster-watchtower/);
+assert.match(guardhouseInspector, /automatic reassignment suspended/);
+assert.match(
+  guardhouseInspector,
+  /roadPathDistancesFrom/,
+  'the muster-post chooser should preview all watch routes from one road tree',
+);
 assert.match(refugeInspector, /Warned demand/);
 assert.match(refugeInspector, /Resident capacity/);
 assert.match(refugeInspector, /Nearest-household claims/);
@@ -1487,6 +1587,11 @@ assert.match(
   'authoritative raid readiness must exclude fire-disabled guardhouses',
 );
 assert.match(serverSimulation, /road_path_distances_from/);
+assert.match(
+  serverSimulation,
+  /select_guardhouse_muster_watch\([\s\S]*guardhouse\.guardhouse_muster_watchtower_id/,
+  'the authoritative district assignment must consume the persisted company order',
+);
 assert.match(serverSimulation, /readiness_by_watch/);
 assert.match(serverSimulation, /raid_district_forecast/);
 assert.match(serverSimulation, /RaidTargetKind::Residence/);
@@ -1644,6 +1749,31 @@ assert.match(serverPolicy, /RAID_SEASON_START_MONTH:\s*u32\s*=\s*4/);
 assert.match(serverPolicy, /RAID_SEASON_END_MONTH:\s*u32\s*=\s*10/);
 assert.match(serverPolicy, /guardhouse_muster_efficiency/);
 assert.match(serverPolicy, /guardhouse_muster_response_distance/);
+assert.match(serverPolicy, /select_guardhouse_muster_watch/);
+assert.match(
+  serverTables,
+  /#\[default\(0u64\)\][\s\S]*pub guardhouse_muster_watchtower_id: u64/,
+  'existing saves must retain automatic nearest-watch behavior',
+);
+assert.match(
+  serverBuildingReducers,
+  /pub fn set_guardhouse_muster_post[\s\S]*watchtower\.owner != owner[\s\S]*watchtower\.kind != "watchtower"[\s\S]*!watchtower\.construction_complete/,
+  'muster orders must accept only an owned completed watch post',
+);
+assert.match(
+  serverBuildingReducers,
+  /building\.kind == "watchtower"[\s\S]*candidate\.guardhouse_muster_watchtower_id == building_id[\s\S]*guardhouse_muster_watchtower_id = 0/,
+  'demolishing a watch must return its companies to automatic assignment',
+);
+assert.match(resourceInspector, /onSetGuardhouseMusterPost/);
+assert.match(inspectorActions, /setGuardhouseMusterPost/);
+assert.match(spacetimeReducers, /set_guardhouse_muster_post/);
+assert.match(
+  buildingSync,
+  /row\.guardhouseMusterWatchtowerId == null[\s\S]*row\.guardhouseMusterWatchtowerId === 0n[\s\S]*undefined[\s\S]*toString/,
+  'legacy rows and default-zero rows must both retain automatic muster assignment',
+);
+assert.match(generatedReducers, /SetGuardhouseMusterPostReducer/);
 assert.match(serverSimulation, /environment\.road_speed_multiplier\(\)/);
 assert.ok(
   statSync('public/assets/ui/build-menu/cards/watchtower.webp').size > 20_000,
@@ -1759,6 +1889,9 @@ for (let index = 0; index < 10; index += 1) {
     ),
     polearms: 6,
     actionCooldown: 1,
+    guardhouseMusterWatchtowerId: index % 2 === 0
+      ? `district-perf-watch-${Math.min(39, index * 4 + 1)}`
+      : undefined,
   };
   districtPerfState.buildings.set(company.id, company);
 }

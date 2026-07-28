@@ -12,9 +12,10 @@ use crate::security_policy::{
     assign_refuge_households, guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs,
     raid_district_forecast, raid_holding_vulnerability, raid_target_can_shelter,
     raid_target_loss_fraction, raidable_treasury_timber, scheduled_raid_ticks, threat_progress,
-    tower_effective_radius, RaidDistrictForecast, RaidPortableStores, RaidTargetCandidate,
-    RaidTargetDefenseCandidate, RaidTargetKind, RefugeHouseholdCandidate, WatchArea,
-    WatchCoverageIndex, MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
+    select_guardhouse_muster_watch, tower_effective_radius, RaidDistrictForecast,
+    RaidPortableStores, RaidTargetCandidate, RaidTargetDefenseCandidate, RaidTargetKind,
+    RefugeHouseholdCandidate, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
+    SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{
     settlement_security, Building, DeliveryTrip, PlayerResources, Residence, SettlementSecurity,
@@ -693,6 +694,10 @@ fn settlement_guard_districts(
         .iter()
         .map(|tower| (tower.x, tower.z))
         .collect::<Vec<_>>();
+    let watchtower_ids = towers
+        .iter()
+        .map(|tower| tower.source_id)
+        .collect::<Vec<_>>();
     let mut total_ready = 0.0;
     let mut assigned = 0.0;
     let mut readiness_by_watch = HashMap::new();
@@ -712,20 +717,14 @@ fn settlement_guard_districts(
         };
         let distances =
             network.road_path_distances_from(guardhouse.x, guardhouse.z, &watch_positions);
-        let nearest = towers
-            .iter()
-            .zip(distances)
-            .filter_map(|(tower, distance)| distance.map(|distance| (tower, distance)))
-            .min_by(
-                |(left_tower, left_distance), (right_tower, right_distance)| {
-                    left_distance
-                        .total_cmp(right_distance)
-                        .then_with(|| left_tower.source_id.cmp(&right_tower.source_id))
-                },
-            );
-        let Some((tower, muster_distance)) = nearest else {
+        let Some((watch_index, muster_distance)) = select_guardhouse_muster_watch(
+            guardhouse.guardhouse_muster_watchtower_id,
+            &watchtower_ids,
+            &distances,
+        ) else {
             continue;
         };
+        let tower = &towers[watch_index];
         let muster_efficiency =
             guardhouse_muster_efficiency(Some(muster_distance), road_speed_multiplier);
         let effective = armed_here * guardhouse.action_cooldown.clamp(0.0, 1.0) * muster_efficiency;

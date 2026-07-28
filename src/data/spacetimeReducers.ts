@@ -484,6 +484,22 @@ export async function setGuardhouseFoodReserve(
   });
 }
 
+export async function setGuardhouseMusterPost(
+  buildingId: string,
+  watchtowerId: string | null,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid guardhouse id.');
+  const serverWatchtowerId = watchtowerId === null
+    ? 0n
+    : parseBuildingServerId(watchtowerId);
+  if (serverWatchtowerId === null) throw new Error('Invalid watchtower id.');
+  await callReducer('setGuardhouseMusterPost', 'set_guardhouse_muster_post', {
+    buildingId: serverId,
+    watchtowerId: serverWatchtowerId,
+  });
+}
+
 export async function setMarketplaceIronworkTarget(
   buildingId: string,
   ironworkTarget: number,

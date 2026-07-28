@@ -50,6 +50,7 @@ import SetGranaryFreshFoodTargetReducer from "../set_granary_fresh_food_target_r
 import SetGranaryGrainReserveReducer from "../set_granary_grain_reserve_reducer";
 import SetGranaryPolicyReducer from "../set_granary_policy_reducer";
 import SetGuardhouseFoodReserveReducer from "../set_guardhouse_food_reserve_reducer";
+import SetGuardhouseMusterPostReducer from "../set_guardhouse_muster_post_reducer";
 import SetGuardhousePayPriorityReducer from "../set_guardhouse_pay_priority_reducer";
 import SetHarvestReservePercentReducer from "../set_harvest_reserve_percent_reducer";
 import SetLaborStewardReserveReducer from "../set_labor_steward_reserve_reducer";
@@ -117,6 +118,7 @@ export type SetGranaryFreshFoodTargetParams = __Infer<typeof SetGranaryFreshFood
 export type SetGranaryGrainReserveParams = __Infer<typeof SetGranaryGrainReserveReducer>;
 export type SetGranaryPolicyParams = __Infer<typeof SetGranaryPolicyReducer>;
 export type SetGuardhouseFoodReserveParams = __Infer<typeof SetGuardhouseFoodReserveReducer>;
+export type SetGuardhouseMusterPostParams = __Infer<typeof SetGuardhouseMusterPostReducer>;
 export type SetGuardhousePayPriorityParams = __Infer<typeof SetGuardhousePayPriorityReducer>;
 export type SetHarvestReservePercentParams = __Infer<typeof SetHarvestReservePercentReducer>;
 export type SetLaborStewardReserveParams = __Infer<typeof SetLaborStewardReserveReducer>;
