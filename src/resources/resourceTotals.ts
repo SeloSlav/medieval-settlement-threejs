@@ -126,22 +126,28 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     return cachedTotals;
   }
 
-  let timber = state.stockpile.timber;
-  let stone = state.stockpile.stone;
-  let firewood = state.stockpile.firewood;
-  let water = state.stockpile.water;
-  let food = state.stockpile.food;
-  let grain = state.stockpile.grain;
-  let flour = state.stockpile.flour;
-  let ale = state.stockpile.ale;
-  let preservedFood = state.stockpile.preservedFood;
-  let honey = state.stockpile.honey;
-  let wine = state.stockpile.wine;
-  let wool = state.stockpile.wool;
-  let cloth = state.stockpile.cloth;
-  let ironwork = state.stockpile.ironwork ?? 0;
-  let polearms = state.stockpile.polearms ?? 0;
-  let gold = state.stockpile.gold;
+  // The player-resource row remains in the schema for old saves and policy
+  // fields, but a physical settlement may only count goods held by a map
+  // entity. The server materializes any migrated balance into a salvage pile.
+  const ledger = state.physicalFoundingSiteEnabled === true
+    ? null
+    : state.stockpile;
+  let timber = ledger?.timber ?? 0;
+  let stone = ledger?.stone ?? 0;
+  let firewood = ledger?.firewood ?? 0;
+  let water = ledger?.water ?? 0;
+  let food = ledger?.food ?? 0;
+  let grain = ledger?.grain ?? 0;
+  let flour = ledger?.flour ?? 0;
+  let ale = ledger?.ale ?? 0;
+  let preservedFood = ledger?.preservedFood ?? 0;
+  let honey = ledger?.honey ?? 0;
+  let wine = ledger?.wine ?? 0;
+  let wool = ledger?.wool ?? 0;
+  let cloth = ledger?.cloth ?? 0;
+  let ironwork = ledger?.ironwork ?? 0;
+  let polearms = ledger?.polearms ?? 0;
+  let gold = ledger?.gold ?? 0;
 
   for (const building of state.buildings.values()) {
     timber += building.timber;

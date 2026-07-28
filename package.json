@@ -106,6 +106,7 @@
     "test:foraging-ecology": "node --experimental-strip-types scripts/testForagingEcology.mts",
     "test:river-simulation": "npx tsx scripts/testSparseVirtualPipesWater.mts",
     "test:river-water-material": "npx tsx scripts/testRiverWaterMaterial.mts",
+    "test:seedthree-forest-ecology": "npx tsx scripts/testSeedThreeForestEcology.mts",
     "test:seedthree-forest-compaction": "npx tsx scripts/testSeedThreeForestCompaction.mts",
     "test:seedthree-winter-foliage": "npx tsx scripts/testSeedThreeWinterFoliage.mts",
     "test:terrain-ecology-material": "node --experimental-strip-types scripts/testTerrainEcologyMaterial.mts",

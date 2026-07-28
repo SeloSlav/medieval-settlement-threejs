@@ -555,6 +555,18 @@ const grainPlanInput = {
 const grainPlan = computeSettlementGrainPlan(grainPlanInput);
 assert.equal(grainPlan.roadPlan, null);
 approx(grainPlan.totalStock, 51);
+const physicalGrainPlan = computeSettlementGrainPlan({
+  ...grainPlanInput,
+  state: {
+    ...grainState,
+    physicalFoundingSiteEnabled: true,
+  },
+});
+approx(
+  physicalGrainPlan.totalStock,
+  41,
+  'physical crop planning must ignore the compatibility ledger',
+);
 approx(grainPlan.inTransit, 16);
 assert.deepEqual(grainPlan.seed, { target: 10, protected: 6, shortfall: 4 });
 assert.deepEqual(grainPlan.winterFodder, { target: 12, protected: 7, shortfall: 5 });

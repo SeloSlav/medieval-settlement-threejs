@@ -722,6 +722,7 @@ export class SceneManager {
       ),
       vignette: state.grade.vignette + atmosphericBlend * 0.025,
     });
+    this.postProcessor.setWeatherWetness(weather.wetness);
   }
 
   setEnvironment(environment: EnvironmentState): void {

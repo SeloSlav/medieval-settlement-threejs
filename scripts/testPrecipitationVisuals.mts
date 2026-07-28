@@ -41,14 +41,17 @@ const drought = precipitationProfile(environment('drought'));
 
 assert.equal(fair.kind, 'none');
 assert.equal(fair.intensity, 0);
+assert.equal(fair.wetness, 0);
 assert.equal(rain.kind, 'rain');
 assert.equal(rain.intensity, 0.78);
+assert.equal(rain.wetness, 1);
 assert.ok(rain.fallSpeed > snow.fallSpeed * 4);
 assert.equal(rain.sunlightMultiplier, 0.32);
 assert.equal(rain.fogDensityMultiplier, 1.38);
 assert.equal(rain.saturationMultiplier, 0.74);
 assert.equal(snow.kind, 'snow');
 assert.equal(snow.intensity, 0.78);
+assert.equal(snow.wetness, 0);
 assert.equal(snow.sunlightMultiplier, 0.8);
 assert.equal(snow.fogDensityMultiplier, 1.02);
 assert.equal(snow.fogTint, 0xc6d4db);
@@ -147,6 +150,14 @@ const riverBankMaterialSource = exportedFunctionSource(
   roadMaterialSource,
   'createRiverBankMaterial',
 );
+const roadEdgeOpacitySource = localFunctionSource(
+  roadMaterialSource,
+  'buildBankOpacityNode',
+);
+const riverBankOpacitySource = localFunctionSource(
+  roadMaterialSource,
+  'buildRiverBankOpacityNode',
+);
 
 assert.match(rendererSource, /Two identical vertical tiles prevent a visible empty band/);
 assert.match(rendererSource, /const RAIN_BASE_PARTICLES = 1_800/);
@@ -227,13 +238,23 @@ assert.doesNotMatch(
 );
 assert.match(
   riverBankMaterialSource,
-  /material\.opacityNode\s*=\s*buildRiverBankOpacityNode\(textures\)/,
-  'river-bank mud must retain its radial fade and single edge-mask opacity path',
+  /material\.opacityNode\s*=\s*buildRiverBankOpacityNode\(\)/,
+  'river-bank mud must retain its analytic radial opacity path',
 );
 assert.match(
-  roadMaterialSource,
-  /function buildRiverBankOpacityNode[\s\S]*?texture\(textures\.edgeMask,\s*uvNode\)/,
-  'river-bank opacity must continue sampling the edge mask once',
+  roadEdgeOpacitySource,
+  /texture\(textures\.edgeMask,\s*uvNode\)/,
+  'road-edge opacity must retain its textured edge mask',
+);
+assert.doesNotMatch(
+  riverBankOpacitySource,
+  /textures\.edgeMask|texture\(/,
+  'independent river-bank quads must not repeat an edge-mask texture sample',
+);
+assert.match(
+  riverBankOpacitySource,
+  /smoothstep\(float\(0\)[\s\S]*?float\(0\.36\)[\s\S]*?uvNode\.x\)/,
+  'river-bank opacity must retain its analytic bank-width feather',
 );
 assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
@@ -299,4 +320,14 @@ function exportedFunctionSource(source: string, name: string): string {
   assert.ok(start >= 0, `expected exported function ${name}`);
   const next = source.indexOf('\nexport function ', start + 1);
   return source.slice(start, next >= 0 ? next : source.length);
+}
+
+function localFunctionSource(source: string, name: string): string {
+  const start = source.indexOf(`function ${name}`);
+  assert.ok(start >= 0, `expected local function ${name}`);
+  const nextLocal = source.indexOf('\nfunction ', start + 1);
+  const nextExported = source.indexOf('\nexport function ', start + 1);
+  const boundaries = [nextLocal, nextExported].filter((index) => index >= 0);
+  const end = boundaries.length > 0 ? Math.min(...boundaries) : source.length;
+  return source.slice(start, end);
 }

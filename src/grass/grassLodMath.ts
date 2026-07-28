@@ -93,11 +93,32 @@ export function dirtZoomGate(cameraDistance: number): number {
  * opaque texels visible at overview scale. Delay their reveal until the cards
  * are large enough to read as plants, then use a steeper opacity curve.
  */
-export const REED_LOD_VISIBILITY_THRESHOLD = 0.78;
+export const REED_LOD_VISIBILITY_THRESHOLD = 0.96;
 export const REED_LOD_OPACITY_POWER = 2;
+
+/**
+ * Alpha-tested clumps turn into detached dark texels when the shared dirt gate
+ * is still faint at overview scale. Keep the terrain's continuous dirt blend,
+ * but delay the 3D clumps until their silhouettes read as grass.
+ */
+export const GRASS_BLADE_LOD_VISIBILITY_THRESHOLD = 0.52;
+export const GRASS_BLADE_LOD_OPACITY_POWER = 1.35;
 
 export function grassBladeRevealOpacity(cameraDistance: number): number {
   return dirtZoomGate(cameraDistance);
+}
+
+export function grassBladeLodOpacity(grassLod: number): number {
+  const clampedLod = Math.max(0, Math.min(1, grassLod));
+  const remapped = Math.max(
+    0,
+    Math.min(
+      1,
+      (clampedLod - GRASS_BLADE_LOD_VISIBILITY_THRESHOLD)
+        / (1 - GRASS_BLADE_LOD_VISIBILITY_THRESHOLD),
+    ),
+  );
+  return Math.pow(remapped, GRASS_BLADE_LOD_OPACITY_POWER);
 }
 
 export function reedRevealOpacity(cameraDistance: number): number {
@@ -131,7 +152,7 @@ export function resolveCloseGroundLod(
 }
 
 export function isGrassBladeZoomActive(cameraDistance: number): boolean {
-  return grassBladeRevealOpacity(cameraDistance) > 0.02;
+  return grassBladeLodOpacity(grassBladeRevealOpacity(cameraDistance)) > 0.02;
 }
 
 export function isReedZoomActive(cameraDistance: number): boolean {

@@ -12,7 +12,7 @@ use crate::labor_steward_policy::{
 };
 use crate::reducers::world_configuration::default_world_config;
 use crate::schedule::SimTickSchedule;
-use crate::simulation::ensure_settlement_security;
+use crate::simulation::{ensure_settlement_security, materialize_physical_resource_ledger};
 use crate::tables::{ForagingNode, PlayerResources, Quarry, TreeEntity};
 use crate::world_gen;
 
@@ -90,6 +90,9 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
     if ctx.db.player_resources().owner().find(&owner).is_some() {
         ensure_market_state(ctx, owner);
         ensure_settlement_security(ctx, owner);
+        if let Err(error) = materialize_physical_resource_ledger(ctx, owner) {
+            log::warn!("Could not materialize connected player's resource ledger: {error}");
+        }
         return;
     }
     ctx.db.player_resources().insert(PlayerResources {

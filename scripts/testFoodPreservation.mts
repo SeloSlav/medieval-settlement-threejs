@@ -58,6 +58,14 @@ assert.ok(
   buildingFreshFoodStorageFactor('granary') < buildingFreshFoodStorageFactor('hunters_hall'),
   'granary storage should materially slow fresh-food spoilage',
 );
+const physicalLedgerState = emptyGameState();
+physicalLedgerState.physicalFoundingSiteEnabled = true;
+physicalLedgerState.stockpile.food = 50;
+assert.equal(
+  analyzeFreshFoodPreservation(physicalLedgerState, ambientSpoilage).totalStock,
+  0,
+  'physical food planning must ignore compatibility-ledger stock',
+);
 
 const adjustedRunway = spoilageAdjustedRunwayDays(
   preservation.totalStock,

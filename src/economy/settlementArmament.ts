@@ -335,7 +335,7 @@ function buildRoadPlan(
  */
 export function computeSettlementArmamentPlan(input: {
   state: Pick<GameState, 'stockpile' | 'buildings' | 'deliveryTrips'>
-    & Partial<Pick<GameState, 'fireIncidents'>>;
+    & Partial<Pick<GameState, 'fireIncidents' | 'physicalFoundingSiteEnabled'>>;
   roadComponentFor?: ProductionRoadComponentResolver;
 }): SettlementArmamentPlan {
   const branches = new Map<string, MutableArmamentBranch>();
@@ -360,8 +360,13 @@ export function computeSettlementArmamentPlan(input: {
   let lowPriorityCompanies = 0;
   let staffedCarpenters = 0;
   let totalStaffedCarpenterPolearms = 0;
-  let polearmStock = positive(input.state.stockpile.polearms);
-  let ironworkStock = positive(input.state.stockpile.ironwork);
+  const includeLegacyLedger = input.state.physicalFoundingSiteEnabled !== true;
+  let polearmStock = includeLegacyLedger
+    ? positive(input.state.stockpile.polearms)
+    : 0;
+  let ironworkStock = includeLegacyLedger
+    ? positive(input.state.stockpile.ironwork)
+    : 0;
 
   for (const building of input.state.buildings.values()) {
     polearmStock += positive(building.polearms);

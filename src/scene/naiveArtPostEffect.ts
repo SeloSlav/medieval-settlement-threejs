@@ -7,6 +7,13 @@
 export const CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED = true;
 
 export const CROATIAN_NAIVE_ART_NEIGHBOR_SAMPLE_COUNT = 5;
+export const CROATIAN_NAIVE_ART_FULL_RAIN_TREATMENT_RETENTION = 0.04;
+
+export function naiveArtRainTreatmentRetention(wetness: number): number {
+  if (wetness <= 0) return 1;
+  if (wetness >= 1) return CROATIAN_NAIVE_ART_FULL_RAIN_TREATMENT_RETENTION;
+  return 1 - wetness * (1 - CROATIAN_NAIVE_ART_FULL_RAIN_TREATMENT_RETENTION);
+}
 
 /**
  * Shared values for the GLSL and TSL implementations. Keeping the two

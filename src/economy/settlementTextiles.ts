@@ -446,7 +446,7 @@ export function computeSettlementTextilePlan(input: {
   state: Pick<
     GameState,
     'stockpile' | 'buildings' | 'livestockHerds' | 'residences' | 'deliveryTrips'
-  > & Partial<Pick<GameState, 'fireIncidents'>>;
+  > & Partial<Pick<GameState, 'fireIncidents' | 'physicalFoundingSiteEnabled'>>;
   clock: Pick<GameClock, 'month' | 'year'>;
   production: TextileProduction;
   roadComponentFor?: ProductionRoadComponentResolver;
@@ -583,8 +583,9 @@ export function computeSettlementTextilePlan(input: {
     }
   }
 
-  let woolStock = positive(input.state.stockpile.wool);
-  let clothStock = positive(input.state.stockpile.cloth);
+  const includeLegacyLedger = input.state.physicalFoundingSiteEnabled !== true;
+  let woolStock = includeLegacyLedger ? positive(input.state.stockpile.wool) : 0;
+  let clothStock = includeLegacyLedger ? positive(input.state.stockpile.cloth) : 0;
   let householdClothStock = 0;
   let supplierClothStock = 0;
   let householdClothInTransit = 0;

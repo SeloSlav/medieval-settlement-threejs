@@ -305,7 +305,8 @@ pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, 
         return;
     }
     if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
-        if treasury.physical_founding_site_enabled {
+        let physical = treasury.physical_founding_site_enabled;
+        if physical {
             if let Some(mut seat) = physical_treasury_seat(ctx, owner) {
                 seat.gold += amount;
                 ctx.db.building().id().update(seat);
@@ -314,6 +315,12 @@ pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, 
         }
         treasury.gold += amount;
         ctx.db.player_resources().owner().update(treasury);
+        if physical {
+            if let Err(error) = crate::simulation::materialize_physical_resource_ledger(ctx, owner)
+            {
+                log::warn!("Could not materialize physical treasury gold: {error}");
+            }
+        }
     }
 }
 

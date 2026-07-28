@@ -108,6 +108,35 @@ assert.match(
   /next_building_id: building_id[\s\S]*checked_add\(1\)/,
   'inserted piles must advance the save-persistent global building ID',
 );
+assert.match(
+  reclamation,
+  /pub fn materialize_physical_resource_ledger[\s\S]*from_resource_ledger[\s\S]*insert_reclamation_pile[\s\S]*clear_resource_ledger/,
+  'migrated or interrupted physical balances must become visible piles before the ledger clears',
+);
+for (const field of [
+  'timber',
+  'firewood',
+  'stone',
+  'water',
+  'food',
+  'grain',
+  'flour',
+  'ale',
+  'preserved_food',
+  'honey',
+  'wine',
+  'ironwork',
+  'polearms',
+  'wool',
+  'cloth',
+  'gold',
+]) {
+  assert.match(
+    reclamation,
+    new RegExp(`resources\\.${field} = 0\\.0`),
+    `physical ledger migration must clear ${field} after materialization`,
+  );
+}
 
 const residenceReducers = read('server/src/reducers/residences.rs');
 assert.match(
@@ -148,11 +177,15 @@ assert.match(residenceInspector, /every salvage-bearing footprint remains occupi
 
 const commodities = read('server/src/economy/commodities.rs');
 assert.match(commodities, /Self::Gold => 15/);
-assert.match(commodities, /building\.kind != "salvage_pile"/);
 assert.match(
   commodities,
   /"founders_camp"[\s\S]*?"salvage_pile"[\s\S]*?"chapel"[\s\S]*?"monastery"[\s\S]*?"town_hall"/,
   'gold storage must cover every physical treasury, coffer, and salvage lockbox',
+);
+assert.match(
+  commodities,
+  /let physical = treasury\.physical_founding_site_enabled[\s\S]*materialize_physical_resource_ledger\(ctx, owner\)/,
+  'physical fallback credits must become a visible pile instead of teleporting into storage',
 );
 const storage = read('server/src/economy/storage.rs');
 assert.match(
@@ -160,8 +193,18 @@ assert.match(
   /"founders_camp"[\s\S]*?"salvage_pile"[\s\S]*?"town_hall"/,
   'a demolished Town Hall lockbox must remain the physical treasury until replacement',
 );
+assert.match(
+  storage,
+  /treasury\.gold \+= amount[\s\S]*materialize_physical_resource_ledger\(ctx, owner\)/,
+  'gold without a surviving civic lockbox must materialize into a physical recovery pile',
+);
 
 const simulation = read('server/src/reducers/simulation.rs');
+assert.match(
+  simulation,
+  /materialize_all_physical_resource_ledgers\(ctx\);[\s\S]*if config\.game_speed == 0/,
+  'physical ledger repair must run even while the simulation clock is paused',
+);
 assert.match(simulation, /"salvage_pile" => reclamation_pile_ids\.push/);
 assert.match(simulation, /step_reclamation_piles\(ctx, &tick, &clock, reclamation_pile_ids\)/);
 

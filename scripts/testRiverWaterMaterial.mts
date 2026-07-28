@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import {
+  grassBladeLodOpacity,
+  grassBladeRevealOpacity,
+  GRASS_BLADE_LOD_VISIBILITY_THRESHOLD,
+  isGrassBladeZoomActive,
   isReedLodVisible,
   REED_LOD_OPACITY_POWER,
   REED_LOD_VISIBILITY_THRESHOLD,
@@ -69,6 +73,20 @@ assert.equal(
   isReedLodVisible(overviewReedLod),
   false,
   'review-scale orbit reeds must not collapse into detached alpha-tested dots',
+);
+assert.equal(grassBladeLodOpacity(-1), 0);
+assert.equal(grassBladeLodOpacity(GRASS_BLADE_LOD_VISIBILITY_THRESHOLD), 0);
+assert.equal(grassBladeLodOpacity(1), 1);
+assert.equal(grassBladeLodOpacity(2), 1);
+const overviewGrassLod = grassBladeRevealOpacity(42);
+assert.ok(
+  grassBladeLodOpacity(overviewGrassLod) < overviewGrassLod,
+  'overview grass clumps must fade later than the continuous terrain dirt blend',
+);
+assert.equal(
+  isGrassBladeZoomActive(42),
+  false,
+  'review-scale grass clumps must not collapse into detached alpha-tested specks',
 );
 
 const normal = new Float32Array(3);

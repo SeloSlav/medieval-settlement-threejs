@@ -11,13 +11,15 @@ use crate::building_defs::building_def;
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::economy::{building_commodity_room, building_commodity_stock, CommodityKind};
+use crate::placement_validation::{building_overlaps_open_water, building_overlaps_road_surface};
 use crate::reducers::buildings::next_available_building_id;
+use crate::roads::load_owner_road_network;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_building_supply_trip,
 };
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
-use crate::tables::{Building, WorldConfig};
+use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
 const RECOVERY_ORDER: [CommodityKind; 16] = [
@@ -42,13 +44,178 @@ const RECOVERY_ORDER: [CommodityKind; 16] = [
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ReclamationStock {
     pub timber: f64,
+    pub firewood: f64,
     pub stone: f64,
+    pub water: f64,
+    pub food: f64,
+    pub grain: f64,
+    pub flour: f64,
+    pub ale: f64,
+    pub preserved_food: f64,
+    pub honey: f64,
+    pub wine: f64,
+    pub ironwork: f64,
+    pub polearms: f64,
+    pub wool: f64,
+    pub cloth: f64,
+    pub gold: f64,
 }
 
 impl ReclamationStock {
     pub fn is_empty(self) -> bool {
-        self.timber <= EPSILON && self.stone <= EPSILON
+        RECOVERY_ORDER
+            .into_iter()
+            .all(|commodity| self.amount(commodity) <= EPSILON)
     }
+
+    fn from_resource_ledger(resources: &PlayerResources) -> Self {
+        Self {
+            timber: resources.timber.max(0.0),
+            firewood: resources.firewood.max(0.0),
+            stone: resources.stone.max(0.0),
+            water: resources.water.max(0.0),
+            food: resources.food.max(0.0),
+            grain: resources.grain.max(0.0),
+            flour: resources.flour.max(0.0),
+            ale: resources.ale.max(0.0),
+            preserved_food: resources.preserved_food.max(0.0),
+            honey: resources.honey.max(0.0),
+            wine: resources.wine.max(0.0),
+            ironwork: resources.ironwork.max(0.0),
+            polearms: resources.polearms.max(0.0),
+            wool: resources.wool.max(0.0),
+            cloth: resources.cloth.max(0.0),
+            gold: resources.gold.max(0.0),
+        }
+    }
+
+    fn amount(self, commodity: CommodityKind) -> f64 {
+        match commodity {
+            CommodityKind::Timber => self.timber,
+            CommodityKind::Firewood => self.firewood,
+            CommodityKind::Stone => self.stone,
+            CommodityKind::Water => self.water,
+            CommodityKind::Food => self.food,
+            CommodityKind::Grain => self.grain,
+            CommodityKind::Flour => self.flour,
+            CommodityKind::Ale => self.ale,
+            CommodityKind::PreservedFood => self.preserved_food,
+            CommodityKind::Honey => self.honey,
+            CommodityKind::Wine => self.wine,
+            CommodityKind::Ironwork => self.ironwork,
+            CommodityKind::Polearms => self.polearms,
+            CommodityKind::Wool => self.wool,
+            CommodityKind::Cloth => self.cloth,
+            CommodityKind::Gold => self.gold,
+        }
+    }
+
+    fn add_to_building(self, building: &mut Building) {
+        building.timber += self.timber;
+        building.firewood += self.firewood;
+        building.stone += self.stone;
+        building.water += self.water;
+        building.food += self.food;
+        building.grain += self.grain;
+        building.flour += self.flour;
+        building.ale += self.ale;
+        building.preserved_food += self.preserved_food;
+        building.honey += self.honey;
+        building.wine += self.wine;
+        building.ironwork += self.ironwork;
+        building.polearms += self.polearms;
+        building.wool += self.wool;
+        building.cloth += self.cloth;
+        building.gold += self.gold;
+    }
+}
+
+fn clear_resource_ledger(resources: &mut PlayerResources) {
+    resources.timber = 0.0;
+    resources.firewood = 0.0;
+    resources.stone = 0.0;
+    resources.water = 0.0;
+    resources.food = 0.0;
+    resources.grain = 0.0;
+    resources.flour = 0.0;
+    resources.ale = 0.0;
+    resources.preserved_food = 0.0;
+    resources.honey = 0.0;
+    resources.wine = 0.0;
+    resources.ironwork = 0.0;
+    resources.polearms = 0.0;
+    resources.wool = 0.0;
+    resources.cloth = 0.0;
+    resources.gold = 0.0;
+}
+
+fn ledger_pile_position_beside_building(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    anchor: &Building,
+) -> (f64, f64) {
+    const DIRECTIONS: [(f64, f64); 8] = [
+        (1.0, 0.0),
+        (-1.0, 0.0),
+        (0.0, 1.0),
+        (0.0, -1.0),
+        (0.707_106_781_18, 0.707_106_781_18),
+        (-0.707_106_781_18, 0.707_106_781_18),
+        (0.707_106_781_18, -0.707_106_781_18),
+        (-0.707_106_781_18, -0.707_106_781_18),
+    ];
+    let anchor_radius = building_def(&anchor.kind)
+        .map(|def| def.pick_radius)
+        .unwrap_or(1.5);
+    let pile_radius = building_def("salvage_pile")
+        .map(|def| def.pick_radius)
+        .unwrap_or(1.0);
+    let offset = anchor_radius + pile_radius + 0.75;
+    let network = load_owner_road_network(ctx, owner);
+    let other_buildings = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.id != anchor.id)
+        .collect::<Vec<_>>();
+    let mut best = None;
+
+    for (index, (dx, dz)) in DIRECTIONS.into_iter().enumerate() {
+        let x = anchor.x + dx * offset;
+        let z = anchor.z + dz * offset;
+        let overlaps_building = other_buildings.iter().any(|building| {
+            let other_radius = building_def(&building.kind)
+                .map(|def| def.pick_radius)
+                .unwrap_or(1.0);
+            (building.x - x).powi(2) + (building.z - z).powi(2)
+                < (pile_radius + other_radius + 0.25).powi(2)
+        });
+        let blocked = overlaps_building
+            || building_overlaps_open_water("salvage_pile", x, z)
+            || network
+                .as_ref()
+                .is_some_and(|roads| building_overlaps_road_surface(roads, "salvage_pile", x, z));
+        let road_distance = network
+            .as_ref()
+            .map(|roads| roads.nearest_distance(x, z))
+            .unwrap_or(0.0);
+        let score = (u8::from(blocked), road_distance, index);
+        if best
+            .as_ref()
+            .is_none_or(|(best_score, _): &((u8, f64, usize), (f64, f64))| {
+                score.0 < best_score.0
+                    || (score.0 == best_score.0
+                        && (score.1 < best_score.1
+                            || (score.1 == best_score.1 && score.2 < best_score.2)))
+            })
+        {
+            best = Some((score, (x, z)));
+        }
+    }
+
+    best.map(|(_, position)| position)
+        .unwrap_or((anchor.x + offset, anchor.z))
 }
 
 /// Material produced by a physical-world demolition must begin at that
@@ -93,24 +260,24 @@ pub fn insert_reclamation_pile(
         work_radius: salvage_def.work_radius,
         action_cooldown: 0.0,
         timber: stock.timber.max(0.0),
-        firewood: 0.0,
+        firewood: stock.firewood.max(0.0),
         stone: stock.stone.max(0.0),
-        water: 0.0,
-        food: 0.0,
-        grain: 0.0,
-        flour: 0.0,
-        ale: 0.0,
-        preserved_food: 0.0,
-        honey: 0.0,
-        wine: 0.0,
-        ironwork: 0.0,
-        polearms: 0.0,
+        water: stock.water.max(0.0),
+        food: stock.food.max(0.0),
+        grain: stock.grain.max(0.0),
+        flour: stock.flour.max(0.0),
+        ale: stock.ale.max(0.0),
+        preserved_food: stock.preserved_food.max(0.0),
+        honey: stock.honey.max(0.0),
+        wine: stock.wine.max(0.0),
+        ironwork: stock.ironwork.max(0.0),
+        polearms: stock.polearms.max(0.0),
         water_capacity: 0.0,
         assigned_labor: 0,
         storehouse_accepts_timber: true,
         storehouse_accepts_stone: true,
         storehouse_accepts_firewood: true,
-        gold: 0.0,
+        gold: stock.gold.max(0.0),
         construction_complete: true,
         construction_progress: 1.0,
         construction_required_timber: 0.0,
@@ -127,8 +294,8 @@ pub fn insert_reclamation_pile(
         woodcutter_timber_reserve: 0.0,
         granary_grain_reserve: 0.0,
         harvest_reserve_percent: 0,
-        wool: 0.0,
-        cloth: 0.0,
+        wool: stock.wool.max(0.0),
+        cloth: stock.cloth.max(0.0),
         carpenter_polearm_reserve: 0,
         guardhouse_pay_priority: 0,
         marketplace_ironwork_target: 0,
@@ -159,6 +326,102 @@ pub fn insert_reclamation_pile(
         ..config
     });
     Ok(true)
+}
+
+/// Physical-world saves may still receive a legacy ledger balance from an old
+/// schema, an interrupted delivery return, or a sandbox grant. Convert that
+/// balance into a visible recovery pile before any planner can spend it.
+///
+/// Existing piles are reused to avoid marker churn. Otherwise the pile appears
+/// beside the active civic treasury seat (Town Hall when complete, otherwise
+/// the founders' camp), with a completed building or residence as a migration
+/// fallback.
+pub fn materialize_physical_resource_ledger(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> Result<bool, String> {
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Ok(false);
+    };
+    if !resources.physical_founding_site_enabled {
+        return Ok(false);
+    }
+
+    let stock = ReclamationStock::from_resource_ledger(&resources);
+    if stock.is_empty() {
+        return Ok(true);
+    }
+
+    if let Some(mut pile) = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.kind == "salvage_pile")
+        .min_by_key(|building| building.id)
+    {
+        stock.add_to_building(&mut pile);
+        ctx.db.building().id().update(pile);
+        clear_resource_ledger(&mut resources);
+        ctx.db.player_resources().owner().update(resources);
+        return Ok(true);
+    }
+
+    let building_anchor = crate::economy::physical_treasury_seat(ctx, owner).or_else(|| {
+        ctx.db
+            .building()
+            .owner()
+            .filter(&owner)
+            .filter(|building| building.construction_complete)
+            .min_by_key(|building| building.id)
+            .or_else(|| {
+                ctx.db
+                    .building()
+                    .owner()
+                    .filter(&owner)
+                    .min_by_key(|building| building.id)
+            })
+    });
+    let position = if let Some(anchor) = building_anchor {
+        ledger_pile_position_beside_building(ctx, owner, &anchor)
+    } else if let Some(residence) = ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&owner)
+        .min_by_key(|residence| residence.id)
+    {
+        (residence.x + 3.25, residence.z)
+    } else {
+        return Ok(false);
+    };
+
+    if !insert_reclamation_pile(ctx, owner, position.0, position.1, stock)? {
+        return Ok(false);
+    }
+    clear_resource_ledger(&mut resources);
+    ctx.db.player_resources().owner().update(resources);
+    Ok(true)
+}
+
+/// The player table is tiny, while a full building scan is only needed for an
+/// owner who actually has a stray positive balance.
+pub fn materialize_all_physical_resource_ledgers(ctx: &ReducerContext) {
+    let owners = ctx
+        .db
+        .player_resources()
+        .iter()
+        .filter(|resources| {
+            resources.physical_founding_site_enabled
+                && !ReclamationStock::from_resource_ledger(resources).is_empty()
+        })
+        .map(|resources| resources.owner)
+        .collect::<Vec<_>>();
+    for owner in owners {
+        if let Err(error) = materialize_physical_resource_ledger(ctx, owner) {
+            log::warn!("Could not materialize physical resource ledger: {error}");
+        }
+    }
 }
 
 /// One free hauler at each reachable pile moves one cartload per economy step.
@@ -339,11 +602,18 @@ mod tests {
         assert!(ReclamationStock {
             timber: 1e-8,
             stone: 0.0,
+            ..ReclamationStock::default()
         }
         .is_empty());
         assert!(!ReclamationStock {
             timber: 0.0,
             stone: 1.0,
+            ..ReclamationStock::default()
+        }
+        .is_empty());
+        assert!(!ReclamationStock {
+            gold: 1.0,
+            ..ReclamationStock::default()
         }
         .is_empty());
     }

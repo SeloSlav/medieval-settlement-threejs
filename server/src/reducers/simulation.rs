@@ -5,18 +5,18 @@ use crate::db::*;
 use crate::economy::step_regional_markets;
 use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
-    step_apiary, step_backyard_gardens, step_brewery, step_carpenter, step_chapel_parish,
-    step_chapels, step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
-    step_ferry_landing, step_fires, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
-    step_founding_sites, step_fresh_food_spoilage, step_granary, step_guardhouse,
-    step_household_market_orders, step_hunters_hall, step_large_quarry, step_lumber_mill,
-    step_marketplace_caravans, step_monastery, step_pastoral_farmstead,
-    step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
-    step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
-    step_settlement_security, step_smokehouse, step_stone_quarry, step_swineherd,
-    step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill, step_weaver,
-    step_well, step_woodcutters_lodge, try_dispatch_guardhouse_payroll, SharedRoadNetworks,
-    SimTickContext,
+    materialize_all_physical_resource_ledgers, step_apiary, step_backyard_gardens, step_brewery,
+    step_carpenter, step_chapel_parish, step_chapels, step_construction_labor_stewards,
+    step_construction_sites, step_delivery_trips, step_ferry_landing, step_fires,
+    step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_founding_sites,
+    step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_market_orders,
+    step_hunters_hall, step_large_quarry, step_lumber_mill, step_marketplace_caravans,
+    step_monastery, step_pastoral_farmstead, step_production_labor_stewards,
+    step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
+    step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
+    step_smokehouse, step_stone_quarry, step_swineherd, step_threshing_barn,
+    step_village_storehouses, step_vineyard, step_watermill, step_weaver, step_well,
+    step_woodcutters_lodge, try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
 };
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
@@ -25,7 +25,13 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     let Some(config) = ctx.db.world_config().id().find(&0) else {
         return;
     };
-    if !config.configured || config.game_speed == 0 {
+    if !config.configured {
+        return;
+    }
+    // A physical settlement never exposes the compatibility ledger as a
+    // spendable treasury. Migrate old balances even while time is paused.
+    materialize_all_physical_resource_ledgers(ctx);
+    if config.game_speed == 0 {
         return;
     }
     let speed = match config.game_speed {
@@ -61,6 +67,10 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
                 .clone(),
         );
         step_delivery_trips(ctx, &delivery_tick, &delivery_clock, TICK_DT * speed as f64);
+        // A cancelled or over-capacity return can leave a compatibility-row
+        // remainder. Materialize it in this same transaction so construction
+        // can never reserve an invisible balance between scheduler heartbeats.
+        materialize_all_physical_resource_ledgers(ctx);
     }
     if ctx.db.sim_pacing_state().id().find(&0).is_some() {
         ctx.db.sim_pacing_state().id().update(SimPacingState {

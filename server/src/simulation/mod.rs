@@ -83,7 +83,10 @@ pub use marketplace_caravan::{
 pub use production_labor_steward::{
     reconcile_target_production_labor_for_owner, step_production_labor_stewards,
 };
-pub use reclamation::{insert_reclamation_pile, step_reclamation_piles, ReclamationStock};
+pub use reclamation::{
+    insert_reclamation_pile, materialize_all_physical_resource_ledgers,
+    materialize_physical_resource_ledger, step_reclamation_piles, ReclamationStock,
+};
 pub use reforester::step_reforester;
 pub use residence_lifecycle::step_residence;
 pub use residence_needs::{clear_residence_needs, ensure_residence_needs};

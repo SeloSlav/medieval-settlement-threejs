@@ -92,6 +92,7 @@ const tests = [
   'test:foraging-ecology',
   'test:river-simulation',
   'test:river-water-material',
+  'test:seedthree-forest-ecology',
   'test:seedthree-forest-compaction',
   'test:seedthree-winter-foliage',
   'test:terrain-ecology-material',

@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import {
+  CROATIAN_NAIVE_ART_FULL_RAIN_TREATMENT_RETENTION,
   CROATIAN_NAIVE_ART_NEIGHBOR_SAMPLE_COUNT,
   CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED,
   CROATIAN_NAIVE_ART_STYLE,
   filterCroatianNaiveArtNeighborhood,
+  naiveArtRainTreatmentRetention,
   type NaiveArtNeighborhood,
   type NaiveArtRgb,
 } from '../src/scene/naiveArtPostEffect.ts';
@@ -126,6 +128,19 @@ assert.ok(
 );
 
 console.log('Croatian naïve-art post-effect tests passed.');
+
+assert.equal(naiveArtRainTreatmentRetention(0), 1);
+assert.ok(
+  Math.abs(
+    naiveArtRainTreatmentRetention(1) - CROATIAN_NAIVE_ART_FULL_RAIN_TREATMENT_RETENTION,
+  ) < 1e-9,
+);
+assert.equal(naiveArtRainTreatmentRetention(-1), 1);
+assert.ok(
+  Math.abs(
+    naiveArtRainTreatmentRetention(2) - CROATIAN_NAIVE_ART_FULL_RAIN_TREATMENT_RETENTION,
+  ) < 1e-9,
+);
 
 function rgb(red: number, green: number, blue: number): NaiveArtRgb {
   return [red, green, blue];

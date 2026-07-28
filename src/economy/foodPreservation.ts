@@ -79,7 +79,9 @@ export function analyzeFreshFoodPreservation(
   const ambientRate = Number.isFinite(ambientSpoilageFractionPerDay)
     ? Math.max(0, ambientSpoilageFractionPerDay)
     : 0;
-  const treasuryStock = finiteStock(state.stockpile.food);
+  const treasuryStock = state.physicalFoundingSiteEnabled === true
+    ? 0
+    : finiteStock(state.stockpile.food);
   let totalStock = treasuryStock;
   let weightedStock = totalStock * FRESH_FOOD_STORAGE_TREASURY_FACTOR;
   let usableStock = treasuryStock;

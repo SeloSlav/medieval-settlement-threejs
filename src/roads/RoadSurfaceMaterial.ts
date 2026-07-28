@@ -160,17 +160,14 @@ function buildBankOpacityNode(textures: TextureSet): TslNode {
   return radialFade.mul(edgeMaskSample).mul(float(0.94) as TslNode);
 }
 
-function buildRiverBankOpacityNode(textures: TextureSet): TslNode {
+function buildRiverBankOpacityNode(): TslNode {
   const uvNode = uv() as TslNode;
   // Inner strip stays opaque; only the outer ~40% fades to grass — avoids double-fading with terrain.
   const radialFade = pow(
     smoothstep(float(0) as TslNode, float(0.36) as TslNode, uvNode.x),
     float(0.72) as TslNode,
   ) as TslNode;
-  const edgeMaskSample = textures.edgeMask
-    ? (texture(textures.edgeMask, uvNode) as TslNode).r
-    : (float(1) as TslNode);
-  return radialFade.mul(edgeMaskSample).mul(float(0.94) as TslNode);
+  return radialFade.mul(float(0.94) as TslNode);
 }
 
 export function createRoadCoreMaterial(
@@ -286,6 +283,6 @@ export function createRiverBankMaterial(textures: TextureSet): MeshStandardNodeM
     wetEdge.mul(float(0.74) as TslNode),
   );
   if (textures.ao) material.aoNode = (texture(textures.ao, uv() as TslNode) as TslNode).r;
-  material.opacityNode = buildRiverBankOpacityNode(textures);
+  material.opacityNode = buildRiverBankOpacityNode();
   return material;
 }

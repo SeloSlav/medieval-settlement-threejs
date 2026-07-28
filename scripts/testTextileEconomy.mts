@@ -248,6 +248,20 @@ assert.equal(annualTextiles.woolInTransit, 6);
 assert.equal(annualTextiles.woolStock, 122);
 assert.equal(annualTextiles.clothInTransit, 2);
 assert.equal(annualTextiles.clothStock, 11);
+const physicalTextiles = computeSettlementTextilePlan({
+  state: {
+    ...textileState,
+    physicalFoundingSiteEnabled: true,
+  },
+  clock: { month: 6, year: 2 },
+  production: {
+    clothWoolPerDay: 1,
+    clothOutputPerDay: 2 / 3,
+    clothDemandPerDay: 0.05,
+  },
+});
+assert.equal(physicalTextiles.woolStock, 120);
+assert.equal(physicalTextiles.clothStock, 10);
 assert.equal(annualTextiles.householdClothStock, 3);
 assert.equal(annualTextiles.supplierClothStock, 5);
 assert.equal(annualTextiles.householdClothInTransit, 0);

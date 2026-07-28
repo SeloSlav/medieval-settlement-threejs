@@ -31,6 +31,7 @@ import type { DayNightGrade } from '../world/dayNightPresentation.ts';
 import {
   CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED,
   CROATIAN_NAIVE_ART_STYLE,
+  naiveArtRainTreatmentRetention,
 } from './naiveArtPostEffect.ts';
 import { applyDayNightGradeUniforms, DEFAULT_DAY_NIGHT_GRADE } from './postGrade.ts';
 import {
@@ -82,6 +83,7 @@ const DAYLIGHT_GRADE_SHADER = {
     warmth: { value: DEFAULT_GRADE.warmth },
     nightBlue: { value: DEFAULT_GRADE.nightBlue },
     vignette: { value: DEFAULT_GRADE.vignette },
+    naiveArtStrength: { value: 1 },
   },
   vertexShader: buildGradeGlslVertexShader(),
   fragmentShader: buildGradeGlslFragmentShader(),
@@ -91,6 +93,7 @@ export type ScenePostProcessor = {
   dispose(): void;
   render(dt: number): void;
   setDayNightGrade(grade: DayNightGrade): void;
+  setWeatherWetness(wetness: number): void;
   setPixelRatio(pixelRatio: number): void;
   setSize(width: number, height: number): void;
 };
@@ -149,6 +152,10 @@ class WebGLPostProcessor implements ScenePostProcessor {
     applyGradeUniforms(this.gradePass.uniforms, grade);
   }
 
+  setWeatherWetness(wetness: number): void {
+    this.gradePass.uniforms.naiveArtStrength.value = naiveArtRainTreatmentRetention(wetness);
+  }
+
   setPixelRatio(pixelRatio: number): void {
     this.pixelRatio = pixelRatio;
     this.composer.setPixelRatio(pixelRatio);
@@ -179,6 +186,7 @@ class WebGPUPostProcessor implements ScenePostProcessor {
   private readonly gradeWarmth = uniform(DEFAULT_GRADE.warmth);
   private readonly gradeNightBlue = uniform(DEFAULT_GRADE.nightBlue);
   private readonly gradeVignette = uniform(DEFAULT_GRADE.vignette);
+  private readonly weatherNaiveArtRetention = uniform(1);
 
   constructor(renderer: WebGPURenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
     this.pipeline = new RenderPipeline(renderer);
@@ -205,6 +213,7 @@ class WebGPUPostProcessor implements ScenePostProcessor {
       this.gradeNightBlue,
       this.gradeVignette,
       naiveArtBasis?.structureEdge ?? null,
+      this.weatherNaiveArtRetention,
     );
   }
 
@@ -229,6 +238,10 @@ class WebGPUPostProcessor implements ScenePostProcessor {
       },
       grade,
     );
+  }
+
+  setWeatherWetness(wetness: number): void {
+    this.weatherNaiveArtRetention.value = naiveArtRainTreatmentRetention(wetness);
   }
 
   setPixelRatio(): void {
@@ -261,6 +274,7 @@ function buildGradeNode(
   nightBlueValue: unknown,
   vignetteValue: unknown,
   naiveArtStructureEdge: TslNode | null,
+  naiveArtStrengthValue: unknown,
 ): unknown {
   const inputColor = inputColorValue as TslNode;
   const [lr, lg, lb] = GRADE_LUMA_WEIGHTS;
@@ -318,7 +332,11 @@ function buildGradeNode(
     mix(float(1), (float(1) as TslNode).sub(vignetteValue), edge),
   );
   const finalColor = naiveArtStructureEdge
-    ? buildCroatianNaiveArtToneNode(graded, naiveArtStructureEdge)
+    ? mix(
+        graded,
+        buildCroatianNaiveArtToneNode(graded, naiveArtStructureEdge),
+        naiveArtStrengthValue,
+      )
     : graded;
   return vec4(max(finalColor, vec3(0)), inputColor.a);
 }

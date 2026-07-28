@@ -109,6 +109,14 @@ const state = {
 };
 state.stockpile.polearms = 2;
 state.stockpile.ironwork = 4;
+const physicalLedgerOnly = computeSettlementArmamentPlan({
+  state: {
+    ...state,
+    physicalFoundingSiteEnabled: true,
+  },
+});
+assert.equal(physicalLedgerOnly.polearmStock, 0);
+assert.equal(physicalLedgerOnly.ironworkStock, 0);
 
 const westGuard = building('west-guard', 'guardhouse', 0, {
   assignedLabor: 4,

@@ -42,7 +42,7 @@ export function buildGradeGlslFragmentShader(
     ? 'sourceColor = buildCroatianNaiveArtBasis(tDiffuse, vUv, inverseResolution, naiveArtStructureEdge);'
     : '';
   const naiveArtToneApplication = naiveArtEnabled
-    ? 'color = applyCroatianNaiveArtTone(color, vUv, naiveArtStructureEdge);'
+    ? 'color = mix(color, applyCroatianNaiveArtTone(color, vUv, naiveArtStructureEdge), naiveArtStrength);'
     : '';
   return `
     uniform sampler2D tDiffuse;
@@ -52,6 +52,7 @@ export function buildGradeGlslFragmentShader(
     uniform float warmth;
     uniform float nightBlue;
     uniform float vignette;
+    uniform float naiveArtStrength;
     varying vec2 vUv;
 
     vec3 adjustSaturation(vec3 color, float amount) {

@@ -155,6 +155,7 @@ pub fn demolish_backyard_garden(ctx: &ReducerContext, residence_id: u64) -> Resu
             stone: (residence.upgrade_delivered_stone
                 * crate::balance_generated::STONE_SALVAGE_FRACTION)
                 .round(),
+            ..ReclamationStock::default()
         };
         let (x, z) = backyard_reclamation_position(ctx, &residence);
         if !insert_reclamation_pile(ctx, owner, x, z, refund)? {
@@ -191,6 +192,7 @@ pub fn demolish_backyard_garden(ctx: &ReducerContext, residence_id: u64) -> Resu
         ReclamationStock {
             timber: refund.timber,
             stone: refund.stone,
+            ..ReclamationStock::default()
         },
     )? {
         credit_treasury_timber(ctx, owner, refund.timber);

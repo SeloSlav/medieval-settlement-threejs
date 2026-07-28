@@ -6,6 +6,8 @@ export type PrecipitationKind = 'none' | 'rain' | 'snow';
 export type PrecipitationProfile = {
   kind: PrecipitationKind;
   intensity: number;
+  /** Full-scene wet-surface presentation; unlike road dampness this is rain-only. */
+  wetness: number;
   fallSpeed: number;
   windX: number;
   windZ: number;
@@ -25,6 +27,7 @@ export type RoadWeatherProfile = {
 const FAIR_PROFILE: PrecipitationProfile = {
   kind: 'none',
   intensity: 0,
+  wetness: 0,
   fallSpeed: 0,
   windX: 0,
   windZ: 0,
@@ -52,6 +55,7 @@ export function precipitationProfile(
     return {
       kind: 'rain',
       intensity: 0.78,
+      wetness: 1,
       fallSpeed: 30,
       windX: 4.2,
       windZ: 1.8,
@@ -66,6 +70,7 @@ export function precipitationProfile(
     return {
       kind: 'snow',
       intensity: 0.78,
+      wetness: 0,
       fallSpeed: 4.4,
       windX: 1.15,
       windZ: 0.5,

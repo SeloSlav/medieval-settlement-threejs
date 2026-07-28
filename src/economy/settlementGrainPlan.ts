@@ -87,7 +87,8 @@ export type SettlementGrainRoadPlan = {
 };
 
 type SettlementGrainPlanInput = {
-  state: Pick<GameState, 'stockpile' | 'buildings' | 'deliveryTrips'>;
+  state: Pick<GameState, 'stockpile' | 'buildings' | 'deliveryTrips'>
+    & Partial<Pick<GameState, 'physicalFoundingSiteEnabled'>>;
   farmPlan: Pick<
     SettlementFarmPlan,
     | 'seedGrainRequired'
@@ -332,7 +333,11 @@ export function computeSettlementGrainPlan(
     input.production.grainRoadBranches,
     input.roadComponentFor,
   );
-  let totalStock = positiveFinite(input.state.stockpile.grain) + transit.total;
+  let totalStock = (
+    input.state.physicalFoundingSiteEnabled === true
+      ? 0
+      : positiveFinite(input.state.stockpile.grain)
+  ) + transit.total;
   let monasteryGrainPerDay = 0;
   const processorPriorityCounts: Record<StaffingPriority, number> = {
     [STAFFING_PRIORITY_LOW]: 0,

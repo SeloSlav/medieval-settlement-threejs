@@ -302,6 +302,8 @@ assert.equal(
 
 const physicalStock = gameState(true, 0);
 physicalStock.stockpile.gold = 2;
+physicalStock.stockpile.timber = 900;
+physicalStock.stockpile.stone = 800;
 physicalStock.buildings.set('camp', {
   id: 'camp',
   kind: 'founders_camp',
@@ -345,7 +347,24 @@ physicalStock.buildings.set('camp', {
 const totals = computeResourceTotals(physicalStock);
 assert.equal(totals.timber, 70);
 assert.equal(totals.stone, 30);
-assert.equal(totals.gold, 20, 'physical lockbox gold remains part of settlement totals');
+assert.equal(
+  totals.gold,
+  18,
+  'physical settlements count only map-held lockbox gold, never the compatibility ledger',
+);
+const legacyStock = gameState(false, 0);
+legacyStock.stockpile.timber = 9;
+legacyStock.stockpile.stone = 8;
+legacyStock.stockpile.gold = 2;
+assert.deepEqual(
+  {
+    timber: computeResourceTotals(legacyStock).timber,
+    stone: computeResourceTotals(legacyStock).stone,
+    gold: computeResourceTotals(legacyStock).gold,
+  },
+  { timber: 9, stone: 8, gold: 2 },
+  'legacy saves retain their abstract resource ledger',
+);
 const camp = physicalStock.buildings.get('camp')!;
 const emptyTownHall = {
   ...camp,

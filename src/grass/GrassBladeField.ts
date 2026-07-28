@@ -38,6 +38,7 @@ import {
   GRASS_STREAM_SLOTS_PER_FRAME_FIRST_PERSON,
   GRASS_TUFT_SCATTER_ATTEMPTS,
   GRASS_TUFTS_PER_CHUNK,
+  grassBladeLodOpacity,
   grassStreamNearRadius,
   resolveCloseGroundLod,
 } from './grassLodMath.ts';
@@ -476,13 +477,17 @@ export async function createGrassBladeField(
       streamNearRadius = grassStreamNearRadius(firstPersonActive);
 
       const { grassOpacity } = resolveCloseGroundLod(cameraDistance, firstPersonActive);
-      grassZoomVisible = grassOpacity > 0.02;
+      const displayOpacity = firstPersonActive ? 1 : grassBladeLodOpacity(grassOpacity);
+      grassZoomVisible = displayOpacity > 0.02;
 
-      if (!Number.isFinite(lastMaterialOpacity) || Math.abs(grassOpacity - lastMaterialOpacity) > 0.008) {
-        lastMaterialOpacity = grassOpacity;
-        const useTransparency = grassOpacity < 0.995;
+      if (
+        !Number.isFinite(lastMaterialOpacity)
+        || Math.abs(displayOpacity - lastMaterialOpacity) > 0.008
+      ) {
+        lastMaterialOpacity = displayOpacity;
+        const useTransparency = displayOpacity < 0.995;
         for (const material of displayMaterials) {
-          material.opacity = grassOpacity;
+          material.opacity = displayOpacity;
           if (material.transparent !== useTransparency) {
             material.transparent = useTransparency;
             material.depthWrite = !useTransparency;

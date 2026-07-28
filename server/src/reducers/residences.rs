@@ -660,6 +660,7 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
         ReclamationStock {
             timber: salvage.timber,
             stone: salvage.stone,
+            ..ReclamationStock::default()
         },
     )? {
         credit_treasury_timber(ctx, owner, salvage.timber);
@@ -727,6 +728,7 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
                 / completed_intact_residence_count as f64,
             stone: (refund.stone * STONE_SALVAGE_FRACTION).round()
                 / completed_intact_residence_count as f64,
+            ..ReclamationStock::default()
         }
     } else {
         ReclamationStock::default()
@@ -752,6 +754,7 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
                     + (residence.upgrade_delivered_timber * TIMBER_SALVAGE_FRACTION),
                 stone: completed_structure.stone
                     + (residence.upgrade_delivered_stone * STONE_SALVAGE_FRACTION),
+                ..ReclamationStock::default()
             },
         )?;
     }
