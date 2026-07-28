@@ -2406,9 +2406,6 @@ fn run_monastery_feast(
     {
         return;
     }
-    let Some(network) = tick.road_network(monastery.owner) else {
-        return;
-    };
     let residences: Vec<Residence> = ctx
         .db
         .residence()
@@ -2417,9 +2414,7 @@ fn run_monastery_feast(
         .filter(|home| {
             !home.abandoned
                 && home.population > 0
-                && network
-                    .road_path_distance(monastery.x, monastery.z, home.x, home.z)
-                    .is_some_and(|distance| distance <= MONASTERY_COVERAGE_RADIUS)
+                && tick.monastery_for_residence(ctx, monastery.owner, home.id) == Some(monastery.id)
         })
         .collect();
     if residences.is_empty() {
@@ -2493,7 +2488,11 @@ fn monastery_has_parish_link(
         .building_ids_for_kinds(ctx, monastery.owner, &["chapel"])
         .into_iter()
         .filter_map(|chapel_id| ctx.db.building().id().find(&chapel_id))
-        .filter(|building| building.kind == "chapel" && building.construction_complete)
+        .filter(|building| {
+            building.kind == "chapel"
+                && building.construction_complete
+                && !tick.building_disabled_by_fire(ctx, building.id)
+        })
         .collect();
     monastery_linked_to_chapel(tick, monastery, &chapels)
 }

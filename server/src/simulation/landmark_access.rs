@@ -1,6 +1,5 @@
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::MONASTERY_COVERAGE_RADIUS;
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
 
@@ -36,15 +35,16 @@ pub fn monastery_linked_to_chapel(
     monastery: &Building,
     chapels: &[Building],
 ) -> bool {
-    let Some(network) = tick.road_network(monastery.owner) else {
-        return false;
-    };
     chapels.iter().any(|chapel| {
         chapel.owner == monastery.owner
             && is_chapel_staffed(chapel)
-            && network
-                .road_path_distance(monastery.x, monastery.z, chapel.x, chapel.z)
-                .is_some()
+            && tick.road_connected(
+                monastery.owner,
+                monastery.x,
+                monastery.z,
+                chapel.x,
+                chapel.z,
+            )
     })
 }
 
@@ -54,30 +54,14 @@ pub fn find_linked_monastery_in_coverage<'a>(
     owner: Identity,
     residence: &Residence,
     monasteries: &'a [Building],
-    chapels: &[Building],
 ) -> Option<&'a Building> {
-    if !residence_has_chapel_access(ctx, tick, owner, residence, chapels) {
-        return None;
-    }
-
-    let Some(network) = tick.road_network(owner) else {
-        return None;
-    };
-
-    let mut candidates: Vec<&Building> = monasteries
-        .iter()
-        .filter(|monastery| {
-            monastery.owner == owner
-                && monastery.kind == "monastery"
-                && monastery.construction_complete
-                && monastery_linked_to_chapel(tick, monastery, chapels)
-                && network
-                    .road_path_distance(residence.x, residence.z, monastery.x, monastery.z)
-                    .is_some_and(|distance| distance <= MONASTERY_COVERAGE_RADIUS)
-        })
-        .collect();
-    candidates.sort_by_key(|monastery| monastery.id);
-    candidates.into_iter().next()
+    let monastery_id = tick.monastery_for_residence(ctx, owner, residence.id)?;
+    monasteries.iter().find(|monastery| {
+        monastery.id == monastery_id
+            && monastery.owner == owner
+            && monastery.kind == "monastery"
+            && monastery.construction_complete
+    })
 }
 
 pub fn residence_has_monastery_coverage(
@@ -86,7 +70,6 @@ pub fn residence_has_monastery_coverage(
     owner: Identity,
     residence: &Residence,
     monasteries: &[Building],
-    chapels: &[Building],
 ) -> bool {
-    find_linked_monastery_in_coverage(ctx, tick, owner, residence, monasteries, chapels).is_some()
+    find_linked_monastery_in_coverage(ctx, tick, owner, residence, monasteries).is_some()
 }

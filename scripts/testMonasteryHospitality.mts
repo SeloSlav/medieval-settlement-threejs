@@ -150,6 +150,14 @@ assert.ok(
 );
 
 const server = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+const tickContext = fs.readFileSync(
+  'server/src/simulation/tick_context.rs',
+  'utf8',
+);
+const landmarkAccess = fs.readFileSync(
+  'server/src/simulation/landmark_access.rs',
+  'utf8',
+);
 const rustHospitalityPolicy = fs.readFileSync(
   'server/src/monastery_hospitality_policy.rs',
   'utf8',
@@ -200,8 +208,22 @@ assert.match(
 );
 assert.match(
   server,
-  /is_monastery_feast_day[\s\S]*?distance <= MONASTERY_COVERAGE_RADIUS[\s\S]*?if residences\.is_empty\(\)[\s\S]*?monastery_feast_batch[\s\S]*?if !batch\.ready[\s\S]*?MONASTERY_FEAST_FOOD[\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?MONASTERY_FEAST_HONEY[\s\S]*?MONASTERY_FEAST_WINE/,
-  'reachable feast days must require eligible nearby homes and a complete physical batch before any withdrawal',
+  /is_monastery_feast_day[\s\S]*?tick\.monastery_for_residence\([\s\S]*?== Some\(monastery\.id\)[\s\S]*?if residences\.is_empty\(\)[\s\S]*?monastery_feast_batch[\s\S]*?if !batch\.ready[\s\S]*?MONASTERY_FEAST_FOOD[\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?MONASTERY_FEAST_HONEY[\s\S]*?MONASTERY_FEAST_WINE/,
+  'reachable feast days must serve only this monastery territory and require a complete physical batch before any withdrawal',
+);
+const feastSource = server.slice(
+  server.indexOf('fn run_monastery_feast'),
+  server.indexOf('fn owner_has_connected_marketplace'),
+);
+assert.doesNotMatch(
+  feastSource,
+  /road_path_distance/,
+  'feast recipients must reuse the cached monastery territory rather than solving every household route again',
+);
+assert.match(
+  server,
+  /fn monastery_has_parish_link[\s\S]*?building_disabled_by_fire\(ctx, building\.id\)[\s\S]*?monastery_linked_to_chapel/,
+  'a fire-disabled chapel must not keep monastery production or hospitality linked',
 );
 assert.match(
   server,
@@ -209,14 +231,24 @@ assert.match(
   'feast ale must be divided only among the homes that can receive it',
 );
 assert.match(
-  fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8'),
+  tickContext,
   /monastery_hospitality_by_owner[\s\S]*?pub fn monastery_hospitality_enabled/,
   'one policy read per owner and simulation substep must serve all specialist buildings',
 );
 assert.match(
-  fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8'),
+  tickContext,
   /build_specialty_claims[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?build_food_claims[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_FOOD/,
   'authoritative household claims must ignore monastery stock held by the feast floor',
+);
+assert.match(
+  tickContext,
+  /monastery_claims[\s\S]*?pub fn monastery_for_residence[\s\S]*?build_monastery_claims[\s\S]*?building_disabled_by_fire[\s\S]*?claim_residences_by_nearest_supplier[\s\S]*?MONASTERY_COVERAGE_RADIUS/,
+  'one fire-safe, batched nearest-monastery territory must serve the whole authoritative substep',
+);
+assert.match(
+  landmarkAccess,
+  /monastery_for_residence\(ctx, owner, residence\.id\)/,
+  'community coverage must delegate to the shared authoritative monastery claim',
 );
 assert.match(
   fs.readFileSync('src/resources/WorldQueries.ts', 'utf8'),
@@ -235,8 +267,8 @@ assert.match(
 );
 assert.match(
   fs.readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8'),
-  /Monastery hospitality[\s\S]*?annual target[\s\S]*?Next feast reserve/,
-  'the settlement ledger must expose aggregate hospitality and feast-reserve planning',
+  /getResidenceCommunityLandmarkClaims[\s\S]*?communityForResidence[\s\S]*?growthCommunityClaims\.monasteries\.has[\s\S]*?Monastery hospitality[\s\S]*?annual target[\s\S]*?Next feast reserve/,
+  'the settlement ledger must use bulk community claims and expose aggregate hospitality and feast-reserve planning',
 );
 
 const performanceStarted = performance.now();

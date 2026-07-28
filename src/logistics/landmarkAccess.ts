@@ -5,8 +5,13 @@ import type {
   GameState,
   ResidenceState,
 } from '../resources/types.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { MONASTERY_COVERAGE_RADIUS } from '../generated/gameBalance.ts';
-import { compareStableEntityIds } from './roadLogistics.ts';
+import {
+  claimResidenceRoutesByNearestSupplier,
+  compareStableEntityIds,
+  type ResidenceSupplierRouteClaim,
+} from './roadLogistics.ts';
 
 export type RoadPathProbe = (ax: number, az: number, bx: number, bz: number) => number | null;
 
@@ -148,6 +153,7 @@ export function findLinkedMonasteryInCoverage(
   }
 
   let best: BuildingState | null = null;
+  let bestDistance = Infinity;
   for (const monastery of monasteries) {
     if (monastery.kind !== 'monastery' || monastery.constructionComplete === false) {
       continue;
@@ -159,11 +165,78 @@ export function findLinkedMonasteryInCoverage(
     if (distance == null || distance > MONASTERY_COVERAGE_RADIUS) {
       continue;
     }
-    if (!best || compareStableEntityIds(monastery.id, best.id) < 0) {
+    if (
+      distance + 1e-6 < bestDistance
+      || (
+        Math.abs(distance - bestDistance) <= 1e-6
+        && (!best || compareStableEntityIds(monastery.id, best.id) < 0)
+      )
+    ) {
       best = monastery;
+      bestDistance = distance;
     }
   }
   return best;
+}
+
+export type ResidenceCommunityLandmarkClaims = {
+  chapels: Map<string, ResidenceSupplierRouteClaim>;
+  monasteries: Map<string, ResidenceSupplierRouteClaim>;
+};
+
+/**
+ * Builds the client community territory with the same batched topology rule as
+ * the authority: every eligible home belongs to its nearest staffed chapel,
+ * then to its nearest completed chapel-linked monastery inside road coverage.
+ *
+ * Callers should pass only fire-safe buildings and residences. One Dijkstra
+ * tree per landmark replaces pairwise route searches for every household.
+ */
+export function claimResidenceCommunityLandmarks(
+  network: RoadNetwork,
+  residences: readonly ResidenceState[],
+  chapels: readonly BuildingState[],
+  monasteries: readonly BuildingState[],
+): ResidenceCommunityLandmarkClaims {
+  const staffedChapels = chapels.filter(isChapelStaffed);
+  const chapelClaims = claimResidenceRoutesByNearestSupplier(
+    network,
+    staffedChapels,
+    residences,
+    () => true,
+  );
+  if (chapelClaims.size === 0 || staffedChapels.length === 0) {
+    return {
+      chapels: chapelClaims,
+      monasteries: new Map(),
+    };
+  }
+
+  const pathfinder = network.getPathfinder();
+  const linkedMonasteries = monasteries.filter(
+    (monastery) =>
+      monastery.kind === 'monastery'
+      && monastery.constructionComplete !== false
+      && staffedChapels.some((chapel) =>
+        pathfinder.roadConnected(
+          monastery.x,
+          monastery.z,
+          chapel.x,
+          chapel.z,
+        )),
+  );
+  const monasteryClaims = claimResidenceRoutesByNearestSupplier(
+    network,
+    linkedMonasteries,
+    residences,
+    (_monastery, residence, distance) =>
+      chapelClaims.has(residence.id)
+      && distance <= MONASTERY_COVERAGE_RADIUS,
+  );
+  return {
+    chapels: chapelClaims,
+    monasteries: monasteryClaims,
+  };
 }
 
 export function isResidenceInMonasteryCoverage(

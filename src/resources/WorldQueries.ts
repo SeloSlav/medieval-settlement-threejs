@@ -6,10 +6,12 @@ import {
   sortByRoadPathDistance,
 } from '../logistics/roadLogistics.ts';
 import {
+  claimResidenceCommunityLandmarks,
   findServingChapel,
   hasRoadPathToBuildingKind as landmarkHasRoadPathToBuildingKind,
   isResidenceInMonasteryCoverage,
   monasteryLinkedToChapel,
+  type ResidenceCommunityLandmarkClaims,
 } from '../logistics/landmarkAccess.ts';
 import {
   FirewoodDeliveryClaimQueries,
@@ -417,6 +419,28 @@ export class WorldQueries {
         building.kind === 'monastery'
         && building.constructionComplete !== false
         && !fireDisabled.has(building.id),
+    );
+  }
+
+  /**
+   * Batched chapel and monastery territory used by settlement-wide forecasts.
+   * Fire-disabled homes and landmarks are excluded before route assignment so
+   * the Town Hall reports the same community support as the authority.
+   */
+  getResidenceCommunityLandmarkClaims(
+    residences: readonly ResidenceState[],
+  ): ResidenceCommunityLandmarkClaims {
+    const state = this.getGameState();
+    const fireDisabledResidences = fireDisabledResidenceIds(
+      state.fireIncidents.values(),
+    );
+    return claimResidenceCommunityLandmarks(
+      this.getRoadNetwork(),
+      residences.filter(
+        (residence) => !fireDisabledResidences.has(residence.id),
+      ),
+      this.activeParishChapels(state),
+      this.activeMonasteries(state),
     );
   }
 

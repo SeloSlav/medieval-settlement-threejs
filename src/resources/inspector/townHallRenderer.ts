@@ -1473,18 +1473,36 @@ export function renderTownHallInspector(
       && !fireDisabled.has(candidate.id));
   const roadPathDistance = (ax: number, az: number, bx: number, bz: number): number | null =>
     context.worldQueries.getRoadPathDistance(ax, az, bx, bz);
+  const growthCommunityClaims =
+    typeof context.worldQueries.getResidenceCommunityLandmarkClaims === 'function'
+      ? context.worldQueries.getResidenceCommunityLandmarkClaims(
+          [...context.gameState.residences.values()],
+        )
+      : null;
+  const growthChapelsById = new Map(
+    growthChapels.map((chapel) => [chapel.id, chapel]),
+  );
   const growth = computeSettlementGrowthPlan({
     state: context.gameState,
-    communityForResidence: (residence) => buildResidenceCommunityContext(
-      findServingChapel(residence, growthChapels, roadPathDistance),
-      parishPolicy,
-      isResidenceInMonasteryCoverage(
-        residence,
-        growthMonasteries,
-        growthChapels,
-        roadPathDistance,
-      ),
-    ),
+    communityForResidence: (residence) => {
+      const chapelClaim = growthCommunityClaims?.chapels.get(residence.id);
+      return buildResidenceCommunityContext(
+        growthCommunityClaims == null
+          ? findServingChapel(residence, growthChapels, roadPathDistance)
+          : chapelClaim == null
+            ? null
+            : growthChapelsById.get(chapelClaim.supplierId) ?? null,
+        parishPolicy,
+        growthCommunityClaims == null
+          ? isResidenceInMonasteryCoverage(
+              residence,
+              growthMonasteries,
+              growthChapels,
+              roadPathDistance,
+            )
+          : growthCommunityClaims.monasteries.has(residence.id),
+      );
+    },
   });
   const growthInspectButton = growth.firstPausedResidenceId === null
     ? ''

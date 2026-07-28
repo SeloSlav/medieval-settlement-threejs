@@ -42,6 +42,7 @@ pub struct SimTickContext {
     monastery_hospitality_by_owner: RefCell<HashMap<Identity, bool>>,
     staffed_chapel_by_owner: RefCell<HashMap<Identity, bool>>,
     chapel_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
+    monastery_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     disabled_fire_targets: RefCell<Option<HashSet<(u8, u64)>>>,
     firewood_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     water_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
@@ -81,6 +82,7 @@ impl SimTickContext {
             monastery_hospitality_by_owner: RefCell::new(HashMap::new()),
             staffed_chapel_by_owner: RefCell::new(HashMap::new()),
             chapel_claims: RefCell::new(HashMap::new()),
+            monastery_claims: RefCell::new(HashMap::new()),
             disabled_fire_targets: RefCell::new(None),
             firewood_claims: RefCell::new(HashMap::new()),
             water_claims: RefCell::new(HashMap::new()),
@@ -182,6 +184,7 @@ impl SimTickContext {
     pub fn invalidate_staffed_chapel(&self, owner: Identity) {
         self.staffed_chapel_by_owner.borrow_mut().remove(&owner);
         self.chapel_claims.borrow_mut().remove(&owner);
+        self.monastery_claims.borrow_mut().remove(&owner);
     }
 
     /// Return the one staffed chapel claiming this home by shortest exact road
@@ -229,6 +232,94 @@ impl SimTickContext {
             .collect();
         let chapel_refs: Vec<&Building> = chapels.iter().collect();
         claim_residences_by_nearest_supplier(network, &chapel_refs, &residences, |_, _, _| true)
+    }
+
+    /// Return the nearest eligible Pauline monastery serving this household.
+    ///
+    /// A home must first belong to a staffed, fire-safe road parish. Monasteries
+    /// must be complete, fire-safe, linked to at least one such chapel, and
+    /// within their physical road coverage. One batched road tree per
+    /// monastery replaces the former pairwise searches repeated by chapel and
+    /// residence steps, while exact distance and stable id prevent overlapping
+    /// houses from receiving duplicate community or feast benefits.
+    pub fn monastery_for_residence(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        residence_id: u64,
+    ) -> Option<u64> {
+        if !self.monastery_claims.borrow().contains_key(&owner) {
+            let claims = self.build_monastery_claims(ctx, owner);
+            self.monastery_claims.borrow_mut().insert(owner, claims);
+        }
+        self.monastery_claims
+            .borrow()
+            .get(&owner)
+            .and_then(|claims| claims.get(&residence_id))
+            .copied()
+    }
+
+    fn build_monastery_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
+        let Some(network) = self.road_network(owner) else {
+            return HashMap::new();
+        };
+        if !self.chapel_claims.borrow().contains_key(&owner) {
+            let claims = self.build_chapel_claims(ctx, owner);
+            self.chapel_claims.borrow_mut().insert(owner, claims);
+        }
+        let parish_residences = self
+            .chapel_claims
+            .borrow()
+            .get(&owner)
+            .map(|claims| claims.keys().copied().collect::<HashSet<_>>())
+            .unwrap_or_default();
+        if parish_residences.is_empty() {
+            return HashMap::new();
+        }
+
+        let chapels: Vec<Building> = self
+            .building_ids_for_kinds(ctx, owner, &["chapel"])
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .filter(|chapel| {
+                chapel.kind == "chapel"
+                    && chapel.construction_complete
+                    && chapel.assigned_labor > 0
+                    && !self.building_disabled_by_fire(ctx, chapel.id)
+            })
+            .collect();
+        let monasteries: Vec<Building> = self
+            .building_ids_for_kinds(ctx, owner, &["monastery"])
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .filter(|monastery| {
+                monastery.kind == "monastery"
+                    && monastery.construction_complete
+                    && !self.building_disabled_by_fire(ctx, monastery.id)
+                    && chapels.iter().any(|chapel| {
+                        network.road_connected(monastery.x, monastery.z, chapel.x, chapel.z)
+                    })
+            })
+            .collect();
+        if monasteries.is_empty() {
+            return HashMap::new();
+        }
+        let residences: Vec<Residence> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| !self.residence_disabled_by_fire(ctx, residence.id))
+            .collect();
+        let monastery_refs: Vec<&Building> = monasteries.iter().collect();
+        claim_residences_by_nearest_supplier(
+            network,
+            &monastery_refs,
+            &residences,
+            |_, residence, distance| {
+                parish_residences.contains(&residence.id) && distance <= MONASTERY_COVERAGE_RADIUS
+            },
+        )
     }
 
     /// Fire incidents are immutable after `step_fires` for the rest of an

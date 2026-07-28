@@ -16,10 +16,12 @@ import {
   syncMonasteryStockpileVisuals,
 } from '../src/buildings/monasteryStockpileVisuals.ts';
 import {
+  claimResidenceCommunityLandmarks,
   findLinkedMonasteryInCoverage,
   isResidenceInMonasteryCoverage,
   monasteryLinkedToChapel,
 } from '../src/logistics/landmarkAccess.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import { clampMonasteryTitheShare } from '../src/economy/monasteryPolicy.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
 import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
@@ -88,6 +90,78 @@ const farProbe = () => 900;
 assert.equal(
   isResidenceInMonasteryCoverage(home, [monastery], [staffedChapel], farProbe),
   false,
+);
+
+const parishRoads = new RoadNetwork();
+parishRoads.addRoadPath([
+  new THREE.Vector3(-20, 0, 0),
+  new THREE.Vector3(260, 0, 0),
+]);
+parishRoads.addRoadPath([
+  new THREE.Vector3(-20, 0, 80),
+  new THREE.Vector3(260, 0, 80),
+]);
+const parishHome = residence({ id: 'parish-home', x: 20, z: 0 });
+const remoteHome = residence({ id: 'remote-home', x: 20, z: 80 });
+const parishChapel = building({
+  id: 'parish-chapel',
+  kind: 'chapel',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+});
+const olderFarMonastery = building({
+  id: '001-older-far-monastery',
+  kind: 'monastery',
+  x: 220,
+  z: 0,
+});
+const newerNearMonastery = building({
+  id: '999-newer-near-monastery',
+  kind: 'monastery',
+  x: 60,
+  z: 0,
+});
+const disconnectedMonastery = building({
+  id: '000-disconnected-monastery',
+  kind: 'monastery',
+  x: 60,
+  z: 80,
+});
+const communityClaims = claimResidenceCommunityLandmarks(
+  parishRoads,
+  [parishHome, remoteHome],
+  [parishChapel],
+  [
+    olderFarMonastery,
+    newerNearMonastery,
+    disconnectedMonastery,
+  ],
+);
+assert.equal(
+  communityClaims.chapels.get(parishHome.id)?.supplierId,
+  parishChapel.id,
+);
+assert.equal(
+  communityClaims.monasteries.get(parishHome.id)?.supplierId,
+  newerNearMonastery.id,
+  'overlapping monastery territories must assign a home to the nearest road-linked house, not the oldest row',
+);
+assert.equal(
+  findLinkedMonasteryInCoverage(
+    parishHome,
+    [olderFarMonastery, newerNearMonastery],
+    [parishChapel],
+    (ax, az, bx, bz) =>
+      parishRoads.getPathfinder().roadPathDistance(ax, az, bx, bz),
+  )?.id,
+  newerNearMonastery.id,
+  'single-household inspection must show the same nearest monastery as the bulk territory',
+);
+assert.equal(
+  communityClaims.monasteries.has(remoteHome.id),
+  false,
+  'a monastery on a disconnected branch must not cover a home without a staffed parish chapel',
 );
 
 assert.equal(clampMonasteryTitheShare(0.95), 0.8);
@@ -240,6 +314,52 @@ assert.ok(
   `100k monastery pantry signatures regressed (${performanceElapsed.toFixed(1)} ms)`,
 );
 
+const largeParishRoads = new RoadNetwork();
+for (let x = 0; x < 2_000; x += 100) {
+  largeParishRoads.addRoadPath([
+    new THREE.Vector3(x, 0, 0),
+    new THREE.Vector3(x + 100, 0, 0),
+  ]);
+}
+const largeParishHomes = Array.from({ length: 1_000 }, (_, index) =>
+  residence({
+    id: `large-parish-home-${index}`,
+    x: 2 + (index % 990) * 2,
+    z: 0,
+  }),
+);
+const largeParishChapels = Array.from({ length: 10 }, (_, index) =>
+  building({
+    id: `large-parish-chapel-${index}`,
+    kind: 'chapel',
+    x: 50 + index * 200,
+    z: 0,
+    assignedLabor: 1,
+  }),
+);
+const largeParishMonasteries = Array.from({ length: 40 }, (_, index) =>
+  building({
+    id: `large-parish-monastery-${index}`,
+    kind: 'monastery',
+    x: 25 + index * 48,
+    z: 0,
+  }),
+);
+const territoryStarted = performance.now();
+const largeCommunityClaims = claimResidenceCommunityLandmarks(
+  largeParishRoads,
+  largeParishHomes,
+  largeParishChapels,
+  largeParishMonasteries,
+);
+const territoryElapsed = performance.now() - territoryStarted;
+assert.equal(largeCommunityClaims.chapels.size, largeParishHomes.length);
+assert.equal(largeCommunityClaims.monasteries.size, largeParishHomes.length);
+assert.ok(
+  territoryElapsed < 1_000,
+  `1,000-home/40-monastery territory planning regressed (${territoryElapsed.toFixed(1)} ms)`,
+);
+
 console.log(
-  `monastery polish tests passed (${performanceElapsed.toFixed(1)} ms for 100k pantry signatures)`,
+  `monastery polish tests passed (${performanceElapsed.toFixed(1)} ms for 100k pantry signatures; ${territoryElapsed.toFixed(1)} ms for 1,000-home/40-monastery territories)`,
 );

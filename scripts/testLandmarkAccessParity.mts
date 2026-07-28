@@ -157,6 +157,24 @@ assert.equal(
   'a fire-disabled chapel must not claim parish coverage in the client',
 );
 
+const monasteryFire: FireIncidentState = {
+  ...chapelFire,
+  id: 'fire-monastery',
+  targetId: monastery.id,
+  x: monastery.x,
+  z: monastery.z,
+};
+const monasteryFireState = {
+  ...gameState,
+  fireIncidents: new Map([[monasteryFire.id, monasteryFire]]),
+} as GameState;
+const monasteryFireQueries = new StubWorldQueries(true, monasteryFireState);
+assert.equal(
+  monasteryFireQueries.isResidenceInMonasteryCoverage(home),
+  false,
+  'a fire-disabled monastery must immediately release its community territory',
+);
+
 const residenceFire: FireIncidentState = {
   ...chapelFire,
   id: 'fire-residence',

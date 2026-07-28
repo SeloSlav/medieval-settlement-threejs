@@ -60,14 +60,8 @@ pub fn step_chapels(
                 tick,
                 residence.owner,
             );
-        let has_monastery_coverage = residence_has_monastery_coverage(
-            ctx,
-            tick,
-            residence.owner,
-            &residence,
-            monasteries,
-            chapels,
-        );
+        let has_monastery_coverage =
+            residence_has_monastery_coverage(ctx, tick, residence.owner, &residence, monasteries);
         let attendance_chance = chapel_attendance_chance(
             chapel.assigned_labor,
             sabbath_observance,
