@@ -30,7 +30,7 @@ development unlocks, or a Heavy Plow unlock.
 | Barley/ale chain | Barley becomes malt and then ale | The brewhouse currently consumes generic grain, water, and firewood directly to make ale | Partial — no distinct barley or malt commodity |
 | Flax/linen chain | Flax becomes linen | Flax is pulled as fibre, stored separately at the farmstead, and physically carted to the weaver through the shared raw-textile channel; the weaver makes cloth | Partial — no separate retting or linen intermediate |
 | Field priority | Players can prioritize field work | Fields have four priority states, including paused, and the farm plan schedules higher priorities first | Matched |
-| Early harvest | A player may force an early harvest | Harvest begins from the seasonal simulation; there is no force-early-harvest control | Not matched |
+| Early harvest | A player may force an early harvest | In August, a crop at 55% growth may be cut to spread labor or secure emergency stores; its current ripeness permanently locks 47–85% of normal yield, while waiting for September keeps 100% | Matched |
 | Ox/plough support | Ox ploughing is tied to a development and Farmhouse upgrade | Healthy cattle can support the two highest-priority nearby fields without an unlock tree | Different by design |
 | Technology tree / Heavy Plow unlock | Development-gated feature | Explicitly excluded from this scope; no unlock or technology-tree work was added | Intentionally excluded |
 
@@ -56,9 +56,9 @@ stalks, `?view=overview&clean=1` checks terrain contact and field coverage, and
 
 ## Deliberately deferred gaps
 
-Malt and linen/ret-work intermediates, crop-specific fertility overlays, a
-three-slot rotation control, and force-early-harvest remain separate gameplay
-work. Barley deliberately joins generic grain and flax deliberately joins the
+Malt and linen/retting intermediates, crop-specific fertility overlays, and a
+three-slot rotation control remain separate gameplay work. Barley deliberately
+joins generic grain and flax deliberately joins the
 raw-textile channel so both crops participate in existing physical logistics
 without a save-schema migration. Development unlocks and Heavy Plow technology
 remain out of scope until explicitly requested.

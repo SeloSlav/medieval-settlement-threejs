@@ -10,15 +10,14 @@ import {
   TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR,
   TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR,
   TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR,
-  TERRAIN_FROST_COLOR_BLEND,
-  TERRAIN_FROST_COLOR_LIFT,
-  TERRAIN_FROST_MASK_SCALE,
-  TERRAIN_FROST_PATCH_MAX,
-  TERRAIN_FROST_PATCH_MIN,
   TERRAIN_ROAD_WEAR_BLEND_FLOOR,
   TERRAIN_SHORE_BLEND_FLOOR,
   TERRAIN_SHORE_RAIN_FADE_END,
   TERRAIN_SHORE_RAIN_FADE_START,
+  TERRAIN_SNOW_MAX_COVERAGE,
+  TERRAIN_SNOW_REVEAL_RANGE,
+  TERRAIN_SNOW_REVEAL_WIDTH,
+  TERRAIN_SNOW_TEXTURE_WEIGHT,
   stableTerrainBlendWeight,
   terrainShoreRainVisibility,
 } from '../src/terrain/TerrainGrassMaterial.ts';
@@ -35,7 +34,7 @@ const source = readFileSync(
 );
 
 const ecologyStart = source.indexOf('function buildGrassBlendNodes');
-const ecologyEnd = source.indexOf('function buildTerrainFrostMask');
+const ecologyEnd = source.indexOf('function buildTerrainSnowNodes');
 assert.ok(ecologyStart >= 0 && ecologyEnd > ecologyStart);
 const ecologySource = source.slice(ecologyStart, ecologyEnd);
 
@@ -110,8 +109,8 @@ assert.doesNotMatch(
 );
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,
-  22,
-  'layered close soil must retain its bounded multi-scale texture budget',
+  23,
+  'layered close soil plus the packed snow-atlas sample must retain a bounded texture budget',
 );
 assert.equal(
   (source.match(/\bsin\(/g) ?? []).length,
@@ -164,7 +163,7 @@ assert.match(source, /const flatFrostExposure = mix/);
 assert.match(source, /const broadFrostExposure = smoothstep/);
 assert.match(source, /const ecologicalShelter = max/);
 assert.match(source, /blendNodes\.frostExposure/);
-assert.match(source, /buildTerrainFrostMask/);
+assert.match(source, /buildTerrainSnowNodes/);
 assert.match(source, /weather\.wetness/);
 assert.match(source, /weather\.frost/);
 assert.doesNotMatch(
@@ -201,7 +200,7 @@ assert.match(
 );
 assert.match(
   source,
-  /terrainColorShoreBlend\.mul\(float\(0\.82\)/,
+  /const snowExposure = \(sub\([\s\S]*?shoreBlend\.mul\(float\(0\.82\)/,
 );
 assert.match(
   source,
@@ -310,28 +309,27 @@ for (const wetness of [0, 0.25, 0.5, 0.75, 1]) {
     );
   }
 }
-const rawFrostMaskMin = TERRAIN_FROST_PATCH_MIN * TERRAIN_FROST_MASK_SCALE;
-const rawFrostMaskMax = TERRAIN_FROST_PATCH_MAX * TERRAIN_FROST_MASK_SCALE;
 assert.ok(
-  rawFrostMaskMin <= 0.04,
-  'sheltered macro zones must retain their underlying green-brown terrain',
+  TERRAIN_SNOW_REVEAL_RANGE >= 1,
+  'winter progression must sweep the reveal threshold across the full macro field',
 );
 assert.ok(
-  rawFrostMaskMax >= 0.68 && rawFrostMaskMax <= 0.8,
-  'fully exposed macro zones must read as light frost rather than full snow cover',
+  TERRAIN_SNOW_REVEAL_WIDTH >= 0.15 && TERRAIN_SNOW_REVEAL_WIDTH <= 0.3,
+  'settled snow boundaries must stay soft without becoming a uniform cross-fade',
 );
 assert.ok(
-  rawFrostMaskMax * TERRAIN_FROST_COLOR_BLEND >= 0.58,
-  'exposed frost must separate visibly from sheltered terrain at overview distance',
+  TERRAIN_SNOW_TEXTURE_WEIGHT >= 0.4 && TERRAIN_SNOW_TEXTURE_WEIGHT <= 0.7,
+  'authored snow relief and macro patches must both remain visible',
 );
 assert.ok(
-  TERRAIN_FROST_COLOR_LIFT[0] >= 0.14
-    && TERRAIN_FROST_COLOR_LIFT[2] > TERRAIN_FROST_COLOR_LIFT[1]
-    && TERRAIN_FROST_COLOR_LIFT[1] > TERRAIN_FROST_COLOR_LIFT[0],
-  'frost target must be visibly pale and progressively cool without becoming white',
+  TERRAIN_SNOW_MAX_COVERAGE >= 0.9 && TERRAIN_SNOW_MAX_COVERAGE < 1,
+  'exposed winter ground should become snow-covered while retaining slight terrain variation',
 );
+assert.match(source, /packedDrySnowUv\(grassUv, true\)/);
+assert.match(source, /const revealStart = sub/);
+assert.match(source, /\.mul\(exposure\)/);
 assert.match(source, /function resolveTerrainWeather/);
-assert.match(source, /weather\?\.wetness \?\? \(float\(0\)/);
+assert.match(source, /if \(weather\?\.wetness && weather\?\.frost\) return weather/);
 
 function textureSet(): TextureSet {
   return {

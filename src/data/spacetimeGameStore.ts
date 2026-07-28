@@ -414,6 +414,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setFarmFieldPriority(fieldId, priority);
   }
 
+  startFarmFieldEarlyHarvest(fieldId: string): Promise<void> {
+    return spacetimeReducers.startFarmFieldEarlyHarvest(fieldId);
+  }
+
   demolishFarmField(fieldId: string): Promise<void> {
     return spacetimeReducers.demolishFarmField(fieldId);
   }

@@ -404,6 +404,9 @@
     "growthSeconds": 6000,
     "baseGrainPerSquareMeter": 0.08,
     "farmsteadStarterSeedGrain": 24,
+    "earlyHarvestMonth": 8,
+    "earlyHarvestMinimumGrowth": 0.55,
+    "earlyHarvestRipenessFactor": 0.85,
     "crops": {
       "rye": {
         "id": 0,

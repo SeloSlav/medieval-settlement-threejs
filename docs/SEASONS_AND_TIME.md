@@ -72,6 +72,10 @@ are all favorable, while fields have time to recover from a weak start.
 ### Summer — June through August
 
 - Grain and fallow continue growing.
+- During August, any food or fibre crop at 55% growth may be ordered into early
+  harvest. Its current ripeness locks 47–85% of normal yield, opens fieldwork one
+  month early, and cannot be undone by saving or reconnecting. Waiting until
+  September preserves the full yield.
 - Berry and mushroom nodes continue regrowing.
 - Pasture capacity is 100% and household firewood demand falls to 70%.
 - Fresh food spoilage rises to 0.8% per day.
@@ -93,11 +97,12 @@ compound water, food, pasture, and fish shock.
 
 ### Autumn — September through November
 
-September is the only crop harvest month:
+September is the normal full-yield crop harvest month:
 
 - A field reaching at least 75% maturity enters harvesting.
 - An immature crop fails and returns to ploughing with zero yield.
-- Farmers can collect grain only during September.
+- Farmers collect normal harvests during September; crops deliberately cut early
+  may also be gathered during August at their locked reduced yield.
 - A harvest still standing on 1 October is lost.
 - Apple and cherry orchards produce their concentrated annual crop in September.
 

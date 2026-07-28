@@ -35,6 +35,7 @@ export type InspectorSpacetimeActions = {
   onDemolishFarmField: (fieldId: string) => Promise<void>;
   onSetFarmFieldCrop: (fieldId: string, crop: FarmCrop) => Promise<void>;
   onSetFarmFieldPriority: (fieldId: string, priority: number) => Promise<void>;
+  onStartFarmFieldEarlyHarvest: (fieldId: string) => Promise<void>;
   onDemolishPasture: (pastureId: string) => Promise<void>;
   onSetLivestockSpecies: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
   onSetLivestockBreedingReserve: (buildingId: string, breedingReserve: number) => Promise<void>;
@@ -328,6 +329,14 @@ export function createInspectorSpacetimeActions(
       const store = requireReady();
       if (!store) return;
       await runReducer(() => store.setFarmFieldPriority(fieldId, priority), 'Could not change field priority.');
+    },
+    onStartFarmFieldEarlyHarvest: async (fieldId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.startFarmFieldEarlyHarvest(fieldId);
+        toastManager.show('Early harvest ordered. The reduced yield is now locked.');
+      }, 'Could not begin early harvest.');
     },
     onDemolishPasture: async (pastureId) => {
       const store = requireReady();

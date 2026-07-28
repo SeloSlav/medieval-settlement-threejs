@@ -816,6 +816,7 @@ function emptyGameState(): GameState {
     residences: new Map(),
     backyardGardens: new Map(),
     deliveryTrips: new Map(),
+    fireIncidents: new Map(),
     nextBuildingId: 1,
   };
 }

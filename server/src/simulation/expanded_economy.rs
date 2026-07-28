@@ -430,6 +430,7 @@ fn step_farmstead_fields(
                 field.stage = STAGE_HARVESTING;
                 field.stage_progress = 0.0;
                 field.current_yield = 0.0;
+                field.harvest_yield_multiplier = 1.0;
             } else {
                 fail_field_cycle(field);
             }
@@ -487,14 +488,16 @@ fn step_farmstead_fields(
         .max(1e-6);
         let remaining = required * (1.0_f64 - field.stage_progress).max(0.0_f64);
         let expected_harvest = if field.stage == STAGE_HARVESTING {
-            Some(expected_grain_yield(
-                field.area,
-                field.crop,
-                field.moisture,
-                field.fertility,
-                field.average_slope_degrees,
-                shape,
-            ))
+            Some(
+                expected_grain_yield(
+                    field.area,
+                    field.crop,
+                    field.moisture,
+                    field.fertility,
+                    field.average_slope_degrees,
+                    shape,
+                ) * field.harvest_yield_multiplier.clamp(0.0, 1.0),
+            )
         } else {
             None
         };
@@ -593,6 +596,7 @@ fn finish_field_cycle(field: &mut FarmField, harvested: f64) {
 fn finish_field_cycle_with_manure(field: &mut FarmField, harvested: f64, manure_bonus: f64) {
     field.last_yield = harvested;
     field.current_yield = 0.0;
+    field.harvest_yield_multiplier = 1.0;
     field.harvest_count = field.harvest_count.saturating_add(1);
     field.fertility =
         (fertility_after_harvest(field.crop, field.fertility) + manure_bonus).clamp(0.0, 1.0);
@@ -604,6 +608,7 @@ fn finish_field_cycle_with_manure(field: &mut FarmField, harvested: f64, manure_
 fn fail_field_cycle(field: &mut FarmField) {
     field.last_yield = 0.0;
     field.current_yield = 0.0;
+    field.harvest_yield_multiplier = 1.0;
     field.crop = field.next_crop;
     field.stage = STAGE_PLOUGHING;
     field.stage_progress = 0.0;

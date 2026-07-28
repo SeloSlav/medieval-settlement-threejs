@@ -10,8 +10,10 @@ import {
   moistureSuitability,
 } from '../../farming/farmFieldMath.ts';
 import {
+  activeFieldHarvestYield,
   cropCalendarLabel,
   currentFieldWorkRemaining,
+  earlyHarvestAvailability,
   fieldSeedGrainRemaining,
   fieldStageAllowed,
   fieldWorkerDays,
@@ -44,7 +46,7 @@ export function renderFarmFieldInspector(
 ): InspectorView {
   const { field, farmstead } = target;
   const stageProgress = Math.max(0, Math.min(100, Math.round(field.stageProgress * 100)));
-  const expectedYield = expectedFieldYield(field);
+  const expectedYield = activeFieldHarvestYield(field);
   const shape = Math.round(fieldShapeEfficiency(field.corners) * 100);
   const sizeEfficiency = Math.round(fieldSizeEfficiency(field.area) * 100);
   const moistureFit = Math.round(moistureSuitability(field.crop, field.moisture) * 100);
@@ -75,6 +77,9 @@ export function renderFarmFieldInspector(
     : null;
   const active = Boolean(farmstead && onsiteLabor > 0 && field.priority > 0);
   const month = gameClock(context.gameState.tick).month;
+  const earlyHarvest = earlyHarvestAvailability(field, month);
+  const earlyHarvestLocked = field.stage === 'harvesting'
+    && (field.harvestYieldMultiplier ?? 1) < 1 - 1e-6;
   const seasonalWindow = cropCalendarLabel(field.crop);
   const stageAllowed = fieldStageAllowed(field, month);
   const seedRemaining = fieldSeedGrainRemaining(field);
@@ -94,7 +99,9 @@ export function renderFarmFieldInspector(
             : 'Waiting for farmstead workers'
           : seedBlocked
             ? `Sowing halted · ${seedRemaining.toFixed(1)} seed grain still needed`
-            : `${STAGE_LABEL[field.stage]} · ${stageProgress}%`;
+            : earlyHarvestLocked
+              ? `Early harvest · ${Math.round((field.harvestYieldMultiplier ?? 1) * 100)}% yield locked · ${stageProgress}% gathered`
+              : `${STAGE_LABEL[field.stage]} · ${stageProgress}%`;
 
   const cropControls = `<div class="inspector-action-panel">
       <p class="resource-inspector-note">Next crop — schedule rotation at any point in the cycle.</p>
@@ -104,6 +111,16 @@ export function renderFarmFieldInspector(
       <p class="resource-inspector-note">Farmstead work priority — also decides which nearby fields receive the limited ox team. Ties favor the older field.</p>
       <div class="resource-action-row">${[0, 1, 2, 3].map((priority) => `<button type="button" class="resource-action-button" data-field-priority="${priority}" ${priority === field.priority ? 'disabled' : ''}>${PRIORITY_LABEL[priority]}</button>`).join('')}</div>
     </div>`;
+  const earlyHarvestControls = field.stage === 'growing' && cropProduce(field.crop) !== 'none'
+    ? `<div class="inspector-action-panel">
+        <p class="resource-inspector-note">Early harvest — ${!farmstead || farmstead.constructionComplete === false
+          ? 'finish the farmstead before ordering the cut.'
+          : earlyHarvest.reason} Waiting until September keeps 100% yield.</p>
+        <div class="resource-action-row">
+          <button type="button" class="resource-action-button" data-field-early-harvest ${!earlyHarvest.available || !farmstead?.constructionComplete ? 'disabled' : ''}>Begin early harvest · ${(expectedYield * earlyHarvest.yieldMultiplier).toFixed(1)} ${cropHarvestUnit(field.crop)} · ${Math.round(earlyHarvest.yieldMultiplier * 100)}%</button>
+        </div>
+      </div>`
+    : '';
 
   return {
     eyebrow: 'Farm field',
@@ -127,6 +144,7 @@ export function renderFarmFieldInspector(
       <li><span>Shape efficiency</span><span>${shape}%</span></li>
       <li><span>Size efficiency</span><span>${sizeEfficiency}% · full through ${FARM_OPTIMAL_FIELD_AREA.toLocaleString()} m²</span></li>
       <li><span>Expected harvest</span><span>${cropProduce(field.crop) === 'none' ? 'Restores fertility' : `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)}`}</span></li>
+      ${earlyHarvestLocked ? `<li><span>Harvest decision</span><span>Early cut · ${Math.round((field.harvestYieldMultiplier ?? 1) * 100)}% of normal yield locked</span></li>` : ''}
       <li><span>Next-crop potential</span><span>${cropProduce(field.nextCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${plannedYield.toFixed(1)} ${cropHarvestUnit(field.nextCrop)} at current moisture · ${plannedSeed.toFixed(1)} seed`}</span></li>
       <li><span>Protected seed</span><span>${seedRemaining <= 1e-6 ? 'None' : `${seedRemaining.toFixed(1)} grain · ${field.stage === 'ploughing' || field.stage === 'sowing' ? cropLabel(field.crop) : cropLabel(field.nextCrop)}`}</span></li>
       ${field.stage === 'growing' ? '' : `<li><span>Work remaining</span><span>${remainingWorkerDays.toFixed(1)} worker-days${crewDays == null ? ' · assign a crew' : ` · ${crewDays.toFixed(1)} days for this crew`}</span></li>`}
@@ -135,6 +153,6 @@ export function renderFarmFieldInspector(
     `,
     demolish: { visible: true, label: 'Remove field', hint: 'Clears the field boundary. Worked land is not refunded.' },
     labor: hiddenLabor(),
-    supplementalPanelHtml: `${cropControls}${priorityControls}`,
+    supplementalPanelHtml: `${earlyHarvestControls}${cropControls}${priorityControls}`,
   };
 }

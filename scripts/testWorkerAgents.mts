@@ -366,7 +366,14 @@ for (let seed = 0; seed < 24; seed++) {
 }
 
 for (const [activity, clips] of Object.entries(WORKER_ACTIVITY_CLIPS)) {
-  assert.equal(clips.length, 4, `${activity} should have four randomized sound variants`);
+  const expectedVariants = activity === 'chop' || activity === 'mine' || activity === 'build'
+    ? 4
+    : 3;
+  assert.equal(
+    clips.length,
+    expectedVariants,
+    `${activity} should expose every generated sound variant`,
+  );
   for (const clip of clips) {
     const assetPath = `public${clip.path}`;
     assert.ok(fs.statSync(assetPath).size > 10_000, `${assetPath} should be a real audio asset`);

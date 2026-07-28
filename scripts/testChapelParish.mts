@@ -103,7 +103,7 @@ const chapelInspector = readFileSync(
 );
 assert.match(chapelInspector, /Send coffer cart/);
 assert.match(chapelInspector, /Auto-cart surplus to treasury/);
-assert.match(chapelInspector, /Connect the chapel and Town Hall by road/);
+assert.match(chapelInspector, /Connect the church and Town Hall by road/);
 assert.match(chapelInspector, /Monastery purse/);
 
 console.log('chapel parish tests passed');

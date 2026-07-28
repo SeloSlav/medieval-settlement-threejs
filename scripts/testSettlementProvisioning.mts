@@ -101,7 +101,11 @@ assert.match(
 
 const state = emptyGameState();
 state.stockpile.food = 72;
-state.stockpile.firewood = 259.2;
+state.stockpile.firewood = 4
+  * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
+  * 120
+  * WINTER_FIREWOOD_DEMAND_MULTIPLIER
+  * 15;
 state.stockpile.gold = 7;
 state.residences.set('tier-1', residence('tier-1', 1, 3));
 state.residences.set('tier-2', residence('tier-2', 2, 4));
@@ -148,7 +152,10 @@ assert.ok(Math.abs(
   provisioning.winterFirewoodPerDay
   - 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 120 * WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 ) < 1e-9);
-assert.ok(Math.abs(provisioning.winterFirewoodRunwayDays - 15) < 1e-9);
+assert.ok(
+  Math.abs(provisioning.winterFirewoodRunwayDays - 15) < 1e-9,
+  `expected 15 winter firewood days, received ${provisioning.winterFirewoodRunwayDays}`,
+);
 assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 0.5) < 1e-9);
 assert.equal(provisioning.guardWagePerDay, 2 * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY);
 assert.ok(Math.abs(provisioning.guardWageRunwayDays - 10) < 1e-9);

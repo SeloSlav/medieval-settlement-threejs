@@ -438,6 +438,9 @@ export type GameBalance = {
     growthSeconds: number;
     baseGrainPerSquareMeter: number;
     farmsteadStarterSeedGrain: number;
+    earlyHarvestMonth: number;
+    earlyHarvestMinimumGrowth: number;
+    earlyHarvestRipenessFactor: number;
     crops: Record<string, FarmCropBalance>;
     slopePenaltyPerDegree: number;
     maxAcceptedSlopeDegrees: number;
@@ -818,6 +821,9 @@ function generateRust(): string {
     `pub const FARM_GROWTH_SECONDS: f64 = ${rustF64(b.farming.growthSeconds)};`,
     `pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.baseGrainPerSquareMeter)};`,
     `pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = ${rustF64(b.farming.farmsteadStarterSeedGrain)};`,
+    `pub const FARM_EARLY_HARVEST_MONTH: u32 = ${b.farming.earlyHarvestMonth};`,
+    `pub const FARM_EARLY_HARVEST_MINIMUM_GROWTH: f64 = ${rustF64(b.farming.earlyHarvestMinimumGrowth)};`,
+    `pub const FARM_EARLY_HARVEST_RIPENESS_FACTOR: f64 = ${rustF64(b.farming.earlyHarvestRipenessFactor)};`,
     `pub const FARM_SLOPE_PENALTY_PER_DEGREE: f64 = ${rustF64(b.farming.slopePenaltyPerDegree)};`,
     `pub const FARM_MAX_ACCEPTED_SLOPE_DEGREES: f64 = ${rustF64(b.farming.maxAcceptedSlopeDegrees)};`,
     `pub const FARM_FIELD_SALVAGE_FRACTION: f64 = ${rustF64(b.farming.fieldSalvageFraction)};`,
@@ -1461,6 +1467,9 @@ function generateTypeScript(): string {
     `export const FARM_GROWTH_SECONDS = ${b.farming.growthSeconds};`,
     `export const FARM_BASE_GRAIN_PER_SQUARE_METER = ${b.farming.baseGrainPerSquareMeter};`,
     `export const FARMSTEAD_STARTER_SEED_GRAIN = ${b.farming.farmsteadStarterSeedGrain};`,
+    `export const FARM_EARLY_HARVEST_MONTH = ${b.farming.earlyHarvestMonth};`,
+    `export const FARM_EARLY_HARVEST_MINIMUM_GROWTH = ${b.farming.earlyHarvestMinimumGrowth};`,
+    `export const FARM_EARLY_HARVEST_RIPENESS_FACTOR = ${b.farming.earlyHarvestRipenessFactor};`,
     `export const FARM_SLOPE_PENALTY_PER_DEGREE = ${b.farming.slopePenaltyPerDegree};`,
     `export const FARM_MAX_ACCEPTED_SLOPE_DEGREES = ${b.farming.maxAcceptedSlopeDegrees};`,
     `export const FARM_FIELD_SALVAGE_FRACTION = ${b.farming.fieldSalvageFraction};`,

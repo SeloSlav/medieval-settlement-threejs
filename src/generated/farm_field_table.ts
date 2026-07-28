@@ -34,4 +34,5 @@ export default __t.row({
   harvestCount: __t.u32().name("harvest_count"),
   lastYield: __t.f64().name("last_yield"),
   currentYield: __t.f64().name("current_yield"),
+  harvestYieldMultiplier: __t.f64().name("harvest_yield_multiplier"),
 });

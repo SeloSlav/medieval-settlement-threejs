@@ -212,6 +212,14 @@ export async function setFarmFieldPriority(fieldId: string, priority: number): P
   });
 }
 
+export async function startFarmFieldEarlyHarvest(fieldId: string): Promise<void> {
+  const serverId = parseFarmFieldServerId(fieldId);
+  if (serverId === null) throw new Error('Invalid farm field id.');
+  await callReducer('startFarmFieldEarlyHarvest', 'start_farm_field_early_harvest', {
+    fieldId: serverId,
+  });
+}
+
 export async function demolishFarmField(fieldId: string): Promise<void> {
   const serverId = parseFarmFieldServerId(fieldId);
   if (serverId === null) throw new Error('Invalid farm field id.');

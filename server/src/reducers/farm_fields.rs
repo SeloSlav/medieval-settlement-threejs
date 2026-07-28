@@ -6,11 +6,13 @@ use crate::balance_generated::{
 use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_footprint, Point2};
 use crate::db::*;
 use crate::farming::{
-    centroid, corners_from_values, edge_lengths, is_valid_rectangle, point_in_field, polygon_area,
-    valid_crop, STAGE_PLOUGHING,
+    centroid, corners_from_values, early_harvest_available, early_harvest_yield_multiplier,
+    edge_lengths, is_valid_rectangle, point_in_field, polygon_area, valid_crop, STAGE_HARVESTING,
+    STAGE_PLOUGHING,
 };
 use crate::hydrology::sample_hydrology_score;
 use crate::placement_validation::{building_pick_radius, is_on_quarry_pit, is_open_water};
+use crate::simulation::game_clock;
 use crate::tables::{farm_field, FarmField};
 
 #[reducer]
@@ -189,6 +191,7 @@ pub fn place_farm_field(
         harvest_count: 0,
         last_yield: 0.0,
         current_yield: 0.0,
+        harvest_yield_multiplier: 1.0,
     });
     Ok(())
 }
@@ -213,6 +216,44 @@ pub fn set_farm_field_priority(
 ) -> Result<(), String> {
     let mut field = owned_field(ctx, field_id)?;
     field.priority = priority.min(3);
+    ctx.db.farm_field().id().update(field);
+    Ok(())
+}
+
+#[reducer]
+pub fn start_farm_field_early_harvest(ctx: &ReducerContext, field_id: u64) -> Result<(), String> {
+    let mut field = owned_field(ctx, field_id)?;
+    let farmstead = ctx
+        .db
+        .building()
+        .id()
+        .find(&field.farmstead_id)
+        .ok_or_else(|| "The field's farmstead is missing.".to_string())?;
+    if farmstead.owner != ctx.sender()
+        || farmstead.kind != "threshing_barn"
+        || !farmstead.construction_complete
+    {
+        return Err("A completed farmstead is required to begin harvest.".to_string());
+    }
+    let sim_tick = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .map(|config| config.sim_tick)
+        .unwrap_or(0);
+    let month = game_clock(sim_tick).month;
+    if !early_harvest_available(field.stage, field.crop, month, field.stage_progress) {
+        return Err(
+            "Early harvest is available for ripe food or fibre crops in August after 55% growth."
+                .to_string(),
+        );
+    }
+
+    field.harvest_yield_multiplier = early_harvest_yield_multiplier(field.stage_progress);
+    field.stage = STAGE_HARVESTING;
+    field.stage_progress = 0.0;
+    field.current_yield = 0.0;
     ctx.db.farm_field().id().update(field);
     Ok(())
 }

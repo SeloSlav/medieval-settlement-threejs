@@ -67,6 +67,7 @@ import SetSeasonalLaborStewardReducer from "../set_seasonal_labor_steward_reduce
 import SetStorehousePolicyReducer from "../set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "../set_storehouse_stock_target_reducer";
 import SetWoodcutterTimberReserveReducer from "../set_woodcutter_timber_reserve_reducer";
+import StartFarmFieldEarlyHarvestReducer from "../start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "../sync_road_network_reducer";
 import TickSimReducer from "../tick_sim_reducer";
 import UpgradeResidenceReducer from "../upgrade_residence_reducer";
@@ -132,6 +133,7 @@ export type SetSeasonalLaborStewardParams = __Infer<typeof SetSeasonalLaborStewa
 export type SetStorehousePolicyParams = __Infer<typeof SetStorehousePolicyReducer>;
 export type SetStorehouseStockTargetParams = __Infer<typeof SetStorehouseStockTargetReducer>;
 export type SetWoodcutterTimberReserveParams = __Infer<typeof SetWoodcutterTimberReserveReducer>;
+export type StartFarmFieldEarlyHarvestParams = __Infer<typeof StartFarmFieldEarlyHarvestReducer>;
 export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;
 export type UpgradeResidenceParams = __Infer<typeof UpgradeResidenceReducer>;

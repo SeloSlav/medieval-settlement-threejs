@@ -146,6 +146,7 @@ export const FarmField = __t.object("FarmField", {
   harvestCount: __t.u32(),
   lastYield: __t.f64(),
   currentYield: __t.f64(),
+  harvestYieldMultiplier: __t.f64(),
 });
 export type FarmField = __Infer<typeof FarmField>;
 

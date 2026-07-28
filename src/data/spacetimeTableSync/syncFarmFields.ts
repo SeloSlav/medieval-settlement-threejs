@@ -34,6 +34,7 @@ export function syncFarmFields(
       harvestCount: Number(row.harvestCount),
       lastYield: row.lastYield,
       currentYield: row.currentYield ?? 0,
+      harvestYieldMultiplier: row.harvestYieldMultiplier ?? 1,
     });
   }
   return fields;

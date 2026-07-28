@@ -94,6 +94,7 @@ import SetSeasonalLaborStewardReducer from "./set_seasonal_labor_steward_reducer
 import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
 import SetWoodcutterTimberReserveReducer from "./set_woodcutter_timber_reserve_reducer";
+import StartFarmFieldEarlyHarvestReducer from "./start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
 import TickSimReducer from "./tick_sim_reducer";
 import UpgradeResidenceReducer from "./upgrade_residence_reducer";
@@ -464,6 +465,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_storehouse_policy", SetStorehousePolicyReducer),
   __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),
   __reducerSchema("set_woodcutter_timber_reserve", SetWoodcutterTimberReserveReducer),
+  __reducerSchema("start_farm_field_early_harvest", StartFarmFieldEarlyHarvestReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
   __reducerSchema("tick_sim", TickSimReducer),
   __reducerSchema("upgrade_residence", UpgradeResidenceReducer),

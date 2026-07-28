@@ -435,6 +435,11 @@ pub struct FarmField {
     /// harvest survives restarts and can be closed accurately at the deadline.
     #[default(0.0)]
     pub current_yield: f64,
+    /// Yield fraction locked when harvest begins. Normal September harvests use 1.0;
+    /// an August early cut stores its reduced ripeness here so saves and reconnects
+    /// cannot restore the sacrificed crop.
+    #[default(1.0)]
+    pub harvest_yield_multiplier: f64,
 }
 
 /// A player-drawn grazing parcel tied to a pastoral farmstead or woodland swineherd.

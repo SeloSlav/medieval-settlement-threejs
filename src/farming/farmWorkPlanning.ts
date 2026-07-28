@@ -7,6 +7,9 @@ import {
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
   FARM_CROP_DEFINITIONS,
+  FARM_EARLY_HARVEST_MINIMUM_GROWTH,
+  FARM_EARLY_HARVEST_MONTH,
+  FARM_EARLY_HARVEST_RIPENESS_FACTOR,
   FARM_HARVEST_WORK_PER_SQUARE_METER,
   FARM_PLOUGH_WORK_PER_SQUARE_METER,
   FARM_SOW_WORK_PER_SQUARE_METER,
@@ -86,6 +89,12 @@ export type CropRotationPlan = {
   decliningFields: number;
   weakestFieldId: string | null;
   lowestPlannedFertility: number | null;
+};
+
+export type EarlyHarvestAvailability = {
+  available: boolean;
+  yieldMultiplier: number;
+  reason: string;
 };
 
 type FarmWorkWindows = {
@@ -181,12 +190,56 @@ export function farmsteadExportableGrain(
 export function fieldStageAllowed(field: FarmFieldState, month: number): boolean {
   const crop = FARM_CROP_DEFINITIONS[field.crop];
   if (field.stage === 'harvesting') {
-    return month === crop.growthEndMonth % CALENDAR_MONTHS_PER_YEAR + 1;
+    return month === crop.growthEndMonth
+      || month === crop.growthEndMonth % CALENDAR_MONTHS_PER_YEAR + 1;
   }
   if (field.stage === 'growing') {
     return month >= crop.growthStartMonth && month <= crop.growthEndMonth;
   }
   return month >= crop.workStartMonth && month <= crop.workEndMonth;
+}
+
+export function earlyHarvestYieldMultiplier(growthProgress: number): number {
+  return Math.max(0, Math.min(1, growthProgress)) * FARM_EARLY_HARVEST_RIPENESS_FACTOR;
+}
+
+export function earlyHarvestAvailability(
+  field: FarmFieldState,
+  month: number,
+): EarlyHarvestAvailability {
+  const yieldMultiplier = earlyHarvestYieldMultiplier(field.stageProgress);
+  if (field.stage !== 'growing') {
+    return { available: false, yieldMultiplier, reason: 'Only a growing crop can be cut early.' };
+  }
+  if (FARM_CROP_DEFINITIONS[field.crop].produce === 'none') {
+    return { available: false, yieldMultiplier, reason: 'Worked fallow has no crop to harvest.' };
+  }
+  if (month !== FARM_EARLY_HARVEST_MONTH) {
+    return {
+      available: false,
+      yieldMultiplier,
+      reason: 'Early harvest opens in August.',
+    };
+  }
+  if (field.stageProgress < FARM_EARLY_HARVEST_MINIMUM_GROWTH) {
+    return {
+      available: false,
+      yieldMultiplier,
+      reason: `Crop needs ${Math.round(FARM_EARLY_HARVEST_MINIMUM_GROWTH * 100)}% growth before it can be cut.`,
+    };
+  }
+  return {
+    available: true,
+    yieldMultiplier,
+    reason: 'Cut now to spread harvest labor, but permanently sacrifice unripe yield.',
+  };
+}
+
+export function activeFieldHarvestYield(field: FarmFieldState): number {
+  const multiplier = field.stage === 'harvesting'
+    ? Math.max(0, Math.min(1, field.harvestYieldMultiplier ?? 1))
+    : 1;
+  return expectedFieldYield(field) * multiplier;
 }
 
 export function cropCalendarLabel(crop: FarmCrop): string {
@@ -354,7 +407,7 @@ function buildFarmsteadWorkPlanWithWindows(
     seedGrain += fieldSeedGrainRemaining(field);
     const currentProduce = FARM_CROP_DEFINITIONS[field.crop].produce;
     if (currentProduce !== 'none') {
-      const fieldYield = expectedFieldYield(field);
+      const fieldYield = activeFieldHarvestYield(field);
       const remainingYield = field.stage === 'harvesting'
         ? Math.max(0, fieldYield - field.currentYield)
         : fieldYield;

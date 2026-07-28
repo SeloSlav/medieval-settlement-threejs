@@ -151,6 +151,7 @@ type ResourceInspectorOptions = {
   onDemolishFarmField?: (fieldId: string) => void | Promise<void>;
   onSetFarmFieldCrop?: (fieldId: string, crop: FarmCrop) => void | Promise<void>;
   onSetFarmFieldPriority?: (fieldId: string, priority: number) => void | Promise<void>;
+  onStartFarmFieldEarlyHarvest?: (fieldId: string) => void | Promise<void>;
   onDemolishPasture?: (pastureId: string) => void | Promise<void>;
   onSetLivestockSpecies?: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
   onSetLivestockBreedingReserve?: (buildingId: string, breedingReserve: number) => void | Promise<void>;
@@ -473,6 +474,10 @@ export class ResourceInspector {
       return;
     }
     if (this.selectedTarget?.kind === 'farm-field') {
+      if ((event.target as HTMLElement).closest('[data-field-early-harvest]')) {
+        void this.options.onStartFarmFieldEarlyHarvest?.(this.selectedTarget.field.id);
+        return;
+      }
       const crop = (event.target as HTMLElement).closest<HTMLElement>('[data-field-crop]')?.dataset.fieldCrop;
       if (crop != null && FARM_CROPS.includes(crop as FarmCrop)) {
         void this.options.onSetFarmFieldCrop?.(this.selectedTarget.field.id, crop as FarmCrop);

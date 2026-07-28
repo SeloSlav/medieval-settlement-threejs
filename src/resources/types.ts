@@ -160,6 +160,8 @@ export type FarmFieldState = {
   harvestCount: number;
   lastYield: number;
   currentYield: number;
+  /** Locked fraction of normal yield for the active harvest; absent means a normal harvest. */
+  harvestYieldMultiplier?: number;
 };
 
 export const LIVESTOCK_SPECIES = ['cattle', 'sheep', 'swine'] as const;
