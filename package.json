@@ -39,6 +39,7 @@
     "test:settlement-production": "node --experimental-strip-types scripts/testSettlementProduction.mts",
     "test:settlement-prosperity": "node --experimental-strip-types scripts/testSettlementProsperity.mts",
     "test:food-preservation": "node --experimental-strip-types scripts/testFoodPreservation.mts",
+    "test:physical-food-stores": "npx tsx scripts/testPhysicalFoodStores.mts",
     "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",
     "test:chapel-community": "npx tsx scripts/testChapelCommunity.mts",
     "test:household-economy": "npx tsx scripts/testHouseholdEconomy.mts",

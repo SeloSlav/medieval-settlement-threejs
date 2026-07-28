@@ -95,6 +95,7 @@ export class SceneManager {
   private readonly maxAnisotropy: number;
   readonly cameraTarget = new THREE.Vector3();
   readonly terrain: Terrain;
+  private readonly fairTerrainMaterial: THREE.Material;
   readonly terrainProjector: TerrainProjector;
   readonly materials: RoadMaterialFactory;
   readonly roadMeshBuilder: RoadMeshBuilder;
@@ -180,6 +181,7 @@ export class SceneManager {
     this.sunDirection.setFromSphericalCoords(1, THREE.MathUtils.degToRad(43), THREE.MathUtils.degToRad(225));
     this.shadowKeyDirection.copy(this.sunDirection);
     this.terrain = terrain;
+    this.fairTerrainMaterial = terrain.mesh.material as THREE.Material;
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
     this.sky = new SkyCloudMesh({
       sunDirection: this.sunDirection,
@@ -727,6 +729,9 @@ export class SceneManager {
 
   setEnvironment(environment: EnvironmentState): void {
     this.environment = environment;
+    this.terrain.mesh.material = environment.weather === 'rain'
+      ? this.materials.rainTerrain
+      : this.fairTerrainMaterial;
     // Overcast rain has no crisp ground shadows. Disabling terrain reception
     // also prevents sub-pixel shadow-map dashes along the carved river valley;
     // objects retain their own shading and dry/frost shadowing is unchanged.
@@ -959,6 +964,10 @@ export class SceneManager {
     disposeObject3D(this.junctionGroup);
     disposeObject3D(this.previewGroup);
     disposeObject3D(this.selectionGroup);
+    // Terrain owns its generated fair-weather node material. Restore it before
+    // disposal if the scene happens to close while the shared rain material is
+    // active; RoadMaterialFactory disposes the latter exactly once.
+    this.terrain.mesh.material = this.fairTerrainMaterial;
     this.terrain.dispose();
     this.materials.dispose();
     disposeVineyardVineResources();

@@ -25,6 +25,11 @@ import {
   CLOTH_STOCKPILE_VISUAL_SEGMENTS,
   WOOL_STOCKPILE_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
+import {
+  SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+  SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS,
+  SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS,
+} from '../foodStockpileVisuals.ts';
 import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
 
 export const LOCAL_RECEIPT_VISUAL_SEGMENTS = 3;
@@ -58,6 +63,34 @@ function addSheaf(group: THREE.Group, x: number, z: number, scale = 1): void {
 function addSack(group: THREE.Group, x: number, z: number, scale = 1): void {
   addMesh(group, new THREE.SphereGeometry(0.45 * scale, 8, 6), canvas, new THREE.Vector3(x, 0.42 * scale, z), new THREE.Euler(0, 0, -0.08), new THREE.Vector3(0.82, 1.35, 0.72));
   addMesh(group, new THREE.CylinderGeometry(0.07 * scale, 0.14 * scale, 0.24 * scale, 7), canvas, new THREE.Vector3(x, 0.94 * scale, z));
+}
+
+type StockPropPlacement = readonly [
+  x: number,
+  y: number,
+  z: number,
+  scale: number,
+];
+
+function addSegmentedStockProps(
+  group: THREE.Group,
+  containerName: string,
+  segmentName: string,
+  placements: readonly StockPropPlacement[],
+  addProp: (segment: THREE.Group, scale: number) => void,
+): void {
+  const stockpile = new THREE.Group();
+  stockpile.name = containerName;
+  stockpile.visible = false;
+  for (const [x, y, z, scale] of placements) {
+    const segment = new THREE.Group();
+    segment.name = segmentName;
+    segment.visible = false;
+    segment.position.set(x, y, z);
+    addProp(segment, scale);
+    stockpile.add(segment);
+  }
+  group.add(stockpile);
 }
 
 function addCartWheel(group: THREE.Group, x: number, y: number, z: number, radius: number): void {
@@ -188,7 +221,13 @@ export function createBreweryMesh(): THREE.Group {
   addPlankDoor(group, -1.8, 1.08, shell.frontZ + 0.03, 1.22, 2.05);
   addSmallWindow(group, 1.45, 2.35, shell.frontZ + 0.03, 0.88, 1.05);
   addChimney(group, 2.7, -1.35, 5.2);
-  for (const [x, z, s] of [[-3.9, 4.1, 1], [-2.9, 4.25, 0.85], [3.5, 3.9, 1.1]] as const) addBarrel(group, x, z, s);
+  addSegmentedStockProps(
+    group,
+    'BreweryAleStockpile',
+    'BreweryAleSegment',
+    [[-3.9, 0, 4.1, 1], [-2.9, 0, 4.25, 0.85], [3.5, 0, 3.9, 1.1]],
+    (segment, scale) => addBarrel(segment, 0, 0, scale),
+  );
   // Open brewing bay with a copper mash kettle and malt sacks.
   for (const x of [2.45, 4.55]) addMesh(group, new THREE.BoxGeometry(0.18, 2.45, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 1.22, 4.2));
   addLeanToRoof(group, {
@@ -203,8 +242,13 @@ export function createBreweryMesh(): THREE.Group {
   });
   addMesh(group, new THREE.SphereGeometry(0.72, 12, 8), copper, new THREE.Vector3(3.45, 0.96, 4.15), new THREE.Euler(), new THREE.Vector3(1, 1.18, 1));
   addMesh(group, new THREE.CylinderGeometry(0.16, 0.16, 1.6, 8), copper, new THREE.Vector3(3.45, 2.0, 4.15));
-  addSack(group, 1.7, 4.3, 0.9);
-  addSack(group, 1.15, 4.25, 0.75);
+  addSegmentedStockProps(
+    group,
+    'BreweryGrainStockpile',
+    'BreweryGrainSegment',
+    [[1.7, 0, 4.3, 0.9], [1.15, 0, 4.25, 0.75]],
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
   return group;
 }
 
@@ -230,9 +274,57 @@ export function createSmokehouseMesh(): THREE.Group {
     name: 'Smokehouse fuel lean-to roof',
   });
   for (const z of [-0.9, 0.9]) addMesh(group, new THREE.BoxGeometry(0.16, 2.0, 0.16), timberMaterial('dark'), new THREE.Vector3(-5.1, 1.0, z));
-  for (let row = 0; row < 3; row++) for (let i = 0; i < 4; i++) addMesh(group, new THREE.CylinderGeometry(0.13, 0.16, 1.05, 8), timberMaterial(i % 2 ? 'light' : 'mid'), new THREE.Vector3(-4.1 + i * 0.42, 0.22 + row * 0.34, 0.2));
+  const fuelStockpile = new THREE.Group();
+  fuelStockpile.name = 'SmokehouseFirewoodStockpile';
+  fuelStockpile.visible = false;
+  for (let row = 0; row < SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS; row++) {
+    const segment = new THREE.Group();
+    segment.name = 'SmokehouseFirewoodSegment';
+    segment.visible = false;
+    for (let i = 0; i < 4; i++) {
+      addMesh(
+        segment,
+        new THREE.CylinderGeometry(0.13, 0.16, 1.05, 8),
+        timberMaterial(i % 2 ? 'light' : 'mid'),
+        new THREE.Vector3(-4.1 + i * 0.42, 0.22 + row * 0.34, 0.2),
+      );
+    }
+    fuelStockpile.add(segment);
+  }
+  group.add(fuelStockpile);
   addMesh(group, new THREE.BoxGeometry(2.55, 0.1, 0.1), timberMaterial('weathered'), new THREE.Vector3(0, 1.85, 4.0));
-  for (let i = -2; i <= 2; i++) addMesh(group, new THREE.TorusGeometry(0.14, 0.045, 5, 9, Math.PI * 1.65), sharedBuildingDetailMaterial('paintRed'), new THREE.Vector3(i * 0.42, 1.46, 4.0));
+  const rawFoodStockpile = new THREE.Group();
+  rawFoodStockpile.name = 'SmokehouseFreshFoodStockpile';
+  rawFoodStockpile.visible = false;
+  for (let index = 0; index < SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS; index++) {
+    const segment = new THREE.Group();
+    segment.name = 'SmokehouseFreshFoodSegment';
+    segment.visible = false;
+    addMesh(
+      segment,
+      new THREE.TorusGeometry(0.14, 0.045, 5, 9, Math.PI * 1.65),
+      sharedBuildingDetailMaterial('paintRed'),
+      new THREE.Vector3((-2 + index) * 0.42, 1.46, 4.0),
+    );
+    rawFoodStockpile.add(segment);
+  }
+  group.add(rawFoodStockpile);
+  const preservedFoodStockpile = new THREE.Group();
+  preservedFoodStockpile.name = 'SmokehousePreservedFoodStockpile';
+  preservedFoodStockpile.visible = false;
+  for (let index = 0; index < SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS; index++) {
+    const segment = new THREE.Group();
+    segment.name = 'SmokehousePreservedFoodSegment';
+    segment.visible = false;
+    addMesh(
+      segment,
+      new THREE.TorusGeometry(0.14, 0.045, 5, 9, Math.PI * 1.65),
+      sharedBuildingDetailMaterial('paintRed'),
+      new THREE.Vector3(index * 0.42, 1.46, 4.0),
+    );
+    preservedFoodStockpile.add(segment);
+  }
+  group.add(preservedFoodStockpile);
   return group;
 }
 
@@ -253,9 +345,21 @@ export function createGranaryMesh(): THREE.Group {
   addMesh(group, new THREE.TorusGeometry(0.18, 0.045, 6, 12), metalMaterial('iron'), new THREE.Vector3(0, 4.35, 5.33), new THREE.Euler(Math.PI * 0.5, 0, 0));
   for (let i = -4; i <= 4; i++) addMesh(group, new THREE.BoxGeometry(0.12, 1.15, 0.12), timberMaterial('dark'), new THREE.Vector3(i * 0.85, 0.58, 4.25), new THREE.Euler(0, 0, 0.08));
   for (let i = 0; i < 5; i++) addMesh(group, new THREE.BoxGeometry(1.55 - i * 0.1, 0.18, 0.46), stoneMaterial(i % 2 ? 'mid' : 'light'), new THREE.Vector3(0, 0.12 + i * 0.18, 3.55 + i * 0.34));
-  addSack(group, -3.45, 3.8, 0.9);
-  addSack(group, -2.75, 3.95, 0.75);
+  addSegmentedStockProps(
+    group,
+    'GranaryGrainStockpile',
+    'GranaryGrainSegment',
+    [[-3.45, 0, 3.8, 0.9], [-2.75, 0, 3.95, 0.75], [-3.9, 0, 4.5, 0.68]],
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
   addMesh(group, new THREE.BoxGeometry(2.4, 0.1, 0.95), timberMaterial('weathered'), new THREE.Vector3(3.05, 0.58, 3.95));
+  addSegmentedStockProps(
+    group,
+    'GranaryProvisionStockpile',
+    'GranaryProvisionSegment',
+    [[2.35, 0.62, 3.85, 0.82], [3.05, 0.62, 3.95, 0.72], [3.7, 0.62, 3.82, 0.65]],
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
   return group;
 }
 
@@ -294,9 +398,21 @@ export function createWatermillMesh(): THREE.Group {
   }
   // Millrace trough and grain handling props distinguish flour milling from saw work.
   addMesh(group, new THREE.BoxGeometry(1.6, 0.3, 7.8), stoneMaterial('mid'), new THREE.Vector3(wheelX + 0.65, 0.25, 0));
-  addSack(group, -3.7, 4.05, 0.9);
-  addSack(group, -3.0, 4.15, 0.72);
+  addSegmentedStockProps(
+    group,
+    'WatermillGrainStockpile',
+    'WatermillGrainSegment',
+    [[-3.7, 0, 4.05, 0.9], [-3.0, 0, 4.15, 0.72], [-3.55, 0, 4.7, 0.65]],
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
   addMesh(group, new THREE.BoxGeometry(1.5, 1.0, 1.35), timberMaterial('weathered'), new THREE.Vector3(-1.9, 0.52, 4.05));
+  addSegmentedStockProps(
+    group,
+    'WatermillFlourStockpile',
+    'WatermillFlourSegment',
+    [[1.9, 0, 4.05, 0.86], [2.62, 0, 4.15, 0.72], [2.25, 0, 4.68, 0.64]],
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
   return group;
 }
 

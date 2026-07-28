@@ -25,6 +25,7 @@ const tests = [
   'test:settlement-production',
   'test:settlement-prosperity',
   'test:food-preservation',
+  'test:physical-food-stores',
   'test:village-economy',
   'test:chapel-community',
   'test:household-economy',

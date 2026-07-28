@@ -269,8 +269,62 @@ assert.match(
 );
 assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
+assert.match(roadFactorySource, /readonly rainTerrain!:\s*THREE\.MeshStandardMaterial/);
+assert.match(
+  roadFactorySource,
+  /const rainTerrain\s*=\s*new THREE\.MeshStandardMaterial\(\{/,
+);
+assert.match(roadFactorySource, /name:\s*'Overcast rain terrain'/);
+assert.match(roadFactorySource, /const rainTerrainTexture = createRainTerrainAlbedoTexture\(\)/);
+assert.match(roadFactorySource, /map:\s*rainTerrainTexture/);
+assert.match(
+  roadFactorySource,
+  /this\.rainTerrainTexture\?\.dispose\(\)/,
+  'the factory must release its generated rain albedo',
+);
+assert.match(roadFactorySource, /vertexColors:\s*false/);
+assert.match(roadFactorySource, /function createRainTerrainAlbedoTexture/);
+assert.match(roadFactorySource, /function tileableValueNoise/);
+assert.match(roadFactorySource, /THREE\.RepeatWrapping/);
+assert.match(roadFactorySource, /texture\.repeat\.set\(0\.14,\s*0\.14\)/);
+assert.doesNotMatch(
+  roadFactorySource.slice(
+    roadFactorySource.indexOf('const rainTerrain ='),
+    roadFactorySource.indexOf('const bridgeSupport ='),
+  ),
+  /normalMap|roughnessMap/,
+  'rain overview terrain must not reintroduce high-frequency authored weave maps',
+);
+assert.match(
+  roadFactorySource,
+  /const materials\s*=\s*\[[\s\S]*?this\.terrain,[\s\S]*?this\.rainTerrain,[\s\S]*?this\.bridgeSupport/,
+  'the factory must dispose its shared rain material',
+);
+const rainTerrainStart = roadFactorySource.indexOf('const rainTerrain =');
+const rainTerrainEnd = roadFactorySource.indexOf('const bridgeSupport =', rainTerrainStart);
+assert.ok(rainTerrainStart >= 0 && rainTerrainEnd > rainTerrainStart);
+assert.doesNotMatch(
+  roadFactorySource.slice(rainTerrainStart, rainTerrainEnd),
+  /colorNode|normalNode|attribute\(|vertexColor\(/,
+  'the stable rain terrain path must not inherit node or custom-attribute dependencies',
+);
+assert.match(
+  sceneSource,
+  /this\.fairTerrainMaterial\s*=\s*terrain\.mesh\.material as THREE\.Material/,
+  'SceneManager must retain the generated fair-weather shore material',
+);
+assert.match(
+  sceneSource,
+  /this\.terrain\.mesh\.material\s*=\s*environment\.weather\s*===\s*'rain'[\s\S]*?\?\s*this\.materials\.rainTerrain[\s\S]*?:\s*this\.fairTerrainMaterial/,
+  'only rain may replace the authored node terrain with the stable conventional PBR path',
+);
+assert.match(
+  sceneSource,
+  /this\.terrain\.mesh\.material\s*=\s*this\.fairTerrainMaterial;[\s\S]*?this\.terrain\.dispose\(\)/,
+  'terrain disposal must restore and release its generated fair-weather material',
+);
 assert.match(terrainMaterialSource, /const stableColorNode = biomeBaseColor/);
-assert.match(terrainMaterialSource, /const rainMoisture = macroA/);
+assert.match(terrainMaterialSource, /const rainMoisture = smoothstep/);
 assert.match(terrainMaterialSource, /const rainStableColorNode = rainMacroColor/);
 assert.match(
   terrainMaterialSource,
@@ -288,18 +342,17 @@ assert.match(terrainMaterialSource, /float\(32400\)/);
 assert.match(terrainMaterialSource, /float\(0\.72\)/);
 assert.match(
   terrainMaterialSource,
-  /TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR = 0/,
+  /TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR = 0\.08/,
 );
 assert.match(terrainMaterialSource, /const rainDirtVisibility = mix/);
 assert.match(
   terrainMaterialSource,
-  /TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR = 0/,
+  /TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR = 0\.04/,
 );
 assert.match(
   terrainMaterialSource,
-  /TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR = 0/,
+  /TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR = 0\.04/,
 );
-assert.match(terrainMaterialSource, /material\.vertexColors = false/);
 assert.match(terrainMaterialSource, /const broadFrostExposure = smoothstep/);
 assert.match(terrainMaterialSource, /const ecologicalShelter = max/);
 assert.match(terrainMaterialSource, /TERRAIN_FROST_PATCH_MAX = 0\.86/);

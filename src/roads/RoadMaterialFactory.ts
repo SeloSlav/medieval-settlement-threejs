@@ -16,6 +16,7 @@ export class RoadMaterialFactory {
   readonly roadEdge!: MeshStandardNodeMaterial;
   readonly riverBank!: MeshStandardNodeMaterial;
   readonly terrain!: MeshStandardNodeMaterial;
+  readonly rainTerrain!: THREE.MeshStandardMaterial;
   readonly bridgeSupport!: THREE.MeshStandardMaterial;
   readonly previewValid: THREE.MeshBasicMaterial;
   readonly previewInvalid: THREE.MeshBasicMaterial;
@@ -27,6 +28,7 @@ export class RoadMaterialFactory {
   private roadTextures: TextureSet | null = null;
   private bridgeTextures: TextureSet | null = null;
   private terrainBlendTextures: TerrainBlendTextureSet | null = null;
+  private rainTerrainTexture: THREE.DataTexture | null = null;
   private texturesReadyPromise: Promise<void> = Promise.resolve();
   private readonly roadWeatherUniforms = createRoadWeatherUniforms();
   private targetRoadWetness = 0;
@@ -135,6 +137,7 @@ export class RoadMaterialFactory {
       this.roadEdge,
       this.riverBank,
       this.terrain,
+      this.rainTerrain,
       this.bridgeSupport,
       this.previewValid,
       this.previewInvalid,
@@ -145,6 +148,8 @@ export class RoadMaterialFactory {
       this.snap,
     ];
     materials.forEach((material) => material.dispose());
+    this.rainTerrainTexture?.dispose();
+    this.rainTerrainTexture = null;
     if (this.roadTextures) this.disposeTextureSet(this.roadTextures);
     if (this.bridgeTextures) this.disposeTextureSet(this.bridgeTextures);
     if (this.terrainBlendTextures) {
@@ -170,6 +175,7 @@ export class RoadMaterialFactory {
     roadEdge: MeshStandardNodeMaterial;
     riverBank: MeshStandardNodeMaterial;
     terrain: MeshStandardNodeMaterial;
+    rainTerrain: THREE.MeshStandardMaterial;
     bridgeSupport: THREE.MeshStandardMaterial;
   } {
     if (!this.roadTextures || !this.bridgeTextures || !this.terrainBlendTextures) {
@@ -186,6 +192,23 @@ export class RoadMaterialFactory {
       this.terrainBlendTextures,
       this.roadWeatherUniforms,
     );
+    // The WebGPU node-material path can expose sub-pixel triangle seams on the
+    // 769² heightfield under fully overcast rain. A conventional PBR material
+    // avoids that backend artifact. Its low-contrast procedural albedo retains
+    // broad wet-ground variation without repeating the close grass weave over
+    // the entire overview. SceneManager activates it only for rain.
+    const rainTerrainTexture = createRainTerrainAlbedoTexture();
+    this.rainTerrainTexture = rainTerrainTexture;
+    const rainTerrain = new THREE.MeshStandardMaterial({
+      name: 'Overcast rain terrain',
+      map: rainTerrainTexture,
+      color: 0xeff3ee,
+      emissive: 0x18241b,
+      emissiveIntensity: 0.32,
+      roughness: 0.9,
+      metalness: 0,
+      vertexColors: false,
+    });
     const bridgeSupport = new THREE.MeshStandardMaterial({
       map: this.bridgeTextures.albedo,
       color: 0xa07850,
@@ -196,7 +219,7 @@ export class RoadMaterialFactory {
       bridgeSupport.normalMap = this.bridgeTextures.normal;
       bridgeSupport.normalScale.set(0.45, 0.45);
     }
-    return { road, roadEdge, riverBank, terrain, bridgeSupport };
+    return { road, roadEdge, riverBank, terrain, rainTerrain, bridgeSupport };
   }
 
   private disposeTextureSet(set: TextureSet): void {
@@ -252,4 +275,85 @@ function hydrateTextureSet(target: TextureSet, source: TextureSet): void {
     targetTexture.copy(sourceTexture);
     targetTexture.needsUpdate = true;
   }
+}
+
+function createRainTerrainAlbedoTexture(): THREE.DataTexture {
+  const size = 256;
+  const pixels = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    const v = y / size;
+    for (let x = 0; x < size; x++) {
+      const u = x / size;
+      const broad = tileableValueNoise(u, v, 3, 41) * 0.58;
+      const middle = tileableValueNoise(u, v, 7, 83) * 0.24;
+      const fine = tileableValueNoise(u, v, 15, 137) * 0.1;
+      const micro = tileableValueNoise(u, v, 64, 173) * 0.08;
+      const warmth = tileableValueNoise(u, v, 5, 211);
+      const tone = (broad + middle + fine + micro - 0.5) * 2;
+      const offset = (y * size + x) * 4;
+      pixels[offset] = THREE.MathUtils.clamp(148 + tone * 60 + warmth * 6, 0, 255);
+      pixels[offset + 1] = THREE.MathUtils.clamp(164 + tone * 64, 0, 255);
+      pixels[offset + 2] = THREE.MathUtils.clamp(142 + tone * 52 - warmth * 5, 0, 255);
+      pixels[offset + 3] = 255;
+    }
+  }
+
+  const texture = new THREE.DataTexture(
+    pixels,
+    size,
+    size,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+  texture.name = 'Procedural overcast meadow albedo';
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  // Terrain UVs are world-scaled for close grass detail. Expanding this
+  // weather texture keeps its dominant forms at landscape scale; the high
+  // octave retains restrained near-camera breakup.
+  texture.repeat.set(0.14, 0.14);
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function tileableValueNoise(
+  u: number,
+  v: number,
+  cells: number,
+  seed: number,
+): number {
+  const px = u * cells;
+  const py = v * cells;
+  const x0 = Math.floor(px) % cells;
+  const y0 = Math.floor(py) % cells;
+  const x1 = (x0 + 1) % cells;
+  const y1 = (y0 + 1) % cells;
+  const tx = smoothNoiseStep(px - Math.floor(px));
+  const ty = smoothNoiseStep(py - Math.floor(py));
+  const a = rainNoiseHash(x0, y0, seed);
+  const b = rainNoiseHash(x1, y0, seed);
+  const c = rainNoiseHash(x0, y1, seed);
+  const d = rainNoiseHash(x1, y1, seed);
+  return THREE.MathUtils.lerp(
+    THREE.MathUtils.lerp(a, b, tx),
+    THREE.MathUtils.lerp(c, d, tx),
+    ty,
+  );
+}
+
+function smoothNoiseStep(value: number): number {
+  return value * value * (3 - 2 * value);
+}
+
+function rainNoiseHash(x: number, y: number, seed: number): number {
+  let hash = Math.imul(x + seed, 0x45d9f3b) ^ Math.imul(y + seed * 3, 0x27d4eb2d);
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x7feb352d);
+  hash ^= hash >>> 15;
+  return (hash >>> 0) / 0xffffffff;
 }
