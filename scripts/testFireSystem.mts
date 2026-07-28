@@ -154,6 +154,7 @@ const wellSource = readFileSync(`${projectRoot}server/src/simulation/well.rs`, '
 const tripSource = readFileSync(`${projectRoot}server/src/simulation/delivery_trips.rs`, 'utf8');
 const cargoSource = readFileSync(`${projectRoot}server/src/simulation/delivery_cargo.rs`, 'utf8');
 const fireSource = readFileSync(`${projectRoot}server/src/simulation/fires.rs`, 'utf8');
+const firePolicySource = readFileSync(`${projectRoot}server/src/fire_policy.rs`, 'utf8');
 const tickContextSource = readFileSync(
   `${projectRoot}server/src/simulation/tick_context.rs`,
   'utf8',
@@ -251,6 +252,16 @@ assert.match(
   'idle ignition polling should scan structures once per simulated second',
 );
 assert.match(fireSource, /pub const FIRE_SOURCE_RAID: u8 = 3;/);
+assert.match(
+  firePolicySource,
+  /"founders_camp"[\s\S]{0,260}\| "town_hall"[\s\S]{0,160}=> 0\.0/,
+  'the irreplaceable founding anchor must be excluded from accident, lightning, spread, and raid ignition',
+);
+assert.match(
+  fireSource,
+  /incident\.target_kind == FIRE_TARGET_BUILDING[\s\S]{0,500}building_flammability\(&building\) <= 0\.0[\s\S]{0,260}fire_incident\(\)\.id\(\)\.delete/,
+  'rolling saves must clear an already-burning founding anchor before damage can erase starter stock',
+);
 assert.match(
   fireSource,
   /pub fn ignite_raid_target[\s\S]*fire_for_target[\s\S]*FIRE_SOURCE_RAID/,

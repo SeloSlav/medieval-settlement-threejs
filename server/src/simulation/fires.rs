@@ -12,8 +12,8 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::reconcile_building_labor;
 use crate::fire_policy::{
-    accumulated_event_chance, distance_spread_factor, fire_response_load, step_fire,
-    suppression_result, weather_risk_multiplier,
+    accumulated_event_chance, building_base_flammability, distance_spread_factor,
+    fire_response_load, step_fire, suppression_result, weather_risk_multiplier,
 };
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::RoadNetwork;
@@ -67,6 +67,20 @@ pub fn step_fires(
         .collect();
     let mut active_after_step = Vec::with_capacity(active.len());
     for mut incident in active {
+        if incident.target_kind == FIRE_TARGET_BUILDING
+            && ctx
+                .db
+                .building()
+                .id()
+                .find(&incident.target_id)
+                .is_some_and(|building| building_flammability(&building) <= 0.0)
+        {
+            // A rolling upgrade may encounter an already-burning structure
+            // that is now a protected bootstrap anchor. Remove the stale
+            // incident before it can erase the one-time founding stock.
+            ctx.db.fire_incident().id().delete(incident.id);
+            continue;
+        }
         let next = step_fire(
             incident.intensity,
             incident.damage,
@@ -597,17 +611,7 @@ fn nearest_eligible_well_id(
 }
 
 fn building_flammability(building: &Building) -> f64 {
-    let base: f64 = match building.kind.as_str() {
-        // The Town Hall is this game's manor analogue; Manor Lords makes manors nonflammable.
-        "town_hall" | "well" | "marketplace" | "stone_quarry" | "large_quarry" => 0.0,
-        "chapel" | "monastery" => 0.32,
-        "smokehouse" => 2.2,
-        "brewery" | "granary" => 1.45,
-        "lumber_mill" | "woodcutters_lodge" | "reforester" | "carpenter" => 1.7,
-        "threshing_barn" => 1.65,
-        "apiary" | "fishing_camp" | "hunters_hall" | "foragers_shed" => 1.25,
-        _ => 1.0,
-    };
+    let base = building_base_flammability(&building.kind);
     if base <= 0.0 {
         return 0.0;
     }

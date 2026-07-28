@@ -39,6 +39,27 @@ pub fn weather_risk_multiplier(is_raining: bool, is_drought: bool) -> f64 {
     }
 }
 
+/// Structural ignition policy shared by accident, lightning, spread, and raid
+/// arson. Goods stored at a fire-safe holding can still be lost through the
+/// raid economy; this controls only whether the structure can burn.
+pub fn building_base_flammability(kind: &str) -> f64 {
+    match kind {
+        // The founding camp is a one-time bootstrap anchor that the player
+        // cannot demolish or replace. An unlucky fire may not permanently
+        // deadlock a new settlement.
+        "founders_camp"
+        // The Town Hall is this game's manor analogue; Manor Lords makes manors nonflammable.
+        | "town_hall" | "well" | "marketplace" | "stone_quarry" | "large_quarry" => 0.0,
+        "chapel" | "monastery" => 0.32,
+        "smokehouse" => 2.2,
+        "brewery" | "granary" => 1.45,
+        "lumber_mill" | "woodcutters_lodge" | "reforester" | "carpenter" => 1.7,
+        "threshing_barn" => 1.65,
+        "apiary" | "fishing_camp" | "hunters_hall" | "foragers_shed" => 1.25,
+        _ => 1.0,
+    }
+}
+
 /// Combines repeated independent checks without inflating or suppressing the
 /// probability when an expensive world scan is polled less often.
 pub fn accumulated_event_chance(single_check_chance: f64, checks: u64) -> f64 {
@@ -179,5 +200,12 @@ mod tests {
         let two_windows = accumulated_event_chance(five_ticks, 2);
         let ten_ticks = accumulated_event_chance(per_tick, 10);
         assert!((two_windows - ten_ticks).abs() < 1e-12);
+    }
+
+    #[test]
+    fn one_time_founding_anchor_is_structurally_fire_safe() {
+        assert_eq!(building_base_flammability("founders_camp"), 0.0);
+        assert_eq!(building_base_flammability("town_hall"), 0.0);
+        assert!(building_base_flammability("lumber_mill") > 0.0);
     }
 }
