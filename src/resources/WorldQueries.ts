@@ -59,6 +59,11 @@ import {
 } from '../logistics/waterLogistics.ts';
 import { processorAcceptsInput } from '../economy/processorOutputPolicy.ts';
 import {
+  monasteryFeastRefillShortfall,
+  monasteryFeastReserve,
+  monasteryFeastSurplus,
+} from '../economy/monasteryHospitality.ts';
+import {
   areRoadConnected,
   formatRoadAccess,
   hasRoadAccess as roadHasRoadAccess,
@@ -176,6 +181,7 @@ export class WorldQueries {
   private readonly getRoadNetwork: () => RoadNetwork;
   private readonly getTreeRegistry: () => TreeRegistry | null;
   private readonly getWorldHydrology: () => number;
+  private readonly getMonasteryHospitalityEnabled: () => boolean;
 
   constructor(options: {
     terrain: Terrain;
@@ -185,6 +191,7 @@ export class WorldQueries {
     getRoadNetwork: () => RoadNetwork;
     getTreeRegistry: () => TreeRegistry | null;
     getWorldHydrology?: () => number;
+    getMonasteryHospitalityEnabled?: () => boolean;
   }) {
     this.terrain = options.terrain;
     this.riverField = options.riverField;
@@ -193,6 +200,8 @@ export class WorldQueries {
     this.getRoadNetwork = options.getRoadNetwork;
     this.getTreeRegistry = options.getTreeRegistry;
     this.getWorldHydrology = options.getWorldHydrology ?? (() => 50);
+    this.getMonasteryHospitalityEnabled =
+      options.getMonasteryHospitalityEnabled ?? (() => true);
   }
 
   getHeightAt(x: number, z: number): number {
@@ -423,6 +432,7 @@ export class WorldQueries {
     const { network, buildings, residences } = this.deliverySnapshot();
     const chapels = this.activeParishChapels(state);
     const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    const reserveEnabled = this.getMonasteryHospitalityEnabled();
     const probe = (ax: number, az: number, bx: number, bz: number) =>
       roadPathDistance(network, ax, az, bx, bz);
     return new FoodDeliveryClaimQueries(
@@ -432,6 +442,12 @@ export class WorldQueries {
       (supplier, residence, distance) =>
         supplier.kind !== 'monastery'
         || (
+          monasteryFeastSurplus(
+            supplier.food,
+            monasteryFeastReserve('food'),
+            reserveEnabled,
+          ) > 1e-6
+          &&
           distance <= MONASTERY_COVERAGE_RADIUS
           && !fireDisabled.has(supplier.id)
           && findServingChapel(residence, chapels, probe) != null
@@ -839,6 +855,7 @@ export class WorldQueries {
     const network = this.getRoadNetwork();
     const chapels = this.activeParishChapels(state);
     const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    const reserveEnabled = this.getMonasteryHospitalityEnabled();
     const hasParishAccess = findServingChapel(
       residence,
       chapels,
@@ -855,6 +872,15 @@ export class WorldQueries {
       (building, distance) =>
         building.kind !== 'monastery'
         || (
+          (
+            !requireStock
+            || monasteryFeastSurplus(
+              building.ale,
+              monasteryFeastReserve('ale'),
+              reserveEnabled,
+            ) > 1e-6
+          )
+          &&
           hasParishAccess
           && distance <= MONASTERY_COVERAGE_RADIUS
           && !fireDisabled.has(building.id)
@@ -1029,6 +1055,25 @@ export class WorldQueries {
         : 1,
       (target) => inboundTargets.has(target.id),
       (target) => processorAcceptsInput(target, 'grain'),
+    );
+  }
+
+  getNextMonasteryFeastAleTarget(origin: BuildingState): BuildingState | null {
+    const reserveEnabled = this.getMonasteryHospitalityEnabled();
+    if (!reserveEnabled) return null;
+    const reserve = monasteryFeastReserve('ale');
+    return this.findNearestRoadLinkedBuilding(
+      origin,
+      ['monastery'],
+      (candidate) =>
+        this.isMonasteryLinkedToChapel(candidate)
+        && monasteryFeastRefillShortfall(
+          candidate.ale,
+          0,
+          reserve,
+          reserveEnabled,
+        ) > 1e-6
+        && this.getInboundSupplyTrip(candidate) == null,
     );
   }
 

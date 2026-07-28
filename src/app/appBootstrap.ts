@@ -258,6 +258,8 @@ export async function bootstrapAppSession(
     getRoadNetwork: () => roadNetwork,
     getTreeRegistry: () => liveContext.treeRegistry,
     getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
+    getMonasteryHospitalityEnabled: () =>
+      (spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY).feastsEnabled,
   });
   const buildingMarkers = new BuildingMarkers({
     terrain: sceneManager.terrain,

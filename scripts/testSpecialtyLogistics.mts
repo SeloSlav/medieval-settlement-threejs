@@ -188,7 +188,11 @@ const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'ut
 assert.match(tickContext, /specialty_claims:\s*RefCell/);
 assert.match(tickContext, /PRESERVED_FOOD_SUPPLIER_KINDS/);
 assert.match(tickContext, /MONASTERY_COVERAGE_RADIUS/);
-assert.match(tickContext, /ResidenceNeedKind::Ale => building\.ale > 1e-6/);
+assert.match(
+  tickContext,
+  /ResidenceNeedKind::Ale => \{[\s\S]*?building\.kind == "monastery"[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?building\.ale[\s\S]*?available > 1e-6/,
+  'ale claims must release empty workshops while excluding protected monastery feast stock',
+);
 assert.match(
   tickContext,
   /ResidenceNeedKind::PreservedFood => building\.preserved_food > 1e-6/,

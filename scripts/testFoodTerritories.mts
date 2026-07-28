@@ -190,8 +190,8 @@ const foodClaimsSource = tickContext.slice(
 );
 assert.match(
   foodClaimsSource,
-  /is_food_supplier_operational[\s\S]*building\.food > 1e-6/,
-  'authoritative food claims must relinquish empty suppliers',
+  /is_food_supplier_operational[\s\S]*?building\.kind == "monastery"[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_FOOD[\s\S]*?building\.food[\s\S]*?> 1e-6/,
+  'authoritative food claims must relinquish empty suppliers and protected monastery feast stock',
 );
 assert.match(
   foodClaimsSource,

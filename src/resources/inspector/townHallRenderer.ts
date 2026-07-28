@@ -1835,9 +1835,9 @@ export function renderTownHallInspector(
   const monasteryHospitalityRow = linkedMonasteries.length === 0
     ? '<li><span>Monastery hospitality</span><span>No chapel-and-market-linked monastery</span></li>'
     : monasteryPolicy.feastsEnabled
-      ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} fully supplied · ${hospitalityGoldPerDay.toFixed(2)} pilgrimage gold/day before handcart collection · annual target ${hospitalityHoneyPerYear.toFixed(0)} honey + ${hospitalityWinePerYear.toFixed(0)} wine</span></li>
-        <li><span>Next feast reserve</span><span>${formatNextMonasteryFeast(nextFeast)} · ${feastReadyMonasteries} / ${linkedMonasteries.length} pantries ready · annual batches require ${feastFoodPerYear.toFixed(0)} food + ${feastAlePerYear.toFixed(0)} ale settlement-wide</span></li>`
-      : `<li><span>Monastery hospitality</span><span>Disabled · ${hospitalityGoldPerDay.toFixed(2)} baseline pilgrimage gold/day before handcart collection · honey and wine remain exportable</span></li>`;
+      ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} supplied above protected feast floors · ${hospitalityGoldPerDay.toFixed(2)} pilgrimage gold/day before handcart collection · annual target ${hospitalityHoneyPerYear.toFixed(0)} honey + ${hospitalityWinePerYear.toFixed(0)} wine</span></li>
+        <li><span>Next feast reserve</span><span>${formatNextMonasteryFeast(nextFeast)} · ${feastReadyMonasteries} / ${linkedMonasteries.length} protected pantries ready · annual batches require ${feastFoodPerYear.toFixed(0)} food + ${feastAlePerYear.toFixed(0)} ale settlement-wide</span></li>`
+      : `<li><span>Monastery hospitality</span><span>Disabled · ${hospitalityGoldPerDay.toFixed(2)} baseline pilgrimage gold/day before handcart collection · feast stock released to household supply or export</span></li>`;
   const inboundTreasuryGold = Array.from(context.gameState.deliveryTrips.values())
     .filter(
       (trip) =>

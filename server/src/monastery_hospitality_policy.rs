@@ -58,6 +58,32 @@ pub fn monastery_feast_batch(
     }
 }
 
+/// A configured feast batch is a hard pantry floor. Ordinary hospitality and
+/// household charity may use only stock above it; disabling the policy releases
+/// the whole store back into the settlement economy.
+pub fn monastery_feast_surplus(stock: f64, reserve: f64, enabled: bool) -> f64 {
+    let stock = stock.max(0.0);
+    if enabled {
+        (stock - reserve.max(0.0)).max(0.0)
+    } else {
+        stock
+    }
+}
+
+/// Producers stage only the missing part of one protected batch. Inbound stock
+/// is included so concurrent carts cannot overfill the policy target.
+pub fn monastery_feast_refill_shortfall(
+    stock: f64,
+    inbound: f64,
+    reserve: f64,
+    enabled: bool,
+) -> f64 {
+    if !enabled {
+        return 0.0;
+    }
+    (reserve.max(0.0) - stock.max(0.0) - inbound.max(0.0)).max(0.0)
+}
+
 pub fn monastery_hospitality_use(
     honey_available: f64,
     wine_available: f64,
@@ -77,8 +103,10 @@ pub fn monastery_hospitality_use(
     let day_fraction = elapsed_seconds.max(0.0) / seconds_per_day.max(1e-9);
     let honey_due = MONASTERY_HOSPITALITY_HONEY_PER_DAY * day_fraction;
     let wine_due = MONASTERY_HOSPITALITY_WINE_PER_DAY * day_fraction;
-    let honey_used = honey_available.max(0.0).min(honey_due);
-    let wine_used = wine_available.max(0.0).min(wine_due);
+    let honey_used =
+        monastery_feast_surplus(honey_available, MONASTERY_FEAST_HONEY, enabled).min(honey_due);
+    let wine_used =
+        monastery_feast_surplus(wine_available, MONASTERY_FEAST_WINE, enabled).min(wine_due);
     let honey_ratio = if honey_due > 1e-9 {
         honey_used / honey_due
     } else {
@@ -148,6 +176,44 @@ mod tests {
         assert_eq!(short.missing_ale, 2.0);
         assert_eq!(short.missing_honey, 2.5);
         assert_eq!(short.missing_wine, 3.0);
+    }
+
+    #[test]
+    fn feast_floor_protects_one_batch_and_disabling_releases_it() {
+        assert_eq!(
+            monastery_feast_surplus(MONASTERY_FEAST_ALE, MONASTERY_FEAST_ALE, true),
+            0.0
+        );
+        assert_eq!(
+            monastery_feast_surplus(MONASTERY_FEAST_ALE + 2.5, MONASTERY_FEAST_ALE, true),
+            2.5
+        );
+        assert_eq!(
+            monastery_feast_surplus(MONASTERY_FEAST_ALE, MONASTERY_FEAST_ALE, false),
+            MONASTERY_FEAST_ALE
+        );
+        assert_eq!(
+            monastery_feast_refill_shortfall(4.0, 2.0, MONASTERY_FEAST_ALE, true),
+            4.0
+        );
+        assert_eq!(
+            monastery_feast_refill_shortfall(4.0, 2.0, MONASTERY_FEAST_ALE, false),
+            0.0
+        );
+    }
+
+    #[test]
+    fn daily_hospitality_never_spends_the_feast_batch() {
+        let protected = monastery_hospitality_use(
+            MONASTERY_FEAST_HONEY,
+            MONASTERY_FEAST_WINE,
+            60.0,
+            60.0,
+            true,
+        );
+        assert_eq!(protected.honey_used, 0.0);
+        assert_eq!(protected.wine_used, 0.0);
+        assert_eq!(protected.supply_ratio, 0.0);
     }
 
     #[test]

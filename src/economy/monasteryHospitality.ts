@@ -37,6 +37,8 @@ export type MonasteryFeastReadiness = {
   missingWine: number;
 };
 
+export type MonasteryFeastCommodity = 'food' | 'ale' | 'honey' | 'wine';
+
 export type MonasteryHospitalityPlan = {
   enabled: boolean;
   honeyRunwayDays: number;
@@ -55,6 +57,43 @@ function stockSupplyRatio(stock: number): number {
   return stock > 1e-6 ? 1 : 0;
 }
 
+export function monasteryFeastReserve(
+  commodity: MonasteryFeastCommodity,
+): number {
+  switch (commodity) {
+    case 'food':
+      return MONASTERY_FEAST_FOOD;
+    case 'ale':
+      return MONASTERY_FEAST_ALE;
+    case 'honey':
+      return MONASTERY_FEAST_HONEY;
+    case 'wine':
+      return MONASTERY_FEAST_WINE;
+  }
+}
+
+export function monasteryFeastSurplus(
+  stock: number,
+  reserve: number,
+  enabled: boolean,
+): number {
+  const available = finiteStock(stock);
+  return enabled ? Math.max(0, available - Math.max(0, reserve)) : available;
+}
+
+export function monasteryFeastRefillShortfall(
+  stock: number,
+  inbound: number,
+  reserve: number,
+  enabled: boolean,
+): number {
+  if (!enabled) return 0;
+  return Math.max(
+    0,
+    Math.max(0, reserve) - finiteStock(stock) - finiteStock(inbound),
+  );
+}
+
 export function monasteryHospitalityRunwayDays(
   stock: number,
   dailyUse: number,
@@ -70,17 +109,27 @@ export function monasteryHospitalityPlan(
 ): MonasteryHospitalityPlan {
   const honeyPerDay = enabled ? MONASTERY_HOSPITALITY_HONEY_PER_DAY : 0;
   const winePerDay = enabled ? MONASTERY_HOSPITALITY_WINE_PER_DAY : 0;
+  const dailyHoney = monasteryFeastSurplus(
+    monastery.honey,
+    MONASTERY_FEAST_HONEY,
+    enabled,
+  );
+  const dailyWine = monasteryFeastSurplus(
+    monastery.wine,
+    MONASTERY_FEAST_WINE,
+    enabled,
+  );
   const supplyRatio = enabled
     ? (
-        stockSupplyRatio(monastery.honey)
-        + stockSupplyRatio(monastery.wine)
+        stockSupplyRatio(dailyHoney)
+        + stockSupplyRatio(dailyWine)
       ) * 0.5
     : 0;
   const daysPerYear = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
   return {
     enabled,
-    honeyRunwayDays: monasteryHospitalityRunwayDays(monastery.honey, honeyPerDay),
-    wineRunwayDays: monasteryHospitalityRunwayDays(monastery.wine, winePerDay),
+    honeyRunwayDays: monasteryHospitalityRunwayDays(dailyHoney, honeyPerDay),
+    wineRunwayDays: monasteryHospitalityRunwayDays(dailyWine, winePerDay),
     supplyRatio,
     pilgrimageGoldPerDay:
       MONASTERY_PILGRIMAGE_GOLD_PER_DAY

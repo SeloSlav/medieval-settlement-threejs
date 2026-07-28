@@ -38,8 +38,8 @@ use crate::frontier_economy_policy::{
 };
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
 use crate::monastery_hospitality_policy::{
-    is_monastery_feast_day, monastery_feast_batch, monastery_hospitality_use,
-    monastery_pilgrimage_gold,
+    is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
+    monastery_feast_surplus, monastery_hospitality_use, monastery_pilgrimage_gold,
 };
 use crate::processor_output_policy::{
     processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
@@ -78,6 +78,12 @@ use crate::tables::{farm_field, Building, FarmField, Residence};
 struct RoutedBuilding {
     building: Building,
     distance: f64,
+}
+
+struct RoutedMonasteryReserveTarget {
+    building: Building,
+    distance: f64,
+    shortfall: f64,
 }
 
 struct RoutedProcessorInputTarget {
@@ -648,14 +654,7 @@ pub fn step_brewery(
         ],
         &[(CommodityKind::Ale, BREWERY_ALE_PER_CYCLE)],
     );
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut brewery,
-        CommodityKind::Ale,
-        &["monastery"],
-    );
+    dispatch_monastery_feast_ale(ctx, tick, clock, &mut brewery);
     dispatch_need(ctx, tick, clock, &mut brewery, ResidenceNeedKind::Ale, 3.0);
     dispatch_to_building(
         ctx,
@@ -1785,6 +1784,79 @@ fn dispatch_monastery_hospitality(
     );
 }
 
+fn dispatch_monastery_feast_ale(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &mut Building,
+) {
+    let reserve_enabled = tick.monastery_hospitality_enabled(ctx, source.owner);
+    if !reserve_enabled
+        || source.assigned_labor == 0
+        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+        || building_has_active_trip(ctx, source.id)
+        || source.ale <= 1e-6
+    {
+        return;
+    }
+    let Some(network) = tick.road_network(source.owner) else {
+        return;
+    };
+    let Some(target) = select_supply_route_candidate(
+        tick.building_ids_for_kinds(ctx, source.owner, &["monastery"])
+            .into_iter()
+            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
+            .filter_map(|building| {
+                if building.id == source.id
+                    || !building.construction_complete
+                    || tick.building_disabled_by_fire(ctx, building.id)
+                    || !monastery_has_parish_link(ctx, tick, &building)
+                    || !processor_accepts_input(&building, CommodityKind::Ale)
+                    || building_has_inbound_supply_trip(ctx, building.id)
+                {
+                    return None;
+                }
+                let shortfall = monastery_feast_refill_shortfall(
+                    building.ale,
+                    0.0,
+                    MONASTERY_FEAST_ALE,
+                    reserve_enabled,
+                )
+                .min(building_commodity_room(&building, CommodityKind::Ale));
+                if shortfall <= 1e-6 {
+                    return None;
+                }
+                network
+                    .road_path_distance(source.x, source.z, building.x, building.z)
+                    .filter(|distance| distance.is_finite())
+                    .map(|distance| RoutedMonasteryReserveTarget {
+                        building,
+                        distance,
+                        shortfall,
+                    })
+            }),
+        |candidate| candidate.distance,
+        |candidate| candidate.building.id,
+    ) else {
+        return;
+    };
+    let needed = target.shortfall.min(source.ale);
+    try_start_building_supply_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        source,
+        &target.building,
+        1,
+        CommodityKind::Ale,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        commodity_transfer_per_trip(CommodityKind::Ale),
+        needed,
+    );
+}
+
 fn dispatch_monastery_covered_need(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -1793,9 +1865,19 @@ fn dispatch_monastery_covered_need(
     need_kind: ResidenceNeedKind,
     per_delivery: f64,
 ) {
-    if building_has_active_trip(ctx, supplier.id)
-        || building_commodity_stock(supplier, need_to_commodity(need_kind)) <= 1e-6
-    {
+    let commodity = need_to_commodity(need_kind);
+    let reserve_enabled = tick.monastery_hospitality_enabled(ctx, supplier.owner);
+    let reserve = match commodity {
+        CommodityKind::Food => MONASTERY_FEAST_FOOD,
+        CommodityKind::Ale => MONASTERY_FEAST_ALE,
+        _ => 0.0,
+    };
+    let available = monastery_feast_surplus(
+        building_commodity_stock(supplier, commodity),
+        reserve,
+        reserve_enabled,
+    );
+    if building_has_active_trip(ctx, supplier.id) || available <= 1e-6 {
         return;
     }
     let Some(network) = tick.road_network(supplier.owner) else {
@@ -1820,7 +1902,7 @@ fn dispatch_monastery_covered_need(
         need_kind,
         FOOD_DELIVERY_SPEED_MPS,
         FOOD_DELIVERY_UNLOAD_SEC,
-        per_delivery,
+        per_delivery.min(available),
     );
 }
 

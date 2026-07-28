@@ -8,10 +8,12 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
     CATTLE_FERTILITY_BONUS, CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS,
+    MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD,
 };
 use crate::db::*;
 use crate::economy::CommodityKind;
 use crate::farming::field_seed_grain_remaining;
+use crate::monastery_hospitality_policy::monastery_feast_surplus;
 use crate::roads::RoadNetwork;
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
@@ -715,6 +717,7 @@ impl SimTickContext {
                     && !self.building_disabled_by_fire(ctx, building.id)
             })
             .collect();
+        let reserve_enabled = self.monastery_hospitality_enabled(ctx, owner);
         let suppliers: Vec<&Building> = buildings
             .iter()
             .filter(|building| {
@@ -725,7 +728,18 @@ impl SimTickContext {
                 ) && !self.building_disabled_by_fire(ctx, building.id)
                     && supplier_kinds.contains(&building.kind.as_str())
                     && match need_kind {
-                        ResidenceNeedKind::Ale => building.ale > 1e-6,
+                        ResidenceNeedKind::Ale => {
+                            let available = if building.kind == "monastery" {
+                                monastery_feast_surplus(
+                                    building.ale,
+                                    MONASTERY_FEAST_ALE,
+                                    reserve_enabled,
+                                )
+                            } else {
+                                building.ale
+                            };
+                            available > 1e-6
+                        }
                         ResidenceNeedKind::PreservedFood => building.preserved_food > 1e-6,
                         ResidenceNeedKind::Cloth => building.cloth > 1e-6,
                         _ => false,
@@ -788,6 +802,7 @@ impl SimTickContext {
                     && !self.building_disabled_by_fire(ctx, building.id)
             })
             .collect();
+        let reserve_enabled = self.monastery_hospitality_enabled(ctx, owner);
         let suppliers: Vec<&Building> = buildings
             .iter()
             .filter(|building| {
@@ -796,7 +811,15 @@ impl SimTickContext {
                     building.construction_complete,
                     building.assigned_labor,
                 ) && !self.building_disabled_by_fire(ctx, building.id)
-                    && building.food > 1e-6
+                    && (if building.kind == "monastery" {
+                        monastery_feast_surplus(
+                            building.food,
+                            MONASTERY_FEAST_FOOD,
+                            reserve_enabled,
+                        )
+                    } else {
+                        building.food
+                    }) > 1e-6
                     && (building.kind != "monastery"
                         || chapels.iter().any(|chapel| {
                             network.road_connected(building.x, building.z, chapel.x, chapel.z)

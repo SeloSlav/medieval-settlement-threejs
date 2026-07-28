@@ -16,7 +16,9 @@ import {
 } from '../src/generated/gameBalance.ts';
 import {
   MONASTERY_FEASTS,
+  monasteryFeastRefillShortfall,
   monasteryFeastReadiness,
+  monasteryFeastSurplus,
   monasteryHospitalityPlan,
   monasteryHospitalityStatusLabel,
   nextMonasteryFeast,
@@ -25,8 +27,8 @@ import {
 const full = monasteryHospitalityPlan({ honey: 80, wine: 50 }, true);
 assert.equal(full.supplyRatio, 1);
 assert.equal(full.pilgrimageGoldPerDay, 3.5);
-assert.equal(full.honeyRunwayDays, 100);
-assert.equal(full.wineRunwayDays, 100);
+assert.equal(full.honeyRunwayDays, 95);
+assert.equal(full.wineRunwayDays, 94);
 assert.equal(full.honeyPerYear, 116);
 assert.equal(full.winePerYear, 75);
 assert.equal(full.feastFoodPerYear, 90);
@@ -37,6 +39,34 @@ const honeyOnly = monasteryHospitalityPlan({ honey: 8, wine: 0 }, true);
 assert.equal(honeyOnly.supplyRatio, 0.5);
 assert.equal(honeyOnly.pilgrimageGoldPerDay, 2.75);
 assert.match(monasteryHospitalityStatusLabel(honeyOnly), /Partly provisioned/);
+
+const protectedBatch = monasteryHospitalityPlan({
+  honey: MONASTERY_FEAST_HONEY,
+  wine: MONASTERY_FEAST_WINE,
+}, true);
+assert.equal(protectedBatch.supplyRatio, 0);
+assert.equal(protectedBatch.honeyRunwayDays, 0);
+assert.equal(protectedBatch.wineRunwayDays, 0);
+assert.equal(
+  monasteryFeastSurplus(MONASTERY_FEAST_ALE + 2.5, MONASTERY_FEAST_ALE, true),
+  2.5,
+);
+assert.equal(
+  monasteryFeastSurplus(MONASTERY_FEAST_ALE, MONASTERY_FEAST_ALE, true),
+  0,
+);
+assert.equal(
+  monasteryFeastSurplus(MONASTERY_FEAST_ALE, MONASTERY_FEAST_ALE, false),
+  MONASTERY_FEAST_ALE,
+);
+assert.equal(
+  monasteryFeastRefillShortfall(4, 2, MONASTERY_FEAST_ALE, true),
+  4,
+);
+assert.equal(
+  monasteryFeastRefillShortfall(4, 2, MONASTERY_FEAST_ALE, false),
+  0,
+);
 
 const disabled = monasteryHospitalityPlan({ honey: 80, wine: 50 }, false);
 assert.equal(disabled.supplyRatio, 0);
@@ -149,6 +179,26 @@ assert.match(
   'pilgrimage income must consume authoritative physical hospitality stores',
 );
 assert.match(
+  rustHospitalityPolicy,
+  /monastery_hospitality_use[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_HONEY[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_WINE/,
+  'daily hospitality must consume only specialty stock above the protected feast batch',
+);
+assert.match(
+  server,
+  /step_brewery[\s\S]*?dispatch_monastery_feast_ale[\s\S]*?dispatch_need\([\s\S]*?ResidenceNeedKind::Ale[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Ale[\s\S]*?&\["marketplace"\]/,
+  'brewery ale must refill the bounded feast floor before household delivery and export',
+);
+assert.match(
+  server,
+  /fn dispatch_monastery_feast_ale[\s\S]*?monastery_hospitality_enabled[\s\S]*?monastery_has_parish_link[\s\S]*?building_has_inbound_supply_trip[\s\S]*?monastery_feast_refill_shortfall[\s\S]*?MONASTERY_FEAST_ALE/,
+  'feast staging must require the policy, a parish link, no duplicate inbound cart, and an exact one-batch shortfall',
+);
+assert.match(
+  server,
+  /fn dispatch_monastery_covered_need[\s\S]*?CommodityKind::Food => MONASTERY_FEAST_FOOD[\s\S]*?CommodityKind::Ale => MONASTERY_FEAST_ALE[\s\S]*?monastery_feast_surplus[\s\S]*?per_delivery\.min\(available\)/,
+  'routine monastery food and ale carts must not withdraw the protected batch',
+);
+assert.match(
   server,
   /is_monastery_feast_day[\s\S]*?distance <= MONASTERY_COVERAGE_RADIUS[\s\S]*?if residences\.is_empty\(\)[\s\S]*?monastery_feast_batch[\s\S]*?if !batch\.ready[\s\S]*?MONASTERY_FEAST_FOOD[\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?MONASTERY_FEAST_HONEY[\s\S]*?MONASTERY_FEAST_WINE/,
   'reachable feast days must require eligible nearby homes and a complete physical batch before any withdrawal',
@@ -164,13 +214,23 @@ assert.match(
   'one policy read per owner and simulation substep must serve all specialist buildings',
 );
 assert.match(
+  fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8'),
+  /build_specialty_claims[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?build_food_claims[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_FOOD/,
+  'authoritative household claims must ignore monastery stock held by the feast floor',
+);
+assert.match(
   fs.readFileSync('src/resources/WorldQueries.ts', 'utf8'),
   /getNextMonasteryHospitalityTarget[\s\S]*?isMonasteryLinkedToChapel[\s\S]*?getInboundSupplyTrip/,
   'client logistics must mirror linked-target and in-flight-cart eligibility',
 );
 assert.match(
+  fs.readFileSync('src/resources/WorldQueries.ts', 'utf8'),
+  /getNextMonasteryFeastAleTarget[\s\S]*?monasteryFeastRefillShortfall[\s\S]*?getInboundSupplyTrip/,
+  'client brewery forecasts must mirror the bounded authoritative feast target',
+);
+assert.match(
   fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8'),
-  /Next feast[\s\S]*?Feast pantry[\s\S]*?Annual hospitality[\s\S]*?Pilgrimage income[\s\S]*?Provision hospitality and feast days/,
+  /Next feast[\s\S]*?Feast pantry[\s\S]*?one complete batch protected[\s\S]*?Annual hospitality[\s\S]*?Pilgrimage income[\s\S]*?Provision hospitality and feast days/,
   'the monastery inspector must expose the next deadline, reserve readiness, annual targets, income, and export tradeoff',
 );
 assert.match(

@@ -53,6 +53,7 @@ import {
   formatMonasteryFeastReadiness,
   formatNextMonasteryFeast,
   monasteryFeastReadiness,
+  monasteryFeastSurplus,
   monasteryHospitalityPlan,
   monasteryHospitalityStatusLabel,
   nextMonasteryFeast,
@@ -132,7 +133,11 @@ const HOUSEHOLD_FOOD_DISTRIBUTORS = new Set<BuildingKind>([
   'monastery',
 ]);
 
-function buildingHasOutboundStock(building: BuildingState, protectedSeedGrain = 0): boolean {
+function buildingHasOutboundStock(
+  building: BuildingState,
+  protectedSeedGrain = 0,
+  protectedMonasteryFood = 0,
+): boolean {
   switch (building.kind) {
     case 'threshing_barn':
       return building.grain > protectedSeedGrain + 1e-6;
@@ -153,7 +158,7 @@ function buildingHasOutboundStock(building: BuildingState, protectedSeedGrain = 
     case 'vineyard':
       return building.wine > 0 || building.food > 0;
     case 'monastery':
-      return building.food > 0;
+      return building.food > protectedMonasteryFood + 1e-6;
     case 'carpenter':
       return (building.polearms ?? 0) > 0;
     case 'weaver':
@@ -172,7 +177,7 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'granary':
       return 'Priority-selected critical processor first · otherwise food policy, then that processor';
     case 'brewery':
-      return 'Monastery, claimed tier-3 home, then road-linked export market';
+      return `Linked monastery short of its ${MONASTERY_FEAST_ALE}-ale feast floor, then claimed tier-3 home, then road-linked export market`;
     case 'smokehouse':
       return 'Lowest-runway claimed tier-3 home';
     case 'apiary':
@@ -242,10 +247,7 @@ function outboundTripTarget(
     )?.target ?? null;
   }
   if (building.kind === 'brewery') {
-    const monastery = context.worldQueries.findNearestRoadLinkedBuilding(
-      building,
-      ['monastery'],
-    );
+    const monastery = context.worldQueries.getNextMonasteryFeastAleTarget(building);
     if (monastery) return monastery;
     const home = context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'ale');
     if (home) return home;
@@ -423,7 +425,15 @@ function renderLogisticsRows(
     ? (() => {
         const claimed = context.worldQueries.getClaimedResidencesForFoodSupplier(building);
         const next = context.worldQueries.getNextFoodDeliveryTargetForSupplier(building);
-        return `<li><span>Food territory</span><span>${building.food <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} households claimed`}</span></li>
+        const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
+        const availableFood = building.kind === 'monastery'
+          ? monasteryFeastSurplus(
+              building.food,
+              MONASTERY_FEAST_FOOD,
+              policy.feastsEnabled,
+            )
+          : building.food;
+        return `<li><span>Food territory</span><span>${availableFood <= 1e-6 ? building.kind === 'monastery' && building.food > 1e-6 ? `${MONASTERY_FEAST_FOOD} feast food protected` : 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} households claimed`}</span></li>
           <li><span>Next household</span><span>${next ? `Parcel #${next.parcelIndex + 1}` : 'None needing food'}</span></li>`;
       })()
     : '';
@@ -457,8 +467,21 @@ function renderLogisticsRows(
         }</span></li>`;
       })()
     : '';
+  const breweryReserveRows = building.kind === 'brewery'
+    ? (() => {
+        const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
+        const target = context.worldQueries.getNextMonasteryFeastAleTarget(building);
+        return `<li><span>Feast ale priority</span><span>${
+          !policy.feastsEnabled
+            ? 'Disabled — ale goes to claimed homes, then export'
+            : target
+              ? `${context.worldQueries.getBuildingLabel(target.kind)} needs ${Math.max(0, MONASTERY_FEAST_ALE - target.ale).toFixed(1)} ale to secure one batch`
+              : `Every eligible pantry holds ${MONASTERY_FEAST_ALE} ale, is already receiving it, or is unreachable`
+        }</span></li>`;
+      })()
+    : '';
   const householdTerritoryRows =
-    foodTerritoryRows + textileTerritoryRows + hospitalityRoutingRows;
+    foodTerritoryRows + textileTerritoryRows + hospitalityRoutingRows + breweryReserveRows;
 
   if (!onRoad) {
     return `${householdTerritoryRows}<li><span>Deliveries</span><span>Off road — connect to dispatch hauls</span></li>`;
@@ -485,7 +508,19 @@ function renderLogisticsRows(
   const inboundRow = renderInboundSupplyRow(inboundTrip, deliveryContext);
   if (inboundRow) return householdTerritoryRows + inboundRow;
 
-  if (seedDispatchReady || buildingHasOutboundStock(building, protectedSeedGrain)) {
+  const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
+  const protectedMonasteryFood =
+    building.kind === 'monastery' && policy.feastsEnabled
+      ? MONASTERY_FEAST_FOOD
+      : 0;
+  if (
+    seedDispatchReady
+    || buildingHasOutboundStock(
+      building,
+      protectedSeedGrain,
+      protectedMonasteryFood,
+    )
+  ) {
     return householdTerritoryRows + renderOutboundDeliveryRows(
       null,
       null,
@@ -663,10 +698,10 @@ export function renderExpandedBuildingInspector(
     : null;
   const monasteryHospitalityRows = hospitality
     ? `<li><span>Hospitality</span><span>${monasteryHospitalityStatusLabel(hospitality)}</span></li>
-      <li><span>Honey runway</span><span>${formatHospitalityRunway(hospitality.honeyRunwayDays)} · ${hospitality.honeyPerDay.toFixed(1)}/day + feast use</span></li>
-      <li><span>Wine runway</span><span>${formatHospitalityRunway(hospitality.wineRunwayDays)} · ${hospitality.winePerDay.toFixed(1)}/day + feast use</span></li>
+      <li><span>Honey runway</span><span>${formatHospitalityRunway(hospitality.honeyRunwayDays)} daily surplus · ${MONASTERY_FEAST_HONEY} feast honey protected</span></li>
+      <li><span>Wine runway</span><span>${formatHospitalityRunway(hospitality.wineRunwayDays)} daily surplus · ${MONASTERY_FEAST_WINE} feast wine protected</span></li>
       <li><span>Next feast</span><span>${nextFeast ? formatNextMonasteryFeast(nextFeast) : 'No observance scheduled'}</span></li>
-      <li><span>Feast pantry</span><span>${feastReadiness ? formatMonasteryFeastReadiness(feastReadiness) : 'Unavailable'} · full batch required</span></li>
+      <li><span>Feast pantry</span><span>${feastReadiness ? formatMonasteryFeastReadiness(feastReadiness) : 'Unavailable'} · one complete batch protected from routine use</span></li>
       <li><span>Annual hospitality</span><span>${hospitality.feastFoodPerYear.toFixed(0)} feast food + ${hospitality.feastAlePerYear.toFixed(0)} feast ale + ${hospitality.honeyPerYear.toFixed(0)} honey + ${hospitality.winePerYear.toFixed(0)} wine</span></li>
       <li><span>Pilgrimage income</span><span>${hospitality.pilgrimageGoldPerDay.toFixed(2)} gold/day at current stores · requires chapel and market road link · visitor gifts accrue here before collection</span></li>`
     : '';
@@ -1042,7 +1077,7 @@ function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
     <div class="inspector-action-panel">
       <p class="inspector-action-panel__hint">The monastery decides how much parish tithe supports alms and whether apiaries and vineyards provision hospitality before exporting their surplus.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
-      <p class="inspector-action-panel__hint">Enabled monasteries consume ${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey and ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine per day, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Each of five observances also waits for one complete ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_ALE} ale + ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_WINE} wine batch; short pantries preserve every ingredient. Disable this to leave all honey and wine available for export.</p>
+      <p class="inspector-action-panel__hint">Enabled monasteries protect one complete ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_ALE} ale + ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_WINE} wine batch. Breweries refill only the ale shortfall; charity and daily hospitality use only stock above the floor. Daily hospitality consumes ${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey and ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Disable this to release the protected batch into household supply and export.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-monastery-tithe min="0" max="80" step="5" value="${Math.round(policy.titheShare * 100)}" />
       <div class="city-admin-panel__range-hints"><span>Chapel keeps all</span><span>Monastery-led</span></div>
