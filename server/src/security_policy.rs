@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::balance_generated::{
     GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE, GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
     GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE, GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
-    PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER, PALISADED_REFUGE_RESIDENT_CAPACITY,
+    PALISADED_REFUGE_RESIDENT_CAPACITY,
 };
 
 pub const MIN_FRONTIER_POPULATION: u32 = 8;
@@ -527,10 +527,17 @@ pub fn select_guardhouse_muster_watch(
         .map(|(index, _, distance)| (index, distance))
 }
 
-pub fn raid_loss_fraction(enemy_pressure: u8, coverage: f64) -> f64 {
+pub fn projected_raid_loss_fraction(enemy_pressure: u8, coverage: f64) -> f64 {
     let pressure = enemy_pressure.min(100) as f64 / 100.0;
     let exposed_loss = 0.12 + pressure * 0.2;
     (exposed_loss * (1.0 - coverage.clamp(0.0, 1.0) * 0.88)).clamp(0.0, 0.4)
+}
+
+/// Maximum portable share a full hostile party can carry away after actually
+/// reaching and completing contact at its target. Watches and guard forecasts
+/// never reduce this value: they must stop raiders through the live simulation.
+pub fn raid_contact_loss_fraction(enemy_pressure: u8) -> f64 {
+    projected_raid_loss_fraction(enemy_pressure, 0.0)
 }
 
 pub fn raid_target_count(enemy_pressure: u8) -> usize {
@@ -546,34 +553,22 @@ pub fn guards_required(enemy_pressure: u8, coverage: f64) -> f64 {
     raid_strength(enemy_pressure) / warning_multiplier
 }
 
-/// Guards fight most effectively when watch coverage gives them time to muster.
-/// A ratio of one means the settlement can avert this incursion.
+/// Planning estimate for whether watch-linked companies can intercept before
+/// contact. The live agents, rather than this ratio, resolve an actual raid.
 pub fn guard_defense_ratio(enemy_pressure: u8, coverage: f64, ready_guards: f64) -> f64 {
     (ready_guards.max(0.0) / guards_required(enemy_pressure, coverage)).clamp(0.0, 1.0)
 }
 
-pub fn guarded_raid_loss_fraction(enemy_pressure: u8, coverage: f64, ready_guards: f64) -> f64 {
+pub fn projected_guarded_raid_loss_fraction(
+    enemy_pressure: u8,
+    coverage: f64,
+    ready_guards: f64,
+) -> f64 {
     let defense = guard_defense_ratio(enemy_pressure, coverage, ready_guards);
     if defense >= 1.0 - 1e-9 {
         0.0
     } else {
-        raid_loss_fraction(enemy_pressure, coverage) * (1.0 - defense * 0.8)
-    }
-}
-
-/// A watch-warned household within rally distance can carry family coin into a
-/// compact palisaded refuge. Building inventories, carts, and the Town Hall
-/// treasury remain at their physical positions and never receive this modifier.
-pub fn raid_target_loss_fraction(loss_fraction: f64, sheltered: bool) -> f64 {
-    let base = if loss_fraction.is_finite() {
-        loss_fraction.clamp(0.0, 1.0)
-    } else {
-        0.0
-    };
-    if sheltered {
-        base * PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER
-    } else {
-        base
+        projected_raid_loss_fraction(enemy_pressure, coverage) * (1.0 - defense * 0.8)
     }
 }
 
@@ -607,7 +602,11 @@ pub fn raid_forecast(
         defense_ratio,
         target_count: guarded_raid_target_count(enemy_pressure, defense_ratio)
             .min(available_targets),
-        loss_fraction: guarded_raid_loss_fraction(enemy_pressure, coverage, ready_guards),
+        loss_fraction: projected_guarded_raid_loss_fraction(
+            enemy_pressure,
+            coverage,
+            ready_guards,
+        ),
     }
 }
 
@@ -651,7 +650,11 @@ pub fn raid_district_forecast(
             local_ready_guards,
             guards_required: required,
             defense_ratio,
-            loss_fraction: guarded_raid_loss_fraction(enemy_pressure, coverage, local_ready_guards),
+            loss_fraction: projected_guarded_raid_loss_fraction(
+                enemy_pressure,
+                coverage,
+                local_ready_guards,
+            ),
         };
         let insert_at = highest_risk
             .iter()
@@ -1156,25 +1159,23 @@ mod tests {
     }
 
     #[test]
-    fn coverage_materially_reduces_plunder() {
-        let exposed = raid_loss_fraction(50, 0.0);
-        let guarded = raid_loss_fraction(50, 0.8);
+    fn coverage_materially_reduces_the_planning_forecast() {
+        let exposed = projected_raid_loss_fraction(50, 0.0);
+        let guarded = projected_raid_loss_fraction(50, 0.8);
         assert!(guarded < exposed * 0.4);
-        assert!(raid_loss_fraction(90, 0.0) > exposed);
+        assert!(projected_raid_loss_fraction(90, 0.0) > exposed);
     }
 
     #[test]
-    fn palisaded_refuge_reduces_warned_household_loss_without_granting_immunity() {
-        let reached_loss = 0.5;
-        assert_eq!(raid_target_loss_fraction(reached_loss, false), reached_loss);
-        assert!(
-            (raid_target_loss_fraction(reached_loss, true)
-                - reached_loss * PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER)
-                .abs()
-                < 1e-9
+    fn contact_loss_is_not_reduced_by_an_abstract_watch_score() {
+        assert_eq!(
+            raid_contact_loss_fraction(50),
+            projected_raid_loss_fraction(50, 0.0)
         );
-        assert!(raid_target_loss_fraction(1.0, true) > 0.0);
-        assert_eq!(raid_target_loss_fraction(f64::NAN, true), 0.0);
+        assert!(
+            raid_contact_loss_fraction(50) > projected_raid_loss_fraction(50, 1.0)
+        );
+        assert!(raid_contact_loss_fraction(100) > raid_contact_loss_fraction(0));
         assert!(raid_target_can_shelter(
             RaidTargetKind::Residence,
             true,
@@ -1211,7 +1212,10 @@ mod tests {
         let warned = guard_defense_ratio(50, 1.0, 6.0);
         assert!(warned > uncovered);
         assert_eq!(warned, 1.0);
-        assert_eq!(guarded_raid_loss_fraction(50, 1.0, 6.0), 0.0);
+        assert_eq!(
+            projected_guarded_raid_loss_fraction(50, 1.0, 6.0),
+            0.0
+        );
         assert_eq!(guarded_raid_target_count(50, warned), 0);
     }
 
@@ -1236,8 +1240,8 @@ mod tests {
 
     #[test]
     fn partial_guard_strength_reduces_but_does_not_erase_losses() {
-        let unguarded = raid_loss_fraction(90, 0.25);
-        let guarded = guarded_raid_loss_fraction(90, 0.25, 3.0);
+        let unguarded = projected_raid_loss_fraction(90, 0.25);
+        let guarded = projected_guarded_raid_loss_fraction(90, 0.25, 3.0);
         assert!(guarded > 0.0);
         assert!(guarded < unguarded);
     }

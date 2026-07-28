@@ -37,7 +37,6 @@ import {
   isPalisadedRefugeRallyActive,
   normalizeGuardhouseMusterWatchtowerId,
   palisadedRefugeEffectiveRadius,
-  palisadedRefugeHouseholdLossFraction,
   projectRaidTargets,
   projectedRaidArsonChance,
   raidTargetCanShelter,
@@ -69,7 +68,7 @@ import {
   BUILDING_DEFINITIONS,
   BUILDING_COSTS,
   BUILDING_STORAGE_CAPS,
-  PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
+  PALISADED_REFUGE_BREACH_SECONDS,
   PALISADED_REFUGE_RALLY_THREAT_THRESHOLD,
   PALISADED_REFUGE_RESIDENT_CAPACITY,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
@@ -155,8 +154,7 @@ assert.deepEqual(BUILDING_COSTS.palisaded_refuge, {
   timber: 72,
   stone: 30,
 });
-assert.equal(PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER, 0.6);
-assert.equal(palisadedRefugeHouseholdLossFraction(0.5), 0.3);
+assert.equal(PALISADED_REFUGE_BREACH_SECONDS, 12);
 assert.equal(raidTargetCanShelter('residence', true, true), true);
 assert.equal(raidTargetCanShelter('residence', false, true), false);
 for (const kind of ['building', 'cart', 'treasury'] as const) {
@@ -774,7 +772,10 @@ assert.deepEqual(
   ],
   'only warned households may carry wealth into shelter; physical stores and carts remain in place',
 );
-assert.match(formatProjectedRaidTargets(refugeTargets), /household sheltered/);
+assert.match(
+  formatProjectedRaidTargets(refugeTargets),
+  /household rallied here · 12s live breach/,
+);
 refugeProjectionState.buildings.set(
   'refuge-town-hall',
   building('refuge-town-hall', 'town_hall', 115, 0, 0),
@@ -867,6 +868,16 @@ assert.equal(
   'a household must remain exposed when no overlapping enclosure has room for everyone',
 );
 const capacityTargets = projectRaidTargets(refugeCapacityState, 10);
+const ralliedOverflowTarget = capacityTargets.find(
+  (target) => target.kind === 'residence' && target.id === 'capacity-overflow-20',
+);
+assert.equal(ralliedOverflowTarget?.x, capacityRefugeB.x);
+assert.equal(ralliedOverflowTarget?.z, capacityRefugeB.z);
+assert.match(
+  formatProjectedRaidTargets(ralliedOverflowTarget ? [ralliedOverflowTarget] : []),
+  /rallied here · 12s live breach/,
+  'the likely-target marker must move household risk to the assigned physical refuge',
+);
 const shelterByCapacityHome = new Map(
   capacityTargets
     .filter((target) => target.kind === 'residence')
@@ -1500,6 +1511,7 @@ assert.doesNotMatch(toolbar, /hotkey: 'd'/);
 assert.match(settlementHud, /formatFrontierForecast/);
 assert.match(settlementHud, /formatFrontierForecast\(security, world\.enemyPressure\)/);
 assert.match(settlementHud, /formatFrontierRaidTiming/);
+assert.match(clientSecurity, /live contact still resolves the fight/);
 assert.match(watchtowerInspector, /Projected defense/);
 assert.match(watchtowerInspector, /context\.enemyPressure/);
 assert.match(guardhouseInspector, /Projected raid/);
@@ -1527,7 +1539,9 @@ assert.match(refugeInspector, /Resident capacity/);
 assert.match(refugeInspector, /Nearest-household claims/);
 assert.match(refugeInspector, /Alert state/);
 assert.match(refugeInspector, /Rally underway/);
-assert.match(refugeInspector, /Household coin sheltered/);
+assert.match(refugeInspector, /Household coin rallied/);
+assert.match(refugeInspector, /Palisade breach/);
+assert.match(refugeInspector, /No automatic loss reduction/);
 assert.match(refugeInspector, /building inventories, loaded carts, and Town Hall treasury remain where stored/);
 assert.match(townHallInspector, /Civilian refuge capacity/);
 assert.match(townHallInspector, /computeRefugeShelterPlan/);
@@ -1579,8 +1593,14 @@ assert.match(serverSimulation, /WatchCoverageIndex::new/);
 assert.match(serverSimulation, /active_palisaded_refuge_coverage/);
 assert.match(serverSimulation, /settlement_refuge_assignments/);
 assert.match(serverSimulation, /RefugeHouseholdCandidate/);
+assert.match(
+  serverSimulation,
+  /refuge_assignments\.get\(&target\.id\)[\s\S]*raid_anchor_building_id,[\s\S]*loot_fraction: raid_contact_loss_fraction\(enemy_pressure\)/,
+  'warned household raids must move to their assigned enclosure without an abstract watch-loss modifier',
+);
 assert.match(serverPolicy, /assign_refuge_households/);
 assert.match(serverPolicy, /PALISADED_REFUGE_RESIDENT_CAPACITY/);
+assert.match(serverPolicy, /pub fn raid_contact_loss_fraction/);
 assert.match(
   serverSimulation,
   /start_live_raid\([\s\S]*?&live_targets,[\s\S]*?&buildings,[\s\S]*?&towers,[\s\S]*?road_network\.as_ref\(\)/,
@@ -1691,6 +1711,16 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
+  /raid_agent_target_position\(ctx, agent\)[\s\S]*raid_contact_duration\(active_raid_anchor_id\)/,
+  'a sheltered household must require live contact at its physical refuge for the full breach window',
+);
+assert.match(
+  serverRaidAgents,
+  /agent\.raid_anchor_building_id[\s\S]*building\.kind == "palisaded_refuge"[\s\S]*ignite_raid_target\(ctx, agent\.owner, kind, target_id, sim_tick\)/,
+  'raid arson must strike the refuge being physically assaulted rather than the evacuated home',
+);
+assert.match(
+  serverRaidAgents,
   /distance <= MELEE_RANGE_METERS \* MELEE_RANGE_METERS[\s\S]*damage_by_agent\.entry\(enemy\.id\)[\s\S]*down_agent/,
   'guards and raiders must exchange health damage only after closing to melee range',
 );
@@ -1747,6 +1777,7 @@ assert.match(
 assert.match(serverRaidAgentPolicy, /pub const MELEE_RANGE_METERS/);
 assert.match(serverRaidAgentPolicy, /pub const HOLDING_CONTACT_RANGE_METERS/);
 assert.match(serverRaidAgentPolicy, /pub const LOOT_SECONDS:\s*f64\s*=\s*4\.0/);
+assert.match(serverRaidAgentPolicy, /pub fn raid_contact_duration/);
 assert.match(serverRaidAgentPolicy, /\.clamp\(3\.0,\s*12\.0\)/);
 assert.match(serverRaidAgentPolicy, /fn movement_never_teleports_past_contact/);
 assert.match(serverRaidAgentPolicy, /fn imminent_or_active_attacks_override_route_discipline/);
@@ -1786,6 +1817,7 @@ assert.match(
 assert.match(generatedCombatAgent, /x: __t\.f64\(\)/);
 assert.match(generatedCombatAgent, /health: __t\.f64\(\)/);
 assert.match(generatedCombatAgent, /carriedLootJson: __t\.string\(\)/);
+assert.match(generatedCombatAgent, /raidAnchorBuildingId: __t\.u64\(\)/);
 assert.match(generatedCombatAgent, /routeProgress: __t\.f64\(\)/);
 assert.match(generatedRaidIncursionRoute, /combatAgentId: __t\.u64\(\)\.primaryKey\(\)/);
 assert.match(generatedRaidIncursionRoute, /routePolylineJson: __t\.string\(\)/);
@@ -1802,6 +1834,7 @@ assert.match(
 assert.match(villagerRenderer, /activeCombatGuardSlots/);
 assert.match(villagerRenderer, /case 'fighting': return 'fight'/);
 assert.match(clientCombatAgents, /status:\s*CombatAgentStatus/);
+assert.match(clientCombatAgents, /breaching a refuge/);
 {
   const combatant = (
     id: string,
@@ -1826,6 +1859,7 @@ assert.match(clientCombatAgents, /status:\s*CombatAgentStatus/);
     attackCooldown: 0,
     lootProgress: 0,
     carryingLoot: false,
+    raidAnchorBuildingId: null,
     stateChangedTick: 400,
   });
   const liveSummary = formatLiveCombatSummary([
@@ -1837,6 +1871,14 @@ assert.match(clientCombatAgents, /status:\s*CombatAgentStatus/);
   assert.match(liveSummary ?? '', /1 raider/);
   assert.match(liveSummary ?? '', /1 guard/);
   assert.match(liveSummary ?? '', /1 raider down · 1 guard wounded/);
+  const breaching = {
+    ...combatant('r3', 'raider', 'looting'),
+    raidAnchorBuildingId: 'building:12',
+  };
+  assert.match(
+    formatLiveCombatSummary([breaching]) ?? '',
+    /1 raider breaching a refuge/,
+  );
   const recovering = combatant('g3', 'guard', 'recovering');
   const recoveryTicks = guardRecoveryTicks(recovering.readiness);
   assert.ok(recoveryTicks > 0);

@@ -48,6 +48,7 @@ export type CombatAgentState = {
   attackCooldown: number;
   lootProgress: number;
   carryingLoot: boolean;
+  raidAnchorBuildingId: string | null;
   stateChangedTick: number;
 };
 
@@ -84,6 +85,9 @@ export function syncCombatAgents(
       attackCooldown: Math.max(0, row.attackCooldown),
       lootProgress: Math.max(0, row.lootProgress),
       carryingLoot: row.carriedLootJson.length > 0,
+      raidAnchorBuildingId: row.raidAnchorBuildingId > 0n
+        ? buildingClientId(row.raidAnchorBuildingId)
+        : null,
       stateChangedTick: Number(row.stateChangedTick),
     });
   }
@@ -99,6 +103,7 @@ export function formatLiveCombatSummary(
   let downedRaiders = 0;
   let woundedGuards = 0;
   let recoveringGuards = 0;
+  let breachingRefuges = 0;
   let raiderHealth = 0;
   let guardHealth = 0;
   let longestRecoveryDays = 0;
@@ -108,6 +113,9 @@ export function formatLiveCombatSummary(
       else {
         raiders += 1;
         raiderHealth += agent.health / agent.maxHealth;
+        if (agent.status === 'looting' && agent.raidAnchorBuildingId) {
+          breachingRefuges += 1;
+        }
       }
     } else if (
       agent.status === 'downed'
@@ -167,7 +175,10 @@ export function formatLiveCombatSummary(
   const casualties = casualtyParts.length > 0
     ? ` | ${casualtyParts.join(' · ')}`
     : '';
-  return `Live incursion: ${raiders} raider${raiders === 1 ? '' : 's'}${raiderStrength} | ${guards} guard${guards === 1 ? '' : 's'}${guardStrength}${casualties}.`;
+  const refugeAssault = breachingRefuges > 0
+    ? ` | ${breachingRefuges} raider${breachingRefuges === 1 ? '' : 's'} breaching a refuge`
+    : '';
+  return `Live incursion: ${raiders} raider${raiders === 1 ? '' : 's'}${raiderStrength} | ${guards} guard${guards === 1 ? '' : 's'}${guardStrength}${refugeAssault}${casualties}.`;
 }
 
 export function guardRecoveryTicks(readiness: number): number {

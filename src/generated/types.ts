@@ -138,6 +138,7 @@ export const CombatAgent = __t.object("CombatAgent", {
   carriedLootJson: __t.string(),
   stateChangedTick: __t.u64(),
   routeProgress: __t.f64(),
+  raidAnchorBuildingId: __t.u64(),
 });
 export type CombatAgent = __Infer<typeof CombatAgent>;
 

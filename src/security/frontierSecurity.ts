@@ -5,7 +5,7 @@ import {
   GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
   GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE,
   GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
-  PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
+  PALISADED_REFUGE_BREACH_SECONDS,
   PALISADED_REFUGE_RALLY_THREAT_THRESHOLD,
   PALISADED_REFUGE_RESIDENT_CAPACITY,
   SIM_TICK_SECONDS,
@@ -261,7 +261,7 @@ export function formatFrontierForecast(
   const required = formatGuardCount(security.guardsRequired);
   if (security.targetsAtRisk <= 0) {
     return security.readyGuards + 1e-6 >= security.guardsRequired
-      ? `${ready} / ${required} guards in the weakest likely watch district · projected raid can be fully repelled`
+      ? `${ready} / ${required} guards in the weakest likely watch district · forecast has enough interceptors; live contact still resolves the fight`
       : `${ready} / ${required} guards in the weakest likely watch district · no stocked holding currently presents a raid target`;
   }
   const targets = `${security.targetsAtRisk} holding${security.targetsAtRisk === 1 ? '' : 's'} at risk`;
@@ -890,23 +890,25 @@ export function projectRaidTargets(
       residenceAnchor = residence;
     }
     if (residence.householdWealth <= 1e-9) continue;
+    const assignedRefugeId = refugePlan.refugeByResidence.get(residence.id);
+    const assignedRefuge = assignedRefugeId
+      ? gameState.buildings.get(assignedRefugeId) ?? null
+      : null;
+    const raidX = assignedRefuge?.x ?? residence.x;
+    const raidZ = assignedRefuge?.z ?? residence.z;
     const protectedByWatch = positionIsWatched(
-      residence.x,
-      residence.z,
+      raidX,
+      raidZ,
       watchIndex,
     );
     consider({
       kind: 'residence',
       id: residence.id,
-      x: residence.x,
-      z: residence.z,
-      label: `Tier ${residence.tier} household (${residence.population} resident${residence.population === 1 ? '' : 's'})`,
+      x: raidX,
+      z: raidZ,
+      label: `Tier ${residence.tier} household (${residence.population} resident${residence.population === 1 ? '' : 's'})${assignedRefuge ? ' rallied at palisaded refuge' : ''}`,
       protected: protectedByWatch,
-      sheltered: raidTargetCanShelter(
-        'residence',
-        protectedByWatch,
-        refugePlan.refugeByResidence.has(residence.id),
-      ),
+      sheltered: assignedRefuge !== null,
       portableValue: residence.householdWealth,
     });
   }
@@ -972,7 +974,9 @@ export function formatProjectedRaidTargets(targets: readonly ProjectedRaidTarget
     return 'No stocked holding currently presents a likely raid target.';
   }
   const holdings = targets.map((target) => {
-    const shelter = target.sheltered ? ' · household sheltered' : '';
+    const shelter = target.sheltered
+      ? ` · household rallied here · ${PALISADED_REFUGE_BREACH_SECONDS}s live breach`
+      : '';
     const district = target.localReadyGuards == null
       || target.localGuardsRequired == null
       || target.estimatedLossFraction == null
@@ -1153,12 +1157,6 @@ export function countHouseholdsShelteredByPalisadedRefuge(
       PALISADED_REFUGE_RESIDENT_CAPACITY - shelteredResidents,
     ),
   };
-}
-
-export function palisadedRefugeHouseholdLossFraction(
-  lossFraction: number,
-): number {
-  return clamp01(lossFraction) * PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER;
 }
 
 export function frontierDefenseFireSignature(

@@ -4,6 +4,8 @@
 //! small hot-loop rules pure makes the contact invariant and performance easy
 //! to test on the host.
 
+use crate::balance_generated::PALISADED_REFUGE_BREACH_SECONDS;
+
 pub const COMBAT_FACTION_GUARD: u8 = 0;
 pub const COMBAT_FACTION_RAIDER: u8 = 1;
 
@@ -222,6 +224,17 @@ pub fn route_shortcut_is_worthwhile(
     direct_distance * multiplier + ROUTE_SHORTCUT_MARGIN_METERS < remaining_route_distance
 }
 
+/// A normal holding can be searched quickly. A rallied household requires the
+/// raider to remain alive at the physical refuge long enough to force its
+/// palisade; no percentage shield is applied after a successful breach.
+pub fn raid_contact_duration(raid_anchor_building_id: u64) -> f64 {
+    if raid_anchor_building_id == 0 {
+        LOOT_SECONDS
+    } else {
+        PALISADED_REFUGE_BREACH_SECONDS.max(LOOT_SECONDS)
+    }
+}
+
 pub fn guard_damage(readiness: f64) -> f64 {
     20.0 + readiness.clamp(0.0, 1.0) * 8.0
 }
@@ -406,6 +419,16 @@ mod tests {
             180.0,
             RAIDER_OFFROAD_ROUTE_MULTIPLIER,
         ));
+    }
+
+    #[test]
+    fn refuge_protection_is_a_physical_breach_window() {
+        assert_eq!(raid_contact_duration(0), LOOT_SECONDS);
+        assert!(raid_contact_duration(42) > raid_contact_duration(0));
+        assert_eq!(
+            raid_contact_duration(42),
+            PALISADED_REFUGE_BREACH_SECONDS
+        );
     }
 
     #[test]

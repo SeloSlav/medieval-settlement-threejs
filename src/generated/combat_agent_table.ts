@@ -33,4 +33,5 @@ export default __t.row({
   carriedLootJson: __t.string().name("carried_loot_json"),
   stateChangedTick: __t.u64().name("state_changed_tick"),
   routeProgress: __t.f64().name("route_progress"),
+  raidAnchorBuildingId: __t.u64().name("raid_anchor_building_id"),
 });

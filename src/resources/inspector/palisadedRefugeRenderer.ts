@@ -4,8 +4,8 @@ import {
   DEFAULT_SETTLEMENT_SECURITY,
   isPalisadedRefugeRallyActive,
   palisadedRefugeEffectiveRadius,
-  palisadedRefugeHouseholdLossFraction,
 } from '../../security/frontierSecurity.ts';
+import { PALISADED_REFUGE_BREACH_SECONDS } from '../../generated/gameBalance.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
@@ -39,12 +39,6 @@ export function renderPalisadedRefugeInspector(
   const sheltered = countHouseholdsShelteredByPalisadedRefuge(
     building,
     context.gameState,
-  );
-  const unshelteredLoss = Math.round(security.estimatedLossFraction * 100);
-  const shelteredLoss = Math.round(
-    palisadedRefugeHouseholdLossFraction(
-      security.estimatedLossFraction,
-    ) * 100,
   );
   const status = fireDisabled
     ? ['Fire outage — household shelter suspended', 'warning'] as const
@@ -86,8 +80,9 @@ export function renderPalisadedRefugeInspector(
       <li><span>Warned demand</span><span>${sheltered.warnedHomesInReach} homes · ${sheltered.warnedResidentsInReach} residents can attempt to rally</span></li>
       <li><span>Resident capacity</span><span>${sheltered.shelteredResidents} / ${sheltered.residentCapacity} places assigned · ${sheltered.remainingResidentCapacity} remain</span></li>
       <li><span>Nearest-household claims</span><span>${sheltered.shelteredHomes} whole ${sheltered.shelteredHomes === 1 ? 'household' : 'households'} assigned here${sheltered.unassignedWarnedResidents > 0 ? ` · ${sheltered.unassignedWarnedHomes} nearby ${sheltered.unassignedWarnedHomes === 1 ? 'household has' : 'households have'} no enclosure with room` : ''}</span></li>
-      <li><span>Household coin sheltered</span><span>${Math.round(sheltered.shelteredWealth)} wealth can be carried inside</span></li>
-      <li><span>Projected household loss</span><span>${security.targetsAtRisk <= 0 ? 'No wealthy household currently forecast as a target' : `${shelteredLoss}% when warned and sheltered versus up to ${unshelteredLoss}% otherwise`}</span></li>
+      <li><span>Household coin rallied</span><span>${Math.round(sheltered.shelteredWealth)} wealth becomes physically raidable here instead of at its home during an alert</span></li>
+      <li><span>Palisade breach</span><span>Raiders targeting an assigned household must reach this enclosure and hold contact for ${PALISADED_REFUGE_BREACH_SECONDS} seconds; guards can interrupt them at any point</span></li>
+      <li><span>Actual protection</span><span>No automatic loss reduction: the enclosure buys a concentrated interception window, while surviving raiders that finish the breach can take their full contact share</span></li>
       <li><span>Physical limits</span><span>Nearest warned families claim whole-household places first; building inventories, loaded carts, and Town Hall treasury remain where stored</span></li>
     `,
     demolish: {

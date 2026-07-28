@@ -11,8 +11,8 @@ use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
     assign_refuge_households, guardhouse_muster_efficiency, is_raid_season, raid_district_forecast,
-    raid_holding_vulnerability, raid_loss_fraction, raid_target_can_shelter, raid_target_count,
-    raid_target_loss_fraction, raidable_treasury_timber, scheduled_raid_ticks,
+    raid_contact_loss_fraction, raid_holding_vulnerability, raid_target_can_shelter,
+    raid_target_count, raidable_treasury_timber, scheduled_raid_ticks,
     select_guardhouse_muster_watch, select_raid_targets, threat_progress, tower_effective_radius,
     RaidPortableStores, RaidTargetCandidate, RaidTargetDefenseCandidate, RaidTargetKind,
     RefugeHouseholdCandidate, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
@@ -170,7 +170,7 @@ fn step_owner_security(
     let watch_index = WatchCoverageIndex::new(&towers);
     let refuges = active_palisaded_refuge_coverage(&buildings, &fire_disabled_buildings);
     let refuge_index = WatchCoverageIndex::new(&refuges);
-    let sheltered_residences =
+    let refuge_assignments =
         settlement_refuge_assignments(&residences, &watch_index, &refuge_index);
     let road_network = load_owner_road_network(ctx, owner);
     let unavailable_guard_slots = unavailable_guard_slots(ctx, owner);
@@ -188,7 +188,7 @@ fn step_owner_security(
         &delivery_trips,
         treasury_stores,
         &watch_index,
-        &sheltered_residences,
+        &refuge_assignments,
         &readiness_by_watch,
     );
     let coverage = if exposure.total_value > 1e-9 {
@@ -254,17 +254,34 @@ fn step_owner_security(
         let live_targets = selected
             .into_iter()
             .filter_map(|target| {
-                let (x, z) = raid_target_position(ctx, target.kind.as_u8(), target.id)?;
-                let coverage = if target.protected { 1.0 } else { 0.0 };
+                let anchored_refuge = (target.kind == RaidTargetKind::Residence)
+                    .then(|| refuge_assignments.get(&target.id).copied())
+                    .flatten()
+                    .and_then(|refuge_id| {
+                        buildings
+                            .iter()
+                            .find(|building| building.id == refuge_id)
+                            .map(|building| (building.id, building.x, building.z))
+                    });
+                let (raid_anchor_building_id, x, z) =
+                    if let Some((refuge_id, refuge_x, refuge_z)) = anchored_refuge {
+                        (refuge_id, refuge_x, refuge_z)
+                    } else {
+                        let (target_x, target_z) =
+                            raid_target_position(ctx, target.kind.as_u8(), target.id)?;
+                        (0, target_x, target_z)
+                    };
                 Some(LiveRaidTarget {
                     kind: target.kind.as_u8(),
                     id: target.id,
+                    raid_anchor_building_id,
                     x,
                     z,
-                    loot_fraction: raid_target_loss_fraction(
-                        raid_loss_fraction(enemy_pressure, coverage),
-                        target.sheltered,
-                    ),
+                    // Warning and guards shape where and whether contact
+                    // occurs. Once raiders complete contact, only the live
+                    // surviving agents determine how much of this budget is
+                    // carried out.
+                    loot_fraction: raid_contact_loss_fraction(enemy_pressure),
                 })
             })
             .collect::<Vec<_>>();
@@ -355,7 +372,7 @@ fn settlement_refuge_assignments(
     residences: &[Residence],
     watch_index: &WatchCoverageIndex,
     refuge_index: &WatchCoverageIndex,
-) -> HashSet<u64> {
+) -> HashMap<u64, u64> {
     let mut candidates = Vec::new();
     for residence in residences.iter().filter(|residence| {
         !residence.abandoned
@@ -373,7 +390,7 @@ fn settlement_refuge_assignments(
             });
         }
     }
-    assign_refuge_households(candidates).into_keys().collect()
+    assign_refuge_households(candidates)
 }
 
 fn settlement_exposure(
@@ -382,11 +399,16 @@ fn settlement_exposure(
     delivery_trips: &[DeliveryTrip],
     treasury_stores: RaidPortableStores,
     watch_index: &WatchCoverageIndex,
-    sheltered_residences: &HashSet<u64>,
+    refuge_assignments: &HashMap<u64, u64>,
     readiness_by_watch: &HashMap<u64, f64>,
 ) -> SettlementExposure {
     let mut protected_value = 0.0;
     let mut total_value = 0.0;
+    let refuge_positions = buildings
+        .iter()
+        .filter(|building| building.kind == "palisaded_refuge")
+        .map(|building| (building.id, (building.x, building.z)))
+        .collect::<HashMap<_, _>>();
     let mut raid_targets =
         Vec::with_capacity(buildings.len() + residences.len() + delivery_trips.len() + 1);
     for building in buildings
@@ -423,7 +445,13 @@ fn settlement_exposure(
     }
     for residence in residences {
         let vulnerable_value = residence.population as f64 + residence.household_wealth / 20.0;
-        let protected = watch_index.contains(residence.x, residence.z);
+        let refuge_position = refuge_assignments
+            .get(&residence.id)
+            .and_then(|refuge_id| refuge_positions.get(refuge_id))
+            .copied();
+        let (raid_x, raid_z) = refuge_position.unwrap_or((residence.x, residence.z));
+        let protected = watch_index.contains(raid_x, raid_z);
+        let sheltered = refuge_position.is_some();
         total_value += vulnerable_value;
         if protected {
             protected_value += vulnerable_value;
@@ -434,18 +462,11 @@ fn settlement_exposure(
                     kind: RaidTargetKind::Residence,
                     id: residence.id,
                     protected,
-                    sheltered: raid_target_can_shelter(
-                        RaidTargetKind::Residence,
-                        protected,
-                        sheltered_residences.contains(&residence.id),
-                    ),
+                    sheltered,
                     value: residence.household_wealth,
                 },
-                local_ready_guards: watch_index.defended_readiness(
-                    residence.x,
-                    residence.z,
-                    readiness_by_watch,
-                ),
+                local_ready_guards: watch_index
+                    .defended_readiness(raid_x, raid_z, readiness_by_watch),
             });
         }
     }

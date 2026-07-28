@@ -260,7 +260,7 @@ export type GameBalance = {
     guardhouseLongMusterRoadDistance: number;
     guardhouseLongMusterEfficiency: number;
     guardhouseUnlinkedMusterEfficiency: number;
-    palisadedRefugeHouseholdLossMultiplier: number;
+    palisadedRefugeBreachSeconds: number;
     palisadedRefugeResidentCapacity: number;
     palisadedRefugeRallyThreatThreshold: number;
   };
@@ -659,7 +659,7 @@ function generateRust(): string {
     `pub const GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE: f64 = ${rustF64(b.frontierEconomy.guardhouseLongMusterRoadDistance)};`,
     `pub const GUARDHOUSE_LONG_MUSTER_EFFICIENCY: f64 = ${rustF64(b.frontierEconomy.guardhouseLongMusterEfficiency)};`,
     `pub const GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY: f64 = ${rustF64(b.frontierEconomy.guardhouseUnlinkedMusterEfficiency)};`,
-    `pub const PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER: f64 = ${rustF64(b.frontierEconomy.palisadedRefugeHouseholdLossMultiplier)};`,
+    `pub const PALISADED_REFUGE_BREACH_SECONDS: f64 = ${rustF64(b.frontierEconomy.palisadedRefugeBreachSeconds)};`,
     `pub const PALISADED_REFUGE_RESIDENT_CAPACITY: u32 = ${b.frontierEconomy.palisadedRefugeResidentCapacity};`,
     `pub const PALISADED_REFUGE_RALLY_THREAT_THRESHOLD: f64 = ${rustF64(b.frontierEconomy.palisadedRefugeRallyThreatThreshold)};`,
     '',
@@ -1329,7 +1329,7 @@ function generateTypeScript(): string {
     `export const GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE = ${b.frontierEconomy.guardhouseLongMusterRoadDistance};`,
     `export const GUARDHOUSE_LONG_MUSTER_EFFICIENCY = ${b.frontierEconomy.guardhouseLongMusterEfficiency};`,
     `export const GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY = ${b.frontierEconomy.guardhouseUnlinkedMusterEfficiency};`,
-    `export const PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER = ${b.frontierEconomy.palisadedRefugeHouseholdLossMultiplier};`,
+    `export const PALISADED_REFUGE_BREACH_SECONDS = ${b.frontierEconomy.palisadedRefugeBreachSeconds};`,
     `export const PALISADED_REFUGE_RESIDENT_CAPACITY = ${b.frontierEconomy.palisadedRefugeResidentCapacity};`,
     `export const PALISADED_REFUGE_RALLY_THREAT_THRESHOLD = ${b.frontierEconomy.palisadedRefugeRallyThreatThreshold};`,
     '',

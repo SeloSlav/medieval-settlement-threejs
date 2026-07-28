@@ -8,15 +8,15 @@ use crate::frontier_economy_policy::armed_guards;
 use crate::raid_agent_policy::{
     combat_state_blocks_guard_slot, distance_squared, formation_spawn, guard_attack_interval,
     guard_breaks_route_for, guard_damage, guard_recovery_ticks, move_along_route, move_toward,
-    per_raider_loot_fraction, raid_entry_point, raid_party_size, raider_attack_interval,
-    raider_damage, route_shortcut_is_worthwhile, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
-    COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING,
-    COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING,
-    COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
-    COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE,
-    DOWNED_LINGER_TICKS, GUARD_SPEED_MPS, HOLDING_CONTACT_RANGE_METERS, LOOT_SECONDS,
-    MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS, RAIDER_OFFROAD_ROUTE_MULTIPLIER,
-    RAIDER_SPEED_MPS, WOUNDED_GUARD_SPEED_MPS,
+    per_raider_loot_fraction, raid_contact_duration, raid_entry_point, raid_party_size,
+    raider_attack_interval, raider_damage, route_shortcut_is_worthwhile, COMBAT_FACTION_GUARD,
+    COMBAT_FACTION_RAIDER, COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING,
+    COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING,
+    COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING,
+    COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING,
+    COMBAT_TARGET_TREASURY_RESIDENCE, DOWNED_LINGER_TICKS, GUARD_SPEED_MPS,
+    HOLDING_CONTACT_RANGE_METERS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
+    RAIDER_OFFROAD_ROUTE_MULTIPLIER, RAIDER_SPEED_MPS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::security_policy::{
@@ -50,6 +50,7 @@ type RaiderIncursionPaths = HashMap<u64, CachedCombatPath>;
 pub struct LiveRaidTarget {
     pub kind: u8,
     pub id: u64,
+    pub raid_anchor_building_id: u64,
     pub x: f64,
     pub z: f64,
     pub loot_fraction: f64,
@@ -153,6 +154,7 @@ pub fn start_live_raid(
                 assigned_by_target[target_index],
             ),
             carried_loot_json: String::new(),
+            raid_anchor_building_id: target.raid_anchor_building_id,
             route_progress: 0.0,
             state_changed_tick: raid_id,
         });
@@ -330,6 +332,7 @@ fn spawn_responding_guards(
                 loot_progress: 0.0,
                 loot_fraction: 0.0,
                 carried_loot_json: String::new(),
+                raid_anchor_building_id: 0,
                 route_progress: 0.0,
                 state_changed_tick: raid_id,
             });
@@ -648,7 +651,8 @@ fn step_raider(
         return;
     }
 
-    let Some((target_x, target_z)) = raid_target_position(ctx, agent.target_kind, agent.target_id)
+    let Some((target_x, target_z, active_raid_anchor_id)) =
+        raid_agent_target_position(ctx, agent)
     else {
         agent.state = COMBAT_STATE_RETREATING;
         agent.state_changed_tick = sim_tick;
@@ -700,7 +704,7 @@ fn step_raider(
 
     agent.state = COMBAT_STATE_LOOTING;
     agent.loot_progress += TICK_DT;
-    if agent.loot_progress + EPSILON < LOOT_SECONDS {
+    if agent.loot_progress + EPSILON < raid_contact_duration(active_raid_anchor_id) {
         return;
     }
     let plunder = plunder_raid_target_at_contact(
@@ -879,19 +883,55 @@ fn record_contact_plunder(
             latest.raid_id ^ agent.id ^ agent.target_id,
         )
     {
-        let fire_target_kind = match agent.target_kind {
-            COMBAT_TARGET_BUILDING | COMBAT_TARGET_TREASURY_BUILDING => Some(FIRE_TARGET_BUILDING),
-            COMBAT_TARGET_RESIDENCE | COMBAT_TARGET_TREASURY_RESIDENCE => {
-                Some(FIRE_TARGET_RESIDENCE)
+        let fire_target = if agent.raid_anchor_building_id > 0 {
+            ctx.db
+                .building()
+                .id()
+                .find(&agent.raid_anchor_building_id)
+                .filter(|building| {
+                    building.owner == agent.owner && building.kind == "palisaded_refuge"
+                })
+                .map(|building| (FIRE_TARGET_BUILDING, building.id))
+        } else {
+            match agent.target_kind {
+                COMBAT_TARGET_BUILDING | COMBAT_TARGET_TREASURY_BUILDING => {
+                    Some((FIRE_TARGET_BUILDING, agent.target_id))
+                }
+                COMBAT_TARGET_RESIDENCE | COMBAT_TARGET_TREASURY_RESIDENCE => {
+                    Some((FIRE_TARGET_RESIDENCE, agent.target_id))
+                }
+                COMBAT_TARGET_DELIVERY_TRIP => None,
+                _ => None,
             }
-            COMBAT_TARGET_DELIVERY_TRIP => None,
-            _ => None,
         };
-        latest.arson_started = fire_target_kind.is_some_and(|kind| {
-            ignite_raid_target(ctx, agent.owner, kind, agent.target_id, sim_tick)
+        latest.arson_started = fire_target.is_some_and(|(kind, target_id)| {
+            ignite_raid_target(ctx, agent.owner, kind, target_id, sim_tick)
         });
     }
     ctx.db.active_raid().owner().update(latest);
+}
+
+fn raid_agent_target_position(
+    ctx: &ReducerContext,
+    agent: &CombatAgent,
+) -> Option<(f64, f64, u64)> {
+    if agent.raid_anchor_building_id > 0 {
+        if let Some(anchor) = ctx
+            .db
+            .building()
+            .id()
+            .find(&agent.raid_anchor_building_id)
+            .filter(|building| {
+                building.owner == agent.owner
+                    && building.construction_complete
+                    && building.kind == "palisaded_refuge"
+            })
+        {
+            return Some((anchor.x, anchor.z, anchor.id));
+        }
+    }
+    raid_target_position(ctx, agent.target_kind, agent.target_id)
+        .map(|(x, z)| (x, z, 0))
 }
 
 fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid, sim_tick: u64) {

@@ -823,6 +823,10 @@ pub struct CombatAgent {
     /// interrupt it without losing the road point to rejoin or reverse toward.
     #[default(0.0)]
     pub route_progress: f64,
+    /// Palisaded refuge physically holding this raider's household target.
+    /// Zero means the target remains at its ordinary building, home, or cart.
+    #[default(0u64)]
+    pub raid_anchor_building_id: u64,
 }
 
 /// One cached road approach shared by every guard from a responding company.
