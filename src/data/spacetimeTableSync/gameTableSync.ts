@@ -1,5 +1,5 @@
 import type { DbConnection } from '../../generated/index.ts';
-import type { Building, TreeEntity } from '../../generated/types.ts';
+import type { Building, CombatAgent, TreeEntity } from '../../generated/types.ts';
 import type { GameTableSyncState } from './gameTableSyncState.ts';
 import { syncBackyardGardens } from './syncBackyardGardens.ts';
 import {
@@ -10,6 +10,7 @@ import {
 import { syncBurgageZones } from './syncBurgageZones.ts';
 import { syncDeliveryTrips } from './syncDeliveryTrips.ts';
 import { syncFireIncidents } from './syncFireIncidents.ts';
+import { syncCombatAgents } from './syncCombatAgents.ts';
 import { syncForagingNodes } from './syncForagingNodes.ts';
 import { syncFarmFields } from './syncFarmFields.ts';
 import { syncLivestockHerds, syncPastures } from './syncLivestock.ts';
@@ -81,6 +82,10 @@ export class GameTableSync {
     );
     this.state.fireIncidents = syncFireIncidents(
       db.fire_incident ? db.fire_incident.iter() : [],
+      this.state.identityHex,
+    );
+    this.state.combatAgents = syncCombatAgents(
+      db.combat_agent ? db.combat_agent.iter() : [],
       this.state.identityHex,
     );
     this.state.roads = syncRoadNetwork(
@@ -303,6 +308,20 @@ export class GameTableSync {
         this.state.identityHex,
       );
     });
+
+    if (db.combat_agent) {
+      const combatChanges = queueTableChanges<CombatAgent>(() => {
+        this.state.combatAgents = syncCombatAgents(
+          db.combat_agent ? db.combat_agent.iter() : [],
+          this.state.identityHex,
+        );
+      });
+      db.combat_agent.onInsert((_ctx, row) => combatChanges.insert(row));
+      db.combat_agent.onUpdate((_ctx, oldRow, row) =>
+        combatChanges.update(oldRow, row)
+      );
+      db.combat_agent.onDelete((_ctx, row) => combatChanges.delete(row));
+    }
 
     bindTable(db.road_network_state, () => {
       this.state.roads = syncRoadNetwork(

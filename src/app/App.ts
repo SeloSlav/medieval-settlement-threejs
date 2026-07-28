@@ -89,6 +89,7 @@ import {
   type ProjectedRaidTarget,
 } from '../security/frontierSecurity.ts';
 import { FrontierRiskMarkers } from '../security/FrontierRiskMarkers.ts';
+import { formatLiveCombatSummary } from '../security/combatAgents.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHooks.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
@@ -711,6 +712,7 @@ export class App {
       if (!this.visualQaConditions) this.buildingMarkers?.setEnvironment(null);
       this.toolbar?.setConflictEnabled(false);
       this.clearFrontierRiskFeedback();
+      this.villagers?.setCombatAgents(new Map());
       this.toolbar?.settlementHud.setSecurityState(
         snapshot.settlementSecurity,
         null,
@@ -724,6 +726,7 @@ export class App {
 
     const previous = this.gameState;
     this.gameState = state;
+    this.villagers?.setCombatAgents(snapshot.combatAgents);
     if (this.liveContext) {
       this.liveContext.gameState = state;
     }
@@ -739,6 +742,10 @@ export class App {
     this.notifyFireChanges(state, previous);
     this.notifySecurityChanges(snapshot);
     const projectedTargets = this.syncFrontierRiskFeedback(snapshot, state);
+    const liveCombat = formatLiveCombatSummary(snapshot.combatAgents.values());
+    const frontierDetail = [liveCombat, projectedTargets]
+      .filter((detail): detail is string => Boolean(detail))
+      .join(' ');
     this.frontierRiskMarkers?.trackDeliveryTrips(state.deliveryTrips);
 
     this.applyShowcaseView(state);
@@ -794,7 +801,7 @@ export class App {
       snapshot.settlementSecurity,
       snapshot.worldGeneration,
       snapshot.simTick,
-      projectedTargets,
+      frontierDetail || undefined,
     );
     this.settlementPresentation.sync(
       {

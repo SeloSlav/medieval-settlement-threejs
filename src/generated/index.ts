@@ -104,9 +104,11 @@ import UpgradeResidenceReducer from "./upgrade_residence_reducer";
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import ActiveRaidRow from "./active_raid_table";
 import BackyardGardenRow from "./backyard_garden_table";
 import BuildingRow from "./building_table";
 import BurgageZoneRow from "./burgage_zone_table";
+import CombatAgentRow from "./combat_agent_table";
 import DeliveryTripRow from "./delivery_trip_table";
 import FarmFieldRow from "./farm_field_table";
 import FireIncidentRow from "./fire_incident_table";
@@ -129,6 +131,17 @@ import WorldConfigRow from "./world_config_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  active_raid: __table({
+    name: 'active_raid',
+    indexes: [
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'active_raid_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, ActiveRaidRow),
   backyard_garden: __table({
     name: 'backyard_garden',
     indexes: [
@@ -174,6 +187,23 @@ const tablesSchema = __schema({
       { name: 'burgage_zone_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BurgageZoneRow),
+  combat_agent: __table({
+    name: 'combat_agent',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'raid_id', algorithm: 'btree', columns: [
+        'raidId',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_agent_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatAgentRow),
   delivery_trip: __table({
     name: 'delivery_trip',
     indexes: [

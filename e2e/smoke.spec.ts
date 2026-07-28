@@ -25,6 +25,16 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(page.locator('#app-loading:not(.is-dismissed)')).toHaveCount(0, {
     timeout: STARTUP_TIMEOUT_MS,
   });
+  const starterCamp = page.getByRole('button', { name: /Place starter camp/ });
+  await expect(starterCamp).toBeVisible({ timeout: SYNC_TIMEOUT_MS });
+  await page.evaluate(async () => {
+    await window.__medievalE2e!.placeFoundersCampAtFirstValidSpot();
+  });
+  await expect.poll(
+    () => page.evaluate(() => window.__medievalE2e?.getBuildingCount() ?? 0),
+    { timeout: SYNC_TIMEOUT_MS },
+  ).toBeGreaterThanOrEqual(1);
+  await expect(starterCamp).toBeHidden({ timeout: SYNC_TIMEOUT_MS });
   const startup = await page.evaluate(() => window.__medievalRoadStartup);
   expect(startup?.settlementPresentationReadyMs).toBeGreaterThan(0);
   expect(startup?.firstPlayableMs).toBeGreaterThanOrEqual(
@@ -68,6 +78,7 @@ declare global {
       getBuildingMode: () => string;
       getHudTimber: () => string;
       getBuildingCount: () => number;
+      placeFoundersCampAtFirstValidSpot: () => Promise<{ x: number; z: number }>;
       placeRforesterAtFirstValidSpot: () => Promise<{ x: number; z: number }>;
     };
   }

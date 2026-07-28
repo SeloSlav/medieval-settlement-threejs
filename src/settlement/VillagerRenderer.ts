@@ -113,6 +113,7 @@ import {
   fireDisabledResidenceIds,
   type FireIncidentState,
 } from '../fires/fireIncident.ts';
+import type { CombatAgentState } from '../security/combatAgents.ts';
 
 type VillagerMode = VillagerRenderMode;
 type VillagerRole = 'founder' | 'resident' | 'worker';
@@ -154,6 +155,13 @@ const NO_GUARD_MUSTER_ASSIGNMENTS:
 type PendingCampSeatAssignment = {
   assignment: AmbientBehaviorAssignment;
   previousOccupantId: string;
+};
+
+type CombatAgentVisual = {
+  state: CombatAgentState;
+  displayX: number;
+  displayZ: number;
+  yaw: number;
 };
 
 type VillagerAgent = {
@@ -258,6 +266,8 @@ export class VillagerRenderer {
   private guardMusterAssignments:
     ReadonlyMap<string, GuardMusterPresentationAssignment> = new Map();
   private fireDisabledResidenceIds = new Set<string>();
+  private combatAgentVisuals = new Map<string, CombatAgentVisual>();
+  private activeCombatGuardSlots = new Set<string>();
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
   private laborPaused = false;
@@ -321,6 +331,31 @@ export class VillagerRenderer {
       changed = this.reconcileRoutine(agent) || changed;
     }
     if (changed) this.pushRenderState();
+  }
+
+  setCombatAgents(agents: ReadonlyMap<string, CombatAgentState>): void {
+    const nextVisuals = new Map<string, CombatAgentVisual>();
+    const nextGuardSlots = new Set<string>();
+    for (const state of agents.values()) {
+      const prior = this.combatAgentVisuals.get(state.id);
+      nextVisuals.set(state.id, {
+        state,
+        displayX: prior?.displayX ?? state.x,
+        displayZ: prior?.displayZ ?? state.z,
+        yaw: prior?.yaw ?? Math.atan2(
+          state.x - state.homeX,
+          state.z - state.homeZ,
+        ),
+      });
+      if (state.faction === 'guard' && state.sourceBuildingId) {
+        nextGuardSlots.add(
+          combatGuardSlotKey(state.sourceBuildingId, state.sourceSlot),
+        );
+      }
+    }
+    this.combatAgentVisuals = nextVisuals;
+    this.activeCombatGuardSlots = nextGuardSlots;
+    this.pushRenderState();
   }
 
   /** Compatibility entry point for focused civilian-rally tests and previews. */
@@ -757,6 +792,7 @@ export class VillagerRenderer {
     const simulationDt = realDt * this.getGameSpeed();
     this.advanceCampAmbientCycle(simulationDt);
     this.advanceChapelAmbientCycle(simulationDt);
+    this.advanceCombatAgentVisuals(realDt);
 
     for (const agent of this.agents.values()) {
       if (agent.role === 'worker') {
@@ -954,6 +990,14 @@ export class VillagerRenderer {
       if (agent.role === 'worker') {
         const workplace = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
         if (!workplace || workplace.assignedLabor <= agent.workplaceSlot) continue;
+        if (
+          workplace.kind === 'guardhouse'
+          && this.activeCombatGuardSlots.has(
+            combatGuardSlotKey(workplace.id, agent.workplaceSlot),
+          )
+        ) {
+          continue;
+        }
       } else if (agent.role === 'founder') {
         if (!this.foundingCamp) continue;
       } else {
@@ -978,6 +1022,45 @@ export class VillagerRenderer {
         hairColor: agent.hairColor,
         tool: this.workerToolFor(agent),
         movementSpeed: agent.currentMoveSpeed,
+        active: true,
+      });
+    }
+    for (const visual of this.combatAgentVisuals.values()) {
+      const combat = visual.state;
+      const ordinaryGuard = combat.faction === 'guard' && combat.sourceBuildingId
+        ? this.agents.get(
+            `worker:${combat.sourceBuildingId}:${combat.sourceSlot}`,
+          )
+        : null;
+      const appearanceSeed = ordinaryGuard?.appearanceSeed
+        ?? combatAppearanceSeed(combat);
+      const colors = pickVillagerColors(appearanceSeed);
+      const target = this.nearestCombatOpponent(combat);
+      const yaw = target
+        ? Math.atan2(
+            target.displayX - visual.displayX,
+            target.displayZ - visual.displayZ,
+          )
+        : visual.yaw;
+      renderAgents.push({
+        id: `combat:${combat.id}`,
+        slot: slot++,
+        x: visual.displayX,
+        y: this.getHeightAt(visual.displayX, visual.displayZ) + 0.02,
+        z: visual.displayZ,
+        yaw,
+        appearanceSeed,
+        variant: ordinaryGuard?.modelVariant ?? 'man',
+        mode: combatRenderMode(combat.status),
+        tunicColor: ordinaryGuard?.tunicColor
+          ?? (combat.faction === 'raider'
+            ? raiderTunicColor(appearanceSeed)
+            : colors.tunic),
+        skinColor: ordinaryGuard?.skinColor ?? colors.skin,
+        hairColor: ordinaryGuard?.hairColor
+          ?? pickVillagerHairColor(appearanceSeed),
+        tool: 'spear',
+        movementSpeed: combat.faction === 'guard' ? 1.42 : 1.34,
         active: true,
       });
     }
@@ -1013,6 +1096,46 @@ export class VillagerRenderer {
         activeView,
       );
     }
+  }
+
+  private advanceCombatAgentVisuals(realDt: number): void {
+    const blend = 1 - Math.exp(-Math.min(0.1, Math.max(0, realDt)) * 14);
+    for (const visual of this.combatAgentVisuals.values()) {
+      const previousX = visual.displayX;
+      const previousZ = visual.displayZ;
+      visual.displayX += (visual.state.x - visual.displayX) * blend;
+      visual.displayZ += (visual.state.z - visual.displayZ) * blend;
+      const dx = visual.displayX - previousX;
+      const dz = visual.displayZ - previousZ;
+      if (dx * dx + dz * dz > 1e-8) {
+        visual.yaw = Math.atan2(dx, dz);
+      }
+    }
+  }
+
+  private nearestCombatOpponent(
+    combat: CombatAgentState,
+  ): CombatAgentVisual | null {
+    if (combat.status !== 'fighting') return null;
+    let nearest: CombatAgentVisual | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    const source = this.combatAgentVisuals.get(combat.id);
+    if (!source) return null;
+    for (const candidate of this.combatAgentVisuals.values()) {
+      if (
+        candidate.state.faction === combat.faction
+        || candidate.state.status === 'downed'
+      ) {
+        continue;
+      }
+      const dx = candidate.displayX - source.displayX;
+      const dz = candidate.displayZ - source.displayZ;
+      const distance = dx * dx + dz * dz;
+      if (distance >= nearestDistance) continue;
+      nearest = candidate;
+      nearestDistance = distance;
+    }
+    return nearest;
   }
 
   private workerActivitySoundSource(
@@ -2765,4 +2888,37 @@ function distanceToScreenSegment(
     pointX - (startX + segmentX * t),
     pointY - (startY + segmentY * t),
   );
+}
+
+function combatGuardSlotKey(buildingId: string, sourceSlot: number): string {
+  return `${buildingId}:${Math.max(0, Math.floor(sourceSlot))}`;
+}
+
+function combatAppearanceSeed(agent: CombatAgentState): number {
+  const value = `${agent.faction}:${agent.raidId}:${agent.id}`;
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+function combatRenderMode(
+  status: CombatAgentState['status'],
+): VillagerRenderMode {
+  switch (status) {
+    case 'fighting': return 'fight';
+    case 'looting': return 'gather';
+    case 'downed': return 'rest';
+    case 'advancing':
+    case 'retreating':
+    case 'returning':
+      return 'walk';
+  }
+}
+
+function raiderTunicColor(seed: number): number {
+  const colors = [0x694037, 0x76533a, 0x55493c, 0x6b5b3f, 0x4d4639] as const;
+  return colors[(seed >>> 12) % colors.length] ?? colors[0];
 }

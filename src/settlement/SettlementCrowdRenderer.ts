@@ -51,7 +51,8 @@ export type VillagerRenderMode =
   | 'plant'
   | 'fish'
   | 'tend'
-  | 'build';
+  | 'build'
+  | 'fight';
 
 type FallbackPartLayer = {
   mesh: THREE.InstancedMesh;
@@ -416,7 +417,9 @@ export class SettlementCrowdRenderer {
     const tool = agent.tool && this.toolSources
       ? attachWorkerTool(model, this.toolSources[agent.tool])
       : null;
-    if (tool) tool.visible = isWorkMode(agent.mode);
+    if (tool && agent.tool) {
+      tool.visible = workerToolVisibleInMode(agent.tool, agent.mode);
+    }
 
     const mixer = new THREE.AnimationMixer(model);
     const actions: Record<VillagerRenderMode, THREE.AnimationAction> = {
@@ -432,6 +435,7 @@ export class SettlementCrowdRenderer {
       fish: mixer.clipAction(source.clips.fish, model),
       tend: mixer.clipAction(source.clips.tend, model),
       build: mixer.clipAction(source.clips.build, model),
+      fight: mixer.clipAction(source.clips.fight, model),
     };
     for (const [mode, action] of Object.entries(actions) as Array<
       [VillagerRenderMode, THREE.AnimationAction]
@@ -457,6 +461,7 @@ export class SettlementCrowdRenderer {
     actions.fish.setEffectiveTimeScale(0.82);
     actions.tend.setEffectiveTimeScale(0.9);
     actions.build.setEffectiveTimeScale(1.08);
+    actions.fight.setEffectiveTimeScale(1.22);
     actions[agent.mode].play();
     if (agent.mode !== 'sit' && agent.mode !== 'rest') {
       actions[agent.mode].time =
@@ -484,7 +489,12 @@ export class SettlementCrowdRenderer {
     if (visual.mode === nextMode) return;
     visual.actions[visual.mode].fadeOut(0.18);
     visual.actions[nextMode].reset().fadeIn(0.18).play();
-    if (visual.tool) visual.tool.visible = isWorkMode(nextMode);
+    if (visual.tool && visual.toolKind) {
+      visual.tool.visible = workerToolVisibleInMode(
+        visual.toolKind,
+        nextMode,
+      );
+    }
     visual.mode = nextMode;
   }
 
@@ -605,6 +615,8 @@ async function loadVillagerSource(
   plant.name = `${swing.name}:worker-plant`;
   const build = swing.clone();
   build.name = `${swing.name}:worker-build`;
+  const fight = swing.clone();
+  fight.name = `${swing.name}:combat-fight`;
   const gather = createGatherAnimationClip(gltf.scene);
   const fish = createFishingAnimationClip(gltf.scene);
   const tend = createTendAnimationClip(gltf.scene);
@@ -626,6 +638,7 @@ async function loadVillagerSource(
       fish,
       tend,
       build,
+      fight,
     },
   };
 }
@@ -874,14 +887,28 @@ function createFishingAnimationClip(scene: THREE.Object3D): THREE.AnimationClip 
 
 function isWorkMode(
   mode: VillagerRenderMode,
-): mode is 'chop' | 'mine' | 'gather' | 'plant' | 'fish' | 'tend' | 'build' {
+): mode is 'chop' | 'mine' | 'gather' | 'plant' | 'fish' | 'tend' | 'build' | 'fight' {
   return mode === 'chop'
     || mode === 'mine'
     || mode === 'gather'
     || mode === 'plant'
     || mode === 'fish'
     || mode === 'tend'
-    || mode === 'build';
+    || mode === 'build'
+    || mode === 'fight';
+}
+
+export function workerToolVisibleInMode(
+  kind: WorkerToolKind,
+  mode: VillagerRenderMode,
+): boolean {
+  if (kind === 'spear') {
+    return mode === 'idle'
+      || mode === 'walk'
+      || mode === 'build'
+      || mode === 'fight';
+  }
+  return isWorkMode(mode);
 }
 
 function findAnimationClip(

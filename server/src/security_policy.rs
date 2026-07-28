@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::balance_generated::{
     GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE, GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
     GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE, GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
@@ -107,6 +109,29 @@ pub enum RaidTargetKind {
     TreasuryAtResidence,
 }
 
+impl RaidTargetKind {
+    pub fn as_u8(self) -> u8 {
+        match self {
+            Self::Building => 0,
+            Self::Residence => 1,
+            Self::DeliveryTrip => 2,
+            Self::TreasuryAtBuilding => 3,
+            Self::TreasuryAtResidence => 4,
+        }
+    }
+
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(Self::Building),
+            1 => Some(Self::Residence),
+            2 => Some(Self::DeliveryTrip),
+            3 => Some(Self::TreasuryAtBuilding),
+            4 => Some(Self::TreasuryAtResidence),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RaidTargetCandidate {
     pub kind: RaidTargetKind,
@@ -204,7 +229,7 @@ pub fn assign_refuge_households(
 /// making a holding look attractive without being exposed to the resulting
 /// loss. Stone and water are deliberately absent because an incursion cannot
 /// practically carry them away.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct RaidPortableStores {
     pub timber: f64,
     pub firewood: f64,
@@ -253,6 +278,25 @@ impl RaidPortableStores {
             + positive_store(self.flax)
     }
 
+    pub fn goods_amount(self) -> f64 {
+        positive_store(self.timber)
+            + positive_store(self.firewood)
+            + positive_store(self.food)
+            + positive_store(self.grain)
+            + positive_store(self.flour)
+            + positive_store(self.ale)
+            + positive_store(self.preserved_food)
+            + positive_store(self.honey)
+            + positive_store(self.wine)
+            + positive_store(self.wool)
+            + positive_store(self.cloth)
+            + positive_store(self.ironwork)
+            + positive_store(self.polearms)
+            + positive_store(self.barley)
+            + positive_store(self.malt)
+            + positive_store(self.flax)
+    }
+
     pub fn plunder(self, loss_fraction: f64) -> RaidPlunder {
         let fraction = if loss_fraction.is_finite() {
             loss_fraction.clamp(0.0, 1.0)
@@ -293,6 +337,33 @@ impl RaidPortableStores {
             remaining,
             goods_lost,
             wealth_lost,
+        }
+    }
+
+    pub fn removed_between(self, remaining: Self) -> Self {
+        macro_rules! removed {
+            ($field:ident) => {
+                (positive_store(self.$field) - positive_store(remaining.$field)).max(0.0)
+            };
+        }
+        Self {
+            timber: removed!(timber),
+            firewood: removed!(firewood),
+            food: removed!(food),
+            grain: removed!(grain),
+            flour: removed!(flour),
+            ale: removed!(ale),
+            preserved_food: removed!(preserved_food),
+            honey: removed!(honey),
+            wine: removed!(wine),
+            wool: removed!(wool),
+            cloth: removed!(cloth),
+            ironwork: removed!(ironwork),
+            polearms: removed!(polearms),
+            gold: removed!(gold),
+            barley: removed!(barley),
+            malt: removed!(malt),
+            flax: removed!(flax),
         }
     }
 }
@@ -645,7 +716,6 @@ pub fn raid_arson_occurs(enemy_pressure: u8, defense_ratio: f64, entropy: u64) -
     unit_hash(entropy) < raid_arson_chance(enemy_pressure, defense_ratio)
 }
 
-#[cfg(test)]
 pub fn select_raid_targets(
     candidates: &[RaidTargetCandidate],
     target_count: usize,

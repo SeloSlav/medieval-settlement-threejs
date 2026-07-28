@@ -57,6 +57,9 @@ pub mod seasonal_labor_policy;
 #[path = "../../src/security_policy.rs"]
 pub mod security_policy;
 
+#[path = "../../src/raid_agent_policy.rs"]
+pub mod raid_agent_policy;
+
 #[path = "../../src/specialty_trade_policy.rs"]
 pub mod specialty_trade_policy;
 

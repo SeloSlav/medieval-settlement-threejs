@@ -32,7 +32,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build:e2e && npm run preview:e2e',
+    command:
+      `npm run build:e2e && npx vite preview --host ${previewHost} --port ${previewPort}`,
     url: `http://${previewHost}:${previewPort}`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

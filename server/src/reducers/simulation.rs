@@ -10,13 +10,14 @@ use crate::simulation::{
     step_construction_sites, step_delivery_trips, step_ferry_landing, step_fires,
     step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_founding_sites,
     step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_market_orders,
-    step_hunters_hall, step_large_quarry, step_lumber_mill, step_marketplace_caravans,
-    step_monastery, step_pastoral_farmstead, step_production_labor_stewards,
-    step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
-    step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
-    step_smokehouse, step_stone_quarry, step_swineherd, step_threshing_barn,
-    step_village_storehouses, step_vineyard, step_watermill, step_weaver, step_well,
-    step_woodcutters_lodge, try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
+    step_hunters_hall, step_large_quarry, step_live_raids, step_lumber_mill,
+    step_marketplace_caravans, step_monastery, step_pastoral_farmstead,
+    step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
+    step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
+    step_settlement_security, step_smokehouse, step_stone_quarry, step_swineherd,
+    step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill, step_weaver,
+    step_well, step_woodcutters_lodge, try_dispatch_guardhouse_payroll, SharedRoadNetworks,
+    SimTickContext,
 };
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
@@ -109,6 +110,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     }
 
     let world_seed = config.seed;
+    let world_map_size = config.map_size;
     let world_hydrology = config.hydrology;
     let conflict_enabled = config.conflict_enabled;
     let enemy_pressure = config.enemy_pressure;
@@ -139,10 +141,12 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         sim_tick,
         clock.month,
         world_seed,
+        world_map_size,
         conflict_enabled,
         enemy_pressure,
         environment,
     );
+    step_live_raids(ctx, sim_tick, world_seed, conflict_enabled);
 
     let tick = SimTickContext::with_road_networks(road_networks);
     step_fires(ctx, &clock, environment, world_seed, sim_tick);

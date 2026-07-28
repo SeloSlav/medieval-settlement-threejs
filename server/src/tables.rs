@@ -756,6 +756,70 @@ pub struct SettlementSecurity {
     pub estimated_loss_fraction: f64,
 }
 
+/// One live hostile incursion per settlement. The row accumulates only results
+/// produced by physical combat agents reaching holdings; it never resolves
+/// losses on its own.
+#[spacetimedb::table(accessor = active_raid)]
+#[derive(Clone)]
+pub struct ActiveRaid {
+    #[primary_key]
+    pub owner: Identity,
+    pub raid_id: u64,
+    pub started_tick: u64,
+    pub enemy_pressure: u8,
+    pub initial_raiders: u32,
+    pub initial_guards: u32,
+    pub goods_lost: f64,
+    pub wealth_lost: f64,
+    pub arson_started: bool,
+}
+
+/// A replicated person participating in a live frontier fight.
+///
+/// Guards are backed by one armed guardhouse roster slot. Raiders carry their
+/// own target, health, and any locally stolen goods. No holding can lose stock
+/// unless one of these rows reaches it and finishes its looting action.
+#[spacetimedb::table(
+    accessor = combat_agent,
+    public,
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = raid_id, btree(columns = [raid_id]))
+)]
+#[derive(Clone)]
+pub struct CombatAgent {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub owner: Identity,
+    pub raid_id: u64,
+    /// 0 = settlement guard, 1 = hostile raider.
+    pub faction: u8,
+    /// Guardhouse backing a guard row, or zero for a raider.
+    pub source_building_id: u64,
+    pub source_slot: u32,
+    /// 0 = building, 1 = residence, 2 = cart, 3/4 = treasury at building/home.
+    pub target_kind: u8,
+    pub target_id: u64,
+    pub x: f64,
+    pub z: f64,
+    /// Guardhouse or incursion entry point used for a physical return/escape.
+    pub home_x: f64,
+    pub home_z: f64,
+    pub health: f64,
+    pub max_health: f64,
+    /// Guard provision/pay readiness captured when the company marches.
+    pub readiness: f64,
+    /// 0 advancing, 1 fighting, 2 looting, 3 retreating, 4 returning, 5 downed.
+    pub state: u8,
+    pub attack_cooldown: f64,
+    pub loot_progress: f64,
+    /// This agent's share of the target's contact-gated raid loss.
+    pub loot_fraction: f64,
+    /// JSON `RaidPortableStores` physically carried until escape or recovery.
+    pub carried_loot_json: String,
+    pub state_changed_tick: u64,
+}
+
 /// Active road delivery agent — position and phase are authoritative; cargo unloads on arrival.
 #[spacetimedb::table(
     accessor = delivery_trip,

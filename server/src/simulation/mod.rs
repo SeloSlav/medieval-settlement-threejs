@@ -25,6 +25,7 @@ mod lodge_logistics;
 mod lumber_mill;
 mod marketplace_caravan;
 mod production_labor_steward;
+mod raid_agents;
 mod reclamation;
 mod reforester;
 mod residence_lifecycle;
@@ -83,6 +84,7 @@ pub use marketplace_caravan::{
 pub use production_labor_steward::{
     reconcile_target_production_labor_for_owner, step_production_labor_stewards,
 };
+pub use raid_agents::{start_live_raid, step_live_raids, LiveRaidTarget};
 pub use reclamation::{
     insert_reclamation_pile, materialize_all_physical_resource_ledgers,
     materialize_physical_resource_ledger, materialize_physical_resource_ledger_at,

@@ -15,6 +15,7 @@ export const GAME_TABLE_SUBSCRIPTIONS = [
   'residence_need',
   'delivery_trip',
   'fire_incident',
+  'combat_agent',
   'settlement_security',
   'road_network_state',
 ] as const;

@@ -38,6 +38,7 @@ import {
 import {
   seatedVillagerContactHeight,
   villagerHeightJitter,
+  workerToolVisibleInMode,
 } from '../src/settlement/SettlementCrowdRenderer.ts';
 import { FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT } from '../src/buildings/foundersCampLandmarks.ts';
 
@@ -429,6 +430,20 @@ for (const asset of workerToolAssets) {
     `${asset.kind} should be scaled to a believable hand-tool length (got ${worldLength.toFixed(3)}m)`,
   );
 }
+
+assert.equal(
+  workerToolVisibleInMode('spear', 'walk'),
+  true,
+  'mustered guards must visibly carry their polearms while moving to contact',
+);
+assert.equal(workerToolVisibleInMode('spear', 'idle'), true);
+assert.equal(workerToolVisibleInMode('spear', 'fight'), true);
+assert.equal(workerToolVisibleInMode('spear', 'rest'), false);
+assert.equal(
+  workerToolVisibleInMode('hatchet', 'walk'),
+  false,
+  'ordinary work tools should remain hidden outside their work action',
+);
 
 const workView = {
   centerX: 0,

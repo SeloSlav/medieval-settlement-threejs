@@ -60,6 +60,10 @@ import {
   normalizeWorldGenerationSettings,
 } from '../src/world/worldGenerationSettings.ts';
 import {
+  formatLiveCombatSummary,
+  type CombatAgentState,
+} from '../src/security/combatAgents.ts';
+import {
   BUILDING_DEFINITIONS,
   BUILDING_COSTS,
   BUILDING_STORAGE_CAPS,
@@ -1443,12 +1447,16 @@ const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'ut
 const app = readFileSync('src/app/App.ts', 'utf8');
 const clientSecurity = readFileSync('src/security/frontierSecurity.ts', 'utf8');
 const serverSimulation = readFileSync('server/src/simulation/settlement_security.rs', 'utf8');
+const serverRaidAgents = readFileSync('server/src/simulation/raid_agents.rs', 'utf8');
+const serverRaidAgentPolicy = readFileSync('server/src/raid_agent_policy.rs', 'utf8');
 const frontierEconomy = readFileSync('server/src/frontier_economy_policy.rs', 'utf8');
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const serverPolicy = readFileSync('server/src/security_policy.rs', 'utf8');
 const serverFires = readFileSync('server/src/simulation/fires.rs', 'utf8');
 const serverBuildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const serverTables = readFileSync('server/src/tables.rs', 'utf8');
+const generatedCombatAgent = readFileSync('src/generated/combat_agent_table.ts', 'utf8');
+const clientCombatAgents = readFileSync('src/security/combatAgents.ts', 'utf8');
 const inspectorActions = readFileSync('src/app/inspectorSpacetimeActions.ts', 'utf8');
 const spacetimeReducers = readFileSync('src/data/spacetimeReducers.ts', 'utf8');
 const buildingSync = readFileSync('src/data/spacetimeTableSync/syncBuildings.ts', 'utf8');
@@ -1565,8 +1573,13 @@ assert.match(serverPolicy, /assign_refuge_households/);
 assert.match(serverPolicy, /PALISADED_REFUGE_RESIDENT_CAPACITY/);
 assert.match(
   serverSimulation,
-  /raid_target_loss_fraction\(outcome\.loss_fraction, target\.sheltered\)/,
-  'each reached holding must lose stock according to its own watch-district defense',
+  /start_live_raid\([\s\S]*?&live_targets,[\s\S]*?&buildings,[\s\S]*?&towers,[\s\S]*?road_network\.as_ref\(\)/,
+  'a due frontier raid must materialize replicated people rather than resolve an abstract outcome',
+);
+assert.doesNotMatch(
+  serverSimulation,
+  /fn resolve_raid/,
+  'the authority must not retain a background raid-loss resolver',
 );
 assert.match(
   serverBuildingReducers,
@@ -1596,7 +1609,8 @@ assert.match(serverSimulation, /readiness_by_watch/);
 assert.match(serverSimulation, /raid_district_forecast/);
 assert.match(serverSimulation, /RaidTargetKind::Residence/);
 assert.match(serverSimulation, /RaidTargetKind::DeliveryTrip/);
-assert.match(serverSimulation, /building_portable_stores\(&updated\)\.plunder/);
+assert.match(serverSimulation, /pub\(super\) fn plunder_raid_target_at_contact/);
+assert.match(serverSimulation, /let plunder = before\.plunder\(loss_fraction\)/);
 assert.match(serverSimulation, /retain_unplundered_stores/);
 assert.match(
   serverSimulation,
@@ -1610,8 +1624,8 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /RaidTargetKind::TreasuryAtBuilding \| RaidTargetKind::TreasuryAtResidence[\s\S]*treasury_stores\.plunder[\s\S]*player_resources\(\)\.owner\(\)\.update\(treasury\)/,
-  'a selected treasury target must remove the same portable stores that attracted the raid',
+  /RaidTargetKind::TreasuryAtBuilding \| RaidTargetKind::TreasuryAtResidence[\s\S]*let plunder = before\.plunder\(loss_fraction\)[\s\S]*player_resources\(\)\.owner\(\)\.update\(treasury\)/,
+  'a contacted treasury seat must remove the same portable stores that attracted the raid',
 );
 const treasuryStoreSource = serverSimulation.slice(
   serverSimulation.indexOf('fn treasury_portable_stores'),
@@ -1641,9 +1655,9 @@ assert.match(
   'authoritative raid valuation and removal must include raw wool and finished cloth',
 );
 assert.match(
-  serverSimulation,
-  /raid_arson_occurs[\s\S]*district_forecast\.selected\.iter\(\)\.any[\s\S]*ignite_raid_target/,
-  'one bounded arson attempt should reuse only holdings already reached by the raid',
+  serverRaidAgents,
+  /fn record_contact_plunder[\s\S]*raid_arson_occurs[\s\S]*ignite_raid_target/,
+  'arson must be downstream of one physical raider completing contact plunder',
 );
 assert.match(
   serverSimulation,
@@ -1652,14 +1666,99 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /RaidTargetKind::DeliveryTrip[\s\S]*delivery_trip_portable_stores\(&trip\)\.plunder[\s\S]*trip\.amount[\s\S]*delivery_trip\(\)\.id\(\)\.update\(trip\)/,
-  'a selected cart must lose cargo from the same authoritative trip row that attracted the raid',
+  /RaidTargetKind::DeliveryTrip[\s\S]*let before = delivery_trip_portable_stores\(&trip\)[\s\S]*let plunder = before\.plunder\(loss_fraction\)[\s\S]*delivery_trip\(\)\.id\(\)\.update\(trip\)/,
+  'a contacted cart must lose cargo from the same authoritative trip row that attracted the raid',
 );
 assert.match(
-  serverSimulation,
-  /RaidTargetKind::DeliveryTrip => return false/,
+  serverRaidAgents,
+  /COMBAT_TARGET_DELIVERY_TRIP => None/,
   'cart interception must not turn a moving cart into a structural arson target',
 );
+assert.match(
+  serverRaidAgents,
+  /contact_distance > HOLDING_CONTACT_RANGE_METERS \* HOLDING_CONTACT_RANGE_METERS[\s\S]*move_toward\([\s\S]*return;[\s\S]*agent\.state = COMBAT_STATE_LOOTING[\s\S]*agent\.loot_progress \+= TICK_DT[\s\S]*plunder_raid_target_at_contact/,
+  'stock removal must remain unreachable until the authoritative raider enters contact range and finishes looting',
+);
+assert.match(
+  serverRaidAgents,
+  /distance <= MELEE_RANGE_METERS \* MELEE_RANGE_METERS[\s\S]*damage_by_agent\.entry\(enemy\.id\)[\s\S]*down_agent/,
+  'guards and raiders must exchange health damage only after closing to melee range',
+);
+assert.match(
+  serverRaidAgents,
+  /source_building_id: guardhouse\.id[\s\S]*source_slot: slot/,
+  'every replicated defender must be backed by an armed slot from an actual guardhouse roster',
+);
+assert.match(
+  serverRaidAgents,
+  /combat_agent\(\)[\s\S]*\.owner\(\)[\s\S]*\.filter\(&active\.owner\)[\s\S]*agent\.raid_id == active\.raid_id/,
+  'simultaneous multiplayer raids must update only their own settlement agents',
+);
+assert.match(
+  serverRaidAgents,
+  /carried_loot_json = serde_json::to_string[\s\S]*recover_stock_at\([\s\S]*agent\.x,[\s\S]*agent\.z/,
+  'stolen goods must travel on the raider and drop as recoverable physical stock when intercepted',
+);
+assert.match(serverRaidAgentPolicy, /pub const MELEE_RANGE_METERS/);
+assert.match(serverRaidAgentPolicy, /pub const HOLDING_CONTACT_RANGE_METERS/);
+assert.match(serverRaidAgentPolicy, /pub const LOOT_SECONDS:\s*f64\s*=\s*4\.0/);
+assert.match(serverRaidAgentPolicy, /\.clamp\(3\.0,\s*12\.0\)/);
+assert.match(serverRaidAgentPolicy, /fn movement_never_teleports_past_contact/);
+assert.match(
+  serverTables,
+  /accessor = combat_agent,[\s\S]*public,[\s\S]*pub struct CombatAgent[\s\S]*pub x: f64,[\s\S]*pub health: f64,[\s\S]*pub carried_loot_json: String/,
+  'combatant position, health, state, and carried loot must be authoritative replicated data',
+);
+assert.match(generatedCombatAgent, /x: __t\.f64\(\)/);
+assert.match(generatedCombatAgent, /health: __t\.f64\(\)/);
+assert.match(generatedCombatAgent, /carriedLootJson: __t\.string\(\)/);
+assert.match(app, /villagers\?\.setCombatAgents\(snapshot\.combatAgents\)/);
+assert.match(app, /formatLiveCombatSummary\(snapshot\.combatAgents\.values\(\)\)/);
+assert.match(
+  villagerRenderer,
+  /for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*id: `combat:\$\{combat\.id\}`[\s\S]*tool: 'spear'/,
+  'the ordinary crowd renderer must materialize every replicated combat row with a visible weapon',
+);
+assert.match(villagerRenderer, /activeCombatGuardSlots/);
+assert.match(villagerRenderer, /case 'fighting': return 'fight'/);
+assert.match(clientCombatAgents, /status:\s*CombatAgentStatus/);
+{
+  const combatant = (
+    id: string,
+    faction: 'guard' | 'raider',
+    status: CombatAgentState['status'],
+  ): CombatAgentState => ({
+    id,
+    raidId: '41',
+    faction,
+    sourceBuildingId: faction === 'guard' ? 'building:7' : null,
+    sourceSlot: 0,
+    targetKind: 'building',
+    targetId: 'building:9',
+    x: 10,
+    z: 20,
+    homeX: 0,
+    homeZ: 0,
+    health: status === 'downed' ? 0 : 80,
+    maxHealth: 80,
+    readiness: 0.8,
+    status,
+    attackCooldown: 0,
+    lootProgress: 0,
+    carryingLoot: false,
+    stateChangedTick: 400,
+  });
+  const liveSummary = formatLiveCombatSummary([
+    combatant('r1', 'raider', 'advancing'),
+    combatant('r2', 'raider', 'downed'),
+    combatant('g1', 'guard', 'fighting'),
+    combatant('g2', 'guard', 'downed'),
+  ]);
+  assert.match(liveSummary ?? '', /1 raider/);
+  assert.match(liveSummary ?? '', /1 guard/);
+  assert.match(liveSummary ?? '', /1 raider \/ 1 guard down/);
+  assert.equal(formatLiveCombatSummary([]), undefined);
+}
 assert.match(serverPolicy, /pub fn raid_arson_chance/);
 assert.match(serverPolicy, /defense_ratio\.clamp/);
 assert.match(serverPolicy, /WATCH_COVERAGE_CELL_SIZE:\s*f64\s*=\s*128\.0/);

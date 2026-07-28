@@ -10,6 +10,19 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const ActiveRaid = __t.object("ActiveRaid", {
+  owner: __t.identity(),
+  raidId: __t.u64(),
+  startedTick: __t.u64(),
+  enemyPressure: __t.u8(),
+  initialRaiders: __t.u32(),
+  initialGuards: __t.u32(),
+  goodsLost: __t.f64(),
+  wealthLost: __t.f64(),
+  arsonStarted: __t.bool(),
+});
+export type ActiveRaid = __Infer<typeof ActiveRaid>;
+
 export const BackyardGarden = __t.object("BackyardGarden", {
   id: __t.u64(),
   residenceId: __t.u64(),
@@ -101,6 +114,31 @@ export const BurgageZone = __t.object("BurgageZone", {
   plotCount: __t.u32(),
 });
 export type BurgageZone = __Infer<typeof BurgageZone>;
+
+export const CombatAgent = __t.object("CombatAgent", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  raidId: __t.u64(),
+  faction: __t.u8(),
+  sourceBuildingId: __t.u64(),
+  sourceSlot: __t.u32(),
+  targetKind: __t.u8(),
+  targetId: __t.u64(),
+  x: __t.f64(),
+  z: __t.f64(),
+  homeX: __t.f64(),
+  homeZ: __t.f64(),
+  health: __t.f64(),
+  maxHealth: __t.f64(),
+  readiness: __t.f64(),
+  state: __t.u8(),
+  attackCooldown: __t.f64(),
+  lootProgress: __t.f64(),
+  lootFraction: __t.f64(),
+  carriedLootJson: __t.string(),
+  stateChangedTick: __t.u64(),
+});
+export type CombatAgent = __Infer<typeof CombatAgent>;
 
 export const DeliveryTrip = __t.object("DeliveryTrip", {
   id: __t.u64(),

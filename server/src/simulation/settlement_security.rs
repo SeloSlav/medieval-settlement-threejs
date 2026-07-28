@@ -6,13 +6,14 @@ use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::economy::CommodityKind;
 use crate::frontier_economy_policy::armed_guards;
+use crate::raid_agent_policy::playable_half_for_map_size;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
-    assign_refuge_households, guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs,
-    raid_district_forecast, raid_holding_vulnerability, raid_target_can_shelter,
-    raid_target_loss_fraction, raidable_treasury_timber, scheduled_raid_ticks, threat_progress,
-    select_guardhouse_muster_watch, tower_effective_radius, RaidDistrictForecast,
+    assign_refuge_households, guardhouse_muster_efficiency, is_raid_season, raid_district_forecast,
+    raid_holding_vulnerability, raid_loss_fraction, raid_target_can_shelter, raid_target_count,
+    raid_target_loss_fraction, raidable_treasury_timber, scheduled_raid_ticks,
+    select_guardhouse_muster_watch, select_raid_targets, threat_progress, tower_effective_radius,
     RaidPortableStores, RaidTargetCandidate, RaidTargetDefenseCandidate, RaidTargetKind,
     RefugeHouseholdCandidate, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
     SECURITY_UPDATE_INTERVAL_TICKS,
@@ -21,7 +22,8 @@ use crate::tables::{
     settlement_security, Building, DeliveryTrip, PlayerResources, Residence, SettlementSecurity,
 };
 
-use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
+use super::fires::FIRE_TARGET_BUILDING;
+use super::{start_live_raid, LiveRaidTarget};
 
 struct SettlementExposure {
     protected_value: f64,
@@ -58,6 +60,7 @@ pub fn step_settlement_security(
     sim_tick: u64,
     month: u32,
     world_seed: u64,
+    map_size: u8,
     conflict_enabled: bool,
     enemy_pressure: u8,
     environment: EnvironmentState,
@@ -81,6 +84,7 @@ pub fn step_settlement_security(
             sim_tick,
             month,
             world_seed,
+            map_size,
             conflict_enabled,
             enemy_pressure,
             environment,
@@ -94,6 +98,7 @@ fn step_owner_security(
     sim_tick: u64,
     month: u32,
     world_seed: u64,
+    map_size: u8,
     conflict_enabled: bool,
     enemy_pressure: u8,
     environment: EnvironmentState,
@@ -218,6 +223,12 @@ fn step_owner_security(
     state.targets_at_risk = forecast.target_count as u32;
     state.estimated_loss_fraction = forecast.loss_fraction;
 
+    if ctx.db.active_raid().owner().find(&owner).is_some() {
+        state.threat = 1.0;
+        ctx.db.settlement_security().owner().update(state);
+        return;
+    }
+
     let ticks_per_day = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round() as u64;
     if state.next_raid_tick == 0 {
         state.last_raid_tick = sim_tick;
@@ -230,25 +241,56 @@ fn step_owner_security(
     }
 
     if sim_tick >= state.next_raid_tick && is_raid_season(month) {
-        let (goods_lost, wealth_lost, arson_started) = resolve_raid(
+        let selected = select_raid_targets(
+            &raid_targets
+                .iter()
+                .map(|candidate| candidate.target)
+                .collect::<Vec<_>>(),
+            raid_target_count(enemy_pressure),
+        );
+        let live_targets = selected
+            .into_iter()
+            .filter_map(|target| {
+                let (x, z) = raid_target_position(ctx, target.kind.as_u8(), target.id)?;
+                let coverage = if target.protected { 1.0 } else { 0.0 };
+                Some(LiveRaidTarget {
+                    kind: target.kind.as_u8(),
+                    id: target.id,
+                    x,
+                    z,
+                    loot_fraction: raid_target_loss_fraction(
+                        raid_loss_fraction(enemy_pressure, coverage),
+                        target.sheltered,
+                    ),
+                })
+            })
+            .collect::<Vec<_>>();
+        if start_live_raid(
             ctx,
             owner,
-            &district_forecast,
-            enemy_pressure,
-            world_seed ^ sim_tick ^ population as u64,
             sim_tick,
-            treasury_stores,
-        );
+            enemy_pressure,
+            world_seed,
+            playable_half_for_map_size(map_size),
+            &live_targets,
+            &buildings,
+            &towers,
+            road_network.as_ref(),
+        )
+        .is_some()
+        {
+            state.threat = 1.0;
+            ctx.db.settlement_security().owner().update(state);
+            return;
+        }
+
+        // With no stocked physical target there is no agent to dispatch and,
+        // consequently, no loss. Advance the campaign clock without inventing
+        // an off-map encounter.
         state.last_raid_tick = sim_tick;
-        state.last_goods_lost = goods_lost;
-        state.last_wealth_lost = wealth_lost;
-        state.last_outcome = if arson_started {
-            3
-        } else if goods_lost + wealth_lost <= 1e-9 {
-            1
-        } else {
-            2
-        };
+        state.last_goods_lost = 0.0;
+        state.last_wealth_lost = 0.0;
+        state.last_outcome = 1;
         state.next_raid_tick = sim_tick.saturating_add(scheduled_raid_ticks(
             enemy_pressure,
             ticks_per_day,
@@ -480,6 +522,135 @@ fn building_portable_stores(building: &Building) -> RaidPortableStores {
         barley: building.barley,
         malt: building.malt,
         flax: building.flax,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct ContactRaidPlunder {
+    pub carried: RaidPortableStores,
+    pub goods_lost: f64,
+    pub wealth_lost: f64,
+}
+
+/// Removes stock only after a replicated raider has reached this exact holding
+/// and completed its local looting timer. The returned commodity bundle stays
+/// on that agent until it escapes or drops a recoverable pile when downed.
+pub(super) fn plunder_raid_target_at_contact(
+    ctx: &ReducerContext,
+    owner: Identity,
+    target_kind: u8,
+    target_id: u64,
+    loss_fraction: f64,
+) -> ContactRaidPlunder {
+    let Some(kind) = RaidTargetKind::from_u8(target_kind) else {
+        return ContactRaidPlunder::default();
+    };
+    match kind {
+        RaidTargetKind::Building => {
+            let Some(mut building) = ctx.db.building().id().find(&target_id) else {
+                return ContactRaidPlunder::default();
+            };
+            if building.owner != owner {
+                return ContactRaidPlunder::default();
+            }
+            let before = building_portable_stores(&building);
+            let plunder = before.plunder(loss_fraction);
+            retain_unplundered_stores(&mut building, plunder.remaining);
+            ctx.db.building().id().update(building);
+            ContactRaidPlunder {
+                carried: before.removed_between(plunder.remaining),
+                goods_lost: plunder.goods_lost,
+                wealth_lost: plunder.wealth_lost,
+            }
+        }
+        RaidTargetKind::Residence => {
+            let Some(residence) = ctx.db.residence().id().find(&target_id) else {
+                return ContactRaidPlunder::default();
+            };
+            if residence.owner != owner {
+                return ContactRaidPlunder::default();
+            }
+            let fraction = if loss_fraction.is_finite() {
+                loss_fraction.clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let lost = residence.household_wealth.max(0.0) * fraction;
+            if lost <= 1e-9 {
+                return ContactRaidPlunder::default();
+            }
+            ctx.db.residence().id().update(Residence {
+                household_wealth: (residence.household_wealth - lost).max(0.0),
+                ..residence
+            });
+            ContactRaidPlunder {
+                carried: RaidPortableStores {
+                    gold: lost,
+                    ..RaidPortableStores::default()
+                },
+                goods_lost: 0.0,
+                wealth_lost: lost,
+            }
+        }
+        RaidTargetKind::DeliveryTrip => {
+            let Some(mut trip) = ctx.db.delivery_trip().id().find(&target_id) else {
+                return ContactRaidPlunder::default();
+            };
+            if trip.owner != owner {
+                return ContactRaidPlunder::default();
+            }
+            let before = delivery_trip_portable_stores(&trip);
+            let plunder = before.plunder(loss_fraction);
+            trip.amount = delivery_trip_remaining_amount(trip.cargo_kind, plunder.remaining);
+            ctx.db.delivery_trip().id().update(trip);
+            ContactRaidPlunder {
+                carried: before.removed_between(plunder.remaining),
+                goods_lost: plunder.goods_lost,
+                wealth_lost: plunder.wealth_lost,
+            }
+        }
+        RaidTargetKind::TreasuryAtBuilding | RaidTargetKind::TreasuryAtResidence => {
+            let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
+                return ContactRaidPlunder::default();
+            };
+            let buildings = ctx.db.building().owner().filter(&owner).collect::<Vec<_>>();
+            let before = treasury_portable_stores(&treasury, &buildings);
+            let plunder = before.plunder(loss_fraction);
+            retain_unplundered_treasury_stores(&mut treasury, before, plunder.remaining);
+            ctx.db.player_resources().owner().update(treasury);
+            ContactRaidPlunder {
+                carried: before.removed_between(plunder.remaining),
+                goods_lost: plunder.goods_lost,
+                wealth_lost: plunder.wealth_lost,
+            }
+        }
+    }
+}
+
+pub(super) fn raid_target_position(
+    ctx: &ReducerContext,
+    target_kind: u8,
+    target_id: u64,
+) -> Option<(f64, f64)> {
+    match RaidTargetKind::from_u8(target_kind)? {
+        RaidTargetKind::Building | RaidTargetKind::TreasuryAtBuilding => ctx
+            .db
+            .building()
+            .id()
+            .find(&target_id)
+            .map(|building| (building.x, building.z)),
+        RaidTargetKind::Residence | RaidTargetKind::TreasuryAtResidence => ctx
+            .db
+            .residence()
+            .id()
+            .find(&target_id)
+            .map(|residence| (residence.x, residence.z)),
+        RaidTargetKind::DeliveryTrip => ctx
+            .db
+            .delivery_trip()
+            .id()
+            .find(&target_id)
+            .map(|trip| (trip.x, trip.z)),
     }
 }
 
@@ -733,96 +904,4 @@ fn settlement_guard_districts(
     }
 
     (total_ready, assigned, readiness_by_watch)
-}
-
-fn resolve_raid(
-    ctx: &ReducerContext,
-    owner: Identity,
-    district_forecast: &RaidDistrictForecast,
-    enemy_pressure: u8,
-    entropy: u64,
-    sim_tick: u64,
-    treasury_stores: RaidPortableStores,
-) -> (f64, f64, bool) {
-    if district_forecast.selected.is_empty() || district_forecast.forecast.loss_fraction <= 1e-9 {
-        return (0.0, 0.0, false);
-    }
-    let mut goods_lost = 0.0;
-    let mut wealth_lost = 0.0;
-
-    for outcome in &district_forecast.selected {
-        let target = outcome.target;
-        let target_loss_fraction =
-            raid_target_loss_fraction(outcome.loss_fraction, target.sheltered);
-        match target.kind {
-            RaidTargetKind::Building => {
-                let Some(mut updated) = ctx.db.building().id().find(&target.id) else {
-                    continue;
-                };
-                let plunder = building_portable_stores(&updated).plunder(target_loss_fraction);
-                retain_unplundered_stores(&mut updated, plunder.remaining);
-                goods_lost += plunder.goods_lost;
-                wealth_lost += plunder.wealth_lost;
-                ctx.db.building().id().update(updated);
-            }
-            RaidTargetKind::Residence => {
-                let Some(residence) = ctx.db.residence().id().find(&target.id) else {
-                    continue;
-                };
-                let lost = residence.household_wealth * target_loss_fraction;
-                if lost <= 1e-9 {
-                    continue;
-                }
-                wealth_lost += lost;
-                ctx.db.residence().id().update(Residence {
-                    household_wealth: (residence.household_wealth - lost).max(0.0),
-                    ..residence
-                });
-            }
-            RaidTargetKind::DeliveryTrip => {
-                let Some(mut trip) = ctx.db.delivery_trip().id().find(&target.id) else {
-                    continue;
-                };
-                let plunder = delivery_trip_portable_stores(&trip).plunder(target_loss_fraction);
-                trip.amount = delivery_trip_remaining_amount(trip.cargo_kind, plunder.remaining);
-                goods_lost += plunder.goods_lost;
-                wealth_lost += plunder.wealth_lost;
-                ctx.db.delivery_trip().id().update(trip);
-            }
-            RaidTargetKind::TreasuryAtBuilding | RaidTargetKind::TreasuryAtResidence => {
-                let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
-                    continue;
-                };
-                let plunder = treasury_stores.plunder(target_loss_fraction);
-                retain_unplundered_treasury_stores(
-                    &mut treasury,
-                    treasury_stores,
-                    plunder.remaining,
-                );
-                goods_lost += plunder.goods_lost;
-                wealth_lost += plunder.wealth_lost;
-                ctx.db.player_resources().owner().update(treasury);
-            }
-        }
-    }
-
-    let arson_started = raid_arson_occurs(
-        enemy_pressure,
-        district_forecast.forecast.defense_ratio,
-        entropy,
-    ) && district_forecast.selected.iter().any(|outcome| {
-        let target = outcome.target;
-        let target_kind = match target.kind {
-            RaidTargetKind::Building | RaidTargetKind::TreasuryAtBuilding => FIRE_TARGET_BUILDING,
-            RaidTargetKind::Residence | RaidTargetKind::TreasuryAtResidence => {
-                FIRE_TARGET_RESIDENCE
-            }
-            // The cart has already paid the raid loss. Arson remains bound
-            // to a reached structure or occupied home.
-            RaidTargetKind::DeliveryTrip => return false,
-        };
-        ignite_raid_target(ctx, owner, target_kind, target.id, sim_tick)
-    });
-
-    (goods_lost, wealth_lost, arson_started)
 }

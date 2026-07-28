@@ -29,6 +29,7 @@ mod placement_validation;
 mod processor_labor_policy;
 mod processor_output_policy;
 mod quarry_balance;
+mod raid_agent_policy;
 mod reducers;
 mod residence_settlement_policy;
 mod residence_upgrade_policy;

@@ -10,6 +10,7 @@ export type MedievalE2eHooks = {
   getBuildingMode: () => BuildingToolMode;
   getHudTimber: () => string;
   getBuildingCount: () => number;
+  placeFoundersCampAtFirstValidSpot: () => Promise<{ x: number; z: number }>;
   placeRforesterAtFirstValidSpot: () => Promise<{ x: number; z: number }>;
 };
 
@@ -27,6 +28,7 @@ type SmokeTestHookDeps = {
 };
 
 const REFORESTER_KIND: BuildingKind = 'reforester';
+const FOUNDERS_CAMP_KIND: BuildingKind = 'founders_camp';
 const GRID_STEP = 28;
 
 export function createSmokeTestHooks(deps: SmokeTestHookDeps): MedievalE2eHooks {
@@ -36,7 +38,10 @@ export function createSmokeTestHooks(deps: SmokeTestHookDeps): MedievalE2eHooks 
     getBuildingMode: deps.getBuildingMode,
     getHudTimber: () => readHudValue('timber'),
     getBuildingCount: () => deps.getState().buildings.size,
-    placeRforesterAtFirstValidSpot: () => placeRforesterAtFirstAuthoritativeSpot(deps),
+    placeFoundersCampAtFirstValidSpot: () =>
+      placeBuildingAtFirstAuthoritativeSpot(deps, FOUNDERS_CAMP_KIND),
+    placeRforesterAtFirstValidSpot: () =>
+      placeBuildingAtFirstAuthoritativeSpot(deps, REFORESTER_KIND),
   };
 }
 
@@ -45,8 +50,9 @@ function readHudValue(resource: string): string {
   return element?.textContent?.trim() ?? '';
 }
 
-async function placeRforesterAtFirstAuthoritativeSpot(
+async function placeBuildingAtFirstAuthoritativeSpot(
   deps: SmokeTestHookDeps,
+  kind: BuildingKind,
 ): Promise<{ x: number; z: number }> {
   const half = deps.playableHalf - 40;
   const state = deps.getState();
@@ -57,7 +63,7 @@ async function placeRforesterAtFirstAuthoritativeSpot(
 
   for (let x = -half; x <= half; x += GRID_STEP) {
     for (let z = -half; z <= half; z += GRID_STEP) {
-      const validation = validateBuildingPlacement(REFORESTER_KIND, x, z, {
+      const validation = validateBuildingPlacement(kind, x, z, {
         buildings: state.buildings.values(),
         residences: state.residences.values(),
         burgageZones: state.burgageZones.values(),
@@ -72,7 +78,7 @@ async function placeRforesterAtFirstAuthoritativeSpot(
       if (!validation.ok) continue;
 
       try {
-        await deps.placeBuilding(REFORESTER_KIND, x, z);
+        await deps.placeBuilding(kind, x, z);
         return { x, z };
       } catch (error) {
         // Other smoke-test identities share the persistent local world but are
@@ -86,7 +92,7 @@ async function placeRforesterAtFirstAuthoritativeSpot(
 
   const suffix = lastRejection instanceof Error ? ` Last rejection: ${lastRejection.message}` : '';
   throw new Error(
-    `No authoritative reforester placement found after ${rejectedCandidates} server rejections.${suffix}`,
+    `No authoritative ${kind} placement found after ${rejectedCandidates} server rejections.${suffix}`,
   );
 }
 

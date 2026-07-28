@@ -2,9 +2,9 @@ use spacetimedb::{reducer, Identity, ReducerContext};
 
 use crate::db::*;
 use crate::tables::{
-    farm_field, livestock_herd, pasture, settlement_security, BackyardGarden, Building,
-    BurgageZone, DeliveryTrip, FarmField, FireIncident, LivestockHerd, Pasture, ResidenceNeed,
-    WorldConfig,
+    active_raid, farm_field, livestock_herd, pasture, settlement_security, BackyardGarden,
+    Building, BurgageZone, CombatAgent, DeliveryTrip, FarmField, FireIncident, LivestockHerd,
+    Pasture, ResidenceNeed, WorldConfig,
 };
 use crate::world_entities::clear_global_world_entities;
 
@@ -18,6 +18,18 @@ pub fn reset_world(ctx: &ReducerContext) -> Result<(), String> {
 }
 
 fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
+    for agent in ctx
+        .db
+        .combat_agent()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<CombatAgent>>()
+    {
+        ctx.db.combat_agent().id().delete(agent.id);
+    }
+    if ctx.db.active_raid().owner().find(&owner).is_some() {
+        ctx.db.active_raid().owner().delete(&owner);
+    }
     for pasture in ctx
         .db
         .pasture()
