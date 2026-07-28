@@ -1806,7 +1806,7 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /contact_distance > HOLDING_CONTACT_RANGE_METERS \* HOLDING_CONTACT_RANGE_METERS[\s\S]*move_toward\([\s\S]*return;[\s\S]*agent\.state = COMBAT_STATE_LOOTING[\s\S]*agent\.loot_progress \+= elapsed_seconds[\s\S]*plunder_raid_target_at_contact/,
+  /let contact_range = raid_contact_range\(active_raid_anchor_id\)[\s\S]*contact_distance > contact_range \* contact_range[\s\S]*move_toward\([\s\S]*return;[\s\S]*agent\.state = COMBAT_STATE_LOOTING[\s\S]*agent\.loot_progress \+= elapsed_seconds[\s\S]*plunder_raid_target_at_contact/,
   'stock removal must remain unreachable until the authoritative raider enters contact range and finishes looting',
 );
 assert.match(
@@ -1818,6 +1818,26 @@ assert.match(
   serverRaidAgents,
   /raid_agent_target_position\(ctx, agent\)[\s\S]*raid_contact_duration\(active_raid_anchor_id\)/,
   'a sheltered household must require live contact at its physical refuge for the full breach window',
+);
+assert.match(
+  serverRaidAgents,
+  /target\.raid_anchor_building_id > 0[\s\S]*refuge_assault_position\(target\.x, target\.z, entry_x, entry_z\)[\s\S]*build_incursion_route/,
+  'a sheltered raid route must terminate at an exterior approach-side breach rather than inside the refuge',
+);
+assert.match(
+  serverRaidAgents,
+  /refuge_assault_position\(anchor\.x, anchor\.z, agent\.home_x, agent\.home_z\)[\s\S]*Some\(\(assault_x, assault_z, anchor\.id\)\)/,
+  'each raider must keep targeting its physical exterior palisade assault point',
+);
+assert.match(
+  serverRaidAgentPolicy,
+  /PALISADED_REFUGE_ASSAULT_RADIUS_METERS[\s\S]*pub fn refuge_assault_position[\s\S]*pub fn raid_contact_range/,
+  'the refuge breach target and contact envelope must be explicit, pure policy',
+);
+assert.match(
+  villagerRenderer,
+  /combat\.raidAnchorBuildingId !== null[\s\S]*case 'looting': return breachingRefuge \? 'fight' : 'gather'/,
+  'a live refuge breach must visibly use the armed combat animation instead of generic gathering',
 );
 assert.match(
   serverRaidAgents,

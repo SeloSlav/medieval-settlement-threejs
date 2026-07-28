@@ -33,6 +33,14 @@ pub const MELEE_RANGE_METERS: f64 = 2.15;
 pub const GUARD_INTERCEPT_RANGE_METERS: f64 = 22.0;
 pub const RAIDER_ENGAGE_RANGE_METERS: f64 = 14.0;
 pub const HOLDING_CONTACT_RANGE_METERS: f64 = 2.8;
+// The authored refuge stakes extend to 7.45 m from the building anchor.
+// Keeping the assault point one breach-contact radius beyond that envelope
+// guarantees a raider can never begin breaching from inside the palisade,
+// even if the final road leg approaches from an unexpected direction.
+pub const PALISADED_REFUGE_OUTER_RADIUS_METERS: f64 = 7.45;
+pub const PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS: f64 = 0.7;
+pub const PALISADED_REFUGE_ASSAULT_RADIUS_METERS: f64 =
+    PALISADED_REFUGE_OUTER_RADIUS_METERS + PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS;
 pub const LOOT_SECONDS: f64 = 4.0;
 pub const DOWNED_LINGER_SECONDS: f64 = 8.0;
 pub const MAP_EDGE_INSET_METERS: f64 = 9.0;
@@ -271,6 +279,43 @@ pub fn raid_contact_duration(raid_anchor_building_id: u64) -> f64 {
         LOOT_SECONDS
     } else {
         PALISADED_REFUGE_BREACH_SECONDS.max(LOOT_SECONDS)
+    }
+}
+
+/// Places a refuge assault on the side facing the approaching raider rather
+/// than at the building anchor inside the enclosure. The circular envelope is
+/// deliberately based on the longest authored palisade radius, so it remains
+/// safe for every building yaw without adding a saved rotation field.
+pub fn refuge_assault_position(
+    refuge_x: f64,
+    refuge_z: f64,
+    approach_x: f64,
+    approach_z: f64,
+) -> (f64, f64) {
+    let refuge_x = if refuge_x.is_finite() { refuge_x } else { 0.0 };
+    let refuge_z = if refuge_z.is_finite() { refuge_z } else { 0.0 };
+    let approach_x = if approach_x.is_finite() {
+        approach_x
+    } else {
+        refuge_x
+    };
+    let approach_z = if approach_z.is_finite() {
+        approach_z
+    } else {
+        refuge_z
+    };
+    let (outward_x, outward_z) = normalized_direction(refuge_x, refuge_z, approach_x, approach_z);
+    (
+        refuge_x + outward_x * PALISADED_REFUGE_ASSAULT_RADIUS_METERS,
+        refuge_z + outward_z * PALISADED_REFUGE_ASSAULT_RADIUS_METERS,
+    )
+}
+
+pub fn raid_contact_range(raid_anchor_building_id: u64) -> f64 {
+    if raid_anchor_building_id == 0 {
+        HOLDING_CONTACT_RANGE_METERS
+    } else {
+        PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS
     }
 }
 
@@ -574,6 +619,31 @@ mod tests {
         assert_eq!(raid_contact_duration(0), LOOT_SECONDS);
         assert!(raid_contact_duration(42) > raid_contact_duration(0));
         assert_eq!(raid_contact_duration(42), PALISADED_REFUGE_BREACH_SECONDS);
+        assert_eq!(raid_contact_range(0), HOLDING_CONTACT_RANGE_METERS);
+        assert_eq!(
+            raid_contact_range(42),
+            PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS,
+        );
+    }
+
+    #[test]
+    fn refuge_assault_stays_outside_the_palisade_on_the_approach_side() {
+        let east = refuge_assault_position(10.0, 20.0, 100.0, 20.0);
+        assert!((east.0 - 10.0 - PALISADED_REFUGE_ASSAULT_RADIUS_METERS).abs() < 1e-9);
+        assert!((east.1 - 20.0).abs() < 1e-9);
+        assert!(
+            (distance(east.0, east.1, 10.0, 20.0) - PALISADED_REFUGE_ASSAULT_RADIUS_METERS).abs()
+                < 1e-9,
+        );
+        assert!(
+            PALISADED_REFUGE_ASSAULT_RADIUS_METERS - PALISADED_REFUGE_ASSAULT_CONTACT_RANGE_METERS
+                >= PALISADED_REFUGE_OUTER_RADIUS_METERS,
+            "the whole breach contact envelope must remain outside the authored stakes",
+        );
+
+        let fallback = refuge_assault_position(f64::NAN, f64::NAN, f64::NAN, f64::NAN);
+        assert_eq!(fallback.0, 0.0);
+        assert_eq!(fallback.1, PALISADED_REFUGE_ASSAULT_RADIUS_METERS);
     }
 
     #[test]

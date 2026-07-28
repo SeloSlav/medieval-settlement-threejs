@@ -8,15 +8,15 @@ use crate::raid_agent_policy::{
     combat_state_blocks_guard_slot, distance_squared, formation_spawn, guard_attack_interval,
     guard_breaks_route_for, guard_damage, guard_recovery_ticks, move_along_route, move_toward,
     nearest_emergency_guard_target, per_raider_loot_fraction, raid_contact_duration,
-    raid_entry_point, raid_party_size, raider_attack_interval, raider_damage,
-    route_shortcut_is_worthwhile, select_guard_muster_slots, EmergencyGuardTarget,
-    COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER, COMBAT_ROAD_SPEED_MULTIPLIER,
-    COMBAT_STATE_ADVANCING,
+    raid_contact_range, raid_entry_point, raid_party_size, raider_attack_interval, raider_damage,
+    refuge_assault_position, route_shortcut_is_worthwhile, select_guard_muster_slots,
+    EmergencyGuardTarget, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
+    COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING,
     COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING,
     COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING,
     COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE,
     COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE, DOWNED_LINGER_SECONDS,
-    GUARD_SPEED_MPS, HOLDING_CONTACT_RANGE_METERS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
+    GUARD_SPEED_MPS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
     RAIDER_OFFROAD_ROUTE_MULTIPLIER, RAIDER_SPEED_MPS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::{RoadNetwork, RoadPathRoute};
@@ -113,7 +113,14 @@ pub fn start_live_raid(
     }
     let incursion_routes = targets
         .iter()
-        .map(|target| build_incursion_route(road_network, entry_x, entry_z, target.x, target.z))
+        .map(|target| {
+            let (target_x, target_z) = if target.raid_anchor_building_id > 0 {
+                refuge_assault_position(target.x, target.z, entry_x, entry_z)
+            } else {
+                (target.x, target.z)
+            };
+            build_incursion_route(road_network, entry_x, entry_z, target_x, target_z)
+        })
         .collect::<Vec<_>>();
 
     ctx.db.active_raid().insert(ActiveRaid {
@@ -728,7 +735,8 @@ fn step_raider(
         return;
     };
     let contact_distance = distance_squared(agent.x, agent.z, target_x, target_z);
-    if contact_distance > HOLDING_CONTACT_RANGE_METERS * HOLDING_CONTACT_RANGE_METERS {
+    let contact_range = raid_contact_range(active_raid_anchor_id);
+    if contact_distance > contact_range * contact_range {
         agent.state = COMBAT_STATE_ADVANCING;
         agent.loot_progress = 0.0;
         if let Some(route) = incursion_route {
@@ -1008,7 +1016,9 @@ fn raid_agent_target_position(
                     && building.kind == "palisaded_refuge"
             })
         {
-            return Some((anchor.x, anchor.z, anchor.id));
+            let (assault_x, assault_z) =
+                refuge_assault_position(anchor.x, anchor.z, agent.home_x, agent.home_z);
+            return Some((assault_x, assault_z, anchor.id));
         }
     }
     raid_target_position(ctx, agent.target_kind, agent.target_id).map(|(x, z)| (x, z, 0))
@@ -1221,6 +1231,10 @@ fn step_recovering_guard(
             agent.z = agent.home_z;
             agent.state = COMBAT_STATE_RECOVERING;
             agent.state_changed_tick = sim_tick;
+            // This reconnect/interrupted-raid path obeys the same physical
+            // equipment invariant as normal raid finalization: a wounded
+            // carrier returns the issued weapon to the rack only at home.
+            agent.carried_loot_json.clear();
         } else {
             (agent.x, agent.z) = move_toward(
                 agent.x,
