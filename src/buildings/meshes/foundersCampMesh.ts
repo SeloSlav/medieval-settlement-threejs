@@ -21,6 +21,7 @@ import { markBuildingDetailShadowCaster } from '../buildingShadowProxy.ts';
 import {
   FOUNDERS_CAMP_BENCH_SEAT,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
+  FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
   FOUNDERS_CAMPFIRE_POSITION,
 } from '../foundersCampLandmarks.ts';
 
@@ -1640,33 +1641,45 @@ export function createFoundersCampMesh(): THREE.Group {
   group.add(shelters);
 
   addCampfire(shelters);
+  const benchSeatThickness = 0.18;
+  const benchSeatDepth = 0.54;
+  const benchSeatBottom = FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT
+    - benchSeatThickness;
   const benchSeat = addMesh(
     shelters,
-    new THREE.BoxGeometry(2.4, 0.18, 0.42),
+    new THREE.BoxGeometry(2.4, benchSeatThickness, benchSeatDepth),
     timberMaterial('weathered'),
     new THREE.Vector3(
       FOUNDERS_CAMP_BENCH_SEAT.supportPosition.x,
-      0.52,
+      FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT - benchSeatThickness / 2,
       FOUNDERS_CAMP_BENCH_SEAT.supportPosition.z,
     ),
   );
   benchSeat.name = 'Camp bench seat';
   for (const x of [-2.72, -1.08]) {
+    const legHeight = benchSeatBottom - 0.02;
     const leg = addMesh(
       shelters,
-      new THREE.BoxGeometry(0.18, 0.48, 0.34),
+      new THREE.BoxGeometry(0.18, legHeight, 0.38),
       timberMaterial('dark'),
-      new THREE.Vector3(x, 0.25, -0.15),
+      new THREE.Vector3(
+        x,
+        0.02 + legHeight / 2,
+        FOUNDERS_CAMP_BENCH_SEAT.supportPosition.z,
+      ),
     );
     leg.name = 'Camp bench leg';
   }
+  const stumpCapThickness = 0.05;
+  const stumpBodyHeight = FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT
+    - stumpCapThickness;
   const stumpSeat = addMesh(
     shelters,
-    new THREE.CylinderGeometry(0.38, 0.43, 0.56, 10),
+    new THREE.CylinderGeometry(0.38, 0.43, stumpBodyHeight, 10),
     timberMaterial('dark'),
     new THREE.Vector3(
       FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
-      0.28,
+      stumpBodyHeight / 2,
       FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
     ),
     new THREE.Euler(0, 0.18, 0),
@@ -1674,11 +1687,11 @@ export function createFoundersCampMesh(): THREE.Group {
   stumpSeat.name = 'Camp fireside stump seat';
   const stumpSeatTop = addMesh(
     shelters,
-    new THREE.CylinderGeometry(0.37, 0.38, 0.05, 10),
+    new THREE.CylinderGeometry(0.37, 0.38, stumpCapThickness, 10),
     timberMaterial('weathered'),
     new THREE.Vector3(
       FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
-      0.585,
+      FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT - stumpCapThickness / 2,
       FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
     ),
     new THREE.Euler(0, 0.18, 0),

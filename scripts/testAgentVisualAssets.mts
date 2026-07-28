@@ -35,6 +35,11 @@ import {
   AGENT_WORK_ANIMATION_DISTANCE,
   isWithinWorkAnimationRange,
 } from '../src/settlement/crowdView.ts';
+import {
+  seatedVillagerContactHeight,
+  villagerHeightJitter,
+} from '../src/settlement/SettlementCrowdRenderer.ts';
+import { FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT } from '../src/buildings/foundersCampLandmarks.ts';
 
 (globalThis as typeof globalThis & { self: typeof globalThis }).self = globalThis;
 
@@ -53,10 +58,12 @@ const villagerAssets = [
   {
     variant: 'man',
     path: 'public/assets/models/villagers/quaternius-villager-man.glb',
+    targetHeight: 1.72,
   },
   {
     variant: 'woman',
     path: 'public/assets/models/villagers/quaternius-villager-woman.glb',
+    targetHeight: 1.64,
   },
 ] as const;
 
@@ -98,6 +105,112 @@ for (const asset of villagerAssets) {
     sourceMesh.skeleton,
     `${asset.variant} runtime clone needs an independent rig`,
   );
+
+  const seatingGltf = await parseGlb(asset.path);
+  const sitting = seatingGltf.animations.find((clip) =>
+    clip.name.toLowerCase().endsWith('_sitting')
+  );
+  assert.ok(sitting);
+  const appearanceSeed = 0x0080_0000;
+  const seatedBounds = new THREE.Box3().setFromObject(seatingGltf.scene);
+  const seatedModel = cloneSkinned(seatingGltf.scene) as THREE.Group;
+  const seatedBaseScale = asset.targetHeight
+    / (seatedBounds.max.y - seatedBounds.min.y);
+  seatedModel.scale.setScalar(
+    seatedBaseScale * villagerHeightJitter(appearanceSeed),
+  );
+  seatedModel.position.y = -seatedBounds.min.y * seatedBaseScale + 0.012;
+  const seatedMixer = new THREE.AnimationMixer(seatedModel);
+  const seatedAction = seatedMixer.clipAction(sitting, seatedModel);
+  seatedAction.setLoop(THREE.LoopOnce, 1);
+  seatedAction.clampWhenFinished = true;
+  seatedAction.play();
+  // Advance through the transition exactly as the live mixer does. Jumping an
+  // untouched LoopOnce action directly to its endpoint can leave stale bone
+  // matrices in Three.js even though the action time itself has changed.
+  const seatingStep = 1 / 60;
+  for (
+    let elapsed = 0;
+    elapsed < sitting.duration + seatingStep;
+    elapsed += seatingStep
+  ) {
+    seatedMixer.update(seatingStep);
+  }
+  seatedModel.updateMatrixWorld(true);
+
+  const calibratedContactHeight = seatedVillagerContactHeight(
+    asset.variant,
+    appearanceSeed,
+  );
+  let actualSeatContactHeight = Number.POSITIVE_INFINITY;
+  let closestSeatContactDelta = Number.POSITIVE_INFINITY;
+  let lowestBootHeight = Number.POSITIVE_INFINITY;
+  let contactDebug = '';
+  const posedVertex = new THREE.Vector3();
+  seatedModel.traverse((object) => {
+    if (!(object instanceof THREE.SkinnedMesh)) return;
+    const position = object.geometry.getAttribute('position');
+    const skinIndex = object.geometry.getAttribute('skinIndex');
+    const skinWeight = object.geometry.getAttribute('skinWeight');
+    if (!position || !skinIndex || !skinWeight) return;
+    for (let index = 0; index < position.count; index += 1) {
+      let dominantSlot = 0;
+      let dominantWeight = skinWeight.getX(index);
+      for (let slot = 1; slot < 4; slot += 1) {
+        const weight = skinWeight.getComponent(index, slot);
+        if (weight > dominantWeight) {
+          dominantSlot = slot;
+          dominantWeight = weight;
+        }
+      }
+      const boneIndex = skinIndex.getComponent(index, dominantSlot);
+      const boneName = object.skeleton.bones[boneIndex]?.name;
+      if (boneName !== 'UpperLegL' && boneName !== 'FootL' && boneName !== 'FootR') {
+        continue;
+      }
+      posedVertex.fromBufferAttribute(position, index);
+      object.applyBoneTransform(index, posedVertex);
+      object.localToWorld(posedVertex);
+      if (boneName === 'UpperLegL') {
+        const contactDelta = Math.abs(
+          posedVertex.y - calibratedContactHeight,
+        );
+        if (contactDelta < closestSeatContactDelta) {
+          closestSeatContactDelta = contactDelta;
+          actualSeatContactHeight = posedVertex.y;
+          contactDebug = `${object.name} @ ${posedVertex.toArray().join(',')}`;
+        }
+      } else if (boneName === 'FootL' || boneName === 'FootR') {
+        lowestBootHeight = Math.min(lowestBootHeight, posedVertex.y);
+      }
+    }
+  });
+  assert.ok(
+    Math.abs(actualSeatContactHeight - calibratedContactHeight) < 0.002,
+    `${asset.variant} seat calibration must match the posed body mesh `
+      + `(actual ${actualSeatContactHeight.toFixed(4)}m, `
+      + `calibrated ${calibratedContactHeight.toFixed(4)}m, `
+      + `source height ${(seatedBounds.max.y - seatedBounds.min.y).toFixed(4)}m, `
+      + `scale ${seatedModel.scale.y.toFixed(4)}, ${contactDebug})`,
+  );
+  const seatedRootY = FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT
+    - calibratedContactHeight;
+  assert.ok(
+    Math.abs(
+      seatedRootY
+        + actualSeatContactHeight
+        - FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+    ) < 0.002,
+    `${asset.variant} butt must land on the camp bench/log surface`,
+  );
+  assert.ok(
+    lowestBootHeight + seatedRootY >= -0.005
+      && lowestBootHeight + seatedRootY <= 0.04,
+    `${asset.variant} boots must remain at ground level while seated`,
+  );
+  seatedMixer.stopAllAction();
+  seatedMixer.uncacheRoot(seatedModel);
+
   deliveryWorkerSources[asset.variant] = createDeliveryCartWorkerSource(
     asset.variant,
     gltf.scene,

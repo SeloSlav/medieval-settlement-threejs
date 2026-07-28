@@ -56,7 +56,7 @@ type BuildingPlacementContext = {
   isWaterAt: (x: number, z: number) => boolean;
   isQuarryPitAt?: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
-  countMatureTreesInRadius?: (x: number, z: number, radius: number) => number;
+  countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   roadNetwork?: RoadNetwork;
   fireDisabledBuildingIds?: ReadonlySet<string>;
 };

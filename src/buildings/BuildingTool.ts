@@ -17,6 +17,11 @@ import {
 } from '../economy/carpenterSupport.ts';
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
+import {
+  assessFoundingSite,
+  describeFoundingSiteAssessment,
+} from '../settlement/foundingSiteSuitability.ts';
 
 export type BuildingToolMode = BuildingKind | 'off';
 
@@ -54,9 +59,10 @@ type BuildingToolOptions = {
   isWaterAt: (x: number, z: number) => boolean;
   isQuarryPitAt?: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
-  countMatureTreesInRadius?: (x: number, z: number, radius: number) => number;
+  countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   getRoadNetwork?: () => RoadNetwork;
   onModeChanged: () => void;
+  onPlacementPreviewChanged?: () => void;
   onPlacementRejected?: (reason: BuildingPlacementFailureReason) => void;
   onPlacementFailed?: (message: string) => void;
   onUndoFailed?: (message: string) => void;
@@ -78,6 +84,7 @@ export class BuildingTool {
   private lastPreviewValidation: BuildingPlacementResult | null = null;
   private lastValidationTime = 0;
   private validationDirty = false;
+  private placementStatusDetail: string | null = null;
   private readonly previewMoveThreshold = 0.18;
   private readonly undoStack: BuildingPlacementUndoEntry[] = [];
   private readonly redoStack: BuildingPlacementRedoEntry[] = [];
@@ -358,6 +365,22 @@ export class BuildingTool {
     );
   }
 
+  getStatusDetail(): string | null {
+    return this.placementStatusDetail;
+  }
+
+  invalidatePreview(): void {
+    if (
+      this.mode === 'off'
+      || !Number.isFinite(this.lastPreviewX)
+      || !Number.isFinite(this.lastPreviewZ)
+    ) {
+      return;
+    }
+    this.validationDirty = true;
+    this.lastValidationTime = 0;
+  }
+
   private getPreviewValidation(x: number, z: number): BuildingPlacementResult {
     const dx = x - this.lastValidatedX;
     const dz = z - this.lastValidatedZ;
@@ -383,6 +406,7 @@ export class BuildingTool {
     this.lastPreviewValidation = result;
     this.lastValidationTime = performance.now();
     this.validationDirty = false;
+    this.updatePlacementStatusDetail(this.mode as BuildingKind, x, z, result);
     return result;
   }
 
@@ -416,6 +440,36 @@ export class BuildingTool {
     this.lastPreviewValidation = null;
     this.lastValidationTime = 0;
     this.validationDirty = false;
+    this.setPlacementStatusDetail(null);
+  }
+
+  private updatePlacementStatusDetail(
+    kind: BuildingKind,
+    x: number,
+    z: number,
+    validation: BuildingPlacementResult,
+  ): void {
+    if (kind !== 'founders_camp' || !validation.ok) {
+      this.setPlacementStatusDetail(null);
+      return;
+    }
+    const state = this.options.getState();
+    const assessment = assessFoundingSite({
+      x,
+      z,
+      sampleGroundwater: sampleAuthoritativeHydrologyScore,
+      countMatureTrees: this.options.countMatureTreesInRadius,
+      quarries: state.quarries.values(),
+      foragingNodes: state.foragingNodes.values(),
+      getHeightAt: this.options.getNaturalHeightAt,
+    });
+    this.setPlacementStatusDetail(describeFoundingSiteAssessment(assessment));
+  }
+
+  private setPlacementStatusDetail(detail: string | null): void {
+    if (detail === this.placementStatusDetail) return;
+    this.placementStatusDetail = detail;
+    this.options.onPlacementPreviewChanged?.();
   }
 
   private validate(kind: BuildingKind, x: number, z: number) {

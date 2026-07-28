@@ -38,6 +38,7 @@ import {
   type CrowdViewState,
 } from './crowdView.ts';
 import {
+  seatedVillagerContactHeight,
   SettlementCrowdRenderer,
   type CrowdRenderAgent,
   type VillagerModelVariant,
@@ -1862,9 +1863,7 @@ export class VillagerRenderer {
     agent.ambientBehavior = assignment.kind;
     agent.x = assignment.destination.x;
     agent.z = assignment.destination.z;
-    agent.y = this.resolveGroundY(agent.x, agent.z)
-      + 0.02
-      + (assignment.groundOffset ?? 0);
+    agent.y = this.resolveAmbientY(agent, assignment);
     if (assignment.lookAt) {
       agent.yaw = Math.atan2(
         assignment.lookAt.x - agent.x,
@@ -1939,9 +1938,7 @@ export class VillagerRenderer {
       && agent.routinePhase === 'home_outdoors'
       && agent.mode !== 'walk'
     ) {
-      return this.resolveGroundY(agent.x, agent.z)
-        + 0.02
-        + (ambient.groundOffset ?? 0);
+      return this.resolveAmbientY(agent, ambient);
     }
     if (
       agent.role === 'worker'
@@ -1956,6 +1953,26 @@ export class VillagerRenderer {
       }
     }
     return this.resolveGroundY(agent.x, agent.z) + 0.02;
+  }
+
+  private resolveAmbientY(
+    agent: VillagerAgent,
+    assignment: AmbientBehaviorAssignment,
+  ): number {
+    if (
+      assignment.seatSurfaceHeight !== undefined
+      && (assignment.kind === 'sit' || assignment.kind === 'rest')
+    ) {
+      const supportGroundY = this.foundingCamp
+        ? this.resolveGroundY(this.foundingCamp.x, this.foundingCamp.z)
+        : this.resolveGroundY(agent.x, agent.z);
+      return supportGroundY
+        + assignment.seatSurfaceHeight
+        - seatedVillagerContactHeight(agent.modelVariant, agent.appearanceSeed);
+    }
+    return this.resolveGroundY(agent.x, agent.z)
+      + 0.02
+      + (assignment.groundOffset ?? 0);
   }
 
   private resolveGroundY(x: number, z: number): number {

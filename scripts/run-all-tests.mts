@@ -91,6 +91,7 @@ const tests = [
   'test:processor-output-targets',
   'test:construction-logistics',
   'test:founding-site',
+  'test:starter-camp',
   'test:demolition-reclamation',
   'test:delivery-pacing',
   'test:delivery-target-selection',

@@ -427,11 +427,12 @@ export async function bootstrapAppSession(
     getNaturalHeightAt: (x, z) => sampleNaturalTerrainHeight(x, z),
     countMatureTreesInRadius: (x, z, radius) => {
       const registry = liveContext.treeRegistry;
-      if (!registry) return 0;
+      if (!registry) return null;
       return countTreesNearBuilding(liveContext.gameState, registry, x, z, radius).matureTrees;
     },
     getRoadNetwork: () => roadNetwork,
     onModeChanged: () => bridge.syncToolbar(),
+    onPlacementPreviewChanged: () => bridge.syncToolbar(),
     onPlacementRejected: (reason) => {
       ambientAudio.playUiSound('error');
       toastManager?.showMessageId(buildingPlacementReasonToToastId(reason), { variant: 'error' });

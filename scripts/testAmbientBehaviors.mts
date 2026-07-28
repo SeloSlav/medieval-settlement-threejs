@@ -10,7 +10,9 @@ import {
   FOUNDERS_CAMP_BENCH_SEAT,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
   FOUNDERS_CAMP_SEAT_LANDMARKS,
+  FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
 } from '../src/buildings/foundersCampLandmarks.ts';
+import { buildingPlacementYaw } from '../src/buildings/buildingPlacement.ts';
 import { createFoundersCampMesh } from '../src/buildings/meshes/foundersCampMesh.ts';
 import {
   FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS,
@@ -22,6 +24,10 @@ import {
   operationalMassChapels,
 } from '../src/settlement/chapelMass.ts';
 import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
+import {
+  seatedVillagerContactHeight,
+  type VillagerModelVariant,
+} from '../src/settlement/SettlementCrowdRenderer.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 
 const reusableSlots: AmbientBehaviorSlot[] = [
@@ -55,6 +61,11 @@ assert.notEqual(
 );
 
 const camp = foundersCamp();
+const campYaw = buildingPlacementYaw('founders_camp', camp.x, camp.z, null);
+const campWorld = (point: { x: number; z: number }) => ({
+  x: camp.x + Math.cos(campYaw) * point.x + Math.sin(campYaw) * point.z,
+  z: camp.z - Math.sin(campYaw) * point.x + Math.cos(campYaw) * point.z,
+});
 const actorIds = Array.from({ length: 5 }, (_, index) => `founder-camp:${index}`);
 const campPlan = planFoundersCampAmbientBehaviors(camp, actorIds, 0);
 assert.deepEqual(
@@ -80,10 +91,12 @@ for (const assignment of plannedSeats) {
     (seat) => seat.id === assignment.seatId,
   );
   assert.ok(landmark, 'every sitting/resting assignment must name a real camp seat');
-  assert.deepEqual(assignment.destination, {
-    x: camp.x + landmark.destination.x,
-    z: camp.z + landmark.destination.z,
-  });
+  assert.deepEqual(assignment.destination, campWorld(landmark.destination));
+  assert.equal(
+    assignment.seatSurfaceHeight,
+    landmark.surfaceHeight,
+    'the character pose must receive the physical support surface height',
+  );
 }
 const crowdedPlan = planFoundersCampAmbientBehaviors(
   camp,
@@ -113,8 +126,10 @@ assert.deepEqual(
 const campMesh = createFoundersCampMesh();
 const benchMesh = campMesh.getObjectByName('Camp bench seat');
 const stumpMesh = campMesh.getObjectByName('Camp fireside stump seat');
+const stumpTopMesh = campMesh.getObjectByName('Camp fireside stump seat top');
 assert.ok(benchMesh, 'the planned bench seat must have visible supporting geometry');
 assert.ok(stumpMesh, 'the fireside rest pose must have a visible stump beneath it');
+assert.ok(stumpTopMesh, 'the fireside stump must expose a visible sitting surface');
 assert.deepEqual(
   { x: benchMesh.position.x, z: benchMesh.position.z },
   FOUNDERS_CAMP_BENCH_SEAT.supportPosition,
@@ -122,6 +137,36 @@ assert.deepEqual(
 assert.deepEqual(
   { x: stumpMesh.position.x, z: stumpMesh.position.z },
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition,
+);
+const benchGeometry = (benchMesh as THREE.Mesh).geometry as THREE.BoxGeometry;
+const stumpTopGeometry = (stumpTopMesh as THREE.Mesh).geometry as THREE.CylinderGeometry;
+assert.ok(
+  Math.abs(
+    benchMesh.position.y
+      + benchGeometry.parameters.height / 2
+      - FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+  ) < 1e-9,
+  'the camp bench top must match the shared sitting surface',
+);
+assert.ok(
+  Math.abs(
+    stumpTopMesh.position.y
+      + stumpTopGeometry.parameters.height / 2
+      - FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+  ) < 1e-9,
+  'the fireside log top must match the shared sitting surface',
+);
+campMesh.position.set(camp.x, 0, camp.z);
+campMesh.rotation.y = campYaw;
+campMesh.updateMatrixWorld(true);
+const benchSupportWorld = benchMesh.getWorldPosition(new THREE.Vector3());
+const expectedBenchSupportWorld = campWorld(FOUNDERS_CAMP_BENCH_SEAT.supportPosition);
+assert.ok(
+  Math.hypot(
+    benchSupportWorld.x - expectedBenchSupportWorld.x,
+    benchSupportWorld.z - expectedBenchSupportWorld.z,
+  ) < 1e-9,
+  'behavior landmarks and the rotated camp mesh must share one world transform',
 );
 
 const chapel = chapelBuilding('chapel-connected', 45, 0);
@@ -188,7 +233,10 @@ type TestAgent = {
   personIdentity: string;
   mode: string;
   ambientBehavior: string | null;
+  appearanceSeed: number;
+  modelVariant: VillagerModelVariant;
   x: number;
+  y: number;
   z: number;
   yaw: number;
 };
@@ -222,6 +270,17 @@ assert.equal(
   FOUNDERS_CAMP_SEAT_LANDMARKS.length,
   'only the founders with physical seats should enter a seated animation',
 );
+for (const agent of agents.values()) {
+  if (agent.mode !== 'sit' && agent.mode !== 'rest') continue;
+  const assignment = campAmbientState.campAmbientAssignments.get(agent.id);
+  assert.ok(assignment?.seatSurfaceHeight !== undefined);
+  const contactHeight = agent.y
+    + seatedVillagerContactHeight(agent.modelVariant, agent.appearanceSeed);
+  assert.ok(
+    Math.abs(contactHeight - FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT) < 1e-6,
+    `${agent.modelVariant} seated body must contact the physical support top`,
+  );
+}
 const liveTalkers = [...agents.values()].filter(
   (agent) => agent.ambientBehavior === 'talk',
 );
@@ -310,8 +369,8 @@ assert.notEqual(
 const priorBenchAgent = agents.get(firstBenchOccupant)!;
 assert.ok(
   Math.hypot(
-    priorBenchAgent.x - (camp.x + FOUNDERS_CAMP_BENCH_SEAT.destination.x),
-    priorBenchAgent.z - (camp.z + FOUNDERS_CAMP_BENCH_SEAT.destination.z),
+    priorBenchAgent.x - campWorld(FOUNDERS_CAMP_BENCH_SEAT.destination).x,
+    priorBenchAgent.z - campWorld(FOUNDERS_CAMP_BENCH_SEAT.destination).z,
   ) >= 0.8,
   'a reserved seat must not be handed off until its old occupant has moved away',
 );

@@ -32,6 +32,11 @@ const TARGET_HEIGHTS = {
   man: 1.72,
   woman: 1.64,
 } as const;
+const MODEL_GROUNDING_HEIGHT = 0.012;
+const SEATED_SUPPORT_CONTACT_HEIGHTS = {
+  man: 0.39382,
+  woman: 0.38621,
+} as const;
 
 export type VillagerModelVariant = keyof typeof MODEL_URLS;
 export type VillagerRenderMode =
@@ -104,6 +109,25 @@ export type CrowdRenderAgent = {
 export type SettlementCrowdRendererOptions = {
   parent: THREE.Group;
 };
+
+export function villagerHeightJitter(appearanceSeed: number): number {
+  return 0.96 + ((appearanceSeed >>> 8) & 0xff) / 0xff * 0.08;
+}
+
+/**
+ * Height of the posed butt/upper-thigh contact patch above the render root.
+ * Values are measured from the bundled Quaternius sitting clips after their
+ * normal target-height scaling. The grounding term stays fixed at runtime;
+ * only the model scale receives the deterministic height variation.
+ */
+export function seatedVillagerContactHeight(
+  variant: VillagerModelVariant,
+  appearanceSeed: number,
+): number {
+  return MODEL_GROUNDING_HEIGHT
+    + (SEATED_SUPPORT_CONTACT_HEIGHTS[variant] - MODEL_GROUNDING_HEIGHT)
+      * villagerHeightJitter(appearanceSeed);
+}
 
 /**
  * Renders close villagers with their authored skeletal animations and all other
@@ -355,7 +379,7 @@ export class SettlementCrowdRenderer {
   private createAnimatedVillager(agent: CrowdRenderAgent): AnimatedVillager {
     const source = this.sources![agent.variant];
     const model = cloneSkinned(source.scene) as THREE.Group;
-    const heightJitter = 0.96 + ((agent.appearanceSeed >>> 8) & 0xff) / 0xff * 0.08;
+    const heightJitter = villagerHeightJitter(agent.appearanceSeed);
     const scale = source.targetHeight / source.sourceHeight * heightJitter;
     model.scale.setScalar(scale);
     model.position.y = -source.bounds.min.y * scale + 0.012;

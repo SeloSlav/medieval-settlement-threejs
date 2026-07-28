@@ -8,6 +8,7 @@ import {
   type AmbientBehaviorAssignment,
   type AmbientBehaviorSlot,
 } from './ambientBehaviors.ts';
+import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
 
 export const FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS = 24;
 
@@ -32,9 +33,17 @@ function foundersCampSlots(
 ): AmbientBehaviorSlot[] {
   if (actorCount <= 0) return [];
 
+  const campYaw = buildingPlacementYaw(
+    'founders_camp',
+    camp.x,
+    camp.z,
+    null,
+  );
+  const cosYaw = Math.cos(campYaw);
+  const sinYaw = Math.sin(campYaw);
   const world = (x: number, z: number) => ({
-    x: camp.x + x,
-    z: camp.z + z,
+    x: camp.x + cosYaw * x + sinYaw * z,
+    z: camp.z - sinYaw * x + cosYaw * z,
   });
   const fire = world(FOUNDERS_CAMPFIRE_POSITION.x, FOUNDERS_CAMPFIRE_POSITION.z);
   const conversationA = world(-0.35, -2.05);
@@ -73,7 +82,7 @@ function foundersCampSlots(
         ? world(seat.approach.x, seat.approach.z)
         : undefined,
       lookAt: world(seat.lookAt.x, seat.lookAt.z),
-      groundOffset: seat.groundOffset,
+      seatSurfaceHeight: seat.surfaceHeight,
     }),
   );
   const solo: AmbientBehaviorSlot[] = [

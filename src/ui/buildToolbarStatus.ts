@@ -105,6 +105,7 @@ export function describeBuilderHelp(mode: ToolbarStats['mode']): string {
       return `
           <li><span>Choose camp site</span><span class="road-controls-key">L-click</span></li>
           <li><span>Look for clear, dry ground</span><span class="road-controls-hint">placement preview turns valid</span></li>
+          <li><span>Compare water, timber, stone, food, and field ground</span><span class="road-controls-hint">advice only; no site is blocked</span></li>
           <li><span>Cancel tool</span><span class="road-controls-key">Esc</span></li>
         `;
     case 'idle':
@@ -126,6 +127,7 @@ export function describeBuilderHelp(mode: ToolbarStats['mode']): string {
 
 export function describeToolbarStatus(stats: ToolbarStats): string {
   if (isBuildingToolMode(stats.mode)) {
+    if (stats.statusDetail) return stats.statusDetail;
     const hint = PLACEMENT_STATUS_HINTS[stats.mode] ?? '';
     const label = getBuildingDefinition(stats.mode).label;
     const cost = stats.buildingCost ?? getBuildingCost(stats.mode);

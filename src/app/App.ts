@@ -589,6 +589,7 @@ export class App {
       (x, z) => this.sceneManager?.terrain.getHeightAt(x, z) ?? 0,
     );
     this.syncForestClearance();
+    this.buildingTool?.invalidatePreview();
     this.firstPersonController?.invalidateCollisionWorld();
     this.syncResourceUi();
     this.exposeDevHandles();
@@ -625,7 +626,11 @@ export class App {
           : buildingMode === 'off'
             ? 'idle'
             : buildingMode,
-      statusDetail: farmFieldEnabled ? this.farmFieldTool.getStatusDetail() : burgageEnabled ? this.burgageTool.getStatusDetail() : null,
+      statusDetail: farmFieldEnabled
+        ? this.farmFieldTool.getStatusDetail()
+        : burgageEnabled
+          ? this.burgageTool.getStatusDetail()
+          : this.buildingTool.getStatusDetail(),
       farmCrop: farmCrop ?? undefined,
       buildingCost: placementEconomy?.cost,
       carpenterSupported: placementEconomy?.carpenterSupported,

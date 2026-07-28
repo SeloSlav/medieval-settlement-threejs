@@ -20,6 +20,12 @@ export type AmbientBehaviorSlot = {
   lookAt?: PointXZ;
   waypoints?: readonly PointXZ[];
   groundOffset?: number;
+  /**
+   * World-space height above the supporting object's ground plane. Seated
+   * characters use this instead of a generic root lift so their posed body
+   * surface, rather than their skeleton origin, meets the physical seat.
+   */
+  seatSurfaceHeight?: number;
 };
 
 export type AmbientBehaviorAssignment = AmbientBehaviorSlot & {
