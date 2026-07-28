@@ -1,18 +1,28 @@
 import type * as THREE from 'three';
+import type { FireIncidentState } from '../fires/fireIncident.ts';
 import type { BuildingState, BurgageZoneState } from '../resources/types.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
-import type { EnvironmentState } from '../world/seasonPolicy.ts';
+import type { EnvironmentState, Season } from '../world/seasonPolicy.ts';
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import { AmbientAudio } from './AmbientAudio.ts';
 import { buildSettlementZones, evaluateAmbientRules, type AmbientRuleState } from './ambientRules.ts';
 import { ChapelBellPlayer } from './ChapelBellPlayer.ts';
 import { RiverAudio } from './RiverAudio.ts';
+import { SoundtrackAudio } from './SoundtrackAudio.ts';
+import { UiAudio } from './UiAudio.ts';
+import type { UiSoundId } from './audioCatalog.ts';
+import { FireAudio } from './FireAudio.ts';
+import {
+  isGameAudioEnabled,
+  isMusicEnabled,
+} from './audioPreferences.ts';
 
 export type AmbientAudioControllerConfig = {
   getCameraTarget: () => { x: number; z: number };
   getOrbitDistance: () => number;
   getBuildings: () => Iterable<BuildingState>;
   getBurgageZones: () => Iterable<BurgageZoneState>;
+  getFireIncidents: () => Iterable<FireIncidentState>;
   camera: THREE.Camera;
   audioParent: THREE.Object3D;
   riverLayout: RiverLayout;
@@ -24,6 +34,9 @@ export class AmbientAudioController {
   private readonly audio = new AmbientAudio();
   private readonly chapelBell = new ChapelBellPlayer();
   private readonly riverAudio: RiverAudio;
+  private readonly soundtrack = new SoundtrackAudio();
+  private readonly uiAudio = new UiAudio();
+  private readonly fireAudio: FireAudio;
   private readonly config: AmbientAudioControllerConfig;
   private readonly ambientRuleState: AmbientRuleState = { overviewActive: false, villageActive: false };
   private lastAmbientEvalAtMs = 0;
@@ -31,6 +44,9 @@ export class AmbientAudioController {
   private settlementZones: ReturnType<typeof buildSettlementZones> = [];
   private schedule: SettlementSchedule | null = null;
   private isRaining = false;
+  private season: Season = 'summer';
+  private enabled = true;
+  private musicEnabled = true;
   private running = false;
   private unlocked = false;
   private readonly onUnlock = (): void => {
@@ -47,8 +63,15 @@ export class AmbientAudioController {
       riverLayout: config.riverLayout,
       getWaterSurfaceY: config.getRiverWaterSurfaceY,
     });
+    this.fireAudio = new FireAudio({
+      getListener: config.getCameraTarget,
+      getOrbitDistance: config.getOrbitDistance,
+      getFireIncidents: config.getFireIncidents,
+    });
     config.unlockElement.addEventListener('pointerdown', this.onUnlock, { capture: true });
     window.addEventListener('keydown', this.onUnlock, { capture: true });
+    this.musicEnabled = isMusicEnabled();
+    this.setEnabled(isGameAudioEnabled());
   }
 
   start(): void {
@@ -56,14 +79,18 @@ export class AmbientAudioController {
     this.running = true;
     this.lastAmbientEvalAtMs = 0;
     this.riverAudio.start();
+    this.soundtrack.start();
   }
 
   syncSettlementSchedule(schedule: SettlementSchedule | null): void {
     this.schedule = schedule;
   }
 
-  syncEnvironment(environment: Pick<EnvironmentState, 'weather'> | null): void {
+  syncEnvironment(
+    environment: Pick<EnvironmentState, 'season' | 'weather'> | null,
+  ): void {
     this.isRaining = environment?.weather === 'rain';
+    this.season = environment?.season ?? 'summer';
   }
 
   tick(dtSeconds: number): void {
@@ -106,14 +133,25 @@ export class AmbientAudioController {
         overlayLayer: ambient.overlayLayer,
         weatherLayer: this.isRaining ? 'light_rain' : null,
       });
+      this.soundtrack.syncContext({
+        isNight: schedule?.dayNight.isNight ?? false,
+        season: this.season,
+        villageActive: ambient.state.villageActive,
+      });
     }
     this.audio.tick(dtSeconds);
     this.riverAudio.tick(dtSeconds);
+    this.fireAudio.tick(dtSeconds);
+    this.soundtrack.tick(dtSeconds);
   }
 
   setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
     this.audio.setEnabled(enabled);
     this.riverAudio.setEnabled(enabled);
+    this.fireAudio.setEnabled(enabled);
+    this.soundtrack.setEnabled(enabled && this.musicEnabled);
+    this.uiAudio.setEnabled(enabled);
     if (!enabled) {
       this.running = false;
       this.chapelBell.stop();
@@ -122,12 +160,24 @@ export class AmbientAudioController {
     }
   }
 
+  setMusicEnabled(enabled: boolean): void {
+    this.musicEnabled = enabled;
+    this.soundtrack.setEnabled(this.enabled && enabled);
+  }
+
+  playUiSound(id: UiSoundId): void {
+    this.uiAudio.play(id);
+  }
+
   dispose(): void {
     this.config.unlockElement.removeEventListener('pointerdown', this.onUnlock, { capture: true });
     window.removeEventListener('keydown', this.onUnlock, { capture: true });
     this.audio.dispose();
     this.chapelBell.dispose();
     this.riverAudio.dispose();
+    this.fireAudio.dispose();
+    this.soundtrack.dispose();
+    this.uiAudio.dispose();
     this.running = false;
     this.unlocked = false;
     this.schedule = null;

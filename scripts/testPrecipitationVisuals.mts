@@ -128,6 +128,10 @@ const rendererSource = readFileSync(
   `${projectRoot}src/weather/PrecipitationRenderer.ts`,
   'utf8',
 );
+const rendererBackendSource = readFileSync(
+  `${projectRoot}src/scene/RendererBackend.ts`,
+  'utf8',
+);
 const sceneSource = readFileSync(`${projectRoot}src/scene/SceneManager.ts`, 'utf8');
 const appSource = readFileSync(`${projectRoot}src/app/App.ts`, 'utf8');
 const roadMaterialSource = readFileSync(
@@ -164,8 +168,18 @@ const riverSystemSource = readFileSync(`${projectRoot}src/rivers/RiverSystem.ts`
 assert.match(rendererSource, /Two identical vertical tiles prevent a visible empty band/);
 assert.match(
   sceneSource,
-  /this\.terrain\.mesh\.receiveShadow\s*=\s*environment\.weather\s*!==\s*'rain'/,
-  'overcast rain must not retain terrain shadow-map dash artifacts',
+  /this\.terrain\.mesh\.receiveShadow\s*=\s*true/,
+  'terrain must receive the complete tree and building shadow atlas in every weather state',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /receiveShadow\s*=\s*environment\.weather\s*!==\s*'rain'/,
+  'rain must not disable the complete tree shadow system',
+);
+assert.match(
+  rendererBackendSource,
+  /renderer\.shadowMap\.type\s*=\s*THREE\.PCFSoftShadowMap/,
+  'tree shadows must retain the original soft PCF filtering',
 );
 assert.match(
   riverSystemSource,
@@ -316,8 +330,8 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /this\.terrain\.setRainColorMode\(environment\.weather\s*===\s*'rain'\)/,
-  'rain must enable the precomputed macro and shoreline color field',
+  /this\.terrain\.setRainColorMode\(false\)/,
+  'rain must not replace the authored grass and dirt color attributes',
 );
 assert.match(terrainSource, /private readonly rainColorAttr:\s*THREE\.BufferAttribute/);
 assert.match(terrainSource, /function createRainColorAttribute/);
@@ -331,8 +345,8 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /this\.terrain\.mesh\.material\s*=\s*environment\.weather\s*===\s*'rain'[\s\S]*?\?\s*this\.materials\.rainTerrain[\s\S]*?:\s*this\.fairTerrainMaterial/,
-  'only rain may replace the authored node terrain with the stable conventional PBR path',
+  /this\.terrain\.mesh\.material\s*=\s*this\.fairTerrainMaterial/,
+  'rain must retain the authored zoom-responsive grass and dirt material',
 );
 assert.match(
   sceneSource,
@@ -344,7 +358,7 @@ assert.match(terrainMaterialSource, /const rainMoisture = smoothstep/);
 assert.match(terrainMaterialSource, /const rainStableColorNode = rainMacroColor/);
 assert.match(
   terrainMaterialSource,
-  /TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR = 0/,
+  /TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR = 1/,
 );
 assert.match(terrainMaterialSource, /float\(0\.1\)/);
 assert.match(terrainMaterialSource, /float\(0\.32\)/);

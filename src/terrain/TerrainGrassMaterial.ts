@@ -42,11 +42,11 @@ type TslNode = {
   z: TslNode;
 };
 
-export const TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR = 0;
+export const TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR = 1;
 export const TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR = 0.04;
 export const TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR = 0.04;
 export const TERRAIN_FULL_RAIN_ROUGHNESS_DETAIL_FLOOR = 0.08;
-export const TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR = 0;
+export const TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR = 1;
 export const TERRAIN_FROST_PATCH_MIN = 0.04;
 export const TERRAIN_FROST_PATCH_MAX = 0.86;
 export const TERRAIN_FROST_MASK_SCALE = 0.82;
@@ -739,14 +739,10 @@ export function createTerrainGrassMaterialWithRiverShore(
     quarryPad,
     resolvedWeather,
   );
-  // Make the continuous terrain handoff visually complete by the normal
-  // close-orbit framing. SeedThree blade visibility still uses the original
-  // delayed LOD gate, so grass geometry does not alias at overview distance.
-  const dirtSurfaceAmount = smoothstep(
-    float(0.14) as TslNode,
-    float(0.68) as TslNode,
-    dirtAmount,
-  ) as TslNode;
+  // Preserve the complete 100-400% close-ground handoff. SeedThree blades use
+  // this same LOD band, so brown soil and physical grass arrive together
+  // instead of the soil snapping in before the authored vegetation.
+  const dirtSurfaceAmount = dirtAmount;
   const meadowWeight = sub(float(1) as TslNode, dirtSurfaceAmount) as TslNode;
   const shoreUndercoat = weatherResolvedShoreBlend.mul(float(0.58) as TslNode);
   const riparianGrass = applyRiparianEcologyColor(
@@ -789,10 +785,18 @@ export function createTerrainGrassMaterialWithRiverShore(
     dirtSurface.colorNode,
     dirtSurfaceAmount,
   );
+  // Rain resolves the meadow to a stable low-frequency color, but the close
+  // dirt layer must remain brown and textured instead of being replaced by
+  // the green rain-meadow fallback.
+  const rainStableBaseColorNode = applyCloseZoomDirtBlend(
+    blendNodes.rainStableColorNode,
+    dirtSurface.colorNode,
+    dirtSurfaceAmount,
+  );
   const wetBaseColorNode = applyTerrainWetColor(
     baseColorNode,
     stableBaseColorNode,
-    blendNodes.rainStableColorNode,
+    rainStableBaseColorNode,
     blendNodes.moisture,
     blendNodes.rainMoisture,
     resolvedWeather,

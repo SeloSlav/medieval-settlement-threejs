@@ -193,6 +193,16 @@
   accent-color: var(--accent);
 }
 
+.game-menu-option--nested {
+  padding-left: 22px;
+  color: var(--muted);
+}
+
+.game-menu-option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .game-menu-return {
   justify-self: start;
   padding: 10px 16px;

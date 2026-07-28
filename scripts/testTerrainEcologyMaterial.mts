@@ -132,8 +132,13 @@ assert.match(source, /bumpMap\(\s*bumpHeight/);
 assert.match(source, /vec3\(0\.58, 0\.46, 0\.33\)/);
 assert.match(
   source,
-  /const dirtSurfaceAmount = smoothstep\(\s*float\(0\.14\)[\s\S]*?float\(0\.68\)/,
-  'normal close-orbit framing must complete the brown soil handoff',
+  /const dirtSurfaceAmount = dirtAmount/,
+  'brown soil must retain the full gradual close-ground zoom handoff',
+);
+assert.match(
+  source,
+  /const rainStableBaseColorNode = applyCloseZoomDirtBlend\([\s\S]*?dirtSurface\.colorNode[\s\S]*?dirtSurfaceAmount/,
+  'rain must retain the authored layered dirt albedo instead of resolving to green meadow',
 );
 assert.match(source, /dirtSurface\.normalNode/);
 assert.match(source, /dirtSurface\.roughnessNode/);
@@ -175,8 +180,8 @@ assert.match(
 );
 assert.equal(
   TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR,
-  0,
-  'full rain must remove sampled albedo from the terrain result',
+  1,
+  'full rain must preserve the authored grass albedo textures',
 );
 assert.ok(
   TERRAIN_FULL_RAIN_NORMAL_DETAIL_FLOOR <= 0.05,
@@ -192,8 +197,8 @@ assert.ok(
 );
 assert.equal(
   TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR,
-  0,
-  'full rain must remove the camera-proximity dirt texture transition',
+  1,
+  'full rain must preserve the camera-proximity dirt texture transition',
 );
 assert.equal(TERRAIN_SHORE_RAIN_FADE_START, 0.08);
 assert.equal(TERRAIN_SHORE_RAIN_FADE_END, 0.72);

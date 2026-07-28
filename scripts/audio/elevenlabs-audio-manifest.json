@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "ambient-river",
+      "group": "ambient-core",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/river_water_rushing.mp3",
+      "prompt": "Seamless natural loop of a broad, fast mountain river heard from its grassy bank, layered rushing current, small rapids over stones, gentle eddies, no birds, no voices, no music, no dramatic splash, realistic outdoor ambience",
+      "durationSeconds": 30,
+      "loop": true,
+      "promptInfluence": 0.72
+    },
+    {
+      "id": "ambient-forest-day",
+      "group": "ambient-core",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/birds_wind_day.mp3",
+      "prompt": "Seamless daytime ambience in a cool Croatian mountain valley, soft wind through beech and fir trees, restrained native woodland birds at varied distances, occasional leaves, no river, no people, no music, natural and spacious",
+      "durationSeconds": 30,
+      "loop": true,
+      "promptInfluence": 0.68
+    },
+    {
+      "id": "ambient-village-day",
+      "group": "ambient-core",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/village_day.mp3",
+      "prompt": "Seamless ambience of a small peaceful late-medieval rural village at work, distant indistinct villagers, sparse hand tools, a cart wheel, chickens far away, light yard activity, no intelligible speech, no bells, no music, understated game ambience",
+      "durationSeconds": 30,
+      "loop": true,
+      "promptInfluence": 0.7
+    },
+    {
+      "id": "ambient-night",
+      "group": "ambient-core",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/night_insects.mp3",
+      "prompt": "Seamless quiet summer night in a cool mountain valley, gentle crickets and sparse nocturnal insects, faint breeze through grass and distant forest, no owl calls, no river, no people, no music, calm natural ambience",
+      "durationSeconds": 30,
+      "loop": true,
+      "promptInfluence": 0.7
+    },
+    {
+      "id": "ambient-overview-wind",
+      "group": "ambient-core",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/open_wind_overview.mp3",
+      "prompt": "Seamless high panoramic mountain-valley wind ambience, broad airy movement over forest and meadow, gentle gust variation, distant landscape scale, no close leaves, no birds, no voices, no music, never harsh",
+      "durationSeconds": 30,
+      "loop": true,
+      "promptInfluence": 0.72
+    },
+    {
+      "id": "ambient-light-rain",
+      "group": "ambient-core",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/light_rain.mp3",
+      "prompt": "Seamless steady light spring rain over grass, soil, wooden roofs and scattered leaves in a rural valley, soft diffuse rainfall, no thunder, no wind gusts, no voices, no music",
+      "durationSeconds": 30,
+      "loop": true,
+      "promptInfluence": 0.76
+    },
+    {
+      "id": "ambient-chapel-bells",
+      "group": "ambient-core",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/church_bells.mp3",
+      "prompt": "A small rural medieval chapel bell ringing a measured Angelus pattern in an open mountain valley, natural long-distance reverberation, bronze bell, restrained and devotional, no city noise, no voices, no music",
+      "durationSeconds": 24,
+      "loop": false,
+      "promptInfluence": 0.8
+    },
+    {
+      "id": "ambient-fire",
+      "group": "ambient-extra",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/fire_crackle.mp3",
+      "prompt": "Seamless close wooden hearth and campfire loop, warm restrained crackling, small ember pops, no roaring blaze, no voices, no wind, no music",
+      "durationSeconds": 30,
+      "loop": true,
+      "promptInfluence": 0.74
+    },
+    {
+      "id": "worker-cut-crop-1",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/cut_crop_1.mp3",
+      "prompt": "One-shot close Foley: a medieval hand sickle makes one clean sweeping cut through a dense bundle of dry wheat stalks, crisp straw rustle, no voice, no music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.82
+    },
+    {
+      "id": "worker-cut-crop-2",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/cut_crop_2.mp3",
+      "prompt": "One-shot close Foley variation: iron hand sickle slicing ripe wheat, a slightly heavier swish and falling stalks, no voice, no music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.82
+    },
+    {
+      "id": "worker-cut-crop-3",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/cut_crop_3.mp3",
+      "prompt": "One-shot close Foley variation: short controlled sickle stroke through field grain with fibrous cut and soft straw landing, no voice, no music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.82
+    },
+    {
+      "id": "worker-dig-soil-1",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/dig_soil_1.mp3",
+      "prompt": "One-shot close Foley: wooden-handled iron hoe bites into damp garden soil and turns a small clod, earthy and compact, no footsteps, no voice, no music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.82
+    },
+    {
+      "id": "worker-dig-soil-2",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/dig_soil_2.mp3",
+      "prompt": "One-shot close Foley variation: iron hoe scrapes and chops loamy field soil, small stones and loose dirt, no footsteps, no voice, no music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.82
+    },
+    {
+      "id": "worker-dig-soil-3",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/dig_soil_3.mp3",
+      "prompt": "One-shot close Foley variation: a hand hoe presses into soft cultivated earth and pulls soil back, subdued natural impact, no voice, no music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.82
+    },
+    {
+      "id": "worker-fishing-1",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/fishing_1.mp3",
+      "prompt": "One-shot close Foley: a small hand-thrown fishing net lands on calm river water with a broad soft splash and rope movement, no voice, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.8
+    },
+    {
+      "id": "worker-fishing-2",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/fishing_2.mp3",
+      "prompt": "One-shot close Foley variation: a fisher pulls a wet net from a river, dripping rope, water slosh and one small fish flap, no voice, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.8
+    },
+    {
+      "id": "worker-fishing-3",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/fishing_3.mp3",
+      "prompt": "One-shot close Foley variation: wooden fishing pole and line flick over river water followed by a restrained plop, no voice, no music",
+      "durationSeconds": 1.8,
+      "loop": false,
+      "promptInfluence": 0.8
+    },
+    {
+      "id": "worker-forage-1",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/forage_1.mp3",
+      "prompt": "One-shot close Foley: hands part leafy woodland undergrowth and gather berries into a wicker basket, leaves and basket weave, no voice, no music",
+      "durationSeconds": 1.7,
+      "loop": false,
+      "promptInfluence": 0.78
+    },
+    {
+      "id": "worker-forage-2",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/forage_2.mp3",
+      "prompt": "One-shot close Foley variation: mushrooms gently pulled from damp forest litter and placed in a wicker basket, soft leaves and twigs, no voice, no music",
+      "durationSeconds": 1.7,
+      "loop": false,
+      "promptInfluence": 0.78
+    },
+    {
+      "id": "worker-forage-3",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/forage_3.mp3",
+      "prompt": "One-shot close Foley variation: brief rummage through forest herbs and dry leaves followed by a soft wicker basket tap, no voice, no music",
+      "durationSeconds": 1.7,
+      "loop": false,
+      "promptInfluence": 0.78
+    },
+    {
+      "id": "worker-livestock-1",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/livestock_1.mp3",
+      "prompt": "Short pastoral one-shot: close sheep wool and grass movement with one quiet distant bleat, restrained farm ambience, no human voice, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.75
+    },
+    {
+      "id": "worker-livestock-2",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/livestock_2.mp3",
+      "prompt": "Short pastoral one-shot variation: a pig roots softly in straw and soil beside a wooden pen, one subdued grunt, no human voice, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.75
+    },
+    {
+      "id": "worker-livestock-3",
+      "group": "worker-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/workers/livestock_3.mp3",
+      "prompt": "Short pastoral one-shot variation: herder shifts a simple wooden gate, grass rustle and a very soft sheep bleat, no human voice, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.75
+    },
+    {
+      "id": "ui-road-place",
+      "group": "ui",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/road_place.mp3",
+      "prompt": "Very short tactile strategy-game UI confirmation: small wooden marker pressed into compact dirt with a tiny gravel crunch, dry, satisfying, no melody, no voice",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.85
+    },
+    {
+      "id": "ui-building-place",
+      "group": "ui",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/building_place.mp3",
+      "prompt": "Very short tactile strategy-game UI confirmation: wooden beam settles onto stone with one compact mallet knock, warm and satisfying, no melody, no voice",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.85
+    },
+    {
+      "id": "ui-confirm",
+      "group": "ui",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/confirm.mp3",
+      "prompt": "Tiny unobtrusive medieval strategy-game UI confirm sound, a light wooden token click with a faint soft metal accent, no melody, no voice",
+      "durationSeconds": 0.6,
+      "loop": false,
+      "promptInfluence": 0.85
+    },
+    {
+      "id": "ui-error",
+      "group": "ui",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/error.mp3",
+      "prompt": "Tiny restrained strategy-game invalid-action sound, a dull wooden clack with a soft low ceramic knock, informative not alarming, no melody, no voice",
+      "durationSeconds": 0.7,
+      "loop": false,
+      "promptInfluence": 0.85
+    },
+    {
+      "id": "music-valley-first-light",
+      "group": "soundtrack",
+      "kind": "music",
+      "output": "public/sounds/music/valley_at_first_light.mp3",
+      "prompt": "Instrumental background score for a calm medieval settlement strategy game at first light in a cool Croatian mountain valley. Intimate South Slavic folk-inspired acoustic palette: breathy wooden flute, quiet plucked strings, bowed folk strings and sparse hand percussion. Pastoral, hopeful, patient, organic and understated. Slow evolving structure suitable beneath gameplay, no vocals, no choir, no cinematic trailer swells, no modern synths, no abrupt ending.",
+      "musicLengthMs": 120000,
+      "forceInstrumental": true
+    },
+    {
+      "id": "music-roads-rooftops",
+      "group": "soundtrack",
+      "kind": "music",
+      "output": "public/sounds/music/roads_and_rooftops.mp3",
+      "prompt": "Instrumental background score for a growing late-medieval rural settlement. Warm plucked folk strings, wooden flute, gentle bowed drone, frame drum used sparingly, subtle rhythmic motion suggesting carts, craft and road building. South Slavic mountain character without quoting any existing tune. Optimistic but humble, highly listenable under long strategy gameplay, no vocals, no choir, no brass fanfare, no modern production, no abrupt ending.",
+      "musicLengthMs": 120000,
+      "forceInstrumental": true
+    },
+    {
+      "id": "music-vespers",
+      "group": "soundtrack",
+      "kind": "music",
+      "output": "public/sounds/music/vespers_over_the_valley.mp3",
+      "prompt": "Instrumental twilight and night background score for a medieval mountain village. Sparse bowed folk strings, low wooden flute, delicate plucked strings and a soft sustained drone. Reflective, devotional, safe hearths beneath a vast dark valley, slightly mysterious but never ominous. Slow and spacious for strategy gameplay, no vocals, no choir, no bells, no modern synths, no horror, no abrupt ending.",
+      "musicLengthMs": 120000,
+      "forceInstrumental": true
+    },
+    {
+      "id": "music-winter-hearth",
+      "group": "soundtrack",
+      "kind": "music",
+      "output": "public/sounds/music/winter_hearth.mp3",
+      "prompt": "Instrumental winter background score for a medieval settlement surviving frost in a Croatian mountain valley. Close wooden flute, restrained bowed strings, quiet plucked folk instrument and deep warm drone, fragile cold air resolving into hearth-like warmth. Patient, resilient and contemplative for long strategy gameplay, no vocals, no choir, no sleigh bells, no modern synths, no epic trailer style, no abrupt ending.",
+      "musicLengthMs": 120000,
+      "forceInstrumental": true
+    }
+  ]
+}

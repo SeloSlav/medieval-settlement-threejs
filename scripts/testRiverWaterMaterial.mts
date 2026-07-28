@@ -82,29 +82,65 @@ assert.equal(grassBladeLodOpacity(-1), 0);
 assert.equal(grassBladeLodOpacity(GRASS_BLADE_LOD_VISIBILITY_THRESHOLD), 0);
 assert.equal(grassBladeLodOpacity(1), 1);
 assert.equal(grassBladeLodOpacity(2), 1);
+assert.equal(
+  GRASS_BLADE_LOD_VISIBILITY_THRESHOLD,
+  0,
+  'SeedThree blades must begin in the same LOD band as the brown soil',
+);
 const overviewGrassLod = grassBladeRevealOpacity(42);
 assert.ok(
   grassBladeLodOpacity(overviewGrassLod) < overviewGrassLod,
-  'overview grass clumps must fade later than the continuous terrain dirt blend',
+  'early grass clumps must remain subtler than the continuous terrain dirt blend',
 );
 assert.equal(
   isGrassBladeZoomActive(42),
-  false,
-  'review-scale grass clumps must not collapse into detached alpha-tested specks',
+  true,
+  'normal close-orbit grass must be visible while the brown dirt is blending',
 );
 assert.equal(
   CLOSE_GROUND_FADE_START_ZOOM_PERCENT,
-  130,
-  'strategic meadow must hand off to authored dirt soon after the 125% overview framing',
+  100,
+  'the reference orbit must begin the gradual authored dirt handoff',
 );
 assert.equal(
-  dirtZoomGate(BASELINE_CAMERA_DISTANCE / 1.25),
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE),
   0,
-  '125% strategic overview must remain fully grass-covered',
+  '100% strategic overview must remain meadow-led at the start of the transition',
 );
+assert.equal(
+  isGrassBladeZoomActive(BASELINE_CAMERA_DISTANCE),
+  false,
+  'SeedThree blades must remain off before the shared close-ground transition begins',
+);
+const refreshedCloseGroundLod = dirtZoomGate(BASELINE_CAMERA_DISTANCE / 1.25);
 assert.ok(
-  dirtZoomGate(BASELINE_CAMERA_DISTANCE / 2.1) > 0.65,
-  '210% orbit view must visibly reveal authored dirt instead of reading as flat green',
+  refreshedCloseGroundLod > 0.2 && refreshedCloseGroundLod < 0.35,
+  'the normal refreshed close view must already reveal dirt without completing the handoff',
+);
+assert.equal(
+  isGrassBladeZoomActive(BASELINE_CAMERA_DISTANCE / 1.25),
+  true,
+  'SeedThree blades must accompany dirt in the normal refreshed close view',
+);
+const earlyCloseGroundLod = dirtZoomGate(BASELINE_CAMERA_DISTANCE / 1.5);
+assert.ok(
+  earlyCloseGroundLod > 0.45 && earlyCloseGroundLod < 0.6,
+  '150% orbit view must remain a balanced soil-and-grass transition',
+);
+assert.equal(
+  isGrassBladeZoomActive(BASELINE_CAMERA_DISTANCE / 1.5),
+  true,
+  'SeedThree blades must begin alongside the first visible brown soil',
+);
+assert.equal(
+  grassBladeRevealOpacity(BASELINE_CAMERA_DISTANCE / 2.1),
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE / 2.1),
+  'SeedThree blades and brown soil must use the same zoom transition',
+);
+const normalCloseGroundLod = dirtZoomGate(BASELINE_CAMERA_DISTANCE / 2.1);
+assert.ok(
+  normalCloseGroundLod > 0.8 && normalCloseGroundLod < 0.88,
+  '210% orbit view must clearly show dirt while still retaining a gradual handoff',
 );
 assert.equal(
   dirtZoomGate(BASELINE_CAMERA_DISTANCE / (CLOSE_GROUND_FULL_ZOOM_PERCENT / 100)),

@@ -5,12 +5,11 @@ export const BASELINE_CAMERA_DISTANCE = 88;
 export const CLOSE_GROUND_FULL_ZOOM_PERCENT = 400;
 
 /**
- * Close ground detail begins fading in above this zoom. Keeping the threshold
- * just beyond the strategic 100-125% framing preserves the broad meadow read,
- * while restoring the authored dirt texture before the camera is nearly at
- * first-person height.
+ * Close ground detail begins fading in above the 100% reference view. The
+ * broad 100-400% band keeps strategic framing meadow-led while ensuring the
+ * normal refreshed close view already contains authored dirt and grass blades.
  */
-export const CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 130;
+export const CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 100;
 
 /** World quarry map icons appear at this zoom and below. */
 export const MAP_ICON_MAX_ZOOM_PERCENT = 50;
@@ -27,7 +26,7 @@ export const DIRT_FADE_START_ZOOM_PERCENT = CLOSE_GROUND_FADE_START_ZOOM_PERCENT
 /** Pow easing on the zoom gate (< 1 = detail ramps in gradually across the fade band). */
 export const DIRT_BLEND_EASE = 0.72;
 
-/** Orbit distances matching the 130% / 400% close-ground zoom band. */
+/** Orbit distances matching the 100% / 400% close-ground zoom band. */
 export const TERRAIN_DIRT_CLOSE_DISTANCE =
   BASELINE_CAMERA_DISTANCE / (DIRT_REVEAL_ZOOM_PERCENT / 100);
 
@@ -87,7 +86,7 @@ export function grassStreamNearRadius(firstPersonActive: boolean): number {
 /** Soft falloff band at the outer edge of the grass patch (world units). */
 export const GRASS_EDGE_FADE_BAND = 24;
 
-/** 0 below 130% zoom → 1 at 400% zoom; shared by dirt, grass tufts, and reeds. */
+/** Shared dirt and SeedThree transition: 0 at 100% zoom, 1 at 400%. */
 export function dirtZoomGate(cameraDistance: number): number {
   const t = smoothstep(TERRAIN_DIRT_CLOSE_DISTANCE, TERRAIN_DIRT_FAR_DISTANCE, cameraDistance);
   return Math.pow(1 - t, DIRT_BLEND_EASE);
@@ -102,11 +101,11 @@ export const REED_LOD_VISIBILITY_THRESHOLD = 0.96;
 export const REED_LOD_OPACITY_POWER = 2;
 
 /**
- * Alpha-tested clumps turn into detached dark texels when the shared dirt gate
- * is still faint at overview scale. Keep the terrain's continuous dirt blend,
- * but delay the 3D clumps until their silhouettes read as grass.
+ * SeedThree grass blades share the complete close-ground transition with the
+ * brown soil beneath them. The eased opacity keeps their alpha-tested cards
+ * subtle at the beginning of the blend without delaying them to another LOD.
  */
-export const GRASS_BLADE_LOD_VISIBILITY_THRESHOLD = 0.96;
+export const GRASS_BLADE_LOD_VISIBILITY_THRESHOLD = 0;
 export const GRASS_BLADE_LOD_OPACITY_POWER = 1.35;
 
 export function grassBladeRevealOpacity(cameraDistance: number): number {

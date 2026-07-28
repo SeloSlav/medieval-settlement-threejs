@@ -248,6 +248,7 @@ export async function bootstrapAppSession(
     },
     getBuildings: () => liveContext.gameState.buildings.values(),
     getBurgageZones: () => liveContext.gameState.burgageZones.values(),
+    getFireIncidents: () => liveContext.gameState.fireIncidents.values(),
   });
 
   const worldQueries = new WorldQueries({
@@ -369,6 +370,7 @@ export async function bootstrapAppSession(
       roadSelection.refresh();
       bridge.syncToolbar();
       spacetimeStore.queueRoadSync(roadNetwork.snapshot());
+      ambientAudio.playUiSound('road_place');
     },
     onStateChanged: () => bridge.syncToolbar(),
     isBlocked: () => isRoadPlacementBlocked(placementGate),
@@ -386,6 +388,7 @@ export async function bootstrapAppSession(
       });
     },
     onPlacementRejected: (event) => {
+      ambientAudio.playUiSound('error');
       const messageId = roadPlacementReasonToToastId(event.reason);
       if (messageId) toastManager?.showMessageId(messageId, { variant: 'error' });
     },
@@ -399,6 +402,7 @@ export async function bootstrapAppSession(
     onPlaceBuilding: async (kind, x, z) => {
       requireSessionReady();
       await spacetimeStore.placeBuilding(kind, x, z);
+      ambientAudio.playUiSound('building_place');
     },
     onDemolishBuilding: async (buildingId) => {
       requireSessionReady();
@@ -415,9 +419,11 @@ export async function bootstrapAppSession(
     getRoadNetwork: () => roadNetwork,
     onModeChanged: () => bridge.syncToolbar(),
     onPlacementRejected: (reason) => {
+      ambientAudio.playUiSound('error');
       toastManager?.showMessageId(buildingPlacementReasonToToastId(reason), { variant: 'error' });
     },
     onPlacementFailed: (message) => {
+      ambientAudio.playUiSound('error');
       toastManager?.show(message, { variant: 'error' });
     },
     onUndoFailed: (message) => {
@@ -446,6 +452,7 @@ export async function bootstrapAppSession(
         frontageEdge: commit.frontageEdge,
         plotCount: commit.plotCount,
       });
+      ambientAudio.playUiSound('building_place');
     },
     onDemolishBurgageZone: async (zoneId) => {
       requireSessionReady();
@@ -453,6 +460,7 @@ export async function bootstrapAppSession(
     },
     onModeChanged: () => bridge.syncToolbar(),
     onPlacementRejected: (reason) => {
+      ambientAudio.playUiSound('error');
       toastManager?.showMessageId(burgagePlacementReasonToToastId(reason), { variant: 'error' });
     },
     onPlacementFailed: (message) => {
@@ -513,16 +521,21 @@ export async function bootstrapAppSession(
     onCommit: async (input) => {
       requireSessionReady();
       await spacetimeStore.placeFarmField(input);
+      ambientAudio.playUiSound('confirm');
     },
     onCommitPasture: async (input) => {
       requireSessionReady();
       await spacetimeStore.placePasture(input);
+      ambientAudio.playUiSound('confirm');
     },
     onModeChanged: () => bridge.syncToolbar(),
-    onPlacementRejected: (reason) => toastManager?.show(
-      fieldFailureMessage(farmFieldTool.getMode(), reason),
-      { variant: 'error' },
-    ),
+    onPlacementRejected: (reason) => {
+      ambientAudio.playUiSound('error');
+      toastManager?.show(
+        fieldFailureMessage(farmFieldTool.getMode(), reason),
+        { variant: 'error' },
+      );
+    },
     onPlacementFailed: (message) => toastManager?.show(message, { variant: 'error' }),
     onCropChanged: (crop, recommendation) => toastManager?.show(
       `${crop[0].toUpperCase()}${crop.slice(1)} selected · ${recommendation}.`,
@@ -670,6 +683,12 @@ export async function bootstrapAppSession(
     },
     onMenuOpenChange: (open) => {
       cameraController.setInputEnabled(!open && !firstPersonController.isActive());
+    },
+    onAudioEnabledChange: (enabled) => {
+      ambientAudio.setEnabled(enabled);
+    },
+    onMusicEnabledChange: (enabled) => {
+      ambientAudio.setMusicEnabled(enabled);
     },
     onShadowPreferenceChange: () => {
       sceneManager.applyShadowPreferences();

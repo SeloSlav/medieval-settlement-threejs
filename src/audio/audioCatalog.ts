@@ -5,13 +5,33 @@ export type AmbientLayerId =
   | 'open_wind_overview'
   | 'light_rain';
 
+export type MusicTrackId =
+  | 'valley_at_first_light'
+  | 'roads_and_rooftops'
+  | 'vespers_over_the_valley'
+  | 'winter_hearth';
+
 export type AudioClipDefinition = {
   path: string;
   volume?: number;
   loop?: boolean;
 };
 
-export type WorkerActivitySoundKind = 'chop' | 'mine' | 'build';
+export type WorkerActivitySoundKind =
+  | 'chop'
+  | 'mine'
+  | 'build'
+  | 'cut_crop'
+  | 'dig'
+  | 'fish'
+  | 'forage'
+  | 'livestock';
+
+export type UiSoundId =
+  | 'road_place'
+  | 'building_place'
+  | 'confirm'
+  | 'error';
 
 export const AMBIENT_LAYERS: Record<AmbientLayerId, AudioClipDefinition> = {
   birds_wind_day: { path: '/sounds/ambient/birds_wind_day.mp3', volume: 0.2, loop: true },
@@ -34,13 +54,48 @@ export const RIVER_WATER_CLIP: AudioClipDefinition = {
   loop: true,
 };
 
+/** Context-selected, non-looping score with deliberate silence between cues. */
+export const MUSIC_TRACKS: Record<MusicTrackId, AudioClipDefinition> = {
+  valley_at_first_light: {
+    path: '/sounds/music/valley_at_first_light.mp3',
+    volume: 0.08,
+  },
+  roads_and_rooftops: {
+    path: '/sounds/music/roads_and_rooftops.mp3',
+    volume: 0.08,
+  },
+  vespers_over_the_valley: {
+    path: '/sounds/music/vespers_over_the_valley.mp3',
+    volume: 0.075,
+  },
+  winter_hearth: {
+    path: '/sounds/music/winter_hearth.mp3',
+    volume: 0.078,
+  },
+};
+
+/** Authorized Selo Empire asset, heard only beside actively worked grain fields. */
+export const FARM_WORKERS_SINGING_CLIP: AudioClipDefinition = {
+  path: '/sounds/ambient/farm_workers_singing.mp3',
+  volume: 0.14,
+  loop: true,
+};
+
+/** Shared close-range loop that follows the nearest actively burning structure. */
+export const FIRE_CRACKLE_CLIP: AudioClipDefinition = {
+  path: '/sounds/ambient/fire_crackle.mp3',
+  volume: 0.24,
+  loop: true,
+};
+
 function workerActivityVariants(
   baseName: string,
   count = 4,
+  volume = 0.12,
 ): readonly AudioClipDefinition[] {
   return Array.from({ length: count }, (_, index) => ({
     path: `/sounds/workers/${baseName}_${index + 1}.mp3`,
-    volume: 0.12,
+    volume,
   }));
 }
 
@@ -51,4 +106,16 @@ export const WORKER_ACTIVITY_CLIPS: Record<
   chop: workerActivityVariants('chop_wood'),
   mine: workerActivityVariants('mine_stone'),
   build: workerActivityVariants('hammer_wood'),
+  cut_crop: workerActivityVariants('cut_crop', 3, 0.075),
+  dig: workerActivityVariants('dig_soil', 3, 0.08),
+  fish: workerActivityVariants('fishing', 3, 0.08),
+  forage: workerActivityVariants('forage', 3, 0.065),
+  livestock: workerActivityVariants('livestock', 3, 0.07),
+};
+
+export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
+  road_place: { path: '/sounds/ui/road_place.mp3', volume: 0.34 },
+  building_place: { path: '/sounds/ui/building_place.mp3', volume: 0.34 },
+  confirm: { path: '/sounds/ui/confirm.mp3', volume: 0.28 },
+  error: { path: '/sounds/ui/error.mp3', volume: 0.3 },
 };

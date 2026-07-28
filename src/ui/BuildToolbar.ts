@@ -243,6 +243,8 @@ export class BuildToolbar {
       onNewWorld?: () => void;
       onGrantCheatResources?: (amount: number) => Promise<void>;
       onSetGameSpeed?: (speed: GameSpeed) => void;
+      onAudioEnabledChange?: (enabled: boolean) => void;
+      onMusicEnabledChange?: (enabled: boolean) => void;
     },
   ) {
     root.innerHTML = `
@@ -428,6 +430,8 @@ export class BuildToolbar {
       canOpenFromKeyboard: handlers.canOpenMenuFromKeyboard,
       onNewWorld: handlers.onNewWorld,
       onGrantCheatResources: handlers.onGrantCheatResources,
+      onAudioEnabledChange: handlers.onAudioEnabledChange,
+      onMusicEnabledChange: handlers.onMusicEnabledChange,
       showButton: false,
     });
 

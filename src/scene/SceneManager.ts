@@ -729,14 +729,15 @@ export class SceneManager {
 
   setEnvironment(environment: EnvironmentState): void {
     this.environment = environment;
-    this.terrain.setRainColorMode(environment.weather === 'rain');
-    this.terrain.mesh.material = environment.weather === 'rain'
-      ? this.materials.rainTerrain
-      : this.fairTerrainMaterial;
-    // Overcast rain has no crisp ground shadows. Disabling terrain reception
-    // also prevents sub-pixel shadow-map dashes along the carved river valley;
-    // objects retain their own shading and dry/frost shadowing is unchanged.
-    this.terrain.mesh.receiveShadow = environment.weather !== 'rain';
+    // Keep the authored zoom-responsive terrain material in rain. The old
+    // conventional rain fallback flattened every close view into a plain green
+    // field and discarded the layered dirt system entirely.
+    this.terrain.setRainColorMode(false);
+    this.terrain.mesh.material = this.fairTerrainMaterial;
+    // Keep the complete authored tree/building shadow atlas in every weather
+    // state. Rain softens the directional key through its lighting profile,
+    // but must not erase contact shadows from the terrain.
+    this.terrain.mesh.receiveShadow = true;
     this.materials.setEnvironment(environment);
     this.precipitation.setEnvironment(environment);
     this.forestManager?.setDeciduousDormancy(environment.season === 'winter' ? 1 : 0);

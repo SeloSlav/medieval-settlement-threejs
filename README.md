@@ -213,7 +213,7 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 - Animated volumetric-style sky and cloud dome with wind-driven motion.
 - Season-aware rain and snow particles with matching sunlight, fog, and color treatment.
 - Directional sun lighting, exponential fog, soft shadow maps, and shadow bounds fitting.
-- Ambient audio — wind and village ambience that intensifies when the camera nears your settlement, plus distance- and zoom-aware chapel bells.
+- Layered game audio — day/night ambience, rain, spatial river water, distance- and zoom-aware chapel bells, close worker Foley, farm-worker singing, and a sparse contextual instrumental score. See [the ElevenLabs audio pipeline](docs/AUDIO_PIPELINE.md).
 
 ### Rendering & UI
 
@@ -396,7 +396,7 @@ See `docs/design/server-authoritative-connection.md` for the full connection mod
 ```text
 src/
   app/        App bootstrap and frame loop
-  audio/      Ambient wind and village audio driven by camera proximity
+  audio/      Layered ambience, spatial river audio, worker Foley, farm song, and contextual score
   buildings/  Building placement tool, meshes, markers, terrain pads, and validation
   camera/     RTS orbit camera, first-person controller, and locomotion helpers
   data/       SpacetimeDB game store (replicated state)

@@ -27,7 +27,11 @@ import {
 } from '../residences/householdRoutine.ts';
 import { polylineLengthXZ, samplePolylineXZ, type PointXZ } from '../utils/pathGeometry.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
-import { WorkerActivityAudio } from '../audio/WorkerActivityAudio.ts';
+import {
+  WorkerActivityAudio,
+  type WorkerActivitySoundSource,
+} from '../audio/WorkerActivityAudio.ts';
+import { FarmWorkerSongAudio } from '../audio/FarmWorkerSongAudio.ts';
 import {
   CROWD_SIM_DT,
   isWithinCrowdView,
@@ -170,6 +174,7 @@ export type VillagerRendererOptions = {
 export class VillagerRenderer {
   private readonly renderer: SettlementCrowdRenderer;
   private readonly activityAudio = new WorkerActivityAudio();
+  private readonly farmWorkerSongAudio = new FarmWorkerSongAudio();
   private readonly getGameSpeed: () => GameSpeed;
   private readonly getHeightAt: (x: number, z: number) => number;
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
@@ -675,6 +680,7 @@ export class VillagerRenderer {
   dispose(): void {
     this.agents.clear();
     this.activityAudio.dispose();
+    this.farmWorkerSongAudio.dispose();
     this.renderer.dispose();
   }
 
@@ -808,19 +814,68 @@ export class VillagerRenderer {
     if (audioDt > 0) {
       this.activityAudio.tick(
         audioDt,
-        renderAgents.flatMap((agent) => (
-          agent.mode === 'chop' || agent.mode === 'mine' || agent.mode === 'build'
+        renderAgents.flatMap((agent) => {
+          const source = this.workerActivitySoundSource(agent);
+          return source ? [source] : [];
+        }),
+        activeView,
+      );
+      this.farmWorkerSongAudio.tick(
+        audioDt,
+        renderAgents.flatMap((renderAgent) => {
+          const agent = this.agents.get(renderAgent.id);
+          const workplace = agent?.workplaceId
+            ? this.buildings.get(agent.workplaceId)
+            : null;
+          return (
+            agent?.mode === 'tend'
+            && workplace?.kind === 'threshing_barn'
+          )
             ? [{
-                id: agent.id,
-                mode: agent.mode,
-                x: agent.x,
-                z: agent.z,
+                id: renderAgent.id,
+                x: renderAgent.x,
+                z: renderAgent.z,
               }]
-            : []
-        )),
+            : [];
+        }),
         activeView,
       );
     }
+  }
+
+  private workerActivitySoundSource(
+    renderAgent: CrowdRenderAgent,
+  ): WorkerActivitySoundSource | null {
+    const agent = this.agents.get(renderAgent.id);
+    const workplace = agent?.workplaceId
+      ? this.buildings.get(agent.workplaceId)
+      : null;
+    const mode = renderAgent.mode === 'chop'
+      || renderAgent.mode === 'mine'
+      || renderAgent.mode === 'build'
+      ? renderAgent.mode
+      : renderAgent.mode === 'plant'
+        ? 'dig'
+        : renderAgent.mode === 'fish'
+          ? 'fish'
+          : renderAgent.mode === 'gather'
+            ? 'forage'
+            : renderAgent.mode === 'tend'
+              ? workplace?.kind === 'threshing_barn'
+                ? 'cut_crop'
+                : workplace?.kind === 'pastoral_farmstead'
+                  || workplace?.kind === 'swineherd'
+                  ? 'livestock'
+                  : null
+              : null;
+    return mode
+      ? {
+          id: renderAgent.id,
+          mode,
+          x: renderAgent.x,
+          z: renderAgent.z,
+        }
+      : null;
   }
 
   private simStep(agent: VillagerAgent, dt: number): void {

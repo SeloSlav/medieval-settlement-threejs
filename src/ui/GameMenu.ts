@@ -9,12 +9,20 @@ import {
   setConstellationGuidesEnabled,
 } from '../scene/constellationPreference.ts';
 import { GameControlsModal } from './GameControlsModal.ts';
+import {
+  isGameAudioEnabled,
+  isMusicEnabled,
+  setGameAudioEnabled,
+  setMusicEnabled,
+} from '../audio/audioPreferences.ts';
 
 type GameMenuOptions = {
   onShadowPreferenceChange: () => void;
   onOpenChange?: (open: boolean) => void;
   onNewWorld?: () => void;
   onGrantCheatResources?: (amount: number) => Promise<void>;
+  onAudioEnabledChange?: (enabled: boolean) => void;
+  onMusicEnabledChange?: (enabled: boolean) => void;
   showButton?: boolean;
   /** When false, Escape will not open the menu (e.g. first-person walk mode). */
   canOpenFromKeyboard?: () => boolean;
@@ -26,6 +34,8 @@ export class GameMenu {
   private readonly treeShadowsCheckbox: HTMLInputElement;
   private readonly buildingShadowsCheckbox: HTMLInputElement;
   private readonly constellationGuidesCheckbox: HTMLInputElement;
+  private readonly gameAudioCheckbox: HTMLInputElement;
+  private readonly musicCheckbox: HTMLInputElement;
   private readonly cheatAmountInput: HTMLInputElement;
   private readonly cheatGrantButton: HTMLButtonElement;
   private readonly cheatStatus: HTMLElement;
@@ -74,6 +84,14 @@ export class GameMenu {
           <input type="checkbox" data-constellation-guides-checkbox />
           <span>Constellation guides</span>
         </label>
+        <label class="game-menu-option">
+          <input type="checkbox" data-game-audio-checkbox />
+          <span>Game audio</span>
+        </label>
+        <label class="game-menu-option game-menu-option--nested">
+          <input type="checkbox" data-music-checkbox />
+          <span>Background music</span>
+        </label>
         <section class="game-menu-cheat" aria-labelledby="game-menu-cheat-title">
           <div class="game-menu-cheat__heading">
             <div>
@@ -109,6 +127,8 @@ export class GameMenu {
     this.treeShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-tree-shadows-checkbox]')!;
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
     this.constellationGuidesCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-constellation-guides-checkbox]')!;
+    this.gameAudioCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-game-audio-checkbox]')!;
+    this.musicCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-music-checkbox]')!;
     this.cheatAmountInput = this.backdrop.querySelector<HTMLInputElement>('[data-cheat-amount]')!;
     this.cheatGrantButton = this.backdrop.querySelector<HTMLButtonElement>('[data-cheat-grant]')!;
     this.cheatStatus = this.backdrop.querySelector<HTMLElement>('[data-cheat-status]')!;
@@ -126,6 +146,9 @@ export class GameMenu {
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
+    this.gameAudioCheckbox.checked = isGameAudioEnabled();
+    this.musicCheckbox.checked = isMusicEnabled();
+    this.syncAudioControls();
     this.menuButton.addEventListener('click', () => this.toggle());
     returnButton.addEventListener('click', () => this.close());
     controlsButton.addEventListener('click', () => {
@@ -151,6 +174,15 @@ export class GameMenu {
     });
     this.constellationGuidesCheckbox.addEventListener('change', () => {
       setConstellationGuidesEnabled(this.constellationGuidesCheckbox.checked);
+    });
+    this.gameAudioCheckbox.addEventListener('change', () => {
+      setGameAudioEnabled(this.gameAudioCheckbox.checked);
+      this.syncAudioControls();
+      options.onAudioEnabledChange?.(this.gameAudioCheckbox.checked);
+    });
+    this.musicCheckbox.addEventListener('change', () => {
+      setMusicEnabled(this.musicCheckbox.checked);
+      options.onMusicEnabledChange?.(this.musicCheckbox.checked);
     });
 
     this.onKeyDown = (event: KeyboardEvent) => {
@@ -206,6 +238,9 @@ export class GameMenu {
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
+    this.gameAudioCheckbox.checked = isGameAudioEnabled();
+    this.musicCheckbox.checked = isMusicEnabled();
+    this.syncAudioControls();
     this.backdrop.hidden = false;
     this.menuButton.setAttribute('aria-expanded', 'true');
     this.onOpenChange?.(true);
@@ -230,6 +265,10 @@ export class GameMenu {
     const target = document.activeElement as HTMLElement | null;
     const tag = target?.tagName;
     return tag === 'INPUT' || tag === 'TEXTAREA' || Boolean(target?.isContentEditable);
+  }
+
+  private syncAudioControls(): void {
+    this.musicCheckbox.disabled = !this.gameAudioCheckbox.checked;
   }
 
   private async grantCheatResources(

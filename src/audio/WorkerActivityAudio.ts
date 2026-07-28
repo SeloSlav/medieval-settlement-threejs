@@ -3,6 +3,7 @@ import {
   type WorkerActivitySoundKind,
 } from './audioCatalog.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
+import { isGameAudioEnabled } from './audioPreferences.ts';
 
 export const WORKER_SOUND_MAX_ZOOM_DISTANCE = 32;
 export const WORKER_SOUND_FULL_VOLUME_DISTANCE = 12;
@@ -10,7 +11,16 @@ export const WORKER_SOUND_CUTOFF_DISTANCE = 32;
 
 const WORKER_SOUND_POOL_SIZE = 4;
 const WORKER_SOUND_GLOBAL_INTERVAL_SECONDS = 0.24;
-const WORKER_SOUND_CADENCE_SECONDS = 0.82;
+const WORKER_SOUND_CADENCE_SECONDS: Record<WorkerActivitySoundKind, number> = {
+  chop: 0.82,
+  mine: 0.82,
+  build: 0.82,
+  cut_crop: 1.2,
+  dig: 1.15,
+  fish: 3,
+  forage: 2,
+  livestock: 4,
+};
 
 export type WorkerActivitySoundSource = {
   id: string;
@@ -73,6 +83,8 @@ export class WorkerActivityAudio {
     }
 
     if (
+      !isGameAudioEnabled()
+      ||
       !view
       || view.orbitDistance == null
       || view.orbitDistance > WORKER_SOUND_MAX_ZOOM_DISTANCE
@@ -110,7 +122,7 @@ export class WorkerActivityAudio {
       this.play(source, schedule, gain);
       schedule.sequence += 1;
       schedule.nextPlayAt = this.elapsedSeconds
-        + WORKER_SOUND_CADENCE_SECONDS
+        + WORKER_SOUND_CADENCE_SECONDS[source.mode]
         + deterministicJitter(source.id, schedule.sequence);
       this.lastGlobalPlayAt = this.elapsedSeconds;
       break;
