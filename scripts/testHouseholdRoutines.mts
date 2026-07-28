@@ -124,6 +124,11 @@ const chapel = {
   ...building('routine-chapel', 28, 0),
   kind: 'chapel' as const,
 };
+const parishRoads = new RoadNetwork();
+parishRoads.addRoadPath([
+  new THREE.Vector3(-5, 0, 0),
+  new THREE.Vector3(35, 0, 0),
+]);
 villagers.sync({
   residences: [home],
   buildings: [workplace, chapel],
@@ -133,7 +138,7 @@ villagers.sync({
   treeRegistry: null,
   farmFields: [],
   pastures: [],
-  roadNetwork: null,
+  roadNetwork: parishRoads,
 });
 villagers.setSchedule(fullClock(19), false);
 
@@ -143,6 +148,8 @@ const agents = (
       routinePhase: string;
       pathPurpose: string | null;
       simPathCursor: number;
+      ambientBehavior: string | null;
+      mode: string;
     }>;
   }
 ).agents;
@@ -194,7 +201,12 @@ assert.equal(worker.routinePhase, 'going_to_mass');
 assert.equal(worker.pathPurpose, 'chapel_mass');
 for (let step = 0; step < 1200; step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'at_mass');
-assert.equal(worker.pathPurpose, null);
+assert.ok(
+  worker.ambientBehavior === 'talk' || worker.ambientBehavior === 'wander',
+  'arrived parishioners should mingle or circulate outside the chapel',
+);
+assert.notEqual(worker.ambientBehavior, 'sit');
+assert.notEqual(worker.ambientBehavior, 'rest');
 
 villagers.setSchedule({
   ...fullClock(12),

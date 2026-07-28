@@ -1,15 +1,28 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { BuildingState } from '../src/resources/types.ts';
+import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
 import {
   assignAmbientBehaviorSlots,
+  type AmbientBehaviorAssignment,
   type AmbientBehaviorSlot,
 } from '../src/settlement/ambientBehaviors.ts';
+import {
+  FOUNDERS_CAMP_BENCH_SEAT,
+  FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
+  FOUNDERS_CAMP_SEAT_LANDMARKS,
+} from '../src/buildings/foundersCampLandmarks.ts';
+import { createFoundersCampMesh } from '../src/buildings/meshes/foundersCampMesh.ts';
 import {
   FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS,
   planFoundersCampAmbientBehaviors,
 } from '../src/settlement/foundersCampBehaviors.ts';
+import { planChapelGatheringBehaviors } from '../src/settlement/chapelGatheringBehaviors.ts';
+import {
+  claimMassChapelForResidence,
+  operationalMassChapels,
+} from '../src/settlement/chapelMass.ts';
 import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 
 const reusableSlots: AmbientBehaviorSlot[] = [
   {
@@ -49,6 +62,41 @@ assert.deepEqual(
   ['rest', 'sit', 'talk', 'talk', 'wander'],
   'a full founding crowd should visibly talk, sit, rest, and move at once',
 );
+const plannedSeats = [...campPlan.values()].filter(
+  (assignment) => assignment.kind === 'sit' || assignment.kind === 'rest',
+);
+assert.equal(
+  plannedSeats.length,
+  FOUNDERS_CAMP_SEAT_LANDMARKS.length,
+  'the camp must not plan more seated people than it has physical seats',
+);
+assert.equal(
+  new Set(plannedSeats.map((assignment) => assignment.seatId)).size,
+  plannedSeats.length,
+  'each seated founder must reserve a distinct physical seat',
+);
+for (const assignment of plannedSeats) {
+  const landmark = FOUNDERS_CAMP_SEAT_LANDMARKS.find(
+    (seat) => seat.id === assignment.seatId,
+  );
+  assert.ok(landmark, 'every sitting/resting assignment must name a real camp seat');
+  assert.deepEqual(assignment.destination, {
+    x: camp.x + landmark.destination.x,
+    z: camp.z + landmark.destination.z,
+  });
+}
+const crowdedPlan = planFoundersCampAmbientBehaviors(
+  camp,
+  Array.from({ length: 10 }, (_, index) => `crowded-founder:${index}`),
+  0,
+);
+assert.equal(
+  [...crowdedPlan.values()].filter(
+    (assignment) => assignment.kind === 'sit' || assignment.kind === 'rest',
+  ).length,
+  FOUNDERS_CAMP_SEAT_LANDMARKS.length,
+  'additional founders must remain in standing activities once every seat is claimed',
+);
 const conversation = [...campPlan.values()].filter(
   (assignment) => assignment.kind === 'talk',
 );
@@ -60,6 +108,60 @@ assert.deepEqual(
     .map((assignment) => assignment.kind),
   ['talk', 'talk'],
   'the final two unhoused founders should keep one another company',
+);
+
+const campMesh = createFoundersCampMesh();
+const benchMesh = campMesh.getObjectByName('Camp bench seat');
+const stumpMesh = campMesh.getObjectByName('Camp fireside stump seat');
+assert.ok(benchMesh, 'the planned bench seat must have visible supporting geometry');
+assert.ok(stumpMesh, 'the fireside rest pose must have a visible stump beneath it');
+assert.deepEqual(
+  { x: benchMesh.position.x, z: benchMesh.position.z },
+  FOUNDERS_CAMP_BENCH_SEAT.supportPosition,
+);
+assert.deepEqual(
+  { x: stumpMesh.position.x, z: stumpMesh.position.z },
+  FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition,
+);
+
+const chapel = chapelBuilding('chapel-connected', 45, 0);
+const churchyardPlan = planChapelGatheringBehaviors(
+  chapel,
+  ['parishioner-a', 'parishioner-b', 'parishioner-c'],
+  0,
+);
+assert.deepEqual(
+  [...churchyardPlan.values()].map((assignment) => assignment.kind).sort(),
+  ['talk', 'talk', 'wander'],
+  'the exterior chapel abstraction should mingle and circulate without seating',
+);
+assert.ok(
+  [...churchyardPlan.values()].every(
+    (assignment) => assignment.kind !== 'sit' && assignment.kind !== 'rest',
+  ),
+);
+
+const parishRoads = new RoadNetwork();
+parishRoads.addRoadPath([
+  new THREE.Vector3(0, 0, 0),
+  new THREE.Vector3(50, 0, 0),
+]);
+parishRoads.addRoadPath([
+  new THREE.Vector3(0, 0, 25),
+  new THREE.Vector3(10, 0, 25),
+]);
+const home = residence('parish-home', 0, 0);
+const closerButDisconnected = chapelBuilding('chapel-disconnected', 0, 25);
+const operational = operationalMassChapels([closerButDisconnected, chapel]);
+assert.equal(
+  claimMassChapelForResidence(home, operational, parishRoads)?.chapel.id,
+  chapel.id,
+  'mass attendance should choose the nearest road-reachable chapel, not straight-line distance',
+);
+assert.equal(
+  claimMassChapelForResidence(home, operational, new RoadNetwork()),
+  null,
+  'a residence without a chapel road route should not receive a parish or attend mass',
 );
 
 const originalWarn = console.warn;
@@ -82,6 +184,7 @@ villagers.sync({
 });
 
 type TestAgent = {
+  id: string;
   personIdentity: string;
   mode: string;
   ambientBehavior: string | null;
@@ -92,6 +195,15 @@ type TestAgent = {
 const agents = (
   villagers as unknown as { agents: Map<string, TestAgent> }
 ).agents;
+type PendingSeat = {
+  assignment: AmbientBehaviorAssignment;
+  previousOccupantId: string;
+};
+const campAmbientState = villagers as unknown as {
+  campAmbientAssignments: Map<string, AmbientBehaviorAssignment>;
+  pendingCampSeatAssignments: Map<string, PendingSeat>;
+  campAmbientElapsedSeconds: number;
+};
 assert.equal(agents.size, 5);
 assert.ok(
   [...agents.values()].every((agent) => agent.mode === 'walk'),
@@ -103,6 +215,13 @@ const settledModes = new Set([...agents.values()].map((agent) => agent.mode));
 for (const mode of ['sit', 'rest', 'talk']) {
   assert.ok(settledModes.has(mode), `the live crowd should reach its ${mode} pose`);
 }
+assert.equal(
+  [...agents.values()].filter(
+    (agent) => agent.mode === 'sit' || agent.mode === 'rest',
+  ).length,
+  FOUNDERS_CAMP_SEAT_LANDMARKS.length,
+  'only the founders with physical seats should enter a seated animation',
+);
 const liveTalkers = [...agents.values()].filter(
   (agent) => agent.ambientBehavior === 'talk',
 );
@@ -119,18 +238,82 @@ assert.match(
   villagers.inspectVillager(liveTalkers[0]!.personIdentity)?.activity ?? '',
   /Talking with another founder/,
 );
+const firesideSitter = [...agents.values()].find(
+  (agent) => agent.ambientBehavior === 'rest',
+);
+assert.match(
+  villagers.inspectVillager(firesideSitter!.personIdentity)?.activity ?? '',
+  /Sitting on a stump/,
+);
 
-const firstSitter = [...agents.values()].find(
-  (agent) => agent.ambientBehavior === 'sit',
-)?.personIdentity;
-villagers.tick(FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS - 12 + 0.1);
-const nextSitter = [...agents.values()].find(
-  (agent) => agent.ambientBehavior === 'sit',
-)?.personIdentity;
+const benchSeatId = FOUNDERS_CAMP_BENCH_SEAT.id;
+const firstBenchOccupant = [...campAmbientState.campAmbientAssignments].find(
+  ([, assignment]) => assignment.seatId === benchSeatId,
+)?.[0];
+assert.ok(firstBenchOccupant);
+const secondsUntilCycle =
+  FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS - campAmbientState.campAmbientElapsedSeconds;
+villagers.tick(Math.max(0, secondsUntilCycle - 0.05));
+villagers.tick(0.1);
+
+const pendingBenchEntry = [...campAmbientState.pendingCampSeatAssignments].find(
+  ([, pending]) => pending.assignment.seatId === benchSeatId,
+);
+assert.ok(
+  pendingBenchEntry,
+  'the next bench user should wait while its previous occupant is still beside it',
+);
+const [waitingActorId, pendingBench] = pendingBenchEntry;
+assert.equal(pendingBench.previousOccupantId, firstBenchOccupant);
+assert.equal(
+  campAmbientState.campAmbientAssignments.get(waitingActorId)?.kind,
+  'idle',
+  'a founder waiting for an occupied seat must remain in a standing activity',
+);
+assert.equal(
+  campAmbientState.campAmbientAssignments.get(waitingActorId)?.seatId,
+  undefined,
+  'a waiting founder must not claim the occupied seat early',
+);
 assert.notEqual(
-  nextSitter,
-  firstSitter,
-  'activity cycles should rotate people through camp roles',
+  agents.get(waitingActorId)?.mode,
+  'sit',
+  'the replacement must not begin sitting during the seat handoff',
+);
+assert.equal(
+  agents.get(firstBenchOccupant)?.mode,
+  'walk',
+  'the previous occupant must stand and start moving away before replacement',
+);
+
+for (
+  let step = 0;
+  step < 100 && campAmbientState.pendingCampSeatAssignments.has(waitingActorId);
+  step += 1
+) {
+  villagers.tick(0.05);
+}
+assert.equal(
+  campAmbientState.pendingCampSeatAssignments.has(waitingActorId),
+  false,
+  'the seat should become available after its previous occupant clears it',
+);
+assert.equal(
+  campAmbientState.campAmbientAssignments.get(waitingActorId)?.seatId,
+  benchSeatId,
+);
+assert.notEqual(
+  waitingActorId,
+  firstBenchOccupant,
+  'activity cycles should rotate people through the physical camp seats',
+);
+const priorBenchAgent = agents.get(firstBenchOccupant)!;
+assert.ok(
+  Math.hypot(
+    priorBenchAgent.x - (camp.x + FOUNDERS_CAMP_BENCH_SEAT.destination.x),
+    priorBenchAgent.z - (camp.z + FOUNDERS_CAMP_BENCH_SEAT.destination.z),
+  ) >= 0.8,
+  'a reserved seat must not be handed off until its old occupant has moved away',
 );
 
 villagers.dispose();
@@ -170,5 +353,41 @@ function foundersCamp(): BuildingState {
     storehouseAcceptsTimber: true,
     storehouseAcceptsStone: true,
     storehouseAcceptsFirewood: true,
+  };
+}
+
+function chapelBuilding(id: string, x: number, z: number): BuildingState {
+  return {
+    ...foundersCamp(),
+    id,
+    kind: 'chapel',
+    x,
+    z,
+    foundingShelterActive: false,
+    assignedLabor: 1,
+  };
+}
+
+function residence(id: string, x: number, z: number): ResidenceState {
+  return {
+    id,
+    zoneId: `zone-${id}`,
+    parcelIndex: 0,
+    x,
+    z,
+    yaw: 0,
+    population: 4,
+    populationCapacity: 6,
+    tier: 1,
+    settlementTicks: 0,
+    needs: {
+      firewood: { stock: 1, deficitTicks: 0 },
+      water: { stock: 1, deficitTicks: 0 },
+      food: { stock: 1, deficitTicks: 0 },
+      ale: { stock: 0, deficitTicks: 0 },
+      preservedFood: { stock: 0, deficitTicks: 0 },
+    },
+    abandoned: false,
+    householdWealth: 8,
   };
 }

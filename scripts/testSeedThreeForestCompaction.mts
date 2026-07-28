@@ -4,6 +4,27 @@ import {
   writeSeedThreeLodMatrices,
   type SeedThreeTreeSlot,
 } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
+import { stabilizeSeedThreeForestCardMaterial } from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
+
+const alphaCutoutMaterial = new THREE.MeshBasicMaterial({ alphaTest: 0.35 });
+assert.equal(alphaCutoutMaterial.alphaToCoverage, false);
+const alphaCutoutMaterialVersion = alphaCutoutMaterial.version;
+assert.equal(
+  stabilizeSeedThreeForestCardMaterial(alphaCutoutMaterial),
+  alphaCutoutMaterial,
+  'forest material stabilization should preserve the shared material instance',
+);
+assert.equal(
+  alphaCutoutMaterial.alphaToCoverage,
+  true,
+  'alpha-tested forest cards should use MSAA coverage to prevent first-person shimmer',
+);
+assert.equal(
+  alphaCutoutMaterial.version,
+  alphaCutoutMaterialVersion + 1,
+  'enabling alpha-to-coverage should invalidate any compiled shared-material pipeline',
+);
+alphaCutoutMaterial.dispose();
 
 function makeLodSet(capacity: number) {
   const branchGeometry = new THREE.BoxGeometry(1, 1, 1);

@@ -1,5 +1,9 @@
 import type { BuildingState } from '../resources/types.ts';
 import {
+  FOUNDERS_CAMPFIRE_POSITION,
+  FOUNDERS_CAMP_SEAT_LANDMARKS,
+} from '../buildings/foundersCampLandmarks.ts';
+import {
   assignAmbientBehaviorSlots,
   type AmbientBehaviorAssignment,
   type AmbientBehaviorSlot,
@@ -10,7 +14,7 @@ export const FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS = 24;
 /**
  * Coordinates the small founding crowd around authored camp landmarks.
  * Conversation is kept as a real pair; remaining founders rotate through the
- * bench, a fireside resting place, and a short camp loop.
+ * the camp's physical seats and a short camp loop.
  */
 export function planFoundersCampAmbientBehaviors(
   camp: Pick<BuildingState, 'x' | 'z'>,
@@ -32,7 +36,7 @@ function foundersCampSlots(
     x: camp.x + x,
     z: camp.z + z,
   });
-  const fire = world(0.55, -0.6);
+  const fire = world(FOUNDERS_CAMPFIRE_POSITION.x, FOUNDERS_CAMPFIRE_POSITION.z);
   const conversationA = world(-0.35, -2.05);
   const conversationB = world(1.25, -2.0);
   const conversation: AmbientBehaviorSlot[] = [
@@ -59,23 +63,21 @@ function foundersCampSlots(
   ];
   if (cycleIndex % 2 !== 0) wanderWaypoints.reverse();
 
+  const seatSlots: AmbientBehaviorSlot[] = FOUNDERS_CAMP_SEAT_LANDMARKS.map(
+    (seat) => ({
+      id: seat.id,
+      kind: seat.behavior,
+      seatId: seat.id,
+      destination: world(seat.destination.x, seat.destination.z),
+      approach: seat.approach
+        ? world(seat.approach.x, seat.approach.z)
+        : undefined,
+      lookAt: world(seat.lookAt.x, seat.lookAt.z),
+      groundOffset: seat.groundOffset,
+    }),
+  );
   const solo: AmbientBehaviorSlot[] = [
-    {
-      id: 'bench-seat',
-      kind: 'sit',
-      // The authored sitting clip moves the hips slightly backward onto the
-      // bench, so the feet remain on clear ground in front of the collider.
-      destination: world(-1.9, -0.42),
-      approach: world(-1.9, -0.9),
-      lookAt: world(-1.9, -2),
-      groundOffset: 0.18,
-    },
-    {
-      id: 'fireside-rest',
-      kind: 'rest',
-      destination: world(2.45, 0.55),
-      lookAt: fire,
-    },
+    ...seatSlots,
     {
       id: 'camp-wander',
       kind: 'wander',

@@ -78,8 +78,13 @@ import {
   villagerOccupation,
 } from './villagerIdentity.ts';
 import {
+  chapelAttendancePath,
   chapelGatheringPoint,
+  claimMassChapelFromPoint,
+  claimMassChapelsForResidences,
   isSundayMassTime,
+  operationalMassChapels,
+  type MassChapelClaim,
 } from './chapelMass.ts';
 import type {
   AmbientBehaviorAssignment,
@@ -89,8 +94,18 @@ import {
   FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS,
   planFoundersCampAmbientBehaviors,
 } from './foundersCampBehaviors.ts';
+import { FOUNDERS_CAMPFIRE_POSITION } from '../buildings/foundersCampLandmarks.ts';
+import {
+  CHAPEL_GATHERING_AMBIENT_CYCLE_SECONDS,
+  planChapelGatheringBehaviors,
+} from './chapelGatheringBehaviors.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import { STARTING_POPULATION } from '../generated/gameBalance.ts';
+import {
+  fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
+  type FireIncidentState,
+} from '../fires/fireIncident.ts';
 
 type VillagerMode = VillagerRenderMode;
 type VillagerRole = 'founder' | 'resident' | 'worker';
@@ -113,6 +128,12 @@ type VillagerPathPurpose =
   | null;
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
+const CAMP_SEAT_RELEASE_DISTANCE = 0.8;
+
+type PendingCampSeatAssignment = {
+  assignment: AmbientBehaviorAssignment;
+  previousOccupantId: string;
+};
 
 type VillagerAgent = {
   id: string;
@@ -196,9 +217,18 @@ export class VillagerRenderer {
   private workerTargets = new Map<string, WorkerTarget[]>();
   private foundingCamp: BuildingState | null = null;
   private campAmbientAssignments = new Map<string, AmbientBehaviorAssignment>();
+  private pendingCampSeatAssignments =
+    new Map<string, PendingCampSeatAssignment>();
   private campAmbientCycleIndex = 0;
   private campAmbientElapsedSeconds = 0;
   private campAmbientSignature = '';
+  private chapelAmbientAssignments = new Map<string, AmbientBehaviorAssignment>();
+  private chapelAmbientCycleIndex = 0;
+  private chapelAmbientElapsedSeconds = 0;
+  private chapelAmbientSignature = '';
+  private massChapels: BuildingState[] = [];
+  private massChapelClaims = new Map<string, MassChapelClaim>();
+  private fireDisabledResidenceIds = new Set<string>();
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
   private laborPaused = false;
@@ -220,6 +250,7 @@ export class VillagerRenderer {
       changed = this.reconcileRoutine(agent) || changed;
     }
     changed = this.syncCampAmbientAssignments() || changed;
+    changed = this.syncChapelAmbientAssignments() || changed;
     if (changed) this.pushRenderState();
   }
 
@@ -274,6 +305,7 @@ export class VillagerRenderer {
     farmFields: Iterable<FarmFieldState>;
     pastures: Iterable<PastureState>;
     deliveryTrips?: Iterable<DeliveryTripState>;
+    fireIncidents?: Iterable<FireIncidentState>;
     roadNetwork: RoadNetwork | null;
     foragingMonth?: number;
   }): void {
@@ -290,6 +322,9 @@ export class VillagerRenderer {
     const foragingNodes = [...options.foragingNodes];
     const farmFields = [...options.farmFields];
     const pastures = [...options.pastures];
+    const fireIncidents = [...(options.fireIncidents ?? [])];
+    const disabledBuildingIds = fireDisabledBuildingIds(fireIncidents);
+    this.fireDisabledResidenceIds = fireDisabledResidenceIds(fireIncidents);
     this.residences = new Map(residences.map((residence) => [residence.id, residence]));
     this.buildings = new Map(buildings.map((building) => [building.id, building]));
     this.foundingCamp = physicalBuildings.find(
@@ -299,6 +334,17 @@ export class VillagerRenderer {
         && building.foundingShelterActive !== false,
     ) ?? null;
     this.roadNetwork = options.roadNetwork;
+    this.massChapels = operationalMassChapels(
+      physicalBuildings,
+      disabledBuildingIds,
+    );
+    this.massChapelClaims = claimMassChapelsForResidences(
+      residences.filter(
+        (residence) => !this.fireDisabledResidenceIds.has(residence.id),
+      ),
+      this.massChapels,
+      this.roadNetwork,
+    );
 
     const travelingWorkers = rosteredCartWorkersByBuilding(
       this.buildings,
@@ -384,7 +430,6 @@ export class VillagerRenderer {
         } else {
           agent.personIdentity = personIdentity;
           agent.role = 'resident';
-          agent.ambientBehavior = null;
           agent.residenceId = residenceId;
           agent.workplaceId = null;
           agent.workplaceSlot = -1;
@@ -478,7 +523,6 @@ export class VillagerRenderer {
         const previousHomeResidenceId = agent.residenceId;
         agent.personIdentity = assignment.personIdentity;
         agent.role = 'worker';
-        agent.ambientBehavior = null;
         agent.residenceId = assignment.homeResidenceId;
         agent.workplaceId = assignment.buildingId;
         agent.workplaceSlot = assignment.slotIndex;
@@ -612,6 +656,7 @@ export class VillagerRenderer {
     }
 
     this.syncCampAmbientAssignments();
+    this.syncChapelAmbientAssignments();
     this.pushRenderState();
   }
 
@@ -620,6 +665,7 @@ export class VillagerRenderer {
     const realDt = Math.max(0, dt);
     const simulationDt = realDt * this.getGameSpeed();
     this.advanceCampAmbientCycle(simulationDt);
+    this.advanceChapelAmbientCycle(simulationDt);
 
     for (const agent of this.agents.values()) {
       if (agent.role === 'worker') {
@@ -661,6 +707,7 @@ export class VillagerRenderer {
       agent.y = this.resolveAgentY(agent);
     }
 
+    this.releaseVacatedCampSeats();
     this.pushRenderState(view, simulationDt, simulationDt > 0 ? realDt : 0);
   }
 
@@ -1003,7 +1050,7 @@ export class VillagerRenderer {
           break;
         }
         case 'ambient':
-          this.completeCampAmbientArrival(agent);
+          this.completeAmbientArrival(agent);
           break;
         default:
           this.clearPath(agent);
@@ -1200,22 +1247,16 @@ export class VillagerRenderer {
   }
 
   private findMassChapel(agent: VillagerAgent): BuildingState | null {
-    let nearest: BuildingState | null = null;
-    let nearestDistance = Infinity;
-    for (const building of this.buildings.values()) {
-      if (
-        building.kind !== 'chapel'
-        || building.constructionComplete === false
-        || building.assignedLabor <= 0
-      ) {
-        continue;
-      }
-      const distance = Math.hypot(building.x - agent.x, building.z - agent.z);
-      if (distance >= nearestDistance) continue;
-      nearest = building;
-      nearestDistance = distance;
+    if (agent.residenceId) {
+      if (this.fireDisabledResidenceIds.has(agent.residenceId)) return null;
+      return this.massChapelClaims.get(agent.residenceId)?.chapel ?? null;
     }
-    return nearest;
+    const origin = this.foundingCamp ?? agent;
+    return claimMassChapelFromPoint(
+      origin,
+      this.massChapels,
+      this.roadNetwork,
+    )?.chapel ?? null;
   }
 
   private beginMassJourney(agent: VillagerAgent, chapel: BuildingState): boolean {
@@ -1226,9 +1267,10 @@ export class VillagerRenderer {
       this.completeMassArrival(agent);
       return true;
     }
-    const path = pickWorkerCommutePath(
+    const path = chapelAttendancePath(
       { x: agent.x, z: agent.z },
-      destination,
+      chapel,
+      agent.personIdentity,
       this.roadNetwork,
     );
     if (!path || !this.beginJourney(agent, path, 'chapel_mass')) {
@@ -1255,9 +1297,13 @@ export class VillagerRenderer {
     agent.yaw = Math.atan2(chapel.x - agent.x, chapel.z - agent.z);
     agent.routinePhase = 'at_mass';
     agent.idleRemaining = 60;
+    this.syncChapelAmbientAssignments();
+    this.applyAmbientAssignment(agent);
   }
 
   private beginMassReturn(agent: VillagerAgent): boolean {
+    this.chapelAmbientAssignments.delete(agent.id);
+    agent.ambientBehavior = null;
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     const destination = residence
       ? residenceDoorPosition(residence)
@@ -1278,6 +1324,7 @@ export class VillagerRenderer {
       return true;
     }
     agent.routinePhase = 'returning_from_mass';
+    this.syncChapelAmbientAssignments();
     return true;
   }
 
@@ -1299,6 +1346,7 @@ export class VillagerRenderer {
     agent.routinePhase = 'returning_from_mass';
     this.transitionToHomeState(agent, homeState);
     this.syncCampAmbientAssignments();
+    this.syncChapelAmbientAssignments();
   }
 
   private beginWorkerReturnHome(agent: VillagerAgent): boolean {
@@ -1440,7 +1488,11 @@ export class VillagerRenderer {
     }
     this.clearPath(agent);
     if (purpose === 'chapel_mass') {
-      this.completeMassArrival(agent);
+      agent.massChapelId = null;
+      agent.ambientBehavior = null;
+      agent.routinePhase = 'home_outdoors';
+      agent.idleRemaining = 1;
+      this.syncChapelAmbientAssignments();
       return;
     }
     if (purpose === 'return_from_mass') {
@@ -1565,20 +1617,210 @@ export class VillagerRenderer {
     if (signature === this.campAmbientSignature) return false;
     this.campAmbientSignature = signature;
 
-    this.campAmbientAssignments = camp
+    const previousAssignments = this.campAmbientAssignments;
+    const previousPendingAssignments = this.pendingCampSeatAssignments;
+    const plannedAssignments = camp
       ? planFoundersCampAmbientBehaviors(
           camp,
           candidates.map((agent) => agent.id),
           this.campAmbientCycleIndex,
         )
       : new Map();
-    for (const agent of candidates) this.applyCampAmbientAssignment(agent);
+    const previousSeatOccupants = new Map<string, string>();
+    for (const [actorId, assignment] of previousAssignments) {
+      if (assignment.seatId) previousSeatOccupants.set(assignment.seatId, actorId);
+    }
+    for (const pending of previousPendingAssignments.values()) {
+      if (pending.assignment.seatId) {
+        previousSeatOccupants.set(
+          pending.assignment.seatId,
+          pending.previousOccupantId,
+        );
+      }
+    }
+
+    this.campAmbientAssignments = new Map(plannedAssignments);
+    this.pendingCampSeatAssignments = new Map();
+    let waitingIndex = 0;
+    for (const [actorId, assignment] of plannedAssignments) {
+      if (!camp || !assignment.seatId) continue;
+      const previousOccupantId = previousSeatOccupants.get(assignment.seatId);
+      if (!previousOccupantId || previousOccupantId === actorId) continue;
+
+      const previousOccupant = this.agents.get(previousOccupantId);
+      if (
+        !previousOccupant
+        || this.hasClearedCampSeat(previousOccupant, assignment)
+      ) {
+        continue;
+      }
+
+      this.pendingCampSeatAssignments.set(actorId, {
+        assignment,
+        previousOccupantId,
+      });
+      this.campAmbientAssignments.set(
+        actorId,
+        this.campSeatWaitingAssignment(
+          camp,
+          actorId,
+          assignment,
+          waitingIndex,
+        ),
+      );
+      waitingIndex += 1;
+    }
+    for (const agent of candidates) this.applyAmbientAssignment(agent);
     return true;
   }
 
-  private applyCampAmbientAssignment(agent: VillagerAgent): void {
-    const assignment = this.campAmbientAssignments.get(agent.id);
-    if (!assignment || agent.routinePhase !== 'home_outdoors') return;
+  private campSeatWaitingAssignment(
+    camp: BuildingState,
+    actorId: string,
+    seatAssignment: AmbientBehaviorAssignment,
+    waitingIndex: number,
+  ): AmbientBehaviorAssignment {
+    const waitingSpots = [
+      { x: 3.35, z: -1.7 },
+      { x: -0.45, z: 1.15 },
+    ] as const;
+    const spot = waitingSpots[waitingIndex % waitingSpots.length]!;
+    return {
+      actorId,
+      id: `waiting-for-${seatAssignment.seatId ?? seatAssignment.id}`,
+      kind: 'idle',
+      destination: {
+        x: camp.x + spot.x,
+        z: camp.z + spot.z,
+      },
+      lookAt: {
+        x: camp.x + FOUNDERS_CAMPFIRE_POSITION.x,
+        z: camp.z + FOUNDERS_CAMPFIRE_POSITION.z,
+      },
+    };
+  }
+
+  private hasClearedCampSeat(
+    occupant: VillagerAgent,
+    seatAssignment: AmbientBehaviorAssignment,
+  ): boolean {
+    return Math.hypot(
+      occupant.x - seatAssignment.destination.x,
+      occupant.z - seatAssignment.destination.z,
+    ) >= CAMP_SEAT_RELEASE_DISTANCE;
+  }
+
+  private releaseVacatedCampSeats(): void {
+    if (this.pendingCampSeatAssignments.size === 0) return;
+
+    for (const [actorId, pending] of [...this.pendingCampSeatAssignments]) {
+      const actor = this.agents.get(actorId);
+      if (
+        !actor
+        || actor.role !== 'founder'
+        || actor.routinePhase !== 'home_outdoors'
+      ) {
+        this.pendingCampSeatAssignments.delete(actorId);
+        continue;
+      }
+
+      const previousOccupant = this.agents.get(pending.previousOccupantId);
+      if (
+        previousOccupant
+        && !this.hasClearedCampSeat(previousOccupant, pending.assignment)
+      ) {
+        continue;
+      }
+
+      this.pendingCampSeatAssignments.delete(actorId);
+      this.campAmbientAssignments.set(actorId, pending.assignment);
+      this.applyAmbientAssignment(actor);
+    }
+  }
+
+  private advanceChapelAmbientCycle(dtSeconds: number): void {
+    if (this.chapelAmbientAssignments.size === 0 || dtSeconds <= 0) return;
+    this.chapelAmbientElapsedSeconds += dtSeconds;
+    const completedCycles = Math.floor(
+      this.chapelAmbientElapsedSeconds / CHAPEL_GATHERING_AMBIENT_CYCLE_SECONDS,
+    );
+    if (completedCycles <= 0) return;
+
+    this.chapelAmbientElapsedSeconds %= CHAPEL_GATHERING_AMBIENT_CYCLE_SECONDS;
+    this.chapelAmbientCycleIndex += completedCycles;
+    this.syncChapelAmbientAssignments();
+  }
+
+  private syncChapelAmbientAssignments(): boolean {
+    const rosters = new Map<string, VillagerAgent[]>();
+    for (const agent of this.agents.values()) {
+      if (
+        !agent.massChapelId
+        || (
+          agent.routinePhase !== 'going_to_mass'
+          && agent.routinePhase !== 'at_mass'
+        )
+      ) {
+        continue;
+      }
+      const roster = rosters.get(agent.massChapelId) ?? [];
+      roster.push(agent);
+      rosters.set(agent.massChapelId, roster);
+    }
+    for (const roster of rosters.values()) {
+      roster.sort((a, b) => a.personIdentity.localeCompare(b.personIdentity));
+    }
+
+    const signature = [
+      this.chapelAmbientCycleIndex,
+      ...[...rosters]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .flatMap(([chapelId, roster]) => [
+          chapelId,
+          this.buildings.get(chapelId)?.x ?? '',
+          this.buildings.get(chapelId)?.z ?? '',
+          ...roster.map((agent) => agent.id),
+        ]),
+    ].join(':');
+    if (signature === this.chapelAmbientSignature) return false;
+    this.chapelAmbientSignature = signature;
+
+    const assignments = new Map<string, AmbientBehaviorAssignment>();
+    for (const [chapelId, roster] of rosters) {
+      const chapel = this.buildings.get(chapelId);
+      if (!chapel) continue;
+      for (const [agentId, assignment] of planChapelGatheringBehaviors(
+        chapel,
+        roster.map((agent) => agent.id),
+        this.chapelAmbientCycleIndex,
+      )) {
+        assignments.set(agentId, assignment);
+      }
+    }
+    this.chapelAmbientAssignments = assignments;
+    for (const roster of rosters.values()) {
+      for (const agent of roster) {
+        if (agent.routinePhase === 'at_mass') this.applyAmbientAssignment(agent);
+      }
+    }
+    return true;
+  }
+
+  private ambientAssignmentFor(
+    agent: VillagerAgent,
+  ): AmbientBehaviorAssignment | undefined {
+    if (agent.routinePhase === 'at_mass') {
+      return this.chapelAmbientAssignments.get(agent.id);
+    }
+    if (agent.role === 'founder' && agent.routinePhase === 'home_outdoors') {
+      return this.campAmbientAssignments.get(agent.id);
+    }
+    return undefined;
+  }
+
+  private applyAmbientAssignment(agent: VillagerAgent): void {
+    const assignment = this.ambientAssignmentFor(agent);
+    if (!assignment) return;
     agent.ambientBehavior = assignment.kind;
 
     const path = assignment.kind === 'wander' && assignment.waypoints?.length
@@ -1593,7 +1835,7 @@ export class VillagerRenderer {
     const routedPath = this.routePath(path);
     const pathDistance = routedPath ? polylineLengthXZ(routedPath) : 0;
     if (!routedPath || pathDistance < 0.25) {
-      this.completeCampAmbientArrival(agent);
+      this.completeAmbientArrival(agent);
       return;
     }
 
@@ -1609,10 +1851,10 @@ export class VillagerRenderer {
     agent.idleDirty = false;
   }
 
-  private completeCampAmbientArrival(agent: VillagerAgent): void {
-    const assignment = this.campAmbientAssignments.get(agent.id);
+  private completeAmbientArrival(agent: VillagerAgent): void {
+    const assignment = this.ambientAssignmentFor(agent);
     this.clearPath(agent);
-    if (!assignment || agent.routinePhase !== 'home_outdoors') {
+    if (!assignment) {
       agent.ambientBehavior = null;
       return;
     }
@@ -1632,9 +1874,15 @@ export class VillagerRenderer {
     agent.mode = assignment.kind === 'wander' || assignment.kind === 'idle'
       ? 'idle'
       : assignment.kind;
+    const cycleSeconds = agent.routinePhase === 'at_mass'
+      ? CHAPEL_GATHERING_AMBIENT_CYCLE_SECONDS
+      : FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS;
+    const elapsedSeconds = agent.routinePhase === 'at_mass'
+      ? this.chapelAmbientElapsedSeconds
+      : this.campAmbientElapsedSeconds;
     agent.idleRemaining = Math.max(
       1,
-      FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS - this.campAmbientElapsedSeconds,
+      cycleSeconds - elapsedSeconds,
     );
     agent.idleDirty = false;
   }
@@ -1808,6 +2056,12 @@ function describeVillagerActivity(
     case 'going_to_mass':
       return 'Walking to Sunday mass';
     case 'at_mass':
+      if (agent.ambientBehavior === 'talk') {
+        return 'Mingling with the Sunday congregation';
+      }
+      if (agent.ambientBehavior === 'wander') {
+        return 'Circulating through the Sunday congregation';
+      }
       return 'Attending Sunday mass';
     case 'returning_from_mass':
       return 'Walking home from Sunday mass';
@@ -1857,7 +2111,7 @@ function describeVillagerActivity(
         switch (agent.ambientBehavior) {
           case 'wander': return "Walking around the founders' camp";
           case 'sit': return 'Sitting on the camp bench';
-          case 'rest': return 'Resting beside the campfire';
+          case 'rest': return 'Sitting on a stump beside the campfire';
           case 'talk': return 'Talking with another founder';
           default: return "Waiting at the founders' camp";
         }

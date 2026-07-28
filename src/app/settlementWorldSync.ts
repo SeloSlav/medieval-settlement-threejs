@@ -135,6 +135,7 @@ export function syncSettlementWorld(
     || workerFieldsChanged
     || workerPasturesChanged
     || workerCartCrewsChanged
+    || fireIncidentsChanged
   ) {
     targets.villagers?.sync({
       residences: state.residences.values(),
@@ -146,6 +147,7 @@ export function syncSettlementWorld(
       farmFields: state.farmFields.values(),
       pastures: state.pastures.values(),
       deliveryTrips: state.deliveryTrips.values(),
+      fireIncidents: state.fireIncidents.values(),
       roadNetwork: targets.getRoadNetwork(),
       foragingMonth: gameClock(state.tick).month,
     });

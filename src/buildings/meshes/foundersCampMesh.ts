@@ -18,6 +18,11 @@ import {
   updateFireEffect,
 } from '../../fires/FireEffect.ts';
 import { markBuildingDetailShadowCaster } from '../buildingShadowProxy.ts';
+import {
+  FOUNDERS_CAMP_BENCH_SEAT,
+  FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
+  FOUNDERS_CAMPFIRE_POSITION,
+} from '../foundersCampLandmarks.ts';
 
 export const FOUNDERS_CAMPFIRE_NAME = 'FoundingCampfire';
 export const FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME =
@@ -1521,7 +1526,11 @@ function addCampfire(parent: THREE.Group): THREE.Group {
     lightIntensity: 22,
   });
   const campfire = fire.root;
-  campfire.position.set(0.55, 0, -0.6);
+  campfire.position.set(
+    FOUNDERS_CAMPFIRE_POSITION.x,
+    0,
+    FOUNDERS_CAMPFIRE_POSITION.z,
+  );
 
   for (let index = 0; index < 10; index += 1) {
     const angle = index / 10 * Math.PI * 2;
@@ -1635,7 +1644,11 @@ export function createFoundersCampMesh(): THREE.Group {
     shelters,
     new THREE.BoxGeometry(2.4, 0.18, 0.42),
     timberMaterial('weathered'),
-    new THREE.Vector3(-1.9, 0.52, -0.15),
+    new THREE.Vector3(
+      FOUNDERS_CAMP_BENCH_SEAT.supportPosition.x,
+      0.52,
+      FOUNDERS_CAMP_BENCH_SEAT.supportPosition.z,
+    ),
   );
   benchSeat.name = 'Camp bench seat';
   for (const x of [-2.72, -1.08]) {
@@ -1647,6 +1660,30 @@ export function createFoundersCampMesh(): THREE.Group {
     );
     leg.name = 'Camp bench leg';
   }
+  const stumpSeat = addMesh(
+    shelters,
+    new THREE.CylinderGeometry(0.38, 0.43, 0.56, 10),
+    timberMaterial('dark'),
+    new THREE.Vector3(
+      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
+      0.28,
+      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
+    ),
+    new THREE.Euler(0, 0.18, 0),
+  );
+  stumpSeat.name = 'Camp fireside stump seat';
+  const stumpSeatTop = addMesh(
+    shelters,
+    new THREE.CylinderGeometry(0.37, 0.38, 0.05, 10),
+    timberMaterial('weathered'),
+    new THREE.Vector3(
+      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
+      0.585,
+      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
+    ),
+    new THREE.Euler(0, 0.18, 0),
+  );
+  stumpSeatTop.name = 'Camp fireside stump seat top';
 
   addFoundingStandard(shelters);
   addFoundingProvisions(shelters);

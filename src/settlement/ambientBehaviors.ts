@@ -11,6 +11,11 @@ export type AmbientBehaviorSlot = {
   id: string;
   kind: AmbientBehaviorKind;
   destination: PointXZ;
+  /**
+   * Identifies the physical seat reserved by a sitting/resting activity.
+   * Seatless activities must omit this so planners can enforce real capacity.
+   */
+  seatId?: string;
   approach?: PointXZ;
   lookAt?: PointXZ;
   waypoints?: readonly PointXZ[];

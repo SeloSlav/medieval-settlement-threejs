@@ -28,6 +28,7 @@ import {
   type SeedThreeInstancedLodSet as InstancedLodSet,
   type SeedThreeTreeSlot as TreeSlot,
 } from './seedThreeForestCompaction.ts';
+import { stabilizeSeedThreeForestCardMaterial } from './seedThreeForestMaterial.ts';
 import { yieldToMain } from '../../utils/yieldToMain.ts';
 
 type SpeciesBucket = {
@@ -178,13 +179,15 @@ function createInstancedLodSet(
           geo.setAttribute(name, new THREE.InstancedBufferAttribute(arr, instancedAttr.itemSize));
         }
 
-        const fmat = instanced.userData.shareMaterial
-          ? instanced.material
-          : forestCardMaterial(instanced.material as THREE.Material, {
-              seasonalDeciduous: options.seasonalDeciduous,
-              canopyTint: options.canopyTint,
-              toneVariation: options.toneVariation,
-            });
+        const fmat = stabilizeSeedThreeForestCardMaterial(
+          (instanced.userData.shareMaterial
+            ? instanced.material
+            : forestCardMaterial(instanced.material as THREE.Material, {
+                seasonalDeciduous: options.seasonalDeciduous,
+                canopyTint: options.canopyTint,
+                toneVariation: options.toneVariation,
+              })) as THREE.Material,
+        );
         if (options.seasonalDeciduous) {
           options.seasonalCardMaterials?.add(fmat as THREE.Material);
         }
