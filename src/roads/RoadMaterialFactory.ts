@@ -202,9 +202,7 @@ export class RoadMaterialFactory {
     const rainTerrain = new THREE.MeshStandardMaterial({
       name: 'Overcast rain terrain',
       map: rainTerrainTexture,
-      color: 0xeff3ee,
-      emissive: 0x18241b,
-      emissiveIntensity: 0.32,
+      color: 0xd6dfd5,
       roughness: 0.9,
       metalness: 0,
       vertexColors: false,
@@ -291,9 +289,9 @@ function createRainTerrainAlbedoTexture(): THREE.DataTexture {
       const warmth = tileableValueNoise(u, v, 5, 211);
       const tone = (broad + middle + fine + micro - 0.5) * 2;
       const offset = (y * size + x) * 4;
-      pixels[offset] = THREE.MathUtils.clamp(148 + tone * 60 + warmth * 6, 0, 255);
-      pixels[offset + 1] = THREE.MathUtils.clamp(164 + tone * 64, 0, 255);
-      pixels[offset + 2] = THREE.MathUtils.clamp(142 + tone * 52 - warmth * 5, 0, 255);
+      pixels[offset] = THREE.MathUtils.clamp(132 + tone * 50 + warmth * 6, 0, 255);
+      pixels[offset + 1] = THREE.MathUtils.clamp(147 + tone * 54, 0, 255);
+      pixels[offset + 2] = THREE.MathUtils.clamp(125 + tone * 44 - warmth * 5, 0, 255);
       pixels[offset + 3] = 255;
     }
   }
