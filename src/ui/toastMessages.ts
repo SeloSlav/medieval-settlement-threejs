@@ -26,9 +26,15 @@ export const TOAST_MESSAGES = {
   'building.placement.no_trees_in_range': 'No mature trees within work range',
   'building.placement.on_road': 'Cannot build on a road',
   'building.placement.insufficient_resources': 'Not enough timber or stone',
+  'building.placement.requires_completed_watchtower': 'Complete a frontier watchtower before establishing a paid guardhouse',
   'building.placement.requires_completed_guardhouse': 'Complete a frontier guardhouse before enclosing a palisaded refuge',
   'building.placement.requires_staffed_chapel': 'A staffed church is required before founding a monastery',
   'building.placement.requires_parish_population': 'The parish needs at least 12 residents before founding a monastery',
+  'building.placement.town_hall_exists': 'Only one Town Hall may serve a settlement',
+  'building.placement.requires_town_hall_population': 'The settlement needs at least 24 residents before building a Town Hall',
+  'building.placement.requires_completed_chapel': 'Build a church before founding the Town Hall',
+  'building.placement.requires_completed_marketplace': 'Build a marketplace before founding the Town Hall',
+  'building.placement.requires_civic_road_link': 'The Town Hall must be road-linked to both the church and marketplace',
   'burgage.placement.water': 'Cannot place residences on water',
   'burgage.placement.too_steep': 'The slope is too steep here',
   'burgage.placement.invalid_shape': 'Invalid residence plot shape',
@@ -139,12 +145,24 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.on_road';
     case 'insufficient_resources':
       return 'building.placement.insufficient_resources';
+    case 'requires_completed_watchtower':
+      return 'building.placement.requires_completed_watchtower';
     case 'requires_completed_guardhouse':
       return 'building.placement.requires_completed_guardhouse';
     case 'requires_staffed_chapel':
       return 'building.placement.requires_staffed_chapel';
     case 'requires_parish_population':
       return 'building.placement.requires_parish_population';
+    case 'town_hall_exists':
+      return 'building.placement.town_hall_exists';
+    case 'requires_town_hall_population':
+      return 'building.placement.requires_town_hall_population';
+    case 'requires_completed_chapel':
+      return 'building.placement.requires_completed_chapel';
+    case 'requires_completed_marketplace':
+      return 'building.placement.requires_completed_marketplace';
+    case 'requires_civic_road_link':
+      return 'building.placement.requires_civic_road_link';
     default: {
       const unhandled: never = reason;
       return unhandled;

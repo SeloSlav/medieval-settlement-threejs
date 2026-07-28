@@ -488,7 +488,13 @@ export class BuildingTool {
     const definition = getBuildingDefinition(kind);
     const extent = getBuildingExtent(kind, definition.workRadius);
     this.setPlacementStatusDetail(
-      extent ? `Ready: ${extent.label.toLowerCase()} ${extent.radius} m` : null,
+      kind === 'town_hall'
+        ? 'Ready: population, civic buildings, and road links confirmed'
+        : kind === 'guardhouse'
+          ? 'Ready: completed watchtower confirmed'
+          : extent
+            ? `Ready: ${extent.label.toLowerCase()} ${extent.radius} m`
+            : null,
     );
   }
 

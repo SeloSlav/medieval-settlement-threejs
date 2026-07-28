@@ -8,6 +8,7 @@ import {
   updateBuildingPreviewAppearance,
   updateBuildingPreviewGeometry,
 } from '../src/buildings/BuildingPlacementPreview.ts';
+import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
 import { buildingExtentColor } from '../src/buildings/buildingExtents.ts';
 import { PlacementClearanceSpatialIndex } from '../src/placement/PlacementClearanceSpatialIndex.ts';
 import {
@@ -18,6 +19,8 @@ import {
 import { QuarryLayout, quarrySiteOverlapsRiver } from '../src/quarries/QuarryLayout.ts';
 import { burgageZoneTouchesWater } from '../src/residences/burgagePlacementValidation.ts';
 import { RiverLayout } from '../src/rivers/RiverLayout.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import type { BuildingKind, BuildingState, ResidenceState } from '../src/resources/types.ts';
 import {
   deriveSubSeed,
   hydrologyRiverCount,
@@ -224,11 +227,135 @@ function testPlacementPreviewShowsTerrainFollowingExtent(): void {
   );
 }
 
+function testCivicAndFrontierPlacementPrerequisites(): void {
+  const building = (
+    kind: BuildingKind,
+    id: string,
+    x: number,
+    z: number,
+    constructionComplete = true,
+    assignedLabor = 0,
+  ) => ({
+    id,
+    kind,
+    x,
+    z,
+    constructionComplete,
+    assignedLabor,
+  }) as BuildingState;
+  const residence = (population: number) => ({ population }) as ResidenceState;
+  const context = (
+    buildings: BuildingState[],
+    population: number,
+    roadNetwork?: RoadNetwork,
+  ) => ({
+    buildings,
+    residences: [residence(population)],
+    burgageZones: [],
+    farmFields: [],
+    pastures: [],
+    quarries: [],
+    foragingNodes: [],
+    stockpile: { timber: 10_000, stone: 10_000 },
+    isWaterAt: () => false,
+    isQuarryPitAt: () => false,
+    getNaturalHeightAt: () => 0,
+    roadNetwork,
+    fireDisabledBuildingIds: new Set<string>(),
+  });
+
+  assert.deepEqual(
+    validateBuildingPlacement(
+      'guardhouse',
+      0,
+      0,
+      context([], 24),
+    ),
+    { ok: false, reason: 'requires_completed_watchtower' },
+  );
+  assert.equal(
+    validateBuildingPlacement(
+      'guardhouse',
+      0,
+      0,
+      context([building('watchtower', 'watch', 80, 0)], 24),
+    ).ok,
+    true,
+  );
+
+  const candidate = { x: 40, z: 12 };
+  assert.deepEqual(
+    validateBuildingPlacement(
+      'town_hall',
+      candidate.x,
+      candidate.z,
+      context([building('town_hall', 'existing-hall', 120, 0, false)], 0),
+    ),
+    { ok: false, reason: 'town_hall_exists' },
+  );
+  assert.deepEqual(
+    validateBuildingPlacement(
+      'town_hall',
+      candidate.x,
+      candidate.z,
+      context([], 23),
+    ),
+    { ok: false, reason: 'requires_town_hall_population' },
+  );
+  assert.deepEqual(
+    validateBuildingPlacement(
+      'town_hall',
+      candidate.x,
+      candidate.z,
+      context([], 24),
+    ),
+    { ok: false, reason: 'requires_completed_chapel' },
+  );
+
+  const chapel = building('chapel', 'chapel', 0, 12);
+  const marketplace = building('marketplace', 'market', 80, 12);
+  assert.deepEqual(
+    validateBuildingPlacement(
+      'town_hall',
+      candidate.x,
+      candidate.z,
+      context([chapel], 24),
+    ),
+    { ok: false, reason: 'requires_completed_marketplace' },
+  );
+  assert.deepEqual(
+    validateBuildingPlacement(
+      'town_hall',
+      candidate.x,
+      candidate.z,
+      context([chapel, marketplace], 24),
+    ),
+    { ok: false, reason: 'requires_civic_road_link' },
+  );
+
+  const civicRoad = new RoadNetwork();
+  civicRoad.addRoadPath([
+    new THREE.Vector3(-15, 0, 0),
+    new THREE.Vector3(95, 0, 0),
+  ]);
+  assert.equal(
+    validateBuildingPlacement(
+      'town_hall',
+      candidate.x,
+      candidate.z,
+      context([chapel, marketplace], 24, civicRoad),
+    ).ok,
+    true,
+    'a unique Town Hall with population, civic landmarks, and one shared road branch should preview as valid',
+  );
+}
+
 testClearanceSpatialIndexKeepsNearbyCandidates();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
 testPlacementOverlaysFollowTerrainHeight();
 testPlacementPreviewShowsTerrainFollowingExtent();
+testCivicAndFrontierPlacementPrerequisites();
 
 assert.equal(
   describeBuildingPlacementBlocker('requires_shore'),
@@ -248,6 +375,25 @@ assert.equal(
 assert.equal(
   describeBuildingPlacementBlocker('water'),
   'Blocked: Cannot build on water',
+);
+assert.equal(
+  describeBuildingPlacementBlocker('requires_completed_watchtower'),
+  'Blocked: Complete a frontier watchtower before establishing a paid guardhouse',
+);
+assert.equal(
+  describeBuildingPlacementBlocker('requires_civic_road_link'),
+  'Blocked: The Town Hall must be road-linked to both the church and marketplace',
+);
+assert.equal(
+  describeToolbarStatus({
+    canBuild: false,
+    hasDraft: false,
+    mode: 'town_hall',
+    statusDetail: 'Ready: population, civic buildings, and road links confirmed',
+    placementReady: true,
+    buildingCost: { timber: 180, stone: 120 },
+  }),
+  'Ready: population, civic buildings, and road links confirmed | Cost 180 timber, 120 stone',
 );
 assert.equal(
   describeToolbarStatus({

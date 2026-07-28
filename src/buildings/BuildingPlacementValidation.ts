@@ -2,7 +2,10 @@ import type { BuildingKind, BuildingState, BurgageZoneState, FarmFieldState, For
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
 import { buildingCostWithCarpenterSupport, hasRoadLinkedCarpenter } from '../economy/carpenterSupport.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
-import { MONASTERY_MIN_FOOTPRINT_SLOPE } from '../generated/gameBalance.ts';
+import {
+  MONASTERY_MIN_FOOTPRINT_SLOPE,
+  TOWN_HALL_POPULATION_REQUIRED,
+} from '../generated/gameBalance.ts';
 import { hasStaffedChapel, MONASTERY_MIN_PARISH_POPULATION, parishPopulation } from '../logistics/specialtyLogistics.ts';
 import { sampleBuildingFootprintHeights } from './BuildingTerrainLayout.ts';
 import { sampleBuildingFootprintPoints } from './BuildingTerrainLayout.ts';
@@ -31,9 +34,15 @@ export type BuildingPlacementFailureReason =
   | 'no_trees_in_range'
   | 'on_road'
   | 'insufficient_resources'
+  | 'requires_completed_watchtower'
   | 'requires_completed_guardhouse'
   | 'requires_staffed_chapel'
-  | 'requires_parish_population';
+  | 'requires_parish_population'
+  | 'town_hall_exists'
+  | 'requires_town_hall_population'
+  | 'requires_completed_chapel'
+  | 'requires_completed_marketplace'
+  | 'requires_civic_road_link';
 
 export type BuildingPlacementResult =
   | { ok: true }
@@ -121,6 +130,60 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'overlapping_extent' };
   }
 
+  if (
+    kind === 'guardhouse'
+    && !hasCompletedBuilding(buildings, 'watchtower')
+  ) {
+    return { ok: false, reason: 'requires_completed_watchtower' };
+  }
+
+  if (
+    kind === 'palisaded_refuge'
+    && !hasCompletedBuilding(buildings, 'guardhouse')
+  ) {
+    return { ok: false, reason: 'requires_completed_guardhouse' };
+  }
+
+  if (kind === 'monastery') {
+    if (!hasStaffedChapel(buildings)) {
+      return { ok: false, reason: 'requires_staffed_chapel' };
+    }
+    if (parishPopulation(context.residences) < MONASTERY_MIN_PARISH_POPULATION) {
+      return { ok: false, reason: 'requires_parish_population' };
+    }
+  }
+
+  if (kind === 'town_hall') {
+    if (buildings.some((building) => building.kind === 'town_hall')) {
+      return { ok: false, reason: 'town_hall_exists' };
+    }
+    if (parishPopulation(context.residences) < TOWN_HALL_POPULATION_REQUIRED) {
+      return { ok: false, reason: 'requires_town_hall_population' };
+    }
+    const chapel = buildings.find(
+      (building) => building.kind === 'chapel'
+        && building.constructionComplete !== false,
+    );
+    if (!chapel) {
+      return { ok: false, reason: 'requires_completed_chapel' };
+    }
+    const marketplace = buildings.find(
+      (building) => building.kind === 'marketplace'
+        && building.constructionComplete !== false,
+    );
+    if (!marketplace) {
+      return { ok: false, reason: 'requires_completed_marketplace' };
+    }
+    const distances = context.roadNetwork?.getPathfinder().roadPathDistancesFrom(
+      x,
+      z,
+      [chapel, marketplace],
+    );
+    if (!distances || distances.some((distance) => distance == null)) {
+      return { ok: false, reason: 'requires_civic_road_link' };
+    }
+  }
+
   if (kind === 'stone_quarry' && !hasQuarryStoneInRadius(x, z, getBuildingDefinition(kind).workRadius, context.quarries)) {
     return { ok: false, reason: 'no_quarry_in_range' };
   }
@@ -158,26 +221,6 @@ export function validateBuildingPlacement(
     }
   }
 
-  if (kind === 'monastery') {
-    if (!hasStaffedChapel(buildings)) {
-      return { ok: false, reason: 'requires_staffed_chapel' };
-    }
-    if (parishPopulation(context.residences) < MONASTERY_MIN_PARISH_POPULATION) {
-      return { ok: false, reason: 'requires_parish_population' };
-    }
-  }
-
-  if (
-    kind === 'palisaded_refuge'
-    && !buildings.some(
-      (building) =>
-        building.kind === 'guardhouse'
-        && building.constructionComplete !== false,
-    )
-  ) {
-    return { ok: false, reason: 'requires_completed_guardhouse' };
-  }
-
   const carpenterSupported = hasRoadLinkedCarpenter(
     buildings,
     context.roadNetwork,
@@ -201,6 +244,21 @@ export function validateBuildingPlacement(
   }
 
   return { ok: true };
+}
+
+function hasCompletedBuilding(
+  buildings: Iterable<BuildingState>,
+  kind: BuildingKind,
+): boolean {
+  for (const building of buildings) {
+    if (
+      building.kind === kind
+      && building.constructionComplete !== false
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 const RICH_QUARRY_SNAP_RADIUS = 58;
