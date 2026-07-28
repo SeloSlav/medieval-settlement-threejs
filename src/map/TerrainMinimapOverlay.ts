@@ -4,7 +4,7 @@ import { isWorldMapForagingMarkerVisible } from './worldMapMarkers.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import { createTerrainMinimapImage } from './createTerrainMinimapImage.ts';
-import { RESOURCE_MAP_ICON_SVG } from './resourceMapIconGlyphs.ts';
+import { RESOURCE_MAP_ICON_HTML } from './resourceMapIconArt.ts';
 import {
   riverFieldBounds,
   worldDirectionToMapRotation,
@@ -206,7 +206,7 @@ export class TerrainMinimapOverlay {
     element.className = `terrain-minimap__marker ${MARKER_KIND_CLASS[marker.kind]}`;
     if (marker.kind !== 'building') {
       element.classList.add('terrain-minimap__marker--resource');
-      element.innerHTML = RESOURCE_MAP_ICON_SVG[marker.kind];
+      element.innerHTML = RESOURCE_MAP_ICON_HTML[marker.kind];
       if (marker.kind === 'quarry' && marker.quarryKind === 'large') {
         element.classList.add('terrain-minimap__marker--large');
       }

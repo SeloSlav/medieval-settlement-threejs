@@ -329,13 +329,7 @@ export class BuildToolbar {
         </div>
 
         <button type="button" class="starter-camp-button" data-action="place-starter-camp" aria-pressed="false" hidden>
-          <svg viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M5 26 16 7l11 19" />
-            <path d="M9 26h14" />
-            <path d="M16 7v19" />
-            <path d="M12 26c0-4 1.4-7 4-9 2.6 2 4 5 4 9" />
-            <path d="M22 8c2.4 1.1 3.8 3.1 4.1 5.8" />
-          </svg>
+          <span class="gk-icon gk-icon--construction gk-icon--camp" aria-hidden="true"></span>
           <span class="starter-camp-button__copy">
             <strong>Place starter camp</strong>
             <small>Choose where your settlement begins</small>
@@ -344,77 +338,41 @@ export class BuildToolbar {
 
         <nav class="construction-dock" data-construction-dock aria-label="Construction tools">
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="road" data-tooltip="Roads (R)" aria-label="Roads (R)" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M9 21c4.8-4.8 5.2-12.2 1-18" />
-            <path d="M15 21c-2.8-5.7-2.2-11.6 2-18" />
-            <path d="M12 6.5h1" />
-            <path d="M12 11.5h1" />
-            <path d="M12 16.5h1" />
-          </svg>
+          <span class="gk-icon gk-icon--construction gk-icon--road" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">R</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="basic-build-menu" data-tooltip="Build (B)" aria-label="Build menu (B)" aria-controls="basic-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M14.5 5.5l4 4" />
-            <path d="M12.3 7.7l4-4 3.9 3.9-4 4" />
-            <path d="M14.8 10.8L6.4 19.2a2.1 2.1 0 0 1-3-3l8.4-8.4" />
-          </svg>
+          <span class="gk-icon gk-icon--construction gk-icon--hammer" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">B</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="agriculture-build-menu" data-tooltip="Agriculture (U)" aria-label="Agriculture menu (U)" aria-controls="agriculture-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3v18" />
-            <path d="M8 7c2-2 6-2 8 0" />
-            <path d="M7 12c2.5-3 7.5-3 10 0" />
-            <path d="M6 17c3-3 9-3 12 0" />
-          </svg>
+          <span class="gk-icon gk-icon--construction gk-icon--agriculture" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">U</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="industry-build-menu" data-tooltip="Industry (V)" aria-label="Industry menu (V)" aria-controls="industry-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M3 18h18" />
-            <path d="M7 18V11h10v7" />
-            <path d="M10 11V8h4v3" />
-            <path d="M12 6v2" />
-          </svg>
+          <span class="gk-icon gk-icon--construction gk-icon--industry" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">V</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="military-build-menu" data-tooltip="Defenses (X)" aria-label="Military menu (X)" aria-controls="military-build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false" hidden>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3 5 6v5c0 4.7 2.8 8.2 7 10 4.2-1.8 7-5.3 7-10V6l-7-3Z" />
-            <path d="M9 14h6" />
-            <path d="M10 14V9h4v5" />
-          </svg>
+          <span class="gk-icon gk-icon--construction gk-icon--defense" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">X</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--water" data-action="water-overlay" data-tooltip="Water map (M)" aria-label="Water map (M)" aria-pressed="false">
-          <span class="construction-dock-button__icon" aria-hidden="true">💧</span>
+          <span class="gk-icon gk-icon--construction gk-icon--water" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">M</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="city-admin" data-tooltip="Select Town Hall administration (I)" aria-label="Select Town Hall administration (I)" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3 4 7v14h16V7l-8-4Z" />
-            <path d="M9 21v-6h6v6" />
-            <path d="M10 10h4" />
-            <path d="M10 13h4" />
-          </svg>
+          <span class="gk-icon gk-icon--construction gk-icon--town-hall" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">I</span>
         </button>
         <button type="button" class="construction-dock-button" data-action="settings" data-tooltip="Settings (Esc)" aria-label="Settings (Esc)">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Z" />
-            <path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a8 8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A8 8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a8 8 0 0 0 2.6-1.5l2.4 1 2-3.4-2-1.5Z" />
-          </svg>
+          <span class="gk-icon gk-icon--construction gk-icon--settings" aria-hidden="true"></span>
         </button>
       </nav>
       </div>
 
       <button type="button" class="road-tool-button icon-button floating-build-button" data-action="commit-build" title="Build road (Enter)" aria-label="Build road" disabled hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M14.5 5.5l4 4" />
-          <path d="M12.3 7.7l4-4 3.9 3.9-4 4" />
-          <path d="M14.8 10.8L6.4 19.2a2.1 2.1 0 0 1-3-3l8.4-8.4" />
-        </svg>
+        <span class="gk-icon gk-icon--construction gk-icon--hammer" aria-hidden="true"></span>
       </button>
 
       <div class="burgage-layout-hud" data-burgage-layout-hud hidden aria-label="Residence plot layout">

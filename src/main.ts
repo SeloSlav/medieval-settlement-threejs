@@ -1,4 +1,5 @@
 ﻿import './style.css';
+import './ui/iconography.css';
 import { App } from './app/App.ts';
 import { installVisualPerformanceHooksIfRequested } from './e2e/visualPerformanceHooks.ts';
 

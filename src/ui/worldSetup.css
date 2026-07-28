@@ -6,10 +6,10 @@
   place-items: stretch start;
   padding: clamp(22px, 4vw, 58px);
   background:
-    linear-gradient(90deg, rgba(7, 11, 9, 0.88) 0%, rgba(7, 11, 9, 0.48) 47%, rgba(7, 11, 9, 0.06) 78%),
-    linear-gradient(0deg, rgba(8, 10, 8, 0.52) 0%, transparent 52%),
-    url('/assets/ui/world-setup-gorski-kotar-1550.webp') center / cover no-repeat,
-    #111510;
+    linear-gradient(90deg, rgba(13, 18, 12, 0.62) 0%, rgba(13, 18, 12, 0.28) 46%, rgba(13, 18, 12, 0.02) 76%),
+    linear-gradient(0deg, rgba(32, 40, 22, 0.34) 0%, rgba(32, 40, 22, 0.02) 52%),
+    url('/assets/ui/selo-empire-splash-naive.webp') center / cover no-repeat,
+    #667a45;
   pointer-events: auto;
 }
 
@@ -30,11 +30,31 @@
   display: none;
 }
 
-.world-setup-dialog {
+.world-setup-shell {
   position: relative;
   z-index: 1;
-  width: min(590px, 100%);
-  max-height: calc(100vh - clamp(44px, 8vw, 116px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  width: min(620px, 100%);
+  min-height: 0;
+}
+
+.world-setup-logo {
+  display: block;
+  width: min(430px, 86%);
+  height: auto;
+  margin-left: -5px;
+  filter:
+    drop-shadow(0 2px 1px rgba(31, 22, 11, 0.72))
+    drop-shadow(0 12px 24px rgba(24, 31, 16, 0.38));
+}
+
+.world-setup-dialog {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
   padding: 28px 30px 30px;
   color: var(--ink);
@@ -273,15 +293,41 @@
 @media (max-width: 560px) {
   .world-setup-backdrop {
     padding: 14px;
-    background-position: 58% center;
+    background-position: 60% center;
+  }
+
+  .world-setup-shell {
+    gap: 8px;
+  }
+
+  .world-setup-logo {
+    width: min(86vw, 390px);
+    margin: 0 auto;
   }
 
   .world-setup-dialog {
-    max-height: calc(100vh - 28px);
     padding: 22px 20px 24px;
   }
 
   .world-setup-mode-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 700px) {
+  .world-setup-backdrop {
+    padding-block: 14px;
+  }
+
+  .world-setup-shell {
+    gap: 8px;
+  }
+
+  .world-setup-logo {
+    width: min(300px, 62vw);
+  }
+
+  .world-setup-dialog {
+    padding-block: 20px 22px;
   }
 }

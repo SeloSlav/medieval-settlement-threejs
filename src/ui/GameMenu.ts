@@ -60,11 +60,8 @@ export class GameMenu {
     this.menuButton.setAttribute('aria-label', 'Open menu');
     this.menuButton.setAttribute('aria-haspopup', 'dialog');
     this.menuButton.setAttribute('aria-expanded', 'false');
-    this.menuButton.innerHTML = `
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-        <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-      </svg>
-    `;
+    this.menuButton.innerHTML =
+      '<span class="gk-icon gk-icon--construction gk-icon--settings" aria-hidden="true"></span>';
 
     this.backdrop = document.createElement('div');
     this.backdrop.className = 'game-menu-backdrop';

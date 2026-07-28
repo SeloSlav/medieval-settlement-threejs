@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#667a45" />
     <meta name="color-scheme" content="dark" />
-    <link rel="preload" as="image" href="/assets/ui/selo-empire-splash.webp" type="image/webp" />
+    <link rel="preload" as="image" href="/assets/ui/selo-empire-splash-naive.webp" type="image/webp" />
     <!--
       PRODUCTION METADATA — agents/LLMs: before shipping to production, replace the
       <title>, meta description, and Open Graph values below with the project's final
@@ -45,7 +45,7 @@
         background:
           linear-gradient(90deg, rgba(250, 241, 216, 0.28) 0%, rgba(250, 241, 216, 0.08) 38%, rgba(250, 241, 216, 0) 68%),
           linear-gradient(0deg, rgba(32, 40, 22, 0.42) 0%, rgba(32, 40, 22, 0.04) 46%),
-          url('/assets/ui/selo-empire-splash.webp') center / cover no-repeat,
+          url('/assets/ui/selo-empire-splash-naive.webp') center / cover no-repeat,
           #667a45;
         transition: opacity 420ms ease, visibility 420ms ease;
       }
@@ -110,9 +110,14 @@
         width: 34px;
         height: 34px;
         border-radius: 50%;
-        border: 2px solid rgba(82, 65, 35, 0.18);
-        border-top-color: #8e6428;
+        border: 2px solid rgba(238, 232, 220, 0.14);
+        border-top-color: #d7b463;
         animation: app-loading-spin 900ms linear infinite;
+      }
+
+      #app-loading .app-loading-spinner {
+        border-color: rgba(82, 65, 35, 0.18);
+        border-top-color: #8e6428;
       }
 
       .app-loading-percent {

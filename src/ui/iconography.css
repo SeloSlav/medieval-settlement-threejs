@@ -1,0 +1,241 @@
+/*
+ * Gorski Kotar iconography
+ *
+ * Generated, hand-inked sprite atlases replace the former inline SVG and
+ * Unicode resource glyphs. Interaction frames remain CSS so focus, disabled,
+ * hover, depleted, and active states stay sharp and accessible at every scale.
+ */
+
+.gk-icon,
+.map-resource-icon-glyph {
+  display: block;
+  flex: 0 0 auto;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(12, 10, 7, 0.72));
+  pointer-events: none;
+}
+
+/* Construction atlas: road, hammer, agriculture / industry, defense, water /
+ * town hall, settings, founding camp.
+ */
+.gk-icon--construction {
+  width: var(--gk-icon-size, 34px);
+  height: var(--gk-icon-size, 34px);
+  background-image: url('/assets/ui/icons/construction-actions.png');
+  background-size: 300% 300%;
+}
+
+.gk-icon--road { background-position: 0 0; }
+.gk-icon--hammer { background-position: 50% 0; }
+.gk-icon--agriculture { background-position: 100% 0; }
+.gk-icon--industry { background-position: 0 50%; }
+.gk-icon--defense { background-position: 50% 50%; }
+.gk-icon--water { background-position: 100% 50%; }
+.gk-icon--town-hall { background-position: 0 100%; }
+.gk-icon--settings { background-position: 50% 100%; }
+.gk-icon--camp { background-position: 100% 100%; }
+
+.construction-dock-button .gk-icon {
+  --gk-icon-size: 35px;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.construction-dock-button:hover .gk-icon,
+.construction-dock-button:focus-visible .gk-icon {
+  filter:
+    drop-shadow(0 1px 1px rgba(12, 10, 7, 0.74))
+    brightness(1.08);
+  transform: scale(1.04);
+}
+
+.construction-dock-button.is-active .gk-icon {
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 239, 194, 0.32))
+    contrast(1.07)
+    saturate(0.9);
+}
+
+.starter-camp-button .gk-icon {
+  --gk-icon-size: 46px;
+}
+
+.floating-build-button .gk-icon {
+  --gk-icon-size: 34px;
+}
+
+.floating-build-button:disabled .gk-icon {
+  filter: grayscale(0.72) opacity(0.46);
+}
+
+.hud-menu-button .gk-icon {
+  --gk-icon-size: 30px;
+}
+
+.resource-inspector-labor-label > span[aria-hidden='true'] {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+  background-color: transparent;
+  background-image: url('/assets/ui/icons/construction-actions.png');
+  background-position: 50% 0;
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
+}
+
+/* Map atlas: quarry, game, berries / mushrooms, fish, empty. */
+.map-resource-icon-glyph {
+  width: 27px;
+  height: 27px;
+  background-image: url('/assets/ui/icons/map-resources.png');
+  background-size: 300% 200%;
+}
+
+.map-resource-icon-glyph--quarry { background-position: 0 0; }
+.map-resource-icon-glyph--game { background-position: 50% 0; }
+.map-resource-icon-glyph--berries { background-position: 100% 0; }
+.map-resource-icon-glyph--mushrooms { background-position: 0 100%; }
+.map-resource-icon-glyph--fish { background-position: 50% 100%; }
+
+.quarry-map-icon,
+.foraging-map-icon {
+  background:
+    radial-gradient(circle at 36% 28%, #eadcaf 0, #c3a56a 68%, #92733e 100%);
+  border-color: rgba(56, 39, 20, 0.88);
+  box-shadow:
+    0 8px 22px var(--shadow),
+    inset 0 0 0 2px rgba(249, 231, 181, 0.42),
+    inset 0 -3px 7px rgba(74, 48, 19, 0.24);
+}
+
+.quarry-map-icon--large .map-resource-icon-glyph {
+  width: 32px;
+  height: 32px;
+}
+
+.quarry-map-icon:hover,
+.quarry-map-icon:focus-visible,
+.foraging-map-icon:hover,
+.foraging-map-icon:focus-visible {
+  border-color: #d7b463;
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.38),
+    0 0 0 2px rgba(215, 180, 99, 0.34),
+    inset 0 0 0 2px rgba(249, 231, 181, 0.46);
+}
+
+.terrain-minimap__marker--resource {
+  background:
+    radial-gradient(circle at 36% 28%, #e9dbad 0, #b69458 76%, #80602f 100%);
+  border-color: rgba(54, 38, 20, 0.92);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.56),
+    inset 0 0 0 1px rgba(249, 232, 184, 0.4);
+}
+
+.terrain-minimap__marker--resource .map-resource-icon-glyph {
+  width: 17px;
+  height: 17px;
+}
+
+.terrain-minimap__marker--large .map-resource-icon-glyph {
+  width: 21px;
+  height: 21px;
+}
+
+/* Settlement HUD atlases. The existing ::before slot remains the semantic
+ * icon position, so no resource markup or live-value logic has to change.
+ */
+.settlement-hud__stat[data-resource]::before {
+  width: 26px;
+  height: 26px;
+  justify-self: center;
+  content: '';
+  background-color: transparent;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
+  text-shadow: none;
+}
+
+.settlement-hud__stat[data-resource='timber']::before,
+.settlement-hud__stat[data-resource='stone']::before,
+.settlement-hud__stat[data-resource='firewood']::before,
+.settlement-hud__stat[data-resource='water']::before,
+.settlement-hud__stat[data-resource='food']::before,
+.settlement-hud__stat[data-resource='gold']::before,
+.settlement-hud__stat[data-resource='population']::before,
+.settlement-hud__stat[data-resource='housing']::before,
+.settlement-hud__stat[data-resource='labor']::before {
+  background-image: url('/assets/ui/icons/hud-resources-core.png');
+  background-size: 300% 300%;
+}
+
+.settlement-hud__stat[data-resource='timber']::before { background-position: 0 0; }
+.settlement-hud__stat[data-resource='stone']::before { background-position: 50% 0; }
+.settlement-hud__stat[data-resource='firewood']::before { background-position: 100% 0; }
+.settlement-hud__stat[data-resource='water']::before { background-position: 0 50%; }
+.settlement-hud__stat[data-resource='food']::before { background-position: 50% 50%; }
+.settlement-hud__stat[data-resource='gold']::before { background-position: 100% 50%; }
+.settlement-hud__stat[data-resource='population']::before { background-position: 0 100%; }
+.settlement-hud__stat[data-resource='housing']::before { background-position: 50% 100%; }
+.settlement-hud__stat[data-resource='labor']::before { background-position: 100% 100%; }
+
+.settlement-hud__stat[data-resource='grain']::before,
+.settlement-hud__stat[data-resource='barley']::before,
+.settlement-hud__stat[data-resource='malt']::before,
+.settlement-hud__stat[data-resource='flour']::before,
+.settlement-hud__stat[data-resource='ale']::before,
+.settlement-hud__stat[data-resource='preservedFood']::before,
+.settlement-hud__stat[data-resource='honey']::before,
+.settlement-hud__stat[data-resource='wine']::before,
+.settlement-hud__stat[data-resource='wool']::before {
+  background-image: url('/assets/ui/icons/hud-resources-goods-a.png');
+  background-size: 300% 300%;
+}
+
+.settlement-hud__stat[data-resource='grain']::before { background-position: 0 0; }
+.settlement-hud__stat[data-resource='barley']::before { background-position: 50% 0; }
+.settlement-hud__stat[data-resource='malt']::before { background-position: 100% 0; }
+.settlement-hud__stat[data-resource='flour']::before { background-position: 0 50%; }
+.settlement-hud__stat[data-resource='ale']::before { background-position: 50% 50%; }
+.settlement-hud__stat[data-resource='preservedFood']::before { background-position: 100% 50%; }
+.settlement-hud__stat[data-resource='honey']::before { background-position: 0 100%; }
+.settlement-hud__stat[data-resource='wine']::before { background-position: 50% 100%; }
+.settlement-hud__stat[data-resource='wool']::before { background-position: 100% 100%; }
+
+.settlement-hud__stat[data-resource='flax']::before,
+.settlement-hud__stat[data-resource='cloth']::before,
+.settlement-hud__stat[data-resource='ironwork']::before,
+.settlement-hud__stat[data-resource='polearms']::before {
+  background-image: url('/assets/ui/icons/hud-resources-goods-b.png');
+  background-size: 200% 200%;
+}
+
+.settlement-hud__stat[data-resource='flax']::before { background-position: 0 0; }
+.settlement-hud__stat[data-resource='cloth']::before { background-position: 100% 0; }
+.settlement-hud__stat[data-resource='ironwork']::before { background-position: 0 100%; }
+.settlement-hud__stat[data-resource='polearms']::before { background-position: 100% 100%; }
+
+.settlement-hud__stat[data-resource]:hover::before,
+.settlement-hud__stat[data-resource]:focus-visible::before {
+  filter:
+    drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78))
+    brightness(1.08)
+    saturate(1.06);
+}
+
+@media (max-width: 720px) {
+  .construction-dock-button .gk-icon {
+    --gk-icon-size: 31px;
+  }
+}
+
+@media (max-width: 440px) {
+  .construction-dock-button .gk-icon {
+    --gk-icon-size: 28px;
+  }
+}

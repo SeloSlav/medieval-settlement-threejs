@@ -9,11 +9,11 @@ import {
   placeProjectedMapButton,
 } from './mapIconProjection.ts';
 import {
-  BERRY_ICON_SVG,
-  FISH_ICON_SVG,
-  GAME_ICON_SVG,
-  MUSHROOM_ICON_SVG,
-} from './resourceMapIconGlyphs.ts';
+  BERRY_ICON_HTML,
+  FISH_ICON_HTML,
+  GAME_ICON_HTML,
+  MUSHROOM_ICON_HTML,
+} from './resourceMapIconArt.ts';
 
 type ForagingMapIconsOptions = {
   uiRoot: HTMLElement;
@@ -103,16 +103,16 @@ export class ForagingMapIcons {
 
     if (marker.kind === 'game') {
       button.classList.add('foraging-map-icon--game');
-      button.innerHTML = GAME_ICON_SVG;
+      button.innerHTML = GAME_ICON_HTML;
     } else if (marker.kind === 'berries') {
       button.classList.add('foraging-map-icon--berries');
-      button.innerHTML = BERRY_ICON_SVG;
+      button.innerHTML = BERRY_ICON_HTML;
     } else if (marker.kind === 'mushrooms') {
       button.classList.add('foraging-map-icon--mushrooms');
-      button.innerHTML = MUSHROOM_ICON_SVG;
+      button.innerHTML = MUSHROOM_ICON_HTML;
     } else {
       button.classList.add('foraging-map-icon--fish');
-      button.innerHTML = FISH_ICON_SVG;
+      button.innerHTML = FISH_ICON_HTML;
     }
 
     button.addEventListener('mousedown', (event) => {

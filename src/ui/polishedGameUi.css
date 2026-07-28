@@ -1535,7 +1535,6 @@ select:focus-visible {
 /* Setup screen: preserve the hero art, make choices more graphical ------- */
 
 .world-setup-dialog {
-  width: min(620px, 100%);
   border-color: var(--ui-edge);
   background:
     linear-gradient(145deg, rgba(67, 60, 42, 0.18), transparent 42%),
