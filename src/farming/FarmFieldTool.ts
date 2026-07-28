@@ -22,9 +22,11 @@ import {
   fieldArea,
   fieldCentroid,
   fieldEdgeLengths,
+  fieldShapeEfficiency,
   fieldSizeEfficiency,
   initialFieldFertility,
-  rectangleFromBaseline,
+  isValidFarmFieldCorners,
+  sampleParcelPoints,
   sampleAverageSlopeDegrees,
   type FarmFieldCorners,
 } from './farmFieldMath.ts';
@@ -36,6 +38,7 @@ export type LandParcelMode = 'field' | 'pasture';
 export type FarmFieldPlacementFailureReason =
   | 'too_small'
   | 'edge_too_short'
+  | 'invalid_shape'
   | 'too_steep'
   | 'no_farmstead'
   | 'water'
@@ -185,20 +188,35 @@ export class FarmFieldTool {
 
   getStatusDetail(): string {
     const parcel = this.mode === 'pasture' ? 'pasture' : 'field';
-    if (this.points.length === 0 && !this.fixedCorners) {
+    if (!this.fixedCorners && this.points.length === 0) {
       return this.mode === 'pasture'
-        ? 'Click to start the pasture baseline · keep the parcel inside this holding’s work extent'
-        : `Click to start the field baseline · ${cropLabel(this.crop)} suitability map visible (C to change) · keep it inside this farmstead’s work extent`;
+        ? 'Click the first pasture corner · trace four corners around the boundary'
+        : `Click the first field corner · trace four corners around the boundary · ${cropLabel(this.crop)} suitability map visible (C to change)`;
     }
-    if (this.points.length === 1) return `Click to set the other end of the ${parcel} baseline`;
-    if (!this.fixedCorners) return `Click to set ${parcel} depth`;
-    if (!this.validation.ok) return this.failureDetail(this.validation.reason);
+    if (!this.fixedCorners && this.points.length === 1) {
+      return `Click the second ${parcel} corner along the boundary`;
+    }
+    if (!this.fixedCorners && this.points.length === 2) {
+      return `Click the third ${parcel} corner · continue clockwise or counter-clockwise`;
+    }
+    if (!this.fixedCorners && !this.validation.corners) {
+      return `Move to shape the final ${parcel} corner`;
+    }
+    if (!this.validation.ok) {
+      const correction = this.fixedCorners
+        ? 'Backspace or right-click to adjust the final corner'
+        : 'move the final corner';
+      return `${this.failureDetail(this.validation.reason)} · ${correction}`;
+    }
     const exactArea = fieldArea(this.validation.corners);
     const area = Math.round(exactArea);
     const slope = this.validation.slope.toFixed(1);
     const moisture = Math.round(this.validation.moisture * 100);
+    const placementHint = this.fixedCorners
+      ? 'hammer or Enter to place'
+      : 'click to set the final corner';
     if (this.mode === 'pasture') {
-      return `${area} m² pasture · ${slope}° slope · ${moisture}% moisture · hammer or Enter to place`;
+      return `${area} m² pasture · ${slope}° slope · ${moisture}% moisture · ${placementHint}`;
     }
     const startingFertility = initialFieldFertility(
       this.validation.moisture,
@@ -222,7 +240,7 @@ export class FarmFieldTool {
     const yieldDetail = this.crop === 'fallow'
       ? `${Math.round(startingFertility * 100)}% starting soil`
       : `${sitePotential}% site · ${firstHarvest.toFixed(1)} ${cropHarvestUnit(this.crop)} first harvest`;
-    return `${cropLabel(this.crop)} · ${area} m² · ${yieldDetail} · ${Math.round(fieldSizeEfficiency(exactArea) * 100)}% size efficiency · ${slope}° slope · ${moisture}% moisture · hammer or Enter to place`;
+    return `${cropLabel(this.crop)} · ${area} m² · ${yieldDetail} · ${Math.round(fieldSizeEfficiency(exactArea) * 100)}% size · ${Math.round(fieldShapeEfficiency(this.validation.corners) * 100)}% shape · ${slope}° slope · ${moisture}% moisture · ${placementHint}`;
   }
 
   getBuildButtonPosition(): { clientX: number; clientY: number } | null {
@@ -328,8 +346,11 @@ export class FarmFieldTool {
       else this.options.onPlacementRejected?.(this.validation.reason);
       return;
     }
-    if (this.points.length < 2) this.points.push(point);
-    else this.fixedCorners = rectangleFromBaseline(this.points[0], this.points[1], point);
+    if (this.points.length < 3) {
+      this.points.push(point);
+    } else {
+      this.fixedCorners = [this.points[0], this.points[1], this.points[2], point];
+    }
     this.refreshPreview();
     this.options.onModeChanged();
   };
@@ -377,7 +398,12 @@ export class FarmFieldTool {
     this.validationDirty = false;
     this.lastValidationTime = 0;
     this.validation = { ok: false, reason: 'too_small', corners: null };
-    this.preview.show(null, false, this.mode === 'pasture' ? 'fallow' : this.crop);
+    this.preview.show(
+      null,
+      false,
+      this.mode === 'pasture' ? 'fallow' : this.crop,
+      [],
+    );
   }
 
   private refreshPreview(): void {
@@ -386,22 +412,51 @@ export class FarmFieldTool {
     this.validation = this.validate(corners);
     this.validationDirty = false;
     this.lastValidationTime = performance.now();
-    this.preview.show(corners, this.validation.ok, this.mode === 'pasture' ? 'fallow' : this.crop);
+    this.preview.show(
+      corners,
+      this.validation.ok,
+      this.mode === 'pasture' ? 'fallow' : this.crop,
+      this.resolveDraftPath(),
+    );
   }
 
   private refreshPreviewVisual(): void {
     const corners = this.resolvePreviewCorners();
     this.previewCorners = corners;
     this.validationDirty = true;
-    this.preview.show(corners, this.validation.ok, this.mode === 'pasture' ? 'fallow' : this.crop);
+    this.preview.show(
+      corners,
+      this.validation.ok,
+      this.mode === 'pasture' ? 'fallow' : this.crop,
+      this.resolveDraftPath(),
+    );
   }
 
   private resolvePreviewCorners(): FarmFieldCorners | null {
+    const hoverIsDistinct = this.points.length === 3
+      && this.hoverPoint
+      && Math.hypot(
+        this.hoverPoint.x - this.points[2].x,
+        this.hoverPoint.z - this.points[2].z,
+      ) >= MIN_CLICK_DISTANCE;
     return this.fixedCorners ?? (
-      this.points.length === 2 && this.hoverPoint
-        ? rectangleFromBaseline(this.points[0], this.points[1], this.hoverPoint)
+      hoverIsDistinct && this.hoverPoint
+        ? [this.points[0], this.points[1], this.points[2], this.hoverPoint]
         : null
     );
+  }
+
+  private resolveDraftPath(): Point2[] {
+    if (this.fixedCorners || this.resolvePreviewCorners()) return [];
+    const path = [...this.points];
+    const last = path[path.length - 1];
+    if (
+      this.hoverPoint
+      && (!last || Math.hypot(this.hoverPoint.x - last.x, this.hoverPoint.z - last.z) > 0.05)
+    ) {
+      path.push(this.hoverPoint);
+    }
+    return path;
   }
 
   private maybeRunDeferredValidation(): void {
@@ -418,11 +473,15 @@ export class FarmFieldTool {
       this.previewCorners,
       this.validation.ok,
       this.mode === 'pasture' ? 'fallow' : this.crop,
+      this.resolveDraftPath(),
     );
   }
 
   private validate(corners: FarmFieldCorners | null): Validation {
     if (!corners) return { ok: false, reason: 'too_small', corners: null };
+    if (!isValidFarmFieldCorners(corners)) {
+      return { ok: false, reason: 'invalid_shape', corners };
+    }
     const minArea = this.mode === 'pasture' ? LIVESTOCK_MIN_PASTURE_AREA : FARM_MIN_FIELD_AREA;
     const minEdge = this.mode === 'pasture' ? LIVESTOCK_MIN_PASTURE_EDGE : FARM_MIN_FIELD_EDGE;
     const area = fieldArea(corners);
@@ -452,7 +511,7 @@ export class FarmFieldTool {
       : FARM_MAX_ACCEPTED_SLOPE_DEGREES;
     if (slope > maxSlope) return { ok: false, reason: 'too_steep', corners, slope, moisture };
 
-    const samples = [...corners, center];
+    const samples = sampleParcelPoints(corners);
     if (samples.some((point) => this.options.isWaterAt(point.x, point.z))) {
       return { ok: false, reason: 'water', corners, slope, moisture };
     }
@@ -489,6 +548,8 @@ export class FarmFieldTool {
         return `${parcel} too small · at least ${this.mode === 'pasture' ? LIVESTOCK_MIN_PASTURE_AREA : FARM_MIN_FIELD_AREA} m²`;
       case 'edge_too_short':
         return `Each edge must be at least ${this.mode === 'pasture' ? LIVESTOCK_MIN_PASTURE_EDGE : FARM_MIN_FIELD_EDGE} m`;
+      case 'invalid_shape':
+        return `${parcel} boundary must be a simple convex four-corner shape`;
       case 'too_steep': return `Ground too steep for this ${this.mode === 'pasture' ? 'herd' : 'crop'}`;
       case 'no_farmstead':
         return this.mode === 'pasture'

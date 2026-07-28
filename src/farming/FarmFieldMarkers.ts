@@ -8,6 +8,7 @@ import {
 } from '../placement/TerrainOverlayGeometry.ts';
 import type { FarmCrop, FarmFieldStage, FarmFieldState } from '../resources/types.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
+import type { Point2 } from '../utils/polygonGeometry.ts';
 import { bilinearPoint, cropLabel, type FarmFieldCorners } from './farmFieldMath.ts';
 
 const FIELD_LIFT = 0.08;
@@ -1055,8 +1056,40 @@ export class FarmFieldPreview {
     this.group.add(this.border);
   }
 
-  show(corners: FarmFieldCorners | null, valid: boolean, _crop: FarmCrop): void {
+  show(
+    corners: FarmFieldCorners | null,
+    valid: boolean,
+    _crop: FarmCrop,
+    draftPath: readonly Point2[] = [],
+  ): void {
     if (!corners) {
+      if (draftPath.length >= 2) {
+        const signature = `draft|${draftPath
+          .map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`)
+          .join('|')}`;
+        if (signature === this.lastSignature) return;
+        this.lastSignature = signature;
+        this.group.visible = true;
+        this.fill.visible = false;
+        this.guides.visible = false;
+        this.border.visible = true;
+        (this.border.material as THREE.MeshBasicMaterial).color.setHex(0xffd27a);
+        const segments: TerrainOverlaySegment[] = [];
+        for (let index = 1; index < draftPath.length; index += 1) {
+          segments.push([draftPath[index - 1], draftPath[index]]);
+        }
+        updateTerrainRibbonGeometry(
+          this.border.geometry,
+          segments,
+          this.getHeightAt,
+          {
+            width: 0.16,
+            lift: 0.16,
+            sampleSpacing: 0.8,
+          },
+        );
+        return;
+      }
       this.lastSignature = '';
       this.group.visible = false;
       return;
@@ -1068,6 +1101,8 @@ export class FarmFieldPreview {
     if (signature === this.lastSignature) return;
     this.lastSignature = signature;
     this.group.visible = true;
+    this.fill.visible = true;
+    this.border.visible = true;
 
     const color = valid ? 0xfffdf5 : 0xff5d50;
     for (const mesh of [this.fill, this.guides, this.border]) {

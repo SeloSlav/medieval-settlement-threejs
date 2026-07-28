@@ -85,8 +85,8 @@ export function describeBuilderHelp(mode: ToolbarStats['mode']): string {
         `;
     case 'farm-fields':
       return `
-          <li><span>Set baseline</span><span class="road-controls-key">1st + 2nd click</span></li>
-          <li><span>Set field depth</span><span class="road-controls-key">3rd click</span></li>
+          <li><span>Trace field boundary</span><span class="road-controls-key">4 corner clicks</span></li>
+          <li><span>Keep corners convex</span><span class="road-controls-hint">clockwise or counter-clockwise</span></li>
           <li><span>Change crop</span><span class="road-controls-key">C</span></li>
           <li><span>Undo last point</span><span class="road-controls-key">R-click or Backspace</span></li>
           <li><span>Place field</span><span class="road-controls-key">Hammer or Enter</span></li>
@@ -94,8 +94,8 @@ export function describeBuilderHelp(mode: ToolbarStats['mode']): string {
         `;
     case 'pastures':
       return `
-          <li><span>Set baseline</span><span class="road-controls-key">1st + 2nd click</span></li>
-          <li><span>Set pasture depth</span><span class="road-controls-key">3rd click</span></li>
+          <li><span>Trace pasture boundary</span><span class="road-controls-key">4 corner clicks</span></li>
+          <li><span>Keep corners convex</span><span class="road-controls-hint">clockwise or counter-clockwise</span></li>
           <li><span>Undo last point</span><span class="road-controls-key">R-click or Backspace</span></li>
           <li><span>Fence pasture</span><span class="road-controls-key">Hammer or Enter</span></li>
           <li><span>Cancel / exit</span><span class="road-controls-key">Esc</span></li>

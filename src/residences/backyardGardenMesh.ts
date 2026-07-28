@@ -501,38 +501,6 @@ function addSteppingStones(group: THREE.Group, z0: number, z1: number, seed: num
   }
 }
 
-function addLowWattleFence(group: THREE.Group, width: number, z: number, seed: number): void {
-  const fence = new THREE.Group();
-  fence.name = 'Backyard wattle fence';
-  group.add(fence);
-  const postCount = Math.max(4, Math.floor(width / 1.25));
-  const span = width * 0.88;
-  for (let i = 0; i < postCount; i++) {
-    const x = -span * 0.5 + (span * i) / (postCount - 1);
-    addMesh(
-      fence,
-      new THREE.CylinderGeometry(0.045, 0.06, 0.68, 6),
-      MATERIALS.darkTimber,
-      x,
-      0.34,
-      z,
-      new THREE.Euler(0, 0, (i % 2 ? 1 : -1) * 0.035),
-    );
-  }
-  for (let row = 0; row < 3; row++) {
-    addMesh(
-      fence,
-      new THREE.CylinderGeometry(0.035, 0.035, span, 6),
-      MATERIALS.wicker,
-      0,
-      0.18 + row * 0.17,
-      z + (row % 2 ? 0.025 : -0.025),
-      new THREE.Euler(0, 0, Math.PI * 0.5 + (row - 1) * 0.012),
-    );
-  }
-  group.userData.wattleSeed = seed;
-}
-
 function addBasket(
   group: THREE.Group,
   x: number,
@@ -647,7 +615,6 @@ function addOrchard(
     ? [[-width * 0.27, -depth * 0.18], [width * 0.24, -depth * 0.08], [0, depth * 0.28]]
     : [[-width * 0.25, shallow ? 0 : -depth * 0.12], [width * 0.25, shallow ? 0 : depth * 0.16]];
   positions.forEach(([x, z], index) => addFruitTree(group, kind, x!, z!, index, seed + index * 997, plants));
-  addLowWattleFence(group, width, depth * 0.47, seed);
   addBasket(
     group,
     width * 0.34,
@@ -1033,19 +1000,6 @@ function addHenYard(group: THREE.Group, width: number, depth: number, seed: numb
   addMesh(group, new THREE.BoxGeometry(0.62, 0.72, 0.08), MATERIALS.darkSoil, coopX + 0.35, 0.58, coopZ + coopDepth * 0.52, new THREE.Euler(), undefined, 'HenCoopDoor');
   for (let rung = 0; rung < 4; rung++) {
     addMesh(group, new THREE.BoxGeometry(0.82, 0.07, 0.08), MATERIALS.wicker, coopX + 0.35, 0.18 + rung * 0.18, coopZ + coopDepth * 0.68 + rung * 0.12);
-  }
-  for (const x of [-width * 0.48, width * 0.48]) {
-    for (const z of [-depth * 0.44, depth * 0.44]) {
-      addMesh(group, new THREE.CylinderGeometry(0.045, 0.06, 0.95, 6), MATERIALS.darkTimber, x, 0.48, z);
-    }
-  }
-  for (const z of [-depth * 0.44, depth * 0.44]) {
-    addMesh(group, new THREE.BoxGeometry(width * 0.96, 0.055, 0.055), MATERIALS.wicker, 0, 0.45, z);
-    addMesh(group, new THREE.BoxGeometry(width * 0.96, 0.055, 0.055), MATERIALS.wicker, 0, 0.78, z);
-  }
-  for (const x of [-width * 0.48, width * 0.48]) {
-    addMesh(group, new THREE.BoxGeometry(0.055, 0.055, depth * 0.88), MATERIALS.wicker, x, 0.45, 0);
-    addMesh(group, new THREE.BoxGeometry(0.055, 0.055, depth * 0.88), MATERIALS.wicker, x, 0.78, 0);
   }
   // Lightweight fallback birds are replaced by the freely licensed animated asset when available.
   for (let i = 0; i < Math.max(3, Math.min(6, Math.round(width * depth / 6))); i++) {

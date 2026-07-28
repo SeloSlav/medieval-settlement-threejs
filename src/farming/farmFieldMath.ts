@@ -9,7 +9,12 @@ import {
   type FarmCropProduce,
 } from '../generated/gameBalance.ts';
 import type { FarmCrop, FarmFieldState } from '../resources/types.ts';
-import type { Point2 } from '../utils/polygonGeometry.ts';
+import {
+  cross2,
+  isConvexQuad2,
+  polygonArea2,
+  type Point2,
+} from '../utils/polygonGeometry.ts';
 
 export type FarmFieldCorners = [Point2, Point2, Point2, Point2];
 
@@ -30,9 +35,26 @@ export function rectangleFromBaseline(a: Point2, b: Point2, depthPoint: Point2):
 }
 
 export function fieldCentroid(corners: readonly Point2[]): Point2 {
+  let twiceArea = 0;
+  let weightedX = 0;
+  let weightedZ = 0;
+  for (let index = 0; index < corners.length; index += 1) {
+    const point = corners[index];
+    const next = corners[(index + 1) % corners.length];
+    const cross = point.x * next.z - next.x * point.z;
+    twiceArea += cross;
+    weightedX += (point.x + next.x) * cross;
+    weightedZ += (point.z + next.z) * cross;
+  }
+  if (Math.abs(twiceArea) <= 1e-9) {
+    return {
+      x: corners.reduce((sum, point) => sum + point.x, 0) / corners.length,
+      z: corners.reduce((sum, point) => sum + point.z, 0) / corners.length,
+    };
+  }
   return {
-    x: corners.reduce((sum, point) => sum + point.x, 0) / corners.length,
-    z: corners.reduce((sum, point) => sum + point.z, 0) / corners.length,
+    x: weightedX / (3 * twiceArea),
+    z: weightedZ / (3 * twiceArea),
   };
 }
 
@@ -44,14 +66,56 @@ export function fieldEdgeLengths(corners: FarmFieldCorners): [number, number, nu
 }
 
 export function fieldArea(corners: FarmFieldCorners): number {
-  const edges = fieldEdgeLengths(corners);
-  return edges[0] * edges[1];
+  return polygonArea2(corners);
 }
 
 export function fieldShapeEfficiency(corners: FarmFieldCorners): number {
-  const [width, depth] = fieldEdgeLengths(corners);
+  const edges = fieldEdgeLengths(corners);
+  const width = (edges[0] + edges[2]) * 0.5;
+  const depth = (edges[1] + edges[3]) * 0.5;
   const aspect = Math.max(width, depth) / Math.max(1e-6, Math.min(width, depth));
-  return Math.max(0.72, Math.min(1, 1 - Math.max(0, aspect - 1) * 0.035));
+  const aspectEfficiency = Math.max(
+    0.72,
+    Math.min(1, 1 - Math.max(0, aspect - 1) * 0.035),
+  );
+  const compactness = Math.max(
+    0,
+    Math.min(1, fieldArea(corners) / Math.max(1e-6, width * depth)),
+  );
+  const skewEfficiency = 0.85 + compactness * 0.15;
+  return Math.max(0.72, Math.min(1, aspectEfficiency * skewEfficiency));
+}
+
+export function isValidFarmFieldCorners(corners: FarmFieldCorners): boolean {
+  if (
+    !corners.every((point) => Number.isFinite(point.x) && Number.isFinite(point.z))
+    || !isConvexQuad2(corners[0], corners[1], corners[2], corners[3])
+  ) {
+    return false;
+  }
+  const turns = [
+    cross2(corners[0], corners[1], corners[2]),
+    cross2(corners[1], corners[2], corners[3]),
+    cross2(corners[2], corners[3], corners[0]),
+    cross2(corners[3], corners[0], corners[1]),
+  ];
+  return (turns.every((turn) => turn > 1e-8) || turns.every((turn) => turn < -1e-8))
+    && fieldArea(corners) > 1e-6;
+}
+
+/** Bounded whole-parcel sampling used by both previews and placement checks. */
+export function sampleParcelPoints(
+  corners: FarmFieldCorners,
+  divisions = 4,
+): Point2[] {
+  const steps = Math.max(1, Math.floor(divisions));
+  const points: Point2[] = [];
+  for (let vIndex = 0; vIndex <= steps; vIndex += 1) {
+    for (let uIndex = 0; uIndex <= steps; uIndex += 1) {
+      points.push(bilinearPoint(corners, uIndex / steps, vIndex / steps));
+    }
+  }
+  return points;
 }
 
 export function fieldSizeEfficiency(area: number): number {

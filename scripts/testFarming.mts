@@ -28,13 +28,16 @@ import {
 import {
   expectedFieldYield,
   fieldArea,
+  fieldCentroid,
   fieldEdgeLengths,
   fieldShapeEfficiency,
   fieldSizeEfficiency,
   cropSiteSuitability,
   initialFieldFertility,
+  isValidFarmFieldCorners,
   moistureSuitability,
   rectangleFromBaseline,
+  sampleParcelPoints,
   sampleAverageSlopeDegrees,
 } from '../src/farming/farmFieldMath.ts';
 import {
@@ -82,6 +85,43 @@ assert.equal(fieldShapeEfficiency(rectangle), 1);
 assert.equal(sampleAverageSlopeDegrees(rectangle, () => 10), 0);
 assert.ok(sampleAuthoritativeHydrologyScore(0, 0) >= 0 && sampleAuthoritativeHydrologyScore(0, 0) <= 1);
 assert.equal(sampleAuthoritativeHydrologyScore(10_000, 10_000), 0);
+
+const organicParcel = [
+  { x: 0, z: 0 },
+  { x: 20, z: 0 },
+  { x: 18, z: 14 },
+  { x: 2, z: 12 },
+] as const;
+assert.ok(isValidFarmFieldCorners([...organicParcel]));
+assert.equal(fieldArea([...organicParcel]), 234);
+assert.ok(Math.abs(fieldCentroid(organicParcel).x - 10.2564102564) < 1e-9);
+assert.ok(Math.abs(fieldCentroid(organicParcel).z - 6.2735042735) < 1e-9);
+assert.ok(fieldShapeEfficiency([...organicParcel]) < 1);
+assert.ok(fieldShapeEfficiency([...organicParcel]) > FARM_LARGE_FIELD_EFFICIENCY_FLOOR);
+assert.equal(sampleParcelPoints([...organicParcel]).length, 25);
+assert.ok(!isValidFarmFieldCorners([
+  { x: 0, z: 0 },
+  { x: 20, z: 0 },
+  { x: 5, z: 5 },
+  { x: 0, z: 15 },
+]));
+assert.ok(!isValidFarmFieldCorners([
+  { x: 0, z: 0 },
+  { x: 20, z: 20 },
+  { x: 0, z: 20 },
+  { x: 20, z: 0 },
+]));
+const parcelMathStarted = performance.now();
+for (let index = 0; index < 10_000; index += 1) {
+  fieldArea([...organicParcel]);
+  fieldCentroid(organicParcel);
+  fieldShapeEfficiency([...organicParcel]);
+  sampleParcelPoints([...organicParcel]);
+}
+assert.ok(
+  performance.now() - parcelMathStarted < 250,
+  '10,000 organic parcel previews should stay below interactive latency',
+);
 
 const ryeDry = moistureSuitability('rye', 0.38);
 const oatsDry = moistureSuitability('oats', 0.38);
@@ -624,6 +664,10 @@ assert.match(farmFieldTool, /corners\.some\(\(point\)/, 'the whole parcel must s
 assert.match(farmFieldTool, /cropSiteSuitability/);
 assert.match(farmFieldTool, /first harvest/);
 assert.match(farmFieldTool, /suitability map visible/);
+assert.match(farmFieldTool, /this\.points\.length < 3/);
+assert.match(farmFieldTool, /isValidFarmFieldCorners/);
+assert.match(farmFieldTool, /sampleParcelPoints/);
+assert.doesNotMatch(farmFieldTool, /rectangleFromBaseline/);
 
 const cropSuitabilityOverlay = fs.readFileSync(
   'src/farming/CropSuitabilityOverlay.ts',
@@ -702,6 +746,8 @@ const constructionSimulation = fs.readFileSync('server/src/simulation/constructi
 assert.match(constructionSimulation, /site\.grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);
 const farmFieldReducers = fs.readFileSync('server/src/reducers/farm_fields.rs', 'utf8');
 assert.match(farmFieldReducers, /initial_field_fertility\(moisture, slope\)/);
+assert.match(farmFieldReducers, /is_valid_convex_quadrilateral/);
+assert.match(farmFieldReducers, /PARCEL_SAMPLE_DIVISIONS/);
 assert.match(farmFieldReducers, /pub fn start_farm_field_early_harvest/);
 assert.match(farmFieldReducers, /early_harvest_available\(/);
 assert.match(farmFieldReducers, /field\.harvest_yield_multiplier = early_harvest_yield_multiplier/);

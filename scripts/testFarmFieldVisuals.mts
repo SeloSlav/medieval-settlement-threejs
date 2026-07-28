@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { FarmFieldMarkers } from '../src/farming/FarmFieldMarkers.ts';
+import {
+  FarmFieldMarkers,
+  FarmFieldPreview,
+} from '../src/farming/FarmFieldMarkers.ts';
 import type { FarmFieldState } from '../src/resources/types.ts';
 
 const field: FarmFieldState = {
@@ -84,5 +87,27 @@ for (const [crop, signature] of [
   );
 }
 fieldMarkers.dispose();
+
+const preview = new FarmFieldPreview(() => 0);
+visualRoot.add(preview.group);
+preview.show(null, false, 'rye', [
+  { x: 0, z: 0 },
+  { x: 20, z: 0 },
+  { x: 18, z: 14 },
+]);
+const openBoundary = preview.group.getObjectByName('Farmland dotted border') as THREE.Mesh;
+const previewFill = preview.group.getObjectByName('Farmland preview fill') as THREE.Mesh;
+assert.ok(preview.group.visible);
+assert.ok(openBoundary.geometry.getAttribute('position').count > 0);
+assert.equal(previewFill.visible, false, 'an open three-corner boundary must not imply committed area');
+preview.show([
+  { x: 0, z: 0 },
+  { x: 20, z: 0 },
+  { x: 18, z: 14 },
+  { x: 2, z: 12 },
+], true, 'rye');
+assert.equal(previewFill.visible, true);
+assert.ok(previewFill.geometry.getAttribute('position').count > 0);
+preview.dispose();
 
 console.log('farm-field visual tests passed');

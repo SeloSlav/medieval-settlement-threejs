@@ -16,7 +16,7 @@ unlocks, or a Heavy Plow unlock.
 
 | Farming behavior | Reference behavior | Current project | Status |
 | --- | --- | --- | --- |
-| Field layout | Free flexible four-sided field | A selected farmstead lays out a terrain-validated four-corner rectangle inside its work extent | Partial — flexible size, but constrained to a rectangle |
+| Field layout | Free flexible four-sided field | A selected farmstead or livestock holding traces a convex four-corner parcel inside its work extent, with live boundary, area, shape, terrain, water, quarry, and overlap feedback | Matched |
 | Field size and labor | Larger fields yield more and take longer to work | Area drives yield, seed, ploughing, sowing, and harvest work; efficiency is full through 1,600 m² and then tapers softly | Matched |
 | Farm workforce | Families assigned to a Farmhouse work connected fields | Assigned farmstead labor works only that holding’s fields and respects seasonal/Sabbath pauses | Matched |
 | Work stages | Plough, sow, grow, harvest | Authoritative `ploughing`, `sowing`, `growing`, and `harvesting` stages with normalized progress | Matched |

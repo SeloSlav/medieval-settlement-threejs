@@ -86,9 +86,27 @@ pub fn polygon_area(corners: &ZoneCorners) -> f64 {
 }
 
 pub fn centroid(corners: &ZoneCorners) -> Point2 {
+    let points = corners_array(corners);
+    let mut twice_area = 0.0;
+    let mut weighted_x = 0.0;
+    let mut weighted_z = 0.0;
+    for index in 0..points.len() {
+        let point = points[index];
+        let next = points[(index + 1) % points.len()];
+        let cross = point.x * next.z - next.x * point.z;
+        twice_area += cross;
+        weighted_x += (point.x + next.x) * cross;
+        weighted_z += (point.z + next.z) * cross;
+    }
+    if twice_area.abs() <= 1e-9 {
+        return Point2 {
+            x: points.iter().map(|point| point.x).sum::<f64>() / points.len() as f64,
+            z: points.iter().map(|point| point.z).sum::<f64>() / points.len() as f64,
+        };
+    }
     Point2 {
-        x: (corners.a.x + corners.b.x + corners.c.x + corners.d.x) * 0.25,
-        z: (corners.a.z + corners.b.z + corners.c.z + corners.d.z) * 0.25,
+        x: weighted_x / (3.0 * twice_area),
+        z: weighted_z / (3.0 * twice_area),
     }
 }
 
@@ -97,30 +115,50 @@ pub fn edge_lengths(corners: &ZoneCorners) -> [f64; 4] {
     std::array::from_fn(|index| distance(points[index], points[(index + 1) % 4]))
 }
 
-pub fn is_valid_rectangle(corners: &ZoneCorners) -> bool {
+pub fn is_valid_convex_quadrilateral(corners: &ZoneCorners) -> bool {
     let points = corners_array(corners);
-    let edges = [
-        subtract(points[1], points[0]),
-        subtract(points[2], points[1]),
-        subtract(points[3], points[2]),
-        subtract(points[0], points[3]),
-    ];
-    let lengths = edges.map(|edge| (edge.x * edge.x + edge.z * edge.z).sqrt());
-    if lengths.iter().any(|length| *length <= 1e-6) {
+    if points
+        .iter()
+        .any(|point| !point.x.is_finite() || !point.z.is_finite())
+    {
         return false;
     }
-    let perpendicular = dot(edges[0], edges[1]).abs() <= lengths[0] * lengths[1] * 0.035;
-    let opposite_a = cross(edges[0], edges[2]).abs() <= lengths[0] * lengths[2] * 0.035;
-    let opposite_b = cross(edges[1], edges[3]).abs() <= lengths[1] * lengths[3] * 0.035;
-    perpendicular && opposite_a && opposite_b && polygon_area(corners) > 1e-6
+    if edge_lengths(corners)
+        .iter()
+        .any(|length| !length.is_finite() || *length <= 1e-6)
+    {
+        return false;
+    }
+    let turns = std::array::from_fn::<_, 4, _>(|index| {
+        let a = points[index];
+        let b = points[(index + 1) % 4];
+        let c = points[(index + 2) % 4];
+        cross(subtract(b, a), subtract(c, b))
+    });
+    let convex = turns.iter().all(|turn| *turn > 1e-8) || turns.iter().all(|turn| *turn < -1e-8);
+    convex && polygon_area(corners).is_finite() && polygon_area(corners) > 1e-6
 }
 
 pub fn shape_efficiency(corners: &ZoneCorners) -> f64 {
     let lengths = edge_lengths(corners);
-    let short = lengths[0].min(lengths[1]).max(1e-6);
-    let long = lengths[0].max(lengths[1]);
-    let aspect = long / short;
-    (1.0 - (aspect - 1.0).max(0.0) * 0.035).clamp(0.72, 1.0)
+    let width = (lengths[0] + lengths[2]) * 0.5;
+    let depth = (lengths[1] + lengths[3]) * 0.5;
+    let aspect = width.max(depth) / width.min(depth).max(1e-6);
+    let aspect_efficiency = (1.0 - (aspect - 1.0).max(0.0) * 0.035).clamp(0.72, 1.0);
+    let compactness = (polygon_area(corners) / (width * depth).max(1e-6)).clamp(0.0, 1.0);
+    let skew_efficiency = 0.85 + compactness * 0.15;
+    (aspect_efficiency * skew_efficiency).clamp(0.72, 1.0)
+}
+
+pub fn bilinear_point(corners: &ZoneCorners, u: f64, v: f64) -> Point2 {
+    let top_x = corners.a.x + (corners.b.x - corners.a.x) * u;
+    let top_z = corners.a.z + (corners.b.z - corners.a.z) * u;
+    let bottom_x = corners.d.x + (corners.c.x - corners.d.x) * u;
+    let bottom_z = corners.d.z + (corners.c.z - corners.d.z) * u;
+    Point2 {
+        x: top_x + (bottom_x - top_x) * v,
+        z: top_z + (bottom_z - top_z) * v,
+    }
 }
 
 pub fn field_size_efficiency(area: f64) -> f64 {
@@ -306,10 +344,6 @@ fn subtract(a: Point2, b: Point2) -> Point2 {
     }
 }
 
-fn dot(a: Point2, b: Point2) -> f64 {
-    a.x * b.x + a.z * b.z
-}
-
 fn cross(a: Point2, b: Point2) -> f64 {
     a.x * b.z - a.z * b.x
 }
@@ -378,6 +412,30 @@ mod tests {
         assert!(initial_field_fertility(0.7, 2.0) > initial_field_fertility(0.3, 12.0));
         assert!((initial_field_fertility(10.0, 0.0) - 0.92).abs() < 1e-9);
         assert_eq!(initial_field_fertility(0.0, 100.0), 0.35);
+    }
+
+    #[test]
+    fn convex_four_corner_parcels_preserve_area_and_penalize_skew() {
+        let square = corners_from_values([0.0, 0.0, 20.0, 0.0, 20.0, 20.0, 0.0, 20.0]);
+        let irregular = corners_from_values([0.0, 0.0, 20.0, 0.0, 18.0, 14.0, 2.0, 12.0]);
+        let concave = corners_from_values([0.0, 0.0, 20.0, 0.0, 5.0, 5.0, 0.0, 15.0]);
+        let crossed = corners_from_values([0.0, 0.0, 20.0, 20.0, 0.0, 20.0, 20.0, 0.0]);
+        let non_finite = corners_from_values([0.0, 0.0, f64::NAN, 0.0, 20.0, 20.0, 0.0, 20.0]);
+
+        assert!(is_valid_convex_quadrilateral(&square));
+        assert!(is_valid_convex_quadrilateral(&irregular));
+        assert!(!is_valid_convex_quadrilateral(&concave));
+        assert!(!is_valid_convex_quadrilateral(&crossed));
+        assert!(!is_valid_convex_quadrilateral(&non_finite));
+        assert!((polygon_area(&irregular) - 234.0).abs() < 1e-9);
+        assert_eq!(shape_efficiency(&square), 1.0);
+        assert!(shape_efficiency(&irregular) < 1.0);
+        assert!(shape_efficiency(&irregular) > 0.72);
+
+        let center = centroid(&irregular);
+        assert!(point_in_field(center, &irregular));
+        let sampled_center = bilinear_point(&irregular, 0.5, 0.5);
+        assert!(point_in_field(sampled_center, &irregular));
     }
 
     #[test]

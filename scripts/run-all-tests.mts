@@ -67,6 +67,7 @@ const tests = [
   'test:chapel-bell-schedule',
   'test:expanded-settlement',
   'test:farming',
+  'test:farm-field-visuals',
   'test:grain-logistics',
   'test:monastery-polish',
   'test:backyard-gardens',

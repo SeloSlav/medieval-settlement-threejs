@@ -6,9 +6,10 @@ use crate::balance_generated::{
 use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_footprint, Point2};
 use crate::db::*;
 use crate::farming::{
-    centroid, corners_from_values, early_harvest_available, early_harvest_yield_multiplier,
-    edge_lengths, initial_field_fertility, is_valid_rectangle, point_in_field, polygon_area,
-    valid_crop, NO_FOLLOWING_CROP, STAGE_HARVESTING, STAGE_PLOUGHING,
+    bilinear_point, centroid, corners_from_values, early_harvest_available,
+    early_harvest_yield_multiplier, edge_lengths, initial_field_fertility,
+    is_valid_convex_quadrilateral, point_in_field, polygon_area, valid_crop, NO_FOLLOWING_CROP,
+    STAGE_HARVESTING, STAGE_PLOUGHING,
 };
 use crate::hydrology::sample_hydrology_score;
 use crate::placement_validation::{building_pick_radius, is_on_quarry_pit, is_open_water};
@@ -46,8 +47,8 @@ pub fn place_farm_field(
     let corners = corners_from_values([
         corner_ax, corner_az, corner_bx, corner_bz, corner_cx, corner_cz, corner_dx, corner_dz,
     ]);
-    if !is_valid_rectangle(&corners) {
-        return Err("Field corners must form a valid rectangle.".to_string());
+    if !is_valid_convex_quadrilateral(&corners) {
+        return Err("Field corners must form a simple convex parcel.".to_string());
     }
     let area = polygon_area(&corners);
     if area < FARM_MIN_FIELD_AREA - 1e-6 {
@@ -83,12 +84,20 @@ pub fn place_farm_field(
     }
 
     let polygon = zone_corners_polygon(&corners);
-    for point in polygon.iter().chain(std::iter::once(&center)) {
-        if is_open_water(point.x, point.z) {
-            return Err("Fields cannot cover open water.".to_string());
-        }
-        if is_on_quarry_pit(ctx, point.x, point.z) {
-            return Err("Fields cannot cover a quarry pit.".to_string());
+    const PARCEL_SAMPLE_DIVISIONS: usize = 4;
+    for v_index in 0..=PARCEL_SAMPLE_DIVISIONS {
+        for u_index in 0..=PARCEL_SAMPLE_DIVISIONS {
+            let point = bilinear_point(
+                &corners,
+                u_index as f64 / PARCEL_SAMPLE_DIVISIONS as f64,
+                v_index as f64 / PARCEL_SAMPLE_DIVISIONS as f64,
+            );
+            if is_open_water(point.x, point.z) {
+                return Err("Fields cannot cover open water.".to_string());
+            }
+            if is_on_quarry_pit(ctx, point.x, point.z) {
+                return Err("Fields cannot cover a quarry pit.".to_string());
+            }
         }
     }
 

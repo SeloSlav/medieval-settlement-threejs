@@ -499,6 +499,7 @@ export async function bootstrapAppSession(
     switch (reason) {
       case 'too_small': return `Draw a larger ${parcel}.`;
       case 'edge_too_short': return `Each ${parcel} edge must be longer.`;
+      case 'invalid_shape': return `Trace a simple convex four-corner ${parcel} boundary.`;
       case 'too_steep': return `This ground is too steep for the ${parcel}.`;
       case 'no_farmstead': return `Keep the entire ${parcel} inside the selected holding’s work extent.`;
       case 'water': return `${parcel === 'field' ? 'Fields' : 'Pastures'} cannot cover open water.`;

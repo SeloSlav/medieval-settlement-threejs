@@ -56,6 +56,10 @@ for (const kind of kinds) {
   assert.ok(size.x <= 7.5, `${kind} should stay inside a 6.2m parcel with modest foliage overhang`);
   assert.ok(size.z <= 7.5, `${kind} should stay inside a 5.4m backyard with modest foliage overhang`);
   assert.ok(size.y > 0.4, `${kind} should have readable vertical structure`);
+  assert.ok(
+    names.every((name) => !/fence/i.test(name)),
+    `${kind} should leave all fencing to the parcel perimeter renderer`,
+  );
 
   if (terrainBackedKinds.has(kind)) {
     let hasArtificialGroundPlane = false;
@@ -266,6 +270,11 @@ assert.doesNotMatch(
   backyardGardenSource,
   /addFallbackTree|CylinderGeometry\(0\.14, 0\.24|IcosahedronGeometry\(0\.74/,
   'orchards must never substitute low-poly trunks or canopy lobes for SeedThree trees',
+);
+assert.doesNotMatch(
+  backyardGardenSource,
+  /addLowWattleFence|Backyard wattle fence/,
+  'backyard detail meshes must leave fencing to the parcel perimeter renderer',
 );
 assert.match(
   backyardGardenSource,
