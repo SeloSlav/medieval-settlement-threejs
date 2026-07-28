@@ -540,7 +540,7 @@ export function createPalisadedRefugeMesh(): THREE.Group {
   }
 
   // Heavier gate posts and two open leaves keep the refuge visually permeable:
-  // goods and households can actually shelter inside it during an incursion.
+  // warned families can actually reach shelter during an incursion.
   for (const x of [-1.72, 1.72]) {
     addMesh(
       group,
@@ -565,8 +565,8 @@ export function createPalisadedRefugeMesh(): THREE.Group {
     );
   }
 
-  // A small covered store and sleeping bench explain the refuge's civilian
-  // role without adding an abstract garrison or a second labor system.
+  // A small covered emergency store and sleeping bench explain the refuge's
+  // civilian role without adding an abstract garrison or logistics inventory.
   for (const x of [-3.55, 0.15]) {
     for (const z of [-2.85, 0.35]) {
       addMesh(

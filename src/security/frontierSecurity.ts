@@ -5,7 +5,7 @@ import {
   GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
   GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE,
   GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
-  PALISADED_REFUGE_LOSS_MULTIPLIER,
+  PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
 import type { SettlementSecurity } from '../generated/types.ts';
@@ -376,12 +376,20 @@ export type ProjectedRaidTarget = {
   z: number;
   label: string;
   protected: boolean;
-  fortified: boolean;
+  sheltered: boolean;
   portableValue: number;
   portableSummary: string;
 };
 
 type ProjectedRaidTargetCandidate = Omit<ProjectedRaidTarget, 'portableSummary'>;
+
+export function raidTargetCanShelter(
+  kind: ProjectedRaidTarget['kind'],
+  watched: boolean,
+  withinRefugeReach: boolean,
+): boolean {
+  return kind === 'residence' && watched && withinRefugeReach;
+}
 
 type PortableRaidStoresLike = {
   timber: number;
@@ -588,7 +596,7 @@ export function projectRaidTargets(
       z: building.z,
       label: `${buildingKindLabel(building.kind)}${building.constructionComplete === false ? ' worksite' : ''}`,
       protected: positionIsWatched(building.x, building.z, watchIndex),
-      fortified: positionIsWatched(building.x, building.z, refugeIndex),
+      sheltered: raidTargetCanShelter('building', false, false),
       portableValue,
     });
   }
@@ -602,7 +610,7 @@ export function projectRaidTargets(
       z: trip.z,
       label: `Loaded ${deliveryCargoLabel(trip.cargoKind)} handcart`,
       protected: positionIsWatched(trip.x, trip.z, watchIndex),
-      fortified: positionIsWatched(trip.x, trip.z, refugeIndex),
+      sheltered: raidTargetCanShelter('cart', false, false),
       portableValue,
     });
   }
@@ -616,14 +624,23 @@ export function projectRaidTargets(
       residenceAnchor = residence;
     }
     if (residence.householdWealth <= 1e-9) continue;
+    const protectedByWatch = positionIsWatched(
+      residence.x,
+      residence.z,
+      watchIndex,
+    );
     consider({
       kind: 'residence',
       id: residence.id,
       x: residence.x,
       z: residence.z,
       label: `Tier ${residence.tier} household (${residence.population} resident${residence.population === 1 ? '' : 's'})`,
-      protected: positionIsWatched(residence.x, residence.z, watchIndex),
-      fortified: positionIsWatched(residence.x, residence.z, refugeIndex),
+      protected: protectedByWatch,
+      sheltered: raidTargetCanShelter(
+        'residence',
+        protectedByWatch,
+        positionIsWatched(residence.x, residence.z, refugeIndex),
+      ),
       portableValue: residence.householdWealth,
     });
   }
@@ -666,7 +683,7 @@ export function projectRaidTargets(
       z: treasuryAnchor.z,
       label: `Settlement treasury at ${treasuryAnchor.label}`,
       protected: positionIsWatched(treasuryAnchor.x, treasuryAnchor.z, watchIndex),
-      fortified: positionIsWatched(treasuryAnchor.x, treasuryAnchor.z, refugeIndex),
+      sheltered: raidTargetCanShelter('treasury', false, false),
       portableValue: treasuryValue,
     });
   }
@@ -689,8 +706,8 @@ export function formatProjectedRaidTargets(targets: readonly ProjectedRaidTarget
     return 'No stocked holding currently presents a likely raid target.';
   }
   const holdings = targets.map((target) => {
-    const fortification = target.fortified ? ' · palisaded' : '';
-    return `${target.label} (${target.protected ? 'watched' : 'exposed'}${fortification} · ${formatPortableStoreAmount(target.portableValue)} raid value · ${target.portableSummary})`;
+    const shelter = target.sheltered ? ' · household sheltered' : '';
+    return `${target.label} (${target.protected ? 'watched' : 'exposed'}${shelter} · ${formatPortableStoreAmount(target.portableValue)} raid value · ${target.portableSummary})`;
   });
   return `Current likely ${targets.length === 1 ? 'target' : 'targets'}: ${holdings.join('; ')}. Warning rings appear as frontier unrest rises.`;
 }
@@ -737,16 +754,15 @@ export function palisadedRefugeEffectiveRadius(
   return Math.max(0, refuge.workRadius);
 }
 
-export function countSitesProtectedByPalisadedRefuge(
+export function countHouseholdsShelteredByPalisadedRefuge(
   refuge: BuildingState,
   gameState: GameState,
 ): {
-  buildings: number;
-  homes: number;
-  carts: number;
-  residents: number;
-  portableValue: number;
-  treasuryValue: number;
+  homesInReach: number;
+  residentsInReach: number;
+  shelteredHomes: number;
+  shelteredResidents: number;
+  shelteredWealth: number;
 } {
   const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
   const radius = palisadedRefugeEffectiveRadius(
@@ -755,104 +771,59 @@ export function countSitesProtectedByPalisadedRefuge(
   );
   if (radius <= 0) {
     return {
-      buildings: 0,
-      homes: 0,
-      carts: 0,
-      residents: 0,
-      portableValue: 0,
-      treasuryValue: 0,
+      homesInReach: 0,
+      residentsInReach: 0,
+      shelteredHomes: 0,
+      shelteredResidents: 0,
+      shelteredWealth: 0,
     };
   }
-  const radiusSquared = radius * radius;
-  let buildings = 0;
-  let homes = 0;
-  let carts = 0;
-  let residents = 0;
-  let portableValue = 0;
-  let treasuryValue = 0;
-  let reservedTreasuryTimber = 0;
-  let townHallAnchor: BuildingState | null = null;
-  let completedHoldingAnchor: BuildingState | null = null;
-  let anyHoldingAnchor: BuildingState | null = null;
+  const towers: WatchArea[] = [];
   for (const building of gameState.buildings.values()) {
-    reservedTreasuryTimber += positivePortableAmount(
-      building.constructionTreasuryTimber,
-    );
-    if (building.kind === 'town_hall') {
-      townHallAnchor = earlierBuilding(townHallAnchor, building);
-    }
     if (
       building.kind !== 'watchtower'
-      && building.kind !== 'guardhouse'
-      && building.kind !== 'palisaded_refuge'
-    ) {
-      anyHoldingAnchor = earlierBuilding(anyHoldingAnchor, building);
-      if (building.constructionComplete !== false) {
-        completedHoldingAnchor = earlierBuilding(completedHoldingAnchor, building);
-      }
-    }
-    if (
-      building.id === refuge.id
-      || distanceSquared(refuge, building) > radiusSquared
-      || (
-        building.constructionComplete === false
-        && portableRaidValue(building) <= 1e-9
-      )
+      || building.constructionComplete === false
+      || building.assignedLabor <= 0
+      || fireDisabled.has(building.id)
     ) continue;
-    buildings += 1;
-    portableValue += portableRaidValue(building);
+    const towerRadius = watchtowerEffectiveRadius(building);
+    if (towerRadius <= 0) continue;
+    towers.push({
+      x: building.x,
+      z: building.z,
+      radius: towerRadius,
+    });
   }
-  let residenceAnchor: ResidenceState | null = null;
+  const watchIndex = buildWatchCoverageIndex(towers);
+  const radiusSquared = radius * radius;
+  let homesInReach = 0;
+  let residentsInReach = 0;
+  let shelteredHomes = 0;
+  let shelteredResidents = 0;
+  let shelteredWealth = 0;
   for (const residence of gameState.residences.values()) {
     if (residence.abandoned || residence.population <= 0) continue;
-    if (
-      residenceAnchor === null
-      || compareStableIds(residence.id, residenceAnchor.id) < 0
-    ) {
-      residenceAnchor = residence;
-    }
     if (distanceSquared(refuge, residence) > radiusSquared) continue;
-    homes += 1;
-    residents += residence.population;
-    portableValue += positivePortableAmount(residence.householdWealth);
-  }
-  for (const trip of gameState.deliveryTrips.values()) {
-    if (distanceSquared(refuge, trip) > radiusSquared) continue;
-    const value = deliveryTripRaidValue(trip);
-    if (value <= 1e-9) continue;
-    carts += 1;
-    portableValue += value;
-  }
-  const treasuryAnchor =
-    townHallAnchor
-    ?? completedHoldingAnchor
-    ?? residenceAnchor
-    ?? anyHoldingAnchor;
-  if (
-    treasuryAnchor
-    && distanceSquared(refuge, treasuryAnchor) <= radiusSquared
-  ) {
-    treasuryValue = portableRaidValue({
-      ...gameState.stockpile,
-      timber: raidableTreasuryTimber(
-        gameState.stockpile.timber,
-        reservedTreasuryTimber,
-      ),
-    });
-    portableValue += treasuryValue;
+    homesInReach += 1;
+    residentsInReach += residence.population;
+    if (!positionIsWatched(residence.x, residence.z, watchIndex)) continue;
+    shelteredHomes += 1;
+    shelteredResidents += residence.population;
+    shelteredWealth += positivePortableAmount(residence.householdWealth);
   }
   return {
-    buildings,
-    homes,
-    carts,
-    residents,
-    portableValue,
-    treasuryValue,
+    homesInReach,
+    residentsInReach,
+    shelteredHomes,
+    shelteredResidents,
+    shelteredWealth,
   };
 }
 
-export function palisadedRefugeLossFraction(lossFraction: number): number {
-  return clamp01(lossFraction) * PALISADED_REFUGE_LOSS_MULTIPLIER;
+export function palisadedRefugeHouseholdLossFraction(
+  lossFraction: number,
+): number {
+  return clamp01(lossFraction) * PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER;
 }
 
 export function frontierDefenseFireSignature(

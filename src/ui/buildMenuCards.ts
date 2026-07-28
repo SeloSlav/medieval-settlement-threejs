@@ -53,7 +53,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   village_storehouse: ['Village storehouse', 'S', 'Hauls surplus timber, stone, and firewood from producers into shared construction stock. Never stores food.'],
   watchtower: ['Frontier watchtower', 'W', 'Staffed hill tower warns nearby homes and stores, reducing losses when raiders cross the frontier.'],
   guardhouse: ['Frontier guardhouse', 'G', 'Paid guards consume labor, provisions, wages, and carpenter-made polearms. Polearms need market-imported ironwork. Requires a completed watchtower.'],
-  palisaded_refuge: ['Palisaded refuge', 'R', 'A compact timber-and-earth enclosure reduces portable losses at nearby stores, homes, and carts. Fire suspends protection. Requires a completed guardhouse.'],
+  palisaded_refuge: ['Palisaded refuge', 'R', 'Warned households within rally reach carry people and family coin into a timber-and-earth enclosure. Requires a completed guardhouse and watch coverage.'],
   ferry_landing: ['Ferry landing', 'J', 'A staffed river crossing and modest source of trade income. Must touch open water.'],
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],

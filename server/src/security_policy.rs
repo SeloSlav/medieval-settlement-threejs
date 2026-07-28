@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::balance_generated::{
     GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE, GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
     GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE, GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
-    PALISADED_REFUGE_LOSS_MULTIPLIER,
+    PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
 };
 
 pub const MIN_FRONTIER_POPULATION: u32 = 8;
@@ -83,7 +83,7 @@ pub struct RaidTargetCandidate {
     pub kind: RaidTargetKind,
     pub id: u64,
     pub protected: bool,
-    pub fortified: bool,
+    pub sheltered: bool,
     pub value: f64,
 }
 
@@ -346,20 +346,28 @@ pub fn guarded_raid_loss_fraction(enemy_pressure: u8, coverage: f64, ready_guard
     }
 }
 
-/// A compact palisaded refuge protects the portable stores at its actual map
-/// location. It reduces removal after a raid reaches the holding; it does not
-/// replace warning coverage, guards, or the risk of arson.
-pub fn raid_target_loss_fraction(loss_fraction: f64, fortified: bool) -> f64 {
+/// A watch-warned household within rally distance can carry family coin into a
+/// compact palisaded refuge. Building inventories, carts, and the Town Hall
+/// treasury remain at their physical positions and never receive this modifier.
+pub fn raid_target_loss_fraction(loss_fraction: f64, sheltered: bool) -> f64 {
     let base = if loss_fraction.is_finite() {
         loss_fraction.clamp(0.0, 1.0)
     } else {
         0.0
     };
-    if fortified {
-        base * PALISADED_REFUGE_LOSS_MULTIPLIER
+    if sheltered {
+        base * PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER
     } else {
         base
     }
+}
+
+pub fn raid_target_can_shelter(
+    kind: RaidTargetKind,
+    watched: bool,
+    within_refuge_reach: bool,
+) -> bool {
+    kind == RaidTargetKind::Residence && watched && within_refuge_reach
 }
 
 pub fn guarded_raid_target_count(enemy_pressure: u8, defense_ratio: f64) -> usize {
@@ -637,7 +645,7 @@ mod tests {
     }
 
     #[test]
-    fn palisaded_refuge_reduces_local_plunder_without_granting_immunity() {
+    fn palisaded_refuge_reduces_warned_household_loss_without_granting_immunity() {
         let reached_loss = 0.5;
         assert_eq!(
             raid_target_loss_fraction(reached_loss, false),
@@ -645,12 +653,33 @@ mod tests {
         );
         assert!(
             (raid_target_loss_fraction(reached_loss, true)
-                - reached_loss * PALISADED_REFUGE_LOSS_MULTIPLIER)
+                - reached_loss * PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER)
                 .abs()
                 < 1e-9
         );
         assert!(raid_target_loss_fraction(1.0, true) > 0.0);
         assert_eq!(raid_target_loss_fraction(f64::NAN, true), 0.0);
+        assert!(raid_target_can_shelter(
+            RaidTargetKind::Residence,
+            true,
+            true
+        ));
+        assert!(!raid_target_can_shelter(
+            RaidTargetKind::Residence,
+            false,
+            true
+        ));
+        for kind in [
+            RaidTargetKind::Building,
+            RaidTargetKind::DeliveryTrip,
+            RaidTargetKind::TreasuryAtBuilding,
+            RaidTargetKind::TreasuryAtResidence,
+        ] {
+            assert!(
+                !raid_target_can_shelter(kind, true, true),
+                "only a household can carry its own wealth into the refuge"
+            );
+        }
     }
 
     #[test]
@@ -740,14 +769,14 @@ mod tests {
                 kind: RaidTargetKind::Building,
                 id: 1,
                 protected: true,
-                fortified: false,
+                sheltered: false,
                 value: 100.0,
             },
             RaidTargetCandidate {
                 kind: RaidTargetKind::Residence,
                 id: 2,
                 protected: true,
-                fortified: false,
+                sheltered: false,
                 value: 50.0,
             },
         ];
@@ -760,7 +789,7 @@ mod tests {
             kind: RaidTargetKind::Residence,
             id: 2,
             protected: false,
-            fortified: false,
+            sheltered: false,
             value: 40.0,
         };
         let targets = [
@@ -768,7 +797,7 @@ mod tests {
                 kind: RaidTargetKind::Building,
                 id: 1,
                 protected: false,
-                fortified: false,
+                sheltered: false,
                 value: 20.0,
             },
             exposed_home,
@@ -776,7 +805,7 @@ mod tests {
                 kind: RaidTargetKind::Building,
                 id: 3,
                 protected: true,
-                fortified: false,
+                sheltered: false,
                 value: 100.0,
             },
         ];
@@ -794,7 +823,7 @@ mod tests {
                 },
                 id,
                 protected: id % 3 == 0,
-                fortified: id % 5 == 0,
+                sheltered: id % 5 == 0,
                 value: id as f64,
             })
             .collect::<Vec<_>>();

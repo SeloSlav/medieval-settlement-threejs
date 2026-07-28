@@ -13,7 +13,7 @@ import {
 } from '../src/ui/constructionDockToggle.ts';
 import {
   armedGuardCount,
-  countSitesProtectedByPalisadedRefuge,
+  countHouseholdsShelteredByPalisadedRefuge,
   countSitesProtectedByWatchtower,
   estimatedRaidDays,
   formatFrontierForecast,
@@ -32,9 +32,10 @@ import {
   guardhouseMusterResponseBand,
   isFrontierRaidSeason,
   palisadedRefugeEffectiveRadius,
-  palisadedRefugeLossFraction,
+  palisadedRefugeHouseholdLossFraction,
   projectRaidTargets,
   projectedRaidArsonChance,
+  raidTargetCanShelter,
   normalizeGuardhouseFoodReserve,
   selectCriticalGuardhouseFoodTarget,
   watchtowerEffectiveRadius,
@@ -56,7 +57,7 @@ import {
   BUILDING_DEFINITIONS,
   BUILDING_COSTS,
   BUILDING_STORAGE_CAPS,
-  PALISADED_REFUGE_LOSS_MULTIPLIER,
+  PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 
@@ -95,8 +96,17 @@ assert.deepEqual(BUILDING_COSTS.palisaded_refuge, {
   timber: 72,
   stone: 30,
 });
-assert.equal(PALISADED_REFUGE_LOSS_MULTIPLIER, 0.6);
-assert.equal(palisadedRefugeLossFraction(0.5), 0.3);
+assert.equal(PALISADED_REFUGE_HOUSEHOLD_LOSS_MULTIPLIER, 0.6);
+assert.equal(palisadedRefugeHouseholdLossFraction(0.5), 0.3);
+assert.equal(raidTargetCanShelter('residence', true, true), true);
+assert.equal(raidTargetCanShelter('residence', false, true), false);
+for (const kind of ['building', 'cart', 'treasury'] as const) {
+  assert.equal(
+    raidTargetCanShelter(kind, true, true),
+    false,
+    `${kind} stock cannot carry itself into a civilian refuge`,
+  );
+}
 const refugePlacementContext = {
   buildings: [] as BuildingState[],
   residences: [],
@@ -411,55 +421,73 @@ refugeProjectionState.deliveryTrips.set(
 );
 assert.equal(palisadedRefugeEffectiveRadius(refuge), 68);
 assert.deepEqual(
-  countSitesProtectedByPalisadedRefuge(refuge, refugeProjectionState),
+  countHouseholdsShelteredByPalisadedRefuge(refuge, refugeProjectionState),
   {
-    buildings: 1,
-    homes: 1,
-    carts: 1,
-    residents: 4,
-    portableValue: 75,
-    treasuryValue: 0,
+    homesInReach: 1,
+    residentsInReach: 4,
+    shelteredHomes: 0,
+    shelteredResidents: 0,
+    shelteredWealth: 0,
+  },
+  'proximity without a staffed-watch warning must not teleport a household into shelter',
+);
+const refugeWatch = building('refuge-watch', 'watchtower', 0, 0, 2);
+refugeProjectionState.buildings.set(refugeWatch.id, refugeWatch);
+assert.deepEqual(
+  countHouseholdsShelteredByPalisadedRefuge(refuge, refugeProjectionState),
+  {
+    homesInReach: 1,
+    residentsInReach: 4,
+    shelteredHomes: 1,
+    shelteredResidents: 4,
+    shelteredWealth: 20,
   },
 );
+const refugeTargets = projectRaidTargets(refugeProjectionState, 4);
+assert.deepEqual(
+  refugeTargets.map((target) => [target.id, target.sheltered]),
+  [
+    ['outside-refuge-store', false],
+    ['inside-refuge-store', false],
+    ['inside-refuge-home', true],
+    ['inside-refuge-cart', false],
+  ],
+  'only warned households may carry wealth into shelter; physical stores and carts remain in place',
+);
+assert.match(formatProjectedRaidTargets(refugeTargets), /household sheltered/);
 refugeProjectionState.buildings.set(
   'refuge-town-hall',
   building('refuge-town-hall', 'town_hall', 115, 0, 0),
 );
 refugeProjectionState.stockpile.gold = 50;
-const refugeWithTreasury = countSitesProtectedByPalisadedRefuge(
-  refuge,
-  refugeProjectionState,
-);
-assert.equal(refugeWithTreasury.treasuryValue, 50);
 assert.equal(
-  refugeWithTreasury.portableValue,
-  125,
-  'the settlement treasury must be protected only when its physical Town Hall seat lies inside',
-);
-refugeProjectionState.buildings.set(
-  'refuge-town-hall',
-  building('refuge-town-hall', 'town_hall', 190, 0, 0),
-);
-assert.equal(
-  countSitesProtectedByPalisadedRefuge(refuge, refugeProjectionState)
-    .treasuryValue,
-  0,
-  'moving the physical treasury seat outside must remove its refuge protection',
+  projectRaidTargets(refugeProjectionState, 5).find(
+    (target) => target.kind === 'treasury',
+  )?.sheltered,
+  false,
+  'Town Hall treasury must remain at its physical seat rather than teleport into a nearby refuge',
 );
 refugeProjectionState.stockpile.gold = 0;
 refugeProjectionState.buildings.delete('refuge-town-hall');
-const refugeTargets = projectRaidTargets(refugeProjectionState, 4);
-assert.deepEqual(
-  refugeTargets.map((target) => [target.id, target.fortified]),
-  [
-    ['outside-refuge-store', false],
-    ['inside-refuge-store', true],
-    ['inside-refuge-home', true],
-    ['inside-refuge-cart', true],
-  ],
-  'only portable stores at real positions inside the completed refuge should be fortified',
+refugeProjectionState.buildings.delete(refugeWatch.id);
+assert.ok(
+  projectRaidTargets(refugeProjectionState, 4).every(
+    (target) => !target.sheltered,
+  ),
+  'an unstaffed warning network must leave even nearby households unable to rally',
 );
-assert.match(formatProjectedRaidTargets(refugeTargets), /palisaded/);
+refugeProjectionState.buildings.set(refugeWatch.id, refugeWatch);
+refugeProjectionState.fireIncidents.set(
+  'refuge-watch-fire',
+  fire('refuge-watch-fire', refugeWatch.id),
+);
+assert.ok(
+  projectRaidTargets(refugeProjectionState, 4).every(
+    (target) => !target.sheltered,
+  ),
+  'a fire-disabled watch must not warn households to rally',
+);
+refugeProjectionState.fireIncidents.delete('refuge-watch-fire');
 refugeProjectionState.fireIncidents.set(
   'refuge-fire',
   fire('refuge-fire', refuge.id),
@@ -467,9 +495,9 @@ refugeProjectionState.fireIncidents.set(
 assert.equal(palisadedRefugeEffectiveRadius(refuge, true), 0);
 assert.ok(
   projectRaidTargets(refugeProjectionState, 4).every(
-    (target) => !target.fortified,
+    (target) => !target.sheltered,
   ),
-  'a fire-disabled timber refuge must stop reducing local losses',
+  'a fire-disabled timber refuge must stop sheltering warned households',
 );
 assert.equal(
   frontierDefenseFireSignature(refugeProjectionState),
@@ -1011,8 +1039,8 @@ assert.match(guardhouseInspector, /Road conditions/);
 assert.match(guardhouseInspector, /Soft-road delay/);
 assert.match(guardhouseInspector, /Effective company/);
 assert.match(guardhouseInspector, /Inspect linked watchtower/);
-assert.match(refugeInspector, /Portable raid value/);
-assert.match(refugeInspector, /Reduces carried-off stores by 40%/);
+assert.match(refugeInspector, /Household coin sheltered/);
+assert.match(refugeInspector, /Does not protect building inventories/);
 assert.match(frontierMarkers, /InstancedMesh/);
 assert.match(frontierMarkers, /RAID_TARGET_MARKER_THREAT_THRESHOLD/);
 assert.match(frontierMarkers, /MAX_RAID_TARGET_MARKERS\s*=\s*4/);
@@ -1039,7 +1067,7 @@ assert.match(
 assert.match(serverSimulation, /SECURITY_UPDATE_INTERVAL_TICKS/);
 assert.match(serverSimulation, /WatchCoverageIndex::new/);
 assert.match(serverSimulation, /active_palisaded_refuge_coverage/);
-assert.match(serverSimulation, /raid_target_loss_fraction\(forecast\.loss_fraction, target\.fortified\)/);
+assert.match(serverSimulation, /raid_target_loss_fraction\(forecast\.loss_fraction, target\.sheltered\)/);
 assert.match(
   serverBuildingReducers,
   /kind == "palisaded_refuge"[\s\S]*building\.kind == "guardhouse" && building\.construction_complete/,
@@ -1299,6 +1327,64 @@ assert.ok(
   `1,000 towers plus 1,000 refuges (half fire-disabled), 100,000-site bounded target projection took ${projectionElapsedMs.toFixed(1)} ms`,
 );
 
+projectionPerfState.buildings.clear();
+projectionPerfState.fireIncidents.clear();
+const shelterPerfState = projectionPerfState;
+const selectedPerfRefuge = building(
+  'selected-perf-refuge',
+  'palisaded_refuge',
+  400,
+  400,
+  0,
+);
+shelterPerfState.buildings.set(selectedPerfRefuge.id, selectedPerfRefuge);
+for (let index = 0; index < 1_000; index += 1) {
+  const watch = building(
+    `shelter-perf-watch-${index}`,
+    'watchtower',
+    (index % 40) * 320,
+    Math.floor(index / 40) * 320,
+    2,
+  );
+  shelterPerfState.buildings.set(watch.id, watch);
+  if (index % 2 === 0) {
+    shelterPerfState.fireIncidents.set(
+      `shelter-perf-fire-${index}`,
+      fire(`shelter-perf-fire-${index}`, watch.id),
+    );
+  }
+}
+for (let index = 0; index < 100_000; index += 1) {
+  const id = `shelter-home-${index}`;
+  shelterPerfState.residences.set(
+    id,
+    {
+      ...residence(
+        id,
+        (index % 1_280) * 10,
+        Math.floor(index / 1_280) * 10,
+        4,
+      ),
+      householdWealth: 10,
+    },
+  );
+}
+const shelterProjectionStarted = performance.now();
+const shelterCoverage = countHouseholdsShelteredByPalisadedRefuge(
+  selectedPerfRefuge,
+  shelterPerfState,
+);
+const shelterProjectionElapsedMs =
+  performance.now() - shelterProjectionStarted;
+assert.ok(shelterCoverage.homesInReach > 0);
+assert.ok(
+  shelterProjectionElapsedMs < 250,
+  `1,000-watch, 100,000-home selected-refuge readout took ${shelterProjectionElapsedMs.toFixed(1)} ms`,
+);
+shelterPerfState.buildings.clear();
+shelterPerfState.residences.clear();
+shelterPerfState.fireIncidents.clear();
+
 const cartProjectionPerfState = emptyGameState();
 for (let index = 0; index < 100_000; index += 1) {
   const id = `${index + 1}`;
@@ -1344,7 +1430,7 @@ assert.ok(
 );
 
 console.log(
-  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
 );
 
 function building(

@@ -53,7 +53,7 @@ export function getBuildingExtent(kind: BuildingKind, workRadius: number): Build
   if (kind === 'palisaded_refuge' && workRadius > 0) {
     return {
       type: 'coverage',
-      label: 'Refuge protection',
+      label: 'Household rally reach',
       radius: workRadius,
     };
   }

@@ -10,8 +10,8 @@ use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
     guardhouse_muster_efficiency, is_raid_season, raid_arson_occurs, raid_forecast,
-    raid_holding_vulnerability, raid_target_loss_fraction, raidable_treasury_timber,
-    scheduled_raid_ticks,
+    raid_holding_vulnerability, raid_target_can_shelter, raid_target_loss_fraction,
+    raidable_treasury_timber, scheduled_raid_ticks,
     select_raid_targets, threat_progress, tower_effective_radius, RaidForecast, RaidPortableStores,
     RaidTargetCandidate, RaidTargetKind, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
     SECURITY_UPDATE_INTERVAL_TICKS,
@@ -331,7 +331,11 @@ fn settlement_exposure(
                 kind: RaidTargetKind::Building,
                 id: building.id,
                 protected,
-                fortified: refuge_index.contains(building.x, building.z),
+                sheltered: raid_target_can_shelter(
+                    RaidTargetKind::Building,
+                    protected,
+                    false,
+                ),
                 value: portable_value,
             });
         }
@@ -348,7 +352,11 @@ fn settlement_exposure(
                 kind: RaidTargetKind::Residence,
                 id: residence.id,
                 protected,
-                fortified: refuge_index.contains(residence.x, residence.z),
+                sheltered: raid_target_can_shelter(
+                    RaidTargetKind::Residence,
+                    protected,
+                    refuge_index.contains(residence.x, residence.z),
+                ),
                 value: residence.household_wealth,
             });
         }
@@ -371,7 +379,11 @@ fn settlement_exposure(
             kind: RaidTargetKind::DeliveryTrip,
             id: trip.id,
             protected,
-            fortified: refuge_index.contains(trip.x, trip.z),
+            sheltered: raid_target_can_shelter(
+                RaidTargetKind::DeliveryTrip,
+                protected,
+                false,
+            ),
             value: portable_value,
         });
     }
@@ -388,7 +400,11 @@ fn settlement_exposure(
                 kind,
                 id,
                 protected,
-                fortified: refuge_index.contains(x, z),
+                sheltered: raid_target_can_shelter(
+                    kind,
+                    protected,
+                    false,
+                ),
                 value: treasury_value,
             });
         }
@@ -678,7 +694,7 @@ fn resolve_raid(
 
     for target in &selected {
         let target_loss_fraction =
-            raid_target_loss_fraction(forecast.loss_fraction, target.fortified);
+            raid_target_loss_fraction(forecast.loss_fraction, target.sheltered);
         match target.kind {
             RaidTargetKind::Building => {
                 let Some(mut updated) = ctx.db.building().id().find(&target.id) else {
