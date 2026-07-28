@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { getBuildingSiteClearanceSearchRadius } from '../src/buildings/BuildingTerrainLayout.ts';
+import {
+  createBuildingPreviewMesh,
+  disposeBuildingPreviewMesh,
+  updateBuildingPreviewAppearance,
+  updateBuildingPreviewGeometry,
+} from '../src/buildings/BuildingPlacementPreview.ts';
+import { buildingExtentColor } from '../src/buildings/buildingExtents.ts';
 import { PlacementClearanceSpatialIndex } from '../src/placement/PlacementClearanceSpatialIndex.ts';
 import {
   polygonSegments,
@@ -163,10 +170,65 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
   borderGeometry.dispose();
 }
 
+function testPlacementPreviewShowsTerrainFollowingExtent(): void {
+  const heightAt = (x: number, z: number) =>
+    Math.sin(x * 0.018) * 3.4 + Math.cos(z * 0.021) * 2.6;
+  const preview = createBuildingPreviewMesh('threshing_barn');
+  const extent = preview.getObjectByName('Building placement extent');
+  assert.ok(extent instanceof THREE.Mesh);
+  assert.equal(extent.userData.extentRadius, 150);
+  assert.equal(extent.userData.extentLabel, 'Field work extent');
+
+  updateBuildingPreviewGeometry(preview, 'threshing_barn', 35, -48, 0.42, heightAt);
+  const positions = extent.geometry.getAttribute('position') as THREE.BufferAttribute;
+  assert.ok(positions.count > 120, 'the placement extent should have a readable terrain ribbon');
+  for (let index = 0; index < positions.count; index++) {
+    assert.ok(
+      Math.abs(
+        positions.getY(index)
+        - (heightAt(positions.getX(index), positions.getZ(index)) + 0.165)
+      ) < 1e-5,
+      'placement extent vertices must follow the sampled terrain',
+    );
+  }
+
+  updateBuildingPreviewAppearance(preview, false);
+  const extentMaterial = extent.material as THREE.MeshBasicMaterial;
+  assert.equal(extentMaterial.color.getHex(), 0xff5d50);
+  assert.ok(extentMaterial.opacity < 0.4);
+  updateBuildingPreviewAppearance(preview, true);
+  assert.equal(extentMaterial.color.getHex(), buildingExtentColor('threshing_barn'));
+  disposeBuildingPreviewMesh(preview);
+
+  const pointBuildingPreview = createBuildingPreviewMesh('brewery');
+  assert.equal(pointBuildingPreview.getObjectByName('Building placement extent'), undefined);
+  disposeBuildingPreviewMesh(pointBuildingPreview);
+
+  const largestPreview = createBuildingPreviewMesh('monastery');
+  const startedAt = performance.now();
+  for (let index = 0; index < 250; index++) {
+    updateBuildingPreviewGeometry(
+      largestPreview,
+      'monastery',
+      index * 0.21,
+      -index * 0.17,
+      0,
+      heightAt,
+    );
+  }
+  const elapsedMs = performance.now() - startedAt;
+  disposeBuildingPreviewMesh(largestPreview);
+  assert.ok(
+    elapsedMs < 1_000,
+    `250 maximum-radius preview updates should remain interactive (took ${elapsedMs.toFixed(1)} ms)`,
+  );
+}
+
 testClearanceSpatialIndexKeepsNearbyCandidates();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
 testPlacementOverlaysFollowTerrainHeight();
+testPlacementPreviewShowsTerrainFollowingExtent();
 
 assert.equal(
   describeBuildingPlacementBlocker('requires_shore'),
@@ -187,6 +249,17 @@ assert.equal(
   describeBuildingPlacementBlocker('water'),
   'Blocked: Cannot build on water',
 );
+assert.equal(
+  describeToolbarStatus({
+    canBuild: false,
+    hasDraft: false,
+    mode: 'threshing_barn',
+    statusDetail: 'Ready: field work extent 150 m',
+    placementReady: true,
+    buildingCost: { timber: 50, stone: 12 },
+  }),
+  'Ready: field work extent 150 m | Cost 50 timber, 12 stone',
+);
 
 const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const placementValidation = readFileSync('server/src/placement_validation.rs', 'utf8');
@@ -197,6 +270,7 @@ const buildingTool = readFileSync('src/buildings/BuildingTool.ts', 'utf8');
 const app = readFileSync('src/app/App.ts', 'utf8');
 const buildToolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 const buildChrome = readFileSync('src/ui/buildChrome.css', 'utf8');
+const buildingMarkers = readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
 
 assert.match(
   buildingTool,
@@ -209,14 +283,34 @@ assert.match(
   'the toolbar should receive the live building-preview warning state',
 );
 assert.match(
+  app,
+  /placementReady: buildingMode !== 'off'[\s\S]*isPlacementReady\(\)/,
+  'the toolbar should receive the live valid building-preview state',
+);
+assert.match(
   buildToolbar,
-  /stats\.placementBlocked[\s\S]*\? 'warning'/,
-  'blocked previews should take precedence over the normal active tool state',
+  /stats\.placementBlocked[\s\S]*\? 'warning'[\s\S]*stats\.placementReady[\s\S]*\? 'ready'/,
+  'blocked and valid previews should take precedence over the normal active tool state',
 );
 assert.match(
   buildChrome,
   /\.builder-status-bar\[data-state='warning'\][\s\S]*border-color[\s\S]*color/,
   'blocked placement guidance should have a distinct warning treatment',
+);
+assert.match(
+  buildingTool,
+  /getBuildingExtent\(kind, definition\.workRadius\)[\s\S]*Ready: \$\{extent\.label\.toLowerCase\(\)\} \$\{extent\.radius\} m/,
+  'valid strategic buildings should identify the visible extent in the live status',
+);
+assert.match(
+  buildingMarkers,
+  /updateTerrainCircleRibbonGeometry\([\s\S]*this\.terrain\.getHeightAt\.bind\(this\.terrain\)/,
+  'selected building extents should use the same terrain-following geometry as placement',
+);
+assert.doesNotMatch(
+  buildingMarkers,
+  /new THREE\.RingGeometry/,
+  'strategic extent rings should not remain flat planes that clip through terrain',
 );
 
 assert.match(

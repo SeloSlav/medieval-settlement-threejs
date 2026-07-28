@@ -3,6 +3,8 @@ import {
   createBuildingPreviewMesh,
   updateBuildingPreviewGeometry,
 } from '../buildings/BuildingPlacementPreview.ts';
+import { getBuildingDefinition } from '../resources/buildings.ts';
+import { BUILDING_KINDS, type BuildingKind } from '../resources/types.ts';
 import { FarmFieldPreview } from '../farming/FarmFieldMarkers.ts';
 import {
   rectangleFromBaseline,
@@ -28,6 +30,12 @@ declare global {
 const placementRoot = document.querySelector<HTMLElement>('#placement-root');
 if (!placementRoot) throw new Error('Placement lineup host is missing.');
 const root: HTMLElement = placementRoot;
+const requestedBuilding = new URLSearchParams(window.location.search).get('building');
+const buildingKind: BuildingKind = requestedBuilding
+  && BUILDING_KINDS.includes(requestedBuilding as BuildingKind)
+  ? requestedBuilding as BuildingKind
+  : 'village_storehouse';
+const buildingDefinition = getBuildingDefinition(buildingKind);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -93,13 +101,13 @@ const road = new THREE.Mesh(
 road.receiveShadow = true;
 scene.add(road);
 
-const buildingPreview = createBuildingPreviewMesh('village_storehouse');
+const buildingPreview = createBuildingPreviewMesh(buildingKind);
 scene.add(buildingPreview);
 let buildingX = -31;
 let buildingZ = 1;
 updateBuildingPreviewGeometry(
   buildingPreview,
-  'village_storehouse',
+  buildingKind,
   buildingX,
   buildingZ,
   -0.18,
@@ -188,7 +196,7 @@ renderer.domElement.addEventListener('pointermove', (event) => {
     buildingZ = hit.point.z;
     updateBuildingPreviewGeometry(
       buildingPreview,
-      'village_storehouse',
+      buildingKind,
       buildingX,
       buildingZ,
       -0.18,
@@ -256,4 +264,6 @@ await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 render();
 window.__PLACEMENT_LINEUP_READY__ = true;
 document.body.dataset.ready = 'true';
+document.body.dataset.buildingKind = buildingKind;
+document.querySelector<HTMLElement>('.label')!.textContent = `${buildingDefinition.label} footprint`;
 window.addEventListener('resize', render);

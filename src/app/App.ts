@@ -633,6 +633,8 @@ export class App {
           : this.buildingTool.getStatusDetail(),
       placementBlocked: buildingMode !== 'off'
         && this.buildingTool.isPlacementBlocked(),
+      placementReady: buildingMode !== 'off'
+        && this.buildingTool.isPlacementReady(),
       farmCrop: farmCrop ?? undefined,
       buildingCost: placementEconomy?.cost,
       carpenterSupported: placementEconomy?.carpenterSupported,

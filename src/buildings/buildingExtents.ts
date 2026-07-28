@@ -20,6 +20,25 @@ const WORK_EXTENT_KINDS = new Set<BuildingKind>([
   'apiary',
 ]);
 
+const BUILDING_EXTENT_COLORS: Partial<Record<BuildingKind, number>> = {
+  lumber_mill: 0xd7b463,
+  reforester: 0x00cc66,
+  stone_quarry: 0xa8a29e,
+  large_quarry: 0xd5b866,
+  well: 0x4f9fd4,
+  hunters_hall: 0x8a6d45,
+  foragers_shed: 0xb05c76,
+  fishing_camp: 0x5b99b0,
+  threshing_barn: 0xb8894c,
+  monastery: 0xe4dfd2,
+  watchtower: 0xe0ad4f,
+  palisaded_refuge: 0xb87945,
+};
+
+export function buildingExtentColor(kind: BuildingKind): number {
+  return BUILDING_EXTENT_COLORS[kind] ?? 0xd7b463;
+}
+
 /**
  * Returns a gameplay extent worth visualizing. A non-zero balance workRadius is
  * not, by itself, permission to draw a ring: processors and other point

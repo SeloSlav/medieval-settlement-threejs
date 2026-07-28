@@ -13,6 +13,7 @@ export type ToolbarStats = {
   mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'idle';
   statusDetail?: string | null;
   placementBlocked?: boolean;
+  placementReady?: boolean;
   farmCrop?: FarmCrop;
   buildingCost?: BuildingResourceCost;
   carpenterSupported?: boolean;
@@ -137,7 +138,6 @@ export function describeBuilderHelp(mode: ToolbarStats['mode']): string {
 export function describeToolbarStatus(stats: ToolbarStats): string {
   if (isBuildingToolMode(stats.mode)) {
     if (stats.statusDetail) {
-      if (!stats.placementBlocked) return stats.statusDetail;
       const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
       const materialCost = cost.timber > 0 || cost.stone > 0
         ? ` | Cost ${formatBuildingCost(cost)}`

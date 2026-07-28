@@ -22,6 +22,7 @@ import {
   assessFoundingSite,
   describeFoundingSiteAssessment,
 } from '../settlement/foundingSiteSuitability.ts';
+import { getBuildingExtent } from './buildingExtents.ts';
 
 export type BuildingToolMode = BuildingKind | 'off';
 
@@ -374,6 +375,10 @@ export class BuildingTool {
     return this.lastPreviewValidation?.ok === false;
   }
 
+  isPlacementReady(): boolean {
+    return this.lastPreviewValidation?.ok === true;
+  }
+
   invalidatePreview(): void {
     if (
       this.mode === 'off'
@@ -437,6 +442,8 @@ export class BuildingTool {
   }
 
   private resetPreviewCache(): void {
+    const hadPreviewState = this.lastPreviewValidation !== null
+      || this.placementStatusDetail !== null;
     this.pointerDirty = false;
     this.lastPreviewX = Number.NaN;
     this.lastPreviewZ = Number.NaN;
@@ -445,7 +452,10 @@ export class BuildingTool {
     this.lastPreviewValidation = null;
     this.lastValidationTime = 0;
     this.validationDirty = false;
-    this.setPlacementStatusDetail(null);
+    this.placementStatusDetail = null;
+    if (hadPreviewState) {
+      this.options.onPlacementPreviewChanged?.();
+    }
   }
 
   private updatePlacementStatusDetail(
@@ -461,21 +471,25 @@ export class BuildingTool {
       this.setPlacementStatusDetail(detail);
       return;
     }
-    if (kind !== 'founders_camp') {
-      this.setPlacementStatusDetail(null);
+    if (kind === 'founders_camp') {
+      const state = this.options.getState();
+      const assessment = assessFoundingSite({
+        x,
+        z,
+        sampleGroundwater: sampleAuthoritativeHydrologyScore,
+        countMatureTrees: this.options.countMatureTreesInRadius,
+        quarries: state.quarries.values(),
+        foragingNodes: state.foragingNodes.values(),
+        getHeightAt: this.options.getNaturalHeightAt,
+      });
+      this.setPlacementStatusDetail(describeFoundingSiteAssessment(assessment));
       return;
     }
-    const state = this.options.getState();
-    const assessment = assessFoundingSite({
-      x,
-      z,
-      sampleGroundwater: sampleAuthoritativeHydrologyScore,
-      countMatureTrees: this.options.countMatureTreesInRadius,
-      quarries: state.quarries.values(),
-      foragingNodes: state.foragingNodes.values(),
-      getHeightAt: this.options.getNaturalHeightAt,
-    });
-    this.setPlacementStatusDetail(describeFoundingSiteAssessment(assessment));
+    const definition = getBuildingDefinition(kind);
+    const extent = getBuildingExtent(kind, definition.workRadius);
+    this.setPlacementStatusDetail(
+      extent ? `Ready: ${extent.label.toLowerCase()} ${extent.radius} m` : null,
+    );
   }
 
   private setPlacementStatusDetail(detail: string | null): void {

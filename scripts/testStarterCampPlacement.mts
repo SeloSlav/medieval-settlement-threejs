@@ -225,7 +225,7 @@ assert.match(
 );
 assert.match(
   buildingTool,
-  /if \(!validation\.ok\)[\s\S]*?return;[\s\S]*?if \(kind !== 'founders_camp'\)[\s\S]*?return;[\s\S]*?assessFoundingSite\(/,
+  /if \(!validation\.ok\)[\s\S]*?return;[\s\S]*?if \(kind === 'founders_camp'\)[\s\S]*?assessFoundingSite\([\s\S]*?return;/,
   'only valid founding-camp previews should calculate advisory site quality',
 );
 assert.match(

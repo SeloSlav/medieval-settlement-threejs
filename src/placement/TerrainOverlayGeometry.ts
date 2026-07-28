@@ -3,12 +3,16 @@ import type { Point2 } from '../utils/polygonGeometry.ts';
 
 export type TerrainOverlaySegment = readonly [Point2, Point2];
 
-type TerrainRibbonOptions = {
+export type TerrainRibbonOptions = {
   width: number;
   lift: number;
   sampleSpacing?: number;
   dashLength?: number;
   gapLength?: number;
+};
+
+export type TerrainCircleRibbonOptions = TerrainRibbonOptions & {
+  segmentCount?: number;
 };
 
 export function clearOverlayGeometry(geometry: THREE.BufferGeometry): void {
@@ -183,6 +187,37 @@ export function updateTerrainRibbonGeometry(
   geometry.setIndex(indices);
   geometry.setDrawRange(0, indices.length);
   geometry.computeBoundingSphere();
+}
+
+export function updateTerrainCircleRibbonGeometry(
+  geometry: THREE.BufferGeometry,
+  center: Point2,
+  radius: number,
+  getHeightAt: (x: number, z: number) => number,
+  options: TerrainCircleRibbonOptions,
+): void {
+  if (!Number.isFinite(radius) || radius <= 0) {
+    clearOverlayGeometry(geometry);
+    return;
+  }
+  const circumference = Math.PI * 2 * radius;
+  const segmentCount = Math.max(
+    32,
+    Math.floor(options.segmentCount ?? Math.min(128, Math.ceil(circumference / 7))),
+  );
+  const points = Array.from({ length: segmentCount }, (_, index) => {
+    const angle = index / segmentCount * Math.PI * 2;
+    return {
+      x: center.x + Math.cos(angle) * radius,
+      z: center.z + Math.sin(angle) * radius,
+    };
+  });
+  updateTerrainRibbonGeometry(
+    geometry,
+    polygonSegments(points),
+    getHeightAt,
+    options,
+  );
 }
 
 export function polygonSegments(

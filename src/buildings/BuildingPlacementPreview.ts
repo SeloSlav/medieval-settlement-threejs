@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 import {
   polygonSegments,
+  updateTerrainCircleRibbonGeometry,
   updateTerrainQuadGeometry,
   updateTerrainRibbonGeometry,
 } from '../placement/TerrainOverlayGeometry.ts';
 import type { BuildingKind } from '../resources/types.ts';
+import { getBuildingDefinition } from '../resources/buildings.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import { getBuildingPadParams } from './BuildingTerrainLayout.ts';
+import { buildingExtentColor, getBuildingExtent } from './buildingExtents.ts';
 
 const PREVIEW_COLORS = {
   valid: 0xfffdf5,
@@ -17,6 +20,8 @@ const FOOTPRINT_SCALE = 0.92;
 const FOOTPRINT_FILL_LIFT = 0.105;
 const FOOTPRINT_BORDER_LIFT = 0.145;
 const FOOTPRINT_BORDER_WIDTH = 0.34;
+const EXTENT_BORDER_LIFT = 0.165;
+const EXTENT_BORDER_WIDTH = 0.78;
 const PREVIEW_RENDER_ORDER = 12;
 
 export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
@@ -65,6 +70,34 @@ export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
   border.renderOrder = PREVIEW_RENDER_ORDER + 1;
   border.frustumCulled = false;
   group.add(border);
+
+  const definition = getBuildingDefinition(kind);
+  const extent = getBuildingExtent(kind, definition.workRadius);
+  if (extent) {
+    const extentColor = buildingExtentColor(kind);
+    const extentRing = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({
+        color: extentColor,
+        transparent: true,
+        opacity: 0.68,
+        depthTest: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -3,
+        polygonOffsetUnits: -3,
+      }),
+    );
+    extentRing.name = 'Building placement extent';
+    extentRing.userData.previewRole = 'extent';
+    extentRing.userData.extentRadius = extent.radius;
+    extentRing.userData.extentLabel = extent.label;
+    extentRing.userData.validColor = extentColor;
+    extentRing.renderOrder = PREVIEW_RENDER_ORDER + 2;
+    extentRing.frustumCulled = false;
+    group.add(extentRing);
+  }
 
   return group;
 }
@@ -118,6 +151,25 @@ export function updateBuildingPreviewGeometry(
       },
     );
   }
+
+  const extentRing = group.getObjectByName('Building placement extent');
+  const definition = getBuildingDefinition(kind);
+  const extent = getBuildingExtent(kind, definition.workRadius);
+  if (extentRing instanceof THREE.Mesh && extent) {
+    updateTerrainCircleRibbonGeometry(
+      extentRing.geometry,
+      { x, z },
+      extent.radius,
+      getHeightAt,
+      {
+        width: EXTENT_BORDER_WIDTH,
+        lift: EXTENT_BORDER_LIFT,
+        sampleSpacing: 5.5,
+        dashLength: 4.8,
+        gapLength: 3.2,
+      },
+    );
+  }
 }
 
 export function updateBuildingPreviewAppearance(
@@ -129,6 +181,11 @@ export function updateBuildingPreviewAppearance(
     if (!(object instanceof THREE.Mesh)) return;
     const material = object.material;
     if (!(material instanceof THREE.MeshBasicMaterial)) return;
+    if (object.userData.previewRole === 'extent') {
+      material.color.setHex(valid ? object.userData.validColor as number : PREVIEW_COLORS.invalid);
+      material.opacity = valid ? 0.68 : 0.32;
+      return;
+    }
     material.color.setHex(color);
     material.opacity = object.userData.previewRole === 'border'
       ? valid ? 0.94 : 0.98

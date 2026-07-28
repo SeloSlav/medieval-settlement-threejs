@@ -616,11 +616,13 @@ export class BuildToolbar {
     this.statusLabel.textContent = describeToolbarStatus(stats);
     this.statusLabel.dataset.state = stats.placementBlocked
       ? 'warning'
-      : stats.canBuild
+      : stats.placementReady
         ? 'ready'
-        : isBuilderHudMode(stats.mode)
-          ? (stats.hasDraft ? 'draft' : 'active')
-          : 'idle';
+        : stats.canBuild
+          ? 'ready'
+          : isBuilderHudMode(stats.mode)
+            ? (stats.hasDraft ? 'draft' : 'active')
+            : 'idle';
     if (isBuilderHudMode(stats.mode)) {
       this.builderPanelTitle.textContent = describeBuilderTitle(stats.mode);
       this.builderHelpList.innerHTML = describeBuilderHelp(stats.mode);

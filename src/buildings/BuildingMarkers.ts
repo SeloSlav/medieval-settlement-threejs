@@ -21,8 +21,9 @@ import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { updateTerrainCircleRibbonGeometry } from '../placement/TerrainOverlayGeometry.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
-import { getBuildingExtent } from './buildingExtents.ts';
+import { buildingExtentColor, getBuildingExtent } from './buildingExtents.ts';
 import {
   createBuildingShadowProxy,
   setBuildingDetailShadowsEnabled,
@@ -141,16 +142,24 @@ export class BuildingMarkers {
           disposeObject3D(this.extentOverlayMesh);
           this.extentOverlayMesh.removeFromParent();
         }
-        this.extentOverlayMesh = createRadiusRing(color, 0.14);
+        this.extentOverlayMesh = createRadiusRing(color, 0.48);
         this.extentOverlayMesh.name = 'Selected building extent';
         this.extentOverlayKind = building.kind;
         this.group.add(this.extentOverlayMesh);
       }
 
-      const y = this.terrain.getHeightAt(building.x, building.z);
       this.extentOverlayMesh.visible = true;
-      this.extentOverlayMesh.position.set(building.x, y + 0.15, building.z);
-      this.extentOverlayMesh.scale.set(radius, 1, radius);
+      updateTerrainCircleRibbonGeometry(
+        this.extentOverlayMesh.geometry,
+        { x: building.x, z: building.z },
+        radius,
+        this.terrain.getHeightAt.bind(this.terrain),
+        {
+          width: 0.72,
+          lift: 0.15,
+          sampleSpacing: 5.5,
+        },
+      );
     }
 
     this.syncGuardhouseMusterRoute(building, gameState, fireDisabled);
@@ -776,28 +785,7 @@ function syncBuildingVisualState(
   syncMonasteryStockpileVisuals(marker, building);
 }
 
-const BUILDING_EXTENT_COLORS: Partial<Record<BuildingKind, number>> = {
-  lumber_mill: 0xd7b463,
-  reforester: 0x00cc66,
-  stone_quarry: 0xa8a29e,
-  large_quarry: 0xd5b866,
-  well: 0x4f9fd4,
-  hunters_hall: 0x8a6d45,
-  foragers_shed: 0xb05c76,
-  fishing_camp: 0x5b99b0,
-  threshing_barn: 0xb8894c,
-  monastery: 0xe4dfd2,
-  watchtower: 0xe0ad4f,
-  palisaded_refuge: 0xb87945,
-};
-
-function buildingExtentColor(kind: BuildingKind): number {
-  return BUILDING_EXTENT_COLORS[kind] ?? 0xd7b463;
-}
-
 function createRadiusRing(color: number, opacity: number): THREE.Mesh {
-  const geometry = new THREE.RingGeometry(0.94, 1, 64);
-  geometry.rotateX(-Math.PI * 0.5);
   const material = new THREE.MeshBasicMaterial({
     color,
     transparent: true,
@@ -805,7 +793,7 @@ function createRadiusRing(color: number, opacity: number): THREE.Mesh {
     depthWrite: false,
     side: THREE.DoubleSide,
   });
-  const mesh = new THREE.Mesh(geometry, material);
+  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
   mesh.renderOrder = 8;
   return mesh;
 }

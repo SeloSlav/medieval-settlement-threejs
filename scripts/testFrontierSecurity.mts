@@ -790,8 +790,23 @@ deploymentState.buildings.set(deploymentGuardhouse.id, deploymentGuardhouse);
 deploymentMarkers.setBuildingExtentOverlay(deploymentTower, deploymentState);
 const selectedExtent = deploymentParent.getObjectByName('Selected building extent') as THREE.Mesh;
 assert.ok(selectedExtent.visible);
+
+const renderedExtentRadius = (): number => {
+  const positions = selectedExtent.geometry.getAttribute('position');
+  let minimum = Number.POSITIVE_INFINITY;
+  let maximum = 0;
+  for (let index = 0; index < positions.count; index += 1) {
+    const dx = positions.getX(index) - deploymentTower.x;
+    const dz = positions.getZ(index) - deploymentTower.z;
+    const distance = Math.hypot(dx, dz);
+    minimum = Math.min(minimum, distance);
+    maximum = Math.max(maximum, distance);
+  }
+  return (minimum + maximum) * 0.5;
+};
+
 assert.ok(
-  Math.abs(selectedExtent.scale.x - watchtowerEffectiveRadius(deploymentTower)) < 1e-9,
+  Math.abs(renderedExtentRadius() - watchtowerEffectiveRadius(deploymentTower)) < 0.05,
   'a one-watchman selection ring must show the reduced operational radius',
 );
 deploymentState.buildings.set(deploymentTower.id, { ...deploymentTower, assignedLabor: 2 });
@@ -799,7 +814,7 @@ deploymentMarkers.setBuildingExtentOverlay(
   deploymentState.buildings.get(deploymentTower.id)!,
   deploymentState,
 );
-assert.equal(selectedExtent.scale.x, 190);
+assert.ok(Math.abs(renderedExtentRadius() - 190) < 0.05);
 
 deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
 const musterRoute = deploymentParent.getObjectByName(
