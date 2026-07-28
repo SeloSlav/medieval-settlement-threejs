@@ -113,6 +113,7 @@ import DeliveryTripRow from "./delivery_trip_table";
 import FarmFieldRow from "./farm_field_table";
 import FireIncidentRow from "./fire_incident_table";
 import ForagingNodeRow from "./foraging_node_table";
+import GuardMusterRouteRow from "./guard_muster_route_table";
 import LivestockHerdRow from "./livestock_herd_table";
 import MarketStateRow from "./market_state_table";
 import PastureRow from "./pasture_table";
@@ -272,6 +273,20 @@ const tablesSchema = __schema({
       { name: 'foraging_node_node_id_key', constraint: 'unique', columns: ['nodeId'] },
     ],
   }, ForagingNodeRow),
+  guard_muster_route: __table({
+    name: 'guard_muster_route',
+    indexes: [
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'source_building_id', algorithm: 'btree', columns: [
+        'sourceBuildingId',
+      ] },
+    ],
+    constraints: [
+      { name: 'guard_muster_route_source_building_id_key', constraint: 'unique', columns: ['sourceBuildingId'] },
+    ],
+  }, GuardMusterRouteRow),
   livestock_herd: __table({
     name: 'livestock_herd',
     indexes: [

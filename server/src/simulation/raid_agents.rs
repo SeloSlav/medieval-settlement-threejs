@@ -7,23 +7,26 @@ use crate::db::*;
 use crate::frontier_economy_policy::armed_guards;
 use crate::raid_agent_policy::{
     combat_state_blocks_guard_slot, distance_squared, formation_spawn, guard_attack_interval,
-    guard_damage, guard_recovery_ticks, move_toward, per_raider_loot_fraction, raid_entry_point,
-    raid_party_size, raider_attack_interval, raider_damage, COMBAT_FACTION_GUARD,
-    COMBAT_FACTION_RAIDER, COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING,
-    COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING,
-    COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
-    COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE,
-    DOWNED_LINGER_TICKS, GUARD_INTERCEPT_RANGE_METERS, GUARD_SPEED_MPS,
-    HOLDING_CONTACT_RANGE_METERS, LOOT_SECONDS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
-    RAIDER_SPEED_MPS, WOUNDED_GUARD_SPEED_MPS,
+    guard_breaks_route_for, guard_damage, guard_recovery_ticks, move_along_route, move_toward,
+    per_raider_loot_fraction, raid_entry_point, raid_party_size, raider_attack_interval,
+    raider_damage, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER, COMBAT_STATE_ADVANCING,
+    COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING,
+    COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING,
+    COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE,
+    COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE, DOWNED_LINGER_TICKS,
+    GUARD_SPEED_MPS, HOLDING_CONTACT_RANGE_METERS, LOOT_SECONDS, MELEE_RANGE_METERS,
+    RAIDER_ENGAGE_RANGE_METERS, RAIDER_SPEED_MPS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::RoadNetwork;
 use crate::security_policy::{
     guardhouse_muster_efficiency, raid_arson_occurs, scheduled_raid_ticks,
     select_guardhouse_muster_watch, RaidPortableStores, WatchArea,
 };
-use crate::tables::{settlement_security, ActiveRaid, Building, CombatAgent};
+use crate::tables::{
+    settlement_security, ActiveRaid, Building, CombatAgent, GuardMusterRoute,
+};
 
+use super::delivery_trips::{deserialize_route_polyline, serialize_route_polyline};
 use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use super::reclamation::ReclamationStock;
 use super::recover_stock_at;
@@ -33,6 +36,13 @@ use super::settlement_security::{
 
 const EPSILON: f64 = 1e-9;
 const ARRIVAL_RANGE_METERS: f64 = 2.4;
+
+struct GuardMusterPath {
+    path_distance: f64,
+    polyline: Vec<[f64; 2]>,
+}
+
+type GuardMusterPaths = HashMap<u64, GuardMusterPath>;
 
 #[derive(Clone, Copy, Debug)]
 pub struct LiveRaidTarget {
@@ -81,6 +91,7 @@ pub fn start_live_raid(
         }
         ctx.db.combat_agent().id().delete(stale.id);
     }
+    clear_guard_muster_routes(ctx, owner);
 
     let raider_count = raid_party_size(enemy_pressure);
     let primary = targets[0];
@@ -135,6 +146,7 @@ pub fn start_live_raid(
                 assigned_by_target[target_index],
             ),
             carried_loot_json: String::new(),
+            route_progress: 0.0,
             state_changed_tick: raid_id,
         });
     }
@@ -221,6 +233,18 @@ fn spawn_responding_guards(
         let muster_readiness = guardhouse_muster_efficiency(Some(muster_distance), 1.0);
         let readiness =
             (guardhouse.action_cooldown * (0.72 + muster_readiness * 0.28)).clamp(0.05, 1.0);
+        let Some(muster_route) =
+            network.road_path_route(guardhouse.x, guardhouse.z, tower.x, tower.z)
+        else {
+            continue;
+        };
+        ctx.db.guard_muster_route().insert(GuardMusterRoute {
+            source_building_id: guardhouse.id,
+            owner,
+            raid_id,
+            path_distance: muster_route.distance,
+            route_polyline_json: serialize_route_polyline(&muster_route.polyline),
+        });
         for slot in 0..armed {
             if unavailable_slots.contains(&(guardhouse.id, slot)) {
                 continue;
@@ -248,6 +272,7 @@ fn spawn_responding_guards(
                 loot_progress: 0.0,
                 loot_fraction: 0.0,
                 carried_loot_json: String::new(),
+                route_progress: 0.0,
                 state_changed_tick: raid_id,
             });
             total += 1;
@@ -300,8 +325,60 @@ fn clear_all_live_raids(ctx: &ReducerContext) {
     for agent in ctx.db.combat_agent().iter().collect::<Vec<CombatAgent>>() {
         ctx.db.combat_agent().id().delete(agent.id);
     }
+    for route in ctx
+        .db
+        .guard_muster_route()
+        .iter()
+        .collect::<Vec<GuardMusterRoute>>()
+    {
+        ctx.db
+            .guard_muster_route()
+            .source_building_id()
+            .delete(route.source_building_id);
+    }
     for raid in ctx.db.active_raid().iter().collect::<Vec<ActiveRaid>>() {
         ctx.db.active_raid().owner().delete(&raid.owner);
+    }
+}
+
+fn load_guard_muster_paths(
+    ctx: &ReducerContext,
+    owner: Identity,
+    raid_id: u64,
+) -> GuardMusterPaths {
+    ctx.db
+        .guard_muster_route()
+        .owner()
+        .filter(&owner)
+        .filter(|route| route.raid_id == raid_id && route.path_distance > EPSILON)
+        .filter_map(|route| {
+            deserialize_route_polyline(&route.route_polyline_json)
+                .filter(|polyline| polyline.len() >= 2)
+                .map(|polyline| {
+                    (
+                        route.source_building_id,
+                        GuardMusterPath {
+                            path_distance: route.path_distance,
+                            polyline,
+                        },
+                    )
+                })
+        })
+        .collect()
+}
+
+fn clear_guard_muster_routes(ctx: &ReducerContext, owner: Identity) {
+    for route in ctx
+        .db
+        .guard_muster_route()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<_>>()
+    {
+        ctx.db
+            .guard_muster_route()
+            .source_building_id()
+            .delete(route.source_building_id);
     }
 }
 
@@ -314,6 +391,7 @@ fn step_one_live_raid(ctx: &ReducerContext, active: ActiveRaid, sim_tick: u64, w
         .filter(|agent| agent.raid_id == active.raid_id)
         .map(|agent| (agent.id, agent))
         .collect::<HashMap<_, _>>();
+    let guard_routes = load_guard_muster_paths(ctx, active.owner, active.raid_id);
     let living_raiders = agents
         .values()
         .filter(|agent| {
@@ -324,7 +402,14 @@ fn step_one_live_raid(ctx: &ReducerContext, active: ActiveRaid, sim_tick: u64, w
         .count();
 
     if living_raiders == 0 {
-        return_guards_and_finalize(ctx, active, agents, sim_tick, world_seed);
+        return_guards_and_finalize(
+            ctx,
+            active,
+            agents,
+            &guard_routes,
+            sim_tick,
+            world_seed,
+        );
         return;
     }
 
@@ -353,7 +438,13 @@ fn step_one_live_raid(ctx: &ReducerContext, active: ActiveRaid, sim_tick: u64, w
                 sim_tick,
             );
         } else {
-            step_guard(agent, &snapshots, &mut damage_by_agent, sim_tick);
+            step_guard(
+                agent,
+                &snapshots,
+                guard_routes.get(&agent.source_building_id),
+                &mut damage_by_agent,
+                sim_tick,
+            );
         }
     }
 
@@ -466,16 +557,70 @@ fn step_raider(
 fn step_guard(
     agent: &mut CombatAgent,
     snapshots: &[CombatAgent],
+    muster_route: Option<&GuardMusterPath>,
     damage_by_agent: &mut HashMap<u64, f64>,
     sim_tick: u64,
 ) {
+    let emergency_enemy = snapshots
+        .iter()
+        .filter(|candidate| {
+            candidate.faction == COMBAT_FACTION_RAIDER
+                && candidate.state != COMBAT_STATE_DOWNED
+                && candidate.health > EPSILON
+                && guard_breaks_route_for(
+                    agent.x,
+                    agent.z,
+                    candidate.x,
+                    candidate.z,
+                    candidate.target_kind == agent.target_kind
+                        && candidate.target_id == agent.target_id,
+                    candidate.state,
+                )
+        })
+        .min_by(|left, right| {
+            distance_squared(agent.x, agent.z, left.x, left.z)
+                .total_cmp(&distance_squared(agent.x, agent.z, right.x, right.z))
+                .then_with(|| left.id.cmp(&right.id))
+        });
+    if let Some(enemy) = emergency_enemy {
+        engage_agent(
+            agent,
+            enemy,
+            GUARD_SPEED_MPS,
+            guard_damage(agent.readiness),
+            guard_attack_interval(agent.readiness),
+            damage_by_agent,
+            sim_tick,
+        );
+        return;
+    }
+
+    if let Some(route) = muster_route {
+        let route_move = move_along_route(
+            agent.x,
+            agent.z,
+            agent.route_progress,
+            route.path_distance,
+            &route.polyline,
+            GUARD_SPEED_MPS * TICK_DT,
+            true,
+        );
+        agent.x = route_move.x;
+        agent.z = route_move.z;
+        agent.route_progress = route_move.progress;
+        if !route_move.reached_end {
+            agent.state = COMBAT_STATE_ADVANCING;
+            return;
+        }
+    }
+
     let enemy = nearest_enemy_within(agent, snapshots, COMBAT_FACTION_RAIDER, f64::INFINITY, true)
         .or_else(|| {
             nearest_enemy_within(
                 agent,
                 snapshots,
                 COMBAT_FACTION_RAIDER,
-                GUARD_INTERCEPT_RANGE_METERS,
+                f64::INFINITY,
                 false,
             )
         });
@@ -622,6 +767,7 @@ fn return_guards_and_finalize(
     ctx: &ReducerContext,
     active: ActiveRaid,
     mut agents: HashMap<u64, CombatAgent>,
+    guard_routes: &GuardMusterPaths,
     sim_tick: u64,
     world_seed: u64,
 ) {
@@ -656,12 +802,10 @@ fn return_guards_and_finalize(
                 agent.state = COMBAT_STATE_RECOVERING;
                 agent.state_changed_tick = sim_tick;
             } else {
-                (agent.x, agent.z) = move_toward(
-                    agent.x,
-                    agent.z,
-                    agent.home_x,
-                    agent.home_z,
-                    WOUNDED_GUARD_SPEED_MPS * TICK_DT,
+                move_guard_home(
+                    agent,
+                    guard_routes.get(&agent.source_building_id),
+                    WOUNDED_GUARD_SPEED_MPS,
                 );
             }
             ctx.db.combat_agent().id().update(agent.clone());
@@ -680,12 +824,10 @@ fn return_guards_and_finalize(
         }
         guards_still_returning += 1;
         agent.state = COMBAT_STATE_RETURNING;
-        (agent.x, agent.z) = move_toward(
-            agent.x,
-            agent.z,
-            agent.home_x,
-            agent.home_z,
-            GUARD_SPEED_MPS * TICK_DT,
+        move_guard_home(
+            agent,
+            guard_routes.get(&agent.source_building_id),
+            GUARD_SPEED_MPS,
         );
         ctx.db.combat_agent().id().update(agent.clone());
     }
@@ -694,6 +836,7 @@ fn return_guards_and_finalize(
     }
 
     let Some(mut security) = ctx.db.settlement_security().owner().find(&active.owner) else {
+        clear_guard_muster_routes(ctx, active.owner);
         ctx.db.active_raid().owner().delete(&active.owner);
         return;
     };
@@ -722,7 +865,37 @@ fn return_guards_and_finalize(
     ));
     security.threat = 0.0;
     ctx.db.settlement_security().owner().update(security);
+    clear_guard_muster_routes(ctx, latest.owner);
     ctx.db.active_raid().owner().delete(&latest.owner);
+}
+
+fn move_guard_home(
+    agent: &mut CombatAgent,
+    muster_route: Option<&GuardMusterPath>,
+    speed_mps: f64,
+) {
+    if let Some(route) = muster_route {
+        let route_move = move_along_route(
+            agent.x,
+            agent.z,
+            agent.route_progress,
+            route.path_distance,
+            &route.polyline,
+            speed_mps * TICK_DT,
+            false,
+        );
+        agent.x = route_move.x;
+        agent.z = route_move.z;
+        agent.route_progress = route_move.progress;
+        return;
+    }
+    (agent.x, agent.z) = move_toward(
+        agent.x,
+        agent.z,
+        agent.home_x,
+        agent.home_z,
+        speed_mps * TICK_DT,
+    );
 }
 
 fn step_recovering_guard(ctx: &ReducerContext, mut agent: CombatAgent, sim_tick: u64) -> bool {

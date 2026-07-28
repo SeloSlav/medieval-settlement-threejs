@@ -32,4 +32,5 @@ export default __t.row({
   lootFraction: __t.f64().name("loot_fraction"),
   carriedLootJson: __t.string().name("carried_loot_json"),
   stateChangedTick: __t.u64().name("state_changed_tick"),
+  routeProgress: __t.f64().name("route_progress"),
 });

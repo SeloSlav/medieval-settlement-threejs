@@ -819,6 +819,31 @@ pub struct CombatAgent {
     /// JSON `RaidPortableStores` physically carried until escape or recovery.
     pub carried_loot_json: String,
     pub state_changed_tick: u64,
+    /// Distance reached along the company's cached muster road. Combat can
+    /// interrupt this without losing the point the guard should later rejoin.
+    #[default(0.0)]
+    pub route_progress: f64,
+}
+
+/// One cached road approach shared by every guard from a responding company.
+///
+/// This is server-only routing state. Guards prefer it while mustering and
+/// returning, but leave it immediately to intercept a nearby attacker or a
+/// raider already fighting at the company's assigned holding.
+#[spacetimedb::table(
+    accessor = guard_muster_route,
+    index(accessor = owner, btree(columns = [owner]))
+)]
+#[derive(Clone)]
+pub struct GuardMusterRoute {
+    /// A settlement can have only one active raid, so the guardhouse is a
+    /// stable route key and avoids duplicating the same polyline per guard.
+    #[primary_key]
+    pub source_building_id: u64,
+    pub owner: Identity,
+    pub raid_id: u64,
+    pub path_distance: f64,
+    pub route_polyline_json: String,
 }
 
 /// Active road delivery agent — position and phase are authoritative; cargo unloads on arrival.

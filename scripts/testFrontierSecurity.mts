@@ -1501,6 +1501,7 @@ assert.match(guardhouseInspector, /Projected raid/);
 assert.match(guardhouseInspector, /context\.enemyPressure/);
 assert.match(guardhouseInspector, /Watch muster/);
 assert.match(guardhouseInspector, /Alert posture/);
+assert.match(guardhouseInspector, /breaking cross-country for nearby or active attacks/);
 assert.match(guardhouseInspector, /Muster underway/);
 assert.match(guardhouseInspector, /Road conditions/);
 assert.match(guardhouseInspector, /Soft-road delay/);
@@ -1694,6 +1695,16 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
+  /road_path_route\(guardhouse\.x, guardhouse\.z, tower\.x, tower\.z\)[\s\S]*guard_muster_route\(\)\.insert/,
+  'each responding company must cache the real road approach selected by its watch assignment',
+);
+assert.match(
+  serverRaidAgents,
+  /guard_breaks_route_for[\s\S]*engage_agent\([\s\S]*move_along_route/,
+  'nearby enemies and attacks already in contact must override the preferred road march',
+);
+assert.match(
+  serverRaidAgents,
   /combat_agent\(\)[\s\S]*\.owner\(\)[\s\S]*\.filter\(&active\.owner\)[\s\S]*agent\.raid_id == active\.raid_id/,
   'simultaneous multiplayer raids must update only their own settlement agents',
 );
@@ -1707,6 +1718,8 @@ assert.match(serverRaidAgentPolicy, /pub const HOLDING_CONTACT_RANGE_METERS/);
 assert.match(serverRaidAgentPolicy, /pub const LOOT_SECONDS:\s*f64\s*=\s*4\.0/);
 assert.match(serverRaidAgentPolicy, /\.clamp\(3\.0,\s*12\.0\)/);
 assert.match(serverRaidAgentPolicy, /fn movement_never_teleports_past_contact/);
+assert.match(serverRaidAgentPolicy, /fn imminent_or_active_attacks_override_route_discipline/);
+assert.match(serverRaidAgentPolicy, /fn cached_company_routes_stay_cheap_for_a_large_guard_response/);
 assert.match(serverRaidAgentPolicy, /pub fn guard_recovery_ticks/);
 assert.match(serverRaidAgentPolicy, /pub fn combat_state_blocks_guard_slot/);
 assert.match(
@@ -1742,6 +1755,7 @@ assert.match(
 assert.match(generatedCombatAgent, /x: __t\.f64\(\)/);
 assert.match(generatedCombatAgent, /health: __t\.f64\(\)/);
 assert.match(generatedCombatAgent, /carriedLootJson: __t\.string\(\)/);
+assert.match(generatedCombatAgent, /routeProgress: __t\.f64\(\)/);
 assert.match(app, /villagers\?\.setCombatAgents\(snapshot\.combatAgents\)/);
 assert.match(
   app,

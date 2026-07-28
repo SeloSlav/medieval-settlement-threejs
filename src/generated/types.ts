@@ -137,6 +137,7 @@ export const CombatAgent = __t.object("CombatAgent", {
   lootFraction: __t.f64(),
   carriedLootJson: __t.string(),
   stateChangedTick: __t.u64(),
+  routeProgress: __t.f64(),
 });
 export type CombatAgent = __Infer<typeof CombatAgent>;
 
@@ -237,6 +238,15 @@ export const ForagingNode = __t.object("ForagingNode", {
   anchorZ: __t.f64(),
 });
 export type ForagingNode = __Infer<typeof ForagingNode>;
+
+export const GuardMusterRoute = __t.object("GuardMusterRoute", {
+  sourceBuildingId: __t.u64(),
+  owner: __t.identity(),
+  raidId: __t.u64(),
+  pathDistance: __t.f64(),
+  routePolylineJson: __t.string(),
+});
+export type GuardMusterRoute = __Infer<typeof GuardMusterRoute>;
 
 export const LivestockHerd = __t.object("LivestockHerd", {
   buildingId: __t.u64(),
