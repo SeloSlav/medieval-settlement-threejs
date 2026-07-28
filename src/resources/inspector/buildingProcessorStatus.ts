@@ -22,7 +22,10 @@ import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
 import type { BuildingKind, BuildingState } from '../types.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
-import { specialtySeasonStatus } from '../../economy/specialtyTrade.ts';
+import {
+  seasonalProducerOutputBlocker,
+  specialtySeasonStatus,
+} from '../../economy/specialtyTrade.ts';
 import {
   isProcessorOutputTargetKind,
   processorInputStagingCycles,
@@ -499,6 +502,14 @@ function getSeasonalProducerStatus(
     return {
       statusText: season.label,
       statusState: 'idle',
+      waterDetailHtml: '',
+    };
+  }
+  const outputBlocker = seasonalProducerOutputBlocker(building);
+  if (outputBlocker) {
+    return {
+      statusText: `Seasonal work waiting - ${outputBlocker.label.toLowerCase()} store needs ${outputBlocker.missingRoom.toFixed(1)} more room`,
+      statusState: 'warning',
       waterDetailHtml: '',
     };
   }

@@ -1,13 +1,18 @@
 import {
+  APIARY_FOOD_PER_CYCLE,
+  APIARY_HONEY_PER_CYCLE,
   APIARY_SEASON_END_MONTH,
   APIARY_SEASON_START_MONTH,
+  BUILDING_STORAGE_CAPS,
   MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND,
   SPECIALTY_EXPORT_GOLD_PER_ALE,
   SPECIALTY_EXPORT_GOLD_PER_CLOTH,
   SPECIALTY_EXPORT_GOLD_PER_HONEY,
   SPECIALTY_EXPORT_GOLD_PER_WINE,
+  VINEYARD_FOOD_PER_CYCLE,
   VINEYARD_HARVEST_END_MONTH,
   VINEYARD_HARVEST_START_MONTH,
+  VINEYARD_WINE_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import { MONTH_NAMES } from '../world/gameCalendar.ts';
@@ -85,6 +90,52 @@ export function specialtySeasonStatus(
   return null;
 }
 
+export type SeasonalProducerOutputBlocker = {
+  commodity: 'food' | 'honey' | 'wine';
+  label: string;
+  stock: number;
+  capacity: number;
+  batch: number;
+  room: number;
+  missingRoom: number;
+};
+
+export function seasonalProducerOutputBlocker(
+  building: BuildingState,
+): SeasonalProducerOutputBlocker | null {
+  const outputs = building.kind === 'apiary'
+    ? [
+        ['honey', 'Honey', building.honey, BUILDING_STORAGE_CAPS.apiary.honey, APIARY_HONEY_PER_CYCLE],
+        ['food', 'Food', building.food, BUILDING_STORAGE_CAPS.apiary.food, APIARY_FOOD_PER_CYCLE],
+      ] as const
+    : building.kind === 'vineyard'
+      ? [
+          ['wine', 'Wine', building.wine, BUILDING_STORAGE_CAPS.vineyard.wine, VINEYARD_WINE_PER_CYCLE],
+          ['food', 'Food', building.food, BUILDING_STORAGE_CAPS.vineyard.food, VINEYARD_FOOD_PER_CYCLE],
+        ] as const
+      : null;
+  if (!outputs) return null;
+
+  for (const [commodity, label, rawStock, rawCapacity, rawBatch] of outputs) {
+    const stock = finiteNonnegative(rawStock);
+    const capacity = finiteNonnegative(rawCapacity);
+    const batch = finiteNonnegative(rawBatch);
+    const room = Math.max(0, capacity - stock);
+    if (room + 1e-6 < batch) {
+      return {
+        commodity,
+        label,
+        stock,
+        capacity,
+        batch,
+        room,
+        missingRoom: Math.max(0, batch - room),
+      };
+    }
+  }
+  return null;
+}
+
 export function marketplaceSpecialtyExportWorkers(building: BuildingState): number {
   return Math.max(
     0,
@@ -145,4 +196,8 @@ export function marketplaceSpecialtyExportPlan(
     saleAllowed: specialtyExportPolicyAllows(policy.value, marketRate),
     rateShortfall: Math.max(0, policy.minRate - marketRate),
   };
+}
+
+function finiteNonnegative(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, value) : 0;
 }

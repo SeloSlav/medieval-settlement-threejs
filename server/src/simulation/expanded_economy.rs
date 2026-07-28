@@ -57,7 +57,9 @@ use crate::simulation::residence_needs::{
 use crate::simulation::road_logistics::select_residence_for_need_delivery;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
-use crate::specialty_trade_policy::{apiary_is_active, vineyard_is_harvesting};
+use crate::specialty_trade_policy::{
+    apiary_is_active, producer_output_batch_fits, vineyard_is_harvesting,
+};
 use crate::supply_policy::{
     grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, processor_input_dispatch_duty, processor_input_runway_cycles,
@@ -1077,6 +1079,15 @@ fn step_simple_producer(
     mut building: Building,
     outputs: &[(CommodityKind, f64)],
 ) -> Building {
+    if !producer_output_batch_fits(outputs.iter().map(|(kind, batch)| {
+        (
+            building_commodity_stock(&building, *kind),
+            building_commodity_cap(&building.kind, *kind),
+            *batch,
+        )
+    })) {
+        return building;
+    }
     let Some(labor) = cycle_labor_if_ready(ctx, tick, clock, &mut building, false) else {
         return building;
     };

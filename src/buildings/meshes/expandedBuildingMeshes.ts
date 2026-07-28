@@ -35,6 +35,13 @@ import {
   CARPENTER_POLEARM_VISUAL_SEGMENTS,
   CARPENTER_TIMBER_VISUAL_SEGMENTS,
 } from '../armoryStockpileVisuals.ts';
+import {
+  APIARY_FOOD_VISUAL_SEGMENTS,
+  APIARY_HONEY_VISUAL_SEGMENTS,
+  THRESHING_GRAIN_VISUAL_SEGMENTS,
+  VINEYARD_FOOD_VISUAL_SEGMENTS,
+  VINEYARD_WINE_VISUAL_SEGMENTS,
+} from '../seasonalStockpileVisuals.ts';
 import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
 import { addStockedPolearmRack } from './polearmRack.ts';
 
@@ -69,6 +76,57 @@ function addSheaf(group: THREE.Group, x: number, z: number, scale = 1): void {
 function addSack(group: THREE.Group, x: number, z: number, scale = 1): void {
   addMesh(group, new THREE.SphereGeometry(0.45 * scale, 8, 6), canvas, new THREE.Vector3(x, 0.42 * scale, z), new THREE.Euler(0, 0, -0.08), new THREE.Vector3(0.82, 1.35, 0.72));
   addMesh(group, new THREE.CylinderGeometry(0.07 * scale, 0.14 * scale, 0.24 * scale, 7), canvas, new THREE.Vector3(x, 0.94 * scale, z));
+}
+
+function addProduceBasket(
+  group: THREE.Group,
+  scale: number,
+  produceMaterial: THREE.Material,
+): void {
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(0.34 * scale, 0.43 * scale, 0.5 * scale, 10),
+    timberMaterial('light'),
+    new THREE.Vector3(0, 0.25 * scale, 0),
+  );
+  for (let band = 0; band < 2; band++) {
+    addMesh(
+      group,
+      new THREE.TorusGeometry((0.38 - band * 0.035) * scale, 0.025 * scale, 4, 10),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, (0.14 + band * 0.27) * scale, 0),
+      new THREE.Euler(Math.PI * 0.5, 0, 0),
+    );
+  }
+  for (let index = 0; index < 7; index++) {
+    const angle = index * Math.PI * 2 / 7;
+    addMesh(
+      group,
+      new THREE.SphereGeometry(0.13 * scale, 6, 4),
+      produceMaterial,
+      new THREE.Vector3(
+        Math.cos(angle) * 0.25 * scale,
+        (0.5 + (index % 2) * 0.06) * scale,
+        Math.sin(angle) * 0.2 * scale,
+      ),
+    );
+  }
+}
+
+function addHoneyJar(group: THREE.Group, scale: number): void {
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(0.2 * scale, 0.27 * scale, 0.48 * scale, 10),
+    residenceFacadeMaterial('yellow'),
+    new THREE.Vector3(0, 0.25 * scale, 0),
+  );
+  addMesh(
+    group,
+    new THREE.TorusGeometry(0.15 * scale, 0.035 * scale, 5, 10),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 0.51 * scale, 0),
+    new THREE.Euler(Math.PI * 0.5, 0, 0),
+  );
 }
 
 type StockPropPlacement = readonly [
@@ -178,7 +236,15 @@ export function createThreshingBarnMesh(): THREE.Group {
   addPlankDoor(group, 0, 0.62, shell.frontZ + 0.03, 2.6, 2.7);
   addDarkOpening(group, 0, 0.66, -shell.frontZ - 0.03, 3.7, 2.85);
   for (const x of [-4.2, 4.2]) addSmallWindow(group, x, 2.35, shell.frontZ + 0.03, 0.72, 0.8);
-  for (const x of [-4.5, -2.9, 3.1, 4.6]) addSheaf(group, x, -4.5, 1.05);
+  addSegmentedStockProps(
+    group,
+    'ThreshingGrainStockpile',
+    'ThreshingGrainSegment',
+    [-4.9, -4.15, 4.95, 5.55]
+      .slice(0, THRESHING_GRAIN_VISUAL_SEGMENTS)
+      .map((x) => [x, 0, 4.35, 1.05] as const),
+    (segment, scale) => addSheaf(segment, 0, 0, scale),
+  );
   // A low handcart and flails make the yard read as threshing rather than storage.
   addMesh(group, new THREE.BoxGeometry(2.5, 0.42, 1.45), timberMaterial('weathered'), new THREE.Vector3(3.1, 0.82, 4.65));
   addCartWheel(group, 1.82, 0.67, 4.65, 0.66);
@@ -384,7 +450,29 @@ export function createApiaryMesh(): THREE.Group {
   }
   addMesh(group, new THREE.CylinderGeometry(0.2, 0.34, 0.72, 9), metalMaterial('iron'), new THREE.Vector3(3.15, 0.38, 2.75));
   addMesh(group, new THREE.CylinderGeometry(0.08, 0.16, 0.48, 8), metalMaterial('iron'), new THREE.Vector3(3.15, 0.96, 2.75));
-  addBarrel(group, 2.2, 2.85, 0.72);
+  addSegmentedStockProps(
+    group,
+    'ApiaryFoodStockpile',
+    'ApiaryFoodSegment',
+    ([
+      [-0.2, 0, 3.0, 0.9],
+      [0.65, 0, 3.12, 0.76],
+    ] as const)
+      .slice(0, APIARY_FOOD_VISUAL_SEGMENTS),
+    (segment, scale) => addProduceBasket(segment, scale, crop),
+  );
+  addSegmentedStockProps(
+    group,
+    'ApiaryHoneyStockpile',
+    'ApiaryHoneySegment',
+    ([
+      [1.75, 0, 2.9, 1],
+      [2.25, 0, 3.05, 0.88],
+      [2.65, 0, 2.82, 0.75],
+    ] as const)
+      .slice(0, APIARY_HONEY_VISUAL_SEGMENTS),
+    (segment, scale) => addHoneyJar(segment, scale),
+  );
   return group;
 }
 
@@ -652,8 +740,28 @@ export function createVineyardMesh(): THREE.Group {
   const shell = addGableShell(group, { width: 4.3, depth: 3.6, stoneHeight: 0.65, wallHeight: 1.95, ridgeHeight: 1.55, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(0), centerX: -5.2, centerZ: 5.3 });
   addPlankDoor(group, -5.2, 0.68, shell.frontZ + 0.03, 0.76, 1.55);
   addMesh(group, new THREE.SphereGeometry(0.65, 7, 5), leaf, new THREE.Vector3(5.7, 1.0, 5.0));
-  addBarrel(group, 3.1, 5.25, 0.85);
-  addBarrel(group, 4.25, 5.3, 0.72);
+  addSegmentedStockProps(
+    group,
+    'VineyardFoodStockpile',
+    'VineyardFoodSegment',
+    ([
+      [0.25, 0, 5.08, 0.92],
+      [1.08, 0, 5.24, 0.76],
+    ] as const)
+      .slice(0, VINEYARD_FOOD_VISUAL_SEGMENTS),
+    (segment, scale) => addProduceBasket(segment, scale, hiveRed),
+  );
+  addSegmentedStockProps(
+    group,
+    'VineyardWineStockpile',
+    'VineyardWineSegment',
+    ([
+      [3.1, 0, 5.25, 0.85],
+      [4.25, 0, 5.3, 0.72],
+    ] as const)
+      .slice(0, VINEYARD_WINE_VISUAL_SEGMENTS),
+    (segment, scale) => addBarrel(segment, 0, 0, scale),
+  );
   addMesh(group, new THREE.CylinderGeometry(0.72, 0.82, 0.92, 12), timberMaterial('weathered'), new THREE.Vector3(2.0, 0.48, 5.2));
   addMesh(group, new THREE.CylinderGeometry(0.08, 0.08, 1.85, 8), timberMaterial('dark'), new THREE.Vector3(2.0, 1.58, 5.2));
   addMesh(group, new THREE.BoxGeometry(1.15, 0.14, 0.32), timberMaterial('dark'), new THREE.Vector3(2.0, 2.45, 5.2));

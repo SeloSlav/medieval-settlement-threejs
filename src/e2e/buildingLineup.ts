@@ -36,6 +36,16 @@ const STOCKED_PREVIEW_PREFIXES = [
   'GuardhouseFoodSegment',
   'GuardhousePolearmStockpile',
   'GuardhousePolearmSegment',
+  'ThreshingGrainStockpile',
+  'ThreshingGrainSegment',
+  'ApiaryFoodStockpile',
+  'ApiaryFoodSegment',
+  'ApiaryHoneyStockpile',
+  'ApiaryHoneySegment',
+  'VineyardFoodStockpile',
+  'VineyardFoodSegment',
+  'VineyardWineStockpile',
+  'VineyardWineSegment',
 ] as const;
 const COLS = selectedKinds.length === 1 ? 1 : 7;
 const ROWS = selectedKinds.length === 1 ? 1 : 4;

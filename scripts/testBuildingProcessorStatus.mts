@@ -262,6 +262,22 @@ assert.match(
   getBuildingProcessorStatus(apiary, noWellQueries, { month: 4 })?.statusText ?? '',
   /Gathering honey/,
 );
+const fullApiary = makeBuilding({
+  id: 'apiary-full',
+  kind: 'apiary',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  honey: 139,
+});
+assert.equal(
+  getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 4 })?.statusText,
+  'Seasonal work waiting - honey store needs 1.0 more room',
+);
+assert.equal(
+  getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 4 })?.statusState,
+  'warning',
+);
 
 const vineyard = makeBuilding({
   id: 'vineyard-1',
@@ -277,6 +293,18 @@ assert.match(
 assert.equal(
   getBuildingProcessorStatus(vineyard, noWellQueries, { month: 9 })?.statusState,
   'active',
+);
+const fullVineyardFood = makeBuilding({
+  id: 'vineyard-food-full',
+  kind: 'vineyard',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  food: 40,
+});
+assert.equal(
+  getBuildingProcessorStatus(fullVineyardFood, noWellQueries, { month: 9 })?.statusText,
+  'Seasonal work waiting - food store needs 1.0 more room',
 );
 
 console.log('building processor status tests passed');
