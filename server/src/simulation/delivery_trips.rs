@@ -38,9 +38,10 @@ use crate::simulation::fires::{
 };
 use crate::simulation::game_calendar::{game_clock, GameClock};
 use crate::simulation::labor_and_logistics_paused;
+use crate::simulation::raid_agents::issued_guard_polearms_by_building;
 use crate::simulation::residence_needs::{apply_need_delivery, ResidenceNeedKind};
 use crate::simulation::settlement_security::{
-    building_portable_stores, delivery_trip_portable_stores,
+    building_portable_stores_at_site, delivery_trip_portable_stores,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{recover_stock_at, recover_stock_beside_building, ReclamationStock};
@@ -1480,7 +1481,12 @@ fn hand_off_arriving_cart_pursuit(
     else {
         return;
     };
-    let receiving_store_raid_value = building_portable_stores(&origin).raid_value();
+    let issued_polearms = issued_guard_polearms_by_building(ctx, trip.owner)
+        .get(&origin.id)
+        .copied()
+        .unwrap_or(0.0);
+    let receiving_store_raid_value =
+        building_portable_stores_at_site(&origin, issued_polearms).raid_value();
     let followers = ctx
         .db
         .combat_agent()

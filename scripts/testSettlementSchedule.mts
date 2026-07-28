@@ -171,6 +171,7 @@ const activeCombatAgents = new Map<string, CombatAgentState>([
     attackCooldown: 0,
     lootProgress: 0,
     carryingLoot: false,
+    issuedPolearms: 0,
     raidAnchorBuildingId: null,
     stateChangedTick: anchorTick,
   }],

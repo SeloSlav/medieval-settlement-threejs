@@ -5,8 +5,7 @@ use spacetimedb::{Identity, ReducerContext};
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::economy::CommodityKind;
-use crate::frontier_economy_policy::armed_guards;
-use crate::raid_agent_policy::playable_half_for_map_size;
+use crate::raid_agent_policy::{playable_half_for_map_size, select_guard_muster_slots};
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
@@ -23,7 +22,7 @@ use crate::tables::{
 };
 
 use super::fires::FIRE_TARGET_BUILDING;
-use super::raid_agents::unavailable_guard_slots;
+use super::raid_agents::{issued_guard_polearms_by_building, unavailable_guard_slots};
 use super::{start_live_raid, LiveRaidTarget};
 
 struct SettlementExposure {
@@ -174,6 +173,7 @@ fn step_owner_security(
         settlement_refuge_assignments(&residences, &watch_index, &refuge_index);
     let road_network = load_owner_road_network(ctx, owner);
     let unavailable_guard_slots = unavailable_guard_slots(ctx, owner);
+    let issued_guard_polearms = issued_guard_polearms_by_building(ctx, owner);
     let (district_ready_guards, assigned_guards, readiness_by_watch) = settlement_guard_districts(
         &buildings,
         &towers,
@@ -181,6 +181,7 @@ fn step_owner_security(
         environment.road_speed_multiplier(),
         &fire_disabled_buildings,
         &unavailable_guard_slots,
+        &issued_guard_polearms,
     );
     let exposure = settlement_exposure(
         &buildings,
@@ -190,6 +191,7 @@ fn step_owner_security(
         &watch_index,
         &refuge_assignments,
         &readiness_by_watch,
+        &issued_guard_polearms,
     );
     let coverage = if exposure.total_value > 1e-9 {
         (exposure.protected_value / exposure.total_value).clamp(0.0, 1.0)
@@ -402,6 +404,7 @@ fn settlement_exposure(
     watch_index: &WatchCoverageIndex,
     refuge_assignments: &HashMap<u64, u64>,
     readiness_by_watch: &HashMap<u64, f64>,
+    issued_guard_polearms: &HashMap<u64, f64>,
 ) -> SettlementExposure {
     let mut protected_value = 0.0;
     let mut total_value = 0.0;
@@ -416,7 +419,10 @@ fn settlement_exposure(
         .iter()
         .filter(|building| building.kind != "watchtower")
     {
-        let portable_value = building_portable_value(building);
+        let portable_value = building_portable_value(
+            building,
+            issued_guard_polearms.get(&building.id).copied().unwrap_or(0.0),
+        );
         let vulnerable_value =
             raid_holding_vulnerability(building.construction_complete, portable_value);
         if vulnerable_value <= 1e-9 {
@@ -524,8 +530,8 @@ fn settlement_exposure(
     }
 }
 
-fn building_portable_value(building: &Building) -> f64 {
-    building_portable_stores(building).raid_value()
+fn building_portable_value(building: &Building, issued_polearms: f64) -> f64 {
+    building_portable_stores_at_site(building, issued_polearms).raid_value()
 }
 
 pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStores {
@@ -548,6 +554,20 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         malt: building.malt,
         flax: building.flax,
     }
+}
+
+pub(super) fn building_portable_stores_at_site(
+    building: &Building,
+    issued_polearms: f64,
+) -> RaidPortableStores {
+    let mut stores = building_portable_stores(building);
+    let issued = if issued_polearms.is_finite() {
+        issued_polearms.max(0.0).min(stores.polearms.max(0.0))
+    } else {
+        0.0
+    };
+    stores.polearms = (stores.polearms - issued).max(0.0);
+    stores
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -578,9 +598,16 @@ pub(super) fn plunder_raid_target_at_contact(
             if building.owner != owner {
                 return ContactRaidPlunder::default();
             }
-            let before = building_portable_stores(&building);
+            let issued = issued_guard_polearms_by_building(ctx, owner)
+                .get(&building.id)
+                .copied()
+                .unwrap_or(0.0)
+                .min(building.polearms.max(0.0));
+            let before = building_portable_stores_at_site(&building, issued);
             let plunder = before.plunder(loss_fraction);
-            retain_unplundered_stores(&mut building, plunder.remaining);
+            let mut company_remaining = plunder.remaining;
+            company_remaining.polearms += issued;
+            retain_unplundered_stores(&mut building, company_remaining);
             ctx.db.building().id().update(building);
             ContactRaidPlunder {
                 carried: before.removed_between(plunder.remaining),
@@ -886,6 +913,7 @@ fn settlement_guard_districts(
     road_speed_multiplier: f64,
     fire_disabled_buildings: &HashSet<u64>,
     unavailable_guard_slots: &HashSet<(u64, u32)>,
+    issued_guard_polearms: &HashMap<u64, f64>,
 ) -> (f64, f64, HashMap<u64, f64>) {
     let watch_positions = towers
         .iter()
@@ -905,12 +933,24 @@ fn settlement_guard_districts(
             && !fire_disabled_buildings.contains(&building.id)
     }) {
         assigned += guardhouse.assigned_labor as f64;
-        let armed_slots = armed_guards(guardhouse.assigned_labor, guardhouse.polearms)
-            .floor()
-            .max(0.0) as u32;
-        let armed_here = (0..armed_slots)
-            .filter(|slot| !unavailable_guard_slots.contains(&(guardhouse.id, *slot)))
-            .count() as f64;
+        let onsite_polearms = (guardhouse.polearms
+            - issued_guard_polearms
+                .get(&guardhouse.id)
+                .copied()
+                .unwrap_or(0.0))
+            .max(0.0);
+        let unavailable_here = unavailable_guard_slots
+            .iter()
+            .filter_map(|(building_id, slot)| {
+                (*building_id == guardhouse.id).then_some(*slot)
+            })
+            .collect::<Vec<_>>();
+        let armed_here = select_guard_muster_slots(
+            guardhouse.assigned_labor,
+            onsite_polearms,
+            &unavailable_here,
+        )
+        .len() as f64;
         if armed_here <= 1e-9 {
             continue;
         }

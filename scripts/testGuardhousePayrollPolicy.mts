@@ -359,7 +359,7 @@ const settlementSecurity = readFileSync(
 );
 assert.match(
   settlementSecurity,
-  /fn building_portable_stores[\s\S]*?gold: building\.gold[\s\S]*?pub\(super\) fn plunder_raid_target_at_contact[\s\S]*?RaidTargetKind::Building[\s\S]*?let before = building_portable_stores\(&building\)[\s\S]*?before\.plunder\(loss_fraction\)[\s\S]*?retain_unplundered_stores/,
+  /fn building_portable_stores[\s\S]*?gold: building\.gold[\s\S]*?pub\(super\) fn building_portable_stores_at_site[\s\S]*?stores\.polearms = \(stores\.polearms - issued\)\.max\(0\.0\)[\s\S]*?pub\(super\) fn plunder_raid_target_at_contact[\s\S]*?RaidTargetKind::Building[\s\S]*?let before = building_portable_stores_at_site\(&building, issued\)[\s\S]*?before\.plunder\(loss_fraction\)[\s\S]*?company_remaining\.polearms \+= issued[\s\S]*?retain_unplundered_stores/,
   'guardhouse pay chests must remain part of the portable stores removed only after raid contact',
 );
 assert.match(

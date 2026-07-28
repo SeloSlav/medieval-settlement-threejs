@@ -104,6 +104,17 @@ assertVisibleSegments(
   'GuardhousePolearmSegment',
   3,
 );
+syncArmoryStockpileVisuals(
+  guardhouseMarker,
+  building('guardhouse', { food: 37, polearms: 5 }),
+  4,
+);
+assertVisibleSegments(
+  guardhouseMarker,
+  'GuardhousePolearmStockpile',
+  'GuardhousePolearmSegment',
+  1,
+);
 syncArmoryStockpileVisuals(guardhouseMarker, building('guardhouse'));
 assertVisibleSegments(
   guardhouseMarker,
@@ -139,6 +150,15 @@ assert.notEqual(
   buildingMarkerSignatures(new Map([[secondWeaponBand.id, secondWeaponBand]])).visual,
   firstSignatures.visual,
   'crossing a weapon band must resync the marker',
+);
+assert.equal(
+  buildingMarkerSignatures(
+    new Map([[firstWeaponBand.id, firstWeaponBand]]),
+    undefined,
+    new Map([[firstWeaponBand.id, 1]]),
+  ).visual,
+  emptySignatures.visual,
+  'a polearm carried by a deployed guard must disappear from the physical rack',
 );
 
 const perfBuildings = Array.from({ length: 100_000 }, (_, index) => {

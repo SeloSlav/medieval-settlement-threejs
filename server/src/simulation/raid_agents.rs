@@ -4,14 +4,14 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
-use crate::frontier_economy_policy::armed_guards;
 use crate::raid_agent_policy::{
     combat_state_blocks_guard_slot, distance_squared, formation_spawn, guard_attack_interval,
     guard_breaks_route_for, guard_damage, guard_recovery_ticks, move_along_route, move_toward,
     nearest_emergency_guard_target, per_raider_loot_fraction, raid_contact_duration,
     raid_entry_point, raid_party_size, raider_attack_interval, raider_damage,
-    route_shortcut_is_worthwhile, EmergencyGuardTarget, COMBAT_FACTION_GUARD,
-    COMBAT_FACTION_RAIDER, COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING,
+    route_shortcut_is_worthwhile, select_guard_muster_slots, EmergencyGuardTarget,
+    COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER, COMBAT_ROAD_SPEED_MULTIPLIER,
+    COMBAT_STATE_ADVANCING,
     COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING,
     COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING,
     COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE,
@@ -261,6 +261,7 @@ fn spawn_responding_guards(
         })
         .collect::<Vec<_>>();
     let unavailable_slots = unavailable_guard_slots(ctx, owner);
+    let issued_polearms = issued_guard_polearms_by_building(ctx, owner);
     let mut total = 0_u32;
 
     for guardhouse in buildings.iter().filter(|building| {
@@ -269,10 +270,21 @@ fn spawn_responding_guards(
             && building.kind == "guardhouse"
             && !fire_disabled_buildings.contains(&building.id)
     }) {
-        let armed = armed_guards(guardhouse.assigned_labor, guardhouse.polearms)
-            .floor()
-            .max(0.0) as u32;
-        if armed == 0 || guardhouse.action_cooldown <= 0.05 {
+        let onsite_polearms = (guardhouse.polearms
+            - issued_polearms.get(&guardhouse.id).copied().unwrap_or(0.0))
+            .max(0.0);
+        let unavailable_here = unavailable_slots
+            .iter()
+            .filter_map(|(building_id, slot)| {
+                (*building_id == guardhouse.id).then_some(*slot)
+            })
+            .collect::<Vec<_>>();
+        let muster_slots = select_guard_muster_slots(
+            guardhouse.assigned_labor,
+            onsite_polearms,
+            &unavailable_here,
+        );
+        if muster_slots.is_empty() || guardhouse.action_cooldown <= 0.05 {
             continue;
         }
 
@@ -329,10 +341,7 @@ fn spawn_responding_guards(
                 route_polyline_json: serialize_route_polyline(&muster_route.polyline),
             });
         }
-        for slot in 0..armed {
-            if unavailable_slots.contains(&(guardhouse.id, slot)) {
-                continue;
-            }
+        for slot in muster_slots {
             let (x, z) = formation_spawn(guardhouse.x, guardhouse.z, target.x, target.z, slot);
             let max_health = 70.0 + readiness * 30.0;
             ctx.db.combat_agent().insert(CombatAgent {
@@ -355,7 +364,11 @@ fn spawn_responding_guards(
                 attack_cooldown: slot as f64 * 0.06,
                 loot_progress: 0.0,
                 loot_fraction: 0.0,
-                carried_loot_json: String::new(),
+                carried_loot_json: serde_json::to_string(&RaidPortableStores {
+                    polearms: 1.0,
+                    ..RaidPortableStores::default()
+                })
+                .unwrap_or_default(),
                 raid_anchor_building_id: 0,
                 route_progress: 0.0,
                 state_changed_tick: raid_id,
@@ -1079,6 +1092,9 @@ fn return_guards_and_finalize(
                 agent.z = agent.home_z;
                 agent.state = COMBAT_STATE_RECOVERING;
                 agent.state_changed_tick = sim_tick;
+                // The wounded villager remains unavailable, but their weapon
+                // is physically back on the guardhouse rack for the company.
+                agent.carried_loot_json.clear();
             } else {
                 move_guard_home(
                     agent,
@@ -1244,6 +1260,33 @@ pub(super) fn unavailable_guard_slots(
         })
         .map(|agent| (agent.source_building_id, agent.source_slot))
         .collect()
+}
+
+pub(super) fn issued_guard_polearms_by_building(
+    ctx: &ReducerContext,
+    owner: Identity,
+) -> HashMap<u64, f64> {
+    let mut issued = HashMap::new();
+    for agent in ctx
+        .db
+        .combat_agent()
+        .owner()
+        .filter(&owner)
+        .filter(|agent| {
+            agent.faction == COMBAT_FACTION_GUARD
+                && agent.source_building_id > 0
+                && !agent.carried_loot_json.is_empty()
+        })
+    {
+        let Ok(stores) = serde_json::from_str::<RaidPortableStores>(&agent.carried_loot_json)
+        else {
+            continue;
+        };
+        if stores.polearms.is_finite() && stores.polearms > 0.0 {
+            *issued.entry(agent.source_building_id).or_insert(0.0) += stores.polearms;
+        }
+    }
+    issued
 }
 
 fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock {

@@ -56,6 +56,36 @@ pub struct EmergencyGuardTarget {
     pub z: f64,
 }
 
+/// Chooses the actual roster slots that can take weapons from the guardhouse
+/// rack. A wounded low-numbered slot must not prevent a later fit villager
+/// from mustering with an otherwise available polearm.
+pub fn select_guard_muster_slots(
+    assigned_labor: u32,
+    onsite_polearms: f64,
+    unavailable_slots: &[u32],
+) -> Vec<u32> {
+    let weapon_count = if onsite_polearms.is_finite() {
+        onsite_polearms.floor().max(0.0) as u32
+    } else {
+        0
+    }
+    .min(assigned_labor);
+    if weapon_count == 0 {
+        return Vec::new();
+    }
+    let mut selected = Vec::with_capacity(weapon_count as usize);
+    for slot in 0..assigned_labor {
+        if unavailable_slots.contains(&slot) {
+            continue;
+        }
+        selected.push(slot);
+        if selected.len() >= weapon_count as usize {
+            break;
+        }
+    }
+    selected
+}
+
 pub fn raid_party_size(enemy_pressure: u8) -> u32 {
     // Mirrors the established 2.5 + pressure * 0.065 raid-strength curve,
     // while materializing whole people and retaining a strict replication cap.
@@ -458,6 +488,17 @@ mod tests {
         assert_eq!(raid_party_size(50), 6);
         assert_eq!(raid_party_size(100), 9);
         assert!(raid_party_size(100) <= 12);
+    }
+
+    #[test]
+    fn muster_uses_later_fit_slots_and_only_onsite_weapons() {
+        assert_eq!(
+            select_guard_muster_slots(4, 3.0, &[0]),
+            vec![1, 2, 3],
+            "a wounded first roster slot must not strand the third rack weapon",
+        );
+        assert_eq!(select_guard_muster_slots(5, 2.8, &[1, 3]), vec![0, 2],);
+        assert!(select_guard_muster_slots(4, f64::NAN, &[]).is_empty());
     }
 
     #[test]

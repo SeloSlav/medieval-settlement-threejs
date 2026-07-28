@@ -58,6 +58,7 @@ export function buildingMeshSignature(building: BuildingState): string {
 export function buildingMarkerSignatures(
   buildings: ReadonlyMap<string, BuildingState>,
   livestockHerds?: ReadonlyMap<string, LivestockHerdState>,
+  issuedGuardPolearms?: ReadonlyMap<string, number>,
 ): { visual: string; collider: string } {
   const entries = [...buildings.values()]
     .map((building) => {
@@ -208,7 +209,10 @@ export function buildingMarkerSignatures(
         : '';
       const foodStockState = foodStockpileVisualSignature(building);
       const bulkStockState = bulkStockpileVisualSignature(building);
-      const armoryStockState = armoryStockpileVisualSignature(building);
+      const armoryStockState = armoryStockpileVisualSignature(
+        building,
+        issuedGuardPolearms?.get(building.id) ?? 0,
+      );
       const seasonalStockState = seasonalStockpileVisualSignature(building);
       const marketplaceSpecialtyStockState =
         marketplaceSpecialtyStockpileVisualSignature(building);
@@ -235,8 +239,13 @@ export function buildingMarkerSignatures(
 export function buildingMarkerCollectionSignature(
   buildings: ReadonlyMap<string, BuildingState>,
   livestockHerds?: ReadonlyMap<string, LivestockHerdState>,
+  issuedGuardPolearms?: ReadonlyMap<string, number>,
 ): string {
-  return buildingMarkerSignatures(buildings, livestockHerds).visual;
+  return buildingMarkerSignatures(
+    buildings,
+    livestockHerds,
+    issuedGuardPolearms,
+  ).visual;
 }
 
 function ratio(value: number, required: number): number {

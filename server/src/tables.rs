@@ -818,7 +818,8 @@ pub struct CombatAgent {
     pub loot_progress: f64,
     /// This agent's share of the target's contact-gated raid loss.
     pub loot_fraction: f64,
-    /// JSON `RaidPortableStores` physically carried until escape or recovery.
+    /// JSON `RaidPortableStores` physically carried as loot or issued company
+    /// equipment until escape, return, or recovery.
     pub carried_loot_json: String,
     pub state_changed_tick: u64,
     /// Distance reached along this agent's cached combat route. Fighting can

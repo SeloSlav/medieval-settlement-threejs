@@ -48,6 +48,7 @@ export type CombatAgentState = {
   attackCooldown: number;
   lootProgress: number;
   carryingLoot: boolean;
+  issuedPolearms: number;
   raidAnchorBuildingId: string | null;
   stateChangedTick: number;
 };
@@ -108,6 +109,44 @@ export function guardCompanyRosterSummary(
   return { rosterFloor, fieldedGuards, woundedGuards };
 }
 
+export function guardCompanyIssuedPolearms(
+  agents: Iterable<CombatAgentState>,
+  sourceBuildingId: string,
+): number {
+  let issued = 0;
+  for (const agent of agents) {
+    if (
+      agent.faction === 'guard'
+      && agent.sourceBuildingId === sourceBuildingId
+      && Number.isFinite(agent.issuedPolearms)
+    ) {
+      issued += Math.max(0, agent.issuedPolearms);
+    }
+  }
+  return issued;
+}
+
+export function issuedGuardPolearmsByCompany(
+  agents: Iterable<CombatAgentState>,
+): Map<string, number> {
+  const issued = new Map<string, number>();
+  for (const agent of agents) {
+    if (
+      agent.faction !== 'guard'
+      || agent.sourceBuildingId === null
+      || !Number.isFinite(agent.issuedPolearms)
+      || agent.issuedPolearms <= 0
+    ) {
+      continue;
+    }
+    issued.set(
+      agent.sourceBuildingId,
+      (issued.get(agent.sourceBuildingId) ?? 0) + agent.issuedPolearms,
+    );
+  }
+  return issued;
+}
+
 export function syncCombatAgents(
   rows: Iterable<CombatAgent>,
   identityHex: string | null,
@@ -120,10 +159,12 @@ export function syncCombatAgents(
     const targetKind = combatTargetKindFromId(Number(row.targetKind));
     if (!status || !targetKind) continue;
     const id = row.id.toString();
+    const faction = Number(row.faction) === 0 ? 'guard' : 'raider';
+    const issuedPolearms = carriedPolearms(row.carriedLootJson);
     agents.set(id, {
       id,
       raidId: row.raidId.toString(),
-      faction: Number(row.faction) === 0 ? 'guard' : 'raider',
+      faction,
       sourceBuildingId: row.sourceBuildingId > 0n
         ? buildingClientId(row.sourceBuildingId)
         : null,
@@ -140,7 +181,8 @@ export function syncCombatAgents(
       status,
       attackCooldown: Math.max(0, row.attackCooldown),
       lootProgress: Math.max(0, row.lootProgress),
-      carryingLoot: row.carriedLootJson.length > 0,
+      carryingLoot: faction === 'raider' && row.carriedLootJson.length > 0,
+      issuedPolearms: faction === 'guard' ? issuedPolearms : 0,
       raidAnchorBuildingId: row.raidAnchorBuildingId > 0n
         ? buildingClientId(row.raidAnchorBuildingId)
         : null,
@@ -148,6 +190,17 @@ export function syncCombatAgents(
     });
   }
   return agents;
+}
+
+function carriedPolearms(carriedStoresJson: string): number {
+  if (carriedStoresJson.length === 0) return 0;
+  try {
+    const carried = JSON.parse(carriedStoresJson) as { polearms?: unknown };
+    const polearms = Number(carried.polearms);
+    return Number.isFinite(polearms) ? Math.max(0, polearms) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 export function formatLiveCombatSummary(

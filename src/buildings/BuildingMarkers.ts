@@ -168,11 +168,16 @@ export class BuildingMarkers {
   syncBuildings(
     buildings: Iterable<BuildingState>,
     livestockHerds?: ReadonlyMap<string, LivestockHerdState>,
+    issuedGuardPolearms?: ReadonlyMap<string, number>,
   ): void {
     const nextIds = new Set<string>();
     for (const building of buildings) {
       nextIds.add(building.id);
-      this.upsertBuilding(building, livestockHerds?.get(building.id));
+      this.upsertBuilding(
+        building,
+        livestockHerds?.get(building.id),
+        issuedGuardPolearms?.get(building.id) ?? 0,
+      );
     }
 
     for (const id of this.buildingMeshes.keys()) {
@@ -386,6 +391,7 @@ export class BuildingMarkers {
   private upsertBuilding(
     building: BuildingState,
     herd?: LivestockHerdState,
+    issuedGuardPolearms = 0,
   ): void {
     let marker = this.buildingMeshes.get(building.id);
     const timberRatio = ratio(
@@ -458,7 +464,9 @@ export class BuildingMarkers {
 
     const y = this.terrain.getHeightAt(building.x, building.z);
     marker.position.set(building.x, y, building.z);
-    if (operational) syncBuildingVisualState(marker, building, herd);
+    if (operational) {
+      syncBuildingVisualState(marker, building, herd, issuedGuardPolearms);
+    }
     if (
       operational
       && building.kind !== 'founders_camp'
@@ -508,6 +516,7 @@ function syncBuildingVisualState(
   marker: THREE.Group,
   building: BuildingState,
   herd?: LivestockHerdState,
+  issuedGuardPolearms = 0,
 ): void {
   if (building.kind === 'founders_camp') {
     const shelters = marker.getObjectByName('FoundingShelters');
@@ -779,7 +788,7 @@ function syncBuildingVisualState(
   }
   syncFoodStockpileVisuals(marker, building);
   syncBulkStockpileVisuals(marker, building);
-  syncArmoryStockpileVisuals(marker, building);
+  syncArmoryStockpileVisuals(marker, building, issuedGuardPolearms);
   syncSeasonalStockpileVisuals(marker, building);
   syncMarketplaceSpecialtyStockpileVisuals(marker, building);
   syncMonasteryStockpileVisuals(marker, building);

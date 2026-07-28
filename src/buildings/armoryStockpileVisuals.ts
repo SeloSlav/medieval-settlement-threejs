@@ -12,7 +12,10 @@ export const CARPENTER_POLEARM_VISUAL_SEGMENTS = 6;
 export const GUARDHOUSE_FOOD_VISUAL_SEGMENTS = 2;
 export const GUARDHOUSE_POLEARM_VISUAL_SEGMENTS = 6;
 
-export function armoryStockpileVisualSignature(building: BuildingState): string {
+export function armoryStockpileVisualSignature(
+  building: BuildingState,
+  issuedGuardPolearms = 0,
+): string {
   if (building.constructionComplete === false) return '';
   switch (building.kind) {
     case 'carpenter':
@@ -44,7 +47,7 @@ export function armoryStockpileVisualSignature(building: BuildingState): string 
         )
       }:${
         stockpileVisualLevel(
-          building.polearms ?? 0,
+          Math.max(0, (building.polearms ?? 0) - issuedGuardPolearms),
           BUILDING_STORAGE_CAPS.guardhouse.polearms ?? 0,
           GUARDHOUSE_POLEARM_VISUAL_SEGMENTS,
         )
@@ -57,6 +60,7 @@ export function armoryStockpileVisualSignature(building: BuildingState): string 
 export function syncArmoryStockpileVisuals(
   marker: THREE.Group,
   building: BuildingState,
+  issuedGuardPolearms = 0,
 ): void {
   switch (building.kind) {
     case 'carpenter':
@@ -94,7 +98,7 @@ export function syncArmoryStockpileVisuals(
         marker,
         'GuardhousePolearmStockpile',
         'GuardhousePolearmSegment',
-        building.polearms ?? 0,
+        Math.max(0, (building.polearms ?? 0) - issuedGuardPolearms),
         BUILDING_STORAGE_CAPS.guardhouse.polearms ?? 0,
       );
       break;

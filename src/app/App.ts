@@ -755,6 +755,7 @@ export class App {
       this.snapshotApplierDeps,
       state,
       previous,
+      snapshot.combatAgents.values(),
     );
     this.syncVisualQaFoundersCampFixture();
     this.notifyFireChanges(state, previous);

@@ -60,6 +60,7 @@ import {
 } from '../src/world/worldGenerationSettings.ts';
 import {
   formatLiveCombatSummary,
+  guardCompanyIssuedPolearms,
   guardCompanyRosterSummary,
   guardRecoveryRemainingDays,
   guardRecoveryTicks,
@@ -1928,12 +1929,12 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /unavailable_guard_slots[\s\S]*unavailable_slots\.contains\(&\(guardhouse\.id, slot\)\)/,
+  /unavailable_guard_slots[\s\S]*filter_map\(\|\(building_id, slot\)\|[\s\S]*select_guard_muster_slots/,
   'wounded roster slots must not spawn again in a later raid',
 );
 assert.match(
   serverSimulation,
-  /unavailable_guard_slots[\s\S]*fn settlement_guard_districts[\s\S]*unavailable_guard_slots\.contains/,
+  /unavailable_guard_slots[\s\S]*fn settlement_guard_districts[\s\S]*filter_map\(\|\(building_id, slot\)\|[\s\S]*select_guard_muster_slots/,
   'the settlement defense forecast must subtract persistent guard casualties',
 );
 assert.match(
@@ -2003,6 +2004,7 @@ assert.match(clientCombatAgents, /breaching a refuge/);
     attackCooldown: 0,
     lootProgress: 0,
     carryingLoot: false,
+    issuedPolearms: faction === 'guard' ? 1 : 0,
     raidAnchorBuildingId: null,
     stateChangedTick: 400,
   });
@@ -2087,12 +2089,32 @@ assert.match(clientCombatAgents, /breaching a refuge/);
     },
     'live guard rows must keep their stable source roster slots committed',
   );
+  assert.equal(
+    guardCompanyIssuedPolearms(
+      [fielded, highSlotCasualty, combatant('r5', 'raider', 'retreating')],
+      'building:7',
+    ),
+    2,
+    'the client must distinguish company weapons carried by guards from raider loot',
+  );
   assert.equal(formatLiveCombatSummary([]), undefined);
 }
 assert.match(serverPolicy, /pub fn raid_arson_chance/);
 assert.match(serverPolicy, /defense_ratio\.clamp/);
 assert.match(serverPolicy, /WATCH_COVERAGE_CELL_SIZE:\s*f64\s*=\s*128\.0/);
 assert.match(serverPolicy, /pub struct RaidPortableStores/);
+assert.match(
+  serverRaidAgents,
+  /issued_guard_polearms_by_building[\s\S]*?serde_json::from_str::<RaidPortableStores>/,
+);
+assert.match(
+  serverRaidAgents,
+  /select_guard_muster_slots\([\s\S]*?carried_loot_json: serde_json::to_string\(&RaidPortableStores \{[\s\S]*?polearms: 1\.0/,
+);
+assert.match(
+  serverSimulation,
+  /building_portable_stores_at_site[\s\S]*?company_remaining\.polearms \+= issued/,
+);
 assert.match(serverPolicy, /pub fn raid_holding_vulnerability/);
 assert.match(serverPolicy, /pub fn raidable_treasury_timber/);
 assert.match(serverPolicy, /TreasuryAtBuilding/);

@@ -35,6 +35,7 @@ import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
+  guardCompanyIssuedPolearms,
   guardCompanyRosterSummary,
   guardRecoveryRemainingDays,
   isWoundedGuard,
@@ -58,15 +59,25 @@ export function renderGuardhouseInspector(
     context.gameState.fireIncidents.values(),
   );
   const suspendedByFire = fireDisabled.has(building.id);
-  const equippedGuards = armedGuardCount(building.assignedLabor, building.polearms);
+  const companyPolearms = Math.max(0, building.polearms ?? 0);
+  const equippedGuards = armedGuardCount(building.assignedLabor, companyPolearms);
   const companyAgents = [...(context.combatAgents ?? [])].filter((agent) =>
     agent.faction === 'guard' && agent.sourceBuildingId === building.id);
   const woundedAgents = companyAgents.filter(isWoundedGuard);
+  const issuedPolearms = guardCompanyIssuedPolearms(companyAgents, building.id);
+  const woundedIssuedPolearms = woundedAgents.reduce(
+    (total, agent) => total + Math.max(0, agent.issuedPolearms),
+    0,
+  );
+  const polearmsOnRack = Math.max(0, companyPolearms - issuedPolearms);
   const roster = guardCompanyRosterSummary(
     companyAgents,
     building.id,
   );
-  const fitEquippedGuards = Math.max(0, equippedGuards - woundedAgents.length);
+  const fitEquippedGuards = Math.min(
+    Math.max(0, building.assignedLabor - woundedAgents.length),
+    Math.max(0, Math.floor(companyPolearms - woundedIssuedPolearms)),
+  );
   const armed = suspendedByFire ? 0 : fitEquippedGuards;
   const readiness = suspendedByFire
     ? 0
@@ -109,7 +120,7 @@ export function renderGuardhouseInspector(
   const foodReserve = normalizeGuardhouseFoodReserve(building.guardhouseFoodReserve);
   const foodTarget = guardhouseFoodTarget(
     suspendedByFire ? 0 : building.assignedLabor,
-    building.polearms,
+    companyPolearms,
     foodReserve,
   );
   const targetRunwayDays = dailyFood > 1e-9
@@ -255,6 +266,7 @@ export function renderGuardhouseInspector(
       ${roster.rosterFloor > 0 ? `<li><span>Roster lock</span><span>Slots 1–${roster.rosterFloor} remain committed until every represented guard is home and fit</span></li>` : ''}
       <li><span>Fit for muster</span><span>${fitEquippedGuards} of ${equippedGuards} equipped guards available</span></li>
       <li><span>Armed guards</span><span>${equippedGuards} / ${building.assignedLabor} equipped${suspendedByFire ? ' · unavailable during fire recovery' : ''}</span></li>
+      <li><span>Company polearms</span><span>${polearmsOnRack.toFixed(0)} on the rack · ${issuedPolearms.toFixed(0)} physically carried by deployed or returning guards · ${companyPolearms.toFixed(0)} owned</span></li>
       <li><span>Local readiness</span><span>${Math.round(readiness * 100)}% · ${ready.toFixed(1)} ready</span></li>
       <li><span>Muster order</span><span>${orderedMusterPostId === null ? 'Nearest staffed watch by road' : `Hold for Watch #${orderedMusterPostId} unless the order is changed`}</span></li>
       <li><span>Watch muster</span><span>${muster.routeDistance == null ? `${missingMusterRoute}; no early district reinforcement` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>

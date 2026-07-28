@@ -3,6 +3,10 @@ import { buildingMarkerSignatures } from '../buildings/buildingMarkerSignature.t
 import type { BurgageFencing } from '../residences/BurgageFencing.ts';
 import type { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import type { GameState } from '../resources/types.ts';
+import {
+  issuedGuardPolearmsByCompany,
+  type CombatAgentState,
+} from '../security/combatAgents.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import type { TerrainMinimapOverlay } from '../map/TerrainMinimapOverlay.ts';
 import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
@@ -30,6 +34,7 @@ export class SpacetimeSnapshotApplier {
   private lastPlacedBuildingSignature = '';
   private lastBuildingMarkerSignature = '';
   private lastBuildingColliderSignature = '';
+  private lastIssuedGuardPolearmSignature = '';
   private lastForestClearanceSignature = '';
   private readonly previousTreePhases = new Map<string, string>();
   private readonly previousTreeGrowth = new Map<string, number>();
@@ -38,8 +43,17 @@ export class SpacetimeSnapshotApplier {
     deps: SpacetimeSnapshotApplierDeps,
     state: GameState,
     previous: GameState | null,
+    combatAgents: Iterable<CombatAgentState> = [],
   ): void {
     const buildingsChanged = !previous || state.buildings !== previous.buildings;
+    const issuedGuardPolearms = issuedGuardPolearmsByCompany(combatAgents);
+    const issuedGuardPolearmSignature = [...issuedGuardPolearms.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([buildingId, amount]) => `${buildingId}:${amount.toFixed(3)}`)
+      .join('|');
+    const issuedGuardPolearmsChanged =
+      issuedGuardPolearmSignature !== this.lastIssuedGuardPolearmSignature;
+    this.lastIssuedGuardPolearmSignature = issuedGuardPolearmSignature;
     const livestockHerdsChanged = !previous
       || state.livestockHerds !== previous.livestockHerds;
     const residencesChanged = !previous || state.residences !== previous.residences;
@@ -123,16 +137,18 @@ export class SpacetimeSnapshotApplier {
       }
     }
 
-    if (buildingsChanged || livestockHerdsChanged) {
+    if (buildingsChanged || livestockHerdsChanged || issuedGuardPolearmsChanged) {
       const markerSignatures = buildingMarkerSignatures(
         state.buildings,
         state.livestockHerds,
+        issuedGuardPolearms,
       );
       if (markerSignatures.visual !== this.lastBuildingMarkerSignature) {
         this.lastBuildingMarkerSignature = markerSignatures.visual;
         deps.buildingMarkers?.syncBuildings(
           state.buildings.values(),
           state.livestockHerds,
+          issuedGuardPolearms,
         );
       }
       if (markerSignatures.collider !== this.lastBuildingColliderSignature) {
@@ -204,6 +220,7 @@ export class SpacetimeSnapshotApplier {
     this.lastPlacedBuildingSignature = '';
     this.lastBuildingMarkerSignature = '';
     this.lastBuildingColliderSignature = '';
+    this.lastIssuedGuardPolearmSignature = '';
     this.lastForestClearanceSignature = '';
     this.previousTreePhases.clear();
     this.previousTreeGrowth.clear();
