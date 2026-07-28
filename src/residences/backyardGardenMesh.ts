@@ -506,27 +506,6 @@ function addBasket(
   }
 }
 
-function addFallbackTree(anchor: THREE.Group, kind: 'apple' | 'cherry', seed: number): void {
-  const rng = mulberry32(seed);
-  const height = kind === 'apple' ? 3.7 : 4.1;
-  addMesh(anchor, new THREE.CylinderGeometry(0.14, 0.24, height * 0.55, 7), MATERIALS.darkTimber, 0, height * 0.275, 0);
-  const lobes = kind === 'apple' ? 5 : 6;
-  for (let i = 0; i < lobes; i++) {
-    const angle = (i / lobes) * Math.PI * 2 + rng();
-    const radius = i === 0 ? 0 : 0.62 + rng() * 0.28;
-    addMesh(
-      anchor,
-      new THREE.IcosahedronGeometry(0.74 + rng() * 0.18, 1),
-      i % 3 === 0 ? MATERIALS.leafLight : MATERIALS.leaf,
-      Math.cos(angle) * radius,
-      height * (0.64 + rng() * 0.18),
-      Math.sin(angle) * radius,
-      new THREE.Euler(rng(), rng(), rng()),
-      new THREE.Vector3(1, 0.8, 1),
-    );
-  }
-}
-
 function addFruitClusters(
   anchor: THREE.Group,
   plantKind: 'apple' | 'cherry',
@@ -593,9 +572,11 @@ function addFruitTree(
   anchor.rotation.y = mulberry32(seed)() * Math.PI * 2;
   group.add(anchor);
 
-  if (plants) anchor.add(plants.clone(plantKind, variant));
-  else addFallbackTree(anchor, plantKind, seed);
-
+  // Never substitute a procedural tree while the SeedThree catalog is
+  // pending or unavailable. The gameplay orchard remains valid and its
+  // authored non-vegetation props stay visible until the real tree is ready.
+  if (!plants) return;
+  anchor.add(plants.clone(plantKind, variant));
   addFruitClusters(anchor, plantKind, variant, seed);
 }
 

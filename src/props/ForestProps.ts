@@ -126,7 +126,6 @@ export async function createForestProps(
       maxAnisotropy,
       options?.treeSeed ?? 0x5eedf0a5,
       options.webgpuRenderer as WebGPURenderer,
-      isBlockedAt,
     );
     const seedThreeController = seedThree.createSeedThreeForestController(seedThreeForest);
     const treeInstances = createStubForestInstances(allTreePlacements);
@@ -160,7 +159,10 @@ export async function createForestProps(
     );
   }
 
-  const treeInstances = createMixedMountainForest(allTreePlacements, terrain, materials, rng);
+  // The legacy procedural trees are intentionally not used: if SeedThree is
+  // unavailable on a non-WebGPU backend, rendering no trees is preferable to
+  // substituting unauthored low-poly vegetation.
+  const treeInstances = createStubForestInstances(allTreePlacements);
   const rockField = createRockField(
     rockPlacements,
     terrain,
@@ -601,6 +603,10 @@ function createMixedMountainForest(
     broadleafFoliageMatrices,
   };
 }
+
+// Retained only as an unreachable migration reference until the old tree
+// material pipeline can be deleted wholesale; no renderer path may call it.
+void createMixedMountainForest;
 
 function getConiferLayerCount(placement: TreePlacement, rng: () => number): number {
   if (getTreeSpeciesProfile(placement.species).canopy !== 'conifer') return 0;

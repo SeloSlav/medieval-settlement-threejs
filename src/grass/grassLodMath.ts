@@ -4,8 +4,13 @@ export const BASELINE_CAMERA_DISTANCE = 88;
 /** Close ground detail (dirt, grass tufts, reeds) reaches full strength at this zoom. */
 export const CLOSE_GROUND_FULL_ZOOM_PERCENT = 400;
 
-/** Close ground detail begins fading in above this zoom; below it the map stays meadow. */
-export const CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 160;
+/**
+ * Close ground detail begins fading in above this zoom. Keeping the threshold
+ * just beyond the strategic 100-125% framing preserves the broad meadow read,
+ * while restoring the authored dirt texture before the camera is nearly at
+ * first-person height.
+ */
+export const CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 130;
 
 /** World quarry map icons appear at this zoom and below. */
 export const MAP_ICON_MAX_ZOOM_PERCENT = 50;
@@ -22,7 +27,7 @@ export const DIRT_FADE_START_ZOOM_PERCENT = CLOSE_GROUND_FADE_START_ZOOM_PERCENT
 /** Pow easing on the zoom gate (< 1 = detail ramps in gradually across the fade band). */
 export const DIRT_BLEND_EASE = 0.72;
 
-/** Orbit distances matching the 160% / 400% close-ground zoom band. */
+/** Orbit distances matching the 130% / 400% close-ground zoom band. */
 export const TERRAIN_DIRT_CLOSE_DISTANCE =
   BASELINE_CAMERA_DISTANCE / (DIRT_REVEAL_ZOOM_PERCENT / 100);
 
@@ -82,7 +87,7 @@ export function grassStreamNearRadius(firstPersonActive: boolean): number {
 /** Soft falloff band at the outer edge of the grass patch (world units). */
 export const GRASS_EDGE_FADE_BAND = 24;
 
-/** 0 below 160% zoom → 1 at 400% zoom; shared by dirt, grass tufts, and reeds. */
+/** 0 below 130% zoom → 1 at 400% zoom; shared by dirt, grass tufts, and reeds. */
 export function dirtZoomGate(cameraDistance: number): number {
   const t = smoothstep(TERRAIN_DIRT_CLOSE_DISTANCE, TERRAIN_DIRT_FAR_DISTANCE, cameraDistance);
   return Math.pow(1 - t, DIRT_BLEND_EASE);

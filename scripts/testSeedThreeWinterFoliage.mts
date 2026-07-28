@@ -66,6 +66,8 @@ const builderSource = readFileSync(
   join(root, 'src/vegetation/seedthree/seedThreeForestBuilder.ts'),
   'utf8',
 );
+const forestPropsSource = readFileSync(join(root, 'src/props/ForestProps.ts'), 'utf8');
+const forestManagerSource = readFileSync(join(root, 'src/props/ForestManager.ts'), 'utf8');
 const sceneSource = readFileSync(join(root, 'src/scene/SceneManager.ts'), 'utf8');
 
 assert.match(
@@ -103,10 +105,20 @@ assert.match(
   /douglasFir: \{ tint: \[0\.44, 0\.59, 0\.49\][\s\S]*loblolly: \{ tint: \[0\.4, 0\.55, 0\.44\][\s\S]*pine: \{ tint: \[0\.47, 0\.61, 0\.45\]/,
   'overview conifers must retain species-specific dark evergreen tones',
 );
-assert.match(
+assert.doesNotMatch(
   builderSource,
-  /forest\.ecology\.setDeciduousDormancy\(next\)/,
-  'the authoritative winter update must include deciduous forest-edge understory',
+  /forest\.ecology|createForestEdgeEcology|createForestCanopyCompanions|successionSet/,
+  'the live forest must not add generated shrub lobes or trunkless companion crowns around SeedThree trees',
+);
+assert.match(
+  forestPropsSource,
+  /legacy procedural trees are intentionally not used[\s\S]*?const treeInstances = createStubForestInstances\(allTreePlacements\)/,
+  'non-WebGPU backends must not substitute the legacy low-poly forest',
+);
+assert.doesNotMatch(
+  forestManagerSource,
+  /TreeSaplings|saplingMesh|createTreeSaplingMesh|updateTreeSaplingInstance/,
+  'tree growth phases must not render the removed cone-sapling proxy',
 );
 assert.match(
   forkSource,

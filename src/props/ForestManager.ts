@@ -16,7 +16,6 @@ import {
   updateRoadStumpInstances,
   updateHarvestStumpInstance,
 } from './RoadStumps.ts';
-import { createTreeSaplingMesh, updateTreeSaplingInstance } from './TreeSaplings.ts';
 import type { TreePhase } from '../resources/types.ts';
 import type { SeedThreeForestController } from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import type { SeedThreeForestStructuralStats } from '../vegetation/seedthree/seedThreeForestTypes.ts';
@@ -113,7 +112,6 @@ export class ForestManager {
   private activeRockPlacements: RockObstacle[];
   private readonly stumpMesh: THREE.InstancedMesh;
   private readonly harvestStumpMesh: THREE.InstancedMesh;
-  private readonly saplingMesh: THREE.InstancedMesh;
   private readonly terrain: Terrain;
   private readonly seedThreeForest: SeedThreeForestController | null;
   private readonly hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -163,13 +161,10 @@ export class ForestManager {
     this.terrain = terrain;
     this.stumpMesh = createRoadStumpMesh();
     this.harvestStumpMesh = createHarvestStumpMesh(this.placements.length);
-    this.saplingMesh = createTreeSaplingMesh(this.placements.length);
     this.group.add(this.stumpMesh);
     this.group.add(this.harvestStumpMesh);
-    this.group.add(this.saplingMesh);
     for (let i = 0; i < this.placements.length; i++) {
       this.hideHarvestStump(i);
-      this.hideSapling(i);
     }
   }
 
@@ -232,9 +227,8 @@ export class ForestManager {
     if (this.removedTrees.has(layoutIndex)) {
       this.hideTree(layoutIndex);
       this.hideHarvestStump(layoutIndex);
-      this.hideSapling(layoutIndex);
     } else {
-      this.restoreTreePhaseVisual(layoutIndex, phase, growthProgress);
+      this.restoreTreePhaseVisual(layoutIndex, phase);
     }
     return true;
   }
@@ -256,7 +250,6 @@ export class ForestManager {
       if (isMissing || this.removedTrees.has(layoutIndex)) {
         this.hideTree(layoutIndex);
         this.hideHarvestStump(layoutIndex);
-        this.hideSapling(layoutIndex);
       } else {
         this.restoreTreePhaseVisual(layoutIndex);
       }
@@ -267,23 +260,21 @@ export class ForestManager {
   private restoreTreePhaseVisual(
     layoutIndex: number,
     phase: TreePhase = this.treePhases.get(layoutIndex) ?? 'mature',
-    growthProgress: number = this.treeGrowthProgress.get(layoutIndex) ?? 1,
   ): void {
     switch (phase) {
       case 'mature':
         this.hideHarvestStump(layoutIndex);
-        this.hideSapling(layoutIndex);
         this.showTree(layoutIndex);
         break;
       case 'stump':
         this.hideTree(layoutIndex);
-        this.hideSapling(layoutIndex);
         this.showHarvestStump(layoutIndex);
         break;
       case 'growing':
+        // Reforestation remains simulation-active, but it stays visually empty
+        // until a Seloslav/SeedThree sapling asset replaces the removed cone proxy.
         this.hideTree(layoutIndex);
         this.hideHarvestStump(layoutIndex);
-        this.showSapling(layoutIndex, growthProgress);
         break;
       default: {
         const unreachable: never = phase;
@@ -297,7 +288,6 @@ export class ForestManager {
     this.trunkMesh.castShadow = enabled;
     this.coniferShadowMesh.castShadow = enabled;
     this.broadleafShadowMesh.castShadow = enabled;
-    this.saplingMesh.castShadow = enabled;
     this.stumpMesh.castShadow = enabled;
     this.harvestStumpMesh.castShadow = enabled;
     if (this.undergrowth) {
@@ -436,8 +426,6 @@ export class ForestManager {
     (this.stumpMesh.material as THREE.Material).dispose();
     this.harvestStumpMesh.geometry.dispose();
     (this.harvestStumpMesh.material as THREE.Material).dispose();
-    this.saplingMesh.geometry.dispose();
-    (this.saplingMesh.material as THREE.Material).dispose();
     this.disposeResources();
   }
 
@@ -497,7 +485,6 @@ export class ForestManager {
       if (isRemoved || this.missingTreeEntities.has(treeIndex)) {
         this.hideTree(treeIndex);
         this.hideHarvestStump(treeIndex);
-        this.hideSapling(treeIndex);
       } else {
         this.restoreTreePhaseVisual(treeIndex);
       }
@@ -628,23 +615,6 @@ export class ForestManager {
     this.harvestStumpMesh.setMatrixAt(layoutIndex, this.hiddenMatrix);
   }
 
-  private showSapling(layoutIndex: number, growthProgress: number): void {
-    const placement = this.placements[layoutIndex];
-    updateTreeSaplingInstance(
-      this.saplingMesh,
-      layoutIndex,
-      placement.x,
-      placement.z,
-      this.terrain.getHeightAt(placement.x, placement.z),
-      growthProgress,
-      isConiferSpecies(placement.species),
-    );
-  }
-
-  private hideSapling(layoutIndex: number): void {
-    this.saplingMesh.setMatrixAt(layoutIndex, this.hiddenMatrix);
-  }
-
   private commitTreeInstanceUpdates(): void {
     if (this.seedThreeForest) {
       this.seedThreeForest.commit();
@@ -656,7 +626,6 @@ export class ForestManager {
       this.broadleafShadowMesh.instanceMatrix.needsUpdate = true;
     }
     this.harvestStumpMesh.instanceMatrix.needsUpdate = true;
-    this.saplingMesh.instanceMatrix.needsUpdate = true;
   }
 
   private hideConiferLayers(treeIndex: number): void {
@@ -698,14 +667,6 @@ export class ForestManager {
       this.broadleafShadowMesh.setMatrixAt(layerIndex, this.broadleafFoliageMatrices[layerIndex]);
     }
   }
-}
-
-function isConiferSpecies(species: string): boolean {
-  return species === 'norwaySpruce'
-    || species === 'scotsPine'
-    || species === 'blackPine'
-    || species === 'silverFir'
-    || species === 'larch';
 }
 
 function treeCanopyRadius(placement: TreePlacement): number {

@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import {
+  BASELINE_CAMERA_DISTANCE,
+  CLOSE_GROUND_FADE_START_ZOOM_PERCENT,
+  CLOSE_GROUND_FULL_ZOOM_PERCENT,
+  dirtZoomGate,
   grassBladeLodOpacity,
   grassBladeRevealOpacity,
   GRASS_BLADE_LOD_VISIBILITY_THRESHOLD,
@@ -87,6 +91,25 @@ assert.equal(
   isGrassBladeZoomActive(42),
   false,
   'review-scale grass clumps must not collapse into detached alpha-tested specks',
+);
+assert.equal(
+  CLOSE_GROUND_FADE_START_ZOOM_PERCENT,
+  130,
+  'strategic meadow must hand off to authored dirt soon after the 125% overview framing',
+);
+assert.equal(
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE / 1.25),
+  0,
+  '125% strategic overview must remain fully grass-covered',
+);
+assert.ok(
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE / 2.1) > 0.65,
+  '210% orbit view must visibly reveal authored dirt instead of reading as flat green',
+);
+assert.equal(
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE / (CLOSE_GROUND_FULL_ZOOM_PERCENT / 100)),
+  1,
+  'closest orbit view must fully reveal authored dirt beneath SeedThree blades',
 );
 
 const normal = new Float32Array(3);

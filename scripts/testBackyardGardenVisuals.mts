@@ -50,7 +50,7 @@ for (const kind of kinds) {
   });
 
   assert.equal(garden.userData.gardenKind, kind, `${kind} should retain its gameplay identity`);
-  assert.equal(garden.userData.usesSeedThree, false, `${kind} should have a no-WebGPU fallback`);
+  assert.equal(garden.userData.usesSeedThree, false, `${kind} should report that SeedThree is not yet attached`);
   assert.ok(meshCount >= 12, `${kind} should be a composed scene, not a placeholder prop`);
   assert.ok(names.some((name) => name.startsWith(signatures[kind])), `${kind} should expose its signature feature`);
   assert.ok(size.x <= 7.5, `${kind} should stay inside a 6.2m parcel with modest foliage overhang`);
@@ -107,8 +107,10 @@ cherryDetail.traverse((object) => {
   cherryFruitCount += fruit.count;
   cherryFruitRadius = Number(fruit.userData.fruitRadius);
 });
-assert.ok(cherryFruitCount >= appleFruitCount * 4, 'cherries should be much more numerous than apples');
-assert.ok(cherryFruitRadius <= appleFruitRadius * 0.45, 'cherries should read substantially smaller than apples');
+assert.equal(appleFruitCount, 0, 'fruit must not float without its SeedThree apple tree');
+assert.equal(cherryFruitCount, 0, 'fruit must not float without its SeedThree cherry tree');
+assert.equal(appleFruitRadius, 0);
+assert.equal(cherryFruitRadius, 0);
 disposeBackyardGardenMesh(appleDetail);
 disposeBackyardGardenMesh(cherryDetail);
 
@@ -219,6 +221,16 @@ assert.match(
   backyardGardenSource,
   /rose_blossom_card\.png/,
   'rose rendering should retain its dedicated blossom texture',
+);
+assert.doesNotMatch(
+  backyardGardenSource,
+  /addFallbackTree|CylinderGeometry\(0\.14, 0\.24|IcosahedronGeometry\(0\.74/,
+  'orchards must never substitute low-poly trunks or canopy lobes for SeedThree trees',
+);
+assert.match(
+  backyardGardenSource,
+  /if \(!plants\) return;[\s\S]*?anchor\.add\(plants\.clone\(plantKind, variant\)\)/,
+  'orchard tree vegetation must remain hidden until its SeedThree catalog is available',
 );
 assert.match(
   backyardAssetSource,

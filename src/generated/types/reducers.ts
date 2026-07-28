@@ -135,3 +135,4 @@ export type SetWoodcutterTimberReserveParams = __Infer<typeof SetWoodcutterTimbe
 export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;
 export type UpgradeResidenceParams = __Infer<typeof UpgradeResidenceReducer>;
+

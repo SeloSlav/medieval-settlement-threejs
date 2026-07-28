@@ -40,18 +40,20 @@ assert.match(ecologySource, /Domain-warped oblique waves/);
 assert.match(ecologySource, /attribute\('normal', 'vec3'\)/);
 assert.match(ecologySource, /const lowland = sub/);
 assert.match(ecologySource, /const moisture = smoothstep/);
-assert.match(ecologySource, /const dryShoulder = smoothstep/);
-assert.match(ecologySource, /const openMeadow = smoothstep/);
 assert.match(ecologySource, /const drainageFold = smoothstep/);
 assert.match(ecologySource, /const forestEdge = smoothstep/);
-assert.match(ecologySource, /const hierarchyTint = mix/);
-assert.match(ecologySource, /const broadSoilValue = mix/);
 assert.match(ecologySource, /const texelFootprint = max/);
 assert.match(ecologySource, /fwidth\(grassUv\.x\)/);
 assert.match(ecologySource, /fwidth\(grassUv\.y\)/);
 assert.match(ecologySource, /const closeMaterialDetail = zoomDetailGate\.mul\(footprintDetailGate\)/);
 assert.match(ecologySource, /const biomeBaseColor =/);
 assert.match(ecologySource, /const stableColorNode = biomeBaseColor/);
+assert.match(ecologySource, /const colorNode = resolvedAlbedo/);
+assert.doesNotMatch(
+  ecologySource,
+  /const (?:macroTint|ecologyTint|forestTint|drainageTint|hierarchyTint|broadSoilValue) =/,
+  'fair-weather terrain must preserve the authored grass-to-dirt blend instead of applying a green ecology wash',
+);
 assert.match(ecologySource, /const rainMoisture = smoothstep/);
 assert.match(ecologySource, /const rainStableColorNode = rainMacroColor/);
 assert.match(ecologySource, /const albedoDetailStrength = mix/);

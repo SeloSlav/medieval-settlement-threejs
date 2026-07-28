@@ -191,22 +191,6 @@ function buildGrassBlendNodes(
       .add(lowland.mul(float(0.23) as TslNode))
       .add(macro.mul(float(0.39) as TslNode)) as TslNode,
   ) as TslNode;
-  const dryShoulder = smoothstep(
-    float(0.22) as TslNode,
-    float(0.86) as TslNode,
-    w.z
-      .mul(float(0.58) as TslNode)
-      .add(slope.mul(float(0.3) as TslNode))
-      .add(sub(float(0.12) as TslNode, lowland.mul(float(0.12) as TslNode)) as TslNode) as TslNode,
-  ) as TslNode;
-  const openMeadow = smoothstep(
-    float(0.36) as TslNode,
-    float(0.74) as TslNode,
-    w.x
-      .mul(float(0.62) as TslNode)
-      .add(macroA.mul(float(0.24) as TslNode))
-      .add((sub(float(1) as TslNode, slope) as TslNode).mul(float(0.14) as TslNode)) as TslNode,
-  ) as TslNode;
   const drainageFold = smoothstep(
     float(0.42) as TslNode,
     float(0.78) as TslNode,
@@ -243,39 +227,6 @@ function buildGrassBlendNodes(
       float(0.42) as TslNode,
       ecologicalShelter,
     ) as TslNode) as TslNode;
-  const macroTint = mix(
-    vec3(1.055, 1.015, 0.875) as TslNode,
-    vec3(0.755, 0.9, 0.7) as TslNode,
-    moisture.mul(float(0.68) as TslNode),
-  ) as TslNode;
-  const ecologyTint = mix(
-    macroTint,
-    vec3(1.06, 0.955, 0.76) as TslNode,
-    dryShoulder.mul(float(0.4) as TslNode),
-  ) as TslNode;
-  const forestTint = mix(
-    ecologyTint,
-    vec3(0.72, 0.84, 0.66) as TslNode,
-    forestEdge.mul(float(0.38) as TslNode),
-  ) as TslNode;
-  const drainageTint = mix(
-    forestTint,
-    vec3(0.68, 0.83, 0.72) as TslNode,
-    drainageFold.mul(float(0.3) as TslNode),
-  ) as TslNode;
-  const hierarchyTint = mix(
-    drainageTint,
-    vec3(1.08, 1.02, 0.82) as TslNode,
-    openMeadow.mul(float(0.2) as TslNode),
-  ) as TslNode;
-  // The slow value drift is deliberately correlated with moisture instead of
-  // being another noise layer: open, better-drained ground catches light while
-  // broad damp folds hold a slightly deeper soil/grass value.
-  const broadSoilValue = mix(
-    vec3(1.06, 1.04, 0.93) as TslNode,
-    vec3(0.875, 0.925, 0.855) as TslNode,
-    macro,
-  ) as TslNode;
   const rainMacro = macroA
     .mul(float(0.62) as TslNode)
     .add(macroB.mul(float(0.38) as TslNode)) as TslNode;
@@ -290,10 +241,12 @@ function buildGrassBlendNodes(
     rainMoisture.mul(float(0.45) as TslNode),
   ) as TslNode;
   const rainStableColorNode = rainMacroColor
-    .mul(rainDrainageTint)
-    .mul(broadSoilValue) as TslNode;
-  const stableColorNode = biomeBaseColor.mul(hierarchyTint).mul(broadSoilValue);
-  const colorNode = resolvedAlbedo.mul(hierarchyTint).mul(broadSoilValue);
+    .mul(rainDrainageTint) as TslNode;
+  // Preserve the original authored grass/dirt presentation in fair weather.
+  // Broad ecological fields continue to drive weather and frost, but must not
+  // tint the entire terrain green before the close-zoom dirt blend is applied.
+  const stableColorNode = biomeBaseColor;
+  const colorNode = resolvedAlbedo;
 
   const meadowNormal = texture(textures.meadow.normal, grassUv) as TslNode;
   const denseNormal = texture(textures.dense.normal, grassUv) as TslNode;

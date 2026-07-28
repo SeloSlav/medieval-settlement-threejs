@@ -92,7 +92,7 @@ export class BackyardGardenMarkers {
           if (this.latestInput) this.syncReplayable(this.latestInput);
         },
         (error: unknown) => {
-          console.warn('[SeedThree] backyard plant assets failed to load; retaining procedural fallbacks.', error);
+          console.warn('[SeedThree] backyard plant assets failed to load; tree vegetation will remain hidden.', error);
         },
       );
     }
@@ -131,7 +131,7 @@ export class BackyardGardenMarkers {
         garden.kind,
         placement.width.toFixed(2),
         placement.depth.toFixed(2),
-        this.plants ? 'seedthree' : 'fallback',
+        this.plants ? 'seedthree' : 'vegetation-pending',
         this.chickenSource ? 'animated-hens' : 'fallback-hens',
       ].join(':');
       if (force || !marker || marker.userData.visualKey !== visualKey) {

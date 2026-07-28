@@ -6,18 +6,11 @@ import {
   setForestCardDormancy,
 } from '@seedthree/core/branch-cards.js';
 import {
-  createForestCanopyCompanions,
   createForestLodSelector,
   selectForestLods,
 } from '@seedthree/core/forest-lod.js';
-import {
-  buildForestEdgeEcology,
-  createForestEdgeEcology,
-  type ForestEcologyStats,
-} from '@seedthree/core/forest-ecology.js';
 import { Rng } from '@seedthree/core/rng.js';
 import type { Terrain } from '../../terrain/Terrain.ts';
-import { CENTRAL_CLEARING_RADIUS } from '../../props/forestField.ts';
 import type { ForestTreePlacement } from '../../props/forestPlacements.ts';
 import {
   GORSKI_KOTAR_PRESETS,
@@ -42,25 +35,19 @@ type SpeciesBucket = {
   slots: TreeSlot[];
   nearSet: InstancedLodSet;
   overviewSet: InstancedLodSet;
-  successionSet: InstancedLodSet;
-  successionSlots: TreeSlot[];
   nearSlotIndices: number[];
   overviewSlotIndices: number[];
-  successionSlotIndices: number[];
 };
 
 export type SeedThreeForestInstances = {
   group: THREE.Group;
-  ecology: ReturnType<typeof buildForestEdgeEcology>;
   placements: ForestTreePlacement[];
   buckets: SpeciesBucket[];
   slotByLayoutIndex: Array<{ bucketIndex: number; slotIndex: number } | null>;
-  successionByLayoutIndex: Array<Array<{ bucketIndex: number; slotIndex: number }>>;
   hiddenMatrix: THREE.Matrix4;
   visibilitySelector: ReturnType<typeof createForestLodSelector>;
   seasonalCardMaterials: THREE.Material[];
   deciduousDormancy: number;
-  successionEnabled: boolean;
   renderStats: SeedThreeForestRenderStats;
 };
 
@@ -87,28 +74,6 @@ const FOREST_LOD_OPTS = {
 const FOREST_NEAR_DISTANCE = 108;
 const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
 const FOREST_VISIBILITY_PADDING = 26;
-const FOREST_SUCCESSION_OPTS = {
-  neighborRadius: 32,
-  maxCompanions: 2,
-  denseNeighborCount: 4,
-  minOffset: 3.2,
-  maxOffset: 7.2,
-  minScale: 0.3,
-  maxScale: 0.46,
-};
-const FOREST_EDGE_ECOLOGY_OPTS = {
-  protectedRadius: CENTRAL_CLEARING_RADIUS + 18,
-  outerRadius: 175,
-  neighborRadius: 34,
-  minimumNeighbors: 2,
-  minimumAnchorSpacing: 9,
-  edgeBandWidth: 48,
-  maxAnchors: 71,
-  maxSaplings: 55,
-  maxUnderstory: 192,
-  maxDeadwood: 24,
-  maxLitter: 140,
-};
 
 const OVERVIEW_CANOPY_TONE: Record<
   SeedThreePresetKey,
@@ -253,7 +218,6 @@ function createInstancedLodSet(
 function createSpeciesBucket(
   presetKey: SeedThreePresetKey,
   slots: TreeSlot[],
-  successionSlots: TreeSlot[],
   prototype: THREE.LOD,
   rng: Rng,
   seasonalCardMaterials: Set<THREE.Material>,
@@ -288,38 +252,17 @@ function createSpeciesBucket(
       toneVariation: overviewTone.variation,
     },
   );
-  // Succession crowns reuse SeedThree's lowest-cost authored foliage cards,
-  // omit duplicate trunks, and never enter the shadow-caster pass.
-  const successionSet = createInstancedLodSet(
-    overviewLevel,
-    successionSlots,
-    new Rng(`succession:${presetKey}`),
-    `${presetKey} overview succession`,
-    {
-      includeBranches: false,
-      castShadow: false,
-      seasonalDeciduous: seedThreePresetIsDeciduous(presetKey),
-      seasonalCardMaterials,
-      canopyTint: overviewTone.tint,
-      toneVariation: overviewTone.variation,
-    },
-  );
   const nearSlotIndices = slots.map((_, index) => index);
   const overviewSlotIndices: number[] = [];
-  const successionSlotIndices: number[] = [];
   writeSeedThreeLodMatrices(nearSet, slots, nearSlotIndices);
   writeSeedThreeLodMatrices(overviewSet, slots, overviewSlotIndices);
-  writeSeedThreeLodMatrices(successionSet, successionSlots, successionSlotIndices);
   return {
     preset: presetKey,
     slots,
     nearSet,
     overviewSet,
-    successionSet,
-    successionSlots,
     nearSlotIndices,
     overviewSlotIndices,
-    successionSlotIndices,
   };
 }
 
@@ -329,7 +272,6 @@ export async function createSeedThreeForest(
   maxAnisotropy: number,
   treeSeed: number,
   renderer: WebGPURenderer,
-  isBlockedAt?: (x: number, z: number) => boolean,
 ): Promise<SeedThreeForestInstances> {
   const rng = new Rng(`gorski-kotar:${treeSeed}`);
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -362,13 +304,6 @@ export async function createSeedThreeForest(
   }
 
   const placementsByPreset = new Map<SeedThreePresetKey, TreeSlot[]>();
-  const successionByPreset = new Map<SeedThreePresetKey, TreeSlot[]>();
-  const sourceByLayoutIndex: Array<{
-    preset: SeedThreePresetKey;
-    scale: number;
-    rotation: number;
-    slot: TreeSlot;
-  } | null> = Array.from({ length: placements.length }, () => null);
   const visibilityItems: Array<{ x: number; y: number; z: number; radius: number }> = Array.from(
     { length: placements.length },
     () => ({ x: 0, y: 0, z: 0, radius: 1 }),
@@ -408,74 +343,10 @@ export async function createSeedThreeForest(
     const bucket = placementsByPreset.get(preset) ?? [];
     bucket.push(slot);
     placementsByPreset.set(preset, bucket);
-    sourceByLayoutIndex[layoutIndex] = {
-      preset,
-      scale,
-      rotation: rotY,
-      slot,
-    };
-  });
-
-  const companionSpecs = createForestCanopyCompanions(
-    visibilityItems,
-    FOREST_SUCCESSION_OPTS,
-  );
-  companionSpecs.forEach((specs, layoutIndex) => {
-    const source = sourceByLayoutIndex[layoutIndex];
-    if (!source) return;
-    for (const spec of specs) {
-      const x = source.slot.pos.x + spec.offsetX;
-      const z = source.slot.pos.z + spec.offsetZ;
-      // The founders' meadow remains a deliberate negative space. Companions
-      // only thicken the established edge beyond it and are rejected by the
-      // same road/building/water predicate used for gameplay placements.
-      if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 4) continue;
-      if (isBlockedAt?.(x, z)) continue;
-      const scale = source.scale * spec.scale;
-      const rootY = terrain.getHeightAt(x, z);
-      const speciesHeight = Number(
-        GORSKI_KOTAR_SPECIES[source.preset]?.params?.scale ?? 20,
-      ) * scale;
-      const slot: TreeSlot = {
-        layoutIndex,
-        matrix: composeTreeMatrix(
-          x,
-          rootY - 0.15 * scale,
-          z,
-          source.rotation + spec.rotation,
-          scale,
-        ),
-        pos: new THREE.Vector3(x, rootY, z),
-        visibilityCenter: new THREE.Vector3(
-          x,
-          rootY + speciesHeight * 0.5,
-          z,
-        ),
-        visibilityRadius: Math.max(2, speciesHeight * 0.58),
-        enabled: true,
-        visibilityParent: source.slot,
-      };
-      const successionSlots = successionByPreset.get(source.preset) ?? [];
-      successionSlots.push(slot);
-      successionByPreset.set(source.preset, successionSlots);
-    }
-  });
-  const ecologySpecs = createForestEdgeEcology(
-    visibilityItems,
-    {
-      ...FOREST_EDGE_ECOLOGY_OPTS,
-      isBlockedAt: (x, z) => isBlockedAt?.(x, z) ?? false,
-    },
-  );
-  const ecology = buildForestEdgeEcology(ecologySpecs, {
-    name: 'SeedThree layered Gorski clearing-edge ecology',
-    getHeightAt: (x, z) => terrain.getHeightAt(x, z),
   });
 
   const buckets: SpeciesBucket[] = [];
   const seasonalCardMaterials = new Set<THREE.Material>();
-  const successionByLayoutIndex: Array<Array<{ bucketIndex: number; slotIndex: number }>> =
-    Array.from({ length: placements.length }, () => []);
 
   for (const presetKey of GORSKI_KOTAR_PRESETS) {
     const slots = placementsByPreset.get(presetKey);
@@ -488,14 +359,9 @@ export async function createSeedThreeForest(
       slotByLayoutIndex[slot.layoutIndex] = { bucketIndex, slotIndex };
     });
 
-    const successionSlots = successionByPreset.get(presetKey) ?? [];
-    successionSlots.forEach((slot, slotIndex) => {
-      successionByLayoutIndex[slot.layoutIndex]?.push({ bucketIndex, slotIndex });
-    });
     buckets.push(createSpeciesBucket(
       presetKey,
       slots,
-      successionSlots,
       prototype,
       new Rng(`bucket:${presetKey}:${treeSeed}`),
       seasonalCardMaterials,
@@ -507,9 +373,7 @@ export async function createSeedThreeForest(
     for (const cardMesh of bucket.nearSet.cards) group.add(cardMesh);
     if (bucket.overviewSet.branches) group.add(bucket.overviewSet.branches);
     for (const cardMesh of bucket.overviewSet.cards) group.add(cardMesh);
-    for (const cardMesh of bucket.successionSet.cards) group.add(cardMesh);
   }
-  group.add(ecology.group);
 
   const visibilitySelector = createForestLodSelector(visibilityItems, {
     cellSize: 48,
@@ -521,16 +385,13 @@ export async function createSeedThreeForest(
   });
   return {
     group,
-    ecology,
     placements,
     buckets,
     slotByLayoutIndex,
-    successionByLayoutIndex,
     hiddenMatrix,
     visibilitySelector,
     seasonalCardMaterials: [...seasonalCardMaterials],
     deciduousDormancy: 0,
-    successionEnabled: false,
     renderStats: {
       totalTrees: placements.length,
       visibleTrees: placements.length,
@@ -563,11 +424,6 @@ export function commitSeedThreeForestMatrices(forest: SeedThreeForestInstances):
   for (const bucket of forest.buckets) {
     writeSeedThreeLodMatrices(bucket.nearSet, bucket.slots, bucket.nearSlotIndices);
     writeSeedThreeLodMatrices(bucket.overviewSet, bucket.slots, bucket.overviewSlotIndices);
-    writeSeedThreeLodMatrices(
-      bucket.successionSet,
-      bucket.successionSlots,
-      bucket.successionSlotIndices,
-    );
     totalTrees += bucket.slots.reduce(
       (count, slot) => count + (slot.enabled ? 1 : 0),
       0,
@@ -609,13 +465,11 @@ export function updateSeedThreeForestCamera(
     // Matches the directional-shadow fitter's broad-canopy horizontal margin.
     casterPadding: 14,
   });
-  const successionEnabled = !firstPersonActive;
-  if (!selection.changed && forest.successionEnabled === successionEnabled) return false;
+  if (!selection.changed) return false;
 
   for (const bucket of forest.buckets) {
     bucket.nearSlotIndices = [];
     bucket.overviewSlotIndices = [];
-    bucket.successionSlotIndices = [];
   }
   for (const layoutIndex of selection.nearIndices as number[]) {
     const mapping = forest.slotByLayoutIndex[layoutIndex];
@@ -625,16 +479,6 @@ export function updateSeedThreeForestCamera(
     const mapping = forest.slotByLayoutIndex[layoutIndex];
     if (mapping) forest.buckets[mapping.bucketIndex]?.overviewSlotIndices.push(mapping.slotIndex);
   }
-  if (successionEnabled) {
-    // Main-view only: do not submit visual-density crowns that exist solely to
-    // satisfy the directional shadow caster union.
-    for (const layoutIndex of selection.viewIndices as number[]) {
-      for (const mapping of forest.successionByLayoutIndex[layoutIndex] ?? []) {
-        forest.buckets[mapping.bucketIndex]?.successionSlotIndices.push(mapping.slotIndex);
-      }
-    }
-  }
-  forest.successionEnabled = successionEnabled;
   commitSeedThreeForestMatrices(forest);
   forest.renderStats.revision = selection.revision;
   return true;
@@ -645,7 +489,18 @@ export function getSeedThreeForestStructuralStats(forest: SeedThreeForestInstanc
   triangles: number;
   instances: number;
   trees: SeedThreeForestRenderStats;
-  ecology: ForestEcologyStats;
+  ecology: {
+    counts: {
+      anchors: number;
+      saplings: number;
+      understory: number;
+      deadwood: number;
+      litter: number;
+    };
+    draws: number;
+    instances: number;
+    triangles: number;
+  };
 } {
   let draws = 0;
   let triangles = 0;
@@ -666,8 +521,16 @@ export function getSeedThreeForestStructuralStats(forest: SeedThreeForestInstanc
     instances,
     trees: { ...forest.renderStats },
     ecology: {
-      ...forest.ecology.stats,
-      counts: { ...forest.ecology.stats.counts },
+      counts: {
+        anchors: 0,
+        saplings: 0,
+        understory: 0,
+        deadwood: 0,
+        litter: 0,
+      },
+      draws: 0,
+      instances: 0,
+      triangles: 0,
     },
   };
 }
@@ -690,18 +553,15 @@ export function setSeedThreeForestDeciduousDormancy(
   for (const material of forest.seasonalCardMaterials) {
     setForestCardDormancy(material, next);
   }
-  forest.ecology.setDeciduousDormancy(next);
 }
 
 export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
   forest.group.traverse((object: THREE.Object3D) => {
     const mesh = object as THREE.InstancedMesh;
     if (!mesh.isInstancedMesh) return;
-    if (mesh.userData.forestEcology === true) return;
     if (mesh.geometry.userData.forestClone) mesh.geometry.dispose();
     mesh.dispose();
   });
-  forest.ecology.dispose();
 }
 
 export function createSeedThreeForestController(forest: SeedThreeForestInstances): SeedThreeForestController {

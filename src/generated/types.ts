@@ -426,3 +426,4 @@ export const WorldConfig = __t.object("WorldConfig", {
   configured: __t.bool(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
+
