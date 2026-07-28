@@ -30,7 +30,13 @@ import {
   SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS,
   SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS,
 } from '../foodStockpileVisuals.ts';
+import {
+  CARPENTER_IRONWORK_VISUAL_SEGMENTS,
+  CARPENTER_POLEARM_VISUAL_SEGMENTS,
+  CARPENTER_TIMBER_VISUAL_SEGMENTS,
+} from '../armoryStockpileVisuals.ts';
 import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
+import { addStockedPolearmRack } from './polearmRack.ts';
 
 export const LOCAL_RECEIPT_VISUAL_SEGMENTS = 3;
 export const LOCAL_RECEIPT_VISUAL_CAPACITY = STOREHOUSE_HAUL_PER_WORKER;
@@ -438,7 +444,47 @@ export function createCarpenterMesh(): THREE.Group {
     addCartWheel(group, x, 1.05, 1.2, 0.9 - i * 0.15);
   }
   addMesh(group, new THREE.BoxGeometry(2.8, 0.22, 1.1), timberMaterial('weathered'), new THREE.Vector3(5.05, 0.92, -1.3));
-  for (let i = 0; i < 5; i++) addMesh(group, new THREE.BoxGeometry(3.0 - i * 0.12, 0.16, 0.42), timberMaterial(i % 2 ? 'light' : 'mid'), new THREE.Vector3(4.75, 0.12 + i * 0.18, -3.2));
+  const timberStockpile = new THREE.Group();
+  timberStockpile.name = 'CarpenterTimberStockpile';
+  timberStockpile.visible = false;
+  for (let i = 0; i < CARPENTER_TIMBER_VISUAL_SEGMENTS; i++) {
+    const segment = new THREE.Group();
+    segment.name = 'CarpenterTimberSegment';
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(3.0 - i * 0.12, 0.16, 0.42),
+      timberMaterial(i % 2 ? 'light' : 'mid'),
+      new THREE.Vector3(4.75, 0.12 + i * 0.18, -3.2),
+    );
+    timberStockpile.add(segment);
+  }
+  group.add(timberStockpile);
+  const ironworkStockpile = new THREE.Group();
+  ironworkStockpile.name = 'CarpenterIronworkStockpile';
+  ironworkStockpile.visible = false;
+  for (let i = 0; i < CARPENTER_IRONWORK_VISUAL_SEGMENTS; i++) {
+    const segment = new THREE.Group();
+    segment.name = 'CarpenterIronworkSegment';
+    const x = 4.25 + i * 0.78;
+    for (const z of [-1.48, -1.15]) {
+      addMesh(
+        segment,
+        new THREE.BoxGeometry(0.58, 0.07, 0.09),
+        metalMaterial(i % 2 ? 'steel' : 'iron'),
+        new THREE.Vector3(x, 1.08, z),
+      );
+    }
+    ironworkStockpile.add(segment);
+  }
+  group.add(ironworkStockpile);
+  addStockedPolearmRack(group, {
+    x: 4.95,
+    z: 3.15,
+    width: 2.7,
+    stockpileName: 'CarpenterPolearmStockpile',
+    segmentName: 'CarpenterPolearmSegment',
+    segmentCount: CARPENTER_POLEARM_VISUAL_SEGMENTS,
+  });
   addMesh(group, new THREE.CylinderGeometry(0.13, 0.13, 3.1, 8), timberMaterial('dark'), new THREE.Vector3(5.12, 0.76, 0), new THREE.Euler(0, 0, Math.PI * 0.5));
   // Upright frame saw makes the open bay identifiable even before its props resolve.
   for (const x of [4.15, 5.85]) addMesh(group, new THREE.BoxGeometry(0.16, 2.2, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 1.2, -0.2));

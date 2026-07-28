@@ -22,6 +22,21 @@ const showStockedState = lineupParams.get('stocked') === '1';
 const selectedKinds = requestedKind && BUILDING_KINDS.includes(requestedKind as (typeof BUILDING_KINDS)[number])
   ? [requestedKind as (typeof BUILDING_KINDS)[number]]
   : BUILDING_KINDS;
+const STOCKED_PREVIEW_PREFIXES = [
+  'MarketTimberStageSegment',
+  'MarketStoneStageSegment',
+  'MarketCratedStageSegment',
+  'CarpenterTimberStockpile',
+  'CarpenterTimberSegment',
+  'CarpenterIronworkStockpile',
+  'CarpenterIronworkSegment',
+  'CarpenterPolearmStockpile',
+  'CarpenterPolearmSegment',
+  'GuardhouseFoodStockpile',
+  'GuardhouseFoodSegment',
+  'GuardhousePolearmStockpile',
+  'GuardhousePolearmSegment',
+] as const;
 const COLS = selectedKinds.length === 1 ? 1 : 7;
 const ROWS = selectedKinds.length === 1 ? 1 : 4;
 const root = document.querySelector<HTMLElement>('#lineup-root');
@@ -39,13 +54,9 @@ root.prepend(renderer.domElement);
 const viewSpecs = [
   ...selectedKinds.map((kind) => {
     const mesh = createBuildingMesh(kind);
-    if (kind === 'marketplace' && showStockedState) {
+    if (showStockedState) {
       mesh.traverse((object) => {
-        if (
-          object.name.startsWith('MarketTimberStageSegment')
-          || object.name.startsWith('MarketStoneStageSegment')
-          || object.name.startsWith('MarketCratedStageSegment')
-        ) {
+        if (STOCKED_PREVIEW_PREFIXES.some((prefix) => object.name.startsWith(prefix))) {
           object.visible = true;
         }
       });

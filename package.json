@@ -41,6 +41,7 @@
     "test:food-preservation": "node --experimental-strip-types scripts/testFoodPreservation.mts",
     "test:physical-food-stores": "npx tsx scripts/testPhysicalFoodStores.mts",
     "test:physical-bulk-stores": "npx tsx scripts/testPhysicalBulkStores.mts",
+    "test:physical-armory-stores": "npx tsx scripts/testPhysicalArmoryStores.mts",
     "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",
     "test:chapel-community": "npx tsx scripts/testChapelCommunity.mts",
     "test:household-economy": "npx tsx scripts/testHouseholdEconomy.mts",

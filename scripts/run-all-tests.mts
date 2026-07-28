@@ -27,6 +27,7 @@ const tests = [
   'test:food-preservation',
   'test:physical-food-stores',
   'test:physical-bulk-stores',
+  'test:physical-armory-stores',
   'test:village-economy',
   'test:chapel-community',
   'test:household-economy',

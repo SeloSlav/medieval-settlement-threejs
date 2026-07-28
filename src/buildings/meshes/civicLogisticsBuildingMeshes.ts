@@ -37,6 +37,11 @@ import {
   STOREHOUSE_STONE_VISUAL_SEGMENTS,
   STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
+import {
+  GUARDHOUSE_FOOD_VISUAL_SEGMENTS,
+  GUARDHOUSE_POLEARM_VISUAL_SEGMENTS,
+} from '../armoryStockpileVisuals.ts';
+import { addStockedPolearmRack } from './polearmRack.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
 export const GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS = 3;
@@ -130,19 +135,6 @@ function addGuardhousePayrollChest(group: THREE.Group): void {
     chest.add(segment);
   });
   group.add(chest);
-}
-
-function addPolearmRack(group: THREE.Group, x: number, z: number): void {
-  addMesh(group, new THREE.BoxGeometry(3.0, 0.16, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 0.72, z));
-  addMesh(group, new THREE.BoxGeometry(3.0, 0.16, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 1.64, z));
-  for (const offset of [-1.3, 1.3]) {
-    addMesh(group, new THREE.BoxGeometry(0.16, 1.95, 0.18), timberMaterial('dark'), new THREE.Vector3(x + offset, 0.98, z));
-  }
-  for (let index = 0; index < 6; index += 1) {
-    const shaftX = x - 1.02 + index * 0.41;
-    addMesh(group, new THREE.CylinderGeometry(0.035, 0.045, 2.45, 6), timberMaterial('light'), new THREE.Vector3(shaftX, 1.42, z - 0.12));
-    addMesh(group, new THREE.ConeGeometry(0.12, 0.38, 5), metalMaterial('iron'), new THREE.Vector3(shaftX, 2.81, z - 0.12));
-  }
 }
 
 export function createTownHallMesh(): THREE.Group {
@@ -410,9 +402,28 @@ export function createGuardhouseMesh(): THREE.Group {
     addMesh(group, new THREE.BoxGeometry(0.16, 0.55, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 0.28, -1.85));
   }
 
-  addPolearmRack(group, 4.45, 1.68);
-  addCrate(group, 5.55, 0.02, -0.1, 1.08);
-  addCrate(group, 3.75, 0.02, -0.52, 0.75);
+  addStockedPolearmRack(group, {
+    x: 4.45,
+    z: 1.68,
+    stockpileName: 'GuardhousePolearmStockpile',
+    segmentName: 'GuardhousePolearmSegment',
+    segmentCount: GUARDHOUSE_POLEARM_VISUAL_SEGMENTS,
+  });
+  const foodStockpile = new THREE.Group();
+  foodStockpile.name = 'GuardhouseFoodStockpile';
+  foodStockpile.visible = false;
+  const foodCrates = [
+    [5.55, 0.02, -0.1, 1.08],
+    [3.75, 0.02, -0.52, 0.75],
+  ] as const;
+  for (let index = 0; index < GUARDHOUSE_FOOD_VISUAL_SEGMENTS; index += 1) {
+    const segment = new THREE.Group();
+    segment.name = 'GuardhouseFoodSegment';
+    const [x, y, z, scale] = foodCrates[index];
+    addCrate(segment, x, y, z, scale);
+    foodStockpile.add(segment);
+  }
+  group.add(foodStockpile);
   addGuardhousePayrollChest(group);
 
   // A compact palisade fragment frames the drill yard without implying a full wall system.
