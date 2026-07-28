@@ -20,6 +20,11 @@ use crate::economy::{
     CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
+use crate::raid_agent_policy::{
+    arriving_cart_store_loot_fraction, combat_agent_follows_arriving_cart, COMBAT_FACTION_RAIDER,
+    COMBAT_STATE_ADVANCING, COMBAT_STATE_LOOTING, COMBAT_TARGET_BUILDING,
+    COMBAT_TARGET_DELIVERY_TRIP,
+};
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
@@ -34,6 +39,9 @@ use crate::simulation::fires::{
 use crate::simulation::game_calendar::{game_clock, GameClock};
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{apply_need_delivery, ResidenceNeedKind};
+use crate::simulation::settlement_security::{
+    building_portable_stores, delivery_trip_portable_stores,
+};
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{recover_stock_at, recover_stock_beside_building, ReclamationStock};
 use crate::tables::{Building, DeliveryTrip, FireIncident, Residence};
@@ -1021,7 +1029,7 @@ fn step_one_trip(
     );
     match raid_posture {
         RaidCartPosture::Recall => {
-            recall_trip_to_origin_during_raid(ctx, trip);
+            recall_trip_to_origin_during_raid(ctx, trip, clock.sim_tick);
             return;
         }
         RaidCartPosture::ReturnHome => {
@@ -1106,7 +1114,7 @@ fn step_one_trip(
                 trip.progress = advance.progress;
                 remaining_seconds = advance.remaining_seconds;
                 if advance.reached_end {
-                    finish_inbound_trip(ctx, trip);
+                    finish_inbound_trip(ctx, trip, clock.sim_tick);
                     return;
                 }
             }
@@ -1443,9 +1451,65 @@ fn unload_need_to_residence(
     }
 }
 
-fn finish_inbound_trip(ctx: &ReducerContext, trip: DeliveryTrip) {
+fn finish_inbound_trip(ctx: &ReducerContext, trip: DeliveryTrip, sim_tick: u64) {
+    let cart_raid_value = delivery_trip_portable_stores(&trip).raid_value();
     return_trip_cargo_to_building(ctx, &trip);
+    hand_off_arriving_cart_pursuit(ctx, &trip, cart_raid_value, sim_tick);
     ctx.db.delivery_trip().id().delete(trip.id);
+}
+
+/// Cargo changes container when a handcart reaches its origin; it does not
+/// disappear from a live pursuer. Move only agents still contesting this exact
+/// trip onto the receiving building, and scale their loss fraction so the
+/// cart's remaining value—not the whole warehouse—stays at risk.
+fn hand_off_arriving_cart_pursuit(
+    ctx: &ReducerContext,
+    trip: &DeliveryTrip,
+    cart_raid_value: f64,
+    sim_tick: u64,
+) {
+    if cart_raid_value <= 1e-9 {
+        return;
+    }
+    let Some(origin) = ctx
+        .db
+        .building()
+        .id()
+        .find(&trip.building_id)
+        .filter(|building| building.owner == trip.owner)
+    else {
+        return;
+    };
+    let receiving_store_raid_value = building_portable_stores(&origin).raid_value();
+    let followers = ctx
+        .db
+        .combat_agent()
+        .owner()
+        .filter(&trip.owner)
+        .filter(|agent| {
+            agent.target_kind == COMBAT_TARGET_DELIVERY_TRIP
+                && agent.target_id == trip.id
+                && combat_agent_follows_arriving_cart(agent.faction, agent.state, agent.health)
+        })
+        .collect::<Vec<_>>();
+    for mut agent in followers {
+        agent.target_kind = COMBAT_TARGET_BUILDING;
+        agent.target_id = origin.id;
+        agent.raid_anchor_building_id = 0;
+        agent.loot_progress = 0.0;
+        if agent.faction == COMBAT_FACTION_RAIDER {
+            agent.loot_fraction = arriving_cart_store_loot_fraction(
+                cart_raid_value,
+                agent.loot_fraction,
+                receiving_store_raid_value,
+            );
+            if agent.state == COMBAT_STATE_LOOTING {
+                agent.state = COMBAT_STATE_ADVANCING;
+                agent.state_changed_tick = sim_tick;
+            }
+        }
+        ctx.db.combat_agent().id().update(agent);
+    }
 }
 
 fn recalled_inbound_progress(phase: DeliveryTripPhase, path_distance: f64, progress: f64) -> f64 {
@@ -1515,13 +1579,13 @@ fn recall_trip_to_origin(ctx: &ReducerContext, mut trip: DeliveryTrip) {
 /// or releasing their crew. Unlike a player-cancelled order, the destination
 /// reservation remains bound to this physical load until it reaches home;
 /// retaining the destination also preserves parish and construction metadata.
-fn recall_trip_to_origin_during_raid(ctx: &ReducerContext, mut trip: DeliveryTrip) {
+fn recall_trip_to_origin_during_raid(ctx: &ReducerContext, mut trip: DeliveryTrip, sim_tick: u64) {
     trip.unload_remaining = 0.0;
     if prepare_trip_return_leg(ctx, &mut trip) {
         ctx.db.delivery_trip().id().update(trip);
         return;
     }
-    finish_inbound_trip(ctx, trip);
+    finish_inbound_trip(ctx, trip, sim_tick);
 }
 
 fn return_trip_cargo_to_building(ctx: &ReducerContext, trip: &DeliveryTrip) {

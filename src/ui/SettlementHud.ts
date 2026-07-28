@@ -427,7 +427,7 @@ export class SettlementHud {
           ? 'The last hostile is clear: ordinary work and carts have resumed while the company physically returns and casualties are recovered.'
           : undefined,
       raidThreatActive && withdrawingCarts > 0
-        ? `${withdrawingCarts} ordinary handcart${withdrawingCarts === 1 ? ' is' : 's are'} physically withdrawing; raiders can still intercept the moving cargo.`
+        ? `${withdrawingCarts} ordinary handcart${withdrawingCarts === 1 ? ' is' : 's are'} physically withdrawing. Raiders can intercept the moving cargo; a pursuer that follows it home continues against the receiving store, capped to the cart’s remaining value.`
         : undefined,
       formatFrontierForecast(security, world.enemyPressure),
       projectedTargets,

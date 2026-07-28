@@ -288,6 +288,16 @@ assert.match(
 );
 assert.match(
   deliveryServer,
+  /fn finish_inbound_trip[\s\S]*delivery_trip_portable_stores[\s\S]*return_trip_cargo_to_building[\s\S]*hand_off_arriving_cart_pursuit[\s\S]*delivery_trip\(\)\.id\(\)\.delete/,
+  'an arriving cart must hand a live pursuit to its receiving store before its row disappears',
+);
+assert.match(
+  deliveryServer,
+  /fn hand_off_arriving_cart_pursuit[\s\S]*COMBAT_TARGET_DELIVERY_TRIP[\s\S]*combat_agent_follows_arriving_cart[\s\S]*COMBAT_TARGET_BUILDING[\s\S]*arriving_cart_store_loot_fraction/,
+  'only live pursuers should follow the cargo home, with loss capped to the cart value',
+);
+assert.match(
+  deliveryServer,
   /DeliveryTripPhase::Outbound => path_distance - progress/,
   'an outbound recall should preserve the cart position when changing to reverse route progress',
 );

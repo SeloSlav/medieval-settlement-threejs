@@ -320,6 +320,47 @@ pub fn combat_agent_is_active_raider_threat(faction: u8, state: u8, health: f64)
         )
 }
 
+/// An arriving cart is only a change of physical container, not an escape
+/// hatch. Live attackers and the guards contesting that target continue toward
+/// its receiving store; retreating or casualty rows have already left the
+/// chase and must not be turned around.
+pub fn combat_agent_follows_arriving_cart(faction: u8, state: u8, health: f64) -> bool {
+    if !health.is_finite() || health <= 0.0 {
+        return false;
+    }
+    match faction {
+        COMBAT_FACTION_RAIDER => matches!(
+            state,
+            COMBAT_STATE_ADVANCING | COMBAT_STATE_FIGHTING | COMBAT_STATE_LOOTING
+        ),
+        COMBAT_FACTION_GUARD => {
+            matches!(state, COMBAT_STATE_ADVANCING | COMBAT_STATE_FIGHTING)
+        }
+        _ => false,
+    }
+}
+
+/// Preserve the value at risk when a pursued cart is unloaded into a larger
+/// store. Without this rescale, a ten-unit cart entering a full warehouse
+/// would let its pursuer take the same percentage of the entire warehouse.
+pub fn arriving_cart_store_loot_fraction(
+    cart_raid_value: f64,
+    original_fraction: f64,
+    receiving_store_raid_value: f64,
+) -> f64 {
+    if !cart_raid_value.is_finite()
+        || !original_fraction.is_finite()
+        || !receiving_store_raid_value.is_finite()
+        || cart_raid_value <= 0.0
+        || original_fraction <= 0.0
+        || receiving_store_raid_value <= 0.0
+    {
+        return 0.0;
+    }
+    (cart_raid_value * original_fraction.clamp(0.0, 1.0) / receiving_store_raid_value)
+        .clamp(0.0, 1.0)
+}
+
 pub fn distance_squared(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
     let dx = bx - ax;
     let dz = bz - az;
@@ -520,6 +561,49 @@ mod tests {
             true,
             COMBAT_STATE_ADVANCING,
         ));
+    }
+
+    #[test]
+    fn only_live_contesting_agents_follow_a_cart_into_its_store() {
+        for state in [
+            COMBAT_STATE_ADVANCING,
+            COMBAT_STATE_FIGHTING,
+            COMBAT_STATE_LOOTING,
+        ] {
+            assert!(combat_agent_follows_arriving_cart(
+                COMBAT_FACTION_RAIDER,
+                state,
+                40.0,
+            ));
+        }
+        assert!(combat_agent_follows_arriving_cart(
+            COMBAT_FACTION_GUARD,
+            COMBAT_STATE_ADVANCING,
+            40.0,
+        ));
+        assert!(!combat_agent_follows_arriving_cart(
+            COMBAT_FACTION_RAIDER,
+            COMBAT_STATE_RETREATING,
+            40.0,
+        ));
+        assert!(!combat_agent_follows_arriving_cart(
+            COMBAT_FACTION_GUARD,
+            COMBAT_STATE_RETURNING,
+            40.0,
+        ));
+        assert!(!combat_agent_follows_arriving_cart(
+            COMBAT_FACTION_RAIDER,
+            COMBAT_STATE_ADVANCING,
+            0.0,
+        ));
+    }
+
+    #[test]
+    fn cart_target_handoff_preserves_value_instead_of_exposing_the_warehouse() {
+        assert!((arriving_cart_store_loot_fraction(10.0, 0.3, 100.0) - 0.03).abs() < 1e-9);
+        assert!((arriving_cart_store_loot_fraction(10.0, 0.3, 5.0) - 0.6).abs() < 1e-9);
+        assert_eq!(arriving_cart_store_loot_fraction(10.0, 0.3, 0.0), 0.0);
+        assert_eq!(arriving_cart_store_loot_fraction(f64::NAN, 0.3, 100.0), 0.0);
     }
 
     #[test]

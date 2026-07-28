@@ -528,7 +528,7 @@ fn building_portable_value(building: &Building) -> f64 {
     building_portable_stores(building).raid_value()
 }
 
-fn building_portable_stores(building: &Building) -> RaidPortableStores {
+pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStores {
     RaidPortableStores {
         timber: building.timber,
         firewood: building.firewood,
@@ -679,7 +679,7 @@ pub(super) fn raid_target_position(
     }
 }
 
-fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortableStores {
+pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortableStores {
     let amount = trip.amount.max(0.0);
     let mut stores = RaidPortableStores::default();
     match CommodityKind::from_u8(trip.cargo_kind) {
