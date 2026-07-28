@@ -262,6 +262,7 @@ export class VillagerInspector {
       inspection.modelVariant,
     );
     const returning = trip.phase === 'inbound';
+    const returningLoaded = returning && trip.amount > 0.05;
 
     this.workplaceLabel.textContent = 'Origin';
     this.householdLabel.textContent = 'Route target';
@@ -271,7 +272,9 @@ export class VillagerInspector {
     this.name.textContent = name;
     this.eyebrow.textContent = `Delivery agent · ${phase}`;
     this.activity.textContent = returning
-      ? `Returning to ${originLabel} after the ${cargo.toLocaleLowerCase()} delivery`
+      ? returningLoaded
+        ? `Returning ${cargoAmount} undelivered ${cargo.toLocaleLowerCase()} to ${originLabel}`
+        : `Returning to ${originLabel} after the ${cargo.toLocaleLowerCase()} delivery`
       : trip.phase === 'unloading'
         ? `Unloading ${cargo.toLocaleLowerCase()} at ${destination}`
         : `Delivering ${cargoAmount} ${cargo.toLocaleLowerCase()} to ${destination}`;
@@ -291,7 +294,11 @@ export class VillagerInspector {
     this.workplace.textContent = originLabel;
     this.household.textContent = returning ? originLabel : destination;
     this.crew.textContent = returning
-      ? `Empty · ${cargo} run`
+      ? returningLoaded
+        ? `${cargoAmount} ${cargo.toLocaleLowerCase()} · ${trip.deliveryWorkers} ${
+          trip.deliveryWorkers === 1 ? 'hauler' : 'haulers'
+        }`
+        : `Empty · ${cargo} run`
       : `${cargoAmount} ${cargo.toLocaleLowerCase()} · ${trip.deliveryWorkers} ${
         trip.deliveryWorkers === 1 ? 'hauler' : 'haulers'
       }`;

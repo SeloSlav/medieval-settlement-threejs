@@ -85,7 +85,8 @@ pub use production_labor_steward::{
 };
 pub use reclamation::{
     insert_reclamation_pile, materialize_all_physical_resource_ledgers,
-    materialize_physical_resource_ledger, step_reclamation_piles, ReclamationStock,
+    materialize_physical_resource_ledger, recover_stock_at, recover_stock_beside_building,
+    step_reclamation_piles, ReclamationStock,
 };
 pub use reforester::step_reforester;
 pub use residence_lifecycle::step_residence;

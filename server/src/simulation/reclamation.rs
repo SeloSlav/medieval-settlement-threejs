@@ -62,6 +62,76 @@ pub struct ReclamationStock {
 }
 
 impl ReclamationStock {
+    pub fn from_commodity(commodity: CommodityKind, amount: f64) -> Self {
+        let amount = amount.max(0.0);
+        match commodity {
+            CommodityKind::Timber => Self {
+                timber: amount,
+                ..Self::default()
+            },
+            CommodityKind::Firewood => Self {
+                firewood: amount,
+                ..Self::default()
+            },
+            CommodityKind::Stone => Self {
+                stone: amount,
+                ..Self::default()
+            },
+            CommodityKind::Water => Self {
+                water: amount,
+                ..Self::default()
+            },
+            CommodityKind::Food => Self {
+                food: amount,
+                ..Self::default()
+            },
+            CommodityKind::Grain => Self {
+                grain: amount,
+                ..Self::default()
+            },
+            CommodityKind::Flour => Self {
+                flour: amount,
+                ..Self::default()
+            },
+            CommodityKind::Ale => Self {
+                ale: amount,
+                ..Self::default()
+            },
+            CommodityKind::PreservedFood => Self {
+                preserved_food: amount,
+                ..Self::default()
+            },
+            CommodityKind::Honey => Self {
+                honey: amount,
+                ..Self::default()
+            },
+            CommodityKind::Wine => Self {
+                wine: amount,
+                ..Self::default()
+            },
+            CommodityKind::Ironwork => Self {
+                ironwork: amount,
+                ..Self::default()
+            },
+            CommodityKind::Polearms => Self {
+                polearms: amount,
+                ..Self::default()
+            },
+            CommodityKind::Wool => Self {
+                wool: amount,
+                ..Self::default()
+            },
+            CommodityKind::Cloth => Self {
+                cloth: amount,
+                ..Self::default()
+            },
+            CommodityKind::Gold => Self {
+                gold: amount,
+                ..Self::default()
+            },
+        }
+    }
+
     pub fn is_empty(self) -> bool {
         RECOVERY_ORDER
             .into_iter()
@@ -149,7 +219,7 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.gold = 0.0;
 }
 
-fn ledger_pile_position_beside_building(
+fn recovery_pile_position_beside_building(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
     anchor: &Building,
@@ -218,10 +288,10 @@ fn ledger_pile_position_beside_building(
         .unwrap_or((anchor.x + offset, anchor.z))
 }
 
-/// Material produced by a physical-world demolition must begin at that
-/// footprint rather than appearing in a remote depot. The temporary Building
-/// row reuses the existing cart, marker, inspector, save, and collision paths.
-/// Legacy settlements keep their old abstract refund path.
+/// Material recovered in the physical world must remain where it was left
+/// rather than appearing in a remote depot. The temporary Building row reuses
+/// the existing cart, marker, inspector, save, and collision paths. Legacy
+/// settlements keep their old abstract refund path.
 pub fn insert_reclamation_pile(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -328,6 +398,66 @@ pub fn insert_reclamation_pile(
     Ok(true)
 }
 
+/// Keep returned overflow beside its source. A nearby pile is reused so a
+/// repeatedly full storehouse cannot create unbounded marker and row churn.
+pub fn recover_stock_beside_building(
+    ctx: &ReducerContext,
+    anchor: &Building,
+    stock: ReclamationStock,
+) -> Result<bool, String> {
+    let (x, z) = recovery_pile_position_beside_building(ctx, anchor.owner, anchor);
+    recover_stock_at(ctx, anchor.owner, x, z, stock)
+}
+
+/// Leave stranded cart cargo at its authoritative position. Nearby recovered
+/// stock is coalesced to keep the physical ledger readable and inexpensive.
+pub fn recover_stock_at(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    x: f64,
+    z: f64,
+    stock: ReclamationStock,
+) -> Result<bool, String> {
+    let physical_reclamation = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if !physical_reclamation {
+        return Ok(false);
+    }
+    if stock.is_empty() {
+        return Ok(true);
+    }
+
+    const LOCAL_PILE_REUSE_DISTANCE: f64 = 4.5;
+    if let Some(mut pile) = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| {
+            building.kind == "salvage_pile"
+                && (building.x - x).powi(2) + (building.z - z).powi(2)
+                    <= LOCAL_PILE_REUSE_DISTANCE.powi(2)
+        })
+        .min_by(|a, b| {
+            let a_distance = (a.x - x).powi(2) + (a.z - z).powi(2);
+            let b_distance = (b.x - x).powi(2) + (b.z - z).powi(2);
+            a_distance
+                .total_cmp(&b_distance)
+                .then_with(|| a.id.cmp(&b.id))
+        })
+    {
+        stock.add_to_building(&mut pile);
+        ctx.db.building().id().update(pile);
+        return Ok(true);
+    }
+
+    insert_reclamation_pile(ctx, owner, x, z, stock)
+}
+
 /// Physical-world saves may still receive a legacy ledger balance from an old
 /// schema, an interrupted delivery return, or a sandbox grant. Convert that
 /// balance into a visible recovery pile before any planner can spend it.
@@ -383,7 +513,7 @@ pub fn materialize_physical_resource_ledger(
             })
     });
     let position = if let Some(anchor) = building_anchor {
-        ledger_pile_position_beside_building(ctx, owner, &anchor)
+        recovery_pile_position_beside_building(ctx, owner, &anchor)
     } else if let Some(residence) = ctx
         .db
         .residence()

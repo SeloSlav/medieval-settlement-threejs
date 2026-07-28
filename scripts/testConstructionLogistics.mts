@@ -1006,7 +1006,8 @@ assert.match(placementServer, /cancel_inbound_construction_trips_for_site/);
 assert.match(placementServer, /initial_construction_labor\(available_building_labor/);
 assert.match(
   deliveryServer,
-  /pub fn cancel_inbound_construction_trips_for_site[\s\S]*return_trip_cargo_to_building/,
+  /pub fn cancel_inbound_construction_trips_for_site[\s\S]*recall_trip_to_origin/,
+  'holding a site should recall its visible cart instead of deleting and teleporting the load',
 );
 
 const simServer = read('server/src/reducers/simulation.rs');

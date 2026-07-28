@@ -242,6 +242,26 @@ assert.match(deliveryServer, /advance_travel_progress\(/);
 assert.match(deliveryServer, /network\.is_on_road_surface\(x, z\)/);
 assert.equal(DELIVERY_ROAD_SPEED_MULTIPLIER, 1.35);
 assert.match(deliveryServer, /DELIVERY_ROAD_SPEED_MULTIPLIER: f64 = 1\.35/);
+assert.match(
+  deliveryServer,
+  /fn recall_trip_to_origin[\s\S]*restore_trip_target_reservation[\s\S]*DeliveryTripPhase::Inbound[\s\S]*delivery_trip\(\)\.id\(\)\.update\(trip\)/,
+  'a cancelled delivery should turn around with the same trip row, cargo, and committed crew',
+);
+assert.match(
+  deliveryServer,
+  /DeliveryTripPhase::Outbound => path_distance - progress/,
+  'an outbound recall should preserve the cart position when changing to reverse route progress',
+);
+assert.match(
+  deliveryServer,
+  /fn settle_stranded_trip[\s\S]*recover_stock_at[\s\S]*trip\.x[\s\S]*trip\.z/,
+  'cargo that can no longer follow a route must remain at the cart position',
+);
+assert.match(
+  deliveryServer,
+  /fn return_commodity_to_building[\s\S]*recover_stock_beside_building/,
+  'returned overflow must become local physical stock rather than a remote ledger credit',
+);
 
 const deliveryRenderer = read('src/logistics/DeliveryAgentRenderer.ts');
 assert.match(deliveryRenderer, /surfaceAdjustedTravelSpeed\(/);
@@ -269,5 +289,10 @@ const villagerInspector = read('src/ui/VillagerInspector.ts');
 assert.match(villagerInspector, />Distance left</);
 assert.match(villagerInspector, /inspection\.remainingMeters/);
 assert.match(villagerInspector, /this\.current\.textContent/);
+assert.match(
+  villagerInspector,
+  /returningLoaded[\s\S]*Returning \$\{cargoAmount\} undelivered/,
+  'the agent inspector should disclose when a returning cart is still visibly loaded',
+);
 
 console.log('delivery pacing checks passed (30 heartbeats: 20× graph builds 50→30; 120× 150→30)');

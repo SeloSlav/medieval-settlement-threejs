@@ -31,6 +31,7 @@ use crate::simulation::game_calendar::{game_clock, GameClock};
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{apply_need_delivery, ResidenceNeedKind};
 use crate::simulation::tick_context::SimTickContext;
+use crate::simulation::{recover_stock_at, recover_stock_beside_building, ReclamationStock};
 use crate::tables::{Building, DeliveryTrip, FireIncident, Residence};
 
 pub fn serialize_route_polyline(polyline: &[[f64; 2]]) -> String {
@@ -300,8 +301,9 @@ pub fn building_has_inbound_commodity_trip(
         })
 }
 
-/// Holding a construction site recalls any cart already bound for it. Cargo is
-/// returned to its source and the site's reservation is restored atomically.
+/// Holding a construction site recalls any cart already bound for it. The
+/// site's reservation is restored immediately, while the loaded cart and its
+/// crew remain on the map until they physically return to the source.
 pub fn cancel_inbound_construction_trips_for_site(ctx: &ReducerContext, building_id: u64) {
     let trips: Vec<DeliveryTrip> = ctx
         .db
@@ -311,8 +313,7 @@ pub fn cancel_inbound_construction_trips_for_site(ctx: &ReducerContext, building
         .filter(|trip| trip.destination_kind == DELIVERY_DESTINATION_BUILDING)
         .collect();
     for trip in trips {
-        return_trip_cargo_to_building(ctx, &trip);
-        ctx.db.delivery_trip().id().delete(trip.id);
+        recall_trip_to_origin(ctx, trip);
     }
 }
 
@@ -373,9 +374,7 @@ pub fn cancel_trips_for_residence(ctx: &ReducerContext, residence_id: u64) {
         .filter(&residence_id)
         .collect();
     for trip in trips {
-        release_trip_fire_claim(ctx, &trip);
-        return_trip_cargo_to_building(ctx, &trip);
-        ctx.db.delivery_trip().id().delete(trip.id);
+        recall_trip_to_origin(ctx, trip);
     }
 }
 
@@ -744,7 +743,7 @@ pub fn try_start_fire_response_trip(
 /// a construction site. Staffed sources use their crew; unstaffed sources draw
 /// one worker from the owner's free-labor pool. Staffed storehouses use their
 /// larger logistics-cart capacity. The reservation is reduced at loading time;
-/// if the trip is cancelled, `return_trip_cargo_to_building` restores it.
+/// if the trip is recalled, it is restored while the load physically returns.
 pub fn try_start_construction_supply_trip(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -966,14 +965,12 @@ fn step_one_trip(
     }
 
     let Some(network) = tick.road_network(trip.owner) else {
-        return_trip_cargo_to_building(ctx, &trip);
-        ctx.db.delivery_trip().id().delete(trip.id);
+        settle_stranded_trip(ctx, trip);
         return;
     };
 
     let Some(route) = cached_trip_route(ctx, &network, &trip) else {
-        return_trip_cargo_to_building(ctx, &trip);
-        ctx.db.delivery_trip().id().delete(trip.id);
+        settle_stranded_trip(ctx, trip);
         return;
     };
 
@@ -990,8 +987,7 @@ fn step_one_trip(
     let mut remaining_seconds = elapsed_seconds;
     while remaining_seconds > 1e-9 {
         let Some(phase) = DeliveryTripPhase::from_u8(trip.phase) else {
-            return_trip_cargo_to_building(ctx, &trip);
-            ctx.db.delivery_trip().id().delete(trip.id);
+            settle_stranded_trip(ctx, trip);
             return;
         };
 
@@ -1063,8 +1059,7 @@ fn step_one_trip(
             trip.z = z;
         }
         None => {
-            return_trip_cargo_to_building(ctx, &trip);
-            ctx.db.delivery_trip().id().delete(trip.id);
+            settle_stranded_trip(ctx, trip);
             return;
         }
     }
@@ -1359,77 +1354,170 @@ fn finish_inbound_trip(ctx: &ReducerContext, trip: DeliveryTrip) {
     ctx.db.delivery_trip().id().delete(trip.id);
 }
 
+fn recalled_inbound_progress(phase: DeliveryTripPhase, path_distance: f64, progress: f64) -> f64 {
+    let path_distance = path_distance.max(0.0);
+    let progress = progress.clamp(0.0, path_distance);
+    match phase {
+        DeliveryTripPhase::Outbound => path_distance - progress,
+        DeliveryTripPhase::Unloading => 0.0,
+        DeliveryTripPhase::Inbound => progress,
+    }
+}
+
+/// Preserve the trip row, cargo, and labor commitment while a cancelled load
+/// turns around. Clearing the destination identifiers records that its
+/// reservation has already been restored and prevents a second restoration
+/// when the cart reaches home.
+fn recall_trip_to_origin(ctx: &ReducerContext, mut trip: DeliveryTrip) {
+    release_trip_fire_claim(ctx, &trip);
+    restore_trip_target_reservation(ctx, &trip);
+
+    let phase = DeliveryTripPhase::from_u8(trip.phase);
+    let has_stored_route = trip.path_distance > 1e-6
+        && deserialize_route_polyline(&trip.route_polyline_json)
+            .is_some_and(|polyline| polyline.len() >= 2);
+    trip.residence_id = 0;
+    trip.target_building_id = 0;
+    trip.unload_remaining = 0.0;
+
+    if let Some(phase) = phase.filter(|_| has_stored_route) {
+        trip.progress = recalled_inbound_progress(phase, trip.path_distance, trip.progress);
+        trip.phase = DeliveryTripPhase::Inbound.as_u8();
+        ctx.db.delivery_trip().id().update(trip);
+        return;
+    }
+
+    // Old saves may predate cached route geometry. Rebase their return leg from
+    // the authoritative cart position instead of teleporting the cargo home.
+    if let Some(origin) = ctx.db.building().id().find(&trip.building_id) {
+        let distance = ((trip.x - origin.x).powi(2) + (trip.z - origin.z).powi(2)).sqrt();
+        if distance > 1e-6 {
+            trip.path_distance = distance;
+            trip.progress = 0.0;
+            trip.phase = DeliveryTripPhase::Inbound.as_u8();
+            trip.route_polyline_json =
+                serialize_route_polyline(&[[origin.x, origin.z], [trip.x, trip.z]]);
+            ctx.db.delivery_trip().id().update(trip);
+            return;
+        }
+    }
+
+    return_trip_cargo_to_origin(ctx, &trip);
+    ctx.db.delivery_trip().id().delete(trip.id);
+}
+
 fn return_trip_cargo_to_building(ctx: &ReducerContext, trip: &DeliveryTrip) {
     release_trip_fire_claim(ctx, trip);
+    restore_trip_target_reservation(ctx, trip);
+    return_trip_cargo_to_origin(ctx, trip);
+}
+
+fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
     if trip.amount <= 1e-6 {
         return;
     }
-    match TripCargoKind::from_trip(trip) {
-        Some(TripCargoKind::Commodity(commodity)) => {
-            if trip.destination_kind == DELIVERY_DESTINATION_BUILDING {
-                if let Some(mut site) = ctx.db.building().id().find(&trip.target_building_id) {
-                    if !site.construction_complete {
-                        match commodity {
-                            CommodityKind::Timber => {
-                                site.construction_reserved_timber += trip.amount
-                            }
-                            CommodityKind::Stone => site.construction_reserved_stone += trip.amount,
-                            _ => {}
-                        }
-                        ctx.db.building().id().update(site);
-                    }
+    let Some(TripCargoKind::Commodity(commodity)) = TripCargoKind::from_trip(trip) else {
+        return;
+    };
+    if trip.destination_kind == DELIVERY_DESTINATION_BUILDING {
+        if let Some(mut site) = ctx.db.building().id().find(&trip.target_building_id) {
+            if !site.construction_complete {
+                match commodity {
+                    CommodityKind::Timber => site.construction_reserved_timber += trip.amount,
+                    CommodityKind::Stone => site.construction_reserved_stone += trip.amount,
+                    _ => {}
                 }
-            }
-            if trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE
-                && matches!(
-                    commodity,
-                    CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Gold
-                )
-            {
-                if let Some(mut residence) = ctx.db.residence().id().find(&trip.residence_id) {
-                    if residence_project_active(
-                        residence.upgrade_target_tier,
-                        residence.tier,
-                        residence.backyard_project_kind,
-                        residence.fire_repair_active,
-                    ) {
-                        match commodity {
-                            CommodityKind::Timber => {
-                                residence.upgrade_reserved_timber += trip.amount
-                            }
-                            CommodityKind::Stone => residence.upgrade_reserved_stone += trip.amount,
-                            CommodityKind::Gold => residence.upgrade_reserved_gold += trip.amount,
-                            _ => {}
-                        }
-                        ctx.db.residence().id().update(residence);
-                    }
-                }
-            }
-            let restore_monastery_purse = commodity == CommodityKind::Gold
-                && ctx
-                    .db
-                    .building()
-                    .id()
-                    .find(&trip.building_id)
-                    .is_some_and(|origin| origin.kind == "chapel")
-                && ctx
-                    .db
-                    .building()
-                    .id()
-                    .find(&trip.target_building_id)
-                    .is_some_and(|target| target.kind == "monastery");
-            return_commodity_to_building(ctx, trip.building_id, commodity, trip.amount);
-            if restore_monastery_purse {
-                if let Some(mut chapel) = ctx.db.building().id().find(&trip.building_id) {
-                    chapel.chapel_monastery_tithe_due = (chapel_monastery_tithe_due(&chapel)
-                        + trip.amount)
-                        .min(chapel.gold.max(0.0));
-                    ctx.db.building().id().update(chapel);
-                }
+                ctx.db.building().id().update(site);
             }
         }
-        None => {}
     }
+    if trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE
+        && matches!(
+            commodity,
+            CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Gold
+        )
+    {
+        if let Some(mut residence) = ctx.db.residence().id().find(&trip.residence_id) {
+            if residence_project_active(
+                residence.upgrade_target_tier,
+                residence.tier,
+                residence.backyard_project_kind,
+                residence.fire_repair_active,
+            ) {
+                match commodity {
+                    CommodityKind::Timber => residence.upgrade_reserved_timber += trip.amount,
+                    CommodityKind::Stone => residence.upgrade_reserved_stone += trip.amount,
+                    CommodityKind::Gold => residence.upgrade_reserved_gold += trip.amount,
+                    _ => {}
+                }
+                ctx.db.residence().id().update(residence);
+            }
+        }
+    }
+}
+
+fn return_trip_cargo_to_origin(ctx: &ReducerContext, trip: &DeliveryTrip) {
+    if trip.amount <= 1e-6 {
+        return;
+    }
+    let Some(TripCargoKind::Commodity(commodity)) = TripCargoKind::from_trip(trip) else {
+        return;
+    };
+    let restore_monastery_purse = commodity == CommodityKind::Gold
+        && ctx
+            .db
+            .building()
+            .id()
+            .find(&trip.building_id)
+            .is_some_and(|origin| origin.kind == "chapel")
+        && ctx
+            .db
+            .building()
+            .id()
+            .find(&trip.target_building_id)
+            .is_some_and(|target| target.kind == "monastery");
+    let returned_to_origin = return_commodity_to_building(ctx, trip, commodity, trip.amount);
+    if restore_monastery_purse && returned_to_origin > 1e-6 {
+        if let Some(mut chapel) = ctx.db.building().id().find(&trip.building_id) {
+            chapel.chapel_monastery_tithe_due = (chapel_monastery_tithe_due(&chapel)
+                + returned_to_origin)
+                .min(chapel.gold.max(0.0));
+            ctx.db.building().id().update(chapel);
+        }
+    }
+}
+
+fn settle_stranded_trip(ctx: &ReducerContext, trip: DeliveryTrip) {
+    release_trip_fire_claim(ctx, &trip);
+    restore_trip_target_reservation(ctx, &trip);
+
+    let physically_recovered = if trip.amount > 1e-6 {
+        TripCargoKind::from_trip(&trip).is_some_and(|cargo| match cargo {
+            TripCargoKind::Commodity(commodity) => {
+                match recover_stock_at(
+                    ctx,
+                    trip.owner,
+                    trip.x,
+                    trip.z,
+                    ReclamationStock::from_commodity(commodity, trip.amount),
+                ) {
+                    Ok(recovered) => recovered,
+                    Err(error) => {
+                        log::warn!(
+                            "Could not leave stranded delivery cargo at its cart position: {error}"
+                        );
+                        false
+                    }
+                }
+            }
+        })
+    } else {
+        true
+    };
+    if !physically_recovered {
+        return_trip_cargo_to_origin(ctx, &trip);
+    }
+    ctx.db.delivery_trip().id().delete(trip.id);
 }
 
 fn trip_fire_target(trip: &DeliveryTrip) -> (u8, u64) {
@@ -1450,15 +1538,29 @@ fn release_trip_fire_claim(ctx: &ReducerContext, trip: &DeliveryTrip) {
 
 fn return_commodity_to_building(
     ctx: &ReducerContext,
-    building_id: u64,
+    trip: &DeliveryTrip,
     commodity: CommodityKind,
     amount: f64,
-) {
+) -> f64 {
     if amount <= 1e-6 {
-        return;
+        return 0.0;
     }
-    let Some(mut building) = ctx.db.building().id().find(&building_id) else {
-        return;
+    let Some(mut building) = ctx.db.building().id().find(&trip.building_id) else {
+        let recovered = recover_stock_at(
+            ctx,
+            trip.owner,
+            trip.x,
+            trip.z,
+            ReclamationStock::from_commodity(commodity, amount),
+        )
+        .unwrap_or_else(|error| {
+            log::warn!("Could not preserve cargo from a missing delivery source: {error}");
+            false
+        });
+        if !recovered {
+            credit_treasury_commodity(ctx, trip.owner, commodity, amount);
+        }
+        return 0.0;
     };
     let deposited = deposit_building_commodity(&mut building, commodity, amount);
     if commodity == CommodityKind::Gold
@@ -1467,15 +1569,27 @@ fn return_commodity_to_building(
         restore_local_civic_receipts(&mut building, deposited);
     }
     let remainder = (amount - deposited).max(0.0);
+    ctx.db.building().id().update(building.clone());
     if remainder > 1e-6 {
-        credit_treasury_commodity(ctx, building.owner, commodity, remainder);
+        let recovered = recover_stock_beside_building(
+            ctx,
+            &building,
+            ReclamationStock::from_commodity(commodity, remainder),
+        )
+        .unwrap_or_else(|error| {
+            log::warn!("Could not preserve returned delivery overflow beside its source: {error}");
+            false
+        });
+        if !recovered {
+            credit_treasury_commodity(ctx, building.owner, commodity, remainder);
+        }
     }
-    ctx.db.building().id().update(building);
+    deposited
 }
 
 #[cfg(test)]
 mod tests {
-    use super::rostered_cart_workers;
+    use super::{recalled_inbound_progress, rostered_cart_workers, DeliveryTripPhase};
 
     #[test]
     fn rostered_cart_workers_excludes_free_haulers() {
@@ -1489,5 +1603,33 @@ mod tests {
         assert_eq!(rostered_cart_workers(1, 3, 0), 1);
         assert_eq!(rostered_cart_workers(0, 3, 0), 0);
         assert_eq!(rostered_cart_workers(1, 3, 2), 1);
+    }
+
+    #[test]
+    fn recalled_outbound_cart_keeps_its_exact_route_position() {
+        assert_eq!(
+            recalled_inbound_progress(DeliveryTripPhase::Outbound, 100.0, 35.0),
+            65.0
+        );
+        assert_eq!(
+            recalled_inbound_progress(DeliveryTripPhase::Unloading, 100.0, 100.0),
+            0.0
+        );
+        assert_eq!(
+            recalled_inbound_progress(DeliveryTripPhase::Inbound, 100.0, 35.0),
+            35.0
+        );
+    }
+
+    #[test]
+    fn recalled_route_progress_is_clamped_before_turning() {
+        assert_eq!(
+            recalled_inbound_progress(DeliveryTripPhase::Outbound, 100.0, 120.0),
+            0.0
+        );
+        assert_eq!(
+            recalled_inbound_progress(DeliveryTripPhase::Outbound, 100.0, -20.0),
+            100.0
+        );
     }
 }

@@ -34,7 +34,7 @@ assert.equal(
     (entry) => entry.kind === 'placement' && entry.artKey === 'salvage_pile',
   ),
   false,
-  'reclamation piles are generated only by dismantling',
+  'reclamation piles are system-generated and cannot be placed from the build menu',
 );
 assert.equal(
   constructionSourcePriority({
@@ -112,6 +112,16 @@ assert.match(
   reclamation,
   /pub fn materialize_physical_resource_ledger[\s\S]*from_resource_ledger[\s\S]*insert_reclamation_pile[\s\S]*clear_resource_ledger/,
   'migrated or interrupted physical balances must become visible piles before the ledger clears',
+);
+assert.match(
+  reclamation,
+  /pub fn recover_stock_beside_building[\s\S]*recover_stock_at/,
+  'returned overflow should stay beside the source that could no longer hold it',
+);
+assert.match(
+  reclamation,
+  /pub fn recover_stock_at[\s\S]*LOCAL_PILE_REUSE_DISTANCE[\s\S]*add_to_building/,
+  'nearby returned or stranded goods should coalesce instead of creating unbounded pile rows',
 );
 for (const field of [
   'timber',
