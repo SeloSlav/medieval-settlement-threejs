@@ -384,11 +384,19 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     }
 
     if kind == "town_hall" {
-        if ctx
+        let civic_landmarks = ctx
             .db
             .building()
             .owner()
             .filter(&owner)
+            .filter(|building| {
+                building.kind == "town_hall"
+                    || (building.construction_complete
+                        && matches!(building.kind.as_str(), "chapel" | "marketplace"))
+            })
+            .collect::<Vec<_>>();
+        if civic_landmarks
+            .iter()
             .any(|building| building.kind == "town_hall")
         {
             return Err("Only one Town Hall may serve a settlement.".to_string());
@@ -405,30 +413,35 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
                 "The settlement needs at least {TOWN_HALL_POPULATION_REQUIRED} residents before building a Town Hall."
             ));
         }
-        let chapel = ctx
-            .db
-            .building()
-            .owner()
-            .filter(&owner)
-            .find(|building| building.kind == "chapel" && building.construction_complete)
-            .ok_or_else(|| "Build a chapel before founding the Town Hall.".to_string())?;
-        let marketplace = ctx
-            .db
-            .building()
-            .owner()
-            .filter(&owner)
-            .find(|building| building.kind == "marketplace" && building.construction_complete)
-            .ok_or_else(|| "Build a marketplace before founding the Town Hall.".to_string())?;
+        if !civic_landmarks
+            .iter()
+            .any(|building| building.kind == "chapel")
+        {
+            return Err("Build a chapel before founding the Town Hall.".to_string());
+        }
+        if !civic_landmarks
+            .iter()
+            .any(|building| building.kind == "marketplace")
+        {
+            return Err("Build a marketplace before founding the Town Hall.".to_string());
+        }
         let network = road_network
             .as_ref()
             .ok_or_else(|| "The Town Hall requires a road network.".to_string())?;
-        if network
-            .road_path_distance(x, z, chapel.x, chapel.z)
-            .is_none()
-            || network
-                .road_path_distance(x, z, marketplace.x, marketplace.z)
-                .is_none()
-        {
+        let civic_points = civic_landmarks
+            .iter()
+            .map(|building| (building.x, building.z))
+            .collect::<Vec<_>>();
+        let civic_distances = network.road_path_distances_from(x, z, &civic_points);
+        let linked_chapel = civic_landmarks
+            .iter()
+            .zip(&civic_distances)
+            .any(|(building, distance)| building.kind == "chapel" && distance.is_some());
+        let linked_marketplace = civic_landmarks
+            .iter()
+            .zip(&civic_distances)
+            .any(|(building, distance)| building.kind == "marketplace" && distance.is_some());
+        if !linked_chapel || !linked_marketplace {
             return Err(
                 "The Town Hall must be road-linked to both the chapel and marketplace.".to_string(),
             );

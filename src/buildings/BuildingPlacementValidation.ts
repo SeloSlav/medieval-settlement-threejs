@@ -160,26 +160,35 @@ export function validateBuildingPlacement(
     if (parishPopulation(context.residences) < TOWN_HALL_POPULATION_REQUIRED) {
       return { ok: false, reason: 'requires_town_hall_population' };
     }
-    const chapel = buildings.find(
+    const chapels = buildings.filter(
       (building) => building.kind === 'chapel'
         && building.constructionComplete !== false,
     );
-    if (!chapel) {
+    if (chapels.length === 0) {
       return { ok: false, reason: 'requires_completed_chapel' };
     }
-    const marketplace = buildings.find(
+    const marketplaces = buildings.filter(
       (building) => building.kind === 'marketplace'
         && building.constructionComplete !== false,
     );
-    if (!marketplace) {
+    if (marketplaces.length === 0) {
       return { ok: false, reason: 'requires_completed_marketplace' };
     }
+    const civicLandmarks = [...chapels, ...marketplaces];
     const distances = context.roadNetwork?.getPathfinder().roadPathDistancesFrom(
       x,
       z,
-      [chapel, marketplace],
+      civicLandmarks,
     );
-    if (!distances || distances.some((distance) => distance == null)) {
+    let linkedChapel = false;
+    let linkedMarketplace = false;
+    for (let index = 0; index < (distances?.length ?? 0); index += 1) {
+      if (distances?.[index] == null) continue;
+      if (index < chapels.length) linkedChapel = true;
+      else linkedMarketplace = true;
+      if (linkedChapel && linkedMarketplace) break;
+    }
+    if (!linkedChapel || !linkedMarketplace) {
       return { ok: false, reason: 'requires_civic_road_link' };
     }
   }

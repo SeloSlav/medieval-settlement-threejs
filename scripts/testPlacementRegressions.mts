@@ -348,6 +348,78 @@ function testCivicAndFrontierPlacementPrerequisites(): void {
     true,
     'a unique Town Hall with population, civic landmarks, and one shared road branch should preview as valid',
   );
+
+  const multiParishRoads = new RoadNetwork();
+  multiParishRoads.addRoadPath([
+    new THREE.Vector3(-15, 0, 0),
+    new THREE.Vector3(95, 0, 0),
+  ]);
+  multiParishRoads.addRoadPath([
+    new THREE.Vector3(-15, 0, 68),
+    new THREE.Vector3(95, 0, 68),
+  ]);
+  const olderRemoteLandmarks = [
+    building('chapel', 'old-chapel', 0, 80),
+    building('marketplace', 'old-market', 80, 80),
+  ];
+  const connectedLandmarks = [
+    building('chapel', 'local-chapel', 0, 12),
+    building('marketplace', 'local-market', 80, 12),
+  ];
+  assert.deepEqual(
+    validateBuildingPlacement(
+      'town_hall',
+      candidate.x,
+      candidate.z,
+      context(
+        [...olderRemoteLandmarks, connectedLandmarks[0]],
+        24,
+        multiParishRoads,
+      ),
+    ),
+    { ok: false, reason: 'requires_civic_road_link' },
+    'a local chapel must not conceal that every completed marketplace is on another branch',
+  );
+  assert.equal(
+    validateBuildingPlacement(
+      'town_hall',
+      candidate.x,
+      candidate.z,
+      context(
+        [...olderRemoteLandmarks, ...connectedLandmarks],
+        24,
+        multiParishRoads,
+      ),
+    ).ok,
+    true,
+    'older civic landmarks on another road branch must not hide a connected chapel and marketplace',
+  );
+
+  const manyLandmarks = Array.from({ length: 500 }, (_, index) => (
+    building(
+      index % 2 === 0 ? 'chapel' : 'marketplace',
+      `civic-${index}`,
+      index % 2 === 0 ? 0 : 80,
+      index < 498 ? 80 : 12,
+    )
+  ));
+  const batchedStartedAt = performance.now();
+  for (let index = 0; index < 100; index += 1) {
+    assert.equal(
+      validateBuildingPlacement(
+        'town_hall',
+        candidate.x,
+        candidate.z,
+        context(manyLandmarks, 24, multiParishRoads),
+      ).ok,
+      true,
+    );
+  }
+  const batchedElapsedMs = performance.now() - batchedStartedAt;
+  assert.ok(
+    batchedElapsedMs < 1_000,
+    `100 multi-parish civic checks should remain interactive (took ${batchedElapsedMs.toFixed(1)} ms)`,
+  );
 }
 
 testClearanceSpatialIndexKeepsNearbyCandidates();
@@ -418,6 +490,16 @@ const buildToolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 const buildChrome = readFileSync('src/ui/buildChrome.css', 'utf8');
 const buildingMarkers = readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
 
+assert.match(
+  buildingReducer,
+  /civic_landmarks[\s\S]*road_path_distances_from\(x, z, &civic_points\)[\s\S]*linked_chapel[\s\S]*linked_marketplace/,
+  'authoritative Town Hall placement should batch every completed civic landmark and accept any linked chapel and market',
+);
+assert.doesNotMatch(
+  buildingReducer,
+  /road_path_distance\(x, z, chapel\.x, chapel\.z\)/,
+  'authoritative Town Hall placement must not bind the civic gate to one arbitrary chapel',
+);
 assert.match(
   buildingTool,
   /if \(!validation\.ok\)[\s\S]*describePlacementFailure\?\.\([\s\S]*validation\.reason/,
