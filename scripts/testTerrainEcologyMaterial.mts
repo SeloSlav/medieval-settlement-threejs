@@ -99,8 +99,8 @@ assert.doesNotMatch(
 );
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,
-  17,
-  'the ecological pass must not add terrain texture reads',
+  22,
+  'layered close soil must retain its bounded multi-scale texture budget',
 );
 assert.equal(
   (source.match(/\bsin\(/g) ?? []).length,
@@ -123,6 +123,26 @@ assert.match(
 );
 assert.match(source, /buildTerrainWetMask\(weatherMoisture,\s*weather\)/);
 assert.match(source, /const rainDirtVisibility = mix/);
+assert.match(source, /function buildLayeredDirtGroundNodes/);
+assert.match(source, /const broadUv = grassUv\.mul\(float\(1\.72\)/);
+assert.match(source, /const detailUv = grassUv\.mul\(float\(6\.4\)/);
+assert.match(source, /const pebbleUv = grassUv\.mul\(float\(3\.35\)/);
+assert.match(source, /const bumpHeight = broadHeight/);
+assert.match(source, /bumpMap\(\s*bumpHeight/);
+assert.match(source, /vec3\(0\.58, 0\.46, 0\.33\)/);
+assert.match(
+  source,
+  /const dirtSurfaceAmount = smoothstep\(\s*float\(0\.14\)[\s\S]*?float\(0\.68\)/,
+  'normal close-orbit framing must complete the brown soil handoff',
+);
+assert.match(source, /dirtSurface\.normalNode/);
+assert.match(source, /dirtSurface\.roughnessNode/);
+assert.match(source, /dirtSurface\.aoNode/);
+assert.doesNotMatch(
+  source,
+  /texture\(roadTextures\.(?:normal|ao|height)/,
+  'layered soil must reuse existing bindings instead of exceeding portable WebGPU texture limits',
+);
 assert.match(source, /applyTerrainRainHaze/);
 assert.match(source, /const flatFrostExposure = mix/);
 assert.match(source, /const broadFrostExposure = smoothstep/);
@@ -143,7 +163,7 @@ assert.match(
 );
 assert.match(
   source,
-  /applyCloseZoomDirtBlend\([\s\S]*?weatherResolvedShoreBlend/,
+  /buildCloseZoomDirtAmount\([\s\S]*?weatherResolvedShoreBlend/,
 );
 assert.match(
   source,
@@ -151,7 +171,7 @@ assert.match(
 );
 assert.match(
   source,
-  /max\(\s*max\(weatherResolvedShoreBlend,\s*weatherResolvedRoadWear\)/,
+  /const wornMask = max\(max\(shoreBlend, roadWear\) as TslNode, quarryPad\)/,
 );
 assert.equal(
   TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR,

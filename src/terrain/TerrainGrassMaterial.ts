@@ -1,12 +1,14 @@
 import { MeshStandardNodeMaterial } from 'three/webgpu';
 import {
   attribute,
+  bumpMap,
   cameraPosition,
   float,
   fwidth,
   max,
   mix,
   normalMap,
+  normalize,
   pow,
   positionWorld,
   sin,
@@ -514,9 +516,81 @@ function buildQuarryRockColorNode(textures: TextureSet, grassUv: TslNode): TslNo
   return desaturated.mul(vec3(0.62, 0.6, 0.56) as TslNode).mul(float(0.94) as TslNode);
 }
 
-function buildDirtGroundColorNode(textures: TextureSet, grassUv: TslNode): TslNode {
-  const sample = texture(textures.albedo, grassUv) as TslNode;
-  return sample.rgb.mul(vec3(0.52, 0.42, 0.3) as TslNode);
+function buildLayeredDirtGroundNodes(
+  roadTextures: TextureSet,
+  grassUv: TslNode,
+): {
+  colorNode: TslNode;
+  normalNode: TslNode;
+  roughnessNode: TslNode;
+  aoNode: TslNode;
+} {
+  // Three differently scaled authored soil samples replace the former single
+  // green-shiftable mip tail. Reusing the terrain's existing road albedo and
+  // roughness bindings keeps the WebGPU fragment stage within its 16-texture
+  // portability limit while restoring stones, clods and granular variation.
+  const broadUv = grassUv.mul(float(1.72) as TslNode) as TslNode;
+  const detailUv = grassUv.mul(float(6.4) as TslNode) as TslNode;
+  const pebbleUv = grassUv.mul(float(3.35) as TslNode) as TslNode;
+  const broadColor = texture(roadTextures.albedo, broadUv) as TslNode;
+  const detailColor = texture(roadTextures.albedo, detailUv) as TslNode;
+  const pebbleColor = texture(roadTextures.albedo, pebbleUv) as TslNode;
+  const broadHeight = broadColor.r
+    .mul(float(0.42) as TslNode)
+    .add(broadColor.g.mul(float(0.46) as TslNode))
+    .add(broadColor.b.mul(float(0.12) as TslNode)) as TslNode;
+  const detailHeight = detailColor.r
+    .mul(float(0.42) as TslNode)
+    .add(detailColor.g.mul(float(0.46) as TslNode))
+    .add(detailColor.b.mul(float(0.12) as TslNode)) as TslNode;
+  const layerHeight = broadHeight
+    .mul(float(0.38) as TslNode)
+    .add(detailHeight.mul(float(0.62) as TslNode)) as TslNode;
+  const detailWeight = mix(
+    float(0.22) as TslNode,
+    float(0.52) as TslNode,
+    smoothstep(
+      float(0.34) as TslNode,
+      float(0.7) as TslNode,
+      layerHeight,
+    ) as TslNode,
+  ) as TslNode;
+  const mineralSoil = mix(broadColor.rgb, detailColor.rgb, detailWeight) as TslNode;
+  const brownSoil = mineralSoil.mul(vec3(0.58, 0.46, 0.33) as TslNode);
+  const warmPebbles = pebbleColor.rgb.mul(vec3(0.5, 0.38, 0.26) as TslNode);
+  const colorNode = mix(
+    brownSoil,
+    warmPebbles,
+    float(0.18) as TslNode,
+  ) as TslNode;
+
+  const bumpHeight = broadHeight
+    .mul(float(0.34) as TslNode)
+    .add(detailHeight.mul(float(0.66) as TslNode)) as TslNode;
+  const normalNode = bumpMap(
+    bumpHeight,
+    float(0.18) as TslNode,
+  ) as TslNode;
+
+  const broadRoughness = (texture(roadTextures.roughness, broadUv) as TslNode).r;
+  const detailRoughness = (texture(roadTextures.roughness, detailUv) as TslNode).r;
+  const pebbleRoughness = (texture(roadTextures.roughness, pebbleUv) as TslNode).r;
+  const mineralRoughness = mix(
+    broadRoughness,
+    detailRoughness,
+    float(0.38) as TslNode,
+  ) as TslNode;
+  const roughnessNode = mix(
+    mineralRoughness,
+    pebbleRoughness,
+    float(0.16) as TslNode,
+  ) as TslNode;
+  const aoNode = mix(
+    float(0.82) as TslNode,
+    float(1) as TslNode,
+    layerHeight,
+  ) as TslNode;
+  return { colorNode, normalNode, roughnessNode, aoNode };
 }
 
 function buildProximityDirtMask(): TslNode {
@@ -535,9 +609,7 @@ function buildProximityDirtMask(): TslNode {
   ) as TslNode;
 }
 
-function applyCloseZoomDirtBlend(
-  meadowColor: TslNode,
-  dirtColor: TslNode,
+function buildCloseZoomDirtAmount(
   shoreBlend: TslNode,
   roadWear: TslNode,
   quarryPad: TslNode,
@@ -556,6 +628,14 @@ function applyCloseZoomDirtBlend(
     .mul(proximity)
     .mul(openGround)
     .mul(rainDirtVisibility) as TslNode;
+  return dirtAmount;
+}
+
+function applyCloseZoomDirtBlend(
+  meadowColor: TslNode,
+  dirtColor: TslNode,
+  dirtAmount: TslNode,
+): TslNode {
   const meadowWeight = sub(float(1) as TslNode, dirtAmount) as TslNode;
   return mix(dirtColor, meadowColor, meadowWeight) as TslNode;
 }
@@ -618,7 +698,10 @@ export function createTerrainGrassMaterialWithRiverShore(
   const resolvedWeather = resolveTerrainWeather(weather);
   const blendNodes = buildGrassBlendNodes(grassTextures, resolvedWeather);
   const mudColor = buildMuddyRoadColorNode(roadTextures, blendNodes.grassUv);
-  const dirtColor = buildDirtGroundColorNode(roadTextures, blendNodes.grassUv);
+  const dirtSurface = buildLayeredDirtGroundNodes(
+    roadTextures,
+    blendNodes.grassUv,
+  );
   const quarryColor = buildQuarryRockColorNode(roadTextures, blendNodes.grassUv);
   const wearColor = buildTrampledWearColorNode(roadTextures, blendNodes.grassUv);
   const shoreBlendRaw = attribute('shoreBlend', 'float') as TslNode;
@@ -650,6 +733,21 @@ export function createTerrainGrassMaterialWithRiverShore(
   // undercoat can quantize into dotted paths once rain smooths the meadow, so
   // fade only that redundant vertex mask with the same sustained-rain gate.
   const weatherResolvedRoadWear = roadWear.mul(shoreRainVisibility) as TslNode;
+  const dirtAmount = buildCloseZoomDirtAmount(
+    weatherResolvedShoreBlend,
+    weatherResolvedRoadWear,
+    quarryPad,
+    resolvedWeather,
+  );
+  // Make the continuous terrain handoff visually complete by the normal
+  // close-orbit framing. SeedThree blade visibility still uses the original
+  // delayed LOD gate, so grass geometry does not alias at overview distance.
+  const dirtSurfaceAmount = smoothstep(
+    float(0.14) as TslNode,
+    float(0.68) as TslNode,
+    dirtAmount,
+  ) as TslNode;
+  const meadowWeight = sub(float(1) as TslNode, dirtSurfaceAmount) as TslNode;
   const shoreUndercoat = weatherResolvedShoreBlend.mul(float(0.58) as TslNode);
   const riparianGrass = applyRiparianEcologyColor(
     blendNodes.colorNode,
@@ -683,19 +781,13 @@ export function createTerrainGrassMaterialWithRiverShore(
   ) as TslNode;
   const baseColorNode = applyCloseZoomDirtBlend(
     meadowWithWear,
-    dirtColor,
-    weatherResolvedShoreBlend,
-    weatherResolvedRoadWear,
-    quarryPad,
-    resolvedWeather,
+    dirtSurface.colorNode,
+    dirtSurfaceAmount,
   );
   const stableBaseColorNode = applyCloseZoomDirtBlend(
     stableMeadowWithWear,
-    dirtColor,
-    weatherResolvedShoreBlend,
-    weatherResolvedRoadWear,
-    quarryPad,
-    resolvedWeather,
+    dirtSurface.colorNode,
+    dirtSurfaceAmount,
   );
   const wetBaseColorNode = applyTerrainWetColor(
     baseColorNode,
@@ -720,7 +812,6 @@ export function createTerrainGrassMaterialWithRiverShore(
   const muddyRoughness = mix(roadRoughness, float(0.58) as TslNode, float(0.42) as TslNode);
   const quarryRoughness = mix(roadRoughness, float(0.84) as TslNode, float(0.46) as TslNode);
   const wornRoughness = mix(roadRoughness, float(0.72) as TslNode, float(0.38) as TslNode);
-  const dirtRoughness = mix(roadRoughness, float(0.82) as TslNode, float(0.24) as TslNode);
   const roughnessWithShore = mix(blendNodes.roughnessNode, muddyRoughness, shoreUndercoat);
   const roughnessWithQuarry = mix(roughnessWithShore, quarryRoughness, quarryPad);
   const roughnessWithWear = mix(
@@ -728,27 +819,8 @@ export function createTerrainGrassMaterialWithRiverShore(
     wornRoughness,
     weatherResolvedRoadWear,
   );
-  const zoomGate = attribute('dirtZoomGate', 'float') as TslNode;
-  const proximity = buildProximityDirtMask();
-  const openGround = sub(
-    float(1) as TslNode,
-    max(
-      max(weatherResolvedShoreBlend, weatherResolvedRoadWear) as TslNode,
-      quarryPad,
-    ) as TslNode,
-  ) as TslNode;
-  const rainDirtVisibility = mix(
-    float(1) as TslNode,
-    float(TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR) as TslNode,
-    resolvedWeather.wetness,
-  ) as TslNode;
-  const dirtAmount = zoomGate
-    .mul(proximity)
-    .mul(openGround)
-    .mul(rainDirtVisibility) as TslNode;
-  const meadowWeight = sub(float(1) as TslNode, dirtAmount) as TslNode;
   const baseRoughnessNode = mix(
-    dirtRoughness,
+    dirtSurface.roughnessNode,
     roughnessWithWear as TslNode,
     meadowWeight as TslNode,
   ) as TslNode;
@@ -765,8 +837,18 @@ export function createTerrainGrassMaterialWithRiverShore(
   material.roughness = 1;
   material.metalness = 0;
   material.colorNode = colorNode;
-  material.normalNode = blendNodes.normalNode;
+  material.normalNode = normalize(
+    mix(
+      blendNodes.normalNode,
+      dirtSurface.normalNode,
+      dirtSurfaceAmount,
+    ) as TslNode,
+  ) as TslNode;
   material.roughnessNode = roughnessNode;
-  material.aoNode = blendNodes.aoNode;
+  material.aoNode = mix(
+    blendNodes.aoNode,
+    dirtSurface.aoNode,
+    dirtSurfaceAmount,
+  ) as TslNode;
   return material;
 }

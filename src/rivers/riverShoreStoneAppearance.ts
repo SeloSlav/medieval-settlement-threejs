@@ -33,12 +33,10 @@ export function computeShoreStoneVisualScale(x: number, z: number): number {
   const detail = valueNoise2(x * 0.115 - 8.3, z * 0.115 + 13.1);
   const individual = valueNoise2(x * 0.39 + 5.8, z * 0.39 - 19.2);
   const clustered = smoothstep(0.46, 0.72, cluster);
-  const presenceNoise = valueNoise2(x * 0.061 - 11.6, z * 0.061 + 7.2);
-  const presence = smoothstep(0.58, 0.79, presenceNoise);
-  const individualPresence = 0.18 + smoothstep(0.16, 0.9, individual) * 0.82;
-  const clusteredPresence = Math.pow(clustered * presence * individualPresence, 1.18);
-  const scale = 0.06 + (1.28 - 0.06) * clusteredPresence * (0.62 + detail * 0.54);
-  return Math.max(0.06, Math.min(1.28, scale));
+  // Scale variation must never double as a visibility mask: shrinking most
+  // instances to six percent made the otherwise populated banks look empty.
+  const scale = 0.58 + clustered * 0.3 + detail * 0.2 + individual * 0.12;
+  return Math.max(0.58, Math.min(1.2, scale));
 }
 
 export function computeShoreStoneTint(x: number, z: number): number {

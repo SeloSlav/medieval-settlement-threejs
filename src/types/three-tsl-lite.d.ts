@@ -40,6 +40,7 @@ declare module 'three/tsl' {
   export function attribute(name: string, type: string): unknown;
   export function vertexColor(index?: number): unknown;
   export function normalMap(node: unknown, scaleNode?: unknown): unknown;
+  export function bumpMap(node: unknown, scaleNode?: unknown): unknown;
   export function float(value: number): unknown;
   export function max(a: unknown, b: unknown): unknown;
   export function mix(a: unknown, b: unknown, t: unknown): unknown;

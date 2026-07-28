@@ -4,7 +4,7 @@
  * Set this to false to keep the existing bloom/day-night grade without the
  * painterly palette, pigment texture, and dark contour treatment.
  */
-export const CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED = true;
+export const CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED = false;
 
 export const CROATIAN_NAIVE_ART_NEIGHBOR_SAMPLE_COUNT = 5;
 export const CROATIAN_NAIVE_ART_FULL_RAIN_TREATMENT_RETENTION = 0.04;

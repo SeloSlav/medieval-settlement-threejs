@@ -13,8 +13,8 @@ import { buildGradeGlslFragmentShader } from '../src/scene/postGradeShader.ts';
 
 assert.equal(
   CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED,
-  true,
-  'the Croatian naïve-art treatment should ship enabled',
+  false,
+  'the Croatian naïve-art treatment must remain disabled',
 );
 
 const enabledShader = buildGradeGlslFragmentShader(true);
@@ -40,6 +40,8 @@ assert.doesNotMatch(disabledShader, /applyCroatianNaiveArtTone/);
 assert.doesNotMatch(disabledShader, /naiveArtBilateralWeight/);
 assert.doesNotMatch(disabledShader, /naiveArtPaperNoise/);
 assert.match(disabledShader, /color = adjustSaturation\(color, saturation\)/);
+const defaultShader = buildGradeGlslFragmentShader();
+assert.doesNotMatch(defaultShader, /buildCroatianNaiveArtBasis|applyCroatianNaiveArtTone/);
 
 assert.equal(
   CROATIAN_NAIVE_ART_NEIGHBOR_SAMPLE_COUNT,

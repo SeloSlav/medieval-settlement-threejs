@@ -146,8 +146,8 @@ assert.ok(computeWaterFeatherAlpha(0.2) < computeWaterFeatherAlpha(0.96));
 
 const stoneVisualA = computeShoreStoneVisualScale(12, -8);
 const stoneVisualB = computeShoreStoneVisualScale(25, 17);
-assert.ok(stoneVisualA >= 0.06 && stoneVisualA <= 1.28);
-assert.ok(stoneVisualB >= 0.06 && stoneVisualB <= 1.28);
+assert.ok(stoneVisualA >= 0.58 && stoneVisualA <= 1.2);
+assert.ok(stoneVisualB >= 0.58 && stoneVisualB <= 1.2);
 assert.notEqual(stoneVisualA, stoneVisualB);
 const stoneTint = computeShoreStoneTint(12, -8);
 assert.ok(stoneTint >= 0.5 && stoneTint <= 0.88);
@@ -246,6 +246,10 @@ const reedSource = readFileSync(
   `${projectRoot}src/rivers/RiverReeds.ts`,
   'utf8',
 );
+const shoreStoneSource = readFileSync(
+  `${projectRoot}src/rivers/RiverShoreStones.ts`,
+  'utf8',
+);
 assert.match(
   reedSource,
   /reedLodOpacity\(reedLod\)\s*\*\s*REED_PEAK_OPACITY/,
@@ -260,6 +264,16 @@ assert.equal(
   (reedSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
   1,
   'reed LOD must retain the existing single instanced draw',
+);
+assert.doesNotMatch(
+  shoreStoneSource,
+  /buildRiverShoreCrossingGaps|isInRiverShoreCrossingGap|rng\(\) > chance/,
+  'river-bank stones must not contain pre-cut or stochastic empty stretches',
+);
+assert.match(
+  shoreStoneSource,
+  /placementIndex\.hasPointWithin\(x, z, 0\.72 \+ scale \* 0\.38\)/,
+  'river-bank stones must retain dense non-overlapping continuous placement',
 );
 assert.match(waterMaterialSource, /vec3\(0\.02,\s*0\.043,\s*0\.055\)/);
 assert.match(

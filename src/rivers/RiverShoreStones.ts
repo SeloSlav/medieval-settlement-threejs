@@ -12,7 +12,6 @@ import {
   type RockObstacle,
 } from '../utils/pathGeometry.ts';
 import type { RiverField } from './RiverField.ts';
-import { buildRiverShoreCrossingGaps, isInRiverShoreCrossingGap } from './RiverShoreCrossingGaps.ts';
 import {
   computeShoreStoneMoss,
   computeShoreStoneTint,
@@ -223,7 +222,6 @@ function indexSetsEqual(left: ReadonlySet<number>, right: ReadonlySet<number>): 
 function createShoreStonePlacements(riverField: RiverField, rng: () => number): StonePlacement[] {
   const placements: StonePlacement[] = [];
   const placementIndex = new SpatialHash2D<StonePlacement>(3);
-  const crossingGaps = buildRiverShoreCrossingGaps(riverField.layout);
   const { resolution, startX, startZ, stepX, stepZ } = riverField;
 
   for (let gridZ = 0; gridZ < resolution; gridZ++) {
@@ -242,14 +240,11 @@ function createShoreStonePlacements(riverField: RiverField, rng: () => number): 
       const x = wx + jitterX;
       const z = wz + jitterZ;
       if (riverField.isWaterAt(x, z)) continue;
-      if (isInRiverShoreCrossingGap(riverField.layout, crossingGaps, x, z)) continue;
-
-      const bankNoise = valueNoise2(x * 0.08 + 14.2, z * 0.08 - 6.4);
-      const chance = THREE.MathUtils.clamp(0.18 + (1 - shore / 5.4) * 0.42 + bankNoise * 0.22, 0.08, 0.72);
-      if (rng() > chance) continue;
 
       const scale = THREE.MathUtils.lerp(0.42, 1.35, Math.pow(rng(), 1.55));
-      if (placementIndex.hasPointWithin(x, z, 1.8 + scale * 1.1)) continue;
+      // Populate every eligible bank segment. Spatial separation still avoids
+      // overlap, but there are no stochastic or pre-cut crossing holes.
+      if (placementIndex.hasPointWithin(x, z, 0.72 + scale * 0.38)) continue;
       const placement = { x, z, scale };
       placements.push(placement);
       placementIndex.add(placement);
@@ -280,27 +275,6 @@ function createBoulderGeometry(seed: number): THREE.BufferGeometry {
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   return geometry;
-}
-
-function valueNoise2(x: number, z: number): number {
-  const x0 = Math.floor(x);
-  const z0 = Math.floor(z);
-  const fx = x - x0;
-  const fz = z - z0;
-  const ux = fx * fx * (3 - 2 * fx);
-  const uz = fz * fz * (3 - 2 * fz);
-  const a = hashGrid2(x0, z0);
-  const b = hashGrid2(x0 + 1, z0);
-  const c = hashGrid2(x0, z0 + 1);
-  const d = hashGrid2(x0 + 1, z0 + 1);
-  const x0Lerp = a + (b - a) * ux;
-  const x1Lerp = c + (d - c) * ux;
-  return x0Lerp + (x1Lerp - x0Lerp) * uz;
-}
-
-function hashGrid2(x: number, z: number): number {
-  const value = Math.sin(x * 127.1 + z * 311.7) * 43758.5453123;
-  return value - Math.floor(value);
 }
 
 function stableSurfaceNoise(point: THREE.Vector3, seed: number): number {
