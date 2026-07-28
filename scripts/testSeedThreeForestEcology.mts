@@ -68,6 +68,16 @@ const source = readFileSync(
 assert.match(source, /const sprayWhorls = \[[\s\S]*count: 4[\s\S]*count: 3[\s\S]*count: 3/);
 assert.match(source, /new ConeGeometry\(1\.08, 1\.02, 12, 2\)/);
 assert.match(source, /const crownPalette = \[0x2f5339, 0x274833, 0x385b3c\]/);
+assert.doesNotMatch(
+  source,
+  /attribute\('instanceColor'/,
+  'instanceColor is an InstancedMesh varying and must not be read as a zero-valued geometry attribute',
+);
+assert.match(
+  source,
+  /NodeMaterial automatically multiplies colorNode[\s\S]*material\.colorNode = mix\(vec3\(0\.92, 0\.78, 0\.6\), vec3\(1\), seasonalLeaf\)/,
+  'the material must defer palette application to Three NodeMaterial’s built-in instance-color path',
+);
 
 console.log(JSON.stringify({
   crownTriangles,
@@ -78,3 +88,56 @@ console.log(JSON.stringify({
   saplings: built.stats.counts.saplings,
 }));
 built.dispose();
+
+const understoryCount = 12;
+const understoryBuilt = buildForestEdgeEcology({
+  anchorCount: understoryCount,
+  saplings: [],
+  understory: Array.from({ length: understoryCount }, (_, index) => ({
+    x: 70 + index,
+    z: 55 + index * 0.75,
+    scale: 1,
+    rotation: index * 0.41,
+    variant: index % 3,
+    sourceIndex: index,
+  })),
+  deadwood: [],
+  litter: [],
+}, { getHeightAt: () => 0 });
+assert.equal(understoryBuilt.stats.draws, 1, 'all understory shrubs must remain one instanced draw');
+assert.equal(understoryBuilt.stats.instances, understoryCount);
+const understory = understoryBuilt.group.getObjectByName(
+  'SeedThree ecology beech-fir understory clusters',
+) as THREE.InstancedMesh;
+assert.ok(understory?.isInstancedMesh);
+assert.equal(understory.count, understoryCount);
+assert.ok(
+  understory.instanceColor,
+  'the built-in InstancedMesh color varying must carry the authored shrub palette',
+);
+const understoryTriangles = understory.geometry.index!.count / 3;
+assert.ok(
+  understoryTriangles >= 250,
+  'rounded foliage lobes and woody twigs must replace the old 40-triangle cone cluster',
+);
+const seasonalLeaf = understory.geometry.getAttribute('aSeasonalLeaf');
+const seasonalValues = new Set(Array.from(seasonalLeaf.array));
+assert.deepEqual(
+  [...seasonalValues].sort(),
+  [0, 1],
+  'one geometry must distinguish retained woody twigs from dormant foliage',
+);
+const deciduousInstances = understory.geometry.getAttribute('aDeciduous');
+assert.deepEqual(
+  [...new Set(Array.from(deciduousInstances.array))].sort(),
+  [0, 1],
+  'the existing fir variant must remain evergreen while both broadleaf variants enter dormancy',
+);
+assert.equal(understoryBuilt.setDeciduousDormancy(1), true);
+assert.equal(
+  (understory.material as THREE.Material).userData.forestSeasonalDormancy.value,
+  1,
+  'winter must drop only the deciduous understory foliage in the existing draw',
+);
+assert.equal(understoryBuilt.setDeciduousDormancy(1), false);
+understoryBuilt.dispose();

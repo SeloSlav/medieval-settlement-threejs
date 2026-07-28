@@ -5,19 +5,22 @@ import {
 } from '../resources/types.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import {
-  STOREHOUSE_COMMODITIES,
+  isStorehouseCommodity,
   storehouseAcceptsCommodity,
   storehouseFilteredCollectionHeadroom,
-  type StorehouseCommodity,
 } from '../economy/storehousePolicy.ts';
-import type { DeliveryTripState } from './deliveryTrips.ts';
+import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
+import type {
+  DeliveryCargoKind,
+  DeliveryTripState,
+} from './deliveryTrips.ts';
 
 export type FoundingStockyardBlocker =
   | 'active-trip'
   | 'shelters'
   | 'empty'
   | 'reserved'
-  | 'no-storehouse'
+  | 'no-storage'
   | 'intake-disabled'
   | 'target-full'
   | 'fire'
@@ -26,11 +29,13 @@ export type FoundingStockyardBlocker =
   | 'labor'
   | 'ready';
 
+export type FoundingRelocationCommodity = Exclude<DeliveryCargoKind, 'gold'>;
+
 export type FoundingStockyardRelocationPlan = {
   blocker: FoundingStockyardBlocker;
   pendingAmount: number;
   relocatableAmount: number;
-  commodity: StorehouseCommodity | null;
+  commodity: FoundingRelocationCommodity | null;
   targetBuildingId: string | null;
   targetRoom: number;
   routeDistance: number | null;
@@ -53,23 +58,40 @@ export type FoundingStockyardPlanInput = {
 };
 
 const EPSILON = 1e-6;
+export const FOUNDING_RELOCATION_COMMODITIES = [
+  'timber',
+  'stone',
+  'firewood',
+  'food',
+  'grain',
+  'flour',
+  'preservedFood',
+  'ale',
+  'honey',
+  'wine',
+  'cloth',
+  'wool',
+  'ironwork',
+  'polearms',
+  'water',
+] as const satisfies readonly FoundingRelocationCommodity[];
 
 function finiteStock(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, value as number) : 0;
 }
 
 function materialStock(
-  building: Pick<BuildingState, 'timber' | 'stone' | 'firewood'>,
-  commodity: StorehouseCommodity,
+  building: BuildingState,
+  commodity: FoundingRelocationCommodity,
 ): number {
   return finiteStock(building[commodity]);
 }
 
 function reservedPhysicalMaterial(
   state: Pick<GameState, 'buildings' | 'residences'>,
-  commodity: StorehouseCommodity,
+  commodity: FoundingRelocationCommodity,
 ): number {
-  if (commodity === 'firewood') return 0;
+  if (commodity !== 'timber' && commodity !== 'stone') return 0;
   let reserved = 0;
   for (const building of state.buildings.values()) {
     if (building.constructionComplete !== false) continue;
@@ -94,6 +116,77 @@ function reservedPhysicalMaterial(
   return reserved;
 }
 
+function commodityCapacity(
+  building: BuildingState,
+  commodity: FoundingRelocationCommodity,
+): number {
+  const capacities = BUILDING_STORAGE_CAPS[building.kind] as Partial<
+    Record<FoundingRelocationCommodity, number>
+  >;
+  return finiteStock(capacities[commodity]);
+}
+
+function foundingDestinationPriority(
+  commodity: FoundingRelocationCommodity,
+  building: BuildingState,
+): number | null {
+  if (isStorehouseCommodity(commodity)) {
+    return building.kind === 'village_storehouse' ? 0 : null;
+  }
+  switch (commodity) {
+    case 'food':
+    case 'grain':
+    case 'flour':
+    case 'preservedFood':
+      if (building.kind === 'granary') return 0;
+      if (building.kind === 'marketplace') return 1;
+      return 3;
+    case 'ale':
+    case 'honey':
+    case 'wine':
+      if (building.kind === 'marketplace') return 0;
+      if (building.kind === 'monastery') return 1;
+      return 3;
+    case 'ironwork':
+      if (building.kind === 'carpenter') return 0;
+      if (building.kind === 'marketplace') return 1;
+      return 3;
+    case 'polearms':
+      if (building.kind === 'guardhouse') return 0;
+      if (building.kind === 'carpenter') return 1;
+      return 3;
+    case 'wool':
+      if (building.kind === 'weaver') return 0;
+      if (building.kind === 'pastoral_farmstead') return 1;
+      return 3;
+    case 'cloth':
+      if (building.kind === 'marketplace') return 0;
+      if (building.kind === 'weaver') return 1;
+      return 3;
+    case 'water':
+      return building.kind === 'well' ? 0 : 2;
+    default: {
+      const unreachable: never = commodity;
+      return unreachable;
+    }
+  }
+}
+
+function foundingDestinationRoom(
+  building: BuildingState,
+  commodity: FoundingRelocationCommodity,
+): number {
+  if (isStorehouseCommodity(commodity)) {
+    return building.kind === 'village_storehouse'
+      ? storehouseFilteredCollectionHeadroom(building, commodity)
+      : 0;
+  }
+  return Math.max(0, commodityCapacity(building, commodity) - materialStock(
+    building,
+    commodity,
+  ));
+}
+
 function compareStableBuildingIds(a: string, b: string): number {
   const numericA = /^\d+$/.test(a);
   const numericB = /^\d+$/.test(b);
@@ -107,7 +200,7 @@ function emptyPlan(
   blocker: FoundingStockyardBlocker,
   pendingAmount: number,
   relocatableAmount: number,
-  commodity: StorehouseCommodity | null = null,
+  commodity: FoundingRelocationCommodity | null = null,
 ): FoundingStockyardRelocationPlan {
   return {
     blocker,
@@ -122,13 +215,14 @@ function emptyPlan(
 
 /**
  * Mirrors the authoritative founding-yard relocation rule for readable UI.
- * It is deliberately one pass per material and keeps exact road routing in the
- * supplied query so the planner does not create a second network cache.
+ * It is deliberately one pass per stocked commodity and keeps exact road
+ * routing in the supplied query so the planner does not create a second
+ * network cache.
  */
 export function planFoundingStockyardRelocation(
   input: FoundingStockyardPlanInput,
 ): FoundingStockyardRelocationPlan {
-  const pendingAmount = STOREHOUSE_COMMODITIES.reduce(
+  const pendingAmount = FOUNDING_RELOCATION_COMMODITIES.reduce(
     (sum, commodity) => sum + materialStock(input.camp, commodity),
     0,
   );
@@ -142,14 +236,13 @@ export function planFoundingStockyardRelocation(
     return emptyPlan('empty', 0, 0);
   }
 
-  const storehouses = Array.from(input.state.buildings.values()).filter(
+  const destinations = Array.from(input.state.buildings.values()).filter(
     (building) =>
-      building.kind === 'village_storehouse'
+      building.id !== input.camp.id
+      && building.kind !== 'founders_camp'
+      && building.kind !== 'salvage_pile'
       && building.constructionComplete !== false,
   );
-  if (storehouses.length === 0) {
-    return emptyPlan('no-storehouse', pendingAmount, pendingAmount);
-  }
 
   const inboundTargets = new Set<string>();
   for (const trip of input.state.deliveryTrips.values()) {
@@ -160,14 +253,16 @@ export function planFoundingStockyardRelocation(
   const fireDisabled = fireDisabledBuildingIds(input.state.fireIncidents.values());
 
   let relocatableAmount = 0;
-  let firstPendingCommodity: StorehouseCommodity | null = null;
+  let firstPendingCommodity: FoundingRelocationCommodity | null = null;
+  let firstRelocatableCommodity: FoundingRelocationCommodity | null = null;
+  let hasCompatibleStorage = false;
   let hasAcceptedIntake = false;
   let hasTargetRoom = false;
   let hasFireAvailableRoom = false;
   let hasReceivingAvailableRoom = false;
   let hasRoadRoute = false;
 
-  for (const commodity of STOREHOUSE_COMMODITIES) {
+  for (const commodity of FOUNDING_RELOCATION_COMMODITIES) {
     const stock = materialStock(input.camp, commodity);
     if (stock <= EPSILON) continue;
     firstPendingCommodity ??= commodity;
@@ -177,37 +272,54 @@ export function planFoundingStockyardRelocation(
     );
     relocatableAmount += relocatable;
     if (relocatable <= EPSILON) continue;
+    firstRelocatableCommodity ??= commodity;
 
     let best:
-      | { building: BuildingState; room: number; distance: number }
+      | { building: BuildingState; priority: number; room: number; distance: number }
       | null = null;
-    for (const storehouse of storehouses) {
-      if (!storehouseAcceptsCommodity(storehouse, commodity)) continue;
+    for (const destination of destinations) {
+      const priority = foundingDestinationPriority(commodity, destination);
+      if (priority === null || commodityCapacity(destination, commodity) <= EPSILON) {
+        continue;
+      }
+      hasCompatibleStorage = true;
+      if (
+        isStorehouseCommodity(commodity)
+        && !storehouseAcceptsCommodity(destination, commodity)
+      ) {
+        continue;
+      }
       hasAcceptedIntake = true;
-      const room = storehouseFilteredCollectionHeadroom(storehouse, commodity);
+      const room = foundingDestinationRoom(destination, commodity);
       if (room <= EPSILON) continue;
       hasTargetRoom = true;
-      if (fireDisabled.has(storehouse.id)) continue;
+      if (fireDisabled.has(destination.id)) continue;
       hasFireAvailableRoom = true;
-      if (inboundTargets.has(storehouse.id)) continue;
+      if (inboundTargets.has(destination.id)) continue;
       hasReceivingAvailableRoom = true;
       const distance = input.roadPathDistance(
         input.camp.x,
         input.camp.z,
-        storehouse.x,
-        storehouse.z,
+        destination.x,
+        destination.z,
       );
       if (distance === null) continue;
       hasRoadRoute = true;
       if (
         best === null
-        || distance < best.distance
+        || priority < best.priority
         || (
-          distance === best.distance
-          && compareStableBuildingIds(storehouse.id, best.building.id) < 0
+          priority === best.priority
+          && (
+            distance < best.distance
+            || (
+              distance === best.distance
+              && compareStableBuildingIds(destination.id, best.building.id) < 0
+            )
+          )
         )
       ) {
-        best = { building: storehouse, room, distance };
+        best = { building: destination, priority, room, distance };
       }
     }
 
@@ -227,12 +339,20 @@ export function planFoundingStockyardRelocation(
   if (relocatableAmount <= EPSILON) {
     return emptyPlan('reserved', pendingAmount, 0, firstPendingCommodity);
   }
+  if (!hasCompatibleStorage) {
+    return emptyPlan(
+      'no-storage',
+      pendingAmount,
+      relocatableAmount,
+      firstRelocatableCommodity,
+    );
+  }
   if (!hasAcceptedIntake) {
     return emptyPlan(
       'intake-disabled',
       pendingAmount,
       relocatableAmount,
-      firstPendingCommodity,
+      firstRelocatableCommodity,
     );
   }
   if (!hasTargetRoom) {
@@ -240,22 +360,22 @@ export function planFoundingStockyardRelocation(
       'target-full',
       pendingAmount,
       relocatableAmount,
-      firstPendingCommodity,
+      firstRelocatableCommodity,
     );
   }
   if (!hasFireAvailableRoom) {
-    return emptyPlan('fire', pendingAmount, relocatableAmount, firstPendingCommodity);
+    return emptyPlan('fire', pendingAmount, relocatableAmount, firstRelocatableCommodity);
   }
   if (!hasReceivingAvailableRoom) {
-    return emptyPlan('receiving', pendingAmount, relocatableAmount, firstPendingCommodity);
+    return emptyPlan('receiving', pendingAmount, relocatableAmount, firstRelocatableCommodity);
   }
   if (!hasRoadRoute) {
     return emptyPlan(
       'disconnected',
       pendingAmount,
       relocatableAmount,
-      firstPendingCommodity,
+      firstRelocatableCommodity,
     );
   }
-  return emptyPlan('target-full', pendingAmount, relocatableAmount, firstPendingCommodity);
+  return emptyPlan('target-full', pendingAmount, relocatableAmount, firstRelocatableCommodity);
 }

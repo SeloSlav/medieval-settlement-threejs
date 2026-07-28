@@ -158,8 +158,19 @@ const riverBankOpacitySource = localFunctionSource(
   roadMaterialSource,
   'buildRiverBankOpacityNode',
 );
+const riverSystemSource = readFileSync(`${projectRoot}src/rivers/RiverSystem.ts`, 'utf8');
 
 assert.match(rendererSource, /Two identical vertical tiles prevent a visible empty band/);
+assert.match(
+  sceneSource,
+  /this\.terrain\.mesh\.receiveShadow\s*=\s*environment\.weather\s*!==\s*'rain'/,
+  'overcast rain must not retain terrain shadow-map dash artifacts',
+);
+assert.match(
+  riverSystemSource,
+  /reedsGroup\.visible\s*=\s*firstPersonActive\s*===\s*true\s*\|\|\s*isReedZoomActive\(cameraDistance\)/,
+  'the parent reed group must enforce close-or-first-person LOD',
+);
 assert.match(rendererSource, /const RAIN_BASE_PARTICLES = 1_800/);
 assert.match(rendererSource, /const SNOW_BASE_PARTICLES = 1_400/);
 assert.match(rendererSource, /const VOLUME_FORWARD_BIAS_FRACTION = 0\.32/);

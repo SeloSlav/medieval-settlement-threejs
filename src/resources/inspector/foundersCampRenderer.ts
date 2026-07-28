@@ -18,7 +18,41 @@ import {
 
 function materialLabel(plan: FoundingStockyardRelocationPlan): string {
   if (plan.commodity === null) return 'material';
-  return plan.commodity[0].toUpperCase() + plan.commodity.slice(1);
+  return cargoKindLabel(plan.commodity);
+}
+
+function storageNeed(plan: FoundingStockyardRelocationPlan): string {
+  switch (plan.commodity) {
+    case 'timber':
+    case 'stone':
+    case 'firewood':
+      return 'a Village Storehouse with intake enabled';
+    case 'food':
+    case 'grain':
+    case 'flour':
+    case 'preservedFood':
+      return 'a Granary or another compatible provision store';
+    case 'ale':
+    case 'honey':
+    case 'wine':
+      return 'a Marketplace, Monastery, or compatible producer';
+    case 'ironwork':
+      return 'a Carpenter or Marketplace';
+    case 'polearms':
+      return 'a Guardhouse or Carpenter';
+    case 'wool':
+      return "a Weaver's Workshop or Pastoral Farmstead";
+    case 'cloth':
+      return "a Marketplace or Weaver's Workshop";
+    case 'water':
+      return 'a Well or water-using workshop';
+    case null:
+      return 'compatible permanent storage';
+    default: {
+      const unreachable: never = plan.commodity;
+      return unreachable;
+    }
+  }
 }
 
 function permanentStorageStatus(
@@ -26,18 +60,22 @@ function permanentStorageStatus(
   activeTrip: ReturnType<InspectorRenderContext['worldQueries']['getActiveDeliveryTrip']>,
   context: InspectorRenderContext,
 ): string {
+  const plannedTarget = plan.targetBuildingId
+    ? context.gameState.buildings.get(plan.targetBuildingId)
+    : null;
+  const plannedTargetLabel = plannedTarget
+    ? context.worldQueries.getBuildingLabel(plannedTarget.kind)
+    : 'compatible storage';
   switch (plan.blocker) {
     case 'active-trip': {
       if (!activeTrip) return 'Handcart active';
       const target = activeTrip.targetBuildingId
         ? context.gameState.buildings.get(activeTrip.targetBuildingId)
         : null;
-      const destination = target?.kind === 'village_storehouse'
-        ? 'Village Storehouse'
-        : target?.kind === 'town_hall'
-          ? 'Town Hall'
-          : 'construction site';
-      return `${cargoKindLabel(activeTrip.cargoKind)} â†’ ${destination} Â· ${formatTripPhaseLabel(activeTrip.phase)}`;
+      const destination = target
+        ? context.worldQueries.getBuildingLabel(target.kind)
+        : 'destination';
+      return `${cargoKindLabel(activeTrip.cargoKind)} → ${destination} · ${formatTripPhaseLabel(activeTrip.phase)}`;
     }
     case 'shelters':
       return 'Relocation begins after every founder has a residence place';
@@ -45,22 +83,22 @@ function permanentStorageStatus(
       return 'Material yard empty';
     case 'reserved':
       return 'Remaining timber and stone are committed to construction or household improvements';
-    case 'no-storehouse':
-      return 'Build a Village Storehouse before clearing the open yard';
+    case 'no-storage':
+      return `Build ${storageNeed(plan)} before clearing ${materialLabel(plan).toLowerCase()}`;
     case 'intake-disabled':
       return `Enable ${materialLabel(plan).toLowerCase()} intake at a Village Storehouse`;
     case 'target-full':
-      return `Create ${materialLabel(plan).toLowerCase()} room or raise a storehouse collection target`;
+      return `Create ${materialLabel(plan).toLowerCase()} room at ${storageNeed(plan)}`;
     case 'fire':
-      return 'Repair a compatible fire-disabled Village Storehouse';
+      return `Repair compatible storage for ${materialLabel(plan).toLowerCase()}`;
     case 'receiving':
-      return 'Compatible storehouses are already receiving another cart';
+      return 'Compatible storage is already receiving another cart';
     case 'disconnected':
-      return 'Connect the camp to a compatible Village Storehouse by road';
+      return `Connect the camp to ${storageNeed(plan)} by road`;
     case 'labor':
-      return `${plan.targetRoom.toFixed(0)} ${materialLabel(plan).toLowerCase()} ready Â· awaiting one free hauler`;
+      return `${plan.targetRoom.toFixed(0)} ${materialLabel(plan).toLowerCase()} ready · awaiting one free hauler for ${plannedTargetLabel}`;
     case 'ready':
-      return `${plan.targetRoom.toFixed(0)} ${materialLabel(plan).toLowerCase()} next Â· nearest storehouse ${plan.routeDistance?.toFixed(0) ?? '?'} m by road`;
+      return `${plan.targetRoom.toFixed(0)} ${materialLabel(plan).toLowerCase()} next · ${plannedTargetLabel} ${plan.routeDistance?.toFixed(0) ?? '?'} m by road`;
     default: {
       const unreachable: never = plan.blocker;
       return unreachable;
@@ -86,7 +124,7 @@ export function renderFoundersCampInspector(
     roadPathDistance: (ax, az, bx, bz) =>
       context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
   });
-  const hasMaterial = relocationPlan.pendingAmount > 1e-6;
+  const hasStock = relocationPlan.pendingAmount > 1e-6 || building.gold > 1e-6;
   const completedTownHall = Array.from(context.gameState.buildings.values()).find(
     (candidate) =>
       candidate.kind === 'town_hall'
@@ -115,7 +153,7 @@ export function renderFoundersCampInspector(
     ? [`Handcart ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()}`, 'active'] as const
     : shelterActive
       ? [`${unhousedFounders} founder${unhousedFounders === 1 ? '' : 's'} awaiting a home`, 'warning'] as const
-      : hasMaterial
+      : hasStock
         ? ['Shelters cleared · founding stores remain', 'ok'] as const
         : ['Empty · awaiting permanent civic storage', 'idle'] as const;
 
@@ -129,6 +167,7 @@ export function renderFoundersCampInspector(
       <li><span>Shelter lifecycle</span><span>${shelterActive ? 'Tents clear after all founders have residence places' : 'All founders rehoused'}</span></li>
       <li><span>Construction supply</span><span>Free workers carry reserved loads by handcart; the founding stockyard can begin off-road</span></li>
       <li><span>Permanent storage</span><span>${permanentStorageStatus(relocationPlan, activeTrip, context)}</span></li>
+      <li><span>Clearance order</span><span>Construction materials move first; provisions, drink, textiles, armaments, and water follow to compatible permanent stores</span></li>
       <li><span>Active cart</span><span>${activeTrip ? formatTripPhaseLabel(activeTrip.phase) : 'None'}</span></li>
       <li><span>Lockbox</span><span>${lockboxStatus}</span></li>
       ${buildingStorageRows(building, building.kind)}

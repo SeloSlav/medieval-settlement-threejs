@@ -40,6 +40,7 @@ import {
 import {
   animateFoundersCampfire,
   FOUNDERS_CAMPFIRE_NAME,
+  FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME,
   FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
   setFoundersCampfireNightLighting,
   setFoundersCampWinterAccumulation,
@@ -480,12 +481,18 @@ function syncBuildingVisualState(
     }
     const stone = marker.getObjectByName('FoundingStoneStockpile');
     if (stone instanceof THREE.Group) {
-      syncStockpileSegments(
+      const visibleCount = syncStockpileSegments(
         stone,
         'FoundingStoneSegment',
         building.stone,
         BUILDING_STORAGE_CAPS.founders_camp.stone,
       );
+      const accumulation = stone.getObjectByName(
+        FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME,
+      );
+      if (accumulation instanceof THREE.InstancedMesh) {
+        accumulation.count = visibleCount;
+      }
     }
     const chest = marker.getObjectByName('FoundingTreasuryChest');
     if (chest) chest.visible = building.gold > 1e-6;

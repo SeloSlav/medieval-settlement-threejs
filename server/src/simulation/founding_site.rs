@@ -7,23 +7,36 @@ use crate::balance_generated::{
     TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
-use crate::economy::{building_commodity_cap, building_commodity_stock, CommodityKind};
+use crate::economy::{
+    building_commodity_cap, building_commodity_room, building_commodity_stock, CommodityKind,
+};
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_building_supply_trip,
 };
+use crate::simulation::reclamation::reclamation_destination_priority;
 use crate::simulation::{GameClock, SimTickContext};
-use crate::storehouse_policy::{
-    compare_storehouse_destination, storehouse_filtered_collection_headroom,
-};
+use crate::storehouse_policy::storehouse_filtered_collection_headroom;
 use crate::tables::Building;
 
 const EPSILON: f64 = 1e-6;
-const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 3] = [
+const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 15] = [
     CommodityKind::Timber,
     CommodityKind::Stone,
     CommodityKind::Firewood,
+    CommodityKind::Food,
+    CommodityKind::Grain,
+    CommodityKind::Flour,
+    CommodityKind::PreservedFood,
+    CommodityKind::Ale,
+    CommodityKind::Honey,
+    CommodityKind::Wine,
+    CommodityKind::Cloth,
+    CommodityKind::Wool,
+    CommodityKind::Ironwork,
+    CommodityKind::Polearms,
+    CommodityKind::Water,
 ];
 
 pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
@@ -137,30 +150,27 @@ fn try_start_stockyard_relocation(
             .owner()
             .filter(&site.owner)
             .filter(|candidate| {
-                candidate.kind == "village_storehouse"
+                candidate.id != site.id
                     && candidate.construction_complete
                     && !tick.building_disabled_by_fire(ctx, candidate.id)
                     && !building_has_inbound_supply_trip(ctx, candidate.id)
-                    && founding_storehouse_room(candidate, commodity) > EPSILON
             })
             .filter_map(|candidate| {
+                let (priority, room) = founding_destination_room(&candidate, commodity)?;
                 let distance =
                     network.road_path_distance(site.x, site.z, candidate.x, candidate.z)?;
-                Some((candidate, distance))
+                Some((candidate, priority, room, distance))
             })
-            .min_by(|(candidate_a, distance_a), (candidate_b, distance_b)| {
-                compare_storehouse_destination(
-                    *distance_a,
-                    candidate_a.id,
-                    *distance_b,
-                    candidate_b.id,
-                )
+            .min_by(|a, b| {
+                a.1.cmp(&b.1)
+                    .then_with(|| a.3.total_cmp(&b.3))
+                    .then_with(|| a.0.id.cmp(&b.0.id))
             })
-            .map(|(candidate, _)| candidate);
-        let Some(target) = target else {
+            .map(|(candidate, _, room, _)| (candidate, room));
+        let Some((target, target_room)) = target else {
             continue;
         };
-        let requested = relocatable.min(founding_storehouse_room(&target, commodity));
+        let requested = relocatable.min(target_room);
         if try_start_building_supply_trip(
             ctx,
             tick,
@@ -179,6 +189,32 @@ fn try_start_stockyard_relocation(
         }
     }
     false
+}
+
+/// Construction materials retain the player's explicit storehouse filters and
+/// collection ceilings. Other portable stock uses the same destination
+/// hierarchy as demolition recovery, but may not bounce back into another
+/// temporary camp or reclamation pile.
+fn founding_destination_room(
+    candidate: &Building,
+    commodity: CommodityKind,
+) -> Option<(u8, f64)> {
+    if matches!(
+        commodity,
+        CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Firewood
+    ) {
+        if candidate.kind != "village_storehouse" {
+            return None;
+        }
+        let room = founding_storehouse_room(candidate, commodity);
+        return (room > EPSILON).then_some((0, room));
+    }
+    if matches!(candidate.kind.as_str(), "founders_camp" | "salvage_pile") {
+        return None;
+    }
+    let priority = reclamation_destination_priority(commodity, &candidate.kind)?;
+    let room = building_commodity_room(candidate, commodity);
+    (room > EPSILON).then_some((priority, room))
 }
 
 fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: CommodityKind) -> f64 {

@@ -70,8 +70,8 @@ const sceneSource = readFileSync(join(root, 'src/scene/SceneManager.ts'), 'utf8'
 
 assert.match(
   forkSource,
-  /greenDominance[\s\S]*leafMask[\s\S]*opacityNode = texel\.a\.mul\(seasonalRetain\)/,
-  'the Seloslav fork must remove green leaf pixels while preserving baked twig pixels',
+  /greenDominance[\s\S]*transmissionLeafMask[\s\S]*greenLeafMask\.max\(transmissionLeafMask\)[\s\S]*opacityNode = texel\.a\.mul\(seasonalRetain\)/,
+  'the fork must use green and leaf-transmission masks so every deciduous bake drops leaves while retaining twigs',
 );
 assert.match(
   builderSource,
@@ -100,8 +100,13 @@ assert.match(
 );
 assert.match(
   builderSource,
-  /douglasFir: \{ tint: \[0\.56, 0\.72, 0\.61\][\s\S]*loblolly: \{ tint: \[0\.52, 0\.69, 0\.57\][\s\S]*pine: \{ tint: \[0\.6, 0\.75, 0\.58\]/,
+  /douglasFir: \{ tint: \[0\.44, 0\.59, 0\.49\][\s\S]*loblolly: \{ tint: \[0\.4, 0\.55, 0\.44\][\s\S]*pine: \{ tint: \[0\.47, 0\.61, 0\.45\]/,
   'overview conifers must retain species-specific dark evergreen tones',
+);
+assert.match(
+  builderSource,
+  /forest\.ecology\.setDeciduousDormancy\(next\)/,
+  'the authoritative winter update must include deciduous forest-edge understory',
 );
 assert.match(
   forkSource,

@@ -7,6 +7,7 @@ import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import {
   animateFoundersCampfire,
   FOUNDERS_CAMPFIRE_NAME,
+  FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME,
   FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
   setFoundersCampfireNightLighting,
   setFoundersCampWinterAccumulation,
@@ -24,10 +25,15 @@ import {
   stockpileVisualLevel,
 } from '../src/buildings/buildingStockpileVisuals.ts';
 import { constructionSourcePriority } from '../src/logistics/constructionLogistics.ts';
-import { planFoundingStockyardRelocation } from '../src/logistics/foundingStockyardLogistics.ts';
+import {
+  FOUNDING_RELOCATION_COMMODITIES,
+  planFoundingStockyardRelocation,
+  type FoundingRelocationCommodity,
+} from '../src/logistics/foundingStockyardLogistics.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import {
   createEmptyStockpile,
+  type BuildingKind,
   type BuildingState,
   type GameState,
   type ResidenceState,
@@ -87,8 +93,8 @@ mesh.traverse((object) => {
 });
 assert.equal(
   winterAccumulation.length,
-  2,
-  'winter coherence should cost only one merged camp layer and one timber instance draw',
+  3,
+  'winter coherence should cost one merged camp layer and two stock-aware instance draws',
 );
 assert.ok(
   winterAccumulation.every((object) => object.visible === false),
@@ -100,18 +106,28 @@ const campAccumulation = winterAccumulation.find(
 const timberAccumulation = mesh.getObjectByName(
   FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
 );
+const stoneAccumulation = mesh.getObjectByName(
+  FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME,
+);
 assert.ok(campAccumulation instanceof THREE.Mesh);
 assert.ok(timberAccumulation instanceof THREE.InstancedMesh);
+assert.ok(stoneAccumulation instanceof THREE.InstancedMesh);
 assert.equal(
   timberAccumulation.count,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
   'winter timber cover must retain one quantity-addressable instance per stock segment',
 );
 assert.equal(
+  stoneAccumulation.count,
+  FOUNDING_STONE_VISUAL_SEGMENTS,
+  'winter stone cover must retain one quantity-addressable instance per stock segment',
+);
+assert.equal(
   campAccumulation.material,
   timberAccumulation.material,
   'camp winter surfaces must reuse one existing shared material',
 );
+assert.equal(campAccumulation.material, stoneAccumulation.material);
 assert.equal(
   (campAccumulation.material as THREE.Material).name,
   'Shared building material: plasterWhite',
@@ -121,6 +137,19 @@ campAccumulation.geometry.computeBoundingBox();
 assert.ok(campAccumulation.geometry.boundingBox!.max.y > 2.3);
 assert.ok(campAccumulation.geometry.boundingBox!.min.x < -4.8);
 assert.ok(campAccumulation.geometry.boundingBox!.max.x > 5);
+const winterTriangles = winterAccumulation.reduce((total, object) => {
+  const meshObject = object as THREE.Mesh;
+  const geometryTriangles = meshObject.geometry.index
+    ? meshObject.geometry.index.count / 3
+    : meshObject.geometry.getAttribute('position').count / 3;
+  return total + geometryTriangles * (
+    meshObject instanceof THREE.InstancedMesh ? meshObject.count : 1
+  );
+}, 0);
+assert.ok(
+  winterTriangles < 1_000,
+  `strengthened camp winter coherence must remain under 1k triangles, got ${winterTriangles}`,
+);
 const heraldicRed = mesh.getObjectByName('Weathered red wool pennant') as THREE.Mesh;
 assert.ok(heraldicRed instanceof THREE.Mesh);
 const heraldicMaterial = heraldicRed.material as THREE.MeshStandardMaterial;
@@ -427,6 +456,159 @@ assert.equal(relocation.targetBuildingId, nearStorehouse.id);
 assert.equal(relocation.targetRoom, 48);
 assert.equal(relocation.routeDistance, 24);
 
+assert.deepEqual(
+  FOUNDING_RELOCATION_COMMODITIES,
+  [
+    'timber',
+    'stone',
+    'firewood',
+    'food',
+    'grain',
+    'flour',
+    'preservedFood',
+    'ale',
+    'honey',
+    'wine',
+    'cloth',
+    'wool',
+    'ironwork',
+    'polearms',
+    'water',
+  ],
+  'every portable non-gold commodity must leave a cleared founding yard by physical cart',
+);
+
+const emptyClearedCamp = {
+  ...clearedCamp,
+  timber: 0,
+  stone: 0,
+  firewood: 0,
+  water: 0,
+  food: 0,
+  grain: 0,
+  flour: 0,
+  ale: 0,
+  preservedFood: 0,
+  honey: 0,
+  wine: 0,
+  wool: 0,
+  cloth: 0,
+  ironwork: 0,
+  polearms: 0,
+} satisfies BuildingState;
+const permanentStorageCases = [
+  ['food', 'granary'],
+  ['grain', 'granary'],
+  ['flour', 'granary'],
+  ['preservedFood', 'granary'],
+  ['ale', 'marketplace'],
+  ['honey', 'marketplace'],
+  ['wine', 'marketplace'],
+  ['cloth', 'marketplace'],
+  ['wool', 'weaver'],
+  ['ironwork', 'carpenter'],
+  ['polearms', 'guardhouse'],
+  ['water', 'well'],
+] as const satisfies readonly [
+  FoundingRelocationCommodity,
+  BuildingKind,
+][];
+
+for (const [commodity, destinationKind] of permanentStorageCases) {
+  const commodityCamp = {
+    ...emptyClearedCamp,
+    [commodity]: 17,
+  } satisfies BuildingState;
+  const destination = {
+    ...nearStorehouse,
+    id: `target-${commodity}`,
+    kind: destinationKind,
+    x: 32,
+  } satisfies BuildingState;
+  const state = {
+    ...relocationState,
+    buildings: new Map([
+      [commodityCamp.id, commodityCamp],
+      [destination.id, destination],
+    ]),
+  } satisfies GameState;
+  const plan = planFoundingStockyardRelocation({
+    state,
+    camp: commodityCamp,
+    availableLabor: 1,
+    roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+  });
+  assert.equal(plan.blocker, 'ready', `${commodity} should be physically recoverable`);
+  assert.equal(plan.commodity, commodity);
+  assert.equal(plan.targetBuildingId, destination.id);
+  const destinationCapacity = (
+    BUILDING_STORAGE_CAPS[destinationKind] as Partial<
+      Record<FoundingRelocationCommodity, number>
+    >
+  )[commodity] ?? 0;
+  assert.equal(plan.targetRoom, Math.min(17, destinationCapacity));
+}
+
+const foodCamp = {
+  ...emptyClearedCamp,
+  food: 20,
+} satisfies BuildingState;
+const closeMarket = {
+  ...nearStorehouse,
+  id: 'close-market',
+  kind: 'marketplace',
+  x: 10,
+} satisfies BuildingState;
+const distantGranary = {
+  ...nearStorehouse,
+  id: 'distant-granary',
+  kind: 'granary',
+  x: 70,
+} satisfies BuildingState;
+const provisionPlan = planFoundingStockyardRelocation({
+  state: {
+    ...relocationState,
+    buildings: new Map([
+      [foodCamp.id, foodCamp],
+      [closeMarket.id, closeMarket],
+      [distantGranary.id, distantGranary],
+    ]),
+  },
+  camp: foodCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.equal(
+  provisionPlan.targetBuildingId,
+  distantGranary.id,
+  'dedicated provision storage must outrank a closer marketplace before road distance breaks ties',
+);
+
+const strandedClothCamp = {
+  ...emptyClearedCamp,
+  cloth: 12,
+} satisfies BuildingState;
+const strandedClothPlan = planFoundingStockyardRelocation({
+  state: {
+    ...relocationState,
+    buildings: new Map([
+      [strandedClothCamp.id, strandedClothCamp],
+      [emptyTownHall.id, emptyTownHall],
+    ]),
+  },
+  camp: strandedClothCamp,
+  availableLabor: 1,
+  roadPathDistance: () => 10,
+});
+assert.deepEqual(
+  {
+    blocker: strandedClothPlan.blocker,
+    commodity: strandedClothPlan.commodity,
+  },
+  { blocker: 'no-storage', commodity: 'cloth' },
+  'the inspector must identify goods stranded without a compatible permanent store',
+);
+
 const occupiedCampPlan = planFoundingStockyardRelocation({
   state: relocationState,
   camp: { ...clearedCamp, foundingShelterActive: true },
@@ -529,6 +711,36 @@ assert.match(foundingLifecycle, /try_start_stockyard_relocation/);
 assert.match(foundingLifecycle, /storehouse_filtered_collection_headroom/);
 assert.match(foundingLifecycle, /building_has_inbound_supply_trip/);
 assert.match(foundingLifecycle, /relocatable_stock/);
+assert.match(
+  foundingLifecycle,
+  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*15\]/,
+  'all portable non-gold commodities must participate in founding-yard clearance',
+);
+for (const variant of [
+  'Food',
+  'Grain',
+  'Flour',
+  'PreservedFood',
+  'Ale',
+  'Honey',
+  'Wine',
+  'Cloth',
+  'Wool',
+  'Ironwork',
+  'Polearms',
+  'Water',
+]) {
+  assert.match(
+    foundingLifecycle,
+    new RegExp(`CommodityKind::${variant}`),
+    `${variant} must leave the founding yard through the physical relocation loop`,
+  );
+}
+assert.match(
+  foundingLifecycle,
+  /reclamation_destination_priority\(commodity,\s*&candidate\.kind\)/,
+  'founding clearance and demolition recovery must share compatible-store priorities',
+);
 assert.doesNotMatch(
   foundingLifecycle,
   /town_hall\.gold \+= site\.gold|site\.gold = 0\.0/,
@@ -616,6 +828,28 @@ assert.ok(
   `100k-storehouse founding relocation plan took ${relocationElapsedMs.toFixed(1)}ms`,
 );
 
+for (const [id, building] of perfBuildings) {
+  if (id === clearedCamp.id) continue;
+  perfBuildings.set(id, {
+    ...building,
+    kind: 'granary',
+  });
+}
+perfBuildings.set(foodCamp.id, foodCamp);
+const provisionRelocationStarted = performance.now();
+const perfProvisionRelocation = planFoundingStockyardRelocation({
+  state: perfState,
+  camp: foodCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+const provisionRelocationElapsedMs = performance.now() - provisionRelocationStarted;
+assert.equal(perfProvisionRelocation.targetBuildingId, '1');
+assert.ok(
+  provisionRelocationElapsedMs < 1_000,
+  `100k-granary founding relocation plan took ${provisionRelocationElapsedMs.toFixed(1)}ms`,
+);
+
 function gameState(physical: boolean, housed: number): GameState {
   const residences = new Map<string, ResidenceState>();
   if (housed > 0) {
@@ -649,5 +883,6 @@ function gameState(physical: boolean, housed: number): GameState {
 
 console.log(
   `Founding-site logistics, population migration, placement, and visual checks passed `
-  + `(${relocationElapsedMs.toFixed(1)}ms for 100k relocation candidates).`,
+  + `(${relocationElapsedMs.toFixed(1)}ms materials, `
+  + `${provisionRelocationElapsedMs.toFixed(1)}ms provisions for 100k candidates).`,
 );

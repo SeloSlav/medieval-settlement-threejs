@@ -22,6 +22,8 @@ import { markBuildingDetailShadowCaster } from '../buildingShadowProxy.ts';
 export const FOUNDERS_CAMPFIRE_NAME = 'FoundingCampfire';
 export const FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME =
   'Founding timber winter accumulation';
+export const FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME =
+  'Founding stone winter accumulation';
 const FOUNDERS_CAMPFIRE_EMBERS_NAME = 'FoundingCampfireEmbers';
 const FOUNDERS_CAMPFIRE_LIT_SMOKE_NAME = 'FoundingCampfireLitSmoke';
 const FOUNDERS_CAMP_WINTER_ACCUMULATION_NAME =
@@ -94,16 +96,16 @@ function addFoundersCampWinterAccumulation(parent: THREE.Group): void {
 
   // Work surfaces retain deliberately incomplete cover so timber, iron, and
   // canvas continue to identify the camp beneath the pale winter read.
-  addHorizontalWinterPatch(parts, 2.22, 0.3, -1.9, 0.625, -0.15);
-  addHorizontalWinterPatch(parts, 1.54, 0.46, -0.95, 0.86, -2.15, -0.16);
-  addHorizontalWinterPatch(parts, 0.72, 0.52, 5.56, 0.865, -1.42, 0.18);
-  addHorizontalWinterPatch(parts, 0.55, 0.44, 4.65, 0.725, -1.66, -0.12);
-  addHorizontalWinterPatch(parts, 0.48, 0.38, 5.2, 1.315, -1.34, 0.08);
-  addHorizontalWinterPatch(parts, 0.46, 0.1, 2.31, 0.755, -2.12, 0.04);
-  addHorizontalWinterPatch(parts, 0.43, 0.095, 2.69, 0.755, -2.06, -0.05);
-  addHorizontalWinterDisc(parts, 0.42, -4.48, 0.745, -1.2, 9, 0.18);
-  addHorizontalWinterDisc(parts, 0.38, 4.2, 1.195, 1.22, 10, -0.12);
-  addHorizontalWinterDisc(parts, 0.36, 5.28, 1.135, 1.02, 10, 0.16);
+  addHorizontalWinterPatch(parts, 2.28, 0.36, -1.9, 0.63, -0.15);
+  addHorizontalWinterPatch(parts, 1.62, 0.54, -0.95, 0.865, -2.15, -0.16);
+  addHorizontalWinterPatch(parts, 0.82, 0.62, 5.56, 0.87, -1.42, 0.18);
+  addHorizontalWinterPatch(parts, 0.64, 0.52, 4.65, 0.73, -1.66, -0.12);
+  addHorizontalWinterPatch(parts, 0.55, 0.46, 5.2, 1.32, -1.34, 0.08);
+  addHorizontalWinterPatch(parts, 0.6, 0.16, 2.31, 0.76, -2.12, 0.04);
+  addHorizontalWinterPatch(parts, 0.56, 0.15, 2.69, 0.76, -2.06, -0.05);
+  addHorizontalWinterDisc(parts, 0.5, -4.48, 0.75, -1.2, 9, 0.18);
+  addHorizontalWinterDisc(parts, 0.45, 4.2, 1.2, 1.22, 10, -0.12);
+  addHorizontalWinterDisc(parts, 0.43, 5.28, 1.14, 1.02, 10, 0.16);
 
   const geometry = mergeGeometries(parts, false);
   for (const part of parts) part.dispose();
@@ -128,16 +130,17 @@ function createTentRoofFrostGeometry(variant: number): THREE.BufferGeometry {
   const uvs: number[] = [];
   const indices: number[] = [];
   const lengthSegments = 8;
-  const lowerCoverage = [0.62, 0.57, 0.65, 0.59, 0.68, 0.6, 0.64, 0.58, 0.63];
-  const normalOffset = 0.026;
+  const lowerCoverage = [0.37, 0.3, 0.42, 0.33, 0.46, 0.34, 0.4, 0.31, 0.38];
+  const baseOffset = 0.018;
+  const snowDepth = 0.072;
 
   for (const side of [-1, 1] as const) {
     const sideVertexOffset = positions.length / 3;
-    const outward = new THREE.Vector3(
+    const outwardNormal = new THREE.Vector3(
       side * (TENT_RIDGE_Y - TENT_EAVE_Y),
       TENT_HALF_WIDTH,
       0,
-    ).normalize().multiplyScalar(normalOffset);
+    ).normalize();
     for (let lengthIndex = 0; lengthIndex <= lengthSegments; lengthIndex += 1) {
       const v = lengthIndex / lengthSegments;
       const z = THREE.MathUtils.lerp(
@@ -149,38 +152,70 @@ function createTentRoofFrostGeometry(variant: number): THREE.BufferGeometry {
         lengthIndex + variant * 2 + (side > 0 ? 1 : 0)
       ) % lowerCoverage.length;
       const lowerU = lowerCoverage[shiftedIndex]!;
-      for (const u of [lowerU, 0.992]) {
+      for (const [u, offset] of [
+        [lowerU, baseOffset],
+        [lowerU, snowDepth],
+        [0.992, snowDepth * 0.9],
+      ] as const) {
         const endTension = Math.sin(v * Math.PI);
         const sag = Math.sin(u * Math.PI) * endTension * 0.095;
         const fold = Math.sin(v * Math.PI * 7 + side * 0.57)
           * Math.sin(v * Math.PI)
           * (0.025 + (1 - u) * 0.045);
         positions.push(
-          side * (TENT_HALF_WIDTH * (1 - u) + fold * 0.78) + outward.x,
+          side * (TENT_HALF_WIDTH * (1 - u) + fold * 0.78)
+            + outwardNormal.x * offset,
           THREE.MathUtils.lerp(TENT_EAVE_Y, TENT_RIDGE_Y, u)
             - sag
             + fold * 0.42
-            + outward.y,
+            + outwardNormal.y * offset,
           z,
         );
         uvs.push(v * 1.7, u * 1.7);
       }
     }
     for (let segment = 0; segment < lengthSegments; segment += 1) {
-      const a = sideVertexOffset + segment * 2;
-      const b = a + 1;
-      const c = a + 2;
-      const d = a + 3;
-      if (side > 0) indices.push(a, c, b, b, c, d);
-      else indices.push(a, b, c, b, d, c);
+      const base = sideVertexOffset + segment * 3;
+      const surface = base + 1;
+      const ridge = base + 2;
+      const nextBase = base + 3;
+      const nextSurface = base + 4;
+      const nextRidge = base + 5;
+      if (side > 0) {
+        indices.push(
+          surface, nextSurface, ridge,
+          ridge, nextSurface, nextRidge,
+        );
+      } else {
+        indices.push(
+          surface, ridge, nextSurface,
+          ridge, nextRidge, nextSurface,
+        );
+      }
+      // Both windings keep the thin jagged snow lip legible from the high
+      // overview and the low walk camera without a second material/draw.
+      indices.push(
+        base, surface, nextBase,
+        surface, nextSurface, nextBase,
+        base, nextBase, surface,
+        surface, nextBase, nextSurface,
+      );
     }
   }
 
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
+  const mantle = new THREE.BufferGeometry();
+  mantle.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  mantle.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  mantle.setIndex(indices);
+  mantle.computeVertexNormals();
+
+  const ridge = new THREE.CylinderGeometry(0.075, 0.095, 3.76, 6);
+  ridge.rotateX(Math.PI * 0.5);
+  ridge.translate(0, TENT_RIDGE_Y + 0.068, 0);
+  const geometry = mergeGeometries([mantle, ridge], false);
+  mantle.dispose();
+  ridge.dispose();
+  if (!geometry) throw new Error('Could not merge tent winter mantle.');
   return geometry;
 }
 
@@ -193,10 +228,9 @@ function addHorizontalWinterPatch(
   z: number,
   yaw = 0,
 ): void {
-  const geometry = new THREE.PlaneGeometry(width, depth);
-  geometry.rotateX(-Math.PI * 0.5);
+  const geometry = new THREE.BoxGeometry(width, 0.055, depth);
   geometry.rotateY(yaw);
-  geometry.translate(x, y, z);
+  geometry.translate(x, y + 0.018, z);
   parts.push(geometry);
 }
 
@@ -209,18 +243,25 @@ function addHorizontalWinterDisc(
   segments: number,
   yaw: number,
 ): void {
-  const geometry = new THREE.CircleGeometry(radius, segments);
-  geometry.rotateX(-Math.PI * 0.5);
+  const geometry = new THREE.CylinderGeometry(
+    radius * 0.82,
+    radius,
+    0.06,
+    segments,
+  );
   geometry.rotateY(yaw);
-  geometry.translate(x, y, z);
+  geometry.translate(x, y + 0.02, z);
   parts.push(geometry);
 }
 
 function createTimberWinterAccumulationGeometry(): THREE.BufferGeometry {
-  const geometry = new THREE.PlaneGeometry(2.12, 0.12, 4, 1);
-  geometry.rotateX(-Math.PI * 0.5);
-  geometry.translate(0.04, 0.855, -0.025);
+  const geometry = new THREE.BoxGeometry(2.22, 0.065, 0.18);
+  geometry.translate(0.04, 0.865, -0.025);
   return geometry;
+}
+
+function createStoneWinterAccumulationGeometry(): THREE.BufferGeometry {
+  return new THREE.CylinderGeometry(0.29, 0.36, 0.065, 7);
 }
 
 function addCampGrounding(parent: THREE.Group): void {
@@ -1318,20 +1359,46 @@ function addTimberStock(parent: THREE.Group): void {
 function addStoneStock(parent: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'FoundingStoneStockpile';
+  const winterAccumulationPlacements: CampInstance[] = [];
   for (let index = 0; index < FOUNDING_STONE_VISUAL_SEGMENTS; index += 1) {
+    const radius = 0.42 + (index % 3) * 0.08;
+    const position = new THREE.Vector3(
+      3.8 + (index % 4) * 0.62,
+      0.34 + Math.floor(index / 4) * 0.42,
+      -2.8,
+    );
     const stone = addMesh(
       stockpile,
-      new THREE.DodecahedronGeometry(0.42 + (index % 3) * 0.08, 0),
+      new THREE.DodecahedronGeometry(radius, 0),
       stoneMaterial(index % 3 === 0 ? 'light' : 'mid'),
-      new THREE.Vector3(
-        3.8 + (index % 4) * 0.62,
-        0.34 + Math.floor(index / 4) * 0.42,
-        -2.8,
-      ),
+      position,
       new THREE.Euler(index * 0.23, index * 0.41, index * 0.17),
     );
     stone.name = 'FoundingStoneSegment';
+    winterAccumulationPlacements.push({
+      position: new THREE.Vector3(
+        position.x,
+        position.y + radius * 0.76,
+        position.z,
+      ),
+      rotation: new THREE.Euler(0, index * 0.49, 0),
+      scale: new THREE.Vector3(
+        0.88 + (index % 3) * 0.1,
+        1,
+        0.8 + ((index + 1) % 3) * 0.08,
+      ),
+    });
   }
+  const winterAccumulation = addCampInstances(
+    stockpile,
+    FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME,
+    createStoneWinterAccumulationGeometry(),
+    sharedBuildingMaterial('plasterWhite'),
+    winterAccumulationPlacements,
+  );
+  winterAccumulation.visible = false;
+  winterAccumulation.userData.foundersCampWinterAccumulation = true;
+  winterAccumulation.userData.fpNoCollision = true;
   parent.add(stockpile);
 }
 

@@ -118,9 +118,9 @@ const OVERVIEW_CANOPY_TONE: Record<
   whiteOak: { tint: [0.75, 0.84, 0.68], variation: 0.08 },
   redMaple: { tint: [0.72, 0.83, 0.67], variation: 0.08 },
   sweetgum: { tint: [0.76, 0.86, 0.66], variation: 0.07 },
-  douglasFir: { tint: [0.56, 0.72, 0.61], variation: 0.09 },
-  loblolly: { tint: [0.52, 0.69, 0.57], variation: 0.1 },
-  pine: { tint: [0.6, 0.75, 0.58], variation: 0.1 },
+  douglasFir: { tint: [0.44, 0.59, 0.49], variation: 0.08 },
+  loblolly: { tint: [0.4, 0.55, 0.44], variation: 0.09 },
+  pine: { tint: [0.47, 0.61, 0.45], variation: 0.09 },
 };
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -690,6 +690,7 @@ export function setSeedThreeForestDeciduousDormancy(
   for (const material of forest.seasonalCardMaterials) {
     setForestCardDormancy(material, next);
   }
+  forest.ecology.setDeciduousDormancy(next);
 }
 
 export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {

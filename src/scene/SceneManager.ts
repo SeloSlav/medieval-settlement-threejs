@@ -727,6 +727,10 @@ export class SceneManager {
 
   setEnvironment(environment: EnvironmentState): void {
     this.environment = environment;
+    // Overcast rain has no crisp ground shadows. Disabling terrain reception
+    // also prevents sub-pixel shadow-map dashes along the carved river valley;
+    // objects retain their own shading and dry/frost shadowing is unchanged.
+    this.terrain.mesh.receiveShadow = environment.weather !== 'rain';
     this.materials.setEnvironment(environment);
     this.precipitation.setEnvironment(environment);
     this.forestManager?.setDeciduousDormancy(environment.season === 'winter' ? 1 : 0);

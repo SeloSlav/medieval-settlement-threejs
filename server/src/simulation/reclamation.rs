@@ -520,7 +520,10 @@ pub fn step_reclamation_piles(
     }
 }
 
-fn reclamation_destination_priority(commodity: CommodityKind, kind: &str) -> Option<u8> {
+pub(crate) fn reclamation_destination_priority(
+    commodity: CommodityKind,
+    kind: &str,
+) -> Option<u8> {
     match commodity {
         CommodityKind::Gold => match kind {
             "town_hall" => Some(0),

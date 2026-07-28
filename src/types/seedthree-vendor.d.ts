@@ -203,6 +203,7 @@ declare module '@seedthree/core/forest-ecology.js' {
   ): {
     group: THREE.Group;
     stats: ForestEcologyStats;
+    setDeciduousDormancy(amount: number): boolean;
     dispose(): void;
   };
 }
