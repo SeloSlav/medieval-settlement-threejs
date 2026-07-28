@@ -19,6 +19,7 @@ import {
   guardhouseFoodReserveLabel,
   guardhouseMusterResponseBand,
   GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
+  isFrontierAlertActive,
   normalizeGuardhouseFoodReserve,
 } from '../../security/frontierSecurity.ts';
 import {
@@ -31,6 +32,7 @@ import {
 } from '../../security/guardhousePayrollPolicy.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import type { InspectableTarget } from '../types.ts';
+import { gameClock } from '../../world/gameCalendar.ts';
 import {
   buildingCostRows,
   buildingDemolishHint,
@@ -62,6 +64,13 @@ export function renderGuardhouseInspector(
     context.worldQueries.getRoadConditionSpeedMultiplier(),
   );
   const settlement = context.getSettlementSecurity?.();
+  const frontierAlert = settlement
+    ? isFrontierAlertActive(
+        settlement,
+        context.conflictEnabled === true,
+        gameClock(context.gameState.tick).month,
+      )
+    : false;
   const settlementReady = settlement?.readyGuards ?? ready;
   const guardRequirement = settlement?.guardsRequired ?? 0;
   const dailyFood = armed * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY;
@@ -138,6 +147,11 @@ export function renderGuardhouseInspector(
             ] as const
           : foodRunwayDays < PROVISION_WARNING_DAYS
             ? [`Provision reserve low — ${formatProvisionRunway(foodRunwayDays)} on site`, 'warning'] as const
+            : frontierAlert && armed > 0 && muster.linkedTowerId
+              ? [
+                  `Muster underway — ${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} marching to the linked watch`,
+                  'active',
+                ] as const
             : readiness < 0.99
               ? ['Drilling and mustering', 'active'] as const
               : muster.efficiency < 0.999
@@ -167,6 +181,7 @@ export function renderGuardhouseInspector(
       <li><span>Armed guards</span><span>${equippedGuards} / ${building.assignedLabor} equipped${suspendedByFire ? ' · unavailable during fire recovery' : ''}</span></li>
       <li><span>Local readiness</span><span>${Math.round(readiness * 100)}% · ${ready.toFixed(1)} ready</span></li>
       <li><span>Watch muster</span><span>${muster.routeDistance == null ? `No staffed tower by road · ${Math.round(muster.efficiency * 100)}% local response` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
+      <li><span>Alert posture</span><span>${frontierAlert ? muster.linkedTowerId && armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard' : 'guards'} visibly answering the linked watch by road` : 'Frontier alert active, but this company has no equipped road-linked response' : 'Ordinary drill at the guardhouse until raiders are reported during campaign season'}</span></li>
       <li><span>Road conditions</span><span>${roadConditionFeedback}</span></li>
       <li><span>Effective company</span><span>${muster.effectiveReady.toFixed(1)} guards after signal and travel</span></li>
       <li><span>Settlement defense</span><span>${settlementReady.toFixed(1)}${guardRequirement > 0 ? ` / ${guardRequirement.toFixed(1)} required` : ''}</span></li>

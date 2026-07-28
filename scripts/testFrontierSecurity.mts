@@ -13,6 +13,7 @@ import {
 } from '../src/ui/constructionDockToggle.ts';
 import {
   armedGuardCount,
+  computeGuardhouseMusterPlan,
   computeRefugeShelterPlan,
   countHouseholdsShelteredByPalisadedRefuge,
   countSitesProtectedByWatchtower,
@@ -31,6 +32,7 @@ import {
   guardhouseMusterEfficiency,
   guardhouseMusterResponseDistance,
   guardhouseMusterResponseBand,
+  isFrontierAlertActive,
   isFrontierRaidSeason,
   isPalisadedRefugeRallyActive,
   palisadedRefugeEffectiveRadius,
@@ -85,12 +87,21 @@ assert.equal(frontierSettings.enemyPressure, 65);
 assert.equal(PALISADED_REFUGE_RESIDENT_CAPACITY, 32);
 assert.equal(PALISADED_REFUGE_RALLY_THREAT_THRESHOLD, 0.7);
 assert.equal(
+  isFrontierAlertActive(
+    { nextRaidTick: 10_000, threat: 0.7 },
+    true,
+    5,
+  ),
+  true,
+);
+assert.equal(
   isPalisadedRefugeRallyActive(
     { nextRaidTick: 10_000, threat: 0.7 },
     true,
     5,
   ),
   true,
+  'the refuge compatibility helper must share the settlement alert rule',
 );
 assert.equal(
   isPalisadedRefugeRallyActive(
@@ -495,10 +506,38 @@ const eastCompany = {
   polearms: 4,
   actionCooldown: 1,
 };
+const unarmedCompany = {
+  ...building('unarmed-company', 'guardhouse', 20, 0, 4),
+  polearms: 0,
+  actionCooldown: 1,
+};
 districtState.buildings.set(eastCompany.id, eastCompany);
+districtState.buildings.set(unarmedCompany.id, unarmedCompany);
+const balancedMusterPlan = computeGuardhouseMusterPlan(
+  districtState,
+  districtRoads,
+);
+assert.equal(balancedMusterPlan.staffedTowers, 2);
+assert.equal(balancedMusterPlan.linkedGuardhouses, 2);
+assert.equal(
+  balancedMusterPlan.assignmentsByGuardhouse.has(unarmedCompany.id),
+  false,
+  'an unarmed company must not spend a road solve or enter the visible muster',
+);
+assert.equal(
+  balancedMusterPlan.assignmentsByGuardhouse.get(westCompany.id)?.towerId,
+  westWatch.id,
+);
+assert.equal(
+  balancedMusterPlan.assignmentsByGuardhouse.get(eastCompany.id)?.towerId,
+  eastWatch.id,
+);
+assert.equal(balancedMusterPlan.readinessByWatch.get(westWatch.id), 4);
+assert.equal(balancedMusterPlan.readinessByWatch.get(eastWatch.id), 4);
 const balancedDistrictProjection = projectRaidTargets(districtState, 1, {
   enemyPressure: 50,
   roadNetwork: districtRoads,
+  guardhouseMusterPlan: balancedMusterPlan,
 });
 assert.equal(
   balancedDistrictProjection[0]?.id,
@@ -510,9 +549,19 @@ districtState.fireIncidents.set(
   'east-watch-outage',
   fire('east-watch-outage', eastWatch.id),
 );
+const fireDisabledMusterPlan = computeGuardhouseMusterPlan(
+  districtState,
+  districtRoads,
+);
+assert.equal(
+  fireDisabledMusterPlan.assignmentsByGuardhouse.has(eastCompany.id),
+  false,
+  'a company on a severed branch must not visibly answer a burning watch',
+);
 const fireDisabledDistrictProjection = projectRaidTargets(districtState, 1, {
   enemyPressure: 50,
   roadNetwork: districtRoads,
+  guardhouseMusterPlan: fireDisabledMusterPlan,
 });
 assert.equal(
   fireDisabledDistrictProjection[0]?.id,
@@ -526,6 +575,40 @@ assert.match(
   /no warned guard district/,
 );
 districtState.fireIncidents.clear();
+
+const tiedMusterRoads = new RoadNetwork();
+tiedMusterRoads.addRoadPath([
+  new THREE.Vector3(-100, 0, 0),
+  new THREE.Vector3(100, 0, 0),
+]);
+const tiedMusterState = emptyGameState();
+const laterTieWatch = building('watch-b', 'watchtower', -50, 0, 1);
+const earlierTieWatch = building('watch-a', 'watchtower', 50, 0, 1);
+const tiedCompany = {
+  ...building('tie-company', 'guardhouse', 0, 0, 1),
+  polearms: 1,
+  actionCooldown: 1,
+};
+for (const site of [laterTieWatch, earlierTieWatch, tiedCompany]) {
+  tiedMusterState.buildings.set(site.id, site);
+}
+assert.equal(
+  computeGuardhouseMusterPlan(
+    tiedMusterState,
+    tiedMusterRoads,
+  ).assignmentsByGuardhouse.get(tiedCompany.id)?.towerId,
+  earlierTieWatch.id,
+  'equal road-distance watch claims must use stable tower identity',
+);
+assert.equal(
+  getGuardhouseMusterState(
+    tiedCompany,
+    tiedMusterState,
+    () => 50,
+  ).linkedTowerId,
+  earlierTieWatch.id,
+  'the selected-company inspector must show the same stable tied watch',
+);
 
 const refugeProjectionState = emptyGameState();
 const refuge = building('refuge', 'palisaded_refuge', 100, 0, 0);
@@ -1315,6 +1398,8 @@ assert.match(watchtowerInspector, /context\.enemyPressure/);
 assert.match(guardhouseInspector, /Projected raid/);
 assert.match(guardhouseInspector, /context\.enemyPressure/);
 assert.match(guardhouseInspector, /Watch muster/);
+assert.match(guardhouseInspector, /Alert posture/);
+assert.match(guardhouseInspector, /Muster underway/);
 assert.match(guardhouseInspector, /Road conditions/);
 assert.match(guardhouseInspector, /Soft-road delay/);
 assert.match(guardhouseInspector, /Effective company/);
@@ -1353,8 +1438,8 @@ assert.match(
 );
 assert.match(
   app,
-  /computeRefugeShelterPlan\(state\)[\s\S]*refugeShelterPlan: refugePlan[\s\S]*setRefugeAlert/,
-  'one cached household assignment must drive raid markers and visible refuge rallies',
+  /computeRefugeShelterPlan\(state\)[\s\S]*computeGuardhouseMusterPlan\([\s\S]*refugeShelterPlan: refugePlan[\s\S]*guardhouseMusterPlan:[\s\S]*setFrontierAlert/,
+  'one cached frontier pass must drive raid markers, civilian rallies, and visible guard musters',
 );
 assert.match(
   clientSecurity,
@@ -1363,7 +1448,7 @@ assert.match(
 );
 assert.match(
   clientSecurity,
-  /guardReadinessByWatchDistrict[\s\S]*roadPathDistancesFrom[\s\S]*projectedTargetDistrictDefense/,
+  /computeGuardhouseMusterPlan[\s\S]*roadPathDistancesFrom[\s\S]*projectedTargetDistrictDefense/,
   'the client must batch each company route and keep readiness inside its claimed watch district',
 );
 assert.match(
@@ -1552,6 +1637,9 @@ assert.match(
 );
 assert.match(villagerRenderer, /workplaceSlot < Math\.floor\(workplace\?\.polearms/);
 assert.match(villagerRenderer, /Keeping watch from the frontier gallery/);
+assert.match(villagerRenderer, /setFrontierAlert/);
+assert.match(villagerRenderer, /Marching by road to the linked frontier watch/);
+assert.match(villagerRenderer, /watchtowerMusterPosition/);
 assert.match(serverPolicy, /RAID_SEASON_START_MONTH:\s*u32\s*=\s*4/);
 assert.match(serverPolicy, /RAID_SEASON_END_MONTH:\s*u32\s*=\s*10/);
 assert.match(serverPolicy, /guardhouse_muster_efficiency/);
@@ -1687,11 +1775,24 @@ for (let index = 0; index < 10_000; index += 1) {
   };
   districtPerfState.buildings.set(site.id, site);
 }
+const districtMusterStarted = performance.now();
+const districtMusterPlan = computeGuardhouseMusterPlan(
+  districtPerfState,
+  districtPerfRoads,
+  SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+);
+const districtMusterElapsedMs = performance.now() - districtMusterStarted;
+assert.equal(districtMusterPlan.linkedGuardhouses, 10);
+assert.ok(
+  districtMusterElapsedMs < 250,
+  `40-watch/10-company batched muster planning took ${districtMusterElapsedMs.toFixed(1)} ms`,
+);
 const districtProjectionStarted = performance.now();
 const districtPerfTargets = projectRaidTargets(districtPerfState, 3, {
   enemyPressure: 80,
   roadNetwork: districtPerfRoads,
   roadSpeedMultiplier: SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+  guardhouseMusterPlan: districtMusterPlan,
 });
 const districtProjectionElapsedMs = performance.now() - districtProjectionStarted;
 assert.equal(districtPerfTargets.length, 3);
@@ -1866,7 +1967,7 @@ assert.ok(
 );
 
 console.log(
-  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${districtProjectionElapsedMs.toFixed(1)} ms for 40-watch/10-company/10,000-holding district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${refugeAssignmentElapsedMs.toFixed(1)} ms for 1,000-refuge/100,000-home capacity assignment; ${cachedRefugeProjectionElapsedMs.toFixed(1)} ms for cached 1,000-refuge/100,000-home target projection; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${districtMusterElapsedMs.toFixed(1)} ms for 40-watch/10-company muster planning; ${districtProjectionElapsedMs.toFixed(1)} ms for cached 40-watch/10-company/10,000-holding district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${refugeAssignmentElapsedMs.toFixed(1)} ms for 1,000-refuge/100,000-home capacity assignment; ${cachedRefugeProjectionElapsedMs.toFixed(1)} ms for cached 1,000-refuge/100,000-home target projection; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
 );
 
 function building(

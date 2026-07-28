@@ -376,6 +376,28 @@ export function watchtowerDutyPosition(
       };
 }
 
+export const WATCHTOWER_MUSTER_RANK_WIDTH = 6;
+
+/**
+ * Two compact ranks assemble clear of the ladder and tower collision footprint.
+ * Each company caps at six workers. Additional road-linked companies extend
+ * the formation away from the tower instead of overlapping the first rank.
+ */
+export function watchtowerMusterPosition(
+  building: BuildingState,
+  slotIndex: number,
+): PointXZ & { yaw: number } {
+  const slot = Math.max(0, Math.floor(slotIndex));
+  const file = slot % WATCHTOWER_MUSTER_RANK_WIDTH;
+  const rank = Math.floor(slot / WATCHTOWER_MUSTER_RANK_WIDTH);
+  return {
+    x: building.x
+      + (file - (WATCHTOWER_MUSTER_RANK_WIDTH - 1) * 0.5) * 1.45,
+    z: building.z + 4.55 + rank * 1.3,
+    yaw: Math.PI,
+  };
+}
+
 export function pickWorkerWalkPath(
   building: BuildingState,
   slotIndex: number,

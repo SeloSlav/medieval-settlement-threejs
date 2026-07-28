@@ -294,7 +294,7 @@ export function isFrontierRaidSeason(month: number): boolean {
   return month >= RAID_SEASON_START_MONTH && month <= RAID_SEASON_END_MONTH;
 }
 
-export function isPalisadedRefugeRallyActive(
+export function isFrontierAlertActive(
   security: Pick<SettlementSecurityState, 'nextRaidTick' | 'threat'>,
   conflictEnabled: boolean,
   month: number,
@@ -303,6 +303,15 @@ export function isPalisadedRefugeRallyActive(
     && security.nextRaidTick > 0
     && security.threat + 1e-9 >= PALISADED_REFUGE_RALLY_THREAT_THRESHOLD
     && isFrontierRaidSeason(month);
+}
+
+/** Compatibility name retained for refuge-specific callers. */
+export function isPalisadedRefugeRallyActive(
+  security: Pick<SettlementSecurityState, 'nextRaidTick' | 'threat'>,
+  conflictEnabled: boolean,
+  month: number,
+): boolean {
+  return isFrontierAlertActive(security, conflictEnabled, month);
 }
 
 export function estimatedRaidDays(
@@ -383,6 +392,23 @@ export type GuardhouseMusterState = {
   effectiveReady: number;
 };
 
+export type GuardhouseMusterAssignment = {
+  guardhouseId: string;
+  towerId: string;
+  routeDistance: number;
+  responseDistance: number;
+  efficiency: number;
+  rawReady: number;
+  effectiveReady: number;
+};
+
+export type GuardhouseMusterPlan = {
+  staffedTowers: number;
+  linkedGuardhouses: number;
+  assignmentsByGuardhouse: ReadonlyMap<string, GuardhouseMusterAssignment>;
+  readinessByWatch: ReadonlyMap<string, number>;
+};
+
 export type ProjectedRaidTarget = {
   kind: 'building' | 'residence' | 'cart' | 'treasury';
   id: string;
@@ -409,6 +435,7 @@ export type RaidTargetProjectionOptions = {
   roadNetwork: RoadNetwork;
   roadSpeedMultiplier?: number;
   refugeShelterPlan?: RefugeShelterPlan;
+  guardhouseMusterPlan?: GuardhouseMusterPlan;
 };
 
 export type RefugeShelterPlan = {
@@ -529,7 +556,17 @@ export function getGuardhouseMusterState(
   for (const tower of towers) {
     const candidate = getRoadPathDistance(guardhouse.x, guardhouse.z, tower.x, tower.z);
     if (candidate == null) continue;
-    if (routeDistance == null || candidate < routeDistance) {
+    if (
+      routeDistance == null
+      || candidate < routeDistance - 1e-6
+      || (
+        Math.abs(candidate - routeDistance) <= 1e-6
+        && (
+          linkedTowerId == null
+          || compareStableIds(tower.id, linkedTowerId) < 0
+        )
+      )
+    ) {
       routeDistance = candidate;
       linkedTowerId = tower.id;
     }
@@ -553,6 +590,120 @@ export function getGuardhouseMusterState(
     efficiency,
     rawReady,
     effectiveReady: rawReady * efficiency,
+  };
+}
+
+/**
+ * Claims every operational company to its nearest staffed watch using one
+ * batched road tree per guardhouse. The raid forecast and visible alert
+ * routines can share this immutable result instead of solving the same
+ * district topology twice.
+ */
+export function computeGuardhouseMusterPlan(
+  gameState: GameState,
+  roadNetwork: RoadNetwork,
+  roadSpeedMultiplier = 1,
+): GuardhouseMusterPlan {
+  const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
+  const towers = [...gameState.buildings.values()]
+    .filter(
+      (building) =>
+        building.kind === 'watchtower'
+        && building.constructionComplete !== false
+        && building.assignedLabor > 0
+        && !fireDisabled.has(building.id),
+    );
+  const towerPoints = towers.map((tower) => ({ x: tower.x, z: tower.z }));
+  const assignmentsByGuardhouse =
+    new Map<string, GuardhouseMusterAssignment>();
+  const readinessByWatch = new Map<string, number>();
+  if (towers.length === 0) {
+    return {
+      staffedTowers: 0,
+      linkedGuardhouses: 0,
+      assignmentsByGuardhouse,
+      readinessByWatch,
+    };
+  }
+
+  const normalizedRoadSpeed = normalizeRoadSpeedMultiplier(
+    roadSpeedMultiplier,
+  );
+  const pathfinder = roadNetwork.getPathfinder();
+  for (const guardhouse of gameState.buildings.values()) {
+    if (
+      guardhouse.kind !== 'guardhouse'
+      || guardhouse.constructionComplete === false
+      || fireDisabled.has(guardhouse.id)
+    ) continue;
+    const armed = armedGuardCount(
+      guardhouse.assignedLabor,
+      guardhouse.polearms,
+    );
+    if (armed <= 0) continue;
+
+    const distances = pathfinder.roadPathDistancesFrom(
+      guardhouse.x,
+      guardhouse.z,
+      towerPoints,
+    );
+    let nearestIndex = -1;
+    let nearestDistance = Infinity;
+    for (let index = 0; index < towers.length; index += 1) {
+      const distance = distances[index];
+      if (distance == null || !Number.isFinite(distance)) continue;
+      if (
+        distance < nearestDistance - 1e-6
+        || (
+          Math.abs(distance - nearestDistance) <= 1e-6
+          && (
+            nearestIndex < 0
+            || compareStableIds(
+              towers[index]!.id,
+              towers[nearestIndex]!.id,
+            ) < 0
+          )
+        )
+      ) {
+        nearestIndex = index;
+        nearestDistance = distance;
+      }
+    }
+    if (nearestIndex < 0) continue;
+
+    const tower = towers[nearestIndex]!;
+    const rawReady = armed * clamp01(guardhouse.actionCooldown);
+    const responseDistance = guardhouseMusterResponseDistance(
+      nearestDistance,
+      normalizedRoadSpeed,
+    )!;
+    const efficiency = guardhouseMusterEfficiency(
+      nearestDistance,
+      normalizedRoadSpeed,
+    );
+    const effectiveReady = rawReady * efficiency;
+    assignmentsByGuardhouse.set(guardhouse.id, {
+      guardhouseId: guardhouse.id,
+      towerId: tower.id,
+      routeDistance: nearestDistance,
+      responseDistance,
+      efficiency,
+      rawReady,
+      effectiveReady,
+    });
+    if (effectiveReady > 1e-9) {
+      readinessByWatch.set(
+        tower.id,
+        (readinessByWatch.get(tower.id) ?? 0) + effectiveReady,
+      );
+    }
+  }
+
+  return {
+    staffedTowers: towers.length,
+    linkedGuardhouses: assignmentsByGuardhouse.size,
+    assignmentsByGuardhouse,
+    readinessByWatch,
   };
 }
 
@@ -628,12 +779,14 @@ export function projectRaidTargets(
     refuges.length,
   );
   const districtReadiness = options
-    ? guardReadinessByWatchDistrict(
-        gameState,
-        towers,
-        fireDisabled,
-        options,
-      )
+    ? (
+        options.guardhouseMusterPlan
+        ?? computeGuardhouseMusterPlan(
+          gameState,
+          options.roadNetwork,
+          options.roadSpeedMultiplier,
+        )
+      ).readinessByWatch
     : null;
 
   const selected: ProjectedRaidTargetCandidate[] = [];
@@ -1237,60 +1390,6 @@ function assignRefugeHouseholds(
     residentsByRefuge,
     warnedResidenceIds,
   };
-}
-
-function guardReadinessByWatchDistrict(
-  gameState: GameState,
-  towers: readonly WatchArea[],
-  fireDisabled: ReadonlySet<string>,
-  options: RaidTargetProjectionOptions,
-): Map<string, number> {
-  const readiness = new Map<string, number>();
-  if (towers.length === 0) return readiness;
-  const pathfinder = options.roadNetwork.getPathfinder();
-  const towerPoints = towers.map((tower) => ({ x: tower.x, z: tower.z }));
-  for (const guardhouse of gameState.buildings.values()) {
-    if (
-      guardhouse.kind !== 'guardhouse'
-      || guardhouse.constructionComplete === false
-      || fireDisabled.has(guardhouse.id)
-    ) continue;
-    const armed = armedGuardCount(guardhouse.assignedLabor, guardhouse.polearms);
-    const rawReady = armed * clamp01(guardhouse.actionCooldown);
-    if (rawReady <= 1e-9) continue;
-    const distances = pathfinder.roadPathDistancesFrom(
-      guardhouse.x,
-      guardhouse.z,
-      towerPoints,
-    );
-    let nearestIndex = -1;
-    let nearestDistance = Infinity;
-    for (let index = 0; index < towers.length; index += 1) {
-      const distance = distances[index];
-      if (distance == null || !Number.isFinite(distance)) continue;
-      if (
-        distance < nearestDistance - 1e-6
-        || (
-          Math.abs(distance - nearestDistance) <= 1e-6
-          && (
-            nearestIndex < 0
-            || compareStableIds(towers[index]!.id, towers[nearestIndex]!.id) < 0
-          )
-        )
-      ) {
-        nearestIndex = index;
-        nearestDistance = distance;
-      }
-    }
-    if (nearestIndex < 0) continue;
-    const tower = towers[nearestIndex]!;
-    const effective = rawReady * guardhouseMusterEfficiency(
-      nearestDistance,
-      options.roadSpeedMultiplier ?? 1,
-    );
-    readiness.set(tower.id, (readiness.get(tower.id) ?? 0) + effective);
-  }
-  return readiness;
 }
 
 function projectedTargetDistrictDefense(

@@ -64,6 +64,7 @@ import {
   pickWorkerCommutePath,
   pickWorkerWalkPlan,
   watchtowerDutyPosition,
+  watchtowerMusterPosition,
   workplaceYardPosition,
   type WorkerActivityKind,
   type WorkerTarget,
@@ -125,6 +126,9 @@ type VillagerRoutinePhase =
   | 'going_to_refuge'
   | 'at_refuge'
   | 'returning_from_refuge'
+  | 'going_to_muster'
+  | 'at_muster'
+  | 'returning_from_muster'
   | HouseholdHomeState;
 type VillagerPathPurpose =
   | 'home_wander'
@@ -135,12 +139,17 @@ type VillagerPathPurpose =
   | 'return_from_mass'
   | 'refuge_rally'
   | 'return_from_refuge'
+  | 'guard_muster'
+  | 'return_from_muster'
   | 'ambient'
   | null;
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
 const CAMP_SEAT_RELEASE_DISTANCE = 0.8;
 const NO_REFUGE_ASSIGNMENTS: ReadonlyMap<string, string> = new Map();
+type GuardMusterPresentationAssignment = { towerId: string };
+const NO_GUARD_MUSTER_ASSIGNMENTS:
+  ReadonlyMap<string, GuardMusterPresentationAssignment> = new Map();
 
 type PendingCampSeatAssignment = {
   assignment: AmbientBehaviorAssignment;
@@ -175,6 +184,8 @@ type VillagerAgent = {
   massChapelId: string | null;
   refugeId: string | null;
   refugeSlot: number;
+  musterTowerId: string | null;
+  musterSlot: number;
   appearanceSeed: number;
   modelVariant: VillagerModelVariant;
   tunicColor: number;
@@ -242,8 +253,10 @@ export class VillagerRenderer {
   private chapelAmbientSignature = '';
   private massChapels: BuildingState[] = [];
   private massChapelClaims = new Map<string, MassChapelClaim>();
-  private refugeAlertActive = false;
+  private frontierAlertActive = false;
   private refugeAssignments: ReadonlyMap<string, string> = new Map();
+  private guardMusterAssignments:
+    ReadonlyMap<string, GuardMusterPresentationAssignment> = new Map();
   private fireDisabledResidenceIds = new Set<string>();
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
@@ -270,26 +283,52 @@ export class VillagerRenderer {
     if (changed) this.pushRenderState();
   }
 
-  setRefugeAlert(
+  setFrontierAlert(
     active: boolean,
-    assignments: ReadonlyMap<string, string> = NO_REFUGE_ASSIGNMENTS,
+    refugeAssignments:
+      ReadonlyMap<string, string> = NO_REFUGE_ASSIGNMENTS,
+    guardMusterAssignments:
+      ReadonlyMap<string, GuardMusterPresentationAssignment>
+      = NO_GUARD_MUSTER_ASSIGNMENTS,
   ): void {
-    const nextAssignments = active ? assignments : NO_REFUGE_ASSIGNMENTS;
+    const nextRefugeAssignments = active
+      ? refugeAssignments
+      : NO_REFUGE_ASSIGNMENTS;
+    const nextGuardMusterAssignments = active
+      ? guardMusterAssignments
+      : NO_GUARD_MUSTER_ASSIGNMENTS;
     if (
-      this.refugeAlertActive === active
-      && refugeAssignmentMapsEqual(this.refugeAssignments, nextAssignments)
+      this.frontierAlertActive === active
+      && refugeAssignmentMapsEqual(
+        this.refugeAssignments,
+        nextRefugeAssignments,
+      )
+      && guardMusterAssignmentMapsEqual(
+        this.guardMusterAssignments,
+        nextGuardMusterAssignments,
+      )
     ) {
       return;
     }
 
-    this.refugeAlertActive = active;
-    this.refugeAssignments = nextAssignments;
+    this.frontierAlertActive = active;
+    this.refugeAssignments = nextRefugeAssignments;
+    this.guardMusterAssignments = nextGuardMusterAssignments;
     this.syncRefugeRallySlots();
+    this.syncGuardMusterSlots();
     let changed = false;
     for (const agent of this.agents.values()) {
       changed = this.reconcileRoutine(agent) || changed;
     }
     if (changed) this.pushRenderState();
+  }
+
+  /** Compatibility entry point for focused civilian-rally tests and previews. */
+  setRefugeAlert(
+    active: boolean,
+    assignments: ReadonlyMap<string, string> = NO_REFUGE_ASSIGNMENTS,
+  ): void {
+    this.setFrontierAlert(active, assignments);
   }
 
   /**
@@ -450,6 +489,8 @@ export class VillagerRenderer {
             massChapelId: null,
             refugeId: null,
             refugeSlot: -1,
+            musterTowerId: null,
+            musterSlot: -1,
             appearanceSeed,
             modelVariant: pickVillagerModelVariant(appearanceSeed),
             tunicColor: colors.tunic,
@@ -544,6 +585,8 @@ export class VillagerRenderer {
           massChapelId: null,
           refugeId: null,
           refugeSlot: -1,
+          musterTowerId: null,
+          musterSlot: -1,
           appearanceSeed,
           modelVariant: pickVillagerModelVariant(appearanceSeed),
           tunicColor: colors.tunic,
@@ -639,6 +682,8 @@ export class VillagerRenderer {
           massChapelId: null,
           refugeId: null,
           refugeSlot: -1,
+          musterTowerId: null,
+          musterSlot: -1,
           appearanceSeed,
           modelVariant: pickVillagerModelVariant(appearanceSeed),
           tunicColor: colors.tunic,
@@ -679,6 +724,7 @@ export class VillagerRenderer {
       this.agents.delete(id);
     }
     this.syncRefugeRallySlots();
+    this.syncGuardMusterSlots();
 
     for (const agent of this.agents.values()) {
       if (agent.mode !== 'idle' || !agent.idleDirty) continue;
@@ -738,7 +784,9 @@ export class VillagerRenderer {
         || agent.pathPurpose === 'chapel_mass'
         || agent.pathPurpose === 'return_from_mass'
         || agent.pathPurpose === 'refuge_rally'
-        || agent.pathPurpose === 'return_from_refuge';
+        || agent.pathPurpose === 'return_from_refuge'
+        || agent.pathPurpose === 'guard_muster'
+        || agent.pathPurpose === 'return_from_muster';
       if (agent.frozen && !commuteMustAdvance) continue;
 
       agent.simAccumulator += simulationDt;
@@ -1094,6 +1142,12 @@ export class VillagerRenderer {
         case 'return_from_refuge':
           this.completeRefugeReturn(agent);
           break;
+        case 'guard_muster':
+          this.completeGuardMuster(agent);
+          break;
+        case 'return_from_muster':
+          this.completeGuardMusterReturn(agent);
+          break;
         case 'worker_work_loop':
           this.resetWorkerToIdle(agent);
           break;
@@ -1136,6 +1190,7 @@ export class VillagerRenderer {
         agent.routinePhase === 'work'
         || agent.routinePhase === 'at_mass'
         || agent.routinePhase === 'at_refuge'
+        || agent.routinePhase === 'at_muster'
       ) {
         return agent.yaw;
       }
@@ -1256,7 +1311,7 @@ export class VillagerRenderer {
 
   private syncRefugeRallySlots(): void {
     const rosters = new Map<string, VillagerAgent[]>();
-    if (this.refugeAlertActive) {
+    if (this.frontierAlertActive) {
       for (const agent of this.agents.values()) {
         const refuge = this.assignedRefugeForResidence(agent);
         if (!refuge) continue;
@@ -1294,6 +1349,46 @@ export class VillagerRenderer {
     }
   }
 
+  private syncGuardMusterSlots(): void {
+    const rosters = new Map<string, VillagerAgent[]>();
+    if (this.frontierAlertActive) {
+      for (const agent of this.agents.values()) {
+        const tower = this.assignedGuardMusterTower(agent);
+        if (!tower) continue;
+        const roster = rosters.get(tower.id);
+        if (roster) roster.push(agent);
+        else rosters.set(tower.id, [agent]);
+      }
+    }
+
+    const assignedSlots = new Map<string, number>();
+    for (const roster of rosters.values()) {
+      roster.sort((left, right) => {
+        const workplaceOrder = (left.workplaceId ?? '')
+          .localeCompare(right.workplaceId ?? '');
+        return workplaceOrder !== 0
+          ? workplaceOrder
+          : left.workplaceSlot - right.workplaceSlot;
+      });
+      for (let slot = 0; slot < roster.length; slot += 1) {
+        assignedSlots.set(roster[slot]!.id, slot);
+      }
+    }
+    for (const agent of this.agents.values()) {
+      const slot = assignedSlots.get(agent.id);
+      if (slot !== undefined) {
+        agent.musterSlot = slot;
+      } else if (
+        agent.routinePhase !== 'going_to_muster'
+        && agent.routinePhase !== 'at_muster'
+        && agent.routinePhase !== 'returning_from_muster'
+      ) {
+        agent.musterTowerId = null;
+        agent.musterSlot = -1;
+      }
+    }
+  }
+
   private isDefenseDutyAgent(agent: VillagerAgent): boolean {
     if (agent.role !== 'worker' || !agent.workplaceId) return false;
     const kind = this.buildings.get(agent.workplaceId)?.kind;
@@ -1302,7 +1397,7 @@ export class VillagerRenderer {
 
   private assignedRefugeForResidence(agent: VillagerAgent): BuildingState | null {
     if (
-      !this.refugeAlertActive
+      !this.frontierAlertActive
       || !agent.residenceId
       || this.isDefenseDutyAgent(agent)
     ) return null;
@@ -1314,8 +1409,54 @@ export class VillagerRenderer {
       : null;
   }
 
+  private assignedGuardMusterTower(
+    agent: VillagerAgent,
+  ): BuildingState | null {
+    if (
+      !this.frontierAlertActive
+      || agent.role !== 'worker'
+      || !agent.workplaceId
+    ) return null;
+    const guardhouse = this.buildings.get(agent.workplaceId);
+    if (
+      guardhouse?.kind !== 'guardhouse'
+      || guardhouse.constructionComplete === false
+      || agent.workplaceSlot >= Math.floor(guardhouse.polearms ?? 0)
+    ) return null;
+    const assignment = this.guardMusterAssignments.get(guardhouse.id);
+    const tower = assignment
+      ? this.buildings.get(assignment.towerId)
+      : null;
+    return tower?.kind === 'watchtower'
+      && tower.constructionComplete !== false
+      && tower.assignedLabor > 0
+      ? tower
+      : null;
+  }
+
   private reconcileRoutine(agent: VillagerAgent): boolean {
     if (!this.clock) return false;
+    const musterTower = this.assignedGuardMusterTower(agent);
+    if (musterTower) {
+      if (
+        agent.musterTowerId === musterTower.id
+        && (
+          agent.routinePhase === 'going_to_muster'
+          || agent.routinePhase === 'at_muster'
+        )
+      ) {
+        return false;
+      }
+      return this.beginGuardMuster(agent, musterTower);
+    }
+    if (
+      agent.routinePhase === 'going_to_muster'
+      || agent.routinePhase === 'at_muster'
+    ) {
+      return this.beginGuardMusterReturn(agent);
+    }
+    if (agent.routinePhase === 'returning_from_muster') return false;
+
     const refuge = this.assignedRefugeForResidence(agent);
     if (refuge) {
       if (
@@ -1485,6 +1626,107 @@ export class VillagerRenderer {
     this.transitionToHomeState(agent, homeState);
     this.syncCampAmbientAssignments();
     this.syncChapelAmbientAssignments();
+  }
+
+  private beginGuardMuster(
+    agent: VillagerAgent,
+    tower: BuildingState,
+  ): boolean {
+    const destination = watchtowerMusterPosition(
+      tower,
+      Math.max(0, agent.musterSlot),
+    );
+    const path = pickWorkerCommutePath(
+      { x: agent.x, z: agent.z },
+      destination,
+      this.roadNetwork,
+    ) ?? [{ x: agent.x, z: agent.z }, destination];
+    this.chapelAmbientAssignments.delete(agent.id);
+    agent.massChapelId = null;
+    agent.musterTowerId = tower.id;
+    if (!this.beginJourney(agent, path, 'guard_muster')) {
+      this.completeGuardMuster(agent);
+      return true;
+    }
+    agent.routinePhase = 'going_to_muster';
+    this.syncChapelAmbientAssignments();
+    return true;
+  }
+
+  private completeGuardMuster(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    const tower = agent.musterTowerId
+      ? this.buildings.get(agent.musterTowerId) ?? null
+      : null;
+    const assignedTower = this.assignedGuardMusterTower(agent);
+    if (
+      !tower
+      || tower.kind !== 'watchtower'
+      || assignedTower?.id !== tower.id
+    ) {
+      this.beginGuardMusterReturn(agent);
+      return;
+    }
+    const destination = watchtowerMusterPosition(
+      tower,
+      Math.max(0, agent.musterSlot),
+    );
+    agent.x = destination.x;
+    agent.z = destination.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = destination.yaw;
+    agent.routinePhase = 'at_muster';
+    agent.idleRemaining = 60;
+    agent.idleDirty = false;
+  }
+
+  private beginGuardMusterReturn(agent: VillagerAgent): boolean {
+    const workplace = agent.workplaceId
+      ? this.buildings.get(agent.workplaceId) ?? null
+      : null;
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    const destination = workplace
+      ? workplaceYardPosition(workplace, agent.workplaceSlot)
+      : residence
+        ? residenceDoorPosition(residence)
+        : null;
+    if (!destination) {
+      this.completeGuardMusterReturn(agent);
+      return true;
+    }
+    const path = pickWorkerCommutePath(
+      { x: agent.x, z: agent.z },
+      destination,
+      this.roadNetwork,
+    ) ?? [{ x: agent.x, z: agent.z }, destination];
+    if (!this.beginJourney(agent, path, 'return_from_muster')) {
+      this.completeGuardMusterReturn(agent);
+      return true;
+    }
+    agent.routinePhase = 'returning_from_muster';
+    return true;
+  }
+
+  private completeGuardMusterReturn(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    agent.musterTowerId = null;
+    agent.musterSlot = -1;
+    const workplace = agent.workplaceId
+      ? this.buildings.get(agent.workplaceId) ?? null
+      : null;
+    if (workplace) {
+      this.completeWorkerCommuteToWork(agent);
+      this.reconcileRoutine(agent);
+      return;
+    }
+    agent.routinePhase = 'home_outdoors';
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    if (residence) this.placeIdle(agent, residence);
+    this.reconcileRoutine(agent);
   }
 
   private beginRefugeJourney(
@@ -1760,6 +2002,18 @@ export class VillagerRenderer {
       agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
     }
     this.clearPath(agent);
+    if (purpose === 'guard_muster') {
+      agent.routinePhase = 'work';
+      const tower = this.assignedGuardMusterTower(agent);
+      if (tower) this.beginGuardMuster(agent, tower);
+      else this.beginGuardMusterReturn(agent);
+      return;
+    }
+    if (purpose === 'return_from_muster') {
+      agent.routinePhase = 'at_muster';
+      this.beginGuardMusterReturn(agent);
+      return;
+    }
     if (purpose === 'refuge_rally') {
       agent.routinePhase = 'home_outdoors';
       const refuge = this.assignedRefugeForResidence(agent);
@@ -2354,6 +2608,18 @@ function refugeAssignmentMapsEqual(
   return true;
 }
 
+function guardMusterAssignmentMapsEqual(
+  left: ReadonlyMap<string, GuardMusterPresentationAssignment>,
+  right: ReadonlyMap<string, GuardMusterPresentationAssignment>,
+): boolean {
+  if (left === right) return true;
+  if (left.size !== right.size) return false;
+  for (const [guardhouseId, assignment] of left) {
+    if (right.get(guardhouseId)?.towerId !== assignment.towerId) return false;
+  }
+  return true;
+}
+
 function describeVillagerActivity(
   agent: VillagerAgent,
   workplace: BuildingState | null,
@@ -2382,6 +2648,12 @@ function describeVillagerActivity(
       return 'Attending Sunday mass';
     case 'returning_from_mass':
       return 'Walking home from Sunday mass';
+    case 'going_to_muster':
+      return 'Marching by road to the linked frontier watch';
+    case 'at_muster':
+      return 'Holding the watch muster line during the frontier alert';
+    case 'returning_from_muster':
+      return 'Returning to the guardhouse after the alert';
     case 'going_to_refuge':
       return 'Rallying through the palisaded refuge gate';
     case 'at_refuge':

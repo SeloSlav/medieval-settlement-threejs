@@ -7,7 +7,11 @@ import {
   householdMemberRoutine,
   residenceWindowActivity,
 } from '../src/residences/householdRoutine.ts';
-import { pickWorkerCommutePath } from '../src/settlement/workerPaths.ts';
+import {
+  pickWorkerCommutePath,
+  WATCHTOWER_MUSTER_RANK_WIDTH,
+  watchtowerMusterPosition,
+} from '../src/settlement/workerPaths.ts';
 import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
 import {
   PALISADED_REFUGE_RALLY_SLOT_COUNT,
@@ -282,15 +286,44 @@ const defenseVillagers = new VillagerRenderer({
   getGameSpeed: () => 1,
   getHeightAt: () => 0,
 });
-const defenseHome = residence('defense-home', 0, 0);
+const defenseHome = {
+  ...residence('defense-home', 0, 0),
+  population: 3,
+  populationCapacity: 3,
+};
 const guardhouse = {
   ...building('routine-guardhouse', 12, 0),
   kind: 'guardhouse' as const,
+  assignedLabor: 2,
   polearms: 1,
 };
+const musterWatch = {
+  ...building('routine-watch', 30, 0),
+  kind: 'watchtower' as const,
+  assignedLabor: 1,
+  workRadius: 190,
+};
+const musterPositions = Array.from(
+  { length: WATCHTOWER_MUSTER_RANK_WIDTH * 2 },
+  (_, slot) => watchtowerMusterPosition(musterWatch, slot),
+);
+assert.equal(
+  new Set(musterPositions.map((position) => `${position.x}:${position.z}`)).size,
+  WATCHTOWER_MUSTER_RANK_WIDTH * 2,
+  'several companies must extend the watch formation instead of overlapping',
+);
+assert.ok(
+  musterPositions.every(
+    (position) => Math.hypot(
+      position.x - musterWatch.x,
+      position.z - musterWatch.z,
+    ) > 4,
+  ),
+  'guard formations must remain clear of the tower and its ladder',
+);
 defenseVillagers.sync({
   residences: [defenseHome],
-  buildings: [guardhouse, refuge],
+  buildings: [guardhouse, musterWatch, refuge],
   quarries: [],
   foragingNodes: [],
   trees: new Map(),
@@ -306,7 +339,14 @@ defenseVillagers.setRefugeAlert(
 );
 const defenseAgents = (
   defenseVillagers as unknown as {
-    agents: Map<string, { routinePhase: string; pathPurpose: string | null }>;
+    agents: Map<string, {
+      personIdentity: string;
+      routinePhase: string;
+      pathPurpose: string | null;
+      musterTowerId: string | null;
+      x: number;
+      z: number;
+    }>;
   }
 ).agents;
 assert.equal(
@@ -318,6 +358,46 @@ assert.notEqual(
   defenseAgents.get('worker:routine-guardhouse:0')?.pathPurpose,
   'refuge_rally',
 );
+defenseVillagers.setFrontierAlert(
+  true,
+  new Map([[defenseHome.id, refuge.id]]),
+  new Map([[guardhouse.id, { towerId: musterWatch.id }]]),
+);
+const armedGuard = defenseAgents.get('worker:routine-guardhouse:0')!;
+const unarmedGuard = defenseAgents.get('worker:routine-guardhouse:1')!;
+const watchman = defenseAgents.get('worker:routine-watch:0')!;
+assert.equal(armedGuard.routinePhase, 'going_to_muster');
+assert.equal(armedGuard.pathPurpose, 'guard_muster');
+assert.equal(
+  unarmedGuard.routinePhase,
+  'work',
+  'a company member without an onsite polearm must not appear in the armed muster',
+);
+assert.equal(
+  watchman.routinePhase,
+  'work',
+  'the watchman must remain on the gallery while the road company answers',
+);
+for (let step = 0; step < 1200; step++) defenseVillagers.tick(0.05);
+assert.equal(armedGuard.routinePhase, 'at_muster');
+assert.equal(armedGuard.musterTowerId, musterWatch.id);
+assert.match(
+  defenseVillagers.inspectVillager(armedGuard.personIdentity)?.activity ?? '',
+  /Holding the watch muster line/,
+);
+assert.ok(
+  Math.hypot(
+    armedGuard.x - musterWatch.x,
+    armedGuard.z - musterWatch.z,
+  ) < 7,
+  'the armed company must finish in a readable line beside its linked watch',
+);
+defenseVillagers.setFrontierAlert(false);
+assert.equal(armedGuard.routinePhase, 'returning_from_muster');
+assert.equal(armedGuard.pathPurpose, 'return_from_muster');
+for (let step = 0; step < 1400; step++) defenseVillagers.tick(0.05);
+assert.equal(armedGuard.routinePhase, 'work');
+assert.equal(armedGuard.musterTowerId, null);
 defenseVillagers.dispose();
 await new Promise((resolve) => setTimeout(resolve, 0));
 console.warn = originalWarn;

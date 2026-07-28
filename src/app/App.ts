@@ -78,12 +78,13 @@ import { SessionLifecycleController } from './SessionLifecycleController.ts';
 import { beginNewWorld } from './worldBootstrapFlow.ts';
 import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
 import {
+  computeGuardhouseMusterPlan,
   computeRefugeShelterPlan,
   FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS,
   frontierDefenseFireSignature,
   formatProjectedRaidTargets,
   formatRaidReport,
-  isPalisadedRefugeRallyActive,
+  isFrontierAlertActive,
   projectRaidTargets,
   type ProjectedRaidTarget,
 } from '../security/frontierSecurity.ts';
@@ -887,6 +888,13 @@ export class App {
       const refugePlan = enabled
         ? computeRefugeShelterPlan(state)
         : null;
+      const guardhouseMusterPlan = enabled && this.roadNetwork
+        ? computeGuardhouseMusterPlan(
+            state,
+            this.roadNetwork,
+            roadSpeedMultiplier,
+          )
+        : null;
       this.projectedRaidTargets = enabled
         ? projectRaidTargets(
             state,
@@ -897,17 +905,19 @@ export class App {
                   roadNetwork: this.roadNetwork,
                   roadSpeedMultiplier,
                   refugeShelterPlan: refugePlan ?? undefined,
+                  guardhouseMusterPlan: guardhouseMusterPlan ?? undefined,
                 }
               : undefined,
           )
         : [];
-      this.villagers?.setRefugeAlert(
-        isPalisadedRefugeRallyActive(
+      this.villagers?.setFrontierAlert(
+        isFrontierAlertActive(
           security,
           enabled,
           clock.month,
         ),
         refugePlan?.refugeByResidence,
+        guardhouseMusterPlan?.assignmentsByGuardhouse,
       );
       this.frontierRiskMarkers?.sync(
         this.projectedRaidTargets,
@@ -923,7 +933,7 @@ export class App {
   private clearFrontierRiskFeedback(): void {
     this.raidProjectionSignature = '';
     this.projectedRaidTargets = [];
-    this.villagers?.setRefugeAlert(false);
+    this.villagers?.setFrontierAlert(false);
     this.frontierRiskMarkers?.sync([], 0, false);
   }
 
