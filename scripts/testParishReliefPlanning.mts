@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks';
 import {
   BUILDING_STORAGE_CAPS,
   CALENDAR_SECONDS_PER_DAY,
+  CHAPEL_CHARITY_GOLD_PER_DAY,
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
   CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
   CHAPEL_POOR_RELIEF_INTERVAL_DAYS,
@@ -24,6 +25,7 @@ import {
   isChapelPoorReliefDue,
 } from '../src/economy/settlementParishRelief.ts';
 import { findServingChapel } from '../src/logistics/landmarkAccess.ts';
+import { destinationKindFromId } from '../src/logistics/deliveryTrips.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import type {
@@ -163,6 +165,7 @@ function state(input: {
     backyardGardens: new Map(),
     deliveryTrips: new Map(),
     fireIncidents: new Map(),
+    physicalFoundingSiteEnabled: true,
     nextBuildingId: 1,
   };
 }
@@ -252,13 +255,107 @@ const readyParish = readyPlan.parishes.get('chapel');
 assert.equal(readyParish?.assignedHomes, 3);
 assert.equal(readyParish?.assignedPopulation, 8);
 assert.equal(readyParish?.almsRecipientId, 'poor');
+assert.equal(readyParish?.almsStatus, 'ready');
+assert.equal(readyParish?.almsAmount, CHAPEL_CHARITY_GOLD_PER_DAY);
+assert.equal(readyParish?.almsRoadDistance, 18);
 assert.equal(readyParish?.targetResidenceId, 'abandoned');
 assert.equal(readyParish?.marketplaceId, 'market');
 assert.equal(readyParish?.reliefBudget, CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH);
 assert.equal(readyParish?.quote?.offerId, 'buy_pork');
 assert.equal(readyParish?.status, 'ready');
 assert.equal(readyPlan.readyParishes, 1);
+assert.equal(readyPlan.almsDueParishes, 1);
+assert.equal(readyPlan.almsBlockedParishes, 0);
+assert.match(formatChapelDailyAlms(readyParish!), /18 m road/);
+assert.match(formatChapelDailyAlms(readyParish!), /one free villager/);
 assert.match(formatChapelPoorRelief(readyParish!), /dispatching this Monday/);
+assert.equal(destinationKindFromId(3), 'wealth');
+
+const almsTripState = state({
+  buildings: [chapel('chapel', 0), market('market', 10)],
+  homes: [poor, abandoned],
+});
+almsTripState.deliveryTrips.set('alms-trip', {
+  id: 'alms-trip',
+  buildingId: 'chapel',
+  residenceId: 'poor',
+  destinationKind: 'wealth',
+  cargoKind: 'gold',
+  amount: CHAPEL_CHARITY_GOLD_PER_DAY,
+  phase: 'outbound',
+} as GameState['deliveryTrips'] extends Map<string, infer Trip> ? Trip : never);
+const almsTripPlan = computeSettlementParishReliefPlan({
+  state: almsTripState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: gameClock(mondayTick),
+  sabbathObserved: false,
+});
+const travellingAlms = almsTripPlan.parishes.get('chapel');
+assert.equal(travellingAlms?.almsStatus, 'in-transit');
+assert.equal(travellingAlms?.almsTripId, 'alms-trip');
+assert.equal(almsTripPlan.activeAlmsTrips, 1);
+assert.equal(almsTripPlan.almsGoldInTransit, CHAPEL_CHARITY_GOLD_PER_DAY);
+assert.match(formatChapelDailyAlms(travellingAlms!), /purse en route/);
+
+const coolingState = state({
+  buildings: [chapel('chapel', 0, { actionCooldown: 35 })],
+  homes: [poor],
+});
+const coolingPlan = computeSettlementParishReliefPlan({
+  state: coolingState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: gameClock(mondayTick),
+  sabbathObserved: false,
+});
+const coolingAlms = coolingPlan.parishes.get('chapel');
+assert.equal(coolingAlms?.almsStatus, 'cooling-down');
+assert.match(formatChapelDailyAlms(coolingAlms!), /0.5 parish workdays/);
+
+const chapelBusyState = state({
+  buildings: [chapel('chapel', 0)],
+  homes: [poor],
+});
+chapelBusyState.deliveryTrips.set('treasury-trip', {
+  id: 'treasury-trip',
+  buildingId: 'chapel',
+  destinationKind: 'building',
+  cargoKind: 'gold',
+  amount: 25,
+  phase: 'outbound',
+} as GameState['deliveryTrips'] extends Map<string, infer Trip> ? Trip : never);
+const chapelBusyPlan = computeSettlementParishReliefPlan({
+  state: chapelBusyState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: gameClock(mondayTick),
+  sabbathObserved: false,
+});
+assert.equal(
+  chapelBusyPlan.parishes.get('chapel')?.almsStatus,
+  'chapel-cart-busy',
+);
+assert.equal(chapelBusyPlan.almsDueParishes, 1);
+assert.equal(chapelBusyPlan.almsBlockedParishes, 1);
+
+const legacyAlmsState = state({
+  buildings: [chapel('chapel', 0)],
+  homes: [poor],
+});
+legacyAlmsState.physicalFoundingSiteEnabled = false;
+const legacyAlmsPlan = computeSettlementParishReliefPlan({
+  state: legacyAlmsState,
+  marketState: DEFAULT_REGIONAL_MARKET_STATE,
+  roadNetwork: euclideanNetwork,
+  clock: gameClock(mondayTick),
+  sabbathObserved: false,
+});
+assert.equal(legacyAlmsPlan.parishes.get('chapel')?.almsStatus, 'legacy');
+assert.match(
+  formatChapelDailyAlms(legacyAlmsPlan.parishes.get('chapel')!),
+  /gold\/day/,
+);
 
 const notDueState = state({
   tick: dayTicks * 2,
@@ -633,11 +730,36 @@ assert.match(serverParish, /chapel_poor_relief_due\(sim_tick\)/);
 assert.match(serverParish, /claim_residences_by_nearest_supplier\(/);
 assert.match(serverParish, /tick\.chapel_for_residence\(ctx,/);
 assert.match(serverParish, /building_disabled_by_fire\(ctx, building\.id\)/);
+assert.match(serverParish, /physical_founding_site_enabled/);
+assert.match(serverParish, /try_chapel_alms_delivery/);
+assert.match(serverParish, /try_start_residence_wealth_trip/);
+assert.match(serverParish, /action_cooldown/);
+assert.match(
+  serverParish,
+  /else \{[\s\S]{0,600}distribute_wealth_charity/,
+  'legacy saves must retain direct charity when the physical economy is disabled',
+);
 assert.doesNotMatch(serverParish, /CHAPEL_CHARITY_(?:RELIEF|WEALTH)_FRACTION/);
 assert.match(
   serverParish,
   /let relief_spent =[\s\S]{0,800}try_chapel_poor_relief[\s\S]{0,800}withdraw_coffer_in_place\(&mut chapel_row, relief_spent\)/,
   'the coffer must be debited only after a physical relief cart departs',
+);
+
+const deliveryTrips = readFileSync(
+  'server/src/simulation/delivery_trips.rs',
+  'utf8',
+);
+assert.match(
+  deliveryTrips,
+  /DELIVERY_DESTINATION_RESIDENCE_WEALTH: u8 = 3/,
+);
+assert.match(deliveryTrips, /TripDestination::ResidenceWealth/);
+assert.match(deliveryTrips, /try_start_residence_wealth_trip/);
+assert.match(
+  deliveryTrips,
+  /fn unload_wealth_to_residence[\s\S]{0,1800}credit_residence_wealth[\s\S]{0,900}record_parish_ledger/,
+  'parish charity must enter the ledger only after a household physically receives the gold',
 );
 
 const tickContext = readFileSync(
@@ -663,7 +785,8 @@ const chapelInspector = readFileSync(
 );
 assert.match(chapelInspector, /Parish territory/);
 assert.match(chapelInspector, /Monday poor relief/);
-assert.match(chapelInspector, /low auto-sweep reserve prioritizes the treasury/);
+assert.match(chapelInspector, /visible purse carried by a free villager/);
+assert.match(chapelInspector, /Daily alms purse/);
 assert.match(chapelInspector, /sealed until structural recovery/);
 
 const buildingReducers = readFileSync(
@@ -691,7 +814,7 @@ const townHallInspector = readFileSync(
   'utf8',
 );
 assert.match(townHallInspector, /Parish territories/);
-assert.match(townHallInspector, /Daily parish alms/);
+assert.match(townHallInspector, /Parish alms carts/);
 assert.match(townHallInspector, /Monday poor relief/);
 assert.match(townHallInspector, /Parish structural outages/);
 assert.match(townHallInspector, /coffer gold sealed until structural recovery/);

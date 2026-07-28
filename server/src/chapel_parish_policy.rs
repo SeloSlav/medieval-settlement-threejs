@@ -1,7 +1,7 @@
 use crate::balance_generated::{
     CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, CHAPEL_AUTO_SWEEP_INTERVAL_TICKS, CHAPEL_POOR_RELIEF_INTERVAL_DAYS,
-    TICK_DT,
+    CALENDAR_WORK_START_HOUR, CHAPEL_AUTO_SWEEP_INTERVAL_TICKS, CHAPEL_CHARITY_GOLD_PER_DAY,
+    CHAPEL_POOR_RELIEF_INTERVAL_DAYS, TICK_DT,
 };
 
 /// Configured "per day" parish rates accrue only while the parish office is
@@ -15,8 +15,21 @@ pub fn chapel_daily_gold_per_work_tick(daily_rate: f64) -> f64 {
     daily_rate * TICK_DT / chapel_workday_seconds()
 }
 
-/// Auto-sweep is an accounting transfer rather than a cart journey. It follows
-/// its configured global cadence even when an interval lands outside work hours.
+/// A physical-economy chapel batches its small continuous alms budget into one
+/// purse per parish workday. The cooldown is stored on the chapel's existing
+/// action clock, so a blocked courier order remains due without another save
+/// field and long routes reduce the realized charity rate.
+pub fn chapel_alms_dispatch_amount() -> f64 {
+    CHAPEL_CHARITY_GOLD_PER_DAY.max(0.0)
+}
+
+pub fn chapel_alms_dispatch_interval_seconds() -> f64 {
+    chapel_workday_seconds()
+}
+
+/// Legacy auto-sweeps keep their configured global cadence. Physical
+/// settlements treat the same policy as a standing cart order during work
+/// hours, but this predicate remains the compatibility clock.
 pub fn chapel_auto_sweep_due(sim_tick: u64) -> bool {
     CHAPEL_AUTO_SWEEP_INTERVAL_TICKS > 0 && sim_tick % CHAPEL_AUTO_SWEEP_INTERVAL_TICKS == 0
 }
@@ -32,11 +45,11 @@ pub fn chapel_poor_relief_due(sim_tick: u64) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_auto_sweep_due, chapel_daily_gold_per_work_tick, chapel_poor_relief_due,
-        chapel_workday_seconds,
+        chapel_alms_dispatch_amount, chapel_alms_dispatch_interval_seconds, chapel_auto_sweep_due,
+        chapel_daily_gold_per_work_tick, chapel_poor_relief_due, chapel_workday_seconds,
     };
     use crate::balance_generated::{
-        CALENDAR_SECONDS_PER_DAY, CHAPEL_AUTO_SWEEP_INTERVAL_TICKS,
+        CALENDAR_SECONDS_PER_DAY, CHAPEL_AUTO_SWEEP_INTERVAL_TICKS, CHAPEL_CHARITY_GOLD_PER_DAY,
         CHAPEL_POOR_RELIEF_INTERVAL_DAYS, TICK_DT,
     };
 
@@ -48,6 +61,12 @@ mod tests {
         assert!(
             (chapel_daily_gold_per_work_tick(daily_rate) * work_ticks - daily_rate).abs() < 1e-9
         );
+    }
+
+    #[test]
+    fn physical_alms_batch_one_day_of_charity_into_one_purse() {
+        assert!((chapel_alms_dispatch_amount() - CHAPEL_CHARITY_GOLD_PER_DAY).abs() < 1e-9);
+        assert!((chapel_alms_dispatch_interval_seconds() - chapel_workday_seconds()).abs() < 1e-9);
     }
 
     #[test]

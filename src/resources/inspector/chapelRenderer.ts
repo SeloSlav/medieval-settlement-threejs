@@ -156,7 +156,7 @@ export function renderChapelInspector(
       <p class="inspector-action-panel__hint">Sabbath pauses work and carts for +${Math.round(CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS * 100)}% attendance and +${Math.round(CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS * 100)}% settlement speed. Households still consume delivered provisions, so stock them before Saturday night.</p>
       <label class="city-admin-panel__slider-label"><span>Coffer reserve</span><strong data-policy-chapel-reserve-value>${Math.round(parishPolicy.cofferReserveGold)} gold</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-chapel-reserve min="${CHAPEL_COFFER_RESERVE_MIN}" max="${CHAPEL_COFFER_RESERVE_MAX}" step="5" value="${Math.round(parishPolicy.cofferReserveGold)}" />
-      <p class="inspector-action-panel__hint">Keep at least ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold after wages and upkeep to fund daily alms and the Monday poor-relief cart. Each dispatch may spend up to ${CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH} gold; a low auto-sweep reserve prioritizes the treasury instead.</p>
+      <p class="inspector-action-panel__hint">Keep at least ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold after wages and upkeep. In physical-economy settlements, one day of alms leaves as a visible purse carried by a free villager; long or blocked roads and chapel-cart contention delay it. Monday poor relief may spend up to ${CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH} gold per dispatch.</p>
     </div>
   `;
 
@@ -187,7 +187,7 @@ export function renderChapelInspector(
       <li><span>Parish territory</span><span>${parishRelief == null ? `${connectedHomes} road-linked homes` : formatChapelParishTerritory(parishRelief)}</span></li>
       <li><span>Tithe yield</span><span>${staffed ? economy.titheLabel : '—'}</span></li>
       <li><span>Parish expenses</span><span>${suspendedByFire ? 'Paused · no wages, upkeep, charity, or auto-sweep leaves the sealed coffer' : formatChapelExpenseLabel(economy.expense, staffed)}</span></li>
-      ${parishRelief == null ? '' : `<li><span>Daily alms</span><span>${formatChapelDailyAlms(parishRelief)}</span></li>`}
+      ${parishRelief == null ? '' : `<li><span>Daily alms purse</span><span>${formatChapelDailyAlms(parishRelief)}</span></li>`}
       ${parishRelief == null ? '' : `<li><span>Monday poor relief</span><span>${formatChapelPoorRelief(parishRelief)}${reliefInspectButton}</span></li>`}
       <li><span>Attendance</span><span>${staffed ? economy.attendanceLabel : '—'}</span></li>
       <li><span>Settlement</span><span>${settlementBoost} faster when staffed & linked</span></li>

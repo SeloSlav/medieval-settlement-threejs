@@ -33,7 +33,11 @@ export function syncDeliveryTrips(
     deliveryTrips.set(tripId, {
       id: tripId,
       buildingId: buildingClientId(row.buildingId),
-      residenceId: (destinationKind === 'residence' || destinationKind === 'fire')
+      residenceId: (
+        destinationKind === 'residence'
+        || destinationKind === 'fire'
+        || destinationKind === 'wealth'
+      )
         && row.residenceId > 0n
         ? residenceClientId(row.residenceId)
         : null,

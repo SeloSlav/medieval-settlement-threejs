@@ -1914,7 +1914,7 @@ export function renderTownHallInspector(
       <li><span>Parish ledger</span><span>${readout.parishLedgerLabel}</span></li>
       ${parishReliefPlan == null ? '' : `
       <li><span>Parish territories</span><span>${formatSettlementParishCoverage(parishReliefPlan)}</span></li>
-      <li><span>Daily parish alms</span><span>${parishReliefPlan.dailyAlmsRecipients} / ${parishReliefPlan.activeParishes} active parishes have an eligible poorest household</span></li>
+      <li><span>Parish alms carts</span><span>${parishReliefPlan.activeAlmsTrips} active carrying ${parishReliefPlan.almsGoldInTransit.toFixed(2)} gold · ${parishReliefPlan.almsDueParishes} due / ${parishReliefPlan.almsBlockedParishes} blocked · ${parishReliefPlan.dailyAlmsRecipients} eligible poorest households</span></li>
       <li><span>Monday poor relief</span><span>${formatSettlementParishRelief(parishReliefPlan)}${parishReliefInspectButton}</span></li>`}
       <li><span>Food reserve</span><span>${provisioning.usableFoodStock.toFixed(1)} usable / ${provisioning.foodStock.toFixed(1)} owned · ${formatProvisionRunway(provisioning.foodRunwayDays)} · ${provisioning.totalFoodPerDay.toFixed(1)} consumed / day</span></li>
       <li><span>Road-branch provisions</span><span>${formatRoadProvisioning(provisioning.roadBranches)}</span></li>

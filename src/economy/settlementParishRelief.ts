@@ -1,6 +1,9 @@
 import {
   BUILDING_STORAGE_CAPS,
+  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
   CHAPEL_CHARITY_GOLD_PER_DAY,
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
   CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
@@ -48,6 +51,22 @@ export type ParishReliefStatus =
   | 'route-too-short'
   | 'ready';
 
+export type ParishAlmsStatus =
+  | 'legacy'
+  | 'unbuilt'
+  | 'unstaffed'
+  | 'fire-disabled'
+  | 'below-coffer-threshold'
+  | 'no-recipient'
+  | 'in-transit'
+  | 'returning'
+  | 'cooling-down'
+  | 'closed'
+  | 'chapel-cart-busy'
+  | 'no-route'
+  | 'route-too-short'
+  | 'ready';
+
 export type ChapelReliefPlan = {
   chapelId: string;
   staffed: boolean;
@@ -55,6 +74,12 @@ export type ChapelReliefPlan = {
   occupiedHomes: number;
   assignedPopulation: number;
   almsRecipientId: string | null;
+  almsStatus: ParishAlmsStatus;
+  almsAmount: number;
+  almsRoadDistance: number | null;
+  almsCooldownSeconds: number;
+  almsTripId: string | null;
+  almsGoldInTransit: number;
   reliefHomes: number;
   targetResidenceId: string | null;
   marketplaceId: string | null;
@@ -81,6 +106,10 @@ export type SettlementParishReliefPlan = {
   fireDisabledResidents: number;
   fireDisabledReliefHomes: number;
   dailyAlmsRecipients: number;
+  activeAlmsTrips: number;
+  almsGoldInTransit: number;
+  almsDueParishes: number;
+  almsBlockedParishes: number;
   reliefHomes: number;
   dueNow: boolean;
   readyParishes: number;
@@ -102,6 +131,9 @@ export type SettlementParishReliefInput = {
 
 const TICKS_PER_DAY = Math.round(CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS);
 const RELIEF_INTERVAL_TICKS = TICKS_PER_DAY * CHAPEL_POOR_RELIEF_INTERVAL_DAYS;
+const CHAPEL_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
+  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+  / CALENDAR_HOURS_PER_DAY;
 
 export function isChapelPoorReliefDue(simTick: number): boolean {
   const tick = Math.max(0, Math.floor(simTick));
@@ -128,6 +160,7 @@ export function computeSettlementParishReliefPlan(
   const daysUntilDispatch = chapelPoorReliefDaysUntilDispatch(state.tick);
   const logisticsPaused = !clock.isWorkHours
     || (clock.isSunday && input.sabbathObserved);
+  const physicalEconomy = state.physicalFoundingSiteEnabled === true;
   const disabledBuildingIds = fireDisabledBuildingIds(
     state.fireIncidents.values(),
   );
@@ -203,6 +236,9 @@ export function computeSettlementParishReliefPlan(
   const activeMarketTrips = new Set(
     [...state.deliveryTrips.values()].map((trip) => trip.buildingId),
   );
+  const activeTripsByOrigin = new Map(
+    [...state.deliveryTrips.values()].map((trip) => [trip.buildingId, trip]),
+  );
   const assignedByChapel = new Map<string, ResidenceState[]>(
     completedChapels.map((chapel) => [chapel.id, []]),
   );
@@ -215,6 +251,10 @@ export function computeSettlementParishReliefPlan(
   let assignedHomes = 0;
   let assignedPopulation = 0;
   let dailyAlmsRecipients = 0;
+  let activeAlmsTrips = 0;
+  let almsGoldInTransit = 0;
+  let almsDueParishes = 0;
+  let almsBlockedParishes = 0;
   let reliefHomes = 0;
   let readyParishes = 0;
   let blockedParishes = 0;
@@ -229,6 +269,21 @@ export function computeSettlementParishReliefPlan(
     const almsRecipient = occupied
       .filter((residence) => residence.householdWealth < HOUSEHOLD_MAX_WEALTH - 1e-9)
       .sort(comparePoorestResidence)[0] ?? null;
+    const almsClaim = almsRecipient == null
+      ? null
+      : chapelClaims.get(almsRecipient.id) ?? null;
+    const activeChapelTrip = activeTripsByOrigin.get(chapel.id) ?? null;
+    const activeAlmsTrip = activeChapelTrip?.destinationKind === 'wealth'
+      && activeChapelTrip.cargoKind === 'gold'
+      ? activeChapelTrip
+      : null;
+    const almsAmount = almsRecipient == null
+      ? 0
+      : Math.min(
+          CHAPEL_CHARITY_GOLD_PER_DAY,
+          Math.max(0, HOUSEHOLD_MAX_WEALTH - almsRecipient.householdWealth),
+        );
+    const almsCooldownSeconds = Math.max(0, chapel.actionCooldown);
     const abandoned = assigned.filter((residence) => residence.abandoned);
     const cofferGold = chapelCofferGold(chapel);
     const reliefBudget = Math.min(
@@ -266,6 +321,41 @@ export function computeSettlementParishReliefPlan(
       : marketsById.get(marketClaim.supplierId) ?? null;
     const staffed = chapel.assignedLabor > 0
       && !disabledBuildingIds.has(chapel.id);
+
+    let almsStatus: ParishAlmsStatus;
+    if (chapel.constructionComplete === false) {
+      almsStatus = 'unbuilt';
+    } else if (disabledBuildingIds.has(chapel.id)) {
+      almsStatus = 'fire-disabled';
+    } else if (chapel.assignedLabor <= 0) {
+      almsStatus = 'unstaffed';
+    } else if (!physicalEconomy) {
+      almsStatus = 'legacy';
+    } else if (
+      activeAlmsTrip != null
+      && (activeAlmsTrip.phase === 'outbound'
+        || activeAlmsTrip.phase === 'unloading')
+    ) {
+      almsStatus = 'in-transit';
+    } else if (activeAlmsTrip != null) {
+      almsStatus = 'returning';
+    } else if (cofferGold < CHAPEL_CHARITY_MIN_COFFER_GOLD) {
+      almsStatus = 'below-coffer-threshold';
+    } else if (almsRecipient == null || almsAmount <= 1e-9) {
+      almsStatus = 'no-recipient';
+    } else if (almsCooldownSeconds > 1e-9) {
+      almsStatus = 'cooling-down';
+    } else if (logisticsPaused) {
+      almsStatus = 'closed';
+    } else if (activeChapelTrip != null) {
+      almsStatus = 'chapel-cart-busy';
+    } else if (almsClaim == null) {
+      almsStatus = 'no-route';
+    } else if (almsClaim.distance <= 1e-6) {
+      almsStatus = 'route-too-short';
+    } else {
+      almsStatus = 'ready';
+    }
 
     let status: ParishReliefStatus;
     if (chapel.constructionComplete === false) {
@@ -315,6 +405,12 @@ export function computeSettlementParishReliefPlan(
         0,
       ),
       almsRecipientId: almsRecipient?.id ?? null,
+      almsStatus,
+      almsAmount,
+      almsRoadDistance: almsClaim?.distance ?? null,
+      almsCooldownSeconds,
+      almsTripId: activeAlmsTrip?.id ?? null,
+      almsGoldInTransit: activeAlmsTrip?.amount ?? 0,
       reliefHomes: abandoned.length,
       targetResidenceId: fallbackTarget?.id ?? null,
       marketplaceId: marketplace?.id ?? marketClaim?.supplierId ?? null,
@@ -332,6 +428,27 @@ export function computeSettlementParishReliefPlan(
       assignedHomes += plan.assignedHomes;
       assignedPopulation += plan.assignedPopulation;
       if (plan.almsRecipientId != null) dailyAlmsRecipients += 1;
+      if (plan.almsTripId != null) {
+        activeAlmsTrips += 1;
+        almsGoldInTransit += plan.almsGoldInTransit;
+      }
+      if (
+        plan.almsStatus === 'ready'
+        || plan.almsStatus === 'closed'
+        || plan.almsStatus === 'chapel-cart-busy'
+        || plan.almsStatus === 'no-route'
+        || plan.almsStatus === 'route-too-short'
+      ) {
+        almsDueParishes += 1;
+      }
+      if (
+        plan.almsStatus === 'closed'
+        || plan.almsStatus === 'chapel-cart-busy'
+        || plan.almsStatus === 'no-route'
+        || plan.almsStatus === 'route-too-short'
+      ) {
+        almsBlockedParishes += 1;
+      }
       reliefHomes += plan.reliefHomes;
       if (plan.status === 'ready') readyParishes += 1;
       if (
@@ -380,6 +497,10 @@ export function computeSettlementParishReliefPlan(
       (residence) => residence.abandoned,
     ).length,
     dailyAlmsRecipients,
+    activeAlmsTrips,
+    almsGoldInTransit,
+    almsDueParishes,
+    almsBlockedParishes,
     reliefHomes,
     dueNow,
     readyParishes,
@@ -432,15 +553,39 @@ export function formatChapelParishTerritory(plan: ChapelReliefPlan): string {
 }
 
 export function formatChapelDailyAlms(plan: ChapelReliefPlan): string {
-  if (plan.status === 'fire-disabled') {
-    return 'Paused · coffer sealed during structural recovery';
+  const purseAmount = plan.almsAmount > 1e-9
+    ? plan.almsAmount
+    : CHAPEL_CHARITY_GOLD_PER_DAY;
+  switch (plan.almsStatus) {
+    case 'legacy':
+      return `Poorest parish household · ${CHAPEL_CHARITY_GOLD_PER_DAY.toFixed(2)} gold/day`;
+    case 'unbuilt': return 'Complete the chapel first';
+    case 'unstaffed': return 'Inactive until a priest is assigned';
+    case 'fire-disabled': return 'Paused · coffer sealed during structural recovery';
+    case 'below-coffer-threshold':
+      return `Held below ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold`;
+    case 'no-recipient': return 'No occupied household can receive alms';
+    case 'in-transit':
+      return `${plan.almsGoldInTransit.toFixed(2)} gold purse en route to the poorest household`;
+    case 'returning': return 'Undelivered alms purse returning to the chapel';
+    case 'cooling-down': {
+      const workdays = CHAPEL_WORKDAY_SECONDS <= 1e-9
+        ? 0
+        : plan.almsCooldownSeconds / CHAPEL_WORKDAY_SECONDS;
+      return `Next purse in ${formatWorkdays(workdays)}`;
+    }
+    case 'closed': return `${purseAmount.toFixed(2)} gold purse ready · parish errands are resting`;
+    case 'chapel-cart-busy':
+      return `${purseAmount.toFixed(2)} gold purse waiting · chapel cart is busy`;
+    case 'no-route': return 'Blocked · poorest household has no chapel road route';
+    case 'route-too-short': return 'Blocked · route needs a usable road segment';
+    case 'ready': {
+      const distance = plan.almsRoadDistance == null
+        ? 'road route'
+        : `${Math.ceil(plan.almsRoadDistance)} m road`;
+      return `${purseAmount.toFixed(2)} gold purse ready · ${distance} · needs one free villager`;
+    }
   }
-  if (!plan.staffed) return 'Inactive';
-  if (plan.cofferGold < CHAPEL_CHARITY_MIN_COFFER_GOLD) {
-    return `Held below ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold`;
-  }
-  if (plan.almsRecipientId == null) return 'No occupied household can receive alms';
-  return `Poorest parish household · ${CHAPEL_CHARITY_GOLD_PER_DAY.toFixed(2)} gold/day`;
 }
 
 export function formatChapelPoorRelief(plan: ChapelReliefPlan): string {
@@ -510,4 +655,10 @@ function formatDays(days: number): string {
   if (days <= 1e-6) return 'today';
   const rounded = Math.ceil(days);
   return `${rounded} day${rounded === 1 ? '' : 's'}`;
+}
+
+function formatWorkdays(days: number): string {
+  if (days <= 1e-6) return 'the next parish work period';
+  const rounded = Math.ceil(days * 10) / 10;
+  return `${rounded.toFixed(rounded % 1 === 0 ? 0 : 1)} parish workday${rounded === 1 ? '' : 's'}`;
 }

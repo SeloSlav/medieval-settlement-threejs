@@ -724,7 +724,8 @@ pub struct DeliveryTrip {
     pub owner: Identity,
     pub building_id: u64,
     pub residence_id: u64,
-    /// 0 = residence delivery, 1 = building supply, 2 = emergency fire response.
+    /// 0 = residence supply, 1 = building supply, 2 = emergency fire response,
+    /// 3 = parish alms delivered into household wealth.
     pub destination_kind: u8,
     /// Lodge or other building receiving a supply haul when `destination_kind == 1`.
     pub target_building_id: u64,

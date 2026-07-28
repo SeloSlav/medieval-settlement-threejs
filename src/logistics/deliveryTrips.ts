@@ -28,7 +28,12 @@ export const DELIVERY_CARGO_KINDS = [
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
-export const DELIVERY_DESTINATION_KINDS = ['residence', 'building', 'fire'] as const;
+export const DELIVERY_DESTINATION_KINDS = [
+  'residence',
+  'building',
+  'fire',
+  'wealth',
+] as const;
 export type DeliveryDestinationKind = (typeof DELIVERY_DESTINATION_KINDS)[number];
 
 export type DeliveryTripState = {
@@ -170,6 +175,8 @@ export function destinationKindFromId(value: number): DeliveryDestinationKind | 
       return 'building';
     case 2:
       return 'fire';
+    case 3:
+      return 'wealth';
     default:
       return null;
   }
@@ -302,7 +309,10 @@ export function formatTripDestinationLabel(
   fallback: string,
 ): string {
   if (!trip) return fallback;
-  if (trip.destinationKind !== 'residence') return fallback;
+  if (
+    trip.destinationKind !== 'residence'
+    && trip.destinationKind !== 'wealth'
+  ) return fallback;
   if (!trip.residenceId) return fallback;
   const residence = getResidence(trip.residenceId);
   if (!residence) return fallback;

@@ -7,13 +7,15 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{
     CARPENTER_DELIVERY_SPEED_MULTIPLIER, CONSTRUCTION_DELIVERY_SPEED_MPS,
     CONSTRUCTION_DELIVERY_UNLOAD_SEC, CONSTRUCTION_HAUL_PER_WORKER, FIRE_BUCKET_SPEED_MPS,
-    FIRE_BUCKET_UNLOAD_SECONDS, STOREHOUSE_HAUL_PER_WORKER,
+    FIRE_BUCKET_UNLOAD_SECONDS, HOUSEHOLD_MAX_WEALTH, STOREHOUSE_HAUL_PER_WORKER,
 };
 use crate::db::*;
 use crate::economy::{
     available_building_labor, building_commodity_room, building_commodity_stock,
-    chapel_monastery_tithe_due, credit_treasury_commodity, deposit_building_commodity,
-    restore_local_civic_receipts, withdraw_building_commodity, CommodityKind,
+    chapel_coffer_gold, chapel_monastery_tithe_due, credit_residence_wealth,
+    credit_treasury_commodity, deposit_building_commodity, record_parish_ledger,
+    restore_local_civic_receipts, withdraw_building_commodity, withdraw_coffer_in_place,
+    CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::residence_upgrade_policy::residence_project_active;
@@ -24,8 +26,8 @@ use crate::simulation::delivery_cargo::{
     withdraw_delivery_cargo, DeliveryCargoTotals,
 };
 use crate::simulation::fires::{
-    apply_fire_water, building_fire_state, release_fire_response, FIRE_TARGET_BUILDING,
-    FIRE_TARGET_RESIDENCE,
+    apply_fire_water, building_fire_state, release_fire_response, residence_fire_state,
+    FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE,
 };
 use crate::simulation::game_calendar::{game_clock, GameClock};
 use crate::simulation::labor_and_logistics_paused;
@@ -66,6 +68,7 @@ fn cached_trip_route(
 pub const DELIVERY_DESTINATION_RESIDENCE: u8 = 0;
 pub const DELIVERY_DESTINATION_BUILDING: u8 = 1;
 pub const DELIVERY_DESTINATION_FIRE: u8 = 2;
+pub const DELIVERY_DESTINATION_RESIDENCE_WEALTH: u8 = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeliveryTripPhase {
@@ -103,6 +106,7 @@ impl TripCargoKind {
 #[derive(Clone, Copy, Debug)]
 enum TripDestination {
     Residence { id: u64, x: f64, z: f64 },
+    ResidenceWealth { id: u64, x: f64, z: f64 },
     Building { id: u64, x: f64, z: f64 },
     FireBuilding { id: u64, x: f64, z: f64 },
     FireResidence { id: u64, x: f64, z: f64 },
@@ -112,6 +116,7 @@ impl TripDestination {
     fn to_row_fields(self) -> (u8, u64, u64) {
         match self {
             Self::Residence { id, .. } => (DELIVERY_DESTINATION_RESIDENCE, id, 0),
+            Self::ResidenceWealth { id, .. } => (DELIVERY_DESTINATION_RESIDENCE_WEALTH, id, 0),
             Self::Building { id, .. } => (DELIVERY_DESTINATION_BUILDING, 0, id),
             Self::FireBuilding { id, .. } => (DELIVERY_DESTINATION_FIRE, 0, id),
             Self::FireResidence { id, .. } => (DELIVERY_DESTINATION_FIRE, id, 0),
@@ -121,6 +126,7 @@ impl TripDestination {
     fn end_point(self) -> (f64, f64) {
         match self {
             Self::Residence { x, z, .. }
+            | Self::ResidenceWealth { x, z, .. }
             | Self::Building { x, z, .. }
             | Self::FireBuilding { x, z, .. }
             | Self::FireResidence { x, z, .. } => (x, z),
@@ -437,6 +443,71 @@ pub fn try_start_delivery_trip(
         |origin, amount| withdraw_delivery_cargo(origin, need_kind, amount),
         |origin| *building = origin.clone(),
     )
+}
+
+/// Sends one physically held parish-alms purse to an occupied household.
+/// Gold remains in the chapel until a free villager can claim a live road
+/// route, remains raid-vulnerable on the journey, and becomes household wealth
+/// only when unloading succeeds.
+pub fn try_start_residence_wealth_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    chapel: &mut Building,
+    residence: &Residence,
+    speed_mps: f64,
+    unload_seconds: f64,
+    requested: f64,
+) -> f64 {
+    if chapel.kind != "chapel"
+        || !chapel.construction_complete
+        || chapel.owner != residence.owner
+        || residence.abandoned
+        || residence.population == 0
+        || tick.building_disabled_by_fire(ctx, chapel.id)
+        || tick.residence_disabled_by_fire(ctx, residence.id)
+        || building_has_active_trip(ctx, chapel.id)
+        || available_free_haulers(ctx, chapel.owner) == 0
+    {
+        return 0.0;
+    }
+
+    let household_room = (HOUSEHOLD_MAX_WEALTH - residence.household_wealth).max(0.0);
+    let load = chapel_coffer_gold(chapel)
+        .min(household_room)
+        .min(requested.max(0.0));
+    if load <= 1e-6 {
+        return 0.0;
+    }
+
+    let before = chapel.gold;
+    let started = try_start_road_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        StartTripSpec {
+            origin: chapel.clone(),
+            destination: TripDestination::ResidenceWealth {
+                id: residence.id,
+                x: residence.x,
+                z: residence.z,
+            },
+            cargo_kind: CommodityKind::Gold.as_u8(),
+            delivery_workers: 1,
+            speed_mps,
+            unload_seconds,
+            load_amount: load,
+        },
+        |source, amount| withdraw_coffer_in_place(source, amount),
+        |source| *chapel = source.clone(),
+    );
+    if started {
+        (before - chapel.gold).max(0.0)
+    } else {
+        0.0
+    }
 }
 
 pub fn try_start_timber_supply_trip(
@@ -1178,6 +1249,10 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
         }
     } else if trip.destination_kind == DELIVERY_DESTINATION_BUILDING {
         unload_commodity_to_building(ctx, trip, commodity);
+    } else if trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE_WEALTH
+        && commodity == CommodityKind::Gold
+    {
+        unload_wealth_to_residence(ctx, trip);
     } else if matches!(
         commodity,
         CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Gold
@@ -1199,6 +1274,25 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
     } else if let Some(need_kind) = ResidenceNeedKind::from_u8(trip.cargo_kind) {
         unload_need_to_residence(ctx, trip, need_kind);
     }
+}
+
+fn unload_wealth_to_residence(ctx: &ReducerContext, trip: &mut DeliveryTrip) {
+    let Some(residence) = ctx.db.residence().id().find(&trip.residence_id) else {
+        return;
+    };
+    if residence.abandoned
+        || residence.population == 0
+        || residence_fire_state(ctx, residence.id).is_some()
+    {
+        return;
+    }
+
+    let delivered = credit_residence_wealth(ctx, residence.id, trip.amount);
+    if delivered <= 1e-6 {
+        return;
+    }
+    trip.amount = (trip.amount - delivered).max(0.0);
+    record_parish_ledger(ctx, trip.owner, ParishLedgerKind::Charity, delivered);
 }
 
 fn unload_residence_upgrade_material(
