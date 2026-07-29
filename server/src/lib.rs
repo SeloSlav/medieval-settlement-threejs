@@ -6,6 +6,7 @@ mod balance_generated;
 mod building_defs;
 mod burgage;
 mod chapel_parish_policy;
+mod civilian_tool_policy;
 mod civic_receipts_policy;
 mod constants;
 mod construction_priority;

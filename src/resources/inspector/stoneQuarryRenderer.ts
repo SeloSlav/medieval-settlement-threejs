@@ -4,6 +4,7 @@ import { buildingStorageCaps, laborScaledInterval } from '../resourceTotals.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
   buildingCostRows,
+  civilianToolRows,
   buildingDemolishHint,
   buildingLaborView,
   buildingStorageRows,
@@ -11,6 +12,7 @@ import {
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
+import { civilianToolThroughputMultiplier } from '../../economy/civilianToolPolicy.ts';
 
 export function renderStoneQuarryInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -32,7 +34,8 @@ export function renderStoneQuarryInspector(
     context.worldQueries.getActiveDeliveryTrip(building),
   );
   const active = onsiteLabor > 0 && nearestQuarry != null && !storageFull;
-  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor);
+  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor)
+    / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
   return {
     eyebrow: 'Building',
@@ -49,6 +52,7 @@ export function renderStoneQuarryInspector(
     statusState: active ? 'active' : 'idle',
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
+      ${civilianToolRows(building)}
       ${buildingExtentRow(building.kind)}
       <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${buildingStorageRows(building, building.kind)}

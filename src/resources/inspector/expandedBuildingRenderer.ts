@@ -34,7 +34,7 @@ import {
   GRAIN_CRITICAL_RUNWAY_CYCLES,
 } from '../../logistics/grainLogistics.ts';
 import { FARM_CROPS, type BuildingKind, type BuildingState, type InspectableTarget } from '../types.ts';
-import { buildingDemolishHint, buildingExtentRow, buildingLaborView, buildingRoadAccessRow, buildingStorageRows } from './buildingCommon.ts';
+import { buildingDemolishHint, buildingExtentRow, buildingLaborView, buildingRoadAccessRow, buildingStorageRows, civilianToolRows } from './buildingCommon.ts';
 import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
 import { renderInboundSupplyRow, renderOutboundDeliveryRows, type DeliveryStatusContext } from './deliveryStatusRows.ts';
 import {
@@ -220,7 +220,7 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'charcoal_burner':
       return 'Highest-priority road-linked smithy below its forge-fuel buffer';
     case 'smithy':
-      return 'Road-linked carpenter needing fittings';
+      return 'Highest-priority maintained worksite below its iron-tool buffer, then carpenter and overflow';
     case 'potter_kiln':
       return 'Road-linked smokehouse first, then export marketplace';
     default:
@@ -271,7 +271,7 @@ function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
     case 'charcoal_burner':
       return ['smithy'];
     case 'smithy':
-      return ['carpenter'];
+      return ['lumber_mill', 'stone_quarry', 'large_quarry', 'clay_pit', 'carpenter'];
     case 'potter_kiln':
       return ['smokehouse', 'marketplace'];
     default:
@@ -318,6 +318,12 @@ function outboundTripTarget(
   if (building.kind === 'weaver') {
     return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'cloth')
       ?? context.worldQueries.findNearestRoadLinkedBuilding(building, ['marketplace']);
+  }
+  if (building.kind === 'smithy') {
+    return context.worldQueries.getNextDirectProcessorInputDispatch(
+      building,
+      'ironwork',
+    )?.target ?? null;
   }
   if (building.kind === 'granary') {
     if (
@@ -452,6 +458,9 @@ function renderLogisticsRows(
   const flourDispatch = building.kind === 'watermill'
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'flour')
     : null;
+  const ironworkDispatch = building.kind === 'smithy'
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'ironwork')
+    : null;
   const flaxDispatch = building.kind === 'threshing_barn'
     ? context.worldQueries.getNextFarmFlaxDispatch(building)
     : null;
@@ -465,6 +474,10 @@ function renderLogisticsRows(
       ? flourDispatch.duty === 'working-buffer'
         ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${staffingPriorityLabel(flourDispatch.workPriority)} priority · ${flourDispatch.target.flour.toFixed(1)} / ${flourDispatch.desiredStock.toFixed(1)} flour · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
         : `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · overflow after active bakery buffers · shortest road`
+      : ironworkDispatch
+        ? ironworkDispatch.duty === 'working-buffer'
+          ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${staffingPriorityLabel(ironworkDispatch.workPriority)} priority · ${(ironworkDispatch.target.ironwork ?? 0).toFixed(2)} / ${ironworkDispatch.desiredStock.toFixed(2)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
+          : `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · maintained buffers covered · nearest overflow route`
       : outboundDestinationLabel(building);
   const nearestTarget = outboundTripTarget(building, context, seedPlan);
   const pathDistance = nearestTarget
@@ -936,7 +949,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building)}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

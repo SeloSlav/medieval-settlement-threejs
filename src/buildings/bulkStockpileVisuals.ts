@@ -15,10 +15,17 @@ export const SMITHY_IRON_VISUAL_SEGMENTS = 4;
 export const SMITHY_IRONWORK_VISUAL_SEGMENTS = 4;
 export const POTTER_CLAY_VISUAL_SEGMENTS = 5;
 export const POTTER_POTTERY_VISUAL_SEGMENTS = 5;
+export const CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS = 4;
 
 export function bulkStockpileVisualSignature(building: BuildingState): string {
   if (building.constructionComplete === false) return '';
   switch (building.kind) {
+    case 'lumber_mill':
+      return `:tools:${stockpileVisualLevel(
+        building.ironwork ?? 0,
+        BUILDING_STORAGE_CAPS.lumber_mill.ironwork ?? 0,
+        CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
+      )}`;
     case 'woodcutters_lodge':
       return `:bulk-store:${stockpileVisualLevel(
         building.firewood,
@@ -30,18 +37,30 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.stone,
         BUILDING_STORAGE_CAPS.stone_quarry.stone,
         STONE_QUARRY_STONE_VISUAL_SEGMENTS,
+      )}:tools:${stockpileVisualLevel(
+        building.ironwork ?? 0,
+        BUILDING_STORAGE_CAPS.stone_quarry.ironwork ?? 0,
+        CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
     case 'large_quarry':
       return `:bulk-store:${stockpileVisualLevel(
         building.stone,
         BUILDING_STORAGE_CAPS.large_quarry.stone,
         LARGE_QUARRY_STONE_VISUAL_SEGMENTS,
+      )}:tools:${stockpileVisualLevel(
+        building.ironwork ?? 0,
+        BUILDING_STORAGE_CAPS.large_quarry.ironwork ?? 0,
+        CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
     case 'clay_pit':
       return `:bulk-store:${stockpileVisualLevel(
         building.clay ?? 0,
         BUILDING_STORAGE_CAPS.clay_pit.clay,
         CLAY_PIT_CLAY_VISUAL_SEGMENTS,
+      )}:tools:${stockpileVisualLevel(
+        building.ironwork ?? 0,
+        BUILDING_STORAGE_CAPS.clay_pit.ironwork ?? 0,
+        CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
     case 'charcoal_burner':
       return `:bulk-store:${stockpileVisualLevel(
@@ -79,6 +98,9 @@ export function syncBulkStockpileVisuals(
   building: BuildingState,
 ): void {
   switch (building.kind) {
+    case 'lumber_mill':
+      syncCivilianToolStockpile(marker, building);
+      break;
     case 'woodcutters_lodge':
       syncNamedStockpile(
         marker,
@@ -96,6 +118,7 @@ export function syncBulkStockpileVisuals(
         building.stone,
         BUILDING_STORAGE_CAPS.stone_quarry.stone,
       );
+      syncCivilianToolStockpile(marker, building);
       break;
     case 'large_quarry':
       syncNamedStockpile(
@@ -105,6 +128,7 @@ export function syncBulkStockpileVisuals(
         building.stone,
         BUILDING_STORAGE_CAPS.large_quarry.stone,
       );
+      syncCivilianToolStockpile(marker, building);
       break;
     case 'clay_pit':
       syncNamedStockpile(
@@ -114,6 +138,7 @@ export function syncBulkStockpileVisuals(
         building.clay ?? 0,
         BUILDING_STORAGE_CAPS.clay_pit.clay,
       );
+      syncCivilianToolStockpile(marker, building);
       break;
     case 'charcoal_burner':
       syncNamedStockpile(
@@ -157,6 +182,23 @@ export function syncBulkStockpileVisuals(
       );
       break;
   }
+}
+
+function syncCivilianToolStockpile(
+  marker: THREE.Group,
+  building: BuildingState,
+): void {
+  syncNamedStockpile(
+    marker,
+    'CivilianToolStockpile',
+    'CivilianToolSegment',
+    building.ironwork ?? 0,
+    (
+      BUILDING_STORAGE_CAPS[building.kind] as {
+        readonly ironwork?: number;
+      }
+    ).ironwork ?? 0,
+  );
 }
 
 function syncNamedStockpile(

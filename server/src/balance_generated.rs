@@ -263,6 +263,8 @@ pub const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE: f64 = 2.0;
 pub const SMITHY_IRON_PER_CYCLE: f64 = 2.0;
 pub const SMITHY_CHARCOAL_PER_CYCLE: f64 = 1.0;
 pub const SMITHY_IRONWORK_PER_CYCLE: f64 = 2.0;
+pub const CIVILIAN_TOOL_IRONWORK_PER_CYCLE: f64 = 0.25;
+pub const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER: f64 = 1.2;
 pub const POTTER_CLAY_PER_CYCLE: f64 = 3.0;
 pub const POTTER_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const POTTER_POTTERY_PER_CYCLE: f64 = 3.0;
@@ -729,7 +731,7 @@ const LUMBER_MILL: BuildingDef = BuildingDef {
     storage_wine: 0.0,
     storage_wool: 0.0,
     storage_cloth: 0.0,
-    storage_ironwork: 0.0,
+    storage_ironwork: 3.0,
     storage_polearms: 0.0,
     storage_iron: 0.0,
     storage_clay: 0.0,
@@ -858,7 +860,7 @@ const STONE_QUARRY: BuildingDef = BuildingDef {
     storage_wine: 0.0,
     storage_wool: 0.0,
     storage_cloth: 0.0,
-    storage_ironwork: 0.0,
+    storage_ironwork: 3.0,
     storage_polearms: 0.0,
     storage_iron: 0.0,
     storage_clay: 0.0,
@@ -901,7 +903,7 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
     storage_wine: 0.0,
     storage_wool: 0.0,
     storage_cloth: 0.0,
-    storage_ironwork: 0.0,
+    storage_ironwork: 3.0,
     storage_polearms: 0.0,
     storage_iron: 0.0,
     storage_clay: 0.0,
@@ -944,7 +946,7 @@ const CLAY_PIT: BuildingDef = BuildingDef {
     storage_wine: 0.0,
     storage_wool: 0.0,
     storage_cloth: 0.0,
-    storage_ironwork: 0.0,
+    storage_ironwork: 3.0,
     storage_polearms: 0.0,
     storage_iron: 0.0,
     storage_clay: 180.0,

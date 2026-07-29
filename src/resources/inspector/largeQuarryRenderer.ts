@@ -4,12 +4,14 @@ import { buildingStorageCaps, laborScaledInterval } from '../resourceTotals.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
   buildingCostRows,
+  civilianToolRows,
   buildingDemolishHint,
   buildingLaborView,
   buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
+import { civilianToolThroughputMultiplier } from '../../economy/civilianToolPolicy.ts';
 
 export function renderLargeQuarryInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -27,7 +29,8 @@ export function renderLargeQuarryInspector(
     context.worldQueries.getActiveDeliveryTrip(building),
   );
   const active = onsiteLabor > 0 && richDeposit != null && !storageFull;
-  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor);
+  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor)
+    / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
   return {
     eyebrow: 'Underground quarry',
@@ -44,6 +47,7 @@ export function renderLargeQuarryInspector(
     statusState: active ? 'active' : 'idle',
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
+      ${civilianToolRows(building)}
       <li><span>Source</span><span>Rich underground stone · inexhaustible</span></li>
       <li><span>Surface reserve</span><span>Separate · ${Math.round(richDeposit?.remaining ?? 0)} remaining</span></li>
       <li><span>Production interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>

@@ -12,6 +12,7 @@ import {
   addLeanToRoof,
   addPlankDoor,
 } from './buildingMeshKit.ts';
+import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 
 const CLAY = sharedBuildingDetailMaterial('earth');
 const FIRED_CLAY = sharedBuildingDetailMaterial('paintRed');
@@ -199,6 +200,7 @@ export function createClayPitMesh(): THREE.Group {
       new THREE.Euler(0, -0.32, 0),
     );
   }
+  group.add(createCivilianToolStockpile(new THREE.Vector3(-3.75, 0, -2.65), 0.24));
   return group;
 }
 

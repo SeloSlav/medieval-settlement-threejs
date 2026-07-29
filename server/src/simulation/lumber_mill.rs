@@ -1,11 +1,16 @@
 use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
+use crate::civilian_tool_policy::{
+    civilian_tool_throughput_multiplier, civilian_tools_maintained,
+};
 use crate::constants::{MILL_WATER_PER_HARVEST, TICK_DT};
 use crate::db::*;
 use crate::economy::{
-    building_storage_caps, building_water_storage_cap, deposit_building, withdraw_building_water,
+    building_storage_caps, building_water_storage_cap, deposit_building,
+    withdraw_building_commodity, withdraw_building_water, CommodityKind,
 };
+use crate::balance_generated::CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -34,7 +39,9 @@ pub fn step_lumber_mill(
         return;
     }
 
-    let cooldown = (building.action_cooldown - TICK_DT).max(0.0);
+    let tools_maintained = civilian_tools_maintained(building.ironwork);
+    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork);
+    let cooldown = (building.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
     if cooldown > 0.0 {
         ctx.db.building().id().update(Building {
             action_cooldown: cooldown,
@@ -83,6 +90,13 @@ pub fn step_lumber_mill(
     }
 
     let (_, mut harvested) = withdraw_building_water(&updated, MILL_WATER_PER_HARVEST);
+    if tools_maintained {
+        withdraw_building_commodity(
+            &mut harvested,
+            CommodityKind::Ironwork,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+        );
+    }
     let water_cap = building_water_storage_cap(&mill.kind);
     harvested.water = harvested.water.min(water_cap);
 

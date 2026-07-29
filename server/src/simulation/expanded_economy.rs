@@ -7,7 +7,7 @@ use crate::balance_generated::{
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, FARM_GROWTH_SECONDS,
-    FARM_WORK_METERS_PER_WORKER_PER_SEC,
+    FARM_WORK_METERS_PER_WORKER_PER_SEC, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
     FERRY_GOLD_PER_DAY, FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
     GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE,
     GRANARY_WATER_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
@@ -24,6 +24,10 @@ use crate::balance_generated::{
     WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
+use crate::civilian_tool_policy::{
+    civilian_tool_runway_cycles, civilian_tool_throughput_multiplier, civilian_tools_maintained,
+    is_civilian_tool_site,
+};
 use crate::burgage::{Point2, ZoneCorners};
 use crate::db::*;
 use crate::economy::{
@@ -916,13 +920,24 @@ pub fn step_clay_pit(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut clay_pit = step_simple_producer(
+    let tools_maintained = civilian_tools_maintained(building.ironwork);
+    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork);
+    let clay_before = building.clay;
+    let mut clay_pit = step_simple_producer_at_rate(
         ctx,
         tick,
         clock,
         building,
         &[(CommodityKind::Clay, CLAY_PIT_CLAY_PER_CYCLE)],
+        throughput_multiplier,
     );
+    if tools_maintained && clay_pit.clay > clay_before + 1e-6 {
+        withdraw_building_commodity(
+            &mut clay_pit,
+            CommodityKind::Ironwork,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+        );
+    }
     dispatch_to_building(
         ctx,
         tick,
@@ -1011,7 +1026,13 @@ pub fn step_smithy(
         clock,
         &mut smithy,
         CommodityKind::Ironwork,
-        &["carpenter"],
+        &[
+            "lumber_mill",
+            "stone_quarry",
+            "large_quarry",
+            "clay_pit",
+            "carpenter",
+        ],
     );
     ctx.db.building().id().update(smithy);
 }
@@ -1393,8 +1414,19 @@ fn step_simple_producer(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
+    building: Building,
+    outputs: &[(CommodityKind, f64)],
+) -> Building {
+    step_simple_producer_at_rate(ctx, tick, clock, building, outputs, 1.0)
+}
+
+fn step_simple_producer_at_rate(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
     mut building: Building,
     outputs: &[(CommodityKind, f64)],
+    throughput_multiplier: f64,
 ) -> Building {
     if !producer_output_batch_fits(outputs.iter().map(|(kind, batch)| {
         (
@@ -1405,7 +1437,14 @@ fn step_simple_producer(
     })) {
         return building;
     }
-    let Some(labor) = cycle_labor_if_ready(ctx, tick, clock, &mut building, false) else {
+    let Some(labor) = cycle_labor_if_ready_at_rate(
+        ctx,
+        tick,
+        clock,
+        &mut building,
+        false,
+        throughput_multiplier,
+    ) else {
         return building;
     };
     for (kind, amount) in outputs {
@@ -2130,6 +2169,13 @@ fn dispatch_to_building_where_limited(
                 } else {
                     0
                 };
+                let runway_cycles = if commodity == CommodityKind::Ironwork
+                    && is_civilian_tool_site(&target.kind)
+                {
+                    civilian_tool_runway_cycles(stock)
+                } else {
+                    processor_input_runway_cycles(stock, per_cycle)
+                };
                 network
                     .road_path_distance(source.x, source.z, target.x, target.z)
                     .map(|distance| RoutedProcessorInputTarget {
@@ -2137,7 +2183,7 @@ fn dispatch_to_building_where_limited(
                         distance,
                         duty,
                         input_preference_rank,
-                        runway_cycles: processor_input_runway_cycles(stock, per_cycle),
+                        runway_cycles,
                         desired_stock,
                     })
             }),
@@ -2175,6 +2221,9 @@ fn directly_dispatched_processor_input_per_cycle(
     commodity: CommodityKind,
 ) -> f64 {
     match (target_kind, commodity) {
+        (kind, CommodityKind::Ironwork) if is_civilian_tool_site(kind) => {
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+        }
         ("granary", CommodityKind::Flour) => GRANARY_FLOUR_PER_CYCLE,
         ("smokehouse", CommodityKind::Food) => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("weaver", CommodityKind::Wool) => WEAVER_WOOL_PER_CYCLE,

@@ -7,6 +7,7 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { addDarkOpening, addGableShell, addPlankDoor } from './buildingMeshKit.ts';
+import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 
 function addShaft(group: THREE.Group): void {
   addMesh(
@@ -189,5 +190,6 @@ export function createLargeQuarryMesh(): THREE.Group {
   addWinchHouse(group);
   addWorkPlatforms(group);
   addStoneYard(group);
+  group.add(createCivilianToolStockpile(new THREE.Vector3(7.8, 0, 5.45), -0.18));
   return group;
 }

@@ -8,6 +8,7 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { addGableShell, addPlankDoor, addSmallWindow } from './buildingMeshKit.ts';
+import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 
 function addCutBlockStack(
   group: THREE.Group,
@@ -179,5 +180,6 @@ export function createStoneQuarryMesh(): THREE.Group {
   addStonecuttersShelter(group);
   addStonecuttingBench(group);
   group.add(createStoneStockpile());
+  group.add(createCivilianToolStockpile(new THREE.Vector3(3.65, 0, 5.4), -0.08));
   return group;
 }

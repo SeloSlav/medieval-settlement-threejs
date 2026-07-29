@@ -32,6 +32,7 @@ const tests = [
   'test:seasonal-producer-stores',
   'test:physical-marketplace-specialties',
   'test:material-economy',
+  'test:civilian-tool-economy',
   'test:village-economy',
   'test:chapel-community',
   'test:household-economy',

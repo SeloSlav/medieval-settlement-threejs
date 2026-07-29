@@ -18,6 +18,7 @@ import {
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
+import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 
 function addMillRoof(group: THREE.Group, length: number, width: number, wallTop: number): void {
   const halfL = length * 0.5;
@@ -195,6 +196,7 @@ export function createLumberMillMesh(): THREE.Group {
   });
 
   group.add(createMillTimberStockpile());
+  group.add(createCivilianToolStockpile(new THREE.Vector3(-6.7, 0, 4.5), 0.12));
   return group;
 }
 

@@ -38,7 +38,8 @@ export type ProcessorInputCommodity =
   | 'clay'
   | 'salt'
   | 'charcoal'
-  | 'pottery';
+  | 'pottery'
+  | 'ironwork';
 
 export const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT = 100;
 export const PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES = 3;

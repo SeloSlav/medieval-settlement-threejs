@@ -24,6 +24,11 @@ import {
   normalizeConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
 import { onsiteBuildingLabor, rosteredCartWorkers } from '../../logistics/deliveryTrips.ts';
+import { civilianToolPlan } from '../../economy/civilianToolPolicy.ts';
+import {
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+} from '../../generated/gameBalance.ts';
 
 export function buildingStorageRows(
   building: BuildingState,
@@ -56,6 +61,20 @@ export function buildingStorageRows(
     caps.charcoal != null && caps.charcoal > 0 ? `<li><span>Charcoal stored</span><span>${Math.round(building.charcoal ?? 0)} / ${caps.charcoal}</span></li>` : '',
     caps.pottery != null && caps.pottery > 0 ? `<li><span>Pottery stored</span><span>${Math.round(building.pottery ?? 0)} / ${caps.pottery}</span></li>` : '',
   ].filter(Boolean).join('');
+}
+
+export function civilianToolRows(building: BuildingState): string {
+  const plan = civilianToolPlan(building);
+  if (plan == null) return '';
+  const bonus = Math.round((CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER - 1) * 100);
+  return `
+    <li><span>Work tools</span><span>${
+      plan.maintained
+        ? `Maintained · +${bonus}% throughput · ${plan.runwayCycles.toFixed(1)} cycles onsite`
+        : `Baseline hand tools · deliver ironwork for +${bonus}% throughput`
+    }</span></li>
+    <li><span>Tool wear</span><span>${CIVILIAN_TOOL_IRONWORK_PER_CYCLE} ironwork per completed cycle · smithy handcart restores a 3-cycle buffer</span></li>
+  `;
 }
 
 export function buildingRoadAccessRow(worldQueries: WorldQueries, building: BuildingState): string {

@@ -4,6 +4,7 @@ import { laborScaledInterval } from '../resourceTotals.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
   buildingCostRows,
+  civilianToolRows,
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
@@ -14,6 +15,7 @@ import {
 import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
+import { civilianToolThroughputMultiplier } from '../../economy/civilianToolPolicy.ts';
 
 export function renderLumberMillInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -28,7 +30,8 @@ export function renderLumberMillInspector(
     building,
     context.worldQueries.getActiveDeliveryTrip(building),
   );
-  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor);
+  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor)
+    / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
   return {
     eyebrow: 'Building',
@@ -39,6 +42,7 @@ export function renderLumberMillInspector(
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${processorStatus?.waterDetailHtml ?? ''}
+      ${civilianToolRows(building)}
       ${buildingExtentRow(building.kind)}
       <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}

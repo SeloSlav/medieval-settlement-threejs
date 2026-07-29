@@ -264,6 +264,8 @@ export const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE = 2;
 export const SMITHY_IRON_PER_CYCLE = 2;
 export const SMITHY_CHARCOAL_PER_CYCLE = 1;
 export const SMITHY_IRONWORK_PER_CYCLE = 2;
+export const CIVILIAN_TOOL_IRONWORK_PER_CYCLE = 0.25;
+export const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER = 1.2;
 export const POTTER_CLAY_PER_CYCLE = 3;
 export const POTTER_FIREWOOD_PER_CYCLE = 1;
 export const POTTER_POTTERY_PER_CYCLE = 3;
@@ -1274,12 +1276,12 @@ export const BUILDING_COSTS = {
 export const BUILDING_STORAGE_CAPS = {
   founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 80, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80 },
   salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000 },
-  lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48 },
+  lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0 },
-  stone_quarry: { timber: 0, firewood: 0, stone: 180 },
-  large_quarry: { timber: 0, firewood: 0, stone: 360 },
-  clay_pit: { timber: 0, firewood: 0, stone: 0, clay: 180 },
+  stone_quarry: { timber: 0, firewood: 0, stone: 180, ironwork: 3 },
+  large_quarry: { timber: 0, firewood: 0, stone: 360, ironwork: 3 },
+  clay_pit: { timber: 0, firewood: 0, stone: 0, ironwork: 3, clay: 180 },
   charcoal_burner: { timber: 0, firewood: 54, stone: 0, charcoal: 72 },
   smithy: { timber: 0, firewood: 0, stone: 0, ironwork: 72, iron: 48, charcoal: 36 },
   potter_kiln: { timber: 0, firewood: 36, stone: 0, clay: 72, pottery: 120 },

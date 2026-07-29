@@ -382,6 +382,8 @@
     "smithyIronPerCycle": 2,
     "smithyCharcoalPerCycle": 1,
     "smithyIronworkPerCycle": 2,
+    "civilianToolIronworkPerCycle": 0.25,
+    "civilianToolThroughputMultiplier": 1.2,
     "potterClayPerCycle": 3,
     "potterFirewoodPerCycle": 1,
     "potterPotteryPerCycle": 3,
@@ -698,7 +700,7 @@
     "lumber_mill": {
       "label": "Lumber mill",
       "cost": { "timber": 45, "stone": 15 },
-      "storage": { "timber": 240, "firewood": 0, "stone": 0, "water": 48, "food": 0 },
+      "storage": { "timber": 240, "firewood": 0, "stone": 0, "water": 48, "food": 0, "ironwork": 3 },
       "workRadius": 210,
       "pickRadius": 8,
       "harvestInterval": 9,
@@ -749,7 +751,7 @@
     "stone_quarry": {
       "label": "Stonecutter's camp",
       "cost": { "timber": 25, "stone": 40 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 180, "food": 0 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 180, "food": 0, "ironwork": 3 },
       "workRadius": 80,
       "pickRadius": 10,
       "harvestInterval": 9,
@@ -766,7 +768,7 @@
     "large_quarry": {
       "label": "Large Quarry",
       "cost": { "timber": 90, "stone": 70 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 360, "food": 0 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 360, "food": 0, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 13,
       "harvestInterval": 7,
@@ -783,7 +785,7 @@
     "clay_pit": {
       "label": "Riverbank clay pit",
       "cost": { "timber": 24, "stone": 8 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "clay": 180 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "clay": 180, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 10,
       "harvestInterval": 8,

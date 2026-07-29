@@ -1,11 +1,13 @@
 import {
   BREWERY_BARLEY_PER_MALT_CYCLE,
   BUILDING_STORAGE_CAPS,
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   GRANARY_FLOUR_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
   WEAVER_FLAX_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../generated/gameBalance.ts';
+import { isCivilianToolSite } from '../economy/civilianToolPolicy.ts';
 import {
   normalizeStaffingPriority,
   type StaffingPriority,
@@ -22,7 +24,8 @@ export type DirectProcessorInputCommodity =
   | 'flour'
   | 'food'
   | 'wool'
-  | 'flax';
+  | 'flax'
+  | 'ironwork';
 export type ProcessorInputDispatchDuty = 'working-buffer' | 'workshop-overflow';
 
 type ProcessorInputDestinationLike = Pick<
@@ -39,6 +42,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'wool'
   | 'flax'
   | 'barley'
+  | 'ironwork'
 >;
 
 export type RoutedProcessorInputDestination<T extends ProcessorInputDestinationLike> = {
@@ -51,19 +55,29 @@ export type RoutedProcessorInputDestination<T extends ProcessorInputDestinationL
   inputPreferenceRank: number;
 };
 
-const TARGET_KIND: Record<DirectProcessorInputCommodity, BuildingKind> = {
-  barley: 'brewery',
-  flour: 'granary',
-  food: 'smokehouse',
-  wool: 'weaver',
-  flax: 'weaver',
+const TARGET_KINDS: Record<
+  DirectProcessorInputCommodity,
+  readonly BuildingKind[]
+> = {
+  barley: ['brewery'],
+  flour: ['granary'],
+  food: ['smokehouse'],
+  wool: ['weaver'],
+  flax: ['weaver'],
+  ironwork: [
+    'lumber_mill',
+    'stone_quarry',
+    'large_quarry',
+    'clay_pit',
+    'carpenter',
+  ],
 };
 
 export function directlyDispatchedProcessorInputPerCycle(
   targetKind: BuildingKind,
   commodity: DirectProcessorInputCommodity,
 ): number {
-  if (targetKind !== TARGET_KIND[commodity]) return 0;
+  if (!TARGET_KINDS[commodity].includes(targetKind)) return 0;
   switch (commodity) {
     case 'barley':
       return BREWERY_BARLEY_PER_MALT_CYCLE;
@@ -75,6 +89,10 @@ export function directlyDispatchedProcessorInputPerCycle(
       return WEAVER_WOOL_PER_CYCLE;
     case 'flax':
       return WEAVER_FLAX_PER_CYCLE;
+    case 'ironwork':
+      return isCivilianToolSite(targetKind)
+        ? CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+        : 0;
   }
 }
 
@@ -91,10 +109,11 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
 }
 
 /**
- * Mirrors source-side mill, granary/swine, and sheep-holding dispatch. Active
+ * Mirrors source-side mill, granary/swine, sheep-holding, and smithy dispatch. Active
  * processors receive their selected stock-policy working buffers by work
  * priority. Equal-tier looms then route matching fibres to their selected
- * specialization before lowest runway and route. Once those buffers are
+ * specialization before lowest runway and route; staffed extractive worksites
+ * use the same ordering for replacement iron tools. Once those buffers are
  * covered, nearest storage overflow resumes without letting a high tier
  * monopolize full warehouses.
  */
@@ -112,7 +131,7 @@ export function selectDirectProcessorInputTarget<
   for (const target of targets) {
     if (
       target.id === sourceId
-      || target.kind !== TARGET_KIND[commodity]
+      || !TARGET_KINDS[commodity].includes(target.kind)
       || target.constructionComplete === false
       || hasInboundSupply(target)
       || !acceptsInput(target)
