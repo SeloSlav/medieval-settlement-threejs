@@ -32,7 +32,10 @@ export type LodgeStatusInput = {
   inboundTimberTrip: DeliveryTripState | null;
   timberTripRemainingSeconds: number | null;
   nextTargetLabel: string;
+  activeDestinationLabel: string;
   hasNextTarget: boolean;
+  hasIndustrialTarget: boolean;
+  industrialTargetLabel: string;
   firewoodPerTrip: number;
   canDeliver: boolean;
   availableUnreservedTimber: number;
@@ -58,7 +61,10 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
     inboundTimberTrip,
     timberTripRemainingSeconds,
     nextTargetLabel,
+    activeDestinationLabel,
     hasNextTarget,
+    hasIndustrialTarget,
+    industrialTargetLabel,
     firewoodPerTrip,
     canDeliver,
     availableUnreservedTimber,
@@ -90,9 +96,9 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
       statusState: 'warning',
     };
   }
-  if (claimedResidenceCount === 0) {
+  if (claimedResidenceCount === 0 && !hasIndustrialTarget) {
     return {
-      statusText: 'No residences claimed on this road branch',
+      statusText: 'No heated homes or staffed fuel-burning workshops on this road branch',
       statusState: 'warning',
     };
   }
@@ -129,7 +135,7 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
   if (activeTrip && tripRemainingSeconds != null) {
     const timer = formatCooldown(tripRemainingSeconds ?? Infinity);
     return {
-      statusText: `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${timer} remaining → ${nextTargetLabel}`,
+      statusText: `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${timer} remaining → ${activeDestinationLabel}`,
       statusState: 'active',
     };
   }
@@ -145,6 +151,12 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
     return {
       statusText: `Serving stored firewood — timber processing held at the ${Math.round(timberReserve)} reserve`,
       statusState: 'warning',
+    };
+  }
+  if (!hasNextTarget && hasIndustrialTarget) {
+    return {
+      statusText: `Household rounds clear — surplus fuel ready for ${industrialTargetLabel}`,
+      statusState: 'ok',
     };
   }
   return {

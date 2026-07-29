@@ -39,21 +39,18 @@ struct OverflowSource {
     fill_ratio: f64,
 }
 
-/// Staffed storehouses first serve their claimed household fuel branches. The
-/// remaining idle depots then clear producer overflow in one owner-wide pass:
-/// fullest producers claim the nearest compatible depot, so database iteration
-/// and construction order cannot silently distort the logistics layout.
-/// Food and grain are deliberately excluded so the granary and marketplace keep
-/// their specialized roles.
-pub fn step_village_storehouses(
+/// Give each staffed depot its household-heating opportunity before either
+/// industrial fuel or collection work may claim its cart.
+pub fn step_village_storehouse_household_firewood(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
     storehouses: Vec<Building>,
 ) {
-    let mut idle_by_owner: HashMap<Identity, Vec<Building>> = HashMap::new();
     for mut storehouse in storehouses {
-        if storehouse.assigned_labor == 0
+        if !storehouse.construction_complete
+            || tick.building_disabled_by_fire(ctx, storehouse.id)
+            || storehouse.assigned_labor == 0
             || labor_and_logistics_paused(ctx, tick, storehouse.owner, clock)
             || building_has_active_trip(ctx, storehouse.id)
             || building_has_inbound_supply_trip(ctx, storehouse.id)
@@ -83,10 +80,34 @@ pub fn step_village_storehouses(
                 },
             ) {
                 ctx.db.building().id().update(storehouse);
-                continue;
             }
         }
+    }
+}
 
+/// Once household and industrial firewood claims have run, remaining idle
+/// depots clear producer overflow in one owner-wide pass. Fullest producers
+/// claim the nearest compatible depot, so database iteration and construction
+/// order cannot silently distort the logistics layout. Food and grain remain
+/// excluded so the granary and marketplace keep their specialized roles.
+pub fn step_village_storehouse_overflow_collection(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    storehouses: Vec<Building>,
+) {
+    let mut idle_by_owner: HashMap<Identity, Vec<Building>> = HashMap::new();
+    for storehouse in storehouses {
+        if !storehouse.construction_complete
+            || tick.building_disabled_by_fire(ctx, storehouse.id)
+            || storehouse.assigned_labor == 0
+            || labor_and_logistics_paused(ctx, tick, storehouse.owner, clock)
+            || building_has_active_trip(ctx, storehouse.id)
+            || building_has_inbound_supply_trip(ctx, storehouse.id)
+            || tick.road_network(storehouse.owner).is_none()
+        {
+            continue;
+        }
         idle_by_owner
             .entry(storehouse.owner)
             .or_default()

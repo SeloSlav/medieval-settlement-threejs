@@ -1,11 +1,14 @@
 use std::cmp::Ordering;
 
 use crate::balance_generated::{
-    BREWERY_BARLEY_PER_MALT_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE,
+    BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+    BREWERY_MALTING_FIREWOOD_PER_CYCLE, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE,
     HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
-    MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE,
-    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
-    WEAVER_FLAX_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    SMITHY_CHARCOAL_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
+    SMOKEHOUSE_POTTERY_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
+    WEAVER_WOOL_PER_CYCLE,
 };
 use crate::civilian_tool_policy::is_civilian_tool_site;
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -30,6 +33,13 @@ pub const FOOD_SUPPLIER_KINDS: &[&str] = &[
 ];
 pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "monastery"];
 pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "granary", "monastery"];
+pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
+    "granary",
+    "brewery",
+    "smokehouse",
+    "charcoal_burner",
+    "potter_kiln",
+];
 pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
@@ -335,14 +345,16 @@ pub enum ProcessorInputDispatchDuty {
 ///
 /// A zero result deliberately marks storage/export overflow, so pottery fills
 /// staffed smokehouse vessel buffers before a nearer marketplace can claim it.
-pub fn directly_dispatched_processor_input_per_cycle(
-    target_kind: &str,
-    commodity: &str,
-) -> f64 {
+pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodity: &str) -> f64 {
     match (target_kind, commodity) {
-        (kind, "ironwork") if is_civilian_tool_site(kind) => {
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+        (kind, "ironwork") if is_civilian_tool_site(kind) => CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+        ("granary", "firewood") => GRANARY_FIREWOOD_PER_CYCLE,
+        ("brewery", "firewood") => {
+            BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE
         }
+        ("smokehouse", "firewood") => SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+        ("charcoal_burner", "firewood") => CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+        ("potter_kiln", "firewood") => POTTER_FIREWOOD_PER_CYCLE,
         ("granary", "flour") => GRANARY_FLOUR_PER_CYCLE,
         ("smokehouse", "food") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
@@ -558,7 +570,7 @@ mod tests {
         NeedDeliveryCandidate, ProcessorInputDispatchDuty, ALE_SUPPLIER_KINDS,
         CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS, GRAIN_CRITICAL_RUNWAY_CYCLES,
         GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES, GRAIN_PROCESSOR_KINDS,
-        PRESERVED_FOOD_SUPPLIER_KINDS,
+        INDUSTRIAL_FIREWOOD_TARGET_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
@@ -682,10 +694,7 @@ mod tests {
             GRAIN_DISPATCH_TARGET_KINDS,
             &["watermill", "granary", "monastery"]
         );
-        assert_eq!(
-            GRAIN_PROCESSOR_KINDS,
-            &["watermill", "monastery"]
-        );
+        assert_eq!(GRAIN_PROCESSOR_KINDS, &["watermill", "monastery"]);
         assert_eq!(GRAIN_INPUT_BUFFER_CYCLES, 3.0);
         assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
         assert_eq!(grain_input_target("watermill", 1.0, 25), 3.0);
@@ -706,6 +715,36 @@ mod tests {
 
     #[test]
     fn direct_processor_inputs_restore_priority_buffers_before_overflow() {
+        assert_eq!(
+            INDUSTRIAL_FIREWOOD_TARGET_KINDS,
+            &[
+                "granary",
+                "brewery",
+                "smokehouse",
+                "charcoal_burner",
+                "potter_kiln",
+            ]
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("granary", "firewood"),
+            super::GRANARY_FIREWOOD_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("brewery", "firewood"),
+            super::BREWERY_MALTING_FIREWOOD_PER_CYCLE + super::BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("smokehouse", "firewood"),
+            super::SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("charcoal_burner", "firewood"),
+            super::CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("potter_kiln", "firewood"),
+            super::POTTER_FIREWOOD_PER_CYCLE,
+        );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("potter_kiln", "clay"),
             3.0,
@@ -839,10 +878,7 @@ mod tests {
             grain_dispatch_duty("monastery", 0, 0.0, 6.0),
             Some(GrainDispatchDuty::WorkingBuffer)
         );
-        assert_eq!(
-            grain_dispatch_duty("brewery", 0, 0.0, 9.0),
-            None
-        );
+        assert_eq!(grain_dispatch_duty("brewery", 0, 0.0, 9.0), None);
         assert_eq!(
             grain_dispatch_duty("granary", 0, 0.0, 0.0),
             Some(GrainDispatchDuty::GranaryReserve)

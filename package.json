@@ -21,6 +21,7 @@
     "audio:verify": "node --experimental-strip-types scripts/testAudioPipeline.mts --require-generated",
     "audio:browser-verify": "node --experimental-strip-types scripts/testAudioBrowserDecode.mts",
     "test:lodge-logistics": "npx tsx scripts/testLodgeLogistics.mts",
+    "test:industrial-firewood": "npx tsx scripts/testIndustrialFirewoodLogistics.mts",
     "test:service-territories": "node --experimental-strip-types scripts/testServiceTerritories.mts",
     "test:food-territories": "node --experimental-strip-types scripts/testFoodTerritories.mts",
     "test:institutional-food-reserves": "node --experimental-strip-types scripts/testInstitutionalFoodReserves.mts",

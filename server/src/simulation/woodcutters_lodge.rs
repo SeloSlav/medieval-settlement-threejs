@@ -21,6 +21,7 @@ use crate::simulation::delivery_trips::{
     try_start_timber_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
+use crate::simulation::has_industrial_firewood_target;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{lodge_labor_split, select_residence_for_need_delivery};
@@ -66,7 +67,8 @@ pub fn step_woodcutters_lodge(
     } else {
         Vec::new()
     };
-    let has_target = !delivery_targets.is_empty();
+    let has_target =
+        !delivery_targets.is_empty() || has_industrial_firewood_target(ctx, tick, &lodge);
 
     let (do_deliver, do_process) =
         should_alternate_single_worker(single_worker, process_ready, delivery_ready, has_target);

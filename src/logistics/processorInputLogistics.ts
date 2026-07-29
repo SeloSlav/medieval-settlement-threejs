@@ -1,10 +1,16 @@
 import {
   BREWERY_BARLEY_PER_MALT_CYCLE,
+  BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+  BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   BUILDING_STORAGE_CAPS,
+  CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_FLOUR_PER_CYCLE,
   POTTER_CLAY_PER_CYCLE,
+  POTTER_FIREWOOD_PER_CYCLE,
   SMITHY_CHARCOAL_PER_CYCLE,
+  SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
   SMOKEHOUSE_POTTERY_PER_CYCLE,
   WEAVER_FLAX_PER_CYCLE,
@@ -24,6 +30,7 @@ export const PROCESSOR_INPUT_BUFFER_CYCLES = 3;
 
 export type DirectProcessorInputCommodity =
   | 'barley'
+  | 'firewood'
   | 'flour'
   | 'food'
   | 'wool'
@@ -48,6 +55,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'wool'
   | 'flax'
   | 'barley'
+  | 'firewood'
   | 'ironwork'
   | 'clay'
   | 'charcoal'
@@ -69,6 +77,13 @@ const TARGET_KINDS: Record<
   readonly BuildingKind[]
 > = {
   barley: ['brewery'],
+  firewood: [
+    'granary',
+    'brewery',
+    'smokehouse',
+    'charcoal_burner',
+    'potter_kiln',
+  ],
   flour: ['granary'],
   food: ['smokehouse'],
   wool: ['weaver'],
@@ -93,6 +108,22 @@ export function directlyDispatchedProcessorInputPerCycle(
   switch (commodity) {
     case 'barley':
       return BREWERY_BARLEY_PER_MALT_CYCLE;
+    case 'firewood':
+      switch (targetKind) {
+        case 'granary':
+          return GRANARY_FIREWOOD_PER_CYCLE;
+        case 'brewery':
+          return BREWERY_MALTING_FIREWOOD_PER_CYCLE
+            + BREWERY_BREWING_FIREWOOD_PER_CYCLE;
+        case 'smokehouse':
+          return SMOKEHOUSE_FIREWOOD_PER_CYCLE;
+        case 'charcoal_burner':
+          return CHARCOAL_BURNER_FIREWOOD_PER_CYCLE;
+        case 'potter_kiln':
+          return POTTER_FIREWOOD_PER_CYCLE;
+        default:
+          return 0;
+      }
     case 'flour':
       return GRANARY_FLOUR_PER_CYCLE;
     case 'food':
@@ -153,6 +184,7 @@ export function selectDirectProcessorInputTarget<
       target.id === sourceId
       || !TARGET_KINDS[commodity].includes(target.kind)
       || target.constructionComplete === false
+      || (commodity === 'firewood' && target.assignedLabor <= 0)
       || hasInboundSupply(target)
       || !acceptsInput(target)
     ) {

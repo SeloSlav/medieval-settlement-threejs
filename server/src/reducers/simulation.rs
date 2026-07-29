@@ -7,16 +7,17 @@ use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
     materialize_all_physical_resource_ledgers, step_apiary, step_backyard_gardens, step_brewery,
     step_carpenter, step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit,
-    step_construction_labor_stewards,
-    step_construction_sites, step_delivery_trips, step_ferry_landing, step_fires,
-    step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_founding_sites,
-    step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_market_orders,
-    step_hunters_hall, step_large_quarry, step_live_raids, step_lumber_mill,
-    step_marketplace_caravans, step_monastery, step_pastoral_farmstead, step_potter_kiln,
-    step_night_cycle, step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
+    step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
+    step_ferry_landing, step_fires, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
+    step_founding_sites, step_fresh_food_spoilage, step_granary, step_guardhouse,
+    step_household_market_orders, step_hunters_hall, step_industrial_firewood_dispatch,
+    step_large_quarry, step_live_raids, step_lumber_mill, step_marketplace_caravans,
+    step_monastery, step_night_cycle, step_pastoral_farmstead, step_potter_kiln,
+    step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
     step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
-    step_settlement_security, step_smokehouse, step_smithy, step_stone_quarry, step_swineherd,
-    step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill, step_weaver,
+    step_settlement_security, step_smithy, step_smokehouse, step_stone_quarry, step_swineherd,
+    step_threshing_barn, step_village_storehouse_household_firewood,
+    step_village_storehouse_overflow_collection, step_vineyard, step_watermill, step_weaver,
     step_well, step_woodcutters_lodge, try_dispatch_guardhouse_payroll, SharedRoadNetworks,
     SimTickContext,
 };
@@ -329,12 +330,32 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_fishing_camp(ctx, &tick, &clock, building);
     }
 
-    for building_id in woodcutters_lodge_ids {
-        let Some(building) = ctx.db.building().id().find(&building_id) else {
+    for building_id in &woodcutters_lodge_ids {
+        let Some(building) = ctx.db.building().id().find(building_id) else {
             continue;
         };
         step_woodcutters_lodge(ctx, &tick, &clock, building);
     }
+
+    // Household heating always claims a distributor's first available cart.
+    // Only sources left idle after those physical duties may feed workshops,
+    // where work priority and fuel runway replace construction-order bias.
+    let village_storehouses = village_storehouse_ids
+        .iter()
+        .filter_map(|building_id| ctx.db.building().id().find(building_id))
+        .collect();
+    step_village_storehouse_household_firewood(ctx, &tick, &clock, village_storehouses);
+    let industrial_firewood_sources = woodcutters_lodge_ids
+        .iter()
+        .chain(village_storehouse_ids.iter())
+        .filter_map(|building_id| ctx.db.building().id().find(building_id))
+        .collect();
+    step_industrial_firewood_dispatch(ctx, &tick, &clock, industrial_firewood_sources);
+    let village_storehouses = village_storehouse_ids
+        .iter()
+        .filter_map(|building_id| ctx.db.building().id().find(building_id))
+        .collect();
+    step_village_storehouse_overflow_collection(ctx, &tick, &clock, village_storehouses);
 
     for building_id in well_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
@@ -402,12 +423,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             _ => {}
         }
     }
-
-    let village_storehouses = village_storehouse_ids
-        .into_iter()
-        .filter_map(|building_id| ctx.db.building().id().find(&building_id))
-        .collect();
-    step_village_storehouses(ctx, &tick, &clock, village_storehouses);
 
     for payroll_bucket in payroll_buckets.into_iter().rev() {
         for building_id in payroll_bucket {

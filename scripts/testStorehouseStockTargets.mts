@@ -258,8 +258,8 @@ assert.match(
 );
 assert.match(
   simulationLoop,
-  /village_storehouse_ids[\s\S]*step_village_storehouses/,
-  'all depot rows must enter one owner-wide arbitration pass',
+  /village_storehouse_ids[\s\S]*step_village_storehouse_household_firewood[\s\S]*step_industrial_firewood_dispatch[\s\S]*step_village_storehouse_overflow_collection/,
+  'all depot rows must serve households, then industry, before owner-wide overflow collection',
 );
 assert.match(
   storehouseStep,

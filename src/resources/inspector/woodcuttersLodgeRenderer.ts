@@ -29,12 +29,18 @@ import {
   formatNextDeliveryTargetLabel,
   resolveWoodcuttersLodgeStatus,
 } from './woodcuttersLodgeStatus.ts';
-import { formatTripPhaseLabel, formatTripDestinationLabel, tripRemainingSeconds } from '../../logistics/deliveryTrips.ts';
+import {
+  formatTripBuildingDestinationLabel,
+  formatTripDestinationLabel,
+  formatTripPhaseLabel,
+  tripRemainingSeconds,
+} from '../../logistics/deliveryTrips.ts';
 import {
   normalizeWoodcutterTimberReserve,
   timberAboveWoodcutterReserve,
   WOODCUTTER_TIMBER_RESERVE_PRESETS,
 } from '../../economy/woodcutterPolicy.ts';
+import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 
 export function renderWoodcuttersLodgeInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -59,7 +65,37 @@ export function renderWoodcuttersLodgeInspector(
     : null;
   const firewoodPerTrip = lodgeFirewoodPerDelivery(crew.delivering);
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
+  const activeTripDistance = activeTrip
+    ? context.worldQueries.getActiveTripPathDistance(activeTrip)
+    : null;
   const tripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
+  const industrialDispatch = building.assignedLabor > 0 && building.firewood > 1e-6
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'firewood')
+    : null;
+  const activeBuildingDestination = activeTrip?.cargoKind === 'firewood'
+    && activeTrip.destinationKind === 'building'
+    && activeTrip.targetBuildingId != null
+    ? context.worldQueries.getBuilding(activeTrip.targetBuildingId)
+    : null;
+  const industrialTarget = industrialDispatch?.target ?? activeBuildingDestination;
+  const industrialTargetName = industrialTarget
+    ? context.worldQueries.getBuildingLabel(industrialTarget.kind)
+    : 'industry';
+  const industrialTargetLabel = industrialDispatch
+    ? `${industrialTargetName} (${staffingPriorityLabel(industrialDispatch.workPriority).toLowerCase()} priority, ${industrialDispatch.runwayCycles.toFixed(1)} cycles)`
+    : industrialTargetName;
+  const hasIndustrialTarget = industrialTarget != null;
+  const activeResidenceDestination = formatTripDestinationLabel(
+    activeTrip,
+    (id) => context.worldQueries.getResidence(id),
+    nextTargetLabel,
+  );
+  const activeDestinationLabel = formatTripBuildingDestinationLabel(
+    activeTrip,
+    (kind) => context.worldQueries.getBuildingLabel(kind),
+    (id) => context.worldQueries.getBuilding(id),
+    activeResidenceDestination,
+  );
   const inboundTimberTrip = context.worldQueries.getInboundTimberTrip(building);
   const timberTripRemaining = inboundTimberTrip
     ? tripRemainingSeconds(
@@ -91,7 +127,10 @@ export function renderWoodcuttersLodgeInspector(
     inboundTimberTrip,
     timberTripRemainingSeconds: timberTripRemaining,
     nextTargetLabel,
+    activeDestinationLabel,
     hasNextTarget: nextDeliveryTarget != null,
+    hasIndustrialTarget,
+    industrialTargetLabel,
     firewoodPerTrip,
     canDeliver,
     availableUnreservedTimber,
@@ -109,10 +148,15 @@ export function renderWoodcuttersLodgeInspector(
   const residenceSummary = claimedResidences.length === 0
     ? 'None on branch'
     : `${claimedResidences.length} claimed`;
+  const industrialFuelDuty = industrialDispatch
+    ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${staffingPriorityLabel(industrialDispatch.workPriority)} priority · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
+    : activeBuildingDestination
+      ? `Cart committed to ${context.worldQueries.getBuildingLabel(activeBuildingDestination.kind)}`
+      : 'No staffed workshop currently requests surplus fuel';
 
   const deliveryRow = crew.delivering > 0
-    ? `<li><span>Next delivery</span><span>${formatTripDestinationLabel(activeTrip, (id) => context.worldQueries.getResidence(id), nextTargetLabel)}</span></li>
-      <li><span>Road distance</span><span>${formatDeliveryRoadDistance(deliveryDistance)}</span></li>
+    ? `<li><span>Next delivery</span><span>${activeDestinationLabel}</span></li>
+      <li><span>Road distance</span><span>${formatDeliveryRoadDistance(activeTripDistance ?? deliveryDistance)}</span></li>
       <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
       <li><span>Firewood per trip</span><span>${firewoodPerTrip}</span></li>`
     : `<li><span>Delivery</span><span>Paused — no lodge workers</span></li>`;
@@ -134,6 +178,7 @@ export function renderWoodcuttersLodgeInspector(
       <li><span>Crew split</span><span>${crewLabel}</span></li>
       <li><span>Road-linked mills</span><span>${millSummary}</span></li>
       <li><span>Claimed residences</span><span>${residenceSummary}</span></li>
+      <li><span>Surplus fuel duty</span><span>${nextDeliveryTarget ? `Household cart first · then ${industrialFuelDuty}` : industrialFuelDuty}</span></li>
       <li><span>Process interval</span><span>${definition.harvestInterval}s</span></li>
       <li><span>Output per cycle</span><span>${processOutputLabel}</span></li>
       <li><span>Construction timber floor</span><span>${Math.round(timberReserve)}</span></li>

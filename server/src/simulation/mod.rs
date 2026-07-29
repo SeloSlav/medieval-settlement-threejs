@@ -56,11 +56,12 @@ pub use delivery_trips::{
     staffed_cart_workers_by_building, step_delivery_trips, try_start_building_supply_trip,
     try_start_fire_response_trip,
 };
+pub(crate) use expanded_economy::has_industrial_firewood_target;
 pub use expanded_economy::{
     step_apiary, step_brewery, step_carpenter, step_charcoal_burner, step_clay_pit,
-    step_ferry_landing, step_granary, step_guardhouse, step_monastery, step_potter_kiln,
-    step_seed_grain_distribution, step_smokehouse, step_smithy, step_threshing_barn,
-    step_vineyard, step_watermill, step_weaver,
+    step_ferry_landing, step_granary, step_guardhouse, step_industrial_firewood_dispatch,
+    step_monastery, step_potter_kiln, step_seed_grain_distribution, step_smithy, step_smokehouse,
+    step_threshing_barn, step_vineyard, step_watermill, step_weaver,
 };
 pub use fires::{
     building_fire_state, clear_fire_for_target, fire_response_needed_for_well,
@@ -106,6 +107,8 @@ pub use seasonal_labor_steward::{
 pub use settlement_security::{ensure_settlement_security, step_settlement_security};
 pub use stone_quarry::step_stone_quarry;
 pub use tick_context::{SharedRoadNetworks, SimTickContext};
-pub use village_storehouse::step_village_storehouses;
+pub use village_storehouse::{
+    step_village_storehouse_household_firewood, step_village_storehouse_overflow_collection,
+};
 pub use well::step_well;
 pub use woodcutters_lodge::step_woodcutters_lodge;

@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 const tests = [
   'test:rust',
   'test:lodge-logistics',
+  'test:industrial-firewood',
   'test:service-territories',
   'test:food-territories',
   'test:institutional-food-reserves',

@@ -48,6 +48,7 @@ import {
   type SettlementRoadProvisioning,
   WINTER_RESERVE_DAYS,
 } from '../../economy/settlementProvisioning.ts';
+import { computeSettlementFirewoodPlan } from '../../economy/settlementFirewood.ts';
 import {
   formatFreshFoodLoss,
   type FreshFoodLossSite,
@@ -1515,17 +1516,30 @@ export function renderTownHallInspector(
   const laborStewardInspectButton = laborStewardForecast.firstChangedBuildingId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${laborStewardForecast.firstChangedBuildingId}" aria-label="Inspect first dawn labor steward crew change">Inspect</button>`;
+  const sabbathObserved = parishPolicy.sabbathObservanceEnabled
+    && settlementHasStaffedChapel(context.gameState);
+  const roadComponentFor = typeof context.worldQueries.getRoadComponentId === 'function'
+    ? (entity: { x: number; z: number }) =>
+        context.worldQueries.getRoadComponentId(entity.x, entity.z)
+    : undefined;
   const provisioning = computeSettlementProvisioning({
     state: context.gameState,
     totals: context.resourceTotals,
     currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
     freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
-    sabbathObserved: parishPolicy.sabbathObservanceEnabled
-      && settlementHasStaffedChapel(context.gameState),
-    roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
-      ? (entity) => context.worldQueries.getRoadComponentId(entity.x, entity.z)
-      : undefined,
+    sabbathObserved,
+    roadComponentFor,
   });
+  const firewoodPlan = computeSettlementFirewoodPlan(
+    context.gameState,
+    sabbathObserved,
+    roadComponentFor,
+  );
+  const firewoodInspectButton = firewoodPlan.firstDeficitTargetId === null
+    ? ''
+    : context.gameState.residences.has(firewoodPlan.firstDeficitTargetId)
+      ? ` <button type="button" class="inspector-jump-button" data-inspect-residence="${firewoodPlan.firstDeficitTargetId}" aria-label="Inspect first fuel-deficit household">Inspect</button>`
+      : ` <button type="button" class="inspector-jump-button" data-inspect-building="${firewoodPlan.firstDeficitTargetId}" aria-label="Inspect first fuel-deficit worksite">Inspect</button>`;
   const freshFoodPreservationRows = renderFreshFoodPreservationRows(
     provisioning.foodPreservation,
     (kind) => context.worldQueries.getBuildingLabel(kind),
@@ -2024,6 +2038,9 @@ export function renderTownHallInspector(
       ${freshFoodPreservationRows}
       ${provisioning.displacedHouseholds > 0 ? `<li><span>Fire-displaced households</span><span>${provisioning.displacedHouseholds} ${provisioning.displacedHouseholds === 1 ? 'home' : 'homes'} · ${provisioning.displacedResidents} ${provisioning.displacedResidents === 1 ? 'resident' : 'residents'} excluded from consumption and delivery forecasts until recovery</span></li>` : ''}
       <li><span>Household delivery buffer</span><span>${formatHouseholdBufferReadiness(provisioning)}</span></li>
+      <li><span>Fuel placement</span><span>${firewoodPlan.householdStock.toFixed(1)} in household cupboards &middot; ${firewoodPlan.distributorStock.toFixed(1)} at staffed lodges/storehouses &middot; ${firewoodPlan.industrialStock.toFixed(1)} staged inside hot workshops &middot; ${firewoodPlan.firewoodInTransit.toFixed(1)} on carts &middot; ${firewoodPlan.inactiveStock.toFixed(1)} inactive + ${firewoodPlan.quarantinedStock.toFixed(1)} fire-quarantined</span></li>
+      <li><span>Fuel competition</span><span>${firewoodPlan.winterHouseholdDemandPerDay.toFixed(1)} winter hearths + ${firewoodPlan.industrialDemandPerDay.toFixed(1)} installed hot-work capacity = ${firewoodPlan.totalDemandPerDay.toFixed(1)} firewood/day &middot; staffed lodges sustain ${firewoodPlan.lodgeOutputCapacityPerDay.toFixed(1)}/day from ${firewoodPlan.lodgeTimberDrawPerDay.toFixed(1)} timber/day &middot; ${firewoodPlan.dailyMargin >= 0 ? '+' : ''}${firewoodPlan.dailyMargin.toFixed(1)}/day</span></li>
+      <li><span>Fuel road branches</span><span>${firewoodPlan.distributors} staffed distributors across ${firewoodPlan.activeBranches} consuming branches &middot; ${firewoodPlan.flowDeficitBranches} production-short &middot; ${firewoodPlan.unservedBranches} without a distributor &middot; weakest combined runway ${formatProvisionRunway(firewoodPlan.worstBranchRunwayDays)}${firewoodInspectButton}</span></li>
       <li><span>Winter firewood</span><span>${Math.round(provisioning.usableFirewoodStock)} usable / ${Math.round(provisioning.firewoodStock)} owned · ${Math.ceil(provisioning.winterFirewoodNeed)} needed · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>
       ${provisioning.fireQuarantinedFirewoodStock > 0.05 ? `<li><span>Fire-quarantined fuel</span><span>${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood inaccessible until the damaged store or home recovers</span></li>` : ''}
       ${provisioning.sabbathObserved ? `<li><span>Sunday household stores</span><span>${formatSabbathReadiness(provisioning)}</span></li>` : ''}

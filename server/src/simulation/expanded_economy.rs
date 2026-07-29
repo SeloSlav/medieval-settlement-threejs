@@ -86,7 +86,7 @@ use crate::supply_policy::{
     select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
     select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
     ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS,
-    GRAIN_PROCESSOR_KINDS,
+    GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, Residence};
 use crate::weaver_input_policy::{
@@ -329,6 +329,73 @@ pub fn step_watermill(
     ctx.db.building().id().update(mill);
 }
 
+/// Firewood distributors complete their household duty before this pass. Each
+/// remaining staffed source then sends at most one physical surplus cart to
+/// the highest-priority operating workshop with the lowest fuel runway.
+///
+/// Dispatching from the source side removes building-update-order bias: an
+/// older kiln cannot repeatedly pull the communal cart ahead of an urgent
+/// smokehouse, and a storehouse already serving a cold home is unavailable.
+pub(crate) fn has_industrial_firewood_target(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    source: &Building,
+) -> bool {
+    if source.firewood <= 1e-6 || building_has_active_trip(ctx, source.id) {
+        return false;
+    }
+    let Some(network) = tick.road_network(source.owner) else {
+        return false;
+    };
+    tick.building_ids_for_kinds(ctx, source.owner, INDUSTRIAL_FIREWOOD_TARGET_KINDS)
+        .into_iter()
+        .filter_map(|target_id| ctx.db.building().id().find(&target_id))
+        .any(|target| {
+            target.id != source.id
+                && target.construction_complete
+                && !tick.building_disabled_by_fire(ctx, target.id)
+                && target.assigned_labor > 0
+                && processor_accepts_input(&target, CommodityKind::Firewood)
+                && building_commodity_room(&target, CommodityKind::Firewood) > 1e-6
+                && !building_has_inbound_supply_trip(ctx, target.id)
+                && network
+                    .road_path_distance(source.x, source.z, target.x, target.z)
+                    .is_some_and(|distance| distance.is_finite())
+        })
+}
+
+pub fn step_industrial_firewood_dispatch(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    sources: Vec<Building>,
+) {
+    for mut source in sources {
+        if !source.construction_complete
+            || tick.building_disabled_by_fire(ctx, source.id)
+            || source.assigned_labor == 0
+            || source.firewood <= 1e-6
+            || (source.kind == "village_storehouse" && !source.storehouse_accepts_firewood)
+            || !matches!(
+                source.kind.as_str(),
+                "woodcutters_lodge" | "village_storehouse"
+            )
+        {
+            continue;
+        }
+        dispatch_to_building_where(
+            ctx,
+            tick,
+            clock,
+            &mut source,
+            CommodityKind::Firewood,
+            INDUSTRIAL_FIREWOOD_TARGET_KINDS,
+            |target| target.assigned_labor > 0,
+        );
+        ctx.db.building().id().update(source);
+    }
+}
+
 pub fn step_granary(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -336,17 +403,6 @@ pub fn step_granary(
     building: Building,
 ) {
     let mut granary = building;
-    let input_staging_cycles =
-        processor_input_staging_cycles(granary.processor_output_target_percent);
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &granary,
-        CommodityKind::Firewood,
-        &["woodcutters_lodge", "village_storehouse"],
-        GRANARY_FIREWOOD_PER_CYCLE * input_staging_cycles,
-    );
     // Once its bakery inputs are covered, the granary also centralizes fresh
     // food. Routine household suppliers retain a territory-sized delivery
     // buffer before any institutional collection cart may load.
@@ -724,16 +780,6 @@ pub fn step_brewery(
     let mut brewery = building;
     let input_staging_cycles =
         processor_input_staging_cycles(brewery.processor_output_target_percent);
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &brewery,
-        CommodityKind::Firewood,
-        &["woodcutters_lodge", "village_storehouse"],
-        (BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE)
-            * input_staging_cycles,
-    );
     let ale_headroom = processor_output_headroom(
         brewery.ale,
         building_commodity_cap(&brewery.kind, CommodityKind::Ale),
@@ -866,15 +912,6 @@ pub fn step_smokehouse(
         tick,
         clock,
         &smokehouse,
-        CommodityKind::Firewood,
-        &["woodcutters_lodge", "village_storehouse"],
-        SMOKEHOUSE_FIREWOOD_PER_CYCLE * input_staging_cycles,
-    );
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &smokehouse,
         CommodityKind::Salt,
         &["marketplace"],
         SMOKEHOUSE_SALT_PER_CYCLE * input_staging_cycles,
@@ -956,16 +993,6 @@ pub fn step_charcoal_burner(
     clock: &GameClock,
     building: Building,
 ) {
-    let staging = processor_input_staging_cycles(building.processor_output_target_percent);
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &building,
-        CommodityKind::Firewood,
-        &["woodcutters_lodge", "village_storehouse"],
-        CHARCOAL_BURNER_FIREWOOD_PER_CYCLE * staging,
-    );
     let mut burner = step_processor(
         ctx,
         tick,
@@ -1053,15 +1080,6 @@ pub fn step_potter_kiln(
         CommodityKind::Clay,
         &["clay_pit"],
         POTTER_CLAY_PER_CYCLE * staging,
-    );
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &building,
-        CommodityKind::Firewood,
-        &["woodcutters_lodge", "village_storehouse"],
-        POTTER_FIREWOOD_PER_CYCLE * staging,
     );
     let mut potter = step_processor(
         ctx,
@@ -2231,6 +2249,7 @@ fn directly_dispatched_processor_input_per_cycle(
         CommodityKind::Clay => "clay",
         CommodityKind::Charcoal => "charcoal",
         CommodityKind::Pottery => "pottery",
+        CommodityKind::Firewood => "firewood",
         _ => return 0.0,
     };
     processor_input_per_cycle_for_dispatch(target_kind, commodity)

@@ -32,6 +32,7 @@ import {
   storehouseCommodityTargetPercent,
   type StorehouseCommodity,
 } from '../../economy/storehousePolicy.ts';
+import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 
 export function renderStorehouseInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -43,6 +44,11 @@ export function renderStorehouseInspector(
   const inboundTrip = context.worldQueries.getInboundSupplyTrip(building);
   const claimedResidences = context.worldQueries.getClaimedResidencesForFirewoodSupplier(building);
   const nextFuelTarget = context.worldQueries.getNextFirewoodDeliveryTarget(building);
+  const industrialDispatch = building.storehouseAcceptsFirewood
+    && building.assignedLabor > 0
+    && building.firewood > 1e-6
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'firewood')
+    : null;
   const fuelWorkers = Math.min(2, building.assignedLabor);
   const fuelPerTrip = STOREHOUSE_FIREWOOD_PER_DELIVERY * fuelWorkers;
   const fuelDistance = nextFuelTarget
@@ -62,6 +68,19 @@ export function renderStorehouseInspector(
   const nextFuelLabel = formatNextDeliveryTargetLabel(nextFuelTarget);
   const deliveringHouseholdFuel = activeTrip?.cargoKind === 'firewood'
     && activeTrip.residenceId != null;
+  const deliveringIndustrialFuel = activeTrip?.cargoKind === 'firewood'
+    && activeTrip.destinationKind === 'building'
+    && activeTrip.targetBuildingId != null;
+  const activeIndustrialTarget = deliveringIndustrialFuel
+    ? context.worldQueries.getBuilding(activeTrip!.targetBuildingId!)
+    : null;
+  const industrialFuelDuty = industrialDispatch
+    ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${staffingPriorityLabel(industrialDispatch.workPriority)} priority · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
+    : activeIndustrialTarget
+      ? `Cart committed to ${context.worldQueries.getBuildingLabel(activeIndustrialTarget.kind)}`
+      : building.firewood <= 1e-6
+        ? 'No surplus firewood stored'
+        : 'No staffed workshop currently requests surplus fuel';
   const accepted = [
     building.storehouseAcceptsTimber ? 'timber' : '',
     building.storehouseAcceptsStone ? 'stone' : '',
@@ -89,6 +108,8 @@ export function renderStorehouseInspector(
       ? ['Storage active · assign haulers to distribute fuel and collect overflow', 'idle'] as const
       : deliveringHouseholdFuel
         ? [`Household fuel cart ${formatTripPhaseLabel(activeTrip!.phase).toLowerCase()}`, 'active'] as const
+        : deliveringIndustrialFuel
+          ? [`Industrial fuel cart to ${activeIndustrialTarget ? context.worldQueries.getBuildingLabel(activeIndustrialTarget.kind) : 'workshop'}`, 'active'] as const
         : activeTrip
           ? ['Construction supply cart in progress', 'active'] as const
           : inboundTrip
@@ -97,6 +118,8 @@ export function renderStorehouseInspector(
               ? ['All acceptance filters disabled', 'idle'] as const
               : building.storehouseAcceptsFirewood && building.firewood > 0 && nextFuelTarget
                 ? [`Ready to deliver fuel to ${nextFuelLabel}`, 'ok'] as const
+                : industrialDispatch
+                  ? [`Household rounds clear · ${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} is next for surplus fuel`, 'ok'] as const
                 : collectionHeadroom <= 0.05
                   ? ['Selected collection targets met', 'ok'] as const
                   : ['Ready to collect producer overflow', 'ok'] as const;
@@ -110,11 +133,12 @@ export function renderStorehouseInspector(
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Communal reserve, household fuel distribution, and construction logistics</span></li>
-      <li><span>Duty priority</span><span>Claimed household fuel, then producer overflow</span></li>
+      <li><span>Duty priority</span><span>Claimed household fuel first; surplus then follows staffed workshop priority and runway</span></li>
       <li><span>Fuel territory</span><span>${claimedResidences.length === 0 ? 'None on branch' : `${claimedResidences.length} households claimed`}</span></li>
       <li><span>Next fuel delivery</span><span>${nextFuelLabel}</span></li>
       <li><span>Fuel road distance</span><span>${formatDeliveryRoadDistance(fuelDistance)}</span></li>
       <li><span>Fuel cart</span><span>${fuelWorkers > 0 ? `${fuelPerTrip} firewood · ${formatDeliveryTripDuration(fuelTripSeconds)}` : 'Paused · no haulers'}</span></li>
+      <li><span>Surplus fuel duty</span><span>${nextFuelTarget ? `Household cart first · then ${industrialFuelDuty}` : industrialFuelDuty}</span></li>
       <li><span>Collection trigger</span><span>Producer stock above ${Math.round(STOREHOUSE_OVERFLOW_THRESHOLD * 100)}%</span></li>
       <li><span>Cart assignment</span><span>Fullest producer first · nearest compatible idle depot</span></li>
       <li><span>Construction bonus</span><span>${STOREHOUSE_HAUL_PER_WORKER} materials per staffed hauler; up to 2 haulers per cart</span></li>
@@ -129,7 +153,7 @@ export function renderStorehouseInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Storage works without staff. Assigned haulers first carry accepted firewood to claimed homes, then collect producer overflow; stored material also supports larger construction carts.</p>
+        <p class="inspector-action-panel__hint">Storage works without staff. Assigned haulers carry accepted firewood to claimed homes first. When those cupboards are covered, surplus fuel goes to staffed granaries, brewhouses, smokehouses, charcoal yards, and kilns by work priority, lowest cycle runway, road length, and stable building order.</p>
         ${acceptanceToggle('timber', 'Timber', building.storehouseAcceptsTimber)}
         ${acceptanceToggle('stone', 'Stone', building.storehouseAcceptsStone)}
         ${acceptanceToggle('firewood', 'Firewood', building.storehouseAcceptsFirewood)}

@@ -117,7 +117,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     waterPerCycle: GRANARY_WATER_PER_CYCLE,
     inputs: [
       { key: 'flour', label: 'flour', required: GRANARY_FLOUR_PER_CYCLE, deliveryHint: 'mill deliveries may supply' },
-      { key: 'firewood', label: 'firewood', required: GRANARY_FIREWOOD_PER_CYCLE, deliveryHint: 'lodge deliveries may supply' },
+      { key: 'firewood', label: 'firewood', required: GRANARY_FIREWOOD_PER_CYCLE, deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway' },
     ],
     output: 'food',
     outputPerCycle: GRANARY_FOOD_PER_CYCLE,
@@ -129,7 +129,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     waterPerCycle: 0,
     inputs: [
       { key: 'food', label: 'food', required: SMOKEHOUSE_FOOD_PER_CYCLE, deliveryHint: 'granary deliveries may supply' },
-      { key: 'firewood', label: 'firewood', required: SMOKEHOUSE_FIREWOOD_PER_CYCLE, deliveryHint: 'lodge deliveries may supply' },
+      { key: 'firewood', label: 'firewood', required: SMOKEHOUSE_FIREWOOD_PER_CYCLE, deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway' },
       { key: 'salt', label: 'salt', required: SMOKEHOUSE_SALT_PER_CYCLE, deliveryHint: 'market caravans must import it' },
       { key: 'pottery', label: 'pottery', required: SMOKEHOUSE_POTTERY_PER_CYCLE, deliveryHint: 'potter deliveries may supply vessels' },
     ],
@@ -166,7 +166,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
         key: 'firewood',
         label: 'firewood',
         required: CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-        deliveryHint: 'lodge or storehouse deliveries may supply',
+        deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway',
       },
     ],
     output: 'charcoal',
@@ -210,7 +210,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
         key: 'firewood',
         label: 'firewood',
         required: POTTER_FIREWOOD_PER_CYCLE,
-        deliveryHint: 'lodge or storehouse deliveries may supply',
+        deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway',
       },
     ],
     output: 'pottery',
@@ -394,7 +394,7 @@ function getBreweryStatus(
         key: 'firewood',
         label: 'firewood',
         required: BREWERY_MALTING_FIREWOOD_PER_CYCLE,
-        deliveryHint: 'lodge or storehouse deliveries may supply',
+        deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway',
       },
     ]
     : [
@@ -408,7 +408,7 @@ function getBreweryStatus(
         key: 'firewood',
         label: 'firewood',
         required: BREWERY_BREWING_FIREWOOD_PER_CYCLE,
-        deliveryHint: 'lodge or storehouse deliveries may supply',
+        deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway',
       },
     ];
   const waterPerCycle = shouldMalt
