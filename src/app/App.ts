@@ -409,6 +409,9 @@ export class App {
       });
       markFirstPlayable();
       this.sessionLifecycle?.onPresentationReady();
+      void session.sceneManager.loadCelestialSky().catch((error) => {
+        console.warn('Historical star catalogue is still unavailable:', error);
+      });
       if (import.meta.env.VITE_E2E_TEST !== '1') {
         void initializeBuildingMaterialLibrary(session.sceneManager.textureAnisotropy).catch((error) => {
           console.warn('Detailed building textures are still unavailable:', error);

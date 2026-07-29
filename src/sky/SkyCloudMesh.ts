@@ -3,7 +3,11 @@ import { loadBitmapTexture } from '../utils/textureLoad.ts';
 import { SkyCloudMesh as WebGPUSkyCloudMesh } from 'sky-cloud-3d';
 import { SkyCloudMesh as WebGLSkyCloudMesh } from 'sky-cloud-3d/webgl';
 import { supportsNodeMaterials, type RendererBackendKind } from '../scene/RendererBackend.ts';
-import { createCelestialStarMap } from './CelestialStarMap.ts';
+import {
+  createCelestialStarMapPlaceholder,
+  hydrateCelestialStarMapTexture,
+  loadCelestialStarMapDeferred,
+} from './CelestialStarMapLoader.ts';
 
 type SkyCloudOptions = {
   cloudAbsorption?: number;
@@ -96,11 +100,15 @@ export class SkyCloudMesh extends THREE.Group {
   readonly isSkyCloudMesh = true;
   readonly ready: Promise<SkyCloudMesh>;
   private readonly nativeSky: SkyCloudNativeMesh;
-  private readonly starMap: THREE.Texture;
+  private readonly starMap: THREE.DataTexture | THREE.Texture;
+  private readonly usesDeferredStarMap: boolean;
+  private celestialLoadPromise: Promise<void> | null = null;
+  private disposed = false;
 
   constructor(options: SkyCloudOptions = {}) {
     super();
-    const starMap = options.starMap ?? createCelestialStarMap();
+    const usesDeferredStarMap = options.starMap === undefined;
+    const starMap = options.starMap ?? createCelestialStarMapPlaceholder();
     const config = { ...DEFAULTS, ...options, starMap };
     const rendererBackend = config.rendererBackend ?? 'webgl';
     const useNodeMaterials = supportsNodeMaterials(rendererBackend);
@@ -127,10 +135,19 @@ export class SkyCloudMesh extends THREE.Group {
     this.name = nativeSky.name;
     this.nativeSky = nativeSky;
     this.starMap = starMap;
+    this.usesDeferredStarMap = usesDeferredStarMap;
     this.add(nativeSky);
     this.ready = Promise.resolve(nativeSky.ready).then(() => this);
 
     if (options.sunDirection) this.updateSun(options.sunDirection);
+  }
+
+  loadCelestialSky(): Promise<void> {
+    if (!this.usesDeferredStarMap || this.disposed) return Promise.resolve();
+    if (!this.celestialLoadPromise) {
+      this.celestialLoadPromise = this.hydrateCelestialSky();
+    }
+    return this.celestialLoadPromise;
   }
 
   updateSun(direction: THREE.Vector3): void {
@@ -167,9 +184,27 @@ export class SkyCloudMesh extends THREE.Group {
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     this.nativeSky.removeFromParent();
     disposeSky(this.nativeSky);
     this.starMap.dispose();
+  }
+
+  private async hydrateCelestialSky(): Promise<void> {
+    const loadedStarMap = await loadCelestialStarMapDeferred();
+    if (this.disposed) {
+      loadedStarMap.dispose();
+      return;
+    }
+
+    hydrateCelestialStarMapTexture(
+      this.starMap as THREE.DataTexture,
+      loadedStarMap,
+    );
+    // The placeholder now owns the generated pixel buffer. The temporary
+    // texture was never uploaded, so disposing its shell is safe.
+    loadedStarMap.dispose();
   }
 }
 

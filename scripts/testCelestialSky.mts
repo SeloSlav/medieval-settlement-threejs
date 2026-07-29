@@ -10,6 +10,10 @@ import {
   CLASSICAL_CONSTELLATION_LINES,
   NAKED_EYE_STAR_DATA,
 } from '../src/sky/celestialCatalog.generated.ts';
+import {
+  createCelestialStarMapPlaceholder,
+  hydrateCelestialStarMapTexture,
+} from '../src/sky/CelestialStarMapLoader.ts';
 import { computeSiderealAngle } from '../src/world/dayNightPresentation.ts';
 
 assert.equal(CELESTIAL_SKY_EPOCH, 1550);
@@ -89,6 +93,48 @@ assert.ok(
 );
 
 map.dispose();
+
+const placeholder = createCelestialStarMapPlaceholder();
+const placeholderUuid = placeholder.uuid;
+const placeholderVersion = placeholder.version;
+const loadedPixels = new Uint8Array([
+  10, 20, 30, 40,
+  50, 60, 70, 80,
+]);
+const loadedMap = new THREE.DataTexture(
+  loadedPixels,
+  2,
+  1,
+  THREE.RGBAFormat,
+);
+loadedMap.name = 'Loaded test sky';
+loadedMap.wrapS = THREE.RepeatWrapping;
+loadedMap.wrapT = THREE.ClampToEdgeWrapping;
+loadedMap.minFilter = THREE.LinearFilter;
+loadedMap.magFilter = THREE.NearestFilter;
+loadedMap.flipY = false;
+loadedMap.colorSpace = THREE.NoColorSpace;
+loadedMap.userData.catalogEpoch = CELESTIAL_SKY_EPOCH;
+hydrateCelestialStarMapTexture(placeholder, loadedMap);
+assert.equal(
+  placeholder.uuid,
+  placeholderUuid,
+  'deferred hydration must preserve the texture object bound to the sky shader',
+);
+assert.equal(placeholder.image.width, 2);
+assert.equal(placeholder.image.height, 1);
+assert.equal(placeholder.image.data, loadedPixels);
+assert.equal(placeholder.name, loadedMap.name);
+assert.equal(placeholder.magFilter, loadedMap.magFilter);
+assert.equal(placeholder.userData.catalogEpoch, CELESTIAL_SKY_EPOCH);
+assert.equal(placeholder.userData.isCelestialStarMapPlaceholder, false);
+assert.ok(
+  placeholder.version > placeholderVersion,
+  'hydration must flag the existing texture for a GPU upload',
+);
+placeholder.dispose();
+loadedMap.dispose();
+
 console.log('celestial sky tests passed');
 
 function equatorialAngularDistance(

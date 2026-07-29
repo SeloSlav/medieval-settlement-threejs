@@ -342,6 +342,10 @@ export class SceneManager {
     return manager;
   }
 
+  loadCelestialSky(): Promise<void> {
+    return this.sky.loadCelestialSky();
+  }
+
   /** Builds forest and grass after the first frame — same bundle, no dynamic import. */
   async finishVegetation(): Promise<void> {
     if (this.vegetationBuilt) return;

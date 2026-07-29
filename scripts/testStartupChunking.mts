@@ -6,10 +6,14 @@ import { build as buildVite } from 'vite';
 const bootstrapPath = 'src/app/appBootstrap.ts';
 const appPath = 'src/app/App.ts';
 const boundaryPath = 'src/app/deferredSettlementPresentation.ts';
+const skyPath = 'src/sky/SkyCloudMesh.ts';
+const starLoaderPath = 'src/sky/CelestialStarMapLoader.ts';
 
 const bootstrap = fs.readFileSync(bootstrapPath, 'utf8');
 const app = fs.readFileSync(appPath, 'utf8');
 const boundary = fs.readFileSync(boundaryPath, 'utf8');
+const sky = fs.readFileSync(skyPath, 'utf8');
+const starLoader = fs.readFileSync(starLoaderPath, 'utf8');
 
 const deferredModules = [
   ['DeliveryAgentRenderer', '../logistics/DeliveryAgentRenderer.ts'],
@@ -80,6 +84,23 @@ assert.ok(
   'runtime startup diagnostics must expose when deferred presentation is ready',
 );
 
+assert.equal(
+  sky.includes("from './CelestialStarMap.ts'"),
+  false,
+  'the startup sky wrapper must not import the historical catalogue graph directly',
+);
+assert.ok(
+  starLoader.includes("import('./CelestialStarMap.ts')"),
+  'the historical sky must retain an explicit deferred import boundary',
+);
+const firstPlayableIndex = app.indexOf('markFirstPlayable();');
+const celestialLoadIndex = app.indexOf('session.sceneManager.loadCelestialSky()');
+assert.ok(firstPlayableIndex >= 0, 'App must retain the first-playable checkpoint');
+assert.ok(
+  celestialLoadIndex > firstPlayableIndex,
+  'historical sky loading must begin only after the first playable frame',
+);
+
 const memoryBuild = await buildVite({
   logLevel: 'silent',
   build: {
@@ -111,15 +132,31 @@ assert.equal(
   'the resource inspector must remain outside the initial application entry',
 );
 
+const celestialCatalogModuleSuffix = '/src/sky/celestialCatalog.generated.ts';
+assert.equal(
+  moduleNames(entryChunk).some((moduleName) => moduleName.endsWith(celestialCatalogModuleSuffix)),
+  false,
+  'the initial application chunk must not parse the historical star catalogue',
+);
+const celestialCatalogChunk = chunks.find((chunk) => (
+  moduleNames(chunk).some((moduleName) => moduleName.endsWith(celestialCatalogModuleSuffix))
+));
+assert.ok(celestialCatalogChunk, 'production build must retain the deferred historical star catalogue');
+assert.equal(
+  celestialCatalogChunk.isEntry,
+  false,
+  'the historical star catalogue must remain outside the initial application entry',
+);
+
 const entryBytes = Buffer.byteLength(entryChunk.code);
 const entryGzipBytes = gzipSync(entryChunk.code).byteLength;
 assert.ok(
-  entryBytes <= 1_100_000,
-  `initial application chunk grew beyond its 1.10 MB parse budget (${entryBytes} bytes)`,
+  entryBytes <= 950_000,
+  `initial application chunk grew beyond its 950 KB parse budget (${entryBytes} bytes)`,
 );
 assert.ok(
-  entryGzipBytes <= 350_000,
-  `initial application chunk grew beyond its 350 KB transfer budget (${entryGzipBytes} bytes gzip)`,
+  entryGzipBytes <= 280_000,
+  `initial application chunk grew beyond its 280 KB transfer budget (${entryGzipBytes} bytes gzip)`,
 );
 
 console.log(
