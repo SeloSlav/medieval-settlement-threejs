@@ -145,6 +145,7 @@ type VillagerRoutinePhase =
   | 'going_to_fire_assembly'
   | 'at_fire_assembly'
   | 'returning_from_fire_assembly'
+  | 'sick_rest'
   | HouseholdHomeState;
 type VillagerPathPurpose =
   | 'home_wander'
@@ -185,6 +186,7 @@ type VillagerAgent = {
   id: string;
   personIdentity: string;
   role: VillagerRole;
+  isSick: boolean;
   residenceId: string | null;
   workplaceId: string | null;
   workplaceSlot: number;
@@ -497,13 +499,110 @@ export class VillagerRenderer {
     );
     const roster = allocateProductionWorkers(residences, buildings, travelingWorkers);
     const onSiteAssignments = roster.assignments.filter((assignment) => assignment.onSite);
+    const visibleSickResidents: Array<{
+      residence: ResidenceState;
+      personIndex: number;
+    }> = [];
+    let sickBudget = Math.max(0, MAX_VILLAGERS_TOTAL - roster.assignments.length);
+    for (const residence of [...residences].sort((a, b) => a.id.localeCompare(b.id))) {
+      if (residence.abandoned || residence.population <= 0 || sickBudget <= 0) continue;
+      const sickCount = Math.min(
+        residence.population,
+        Math.max(0, Math.floor(residence.sickPopulation ?? 0)),
+        sickBudget,
+      );
+      for (let personIndex = 0; personIndex < sickCount; personIndex += 1) {
+        visibleSickResidents.push({ residence, personIndex });
+      }
+      sickBudget -= sickCount;
+    }
     const slots = computeVillagerSlots(
       residences,
       this.roadNetwork,
       roster.remainingPopulationByResidence,
-      Math.max(0, MAX_VILLAGERS_TOTAL - roster.assignments.length),
+      Math.max(
+        0,
+        MAX_VILLAGERS_TOTAL - roster.assignments.length - visibleSickResidents.length,
+      ),
     );
     const nextIds = new Set<string>();
+
+    for (const { residence, personIndex } of visibleSickResidents) {
+      const id = `sick:${residence.id}:${personIndex}`;
+      const personIdentity = `${residence.id}:person:${personIndex}`;
+      nextIds.add(id);
+      const appearanceSeed = pickVillagerAppearanceSeed(personIdentity, 0);
+      let agent = this.agents.get(id);
+      if (!agent) {
+        const colors = pickVillagerColors(appearanceSeed);
+        agent = {
+          id,
+          personIdentity,
+          role: 'resident',
+          isSick: true,
+          residenceId: residence.id,
+          workplaceId: null,
+          workplaceSlot: -1,
+          slotIndex: personIndex,
+          mode: 'rest',
+          ambientBehavior: null,
+          routinePhase: 'sick_rest',
+          pathPurpose: null,
+          path: [],
+          pathDistance: 0,
+          pathCursor: 0,
+          simPathCursor: 0,
+          displayPathCursor: 0,
+          workActivity: null,
+          workTarget: null,
+          workStopDistance: 0,
+          workRemaining: 0,
+          workPerformed: false,
+          idleRemaining: Number.POSITIVE_INFINITY,
+          walkSpeed: pickWalkSpeed(appearanceSeed),
+          currentMoveSpeed: 0,
+          massChapelId: null,
+          refugeId: null,
+          refugeSlot: -1,
+          musterTowerId: null,
+          musterSlot: -1,
+          appearanceSeed,
+          modelVariant: pickVillagerModelVariant(appearanceSeed),
+          tunicColor: colors.tunic,
+          skinColor: colors.skin,
+          hairColor: pickVillagerHairColor(appearanceSeed),
+          idleOffset: pickIdleOffset(residence.id, personIndex),
+          pathSeed: appearanceSeed ^ 0x6d2b79f5,
+          idleDirty: true,
+          nearestEdge: null,
+          x: residence.x,
+          z: residence.z,
+          y: 0,
+          yaw: residence.yaw,
+          simAccumulator: 0,
+          frozen: false,
+        };
+        this.agents.set(id, agent);
+      } else {
+        const previousResidence = previousResidences.get(residence.id);
+        agent.personIdentity = personIdentity;
+        agent.role = 'resident';
+        agent.isSick = true;
+        agent.residenceId = residence.id;
+        agent.workplaceId = null;
+        agent.workplaceSlot = -1;
+        agent.slotIndex = personIndex;
+        if (
+          !previousResidence
+          || previousResidence.x !== residence.x
+          || previousResidence.z !== residence.z
+          || previousResidence.yaw !== residence.yaw
+        ) {
+          agent.idleDirty = true;
+        }
+      }
+      this.transitionToSickRest(agent);
+    }
 
     for (const [residenceId, count] of slots) {
       const residence = this.residences.get(residenceId);
@@ -527,12 +626,13 @@ export class VillagerRenderer {
 
         let agent = this.agents.get(id);
         if (!agent) {
-          const appearanceSeed = pickVillagerAppearanceSeed(residenceId, slotIndex);
+          const appearanceSeed = pickVillagerAppearanceSeed(personIdentity, 0);
           const colors = pickVillagerColors(appearanceSeed);
           agent = {
             id,
             personIdentity,
             role: 'resident',
+            isSick: false,
             residenceId,
             workplaceId: null,
             workplaceSlot: -1,
@@ -579,6 +679,7 @@ export class VillagerRenderer {
         } else {
           agent.personIdentity = personIdentity;
           agent.role = 'resident';
+          agent.isSick = false;
           agent.residenceId = residenceId;
           agent.workplaceId = null;
           agent.workplaceSlot = -1;
@@ -629,6 +730,7 @@ export class VillagerRenderer {
           id: assignment.id,
           personIdentity: assignment.personIdentity,
           role: 'worker',
+          isSick: false,
           residenceId: assignment.homeResidenceId,
           workplaceId: assignment.buildingId,
           workplaceSlot: assignment.slotIndex,
@@ -676,6 +778,7 @@ export class VillagerRenderer {
         const previousHomeResidenceId = agent.residenceId;
         agent.personIdentity = assignment.personIdentity;
         agent.role = 'worker';
+        agent.isSick = false;
         agent.residenceId = assignment.homeResidenceId;
         agent.workplaceId = assignment.buildingId;
         agent.workplaceSlot = assignment.slotIndex;
@@ -726,6 +829,7 @@ export class VillagerRenderer {
           id,
           personIdentity,
           role: 'founder',
+          isSick: false,
           residenceId: null,
           workplaceId: null,
           workplaceSlot: -1,
@@ -772,6 +876,7 @@ export class VillagerRenderer {
       } else {
         agent.personIdentity = personIdentity;
         agent.role = 'founder';
+        agent.isSick = false;
         agent.residenceId = null;
         agent.workplaceId = null;
         agent.workplaceSlot = -1;
@@ -984,6 +1089,8 @@ export class VillagerRenderer {
         .toLocaleUpperCase(),
       eyebrow: agent.role === 'founder'
         ? 'Founder · Awaiting housing'
+        : agent.isSick
+          ? 'Villager · Ill and homebound'
         : agent.role === 'worker'
           ? workplaceFireDisabled
             ? 'Worker · Fire-displaced'
@@ -993,17 +1100,23 @@ export class VillagerRenderer {
           : residenceFireDisabled
             ? 'Villager · Fire-displaced'
             : 'Villager · Available labor',
-      occupation: villagerOccupation(
-        workplace?.kind ?? null,
-        workplace?.constructionComplete === false,
-      ),
-      activity: describeVillagerActivity(
-        agent,
-        workplace,
-        upgradeWorkplaceLabel.toLocaleLowerCase(),
-        workplaceFireDisabled,
-        residenceFireDisabled,
-      ),
+      occupation: agent.isSick
+        ? 'Recovering at home'
+        : villagerOccupation(
+            workplace?.kind ?? null,
+            workplace?.constructionComplete === false,
+          ),
+      activity: agent.isSick
+        ? (residence?.remedyStock ?? 0) > 1e-6
+          ? 'Resting at home with dried-herb treatment'
+          : 'Resting at home without dried-herb treatment'
+        : describeVillagerActivity(
+            agent,
+            workplace,
+            upgradeWorkplaceLabel.toLocaleLowerCase(),
+            workplaceFireDisabled,
+            residenceFireDisabled,
+          ),
       activityState: onDuty ? 'active' : 'ready',
       workplaceLabel: 'Workplace',
       workplace: workplace
@@ -1020,7 +1133,9 @@ export class VillagerRenderer {
           ? "Founders' camp · no fixed household"
           : 'No fixed household',
       crewLabel: 'Crew',
-      crew: workplace
+      crew: agent.isSick
+        ? 'Unavailable to the labor pool'
+        : workplace
         ? `${workplace.assignedLabor} / ${
           isResidenceUpgradeWorkplaceId(workplace.id)
             ? 1
@@ -1883,6 +1998,10 @@ export class VillagerRenderer {
         : false;
     }
 
+    if (agent.isSick) {
+      return this.transitionToSickRest(agent);
+    }
+
     const homeState = householdMemberHomeState(
       agent.personIdentity,
       this.clock,
@@ -2069,7 +2188,7 @@ export class VillagerRenderer {
       : 'home_outdoors';
     agent.routinePhase = 'returning_from_mass';
     this.transitionToHomeState(agent, homeState);
-    if (agent.role === 'worker') this.reconcileRoutine(agent);
+    this.reconcileRoutine(agent);
     this.syncCampAmbientAssignments();
     this.syncChapelAmbientAssignments();
   }
@@ -2403,7 +2522,7 @@ export class VillagerRenderer {
       ? householdMemberHomeState(agent.personIdentity, this.clock, this.nightPolicy)
       : 'home_outdoors';
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
-    if (agent.role === 'worker') this.reconcileRoutine(agent);
+    this.reconcileRoutine(agent);
   }
 
   private beginWorkerReturnHome(agent: VillagerAgent): boolean {
@@ -2786,6 +2905,25 @@ export class VillagerRenderer {
       waitingIndex += 1;
     }
     for (const agent of candidates) this.applyAmbientAssignment(agent);
+    return true;
+  }
+
+  private transitionToSickRest(agent: VillagerAgent): boolean {
+    const alreadyResting = agent.routinePhase === 'sick_rest'
+      && agent.mode === 'rest'
+      && agent.pathPurpose === null
+      && !agent.idleDirty;
+    if (alreadyResting) return false;
+    this.clearPath(agent);
+    this.clearWorkerActivity(agent);
+    agent.routinePhase = 'sick_rest';
+    agent.mode = 'rest';
+    agent.ambientBehavior = null;
+    agent.currentMoveSpeed = 0;
+    agent.idleRemaining = Number.POSITIVE_INFINITY;
+    const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
+    if (residence) this.placeIdle(agent, residence);
+    agent.idleDirty = false;
     return true;
   }
 
@@ -3320,6 +3458,8 @@ function describeVillagerActivity(
       return agent.mode === 'walk'
         ? `Working around ${workplaceLabel}`
         : `Working at ${workplaceLabel}`;
+    case 'sick_rest':
+      return 'Resting at home while ill';
     case 'home_outdoors':
       if (residenceFireDisabled) {
         return 'Leaving a fire-disabled home';

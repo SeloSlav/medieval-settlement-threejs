@@ -506,10 +506,6 @@ pub struct Building {
     /// Fired ceramic vessels used by smokehouses and sold at market.
     #[default(0.0)]
     pub pottery: f64,
-    /// Dung and bedding collected at cattle holdings or awaiting field spreading
-    /// at an arable farmstead.
-    #[default(0.0)]
-    pub manure: f64,
     /// Desired imported regional iron held at this marketplace in whole
     /// twelve-unit lots. Appended for additive save compatibility; zero keeps
     /// existing markets on manual procurement.
@@ -520,6 +516,15 @@ pub struct Building {
     /// markets on manual procurement.
     #[default(0u8)]
     pub marketplace_salt_target: u8,
+    /// Dung and bedding collected at cattle holdings or awaiting field spreading
+    /// at an arable farmstead. Kept after every older column for additive
+    /// compatibility with settlements created before physical manure hauling.
+    #[default(0.0)]
+    pub manure: f64,
+    /// Dried medicinal herbs gathered and prepared at a forager's shed.
+    /// Appended for additive save compatibility.
+    #[default(0.0)]
+    pub remedies: f64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).
@@ -872,12 +877,6 @@ pub struct Corpse {
     /// and follows the handcart after collection.
     pub x: f64,
     pub z: f64,
-    /// Physical gravedigger handcart position. Kept separate so the body
-    /// remains visible at the home until the cart actually reaches it.
-    #[default(0.0)]
-    pub cart_x: f64,
-    #[default(0.0)]
-    pub cart_z: f64,
     pub created_tick: u64,
     pub chapel_id: u64,
     pub graveyard_id: u64,
@@ -885,6 +884,13 @@ pub struct Corpse {
     pub speed_mps: f64,
     pub path_distance: f64,
     pub route_polyline_json: String,
+    /// Physical gravedigger handcart position. Appended after every older
+    /// column so existing corpse rows migrate additively; the body remains
+    /// visible at the home until this cart actually reaches it.
+    #[default(0.0)]
+    pub cart_x: f64,
+    #[default(0.0)]
+    pub cart_z: f64,
 }
 
 /// Simulated regional market prices and neighbor trade conditions for a player.

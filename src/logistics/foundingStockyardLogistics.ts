@@ -181,6 +181,8 @@ function foundingDestinationPriority(
       return 3;
     case 'manure':
       return building.kind === 'threshing_barn' ? 0 : null;
+    case 'remedies':
+      return building.kind === 'foragers_shed' ? 0 : null;
     case 'polearms':
       if (building.kind === 'guardhouse') return 0;
       if (building.kind === 'carpenter') return 1;

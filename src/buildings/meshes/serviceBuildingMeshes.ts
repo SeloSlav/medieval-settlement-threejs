@@ -210,16 +210,16 @@ function addHerbPorch(group: THREE.Group, frontZ: number): void {
     timberMaterial('weathered'),
     new THREE.Vector3(0, 2.15, porchZ),
   );
-  const foodStockpile = new THREE.Group();
-  foodStockpile.name = 'ForagersFoodStockpile';
-  foodStockpile.visible = false;
+  const remedyStockpile = new THREE.Group();
+  remedyStockpile.name = 'ForagersRemedyStockpile';
+  remedyStockpile.visible = false;
   for (let i = 0; i < 7; i++) {
     const segmentIndex = Math.min(3, Math.floor(i / 2));
-    let segment = foodStockpile.children[segmentIndex] as THREE.Group | undefined;
+    let segment = remedyStockpile.children[segmentIndex] as THREE.Group | undefined;
     if (!segment) {
       segment = new THREE.Group();
-      segment.name = 'ForagersFoodSegment';
-      foodStockpile.add(segment);
+      segment.name = 'ForagersRemedySegment';
+      remedyStockpile.add(segment);
     }
     addMesh(
       segment,
@@ -229,22 +229,38 @@ function addHerbPorch(group: THREE.Group, frontZ: number): void {
       new THREE.Euler(Math.PI, 0, 0),
     );
   }
-  group.add(foodStockpile);
-  for (const x of [-1.4, 1.45]) {
+  group.add(remedyStockpile);
+
+  const foodStockpile = new THREE.Group();
+  foodStockpile.name = 'ForagersFoodStockpile';
+  foodStockpile.visible = false;
+  for (const [index, x] of [-1.5, -0.5, 0.5, 1.5].entries()) {
+    const segment = new THREE.Group();
+    segment.name = 'ForagersFoodSegment';
     addMesh(
-      group,
+      segment,
       new THREE.CylinderGeometry(0.38, 0.27, 0.42, 10),
       timberMaterial('light'),
       new THREE.Vector3(x, 0.23, porchZ + 0.15),
     );
     addMesh(
-      group,
+      segment,
       new THREE.TorusGeometry(0.33, 0.025, 5, 10),
       timberMaterial('dark'),
       new THREE.Vector3(x, 0.45, porchZ + 0.15),
       new THREE.Euler(Math.PI * 0.5, 0, 0),
     );
+    for (const offset of [-0.12, 0, 0.12]) {
+      addMesh(
+        segment,
+        new THREE.SphereGeometry(0.075, 7, 5),
+        sharedBuildingDetailMaterial(index % 2 === 0 ? 'foliage' : 'paintRed'),
+        new THREE.Vector3(x + offset, 0.5 + Math.abs(offset) * 0.2, porchZ + 0.15),
+      );
+    }
+    foodStockpile.add(segment);
   }
+  group.add(foodStockpile);
 }
 
 /** Compact gathering shed whose herb-drying porch reads clearly from above. */

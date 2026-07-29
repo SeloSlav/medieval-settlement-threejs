@@ -226,9 +226,11 @@ export const MIN_DELIVERY_TRIP_SEC = 4;
 export const FIREWOOD_DELIVERY_SPEED_MPS = 2.1;
 export const WATER_DELIVERY_SPEED_MPS = 2.2;
 export const FOOD_DELIVERY_SPEED_MPS = 1.6;
+export const REMEDY_DELIVERY_SPEED_MPS = 1.85;
 export const FIREWOOD_DELIVERY_UNLOAD_SEC = 10;
 export const WATER_DELIVERY_UNLOAD_SEC = 5;
 export const FOOD_DELIVERY_UNLOAD_SEC = 6;
+export const REMEDY_DELIVERY_UNLOAD_SEC = 4;
 export const TIMBER_DELIVERY_SPEED_MPS = 2;
 export const TIMBER_DELIVERY_UNLOAD_SEC = 8;
 
@@ -251,6 +253,11 @@ export const GAME_ANIMALS_PER_HARVEST = 1;
 export const GAME_PER_HARVEST = 4;
 export const BERRIES_PER_HARVEST = 3;
 export const MUSHROOMS_PER_HARVEST = 3;
+export const FORAGER_REMEDIES_PER_HARVEST = 0.6;
+export const FORAGER_REMEDY_SEASON_START_MONTH = 4;
+export const FORAGER_REMEDY_SEASON_END_MONTH = 10;
+export const REMEDIES_PER_DELIVERY = 3;
+export const REMEDY_DELIVERY_TARGET_DAYS = 10;
 export const FISH_PER_HARVEST = 3.5;
 export const RICH_FISH_YIELD_MULTIPLIER = 1.75;
 export const FOOD_PER_DELIVERY = 6;
@@ -592,6 +599,7 @@ export type StorageCaps = {
   charcoal?: number;
   pottery?: number;
   manure?: number;
+  remedies?: number;
 };
 
 export type BuildingDefinition = {
@@ -1322,7 +1330,7 @@ export const BUILDING_COSTS = {
 
 export const BUILDING_STORAGE_CAPS = {
   founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 80, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80 },
-  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, manure: 2000 },
+  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, manure: 2000, remedies: 2000 },
   lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0 },
@@ -1334,7 +1342,7 @@ export const BUILDING_STORAGE_CAPS = {
   potter_kiln: { timber: 0, firewood: 36, stone: 0, clay: 72, pottery: 120 },
   well: { timber: 0, firewood: 0, stone: 0, water: 100 },
   hunters_hall: { timber: 0, firewood: 0, stone: 0, food: 100 },
-  foragers_shed: { timber: 0, firewood: 0, stone: 0, food: 80 },
+  foragers_shed: { timber: 0, firewood: 0, stone: 0, food: 80, remedies: 36 },
   fishing_camp: { timber: 0, firewood: 0, stone: 0, food: 120 },
   chapel: { timber: 0, firewood: 0, stone: 0 },
   marketplace: { timber: 60, firewood: 80, stone: 60, water: 48, food: 96, grain: 48, barley: 72, ale: 140, honey: 100, wine: 120, cloth: 120, ironwork: 48, iron: 48, salt: 72, pottery: 96 },

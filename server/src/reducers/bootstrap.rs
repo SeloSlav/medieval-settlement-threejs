@@ -273,6 +273,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         charcoal: resources.charcoal.max(0.0),
         pottery: resources.pottery.max(0.0),
         manure: 0.0,
+        remedies: 0.0,
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
     });

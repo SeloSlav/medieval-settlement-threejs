@@ -78,6 +78,7 @@ export type ResourceTotals = {
   charcoal: number;
   pottery: number;
   manure: number;
+  remedies: number;
 };
 
 export const HUD_RESOURCE_KINDS = [
@@ -181,6 +182,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let charcoal = ledger?.charcoal ?? 0;
   let pottery = ledger?.pottery ?? 0;
   let manure = 0;
+  let remedies = 0;
   let gold = ledger?.gold ?? 0;
   let reservedTimber = 0;
   let reservedStone = 0;
@@ -211,6 +213,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     charcoal += building.charcoal ?? 0;
     pottery += building.pottery ?? 0;
     manure += building.manure ?? 0;
+    remedies += building.remedies ?? 0;
     if (
       building.kind === 'founders_camp'
       || building.kind === 'salvage_pile'
@@ -236,6 +239,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     ale += getNeedStock(residence.needs, 'ale');
     preservedFood += getNeedStock(residence.needs, 'preservedFood');
     cloth += getNeedStock(residence.needs, 'cloth');
+    remedies += Math.max(0, residence.remedyStock ?? 0);
   }
 
   cachedStoredTotals = {
@@ -264,6 +268,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     charcoal,
     pottery,
     manure,
+    remedies,
   };
   cachedTotals = {
     ...cachedStoredTotals,
@@ -565,5 +570,6 @@ function emptyResourceTotals(): ResourceTotals {
     charcoal: 0,
     pottery: 0,
     manure: 0,
+    remedies: 0,
   };
 }

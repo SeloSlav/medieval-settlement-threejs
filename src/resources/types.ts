@@ -100,6 +100,7 @@ export type BuildingState = {
   charcoal?: number;
   pottery?: number;
   manure?: number;
+  remedies?: number;
   gold: number;
   waterCapacity: number;
   assignedLabor: number;

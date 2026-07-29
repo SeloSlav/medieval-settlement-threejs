@@ -11,6 +11,7 @@ export const BREWERY_MALT_VISUAL_SEGMENTS = 2;
 export const BREWERY_ALE_VISUAL_SEGMENTS = 3;
 export const HUNTERS_FOOD_VISUAL_SEGMENTS = 4;
 export const FORAGERS_FOOD_VISUAL_SEGMENTS = 4;
+export const FORAGERS_REMEDY_VISUAL_SEGMENTS = 4;
 export const FISHING_FOOD_VISUAL_SEGMENTS = 3;
 export const SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS = 2;
@@ -32,11 +33,19 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
         HUNTERS_FOOD_VISUAL_SEGMENTS,
       );
     case 'foragers_shed':
-      return foodSupplierVisualSignature(
-        building,
-        BUILDING_STORAGE_CAPS.foragers_shed.food,
-        FORAGERS_FOOD_VISUAL_SEGMENTS,
-      );
+      return `:food-store:${
+        stockpileVisualLevel(
+          building.food,
+          BUILDING_STORAGE_CAPS.foragers_shed.food,
+          FORAGERS_FOOD_VISUAL_SEGMENTS,
+        )
+      }:${
+        stockpileVisualLevel(
+          building.remedies ?? 0,
+          BUILDING_STORAGE_CAPS.foragers_shed.remedies ?? 0,
+          FORAGERS_REMEDY_VISUAL_SEGMENTS,
+        )
+      }`;
     case 'fishing_camp':
       return foodSupplierVisualSignature(
         building,
@@ -149,6 +158,13 @@ export function syncFoodStockpileVisuals(
         'ForagersFoodSegment',
         building.food,
         BUILDING_STORAGE_CAPS.foragers_shed.food,
+      );
+      syncNamedStockpile(
+        marker,
+        'ForagersRemedyStockpile',
+        'ForagersRemedySegment',
+        building.remedies ?? 0,
+        BUILDING_STORAGE_CAPS.foragers_shed.remedies ?? 0,
       );
       break;
     case 'fishing_camp':

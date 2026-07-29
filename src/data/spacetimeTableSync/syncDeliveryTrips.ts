@@ -37,6 +37,7 @@ export function syncDeliveryTrips(
         destinationKind === 'residence'
         || destinationKind === 'fire'
         || destinationKind === 'wealth'
+        || destinationKind === 'care'
       )
         && row.residenceId > 0n
         ? residenceClientId(row.residenceId)

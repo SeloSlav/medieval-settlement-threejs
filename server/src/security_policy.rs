@@ -265,6 +265,7 @@ pub struct RaidPortableStores {
     pub salt: f64,
     pub charcoal: f64,
     pub pottery: f64,
+    pub remedies: f64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -298,6 +299,7 @@ impl RaidPortableStores {
             + positive_store(self.salt) * 1.5
             + positive_store(self.charcoal)
             + positive_store(self.pottery) * 1.25
+            + positive_store(self.remedies) * 1.25
     }
 
     pub fn goods_amount(self) -> f64 {
@@ -322,6 +324,7 @@ impl RaidPortableStores {
             + positive_store(self.salt)
             + positive_store(self.charcoal)
             + positive_store(self.pottery)
+            + positive_store(self.remedies)
     }
 
     pub fn plunder(self, loss_fraction: f64) -> RaidPlunder {
@@ -362,6 +365,7 @@ impl RaidPortableStores {
         plunder_good!(salt);
         plunder_good!(charcoal);
         plunder_good!(pottery);
+        plunder_good!(remedies);
         let (gold, wealth_lost) = plunder_store(self.gold, fraction);
         remaining.gold = gold;
 
@@ -401,6 +405,7 @@ impl RaidPortableStores {
             salt: removed!(salt),
             charcoal: removed!(charcoal),
             pottery: removed!(pottery),
+            remedies: removed!(remedies),
         }
     }
 }

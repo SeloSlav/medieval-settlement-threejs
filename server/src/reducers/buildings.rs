@@ -663,6 +663,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         charcoal: 0.0,
         pottery: 0.0,
         manure: 0.0,
+        remedies: 0.0,
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
     });

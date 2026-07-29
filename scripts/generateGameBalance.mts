@@ -44,6 +44,7 @@ type BuildingBalance = {
     charcoal?: number;
     pottery?: number;
     manure?: number;
+    remedies?: number;
   };
   workRadius: number;
   pickRadius: number;
@@ -381,9 +382,11 @@ export type GameBalance = {
     firewoodDeliverySpeedMps: number;
     waterDeliverySpeedMps: number;
     foodDeliverySpeedMps: number;
+    remedyDeliverySpeedMps: number;
     firewoodDeliveryUnloadSec: number;
     waterDeliveryUnloadSec: number;
     foodDeliveryUnloadSec: number;
+    remedyDeliveryUnloadSec: number;
     timberDeliverySpeedMps: number;
     timberDeliveryUnloadSec: number;
   };
@@ -409,6 +412,11 @@ export type GameBalance = {
     gamePerHarvest: number;
     berriesPerHarvest: number;
     mushroomsPerHarvest: number;
+    foragerRemediesPerHarvest: number;
+    foragerRemedySeasonStartMonth: number;
+    foragerRemedySeasonEndMonth: number;
+    remediesPerDelivery: number;
+    remedyDeliveryTargetDays: number;
     fishPerHarvest: number;
     richFishYieldMultiplier: number;
     foodPerDelivery: number;
@@ -836,9 +844,11 @@ function generateRust(): string {
     `pub const FIREWOOD_DELIVERY_SPEED_MPS: f64 = ${rustF64(b.roads.firewoodDeliverySpeedMps)};`,
     `pub const WATER_DELIVERY_SPEED_MPS: f64 = ${rustF64(b.roads.waterDeliverySpeedMps)};`,
     `pub const FOOD_DELIVERY_SPEED_MPS: f64 = ${rustF64(b.roads.foodDeliverySpeedMps)};`,
+    `pub const REMEDY_DELIVERY_SPEED_MPS: f64 = ${rustF64(b.roads.remedyDeliverySpeedMps)};`,
     `pub const FIREWOOD_DELIVERY_UNLOAD_SEC: f64 = ${rustF64(b.roads.firewoodDeliveryUnloadSec)};`,
     `pub const WATER_DELIVERY_UNLOAD_SEC: f64 = ${rustF64(b.roads.waterDeliveryUnloadSec)};`,
     `pub const FOOD_DELIVERY_UNLOAD_SEC: f64 = ${rustF64(b.roads.foodDeliveryUnloadSec)};`,
+    `pub const REMEDY_DELIVERY_UNLOAD_SEC: f64 = ${rustF64(b.roads.remedyDeliveryUnloadSec)};`,
     `pub const TIMBER_DELIVERY_SPEED_MPS: f64 = ${rustF64(b.roads.timberDeliverySpeedMps)};`,
     `pub const TIMBER_DELIVERY_UNLOAD_SEC: f64 = ${rustF64(b.roads.timberDeliveryUnloadSec)};`,
     '',
@@ -861,6 +871,11 @@ function generateRust(): string {
     `pub const GAME_PER_HARVEST: f64 = ${rustF64(b.production.gamePerHarvest)};`,
     `pub const BERRIES_PER_HARVEST: f64 = ${rustF64(b.production.berriesPerHarvest)};`,
     `pub const MUSHROOMS_PER_HARVEST: f64 = ${rustF64(b.production.mushroomsPerHarvest)};`,
+    `pub const FORAGER_REMEDIES_PER_HARVEST: f64 = ${rustF64(b.production.foragerRemediesPerHarvest)};`,
+    `pub const FORAGER_REMEDY_SEASON_START_MONTH: u8 = ${b.production.foragerRemedySeasonStartMonth};`,
+    `pub const FORAGER_REMEDY_SEASON_END_MONTH: u8 = ${b.production.foragerRemedySeasonEndMonth};`,
+    `pub const REMEDIES_PER_DELIVERY: f64 = ${rustF64(b.production.remediesPerDelivery)};`,
+    `pub const REMEDY_DELIVERY_TARGET_DAYS: f64 = ${rustF64(b.production.remedyDeliveryTargetDays)};`,
     `pub const FISH_PER_HARVEST: f64 = ${rustF64(b.production.fishPerHarvest)};`,
     `pub const RICH_FISH_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.richFishYieldMultiplier)};`,
     `pub const FOOD_PER_DELIVERY: f64 = ${rustF64(b.production.foodPerDelivery)};`,
@@ -1195,6 +1210,7 @@ function generateRust(): string {
   lines.push('    pub storage_charcoal: f64,');
   lines.push('    pub storage_pottery: f64,');
   lines.push('    pub storage_manure: f64,');
+  lines.push('    pub storage_remedies: f64,');
   lines.push('    pub accepts_labor: bool,');
   lines.push('    pub max_labor: u32,');
   lines.push('    pub work_radius: f64,');
@@ -1243,6 +1259,7 @@ function generateRust(): string {
     lines.push(`    storage_charcoal: ${rustF64(def.storage.charcoal ?? 0)},`);
     lines.push(`    storage_pottery: ${rustF64(def.storage.pottery ?? 0)},`);
     lines.push(`    storage_manure: ${rustF64(def.storage.manure ?? 0)},`);
+    lines.push(`    storage_remedies: ${rustF64(def.storage.remedies ?? 0)},`);
     lines.push(`    accepts_labor: ${def.acceptsLabor},`);
     lines.push(`    max_labor: ${def.maxLabor},`);
     lines.push(`    work_radius: ${rustF64(def.workRadius)},`);
@@ -1591,9 +1608,11 @@ function generateTypeScript(): string {
     `export const FIREWOOD_DELIVERY_SPEED_MPS = ${b.roads.firewoodDeliverySpeedMps};`,
     `export const WATER_DELIVERY_SPEED_MPS = ${b.roads.waterDeliverySpeedMps};`,
     `export const FOOD_DELIVERY_SPEED_MPS = ${b.roads.foodDeliverySpeedMps};`,
+    `export const REMEDY_DELIVERY_SPEED_MPS = ${b.roads.remedyDeliverySpeedMps};`,
     `export const FIREWOOD_DELIVERY_UNLOAD_SEC = ${b.roads.firewoodDeliveryUnloadSec};`,
     `export const WATER_DELIVERY_UNLOAD_SEC = ${b.roads.waterDeliveryUnloadSec};`,
     `export const FOOD_DELIVERY_UNLOAD_SEC = ${b.roads.foodDeliveryUnloadSec};`,
+    `export const REMEDY_DELIVERY_UNLOAD_SEC = ${b.roads.remedyDeliveryUnloadSec};`,
     `export const TIMBER_DELIVERY_SPEED_MPS = ${b.roads.timberDeliverySpeedMps};`,
     `export const TIMBER_DELIVERY_UNLOAD_SEC = ${b.roads.timberDeliveryUnloadSec};`,
     '',
@@ -1616,6 +1635,11 @@ function generateTypeScript(): string {
     `export const GAME_PER_HARVEST = ${b.production.gamePerHarvest};`,
     `export const BERRIES_PER_HARVEST = ${b.production.berriesPerHarvest};`,
     `export const MUSHROOMS_PER_HARVEST = ${b.production.mushroomsPerHarvest};`,
+    `export const FORAGER_REMEDIES_PER_HARVEST = ${b.production.foragerRemediesPerHarvest};`,
+    `export const FORAGER_REMEDY_SEASON_START_MONTH = ${b.production.foragerRemedySeasonStartMonth};`,
+    `export const FORAGER_REMEDY_SEASON_END_MONTH = ${b.production.foragerRemedySeasonEndMonth};`,
+    `export const REMEDIES_PER_DELIVERY = ${b.production.remediesPerDelivery};`,
+    `export const REMEDY_DELIVERY_TARGET_DAYS = ${b.production.remedyDeliveryTargetDays};`,
     `export const FISH_PER_HARVEST = ${b.production.fishPerHarvest};`,
     `export const RICH_FISH_YIELD_MULTIPLIER = ${b.production.richFishYieldMultiplier};`,
     `export const FOOD_PER_DELIVERY = ${b.production.foodPerDelivery};`,
@@ -1854,6 +1878,7 @@ function generateTypeScript(): string {
     '  charcoal?: number;',
     '  pottery?: number;',
     '  manure?: number;',
+    '  remedies?: number;',
     '};',
     '',
     'export type BuildingDefinition = {',
@@ -1935,6 +1960,7 @@ function generateTypeScript(): string {
     const charcoal = def.storage.charcoal ?? 0;
     const pottery = def.storage.pottery ?? 0;
     const manure = def.storage.manure ?? 0;
+    const remedies = def.storage.remedies ?? 0;
     const extras: string[] = [];
     if (water > 0) extras.push(`water: ${water}`);
     if (food > 0) extras.push(`food: ${food}`);
@@ -1957,6 +1983,7 @@ function generateTypeScript(): string {
     if (charcoal > 0) extras.push(`charcoal: ${charcoal}`);
     if (pottery > 0) extras.push(`pottery: ${pottery}`);
     if (manure > 0) extras.push(`manure: ${manure}`);
+    if (remedies > 0) extras.push(`remedies: ${remedies}`);
     lines.push(
       `  ${kind}: { timber: ${def.storage.timber}, firewood: ${def.storage.firewood}, stone: ${def.storage.stone}${extras.length > 0 ? `, ${extras.join(', ')}` : ''} },`,
     );

@@ -18,8 +18,6 @@ export default __t.row({
   state: __t.u8(),
   x: __t.f64(),
   z: __t.f64(),
-  cartX: __t.f64().name("cart_x"),
-  cartZ: __t.f64().name("cart_z"),
   createdTick: __t.u64().name("created_tick"),
   chapelId: __t.u64().name("chapel_id"),
   graveyardId: __t.u64().name("graveyard_id"),
@@ -27,4 +25,6 @@ export default __t.row({
   speedMps: __t.f64().name("speed_mps"),
   pathDistance: __t.f64().name("path_distance"),
   routePolylineJson: __t.string().name("route_polyline_json"),
+  cartX: __t.f64().name("cart_x"),
+  cartZ: __t.f64().name("cart_z"),
 });

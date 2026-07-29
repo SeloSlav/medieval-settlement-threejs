@@ -7,7 +7,9 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{
     CARPENTER_DELIVERY_SPEED_MULTIPLIER, CONSTRUCTION_DELIVERY_SPEED_MPS,
     CONSTRUCTION_DELIVERY_UNLOAD_SEC, CONSTRUCTION_HAUL_PER_WORKER, FIRE_BUCKET_SPEED_MPS,
-    FIRE_BUCKET_UNLOAD_SECONDS, HOUSEHOLD_MAX_WEALTH, STOREHOUSE_HAUL_PER_WORKER,
+    FIRE_BUCKET_UNLOAD_SECONDS, HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY,
+    HOUSEHOLD_MAX_WEALTH, REMEDIES_PER_DELIVERY, REMEDY_DELIVERY_SPEED_MPS,
+    REMEDY_DELIVERY_TARGET_DAYS, REMEDY_DELIVERY_UNLOAD_SEC, STOREHOUSE_HAUL_PER_WORKER,
 };
 use crate::db::*;
 pub use crate::delivery_trip_policy::DeliveryTripPhase;
@@ -80,6 +82,7 @@ pub const DELIVERY_DESTINATION_RESIDENCE: u8 = 0;
 pub const DELIVERY_DESTINATION_BUILDING: u8 = 1;
 pub const DELIVERY_DESTINATION_FIRE: u8 = 2;
 pub const DELIVERY_DESTINATION_RESIDENCE_WEALTH: u8 = 3;
+pub const DELIVERY_DESTINATION_RESIDENCE_REMEDY: u8 = 4;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TripCargoKind {
@@ -96,6 +99,7 @@ impl TripCargoKind {
 enum TripDestination {
     Residence { id: u64, x: f64, z: f64 },
     ResidenceWealth { id: u64, x: f64, z: f64 },
+    ResidenceRemedy { id: u64, x: f64, z: f64 },
     Building { id: u64, x: f64, z: f64 },
     FireBuilding { id: u64, x: f64, z: f64 },
     FireResidence { id: u64, x: f64, z: f64 },
@@ -106,6 +110,7 @@ impl TripDestination {
         match self {
             Self::Residence { id, .. } => (DELIVERY_DESTINATION_RESIDENCE, id, 0),
             Self::ResidenceWealth { id, .. } => (DELIVERY_DESTINATION_RESIDENCE_WEALTH, id, 0),
+            Self::ResidenceRemedy { id, .. } => (DELIVERY_DESTINATION_RESIDENCE_REMEDY, id, 0),
             Self::Building { id, .. } => (DELIVERY_DESTINATION_BUILDING, 0, id),
             Self::FireBuilding { id, .. } => (DELIVERY_DESTINATION_FIRE, 0, id),
             Self::FireResidence { id, .. } => (DELIVERY_DESTINATION_FIRE, id, 0),
@@ -116,6 +121,7 @@ impl TripDestination {
         match self {
             Self::Residence { x, z, .. }
             | Self::ResidenceWealth { x, z, .. }
+            | Self::ResidenceRemedy { x, z, .. }
             | Self::Building { x, z, .. }
             | Self::FireBuilding { x, z, .. }
             | Self::FireResidence { x, z, .. } => (x, z),
@@ -431,6 +437,81 @@ pub fn try_start_delivery_trip(
         },
         |origin, amount| withdraw_delivery_cargo(origin, need_kind, amount),
         |origin| *building = origin.clone(),
+    )
+}
+
+pub fn residence_has_inbound_remedy_trip(ctx: &ReducerContext, residence_id: u64) -> bool {
+    ctx.db
+        .delivery_trip()
+        .residence_id()
+        .filter(&residence_id)
+        .any(|trip| {
+            trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE_REMEDY
+                && trip.cargo_kind == CommodityKind::Remedies.as_u8()
+                && DeliveryTripPhase::from_u8(trip.phase) != Some(DeliveryTripPhase::Inbound)
+        })
+}
+
+/// Load dried remedies from a staffed forager shed and credit them only after
+/// its handcart physically reaches the sick household.
+pub fn try_start_remedy_delivery_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    forager: &mut Building,
+    residence: &Residence,
+    delivery_workers: u32,
+) -> bool {
+    if forager.kind != "foragers_shed"
+        || delivery_workers == 0
+        || forager.owner != residence.owner
+        || residence.abandoned
+        || residence.population == 0
+        || residence.sick_population == 0
+        || tick.building_disabled_by_fire(ctx, forager.id)
+        || tick.residence_disabled_by_fire(ctx, residence.id)
+        || building_has_active_trip(ctx, forager.id)
+        || residence_has_inbound_remedy_trip(ctx, residence.id)
+        || labor_and_logistics_paused(ctx, tick, forager.owner, clock)
+    {
+        return false;
+    }
+
+    let target_stock = (residence.sick_population as f64
+        * HERB_TREATMENT_PER_SICK_DAY
+        * REMEDY_DELIVERY_TARGET_DAYS)
+        .min(HERB_REMEDY_CAPACITY);
+    let household_room = (HERB_REMEDY_CAPACITY - residence.remedy_stock).max(0.0);
+    let needed = (target_stock - residence.remedy_stock).max(0.0);
+    let load = building_commodity_stock(forager, CommodityKind::Remedies)
+        .min(household_room)
+        .min(needed)
+        .min(REMEDIES_PER_DELIVERY * delivery_workers as f64);
+    if load <= 1e-6 {
+        return false;
+    }
+
+    try_start_road_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        StartTripSpec {
+            origin: forager.clone(),
+            destination: TripDestination::ResidenceRemedy {
+                id: residence.id,
+                x: residence.x,
+                z: residence.z,
+            },
+            cargo_kind: CommodityKind::Remedies.as_u8(),
+            delivery_workers,
+            speed_mps: REMEDY_DELIVERY_SPEED_MPS,
+            unload_seconds: REMEDY_DELIVERY_UNLOAD_SEC,
+            load_amount: load,
+        },
+        |origin, amount| withdraw_building_commodity(origin, CommodityKind::Remedies, amount),
+        |origin| *forager = origin.clone(),
     )
 }
 
@@ -1264,6 +1345,10 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
         && commodity == CommodityKind::Gold
     {
         unload_wealth_to_residence(ctx, trip);
+    } else if trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE_REMEDY
+        && commodity == CommodityKind::Remedies
+    {
+        unload_remedies_to_residence(ctx, trip);
     } else if matches!(
         commodity,
         CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Gold
@@ -1286,6 +1371,27 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
     } else if let Some(need_kind) = ResidenceNeedKind::from_u8(trip.cargo_kind) {
         unload_need_to_residence(ctx, trip, need_kind);
     }
+}
+
+fn unload_remedies_to_residence(ctx: &ReducerContext, trip: &mut DeliveryTrip) {
+    let Some(mut residence) = ctx.db.residence().id().find(&trip.residence_id) else {
+        return;
+    };
+    if residence.abandoned
+        || residence.population == 0
+        || residence_fire_state(ctx, residence.id).is_some()
+    {
+        return;
+    }
+    let delivered = trip
+        .amount
+        .min((HERB_REMEDY_CAPACITY - residence.remedy_stock).max(0.0));
+    if delivered <= 1e-6 {
+        return;
+    }
+    residence.remedy_stock += delivered;
+    trip.amount = (trip.amount - delivered).max(0.0);
+    ctx.db.residence().id().update(residence);
 }
 
 fn unload_wealth_to_residence(ctx: &ReducerContext, trip: &mut DeliveryTrip) {

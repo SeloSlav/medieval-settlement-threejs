@@ -696,7 +696,7 @@ export class SettlementHud {
     this.welfareAlert.dataset.tooltip = [
       `${welfare.stableResidents} / ${welfare.activeResidents} residents live in households without a current health or comfort warning.`,
       welfare.sickResidents > 0
-        ? `${welfare.sickResidents} residents cannot work while ill. Household herb stores hold ${welfare.remedyStock.toFixed(1)} remedies against ${welfare.remedyDemandPerDay.toFixed(2)} per day; ${welfare.untreatedSickHouseholds} sick homes lack a full day of treatment.`
+        ? `${welfare.sickResidents} residents cannot work while ill. The settlement holds ${welfare.householdRemedyStock.toFixed(1)} remedies in homes, ${welfare.preparedRemedyStock.toFixed(1)} at sheds, and ${welfare.remediesInTransit.toFixed(1)} on carts against ${welfare.remedyDemandPerDay.toFixed(2)} per day; ${welfare.untreatedSickHouseholds} sick homes are not yet supplied for a full day.`
         : 'No resident is currently unable to work through illness.',
       welfare.uncollectedBodiesAtHomes > 0
         ? `${welfare.uncollectedBodiesAtHomes} bodies still remain at homes and add local disease pressure. ${welfare.outboundEmptyCarts} empty burial carts are outbound and ${welfare.loadedBurialCarts} loaded carts are returning.`

@@ -56,7 +56,7 @@ const roster = allocateProductionWorkers(
   [residenceA, residenceB],
   [serviceWell, stoneCamp, lumberMill],
 );
-assert.equal(roster.assignments.length, 6, 'resource and processing labor becomes workplace agents');
+assert.equal(roster.assignments.length, 5, 'resource and processing labor cannot exceed real settlers');
 assert.deepEqual(
   roster.assignments.map((assignment) => assignment.buildingId),
   [
@@ -65,15 +65,14 @@ assert.deepEqual(
     'building-2',
     'building-2',
     'building-3',
-    'building-3',
   ],
 );
 assert.equal(roster.remainingPopulationByResidence.get(residenceA.id), 0);
 assert.equal(roster.remainingPopulationByResidence.get(residenceB.id), 0);
 assert.equal(
   roster.assignments.filter((assignment) => assignment.homeResidenceId === null).length,
-  1,
-  'nearby housed residents should be claimed before one starting-population fallback',
+  0,
+  'fully housed settlements must not manufacture fallback workers beyond the real population',
 );
 assert.ok(
   roster.assignments.every((assignment) => assignment.onSite),
@@ -100,7 +99,6 @@ assert.deepEqual(
   [
     'worker:building-1:0',
     'worker:building-3:0',
-    'worker:building-3:1',
   ],
   'only roster-backed cart crews should disappear from workplace bodies',
 );
@@ -122,6 +120,31 @@ const overstaffed = allocateProductionWorkers(
 assert.equal(overstaffed.assignments[0]?.homeResidenceId, 'residence-c');
 assert.equal(overstaffed.assignments[1]?.homeResidenceId, null);
 assert.equal(overstaffed.assignments[2]?.homeResidenceId, null);
+
+const illnessHousehold = {
+  ...residence('illness-household', 0, 0, 8),
+  sickPopulation: 3,
+};
+const illnessRoster = allocateProductionWorkers(
+  [illnessHousehold],
+  [building('illness-workplace', 'stone_quarry', 0, 0, 8, 55)],
+);
+assert.equal(
+  illnessRoster.assignments.length,
+  5,
+  'sick residents must not be replaced by imaginary workers when no founders remain unhoused',
+);
+assert.deepEqual(
+  illnessRoster.assignments.map((assignment) => assignment.personIdentity),
+  [
+    'illness-household:person:3',
+    'illness-household:person:4',
+    'illness-household:person:5',
+    'illness-household:person:6',
+    'illness-household:person:7',
+  ],
+  'the first household identities remain reserved for visible homebound sick residents',
+);
 
 const treeEntries: TreeLayoutEntry[] = [
   treeEntry('tree-mature', 20, 0),
@@ -357,7 +380,7 @@ assert.ok(
   'the gallery roof must clear a full-height male villager rig',
 );
 const boundedWatchRoster = allocateProductionWorkers(
-  [],
+  [residence('bounded-watch-population', 0, 0, 2_000)],
   Array.from({ length: 600 }, (_, index) =>
     building(`bounded-watch-${index}`, 'watchtower', index * 8, 0, 2, 190)
   ),
@@ -384,7 +407,10 @@ const materialScaleSites = Array.from({ length: 20_000 }, (_, index) =>
   )
 );
 const materialScaleStartedAt = performance.now();
-const boundedMaterialRoster = allocateProductionWorkers([], materialScaleSites);
+const boundedMaterialRoster = allocateProductionWorkers(
+  [residence('bounded-material-population', 0, 0, 2_000)],
+  materialScaleSites,
+);
 const materialScaleElapsedMs = performance.now() - materialScaleStartedAt;
 assert.equal(
   boundedMaterialRoster.assignments.length,

@@ -246,6 +246,7 @@ mod tests {
             manure: 0.0,
             marketplace_iron_target: 0,
             marketplace_salt_target: 0,
+            remedies: 0.0,
         }
     }
 

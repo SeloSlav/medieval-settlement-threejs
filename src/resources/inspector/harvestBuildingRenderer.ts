@@ -1,7 +1,13 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
-import type { BuildingKind, InspectableTarget, ResourceNodeState } from '../types.ts';
+import type {
+  BuildingKind,
+  BuildingState,
+  InspectableTarget,
+  ResidenceState,
+  ResourceNodeState,
+} from '../types.ts';
 import {
   buildingCostRows,
   buildingDemolishHint,
@@ -41,6 +47,21 @@ import {
   normalizeHarvestReservePercent,
   protectedWildStock,
 } from '../../foraging/harvestReservePolicy.ts';
+import {
+  FORAGER_REMEDIES_PER_HARVEST,
+  FORAGER_REMEDY_SEASON_END_MONTH,
+  FORAGER_REMEDY_SEASON_START_MONTH,
+  HERB_REMEDY_CAPACITY,
+  HERB_TREATMENT_PER_SICK_DAY,
+  REMEDIES_PER_DELIVERY,
+  REMEDY_DELIVERY_SPEED_MPS,
+  REMEDY_DELIVERY_TARGET_DAYS,
+  REMEDY_DELIVERY_UNLOAD_SEC,
+} from '../../generated/gameBalance.ts';
+import {
+  compareStableEntityIds,
+  roadPathDistancesFrom,
+} from '../../logistics/roadLogistics.ts';
 
 type HarvestBuildingKind = Extract<BuildingKind, 'foragers_shed' | 'hunters_hall' | 'fishing_camp'>;
 type HarvestForagingKind = 'berries' | 'mushrooms' | 'game' | 'fish';
@@ -76,6 +97,61 @@ function formatNextFoodTargetLabel(
   const runwayDays = residenceFoodRunwayDays(target);
   const runwaySuffix = runwayDays != null ? ` (${formatFoodRunwayDays(runwayDays)} left)` : '';
   return `Parcel #${target.parcelIndex + 1}${runwaySuffix}`;
+}
+
+function nextRemedyDeliveryTarget(
+  context: InspectorRenderContext,
+  supplier: BuildingState,
+): ResidenceState | null {
+  const alreadySupplied = new Set(
+    [...context.gameState.deliveryTrips.values()]
+      .filter((trip) =>
+        trip.destinationKind === 'care'
+        && trip.cargoKind === 'remedies'
+        && trip.phase !== 'inbound'
+        && trip.residenceId
+      )
+      .map((trip) => trip.residenceId as string),
+  );
+  const eligible = [...context.gameState.residences.values()]
+    .filter((residence) => {
+      const sick = Math.min(
+        residence.population,
+        Math.max(0, residence.sickPopulation ?? 0),
+      );
+      const demand = sick * HERB_TREATMENT_PER_SICK_DAY;
+      const target = Math.min(
+        HERB_REMEDY_CAPACITY,
+        demand * REMEDY_DELIVERY_TARGET_DAYS,
+      );
+      return !residence.abandoned
+        && sick > 0
+        && (residence.remedyStock ?? 0) + 1e-6 < target
+        && !alreadySupplied.has(residence.id);
+    });
+  const distances = roadPathDistancesFrom(
+    context.worldQueries.getRoadNetworkSnapshot(),
+    supplier.x,
+    supplier.z,
+    eligible,
+  );
+  return eligible
+    .map((residence, index) => {
+      const sick = Math.max(1, residence.sickPopulation ?? 0);
+      return {
+        residence,
+        runway: (residence.remedyStock ?? 0) / (sick * HERB_TREATMENT_PER_SICK_DAY),
+        sick,
+        distance: distances[index],
+      };
+    })
+    .filter((candidate) => candidate.distance != null)
+    .sort((left, right) =>
+      left.runway - right.runway
+      || right.sick - left.sick
+      || (left.distance ?? Infinity) - (right.distance ?? Infinity)
+      || compareStableEntityIds(left.residence.id, right.residence.id)
+    )[0]?.residence ?? null;
 }
 
 export function renderHarvestBuildingInspector(
@@ -159,8 +235,16 @@ export function renderHarvestBuildingInspector(
     claimedResidences.length,
     foodCapacity,
   );
-  const nextDeliveryTarget = context.worldQueries.getNextFoodDeliveryTargetForSupplier(building);
-  const nextTargetLabel = formatNextFoodTargetLabel(nextDeliveryTarget);
+  const nextFoodDeliveryTarget =
+    context.worldQueries.getNextFoodDeliveryTargetForSupplier(building);
+  const nextCareTarget = building.kind === 'foragers_shed'
+    && (building.remedies ?? 0) > 1e-6
+    ? nextRemedyDeliveryTarget(context, building)
+    : null;
+  const nextDeliveryTarget = nextCareTarget ?? nextFoodDeliveryTarget;
+  const nextTargetLabel = nextCareTarget
+    ? `Parcel #${nextCareTarget.parcelIndex + 1} · ${nextCareTarget.sickPopulation ?? 0} sick · care first`
+    : formatNextFoodTargetLabel(nextFoodDeliveryTarget);
   const nextInstitutionalDispatch =
     context.worldQueries.getNextInstitutionalFoodDispatch(
       building,
@@ -173,7 +257,24 @@ export function renderHarvestBuildingInspector(
       : 'No eligible road-linked institution';
   const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
   const onRoad = roadAccess.startsWith('Connected');
-  const deliveryTripSeconds = context.worldQueries.getFoodDeliveryTripSeconds(building, nextDeliveryTarget);
+  const deliveryTripSeconds = nextCareTarget
+    ? (() => {
+        const distance = context.worldQueries.getRoadPathDistance(
+          building.x,
+          building.z,
+          nextCareTarget.x,
+          nextCareTarget.z,
+        );
+        const workers = Math.max(1, crew.delivering);
+        return distance == null
+          ? Infinity
+          : distance * 2 / (REMEDY_DELIVERY_SPEED_MPS * workers)
+            + REMEDY_DELIVERY_UNLOAD_SEC / workers;
+      })()
+    : context.worldQueries.getFoodDeliveryTripSeconds(
+        building,
+        nextFoodDeliveryTarget,
+      );
   const deliveryDistance = nextDeliveryTarget
     ? context.worldQueries.getRoadPathDistance(building.x, building.z, nextDeliveryTarget.x, nextDeliveryTarget.z)
     : null;
@@ -198,7 +299,13 @@ export function renderHarvestBuildingInspector(
     && nearestNode != null
     && harvestableStock > 1e-6
     && seasonAvailable;
-  const canDeliver = crew.delivering > 0 && onRoad && building.food > 0 && nextDeliveryTarget != null && !activeTrip;
+  const canDeliver = crew.delivering > 0
+    && onRoad
+    && (
+      (nextCareTarget != null && (building.remedies ?? 0) > 1e-6)
+      || (nextFoodDeliveryTarget != null && building.food > 1e-6)
+    )
+    && !activeTrip;
   const cycleSeconds = definition.harvestInterval;
 
   let statusText: string;
@@ -213,7 +320,9 @@ export function renderHarvestBuildingInspector(
     statusText = `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemaining ?? Infinity)} remaining → ${activeDestinationLabel}`;
     statusState = 'active';
   } else if (canDeliver) {
-    statusText = `Delivering food — ${claimedResidences.length} road-linked home${claimedResidences.length === 1 ? '' : 's'}`;
+    statusText = nextCareTarget
+      ? `Dispatching remedies — care preempts the ordinary food round`
+      : `Delivering food — ${claimedResidences.length} road-linked home${claimedResidences.length === 1 ? '' : 's'}`;
     statusState = 'active';
   } else if (managedStockFull) {
     statusText = 'Paused — local food storage is full';
@@ -259,7 +368,7 @@ export function renderHarvestBuildingInspector(
     ? `<li><span>Next delivery</span><span>${activeTrip ? activeDestinationLabel : nextTargetLabel}</span></li>
       <li><span>Road distance</span><span>${formatDeliveryRoadDistance(deliveryDistance)}</span></li>
       <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
-      <li><span>Food per trip</span><span>${foodPerTrip}</span></li>`
+      <li><span>Cart load</span><span>${nextCareTarget ? `${REMEDIES_PER_DELIVERY * crew.delivering} remedies` : `${foodPerTrip} food`}</span></li>`
     : `<li><span>Delivery</span><span>Paused — no deliverer assigned</span></li>`;
 
   const reserveRows = managesWildStock
@@ -279,6 +388,11 @@ export function renderHarvestBuildingInspector(
           : "Protected game can breed while the hall rests. Open harvest maximizes today's yield but can leave fewer than the two animals needed to reproduce."}</p>
       </div>`
     : undefined;
+  const remedyRows = building.kind === 'foragers_shed'
+    ? `<li><span>Dried remedies</span><span>${(building.remedies ?? 0).toFixed(1)} / ${(buildingStorageCaps(building.kind).remedies ?? 0).toFixed(0)} prepared at the shed</span></li>
+      <li><span>Medicinal harvest</span><span>${FORAGER_REMEDIES_PER_HARVEST.toFixed(1)} per gatherer-cycle · months ${FORAGER_REMEDY_SEASON_START_MONTH}–${FORAGER_REMEDY_SEASON_END_MONTH}</span></li>
+      <li><span>Care dispatch rule</span><span>Least-covered sick home first · ${REMEDY_DELIVERY_TARGET_DAYS.toFixed(0)} treatment-day target · care preempts food on the shared cart</span></li>`
+    : '';
 
   return {
     eyebrow: 'Building',
@@ -294,6 +408,7 @@ export function renderHarvestBuildingInspector(
       <li><span>Road-linked homes</span><span>${building.food <= 1e-6 ? 'Yielding while stores are empty' : claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
       <li><span>Local food reserve</span><span>${localFoodReserve.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>
       <li><span>Next surplus cart</span><span>${nextInstitutionalLabel}</span></li>
+      ${remedyRows}
       ${reserveRows}
       ${deliveryRow}
       ${buildingStorageRows(building, building.kind)}

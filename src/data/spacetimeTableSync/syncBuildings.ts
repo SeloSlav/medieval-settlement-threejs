@@ -70,6 +70,7 @@ function buildingStateFromRow(
     charcoal: row.charcoal,
     pottery: row.pottery,
     manure: row.manure,
+    remedies: row.remedies,
     gold: row.gold,
     waterCapacity: row.waterCapacity,
     assignedLabor: Number(row.assignedLabor),

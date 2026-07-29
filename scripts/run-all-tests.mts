@@ -41,6 +41,7 @@ const tests = [
   'test:residence-upgrade',
   'test:residence-settlement',
   'test:resident-welfare',
+  'test:remedy-logistics',
   'test:settlement-welfare',
   'test:settlement-growth',
   'test:settlement-labor',

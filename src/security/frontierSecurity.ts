@@ -524,6 +524,12 @@ type PortableRaidStoresLike = {
   cloth?: number;
   ironwork?: number;
   polearms?: number;
+  iron?: number;
+  clay?: number;
+  salt?: number;
+  charcoal?: number;
+  pottery?: number;
+  remedies?: number;
   gold: number;
 };
 
@@ -1246,6 +1252,12 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.cloth) * CLOTH_RAID_VALUE_MULTIPLIER
     + positivePortableAmount(stores.ironwork) * IRONWORK_RAID_VALUE_MULTIPLIER
     + positivePortableAmount(stores.polearms) * POLEARM_RAID_VALUE_MULTIPLIER
+    + positivePortableAmount(stores.iron) * IRONWORK_RAID_VALUE_MULTIPLIER
+    + positivePortableAmount(stores.clay)
+    + positivePortableAmount(stores.salt) * 1.5
+    + positivePortableAmount(stores.charcoal)
+    + positivePortableAmount(stores.pottery) * 1.25
+    + positivePortableAmount(stores.remedies) * 1.25
     + positivePortableAmount(stores.gold);
 }
 
@@ -1266,6 +1278,12 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['cloth', 'cloth', CLOTH_RAID_VALUE_MULTIPLIER],
   ['ironwork', 'ironwork', IRONWORK_RAID_VALUE_MULTIPLIER],
   ['polearms', 'polearms', POLEARM_RAID_VALUE_MULTIPLIER],
+  ['iron', 'iron bars', IRONWORK_RAID_VALUE_MULTIPLIER],
+  ['clay', 'river clay', 1],
+  ['salt', 'sea salt', 1.5],
+  ['charcoal', 'charcoal', 1],
+  ['pottery', 'pottery', 1.25],
+  ['remedies', 'dried remedies', 1.25],
   ['gold', 'gold', 1],
 ] as const;
 
@@ -1306,6 +1324,12 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   ironwork: IRONWORK_RAID_VALUE_MULTIPLIER,
   polearms: POLEARM_RAID_VALUE_MULTIPLIER,
   gold: 1,
+  iron: IRONWORK_RAID_VALUE_MULTIPLIER,
+  clay: 1,
+  salt: 1.5,
+  charcoal: 1,
+  pottery: 1.25,
+  remedies: 1.25,
 };
 
 function deliveryTripRaidValue(trip: DeliveryTripState): number {

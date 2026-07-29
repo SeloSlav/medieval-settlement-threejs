@@ -34,6 +34,7 @@ export const DELIVERY_CARGO_KINDS = [
   'charcoal',
   'pottery',
   'manure',
+  'remedies',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -42,6 +43,7 @@ export const DELIVERY_DESTINATION_KINDS = [
   'building',
   'fire',
   'wealth',
+  'care',
 ] as const;
 export type DeliveryDestinationKind = (typeof DELIVERY_DESTINATION_KINDS)[number];
 
@@ -203,6 +205,8 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'pottery';
     case 24:
       return 'manure';
+    case 25:
+      return 'remedies';
     default:
       return null;
   }
@@ -218,6 +222,8 @@ export function destinationKindFromId(value: number): DeliveryDestinationKind | 
       return 'fire';
     case 3:
       return 'wealth';
+    case 4:
+      return 'care';
     default:
       return null;
   }
@@ -286,6 +292,8 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Pottery';
     case 'manure':
       return 'Field manure';
+    case 'remedies':
+      return 'Dried remedies';
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;
@@ -371,6 +379,7 @@ export function formatTripDestinationLabel(
   if (
     trip.destinationKind !== 'residence'
     && trip.destinationKind !== 'wealth'
+    && trip.destinationKind !== 'care'
   ) return fallback;
   if (!trip.residenceId) return fallback;
   const residence = getResidence(trip.residenceId);
@@ -560,6 +569,8 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0xa65e3b;
     case 'manure':
       return 0x5f4a2f;
+    case 'remedies':
+      return 0x74844c;
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;

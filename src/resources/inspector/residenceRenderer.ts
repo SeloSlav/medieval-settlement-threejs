@@ -25,6 +25,7 @@ import {
   RESIDENCE_RUINED_REPAIR_STONE,
   RESIDENCE_RUINED_REPAIR_TIMBER,
   STARVATION_DEATH_START_DAYS,
+  HERB_TREATMENT_PER_SICK_DAY,
 } from '../../generated/gameBalance.ts';
 import {
   formatFoodRunwayDays,
@@ -212,6 +213,13 @@ export function renderResidenceInspector(
     residence,
     context.gameState.deliveryTrips.values(),
   );
+  const remedyDelivery = [...context.gameState.deliveryTrips.values()].find(
+    (trip) =>
+      trip.destinationKind === 'care'
+      && trip.cargoKind === 'remedies'
+      && trip.residenceId === residence.id
+      && trip.phase !== 'inbound',
+  ) ?? null;
   const structuralRepairProject = fireRepairProject ?? decayRepairProject;
   const initialConstruction = residence.tier === 0 && upgradeProject?.targetTier === 1;
   const upgradePlan = upgradeProject || backyardProject || structuralRepairProject
@@ -399,6 +407,15 @@ export function renderResidenceInspector(
           ? `${residence.sickPopulation} sick`
           : 'Well';
   const healthWarning = hungerDays >= HUNGER_WARNING_DAYS || (residence.sickPopulation ?? 0) > 0;
+  const remedyDailyDemand = (residence.sickPopulation ?? 0) * HERB_TREATMENT_PER_SICK_DAY;
+  const remedyCoverageDays = remedyDailyDemand > 1e-9
+    ? (residence.remedyStock ?? 0) / remedyDailyDemand
+    : Number.POSITIVE_INFINITY;
+  const remedySupplyLabel = remedyDelivery
+    ? `${(residence.remedyStock ?? 0).toFixed(1)} at home · ${remedyDelivery.amount.toFixed(1)} incoming on a physical care cart`
+    : remedyDailyDemand > 1e-9
+      ? `${(residence.remedyStock ?? 0).toFixed(1)} at home · ${remedyCoverageDays.toFixed(1)} treatment days`
+      : `${(residence.remedyStock ?? 0).toFixed(1)} at home · no current treatment demand`;
   const condition = residence.condition ?? 0;
   const conditionLabel = ['Sound', 'Neglected', 'Dilapidated', 'Ruin'][condition] ?? 'Sound';
   const repairCost = condition === 1
@@ -453,7 +470,7 @@ export function renderResidenceInspector(
       <li><span>Health</span><span>${healthLabel}</span></li>
       <li><span>Malnutrition</span><span>${Math.round((residence.malnutrition ?? 0) * 100)}%</span></li>
       <li><span>Unable to work</span><span>${residence.sickPopulation ?? 0} sick resident${(residence.sickPopulation ?? 0) === 1 ? '' : 's'}</span></li>
-      <li><span>Herbal remedies</span><span>${(residence.remedyStock ?? 0).toFixed(1)} doses · herb gardens speed recovery and reduce mortality</span></li>
+      <li><span>Herbal remedies</span><span>${remedySupplyLabel} · treatment speeds recovery and reduces mortality</span></li>
       <li><span>Deaths</span><span>${residence.deathsTotal ?? 0} total · ${householdCorpses.length} unburied or in transit</span></li>
       <li><span>Structure</span><span>${conditionLabel}${condition >= 2 ? ' · blocks resettlement until repaired' : ''}</span></li>
       <li><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : `${residence.tier} / 3`}</span></li>

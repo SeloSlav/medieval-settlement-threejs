@@ -22,8 +22,9 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 25] = [
+const RECOVERY_ORDER: [CommodityKind; 26] = [
     CommodityKind::Gold,
+    CommodityKind::Remedies,
     CommodityKind::Food,
     CommodityKind::Grain,
     CommodityKind::Barley,
@@ -77,6 +78,7 @@ pub struct ReclamationStock {
     pub charcoal: f64,
     pub pottery: f64,
     pub manure: f64,
+    pub remedies: f64,
 }
 
 impl ReclamationStock {
@@ -183,6 +185,10 @@ impl ReclamationStock {
                 manure: amount,
                 ..Self::default()
             },
+            CommodityKind::Remedies => Self {
+                remedies: amount,
+                ..Self::default()
+            },
         }
     }
 
@@ -219,6 +225,7 @@ impl ReclamationStock {
             charcoal: resources.charcoal.max(0.0),
             pottery: resources.pottery.max(0.0),
             manure: 0.0,
+            remedies: 0.0,
         }
     }
 
@@ -249,6 +256,7 @@ impl ReclamationStock {
             CommodityKind::Charcoal => self.charcoal,
             CommodityKind::Pottery => self.pottery,
             CommodityKind::Manure => self.manure,
+            CommodityKind::Remedies => self.remedies,
         }
     }
 
@@ -278,6 +286,7 @@ impl ReclamationStock {
         building.charcoal += self.charcoal;
         building.pottery += self.pottery;
         building.manure += self.manure;
+        building.remedies += self.remedies;
     }
 }
 
@@ -488,6 +497,7 @@ pub fn insert_reclamation_pile(
         charcoal: stock.charcoal.max(0.0),
         pottery: stock.pottery.max(0.0),
         manure: stock.manure.max(0.0),
+        remedies: stock.remedies.max(0.0),
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
     });
@@ -870,6 +880,10 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         },
         CommodityKind::Manure => match kind {
             "threshing_barn" => Some(0),
+            _ => None,
+        },
+        CommodityKind::Remedies => match kind {
+            "foragers_shed" => Some(0),
             _ => None,
         },
         CommodityKind::Water => match kind {

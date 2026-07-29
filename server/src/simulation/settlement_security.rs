@@ -696,6 +696,7 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         salt: building.salt,
         charcoal: building.charcoal,
         pottery: building.pottery,
+        remedies: building.remedies,
     }
 }
 
@@ -875,6 +876,7 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Salt) => stores.salt = amount,
         Some(CommodityKind::Charcoal) => stores.charcoal = amount,
         Some(CommodityKind::Pottery) => stores.pottery = amount,
+        Some(CommodityKind::Remedies) => stores.remedies = amount,
         // Raiders do not select bulk stone or water as plunder even when a
         // settlement cart happens to be carrying it.
         Some(CommodityKind::Stone | CommodityKind::Water | CommodityKind::Manure) | None => {}
@@ -906,6 +908,7 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Salt) => stores.salt,
         Some(CommodityKind::Charcoal) => stores.charcoal,
         Some(CommodityKind::Pottery) => stores.pottery,
+        Some(CommodityKind::Remedies) => stores.remedies,
         Some(CommodityKind::Stone | CommodityKind::Water | CommodityKind::Manure) | None => 0.0,
     }
 }
@@ -941,6 +944,7 @@ fn treasury_portable_stores(
         salt: treasury.salt,
         charcoal: treasury.charcoal,
         pottery: treasury.pottery,
+        remedies: 0.0,
     }
 }
 
@@ -1018,6 +1022,7 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.salt = stores.salt;
     building.charcoal = stores.charcoal;
     building.pottery = stores.pottery;
+    building.remedies = stores.remedies;
     building.civic_receipts_gold = building
         .civic_receipts_gold
         .max(0.0)

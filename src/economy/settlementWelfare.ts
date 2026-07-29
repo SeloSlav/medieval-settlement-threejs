@@ -31,6 +31,9 @@ export type SettlementWelfare = {
   sickHouseholds: number;
   sickResidents: number;
   untreatedSickHouseholds: number;
+  householdRemedyStock: number;
+  preparedRemedyStock: number;
+  remediesInTransit: number;
   remedyStock: number;
   remedyDemandPerDay: number;
   remedyRunwayDays: number;
@@ -66,6 +69,9 @@ export type SettlementWelfareAccumulator = Omit<
   SettlementWelfare,
   | 'level'
   | 'remedyRunwayDays'
+  | 'householdRemedyStock'
+  | 'preparedRemedyStock'
+  | 'remediesInTransit'
   | 'waitingBodies'
   | 'outboundEmptyCarts'
   | 'loadedBurialCarts'
@@ -233,7 +239,9 @@ export function finalizeSettlementWelfare(
   const openGraves = Math.max(0, graveCapacity - occupiedGraves - reservedGraves);
 
   let staffedGravediggers = 0;
+  let preparedRemedyStock = 0;
   for (const building of state.buildings.values()) {
+    preparedRemedyStock += finiteAmount(building.remedies);
     if (
       building.kind === 'chapel'
       && building.constructionComplete !== false
@@ -242,9 +250,18 @@ export function finalizeSettlementWelfare(
       staffedGravediggers += finiteCount(building.assignedLabor);
     }
   }
+  let remediesInTransit = 0;
+  for (const trip of state.deliveryTrips.values()) {
+    if (trip.cargoKind === 'remedies') {
+      remediesInTransit += finiteAmount(trip.amount);
+    }
+  }
 
+  const householdRemedyStock = accumulator.remedyStock;
+  const totalRemedyStock =
+    householdRemedyStock + preparedRemedyStock + remediesInTransit;
   const remedyRunwayDays = accumulator.remedyDemandPerDay > 1e-9
-    ? accumulator.remedyStock / accumulator.remedyDemandPerDay
+    ? totalRemedyStock / accumulator.remedyDemandPerDay
     : Number.POSITIVE_INFINITY;
   const seriousUntreatedIllness = accumulator.untreatedSickHouseholds > 0
     && accumulator.activeResidents > 0
@@ -286,7 +303,10 @@ export function finalizeSettlementWelfare(
     sickHouseholds: accumulator.sickHouseholds,
     sickResidents: accumulator.sickResidents,
     untreatedSickHouseholds: accumulator.untreatedSickHouseholds,
-    remedyStock: accumulator.remedyStock,
+    householdRemedyStock,
+    preparedRemedyStock,
+    remediesInTransit,
+    remedyStock: totalRemedyStock,
     remedyDemandPerDay: accumulator.remedyDemandPerDay,
     remedyRunwayDays,
     comfortWarningHouseholds: accumulator.comfortWarningHouseholds,

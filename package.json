@@ -59,6 +59,7 @@
     "test:residence-upgrade": "node --experimental-strip-types scripts/testResidenceUpgrade.mts",
     "test:residence-settlement": "node --experimental-strip-types scripts/testResidenceSettlement.mts",
     "test:resident-welfare": "node --experimental-strip-types scripts/testResidentWelfare.mts",
+    "test:remedy-logistics": "node --experimental-strip-types scripts/testRemedyLogistics.mts",
     "test:settlement-welfare": "node --experimental-strip-types scripts/testSettlementWelfare.mts",
     "test:settlement-growth": "node --experimental-strip-types scripts/testSettlementGrowth.mts",
     "test:settlement-labor": "node --experimental-strip-types scripts/testSettlementLabor.mts",

@@ -1,5 +1,9 @@
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::{
+    FORAGER_REMEDIES_PER_HARVEST, FORAGER_REMEDY_SEASON_END_MONTH,
+    FORAGER_REMEDY_SEASON_START_MONTH,
+};
 use crate::building_defs::building_def;
 use crate::constants::{
     BERRIES_PER_HARVEST, FISH_PER_HARVEST, FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC,
@@ -7,7 +11,10 @@ use crate::constants::{
     RICH_FISH_YIELD_MULTIPLIER, TICK_DT,
 };
 use crate::db::*;
-use crate::economy::{building_food_storage_cap, deposit_building_food};
+use crate::economy::{
+    building_commodity_stock, building_food_storage_cap, deposit_building_commodity,
+    deposit_building_food, CommodityKind,
+};
 use crate::foraging_policy::harvest_available;
 use crate::harvest_reserve_policy::harvestable_wild_stock;
 use crate::simulation::delivery_cargo::has_delivery_stock_room;
@@ -15,12 +22,16 @@ use crate::simulation::delivery_supplier::{
     delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
     DeliveryDispatchConfig,
 };
-use crate::simulation::delivery_trips::onsite_building_labor;
+use crate::simulation::delivery_trips::{
+    onsite_building_labor, residence_has_inbound_remedy_trip, try_start_remedy_delivery_trip,
+};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::lodge_logistics::lodge_labor_split;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::simulation::road_logistics::select_residence_for_need_delivery;
+use crate::simulation::road_logistics::{
+    select_residence_for_need_delivery, select_residence_for_remedy_delivery,
+};
 use crate::simulation::spatial::find_nearest_harvestable_foraging_node;
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, ForagingNode, Residence};
@@ -39,6 +50,7 @@ pub fn step_hunters_hall(
         &["game"],
         GAME_ANIMALS_PER_HARVEST,
         GAME_PER_HARVEST,
+        false,
     );
 }
 
@@ -59,6 +71,7 @@ pub fn step_foragers_shed(
         &["berries", "mushrooms"],
         BERRIES_PER_HARVEST,
         1.0,
+        true,
     );
 }
 
@@ -68,7 +81,16 @@ pub fn step_fishing_camp(
     clock: &GameClock,
     building: Building,
 ) {
-    step_food_supplier(ctx, tick, clock, building, &["fish"], FISH_PER_HARVEST, 1.0);
+    step_food_supplier(
+        ctx,
+        tick,
+        clock,
+        building,
+        &["fish"],
+        FISH_PER_HARVEST,
+        1.0,
+        false,
+    );
 }
 
 fn step_food_supplier(
@@ -79,6 +101,7 @@ fn step_food_supplier(
     node_kinds: &[&str],
     resource_units_per_harvest: f64,
     food_per_resource_unit: f64,
+    gathers_remedies: bool,
 ) {
     if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
         return;
@@ -98,10 +121,26 @@ fn step_food_supplier(
     }
     let single_worker = supplier.assigned_labor == 1;
     let harvest_ready = split.processing > 0 && supplier.action_cooldown <= 0.0;
+    let has_delivery_stock = supplier.food > 0.0
+        || (gathers_remedies
+            && building_commodity_stock(&supplier, CommodityKind::Remedies) > 1e-6);
     let delivery_ready = network.is_some()
-        && delivery_work_ready(split.delivering, supplier.food > 0.0, supplier.id, ctx);
+        && delivery_work_ready(split.delivering, has_delivery_stock, supplier.id, ctx);
 
-    let delivery_targets = if delivery_ready {
+    let remedy_target = if delivery_ready
+        && gathers_remedies
+        && building_commodity_stock(&supplier, CommodityKind::Remedies) > 1e-6
+    {
+        collect_remedy_target(
+            ctx,
+            tick,
+            network.expect("delivery readiness requires a road network"),
+            &supplier,
+        )
+    } else {
+        None
+    };
+    let delivery_targets = if delivery_ready && remedy_target.is_none() && supplier.food > 1e-6 {
         collect_delivery_targets(
             ctx,
             tick,
@@ -111,7 +150,7 @@ fn step_food_supplier(
     } else {
         Vec::new()
     };
-    let has_target = !delivery_targets.is_empty();
+    let has_target = remedy_target.is_some() || !delivery_targets.is_empty();
 
     let (do_deliver, do_harvest) =
         should_alternate_single_worker(single_worker, harvest_ready, delivery_ready, has_target);
@@ -125,26 +164,39 @@ fn step_food_supplier(
             food_per_resource_unit,
             split.processing,
             clock.month,
+            gathers_remedies,
         );
         supplier.action_cooldown = def.action_interval;
     }
     if do_deliver {
         if let Some(network) = network {
-            dispatch_delivery_if_ready(
-                ctx,
-                tick,
-                clock,
-                network,
-                &mut supplier,
-                split.delivering,
-                &delivery_targets,
-                DeliveryDispatchConfig {
-                    need_kind: ResidenceNeedKind::Food,
-                    speed_mps: FOOD_DELIVERY_SPEED_MPS,
-                    unload_seconds: FOOD_DELIVERY_UNLOAD_SEC,
-                    per_delivery: FOOD_PER_DELIVERY,
-                },
-            );
+            if let Some(residence) = remedy_target.as_ref() {
+                try_start_remedy_delivery_trip(
+                    ctx,
+                    tick,
+                    clock,
+                    network,
+                    &mut supplier,
+                    residence,
+                    split.delivering,
+                );
+            } else {
+                dispatch_delivery_if_ready(
+                    ctx,
+                    tick,
+                    clock,
+                    network,
+                    &mut supplier,
+                    split.delivering,
+                    &delivery_targets,
+                    DeliveryDispatchConfig {
+                        need_kind: ResidenceNeedKind::Food,
+                        speed_mps: FOOD_DELIVERY_SPEED_MPS,
+                        unload_seconds: FOOD_DELIVERY_UNLOAD_SEC,
+                        per_delivery: FOOD_PER_DELIVERY,
+                    },
+                );
+            }
         }
     }
 
@@ -159,6 +211,7 @@ fn harvest_from_node(
     food_per_resource_unit: f64,
     workers: u32,
     month: u32,
+    gathers_remedies: bool,
 ) -> Building {
     if workers == 0 {
         return building;
@@ -200,11 +253,42 @@ fn harvest_from_node(
     });
 
     let produced_food = extracted * food_per_resource_unit;
-    let (deposited, updated_building) = deposit_building_food(&building, food_cap, produced_food);
+    let (deposited, mut updated_building) =
+        deposit_building_food(&building, food_cap, produced_food);
     if deposited <= 0.0 {
         return building;
     }
+    if gathers_remedies
+        && (FORAGER_REMEDY_SEASON_START_MONTH as u32..=FORAGER_REMEDY_SEASON_END_MONTH as u32)
+            .contains(&month)
+    {
+        let remedy_output =
+            extracted / resource_units_per_harvest.max(1e-9) * FORAGER_REMEDIES_PER_HARVEST;
+        deposit_building_commodity(
+            &mut updated_building,
+            CommodityKind::Remedies,
+            remedy_output,
+        );
+    }
     updated_building
+}
+
+fn collect_remedy_target(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    network: &crate::roads::RoadNetwork,
+    supplier: &Building,
+) -> Option<Residence> {
+    let targets = ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&supplier.owner)
+        .filter(|residence| !tick.residence_disabled_by_fire(ctx, residence.id))
+        .collect::<Vec<_>>();
+    select_residence_for_remedy_delivery(network, supplier, targets, |residence_id| {
+        residence_has_inbound_remedy_trip(ctx, residence_id)
+    })
 }
 
 fn find_nearest_harvestable_node(

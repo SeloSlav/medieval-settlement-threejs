@@ -2000,6 +2000,7 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         salt: stores.salt,
         charcoal: stores.charcoal,
         pottery: stores.pottery,
+        remedies: stores.remedies,
         ..ReclamationStock::default()
     }
 }

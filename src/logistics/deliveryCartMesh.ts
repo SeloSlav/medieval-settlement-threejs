@@ -55,6 +55,7 @@ const CARGO_MATERIALS = {
   charcoal: createCargoMaterial('Lump charcoal', 0x202324, 0.99),
   manure: createCargoMaterial('Dung and straw manure', 0x5b472c, 1),
   manureStraw: createCargoMaterial('Manure bedding straw', 0xaa8647, 0.99),
+  driedHerb: createCargoMaterial('Dried medicinal herbs', 0x73804b, 0.98),
 } as const;
 
 const CANOPY_PALETTES = [
@@ -163,6 +164,9 @@ function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
     case 'manure':
       addManureLoad(group);
       break;
+    case 'remedies':
+      addRemedyLoad(group);
+      break;
     default: {
       const unreachable: never = kind;
       throw new Error(`Unknown cargo kind: ${unreachable}`);
@@ -197,6 +201,39 @@ function addFirewoodLoad(group: THREE.Group): void {
       new THREE.BoxGeometry(0.038, 0.31, 0.43),
       CARGO_MATERIALS.rope,
       new THREE.Vector3(x, 0.75, 0),
+    );
+  }
+}
+
+function addRemedyLoad(group: THREE.Group): void {
+  addBasket(group, 'Remedy herb basket', new THREE.Vector3(-0.18, 0.7, 0), 0.94);
+  addCrock(
+    group,
+    'Remedy storage crock',
+    new THREE.Vector3(0.22, 0.72, 0.03),
+    0.86,
+    CARGO_MATERIALS.terracotta,
+  );
+  for (const [index, [x, y, z, roll]] of [
+    [-0.24, 0.92, -0.03, -0.2],
+    [-0.12, 0.95, 0.05, 0.18],
+    [0.01, 0.9, -0.06, -0.08],
+  ].entries()) {
+    addNamedMesh(
+      group,
+      `Dried remedy bundle ${index + 1}`,
+      new THREE.CylinderGeometry(0.055, 0.075, 0.42, 7),
+      CARGO_MATERIALS.driedHerb,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(Math.PI * 0.5, roll, Math.PI * 0.5),
+    );
+    addNamedMesh(
+      group,
+      `Dried remedy bundle tie ${index + 1}`,
+      new THREE.TorusGeometry(0.066, 0.012, 5, 8),
+      CARGO_MATERIALS.rope,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(Math.PI * 0.5, 0, 0),
     );
   }
 }

@@ -70,7 +70,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   reforester: ['Reforester', 'F', 'Restores harvested woodland with native saplings.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood and supplies connected homes.'],
   hunters_hall: ["Hunter's hall", 'K', 'Hunts game and delivers fresh food along the road network.'],
-  foragers_shed: ["Forager's shed", 'Y', 'Gathers seasonal berries or deep-forest mushrooms and provisions homes.'],
+  foragers_shed: ["Forager's shed", 'Y', 'Gathers wild food, dries medicinal herbs, and carts urgent treatment to sick homes.'],
   fishing_camp: ['Fishing camp', 'Z', 'Catches from a finite river population that reproduces in spring; overfishing can cause extinction.'],
   threshing_barn: ['Farmstead', 'T', 'Road-linked labor hub that ploughs, sows, tends, harvests, and stores grain from surrounding fields.'],
   watermill: ['Grain watermill', 'M', 'Uses seasonal river power to grind grain into flour. Spring rain speeds it; drought and frost slow it. Must touch open water.'],

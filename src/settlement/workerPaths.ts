@@ -18,6 +18,7 @@ import { isForagingHarvestAvailable } from '../foraging/foragingSeason.ts';
 import { isWildStockHarvestable } from '../foraging/harvestReservePolicy.ts';
 import { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
+import { STARTING_POPULATION } from '../generated/gameBalance.ts';
 import { processorOutputHeadroom } from '../economy/processorOutputPolicy.ts';
 
 export { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
@@ -249,11 +250,24 @@ export function allocateProductionWorkers(
   const remainingPopulationByResidence = new Map(
     residences.map((residence) => [
       residence.id,
-      residence.abandoned ? 0 : Math.max(0, residence.population),
+      residence.abandoned
+        ? 0
+        : Math.max(
+            0,
+            residence.population - Math.min(
+              residence.population,
+              Math.max(0, Math.floor(residence.sickPopulation ?? 0)),
+            ),
+          ),
     ]),
   );
   const assignments: WorkerAssignment[] = [];
   let fallbackPersonIndex = 0;
+  const housedPopulation = activeResidences.reduce(
+    (sum, residence) => sum + Math.max(0, Math.floor(residence.population)),
+    0,
+  );
+  const unhousedPopulation = Math.max(0, STARTING_POPULATION - housedPopulation);
 
   const workplaces = buildings
     .filter((building) =>
@@ -294,6 +308,7 @@ export function allocateProductionWorkers(
         remainingPopulationByResidence.set(home.id, remaining - 1);
         personIdentity = `${home.id}:person:${claimedIndex}`;
       } else {
+        if (fallbackPersonIndex >= unhousedPopulation) break;
         personIdentity = `starting-population:${fallbackPersonIndex}`;
         fallbackPersonIndex += 1;
       }

@@ -104,9 +104,10 @@ export const Building = __t.object("Building", {
   salt: __t.f64(),
   charcoal: __t.f64(),
   pottery: __t.f64(),
-  manure: __t.f64(),
   marketplaceIronTarget: __t.u8(),
   marketplaceSaltTarget: __t.u8(),
+  manure: __t.f64(),
+  remedies: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -161,8 +162,6 @@ export const Corpse = __t.object("Corpse", {
   state: __t.u8(),
   x: __t.f64(),
   z: __t.f64(),
-  cartX: __t.f64(),
-  cartZ: __t.f64(),
   createdTick: __t.u64(),
   chapelId: __t.u64(),
   graveyardId: __t.u64(),
@@ -170,6 +169,8 @@ export const Corpse = __t.object("Corpse", {
   speedMps: __t.f64(),
   pathDistance: __t.f64(),
   routePolylineJson: __t.string(),
+  cartX: __t.f64(),
+  cartZ: __t.f64(),
 });
 export type Corpse = __Infer<typeof Corpse>;
 

@@ -1,5 +1,8 @@
 //! Road-graph distance and branch claims for firewood logistics.
 
+use crate::balance_generated::{
+    HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY, REMEDY_DELIVERY_TARGET_DAYS,
+};
 use crate::constants::RESIDENCE_WATER_PER_PERSON_PER_SEC;
 use crate::roads::RoadNetwork;
 use crate::simulation::lodge_logistics::residence_firewood_runway_seconds as residence_runway_seconds;
@@ -81,6 +84,69 @@ pub fn select_residence_for_need_delivery(
             },
         ))?;
     Some(residences.swap_remove(selected.index))
+}
+
+/// Choose the least-covered sick household with one batched road-graph solve.
+/// Larger sick cohorts win runway ties, then shorter routes and stable ids.
+pub fn select_residence_for_remedy_delivery(
+    network: &RoadNetwork,
+    supplier: &Building,
+    mut residences: Vec<Residence>,
+    has_inbound_remedies: impl Fn(u64) -> bool,
+) -> Option<Residence> {
+    let eligible = residences
+        .iter()
+        .enumerate()
+        .filter_map(|(index, residence)| {
+            if residence.abandoned
+                || residence.population == 0
+                || residence.sick_population == 0
+                || has_inbound_remedies(residence.id)
+            {
+                return None;
+            }
+            let daily_demand = residence.sick_population as f64 * HERB_TREATMENT_PER_SICK_DAY;
+            let target = (daily_demand * REMEDY_DELIVERY_TARGET_DAYS).min(HERB_REMEDY_CAPACITY);
+            if residence.remedy_stock + 1e-6 >= target {
+                return None;
+            }
+            let runway_days = residence.remedy_stock.max(0.0) / daily_demand.max(1e-9);
+            Some((index, runway_days))
+        })
+        .collect::<Vec<_>>();
+    let target_positions = eligible
+        .iter()
+        .map(|(index, _)| {
+            let residence = &residences[*index];
+            (residence.x, residence.z)
+        })
+        .collect::<Vec<_>>();
+    let route_distances =
+        network.road_path_distances_from(supplier.x, supplier.z, &target_positions);
+
+    let selected_index = eligible
+        .into_iter()
+        .zip(route_distances)
+        .filter_map(|((index, runway_days), distance)| {
+            let distance = distance.filter(|distance| distance.is_finite())?;
+            let residence = &residences[index];
+            Some((
+                index,
+                runway_days,
+                std::cmp::Reverse(residence.sick_population),
+                distance,
+                residence.id,
+            ))
+        })
+        .min_by(|left, right| {
+            left.1
+                .total_cmp(&right.1)
+                .then_with(|| left.2.cmp(&right.2))
+                .then_with(|| left.3.total_cmp(&right.3))
+                .then_with(|| left.4.cmp(&right.4))
+        })
+        .map(|candidate| candidate.0)?;
+    Some(residences.swap_remove(selected_index))
 }
 
 /// Assign every residence to its nearest eligible supplier using one graph
