@@ -8,6 +8,8 @@ import {
 import { surfaceRockCountForRemaining } from '../src/quarries/quarryDepletion.ts';
 import type { BuildingState, ResourceNodeState } from '../src/resources/types.ts';
 import { collectWorkerTargets, pickWorkerWalkPlan } from '../src/settlement/workerPaths.ts';
+import { createRegionalResourcePlan } from '../src/world/regionalResourceDistribution.ts';
+import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 
 const worldQuarries = JSON.parse(readFileSync('server/generated/world_quarries.json', 'utf8'))
   .quarries as Array<{
@@ -17,7 +19,11 @@ const worldQuarries = JSON.parse(readFileSync('server/generated/world_quarries.j
     maxYield: number;
     isRich: boolean;
   }>;
-assert.equal(worldQuarries.length, 3, 'world should retain three finite surface stone deposits');
+assert.equal(
+  worldQuarries.length,
+  createRegionalResourcePlan(DEFAULT_WORLD_GENERATION_SETTINGS).ordinaryQuarryCount + 1,
+  'generated bootstrap should match the default map-size stone budget',
+);
 assert.equal(
   worldQuarries.filter((quarry) => quarry.isRich).length,
   1,

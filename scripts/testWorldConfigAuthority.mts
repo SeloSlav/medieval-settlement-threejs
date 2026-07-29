@@ -30,6 +30,8 @@ const row = {
   topography: 42,
   hydrology: 55,
   forestDensity: 66,
+  resourceAbundance: 35,
+  resourceVariety: 80,
   conflictEnabled: true,
   enemyPressure: 70,
   configured: true,
@@ -39,6 +41,8 @@ const generation = worldConfigRowToGeneration(row);
 assert.equal(generation.seed, 0xdeadbeef);
 assert.equal(generation.mapSize, 'medium');
 assert.equal(generation.topography, 42);
+assert.equal(generation.resourceAbundance, 35);
+assert.equal(generation.resourceVariety, 80);
 assert.equal(generation.conflictMode, 'frontier');
 assert.equal(generation.enemyPressure, 70);
 assert.equal(generation.configured, true);
@@ -51,6 +55,8 @@ assert.equal(
 const payload = settingsToConfigurePayload(DEFAULT_WORLD_GENERATION_SETTINGS);
 assert.equal(payload.mapSize, MAP_SIZE_CODES.medium);
 assert.equal(payload.seed, BigInt(DEFAULT_WORLD_GENERATION_SETTINGS.seed));
+assert.equal(payload.resourceAbundance, 50);
+assert.equal(payload.resourceVariety, 50);
 assert.equal(payload.conflictEnabled, false);
 assert.equal(payload.enemyPressure, 0);
 
@@ -104,6 +110,8 @@ assert.deepEqual(
       topography: generation.topography,
       hydrology: generation.hydrology,
       forestDensity: generation.forestDensity,
+      resourceAbundance: generation.resourceAbundance,
+      resourceVariety: generation.resourceVariety,
       conflictMode: generation.conflictMode,
       enemyPressure: generation.enemyPressure,
     },

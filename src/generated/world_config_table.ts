@@ -23,4 +23,6 @@ export default __t.row({
   conflictEnabled: __t.bool().name("conflict_enabled"),
   enemyPressure: __t.u8().name("enemy_pressure"),
   configured: __t.bool(),
+  resourceAbundance: __t.u8().name("resource_abundance"),
+  resourceVariety: __t.u8().name("resource_variety"),
 });

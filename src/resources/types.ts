@@ -134,6 +134,8 @@ export type BuildingState = {
   /** Null/undefined keeps nearest-watch behavior; otherwise a server building id. */
   guardhouseMusterWatchtowerId?: string;
   marketplaceIronworkTarget?: number;
+  marketplaceIronTarget?: number;
+  marketplaceSaltTarget?: number;
   marketplaceGoldReserveTarget?: number;
   marketplaceSpecialtyExportPolicy?: number;
   marketplaceSeedGrainTarget?: number;

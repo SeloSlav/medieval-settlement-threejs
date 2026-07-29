@@ -5,6 +5,10 @@ import type { BuildingState } from '../resources/types.ts';
 import {
   marketplaceIronworkProcurementPlan,
 } from './marketplaceIronworkPolicy.ts';
+import {
+  marketplaceIronProcurementPlan,
+  marketplaceSaltProcurementPlan,
+} from './marketplaceMaterialProcurementPolicy.ts';
 
 export const MARKETPLACE_SEED_GRAIN_TARGETS = [0, 24, 48, 72, 96] as const;
 export type MarketplaceSeedGrainTarget = (typeof MARKETPLACE_SEED_GRAIN_TARGETS)[number];
@@ -61,23 +65,71 @@ export function marketplaceSeedGrainProcurementPlan(
   };
 }
 
-export type MarketplaceStandingOrder = 'seedGrain' | 'ironwork' | null;
+export type MarketplaceStandingOrder =
+  | 'seedGrain'
+  | 'salt'
+  | 'iron'
+  | 'ironwork'
+  | null;
 
 export function nextMarketplaceStandingOrder(
   building: Pick<
     BuildingState,
-    'grain' | 'ironwork' | 'marketplaceSeedGrainTarget' | 'marketplaceIronworkTarget'
+    | 'grain'
+    | 'ironwork'
+    | 'iron'
+    | 'salt'
+    | 'marketplaceSeedGrainTarget'
+    | 'marketplaceIronworkTarget'
+    | 'marketplaceIronTarget'
+    | 'marketplaceSaltTarget'
   >,
   conflictEnabled: boolean,
 ): MarketplaceStandingOrder {
   const seed = marketplaceSeedGrainProcurementPlan(building);
   const ironwork = marketplaceIronworkProcurementPlan(building);
-  const ironworkDue = conflictEnabled && ironwork.nextOrderDue;
-  if (!seed.nextOrderDue && !ironworkDue) return null;
-  if (seed.nextOrderDue && !ironworkDue) return 'seedGrain';
-  if (!seed.nextOrderDue) return 'ironwork';
+  const iron = marketplaceIronProcurementPlan(building);
+  const salt = marketplaceSaltProcurementPlan(building);
+  let nextOrder: MarketplaceStandingOrder = null;
+  let nextStock = 0;
+  let nextTarget = 1;
 
-  const seedFill = seed.stock * ironwork.target;
-  const ironworkFill = ironwork.stock * seed.target;
-  return seedFill <= ironworkFill ? 'seedGrain' : 'ironwork';
+  if (seed.nextOrderDue) {
+    nextOrder = 'seedGrain';
+    nextStock = seed.stock;
+    nextTarget = seed.target;
+  }
+  if (
+    salt.nextOrderDue
+    && (
+      nextOrder === null
+      || salt.stock * nextTarget < nextStock * salt.target
+    )
+  ) {
+    nextOrder = 'salt';
+    nextStock = salt.stock;
+    nextTarget = salt.target;
+  }
+  if (
+    iron.nextOrderDue
+    && (
+      nextOrder === null
+      || iron.stock * nextTarget < nextStock * iron.target
+    )
+  ) {
+    nextOrder = 'iron';
+    nextStock = iron.stock;
+    nextTarget = iron.target;
+  }
+  if (
+    conflictEnabled
+    && ironwork.nextOrderDue
+    && (
+      nextOrder === null
+      || ironwork.stock * nextTarget < nextStock * ironwork.target
+    )
+  ) {
+    nextOrder = 'ironwork';
+  }
+  return nextOrder;
 }

@@ -760,6 +760,8 @@ const SEED_PROCUREMENT_ATTENTION_LABELS: Record<
   'cash-inbound': 'market cash handcart inbound',
   'cash-cart': 'market awaiting a treasury handcart',
   treasury: 'civic treasury short',
+  iron: 'raw iron ahead in queue',
+  salt: 'preservation salt ahead in queue',
   ironwork: 'ironwork ahead in queue',
   cooldown: 'caravan cooldown',
 };
@@ -772,8 +774,19 @@ export function renderSettlementSeedProcurementRows(
     || plan.firstAttentionKind === null
     ? ''
     : ` &middot; first block ${SEED_PROCUREMENT_ATTENTION_LABELS[plan.firstAttentionKind]} <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionMarketId}" aria-label="Inspect first blocked standing seed order">Inspect market</button>`;
-  const queue = plan.ironworkQueuedMarkets > 0
-    ? ` &middot; ${plan.ironworkQueuedMarkets} behind frontier ironwork`
+  const queueParts = [
+    plan.saltQueuedMarkets > 0
+      ? `${plan.saltQueuedMarkets} behind salt`
+      : '',
+    plan.ironQueuedMarkets > 0
+      ? `${plan.ironQueuedMarkets} behind raw iron`
+      : '',
+    plan.ironworkQueuedMarkets > 0
+      ? `${plan.ironworkQueuedMarkets} behind frontier ironwork`
+      : '',
+  ].filter(Boolean);
+  const queue = queueParts.length > 0
+    ? ` &middot; ${queueParts.join(' &middot; ')}`
     : '';
   const physicalCashReadiness = plan.physicalCashEconomy
     ? `${

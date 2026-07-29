@@ -478,6 +478,8 @@ pub fn insert_reclamation_pile(
         salt: stock.salt.max(0.0),
         charcoal: stock.charcoal.max(0.0),
         pottery: stock.pottery.max(0.0),
+        marketplace_iron_target: 0,
+        marketplace_salt_target: 0,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

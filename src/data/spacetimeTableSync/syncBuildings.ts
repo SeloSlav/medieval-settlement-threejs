@@ -105,6 +105,8 @@ function buildingStateFromRow(
       ? undefined
       : row.guardhouseMusterWatchtowerId.toString(),
     marketplaceIronworkTarget: row.marketplaceIronworkTarget,
+    marketplaceIronTarget: row.marketplaceIronTarget,
+    marketplaceSaltTarget: row.marketplaceSaltTarget,
     marketplaceGoldReserveTarget: row.marketplaceGoldReserveTarget,
     marketplaceSpecialtyExportPolicy: row.marketplaceSpecialtyExportPolicy,
     marketplaceSeedGrainTarget: row.marketplaceSeedGrainTarget,

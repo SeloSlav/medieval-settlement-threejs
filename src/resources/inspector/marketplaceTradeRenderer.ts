@@ -34,6 +34,14 @@ import {
   marketplaceIronworkProcurementPlan,
 } from '../../economy/marketplaceIronworkPolicy.ts';
 import {
+  MARKETPLACE_IRON_IMPORT_OFFER,
+  MARKETPLACE_IRON_TARGETS,
+  MARKETPLACE_SALT_IMPORT_OFFER,
+  MARKETPLACE_SALT_TARGETS,
+  marketplaceIronProcurementPlan,
+  marketplaceSaltProcurementPlan,
+} from '../../economy/marketplaceMaterialProcurementPolicy.ts';
+import {
   MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
   MARKETPLACE_SEED_GRAIN_TARGETS,
   marketplaceSeedGrainProcurementPlan,
@@ -72,6 +80,8 @@ export function renderMarketplaceTradePanel(
   const sections = marketplaceTradeOffersBySection(conflictEnabled);
   const ironworkProcurement = marketplaceIronworkProcurementPlan(building);
   const seedGrainProcurement = marketplaceSeedGrainProcurementPlan(building);
+  const ironProcurement = marketplaceIronProcurementPlan(building);
+  const saltProcurement = marketplaceSaltProcurementPlan(building);
   const nextStandingOrder = nextMarketplaceStandingOrder(building, conflictEnabled);
   const pendingOffer = marketplacePendingTradeOffer(building.marketplacePendingTradeCode);
   const nextTurnaround = manualTrade.nextCooldownSeconds == null
@@ -225,6 +235,14 @@ export function renderMarketplaceTradePanel(
         conflictEnabled,
         seedCoverage,
       )}
+      ${renderMaterialProcurementPolicy(
+        ironProcurement,
+        saltProcurement,
+        availability,
+        marketState,
+        manualTrade,
+        nextStandingOrder,
+      )}
       ${conflictEnabled ? renderIronworkProcurementPolicy(
         ironworkProcurement,
         availability,
@@ -368,8 +386,8 @@ function renderIronworkProcurementPolicy(
     status = 'Manual-only — brokers place no automatic ironwork orders.';
   } else if (!plan.nextOrderDue) {
     status = `Holding ${plan.stock.toFixed(1)} / ${plan.target} ironwork; the next six-unit lot waits until it fits without overshooting.`;
-  } else if (nextStandingOrder === 'seedGrain') {
-    status = `Queued behind the more depleted seed-grain reserve; ${plan.ordersToTarget} ironwork lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+  } else if (nextStandingOrder && nextStandingOrder !== 'ironwork') {
+    status = `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} ironwork lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (availability.gold + 1e-6 < nextCost) {
     status = `Waiting for ${nextCost.toFixed(0)} market-coffer gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (!manualTrade.ready) {
@@ -381,7 +399,7 @@ function renderIronworkProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Frontier ironwork procurement">
       <h3 class="marketplace-trade-section__title">Frontier ironwork procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the same broker queue, physically held market-coffer gold, and current regional rates; carpenters must still collect the fittings by road. When both orders are due, the more depleted target goes first.</p>
+      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the shared standing-order queue, physically held market-coffer gold, and current regional rates; carpenters must still collect the fittings by road. The most depleted selected reserve goes first.</p>
       <div class="resource-action-row">${MARKETPLACE_IRONWORK_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-ironwork-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>
@@ -407,8 +425,8 @@ function renderSeedGrainProcurementPolicy(
     status = 'Manual-only — brokers place no automatic seed-grain orders.';
   } else if (!plan.nextOrderDue) {
     status = `Holding ${plan.stock.toFixed(1)} / ${plan.target} grain; the next 24-unit lot waits until it fits without overshooting.`;
-  } else if (nextStandingOrder === 'ironwork') {
-    status = `Queued behind the more depleted frontier ironwork reserve; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+  } else if (nextStandingOrder && nextStandingOrder !== 'seedGrain') {
+    status = `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (availability.gold + 1e-6 < nextCost) {
     status = `Waiting for ${nextCost.toFixed(0)} market-coffer gold; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (!manualTrade.ready) {
@@ -418,8 +436,8 @@ function renderSeedGrainProcurementPolicy(
   }
 
   const sharedQueue = conflictEnabled
-    ? ' In frontier worlds, seed grain and ironwork share this broker queue; the more depleted selected target goes first.'
-    : '';
+    ? ' Seed grain, salt, raw iron, and frontier ironwork share this broker queue; the most depleted selected target goes first.'
+    : ' Seed grain, salt, and raw iron share this broker queue; the most depleted selected target goes first.';
   const coverageHtml = renderSeedCoverage(coverage);
   return `
     <section class="marketplace-trade-section" aria-label="Seed-grain procurement">
@@ -431,6 +449,94 @@ function renderSeedGrainProcurementPolicy(
       <p class="inspector-action-panel__hint">${status}</p>
       ${coverageHtml}
     </section>`;
+}
+
+function renderMaterialProcurementPolicy(
+  ironPlan: ReturnType<typeof marketplaceIronProcurementPlan>,
+  saltPlan: ReturnType<typeof marketplaceSaltProcurementPlan>,
+  availability: MarketplaceTradeAvailability,
+  marketState: RegionalMarketState,
+  manualTrade: MarketplaceManualTradeStatus,
+  nextStandingOrder: MarketplaceStandingOrder,
+): string {
+  const renderTargetButtons = (
+    resource: 'iron' | 'salt',
+    targets: readonly number[],
+    selected: number,
+  ) => targets
+    .map((target) => `<button type="button" class="resource-action-button" data-marketplace-${resource}-target="${target}" ${target === selected ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
+    .join('');
+
+  return `
+    <section class="marketplace-trade-section" aria-label="Workshop input procurement">
+      <h3 class="marketplace-trade-section__title">Workshop input reserves</h3>
+      <p class="resource-inspector-note">Set physical market stock for regionally sourced inputs. Each twelve-unit lot consumes broker time, coffer gold, and the current regional rate. Smithies and smokehouses must still collect their inputs by road, so a full market cannot feed a disconnected workshop. All standing imports share one queue and the most depleted selected reserve goes first.</p>
+      <h4 class="marketplace-trade-section__title">Raw iron for smithing</h4>
+      <div class="resource-action-row">${renderTargetButtons(
+        'iron',
+        MARKETPLACE_IRON_TARGETS,
+        ironPlan.target,
+      )}</div>
+      <p class="inspector-action-panel__hint">${formatMaterialProcurementStatus(
+        'iron',
+        ironPlan,
+        marketplaceTradeOfferCost(MARKETPLACE_IRON_IMPORT_OFFER, marketState).amount,
+        availability,
+        manualTrade,
+        nextStandingOrder,
+      )}</p>
+      <h4 class="marketplace-trade-section__title">Adriatic salt for preservation</h4>
+      <div class="resource-action-row">${renderTargetButtons(
+        'salt',
+        MARKETPLACE_SALT_TARGETS,
+        saltPlan.target,
+      )}</div>
+      <p class="inspector-action-panel__hint">${formatMaterialProcurementStatus(
+        'salt',
+        saltPlan,
+        marketplaceTradeOfferCost(MARKETPLACE_SALT_IMPORT_OFFER, marketState).amount,
+        availability,
+        manualTrade,
+        nextStandingOrder,
+      )}</p>
+    </section>`;
+}
+
+function formatMaterialProcurementStatus(
+  resource: 'iron' | 'salt',
+  plan:
+    | ReturnType<typeof marketplaceIronProcurementPlan>
+    | ReturnType<typeof marketplaceSaltProcurementPlan>,
+  nextCost: number,
+  availability: MarketplaceTradeAvailability,
+  manualTrade: MarketplaceManualTradeStatus,
+  nextStandingOrder: MarketplaceStandingOrder,
+): string {
+  if (plan.target <= 0) {
+    return `Manual-only — brokers place no automatic ${resource} orders.`;
+  }
+  if (!plan.nextOrderDue) {
+    return `Holding ${plan.stock.toFixed(1)} / ${plan.target} ${resource}; the next twelve-unit lot waits until it fits without overshooting.`;
+  }
+  if (nextStandingOrder && nextStandingOrder !== resource) {
+    return `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} ${resource} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+  }
+  if (availability.gold + 1e-6 < nextCost) {
+    return `Waiting for ${nextCost.toFixed(0)} market-coffer gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+  }
+  if (!manualTrade.ready) {
+    return `Waiting — ${manualTrade.label.toLowerCase()}.`;
+  }
+  return `Next twelve-unit lot ready for ${nextCost.toFixed(0)} gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+}
+
+function standingOrderLabel(order: Exclude<MarketplaceStandingOrder, null>): string {
+  switch (order) {
+    case 'seedGrain': return 'seed-grain reserve';
+    case 'salt': return 'salt reserve';
+    case 'iron': return 'raw-iron reserve';
+    case 'ironwork': return 'frontier ironwork reserve';
+  }
 }
 
 function renderSeedCoverage(coverage?: MarketplaceSeedCoveragePlan): string {

@@ -11,13 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
-  seed: __t.u64(),
-  mapSize: __t.u8(),
-  topography: __t.u8(),
-  hydrology: __t.u8(),
-  forestDensity: __t.u8(),
-  resourceAbundance: __t.u8(),
-  resourceVariety: __t.u8(),
-  conflictEnabled: __t.bool(),
-  enemyPressure: __t.u8(),
+  buildingId: __t.u64(),
+  saltTarget: __t.u8(),
 };

@@ -20,6 +20,8 @@ export type QuarryLayoutOptions = {
   seed?: number;
   riverLayout?: RiverLayout;
   playableHalf?: number;
+  /** Additional ordinary deposits; one rich deposit is always generated. */
+  ordinarySiteCount?: number;
 };
 
 export type SerializedQuarryLayout = {
@@ -54,7 +56,8 @@ export class QuarryLayout {
     const largeSite = pickQuarrySite(rng, seed, playableHalf, riverLayout, sites, 'large');
     if (largeSite) sites.push(largeSite);
 
-    for (let i = 0; i < 2; i++) {
+    const ordinarySiteCount = Math.max(0, Math.min(3, Math.floor(options.ordinarySiteCount ?? 2)));
+    for (let i = 0; i < ordinarySiteCount; i++) {
       const smallSite = pickQuarrySite(rng, seed ^ (i + 3) * 0x5151, playableHalf, riverLayout, sites, 'small');
       if (smallSite) sites.push(smallSite);
     }

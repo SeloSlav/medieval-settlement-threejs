@@ -44,6 +44,8 @@ export function worldConfigRowToGeneration(row: WorldConfig): AuthoritativeWorld
       topography: row.topography,
       hydrology: row.hydrology,
       forestDensity: row.forestDensity,
+      resourceAbundance: row.resourceAbundance,
+      resourceVariety: row.resourceVariety,
       conflictMode: row.conflictEnabled ? 'frontier' : 'peaceful',
       enemyPressure: row.enemyPressure,
     }),
@@ -56,13 +58,16 @@ export function generationMatchesServer(
   local: WorldGenerationSettings,
 ): boolean {
   if (!server?.configured) return false;
-  return server.seed === (local.seed >>> 0)
-    && server.mapSize === local.mapSize
-    && server.topography === local.topography
-    && server.hydrology === local.hydrology
-    && server.forestDensity === local.forestDensity
-    && server.conflictMode === local.conflictMode
-    && server.enemyPressure === local.enemyPressure;
+  const normalizedLocal = normalizeWorldGenerationSettings(local);
+  return server.seed === (normalizedLocal.seed >>> 0)
+    && server.mapSize === normalizedLocal.mapSize
+    && server.topography === normalizedLocal.topography
+    && server.hydrology === normalizedLocal.hydrology
+    && server.forestDensity === normalizedLocal.forestDensity
+    && server.resourceAbundance === normalizedLocal.resourceAbundance
+    && server.resourceVariety === normalizedLocal.resourceVariety
+    && server.conflictMode === normalizedLocal.conflictMode
+    && server.enemyPressure === normalizedLocal.enemyPressure;
 }
 
 export type WorldGenerationAuthorityResolution =
@@ -127,6 +132,8 @@ export function settingsToConfigurePayload(settings: WorldGenerationSettings) {
     topography: normalized.topography,
     hydrology: normalized.hydrology,
     forestDensity: normalized.forestDensity,
+    resourceAbundance: normalized.resourceAbundance,
+    resourceVariety: normalized.resourceVariety,
     conflictEnabled: normalized.conflictMode === 'frontier',
     enemyPressure: normalized.enemyPressure,
   };

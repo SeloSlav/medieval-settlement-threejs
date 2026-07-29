@@ -179,6 +179,8 @@ pub fn step_marketplace_caravans(
                 && (building.action_cooldown > 1e-6
                     || building.marketplace_seed_grain_target > 0
                     || building.marketplace_ironwork_target > 0
+                    || building.marketplace_iron_target > 0
+                    || building.marketplace_salt_target > 0
                     || marketplace_gold_reserve_shortfall(
                         building.gold,
                         0.0,

@@ -44,7 +44,10 @@ import {
   type ForagingNodeState,
   type ResidenceState,
 } from '../src/resources/types.ts';
-import { resolveWorldDimensions } from '../src/world/worldGenerationSettings.ts';
+import {
+  DEFAULT_WORLD_GENERATION_SETTINGS,
+  resolveWorldDimensions,
+} from '../src/world/worldGenerationSettings.ts';
 import {
   collectWorkerTargets,
   pickWorkerWalkPlan,
@@ -85,30 +88,38 @@ assert.equal(
 
 for (const mapSize of ['small', 'medium', 'large'] as const) {
   const layout = createWorldLayout({
+    ...DEFAULT_WORLD_GENERATION_SETTINGS,
     seed: 0x51ac71 ^ mapSize.length,
     mapSize,
     topography: 50,
     hydrology: 50,
     forestDensity: 50,
+    resourceAbundance: 100,
+    resourceVariety: 100,
   });
   const dimensions = resolveWorldDimensions(mapSize);
   const mushrooms = layout.foragingLayout.sites.filter((site) => site.kind === 'mushrooms');
   const berries = layout.foragingLayout.sites.filter((site) => site.kind === 'berries');
   const gameHabitats = layout.foragingLayout.sites.filter((site) => site.kind === 'game');
-  assert.equal(gameHabitats.length, 2, `${mapSize} maps should have two game habitats`);
+  assert.equal(gameHabitats.length, layout.resourcePlan.foragingNodeCounts.game);
+  assert.ok(gameHabitats.length > 0, `${mapSize} maps should retain a winter game habitat`);
   assert.equal(
     gameHabitats.filter((site) => site.isRich).length,
     1,
     `${mapSize} maps should have one large game habitat`,
   );
-  assert.notDeepEqual(
-    [gameHabitats[0].x, gameHabitats[0].z],
-    [gameHabitats[1].x, gameHabitats[1].z],
-    `${mapSize} game habitats should occupy different locations`,
-  );
+  if (gameHabitats.length > 1) {
+    assert.notDeepEqual(
+      [gameHabitats[0].x, gameHabitats[0].z],
+      [gameHabitats[1].x, gameHabitats[1].z],
+      `${mapSize} game habitats should occupy different locations`,
+    );
+  }
   assertGameHabitatsStayDry(layout, `${mapSize} map`);
-  assert.equal(mushrooms.length, 2, `${mapSize} maps should have two mushroom beds`);
-  assert.equal(berries.length, 2, `${mapSize} maps should have two berry patches`);
+  assert.equal(mushrooms.length, layout.resourcePlan.foragingNodeCounts.mushrooms);
+  assert.equal(berries.length, layout.resourcePlan.foragingNodeCounts.berries);
+  assert.ok(mushrooms.length > 0, 'complete regions should retain mushrooms');
+  assert.ok(berries.length > 0, 'complete regions should retain berries');
 
   const mushroomDensity = average(mushrooms.map((site) => forestDensityAt(
     site.x,
@@ -143,7 +154,7 @@ assert.equal(gameDefinitions[1].label, 'Large game habitat');
 assert.equal(gameDefinitions[1].pickRadius, RICH_GAME_PATCH_PICK_RADIUS);
 assert.ok(gameDefinitions[1].pickRadius > gameDefinitions[0].pickRadius);
 const mushroomDefinitions = registry.definitionList.filter((node) => node.kind === 'mushrooms');
-assert.equal(mushroomDefinitions.length, 2);
+assert.equal(mushroomDefinitions.length, layout.resourcePlan.foragingNodeCounts.mushrooms);
 assert.ok(mushroomDefinitions.every((node) => node.resource === 'mushrooms'));
 assert.ok(mushroomDefinitions.every((node) => node.label.includes('Deep-forest')));
 

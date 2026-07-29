@@ -78,6 +78,8 @@ export type InspectorSpacetimeActions = {
     watchtowerId: string | null,
   ) => Promise<void>;
   onSetMarketplaceIronworkTarget: (buildingId: string, ironworkTarget: number) => Promise<void>;
+  onSetMarketplaceIronTarget: (buildingId: string, ironTarget: number) => Promise<void>;
+  onSetMarketplaceSaltTarget: (buildingId: string, saltTarget: number) => Promise<void>;
   onSetMarketplaceGoldReserveTarget: (
     buildingId: string,
     goldReserveTarget: number,
@@ -582,6 +584,22 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setMarketplaceIronworkTarget(buildingId, ironworkTarget),
         'Could not update the marketplace ironwork target.',
+      );
+    },
+    onSetMarketplaceIronTarget: async (buildingId, ironTarget) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMarketplaceIronTarget(buildingId, ironTarget),
+        'Could not update the marketplace iron target.',
+      );
+    },
+    onSetMarketplaceSaltTarget: async (buildingId, saltTarget) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMarketplaceSaltTarget(buildingId, saltTarget),
+        'Could not update the marketplace salt target.',
       );
     },
     onSetMarketplaceGoldReserveTarget: async (buildingId, goldReserveTarget) => {

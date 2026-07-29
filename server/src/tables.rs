@@ -36,6 +36,14 @@ pub struct WorldConfig {
     /// False until a client publishes generation settings via configure_world.
     #[default(false)]
     pub configured: bool,
+    /// Controls the number of ordinary stone deposits and wild-food sites.
+    /// Appended so established development worlds migrate without a reset.
+    #[default(50)]
+    pub resource_abundance: u8,
+    /// Controls how many wild-resource families occur in this region.
+    /// Appended so established development worlds migrate without a reset.
+    #[default(50)]
+    pub resource_variety: u8,
 }
 
 #[spacetimedb::table(accessor = player_resources, public)]
@@ -452,6 +460,16 @@ pub struct Building {
     /// Fired ceramic vessels used by smokehouses and sold at market.
     #[default(0.0)]
     pub pottery: f64,
+    /// Desired imported regional iron held at this marketplace in whole
+    /// twelve-unit lots. Appended for additive save compatibility; zero keeps
+    /// existing markets on manual procurement.
+    #[default(0u8)]
+    pub marketplace_iron_target: u8,
+    /// Desired Adriatic salt held at this marketplace in whole twelve-unit
+    /// lots. Appended for additive save compatibility; zero keeps existing
+    /// markets on manual procurement.
+    #[default(0u8)]
+    pub marketplace_salt_target: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

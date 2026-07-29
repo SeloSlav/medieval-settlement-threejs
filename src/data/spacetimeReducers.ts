@@ -524,6 +524,30 @@ export async function setMarketplaceIronworkTarget(
   });
 }
 
+export async function setMarketplaceIronTarget(
+  buildingId: string,
+  ironTarget: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid marketplace id.');
+  await callReducer('setMarketplaceIronTarget', 'set_marketplace_iron_target', {
+    buildingId: serverId,
+    ironTarget: Math.max(0, Math.min(48, Math.floor(ironTarget))),
+  });
+}
+
+export async function setMarketplaceSaltTarget(
+  buildingId: string,
+  saltTarget: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid marketplace id.');
+  await callReducer('setMarketplaceSaltTarget', 'set_marketplace_salt_target', {
+    buildingId: serverId,
+    saltTarget: Math.max(0, Math.min(72, Math.floor(saltTarget))),
+  });
+}
+
 export async function setMarketplaceGoldReserveTarget(
   buildingId: string,
   goldReserveTarget: number,

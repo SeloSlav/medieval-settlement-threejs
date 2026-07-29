@@ -158,7 +158,10 @@ const frontierPanel = renderMarketplaceTradePanel(
   manualTrade,
   true,
 );
-assert.match(frontierPanel, /seed grain and ironwork share this broker queue/);
+assert.match(
+  frontierPanel,
+  /Seed grain, salt, raw iron, and frontier ironwork share this broker queue/,
+);
 assert.match(
   frontierPanel,
   /Queued behind the more depleted seed-grain reserve; 2 ironwork lots remain/,
@@ -450,7 +453,7 @@ for (const feedbackContract of [
   'Next seed cart',
   'overlapping sources will not duplicate the haul',
   'mills and breweries continue drawing from holdings and granaries',
-  'more depleted selected target goes first',
+  'most depleted selected target goes first',
   'Reachable field demand',
   'data-inspect-building',
   'cannot move until farm labor is assigned',

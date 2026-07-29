@@ -31,6 +31,7 @@ import { claimResidencesForFoodSuppliers } from '../src/logistics/roadLogistics.
 import { FISH_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
+import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 import {
   RESOURCE_KINDS,
   createEmptyStockpile,
@@ -40,13 +41,19 @@ import {
 } from '../src/resources/types.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 
-const layout = createWorldLayout();
+const layout = createWorldLayout({
+  ...DEFAULT_WORLD_GENERATION_SETTINGS,
+  mapSize: 'large',
+  resourceAbundance: 100,
+  resourceVariety: 100,
+});
 const registry = WorldLayoutRegistry.fromWorldLayout(layout);
 const fish = registry.definitionList.filter((node) => node.kind === 'fish');
 
-assert.equal(fish.length, 2, 'world generation should create one small and one rich fish shoal');
+assert.equal(fish.length, layout.resourcePlan.foragingNodeCounts.fish);
+assert.ok(fish.length >= 2, 'a plentiful complete large region should create multiple fish shoals');
 assert.equal(fish.filter((node) => node.isRich === true).length, 1);
-assert.equal(fish.filter((node) => node.isRich !== true).length, 1);
+assert.equal(fish.filter((node) => node.isRich !== true).length, fish.length - 1);
 assert.ok(fish.every((node) => node.resource === 'fish'));
 assert.ok(fish.every((node) => layout.riverLayout.isWaterAt(node.x, node.z)));
 assert.ok(fish.every((node) => node.maxYield > 0));
@@ -77,16 +84,20 @@ assert.equal(
 for (const mapSize of ['small', 'medium', 'large'] as const) {
   for (const hydrology of [0, 50, 100]) {
     const variantLayout = createWorldLayout({
+      ...DEFAULT_WORLD_GENERATION_SETTINGS,
       seed: 0x71a2e0d ^ hydrology ^ mapSize.length,
       mapSize,
       topography: 50,
       hydrology,
       forestDensity: 50,
+      resourceAbundance: 100,
+      resourceVariety: 100,
     });
     const variantFish = WorldLayoutRegistry.fromWorldLayout(variantLayout)
       .definitionList
       .filter((node) => node.kind === 'fish');
-    assert.equal(variantFish.length, 2);
+    assert.equal(variantFish.length, variantLayout.resourcePlan.foragingNodeCounts.fish);
+    assert.ok(variantFish.length > 0, 'complete regions should retain a fishery at every map size');
     for (const shoal of variantFish) {
       assert.ok(variantLayout.riverLayout.isWaterAt(shoal.x, shoal.z));
       assert.ok(

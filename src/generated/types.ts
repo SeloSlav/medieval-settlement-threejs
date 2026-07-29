@@ -104,6 +104,8 @@ export const Building = __t.object("Building", {
   salt: __t.f64(),
   charcoal: __t.f64(),
   pottery: __t.f64(),
+  marketplaceIronTarget: __t.u8(),
+  marketplaceSaltTarget: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -509,6 +511,8 @@ export const WorldConfig = __t.object("WorldConfig", {
   conflictEnabled: __t.bool(),
   enemyPressure: __t.u8(),
   configured: __t.bool(),
+  resourceAbundance: __t.u8(),
+  resourceVariety: __t.u8(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
 

@@ -12,6 +12,10 @@ export type WorldGenerationSettings = {
   hydrology: number;
   /** 0 = open meadows, 100 = dense woodland */
   forestDensity: number;
+  /** 0 = lean local reserves, 100 = numerous local deposits and wild-food sites. */
+  resourceAbundance: number;
+  /** 0 = strongly specialized region, 100 = every natural resource family is present. */
+  resourceVariety: number;
   /** Peaceful settlements never schedule hostile pressure. */
   conflictMode: WorldConflictMode;
   /** 0 = disabled, 100 = severe frontier pressure. */
@@ -36,6 +40,8 @@ export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
   topography: 50,
   hydrology: 50,
   forestDensity: 50,
+  resourceAbundance: 50,
+  resourceVariety: 50,
   conflictMode: 'peaceful',
   enemyPressure: 0,
 };
@@ -128,6 +134,12 @@ export function normalizeWorldGenerationSettings(
     topography: clampPercent(partial.topography ?? DEFAULT_WORLD_GENERATION_SETTINGS.topography),
     hydrology: clampPercent(partial.hydrology ?? DEFAULT_WORLD_GENERATION_SETTINGS.hydrology),
     forestDensity: clampPercent(partial.forestDensity ?? DEFAULT_WORLD_GENERATION_SETTINGS.forestDensity),
+    resourceAbundance: clampPercent(
+      partial.resourceAbundance ?? DEFAULT_WORLD_GENERATION_SETTINGS.resourceAbundance,
+    ),
+    resourceVariety: clampPercent(
+      partial.resourceVariety ?? DEFAULT_WORLD_GENERATION_SETTINGS.resourceVariety,
+    ),
     conflictMode,
     enemyPressure: conflictMode === 'frontier'
       ? Math.max(1, clampPercent(partial.enemyPressure ?? 50))

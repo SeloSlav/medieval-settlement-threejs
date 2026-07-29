@@ -148,6 +148,14 @@ type ResourceInspectorOptions = {
     buildingId: string,
     ironworkTarget: number,
   ) => void | Promise<void>;
+  onSetMarketplaceIronTarget?: (
+    buildingId: string,
+    ironTarget: number,
+  ) => void | Promise<void>;
+  onSetMarketplaceSaltTarget?: (
+    buildingId: string,
+    saltTarget: number,
+  ) => void | Promise<void>;
   onSetMarketplaceGoldReserveTarget?: (
     buildingId: string,
     goldReserveTarget: number,
@@ -741,6 +749,26 @@ export class ResourceInspector {
         void this.options.onSetMarketplaceIronworkTarget?.(
           this.selectedTarget.building.id,
           Number(targetValue),
+        );
+        return;
+      }
+      const ironTargetValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-marketplace-iron-target]')
+        ?.dataset.marketplaceIronTarget;
+      if (ironTargetValue != null) {
+        void this.options.onSetMarketplaceIronTarget?.(
+          this.selectedTarget.building.id,
+          Number(ironTargetValue),
+        );
+        return;
+      }
+      const saltTargetValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-marketplace-salt-target]')
+        ?.dataset.marketplaceSaltTarget;
+      if (saltTargetValue != null) {
+        void this.options.onSetMarketplaceSaltTarget?.(
+          this.selectedTarget.building.id,
+          Number(saltTargetValue),
         );
         return;
       }

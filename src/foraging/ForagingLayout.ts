@@ -23,6 +23,7 @@ export type ForagingLayoutOptions = {
   riverLayout: RiverLayout;
   playableHalf?: number;
   seed?: number;
+  nodeCounts?: Partial<Record<ForagingNodeKind, number>>;
 };
 
 const DENSE_FOREST_MIN = 0.55;
@@ -60,20 +61,25 @@ export class ForagingLayout {
     const extent = playableHalf;
     const forestCores = options.forestCores;
     const rng = mulberry32(seed);
+    const nodeCounts = normalizeNodeCounts(options.nodeCounts);
+    const desiredGameCandidateCount = Math.max(
+      GAME_RESPAWN_CANDIDATE_TARGET,
+      nodeCounts.game * 16,
+    );
 
     const denseForestCandidates = collectDenseForestCandidates(
       rng,
       seed,
       extent,
       forestCores,
-      GAME_RESPAWN_CANDIDATE_TARGET,
+      desiredGameCandidateCount,
     );
     const gameRespawnCandidates = denseForestCandidates.filter((candidate) =>
       isGameHabitatClearOfWater(options.riverLayout, candidate.x, candidate.z)
     );
-    if (gameRespawnCandidates.length < 2) {
+    if (gameRespawnCandidates.length < nodeCounts.game) {
       for (const candidate of createFallbackGameCandidates(extent, options.riverLayout)) {
-        if (gameRespawnCandidates.length >= 2) break;
+        if (gameRespawnCandidates.length >= nodeCounts.game) break;
         if (!hasMinimumDistance(gameRespawnCandidates, candidate.x, candidate.z, 85)) continue;
         gameRespawnCandidates.push(candidate);
       }
@@ -86,7 +92,7 @@ export class ForagingLayout {
     ];
 
     const sites: ForagingSite[] = [];
-    for (let gameIndex = 0; gameIndex < 2; gameIndex++) {
+    for (let gameIndex = 0; gameIndex < nodeCounts.game; gameIndex++) {
       const gameSite = pickGameSite(
         rng,
         seed ^ gameIndex * 0x7f4a,
@@ -96,14 +102,16 @@ export class ForagingLayout {
         gameSiteCandidates,
         sites,
       );
-      if (gameSite) sites.push({ ...gameSite, isRich: gameIndex === 1 });
+      if (gameSite) {
+        sites.push({ ...gameSite, isRich: gameIndex === nodeCounts.game - 1 });
+      }
     }
 
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < nodeCounts.berries; i++) {
       const berrySite = pickBerrySite(rng, seed ^ (0x9e37 + i * 0x5151), extent, forestCores, sites);
       if (berrySite) sites.push(berrySite);
     }
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < nodeCounts.mushrooms; i++) {
       const mushroomSite = pickMushroomSite(
         seed ^ (0x6d21 + i * 0x3137),
         extent,
@@ -113,10 +121,30 @@ export class ForagingLayout {
       );
       if (mushroomSite) sites.push(mushroomSite);
     }
-    sites.push(...pickFishSites(options.riverLayout, extent, seed ^ 0x46a91d));
+    sites.push(...pickFishSites(
+      options.riverLayout,
+      extent,
+      seed ^ 0x46a91d,
+      nodeCounts.fish,
+    ));
 
     return new ForagingLayout(seed, sites, gameRespawnCandidates);
   }
+}
+
+function normalizeNodeCounts(
+  requested: ForagingLayoutOptions['nodeCounts'],
+): Record<ForagingNodeKind, number> {
+  const count = (kind: ForagingNodeKind) => Math.max(
+    0,
+    Math.min(3, Math.floor(requested?.[kind] ?? 2)),
+  );
+  return {
+    game: count('game'),
+    berries: count('berries'),
+    mushrooms: count('mushrooms'),
+    fish: count('fish'),
+  };
 }
 
 function pickMushroomSite(
@@ -162,7 +190,9 @@ function pickFishSites(
   riverLayout: RiverLayout,
   extent: number,
   seed: number,
+  requestedCount: number,
 ): ForagingSite[] {
+  if (requestedCount <= 0) return [];
   const margin = Math.max(24, extent * 0.06);
   const candidates: FishCandidate[] = [];
   for (let corridorIndex = 0; corridorIndex < riverLayout.corridors.length; corridorIndex++) {
@@ -176,14 +206,21 @@ function pickFishSites(
     }
   }
 
-  if (candidates.length < 2) {
+  if (candidates.length < requestedCount) {
     const fallback = riverLayout.corridors[0]?.points ?? [];
-    const small = fallback[Math.floor(fallback.length * 0.35)] ?? { x: -36, z: -72 };
-    const rich = fallback[Math.floor(fallback.length * 0.72)] ?? riverLayout.drain;
-    return [
-      { x: small.x, z: small.z, kind: 'fish', isRich: false },
-      { x: rich.x, z: rich.z, kind: 'fish', isRich: true },
-    ];
+    const fallbackSites: ForagingSite[] = [];
+    for (let index = 0; index < requestedCount; index++) {
+      const progress = 0.25 + (index / Math.max(1, requestedCount - 1)) * 0.5;
+      const point = fallback[Math.floor(fallback.length * progress)]
+        ?? (index === requestedCount - 1 ? riverLayout.drain : { x: -36, z: -72 });
+      fallbackSites.push({
+        x: point.x,
+        z: point.z,
+        kind: 'fish',
+        isRich: index === requestedCount - 1,
+      });
+    }
+    return fallbackSites;
   }
 
   const rich = candidates.reduce((best, candidate) => {
@@ -196,27 +233,43 @@ function pickFishSites(
     return score > bestScore ? candidate : best;
   });
 
-  const preferredSpacing = Math.max(120, extent * 0.32);
-  const spacedCandidates = candidates.filter(
-    (candidate) => Math.hypot(candidate.x - rich.x, candidate.z - rich.z) >= preferredSpacing,
-  );
-  const smallPool = spacedCandidates.length > 0 ? spacedCandidates : candidates;
-  const small = smallPool.reduce((best, candidate) => {
-    const distance = Math.hypot(candidate.x - rich.x, candidate.z - rich.z);
-    const score = distance
-      - candidate.halfWidth * 5
-      + fishCandidateNoise(seed, candidate, 2);
-    const bestDistance = Math.hypot(best.x - rich.x, best.z - rich.z);
-    const bestScore = bestDistance
-      - best.halfWidth * 5
-      + fishCandidateNoise(seed, best, 2);
-    return score > bestScore ? candidate : best;
-  });
+  const selected: FishCandidate[] = [rich];
+  while (selected.length < requestedCount) {
+    const remaining = candidates.filter((candidate) => !selected.includes(candidate));
+    if (remaining.length === 0) break;
+    const next = remaining.reduce((best, candidate) =>
+      fishSpacingScore(seed, candidate, selected)
+        > fishSpacingScore(seed, best, selected)
+        ? candidate
+        : best
+    );
+    selected.push(next);
+  }
 
   return [
-    { x: small.x, z: small.z, kind: 'fish', isRich: false },
+    ...selected.slice(1).map((site) => ({
+      x: site.x,
+      z: site.z,
+      kind: 'fish' as const,
+      isRich: false,
+    })),
     { x: rich.x, z: rich.z, kind: 'fish', isRich: true },
   ];
+}
+
+function fishSpacingScore(
+  seed: number,
+  candidate: FishCandidate,
+  selected: readonly FishCandidate[],
+): number {
+  const nearestDistance = selected.reduce(
+    (nearest, site) => Math.min(
+      nearest,
+      Math.hypot(candidate.x - site.x, candidate.z - site.z),
+    ),
+    Number.POSITIVE_INFINITY,
+  );
+  return nearestDistance - candidate.halfWidth * 5 + fishCandidateNoise(seed, candidate, 2);
 }
 
 function fishCandidateNoise(seed: number, candidate: FishCandidate, salt: number): number {

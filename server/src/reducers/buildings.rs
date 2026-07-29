@@ -36,7 +36,8 @@ use crate::hydrology::{sample_hydrology_score, well_capacity_from_hydrology};
 use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
 use crate::marketplace_procurement_policy::{
-    is_valid_marketplace_gold_reserve_target, is_valid_marketplace_ironwork_target,
+    is_valid_marketplace_gold_reserve_target, is_valid_marketplace_iron_target,
+    is_valid_marketplace_ironwork_target, is_valid_marketplace_salt_target,
     is_valid_marketplace_seed_grain_target, MARKETPLACE_GOLD_RESERVE_DEFAULT,
 };
 use crate::placement_validation::{
@@ -660,6 +661,8 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         salt: 0.0,
         charcoal: 0.0,
         pottery: 0.0,
+        marketplace_iron_target: 0,
+        marketplace_salt_target: 0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1666,6 +1669,56 @@ pub fn set_marketplace_ironwork_target(
         return Err("You do not own this completed marketplace.".to_string());
     }
     building.marketplace_ironwork_target = ironwork_target;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_marketplace_iron_target(
+    ctx: &ReducerContext,
+    building_id: u64,
+    iron_target: u8,
+) -> Result<(), String> {
+    if !is_valid_marketplace_iron_target(iron_target) {
+        return Err("Marketplace iron target must be 0, 12, 24, 36, or 48.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Marketplace not found.".to_string())?;
+    if building.owner != owner || building.kind != "marketplace" || !building.construction_complete
+    {
+        return Err("You do not own this completed marketplace.".to_string());
+    }
+    building.marketplace_iron_target = iron_target;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_marketplace_salt_target(
+    ctx: &ReducerContext,
+    building_id: u64,
+    salt_target: u8,
+) -> Result<(), String> {
+    if !is_valid_marketplace_salt_target(salt_target) {
+        return Err("Marketplace salt target must be 0, 12, 24, 48, or 72.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Marketplace not found.".to_string())?;
+    if building.owner != owner || building.kind != "marketplace" || !building.construction_complete
+    {
+        return Err("You do not own this completed marketplace.".to_string());
+    }
+    building.marketplace_salt_target = salt_target;
     ctx.db.building().id().update(building);
     Ok(())
 }

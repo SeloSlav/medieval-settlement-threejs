@@ -58,7 +58,9 @@ import SetLivestockBreedingReserveReducer from "../set_livestock_breeding_reserv
 import SetLivestockHaymakingPercentReducer from "../set_livestock_haymaking_percent_reducer";
 import SetLivestockSpeciesReducer from "../set_livestock_species_reducer";
 import SetMarketplaceGoldReserveTargetReducer from "../set_marketplace_gold_reserve_target_reducer";
+import SetMarketplaceIronTargetReducer from "../set_marketplace_iron_target_reducer";
 import SetMarketplaceIronworkTargetReducer from "../set_marketplace_ironwork_target_reducer";
+import SetMarketplaceSaltTargetReducer from "../set_marketplace_salt_target_reducer";
 import SetMarketplaceSeedGrainTargetReducer from "../set_marketplace_seed_grain_target_reducer";
 import SetMarketplaceSpecialtyExportPolicyReducer from "../set_marketplace_specialty_export_policy_reducer";
 import SetMonasteryPolicyReducer from "../set_monastery_policy_reducer";
@@ -127,7 +129,9 @@ export type SetLivestockBreedingReserveParams = __Infer<typeof SetLivestockBreed
 export type SetLivestockHaymakingPercentParams = __Infer<typeof SetLivestockHaymakingPercentReducer>;
 export type SetLivestockSpeciesParams = __Infer<typeof SetLivestockSpeciesReducer>;
 export type SetMarketplaceGoldReserveTargetParams = __Infer<typeof SetMarketplaceGoldReserveTargetReducer>;
+export type SetMarketplaceIronTargetParams = __Infer<typeof SetMarketplaceIronTargetReducer>;
 export type SetMarketplaceIronworkTargetParams = __Infer<typeof SetMarketplaceIronworkTargetReducer>;
+export type SetMarketplaceSaltTargetParams = __Infer<typeof SetMarketplaceSaltTargetReducer>;
 export type SetMarketplaceSeedGrainTargetParams = __Infer<typeof SetMarketplaceSeedGrainTargetReducer>;
 export type SetMarketplaceSpecialtyExportPolicyParams = __Infer<typeof SetMarketplaceSpecialtyExportPolicyReducer>;
 export type SetMonasteryPolicyParams = __Infer<typeof SetMonasteryPolicyReducer>;

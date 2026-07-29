@@ -32,6 +32,8 @@ function sameGeneration(
     && current.topography === next.topography
     && current.hydrology === next.hydrology
     && current.forestDensity === next.forestDensity
+    && current.resourceAbundance === next.resourceAbundance
+    && current.resourceVariety === next.resourceVariety
     && current.conflictMode === next.conflictMode
     && current.enemyPressure === next.enemyPressure
     && current.configured === next.configured;

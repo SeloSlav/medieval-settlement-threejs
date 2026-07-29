@@ -21,6 +21,8 @@ export type SettlementSeedProcurementAttention =
   | 'cash-inbound'
   | 'cash-cart'
   | 'treasury'
+  | 'iron'
+  | 'salt'
   | 'ironwork'
   | 'cooldown';
 
@@ -56,6 +58,8 @@ export type SettlementSeedProcurementPlan = {
   cashInboundMarkets: number;
   cashCartMarkets: number;
   treasuryBlockedMarkets: number;
+  ironQueuedMarkets: number;
+  saltQueuedMarkets: number;
   ironworkQueuedMarkets: number;
   cooldownBlockedMarkets: number;
   firstAttentionMarketId: string | null;
@@ -117,6 +121,8 @@ const ATTENTION_PRIORITY: Record<SettlementSeedProcurementAttention, number> = {
   road: 3,
   'cash-policy': 4,
   treasury: 5,
+  salt: 6,
+  iron: 6,
   ironwork: 6,
   cooldown: 7,
   'cash-inbound': 8,
@@ -438,6 +444,8 @@ export function computeSettlementSeedProcurementPlan(
   let cashInboundMarkets = 0;
   let cashCartMarkets = 0;
   let treasuryBlockedMarkets = 0;
+  let ironQueuedMarkets = 0;
+  let saltQueuedMarkets = 0;
   let ironworkQueuedMarkets = 0;
   let cooldownBlockedMarkets = 0;
   let firstAttention: AttentionCandidate | null = null;
@@ -542,6 +550,10 @@ export function computeSettlementSeedProcurementPlan(
     dueMarkets += 1;
 
     let attention: SettlementSeedProcurementAttention | null = null;
+    const nextStandingOrder = nextMarketplaceStandingOrder(
+      building,
+      input.conflictEnabled,
+    );
     if (building.constructionComplete === false) {
       constructionBlockedMarkets += 1;
       attention = 'construction';
@@ -554,9 +566,11 @@ export function computeSettlementSeedProcurementPlan(
     } else if (!input.hasRoadAccess(building)) {
       roadBlockedMarkets += 1;
       attention = 'road';
-    } else if (nextMarketplaceStandingOrder(building, input.conflictEnabled) === 'ironwork') {
-      ironworkQueuedMarkets += 1;
-      attention = 'ironwork';
+    } else if (nextStandingOrder !== null && nextStandingOrder !== 'seedGrain') {
+      if (nextStandingOrder === 'iron') ironQueuedMarkets += 1;
+      if (nextStandingOrder === 'salt') saltQueuedMarkets += 1;
+      if (nextStandingOrder === 'ironwork') ironworkQueuedMarkets += 1;
+      attention = nextStandingOrder;
     } else if (building.actionCooldown > 1e-6) {
       cooldownBlockedMarkets += 1;
       attention = 'cooldown';
@@ -667,6 +681,8 @@ export function computeSettlementSeedProcurementPlan(
     cashInboundMarkets,
     cashCartMarkets,
     treasuryBlockedMarkets,
+    ironQueuedMarkets,
+    saltQueuedMarkets,
     ironworkQueuedMarkets,
     cooldownBlockedMarkets,
     firstAttentionMarketId: firstAttention?.buildingId ?? null,

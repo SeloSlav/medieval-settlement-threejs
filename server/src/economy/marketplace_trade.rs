@@ -29,7 +29,7 @@ use crate::economy::{
 use crate::granary_policy::granary_exportable_grain;
 use crate::marketplace_procurement_policy::{
     next_standing_marketplace_import, StandingMarketplaceImport, MARKETPLACE_IRONWORK_IMPORT_LOT,
-    MARKETPLACE_SEED_GRAIN_IMPORT_LOT,
+    MARKETPLACE_IRON_IMPORT_LOT, MARKETPLACE_SALT_IMPORT_LOT, MARKETPLACE_SEED_GRAIN_IMPORT_LOT,
 };
 use crate::roads::RoadNetwork;
 use crate::season_policy::environment_for;
@@ -138,6 +138,10 @@ pub fn try_execute_standing_marketplace_import(
         marketplace.marketplace_seed_grain_target,
         marketplace.ironwork,
         marketplace.marketplace_ironwork_target,
+        marketplace.iron,
+        marketplace.marketplace_iron_target,
+        marketplace.salt,
+        marketplace.marketplace_salt_target,
         conflict_enabled,
     ) else {
         return false;
@@ -160,6 +164,16 @@ pub fn try_execute_standing_marketplace_import(
             "buy_ironwork",
             TradeResource::Ironwork,
             MARKETPLACE_IRONWORK_IMPORT_LOT,
+        ),
+        StandingMarketplaceImport::Iron => (
+            "buy_iron",
+            TradeResource::Iron,
+            MARKETPLACE_IRON_IMPORT_LOT,
+        ),
+        StandingMarketplaceImport::Salt => (
+            "buy_salt",
+            TradeResource::Salt,
+            MARKETPLACE_SALT_IMPORT_LOT,
         ),
     };
     let Some(offer) = marketplace_trade_offer(trade_id) else {

@@ -42,6 +42,8 @@ pub fn configure_world(
     topography: u8,
     hydrology: u8,
     forest_density: u8,
+    resource_abundance: u8,
+    resource_variety: u8,
     conflict_enabled: bool,
     enemy_pressure: u8,
 ) -> Result<(), String> {
@@ -49,6 +51,8 @@ pub fn configure_world(
     validate_percent(topography, "topography")?;
     validate_percent(hydrology, "hydrology")?;
     validate_percent(forest_density, "forest_density")?;
+    validate_percent(resource_abundance, "resource_abundance")?;
+    validate_percent(resource_variety, "resource_variety")?;
     validate_percent(enemy_pressure, "enemy_pressure")?;
     let enemy_pressure = if conflict_enabled {
         enemy_pressure.max(1)
@@ -68,9 +72,11 @@ pub fn configure_world(
         || config.topography != topography
         || config.hydrology != hydrology
         || config.forest_density != forest_density;
+    let resources_changed = config.resource_abundance != resource_abundance
+        || config.resource_variety != resource_variety;
     let rules_changed =
         config.conflict_enabled != conflict_enabled || config.enemy_pressure != enemy_pressure;
-    let setup_changed = terrain_changed || rules_changed;
+    let setup_changed = terrain_changed || resources_changed || rules_changed;
 
     // Only lock generation after a client has published settings. The sim scheduler
     // may be running while configured=false (e.g. idle server before first connect).
@@ -78,7 +84,7 @@ pub fn configure_world(
         return Err("Cannot change world setup after the simulation has started.".into());
     }
 
-    if terrain_changed && has_global_world_entities(ctx) {
+    if (terrain_changed || resources_changed) && has_global_world_entities(ctx) {
         clear_global_world_entities(ctx);
     }
 
@@ -89,6 +95,8 @@ pub fn configure_world(
             topography,
             hydrology,
             forest_density,
+            resource_abundance,
+            resource_variety,
             conflict_enabled,
             enemy_pressure,
             configured: true,
@@ -132,6 +140,8 @@ pub fn default_world_config() -> WorldConfig {
         topography: 50,
         hydrology: 50,
         forest_density: 50,
+        resource_abundance: 50,
+        resource_variety: 50,
         conflict_enabled: false,
         enemy_pressure: 0,
         configured: false,

@@ -8,6 +8,11 @@ import {
   type WorldGenerationSettings,
   type WorldMapSize,
 } from '../world/worldGenerationSettings.ts';
+import {
+  createRegionalResourcePlan,
+  describeResourceAbundance,
+  describeResourceVariety,
+} from '../world/regionalResourceDistribution.ts';
 
 export class WorldSetupPanel {
   private readonly backdrop: HTMLElement;
@@ -90,6 +95,24 @@ export class WorldSetupPanel {
             <p class="world-setup-slider-hint">Low = open meadows and scattered woodland. High = dense conifer cover.</p>
           </section>
 
+          <section class="world-setup-section world-setup-resources" aria-label="Regional resources">
+            <h2 class="world-setup-section__title">Regional resources</h2>
+            <label class="world-setup-slider-label" for="world-setup-resource-abundance">
+              <span>Local abundance</span>
+              <strong data-resource-abundance-value>${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}</strong>
+            </label>
+            <input id="world-setup-resource-abundance" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceAbundance}" />
+            <p class="world-setup-slider-hint">Lean regions have fewer supporting deposits and wild-food sites. One rich stone mine is always guaranteed.</p>
+
+            <label class="world-setup-slider-label world-setup-slider-label--secondary" for="world-setup-resource-variety">
+              <span>Local variety</span>
+              <strong data-resource-variety-value>${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}</strong>
+            </label>
+            <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
+            <p class="world-setup-slider-hint">Specialized regions omit some wild resources, making marketplace imports and regional trade more important.</p>
+            <p class="world-setup-resource-summary" data-resource-summary>${this.resourceSummary()}</p>
+          </section>
+
           <section class="world-setup-section" aria-label="World seed">
             <h2 class="world-setup-section__title">World seed</h2>
             <div class="world-setup-seed-row">
@@ -121,9 +144,13 @@ export class WorldSetupPanel {
     const topographySlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-topography')!;
     const hydrologySlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-hydrology')!;
     const forestSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-forest')!;
+    const resourceAbundanceSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-resource-abundance')!;
+    const resourceVarietySlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-resource-variety')!;
     const topographyValue = this.backdrop.querySelector<HTMLElement>('[data-topography-value]')!;
     const hydrologyValue = this.backdrop.querySelector<HTMLElement>('[data-hydrology-value]')!;
     const forestValue = this.backdrop.querySelector<HTMLElement>('[data-forest-value]')!;
+    const resourceAbundanceValue = this.backdrop.querySelector<HTMLElement>('[data-resource-abundance-value]')!;
+    const resourceVarietyValue = this.backdrop.querySelector<HTMLElement>('[data-resource-variety-value]')!;
     const seedInput = this.backdrop.querySelector<HTMLInputElement>('[data-seed-input]')!;
     const randomizeButton = this.backdrop.querySelector<HTMLButtonElement>('[data-randomize-seed]')!;
     const modeGrid = this.backdrop.querySelector<HTMLElement>('[data-mode-grid]')!;
@@ -157,14 +184,29 @@ export class WorldSetupPanel {
     hydrologySlider.addEventListener('input', () => {
       this.draft.hydrology = Number(hydrologySlider.value);
       hydrologyValue.textContent = String(this.draft.hydrology);
+      this.renderResourceSummary();
     });
     forestSlider.addEventListener('input', () => {
       this.draft.forestDensity = Number(forestSlider.value);
       forestValue.textContent = String(this.draft.forestDensity);
+      this.renderResourceSummary();
+    });
+    resourceAbundanceSlider.addEventListener('input', () => {
+      this.draft.resourceAbundance = Number(resourceAbundanceSlider.value);
+      resourceAbundanceValue.textContent =
+        `${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}`;
+      this.renderResourceSummary();
+    });
+    resourceVarietySlider.addEventListener('input', () => {
+      this.draft.resourceVariety = Number(resourceVarietySlider.value);
+      resourceVarietyValue.textContent =
+        `${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}`;
+      this.renderResourceSummary();
     });
     randomizeButton.addEventListener('click', () => {
       this.draft.seed = randomWorldSeed();
       seedInput.value = formatSeedHex(this.draft.seed);
+      this.renderResourceSummary();
     });
     seedInput.addEventListener('change', () => {
       const parsed = parseSeedHex(seedInput.value);
@@ -174,6 +216,7 @@ export class WorldSetupPanel {
       }
       this.draft.seed = parsed;
       seedInput.value = formatSeedHex(parsed);
+      this.renderResourceSummary();
     });
 
     form.addEventListener('submit', (event) => {
@@ -209,7 +252,28 @@ export class WorldSetupPanel {
         for (const option of grid.querySelectorAll<HTMLButtonElement>('[data-map-size]')) {
           option.classList.toggle('is-selected', option.dataset.mapSize === size);
         }
+        this.renderResourceSummary();
       });
     }
+  }
+
+  private renderResourceSummary(): void {
+    const summary = this.backdrop.querySelector<HTMLElement>('[data-resource-summary]');
+    if (summary) summary.textContent = this.resourceSummary();
+  }
+
+  private resourceSummary(): string {
+    const plan = createRegionalResourcePlan(this.draft);
+    const kindLabels: Record<(typeof plan.presentForagingKinds)[number], string> = {
+      game: 'game',
+      berries: 'berries',
+      mushrooms: 'mushrooms',
+      fish: 'fish',
+    };
+    const wildResources = plan.presentForagingKinds
+      .map((kind) => `${kindLabels[kind]} ×${plan.foragingNodeCounts[kind]}`)
+      .join(', ');
+    const totalMines = plan.ordinaryQuarryCount + 1;
+    return `This seed: ${totalMines} stone ${totalMines === 1 ? 'mine' : 'mines'} (1 rich) · ${wildResources}. Farms, wells, and managed woodland remain available in every region.`;
   }
 }

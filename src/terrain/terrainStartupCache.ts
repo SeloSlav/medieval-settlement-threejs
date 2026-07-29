@@ -51,6 +51,8 @@ export function terrainStartupCacheKey(request: TerrainStartupRequest): string {
     settings.mapSize,
     settings.topography,
     settings.hydrology,
+    settings.resourceAbundance,
+    settings.resourceVariety,
     dimensions.playableSize,
     dimensions.terrainSize,
     TERRAIN_RESOLUTION,
