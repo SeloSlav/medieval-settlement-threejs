@@ -17,6 +17,7 @@ import {
   MALNUTRITION_DAYS,
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
+  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_CAPACITY,
@@ -57,6 +58,10 @@ import {
   preservedFoodDemandMultiplierForSeason,
   seasonForMonth,
 } from '../../world/seasonPolicy.ts';
+import {
+  allocatePreservedMeal,
+  freshFoodRunwayWithPreservedRotation,
+} from '../../economy/preservedFoodPolicy.ts';
 import { residenceSettlementReadiness } from '../../economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
@@ -305,6 +310,18 @@ export function renderResidenceInspector(
     * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
     * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY
     * preservedFoodDemandMultiplier;
+  const grossFoodPerDay = residence.population
+    * RESIDENCE_FOOD_PER_PERSON_PER_SEC
+    * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
+  const mealAllocation = allocatePreservedMeal(
+    getNeedStock(residence.needs, 'food'),
+    getNeedStock(residence.needs, 'preservedFood'),
+    grossFoodPerDay,
+    preservedFoodRotationPerDay,
+    residence.tier >= 3,
+  );
+  const preservedMealUse = mealAllocation.preservedRotationUsed
+    + mealAllocation.preservedFallbackUsed;
   const householdMarketPlan = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
     ? computeSettlementHouseholdMarketPlan({
         state: context.gameState,
@@ -362,7 +379,14 @@ export function renderResidenceInspector(
   const waterRunwayLabel = waterRunwayDays == null
     ? '—'
     : formatWaterRunwayDays(waterRunwayDays);
-  const foodRunwayDays = residenceFoodRunwayDays(residence);
+  const foodRunwayDays = residence.tier >= 3
+    ? freshFoodRunwayWithPreservedRotation({
+        freshStock: getNeedStock(residence.needs, 'food'),
+        grossFoodDemandPerDay: grossFoodPerDay,
+        preservedStock: getNeedStock(residence.needs, 'preservedFood'),
+        preservedRotationPerDay: preservedFoodRotationPerDay,
+      })
+    : residenceFoodRunwayDays(residence);
   const foodRunwayLabel = foodRunwayDays == null
     ? '—'
     : formatFoodRunwayDays(foodRunwayDays);
@@ -554,7 +578,8 @@ export function renderResidenceInspector(
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — structural recovery required before settlement resumes</span></li>`
         : ''}
       ${residence.tier > 0 ? `<li><span>Food stock</span><span>${Math.round(getNeedStock(residence.needs, 'food'))} / ${RESIDENCE_FOOD_CAPACITY}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Food runway</span><span>${foodRunwayLabel}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>${residence.tier >= 3 ? 'Fresh-food runway' : 'Food runway'}</span><span>${foodRunwayLabel}${residence.tier >= 3 ? ' with finite household preserved stock' : ''}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Next daily meal</span><span>${mealAllocation.freshUsed.toFixed(2)} fresh + ${preservedMealUse.toFixed(2)} preserved${mealAllocation.preservedFallbackUsed > 1e-6 ? ` (${mealAllocation.preservedFallbackUsed.toFixed(2)} emergency fallback)` : ''}${mealAllocation.unmet > 1e-6 ? ` &middot; ${mealAllocation.unmet.toFixed(2)} unmet` : ''} &middot; ${grossFoodPerDay.toFixed(2)} total demand</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Firewood stock</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Firewood runway</span><span>${firewoodRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Water stock</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY}</span></li>` : ''}

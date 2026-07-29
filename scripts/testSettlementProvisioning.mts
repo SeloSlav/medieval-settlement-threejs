@@ -24,6 +24,10 @@ import {
   shouldShowProvisioning,
   WINTER_RESERVE_DAYS,
 } from '../src/economy/settlementProvisioning.ts';
+import {
+  allocatePreservedMeal,
+  freshFoodRunwayWithPreservedRotation,
+} from '../src/economy/preservedFoodPolicy.ts';
 import { computeResourceTotals } from '../src/resources/resourceTotals.ts';
 import type {
   BuildingState,
@@ -42,6 +46,14 @@ const laborSchedule = readFileSync(
 );
 const residenceNeeds = readFileSync(
   new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url),
+  'utf8',
+);
+const serverPreservedFoodPolicy = readFileSync(
+  new URL('../server/src/preserved_food_policy.rs', import.meta.url),
+  'utf8',
+);
+const clientPreservedFoodPolicy = readFileSync(
+  new URL('../src/economy/preservedFoodPolicy.ts', import.meta.url),
   'utf8',
 );
 const authoritativeSimulation = readFileSync(
@@ -76,6 +88,18 @@ assert.match(
 );
 assert.match(laborSchedule, /is_consumption_paused[\s\S]*?household_consumption_paused\(clock\)/);
 assert.match(residenceNeeds, /Sunday observance does not make provisions free/);
+for (const policySource of [
+  serverPreservedFoodPolicy,
+  clientPreservedFoodPolicy,
+]) {
+  assert.match(policySource, /preserved.*rotation/i);
+  assert.match(policySource, /preserved.*fallback/i);
+  assert.match(policySource, /fresh/i);
+}
+assert.match(
+  clientPreservedFoodPolicy,
+  /freshFoodRunwayWithPreservedRotation/,
+);
 assert.match(
   authoritativeSimulation,
   /residence_disabled_by_fire\(ctx, residence\.id\)[\s\S]*continue;/,
@@ -86,6 +110,8 @@ assert.match(settlementHud, /Household buffers/);
 assert.match(settlementHud, /Local delivery buffer/);
 assert.match(settlementHud, /Road-branch audit/);
 assert.match(settlementHud, /Weakest occupied road branch/);
+assert.match(settlementHud, /gross meal demand/);
+assert.match(settlementHud, /finite cured stock/);
 assert.match(settlementHud, /guard food/);
 assert.match(settlementHud, /first local company/);
 assert.match(chapelInspector, /stock them before Saturday night/);
@@ -95,6 +121,8 @@ assert.match(townHallInspector, /first shortfall/);
 assert.match(townHallInspector, /Household delivery buffer/);
 assert.match(townHallInspector, /Road-branch provisions/);
 assert.match(townHallInspector, /first road-branch provision exposure/);
+assert.match(townHallInspector, /Cured ration displacement/);
+assert.match(townHallInspector, /current fresh demand after/);
 assert.match(
   appSource,
   /computeSettlementProvisioning\([\s\S]*?roadComponentFor:[\s\S]*?roadComponentAt/,
@@ -144,7 +172,14 @@ assert.ok(Math.abs(
   provisioning.householdFoodPerDay
   - 7 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70,
 ) < 1e-9);
+assert.equal(
+  provisioning.grossHouseholdFoodPerDay,
+  provisioning.householdFoodPerDay,
+);
+assert.equal(provisioning.householdPreservedFoodRotationTargetPerDay, 0);
+assert.equal(provisioning.householdPreservedFoodRotationPerDay, 0);
 assert.equal(provisioning.guardFoodPerDay, 2 * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY);
+assert.equal(provisioning.grossFoodDemandPerDay, provisioning.totalFoodPerDay);
 assert.ok(Math.abs(
   provisioning.foodRunwayDays
   - provisioning.foodStock
@@ -418,6 +453,63 @@ assert.equal(
 );
 assert.equal(settlementProvisionLevel(splitWithArrival, 7), 'watch');
 
+const curedBranchState = emptyGameState();
+const curedBranchHome = residence('cured-branch-home', 3, 5);
+curedBranchHome.x = 7;
+curedBranchHome.needs.food.stock =
+  5 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+curedBranchState.residences.set(curedBranchHome.id, curedBranchHome);
+const curedBranchSmokehouse = building(
+  'cured-branch-smokehouse',
+  'smokehouse',
+  2,
+  0,
+);
+curedBranchSmokehouse.x = 7;
+curedBranchSmokehouse.preservedFood = 14;
+curedBranchState.buildings.set(
+  curedBranchSmokehouse.id,
+  curedBranchSmokehouse,
+);
+const curedBranch = computeSettlementProvisioning({
+  state: curedBranchState,
+  totals: computeResourceTotals(curedBranchState),
+  currentFirewoodDemandMultiplier: 1,
+  currentPreservedFoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: () => 'cured',
+});
+assert.equal(curedBranch.roadBranches?.physicalPreservedFoodStock, 14);
+assert.equal(curedBranch.usablePreservedFoodStock, 14);
+assert.ok(
+  (curedBranch.roadBranches?.worstFoodRunwayDays ?? 0) > 1,
+  'same-branch cured stores should extend fresh-food runway only at the bounded rotation rate',
+);
+curedBranchState.fireIncidents.set('cured-store-fire', {
+  id: 'cured-store-fire',
+  targetKind: 'building',
+  targetId: curedBranchSmokehouse.id,
+} as FireIncidentState);
+const quarantinedCuredBranch = computeSettlementProvisioning({
+  state: curedBranchState,
+  totals: computeResourceTotals(curedBranchState),
+  currentFirewoodDemandMultiplier: 1,
+  currentPreservedFoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: () => 'cured',
+});
+assert.equal(
+  quarantinedCuredBranch.roadBranches?.physicalPreservedFoodStock,
+  0,
+);
+assert.equal(quarantinedCuredBranch.usablePreservedFoodStock, 0);
+assert.equal(quarantinedCuredBranch.fireQuarantinedPreservedFoodStock, 14);
+assert.ok(Math.abs(
+  (quarantinedCuredBranch.roadBranches?.worstFoodRunwayDays ?? 0) - 1,
+) < 1e-9);
+
 const reconnectedBranches = computeSettlementProvisioning({
   state: splitBranchState,
   totals: computeResourceTotals(splitBranchState),
@@ -581,6 +673,73 @@ const winterRationBuffer = computeSettlementProvisioning({
 });
 assert.equal(ordinaryRationBuffer.householdBufferPreservedFoodShortHomes, 0);
 assert.equal(winterRationBuffer.householdBufferPreservedFoodShortHomes, 1);
+const seasonalGrossFoodPerDay = 5 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+const ordinaryPreservedRotationPerDay =
+  5 * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * 70;
+assert.ok(Math.abs(
+  ordinaryRationBuffer.grossHouseholdFoodPerDay - seasonalGrossFoodPerDay,
+) < 1e-9);
+assert.ok(Math.abs(
+  ordinaryRationBuffer.householdPreservedFoodRotationPerDay
+    - ordinaryPreservedRotationPerDay,
+) < 1e-9);
+assert.ok(Math.abs(
+  ordinaryRationBuffer.householdFoodPerDay
+    - (seasonalGrossFoodPerDay - ordinaryPreservedRotationPerDay),
+) < 1e-9);
+assert.ok(Math.abs(
+  winterRationBuffer.householdPreservedFoodRotationTargetPerDay
+    - ordinaryPreservedRotationPerDay * 1.75,
+) < 1e-9);
+assert.ok(Math.abs(
+  winterRationBuffer.householdPreservedFoodRotationPerDay
+    - ordinaryPreservedRotationPerDay,
+) < 1e-9);
+
+const meal = allocatePreservedMeal(10, 10, 3, 0.8, true);
+assert.deepEqual(meal, {
+  freshUsed: 2.2,
+  preservedRotationUsed: 0.8,
+  preservedFallbackUsed: 0,
+  unmet: 0,
+});
+assert.deepEqual(
+  allocatePreservedMeal(0, 5, 3, 0.8, true),
+  {
+    freshUsed: 0,
+    preservedRotationUsed: 0.8,
+    preservedFallbackUsed: 2.2,
+    unmet: 0,
+  },
+);
+assert.deepEqual(
+  allocatePreservedMeal(Number.NaN, Number.POSITIVE_INFINITY, -4, 1, true),
+  {
+    freshUsed: 0,
+    preservedRotationUsed: 0,
+    preservedFallbackUsed: 0,
+    unmet: 0,
+  },
+);
+assert.ok(Math.abs(
+  freshFoodRunwayWithPreservedRotation({
+    freshStock: 10,
+    grossFoodDemandPerDay: 3,
+    preservedStock: 2,
+    preservedRotationPerDay: 1,
+  }) - 4,
+) < 1e-9);
+assert.ok(
+  freshFoodRunwayWithPreservedRotation({
+    freshStock: 10,
+    grossFoodDemandPerDay: 3,
+    preservedStock: 10,
+    preservedRotationPerDay: 1,
+    freshFoodSpoilageFractionPerDay: 0.05,
+  })
+  < 5,
+  'spoilage must shorten the finite cured-rotation fresh-food runway',
+);
 
 const perfState = emptyGameState();
 for (let index = 0; index < 10_000; index += 1) {

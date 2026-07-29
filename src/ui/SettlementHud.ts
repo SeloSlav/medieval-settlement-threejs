@@ -589,7 +589,7 @@ export class SettlementHud {
     ].filter(Boolean).join(' · ');
 
     this.provisionAlert.dataset.tooltip = [
-      `${provisioning.foodConsumers} housed residents consume ${provisioning.householdFoodPerDay.toFixed(1)} food per day.`,
+      `${provisioning.foodConsumers} housed residents require ${provisioning.grossHouseholdFoodPerDay.toFixed(1)} meal-equivalent units per day; household cured rations currently displace ${provisioning.householdPreservedFoodRotationPerDay.toFixed(1)}, leaving ${provisioning.householdFoodPerDay.toFixed(1)} fresh-food demand.`,
       provisioning.assignedGuards > 0
         ? `${provisioning.armedGuards} / ${provisioning.assignedGuards} assigned guards are armed; ${provisioning.unarmedGuards} still need polearms.`
         : 'No paid guard company is currently assigned.',
@@ -610,11 +610,11 @@ export class SettlementHud {
       `Local delivery buffer: ${formatHouseholdBufferReadiness(provisioning)}. Food, water, and provisions cover one workday; firewood covers the nightly no-cart interval.`,
       provisioning.roadBranches === null
         ? 'Road-branch provisioning is unavailable.'
-        : `Road-branch audit: ${provisioning.roadBranches.foodSuppliedBranches} / ${provisioning.roadBranches.activeBranches} occupied branches have a stocked food route; the weakest has ${formatProvisionRunway(provisioning.roadBranches.worstFoodRunwayDays)}. ${provisioning.roadBranches.heatedBranches > 0 ? `${provisioning.roadBranches.firewoodSuppliedBranches} / ${provisioning.roadBranches.heatedBranches} heated branches have a fuel distributor; the weakest holds ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at winter demand.` : 'No occupied home currently needs household fuel.'}`,
+        : `Road-branch audit: ${provisioning.roadBranches.foodSuppliedBranches} / ${provisioning.roadBranches.activeBranches} occupied branches have a stocked fresh-food route; ${provisioning.roadBranches.physicalFoodStock.toFixed(1)} fresh and ${provisioning.roadBranches.physicalPreservedFoodStock.toFixed(1)} cured provisions give the weakest branch ${formatProvisionRunway(provisioning.roadBranches.worstFoodRunwayDays)} of fresh-food runway. ${provisioning.roadBranches.heatedBranches > 0 ? `${provisioning.roadBranches.firewoodSuppliedBranches} / ${provisioning.roadBranches.heatedBranches} heated branches have a fuel distributor; the weakest holds ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at winter demand.` : 'No occupied home currently needs household fuel.'}`,
       provisioning.sabbathObserved
         ? `Sunday readiness: ${formatSabbathReadiness(provisioning)}. Labor and carts rest, but households keep consuming delivered provisions.`
         : 'Sunday labor follows the normal schedule.',
-      'Guard food and household buffers use local stores. Headline runways use settlement-wide stock that is currently accessible; road-branch runways count only household stocks, dispatch-capable stores, and cargo already arriving at a usable destination on that branch. Both assume no new production.',
+      'Guard food and household buffers use local stores. Fresh-food runways consume finite cured stock only at the current seasonal rotation, then return to gross meal demand when that reserve is exhausted. Headline runways use settlement-wide fire-accessible stock; road-branch runways count only household stocks, dispatch-capable stores, and cargo already arriving at a usable destination on that branch. Both assume no new production.',
     ].join(' · ');
 
     this.foodStat.dataset.tooltip = [
@@ -622,9 +622,9 @@ export class SettlementHud {
       provisioning.fireQuarantinedFoodStock > 0.05
         ? `${provisioning.fireQuarantinedFoodStock.toFixed(1)} food is quarantined at fire-damaged sites and does not extend the runway.`
         : null,
-      `Current demand: ${provisioning.totalFoodPerDay.toFixed(1)} per day.`,
+      `Current fresh demand: ${provisioning.totalFoodPerDay.toFixed(1)} per day from ${provisioning.grossFoodDemandPerDay.toFixed(1)} gross meal demand; ${provisioning.householdPreservedFoodRotationPerDay.toFixed(1)} preserved food is presently replacing fresh calories in household meals.`,
       `Current spoilage: ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}.`,
-      `Spoilage-adjusted runway: ${formatProvisionRunway(provisioning.foodRunwayDays)}.`,
+      `Spoilage-adjusted fresh-food runway: ${formatProvisionRunway(provisioning.foodRunwayDays)}; the forecast spends the finite ${provisioning.usablePreservedFoodStock.toFixed(1)} usable cured reserve at the seasonal rotation before fresh demand rises.`,
       provisioning.roadBranches === null
         ? null
         : `Weakest occupied road branch: ${formatProvisionRunway(provisioning.roadBranches.worstFoodRunwayDays)} from physical household-usable stores.`,

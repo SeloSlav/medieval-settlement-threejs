@@ -71,7 +71,7 @@ const workdaySeconds = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
   / CALENDAR_HOURS_PER_DAY;
 assertNear(
-  tierThreePlan.additionalFoodPerDay,
+  tierThreePlan.additionalGrossFoodPerDay,
   4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds,
 );
 assertNear(
@@ -91,6 +91,11 @@ assertNear(
     * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
     * workdaySeconds
     * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+);
+assertNear(
+  tierThreePlan.additionalFoodPerDay,
+  tierThreePlan.additionalGrossFoodPerDay
+    - tierThreePlan.additionalPreservedFoodPerDay,
 );
 assertNear(
   tierThreePlan.additionalAlePerDay,
@@ -138,6 +143,7 @@ assert.equal(fireDisabledGrowthPlan.fireDisabledHomes, 1);
 assert.equal(fireDisabledGrowthPlan.fireDisabledResidents, 6);
 assert.equal(fireDisabledGrowthPlan.fireDisabledHousingCapacity, 10);
 assert.equal(fireDisabledGrowthPlan.fireDisabledVacantSlots, 4);
+assert.equal(fireDisabledGrowthPlan.additionalGrossFoodPerDay, 0);
 assert.equal(fireDisabledGrowthPlan.additionalFoodPerDay, 0);
 assert.equal(fireDisabledGrowthPlan.additionalPreservedFoodPerDay, 0);
 
@@ -200,6 +206,8 @@ assert.match(townHallInspector, /At full housing/);
 assert.match(townHallInspector, /operational vacant places/);
 assert.match(townHallInspector, /fire-disabled homes/);
 assert.match(townHallInspector, /Prosperous-house growth/);
+assert.match(townHallInspector, /winter fresh food\/day after cured-ration displacement/);
+assert.match(townHallInspector, /gross meal demand/);
 assert.match(townHallInspector, /data-inspect-residence/);
 assert.match(townHallInspector, /const growthChapels = Array\.from/);
 assert.doesNotMatch(

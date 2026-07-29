@@ -39,6 +39,7 @@ export type SettlementGrowthPlan = {
   nextArrivalSeconds: number | null;
   waitingOnHomes: Record<ResidenceNeedKind, number>;
   firstPausedResidenceId: string | null;
+  additionalGrossFoodPerDay: number;
   additionalFoodPerDay: number;
   additionalWaterPerDay: number;
   additionalWinterFirewoodPerDay: number;
@@ -84,6 +85,7 @@ export function computeSettlementGrowthPlan(input: {
   let fireDisabledVacantSlots = 0;
   let nextArrivalSeconds = Number.POSITIVE_INFINITY;
   let firstPausedResidenceId: string | null = null;
+  let additionalGrossFoodPerDay = 0;
   let additionalFoodPerDay = 0;
   let additionalWaterPerDay = 0;
   let additionalWinterFirewoodPerDay = 0;
@@ -121,7 +123,9 @@ export function computeSettlementGrowthPlan(input: {
 
     vacantSlots += vacancies;
     candidateHomes += 1;
-    additionalFoodPerDay += vacancies * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds;
+    const grossFoodPerDay =
+      vacancies * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds;
+    additionalGrossFoodPerDay += grossFoodPerDay;
     if (residence.tier >= 2) {
       additionalWaterPerDay += vacancies * RESIDENCE_WATER_PER_PERSON_PER_SEC * workdaySeconds;
       additionalWinterFirewoodPerDay += vacancies
@@ -130,15 +134,22 @@ export function computeSettlementGrowthPlan(input: {
         * WINTER_FIREWOOD_DEMAND_MULTIPLIER;
     }
     if (residence.tier >= 3) {
-      additionalPreservedFoodPerDay += vacancies
+      const preservedFoodPerDay = vacancies
         * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
         * workdaySeconds
         * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER;
+      additionalPreservedFoodPerDay += preservedFoodPerDay;
+      additionalFoodPerDay += Math.max(
+        0,
+        grossFoodPerDay - preservedFoodPerDay,
+      );
       additionalAlePerDay += vacancies * RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
       additionalClothPerDay += vacancies * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
       additionalPotteryPerDay += vacancies
         * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
         * workdaySeconds;
+    } else {
+      additionalFoodPerDay += grossFoodPerDay;
     }
 
     const community = communityForResidence(residence);
@@ -178,6 +189,7 @@ export function computeSettlementGrowthPlan(input: {
     nextArrivalSeconds: Number.isFinite(nextArrivalSeconds) ? nextArrivalSeconds : null,
     waitingOnHomes,
     firstPausedResidenceId,
+    additionalGrossFoodPerDay,
     additionalFoodPerDay,
     additionalWaterPerDay,
     additionalWinterFirewoodPerDay,
