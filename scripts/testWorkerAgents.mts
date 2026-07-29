@@ -28,6 +28,8 @@ import {
   PRODUCTION_WORKPLACE_KINDS,
   WATCHTOWER_GALLERY_FLOOR_HEIGHT,
   watchtowerDutyPosition,
+  workerProductionBlocker,
+  workerProductionBlockerDescription,
   workplaceYardPosition,
   YARD_WORK_ACTIVITY,
 } from '../src/settlement/workerPaths.ts';
@@ -401,6 +403,8 @@ assert.match(villagerRendererSource, /Cutting wet river clay/);
 assert.match(villagerRendererSource, /Sealing and venting the clamp/);
 assert.match(villagerRendererSource, /Forging ironwork/);
 assert.match(villagerRendererSource, /Shaping and firing vessels/);
+assert.match(villagerRendererSource, /Waiting at \$\{workplaceLabel\}/);
+assert.match(villagerRendererSource, /workerProductionBlocker\(workplace\)/);
 assert.match(
   villagerRendererSource,
   /kind === 'clay_pit'[\s\S]*kind === 'charcoal_burner'[\s\S]*return 'shovel'/,
@@ -408,7 +412,9 @@ assert.match(
 assert.match(villagerRendererSource, /kind === 'carpenter' \|\| kind === 'smithy'/);
 
 for (const [kind, expectedActivity] of Object.entries(YARD_WORK_ACTIVITY)) {
-  const workplace = building(`yard-${kind}`, kind as BuildingState['kind'], 0, 0, 2, 0);
+  const workplace = readyYardBuilding(
+    building(`yard-${kind}`, kind as BuildingState['kind'], 0, 0, 2, 0),
+  );
   const targets = collectWorkerTargets(workplace, targetInputs);
   assert.ok(
     targets.length >= 2 && targets.every((target) => target.kind === 'workstation'),
@@ -422,6 +428,100 @@ for (const [kind, expectedActivity] of Object.entries(YARD_WORK_ACTIVITY)) {
     `${kind} workers should perform ${expectedActivity} instead of only circling the yard`,
   );
 }
+
+const materialWorkCases = [
+  {
+    kind: 'clay_pit',
+    ready: { clay: 0 },
+    blocked: { clay: 180 },
+    blocker: 'clay_capacity',
+  },
+  {
+    kind: 'charcoal_burner',
+    ready: { firewood: 1, charcoal: 0 },
+    blocked: { firewood: 0, charcoal: 0 },
+    blocker: 'firewood',
+  },
+  {
+    kind: 'smithy',
+    ready: { iron: 1, charcoal: 1, ironwork: 0 },
+    blocked: { iron: 1, charcoal: 0, ironwork: 0 },
+    blocker: 'charcoal',
+  },
+  {
+    kind: 'potter_kiln',
+    ready: { clay: 1, firewood: 1, pottery: 0 },
+    blocked: { clay: 0, firewood: 1, pottery: 0 },
+    blocker: 'clay',
+  },
+  {
+    kind: 'smokehouse',
+    ready: { food: 1, firewood: 1, salt: 1, pottery: 1, preservedFood: 0 },
+    blocked: { food: 1, firewood: 1, salt: 0, pottery: 1, preservedFood: 0 },
+    blocker: 'salt',
+  },
+] as const;
+
+for (const testCase of materialWorkCases) {
+  const ready = Object.assign(
+    building(`ready-${testCase.kind}`, testCase.kind, 0, 0, 2, 0),
+    testCase.ready,
+  );
+  assert.equal(
+    workerProductionBlocker(ready),
+    null,
+    `${testCase.kind} should visibly work while its exact recipe can advance`,
+  );
+
+  const blocked = Object.assign(
+    building(`blocked-${testCase.kind}`, testCase.kind, 0, 0, 2, 0),
+    testCase.blocked,
+  );
+  assert.equal(workerProductionBlocker(blocked), testCase.blocker);
+  const targets = collectWorkerTargets(blocked, targetInputs);
+  for (let seed = 0; seed < 32; seed++) {
+    assert.equal(
+      pickWorkerWalkPlan(blocked, 0, targets, seed)?.activity,
+      null,
+      `${testCase.kind} should not play production actions while ${testCase.blocker}`,
+    );
+  }
+}
+
+assert.equal(
+  workerProductionBlocker({
+    ...readyYardBuilding(building('full-smithy', 'smithy', 0, 0, 2, 0)),
+    processorOutputTargetPercent: 25,
+    ironwork: 18,
+  }),
+  'ironwork_target',
+  'a configured finished-goods target should stop visible production at the same point as the economy',
+);
+assert.equal(
+  workerProductionBlockerDescription('pottery'),
+  'there are no pottery vessels on site',
+);
+
+const readinessScaleStartedAt = performance.now();
+for (let index = 0; index < 100_000; index++) {
+  workerProductionBlocker(
+    readyYardBuilding(
+      building(
+        `readiness-${index}`,
+        materialWorkCases[index % materialWorkCases.length]!.kind,
+        0,
+        0,
+        2,
+        0,
+      ),
+    ),
+  );
+}
+const readinessScaleElapsedMs = performance.now() - readinessScaleStartedAt;
+assert.ok(
+  readinessScaleElapsedMs < 500,
+  `100,000 material readiness checks took ${readinessScaleElapsedMs.toFixed(1)} ms`,
+);
 
 const constructionSite: BuildingState = {
   ...lumberMill,
@@ -572,6 +672,27 @@ function building(
     storehouseAcceptsStone: true,
     storehouseAcceptsFirewood: true,
   };
+}
+
+function readyYardBuilding(workplace: BuildingState): BuildingState {
+  switch (workplace.kind) {
+    case 'charcoal_burner':
+      return { ...workplace, firewood: 1 };
+    case 'smithy':
+      return { ...workplace, iron: 1, charcoal: 1 };
+    case 'potter_kiln':
+      return { ...workplace, clay: 1, firewood: 1 };
+    case 'smokehouse':
+      return {
+        ...workplace,
+        food: 1,
+        firewood: 1,
+        salt: 1,
+        pottery: 1,
+      };
+    default:
+      return workplace;
+  }
 }
 
 function treeEntry(id: string, x: number, z: number): TreeLayoutEntry {

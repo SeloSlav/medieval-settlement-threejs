@@ -17,6 +17,8 @@ import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import { isForagingHarvestAvailable } from '../foraging/foragingSeason.ts';
 import { isWildStockHarvestable } from '../foraging/harvestReservePolicy.ts';
 import { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
+import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
+import { processorOutputHeadroom } from '../economy/processorOutputPolicy.ts';
 
 export { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
 
@@ -95,6 +97,20 @@ export type WorkerActivityKind =
   | 'tend'
   | 'build';
 
+export type WorkerProductionBlocker =
+  | 'clay_capacity'
+  | 'charcoal_target'
+  | 'ironwork_target'
+  | 'pottery_target'
+  | 'preserved_food_target'
+  | 'firewood'
+  | 'iron'
+  | 'charcoal'
+  | 'clay'
+  | 'food'
+  | 'salt'
+  | 'pottery';
+
 export type WorkerWalkPlan = {
   path: PointXZ[];
   activity: WorkerActivityKind | null;
@@ -139,6 +155,82 @@ export const YARD_WORK_ACTIVITY = {
 
 export function isProductionWorkplaceKind(kind: BuildingKind): boolean {
   return PRODUCTION_WORKPLACE_KIND_SET.has(kind);
+}
+
+/**
+ * Mirrors the authoritative material recipes closely enough to decide whether
+ * a visible worker should perform a production action. Workers still remain
+ * present and walk their yard while stalled; they simply stop pretending that
+ * output is being made.
+ */
+export function workerProductionBlocker(
+  building: BuildingState,
+): WorkerProductionBlocker | null {
+  if (building.constructionComplete === false) return null;
+
+  if (building.kind === 'clay_pit') {
+    const capacity = BUILDING_STORAGE_CAPS.clay_pit.clay ?? 0;
+    return Math.max(0, building.clay ?? 0) >= capacity - 1e-6
+      ? 'clay_capacity'
+      : null;
+  }
+
+  let outputBlocker: WorkerProductionBlocker | null = null;
+  switch (building.kind) {
+    case 'charcoal_burner':
+      outputBlocker = 'charcoal_target';
+      break;
+    case 'smithy':
+      outputBlocker = 'ironwork_target';
+      break;
+    case 'potter_kiln':
+      outputBlocker = 'pottery_target';
+      break;
+    case 'smokehouse':
+      outputBlocker = 'preserved_food_target';
+      break;
+    default:
+      return null;
+  }
+
+  if ((processorOutputHeadroom(building) ?? 0) <= 1e-6) {
+    return outputBlocker;
+  }
+
+  switch (building.kind) {
+    case 'charcoal_burner':
+      return building.firewood > 1e-6 ? null : 'firewood';
+    case 'smithy':
+      if ((building.iron ?? 0) <= 1e-6) return 'iron';
+      return (building.charcoal ?? 0) > 1e-6 ? null : 'charcoal';
+    case 'potter_kiln':
+      if ((building.clay ?? 0) <= 1e-6) return 'clay';
+      return building.firewood > 1e-6 ? null : 'firewood';
+    case 'smokehouse':
+      if (building.food <= 1e-6) return 'food';
+      if (building.firewood <= 1e-6) return 'firewood';
+      if ((building.salt ?? 0) <= 1e-6) return 'salt';
+      return (building.pottery ?? 0) > 1e-6 ? null : 'pottery';
+  }
+}
+
+export function workerProductionBlockerDescription(
+  blocker: WorkerProductionBlocker,
+): string {
+  switch (blocker) {
+    case 'clay_capacity': return 'the clay yard is full';
+    case 'charcoal_target': return 'the charcoal target has been reached';
+    case 'ironwork_target': return 'the ironwork target has been reached';
+    case 'pottery_target': return 'the pottery target has been reached';
+    case 'preserved_food_target': return 'the preserved-food target has been reached';
+    case 'firewood': return 'there is no firewood on site';
+    case 'iron': return 'there is no raw iron on site';
+    case 'charcoal': return 'there is no charcoal on site';
+    case 'clay': return 'there is no clay on site';
+    case 'food': return 'there is no fresh food on site';
+    case 'salt': return 'there is no salt on site';
+    case 'pottery': return 'there are no pottery vessels on site';
+  }
 }
 
 /**
@@ -526,6 +618,7 @@ function workerActivityFor(
   ) return 'tend';
   if (building.kind === 'swineherd' && target.kind === 'tree') return 'gather';
   if (target.kind === 'workstation') {
+    if (workerProductionBlocker(building)) return null;
     return YARD_WORK_ACTIVITY[
       building.kind as keyof typeof YARD_WORK_ACTIVITY
     ] ?? null;

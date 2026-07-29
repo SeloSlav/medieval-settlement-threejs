@@ -74,6 +74,8 @@ import {
   pickWorkerWalkPlan,
   watchtowerDutyPosition,
   watchtowerMusterPosition,
+  workerProductionBlocker,
+  workerProductionBlockerDescription,
   workplaceYardPosition,
   type WorkerActivityKind,
   type WorkerTarget,
@@ -1365,6 +1367,13 @@ export class VillagerRenderer {
       || agent.mode === 'tend'
       || agent.mode === 'build'
     ) {
+      const workplace = agent.workplaceId
+        ? this.buildings.get(agent.workplaceId)
+        : null;
+      if (workplace && workerProductionBlocker(workplace)) {
+        this.finishWorkerActivity(agent);
+        return;
+      }
       agent.currentMoveSpeed = 0;
       agent.workRemaining -= dt;
       if (agent.workRemaining <= 0) this.finishWorkerActivity(agent);
@@ -1508,6 +1517,15 @@ export class VillagerRenderer {
 
   private beginWorkerActivity(agent: VillagerAgent): void {
     if (!agent.workActivity || !agent.workTarget) return;
+    const workplace = agent.workplaceId
+      ? this.buildings.get(agent.workplaceId)
+      : null;
+    if (workplace && workerProductionBlocker(workplace)) {
+      agent.workActivity = null;
+      agent.workTarget = null;
+      agent.workPerformed = true;
+      return;
+    }
     agent.mode = agent.workActivity;
     agent.simPathCursor = agent.workStopDistance;
     agent.pathCursor = agent.workStopDistance;
@@ -2872,6 +2890,7 @@ export class VillagerRenderer {
     ) return null;
     const workplace = this.buildings.get(agent.workplaceId);
     if (workplace?.constructionComplete === false) return 'hammer';
+    if (workplace && workerProductionBlocker(workplace)) return null;
     const kind = workplace?.kind;
     if (kind === 'lumber_mill' || kind === 'woodcutters_lodge') return 'hatchet';
     if (kind === 'stone_quarry' || kind === 'large_quarry') return 'pickaxe';
@@ -3011,6 +3030,12 @@ function describeVillagerActivity(
     case 'work':
       if (workplace?.kind === 'watchtower') {
         return 'Keeping watch from the frontier gallery';
+      }
+      if (workplace) {
+        const blocker = workerProductionBlocker(workplace);
+        if (blocker) {
+          return `Waiting at ${workplaceLabel} — ${workerProductionBlockerDescription(blocker)}`;
+        }
       }
       if (agent.mode === 'chop') return `Chopping timber near ${workplaceLabel}`;
       if (agent.mode === 'mine') return `Quarrying stone near ${workplaceLabel}`;
