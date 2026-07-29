@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { EnvironmentState } from '../src/world/seasonPolicy.ts';
 import {
+  preservedFoodDemandMultiplierForSeason,
+  preservedFoodSpoilageFractionPerDayFor,
+} from '../src/world/seasonPolicy.ts';
+import {
   precipitationPreviewEnvironment,
   precipitationProfile,
   roadWeatherProfile,
@@ -33,7 +37,13 @@ function environment(
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: 0,
+    preservedFoodSpoilageFractionPerDay:
+      preservedFoodSpoilageFractionPerDayFor(season, weather),
+    preservedFoodDemandMultiplier:
+      preservedFoodDemandMultiplierForSeason(season),
     roadTravelSpeedMultiplier: 1,
+    watermillThroughputMultiplier: 1,
+    clayPitThroughputMultiplier: 1,
   };
 }
 
@@ -64,6 +74,12 @@ assert.ok(rain.fogDensityMultiplier > snow.fogDensityMultiplier);
 assert.equal(drought.kind, 'none');
 assert.ok(drought.sunlightMultiplier > 1);
 assert.equal(precipitationPreviewEnvironment(environment('fair'), '?weather=rain').weather, 'rain');
+assert.ok(
+  precipitationPreviewEnvironment(environment('fair'), '?weather=rain')
+    .preservedFoodSpoilageFractionPerDay
+  > precipitationPreviewEnvironment(environment('fair'), '?weather=snow')
+    .preservedFoodSpoilageFractionPerDay,
+);
 assert.equal(precipitationPreviewEnvironment(environment('fair'), '?weather=snow').weather, 'frost');
 assert.equal(precipitationPreviewEnvironment(environment('fair'), '?weather=snow').snowCoverage, 1);
 assert.deepEqual(

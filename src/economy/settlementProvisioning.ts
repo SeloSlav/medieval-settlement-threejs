@@ -239,6 +239,7 @@ function addBranchPreservedFoodStock(
 function finalizeRoadProvisioning(
   branches: ReadonlyMap<string, RoadProvisionBranch>,
   ambientSpoilageFractionPerDay: number,
+  preservedFoodSpoilageFractionPerDay: number,
 ): SettlementRoadProvisioning {
   let activeBranches = 0;
   let heatedBranches = 0;
@@ -258,6 +259,10 @@ function finalizeRoadProvisioning(
   let firstExposedResidenceId: string | null = null;
   let firstExposureScore = Number.POSITIVE_INFINITY;
   const ambientSpoilage = Math.max(0, ambientSpoilageFractionPerDay);
+  const preservedSpoilage = Math.max(
+    0,
+    preservedFoodSpoilageFractionPerDay,
+  );
 
   for (const branch of branches.values()) {
     if (branch.households <= 0) continue;
@@ -285,7 +290,7 @@ function finalizeRoadProvisioning(
       preservedRotationPerDay: branch.preservedFoodRotationPerDay,
       freshFoodSpoilageFractionPerDay: ambientSpoilage * storageFactor,
       preservedFoodSpoilageFractionPerDay:
-        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedStorageFactor,
+        preservedSpoilage * preservedStorageFactor,
     });
     worstFoodRunwayDays = Math.min(worstFoodRunwayDays, foodRunway);
     const foodWarning = !branch.hasFoodSupplyRoute
@@ -373,6 +378,7 @@ export function computeSettlementProvisioning(input: {
   totals: ResourceTotals;
   currentFirewoodDemandMultiplier: number;
   freshFoodSpoilageFractionPerDay: number;
+  preservedFoodSpoilageFractionPerDay?: number;
   currentPreservedFoodDemandMultiplier?: number;
   sabbathObserved: boolean;
   roadComponentFor?: ProvisionRoadComponentResolver;
@@ -382,6 +388,8 @@ export function computeSettlementProvisioning(input: {
     totals,
     currentFirewoodDemandMultiplier,
     freshFoodSpoilageFractionPerDay,
+    preservedFoodSpoilageFractionPerDay:
+      requestedPreservedFoodSpoilageFractionPerDay,
     currentPreservedFoodDemandMultiplier = 1,
     sabbathObserved,
     roadComponentFor,
@@ -403,6 +411,11 @@ export function computeSettlementProvisioning(input: {
   )
     ? Math.max(0, currentPreservedFoodDemandMultiplier)
     : 1;
+  const preservedFoodSpoilageFractionPerDay = Number.isFinite(
+    requestedPreservedFoodSpoilageFractionPerDay,
+  )
+    ? Math.max(0, requestedPreservedFoodSpoilageFractionPerDay ?? 0)
+    : PRESERVED_FOOD_SPOILAGE_PER_DAY;
   const nightlyNoDeliverySeconds = CALENDAR_SECONDS_PER_DAY - workdaySeconds;
   const sabbathFirewoodBufferSeconds = CALENDAR_SECONDS_PER_DAY + nightlyNoDeliverySeconds;
   let foodConsumers = 0;
@@ -874,16 +887,17 @@ export function computeSettlementProvisioning(input: {
     {
       fireDisabledBuildingIds: fireDisabledBuildings,
       fireDisabledResidenceIds: fireDisabledResidences,
+      preservedFoodSpoilageFractionPerDay,
     },
   );
   const usablePreservedFoodSpoilageFractionPerDay =
     usablePreservedFoodStock > 1e-9
-      ? PRESERVED_FOOD_SPOILAGE_PER_DAY
+      ? preservedFoodSpoilageFractionPerDay
         * usablePreservedFoodWeightedStock
         / usablePreservedFoodStock
       : 0;
   const usablePreservedFoodSpoilagePerDay =
-    PRESERVED_FOOD_SPOILAGE_PER_DAY * usablePreservedFoodWeightedStock;
+    preservedFoodSpoilageFractionPerDay * usablePreservedFoodWeightedStock;
   const usableFoodStock = Math.max(
     0,
     Math.min(totals.food, foodPreservation.usableStock),
@@ -907,6 +921,7 @@ export function computeSettlementProvisioning(input: {
     : finalizeRoadProvisioning(
         roadProvisionBranches,
         freshFoodSpoilageFractionPerDay,
+        preservedFoodSpoilageFractionPerDay,
       );
   const welfare = finalizeSettlementWelfare(
     welfareAccumulator,

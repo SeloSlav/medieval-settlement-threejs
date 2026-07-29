@@ -35,9 +35,9 @@ import {
 } from '../../logistics/deliveryTrips.ts';
 import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
+import { environmentFor } from '../../world/seasonPolicy.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import {
-  PRESERVED_FOOD_SPOILAGE_PER_DAY,
   STOREHOUSE_HAUL_PER_WORKER,
   type TradeResourceKind,
 } from '../../generated/gameBalance.ts';
@@ -87,6 +87,11 @@ export function renderMarketplaceInspector(
   }
 
   const label = context.worldQueries.getBuildingLabel(building.kind);
+  const environment = environmentFor(
+    context.gameState.seed,
+    context.worldHydrology,
+    gameClock(context.gameState.tick),
+  );
   const cost = getBuildingCost(building.kind);
   const connectedHomes = context.worldQueries.countRoadConnectedResidences(building, true);
   const labor = buildingLaborView(building, context.populationStats, context.worldQueries);
@@ -279,7 +284,7 @@ export function renderMarketplaceInspector(
         (1 - buildingPreservedFoodStorageFactor(building.kind)) * 100,
       )}% slower than ordinary dry storage · ${formatPreservedFoodLoss(
         building.preservedFood
-        * PRESERVED_FOOD_SPOILAGE_PER_DAY
+        * environment.preservedFoodSpoilageFractionPerDay
         * buildingPreservedFoodStorageFactor(building.kind),
       )}</span></li>
       <li><span>Purpose</span><span>Foreign trade hub — exchange gold and goods with neighboring villages</span></li>

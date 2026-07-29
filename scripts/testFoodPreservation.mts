@@ -132,6 +132,23 @@ assert.ok(
   'central dry storage should preserve cured stock better than an ordinary holding',
 );
 assert.match(formatPreservedFoodLoss(curedPreservation.spoilagePerDay), /provisions/);
+const winterCuredRate = PRESERVED_FOOD_SPOILAGE_PER_DAY * 0.5;
+const winterCuredPreservation = analyzeFreshFoodPreservation(
+  curedState,
+  ambientSpoilage,
+  { preservedFoodSpoilageFractionPerDay: winterCuredRate },
+).preservedFood;
+assert.ok(
+  Math.abs(
+    winterCuredPreservation.spoilagePerDay
+    - expectedCuredWeightedStock * winterCuredRate,
+  ) < 1e-9,
+  'current climate must scale every physical cured-food store through the shared diagnostic pass',
+);
+assert.ok(
+  winterCuredPreservation.spoilagePerDay
+  < curedPreservation.spoilagePerDay,
+);
 
 const physicalLedgerState = emptyGameState();
 physicalLedgerState.physicalFoundingSiteEnabled = true;
@@ -436,7 +453,7 @@ assert.match(
 );
 assert.match(
   serverFoodSpoilage,
-  /building\.preserved_food \* preserved_rate \* preserved_storage_factor[\s\S]*preserved_food: \(building\.preserved_food - spoiled_preserved\)/,
+  /preserved_food_spoilage_fraction_per_second\(\)[\s\S]*building\.preserved_food \* preserved_rate \* preserved_storage_factor[\s\S]*preserved_food: \(building\.preserved_food - spoiled_preserved\)/,
   'every physical building store must lose cured provisions according to its storage quality',
 );
 assert.match(
@@ -447,7 +464,7 @@ assert.match(
 assert.match(residenceProvisions, /pub fn spoil_preserved_food\(/);
 assert.match(
   residenceNeeds,
-  /find_need_mut\(&mut needs, ResidenceNeedKind::PreservedFood\)[\s\S]*provisions::spoil_preserved_food/,
+  /find_need_mut\(&mut needs, ResidenceNeedKind::PreservedFood\)[\s\S]*provisions::spoil_preserved_food[\s\S]*preserved_food_spoilage_fraction_per_second/,
   'household cupboard stock must age even while ordinary consumption is paused',
 );
 assert.match(townHallInspector, /Cured-food aging/);

@@ -74,6 +74,8 @@ assert.equal(granaryFreshFoodTarget(-10, 75), 0);
 assert.equal(granaryFreshFoodTarget(Number.NaN, 75), 0);
 
 const legacyPanel = renderGranaryPolicyPanel(makeGranary());
+assert.match(legacyPanel, /Collect fresh and cured surplus/);
+assert.match(legacyPanel, /Cured provisions retain best in their smokehouse loft/);
 assert.match(legacyPanel, /Fresh-food intake target/);
 assert.match(
   legacyPanel,
@@ -83,6 +85,14 @@ assert.match(
 assert.match(legacyPanel, /Current target 255 food/);
 assert.match(legacyPanel, /lower settings reduce collection-cart pressure/);
 assert.match(legacyPanel, /higher settings shelter more food from spoilage/);
+const localOnlyPanel = renderGranaryPolicyPanel(makeGranary({
+  granaryAcceptsFreshFood: false,
+}));
+assert.doesNotMatch(
+  localOnlyPanel,
+  /data-granary-accepts-fresh-food[^>]*checked/,
+);
+assert.match(localOnlyPanel, /disabling it stops new cured intake/);
 
 const deepReservePanel = renderGranaryPolicyPanel(makeGranary({
   granaryFreshFoodTargetPercent: 90,

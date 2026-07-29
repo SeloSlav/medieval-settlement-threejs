@@ -1608,16 +1608,18 @@ pub fn step_smokehouse(
         3.0,
     );
     // Once claimed household cupboards are covered, the smokehouse's same
-    // physical cart moves surplus into the nearest granary. The staffed depot
-    // can then redistribute that seasonal reserve instead of stranding it at
-    // a full workshop.
-    dispatch_to_building(
+    // physical cart may move surplus into a granary that has opted into
+    // perishable collection. Keeping that policy disabled retains cured stock
+    // in the better smokehouse loft; enabling it spends a haul and accepts
+    // slightly faster aging in exchange for central redistribution.
+    dispatch_to_building_where(
         ctx,
         tick,
         clock,
         &mut smokehouse,
         CommodityKind::PreservedFood,
         &["granary"],
+        |target| target.granary_accepts_fresh_food,
     );
     ctx.db.building().id().update(smokehouse);
 }
@@ -2217,6 +2219,9 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
 }
 
 pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityKind) -> bool {
+    if building.kind == "granary" && commodity == CommodityKind::PreservedFood {
+        return building.granary_accepts_fresh_food;
+    }
     if !processor_uses_input(&building.kind, commodity) {
         return true;
     }

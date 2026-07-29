@@ -55,6 +55,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'constructionComplete'
   | 'constructionPriority'
   | 'processorOutputTargetPercent'
+  | 'granaryAcceptsFreshFood'
   | 'weaverInputPolicy'
   | 'flour'
   | 'food'
@@ -185,7 +186,8 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * for replacement iron tools. Imported iron and salt stop at their working
  * buffers; after the kiln's household-ware duty, pottery reaches staffed
  * smokehouses before becoming market export stock. Preserved food is a
- * storage-only overflow route to the nearest granary, never a processor input.
+ * storage-only overflow route to the nearest granary that accepts perishable
+ * surplus, never a processor input.
  * Other inputs resume nearest storage overflow once buffers are covered.
  */
 export function selectDirectProcessorInputTarget<
@@ -208,6 +210,11 @@ export function selectDirectProcessorInputTarget<
       || ((commodity === 'firewood' || marketplaceMaterial) && target.assignedLabor <= 0)
       || hasInboundSupply(target)
       || !acceptsInput(target)
+      || (
+        commodity === 'preservedFood'
+        && target.kind === 'granary'
+        && target.granaryAcceptsFreshFood === false
+      )
     ) {
       continue;
     }

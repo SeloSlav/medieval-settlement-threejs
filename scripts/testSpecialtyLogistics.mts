@@ -20,6 +20,7 @@ import { selectDirectProcessorInputTarget } from '../src/logistics/processorInpu
 import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
 import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import { PRESERVED_FOOD_SPOILAGE_PER_DAY } from '../src/generated/gameBalance.ts';
 
 function building(
   id: string,
@@ -110,6 +111,29 @@ assert.ok(
   ) < 6.25 / 1.75,
   'winter rotation and continuous cupboard aging must both shorten household runway',
 );
+const seasonalRunwayHome = residence(
+  'seasonal-preserved-runway',
+  0,
+  4,
+  'preservedFood',
+  7,
+);
+assert.ok(
+  (
+    residencePreservedFoodRunwayDays(
+      seasonalRunwayHome,
+      1,
+      PRESERVED_FOOD_SPOILAGE_PER_DAY * 0.5,
+    ) ?? 0
+  ) > (
+    residencePreservedFoodRunwayDays(
+      seasonalRunwayHome,
+      1,
+      PRESERVED_FOOD_SPOILAGE_PER_DAY * 1.25,
+    ) ?? 0
+  ),
+  'the same cupboard stock must last longer in cold-season storage',
+);
 assert.equal(
   residenceAleRunwayDays(residence('ale-runway', 0, 4, 'ale', 7)),
   10,
@@ -196,6 +220,21 @@ const curedOverflow = selectDirectProcessorInputTarget(
 assert.equal(curedOverflow?.target.id, granary.id);
 assert.equal(curedOverflow?.duty, 'workshop-overflow');
 assert.equal(curedOverflow?.desiredStock, 180);
+const localOnlyGranary = {
+  ...granary,
+  id: 'local-only-granary',
+  granaryAcceptsFreshFood: false,
+};
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [localOnlyGranary],
+    smokehouse.id,
+    'preservedFood',
+    (target) => Math.abs(target.x - smokehouse.x),
+  ),
+  null,
+  'a granary with perishable collection disabled must leave cured surplus in its producer loft',
+);
 const emptyBrewery = { ...building('empty-brewery', 'brewery', 2), ale: 0 };
 assert.equal(
   findRoadLinkedSupplierForResidence(
@@ -267,8 +306,13 @@ assert.match(
 );
 assert.match(
   expanded,
-  /step_smokehouse[\s\S]*?dispatch_need\([\s\S]*?ResidenceNeedKind::PreservedFood[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["granary"\]/,
+  /step_smokehouse[\s\S]*?dispatch_need\([\s\S]*?ResidenceNeedKind::PreservedFood[\s\S]*?dispatch_to_building_where\([\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["granary"\][\s\S]*?granary_accepts_fresh_food/,
   'a smokehouse must serve households before centralizing cured overflow',
+);
+assert.match(
+  expanded,
+  /processor_accepts_input[\s\S]*?building\.kind == "granary"[\s\S]*?CommodityKind::PreservedFood[\s\S]*?granary_accepts_fresh_food/,
+  'every authoritative cured-food producer must honor the shared granary intake switch',
 );
 assert.match(
   expanded,
@@ -296,6 +340,7 @@ const expandedInspector = fs.readFileSync(
 );
 assert.match(expandedInspector, /Cured-food territory/);
 assert.match(expandedInspector, /Cured overflow/);
+assert.match(expandedInspector, /Collect fresh and cured surplus/);
 const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 assert.match(
   residenceInspector,

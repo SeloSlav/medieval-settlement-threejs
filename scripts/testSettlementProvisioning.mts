@@ -498,6 +498,59 @@ assert.ok(
   (curedBranch.roadBranches?.worstFoodRunwayDays ?? 0) > 1,
   'same-branch cured stores should extend fresh-food runway only at the bounded rotation rate',
 );
+const winterCuredBranch = computeSettlementProvisioning({
+  state: curedBranchState,
+  totals: computeResourceTotals(curedBranchState),
+  currentFirewoodDemandMultiplier: 1,
+  currentPreservedFoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  preservedFoodSpoilageFractionPerDay:
+    PRESERVED_FOOD_SPOILAGE_PER_DAY * 0.5,
+  sabbathObserved: false,
+  roadComponentFor: () => 'cured',
+});
+assert.ok(
+  Math.abs(
+    winterCuredBranch.preservedFoodSpoilagePerDay
+    - curedBranch.preservedFoodSpoilagePerDay * 0.5,
+  ) < 1e-9,
+);
+assert.ok(
+  winterCuredBranch.preservedFoodSpoilageFractionPerDay
+  < curedBranch.preservedFoodSpoilageFractionPerDay,
+);
+const originalCuredBranchTreasuryFood = curedBranchState.stockpile.food;
+curedBranchState.stockpile.food = 10_000;
+const longReserveTotals = {
+  ...computeResourceTotals(curedBranchState),
+  food: 10_000 + curedBranchHome.needs.food.stock,
+};
+const warmLongReserve = computeSettlementProvisioning({
+  state: curedBranchState,
+  totals: longReserveTotals,
+  currentFirewoodDemandMultiplier: 1,
+  currentPreservedFoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  preservedFoodSpoilageFractionPerDay: PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  sabbathObserved: false,
+  roadComponentFor: () => 'cured',
+});
+const winterLongReserve = computeSettlementProvisioning({
+  state: curedBranchState,
+  totals: longReserveTotals,
+  currentFirewoodDemandMultiplier: 1,
+  currentPreservedFoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  preservedFoodSpoilageFractionPerDay:
+    PRESERVED_FOOD_SPOILAGE_PER_DAY * 0.5,
+  sabbathObserved: false,
+  roadComponentFor: () => 'cured',
+});
+assert.ok(
+  winterLongReserve.foodRunwayDays > warmLongReserve.foodRunwayDays,
+  `cold storage must extend the cured-food rotation phase before fresh demand rises (${winterLongReserve.foodRunwayDays} vs ${warmLongReserve.foodRunwayDays})`,
+);
+curedBranchState.stockpile.food = originalCuredBranchTreasuryFood;
 curedBranchState.fireIncidents.set('cured-store-fire', {
   id: 'cured-store-fire',
   targetKind: 'building',

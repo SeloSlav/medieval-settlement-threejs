@@ -41,9 +41,10 @@ const oneResidentFallbackPerDay = RESIDENCE_FOOD_PER_PERSON_PER_SEC
 const reserveTarget = (
   demandPerDay: number,
   storageFactor: number,
+  ambientSpoilagePerDay = PRESERVED_FOOD_SPOILAGE_PER_DAY,
 ): number => {
   const spoilage =
-    PRESERVED_FOOD_SPOILAGE_PER_DAY * storageFactor;
+    ambientSpoilagePerDay * storageFactor;
   return demandPerDay
     * Math.expm1(spoilage * PRESERVATION_RESERVE_DAYS)
     / spoilage;
@@ -69,6 +70,24 @@ assert.equal(targetPlan.targetBranches, 1);
 assert.equal(targetPlan.shortBranches, 1);
 assert.equal(targetPlan.branchesWithoutSmokehouse, 1);
 assert.equal(targetPlan.productionDaysToTarget, Number.POSITIVE_INFINITY);
+const winterTargetPlan = computeSettlementPreservationReservePlan(targetState, {
+  sabbathObserved: false,
+  roadComponentFor: () => 'core',
+  preservedFoodSpoilageFractionPerDay:
+    PRESERVED_FOOD_SPOILAGE_PER_DAY * 0.5,
+});
+approx(
+  winterTargetPlan.targetStock,
+  reserveTarget(
+    oneResidentFallbackPerDay * 2,
+    PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+    PRESERVED_FOOD_SPOILAGE_PER_DAY * 0.5,
+  ),
+);
+assert.ok(
+  winterTargetPlan.targetStock < targetPlan.targetStock,
+  'cold-season reserve targets must retain less replacement stock for aging losses',
+);
 
 const preparedState = emptyGameState();
 preparedState.physicalFoundingSiteEnabled = true;

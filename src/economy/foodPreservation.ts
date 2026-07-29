@@ -84,6 +84,7 @@ export type PreservedFoodPreservation = {
 export type FreshFoodPreservationOptions = {
   fireDisabledBuildingIds?: ReadonlySet<string>;
   fireDisabledResidenceIds?: ReadonlySet<string>;
+  preservedFoodSpoilageFractionPerDay?: number;
 };
 
 export function buildingFreshFoodStorageFactor(kind: BuildingKind): number {
@@ -124,6 +125,11 @@ export function analyzeFreshFoodPreservation(
   const ambientRate = Number.isFinite(ambientSpoilageFractionPerDay)
     ? Math.max(0, ambientSpoilageFractionPerDay)
     : 0;
+  const preservedRate = Number.isFinite(
+    options.preservedFoodSpoilageFractionPerDay,
+  )
+    ? Math.max(0, options.preservedFoodSpoilageFractionPerDay ?? 0)
+    : PRESERVED_FOOD_SPOILAGE_PER_DAY;
   const treasuryStock = state.physicalFoundingSiteEnabled === true
     ? 0
     : finiteStock(state.stockpile.food);
@@ -180,7 +186,7 @@ export function analyzeFreshFoodPreservation(
     spoilagePerDay:
       treasuryPreservedStock
       * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR
-      * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+      * preservedRate,
   });
 
   for (const building of state.buildings.values()) {
@@ -224,7 +230,7 @@ export function analyzeFreshFoodPreservation(
         stock: preservedStock,
         storageFactor: factor,
         spoilagePerDay:
-          preservedStock * factor * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+          preservedStock * factor * preservedRate,
       });
       if (factor < PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR) {
         preservedProtectedStock += preservedStock;
@@ -270,7 +276,7 @@ export function analyzeFreshFoodPreservation(
         stock,
         storageFactor: PRESERVED_FOOD_STORAGE_CART_FACTOR,
         spoilagePerDay:
-          stock * PRESERVED_FOOD_STORAGE_CART_FACTOR * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+          stock * PRESERVED_FOOD_STORAGE_CART_FACTOR * preservedRate,
       });
       continue;
     }
@@ -315,7 +321,7 @@ export function analyzeFreshFoodPreservation(
           spoilagePerDay:
             preservedStock
             * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
-            * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+            * preservedRate,
         });
       }
     }
@@ -380,15 +386,15 @@ export function analyzeFreshFoodPreservation(
       effectiveStorageFactor: preservedEffectiveStorageFactor,
       usableEffectiveStorageFactor: preservedUsableEffectiveStorageFactor,
       spoilageFractionPerDay:
-        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedEffectiveStorageFactor,
+        preservedRate * preservedEffectiveStorageFactor,
       usableSpoilageFractionPerDay:
-        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedUsableEffectiveStorageFactor,
+        preservedRate * preservedUsableEffectiveStorageFactor,
       spoilagePerDay:
-        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedWeightedStock,
+        preservedRate * preservedWeightedStock,
       quarantinedSpoilagePerDay:
-        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedQuarantinedWeightedStock,
+        preservedRate * preservedQuarantinedWeightedStock,
       transitSpoilagePerDay:
-        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedTransitWeightedStock,
+        preservedRate * preservedTransitWeightedStock,
       largestLossSite: preservedLargestLossSite,
     },
   };

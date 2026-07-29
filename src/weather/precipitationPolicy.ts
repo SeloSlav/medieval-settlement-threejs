@@ -1,6 +1,7 @@
 import {
   clayPitThroughputForWeather,
   preservedFoodDemandMultiplierForSeason,
+  preservedFoodSpoilageFractionPerDayFor,
   watermillThroughputForWeather,
   type EnvironmentState,
 } from '../world/seasonPolicy.ts';
@@ -137,6 +138,8 @@ export function precipitationPreviewEnvironment(
       deciduousFoliage: deciduousFoliageForSeasonPreview('spring'),
       preservedFoodDemandMultiplier:
         preservedFoodDemandMultiplierForSeason('spring'),
+      preservedFoodSpoilageFractionPerDay:
+        preservedFoodSpoilageFractionPerDayFor('spring', 'rain'),
       watermillThroughputMultiplier: watermillThroughputForWeather('rain'),
       clayPitThroughputMultiplier: clayPitThroughputForWeather('rain'),
     };
@@ -150,6 +153,8 @@ export function precipitationPreviewEnvironment(
       deciduousFoliage: deciduousFoliageForSeasonPreview('winter'),
       preservedFoodDemandMultiplier:
         preservedFoodDemandMultiplierForSeason('winter'),
+      preservedFoodSpoilageFractionPerDay:
+        preservedFoodSpoilageFractionPerDayFor('winter', 'frost'),
       watermillThroughputMultiplier: watermillThroughputForWeather('frost'),
       clayPitThroughputMultiplier: clayPitThroughputForWeather('frost'),
     };
@@ -163,6 +168,8 @@ export function precipitationPreviewEnvironment(
       deciduousFoliage: deciduousFoliageForSeasonPreview('autumn'),
       preservedFoodDemandMultiplier:
         preservedFoodDemandMultiplierForSeason('autumn'),
+      preservedFoodSpoilageFractionPerDay:
+        preservedFoodSpoilageFractionPerDayFor('autumn', 'fair'),
       watermillThroughputMultiplier: 1,
       clayPitThroughputMultiplier: 1,
     };
@@ -172,6 +179,8 @@ export function precipitationPreviewEnvironment(
       ...environment,
       weather: 'fair',
       snowCoverage: 0,
+      preservedFoodSpoilageFractionPerDay:
+        preservedFoodSpoilageFractionPerDayFor(environment.season, 'fair'),
       watermillThroughputMultiplier: 1,
       clayPitThroughputMultiplier: 1,
     };
@@ -193,6 +202,8 @@ export function standalonePrecipitationPreview(
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
+    preservedFoodSpoilageFractionPerDay:
+      preservedFoodSpoilageFractionPerDayFor('spring', 'fair'),
     preservedFoodDemandMultiplier:
       preservedFoodDemandMultiplierForSeason('spring'),
     roadTravelSpeedMultiplier: 1,

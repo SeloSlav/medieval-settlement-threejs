@@ -60,6 +60,11 @@
       "treasury": 1.2
     },
     "preservedFoodSpoilagePerDay": 0.0015,
+    "preservedFoodSpoilageSpringMultiplier": 1.15,
+    "preservedFoodSpoilageSummerMultiplier": 1.25,
+    "preservedFoodSpoilageAutumnMultiplier": 1.1,
+    "preservedFoodSpoilageWinterMultiplier": 0.5,
+    "preservedFoodSpoilageDroughtMultiplier": 1.5,
     "preservedFoodStorageFactors": {
       "defaultBuilding": 1,
       "granary": 0.65,

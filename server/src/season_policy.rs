@@ -6,7 +6,10 @@ use crate::balance_generated::{
     DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER, DROUGHT_WELL_REFILL_MULTIPLIER,
     FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY, FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY,
     FRESH_FOOD_SPOILAGE_SPRING_PER_DAY, FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY,
-    FRESH_FOOD_SPOILAGE_WINTER_PER_DAY, RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
+    FRESH_FOOD_SPOILAGE_WINTER_PER_DAY, PRESERVED_FOOD_SPOILAGE_AUTUMN_MULTIPLIER,
+    PRESERVED_FOOD_SPOILAGE_DROUGHT_MULTIPLIER, PRESERVED_FOOD_SPOILAGE_PER_DAY,
+    PRESERVED_FOOD_SPOILAGE_SPRING_MULTIPLIER, PRESERVED_FOOD_SPOILAGE_SUMMER_MULTIPLIER,
+    PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER, RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
     RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER, RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
     RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER, SPRING_BREEDING_MULTIPLIER,
     SPRING_FIREWOOD_DEMAND_MULTIPLIER, SPRING_PASTURE_CAPACITY_MULTIPLIER, SPRING_RAIN_CHANCE,
@@ -120,6 +123,20 @@ impl EnvironmentState {
             }
         };
         daily / CALENDAR_SECONDS_PER_DAY
+    }
+
+    pub fn preserved_food_spoilage_fraction_per_second(self) -> f64 {
+        let multiplier = if self.weather == WeatherKind::Drought {
+            PRESERVED_FOOD_SPOILAGE_DROUGHT_MULTIPLIER
+        } else {
+            match self.season {
+                Season::Spring => PRESERVED_FOOD_SPOILAGE_SPRING_MULTIPLIER,
+                Season::Summer => PRESERVED_FOOD_SPOILAGE_SUMMER_MULTIPLIER,
+                Season::Autumn => PRESERVED_FOOD_SPOILAGE_AUTUMN_MULTIPLIER,
+                Season::Winter => PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER,
+            }
+        };
+        PRESERVED_FOOD_SPOILAGE_PER_DAY * multiplier / CALENDAR_SECONDS_PER_DAY
     }
 
     /// Cured meat and fish remain part of the same meal, but the mountain
@@ -259,8 +276,36 @@ mod tests {
             drought.fresh_food_spoilage_fraction_per_second()
                 > fair.fresh_food_spoilage_fraction_per_second()
         );
+        assert!(
+            drought.preserved_food_spoilage_fraction_per_second()
+                > fair.preserved_food_spoilage_fraction_per_second()
+        );
         assert!(drought.fish_loss_per_second() > 0.0);
         assert_eq!(drought.road_speed_multiplier(), 1.0);
+    }
+
+    #[test]
+    fn cured_food_ages_slowest_in_winter_and_keeps_annual_average() {
+        let rate = |season| {
+            EnvironmentState {
+                season,
+                weather: if season == Season::Winter {
+                    WeatherKind::Frost
+                } else {
+                    WeatherKind::Fair
+                },
+            }
+            .preserved_food_spoilage_fraction_per_second()
+        };
+        let spring = rate(Season::Spring);
+        let summer = rate(Season::Summer);
+        let autumn = rate(Season::Autumn);
+        let winter = rate(Season::Winter);
+        assert!(winter < spring);
+        assert!(spring < summer);
+        let annual_average = (spring + summer + autumn + winter) / 4.0;
+        let configured_average = PRESERVED_FOOD_SPOILAGE_PER_DAY / CALENDAR_SECONDS_PER_DAY;
+        assert!((annual_average - configured_average).abs() <= 1e-12);
     }
 
     #[test]

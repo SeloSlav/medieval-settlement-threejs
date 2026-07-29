@@ -826,6 +826,8 @@ export class App {
         totals: computeResourceTotals(state),
         currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
         freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
+        preservedFoodSpoilageFractionPerDay:
+          environment.preservedFoodSpoilageFractionPerDay,
         currentPreservedFoodDemandMultiplier:
           environment.preservedFoodDemandMultiplier,
         sabbathObserved: snapshot.parishPolicy.sabbathObservanceEnabled

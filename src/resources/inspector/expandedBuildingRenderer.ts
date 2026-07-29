@@ -19,7 +19,6 @@ import {
   MONASTERY_HOSPITALITY_WINE_PER_DAY,
   MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
   MONASTERY_UNLINKED_PRODUCTIVITY,
-  PRESERVED_FOOD_SPOILAGE_PER_DAY,
   TIMBER_DELIVERY_SPEED_MPS,
   TIMBER_DELIVERY_UNLOAD_SEC,
   TEXTILE_TRANSFER_PER_TRIP,
@@ -1051,7 +1050,7 @@ export function renderExpandedBuildingInspector(
         ? `${Math.round((1 - preservedStorageFactor) * 100)}% slower than ordinary dry storage`
         : 'Ordinary dry storage'} · ${formatPreservedFoodLoss(
           building.preservedFood
-          * PRESERVED_FOOD_SPOILAGE_PER_DAY
+          * environment.preservedFoodSpoilageFractionPerDay
           * preservedStorageFactor,
         )}</span></li>`
     : '';
@@ -1365,8 +1364,8 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before route distance. If no smokehouse can receive food, the granary falls through to fresh household food and then cured rations.';
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Centralizing fresh food sharply reduces spoilage but consumes a producer's road haul before the granary can redistribute it. Every routine food supplier keeps one household cart per claimed home, capped at half its storage. Surplus carts then serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order.</p>
-      <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-accepts-fresh-food ${building.granaryAcceptsFreshFood === false ? '' : 'checked'} /><span>Collect fresh-food surplus</span></label>
+      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food and lets one staffed depot redistribute cured reserves, but it consumes producer road hauls. Cured provisions retain best in their smokehouse loft and age slightly faster after transfer here, so local-only and central-reserve branches are both valid layouts. Every routine food supplier still protects its household territory before offering surplus. Fresh-food surplus carts then serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order.</p>
+      <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-accepts-fresh-food ${building.granaryAcceptsFreshFood === false ? '' : 'checked'} /><span>Collect fresh and cured surplus</span></label>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Feed households before smokehouses</span></label>
       <p class="inspector-action-panel__hint">${priorityHint}</p>
       <p class="resource-inspector-note">Fresh-food intake target — lower settings reduce collection-cart pressure and keep stock near its source territory; higher settings shelter more food from spoilage for winter and preservation.</p>
@@ -1378,7 +1377,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
       <div class="resource-action-row">${GRANARY_GRAIN_RESERVE_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-granary-grain-reserve="${preset.reserve}" ${grainReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">A staffed granary collects only fresh stock above local reserves until its selected target. Producers with no claimed homes can send their whole stock. Cured provisions use separate capacity and arrive only after producers cover household duties; staffed keepers redistribute them without changing the fresh-food target. Staff are required for every granary delivery.</p>
+      <p class="inspector-action-panel__hint">A staffed granary collects fresh stock above local reserves until its selected fresh-food target. Producers with no claimed homes can send their whole stock. When perishable collection is enabled, cured provisions use separate capacity and arrive only after smokehouses cover their household duties; disabling it stops new cured intake but keepers may still distribute stock already here. Staff are required for every granary delivery.</p>
     </div>
   `;
 }

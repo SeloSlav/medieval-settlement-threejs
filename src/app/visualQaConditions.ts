@@ -9,6 +9,7 @@ import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolic
 import {
   clayPitThroughputForWeather,
   preservedFoodDemandMultiplierForSeason,
+  preservedFoodSpoilageFractionPerDayFor,
   watermillThroughputForWeather,
   type EnvironmentState,
   type Season,
@@ -97,6 +98,11 @@ export function applyVisualQaEnvironment(
     deciduousFoliage: deciduousFoliageForSeasonPreview(conditions.season),
     preservedFoodDemandMultiplier:
       preservedFoodDemandMultiplierForSeason(conditions.season),
+    preservedFoodSpoilageFractionPerDay:
+      preservedFoodSpoilageFractionPerDayFor(
+        conditions.season,
+        conditions.weather,
+      ),
     watermillThroughputMultiplier: watermillThroughputForWeather(
       conditions.weather,
     ),
@@ -118,6 +124,8 @@ export function standaloneVisualQaEnvironment(
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: 0,
+    preservedFoodSpoilageFractionPerDay:
+      preservedFoodSpoilageFractionPerDayFor('summer', 'fair'),
     preservedFoodDemandMultiplier:
       preservedFoodDemandMultiplierForSeason('summer'),
     roadTravelSpeedMultiplier: 1,

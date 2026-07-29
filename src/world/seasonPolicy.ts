@@ -12,6 +12,12 @@ import {
   FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
   FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY,
   FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
+  PRESERVED_FOOD_SPOILAGE_AUTUMN_MULTIPLIER,
+  PRESERVED_FOOD_SPOILAGE_DROUGHT_MULTIPLIER,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  PRESERVED_FOOD_SPOILAGE_SPRING_MULTIPLIER,
+  PRESERVED_FOOD_SPOILAGE_SUMMER_MULTIPLIER,
+  PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
@@ -56,6 +62,8 @@ export type EnvironmentState = {
   firewoodDemandMultiplier: number;
   pastureCapacityMultiplier: number;
   freshFoodSpoilageFractionPerDay: number;
+  /** Slow quality loss of cured provisions before the current store factor. */
+  preservedFoodSpoilageFractionPerDay: number;
   /** Share of the normal prosperous-household ration rotated from cured stores. */
   preservedFoodDemandMultiplier: number;
   roadTravelSpeedMultiplier: number;
@@ -101,6 +109,21 @@ export function preservedFoodDemandMultiplierForSeason(season: Season): number {
     autumn: RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
     winter: RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   }[season];
+}
+
+export function preservedFoodSpoilageFractionPerDayFor(
+  season: Season,
+  weather: WeatherKind,
+): number {
+  const multiplier = weather === 'drought'
+    ? PRESERVED_FOOD_SPOILAGE_DROUGHT_MULTIPLIER
+    : {
+        spring: PRESERVED_FOOD_SPOILAGE_SPRING_MULTIPLIER,
+        summer: PRESERVED_FOOD_SPOILAGE_SUMMER_MULTIPLIER,
+        autumn: PRESERVED_FOOD_SPOILAGE_AUTUMN_MULTIPLIER,
+        winter: PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER,
+      }[season];
+  return PRESERVED_FOOD_SPOILAGE_PER_DAY * multiplier;
 }
 
 export function snowCoverageForClock(clock: GameClock): number {
@@ -177,6 +200,8 @@ export function environmentFor(
         autumn: FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
         winter: FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
       }[season],
+    preservedFoodSpoilageFractionPerDay:
+      preservedFoodSpoilageFractionPerDayFor(season, weather),
     preservedFoodDemandMultiplier:
       preservedFoodDemandMultiplierForSeason(season),
     roadTravelSpeedMultiplier: weather === 'rain'
@@ -239,6 +264,9 @@ export function describeNextDayEnvironmentOutlook(
   pressures.push(
     `fresh-food loss ${(next.freshFoodSpoilageFractionPerDay * 100).toFixed(1)}%/day`,
   );
+  pressures.push(
+    `cured-food aging ${(next.preservedFoodSpoilageFractionPerDay * 100).toFixed(2)}%/day before storage protection`,
+  );
   return `Next dawn, ${formatCalendarDate(outlook.clock)}: ${title} · ${road} · ${pressures.join(' · ')}`;
 }
 
@@ -254,7 +282,7 @@ export function describeEnvironment(environment: EnvironmentState): {
   if (environment.weather === 'drought') {
     return {
       title: 'Summer drought',
-      detail: `Crops and forage grow slowly; ponds lose fish; wells refill slowly; fresh food spoils faster. Low streams hold watermills to ${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput, while hardened riverbank clay limits pits to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%.`,
+      detail: `Crops and forage grow slowly; ponds lose fish; wells refill slowly; fresh food spoils faster, and warm stores age cured provisions fastest. Low streams hold watermills to ${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput, while hardened riverbank clay limits pits to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%.`,
       symbol: '☀',
     };
   }
@@ -269,7 +297,7 @@ export function describeEnvironment(environment: EnvironmentState): {
     const snowCover = Math.round(environment.snowCoverage * 100);
     return {
       title: 'Winter frost',
-      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, and sheep shearing stop; release those crews to logging, construction, hunting, or processing the autumn crop. Higher-tier homes burn twice their normal firewood, pasture is scarce, iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%, and frozen clay banks limit digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%. Stockpiled autumn clay can still keep sheltered kilns working.${roadDetail}`,
+      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, and sheep shearing stop; release those crews to logging, construction, hunting, or processing the autumn crop. Higher-tier homes burn twice their normal firewood, while cold stores halve cured-food aging. Pasture is scarce, iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%, and frozen clay banks limit digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%. Stockpiled autumn clay can still keep sheltered kilns working.${roadDetail}`,
       symbol: '❄',
     };
   }

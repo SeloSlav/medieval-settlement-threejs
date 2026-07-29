@@ -25,7 +25,6 @@ import {
   LIVESTOCK_HAYMAKING_START_MONTH,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
-  PRESERVED_FOOD_SPOILAGE_PER_DAY,
 } from '../../generated/gameBalance.ts';
 import { cattleManurePerCycle } from '../../farming/manurePlanning.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
@@ -356,7 +355,7 @@ export function renderLivestockBuildingInspector(
       ${building.kind === 'pastoral_farmstead' ? `<li><span>Preserved stock</span><span>${building.preservedFood.toFixed(1)} / ${storageCaps.preservedFood ?? 0}</span></li>
       <li><span>Cured-store aging</span><span>Ordinary dry storage · ${formatPreservedFoodLoss(
         building.preservedFood
-        * PRESERVED_FOOD_SPOILAGE_PER_DAY
+        * environment.preservedFoodSpoilageFractionPerDay
         * buildingPreservedFoodStorageFactor(building.kind),
       )}</span></li>` : ''}
       ${herd?.species === 'sheep' ? `<li><span>Wool store</span><span>${(building.wool ?? 0).toFixed(1)} / ${storageCaps.wool ?? 0}</span></li>

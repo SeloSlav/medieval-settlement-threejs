@@ -211,6 +211,11 @@ export type GameBalance = {
       treasury: number;
     };
     preservedFoodSpoilagePerDay: number;
+    preservedFoodSpoilageSpringMultiplier: number;
+    preservedFoodSpoilageSummerMultiplier: number;
+    preservedFoodSpoilageAutumnMultiplier: number;
+    preservedFoodSpoilageWinterMultiplier: number;
+    preservedFoodSpoilageDroughtMultiplier: number;
     preservedFoodStorageFactors: {
       defaultBuilding: number;
       granary: number;
@@ -696,6 +701,11 @@ function generateRust(): string {
     `pub const FRESH_FOOD_STORAGE_CART_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.cart)};`,
     `pub const FRESH_FOOD_STORAGE_TREASURY_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.treasury)};`,
     `pub const PRESERVED_FOOD_SPOILAGE_PER_DAY: f64 = ${rustF64(b.seasons.preservedFoodSpoilagePerDay)};`,
+    `pub const PRESERVED_FOOD_SPOILAGE_SPRING_MULTIPLIER: f64 = ${rustF64(b.seasons.preservedFoodSpoilageSpringMultiplier)};`,
+    `pub const PRESERVED_FOOD_SPOILAGE_SUMMER_MULTIPLIER: f64 = ${rustF64(b.seasons.preservedFoodSpoilageSummerMultiplier)};`,
+    `pub const PRESERVED_FOOD_SPOILAGE_AUTUMN_MULTIPLIER: f64 = ${rustF64(b.seasons.preservedFoodSpoilageAutumnMultiplier)};`,
+    `pub const PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER: f64 = ${rustF64(b.seasons.preservedFoodSpoilageWinterMultiplier)};`,
+    `pub const PRESERVED_FOOD_SPOILAGE_DROUGHT_MULTIPLIER: f64 = ${rustF64(b.seasons.preservedFoodSpoilageDroughtMultiplier)};`,
     `pub const PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.defaultBuilding)};`,
     `pub const PRESERVED_FOOD_STORAGE_GRANARY_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.granary)};`,
     `pub const PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.smokehouse)};`,
@@ -1477,6 +1487,11 @@ function generateTypeScript(): string {
     `export const FRESH_FOOD_STORAGE_CART_FACTOR = ${b.seasons.freshFoodStorageFactors.cart};`,
     `export const FRESH_FOOD_STORAGE_TREASURY_FACTOR = ${b.seasons.freshFoodStorageFactors.treasury};`,
     `export const PRESERVED_FOOD_SPOILAGE_PER_DAY = ${b.seasons.preservedFoodSpoilagePerDay};`,
+    `export const PRESERVED_FOOD_SPOILAGE_SPRING_MULTIPLIER = ${b.seasons.preservedFoodSpoilageSpringMultiplier};`,
+    `export const PRESERVED_FOOD_SPOILAGE_SUMMER_MULTIPLIER = ${b.seasons.preservedFoodSpoilageSummerMultiplier};`,
+    `export const PRESERVED_FOOD_SPOILAGE_AUTUMN_MULTIPLIER = ${b.seasons.preservedFoodSpoilageAutumnMultiplier};`,
+    `export const PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER = ${b.seasons.preservedFoodSpoilageWinterMultiplier};`,
+    `export const PRESERVED_FOOD_SPOILAGE_DROUGHT_MULTIPLIER = ${b.seasons.preservedFoodSpoilageDroughtMultiplier};`,
     `export const PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR = ${b.seasons.preservedFoodStorageFactors.defaultBuilding};`,
     `export const PRESERVED_FOOD_STORAGE_GRANARY_FACTOR = ${b.seasons.preservedFoodStorageFactors.granary};`,
     `export const PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR = ${b.seasons.preservedFoodStorageFactors.smokehouse};`,

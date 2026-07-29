@@ -6,6 +6,7 @@ import {
   CALENDAR_MONTHS_PER_YEAR,
   CALENDAR_SECONDS_PER_DAY,
   DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
   RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
@@ -36,6 +37,7 @@ import {
   environmentFor,
   nextDayEnvironmentOutlook,
   preservedFoodDemandMultiplierForSeason,
+  preservedFoodSpoilageFractionPerDayFor,
   seasonForMonth,
   snowCoverageForClock,
 } from '../src/world/seasonPolicy.ts';
@@ -84,6 +86,26 @@ assert.equal(
     + RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER
   ) / 4,
   1,
+);
+const seasonalCuredLossRates = [
+  preservedFoodSpoilageFractionPerDayFor('spring', 'fair'),
+  preservedFoodSpoilageFractionPerDayFor('summer', 'fair'),
+  preservedFoodSpoilageFractionPerDayFor('autumn', 'fair'),
+  preservedFoodSpoilageFractionPerDayFor('winter', 'frost'),
+];
+assert.ok(seasonalCuredLossRates[3] < seasonalCuredLossRates[0]);
+assert.ok(seasonalCuredLossRates[0] < seasonalCuredLossRates[1]);
+assert.ok(
+  Math.abs(
+    seasonalCuredLossRates.reduce((sum, rate) => sum + rate, 0) / 4
+    - PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  ) < 1e-12,
+  'seasonal cured-food pressure must preserve the configured annual-average balance',
+);
+assert.ok(
+  preservedFoodSpoilageFractionPerDayFor('summer', 'drought')
+  > seasonalCuredLossRates[1],
+  'a warm drought must age cured provisions faster than an ordinary mountain summer',
 );
 
 assert.deepEqual(GAME_SPEEDS, [0, 1, 4, 8]);
@@ -151,6 +173,10 @@ for (let year = 1; year <= 20 && !droughtFound; year += 1) {
       environment.clayPitThroughputMultiplier,
       CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
     );
+    assert.equal(
+      environment.preservedFoodSpoilageFractionPerDay,
+      preservedFoodSpoilageFractionPerDayFor('summer', 'drought'),
+    );
     break;
   }
 }
@@ -205,6 +231,7 @@ assert.match(autumnOutlookDescription, /Next dawn/);
 assert.match(autumnOutlookDescription, /100% → 90%/);
 assert.match(autumnOutlookDescription, /pre-haul remote stock and regional orders/);
 assert.match(autumnOutlookDescription, /fresh-food loss/);
+assert.match(autumnOutlookDescription, /cured-food aging/);
 
 const winterClock = gameClock(CALENDAR_DAYS_PER_MONTH * 9 * dayTicks);
 const winterEnvironment = environmentFor(12345, 50, winterClock);
@@ -242,6 +269,10 @@ assert.equal(openingMarchSnow, 0);
 assert.equal(lateMarchSnow, 0);
 assert.equal(winterEnvironment.roadTravelSpeedMultiplier, 0.72);
 assert.equal(
+  winterEnvironment.preservedFoodSpoilageFractionPerDay,
+  seasonalCuredLossRates[3],
+);
+assert.equal(
   winterEnvironment.watermillThroughputMultiplier,
   WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 );
@@ -251,6 +282,7 @@ assert.equal(
 );
 assert.match(describeEnvironment(winterEnvironment).detail, /carts travel 28% slower/i);
 assert.match(describeEnvironment(winterEnvironment).detail, /flour throughput to 45%/i);
+assert.match(describeEnvironment(winterEnvironment).detail, /halve cured-food aging/i);
 
 const lastAutumnDay = gameClock((CALENDAR_DAYS_PER_MONTH * 9 - 1) * dayTicks);
 const winterOutlookDescription = describeNextDayEnvironmentOutlook(

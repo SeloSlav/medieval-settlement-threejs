@@ -1232,7 +1232,8 @@ export class WorldQueries {
       ),
       (target) => inboundTargets.has(target.id),
       (target) => commodity === 'preservedFood'
-        || processorAcceptsInput(target, commodity),
+        ? target.granaryAcceptsFreshFood !== false
+        : processorAcceptsInput(target, commodity),
     );
   }
 

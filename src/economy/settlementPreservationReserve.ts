@@ -118,6 +118,7 @@ export type SettlementPreservationReserveOptions = {
   sabbathObserved: boolean;
   roadComponentFor?: ProductionRoadComponentResolver;
   targetDays?: number;
+  preservedFoodSpoilageFractionPerDay?: number;
 };
 
 type MutableBranch = Omit<
@@ -154,6 +155,11 @@ export function computeSettlementPreservationReservePlan(
   options: SettlementPreservationReserveOptions,
 ): SettlementPreservationReservePlan {
   const targetDays = finitePositive(options.targetDays, PRESERVATION_RESERVE_DAYS);
+  const preservedFoodSpoilageFractionPerDay = Number.isFinite(
+    options.preservedFoodSpoilageFractionPerDay,
+  )
+    ? Math.max(0, options.preservedFoodSpoilageFractionPerDay ?? 0)
+    : PRESERVED_FOOD_SPOILAGE_PER_DAY;
   const fireDisabledBuildings = fireDisabledBuildingIds(state.fireIncidents.values());
   const fireDisabledResidences = fireDisabledResidenceIds(state.fireIncidents.values());
   const branches = new Map<string, MutableBranch>();
@@ -323,7 +329,7 @@ export function computeSettlementPreservationReservePlan(
       ? projectedWeightedStock / branch.projectedStock
       : PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR;
     const spoilageFractionPerDay =
-      PRESERVED_FOOD_SPOILAGE_PER_DAY * storageFactor;
+      preservedFoodSpoilageFractionPerDay * storageFactor;
     branch.targetStock = stockRequiredForRunwayDays(
       branch.fallbackDemandPerDay,
       spoilageFractionPerDay,

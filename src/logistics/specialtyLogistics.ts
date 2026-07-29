@@ -157,6 +157,7 @@ export function hasStaffedChapel(buildings: Iterable<BuildingState>): boolean {
 export function residencePreservedFoodRunwaySeconds(
   residence: ResidenceState,
   seasonalDemandMultiplier = 1,
+  ambientSpoilageFractionPerDay = PRESERVED_FOOD_SPOILAGE_PER_DAY,
 ): number | null {
   if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
   const stock = getNeedStock(residence.needs, 'preservedFood');
@@ -170,7 +171,7 @@ export function residencePreservedFoodRunwaySeconds(
   return spoilageAdjustedRunwayDays(
     stock,
     usePerSec * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
-    PRESERVED_FOOD_SPOILAGE_PER_DAY
+    Math.max(0, ambientSpoilageFractionPerDay)
       * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   ) * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
 }
@@ -178,10 +179,12 @@ export function residencePreservedFoodRunwaySeconds(
 export function residencePreservedFoodRunwayDays(
   residence: ResidenceState,
   seasonalDemandMultiplier = 1,
+  ambientSpoilageFractionPerDay = PRESERVED_FOOD_SPOILAGE_PER_DAY,
 ): number | null {
   const runwaySeconds = residencePreservedFoodRunwaySeconds(
     residence,
     seasonalDemandMultiplier,
+    ambientSpoilageFractionPerDay,
   );
   if (runwaySeconds == null) return null;
   return runwaySeconds / SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;

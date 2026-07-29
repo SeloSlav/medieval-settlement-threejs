@@ -1,5 +1,4 @@
 use crate::balance_generated::{
-    CALENDAR_SECONDS_PER_DAY, PRESERVED_FOOD_SPOILAGE_PER_DAY,
     PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR, RESIDENCE_ALE_CAPACITY,
     RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_CAPACITY, RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
     RESIDENCE_POTTERY_CAPACITY, RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
@@ -31,10 +30,9 @@ pub fn preserved_food_demand(residence: &Residence, seasonal_multiplier: f64) ->
         * seasonal_multiplier.max(0.0)
 }
 
-pub fn spoil_preserved_food(need: &NeedState) -> NeedState {
-    let fraction_per_tick = PRESERVED_FOOD_SPOILAGE_PER_DAY / CALENDAR_SECONDS_PER_DAY
-        * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
-        * TICK_DT;
+pub fn spoil_preserved_food(need: &NeedState, ambient_fraction_per_second: f64) -> NeedState {
+    let fraction_per_tick =
+        ambient_fraction_per_second.max(0.0) * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR * TICK_DT;
     NeedState {
         stock: (need.stock - need.stock * fraction_per_tick.max(0.0)).max(0.0),
         ..*need

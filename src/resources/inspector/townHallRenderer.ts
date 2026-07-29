@@ -1685,6 +1685,8 @@ export function renderTownHallInspector(
     totals: context.resourceTotals,
     currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
     freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
+    preservedFoodSpoilageFractionPerDay:
+      environment.preservedFoodSpoilageFractionPerDay,
     currentPreservedFoodDemandMultiplier:
       environment.preservedFoodDemandMultiplier,
     sabbathObserved,
@@ -1965,6 +1967,8 @@ export function renderTownHallInspector(
     {
       sabbathObserved: provisioning.sabbathObserved,
       roadComponentFor,
+      preservedFoodSpoilageFractionPerDay:
+        environment.preservedFoodSpoilageFractionPerDay,
     },
   );
   const preservationReserveRows = renderPreservationReserveRows(

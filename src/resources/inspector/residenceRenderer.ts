@@ -15,7 +15,6 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   HUNGER_WARNING_DAYS,
   MALNUTRITION_DAYS,
-  PRESERVED_FOOD_SPOILAGE_PER_DAY,
   PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
@@ -58,8 +57,7 @@ import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
-  preservedFoodDemandMultiplierForSeason,
-  seasonForMonth,
+  environmentFor,
 } from '../../world/seasonPolicy.ts';
 import {
   allocatePreservedMeal,
@@ -305,10 +303,13 @@ export function renderResidenceInspector(
   const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
   const currentClock = gameClock(context.gameState.tick);
+  const environment = environmentFor(
+    context.gameState.seed,
+    context.worldHydrology,
+    currentClock,
+  );
   const preservedFoodDemandMultiplier =
-    preservedFoodDemandMultiplierForSeason(
-      seasonForMonth(currentClock.month),
-    );
+    environment.preservedFoodDemandMultiplier;
   const preservedFoodRotationPerDay = residence.population
     * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
     * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY
@@ -389,7 +390,7 @@ export function renderResidenceInspector(
         preservedStock: getNeedStock(residence.needs, 'preservedFood'),
         preservedRotationPerDay: preservedFoodRotationPerDay,
         preservedFoodSpoilageFractionPerDay:
-          PRESERVED_FOOD_SPOILAGE_PER_DAY
+          environment.preservedFoodSpoilageFractionPerDay
           * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       })
     : residenceFoodRunwayDays(residence);
@@ -400,6 +401,7 @@ export function renderResidenceInspector(
     ? residencePreservedFoodRunwayDays(
         residence,
         preservedFoodDemandMultiplier,
+        environment.preservedFoodSpoilageFractionPerDay,
       )
     : null;
   const preservedFoodRunwayLabel = preservedFoodRunwayDays == null
@@ -593,7 +595,7 @@ export function renderResidenceInspector(
       ${residence.tier >= 3 ? `<li><span>Preserved food</span><span>${Math.round(getNeedStock(residence.needs, 'preservedFood'))} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
         getNeedStock(residence.needs, 'preservedFood')
-        * PRESERVED_FOOD_SPOILAGE_PER_DAY
+        * environment.preservedFoodSpoilageFractionPerDay
         * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       )} · consume or replenish regularly</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Seasonal ration rotation</span><span>${preservedFoodRotationPerDay.toFixed(2)} / day at ${preservedFoodDemandMultiplier.toFixed(2)}&times; seasonal use &middot; replaces the same amount of fresh food rather than adding a second meal</span></li>` : ''}
