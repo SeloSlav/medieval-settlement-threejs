@@ -108,6 +108,106 @@ approx(fullWeek.breweryOutputRoom?.days ?? -1, 3);
 approx(fullWeek.smokehouseOutputRoom?.days ?? -1, 9 / 8);
 approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5);
 
+const materialState = emptyGameState();
+const materialBuildings = [
+  building('material-clay', 'clay_pit', 1),
+  building('material-potter', 'potter_kiln', 1),
+  building('material-smokehouse', 'smokehouse', 1),
+  building('material-charcoal', 'charcoal_burner', 1),
+  building('material-smithy', 'smithy', 1),
+  building('material-market', 'marketplace', 1),
+  building('material-lumber', 'lumber_mill', 1),
+];
+materialBuildings[0].ironwork = 1;
+for (const candidate of materialBuildings) {
+  materialState.buildings.set(candidate.id, candidate);
+}
+const joinedMaterials = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+).industrialMaterials;
+assert.equal(joinedMaterials.activeRoadBranches, 1);
+assert.equal(joinedMaterials.potteryMatchedBranches, 1);
+assert.equal(joinedMaterials.potteryBlockedBranches, 0);
+assert.equal(joinedMaterials.smithyMatchedBranches, 1);
+assert.equal(joinedMaterials.smithyBlockedBranches, 0);
+assert.equal(joinedMaterials.potteryShortfallPerDay, 0);
+assert.ok(joinedMaterials.potteryExportSurplusPerDay > 0);
+assert.equal(joinedMaterials.potteryStrandedPerDay, 0);
+assert.equal(joinedMaterials.toolEligibleSites, 2);
+assert.equal(joinedMaterials.toolMaintainedSites, 1);
+assert.ok(
+  joinedMaterials.fullToolIronworkPerDay
+    > joinedMaterials.maintainedToolIronworkPerDay,
+);
+assert.ok(joinedMaterials.ironworkOutputPerDay > 0);
+approx(
+  joinedMaterials.roadCoveredToolIronworkPerDay,
+  joinedMaterials.maintainedToolIronworkPerDay,
+  'same-branch smithing should cover the currently maintained tool racks',
+);
+assert.ok(joinedMaterials.ironworkSurplusAfterToolUpkeep > 0);
+
+const splitMaterials = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  (candidate) => (
+    candidate.id === 'material-potter'
+    || candidate.id === 'material-smithy'
+      ? 'remote'
+      : 'core'
+  ),
+).industrialMaterials;
+assert.equal(splitMaterials.activeRoadBranches, 2);
+assert.equal(splitMaterials.potteryMatchedBranches, 0);
+assert.ok(splitMaterials.potteryBlockedBranches >= 1);
+assert.equal(
+  splitMaterials.potteryCoveredDemandPerDay,
+  0,
+  'remote pottery capacity must not hide a preservation-branch shortage',
+);
+assert.ok(splitMaterials.potteryShortfallPerDay > 0);
+assert.equal(
+  splitMaterials.ironworkOutputPerDay,
+  0,
+  'a smithy without its charcoal yard and import market must report no sustainable output',
+);
+assert.ok(splitMaterials.smithyBlockedBranches >= 1);
+assert.equal(
+  splitMaterials.roadCoveredToolIronworkPerDay,
+  0,
+  'remote forge output must not cover tool wear on another road branch',
+);
+assert.ok(splitMaterials.firstPotteryBottleneckId);
+assert.ok(splitMaterials.firstSmithyBottleneckId);
+
+const industrialBuffers = computeSettlementProductionCapacity(
+  materialState,
+  false,
+);
+assert.equal(industrialBuffers.charcoalInputBuffer?.limitingInput, 'firewood');
+assert.equal(industrialBuffers.smithyInputBuffer?.limitingInput, 'iron');
+assert.equal(industrialBuffers.potterInputBuffer?.limitingInput, 'clay');
+assert.ok((industrialBuffers.charcoalOutputRoom?.days ?? 0) > 0);
+assert.ok((industrialBuffers.smithyOutputRoom?.days ?? 0) > 0);
+assert.ok((industrialBuffers.potterOutputRoom?.days ?? 0) > 0);
+materialState.fireIncidents.set('material-smithy-fire', {
+  id: 'material-smithy-fire',
+  targetKind: 'building',
+  targetId: 'material-smithy',
+} as FireIncidentState);
+const fireDisabledMaterials = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+);
+assert.equal(fireDisabledMaterials.fireDisabledProcessorSites, 1);
+assert.equal(fireDisabledMaterials.industrialMaterials.smithyWorkers, 0);
+assert.equal(fireDisabledMaterials.industrialMaterials.ironworkOutputPerDay, 0);
+assert.ok(fireDisabledMaterials.industrialMaterials.smithyBlockedBranches >= 1);
+materialState.fireIncidents.clear();
+
 weaver.wool = 0;
 weaver.flax = 39.375;
 weaver.water = 13.125;
@@ -1195,6 +1295,8 @@ assert.ok((perfCapacity.bakeryOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.breweryOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.smokehouseOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.weaverOutputRoom?.days ?? 0) > 0);
+assert.equal(perfCapacity.industrialMaterials.activeRoadBranches, 1);
+assert.equal(perfCapacity.industrialMaterials.potteryBlockedBranches, 1);
 assert.ok(
   elapsedMs < 200,
   `100,000-building production ledger took ${elapsedMs.toFixed(1)} ms`,
@@ -1212,6 +1314,8 @@ assert.equal(branchedPerfCapacity.grainChainRoads.activeBranches, 200);
 assert.equal(branchedPerfCapacity.grainChainRoads.fragmentationFoodPerDay, 0);
 assert.equal(branchedPerfCapacity.prosperityRoadBranches?.size, 200);
 assert.equal(branchedPerfCapacity.grainRoadBranches?.size, 200);
+assert.equal(branchedPerfCapacity.industrialMaterials.activeRoadBranches, 200);
+assert.equal(branchedPerfCapacity.industrialMaterials.potteryBlockedBranches, 200);
 assert.ok(
   Math.abs(
     branchedPerfCapacity.breadFoodCapacityPerDay
@@ -1454,6 +1558,14 @@ const worldQueries = readFileSync(
 );
 assert.match(worldQueries, /findFarmFieldTarget\(fieldId: string\)/);
 assert.match(worldQueries, /getRoadComponentId\(x: number, z: number\)/);
+const townHallRenderer = readFileSync(
+  new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
+  'utf8',
+);
+assert.match(townHallRenderer, /Material-chain roads/);
+assert.match(townHallRenderer, /Pottery chain/);
+assert.match(townHallRenderer, /Ironwork chain/);
+assert.match(townHallRenderer, /Civilian tool upkeep/);
 
 console.log(
   `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 200 road branches; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,

@@ -11,10 +11,18 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
+  CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
+  CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+  CLAY_PIT_CLAY_PER_CYCLE,
   GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_FLOUR_PER_CYCLE,
   GRANARY_FOOD_PER_CYCLE,
   GRANARY_WATER_PER_CYCLE,
+  POTTER_CLAY_PER_CYCLE,
+  POTTER_FIREWOOD_PER_CYCLE,
+  POTTER_POTTERY_PER_CYCLE,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
@@ -23,6 +31,9 @@ import {
   SMOKEHOUSE_POTTERY_PER_CYCLE,
   SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
   SMOKEHOUSE_SALT_PER_CYCLE,
+  SMITHY_CHARCOAL_PER_CYCLE,
+  SMITHY_IRONWORK_PER_CYCLE,
+  SMITHY_IRON_PER_CYCLE,
   WATERMILL_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
@@ -51,6 +62,11 @@ import {
   normalizeProcessorOutputTargetPercent,
   processorOutputTargetForBuilding,
 } from './processorOutputPolicy.ts';
+import {
+  civilianToolsMaintained,
+  civilianToolThroughputMultiplier,
+  isCivilianToolSite,
+} from './civilianToolPolicy.ts';
 import { weaverUsesFlax } from './weaverInputPolicy.ts';
 
 export type SettlementProductionCapacity = {
@@ -69,11 +85,17 @@ export type SettlementProductionCapacity = {
   breweryInputBuffer: ProcessorInputBuffer | null;
   smokehouseInputBuffer: ProcessorInputBuffer | null;
   weaverInputBuffer: ProcessorInputBuffer | null;
+  charcoalInputBuffer: ProcessorInputBuffer | null;
+  smithyInputBuffer: ProcessorInputBuffer | null;
+  potterInputBuffer: ProcessorInputBuffer | null;
   millOutputRoom: ProcessorOutputRoom | null;
   bakeryOutputRoom: ProcessorOutputRoom | null;
   breweryOutputRoom: ProcessorOutputRoom | null;
   smokehouseOutputRoom: ProcessorOutputRoom | null;
   weaverOutputRoom: ProcessorOutputRoom | null;
+  charcoalOutputRoom: ProcessorOutputRoom | null;
+  smithyOutputRoom: ProcessorOutputRoom | null;
+  potterOutputRoom: ProcessorOutputRoom | null;
   flourOutputPerDay: number;
   bakeryFlourCapacityPerDay: number;
   breadFoodCapacityPerDay: number;
@@ -95,6 +117,7 @@ export type SettlementProductionCapacity = {
   clothWoolPerDay: number;
   clothFlaxPerDay: number;
   clothFlaxWaterPerDay: number;
+  industrialMaterials: IndustrialMaterialPlan;
   tierThreeResidents: number;
   fireDisabledTierThreeHomes: number;
   fireDisabledTierThreeResidents: number;
@@ -112,6 +135,9 @@ export type ProcessorInput =
   | 'water'
   | 'firewood'
   | 'fresh food'
+  | 'iron'
+  | 'charcoal'
+  | 'clay'
   | 'salt'
   | 'pottery'
   | 'wool'
@@ -142,6 +168,44 @@ export type GrainChainRoadPlan = {
   hypotheticalFoodPerDay: number;
   fragmentationFoodPerDay: number;
   firstImbalancedBuildingId: string | null;
+};
+
+export type IndustrialMaterialPlan = {
+  activeRoadBranches: number;
+  potteryMatchedBranches: number;
+  potteryBlockedBranches: number;
+  smithyMatchedBranches: number;
+  smithyBlockedBranches: number;
+  clayWorkers: number;
+  potterWorkers: number;
+  charcoalWorkers: number;
+  smithyWorkers: number;
+  toolEligibleSites: number;
+  toolMaintainedSites: number;
+  clayOutputPerDay: number;
+  potterInstalledOutputPerDay: number;
+  potteryOutputPerDay: number;
+  potteryDemandPerDay: number;
+  potteryCoveredDemandPerDay: number;
+  potteryShortfallPerDay: number;
+  potteryExportSurplusPerDay: number;
+  potteryStrandedPerDay: number;
+  potterClayPerDay: number;
+  potterFirewoodPerDay: number;
+  charcoalOutputPerDay: number;
+  charcoalFirewoodPerDay: number;
+  smithyInstalledIronworkPerDay: number;
+  ironworkOutputPerDay: number;
+  smithyIronPerDay: number;
+  smithyCharcoalPerDay: number;
+  maintainedToolIronworkPerDay: number;
+  fullToolIronworkPerDay: number;
+  roadCoveredToolIronworkPerDay: number;
+  roadCoveredFullToolIronworkPerDay: number;
+  ironworkSurplusAfterToolUpkeep: number;
+  firstPotteryBottleneckId: string | null;
+  firstSmithyBottleneckId: string | null;
+  firstUnmaintainedToolSiteId: string | null;
 };
 
 export type ProductionGrainRoadBranch = {
@@ -190,17 +254,33 @@ type ProcessorOverview = Pick<
   | 'breweryInputBuffer'
   | 'smokehouseInputBuffer'
   | 'weaverInputBuffer'
+  | 'charcoalInputBuffer'
+  | 'smithyInputBuffer'
+  | 'potterInputBuffer'
   | 'millOutputRoom'
   | 'bakeryOutputRoom'
   | 'breweryOutputRoom'
   | 'smokehouseOutputRoom'
   | 'weaverOutputRoom'
+  | 'charcoalOutputRoom'
+  | 'smithyOutputRoom'
+  | 'potterOutputRoom'
 > & {
   fireDisabledProcessorSites: number;
   fireDisabledProcessorWorkers: number;
   firstFireDisabledProcessorId: string | null;
   grainChainBranches: Map<string, GrainChainBranch>;
   prosperityRoadBranches: Map<string, ProsperityRoadBranch> | null;
+  industrialMaterialBranches: Map<string, IndustrialMaterialBranch>;
+  clayWorkers: number;
+  potterWorkers: number;
+  charcoalWorkers: number;
+  smithyWorkers: number;
+  toolEligibleSites: number;
+  toolMaintainedSites: number;
+  maintainedToolIronworkPerDay: number;
+  fullToolIronworkPerDay: number;
+  firstUnmaintainedToolSiteId: string | null;
 };
 
 type GrainChainBranch = {
@@ -208,6 +288,28 @@ type GrainChainBranch = {
   bakeryWorkers: number;
   firstMillId: string | null;
   firstBakeryId: string | null;
+};
+
+type IndustrialMaterialBranch = {
+  clayOutputPerDay: number;
+  potterOutputPerDay: number;
+  potterClayPerDay: number;
+  potterFirewoodPerDay: number;
+  smokehousePotteryDemandPerDay: number;
+  charcoalOutputPerDay: number;
+  charcoalFirewoodPerDay: number;
+  smithyIronworkPerDay: number;
+  smithyIronPerDay: number;
+  smithyCharcoalPerDay: number;
+  maintainedToolIronworkPerDay: number;
+  fullToolIronworkPerDay: number;
+  hasStaffedMarket: boolean;
+  firstClayId: string | null;
+  firstPotterId: string | null;
+  firstSmokehouseId: string | null;
+  firstCharcoalId: string | null;
+  firstSmithyId: string | null;
+  firstToolSiteId: string | null;
 };
 
 type TimedInputDelivery = {
@@ -229,6 +331,39 @@ function grainChainBranchKey(
     'building',
     building.id,
   );
+}
+
+function industrialMaterialBranch(
+  branches: Map<string, IndustrialMaterialBranch>,
+  building: BuildingState,
+  componentFor: ProductionRoadComponentResolver | undefined,
+): IndustrialMaterialBranch {
+  const key = grainChainBranchKey(building, componentFor);
+  let branch = branches.get(key);
+  if (branch) return branch;
+  branch = {
+    clayOutputPerDay: 0,
+    potterOutputPerDay: 0,
+    potterClayPerDay: 0,
+    potterFirewoodPerDay: 0,
+    smokehousePotteryDemandPerDay: 0,
+    charcoalOutputPerDay: 0,
+    charcoalFirewoodPerDay: 0,
+    smithyIronworkPerDay: 0,
+    smithyIronPerDay: 0,
+    smithyCharcoalPerDay: 0,
+    maintainedToolIronworkPerDay: 0,
+    fullToolIronworkPerDay: 0,
+    hasStaffedMarket: false,
+    firstClayId: null,
+    firstPotterId: null,
+    firstSmokehouseId: null,
+    firstCharcoalId: null,
+    firstSmithyId: null,
+    firstToolSiteId: null,
+  };
+  branches.set(key, branch);
+  return branch;
 }
 
 function prosperityRoadBranch(
@@ -449,6 +584,17 @@ function completedProcessorOverview(
   const breweryCyclesPerWorker = cyclesPerCalendarDay('brewery', 1, sabbathObserved);
   const smokehouseCyclesPerWorker = cyclesPerCalendarDay('smokehouse', 1, sabbathObserved);
   const weaverCyclesPerWorker = cyclesPerCalendarDay('weaver', 1, sabbathObserved);
+  const charcoalCyclesPerWorker = cyclesPerCalendarDay(
+    'charcoal_burner',
+    1,
+    sabbathObserved,
+  );
+  const smithyCyclesPerWorker = cyclesPerCalendarDay('smithy', 1, sabbathObserved);
+  const potterCyclesPerWorker = cyclesPerCalendarDay(
+    'potter_kiln',
+    1,
+    sabbathObserved,
+  );
   let fireDisabledProcessorSites = 0;
   let fireDisabledProcessorWorkers = 0;
   let firstFireDisabledProcessorId: string | null = null;
@@ -457,17 +603,33 @@ function completedProcessorOverview(
   let breweryWorkers = 0;
   let smokehouseWorkers = 0;
   let weaverWorkers = 0;
+  let clayWorkers = 0;
+  let charcoalWorkers = 0;
+  let smithyWorkers = 0;
+  let potterWorkers = 0;
+  let toolEligibleSites = 0;
+  let toolMaintainedSites = 0;
+  let maintainedToolIronworkPerDay = 0;
+  let fullToolIronworkPerDay = 0;
+  let firstUnmaintainedToolSiteId: string | null = null;
   let millInputBuffer: ProcessorInputBuffer | null = null;
   let bakeryInputBuffer: ProcessorInputBuffer | null = null;
   let breweryInputBuffer: ProcessorInputBuffer | null = null;
   let smokehouseInputBuffer: ProcessorInputBuffer | null = null;
   let weaverInputBuffer: ProcessorInputBuffer | null = null;
+  let charcoalInputBuffer: ProcessorInputBuffer | null = null;
+  let smithyInputBuffer: ProcessorInputBuffer | null = null;
+  let potterInputBuffer: ProcessorInputBuffer | null = null;
   let millOutputRoom: ProcessorOutputRoom | null = null;
   let bakeryOutputRoom: ProcessorOutputRoom | null = null;
   let breweryOutputRoom: ProcessorOutputRoom | null = null;
   let smokehouseOutputRoom: ProcessorOutputRoom | null = null;
   let weaverOutputRoom: ProcessorOutputRoom | null = null;
+  let charcoalOutputRoom: ProcessorOutputRoom | null = null;
+  let smithyOutputRoom: ProcessorOutputRoom | null = null;
+  let potterOutputRoom: ProcessorOutputRoom | null = null;
   const grainChainBranches = new Map<string, GrainChainBranch>();
+  const industrialMaterialBranches = new Map<string, IndustrialMaterialBranch>();
   const prosperityRoadBranches = componentFor
     ? new Map<string, ProsperityRoadBranch>()
     : null;
@@ -482,6 +644,9 @@ function completedProcessorOverview(
         || building.kind === 'brewery'
         || building.kind === 'smokehouse'
         || building.kind === 'weaver'
+        || building.kind === 'charcoal_burner'
+        || building.kind === 'smithy'
+        || building.kind === 'potter_kiln'
       ) {
         fireDisabledProcessorSites += 1;
         fireDisabledProcessorWorkers += Math.max(0, building.assignedLabor);
@@ -491,6 +656,48 @@ function completedProcessorOverview(
         );
       }
       continue;
+    }
+    if (isCivilianToolSite(building.kind)) {
+      toolEligibleSites += 1;
+      const maintained = civilianToolsMaintained(building.ironwork ?? 0);
+      const maintainedCycles = cyclesPerCalendarDay(
+        building.kind,
+        building.assignedLabor,
+        sabbathObserved,
+        civilianToolThroughputMultiplier(building.ironwork ?? 0),
+      );
+      const fullyEquippedCycles = cyclesPerCalendarDay(
+        building.kind,
+        building.assignedLabor,
+        sabbathObserved,
+        CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+      );
+      const fullyEquippedDemand = fullyEquippedCycles
+        * CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
+      const maintainedDemand = maintained
+        ? maintainedCycles * CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+        : 0;
+      fullToolIronworkPerDay += fullyEquippedDemand;
+      const materialBranch = industrialMaterialBranch(
+        industrialMaterialBranches,
+        building,
+        componentFor,
+      );
+      materialBranch.fullToolIronworkPerDay += fullyEquippedDemand;
+      materialBranch.maintainedToolIronworkPerDay += maintainedDemand;
+      materialBranch.firstToolSiteId = earlierStableId(
+        materialBranch.firstToolSiteId,
+        building.id,
+      );
+      if (maintained) {
+        toolMaintainedSites += 1;
+        maintainedToolIronworkPerDay += maintainedDemand;
+      } else {
+        firstUnmaintainedToolSiteId = earlierStableId(
+          firstUnmaintainedToolSiteId,
+          building.id,
+        );
+      }
     }
     switch (building.kind) {
       case 'watermill': {
@@ -657,6 +864,17 @@ function completedProcessorOverview(
       case 'smokehouse': {
         smokehouseWorkers += building.assignedLabor;
         const cycles = smokehouseCyclesPerWorker * building.assignedLabor;
+        const materialBranch = industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        );
+        materialBranch.smokehousePotteryDemandPerDay += cycles
+          * SMOKEHOUSE_POTTERY_PER_CYCLE;
+        materialBranch.firstSmokehouseId = earlierStableId(
+          materialBranch.firstSmokehouseId,
+          building.id,
+        );
         recordProsperityOutput(
           prosperityRoadBranches,
           building,
@@ -771,6 +989,168 @@ function completedProcessorOverview(
         );
         break;
       }
+      case 'clay_pit': {
+        clayWorkers += building.assignedLabor;
+        const cycles = cyclesPerCalendarDay(
+          'clay_pit',
+          building.assignedLabor,
+          sabbathObserved,
+          civilianToolThroughputMultiplier(building.ironwork ?? 0),
+        );
+        const branch = industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        );
+        branch.clayOutputPerDay += cycles * CLAY_PIT_CLAY_PER_CYCLE;
+        branch.firstClayId = earlierStableId(branch.firstClayId, building.id);
+        break;
+      }
+      case 'charcoal_burner': {
+        charcoalWorkers += building.assignedLabor;
+        const cycles = charcoalCyclesPerWorker * building.assignedLabor;
+        const branch = industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        );
+        branch.charcoalOutputPerDay += cycles
+          * CHARCOAL_BURNER_CHARCOAL_PER_CYCLE;
+        branch.charcoalFirewoodPerDay += cycles
+          * CHARCOAL_BURNER_FIREWOOD_PER_CYCLE;
+        branch.firstCharcoalId = earlierStableId(
+          branch.firstCharcoalId,
+          building.id,
+        );
+        charcoalInputBuffer = updateFirstToStop(
+          charcoalInputBuffer,
+          buildingInputRunway(
+            deliveries,
+            building,
+            'firewood',
+            cycles * CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+          ),
+          'firewood',
+          building.id,
+        );
+        charcoalOutputRoom = updateFirstToFill(
+          charcoalOutputRoom,
+          outputRoomDays(
+            building.charcoal ?? 0,
+            processorOutputTargetForBuilding(building)
+              ?? (BUILDING_STORAGE_CAPS.charcoal_burner.charcoal ?? 0),
+            cycles * CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
+          ),
+          building.id,
+          normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
+        );
+        break;
+      }
+      case 'smithy': {
+        smithyWorkers += building.assignedLabor;
+        const cycles = smithyCyclesPerWorker * building.assignedLabor;
+        const branch = industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        );
+        branch.smithyIronworkPerDay += cycles * SMITHY_IRONWORK_PER_CYCLE;
+        branch.smithyIronPerDay += cycles * SMITHY_IRON_PER_CYCLE;
+        branch.smithyCharcoalPerDay += cycles * SMITHY_CHARCOAL_PER_CYCLE;
+        branch.firstSmithyId = earlierStableId(branch.firstSmithyId, building.id);
+        let runway = buildingInputRunway(
+          deliveries,
+          building,
+          'iron',
+          cycles * SMITHY_IRON_PER_CYCLE,
+        );
+        let limitingInput: ProcessorInput = 'iron';
+        const charcoalRunway = buildingInputRunway(
+          deliveries,
+          building,
+          'charcoal',
+          cycles * SMITHY_CHARCOAL_PER_CYCLE,
+        );
+        if (charcoalRunway.days < runway.days) {
+          runway = charcoalRunway;
+          limitingInput = 'charcoal';
+        }
+        smithyInputBuffer = updateFirstToStop(
+          smithyInputBuffer,
+          runway,
+          limitingInput,
+          building.id,
+        );
+        smithyOutputRoom = updateFirstToFill(
+          smithyOutputRoom,
+          outputRoomDays(
+            building.ironwork ?? 0,
+            processorOutputTargetForBuilding(building)
+              ?? (BUILDING_STORAGE_CAPS.smithy.ironwork ?? 0),
+            cycles * SMITHY_IRONWORK_PER_CYCLE,
+          ),
+          building.id,
+          normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
+        );
+        break;
+      }
+      case 'potter_kiln': {
+        potterWorkers += building.assignedLabor;
+        const cycles = potterCyclesPerWorker * building.assignedLabor;
+        const branch = industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        );
+        branch.potterOutputPerDay += cycles * POTTER_POTTERY_PER_CYCLE;
+        branch.potterClayPerDay += cycles * POTTER_CLAY_PER_CYCLE;
+        branch.potterFirewoodPerDay += cycles * POTTER_FIREWOOD_PER_CYCLE;
+        branch.firstPotterId = earlierStableId(branch.firstPotterId, building.id);
+        let runway = buildingInputRunway(
+          deliveries,
+          building,
+          'clay',
+          cycles * POTTER_CLAY_PER_CYCLE,
+        );
+        let limitingInput: ProcessorInput = 'clay';
+        const firewoodRunway = buildingInputRunway(
+          deliveries,
+          building,
+          'firewood',
+          cycles * POTTER_FIREWOOD_PER_CYCLE,
+        );
+        if (firewoodRunway.days < runway.days) {
+          runway = firewoodRunway;
+          limitingInput = 'firewood';
+        }
+        potterInputBuffer = updateFirstToStop(
+          potterInputBuffer,
+          runway,
+          limitingInput,
+          building.id,
+        );
+        potterOutputRoom = updateFirstToFill(
+          potterOutputRoom,
+          outputRoomDays(
+            building.pottery ?? 0,
+            processorOutputTargetForBuilding(building)
+              ?? (BUILDING_STORAGE_CAPS.potter_kiln.pottery ?? 0),
+            cycles * POTTER_POTTERY_PER_CYCLE,
+          ),
+          building.id,
+          normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
+        );
+        break;
+      }
+      case 'marketplace': {
+        const branch = industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        );
+        branch.hasStaffedMarket = true;
+        break;
+      }
       default:
         break;
     }
@@ -784,18 +1164,34 @@ function completedProcessorOverview(
     breweryWorkers,
     smokehouseWorkers,
     weaverWorkers,
+    clayWorkers,
+    charcoalWorkers,
+    smithyWorkers,
+    potterWorkers,
+    toolEligibleSites,
+    toolMaintainedSites,
+    maintainedToolIronworkPerDay,
+    fullToolIronworkPerDay,
+    firstUnmaintainedToolSiteId,
     millInputBuffer,
     bakeryInputBuffer,
     breweryInputBuffer,
     smokehouseInputBuffer,
     weaverInputBuffer,
+    charcoalInputBuffer,
+    smithyInputBuffer,
+    potterInputBuffer,
     millOutputRoom,
     bakeryOutputRoom,
     breweryOutputRoom,
     smokehouseOutputRoom,
     weaverOutputRoom,
+    charcoalOutputRoom,
+    smithyOutputRoom,
+    potterOutputRoom,
     grainChainBranches,
     prosperityRoadBranches,
+    industrialMaterialBranches,
   };
 }
 
@@ -814,6 +1210,209 @@ function cyclesPerCalendarDay(
     * assignedLabor
     * Math.max(0, throughputMultiplier)
     / interval;
+}
+
+function industrialMaterialRoadPlan(
+  branches: ReadonlyMap<string, IndustrialMaterialBranch>,
+  overview: Pick<
+    ProcessorOverview,
+    | 'clayWorkers'
+    | 'potterWorkers'
+    | 'charcoalWorkers'
+    | 'smithyWorkers'
+    | 'toolEligibleSites'
+    | 'toolMaintainedSites'
+    | 'maintainedToolIronworkPerDay'
+    | 'fullToolIronworkPerDay'
+    | 'firstUnmaintainedToolSiteId'
+  >,
+): IndustrialMaterialPlan {
+  let activeRoadBranches = 0;
+  let potteryMatchedBranches = 0;
+  let potteryBlockedBranches = 0;
+  let smithyMatchedBranches = 0;
+  let smithyBlockedBranches = 0;
+  let clayOutputPerDay = 0;
+  let potterInstalledOutputPerDay = 0;
+  let potteryOutputPerDay = 0;
+  let potteryDemandPerDay = 0;
+  let potteryCoveredDemandPerDay = 0;
+  let potteryExportSurplusPerDay = 0;
+  let potteryStrandedPerDay = 0;
+  let potterClayPerDay = 0;
+  let potterFirewoodPerDay = 0;
+  let charcoalOutputPerDay = 0;
+  let charcoalFirewoodPerDay = 0;
+  let smithyInstalledIronworkPerDay = 0;
+  let ironworkOutputPerDay = 0;
+  let smithyIronPerDay = 0;
+  let smithyCharcoalPerDay = 0;
+  let roadCoveredToolIronworkPerDay = 0;
+  let roadCoveredFullToolIronworkPerDay = 0;
+  let ironworkSurplusAfterToolUpkeep = 0;
+  let firstPotteryBottleneckId: string | null = null;
+  let firstSmithyBottleneckId: string | null = null;
+
+  for (const branch of branches.values()) {
+    const hasPotteryActivity = branch.clayOutputPerDay > 1e-9
+      || branch.potterOutputPerDay > 1e-9
+      || branch.smokehousePotteryDemandPerDay > 1e-9;
+    const hasSmithyActivity = branch.charcoalOutputPerDay > 1e-9
+      || branch.smithyIronworkPerDay > 1e-9
+      || branch.fullToolIronworkPerDay > 1e-9;
+    if (hasPotteryActivity || hasSmithyActivity) {
+      activeRoadBranches += 1;
+    }
+
+    clayOutputPerDay += branch.clayOutputPerDay;
+    potterInstalledOutputPerDay += branch.potterOutputPerDay;
+    potteryDemandPerDay += branch.smokehousePotteryDemandPerDay;
+    charcoalOutputPerDay += branch.charcoalOutputPerDay;
+    charcoalFirewoodPerDay += branch.charcoalFirewoodPerDay;
+    smithyInstalledIronworkPerDay += branch.smithyIronworkPerDay;
+
+    const claySupportedPottery = branch.clayOutputPerDay
+      * POTTER_POTTERY_PER_CYCLE
+      / POTTER_CLAY_PER_CYCLE;
+    const branchPotteryOutput = Math.min(
+      branch.potterOutputPerDay,
+      claySupportedPottery,
+    );
+    const branchPotteryCoverage = Math.min(
+      branchPotteryOutput,
+      branch.smokehousePotteryDemandPerDay,
+    );
+    const branchPotterySurplus = Math.max(
+      0,
+      branchPotteryOutput - branchPotteryCoverage,
+    );
+    potteryOutputPerDay += branchPotteryOutput;
+    potteryCoveredDemandPerDay += branchPotteryCoverage;
+    potterClayPerDay += branchPotteryOutput
+      * POTTER_CLAY_PER_CYCLE
+      / POTTER_POTTERY_PER_CYCLE;
+    potterFirewoodPerDay += branchPotteryOutput
+      * POTTER_FIREWOOD_PER_CYCLE
+      / POTTER_POTTERY_PER_CYCLE;
+    if (branch.hasStaffedMarket) {
+      potteryExportSurplusPerDay += branchPotterySurplus;
+    } else {
+      potteryStrandedPerDay += branchPotterySurplus;
+    }
+
+    const potteryHasDownstream = branch.smokehousePotteryDemandPerDay > 1e-9
+      || branch.hasStaffedMarket;
+    if (branchPotteryOutput > 1e-9 && potteryHasDownstream) {
+      potteryMatchedBranches += 1;
+    }
+    const potteryBlocked = (
+      branch.smokehousePotteryDemandPerDay > branchPotteryCoverage + 1e-9
+      || branch.potterOutputPerDay > branchPotteryOutput + 1e-9
+      || (branch.clayOutputPerDay > 1e-9 && branch.potterOutputPerDay <= 1e-9)
+      || (branchPotterySurplus > 1e-9 && !branch.hasStaffedMarket)
+    );
+    if (potteryBlocked) {
+      potteryBlockedBranches += 1;
+      const candidate = branch.potterOutputPerDay > 1e-9
+        ? branch.firstPotterId
+        : branch.smokehousePotteryDemandPerDay > 1e-9
+          ? branch.firstSmokehouseId
+          : branch.firstClayId;
+      if (candidate !== null) {
+        firstPotteryBottleneckId = earlierStableId(
+          firstPotteryBottleneckId,
+          candidate,
+        );
+      }
+    }
+
+    const charcoalSupportedIronwork = branch.charcoalOutputPerDay
+      * SMITHY_IRONWORK_PER_CYCLE
+      / SMITHY_CHARCOAL_PER_CYCLE;
+    const branchIronworkOutput = branch.hasStaffedMarket
+      ? Math.min(branch.smithyIronworkPerDay, charcoalSupportedIronwork)
+      : 0;
+    ironworkOutputPerDay += branchIronworkOutput;
+    smithyIronPerDay += branchIronworkOutput
+      * SMITHY_IRON_PER_CYCLE
+      / SMITHY_IRONWORK_PER_CYCLE;
+    smithyCharcoalPerDay += branchIronworkOutput
+      * SMITHY_CHARCOAL_PER_CYCLE
+      / SMITHY_IRONWORK_PER_CYCLE;
+    roadCoveredToolIronworkPerDay += Math.min(
+      branchIronworkOutput,
+      branch.maintainedToolIronworkPerDay,
+    );
+    roadCoveredFullToolIronworkPerDay += Math.min(
+      branchIronworkOutput,
+      branch.fullToolIronworkPerDay,
+    );
+    ironworkSurplusAfterToolUpkeep += Math.max(
+      0,
+      branchIronworkOutput - branch.maintainedToolIronworkPerDay,
+    );
+    if (branchIronworkOutput > 1e-9) {
+      smithyMatchedBranches += 1;
+    }
+    const smithyBlocked = (
+      branch.smithyIronworkPerDay > branchIronworkOutput + 1e-9
+      || (branch.charcoalOutputPerDay > 1e-9 && branch.smithyIronworkPerDay <= 1e-9)
+      || branch.fullToolIronworkPerDay > branchIronworkOutput + 1e-9
+    );
+    if (smithyBlocked) {
+      smithyBlockedBranches += 1;
+      const candidate = branch.firstSmithyId
+        ?? branch.firstToolSiteId
+        ?? branch.firstCharcoalId;
+      if (candidate !== null) {
+        firstSmithyBottleneckId = earlierStableId(
+          firstSmithyBottleneckId,
+          candidate,
+        );
+      }
+    }
+  }
+
+  return {
+    activeRoadBranches,
+    potteryMatchedBranches,
+    potteryBlockedBranches,
+    smithyMatchedBranches,
+    smithyBlockedBranches,
+    clayWorkers: overview.clayWorkers,
+    potterWorkers: overview.potterWorkers,
+    charcoalWorkers: overview.charcoalWorkers,
+    smithyWorkers: overview.smithyWorkers,
+    toolEligibleSites: overview.toolEligibleSites,
+    toolMaintainedSites: overview.toolMaintainedSites,
+    clayOutputPerDay,
+    potterInstalledOutputPerDay,
+    potteryOutputPerDay,
+    potteryDemandPerDay,
+    potteryCoveredDemandPerDay,
+    potteryShortfallPerDay: Math.max(
+      0,
+      potteryDemandPerDay - potteryCoveredDemandPerDay,
+    ),
+    potteryExportSurplusPerDay,
+    potteryStrandedPerDay,
+    potterClayPerDay,
+    potterFirewoodPerDay,
+    charcoalOutputPerDay,
+    charcoalFirewoodPerDay,
+    smithyInstalledIronworkPerDay,
+    ironworkOutputPerDay,
+    smithyIronPerDay,
+    smithyCharcoalPerDay,
+    maintainedToolIronworkPerDay: overview.maintainedToolIronworkPerDay,
+    fullToolIronworkPerDay: overview.fullToolIronworkPerDay,
+    roadCoveredToolIronworkPerDay,
+    roadCoveredFullToolIronworkPerDay,
+    ironworkSurplusAfterToolUpkeep,
+    firstPotteryBottleneckId,
+    firstSmithyBottleneckId,
+    firstUnmaintainedToolSiteId: overview.firstUnmaintainedToolSiteId,
+  };
 }
 
 function grainChainRoadPlan(
@@ -947,23 +1546,53 @@ export function computeSettlementProductionCapacity(
     breweryWorkers,
     smokehouseWorkers,
     weaverWorkers,
+    clayWorkers,
+    charcoalWorkers,
+    smithyWorkers,
+    potterWorkers,
+    toolEligibleSites,
+    toolMaintainedSites,
+    maintainedToolIronworkPerDay,
+    fullToolIronworkPerDay,
+    firstUnmaintainedToolSiteId,
     millInputBuffer,
     bakeryInputBuffer,
     breweryInputBuffer,
     smokehouseInputBuffer,
     weaverInputBuffer,
+    charcoalInputBuffer,
+    smithyInputBuffer,
+    potterInputBuffer,
     millOutputRoom,
     bakeryOutputRoom,
     breweryOutputRoom,
     smokehouseOutputRoom,
     weaverOutputRoom,
+    charcoalOutputRoom,
+    smithyOutputRoom,
+    potterOutputRoom,
     grainChainBranches,
     prosperityRoadBranches,
+    industrialMaterialBranches,
   } = completedProcessorOverview(
     state,
     sabbathObserved,
     roadComponentFor,
     normalizedWatermillThroughput,
+  );
+  const industrialMaterials = industrialMaterialRoadPlan(
+    industrialMaterialBranches,
+    {
+      clayWorkers,
+      charcoalWorkers,
+      smithyWorkers,
+      potterWorkers,
+      toolEligibleSites,
+      toolMaintainedSites,
+      maintainedToolIronworkPerDay,
+      fullToolIronworkPerDay,
+      firstUnmaintainedToolSiteId,
+    },
   );
 
   const millCycles = cyclesPerCalendarDay(
@@ -1056,11 +1685,17 @@ export function computeSettlementProductionCapacity(
     breweryInputBuffer,
     smokehouseInputBuffer,
     weaverInputBuffer,
+    charcoalInputBuffer,
+    smithyInputBuffer,
+    potterInputBuffer,
     millOutputRoom,
     bakeryOutputRoom,
     breweryOutputRoom,
     smokehouseOutputRoom,
     weaverOutputRoom,
+    charcoalOutputRoom,
+    smithyOutputRoom,
+    potterOutputRoom,
     flourOutputPerDay,
     bakeryFlourCapacityPerDay,
     breadFoodCapacityPerDay,
@@ -1089,6 +1724,7 @@ export function computeSettlementProductionCapacity(
     clothFlaxPerDay: weaverCycles * WEAVER_FLAX_PER_CYCLE,
     clothFlaxWaterPerDay:
       weaverCycles * WEAVER_FLAX_WATER_PER_CYCLE,
+    industrialMaterials,
     tierThreeResidents,
     fireDisabledTierThreeHomes,
     fireDisabledTierThreeResidents,

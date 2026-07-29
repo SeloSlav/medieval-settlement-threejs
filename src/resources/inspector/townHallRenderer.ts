@@ -132,6 +132,7 @@ import {
   grainChainBalanceLabel,
   processorBottleneckBuildingId,
   type GrainChainRoadPlan,
+  type IndustrialMaterialPlan,
   type ProcessorInputBuffer,
   type ProcessorOutputRoom,
 } from '../../economy/settlementProduction.ts';
@@ -305,6 +306,33 @@ function formatGrainChainRoads(plan: GrainChainRoadPlan): string {
   return `${pairing} · ${plan.fragmentationFoodPerDay.toFixed(1)} food / day unavailable until branches connect${
     unpaired ? ` · ${unpaired}` : ''
   }${inspect}`;
+}
+
+function formatIndustrialRoads(plan: IndustrialMaterialPlan): string {
+  if (plan.activeRoadBranches === 0) {
+    return 'No staffed clay, pottery, charcoal, smithing, or preservation branch';
+  }
+  const potteryInspect = plan.firstPotteryBottleneckId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstPotteryBottleneckId}" aria-label="Inspect pottery-chain bottleneck">Inspect pottery</button>`;
+  const smithyInspect = plan.firstSmithyBottleneckId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSmithyBottleneckId}" aria-label="Inspect ironwork-chain bottleneck">Inspect ironwork</button>`;
+  const blocked = [
+    plan.potteryBlockedBranches > 0
+      ? `${plan.potteryBlockedBranches} pottery-blocked`
+      : '',
+    plan.smithyBlockedBranches > 0
+      ? `${plan.smithyBlockedBranches} forge-blocked`
+      : '',
+  ].filter(Boolean).join(' &middot; ');
+  return `${plan.activeRoadBranches} active ${
+    plan.activeRoadBranches === 1 ? 'branch' : 'branches'
+  } &middot; ${plan.potteryMatchedBranches} pottery-connected &middot; ${
+    plan.smithyMatchedBranches
+  } forge-connected${
+    blocked ? ` &middot; ${blocked}` : ' &middot; no upstream route break'
+  }${potteryInspect}${smithyInspect}`;
 }
 
 function formatRoadProvisioning(plan: SettlementRoadProvisioning | null): string {
@@ -1695,6 +1723,10 @@ export function renderTownHallInspector(
         : undefined,
       environment.watermillThroughputMultiplier,
     );
+  const industrialMaterials = production.industrialMaterials;
+  const unmaintainedToolInspect = industrialMaterials.firstUnmaintainedToolSiteId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${industrialMaterials.firstUnmaintainedToolSiteId}" aria-label="Inspect first unmaintained civilian tool rack">Inspect</button>`;
   const prosperity = computeSettlementProsperityPlan(production, growth);
   const textilePlan = computeSettlementTextilePlan({
     state: context.gameState,
@@ -2004,7 +2036,15 @@ export function renderTownHallInspector(
       <li><span>Brewery buffers</span><span>Input ${formatProcessorInputBuffer(production.breweryInputBuffer)} · ale room ${formatProcessorOutputRoom(production.breweryOutputRoom)} ${processorInspectButton('brewery', production.breweryInputBuffer, production.breweryOutputRoom)}</span></li>
       <li><span>Smokehouse buffers</span><span>Input ${formatProcessorInputBuffer(production.smokehouseInputBuffer)} · preserved-food room ${formatProcessorOutputRoom(production.smokehouseOutputRoom)} ${processorInspectButton('smokehouse', production.smokehouseInputBuffer, production.smokehouseOutputRoom)}</span></li>
       <li><span>Weaver buffers</span><span>Input ${formatProcessorInputBuffer(production.weaverInputBuffer)} · cloth room ${formatProcessorOutputRoom(production.weaverOutputRoom)} ${processorInspectButton('weaver', production.weaverInputBuffer, production.weaverOutputRoom)}</span></li>
+      <li><span>Charcoal-yard buffers</span><span>Input ${formatProcessorInputBuffer(production.charcoalInputBuffer)} &middot; charcoal room ${formatProcessorOutputRoom(production.charcoalOutputRoom)} ${processorInspectButton('charcoal yard', production.charcoalInputBuffer, production.charcoalOutputRoom)}</span></li>
+      <li><span>Smithy buffers</span><span>Input ${formatProcessorInputBuffer(production.smithyInputBuffer)} &middot; ironwork room ${formatProcessorOutputRoom(production.smithyOutputRoom)} ${processorInspectButton('smithy', production.smithyInputBuffer, production.smithyOutputRoom)}</span></li>
+      <li><span>Potter buffers</span><span>Input ${formatProcessorInputBuffer(production.potterInputBuffer)} &middot; pottery room ${formatProcessorOutputRoom(production.potterOutputRoom)} ${processorInspectButton('potter', production.potterInputBuffer, production.potterOutputRoom)}</span></li>
       <li><span>Processing labor</span><span>${production.millWorkers} mill · ${production.bakeryWorkers} granary · ${production.breweryWorkers} brewing · ${production.smokehouseWorkers} preserving · ${production.weaverWorkers} weaving</span></li>
+      <li><span>Material-chain labor</span><span>${industrialMaterials.clayWorkers} clay &middot; ${industrialMaterials.potterWorkers} pottery &middot; ${industrialMaterials.charcoalWorkers} charcoal &middot; ${industrialMaterials.smithyWorkers} smithing</span></li>
+      <li><span>Material-chain roads</span><span>${formatIndustrialRoads(industrialMaterials)}</span></li>
+      <li><span>Pottery chain</span><span>${industrialMaterials.potteryOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.potterInstalledOutputPerDay.toFixed(1)} installed pottery per day &middot; ${industrialMaterials.potteryCoveredDemandPerDay.toFixed(1)} / ${industrialMaterials.potteryDemandPerDay.toFixed(1)} smokehouse vessel demand covered &middot; ${industrialMaterials.potteryExportSurplusPerDay.toFixed(1)} exportable and ${industrialMaterials.potteryStrandedPerDay.toFixed(1)} stranded surplus &middot; consumes ${industrialMaterials.potterClayPerDay.toFixed(1)} / ${industrialMaterials.clayOutputPerDay.toFixed(1)} clay capacity + ${industrialMaterials.potterFirewoodPerDay.toFixed(1)} firewood/day</span></li>
+      <li><span>Ironwork chain</span><span>${industrialMaterials.ironworkOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.smithyInstalledIronworkPerDay.toFixed(1)} installed ironwork per day &middot; needs ${industrialMaterials.smithyIronPerDay.toFixed(1)} imported iron + ${industrialMaterials.smithyCharcoalPerDay.toFixed(1)} / ${industrialMaterials.charcoalOutputPerDay.toFixed(1)} charcoal capacity &middot; charcoal yards consume ${industrialMaterials.charcoalFirewoodPerDay.toFixed(1)} firewood/day</span></li>
+      <li><span>Civilian tool upkeep</span><span>${industrialMaterials.toolMaintainedSites} / ${industrialMaterials.toolEligibleSites} staffed extraction sites equipped &middot; ${industrialMaterials.roadCoveredToolIronworkPerDay.toFixed(2)} / ${industrialMaterials.maintainedToolIronworkPerDay.toFixed(2)} current wear covered on the same road branches &middot; ${industrialMaterials.roadCoveredFullToolIronworkPerDay.toFixed(2)} / ${industrialMaterials.fullToolIronworkPerDay.toFixed(2)} if every active rack is maintained &middot; same-branch smithy surplus before carpentry ${industrialMaterials.ironworkSurplusAfterToolUpkeep.toFixed(2)}${unmaintainedToolInspect}</span></li>
       <li><span>Mill / bakery balance</span><span>${production.flourOutputPerDay.toFixed(1)} flour made / ${production.bakeryFlourCapacityPerDay.toFixed(1)} bakery intake · ${flourBalance}</span></li>
       <li><span>Grain-chain roads</span><span>${formatGrainChainRoads(production.grainChainRoads)}</span></li>
       <li><span>Bread capacity</span><span>${production.breadFoodCapacityPerDay.toFixed(1)} food / day vs ${provisioning.totalFoodPerDay.toFixed(1)} total demand · needs ${production.breadGrainPerDay.toFixed(1)} grain + ${production.breadWaterPerDay.toFixed(1)} water + ${production.breadFirewoodPerDay.toFixed(1)} firewood</span></li>
