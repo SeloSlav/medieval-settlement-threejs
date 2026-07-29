@@ -34,8 +34,11 @@ import {
 import { createDeliveryCartMesh } from '../src/logistics/deliveryCartMesh.ts';
 import type { DeliveryCargoKind } from '../src/logistics/deliveryTrips.ts';
 import {
+  assignLocalMaterialInputTargets,
   assignMarketplaceMaterialInputTargets,
   directlyDispatchedProcessorInputPerCycle,
+  LOCAL_MATERIAL_SOURCE_KINDS,
+  localMaterialInputCommodity,
   selectDirectProcessorInputTarget,
   selectMarketplaceMaterialInputTarget,
 } from '../src/logistics/processorInputLogistics.ts';
@@ -337,6 +340,54 @@ assert.equal(
   'salt and pottery candidates for one market/workshop pair must share one road solve',
 );
 
+assert.deepEqual(
+  LOCAL_MATERIAL_SOURCE_KINDS,
+  ['clay_pit', 'charcoal_burner', 'smithy', 'potter_kiln'],
+);
+assert.deepEqual(
+  LOCAL_MATERIAL_SOURCE_KINDS.map(localMaterialInputCommodity),
+  ['clay', 'charcoal', 'ironwork', 'pottery'],
+);
+const olderRemoteClayPit = building('clay_pit', {
+  id: 'older-remote-clay-pit',
+  x: 0,
+  clay: 12,
+});
+const newerNearClayPit = building('clay_pit', {
+  id: 'newer-near-clay-pit',
+  x: 90,
+  clay: 12,
+});
+const urgentPotter = building('potter_kiln', {
+  id: 'urgent-potter',
+  x: 100,
+  assignedLabor: 2,
+  constructionPriority: 3,
+  clay: 0,
+});
+const routinePotter = building('potter_kiln', {
+  id: 'routine-potter',
+  x: 10,
+  assignedLabor: 2,
+  constructionPriority: 2,
+  clay: 0,
+});
+const localMaterialAssignments = assignLocalMaterialInputTargets(
+  [olderRemoteClayPit, newerNearClayPit],
+  [routinePotter, urgentPotter],
+  (source, target) => Math.abs(source.x - target.x),
+);
+assert.equal(
+  localMaterialAssignments.get(newerNearClayPit.id)?.target.id,
+  urgentPotter.id,
+  'the nearest clay cart must cover an equally urgent kiln regardless of producer age',
+);
+assert.equal(
+  localMaterialAssignments.get(olderRemoteClayPit.id)?.target.id,
+  routinePotter.id,
+  'the remaining clay cart must cover the next kiln without duplicating its inbound slot',
+);
+
 for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
   assert.ok(
     MARKETPLACE_TRADE_OFFERS.some((offer) => offer.id === offerId),
@@ -503,6 +554,10 @@ const rustFunctionSection = (name: string, nextName: string): string => {
 };
 const marketplaceMaterialDispatchStep = rustFunctionSection(
   'step_marketplace_material_dispatch',
+  'step_local_material_dispatch',
+);
+const localMaterialDispatchStep = rustFunctionSection(
+  'step_local_material_dispatch',
   'step_granary',
 );
 const smokehouseStep = rustFunctionSection('step_smokehouse', 'step_clay_pit');
@@ -554,17 +609,26 @@ assert.doesNotMatch(
   /request_connected_commodity\(\s*ctx,\s*tick,\s*clock,\s*&building,\s*CommodityKind::Clay/,
   'potter kilns must not pull clay in database update order',
 );
+for (const [section, label] of [
+  [clayPitStep, 'clay pits'],
+  [charcoalBurnerStep, 'charcoal burners'],
+  [smithyStep, 'smithies'],
+  [potterKilnStep, 'potters'],
+] as const) {
+  assert.doesNotMatch(
+    section,
+    /dispatch_to_building\(/,
+    `${label} must not reserve workshop routes one source at a time`,
+  );
+}
 assert.match(
-  clayPitStep,
-  /dispatch_to_building\([\s\S]*CommodityKind::Clay[\s\S]*"potter_kiln"/,
+  localMaterialDispatchStep,
+  /LOCAL_MATERIAL_SOURCE_KINDS[\s\S]*used_sources[\s\S]*used_targets/,
+  'local material dispatch must reserve every producer cart and target once',
 );
 assert.match(
-  charcoalBurnerStep,
-  /dispatch_to_building\([\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"/,
-);
-assert.match(
-  potterKilnStep,
-  /dispatch_to_building\([\s\S]*CommodityKind::Pottery[\s\S]*"smokehouse"[\s\S]*"marketplace"/,
+  localMaterialDispatchStep,
+  /"clay_pit"[\s\S]*CommodityKind::Clay[\s\S]*"charcoal_burner"[\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"[\s\S]*CommodityKind::Ironwork[\s\S]*"potter_kiln"[\s\S]*CommodityKind::Pottery/,
 );
 const caravanIndex = simulationReducerSource.indexOf('step_marketplace_caravans(');
 const seedDistributionIndex = simulationReducerSource.indexOf(
@@ -579,11 +643,16 @@ const workshopStepIndex = simulationReducerSource.indexOf(
   'for (sim_kind, building_id) in expanded_ids',
   materialDispatchIndex,
 );
+const localMaterialDispatchIndex = simulationReducerSource.indexOf(
+  'step_local_material_dispatch(',
+  workshopStepIndex,
+);
 assert.ok(
   caravanIndex >= 0
     && seedDistributionIndex > caravanIndex
     && materialDispatchIndex > seedDistributionIndex
-    && workshopStepIndex > materialDispatchIndex,
+    && workshopStepIndex > materialDispatchIndex
+    && localMaterialDispatchIndex > workshopStepIndex,
   'regional/household market work and seed recovery must retain cart precedence before workshop inputs',
 );
 
@@ -652,6 +721,41 @@ assert.ok(
   `100,000 settlement-wide market/workshop pairs took ${assignmentElapsedMs.toFixed(1)} ms`,
 );
 
+const localAssignmentSources = Array.from({ length: 100 }, (_, index) =>
+  building('clay_pit', {
+    id: `local-assignment-clay-${index}`,
+    x: index * 8,
+    clay: 12,
+  }));
+const localAssignmentTargets = Array.from({ length: 1_000 }, (_, index) =>
+  building('potter_kiln', {
+    id: `local-assignment-potter-${index}`,
+    x: index * 3,
+    assignedLabor: 1,
+    constructionPriority: index % 3 + 1,
+    clay: index % 4,
+  }));
+let localAssignmentRouteSolves = 0;
+const localAssignmentStartedAt = performance.now();
+const largeLocalAssignments = assignLocalMaterialInputTargets(
+  localAssignmentSources,
+  localAssignmentTargets,
+  (source, target) => {
+    localAssignmentRouteSolves += 1;
+    return Math.abs(source.x - target.x);
+  },
+);
+const localAssignmentElapsedMs = performance.now() - localAssignmentStartedAt;
+assert.equal(largeLocalAssignments.size, localAssignmentSources.length);
+assert.equal(
+  localAssignmentRouteSolves,
+  localAssignmentSources.length * localAssignmentTargets.length,
+);
+assert.ok(
+  localAssignmentElapsedMs < 500,
+  `100,000 local material source/workshop pairs took ${localAssignmentElapsedMs.toFixed(1)} ms`,
+);
+
 const signatureBuildings = Array.from({ length: 100_000 }, (_, index) => {
   const kinds = [
     'clay_pit',
@@ -681,7 +785,7 @@ assert.ok(
 );
 
 console.log(
-  `Iron, clay, salt, charcoal, pottery chain tests passed (${materialDispatchElapsedMs.toFixed(1)} ms / 100k target candidates; ${assignmentElapsedMs.toFixed(1)} ms / 100k settlement pairs; ${signatureElapsedMs.toFixed(1)} ms / 100k visual signatures).`,
+  `Iron, clay, salt, charcoal, pottery chain tests passed (${materialDispatchElapsedMs.toFixed(1)} ms / 100k target candidates; ${assignmentElapsedMs.toFixed(1)} ms / 100k market pairs; ${localAssignmentElapsedMs.toFixed(1)} ms / 100k local pairs; ${signatureElapsedMs.toFixed(1)} ms / 100k visual signatures).`,
 );
 
 function building(

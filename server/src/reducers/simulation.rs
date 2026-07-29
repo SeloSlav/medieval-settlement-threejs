@@ -4,7 +4,7 @@ use crate::balance_generated::{BASE_SPEED_DENOMINATOR, BASE_SPEED_NUMERATOR, TIC
 use crate::db::*;
 use crate::economy::step_regional_markets;
 use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
-use crate::supply_policy::INSTITUTIONAL_FOOD_SOURCE_KINDS;
+use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
 use crate::simulation::{
     materialize_all_physical_resource_ledgers, step_apiary, step_backyard_gardens, step_brewery,
     step_carpenter, step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit,
@@ -12,9 +12,10 @@ use crate::simulation::{
     step_ferry_landing, step_fires, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
     step_founding_sites, step_fresh_food_spoilage, step_granary, step_guardhouse,
     step_household_market_orders, step_hunters_hall, step_industrial_firewood_dispatch,
-    step_institutional_food_dispatch, step_large_quarry, step_live_raids, step_lumber_mill,
-    step_marketplace_caravans, step_marketplace_material_dispatch, step_monastery, step_night_cycle,
-    step_pastoral_farmstead, step_potter_kiln,
+    step_institutional_food_dispatch, step_large_quarry, step_live_raids,
+    step_local_material_dispatch, step_lumber_mill, step_marketplace_caravans,
+    step_marketplace_material_dispatch, step_monastery, step_night_cycle, step_pastoral_farmstead,
+    step_potter_kiln,
     step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
     step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
     step_settlement_security, step_smithy, step_smokehouse, step_stone_quarry, step_swineherd,
@@ -191,6 +192,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let mut reclamation_pile_ids: Vec<u64> = Vec::new();
     let mut marketplace_ids: Vec<u64> = Vec::new();
     let mut institutional_food_source_ids: Vec<u64> = Vec::new();
+    let mut local_material_source_ids: Vec<u64> = Vec::new();
     let mut expanded_ids: Vec<(crate::building_defs::BuildingSimKind, u64)> = Vec::new();
 
     for building in ctx.db.building().iter() {
@@ -206,6 +208,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         }
         if INSTITUTIONAL_FOOD_SOURCE_KINDS.contains(&building.kind.as_str()) {
             institutional_food_source_ids.push(building.id);
+        }
+        if LOCAL_MATERIAL_SOURCE_KINDS.contains(&building.kind.as_str()) {
+            local_material_source_ids.push(building.id);
         }
         let Some(sim_kind) =
             crate::building_defs::building_def(&building.kind).and_then(|def| def.sim_kind)
@@ -437,6 +442,15 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             _ => {}
         }
     }
+
+    // Local producers have now completed this tick's work. Match their free
+    // carts together so workshop urgency and road length, rather than source
+    // construction order, decide clay, charcoal, tool, and pottery routes.
+    let local_material_sources = local_material_source_ids
+        .into_iter()
+        .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+        .collect();
+    step_local_material_dispatch(ctx, &tick, &clock, local_material_sources);
 
     // Producers have now attempted their own household and specialty duties.
     // Their remaining free carts arbitrate all institutional fresh-food demand

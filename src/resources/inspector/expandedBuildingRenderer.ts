@@ -217,13 +217,13 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'weaver':
       return 'Lowest-runway claimed tier-3 home, then road-linked export market';
     case 'clay_pit':
-      return "Highest-priority road-linked potter's kiln below its working buffer";
+      return "Settlement-wide match: highest-priority road-linked potter's kiln, then shortest producer route";
     case 'charcoal_burner':
-      return 'Highest-priority road-linked smithy below its forge-fuel buffer';
+      return 'Settlement-wide match: highest-priority road-linked smithy, then shortest producer route';
     case 'smithy':
-      return 'Highest-priority maintained worksite below its iron-tool buffer, then carpenter and overflow';
+      return 'Settlement-wide match: highest-priority maintained worksite, then shortest forge route and overflow';
     case 'potter_kiln':
-      return 'Highest-priority road-linked smokehouse below its vessel buffer, then export marketplace';
+      return 'Settlement-wide match: highest-priority smokehouse, then shortest kiln route and export marketplace';
     default:
       return 'Awaiting destination';
   }

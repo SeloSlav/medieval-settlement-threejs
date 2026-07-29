@@ -259,6 +259,40 @@ export type RoutedMarketplaceMaterialAssignment<
   source: S;
 };
 
+export const LOCAL_MATERIAL_SOURCE_KINDS = [
+  'clay_pit',
+  'charcoal_burner',
+  'smithy',
+  'potter_kiln',
+] as const satisfies readonly BuildingKind[];
+
+export type LocalMaterialInputCommodity =
+  | 'clay'
+  | 'charcoal'
+  | 'ironwork'
+  | 'pottery';
+
+export type RoutedDirectProcessorInputAssignment<
+  S extends { id: string },
+  T extends ProcessorInputDestinationLike,
+  C extends DirectProcessorInputCommodity,
+> = RoutedProcessorInputDestination<T> & {
+  source: S;
+  commodity: C;
+};
+
+export function localMaterialInputCommodity(
+  kind: BuildingKind,
+): LocalMaterialInputCommodity | null {
+  switch (kind) {
+    case 'clay_pit': return 'clay';
+    case 'charcoal_burner': return 'charcoal';
+    case 'smithy': return 'ironwork';
+    case 'potter_kiln': return 'pottery';
+    default: return null;
+  }
+}
+
 /**
  * One marketplace cart chooses between imported iron, salt, and uncommitted
  * pottery returned from export stock. This mirrors the authoritative
@@ -341,8 +375,92 @@ export function assignMarketplaceMaterialInputTargets<
     commodity: MarketplaceMaterialInputCommodity,
   ) => boolean = () => false,
 ): Map<string, RoutedMarketplaceMaterialAssignment<S, T>> {
+  const offers: ProcessorInputOffer<S, MarketplaceMaterialInputCommodity>[] = [];
+  for (const source of sources) {
+    if (!sourceIsAvailable(source)) continue;
+    for (const commodity of ['iron', 'salt', 'pottery'] as const) {
+      if (
+        isSourceCommodityReserved(source, commodity)
+        || Math.max(0, source[commodity] ?? 0) <= 1e-6
+      ) {
+        continue;
+      }
+      offers.push({ source, commodity });
+    }
+  }
+  return assignProcessorInputOffers(
+    offers,
+    targets,
+    routeDistanceFor,
+    hasInboundSupply,
+    acceptsInput,
+    true,
+  );
+}
+
+/**
+ * Match locally produced clay, charcoal, ironwork, and pottery in one pass.
+ * The same processor policy still decides urgency, but equal candidates now
+ * choose the shortest source route across every producer cart.
+ */
+export function assignLocalMaterialInputTargets<
+  S extends ProcessorInputDestinationLike,
+  T extends ProcessorInputDestinationLike,
+>(
+  sources: Iterable<S>,
+  targets: Iterable<T>,
+  routeDistanceFor: (source: S, target: T) => number | null,
+  sourceIsAvailable: (source: S) => boolean = () => true,
+  hasInboundSupply: (target: T) => boolean = () => false,
+  acceptsInput: (
+    target: T,
+    commodity: LocalMaterialInputCommodity,
+  ) => boolean = () => true,
+): Map<string, RoutedDirectProcessorInputAssignment<S, T, LocalMaterialInputCommodity>> {
+  const offers: ProcessorInputOffer<S, LocalMaterialInputCommodity>[] = [];
+  for (const source of sources) {
+    if (!sourceIsAvailable(source)) continue;
+    const commodity = localMaterialInputCommodity(source.kind);
+    if (
+      commodity == null
+      || Math.max(0, Number(source[commodity] ?? 0)) <= 1e-6
+    ) {
+      continue;
+    }
+    offers.push({ source, commodity });
+  }
+  return assignProcessorInputOffers(
+    offers,
+    targets,
+    routeDistanceFor,
+    hasInboundSupply,
+    acceptsInput,
+    false,
+  );
+}
+
+type ProcessorInputOffer<
+  S extends { id: string },
+  C extends DirectProcessorInputCommodity,
+> = {
+  source: S;
+  commodity: C;
+};
+
+function assignProcessorInputOffers<
+  S extends { id: string },
+  T extends ProcessorInputDestinationLike,
+  C extends DirectProcessorInputCommodity,
+>(
+  offers: Iterable<ProcessorInputOffer<S, C>>,
+  targets: Iterable<T>,
+  routeDistanceFor: (source: S, target: T) => number | null,
+  hasInboundSupply: (target: T) => boolean,
+  acceptsInput: (target: T, commodity: C) => boolean,
+  workingBuffersOnly: boolean,
+): Map<string, RoutedDirectProcessorInputAssignment<S, T, C>> {
   const materialTargets = [...targets];
-  const candidates: RoutedMarketplaceMaterialAssignment<S, T>[] = [];
+  const candidates: RoutedDirectProcessorInputAssignment<S, T, C>[] = [];
   const routeDistanceBySource = new Map<string, Map<string, number | null>>();
   const cachedRouteDistanceFor = (source: S, target: T): number | null => {
     let sourceRoutes = routeDistanceBySource.get(source.id);
@@ -358,42 +476,38 @@ export function assignMarketplaceMaterialInputTargets<
     return distance;
   };
 
-  for (const source of sources) {
-    if (!sourceIsAvailable(source)) continue;
-    for (const commodity of ['iron', 'salt', 'pottery'] as const) {
+  for (const { source, commodity } of offers) {
+    for (const target of materialTargets) {
+      const candidate = selectDirectProcessorInputTarget(
+        [target],
+        source.id,
+        commodity,
+        (destination) => cachedRouteDistanceFor(source, destination),
+        hasInboundSupply,
+        (destination) => acceptsInput(destination, commodity),
+      );
       if (
-        isSourceCommodityReserved(source, commodity)
-        || Math.max(0, source[commodity] ?? 0) <= 1e-6
+        candidate == null
+        || (workingBuffersOnly && candidate.duty !== 'working-buffer')
       ) {
         continue;
       }
-      for (const target of materialTargets) {
-        const candidate = selectDirectProcessorInputTarget(
-          [target],
-          source.id,
-          commodity,
-          (destination) => cachedRouteDistanceFor(source, destination),
-          hasInboundSupply,
-          (destination) => acceptsInput(destination, commodity),
-        );
-        if (candidate?.duty !== 'working-buffer') continue;
-        candidates.push({ ...candidate, source, commodity });
-      }
+      candidates.push({ ...candidate, source, commodity });
     }
   }
 
   candidates.sort((left, right) => {
     const policyOrder = compareProcessorInputCandidates(left, right);
     if (policyOrder !== 0) return policyOrder;
-    const commodityOrder = marketplaceMaterialCommodityRank(left.commodity)
-      - marketplaceMaterialCommodityRank(right.commodity);
+    const commodityOrder = directMaterialCommodityRank(left.commodity)
+      - directMaterialCommodityRank(right.commodity);
     if (commodityOrder !== 0) return commodityOrder;
     return compareStableEntityIds(left.source.id, right.source.id);
   });
 
   const assignments = new Map<
     string,
-    RoutedMarketplaceMaterialAssignment<S, T>
+    RoutedDirectProcessorInputAssignment<S, T, C>
   >();
   const usedTargets = new Set<string>();
   for (const candidate of candidates) {
@@ -440,12 +554,21 @@ function compareProcessorInputCandidates<T extends ProcessorInputDestinationLike
   return compareStableEntityIds(candidate.target.id, selected.target.id);
 }
 
-function marketplaceMaterialCommodityRank(
-  commodity: MarketplaceMaterialInputCommodity,
+function directMaterialCommodityRank(
+  commodity: DirectProcessorInputCommodity,
 ): number {
   switch (commodity) {
     case 'iron': return 0;
     case 'salt': return 1;
     case 'pottery': return 2;
+    case 'clay': return 3;
+    case 'charcoal': return 4;
+    case 'ironwork': return 5;
+    case 'barley': return 6;
+    case 'firewood': return 7;
+    case 'flour': return 8;
+    case 'food': return 9;
+    case 'wool': return 10;
+    case 'flax': return 11;
   }
 }

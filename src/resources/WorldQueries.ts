@@ -38,7 +38,9 @@ import {
   type RoutedGrainDestination,
 } from '../logistics/grainLogistics.ts';
 import {
+  assignLocalMaterialInputTargets,
   assignMarketplaceMaterialInputTargets,
+  localMaterialInputCommodity,
   selectDirectProcessorInputTarget,
   type DirectProcessorInputCommodity,
   type RoutedMarketplaceMaterialDestination,
@@ -1154,8 +1156,10 @@ export class WorldQueries {
       return null;
     }
     const network = this.getRoadNetwork();
+    const activeSources = new Set<string>();
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
+      activeSources.add(trip.buildingId);
       if (
         trip.phase !== 'inbound'
         && trip.destinationKind === 'building'
@@ -1163,6 +1167,29 @@ export class WorldQueries {
       ) {
         inboundTargets.add(trip.targetBuildingId);
       }
+    }
+    if (localMaterialInputCommodity(source.kind) === commodity) {
+      const localSources = [...this.fireEnabledBuildings(state, fireDisabled)]
+        .filter((candidate) =>
+          localMaterialInputCommodity(candidate.kind) != null
+          && candidate.constructionComplete !== false
+          && candidate.assignedLabor > 0
+          && !activeSources.has(candidate.id));
+      const assignments = assignLocalMaterialInputTargets(
+        localSources,
+        this.fireEnabledBuildings(state, fireDisabled),
+        (producer, target) => roadPathDistance(
+          network,
+          producer.x,
+          producer.z,
+          target.x,
+          target.z,
+        ),
+        (producer) => !activeSources.has(producer.id),
+        (target) => inboundTargets.has(target.id),
+        (target, material) => processorAcceptsInput(target, material),
+      );
+      return assignments.get(source.id) ?? null;
     }
     return selectDirectProcessorInputTarget(
       this.fireEnabledBuildings(state, fireDisabled),

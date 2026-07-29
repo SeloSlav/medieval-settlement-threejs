@@ -91,7 +91,8 @@ use crate::supply_policy::{
     select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
     InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
     GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
-    INSTITUTIONAL_FOOD_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
+    INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
+    MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, Residence};
 use crate::weaver_input_policy::{
@@ -119,6 +120,15 @@ struct RoutedProcessorInputTarget {
 }
 
 struct RoutedMarketplaceMaterialTarget {
+    source_id: u64,
+    building: Building,
+    commodity: CommodityKind,
+    distance: f64,
+    duty: ProcessorInputDispatchDuty,
+    runway_cycles: f64,
+}
+
+struct LocalMaterialDispatchCandidate {
     source_id: u64,
     building: Building,
     commodity: CommodityKind,
@@ -826,6 +836,206 @@ fn marketplace_material_commodity_rank(commodity: CommodityKind) -> u8 {
     }
 }
 
+/// Match locally produced clay, charcoal, ironwork, and pottery after every
+/// producer has completed this tick's work. Active processor buffers still
+/// lead by player priority and runway; among equal needs, the shortest
+/// source-to-target road decides which producer cart serves the destination.
+/// Each source and target receives at most one assignment per pass.
+pub fn step_local_material_dispatch(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    sources: Vec<Building>,
+) {
+    let mut candidates = Vec::new();
+
+    for source in sources {
+        let Some((commodity, target_kinds)) = local_material_source_plan(&source.kind) else {
+            continue;
+        };
+        if !LOCAL_MATERIAL_SOURCE_KINDS.contains(&source.kind.as_str())
+            || !source.construction_complete
+            || source.assigned_labor == 0
+            || tick.building_disabled_by_fire(ctx, source.id)
+            || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+            || building_has_active_trip(ctx, source.id)
+            || building_commodity_stock(&source, commodity) <= 1e-6
+        {
+            continue;
+        }
+        let Some(network) = tick.road_network(source.owner) else {
+            continue;
+        };
+        for target_id in tick.building_ids_for_kinds(ctx, source.owner, target_kinds) {
+            let Some(target) = ctx.db.building().id().find(&target_id) else {
+                continue;
+            };
+            if target.id == source.id
+                || !target.construction_complete
+                || tick.building_disabled_by_fire(ctx, target.id)
+                || !processor_accepts_input(&target, commodity)
+                || building_commodity_room(&target, commodity) <= 1e-6
+                || building_has_inbound_supply_trip(ctx, target.id)
+            {
+                continue;
+            }
+            let stock = building_commodity_stock(&target, commodity);
+            let per_cycle =
+                directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
+            let duty = processor_input_dispatch_duty(
+                target.assigned_labor,
+                stock,
+                per_cycle,
+                target.processor_output_target_percent,
+            );
+            let desired_stock = if duty == ProcessorInputDispatchDuty::WorkingBuffer {
+                processor_input_target(per_cycle, target.processor_output_target_percent)
+            } else {
+                building_commodity_cap(&target.kind, commodity)
+            };
+            if desired_stock <= 1e-6 || stock + 1e-6 >= desired_stock {
+                continue;
+            }
+            let runway_cycles =
+                if commodity == CommodityKind::Ironwork && is_civilian_tool_site(&target.kind) {
+                    civilian_tool_runway_cycles(stock)
+                } else {
+                    processor_input_runway_cycles(stock, per_cycle)
+                };
+            let Some(distance) =
+                network.road_path_distance(source.x, source.z, target.x, target.z)
+            else {
+                continue;
+            };
+            if !distance.is_finite() {
+                continue;
+            }
+            candidates.push(LocalMaterialDispatchCandidate {
+                source_id: source.id,
+                building: target,
+                commodity,
+                distance,
+                duty,
+                runway_cycles,
+            });
+        }
+    }
+
+    candidates.sort_by(|a, b| {
+        compare_processor_input_dispatch_candidates(
+            a.duty,
+            a.building.construction_priority,
+            0,
+            a.runway_cycles,
+            a.distance,
+            a.building.id,
+            b.duty,
+            b.building.construction_priority,
+            0,
+            b.runway_cycles,
+            b.distance,
+            b.building.id,
+        )
+        .then_with(|| a.source_id.cmp(&b.source_id))
+    });
+
+    let mut used_sources = HashSet::new();
+    let mut used_targets = HashSet::new();
+    for candidate in candidates {
+        if used_sources.contains(&candidate.source_id)
+            || used_targets.contains(&candidate.building.id)
+        {
+            continue;
+        }
+        let Some(mut source) = ctx.db.building().id().find(&candidate.source_id) else {
+            continue;
+        };
+        let Some(target) = ctx.db.building().id().find(&candidate.building.id) else {
+            continue;
+        };
+        let Some((commodity, target_kinds)) = local_material_source_plan(&source.kind) else {
+            continue;
+        };
+        if commodity != candidate.commodity
+            || !source.construction_complete
+            || source.assigned_labor == 0
+            || !target.construction_complete
+            || target.owner != source.owner
+            || !target_kinds.contains(&target.kind.as_str())
+            || tick.building_disabled_by_fire(ctx, source.id)
+            || tick.building_disabled_by_fire(ctx, target.id)
+            || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+            || building_has_active_trip(ctx, source.id)
+            || building_has_inbound_supply_trip(ctx, target.id)
+            || !processor_accepts_input(&target, commodity)
+        {
+            continue;
+        }
+        let stock = building_commodity_stock(&target, commodity);
+        let per_cycle = directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
+        let duty = processor_input_dispatch_duty(
+            target.assigned_labor,
+            stock,
+            per_cycle,
+            target.processor_output_target_percent,
+        );
+        let desired_stock = if duty == ProcessorInputDispatchDuty::WorkingBuffer {
+            processor_input_target(per_cycle, target.processor_output_target_percent)
+        } else {
+            building_commodity_cap(&target.kind, commodity)
+        };
+        let needed = (desired_stock - stock)
+            .max(0.0)
+            .min(building_commodity_stock(&source, commodity))
+            .min(building_commodity_room(&target, commodity));
+        if needed <= 1e-6 {
+            continue;
+        }
+        let Some(network) = tick.road_network(source.owner) else {
+            continue;
+        };
+        if try_start_building_supply_trip(
+            ctx,
+            tick,
+            clock,
+            network,
+            &mut source,
+            &target,
+            1,
+            commodity,
+            TIMBER_DELIVERY_SPEED_MPS,
+            TIMBER_DELIVERY_UNLOAD_SEC,
+            commodity_transfer_per_trip(commodity),
+            needed,
+        ) {
+            used_sources.insert(source.id);
+            used_targets.insert(target.id);
+            ctx.db.building().id().update(source);
+        }
+    }
+}
+
+fn local_material_source_plan(
+    kind: &str,
+) -> Option<(CommodityKind, &'static [&'static str])> {
+    match kind {
+        "clay_pit" => Some((CommodityKind::Clay, &["potter_kiln"])),
+        "charcoal_burner" => Some((CommodityKind::Charcoal, &["smithy"])),
+        "smithy" => Some((
+            CommodityKind::Ironwork,
+            &[
+                "lumber_mill",
+                "stone_quarry",
+                "large_quarry",
+                "clay_pit",
+                "carpenter",
+            ],
+        )),
+        "potter_kiln" => Some((CommodityKind::Pottery, &["smokehouse", "marketplace"])),
+        _ => None,
+    }
+}
+
 pub fn step_granary(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -1361,14 +1571,6 @@ pub fn step_clay_pit(
             CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
         );
     }
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut clay_pit,
-        CommodityKind::Clay,
-        &["potter_kiln"],
-    );
     ctx.db.building().id().update(clay_pit);
 }
 
@@ -1378,21 +1580,13 @@ pub fn step_charcoal_burner(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut burner = step_processor(
+    let burner = step_processor(
         ctx,
         tick,
         clock,
         building,
         &[(CommodityKind::Firewood, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE)],
         &[(CommodityKind::Charcoal, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE)],
-    );
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut burner,
-        CommodityKind::Charcoal,
-        &["smithy"],
     );
     ctx.db.building().id().update(burner);
 }
@@ -1403,7 +1597,7 @@ pub fn step_smithy(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut smithy = step_processor(
+    let smithy = step_processor(
         ctx,
         tick,
         clock,
@@ -1414,20 +1608,6 @@ pub fn step_smithy(
         ],
         &[(CommodityKind::Ironwork, SMITHY_IRONWORK_PER_CYCLE)],
     );
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut smithy,
-        CommodityKind::Ironwork,
-        &[
-            "lumber_mill",
-            "stone_quarry",
-            "large_quarry",
-            "clay_pit",
-            "carpenter",
-        ],
-    );
     ctx.db.building().id().update(smithy);
 }
 
@@ -1437,7 +1617,7 @@ pub fn step_potter_kiln(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut potter = step_processor(
+    let potter = step_processor(
         ctx,
         tick,
         clock,
@@ -1447,14 +1627,6 @@ pub fn step_potter_kiln(
             (CommodityKind::Firewood, POTTER_FIREWOOD_PER_CYCLE),
         ],
         &[(CommodityKind::Pottery, POTTER_POTTERY_PER_CYCLE)],
-    );
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut potter,
-        CommodityKind::Pottery,
-        &["smokehouse", "marketplace"],
     );
     ctx.db.building().id().update(potter);
 }
