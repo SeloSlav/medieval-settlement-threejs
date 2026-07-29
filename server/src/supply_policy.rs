@@ -35,6 +35,18 @@ pub const FOOD_SUPPLIER_KINDS: &[&str] = &[
     "swineherd",
     "monastery",
 ];
+/// Fresh-food producers whose own carts may carry genuine household surplus
+/// to a granary, smokehouse, or armed company. Granaries and monasteries keep
+/// their separate household, preservation, charity, and emergency policies.
+pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
+    "hunters_hall",
+    "foragers_shed",
+    "fishing_camp",
+    "apiary",
+    "vineyard",
+    "pastoral_farmstead",
+    "swineherd",
+];
 pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "monastery"];
 pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "granary", "monastery"];
 pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
@@ -282,6 +294,50 @@ pub fn institutional_food_surplus(
     source_capacity: f64,
 ) -> f64 {
     (source_stock.max(0.0) - household_food_reserve(claimed_households, source_capacity)).max(0.0)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum InstitutionalFoodDispatchDuty {
+    CriticalGuard,
+    PreservationBuffer,
+    GuardReserve,
+    GranaryIntake,
+}
+
+/// Compare a physical fresh-food cart's possible destinations.
+///
+/// A company below its three-day emergency floor is the only demand that can
+/// outrank preservation. Otherwise staffed smokehouses secure their small
+/// working batch before ordinary company reserves and granary centralization.
+/// Player-set work/company priority leads within each non-emergency duty, then
+/// the lowest stock runway, shortest road, and stable ids keep the result
+/// efficient and deterministic.
+pub fn compare_institutional_food_dispatch_candidates(
+    a_duty: InstitutionalFoodDispatchDuty,
+    a_priority: u8,
+    a_runway: f64,
+    a_distance: f64,
+    a_target_id: u64,
+    a_source_id: u64,
+    b_duty: InstitutionalFoodDispatchDuty,
+    b_priority: u8,
+    b_runway: f64,
+    b_distance: f64,
+    b_target_id: u64,
+    b_source_id: u64,
+) -> Ordering {
+    a_duty.cmp(&b_duty).then_with(|| {
+        let priority_order = if a_duty == InstitutionalFoodDispatchDuty::CriticalGuard {
+            Ordering::Equal
+        } else {
+            grain_work_priority(b_priority).cmp(&grain_work_priority(a_priority))
+        };
+        priority_order
+            .then_with(|| a_runway.total_cmp(&b_runway))
+            .then_with(|| a_distance.total_cmp(&b_distance))
+            .then_with(|| a_target_id.cmp(&b_target_id))
+            .then_with(|| a_source_id.cmp(&b_source_id))
+    })
 }
 
 /// Prefer the shortest authoritative road route. Building id is the stable
@@ -586,7 +642,8 @@ pub fn select_need_delivery_candidate(
 mod tests {
     use super::{
         compare_grain_dispatch_candidates, compare_need_delivery_candidate_records,
-        compare_need_delivery_candidates, compare_processor_input_dispatch_candidates,
+        compare_institutional_food_dispatch_candidates, compare_need_delivery_candidates,
+        compare_processor_input_dispatch_candidates,
         compare_seed_grain_delivery_candidates, compare_supply_route_candidates,
         construction_source_priority, directly_dispatched_processor_input_per_cycle,
         grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, grain_work_priority,
@@ -598,10 +655,11 @@ mod tests {
         select_grain_dispatch_candidate, select_need_delivery_candidate,
         select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
         select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
-        NeedDeliveryCandidate, ProcessorInputDispatchDuty, ALE_SUPPLIER_KINDS,
-        CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS, GRAIN_CRITICAL_RUNWAY_CYCLES,
-        GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES, GRAIN_PROCESSOR_KINDS,
-        INDUSTRIAL_FIREWOOD_TARGET_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
+        InstitutionalFoodDispatchDuty, NeedDeliveryCandidate, ProcessorInputDispatchDuty,
+        ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
+        GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
+        GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
+        INSTITUTIONAL_FOOD_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
         PRESERVED_FOOD_SUPPLIER_KINDS,
     };
     use std::cmp::Ordering;
@@ -683,6 +741,103 @@ mod tests {
                 GranaryDispatchDuty::Preservation,
                 GranaryDispatchDuty::Households
             ]
+        );
+    }
+
+    #[test]
+    fn institutional_food_protects_emergencies_then_preservation() {
+        use InstitutionalFoodDispatchDuty::{
+            CriticalGuard, GranaryIntake, GuardReserve, PreservationBuffer,
+        };
+        assert_eq!(
+            INSTITUTIONAL_FOOD_SOURCE_KINDS,
+            &[
+                "hunters_hall",
+                "foragers_shed",
+                "fishing_camp",
+                "apiary",
+                "vineyard",
+                "pastoral_farmstead",
+                "swineherd",
+            ]
+        );
+        assert_eq!(
+            compare_institutional_food_dispatch_candidates(
+                CriticalGuard,
+                1,
+                2.9,
+                400.0,
+                40,
+                4,
+                PreservationBuffer,
+                3,
+                0.0,
+                10.0,
+                10,
+                1,
+            ),
+            Ordering::Less,
+            "a critical company must beat even a high-priority nearby smokehouse"
+        );
+        assert_eq!(
+            compare_institutional_food_dispatch_candidates(
+                PreservationBuffer,
+                1,
+                0.0,
+                400.0,
+                40,
+                4,
+                GuardReserve,
+                3,
+                0.0,
+                10.0,
+                10,
+                1,
+            ),
+            Ordering::Less
+        );
+        assert_eq!(
+            compare_institutional_food_dispatch_candidates(
+                GuardReserve,
+                1,
+                1.0,
+                400.0,
+                40,
+                4,
+                GranaryIntake,
+                3,
+                0.0,
+                10.0,
+                10,
+                1,
+            ),
+            Ordering::Less
+        );
+    }
+
+    #[test]
+    fn institutional_food_honors_priority_runway_and_route_within_a_duty() {
+        let duty = InstitutionalFoodDispatchDuty::PreservationBuffer;
+        assert_eq!(
+            compare_institutional_food_dispatch_candidates(
+                duty, 3, 2.0, 500.0, 9, 90, duty, 2, 0.0, 5.0, 1, 1,
+            ),
+            Ordering::Less,
+            "selected work priority must lead before runway and route"
+        );
+        assert_eq!(
+            compare_institutional_food_dispatch_candidates(
+                duty, 2, 0.5, 500.0, 9, 90, duty, 2, 1.0, 5.0, 1, 1,
+            ),
+            Ordering::Less,
+            "lowest runway must lead within an equal priority"
+        );
+        assert_eq!(
+            compare_institutional_food_dispatch_candidates(
+                duty, 2, 1.0, 20.0, 9, 90, duty, 2, 1.0, 50.0, 1, 1,
+            ),
+            Ordering::Less,
+            "the shorter road must break an equal policy tie"
         );
     }
 

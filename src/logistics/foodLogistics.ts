@@ -1,15 +1,31 @@
 import {
+  BUILDING_STORAGE_CAPS,
   FOOD_PER_DELIVERY,
   HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
   HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
   RESIDENCE_FOOD_CAPACITY,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
+  SMOKEHOUSE_FOOD_PER_CYCLE,
 } from '../generated/gameBalance.ts';
-import type { ResidenceState } from '../resources/types.ts';
+import { granaryFreshFoodTarget } from '../economy/granaryPolicy.ts';
+import {
+  normalizeStaffingPriority,
+  type StaffingPriority,
+} from '../economy/staffingPriority.ts';
+import {
+  GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
+  guardhouseFoodRunwayDays,
+  guardhouseFoodTarget,
+} from '../security/frontierSecurity.ts';
+import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import { foodDeliveryTripSeconds } from './deliveryLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { lodgeLaborAlternates, lodgeLaborSplit } from './lodgeLogistics.ts';
+import {
+  processorInputRunwayCycles,
+  processorInputTarget,
+} from './processorInputLogistics.ts';
 import {
   compareStableEntityIds,
   roadPathDistance,
@@ -23,6 +39,48 @@ export type FoodLaborSplit = {
 };
 
 export type GranaryDispatchDuty = 'households' | 'preservation';
+export type InstitutionalFoodDispatchDuty =
+  | 'critical-guard'
+  | 'preservation-buffer'
+  | 'guard-reserve'
+  | 'granary-intake';
+
+export const INSTITUTIONAL_FOOD_SOURCE_KINDS = [
+  'hunters_hall',
+  'foragers_shed',
+  'fishing_camp',
+  'apiary',
+  'vineyard',
+  'pastoral_farmstead',
+  'swineherd',
+] as const satisfies readonly BuildingKind[];
+
+type InstitutionalFoodDestinationLike = Pick<
+  BuildingState,
+  | 'id'
+  | 'kind'
+  | 'food'
+  | 'polearms'
+  | 'assignedLabor'
+  | 'constructionComplete'
+  | 'constructionPriority'
+  | 'processorOutputTargetPercent'
+  | 'guardhousePayPriority'
+  | 'guardhouseFoodReserve'
+  | 'granaryAcceptsFreshFood'
+  | 'granaryFreshFoodTargetPercent'
+>;
+
+export type RoutedInstitutionalFoodDestination<
+  T extends InstitutionalFoodDestinationLike,
+> = {
+  target: T;
+  duty: InstitutionalFoodDispatchDuty;
+  desiredStock: number;
+  runway: number;
+  routeDistance: number;
+  priority: StaffingPriority;
+};
 
 export function granaryDispatchOrder(householdsFirst: boolean): GranaryDispatchDuty[] {
   return householdsFirst
@@ -155,6 +213,148 @@ export function peekNextFoodDeliveryTarget(
     }
   }
   return bestIndex < 0 ? null : eligible[bestIndex];
+}
+
+/**
+ * Mirrors the server's producer-owned institutional food decision. Household
+ * claims are protected before this selector is called. A guard emergency
+ * leads, followed by a smokehouse working batch, routine guard reserves, and
+ * finally enabled granary collection. Within a duty, selected priority,
+ * lowest runway, road distance, and stable id decide.
+ */
+export function selectInstitutionalFoodTarget<
+  T extends InstitutionalFoodDestinationLike,
+>(
+  targets: Iterable<T>,
+  sourceId: string,
+  conflictEnabled: boolean,
+  routeDistanceFor: (target: T) => number | null,
+  hasInboundSupply: (target: T) => boolean = () => false,
+  acceptsFood: (target: T) => boolean = () => true,
+): RoutedInstitutionalFoodDestination<T> | null {
+  let best: RoutedInstitutionalFoodDestination<T> | null = null;
+  for (const target of targets) {
+    if (
+      target.id === sourceId
+      || target.constructionComplete === false
+      || target.assignedLabor <= 0
+      || hasInboundSupply(target)
+    ) continue;
+    const plan = institutionalFoodTargetPlan(
+      target,
+      conflictEnabled,
+      acceptsFood(target),
+    );
+    if (plan == null) continue;
+    const routeDistance = routeDistanceFor(target);
+    if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
+    const candidate = { target, routeDistance, ...plan };
+    if (best == null || institutionalFoodCandidatePrecedes(candidate, best)) {
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+export function institutionalFoodDutyLabel(
+  duty: InstitutionalFoodDispatchDuty,
+): string {
+  switch (duty) {
+    case 'critical-guard': return 'Emergency company rations';
+    case 'preservation-buffer': return 'Smokehouse working batch';
+    case 'guard-reserve': return 'Company ration reserve';
+    case 'granary-intake': return 'Granary fresh-food reserve';
+  }
+}
+
+function institutionalFoodTargetPlan<T extends InstitutionalFoodDestinationLike>(
+  target: T,
+  conflictEnabled: boolean,
+  acceptsFood: boolean,
+): Omit<RoutedInstitutionalFoodDestination<T>, 'target' | 'routeDistance'> | null {
+  if (target.kind === 'guardhouse' && conflictEnabled) {
+    const desiredStock = guardhouseFoodTarget(
+      target.assignedLabor,
+      target.polearms,
+      target.guardhouseFoodReserve,
+    );
+    if (desiredStock <= 1e-6 || target.food + 1e-6 >= desiredStock) return null;
+    const runway = guardhouseFoodRunwayDays(
+      target.assignedLabor,
+      target.polearms,
+      target.food,
+    );
+    return {
+      duty: runway + 1e-9 < GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS
+        ? 'critical-guard'
+        : 'guard-reserve',
+      desiredStock,
+      runway,
+      priority: normalizeStaffingPriority(
+        Math.max(1, Math.min(3, (target.guardhousePayPriority ?? 1) + 1)),
+      ),
+    };
+  }
+  if (target.kind === 'smokehouse' && acceptsFood) {
+    const desiredStock = processorInputTarget(
+      SMOKEHOUSE_FOOD_PER_CYCLE,
+      target.processorOutputTargetPercent,
+    );
+    if (desiredStock <= 1e-6 || target.food + 1e-6 >= desiredStock) return null;
+    return {
+      duty: 'preservation-buffer',
+      desiredStock,
+      runway: processorInputRunwayCycles(
+        target.food,
+        SMOKEHOUSE_FOOD_PER_CYCLE,
+      ),
+      priority: normalizeStaffingPriority(target.constructionPriority),
+    };
+  }
+  if (target.kind === 'granary' && target.granaryAcceptsFreshFood !== false) {
+    const desiredStock = granaryFreshFoodTarget(
+      BUILDING_STORAGE_CAPS.granary.food ?? 0,
+      target.granaryFreshFoodTargetPercent,
+    );
+    if (desiredStock <= 1e-6 || target.food + 1e-6 >= desiredStock) return null;
+    return {
+      duty: 'granary-intake',
+      desiredStock,
+      runway: Math.max(0, target.food) / desiredStock,
+      priority: normalizeStaffingPriority(target.constructionPriority),
+    };
+  }
+  return null;
+}
+
+function institutionalFoodCandidatePrecedes<
+  T extends InstitutionalFoodDestinationLike,
+>(
+  left: RoutedInstitutionalFoodDestination<T>,
+  right: RoutedInstitutionalFoodDestination<T>,
+): boolean {
+  const dutyRank: Record<InstitutionalFoodDispatchDuty, number> = {
+    'critical-guard': 0,
+    'preservation-buffer': 1,
+    'guard-reserve': 2,
+    'granary-intake': 3,
+  };
+  if (dutyRank[left.duty] !== dutyRank[right.duty]) {
+    return dutyRank[left.duty] < dutyRank[right.duty];
+  }
+  if (
+    left.duty !== 'critical-guard'
+    && left.priority !== right.priority
+  ) {
+    return left.priority > right.priority;
+  }
+  if (Math.abs(left.runway - right.runway) > 1e-9) {
+    return left.runway < right.runway;
+  }
+  if (Math.abs(left.routeDistance - right.routeDistance) > 1e-6) {
+    return left.routeDistance < right.routeDistance;
+  }
+  return compareStableEntityIds(left.target.id, right.target.id) < 0;
 }
 
 export function foodSupplierDeliveryTripSeconds(

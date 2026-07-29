@@ -53,7 +53,10 @@ import {
 import {
   foodLaborSplit,
   foodSupplierDeliveryTripSeconds,
+  INSTITUTIONAL_FOOD_SOURCE_KINDS,
+  type RoutedInstitutionalFoodDestination,
   institutionalFoodSurplus,
+  selectInstitutionalFoodTarget,
 } from '../logistics/foodLogistics.ts';
 import { lodgeDeliveryTripSeconds, lodgeLaborSplit } from '../logistics/lodgeLogistics.ts';
 import { firewoodDeliveryTripSeconds } from '../logistics/deliveryLogistics.ts';
@@ -1174,6 +1177,59 @@ export class WorldQueries {
       ),
       (target) => inboundTargets.has(target.id),
       (target) => processorAcceptsInput(target, commodity),
+    );
+  }
+
+  getNextInstitutionalFoodDispatch(
+    source: BuildingState,
+    conflictEnabled = false,
+  ): RoutedInstitutionalFoodDestination<BuildingState> | null {
+    const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    const claimedHouseholds = this.getClaimedResidencesForFoodSupplier(source).length;
+    const sourceCapacity = (
+      BUILDING_STORAGE_CAPS[source.kind] as { food?: number } | undefined
+    )?.food ?? 0;
+    if (
+      !INSTITUTIONAL_FOOD_SOURCE_KINDS.includes(
+        source.kind as (typeof INSTITUTIONAL_FOOD_SOURCE_KINDS)[number],
+      )
+      || source.constructionComplete === false
+      || source.assignedLabor <= 0
+      || fireDisabled.has(source.id)
+      || findActiveTripForBuilding(state.deliveryTrips.values(), source.id) != null
+      || institutionalFoodSurplus(
+        source.food,
+        claimedHouseholds,
+        sourceCapacity,
+      ) <= 1e-6
+    ) {
+      return null;
+    }
+    const network = this.getRoadNetwork();
+    const inboundTargets = new Set<string>();
+    for (const trip of state.deliveryTrips.values()) {
+      if (
+        trip.phase !== 'inbound'
+        && trip.destinationKind === 'building'
+        && trip.targetBuildingId
+      ) {
+        inboundTargets.add(trip.targetBuildingId);
+      }
+    }
+    return selectInstitutionalFoodTarget(
+      this.fireEnabledBuildings(state, fireDisabled),
+      source.id,
+      conflictEnabled,
+      (target) => roadPathDistance(
+        network,
+        source.x,
+        source.z,
+        target.x,
+        target.z,
+      ),
+      (target) => inboundTargets.has(target.id),
+      (target) => processorAcceptsInput(target, 'food'),
     );
   }
 

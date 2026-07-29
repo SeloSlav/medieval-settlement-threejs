@@ -116,14 +116,14 @@ assert.match(
   /set_granary_fresh_food_target[\s\S]*?is_valid_granary_fresh_food_target_percent[\s\S]*?granary_fresh_food_target_percent = target_percent/,
 );
 
-const granaryStep = economySource.slice(
-  economySource.indexOf('pub fn step_granary'),
-  economySource.indexOf('fn step_farmstead_fields'),
+const granaryIntakePlan = economySource.slice(
+  economySource.indexOf('fn institutional_food_target_plan'),
+  economySource.indexOf('pub fn step_threshing_barn'),
 );
-assert.match(granaryStep, /granary_fresh_food_target\(/);
-assert.match(granaryStep, /granary\.granary_fresh_food_target_percent/);
+assert.match(granaryIntakePlan, /granary_fresh_food_target\(/);
+assert.match(granaryIntakePlan, /target\.granary_fresh_food_target_percent/);
 assert.doesNotMatch(
-  granaryStep,
+  granaryIntakePlan,
   /CommodityKind::Food\) \* 0\.75/,
   'authoritative intake must no longer use the old hard-coded target',
 );

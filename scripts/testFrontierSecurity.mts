@@ -2590,15 +2590,21 @@ const guardhouseStepSource = expandedEconomy.slice(
   expandedEconomy.indexOf('pub fn step_guardhouse'),
   expandedEconomy.indexOf('fn step_simple_producer'),
 );
-assert.match(guardhouseStepSource, /guardhouse_food_target/);
 assert.doesNotMatch(
   guardhouseStepSource,
   /"granary"/,
   'guardhouses must receive central emergency food through source-side granary arbitration',
 );
+const institutionalFoodDispatchSource = expandedEconomy.slice(
+  expandedEconomy.indexOf('pub fn step_institutional_food_dispatch'),
+  expandedEconomy.indexOf('pub fn step_threshing_barn'),
+);
+assert.match(institutionalFoodDispatchSource, /guardhouse_food_target/);
+assert.match(institutionalFoodDispatchSource, /InstitutionalFoodDispatchDuty::CriticalGuard/);
+assert.match(institutionalFoodDispatchSource, /InstitutionalFoodDispatchDuty::GuardReserve/);
 assert.match(expandedEconomy, /fn next_granary_guard_food_dispatch/);
 assert.match(expandedEconomy, /institutional_source_food_surplus/);
-assert.match(guardhouseInspector, /central granary intervenes below/);
+assert.match(guardhouseInspector, /becomes an emergency claim/);
 assert.match(guardhouseInspector, /data-guardhouse-food-reserve/);
 assert.match(guardhouseInspector, /lock up more fresh food here/);
 assert.match(townHallInspector, /Ration reserves/);

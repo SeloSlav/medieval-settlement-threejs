@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
@@ -81,14 +83,15 @@ use crate::specialty_trade_policy::{
 };
 use crate::supply_policy::{
     directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
-    grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
+    compare_institutional_food_dispatch_candidates, grain_dispatch_duty,
+    grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, processor_input_dispatch_duty, processor_input_runway_cycles,
     processor_input_target, select_grain_dispatch_candidate,
     select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
     select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
-    ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS,
-    GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
-    MARKETPLACE_MATERIAL_TARGET_KINDS,
+    InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
+    GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
+    INSTITUTIONAL_FOOD_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, Residence};
 use crate::weaver_input_policy::{
@@ -143,6 +146,219 @@ struct RoutedSeedTarget {
     building: Building,
     distance: f64,
     required: f64,
+}
+
+struct InstitutionalFoodDispatchCandidate {
+    source_id: u64,
+    target: Building,
+    distance: f64,
+    duty: InstitutionalFoodDispatchDuty,
+    priority: u8,
+    runway: f64,
+}
+
+/// Match every free fresh-food producer cart to one institutional destination
+/// after the producers have attempted their household duties for this tick.
+/// Building update order therefore cannot let an older granary, smokehouse, or
+/// guardhouse seize a cart before a more urgent destination is considered.
+pub fn step_institutional_food_dispatch(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    sources: Vec<Building>,
+) {
+    let conflict_enabled = frontier_economy_enabled(ctx);
+    let mut candidates = Vec::new();
+
+    for source in sources {
+        if !INSTITUTIONAL_FOOD_SOURCE_KINDS.contains(&source.kind.as_str())
+            || !source.construction_complete
+            || source.assigned_labor == 0
+            || tick.building_disabled_by_fire(ctx, source.id)
+            || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+            || building_has_active_trip(ctx, source.id)
+            || institutional_source_food_surplus(ctx, tick, &source, source.food) <= 1e-6
+        {
+            continue;
+        }
+        let Some(network) = tick.road_network(source.owner) else {
+            continue;
+        };
+        for target_id in tick.building_ids_for_kinds(
+            ctx,
+            source.owner,
+            &["guardhouse", "smokehouse", "granary"],
+        ) {
+            let Some(target) = ctx.db.building().id().find(&target_id) else {
+                continue;
+            };
+            if target.id == source.id
+                || tick.building_disabled_by_fire(ctx, target.id)
+                || building_has_inbound_supply_trip(ctx, target.id)
+                || building_commodity_room(&target, CommodityKind::Food) <= 1e-6
+            {
+                continue;
+            }
+            let Some((duty, priority, runway, _)) =
+                institutional_food_target_plan(&target, conflict_enabled)
+            else {
+                continue;
+            };
+            let Some(distance) =
+                network.road_path_distance(source.x, source.z, target.x, target.z)
+            else {
+                continue;
+            };
+            candidates.push(InstitutionalFoodDispatchCandidate {
+                source_id: source.id,
+                target,
+                distance,
+                duty,
+                priority,
+                runway,
+            });
+        }
+    }
+
+    candidates.sort_by(|a, b| {
+        compare_institutional_food_dispatch_candidates(
+            a.duty,
+            a.priority,
+            a.runway,
+            a.distance,
+            a.target.id,
+            a.source_id,
+            b.duty,
+            b.priority,
+            b.runway,
+            b.distance,
+            b.target.id,
+            b.source_id,
+        )
+    });
+
+    let mut used_sources = HashSet::new();
+    let mut used_targets = HashSet::new();
+    for candidate in candidates {
+        if used_sources.contains(&candidate.source_id)
+            || used_targets.contains(&candidate.target.id)
+        {
+            continue;
+        }
+        let Some(mut source) = ctx.db.building().id().find(&candidate.source_id) else {
+            continue;
+        };
+        let Some(target) = ctx.db.building().id().find(&candidate.target.id) else {
+            continue;
+        };
+        if building_has_active_trip(ctx, source.id)
+            || building_has_inbound_supply_trip(ctx, target.id)
+            || tick.building_disabled_by_fire(ctx, source.id)
+            || tick.building_disabled_by_fire(ctx, target.id)
+        {
+            continue;
+        }
+        let Some((_, _, _, desired_stock)) =
+            institutional_food_target_plan(&target, conflict_enabled)
+        else {
+            continue;
+        };
+        let transferable = institutional_source_food_surplus(ctx, tick, &source, source.food);
+        let needed = (desired_stock - target.food)
+            .max(0.0)
+            .min(transferable);
+        if needed <= 1e-6 {
+            continue;
+        }
+        let Some(network) = tick.road_network(source.owner) else {
+            continue;
+        };
+        if try_start_building_supply_trip(
+            ctx,
+            tick,
+            clock,
+            network,
+            &mut source,
+            &target,
+            1,
+            CommodityKind::Food,
+            TIMBER_DELIVERY_SPEED_MPS,
+            TIMBER_DELIVERY_UNLOAD_SEC,
+            commodity_transfer_per_trip(CommodityKind::Food),
+            needed,
+        ) {
+            used_sources.insert(source.id);
+            used_targets.insert(target.id);
+            ctx.db.building().id().update(source);
+        }
+    }
+}
+
+fn institutional_food_target_plan(
+    target: &Building,
+    conflict_enabled: bool,
+) -> Option<(InstitutionalFoodDispatchDuty, u8, f64, f64)> {
+    if !target.construction_complete || target.assigned_labor == 0 {
+        return None;
+    }
+    match target.kind.as_str() {
+        "guardhouse" if conflict_enabled => {
+            let desired_stock = guardhouse_food_target(
+                target.assigned_labor,
+                target.polearms,
+                target.guardhouse_food_reserve,
+            );
+            if desired_stock <= 1e-6 || target.food + 1e-6 >= desired_stock {
+                return None;
+            }
+            let runway = guardhouse_food_runway_days(
+                target.assigned_labor,
+                target.polearms,
+                target.food,
+            );
+            let duty = if runway + 1e-9 < GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS {
+                InstitutionalFoodDispatchDuty::CriticalGuard
+            } else {
+                InstitutionalFoodDispatchDuty::GuardReserve
+            };
+            Some((
+                duty,
+                target.guardhouse_pay_priority.saturating_add(1),
+                runway,
+                desired_stock,
+            ))
+        }
+        "smokehouse" if processor_accepts_input(target, CommodityKind::Food) => {
+            let per_cycle = SMOKEHOUSE_FOOD_PER_CYCLE;
+            let desired_stock =
+                processor_input_target(per_cycle, target.processor_output_target_percent);
+            if desired_stock <= 1e-6 || target.food + 1e-6 >= desired_stock {
+                return None;
+            }
+            Some((
+                InstitutionalFoodDispatchDuty::PreservationBuffer,
+                target.construction_priority,
+                processor_input_runway_cycles(target.food, per_cycle),
+                desired_stock,
+            ))
+        }
+        "granary" if target.granary_accepts_fresh_food => {
+            let desired_stock = granary_fresh_food_target(
+                building_commodity_cap(&target.kind, CommodityKind::Food),
+                target.granary_fresh_food_target_percent,
+            );
+            if desired_stock <= 1e-6 || target.food + 1e-6 >= desired_stock {
+                return None;
+            }
+            Some((
+                InstitutionalFoodDispatchDuty::GranaryIntake,
+                target.construction_priority,
+                target.food.max(0.0) / desired_stock,
+                desired_stock,
+            ))
+        }
+        _ => None,
+    }
 }
 
 pub fn step_threshing_barn(
@@ -560,23 +776,6 @@ pub fn step_granary(
     building: Building,
 ) {
     let mut granary = building;
-    // Once its bakery inputs are covered, the granary also centralizes fresh
-    // food. Routine household suppliers retain a territory-sized delivery
-    // buffer before any institutional collection cart may load.
-    if granary.granary_accepts_fresh_food {
-        let food_buffer = granary_fresh_food_target(
-            building_commodity_cap(&granary.kind, CommodityKind::Food),
-            granary.granary_fresh_food_target_percent,
-        );
-        request_connected_food_surplus(
-            ctx,
-            tick,
-            clock,
-            &granary,
-            &["hunters_hall", "foragers_shed", "fishing_camp", "swineherd"],
-            food_buffer,
-        );
-    }
     granary = step_processor(
         ctx,
         tick,
@@ -1054,16 +1253,6 @@ pub fn step_smokehouse(
     building: Building,
 ) {
     let mut smokehouse = building;
-    let input_staging_cycles =
-        processor_input_staging_cycles(smokehouse.processor_output_target_percent);
-    request_connected_food_surplus(
-        ctx,
-        tick,
-        clock,
-        &smokehouse,
-        &["hunters_hall", "foragers_shed", "fishing_camp", "swineherd"],
-        SMOKEHOUSE_FOOD_PER_CYCLE * input_staging_cycles,
-    );
     smokehouse = step_processor(
         ctx,
         tick,
@@ -1459,28 +1648,6 @@ pub fn step_guardhouse(
         building.action_cooldown = 0.0;
         ctx.db.building().id().update(building);
         return;
-    }
-
-    let food_buffer = guardhouse_food_target(
-        building.assigned_labor,
-        building.polearms,
-        building.guardhouse_food_reserve,
-    );
-    if food_buffer > 1e-6 {
-        request_connected_food_surplus(
-            ctx,
-            tick,
-            clock,
-            &building,
-            &[
-                "hunters_hall",
-                "foragers_shed",
-                "fishing_camp",
-                "pastoral_farmstead",
-                "swineherd",
-            ],
-            food_buffer,
-        );
     }
 
     let armed_guards = armed_guards(building.assigned_labor, building.polearms);
@@ -2650,26 +2817,6 @@ fn connected_source_surplus(
         return granary_exportable_grain(stock, source.granary_grain_reserve);
     }
     stock
-}
-
-fn request_connected_food_surplus(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    target: &Building,
-    source_kinds: &[&str],
-    desired: f64,
-) {
-    request_connected_commodity_with_source_availability(
-        ctx,
-        tick,
-        clock,
-        target,
-        CommodityKind::Food,
-        source_kinds,
-        desired,
-        |source, stock| institutional_source_food_surplus(ctx, tick, source, stock),
-    );
 }
 
 fn institutional_source_food_surplus(

@@ -286,7 +286,11 @@ assert.match(
   /target\.assigned_labor == 0[\s\S]*building_has_inbound_supply_trip/,
   'unstaffed processors must not request input carts',
 );
-assert.match(expandedEconomy, /if granary\.granary_accepts_fresh_food/);
+assert.match(
+  expandedEconomy,
+  /"granary" if target\.granary_accepts_fresh_food[\s\S]*granary_fresh_food_target/,
+  'enabled granaries must expose their selected intake target to producer-owned carts',
+);
 assert.match(buildingTable, /#\[default\(true\)\][\s\S]*pub granary_accepts_fresh_food: bool/);
 assert.match(buildingReducers, /pub fn set_granary_policy\(/);
 assert.match(generatedBuilding, /granaryAcceptsFreshFood:[\s\S]*granary_accepts_fresh_food/);

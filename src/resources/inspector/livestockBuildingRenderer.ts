@@ -33,6 +33,7 @@ import {
 } from '../../logistics/deliveryTrips.ts';
 import {
   householdFoodReserve,
+  institutionalFoodDutyLabel,
   institutionalFoodSurplus,
 } from '../../logistics/foodLogistics.ts';
 import type { InspectableTarget } from '../types.ts';
@@ -128,15 +129,23 @@ export function renderLivestockBuildingInspector(
   const onsiteLabor = onsiteBuildingLabor(building, activeTrip);
   const active = Boolean(herd && pastures.length > 0 && onsiteLabor > 0 && herd.health >= 0.45);
   const foodTerritory = context.worldQueries.getClaimedResidencesForFoodSupplier(building);
-  const householdReserveRow = building.kind === 'swineherd'
-    || (building.kind === 'pastoral_farmstead' && context.conflictEnabled)
-    ? (() => {
-        const foodCapacity = storageCaps.food ?? 0;
-        const reserve = householdFoodReserve(foodTerritory.length, foodCapacity);
-        const surplus = institutionalFoodSurplus(building.food, foodTerritory.length, foodCapacity);
-        return `<li><span>Local food reserve</span><span>${reserve.toFixed(1)} protected · ${surplus.toFixed(1)} central surplus</span></li>`;
-      })()
-    : '';
+  const foodCapacity = storageCaps.food ?? 0;
+  const householdFoodFloor = householdFoodReserve(foodTerritory.length, foodCapacity);
+  const institutionalSurplus = institutionalFoodSurplus(
+    building.food,
+    foodTerritory.length,
+    foodCapacity,
+  );
+  const nextInstitutionalDispatch =
+    context.worldQueries.getNextInstitutionalFoodDispatch(
+      building,
+      context.conflictEnabled === true,
+    );
+  const nextInstitutionalCart = nextInstitutionalDispatch
+    ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${nextInstitutionalDispatch.target.food.toFixed(1)} / ${nextInstitutionalDispatch.desiredStock.toFixed(1)} food`
+    : institutionalSurplus <= 1e-6
+      ? 'None · local household reserve is protected'
+      : 'No eligible road-linked institution';
   const nextFoodTarget = context.worldQueries.getNextFoodDeliveryTargetForSupplier(building);
   const nextPreservedTarget = building.kind === 'pastoral_farmstead'
     ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'preservedFood')
@@ -333,8 +342,9 @@ export function renderLivestockBuildingInspector(
       <li><span>Textile route</span><span>Holding cart → road-linked weaver → cloth cart → marketplace</span></li>
       <li><span>Next wool cart</span><span>${nextWoolCart}</span></li>` : ''}
       <li><span>Food territory</span><span>${building.food <= 1e-6 ? 'Yielding while empty' : foodTerritory.length === 0 ? 'None on branch' : `${foodTerritory.length} households claimed`}</span></li>
-      ${householdReserveRow}
+      <li><span>Local food reserve</span><span>${householdFoodFloor.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>
       <li><span>Next food cart</span><span>${nextFoodTarget ? `Parcel #${nextFoodTarget.parcelIndex + 1}` : 'None needing food'}</span></li>
+      <li><span>Next surplus cart</span><span>${nextInstitutionalCart}</span></li>
       ${building.kind === 'pastoral_farmstead' ? `<li><span>Next preserved cart</span><span>${nextPreservedTarget ? `Parcel #${nextPreservedTarget.parcelIndex + 1}` : 'None needing provisions'}</span></li>` : ''}
       <li><span>Cart duty</span><span>${activeTrip ? `${cargoKindLabel(activeTrip.cargoKind)} · ${formatTripPhaseLabel(activeTrip.phase)}` : 'Ready'}</span></li>
       ${benefitRow}

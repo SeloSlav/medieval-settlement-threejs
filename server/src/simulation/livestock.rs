@@ -158,16 +158,7 @@ fn step_livestock_building(
                 .unwrap_or(10.0);
         }
 
-        if herd.species == SPECIES_SWINE {
-            dispatch_to_building(
-                ctx,
-                tick,
-                clock,
-                &mut building,
-                CommodityKind::Food,
-                &["smokehouse"],
-            );
-        } else if herd.species == SPECIES_SHEEP {
+        if herd.species == SPECIES_SHEEP {
             // Shearing briefly takes the holding's only cart away from food
             // deliveries, making nearby weaving capacity matter in early summer.
             dispatch_to_building(

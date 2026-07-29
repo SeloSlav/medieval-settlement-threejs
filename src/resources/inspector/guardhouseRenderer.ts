@@ -285,8 +285,8 @@ export function renderGuardhouseInspector(
       <li><span>Pay chest</span><span>${payrollLogistics.onsiteGold.toFixed(1)} / ${payrollLogistics.targetGold.toFixed(1)} gold · ${formatProvisionRunway(payrollLogistics.onsiteRunwayDays)} on site</span></li>
       <li><span>Payroll route</span><span>${payrollLogisticsFeedback(payrollLogistics, context)}</span></li>
       <li><span>Treasury wages</span><span>${context.resourceTotals.gold.toFixed(1)} spendable gold across all company claims</span></li>
-      <li><span>Provision target</span><span>${suspendedByFire ? 'Suspended until fire recovery' : armed > 0 ? `${foodTarget.toFixed(1)} food · ${formatProvisionRunway(targetRunwayDays)} when full · central granary intervenes below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days` : 'None until polearms arm the company'}</span></li>
-      <li><span>Provision priority</span><span>Producer and granary carts preserve household delivery reserves</span></li>
+      <li><span>Provision target</span><span>${suspendedByFire ? 'Suspended until fire recovery' : armed > 0 ? `${foodTarget.toFixed(1)} food · ${formatProvisionRunway(targetRunwayDays)} when full · below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days becomes an emergency claim` : 'None until polearms arm the company'}</span></li>
+      <li><span>Provision priority</span><span>Household reserves stay local · emergencies beat smokehouse batches · routine company reserves beat granary intake</span></li>
       <li><span>Supply chain</span><span>Food by road · polearms from a staffed carpenter · pay lockboxes from a civic treasury · ironwork imported at a staffed market</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
@@ -419,7 +419,7 @@ function renderRationReservePanel(currentReserve: number): string {
 function renderCompanyPriorityPanel(currentPriority: number): string {
   return `
     <div class="inspector-action-panel">
-      <p class="resource-inspector-note">Company priority — high-priority guardhouses claim scarce carpenter-made polearms, routine food sources, and treasury wages before lower tiers. Emergency granary food still goes to the armed company with the lowest runway.</p>
+      <p class="resource-inspector-note">Company priority — high-priority guardhouses claim scarce carpenter-made polearms, routine producer food, and treasury wages before lower tiers. Any armed company below the emergency floor instead wins food by lowest runway, whether the cart starts at a producer or granary.</p>
       <div class="resource-action-row">${GUARDHOUSE_PAY_PRIORITIES
         .map((candidate) => `<button type="button" class="resource-action-button" data-guardhouse-pay-priority="${candidate.priority}" ${candidate.priority === currentPriority ? 'disabled' : ''}>${candidate.label}</button>`)
         .join('')}</div>

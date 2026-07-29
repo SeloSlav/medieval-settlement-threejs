@@ -339,8 +339,8 @@ const granary = readFileSync(
 );
 assert.match(
   granary,
-  /request_connected_food_surplus\(\s*ctx,\s*tick,\s*clock,\s*&granary,\s*&\["hunters_hall",\s*"foragers_shed",\s*"fishing_camp",\s*"swineherd"\]/s,
-  'the granary should collect road-linked wild-food surplus',
+  /pub fn step_institutional_food_dispatch[\s\S]*?\["guardhouse", "smokehouse", "granary"\]/s,
+  'wild-food producer carts should consider enabled road-linked granaries in shared institutional arbitration',
 );
 
 const mushroomVisuals = readFileSync(

@@ -26,6 +26,7 @@ import {
 import { roadDeliveryTripSeconds } from '../../logistics/deliveryLogistics.ts';
 import {
   granaryDispatchPriorityLabel,
+  institutionalFoodDutyLabel,
   institutionalFoodSurplus,
 } from '../../logistics/foodLogistics.ts';
 import { compareStableEntityIds } from '../../logistics/roadLogistics.ts';
@@ -950,9 +951,38 @@ export function renderExpandedBuildingInspector(
             : 'normal flow'}</span></li>
       <li><span>Seasonal planning</span><span>Flour capacity follows live river power · stockpile before frost and drought</span></li>`
     : '';
+  const routineFreshFoodSource = building.kind === 'apiary'
+    || building.kind === 'vineyard';
+  const routineFreshFoodClaims = routineFreshFoodSource
+    ? context.worldQueries.getClaimedResidencesForFoodSupplier(building).length
+    : 0;
+  const routineFreshFoodCapacity = routineFreshFoodSource
+    ? buildingStorageCaps(building.kind).food ?? 0
+    : 0;
+  const routineFreshFoodSurplus = routineFreshFoodSource
+    ? institutionalFoodSurplus(
+        building.food,
+        routineFreshFoodClaims,
+        routineFreshFoodCapacity,
+      )
+    : 0;
+  const routineFreshFoodDispatch = routineFreshFoodSource
+    ? context.worldQueries.getNextInstitutionalFoodDispatch(
+        building,
+        context.conflictEnabled === true,
+      )
+    : null;
   const institutionalFoodRows = building.kind === 'smokehouse'
-    ? '<li><span>Fresh-food priority</span><span>Collects central surplus only · household delivery reserves stay local</span></li>'
-    : '';
+    ? `<li><span>Fresh-food priority</span><span>Producer-owned carts protect household reserves, then serve a critical company before this working batch</span></li>
+      <li><span>Shared arbitration</span><span>Smokehouse batch → routine company reserve → enabled granary intake · work priority and lowest runway break ties</span></li>`
+    : routineFreshFoodSource
+      ? `<li><span>Local food reserve</span><span>${(building.food - routineFreshFoodSurplus).toFixed(1)} protected · ${routineFreshFoodSurplus.toFixed(1)} central surplus</span></li>
+        <li><span>Next surplus cart</span><span>${routineFreshFoodDispatch
+          ? `${institutionalFoodDutyLabel(routineFreshFoodDispatch.duty)} → ${context.worldQueries.getBuildingLabel(routineFreshFoodDispatch.target.kind)} · ${routineFreshFoodDispatch.target.food.toFixed(1)} / ${routineFreshFoodDispatch.desiredStock.toFixed(1)} food`
+          : routineFreshFoodSurplus <= 1e-6
+            ? 'None · local household reserve is protected'
+            : 'No eligible road-linked institution'}</span></li>`
+      : '';
   const farmsteadPlanning = building.kind === 'threshing_barn'
     ? renderFarmsteadPlanning(building, context)
     : null;
@@ -1178,7 +1208,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     : 'Preservation-first restores the highest-priority smokehouse working buffer before route distance. If no smokehouse can receive food, the granary immediately falls through to its lowest-runway claimed home.';
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Centralizing fresh food sharply reduces spoilage but consumes a road haul before the granary can redistribute it. Every routine food supplier keeps one household cart per claimed home, capped at half its storage, before any granary, smokehouse, or guardhouse cart may load.</p>
+      <p class="inspector-action-panel__hint">Centralizing fresh food sharply reduces spoilage but consumes a producer's road haul before the granary can redistribute it. Every routine food supplier keeps one household cart per claimed home, capped at half its storage. Surplus carts then serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-accepts-fresh-food ${building.granaryAcceptsFreshFood === false ? '' : 'checked'} /><span>Collect fresh-food surplus</span></label>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Feed households before smokehouses</span></label>
       <p class="inspector-action-panel__hint">${priorityHint}</p>
