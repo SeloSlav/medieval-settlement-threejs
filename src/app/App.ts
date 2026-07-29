@@ -19,7 +19,7 @@ import { InputManager } from '../input/InputManager.ts';
 import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import { ForestVisualSync } from '../resources/ForestVisualSync.ts';
-import { ResourceInspector } from '../resources/ResourceInspector.ts';
+import type { ResourceInspector } from '../resources/ResourceInspector.ts';
 import {
   computeInTransitResourceTotals,
   computeGoldAwaitingCollection,

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { gzipSync } from 'node:zlib';
+import { build as buildVite } from 'vite';
 
 const bootstrapPath = 'src/app/appBootstrap.ts';
 const appPath = 'src/app/App.ts';
@@ -19,6 +21,7 @@ const deferredModules = [
   ['FarmFieldMarkers', '../farming/FarmFieldMarkers.ts'],
   ['PastureMarkers', '../farming/PastureMarkers.ts'],
   ['LivestockVisuals', '../farming/LivestockVisuals.ts'],
+  ['ResourceInspector', '../resources/ResourceInspector.ts'],
 ] as const;
 
 for (const [exportName, modulePath] of deferredModules) {
@@ -43,6 +46,7 @@ const startIndex = bootstrap.indexOf(boundaryImport);
 const sceneIndex = bootstrap.indexOf('const sceneManager = await SceneManager.create');
 const awaitIndex = bootstrap.indexOf('} = await settlementPresentationPromise;');
 const instantiateIndex = bootstrap.indexOf('const deliveryAgents = new DeliveryAgentRenderer');
+const inspectorInstantiateIndex = bootstrap.indexOf('resourceInspector = new ResourceInspector');
 
 assert.ok(startIndex >= 0, 'bootstrap must start the presentation request explicitly');
 assert.ok(
@@ -56,6 +60,10 @@ assert.ok(
 assert.ok(
   instantiateIndex > awaitIndex,
   'presentation code must resolve before its first renderer is constructed',
+);
+assert.ok(
+  inspectorInstantiateIndex > awaitIndex,
+  'presentation code must resolve before the deferred inspector is constructed',
 );
 assert.equal(
   bootstrap.match(/import\('\.\/deferredSettlementPresentation\.ts'\)/g)?.length,
@@ -72,4 +80,48 @@ assert.ok(
   'runtime startup diagnostics must expose when deferred presentation is ready',
 );
 
-console.log('startup chunking contract tests passed');
+const memoryBuild = await buildVite({
+  logLevel: 'silent',
+  build: {
+    write: false,
+  },
+});
+const buildOutputs = (Array.isArray(memoryBuild) ? memoryBuild : [memoryBuild])
+  .flatMap((result) => ('output' in result ? result.output : []));
+const chunks = buildOutputs.filter((output) => output.type === 'chunk');
+const entryChunk = chunks.find((chunk) => chunk.isEntry);
+assert.ok(entryChunk, 'production build must expose one application entry chunk');
+
+const inspectorModuleSuffix = '/src/resources/ResourceInspector.ts';
+const moduleNames = (chunk: (typeof chunks)[number]): string[] => (
+  Object.keys(chunk.modules).map((moduleName) => moduleName.replaceAll('\\', '/'))
+);
+assert.equal(
+  moduleNames(entryChunk).some((moduleName) => moduleName.endsWith(inspectorModuleSuffix)),
+  false,
+  'the initial application chunk must not parse the inspector/reporting graph',
+);
+const inspectorChunk = chunks.find((chunk) => (
+  moduleNames(chunk).some((moduleName) => moduleName.endsWith(inspectorModuleSuffix))
+));
+assert.ok(inspectorChunk, 'production build must retain the deferred resource inspector');
+assert.equal(
+  inspectorChunk.isEntry,
+  false,
+  'the resource inspector must remain outside the initial application entry',
+);
+
+const entryBytes = Buffer.byteLength(entryChunk.code);
+const entryGzipBytes = gzipSync(entryChunk.code).byteLength;
+assert.ok(
+  entryBytes <= 1_100_000,
+  `initial application chunk grew beyond its 1.10 MB parse budget (${entryBytes} bytes)`,
+);
+assert.ok(
+  entryGzipBytes <= 350_000,
+  `initial application chunk grew beyond its 350 KB transfer budget (${entryGzipBytes} bytes gzip)`,
+);
+
+console.log(
+  `startup chunking contract tests passed (${(entryBytes / 1000).toFixed(1)} KB raw / ${(entryGzipBytes / 1000).toFixed(1)} KB gzip entry)`,
+);

@@ -32,7 +32,7 @@ import { SessionConnectionGate } from '../network/SessionConnectionGate.ts';
 import { createInitialGameState } from '../resources/GameState.ts';
 import type { GameState } from '../resources/types.ts';
 import { countTreesNearBuilding } from '../resources/ForestVisualSync.ts';
-import { ResourceInspector } from '../resources/ResourceInspector.ts';
+import type { ResourceInspector } from '../resources/ResourceInspector.ts';
 import {
   formatLocatedResourceAmount,
   locatePhysicalResource,
@@ -298,6 +298,7 @@ export async function bootstrapAppSession(
     FarmFieldMarkers,
     PastureMarkers,
     LivestockVisuals,
+    ResourceInspector,
   } = await settlementPresentationPromise;
   markSettlementPresentationReady();
   const deliveryAgents = new DeliveryAgentRenderer({
