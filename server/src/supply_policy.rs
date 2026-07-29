@@ -16,7 +16,13 @@ use crate::civilian_tool_policy::is_civilian_tool_site;
 use crate::processor_output_policy::processor_input_staging_cycles;
 
 pub const ALE_SUPPLIER_KINDS: &[&str] = &["brewery", "monastery"];
-pub const PRESERVED_FOOD_SUPPLIER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead"];
+/// Buildings that can create a sustainable preserved-food service for a new
+/// prosperous household. Storage depots deliberately remain outside this
+/// roster so an empty granary cannot satisfy a tier-three upgrade gate.
+pub const PRESERVED_FOOD_PRODUCER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead"];
+/// Stocked buildings whose own staffed cart can serve cured household rations.
+/// Granaries join only after physical stock reaches them.
+pub const PRESERVED_FOOD_SUPPLIER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead", "granary"];
 pub const CLOTH_SUPPLIER_KINDS: &[&str] = &["weaver"];
 pub const POTTERY_SUPPLIER_KINDS: &[&str] = &["potter_kiln"];
 /// Every non-market building that already dispatches food to households.
@@ -653,8 +659,8 @@ mod tests {
         ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
         GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
         GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
-        LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
-        POTTERY_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
+        LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_SUPPLIER_KINDS,
+        PRESERVED_FOOD_PRODUCER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
@@ -1272,13 +1278,16 @@ mod tests {
     }
 
     #[test]
-    fn specialty_supplier_roles_match_actual_producers() {
+    fn specialty_supplier_roles_separate_production_from_stocked_distribution() {
         assert_eq!(ALE_SUPPLIER_KINDS, &["brewery", "monastery"]);
         assert_eq!(
-            PRESERVED_FOOD_SUPPLIER_KINDS,
+            PRESERVED_FOOD_PRODUCER_KINDS,
             &["smokehouse", "pastoral_farmstead"]
         );
-        assert!(!PRESERVED_FOOD_SUPPLIER_KINDS.contains(&"granary"));
+        assert_eq!(
+            PRESERVED_FOOD_SUPPLIER_KINDS,
+            &["smokehouse", "pastoral_farmstead", "granary"]
+        );
         assert_eq!(CLOTH_SUPPLIER_KINDS, &["weaver"]);
         assert_eq!(POTTERY_SUPPLIER_KINDS, &["potter_kiln"]);
     }

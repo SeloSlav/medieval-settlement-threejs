@@ -119,7 +119,7 @@ const PROCESS: Record<string, string> = {
   potter_kiln: 'Riverbank clay + firewood -> household wares, preservation vessels, and export',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + river power → flour',
-  granary: 'Buffers grain for processors, bakes staple food, and shelters road-hauled fresh food',
+  granary: 'Buffers grain, bakes staple food, and redistributes road-hauled fresh and cured provisions',
   brewery: 'Barley + water + firewood → malt → ale',
   smokehouse: 'Fresh food + firewood + imported salt + pottery vessels → preserved food',
   apiary: 'April-September forest forage → food, monastery hospitality, or export honey',
@@ -168,6 +168,7 @@ function buildingHasOutboundStock(
       return building.flour > 0;
     case 'granary':
       return building.food > 0
+        || building.preservedFood > 0
         || granaryExportableGrain(
           building.grain,
           building.granaryGrainReserve ?? 0,
@@ -208,11 +209,11 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'watermill':
       return 'Highest-priority flour-short bakery, then lowest runway and road route';
     case 'granary':
-      return 'Priority-selected critical processor first · otherwise food policy, then that processor';
+      return 'Critical processor, company, and brewery buffers first · then fresh and cured household policy';
     case 'brewery':
       return `Linked monastery short of its ${MONASTERY_FEAST_ALE}-ale feast floor, then claimed tier-3 home, then road-linked export market`;
     case 'smokehouse':
-      return 'Lowest-runway claimed tier-3 home';
+      return 'Lowest-runway claimed tier-3 home, then nearest granary cured-food reserve';
     case 'apiary':
     case 'vineyard':
       return 'Claimed food-needy home, then provisioned monastery, then export market';
@@ -238,12 +239,15 @@ function outboundDestinationLabel(building: BuildingState): string {
 function cargoPerTripLabel(building: BuildingState): string | null {
   switch (building.kind) {
     case 'threshing_barn':
-    case 'granary':
     case 'watermill':
     case 'brewery':
     case 'apiary':
     case 'vineyard':
       return `${GRAIN_TRANSFER_PER_TRIP} per haul`;
+    case 'granary':
+      return `4 fresh or 3 cured per household haul · ${GRAIN_TRANSFER_PER_TRIP} per bulk haul`;
+    case 'smokehouse':
+      return `3 per household haul · ${GRAIN_TRANSFER_PER_TRIP} per granary haul`;
     case 'weaver':
       return `2 cloth per household haul · ${TEXTILE_TRANSFER_PER_TRIP} per market haul`;
     case 'clay_pit':
@@ -404,18 +408,31 @@ function outboundTripTarget(
     if (grainIsCritical) {
       return grainDispatch.target;
     }
-    if (building.food > 1e-6) {
-      const householdTarget =
-        context.worldQueries.getNextFoodDeliveryTargetForSupplier(building);
-      const preservationTarget = context.worldQueries.getNextDirectProcessorInputDispatch(
+    const barleyTarget = context.worldQueries.getNextDirectProcessorInputDispatch(
+      building,
+      'barley',
+    )?.target ?? null;
+    if (barleyTarget) return barleyTarget;
+    const householdFoodTarget = building.food > 1e-6
+      ? context.worldQueries.getNextFoodDeliveryTargetForSupplier(building)
+      : null;
+    const preservationTarget = building.food > 1e-6
+      ? context.worldQueries.getNextDirectProcessorInputDispatch(
         building,
         'food',
-      )?.target ?? null;
-      const foodTarget = building.granaryHouseholdsFirst === true
-        ? householdTarget ?? preservationTarget
-        : preservationTarget ?? householdTarget;
-      if (foodTarget) return foodTarget;
-    }
+      )?.target ?? null
+      : null;
+    const curedHouseholdTarget = building.preservedFood > 1e-6
+      ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
+        building,
+        'preservedFood',
+      )
+      : null;
+    const householdTarget = householdFoodTarget ?? curedHouseholdTarget;
+    const foodTarget = building.granaryHouseholdsFirst === true
+      ? householdTarget ?? preservationTarget
+      : preservationTarget ?? householdTarget;
+    if (foodTarget) return foodTarget;
     return grainDispatch?.target ?? null;
   }
 
@@ -432,7 +449,10 @@ function outboundTripTarget(
       return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
         building,
         'preservedFood',
-      );
+      ) ?? context.worldQueries.getNextDirectProcessorInputDispatch(
+        building,
+        'preservedFood',
+      )?.target ?? null;
     default:
       return null;
   }
@@ -588,6 +608,28 @@ function renderLogisticsRows(
           <li><span>Next household</span><span>${next ? `Parcel #${next.parcelIndex + 1}` : 'None needing food'}</span></li>`;
       })()
     : '';
+  const preservedFoodTerritoryRows =
+    building.kind === 'smokehouse' || building.kind === 'granary'
+      ? (() => {
+          const claimed = context.worldQueries.getClaimedResidencesForSpecialtySupplier(
+            building,
+            'preservedFood',
+          );
+          const next = context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
+            building,
+            'preservedFood',
+          );
+          const overflow = building.kind === 'smokehouse'
+            ? context.worldQueries.getNextDirectProcessorInputDispatch(
+                building,
+                'preservedFood',
+              )
+            : null;
+          return `<li><span>Cured-food territory</span><span>${building.preservedFood <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
+          <li><span>Next cured ration</span><span>${next ? `Parcel #${next.parcelIndex + 1} · lowest household runway` : 'Household cupboards covered'}</span></li>
+          ${building.kind === 'smokehouse' ? `<li><span>Cured overflow</span><span>${overflow ? `${context.worldQueries.getBuildingLabel(overflow.target.kind)} · ${overflow.routeDistance.toFixed(0)} m road · only after household duty` : 'No reachable granary with room'}</span></li>` : ''}`;
+        })()
+      : '';
   const textileTerritoryRows = building.kind === 'weaver'
     ? (() => {
         const claimed = context.worldQueries.getClaimedResidencesForSpecialtySupplier(
@@ -648,6 +690,7 @@ function renderLogisticsRows(
     : '';
   const householdTerritoryRows =
     foodTerritoryRows
+    + preservedFoodTerritoryRows
     + textileTerritoryRows
     + potteryTerritoryRows
     + hospitalityRoutingRows
@@ -1300,8 +1343,8 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     freshFoodTargetPercent,
   );
   const priorityHint = householdsFirst
-    ? 'Household-first sends the next available cart to the lowest-runway claimed home. If no home can receive food, the granary falls through to the highest-priority smokehouse working buffer.'
-    : 'Preservation-first restores the highest-priority smokehouse working buffer before route distance. If no smokehouse can receive food, the granary immediately falls through to its lowest-runway claimed home.';
+    ? 'Household-first sends fresh food to the lowest-runway claimed home, then a cured ration if no fresh-food cart can leave. If neither home duty can run, the granary falls through to the highest-priority smokehouse working buffer.'
+    : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before route distance. If no smokehouse can receive food, the granary falls through to fresh household food and then cured rations.';
   return `
     <div class="inspector-action-panel">
       <p class="inspector-action-panel__hint">Centralizing fresh food sharply reduces spoilage but consumes a producer's road haul before the granary can redistribute it. Every routine food supplier keeps one household cart per claimed home, capped at half its storage. Surplus carts then serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order.</p>
@@ -1317,7 +1360,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
       <div class="resource-action-row">${GRANARY_GRAIN_RESERVE_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-granary-grain-reserve="${preset.reserve}" ${grainReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">A staffed granary collects only stock above local reserves until its selected target. Producers with no claimed homes can send their whole stock. Staff are required for both delivery duties.</p>
+      <p class="inspector-action-panel__hint">A staffed granary collects only fresh stock above local reserves until its selected target. Producers with no claimed homes can send their whole stock. Cured provisions use separate capacity and arrive only after producers cover household duties; staffed keepers redistribute them without changing the fresh-food target. Staff are required for every granary delivery.</p>
     </div>
   `;
 }

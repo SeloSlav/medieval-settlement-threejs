@@ -1231,7 +1231,8 @@ export class WorldQueries {
         target.z,
       ),
       (target) => inboundTargets.has(target.id),
-      (target) => processorAcceptsInput(target, commodity),
+      (target) => commodity === 'preservedFood'
+        || processorAcceptsInput(target, commodity),
     );
   }
 

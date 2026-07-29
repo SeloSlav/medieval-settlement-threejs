@@ -200,6 +200,19 @@ fn step_livestock_building(
         if herd.species == SPECIES_CATTLE {
             dispatch_manure_to_crop_farmstead(ctx, tick, clock, &mut building);
         }
+        if herd.species != SPECIES_SWINE {
+            // Household provisions and cattle manure keep priority. Any cured
+            // surplus left after those duties can be centralized rather than
+            // blocking the next livestock cycle in a full holding.
+            dispatch_to_building(
+                ctx,
+                tick,
+                clock,
+                &mut building,
+                CommodityKind::PreservedFood,
+                &["granary"],
+            );
+        }
     }
 
     ctx.db.livestock_herd().building_id().update(herd);

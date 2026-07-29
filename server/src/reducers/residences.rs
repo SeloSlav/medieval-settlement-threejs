@@ -37,8 +37,8 @@ use crate::simulation::{
 };
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
-    is_well_supplier_operational, ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS,
-    POTTERY_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
+    is_well_supplier_operational, ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, POTTERY_SUPPLIER_KINDS,
+    PRESERVED_FOOD_PRODUCER_KINDS,
 };
 use crate::tables::{farm_field, BurgageZone, Residence};
 use crate::well_policy::position_within_well_service_radius;
@@ -671,7 +671,7 @@ fn has_connected_services(
                     )
                 }
                 ResidenceUpgradeService::PreservedFood => {
-                    PRESERVED_FOOD_SUPPLIER_KINDS.contains(&building.kind.as_str())
+                    PRESERVED_FOOD_PRODUCER_KINDS.contains(&building.kind.as_str())
                         && is_specialty_supplier_operational(
                             &building.kind,
                             building.construction_complete,

@@ -35,6 +35,7 @@ export type DirectProcessorInputCommodity =
   | 'firewood'
   | 'flour'
   | 'food'
+  | 'preservedFood'
   | 'wool'
   | 'flax'
   | 'ironwork'
@@ -57,6 +58,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'weaverInputPolicy'
   | 'flour'
   | 'food'
+  | 'preservedFood'
   | 'wool'
   | 'flax'
   | 'barley'
@@ -93,6 +95,7 @@ const TARGET_KINDS: Record<
   ],
   flour: ['granary'],
   food: ['smokehouse'],
+  preservedFood: ['granary'],
   wool: ['weaver'],
   flax: ['weaver'],
   ironwork: [
@@ -137,6 +140,8 @@ export function directlyDispatchedProcessorInputPerCycle(
       return GRANARY_FLOUR_PER_CYCLE;
     case 'food':
       return SMOKEHOUSE_FOOD_PER_CYCLE;
+    case 'preservedFood':
+      return 0;
     case 'wool':
       return WEAVER_WOOL_PER_CYCLE;
     case 'flax':
@@ -179,8 +184,9 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * lowest runway and route; staffed extractive worksites use the same ordering
  * for replacement iron tools. Imported iron and salt stop at their working
  * buffers; after the kiln's household-ware duty, pottery reaches staffed
- * smokehouses before becoming market export stock. Other inputs resume nearest
- * storage overflow once buffers are covered.
+ * smokehouses before becoming market export stock. Preserved food is a
+ * storage-only overflow route to the nearest granary, never a processor input.
+ * Other inputs resume nearest storage overflow once buffers are covered.
  */
 export function selectDirectProcessorInputTarget<
   T extends ProcessorInputDestinationLike,
@@ -569,7 +575,8 @@ function directMaterialCommodityRank(
     case 'firewood': return 7;
     case 'flour': return 8;
     case 'food': return 9;
-    case 'wool': return 10;
-    case 'flax': return 11;
+    case 'preservedFood': return 10;
+    case 'wool': return 11;
+    case 'flax': return 12;
   }
 }

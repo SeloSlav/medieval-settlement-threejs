@@ -2584,8 +2584,13 @@ const smokehouseStepSource = expandedEconomy.slice(
 );
 assert.doesNotMatch(
   smokehouseStepSource,
-  /"granary"/,
+  /dispatch_to_building\(\s*ctx,\s*tick,\s*clock,\s*&mut smokehouse,\s*CommodityKind::Food/,
   'smokehouses must receive central food through the granary policy rather than pulling ahead of it',
+);
+assert.match(
+  smokehouseStepSource,
+  /dispatch_to_building\(\s*ctx,\s*tick,\s*clock,\s*&mut smokehouse,\s*CommodityKind::PreservedFood,\s*&\["granary"\]/,
+  'smokehouses may send cured household surplus outward to granary reserves',
 );
 const guardhouseStepSource = expandedEconomy.slice(
   expandedEconomy.indexOf('pub fn step_guardhouse'),

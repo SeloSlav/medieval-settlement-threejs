@@ -151,6 +151,17 @@ export function renderLivestockBuildingInspector(
   const nextPreservedTarget = building.kind === 'pastoral_farmstead'
     ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'preservedFood')
     : null;
+  const nextPreservedStorage = building.kind === 'pastoral_farmstead'
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(
+        building,
+        'preservedFood',
+      )
+    : null;
+  const nextPreservedCart = nextPreservedTarget
+    ? `Parcel #${nextPreservedTarget.parcelIndex + 1} · lowest household runway`
+    : nextPreservedStorage
+      ? `${context.worldQueries.getBuildingLabel(nextPreservedStorage.target.kind)} · ${nextPreservedStorage.routeDistance.toFixed(0)} m road · after household${herd?.species === 'cattle' ? ' and manure' : ''} duties`
+      : 'Household cupboards covered · no granary with room';
   const nextWoolDispatch = herd?.species === 'sheep'
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'wool')
     : null;
@@ -354,7 +365,7 @@ export function renderLivestockBuildingInspector(
       <li><span>Local food reserve</span><span>${householdFoodFloor.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>
       <li><span>Next food cart</span><span>${nextFoodTarget ? `Parcel #${nextFoodTarget.parcelIndex + 1}` : 'None needing food'}</span></li>
       <li><span>Next surplus cart</span><span>${nextInstitutionalCart}</span></li>
-      ${building.kind === 'pastoral_farmstead' ? `<li><span>Next preserved cart</span><span>${nextPreservedTarget ? `Parcel #${nextPreservedTarget.parcelIndex + 1}` : 'None needing provisions'}</span></li>` : ''}
+      ${building.kind === 'pastoral_farmstead' ? `<li><span>Next preserved cart</span><span>${nextPreservedCart}</span></li>` : ''}
       <li><span>Cart duty</span><span>${activeTrip ? `${cargoKindLabel(activeTrip.cargoKind)} · ${formatTripPhaseLabel(activeTrip.phase)}` : 'Ready'}</span></li>
       ${benefitRow}
       ${woodlandRows}

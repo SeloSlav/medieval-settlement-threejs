@@ -29,7 +29,14 @@ export const MONASTERY_MIN_PARISH_POPULATION = 12;
 
 export type SpecialtyNeedKind = 'ale' | 'preservedFood' | 'cloth' | 'pottery';
 
-const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = ['smokehouse', 'pastoral_farmstead'];
+const PRESERVED_FOOD_PRODUCER_KINDS: readonly BuildingKind[] = [
+  'smokehouse',
+  'pastoral_farmstead',
+];
+const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = [
+  ...PRESERVED_FOOD_PRODUCER_KINDS,
+  'granary',
+];
 const ALE_SUPPLIER_KINDS: readonly BuildingKind[] = ['brewery', 'monastery'];
 const CLOTH_SUPPLIER_KINDS: readonly BuildingKind[] = ['weaver'];
 const POTTERY_SUPPLIER_KINDS: readonly BuildingKind[] = ['potter_kiln'];
@@ -86,7 +93,9 @@ function findRoadLinkedSpecialtySupplier(
   eligible: (building: BuildingState, roadDistance: number) => boolean,
   requireStock: boolean,
 ): BuildingState | null {
-  const supplierKinds = supplierKindsForNeed(needKind);
+  const supplierKinds = requireStock
+    ? supplierKindsForNeed(needKind)
+    : upgradeSupplierKindsForNeed(needKind);
   const suppliers = [...buildings].filter((building) => {
     if (!isOperationalSpecialtySupplier(building) || !supplierKinds.includes(building.kind)) {
       return false;
@@ -287,6 +296,14 @@ function supplierKindsForNeed(needKind: SpecialtyNeedKind): readonly BuildingKin
   return PRESERVED_FOOD_SUPPLIER_KINDS;
 }
 
+function upgradeSupplierKindsForNeed(
+  needKind: SpecialtyNeedKind,
+): readonly BuildingKind[] {
+  return needKind === 'preservedFood'
+    ? PRESERVED_FOOD_PRODUCER_KINDS
+    : supplierKindsForNeed(needKind);
+}
+
 function specialtySupplierStock(
   building: BuildingState,
   needKind: SpecialtyNeedKind,
@@ -311,6 +328,7 @@ export function formatSpecialtyRunwayDays(days: number): string {
 }
 
 export {
+  PRESERVED_FOOD_PRODUCER_KINDS,
   PRESERVED_FOOD_SUPPLIER_KINDS,
   ALE_SUPPLIER_KINDS,
   CLOTH_SUPPLIER_KINDS,

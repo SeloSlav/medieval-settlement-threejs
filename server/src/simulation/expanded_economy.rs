@@ -1151,6 +1151,17 @@ pub fn step_granary(
         match duty {
             GranaryDispatchDuty::Households => {
                 dispatch_need(ctx, tick, clock, &mut granary, ResidenceNeedKind::Food, 4.0);
+                // Cured provisions share the household cart duty but never
+                // preempt staple food. This makes founding and producer-hauled
+                // granary stock usable without creating a second cart.
+                dispatch_need(
+                    ctx,
+                    tick,
+                    clock,
+                    &mut granary,
+                    ResidenceNeedKind::PreservedFood,
+                    3.0,
+                );
             }
             GranaryDispatchDuty::Preservation => {
                 dispatch_to_building(
@@ -1595,6 +1606,18 @@ pub fn step_smokehouse(
         &mut smokehouse,
         ResidenceNeedKind::PreservedFood,
         3.0,
+    );
+    // Once claimed household cupboards are covered, the smokehouse's same
+    // physical cart moves surplus into the nearest granary. The staffed depot
+    // can then redistribute that seasonal reserve instead of stranding it at
+    // a full workshop.
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut smokehouse,
+        CommodityKind::PreservedFood,
+        &["granary"],
     );
     ctx.db.building().id().update(smokehouse);
 }

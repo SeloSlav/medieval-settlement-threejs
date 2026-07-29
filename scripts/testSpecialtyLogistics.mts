@@ -6,7 +6,9 @@ import {
   POTTERY_SUPPLIER_KINDS,
   compareResidencesForSpecialtyDelivery,
   findRoadLinkedSupplierForResidence,
+  findRoadLinkedUpgradeSupplierForResidence,
   peekNextSpecialtyDeliveryTarget,
+  PRESERVED_FOOD_PRODUCER_KINDS,
   PRESERVED_FOOD_SUPPLIER_KINDS,
   residenceAleRunwayDays,
   residenceClothRunwayDays,
@@ -14,6 +16,7 @@ import {
   residencePotteryRunwayDays,
   SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
 } from '../src/logistics/specialtyLogistics.ts';
+import { selectDirectProcessorInputTarget } from '../src/logistics/processorInputLogistics.ts';
 import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
 import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
@@ -84,10 +87,14 @@ const network = {
 } as unknown as RoadNetwork;
 
 assert.deepEqual(ALE_SUPPLIER_KINDS, ['brewery', 'monastery']);
-assert.deepEqual(PRESERVED_FOOD_SUPPLIER_KINDS, ['smokehouse', 'pastoral_farmstead']);
+assert.deepEqual(PRESERVED_FOOD_PRODUCER_KINDS, ['smokehouse', 'pastoral_farmstead']);
+assert.deepEqual(
+  PRESERVED_FOOD_SUPPLIER_KINDS,
+  ['smokehouse', 'pastoral_farmstead', 'granary'],
+);
 assert.deepEqual(CLOTH_SUPPLIER_KINDS, ['weaver']);
 assert.deepEqual(POTTERY_SUPPLIER_KINDS, ['potter_kiln']);
-assert.equal(PRESERVED_FOOD_SUPPLIER_KINDS.includes('granary'), false);
+assert.equal(PRESERVED_FOOD_SUPPLIER_KINDS.includes('granary'), true);
 assert.equal(SPECIALTY_CONSUMPTION_SECONDS_PER_DAY, 70);
 assert.equal(
   residencePreservedFoodRunwayDays(
@@ -138,8 +145,18 @@ assert.equal(
     network,
     'preservedFood',
   )?.id,
+  granary.id,
+  'the nearest stocked staffed depot should redistribute preserved food',
+);
+assert.equal(
+  findRoadLinkedUpgradeSupplierForResidence(
+    home,
+    [granary, smokehouse, farmstead],
+    network,
+    'preservedFood',
+  )?.id,
   farmstead.id,
-  'the nearest actual producer should claim preserved-food service',
+  'a depot must not unlock prosperous housing without an actual producer',
 );
 
 const monastery = building('monastery', 'monastery', 5);
@@ -162,16 +179,26 @@ assert.equal(
   'only a staffed road-linked weaver should claim household textile service',
 );
 const emptySmokehouse = { ...building('empty-smokehouse', 'smokehouse', 2), preservedFood: 0 };
+const emptyGranary = { ...granary, preservedFood: 0 };
 assert.equal(
   findRoadLinkedSupplierForResidence(
     home,
-    [emptySmokehouse, farmstead],
+    [emptyGranary, emptySmokehouse, farmstead],
     network,
     'preservedFood',
   )?.id,
   farmstead.id,
   'an empty smokehouse must yield preserved-food service to stocked holdings',
 );
+const curedOverflow = selectDirectProcessorInputTarget(
+  [granary, farmstead],
+  smokehouse.id,
+  'preservedFood',
+  (target) => Math.abs(target.x - smokehouse.x),
+);
+assert.equal(curedOverflow?.target.id, granary.id);
+assert.equal(curedOverflow?.duty, 'workshop-overflow');
+assert.equal(curedOverflow?.desiredStock, 180);
 const emptyBrewery = { ...building('empty-brewery', 'brewery', 2), ale: 0 };
 assert.equal(
   findRoadLinkedSupplierForResidence(
@@ -238,12 +265,40 @@ assert.doesNotMatch(needDispatch, /targets\.sort_by/);
 assert.match(expanded, /specialty_supplier_for/);
 assert.match(
   expanded,
+  /step_granary[\s\S]*?GranaryDispatchDuty::Households[\s\S]*?ResidenceNeedKind::Food[\s\S]*?ResidenceNeedKind::PreservedFood/,
+  'a granary must spend its household duty on staple food before cured rations',
+);
+assert.match(
+  expanded,
+  /step_smokehouse[\s\S]*?dispatch_need\([\s\S]*?ResidenceNeedKind::PreservedFood[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["granary"\]/,
+  'a smokehouse must serve households before centralizing cured overflow',
+);
+assert.match(
+  expanded,
   /step_potter_kiln[\s\S]*?invalidate_specialty_claims\([\s\S]*?ResidenceNeedKind::Pottery[\s\S]*?dispatch_need\([\s\S]*?ResidenceNeedKind::Pottery/,
   'new kiln output must invalidate claims and dispatch household pottery before downstream overflow',
 );
 const supply = fs.readFileSync('server/src/simulation/residence_needs/supply.rs', 'utf8');
 assert.match(supply, /ResidenceNeedKind::PreservedFood[\s\S]*specialty_supplier_for|specialty_supplier_for[\s\S]*ResidenceNeedKind::PreservedFood/);
 assert.doesNotMatch(supply, /"smokehouse",\s*"granary",\s*"monastery"/);
+const residenceUpgrades = fs.readFileSync('server/src/reducers/residences.rs', 'utf8');
+assert.match(residenceUpgrades, /PRESERVED_FOOD_PRODUCER_KINDS/);
+assert.doesNotMatch(
+  residenceUpgrades,
+  /ResidenceUpgradeService::PreservedFood[\s\S]{0,180}PRESERVED_FOOD_SUPPLIER_KINDS/,
+);
+const livestock = fs.readFileSync('server/src/simulation/livestock.rs', 'utf8');
+assert.match(
+  livestock,
+  /dispatch_need\([\s\S]*?ResidenceNeedKind::PreservedFood[\s\S]*?dispatch_manure_to_crop_farmstead[\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["granary"\]/,
+  'pastoral overflow must wait behind household provisions and cattle manure',
+);
+const expandedInspector = fs.readFileSync(
+  'src/resources/inspector/expandedBuildingRenderer.ts',
+  'utf8',
+);
+assert.match(expandedInspector, /Cured-food territory/);
+assert.match(expandedInspector, /Cured overflow/);
 const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 assert.match(
   residenceInspector,

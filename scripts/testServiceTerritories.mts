@@ -189,7 +189,7 @@ assert.match(
 );
 const upgrades = fs.readFileSync('server/src/reducers/residences.rs', 'utf8');
 assert.match(upgrades, /is_firewood_supplier_operational/);
-assert.match(upgrades, /PRESERVED_FOOD_SUPPLIER_KINDS/);
+assert.match(upgrades, /PRESERVED_FOOD_PRODUCER_KINDS/);
 assert.doesNotMatch(upgrades, /"smokehouse",\s*"granary",\s*"monastery"/);
 const storehouseInspector = fs.readFileSync('src/resources/inspector/storehouseRenderer.ts', 'utf8');
 assert.match(storehouseInspector, /Duty priority/);
