@@ -18,6 +18,7 @@ import {
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
+  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_CAPACITY,
   RESIDENCE_DILAPIDATED_REPAIR_STONE,
   RESIDENCE_DILAPIDATED_REPAIR_TIMBER,
@@ -34,6 +35,7 @@ import {
 } from '../../logistics/foodLogistics.ts';
 import {
   formatSpecialtyRunwayDays,
+  SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
   residenceAleRunwayDays,
   residenceClothRunwayDays,
   residencePreservedFoodRunwayDays,
@@ -51,6 +53,10 @@ import { DEFAULT_REGIONAL_MARKET_STATE } from '../../economy/regionalMarket.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
+import {
+  preservedFoodDemandMultiplierForSeason,
+  seasonForMonth,
+} from '../../world/seasonPolicy.ts';
 import { residenceSettlementReadiness } from '../../economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
@@ -290,12 +296,21 @@ export function renderResidenceInspector(
     : null;
   const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
+  const currentClock = gameClock(context.gameState.tick);
+  const preservedFoodDemandMultiplier =
+    preservedFoodDemandMultiplierForSeason(
+      seasonForMonth(currentClock.month),
+    );
+  const preservedFoodRotationPerDay = residence.population
+    * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+    * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY
+    * preservedFoodDemandMultiplier;
   const householdMarketPlan = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
     ? computeSettlementHouseholdMarketPlan({
         state: context.gameState,
         marketState: context.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE,
         roadNetwork: context.worldQueries.getRoadNetworkSnapshot(),
-        clock: gameClock(context.gameState.tick),
+        clock: currentClock,
         sabbathObserved: parishPolicy.sabbathObservanceEnabled
           && settlementHasStaffedChapel(context.gameState),
         residenceIds: new Set([residence.id]),
@@ -351,7 +366,12 @@ export function renderResidenceInspector(
   const foodRunwayLabel = foodRunwayDays == null
     ? '—'
     : formatFoodRunwayDays(foodRunwayDays);
-  const preservedFoodRunwayDays = residence.tier >= 3 ? residencePreservedFoodRunwayDays(residence) : null;
+  const preservedFoodRunwayDays = residence.tier >= 3
+    ? residencePreservedFoodRunwayDays(
+        residence,
+        preservedFoodDemandMultiplier,
+      )
+    : null;
   const preservedFoodRunwayLabel = preservedFoodRunwayDays == null
     ? '—'
     : formatSpecialtyRunwayDays(preservedFoodRunwayDays);
@@ -540,8 +560,8 @@ export function renderResidenceInspector(
       ${residence.tier >= 2 ? `<li><span>Water stock</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Water runway</span><span>${waterRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Preserved food</span><span>${Math.round(getNeedStock(residence.needs, 'preservedFood'))} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY}</span></li>` : ''}
-      ${residence.tier >= 3 ? '<li><span>Emergency ration</span><span>Preserved food automatically substitutes when fresh food runs out</span></li>' : ''}
-      ${residence.tier >= 3 ? `<li><span>Preserved food runway</span><span>${preservedFoodRunwayLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Seasonal ration rotation</span><span>${preservedFoodRotationPerDay.toFixed(2)} / day at ${preservedFoodDemandMultiplier.toFixed(2)}&times; seasonal use &middot; replaces the same amount of fresh food rather than adding a second meal</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Preserved food runway</span><span>${preservedFoodRunwayLabel} at current rotation &middot; remaining stores cover fresh-food shortages</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale runway</span><span>${aleRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Household textiles</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY}</span></li>` : ''}
@@ -702,7 +722,7 @@ function residenceProsperityRows(
     <li><span>Settlement prosperity</span><span>${plan.currentResidents} / ${usableCapacity} road-matched residents at installed capacity${plan.roadPlan && plan.roadPlan.fragmentationResidentCapacity > 0 ? ` · ${plan.roadPlan.fragmentationResidentCapacity} capacity split between branches` : ''} · assumes fully supplied staffed workshops</span></li>
     ${projection.roadBranchScoped ? `<li><span>Local prosperity branch</span><span>${localCurrentResidents} current / ${localCapacity} resident capacity · ${projection.limitingLabel} limited</span></li>` : ''}
     <li><span>Promotion load</span><span>+${projection.occupantsPromotedNow} prosperous consumers now · +${projection.targetHouseCapacity} with this house full · ${immediateStatus}</span></li>
-    <li><span>Prosperity planning load</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} preserved-food reserve allowance · +${projection.immediateDemand.ale.toFixed(2)} ale/day · +${projection.immediateDemand.cloth.toFixed(3)} cloth/day · +${projection.immediateDemand.pottery.toFixed(2)} pottery/day</span></li>
+    <li><span>Prosperity planning load</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} winter-peak preserved ration/day · +${projection.immediateDemand.ale.toFixed(2)} ale/day · +${projection.immediateDemand.cloth.toFixed(3)} cloth/day · +${projection.immediateDemand.pottery.toFixed(2)} pottery/day</span></li>
   `;
 }
 

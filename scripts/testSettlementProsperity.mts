@@ -9,6 +9,7 @@ import {
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
 } from '../src/generated/gameBalance.ts';
 import {
@@ -20,7 +21,9 @@ const workdaySeconds = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
   / CALENDAR_HOURS_PER_DAY;
 const preservedPerResident =
-  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * workdaySeconds;
+  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+  * workdaySeconds
+  * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER;
 const alePerResident = RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
 const clothPerResident = RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
 const potteryPerResident = RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workdaySeconds;
@@ -331,7 +334,7 @@ assert.match(inspector, /Promotion load/);
 assert.match(inspector, /Local prosperity branch/);
 assert.match(inspector, /this road branch/);
 assert.match(inspector, /Prosperity planning load/);
-assert.match(inspector, /preserved-food reserve allowance/);
+assert.match(inspector, /winter-peak preserved ration/);
 assert.match(inspector, /Warning: promoting the current occupants immediately exceeds/);
 assert.match(
   inspector,

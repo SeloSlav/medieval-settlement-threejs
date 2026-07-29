@@ -1,5 +1,6 @@
 import {
   clayPitThroughputForWeather,
+  preservedFoodDemandMultiplierForSeason,
   watermillThroughputForWeather,
   type EnvironmentState,
 } from '../world/seasonPolicy.ts';
@@ -134,6 +135,8 @@ export function precipitationPreviewEnvironment(
       weather: 'rain',
       snowCoverage: 0,
       deciduousFoliage: deciduousFoliageForSeasonPreview('spring'),
+      preservedFoodDemandMultiplier:
+        preservedFoodDemandMultiplierForSeason('spring'),
       watermillThroughputMultiplier: watermillThroughputForWeather('rain'),
       clayPitThroughputMultiplier: clayPitThroughputForWeather('rain'),
     };
@@ -145,6 +148,8 @@ export function precipitationPreviewEnvironment(
       weather: 'frost',
       snowCoverage: 1,
       deciduousFoliage: deciduousFoliageForSeasonPreview('winter'),
+      preservedFoodDemandMultiplier:
+        preservedFoodDemandMultiplierForSeason('winter'),
       watermillThroughputMultiplier: watermillThroughputForWeather('frost'),
       clayPitThroughputMultiplier: clayPitThroughputForWeather('frost'),
     };
@@ -156,6 +161,8 @@ export function precipitationPreviewEnvironment(
       weather: 'fair',
       snowCoverage: 0,
       deciduousFoliage: deciduousFoliageForSeasonPreview('autumn'),
+      preservedFoodDemandMultiplier:
+        preservedFoodDemandMultiplierForSeason('autumn'),
       watermillThroughputMultiplier: 1,
       clayPitThroughputMultiplier: 1,
     };
@@ -186,6 +193,8 @@ export function standalonePrecipitationPreview(
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
+    preservedFoodDemandMultiplier:
+      preservedFoodDemandMultiplierForSeason('spring'),
     roadTravelSpeedMultiplier: 1,
     watermillThroughputMultiplier: 1,
     clayPitThroughputMultiplier: 1,

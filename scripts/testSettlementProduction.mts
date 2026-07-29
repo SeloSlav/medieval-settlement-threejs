@@ -14,6 +14,7 @@ import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
+  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import {
   createEmptyStockpile,
@@ -274,7 +275,12 @@ assert.equal(fullWeek.millOutputRoom?.buildingId, mill.id);
 assert.equal(fullWeek.tierThreeResidents, 10);
 assert.equal(fullWeek.fireDisabledTierThreeHomes, 0);
 approx(fullWeek.aleDemandPerDay, 1.75);
-approx(fullWeek.preservedFoodDemandPerDay, 2.8);
+approx(
+  fullWeek.preservedFoodDemandPerDay,
+  2.8 * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+);
+approx(fullWeek.currentPreservedFoodDemandPerDay, 2.8);
+assert.equal(fullWeek.currentPreservedFoodDemandMultiplier, 1);
 approx(fullWeek.clothDemandPerDay, 0.126);
 assert.equal(
   fullWeek.prosperityRoadBranches,
@@ -299,6 +305,20 @@ approx(
   fullWeek.preservedFoodOutputPerDay,
 );
 approx(localProsperityBranch?.clothOutputPerDay ?? -1, fullWeek.clothOutputPerDay);
+const summerRationCapacity = computeSettlementProductionCapacity(
+  state,
+  false,
+  () => 'village',
+  1,
+  1,
+  0.5,
+);
+approx(summerRationCapacity.currentPreservedFoodDemandPerDay, 1.4);
+approx(
+  summerRationCapacity.preservedFoodDemandPerDay,
+  fullWeek.preservedFoodDemandPerDay,
+  'long-term prosperity remains sized for winter even during light summer rotation',
+);
 state.fireIncidents.set('tier-three-home-fire', {
   id: 'tier-three-home-fire',
   targetKind: 'residence',

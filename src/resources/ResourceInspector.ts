@@ -1380,6 +1380,7 @@ export class ResourceInspector {
           ),
           productionEnvironment?.watermillThroughputMultiplier ?? 1,
           productionEnvironment?.clayPitThroughputMultiplier ?? 1,
+          productionEnvironment?.preservedFoodDemandMultiplier ?? 1,
         )
       : undefined;
     const view = renderInspectableTarget(target, {

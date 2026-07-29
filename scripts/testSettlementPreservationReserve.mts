@@ -252,11 +252,24 @@ assert.match(
 assert.match(
   residenceNeedAuthority,
   /kind == ResidenceNeedKind::PreservedFood[\s\S]*need\.stock/,
-  'preserved-food status should remain stock-aware rather than a second meal withdrawal',
+  'preserved-food status should remain stock-aware after the shared meal withdrawal',
 );
 assert.match(
   residenceNeedAuthority,
-  /consume_food_with_preserved[\s\S]*ResidenceNeedKind::PreservedFood/,
+  /consume_food_with_preserved[\s\S]*allocate_preserved_meal/,
+);
+assert.match(
+  residenceNeedAuthority,
+  /preserved_food_demand\([\s\S]*environment\.preserved_food_demand_multiplier\(\)[\s\S]*allocation\.fresh_used[\s\S]*allocation\.preserved_used\(\)/,
+);
+const preservedMealPolicy = readFileSync(
+  new URL('../server/src/preserved_food_policy.rs', import.meta.url),
+  'utf8',
+);
+assert.match(preservedMealPolicy, /without inventing a second calorie demand/);
+assert.match(
+  preservedMealPolicy,
+  /fresh_used \+ plan\.preserved_used\(\), 3\.0/,
 );
 
 const townHallSource = readFileSync(
@@ -275,9 +288,11 @@ assert.doesNotMatch(
   townHallSource,
   /Preservation capacity<\/span><span>[^<]*tier-3 demand/,
 );
-assert.match(townHallSource, /prosperity planning allowance/);
+assert.match(townHallSource, /winter design peak/);
+assert.match(townHallSource, /rotated rations displace the same fresh-food calories/);
 assert.match(residenceSource, /Prosperity planning load/);
-assert.match(residenceSource, /preserved-food reserve allowance/);
+assert.match(residenceSource, /winter-peak preserved ration/);
+assert.match(residenceSource, /replaces the same amount of fresh food rather than adding a second meal/);
 
 const perfState = emptyGameState();
 perfState.physicalFoundingSiteEnabled = true;

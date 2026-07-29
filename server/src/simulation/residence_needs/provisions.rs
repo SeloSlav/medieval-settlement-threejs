@@ -23,6 +23,13 @@ pub fn consume_preserved_food(residence: &Residence, need: &NeedState) -> Consum
     consume(residence, need, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC)
 }
 
+pub fn preserved_food_demand(residence: &Residence, seasonal_multiplier: f64) -> f64 {
+    residence.population as f64
+        * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+        * TICK_DT
+        * seasonal_multiplier.max(0.0)
+}
+
 pub fn consume_cloth(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
     consume(residence, need, RESIDENCE_CLOTH_PER_PERSON_PER_SEC)
 }

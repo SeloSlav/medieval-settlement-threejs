@@ -1645,6 +1645,8 @@ export function renderTownHallInspector(
     totals: context.resourceTotals,
     currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
     freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
+    currentPreservedFoodDemandMultiplier:
+      environment.preservedFoodDemandMultiplier,
     sabbathObserved,
     roadComponentFor,
   });
@@ -1855,6 +1857,7 @@ export function renderTownHallInspector(
         : undefined,
       environment.watermillThroughputMultiplier,
       environment.clayPitThroughputMultiplier,
+      environment.preservedFoodDemandMultiplier,
     );
   const industrialMaterials = production.industrialMaterials;
   const unmaintainedToolInspect = industrialMaterials.firstUnmaintainedToolSiteId === null
@@ -2148,7 +2151,7 @@ export function renderTownHallInspector(
       <li><span>Next settler</span><span>${growth.nextArrivalSeconds === null ? growth.vacantSlots > 0 ? 'Paused until household buffers recover' : growth.fireDisabledVacantSlots > 0 ? `${growth.fireDisabledVacantSlots} vacant places return after structural recovery` : 'No vacant housing' : formatGrowthDuration(growth.nextArrivalSeconds)}</span></li>
       <li><span>Growth bottlenecks</span><span>${formatGrowthBottlenecks(growth)}${growthInspectButton}</span></li>
       <li><span>At full housing</span><span>+${growth.additionalFoodPerDay.toFixed(1)} food/day · +${growth.additionalWaterPerDay.toFixed(1)} water/day · +${growth.additionalWinterFirewoodPerDay.toFixed(1)} winter firewood/day</span></li>
-      ${growth.additionalPreservedFoodPerDay + growth.additionalAlePerDay + growth.additionalClothPerDay + growth.additionalPotteryPerDay > 1e-6 ? `<li><span>Prosperous-house growth</span><span>+${growth.additionalPreservedFoodPerDay.toFixed(1)} preserved food/day · +${growth.additionalAlePerDay.toFixed(1)} ale/day · +${growth.additionalClothPerDay.toFixed(2)} cloth/day · +${growth.additionalPotteryPerDay.toFixed(2)} pottery/day</span></li>` : ''}
+      ${growth.additionalPreservedFoodPerDay + growth.additionalAlePerDay + growth.additionalClothPerDay + growth.additionalPotteryPerDay > 1e-6 ? `<li><span>Prosperous-house growth</span><span>+${growth.additionalPreservedFoodPerDay.toFixed(1)} winter-peak preserved ration/day · +${growth.additionalAlePerDay.toFixed(1)} ale/day · +${growth.additionalClothPerDay.toFixed(2)} cloth/day · +${growth.additionalPotteryPerDay.toFixed(2)} pottery/day</span></li>` : ''}
       ${readout.backyardEconomy ? renderSettlementBackyardEconomyRows(readout.backyardEconomy) : ''}
       <li><span>Trade productivity</span><span>${readout.productivityLabel}</span></li>
       <li><span>Household wealth</span><span>${readout.householdWealthLabel}</span></li>
@@ -2203,7 +2206,7 @@ export function renderTownHallInspector(
       <li><span>Grain-chain roads</span><span>${formatGrainChainRoads(production.grainChainRoads)}</span></li>
       <li><span>Bread capacity</span><span>${production.breadFoodCapacityPerDay.toFixed(1)} food / day vs ${provisioning.totalFoodPerDay.toFixed(1)} total demand · needs ${production.breadGrainPerDay.toFixed(1)} grain + ${production.breadWaterPerDay.toFixed(1)} water + ${production.breadFirewoodPerDay.toFixed(1)} firewood</span></li>
       <li><span>Ale capacity</span><span>${production.aleOutputPerDay.toFixed(1)} / day vs ${production.aleDemandPerDay.toFixed(1)} tier-3 demand · two workshop cycles per batch · needs ${production.aleBarleyPerDay.toFixed(1)} barley + ${production.aleWaterPerDay.toFixed(1)} water + ${production.aleFirewoodPerDay.toFixed(1)} firewood</span></li>
-      <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day installed reserve-building capacity · ${production.preservedFoodDemandPerDay.toFixed(1)} / day prosperity planning allowance · needs ${production.preservationFreshFoodPerDay.toFixed(1)} fresh food + ${production.preservationFirewoodPerDay.toFixed(1)} firewood + ${production.preservationSaltPerDay.toFixed(1)} salt + ${production.preservationPotteryPerDay.toFixed(1)} pottery at full crews</span></li>
+      <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day installed · ${production.currentPreservedFoodDemandPerDay.toFixed(1)} / day current ${environment.season} ration at ${production.currentPreservedFoodDemandMultiplier.toFixed(2)}&times; · ${production.preservedFoodDemandPerDay.toFixed(1)} / day winter design peak · rotated rations displace the same fresh-food calories · full crews need ${production.preservationFreshFoodPerDay.toFixed(1)} fresh food + ${production.preservationFirewoodPerDay.toFixed(1)} firewood + ${production.preservationSaltPerDay.toFixed(1)} salt + ${production.preservationPotteryPerDay.toFixed(1)} pottery</span></li>
       ${preservationReserveRows}
       <li><span>Cloth capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-3 demand · choose ${production.clothWoolPerDay.toFixed(1)} wool, or ${production.clothFlaxPerDay.toFixed(1)} flax + ${production.clothFlaxWaterPerDay.toFixed(1)} hauled water</span></li>
       <li><span>Household pottery</span><span>${production.potteryOutputPerDay.toFixed(1)} / day installed kiln output vs ${production.potteryDemandPerDay.toFixed(1)} tier-3 breakage replacement · homes share each kiln's physical cart with smokehouses and export</span></li>

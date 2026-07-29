@@ -6,6 +6,10 @@ import {
   CALENDAR_MONTHS_PER_YEAR,
   CALENDAR_SECONDS_PER_DAY,
   DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
+  RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
+  RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
+  RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
+  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   SIM_REALTIME_RATE,
   SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
@@ -31,6 +35,7 @@ import {
   describeNextDayEnvironmentOutlook,
   environmentFor,
   nextDayEnvironmentOutlook,
+  preservedFoodDemandMultiplierForSeason,
   seasonForMonth,
   snowCoverageForClock,
 } from '../src/world/seasonPolicy.ts';
@@ -55,6 +60,31 @@ assert.equal(CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER, 0.8);
 assert.equal(CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER, 0.7);
 assert.equal(CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER, 0.35);
 assert.equal(clayPitThroughputForWeather('fair'), 1);
+assert.equal(
+  preservedFoodDemandMultiplierForSeason('spring'),
+  RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
+);
+assert.equal(
+  preservedFoodDemandMultiplierForSeason('summer'),
+  RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
+);
+assert.equal(
+  preservedFoodDemandMultiplierForSeason('autumn'),
+  RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
+);
+assert.equal(
+  preservedFoodDemandMultiplierForSeason('winter'),
+  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+);
+assert.equal(
+  (
+    RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER
+    + RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER
+    + RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER
+    + RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER
+  ) / 4,
+  1,
+);
 
 assert.deepEqual(GAME_SPEEDS, [0, 1, 4, 8]);
 assert.deepEqual(PLAYER_GAME_SPEEDS, [1, 4, 8]);
@@ -152,6 +182,10 @@ const autumnEnvironment = environmentFor(12345, 50, autumnClock);
 assert.equal(autumnEnvironment.season, 'autumn');
 assert.equal(autumnEnvironment.roadTravelSpeedMultiplier, 0.9);
 assert.equal(autumnEnvironment.watermillThroughputMultiplier, 1);
+assert.equal(
+  autumnEnvironment.preservedFoodDemandMultiplier,
+  RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
+);
 assert.match(describeEnvironment(autumnEnvironment).detail, /carts travel 10% slower/i);
 
 const lastSummerDay = gameClock((CALENDAR_DAYS_PER_MONTH * 6 - 1) * dayTicks);
@@ -175,6 +209,10 @@ assert.match(autumnOutlookDescription, /fresh-food loss/);
 const winterClock = gameClock(CALENDAR_DAYS_PER_MONTH * 9 * dayTicks);
 const winterEnvironment = environmentFor(12345, 50, winterClock);
 assert.equal(winterEnvironment.season, 'winter');
+assert.equal(
+  winterEnvironment.preservedFoodDemandMultiplier,
+  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+);
 const lateNovemberSnow = snowCoverageForClock(
   gameClock((CALENDAR_DAYS_PER_MONTH * 9 - 1) * dayTicks),
 );

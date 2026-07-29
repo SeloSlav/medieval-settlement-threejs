@@ -12,6 +12,10 @@ import {
   FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
   FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY,
   FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
+  RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
+  RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
+  RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
+  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   SPRING_FIREWOOD_DEMAND_MULTIPLIER,
   SPRING_PASTURE_CAPACITY_MULTIPLIER,
   SPRING_RAIN_CHANCE,
@@ -52,6 +56,8 @@ export type EnvironmentState = {
   firewoodDemandMultiplier: number;
   pastureCapacityMultiplier: number;
   freshFoodSpoilageFractionPerDay: number;
+  /** Share of the normal prosperous-household ration rotated from cured stores. */
+  preservedFoodDemandMultiplier: number;
   roadTravelSpeedMultiplier: number;
   watermillThroughputMultiplier: number;
   /** Riverbank digging pace after saturated, hardened, or frozen ground. */
@@ -86,6 +92,15 @@ export function clayPitThroughputForWeather(weather: WeatherKind): number {
   if (weather === 'drought') return CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER;
   if (weather === 'frost') return CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER;
   return 1;
+}
+
+export function preservedFoodDemandMultiplierForSeason(season: Season): number {
+  return {
+    spring: RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
+    summer: RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
+    autumn: RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
+    winter: RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+  }[season];
 }
 
 export function snowCoverageForClock(clock: GameClock): number {
@@ -162,6 +177,8 @@ export function environmentFor(
         autumn: FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
         winter: FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
       }[season],
+    preservedFoodDemandMultiplier:
+      preservedFoodDemandMultiplierForSeason(season),
     roadTravelSpeedMultiplier: weather === 'rain'
       ? SPRING_RAIN_ROAD_SPEED_MULTIPLIER
       : weather === 'frost'

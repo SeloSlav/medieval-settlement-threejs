@@ -23,6 +23,7 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::economy::reconcile_building_labor;
+use crate::preserved_food_policy::allocate_preserved_meal;
 use crate::resident_welfare_policy::{
     comfort_migration_due, condition_blocks_resettlement, deterministic_unit,
     next_comfort_deficit_ticks, next_malnutrition, residence_condition, starvation_death_due,
@@ -88,9 +89,9 @@ pub fn step_residence_needs(
             continue;
         };
         let outcome = if kind == ResidenceNeedKind::PreservedFood {
-            // Preserved provisions are a reserve and status expectation. They
-            // are consumed as a direct substitute when fresh food runs out,
-            // rather than as an unavoidable second daily meal.
+            // The meal allocator already rotated the seasonal ration without
+            // adding a second calorie demand. Any remainder is the household's
+            // status stock and emergency fallback.
             if need.stock > 1e-9 {
                 ConsumeResult::Met(*need)
             } else {
@@ -176,28 +177,38 @@ fn consume_food_with_preserved(
         environment.fresh_food_spoilage_fraction_per_second() * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
     );
     let demand = food::demand(residence);
-    let fresh_used = spoiled.stock.min(demand);
-    let remaining = (demand - fresh_used).max(0.0);
-    needs[food_index] = NeedState {
-        stock: (spoiled.stock - fresh_used).max(0.0),
-        ..spoiled
-    };
-    if remaining <= 1e-9 {
-        needs[food_index].deficit_ticks = 0;
-        return false;
-    }
-    if residence.tier >= 3 {
-        if let Some(preserved_index) = needs
+    let preserved_index = if residence.tier >= 3 {
+        needs
             .iter()
             .position(|need| need.kind == ResidenceNeedKind::PreservedFood)
-        {
-            if needs[preserved_index].stock + 1e-9 >= remaining {
-                needs[preserved_index].stock = (needs[preserved_index].stock - remaining).max(0.0);
-                needs[food_index].deficit_ticks = 0;
-                return false;
-            }
-            needs[preserved_index].stock = 0.0;
-        }
+    } else {
+        None
+    };
+    let preserved_stock = preserved_index
+        .map(|index| needs[index].stock)
+        .unwrap_or(0.0);
+    let rotation_demand = provisions::preserved_food_demand(
+        residence,
+        environment.preserved_food_demand_multiplier(),
+    );
+    let allocation = allocate_preserved_meal(
+        spoiled.stock,
+        preserved_stock,
+        demand,
+        rotation_demand,
+        residence.tier >= 3,
+    );
+    needs[food_index] = NeedState {
+        stock: (spoiled.stock - allocation.fresh_used).max(0.0),
+        ..spoiled
+    };
+    if let Some(preserved_index) = preserved_index {
+        needs[preserved_index].stock =
+            (needs[preserved_index].stock - allocation.preserved_used()).max(0.0);
+    }
+    if allocation.unmet <= 1e-9 {
+        needs[food_index].deficit_ticks = 0;
+        return false;
     }
     needs[food_index].deficit_ticks = needs[food_index].deficit_ticks.saturating_add(1);
     true

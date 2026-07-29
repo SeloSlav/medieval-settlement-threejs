@@ -327,6 +327,7 @@ export function computeSettlementProvisioning(input: {
   totals: ResourceTotals;
   currentFirewoodDemandMultiplier: number;
   freshFoodSpoilageFractionPerDay: number;
+  currentPreservedFoodDemandMultiplier?: number;
   sabbathObserved: boolean;
   roadComponentFor?: ProvisionRoadComponentResolver;
 }): SettlementProvisioning {
@@ -335,6 +336,7 @@ export function computeSettlementProvisioning(input: {
     totals,
     currentFirewoodDemandMultiplier,
     freshFoodSpoilageFractionPerDay,
+    currentPreservedFoodDemandMultiplier = 1,
     sabbathObserved,
     roadComponentFor,
   } = input;
@@ -350,6 +352,11 @@ export function computeSettlementProvisioning(input: {
     (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) / CALENDAR_HOURS_PER_DAY,
   );
   const workdaySeconds = CALENDAR_SECONDS_PER_DAY * workdayFraction;
+  const preservedFoodDemandMultiplier = Number.isFinite(
+    currentPreservedFoodDemandMultiplier,
+  )
+    ? Math.max(0, currentPreservedFoodDemandMultiplier)
+    : 1;
   const nightlyNoDeliverySeconds = CALENDAR_SECONDS_PER_DAY - workdaySeconds;
   const sabbathFirewoodBufferSeconds = CALENDAR_SECONDS_PER_DAY + nightlyNoDeliverySeconds;
   let foodConsumers = 0;
@@ -456,7 +463,8 @@ export function computeSettlementProvisioning(input: {
     if (residence.tier >= 3) {
       const preservedFoodNeeded = residence.population
         * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-        * workdaySeconds;
+        * workdaySeconds
+        * preservedFoodDemandMultiplier;
       const aleNeeded = residence.population
         * RESIDENCE_ALE_PER_PERSON_PER_SEC
         * workdaySeconds;
@@ -510,7 +518,8 @@ export function computeSettlementProvisioning(input: {
     if (residence.tier >= 3) {
       const preservedFoodNeeded = residence.population
         * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-        * workdaySeconds;
+        * workdaySeconds
+        * preservedFoodDemandMultiplier;
       const aleNeeded = residence.population
         * RESIDENCE_ALE_PER_PERSON_PER_SEC
         * workdaySeconds;

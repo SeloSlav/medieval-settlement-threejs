@@ -142,16 +142,30 @@ export function hasStaffedChapel(buildings: Iterable<BuildingState>): boolean {
   return false;
 }
 
-export function residencePreservedFoodRunwaySeconds(residence: ResidenceState): number | null {
+export function residencePreservedFoodRunwaySeconds(
+  residence: ResidenceState,
+  seasonalDemandMultiplier = 1,
+): number | null {
   if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
   const stock = getNeedStock(residence.needs, 'preservedFood');
-  const usePerSec = residence.population * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC;
+  const multiplier = Number.isFinite(seasonalDemandMultiplier)
+    ? Math.max(0, seasonalDemandMultiplier)
+    : 1;
+  const usePerSec = residence.population
+    * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+    * multiplier;
   if (usePerSec <= 1e-9) return null;
   return stock / usePerSec;
 }
 
-export function residencePreservedFoodRunwayDays(residence: ResidenceState): number | null {
-  const runwaySeconds = residencePreservedFoodRunwaySeconds(residence);
+export function residencePreservedFoodRunwayDays(
+  residence: ResidenceState,
+  seasonalDemandMultiplier = 1,
+): number | null {
+  const runwaySeconds = residencePreservedFoodRunwaySeconds(
+    residence,
+    seasonalDemandMultiplier,
+  );
   if (runwaySeconds == null) return null;
   return runwaySeconds / SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
 }

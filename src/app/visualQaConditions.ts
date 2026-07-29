@@ -8,6 +8,7 @@ import type { GameClock } from '../world/gameCalendar.ts';
 import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolicy.ts';
 import {
   clayPitThroughputForWeather,
+  preservedFoodDemandMultiplierForSeason,
   watermillThroughputForWeather,
   type EnvironmentState,
   type Season,
@@ -94,6 +95,8 @@ export function applyVisualQaEnvironment(
     weather: conditions.weather,
     snowCoverage: conditions.weather === 'frost' ? 1 : 0,
     deciduousFoliage: deciduousFoliageForSeasonPreview(conditions.season),
+    preservedFoodDemandMultiplier:
+      preservedFoodDemandMultiplierForSeason(conditions.season),
     watermillThroughputMultiplier: watermillThroughputForWeather(
       conditions.weather,
     ),
@@ -115,6 +118,8 @@ export function standaloneVisualQaEnvironment(
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: 0,
+    preservedFoodDemandMultiplier:
+      preservedFoodDemandMultiplierForSeason('summer'),
     roadTravelSpeedMultiplier: 1,
     watermillThroughputMultiplier: 1,
     clayPitThroughputMultiplier: 1,

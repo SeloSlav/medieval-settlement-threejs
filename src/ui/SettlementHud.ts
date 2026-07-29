@@ -212,7 +212,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Preserved food stored at physical smokehouses, granaries, markets, institutions, and prosperous homes. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Cured provisions stored at physical smokehouses, granaries, markets, institutions, and prosperous homes. Prosperous households rotate them through the same meal, using less in summer and most in winter; remaining stock substitutes when fresh food fails. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Preserved</span>
         <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="preservedFood" hidden></span>

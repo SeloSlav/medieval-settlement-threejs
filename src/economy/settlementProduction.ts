@@ -27,6 +27,7 @@ import {
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
   SMOKEHOUSE_POTTERY_PER_CYCLE,
@@ -125,7 +126,10 @@ export type SettlementProductionCapacity = {
   fireDisabledTierThreeResidents: number;
   fireDisabledTierThreeHousingCapacity: number;
   aleDemandPerDay: number;
+  /** Winter-peak design demand used by long-term prosperity capacity. */
   preservedFoodDemandPerDay: number;
+  currentPreservedFoodDemandPerDay: number;
+  currentPreservedFoodDemandMultiplier: number;
   clothDemandPerDay: number;
   potteryOutputPerDay: number;
   potteryDemandPerDay: number;
@@ -1575,6 +1579,7 @@ export function computeSettlementProductionCapacity(
   roadComponentFor?: ProductionRoadComponentResolver,
   watermillThroughputMultiplier = 1,
   clayPitThroughputMultiplier = 1,
+  currentPreservedFoodDemandMultiplier = 1,
 ): SettlementProductionCapacity {
   const normalizedWatermillThroughput = Number.isFinite(
     watermillThroughputMultiplier,
@@ -1585,6 +1590,11 @@ export function computeSettlementProductionCapacity(
     clayPitThroughputMultiplier,
   )
     ? Math.max(0, clayPitThroughputMultiplier)
+    : 1;
+  const normalizedPreservedFoodDemandMultiplier = Number.isFinite(
+    currentPreservedFoodDemandMultiplier,
+  )
+    ? Math.max(0, currentPreservedFoodDemandMultiplier)
     : 1;
   const {
     fireDisabledProcessorSites,
@@ -1802,7 +1812,17 @@ export function computeSettlementProductionCapacity(
     aleDemandPerDay:
       tierThreeResidents * RESIDENCE_ALE_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     preservedFoodDemandPerDay:
-      tierThreeResidents * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+      tierThreeResidents
+      * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+      * WORKDAY_SECONDS
+      * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+    currentPreservedFoodDemandPerDay:
+      tierThreeResidents
+      * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+      * WORKDAY_SECONDS
+      * normalizedPreservedFoodDemandMultiplier,
+    currentPreservedFoodDemandMultiplier:
+      normalizedPreservedFoodDemandMultiplier,
     clothDemandPerDay:
       tierThreeResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     potteryOutputPerDay: industrialMaterials.potterInstalledOutputPerDay,

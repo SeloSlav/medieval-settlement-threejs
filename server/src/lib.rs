@@ -30,6 +30,7 @@ mod monastery_hospitality_policy;
 mod night_policy;
 mod placement_validation;
 mod pottery_dispatch_policy;
+mod preserved_food_policy;
 mod processor_labor_policy;
 mod processor_output_policy;
 mod quarry_balance;

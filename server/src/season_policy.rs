@@ -6,7 +6,9 @@ use crate::balance_generated::{
     DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER, DROUGHT_WELL_REFILL_MULTIPLIER,
     FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY, FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY,
     FRESH_FOOD_SPOILAGE_SPRING_PER_DAY, FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY,
-    FRESH_FOOD_SPOILAGE_WINTER_PER_DAY, SPRING_BREEDING_MULTIPLIER,
+    FRESH_FOOD_SPOILAGE_WINTER_PER_DAY, RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
+    RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER, RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
+    RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER, SPRING_BREEDING_MULTIPLIER,
     SPRING_FIREWOOD_DEMAND_MULTIPLIER, SPRING_PASTURE_CAPACITY_MULTIPLIER, SPRING_RAIN_CHANCE,
     SPRING_RAIN_CROP_GROWTH_MULTIPLIER, SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
     SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER, SPRING_RAIN_WELL_REFILL_MULTIPLIER,
@@ -118,6 +120,18 @@ impl EnvironmentState {
             }
         };
         daily / CALENDAR_SECONDS_PER_DAY
+    }
+
+    /// Cured meat and fish remain part of the same meal, but the mountain
+    /// winter shifts a larger share of household calories into stored food.
+    /// The four equal-length seasons average exactly 1.0 over a full year.
+    pub fn preserved_food_demand_multiplier(self) -> f64 {
+        match self.season {
+            Season::Spring => RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
+            Season::Summer => RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
+            Season::Autumn => RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
+            Season::Winter => RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+        }
     }
 
     /// Dirt tracks remain fully usable, but saturated spring ground and the
@@ -318,5 +332,35 @@ mod tests {
         assert_eq!(frost.clay_pit_throughput_multiplier(), 0.35);
         assert_eq!(fair.clay_pit_throughput_multiplier(), 1.0);
         assert!(frost.clay_pit_throughput_multiplier() > 0.0);
+    }
+
+    #[test]
+    fn preserved_ration_rotation_peaks_in_winter_without_changing_annual_balance() {
+        let multipliers = [
+            EnvironmentState {
+                season: Season::Spring,
+                weather: WeatherKind::Fair,
+            }
+            .preserved_food_demand_multiplier(),
+            EnvironmentState {
+                season: Season::Summer,
+                weather: WeatherKind::Fair,
+            }
+            .preserved_food_demand_multiplier(),
+            EnvironmentState {
+                season: Season::Autumn,
+                weather: WeatherKind::Fair,
+            }
+            .preserved_food_demand_multiplier(),
+            EnvironmentState {
+                season: Season::Winter,
+                weather: WeatherKind::Frost,
+            }
+            .preserved_food_demand_multiplier(),
+        ];
+        assert!(multipliers[1] < multipliers[0]);
+        assert!(multipliers[0] < multipliers[2]);
+        assert!(multipliers[2] < multipliers[3]);
+        assert!((multipliers.into_iter().sum::<f64>() / 4.0 - 1.0).abs() < 1e-9);
     }
 }

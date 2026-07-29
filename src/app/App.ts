@@ -826,6 +826,8 @@ export class App {
         totals: computeResourceTotals(state),
         currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
         freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
+        currentPreservedFoodDemandMultiplier:
+          environment.preservedFoodDemandMultiplier,
         sabbathObserved: snapshot.parishPolicy.sabbathObservanceEnabled
           && settlementHasStaffedChapel(state),
         roadComponentFor: (entity) =>

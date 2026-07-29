@@ -95,6 +95,17 @@ assert.equal(
   ),
   6.25,
 );
+assert.ok(
+  Math.abs(
+    (
+      residencePreservedFoodRunwayDays(
+        residence('winter-preserved-runway', 0, 4, 'preservedFood', 7),
+        1.75,
+      ) ?? 0
+    ) - 6.25 / 1.75,
+  ) < 1e-9,
+  'current winter rotation must shorten the displayed household runway',
+);
 assert.equal(
   residenceAleRunwayDays(residence('ale-runway', 0, 4, 'ale', 7)),
   10,

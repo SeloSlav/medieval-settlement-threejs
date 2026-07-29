@@ -8,6 +8,7 @@ import {
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   SIM_TICK_SECONDS,
@@ -131,7 +132,8 @@ export function computeSettlementGrowthPlan(input: {
     if (residence.tier >= 3) {
       additionalPreservedFoodPerDay += vacancies
         * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-        * workdaySeconds;
+        * workdaySeconds
+        * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER;
       additionalAlePerDay += vacancies * RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
       additionalClothPerDay += vacancies * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
       additionalPotteryPerDay += vacancies

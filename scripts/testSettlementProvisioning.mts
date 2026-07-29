@@ -554,6 +554,34 @@ assert.equal(tierThreeShort.householdBufferAleShortHomes, 1);
 assert.equal(tierThreeShort.householdBufferClothShortHomes, 1);
 assert.equal(tierThreeShort.householdBufferPotteryShortHomes, 1);
 
+const seasonalRationState = emptyGameState();
+const seasonalRationHome = residence('seasonal-ration-home', 3, 5);
+seasonalRationHome.needs.preservedFood.stock = 5
+  * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+  * 70;
+seasonalRationState.residences.set(
+  seasonalRationHome.id,
+  seasonalRationHome,
+);
+const ordinaryRationBuffer = computeSettlementProvisioning({
+  state: seasonalRationState,
+  totals: computeResourceTotals(seasonalRationState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  currentPreservedFoodDemandMultiplier: 1,
+  sabbathObserved: false,
+});
+const winterRationBuffer = computeSettlementProvisioning({
+  state: seasonalRationState,
+  totals: computeResourceTotals(seasonalRationState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  currentPreservedFoodDemandMultiplier: 1.75,
+  sabbathObserved: false,
+});
+assert.equal(ordinaryRationBuffer.householdBufferPreservedFoodShortHomes, 0);
+assert.equal(winterRationBuffer.householdBufferPreservedFoodShortHomes, 1);
+
 const perfState = emptyGameState();
 for (let index = 0; index < 10_000; index += 1) {
   perfState.residences.set(

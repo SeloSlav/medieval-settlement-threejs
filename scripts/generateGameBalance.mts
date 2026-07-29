@@ -298,6 +298,10 @@ export type GameBalance = {
     residenceTier3Capacity: number;
     residencePreservedFoodCapacity: number;
     residencePreservedFoodPerPersonPerSec: number;
+    residencePreservedFoodSpringMultiplier: number;
+    residencePreservedFoodSummerMultiplier: number;
+    residencePreservedFoodAutumnMultiplier: number;
+    residencePreservedFoodWinterMultiplier: number;
     residenceAleCapacity: number;
     residenceAlePerPersonPerSec: number;
     residenceClothCapacity: number;
@@ -764,6 +768,10 @@ function generateRust(): string {
     `pub const RESIDENCE_TIER3_CAPACITY: u32 = ${b.population.residenceTier3Capacity};`,
     `pub const RESIDENCE_PRESERVED_FOOD_CAPACITY: f64 = ${rustF64(b.population.residencePreservedFoodCapacity)};`,
     `pub const RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residencePreservedFoodPerPersonPerSec)};`,
+    `pub const RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER: f64 = ${rustF64(b.population.residencePreservedFoodSpringMultiplier)};`,
+    `pub const RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER: f64 = ${rustF64(b.population.residencePreservedFoodSummerMultiplier)};`,
+    `pub const RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER: f64 = ${rustF64(b.population.residencePreservedFoodAutumnMultiplier)};`,
+    `pub const RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER: f64 = ${rustF64(b.population.residencePreservedFoodWinterMultiplier)};`,
     `pub const RESIDENCE_ALE_CAPACITY: f64 = ${rustF64(b.population.residenceAleCapacity)};`,
     `pub const RESIDENCE_ALE_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceAlePerPersonPerSec)};`,
     `pub const RESIDENCE_CLOTH_CAPACITY: f64 = ${rustF64(b.population.residenceClothCapacity)};`,
@@ -1533,6 +1541,10 @@ function generateTypeScript(): string {
     `export const RESIDENCE_TIER3_CAPACITY = ${b.population.residenceTier3Capacity};`,
     `export const RESIDENCE_PRESERVED_FOOD_CAPACITY = ${b.population.residencePreservedFoodCapacity};`,
     `export const RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC = ${b.population.residencePreservedFoodPerPersonPerSec};`,
+    `export const RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER = ${b.population.residencePreservedFoodSpringMultiplier};`,
+    `export const RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER = ${b.population.residencePreservedFoodSummerMultiplier};`,
+    `export const RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER = ${b.population.residencePreservedFoodAutumnMultiplier};`,
+    `export const RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER = ${b.population.residencePreservedFoodWinterMultiplier};`,
     `export const RESIDENCE_ALE_CAPACITY = ${b.population.residenceAleCapacity};`,
     `export const RESIDENCE_ALE_PER_PERSON_PER_SEC = ${b.population.residenceAlePerPersonPerSec};`,
     `export const RESIDENCE_CLOTH_CAPACITY = ${b.population.residenceClothCapacity};`,
