@@ -7,6 +7,7 @@ import type { BuildingKind, BuildingState } from '../resources/types.ts';
 
 export const CIVILIAN_TOOL_SITE_KINDS = [
   'lumber_mill',
+  'woodcutters_lodge',
   'stone_quarry',
   'large_quarry',
   'clay_pit',

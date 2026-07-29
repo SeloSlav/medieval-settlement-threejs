@@ -53,6 +53,7 @@ import {
   fireDisabledResidenceIds,
 } from '../fires/fireIncident.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
+import { lodgeSustainedProcessingLabor } from '../logistics/lodgeLogistics.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type {
   BuildingKind,
@@ -685,15 +686,18 @@ function completedProcessorOverview(
     if (isCivilianToolSite(building.kind)) {
       toolEligibleSites += 1;
       const maintained = civilianToolsMaintained(building.ironwork ?? 0);
+      const productiveToolLabor = building.kind === 'woodcutters_lodge'
+        ? lodgeSustainedProcessingLabor(building.assignedLabor)
+        : building.assignedLabor;
       const maintainedCycles = cyclesPerCalendarDay(
         building.kind,
-        building.assignedLabor,
+        productiveToolLabor,
         sabbathObserved,
         civilianToolThroughputMultiplier(building.ironwork ?? 0),
       );
       const fullyEquippedCycles = cyclesPerCalendarDay(
         building.kind,
-        building.assignedLabor,
+        productiveToolLabor,
         sabbathObserved,
         CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
       );

@@ -2,8 +2,13 @@ use crate::balance_generated::{
     CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
 };
 
-pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 4] =
-    ["lumber_mill", "stone_quarry", "large_quarry", "clay_pit"];
+pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 5] = [
+    "lumber_mill",
+    "woodcutters_lodge",
+    "stone_quarry",
+    "large_quarry",
+    "clay_pit",
+];
 
 pub fn is_civilian_tool_site(kind: &str) -> bool {
     CIVILIAN_TOOL_SITE_KINDS.contains(&kind)
@@ -53,11 +58,12 @@ mod tests {
     }
 
     #[test]
-    fn only_selected_extractive_sites_claim_maintenance_ironwork() {
+    fn selected_heavy_tool_sites_claim_maintenance_ironwork() {
         for kind in CIVILIAN_TOOL_SITE_KINDS {
             assert!(is_civilian_tool_site(kind));
         }
+        assert!(is_civilian_tool_site("woodcutters_lodge"));
         assert!(!is_civilian_tool_site("carpenter"));
-        assert!(!is_civilian_tool_site("woodcutters_lodge"));
+        assert!(!is_civilian_tool_site("threshing_barn"));
     }
 }

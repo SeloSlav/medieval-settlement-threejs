@@ -36,6 +36,22 @@ const settlementHudSource = readFileSync(
   new URL('../src/ui/SettlementHud.ts', import.meta.url),
   'utf8',
 );
+const woodcutterSimulation = readFileSync(
+  new URL('../server/src/simulation/woodcutters_lodge.rs', import.meta.url),
+  'utf8',
+);
+const expandedEconomySimulation = readFileSync(
+  new URL('../server/src/simulation/expanded_economy.rs', import.meta.url),
+  'utf8',
+);
+const woodcutterInspector = readFileSync(
+  new URL('../src/resources/inspector/woodcuttersLodgeRenderer.ts', import.meta.url),
+  'utf8',
+);
+const buildMenuCards = readFileSync(
+  new URL('../src/ui/buildMenuCards.ts', import.meta.url),
+  'utf8',
+);
 const ironworkHudTag = settlementHudSource.match(
   /<div[^>]*data-resource="ironwork"[^>]*>/,
 )?.[0];
@@ -45,6 +61,21 @@ assert.doesNotMatch(
   /\bhidden\b/,
   'peaceful settlements still consume ironwork for civilian tool upkeep',
 );
+assert.match(
+  woodcutterSimulation,
+  /civilian_tool_throughput_multiplier\(lodge\.ironwork\)/,
+);
+assert.match(
+  woodcutterSimulation,
+  /withdraw_building_commodity\([\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+);
+assert.match(
+  expandedEconomySimulation,
+  /"lumber_mill",\s*"woodcutters_lodge",\s*"stone_quarry"/,
+  'smithies must include winter-fuel axes in physical ironwork dispatch',
+);
+assert.match(woodcutterInspector, /civilianToolRows\(building\)/);
+assert.match(buildMenuCards, /replacement axes raise output but wear each cycle/);
 const conflictVisibilityMethod = settlementHudSource.slice(
   settlementHudSource.indexOf('setConflictEnabled(enabled: boolean)'),
   settlementHudSource.indexOf('setSettlementClock(', settlementHudSource.indexOf(

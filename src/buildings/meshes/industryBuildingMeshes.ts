@@ -331,5 +331,6 @@ export function createWoodcuttersLodgeMesh(): THREE.Group {
   addSmallWindow(group, 1.35, 1.82, shell.frontZ + 0.02, 0.82, 1.0);
   addChoppingShelter(group, shell.halfW);
   group.add(createWoodcuttersFirewoodStockpile());
+  group.add(createCivilianToolStockpile(new THREE.Vector3(-2.7, 0, 3.55), -0.12));
   return group;
 }

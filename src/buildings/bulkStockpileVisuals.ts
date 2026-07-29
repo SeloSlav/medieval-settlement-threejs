@@ -34,6 +34,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.firewood,
         BUILDING_STORAGE_CAPS.woodcutters_lodge.firewood,
         WOODCUTTERS_FIREWOOD_VISUAL_SEGMENTS,
+      )}:tools:${stockpileVisualLevel(
+        building.ironwork ?? 0,
+        BUILDING_STORAGE_CAPS.woodcutters_lodge.ironwork ?? 0,
+        CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
     case 'stone_quarry':
       return `:bulk-store:${stockpileVisualLevel(
@@ -124,6 +128,7 @@ export function syncBulkStockpileVisuals(
         building.firewood,
         BUILDING_STORAGE_CAPS.woodcutters_lodge.firewood,
       );
+      syncCivilianToolStockpile(marker, building);
       break;
     case 'stone_quarry':
       syncNamedStockpile(

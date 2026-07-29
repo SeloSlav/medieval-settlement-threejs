@@ -10,6 +10,7 @@ import {
   lodgeFirewoodPerDelivery,
   lodgeLaborAlternates,
   lodgeLaborSplit,
+  lodgeSustainedProcessingLabor,
 } from '../src/logistics/lodgeLogistics.ts';
 import {
   compareResidencesForDelivery,
@@ -112,6 +113,9 @@ assert.equal(normalizeWoodcutterTimberReserve(-5), 0);
 assert.equal(normalizeWoodcutterTimberReserve(39.6), 40);
 assert.equal(normalizeWoodcutterTimberReserve(1_000), WOODCUTTER_TIMBER_RESERVE_MAX);
 assert.equal(timberAboveWoodcutterReserve(87, 40), 47);
+assert.equal(lodgeSustainedProcessingLabor(0), 0);
+assert.equal(lodgeSustainedProcessingLabor(1), 0.5);
+assert.equal(lodgeSustainedProcessingLabor(4), 3);
 assert.deepEqual(
   WOODCUTTER_TIMBER_RESERVE_PRESETS.map(({ reserve }) => reserve),
   [0, 40, 100, 200],

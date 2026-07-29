@@ -22,6 +22,7 @@ import {
   buildingLaborView,
   buildingRoadAccessRow,
   buildingStorageRows,
+  civilianToolRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import {
@@ -184,6 +185,7 @@ export function renderWoodcuttersLodgeInspector(
       <li><span>Construction timber floor</span><span>${Math.round(timberReserve)}</span></li>
       <li><span>Unreserved building timber</span><span>${Math.floor(availableUnreservedTimber)} total · ${Math.floor(timberAboveReserve)} above floor</span></li>
       ${deliveryRow}
+      ${civilianToolRows(building)}
       ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {

@@ -68,7 +68,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   smithy: ['Village smithy', 'M', 'Forges imported iron blooms with local charcoal into ironwork for tools, construction fittings, and frontier weapons. Elevated fire risk.'],
   potter_kiln: ["Potter's kiln", 'P', 'Fires river clay with firewood into prosperous household wares, preserving crocks, and export pottery. Elevated fire risk rewards well coverage and spacing.'],
   reforester: ['Reforester', 'F', 'Restores harvested woodland with native saplings.'],
-  woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood and supplies connected homes.'],
+  woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood and supplies connected homes. Smith-forged replacement axes raise output but wear each cycle.'],
   hunters_hall: ["Hunter's hall", 'K', 'Hunts game and delivers fresh food along the road network.'],
   foragers_shed: ["Forager's shed", 'Y', 'Gathers wild food, dries medicinal herbs, and carts urgent treatment to sick homes.'],
   fishing_camp: ['Fishing camp', 'Z', 'Catches from a finite river population that reproduces in spring; overfishing can cause extinction.'],

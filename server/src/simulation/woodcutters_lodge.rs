@@ -1,6 +1,8 @@
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
 use crate::building_defs::building_def;
+use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_tools_maintained};
 use crate::constants::{
     FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC, LODGE_FIREWOOD_PER_CYCLE,
     LODGE_FIREWOOD_PER_DELIVERY, LODGE_TIMBER_PER_CYCLE, LODGE_TIMBER_PER_DELIVERY, TICK_DT,
@@ -9,7 +11,7 @@ use crate::constants::{
 use crate::db::*;
 use crate::economy::{
     available_unreserved_building_timber, building_storage_caps, deposit_building,
-    withdraw_building,
+    withdraw_building, withdraw_building_commodity, CommodityKind,
 };
 use crate::simulation::delivery_cargo::has_delivery_stock_room;
 use crate::simulation::delivery_supplier::{
@@ -55,8 +57,10 @@ pub fn step_woodcutters_lodge(
     let onsite_labor = onsite_building_labor(ctx, &lodge);
     let mut split = lodge_labor_split(lodge.assigned_labor);
     split.processing = split.processing.min(onsite_labor);
+    let tools_maintained = civilian_tools_maintained(lodge.ironwork);
+    let throughput_multiplier = civilian_tool_throughput_multiplier(lodge.ironwork);
     if split.processing > 0 {
-        lodge.action_cooldown = (lodge.action_cooldown - TICK_DT).max(0.0);
+        lodge.action_cooldown = (lodge.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
     }
     let single_worker = lodge.assigned_labor == 1;
     let process_ready = split.processing > 0 && lodge.action_cooldown <= 0.0;
@@ -87,7 +91,8 @@ pub fn step_woodcutters_lodge(
             split.processing,
             available_timber,
         );
-        lodge = process_timber_to_firewood(lodge, split.processing, available_timber);
+        lodge =
+            process_timber_to_firewood(lodge, split.processing, available_timber, tools_maintained);
         lodge.action_cooldown = def.action_interval;
     }
     if do_deliver {
@@ -219,6 +224,7 @@ fn process_timber_to_firewood(
     lodge: Building,
     processing_workers: u32,
     available_unreserved_timber: f64,
+    tools_maintained: bool,
 ) -> Building {
     if processing_workers == 0 {
         return lodge;
@@ -244,10 +250,17 @@ fn process_timber_to_firewood(
     }
 
     let (_, _, _, lodge_after_withdraw) = withdraw_building(&lodge, timber_needed, 0.0, 0.0);
-    let (_, firewood_added, _, processed) =
+    let (_, firewood_added, _, mut processed) =
         deposit_building(&lodge_after_withdraw, caps, 0.0, firewood_output, 0.0);
     if firewood_added <= 0.0 {
         return lodge;
+    }
+    if tools_maintained {
+        withdraw_building_commodity(
+            &mut processed,
+            CommodityKind::Ironwork,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+        );
     }
     processed
 }

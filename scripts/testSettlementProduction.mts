@@ -118,6 +118,7 @@ const materialBuildings = [
   building('material-smithy', 'smithy', 1),
   building('material-market', 'marketplace', 1),
   building('material-lumber', 'lumber_mill', 1),
+  building('material-woodcutter', 'woodcutters_lodge', 1),
 ];
 materialBuildings[0].ironwork = 1;
 for (const candidate of materialBuildings) {
@@ -141,7 +142,7 @@ assert.ok(
 );
 assert.ok(joinedMaterials.potteryExportSurplusPerDay > 0);
 assert.equal(joinedMaterials.potteryStrandedPerDay, 0);
-assert.equal(joinedMaterials.toolEligibleSites, 2);
+assert.equal(joinedMaterials.toolEligibleSites, 3);
 assert.equal(joinedMaterials.toolMaintainedSites, 1);
 assert.ok(
   joinedMaterials.fullToolIronworkPerDay

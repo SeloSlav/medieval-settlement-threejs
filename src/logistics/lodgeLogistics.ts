@@ -22,6 +22,12 @@ export function lodgeLaborAlternates(assignedLabor: number): boolean {
   return assignedLabor === 1;
 }
 
+/** Sustained winter planning reserves one carrier; a lone worker splits time evenly. */
+export function lodgeSustainedProcessingLabor(assignedLabor: number): number {
+  if (assignedLabor <= 0) return 0;
+  return assignedLabor === 1 ? 0.5 : assignedLabor - 1;
+}
+
 export function formatLodgeCrewSplit(split: LodgeLaborSplit, assignedLabor: number): string {
   if (split.processing === 0 && split.delivering === 0) return 'None assigned';
   if (lodgeLaborAlternates(assignedLabor)) return '1 worker — alternates processing & delivery';

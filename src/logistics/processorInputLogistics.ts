@@ -101,6 +101,7 @@ const TARGET_KINDS: Record<
   flax: ['weaver'],
   ironwork: [
     'lumber_mill',
+    'woodcutters_lodge',
     'stone_quarry',
     'large_quarry',
     'clay_pit',
@@ -182,7 +183,7 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * Mirrors every source-side processor-input cart. Active processors receive
  * their selected stock-policy working buffers by work priority. Equal-tier
  * looms then route matching fibres to their selected specialization before
- * lowest runway and route; staffed extractive worksites use the same ordering
+ * lowest runway and route; staffed heavy-tool worksites use the same ordering
  * for replacement iron tools. Imported iron and salt stop at their working
  * buffers; after the kiln's household-ware duty, pottery reaches staffed
  * smokehouses before becoming market export stock. Preserved food is a

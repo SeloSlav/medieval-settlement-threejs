@@ -837,7 +837,7 @@
     "woodcutters_lodge": {
       "label": "Woodcutter's lodge",
       "cost": { "timber": 40, "stone": 12 },
-      "storage": { "timber": 60, "firewood": 120, "stone": 0, "food": 0 },
+      "storage": { "timber": 60, "firewood": 120, "stone": 0, "food": 0, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 8,
       "harvestInterval": 5,

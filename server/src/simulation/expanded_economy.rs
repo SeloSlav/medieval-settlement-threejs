@@ -1081,6 +1081,7 @@ fn local_material_source_plan(kind: &str) -> Option<(CommodityKind, &'static [&'
             CommodityKind::Ironwork,
             &[
                 "lumber_mill",
+                "woodcutters_lodge",
                 "stone_quarry",
                 "large_quarry",
                 "clay_pit",

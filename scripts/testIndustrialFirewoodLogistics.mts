@@ -5,6 +5,7 @@ import {
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
   BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+  CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   GRANARY_FIREWOOD_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
@@ -193,6 +194,23 @@ assert.equal(
 assert.ok(plan.lodgeOutputCapacityPerDay > 0);
 assert.ok(plan.lodgeTimberDrawPerDay > 0);
 assert.ok(Number.isFinite(plan.combinedRunwayDays));
+const baselineLodgeOutput = plan.lodgeOutputCapacityPerDay;
+const baselineLodgeTimber = plan.lodgeTimberDrawPerDay;
+lodge.ironwork = 0.75;
+const maintainedPlan = computeSettlementFirewoodPlan(
+  state,
+  false,
+  (entity) => entity.x < 100 ? 'west' : 'east',
+);
+assert.ok(Math.abs(
+  maintainedPlan.lodgeOutputCapacityPerDay
+    - baselineLodgeOutput * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+) < 1e-9);
+assert.ok(Math.abs(
+  maintainedPlan.lodgeTimberDrawPerDay
+    - baselineLodgeTimber * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+) < 1e-9);
+lodge.ironwork = 0;
 
 const perfTargets = Array.from({ length: 100_000 }, (_, index) =>
   building(String(index), 'potter_kiln', {
@@ -234,6 +252,16 @@ const storehouseSimulation = readFileSync(
 assert.match(
   expandedSimulation,
   /pub fn step_industrial_firewood_dispatch[\s\S]*dispatch_to_building_where[\s\S]*INDUSTRIAL_FIREWOOD_TARGET_KINDS/,
+);
+assert.match(
+  lodgeSimulation,
+  /civilian_tool_throughput_multiplier\(lodge\.ironwork\)[\s\S]*action_cooldown[\s\S]*TICK_DT \* throughput_multiplier/,
+  'maintained axes must accelerate the authoritative processing timer',
+);
+assert.match(
+  lodgeSimulation,
+  /if tools_maintained[\s\S]*withdraw_building_commodity\([\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  'a successful maintained firewood cycle must wear physical ironwork',
 );
 assert.doesNotMatch(
   expandedSimulation,

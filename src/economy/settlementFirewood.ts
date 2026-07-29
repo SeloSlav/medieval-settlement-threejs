@@ -16,8 +16,10 @@ import {
 } from '../generated/gameBalance.ts';
 import { fireDisabledBuildingIds, fireDisabledResidenceIds } from '../fires/fireIncident.ts';
 import { residenceFirewoodPriorityTarget } from '../logistics/firewoodLogistics.ts';
+import { lodgeSustainedProcessingLabor } from '../logistics/lodgeLogistics.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
+import { civilianToolThroughputMultiplier } from './civilianToolPolicy.ts';
 import type {
   BuildingKind,
   BuildingState,
@@ -104,8 +106,10 @@ type MutableFirewoodBranch = Omit<
  * ready distributor yards, hot-workshop buffers, and carts remain separate so
  * the readout does not imply that fuel staged inside a kiln can heat a home.
  *
- * Production and consumption are installed full-input capacities. A lone
- * lodge worker contributes half a processing worker because sustained demand
+ * Production and consumption are installed full-input capacities. Current
+ * woodcutter tool maintenance changes both firewood output and timber draw;
+ * smithy demand is reconciled by the industrial-material ledger. A lone lodge
+ * worker contributes half a processing worker because sustained demand
  * alternates that worker between splitting and cart duty.
  */
 export function computeSettlementFirewoodPlan(
@@ -190,7 +194,7 @@ export function computeSettlementFirewoodPlan(
       branch.distributors += 1;
       branch.distributorStock += stock;
       if (building.kind === 'woodcutters_lodge') {
-        const capacity = lodgeFirewoodCapacity(building.assignedLabor, sabbathObserved);
+        const capacity = lodgeFirewoodCapacity(building, sabbathObserved);
         branch.lodgeOutputCapacityPerDay += capacity.firewoodPerDay;
         branch.lodgeTimberDrawPerDay += capacity.timberPerDay;
       }
@@ -396,19 +400,15 @@ function isReadyFirewoodDistributor(building: BuildingState): boolean {
 }
 
 function lodgeFirewoodCapacity(
-  assignedLabor: number,
+  building: Pick<BuildingState, 'assignedLabor' | 'ironwork'>,
   sabbathObserved: boolean,
 ): { firewoodPerDay: number; timberPerDay: number } {
-  const processingLabor = assignedLabor <= 0
-    ? 0
-    : assignedLabor === 1
-      ? 0.5
-      : assignedLabor - 1;
+  const processingLabor = lodgeSustainedProcessingLabor(building.assignedLabor);
   const cycles = workshopCyclesPerDay(
     'woodcutters_lodge',
     processingLabor,
     sabbathObserved,
-  );
+  ) * civilianToolThroughputMultiplier(building.ironwork ?? 0);
   return {
     firewoodPerDay: cycles * LODGE_FIREWOOD_PER_CYCLE,
     timberPerDay: cycles * LODGE_TIMBER_PER_CYCLE,

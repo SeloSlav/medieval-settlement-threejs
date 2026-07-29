@@ -1355,7 +1355,7 @@ export const BUILDING_STORAGE_CAPS = {
   salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, manure: 2000, remedies: 2000 },
   lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
-  woodcutters_lodge: { timber: 60, firewood: 120, stone: 0 },
+  woodcutters_lodge: { timber: 60, firewood: 120, stone: 0, ironwork: 3 },
   stone_quarry: { timber: 0, firewood: 0, stone: 180, ironwork: 3 },
   large_quarry: { timber: 0, firewood: 0, stone: 360, ironwork: 3 },
   clay_pit: { timber: 0, firewood: 0, stone: 0, ironwork: 3, clay: 180 },
