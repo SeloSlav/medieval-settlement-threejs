@@ -1324,8 +1324,11 @@ export class VillagerRenderer {
       : null;
     const mode = renderAgent.mode === 'chop'
       || renderAgent.mode === 'mine'
-      || renderAgent.mode === 'build'
       ? renderAgent.mode
+      : renderAgent.mode === 'build'
+        ? workplace?.kind === 'smithy'
+          ? null
+          : 'build'
       : renderAgent.mode === 'plant'
         ? 'dig'
         : renderAgent.mode === 'fish'
@@ -1333,7 +1336,9 @@ export class VillagerRenderer {
           : renderAgent.mode === 'gather'
             ? 'forage'
             : renderAgent.mode === 'tend'
-              ? workplace?.kind === 'threshing_barn'
+              ? workplace?.kind === 'charcoal_burner'
+                ? 'dig'
+                : workplace?.kind === 'threshing_barn'
                 ? 'cut_crop'
                 : workplace?.kind === 'pastoral_farmstead'
                   || workplace?.kind === 'swineherd'
@@ -2870,9 +2875,13 @@ export class VillagerRenderer {
     const kind = workplace?.kind;
     if (kind === 'lumber_mill' || kind === 'woodcutters_lodge') return 'hatchet';
     if (kind === 'stone_quarry' || kind === 'large_quarry') return 'pickaxe';
-    if (kind === 'reforester') return 'shovel';
+    if (
+      kind === 'reforester'
+      || kind === 'clay_pit'
+      || kind === 'charcoal_burner'
+    ) return 'shovel';
     if (kind === 'threshing_barn' || kind === 'vineyard') return 'hoe';
-    if (kind === 'carpenter') return 'hammer';
+    if (kind === 'carpenter' || kind === 'smithy') return 'hammer';
     if (kind === 'guardhouse') {
       return agent.workplaceSlot < Math.floor(workplace?.polearms ?? 0) ? 'spear' : null;
     }
@@ -3005,7 +3014,11 @@ function describeVillagerActivity(
       }
       if (agent.mode === 'chop') return `Chopping timber near ${workplaceLabel}`;
       if (agent.mode === 'mine') return `Quarrying stone near ${workplaceLabel}`;
-      if (agent.mode === 'plant') return `Planting saplings near ${workplaceLabel}`;
+      if (agent.mode === 'plant') {
+        return workplace?.kind === 'clay_pit'
+          ? `Cutting wet river clay at ${workplaceLabel}`
+          : `Planting saplings near ${workplaceLabel}`;
+      }
       if (agent.mode === 'fish') return `Fishing near ${workplaceLabel}`;
       if (agent.mode === 'gather') {
         if (workplace?.kind === 'hunters_hall') return `Checking game near ${workplaceLabel}`;
@@ -3024,13 +3037,19 @@ function describeVillagerActivity(
           case 'granary': return `Handling grain at ${workplaceLabel}`;
           case 'watermill': return `Tending the mill at ${workplaceLabel}`;
           case 'vineyard': return `Tending vines at ${workplaceLabel}`;
+          case 'charcoal_burner': return `Sealing and venting the clamp at ${workplaceLabel}`;
+          case 'potter_kiln': return `Shaping and firing vessels at ${workplaceLabel}`;
           default: return `Tending work at ${workplaceLabel}`;
         }
       }
       if (agent.mode === 'build') {
-        return workplace?.kind === 'guardhouse'
-          ? `Drilling with the guard at ${workplaceLabel}`
-          : `Hammering on ${workplaceLabel}`;
+        if (workplace?.kind === 'guardhouse') {
+          return `Drilling with the guard at ${workplaceLabel}`;
+        }
+        if (workplace?.kind === 'smithy') {
+          return `Forging ironwork at ${workplaceLabel}`;
+        }
+        return `Hammering on ${workplaceLabel}`;
       }
       if (workplace?.constructionComplete === false) {
         return agent.mode === 'walk'

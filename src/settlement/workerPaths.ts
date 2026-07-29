@@ -26,6 +26,10 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'woodcutters_lodge',
   'stone_quarry',
   'large_quarry',
+  'clay_pit',
+  'charcoal_burner',
+  'smithy',
+  'potter_kiln',
   'well',
   'hunters_hall',
   'foragers_shed',
@@ -117,6 +121,10 @@ export type WorkerTargetInputs = {
  */
 export const YARD_WORK_ACTIVITY = {
   woodcutters_lodge: 'chop',
+  clay_pit: 'plant',
+  charcoal_burner: 'tend',
+  smithy: 'build',
+  potter_kiln: 'tend',
   well: 'tend',
   brewery: 'tend',
   smokehouse: 'tend',
@@ -163,6 +171,7 @@ export function allocateProductionWorkers(
     .sort((a, b) => a.id.localeCompare(b.id));
 
   for (const building of workplaces) {
+    if (assignments.length >= MAX_VISIBLE_WORKERS) break;
     const workerCount = Math.max(0, Math.floor(building.assignedLabor));
     const awayWorkerCount = Math.min(
       workerCount,

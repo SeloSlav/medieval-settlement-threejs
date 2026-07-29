@@ -253,6 +253,10 @@ const expectedWorkplaces = [
   'woodcutters_lodge',
   'stone_quarry',
   'large_quarry',
+  'clay_pit',
+  'charcoal_burner',
+  'smithy',
+  'potter_kiln',
   'well',
   'hunters_hall',
   'foragers_shed',
@@ -275,6 +279,45 @@ assert.deepEqual(
   PRODUCTION_WORKPLACE_KINDS,
   expectedWorkplaces,
   'every staffed gathering and processing workplace should receive visible agents',
+);
+
+const materialWorkplaces = [
+  building('material-clay-workers', 'clay_pit', 0, 0, 3, 0),
+  building('material-charcoal-workers', 'charcoal_burner', 15, 0, 2, 0),
+  building('material-smithy-workers', 'smithy', 30, 0, 3, 0),
+  building('material-potter-workers', 'potter_kiln', 45, 0, 2, 0),
+];
+const materialRoster = allocateProductionWorkers(
+  [residence('material-worker-homes', 20, 5, 10)],
+  materialWorkplaces,
+  new Map([['material-smithy-workers', 1]]),
+);
+assert.equal(
+  materialRoster.assignments.length,
+  10,
+  'every assigned material-chain worker must claim one visible person',
+);
+for (const workplace of materialWorkplaces) {
+  assert.equal(
+    materialRoster.assignments.filter(
+      (assignment) => assignment.buildingId === workplace.id,
+    ).length,
+    workplace.assignedLabor,
+    `${workplace.kind} must expose its complete assigned crew`,
+  );
+}
+assert.equal(
+  materialRoster.assignments.filter(
+    (assignment) => assignment.buildingId === 'material-smithy-workers'
+      && !assignment.onSite,
+  ).length,
+  1,
+  'a smith traveling with the forge cart must remain claimed without duplicating at the yard',
+);
+assert.equal(
+  materialRoster.remainingPopulationByResidence.get('material-worker-homes'),
+  0,
+  'material-chain labor must no longer reappear as idle household villagers',
 );
 
 const watchtower = building('visible-watchtower', 'watchtower', 40, 80, 2, 190);
@@ -322,10 +365,47 @@ assert.equal(
   1024,
   'visible tower posts must respect the existing settlement crowd budget',
 );
+const materialScaleSites = Array.from({ length: 20_000 }, (_, index) =>
+  building(
+    `bounded-material-${index.toString().padStart(5, '0')}`,
+    index % 4 === 0
+      ? 'clay_pit'
+      : index % 4 === 1
+        ? 'charcoal_burner'
+        : index % 4 === 2
+          ? 'smithy'
+          : 'potter_kiln',
+    index * 3,
+    0,
+    2,
+    0,
+  )
+);
+const materialScaleStartedAt = performance.now();
+const boundedMaterialRoster = allocateProductionWorkers([], materialScaleSites);
+const materialScaleElapsedMs = performance.now() - materialScaleStartedAt;
+assert.equal(
+  boundedMaterialRoster.assignments.length,
+  1024,
+  'large industrial settlements must retain the shared visible-agent budget',
+);
+assert.ok(
+  materialScaleElapsedMs < 1_500,
+  `20,000 material workplaces took ${materialScaleElapsedMs.toFixed(1)} ms to roster`,
+);
 const villagerRendererSource = fs.readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
 assert.match(villagerRendererSource, /scanFromWatchtower/);
 assert.match(villagerRendererSource, /resolveAgentY/);
 assert.match(villagerRendererSource, /Keeping watch from the frontier gallery/);
+assert.match(villagerRendererSource, /Cutting wet river clay/);
+assert.match(villagerRendererSource, /Sealing and venting the clamp/);
+assert.match(villagerRendererSource, /Forging ironwork/);
+assert.match(villagerRendererSource, /Shaping and firing vessels/);
+assert.match(
+  villagerRendererSource,
+  /kind === 'clay_pit'[\s\S]*kind === 'charcoal_burner'[\s\S]*return 'shovel'/,
+);
+assert.match(villagerRendererSource, /kind === 'carpenter' \|\| kind === 'smithy'/);
 
 for (const [kind, expectedActivity] of Object.entries(YARD_WORK_ACTIVITY)) {
   const workplace = building(`yard-${kind}`, kind as BuildingState['kind'], 0, 0, 2, 0);
@@ -426,7 +506,9 @@ assert.equal(villagerOccupation('stone_quarry'), 'Stonecutter');
 assert.equal(villagerOccupation('lumber_mill', true), 'Builder');
 assert.equal(villagerOccupation(null), 'Available labor');
 
-console.log('production worker agent tests passed');
+console.log(
+  `production worker agent tests passed (20,000 material workplaces: ${materialScaleElapsedMs.toFixed(1)} ms)`,
+);
 
 function residence(
   id: string,
