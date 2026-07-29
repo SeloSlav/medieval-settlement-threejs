@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
-import { computeDayNightState } from '../src/world/dayNightPresentation.ts';
+import {
+  computeDayNightState,
+  FAIR_DAY_FOG_COLOR,
+  NIGHT_FOG_COLOR,
+} from '../src/world/dayNightPresentation.ts';
 import { gameClockAtElapsedSeconds, type GameClock } from '../src/world/gameCalendar.ts';
 
 const springDawn = computeDayNightState(clockAt(6.65, 3), false);
@@ -18,12 +22,15 @@ assert.equal(springDawn.duskAmount, 0, 'morning twilight must not use the dusk p
 assert.equal(springDusk.dawnAmount, 0, 'evening twilight must not use the dawn palette');
 assert.ok(springDawn.sunDirection.x > 0, 'the sun should rise in the east');
 assert.ok(springDusk.sunDirection.x < 0, 'the sun should set in the west');
-assert.ok(springNoon.solarElevationDeg > 40, 'the spring midday sun should be high');
+assert.ok(
+  springNoon.solarElevationDeg > 38,
+  'the early-March midday sun should be high for the settlement latitude',
+);
 assert.equal(springNight.isNight, true);
 assert.ok(springNight.nightAmount > 0.99);
 assert.equal(springNoon.nightAmount, 0);
 assert.ok(springNight.solarElevationDeg < -25, 'late night should place the sun well below the horizon');
-assert.equal(fixedSummerMoonlight.fogColor, 0x506b80);
+assert.equal(fixedSummerMoonlight.fogColor, NIGHT_FOG_COLOR);
 assert.equal(fixedSummerMoonlight.fogDensity, 0.0007);
 assert.equal(fixedSummerMoonlight.grade.saturation, 0.88);
 assert.equal(fixedSummerMoonlight.grade.contrast, 0.98);
@@ -34,6 +41,11 @@ assert.equal(fixedSummerMoonlight.hemiGroundColor, 0x516773);
 assert.equal(fixedSummerMoonlight.ambientColor, 0x778fa9);
 assert.equal(fixedSummerMoonlight.fillColor, 0xaccbe2);
 assert.equal(fixedSummerMoonlight.fillIntensity, 0.68);
+assert.equal(springNoon.fogColor, FAIR_DAY_FOG_COLOR);
+assert.ok(
+  rgb(springNoon.fogColor).b > rgb(springNoon.fogColor).r + 35,
+  'daytime fog should read as a natural blue atmospheric haze rather than white',
+);
 assert.equal(
   fixedWinterDaylight.grade.nightBlue,
   0.055,
@@ -47,7 +59,7 @@ assert.ok(
   'sunrise light should be peach-gold',
 );
 assert.ok(
-  sunsetRgb.r > sunsetRgb.g * 1.7 && sunsetRgb.g > sunsetRgb.b,
+  sunsetRgb.r > sunsetRgb.g * 1.6 && sunsetRgb.g > sunsetRgb.b,
   'sunset light should be distinctly rust-red/orange',
 );
 assert.ok(

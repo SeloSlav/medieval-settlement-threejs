@@ -1,7 +1,4 @@
 import * as THREE from 'three';
-import { MeshStandardNodeMaterial } from 'three/webgpu';
-import { vertexColor } from 'three/tsl';
-import { applyFoliageDoubleSideNormalsNode } from '../scene/foliageDoubleSideNormals.ts';
 import {
   createSeedThreeGrassMaterial,
   createSeedThreeTuftVariants,
@@ -10,6 +7,7 @@ import {
   sampleSeedThreeGrassTint,
   type SeedThreeTuftVariant,
 } from '../vegetation/seedthree/seedThreeGrass.ts';
+import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import {
   createSeedThreeWildflowerGeometry,
   createSeedThreeWildflowerMaterial,
@@ -31,7 +29,6 @@ import {
 import {
   GRASS_BLADE_CHUNK_SIZE,
   GRASS_BLADE_NEAR_RADIUS,
-  GRASS_BLADES_PER_TUFT,
   GRASS_STREAM_BURST_CAP,
   GRASS_STREAM_CHUNK_RADIUS,
   GRASS_STREAM_SLOTS_PER_FRAME,
@@ -44,10 +41,6 @@ import {
 } from './grassLodMath.ts';
 
 export const GRASS_BLADES_ENABLED = true;
-
-type TslNode = {
-  rgb: TslNode;
-};
 
 export type GrassBladeField = {
   group: THREE.Group;
@@ -81,11 +74,6 @@ const hiddenMatrix = new THREE.Matrix4().compose(
   new THREE.Quaternion(),
   new THREE.Vector3(0.001, 0.001, 0.001),
 );
-
-/** Muted olive — aligned with forest undergrowth. */
-const BLADE_BASE = new THREE.Color(0x3a5032);
-const BLADE_MID = new THREE.Color(0x4a6340);
-const BLADE_TIP = new THREE.Color(0x566b48);
 
 type GrassFieldContext = {
   terrain: Terrain;
@@ -121,8 +109,8 @@ type GrassStreamMesh = {
 
 export type GrassBladeFieldOptions = {
   isBlockedAt?: (x: number, z: number) => boolean;
-  useSeedThreeClumps?: boolean;
   maxAnisotropy?: number;
+  rendererBackend?: RendererBackendKind;
 };
 
 export async function createGrassBladeField(
@@ -144,95 +132,79 @@ export async function createGrassBladeField(
     roadSpatialIndex: null,
   };
 
-  const useSeedThreeClumps = options?.useSeedThreeClumps === true;
   let streamMeshes: GrassStreamMesh[];
   let displayMaterials: THREE.Material[];
   let disposeResources: () => void;
 
-  if (useSeedThreeClumps) {
-    const [textures, wildflowerAtlas] = await Promise.all([
-      loadSeedThreeGrassTextures(options?.maxAnisotropy ?? 4),
-      loadSeedThreeWildflowerAtlas(options?.maxAnisotropy ?? 4),
-    ]);
-    const variants = createSeedThreeTuftVariants();
-    const grassMaterial = createSeedThreeGrassMaterial(textures);
-    applyGrassDepthOffset(grassMaterial);
-    streamMeshes = variants.map((variant, index) => {
-      const geometry = variant.geometry;
-      const tintAttr = new THREE.InstancedBufferAttribute(new Float32Array(MAX_GRASS_STREAM_INSTANCES * 3), 3);
-      const anchorAttr = new THREE.InstancedBufferAttribute(new Float32Array(MAX_GRASS_STREAM_INSTANCES * 3), 3);
-      geometry.setAttribute('aTint', tintAttr);
-      geometry.setAttribute('aAnchorPos', anchorAttr);
-      const mesh = new THREE.InstancedMesh(geometry, grassMaterial, MAX_GRASS_STREAM_INSTANCES);
-      mesh.name = index === 0 ? 'SeedThree grass meadow' : 'SeedThree grass clump';
-      mesh.count = 0;
-      mesh.castShadow = false;
-      mesh.receiveShadow = true;
-      mesh.frustumCulled = false;
-      mesh.renderOrder = 2;
-      mesh.visible = false;
-      return { mesh, slotCapacity: GRASS_SLOT_CAPACITY, variant, tintAttr, anchorAttr };
-    });
-    const wildflowerGeometry = createSeedThreeWildflowerGeometry(0.9);
-    const wildflowerAnchorAttr = new THREE.InstancedBufferAttribute(
-      new Float32Array(MAX_WILDFLOWER_STREAM_INSTANCES * 4),
-      4,
-    );
-    wildflowerGeometry.setAttribute('aAnchorPos', wildflowerAnchorAttr);
-    const wildflowerMaterial = createSeedThreeWildflowerMaterial(
-      wildflowerAtlas,
-      'Gorski Kotar wildflower atlas',
-    );
-    applyGrassDepthOffset(wildflowerMaterial);
-    const wildflowerMesh = new THREE.InstancedMesh(
-      wildflowerGeometry,
-      wildflowerMaterial,
-      MAX_WILDFLOWER_STREAM_INSTANCES,
-    );
-    wildflowerMesh.name = 'SeedThree streamed Gorski Kotar wildflowers';
-    wildflowerMesh.count = 0;
-    wildflowerMesh.castShadow = false;
-    wildflowerMesh.receiveShadow = true;
-    wildflowerMesh.frustumCulled = false;
-    wildflowerMesh.renderOrder = 3;
-    wildflowerMesh.visible = false;
-    wildflowerMesh.userData.texturePath =
-      '/assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas.png';
-    streamMeshes.push({
-      mesh: wildflowerMesh,
-      slotCapacity: WILDFLOWER_SLOT_CAPACITY,
-      wildflowers: true,
-      anchorAttr: wildflowerAnchorAttr,
-    });
-    displayMaterials = [grassMaterial, wildflowerMaterial];
-    disposeResources = () => {
-      for (const entry of streamMeshes) entry.mesh.geometry.dispose();
-      for (const material of displayMaterials) material.dispose();
-      disposeSeedThreeGrassTextureCache();
-      disposeSeedThreeWildflowerTextureCache();
-    };
-  } else {
-    const grassMaterial = createGrassBladeMaterial();
-    applyGrassDepthOffset(grassMaterial);
-    const geometry = createGrassTuftGeometry();
+  const [textures, wildflowerAtlas] = await Promise.all([
+    loadSeedThreeGrassTextures(options?.maxAnisotropy ?? 4),
+    loadSeedThreeWildflowerAtlas(options?.maxAnisotropy ?? 4),
+  ]);
+  const variants = createSeedThreeTuftVariants();
+  const grassMaterial = createSeedThreeGrassMaterial(
+    textures,
+    options?.rendererBackend ?? 'webgpu',
+  );
+  applyGrassDepthOffset(grassMaterial);
+  streamMeshes = variants.map((variant, index) => {
+    const geometry = variant.geometry;
+    const tintAttr = new THREE.InstancedBufferAttribute(new Float32Array(MAX_GRASS_STREAM_INSTANCES * 3), 3);
+    const anchorAttr = new THREE.InstancedBufferAttribute(new Float32Array(MAX_GRASS_STREAM_INSTANCES * 3), 3);
+    geometry.setAttribute('aTint', tintAttr);
+    geometry.setAttribute('aAnchorPos', anchorAttr);
     const mesh = new THREE.InstancedMesh(geometry, grassMaterial, MAX_GRASS_STREAM_INSTANCES);
-    mesh.name = 'Grass blade stream';
+    mesh.name = index === 0 ? 'SeedThree grass meadow' : 'SeedThree grass clump';
     mesh.count = 0;
     mesh.castShadow = false;
     mesh.receiveShadow = true;
     mesh.frustumCulled = false;
     mesh.renderOrder = 2;
     mesh.visible = false;
-    streamMeshes = [{ mesh, slotCapacity: GRASS_SLOT_CAPACITY }];
-    displayMaterials = [grassMaterial];
-    disposeResources = () => {
-      geometry.dispose();
-      grassMaterial.dispose();
-    };
-  }
+    mesh.userData.texturePath =
+      '/assets/textures/vegetation/grass/close-meadow-tuft.png';
+    return { mesh, slotCapacity: GRASS_SLOT_CAPACITY, variant, tintAttr, anchorAttr };
+  });
+  const wildflowerGeometry = createSeedThreeWildflowerGeometry(0.9);
+  const wildflowerAnchorAttr = new THREE.InstancedBufferAttribute(
+    new Float32Array(MAX_WILDFLOWER_STREAM_INSTANCES * 4),
+    4,
+  );
+  wildflowerGeometry.setAttribute('aAnchorPos', wildflowerAnchorAttr);
+  const wildflowerMaterial = createSeedThreeWildflowerMaterial(
+    wildflowerAtlas,
+    'Gorski Kotar wildflower atlas',
+  );
+  applyGrassDepthOffset(wildflowerMaterial);
+  const wildflowerMesh = new THREE.InstancedMesh(
+    wildflowerGeometry,
+    wildflowerMaterial,
+    MAX_WILDFLOWER_STREAM_INSTANCES,
+  );
+  wildflowerMesh.name = 'SeedThree streamed Gorski Kotar wildflowers';
+  wildflowerMesh.count = 0;
+  wildflowerMesh.castShadow = false;
+  wildflowerMesh.receiveShadow = true;
+  wildflowerMesh.frustumCulled = false;
+  wildflowerMesh.renderOrder = 3;
+  wildflowerMesh.visible = false;
+  wildflowerMesh.userData.texturePath =
+    '/assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas.png';
+  streamMeshes.push({
+    mesh: wildflowerMesh,
+    slotCapacity: WILDFLOWER_SLOT_CAPACITY,
+    wildflowers: true,
+    anchorAttr: wildflowerAnchorAttr,
+  });
+  displayMaterials = [grassMaterial, wildflowerMaterial];
+  disposeResources = () => {
+    for (const entry of streamMeshes) entry.mesh.geometry.dispose();
+    for (const material of displayMaterials) material.dispose();
+    disposeSeedThreeGrassTextureCache();
+    disposeSeedThreeWildflowerTextureCache();
+  };
 
   const group = new THREE.Group();
-  group.name = useSeedThreeClumps ? 'SeedThree grass field' : 'Grass blade field';
+  group.name = 'SeedThree grass field';
   for (const entry of streamMeshes) group.add(entry.mesh);
 
   const slotRecords: SlotRecord[] = Array.from({ length: GRID_SIDE * GRID_SIDE }, () => ({
@@ -319,45 +291,29 @@ export async function createGrassBladeField(
       return;
     }
 
-    let meshCounts: number[];
-    if (useSeedThreeClumps) {
-      const grassEntries = streamMeshes.filter((entry) => entry.variant);
-      const grassSlotStart = gridIdx * GRASS_SLOT_CAPACITY;
-      const grassCounts = writeSeedThreeChunkInstances(
-        grassEntries,
-        grassSlotStart,
+    const grassEntries = streamMeshes.filter((entry) => entry.variant);
+    const grassSlotStart = gridIdx * GRASS_SLOT_CAPACITY;
+    const grassCounts = writeSeedThreeChunkInstances(
+      grassEntries,
+      grassSlotStart,
+      worldChunkX,
+      worldChunkZ,
+      context,
+      GRASS_SLOT_CAPACITY,
+    );
+    let grassCountIndex = 0;
+    const meshCounts = streamMeshes.map((entry) => {
+      if (entry.variant) return grassCounts[grassCountIndex++] ?? 0;
+      if (!entry.wildflowers) return 0;
+      return writeSeedThreeWildflowerChunkInstances(
+        entry,
+        gridIdx * entry.slotCapacity,
         worldChunkX,
         worldChunkZ,
         context,
-        GRASS_SLOT_CAPACITY,
+        entry.slotCapacity,
       );
-      let grassCountIndex = 0;
-      meshCounts = streamMeshes.map((entry) => {
-        if (entry.variant) return grassCounts[grassCountIndex++] ?? 0;
-        if (!entry.wildflowers) return 0;
-        return writeSeedThreeWildflowerChunkInstances(
-          entry,
-          gridIdx * entry.slotCapacity,
-          worldChunkX,
-          worldChunkZ,
-          context,
-          entry.slotCapacity,
-        );
-      });
-    } else {
-      const entry = streamMeshes[0]!;
-      const slotStart = gridIdx * entry.slotCapacity;
-      meshCounts = [
-        writeChunkInstances(
-          entry.mesh,
-          slotStart,
-          worldChunkX,
-          worldChunkZ,
-          context,
-          entry.slotCapacity,
-        ) - slotStart,
-      ];
-    }
+    });
     slotRecords[gridIdx] = { worldChunkX, worldChunkZ, meshCounts };
   };
 
@@ -478,7 +434,7 @@ export async function createGrassBladeField(
 
       const { grassOpacity } = resolveCloseGroundLod(cameraDistance, firstPersonActive);
       const displayOpacity = firstPersonActive ? 1 : grassBladeLodOpacity(grassOpacity);
-      grassZoomVisible = displayOpacity > 0.02;
+      grassZoomVisible = displayOpacity > 0;
 
       if (
         !Number.isFinite(lastMaterialOpacity)
@@ -637,7 +593,7 @@ function writeSeedThreeChunkInstances(
     const dry = Math.min(1, Math.max(0, (1 - density - 0.15) * 1.2)) + (rng() < 0.1 ? 0.3 : 0);
     const forestHeightMul = density > 0.38 ? THREE.MathUtils.lerp(0.78, 0.94, density) : 1;
     const heightMul =
-      (micro ? THREE.MathUtils.lerp(0.24, 0.46, rng()) : THREE.MathUtils.lerp(0.38, 0.72, rng())) *
+      (micro ? THREE.MathUtils.lerp(0.45, 0.72, rng()) : THREE.MathUtils.lerp(0.68, 1.08, rng())) *
       forestHeightMul;
     const height =
       heightMul *
@@ -654,6 +610,8 @@ function writeSeedThreeChunkInstances(
     entry.mesh.setMatrixAt(instanceIndex, writeMatrix);
     const tint = sampleSeedThreeGrassTint(rng, dry);
     entry.tintAttr?.setXYZ(instanceIndex, tint.x, tint.y, tint.z);
+    writeColor.setRGB(tint.x, tint.y, tint.z);
+    entry.mesh.setColorAt(instanceIndex, writeColor);
     entry.anchorAttr?.setXYZ(instanceIndex, x, rootY, z);
     meshWriteIndices[variantIndex] = instanceIndex + 1;
     return true;
@@ -802,153 +760,10 @@ function composeSeedThreeTuftMatrix(
   matrix.compose(position, quaternion, scaleVector);
 }
 
-function writeChunkInstances(
-  mesh: THREE.InstancedMesh,
-  startIndex: number,
-  chunkX: number,
-  chunkZ: number,
-  context: GrassFieldContext,
-  maxInstances = Number.POSITIVE_INFINITY,
-): number {
-  const { terrain, extent, terrainExtent, forestCores, roadSpatialIndex } = context;
-  const rng = mulberry32(chunkSeed(chunkX, chunkZ));
-  const chunkMinX = chunkX * GRASS_BLADE_CHUNK_SIZE;
-  const chunkMinZ = chunkZ * GRASS_BLADE_CHUNK_SIZE;
-  const chunkSpan = GRASS_BLADE_CHUNK_SIZE;
-  const margin = chunkSpan * 0.06;
-  let instanceIndex = startIndex;
-  const heightCache = new Map<number, number>();
-
-  const heightAt = (x: number, z: number): number => {
-    const key = (Math.round(x * 8) & 0xffff) | ((Math.round(z * 8) & 0xffff) << 16);
-    const cached = heightCache.get(key);
-    if (cached !== undefined) return cached;
-    const sample = terrain.getHeightAt(x, z);
-    heightCache.set(key, sample);
-    return sample;
-  };
-
-  const localPlacements: { x: number; z: number; micro: boolean }[] = [];
-  const tuftTarget = GRASS_TUFTS_PER_CHUNK + Math.floor(rng() * 9);
-
-  for (let attempt = 0; attempt < GRASS_TUFT_SCATTER_ATTEMPTS && localPlacements.length < tuftTarget; attempt++) {
-    if (instanceIndex - startIndex >= maxInstances) break;
-    const micro = rng() < 0.42 && localPlacements.length > 2;
-    let x: number;
-    let z: number;
-
-    if (localPlacements.length > 0 && rng() < 0.42) {
-      const anchor = localPlacements[Math.floor(rng() * localPlacements.length)]!;
-      const clusterRadius = micro ? 0.22 + rng() * 0.55 : 0.45 + rng() * 1.15;
-      const angle = rng() * TAU;
-      x = anchor.x + Math.cos(angle) * clusterRadius;
-      z = anchor.z + Math.sin(angle) * clusterRadius;
-    } else {
-      x = chunkMinX + margin + rng() * (chunkSpan - margin * 2);
-      z = chunkMinZ + margin + rng() * (chunkSpan - margin * 2);
-    }
-
-    const spacingSq = micro ? MIN_MICRO_TUFT_SPACING_SQ : MIN_TUFT_SPACING_SQ;
-    let tooClose = false;
-    for (const placed of localPlacements) {
-      const dx = x - placed.x;
-      const dz = z - placed.z;
-      if (dx * dx + dz * dz < spacingSq) {
-        tooClose = true;
-        break;
-      }
-    }
-    if (tooClose) continue;
-
-    if (!isInsidePlayableExtent(x, z, extent)) continue;
-    if (isGrassPlacementBlocked(x, z, context)) continue;
-    if (isGrassNearAnyRoad(x, z, roadSpatialIndex)) continue;
-
-    localPlacements.push({ x, z, micro });
-
-    const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
-    const sizeRoll = Math.pow(rng(), micro ? 1.1 : 0.72);
-    const scale =
-      THREE.MathUtils.lerp(micro ? 0.58 : 0.88, micro ? 0.92 : 1.32, sizeRoll) *
-      THREE.MathUtils.lerp(0.9, 1.06, density);
-
-    composeTuftMatrix(
-      x,
-      z,
-      scale,
-      rng,
-      heightAt,
-      writeMatrix,
-      writeQuaternion,
-      writePosition,
-      writeScale,
-      writeEuler,
-    );
-    mesh.setMatrixAt(instanceIndex, writeMatrix);
-    writeColor.setHSL(
-      0.27 + (rng() - 0.5) * 0.035,
-      0.38 + rng() * 0.1,
-      0.3 + rng() * 0.08,
-    );
-    mesh.setColorAt(instanceIndex, writeColor);
-    instanceIndex++;
-  }
-
-  for (let pad = instanceIndex; pad < startIndex + maxInstances && Number.isFinite(maxInstances); pad++) {
-    mesh.setMatrixAt(pad, hiddenMatrix);
-  }
-
-  return instanceIndex;
-}
-
-function composeTuftMatrix(
-  x: number,
-  z: number,
-  scale: number,
-  rng: () => number,
-  heightAt: (x: number, z: number) => number,
-  matrix: THREE.Matrix4,
-  quaternion: THREE.Quaternion,
-  position: THREE.Vector3,
-  scaleVector: THREE.Vector3,
-  euler: THREE.Euler,
-): void {
-  const yaw = rng() * TAU;
-  const leanDir = rng() * TAU;
-  const leanAmount = THREE.MathUtils.lerp(0.14, 0.42, Math.pow(rng(), 0.65));
-  const tiltX = Math.cos(leanDir) * leanAmount;
-  const tiltZ = Math.sin(leanDir) * leanAmount * 0.75;
-  const roll = (rng() - 0.5) * 0.22;
-
-  position.set(x, heightAt(x, z) + 0.04, z);
-  euler.set(tiltX, yaw, tiltZ + roll);
-  quaternion.setFromEuler(euler);
-  const widthScale = scale * THREE.MathUtils.lerp(0.92, 1.14, rng());
-  const heightScale = scale * THREE.MathUtils.lerp(0.96, 1.18, rng());
-  scaleVector.set(widthScale, heightScale, widthScale);
-  matrix.compose(position, quaternion, scaleVector);
-}
-
 function applyGrassDepthOffset(material: THREE.Material): void {
   material.polygonOffset = true;
   material.polygonOffsetFactor = -2;
   material.polygonOffsetUnits = -2;
-}
-
-function createGrassBladeMaterial(): MeshStandardNodeMaterial {
-  const material = new MeshStandardNodeMaterial();
-  material.name = 'Grass blade';
-  material.side = THREE.DoubleSide;
-  material.transparent = true;
-  material.opacity = 1;
-  material.alphaTest = 0.15;
-  material.depthWrite = true;
-  material.roughness = 0.92;
-  material.metalness = 0;
-  material.color.set(0xffffff);
-  material.colorNode = (vertexColor() as TslNode).rgb;
-  applyFoliageDoubleSideNormalsNode(material);
-  return material;
 }
 
 function isGrassPlacementBlocked(x: number, z: number, context: GrassFieldContext): boolean {
@@ -959,85 +774,4 @@ function isGrassPlacementBlocked(x: number, z: number, context: GrassFieldContex
 function isGrassNearAnyRoad(x: number, z: number, index: RoadSpatialIndex | null): boolean {
   if (!index) return false;
   return index.isNearAnyRoad(x, z, ROAD_CLEAR_MARGIN);
-}
-
-function createGrassTuftGeometry(): THREE.BufferGeometry {
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const colors: number[] = [];
-  const indices: number[] = [];
-
-  const bladeCount = GRASS_BLADES_PER_TUFT;
-  for (let i = 0; i < bladeCount; i++) {
-    const spread = (i / bladeCount) * TAU + (rngHash(i) - 0.5) * 0.55;
-    const yaw = spread + (i % 2 === 0 ? 0.2 : -0.16);
-    const height = 0.48 + (i % 4) * 0.1 + (i % 3) * 0.055;
-    const halfWidth = 0.02 + (i % 2) * 0.007;
-    const lean = 0.06 + (i % 3) * 0.035 + (i % 2) * 0.02;
-    const cos = Math.cos(yaw);
-    const sin = Math.sin(yaw);
-    const leanX = cos * lean;
-    const leanZ = sin * lean;
-    const shade = i % 3 === 0 ? BLADE_TIP : i % 2 === 0 ? BLADE_MID : BLADE_BASE;
-
-    appendTaperedBlade(
-      positions,
-      normals,
-      colors,
-      indices,
-      cos,
-      sin,
-      leanX,
-      leanZ,
-      halfWidth,
-      height,
-      shade,
-    );
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setIndex(indices);
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geometry.computeBoundingSphere();
-  return geometry;
-}
-
-function rngHash(seed: number): number {
-  const x = Math.sin(seed * 12.9898) * 43758.5453;
-  return x - Math.floor(x);
-}
-
-function appendTaperedBlade(
-  positions: number[],
-  normals: number[],
-  colors: number[],
-  indices: number[],
-  cos: number,
-  sin: number,
-  leanX: number,
-  leanZ: number,
-  halfWidth: number,
-  height: number,
-  baseColor: THREE.Color,
-): void {
-  const base = positions.length / 3;
-  const tipColor = BLADE_TIP.clone().lerp(baseColor, 0.42);
-  const midColor = BLADE_MID.clone().lerp(baseColor, 0.62);
-
-  const verts = [
-    { x: -halfWidth * cos, y: 0, z: -halfWidth * sin, c: baseColor },
-    { x: halfWidth * cos, y: 0, z: halfWidth * sin, c: baseColor },
-    { x: leanX * 0.35, y: height * 0.55, z: leanZ * 0.35, c: midColor },
-    { x: leanX, y: height, z: leanZ, c: tipColor },
-  ];
-
-  for (const v of verts) {
-    positions.push(v.x, v.y, v.z);
-    normals.push(cos * 0.35, 0.92, sin * 0.35);
-    colors.push(v.c.r, v.c.g, v.c.b);
-  }
-
-  indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
 }

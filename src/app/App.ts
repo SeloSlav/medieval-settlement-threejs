@@ -25,6 +25,7 @@ import {
   computeGuardhousePayrollGold,
   computePopulationStats,
   computeResourceTotals,
+  computeStoredResourceTotals,
 } from '../resources/resourceTotals.ts';
 import { computeSettlementProvisioning } from '../economy/settlementProvisioning.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
@@ -58,6 +59,7 @@ import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './s
 import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext } from './appBootstrap.ts';
 import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
 import { gameClock } from '../world/gameCalendar.ts';
+import { worldAnimationDelta } from '../world/gameSpeed.ts';
 import {
   environmentFor,
   nextDayEnvironmentOutlook,
@@ -499,8 +501,12 @@ export class App {
     this.lastTime = time;
 
     const firstPersonActive = this.firstPersonController?.isActive() ?? false;
+    const worldDt = worldAnimationDelta(
+      dt,
+      this.spacetimeStore?.snapshot.gameSpeed ?? 1,
+    );
     this.syncBuildInteractionPerf();
-    this.frontierRiskMarkers?.tick(dt);
+    this.frontierRiskMarkers?.tick(worldDt);
     this.settlementPresentation.tick({
       settlementHud: this.toolbar?.settlementHud ?? null,
       sceneManager: this.sceneManager,
@@ -509,7 +515,7 @@ export class App {
       villagers: this.villagers,
       ambientAudio: this.ambientAudio,
     });
-    this.buildingMarkers?.tick(dt);
+    this.buildingMarkers?.tick(worldDt);
     this.worldMapUi?.minimap.tick({ keyHeld: this.input?.isDown('g') ?? false });
     if (firstPersonActive) {
       this.firstPersonController?.update(dt);
@@ -522,7 +528,7 @@ export class App {
       this.worldMapUi?.quarry.update();
       this.worldMapUi?.foraging.update();
       this.sceneManager?.render(
-        dt,
+        worldDt,
         12,
         true,
         this.firstPersonController?.isCrouching() ?? false,
@@ -538,7 +544,7 @@ export class App {
       this.updateBuildButtonPosition();
       this.worldMapUi?.quarry.update();
       this.worldMapUi?.foraging.update();
-      this.sceneManager?.render(dt, this.cameraController?.getOrbitDistance());
+      this.sceneManager?.render(worldDt, this.cameraController?.getOrbitDistance());
     }
     this.updateFps(time, dt);
     const crowdView = this.buildCrowdViewState();
@@ -551,7 +557,7 @@ export class App {
         fireEffects: this.fireEffects,
         villagers: this.villagers,
       },
-      dt,
+      worldDt,
       crowdView,
       this.gameState ?? undefined,
     );
@@ -1118,6 +1124,7 @@ export class App {
     const presentationState = this.getVisualQaPresentationState(this.gameState);
     this.resourceInspector.setHud(
       computeResourceTotals(presentationState),
+      computeStoredResourceTotals(presentationState),
       computePopulationStats(presentationState),
       computeInTransitResourceTotals(this.gameState.deliveryTrips.values()),
       computeGoldAwaitingCollection(presentationState.buildings.values()),

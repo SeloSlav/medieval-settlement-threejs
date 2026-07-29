@@ -76,4 +76,9 @@ export default __t.row({
   flax: __t.f64(),
   guardhouseMusterWatchtowerId: __t.u64().name("guardhouse_muster_watchtower_id"),
   weaverInputPolicy: __t.u8().name("weaver_input_policy"),
+  iron: __t.f64(),
+  clay: __t.f64(),
+  salt: __t.f64(),
+  charcoal: __t.f64(),
+  pottery: __t.f64(),
 });

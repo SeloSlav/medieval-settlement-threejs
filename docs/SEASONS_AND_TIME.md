@@ -5,7 +5,7 @@
 The calendar is deliberately fictional and fixed:
 
 - 24 displayed hours per day.
-- 10 days per month.
+- 30 days per month.
 - 12 named months per year.
 - 120 simulation seconds per day.
 - Every month and year has the same length. There are no leap years, variable month
@@ -21,24 +21,23 @@ The calendar is deliberately fictional and fixed:
 
 | Speed | Day | Month | Season | Year |
 | --- | ---: | ---: | ---: | ---: |
-| Scenic, 1× | 60 min | 10 hr | 30 hr | 5 days |
-| Normal, 5× | 12 min | 2 hr | 6 hr | 24 hr |
-| Fast, 20× | 3 min | 30 min | 1 hr 30 min | 6 hr |
-| Ultra, 120× | 30 sec | 5 min | 15 min | 1 hr |
+| Normal, 1× | 60 sec | 30 min | 90 min | 6 hr |
+| Fast, 4× | 15 sec | 7 min 30 sec | 22 min 30 sec | 90 min |
+| Fastest, 8× | 7.5 sec | 3 min 45 sec | 11 min 15 sec | 45 min |
 
 The scheduler still fires every 200 milliseconds and every completed substep retains
-its established 0.2-second meaning, so existing save clocks do not jump when this
-pacing is deployed. A persistent fixed-point budget completes one substep per thirty
-scheduler callbacks at 1×. Faster modes receive 5, 20, or 120 times that budget, making 1×
-a deliberately scenic baseline. Faster modes accelerate movement,
+its established 0.2-second meaning. At 1× the simulation advances two simulation
+seconds per real second, making a complete day-night cycle last 60 seconds. Faster
+modes receive four or eight times that budget. They accelerate movement,
 labor, construction, production, deliveries, consumption, regrowth, reproduction,
 weather damage, and the calendar together.
 
-Controls are in the settlement clock. `1`, `2`, `3`, and `4` select Scenic, Normal,
-Fast, and Ultra. Pause remains supported by the server reducer for administration and
-recovery, but is not exposed as a player control. Speed is server authoritative and
-global to the world. In the current shared-world model, any connected player can
-change it; host-only authority should be added before a competitive multiplayer mode.
+Controls are in the settlement clock. `Space` pauses, while `1`, `2`, and `3` select
+1×, 4×, and 8×. Pause is a hard server and presentation boundary: the clock, economy,
+agents, deliveries, combat, wildlife, weather, fires, and world animation stop while
+camera and UI controls remain available. Speed is server authoritative and global to
+the world. In the current shared-world model, any connected player can change it;
+host-only authority should be added before a competitive multiplayer mode.
 
 ## Deterministic weather
 
@@ -598,10 +597,10 @@ mirrored in `server/src/season_policy.rs` and `src/world/seasonPolicy.ts`.
 
 The most important tuning sequence is:
 
-1. Observe whether a 30-hour season at Scenic creates a satisfying slow-play option.
+1. Observe whether a 90-minute season at 1× creates a satisfying slow-play option.
 2. Tune work requirements so an appropriately staffed farm can harvest in September
    and plough/sow in October–November without making failure impossible.
-3. Tune winter firewood and pasture multipliers against one full four-hour year.
+3. Tune winter firewood and pasture multipliers against one full six-hour year.
 4. Tune drought frequency before drought severity; frequent severe droughts create
    unavoidable spirals.
 5. Preserve a recovery route: trade, granary buffers, preserved food, grain-fed

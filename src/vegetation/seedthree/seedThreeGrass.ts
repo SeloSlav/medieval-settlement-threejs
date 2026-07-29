@@ -1,29 +1,28 @@
 import * as THREE from 'three';
-import { MeshSSSNodeMaterial } from 'three/webgpu';
 import {
   attribute,
-  cameraViewMatrix,
-  float,
-  normalMap,
-  normalView,
-  normalize,
   positionLocal,
   sin,
-  texture,
-  time,
   uniform,
   uv,
   vec3,
-  vec4,
 } from 'three/tsl';
 import { windSpeed, windStrength, WIND_DIR } from '@seedthree/core/wind.js';
+import type { RendererBackendKind } from '../../scene/RendererBackend.ts';
+import {
+  createSeedThreeCardClumpGeometry,
+  createSeedThreeGroundCoverMaterial,
+  disposeSeedThreeGroundCoverTextures,
+  loadSeedThreeGroundCoverTextures,
+  type SeedThreeGroundCoverTextures,
+} from './seedThreeGroundCover.ts';
+import { worldAnimationTime } from '../../scene/worldAnimationTime.ts';
 
 export { WIND_DIR as SEEDTHREE_GRASS_WIND_DIR };
 
 type TslNode = {
   mul: (value: unknown) => TslNode;
   add: (value: unknown) => TslNode;
-  sub: (value: unknown) => TslNode;
   x: TslNode;
   y: TslNode;
   z: TslNode;
@@ -32,19 +31,12 @@ type TslNode = {
 
 const tsl = {
   attribute: attribute as (name: string, type: string) => TslNode,
-  cameraViewMatrix: cameraViewMatrix as TslNode,
-  float: float as (value: number) => TslNode,
-  normalMap: normalMap as (sample: unknown) => TslNode,
-  normalView: normalView as TslNode,
-  normalize: normalize as (value: unknown) => TslNode,
   positionLocal: positionLocal as TslNode,
   sin: sin as (value: unknown) => TslNode,
-  texture: texture as (map: THREE.Texture) => TslNode,
-  time: time as TslNode,
+  time: worldAnimationTime as unknown as TslNode,
   uniform: uniform as <T>(value: T) => { value: T },
   uv: uv as () => TslNode,
   vec3: vec3 as (x: unknown, y: unknown, z: unknown) => TslNode,
-  vec4: vec4 as (...values: unknown[]) => TslNode,
   windSpeed: windSpeed as unknown as TslNode,
   windStrength: windStrength as unknown as TslNode,
 };
@@ -93,11 +85,7 @@ export function createPinnedGrassWindPosition(
   );
 }
 
-export type SeedThreeGrassTextures = {
-  tuft: THREE.Texture;
-  tuftNormal: THREE.Texture | null;
-  tuftRoughness: THREE.Texture | null;
-};
+export type SeedThreeGrassTextures = SeedThreeGroundCoverTextures;
 
 export type SeedThreeTuftVariant = {
   geometry: THREE.BufferGeometry;
@@ -105,167 +93,83 @@ export type SeedThreeTuftVariant = {
   tall: number;
 };
 
-const loader = new THREE.TextureLoader();
-let textureCache: SeedThreeGrassTextures | null = null;
-const CLOSE_MEADOW_TUFT_PATH =
+export const CLOSE_MEADOW_TUFT_PATH =
   '/assets/textures/vegetation/grass/close-meadow-tuft.png';
 
-async function loadTex(url: string | undefined, srgb: boolean): Promise<THREE.Texture | null> {
-  if (!url) return null;
-  const tex = await loader.loadAsync(url);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-  return tex;
-}
+let textureCache: SeedThreeGrassTextures | null = null;
 
 export async function loadSeedThreeGrassTextures(maxAnisotropy: number): Promise<SeedThreeGrassTextures> {
   if (textureCache) return textureCache;
 
-  const tuftLoaded = await loadTex(CLOSE_MEADOW_TUFT_PATH, true);
-  // The narrow meadow card uses a neutral geometric normal and material
-  // roughness. Reusing the former broad-leaf maps would emboss their fan
-  // silhouette back into the new fine blades.
-  const tuftNormal = null;
-  const tuftRoughness = null;
-
-  let tuft = tuftLoaded;
-  if (!tuft) {
-    console.warn('SeedThree grass tuft texture missing (grass_tuft.png) — using procedural fallback.');
-    tuft = createProceduralGrassTuftTexture();
-  }
-
-  for (const tex of [tuft, tuftNormal, tuftRoughness]) {
-    if (tex) tex.anisotropy = maxAnisotropy;
-  }
-
-  textureCache = { tuft, tuftNormal, tuftRoughness };
+  textureCache = await loadSeedThreeGroundCoverTextures({
+    albedo: CLOSE_MEADOW_TUFT_PATH,
+  }, maxAnisotropy);
   return textureCache;
-}
-
-function createProceduralGrassTuftTexture(): THREE.Texture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    const fallback = new THREE.DataTexture(new Uint8Array([60, 110, 40, 255]), 1, 1, THREE.RGBAFormat);
-    fallback.needsUpdate = true;
-    fallback.colorSpace = THREE.SRGBColorSpace;
-    return fallback;
-  }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
-  gradient.addColorStop(0, 'rgba(34, 58, 24, 0)');
-  gradient.addColorStop(0.18, 'rgba(42, 72, 30, 0.92)');
-  gradient.addColorStop(0.72, 'rgba(58, 96, 42, 0.98)');
-  gradient.addColorStop(1, 'rgba(74, 112, 52, 0.88)');
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.moveTo(32, 118);
-  ctx.bezierCurveTo(18, 92, 14, 58, 22, 24);
-  ctx.bezierCurveTo(28, 8, 36, 2, 32, 0);
-  ctx.bezierCurveTo(38, 2, 46, 8, 42, 24);
-  ctx.bezierCurveTo(50, 58, 46, 92, 32, 118);
-  ctx.closePath();
-  ctx.fill();
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-function tuftGeometry(planes: number, width: number): THREE.BufferGeometry {
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  let base = 0;
-
-  for (let quad = 0; quad < planes; quad++) {
-    const angle = (quad * Math.PI) / planes;
-    const cosA = Math.cos(angle);
-    const sinA = Math.sin(angle);
-    for (const [localX, localY] of [
-      [-0.5 * width, 0],
-      [0.5 * width, 0],
-      [0.5 * width, 1],
-      [-0.5 * width, 1],
-    ] as const) {
-      positions.push(localX * cosA, localY, localX * sinA);
-      normals.push(0, 1, 0);
-      uvs.push(localX / width + 0.5, localY);
-    }
-    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    base += 4;
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  return geometry;
 }
 
 export function createSeedThreeTuftVariants(): SeedThreeTuftVariant[] {
   return [
-    { geometry: tuftGeometry(2, 1.0), share: 0.62, tall: 1.0 },
-    { geometry: tuftGeometry(3, 0.6), share: 0.38, tall: 1.4 },
+    {
+      geometry: createSeedThreeCardClumpGeometry({
+        quads: 2,
+        width: 1.04,
+        tiltMin: 0.025,
+        tiltSpan: 0.1,
+        heightMin: 0.94,
+        heightSpan: 0.14,
+        baseSpread: 0.1,
+      }),
+      share: 0.62,
+      tall: 1,
+    },
+    {
+      geometry: createSeedThreeCardClumpGeometry({
+        quads: 3,
+        width: 0.72,
+        tiltMin: 0.035,
+        tiltSpan: 0.13,
+        heightMin: 0.98,
+        heightSpan: 0.18,
+        baseSpread: 0.16,
+      }),
+      share: 0.38,
+      tall: 1.4,
+    },
   ];
 }
 
-export function createSeedThreeGrassMaterial(textures: SeedThreeGrassTextures): MeshSSSNodeMaterial {
-  const mat = new MeshSSSNodeMaterial({
-    map: textures.tuft,
-    alphaTest: 0.3,
-    side: THREE.DoubleSide,
-    roughness: 0.95,
-    metalness: 0,
-  });
-  mat.forceSinglePass = true;
-
-  const transmit = tsl.uniform(new THREE.Color().setRGB(0.28, 0.4, 0.14));
-  mat.thicknessColorNode = tsl.attribute('aTint', 'vec3').y.mul(transmit);
-  mat.thicknessDistortionNode = tsl.uniform(0.32);
-  mat.thicknessAmbientNode = tsl.uniform(0.022);
-  mat.thicknessAttenuationNode = tsl.uniform(1.0);
-  mat.thicknessPowerNode = tsl.uniform(5.0);
-  mat.thicknessScaleNode = tsl.uniform(1.45);
-  mat.colorNode = tsl.texture(textures.tuft).mul(tsl.vec4(tsl.attribute('aTint', 'vec3'), tsl.float(1)));
-  if (textures.tuftRoughness) {
-    mat.roughnessMap = textures.tuftRoughness;
-    mat.roughness = 1.0;
-  }
-  mat.positionNode = createPinnedGrassWindPosition();
-
-  const upView = tsl.cameraViewMatrix.mul(tsl.vec4(0, 1, 0, 0)).xyz;
-  const relief = textures.tuftNormal
-    ? tsl.normalMap(tsl.texture(textures.tuftNormal)).sub(tsl.normalView)
-    : null;
-  mat.normalNode = relief ? tsl.normalize(upView.add(relief.mul(0.45))) : tsl.normalize(upView);
-
-  mat.name = 'SeedThree grass clump';
-  mat.polygonOffset = true;
-  mat.polygonOffsetFactor = -2;
-  mat.polygonOffsetUnits = -2;
+export function createSeedThreeGrassMaterial(
+  textures: SeedThreeGrassTextures,
+  rendererBackend: RendererBackendKind,
+): THREE.Material {
+  const mat = createSeedThreeGroundCoverMaterial(
+    'SeedThree close meadow grass',
+    textures,
+    rendererBackend,
+    [0.24, 0.3, 0.16],
+    0.14,
+    createPinnedGrassWindPosition(),
+  );
+  mat.alphaTest = 0.28;
   return mat;
 }
 
+const GRASS_TINT_WHITE = new THREE.Color(0xffffff);
+const grassTintScratch = new THREE.Color();
+
 export function sampleSeedThreeGrassTint(rng: () => number, dry = 0): THREE.Vector3 {
-  return new THREE.Vector3(
-    rng() * 0.18 + 0.72 + dry * 0.08,
-    (rng() * 0.18 + 0.82) * (1 - dry * 0.14),
-    (rng() * 0.16 + 0.62) * (1 - dry * 0.28),
-  );
+  const dryAmount = THREE.MathUtils.clamp(dry, 0, 1);
+  const hue = THREE.MathUtils.lerp(0.245, 0.145, dryAmount) + (rng() - 0.5) * 0.025;
+  const saturation = THREE.MathUtils.lerp(0.34, 0.24, dryAmount) + rng() * 0.025;
+  const lightness = THREE.MathUtils.lerp(0.31, 0.39, dryAmount) + (rng() - 0.5) * 0.035;
+  grassTintScratch
+    .setHSL(hue, saturation, lightness)
+    .lerp(GRASS_TINT_WHITE, 0.46);
+  return new THREE.Vector3(grassTintScratch.r, grassTintScratch.g, grassTintScratch.b);
 }
 
 export function disposeSeedThreeGrassTextureCache(): void {
   if (!textureCache) return;
-  textureCache.tuft.dispose();
-  textureCache.tuftNormal?.dispose();
-  textureCache.tuftRoughness?.dispose();
+  disposeSeedThreeGroundCoverTextures(textureCache);
   textureCache = null;
 }

@@ -17,7 +17,6 @@ import {
   sin,
   sub,
   texture,
-  time,
   uniform,
   vec2,
   vec3,
@@ -25,6 +24,7 @@ import {
   viewportSharedTexture,
 } from 'three/tsl';
 import type { RiverWaterShoreMaps } from './riverWaterShoreMaps.ts';
+import { worldAnimationTime } from '../scene/worldAnimationTime.ts';
 
 type TslNode = {
   add(value: TslNode | number): TslNode;
@@ -102,7 +102,7 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   const simDeltaAttr = attribute('simDelta', 'float') as TslNode;
   const position = positionLocal as TslNode;
   const worldPos = positionWorld as TslNode;
-  const frameTime = time as TslNode;
+  const frameTime = worldAnimationTime as unknown as TslNode;
 
   const shoreSample = texture(shoreMaps.shoreTexture, buildWorldShoreUv(shoreMaps)) as TslNode;
   const featherSample = shoreSample.r;

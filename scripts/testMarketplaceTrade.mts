@@ -209,7 +209,7 @@ assert.equal(
     timberPriceMult: 1.12,
     foodPriceMult: 0.91,
   }),
-  'Timber +12% market · Stone steady · Firewood steady · Food & seed grain -9% market · Specialties steady',
+  'Timber +12% market · Stone steady · Iron steady · Firewood steady · Food & seed grain -9% market · Salt -9% market · Specialties steady',
 );
 assert.match(formatMarketDepthHint(), /each 10-unit trade/i);
 assert.match(formatMarketDepthHint(), /4 points/);
@@ -297,6 +297,9 @@ assert.deepEqual(availability, {
   grain: 60,
   barley: 0,
   ironwork: 9,
+  iron: 0,
+  salt: 0,
+  pottery: 0,
 });
 const physicalTradeState: GameState = {
   ...tradeState,
@@ -369,6 +372,9 @@ assert.deepEqual(
     grain: 60,
     barley: 0,
     ironwork: 9,
+    iron: 0,
+    salt: 0,
+    pottery: 0,
   },
   'physical markets must not promise goods left in the compatibility ledger',
 );
@@ -416,6 +422,9 @@ assert.deepEqual(
     grain: 54,
     barley: 0,
     ironwork: 5,
+    iron: 0,
+    salt: 0,
+    pottery: 0,
   },
   'fire-damaged stores remain owned but cannot promise cart-ready export lots',
 );

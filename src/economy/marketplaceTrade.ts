@@ -34,6 +34,7 @@ const PENDING_TRADE_IDS: Record<number, string> = {
   5: 'timber_for_stone',
   6: 'stone_for_timber',
   7: 'timber_for_firewood',
+  8: 'sell_pottery',
 };
 
 const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
@@ -44,6 +45,9 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   grain: 'Grain',
   barley: 'Barley',
   ironwork: 'Ironwork',
+  iron: 'Iron',
+  salt: 'Salt',
+  pottery: 'Pottery',
   gold: 'Gold',
 };
 
@@ -320,7 +324,9 @@ export function canReceiveWaterCommodityTrade(
 }
 
 export function formatTradeAvailabilitySummary(availability: MarketplaceTradeAvailability): string {
-  const parts = (['gold', 'timber', 'stone', 'firewood', 'food'] as const).map((resource) => {
+  const parts = (
+    ['gold', 'timber', 'stone', 'firewood', 'food', 'iron', 'salt', 'pottery'] as const
+  ).map((resource) => {
     const amount = Math.round(availability[resource]);
     return `${tradeResourceLabel(resource)} ${amount}`;
   });

@@ -1990,6 +1990,11 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         barley: stores.barley,
         malt: stores.malt,
         flax: stores.flax,
+        iron: stores.iron,
+        clay: stores.clay,
+        salt: stores.salt,
+        charcoal: stores.charcoal,
+        pottery: stores.pottery,
         ..ReclamationStock::default()
     }
 }

@@ -45,6 +45,8 @@ state.buildings.set(brewery.id, brewery);
 const smokehouse = building('smokehouse', 'smokehouse', 1);
 smokehouse.food = 70;
 smokehouse.firewood = 17.5;
+smokehouse.salt = 8.75;
+smokehouse.pottery = 4.375;
 smokehouse.preservedFood = 127.5;
 state.buildings.set(smokehouse.id, smokehouse);
 const weaver = building('weaver', 'weaver', 1);
@@ -75,9 +77,11 @@ approx(fullWeek.aleOutputPerDay, 20);
 approx(fullWeek.aleBarleyPerDay, 15);
 approx(fullWeek.aleWaterPerDay, 15);
 approx(fullWeek.aleFirewoodPerDay, 5);
-approx(fullWeek.preservedFoodOutputPerDay, 35);
+approx(fullWeek.preservedFoodOutputPerDay, 140 / 3);
 approx(fullWeek.preservationFreshFoodPerDay, 35);
 approx(fullWeek.preservationFirewoodPerDay, 35 / 3);
+approx(fullWeek.preservationSaltPerDay, 35 / 6);
+approx(fullWeek.preservationPotteryPerDay, 35 / 12);
 approx(fullWeek.clothOutputPerDay, 17.5);
 approx(fullWeek.clothWoolPerDay, 26.25);
 approx(fullWeek.clothFlaxPerDay, 26.25);
@@ -101,7 +105,7 @@ assert.equal(fullWeek.weaverInputBuffer.limitingInput, 'wool');
 approx(fullWeek.millOutputRoom?.days ?? -1, 2);
 approx(fullWeek.bakeryOutputRoom?.days ?? -1, 2);
 approx(fullWeek.breweryOutputRoom?.days ?? -1, 3);
-approx(fullWeek.smokehouseOutputRoom?.days ?? -1, 1.5);
+approx(fullWeek.smokehouseOutputRoom?.days ?? -1, 9 / 8);
 approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5);
 
 weaver.wool = 0;
@@ -227,6 +231,8 @@ for (const key of [
   'preservedFoodOutputPerDay',
   'preservationFreshFoodPerDay',
   'preservationFirewoodPerDay',
+  'preservationSaltPerDay',
+  'preservationPotteryPerDay',
   'clothOutputPerDay',
   'clothWoolPerDay',
 ] as const) {
@@ -260,7 +266,7 @@ approx(sabbathWeek.weaverInputBuffer.days, 1.5 * 7 / 6);
 approx(sabbathWeek.millOutputRoom?.days ?? -1, 2 * 7 / 6);
 approx(sabbathWeek.bakeryOutputRoom?.days ?? -1, 2 * 7 / 6);
 approx(sabbathWeek.breweryOutputRoom?.days ?? -1, 3 * 7 / 6);
-approx(sabbathWeek.smokehouseOutputRoom?.days ?? -1, 1.5 * 7 / 6);
+approx(sabbathWeek.smokehouseOutputRoom?.days ?? -1, 9 / 8 * 7 / 6);
 approx(sabbathWeek.weaverOutputRoom?.days ?? -1, 1.5 * 7 / 6);
 
 const inactiveState = emptyGameState();
@@ -616,9 +622,9 @@ approx(grainPlan.discretionaryStock, 22);
 approx(grainPlan.monasteryGrainPerDay, 203 / 12);
 approx(grainPlan.processorGrainPerDay, 227 / 12);
 approx(grainPlan.processorRunwayDays, 264 / 227);
-approx(grainPlan.annualProcessorDemand, 2_270);
-approx(grainPlan.annualCommitments, 2_300);
-approx(grainPlan.annualBalance, -2_200);
+approx(grainPlan.annualProcessorDemand, 6_810);
+approx(grainPlan.annualCommitments, 6_840);
+approx(grainPlan.annualBalance, -6_740);
 assert.deepEqual(grainPlan.processorPriorityCounts, { 1: 1, 2: 2, 3: 1 });
 assert.equal(grainPlan.firstAttentionKind, 'seed');
 assert.equal(grainPlan.firstAttentionBuildingId, seedFarm.id);

@@ -107,7 +107,7 @@ import {
   palisadedRefugeRallyPosition,
 } from './palisadedRefugeRally.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
-import { STARTING_POPULATION } from '../generated/gameBalance.ts';
+import { SIM_REALTIME_RATE, STARTING_POPULATION } from '../generated/gameBalance.ts';
 import {
   fireDisabledBuildingIds,
   fireDisabledResidenceIds,
@@ -797,7 +797,7 @@ export class VillagerRenderer {
   tick(dt: number, view?: CrowdViewState): void {
     this.lastView = view;
     const realDt = Math.max(0, dt);
-    const simulationDt = realDt * this.getGameSpeed();
+    const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
     this.advanceCampAmbientCycle(simulationDt);
     this.advanceChapelAmbientCycle(simulationDt);
     this.advanceCombatAgentVisuals(realDt);

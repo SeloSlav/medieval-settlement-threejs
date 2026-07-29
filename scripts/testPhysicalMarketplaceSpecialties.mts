@@ -7,6 +7,9 @@ import {
   MARKET_ALE_VISUAL_SEGMENTS,
   MARKET_CLOTH_VISUAL_SEGMENTS,
   MARKET_HONEY_VISUAL_SEGMENTS,
+  MARKET_IRON_VISUAL_SEGMENTS,
+  MARKET_POTTERY_VISUAL_SEGMENTS,
+  MARKET_SALT_VISUAL_SEGMENTS,
   MARKET_WINE_VISUAL_SEGMENTS,
   marketplaceSpecialtyStockpileVisualSignature,
   syncMarketplaceSpecialtyStockpileVisuals,
@@ -18,6 +21,9 @@ const stockGroups = [
   ['MarketHoneyStockpile', 'MarketHoneySegment', MARKET_HONEY_VISUAL_SEGMENTS],
   ['MarketWineStockpile', 'MarketWineSegment', MARKET_WINE_VISUAL_SEGMENTS],
   ['MarketClothStockpile', 'MarketClothSegment', MARKET_CLOTH_VISUAL_SEGMENTS],
+  ['MarketIronStockpile', 'MarketIronSegment', MARKET_IRON_VISUAL_SEGMENTS],
+  ['MarketSaltStockpile', 'MarketSaltSegment', MARKET_SALT_VISUAL_SEGMENTS],
+  ['MarketPotteryStockpile', 'MarketPotterySegment', MARKET_POTTERY_VISUAL_SEGMENTS],
 ] as const;
 
 const marketMarker = createBuildingMesh('marketplace');
@@ -34,12 +40,15 @@ for (const [containerName, segmentName, segmentCount] of stockGroups) {
 
 syncMarketplaceSpecialtyStockpileVisuals(
   marketMarker,
-  market({ ale: 47, honey: 34, wine: 40, cloth: 80 }),
+  market({ ale: 47, honey: 34, wine: 40, cloth: 80, iron: 20, salt: 30, pottery: 60 }),
 );
 assertVisibleSegments(marketMarker, 'MarketAleStockpile', 'MarketAleSegment', 2);
 assertVisibleSegments(marketMarker, 'MarketHoneyStockpile', 'MarketHoneySegment', 2);
 assertVisibleSegments(marketMarker, 'MarketWineStockpile', 'MarketWineSegment', 1);
 assertVisibleSegments(marketMarker, 'MarketClothStockpile', 'MarketClothSegment', 2);
+assertVisibleSegments(marketMarker, 'MarketIronStockpile', 'MarketIronSegment', 2);
+assertVisibleSegments(marketMarker, 'MarketSaltStockpile', 'MarketSaltSegment', 2);
+assertVisibleSegments(marketMarker, 'MarketPotteryStockpile', 'MarketPotterySegment', 2);
 
 syncMarketplaceSpecialtyStockpileVisuals(marketMarker, market());
 for (const [containerName, segmentName] of stockGroups) {
@@ -77,6 +86,9 @@ for (let index = 0; index < 100_000; index += 1) {
   perfMarket.honey = index % 101;
   perfMarket.wine = index % 121;
   perfMarket.cloth = index % 121;
+  perfMarket.iron = index % 49;
+  perfMarket.salt = index % 73;
+  perfMarket.pottery = index % 97;
   signatureLength += marketplaceSpecialtyStockpileVisualSignature(perfMarket).length;
 }
 const elapsed = performance.now() - started;
@@ -108,7 +120,10 @@ function assertVisibleSegments(
 }
 
 function market(
-  stocks: Partial<Pick<BuildingState, 'ale' | 'honey' | 'wine' | 'cloth'>> = {},
+  stocks: Partial<Pick<
+    BuildingState,
+    'ale' | 'honey' | 'wine' | 'cloth' | 'iron' | 'salt' | 'pottery'
+  >> = {},
 ): BuildingState {
   return {
     id: 'market-1',
@@ -128,6 +143,9 @@ function market(
     wine: 0,
     firewood: 0,
     cloth: 0,
+    iron: 0,
+    salt: 0,
+    pottery: 0,
     assignedLabor: 1,
     ...stocks,
   } as BuildingState;

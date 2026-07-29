@@ -10,6 +10,7 @@ import {
 } from '../src/economy/laborSteward.ts';
 import {
   BUILDING_DEFINITIONS,
+  CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
   SIM_TICK_SECONDS,
   type BuildingKind,
@@ -191,7 +192,7 @@ assert.equal(disabledForecast.firstChangedBuildingId, null);
 
 const renderedState = emptyGameState();
 renderedState.tick = Math.round(
-  9 * CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS,
+  (CALENDAR_DAYS_PER_MONTH - 1) * CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS,
 );
 const townHall = building('hall', 'town_hall', 1);
 const aprilApiary = building('apiary', 'apiary', 0);

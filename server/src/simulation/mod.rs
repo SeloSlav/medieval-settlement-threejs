@@ -56,8 +56,9 @@ pub use delivery_trips::{
     try_start_fire_response_trip,
 };
 pub use expanded_economy::{
-    step_apiary, step_brewery, step_carpenter, step_ferry_landing, step_granary, step_guardhouse,
-    step_monastery, step_seed_grain_distribution, step_smokehouse, step_threshing_barn,
+    step_apiary, step_brewery, step_carpenter, step_charcoal_burner, step_clay_pit,
+    step_ferry_landing, step_granary, step_guardhouse, step_monastery, step_potter_kiln,
+    step_seed_grain_distribution, step_smokehouse, step_smithy, step_threshing_barn,
     step_vineyard, step_watermill, step_weaver,
 };
 pub use fires::{

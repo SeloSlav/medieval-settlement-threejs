@@ -15,7 +15,6 @@ import {
 } from '../world/seasonPolicy.ts';
 import {
   GAME_SPEEDS,
-  PLAYER_GAME_SPEEDS,
   gameSpeedLabel,
   hotkeyForGameSpeed,
   type GameSpeed,
@@ -49,6 +48,16 @@ import {
   isHudResourceKind,
   type HudResourceKind,
 } from '../resources/resourceTotals.ts';
+import { CALENDAR_SECONDS_PER_DAY, SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
+
+function gameSpeedTimingLabel(speed: GameSpeed): string {
+  if (speed === 0) return 'Freezes the calendar, economy, and world simulation';
+  const realSeconds = CALENDAR_SECONDS_PER_DAY / (SIM_REALTIME_RATE * speed);
+  const formatted = Number.isInteger(realSeconds)
+    ? realSeconds.toFixed(0)
+    : realSeconds.toFixed(1);
+  return `${formatted}-second day`;
+}
 
 const SETTLEMENT_HUD_HTML = `
   <div class="settlement-hud" data-settlement-hud data-fps-panel aria-label="Settlement overview" aria-live="polite">
@@ -70,18 +79,18 @@ const SETTLEMENT_HUD_HTML = `
         <span data-provision-detail>Awaiting household ledgers</span>
       </div>
       <div class="settlement-hud__speed" role="group" aria-label="Simulation speed">
-        ${PLAYER_GAME_SPEEDS.map((speed) => `
+        ${GAME_SPEEDS.map((speed) => `
           <button
             type="button"
-            class="settlement-hud__speed-button"
+            class="settlement-hud__speed-button${speed === 0 ? ' settlement-hud__speed-button--pause' : ''}"
             data-game-speed="${speed}"
-            data-tooltip="${gameSpeedLabel(speed)} · ${speed === 1 ? '60-minute day' : speed === 5 ? '12-minute day' : speed === 20 ? '3-minute day' : '30-second day'} · Key ${hotkeyForGameSpeed(speed)}"
-            aria-label="${gameSpeedLabel(speed)} speed"
+            data-tooltip="${gameSpeedLabel(speed)} · ${gameSpeedTimingLabel(speed)} · Key ${hotkeyForGameSpeed(speed)}"
+            aria-label="${speed === 0 ? 'Pause simulation' : `Set simulation speed to ${speed} times`}"
             aria-keyshortcuts="${hotkeyForGameSpeed(speed)}"
             aria-pressed="${speed === 1}"
           >
             <span class="settlement-hud__speed-name">${gameSpeedLabel(speed)}</span>
-            <span class="settlement-hud__speed-value">${speed}×</span>
+            <span class="settlement-hud__speed-value">${speed === 0 ? '&#x23F8;' : `${speed}×`}</span>
           </button>
         `).join('')}
       </div>
@@ -106,6 +115,18 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value settlement-hud__value--zoom" data-stat="zoom">100%</strong>
       </div>
     </div>
+    <button
+      type="button"
+      class="settlement-hud__totals-mode"
+      data-resource-totals-mode
+      data-mode="surplus"
+      data-tooltip="Showing surplus goods: stored stock minus goods committed to active construction and home projects. Activate to show all stored goods."
+      aria-label="Showing surplus goods. Show total goods stored."
+      aria-pressed="false"
+    >
+      <span class="settlement-hud__totals-mode-icon" aria-hidden="true">⇄</span>
+      <span class="settlement-hud__totals-mode-label" data-resource-totals-mode-label>Surplus</span>
+    </button>
     <div class="settlement-hud__body">
       <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip="Unreserved timber stored at physical yards, mills, and depots. Material loaded on carts is shown separately and cannot be spent until unloaded.">
         <span class="settlement-hud__label">Timber</span>
@@ -217,7 +238,32 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Imported wrought-iron heads and fittings stored at physical markets and carpenter workshops. Road carts haul them onward and are shown separately." hidden>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Regional iron blooms and bars held at marketplaces and smithies. Gorski Kotar has no local 1550 iron mine: a staffed marketplace must import it before a smith can forge fittings. Loaded carts are shown separately.">
+        <span class="settlement-hud__label">Iron</span>
+        <strong class="settlement-hud__value" data-stockpile="iron">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="iron" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="clay" data-tooltip="Wet clay stored at riverbank pits and pottery yards. Clay pits must sit on a usable shore; loaded handcarts are shown separately.">
+        <span class="settlement-hud__label">Clay</span>
+        <strong class="settlement-hud__value" data-stockpile="clay">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="clay" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="Imported Adriatic sea salt stored at marketplaces and smokehouses. Salt is a caravan dependency for efficient preservation; loaded carts are shown separately.">
+        <span class="settlement-hud__label">Salt</span>
+        <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="charcoal" data-tooltip="Charcoal stored at burners' yards and smithies. Burning it consumes the same firewood households need for winter heat, so expansion without fuel reserves can become dangerous. Loaded carts are shown separately.">
+        <span class="settlement-hud__label">Charcoal</span>
+        <strong class="settlement-hud__value" data-stockpile="charcoal">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="charcoal" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels stored at pottery yards, markets, and smokehouses. Smokehouses break a small share while packing preserved food; surplus pottery can be exported. Loaded carts are shown separately.">
+        <span class="settlement-hud__label">Pottery</span>
+        <strong class="settlement-hud__value" data-stockpile="pottery">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pottery" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Smith-forged heads, nails, hinges, and fittings stored at village smithies, physical markets, and carpenter workshops. Road carts haul them onward and are shown separately." hidden>
         <span class="settlement-hud__label">Ironwork</span>
         <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ironwork" hidden></span>

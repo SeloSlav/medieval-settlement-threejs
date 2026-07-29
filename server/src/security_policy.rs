@@ -241,6 +241,7 @@ pub fn assign_refuge_households(
 /// loss. Stone and water are deliberately absent because an incursion cannot
 /// practically carry them away.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RaidPortableStores {
     pub timber: f64,
     pub firewood: f64,
@@ -259,6 +260,11 @@ pub struct RaidPortableStores {
     pub barley: f64,
     pub malt: f64,
     pub flax: f64,
+    pub iron: f64,
+    pub clay: f64,
+    pub salt: f64,
+    pub charcoal: f64,
+    pub pottery: f64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -287,6 +293,11 @@ impl RaidPortableStores {
             + positive_store(self.barley)
             + positive_store(self.malt)
             + positive_store(self.flax)
+            + positive_store(self.iron) * IRONWORK_RAID_VALUE_MULTIPLIER
+            + positive_store(self.clay)
+            + positive_store(self.salt) * 1.5
+            + positive_store(self.charcoal)
+            + positive_store(self.pottery) * 1.25
     }
 
     pub fn goods_amount(self) -> f64 {
@@ -306,6 +317,11 @@ impl RaidPortableStores {
             + positive_store(self.barley)
             + positive_store(self.malt)
             + positive_store(self.flax)
+            + positive_store(self.iron)
+            + positive_store(self.clay)
+            + positive_store(self.salt)
+            + positive_store(self.charcoal)
+            + positive_store(self.pottery)
     }
 
     pub fn plunder(self, loss_fraction: f64) -> RaidPlunder {
@@ -341,6 +357,11 @@ impl RaidPortableStores {
         plunder_good!(barley);
         plunder_good!(malt);
         plunder_good!(flax);
+        plunder_good!(iron);
+        plunder_good!(clay);
+        plunder_good!(salt);
+        plunder_good!(charcoal);
+        plunder_good!(pottery);
         let (gold, wealth_lost) = plunder_store(self.gold, fraction);
         remaining.gold = gold;
 
@@ -375,6 +396,11 @@ impl RaidPortableStores {
             barley: removed!(barley),
             malt: removed!(malt),
             flax: removed!(flax),
+            iron: removed!(iron),
+            clay: removed!(clay),
+            salt: removed!(salt),
+            charcoal: removed!(charcoal),
+            pottery: removed!(pottery),
         }
     }
 }

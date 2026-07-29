@@ -20,8 +20,9 @@ const MIN_PITCH = THREE.MathUtils.degToRad(5);
 const MAX_PITCH = THREE.MathUtils.degToRad(70);
 const BASELINE_ZOOM_PERCENT = 100;
 const MAX_ZOOM_PERCENT = 1000;
-const MIN_ZOOM_PERCENT = 0;
+const MIN_ZOOM_PERCENT = 30;
 const MIN_DISTANCE = BASELINE_ORBIT_DISTANCE / (MAX_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
+const MAX_DISTANCE = BASELINE_ORBIT_DISTANCE / (MIN_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
 const ZOOM_MULTIPLIER = 1.18;
 const ROTATE_SENSITIVITY = 0.005;
 const PITCH_SENSITIVITY = 0.004;
@@ -63,10 +64,13 @@ export class CameraController {
 
   constructor(config: CameraControllerConfig) {
     this.config = config;
-    this.maxDistance = computeMaxOrbitDistance(
-      config.bounds,
-      config.camera.fov,
-      RTS_ORBIT_PITCH,
+    this.maxDistance = Math.min(
+      MAX_DISTANCE,
+      computeMaxOrbitDistance(
+        config.bounds,
+        config.camera.fov,
+        RTS_ORBIT_PITCH,
+      ),
     );
     this.config.target.set(0, config.getHeightAt(0, 0), 0);
     this.applyRtsOrbitView();
@@ -80,7 +84,6 @@ export class CameraController {
   }
 
   getZoomPercent(): number {
-    if (this.currentDistance >= this.maxDistance - 0.5) return MIN_ZOOM_PERCENT;
     return (BASELINE_ORBIT_DISTANCE / this.currentDistance) * BASELINE_ZOOM_PERCENT;
   }
 

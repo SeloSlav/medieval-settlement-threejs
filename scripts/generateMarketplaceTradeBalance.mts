@@ -1,30 +1,30 @@
 export type MarketplaceBarterOffer = {
   id: string;
   kind: 'barter';
-  give: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork';
+  give: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
   giveAmount: number;
-  receive: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork';
+  receive: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
   receiveAmount: number;
 };
 
 export type MarketplaceTradeBalance = {
   bulkTradeCooldownSeconds: number;
   resourceSpendScopes: Record<
-    'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork',
+    'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery',
     'marketAccessible' | 'treasury'
   >;
   offers: Array<
     | {
         id: string;
         kind: 'goldBuy';
-        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork';
+        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
         amount: number;
         goldCost: number;
       }
     | {
         id: string;
         kind: 'goldSell';
-        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork';
+        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
         amount: number;
         goldYield: number;
       }
@@ -59,6 +59,9 @@ export function generateMarketplaceTradeRust(balance: BalanceWithMarketplaceTrad
     '    Grain,',
     '    Barley,',
     '    Ironwork,',
+    '    Iron,',
+    '    Salt,',
+    '    Pottery,',
     '}',
     '',
     '#[derive(Clone, Copy, Debug, PartialEq, Eq)]',
@@ -155,7 +158,7 @@ export function generateMarketplaceTradeTypeScript(balance: BalanceWithMarketpla
   const lines: string[] = [
     `export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = ${trade.bulkTradeCooldownSeconds};`,
     '',
-    "export const TRADE_RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'food', 'grain', 'barley', 'ironwork'] as const;",
+    "export const TRADE_RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'food', 'grain', 'barley', 'ironwork', 'iron', 'salt', 'pottery'] as const;",
     'export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];',
     '',
     "export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';",

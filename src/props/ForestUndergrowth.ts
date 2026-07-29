@@ -12,7 +12,6 @@ import {
   positionLocal,
   sin,
   texture,
-  time,
   uniform,
   vec4,
 } from 'three/tsl';
@@ -62,7 +61,6 @@ const tsl = {
   positionLocal: positionLocal as TslNode,
   sin: sin as (value: unknown) => TslNode,
   texture: texture as (map: THREE.Texture) => TslNode,
-  time: time as TslNode,
   uniform: uniform as <T>(value: T) => { value: T },
   vec4: vec4 as (...values: unknown[]) => TslNode,
   windSpeed: windSpeed as unknown as TslNode,

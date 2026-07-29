@@ -5,14 +5,19 @@ use crate::balance_generated::{
     BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
     BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
-    CALENDAR_SECONDS_PER_DAY, FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC,
+    CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
+    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, FARM_GROWTH_SECONDS,
+    FARM_WORK_METERS_PER_WORKER_PER_SEC,
     FERRY_GOLD_PER_DAY, FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
     GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE,
     GRANARY_WATER_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
     MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
     MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     MONASTERY_UNLINKED_PRODUCTIVITY, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
-    SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT,
+    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+    SMOKEHOUSE_SALT_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
+    SMITHY_IRON_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    POTTER_POTTERY_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT,
     TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
     VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
     WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
@@ -860,6 +865,24 @@ pub fn step_smokehouse(
         &["woodcutters_lodge", "village_storehouse"],
         SMOKEHOUSE_FIREWOOD_PER_CYCLE * input_staging_cycles,
     );
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &smokehouse,
+        CommodityKind::Salt,
+        &["marketplace"],
+        SMOKEHOUSE_SALT_PER_CYCLE * input_staging_cycles,
+    );
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &smokehouse,
+        CommodityKind::Pottery,
+        &["potter_kiln", "marketplace"],
+        SMOKEHOUSE_POTTERY_PER_CYCLE * input_staging_cycles,
+    );
     smokehouse = step_processor(
         ctx,
         tick,
@@ -868,6 +891,8 @@ pub fn step_smokehouse(
         &[
             (CommodityKind::Food, SMOKEHOUSE_FOOD_PER_CYCLE),
             (CommodityKind::Firewood, SMOKEHOUSE_FIREWOOD_PER_CYCLE),
+            (CommodityKind::Salt, SMOKEHOUSE_SALT_PER_CYCLE),
+            (CommodityKind::Pottery, SMOKEHOUSE_POTTERY_PER_CYCLE),
         ],
         &[(
             CommodityKind::PreservedFood,
@@ -883,6 +908,159 @@ pub fn step_smokehouse(
         3.0,
     );
     ctx.db.building().id().update(smokehouse);
+}
+
+pub fn step_clay_pit(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let mut clay_pit = step_simple_producer(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[(CommodityKind::Clay, CLAY_PIT_CLAY_PER_CYCLE)],
+    );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut clay_pit,
+        CommodityKind::Clay,
+        &["potter_kiln"],
+    );
+    ctx.db.building().id().update(clay_pit);
+}
+
+pub fn step_charcoal_burner(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let staging = processor_input_staging_cycles(building.processor_output_target_percent);
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &building,
+        CommodityKind::Firewood,
+        &["woodcutters_lodge", "village_storehouse"],
+        CHARCOAL_BURNER_FIREWOOD_PER_CYCLE * staging,
+    );
+    let mut burner = step_processor(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[(CommodityKind::Firewood, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE)],
+        &[(CommodityKind::Charcoal, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE)],
+    );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut burner,
+        CommodityKind::Charcoal,
+        &["smithy"],
+    );
+    ctx.db.building().id().update(burner);
+}
+
+pub fn step_smithy(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let staging = processor_input_staging_cycles(building.processor_output_target_percent);
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &building,
+        CommodityKind::Iron,
+        &["marketplace"],
+        SMITHY_IRON_PER_CYCLE * staging,
+    );
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &building,
+        CommodityKind::Charcoal,
+        &["charcoal_burner"],
+        SMITHY_CHARCOAL_PER_CYCLE * staging,
+    );
+    let mut smithy = step_processor(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[
+            (CommodityKind::Iron, SMITHY_IRON_PER_CYCLE),
+            (CommodityKind::Charcoal, SMITHY_CHARCOAL_PER_CYCLE),
+        ],
+        &[(CommodityKind::Ironwork, SMITHY_IRONWORK_PER_CYCLE)],
+    );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut smithy,
+        CommodityKind::Ironwork,
+        &["carpenter"],
+    );
+    ctx.db.building().id().update(smithy);
+}
+
+pub fn step_potter_kiln(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let staging = processor_input_staging_cycles(building.processor_output_target_percent);
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &building,
+        CommodityKind::Clay,
+        &["clay_pit"],
+        POTTER_CLAY_PER_CYCLE * staging,
+    );
+    request_connected_commodity(
+        ctx,
+        tick,
+        clock,
+        &building,
+        CommodityKind::Firewood,
+        &["woodcutters_lodge", "village_storehouse"],
+        POTTER_FIREWOOD_PER_CYCLE * staging,
+    );
+    let mut potter = step_processor(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[
+            (CommodityKind::Clay, POTTER_CLAY_PER_CYCLE),
+            (CommodityKind::Firewood, POTTER_FIREWOOD_PER_CYCLE),
+        ],
+        &[(CommodityKind::Pottery, POTTER_POTTERY_PER_CYCLE)],
+    );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut potter,
+        CommodityKind::Pottery,
+        &["smokehouse", "marketplace"],
+    );
+    ctx.db.building().id().update(potter);
 }
 
 pub fn step_apiary(
@@ -1342,6 +1520,9 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
         ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
         ProcessorOutputKind::Cloth => Some(CommodityKind::Cloth),
+        ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),
+        ProcessorOutputKind::Ironwork => Some(CommodityKind::Ironwork),
+        ProcessorOutputKind::Pottery => Some(CommodityKind::Pottery),
     }
 }
 
@@ -1357,12 +1538,21 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
             CommodityKind::Barley | CommodityKind::Water | CommodityKind::Firewood
         ),
         "smokehouse" => {
-            matches!(commodity, CommodityKind::Food | CommodityKind::Firewood)
+            matches!(
+                commodity,
+                CommodityKind::Food
+                    | CommodityKind::Firewood
+                    | CommodityKind::Salt
+                    | CommodityKind::Pottery
+            )
         }
         "weaver" => matches!(
             commodity,
             CommodityKind::Wool | CommodityKind::Flax | CommodityKind::Water
         ),
+        "charcoal_burner" => commodity == CommodityKind::Firewood,
+        "smithy" => matches!(commodity, CommodityKind::Iron | CommodityKind::Charcoal),
+        "potter_kiln" => matches!(commodity, CommodityKind::Clay | CommodityKind::Firewood),
         _ => false,
     }
 }

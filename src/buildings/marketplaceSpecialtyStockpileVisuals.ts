@@ -10,6 +10,9 @@ export const MARKET_ALE_VISUAL_SEGMENTS = 3;
 export const MARKET_HONEY_VISUAL_SEGMENTS = 3;
 export const MARKET_WINE_VISUAL_SEGMENTS = 3;
 export const MARKET_CLOTH_VISUAL_SEGMENTS = 3;
+export const MARKET_IRON_VISUAL_SEGMENTS = 3;
+export const MARKET_SALT_VISUAL_SEGMENTS = 3;
+export const MARKET_POTTERY_VISUAL_SEGMENTS = 3;
 
 export function marketplaceSpecialtyStockpileVisualSignature(
   building: BuildingState,
@@ -40,6 +43,24 @@ export function marketplaceSpecialtyStockpileVisualSignature(
       building.cloth ?? 0,
       BUILDING_STORAGE_CAPS.marketplace.cloth ?? 0,
       MARKET_CLOTH_VISUAL_SEGMENTS,
+    )
+  }:${
+    stockpileVisualLevel(
+      building.iron ?? 0,
+      BUILDING_STORAGE_CAPS.marketplace.iron ?? 0,
+      MARKET_IRON_VISUAL_SEGMENTS,
+    )
+  }:${
+    stockpileVisualLevel(
+      building.salt ?? 0,
+      BUILDING_STORAGE_CAPS.marketplace.salt ?? 0,
+      MARKET_SALT_VISUAL_SEGMENTS,
+    )
+  }:${
+    stockpileVisualLevel(
+      building.pottery ?? 0,
+      BUILDING_STORAGE_CAPS.marketplace.pottery ?? 0,
+      MARKET_POTTERY_VISUAL_SEGMENTS,
     )
   }`;
 }
@@ -76,6 +97,27 @@ export function syncMarketplaceSpecialtyStockpileVisuals(
     'MarketClothSegment',
     building.cloth ?? 0,
     BUILDING_STORAGE_CAPS.marketplace.cloth ?? 0,
+  );
+  syncNamedStockpile(
+    marker,
+    'MarketIronStockpile',
+    'MarketIronSegment',
+    building.iron ?? 0,
+    BUILDING_STORAGE_CAPS.marketplace.iron ?? 0,
+  );
+  syncNamedStockpile(
+    marker,
+    'MarketSaltStockpile',
+    'MarketSaltSegment',
+    building.salt ?? 0,
+    BUILDING_STORAGE_CAPS.marketplace.salt ?? 0,
+  );
+  syncNamedStockpile(
+    marker,
+    'MarketPotteryStockpile',
+    'MarketPotterySegment',
+    building.pottery ?? 0,
+    BUILDING_STORAGE_CAPS.marketplace.pottery ?? 0,
   );
 }
 

@@ -38,6 +38,11 @@ type BuildingBalance = {
     cloth?: number;
     ironwork?: number;
     polearms?: number;
+    iron?: number;
+    clay?: number;
+    salt?: number;
+    charcoal?: number;
+    pottery?: number;
   };
   workRadius: number;
   pickRadius: number;
@@ -109,10 +114,12 @@ type LivestockSpeciesBalance = {
   matureTreesPerHead?: number;
 };
 
+type TradeResource = 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
+
 type MarketplaceGoldBuyOffer = {
   id: string;
   kind: 'goldBuy';
-  resource: 'timber' | 'stone' | 'firewood' | 'food' | 'ironwork';
+  resource: TradeResource;
   amount: number;
   goldCost: number;
 };
@@ -120,7 +127,7 @@ type MarketplaceGoldBuyOffer = {
 type MarketplaceGoldSellOffer = {
   id: string;
   kind: 'goldSell';
-  resource: 'timber' | 'stone' | 'firewood' | 'food' | 'ironwork';
+  resource: TradeResource;
   amount: number;
   goldYield: number;
 };
@@ -128,9 +135,9 @@ type MarketplaceGoldSellOffer = {
 type MarketplaceBarterOffer = {
   id: string;
   kind: 'barter';
-  give: 'timber' | 'stone' | 'firewood' | 'food' | 'ironwork';
+  give: TradeResource;
   giveAmount: number;
-  receive: 'timber' | 'stone' | 'firewood' | 'food' | 'ironwork';
+  receive: TradeResource;
   receiveAmount: number;
 };
 
@@ -402,7 +409,18 @@ export type GameBalance = {
     textileTransferPerTrip: number;
     smokehouseFoodPerCycle: number;
     smokehouseFirewoodPerCycle: number;
+    smokehouseSaltPerCycle: number;
+    smokehousePotteryPerCycle: number;
     smokehousePreservedFoodPerCycle: number;
+    clayPitClayPerCycle: number;
+    charcoalBurnerFirewoodPerCycle: number;
+    charcoalBurnerCharcoalPerCycle: number;
+    smithyIronPerCycle: number;
+    smithyCharcoalPerCycle: number;
+    smithyIronworkPerCycle: number;
+    potterClayPerCycle: number;
+    potterFirewoodPerCycle: number;
+    potterPotteryPerCycle: number;
     apiaryHoneyPerCycle: number;
     apiaryFoodPerCycle: number;
     apiarySeasonStartMonth: number;
@@ -507,6 +525,10 @@ const simKindByKind: Record<string, string | null> = {
   reforester: 'Reforester',
   stone_quarry: 'StoneQuarry',
   large_quarry: 'LargeQuarry',
+  clay_pit: 'ClayPit',
+  charcoal_burner: 'CharcoalBurner',
+  smithy: 'Smithy',
+  potter_kiln: 'PotterKiln',
   woodcutters_lodge: 'WoodcuttersLodge',
   well: 'Well',
   hunters_hall: 'HuntersHall',
@@ -796,7 +818,18 @@ function generateRust(): string {
     `pub const TEXTILE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.production.textileTransferPerTrip)};`,
     `pub const SMOKEHOUSE_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseFoodPerCycle)};`,
     `pub const SMOKEHOUSE_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseFirewoodPerCycle)};`,
+    `pub const SMOKEHOUSE_SALT_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseSaltPerCycle)};`,
+    `pub const SMOKEHOUSE_POTTERY_PER_CYCLE: f64 = ${rustF64(b.production.smokehousePotteryPerCycle)};`,
     `pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehousePreservedFoodPerCycle)};`,
+    `pub const CLAY_PIT_CLAY_PER_CYCLE: f64 = ${rustF64(b.production.clayPitClayPerCycle)};`,
+    `pub const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.charcoalBurnerFirewoodPerCycle)};`,
+    `pub const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE: f64 = ${rustF64(b.production.charcoalBurnerCharcoalPerCycle)};`,
+    `pub const SMITHY_IRON_PER_CYCLE: f64 = ${rustF64(b.production.smithyIronPerCycle)};`,
+    `pub const SMITHY_CHARCOAL_PER_CYCLE: f64 = ${rustF64(b.production.smithyCharcoalPerCycle)};`,
+    `pub const SMITHY_IRONWORK_PER_CYCLE: f64 = ${rustF64(b.production.smithyIronworkPerCycle)};`,
+    `pub const POTTER_CLAY_PER_CYCLE: f64 = ${rustF64(b.production.potterClayPerCycle)};`,
+    `pub const POTTER_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.potterFirewoodPerCycle)};`,
+    `pub const POTTER_POTTERY_PER_CYCLE: f64 = ${rustF64(b.production.potterPotteryPerCycle)};`,
     `pub const APIARY_HONEY_PER_CYCLE: f64 = ${rustF64(b.production.apiaryHoneyPerCycle)};`,
     `pub const APIARY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.apiaryFoodPerCycle)};`,
     `pub const APIARY_SEASON_START_MONTH: u8 = ${b.production.apiarySeasonStartMonth};`,
@@ -1001,6 +1034,10 @@ function generateRust(): string {
   lines.push('    Reforester,');
   lines.push('    StoneQuarry,');
   lines.push('    LargeQuarry,');
+  lines.push('    ClayPit,');
+  lines.push('    CharcoalBurner,');
+  lines.push('    Smithy,');
+  lines.push('    PotterKiln,');
   lines.push('    WoodcuttersLodge,');
   lines.push('    Well,');
   lines.push('    HuntersHall,');
@@ -1046,6 +1083,11 @@ function generateRust(): string {
   lines.push('    pub storage_cloth: f64,');
   lines.push('    pub storage_ironwork: f64,');
   lines.push('    pub storage_polearms: f64,');
+  lines.push('    pub storage_iron: f64,');
+  lines.push('    pub storage_clay: f64,');
+  lines.push('    pub storage_salt: f64,');
+  lines.push('    pub storage_charcoal: f64,');
+  lines.push('    pub storage_pottery: f64,');
   lines.push('    pub accepts_labor: bool,');
   lines.push('    pub max_labor: u32,');
   lines.push('    pub work_radius: f64,');
@@ -1088,6 +1130,11 @@ function generateRust(): string {
     lines.push(`    storage_cloth: ${rustF64(def.storage.cloth ?? 0)},`);
     lines.push(`    storage_ironwork: ${rustF64(def.storage.ironwork ?? 0)},`);
     lines.push(`    storage_polearms: ${rustF64(def.storage.polearms ?? 0)},`);
+    lines.push(`    storage_iron: ${rustF64(def.storage.iron ?? 0)},`);
+    lines.push(`    storage_clay: ${rustF64(def.storage.clay ?? 0)},`);
+    lines.push(`    storage_salt: ${rustF64(def.storage.salt ?? 0)},`);
+    lines.push(`    storage_charcoal: ${rustF64(def.storage.charcoal ?? 0)},`);
+    lines.push(`    storage_pottery: ${rustF64(def.storage.pottery ?? 0)},`);
     lines.push(`    accepts_labor: ${def.acceptsLabor},`);
     lines.push(`    max_labor: ${def.maxLabor},`);
     lines.push(`    work_radius: ${rustF64(def.workRadius)},`);
@@ -1465,7 +1512,18 @@ function generateTypeScript(): string {
     `export const TEXTILE_TRANSFER_PER_TRIP = ${b.production.textileTransferPerTrip};`,
     `export const SMOKEHOUSE_FOOD_PER_CYCLE = ${b.production.smokehouseFoodPerCycle};`,
     `export const SMOKEHOUSE_FIREWOOD_PER_CYCLE = ${b.production.smokehouseFirewoodPerCycle};`,
+    `export const SMOKEHOUSE_SALT_PER_CYCLE = ${b.production.smokehouseSaltPerCycle};`,
+    `export const SMOKEHOUSE_POTTERY_PER_CYCLE = ${b.production.smokehousePotteryPerCycle};`,
     `export const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE = ${b.production.smokehousePreservedFoodPerCycle};`,
+    `export const CLAY_PIT_CLAY_PER_CYCLE = ${b.production.clayPitClayPerCycle};`,
+    `export const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE = ${b.production.charcoalBurnerFirewoodPerCycle};`,
+    `export const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE = ${b.production.charcoalBurnerCharcoalPerCycle};`,
+    `export const SMITHY_IRON_PER_CYCLE = ${b.production.smithyIronPerCycle};`,
+    `export const SMITHY_CHARCOAL_PER_CYCLE = ${b.production.smithyCharcoalPerCycle};`,
+    `export const SMITHY_IRONWORK_PER_CYCLE = ${b.production.smithyIronworkPerCycle};`,
+    `export const POTTER_CLAY_PER_CYCLE = ${b.production.potterClayPerCycle};`,
+    `export const POTTER_FIREWOOD_PER_CYCLE = ${b.production.potterFirewoodPerCycle};`,
+    `export const POTTER_POTTERY_PER_CYCLE = ${b.production.potterPotteryPerCycle};`,
     `export const APIARY_HONEY_PER_CYCLE = ${b.production.apiaryHoneyPerCycle};`,
     `export const APIARY_FOOD_PER_CYCLE = ${b.production.apiaryFoodPerCycle};`,
     `export const APIARY_SEASON_START_MONTH = ${b.production.apiarySeasonStartMonth};`,
@@ -1634,6 +1692,11 @@ function generateTypeScript(): string {
     '  cloth?: number;',
     '  ironwork?: number;',
     '  polearms?: number;',
+    '  iron?: number;',
+    '  clay?: number;',
+    '  salt?: number;',
+    '  charcoal?: number;',
+    '  pottery?: number;',
     '};',
     '',
     'export type BuildingDefinition = {',
@@ -1709,6 +1772,11 @@ function generateTypeScript(): string {
     const cloth = def.storage.cloth ?? 0;
     const ironwork = def.storage.ironwork ?? 0;
     const polearms = def.storage.polearms ?? 0;
+    const iron = def.storage.iron ?? 0;
+    const clay = def.storage.clay ?? 0;
+    const salt = def.storage.salt ?? 0;
+    const charcoal = def.storage.charcoal ?? 0;
+    const pottery = def.storage.pottery ?? 0;
     const extras: string[] = [];
     if (water > 0) extras.push(`water: ${water}`);
     if (food > 0) extras.push(`food: ${food}`);
@@ -1725,6 +1793,11 @@ function generateTypeScript(): string {
     if (cloth > 0) extras.push(`cloth: ${cloth}`);
     if (ironwork > 0) extras.push(`ironwork: ${ironwork}`);
     if (polearms > 0) extras.push(`polearms: ${polearms}`);
+    if (iron > 0) extras.push(`iron: ${iron}`);
+    if (clay > 0) extras.push(`clay: ${clay}`);
+    if (salt > 0) extras.push(`salt: ${salt}`);
+    if (charcoal > 0) extras.push(`charcoal: ${charcoal}`);
+    if (pottery > 0) extras.push(`pottery: ${pottery}`);
     lines.push(
       `  ${kind}: { timber: ${def.storage.timber}, firewood: ${def.storage.firewood}, stone: ${def.storage.stone}${extras.length > 0 ? `, ${extras.join(', ')}` : ''} },`,
     );

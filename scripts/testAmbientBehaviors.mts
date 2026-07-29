@@ -29,6 +29,7 @@ import {
   type VillagerModelVariant,
 } from '../src/settlement/SettlementCrowdRenderer.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import { SIM_REALTIME_RATE } from '../src/generated/gameBalance.ts';
 
 const reusableSlots: AmbientBehaviorSlot[] = [
   {
@@ -258,7 +259,11 @@ assert.ok(
   'founders should set off toward their ambient activities immediately',
 );
 
-for (let step = 0; step < 240; step += 1) villagers.tick(0.05);
+const tickVillagersBySimSeconds = (seconds: number): void => {
+  villagers.tick(seconds / SIM_REALTIME_RATE);
+};
+
+for (let step = 0; step < 240; step += 1) tickVillagersBySimSeconds(0.05);
 const settledModes = new Set([...agents.values()].map((agent) => agent.mode));
 for (const mode of ['sit', 'rest', 'talk']) {
   assert.ok(settledModes.has(mode), `the live crowd should reach its ${mode} pose`);
@@ -312,8 +317,8 @@ const firstBenchOccupant = [...campAmbientState.campAmbientAssignments].find(
 assert.ok(firstBenchOccupant);
 const secondsUntilCycle =
   FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS - campAmbientState.campAmbientElapsedSeconds;
-villagers.tick(Math.max(0, secondsUntilCycle - 0.05));
-villagers.tick(0.1);
+tickVillagersBySimSeconds(Math.max(0, secondsUntilCycle - 0.05));
+tickVillagersBySimSeconds(0.1);
 
 const pendingBenchEntry = [...campAmbientState.pendingCampSeatAssignments].find(
   ([, pending]) => pending.assignment.seatId === benchSeatId,
@@ -350,7 +355,7 @@ for (
   step < 100 && campAmbientState.pendingCampSeatAssignments.has(waitingActorId);
   step += 1
 ) {
-  villagers.tick(0.05);
+  tickVillagersBySimSeconds(0.05);
 }
 assert.equal(
   campAmbientState.pendingCampSeatAssignments.has(waitingActorId),

@@ -8,7 +8,6 @@ import {
   pow,
   sin,
   smoothstep,
-  time,
   uniform,
   uv,
   vec2,
@@ -74,6 +73,7 @@ export type FireEffect = {
   smoke: AnimatedSmoke[];
   sparks: AnimatedSpark[];
   light: THREE.PointLight;
+  shaderTime: ScalarUniform;
   elapsedSeconds: number;
   intensity: number;
   nightLighting: number;
@@ -110,6 +110,7 @@ export function createFireEffect(options: FireEffectOptions = {}): FireEffect {
 
   const flameCount = Math.max(1, Math.floor(options.flameCount ?? 5));
   const spread = Math.max(0.05, options.spread ?? 0.65);
+  const shaderTime = uniform(0) as ScalarUniform;
   const flames: AnimatedFlame[] = [];
   for (let index = 0; index < flameCount; index += 1) {
     const phase = index * 1.913;
@@ -117,7 +118,9 @@ export function createFireEffect(options: FireEffectOptions = {}): FireEffect {
     const radial = index === 0 ? 0 : spread * (0.24 + (index % 3) * 0.13);
     const baseWidth = index === 0 ? 0.92 : 0.58 + (index % 2) * 0.12;
     const baseHeight = index === 0 ? 1.65 : 0.92 + (index % 3) * 0.16;
-    const sprite = new THREE.Sprite(createFlameMaterial(phase) as unknown as THREE.SpriteMaterial);
+    const sprite = new THREE.Sprite(
+      createFlameMaterial(phase, shaderTime) as unknown as THREE.SpriteMaterial,
+    );
     sprite.name = 'Animated fire flame';
     sprite.center.set(0.5, 0.08);
     sprite.position.set(
@@ -149,7 +152,7 @@ export function createFireEffect(options: FireEffectOptions = {}): FireEffect {
     const opacity = uniform(0) as ScalarUniform;
     const phase = index * 2.173;
     const sprite = new THREE.Sprite(
-      createSmokeMaterial(phase, opacity) as unknown as THREE.SpriteMaterial,
+      createSmokeMaterial(phase, opacity, shaderTime) as unknown as THREE.SpriteMaterial,
     );
     sprite.name = 'Animated fire smoke';
     sprite.renderOrder = 17;
@@ -190,6 +193,7 @@ export function createFireEffect(options: FireEffectOptions = {}): FireEffect {
     smoke,
     sparks,
     light,
+    shaderTime,
     elapsedSeconds: 0,
     intensity: THREE.MathUtils.clamp(options.intensity ?? 1, 0, 1),
     nightLighting: THREE.MathUtils.clamp(options.nightLighting ?? 1, 0, 1),
@@ -238,6 +242,7 @@ export function updateFireEffect(
   if (!effect || !effect.active) return;
 
   effect.elapsedSeconds += Math.max(0, dtSeconds);
+  effect.shaderTime.value = effect.elapsedSeconds;
   effect.intensity = THREE.MathUtils.clamp(intensity, 0, 1);
   const elapsed = effect.elapsedSeconds;
   const strength = 0.38 + effect.intensity * 0.62;
@@ -319,7 +324,7 @@ function resolveEffect(effectOrRoot: FireEffect | THREE.Group): FireEffect | nul
     : effectOrRoot;
 }
 
-function createFlameMaterial(phase: number): SpriteNodeMaterial {
+function createFlameMaterial(phase: number, shaderTime: ScalarUniform): SpriteNodeMaterial {
   const material = new SpriteNodeMaterial();
   material.name = 'Procedural reusable fire shader';
   material.transparent = true;
@@ -328,7 +333,7 @@ function createFlameMaterial(phase: number): SpriteNodeMaterial {
   material.toneMapped = false;
 
   const cardUv = uv() as TslNode;
-  const animatedTime = (time as TslNode).mul(float(7.1)).add(float(phase));
+  const animatedTime = (shaderTime as unknown as TslNode).mul(float(7.1)).add(float(phase));
   const risingWave = sin(
     cardUv.y.mul(float(13)).sub(animatedTime),
   ) as TslNode;
@@ -367,6 +372,7 @@ function createFlameMaterial(phase: number): SpriteNodeMaterial {
 function createSmokeMaterial(
   phase: number,
   opacity: ScalarUniform,
+  shaderTime: ScalarUniform,
 ): SpriteNodeMaterial {
   const material = new SpriteNodeMaterial();
   material.name = 'Procedural reusable fire smoke shader';
@@ -376,7 +382,7 @@ function createSmokeMaterial(
   material.toneMapped = false;
 
   const cardUv = uv() as TslNode;
-  const animatedTime = (time as TslNode).mul(float(0.38)).add(float(phase));
+  const animatedTime = (shaderTime as unknown as TslNode).mul(float(0.38)).add(float(phase));
   const radial = distance(cardUv, vec2(0.5)) as TslNode;
   const edgeNoise = sin(
     cardUv.x.mul(float(18))

@@ -85,16 +85,16 @@ assert.deepEqual(
   { springFlush: 1, autumnColor: 0, dormancy: 0 },
   'March must not reintroduce sparse deciduous foliage after the opening',
 );
-const aprilMaturation = deciduousFoliageForClock(foliageClock(4, 6));
+const aprilMaturation = deciduousFoliageForClock(foliageClock(4, 16));
 assert.ok(aprilMaturation.springFlush > 0.4 && aprilMaturation.springFlush < 0.6);
 assert.equal(aprilMaturation.dormancy, 0);
 assert.deepEqual(
-  deciduousFoliageForClock(foliageClock(7, 6)),
+  deciduousFoliageForClock(foliageClock(7, 16)),
   { springFlush: 0, autumnColor: 0, dormancy: 0 },
 );
-const octoberColor = deciduousFoliageForClock(foliageClock(10, 6));
+const octoberColor = deciduousFoliageForClock(foliageClock(10, 16));
 assert.ok(octoberColor.autumnColor > 0.6 && octoberColor.autumnColor < 0.8);
-const novemberDrop = deciduousFoliageForClock(foliageClock(11, 6));
+const novemberDrop = deciduousFoliageForClock(foliageClock(11, 16));
 assert.equal(novemberDrop.autumnColor, 1);
 assert.ok(novemberDrop.dormancy > 0.4 && novemberDrop.dormancy < 0.7);
 assert.equal(deciduousFoliageForClock(foliageClock(12, 1)).dormancy, 1);

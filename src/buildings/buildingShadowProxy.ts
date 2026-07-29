@@ -15,6 +15,10 @@ const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   woodcutters_lodge: 5.6,
   stone_quarry: 6.4,
   large_quarry: 9.2,
+  clay_pit: 2.4,
+  charcoal_burner: 4.0,
+  smithy: 5.8,
+  potter_kiln: 4.8,
   well: 4.7,
   hunters_hall: 5.7,
   foragers_shed: 4.9,
@@ -120,6 +124,10 @@ function createBuildingShadowGeometry(
     case 'lumber_mill':
     case 'reforester':
     case 'woodcutters_lodge':
+    case 'clay_pit':
+    case 'charcoal_burner':
+    case 'smithy':
+    case 'potter_kiln':
     case 'well':
     case 'hunters_hall':
     case 'foragers_shed':

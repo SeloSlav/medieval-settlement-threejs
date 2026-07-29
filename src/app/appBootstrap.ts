@@ -43,6 +43,7 @@ import {
   computeGuardhousePayrollGold,
   computePopulationStats,
   computeResourceTotals,
+  computeStoredResourceTotals,
   type HudResourceKind,
 } from '../resources/resourceTotals.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
@@ -845,6 +846,7 @@ export async function bootstrapAppSession(
   });
   resourceInspector.setHud(
     computeResourceTotals(gameState),
+    computeStoredResourceTotals(gameState),
     computePopulationStats(gameState),
     computeInTransitResourceTotals(gameState.deliveryTrips.values()),
     computeGoldAwaitingCollection(gameState.buildings.values()),

@@ -156,7 +156,7 @@ assert.ok(
   Math.abs(provisioning.winterFirewoodRunwayDays - 15) < 1e-9,
   `expected 15 winter firewood days, received ${provisioning.winterFirewoodRunwayDays}`,
 );
-assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 0.5) < 1e-9);
+assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 1 / 6) < 1e-9);
 assert.equal(provisioning.guardWagePerDay, 2 * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY);
 assert.ok(Math.abs(provisioning.guardWageRunwayDays - 10) < 1e-9);
 assert.equal(provisioning.sabbathHouseholds, 2);
@@ -169,7 +169,7 @@ assert.match(formatSabbathReadiness(provisioning), /0 \/ 2 homes stocked/);
 assert.equal(settlementProvisionLevel(provisioning, 10), 'critical');
 assert.equal(shouldShowProvisioning(provisioning, 10), true);
 assert.equal(formatProvisionDays(provisioning.winterFirewoodRunwayDays), '15d');
-assert.equal(WINTER_RESERVE_DAYS, 30);
+assert.equal(WINTER_RESERVE_DAYS, 90);
 assert.equal(HOUSEHOLD_BUFFER_WARNING_COVERAGE, 0.8);
 assert.equal(HOUSEHOLD_BUFFER_CRITICAL_COVERAGE, 0.5);
 

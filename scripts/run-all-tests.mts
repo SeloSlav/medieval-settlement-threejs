@@ -31,6 +31,7 @@ const tests = [
   'test:resource-locator',
   'test:seasonal-producer-stores',
   'test:physical-marketplace-specialties',
+  'test:material-economy',
   'test:village-economy',
   'test:chapel-community',
   'test:household-economy',

@@ -136,6 +136,11 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         barley: 0.0,
         malt: 0.0,
         flax: 0.0,
+        iron: 0.0,
+        clay: 0.0,
+        salt: 0.0,
+        charcoal: 0.0,
+        pottery: 0.0,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

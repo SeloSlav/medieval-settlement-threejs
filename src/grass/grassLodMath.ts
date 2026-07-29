@@ -1,15 +1,14 @@
 /** Matches CameraController default orbit distance at 100% zoom. */
 export const BASELINE_CAMERA_DISTANCE = 88;
 
-/** Close ground detail (dirt, grass tufts, reeds) reaches full strength at this zoom. */
+/** Close ground detail (dirt, grass tufts, wildflowers, reeds) reaches full strength here. */
 export const CLOSE_GROUND_FULL_ZOOM_PERCENT = 400;
 
 /**
- * Close ground detail begins fading in above the 100% reference view. The
- * broad 100-400% band keeps strategic framing meadow-led while ensuring the
- * normal refreshed close view already contains authored dirt and grass blades.
+ * Close vegetation starts fading in above 200% and reaches full strength at
+ * 400%. Grass, wildflowers, and cattails all consume this same gate.
  */
-export const CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 100;
+export const CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 200;
 
 /** World quarry map icons appear at this zoom and below. */
 export const MAP_ICON_MAX_ZOOM_PERCENT = 50;
@@ -26,7 +25,7 @@ export const DIRT_FADE_START_ZOOM_PERCENT = CLOSE_GROUND_FADE_START_ZOOM_PERCENT
 /** Pow easing on the zoom gate (< 1 = detail ramps in gradually across the fade band). */
 export const DIRT_BLEND_EASE = 0.72;
 
-/** Orbit distances matching the 100% / 400% close-ground zoom band. */
+/** Orbit distances matching the 200% / 400% close-ground zoom band. */
 export const TERRAIN_DIRT_CLOSE_DISTANCE =
   BASELINE_CAMERA_DISTANCE / (DIRT_REVEAL_ZOOM_PERCENT / 100);
 
@@ -42,7 +41,7 @@ export const DIRT_PROXIMITY_INNER_SQ = DIRT_PROXIMITY_INNER * DIRT_PROXIMITY_INN
 
 export const DIRT_PROXIMITY_OUTER_SQ = DIRT_PROXIMITY_OUTER * DIRT_PROXIMITY_OUTER;
 
-/** Blade tufts use the same zoom band as close dirt terrain. */
+/** SeedThree grass, wildflowers, and cattails share the close-ground zoom band. */
 export const GRASS_BLADE_REVEAL = {
   close: TERRAIN_DIRT_CLOSE_DISTANCE,
   far: TERRAIN_DIRT_FAR_DISTANCE,
@@ -86,18 +85,18 @@ export function grassStreamNearRadius(firstPersonActive: boolean): number {
 /** Soft falloff band at the outer edge of the grass patch (world units). */
 export const GRASS_EDGE_FADE_BAND = 24;
 
-/** Shared dirt and SeedThree transition: 0 at 100% zoom, 1 at 400%. */
+/** Shared close-ground transition: 0 at 200% zoom, 1 at 400%. */
 export function dirtZoomGate(cameraDistance: number): number {
   const t = smoothstep(TERRAIN_DIRT_CLOSE_DISTANCE, TERRAIN_DIRT_FAR_DISTANCE, cameraDistance);
   return Math.pow(1 - t, DIRT_BLEND_EASE);
 }
 
 /**
- * Reeds are alpha-tested cards, so a faint linear fade leaves only detached
- * opaque texels visible at overview scale. Delay their reveal until the cards
- * are large enough to read as plants, then use a steeper opacity curve.
+ * Cattails enter with the other close vegetation immediately above 200%.
+ * Their steeper opacity curve keeps the alpha-tested cards subtle at the
+ * beginning of the shared transition.
  */
-export const REED_LOD_VISIBILITY_THRESHOLD = 0.96;
+export const REED_LOD_VISIBILITY_THRESHOLD = 0;
 export const REED_LOD_OPACITY_POWER = 2;
 
 /**
@@ -140,7 +139,7 @@ export function reedLodOpacity(reedLod: number): number {
 }
 
 export function isReedLodVisible(reedLod: number): boolean {
-  return reedLod >= REED_LOD_VISIBILITY_THRESHOLD;
+  return reedLod > REED_LOD_VISIBILITY_THRESHOLD;
 }
 
 /** First-person mode always uses full close grass/dirt LOD around the player. */
@@ -156,7 +155,7 @@ export function resolveCloseGroundLod(
 }
 
 export function isGrassBladeZoomActive(cameraDistance: number): boolean {
-  return grassBladeLodOpacity(grassBladeRevealOpacity(cameraDistance)) > 0.02;
+  return grassBladeLodOpacity(grassBladeRevealOpacity(cameraDistance)) > 0;
 }
 
 export function isReedZoomActive(cameraDistance: number): boolean {

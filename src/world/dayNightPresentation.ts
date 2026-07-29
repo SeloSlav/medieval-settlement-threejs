@@ -48,10 +48,12 @@ const SETTLEMENT_LATITUDE_RAD = THREE.MathUtils.degToRad(45.6);
 const SOLAR_NOON_HOUR = 12.75;
 const AXIAL_TILT_DEG = 23.44;
 const DAYS_PER_YEAR = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
-// The compressed calendar keeps the familiar month names. Its winter solstice
+// The fixed 30-day calendar keeps familiar month names. Its winter solstice
 // falls late in December, just as it does in the northern hemisphere.
 const WINTER_SOLSTICE_DAY = DAYS_PER_YEAR - CALENDAR_DAYS_PER_MONTH * 0.35;
 const LOCAL_SIDEREAL_PHASE_HOURS = 8;
+export const FAIR_DAY_FOG_COLOR = 0x9fbccc;
+export const NIGHT_FOG_COLOR = 0x506b80;
 
 export function fractionalHour(clock: GameClock): number {
   return clock.preciseHour ?? clock.hour + clock.minute / 60;
@@ -101,7 +103,7 @@ export function computeDayNightState(
   fillColor = lerpColor(fillColor, 0x88768e, goldenHour * 0.22);
   const fillIntensity = lerp(0.68, 0.34, dayAmount);
 
-  let fogColor = lerpColor(0x506b80, 0xc5d4d8, dayAmount);
+  let fogColor = lerpColor(NIGHT_FOG_COLOR, FAIR_DAY_FOG_COLOR, dayAmount);
   fogColor = lerpColor(fogColor, 0xbc8c77, dawn * 0.34);
   fogColor = lerpColor(fogColor, 0xa36b5a, dusk * 0.3);
   const fogDensity = lerp(0.0007, 0.00072, dayAmount) + goldenHour * 0.00008;

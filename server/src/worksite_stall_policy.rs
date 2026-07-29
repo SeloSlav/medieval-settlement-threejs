@@ -18,6 +18,10 @@ pub fn is_production_labor_kind(kind: &str) -> bool {
             | "weaver"
             | "stone_quarry"
             | "large_quarry"
+            | "clay_pit"
+            | "charcoal_burner"
+            | "smithy"
+            | "potter_kiln"
             | "hunters_hall"
     )
 }

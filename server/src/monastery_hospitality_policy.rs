@@ -5,12 +5,11 @@ use crate::balance_generated::{
     MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
 };
 
-/// The game compresses each month to ten days. These dates preserve the
-/// approximate place of five established observances inside that calendar:
-/// Epiphany, Saints Peter and Paul, the Assumption, the Exaltation of the Holy
-/// Cross, and Christmas.
+/// Five established observances on their familiar dates inside the fixed
+/// 30-day calendar: Epiphany, Saints Peter and Paul, the Assumption, the
+/// Exaltation of the Holy Cross, and Christmas.
 pub const MONASTERY_FEAST_DATES: [(u32, u32); 5] =
-    [(1, 2), (6, 10), (8, 5), (9, 5), (12, 9)];
+    [(1, 6), (6, 29), (8, 15), (9, 14), (12, 25)];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MonasteryHospitalityUse {
@@ -146,7 +145,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn all_five_feasts_are_reachable_in_the_compressed_calendar() {
+    fn all_five_feasts_are_reachable_in_the_fixed_calendar() {
         assert_eq!(MONASTERY_FEAST_DATES.len(), 5);
         for (month, month_day) in MONASTERY_FEAST_DATES {
             assert!((1..=12).contains(&month));
@@ -155,8 +154,8 @@ mod tests {
             );
             assert!(is_monastery_feast_day(month, month_day));
         }
-        assert!(!is_monastery_feast_day(6, 29));
-        assert!(!is_monastery_feast_day(12, 25));
+        assert!(!is_monastery_feast_day(6, 28));
+        assert!(!is_monastery_feast_day(12, 24));
     }
 
     #[test]

@@ -70,7 +70,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Daisy star-aster',
     texturePath: '/assets/textures/vegetation/wildflowers/daisy-star-aster-head.png',
     atlasOffset: [0, 0],
-    heightScale: [0.95, 1.28],
+    heightScale: [1.2, 1.65],
     widthScale: [0.78, 1],
   },
   {
@@ -78,7 +78,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Clusius gentian',
     texturePath: '/assets/textures/vegetation/wildflowers/clusius-gentian-head.png',
     atlasOffset: [1 / 5, 0],
-    heightScale: [0.84, 1.08],
+    heightScale: [1.05, 1.4],
     widthScale: [0.64, 0.82],
   },
   {
@@ -86,7 +86,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Grey hawkbit',
     texturePath: '/assets/textures/vegetation/wildflowers/grey-hawkbit-head.png',
     atlasOffset: [2 / 5, 0],
-    heightScale: [0.98, 1.32],
+    heightScale: [1.2, 1.65],
     widthScale: [0.72, 0.94],
   },
   {
@@ -94,7 +94,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Bulbiferous lily',
     texturePath: '/assets/textures/vegetation/wildflowers/bulbiferous-lily-head.png',
     atlasOffset: [3 / 5, 0],
-    heightScale: [1.12, 1.55],
+    heightScale: [1.35, 1.95],
     widthScale: [0.9, 1.12],
   },
   {
@@ -102,7 +102,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Red campion',
     texturePath: '/assets/textures/vegetation/wildflowers/red-campion-head.png',
     atlasOffset: [4 / 5, 0],
-    heightScale: [0.98, 1.35],
+    heightScale: [1.25, 1.72],
     widthScale: [0.7, 0.92],
   },
 ] as const;

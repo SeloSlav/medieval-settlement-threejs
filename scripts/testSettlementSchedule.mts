@@ -130,7 +130,7 @@ const clockFromElapsed = gameClockAtElapsedSeconds(
 assert.equal(clockFromElapsed.hour, CALENDAR_WORK_START_HOUR);
 assert.equal(clockFromElapsed.minute, 2);
 assert.equal(gameClock(workMorningTick).hour, CALENDAR_WORK_START_HOUR);
-for (const speed of [1, 5, 20, 120] as const) {
+for (const speed of [1, 4, 8] as const) {
   assert.ok(
     Math.abs(
       interpolatedSimElapsedSeconds(0, 1, speed) - speed * SIM_REALTIME_RATE,
@@ -176,18 +176,18 @@ const activeCombatAgents = new Map<string, CombatAgentState>([
     stateChangedTick: anchorTick,
   }],
 ]);
-const ultraSchedule = presentation.sync(
+const fastestSchedule = presentation.sync(
   emptyPresentationTargets,
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
-    gameSpeed: 120,
+    gameSpeed: 8,
     combatAgents: noCombatAgents,
   },
   null,
   true,
 );
-assert.ok(ultraSchedule);
+assert.ok(fastestSchedule);
 
 presentationNowMs += 1_000;
 const scenicSchedule = presentation.sync(
@@ -203,15 +203,15 @@ const scenicSchedule = presentation.sync(
 );
 assert.ok(scenicSchedule);
 assert.ok(
-  scenicSchedule.clock.simTick > ultraSchedule.clock.simTick,
+  scenicSchedule.clock.simTick > fastestSchedule.clock.simTick,
   'switching speed at the same authoritative tick must preserve interpolated clock progress',
 );
 assert.ok(
   Math.abs(
     scenicSchedule.clock.simTick
       - (
-        ultraSchedule.clock.simTick
-        + 120 * SIM_REALTIME_RATE / SIM_TICK_SECONDS
+        fastestSchedule.clock.simTick
+        + 8 * SIM_REALTIME_RATE / SIM_TICK_SECONDS
       ),
   ) < 1e-9,
 );
@@ -222,7 +222,7 @@ const normalSchedule = presentation.sync(
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
-    gameSpeed: 5,
+    gameSpeed: 4,
     combatAgents: noCombatAgents,
   },
   null,
@@ -245,7 +245,7 @@ const raidSchedule = presentation.sync(
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
-    gameSpeed: 5,
+    gameSpeed: 4,
     combatAgents: activeCombatAgents,
   },
   null,
@@ -269,7 +269,7 @@ const qaSchedule = qaPresentation.sync(
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
-    gameSpeed: 120,
+    gameSpeed: 8,
     combatAgents: noCombatAgents,
   },
   null,
@@ -293,7 +293,7 @@ const repeatedQaSchedule = qaPresentation.sync(
   {
     simTick: anchorTick + 1,
     parishPolicy: DEFAULT_PARISH_POLICY,
-    gameSpeed: 120,
+    gameSpeed: 8,
     combatAgents: noCombatAgents,
   },
   null,

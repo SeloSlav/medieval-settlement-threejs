@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
+  CALENDAR_DAYS_PER_MONTH,
+  CALENDAR_MONTHS_PER_YEAR,
   CALENDAR_SECONDS_PER_DAY,
   HOUSEHOLD_MAX_WEALTH,
   SIM_TICK_SECONDS,
@@ -141,7 +143,11 @@ function state(input: {
 
 function nonSundayClockInMonth(month: number): GameClock {
   const ticksPerDay = CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS;
-  for (let day = 0; day < 180; day += 1) {
+  for (
+    let day = 0;
+    day < CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
+    day += 1
+  ) {
     const clock = gameClock(day * ticksPerDay);
     if (clock.month === month && !clock.isSunday) return clock;
   }

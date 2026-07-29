@@ -50,6 +50,11 @@ export function buildingStorageRows(
     caps.cloth != null && caps.cloth > 0 ? `<li><span>Cloth stored</span><span>${Math.round(building.cloth ?? 0)} / ${caps.cloth}</span></li>` : '',
     includeFrontierStock && caps.ironwork != null && caps.ironwork > 0 ? `<li><span>Ironwork stored</span><span>${Math.round(building.ironwork ?? 0)} / ${caps.ironwork}</span></li>` : '',
     includeFrontierStock && caps.polearms != null && caps.polearms > 0 ? `<li><span>Polearms stored</span><span>${Math.round(building.polearms ?? 0)} / ${caps.polearms}</span></li>` : '',
+    caps.iron != null && caps.iron > 0 ? `<li><span>Iron stored</span><span>${Math.round(building.iron ?? 0)} / ${caps.iron}</span></li>` : '',
+    caps.clay != null && caps.clay > 0 ? `<li><span>Clay stored</span><span>${Math.round(building.clay ?? 0)} / ${caps.clay}</span></li>` : '',
+    caps.salt != null && caps.salt > 0 ? `<li><span>Salt stored</span><span>${Math.round(building.salt ?? 0)} / ${caps.salt}</span></li>` : '',
+    caps.charcoal != null && caps.charcoal > 0 ? `<li><span>Charcoal stored</span><span>${Math.round(building.charcoal ?? 0)} / ${caps.charcoal}</span></li>` : '',
+    caps.pottery != null && caps.pottery > 0 ? `<li><span>Pottery stored</span><span>${Math.round(building.pottery ?? 0)} / ${caps.pottery}</span></li>` : '',
   ].filter(Boolean).join('');
 }
 

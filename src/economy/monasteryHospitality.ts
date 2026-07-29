@@ -14,11 +14,11 @@ import type { BuildingState } from '../resources/types.ts';
 import { MONTH_NAMES, type GameClock } from '../world/gameCalendar.ts';
 
 export const MONASTERY_FEASTS = [
-  { name: 'Epiphany', month: 1, monthDay: 2 },
-  { name: 'Saints Peter and Paul', month: 6, monthDay: 10 },
-  { name: 'Assumption', month: 8, monthDay: 5 },
-  { name: 'Exaltation of the Holy Cross', month: 9, monthDay: 5 },
-  { name: 'Christmas', month: 12, monthDay: 9 },
+  { name: 'Epiphany', month: 1, monthDay: 6 },
+  { name: 'Saints Peter and Paul', month: 6, monthDay: 29 },
+  { name: 'Assumption', month: 8, monthDay: 15 },
+  { name: 'Exaltation of the Holy Cross', month: 9, monthDay: 14 },
+  { name: 'Christmas', month: 12, monthDay: 25 },
 ] as const;
 
 export const MONASTERY_FEASTS_PER_YEAR = MONASTERY_FEASTS.length;

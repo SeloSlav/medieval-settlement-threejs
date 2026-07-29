@@ -20,7 +20,9 @@ import {
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
+  SMOKEHOUSE_POTTERY_PER_CYCLE,
   SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+  SMOKEHOUSE_SALT_PER_CYCLE,
   WATERMILL_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
@@ -87,6 +89,8 @@ export type SettlementProductionCapacity = {
   preservedFoodOutputPerDay: number;
   preservationFreshFoodPerDay: number;
   preservationFirewoodPerDay: number;
+  preservationSaltPerDay: number;
+  preservationPotteryPerDay: number;
   clothOutputPerDay: number;
   clothWoolPerDay: number;
   clothFlaxPerDay: number;
@@ -108,6 +112,8 @@ export type ProcessorInput =
   | 'water'
   | 'firewood'
   | 'fresh food'
+  | 'salt'
+  | 'pottery'
   | 'wool'
   | 'flax';
 
@@ -675,6 +681,26 @@ function completedProcessorOverview(
           runway = firewoodRunway;
           limitingInput = 'firewood';
         }
+        const saltRunway = buildingInputRunway(
+          deliveries,
+          building,
+          'salt',
+          cycles * SMOKEHOUSE_SALT_PER_CYCLE,
+        );
+        if (saltRunway.days < runway.days) {
+          runway = saltRunway;
+          limitingInput = 'salt';
+        }
+        const potteryRunway = buildingInputRunway(
+          deliveries,
+          building,
+          'pottery',
+          cycles * SMOKEHOUSE_POTTERY_PER_CYCLE,
+        );
+        if (potteryRunway.days < runway.days) {
+          runway = potteryRunway;
+          limitingInput = 'pottery';
+        }
         smokehouseInputBuffer = updateFirstToStop(
           smokehouseInputBuffer,
           runway,
@@ -1056,6 +1082,8 @@ export function computeSettlementProductionCapacity(
     preservedFoodOutputPerDay: smokehouseCycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     preservationFreshFoodPerDay: smokehouseCycles * SMOKEHOUSE_FOOD_PER_CYCLE,
     preservationFirewoodPerDay: smokehouseCycles * SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+    preservationSaltPerDay: smokehouseCycles * SMOKEHOUSE_SALT_PER_CYCLE,
+    preservationPotteryPerDay: smokehouseCycles * SMOKEHOUSE_POTTERY_PER_CYCLE,
     clothOutputPerDay: weaverCycles * WEAVER_CLOTH_PER_CYCLE,
     clothWoolPerDay: weaverCycles * WEAVER_WOOL_PER_CYCLE,
     clothFlaxPerDay: weaverCycles * WEAVER_FLAX_PER_CYCLE,

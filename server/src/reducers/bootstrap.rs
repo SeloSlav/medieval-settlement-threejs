@@ -267,6 +267,11 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         flax: resources.flax.max(0.0),
         guardhouse_muster_watchtower_id: 0,
         weaver_input_policy: 0,
+        iron: resources.iron.max(0.0),
+        clay: resources.clay.max(0.0),
+        salt: resources.salt.max(0.0),
+        charcoal: resources.charcoal.max(0.0),
+        pottery: resources.pottery.max(0.0),
     });
 
     resources.timber = 0.0;
@@ -283,6 +288,11 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.ironwork = 0.0;
     resources.polearms = 0.0;
     resources.wool = 0.0;
+    resources.iron = 0.0;
+    resources.clay = 0.0;
+    resources.salt = 0.0;
+    resources.charcoal = 0.0;
+    resources.pottery = 0.0;
     resources.cloth = 0.0;
     resources.gold = 0.0;
     resources.barley = 0.0;

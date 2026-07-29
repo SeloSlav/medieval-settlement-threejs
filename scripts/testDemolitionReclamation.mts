@@ -217,8 +217,8 @@ assert.match(
 const simulation = read('server/src/reducers/simulation.rs');
 assert.match(
   simulation,
-  /materialize_all_physical_resource_ledgers\(ctx\);[\s\S]*if config\.game_speed == 0/,
-  'physical ledger repair must run even while the simulation clock is paused',
+  /if config\.game_speed == 0 \{[\s\S]*?return;[\s\S]*?\}[\s\S]*materialize_all_physical_resource_ledgers\(ctx\);/,
+  'Pause must remain mutation-free; physical ledger repair resumes on the first running heartbeat',
 );
 assert.match(simulation, /"salvage_pile" => reclamation_pile_ids\.push/);
 assert.match(simulation, /step_reclamation_piles\(ctx, &tick, &clock, reclamation_pile_ids\)/);

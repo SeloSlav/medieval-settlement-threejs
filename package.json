@@ -49,6 +49,7 @@
     "test:resource-locator": "npx tsx scripts/testResourceLocator.mts",
     "test:seasonal-producer-stores": "npx tsx scripts/testSeasonalProducerStores.mts",
     "test:physical-marketplace-specialties": "npx tsx scripts/testPhysicalMarketplaceSpecialties.mts",
+    "test:material-economy": "npx tsx scripts/testMaterialEconomy.mts",
     "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",
     "test:chapel-community": "npx tsx scripts/testChapelCommunity.mts",
     "test:household-economy": "npx tsx scripts/testHouseholdEconomy.mts",

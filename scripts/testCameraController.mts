@@ -176,6 +176,24 @@ function rmbPan(domElement: HTMLElement, fromX: number, fromY: number, toX: numb
 }
 
 {
+  const { controller, domElement } = createController();
+  for (let step = 0; step < 40; step += 1) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  }
+  assert.ok(
+    Math.abs(controller.getZoomPercent() - 30) < 1e-9,
+    'zooming out should stop at the current 30% overview',
+  );
+  const cappedDistance = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  assert.equal(
+    controller.getOrbitDistance(),
+    cappedDistance,
+    'additional wheel input must not move beyond the 30% overview',
+  );
+}
+
+{
   let viewChangeCount = 0;
   const { controller, target } = createController(() => {
     viewChangeCount += 1;

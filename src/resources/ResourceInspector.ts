@@ -7,9 +7,15 @@ import {
   computeResourceTotals,
   computeMarketplaceTradeAvailability,
   maxAssignableLabor,
+  type HudResourceKind,
   type PopulationStats,
   type ResourceTotals,
 } from './resourceTotals.ts';
+import {
+  readResourceTotalsPresentation,
+  saveResourceTotalsPresentation,
+  type ResourceTotalsPresentation,
+} from './resourceTotalsPresentation.ts';
 import { FARM_CROPS, type FarmCrop, type GameState, type InspectableTarget, type LivestockSpecies } from './types.ts';
 import type { WorldQueries } from './WorldQueries.ts';
 import { renderInspectableTarget } from './inspector/renderInspectableTarget.ts';
@@ -178,6 +184,12 @@ type ResourceInspectorOptions = {
   isBlocked: () => boolean;
 };
 
+const TOTAL_RESOURCE_TOOLTIPS: Partial<Record<HudResourceKind, string>> = {
+  timber: 'All timber stored at physical yards, mills, and depots, including stock committed to active construction and home projects. Material loaded on carts remains separate until unloading.',
+  stone: 'All stone stored at physical quarry yards and depots, including stock committed to active construction and home projects. Material loaded on carts remains separate until unloading.',
+  gold: 'All civic gold secured in the founders’ lockbox, reclamation chests, or Town Hall treasury, including coin committed to active home projects. Market working cash, company pay chests, and moving lockboxes remain separate.',
+};
+
 export class ResourceInspector {
   private readonly options: ResourceInspectorOptions;
   private readonly panel: HTMLElement;
@@ -194,6 +206,9 @@ export class ResourceInspector {
   private readonly stockpileRoot: HTMLElement;
   private readonly stockpileValues: Record<keyof ResourceTotals, HTMLElement>;
   private readonly stockpileTransitValues: Record<keyof ResourceTotals, HTMLElement>;
+  private readonly resourceTotalsModeButton: HTMLButtonElement;
+  private readonly resourceTotalsModeLabel: HTMLElement;
+  private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
   private readonly populationValue: HTMLElement;
   private readonly housingValue: HTMLElement;
   private readonly housingSub: HTMLElement;
@@ -214,6 +229,13 @@ export class ResourceInspector {
   private renderedIdentity = '';
   private selectedX = 0;
   private selectedZ = 0;
+  private resourceTotalsPresentation: ResourceTotalsPresentation =
+    readResourceTotalsPresentation();
+  private surplusTotals: ResourceTotals | null = null;
+  private storedTotals: ResourceTotals | null = null;
+  private inTransitTotals: ResourceTotals | undefined;
+  private goldAwaitingCollection = 0;
+  private guardhousePayrollGold = 0;
   private populationStats: PopulationStats = {
     total: 0,
     assigned: 0,
@@ -296,6 +318,14 @@ export class ResourceInspector {
     this.detailDisclosure = detailDisclosure;
     this.detailDisclosureCount = this.mustElement(options.uiRoot, '[data-inspector-ledger-count]');
     this.stockpileRoot = this.mustElement(options.uiRoot, '[data-settlement-hud]');
+    this.resourceTotalsModeButton = this.mustButton(
+      options.uiRoot,
+      '[data-resource-totals-mode]',
+    );
+    this.resourceTotalsModeLabel = this.mustElement(
+      options.uiRoot,
+      '[data-resource-totals-mode-label]',
+    );
     this.stockpileValues = {
       timber: this.mustElement(options.uiRoot, '[data-stockpile="timber"]'),
       stone: this.mustElement(options.uiRoot, '[data-stockpile="stone"]'),
@@ -316,7 +346,18 @@ export class ResourceInspector {
       cloth: this.mustElement(options.uiRoot, '[data-stockpile="cloth"]'),
       ironwork: this.mustElement(options.uiRoot, '[data-stockpile="ironwork"]'),
       polearms: this.mustElement(options.uiRoot, '[data-stockpile="polearms"]'),
+      iron: this.mustElement(options.uiRoot, '[data-stockpile="iron"]'),
+      clay: this.mustElement(options.uiRoot, '[data-stockpile="clay"]'),
+      salt: this.mustElement(options.uiRoot, '[data-stockpile="salt"]'),
+      charcoal: this.mustElement(options.uiRoot, '[data-stockpile="charcoal"]'),
+      pottery: this.mustElement(options.uiRoot, '[data-stockpile="pottery"]'),
     };
+    for (const resource of HUD_RESOURCE_KINDS) {
+      const stat = this.stockpileValues[resource]
+        .closest<HTMLElement>('.settlement-hud__stat');
+      const tooltip = stat?.dataset.tooltip;
+      if (tooltip) this.surplusResourceTooltips.set(resource, tooltip);
+    }
     this.stockpileTransitValues = Object.fromEntries(
       HUD_RESOURCE_KINDS.map((resource) => [
         resource,
@@ -353,11 +394,53 @@ export class ResourceInspector {
     this.laborDecrease.addEventListener('click', this.onLaborDecrease);
     this.laborIncrease.addEventListener('click', this.onLaborIncrease);
     this.closeButton.addEventListener('click', this.onCloseClick);
+    this.resourceTotalsModeButton.addEventListener(
+      'click',
+      this.onResourceTotalsModeToggle,
+    );
+    this.syncResourceTotalsPresentation();
   }
 
   private readonly onCloseClick = (): void => {
     this.clearSelection(true);
   };
+
+  private readonly onResourceTotalsModeToggle = (): void => {
+    this.resourceTotalsPresentation =
+      this.resourceTotalsPresentation === 'surplus' ? 'total' : 'surplus';
+    saveResourceTotalsPresentation(this.resourceTotalsPresentation);
+    this.syncResourceTotalsPresentation();
+    this.renderHudResourceTotals();
+  };
+
+  private syncResourceTotalsPresentation(): void {
+    const showingTotal = this.resourceTotalsPresentation === 'total';
+    this.resourceTotalsModeButton.dataset.mode = this.resourceTotalsPresentation;
+    this.resourceTotalsModeButton.setAttribute('aria-pressed', String(showingTotal));
+    this.resourceTotalsModeButton.setAttribute(
+      'aria-label',
+      showingTotal
+        ? 'Showing total goods stored. Show surplus goods.'
+        : 'Showing surplus goods. Show total goods stored.',
+    );
+    this.resourceTotalsModeButton.dataset.tooltip = showingTotal
+      ? 'Showing all stored goods, including stock committed to active construction and home projects. Activate to show surplus goods.'
+      : 'Showing surplus goods: stored stock minus goods committed to active construction and home projects. Activate to show all stored goods.';
+    this.resourceTotalsModeLabel.textContent = showingTotal ? 'Total' : 'Surplus';
+    this.stockpileRoot.dataset.resourceTotalsPresentation =
+      this.resourceTotalsPresentation;
+
+    for (const resource of HUD_RESOURCE_KINDS) {
+      const stat = this.stockpileValues[resource]
+        .closest<HTMLElement>('.settlement-hud__stat');
+      if (!stat) continue;
+      const tooltip = showingTotal
+        ? TOTAL_RESOURCE_TOOLTIPS[resource]
+          ?? this.surplusResourceTooltips.get(resource)
+        : this.surplusResourceTooltips.get(resource);
+      if (tooltip) stat.dataset.tooltip = tooltip;
+    }
+  }
 
   private readonly onDemolishPrimaryClick = (): void => {
     if (!this.selectedTarget) return;
@@ -875,13 +958,40 @@ export class ResourceInspector {
   };
 
   setHud(
-    totals: ResourceTotals,
+    surplusTotals: ResourceTotals,
+    storedTotals: ResourceTotals,
     population: PopulationStats,
     inTransit?: ResourceTotals,
     goldAwaitingCollection = 0,
     guardhousePayrollGold = 0,
   ): void {
     this.populationStats = population;
+    this.surplusTotals = surplusTotals;
+    this.storedTotals = storedTotals;
+    this.inTransitTotals = inTransit;
+    this.goldAwaitingCollection = goldAwaitingCollection;
+    this.guardhousePayrollGold = guardhousePayrollGold;
+    this.renderHudResourceTotals();
+    this.populationValue.textContent = population.total.toString();
+    this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;
+    this.housingSub.textContent = population.vacant === 1
+      ? '1 vacant'
+      : `${population.vacant} vacant`;
+    this.laborValue.textContent = population.available.toString();
+    const laborSub = this.stockpileRoot.querySelector<HTMLElement>('[data-stockpile="labor-sub"]');
+    if (laborSub) {
+      laborSub.textContent = population.assigned > 0
+        ? `${population.assigned} assigned`
+        : 'available';
+    }
+  }
+
+  private renderHudResourceTotals(): void {
+    const totals = this.resourceTotalsPresentation === 'total'
+      ? this.storedTotals
+      : this.surplusTotals;
+    if (!totals) return;
+
     this.stockpileValues.timber.textContent = Math.round(totals.timber).toString();
     this.stockpileValues.stone.textContent = Math.round(totals.stone).toString();
     this.stockpileValues.firewood.textContent = Math.round(totals.firewood).toString();
@@ -901,15 +1011,20 @@ export class ResourceInspector {
     this.stockpileValues.cloth.textContent = Math.round(totals.cloth).toString();
     this.stockpileValues.ironwork.textContent = Math.round(totals.ironwork).toString();
     this.stockpileValues.polearms.textContent = Math.round(totals.polearms).toString();
+    this.stockpileValues.iron.textContent = Math.round(totals.iron).toString();
+    this.stockpileValues.clay.textContent = Math.round(totals.clay).toString();
+    this.stockpileValues.salt.textContent = Math.round(totals.salt).toString();
+    this.stockpileValues.charcoal.textContent = Math.round(totals.charcoal).toString();
+    this.stockpileValues.pottery.textContent = Math.round(totals.pottery).toString();
     for (const resource of HUD_RESOURCE_KINDS) {
       const transit = this.stockpileTransitValues[resource];
-      const amount = Math.max(0, inTransit?.[resource] ?? 0);
+      const amount = Math.max(0, this.inTransitTotals?.[resource] ?? 0);
       const details = [];
-      if (resource === 'gold' && goldAwaitingCollection > 1e-6) {
-        details.push(`+${formatTransitAmount(goldAwaitingCollection)} awaiting collection`);
+      if (resource === 'gold' && this.goldAwaitingCollection > 1e-6) {
+        details.push(`+${formatTransitAmount(this.goldAwaitingCollection)} awaiting collection`);
       }
-      if (resource === 'gold' && guardhousePayrollGold > 1e-6) {
-        details.push(`${formatTransitAmount(guardhousePayrollGold)} in company pay chests`);
+      if (resource === 'gold' && this.guardhousePayrollGold > 1e-6) {
+        details.push(`${formatTransitAmount(this.guardhousePayrollGold)} in company pay chests`);
       }
       if (amount > 1e-6) {
         details.push(`+${formatTransitAmount(amount)} en route`);
@@ -937,9 +1052,14 @@ export class ResourceInspector {
       'cloth',
       'ironwork',
       'polearms',
+      'iron',
+      'clay',
+      'salt',
+      'charcoal',
+      'pottery',
     ] as const;
     const stockedSpecialties = specialtyResources.filter((resource) =>
-      totals[resource] > 1e-6 || (inTransit?.[resource] ?? 0) > 1e-6);
+      totals[resource] > 1e-6 || (this.inTransitTotals?.[resource] ?? 0) > 1e-6);
     const specialtyStore = this.stockpileRoot.querySelector<HTMLElement>(
       '[data-specialty-stores]',
     );
@@ -959,18 +1079,6 @@ export class ResourceInspector {
         : `${stockedSpecialties.length} ${stockedSpecialties.length === 1 ? 'stock' : 'stocks'} active`;
       specialtyStoreSummary.dataset.tooltip = `${storeDescription}. Open specialty stores and provisions.`;
       specialtyStoreSummary.setAttribute('aria-label', `Stores and provisions, ${storeDescription.toLowerCase()}`);
-    }
-    this.populationValue.textContent = population.total.toString();
-    this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;
-    this.housingSub.textContent = population.vacant === 1
-      ? '1 vacant'
-      : `${population.vacant} vacant`;
-    this.laborValue.textContent = population.available.toString();
-    const laborSub = this.stockpileRoot.querySelector<HTMLElement>('[data-stockpile="labor-sub"]');
-    if (laborSub) {
-      laborSub.textContent = population.assigned > 0
-        ? `${population.assigned} assigned`
-        : 'available';
     }
   }
 
@@ -1065,6 +1173,10 @@ export class ResourceInspector {
     this.laborDecrease.removeEventListener('click', this.onLaborDecrease);
     this.laborIncrease.removeEventListener('click', this.onLaborIncrease);
     this.closeButton.removeEventListener('click', this.onCloseClick);
+    this.resourceTotalsModeButton.removeEventListener(
+      'click',
+      this.onResourceTotalsModeToggle,
+    );
     this.options.sceneManager.selectionGroup.remove(this.marker);
     disposeObject3D(this.marker);
     this.panel.remove();

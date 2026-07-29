@@ -7,6 +7,9 @@ import {
   BREWERY_MALT_PER_CYCLE,
   BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   BREWERY_MALTING_WATER_PER_CYCLE,
+  CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
+  CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+  CLAY_PIT_CLAY_PER_CYCLE,
   GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_FLOUR_PER_CYCLE,
   GRANARY_FOOD_PER_CYCLE,
@@ -16,7 +19,15 @@ import {
   MONASTERY_UNLINKED_PRODUCTIVITY,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
+  SMOKEHOUSE_POTTERY_PER_CYCLE,
   SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+  SMOKEHOUSE_SALT_PER_CYCLE,
+  SMITHY_CHARCOAL_PER_CYCLE,
+  SMITHY_IRON_PER_CYCLE,
+  SMITHY_IRONWORK_PER_CYCLE,
+  POTTER_CLAY_PER_CYCLE,
+  POTTER_FIREWOOD_PER_CYCLE,
+  POTTER_POTTERY_PER_CYCLE,
   WATERMILL_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
@@ -61,7 +72,27 @@ export type BuildingProcessorStatus = {
   waterDetailHtml: string;
 };
 
-type StockKey = 'timber' | 'firewood' | 'stone' | 'water' | 'food' | 'grain' | 'barley' | 'malt' | 'flour' | 'ale' | 'preservedFood' | 'wool' | 'flax' | 'cloth';
+type StockKey =
+  | 'timber'
+  | 'firewood'
+  | 'stone'
+  | 'water'
+  | 'food'
+  | 'grain'
+  | 'barley'
+  | 'malt'
+  | 'flour'
+  | 'ale'
+  | 'preservedFood'
+  | 'wool'
+  | 'flax'
+  | 'cloth'
+  | 'iron'
+  | 'clay'
+  | 'salt'
+  | 'charcoal'
+  | 'pottery'
+  | 'ironwork';
 
 type InputRequirement = {
   key: StockKey;
@@ -99,6 +130,8 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     inputs: [
       { key: 'food', label: 'food', required: SMOKEHOUSE_FOOD_PER_CYCLE, deliveryHint: 'granary deliveries may supply' },
       { key: 'firewood', label: 'firewood', required: SMOKEHOUSE_FIREWOOD_PER_CYCLE, deliveryHint: 'lodge deliveries may supply' },
+      { key: 'salt', label: 'salt', required: SMOKEHOUSE_SALT_PER_CYCLE, deliveryHint: 'market caravans must import it' },
+      { key: 'pottery', label: 'pottery', required: SMOKEHOUSE_POTTERY_PER_CYCLE, deliveryHint: 'potter deliveries may supply vessels' },
     ],
     output: 'preservedFood',
     outputPerCycle: SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
@@ -115,6 +148,75 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     outputPerCycle: WATERMILL_FLOUR_PER_CYCLE,
     operatingLabel: 'Milling grain into flour',
     idleNoWorkersLabel: 'Idle — assign workers to run the mill',
+  },
+  clay_pit: {
+    requiresLabor: true,
+    waterPerCycle: 0,
+    inputs: [],
+    output: 'clay',
+    outputPerCycle: CLAY_PIT_CLAY_PER_CYCLE,
+    operatingLabel: 'Digging and tempering riverbank clay',
+    idleNoWorkersLabel: 'Idle - assign workers to dig clay',
+  },
+  charcoal_burner: {
+    requiresLabor: true,
+    waterPerCycle: 0,
+    inputs: [
+      {
+        key: 'firewood',
+        label: 'firewood',
+        required: CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+        deliveryHint: 'lodge or storehouse deliveries may supply',
+      },
+    ],
+    output: 'charcoal',
+    outputPerCycle: CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
+    operatingLabel: 'Tending the covered charcoal clamp',
+    idleNoWorkersLabel: 'Idle - assign charcoal burners',
+  },
+  smithy: {
+    requiresLabor: true,
+    waterPerCycle: 0,
+    inputs: [
+      {
+        key: 'iron',
+        label: 'regional iron',
+        required: SMITHY_IRON_PER_CYCLE,
+        deliveryHint: 'a staffed marketplace must import bars or blooms',
+      },
+      {
+        key: 'charcoal',
+        label: 'charcoal',
+        required: SMITHY_CHARCOAL_PER_CYCLE,
+        deliveryHint: "a charcoal burner's yard supplies forge fuel",
+      },
+    ],
+    output: 'ironwork',
+    outputPerCycle: SMITHY_IRONWORK_PER_CYCLE,
+    operatingLabel: 'Forging iron heads, nails, hinges, and fittings',
+    idleNoWorkersLabel: 'Idle - assign blacksmiths',
+  },
+  potter_kiln: {
+    requiresLabor: true,
+    waterPerCycle: 0,
+    inputs: [
+      {
+        key: 'clay',
+        label: 'clay',
+        required: POTTER_CLAY_PER_CYCLE,
+        deliveryHint: 'riverbank pit deliveries may supply',
+      },
+      {
+        key: 'firewood',
+        label: 'firewood',
+        required: POTTER_FIREWOOD_PER_CYCLE,
+        deliveryHint: 'lodge or storehouse deliveries may supply',
+      },
+    ],
+    output: 'pottery',
+    outputPerCycle: POTTER_POTTERY_PER_CYCLE,
+    operatingLabel: 'Firing household and preserving vessels',
+    idleNoWorkersLabel: 'Idle - assign potters',
   },
 };
 

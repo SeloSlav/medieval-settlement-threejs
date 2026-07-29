@@ -8,12 +8,12 @@ use crate::world_entities::{clear_global_world_entities, has_global_world_entiti
 const MAP_SIZE_SMALL: u8 = 0;
 const MAP_SIZE_MEDIUM: u8 = 1;
 const MAP_SIZE_LARGE: u8 = 2;
-const VALID_GAME_SPEEDS: [u8; 5] = [0, 1, 5, 20, 120];
+const VALID_GAME_SPEEDS: [u8; 4] = [0, 1, 4, 8];
 
 #[reducer]
 pub fn set_game_speed(ctx: &ReducerContext, speed: u8) -> Result<(), String> {
     if !VALID_GAME_SPEEDS.contains(&speed) {
-        return Err("speed must be 0 (paused), 1, 5, 20, or 120".into());
+        return Err("speed must be 0 (paused), 1, 4, or 8".into());
     }
     let config = ctx
         .db

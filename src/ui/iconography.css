@@ -220,6 +220,35 @@
 .settlement-hud__stat[data-resource='ironwork']::before { background-position: 0 100%; }
 .settlement-hud__stat[data-resource='polearms']::before { background-position: 100% 100%; }
 
+.settlement-hud__stat[data-resource='iron']::before,
+.settlement-hud__stat[data-resource='clay']::before,
+.settlement-hud__stat[data-resource='salt']::before,
+.settlement-hud__stat[data-resource='charcoal']::before,
+.settlement-hud__stat[data-resource='pottery']::before {
+  background-position: center;
+  background-size: contain;
+}
+
+.settlement-hud__stat[data-resource='iron']::before {
+  background-image: url('/assets/ui/icons/materials/iron.png');
+}
+
+.settlement-hud__stat[data-resource='clay']::before {
+  background-image: url('/assets/ui/icons/materials/clay.png');
+}
+
+.settlement-hud__stat[data-resource='salt']::before {
+  background-image: url('/assets/ui/icons/materials/salt.png');
+}
+
+.settlement-hud__stat[data-resource='charcoal']::before {
+  background-image: url('/assets/ui/icons/materials/charcoal.png');
+}
+
+.settlement-hud__stat[data-resource='pottery']::before {
+  background-image: url('/assets/ui/icons/materials/pottery.png');
+}
+
 .settlement-hud__stat[data-resource]:hover::before,
 .settlement-hud__stat[data-resource]:focus-visible::before {
   filter:

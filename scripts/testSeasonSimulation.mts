@@ -20,6 +20,7 @@ import {
   gameSpeedLabel,
   hotkeyForGameSpeed,
   normalizeGameSpeed,
+  worldAnimationDelta,
 } from '../src/world/gameSpeed.ts';
 import {
   describeEnvironment,
@@ -32,7 +33,7 @@ import {
 import { GAME_CONTROL_SECTIONS } from '../src/ui/gameControlsReference.ts';
 
 assert.equal(CALENDAR_SECONDS_PER_DAY, 120);
-assert.equal(CALENDAR_DAYS_PER_MONTH, 10);
+assert.equal(CALENDAR_DAYS_PER_MONTH, 30);
 assert.equal(CALENDAR_MONTHS_PER_YEAR, 12);
 
 const start = gameClock(0);
@@ -47,37 +48,42 @@ assert.equal(seasonForMonth(9), 'autumn');
 assert.equal(seasonForMonth(12), 'winter');
 assert.equal(WINTER_FIREWOOD_DEMAND_MULTIPLIER, 2);
 
-assert.deepEqual(GAME_SPEEDS, [0, 1, 5, 20, 120]);
-assert.deepEqual(PLAYER_GAME_SPEEDS, [1, 5, 20, 120]);
-assert.deepEqual(PLAYER_GAME_SPEED_HOTKEYS, ['1', '2', '3', '4']);
+assert.deepEqual(GAME_SPEEDS, [0, 1, 4, 8]);
+assert.deepEqual(PLAYER_GAME_SPEEDS, [1, 4, 8]);
+assert.deepEqual(PLAYER_GAME_SPEED_HOTKEYS, ['1', '2', '3']);
+assert.equal(gameSpeedForHotkey(' '), 0);
 assert.equal(gameSpeedForHotkey('1'), 1);
-assert.equal(gameSpeedForHotkey('2'), 5);
-assert.equal(gameSpeedForHotkey('3'), 20);
-assert.equal(gameSpeedForHotkey('4'), 120);
+assert.equal(gameSpeedForHotkey('2'), 4);
+assert.equal(gameSpeedForHotkey('3'), 8);
+assert.equal(gameSpeedForHotkey('4'), null);
 assert.equal(gameSpeedForHotkey('0'), null);
 assert.equal(gameSpeedForHotkey('5'), null);
-assert.equal(hotkeyForGameSpeed(0), null);
+assert.equal(hotkeyForGameSpeed(0), 'Space');
 assert.equal(hotkeyForGameSpeed(1), '1');
-assert.equal(hotkeyForGameSpeed(5), '2');
-assert.equal(hotkeyForGameSpeed(20), '3');
-assert.equal(hotkeyForGameSpeed(120), '4');
+assert.equal(hotkeyForGameSpeed(4), '2');
+assert.equal(hotkeyForGameSpeed(8), '3');
 assert.deepEqual(
   GAME_CONTROL_SECTIONS.find((section) => section.title === 'Simulation speed')?.entries,
   [
-    { action: 'Scenic (1×)', keys: '1' },
-    { action: 'Normal (5×)', keys: '2' },
-    { action: 'Fast (20×)', keys: '3' },
-    { action: 'Ultra (120×)', keys: '4' },
+    { action: 'Pause', keys: 'Space' },
+    { action: 'Normal (1×)', keys: '1' },
+    { action: 'Fast (4×)', keys: '2' },
+    { action: 'Fastest (8×)', keys: '3' },
   ],
 );
 assert.equal(normalizeGameSpeed(99), 1);
-assert.equal(normalizeGameSpeed(4), 5);
-assert.equal(normalizeGameSpeed(12), 20);
-assert.equal(gameSpeedLabel(0), 'Paused');
-assert.equal(gameSpeedLabel(1), 'Scenic');
-assert.equal(gameSpeedLabel(5), 'Normal');
-assert.equal(gameSpeedLabel(20), 'Fast');
-assert.equal(gameSpeedLabel(120), 'Ultra');
+assert.equal(normalizeGameSpeed(4), 4);
+assert.equal(normalizeGameSpeed(5), 4);
+assert.equal(normalizeGameSpeed(12), 8);
+assert.equal(normalizeGameSpeed(20), 8);
+assert.equal(normalizeGameSpeed(120), 8);
+assert.equal(gameSpeedLabel(0), 'Pause');
+assert.equal(gameSpeedLabel(1), 'Normal');
+assert.equal(gameSpeedLabel(4), 'Fast');
+assert.equal(gameSpeedLabel(8), 'Fastest');
+assert.equal(worldAnimationDelta(0.05, 0), 0);
+assert.equal(worldAnimationDelta(0.05, 1), 0.05);
+assert.equal(worldAnimationDelta(-1, 8), 0);
 
 const dayTicks = CALENDAR_SECONDS_PER_DAY / 0.2;
 const springClock = gameClock(2 * dayTicks);
@@ -176,7 +182,7 @@ const openingMarchSnow = snowCoverageForClock(
   gameClock(CALENDAR_DAYS_PER_MONTH * 12 * dayTicks),
 );
 const lateMarchSnow = snowCoverageForClock(
-  gameClock((CALENDAR_DAYS_PER_MONTH * 12 + 9) * dayTicks),
+  gameClock((CALENDAR_DAYS_PER_MONTH * 13 - 1) * dayTicks),
 );
 assert.equal(openingMarchSnow, 0);
 assert.equal(lateMarchSnow, 0);
@@ -214,28 +220,70 @@ const townHallSource = readFileSync(
   'src/resources/inspector/townHallRenderer.ts',
   'utf8',
 );
+const appSource = readFileSync('src/app/App.ts', 'utf8');
+const serverSimulationSource = readFileSync('server/src/reducers/simulation.rs', 'utf8');
+const sceneManagerSource = readFileSync('src/scene/SceneManager.ts', 'utf8');
+const riverWaterMaterialSource = readFileSync('src/rivers/RiverWaterMaterial.ts', 'utf8');
+const grassWindSource = readFileSync(
+  'src/vegetation/seedthree/seedThreeGrass.ts',
+  'utf8',
+);
+const foliageWindSource = readFileSync(
+  'src/vegetation/seedthree/seedThreeFoliageWind.ts',
+  'utf8',
+);
 assert.match(settlementHudSource, /describeNextDayEnvironmentOutlook/);
+assert.match(settlementHudSource, /GAME_SPEEDS\.map/);
 assert.match(townHallSource, /Next dawn outlook/);
+assert.match(appSource, /worldAnimationDelta\([\s\S]*?sceneManager\?\.render\(worldDt/);
+assert.match(appSource, /tickSettlementWorld\([\s\S]*?worldDt,/);
+assert.match(sceneManagerSource, /setWorldAnimationTime\(this\.worldAnimationElapsedSeconds\)/);
+for (const shaderSource of [
+  riverWaterMaterialSource,
+  grassWindSource,
+  foliageWindSource,
+]) {
+  assert.match(
+    shaderSource,
+    /worldAnimationTime/,
+    'world shaders must use the pause-aware animation clock',
+  );
+  assert.doesNotMatch(
+    shaderSource,
+    /import\s*\{[\s\S]*?\btime\b[\s\S]*?\}\s*from\s*['"]three\/tsl['"]/,
+    'world shaders must not animate from wall-clock time',
+  );
+}
+assert.ok(
+  serverSimulationSource.indexOf('if config.game_speed == 0')
+    < serverSimulationSource.indexOf('materialize_all_physical_resource_ledgers(ctx)'),
+  'pause must return before any authoritative simulation migration or mutation',
+);
+assert.match(
+  serverSimulationSource,
+  /step_delivery_trips\([\s\S]*?heartbeat_sim_seconds[\s\S]*?step_live_raids\([\s\S]*?heartbeat_sim_seconds/,
+  'deliveries and live combat must use the same authoritative speed rate as the calendar',
+);
 
 const durations = {
-  scenic: {
-    dayMinutes: CALENDAR_SECONDS_PER_DAY / SIM_REALTIME_RATE / 60,
+  normal: {
+    daySeconds: CALENDAR_SECONDS_PER_DAY / SIM_REALTIME_RATE,
     monthMinutes: CALENDAR_SECONDS_PER_DAY * CALENDAR_DAYS_PER_MONTH / SIM_REALTIME_RATE / 60,
     yearMinutes: CALENDAR_SECONDS_PER_DAY * CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR / SIM_REALTIME_RATE / 60,
   },
-  fastYearMinutes:
-    CALENDAR_SECONDS_PER_DAY * CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR / SIM_REALTIME_RATE / 60 / 20,
-  ultraDaySeconds:
-    CALENDAR_SECONDS_PER_DAY / SIM_REALTIME_RATE / 120,
-  ultraYearMinutes:
-    CALENDAR_SECONDS_PER_DAY * CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR / SIM_REALTIME_RATE / 60 / 120,
+  fastMonthMinutes:
+    CALENDAR_SECONDS_PER_DAY * CALENDAR_DAYS_PER_MONTH / SIM_REALTIME_RATE / 60 / 4,
+  fastestDaySeconds:
+    CALENDAR_SECONDS_PER_DAY / SIM_REALTIME_RATE / 8,
+  fastestYearMinutes:
+    CALENDAR_SECONDS_PER_DAY * CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR / SIM_REALTIME_RATE / 60 / 8,
 };
-assert.ok(Math.abs(durations.scenic.dayMinutes - 60) < 1e-9);
-assert.ok(Math.abs(durations.scenic.monthMinutes - 600) < 1e-9);
-assert.ok(Math.abs(durations.scenic.yearMinutes - 7200) < 1e-9);
-assert.ok(Math.abs(durations.fastYearMinutes - 360) < 1e-9);
-assert.ok(Math.abs(durations.ultraDaySeconds - 30) < 1e-9);
-assert.ok(Math.abs(durations.ultraYearMinutes - 60) < 1e-9);
+assert.ok(Math.abs(durations.normal.daySeconds - 60) < 1e-9);
+assert.ok(Math.abs(durations.normal.monthMinutes - 30) < 1e-9);
+assert.ok(Math.abs(durations.normal.yearMinutes - 360) < 1e-9);
+assert.ok(Math.abs(durations.fastMonthMinutes - 7.5) < 1e-9);
+assert.ok(Math.abs(durations.fastestDaySeconds - 7.5) < 1e-9);
+assert.ok(Math.abs(durations.fastestYearMinutes - 45) < 1e-9);
 
 console.log(
   `season and simulation-speed tests passed (${outlookElapsedMs.toFixed(1)} ms for 100,000 outlooks)`,

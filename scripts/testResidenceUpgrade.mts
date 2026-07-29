@@ -28,6 +28,7 @@ import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
   computePopulationStats,
   computeResourceTotals,
+  computeStoredResourceTotals,
 } from '../src/resources/resourceTotals.ts';
 import {
   createInitialResidenceConstructionMesh,
@@ -289,6 +290,8 @@ const backyardState = emptyGameState(
 );
 assert.equal(computeResourceTotals(backyardState).timber, 96);
 assert.equal(computeResourceTotals(backyardState).stone, 78);
+assert.equal(computeStoredResourceTotals(backyardState).timber, 100);
+assert.equal(computeStoredResourceTotals(backyardState).stone, 80);
 assert.equal(computePopulationStats(backyardState).assigned, 1);
 
 const activeFireRepair = residence('active-fire-repair', 2, 0);
@@ -403,6 +406,15 @@ const committedTotals = computeResourceTotals(physicalState);
 assert.equal(committedTotals.timber, 95);
 assert.equal(committedTotals.stone, 76);
 assert.equal(committedTotals.gold, 17);
+assert.deepEqual(
+  {
+    timber: computeStoredResourceTotals(physicalState).timber,
+    stone: computeStoredResourceTotals(physicalState).stone,
+    gold: computeStoredResourceTotals(physicalState).gold,
+  },
+  { timber: 100, stone: 80, gold: 20 },
+  'total presentation should retain stock already committed to the active project',
+);
 assert.equal(computePopulationStats(physicalState).assigned, 2);
 
 const performanceStarted = performance.now();

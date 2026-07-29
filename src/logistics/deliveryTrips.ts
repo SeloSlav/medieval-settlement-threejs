@@ -28,6 +28,11 @@ export const DELIVERY_CARGO_KINDS = [
   'barley',
   'malt',
   'flax',
+  'iron',
+  'clay',
+  'salt',
+  'charcoal',
+  'pottery',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -185,6 +190,16 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'malt';
     case 18:
       return 'flax';
+    case 19:
+      return 'iron';
+    case 20:
+      return 'clay';
+    case 21:
+      return 'salt';
+    case 22:
+      return 'charcoal';
+    case 23:
+      return 'pottery';
     default:
       return null;
   }
@@ -256,6 +271,16 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Cloth';
     case 'gold':
       return 'Gold';
+    case 'iron':
+      return 'Iron bars';
+    case 'clay':
+      return 'River clay';
+    case 'salt':
+      return 'Sea salt';
+    case 'charcoal':
+      return 'Charcoal';
+    case 'pottery':
+      return 'Pottery';
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;
@@ -518,6 +543,16 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0x52697a;
     case 'gold':
       return 0xd4af37;
+    case 'iron':
+      return 0x4f5961;
+    case 'clay':
+      return 0x8e553d;
+    case 'salt':
+      return 0xe6e0cf;
+    case 'charcoal':
+      return 0x26292a;
+    case 'pottery':
+      return 0xa65e3b;
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;

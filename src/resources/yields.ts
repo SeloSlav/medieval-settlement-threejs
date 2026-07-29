@@ -66,6 +66,22 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} flax fibre`;
     case 'cloth':
       return `${Math.round(amount)} cloth`;
+    case 'ironwork':
+      return `${Math.round(amount)} ironwork`;
+    case 'polearms':
+      return `${Math.round(amount)} polearms`;
+    case 'iron':
+      return `${Math.round(amount)} iron`;
+    case 'clay':
+      return `${Math.round(amount)} clay`;
+    case 'salt':
+      return `${Math.round(amount)} salt`;
+    case 'charcoal':
+      return `${Math.round(amount)} charcoal`;
+    case 'pottery':
+      return `${Math.round(amount)} pottery`;
+    case 'gold':
+      return `${Math.round(amount)} gold`;
     default: {
       const unreachable: never = kind;
       return unreachable;

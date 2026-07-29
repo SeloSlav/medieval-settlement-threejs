@@ -79,7 +79,7 @@ const springAngle = computeSiderealAngle(
   21,
 );
 const summerAngle = computeSiderealAngle(
-  { month: 6, monthDay: 1, preciseCalendarDay: 50.5 },
+  { month: 6, monthDay: 1, preciseCalendarDay: 110.5 },
   21,
 );
 const seasonalRotation = positiveModulo(summerAngle - springAngle, Math.PI * 2);

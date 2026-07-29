@@ -99,6 +99,11 @@ export const Building = __t.object("Building", {
   flax: __t.f64(),
   guardhouseMusterWatchtowerId: __t.u64(),
   weaverInputPolicy: __t.u8(),
+  iron: __t.f64(),
+  clay: __t.f64(),
+  salt: __t.f64(),
+  charcoal: __t.f64(),
+  pottery: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -351,6 +356,11 @@ export const PlayerResources = __t.object("PlayerResources", {
   barley: __t.f64(),
   malt: __t.f64(),
   flax: __t.f64(),
+  iron: __t.f64(),
+  clay: __t.f64(),
+  salt: __t.f64(),
+  charcoal: __t.f64(),
+  pottery: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

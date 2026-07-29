@@ -15,6 +15,9 @@ pub enum ProcessorOutputKind {
     Ale,
     PreservedFood,
     Cloth,
+    Charcoal,
+    Ironwork,
+    Pottery,
 }
 
 pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
@@ -24,6 +27,9 @@ pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
         "brewery" => Some(ProcessorOutputKind::Ale),
         "smokehouse" => Some(ProcessorOutputKind::PreservedFood),
         "weaver" => Some(ProcessorOutputKind::Cloth),
+        "charcoal_burner" => Some(ProcessorOutputKind::Charcoal),
+        "smithy" => Some(ProcessorOutputKind::Ironwork),
+        "potter_kiln" => Some(ProcessorOutputKind::Pottery),
         _ => None,
     }
 }

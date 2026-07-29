@@ -18,6 +18,12 @@ import {
 import { createStoneQuarryMesh } from './meshes/stoneQuarryMesh.ts';
 import { createLargeQuarryMesh } from './meshes/largeQuarryMesh.ts';
 import {
+  createCharcoalBurnerMesh,
+  createClayPitMesh,
+  createPotterKilnMesh,
+  createSmithyMesh,
+} from './meshes/materialChainBuildingMeshes.ts';
+import {
   createApiaryMesh,
   createBreweryMesh,
   createCarpenterMesh,
@@ -58,6 +64,14 @@ export function createBuildingMesh(kind: BuildingKind): THREE.Group {
       return createStoneQuarryMesh();
     case 'large_quarry':
       return createLargeQuarryMesh();
+    case 'clay_pit':
+      return createClayPitMesh();
+    case 'charcoal_burner':
+      return createCharcoalBurnerMesh();
+    case 'smithy':
+      return createSmithyMesh();
+    case 'potter_kiln':
+      return createPotterKilnMesh();
     case 'well':
       return createWellMesh();
     case 'hunters_hall':

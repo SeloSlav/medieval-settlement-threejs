@@ -48,6 +48,11 @@ const CARGO_MATERIALS = {
   flax: createCargoMaterial('Dried flax stems', 0xc8ad69, 0.98),
   clothRed: createCargoMaterial('Madder-dyed cloth', 0x8f443d, 0.96),
   clothBlue: createCargoMaterial('Blue-grey woven cloth', 0x52697a, 0.96),
+  ironBloom: createCargoMaterial('Forged iron bloom', 0x42494d, 0.78, 0.42),
+  clay: createCargoMaterial('Wet river clay', 0x8d5139, 0.99),
+  saltCanvas: createCargoMaterial('Salt sack canvas', 0xd9d0b8, 0.98),
+  salt: createCargoMaterial('Coarse sea salt', 0xe7e1d2, 0.92),
+  charcoal: createCargoMaterial('Lump charcoal', 0x202324, 0.99),
 } as const;
 
 const CANOPY_PALETTES = [
@@ -137,6 +142,21 @@ function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
       break;
     case 'gold':
       addGoldLoad(group);
+      break;
+    case 'iron':
+      addIronLoad(group);
+      break;
+    case 'clay':
+      addClayLoad(group);
+      break;
+    case 'salt':
+      addSaltLoad(group);
+      break;
+    case 'charcoal':
+      addCharcoalLoad(group);
+      break;
+    case 'pottery':
+      addPotteryLoad(group);
       break;
     default: {
       const unreachable: never = kind;
@@ -494,6 +514,93 @@ function addWoolLoad(group: THREE.Group): void {
       new THREE.BoxGeometry(0.035, 0.52, 0.5),
       CARGO_MATERIALS.rope,
       new THREE.Vector3(x, 0.78, 0),
+    );
+  }
+}
+
+function addIronLoad(group: THREE.Group): void {
+  for (const [index, [x, y, z, yaw]] of ([
+    [-0.2, 0.62, -0.12, 0.08],
+    [0.15, 0.64, -0.06, -0.06],
+    [-0.12, 0.78, 0.12, -0.04],
+    [0.2, 0.8, 0.14, 0.07],
+  ] as const).entries()) {
+    addNamedMesh(
+      group,
+      `Imported iron bar ${index + 1}`,
+      new THREE.BoxGeometry(0.62, 0.1, 0.1),
+      CARGO_MATERIALS.ironBloom,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(0, yaw, 0),
+    );
+  }
+  addCrate(group, 'Imported iron bloom crate', new THREE.Vector3(0, 0.52, 0), 1);
+}
+
+function addClayLoad(group: THREE.Group): void {
+  for (const [index, [x, z]] of ([
+    [-0.22, -0.12],
+    [0.22, -0.1],
+    [-0.2, 0.18],
+    [0.2, 0.18],
+  ] as const).entries()) {
+    addBasket(group, `Clay basket ${index + 1}`, new THREE.Vector3(x, 0.6, z), 0.9);
+    addNamedMesh(
+      group,
+      `Clay basket load ${index + 1}`,
+      new THREE.SphereGeometry(0.17, 8, 5),
+      CARGO_MATERIALS.clay,
+      new THREE.Vector3(x, 0.74, z),
+      undefined,
+      new THREE.Vector3(1, 0.48, 1),
+    );
+  }
+}
+
+function addSaltLoad(group: THREE.Group): void {
+  addSack(group, 'Adriatic salt sack 1', new THREE.Vector3(-0.2, 0.7, 0), 1, CARGO_MATERIALS.saltCanvas);
+  addSack(group, 'Adriatic salt sack 2', new THREE.Vector3(0.2, 0.72, 0.04), 0.94, CARGO_MATERIALS.saltCanvas);
+  addNamedMesh(
+    group,
+    'Visible coarse salt',
+    new THREE.SphereGeometry(0.16, 8, 5),
+    CARGO_MATERIALS.salt,
+    new THREE.Vector3(0, 0.96, -0.08),
+    undefined,
+    new THREE.Vector3(1.2, 0.4, 0.9),
+  );
+}
+
+function addCharcoalLoad(group: THREE.Group): void {
+  for (const [index, [x, z, scale]] of ([
+    [-0.2, -0.08, 1],
+    [0.2, 0.02, 0.95],
+    [0, 0.16, 0.82],
+  ] as const).entries()) {
+    addSack(
+      group,
+      `Charcoal sack ${index + 1}`,
+      new THREE.Vector3(x, 0.68 + index * 0.1, z),
+      scale,
+      CARGO_MATERIALS.charcoal,
+    );
+  }
+}
+
+function addPotteryLoad(group: THREE.Group): void {
+  for (const [index, [x, y, z, scale]] of ([
+    [-0.22, 0.64, -0.1, 1],
+    [0.22, 0.64, -0.08, 1],
+    [-0.2, 0.82, 0.16, 0.9],
+    [0.2, 0.82, 0.16, 0.9],
+    [0, 0.96, 0, 0.78],
+  ] as const).entries()) {
+    addCrock(
+      group,
+      `Fired pottery vessel ${index + 1}`,
+      new THREE.Vector3(x, y, z),
+      scale,
+      CARGO_MATERIALS.terracotta,
     );
   }
 }

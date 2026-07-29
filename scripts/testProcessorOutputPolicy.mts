@@ -46,7 +46,16 @@ function processor(
 
 assert.deepEqual(
   PROCESSOR_OUTPUT_TARGET_KINDS,
-  ['watermill', 'granary', 'brewery', 'smokehouse', 'weaver'],
+  [
+    'watermill',
+    'granary',
+    'brewery',
+    'smokehouse',
+    'weaver',
+    'charcoal_burner',
+    'smithy',
+    'potter_kiln',
+  ],
 );
 assert.equal(normalizeProcessorOutputTargetPercent(undefined), 100);
 assert.equal(normalizeProcessorOutputTargetPercent(0), 100);
@@ -70,6 +79,9 @@ assert.equal(processorOutputCommodity('granary'), 'food');
 assert.equal(processorOutputCommodity('brewery'), 'ale');
 assert.equal(processorOutputCommodity('smokehouse'), 'preservedFood');
 assert.equal(processorOutputCommodity('weaver'), 'cloth');
+assert.equal(processorOutputCommodity('charcoal_burner'), 'charcoal');
+assert.equal(processorOutputCommodity('smithy'), 'ironwork');
+assert.equal(processorOutputCommodity('potter_kiln'), 'pottery');
 
 const mill = processor('mill', 'watermill', 25);
 assert.equal(processorOutputTargetForBuilding(mill), 65);

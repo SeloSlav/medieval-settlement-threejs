@@ -39,6 +39,7 @@ import {
 } from '../settlement/villagerPaths.ts';
 import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
+import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
 
 const DISPLAY_BLEND_RATE = 14;
 const DELIVERY_ROUTE_COLOR = 0xff5ea8;
@@ -173,7 +174,7 @@ export class DeliveryAgentRenderer {
         visual.travelSpeed,
         onRoadSurface,
         DELIVERY_ROAD_SPEED_MULTIPLIER,
-      ) * gameSpeed;
+      ) * gameSpeed * SIM_REALTIME_RATE;
       if (visual.phase !== 'unloading') {
         visual.displayProgress += effectiveTravelSpeed * dt;
         const maxLead = Math.max(0.6, effectiveTravelSpeed * 0.35);

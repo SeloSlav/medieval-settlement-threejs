@@ -29,8 +29,8 @@ assert.equal(full.supplyRatio, 1);
 assert.equal(full.pilgrimageGoldPerDay, 3.5);
 assert.equal(full.honeyRunwayDays, 95);
 assert.equal(full.wineRunwayDays, 94);
-assert.equal(full.honeyPerYear, 116);
-assert.equal(full.winePerYear, 75);
+assert.equal(full.honeyPerYear, 308);
+assert.equal(full.winePerYear, 195);
 assert.equal(full.feastFoodPerYear, 90);
 assert.equal(full.feastAlePerYear, 50);
 assert.equal(monasteryHospitalityStatusLabel(full), 'Fully provisioned');
@@ -89,8 +89,8 @@ assert.equal(BUILDING_STORAGE_CAPS.monastery.honey, 160);
 assert.equal(BUILDING_STORAGE_CAPS.monastery.wine, 120);
 assert.deepEqual(
   MONASTERY_FEASTS.map(({ month, monthDay }) => [month, monthDay]),
-  [[1, 2], [6, 10], [8, 5], [9, 5], [12, 9]],
-  'all five observances must map onto reachable dates in the ten-day calendar',
+  [[1, 6], [6, 29], [8, 15], [9, 14], [12, 25]],
+  'all five observances must map onto their familiar dates in the 30-day calendar',
 );
 assert.ok(
   MONASTERY_FEASTS.every(({ monthDay }) =>
@@ -121,7 +121,7 @@ assert.deepEqual(shortFeast, {
 
 const beforeSaintsPeterAndPaul = nextMonasteryFeast({
   month: 6,
-  monthDay: 10,
+  monthDay: 29,
   hour: 11,
   minute: 0,
 });
@@ -129,12 +129,12 @@ assert.equal(beforeSaintsPeterAndPaul.name, 'Saints Peter and Paul');
 assert.ok(Math.abs(beforeSaintsPeterAndPaul.daysUntil - 1 / 24) < 1e-9);
 const afterSaintsPeterAndPaul = nextMonasteryFeast({
   month: 6,
-  monthDay: 10,
+  monthDay: 29,
   hour: 12,
   minute: 0,
 });
 assert.equal(afterSaintsPeterAndPaul.name, 'Assumption');
-assert.equal(afterSaintsPeterAndPaul.daysUntil, 15);
+assert.equal(afterSaintsPeterAndPaul.daysUntil, 46);
 assert.equal(
   MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
   3.5,

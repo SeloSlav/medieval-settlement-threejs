@@ -25,7 +25,10 @@ import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { BridgeSamplingContext } from '../roads/RiverBridgeSpans.ts';
 import { getStillWaterSurfaceY } from '../rivers/RiverWaterLevel.ts';
 import { SkyCloudMesh } from '../sky/SkyCloudMesh.ts';
-import type { DayNightLightingState } from '../world/dayNightPresentation.ts';
+import {
+  FAIR_DAY_FOG_COLOR,
+  type DayNightLightingState,
+} from '../world/dayNightPresentation.ts';
 import { Terrain } from '../terrain/Terrain.ts';
 import { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
@@ -74,6 +77,7 @@ import { PrecipitationRenderer } from '../weather/PrecipitationRenderer.ts';
 import { precipitationProfile } from '../weather/precipitationPolicy.ts';
 import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import { markStartupCheckpoint } from '../app/startupDiagnostics.ts';
+import { setWorldAnimationTime } from './worldAnimationTime.ts';
 
 export type SceneLoadProgress = {
   label: string;
@@ -113,6 +117,7 @@ export class SceneManager {
   private ambientLight!: THREE.AmbientLight;
   private skyFillLight!: THREE.DirectionalLight;
   private skyAnimationTime = 0;
+  private worldAnimationElapsedSeconds = 0;
   private forestManager: ForestManager | null = null;
   private grassField: GrassBladeField | null = null;
   private berryPatchVisuals: BerryPatchVisuals | null = null;
@@ -176,7 +181,7 @@ export class SceneManager {
     this.materials = materials;
     this.scene = new THREE.Scene();
     this.scene.background = null;
-    this.scene.fog = new THREE.FogExp2(0xc5d4d8, 0.00072);
+    this.scene.fog = new THREE.FogExp2(FAIR_DAY_FOG_COLOR, 0.00072);
     // A slightly longer lens keeps the broad settlement readable while making
     // the layered Dinaric landscape feel less miniaturised.
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2600);
@@ -424,8 +429,8 @@ export class SceneManager {
           this.riverSystem.isGrassBlockedAt(x, z)
           || this.quarrySystem.isGrassBlockedAt(x, z)
           || (getActivePlacedBuildingLayout()?.isBlockedForGrass(x, z) ?? false),
-        useSeedThreeClumps: this.rendererBackend === 'webgpu',
         maxAnisotropy: this.maxAnisotropy,
+        rendererBackend: this.rendererBackend,
       });
       this.scene.add(this.grassField.group);
       // Draw reeds after grass so shoreline cattails stay visible at ground level.
@@ -549,7 +554,8 @@ export class SceneManager {
     firstPersonCrouching = false,
   ): void {
     if (this.vegetationBuildActive) return;
-    const elapsed = performance.now() * 0.001;
+    this.worldAnimationElapsedSeconds += Math.max(0, dt);
+    setWorldAnimationTime(this.worldAnimationElapsedSeconds);
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
     const viewShadowBounds = computeViewShadowBounds(
       this.camera,
@@ -585,7 +591,7 @@ export class SceneManager {
       this.sky.updateSiderealAngle(this.lastDayNightState.siderealAngle);
     }
     this.precipitation.update(dt, cameraDistance, firstPersonActive);
-    this.riverSystem.tick(dt, elapsed);
+    this.riverSystem.tick(dt, this.worldAnimationElapsedSeconds);
     if (firstPersonActive) {
       this.firstPersonDeerObserver.x = this.camera.position.x;
       this.firstPersonDeerObserver.z = this.camera.position.z;

@@ -1,5 +1,5 @@
 import {
-  PLAYER_GAME_SPEEDS,
+  GAME_SPEEDS,
   gameSpeedLabel,
   hotkeyForGameSpeed,
 } from '../world/gameSpeed.ts';
@@ -17,8 +17,8 @@ export type GameControlSection = {
 export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
   {
     title: 'Simulation speed',
-    entries: PLAYER_GAME_SPEEDS.map((speed) => ({
-      action: `${gameSpeedLabel(speed)} (${speed}×)`,
+    entries: GAME_SPEEDS.map((speed) => ({
+      action: speed === 0 ? gameSpeedLabel(speed) : `${gameSpeedLabel(speed)} (${speed}×)`,
       keys: hotkeyForGameSpeed(speed) ?? '',
     })),
   },

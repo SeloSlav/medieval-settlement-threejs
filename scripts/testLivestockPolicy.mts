@@ -189,12 +189,13 @@ assert.ok(
       - 3.5 * CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE * 7,
   ) < 1e-9,
 );
-assert.equal(summerPlan.haymakingDaysRemaining, 30);
-assert.ok(Math.abs(summerPlan.projectedHayStock - 176.4) < 1e-9);
+assert.equal(summerPlan.haymakingDaysRemaining, 90);
+assert.ok(Math.abs(summerPlan.projectedHayStock - 240) < 1e-9);
 assert.equal(summerPlan.winterHayNeed, 178.5);
-assert.ok(
-  Math.abs(summerPlan.winterGrainNeed - 2.1) < 1e-9,
-  'a balanced summer plan should leave only a small emergency-grain gap',
+assert.equal(
+  summerPlan.winterGrainNeed,
+  0,
+  'a full three-month haymaking season should cover the minimum winter reserve',
 );
 assert.equal(summerPlan.currentUnsupportedHeads, 1.5);
 

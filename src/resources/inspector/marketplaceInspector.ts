@@ -49,6 +49,9 @@ const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>([
   'food',
   'grain',
   'ironwork',
+  'iron',
+  'salt',
+  'pottery',
 ]);
 
 function formatLinkedHomeStatus(connectedHomes: number): string {

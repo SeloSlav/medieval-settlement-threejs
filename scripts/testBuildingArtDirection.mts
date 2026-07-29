@@ -64,6 +64,10 @@ const expectedLeanToRoofs = new Map<string, number>([
   ['smokehouse', 1],
   ['carpenter', 1],
   ['weaver', 1],
+  ['clay_pit', 1],
+  ['charcoal_burner', 1],
+  ['smithy', 1],
+  ['potter_kiln', 1],
 ]);
 const leanToRoofCounts = new Map<string, number>();
 for (const kind of BUILDING_KINDS) {

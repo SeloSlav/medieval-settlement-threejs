@@ -59,6 +59,7 @@ export class BackyardGardenMarkers {
   private plants: BackyardPlantCatalog | null = null;
   private chickenSource: BackyardChickenSource | null = null;
   private latestInput: ReplayableGardenSyncInput | null = null;
+  private animationElapsedSeconds = 0;
   private disposed = false;
 
   constructor(parent: THREE.Group, options: BackyardGardenMarkerOptions = {}) {
@@ -173,9 +174,9 @@ export class BackyardGardenMarkers {
 
   tick(dtSeconds: number, view?: CrowdViewState): void {
     const dt = Math.min(0.08, Math.max(0, dtSeconds));
-    const elapsedSeconds = performance.now() * 0.001;
+    this.animationElapsedSeconds += dt;
     for (const marker of this.meshes.values()) {
-      animateBackyardGardenMesh(marker, elapsedSeconds);
+      animateBackyardGardenMesh(marker, this.animationElapsedSeconds);
     }
     for (const [residenceId, visuals] of this.chickens) {
       const marker = this.meshes.get(residenceId);

@@ -209,12 +209,12 @@ assert.equal(
 gameSpeed = 1;
 villagers.tick(0.2);
 const scenicDistance = worker.simPathCursor - pausedCursor;
-gameSpeed = 5;
+gameSpeed = 4;
 villagers.tick(0.2);
 const normalDistance = worker.simPathCursor - pausedCursor - scenicDistance;
 assert.ok(
-  normalDistance > scenicDistance * 4,
-  'Normal speed should advance villagers about five times farther than Scenic speed',
+  normalDistance > scenicDistance * 3,
+  '4× speed should advance villagers about four times farther than 1× speed',
 );
 gameSpeed = 1;
 for (let step = 0; step < 600; step++) villagers.tick(0.05);

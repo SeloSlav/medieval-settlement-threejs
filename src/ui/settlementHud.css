@@ -311,6 +311,51 @@
   border-bottom: 1px solid rgba(211, 188, 137, 0.14);
 }
 
+.settlement-hud__totals-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 1px solid rgba(220, 202, 162, 0.18);
+  border-radius: 4px;
+  color: #c6b88f;
+  background: rgba(7, 9, 7, 0.25);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.settlement-hud__totals-mode:hover,
+.settlement-hud__totals-mode:focus-visible {
+  border-color: rgba(215, 180, 99, 0.62);
+  color: #ead49b;
+  outline: none;
+}
+
+.settlement-hud__totals-mode[aria-pressed='true'] {
+  border-color: rgba(206, 173, 97, 0.62);
+  color: #ead49b;
+  background: rgba(174, 127, 41, 0.12);
+}
+
+.settlement-hud__totals-mode-icon {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.settlement-hud__totals-mode-label {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .settlement-hud__body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

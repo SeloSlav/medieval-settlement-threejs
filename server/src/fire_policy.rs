@@ -51,7 +51,9 @@ pub fn building_base_flammability(kind: &str) -> f64 {
         // The Town Hall is this game's manor analogue; Manor Lords makes manors nonflammable.
         | "town_hall" | "well" | "marketplace" | "stone_quarry" | "large_quarry" => 0.0,
         "chapel" | "monastery" => 0.32,
-        "smokehouse" => 2.2,
+        "smokehouse" | "charcoal_burner" => 2.2,
+        "smithy" | "potter_kiln" => 1.8,
+        "clay_pit" => 0.15,
         "brewery" | "granary" => 1.45,
         "lumber_mill" | "woodcutters_lodge" | "reforester" | "carpenter" => 1.7,
         "threshing_barn" => 1.65,

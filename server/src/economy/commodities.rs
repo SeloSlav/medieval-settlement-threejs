@@ -25,6 +25,11 @@ pub enum CommodityKind {
     Barley,
     Malt,
     Flax,
+    Iron,
+    Clay,
+    Salt,
+    Charcoal,
+    Pottery,
 }
 
 impl CommodityKind {
@@ -49,6 +54,11 @@ impl CommodityKind {
             Self::Barley => 16,
             Self::Malt => 17,
             Self::Flax => 18,
+            Self::Iron => 19,
+            Self::Clay => 20,
+            Self::Salt => 21,
+            Self::Charcoal => 22,
+            Self::Pottery => 23,
         }
     }
 
@@ -73,6 +83,11 @@ impl CommodityKind {
             16 => Some(Self::Barley),
             17 => Some(Self::Malt),
             18 => Some(Self::Flax),
+            19 => Some(Self::Iron),
+            20 => Some(Self::Clay),
+            21 => Some(Self::Salt),
+            22 => Some(Self::Charcoal),
+            23 => Some(Self::Pottery),
             _ => None,
         }
     }
@@ -99,6 +114,11 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Barley => building.barley,
         CommodityKind::Malt => building.malt,
         CommodityKind::Flax => building.flax,
+        CommodityKind::Iron => building.iron,
+        CommodityKind::Clay => building.clay,
+        CommodityKind::Salt => building.salt,
+        CommodityKind::Charcoal => building.charcoal,
+        CommodityKind::Pottery => building.pottery,
     }
 }
 
@@ -142,6 +162,11 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Barley => def.storage_barley,
         CommodityKind::Malt => def.storage_malt,
         CommodityKind::Flax => def.storage_flax,
+        CommodityKind::Iron => def.storage_iron,
+        CommodityKind::Clay => def.storage_clay,
+        CommodityKind::Salt => def.storage_salt,
+        CommodityKind::Charcoal => def.storage_charcoal,
+        CommodityKind::Pottery => def.storage_pottery,
     }
 }
 
@@ -176,6 +201,11 @@ pub fn withdraw_building_commodity(
         CommodityKind::Barley => building.barley -= withdrawn,
         CommodityKind::Malt => building.malt -= withdrawn,
         CommodityKind::Flax => building.flax -= withdrawn,
+        CommodityKind::Iron => building.iron -= withdrawn,
+        CommodityKind::Clay => building.clay -= withdrawn,
+        CommodityKind::Salt => building.salt -= withdrawn,
+        CommodityKind::Charcoal => building.charcoal -= withdrawn,
+        CommodityKind::Pottery => building.pottery -= withdrawn,
     }
     withdrawn
 }
@@ -206,6 +236,11 @@ pub fn deposit_building_commodity(
         CommodityKind::Barley => building.barley += deposited,
         CommodityKind::Malt => building.malt += deposited,
         CommodityKind::Flax => building.flax += deposited,
+        CommodityKind::Iron => building.iron += deposited,
+        CommodityKind::Clay => building.clay += deposited,
+        CommodityKind::Salt => building.salt += deposited,
+        CommodityKind::Charcoal => building.charcoal += deposited,
+        CommodityKind::Pottery => building.pottery += deposited,
     }
     deposited
 }
@@ -246,6 +281,11 @@ pub fn credit_treasury_commodity(
         CommodityKind::Barley => treasury.barley += amount,
         CommodityKind::Malt => treasury.malt += amount,
         CommodityKind::Flax => treasury.flax += amount,
+        CommodityKind::Iron => treasury.iron += amount,
+        CommodityKind::Clay => treasury.clay += amount,
+        CommodityKind::Salt => treasury.salt += amount,
+        CommodityKind::Charcoal => treasury.charcoal += amount,
+        CommodityKind::Pottery => treasury.pottery += amount,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);

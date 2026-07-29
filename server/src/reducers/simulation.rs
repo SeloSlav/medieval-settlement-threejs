@@ -6,15 +6,16 @@ use crate::economy::step_regional_markets;
 use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
     materialize_all_physical_resource_ledgers, step_apiary, step_backyard_gardens, step_brewery,
-    step_carpenter, step_chapel_parish, step_chapels, step_construction_labor_stewards,
+    step_carpenter, step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit,
+    step_construction_labor_stewards,
     step_construction_sites, step_delivery_trips, step_ferry_landing, step_fires,
     step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_founding_sites,
     step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_market_orders,
     step_hunters_hall, step_large_quarry, step_live_raids, step_lumber_mill,
-    step_marketplace_caravans, step_monastery, step_pastoral_farmstead,
+    step_marketplace_caravans, step_monastery, step_pastoral_farmstead, step_potter_kiln,
     step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
     step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
-    step_settlement_security, step_smokehouse, step_stone_quarry, step_swineherd,
+    step_settlement_security, step_smokehouse, step_smithy, step_stone_quarry, step_swineherd,
     step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill, step_weaver,
     step_well, step_woodcutters_lodge, try_dispatch_guardhouse_payroll, SharedRoadNetworks,
     SimTickContext,
@@ -29,8 +30,14 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     if !config.configured {
         return;
     }
+    // Pause is a hard gameplay boundary: no clock, economy, migration,
+    // movement, combat, delivery, weather, or fire state may mutate.
+    if config.game_speed == 0 {
+        return;
+    }
     // A physical settlement never exposes the compatibility ledger as a
-    // spendable treasury. Migrate old balances even while time is paused.
+    // spendable treasury. Repair this save invariant only while simulation is
+    // running so Pause remains a true no-mutation boundary.
     materialize_all_physical_resource_ledgers(ctx);
     // A fresh world remains at its opening hour while the player surveys the
     // land. Placing the founders' camp creates the first building and starts
@@ -38,14 +45,11 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     if ctx.db.building().iter().next().is_none() && ctx.db.residence().iter().next().is_none() {
         return;
     }
-    if config.game_speed == 0 {
-        return;
-    }
     let speed = match config.game_speed {
-        1 | 5 | 20 | 120 => config.game_speed,
-        // Preserve the nearest intent for worlds saved with the old 1x / 4x / 12x controls.
-        4 => 5,
-        12 => 20,
+        1 | 4 | 8 => config.game_speed,
+        // Preserve the nearest intent for worlds saved with earlier controls.
+        5 => 4,
+        12 | 20 | 120 => 8,
         _ => 1,
     };
     let previous_credit = ctx
@@ -63,9 +67,11 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     let shared_road_networks = (has_delivery_trips || has_combat_agents || substeps > 0)
         .then(|| SimTickContext::load_road_networks(ctx));
 
-    // Delivery speeds are expressed in world metres per second. Advance them on
-    // every scheduler heartbeat so Scenic's deliberately sparse economy/calendar
-    // steps do not turn a 2.4 m/s cart into a 0.08 m/s cart.
+    let heartbeat_sim_seconds = TICK_DT * speed as f64 * f64::from(BASE_SPEED_NUMERATOR)
+        / f64::from(BASE_SPEED_DENOMINATOR);
+    // Delivery speeds are expressed in world metres per simulation second.
+    // Advance them on every scheduler heartbeat using the same authoritative
+    // rate as the calendar and economy.
     if has_delivery_trips {
         let delivery_clock = crate::simulation::game_clock(config.sim_tick);
         let delivery_tick = SimTickContext::with_road_networks(
@@ -74,7 +80,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
                 .expect("delivery trips require road networks")
                 .clone(),
         );
-        step_delivery_trips(ctx, &delivery_tick, &delivery_clock, TICK_DT * speed as f64);
+        step_delivery_trips(ctx, &delivery_tick, &delivery_clock, heartbeat_sim_seconds);
         // A cancelled or over-capacity return can leave a compatibility-row
         // remainder. Materialize it in this same transaction so construction
         // can never reserve an invisible balance between scheduler heartbeats.
@@ -88,7 +94,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
         config.sim_tick,
         config.seed,
         config.conflict_enabled,
-        TICK_DT * speed as f64,
+        heartbeat_sim_seconds,
         shared_road_networks.as_ref(),
     );
     if ctx.db.sim_pacing_state().id().find(&0).is_some() {
@@ -224,6 +230,10 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
                 village_storehouse_ids.push(building.id)
             }
             crate::building_defs::BuildingSimKind::ThreshingBarn
+            | crate::building_defs::BuildingSimKind::ClayPit
+            | crate::building_defs::BuildingSimKind::CharcoalBurner
+            | crate::building_defs::BuildingSimKind::Smithy
+            | crate::building_defs::BuildingSimKind::PotterKiln
             | crate::building_defs::BuildingSimKind::Monastery
             | crate::building_defs::BuildingSimKind::Brewery
             | crate::building_defs::BuildingSimKind::Smokehouse
@@ -374,6 +384,18 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             }
             crate::building_defs::BuildingSimKind::Swineherd => {
                 step_swineherd(ctx, &tick, &clock, environment, building)
+            }
+            crate::building_defs::BuildingSimKind::ClayPit => {
+                step_clay_pit(ctx, &tick, &clock, building)
+            }
+            crate::building_defs::BuildingSimKind::CharcoalBurner => {
+                step_charcoal_burner(ctx, &tick, &clock, building)
+            }
+            crate::building_defs::BuildingSimKind::Smithy => {
+                step_smithy(ctx, &tick, &clock, building)
+            }
+            crate::building_defs::BuildingSimKind::PotterKiln => {
+                step_potter_kiln(ctx, &tick, &clock, building)
             }
             _ => {}
         }

@@ -7,6 +7,9 @@ export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'brewery',
   'smokehouse',
   'weaver',
+  'charcoal_burner',
+  'smithy',
+  'potter_kiln',
 ] as const satisfies readonly BuildingKind[];
 
 export type ProcessorOutputTargetKind =
@@ -17,7 +20,10 @@ export type ProcessorOutputCommodity =
   | 'food'
   | 'ale'
   | 'preservedFood'
-  | 'cloth';
+  | 'cloth'
+  | 'charcoal'
+  | 'ironwork'
+  | 'pottery';
 
 export type ProcessorInputCommodity =
   | 'grain'
@@ -27,7 +33,12 @@ export type ProcessorInputCommodity =
   | 'firewood'
   | 'food'
   | 'wool'
-  | 'flax';
+  | 'flax'
+  | 'iron'
+  | 'clay'
+  | 'salt'
+  | 'charcoal'
+  | 'pottery';
 
 export const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT = 100;
 export const PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES = 3;
@@ -63,6 +74,9 @@ const OUTPUT_BY_KIND: Record<
   brewery: 'ale',
   smokehouse: 'preservedFood',
   weaver: 'cloth',
+  charcoal_burner: 'charcoal',
+  smithy: 'ironwork',
+  potter_kiln: 'pottery',
 };
 
 const INPUTS_BY_KIND: Record<
@@ -72,8 +86,11 @@ const INPUTS_BY_KIND: Record<
   watermill: ['grain'],
   granary: ['flour', 'water', 'firewood'],
   brewery: ['barley', 'water', 'firewood'],
-  smokehouse: ['food', 'firewood'],
+  smokehouse: ['food', 'firewood', 'salt', 'pottery'],
   weaver: ['wool', 'flax', 'water'],
+  charcoal_burner: ['firewood'],
+  smithy: ['iron', 'charcoal'],
+  potter_kiln: ['clay', 'firewood'],
 };
 
 export function isProcessorOutputTargetKind(

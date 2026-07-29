@@ -655,6 +655,11 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         flax: 0.0,
         guardhouse_muster_watchtower_id: 0,
         weaver_input_policy: 0,
+        iron: 0.0,
+        clay: 0.0,
+        salt: 0.0,
+        charcoal: 0.0,
+        pottery: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -801,6 +806,9 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
         ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
         ProcessorOutputKind::Cloth => Some(CommodityKind::Cloth),
+        ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),
+        ProcessorOutputKind::Ironwork => Some(CommodityKind::Ironwork),
+        ProcessorOutputKind::Pottery => Some(CommodityKind::Pottery),
     }
 }
 

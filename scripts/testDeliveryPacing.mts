@@ -28,16 +28,24 @@ assert.equal(
   'food handcarts should keep a believable base pace before game-speed scaling',
 );
 assert.ok(
-  Math.abs(FOOD_DELIVERY_SPEED_MPS * SIM_REALTIME_RATE - 0.05333333333333334) < 1e-12,
-  'the sparse Scenic economy cadence must not be applied directly to physical cart speed',
+  Math.abs(FOOD_DELIVERY_SPEED_MPS * SIM_REALTIME_RATE - 3.2) < 1e-12,
+  'physical cart speed should advance with the same base realtime rate as the calendar',
 );
 assert.equal(
   FOOD_PER_DELIVERY,
   6,
   'each food visit should replenish a meaningful share of household storage',
 );
-assert.equal(SIM_TICK_SECONDS * 1 * 5, 1, 'Scenic delivery heartbeats cover real elapsed time');
-assert.equal(SIM_TICK_SECONDS * 5 * 5, 5, 'Normal delivery heartbeats retain the 5x control');
+assert.equal(
+  SIM_TICK_SECONDS * 1 * SIM_REALTIME_RATE,
+  0.4,
+  '1× delivery heartbeats should use the base realtime rate',
+);
+assert.equal(
+  SIM_TICK_SECONDS * 4 * SIM_REALTIME_RATE,
+  1.6,
+  '4× delivery heartbeats should retain the selected speed multiplier',
+);
 
 assert.equal(deliveryLegRemainingMeters(150, 42, 'outbound'), 108);
 assert.equal(deliveryLegRemainingMeters(150, 42, 'inbound'), 108);
@@ -160,12 +168,12 @@ const simulationReducer = read('server/src/reducers/simulation.rs');
 const tickContext = read('server/src/simulation/tick_context.rs');
 assert.match(
   simulationReducer,
-  /step_delivery_trips\([\s\S]*?TICK_DT \* speed as f64[\s\S]*?\);/,
+  /step_delivery_trips\([\s\S]*?heartbeat_sim_seconds[\s\S]*?\);/,
   'authoritative deliveries must advance on each scheduler heartbeat at the selected game speed',
 );
 assert.match(
   simulationReducer,
-  /step_live_raids\([\s\S]*?TICK_DT \* speed as f64[\s\S]*?\);/,
+  /step_live_raids\([\s\S]*?heartbeat_sim_seconds[\s\S]*?\);/,
   'live combatants must share the cart heartbeat and selected movement speed',
 );
 const oneSimStep = simulationReducer.slice(simulationReducer.indexOf('fn run_one_sim_tick'));
@@ -354,4 +362,4 @@ assert.match(
   'the agent inspector should disclose when a returning cart is still visibly loaded',
 );
 
-console.log('delivery pacing checks passed (30 heartbeats: 20× graph builds 50→30; 120× 150→30)');
+console.log('delivery pacing checks passed');

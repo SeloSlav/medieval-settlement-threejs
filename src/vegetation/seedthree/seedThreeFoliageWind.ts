@@ -3,11 +3,11 @@ import {
   float,
   positionLocal,
   sin,
-  time,
   uv,
   vec3,
 } from 'three/tsl';
 import { windSpeed, windStrength } from '@seedthree/core/wind.js';
+import { worldAnimationTime } from '../../scene/worldAnimationTime.ts';
 
 type TslNode = {
   mul: (value: unknown) => TslNode;
@@ -22,7 +22,7 @@ const tsl = {
   float: float as (value: number) => TslNode,
   positionLocal: positionLocal as TslNode,
   sin: sin as (value: unknown) => TslNode,
-  time: time as TslNode,
+  time: worldAnimationTime as unknown as TslNode,
   uv: uv as () => TslNode,
   vec3: vec3 as (x: unknown, y: unknown, z: unknown) => TslNode,
   windSpeed: windSpeed as unknown as TslNode,

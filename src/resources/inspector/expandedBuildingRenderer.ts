@@ -106,15 +106,19 @@ import {
 } from '../../economy/weaverInputPolicy.ts';
 
 const PROCESS: Record<string, string> = {
+  clay_pit: 'Usable riverbank shore + labor -> wet clay for local potters',
+  charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
+  smithy: 'Imported regional iron + locally burned charcoal -> tools, fittings, and weapon heads',
+  potter_kiln: 'Riverbank clay + firewood -> vessels for preservation and market export',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + river power → flour',
   granary: 'Buffers grain for processors, bakes staple food, and shelters road-hauled fresh food',
   brewery: 'Barley + water + firewood → malt → ale',
-  smokehouse: 'Fresh food + firewood → preserved food',
+  smokehouse: 'Fresh food + firewood + imported salt + pottery vessels → preserved food',
   apiary: 'April-September forest forage → food, monastery hospitality, or export honey',
   vineyard: 'September-October grape harvest → food, monastery hospitality, or export wine',
   monastery: 'Tithes + food + hospitality stores → charity, feasts, pilgrimages',
-  carpenter: 'Timber + imported iron heads → polearms and cartwright support',
+  carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-3 households, then marketplace export',
   ferry_landing: 'River crossing → fares held at the landing → civic collection',
 };
@@ -130,6 +134,10 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'monastery',
   'carpenter',
   'weaver',
+  'clay_pit',
+  'charcoal_burner',
+  'smithy',
+  'potter_kiln',
 ]);
 
 const HOUSEHOLD_FOOD_DISTRIBUTORS = new Set<BuildingKind>([
@@ -173,6 +181,14 @@ function buildingHasOutboundStock(
       return (building.polearms ?? 0) > 0;
     case 'weaver':
       return (building.cloth ?? 0) > 0;
+    case 'clay_pit':
+      return (building.clay ?? 0) > 0;
+    case 'charcoal_burner':
+      return (building.charcoal ?? 0) > 0;
+    case 'smithy':
+      return (building.ironwork ?? 0) > 0;
+    case 'potter_kiln':
+      return (building.pottery ?? 0) > 0;
     default:
       return false;
   }
@@ -199,6 +215,14 @@ function outboundDestinationLabel(building: BuildingState): string {
       return 'Nearest road-linked guardhouse';
     case 'weaver':
       return 'Lowest-runway claimed tier-3 home, then road-linked export market';
+    case 'clay_pit':
+      return "Highest-priority road-linked potter's kiln below its working buffer";
+    case 'charcoal_burner':
+      return 'Highest-priority road-linked smithy below its forge-fuel buffer';
+    case 'smithy':
+      return 'Road-linked carpenter needing fittings';
+    case 'potter_kiln':
+      return 'Road-linked smokehouse first, then export marketplace';
     default:
       return 'Awaiting destination';
   }
@@ -215,6 +239,11 @@ function cargoPerTripLabel(building: BuildingState): string | null {
       return `${GRAIN_TRANSFER_PER_TRIP} per haul`;
     case 'weaver':
       return `2 cloth per household haul · ${TEXTILE_TRANSFER_PER_TRIP} per market haul`;
+    case 'clay_pit':
+    case 'charcoal_burner':
+    case 'smithy':
+    case 'potter_kiln':
+      return `${GRAIN_TRANSFER_PER_TRIP} per handcart`;
     case 'monastery':
       return `${MONASTERY_CHARITY_FOOD_PER_DELIVERY} food per charity haul`;
     default:
@@ -237,6 +266,14 @@ function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
       return ['guardhouse'];
     case 'weaver':
       return ['marketplace'];
+    case 'clay_pit':
+      return ['potter_kiln'];
+    case 'charcoal_burner':
+      return ['smithy'];
+    case 'smithy':
+      return ['carpenter'];
+    case 'potter_kiln':
+      return ['smokehouse', 'marketplace'];
     default:
       return [];
   }
@@ -673,7 +710,7 @@ export function renderExpandedBuildingInspector(
       : armory && armory.shortfall > 0 && building.timber < CARPENTER_TIMBER_PER_POLEARM
         ? { statusText: `Cart support active — polearms need ${CARPENTER_TIMBER_PER_POLEARM} timber each`, statusState: 'warning' as const }
         : armory && armory.shortfall > 0 && (building.ironwork ?? 0) < CARPENTER_IRONWORK_PER_POLEARM
-          ? { statusText: 'Cart support active — polearms await market-imported ironwork', statusState: 'warning' as const }
+          ? { statusText: 'Cart support active — polearms await smith-forged or emergency-imported ironwork', statusState: 'warning' as const }
           : armory && armory.shortfall <= 0
             ? {
                 statusText: `Cart support active — armory reserve ready (${armory.stock.toFixed(0)}/${armory.reserve})`,
@@ -890,7 +927,7 @@ export function renderExpandedBuildingInspector(
       <li><span>Cart travel</span><span>${Math.round((CARPENTER_DELIVERY_SPEED_MULTIPLIER - 1) * 100)}% faster from linked origins</span></li>
       <li><span>Support state</span><span>${building.assignedLabor > 0 ? 'Active across this road network' : 'Inactive — requires at least 1 craftsperson'}</span></li>
       ${armory ? `<li><span>Armory reserve</span><span>${armory.reserve <= 0 ? `${armory.stock.toFixed(0)} stored · production paused` : `${armory.stock.toFixed(0)} / ${armory.reserve} polearms`}</span></li>
-      <li><span>Inputs to target</span><span>${armory.shortfall <= 0 ? 'Reserve stocked' : `${armory.timberToTarget.toFixed(0)} timber · ${armory.ironworkToTarget.toFixed(0)} imported ironwork`}</span></li>
+      <li><span>Inputs to target</span><span>${armory.shortfall <= 0 ? 'Reserve stocked' : `${armory.timberToTarget.toFixed(0)} timber · ${armory.ironworkToTarget.toFixed(0)} smith-forged ironwork`}</span></li>
       <li><span>Company issue</span><span>One polearm per assigned guard · surplus remains here</span></li>` : ''}`
     : '';
   const frontierStockVisible = building.kind !== 'carpenter' || context.conflictEnabled === true;
@@ -899,7 +936,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} imported ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

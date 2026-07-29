@@ -19,6 +19,10 @@ import {
   setMusicEnabled,
   setMusicVolume,
 } from '../audio/audioPreferences.ts';
+import {
+  areResourceIconsAlwaysShown,
+  setResourceIconsAlwaysShown,
+} from '../map/resourceMapIconPreference.ts';
 
 type GameMenuOptions = {
   onShadowPreferenceChange: () => void;
@@ -40,6 +44,7 @@ export class GameMenu {
   private readonly treeShadowsCheckbox: HTMLInputElement;
   private readonly buildingShadowsCheckbox: HTMLInputElement;
   private readonly constellationGuidesCheckbox: HTMLInputElement;
+  private readonly resourceIconsCheckbox: HTMLInputElement;
   private readonly gameAudioCheckbox: HTMLInputElement;
   private readonly ambienceVolumeInput: HTMLInputElement;
   private readonly ambienceVolumeValue: HTMLOutputElement;
@@ -90,6 +95,10 @@ export class GameMenu {
         <label class="game-menu-option">
           <input type="checkbox" data-constellation-guides-checkbox />
           <span>Constellation guides</span>
+        </label>
+        <label class="game-menu-option">
+          <input type="checkbox" data-resource-icons-checkbox />
+          <span>Always show resource icons</span>
         </label>
         <label class="game-menu-option">
           <input type="checkbox" data-game-audio-checkbox />
@@ -158,6 +167,7 @@ export class GameMenu {
     this.treeShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-tree-shadows-checkbox]')!;
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
     this.constellationGuidesCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-constellation-guides-checkbox]')!;
+    this.resourceIconsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-resource-icons-checkbox]')!;
     this.gameAudioCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-game-audio-checkbox]')!;
     this.ambienceVolumeInput = this.backdrop.querySelector<HTMLInputElement>('[data-ambience-volume]')!;
     this.ambienceVolumeValue = this.backdrop.querySelector<HTMLOutputElement>('[data-ambience-volume-value]')!;
@@ -181,6 +191,7 @@ export class GameMenu {
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
+    this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();
     this.musicCheckbox.checked = isMusicEnabled();
     this.syncAmbienceVolume();
@@ -211,6 +222,9 @@ export class GameMenu {
     });
     this.constellationGuidesCheckbox.addEventListener('change', () => {
       setConstellationGuidesEnabled(this.constellationGuidesCheckbox.checked);
+    });
+    this.resourceIconsCheckbox.addEventListener('change', () => {
+      setResourceIconsAlwaysShown(this.resourceIconsCheckbox.checked);
     });
     this.gameAudioCheckbox.addEventListener('change', () => {
       setGameAudioEnabled(this.gameAudioCheckbox.checked);
@@ -288,6 +302,7 @@ export class GameMenu {
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
+    this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();
     this.musicCheckbox.checked = isMusicEnabled();
     this.syncAmbienceVolume();

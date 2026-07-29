@@ -22,7 +22,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 19] = [
+const RECOVERY_ORDER: [CommodityKind; 24] = [
     CommodityKind::Gold,
     CommodityKind::Food,
     CommodityKind::Grain,
@@ -35,6 +35,11 @@ const RECOVERY_ORDER: [CommodityKind; 19] = [
     CommodityKind::Wine,
     CommodityKind::Cloth,
     CommodityKind::Flax,
+    CommodityKind::Iron,
+    CommodityKind::Salt,
+    CommodityKind::Pottery,
+    CommodityKind::Charcoal,
+    CommodityKind::Clay,
     CommodityKind::Wool,
     CommodityKind::Ironwork,
     CommodityKind::Polearms,
@@ -65,6 +70,11 @@ pub struct ReclamationStock {
     pub barley: f64,
     pub malt: f64,
     pub flax: f64,
+    pub iron: f64,
+    pub clay: f64,
+    pub salt: f64,
+    pub charcoal: f64,
+    pub pottery: f64,
 }
 
 impl ReclamationStock {
@@ -147,6 +157,26 @@ impl ReclamationStock {
                 flax: amount,
                 ..Self::default()
             },
+            CommodityKind::Iron => Self {
+                iron: amount,
+                ..Self::default()
+            },
+            CommodityKind::Clay => Self {
+                clay: amount,
+                ..Self::default()
+            },
+            CommodityKind::Salt => Self {
+                salt: amount,
+                ..Self::default()
+            },
+            CommodityKind::Charcoal => Self {
+                charcoal: amount,
+                ..Self::default()
+            },
+            CommodityKind::Pottery => Self {
+                pottery: amount,
+                ..Self::default()
+            },
         }
     }
 
@@ -177,6 +207,11 @@ impl ReclamationStock {
             barley: resources.barley.max(0.0),
             malt: resources.malt.max(0.0),
             flax: resources.flax.max(0.0),
+            iron: resources.iron.max(0.0),
+            clay: resources.clay.max(0.0),
+            salt: resources.salt.max(0.0),
+            charcoal: resources.charcoal.max(0.0),
+            pottery: resources.pottery.max(0.0),
         }
     }
 
@@ -201,6 +236,11 @@ impl ReclamationStock {
             CommodityKind::Barley => self.barley,
             CommodityKind::Malt => self.malt,
             CommodityKind::Flax => self.flax,
+            CommodityKind::Iron => self.iron,
+            CommodityKind::Clay => self.clay,
+            CommodityKind::Salt => self.salt,
+            CommodityKind::Charcoal => self.charcoal,
+            CommodityKind::Pottery => self.pottery,
         }
     }
 
@@ -224,6 +264,11 @@ impl ReclamationStock {
         building.barley += self.barley;
         building.malt += self.malt;
         building.flax += self.flax;
+        building.iron += self.iron;
+        building.clay += self.clay;
+        building.salt += self.salt;
+        building.charcoal += self.charcoal;
+        building.pottery += self.pottery;
     }
 }
 
@@ -247,6 +292,11 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.barley = 0.0;
     resources.malt = 0.0;
     resources.flax = 0.0;
+    resources.iron = 0.0;
+    resources.clay = 0.0;
+    resources.salt = 0.0;
+    resources.charcoal = 0.0;
+    resources.pottery = 0.0;
 }
 
 fn recovery_pile_position_beside_building(
@@ -423,6 +473,11 @@ pub fn insert_reclamation_pile(
         flax: stock.flax.max(0.0),
         guardhouse_muster_watchtower_id: 0,
         weaver_input_policy: 0,
+        iron: stock.iron.max(0.0),
+        clay: stock.clay.max(0.0),
+        salt: stock.salt.max(0.0),
+        charcoal: stock.charcoal.max(0.0),
+        pottery: stock.pottery.max(0.0),
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id
@@ -772,6 +827,37 @@ pub(crate) fn reclamation_destination_priority(
             "weaver" => Some(1),
             "founders_camp" => Some(2),
             _ => Some(3),
+        },
+        CommodityKind::Iron => match kind {
+            "smithy" => Some(0),
+            "marketplace" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Clay => match kind {
+            "potter_kiln" => Some(0),
+            "clay_pit" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Salt => match kind {
+            "smokehouse" => Some(0),
+            "marketplace" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Charcoal => match kind {
+            "smithy" => Some(0),
+            "charcoal_burner" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Pottery => match kind {
+            "smokehouse" => Some(0),
+            "marketplace" => Some(1),
+            "potter_kiln" => Some(2),
+            "founders_camp" => Some(3),
+            _ => Some(4),
         },
         CommodityKind::Water => match kind {
             "well" => Some(0),

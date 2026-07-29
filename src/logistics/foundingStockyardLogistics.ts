@@ -158,6 +158,27 @@ function foundingDestinationPriority(
       if (building.kind === 'carpenter') return 0;
       if (building.kind === 'marketplace') return 1;
       return 3;
+    case 'iron':
+      if (building.kind === 'smithy') return 0;
+      if (building.kind === 'marketplace') return 1;
+      return 3;
+    case 'clay':
+      if (building.kind === 'potter_kiln') return 0;
+      if (building.kind === 'clay_pit') return 1;
+      return 3;
+    case 'salt':
+      if (building.kind === 'smokehouse') return 0;
+      if (building.kind === 'marketplace') return 1;
+      return 3;
+    case 'charcoal':
+      if (building.kind === 'smithy') return 0;
+      if (building.kind === 'charcoal_burner') return 1;
+      return 3;
+    case 'pottery':
+      if (building.kind === 'smokehouse') return 0;
+      if (building.kind === 'marketplace') return 1;
+      if (building.kind === 'potter_kiln') return 2;
+      return 3;
     case 'polearms':
       if (building.kind === 'guardhouse') return 0;
       if (building.kind === 'carpenter') return 1;

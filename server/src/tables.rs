@@ -15,7 +15,7 @@ pub struct WorldConfig {
     pub seed: u64,
     pub next_building_id: u64,
     pub sim_tick: u64,
-    /// Authoritative whole-simulation multiplier: 0 (paused), 1, 5, 20, or 120.
+    /// Authoritative whole-simulation multiplier: 0 (paused), 1, 4, or 8.
     #[default(1)]
     pub game_speed: u8,
     /// 0 = small, 1 = medium, 2 = large
@@ -171,6 +171,21 @@ pub struct PlayerResources {
     /// demolished stores. New harvests remain physically distinct from fleece.
     #[default(0.0)]
     pub flax: f64,
+    /// Regional iron blooms and bars awaiting local smithing.
+    #[default(0.0)]
+    pub iron: f64,
+    /// Riverbank clay awaiting firing.
+    #[default(0.0)]
+    pub clay: f64,
+    /// Imported Adriatic salt held for curing and trade.
+    #[default(0.0)]
+    pub salt: f64,
+    /// Locally burned charcoal reserved for high-temperature craft.
+    #[default(0.0)]
+    pub charcoal: f64,
+    /// Fired household and preserving vessels.
+    #[default(0.0)]
+    pub pottery: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -422,6 +437,21 @@ pub struct Building {
     /// not idle. Ignored by other building kinds.
     #[default(0u8)]
     pub weaver_input_policy: u8,
+    /// Imported regional blooms and bars, never locally mined in this period.
+    #[default(0.0)]
+    pub iron: f64,
+    /// Wet riverbank clay held at extraction and pottery yards.
+    #[default(0.0)]
+    pub clay: f64,
+    /// Adriatic sea salt delivered through the marketplace.
+    #[default(0.0)]
+    pub salt: f64,
+    /// Firewood converted in a covered clamp for smithing fuel.
+    #[default(0.0)]
+    pub charcoal: f64,
+    /// Fired ceramic vessels used by smokehouses and sold at market.
+    #[default(0.0)]
+    pub pottery: f64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

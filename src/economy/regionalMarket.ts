@@ -47,13 +47,17 @@ export function priceMultiplierFor(
       return state.timberPriceMult;
     case 'stone':
     case 'ironwork':
+    case 'iron':
       return state.stonePriceMult;
     case 'firewood':
       return state.firewoodPriceMult;
     case 'food':
     case 'grain':
     case 'barley':
+    case 'salt':
       return state.foodPriceMult;
+    case 'pottery':
+      return state.specialtyPriceMult;
     default: {
       const unhandled: never = resource;
       return unhandled;
@@ -101,8 +105,10 @@ export function formatRegionalRateSummary(state: RegionalMarketState): string {
   const rates: Array<[string, TradeResourceKind]> = [
     ['Timber', 'timber'],
     ['Stone', 'stone'],
+    ['Iron', 'iron'],
     ['Firewood', 'firewood'],
     ['Food & seed grain', 'food'],
+    ['Salt', 'salt'],
   ];
   const bulkRates = rates
     .map(([label, resource]) => {

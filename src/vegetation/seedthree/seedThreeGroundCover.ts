@@ -58,6 +58,7 @@ export function createSeedThreeGroundCoverMaterial(
   rendererBackend: RendererBackendKind,
   transmitRGB: [number, number, number],
   windAmount = 0.16,
+  positionNode?: ReturnType<typeof createRootedFoliageWindPosition>,
 ): THREE.Material {
   if (rendererBackend !== 'webgpu') {
     const material = new THREE.MeshStandardMaterial({
@@ -82,7 +83,7 @@ export function createSeedThreeGroundCoverMaterial(
     textures,
     transmit: transmitRGB,
     windAmount,
-    positionNode: createRootedFoliageWindPosition(windAmount),
+    positionNode: positionNode ?? createRootedFoliageWindPosition(windAmount),
   });
 }
 

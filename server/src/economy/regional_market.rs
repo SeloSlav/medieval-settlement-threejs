@@ -49,6 +49,9 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         TradeResource::Barley => state.food_price_mult,
         // Imported spearheads and fittings follow the regional mineral market.
         TradeResource::Ironwork => state.stone_price_mult,
+        TradeResource::Iron => state.stone_price_mult,
+        TradeResource::Salt => state.food_price_mult,
+        TradeResource::Pottery => state.specialty_price_mult,
     }
 }
 
@@ -148,6 +151,18 @@ pub fn record_market_trade(
         TradeResource::Ironwork => {
             state.regional_stone_supply =
                 adjust_supply_index(state.regional_stone_supply, direction, amount);
+        }
+        TradeResource::Iron => {
+            state.regional_stone_supply =
+                adjust_supply_index(state.regional_stone_supply, direction, amount);
+        }
+        TradeResource::Salt => {
+            state.regional_food_supply =
+                adjust_supply_index(state.regional_food_supply, direction, amount);
+        }
+        TradeResource::Pottery => {
+            state.regional_specialty_demand =
+                adjust_demand_index(state.regional_specialty_demand, direction, amount);
         }
     }
 

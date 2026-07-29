@@ -51,4 +51,9 @@ export default __t.row({
   barley: __t.f64(),
   malt: __t.f64(),
   flax: __t.f64(),
+  iron: __t.f64(),
+  clay: __t.f64(),
+  salt: __t.f64(),
+  charcoal: __t.f64(),
+  pottery: __t.f64(),
 });

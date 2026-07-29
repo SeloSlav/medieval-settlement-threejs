@@ -104,5 +104,5 @@ response state.
 - The settlement HUD shows the number of active fires and bucket carriers in transit.
 - Fire starts, successful extinguishing, and structure loss generate notifications.
 
-All time values are simulation time, so Pause freezes incidents and 4×/12× speed advances
+All time values are simulation time, so Pause freezes incidents and 4×/8× speed advances
 fire, agents, water use, and production consistently.

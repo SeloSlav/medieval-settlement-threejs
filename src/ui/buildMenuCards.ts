@@ -13,6 +13,7 @@ export type PlacementBuildMenuAction =
   | 'watchtower'
   | 'guardhouse'
   | 'palisaded-refuge'
+  | 'clay-pit' | 'charcoal-burner' | 'smithy' | 'potter-kiln'
   | 'residences';
 
 export type BuildMenuAction = PlacementBuildMenuAction;
@@ -24,6 +25,10 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   lumber_mill: '/assets/ui/build-menu/cards/lumber-mill.webp', reforester: '/assets/ui/build-menu/cards/reforester.webp',
   woodcutters_lodge: '/assets/ui/build-menu/cards/woodcutters-lodge.webp', stone_quarry: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
   large_quarry: '/assets/ui/build-menu/cards/large-quarry.webp',
+  clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
+  charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
+  smithy: '/assets/ui/build-menu/cards/smithy.webp',
+  potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
   well: '/assets/ui/build-menu/cards/water-well.webp', hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
   foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp', chapel: '/assets/ui/build-menu/cards/chapel.webp',
   fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
@@ -52,12 +57,16 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   town_hall: ['Town Hall', 'T', 'Physical seat of settlement government, taxation, and the economic ledger. Requires a church, marketplace, and 24 people.'],
   village_storehouse: ['Village storehouse', 'S', 'Hauls surplus timber, stone, and firewood from producers into shared construction stock. Never stores food.'],
   watchtower: ['Frontier watchtower', 'W', 'Staffed hill tower warns nearby homes and stores, reducing losses when raiders cross the frontier.'],
-  guardhouse: ['Frontier guardhouse', 'G', 'Paid guards consume labor, provisions, wages, and carpenter-made polearms. Polearms need market-imported ironwork. Requires a completed watchtower.'],
+  guardhouse: ['Frontier guardhouse', 'G', 'Paid guards consume labor, provisions, wages, and carpenter-made polearms. Polearms need smith-forged ironwork, with costly imports as a fallback. Requires a completed watchtower.'],
   palisaded_refuge: ['Palisaded refuge', 'R', 'Warned households within rally reach carry people and family coin into a timber-and-earth enclosure. Requires a completed guardhouse and watch coverage.'],
   ferry_landing: ['Ferry landing', 'J', 'A staffed river crossing and modest source of trade income. Must touch open water.'],
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
   large_quarry: ['Large Quarry', 'G', 'Builds directly over a rich deposit and raises underground stone indefinitely.'],
+  clay_pit: ['Riverbank clay pit', 'C', 'Cuts wet clay beside shallow water for the potter. Clay is local, but the shoreline and hauling branch are not.'],
+  charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for the smithy fuel needed to work iron.'],
+  smithy: ['Village smithy', 'M', 'Forges imported iron blooms with local charcoal into ironwork for tools, construction fittings, and frontier weapons.'],
+  potter_kiln: ["Potter's kiln", 'P', 'Fires river clay with firewood into preserving crocks and high-value market pottery.'],
   reforester: ['Reforester', 'F', 'Restores harvested woodland with native saplings.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood and supplies connected homes.'],
   hunters_hall: ["Hunter's hall", 'K', 'Hunts game and delivers fresh food along the road network.'],
@@ -67,7 +76,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   watermill: ['Grain watermill', 'M', 'Uses seasonal river power to grind grain into flour. Spring rain speeds it; drought and frost slow it. Must touch open water.'],
   granary: ['Village granary', 'N', 'Stores grain and flour, bakes staple food, and collects wild-food surplus.'],
   brewery: ['Brewhouse', 'B', 'Boils grain and water over firewood into ale for prosperous households and export.'],
-  smokehouse: ['Smokehouse', 'Q', 'Preserves fresh food with firewood for tier-three households.'],
+  smokehouse: ['Smokehouse', 'Q', 'Uses fresh food, firewood, imported salt, and local pottery to create larger preserved-food batches for winter and prosperous homes.'],
   apiary: ['Forest apiary', 'A', 'Produces seasonal honey and food. Hospitality-enabled monasteries take honey before market export.'],
   carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10% and move connected carts 18% faster.'],
   weaver: ["Weaver's workshop", 'I', 'Turns sheep wool and field-grown flax fibre into household textiles, then exports the surplus.'],
@@ -102,6 +111,7 @@ export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 export const RURAL_INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   entry('hunters_hall'), entry('foragers_shed'), entry('fishing_camp'), entry('woodcutters_lodge'), entry('lumber_mill'), entry('reforester'),
   entry('stone_quarry'), entry('large_quarry'), entry('carpenter'), entry('weaver'),
+  entry('clay_pit'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ];
 
 /** Conflict-enabled early warning and settlement defenses. */

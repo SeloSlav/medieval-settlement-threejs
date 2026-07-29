@@ -51,6 +51,11 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       cloth: row.cloth ?? 0,
       ironwork: row.ironwork ?? 0,
       polearms: row.polearms ?? 0,
+      iron: row.iron ?? 0,
+      clay: row.clay ?? 0,
+      salt: row.salt ?? 0,
+      charcoal: row.charcoal ?? 0,
+      pottery: row.pottery ?? 0,
     };
     state.physicalFoundingSiteEnabled = row.physicalFoundingSiteEnabled ?? false;
     state.legacyUnhousedPopulationBonusEnabled =

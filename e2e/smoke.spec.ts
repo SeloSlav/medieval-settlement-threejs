@@ -60,6 +60,19 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   });
 
   await expect(timberHud).toHaveText(String(timberBefore - REFORESTER_TIMBER_COST), { timeout: SYNC_TIMEOUT_MS });
+  const totalsMode = page.locator('button[data-resource-totals-mode]');
+  await expect(totalsMode).toHaveAttribute(
+    'aria-label',
+    'Showing surplus goods. Show total goods stored.',
+  );
+  await totalsMode.click();
+  await expect(timberHud).toHaveText(String(timberBefore));
+  await expect(totalsMode).toHaveAttribute(
+    'aria-label',
+    'Showing total goods stored. Show surplus goods.',
+  );
+  await totalsMode.click();
+  await expect(timberHud).toHaveText(String(timberBefore - REFORESTER_TIMBER_COST));
   await expect.poll(
     () => page.evaluate(() => window.__medievalE2e?.getBuildingCount() ?? 0),
     { timeout: SYNC_TIMEOUT_MS },

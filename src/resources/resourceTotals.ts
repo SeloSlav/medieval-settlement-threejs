@@ -72,6 +72,11 @@ export type ResourceTotals = {
   cloth: number;
   ironwork: number;
   polearms: number;
+  iron: number;
+  clay: number;
+  salt: number;
+  charcoal: number;
+  pottery: number;
 };
 
 export const HUD_RESOURCE_KINDS = [
@@ -94,6 +99,11 @@ export const HUD_RESOURCE_KINDS = [
   'cloth',
   'ironwork',
   'polearms',
+  'iron',
+  'clay',
+  'salt',
+  'charcoal',
+  'pottery',
 ] as const satisfies readonly (keyof ResourceTotals)[];
 
 export type HudResourceKind = (typeof HUD_RESOURCE_KINDS)[number];
@@ -132,6 +142,7 @@ export function laborScaledInterval(baseInterval: number, assignedLabor: number)
 
 let cachedState: GameState | null = null;
 let cachedTotals: ResourceTotals | null = null;
+let cachedStoredTotals: ResourceTotals | null = null;
 
 export function computeResourceTotals(state: GameState): ResourceTotals {
   if (cachedState === state && cachedTotals) {
@@ -162,7 +173,15 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let cloth = ledger?.cloth ?? 0;
   let ironwork = ledger?.ironwork ?? 0;
   let polearms = ledger?.polearms ?? 0;
+  let iron = ledger?.iron ?? 0;
+  let clay = ledger?.clay ?? 0;
+  let salt = ledger?.salt ?? 0;
+  let charcoal = ledger?.charcoal ?? 0;
+  let pottery = ledger?.pottery ?? 0;
   let gold = ledger?.gold ?? 0;
+  let reservedTimber = 0;
+  let reservedStone = 0;
+  let reservedGold = 0;
 
   for (const building of state.buildings.values()) {
     timber += building.timber;
@@ -183,6 +202,11 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cloth += building.cloth ?? 0;
     ironwork += building.ironwork ?? 0;
     polearms += building.polearms ?? 0;
+    iron += building.iron ?? 0;
+    clay += building.clay ?? 0;
+    salt += building.salt ?? 0;
+    charcoal += building.charcoal ?? 0;
+    pottery += building.pottery ?? 0;
     if (
       building.kind === 'founders_camp'
       || building.kind === 'salvage_pile'
@@ -191,16 +215,16 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
       gold += building.gold;
     }
     if (building.constructionComplete === false) {
-      timber -= building.constructionReservedTimber;
-      stone -= building.constructionReservedStone;
+      reservedTimber += Math.max(0, building.constructionReservedTimber);
+      reservedStone += Math.max(0, building.constructionReservedStone);
     }
   }
 
   for (const residence of state.residences?.values() ?? []) {
     if (residenceHasActiveProject(residence)) {
-      timber -= Math.max(0, residence.upgradeReservedTimber ?? 0);
-      stone -= Math.max(0, residence.upgradeReservedStone ?? 0);
-      gold -= Math.max(0, residence.upgradeReservedGold ?? 0);
+      reservedTimber += Math.max(0, residence.upgradeReservedTimber ?? 0);
+      reservedStone += Math.max(0, residence.upgradeReservedStone ?? 0);
+      reservedGold += Math.max(0, residence.upgradeReservedGold ?? 0);
     }
     firewood += getNeedStock(residence.needs, 'firewood');
     water += getNeedStock(residence.needs, 'water');
@@ -210,7 +234,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cloth += getNeedStock(residence.needs, 'cloth');
   }
 
-  cachedTotals = {
+  cachedStoredTotals = {
     timber: Math.max(0, timber),
     stone: Math.max(0, stone),
     firewood,
@@ -230,9 +254,31 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cloth,
     ironwork,
     polearms,
+    iron,
+    clay,
+    salt,
+    charcoal,
+    pottery,
+  };
+  cachedTotals = {
+    ...cachedStoredTotals,
+    timber: Math.max(0, timber - reservedTimber),
+    stone: Math.max(0, stone - reservedStone),
+    gold: Math.max(0, gold - reservedGold),
   };
   cachedState = state;
   return cachedTotals;
+}
+
+/**
+ * Every physical good presently stored in the settlement, including stock
+ * already committed to active construction and household projects.
+ */
+export function computeStoredResourceTotals(state: GameState): ResourceTotals {
+  if (cachedState !== state || !cachedStoredTotals) {
+    computeResourceTotals(state);
+  }
+  return cachedStoredTotals!;
 }
 
 /**
@@ -347,6 +393,9 @@ export function computeMarketplaceTradeAvailability(
   let accessibleGrain = 0;
   let accessibleBarley = 0;
   let accessibleIronwork = 0;
+  let accessibleIron = 0;
+  let accessibleSalt = 0;
+  let accessiblePottery = 0;
   let reservedBuildingTimber = 0;
   let reservedBuildingStone = 0;
   let reservedTreasuryTimber = 0;
@@ -384,6 +433,9 @@ export function computeMarketplaceTradeAvailability(
       : building.grain;
     accessibleBarley += building.barley ?? 0;
     accessibleIronwork += building.ironwork ?? 0;
+    accessibleIron += building.iron ?? 0;
+    accessibleSalt += building.salt ?? 0;
+    accessiblePottery += building.pottery ?? 0;
   }
 
   for (const residence of state.residences?.values() ?? []) {
@@ -419,6 +471,9 @@ export function computeMarketplaceTradeAvailability(
     grain: (includeLegacyLedger ? state.stockpile.grain : 0) + accessibleGrain,
     barley: (includeLegacyLedger ? (state.stockpile.barley ?? 0) : 0) + accessibleBarley,
     ironwork: (includeLegacyLedger ? (state.stockpile.ironwork ?? 0) : 0) + accessibleIronwork,
+    iron: (includeLegacyLedger ? (state.stockpile.iron ?? 0) : 0) + accessibleIron,
+    salt: (includeLegacyLedger ? (state.stockpile.salt ?? 0) : 0) + accessibleSalt,
+    pottery: (includeLegacyLedger ? (state.stockpile.pottery ?? 0) : 0) + accessiblePottery,
   };
 }
 
@@ -496,5 +551,10 @@ function emptyResourceTotals(): ResourceTotals {
     cloth: 0,
     ironwork: 0,
     polearms: 0,
+    iron: 0,
+    clay: 0,
+    salt: 0,
+    charcoal: 0,
+    pottery: 0,
   };
 }

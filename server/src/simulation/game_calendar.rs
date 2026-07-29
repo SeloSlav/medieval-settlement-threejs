@@ -77,7 +77,7 @@ mod tests {
     }
 
     #[test]
-    fn rational_calendar_months_are_ten_days() {
+    fn rational_calendar_months_are_thirty_days() {
         let day_ticks = (CALENDAR_SECONDS_PER_DAY / TICK_DT) as u64;
         let clock = game_clock(day_ticks * CALENDAR_DAYS_PER_MONTH as u64);
         assert_eq!(clock.month_day, 1);

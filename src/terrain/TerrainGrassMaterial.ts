@@ -801,7 +801,7 @@ export function createTerrainGrassMaterialWithRiverShore(
     quarryPad,
     resolvedWeather,
   );
-  // Preserve the complete 100-400% close-ground handoff. SeedThree blades use
+  // Preserve the complete 200-400% close-ground handoff. SeedThree blades use
   // this same LOD band, so brown soil and physical grass arrive together
   // instead of the soil snapping in before the authored vegetation.
   const dirtSurfaceAmount = dirtAmount;

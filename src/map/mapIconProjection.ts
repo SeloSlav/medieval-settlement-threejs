@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { mapIconRevealOpacity } from '../grass/grassLodMath.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
+import { resolveResourceIconOpacity } from './resourceMapIconPreference.ts';
 
 const WORLD_ICON_LIFT = 2.4;
 
@@ -24,7 +24,7 @@ export function beginMapIconFrame(
     return null;
   }
 
-  const reveal = isBlocked() ? 0 : mapIconRevealOpacity(getZoomPercent());
+  const reveal = isBlocked() ? 0 : resolveResourceIconOpacity(getZoomPercent());
   const show = reveal > 0.02;
   root.hidden = !show;
   root.style.opacity = reveal.toFixed(3);

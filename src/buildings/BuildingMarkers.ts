@@ -634,6 +634,11 @@ function syncBuildingVisualState(
           + building.wine
           + (building.ironwork ?? 0)
           + (building.polearms ?? 0)
+          + (building.iron ?? 0)
+          + (building.clay ?? 0)
+          + (building.salt ?? 0)
+          + (building.charcoal ?? 0)
+          + (building.pottery ?? 0)
           + (building.wool ?? 0)
           + (building.flax ?? 0)
           + (building.cloth ?? 0),

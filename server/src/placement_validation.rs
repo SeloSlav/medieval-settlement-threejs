@@ -273,6 +273,24 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.84,
             outer_fade: 1.24,
         },
+        "clay_pit" => BuildingPadParams {
+            radius_x: 7.0,
+            radius_z: 6.0,
+            inner_fade: 0.84,
+            outer_fade: 1.3,
+        },
+        "charcoal_burner" => BuildingPadParams {
+            radius_x: 5.6,
+            radius_z: 5.2,
+            inner_fade: 0.88,
+            outer_fade: 1.32,
+        },
+        "smithy" | "potter_kiln" => BuildingPadParams {
+            radius_x: 5.2,
+            radius_z: 4.5,
+            inner_fade: 0.88,
+            outer_fade: 1.3,
+        },
         "well" => BuildingPadParams {
             radius_x: 2.2,
             radius_z: 2.2,

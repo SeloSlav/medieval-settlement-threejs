@@ -382,6 +382,7 @@ fn pending_trade_code(trade_id: &str) -> Option<u8> {
         "timber_for_stone" => Some(5),
         "stone_for_timber" => Some(6),
         "timber_for_firewood" => Some(7),
+        "sell_pottery" => Some(8),
         _ => None,
     }
 }
@@ -395,6 +396,7 @@ fn pending_trade_offer(code: u8) -> Option<&'static MarketplaceTradeOffer> {
         5 => "timber_for_stone",
         6 => "stone_for_timber",
         7 => "timber_for_firewood",
+        8 => "sell_pottery",
         _ => return None,
     };
     marketplace_trade_offer(trade_id)
@@ -691,7 +693,10 @@ fn stage_or_spend_physical_market_resource(
         | TradeResource::Food
         | TradeResource::Grain
         | TradeResource::Barley
-        | TradeResource::Ironwork => f64::INFINITY,
+        | TradeResource::Ironwork
+        | TradeResource::Iron
+        | TradeResource::Salt
+        | TradeResource::Pottery => f64::INFINITY,
     };
     let remote_budget = (unreserved_budget - local_stock).max(0.0);
     let mut candidates = Vec::new();
@@ -827,6 +832,9 @@ fn trade_commodity(resource: TradeResource) -> CommodityKind {
         TradeResource::Grain => CommodityKind::Grain,
         TradeResource::Barley => CommodityKind::Barley,
         TradeResource::Ironwork => CommodityKind::Ironwork,
+        TradeResource::Iron => CommodityKind::Iron,
+        TradeResource::Salt => CommodityKind::Salt,
+        TradeResource::Pottery => CommodityKind::Pottery,
     }
 }
 
@@ -839,6 +847,9 @@ fn trade_resource_name(resource: TradeResource) -> &'static str {
         TradeResource::Grain => "grain",
         TradeResource::Barley => "barley",
         TradeResource::Ironwork => "ironwork",
+        TradeResource::Iron => "iron",
+        TradeResource::Salt => "salt",
+        TradeResource::Pottery => "pottery",
     }
 }
 
@@ -907,7 +918,10 @@ fn spend_market_accessible_resource(
         | TradeResource::Food
         | TradeResource::Grain
         | TradeResource::Barley
-        | TradeResource::Ironwork => connected_stock,
+        | TradeResource::Ironwork
+        | TradeResource::Iron
+        | TradeResource::Salt
+        | TradeResource::Pottery => connected_stock,
     };
     if treasury_available + building_budget + 1e-6 < amount {
         let shortfall = amount - treasury_available - building_budget;
@@ -961,6 +975,7 @@ mod tests {
             (5, "timber_for_stone"),
             (6, "stone_for_timber"),
             (7, "timber_for_firewood"),
+            (8, "sell_pottery"),
         ];
         for (code, trade_id) in expected {
             assert_eq!(pending_trade_code(trade_id), Some(code));
@@ -1029,6 +1044,27 @@ fn treasury_trade_stock(
             .find(&owner)
             .map(|row| row.ironwork)
             .unwrap_or(0.0),
+        TradeResource::Iron => ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&owner)
+            .map(|row| row.iron)
+            .unwrap_or(0.0),
+        TradeResource::Salt => ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&owner)
+            .map(|row| row.salt)
+            .unwrap_or(0.0),
+        TradeResource::Pottery => ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&owner)
+            .map(|row| row.pottery)
+            .unwrap_or(0.0),
     }
 }
 
@@ -1059,6 +1095,9 @@ fn withdraw_treasury_trade_stock(
         TradeResource::Grain => treasury.grain -= amount,
         TradeResource::Barley => treasury.barley -= amount,
         TradeResource::Ironwork => treasury.ironwork -= amount,
+        TradeResource::Iron => treasury.iron -= amount,
+        TradeResource::Salt => treasury.salt -= amount,
+        TradeResource::Pottery => treasury.pottery -= amount,
     }
     ctx.db.player_resources().owner().update(treasury);
     Ok(())

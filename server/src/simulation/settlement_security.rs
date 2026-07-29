@@ -671,6 +671,11 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         barley: building.barley,
         malt: building.malt,
         flax: building.flax,
+        iron: building.iron,
+        clay: building.clay,
+        salt: building.salt,
+        charcoal: building.charcoal,
+        pottery: building.pottery,
     }
 }
 
@@ -845,6 +850,11 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Barley) => stores.barley = amount,
         Some(CommodityKind::Malt) => stores.malt = amount,
         Some(CommodityKind::Flax) => stores.flax = amount,
+        Some(CommodityKind::Iron) => stores.iron = amount,
+        Some(CommodityKind::Clay) => stores.clay = amount,
+        Some(CommodityKind::Salt) => stores.salt = amount,
+        Some(CommodityKind::Charcoal) => stores.charcoal = amount,
+        Some(CommodityKind::Pottery) => stores.pottery = amount,
         // Raiders do not select bulk stone or water as plunder even when a
         // settlement cart happens to be carrying it.
         Some(CommodityKind::Stone | CommodityKind::Water) | None => {}
@@ -871,6 +881,11 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Barley) => stores.barley,
         Some(CommodityKind::Malt) => stores.malt,
         Some(CommodityKind::Flax) => stores.flax,
+        Some(CommodityKind::Iron) => stores.iron,
+        Some(CommodityKind::Clay) => stores.clay,
+        Some(CommodityKind::Salt) => stores.salt,
+        Some(CommodityKind::Charcoal) => stores.charcoal,
+        Some(CommodityKind::Pottery) => stores.pottery,
         Some(CommodityKind::Stone | CommodityKind::Water) | None => 0.0,
     }
 }
@@ -901,6 +916,11 @@ fn treasury_portable_stores(
         barley: treasury.barley,
         malt: treasury.malt,
         flax: treasury.flax,
+        iron: treasury.iron,
+        clay: treasury.clay,
+        salt: treasury.salt,
+        charcoal: treasury.charcoal,
+        pottery: treasury.pottery,
     }
 }
 
@@ -973,6 +993,11 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.barley = stores.barley;
     building.malt = stores.malt;
     building.flax = stores.flax;
+    building.iron = stores.iron;
+    building.clay = stores.clay;
+    building.salt = stores.salt;
+    building.charcoal = stores.charcoal;
+    building.pottery = stores.pottery;
     building.civic_receipts_gold = building
         .civic_receipts_gold
         .max(0.0)
@@ -1008,6 +1033,11 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(barley);
     subtract_loss!(malt);
     subtract_loss!(flax);
+    subtract_loss!(iron);
+    subtract_loss!(clay);
+    subtract_loss!(salt);
+    subtract_loss!(charcoal);
+    subtract_loss!(pottery);
 }
 
 fn portable_store_loss(before: f64, remaining: f64) -> f64 {

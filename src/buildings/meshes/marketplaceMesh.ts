@@ -12,6 +12,9 @@ import {
   MARKET_ALE_VISUAL_SEGMENTS,
   MARKET_CLOTH_VISUAL_SEGMENTS,
   MARKET_HONEY_VISUAL_SEGMENTS,
+  MARKET_IRON_VISUAL_SEGMENTS,
+  MARKET_POTTERY_VISUAL_SEGMENTS,
+  MARKET_SALT_VISUAL_SEGMENTS,
   MARKET_WINE_VISUAL_SEGMENTS,
 } from '../marketplaceSpecialtyStockpileVisuals.ts';
 import { addTriangularGableWall } from '../meshPrimitives.ts';
@@ -149,6 +152,58 @@ function addFoldedCloth(group: THREE.Group, scale: number, variant: number): voi
   );
 }
 
+function addIronBundle(group: THREE.Group, scale: number, variant: number): void {
+  for (let bar = 0; bar < 3; bar += 1) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.62 * scale, 0.08 * scale, 0.1 * scale),
+      metalMaterial('iron'),
+      new THREE.Vector3(
+        0,
+        (0.08 + bar * 0.09) * scale,
+        (bar - 1) * 0.11 * scale,
+      ),
+      new THREE.Euler(0, (variant % 2 === 0 ? 0.08 : -0.08), 0),
+    );
+  }
+}
+
+function addSaltSack(group: THREE.Group, scale: number): void {
+  const sack = addMesh(
+    group,
+    new THREE.SphereGeometry(0.29 * scale, 8, 6),
+    residenceFacadeMaterial('white'),
+    new THREE.Vector3(0, 0.29 * scale, 0),
+  );
+  sack.scale.set(0.84, 1.18, 0.8);
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(0.06 * scale, 0.1 * scale, 0.14 * scale, 7),
+    timberMaterial('light'),
+    new THREE.Vector3(0, 0.65 * scale, 0),
+  );
+}
+
+function addMarketPottery(group: THREE.Group, scale: number, variant: number): void {
+  const potteryMaterial = residenceFacadeMaterial(
+    variant % 2 === 0 ? 'orange' : 'lightOrange',
+  );
+  addMesh(
+    group,
+    new THREE.SphereGeometry(0.2 * scale, 9, 7),
+    potteryMaterial,
+    new THREE.Vector3(0, 0.22 * scale, 0),
+    undefined,
+    new THREE.Vector3(1, 1.12, 1),
+  );
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(0.1 * scale, 0.14 * scale, 0.2 * scale, 9, 1, true),
+    potteryMaterial,
+    new THREE.Vector3(0, 0.43 * scale, 0),
+  );
+}
+
 function addMarketSpecialtyStalls(group: THREE.Group): void {
   addMarketSpecialtyStock(
     group,
@@ -193,6 +248,39 @@ function addMarketSpecialtyStalls(group: THREE.Group): void {
       [2.3, 0, 3.0, 1.08],
     ] as const).slice(0, MARKET_CLOTH_VISUAL_SEGMENTS),
     (segment, scale, index) => addFoldedCloth(segment, scale, index),
+  );
+  addMarketSpecialtyStock(
+    group,
+    'MarketIronStockpile',
+    'MarketIronSegment',
+    ([
+      [-3.08, 0, -1.9, 1.1],
+      [-2.45, 0, -1.92, 0.98],
+      [-1.82, 0, -1.88, 0.88],
+    ] as const).slice(0, MARKET_IRON_VISUAL_SEGMENTS),
+    (segment, scale, index) => addIronBundle(segment, scale, index),
+  );
+  addMarketSpecialtyStock(
+    group,
+    'MarketSaltStockpile',
+    'MarketSaltSegment',
+    ([
+      [-0.82, 0, -1.92, 1.1],
+      [-0.22, 0, -1.9, 0.98],
+      [0.35, 0, -1.88, 0.88],
+    ] as const).slice(0, MARKET_SALT_VISUAL_SEGMENTS),
+    (segment, scale) => addSaltSack(segment, scale),
+  );
+  addMarketSpecialtyStock(
+    group,
+    'MarketPotteryStockpile',
+    'MarketPotterySegment',
+    ([
+      [1.35, 0, -1.94, 1.18],
+      [1.92, 0, -1.94, 1.04],
+      [2.48, 0, -1.91, 0.92],
+    ] as const).slice(0, MARKET_POTTERY_VISUAL_SEGMENTS),
+    (segment, scale, index) => addMarketPottery(segment, scale, index),
   );
 }
 

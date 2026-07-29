@@ -291,6 +291,11 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   flax: 'Flax bundle 1 stem 1',
   cloth: 'Woven cloth roll 1',
   gold: 'Treasury lockbox',
+  iron: 'Imported iron bar 1',
+  clay: 'Clay basket load 1',
+  salt: 'Adriatic salt sack 1',
+  charcoal: 'Charcoal sack 1',
+  pottery: 'Fired pottery vessel 1',
 };
 for (const [index, kind] of DELIVERY_CARGO_KINDS.entries()) {
   const cart = createDeliveryCartMesh(kind, {
