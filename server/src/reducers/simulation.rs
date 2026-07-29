@@ -59,8 +59,9 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     let substeps = step_budget / BASE_SPEED_DENOMINATOR;
     let next_credit = step_budget % BASE_SPEED_DENOMINATOR;
     let has_delivery_trips = ctx.db.delivery_trip().iter().next().is_some();
-    let shared_road_networks =
-        (has_delivery_trips || substeps > 0).then(|| SimTickContext::load_road_networks(ctx));
+    let has_combat_agents = ctx.db.combat_agent().iter().next().is_some();
+    let shared_road_networks = (has_delivery_trips || has_combat_agents || substeps > 0)
+        .then(|| SimTickContext::load_road_networks(ctx));
 
     // Delivery speeds are expressed in world metres per second. Advance them on
     // every scheduler heartbeat so Scenic's deliberately sparse economy/calendar
@@ -88,6 +89,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
         config.seed,
         config.conflict_enabled,
         TICK_DT * speed as f64,
+        shared_road_networks.as_ref(),
     );
     if ctx.db.sim_pacing_state().id().find(&0).is_some() {
         ctx.db.sim_pacing_state().id().update(SimPacingState {

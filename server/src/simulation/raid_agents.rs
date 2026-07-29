@@ -11,14 +11,15 @@ use crate::raid_agent_policy::{
     raid_contact_duration, raid_contact_range, raid_entry_point, raid_party_size,
     raider_attack_interval, raider_damage, refuge_assault_position, route_shortcut_is_worthwhile,
     route_shortcut_via_endpoint_is_worthwhile, select_guard_muster_slots, EmergencyGuardTarget,
-    COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER, COMBAT_ROAD_SPEED_MULTIPLIER,
-    COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING,
-    COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING,
-    COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
-    COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE,
+    RouteMove, COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
+    COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED,
+    COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING,
+    COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING,
+    COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING,
+    COMBAT_TARGET_TREASURY_RESIDENCE, COMBAT_WADING_SPEED_MULTIPLIER,
     DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS, DOWNED_LINGER_SECONDS, GUARD_SPEED_MPS,
-    MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS, RAIDER_OFFROAD_ROUTE_MULTIPLIER,
-    RAIDER_SPEED_MPS, RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
+    MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS, RAIDER_SPEED_MPS,
+    RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::security_policy::{
@@ -34,6 +35,7 @@ use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDEN
 use super::reclamation::ReclamationStock;
 use super::recover_stock_at;
 use super::settlement_security::{plunder_raid_target_at_contact, ContactRaidPlunder};
+use super::SharedRoadNetworks;
 
 const EPSILON: f64 = 1e-9;
 const ARRIVAL_RANGE_METERS: f64 = 2.4;
@@ -116,15 +118,8 @@ pub fn start_live_raid(
             let (target_x, target_z) = if target.raid_anchor_building_id > 0 {
                 refuge_assault_position(target.x, target.z, entry_x, entry_z)
             } else {
-                raid_target_assault_position(
-                    ctx,
-                    owner,
-                    target.kind,
-                    target.id,
-                    entry_x,
-                    entry_z,
-                )
-                .unwrap_or((target.x, target.z))
+                raid_target_assault_position(ctx, owner, target.kind, target.id, entry_x, entry_z)
+                    .unwrap_or((target.x, target.z))
             };
             build_incursion_route(road_network, entry_x, entry_z, target_x, target_z)
         })
@@ -218,7 +213,7 @@ fn build_incursion_route(
                 entry_z,
                 target_x,
                 target_z,
-                RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+                COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
             )
         })
         .unwrap_or_else(|| {
@@ -286,12 +281,10 @@ fn spawn_responding_guards(
     }) {
         let onsite_polearms = (guardhouse.polearms
             - issued_polearms.get(&guardhouse.id).copied().unwrap_or(0.0))
-            .max(0.0);
+        .max(0.0);
         let unavailable_here = unavailable_slots
             .iter()
-            .filter_map(|(building_id, slot)| {
-                (*building_id == guardhouse.id).then_some(*slot)
-            })
+            .filter_map(|(building_id, slot)| (*building_id == guardhouse.id).then_some(*slot))
             .collect::<Vec<_>>();
         let muster_slots = select_guard_muster_slots(
             guardhouse.assigned_labor,
@@ -399,6 +392,7 @@ pub fn step_live_raids(
     world_seed: u64,
     conflict_enabled: bool,
     elapsed_seconds: f64,
+    road_networks: Option<&SharedRoadNetworks>,
 ) {
     if !conflict_enabled {
         clear_all_live_raids(ctx);
@@ -414,12 +408,14 @@ pub fn step_live_raids(
         .map(|raid| (raid.owner, raid.raid_id))
         .collect::<HashSet<_>>();
     for raid in active_raids {
+        let road_network = road_networks.and_then(|networks| networks.get(&raid.owner));
         step_one_live_raid(
             ctx,
             raid,
             sim_tick,
             world_seed,
             elapsed_seconds,
+            road_network,
         );
     }
 
@@ -431,13 +427,13 @@ pub fn step_live_raids(
         }
         let agent_id = agent.id;
         if agent.faction == COMBAT_FACTION_GUARD {
-            if step_recovering_guard(ctx, agent, sim_tick, elapsed_seconds) {
+            let road_network = road_networks.and_then(|networks| networks.get(&agent.owner));
+            if step_recovering_guard(ctx, agent, sim_tick, elapsed_seconds, road_network) {
                 continue;
             }
         } else if agent.state == COMBAT_STATE_DOWNED {
             let mut lingering = agent;
-            lingering.attack_cooldown =
-                (lingering.attack_cooldown - elapsed_seconds).max(0.0);
+            lingering.attack_cooldown = (lingering.attack_cooldown - elapsed_seconds).max(0.0);
             if lingering.attack_cooldown > EPSILON {
                 ctx.db.combat_agent().id().update(lingering);
                 continue;
@@ -566,6 +562,7 @@ fn step_one_live_raid(
     sim_tick: u64,
     world_seed: u64,
     elapsed_seconds: f64,
+    road_network: Option<&RoadNetwork>,
 ) {
     let mut agents = ctx
         .db
@@ -595,6 +592,7 @@ fn step_one_live_raid(
             sim_tick,
             world_seed,
             elapsed_seconds,
+            road_network,
         );
         return;
     }
@@ -623,6 +621,7 @@ fn step_one_live_raid(
                 &mut delete_ids,
                 sim_tick,
                 elapsed_seconds,
+                road_network,
             );
         } else {
             step_guard(
@@ -632,6 +631,7 @@ fn step_one_live_raid(
                 &mut damage_by_agent,
                 sim_tick,
                 elapsed_seconds,
+                road_network,
             );
         }
     }
@@ -668,6 +668,7 @@ fn step_raider(
     delete_ids: &mut HashSet<u64>,
     sim_tick: u64,
     elapsed_seconds: f64,
+    road_network: Option<&RoadNetwork>,
 ) {
     if agent.state == COMBAT_STATE_RETREATING {
         if distance_squared(agent.x, agent.z, agent.home_x, agent.home_z)
@@ -678,22 +679,24 @@ fn step_raider(
         }
         if let Some(route) = incursion_route {
             let direct_home_distance =
-                distance_squared(agent.x, agent.z, agent.home_x, agent.home_z).sqrt();
+                combat_route_effort(road_network, agent.x, agent.z, agent.home_x, agent.home_z);
             let remaining_route_distance = agent.route_progress.clamp(0.0, route.path_distance);
             if !route_shortcut_is_worthwhile(
                 direct_home_distance,
                 remaining_route_distance,
-                RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+                COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
             ) && agent.route_progress > EPSILON
             {
-                let route_move = move_along_route(
+                let route_move = move_along_combat_route(
                     agent.x,
                     agent.z,
                     agent.route_progress,
                     route.path_distance,
                     &route.polyline,
-                    RAIDER_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * elapsed_seconds,
+                    RAIDER_SPEED_MPS,
+                    elapsed_seconds,
                     false,
+                    road_network,
                 );
                 agent.x = route_move.x;
                 agent.z = route_move.z;
@@ -704,12 +707,14 @@ fn step_raider(
                 return;
             }
         }
-        (agent.x, agent.z) = move_toward(
+        (agent.x, agent.z) = move_combatant_toward(
             agent.x,
             agent.z,
             agent.home_x,
             agent.home_z,
-            RAIDER_SPEED_MPS * elapsed_seconds,
+            RAIDER_SPEED_MPS,
+            elapsed_seconds,
+            road_network,
         );
         return;
     }
@@ -731,6 +736,7 @@ fn step_raider(
             damage_by_agent,
             sim_tick,
             elapsed_seconds,
+            road_network,
         );
         return;
     }
@@ -747,26 +753,29 @@ fn step_raider(
         agent.state = COMBAT_STATE_ADVANCING;
         agent.loot_progress = 0.0;
         if let Some(route) = incursion_route {
-            let direct_target_distance = contact_distance.sqrt();
+            let direct_target_distance =
+                combat_route_effort(road_network, agent.x, agent.z, target_x, target_z);
             let remaining_route_distance = (route.path_distance - agent.route_progress).max(0.0);
             if route_shortcut_is_worthwhile(
                 direct_target_distance,
                 remaining_route_distance,
-                RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+                COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
             ) {
                 // Mark the outbound route complete. If the target moved away
                 // from its cached endpoint, retreat can still rejoin that
                 // endpoint or take another worthwhile cross-country shortcut.
                 agent.route_progress = route.path_distance;
             } else if agent.route_progress + EPSILON < route.path_distance {
-                let route_move = move_along_route(
+                let route_move = move_along_combat_route(
                     agent.x,
                     agent.z,
                     agent.route_progress,
                     route.path_distance,
                     &route.polyline,
-                    RAIDER_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * elapsed_seconds,
+                    RAIDER_SPEED_MPS,
+                    elapsed_seconds,
                     true,
+                    road_network,
                 );
                 agent.x = route_move.x;
                 agent.z = route_move.z;
@@ -776,12 +785,14 @@ fn step_raider(
                 return;
             }
         }
-        (agent.x, agent.z) = move_toward(
+        (agent.x, agent.z) = move_combatant_toward(
             agent.x,
             agent.z,
             target_x,
             target_z,
-            RAIDER_SPEED_MPS * elapsed_seconds,
+            RAIDER_SPEED_MPS,
+            elapsed_seconds,
+            road_network,
         );
         return;
     }
@@ -811,6 +822,7 @@ fn step_guard(
     damage_by_agent: &mut HashMap<u64, f64>,
     sim_tick: u64,
     elapsed_seconds: f64,
+    road_network: Option<&RoadNetwork>,
 ) {
     let emergency_enemy = snapshots
         .iter()
@@ -843,6 +855,7 @@ fn step_guard(
             damage_by_agent,
             sim_tick,
             elapsed_seconds,
+            road_network,
         );
         return;
     }
@@ -868,16 +881,16 @@ fn step_guard(
             if let Some(enemy) = route_enemy {
                 let endpoint = route.polyline[route.polyline.len() - 1];
                 let direct_distance =
-                    distance_squared(agent.x, agent.z, enemy.x, enemy.z).sqrt();
+                    combat_route_effort(road_network, agent.x, agent.z, enemy.x, enemy.z);
                 let remaining_route_distance =
                     (route.path_distance - agent.route_progress).max(0.0);
                 let endpoint_to_enemy_distance =
-                    distance_squared(endpoint[0], endpoint[1], enemy.x, enemy.z).sqrt();
+                    combat_route_effort(road_network, endpoint[0], endpoint[1], enemy.x, enemy.z);
                 if route_shortcut_via_endpoint_is_worthwhile(
                     direct_distance,
                     remaining_route_distance,
                     endpoint_to_enemy_distance,
-                    COMBAT_ROAD_SPEED_MULTIPLIER,
+                    COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
                 ) {
                     engage_agent(
                         agent,
@@ -888,18 +901,21 @@ fn step_guard(
                         damage_by_agent,
                         sim_tick,
                         elapsed_seconds,
+                        road_network,
                     );
                     return;
                 }
             }
-            let route_move = move_along_route(
+            let route_move = move_along_combat_route(
                 agent.x,
                 agent.z,
                 agent.route_progress,
                 route.path_distance,
                 &route.polyline,
-                GUARD_SPEED_MPS * COMBAT_ROAD_SPEED_MULTIPLIER * elapsed_seconds,
+                GUARD_SPEED_MPS,
+                elapsed_seconds,
                 true,
+                road_network,
             );
             agent.x = route_move.x;
             agent.z = route_move.z;
@@ -933,7 +949,105 @@ fn step_guard(
         damage_by_agent,
         sim_tick,
         elapsed_seconds,
+        road_network,
     );
+}
+
+fn combat_route_effort(
+    road_network: Option<&RoadNetwork>,
+    ax: f64,
+    az: f64,
+    bx: f64,
+    bz: f64,
+) -> f64 {
+    road_network
+        .map(|network| {
+            network.combat_cross_country_effort(
+                ax,
+                az,
+                bx,
+                bz,
+                COMBAT_WADING_SPEED_MULTIPLIER,
+                COMBAT_ROAD_SPEED_MULTIPLIER,
+            )
+        })
+        .unwrap_or_else(|| distance_squared(ax, az, bx, bz).sqrt())
+}
+
+fn move_combatant_toward(
+    x: f64,
+    z: f64,
+    target_x: f64,
+    target_z: f64,
+    speed_mps: f64,
+    elapsed_seconds: f64,
+    road_network: Option<&RoadNetwork>,
+) -> (f64, f64) {
+    let base_distance = speed_mps.max(0.0) * elapsed_seconds.max(0.0);
+    let candidate = move_toward(
+        x,
+        z,
+        target_x,
+        target_z,
+        base_distance * COMBAT_ROAD_SPEED_MULTIPLIER,
+    );
+    let surface_multiplier = road_network
+        .map(|network| {
+            network.combat_segment_speed_multiplier(
+                x,
+                z,
+                candidate.0,
+                candidate.1,
+                COMBAT_WADING_SPEED_MULTIPLIER,
+                COMBAT_ROAD_SPEED_MULTIPLIER,
+            )
+        })
+        .unwrap_or(1.0);
+    move_toward(x, z, target_x, target_z, base_distance * surface_multiplier)
+}
+
+fn move_along_combat_route(
+    x: f64,
+    z: f64,
+    progress: f64,
+    path_distance: f64,
+    polyline: &[[f64; 2]],
+    speed_mps: f64,
+    elapsed_seconds: f64,
+    outbound: bool,
+    road_network: Option<&RoadNetwork>,
+) -> RouteMove {
+    let base_distance = speed_mps.max(0.0) * elapsed_seconds.max(0.0);
+    let candidate = move_along_route(
+        x,
+        z,
+        progress,
+        path_distance,
+        polyline,
+        base_distance * COMBAT_ROAD_SPEED_MULTIPLIER,
+        outbound,
+    );
+    let surface_multiplier = road_network
+        .map(|network| {
+            network.combat_segment_speed_multiplier(
+                x,
+                z,
+                candidate.x,
+                candidate.z,
+                COMBAT_WADING_SPEED_MULTIPLIER,
+                COMBAT_ROAD_SPEED_MULTIPLIER,
+            )
+        })
+        .unwrap_or(COMBAT_ROAD_SPEED_MULTIPLIER);
+    move_along_route(
+        x,
+        z,
+        progress,
+        path_distance,
+        polyline,
+        base_distance * surface_multiplier,
+        outbound,
+    )
 }
 
 fn nearest_enemy_within<'a>(
@@ -975,6 +1089,7 @@ fn engage_agent(
     damage_by_agent: &mut HashMap<u64, f64>,
     sim_tick: u64,
     elapsed_seconds: f64,
+    road_network: Option<&RoadNetwork>,
 ) {
     let distance = distance_squared(agent.x, agent.z, enemy.x, enemy.z);
     if distance <= MELEE_RANGE_METERS * MELEE_RANGE_METERS {
@@ -989,12 +1104,14 @@ fn engage_agent(
         return;
     }
     agent.state = COMBAT_STATE_ADVANCING;
-    (agent.x, agent.z) = move_toward(
+    (agent.x, agent.z) = move_combatant_toward(
         agent.x,
         agent.z,
         enemy.x,
         enemy.z,
-        speed * elapsed_seconds,
+        speed,
+        elapsed_seconds,
+        road_network,
     );
 }
 
@@ -1174,13 +1291,13 @@ fn return_guards_and_finalize(
     sim_tick: u64,
     world_seed: u64,
     elapsed_seconds: f64,
+    road_network: Option<&RoadNetwork>,
 ) {
     let mut guards_still_returning = 0_u32;
     for agent in agents.values_mut() {
         if agent.faction != COMBAT_FACTION_GUARD {
             if agent.state == COMBAT_STATE_DOWNED {
-                agent.attack_cooldown =
-                    (agent.attack_cooldown - elapsed_seconds).max(0.0);
+                agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
                 if agent.attack_cooldown > EPSILON {
                     ctx.db.combat_agent().id().update(agent.clone());
                     continue;
@@ -1222,6 +1339,7 @@ fn return_guards_and_finalize(
                     guard_routes.get(&agent.source_building_id),
                     WOUNDED_GUARD_SPEED_MPS,
                     elapsed_seconds,
+                    road_network,
                 );
             }
             ctx.db.combat_agent().id().update(agent.clone());
@@ -1245,6 +1363,7 @@ fn return_guards_and_finalize(
             guard_routes.get(&agent.source_building_id),
             GUARD_SPEED_MPS,
             elapsed_seconds,
+            road_network,
         );
         ctx.db.combat_agent().id().update(agent.clone());
     }
@@ -1293,28 +1412,44 @@ fn move_guard_home(
     muster_route: Option<&CachedCombatPath>,
     speed_mps: f64,
     elapsed_seconds: f64,
+    road_network: Option<&RoadNetwork>,
 ) {
     if let Some(route) = muster_route {
-        let route_move = move_along_route(
-            agent.x,
-            agent.z,
-            agent.route_progress,
-            route.path_distance,
-            &route.polyline,
-            speed_mps * COMBAT_ROAD_SPEED_MULTIPLIER * elapsed_seconds,
-            false,
-        );
-        agent.x = route_move.x;
-        agent.z = route_move.z;
-        agent.route_progress = route_move.progress;
-        return;
+        let direct_home_effort =
+            combat_route_effort(road_network, agent.x, agent.z, agent.home_x, agent.home_z);
+        let remaining_route_distance = agent.route_progress.clamp(0.0, route.path_distance);
+        if agent.route_progress > EPSILON
+            && !route_shortcut_is_worthwhile(
+                direct_home_effort,
+                remaining_route_distance,
+                COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
+            )
+        {
+            let route_move = move_along_combat_route(
+                agent.x,
+                agent.z,
+                agent.route_progress,
+                route.path_distance,
+                &route.polyline,
+                speed_mps,
+                elapsed_seconds,
+                false,
+                road_network,
+            );
+            agent.x = route_move.x;
+            agent.z = route_move.z;
+            agent.route_progress = route_move.progress;
+            return;
+        }
     }
-    (agent.x, agent.z) = move_toward(
+    (agent.x, agent.z) = move_combatant_toward(
         agent.x,
         agent.z,
         agent.home_x,
         agent.home_z,
-        speed_mps * elapsed_seconds,
+        speed_mps,
+        elapsed_seconds,
+        road_network,
     );
 }
 
@@ -1323,6 +1458,7 @@ fn step_recovering_guard(
     mut agent: CombatAgent,
     sim_tick: u64,
     elapsed_seconds: f64,
+    road_network: Option<&RoadNetwork>,
 ) -> bool {
     if agent.state == COMBAT_STATE_DOWNED {
         agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
@@ -1347,12 +1483,14 @@ fn step_recovering_guard(
             // carrier returns the issued weapon to the rack only at home.
             agent.carried_loot_json.clear();
         } else {
-            (agent.x, agent.z) = move_toward(
+            (agent.x, agent.z) = move_combatant_toward(
                 agent.x,
                 agent.z,
                 agent.home_x,
                 agent.home_z,
-                WOUNDED_GUARD_SPEED_MPS * elapsed_seconds,
+                WOUNDED_GUARD_SPEED_MPS,
+                elapsed_seconds,
+                road_network,
             );
         }
         ctx.db.combat_agent().id().update(agent);

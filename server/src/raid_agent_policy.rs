@@ -28,7 +28,11 @@ pub const GUARD_SPEED_MPS: f64 = 1.42;
 pub const WOUNDED_GUARD_SPEED_MPS: f64 = 0.68;
 pub const RAIDER_SPEED_MPS: f64 = 1.34;
 pub const COMBAT_ROAD_SPEED_MULTIPLIER: f64 = 1.35;
-pub const RAIDER_OFFROAD_ROUTE_MULTIPLIER: f64 = 1.55;
+pub const COMBAT_WADING_SPEED_MULTIPLIER: f64 = 0.6;
+// Direct combat movement includes fields, woodland, and the fordable rivers of
+// the Kupa valley. This factor compares base-speed travel effort with the
+// faster road route; water time is added separately from the synced wet mask.
+pub const COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER: f64 = COMBAT_ROAD_SPEED_MULTIPLIER;
 pub const MELEE_RANGE_METERS: f64 = 2.15;
 pub const GUARD_INTERCEPT_RANGE_METERS: f64 = 22.0;
 pub const RAIDER_ENGAGE_RANGE_METERS: f64 = 14.0;
@@ -165,6 +169,11 @@ pub fn formation_spawn(
     )
 }
 
+/// Move directly over combat terrain.
+///
+/// This deliberately has no road-connectivity or river-reachability gate.
+/// Callers reduce `max_distance` while the synced surface mask says the unit is
+/// wading, so shallow water slows both factions without ever blocking them.
 pub fn move_toward(x: f64, z: f64, target_x: f64, target_z: f64, max_distance: f64) -> (f64, f64) {
     if !max_distance.is_finite() || max_distance <= 0.0 {
         return (x, z);
@@ -360,8 +369,16 @@ fn assault_position_at_radius(
     approach_z: f64,
     assault_radius: f64,
 ) -> (f64, f64) {
-    let holding_x = if holding_x.is_finite() { holding_x } else { 0.0 };
-    let holding_z = if holding_z.is_finite() { holding_z } else { 0.0 };
+    let holding_x = if holding_x.is_finite() {
+        holding_x
+    } else {
+        0.0
+    };
+    let holding_z = if holding_z.is_finite() {
+        holding_z
+    } else {
+        0.0
+    };
     let approach_x = if approach_x.is_finite() {
         approach_x
     } else {
@@ -377,8 +394,7 @@ fn assault_position_at_radius(
     } else {
         0.0
     };
-    let (outward_x, outward_z) =
-        normalized_direction(holding_x, holding_z, approach_x, approach_z);
+    let (outward_x, outward_z) = normalized_direction(holding_x, holding_z, approach_x, approach_z);
     (
         holding_x + outward_x * assault_radius,
         holding_z + outward_z * assault_radius,
@@ -677,21 +693,24 @@ mod tests {
     #[test]
     fn combat_routes_are_preferences_not_rails() {
         assert!(COMBAT_ROAD_SPEED_MULTIPLIER > 1.0);
-        assert!(COMBAT_ROAD_SPEED_MULTIPLIER <= RAIDER_OFFROAD_ROUTE_MULTIPLIER);
+        assert_eq!(
+            COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
+            COMBAT_ROAD_SPEED_MULTIPLIER,
+        );
         assert!(!route_shortcut_is_worthwhile(
             100.0,
-            160.0,
-            RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+            140.0,
+            COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
         ));
         assert!(route_shortcut_is_worthwhile(
             100.0,
-            180.0,
-            RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+            150.0,
+            COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
         ));
         assert!(!route_shortcut_is_worthwhile(
             f64::NAN,
             180.0,
-            RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+            COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
         ));
         assert!(
             route_shortcut_via_endpoint_is_worthwhile(70.0, 90.0, 60.0, 1.35),
@@ -707,6 +726,34 @@ mod tests {
             f64::NAN,
             1.35,
         ));
+    }
+
+    #[test]
+    fn shallow_river_crossing_beats_a_long_bridge_detour() {
+        let wading_effort = 100.0 / COMBAT_WADING_SPEED_MULTIPLIER;
+        assert!(
+            route_shortcut_is_worthwhile(
+                wading_effort,
+                240.0,
+                COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
+            ),
+            "armed foot units should ford a shallow river instead of taking an extreme bridge detour",
+        );
+        assert!(
+            !route_shortcut_is_worthwhile(
+                wading_effort,
+                200.0,
+                COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
+            ),
+            "wading time should preserve a genuinely faster road or bridge",
+        );
+        assert!(COMBAT_WADING_SPEED_MULTIPLIER > 0.0);
+        assert!(COMBAT_WADING_SPEED_MULTIPLIER < 1.0);
+        assert_eq!(
+            move_toward(-2.0, 0.0, 2.0, 0.0, 1.0),
+            (-1.0, 0.0),
+            "direct combat movement must advance across an ungated water corridor",
+        );
     }
 
     #[test]
@@ -752,21 +799,14 @@ mod tests {
     fn ordinary_holdings_are_contacted_outside_their_physical_envelope() {
         let building = holding_assault_position(10.0, 20.0, 10.0, -100.0, 11.0);
         let distance_to_center = distance(building.0, building.1, 10.0, 20.0);
-        assert!(
-            (distance_to_center - (11.0 + STATIC_HOLDING_CONTACT_RANGE_METERS)).abs() < 1e-9,
-        );
+        assert!((distance_to_center - (11.0 + STATIC_HOLDING_CONTACT_RANGE_METERS)).abs() < 1e-9,);
         assert!(
             distance_to_center - raid_contact_range(0, COMBAT_TARGET_BUILDING) >= 11.0,
             "the entire accepted contact disc must stay beyond the building envelope",
         );
 
-        let home = holding_assault_position(
-            0.0,
-            0.0,
-            100.0,
-            0.0,
-            RESIDENCE_ASSAULT_OUTER_RADIUS_METERS,
-        );
+        let home =
+            holding_assault_position(0.0, 0.0, 100.0, 0.0, RESIDENCE_ASSAULT_OUTER_RADIUS_METERS);
         assert!(home.0 > RESIDENCE_ASSAULT_OUTER_RADIUS_METERS);
         assert_eq!(home.1, 0.0);
     }
@@ -979,12 +1019,8 @@ mod tests {
             let (entry_x, entry_z) =
                 raid_entry_point(index, 17.0, -23.0, playable_half_for_map_size(1));
             let moved = move_toward(entry_x, entry_z, 17.0, -23.0, 0.335);
-            let assault =
-                holding_assault_position(17.0, -23.0, entry_x, entry_z, 11.0);
-            checksum += moved.0 * 1e-9
-                + moved.1 * 1e-9
-                + assault.0 * 1e-10
-                + assault.1 * 1e-10;
+            let assault = holding_assault_position(17.0, -23.0, entry_x, entry_z, 11.0);
+            checksum += moved.0 * 1e-9 + moved.1 * 1e-9 + assault.0 * 1e-10 + assault.1 * 1e-10;
         }
         assert!(checksum.is_finite());
         assert!(

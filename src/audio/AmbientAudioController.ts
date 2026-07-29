@@ -5,7 +5,12 @@ import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import type { EnvironmentState, Season } from '../world/seasonPolicy.ts';
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import { AmbientAudio } from './AmbientAudio.ts';
-import { buildSettlementZones, evaluateAmbientRules, type AmbientRuleState } from './ambientRules.ts';
+import {
+  buildSettlementZones,
+  evaluateAmbientRules,
+  selectAmbientWeatherLayer,
+  type AmbientRuleState,
+} from './ambientRules.ts';
 import { ChapelBellPlayer } from './ChapelBellPlayer.ts';
 import { RiverAudio } from './RiverAudio.ts';
 import { SoundtrackAudio } from './SoundtrackAudio.ts';
@@ -13,6 +18,8 @@ import { UiAudio } from './UiAudio.ts';
 import type { UiSoundId } from './audioCatalog.ts';
 import { FireAudio } from './FireAudio.ts';
 import {
+  getAmbienceVolume,
+  getMusicVolume,
   isGameAudioEnabled,
   isMusicEnabled,
 } from './audioPreferences.ts';
@@ -71,6 +78,8 @@ export class AmbientAudioController {
     config.unlockElement.addEventListener('pointerdown', this.onUnlock, { capture: true });
     window.addEventListener('keydown', this.onUnlock, { capture: true });
     this.musicEnabled = isMusicEnabled();
+    this.audio.setVolume(getAmbienceVolume());
+    this.soundtrack.setVolume(getMusicVolume());
     this.setEnabled(isGameAudioEnabled());
   }
 
@@ -131,7 +140,10 @@ export class AmbientAudioController {
       this.audio.setAmbientMix({
         baseLayer: ambient.baseLayer,
         overlayLayer: ambient.overlayLayer,
-        weatherLayer: this.isRaining ? 'light_rain' : null,
+        weatherLayer: selectAmbientWeatherLayer(
+          this.isRaining,
+          ambient.state.overviewActive,
+        ),
       });
       this.soundtrack.syncContext({
         isNight: schedule?.dayNight.isNight ?? false,
@@ -139,10 +151,11 @@ export class AmbientAudioController {
         villageActive: ambient.state.villageActive,
       });
     }
+    this.soundtrack.tick(dtSeconds);
+    this.audio.setScoreActive(this.soundtrack.isAudible());
     this.audio.tick(dtSeconds);
     this.riverAudio.tick(dtSeconds);
     this.fireAudio.tick(dtSeconds);
-    this.soundtrack.tick(dtSeconds);
   }
 
   setEnabled(enabled: boolean): void {
@@ -163,6 +176,14 @@ export class AmbientAudioController {
   setMusicEnabled(enabled: boolean): void {
     this.musicEnabled = enabled;
     this.soundtrack.setEnabled(this.enabled && enabled);
+  }
+
+  setMusicVolume(volume: number): void {
+    this.soundtrack.setVolume(volume);
+  }
+
+  setAmbienceVolume(volume: number): void {
+    this.audio.setVolume(volume);
   }
 
   playUiSound(id: UiSoundId): void {

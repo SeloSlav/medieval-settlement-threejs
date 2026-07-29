@@ -3,6 +3,7 @@ import type { RoadEdge } from './RoadEdge.ts';
 import type { JunctionType, RoadNode } from './RoadNode.ts';
 import { RoadPathfinder } from './RoadPathfinder.ts';
 import { RoadSpatialIndex } from './roadSpatialIndex.ts';
+import type { CombatRiverNavigationGrid } from '../security/combatRiverNavigation.ts';
 
 export type SnapTarget =
   | { kind: 'node'; nodeId: string; point: THREE.Vector3; distance: number }
@@ -12,7 +13,7 @@ export type RoadNetworkSnapshot = {
   nextNodeId: number;
   nextEdgeId: number;
   nodes: Array<{ id: string; position: [number, number, number] }>;
-    edges: Array<{
+  edges: Array<{
     id: string;
     startNodeId: string;
     endNodeId: string;
@@ -29,6 +30,7 @@ export type RoadNetworkSnapshot = {
       deckY: number;
     }>;
   }>;
+  riverNavigation?: CombatRiverNavigationGrid;
 };
 
 type RouteEvent = {
@@ -49,9 +51,14 @@ export class RoadNetwork {
   private pathfinder: RoadPathfinder | null = null;
   private pathfinderDirty = true;
   private topologyRevision = 0;
+  private riverNavigation: CombatRiverNavigationGrid | undefined;
 
   getTopologyRevision(): number {
     return this.topologyRevision;
+  }
+
+  setRiverNavigation(grid: CombatRiverNavigationGrid): void {
+    this.riverNavigation = grid;
   }
 
   getPathfinder(): RoadPathfinder {
@@ -207,6 +214,7 @@ export class RoadNetwork {
         revision: edge.revision,
         bridgeSpans: edge.materialData?.bridgeSpans,
       })),
+      riverNavigation: this.riverNavigation,
     };
   }
 
@@ -229,6 +237,11 @@ export class RoadNetwork {
     this.invalidateSpatialIndex();
     this.nextNodeId = snapshot.nextNodeId;
     this.nextEdgeId = snapshot.nextEdgeId;
+    // Older server snapshots predate combat river navigation. Preserve the
+    // locally generated mask until the next authoritative road sync adds it.
+    if (snapshot.riverNavigation) {
+      this.riverNavigation = snapshot.riverNavigation;
+    }
     for (const node of snapshot.nodes) {
       this.nodes.set(node.id, {
         id: node.id,

@@ -3,8 +3,9 @@ import { AMBIENT_LAYERS, type AmbientLayerId, type AudioClipDefinition } from '.
 type AmbientTrackState = {
   audio: HTMLAudioElement | null;
   blobUrl: string | null;
-  currentVolume: number;
-  targetVolume: number;
+  currentMix: number;
+  targetMix: number;
+  mixVolume: number;
   playPending: boolean;
   lastPlayAttemptAtMs: number;
 };
@@ -18,7 +19,20 @@ type AmbientMix = {
   weatherVolume?: number;
 };
 
-const AMBIENT_FADE_SPEED = 0.16;
+export const AMBIENT_LAYER_FADES: Record<
+  AmbientLayerId,
+  { inSeconds: number; outSeconds: number }
+> = {
+  birds_wind_day: { inSeconds: 4.5, outSeconds: 5.5 },
+  village_day: { inSeconds: 3.5, outSeconds: 4.5 },
+  night_insects: { inSeconds: 5, outSeconds: 6 },
+  open_wind_overview: { inSeconds: 5.5, outSeconds: 6.5 },
+  light_rain: { inSeconds: 5, outSeconds: 6 },
+};
+export const AMBIENT_SCORE_DUCK_GAIN = 0.86;
+const AMBIENT_GAIN_FADE_SECONDS = 0.8;
+const SCORE_DUCK_ATTACK_SECONDS = 2.5;
+const SCORE_DUCK_RELEASE_SECONDS = 4;
 const AMBIENT_PLAY_RETRY_MS = 1000;
 
 async function loadAudioAsBlobUrl(path: string): Promise<string> {
@@ -30,12 +44,16 @@ async function loadAudioAsBlobUrl(path: string): Promise<string> {
 
 export class AmbientAudio {
   private enabled = true;
+  private currentAmbientGain = 1;
+  private targetAmbientGain = 1;
+  private currentScoreDuckGain = 1;
+  private targetScoreDuckGain = 1;
   private readonly ambientTracks: Record<AmbientLayerId, AmbientTrackState> = {
-    birds_wind_day: { audio: null, blobUrl: null, currentVolume: 0, targetVolume: 0, playPending: false, lastPlayAttemptAtMs: 0 },
-    village_day: { audio: null, blobUrl: null, currentVolume: 0, targetVolume: 0, playPending: false, lastPlayAttemptAtMs: 0 },
-    night_insects: { audio: null, blobUrl: null, currentVolume: 0, targetVolume: 0, playPending: false, lastPlayAttemptAtMs: 0 },
-    open_wind_overview: { audio: null, blobUrl: null, currentVolume: 0, targetVolume: 0, playPending: false, lastPlayAttemptAtMs: 0 },
-    light_rain: { audio: null, blobUrl: null, currentVolume: 0, targetVolume: 0, playPending: false, lastPlayAttemptAtMs: 0 },
+    birds_wind_day: createAmbientTrackState(),
+    village_day: createAmbientTrackState(),
+    night_insects: createAmbientTrackState(),
+    open_wind_overview: createAmbientTrackState(),
+    light_rain: createAmbientTrackState(),
   };
 
   setEnabled(enabled: boolean): void {
@@ -47,53 +65,97 @@ export class AmbientAudio {
     return this.enabled;
   }
 
+  setVolume(volume: number): void {
+    this.targetAmbientGain = clamp01(volume);
+  }
+
+  setScoreActive(active: boolean): void {
+    this.targetScoreDuckGain = active ? AMBIENT_SCORE_DUCK_GAIN : 1;
+  }
+
   setAmbientMix(mix: AmbientMix): void {
     if (!this.enabled) return;
     for (const id of Object.keys(this.ambientTracks) as AmbientLayerId[]) {
-      this.ambientTracks[id].targetVolume = 0;
+      this.ambientTracks[id].targetMix = 0;
     }
     if (mix.baseLayer) {
       const clip = AMBIENT_LAYERS[mix.baseLayer];
-      this.ambientTracks[mix.baseLayer].targetVolume = Math.max(0, mix.baseVolume ?? clip.volume ?? 1);
+      this.ambientTracks[mix.baseLayer].targetMix = 1;
+      this.ambientTracks[mix.baseLayer].mixVolume = Math.max(
+        0,
+        mix.baseVolume ?? clip.volume ?? 1,
+      );
       this.ensureAmbientTrackLoaded(mix.baseLayer);
     }
     if (mix.overlayLayer) {
       const clip = AMBIENT_LAYERS[mix.overlayLayer];
-      this.ambientTracks[mix.overlayLayer].targetVolume = Math.max(0, mix.overlayVolume ?? clip.volume ?? 1);
+      this.ambientTracks[mix.overlayLayer].targetMix = 1;
+      this.ambientTracks[mix.overlayLayer].mixVolume = Math.max(
+        0,
+        mix.overlayVolume ?? clip.volume ?? 1,
+      );
       this.ensureAmbientTrackLoaded(mix.overlayLayer);
     }
     if (mix.weatherLayer) {
       const clip = AMBIENT_LAYERS[mix.weatherLayer];
-      this.ambientTracks[mix.weatherLayer].targetVolume = Math.max(0, mix.weatherVolume ?? clip.volume ?? 1);
+      this.ambientTracks[mix.weatherLayer].targetMix = 1;
+      this.ambientTracks[mix.weatherLayer].mixVolume = Math.max(
+        0,
+        mix.weatherVolume ?? clip.volume ?? 1,
+      );
       this.ensureAmbientTrackLoaded(mix.weatherLayer);
     }
   }
 
   tick(dtSeconds: number): void {
     if (!this.enabled) return;
-    const step = Math.max(0, dtSeconds) * AMBIENT_FADE_SPEED;
+    const dt = Math.max(0, dtSeconds);
+    this.currentAmbientGain = moveToward(
+      this.currentAmbientGain,
+      this.targetAmbientGain,
+      dt / AMBIENT_GAIN_FADE_SECONDS,
+    );
+    const duckSeconds = this.targetScoreDuckGain < this.currentScoreDuckGain
+      ? SCORE_DUCK_ATTACK_SECONDS
+      : SCORE_DUCK_RELEASE_SECONDS;
+    this.currentScoreDuckGain = moveToward(
+      this.currentScoreDuckGain,
+      this.targetScoreDuckGain,
+      dt * (1 - AMBIENT_SCORE_DUCK_GAIN) / duckSeconds,
+    );
+
     const nowMs = performance.now();
     for (const id of Object.keys(this.ambientTracks) as AmbientLayerId[]) {
       const state = this.ambientTracks[id];
       const audio = state.audio;
       if (!audio) continue;
 
-      if (Math.abs(state.currentVolume - state.targetVolume) <= step) {
-        state.currentVolume = state.targetVolume;
-      } else if (state.currentVolume < state.targetVolume) {
-        state.currentVolume += step;
-      } else {
-        state.currentVolume -= step;
-      }
-
-      audio.volume = Math.max(0, state.currentVolume);
-      if (state.targetVolume > 0 && audio.paused) {
+      const fade = AMBIENT_LAYER_FADES[id];
+      const fadeSeconds = state.targetMix > state.currentMix
+        ? fade.inSeconds
+        : fade.outSeconds;
+      state.currentMix = moveToward(
+        state.currentMix,
+        state.targetMix,
+        dt / fadeSeconds,
+      );
+      audio.volume = clamp01(
+        state.mixVolume
+        * state.currentMix
+        * this.currentAmbientGain
+        * this.currentScoreDuckGain,
+      );
+      if (
+        state.targetMix > 0
+        && this.targetAmbientGain > 0
+        && audio.paused
+      ) {
         this.maybeStartAmbientPlayback(state, nowMs);
       }
-      if (state.currentVolume <= 0.0001 && state.targetVolume <= 0.0001) {
+      if (state.currentMix <= 0.0001 && state.targetMix <= 0.0001) {
         audio.pause();
         audio.currentTime = 0;
-        state.currentVolume = 0;
+        state.currentMix = 0;
         state.playPending = false;
       }
     }
@@ -118,8 +180,9 @@ export class AmbientAudio {
         state.blobUrl = null;
       }
       state.audio = null;
-      state.currentVolume = 0;
-      state.targetVolume = 0;
+      state.currentMix = 0;
+      state.targetMix = 0;
+      state.mixVolume = 0;
       state.playPending = false;
       state.lastPlayAttemptAtMs = 0;
     }
@@ -142,7 +205,7 @@ export class AmbientAudio {
         state.blobUrl = url;
         const audio = this.createLoopingAudio(url, clip, layerId);
         state.audio = audio;
-        state.currentVolume = 0;
+        state.currentMix = 0;
         state.playPending = false;
         state.lastPlayAttemptAtMs = 0;
       })
@@ -150,7 +213,7 @@ export class AmbientAudio {
         if (state.audio) return;
         const fallback = this.createLoopingAudio(clip.path, clip, layerId);
         state.audio = fallback;
-        state.currentVolume = 0;
+        state.currentMix = 0;
         state.playPending = false;
         state.lastPlayAttemptAtMs = 0;
       });
@@ -172,8 +235,8 @@ export class AmbientAudio {
         state.blobUrl = null;
       }
       state.audio = null;
-      state.currentVolume = 0;
-      state.targetVolume = 0;
+      state.currentMix = 0;
+      state.targetMix = 0;
     });
     return audio;
   }
@@ -187,4 +250,25 @@ export class AmbientAudio {
       state.playPending = false;
     });
   }
+}
+
+function createAmbientTrackState(): AmbientTrackState {
+  return {
+    audio: null,
+    blobUrl: null,
+    currentMix: 0,
+    targetMix: 0,
+    mixVolume: 0,
+    playPending: false,
+    lastPlayAttemptAtMs: 0,
+  };
+}
+
+function moveToward(current: number, target: number, step: number): number {
+  if (Math.abs(current - target) <= step) return target;
+  return current < target ? current + step : current - step;
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }

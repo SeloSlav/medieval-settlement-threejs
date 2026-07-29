@@ -46,10 +46,10 @@
       "group": "ambient-core",
       "kind": "sound-effect",
       "output": "public/sounds/ambient/open_wind_overview.mp3",
-      "prompt": "Seamless high panoramic mountain-valley wind ambience, broad airy movement over forest and meadow, gentle gust variation, distant landscape scale, no close leaves, no birds, no voices, no music, never harsh",
+      "prompt": "Seamless distant wind across a high Croatian mountain valley, broad soft air moving over remote forest ridges and meadow, slow natural gust swells with a calm spacious floor, panoramic landscape scale, no close microphone turbulence, no whistling, no rain, no leaves, no birds, no voices, no music, no tonal drone, no harsh gusts",
       "durationSeconds": 30,
       "loop": true,
-      "promptInfluence": 0.72
+      "promptInfluence": 0.78
     },
     {
       "id": "ambient-light-rain",

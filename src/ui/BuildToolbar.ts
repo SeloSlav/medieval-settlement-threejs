@@ -252,7 +252,9 @@ export class BuildToolbar {
       onGrantCheatResources?: (amount: number) => Promise<void>;
       onSetGameSpeed?: (speed: GameSpeed) => void;
       onAudioEnabledChange?: (enabled: boolean) => void;
+      onAmbienceVolumeChange?: (volume: number) => void;
       onMusicEnabledChange?: (enabled: boolean) => void;
+      onMusicVolumeChange?: (volume: number) => void;
     },
   ) {
     root.innerHTML = `
@@ -426,7 +428,9 @@ export class BuildToolbar {
       onNewWorld: handlers.onNewWorld,
       onGrantCheatResources: handlers.onGrantCheatResources,
       onAudioEnabledChange: handlers.onAudioEnabledChange,
+      onAmbienceVolumeChange: handlers.onAmbienceVolumeChange,
       onMusicEnabledChange: handlers.onMusicEnabledChange,
+      onMusicVolumeChange: handlers.onMusicVolumeChange,
       showButton: false,
     });
 

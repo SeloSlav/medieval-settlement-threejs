@@ -42,6 +42,7 @@ export class SoundtrackAudio {
   private currentVolume = 0;
   private loading = false;
   private enabled = true;
+  private volume = 1;
   private started = false;
   private nextTrackAtMs = Number.POSITIVE_INFINITY;
 
@@ -69,7 +70,8 @@ export class SoundtrackAudio {
     }
 
     const clip = this.activeTrack ? MUSIC_TRACKS[this.activeTrack] : null;
-    const baseVolume = clip?.volume ?? 0;
+    const authoredVolume = clip?.volume ?? 0;
+    const baseVolume = authoredVolume * this.volume;
     const remaining = Number.isFinite(this.audio.duration)
       ? this.audio.duration - this.audio.currentTime
       : Number.POSITIVE_INFINITY;
@@ -79,9 +81,12 @@ export class SoundtrackAudio {
     const fadeSeconds = targetVolume > this.currentVolume
       ? FADE_IN_SECONDS
       : FADE_OUT_SECONDS;
-    const step = Math.max(0, dtSeconds) * baseVolume / fadeSeconds;
+    const step = Math.max(0, dtSeconds)
+      * Math.max(authoredVolume, this.currentVolume)
+      / fadeSeconds;
     this.currentVolume = moveToward(this.currentVolume, targetVolume, step);
     this.audio.volume = clamp01(this.currentVolume);
+    setSoundtrackActive(this.isAudible());
   }
 
   setEnabled(enabled: boolean): void {
@@ -95,8 +100,18 @@ export class SoundtrackAudio {
     }
   }
 
+  setVolume(volume: number): void {
+    this.volume = clamp01(Number.isFinite(volume) ? volume : 1);
+    setSoundtrackActive(this.isAudible());
+  }
+
   isPlaying(): boolean {
     return Boolean(this.audio && !this.audio.paused);
+  }
+
+  isAudible(): boolean {
+    return this.isPlaying()
+      && (this.volume > 0.001 || this.currentVolume > 0.001);
   }
 
   dispose(): void {
@@ -143,7 +158,7 @@ export class SoundtrackAudio {
       audio.addEventListener('error', this.onTrackError, { once: true });
       await audio.play();
       this.lastTrack = track;
-      setSoundtrackActive(true);
+      setSoundtrackActive(this.isAudible());
     } catch {
       this.stopCurrent();
       this.nextTrackAtMs = performance.now() + MISSING_TRACK_RETRY_MS;

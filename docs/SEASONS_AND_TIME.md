@@ -182,14 +182,14 @@ frost uniform. Snow and dry grass share one packed albedo sampler, preserving th
 portable 16-texture WebGPU limit and adding no terrain mesh or draw call.
 
 Forest color follows the calendar independently of weather. Broadleaf trees and
-European larch begin a restrained leaf-out as February's snow retreats, so a new
-world opens on 1 March with roughly four-fifths of its deciduous canopy. The canopy
-fills during March and its pale spring flush matures through April. Leaves begin
-changing in late September, reach species-specific gold, copper, orange, or red
-during October, and shed progressively through November. Silver fir, spruce, Scots
-pine, and black pine remain evergreen. The per-tree deciduous flag is packed into
-an existing forest-card instance buffer, so the seasonal treatment adds no texture,
-vertex buffer, mesh, or draw call.
+European larch leaf out as February's snow retreats, so a new world opens on 1
+March with a full fresh-green deciduous canopy and no seasonally bare or half-bare
+trees. The pale spring flush matures through April. Leaves begin changing in late
+September, reach species-specific gold, copper, orange, or red during October, and
+shed progressively through November. Silver fir, spruce, Scots pine, and black pine
+remain evergreen. The per-tree deciduous flag is packed into an existing
+forest-card instance buffer, so the seasonal treatment adds no texture, vertex
+buffer, mesh, or draw call.
 
 The seasonal HUD tooltip and staffed or unstaffed Town Hall ledger also show a
 deterministic next-dawn outlook. It uses the same seed, hydrology, calendar, and

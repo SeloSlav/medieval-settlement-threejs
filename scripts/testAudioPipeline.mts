@@ -23,6 +23,20 @@ import {
   FIRE_AUDIO_FULL_VOLUME_DISTANCE,
   FIRE_AUDIO_MAX_ZOOM_DISTANCE,
 } from '../src/audio/FireAudio.ts';
+import {
+  AMBIENT_LAYER_FADES,
+  AMBIENT_SCORE_DUCK_GAIN,
+} from '../src/audio/AmbientAudio.ts';
+import {
+  evaluateAmbientRules,
+  OVERVIEW_ENTER_DISTANCE,
+  OVERVIEW_EXIT_DISTANCE,
+  selectAmbientWeatherLayer,
+} from '../src/audio/ambientRules.ts';
+import {
+  DEFAULT_AMBIENCE_VOLUME,
+  DEFAULT_MUSIC_VOLUME,
+} from '../src/audio/audioPreferences.ts';
 
 type AudioAsset = {
   id: string;
@@ -123,6 +137,57 @@ async function assertMp3(filename: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  invariant(
+    DEFAULT_MUSIC_VOLUME >= 0.7 && DEFAULT_MUSIC_VOLUME <= 1,
+    'Default music volume should start clearly audible while retaining headroom',
+  );
+  invariant(
+    DEFAULT_AMBIENCE_VOLUME >= 0.7 && DEFAULT_AMBIENCE_VOLUME <= 0.9,
+    'Default ambience should support rather than mask the score',
+  );
+  invariant(
+    OVERVIEW_ENTER_DISTANCE - OVERVIEW_EXIT_DISTANCE >= 20,
+    'Overview ambience needs enough zoom hysteresis to avoid wheel-boundary hunting',
+  );
+  const belowOverview = evaluateAmbientRules({
+    settlementZones: [],
+    cameraTarget: { x: 0, z: 0 },
+    orbitDistance: OVERVIEW_ENTER_DISTANCE - 0.01,
+    previous: { overviewActive: false, villageActive: false },
+    isNight: false,
+  });
+  const retainedOverview = evaluateAmbientRules({
+    settlementZones: [],
+    cameraTarget: { x: 0, z: 0 },
+    orbitDistance: OVERVIEW_EXIT_DISTANCE + 0.01,
+    previous: { overviewActive: true, villageActive: false },
+    isNight: false,
+  });
+  invariant(
+    !belowOverview.state.overviewActive && retainedOverview.state.overviewActive,
+    'Overview ambience should retain its prior state throughout the hysteresis band',
+  );
+  invariant(
+    AMBIENT_LAYER_FADES.open_wind_overview.inSeconds >= 5
+    && AMBIENT_LAYER_FADES.open_wind_overview.outSeconds
+      > AMBIENT_LAYER_FADES.open_wind_overview.inSeconds,
+    'Overview wind should crossfade gradually and release more slowly than it enters',
+  );
+  invariant(
+    AMBIENT_LAYER_FADES.light_rain.inSeconds >= 4
+    && AMBIENT_SCORE_DUCK_GAIN >= 0.8
+    && AMBIENT_SCORE_DUCK_GAIN <= 0.92,
+    'Weather fades and score ducking should remain subtle rather than abrupt',
+  );
+  invariant(
+    selectAmbientWeatherLayer(true, false) === 'light_rain',
+    'Rain should remain audible below overview zoom',
+  );
+  invariant(
+    selectAmbientWeatherLayer(true, true) === null,
+    'Overview zoom should remove rain from the wind-only ambience mix',
+  );
+
   const manifest = JSON.parse(
     await readFile(MANIFEST_PATH, 'utf8'),
   ) as AudioManifest;

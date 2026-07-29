@@ -40,10 +40,10 @@ function monthProgress(clock: GameClock): number {
 /**
  * Calendar presentation for broadleaf trees and European larch.
  *
- * A restrained late-February leaf-out gives a new March world a welcoming
- * green canopy. The remaining leaves fill in through March, the pale spring
- * flush matures during April, autumn color starts in late September, and
- * foliage sheds progressively during November.
+ * Late-February leaf-out reaches a full, welcoming green canopy by the new
+ * world's March opening. The pale spring flush matures during April, autumn
+ * color starts in late September, and foliage sheds progressively during
+ * November.
  */
 export function deciduousFoliageForClock(
   clock: GameClock,
@@ -51,7 +51,7 @@ export function deciduousFoliageForClock(
   const progress = monthProgress(clock);
 
   if (clock.month === 2) {
-    const leafOut = 0.82 * smooth((progress - 0.72) / 0.28);
+    const leafOut = smooth((progress - 0.72) / 0.28);
     return {
       springFlush: leafOut,
       autumnColor: 0,
@@ -59,11 +59,10 @@ export function deciduousFoliageForClock(
     };
   }
   if (clock.month === 3) {
-    const leafOut = 0.82 + 0.18 * smooth(progress);
     return {
-      springFlush: leafOut,
+      springFlush: 1,
       autumnColor: 0,
-      dormancy: 1 - leafOut,
+      dormancy: 0,
     };
   }
   if (clock.month === 4) {

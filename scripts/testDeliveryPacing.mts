@@ -199,8 +199,8 @@ assert.equal(
 );
 assert.match(
   simulationReducer,
-  /\(has_delivery_trips \|\| substeps > 0\)\s*\.then\(\|\| SimTickContext::load_road_networks\(ctx\)\)/,
-  'an idle heartbeat with no economy step should still avoid all graph parsing',
+  /\(has_delivery_trips \|\| has_combat_agents \|\| substeps > 0\)\s*\.then\(\|\| SimTickContext::load_road_networks\(ctx\)\)/,
+  'an idle heartbeat with no carts, combatants, or economy step should still avoid all graph parsing',
 );
 assert.ok(
   (simulationReducer.match(/SimTickContext::with_road_networks\(/g) ?? []).length >= 2,

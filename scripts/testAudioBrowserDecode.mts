@@ -18,6 +18,11 @@ import {
   WORKER_ACTIVITY_CLIPS,
   type AudioClipDefinition,
 } from '../src/audio/audioCatalog.ts';
+import {
+  DEFAULT_AMBIENCE_VOLUME,
+  DEFAULT_MUSIC_VOLUME,
+} from '../src/audio/audioPreferences.ts';
+import { AMBIENT_SCORE_DUCK_GAIN } from '../src/audio/AmbientAudio.ts';
 
 type AudioAsset = {
   id: string;
@@ -233,6 +238,52 @@ async function main(): Promise<void> {
       }
     }
 
+    const metricByPath = new Map(
+      metrics.map((metric) => [metric.path, metric]),
+    );
+    const defaultEffectiveRms = (
+      clip: AudioClipDefinition,
+      preferenceGain: number,
+    ): number => {
+      const metric = metricByPath.get(clip.path);
+      invariant(metric, `Missing decode metrics for ${clip.path}`);
+      return metric.rms * (clip.volume ?? 1) * preferenceGain;
+    };
+    const scoreRmsValues = Object.values(MUSIC_TRACKS).map((clip) => (
+      defaultEffectiveRms(clip, DEFAULT_MUSIC_VOLUME)
+    ));
+    const averageScoreRms =
+      scoreRmsValues.reduce((sum, value) => sum + value, 0)
+      / scoreRmsValues.length;
+    const dayRms = defaultEffectiveRms(
+      AMBIENT_LAYERS.birds_wind_day,
+      DEFAULT_AMBIENCE_VOLUME,
+    );
+    const villageRms = defaultEffectiveRms(
+      AMBIENT_LAYERS.village_day,
+      DEFAULT_AMBIENCE_VOLUME,
+    );
+    const rainRms = defaultEffectiveRms(
+      AMBIENT_LAYERS.light_rain,
+      DEFAULT_AMBIENCE_VOLUME,
+    );
+    const busyAmbienceUnderScore = Math.hypot(dayRms, villageRms, rainRms)
+      * AMBIENT_SCORE_DUCK_GAIN;
+    const overviewWindRms = defaultEffectiveRms(
+      AMBIENT_LAYERS.open_wind_overview,
+      DEFAULT_AMBIENCE_VOLUME,
+    );
+    invariant(
+      averageScoreRms >= busyAmbienceUnderScore * 1.2
+      && averageScoreRms <= busyAmbienceUnderScore * 2.2,
+      'Decoded score and busy ambience are outside the intended default balance',
+    );
+    invariant(
+      overviewWindRms >= dayRms * 1.4
+      && overviewWindRms <= dayRms * 2.2,
+      'Decoded overview wind should be broader than the close daytime bed without dominating it',
+    );
+
     const totalSeconds = metrics.reduce((sum, metric) => sum + metric.duration, 0);
     const quietest = [...metrics].sort((a, b) => a.rms - b.rms)[0];
     const loudest = [...metrics].sort((a, b) => b.rms - a.rms)[0];
@@ -247,6 +298,31 @@ async function main(): Promise<void> {
     console.log(
       `Highest decoded peak: ${highestPeak.peak.toFixed(4)} (${highestPeak.path}).`,
     );
+    console.log(
+      `Default mix RMS: score ${averageScoreRms.toFixed(4)},`
+      + ` busy ambience under score ${busyAmbienceUnderScore.toFixed(4)},`
+      + ` overview wind ${overviewWindRms.toFixed(4)}.`,
+    );
+    if (process.argv.includes('--mix-details')) {
+      const clipByPath = new Map(
+        runtimeClips().map((clip) => [clip.path, clip]),
+      );
+      for (const metric of metrics.filter((entry) => (
+        entry.path.startsWith('/sounds/music/')
+        || Object.values(AMBIENT_LAYERS).some((clip) => clip.path === entry.path)
+      ))) {
+        const clip = clipByPath.get(metric.path);
+        const preferenceGain = metric.path.startsWith('/sounds/music/')
+          ? DEFAULT_MUSIC_VOLUME
+          : DEFAULT_AMBIENCE_VOLUME;
+        const effectiveRms =
+          metric.rms * (clip?.volume ?? 1) * preferenceGain;
+        console.log(
+          `${metric.path}: source RMS ${metric.rms.toFixed(4)},`
+          + ` default effective RMS ${effectiveRms.toFixed(4)}`,
+        );
+      }
+    }
   } finally {
     await browser.close();
     await staticServer.close();

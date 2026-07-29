@@ -71,18 +71,27 @@ cost.
 ## Runtime mix
 
 - Day/night, village proximity, overview zoom, rain, river distance, and
-  chapel schedule drive the existing ambient layers.
+  chapel schedule drive the existing ambient layers. At overview zoom, the
+  rain layer drops out so the environmental mix is wind-only. A broad zoom
+  hysteresis band prevents wheel movement near the boundary from repeatedly
+  switching beds, and role-specific 3.5–6.5 second envelopes smooth base,
+  village, weather, and overview transitions.
 - Four non-looping instrumental tracks are chosen by settlement context,
   season, and time of day. Silence between tracks keeps the score from
-  fatiguing the player.
+  fatiguing the player. Active cues gently duck ambience to 86%, with a slower
+  release after the cue, so the score remains legible without flattening the
+  environmental soundscape.
 - `farm_workers_singing.mp3` is the authorized Selo Empire farm-worker song.
   It fades in only near actively tended grain fields at close zoom and yields
   to the instrumental score when a music cue is active.
 - Close workers retain small pooled one-shot effects so large settlements do
   not create an audio element per villager.
-- The Settings menu persists separate master Game audio and Background music
-  switches. The master switch also mutes worker, farm, fire, river, ambience,
-  chapel, and UI layers.
+- The Settings menu persists a master Game audio switch, independent Ambience
+  and Music volume sliders, and a Background music switch. Defaults are 80%
+  ambience and 75% music. The master switch also mutes worker, farm, fire,
+  river, ambience, chapel, and UI layers. The four score cues are normalized
+  against browser-decoded source RMS, and the combined rain/village bed is
+  regression-checked against their default effective level.
 
 The `ambient-extra`, `worker-foley`, and `ui` groups drive active fire
 incidents, visible worker activities, and placement feedback respectively.

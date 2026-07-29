@@ -50,6 +50,7 @@ import type { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldQueries } from '../resources/WorldQueries.ts';
 import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { encodeCombatRiverNavigation } from '../security/combatRiverNavigation.ts';
 import { RoadSelection } from '../roads/RoadSelection.ts';
 import { RoadTool } from '../roads/RoadTool.ts';
 import { isOnRoadSurface } from '../roads/roadConnectivity.ts';
@@ -218,6 +219,9 @@ export async function bootstrapAppSession(
   const spacetimeStore = new SpacetimeGameStore();
   const sessionGate = new SessionConnectionGate();
   const roadNetwork = new RoadNetwork();
+  roadNetwork.setRiverNavigation(
+    encodeCombatRiverNavigation(sceneManager.riverField),
+  );
   const firstPersonCollisionWorld = new FpCollisionWorld({
     getStaticRoots: () => sceneManager.getFirstPersonCollisionRoots(),
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
@@ -311,6 +315,7 @@ export async function bootstrapAppSession(
     getGameSpeed: () => spacetimeStore.snapshot.gameSpeed,
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     getRoadDeckY: (x, z) => sceneManager.sampleRoadDeckY(x, z),
+    isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
     routePathAroundObstacles: (path) => firstPersonCollisionWorld.routeAgentPath(path),
   });
   const placementGate: PlacementInteractionGate = {
@@ -726,8 +731,14 @@ export async function bootstrapAppSession(
     onAudioEnabledChange: (enabled) => {
       ambientAudio.setEnabled(enabled);
     },
+    onAmbienceVolumeChange: (volume) => {
+      ambientAudio.setAmbienceVolume(volume);
+    },
     onMusicEnabledChange: (enabled) => {
       ambientAudio.setMusicEnabled(enabled);
+    },
+    onMusicVolumeChange: (volume) => {
+      ambientAudio.setMusicVolume(volume);
     },
     onShadowPreferenceChange: () => {
       sceneManager.applyShadowPreferences();

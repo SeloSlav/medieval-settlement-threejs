@@ -34,11 +34,11 @@ export type UiSoundId =
   | 'error';
 
 export const AMBIENT_LAYERS: Record<AmbientLayerId, AudioClipDefinition> = {
-  birds_wind_day: { path: '/sounds/ambient/birds_wind_day.mp3', volume: 0.2, loop: true },
-  village_day: { path: '/sounds/ambient/village_day.mp3', volume: 0.12, loop: true },
-  night_insects: { path: '/sounds/ambient/night_insects.mp3', volume: 0.12, loop: true },
-  open_wind_overview: { path: '/sounds/ambient/open_wind_overview.mp3', volume: 0.28, loop: true },
-  light_rain: { path: '/sounds/ambient/light_rain.mp3', volume: 0.18, loop: true },
+  birds_wind_day: { path: '/sounds/ambient/birds_wind_day.mp3', volume: 0.95, loop: true },
+  village_day: { path: '/sounds/ambient/village_day.mp3', volume: 0.45, loop: true },
+  night_insects: { path: '/sounds/ambient/night_insects.mp3', volume: 0.75, loop: true },
+  open_wind_overview: { path: '/sounds/ambient/open_wind_overview.mp3', volume: 0.8, loop: true },
+  light_rain: { path: '/sounds/ambient/light_rain.mp3', volume: 0.7, loop: true },
 };
 
 /** Chapel bell at 6 AM and 6 PM. Distance and end fades are applied by ChapelBellPlayer. */
@@ -58,19 +58,19 @@ export const RIVER_WATER_CLIP: AudioClipDefinition = {
 export const MUSIC_TRACKS: Record<MusicTrackId, AudioClipDefinition> = {
   valley_at_first_light: {
     path: '/sounds/music/valley_at_first_light.mp3',
-    volume: 0.08,
+    volume: 0.135,
   },
   roads_and_rooftops: {
     path: '/sounds/music/roads_and_rooftops.mp3',
-    volume: 0.08,
+    volume: 0.175,
   },
   vespers_over_the_valley: {
     path: '/sounds/music/vespers_over_the_valley.mp3',
-    volume: 0.075,
+    volume: 0.245,
   },
   winter_hearth: {
     path: '/sounds/music/winter_hearth.mp3',
-    volume: 0.078,
+    volume: 0.18,
   },
 };
 

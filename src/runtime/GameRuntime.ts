@@ -21,6 +21,7 @@ export type GameRuntimeCallbacks = {
   onBootstrapFailed?: (error: unknown) => void;
   onSessionReady?: () => void;
   getTerrainHeight?: (x: number, z: number) => number;
+  getRoadSnapshot?: () => RoadNetworkSnapshot;
 };
 
 export class GameRuntime {
@@ -160,6 +161,12 @@ export class GameRuntime {
       this.worldLayout,
       this.callbacks.getTerrainHeight,
     );
+    const localRoadSnapshot = this.callbacks.getRoadSnapshot?.();
+    if (localRoadSnapshot) {
+      // Publish the seed-aware river navigation attachment even in a roadless
+      // new settlement. Later road edits retain it in the same snapshot.
+      await this.store.syncRoadNetworkNow(localRoadSnapshot);
+    }
     this.bootstrapComplete = true;
     this.syncRoads(this.store.snapshot);
     this.tryEmitSessionReady();

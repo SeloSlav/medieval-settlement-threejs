@@ -74,11 +74,17 @@ function foliageClock(month: number, monthDay: number) {
 }
 
 const openingMarchFoliage = deciduousFoliageForClock(foliageClock(3, 1));
-assert.ok(openingMarchFoliage.springFlush > 0.8);
-assert.ok(openingMarchFoliage.dormancy < 0.2);
+assert.deepEqual(
+  openingMarchFoliage,
+  { springFlush: 1, autumnColor: 0, dormancy: 0 },
+  'the opening March view must present a full fresh canopy',
+);
 const lateMarchFoliage = deciduousFoliageForClock(foliageClock(3, 8));
-assert.ok(lateMarchFoliage.springFlush > 0.95);
-assert.ok(lateMarchFoliage.dormancy < 0.05);
+assert.deepEqual(
+  lateMarchFoliage,
+  { springFlush: 1, autumnColor: 0, dormancy: 0 },
+  'March must not reintroduce sparse deciduous foliage after the opening',
+);
 const aprilMaturation = deciduousFoliageForClock(foliageClock(4, 6));
 assert.ok(aprilMaturation.springFlush > 0.4 && aprilMaturation.springFlush < 0.6);
 assert.equal(aprilMaturation.dormancy, 0);

@@ -69,6 +69,12 @@ import {
   type CombatAgentState,
 } from '../src/security/combatAgents.ts';
 import { syncActiveRaid } from '../src/security/activeRaid.ts';
+import {
+  combatRiverNavigationIsWaterAt,
+  COMBAT_RIVER_NAVIGATION_RESOLUTION,
+  COMBAT_WADING_SPEED_MULTIPLIER,
+  encodeCombatRiverNavigation,
+} from '../src/security/combatRiverNavigation.ts';
 import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
 import {
   BUILDING_DEFINITIONS,
@@ -99,6 +105,22 @@ assert.equal(frontierSettings.conflictMode, 'frontier');
 assert.equal(frontierSettings.enemyPressure, 65);
 assert.equal(PALISADED_REFUGE_RESIDENT_CAPACITY, 32);
 assert.equal(PALISADED_REFUGE_RALLY_THREAT_THRESHOLD, 0.7);
+assert.equal(COMBAT_WADING_SPEED_MULTIPLIER, 0.6);
+const combatRiverNavigation = encodeCombatRiverNavigation({
+  resolution: 512,
+  startX: -16,
+  startZ: -16,
+  spanX: 32,
+  spanZ: 32,
+  isRenderedWetAt: (_x: number, z: number) => Math.abs(z) <= 2,
+} as never);
+assert.equal(combatRiverNavigation.resolution, COMBAT_RIVER_NAVIGATION_RESOLUTION);
+assert.equal(
+  combatRiverNavigation.wetCellsHex.length,
+  COMBAT_RIVER_NAVIGATION_RESOLUTION ** 2 / 4,
+);
+assert.equal(combatRiverNavigationIsWaterAt(combatRiverNavigation, 0, 0), true);
+assert.equal(combatRiverNavigationIsWaterAt(combatRiverNavigation, 0, 8), false);
 assert.equal(
   isFrontierAlertActive(
     { nextRaidTick: 10_000, threat: 0.7 },
@@ -1500,6 +1522,7 @@ const watchtowerInspector = readFileSync('src/resources/inspector/watchtowerRend
 const guardhouseInspector = readFileSync('src/resources/inspector/guardhouseRenderer.ts', 'utf8');
 const refugeInspector = readFileSync('src/resources/inspector/palisadedRefugeRenderer.ts', 'utf8');
 const townHallInspector = readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
+const riverInspector = readFileSync('src/resources/inspector/riverRenderer.ts', 'utf8');
 const frontierMarkers = readFileSync('src/security/FrontierRiskMarkers.ts', 'utf8');
 const buildingMarkers = readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
 const villagerRenderer = readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
@@ -1808,7 +1831,7 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /let contact_range = raid_contact_range\(active_raid_anchor_id, agent\.target_kind\)[\s\S]*contact_distance > contact_range \* contact_range[\s\S]*move_toward\([\s\S]*return;[\s\S]*agent\.state = COMBAT_STATE_LOOTING[\s\S]*agent\.loot_progress \+= elapsed_seconds[\s\S]*plunder_raid_target_at_contact/,
+  /let contact_range = raid_contact_range\(active_raid_anchor_id, agent\.target_kind\)[\s\S]*contact_distance > contact_range \* contact_range[\s\S]*move_combatant_toward\([\s\S]*return;[\s\S]*agent\.state = COMBAT_STATE_LOOTING[\s\S]*agent\.loot_progress \+= elapsed_seconds[\s\S]*plunder_raid_target_at_contact/,
   'stock removal must remain unreachable until the authoritative raider enters contact range and finishes looting',
 );
 assert.match(
@@ -1878,7 +1901,7 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /if let Some\(route\) = muster_route \{[\s\S]*move_along_route\([\s\S]*nearest_enemy_within\(agent, snapshots, COMBAT_FACTION_RAIDER, f64::INFINITY, true\)/,
+  /if let Some\(route\) = muster_route \{[\s\S]*move_along_combat_route\([\s\S]*nearest_enemy_within\(agent, snapshots, COMBAT_FACTION_RAIDER, f64::INFINITY, true\)/,
   'road-linked companies should take their route while unlinked companies fall through to direct pursuit',
 );
 assert.doesNotMatch(
@@ -1918,23 +1941,63 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /route_shortcut_via_endpoint_is_worthwhile\([\s\S]*direct_distance,[\s\S]*remaining_route_distance,[\s\S]*endpoint_to_enemy_distance,[\s\S]*COMBAT_ROAD_SPEED_MULTIPLIER[\s\S]*engage_agent\([\s\S]*move_along_route/,
+  /combat_route_effort\([\s\S]*route_shortcut_via_endpoint_is_worthwhile\([\s\S]*direct_distance,[\s\S]*remaining_route_distance,[\s\S]*endpoint_to_enemy_distance,[\s\S]*COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER[\s\S]*engage_agent\([\s\S]*move_along_combat_route/,
   'warned guards must compare live cross-country interception against the full road-and-endpoint detour',
 );
 assert.match(
   serverRaidAgents,
-  /move_along_route\([\s\S]*COMBAT_ROAD_SPEED_MULTIPLIER/,
+  /move_along_combat_route\([\s\S]*COMBAT_ROAD_SPEED_MULTIPLIER/,
   'taking the preferred road path must provide a real movement advantage rather than only visual routing',
 );
 assert.match(serverRaidAgentPolicy, /pub const COMBAT_ROAD_SPEED_MULTIPLIER:\s*f64\s*=\s*1\.35/);
 assert.match(
+  serverRaidAgentPolicy,
+  /COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER:\s*f64\s*=\s*COMBAT_ROAD_SPEED_MULTIPLIER/,
+  'route comparison must retain the real road-speed advantage after water effort is measured separately',
+);
+assert.match(
+  serverRaidAgentPolicy,
+  /COMBAT_WADING_SPEED_MULTIPLIER:\s*f64\s*=\s*0\.6/,
+  'both factions need one explicit authoritative wading factor',
+);
+assert.doesNotMatch(
+  serverRaidAgentPolicy,
+  /RAIDER_OFFROAD_ROUTE_MULTIPLIER/,
+  'raiders must not retain a separate route penalty that makes fordable rivers act like barriers',
+);
+assert.match(
   serverRaidAgents,
-  /COMBAT_STATE_RETREATING[\s\S]*move_along_route\([\s\S]*false[\s\S]*COMBAT_STATE_ADVANCING[\s\S]*move_along_route\([\s\S]*true/,
+  /road_path_route_from_external_access\([\s\S]*COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER/,
+  'raider route planning must retain a direct ford fallback',
+);
+assert.match(
+  serverRaidAgents,
+  /combat_cross_country_effort[\s\S]*COMBAT_WADING_SPEED_MULTIPLIER[\s\S]*combat_segment_speed_multiplier/,
+  'live movement and route choice must both consume the synced river mask',
+);
+assert.match(
+  serverRoadNetwork,
+  /riverNavigation[\s\S]*wet_cells_hex[\s\S]*combat_segment_speed_multiplier[\s\S]*is_on_road_surface/,
+  'the authority must distinguish off-road wading from a road bridge over the same wet cell',
+);
+assert.match(
+  serverRaidAgentPolicy,
+  /fn shallow_river_crossing_beats_a_long_bridge_detour/,
+  'native policy coverage must lock in the shallow-river crossing rule',
+);
+assert.match(
+  riverInspector,
+  /Raiders and guards may ford anywhere at 60% pace[\s\S]*Built road bridge required/,
+  'the river inspector must distinguish slowed combat fording from civilian cart logistics',
+);
+assert.match(
+  serverRaidAgents,
+  /COMBAT_STATE_RETREATING[\s\S]*move_along_combat_route\([\s\S]*false[\s\S]*COMBAT_STATE_ADVANCING[\s\S]*move_along_combat_route\([\s\S]*true/,
   'raiders must advance and carry loot back out along the cached physical route',
 );
 assert.match(
   serverRaidAgents,
-  /guard_breaks_route_for[\s\S]*engage_agent\([\s\S]*move_along_route/,
+  /guard_breaks_route_for[\s\S]*engage_agent\([\s\S]*move_along_combat_route/,
   'nearby enemies and attacks already in contact must override the preferred road march',
 );
 assert.match(

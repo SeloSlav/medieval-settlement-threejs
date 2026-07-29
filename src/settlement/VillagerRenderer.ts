@@ -114,6 +114,7 @@ import {
   type FireIncidentState,
 } from '../fires/fireIncident.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
+import { COMBAT_WADING_SPEED_MULTIPLIER } from '../security/combatRiverNavigation.ts';
 
 type VillagerMode = VillagerRenderMode;
 type VillagerRole = 'founder' | 'resident' | 'worker';
@@ -236,6 +237,7 @@ export type VillagerRendererOptions = {
   getGameSpeed: () => GameSpeed;
   getHeightAt: (x: number, z: number) => number;
   getRoadDeckY?: (x: number, z: number) => number | null;
+  isWaterAt?: (x: number, z: number) => boolean;
   routePathAroundObstacles?: (path: readonly PointXZ[]) => PointXZ[] | null;
 };
 
@@ -246,6 +248,7 @@ export class VillagerRenderer {
   private readonly getGameSpeed: () => GameSpeed;
   private readonly getHeightAt: (x: number, z: number) => number;
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
+  private readonly isWaterAt: ((x: number, z: number) => boolean) | null;
   private readonly routePathAroundObstacles:
     ((path: readonly PointXZ[]) => PointXZ[] | null) | null;
   private readonly agents = new Map<string, VillagerAgent>();
@@ -281,6 +284,7 @@ export class VillagerRenderer {
     this.getGameSpeed = options.getGameSpeed;
     this.getHeightAt = options.getHeightAt;
     this.getRoadDeckY = options.getRoadDeckY ?? null;
+    this.isWaterAt = options.isWaterAt ?? null;
     this.routePathAroundObstacles = options.routePathAroundObstacles ?? null;
     this.renderer = new SettlementCrowdRenderer({ parent: options.parent });
   }
@@ -1162,6 +1166,8 @@ export class VillagerRenderer {
         ?? combatAppearanceSeed(combat);
       const colors = pickVillagerColors(appearanceSeed);
       const target = this.nearestCombatOpponent(combat);
+      const isWading = this.isWaterAt?.(visual.displayX, visual.displayZ) === true
+        && this.getRoadDeckY?.(visual.displayX, visual.displayZ) == null;
       const yaw = target
         ? Math.atan2(
             target.displayX - visual.displayX,
@@ -1189,11 +1195,11 @@ export class VillagerRenderer {
         hairColor: ordinaryGuard?.hairColor
           ?? pickVillagerHairColor(appearanceSeed),
         tool: 'spear',
-        movementSpeed: combat.status === 'wounded-returning'
+        movementSpeed: (combat.status === 'wounded-returning'
           ? 0.68
           : combat.faction === 'guard'
             ? 1.42
-            : 1.34,
+            : 1.34) * (isWading ? COMBAT_WADING_SPEED_MULTIPLIER : 1),
         active: true,
       });
     }

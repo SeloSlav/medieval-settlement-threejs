@@ -235,6 +235,7 @@ export class App {
       session.sceneManager.worldLayout,
       {
         getTerrainHeight: (x, z) => session.sceneManager.terrain.getHeightAt(x, z),
+        getRoadSnapshot: () => this.roadNetwork?.snapshot() ?? session.roadNetwork.snapshot(),
         onSnapshot: (snapshot, state) => this.applySpacetimeSnapshot(snapshot, state),
         onRoadsHydrated: (roads) => {
           this.roadNetwork?.restore(roads);

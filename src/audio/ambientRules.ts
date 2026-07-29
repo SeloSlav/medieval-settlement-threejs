@@ -24,9 +24,13 @@ type CameraTarget = {
   z: number;
 };
 
-/** Selo-empire enters overview wind past ~200% zoom (distance 65 vs baseline 32). */
-const OVERVIEW_ENTER_DISTANCE = BASELINE_ORBIT_DISTANCE * (65 / 32);
-const OVERVIEW_EXIT_DISTANCE = BASELINE_ORBIT_DISTANCE * (64 / 32);
+/**
+ * Entering and leaving the overview use a deliberately broad deadband. This
+ * prevents mouse-wheel settling near ~200% zoom from repeatedly crossfading
+ * between close ambience and the panoramic wind bed.
+ */
+export const OVERVIEW_ENTER_DISTANCE = BASELINE_ORBIT_DISTANCE * 2.1;
+export const OVERVIEW_EXIT_DISTANCE = BASELINE_ORBIT_DISTANCE * 1.85;
 const VILLAGE_EXIT_RADIUS_MULTIPLIER = 1.15;
 const MIN_SETTLEMENT_RADIUS = 48;
 const BURGAGE_ZONE_RADIUS = 56;
@@ -94,4 +98,12 @@ export function evaluateAmbientRules(params: {
     baseLayer,
     overlayLayer,
   };
+}
+
+/** Overview zoom deliberately strips the ambience back to its open-wind bed. */
+export function selectAmbientWeatherLayer(
+  isRaining: boolean,
+  overviewActive: boolean,
+): AmbientLayerId | null {
+  return isRaining && !overviewActive ? 'light_rain' : null;
 }

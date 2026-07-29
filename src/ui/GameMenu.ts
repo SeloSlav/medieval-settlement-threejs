@@ -10,10 +10,14 @@ import {
 } from '../scene/constellationPreference.ts';
 import { GameControlsModal } from './GameControlsModal.ts';
 import {
+  getAmbienceVolume,
+  getMusicVolume,
   isGameAudioEnabled,
   isMusicEnabled,
+  setAmbienceVolume,
   setGameAudioEnabled,
   setMusicEnabled,
+  setMusicVolume,
 } from '../audio/audioPreferences.ts';
 
 type GameMenuOptions = {
@@ -22,7 +26,9 @@ type GameMenuOptions = {
   onNewWorld?: () => void;
   onGrantCheatResources?: (amount: number) => Promise<void>;
   onAudioEnabledChange?: (enabled: boolean) => void;
+  onAmbienceVolumeChange?: (volume: number) => void;
   onMusicEnabledChange?: (enabled: boolean) => void;
+  onMusicVolumeChange?: (volume: number) => void;
   showButton?: boolean;
   /** When false, Escape will not open the menu (e.g. first-person walk mode). */
   canOpenFromKeyboard?: () => boolean;
@@ -35,7 +41,11 @@ export class GameMenu {
   private readonly buildingShadowsCheckbox: HTMLInputElement;
   private readonly constellationGuidesCheckbox: HTMLInputElement;
   private readonly gameAudioCheckbox: HTMLInputElement;
+  private readonly ambienceVolumeInput: HTMLInputElement;
+  private readonly ambienceVolumeValue: HTMLOutputElement;
   private readonly musicCheckbox: HTMLInputElement;
+  private readonly musicVolumeInput: HTMLInputElement;
+  private readonly musicVolumeValue: HTMLOutputElement;
   private readonly cheatAmountInput: HTMLInputElement;
   private readonly cheatGrantButton: HTMLButtonElement;
   private readonly cheatStatus: HTMLElement;
@@ -85,9 +95,33 @@ export class GameMenu {
           <input type="checkbox" data-game-audio-checkbox />
           <span>Game audio</span>
         </label>
+        <label class="game-menu-volume game-menu-option--nested">
+          <span>Ambience volume</span>
+          <output class="game-menu-volume__value" data-ambience-volume-value></output>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            aria-label="Ambience volume"
+            data-ambience-volume
+          />
+        </label>
         <label class="game-menu-option game-menu-option--nested">
           <input type="checkbox" data-music-checkbox />
           <span>Background music</span>
+        </label>
+        <label class="game-menu-volume game-menu-option--nested">
+          <span>Music volume</span>
+          <output class="game-menu-volume__value" data-music-volume-value></output>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            aria-label="Music volume"
+            data-music-volume
+          />
         </label>
         <section class="game-menu-cheat" aria-labelledby="game-menu-cheat-title">
           <div class="game-menu-cheat__heading">
@@ -125,7 +159,11 @@ export class GameMenu {
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
     this.constellationGuidesCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-constellation-guides-checkbox]')!;
     this.gameAudioCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-game-audio-checkbox]')!;
+    this.ambienceVolumeInput = this.backdrop.querySelector<HTMLInputElement>('[data-ambience-volume]')!;
+    this.ambienceVolumeValue = this.backdrop.querySelector<HTMLOutputElement>('[data-ambience-volume-value]')!;
     this.musicCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-music-checkbox]')!;
+    this.musicVolumeInput = this.backdrop.querySelector<HTMLInputElement>('[data-music-volume]')!;
+    this.musicVolumeValue = this.backdrop.querySelector<HTMLOutputElement>('[data-music-volume-value]')!;
     this.cheatAmountInput = this.backdrop.querySelector<HTMLInputElement>('[data-cheat-amount]')!;
     this.cheatGrantButton = this.backdrop.querySelector<HTMLButtonElement>('[data-cheat-grant]')!;
     this.cheatStatus = this.backdrop.querySelector<HTMLElement>('[data-cheat-status]')!;
@@ -145,6 +183,8 @@ export class GameMenu {
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();
     this.musicCheckbox.checked = isMusicEnabled();
+    this.syncAmbienceVolume();
+    this.syncMusicVolume();
     this.syncAudioControls();
     this.menuButton.addEventListener('click', () => this.toggle());
     returnButton.addEventListener('click', () => this.close());
@@ -177,9 +217,22 @@ export class GameMenu {
       this.syncAudioControls();
       options.onAudioEnabledChange?.(this.gameAudioCheckbox.checked);
     });
+    this.ambienceVolumeInput.addEventListener('input', () => {
+      const volume = Number(this.ambienceVolumeInput.value) / 100;
+      setAmbienceVolume(volume);
+      this.syncAmbienceVolume();
+      options.onAmbienceVolumeChange?.(volume);
+    });
     this.musicCheckbox.addEventListener('change', () => {
       setMusicEnabled(this.musicCheckbox.checked);
+      this.syncAudioControls();
       options.onMusicEnabledChange?.(this.musicCheckbox.checked);
+    });
+    this.musicVolumeInput.addEventListener('input', () => {
+      const volume = Number(this.musicVolumeInput.value) / 100;
+      setMusicVolume(volume);
+      this.syncMusicVolume();
+      options.onMusicVolumeChange?.(volume);
     });
 
     this.onKeyDown = (event: KeyboardEvent) => {
@@ -237,6 +290,8 @@ export class GameMenu {
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();
     this.musicCheckbox.checked = isMusicEnabled();
+    this.syncAmbienceVolume();
+    this.syncMusicVolume();
     this.syncAudioControls();
     this.backdrop.hidden = false;
     this.menuButton.setAttribute('aria-expanded', 'true');
@@ -265,7 +320,24 @@ export class GameMenu {
   }
 
   private syncAudioControls(): void {
+    this.ambienceVolumeInput.disabled = !this.gameAudioCheckbox.checked;
     this.musicCheckbox.disabled = !this.gameAudioCheckbox.checked;
+    this.musicVolumeInput.disabled =
+      !this.gameAudioCheckbox.checked || !this.musicCheckbox.checked;
+  }
+
+  private syncAmbienceVolume(): void {
+    const percent = Math.round(getAmbienceVolume() * 100);
+    this.ambienceVolumeInput.value = String(percent);
+    this.ambienceVolumeValue.value = `${percent}%`;
+    this.ambienceVolumeValue.textContent = `${percent}%`;
+  }
+
+  private syncMusicVolume(): void {
+    const percent = Math.round(getMusicVolume() * 100);
+    this.musicVolumeInput.value = String(percent);
+    this.musicVolumeValue.value = `${percent}%`;
+    this.musicVolumeValue.textContent = `${percent}%`;
   }
 
   private async grantCheatResources(

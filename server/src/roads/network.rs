@@ -32,6 +32,29 @@ fn default_road_width() -> f64 {
 struct RoadSnapshot {
     nodes: Vec<RoadNodeRow>,
     edges: Vec<RoadEdgeRow>,
+    #[serde(rename = "riverNavigation", default)]
+    river_navigation: Option<RiverNavigationRow>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RiverNavigationRow {
+    resolution: usize,
+    start_x: f64,
+    start_z: f64,
+    span_x: f64,
+    span_z: f64,
+    wet_cells_hex: String,
+}
+
+#[derive(Debug, Clone)]
+struct RiverNavigationGrid {
+    resolution: usize,
+    start_x: f64,
+    start_z: f64,
+    span_x: f64,
+    span_z: f64,
+    wet_cells: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -45,6 +68,7 @@ pub struct RoadNetwork {
     surface_edge_cells: HashMap<(i32, i32), Vec<usize>>,
     surface_node_cells: HashMap<(i32, i32), Vec<String>>,
     max_surface_half_width: f64,
+    river_navigation: Option<RiverNavigationGrid>,
 }
 
 const ROAD_SURFACE_CELL_SIZE: f64 = 24.0;
@@ -63,7 +87,10 @@ struct ShortestPathSolve {
 impl RoadNetwork {
     pub fn from_snapshot_json(json: &str) -> Option<Self> {
         let snapshot: RoadSnapshot = serde_json::from_str(json).ok()?;
-        if snapshot.nodes.is_empty() && snapshot.edges.is_empty() {
+        let river_navigation = snapshot
+            .river_navigation
+            .and_then(RiverNavigationGrid::from_row);
+        if snapshot.nodes.is_empty() && snapshot.edges.is_empty() && river_navigation.is_none() {
             return None;
         }
 
@@ -132,6 +159,7 @@ impl RoadNetwork {
             surface_edge_cells,
             surface_node_cells,
             max_surface_half_width,
+            river_navigation,
         })
     }
 
@@ -191,6 +219,105 @@ impl RoadNetwork {
         }
 
         false
+    }
+
+    /// Surface speed for one authoritative combat movement step.
+    ///
+    /// A bridge is both rendered water and road surface, so road membership is
+    /// checked before the wet mask. Any off-road wet sample makes the whole
+    /// short heartbeat a wading step; otherwise a mostly road-bound step earns
+    /// the road speed advantage.
+    pub fn combat_segment_speed_multiplier(
+        &self,
+        ax: f64,
+        az: f64,
+        bx: f64,
+        bz: f64,
+        wading_multiplier: f64,
+        road_multiplier: f64,
+    ) -> f64 {
+        let distance = distance(ax, az, bx, bz);
+        if !distance.is_finite() || distance <= 1e-9 {
+            return 1.0;
+        }
+        let sample_spacing = self
+            .river_navigation
+            .as_ref()
+            .map(RiverNavigationGrid::cell_size)
+            .unwrap_or(4.0)
+            .max(0.5);
+        let segments = (distance / (sample_spacing * 0.55)).ceil().clamp(1.0, 16.0) as usize;
+        let mut road_samples = 0_usize;
+        let mut sample_count = 0_usize;
+        for index in 0..=segments {
+            let t = index as f64 / segments as f64;
+            let x = ax + (bx - ax) * t;
+            let z = az + (bz - az) * t;
+            let on_road = self.is_on_road_surface(x, z);
+            if on_road {
+                road_samples += 1;
+            } else if self
+                .river_navigation
+                .as_ref()
+                .is_some_and(|navigation| navigation.is_water_at(x, z))
+            {
+                return finite_surface_multiplier(wading_multiplier, 0.05, 1.0);
+            }
+            sample_count += 1;
+        }
+        if road_samples * 2 >= sample_count {
+            finite_surface_multiplier(road_multiplier, 1.0, 3.0)
+        } else {
+            1.0
+        }
+    }
+
+    /// Converts a direct line into base-speed travel effort for route choice.
+    /// Wet cells cost `1 / wading_multiplier`; road cells cost
+    /// `1 / road_multiplier`. Sampling is bounded so large-map raids do not
+    /// turn river awareness into an unbounded per-agent scan.
+    pub fn combat_cross_country_effort(
+        &self,
+        ax: f64,
+        az: f64,
+        bx: f64,
+        bz: f64,
+        wading_multiplier: f64,
+        road_multiplier: f64,
+    ) -> f64 {
+        let direct_distance = distance(ax, az, bx, bz);
+        if !direct_distance.is_finite() || direct_distance <= 1e-9 {
+            return direct_distance.max(0.0);
+        }
+        let sample_spacing = self
+            .river_navigation
+            .as_ref()
+            .map(RiverNavigationGrid::cell_size)
+            .unwrap_or(5.0)
+            .max(1.0);
+        let segments = (direct_distance / sample_spacing).ceil().clamp(1.0, 256.0) as usize;
+        let segment_distance = direct_distance / segments as f64;
+        let wading_multiplier = finite_surface_multiplier(wading_multiplier, 0.05, 1.0);
+        let road_multiplier = finite_surface_multiplier(road_multiplier, 1.0, 3.0);
+        let mut effort = 0.0;
+        for index in 0..segments {
+            let t = (index as f64 + 0.5) / segments as f64;
+            let x = ax + (bx - ax) * t;
+            let z = az + (bz - az) * t;
+            let multiplier = if self.is_on_road_surface(x, z) {
+                road_multiplier
+            } else if self
+                .river_navigation
+                .as_ref()
+                .is_some_and(|navigation| navigation.is_water_at(x, z))
+            {
+                wading_multiplier
+            } else {
+                1.0
+            };
+            effort += segment_distance / multiplier;
+        }
+        effort
     }
 
     pub fn road_connected(&self, ax: f64, az: f64, bx: f64, bz: f64) -> bool {
@@ -715,6 +842,85 @@ impl RoadNetwork {
     }
 }
 
+impl RiverNavigationGrid {
+    fn from_row(row: RiverNavigationRow) -> Option<Self> {
+        if !(16..=512).contains(&row.resolution)
+            || !row.start_x.is_finite()
+            || !row.start_z.is_finite()
+            || !row.span_x.is_finite()
+            || !row.span_z.is_finite()
+            || row.span_x <= 0.0
+            || row.span_z <= 0.0
+        {
+            return None;
+        }
+        let byte_count = row.resolution.checked_mul(row.resolution)?.checked_add(7)? / 8;
+        if row.wet_cells_hex.len() != byte_count * 2 {
+            return None;
+        }
+        let bytes = row.wet_cells_hex.as_bytes();
+        let mut wet_cells = Vec::with_capacity(byte_count);
+        for index in (0..bytes.len()).step_by(2) {
+            let high = hex_nibble(bytes[index])?;
+            let low = hex_nibble(bytes[index + 1])?;
+            wet_cells.push((high << 4) | low);
+        }
+        Some(Self {
+            resolution: row.resolution,
+            start_x: row.start_x,
+            start_z: row.start_z,
+            span_x: row.span_x,
+            span_z: row.span_z,
+            wet_cells,
+        })
+    }
+
+    fn is_water_at(&self, x: f64, z: f64) -> bool {
+        if !x.is_finite() || !z.is_finite() {
+            return false;
+        }
+        let grid_x =
+            ((x - self.start_x) / self.span_x * (self.resolution - 1) as f64).round() as isize;
+        let grid_z =
+            ((z - self.start_z) / self.span_z * (self.resolution - 1) as f64).round() as isize;
+        if grid_x < 0
+            || grid_z < 0
+            || grid_x >= self.resolution as isize
+            || grid_z >= self.resolution as isize
+        {
+            return false;
+        }
+        let cell_index = grid_z as usize * self.resolution + grid_x as usize;
+        self.wet_cells
+            .get(cell_index / 8)
+            .is_some_and(|byte| byte & (1 << (cell_index & 7)) != 0)
+    }
+
+    fn cell_size(&self) -> f64 {
+        let intervals = (self.resolution - 1).max(1) as f64;
+        (self.span_x / intervals)
+            .max(self.span_z / intervals)
+            .max(0.5)
+    }
+}
+
+fn hex_nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+fn finite_surface_multiplier(value: f64, minimum: f64, maximum: f64) -> f64 {
+    if value.is_finite() {
+        value.clamp(minimum, maximum)
+    } else {
+        1.0
+    }
+}
+
 fn build_surface_spatial_index(
     nodes: &HashMap<String, (f64, f64)>,
     edges: &[RoadEdgeRow],
@@ -895,6 +1101,65 @@ fn append_polyline(path: &mut Vec<[f64; 2]>, segment: &[[f64; 2]]) {
 mod tests {
     use super::RoadNetwork;
     use std::time::Instant;
+
+    fn wet_row_hex(resolution: usize, wet_row: usize) -> String {
+        let mut bytes = vec![0_u8; (resolution * resolution + 7) / 8];
+        for grid_x in 0..resolution {
+            let index = wet_row * resolution + grid_x;
+            bytes[index / 8] |= 1 << (index & 7);
+        }
+        bytes
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    }
+
+    #[test]
+    fn combat_water_slows_both_sides_but_a_bridge_keeps_its_road_speed() {
+        let navigation_hex = wet_row_hex(16, 8);
+        let snapshot = serde_json::json!({
+            "nodes": [
+                {"id": "bridge-a", "position": [-2.0, 0.0, 0.0]},
+                {"id": "bridge-b", "position": [2.0, 0.0, 0.0]}
+            ],
+            "edges": [{
+                "startNodeId": "bridge-a",
+                "endNodeId": "bridge-b",
+                "width": 4.2,
+                "sampledPath": [[-2.0, 0.0, 0.0], [2.0, 0.0, 0.0]]
+            }],
+            "riverNavigation": {
+                "resolution": 16,
+                "startX": -8.0,
+                "startZ": -8.0,
+                "spanX": 16.0,
+                "spanZ": 16.0,
+                "wetCellsHex": navigation_hex
+            }
+        })
+        .to_string();
+        let network = RoadNetwork::from_snapshot_json(&snapshot).expect("valid combat navigation");
+
+        assert_eq!(
+            network.combat_segment_speed_multiplier(4.0, 0.0, 6.0, 0.0, 0.6, 1.35),
+            0.6,
+            "off-road movement through rendered water must wade",
+        );
+        assert_eq!(
+            network.combat_segment_speed_multiplier(-1.0, 0.0, 1.0, 0.0, 0.6, 1.35),
+            1.35,
+            "the same wet cells must not slow a unit standing on a road bridge",
+        );
+        assert_eq!(
+            network.combat_segment_speed_multiplier(4.0, 4.0, 6.0, 4.0, 0.6, 1.35),
+            1.0,
+            "dry cross-country movement keeps its ordinary pace",
+        );
+        assert!(
+            network.combat_cross_country_effort(4.0, 0.0, 6.0, 0.0, 0.6, 1.35) > 2.0,
+            "route choice must account for the time spent wading",
+        );
+    }
 
     #[test]
     fn equidistant_disconnected_roads_retain_both_components() {
