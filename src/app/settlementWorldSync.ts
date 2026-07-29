@@ -3,6 +3,7 @@ import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
+import type { BurialMarkers } from '../residences/BurialMarkers.ts';
 import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import type { PastureMarkers } from '../farming/PastureMarkers.ts';
 import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
@@ -17,6 +18,7 @@ export type SettlementWorldSyncTargets = {
   residenceMarkers: ResidenceMarkers | null;
   farmFieldMarkers: FarmFieldMarkers | null;
   pastureMarkers: PastureMarkers | null;
+  burialMarkers: BurialMarkers | null;
   livestockVisuals: LivestockVisuals | null;
   backyardGardenMarkers: BackyardGardenMarkers | null;
   deliveryAgents: DeliveryAgentRenderer | null;
@@ -45,6 +47,13 @@ export function syncSettlementWorld(
     state.pastures,
     previous.pastures,
   );
+  const graveyards = state.graveyards ?? new Map();
+  const previousGraveyards = previous?.graveyards ?? new Map();
+  const corpses = state.corpses ?? new Map();
+  const previousCorpses = previous?.corpses ?? new Map();
+  const burialsChanged = !previous
+    || !mapEntriesShareValues(graveyards, previousGraveyards)
+    || !mapEntriesShareValues(corpses, previousCorpses);
   const livestockChanged = !previous || !mapEntriesShareValues(
     state.livestockHerds,
     previous.livestockHerds,
@@ -165,6 +174,9 @@ export function syncSettlementWorld(
     targets.pastureMarkers?.syncPastures(state.pastures.values(), state.livestockHerds);
     targets.livestockVisuals?.sync(state.pastures.values(), state.livestockHerds);
   }
+  if (burialsChanged) {
+    targets.burialMarkers?.sync(graveyards.values(), corpses.values(), getHeightAt);
+  }
   if (residencesChanged || burgageZonesChanged || gardensChanged) {
     targets.backyardGardenMarkers?.syncGardens({
       residences: state.residences.values(),
@@ -210,6 +222,7 @@ export function disposeSettlementWorld(
   targets.residenceMarkers?.dispose();
   targets.farmFieldMarkers?.dispose();
   targets.pastureMarkers?.dispose();
+  targets.burialMarkers?.dispose();
   targets.livestockVisuals?.dispose();
   targets.backyardGardenMarkers?.dispose();
   targets.deliveryAgents?.dispose();

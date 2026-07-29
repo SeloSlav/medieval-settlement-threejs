@@ -4,26 +4,25 @@ use crate::balance_generated::{BASE_SPEED_DENOMINATOR, BASE_SPEED_NUMERATOR, TIC
 use crate::db::*;
 use crate::economy::step_regional_markets;
 use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
-use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
 use crate::simulation::{
     materialize_all_physical_resource_ledgers, step_apiary, step_backyard_gardens, step_brewery,
-    step_carpenter, step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit,
-    step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
+    step_burials, step_carpenter, step_chapel_parish, step_chapels, step_charcoal_burner,
+    step_clay_pit, step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
     step_ferry_landing, step_fires, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
     step_founding_sites, step_fresh_food_spoilage, step_granary, step_guardhouse,
     step_household_market_orders, step_hunters_hall, step_industrial_firewood_dispatch,
     step_institutional_food_dispatch, step_large_quarry, step_live_raids,
     step_local_material_dispatch, step_lumber_mill, step_marketplace_caravans,
     step_marketplace_material_dispatch, step_monastery, step_night_cycle, step_pastoral_farmstead,
-    step_potter_kiln,
-    step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
-    step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
-    step_settlement_security, step_smithy, step_smokehouse, step_stone_quarry, step_swineherd,
-    step_threshing_barn, step_village_storehouse_household_firewood,
-    step_village_storehouse_overflow_collection, step_vineyard, step_watermill, step_weaver,
-    step_well, step_woodcutters_lodge, try_dispatch_guardhouse_payroll, SharedRoadNetworks,
-    SimTickContext,
+    step_potter_kiln, step_production_labor_stewards, step_reclamation_piles, step_reforester,
+    step_residence, step_residence_upgrades, step_seasonal_labor_stewards,
+    step_seed_grain_distribution, step_settlement_security, step_smithy, step_smokehouse,
+    step_stone_quarry, step_swineherd, step_threshing_barn,
+    step_village_storehouse_household_firewood, step_village_storehouse_overflow_collection,
+    step_vineyard, step_watermill, step_weaver, step_well, step_woodcutters_lodge,
+    try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
 };
+use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
 use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
 
@@ -499,8 +498,11 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             residence,
             &clock,
             environment,
+            world_seed,
+            sim_tick,
         );
     }
+    step_burials(ctx, &tick, &clock, TICK_DT);
     step_reclamation_piles(ctx, &tick, &clock, reclamation_pile_ids);
     step_founding_sites(ctx, &tick, &clock);
 }

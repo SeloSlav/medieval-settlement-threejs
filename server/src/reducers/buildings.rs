@@ -65,6 +65,7 @@ use crate::specialty_trade_policy::is_valid_specialty_export_policy;
 use crate::storehouse_policy::{
     is_valid_storehouse_stock_target_percent, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
 };
+use crate::tables::graveyard;
 use crate::tables::{
     farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
 };
@@ -1932,6 +1933,17 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             .is_some()
     {
         return Err("Remove this livestock building's pastures first.".to_string());
+    }
+    if building.kind == "chapel"
+        && ctx
+            .db
+            .graveyard()
+            .chapel_id()
+            .filter(&building_id)
+            .next()
+            .is_some()
+    {
+        return Err("This chapel still has consecrated burial ground attached.".to_string());
     }
 
     let fire_damaged = building_fire_state(ctx, building_id).is_some();

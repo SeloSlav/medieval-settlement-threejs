@@ -116,6 +116,7 @@ export type PopulationStats = {
   total: number;
   assigned: number;
   cartAssigned: number;
+  sick?: number;
   available: number;
   housingCapacity: number;
   housed: number;
@@ -480,9 +481,11 @@ export function computeMarketplaceTradeAvailability(
 export function computePopulationStats(state: GameState): PopulationStats {
   let housed = 0;
   let housingCapacity = 0;
+  let sick = 0;
   for (const residence of state.residences?.values() ?? []) {
     if (residence.abandoned || residence.tier === 0) continue;
     housed += residence.population;
+    sick += Math.min(residence.population, residence.sickPopulation ?? 0);
     housingCapacity += residence.populationCapacity;
   }
 
@@ -511,7 +514,8 @@ export function computePopulationStats(state: GameState): PopulationStats {
     total,
     assigned,
     cartAssigned,
-    available: Math.max(0, total - assigned),
+    sick,
+    available: Math.max(0, total - assigned - sick),
     housingCapacity,
     housed,
     vacant: Math.max(0, housingCapacity - housed),
@@ -523,7 +527,7 @@ export function maxAssignableLabor(
   stats: PopulationStats,
 ): number {
   const assignedElsewhere = stats.assigned - building.assignedLabor;
-  const fromPool = Math.max(0, stats.total - assignedElsewhere);
+  const fromPool = Math.max(0, stats.total - (stats.sick ?? 0) - assignedElsewhere);
   const buildingCap = building.constructionComplete !== false
     ? buildingMaxLabor(building.kind)
     : CONSTRUCTION_MAX_BUILDERS;

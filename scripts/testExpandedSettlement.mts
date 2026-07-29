@@ -286,7 +286,11 @@ assert.deepEqual(
 );
 assert.equal(evaluateResidenceNeedRecovery(residence(1), supply).length, 1);
 assert.equal(evaluateResidenceNeedRecovery(residence(2), supply).length, 3);
-assert.equal(evaluateResidenceNeedRecovery(residence(3), supply).length, 6);
+assert.equal(
+  evaluateResidenceNeedRecovery(residence(3), supply).length,
+  3,
+  'vacant homes require food, water, and warmth for recovery; status goods do not gate survival',
+);
 
 for (const kind of expanded) {
   const model = createBuildingMesh(kind);

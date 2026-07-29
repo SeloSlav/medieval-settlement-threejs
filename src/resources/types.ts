@@ -192,6 +192,32 @@ export type PastureState = {
   moisture: number;
 };
 
+export type GraveyardState = {
+  id: string;
+  chapelId: string;
+  corners: FarmFieldState['corners'];
+  area: number;
+  averageSlopeDegrees: number;
+  capacity: number;
+  burials: number;
+};
+
+export type CorpseState = {
+  id: string;
+  residenceId: string;
+  cause: 0 | 1;
+  /** 0 awaiting collection, 1 empty cart outbound, 2 body inbound. */
+  state: 0 | 1 | 2;
+  /** Body position; remains at the home until collection. */
+  x: number;
+  z: number;
+  cartX: number;
+  cartZ: number;
+  createdTick: number;
+  chapelId: string | null;
+  graveyardId: string | null;
+};
+
 export type LivestockHerdState = {
   buildingId: string;
   species: LivestockSpecies;
@@ -260,17 +286,30 @@ export type ResidenceState = {
   backyardProjectKind?: number;
   /** Physical structural repair/rebuild work on a fire-disabled homestead. */
   fireRepairActive?: boolean;
+  hungerTicks?: number;
+  malnutrition?: number;
+  sickPopulation?: number;
+  illnessTicks?: number;
+  remedyStock?: number;
+  deathsTotal?: number;
+  comfortDeficitTicks?: number;
+  vacancyTicks?: number;
+  /** 0 sound, 1 neglected, 2 dilapidated, 3 ruin. */
+  condition?: 0 | 1 | 2 | 3;
+  /** Physical material-and-builder project restoring a vacant structure. */
+  decayRepairActive?: boolean;
 };
 
 export function residenceHasActiveProject(
   residence: Pick<
     ResidenceState,
-    'tier' | 'upgradeTargetTier' | 'backyardProjectKind' | 'fireRepairActive'
+    'tier' | 'upgradeTargetTier' | 'backyardProjectKind' | 'fireRepairActive' | 'decayRepairActive'
   >,
 ): boolean {
   return (residence.upgradeTargetTier ?? 0) > residence.tier
     || (residence.backyardProjectKind ?? 0) !== 0
-    || residence.fireRepairActive === true;
+    || residence.fireRepairActive === true
+    || residence.decayRepairActive === true;
 }
 
 export type BackyardGardenState = {
@@ -297,6 +336,8 @@ export type GameState = {
   buildings: Map<string, BuildingState>;
   farmFields: Map<string, FarmFieldState>;
   pastures: Map<string, PastureState>;
+  graveyards?: Map<string, GraveyardState>;
+  corpses?: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;
   burgageZones: Map<string, BurgageZoneState>;
   residences: Map<string, ResidenceState>;

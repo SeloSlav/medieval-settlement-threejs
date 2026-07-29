@@ -616,6 +616,7 @@ pub fn try_start_residence_upgrade_supply_trip(
             residence.tier,
             residence.backyard_project_kind,
             residence.fire_repair_active,
+            residence.decay_repair_active,
         )
         || origin.owner != residence.owner
         || tick.building_disabled_by_fire(ctx, origin.id)
@@ -1277,6 +1278,7 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
                 residence.tier,
                 residence.backyard_project_kind,
                 residence.fire_repair_active,
+                residence.decay_repair_active,
             )
         })
     {
@@ -1318,6 +1320,7 @@ fn unload_residence_upgrade_material(
         residence.tier,
         residence.backyard_project_kind,
         residence.fire_repair_active,
+        residence.decay_repair_active,
     ) {
         return;
     }
@@ -1632,6 +1635,7 @@ fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
                 residence.tier,
                 residence.backyard_project_kind,
                 residence.fire_repair_active,
+                residence.decay_repair_active,
             ) {
                 match commodity {
                     CommodityKind::Timber => residence.upgrade_reserved_timber += trip.amount,

@@ -1,4 +1,5 @@
 mod backyard_garden;
+mod burial;
 mod chapel;
 mod chapel_community;
 mod chapel_parish;
@@ -44,6 +45,7 @@ mod well;
 mod woodcutters_lodge;
 
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
+pub use burial::step_burials;
 pub use chapel::step_chapels;
 pub use chapel_parish::{step_chapel_parish, try_start_chapel_treasury_trip};
 pub use civic_receipts::try_dispatch_local_civic_receipts;

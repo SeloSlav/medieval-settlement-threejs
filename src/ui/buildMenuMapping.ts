@@ -78,10 +78,10 @@ export const MENU_ACTION_TO_BUILDING_KIND: Record<BuildingMenuAction, BuildingKi
 };
 
 export function toolbarModeToMenuAction(
-  mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'idle',
+  mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'burial-grounds' | 'idle',
 ): PlacementBuildMenuAction | null {
   if (mode === 'idle' || mode === 'road') return null;
   if (mode === 'residences') return 'residences';
-  if (mode === 'farm-fields' || mode === 'pastures') return null;
+  if (mode === 'farm-fields' || mode === 'pastures' || mode === 'burial-grounds') return null;
   return BUILDING_KIND_TO_MENU_ACTION[mode];
 }

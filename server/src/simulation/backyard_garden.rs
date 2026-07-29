@@ -2,7 +2,10 @@ use spacetimedb::ReducerContext;
 use std::collections::HashMap;
 
 use crate::backyard_garden_policy::backyard_garden_seasonal_multiplier;
-use crate::balance_generated::{backyard_garden_def, BackyardGardenKind, TICK_DT};
+use crate::balance_generated::{
+    backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY,
+    HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY, TICK_DT,
+};
 use crate::db::*;
 use crate::economy::{
     credit_marketplace_receipt_gold, credit_residence_wealth, garden_market_activity,
@@ -106,6 +109,15 @@ fn step_one_garden(
         }
     }
 
+    if kind == BackyardGardenKind::HerbGarden {
+        deposit_herb_remedies(
+            ctx,
+            residence,
+            population * HERB_REMEDIES_PER_PERSON_DAY * seasonal_multiplier * TICK_DT
+                / CALENDAR_SECONDS_PER_DAY,
+        );
+    }
+
     if !has_market_access {
         return 0.0;
     }
@@ -122,6 +134,17 @@ fn step_one_garden(
         credit_residence_wealth(ctx, residence.id, net_wealth);
     }
     tax
+}
+
+fn deposit_herb_remedies(ctx: &ReducerContext, residence: &Residence, amount: f64) {
+    if amount <= 1e-9 {
+        return;
+    }
+    let Some(mut current) = ctx.db.residence().id().find(&residence.id) else {
+        return;
+    };
+    current.remedy_stock = (current.remedy_stock + amount).min(HERB_REMEDY_CAPACITY);
+    ctx.db.residence().id().update(current);
 }
 
 fn deposit_self_food(ctx: &ReducerContext, residence_id: u64, amount: f64) {

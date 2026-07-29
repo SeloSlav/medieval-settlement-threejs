@@ -15,6 +15,7 @@ import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
 import { BurgageTool } from '../residences/BurgageTool.ts';
 import { MAX_ZONE_DEPTH, MIN_ZONE_DEPTH } from '../residences/burgageLayout.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
+import { BurialMarkers } from '../residences/BurialMarkers.ts';
 import type { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
 import type { BurgageFencing } from '../residences/BurgageFencing.ts';
 import { SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
@@ -122,6 +123,7 @@ export type BootstrappedSession = {
   burgageFencing: BurgageFencing;
   farmFieldMarkers: FarmFieldMarkers;
   pastureMarkers: PastureMarkers;
+  burialMarkers: BurialMarkers;
   livestockVisuals: LivestockVisuals;
   toolbar: BuildToolbar;
   toastManager: ToastManager;
@@ -520,19 +522,20 @@ export async function bootstrapAppSession(
   burgageTool.attachTo(sceneManager.previewGroup);
 
   const fieldFailureMessage = (mode: LandParcelMode, reason: FarmFieldPlacementFailureReason): string => {
-    const parcel = mode === 'pasture' ? 'pasture' : 'field';
+    const parcel = mode === 'pasture' ? 'pasture' : mode === 'graveyard' ? 'burial ground' : 'field';
     switch (reason) {
       case 'too_small': return `Draw a larger ${parcel}.`;
       case 'edge_too_short': return `Each ${parcel} edge must be longer.`;
       case 'invalid_shape': return `Trace a simple convex four-corner ${parcel} boundary.`;
       case 'too_steep': return `This ground is too steep for the ${parcel}.`;
       case 'no_farmstead': return `Keep the entire ${parcel} inside the selected holding’s work extent.`;
-      case 'water': return `${parcel === 'field' ? 'Fields' : 'Pastures'} cannot cover open water.`;
-      case 'quarry': return `${parcel === 'field' ? 'Fields' : 'Pastures'} cannot cover a quarry pit.`;
-      case 'building': return `${parcel === 'field' ? 'Field' : 'Pasture'} overlaps a building.`;
-      case 'residence': return `${parcel === 'field' ? 'Field' : 'Pasture'} overlaps a residence plot.`;
-      case 'field': return `${parcel === 'field' ? 'Field' : 'Pasture'} overlaps existing farmland.`;
+      case 'water': return `${parcel} cannot cover open water.`;
+      case 'quarry': return `${parcel} cannot cover a quarry pit.`;
+      case 'building': return `${parcel} overlaps a building.`;
+      case 'residence': return `${parcel} overlaps a residence plot.`;
+      case 'field': return `${parcel} overlaps existing farmland.`;
       case 'pasture': return `This ${parcel} overlaps an existing pasture.`;
+      case 'graveyard': return `This ${parcel} overlaps an existing burial ground.`;
     }
   };
 
@@ -552,6 +555,11 @@ export async function bootstrapAppSession(
     onCommitPasture: async (input) => {
       requireSessionReady();
       await spacetimeStore.placePasture(input);
+      ambientAudio.playUiSound('confirm');
+    },
+    onCommitGraveyard: async (input) => {
+      requireSessionReady();
+      await spacetimeStore.placeGraveyard(input);
       ambientAudio.playUiSound('confirm');
     },
     onModeChanged: () => bridge.syncToolbar(),
@@ -598,7 +606,9 @@ export async function bootstrapAppSession(
     const farmstead = liveContext.gameState.buildings.get(farmsteadId);
     const eligible = farmstead && (mode === 'field'
       ? farmstead.kind === 'threshing_barn'
-      : farmstead.kind === 'pastoral_farmstead' || farmstead.kind === 'swineherd');
+      : mode === 'graveyard'
+        ? farmstead.kind === 'chapel' && farmstead.constructionComplete !== false
+        : farmstead.kind === 'pastoral_farmstead' || farmstead.kind === 'swineherd');
     if (!farmstead || !eligible) {
       toastManager?.show('That holding can no longer manage this type of land.', { variant: 'error' });
       return;
@@ -618,7 +628,9 @@ export async function bootstrapAppSession(
       toastManager?.show(
         mode === 'field'
           ? 'Lay out a field entirely inside this farmstead’s work extent. Press C to change the crop.'
-          : 'Fence a parcel entirely inside this holding’s work extent.',
+          : mode === 'graveyard'
+            ? 'Lay consecrated burial ground directly beside this chapel.'
+            : 'Fence a parcel entirely inside this holding’s work extent.',
         { variant: 'info', durationMs: 6000 },
       );
     }
@@ -824,6 +836,7 @@ export async function bootstrapAppSession(
     ...inspectorActions,
     onBeginFarmFieldPlacement: (farmsteadId) => beginLinkedLandParcelPlacement('field', farmsteadId),
     onBeginPasturePlacement: (farmsteadId) => beginLinkedLandParcelPlacement('pasture', farmsteadId),
+    onBeginGraveyardPlacement: (chapelId) => beginLinkedLandParcelPlacement('graveyard', chapelId),
     onInspectDeliveryTrip: (tripId) => {
       const trip = liveContext.gameState.deliveryTrips.get(tripId);
       if (!trip || !villagerInspector.selectDeliveryTrip(tripId)) return;
@@ -855,6 +868,7 @@ export async function bootstrapAppSession(
     computeGoldAwaitingCollection(gameState.buildings.values()),
     computeGuardhousePayrollGold(gameState.buildings.values()),
   );
+  const burialMarkers = new BurialMarkers(sceneManager.selectionGroup);
   let lastLocatedResource: HudResourceKind | null = null;
   let locatedResourceIndex = 0;
   toolbar.settlementHud.setResourceLocator((resource) => {
@@ -998,6 +1012,7 @@ export async function bootstrapAppSession(
     burgageFencing,
     farmFieldMarkers,
     pastureMarkers,
+    burialMarkers,
     livestockVisuals,
     toolbar,
     toastManager,

@@ -198,10 +198,7 @@ fn try_start_stockyard_relocation(
 /// collection ceilings. Other portable stock uses the same destination
 /// hierarchy as demolition recovery, but may not bounce back into another
 /// temporary camp or reclamation pile.
-fn founding_destination_room(
-    candidate: &Building,
-    commodity: CommodityKind,
-) -> Option<(u8, f64)> {
+fn founding_destination_room(candidate: &Building, commodity: CommodityKind) -> Option<(u8, f64)> {
     if matches!(
         commodity,
         CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Firewood
@@ -251,6 +248,7 @@ fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: Commodity
                         residence.tier,
                         residence.backyard_project_kind,
                         residence.fire_repair_active,
+                        residence.decay_repair_active,
                     )
                 })
                 .map(|residence| match commodity {

@@ -107,6 +107,9 @@ pub mod monastery_hospitality_policy;
 #[path = "../../src/residence_settlement_policy.rs"]
 pub mod residence_settlement_policy;
 
+#[path = "../../src/resident_welfare_policy.rs"]
+pub mod resident_welfare_policy;
+
 #[path = "../../src/residence_upgrade_policy.rs"]
 pub mod residence_upgrade_policy;
 

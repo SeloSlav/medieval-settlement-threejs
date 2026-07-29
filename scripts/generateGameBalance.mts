@@ -297,6 +297,42 @@ export type GameBalance = {
     residenceClothCapacity: number;
     residenceClothPerPersonPerSec: number;
     abandonAfterDeficitTicks: number;
+    hungerWarningDays: number;
+    malnutritionDays: number;
+    starvationDeathStartDays: number;
+    starvationDeathIntervalDays: number;
+    malnutritionRecoveryDays: number;
+    comfortMigrationStartDays: number;
+    comfortMigrationIntervalDays: number;
+    baseIllnessChancePerPersonDay: number;
+    malnutritionIllnessMultiplier: number;
+    unsafeWaterIllnessMultiplier: number;
+    coldExposureIllnessMultiplier: number;
+    corpseDiseaseRadius: number;
+    corpseIllnessMultiplier: number;
+    illnessRecoveryDays: number;
+    illnessMortalityChancePerSickDay: number;
+    herbRemediesPerPersonDay: number;
+    herbRemedyCapacity: number;
+    herbTreatmentPerSickDay: number;
+    herbRecoveryMultiplier: number;
+    herbMortalityMultiplier: number;
+    residenceNeglectedDays: number;
+    residenceDilapidatedDays: number;
+    residenceRuinedDays: number;
+    residenceNeglectedRepairTimber: number;
+    residenceNeglectedRepairStone: number;
+    residenceDilapidatedRepairTimber: number;
+    residenceDilapidatedRepairStone: number;
+    residenceRuinedRepairTimber: number;
+    residenceRuinedRepairStone: number;
+    graveyardMinArea: number;
+    graveyardMinEdge: number;
+    graveyardMaxSlope: number;
+    graveyardMaxDistance: number;
+    graveyardAdjacencyDistance: number;
+    graveAreaPerBurial: number;
+    burialCartSpeedMps: number;
     residenceTier1AbandonmentGraceMultiplier: number;
     residenceTier2AbandonmentGraceMultiplier: number;
     residenceTier3AbandonmentGraceMultiplier: number;
@@ -714,6 +750,42 @@ function generateRust(): string {
     `pub const RESIDENCE_CLOTH_CAPACITY: f64 = ${rustF64(b.population.residenceClothCapacity)};`,
     `pub const RESIDENCE_CLOTH_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceClothPerPersonPerSec)};`,
     `pub const ABANDON_AFTER_DEFICIT_TICKS: u32 = ${b.population.abandonAfterDeficitTicks};`,
+    `pub const HUNGER_WARNING_DAYS: f64 = ${rustF64(b.population.hungerWarningDays)};`,
+    `pub const MALNUTRITION_DAYS: f64 = ${rustF64(b.population.malnutritionDays)};`,
+    `pub const STARVATION_DEATH_START_DAYS: f64 = ${rustF64(b.population.starvationDeathStartDays)};`,
+    `pub const STARVATION_DEATH_INTERVAL_DAYS: f64 = ${rustF64(b.population.starvationDeathIntervalDays)};`,
+    `pub const MALNUTRITION_RECOVERY_DAYS: f64 = ${rustF64(b.population.malnutritionRecoveryDays)};`,
+    `pub const COMFORT_MIGRATION_START_DAYS: f64 = ${rustF64(b.population.comfortMigrationStartDays)};`,
+    `pub const COMFORT_MIGRATION_INTERVAL_DAYS: f64 = ${rustF64(b.population.comfortMigrationIntervalDays)};`,
+    `pub const BASE_ILLNESS_CHANCE_PER_PERSON_DAY: f64 = ${rustF64(b.population.baseIllnessChancePerPersonDay)};`,
+    `pub const MALNUTRITION_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.malnutritionIllnessMultiplier)};`,
+    `pub const UNSAFE_WATER_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.unsafeWaterIllnessMultiplier)};`,
+    `pub const COLD_EXPOSURE_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.coldExposureIllnessMultiplier)};`,
+    `pub const CORPSE_DISEASE_RADIUS: f64 = ${rustF64(b.population.corpseDiseaseRadius)};`,
+    `pub const CORPSE_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.corpseIllnessMultiplier)};`,
+    `pub const ILLNESS_RECOVERY_DAYS: f64 = ${rustF64(b.population.illnessRecoveryDays)};`,
+    `pub const ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY: f64 = ${rustF64(b.population.illnessMortalityChancePerSickDay)};`,
+    `pub const HERB_REMEDIES_PER_PERSON_DAY: f64 = ${rustF64(b.population.herbRemediesPerPersonDay)};`,
+    `pub const HERB_REMEDY_CAPACITY: f64 = ${rustF64(b.population.herbRemedyCapacity)};`,
+    `pub const HERB_TREATMENT_PER_SICK_DAY: f64 = ${rustF64(b.population.herbTreatmentPerSickDay)};`,
+    `pub const HERB_RECOVERY_MULTIPLIER: f64 = ${rustF64(b.population.herbRecoveryMultiplier)};`,
+    `pub const HERB_MORTALITY_MULTIPLIER: f64 = ${rustF64(b.population.herbMortalityMultiplier)};`,
+    `pub const RESIDENCE_NEGLECTED_DAYS: f64 = ${rustF64(b.population.residenceNeglectedDays)};`,
+    `pub const RESIDENCE_DILAPIDATED_DAYS: f64 = ${rustF64(b.population.residenceDilapidatedDays)};`,
+    `pub const RESIDENCE_RUINED_DAYS: f64 = ${rustF64(b.population.residenceRuinedDays)};`,
+    `pub const RESIDENCE_NEGLECTED_REPAIR_TIMBER: f64 = ${rustF64(b.population.residenceNeglectedRepairTimber)};`,
+    `pub const RESIDENCE_NEGLECTED_REPAIR_STONE: f64 = ${rustF64(b.population.residenceNeglectedRepairStone)};`,
+    `pub const RESIDENCE_DILAPIDATED_REPAIR_TIMBER: f64 = ${rustF64(b.population.residenceDilapidatedRepairTimber)};`,
+    `pub const RESIDENCE_DILAPIDATED_REPAIR_STONE: f64 = ${rustF64(b.population.residenceDilapidatedRepairStone)};`,
+    `pub const RESIDENCE_RUINED_REPAIR_TIMBER: f64 = ${rustF64(b.population.residenceRuinedRepairTimber)};`,
+    `pub const RESIDENCE_RUINED_REPAIR_STONE: f64 = ${rustF64(b.population.residenceRuinedRepairStone)};`,
+    `pub const GRAVEYARD_MIN_AREA: f64 = ${rustF64(b.population.graveyardMinArea)};`,
+    `pub const GRAVEYARD_MIN_EDGE: f64 = ${rustF64(b.population.graveyardMinEdge)};`,
+    `pub const GRAVEYARD_MAX_SLOPE: f64 = ${rustF64(b.population.graveyardMaxSlope)};`,
+    `pub const GRAVEYARD_MAX_DISTANCE: f64 = ${rustF64(b.population.graveyardMaxDistance)};`,
+    `pub const GRAVEYARD_ADJACENCY_DISTANCE: f64 = ${rustF64(b.population.graveyardAdjacencyDistance)};`,
+    `pub const GRAVE_AREA_PER_BURIAL: f64 = ${rustF64(b.population.graveAreaPerBurial)};`,
+    `pub const BURIAL_CART_SPEED_MPS: f64 = ${rustF64(b.population.burialCartSpeedMps)};`,
     `pub const RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER: f64 = ${rustF64(b.population.residenceTier1AbandonmentGraceMultiplier)};`,
     `pub const RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER: f64 = ${rustF64(b.population.residenceTier2AbandonmentGraceMultiplier)};`,
     `pub const RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER: f64 = ${rustF64(b.population.residenceTier3AbandonmentGraceMultiplier)};`,
@@ -1424,6 +1496,42 @@ function generateTypeScript(): string {
     `export const RESIDENCE_CLOTH_CAPACITY = ${b.population.residenceClothCapacity};`,
     `export const RESIDENCE_CLOTH_PER_PERSON_PER_SEC = ${b.population.residenceClothPerPersonPerSec};`,
     `export const ABANDON_AFTER_DEFICIT_TICKS = ${b.population.abandonAfterDeficitTicks};`,
+    `export const HUNGER_WARNING_DAYS = ${b.population.hungerWarningDays};`,
+    `export const MALNUTRITION_DAYS = ${b.population.malnutritionDays};`,
+    `export const STARVATION_DEATH_START_DAYS = ${b.population.starvationDeathStartDays};`,
+    `export const STARVATION_DEATH_INTERVAL_DAYS = ${b.population.starvationDeathIntervalDays};`,
+    `export const MALNUTRITION_RECOVERY_DAYS = ${b.population.malnutritionRecoveryDays};`,
+    `export const COMFORT_MIGRATION_START_DAYS = ${b.population.comfortMigrationStartDays};`,
+    `export const COMFORT_MIGRATION_INTERVAL_DAYS = ${b.population.comfortMigrationIntervalDays};`,
+    `export const BASE_ILLNESS_CHANCE_PER_PERSON_DAY = ${b.population.baseIllnessChancePerPersonDay};`,
+    `export const MALNUTRITION_ILLNESS_MULTIPLIER = ${b.population.malnutritionIllnessMultiplier};`,
+    `export const UNSAFE_WATER_ILLNESS_MULTIPLIER = ${b.population.unsafeWaterIllnessMultiplier};`,
+    `export const COLD_EXPOSURE_ILLNESS_MULTIPLIER = ${b.population.coldExposureIllnessMultiplier};`,
+    `export const CORPSE_DISEASE_RADIUS = ${b.population.corpseDiseaseRadius};`,
+    `export const CORPSE_ILLNESS_MULTIPLIER = ${b.population.corpseIllnessMultiplier};`,
+    `export const ILLNESS_RECOVERY_DAYS = ${b.population.illnessRecoveryDays};`,
+    `export const ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY = ${b.population.illnessMortalityChancePerSickDay};`,
+    `export const HERB_REMEDIES_PER_PERSON_DAY = ${b.population.herbRemediesPerPersonDay};`,
+    `export const HERB_REMEDY_CAPACITY = ${b.population.herbRemedyCapacity};`,
+    `export const HERB_TREATMENT_PER_SICK_DAY = ${b.population.herbTreatmentPerSickDay};`,
+    `export const HERB_RECOVERY_MULTIPLIER = ${b.population.herbRecoveryMultiplier};`,
+    `export const HERB_MORTALITY_MULTIPLIER = ${b.population.herbMortalityMultiplier};`,
+    `export const RESIDENCE_NEGLECTED_DAYS = ${b.population.residenceNeglectedDays};`,
+    `export const RESIDENCE_DILAPIDATED_DAYS = ${b.population.residenceDilapidatedDays};`,
+    `export const RESIDENCE_RUINED_DAYS = ${b.population.residenceRuinedDays};`,
+    `export const RESIDENCE_NEGLECTED_REPAIR_TIMBER = ${b.population.residenceNeglectedRepairTimber};`,
+    `export const RESIDENCE_NEGLECTED_REPAIR_STONE = ${b.population.residenceNeglectedRepairStone};`,
+    `export const RESIDENCE_DILAPIDATED_REPAIR_TIMBER = ${b.population.residenceDilapidatedRepairTimber};`,
+    `export const RESIDENCE_DILAPIDATED_REPAIR_STONE = ${b.population.residenceDilapidatedRepairStone};`,
+    `export const RESIDENCE_RUINED_REPAIR_TIMBER = ${b.population.residenceRuinedRepairTimber};`,
+    `export const RESIDENCE_RUINED_REPAIR_STONE = ${b.population.residenceRuinedRepairStone};`,
+    `export const GRAVEYARD_MIN_AREA = ${b.population.graveyardMinArea};`,
+    `export const GRAVEYARD_MIN_EDGE = ${b.population.graveyardMinEdge};`,
+    `export const GRAVEYARD_MAX_SLOPE = ${b.population.graveyardMaxSlope};`,
+    `export const GRAVEYARD_MAX_DISTANCE = ${b.population.graveyardMaxDistance};`,
+    `export const GRAVEYARD_ADJACENCY_DISTANCE = ${b.population.graveyardAdjacencyDistance};`,
+    `export const GRAVE_AREA_PER_BURIAL = ${b.population.graveAreaPerBurial};`,
+    `export const BURIAL_CART_SPEED_MPS = ${b.population.burialCartSpeedMps};`,
     `export const RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER = ${b.population.residenceTier1AbandonmentGraceMultiplier};`,
     `export const RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER = ${b.population.residenceTier2AbandonmentGraceMultiplier};`,
     `export const RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER = ${b.population.residenceTier3AbandonmentGraceMultiplier};`,

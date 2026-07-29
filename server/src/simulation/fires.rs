@@ -275,11 +275,7 @@ pub fn select_fire_for_well(
         .map(|(incident, _)| incident)
 }
 
-pub fn fire_response_needed_for_well(
-    ctx: &ReducerContext,
-    well: &Building,
-    sim_tick: u64,
-) -> bool {
+pub fn fire_response_needed_for_well(ctx: &ReducerContext, well: &Building, sim_tick: u64) -> bool {
     if well.kind != "well"
         || !well.construction_complete
         || well.assigned_labor == 0
@@ -541,6 +537,7 @@ fn ignite_candidate(
                 residence.tier,
                 residence.backyard_project_kind,
                 residence.fire_repair_active,
+                residence.decay_repair_active,
             ) {
                 // A new fire ends unfinished household works immediately:
                 // source reservations are released, carts turn back, onsite
@@ -571,11 +568,10 @@ fn ignite_candidate(
                 crate::night_policy::WATCH_STANDARD,
                 crate::night_policy::LIGHTING_MAIN_ROADS,
             ));
-        let delay_ticks = (crate::night_policy::fire_discovery_delay_seconds(
-            watch_policy,
-            lighting_policy,
-        ) / TICK_DT)
-            .ceil() as u64;
+        let delay_ticks =
+            (crate::night_policy::fire_discovery_delay_seconds(watch_policy, lighting_policy)
+                / TICK_DT)
+                .ceil() as u64;
         sim_tick.saturating_add(delay_ticks)
     };
     Some(ctx.db.fire_incident().insert(FireIncident {

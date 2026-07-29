@@ -70,6 +70,7 @@ type ResourceInspectorOptions = {
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
+  onRepairResidenceDecay?: (residenceId: string) => void | Promise<void>;
   onSetResidenceUpgradePriority?: (
     residenceId: string,
     priority: number,
@@ -190,11 +191,13 @@ type ResourceInspectorOptions = {
   onSetFarmFieldPriority?: (fieldId: string, priority: number) => void | Promise<void>;
   onStartFarmFieldEarlyHarvest?: (fieldId: string) => void | Promise<void>;
   onDemolishPasture?: (pastureId: string) => void | Promise<void>;
+  onDemolishGraveyard?: (graveyardId: string) => void | Promise<void>;
   onSetLivestockSpecies?: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
   onSetLivestockBreedingReserve?: (buildingId: string, breedingReserve: number) => void | Promise<void>;
   onSetLivestockHaymakingPercent?: (buildingId: string, haymakingPercent: number) => void | Promise<void>;
   onBeginFarmFieldPlacement?: (farmsteadId: string) => void;
   onBeginPasturePlacement?: (farmsteadId: string) => void;
+  onBeginGraveyardPlacement?: (chapelId: string) => void;
   onInspectDeliveryTrip?: (tripId: string) => void;
   onFocusWorldPosition?: (x: number, z: number) => void;
   onSelectionChange?: (target: InspectableTarget | null) => void;
@@ -540,6 +543,20 @@ export class ResourceInspector {
       return;
     }
     if (
+      (event.target as HTMLElement).closest('[data-residence-decay-repair]')
+      && this.selectedTarget?.kind === 'residence'
+    ) {
+      void this.options.onRepairResidenceDecay?.(this.selectedTarget.residence.id);
+      return;
+    }
+    const demolishGraveyardId = (event.target as HTMLElement)
+      .closest<HTMLElement>('[data-demolish-graveyard]')
+      ?.dataset.demolishGraveyard;
+    if (demolishGraveyardId) {
+      void this.options.onDemolishGraveyard?.(demolishGraveyardId);
+      return;
+    }
+    if (
       (event.target as HTMLElement).closest('[data-rotate-construction-labor]')
       && this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'town_hall'
@@ -646,6 +663,10 @@ export class ResourceInspector {
       }
       if (landParcel === 'pasture' && (building.kind === 'pastoral_farmstead' || building.kind === 'swineherd')) {
         this.options.onBeginPasturePlacement?.(building.id);
+        return;
+      }
+      if (landParcel === 'graveyard' && building.kind === 'chapel') {
+        this.options.onBeginGraveyardPlacement?.(building.id);
         return;
       }
     }

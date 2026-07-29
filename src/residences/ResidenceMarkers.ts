@@ -914,7 +914,14 @@ export class ResidenceMarkers {
       }
       const y = getHeightAt(residence.x, residence.z);
       marker.position.set(residence.x, y, residence.z);
-      marker.rotation.y = residence.yaw;
+      const condition = residence.condition ?? 0;
+      marker.rotation.set(0, residence.yaw, condition * 0.012);
+      marker.scale.set(
+        1 - condition * 0.018,
+        1 - condition * 0.065,
+        1 - condition * 0.012,
+      );
+      marker.userData.residenceCondition = condition;
       const smokeEligible = !residence.abandoned
         && residence.population > 0
         && getNeedStock(residence.needs, 'firewood') > 0;

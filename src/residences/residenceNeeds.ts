@@ -4,9 +4,9 @@ import {
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_CAPACITY,
   SIM_TICK_SECONDS,
+  COMFORT_MIGRATION_START_DAYS,
 } from '../generated/gameBalance.ts';
 import {
-  effectiveAbandonAfterDeficitTicks,
   effectiveResidenceSettleTicks,
   recoveryNeedsRequired,
   recoveryStockMin,
@@ -28,7 +28,6 @@ import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 import {
   getNeed,
   activeResidenceNeedKinds,
-  maxActiveNeedDeficitTicks,
   type ResidenceNeedKind,
   type ResidenceNeedRecoveryStatus,
   type ResidenceNeedSupplyContext,
@@ -57,7 +56,9 @@ export function evaluateResidenceNeedRecovery(
   supply: ResidenceNeedSupplyContext,
   community: ResidenceCommunityContext = DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
 ): ResidenceNeedRecoveryStatus[] {
-  return activeNeedKinds(residence).map((kind) => evaluateNeedRecovery(kind, residence, supply, community));
+  return activeNeedKinds(residence)
+    .filter((kind) => kind === 'food' || kind === 'water' || kind === 'firewood')
+    .map((kind) => evaluateNeedRecovery(kind, residence, supply, community));
 }
 
 export function residenceRecoveryReady(
@@ -65,7 +66,8 @@ export function residenceRecoveryReady(
   community: ResidenceCommunityContext = DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
 ): boolean {
   const required = recoveryNeedsRequired(community.hasChapelAccess, statuses.length);
-  return statuses.filter((status) => status.ready).length >= required;
+  const foodReady = statuses.find((status) => status.kind === 'food')?.ready ?? false;
+  return foodReady && statuses.filter((status) => status.ready).length >= required;
 }
 
 export function residenceNeedsStatus(
@@ -90,7 +92,7 @@ export function residenceNeedsStatus(
     return describeAwaitingSettlers(residence, community);
   }
 
-  const deficitWarning = describeDeficitWarning(residence, community);
+  const deficitWarning = describeDeficitWarning(residence);
   if (deficitWarning) return deficitWarning;
 
   return describeActiveNeeds(residence);
@@ -232,26 +234,38 @@ function describeAwaitingSettlers(
 
 function describeDeficitWarning(
   residence: ResidenceState,
-  community: ResidenceCommunityContext,
 ): ResidenceNeedsStatus | null {
   if (residence.tier === 0) return null;
-  const deficitTicks = maxActiveNeedDeficitTicks(residence.needs, residence.tier);
-  if (deficitTicks <= 0) return null;
-
-  const unmetNeeds = activeNeedKinds(residence)
+  const unmetKinds = activeNeedKinds(residence)
     .filter((kind) => getNeed(residence.needs, kind).deficitTicks > 0)
-    .map((kind) => needLabel(kind).toLowerCase());
+  if (unmetKinds.length === 0) return null;
 
-  const abandonThreshold = effectiveAbandonAfterDeficitTicks(
-    community.hasChapelAccess,
-    community.hasMonasteryCoverage,
-    residence.tier,
+  const foodMissing = unmetKinds.includes('food');
+  if (foodMissing) {
+    return {
+      label: 'Food shortage — hunger and malnutrition worsen until provisions arrive',
+      state: 'warning',
+    };
+  }
+  const survivalMissing = unmetKinds.filter(
+    (kind) => kind === 'water' || kind === 'firewood',
   );
-  const remainingTicks = Math.max(0, abandonThreshold - deficitTicks);
+  if (survivalMissing.length > 0) {
+    return {
+      label: `Low ${survivalMissing.map((kind) => needLabel(kind).toLowerCase()).join(', ')} — illness risk is rising`,
+      state: 'warning',
+    };
+  }
+
+  const migrationStartTicks = COMFORT_MIGRATION_START_DAYS * GAME_DAY_SECONDS / SIM_TICK_SECONDS;
+  const remainingTicks = Math.max(
+    0,
+    migrationStartTicks - (residence.comfortDeficitTicks ?? 0),
+  );
   const remainingSeconds = remainingTicks * SIM_TICK_SECONDS;
-  const needLabelText = unmetNeeds.length > 0 ? unmetNeeds.join(', ') : 'needs';
+  const needLabelText = unmetKinds.map((kind) => needLabel(kind).toLowerCase()).join(', ');
   return {
-    label: `Low ${needLabelText} — abandons in ${formatShortDuration(remainingSeconds)}`,
+    label: `Status shortage (${needLabelText}) — a resident may leave in ${formatShortDuration(remainingSeconds)}`,
     state: 'warning',
   };
 }

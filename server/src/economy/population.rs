@@ -44,7 +44,11 @@ fn total_population(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
         .owner()
         .filter(&owner)
         .filter(|residence| !residence.abandoned)
-        .map(|residence| residence.population)
+        .map(|residence| {
+            residence
+                .population
+                .saturating_sub(residence.sick_population)
+        })
         .sum();
     let legacy_unhoused_population_bonus_enabled = ctx
         .db
@@ -175,6 +179,7 @@ fn total_residence_project_labor(ctx: &ReducerContext, owner: spacetimedb::Ident
                 residence.tier,
                 residence.backyard_project_kind,
                 residence.fire_repair_active,
+                residence.decay_repair_active,
             )
         })
         .map(|residence| residence.upgrade_assigned_labor.min(1))
@@ -246,6 +251,7 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
                     residence.tier,
                     residence.backyard_project_kind,
                     residence.fire_repair_active,
+                    residence.decay_repair_active,
                 ) && residence.upgrade_assigned_labor > 0
             })
             .collect::<Vec<_>>();

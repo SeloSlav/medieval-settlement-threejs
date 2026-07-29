@@ -14,6 +14,7 @@ import { syncCombatAgents } from './syncCombatAgents.ts';
 import { syncActiveRaid } from '../../security/activeRaid.ts';
 import { syncForagingNodes } from './syncForagingNodes.ts';
 import { syncFarmFields } from './syncFarmFields.ts';
+import { syncCorpses, syncGraveyards } from './syncBurials.ts';
 import { syncLivestockHerds, syncPastures } from './syncLivestock.ts';
 import { syncMarketState } from './syncMarketState.ts';
 import { syncPlayerResources } from './syncPlayerResources.ts';
@@ -60,6 +61,14 @@ export class GameTableSync {
     this.state.buildings = syncBuildings(db.building ? db.building.iter() : [], this.state.identityHex);
     this.state.farmFields = syncFarmFields(db.farm_field ? db.farm_field.iter() : [], this.state.identityHex);
     this.state.pastures = syncPastures(db.pasture ? db.pasture.iter() : [], this.state.identityHex);
+    this.state.graveyards = syncGraveyards(
+      db.graveyard ? db.graveyard.iter() : [],
+      this.state.identityHex,
+    );
+    this.state.corpses = syncCorpses(
+      db.corpse ? db.corpse.iter() : [],
+      this.state.identityHex,
+    );
     this.state.livestockHerds = syncLivestockHerds(
       db.livestock_herd ? db.livestock_herd.iter() : [],
       this.state.identityHex,
@@ -270,6 +279,20 @@ export class GameTableSync {
     bindTable(db.pasture, () => {
       this.state.pastures = syncPastures(
         db.pasture ? db.pasture.iter() : [],
+        this.state.identityHex,
+      );
+    });
+
+    bindTable(db.graveyard, () => {
+      this.state.graveyards = syncGraveyards(
+        db.graveyard ? db.graveyard.iter() : [],
+        this.state.identityHex,
+      );
+    });
+
+    bindTable(db.corpse, () => {
+      this.state.corpses = syncCorpses(
+        db.corpse ? db.corpse.iter() : [],
         this.state.identityHex,
       );
     });

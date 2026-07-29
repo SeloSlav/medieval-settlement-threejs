@@ -614,6 +614,35 @@ pub struct Pasture {
     pub moisture: f64,
 }
 
+/// Consecrated burial parcel laid beside a chapel. Capacity is derived from
+/// the authored area and remains occupied permanently as burials accumulate.
+#[spacetimedb::table(
+    accessor = graveyard,
+    public,
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = chapel_id, btree(columns = [chapel_id]))
+)]
+#[derive(Clone)]
+pub struct Graveyard {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub owner: Identity,
+    pub chapel_id: u64,
+    pub corner_ax: f64,
+    pub corner_az: f64,
+    pub corner_bx: f64,
+    pub corner_bz: f64,
+    pub corner_cx: f64,
+    pub corner_cz: f64,
+    pub corner_dx: f64,
+    pub corner_dz: f64,
+    pub area: f64,
+    pub average_slope_degrees: f64,
+    pub capacity: u32,
+    pub burials: u32,
+}
+
 /// Authoritative herd state. Species: 0 cattle, 1 sheep, 2 swine.
 #[spacetimedb::table(
     accessor = livestock_herd,
@@ -756,6 +785,42 @@ pub struct Residence {
     /// same settlement queue. Appended for additive save compatibility.
     #[default(false)]
     pub fire_repair_active: bool,
+    /// Consecutive shortage exposure. Food advances this every simulation
+    /// step; a stocked household recovers gradually instead of snapping well.
+    #[default(0u32)]
+    pub hunger_ticks: u32,
+    /// Persistent nutritional damage in the normalized 0-1 range.
+    #[default(0.0)]
+    pub malnutrition: f64,
+    /// Residents temporarily unavailable for labor due to generic illness.
+    #[default(0u32)]
+    pub sick_population: u32,
+    /// Shared household recovery progress for the current sick cohort.
+    #[default(0u32)]
+    pub illness_ticks: u32,
+    /// Dried-herb treatments produced by an occupied herb garden.
+    #[default(0.0)]
+    pub remedy_stock: f64,
+    #[default(0u32)]
+    pub deaths_total: u32,
+    /// Status shortages cause emigration on this timer; they never cause
+    /// starvation or disease directly.
+    #[default(0u32)]
+    pub comfort_deficit_ticks: u32,
+    /// Consecutive unoccupied time used by long-term building decay.
+    #[default(0u32)]
+    pub vacancy_ticks: u32,
+    /// 0 sound, 1 neglected, 2 dilapidated, 3 ruin.
+    #[default(0u8)]
+    pub condition: u8,
+    /// Hunger duration at the most recent starvation death, preventing a
+    /// whole household from dying in a single simulation step.
+    #[default(0u32)]
+    pub last_starvation_death_hunger_ticks: u32,
+    /// Vacant-home restoration reuses the physical household project ledger
+    /// while remaining distinct from fire recovery.
+    #[default(false)]
+    pub decay_repair_active: bool,
 }
 
 #[spacetimedb::table(
@@ -772,6 +837,46 @@ pub struct BackyardGarden {
     pub owner: Identity,
     /// Matches `BackyardGardenKind` in balance_generated.
     pub kind: u8,
+}
+
+/// A deceased resident awaiting or undergoing physical transport to a
+/// consecrated graveyard. One row represents one body and one handcart load.
+#[spacetimedb::table(
+    accessor = corpse,
+    public,
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = residence_id, btree(columns = [residence_id])),
+    index(accessor = chapel_id, btree(columns = [chapel_id])),
+    index(accessor = graveyard_id, btree(columns = [graveyard_id]))
+)]
+#[derive(Clone)]
+pub struct Corpse {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub owner: Identity,
+    pub residence_id: u64,
+    /// 0 starvation/exposure, 1 illness.
+    pub cause: u8,
+    /// 0 awaiting collection, 1 empty cart outbound, 2 body inbound.
+    pub state: u8,
+    /// Physical body position. It remains at the home during the outbound leg
+    /// and follows the handcart after collection.
+    pub x: f64,
+    pub z: f64,
+    /// Physical gravedigger handcart position. Kept separate so the body
+    /// remains visible at the home until the cart actually reaches it.
+    #[default(0.0)]
+    pub cart_x: f64,
+    #[default(0.0)]
+    pub cart_z: f64,
+    pub created_tick: u64,
+    pub chapel_id: u64,
+    pub graveyard_id: u64,
+    pub progress: f64,
+    pub speed_mps: f64,
+    pub path_distance: f64,
+    pub route_polyline_json: String,
 }
 
 /// Simulated regional market prices and neighbor trade conditions for a player.

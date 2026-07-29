@@ -28,6 +28,7 @@ use crate::placement_validation::{
 use crate::residence_upgrade_policy::{
     residence_project_active, residence_upgrade_household_contribution,
 };
+use crate::resident_welfare_policy::repair_cost;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::simulation::{
     building_fire_state, cancel_trips_for_residence, clear_backyard_garden_for_residence,
@@ -271,6 +272,17 @@ pub fn place_burgage_zone(
             upgrade_priority: crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL,
             backyard_project_kind: 0,
             fire_repair_active: false,
+            hunger_ticks: 0,
+            malnutrition: 0.0,
+            sick_population: 0,
+            illness_ticks: 0,
+            remedy_stock: 0.0,
+            deaths_total: 0,
+            comfort_deficit_ticks: 0,
+            vacancy_ticks: 0,
+            condition: 0,
+            last_starvation_death_hunger_ticks: 0,
+            decay_repair_active: false,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {
@@ -318,6 +330,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         residence.tier,
         residence.backyard_project_kind,
         residence.fire_repair_active,
+        residence.decay_repair_active,
     ) {
         return Err("This household already has improvement works underway.".to_string());
     }
@@ -456,6 +469,7 @@ pub fn set_residence_upgrade_priority(
         residence.tier,
         residence.backyard_project_kind,
         residence.fire_repair_active,
+        residence.decay_repair_active,
     ) {
         return Err("This residence has no improvement works underway.".to_string());
     }
@@ -463,6 +477,87 @@ pub fn set_residence_upgrade_priority(
     if priority == CONSTRUCTION_PRIORITY_HOLD {
         residence.upgrade_assigned_labor = 0;
     }
+    ctx.db.residence().id().update(residence);
+    Ok(())
+}
+
+#[reducer]
+pub fn repair_residence_decay(ctx: &ReducerContext, residence_id: u64) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    let mut residence = ctx
+        .db
+        .residence()
+        .id()
+        .find(&residence_id)
+        .ok_or_else(|| "Residence not found.".to_string())?;
+    if residence.owner != owner {
+        return Err("You do not own this residence.".to_string());
+    }
+    if residence.condition == 0 {
+        return Err("This residence is already sound.".to_string());
+    }
+    if !residence.abandoned || residence.population > 0 {
+        return Err("Only a vacant residence can require decay restoration.".to_string());
+    }
+    if residence_fire_state(ctx, residence.id).is_some() {
+        return Err("Resolve the fire damage before restoring long-term decay.".to_string());
+    }
+    if residence_project_active(
+        residence.upgrade_target_tier,
+        residence.tier,
+        residence.backyard_project_kind,
+        residence.fire_repair_active,
+        residence.decay_repair_active,
+    ) {
+        return Err("This household already has structural works underway.".to_string());
+    }
+    let (timber, stone) = repair_cost(residence.condition);
+    if total_timber(ctx, owner) + 1e-6 < timber || total_stone(ctx, owner) + 1e-6 < stone {
+        return Err(format!(
+            "Repair requires {} timber and {} stone.",
+            timber.round(),
+            stone.round()
+        ));
+    }
+    let physical_economy = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if physical_economy {
+        let network = load_owner_road_network(ctx, owner).ok_or_else(|| {
+            "Vacant-home restoration requires a road-linked material source.".to_string()
+        })?;
+        if timber > 1e-6 {
+            ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Timber, timber)?;
+        }
+        if stone > 1e-6 {
+            ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Stone, stone)?;
+        }
+        residence.decay_repair_active = true;
+        residence.upgrade_progress = 0.0;
+        residence.upgrade_required_timber = timber;
+        residence.upgrade_required_stone = stone;
+        residence.upgrade_required_gold = 0.0;
+        residence.upgrade_delivered_timber = 0.0;
+        residence.upgrade_delivered_stone = 0.0;
+        residence.upgrade_delivered_gold = 0.0;
+        residence.upgrade_reserved_timber = timber;
+        residence.upgrade_reserved_stone = stone;
+        residence.upgrade_reserved_gold = 0.0;
+        residence.upgrade_assigned_labor = available_building_labor(ctx, owner).min(1);
+        residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
+        ctx.db.residence().id().update(residence);
+        return Ok(());
+    }
+
+    spend_aggregate_timber(ctx, owner, timber)?;
+    spend_aggregate_stone(ctx, owner, stone)?;
+    residence.condition = 0;
+    residence.vacancy_ticks = 0;
+    residence.settlement_ticks = 0;
     ctx.db.residence().id().update(residence);
     Ok(())
 }

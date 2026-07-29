@@ -10,7 +10,7 @@ import { buildingPlacementReasonToToastId, getToastMessage } from './toastMessag
 export type ToolbarStats = {
   canBuild: boolean;
   hasDraft: boolean;
-  mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'idle';
+  mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'burial-grounds' | 'idle';
   statusDetail?: string | null;
   placementBlocked?: boolean;
   placementReady?: boolean;
@@ -30,7 +30,11 @@ export function isBuildingToolMode(mode: ToolbarStats['mode']): mode is Building
 }
 
 export function isConstructionToolMode(mode: ToolbarStats['mode']): boolean {
-  return isBuildingToolMode(mode) || mode === 'residences' || mode === 'farm-fields' || mode === 'pastures';
+  return isBuildingToolMode(mode)
+    || mode === 'residences'
+    || mode === 'farm-fields'
+    || mode === 'pastures'
+    || mode === 'burial-grounds';
 }
 
 export function isBuilderHudMode(mode: ToolbarStats['mode']): boolean {
@@ -59,6 +63,8 @@ export function describeBuilderTitle(mode: ToolbarStats['mode']): string {
       return 'Farm fields';
     case 'pastures':
       return 'Pastures and pannage';
+    case 'burial-grounds':
+      return 'Burial ground';
     case 'idle':
       return 'Builder';
     default: {
@@ -111,6 +117,14 @@ export function describeBuilderHelp(mode: ToolbarStats['mode']): string {
           <li><span>Fence pasture</span><span class="road-controls-key">Hammer or Enter</span></li>
           <li><span>Cancel / exit</span><span class="road-controls-key">Esc</span></li>
         `;
+    case 'burial-grounds':
+      return `
+          <li><span>Trace burial-ground boundary</span><span class="road-controls-key">4 corner clicks</span></li>
+          <li><span>Keep it beside the chapel</span><span class="road-controls-hint">entire parcel within parish range</span></li>
+          <li><span>Undo last point</span><span class="road-controls-key">R-click or Backspace</span></li>
+          <li><span>Consecrate ground</span><span class="road-controls-key">Hammer or Enter</span></li>
+          <li><span>Cancel / exit</span><span class="road-controls-key">Esc</span></li>
+        `;
     case 'founders_camp':
       return `
           <li><span>Choose camp site</span><span class="road-controls-key">L-click</span></li>
@@ -160,6 +174,9 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
   }
   if (stats.mode === 'pastures') {
     return stats.statusDetail ?? "Draw a pasture inside a livestock building's work extent";
+  }
+  if (stats.mode === 'burial-grounds') {
+    return stats.statusDetail ?? 'Draw a burial ground beside a completed chapel';
   }
   if (stats.mode !== 'road') return 'Road tool off';
   if (stats.canBuild) return 'Ready to build';

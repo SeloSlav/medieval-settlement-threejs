@@ -30,8 +30,21 @@ export function pastureClientId(serverId: bigint | number): string {
   return `pasture-${serverId}`;
 }
 
+export function graveyardClientId(serverId: bigint | number): string {
+  return `graveyard-${serverId}`;
+}
+
+export function corpseClientId(serverId: bigint | number): string {
+  return `corpse-${serverId}`;
+}
+
 export function parsePastureServerId(pastureId: string): bigint | null {
   const match = /^pasture-(\d+)$/.exec(pastureId);
+  return match ? BigInt(match[1]) : null;
+}
+
+export function parseGraveyardServerId(graveyardId: string): bigint | null {
+  const match = /^graveyard-(\d+)$/.exec(graveyardId);
   return match ? BigInt(match[1]) : null;
 }
 

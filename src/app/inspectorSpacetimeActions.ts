@@ -18,6 +18,8 @@ export type InspectorSpacetimeActions = {
   onDemolishBurgageZone: (zoneId: string) => Promise<void>;
   onDemolishResidence: (residenceId: string) => Promise<void>;
   onUpgradeResidence: (residenceId: string) => Promise<void>;
+  onRepairResidenceDecay: (residenceId: string) => Promise<void>;
+  onDemolishGraveyard: (graveyardId: string) => Promise<void>;
   onSetResidenceUpgradePriority: (residenceId: string, priority: number) => Promise<void>;
   onRepairFireDamage: (targetKind: FireTargetKind, targetId: string) => Promise<void>;
   onPlaceBackyardGarden: (residenceId: string, kind: BackyardGardenKind) => Promise<void>;
@@ -150,6 +152,14 @@ export function createInspectorSpacetimeActions(
       const store = requireReady();
       if (!store) return;
       await runReducer(() => store.upgradeResidence(residenceId), 'Residence upgrade failed.');
+    },
+    onRepairResidenceDecay: async (residenceId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.repairResidenceDecay(residenceId),
+        'Residence repair failed.',
+      );
     },
     onSetResidenceUpgradePriority: async (residenceId, priority) => {
       const store = requireReady();
@@ -369,6 +379,14 @@ export function createInspectorSpacetimeActions(
       const store = requireReady();
       if (!store) return;
       await runReducer(() => store.demolishPasture(pastureId), 'Could not remove pasture.');
+    },
+    onDemolishGraveyard: async (graveyardId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.demolishGraveyard(graveyardId),
+        'Could not remove burial ground.',
+      );
     },
     onSetLivestockSpecies: async (buildingId, species) => {
       const store = requireReady();

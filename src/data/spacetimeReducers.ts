@@ -24,6 +24,7 @@ import type { NightPolicyCode } from '../economy/nightPolicy.ts';
 import {
   parseBuildingServerId,
   parseFarmFieldServerId,
+  parseGraveyardServerId,
   parsePastureServerId,
   parseResidenceServerId,
   parseZoneServerId,
@@ -134,6 +135,14 @@ export async function upgradeResidence(residenceId: string): Promise<void> {
   const serverId = parseResidenceServerId(residenceId);
   if (serverId === null) throw new Error('Invalid residence id.');
   await callReducer('upgradeResidence', 'upgrade_residence', { residenceId: serverId });
+}
+
+export async function repairResidenceDecay(residenceId: string): Promise<void> {
+  const serverId = parseResidenceServerId(residenceId);
+  if (serverId === null) throw new Error('Invalid residence id.');
+  await callReducer('repairResidenceDecay', 'repair_residence_decay', {
+    residenceId: serverId,
+  });
 }
 
 export async function setResidenceUpgradePriority(
@@ -320,6 +329,38 @@ export async function setSeasonalLaborSteward(enabled: boolean): Promise<void> {
 export async function setConstructionLaborSteward(enabled: boolean): Promise<void> {
   await callReducer('setConstructionLaborSteward', 'set_construction_labor_steward', {
     enabled,
+  });
+}
+
+export async function placeGraveyard(input: {
+  chapelId: string;
+  corners: Array<{ x: number; z: number }>;
+  averageSlopeDegrees: number;
+}): Promise<void> {
+  const chapelId = parseBuildingServerId(input.chapelId);
+  if (chapelId === null || input.corners.length !== 4) {
+    throw new Error('Invalid graveyard placement.');
+  }
+  const [a, b, c, d] = input.corners;
+  await callReducer('placeGraveyard', 'place_graveyard', {
+    chapelId,
+    cornerAx: a.x,
+    cornerAz: a.z,
+    cornerBx: b.x,
+    cornerBz: b.z,
+    cornerCx: c.x,
+    cornerCz: c.z,
+    cornerDx: d.x,
+    cornerDz: d.z,
+    averageSlopeDegrees: input.averageSlopeDegrees,
+  });
+}
+
+export async function demolishGraveyard(graveyardId: string): Promise<void> {
+  const serverId = parseGraveyardServerId(graveyardId);
+  if (serverId === null) throw new Error('Invalid graveyard id.');
+  await callReducer('demolishGraveyard', 'demolish_graveyard', {
+    graveyardId: serverId,
   });
 }
 

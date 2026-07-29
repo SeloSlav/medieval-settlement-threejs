@@ -15,6 +15,7 @@ use crate::economy::CommodityKind;
 use crate::farming::{field_seed_crop, field_seed_grain_remaining, CROP_BARLEY};
 use crate::monastery_hospitality_policy::monastery_feast_surplus;
 use crate::raid_agent_policy::combat_agent_is_active_raider_threat;
+use crate::resident_welfare_policy::CorpseSpatialIndex;
 use crate::roads::RoadNetwork;
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
@@ -24,7 +25,7 @@ use crate::supply_policy::{
     is_specialty_supplier_operational, is_well_supplier_operational, ALE_SUPPLIER_KINDS,
     CLOTH_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
 };
-use crate::tables::{farm_field, livestock_herd, Building, Residence};
+use crate::tables::{corpse, farm_field, livestock_herd, Building, Residence};
 
 #[derive(Default)]
 struct OwnerBuildingIndex {
@@ -52,6 +53,7 @@ pub struct SimTickContext {
     food_claim_counts: RefCell<HashMap<Identity, HashMap<u64, u32>>>,
     marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     specialty_claims: RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
+    waiting_corpse_index: RefCell<Option<HashMap<Identity, CorpseSpatialIndex>>>,
     farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
     farmstead_barley_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
     cattle_field_sources_by_owner: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
@@ -93,6 +95,7 @@ impl SimTickContext {
             food_claim_counts: RefCell::new(HashMap::new()),
             marketplace_claims: RefCell::new(HashMap::new()),
             specialty_claims: RefCell::new(HashMap::new()),
+            waiting_corpse_index: RefCell::new(None),
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
             farmstead_barley_seed_reserves: RefCell::new(HashMap::new()),
             cattle_field_sources_by_owner: RefCell::new(HashMap::new()),
@@ -114,11 +117,7 @@ impl SimTickContext {
     /// owner-indexed scan while hostile agents move and fight in the earlier
     /// combat phase. Returning guards and downed raiders do not extend the
     /// civilian emergency stop.
-    pub fn owner_has_active_raider_threat(
-        &self,
-        ctx: &ReducerContext,
-        owner: Identity,
-    ) -> bool {
+    pub fn owner_has_active_raider_threat(&self, ctx: &ReducerContext, owner: Identity) -> bool {
         if let Some(active) = self
             .active_raider_threat_by_owner
             .borrow()
@@ -127,18 +126,9 @@ impl SimTickContext {
         {
             return active;
         }
-        let active = ctx
-            .db
-            .combat_agent()
-            .owner()
-            .filter(&owner)
-            .any(|agent| {
-                combat_agent_is_active_raider_threat(
-                    agent.faction,
-                    agent.state,
-                    agent.health,
-                )
-            });
+        let active = ctx.db.combat_agent().owner().filter(&owner).any(|agent| {
+            combat_agent_is_active_raider_threat(agent.faction, agent.state, agent.health)
+        });
         self.active_raider_threat_by_owner
             .borrow_mut()
             .insert(owner, active);
@@ -856,6 +846,53 @@ impl SimTickContext {
         self.specialty_claims
             .borrow_mut()
             .remove(&(owner, need_kind));
+    }
+
+    /// Count bodies that have not yet been collected near one home. The
+    /// owner-wide fixed-cell index is built at most once per simulation
+    /// substep, then updated when a death occurs later in the residence pass.
+    pub fn nearby_waiting_corpses(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        x: f64,
+        z: f64,
+        radius: f64,
+    ) -> usize {
+        self.ensure_waiting_corpse_index(ctx, radius);
+        self.waiting_corpse_index
+            .borrow()
+            .as_ref()
+            .and_then(|by_owner| by_owner.get(&owner))
+            .map(|index| index.count_within(x, z, radius))
+            .unwrap_or(0)
+    }
+
+    /// Keep the already-materialized disease index coherent when a later
+    /// household in this same substep creates a new body.
+    pub fn record_waiting_corpse(&self, owner: Identity, x: f64, z: f64, radius: f64) {
+        let mut cached = self.waiting_corpse_index.borrow_mut();
+        let Some(by_owner) = cached.as_mut() else {
+            return;
+        };
+        by_owner
+            .entry(owner)
+            .or_insert_with(|| CorpseSpatialIndex::new(radius))
+            .insert(x, z);
+    }
+
+    fn ensure_waiting_corpse_index(&self, ctx: &ReducerContext, radius: f64) {
+        if self.waiting_corpse_index.borrow().is_some() {
+            return;
+        }
+        let mut by_owner = HashMap::<Identity, CorpseSpatialIndex>::new();
+        for corpse in ctx.db.corpse().iter().filter(|corpse| corpse.state <= 1) {
+            by_owner
+                .entry(corpse.owner)
+                .or_insert_with(|| CorpseSpatialIndex::new(radius))
+                .insert(corpse.x, corpse.z);
+        }
+        *self.waiting_corpse_index.borrow_mut() = Some(by_owner);
     }
 
     fn build_specialty_claims(

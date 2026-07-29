@@ -26,6 +26,17 @@ impl ResidenceNeedKind {
         }
     }
 
+    /// Needs whose absence damages health. Firewood is a survival need only
+    /// when seasonal demand rises above the mild-weather baseline.
+    pub fn is_vital_for_tier(self, tier: u8, cold_weather: bool) -> bool {
+        self.is_active_for_tier(tier) && matches!(self, Self::Food | Self::Water)
+            || (self == Self::Firewood && self.is_active_for_tier(tier) && cold_weather)
+    }
+
+    pub fn is_status_need(self) -> bool {
+        matches!(self, Self::Ale | Self::PreservedFood | Self::Cloth)
+    }
+
     pub fn as_u8(self) -> u8 {
         match self {
             Self::Firewood => 0,

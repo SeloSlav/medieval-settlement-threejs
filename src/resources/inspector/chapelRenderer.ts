@@ -70,6 +70,34 @@ export function renderChapelInspector(
     building.id,
   ) !== null;
   const staffed = isChapelStaffed(building) && !suspendedByFire;
+  const graveyards = Array.from((context.gameState.graveyards ?? new Map()).values())
+    .filter((graveyard) => graveyard.chapelId === building.id);
+  const graveCapacity = graveyards.reduce((sum, graveyard) => sum + graveyard.capacity, 0);
+  const burials = graveyards.reduce((sum, graveyard) => sum + graveyard.burials, 0);
+  const corpses = Array.from((context.gameState.corpses ?? new Map()).values());
+  const outboundBurialCarts = corpses
+    .filter((corpse) => corpse.chapelId === building.id && corpse.state === 1).length;
+  const inboundBurialCarts = corpses
+    .filter((corpse) => corpse.chapelId === building.id && corpse.state === 2).length;
+  const uncollectedCorpses = corpses
+    .filter((corpse) => corpse.state <= 1).length;
+  const incomingByGraveyard = new Map<string, number>();
+  for (const corpse of corpses) {
+    if (corpse.graveyardId === null || corpse.state === 0) continue;
+    incomingByGraveyard.set(
+      corpse.graveyardId,
+      (incomingByGraveyard.get(corpse.graveyardId) ?? 0) + 1,
+    );
+  }
+  const graveyardRows = graveyards.map((graveyard, index) => {
+    const incoming = incomingByGraveyard.get(graveyard.id) ?? 0;
+    const removable = graveyard.burials === 0 && incoming === 0;
+    return `<li><span>Burial ground ${index + 1}</span><span>${graveyard.burials} buried · ${incoming} reserved · ${graveyard.capacity} capacity${
+      removable
+        ? ` · <button type="button" class="inspector-jump-button" data-demolish-graveyard="${graveyard.id}">Remove empty ground</button>`
+        : ''
+    }</span></li>`;
+  }).join('');
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
   const settlementRelief = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
     ? computeSettlementParishReliefPlan({
@@ -85,7 +113,7 @@ export function renderChapelInspector(
     ?? context.worldQueries.countRoadConnectedResidences(building, false);
   const linkedPopulation = parishRelief?.assignedPopulation
     ?? context.worldQueries.countRoadConnectedPopulation(building);
-  const { settlementBoost, abandonmentGrace } = formatChapelCommunityBoosts();
+  const { settlementBoost } = formatChapelCommunityBoosts();
   const economy = buildChapelInspectorEconomyView(
     building,
     linkedPopulation,
@@ -157,6 +185,10 @@ export function renderChapelInspector(
       <label class="city-admin-panel__slider-label"><span>Coffer reserve</span><strong data-policy-chapel-reserve-value>${Math.round(parishPolicy.cofferReserveGold)} gold</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-chapel-reserve min="${CHAPEL_COFFER_RESERVE_MIN}" max="${CHAPEL_COFFER_RESERVE_MAX}" step="5" value="${Math.round(parishPolicy.cofferReserveGold)}" />
       <p class="inspector-action-panel__hint">Keep at least ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold after wages and upkeep. In physical-economy settlements, one day of alms leaves as a visible purse carried by a free villager; long or blocked roads and church-cart contention delay it. Monday poor relief may spend up to ${CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH} gold per dispatch.</p>
+      <button type="button" class="inspector-action-panel__button" data-land-parcel="graveyard"${building.constructionComplete === false || suspendedByFire ? ' disabled' : ''}>
+        Lay adjacent burial ground
+      </button>
+      <p class="inspector-action-panel__hint">Trace four corners beside the church. Each assigned priest/gravedigger can move one body at a time by handcart over connected roads.</p>
     </div>
   `;
 
@@ -191,8 +223,11 @@ export function renderChapelInspector(
       ${parishRelief == null ? '' : `<li><span>Monday poor relief</span><span>${formatChapelPoorRelief(parishRelief)}${reliefInspectButton}</span></li>`}
       <li><span>Attendance</span><span>${staffed ? economy.attendanceLabel : '—'}</span></li>
       <li><span>Settlement</span><span>${settlementBoost} faster when staffed & linked</span></li>
-      <li><span>Shortages</span><span>${abandonmentGrace} longer before abandonment</span></li>
+      <li><span>Parish resilience</span><span>Lower survival-stock thresholds for vacant-home recovery</span></li>
       <li><span>Recovery</span><span>${economy.recoveryLabel}</span></li>
+      <li><span>Burial grounds</span><span>${graveyards.length} · ${burials} / ${graveCapacity} graves occupied</span></li>
+      <li><span>Gravedigger carts</span><span>${outboundBurialCarts} outbound empty · ${inboundBurialCarts} carrying bodies · ${uncollectedCorpses} bodies still at homes settlement-wide</span></li>
+      ${graveyardRows}
     `,
     demolish: {
       visible: true,

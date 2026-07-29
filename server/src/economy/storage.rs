@@ -196,6 +196,7 @@ where
                 residence.tier,
                 residence.backyard_project_kind,
                 residence.fire_repair_active,
+                residence.decay_repair_active,
             )
         })
         .map(|residence| pick(&residence).max(0.0))

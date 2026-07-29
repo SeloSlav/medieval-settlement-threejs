@@ -152,6 +152,26 @@ export const CombatAgent = __t.object("CombatAgent", {
 });
 export type CombatAgent = __Infer<typeof CombatAgent>;
 
+export const Corpse = __t.object("Corpse", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  residenceId: __t.u64(),
+  cause: __t.u8(),
+  state: __t.u8(),
+  x: __t.f64(),
+  z: __t.f64(),
+  cartX: __t.f64(),
+  cartZ: __t.f64(),
+  createdTick: __t.u64(),
+  chapelId: __t.u64(),
+  graveyardId: __t.u64(),
+  progress: __t.f64(),
+  speedMps: __t.f64(),
+  pathDistance: __t.f64(),
+  routePolylineJson: __t.string(),
+});
+export type Corpse = __Infer<typeof Corpse>;
+
 export const DeliveryTrip = __t.object("DeliveryTrip", {
   id: __t.u64(),
   owner: __t.identity(),
@@ -250,6 +270,25 @@ export const ForagingNode = __t.object("ForagingNode", {
   anchorZ: __t.f64(),
 });
 export type ForagingNode = __Infer<typeof ForagingNode>;
+
+export const Graveyard = __t.object("Graveyard", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  chapelId: __t.u64(),
+  cornerAx: __t.f64(),
+  cornerAz: __t.f64(),
+  cornerBx: __t.f64(),
+  cornerBz: __t.f64(),
+  cornerCx: __t.f64(),
+  cornerCz: __t.f64(),
+  cornerDx: __t.f64(),
+  cornerDz: __t.f64(),
+  area: __t.f64(),
+  averageSlopeDegrees: __t.f64(),
+  capacity: __t.u32(),
+  burials: __t.u32(),
+});
+export type Graveyard = __Infer<typeof Graveyard>;
 
 export const GuardMusterRoute = __t.object("GuardMusterRoute", {
   sourceBuildingId: __t.u64(),
@@ -444,6 +483,17 @@ export const Residence = __t.object("Residence", {
   upgradePriority: __t.u8(),
   backyardProjectKind: __t.u8(),
   fireRepairActive: __t.bool(),
+  hungerTicks: __t.u32(),
+  malnutrition: __t.f64(),
+  sickPopulation: __t.u32(),
+  illnessTicks: __t.u32(),
+  remedyStock: __t.f64(),
+  deathsTotal: __t.u32(),
+  comfortDeficitTicks: __t.u32(),
+  vacancyTicks: __t.u32(),
+  condition: __t.u8(),
+  lastStarvationDeathHungerTicks: __t.u32(),
+  decayRepairActive: __t.bool(),
 });
 export type Residence = __Infer<typeof Residence>;
 
@@ -535,4 +585,3 @@ export const WorldConfig = __t.object("WorldConfig", {
   resourceVariety: __t.u8(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
-

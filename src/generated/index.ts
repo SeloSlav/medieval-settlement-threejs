@@ -49,6 +49,7 @@ import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
 import DemolishBuildingReducer from "./demolish_building_reducer";
 import DemolishBurgageZoneReducer from "./demolish_burgage_zone_reducer";
 import DemolishFarmFieldReducer from "./demolish_farm_field_reducer";
+import DemolishGraveyardReducer from "./demolish_graveyard_reducer";
 import DemolishPastureReducer from "./demolish_pasture_reducer";
 import DemolishResidenceReducer from "./demolish_residence_reducer";
 import GrantCheatResourcesReducer from "./grant_cheat_resources_reducer";
@@ -57,11 +58,13 @@ import PlaceBackyardGardenReducer from "./place_backyard_garden_reducer";
 import PlaceBuildingReducer from "./place_building_reducer";
 import PlaceBurgageZoneReducer from "./place_burgage_zone_reducer";
 import PlaceFarmFieldReducer from "./place_farm_field_reducer";
+import PlaceGraveyardReducer from "./place_graveyard_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
 import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
 import RepairFireDamageReducer from "./repair_fire_damage_reducer";
+import RepairResidenceDecayReducer from "./repair_residence_decay_reducer";
 import ResetWorldReducer from "./reset_world_reducer";
 import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer";
 import SetCarpenterPolearmReserveReducer from "./set_carpenter_polearm_reserve_reducer";
@@ -113,10 +116,12 @@ import BackyardGardenRow from "./backyard_garden_table";
 import BuildingRow from "./building_table";
 import BurgageZoneRow from "./burgage_zone_table";
 import CombatAgentRow from "./combat_agent_table";
+import CorpseRow from "./corpse_table";
 import DeliveryTripRow from "./delivery_trip_table";
 import FarmFieldRow from "./farm_field_table";
 import FireIncidentRow from "./fire_incident_table";
 import ForagingNodeRow from "./foraging_node_table";
+import GraveyardRow from "./graveyard_table";
 import GuardMusterRouteRow from "./guard_muster_route_table";
 import LivestockHerdRow from "./livestock_herd_table";
 import MarketStateRow from "./market_state_table";
@@ -210,6 +215,29 @@ const tablesSchema = __schema({
       { name: 'combat_agent_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatAgentRow),
+  corpse: __table({
+    name: 'corpse',
+    indexes: [
+      { name: 'chapel_id', algorithm: 'btree', columns: [
+        'chapelId',
+      ] },
+      { name: 'graveyard_id', algorithm: 'btree', columns: [
+        'graveyardId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'residence_id', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'corpse_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CorpseRow),
   delivery_trip: __table({
     name: 'delivery_trip',
     indexes: [
@@ -278,6 +306,23 @@ const tablesSchema = __schema({
       { name: 'foraging_node_node_id_key', constraint: 'unique', columns: ['nodeId'] },
     ],
   }, ForagingNodeRow),
+  graveyard: __table({
+    name: 'graveyard',
+    indexes: [
+      { name: 'chapel_id', algorithm: 'btree', columns: [
+        'chapelId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'graveyard_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, GraveyardRow),
   guard_muster_route: __table({
     name: 'guard_muster_route',
     indexes: [
@@ -486,6 +531,7 @@ const reducersSchema = __reducers(
   __reducerSchema("demolish_building", DemolishBuildingReducer),
   __reducerSchema("demolish_burgage_zone", DemolishBurgageZoneReducer),
   __reducerSchema("demolish_farm_field", DemolishFarmFieldReducer),
+  __reducerSchema("demolish_graveyard", DemolishGraveyardReducer),
   __reducerSchema("demolish_pasture", DemolishPastureReducer),
   __reducerSchema("demolish_residence", DemolishResidenceReducer),
   __reducerSchema("grant_cheat_resources", GrantCheatResourcesReducer),
@@ -494,11 +540,13 @@ const reducersSchema = __reducers(
   __reducerSchema("place_building", PlaceBuildingReducer),
   __reducerSchema("place_burgage_zone", PlaceBurgageZoneReducer),
   __reducerSchema("place_farm_field", PlaceFarmFieldReducer),
+  __reducerSchema("place_graveyard", PlaceGraveyardReducer),
   __reducerSchema("place_pasture", PlacePastureReducer),
   __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
   __reducerSchema("repair_fire_damage", RepairFireDamageReducer),
+  __reducerSchema("repair_residence_decay", RepairResidenceDecayReducer),
   __reducerSchema("reset_world", ResetWorldReducer),
   __reducerSchema("rotate_construction_labor", RotateConstructionLaborReducer),
   __reducerSchema("set_carpenter_polearm_reserve", SetCarpenterPolearmReserveReducer),

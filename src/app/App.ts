@@ -11,6 +11,7 @@ import type { PastureMarkers } from '../farming/PastureMarkers.ts';
 import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
 import { BurgageTool } from '../residences/BurgageTool.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
+import type { BurialMarkers } from '../residences/BurialMarkers.ts';
 import type { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
 import type { BurgageFencing } from '../residences/BurgageFencing.ts';
 import { SpacetimeGameStore } from '../data/spacetimeGameStore.ts';
@@ -123,6 +124,7 @@ export class App {
   private burgageFencing: BurgageFencing | null = null;
   private farmFieldMarkers: FarmFieldMarkers | null = null;
   private pastureMarkers: PastureMarkers | null = null;
+  private burialMarkers: BurialMarkers | null = null;
   private livestockVisuals: LivestockVisuals | null = null;
   private toolbar: BuildToolbar | null = null;
   private toastManager: ToastManager | null = null;
@@ -223,6 +225,7 @@ export class App {
     this.burgageFencing = session.burgageFencing;
     this.farmFieldMarkers = session.farmFieldMarkers;
     this.pastureMarkers = session.pastureMarkers;
+    this.burialMarkers = session.burialMarkers;
     this.livestockVisuals = session.livestockVisuals;
     this.toolbar = session.toolbar;
     this.toastManager = session.toastManager;
@@ -328,6 +331,7 @@ export class App {
         residenceMarkers: this.residenceMarkers,
         farmFieldMarkers: this.farmFieldMarkers,
         pastureMarkers: this.pastureMarkers,
+        burialMarkers: this.burialMarkers,
         livestockVisuals: this.livestockVisuals,
         backyardGardenMarkers: this.backyardGardenMarkers,
         deliveryAgents: this.deliveryAgents,
@@ -467,6 +471,7 @@ export class App {
       residenceMarkers: this.residenceMarkers,
       farmFieldMarkers: this.farmFieldMarkers,
       pastureMarkers: this.pastureMarkers,
+      burialMarkers: this.burialMarkers,
       livestockVisuals: this.livestockVisuals,
       backyardGardenMarkers: this.backyardGardenMarkers,
       deliveryAgents: this.deliveryAgents,
@@ -639,7 +644,11 @@ export class App {
       canBuild: farmFieldEnabled ? this.farmFieldTool.isDraftBuildable() : burgageEnabled ? this.burgageTool.isDraftBuildable() : this.roadTool.isDraftBuildable(),
       hasDraft: farmFieldEnabled ? this.farmFieldTool.hasDraft() : burgageEnabled ? this.burgageTool.hasDraft() : this.roadTool.hasDraft(),
       mode: farmFieldEnabled
-        ? this.farmFieldTool.getMode() === 'pasture' ? 'pastures' : 'farm-fields'
+        ? this.farmFieldTool.getMode() === 'pasture'
+          ? 'pastures'
+          : this.farmFieldTool.getMode() === 'graveyard'
+            ? 'burial-grounds'
+            : 'farm-fields'
         : burgageEnabled
         ? 'residences'
         : this.roadTool.isEnabled()
@@ -1249,6 +1258,8 @@ function resourceUiNeedsSync(current: GameState, previous: GameState | null): bo
     || current.buildings !== previous.buildings
     || current.farmFields !== previous.farmFields
     || current.pastures !== previous.pastures
+    || current.graveyards !== previous.graveyards
+    || current.corpses !== previous.corpses
     || current.livestockHerds !== previous.livestockHerds
     || current.burgageZones !== previous.burgageZones
     || current.residences !== previous.residences

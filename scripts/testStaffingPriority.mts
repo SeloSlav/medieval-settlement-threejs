@@ -126,8 +126,8 @@ assert.match(
 );
 assert.match(
   residenceNeeds,
-  /if abandoned \{[\s\S]{0,180}reconcile_building_labor\(ctx, owner\)/,
-  'need-driven abandonment must reconcile immediately',
+  /if next_effective_workers < previous_effective_workers \{[\s\S]{0,180}reconcile_building_labor\(ctx, owner\)/,
+  'illness, emigration, starvation, and other welfare losses must release labor immediately',
 );
 assert.ok(
   (residenceReducers.match(/reconcile_building_labor\(ctx, owner\)/g) ?? []).length >= 2,

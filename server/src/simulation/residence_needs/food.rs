@@ -17,7 +17,7 @@ pub fn consume(
     spoilage_fraction_per_second: f64,
 ) -> ConsumeOutcome {
     let spoiled = spoil(need, spoilage_fraction_per_second);
-    let demand = residence.population as f64 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * TICK_DT;
+    let demand = demand(residence);
     if demand <= 1e-9 {
         return ConsumeOutcome::Met(spoiled);
     }
@@ -30,6 +30,10 @@ pub fn consume(
     }
 
     ConsumeOutcome::Unmet
+}
+
+pub fn demand(residence: &Residence) -> f64 {
+    residence.population as f64 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * TICK_DT
 }
 
 pub fn spoil(need: &NeedState, spoilage_fraction_per_second: f64) -> NeedState {

@@ -8,6 +8,8 @@ export const GAME_TABLE_SUBSCRIPTIONS = [
   'building',
   'farm_field',
   'pasture',
+  'graveyard',
+  'corpse',
   'livestock_herd',
   'burgage_zone',
   'residence',

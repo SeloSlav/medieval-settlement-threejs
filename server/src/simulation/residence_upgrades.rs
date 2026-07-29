@@ -43,13 +43,15 @@ pub fn step_residence_upgrades(ctx: &ReducerContext, tick: &SimTickContext, cloc
             residence.tier,
             residence.backyard_project_kind,
             residence.fire_repair_active,
+            residence.decay_repair_active,
         )
     }) {
-        let fire_repair = residence.fire_repair_active;
+        let structural_repair = residence.fire_repair_active || residence.decay_repair_active;
         let initial_cottage_works = residence.tier == 0 && residence.upgrade_target_tier == 1;
-        let suspended = (residence.abandoned && !fire_repair)
-            || (residence.population == 0 && !initial_cottage_works && !fire_repair)
-            || (tick.residence_disabled_by_fire(ctx, residence.id) && !fire_repair)
+        let suspended = (residence.abandoned && !structural_repair)
+            || (residence.population == 0 && !initial_cottage_works && !structural_repair)
+            || (tick.residence_disabled_by_fire(ctx, residence.id)
+                && !residence.fire_repair_active)
             || construction_priority_bucket(residence.upgrade_priority)
                 == CONSTRUCTION_PRIORITY_HOLD as usize;
         if suspended {
@@ -337,9 +339,19 @@ fn advance_upgrade_work(
 }
 
 fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
+    if residence.decay_repair_active {
+        residence.condition = crate::resident_welfare_policy::RESIDENCE_CONDITION_SOUND;
+        residence.vacancy_ticks = 0;
+        residence.settlement_ticks = 0;
+        clear_residence_project(residence);
+        return false;
+    }
+
     if residence.fire_repair_active {
         clear_fire_for_target(ctx, FIRE_TARGET_RESIDENCE, residence.id);
         residence.abandoned = false;
+        residence.condition = crate::resident_welfare_policy::RESIDENCE_CONDITION_SOUND;
+        residence.vacancy_ticks = 0;
         residence.settlement_ticks = 0;
         clear_residence_project(residence);
         return true;
@@ -393,4 +405,5 @@ pub(crate) fn clear_residence_project(residence: &mut Residence) {
     residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
     residence.backyard_project_kind = 0;
     residence.fire_repair_active = false;
+    residence.decay_repair_active = false;
 }

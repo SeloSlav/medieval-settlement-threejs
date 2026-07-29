@@ -39,6 +39,8 @@ import type {
   ResourceNodeState,
   ForagingNodeState,
   FarmFieldState,
+  GraveyardState,
+  CorpseState,
   LivestockHerdState,
   PastureState,
   ResidenceState,
@@ -127,6 +129,8 @@ export type SpacetimeGameSnapshot = {
   buildings: Map<string, BuildingState>;
   farmFields: Map<string, FarmFieldState>;
   pastures: Map<string, PastureState>;
+  graveyards: Map<string, GraveyardState>;
+  corpses: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;
   burgageZones: Map<string, BurgageZoneState>;
   residences: Map<string, ResidenceState>;
@@ -168,6 +172,8 @@ function createEmptyTableState(): GameTableSyncState {
     buildings: new Map(),
     farmFields: new Map(),
     pastures: new Map(),
+    graveyards: new Map(),
+    corpses: new Map(),
     livestockHerds: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
@@ -246,6 +252,8 @@ export class SpacetimeGameStore {
       buildings: this.snapshotMap(state.buildings),
       farmFields: this.snapshotMap(state.farmFields),
       pastures: this.snapshotMap(state.pastures),
+      graveyards: this.snapshotMap(state.graveyards),
+      corpses: this.snapshotMap(state.corpses),
       livestockHerds: this.snapshotMap(state.livestockHerds),
       burgageZones: this.snapshotMap(state.burgageZones),
       residences: this.snapshotMap(state.residences),
@@ -326,6 +334,8 @@ export class SpacetimeGameStore {
       buildings: snapshot.buildings,
       farmFields: snapshot.farmFields,
       pastures: snapshot.pastures,
+      graveyards: snapshot.graveyards,
+      corpses: snapshot.corpses,
       livestockHerds: snapshot.livestockHerds,
       burgageZones: snapshot.burgageZones,
       residences: snapshot.residences,
@@ -358,6 +368,10 @@ export class SpacetimeGameStore {
 
   demolishResidence(residenceId: string): Promise<void> {
     return spacetimeReducers.demolishResidence(residenceId);
+  }
+
+  repairResidenceDecay(residenceId: string): Promise<void> {
+    return spacetimeReducers.repairResidenceDecay(residenceId);
   }
 
   upgradeResidence(residenceId: string): Promise<void> {
@@ -456,6 +470,18 @@ export class SpacetimeGameStore {
 
   demolishPasture(pastureId: string): Promise<void> {
     return spacetimeReducers.demolishPasture(pastureId);
+  }
+
+  placeGraveyard(input: {
+    chapelId: string;
+    corners: Array<{ x: number; z: number }>;
+    averageSlopeDegrees: number;
+  }): Promise<void> {
+    return spacetimeReducers.placeGraveyard(input);
+  }
+
+  demolishGraveyard(graveyardId: string): Promise<void> {
+    return spacetimeReducers.demolishGraveyard(graveyardId);
   }
 
   setLivestockSpecies(buildingId: string, species: Exclude<LivestockSpecies, 'swine'>): Promise<void> {

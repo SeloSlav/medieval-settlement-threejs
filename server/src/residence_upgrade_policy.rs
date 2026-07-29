@@ -7,8 +7,12 @@ pub fn residence_project_active(
     current_tier: u8,
     backyard_project_kind: u8,
     fire_repair_active: bool,
+    decay_repair_active: bool,
 ) -> bool {
-    target_tier > current_tier || backyard_project_kind != 0 || fire_repair_active
+    target_tier > current_tier
+        || backyard_project_kind != 0
+        || fire_repair_active
+        || decay_repair_active
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -105,11 +109,12 @@ mod tests {
     }
 
     #[test]
-    fn backyard_and_fire_works_share_the_household_project_slot() {
-        assert!(residence_project_active(2, 1, 0, false));
-        assert!(residence_project_active(0, 1, 3, false));
-        assert!(residence_project_active(0, 1, 0, true));
-        assert!(!residence_project_active(0, 1, 0, false));
+    fn household_projects_share_one_physical_work_slot() {
+        assert!(residence_project_active(2, 1, 0, false, false));
+        assert!(residence_project_active(0, 1, 3, false, false));
+        assert!(residence_project_active(0, 1, 0, true, false));
+        assert!(residence_project_active(0, 1, 0, false, true));
+        assert!(!residence_project_active(0, 1, 0, false, false));
     }
 
     #[test]

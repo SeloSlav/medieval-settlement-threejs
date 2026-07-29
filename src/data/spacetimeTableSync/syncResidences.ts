@@ -54,6 +54,16 @@ export function syncResidences(
       upgradePriority: number;
       backyardProjectKind: number;
       fireRepairActive: boolean;
+      hungerTicks: number;
+      malnutrition: number;
+      sickPopulation: number;
+      illnessTicks: number;
+      remedyStock: number;
+      deathsTotal: number;
+      comfortDeficitTicks: number;
+      vacancyTicks: number;
+      condition: number;
+      decayRepairActive: boolean;
     }>;
     const residenceId = residenceClientId(row.id);
     residences.set(residenceId, {
@@ -89,6 +99,16 @@ export function syncResidences(
       upgradePriority: Number(upgradeRow.upgradePriority ?? 2),
       backyardProjectKind: Number(upgradeRow.backyardProjectKind ?? 0),
       fireRepairActive: upgradeRow.fireRepairActive === true,
+      hungerTicks: Number(upgradeRow.hungerTicks ?? 0),
+      malnutrition: Number(upgradeRow.malnutrition ?? 0),
+      sickPopulation: Number(upgradeRow.sickPopulation ?? 0),
+      illnessTicks: Number(upgradeRow.illnessTicks ?? 0),
+      remedyStock: Number(upgradeRow.remedyStock ?? 0),
+      deathsTotal: Number(upgradeRow.deathsTotal ?? 0),
+      comfortDeficitTicks: Number(upgradeRow.comfortDeficitTicks ?? 0),
+      vacancyTicks: Number(upgradeRow.vacancyTicks ?? 0),
+      condition: Math.max(0, Math.min(3, Number(upgradeRow.condition ?? 0))) as 0 | 1 | 2 | 3,
+      decayRepairActive: upgradeRow.decayRepairActive === true,
     });
   }
   return residences;

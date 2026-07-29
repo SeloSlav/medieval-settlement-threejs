@@ -46,8 +46,8 @@ assert.equal(residenceSettlementReadiness(tierThree, noParish).ready, true);
 tierThree.needs.cloth.stock = 0;
 assert.deepEqual(
   residenceSettlementReadiness(tierThree, noParish).waitingOn.map((buffer) => buffer.kind),
-  ['cloth'],
-  'prosperous-house growth must depend on the textile chain as well as food and drink',
+  [],
+  'status-goods shortages may drive later migration, but must not block safe household growth',
 );
 
 const parish: ResidenceCommunityContext = {

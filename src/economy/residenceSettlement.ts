@@ -35,8 +35,8 @@ const NEED_LABELS: Record<ResidenceNeedKind, string> = {
 
 /**
  * The first settler establishes the delivery claim for a vacant residence.
- * Later arrivals wait until all needs active at the current tier hold the same
- * minimum stock used by authoritative abandonment recovery.
+ * Later arrivals wait until survival needs hold the same minimum stock used
+ * by authoritative vacancy recovery. Status goods never block a safe home.
  */
 export function residenceSettlementReadiness(
   residence: ResidenceState,
@@ -51,7 +51,9 @@ export function residenceSettlementReadiness(
     };
   }
   const firstArrival = residence.population === 0;
-  const buffers = activeResidenceNeedKinds(residence.tier).map(
+  const buffers = activeResidenceNeedKinds(residence.tier)
+    .filter((kind) => kind === 'food' || kind === 'water' || kind === 'firewood')
+    .map(
     (kind): ResidenceSettlementBuffer => {
       const stock = Math.max(0, getNeed(residence.needs, kind).stock);
       const required = Math.max(
@@ -72,7 +74,7 @@ export function residenceSettlementReadiness(
         ready: shortfall <= 1e-6,
       };
     },
-  );
+    );
   const waitingOn = firstArrival ? [] : buffers.filter((buffer) => !buffer.ready);
 
   return {
