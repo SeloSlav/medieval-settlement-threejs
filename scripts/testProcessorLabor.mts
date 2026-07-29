@@ -184,6 +184,124 @@ assert.deepEqual(
   'source-ready extraction sites should share scarce labor while depleted and reserve-held sites stay empty',
 );
 
+const materialCallupState = emptyGameState();
+const readyClayPit = building('material-10-clay', 'clay_pit', 0);
+const fullClayPit = building('material-20-full-clay', 'clay_pit', 0);
+fullClayPit.clay = 999;
+const incompleteSmokehouse = building(
+  'material-30-smokehouse',
+  'smokehouse',
+  0,
+);
+incompleteSmokehouse.food = 12;
+incompleteSmokehouse.firewood = 6;
+const incompleteSmithy = building('material-40-smithy', 'smithy', 0);
+incompleteSmithy.iron = 8;
+const suppliedPotter = building('material-50-potter', 'potter_kiln', 0);
+suppliedPotter.clay = 12;
+suppliedPotter.firewood = 6;
+const suppliedCharcoalYard = building(
+  'material-60-charcoal',
+  'charcoal_burner',
+  0,
+);
+suppliedCharcoalYard.firewood = 12;
+for (const site of [
+  readyClayPit,
+  fullClayPit,
+  incompleteSmokehouse,
+  incompleteSmithy,
+  suppliedPotter,
+  suppliedCharcoalYard,
+]) {
+  materialCallupState.buildings.set(site.id, site);
+}
+const materialManualCallup = computeSettlementProcessorLaborCallupPlan(
+  materialCallupState,
+  10,
+);
+assert.equal(materialManualCallup.auditedSites, 6);
+assert.equal(materialManualCallup.readySites, 5);
+assert.equal(materialManualCallup.blockedSites, 1);
+assert.ok(
+  materialManualCallup.assignments.some(
+    (assignment) => assignment.buildingId === readyClayPit.id,
+  ),
+  'the explicit Town Hall order must be able to staff an open clay pit',
+);
+assert.equal(
+  materialManualCallup.assignments.some(
+    (assignment) => assignment.buildingId === fullClayPit.id,
+  ),
+  false,
+);
+
+const materialStrictCallup = computeSettlementOperationalProcessorLaborCallupPlan(
+  materialCallupState,
+  10,
+);
+assert.equal(materialStrictCallup.readySites, 3);
+assert.equal(materialStrictCallup.blockedSites, 3);
+assert.equal(
+  materialStrictCallup.assignments.some(
+    (assignment) => assignment.buildingId === incompleteSmokehouse.id,
+  ),
+  false,
+  'the daily steward must require salt and pottery as well as food and fuel',
+);
+assert.equal(
+  materialStrictCallup.assignments.some(
+    (assignment) => assignment.buildingId === incompleteSmithy.id,
+  ),
+  false,
+  'the daily steward must require forge charcoal as well as imported iron',
+);
+materialCallupState.deliveryTrips.set(
+  'material-salt-cart',
+  deliveryTrip(
+    'material-salt-cart',
+    'market',
+    incompleteSmokehouse.id,
+    'salt',
+  ),
+);
+materialCallupState.deliveryTrips.set(
+  'material-pottery-cart',
+  deliveryTrip(
+    'material-pottery-cart',
+    suppliedPotter.id,
+    incompleteSmokehouse.id,
+    'pottery',
+  ),
+);
+materialCallupState.deliveryTrips.set(
+  'material-charcoal-cart',
+  deliveryTrip(
+    'material-charcoal-cart',
+    suppliedCharcoalYard.id,
+    incompleteSmithy.id,
+    'charcoal',
+  ),
+);
+const recoveringMaterialCallup =
+  computeSettlementOperationalProcessorLaborCallupPlan(
+    materialCallupState,
+    20,
+  );
+assert.equal(recoveringMaterialCallup.readySites, 5);
+assert.equal(recoveringMaterialCallup.blockedSites, 1);
+assert.ok(
+  recoveringMaterialCallup.assignments.some(
+    (assignment) => assignment.buildingId === incompleteSmokehouse.id,
+  ),
+  'all missing preservation inputs approaching by cart should make the workshop operationally ready',
+);
+assert.ok(
+  recoveringMaterialCallup.assignments.some(
+    (assignment) => assignment.buildingId === incompleteSmithy.id,
+  ),
+);
+
 highMill.assignedLabor = BUILDING_DEFINITIONS.watermill.maxLabor;
 highBrewery.assignedLabor = BUILDING_DEFINITIONS.brewery.maxLabor;
 normalSmokehouse.constructionPriority = 0;
@@ -319,7 +437,11 @@ assert.match(inspector.supplementalPanelHtml ?? '', /Matching inbound supplies p
 assert.match(inspector.supplementalPanelHtml ?? '', /data-call-up-target-ready-processor-labor/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 1 production worker/);
 assert.match(inspector.supplementalPanelHtml ?? '', /equal-priority sites share workers round-robin/);
-assert.match(inspector.supplementalPanelHtml ?? '', /quarries with usable stone and yard room/);
+assert.match(
+  inspector.supplementalPanelHtml ?? '',
+  /quarries with usable stone and yard room, open clay yards/,
+);
+assert.match(inspector.supplementalPanelHtml ?? '', /every recipe input is present or already inbound/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-policy-production-labor-steward/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Daily production labor steward/);
 assert.match(inspector.supplementalPanelHtml ?? '', /production second, and construction last/);

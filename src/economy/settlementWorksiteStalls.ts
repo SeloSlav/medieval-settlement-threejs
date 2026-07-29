@@ -32,6 +32,7 @@ import {
 
 export type WorksiteStallKind =
   | ProcessorOutputTargetKind
+  | 'clay_pit'
   | 'stone_quarry'
   | 'large_quarry'
   | 'hunters_hall'
@@ -192,6 +193,7 @@ function worksiteKind(
   month: number,
 ): WorksiteStallKind | null {
   if (isProcessorOutputTargetKind(building.kind)) return building.kind;
+  if (building.kind === 'clay_pit') return building.kind;
   if (building.kind === 'stone_quarry' || building.kind === 'large_quarry') {
     return building.kind;
   }
@@ -209,6 +211,7 @@ export function isProductionLaborKind(
   kind: BuildingKind,
 ): kind is ProductionLaborKind {
   return isProcessorOutputTargetKind(kind)
+    || kind === 'clay_pit'
     || kind === 'stone_quarry'
     || kind === 'large_quarry'
     || kind === 'hunters_hall';
@@ -312,6 +315,31 @@ function processorStall(
     ...base,
     reason: 'input_empty',
     detail: `no ${inputsWithoutCart.map(inputLabel).join(' or ')} on site`,
+  };
+}
+
+function clayPitStall(
+  building: BuildingState,
+  hasActiveOriginTrip: boolean,
+): WorksiteStallSite | null {
+  const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
+  const hasDispatchDuty = hasActiveOriginTrip || (building.clay ?? 0) > 1e-6;
+  const targetLabor = hasDispatchDuty ? Math.min(1, assignedLabor) : 0;
+  const clayCapacity = BUILDING_STORAGE_CAPS.clay_pit.clay ?? 0;
+  if (clayCapacity <= 0 || (building.clay ?? 0) < clayCapacity - 1e-6) {
+    return null;
+  }
+  return {
+    buildingId: building.id,
+    kind: 'clay_pit',
+    reason: 'output_blocked',
+    detail: 'local clay yard is full',
+    assignedLabor,
+    assignedWorkers: assignedLabor,
+    targetLabor,
+    reclaimableWorkers: Math.max(0, assignedLabor - targetLabor),
+    priority: normalizeStaffingPriority(building.constructionPriority),
+    hasDispatchDuty,
   };
 }
 
@@ -479,6 +507,8 @@ export function computeSettlementProductionReadiness(
     let ready: boolean;
     if (isProcessorOutputTargetKind(building.kind)) {
       ready = (processorOutputHeadroom(building) ?? 0) > 1e-6;
+    } else if (building.kind === 'clay_pit') {
+      ready = clayPitStall(building, false) === null;
     } else if (
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'
@@ -538,6 +568,8 @@ export function computeSettlementOperationalProductionReadiness(
         false,
       );
       ready = stall === null || stall === 'supply_en_route';
+    } else if (building.kind === 'clay_pit') {
+      ready = clayPitStall(building, false) === null;
     } else if (
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'
@@ -626,6 +658,8 @@ export function computeSettlementWorksiteStallPlan(
         inboundCargoByBuilding.get(building.id),
         activeOriginTrip,
       );
+    } else if (building.kind === 'clay_pit') {
+      stall = clayPitStall(building, activeOriginTrip);
     } else if (
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'

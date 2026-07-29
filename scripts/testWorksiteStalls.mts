@@ -149,6 +149,106 @@ assert.equal(
   'no fish population lies within the work area',
 );
 
+const materialState = emptyGameState();
+const fullClayPit = building('material-clay', 'clay_pit', 3, 0, 0);
+fullClayPit.clay = 999;
+const saltAndPotteryStarvedSmokehouse = building(
+  'material-smokehouse',
+  'smokehouse',
+  2,
+  20,
+  0,
+);
+saltAndPotteryStarvedSmokehouse.food = 12;
+saltAndPotteryStarvedSmokehouse.firewood = 6;
+const charcoalStarvedSmithy = building('material-smithy', 'smithy', 2, 40, 0);
+charcoalStarvedSmithy.iron = 8;
+const suppliedCharcoalYard = building(
+  'material-charcoal',
+  'charcoal_burner',
+  2,
+  60,
+  0,
+);
+suppliedCharcoalYard.firewood = 12;
+const suppliedPotter = building('material-potter', 'potter_kiln', 2, 80, 0);
+suppliedPotter.clay = 12;
+suppliedPotter.firewood = 6;
+for (const site of [
+  fullClayPit,
+  saltAndPotteryStarvedSmokehouse,
+  charcoalStarvedSmithy,
+  suppliedCharcoalYard,
+  suppliedPotter,
+]) {
+  materialState.buildings.set(site.id, site);
+}
+const materialPlan = computeSettlementWorksiteStallPlan(materialState, 7);
+assert.equal(materialPlan.auditedSites, 5);
+assert.equal(materialPlan.stalledSites, 3);
+assert.equal(materialPlan.inputStalledSites, 2);
+assert.equal(materialPlan.outputStalledSites, 1);
+assert.equal(materialPlan.reclaimableWorkers, 6);
+assert.equal(
+  materialPlan.sites.find(
+    (site) => site.buildingId === saltAndPotteryStarvedSmokehouse.id,
+  )?.detail,
+  'no salt or pottery on site',
+  'the labor steward must not treat fresh food and firewood as a complete preservation recipe',
+);
+assert.equal(
+  materialPlan.sites.find(
+    (site) => site.buildingId === charcoalStarvedSmithy.id,
+  )?.detail,
+  'no charcoal on site',
+);
+assert.equal(
+  materialPlan.sites.find((site) => site.buildingId === fullClayPit.id)
+    ?.targetLabor,
+  1,
+  'a full clay yard must retain one dispatcher while reclaiming its extraction crew',
+);
+assert.equal(
+  materialPlan.sites.some(
+    (site) => site.buildingId === suppliedCharcoalYard.id,
+  ),
+  false,
+);
+assert.equal(
+  materialPlan.sites.some((site) => site.buildingId === suppliedPotter.id),
+  false,
+);
+materialState.deliveryTrips.set(
+  'material-salt-inbound',
+  trip(
+    'material-salt-inbound',
+    'material-market',
+    saltAndPotteryStarvedSmokehouse.id,
+    'salt',
+  ),
+);
+materialState.deliveryTrips.set(
+  'material-pottery-inbound',
+  trip(
+    'material-pottery-inbound',
+    'material-potter',
+    saltAndPotteryStarvedSmokehouse.id,
+    'pottery',
+  ),
+);
+const recoveringMaterialPlan = computeSettlementWorksiteStallPlan(
+  materialState,
+  7,
+);
+assert.equal(recoveringMaterialPlan.supplyEnRouteSites, 1);
+assert.equal(
+  recoveringMaterialPlan.sites.some(
+    (site) => site.buildingId === saltAndPotteryStarvedSmokehouse.id,
+  ),
+  false,
+  'every missing preservation input approaching by cart must protect the crew',
+);
+
 const townHallState = emptyGameState();
 const townHall = building('hall', 'town_hall', 1, 0, 0);
 const townHallWeaver = building('20', 'weaver', 2, 20, 0);
@@ -256,6 +356,8 @@ assert.match(largeQuarrySimulation, /RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2\.5/)
 assert.match(foodSupplierSimulation, /building\.food >= food_cap - 1e-6/);
 assert.match(foodSupplierSimulation, /find_nearest_harvestable_foraging_node/);
 assert.match(serverReducer, /stalled_labor_target/);
+assert.match(serverReducer, /processor_input_kinds/);
+assert.match(serverReducer, /"clay_pit" => \(/);
 assert.match(serverReducer, /SpatialBuckets::<Quarry>::new/);
 assert.match(serverReducer, /harvestable_wild_stock/);
 assert.match(deliveryTrips, /building_has_inbound_commodity_trip/);

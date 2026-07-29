@@ -49,8 +49,8 @@ use crate::processor_labor_policy::{
 };
 use crate::processor_output_policy::{
     is_processor_output_target_kind, is_valid_processor_output_target_percent,
-    processor_output_headroom, processor_output_kind, ProcessorOutputKind,
-    PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
+    processor_input_kinds, processor_output_headroom, processor_output_kind, ProcessorInputKind,
+    ProcessorOutputKind, PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
 };
 use crate::roads::load_owner_road_network;
 use crate::simulation::{
@@ -824,32 +824,21 @@ fn processor_output_room(building: &Building) -> Option<f64> {
     ))
 }
 
-fn processor_input_commodities(kind: &str) -> &'static [CommodityKind] {
-    const WATERMILL: [CommodityKind; 1] = [CommodityKind::Grain];
-    const GRANARY: [CommodityKind; 3] = [
-        CommodityKind::Flour,
-        CommodityKind::Water,
-        CommodityKind::Firewood,
-    ];
-    const BREWERY: [CommodityKind; 3] = [
-        CommodityKind::Barley,
-        CommodityKind::Water,
-        CommodityKind::Firewood,
-    ];
-    const SMOKEHOUSE: [CommodityKind; 2] = [CommodityKind::Food, CommodityKind::Firewood];
-    const WEAVER: [CommodityKind; 3] = [
-        CommodityKind::Wool,
-        CommodityKind::Flax,
-        CommodityKind::Water,
-    ];
-
+fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
     match kind {
-        "watermill" => &WATERMILL,
-        "granary" => &GRANARY,
-        "brewery" => &BREWERY,
-        "smokehouse" => &SMOKEHOUSE,
-        "weaver" => &WEAVER,
-        _ => &[],
+        ProcessorInputKind::Grain => CommodityKind::Grain,
+        ProcessorInputKind::Flour => CommodityKind::Flour,
+        ProcessorInputKind::Water => CommodityKind::Water,
+        ProcessorInputKind::Firewood => CommodityKind::Firewood,
+        ProcessorInputKind::Barley => CommodityKind::Barley,
+        ProcessorInputKind::Food => CommodityKind::Food,
+        ProcessorInputKind::Salt => CommodityKind::Salt,
+        ProcessorInputKind::Pottery => CommodityKind::Pottery,
+        ProcessorInputKind::Wool => CommodityKind::Wool,
+        ProcessorInputKind::Flax => CommodityKind::Flax,
+        ProcessorInputKind::Iron => CommodityKind::Iron,
+        ProcessorInputKind::Charcoal => CommodityKind::Charcoal,
+        ProcessorInputKind::Clay => CommodityKind::Clay,
     }
 }
 
@@ -874,9 +863,10 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         return (true, wool_en_route || (flax_available && water_available));
     }
 
-    let missing_inputs: Vec<CommodityKind> = processor_input_commodities(&building.kind)
+    let missing_inputs: Vec<CommodityKind> = processor_input_kinds(&building.kind)
         .iter()
         .copied()
+        .map(processor_input_commodity)
         .filter(|commodity| {
             building_commodity_stock(building, *commodity) <= 1e-6
                 && !(building.kind == "brewery"
@@ -968,6 +958,7 @@ fn production_site_ready(
         kind if is_processor_output_target_kind(kind) => {
             processor_output_room(building).is_some_and(|headroom| headroom > 1e-6)
         }
+        "clay_pit" => !commodity_output_blocked(building, CommodityKind::Clay),
         "stone_quarry" => {
             !commodity_output_blocked(building, CommodityKind::Stone)
                 && stone_source_usable(building, quarry_buckets)
@@ -1032,6 +1023,11 @@ pub fn recall_target_idle_processor_labor_for_owner(
                     has_output_stock || has_active_trip,
                 )
             }
+            "clay_pit" => (
+                commodity_output_blocked(&building, CommodityKind::Clay),
+                false,
+                building.clay > 1e-6 || has_active_trip,
+            ),
             "stone_quarry" => (
                 commodity_output_blocked(&building, CommodityKind::Stone)
                     || !stone_source_usable(&building, &quarry_buckets),

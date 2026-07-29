@@ -20,6 +20,23 @@ pub enum ProcessorOutputKind {
     Pottery,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProcessorInputKind {
+    Grain,
+    Flour,
+    Water,
+    Firewood,
+    Barley,
+    Food,
+    Salt,
+    Pottery,
+    Wool,
+    Flax,
+    Iron,
+    Charcoal,
+    Clay,
+}
+
 pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
     match kind {
         "watermill" => Some(ProcessorOutputKind::Flour),
@@ -31,6 +48,22 @@ pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
         "smithy" => Some(ProcessorOutputKind::Ironwork),
         "potter_kiln" => Some(ProcessorOutputKind::Pottery),
         _ => None,
+    }
+}
+
+pub fn processor_input_kinds(kind: &str) -> &'static [ProcessorInputKind] {
+    use ProcessorInputKind::*;
+
+    match kind {
+        "watermill" => &[Grain],
+        "granary" => &[Flour, Water, Firewood],
+        "brewery" => &[Barley, Water, Firewood],
+        "smokehouse" => &[Food, Firewood, Salt, Pottery],
+        "weaver" => &[Wool, Flax, Water],
+        "charcoal_burner" => &[Firewood],
+        "smithy" => &[Iron, Charcoal],
+        "potter_kiln" => &[Clay, Firewood],
+        _ => &[],
     }
 }
 
@@ -83,10 +116,10 @@ pub fn processor_input_staging_cycles(percent: u8) -> f64 {
 mod tests {
     use super::{
         is_processor_output_target_kind, is_valid_processor_output_target_percent,
-        normalize_processor_output_target_percent, processor_input_staging_cycles,
-        processor_output_headroom, processor_output_kind, processor_output_target,
-        ProcessorOutputKind, PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES,
-        PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
+        normalize_processor_output_target_percent, processor_input_kinds,
+        processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
+        processor_output_target, ProcessorInputKind, ProcessorOutputKind,
+        PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES, PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
     };
 
     #[test]
@@ -127,7 +160,16 @@ mod tests {
 
     #[test]
     fn only_staffed_conversion_workshops_use_the_policy() {
-        for kind in ["watermill", "granary", "brewery", "smokehouse", "weaver"] {
+        for kind in [
+            "watermill",
+            "granary",
+            "brewery",
+            "smokehouse",
+            "weaver",
+            "charcoal_burner",
+            "smithy",
+            "potter_kiln",
+        ] {
             assert!(is_processor_output_target_kind(kind));
         }
         for kind in ["monastery", "apiary", "vineyard", "carpenter"] {
@@ -141,6 +183,24 @@ mod tests {
             processor_output_kind("smokehouse"),
             Some(ProcessorOutputKind::PreservedFood)
         );
+    }
+
+    #[test]
+    fn every_processor_exposes_its_complete_authoritative_input_recipe() {
+        use ProcessorInputKind::*;
+
+        assert_eq!(processor_input_kinds("watermill"), &[Grain]);
+        assert_eq!(processor_input_kinds("granary"), &[Flour, Water, Firewood]);
+        assert_eq!(processor_input_kinds("brewery"), &[Barley, Water, Firewood]);
+        assert_eq!(
+            processor_input_kinds("smokehouse"),
+            &[Food, Firewood, Salt, Pottery]
+        );
+        assert_eq!(processor_input_kinds("weaver"), &[Wool, Flax, Water]);
+        assert_eq!(processor_input_kinds("charcoal_burner"), &[Firewood]);
+        assert_eq!(processor_input_kinds("smithy"), &[Iron, Charcoal]);
+        assert_eq!(processor_input_kinds("potter_kiln"), &[Clay, Firewood]);
+        assert!(processor_input_kinds("clay_pit").is_empty());
     }
 
     #[test]
