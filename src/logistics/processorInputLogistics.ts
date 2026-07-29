@@ -9,10 +9,12 @@ import {
   GRANARY_FLOUR_PER_CYCLE,
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
+  SMITHY_IRON_PER_CYCLE,
   SMITHY_CHARCOAL_PER_CYCLE,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
   SMOKEHOUSE_POTTERY_PER_CYCLE,
+  SMOKEHOUSE_SALT_PER_CYCLE,
   WEAVER_FLAX_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../generated/gameBalance.ts';
@@ -36,9 +38,12 @@ export type DirectProcessorInputCommodity =
   | 'wool'
   | 'flax'
   | 'ironwork'
+  | 'iron'
   | 'clay'
+  | 'salt'
   | 'charcoal'
   | 'pottery';
+export type MarketplaceMaterialInputCommodity = 'iron' | 'salt';
 export type ProcessorInputDispatchDuty = 'working-buffer' | 'workshop-overflow';
 
 type ProcessorInputDestinationLike = Pick<
@@ -57,7 +62,9 @@ type ProcessorInputDestinationLike = Pick<
   | 'barley'
   | 'firewood'
   | 'ironwork'
+  | 'iron'
   | 'clay'
+  | 'salt'
   | 'charcoal'
   | 'pottery'
 >;
@@ -95,7 +102,9 @@ const TARGET_KINDS: Record<
     'clay_pit',
     'carpenter',
   ],
+  iron: ['smithy'],
   clay: ['potter_kiln'],
+  salt: ['smokehouse'],
   charcoal: ['smithy'],
   pottery: ['smokehouse', 'marketplace'],
 };
@@ -136,8 +145,12 @@ export function directlyDispatchedProcessorInputPerCycle(
       return isCivilianToolSite(targetKind)
         ? CIVILIAN_TOOL_IRONWORK_PER_CYCLE
         : 0;
+    case 'iron':
+      return SMITHY_IRON_PER_CYCLE;
     case 'clay':
       return POTTER_CLAY_PER_CYCLE;
+    case 'salt':
+      return SMOKEHOUSE_SALT_PER_CYCLE;
     case 'charcoal':
       return SMITHY_CHARCOAL_PER_CYCLE;
     case 'pottery':
@@ -164,9 +177,9 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * their selected stock-policy working buffers by work priority. Equal-tier
  * looms then route matching fibres to their selected specialization before
  * lowest runway and route; staffed extractive worksites use the same ordering
- * for replacement iron tools. Pottery reaches staffed smokehouse buffers before
- * becoming market export stock. Once buffers are covered, nearest storage
- * overflow resumes without letting a high tier monopolize full warehouses.
+ * for replacement iron tools. Imported iron and salt stop at their working
+ * buffers; pottery reaches staffed smokehouses before becoming market export
+ * stock. Other inputs resume nearest storage overflow once buffers are covered.
  */
 export function selectDirectProcessorInputTarget<
   T extends ProcessorInputDestinationLike,
@@ -179,12 +192,13 @@ export function selectDirectProcessorInputTarget<
   acceptsInput: (target: T) => boolean = () => true,
 ): RoutedProcessorInputDestination<T> | null {
   let best: RoutedProcessorInputDestination<T> | null = null;
+  const marketplaceMaterial = commodity === 'iron' || commodity === 'salt';
   for (const target of targets) {
     if (
       target.id === sourceId
       || !TARGET_KINDS[commodity].includes(target.kind)
       || target.constructionComplete === false
-      || (commodity === 'firewood' && target.assignedLabor <= 0)
+      || ((commodity === 'firewood' || marketplaceMaterial) && target.assignedLabor <= 0)
       || hasInboundSupply(target)
       || !acceptsInput(target)
     ) {
@@ -207,6 +221,7 @@ export function selectDirectProcessorInputTarget<
       && stock + 1e-6 < workingTarget
       ? 'working-buffer'
       : 'workshop-overflow';
+    if (marketplaceMaterial && duty !== 'working-buffer') continue;
     const candidate: RoutedProcessorInputDestination<T> = {
       target,
       duty,
@@ -221,6 +236,51 @@ export function selectDirectProcessorInputTarget<
     };
     if (best == null || processorInputCandidatePrecedes(candidate, best)) {
       best = candidate;
+    }
+  }
+  return best;
+}
+
+export type RoutedMarketplaceMaterialDestination<
+  T extends ProcessorInputDestinationLike,
+> = RoutedProcessorInputDestination<T> & {
+  commodity: MarketplaceMaterialInputCommodity;
+};
+
+/**
+ * One marketplace cart chooses between its imported iron and salt requests.
+ * This mirrors the authoritative source-side pass, so a later-built urgent
+ * smokehouse can beat an older smithy instead of losing to update order.
+ */
+export function selectMarketplaceMaterialInputTarget<
+  T extends ProcessorInputDestinationLike,
+>(
+  targets: Iterable<T>,
+  source: Pick<BuildingState, 'id' | 'iron' | 'salt'>,
+  routeDistanceFor: (target: T) => number | null,
+  hasInboundSupply: (target: T) => boolean = () => false,
+  acceptsInput: (
+    target: T,
+    commodity: MarketplaceMaterialInputCommodity,
+  ) => boolean = () => true,
+): RoutedMarketplaceMaterialDestination<T> | null {
+  let best: RoutedMarketplaceMaterialDestination<T> | null = null;
+  const materialTargets = [...targets];
+  for (const commodity of ['iron', 'salt'] as const) {
+    if (Math.max(0, source[commodity] ?? 0) <= 1e-6) continue;
+    const candidate = selectDirectProcessorInputTarget(
+      materialTargets,
+      source.id,
+      commodity,
+      routeDistanceFor,
+      hasInboundSupply,
+      (target) => acceptsInput(target, commodity),
+    );
+    if (
+      candidate
+      && (best == null || processorInputCandidatePrecedes(candidate, best))
+    ) {
+      best = { ...candidate, commodity };
     }
   }
   return best;

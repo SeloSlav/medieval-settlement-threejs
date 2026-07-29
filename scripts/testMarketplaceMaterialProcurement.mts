@@ -191,7 +191,7 @@ assert.match(panel, /Queued behind the more depleted salt reserve; 2 iron lots r
 assert.match(panel, /Next twelve-unit lot ready for 14 gold; 2 lots remain/);
 assert.match(
   panel,
-  /a full market cannot feed a disconnected workshop/,
+  /free local market cart stages working buffers at staffed road-linked smithies and smokehouses/,
   'the inspector must keep physical last-mile logistics explicit',
 );
 

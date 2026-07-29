@@ -9,9 +9,10 @@ use crate::balance_generated::{
     MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
     RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
     RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS, SMITHY_CHARCOAL_PER_CYCLE,
+    SMITHY_IRON_PER_CYCLE,
     SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
-    SMOKEHOUSE_POTTERY_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
-    WEAVER_WOOL_PER_CYCLE, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
+    WEAVER_FLAX_PER_CYCLE, WEAVER_WOOL_PER_CYCLE, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 };
 use crate::civilian_tool_policy::is_civilian_tool_site;
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -43,6 +44,7 @@ pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
     "charcoal_burner",
     "potter_kiln",
 ];
+pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &["smithy", "smokehouse"];
 pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
@@ -384,11 +386,13 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("granary", "flour") => GRANARY_FLOUR_PER_CYCLE,
         ("smokehouse", "food") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
+        ("smokehouse", "salt") => SMOKEHOUSE_SALT_PER_CYCLE,
         ("weaver", "wool") => WEAVER_WOOL_PER_CYCLE,
         ("weaver", "flax") => WEAVER_FLAX_PER_CYCLE,
         ("brewery", "barley") => BREWERY_BARLEY_PER_MALT_CYCLE,
         ("potter_kiln", "clay") => POTTER_CLAY_PER_CYCLE,
         ("smithy", "charcoal") => SMITHY_CHARCOAL_PER_CYCLE,
+        ("smithy", "iron") => SMITHY_IRON_PER_CYCLE,
         _ => 0.0,
     }
 }
@@ -597,7 +601,8 @@ mod tests {
         NeedDeliveryCandidate, ProcessorInputDispatchDuty, ALE_SUPPLIER_KINDS,
         CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS, GRAIN_CRITICAL_RUNWAY_CYCLES,
         GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES, GRAIN_PROCESSOR_KINDS,
-        INDUSTRIAL_FIREWOOD_TARGET_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
+        INDUSTRIAL_FIREWOOD_TARGET_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
+        PRESERVED_FOOD_SUPPLIER_KINDS,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
@@ -775,6 +780,18 @@ mod tests {
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("potter_kiln", "clay"),
             3.0,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("smithy", "iron"),
+            super::SMITHY_IRON_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("smokehouse", "salt"),
+            super::SMOKEHOUSE_SALT_PER_CYCLE,
+        );
+        assert_eq!(
+            MARKETPLACE_MATERIAL_TARGET_KINDS,
+            &["smithy", "smokehouse"],
         );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("smithy", "charcoal"),

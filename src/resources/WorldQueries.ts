@@ -39,7 +39,9 @@ import {
 } from '../logistics/grainLogistics.ts';
 import {
   selectDirectProcessorInputTarget,
+  selectMarketplaceMaterialInputTarget,
   type DirectProcessorInputCommodity,
+  type RoutedMarketplaceMaterialDestination,
   type RoutedProcessorInputDestination,
 } from '../logistics/processorInputLogistics.ts';
 import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
@@ -1163,6 +1165,49 @@ export class WorldQueries {
       ),
       (target) => inboundTargets.has(target.id),
       (target) => processorAcceptsInput(target, commodity),
+    );
+  }
+
+  getNextMarketplaceMaterialDispatch(
+    source: BuildingState,
+  ): RoutedMarketplaceMaterialDestination<BuildingState> | null {
+    const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (
+      source.kind !== 'marketplace'
+      || source.constructionComplete === false
+      || source.assignedLabor <= 0
+      || fireDisabled.has(source.id)
+      || (
+        (source.iron ?? 0) <= 1e-6
+        && (source.salt ?? 0) <= 1e-6
+      )
+    ) {
+      return null;
+    }
+    const network = this.getRoadNetwork();
+    const inboundTargets = new Set<string>();
+    for (const trip of state.deliveryTrips.values()) {
+      if (
+        trip.phase !== 'inbound'
+        && trip.destinationKind === 'building'
+        && trip.targetBuildingId
+      ) {
+        inboundTargets.add(trip.targetBuildingId);
+      }
+    }
+    return selectMarketplaceMaterialInputTarget(
+      this.fireEnabledBuildings(state, fireDisabled),
+      source,
+      (target) => roadPathDistance(
+        network,
+        source.x,
+        source.z,
+        target.x,
+        target.z,
+      ),
+      (target) => inboundTargets.has(target.id),
+      (target, commodity) => processorAcceptsInput(target, commodity),
     );
   }
 

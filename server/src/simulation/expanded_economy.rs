@@ -87,6 +87,7 @@ use crate::supply_policy::{
     select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
     ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS,
     GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
+    MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, Residence};
 use crate::weaver_input_policy::{
@@ -109,6 +110,15 @@ struct RoutedProcessorInputTarget {
     distance: f64,
     duty: ProcessorInputDispatchDuty,
     input_preference_rank: u8,
+    runway_cycles: f64,
+    desired_stock: f64,
+}
+
+struct RoutedMarketplaceMaterialTarget {
+    building: Building,
+    commodity: CommodityKind,
+    distance: f64,
+    duty: ProcessorInputDispatchDuty,
     runway_cycles: f64,
     desired_stock: f64,
 }
@@ -393,6 +403,125 @@ pub fn step_industrial_firewood_dispatch(
             |target| target.assigned_labor > 0,
         );
         ctx.db.building().id().update(source);
+    }
+}
+
+/// A market's one local cart arbitrates scarce imported iron and salt across
+/// every staffed workshop on its road network. Work priority and remaining
+/// cycle runway therefore decide who receives the next lot, rather than the
+/// database order in which smithies and smokehouses happen to update.
+///
+/// Regional trade, named household orders, and seed-grain recovery run before
+/// this pass and retain first claim on the same physical broker cart.
+pub fn step_marketplace_material_dispatch(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    marketplaces: Vec<Building>,
+) {
+    for mut marketplace in marketplaces {
+        if marketplace.kind != "marketplace"
+            || !marketplace.construction_complete
+            || marketplace.assigned_labor == 0
+            || tick.building_disabled_by_fire(ctx, marketplace.id)
+            || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
+            || building_has_active_trip(ctx, marketplace.id)
+        {
+            continue;
+        }
+        let Some(network) = tick.road_network(marketplace.owner) else {
+            continue;
+        };
+        let Some(target) = select_processor_input_dispatch_candidate(
+            tick.building_ids_for_kinds(
+                ctx,
+                marketplace.owner,
+                MARKETPLACE_MATERIAL_TARGET_KINDS,
+            )
+            .into_iter()
+            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
+            .filter_map(|building| {
+                let commodity = match building.kind.as_str() {
+                    "smithy" => CommodityKind::Iron,
+                    "smokehouse" => CommodityKind::Salt,
+                    _ => return None,
+                };
+                if !building.construction_complete
+                    || building.assigned_labor == 0
+                    || tick.building_disabled_by_fire(ctx, building.id)
+                    || building_has_inbound_supply_trip(ctx, building.id)
+                    || !processor_accepts_input(&building, commodity)
+                    || building_commodity_stock(&marketplace, commodity) <= 1e-6
+                {
+                    return None;
+                }
+                let stock = building_commodity_stock(&building, commodity);
+                let per_cycle =
+                    directly_dispatched_processor_input_per_cycle(&building.kind, commodity);
+                let desired_stock =
+                    processor_input_target(per_cycle, building.processor_output_target_percent);
+                if desired_stock <= 1e-6
+                    || stock + 1e-6 >= desired_stock
+                    || building_commodity_room(&building, commodity) <= 1e-6
+                {
+                    return None;
+                }
+                let distance = network
+                    .road_path_distance(
+                        marketplace.x,
+                        marketplace.z,
+                        building.x,
+                        building.z,
+                    )
+                    .filter(|distance| distance.is_finite())?;
+                Some(RoutedMarketplaceMaterialTarget {
+                    duty: processor_input_dispatch_duty(
+                        building.assigned_labor,
+                        stock,
+                        per_cycle,
+                        building.processor_output_target_percent,
+                    ),
+                    runway_cycles: processor_input_runway_cycles(stock, per_cycle),
+                    building,
+                    commodity,
+                    distance,
+                    desired_stock,
+                })
+            }),
+            |candidate| candidate.duty,
+            |candidate| candidate.building.construction_priority,
+            |_| 0,
+            |candidate| candidate.runway_cycles,
+            |candidate| candidate.distance,
+            |candidate| candidate.building.id,
+        ) else {
+            continue;
+        };
+        let source_stock = building_commodity_stock(&marketplace, target.commodity);
+        let needed = (target.desired_stock
+            - building_commodity_stock(&target.building, target.commodity))
+        .max(0.0)
+        .min(source_stock)
+        .min(building_commodity_room(&target.building, target.commodity));
+        if needed <= 1e-6 {
+            continue;
+        }
+        if try_start_building_supply_trip(
+            ctx,
+            tick,
+            clock,
+            network,
+            &mut marketplace,
+            &target.building,
+            1,
+            target.commodity,
+            TIMBER_DELIVERY_SPEED_MPS,
+            TIMBER_DELIVERY_UNLOAD_SEC,
+            commodity_transfer_per_trip(target.commodity),
+            needed,
+        ) {
+            ctx.db.building().id().update(marketplace);
+        }
     }
 }
 
@@ -912,15 +1041,6 @@ pub fn step_smokehouse(
         tick,
         clock,
         &smokehouse,
-        CommodityKind::Salt,
-        &["marketplace"],
-        SMOKEHOUSE_SALT_PER_CYCLE * input_staging_cycles,
-    );
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &smokehouse,
         CommodityKind::Pottery,
         &["potter_kiln", "marketplace"],
         SMOKEHOUSE_POTTERY_PER_CYCLE * input_staging_cycles,
@@ -1019,15 +1139,6 @@ pub fn step_smithy(
     building: Building,
 ) {
     let staging = processor_input_staging_cycles(building.processor_output_target_percent);
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &building,
-        CommodityKind::Iron,
-        &["marketplace"],
-        SMITHY_IRON_PER_CYCLE * staging,
-    );
     request_connected_commodity(
         ctx,
         tick,
@@ -2250,6 +2361,8 @@ fn directly_dispatched_processor_input_per_cycle(
         CommodityKind::Charcoal => "charcoal",
         CommodityKind::Pottery => "pottery",
         CommodityKind::Firewood => "firewood",
+        CommodityKind::Iron => "iron",
+        CommodityKind::Salt => "salt",
         _ => return 0.0,
     };
     processor_input_per_cycle_for_dispatch(target_kind, commodity)

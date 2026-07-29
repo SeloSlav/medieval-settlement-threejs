@@ -28,7 +28,12 @@ import {
 } from '../../economy/settlementHouseholdMarket.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
-import type { DeliveryTripState } from '../../logistics/deliveryTrips.ts';
+import {
+  cargoKindLabel,
+  formatTripPhaseLabel,
+  type DeliveryTripState,
+} from '../../logistics/deliveryTrips.ts';
+import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import {
@@ -41,6 +46,7 @@ import {
   marketplaceGoldReserveTarget,
   marketplaceGoldSweepSurplus,
 } from '../../economy/marketplaceGoldReserve.ts';
+import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 
 const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>([
   'timber',
@@ -87,6 +93,29 @@ export function renderMarketplaceInspector(
   const physicalEconomy = context.gameState.physicalFoundingSiteEnabled === true;
   const activeMarketTrip = Array.from(context.gameState.deliveryTrips.values())
     .find((trip) => trip.buildingId === building.id) ?? null;
+  const activeMaterialTarget = activeMarketTrip?.destinationKind === 'building'
+    && activeMarketTrip.targetBuildingId
+    && (activeMarketTrip.cargoKind === 'iron' || activeMarketTrip.cargoKind === 'salt')
+    ? context.worldQueries.getBuilding(activeMarketTrip.targetBuildingId)
+    : null;
+  const nextMaterialDispatch = building.assignedLabor > 0
+    && !marketFireDisabled
+    && activeMarketTrip == null
+    ? context.worldQueries.getNextMarketplaceMaterialDispatch(building)
+    : null;
+  const workshopInputCart = activeMaterialTarget && activeMarketTrip
+    ? `${cargoKindLabel(activeMarketTrip.cargoKind)} to ${
+        context.worldQueries.getBuildingLabel(activeMaterialTarget.kind)
+      } · ${formatTripPhaseLabel(activeMarketTrip.phase)}`
+    : nextMaterialDispatch
+      ? `${cargoKindLabel(nextMaterialDispatch.commodity)} next to ${
+          context.worldQueries.getBuildingLabel(nextMaterialDispatch.target.kind)
+        } · ${staffingPriorityLabel(nextMaterialDispatch.workPriority)} priority · ${
+          nextMaterialDispatch.runwayCycles.toFixed(1)
+        } cycles onsite · ${formatDeliveryRoadDistance(nextMaterialDispatch.routeDistance)}`
+      : (building.iron ?? 0) <= 1e-6 && (building.salt ?? 0) <= 1e-6
+        ? 'No imported iron or salt onsite'
+        : 'No staffed road-linked workshop below its selected input buffer';
   const inboundCashTrip = Array.from(context.gameState.deliveryTrips.values())
     .find((trip) =>
       trip.targetBuildingId === building.id
@@ -234,6 +263,7 @@ export function renderMarketplaceInspector(
       <li><span>Caravan crew</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>
       <li><span>Bulk trade desk</span><span>${manualTrade.label}</span></li>
       <li><span>Active bulk order</span><span>${pendingOrderLabel}</span></li>
+      <li><span>Workshop input cart</span><span>${workshopInputCart}</span></li>
       <li><span>Regional route</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueueLabel}</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>

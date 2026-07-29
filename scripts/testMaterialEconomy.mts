@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
@@ -36,6 +36,7 @@ import type { DeliveryCargoKind } from '../src/logistics/deliveryTrips.ts';
 import {
   directlyDispatchedProcessorInputPerCycle,
   selectDirectProcessorInputTarget,
+  selectMarketplaceMaterialInputTarget,
 } from '../src/logistics/processorInputLogistics.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 import { renderBuildMenuCards } from '../src/ui/buildMenuCards.ts';
@@ -67,6 +68,14 @@ assert.equal(
 assert.equal(
   directlyDispatchedProcessorInputPerCycle('smokehouse', 'pottery'),
   SMOKEHOUSE_POTTERY_PER_CYCLE,
+);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('smithy', 'iron'),
+  SMITHY_IRON_PER_CYCLE,
+);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('smokehouse', 'salt'),
+  SMOKEHOUSE_SALT_PER_CYCLE,
 );
 assert.equal(
   directlyDispatchedProcessorInputPerCycle('marketplace', 'pottery'),
@@ -144,6 +153,77 @@ assert.equal(
   'forge-fuel carts must expose work priority as a real production decision',
 );
 assert.equal(charcoalTarget?.desiredStock, SMITHY_CHARCOAL_PER_CYCLE * 3);
+
+const materialMarket = building('marketplace', {
+  id: 'material-market',
+  iron: 12,
+  salt: 12,
+});
+const lowPriorityIronTarget = building('smithy', {
+  id: 'older-near-smithy',
+  x: 5,
+  assignedLabor: 2,
+  constructionPriority: 1,
+  iron: 0,
+});
+const highPrioritySaltTarget = building('smokehouse', {
+  id: 'later-far-smokehouse',
+  x: 80,
+  assignedLabor: 2,
+  constructionPriority: 3,
+  salt: 0,
+});
+let marketMaterialTarget = selectMarketplaceMaterialInputTarget(
+  [lowPriorityIronTarget, highPrioritySaltTarget],
+  materialMarket,
+  (candidate) => candidate.x,
+);
+assert.equal(
+  marketMaterialTarget?.target.id,
+  highPrioritySaltTarget.id,
+  'a later-built high-priority smokehouse must beat an older nearby low-priority smithy',
+);
+assert.equal(marketMaterialTarget?.commodity, 'salt');
+assert.equal(marketMaterialTarget?.duty, 'working-buffer');
+
+lowPriorityIronTarget.constructionPriority = 2;
+lowPriorityIronTarget.iron = SMITHY_IRON_PER_CYCLE;
+highPrioritySaltTarget.constructionPriority = 2;
+marketMaterialTarget = selectMarketplaceMaterialInputTarget(
+  [lowPriorityIronTarget, highPrioritySaltTarget],
+  materialMarket,
+  (candidate) => candidate.x,
+);
+assert.equal(
+  marketMaterialTarget?.commodity,
+  'salt',
+  'equal-priority imported inputs must serve the lower cycle runway before the shorter road',
+);
+
+highPrioritySaltTarget.salt = SMOKEHOUSE_SALT_PER_CYCLE * 3;
+marketMaterialTarget = selectMarketplaceMaterialInputTarget(
+  [lowPriorityIronTarget, highPrioritySaltTarget],
+  materialMarket,
+  (candidate) => candidate.x,
+);
+assert.equal(
+  marketMaterialTarget?.commodity,
+  'iron',
+  'a covered smokehouse buffer must release the market cart to the smithy',
+);
+
+highPrioritySaltTarget.salt = 0;
+highPrioritySaltTarget.assignedLabor = 0;
+marketMaterialTarget = selectMarketplaceMaterialInputTarget(
+  [lowPriorityIronTarget, highPrioritySaltTarget],
+  materialMarket,
+  (candidate) => candidate.x,
+);
+assert.equal(
+  marketMaterialTarget?.commodity,
+  'iron',
+  'unstaffed workshops must not reserve scarce imported inputs',
+);
 
 for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
   assert.ok(
@@ -295,6 +375,95 @@ assert.equal(
   'changing forge supplies must not rebuild building colliders',
 );
 
+const expandedEconomySource = readFileSync(
+  'server/src/simulation/expanded_economy.rs',
+  'utf8',
+);
+const simulationReducerSource = readFileSync(
+  'server/src/reducers/simulation.rs',
+  'utf8',
+);
+const rustFunctionSection = (name: string, nextName: string): string => {
+  const start = expandedEconomySource.indexOf(`pub fn ${name}`);
+  const end = expandedEconomySource.indexOf(`pub fn ${nextName}`, start + 1);
+  assert.ok(start >= 0 && end > start, `${name} source section should exist`);
+  return expandedEconomySource.slice(start, end);
+};
+const marketplaceMaterialDispatchStep = rustFunctionSection(
+  'step_marketplace_material_dispatch',
+  'step_granary',
+);
+const smokehouseStep = rustFunctionSection('step_smokehouse', 'step_clay_pit');
+const smithyStep = rustFunctionSection('step_smithy', 'step_potter_kiln');
+assert.match(
+  marketplaceMaterialDispatchStep,
+  /select_processor_input_dispatch_candidate/,
+);
+assert.match(marketplaceMaterialDispatchStep, /MARKETPLACE_MATERIAL_TARGET_KINDS/);
+assert.match(
+  marketplaceMaterialDispatchStep,
+  /"smithy" => CommodityKind::Iron[\s\S]*"smokehouse" => CommodityKind::Salt/,
+);
+assert.doesNotMatch(
+  smokehouseStep,
+  /request_connected_commodity\(\s*ctx,\s*tick,\s*clock,\s*&smokehouse,\s*CommodityKind::Salt/,
+  'smokehouses must not pull salt in database update order',
+);
+assert.doesNotMatch(
+  smithyStep,
+  /request_connected_commodity\(\s*ctx,\s*tick,\s*clock,\s*&building,\s*CommodityKind::Iron/,
+  'smithies must not pull iron in database update order',
+);
+const caravanIndex = simulationReducerSource.indexOf('step_marketplace_caravans(');
+const seedDistributionIndex = simulationReducerSource.indexOf(
+  'step_seed_grain_distribution(',
+  caravanIndex,
+);
+const materialDispatchIndex = simulationReducerSource.indexOf(
+  'step_marketplace_material_dispatch(',
+  seedDistributionIndex,
+);
+const workshopStepIndex = simulationReducerSource.indexOf(
+  'for (sim_kind, building_id) in expanded_ids',
+  materialDispatchIndex,
+);
+assert.ok(
+  caravanIndex >= 0
+    && seedDistributionIndex > caravanIndex
+    && materialDispatchIndex > seedDistributionIndex
+    && workshopStepIndex > materialDispatchIndex,
+  'regional/household market work and seed recovery must retain cart precedence before workshop inputs',
+);
+
+const materialDispatchTargets = Array.from({ length: 100_000 }, (_, index) =>
+  building(index % 2 === 0 ? 'smithy' : 'smokehouse', {
+    id: `material-target-${index}`,
+    x: 100_000 - index,
+    assignedLabor: 1,
+    constructionPriority: 2,
+    iron: index % 2 === 0 ? SMITHY_IRON_PER_CYCLE : 0,
+    salt: index % 2 === 0 ? 0 : SMOKEHOUSE_SALT_PER_CYCLE,
+  }));
+materialDispatchTargets.push(building('smokehouse', {
+  id: 'urgent-material-target',
+  x: 100_001,
+  assignedLabor: 1,
+  constructionPriority: 3,
+  salt: 0,
+}));
+const materialDispatchStartedAt = performance.now();
+const largeSettlementMaterialTarget = selectMarketplaceMaterialInputTarget(
+  materialDispatchTargets,
+  materialMarket,
+  (candidate) => candidate.x,
+);
+const materialDispatchElapsedMs = performance.now() - materialDispatchStartedAt;
+assert.equal(largeSettlementMaterialTarget?.target.id, 'urgent-material-target');
+assert.ok(
+  materialDispatchElapsedMs < 250,
+  `100,001 imported-material dispatch candidates took ${materialDispatchElapsedMs.toFixed(1)} ms`,
+);
+
 const signatureBuildings = Array.from({ length: 100_000 }, (_, index) => {
   const kinds = [
     'clay_pit',
@@ -324,7 +493,7 @@ assert.ok(
 );
 
 console.log(
-  `Iron, clay, salt, charcoal, pottery chain tests passed (${signatureElapsedMs.toFixed(1)} ms / 100k visual signatures).`,
+  `Iron, clay, salt, charcoal, pottery chain tests passed (${materialDispatchElapsedMs.toFixed(1)} ms / 100k dispatch candidates; ${signatureElapsedMs.toFixed(1)} ms / 100k visual signatures).`,
 );
 
 function building(

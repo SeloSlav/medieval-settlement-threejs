@@ -12,7 +12,8 @@ use crate::simulation::{
     step_founding_sites, step_fresh_food_spoilage, step_granary, step_guardhouse,
     step_household_market_orders, step_hunters_hall, step_industrial_firewood_dispatch,
     step_large_quarry, step_live_raids, step_lumber_mill, step_marketplace_caravans,
-    step_monastery, step_night_cycle, step_pastoral_farmstead, step_potter_kiln,
+    step_marketplace_material_dispatch, step_monastery, step_night_cycle,
+    step_pastoral_farmstead, step_potter_kiln,
     step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
     step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
     step_settlement_security, step_smithy, step_smokehouse, step_stone_quarry, step_swineherd,
@@ -187,6 +188,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let mut guardhouse_payroll_ids: Vec<(u8, u64)> = Vec::new();
     let mut village_storehouse_ids: Vec<u64> = Vec::new();
     let mut reclamation_pile_ids: Vec<u64> = Vec::new();
+    let mut marketplace_ids: Vec<u64> = Vec::new();
     let mut expanded_ids: Vec<(crate::building_defs::BuildingSimKind, u64)> = Vec::new();
 
     for building in ctx.db.building().iter() {
@@ -197,6 +199,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             "chapel" => chapel_ids.push(building.id),
             "monastery" => monastery_ids.push(building.id),
             "salvage_pile" => reclamation_pile_ids.push(building.id),
+            "marketplace" => marketplace_ids.push(building.id),
             _ => {}
         }
         let Some(sim_kind) =
@@ -279,6 +282,11 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
 
     step_marketplace_caravans(ctx, &clock, &tick, environment);
     step_seed_grain_distribution(ctx, &tick, &clock);
+    let material_marketplaces = marketplace_ids
+        .iter()
+        .filter_map(|building_id| ctx.db.building().id().find(building_id))
+        .collect();
+    step_marketplace_material_dispatch(ctx, &tick, &clock, material_marketplaces);
     step_regional_markets(ctx, sim_tick);
 
     for building_id in reforester_ids {
@@ -337,9 +345,10 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_woodcutters_lodge(ctx, &tick, &clock, building);
     }
 
-    // Household heating always claims a distributor's first available cart.
-    // Only sources left idle after those physical duties may feed workshops,
-    // where work priority and fuel runway replace construction-order bias.
+    // Homes below their protected winter-night floor claim a distributor's
+    // first available cart. Sources left idle after those physical duties may
+    // feed workshops, where work priority and fuel runway replace
+    // construction-order bias.
     let village_storehouses = village_storehouse_ids
         .iter()
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
