@@ -73,7 +73,7 @@ const MAX_GRASS_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * GRASS_SLOT_CAPACITY;
 const MAX_WILDFLOWER_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * WILDFLOWER_SLOT_CAPACITY;
 const MIN_TUFT_SPACING_SQ = 0.26 * 0.26;
 const MIN_MICRO_TUFT_SPACING_SQ = 0.16 * 0.16;
-const MIN_WILDFLOWER_SPACING_SQ = 2.1 * 2.1;
+const MIN_WILDFLOWER_SPACING_SQ = 0.9 * 0.9;
 /** Park culled tufts far below the world — zero-scale at origin alpha-tests into a visible orb. */
 const HIDDEN_INSTANCE_Y = -4096;
 const hiddenMatrix = new THREE.Matrix4().compose(
@@ -637,13 +637,16 @@ function writeSeedThreeChunkInstances(
     const dry = Math.min(1, Math.max(0, (1 - density - 0.15) * 1.2)) + (rng() < 0.1 ? 0.3 : 0);
     const forestHeightMul = density > 0.38 ? THREE.MathUtils.lerp(0.78, 0.94, density) : 1;
     const heightMul =
-      (micro ? THREE.MathUtils.lerp(0.42, 0.72, rng()) : THREE.MathUtils.lerp(0.55, 1.15, rng())) *
+      (micro ? THREE.MathUtils.lerp(0.24, 0.46, rng()) : THREE.MathUtils.lerp(0.38, 0.72, rng())) *
       forestHeightMul;
     const height =
       heightMul *
       THREE.MathUtils.lerp(0.9, 1.06, density) *
       entry.variant.tall;
-    const widthScale = (height * THREE.MathUtils.lerp(micro ? 1.2 : 1.4, micro ? 1.6 : 2.1, rng())) / entry.variant.tall;
+    const widthScale = (
+      height
+      * THREE.MathUtils.lerp(micro ? 0.55 : 0.7, micro ? 0.82 : 1.05, rng())
+    ) / entry.variant.tall;
 
     const rootY = heightAt(x, z) + 0.04;
     composeSeedThreeTuftMatrix(x, z, rootY, height, widthScale, rng, writeMatrix, writeQuaternion, writePosition, writeScale);
@@ -697,7 +700,7 @@ function writeSeedThreeWildflowerChunkInstances(
   const chunkMinX = chunkX * GRASS_BLADE_CHUNK_SIZE;
   const chunkMinZ = chunkZ * GRASS_BLADE_CHUNK_SIZE;
   const margin = GRASS_BLADE_CHUNK_SIZE * 0.08;
-  const target = rng() < 0.16 ? 0 : 2 + Math.floor(rng() * 3);
+  const target = rng() < 0.06 ? 0 : 3 + Math.floor(rng() * 2);
   const localPlacements: Array<{ x: number; z: number }> = [];
   const paletteOffset = seed % SEEDTHREE_WILDFLOWER_VARIANTS.length;
   let instanceIndex = startIndex;
@@ -705,10 +708,10 @@ function writeSeedThreeWildflowerChunkInstances(
   for (let attempt = 0; attempt < target * 18 && localPlacements.length < target; attempt++) {
     let x: number;
     let z: number;
-    if (localPlacements.length > 0 && rng() < 0.34) {
+    if (localPlacements.length > 0 && rng() < 0.62) {
       const anchor = localPlacements[Math.floor(rng() * localPlacements.length)]!;
       const angle = rng() * TAU;
-      const radius = THREE.MathUtils.lerp(1.9, 4.2, Math.pow(rng(), 0.7));
+      const radius = THREE.MathUtils.lerp(0.95, 2.4, Math.pow(rng(), 0.7));
       x = anchor.x + Math.cos(angle) * radius;
       z = anchor.z + Math.sin(angle) * radius;
     } else {

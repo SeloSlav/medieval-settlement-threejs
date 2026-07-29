@@ -17,7 +17,6 @@ import {
   vec4,
 } from 'three/tsl';
 import { windSpeed, windStrength, WIND_DIR } from '@seedthree/core/wind.js';
-import { seedThreeLeafUrl } from './seedThreeTextures.ts';
 
 export { WIND_DIR as SEEDTHREE_GRASS_WIND_DIR };
 
@@ -108,6 +107,8 @@ export type SeedThreeTuftVariant = {
 
 const loader = new THREE.TextureLoader();
 let textureCache: SeedThreeGrassTextures | null = null;
+const CLOSE_MEADOW_TUFT_PATH =
+  '/assets/textures/vegetation/grass/close-meadow-tuft.png';
 
 async function loadTex(url: string | undefined, srgb: boolean): Promise<THREE.Texture | null> {
   if (!url) return null;
@@ -117,23 +118,15 @@ async function loadTex(url: string | undefined, srgb: boolean): Promise<THREE.Te
   return tex;
 }
 
-async function loadOptional(url: string | undefined, srgb: boolean): Promise<THREE.Texture | null> {
-  if (!url) return null;
-  try {
-    return await loadTex(url, srgb);
-  } catch {
-    return null;
-  }
-}
-
 export async function loadSeedThreeGrassTextures(maxAnisotropy: number): Promise<SeedThreeGrassTextures> {
   if (textureCache) return textureCache;
 
-  const [tuftLoaded, tuftNormal, tuftRoughness] = await Promise.all([
-    loadTex(seedThreeLeafUrl('grass_tuft.png'), true),
-    loadOptional(seedThreeLeafUrl('grass_tuft_normal.png'), false),
-    loadOptional(seedThreeLeafUrl('grass_tuft_roughness.png'), false),
-  ]);
+  const tuftLoaded = await loadTex(CLOSE_MEADOW_TUFT_PATH, true);
+  // The narrow meadow card uses a neutral geometric normal and material
+  // roughness. Reusing the former broad-leaf maps would emboss their fan
+  // silhouette back into the new fine blades.
+  const tuftNormal = null;
+  const tuftRoughness = null;
 
   let tuft = tuftLoaded;
   if (!tuft) {
@@ -227,7 +220,7 @@ export function createSeedThreeTuftVariants(): SeedThreeTuftVariant[] {
 export function createSeedThreeGrassMaterial(textures: SeedThreeGrassTextures): MeshSSSNodeMaterial {
   const mat = new MeshSSSNodeMaterial({
     map: textures.tuft,
-    alphaTest: 0.42,
+    alphaTest: 0.3,
     side: THREE.DoubleSide,
     roughness: 0.95,
     metalness: 0,
@@ -263,9 +256,9 @@ export function createSeedThreeGrassMaterial(textures: SeedThreeGrassTextures): 
 
 export function sampleSeedThreeGrassTint(rng: () => number, dry = 0): THREE.Vector3 {
   return new THREE.Vector3(
-    rng() * 0.26 + 0.4 + dry * 0.2,
-    (rng() * 0.38 + 0.4) * (1 - dry * 0.35),
-    (rng() * 0.2 + 0.3) * (1 - dry * 0.55),
+    rng() * 0.18 + 0.72 + dry * 0.08,
+    (rng() * 0.18 + 0.82) * (1 - dry * 0.14),
+    (rng() * 0.16 + 0.62) * (1 - dry * 0.28),
   );
 }
 

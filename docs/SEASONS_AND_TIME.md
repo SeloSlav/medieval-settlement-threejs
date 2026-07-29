@@ -543,6 +543,15 @@ drives the later physical spawn, so a directional report cannot change after
 stores or targets move. The HUD shows an approximate countdown only after a
 report and raises an immediate contact alarm when every warning source misses.
 
+That warning now has a physical cost and benefit. Armed guards from road-linked
+guardhouses leave with issued polearms, march to their ordered or nearest staffed
+watch post, and hold the watch line before contact. Travel time matters:
+guards still on the road do not count as present at the watch line, while an
+unlinked company cannot pre-deploy and must react from its guardhouse once the
+attack becomes visible. The same replicated people, health, readiness, and
+weapons enter the ensuing fight; if the report is cancelled, they walk back and
+return their equipment instead of disappearing.
+
 Raid morale is resolved from the same live battlefield rather than as a hidden
 economy roll. After one quarter of the original party has physically fallen,
 surviving raiders break if the healthy, supplied guard strength contesting them

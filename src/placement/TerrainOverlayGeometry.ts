@@ -243,47 +243,46 @@ function bilinearPoint(
 }
 
 /**
- * Keep live BufferAttribute objects stable whenever an overlay's topology is
- * unchanged. Three's WebGPU backend keys uploaded buffers by attribute
- * identity; replacing the index attribute on every cursor movement can leave
- * the next render pass pointing at an index that has not received a GPUBuffer.
+ * Keep live overlays non-indexed. Three's WebGPU backend can render a newly
+ * indexed dynamic geometry before its index attribute has an uploaded
+ * GPUBuffer, which aborts the whole render loop. These overlays are small, so
+ * expanding their shared vertices into triangles is a cheap, robust tradeoff.
  */
 function updateOverlayGeometry(
   geometry: THREE.BufferGeometry,
   positions: Float32Array,
   indices: readonly number[],
 ): void {
+  const trianglePositions = new Float32Array(indices.length * 3);
+  for (let indexOffset = 0; indexOffset < indices.length; indexOffset += 1) {
+    const sourceOffset = indices[indexOffset]! * 3;
+    const targetOffset = indexOffset * 3;
+    trianglePositions[targetOffset] = positions[sourceOffset]!;
+    trianglePositions[targetOffset + 1] = positions[sourceOffset + 1]!;
+    trianglePositions[targetOffset + 2] = positions[sourceOffset + 2]!;
+  }
+
   const position = geometry.getAttribute('position');
   const index = geometry.getIndex();
-  const needsUint32 = positions.length / 3 > 65_535;
   const canReusePosition = position instanceof THREE.BufferAttribute
     && position.itemSize === 3
     && position.array instanceof Float32Array
-    && position.array.length === positions.length;
-  const canReuseIndex = index instanceof THREE.BufferAttribute
-    && index.array.length === indices.length
-    && (needsUint32
-      ? index.array instanceof Uint32Array
-      : index.array instanceof Uint16Array);
+    && position.array.length === trianglePositions.length;
 
-  if (canReusePosition && canReuseIndex) {
-    position.array.set(positions);
+  if (canReusePosition && !index) {
+    position.array.set(trianglePositions);
     position.needsUpdate = true;
-    index.array.set(indices);
-    index.needsUpdate = true;
   } else {
     if (position || index) {
-      // Changing topology requires new attributes. Dispose first so WebGPU
-      // drops the old attribute-to-buffer bindings before the next frame.
       geometry.dispose();
     }
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setIndex(new THREE.BufferAttribute(
-      needsUint32 ? Uint32Array.from(indices) : Uint16Array.from(indices),
-      1,
-    ));
+    geometry.setIndex(null);
+    geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(trianglePositions, 3),
+    );
   }
 
-  geometry.setDrawRange(0, indices.length);
+  geometry.setDrawRange(0, trianglePositions.length / 3);
   geometry.computeBoundingSphere();
 }

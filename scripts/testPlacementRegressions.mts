@@ -140,8 +140,11 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
   const fillGeometry = new THREE.BufferGeometry();
   updateTerrainQuadGeometry(fillGeometry, corners, heightAt, 0.1, 5, 5);
   const fillPositions = fillGeometry.getAttribute('position') as THREE.BufferAttribute;
-  const fillIndex = fillGeometry.getIndex();
-  assert.ok(fillIndex);
+  assert.equal(
+    fillGeometry.getIndex(),
+    null,
+    'live placement fills must not depend on a WebGPU index buffer',
+  );
   for (let index = 0; index < fillPositions.count; index++) {
     assert.ok(
       Math.abs(
@@ -164,11 +167,7 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
     fillPositions,
     'same-topology preview movement must retain the WebGPU position buffer',
   );
-  assert.strictEqual(
-    fillGeometry.getIndex(),
-    fillIndex,
-    'same-topology preview movement must retain the WebGPU index buffer',
-  );
+  assert.equal(fillGeometry.getIndex(), null);
 
   const borderGeometry = new THREE.BufferGeometry();
   updateTerrainRibbonGeometry(
@@ -178,8 +177,11 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
     { width: 0.2, lift: 0.16, sampleSpacing: 0.75, dashLength: 1.4, gapLength: 0.8 },
   );
   const borderPositions = borderGeometry.getAttribute('position') as THREE.BufferAttribute;
-  const borderIndex = borderGeometry.getIndex();
-  assert.ok(borderIndex);
+  assert.equal(
+    borderGeometry.getIndex(),
+    null,
+    'live placement ribbons must not depend on a WebGPU index buffer',
+  );
   assert.ok(borderPositions.count > 16, 'dotted footprint border should be terrain-sampled');
   for (let index = 0; index < borderPositions.count; index++) {
     assert.ok(
@@ -203,11 +205,7 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
     borderPositions,
     'same-topology ribbon movement must retain the WebGPU position buffer',
   );
-  assert.strictEqual(
-    borderGeometry.getIndex(),
-    borderIndex,
-    'same-topology ribbon movement must retain the WebGPU index buffer',
-  );
+  assert.equal(borderGeometry.getIndex(), null);
 
   fillGeometry.dispose();
   borderGeometry.dispose();

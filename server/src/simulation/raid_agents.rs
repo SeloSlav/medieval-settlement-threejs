@@ -14,13 +14,13 @@ use crate::raid_agent_policy::{
     route_shortcut_via_endpoint_is_worthwhile, select_guard_muster_slots, EmergencyGuardTarget,
     RouteMove, COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
     COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED,
-    COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING,
-    COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING,
-    COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING,
-    COMBAT_TARGET_TREASURY_RESIDENCE, COMBAT_WADING_SPEED_MULTIPLIER,
-    DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS, DOWNED_LINGER_SECONDS, GUARD_SPEED_MPS,
-    MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS, RAIDER_SPEED_MPS,
-    RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
+    COMBAT_STATE_FIGHTING, COMBAT_STATE_HOLDING, COMBAT_STATE_LOOTING, COMBAT_STATE_MUSTERING,
+    COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING,
+    COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
+    COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE,
+    COMBAT_WADING_SPEED_MULTIPLIER, DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS,
+    DOWNED_LINGER_SECONDS, GUARD_SPEED_MPS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
+    RAIDER_SPEED_MPS, RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::security_policy::{
@@ -69,6 +69,7 @@ pub fn start_live_raid(
     ctx: &ReducerContext,
     owner: Identity,
     raid_id: u64,
+    warned_raid_id: Option<u64>,
     enemy_pressure: u8,
     world_seed: u64,
     playable_half: f64,
@@ -83,10 +84,11 @@ pub fn start_live_raid(
         return None;
     }
 
-    // An interrupted legacy deployment must not leave an invisible company
-    // consuming a guardhouse roster when the next authoritative raid starts.
-    // Persistent wounded guards are deliberately retained: their exact roster
-    // slots remain unavailable until those same agents recuperate.
+    // Preserve the guards who physically answered this warning. Every other
+    // fit legacy deployment is cleared so it cannot invisibly consume a roster
+    // slot when the authoritative raid begins. Wounded guards retain their
+    // exact slots until those same agents recuperate.
+    let mut warned_guards = Vec::new();
     for stale in ctx
         .db
         .combat_agent()
@@ -97,9 +99,41 @@ pub fn start_live_raid(
         if stale.faction == COMBAT_FACTION_GUARD && combat_state_blocks_guard_slot(stale.state) {
             continue;
         }
+        if stale.faction == COMBAT_FACTION_GUARD
+            && warned_raid_id == Some(stale.raid_id)
+            && matches!(stale.state, COMBAT_STATE_MUSTERING | COMBAT_STATE_HOLDING)
+        {
+            warned_guards.push(stale);
+            continue;
+        }
         ctx.db.combat_agent().id().delete(stale.id);
     }
-    clear_guard_muster_routes(ctx, owner);
+    let warned_sources = warned_guards
+        .iter()
+        .map(|guard| guard.source_building_id)
+        .collect::<HashSet<_>>();
+    for mut route in ctx
+        .db
+        .guard_muster_route()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<_>>()
+    {
+        if warned_sources.contains(&route.source_building_id)
+            && warned_raid_id == Some(route.raid_id)
+        {
+            route.raid_id = raid_id;
+            ctx.db
+                .guard_muster_route()
+                .source_building_id()
+                .update(route);
+        } else {
+            ctx.db
+                .guard_muster_route()
+                .source_building_id()
+                .delete(route.source_building_id);
+        }
+    }
     clear_raider_incursion_routes(ctx, owner);
 
     let raider_count = raid_party_size(enemy_pressure);
@@ -187,7 +221,27 @@ pub fn start_live_raid(
         });
     }
 
-    let guard_count = spawn_responding_guards(
+    let mut guard_count = 0_u32;
+    for mut guard in warned_guards {
+        let Some(target) = targets.iter().min_by(|left, right| {
+            distance_squared(guard.x, guard.z, left.x, left.z)
+                .total_cmp(&distance_squared(guard.x, guard.z, right.x, right.z))
+                .then_with(|| left.kind.cmp(&right.kind))
+                .then_with(|| left.id.cmp(&right.id))
+        }) else {
+            continue;
+        };
+        guard.raid_id = raid_id;
+        guard.target_kind = target.kind;
+        guard.target_id = target.id;
+        guard.raid_anchor_building_id = target.raid_anchor_building_id;
+        guard.state = COMBAT_STATE_ADVANCING;
+        guard.state_changed_tick = raid_id;
+        ctx.db.combat_agent().id().update(guard);
+        guard_count += 1;
+    }
+
+    guard_count += spawn_responding_guards(
         ctx,
         owner,
         raid_id,
@@ -348,13 +402,7 @@ fn spawn_responding_guards(
         let readiness =
             (guardhouse.action_cooldown * (0.72 + muster_readiness * 0.28)).clamp(0.05, 1.0);
         if let Some(muster_route) = muster_route {
-            ctx.db.guard_muster_route().insert(GuardMusterRoute {
-                source_building_id: guardhouse.id,
-                owner,
-                raid_id,
-                path_distance: muster_route.distance,
-                route_polyline_json: serialize_route_polyline(&muster_route.polyline),
-            });
+            store_guard_muster_route(ctx, owner, raid_id, guardhouse.id, &muster_route);
         }
         for slot in muster_slots {
             let (x, z) = formation_spawn(guardhouse.x, guardhouse.z, target.x, target.z, slot);
@@ -394,6 +442,140 @@ fn spawn_responding_guards(
     total
 }
 
+/// Materialize an early warning as actual guards and issued weapons on the
+/// map. Only road-linked companies can reach an assigned watch before contact;
+/// unlinked companies still form at their guardhouse when the raiders appear.
+pub(super) fn ensure_warned_guard_muster(
+    ctx: &ReducerContext,
+    owner: Identity,
+    warned_raid_id: u64,
+    sim_tick: u64,
+    buildings: &[Building],
+    towers: &[WatchArea],
+    road_network: Option<&RoadNetwork>,
+    fire_disabled_buildings: &HashSet<u64>,
+) -> u32 {
+    if warned_raid_id == 0 || towers.is_empty() {
+        return 0;
+    }
+    let network = match road_network {
+        Some(network) => network,
+        None => return 0,
+    };
+    let watch_positions = towers
+        .iter()
+        .map(|tower| (tower.x, tower.z))
+        .collect::<Vec<_>>();
+    let watchtower_ids = towers
+        .iter()
+        .map(|tower| tower.source_id)
+        .collect::<Vec<_>>();
+    let committed_slots = unavailable_guard_slots(ctx, owner);
+    let issued_polearms = issued_guard_polearms_by_building(ctx, owner);
+    let mut deployed = 0_u32;
+
+    for guardhouse in buildings.iter().filter(|building| {
+        building.owner == owner
+            && building.construction_complete
+            && building.kind == "guardhouse"
+            && !fire_disabled_buildings.contains(&building.id)
+    }) {
+        let onsite_polearms = (guardhouse.polearms
+            - issued_polearms.get(&guardhouse.id).copied().unwrap_or(0.0))
+        .max(0.0);
+        let committed_here = committed_slots
+            .iter()
+            .filter_map(|(building_id, slot)| (*building_id == guardhouse.id).then_some(*slot))
+            .collect::<Vec<_>>();
+        let muster_slots =
+            select_guard_muster_slots(guardhouse.assigned_labor, onsite_polearms, &committed_here);
+        if muster_slots.is_empty() || guardhouse.action_cooldown <= 0.05 {
+            continue;
+        }
+        let distances =
+            network.road_path_distances_from(guardhouse.x, guardhouse.z, &watch_positions);
+        let Some((watch_index, muster_distance)) = select_guardhouse_muster_watch(
+            guardhouse.guardhouse_muster_watchtower_id,
+            &watchtower_ids,
+            &distances,
+        ) else {
+            continue;
+        };
+        let tower = towers[watch_index];
+        let Some(route) = network.road_path_route(guardhouse.x, guardhouse.z, tower.x, tower.z)
+        else {
+            continue;
+        };
+        store_guard_muster_route(ctx, owner, warned_raid_id, guardhouse.id, &route);
+        let muster_readiness = guardhouse_muster_efficiency(Some(muster_distance), 1.0);
+        let readiness =
+            (guardhouse.action_cooldown * (0.72 + muster_readiness * 0.28)).clamp(0.05, 1.0);
+
+        for slot in muster_slots {
+            let (x, z) = formation_spawn(guardhouse.x, guardhouse.z, tower.x, tower.z, slot);
+            let max_health = 70.0 + readiness * 30.0;
+            ctx.db.combat_agent().insert(CombatAgent {
+                id: 0,
+                owner,
+                raid_id: warned_raid_id,
+                faction: COMBAT_FACTION_GUARD,
+                source_building_id: guardhouse.id,
+                source_slot: slot,
+                target_kind: COMBAT_TARGET_BUILDING,
+                target_id: tower.source_id,
+                x,
+                z,
+                home_x: guardhouse.x,
+                home_z: guardhouse.z,
+                health: max_health,
+                max_health,
+                readiness,
+                state: COMBAT_STATE_MUSTERING,
+                attack_cooldown: slot as f64 * 0.06,
+                loot_progress: 0.0,
+                loot_fraction: 0.0,
+                carried_loot_json: serde_json::to_string(&RaidPortableStores {
+                    polearms: 1.0,
+                    ..RaidPortableStores::default()
+                })
+                .unwrap_or_default(),
+                raid_anchor_building_id: 0,
+                route_progress: 0.0,
+                state_changed_tick: sim_tick,
+            });
+            deployed += 1;
+        }
+    }
+    deployed
+}
+
+fn store_guard_muster_route(
+    ctx: &ReducerContext,
+    owner: Identity,
+    raid_id: u64,
+    source_building_id: u64,
+    route: &RoadPathRoute,
+) {
+    let row = GuardMusterRoute {
+        source_building_id,
+        owner,
+        raid_id,
+        path_distance: route.distance,
+        route_polyline_json: serialize_route_polyline(&route.polyline),
+    };
+    if ctx
+        .db
+        .guard_muster_route()
+        .source_building_id()
+        .find(source_building_id)
+        .is_some()
+    {
+        ctx.db.guard_muster_route().source_building_id().update(row);
+    } else {
+        ctx.db.guard_muster_route().insert(row);
+    }
+}
+
 pub fn step_live_raids(
     ctx: &ReducerContext,
     sim_tick: u64,
@@ -415,6 +597,10 @@ pub fn step_live_raids(
         .iter()
         .map(|raid| (raid.owner, raid.raid_id))
         .collect::<HashSet<_>>();
+    let active_owners = active_keys
+        .iter()
+        .map(|(owner, _)| *owner)
+        .collect::<HashSet<_>>();
     for raid in active_raids {
         let road_network = road_networks.and_then(|networks| networks.get(&raid.owner));
         step_one_live_raid(
@@ -427,16 +613,58 @@ pub fn step_live_raids(
         );
     }
 
+    let warned_keys = ctx
+        .db
+        .settlement_security()
+        .iter()
+        .filter(|security| {
+            security.warning_started_tick > 0
+                && security.next_raid_tick > 0
+                && !active_owners.contains(&security.owner)
+        })
+        .map(|security| (security.owner, security.next_raid_tick))
+        .collect::<HashSet<_>>();
+    for (owner, raid_id) in &warned_keys {
+        let road_network = road_networks.and_then(|networks| networks.get(owner));
+        step_warned_guard_muster(
+            ctx,
+            *owner,
+            *raid_id,
+            sim_tick,
+            elapsed_seconds,
+            road_network,
+        );
+    }
+
     // Downed agents linger briefly for readable aftermath, after their raid
-    // summary has finalized. No live hostile can survive without an ActiveRaid.
+    // summary has finalized. Warned guards remain authoritative before contact;
+    // a cancelled warning sends those same people and weapons physically home.
     for agent in ctx.db.combat_agent().iter().collect::<Vec<CombatAgent>>() {
         if active_keys.contains(&(agent.owner, agent.raid_id)) {
+            continue;
+        }
+        if warned_keys.contains(&(agent.owner, agent.raid_id))
+            && matches!(agent.state, COMBAT_STATE_MUSTERING | COMBAT_STATE_HOLDING)
+        {
             continue;
         }
         let agent_id = agent.id;
         if agent.faction == COMBAT_FACTION_GUARD {
             let road_network = road_networks.and_then(|networks| networks.get(&agent.owner));
-            if step_recovering_guard(ctx, agent, sim_tick, elapsed_seconds, road_network) {
+            let muster_route = load_one_guard_muster_path(
+                ctx,
+                agent.owner,
+                agent.raid_id,
+                agent.source_building_id,
+            );
+            if step_recovering_guard(
+                ctx,
+                agent,
+                muster_route.as_ref(),
+                sim_tick,
+                elapsed_seconds,
+                road_network,
+            ) {
                 continue;
             }
         } else if agent.state == COMBAT_STATE_DOWNED {
@@ -448,6 +676,80 @@ pub fn step_live_raids(
             }
         }
         ctx.db.combat_agent().id().delete(agent_id);
+    }
+    let used_guard_routes = ctx
+        .db
+        .combat_agent()
+        .iter()
+        .filter(|agent| {
+            agent.faction == COMBAT_FACTION_GUARD && agent.source_building_id > 0
+        })
+        .map(|agent| (agent.owner, agent.raid_id, agent.source_building_id))
+        .collect::<HashSet<_>>();
+    for route in ctx
+        .db
+        .guard_muster_route()
+        .iter()
+        .collect::<Vec<GuardMusterRoute>>()
+    {
+        if !used_guard_routes.contains(&(route.owner, route.raid_id, route.source_building_id)) {
+            ctx.db
+                .guard_muster_route()
+                .source_building_id()
+                .delete(route.source_building_id);
+        }
+    }
+}
+
+fn step_warned_guard_muster(
+    ctx: &ReducerContext,
+    owner: Identity,
+    raid_id: u64,
+    sim_tick: u64,
+    elapsed_seconds: f64,
+    road_network: Option<&RoadNetwork>,
+) {
+    let routes = load_guard_muster_paths(ctx, owner, raid_id);
+    for mut guard in ctx
+        .db
+        .combat_agent()
+        .owner()
+        .filter(&owner)
+        .filter(|agent| {
+            agent.raid_id == raid_id
+                && agent.faction == COMBAT_FACTION_GUARD
+                && matches!(agent.state, COMBAT_STATE_MUSTERING | COMBAT_STATE_HOLDING)
+        })
+        .collect::<Vec<_>>()
+    {
+        if guard.state == COMBAT_STATE_HOLDING {
+            continue;
+        }
+        let Some(route) = routes.get(&guard.source_building_id) else {
+            guard.state = COMBAT_STATE_RETURNING;
+            guard.state_changed_tick = sim_tick;
+            ctx.db.combat_agent().id().update(guard);
+            continue;
+        };
+        let route_move = move_along_combat_route(
+            guard.x,
+            guard.z,
+            guard.route_progress,
+            route.path_distance,
+            &route.polyline,
+            GUARD_SPEED_MPS,
+            elapsed_seconds,
+            true,
+            road_network,
+        );
+        guard.x = route_move.x;
+        guard.z = route_move.z;
+        guard.route_progress = route_move.progress;
+        if guard.route_progress + EPSILON >= route.path_distance {
+            guard.state = COMBAT_STATE_HOLDING;
+            guard.state_changed_tick = sim_tick;
+        }
+        ctx.db.combat_agent().id().update(guard);
     }
 }
 
@@ -506,6 +808,28 @@ fn load_guard_muster_paths(
                 })
         })
         .collect()
+}
+
+fn load_one_guard_muster_path(
+    ctx: &ReducerContext,
+    owner: Identity,
+    raid_id: u64,
+    source_building_id: u64,
+) -> Option<CachedCombatPath> {
+    let route = ctx
+        .db
+        .guard_muster_route()
+        .source_building_id()
+        .find(source_building_id)?;
+    if route.owner != owner || route.raid_id != raid_id || route.path_distance <= EPSILON {
+        return None;
+    }
+    deserialize_route_polyline(&route.route_polyline_json)
+        .filter(|polyline| polyline.len() >= 2)
+        .map(|polyline| CachedCombatPath {
+            path_distance: route.path_distance,
+            polyline,
+        })
 }
 
 fn clear_guard_muster_routes(ctx: &ReducerContext, owner: Identity) {
@@ -1530,10 +1854,31 @@ fn move_guard_home(
 fn step_recovering_guard(
     ctx: &ReducerContext,
     mut agent: CombatAgent,
+    muster_route: Option<&CachedCombatPath>,
     sim_tick: u64,
     elapsed_seconds: f64,
     road_network: Option<&RoadNetwork>,
 ) -> bool {
+    if matches!(agent.state, COMBAT_STATE_MUSTERING | COMBAT_STATE_HOLDING) {
+        agent.state = COMBAT_STATE_RETURNING;
+        agent.state_changed_tick = sim_tick;
+    }
+    if agent.state == COMBAT_STATE_RETURNING {
+        if distance_squared(agent.x, agent.z, agent.home_x, agent.home_z)
+            <= ARRIVAL_RANGE_METERS * ARRIVAL_RANGE_METERS
+        {
+            return false;
+        }
+        move_guard_home(
+            &mut agent,
+            muster_route,
+            GUARD_SPEED_MPS,
+            elapsed_seconds,
+            road_network,
+        );
+        ctx.db.combat_agent().id().update(agent);
+        return true;
+    }
     if agent.state == COMBAT_STATE_DOWNED {
         agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
         if agent.attack_cooldown > EPSILON {
@@ -1592,7 +1937,7 @@ pub(super) fn unavailable_guard_slots(
         .filter(&owner)
         .filter(|agent| {
             agent.faction == COMBAT_FACTION_GUARD
-                && combat_state_blocks_guard_slot(agent.state)
+                && crate::raid_agent_policy::combat_state_commits_guard_labor(agent.state)
                 && agent.source_building_id > 0
         })
         .map(|agent| (agent.source_building_id, agent.source_slot))

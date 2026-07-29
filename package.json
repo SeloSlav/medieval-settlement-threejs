@@ -122,6 +122,8 @@
     "test:seedthree-forest-ecology": "npx tsx scripts/testSeedThreeForestEcology.mts",
     "test:seedthree-forest-compaction": "npx tsx scripts/testSeedThreeForestCompaction.mts",
     "test:seedthree-winter-foliage": "npx tsx scripts/testSeedThreeWinterFoliage.mts",
+    "test:seedthree-cattail-heights": "npx tsx scripts/testCattailHeights.mts",
+    "test:close-ground-vegetation": "node --experimental-strip-types scripts/testCloseGroundVegetation.mts",
     "test:terrain-ecology-material": "node --experimental-strip-types scripts/testTerrainEcologyMaterial.mts",
     "test": "npm run test:ci",
     "test:ci": "npx tsx scripts/run-all-tests.mts",

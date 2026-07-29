@@ -70,7 +70,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Daisy star-aster',
     texturePath: '/assets/textures/vegetation/wildflowers/daisy-star-aster-head.png',
     atlasOffset: [0, 0],
-    heightScale: [0.78, 1.18],
+    heightScale: [0.95, 1.28],
     widthScale: [0.78, 1],
   },
   {
@@ -78,7 +78,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Clusius gentian',
     texturePath: '/assets/textures/vegetation/wildflowers/clusius-gentian-head.png',
     atlasOffset: [1 / 5, 0],
-    heightScale: [0.5, 0.72],
+    heightScale: [0.84, 1.08],
     widthScale: [0.64, 0.82],
   },
   {
@@ -86,7 +86,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Grey hawkbit',
     texturePath: '/assets/textures/vegetation/wildflowers/grey-hawkbit-head.png',
     atlasOffset: [2 / 5, 0],
-    heightScale: [0.72, 1.05],
+    heightScale: [0.98, 1.32],
     widthScale: [0.72, 0.94],
   },
   {
@@ -94,7 +94,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Bulbiferous lily',
     texturePath: '/assets/textures/vegetation/wildflowers/bulbiferous-lily-head.png',
     atlasOffset: [3 / 5, 0],
-    heightScale: [1.15, 1.65],
+    heightScale: [1.12, 1.55],
     widthScale: [0.9, 1.12],
   },
   {
@@ -102,7 +102,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Red campion',
     texturePath: '/assets/textures/vegetation/wildflowers/red-campion-head.png',
     atlasOffset: [4 / 5, 0],
-    heightScale: [0.85, 1.25],
+    heightScale: [0.98, 1.35],
     widthScale: [0.7, 0.92],
   },
 ] as const;
@@ -137,6 +137,8 @@ export function createSeedThreeWildflowerGeometry(headScale: number): THREE.Buff
     { x: -0.085, z: 0.025, height: 0.31, leanX: -0.018, leanZ: 0.008, yaw: 0.25, bloomScale: 0.92 },
     { x: 0.035, z: -0.045, height: 0.4, leanX: 0.022, leanZ: -0.012, yaw: 2.2, bloomScale: 1.04 },
     { x: 0.1, z: 0.06, height: 0.27, leanX: 0.015, leanZ: 0.018, yaw: 4.35, bloomScale: 0.82 },
+    { x: -0.018, z: 0.105, height: 0.35, leanX: -0.008, leanZ: 0.02, yaw: 5.45, bloomScale: 0.88 },
+    { x: 0.115, z: -0.072, height: 0.32, leanX: 0.02, leanZ: -0.014, yaw: 1.3, bloomScale: 0.86 },
   ] as const;
 
   stalks.forEach((stalk, index) => {

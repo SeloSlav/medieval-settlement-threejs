@@ -8,7 +8,7 @@ use crate::economy::CommodityKind;
 use crate::raid_agent_policy::{
     playable_half_for_map_size, raid_approach_from_entry, raid_entry_point,
     raid_entry_point_for_approach, raid_party_size, select_guard_muster_slots,
-    RAID_APPROACH_UNKNOWN,
+    COMBAT_FACTION_GUARD, COMBAT_STATE_HOLDING, COMBAT_TARGET_BUILDING, RAID_APPROACH_UNKNOWN,
 };
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
@@ -26,7 +26,9 @@ use crate::tables::{
 };
 
 use super::fires::FIRE_TARGET_BUILDING;
-use super::raid_agents::{issued_guard_polearms_by_building, unavailable_guard_slots};
+use super::raid_agents::{
+    ensure_warned_guard_muster, issued_guard_polearms_by_building, unavailable_guard_slots,
+};
 use super::{start_live_raid, LiveRaidTarget};
 
 struct SettlementExposure {
@@ -183,6 +185,25 @@ fn step_owner_security(
     let road_network = load_owner_road_network(ctx, owner);
     let unavailable_guard_slots = unavailable_guard_slots(ctx, owner);
     let issued_guard_polearms = issued_guard_polearms_by_building(ctx, owner);
+    let staffed_watch_ids = towers
+        .iter()
+        .map(|tower| tower.source_id)
+        .collect::<HashSet<_>>();
+    let deployed_guard_readiness_by_watch = ctx
+        .db
+        .combat_agent()
+        .owner()
+        .filter(&owner)
+        .filter(|agent| {
+            agent.faction == COMBAT_FACTION_GUARD
+                && agent.state == COMBAT_STATE_HOLDING
+                && agent.target_kind == COMBAT_TARGET_BUILDING
+                && staffed_watch_ids.contains(&agent.target_id)
+        })
+        .fold(HashMap::<u64, f64>::new(), |mut readiness, agent| {
+            *readiness.entry(agent.target_id).or_insert(0.0) += agent.readiness.clamp(0.0, 1.0);
+            readiness
+        });
     let (district_ready_guards, assigned_guards, readiness_by_watch) = settlement_guard_districts(
         &buildings,
         &towers,
@@ -191,6 +212,7 @@ fn step_owner_security(
         &fire_disabled_buildings,
         &unavailable_guard_slots,
         &issued_guard_polearms,
+        &deployed_guard_readiness_by_watch,
     );
     let exposure = settlement_exposure(
         &buildings,
@@ -308,6 +330,19 @@ fn step_owner_security(
         }
     }
 
+    if state.warning_started_tick > 0 {
+        ensure_warned_guard_muster(
+            ctx,
+            owner,
+            state.next_raid_tick,
+            sim_tick,
+            &buildings,
+            &towers,
+            road_network.as_ref(),
+            &fire_disabled_buildings,
+        );
+    }
+
     if sim_tick >= state.next_raid_tick && is_raid_season(month) {
         let selected = select_raid_targets(
             &raid_targets
@@ -354,6 +389,7 @@ fn step_owner_security(
             ctx,
             owner,
             sim_tick,
+            Some(state.next_raid_tick).filter(|_| state.warning_started_tick > 0),
             enemy_pressure,
             world_seed,
             playable_half,
@@ -996,6 +1032,7 @@ fn settlement_guard_districts(
     fire_disabled_buildings: &HashSet<u64>,
     unavailable_guard_slots: &HashSet<(u64, u32)>,
     issued_guard_polearms: &HashMap<u64, f64>,
+    deployed_guard_readiness_by_watch: &HashMap<u64, f64>,
 ) -> (f64, f64, HashMap<u64, f64>) {
     let watch_positions = towers
         .iter()
@@ -1005,9 +1042,9 @@ fn settlement_guard_districts(
         .iter()
         .map(|tower| tower.source_id)
         .collect::<Vec<_>>();
-    let mut total_ready = 0.0;
+    let mut total_ready = deployed_guard_readiness_by_watch.values().sum::<f64>();
     let mut assigned = 0.0;
-    let mut readiness_by_watch = HashMap::new();
+    let mut readiness_by_watch = deployed_guard_readiness_by_watch.clone();
 
     for guardhouse in buildings.iter().filter(|building| {
         building.construction_complete

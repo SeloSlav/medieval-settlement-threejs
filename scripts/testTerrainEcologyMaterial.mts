@@ -139,7 +139,7 @@ assert.match(source, /const detailUv = grassUv\.mul\(float\(6\.4\)/);
 assert.match(source, /const pebbleUv = grassUv\.mul\(float\(3\.35\)/);
 assert.match(source, /const bumpHeight = broadHeight/);
 assert.match(source, /bumpMap\(\s*bumpHeight/);
-assert.match(source, /vec3\(0\.58, 0\.46, 0\.33\)/);
+assert.match(source, /vec3\(0\.64, 0\.52, 0\.39\)/);
 assert.match(
   source,
   /const dirtSurfaceAmount = dirtAmount/,

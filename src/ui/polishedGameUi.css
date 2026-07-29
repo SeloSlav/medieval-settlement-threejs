@@ -79,7 +79,7 @@ select:focus-visible {
 .settlement-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 194px 48px minmax(0, 1fr) 76px;
+  grid-template-columns: 194px 96px minmax(0, 1fr) 76px;
   align-items: stretch;
   gap: 8px;
   width: min(1120px, calc(100vw - 64px));
@@ -226,14 +226,11 @@ select:focus-visible {
 
 .settlement-hud__perf {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   min-width: 0;
   padding: 0;
   border: 0;
   border-right: 1px solid rgba(218, 194, 139, 0.14);
-}
-
-.settlement-hud__perf [data-stat-row='zoom'] {
-  display: none;
 }
 
 .settlement-hud__stat--perf {
@@ -1830,7 +1827,7 @@ select:focus-visible {
 
 @media (max-width: 1080px) {
   .settlement-hud {
-    grid-template-columns: 174px 44px minmax(0, 1fr) 68px;
+    grid-template-columns: 174px 88px minmax(0, 1fr) 68px;
     width: min(930px, calc(100vw - 70px));
   }
 
@@ -1854,7 +1851,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 128px 40px minmax(0, 1fr) 48px;
+    grid-template-columns: 128px 76px minmax(0, 1fr) 48px;
     width: calc(100vw - 14px);
     min-height: 60px;
   }
@@ -1967,7 +1964,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 108px 36px minmax(0, 1fr) 44px;
+    grid-template-columns: 108px 68px minmax(0, 1fr) 44px;
   }
 
   .settlement-hud__body {

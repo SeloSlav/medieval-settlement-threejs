@@ -17,6 +17,8 @@ pub const COMBAT_STATE_RETURNING: u8 = 4;
 pub const COMBAT_STATE_DOWNED: u8 = 5;
 pub const COMBAT_STATE_WOUNDED_RETURNING: u8 = 6;
 pub const COMBAT_STATE_RECOVERING: u8 = 7;
+pub const COMBAT_STATE_MUSTERING: u8 = 8;
+pub const COMBAT_STATE_HOLDING: u8 = 9;
 
 pub const COMBAT_TARGET_BUILDING: u8 = 0;
 pub const COMBAT_TARGET_RESIDENCE: u8 = 1;
@@ -573,6 +575,8 @@ pub fn combat_state_commits_guard_labor(state: u8) -> bool {
             | COMBAT_STATE_DOWNED
             | COMBAT_STATE_WOUNDED_RETURNING
             | COMBAT_STATE_RECOVERING
+            | COMBAT_STATE_MUSTERING
+            | COMBAT_STATE_HOLDING
     )
 }
 
@@ -1117,6 +1121,8 @@ mod tests {
             COMBAT_STATE_DOWNED,
             COMBAT_STATE_WOUNDED_RETURNING,
             COMBAT_STATE_RECOVERING,
+            COMBAT_STATE_MUSTERING,
+            COMBAT_STATE_HOLDING,
         ] {
             assert!(combat_state_commits_guard_labor(state));
         }

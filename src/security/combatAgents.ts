@@ -18,6 +18,8 @@ export const COMBAT_AGENT_STATES = [
   'downed',
   'wounded-returning',
   'recovering',
+  'mustering',
+  'holding',
 ] as const;
 
 export type CombatAgentFaction = 'guard' | 'raider';
@@ -215,6 +217,8 @@ export function formatLiveCombatSummary(
   let downedRaiders = 0;
   let woundedGuards = 0;
   let recoveringGuards = 0;
+  let musteringGuards = 0;
+  let holdingGuards = 0;
   let breachingRefuges = 0;
   let lootingHoldings = 0;
   let raiderHealth = 0;
@@ -254,9 +258,25 @@ export function formatLiveCombatSummary(
     } else {
       guards += 1;
       guardHealth += agent.health / agent.maxHealth;
+      if (agent.status === 'mustering') musteringGuards += 1;
+      if (agent.status === 'holding') holdingGuards += 1;
     }
   }
   if (raiders + guards + downedRaiders + woundedGuards === 0) return undefined;
+  if (raiders === 0 && musteringGuards + holdingGuards > 0) {
+    const parts = [
+      musteringGuards > 0
+        ? `${musteringGuards} guard${musteringGuards === 1 ? '' : 's'} marching to assigned posts`
+        : '',
+      holdingGuards > 0
+        ? `${holdingGuards} holding the watch line`
+        : '',
+      woundedGuards > 0
+        ? `${woundedGuards} wounded unavailable`
+        : '',
+    ].filter(Boolean);
+    return `Frontier muster: ${parts.join(' · ')}.`;
+  }
   if (raiders === 0 && guards === 0 && downedRaiders === 0) {
     const recovery = recoveringGuards > 0 && longestRecoveryDays > 0
       ? ` · up to ${formatRecoveryDays(longestRecoveryDays)} remaining`

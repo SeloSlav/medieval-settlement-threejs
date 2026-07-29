@@ -3081,7 +3081,10 @@ function combatRenderMode(
     case 'retreating':
     case 'returning':
     case 'wounded-returning':
+    case 'mustering':
       return 'walk';
+    case 'holding':
+      return 'idle';
   }
 }
 
@@ -3095,6 +3098,8 @@ function combatStatusLabel(status: CombatAgentState['status']): string {
     case 'downed': return 'Downed';
     case 'wounded-returning': return 'Wounded and returning';
     case 'recovering': return 'Recovering';
+    case 'mustering': return 'Mustering at assigned watch';
+    case 'holding': return 'Holding assigned post';
   }
 }
 
@@ -3127,6 +3132,10 @@ function combatActivityLabel(
       return 'Wounded and moving back to the guardhouse';
     case 'recovering':
       return 'Recovering at the guardhouse and unavailable for duty';
+    case 'mustering':
+      return `Marching to the assigned watch near ${target}`;
+    case 'holding':
+      return `Holding the watch line near ${target}`;
   }
 }
 

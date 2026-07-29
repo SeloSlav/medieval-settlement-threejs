@@ -593,8 +593,8 @@ function buildLayeredDirtGroundNodes(
     ) as TslNode,
   ) as TslNode;
   const mineralSoil = mix(broadColor.rgb, detailColor.rgb, detailWeight) as TslNode;
-  const brownSoil = mineralSoil.mul(vec3(0.58, 0.46, 0.33) as TslNode);
-  const warmPebbles = pebbleColor.rgb.mul(vec3(0.5, 0.38, 0.26) as TslNode);
+  const brownSoil = mineralSoil.mul(vec3(0.64, 0.52, 0.39) as TslNode);
+  const warmPebbles = pebbleColor.rgb.mul(vec3(0.56, 0.44, 0.32) as TslNode);
   const colorNode = mix(
     brownSoil,
     warmPebbles,

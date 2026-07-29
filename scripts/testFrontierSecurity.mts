@@ -1787,6 +1787,31 @@ assert.match(
   /start_live_raid\([\s\S]*?&live_targets,[\s\S]*?&buildings,[\s\S]*?&towers,[\s\S]*?road_network\.as_ref\(\)/,
   'a due frontier raid must materialize replicated people rather than resolve an abstract outcome',
 );
+assert.match(
+  serverSimulation,
+  /warning_started_tick > 0[\s\S]*ensure_warned_guard_muster\([\s\S]*state\.next_raid_tick/,
+  'a detected approach must dispatch physical guard agents before contact',
+);
+assert.match(
+  serverRaidAgents,
+  /fn ensure_warned_guard_muster[\s\S]*road_path_route\([\s\S]*store_guard_muster_route[\s\S]*state: COMBAT_STATE_MUSTERING/,
+  'warned companies must issue real polearms and use one cached road route to their assigned post',
+);
+assert.match(
+  serverRaidAgents,
+  /fn step_warned_guard_muster[\s\S]*move_along_combat_route\([\s\S]*COMBAT_STATE_HOLDING/,
+  'warned guards must physically march and hold their watch line',
+);
+assert.match(
+  serverRaidAgents,
+  /warned_guards\.push\(stale\)[\s\S]*guard\.raid_id = raid_id[\s\S]*guard\.state = COMBAT_STATE_ADVANCING/,
+  'the guards who answered the warning must become the same agents who fight the raid',
+);
+assert.match(
+  serverRaidAgents,
+  /COMBAT_STATE_MUSTERING \| COMBAT_STATE_HOLDING[\s\S]*COMBAT_STATE_RETURNING[\s\S]*move_guard_home/,
+  'a cancelled warning must send the deployed people and issued weapons physically home',
+);
 assert.doesNotMatch(
   serverSimulation,
   /fn resolve_raid/,
@@ -2257,6 +2282,15 @@ assert.match(clientCombatAgents, /breaching a refuge/);
     'malformed replicated health must not create a permanent client-only alarm',
   );
   assert.match(liveSummary ?? '', /1 raider down · 1 guard wounded/);
+  assert.equal(
+    formatLiveCombatSummary([
+      combatant('g-muster-1', 'guard', 'mustering'),
+      combatant('g-muster-2', 'guard', 'mustering'),
+      combatant('g-post', 'guard', 'holding'),
+    ]),
+    'Frontier muster: 2 guards marching to assigned posts · 1 holding the watch line.',
+    'pre-contact guards need a distinct readable state instead of looking like raid aftermath',
+  );
   const routedRaider = {
     ...combatant('r-routed', 'raider', 'retreating'),
     carryingLoot: true,

@@ -104,6 +104,8 @@ const tests = [
   'test:seedthree-forest-ecology',
   'test:seedthree-forest-compaction',
   'test:seedthree-winter-foliage',
+  'test:seedthree-cattail-heights',
+  'test:close-ground-vegetation',
   'test:terrain-ecology-material',
 ] as const;
 
