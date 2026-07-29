@@ -95,6 +95,7 @@ import SetMarketplaceSeedGrainTargetReducer from "./set_marketplace_seed_grain_t
 import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specialty_export_policy_reducer";
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
 import SetNightPoliciesReducer from "./set_night_policies_reducer";
+import SetPotteryDispatchPolicyReducer from "./set_pottery_dispatch_policy_reducer";
 import SetProcessorOutputTargetReducer from "./set_processor_output_target_reducer";
 import SetProductionLaborStewardReducer from "./set_production_labor_steward_reducer";
 import SetResidenceUpgradePriorityReducer from "./set_residence_upgrade_priority_reducer";
@@ -577,6 +578,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_marketplace_specialty_export_policy", SetMarketplaceSpecialtyExportPolicyReducer),
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),
   __reducerSchema("set_night_policies", SetNightPoliciesReducer),
+  __reducerSchema("set_pottery_dispatch_policy", SetPotteryDispatchPolicyReducer),
   __reducerSchema("set_processor_output_target", SetProcessorOutputTargetReducer),
   __reducerSchema("set_production_labor_steward", SetProductionLaborStewardReducer),
   __reducerSchema("set_residence_upgrade_priority", SetResidenceUpgradePriorityReducer),

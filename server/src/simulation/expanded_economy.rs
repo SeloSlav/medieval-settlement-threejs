@@ -56,6 +56,7 @@ use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
     monastery_feast_surplus, monastery_hospitality_use, monastery_pilgrimage_gold,
 };
+use crate::pottery_dispatch_policy::pottery_households_first;
 use crate::processor_output_policy::{
     processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
     ProcessorOutputKind,
@@ -831,8 +832,9 @@ pub fn step_local_material_dispatch(
     sources: Vec<Building>,
 ) {
     let mut candidates = Vec::new();
+    let mut deferred_pottery_exports = Vec::new();
 
-    for source in sources {
+    for source in &sources {
         let Some((commodity, target_kinds)) = local_material_source_plan(&source.kind) else {
             continue;
         };
@@ -891,17 +893,79 @@ pub fn step_local_material_dispatch(
             if !distance.is_finite() {
                 continue;
             }
-            candidates.push(LocalMaterialDispatchCandidate {
+            let candidate = LocalMaterialDispatchCandidate {
                 source_id: source.id,
                 building: target,
                 commodity,
                 distance,
                 duty,
                 runway_cycles,
-            });
+            };
+            if source.kind == "potter_kiln"
+                && !pottery_households_first(source.pottery_dispatch_policy)
+                && candidate.building.kind == "marketplace"
+            {
+                // Preservation-first is smokehouse -> home -> export. Keep
+                // market overflow out of the first material pass so a nearby
+                // broker cannot consume the kiln cart before local cupboards.
+                deferred_pottery_exports.push(candidate);
+            } else {
+                candidates.push(candidate);
+            }
         }
     }
 
+    sort_local_material_candidates(&mut candidates);
+    sort_local_material_candidates(&mut deferred_pottery_exports);
+
+    let mut used_sources = HashSet::new();
+    let mut used_targets = HashSet::new();
+    dispatch_local_material_candidates(
+        ctx,
+        tick,
+        clock,
+        candidates,
+        &mut used_sources,
+        &mut used_targets,
+    );
+
+    // Preservation-first kilns that found no smokehouse work now try their
+    // claimed homes. A cart that actually leaves is unavailable to export.
+    for source in &sources {
+        if source.kind != "potter_kiln"
+            || pottery_households_first(source.pottery_dispatch_policy)
+            || used_sources.contains(&source.id)
+        {
+            continue;
+        }
+        let Some(mut potter) = ctx.db.building().id().find(&source.id) else {
+            continue;
+        };
+        if dispatch_need(
+            ctx,
+            tick,
+            clock,
+            &mut potter,
+            ResidenceNeedKind::Pottery,
+            2.0,
+        ) {
+            used_sources.insert(potter.id);
+            ctx.db.building().id().update(potter);
+        }
+    }
+
+    // Only kilns still idle after both local duties may stage export stock.
+    dispatch_local_material_candidates(
+        ctx,
+        tick,
+        clock,
+        deferred_pottery_exports,
+        &mut used_sources,
+        &mut used_targets,
+    );
+}
+
+fn sort_local_material_candidates(candidates: &mut [LocalMaterialDispatchCandidate]) {
     candidates.sort_by(|a, b| {
         compare_processor_input_dispatch_candidates(
             a.duty,
@@ -919,9 +983,16 @@ pub fn step_local_material_dispatch(
         )
         .then_with(|| a.source_id.cmp(&b.source_id))
     });
+}
 
-    let mut used_sources = HashSet::new();
-    let mut used_targets = HashSet::new();
+fn dispatch_local_material_candidates(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    candidates: Vec<LocalMaterialDispatchCandidate>,
+    used_sources: &mut HashSet<u64>,
+    used_targets: &mut HashSet<u64>,
+) {
     for candidate in candidates {
         if used_sources.contains(&candidate.source_id)
             || used_targets.contains(&candidate.building.id)
@@ -1616,16 +1687,19 @@ pub fn step_potter_kiln(
         ctx.db.building().id().update(potter.clone());
         tick.invalidate_specialty_claims(potter.owner, ResidenceNeedKind::Pottery);
     }
-    // Prosperous household wares are fulfilled before smokehouse buffers and
-    // foreign sale. The potter's one physical cart makes that ordering real.
-    dispatch_need(
-        ctx,
-        tick,
-        clock,
-        &mut potter,
-        ResidenceNeedKind::Pottery,
-        2.0,
-    );
+    if pottery_households_first(potter.pottery_dispatch_policy) {
+        // The additive default preserves established behavior. Kilns ordered
+        // to prioritize preservation wait for the settlement-wide material
+        // arbitration pass before trying household cupboards.
+        dispatch_need(
+            ctx,
+            tick,
+            clock,
+            &mut potter,
+            ResidenceNeedKind::Pottery,
+            2.0,
+        );
+    }
     ctx.db.building().id().update(potter);
 }
 
@@ -2909,16 +2983,16 @@ pub(crate) fn dispatch_need(
     supplier: &mut Building,
     need_kind: ResidenceNeedKind,
     per_delivery: f64,
-) {
+) -> bool {
     if supplier.assigned_labor == 0
         || labor_and_logistics_paused(ctx, tick, supplier.owner, clock)
         || building_has_active_trip(ctx, supplier.id)
         || building_commodity_stock(supplier, need_to_commodity(need_kind)) <= 1e-6
     {
-        return;
+        return false;
     }
     let Some(network) = tick.road_network(supplier.owner) else {
-        return;
+        return false;
     };
     let targets = collect_need_delivery_targets(ctx, tick, network, supplier, need_kind, None);
     try_start_delivery_trip(
@@ -2933,7 +3007,7 @@ pub(crate) fn dispatch_need(
         FOOD_DELIVERY_SPEED_MPS,
         FOOD_DELIVERY_UNLOAD_SEC,
         per_delivery,
-    );
+    )
 }
 
 fn collect_need_delivery_targets(

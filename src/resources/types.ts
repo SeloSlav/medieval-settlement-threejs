@@ -127,6 +127,8 @@ export type BuildingState = {
   processorOutputTargetPercent?: number;
   /** 0 auto, 1 wool first, 2 flax first; meaningful only for weavers. */
   weaverInputPolicy?: number;
+  /** 0 household wares first, 1 preservation vessels first; potter kilns only. */
+  potteryDispatchPolicy?: number;
   granaryAcceptsFreshFood?: boolean;
   granaryHouseholdsFirst?: boolean;
   granaryGrainReserve?: number;

@@ -251,6 +251,7 @@ mod tests {
             marketplace_iron_target: 0,
             marketplace_salt_target: 0,
             remedies: 0.0,
+            pottery_dispatch_policy: 0,
         }
     }
 

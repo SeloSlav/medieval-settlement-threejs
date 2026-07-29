@@ -89,4 +89,5 @@ export default __t.row({
   marketplaceSaltTarget: __t.u8().name("marketplace_salt_target"),
   manure: __t.f64(),
   remedies: __t.f64(),
+  potteryDispatchPolicy: __t.u8().name("pottery_dispatch_policy"),
 });

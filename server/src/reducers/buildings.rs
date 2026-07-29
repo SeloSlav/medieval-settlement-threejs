@@ -45,6 +45,7 @@ use crate::placement_validation::{
     building_overlaps_open_water, building_overlaps_residence_zone, building_overlaps_road_surface,
     building_site_contains_point, is_near_open_water, is_on_quarry_pit, is_open_water,
 };
+use crate::pottery_dispatch_policy::is_valid_pottery_dispatch_policy;
 use crate::processor_labor_policy::{
     processor_callup_targets, production_steward_callup_allowed, ProcessorCallupCandidate,
 };
@@ -683,6 +684,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         remedies: 0.0,
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
+        pottery_dispatch_policy: 0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1455,6 +1457,34 @@ pub fn set_weaver_input_policy(
         return Err("You do not own this completed weaver workshop.".to_string());
     }
     building.weaver_input_policy = input_policy;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_pottery_dispatch_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    dispatch_policy: u8,
+) -> Result<(), String> {
+    if !is_valid_pottery_dispatch_policy(dispatch_policy) {
+        return Err(
+            "Pottery dispatch policy must be Household wares first or Preservation first."
+                .to_string(),
+        );
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Potter kiln not found.".to_string())?;
+    if building.owner != owner || building.kind != "potter_kiln" || !building.construction_complete
+    {
+        return Err("You do not own this completed potter kiln.".to_string());
+    }
+    building.pottery_dispatch_policy = dispatch_policy;
     ctx.db.building().id().update(building);
     Ok(())
 }

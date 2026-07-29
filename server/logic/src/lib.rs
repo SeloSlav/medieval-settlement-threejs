@@ -75,6 +75,9 @@ pub mod storehouse_policy;
 #[path = "../../src/processor_output_policy.rs"]
 pub mod processor_output_policy;
 
+#[path = "../../src/pottery_dispatch_policy.rs"]
+pub mod pottery_dispatch_policy;
+
 #[path = "../../src/processor_labor_policy.rs"]
 pub mod processor_labor_policy;
 

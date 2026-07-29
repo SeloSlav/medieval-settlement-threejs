@@ -121,6 +121,10 @@ type ResourceInspectorOptions = {
     buildingId: string,
     inputPolicy: number,
   ) => void | Promise<void>;
+  onSetPotteryDispatchPolicy?: (
+    buildingId: string,
+    dispatchPolicy: number,
+  ) => void | Promise<void>;
   onSetGranaryPolicy?: (
     buildingId: string,
     acceptsFreshFood: boolean,
@@ -862,6 +866,18 @@ export class ResourceInspector {
           void this.options.onSetWeaverInputPolicy?.(
             this.selectedTarget.building.id,
             Number(inputPolicy),
+          );
+          return;
+        }
+      }
+      if (this.selectedTarget.building.kind === 'potter_kiln') {
+        const dispatchPolicy = (event.target as HTMLElement)
+          .closest<HTMLElement>('[data-pottery-dispatch-policy]')
+          ?.dataset.potteryDispatchPolicy;
+        if (dispatchPolicy != null) {
+          void this.options.onSetPotteryDispatchPolicy?.(
+            this.selectedTarget.building.id,
+            Number(dispatchPolicy),
           );
           return;
         }

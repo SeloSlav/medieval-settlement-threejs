@@ -468,6 +468,18 @@ export async function setWeaverInputPolicy(
   });
 }
 
+export async function setPotteryDispatchPolicy(
+  buildingId: string,
+  dispatchPolicy: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid potter kiln id.');
+  await callReducer('setPotteryDispatchPolicy', 'set_pottery_dispatch_policy', {
+    buildingId: serverId,
+    dispatchPolicy,
+  });
+}
+
 export async function setGranaryPolicy(
   buildingId: string,
   acceptsFreshFood: boolean,

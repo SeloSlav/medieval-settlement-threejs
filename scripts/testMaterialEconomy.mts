@@ -43,6 +43,15 @@ import {
   selectMarketplaceMaterialInputTarget,
 } from '../src/logistics/processorInputLogistics.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
+import {
+  normalizePotteryDispatchPolicy,
+  POTTERY_DISPATCH_HOUSEHOLDS_FIRST,
+  POTTERY_DISPATCH_POLICY_PRESETS,
+  POTTERY_DISPATCH_PRESERVATION_FIRST,
+  potteryDispatchOrder,
+  potteryDispatchPolicyLabel,
+} from '../src/economy/potteryDispatchPolicy.ts';
+import { renderProcessorOutputTargetPanel } from '../src/resources/inspector/expandedBuildingRenderer.ts';
 import { renderBuildMenuCards } from '../src/ui/buildMenuCards.ts';
 
 assert.equal(CLAY_PIT_CLAY_PER_CYCLE, 4);
@@ -86,6 +95,27 @@ assert.equal(
   0,
   'the market is export overflow, not a pottery processor',
 );
+assert.deepEqual(
+  potteryDispatchOrder(POTTERY_DISPATCH_HOUSEHOLDS_FIRST),
+  ['household', 'preservation', 'export'],
+);
+assert.deepEqual(
+  potteryDispatchOrder(POTTERY_DISPATCH_PRESERVATION_FIRST),
+  ['preservation', 'household', 'export'],
+);
+assert.equal(normalizePotteryDispatchPolicy(99), POTTERY_DISPATCH_HOUSEHOLDS_FIRST);
+assert.equal(potteryDispatchPolicyLabel(0), 'Household wares first');
+assert.equal(potteryDispatchPolicyLabel(1), 'Preservation first');
+assert.deepEqual(
+  POTTERY_DISPATCH_POLICY_PRESETS.map((preset) => preset.policy),
+  [POTTERY_DISPATCH_HOUSEHOLDS_FIRST, POTTERY_DISPATCH_PRESERVATION_FIRST],
+);
+const householdFirstPotterPanel = renderProcessorOutputTargetPanel(
+  building('potter_kiln', { potteryDispatchPolicy: POTTERY_DISPATCH_HOUSEHOLDS_FIRST }),
+);
+assert.match(householdFirstPotterPanel ?? '', /data-pottery-dispatch-policy="0"[^>]*disabled/);
+assert.match(householdFirstPotterPanel ?? '', /data-pottery-dispatch-policy="1"/);
+assert.match(householdFirstPotterPanel ?? '', /market export always waits until both local duties/);
 
 const nearbyMarket = building('marketplace', {
   id: 'near-market',
@@ -629,6 +659,46 @@ assert.match(
 assert.match(
   localMaterialDispatchStep,
   /"clay_pit"[\s\S]*CommodityKind::Clay[\s\S]*"charcoal_burner"[\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"[\s\S]*CommodityKind::Ironwork[\s\S]*"potter_kiln"[\s\S]*CommodityKind::Pottery/,
+);
+assert.match(
+  potterKilnStep,
+  /pottery_households_first\(potter\.pottery_dispatch_policy\)[\s\S]*dispatch_need/,
+  'household-first kilns must attempt their claimed cupboards before material arbitration',
+);
+const preservationPass = localMaterialDispatchStep.indexOf(
+  'dispatch_local_material_candidates(',
+);
+const preservationFallback = localMaterialDispatchStep.indexOf(
+  'if dispatch_need(',
+  preservationPass,
+);
+const deferredExportPass = localMaterialDispatchStep.indexOf(
+  'deferred_pottery_exports,',
+  preservationFallback,
+);
+assert.ok(
+  preservationPass >= 0
+    && preservationFallback > preservationPass
+    && deferredExportPass > preservationFallback,
+  'preservation-first kilns must run smokehouse, household, then export phases in authority order',
+);
+assert.match(
+  localMaterialDispatchStep,
+  /candidate\.building\.kind == "marketplace"[\s\S]*deferred_pottery_exports\.push/,
+  'preservation-first authority must defer broker overflow until local cupboards have a chance',
+);
+const generatedBuildingTable = readFileSync('src/generated/building_table.ts', 'utf8');
+const generatedPotteryReducer = readFileSync(
+  'src/generated/set_pottery_dispatch_policy_reducer.ts',
+  'utf8',
+);
+assert.match(
+  generatedBuildingTable,
+  /potteryDispatchPolicy:[\s\S]*pottery_dispatch_policy/,
+);
+assert.match(
+  generatedPotteryReducer,
+  /buildingId:[\s\S]*dispatchPolicy:/,
 );
 assert.match(
   clayPitStep,

@@ -533,6 +533,11 @@ pub struct Building {
     /// Appended for additive save compatibility.
     #[default(0.0)]
     pub remedies: f64,
+    /// Potter cart duty: 0 replaces household wares before workshop supply,
+    /// 1 stages smokehouse vessels first. Either order exports only after its
+    /// two local duties. Appended so established kilns retain household-first.
+    #[default(0u8)]
+    pub pottery_dispatch_policy: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

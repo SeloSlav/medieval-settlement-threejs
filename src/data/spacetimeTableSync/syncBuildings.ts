@@ -96,6 +96,7 @@ function buildingStateFromRow(
     storehouseFirewoodTargetPercent: row.storehouseFirewoodTargetPercent,
     processorOutputTargetPercent: row.processorOutputTargetPercent,
     weaverInputPolicy: row.weaverInputPolicy,
+    potteryDispatchPolicy: row.potteryDispatchPolicy,
     granaryAcceptsFreshFood: row.granaryAcceptsFreshFood,
     granaryHouseholdsFirst: row.granaryHouseholdsFirst,
     granaryGrainReserve: row.granaryGrainReserve,

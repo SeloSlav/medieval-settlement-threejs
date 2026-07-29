@@ -105,6 +105,12 @@ import {
   WEAVER_INPUT_POLICY_PRESETS,
   weaverFibreDeliveryPreferenceLabel,
 } from '../../economy/weaverInputPolicy.ts';
+import {
+  normalizePotteryDispatchPolicy,
+  POTTERY_DISPATCH_HOUSEHOLDS_FIRST,
+  POTTERY_DISPATCH_POLICY_PRESETS,
+  potteryDispatchPolicyLabel,
+} from '../../economy/potteryDispatchPolicy.ts';
 
 const PROCESS: Record<string, string> = {
   clay_pit: 'Usable riverbank shore + labor -> wet clay for local potters',
@@ -339,13 +345,24 @@ function outboundTripTarget(
     )?.target ?? null;
   }
   if (building.kind === 'potter_kiln') {
-    return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
+    const householdTarget = context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
       building,
       'pottery',
-    ) ?? context.worldQueries.getNextDirectProcessorInputDispatch(
+    );
+    const materialTarget = context.worldQueries.getNextDirectProcessorInputDispatch(
       building,
       'pottery',
     )?.target ?? null;
+    const preservationTarget = materialTarget?.kind === 'smokehouse'
+      ? materialTarget
+      : null;
+    const exportTarget = materialTarget?.kind === 'marketplace'
+      ? materialTarget
+      : null;
+    return normalizePotteryDispatchPolicy(building.potteryDispatchPolicy)
+      === POTTERY_DISPATCH_HOUSEHOLDS_FIRST
+      ? householdTarget ?? preservationTarget ?? exportTarget
+      : preservationTarget ?? householdTarget ?? exportTarget;
   }
   if (building.kind === 'granary') {
     if (
@@ -503,6 +520,22 @@ function renderLogisticsRows(
       : building.kind === 'potter_kiln'
         ? 'pottery'
         : null;
+  const potteryMaterialDestination = materialDispatch && materialCommodity === 'pottery'
+    ? materialDispatch.duty === 'working-buffer'
+      ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${(materialDispatch.target.pottery ?? 0).toFixed(2)} / ${materialDispatch.desiredStock.toFixed(2)} pottery · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
+      : `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · local pottery duties covered · nearest export route`
+    : null;
+  const potteryHouseholdDestination = potteryHouseholdTarget
+    ? `Parcel #${potteryHouseholdTarget.parcelIndex + 1} · lowest household pottery runway`
+    : null;
+  const potteryDestination = building.kind === 'potter_kiln'
+    ? normalizePotteryDispatchPolicy(building.potteryDispatchPolicy)
+        === POTTERY_DISPATCH_HOUSEHOLDS_FIRST
+      ? potteryHouseholdDestination ?? potteryMaterialDestination
+      : materialDispatch?.target.kind === 'smokehouse'
+        ? potteryMaterialDestination
+        : potteryHouseholdDestination ?? potteryMaterialDestination
+    : null;
   const flaxDispatch = building.kind === 'threshing_barn'
     ? context.worldQueries.getNextFarmFlaxDispatch(building)
     : null;
@@ -520,8 +553,8 @@ function renderLogisticsRows(
         ? ironworkDispatch.duty === 'working-buffer'
           ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${staffingPriorityLabel(ironworkDispatch.workPriority)} priority · ${(ironworkDispatch.target.ironwork ?? 0).toFixed(2)} / ${ironworkDispatch.desiredStock.toFixed(2)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
           : `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · maintained buffers covered · nearest overflow route`
-      : potteryHouseholdTarget
-        ? `Parcel #${potteryHouseholdTarget.parcelIndex + 1} · lowest household pottery runway`
+      : potteryDestination
+        ? potteryDestination
       : materialDispatch && materialCommodity
         ? materialDispatch.duty === 'working-buffer'
           ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${(materialDispatch.target[materialCommodity] ?? 0).toFixed(2)} / ${materialDispatch.desiredStock.toFixed(2)} ${materialCommodity} · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
@@ -595,7 +628,8 @@ function renderLogisticsRows(
           building,
           'pottery',
         );
-        return `<li><span>Household-ware territory</span><span>${(building.pottery ?? 0) <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
+        return `<li><span>Kiln cart order</span><span>${potteryDispatchPolicyLabel(building.potteryDispatchPolicy)} · export always last</span></li>
+          <li><span>Household-ware territory</span><span>${(building.pottery ?? 0) <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
           <li><span>Next household</span><span>${next ? `Parcel #${next.parcelIndex + 1}` : 'Household cupboards covered'}</span></li>`;
       })()
     : '';
@@ -1314,6 +1348,15 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       <p class="inspector-action-panel__hint">Work priority still wins first. Matching specialization then wins a contested working-buffer cart; Auto forms the neutral middle pool. The same order governs scarce well water once flax is physically staged. Covered buffers and ready alternate recipes remain fallbacks so neither carts nor crews deadlock. Wool avoids a water haul; flax turns planned field fibre and well capacity into cloth while preserving annual fleece.</p>
     `
     : '';
+  const potteryDispatchPolicy = building.kind === 'potter_kiln'
+    ? `
+      <p class="resource-inspector-note">Cart priority · chooses which local pottery shortage gets this kiln's one physical cart first.</p>
+      <div class="resource-action-row">${POTTERY_DISPATCH_POLICY_PRESETS
+        .map((preset) => `<button type="button" class="resource-action-button" data-pottery-dispatch-policy="${preset.policy}" title="${preset.hint}" ${normalizePotteryDispatchPolicy(building.potteryDispatchPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
+        .join('')}</div>
+      <p class="inspector-action-panel__hint">Homes-first protects prosperous household wares before smokehouse packing stock. Preservation-first stages the highest-priority smokehouse working buffer before replacing household breakage. Either order immediately falls through when its first duty has no reachable shortage, and market export always waits until both local duties are covered.</p>
+    `
+    : '';
   return `
     <div class="inspector-action-panel">
       <p class="resource-inspector-note">Stock policy · stages ${stagingLabel} · finished ${label} ${stock.toFixed(0)} / ${target.toFixed(0)} · ${pressure}</p>
@@ -1321,6 +1364,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
         .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
         .join('')}</div>
       ${weaverInputPolicy}
+      ${potteryDispatchPolicy}
       <p class="inspector-action-panel__hint">This policy sets both the on-site input staging depth and the finished-goods ceiling. Routine input top-ups stop at the staged-cycle target; a producer may still use the workshop as last-resort overflow when normal storage cannot receive its cargo. Finished-goods deliveries may draw below the ceiling and restart work. It is not a protected reserve, and a cart already on the road may still arrive after you lower it.</p>
     </div>
   `;

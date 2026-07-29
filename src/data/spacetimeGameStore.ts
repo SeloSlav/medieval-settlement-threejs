@@ -582,6 +582,13 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setWeaverInputPolicy(buildingId, inputPolicy);
   }
 
+  setPotteryDispatchPolicy(
+    buildingId: string,
+    dispatchPolicy: number,
+  ): Promise<void> {
+    return spacetimeReducers.setPotteryDispatchPolicy(buildingId, dispatchPolicy);
+  }
+
   setGranaryPolicy(
     buildingId: string,
     acceptsFreshFood: boolean,

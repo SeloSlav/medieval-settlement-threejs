@@ -72,6 +72,10 @@ export type InspectorSpacetimeActions = {
     buildingId: string,
     inputPolicy: number,
   ) => Promise<void>;
+  onSetPotteryDispatchPolicy: (
+    buildingId: string,
+    dispatchPolicy: number,
+  ) => Promise<void>;
   onSetGranaryPolicy: (
     buildingId: string,
     acceptsFreshFood: boolean,
@@ -553,6 +557,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setWeaverInputPolicy(buildingId, inputPolicy),
         'Could not update the weaver input policy.',
+      );
+    },
+    onSetPotteryDispatchPolicy: async (buildingId, dispatchPolicy) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setPotteryDispatchPolicy(buildingId, dispatchPolicy),
+        'Could not update the pottery dispatch policy.',
       );
     },
     onSetGranaryPolicy: async (buildingId, acceptsFreshFood, householdsFirst) => {
