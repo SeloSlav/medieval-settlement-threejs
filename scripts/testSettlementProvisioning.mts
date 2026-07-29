@@ -4,6 +4,8 @@ import { performance } from 'node:perf_hooks';
 import {
   GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
   GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
@@ -482,6 +484,16 @@ const curedBranch = computeSettlementProvisioning({
 });
 assert.equal(curedBranch.roadBranches?.physicalPreservedFoodStock, 14);
 assert.equal(curedBranch.usablePreservedFoodStock, 14);
+assert.ok(Math.abs(
+  curedBranch.preservedFoodSpoilagePerDay
+  - 14
+    * PRESERVED_FOOD_SPOILAGE_PER_DAY
+    * PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+) < 1e-9);
+assert.ok(
+  curedBranch.foodRunwayDays <= curedBranch.foodRunwayWithoutSpoilageDays,
+  'cured-food aging must not make the no-production settlement runway more optimistic',
+);
 assert.ok(
   (curedBranch.roadBranches?.worstFoodRunwayDays ?? 0) > 1,
   'same-branch cured stores should extend fresh-food runway only at the bounded rotation rate',

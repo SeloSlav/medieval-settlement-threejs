@@ -53,6 +53,7 @@ export function freshFoodRunwayWithPreservedRotation(input: {
   preservedStock: number;
   preservedRotationPerDay: number;
   freshFoodSpoilageFractionPerDay?: number;
+  preservedFoodSpoilageFractionPerDay?: number;
 }): number {
   const freshStock = finiteNonnegative(input.freshStock);
   const grossDemand = finiteNonnegative(input.grossFoodDemandPerDay);
@@ -64,13 +65,20 @@ export function freshFoodRunwayWithPreservedRotation(input: {
   const spoilage = finiteNonnegative(
     input.freshFoodSpoilageFractionPerDay ?? 0,
   );
+  const preservedSpoilage = finiteNonnegative(
+    input.preservedFoodSpoilageFractionPerDay ?? 0,
+  );
   if (grossDemand <= 1e-9) return Number.POSITIVE_INFINITY;
   if (freshStock <= 1e-9) return 0;
   if (rotationPerDay <= 1e-9 || preservedStock <= 1e-9) {
     return spoilageAdjustedRunwayDays(freshStock, grossDemand, spoilage);
   }
 
-  const rotationDays = preservedStock / rotationPerDay;
+  const rotationDays = spoilageAdjustedRunwayDays(
+    preservedStock,
+    rotationPerDay,
+    preservedSpoilage,
+  );
   const freshDemandDuringRotation = Math.max(0, grossDemand - rotationPerDay);
   const firstPhaseRunway = freshDemandDuringRotation <= 1e-9
     ? Number.POSITIVE_INFINITY

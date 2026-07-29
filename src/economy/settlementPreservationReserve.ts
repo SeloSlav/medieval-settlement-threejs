@@ -3,6 +3,11 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  PRESERVED_FOOD_STORAGE_CART_FACTOR,
+  PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
+  PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+  PRESERVED_FOOD_STORAGE_TREASURY_FACTOR,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
@@ -21,6 +26,10 @@ import {
   type ProductionRoadComponentResolver,
 } from './settlementProduction.ts';
 import { MARKETPLACE_SALT_IMPORT_LOT } from './marketplaceMaterialProcurementPolicy.ts';
+import {
+  buildingPreservedFoodStorageFactor,
+  spoilageAdjustedRunwayDays,
+} from './foodPreservation.ts';
 
 /**
  * A month of substitute provisions is demanding enough to make autumn
@@ -39,6 +48,7 @@ export type PreservationReserveBranch = {
   fallbackDemandPerDay: number;
   targetStock: number;
   preservedStock: number;
+  weightedPreservedStock: number;
   preservedInTransit: number;
   projectedStock: number;
   shortfall: number;
@@ -177,6 +187,8 @@ export function computeSettlementPreservationReservePlan(
     }
     const branch = branchFor(building, 'building');
     branch.preservedStock += preserved;
+    branch.weightedPreservedStock +=
+      preserved * buildingPreservedFoodStorageFactor(building.kind);
     branch.saltStock += finiteStock(building.salt);
     branch.potteryStock += finiteStock(building.pottery);
 
@@ -210,6 +222,8 @@ export function computeSettlementPreservationReservePlan(
     }
     const branch = branchFor(residence, 'residence');
     branch.preservedStock += preserved;
+    branch.weightedPreservedStock +=
+      preserved * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
     if (
       residence.abandoned
       || residence.tier < 3
@@ -259,7 +273,10 @@ export function computeSettlementPreservationReservePlan(
   ) {
     const key = 'legacy:treasury';
     const branch = branches.get(key) ?? emptyBranch(key);
-    branch.preservedStock += finiteStock(state.stockpile.preservedFood);
+    const stock = finiteStock(state.stockpile.preservedFood);
+    branch.preservedStock += stock;
+    branch.weightedPreservedStock +=
+      stock * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR;
     branches.set(key, branch);
   }
 
@@ -298,19 +315,42 @@ export function computeSettlementPreservationReservePlan(
 
   const finalizedBranches = new Map<string, PreservationReserveBranch>();
   for (const [key, branch] of branches) {
-    branch.targetStock = branch.fallbackDemandPerDay * targetDays;
     branch.projectedStock = branch.preservedStock + branch.preservedInTransit;
+    const projectedWeightedStock =
+      branch.weightedPreservedStock
+      + branch.preservedInTransit * PRESERVED_FOOD_STORAGE_CART_FACTOR;
+    const storageFactor = branch.projectedStock > 1e-9
+      ? projectedWeightedStock / branch.projectedStock
+      : PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR;
+    const spoilageFractionPerDay =
+      PRESERVED_FOOD_SPOILAGE_PER_DAY * storageFactor;
+    branch.targetStock = stockRequiredForRunwayDays(
+      branch.fallbackDemandPerDay,
+      spoilageFractionPerDay,
+      targetDays,
+    );
     branch.shortfall = Math.max(0, branch.targetStock - branch.projectedStock);
-    branch.coverageDays = branch.fallbackDemandPerDay > 1e-9
-      ? branch.projectedStock / branch.fallbackDemandPerDay
-      : Number.POSITIVE_INFINITY;
+    branch.coverageDays = spoilageAdjustedRunwayDays(
+      branch.projectedStock,
+      branch.fallbackDemandPerDay,
+      spoilageFractionPerDay,
+    );
     branch.productionDaysToTarget = branch.shortfall <= 1e-9
       ? 0
       : branch.smokehouseOutputPerDay > 1e-9
-        ? branch.shortfall / branch.smokehouseOutputPerDay
+        ? productionDaysToStockTarget(
+            branch.projectedStock,
+            branch.targetStock,
+            branch.smokehouseOutputPerDay,
+            spoilageFractionPerDay,
+          )
         : Number.POSITIVE_INFINITY;
 
-    const cyclesRequired = branch.shortfall
+    const productionRequired = branch.smokehouseOutputPerDay > 1e-9
+      && Number.isFinite(branch.productionDaysToTarget)
+      ? branch.smokehouseOutputPerDay * branch.productionDaysToTarget
+      : branch.shortfall;
+    const cyclesRequired = productionRequired
       / SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE;
     branch.freshFoodRequired = cyclesRequired * SMOKEHOUSE_FOOD_PER_CYCLE;
     branch.firewoodRequired = cyclesRequired * SMOKEHOUSE_FIREWOOD_PER_CYCLE;
@@ -443,6 +483,7 @@ function emptyBranch(key: string): MutableBranch {
     fallbackDemandPerDay: 0,
     targetStock: 0,
     preservedStock: 0,
+    weightedPreservedStock: 0,
     preservedInTransit: 0,
     projectedStock: 0,
     shortfall: 0,
@@ -509,6 +550,41 @@ function deliveryBranch(
 
 function finiteStock(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, value ?? 0) : 0;
+}
+
+function stockRequiredForRunwayDays(
+  demandPerDay: number,
+  spoilageFractionPerDay: number,
+  days: number,
+): number {
+  const demand = finiteStock(demandPerDay);
+  const duration = finiteStock(days);
+  const spoilage = finiteStock(spoilageFractionPerDay);
+  if (demand <= 1e-9 || duration <= 1e-9) return 0;
+  if (spoilage <= 1e-9) return demand * duration;
+  return demand * Math.expm1(spoilage * duration) / spoilage;
+}
+
+function productionDaysToStockTarget(
+  initialStock: number,
+  targetStock: number,
+  productionPerDay: number,
+  spoilageFractionPerDay: number,
+): number {
+  const initial = finiteStock(initialStock);
+  const target = finiteStock(targetStock);
+  const production = finiteStock(productionPerDay);
+  const spoilage = finiteStock(spoilageFractionPerDay);
+  if (target <= initial + 1e-9) return 0;
+  if (production <= 1e-9) return Number.POSITIVE_INFINITY;
+  if (spoilage <= 1e-9) return (target - initial) / production;
+  const equilibrium = production / spoilage;
+  if (target >= equilibrium - 1e-9 || initial >= equilibrium - 1e-9) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.log(
+    (equilibrium - initial) / (equilibrium - target),
+  ) / spoilage;
 }
 
 function finitePositive(value: number | undefined, fallback: number): number {

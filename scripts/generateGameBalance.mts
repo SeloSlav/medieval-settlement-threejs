@@ -210,6 +210,17 @@ export type GameBalance = {
       cart: number;
       treasury: number;
     };
+    preservedFoodSpoilagePerDay: number;
+    preservedFoodStorageFactors: {
+      defaultBuilding: number;
+      granary: number;
+      smokehouse: number;
+      monastery: number;
+      marketplace: number;
+      residence: number;
+      cart: number;
+      treasury: number;
+    };
   };
   fires: {
     lightningIgnitionChancePerRainDay: number;
@@ -684,6 +695,15 @@ function generateRust(): string {
     `pub const FRESH_FOOD_STORAGE_RESIDENCE_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.residence)};`,
     `pub const FRESH_FOOD_STORAGE_CART_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.cart)};`,
     `pub const FRESH_FOOD_STORAGE_TREASURY_FACTOR: f64 = ${rustF64(b.seasons.freshFoodStorageFactors.treasury)};`,
+    `pub const PRESERVED_FOOD_SPOILAGE_PER_DAY: f64 = ${rustF64(b.seasons.preservedFoodSpoilagePerDay)};`,
+    `pub const PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.defaultBuilding)};`,
+    `pub const PRESERVED_FOOD_STORAGE_GRANARY_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.granary)};`,
+    `pub const PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.smokehouse)};`,
+    `pub const PRESERVED_FOOD_STORAGE_MONASTERY_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.monastery)};`,
+    `pub const PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.marketplace)};`,
+    `pub const PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.residence)};`,
+    `pub const PRESERVED_FOOD_STORAGE_CART_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.cart)};`,
+    `pub const PRESERVED_FOOD_STORAGE_TREASURY_FACTOR: f64 = ${rustF64(b.seasons.preservedFoodStorageFactors.treasury)};`,
     '',
     `pub const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY: f64 = ${rustF64(b.fires.lightningIgnitionChancePerRainDay)};`,
     `pub const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY: f64 = ${rustF64(b.fires.accidentIgnitionChancePerStructureDay)};`,
@@ -1456,6 +1476,15 @@ function generateTypeScript(): string {
     `export const FRESH_FOOD_STORAGE_RESIDENCE_FACTOR = ${b.seasons.freshFoodStorageFactors.residence};`,
     `export const FRESH_FOOD_STORAGE_CART_FACTOR = ${b.seasons.freshFoodStorageFactors.cart};`,
     `export const FRESH_FOOD_STORAGE_TREASURY_FACTOR = ${b.seasons.freshFoodStorageFactors.treasury};`,
+    `export const PRESERVED_FOOD_SPOILAGE_PER_DAY = ${b.seasons.preservedFoodSpoilagePerDay};`,
+    `export const PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR = ${b.seasons.preservedFoodStorageFactors.defaultBuilding};`,
+    `export const PRESERVED_FOOD_STORAGE_GRANARY_FACTOR = ${b.seasons.preservedFoodStorageFactors.granary};`,
+    `export const PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR = ${b.seasons.preservedFoodStorageFactors.smokehouse};`,
+    `export const PRESERVED_FOOD_STORAGE_MONASTERY_FACTOR = ${b.seasons.preservedFoodStorageFactors.monastery};`,
+    `export const PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR = ${b.seasons.preservedFoodStorageFactors.marketplace};`,
+    `export const PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR = ${b.seasons.preservedFoodStorageFactors.residence};`,
+    `export const PRESERVED_FOOD_STORAGE_CART_FACTOR = ${b.seasons.preservedFoodStorageFactors.cart};`,
+    `export const PRESERVED_FOOD_STORAGE_TREASURY_FACTOR = ${b.seasons.preservedFoodStorageFactors.treasury};`,
     '',
     `export const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY = ${b.fires.lightningIgnitionChancePerRainDay};`,
     `export const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY = ${b.fires.accidentIgnitionChancePerStructureDay};`,

@@ -8,6 +8,15 @@ import {
   FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
   FRESH_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
   FRESH_FOOD_STORAGE_TREASURY_FACTOR,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  PRESERVED_FOOD_STORAGE_CART_FACTOR,
+  PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
+  PRESERVED_FOOD_STORAGE_GRANARY_FACTOR,
+  PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
+  PRESERVED_FOOD_STORAGE_MONASTERY_FACTOR,
+  PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
+  PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+  PRESERVED_FOOD_STORAGE_TREASURY_FACTOR,
 } from '../generated/gameBalance.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { BuildingKind, GameState } from '../resources/types.ts';
@@ -52,6 +61,24 @@ export type FreshFoodPreservation = {
   transitSpoilagePerDay: number;
   largestLossSite: FreshFoodLossSite | null;
   granaryNetwork: GranaryFreshFoodNetwork;
+  preservedFood: PreservedFoodPreservation;
+};
+
+export type PreservedFoodPreservation = {
+  totalStock: number;
+  usableStock: number;
+  quarantinedStock: number;
+  transitStock: number;
+  protectedStock: number;
+  protectedShare: number;
+  effectiveStorageFactor: number;
+  usableEffectiveStorageFactor: number;
+  spoilageFractionPerDay: number;
+  usableSpoilageFractionPerDay: number;
+  spoilagePerDay: number;
+  quarantinedSpoilagePerDay: number;
+  transitSpoilagePerDay: number;
+  largestLossSite: FreshFoodLossSite | null;
 };
 
 export type FreshFoodPreservationOptions = {
@@ -71,6 +98,21 @@ export function buildingFreshFoodStorageFactor(kind: BuildingKind): number {
       return FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR;
     default:
       return FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR;
+  }
+}
+
+export function buildingPreservedFoodStorageFactor(kind: BuildingKind): number {
+  switch (kind) {
+    case 'granary':
+      return PRESERVED_FOOD_STORAGE_GRANARY_FACTOR;
+    case 'smokehouse':
+      return PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR;
+    case 'monastery':
+      return PRESERVED_FOOD_STORAGE_MONASTERY_FACTOR;
+    case 'marketplace':
+      return PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR;
+    default:
+      return PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR;
   }
 }
 
@@ -96,6 +138,20 @@ export function analyzeFreshFoodPreservation(
   let protectedStock = 0;
   let usableProtectedStock = 0;
   let largestLossSite: FreshFoodLossSite | null = null;
+  const treasuryPreservedStock = state.physicalFoundingSiteEnabled === true
+    ? 0
+    : finiteStock(state.stockpile.preservedFood);
+  let preservedTotalStock = treasuryPreservedStock;
+  let preservedWeightedStock =
+    treasuryPreservedStock * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR;
+  let preservedUsableStock = treasuryPreservedStock;
+  let preservedUsableWeightedStock = preservedWeightedStock;
+  let preservedQuarantinedStock = 0;
+  let preservedQuarantinedWeightedStock = 0;
+  let preservedTransitStock = 0;
+  let preservedTransitWeightedStock = 0;
+  let preservedProtectedStock = 0;
+  let preservedLargestLossSite: FreshFoodLossSite | null = null;
   const granaryNetwork: GranaryFreshFoodNetwork = {
     completedGranaries: 0,
     fireDisabledGranaries: 0,
@@ -115,9 +171,21 @@ export function analyzeFreshFoodPreservation(
     storageFactor: FRESH_FOOD_STORAGE_TREASURY_FACTOR,
     spoilagePerDay: treasuryStock * FRESH_FOOD_STORAGE_TREASURY_FACTOR * ambientRate,
   });
+  preservedLargestLossSite = largerLossSite(preservedLargestLossSite, {
+    source: 'treasury',
+    id: null,
+    buildingKind: null,
+    stock: treasuryPreservedStock,
+    storageFactor: PRESERVED_FOOD_STORAGE_TREASURY_FACTOR,
+    spoilagePerDay:
+      treasuryPreservedStock
+      * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR
+      * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  });
 
   for (const building of state.buildings.values()) {
     const stock = finiteStock(building.food);
+    const preservedStock = finiteStock(building.preservedFood);
     const fireDisabled = options.fireDisabledBuildingIds?.has(building.id) ?? false;
     if (building.kind === 'granary' && building.constructionComplete !== false) {
       granaryNetwork.completedGranaries += 1;
@@ -136,6 +204,30 @@ export function analyzeFreshFoodPreservation(
         granaryNetwork.stockTowardTarget += Math.min(stock, target);
         granaryNetwork.targetShortfall += Math.max(0, target - stock);
         granaryNetwork.stockAboveTarget += Math.max(0, stock - target);
+      }
+    }
+    if (preservedStock > 0) {
+      const factor = buildingPreservedFoodStorageFactor(building.kind);
+      preservedTotalStock += preservedStock;
+      preservedWeightedStock += preservedStock * factor;
+      if (fireDisabled) {
+        preservedQuarantinedStock += preservedStock;
+        preservedQuarantinedWeightedStock += preservedStock * factor;
+      } else {
+        preservedUsableStock += preservedStock;
+        preservedUsableWeightedStock += preservedStock * factor;
+      }
+      preservedLargestLossSite = largerLossSite(preservedLargestLossSite, {
+        source: 'building',
+        id: building.id,
+        buildingKind: building.kind,
+        stock: preservedStock,
+        storageFactor: factor,
+        spoilagePerDay:
+          preservedStock * factor * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+      });
+      if (factor < PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR) {
+        preservedProtectedStock += preservedStock;
       }
     }
     if (stock <= 0) continue;
@@ -164,9 +256,25 @@ export function analyzeFreshFoodPreservation(
   }
 
   for (const trip of state.deliveryTrips.values()) {
-    if (trip.cargoKind !== 'food') continue;
     const stock = finiteStock(trip.amount);
     if (stock <= 0) continue;
+    if (trip.cargoKind === 'preservedFood') {
+      preservedTotalStock += stock;
+      preservedWeightedStock += stock * PRESERVED_FOOD_STORAGE_CART_FACTOR;
+      preservedTransitStock += stock;
+      preservedTransitWeightedStock += stock * PRESERVED_FOOD_STORAGE_CART_FACTOR;
+      preservedLargestLossSite = largerLossSite(preservedLargestLossSite, {
+        source: 'trip',
+        id: trip.id,
+        buildingKind: null,
+        stock,
+        storageFactor: PRESERVED_FOOD_STORAGE_CART_FACTOR,
+        spoilagePerDay:
+          stock * PRESERVED_FOOD_STORAGE_CART_FACTOR * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+      });
+      continue;
+    }
+    if (trip.cargoKind !== 'food') continue;
     totalStock += stock;
     weightedStock += stock * FRESH_FOOD_STORAGE_CART_FACTOR;
     transitStock += stock;
@@ -183,7 +291,34 @@ export function analyzeFreshFoodPreservation(
 
   for (const residence of state.residences.values()) {
     const stock = finiteStock(getNeedStock(residence.needs, 'food'));
+    const preservedStock = finiteStock(
+      getNeedStock(residence.needs, 'preservedFood'),
+    );
     const fireDisabled = options.fireDisabledResidenceIds?.has(residence.id) ?? false;
+    if (preservedStock > 0) {
+      preservedTotalStock += preservedStock;
+      preservedWeightedStock += preservedStock * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
+      if (fireDisabled) {
+        preservedQuarantinedStock += preservedStock;
+        preservedQuarantinedWeightedStock +=
+          preservedStock * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
+      } else {
+        preservedUsableStock += preservedStock;
+        preservedUsableWeightedStock +=
+          preservedStock * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
+        preservedLargestLossSite = largerLossSite(preservedLargestLossSite, {
+          source: 'residence',
+          id: residence.id,
+          buildingKind: null,
+          stock: preservedStock,
+          storageFactor: PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
+          spoilagePerDay:
+            preservedStock
+            * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
+            * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+        });
+      }
+    }
     totalStock += stock;
     if (fireDisabled) {
       quarantinedStock += stock;
@@ -206,6 +341,12 @@ export function analyzeFreshFoodPreservation(
   const usableEffectiveStorageFactor = usableStock > 1e-9
     ? usableWeightedStock / usableStock
     : 0;
+  const preservedEffectiveStorageFactor = preservedTotalStock > 1e-9
+    ? preservedWeightedStock / preservedTotalStock
+    : 0;
+  const preservedUsableEffectiveStorageFactor = preservedUsableStock > 1e-9
+    ? preservedUsableWeightedStock / preservedUsableStock
+    : 0;
   return {
     totalStock,
     usableStock,
@@ -227,6 +368,29 @@ export function analyzeFreshFoodPreservation(
     transitSpoilagePerDay: ambientRate * transitWeightedStock,
     largestLossSite,
     granaryNetwork,
+    preservedFood: {
+      totalStock: preservedTotalStock,
+      usableStock: preservedUsableStock,
+      quarantinedStock: preservedQuarantinedStock,
+      transitStock: preservedTransitStock,
+      protectedStock: preservedProtectedStock,
+      protectedShare: preservedTotalStock > 1e-9
+        ? preservedProtectedStock / preservedTotalStock
+        : 0,
+      effectiveStorageFactor: preservedEffectiveStorageFactor,
+      usableEffectiveStorageFactor: preservedUsableEffectiveStorageFactor,
+      spoilageFractionPerDay:
+        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedEffectiveStorageFactor,
+      usableSpoilageFractionPerDay:
+        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedUsableEffectiveStorageFactor,
+      spoilagePerDay:
+        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedWeightedStock,
+      quarantinedSpoilagePerDay:
+        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedQuarantinedWeightedStock,
+      transitSpoilagePerDay:
+        PRESERVED_FOOD_SPOILAGE_PER_DAY * preservedTransitWeightedStock,
+      largestLossSite: preservedLargestLossSite,
+    },
   };
 }
 
@@ -269,4 +433,11 @@ export function formatFreshFoodLoss(amountPerDay: number): string {
   if (amountPerDay < 0.05) return '<0.1 food / day';
   if (amountPerDay < 10) return `${amountPerDay.toFixed(1)} food / day`;
   return `${Math.round(amountPerDay)} food / day`;
+}
+
+export function formatPreservedFoodLoss(amountPerDay: number): string {
+  if (amountPerDay <= 1e-9) return 'none';
+  if (amountPerDay < 0.05) return '<0.1 provisions / day';
+  if (amountPerDay < 10) return `${amountPerDay.toFixed(1)} provisions / day`;
+  return `${Math.round(amountPerDay)} provisions / day`;
 }

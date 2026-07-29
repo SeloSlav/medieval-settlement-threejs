@@ -15,6 +15,8 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   HUNGER_WARNING_DAYS,
   MALNUTRITION_DAYS,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
@@ -30,6 +32,7 @@ import {
   STARVATION_DEATH_START_DAYS,
   HERB_TREATMENT_PER_SICK_DAY,
 } from '../../generated/gameBalance.ts';
+import { formatPreservedFoodLoss } from '../../economy/foodPreservation.ts';
 import {
   formatFoodRunwayDays,
   residenceFoodRunwayDays,
@@ -385,6 +388,9 @@ export function renderResidenceInspector(
         grossFoodDemandPerDay: grossFoodPerDay,
         preservedStock: getNeedStock(residence.needs, 'preservedFood'),
         preservedRotationPerDay: preservedFoodRotationPerDay,
+        preservedFoodSpoilageFractionPerDay:
+          PRESERVED_FOOD_SPOILAGE_PER_DAY
+          * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       })
     : residenceFoodRunwayDays(residence);
   const foodRunwayLabel = foodRunwayDays == null
@@ -585,6 +591,11 @@ export function renderResidenceInspector(
       ${residence.tier >= 2 ? `<li><span>Water stock</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Water runway</span><span>${waterRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Preserved food</span><span>${Math.round(getNeedStock(residence.needs, 'preservedFood'))} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
+        getNeedStock(residence.needs, 'preservedFood')
+        * PRESERVED_FOOD_SPOILAGE_PER_DAY
+        * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
+      )} · consume or replenish regularly</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Seasonal ration rotation</span><span>${preservedFoodRotationPerDay.toFixed(2)} / day at ${preservedFoodDemandMultiplier.toFixed(2)}&times; seasonal use &middot; replaces the same amount of fresh food rather than adding a second meal</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Preserved food runway</span><span>${preservedFoodRunwayLabel} at current rotation &middot; remaining stores cover fresh-food shortages</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY}</span></li>` : ''}

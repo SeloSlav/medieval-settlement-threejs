@@ -6,6 +6,10 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  PRESERVED_FOOD_STORAGE_CART_FACTOR,
+  PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
+  PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
@@ -34,6 +38,16 @@ const workdaySeconds = CALENDAR_SECONDS_PER_DAY
   / CALENDAR_HOURS_PER_DAY;
 const oneResidentFallbackPerDay = RESIDENCE_FOOD_PER_PERSON_PER_SEC
   * workdaySeconds;
+const reserveTarget = (
+  demandPerDay: number,
+  storageFactor: number,
+): number => {
+  const spoilage =
+    PRESERVED_FOOD_SPOILAGE_PER_DAY * storageFactor;
+  return demandPerDay
+    * Math.expm1(spoilage * PRESERVATION_RESERVE_DAYS)
+    / spoilage;
+};
 
 const targetState = emptyGameState();
 targetState.physicalFoundingSiteEnabled = true;
@@ -45,7 +59,10 @@ const targetPlan = computeSettlementPreservationReservePlan(targetState, {
 approx(targetPlan.fallbackDemandPerDay, oneResidentFallbackPerDay * 2);
 approx(
   targetPlan.targetStock,
-  oneResidentFallbackPerDay * 2 * PRESERVATION_RESERVE_DAYS,
+  reserveTarget(
+    oneResidentFallbackPerDay * 2,
+    PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+  ),
 );
 assert.equal(targetPlan.tierThreeResidents, 2);
 assert.equal(targetPlan.targetBranches, 1);
@@ -55,7 +72,10 @@ assert.equal(targetPlan.productionDaysToTarget, Number.POSITIVE_INFINITY);
 
 const preparedState = emptyGameState();
 preparedState.physicalFoundingSiteEnabled = true;
-const preparedTarget = oneResidentFallbackPerDay * PRESERVATION_RESERVE_DAYS;
+const preparedTarget = reserveTarget(
+  oneResidentFallbackPerDay,
+  PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
+);
 preparedState.residences.set(
   'prepared-home',
   residence('prepared-home', 1, preparedTarget),
@@ -76,15 +96,19 @@ exposedHome.x = 0;
 splitState.residences.set(exposedHome.id, exposedHome);
 const remoteSmokehouse = building('remote-smokehouse', 'smokehouse', 1);
 remoteSmokehouse.x = 100;
-remoteSmokehouse.preservedFood = preparedTarget * 2;
+const emptyBranchTarget = reserveTarget(
+  oneResidentFallbackPerDay,
+  PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+);
+remoteSmokehouse.preservedFood = emptyBranchTarget * 2;
 splitState.buildings.set(remoteSmokehouse.id, remoteSmokehouse);
 const splitPlan = computeSettlementPreservationReservePlan(splitState, {
   sabbathObserved: false,
   roadComponentFor: (candidate) => candidate.x < 50 ? 'core' : 'remote',
 });
 approx(splitPlan.roadMatchedStock, 0);
-approx(splitPlan.roadMatchedShortfall, preparedTarget);
-approx(splitPlan.unmatchedPreservedStock, preparedTarget * 2);
+approx(splitPlan.roadMatchedShortfall, emptyBranchTarget);
+approx(splitPlan.unmatchedPreservedStock, emptyBranchTarget * 2);
 assert.equal(splitPlan.firstExposedResidenceId, exposedHome.id);
 assert.equal(splitPlan.branchesWithoutSmokehouse, 1);
 
@@ -103,7 +127,10 @@ cartState.deliveryTrips.set(
     originId: cartOrigin.id,
     residenceId: cartHome.id,
     cargoKind: 'preservedFood',
-    amount: preparedTarget,
+    amount: reserveTarget(
+      oneResidentFallbackPerDay,
+      PRESERVED_FOOD_STORAGE_CART_FACTOR,
+    ),
     phase: 'outbound',
   }),
 );
@@ -111,8 +138,12 @@ const cartPlan = computeSettlementPreservationReservePlan(cartState, {
   sabbathObserved: false,
   roadComponentFor: (candidate) => candidate.x < 50 ? 'core' : 'remote',
 });
-approx(cartPlan.preservedInTransit, preparedTarget);
-approx(cartPlan.roadMatchedStock, preparedTarget);
+const cartTarget = reserveTarget(
+  oneResidentFallbackPerDay,
+  PRESERVED_FOOD_STORAGE_CART_FACTOR,
+);
+approx(cartPlan.preservedInTransit, cartTarget);
+approx(cartPlan.roadMatchedStock, cartTarget);
 assert.equal(cartPlan.preparedBranches, 1);
 
 const returningState = emptyGameState();
@@ -187,7 +218,11 @@ const recipePlan = computeSettlementPreservationReservePlan(recipeState, {
   roadComponentFor: () => 'core',
 });
 const cyclesRequired = recipePlan.roadMatchedShortfall
-  / SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE;
+  <= 1e-9
+  ? 0
+  : recipePlan.smokehouseOutputPerDay
+    * recipePlan.productionDaysToTarget
+    / SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE;
 approx(recipePlan.freshFoodRequired, cyclesRequired * SMOKEHOUSE_FOOD_PER_CYCLE);
 approx(recipePlan.firewoodRequired, cyclesRequired * SMOKEHOUSE_FIREWOOD_PER_CYCLE);
 approx(recipePlan.saltRequired, cyclesRequired * SMOKEHOUSE_SALT_PER_CYCLE);
@@ -231,6 +266,7 @@ assert.match(
 );
 assert.match(rendered, /repeated imports can tighten the regional rate/);
 assert.match(rendered, /kiln cart priorities decide/);
+assert.match(rendered, /including cured-stock aging while the reserve builds/);
 
 const noResidentsRows = renderPreservationReserveRows(
   computeSettlementPreservationReservePlan(emptyGameState(), {

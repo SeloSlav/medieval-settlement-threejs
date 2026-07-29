@@ -58,6 +58,17 @@
       "residence": 1,
       "cart": 1.25,
       "treasury": 1.2
+    },
+    "preservedFoodSpoilagePerDay": 0.0015,
+    "preservedFoodStorageFactors": {
+      "defaultBuilding": 1,
+      "granary": 0.65,
+      "smokehouse": 0.45,
+      "monastery": 0.75,
+      "marketplace": 0.9,
+      "residence": 1.15,
+      "cart": 1.35,
+      "treasury": 1.25
     }
   },
   "fires": {

@@ -53,6 +53,7 @@ import type { SettlementWelfare } from '../../economy/settlementWelfare.ts';
 import { computeSettlementFirewoodPlan } from '../../economy/settlementFirewood.ts';
 import {
   formatFreshFoodLoss,
+  formatPreservedFoodLoss,
   type FreshFoodLossSite,
   type FreshFoodPreservation,
   type GranaryFreshFoodNetwork,
@@ -1440,12 +1441,28 @@ export function renderFreshFoodPreservationRows(
   const transit = preservation.transitStock > 0.05
     ? `<li><span>Food on carts</span><span>${preservation.transitStock.toFixed(1)} exposed in loaded or returning handcarts · ${formatFreshFoodLoss(preservation.transitSpoilagePerDay)} · unavailable until unloaded</span></li>`
     : '';
+  const cured = preservation.preservedFood;
+  const curedHotspot = formatPreservedFoodLossSite(
+    cured.largestLossSite,
+    getBuildingLabel,
+    getResidenceParcelIndex,
+  );
+  const curedQuarantine = cured.quarantinedStock > 0.05
+    ? `<li><span>Fire-quarantined provisions</span><span>${cured.quarantinedStock.toFixed(1)} inaccessible until recovery · ${formatPreservedFoodLoss(cured.quarantinedSpoilagePerDay)} still aging in damaged stores</span></li>`
+    : '';
+  const curedTransit = cured.transitStock > 0.05
+    ? `<li><span>Provisions on carts</span><span>${cured.transitStock.toFixed(1)} exposed in loaded or returning handcarts · ${formatPreservedFoodLoss(cured.transitSpoilagePerDay)} · compact routes retain more</span></li>`
+    : '';
   return `
     <li><span>Fresh-food spoilage</span><span>${formatFreshFoodLoss(preservation.spoilagePerDay)} · ${Math.round(preservation.usableProtectedShare * 100)}% of usable food in sheltered stores</span></li>
     ${quarantine}
     ${transit}
     <li><span>Largest fresh-food loss</span><span>${hotspot}</span></li>
     <li><span>Granary intake network</span><span>${formatGranaryFreshFoodNetwork(preservation.granaryNetwork)}</span></li>
+    <li><span>Cured-food aging</span><span>${formatPreservedFoodLoss(cured.spoilagePerDay)} · ${Math.round(cured.protectedShare * 100)}% held in smokehouses, granaries, monasteries, or markets</span></li>
+    ${curedQuarantine}
+    ${curedTransit}
+    <li><span>Largest cured-food loss</span><span>${curedHotspot}</span></li>
   `;
 }
 
@@ -1471,7 +1488,7 @@ export function renderPreservationReserveRows(
   const completion = plan.roadMatchedShortfall <= 0.05
     ? 'Target ready'
     : Number.isFinite(plan.productionDaysToTarget)
-      ? `${plan.productionDaysToTarget.toFixed(1)} working days at current same-branch smokehouse crews`
+      ? `${plan.productionDaysToTarget.toFixed(1)} working days at current same-branch smokehouse crews, including cured-stock aging while the reserve builds`
       : `${plan.branchesWithoutSmokehouse} short ${plan.branchesWithoutSmokehouse === 1 ? 'branch has' : 'branches have'} no staffed same-branch smokehouse`;
   const storedDetail = [
     plan.preservedInTransit > 0.05
@@ -1530,6 +1547,29 @@ function formatFreshFoodLossSite(
     return `Loaded handcart · ${site.stock.toFixed(1)} food · ${formatFreshFoodLoss(site.spoilagePerDay)}`;
   }
   return 'No fresh food currently spoiling';
+}
+
+function formatPreservedFoodLossSite(
+  site: FreshFoodLossSite | null,
+  getBuildingLabel: (kind: BuildingKind) => string,
+  getResidenceParcelIndex: (id: string) => number | null,
+): string {
+  if (site === null) return 'No preserved provisions currently aging';
+  if (site.source === 'treasury') {
+    return `Legacy treasury reserve · ${site.stock.toFixed(1)} provisions · ${formatPreservedFoodLoss(site.spoilagePerDay)}`;
+  }
+  if (site.source === 'building' && site.id !== null && site.buildingKind !== null) {
+    return `${getBuildingLabel(site.buildingKind)} · ${site.stock.toFixed(1)} provisions · ${formatPreservedFoodLoss(site.spoilagePerDay)} <button type="button" class="inspector-jump-button" data-inspect-building="${site.id}" aria-label="Inspect largest cured-food loss">Inspect</button>`;
+  }
+  if (site.source === 'residence' && site.id !== null) {
+    const parcelIndex = getResidenceParcelIndex(site.id);
+    const label = parcelIndex === null ? 'Residence' : `Residence parcel #${parcelIndex + 1}`;
+    return `${label} · ${site.stock.toFixed(1)} provisions · ${formatPreservedFoodLoss(site.spoilagePerDay)} <button type="button" class="inspector-jump-button" data-inspect-residence="${site.id}" aria-label="Inspect largest household cured-food loss">Inspect</button>`;
+  }
+  if (site.source === 'trip') {
+    return `Loaded handcart · ${site.stock.toFixed(1)} provisions · ${formatPreservedFoodLoss(site.spoilagePerDay)}`;
+  }
+  return 'No preserved provisions currently aging';
 }
 
 function formatGranaryFreshFoodNetwork(network: GranaryFreshFoodNetwork): string {

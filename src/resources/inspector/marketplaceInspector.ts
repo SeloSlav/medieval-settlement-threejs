@@ -37,9 +37,14 @@ import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts
 import { gameClock } from '../../world/gameCalendar.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import {
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
   STOREHOUSE_HAUL_PER_WORKER,
   type TradeResourceKind,
 } from '../../generated/gameBalance.ts';
+import {
+  buildingPreservedFoodStorageFactor,
+  formatPreservedFoodLoss,
+} from '../../economy/foodPreservation.ts';
 import type { BuildingState } from '../types.ts';
 import {
   marketplaceGoldReserveShortfall,
@@ -270,6 +275,13 @@ export function renderMarketplaceInspector(
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind, context.conflictEnabled ?? false)}
+      <li><span>Cured-store aging</span><span>${Math.round(
+        (1 - buildingPreservedFoodStorageFactor(building.kind)) * 100,
+      )}% slower than ordinary dry storage · ${formatPreservedFoodLoss(
+        building.preservedFood
+        * PRESERVED_FOOD_SPOILAGE_PER_DAY
+        * buildingPreservedFoodStorageFactor(building.kind),
+      )}</span></li>
       <li><span>Purpose</span><span>Foreign trade hub — exchange gold and goods with neighboring villages</span></li>
       <li><span>Linked homes</span><span>${connectedHomes}</span></li>
       <li><span>Caravan crew</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>

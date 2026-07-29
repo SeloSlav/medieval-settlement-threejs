@@ -3,6 +3,8 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   RESIDENCE_ALE_CAPACITY,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_CAPACITY,
@@ -12,6 +14,7 @@ import {
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
 } from '../generated/gameBalance.ts';
+import { spoilageAdjustedRunwayDays } from '../economy/foodPreservation.ts';
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -164,7 +167,12 @@ export function residencePreservedFoodRunwaySeconds(
     * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
     * multiplier;
   if (usePerSec <= 1e-9) return null;
-  return stock / usePerSec;
+  return spoilageAdjustedRunwayDays(
+    stock,
+    usePerSec * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
+    PRESERVED_FOOD_SPOILAGE_PER_DAY
+      * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
+  ) * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
 }
 
 export function residencePreservedFoodRunwayDays(

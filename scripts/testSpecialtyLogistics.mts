@@ -96,22 +96,19 @@ assert.deepEqual(CLOTH_SUPPLIER_KINDS, ['weaver']);
 assert.deepEqual(POTTERY_SUPPLIER_KINDS, ['potter_kiln']);
 assert.equal(PRESERVED_FOOD_SUPPLIER_KINDS.includes('granary'), true);
 assert.equal(SPECIALTY_CONSUMPTION_SECONDS_PER_DAY, 70);
-assert.equal(
-  residencePreservedFoodRunwayDays(
-    residence('preserved-runway', 0, 4, 'preservedFood', 7),
-  ),
-  6.25,
+const preservedRunway = residencePreservedFoodRunwayDays(
+  residence('preserved-runway', 0, 4, 'preservedFood', 7),
 );
+assert.ok((preservedRunway ?? 0) < 6.25);
+assert.ok((preservedRunway ?? 0) > 6.2);
 assert.ok(
-  Math.abs(
-    (
-      residencePreservedFoodRunwayDays(
-        residence('winter-preserved-runway', 0, 4, 'preservedFood', 7),
-        1.75,
-      ) ?? 0
-    ) - 6.25 / 1.75,
-  ) < 1e-9,
-  'current winter rotation must shorten the displayed household runway',
+  (
+    residencePreservedFoodRunwayDays(
+      residence('winter-preserved-runway', 0, 4, 'preservedFood', 7),
+      1.75,
+    ) ?? 0
+  ) < 6.25 / 1.75,
+  'winter rotation and continuous cupboard aging must both shorten household runway',
 );
 assert.equal(
   residenceAleRunwayDays(residence('ale-runway', 0, 4, 'ale', 7)),

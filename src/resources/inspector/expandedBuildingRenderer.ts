@@ -19,6 +19,7 @@ import {
   MONASTERY_HOSPITALITY_WINE_PER_DAY,
   MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
   MONASTERY_UNLINKED_PRODUCTIVITY,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
   TIMBER_DELIVERY_SPEED_MPS,
   TIMBER_DELIVERY_UNLOAD_SEC,
   TEXTILE_TRANSFER_PER_TRIP,
@@ -59,7 +60,11 @@ import {
   monasteryHospitalityStatusLabel,
   nextMonasteryFeast,
 } from '../../economy/monasteryHospitality.ts';
-import { formatFreshFoodLoss } from '../../economy/foodPreservation.ts';
+import {
+  buildingPreservedFoodStorageFactor,
+  formatFreshFoodLoss,
+  formatPreservedFoodLoss,
+} from '../../economy/foodPreservation.ts';
 import {
   GRANARY_FRESH_FOOD_TARGET_PRESETS,
   GRANARY_GRAIN_RESERVE_PRESETS,
@@ -1037,6 +1042,19 @@ export function renderExpandedBuildingInspector(
     ? `<li><span>Next guard cart</span><span>${granaryGuardFoodDispatchLabel}</span></li>
       <li><span>Emergency arbitration</span><span>Guard under ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days vs priority-selected processor under ${GRAIN_CRITICAL_RUNWAY_CYCLES} cycle · lower relative runway first</span></li>`
     : '';
+  const preservedStorageCapacity =
+    buildingStorageCaps(building.kind).preservedFood ?? 0;
+  const preservedStorageFactor =
+    buildingPreservedFoodStorageFactor(building.kind);
+  const preservedStorageRows = preservedStorageCapacity > 0
+    ? `<li><span>Cured-store aging</span><span>${preservedStorageFactor < 1
+        ? `${Math.round((1 - preservedStorageFactor) * 100)}% slower than ordinary dry storage`
+        : 'Ordinary dry storage'} · ${formatPreservedFoodLoss(
+          building.preservedFood
+          * PRESERVED_FOOD_SPOILAGE_PER_DAY
+          * preservedStorageFactor,
+        )}</span></li>`
+    : '';
   const granaryRows = building.kind === 'granary'
     ? `<li><span>Central grain reserve</span><span>${granaryReserveLabel(building)}</span></li>
       <li><span>Seed exception</span><span>Linked farmsteads may draw through the floor; least-covered eligible holding goes first</span></li>
@@ -1134,7 +1152,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building)}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

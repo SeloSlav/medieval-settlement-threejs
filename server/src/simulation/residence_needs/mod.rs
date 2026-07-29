@@ -53,6 +53,9 @@ pub fn step_residence_needs(
     }
 
     let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
+    if let Some(need) = find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood) {
+        *need = provisions::spoil_preserved_food(need);
+    }
 
     let cold_weather = environment.firewood_demand_multiplier() > 1.0 + 1e-9;
     let mut food_unmet = false;
@@ -554,9 +557,7 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         ResidenceNeedKind::Ale
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
-        | ResidenceNeedKind::Pottery => {
-            provisions::on_unmet(need)
-        }
+        | ResidenceNeedKind::Pottery => provisions::on_unmet(need),
     }
 }
 
@@ -589,8 +590,6 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         ResidenceNeedKind::Ale
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
-        | ResidenceNeedKind::Pottery => {
-            provisions::apply_delivery(need, delivered)
-        }
+        | ResidenceNeedKind::Pottery => provisions::apply_delivery(need, delivered),
     }
 }

@@ -7,12 +7,23 @@ import {
   FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
   FRESH_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
   FRESH_FOOD_STORAGE_TREASURY_FACTOR,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  PRESERVED_FOOD_STORAGE_CART_FACTOR,
+  PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
+  PRESERVED_FOOD_STORAGE_GRANARY_FACTOR,
+  PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
+  PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
+  PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+  PRESERVED_FOOD_STORAGE_TREASURY_FACTOR,
 } from '../src/generated/gameBalance.ts';
 import {
   analyzeFreshFoodPreservation,
   buildingFreshFoodStorageFactor,
+  buildingPreservedFoodStorageFactor,
+  formatPreservedFoodLoss,
   spoilageAdjustedRunwayDays,
 } from '../src/economy/foodPreservation.ts';
+import { freshFoodRunwayWithPreservedRotation } from '../src/economy/preservedFoodPolicy.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { renderFreshFoodPreservationRows } from '../src/resources/inspector/townHallRenderer.ts';
 import type {
@@ -60,6 +71,68 @@ assert.ok(
   buildingFreshFoodStorageFactor('granary') < buildingFreshFoodStorageFactor('hunters_hall'),
   'granary storage should materially slow fresh-food spoilage',
 );
+
+const curedState = emptyGameState();
+curedState.stockpile.preservedFood = 10;
+const curedGranary = building('cured-granary', 'granary', 0);
+curedGranary.preservedFood = 20;
+curedState.buildings.set(curedGranary.id, curedGranary);
+const curedSmokehouse = building('cured-smokehouse', 'smokehouse', 0);
+curedSmokehouse.preservedFood = 10;
+curedState.buildings.set(curedSmokehouse.id, curedSmokehouse);
+const curedMarket = building('cured-market', 'marketplace', 0);
+curedMarket.preservedFood = 10;
+curedState.buildings.set(curedMarket.id, curedMarket);
+const curedHolding = building('cured-holding', 'pastoral_farmstead', 0);
+curedHolding.preservedFood = 10;
+curedState.buildings.set(curedHolding.id, curedHolding);
+const curedHome = residence('cured-home', 0);
+curedHome.tier = 3;
+curedHome.needs.preservedFood.stock = 10;
+curedState.residences.set(curedHome.id, curedHome);
+curedState.deliveryTrips.set(
+  'cured-cart',
+  deliveryTrip('cured-cart', 'preservedFood', 10, 'outbound'),
+);
+const curedPreservation = analyzeFreshFoodPreservation(
+  curedState,
+  ambientSpoilage,
+).preservedFood;
+const expectedCuredWeightedStock =
+  10 * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR
+  + 20 * PRESERVED_FOOD_STORAGE_GRANARY_FACTOR
+  + 10 * PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR
+  + 10 * PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR
+  + 10 * PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR
+  + 10 * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
+  + 10 * PRESERVED_FOOD_STORAGE_CART_FACTOR;
+assert.equal(curedPreservation.totalStock, 80);
+assert.equal(curedPreservation.usableStock, 70);
+assert.equal(curedPreservation.transitStock, 10);
+assert.equal(curedPreservation.protectedStock, 40);
+assert.ok(
+  Math.abs(
+    curedPreservation.spoilagePerDay
+    - expectedCuredWeightedStock * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+  ) < 1e-9,
+);
+assert.equal(curedPreservation.largestLossSite?.id, 'cured-cart');
+assert.equal(
+  buildingPreservedFoodStorageFactor('granary'),
+  PRESERVED_FOOD_STORAGE_GRANARY_FACTOR,
+);
+assert.ok(
+  buildingPreservedFoodStorageFactor('smokehouse')
+  < buildingPreservedFoodStorageFactor('granary'),
+  'the smokehouse drying loft should preserve cured stock better than a granary',
+);
+assert.ok(
+  buildingPreservedFoodStorageFactor('granary')
+  < buildingPreservedFoodStorageFactor('pastoral_farmstead'),
+  'central dry storage should preserve cured stock better than an ordinary holding',
+);
+assert.match(formatPreservedFoodLoss(curedPreservation.spoilagePerDay), /provisions/);
+
 const physicalLedgerState = emptyGameState();
 physicalLedgerState.physicalFoundingSiteEnabled = true;
 physicalLedgerState.stockpile.food = 50;
@@ -108,6 +181,30 @@ assert.ok(adjustedRunway > 9, 'the configured storage mix should not erase more 
 assert.equal(spoilageAdjustedRunwayDays(70, 7, 0), 10);
 assert.equal(spoilageAdjustedRunwayDays(0, 7, 0.01), 0);
 assert.equal(spoilageAdjustedRunwayDays(70, 0, 0.01), Number.POSITIVE_INFINITY);
+const noCuredAgingRunway = freshFoodRunwayWithPreservedRotation({
+  freshStock: 100,
+  grossFoodDemandPerDay: 10,
+  preservedStock: 30,
+  preservedRotationPerDay: 3,
+  freshFoodSpoilageFractionPerDay: 0.01,
+});
+const curedAgingRunway = freshFoodRunwayWithPreservedRotation({
+  freshStock: 100,
+  grossFoodDemandPerDay: 10,
+  preservedStock: 30,
+  preservedRotationPerDay: 3,
+  freshFoodSpoilageFractionPerDay: 0.01,
+  preservedFoodSpoilageFractionPerDay:
+    PRESERVED_FOOD_SPOILAGE_PER_DAY * PRESERVED_FOOD_STORAGE_GRANARY_FACTOR,
+});
+assert.ok(
+  curedAgingRunway < noCuredAgingRunway,
+  'slow cured-food aging must shorten a no-production reserve forecast',
+);
+assert.ok(
+  curedAgingRunway > noCuredAgingRunway - 0.1,
+  'the configured aging rate must create planning pressure without erasing months-long storage',
+);
 
 const hotspotState = emptyGameState();
 hotspotState.buildings.set('hunter-hotspot', building('hunter-hotspot', 'hunters_hall', 80));
@@ -184,6 +281,11 @@ fireQuarantineState.residences.set(
   'fire-home',
   residence('fire-home', 40),
 );
+fireQuarantineState.stockpile.preservedFood = 10;
+fireQuarantineState.buildings.get('fire-granary')!.preservedFood = 20;
+fireQuarantineState.buildings.get('fire-hunter')!.preservedFood = 30;
+fireQuarantineState.buildings.get('healthy-market')!.preservedFood = 10;
+fireQuarantineState.residences.get('fire-home')!.needs.preservedFood.stock = 40;
 const fireQuarantine = analyzeFreshFoodPreservation(
   fireQuarantineState,
   ambientSpoilage,
@@ -199,6 +301,19 @@ assert.equal(fireQuarantine.granaryNetwork.completedGranaries, 1);
 assert.equal(fireQuarantine.granaryNetwork.fireDisabledGranaries, 1);
 assert.equal(fireQuarantine.granaryNetwork.collectingGranaries, 0);
 assert.equal(fireQuarantine.largestLossSite?.id, 'fire-hunter');
+assert.equal(fireQuarantine.preservedFood.totalStock, 110);
+assert.equal(fireQuarantine.preservedFood.usableStock, 20);
+assert.equal(fireQuarantine.preservedFood.quarantinedStock, 90);
+assert.ok(
+  Math.abs(
+    fireQuarantine.preservedFood.quarantinedSpoilagePerDay
+    - PRESERVED_FOOD_SPOILAGE_PER_DAY * (
+      20 * PRESERVED_FOOD_STORAGE_GRANARY_FACTOR
+      + 30 * PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR
+      + 40 * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
+    ),
+  ) < 1e-9,
+);
 assert.ok(
   Math.abs(
     fireQuarantine.quarantinedSpoilagePerDay
@@ -228,6 +343,8 @@ const fireQuarantineRows = renderFreshFoodPreservationRows(
 assert.match(fireQuarantineRows, /Fire-quarantined food/);
 assert.match(fireQuarantineRows, /90\.0 inaccessible until recovery/);
 assert.match(fireQuarantineRows, /every completed granary is fire-disabled/);
+assert.match(fireQuarantineRows, /Fire-quarantined provisions/);
+assert.match(fireQuarantineRows, /90\.0 inaccessible until recovery/);
 
 const residenceNeeds = readFileSync(
   new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url),
@@ -235,6 +352,10 @@ const residenceNeeds = readFileSync(
 );
 const residenceFood = readFileSync(
   new URL('../server/src/simulation/residence_needs/food.rs', import.meta.url),
+  'utf8',
+);
+const residenceProvisions = readFileSync(
+  new URL('../server/src/simulation/residence_needs/provisions.rs', import.meta.url),
   'utf8',
 );
 const expandedEconomy = readFileSync(
@@ -310,9 +431,28 @@ assert.match(
 );
 assert.match(
   serverFoodSpoilage,
-  /delivery_trip\(\)[\s\S]*CommodityKind::Food\.as_u8\(\)[\s\S]*FRESH_FOOD_STORAGE_CART_FACTOR[\s\S]*delivery_trip\(\)\.id\(\)\.update/,
-  'loaded fresh food must keep spoiling in the authoritative delivery row',
+  /delivery_trip\(\)[\s\S]*CommodityKind::Food \| CommodityKind::PreservedFood[\s\S]*PRESERVED_FOOD_STORAGE_CART_FACTOR[\s\S]*delivery_trip\(\)\.id\(\)\.update/,
+  'loaded fresh and cured food must keep aging in the authoritative delivery row',
 );
+assert.match(
+  serverFoodSpoilage,
+  /building\.preserved_food \* preserved_rate \* preserved_storage_factor[\s\S]*preserved_food: \(building\.preserved_food - spoiled_preserved\)/,
+  'every physical building store must lose cured provisions according to its storage quality',
+);
+assert.match(
+  serverFoodSpoilage,
+  /resources\.preserved_food[\s\S]*PRESERVED_FOOD_STORAGE_TREASURY_FACTOR[\s\S]*preserved_food: \(resources\.preserved_food - spoiled_preserved\)/,
+  'legacy compatibility stock must not become an immortal cured reserve',
+);
+assert.match(residenceProvisions, /pub fn spoil_preserved_food\(/);
+assert.match(
+  residenceNeeds,
+  /find_need_mut\(&mut needs, ResidenceNeedKind::PreservedFood\)[\s\S]*provisions::spoil_preserved_food/,
+  'household cupboard stock must age even while ordinary consumption is paused',
+);
+assert.match(townHallInspector, /Cured-food aging/);
+assert.match(townHallInspector, /Largest cured-food loss/);
+assert.match(granaryInspector, /Cured-store aging/);
 
 const perfState = emptyGameState();
 for (let index = 0; index < 10_000; index += 1) {
@@ -328,6 +468,7 @@ const granaryPerfState = emptyGameState();
 const fireDisabledGranaries = new Set<string>();
 for (let index = 0; index < 100_000; index += 1) {
   const granary = building(`granary-${index}`, 'granary', index % 341);
+  granary.preservedFood = index % 181;
   granary.granaryFreshFoodTargetPercent = [25, 50, 75, 90][index % 4];
   granaryPerfState.buildings.set(granary.id, granary);
   if (index % 2 === 0) fireDisabledGranaries.add(granary.id);
@@ -342,6 +483,7 @@ const granaryElapsedMs = performance.now() - granaryStarted;
 assert.equal(granaryPerfResult.granaryNetwork.completedGranaries, 100_000);
 assert.equal(granaryPerfResult.granaryNetwork.fireDisabledGranaries, 50_000);
 assert.equal(granaryPerfResult.granaryNetwork.collectingGranaries, 50_000);
+assert.ok(granaryPerfResult.preservedFood.totalStock > 0);
 assert.ok(
   granaryElapsedMs < 500,
   `100,000-granary preservation diagnostics took ${granaryElapsedMs.toFixed(1)} ms`,

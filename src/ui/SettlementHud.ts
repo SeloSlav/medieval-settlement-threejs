@@ -41,7 +41,10 @@ import {
   WINTER_RESERVE_DAYS,
   type SettlementProvisioning,
 } from '../economy/settlementProvisioning.ts';
-import { formatFreshFoodLoss } from '../economy/foodPreservation.ts';
+import {
+  formatFreshFoodLoss,
+  formatPreservedFoodLoss,
+} from '../economy/foodPreservation.ts';
 import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority.ts';
 import {
   HUD_RESOURCE_KINDS,
@@ -212,7 +215,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Cured provisions stored at physical smokehouses, granaries, markets, institutions, and prosperous homes. Prosperous households rotate them through the same meal, using less in summer and most in winter; remaining stock substitutes when fresh food fails. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Cured provisions stored at physical smokehouses, granaries, markets, institutions, and prosperous homes. They age slowly rather than lasting forever: smokehouses preserve them best, granaries next, while cupboards and loaded carts lose quality faster. Prosperous households rotate them through the same meal, using less in summer and most in winter; remaining stock substitutes when fresh food fails.">
         <span class="settlement-hud__label">Preserved</span>
         <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="preservedFood" hidden></span>
@@ -606,7 +609,7 @@ export class SettlementHud {
         || provisioning.fireQuarantinedFirewoodStock > 0.05
         ? `Fire quarantine makes ${provisioning.fireQuarantinedFoodStock.toFixed(1)} food and ${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood temporarily inaccessible. Food in damaged buildings continues to spoil.`
         : 'No provisions are currently quarantined by structural fire damage.',
-      `Fresh-food spoilage is currently ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}; ${Math.round(provisioning.protectedFoodShare * 100)}% is held in sheltered stores.`,
+      `Fresh-food spoilage is currently ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}; cured stores age by ${formatPreservedFoodLoss(provisioning.preservedFoodSpoilagePerDay)} among usable household and distributor stock.`,
       `Local delivery buffer: ${formatHouseholdBufferReadiness(provisioning)}. Food, water, and provisions cover one workday; firewood covers the nightly no-cart interval.`,
       provisioning.roadBranches === null
         ? 'Road-branch provisioning is unavailable.'
@@ -623,7 +626,7 @@ export class SettlementHud {
         ? `${provisioning.fireQuarantinedFoodStock.toFixed(1)} food is quarantined at fire-damaged sites and does not extend the runway.`
         : null,
       `Current fresh demand: ${provisioning.totalFoodPerDay.toFixed(1)} per day from ${provisioning.grossFoodDemandPerDay.toFixed(1)} gross meal demand; ${provisioning.householdPreservedFoodRotationPerDay.toFixed(1)} preserved food is presently replacing fresh calories in household meals.`,
-      `Current spoilage: ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}.`,
+      `Current loss: ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)} fresh · ${formatPreservedFoodLoss(provisioning.preservedFoodSpoilagePerDay)} cured.`,
       `Spoilage-adjusted fresh-food runway: ${formatProvisionRunway(provisioning.foodRunwayDays)}; the forecast spends the finite ${provisioning.usablePreservedFoodStock.toFixed(1)} usable cured reserve at the seasonal rotation before fresh demand rises.`,
       provisioning.roadBranches === null
         ? null
