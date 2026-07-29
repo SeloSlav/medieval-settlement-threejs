@@ -273,6 +273,31 @@ pub fn route_shortcut_is_worthwhile(
     direct_distance * multiplier + ROUTE_SHORTCUT_MARGIN_METERS < remaining_route_distance
 }
 
+/// Compares a direct cross-country response with finishing the preferred road
+/// route and then crossing from its endpoint to a moving combat target. This
+/// prevents a cached watch-post route from becoming a compulsory detour after
+/// the actual incursion is visible.
+pub fn route_shortcut_via_endpoint_is_worthwhile(
+    direct_distance: f64,
+    remaining_route_distance: f64,
+    endpoint_to_target_distance: f64,
+    offroad_distance_multiplier: f64,
+) -> bool {
+    if !endpoint_to_target_distance.is_finite() || endpoint_to_target_distance < 0.0 {
+        return false;
+    }
+    let multiplier = if offroad_distance_multiplier.is_finite() {
+        offroad_distance_multiplier.max(1.0)
+    } else {
+        1.0
+    };
+    route_shortcut_is_worthwhile(
+        direct_distance,
+        remaining_route_distance + endpoint_to_target_distance * multiplier,
+        multiplier,
+    )
+}
+
 /// A normal holding can be searched quickly. A rallied household requires the
 /// raider to remain alive at the physical refuge long enough to force its
 /// palisade; no percentage shield is applied after a successful breach.
@@ -667,6 +692,20 @@ mod tests {
             f64::NAN,
             180.0,
             RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+        ));
+        assert!(
+            route_shortcut_via_endpoint_is_worthwhile(70.0, 90.0, 60.0, 1.35),
+            "an open-country intercept should beat a fast road that ends far from the attack",
+        );
+        assert!(
+            !route_shortcut_via_endpoint_is_worthwhile(100.0, 100.0, 10.0, 1.35),
+            "guards should retain a useful road advantage when its endpoint serves the attack",
+        );
+        assert!(!route_shortcut_via_endpoint_is_worthwhile(
+            70.0,
+            90.0,
+            f64::NAN,
+            1.35,
         ));
     }
 

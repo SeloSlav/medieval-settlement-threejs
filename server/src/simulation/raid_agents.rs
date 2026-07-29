@@ -10,15 +10,15 @@ use crate::raid_agent_policy::{
     move_along_route, move_toward, nearest_emergency_guard_target, per_raider_loot_fraction,
     raid_contact_duration, raid_contact_range, raid_entry_point, raid_party_size,
     raider_attack_interval, raider_damage, refuge_assault_position, route_shortcut_is_worthwhile,
-    select_guard_muster_slots, EmergencyGuardTarget, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
-    COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING,
-    COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING, COMBAT_STATE_RECOVERING,
-    COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING,
-    COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE,
-    COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE, DOWNED_LINGER_SECONDS,
-    DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS, GUARD_SPEED_MPS, MELEE_RANGE_METERS,
-    RAIDER_ENGAGE_RANGE_METERS, RAIDER_OFFROAD_ROUTE_MULTIPLIER, RAIDER_SPEED_MPS,
-    RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
+    route_shortcut_via_endpoint_is_worthwhile, select_guard_muster_slots, EmergencyGuardTarget,
+    COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER, COMBAT_ROAD_SPEED_MULTIPLIER,
+    COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_LOOTING,
+    COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING,
+    COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
+    COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE,
+    DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS, DOWNED_LINGER_SECONDS, GUARD_SPEED_MPS,
+    MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS, RAIDER_OFFROAD_ROUTE_MULTIPLIER,
+    RAIDER_SPEED_MPS, RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::security_policy::{
@@ -849,6 +849,49 @@ fn step_guard(
 
     if let Some(route) = muster_route {
         if agent.route_progress + EPSILON < route.path_distance {
+            // The watch route is a fast deployment preference, not a rail.
+            // Once the live raiders are visible, compare the actual journey:
+            // direct cross-country pursuit versus finishing the road and then
+            // crossing from its endpoint to the moving threat. Prefer a raider
+            // assigned to this attacked holding, then reinforce elsewhere.
+            let route_enemy =
+                nearest_enemy_within(agent, snapshots, COMBAT_FACTION_RAIDER, f64::INFINITY, true)
+                    .or_else(|| {
+                        nearest_enemy_within(
+                            agent,
+                            snapshots,
+                            COMBAT_FACTION_RAIDER,
+                            f64::INFINITY,
+                            false,
+                        )
+                    });
+            if let Some(enemy) = route_enemy {
+                let endpoint = route.polyline[route.polyline.len() - 1];
+                let direct_distance =
+                    distance_squared(agent.x, agent.z, enemy.x, enemy.z).sqrt();
+                let remaining_route_distance =
+                    (route.path_distance - agent.route_progress).max(0.0);
+                let endpoint_to_enemy_distance =
+                    distance_squared(endpoint[0], endpoint[1], enemy.x, enemy.z).sqrt();
+                if route_shortcut_via_endpoint_is_worthwhile(
+                    direct_distance,
+                    remaining_route_distance,
+                    endpoint_to_enemy_distance,
+                    COMBAT_ROAD_SPEED_MULTIPLIER,
+                ) {
+                    engage_agent(
+                        agent,
+                        enemy,
+                        GUARD_SPEED_MPS,
+                        guard_damage(agent.readiness),
+                        guard_attack_interval(agent.readiness),
+                        damage_by_agent,
+                        sim_tick,
+                        elapsed_seconds,
+                    );
+                    return;
+                }
+            }
             let route_move = move_along_route(
                 agent.x,
                 agent.z,

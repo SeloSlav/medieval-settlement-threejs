@@ -1916,6 +1916,11 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
+  /route_shortcut_via_endpoint_is_worthwhile\([\s\S]*direct_distance,[\s\S]*remaining_route_distance,[\s\S]*endpoint_to_enemy_distance,[\s\S]*COMBAT_ROAD_SPEED_MULTIPLIER[\s\S]*engage_agent\([\s\S]*move_along_route/,
+  'warned guards must compare live cross-country interception against the full road-and-endpoint detour',
+);
+assert.match(
+  serverRaidAgents,
   /move_along_route\([\s\S]*COMBAT_ROAD_SPEED_MULTIPLIER/,
   'taking the preferred road path must provide a real movement advantage rather than only visual routing',
 );
@@ -1946,6 +1951,7 @@ assert.match(serverRaidAgentPolicy, /pub const LOOT_SECONDS:\s*f64\s*=\s*4\.0/);
 assert.match(serverRaidAgentPolicy, /pub fn raid_contact_duration/);
 assert.match(serverRaidAgentPolicy, /\.clamp\(3\.0,\s*12\.0\)/);
 assert.match(serverRaidAgentPolicy, /fn movement_never_teleports_past_contact/);
+assert.match(serverRaidAgentPolicy, /route_shortcut_via_endpoint_is_worthwhile\(70\.0, 90\.0, 60\.0, 1\.35\)/);
 assert.match(serverRaidAgentPolicy, /fn imminent_or_active_attacks_override_route_discipline/);
 assert.match(serverRaidAgentPolicy, /fn unlinked_companies_choose_the_nearest_attacked_holding_stably/);
 assert.match(serverRaidAgentPolicy, /fn cached_company_routes_stay_cheap_for_a_large_guard_response/);
