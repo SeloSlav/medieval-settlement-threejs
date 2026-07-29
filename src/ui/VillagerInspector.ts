@@ -221,10 +221,10 @@ export class VillagerInspector {
   };
 
   private renderVillager(inspection: VillagerInspection): void {
-    this.workplaceLabel.textContent = 'Workplace';
-    this.householdLabel.textContent = 'Household';
-    this.crewLabel.textContent = 'Crew';
-    this.paceLabel.textContent = 'Walking pace';
+    this.workplaceLabel.textContent = inspection.workplaceLabel;
+    this.householdLabel.textContent = inspection.householdLabel;
+    this.crewLabel.textContent = inspection.crewLabel;
+    this.paceLabel.textContent = inspection.paceLabel;
     this.distanceRow.hidden = true;
     this.name.textContent = inspection.name;
     this.eyebrow.textContent = inspection.eyebrow;

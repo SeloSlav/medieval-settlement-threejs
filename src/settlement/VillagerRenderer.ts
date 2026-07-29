@@ -219,9 +219,13 @@ export type VillagerInspection = {
   occupation: string;
   activity: string;
   activityState: 'active' | 'ready';
+  workplaceLabel: string;
   workplace: string;
+  householdLabel: string;
   household: string;
+  crewLabel: string;
   crew: string;
+  paceLabel: string;
   pace: string;
   position: { x: number; y: number; z: number };
   visible: boolean;
@@ -854,31 +858,46 @@ export class VillagerRenderer {
     let nearest: { distance: number; inspection: VillagerInspection } | null = null;
     for (const agent of this.agents.values()) {
       if (!this.isVisibleAgent(agent)) continue;
-
-      const feet = projectWorldPoint(agent.x, agent.y + 0.08, agent.z, camera, bounds);
-      const head = projectWorldPoint(agent.x, agent.y + 1.72, agent.z, camera, bounds);
-      if (!feet || !head) continue;
-
-      const projectedHeight = Math.hypot(feet.x - head.x, feet.y - head.y);
-      const hitRadius = Math.min(30, Math.max(11, projectedHeight * 0.34));
-      const distance = distanceToScreenSegment(
+      const distance = projectedAgentHitDistance(
         clientX,
         clientY,
-        feet.x,
-        feet.y,
-        head.x,
-        head.y,
+        agent.x,
+        agent.y,
+        agent.z,
+        camera,
+        bounds,
       );
-      if (distance > hitRadius || (nearest && distance >= nearest.distance)) continue;
+      if (distance == null || (nearest && distance >= nearest.distance)) continue;
       nearest = {
         distance,
         inspection: this.describeAgent(agent),
+      };
+    }
+    for (const visual of this.combatAgentVisuals.values()) {
+      const y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
+      const distance = projectedAgentHitDistance(
+        clientX,
+        clientY,
+        visual.displayX,
+        y,
+        visual.displayZ,
+        camera,
+        bounds,
+      );
+      if (distance == null || (nearest && distance >= nearest.distance)) continue;
+      nearest = {
+        distance,
+        inspection: this.describeCombatAgent(visual),
       };
     }
     return nearest?.inspection ?? null;
   }
 
   inspectVillager(personIdentity: string): VillagerInspection | null {
+    if (personIdentity.startsWith('combat:')) {
+      const visual = this.combatAgentVisuals.get(personIdentity.slice('combat:'.length));
+      return visual ? this.describeCombatAgent(visual) : null;
+    }
     for (const agent of this.agents.values()) {
       if (agent.personIdentity === personIdentity) return this.describeAgent(agent);
     }
@@ -939,11 +958,13 @@ export class VillagerRenderer {
         upgradeWorkplaceLabel.toLocaleLowerCase(),
       ),
       activityState: onDuty ? 'active' : 'ready',
+      workplaceLabel: 'Workplace',
       workplace: workplace
         ? isResidenceUpgradeWorkplaceId(workplace.id)
           ? upgradeWorkplaceLabel
           : getBuildingDefinition(workplace.kind).label
         : 'Unassigned',
+      householdLabel: 'Household',
       household: residence
         ? `Tier ${residence.tier} home · ${residence.population} ${
           residence.population === 1 ? 'resident' : 'residents'
@@ -951,6 +972,7 @@ export class VillagerRenderer {
         : agent.role === 'founder' || this.foundingCamp
           ? "Founders' camp · no fixed household"
           : 'No fixed household',
+      crewLabel: 'Crew',
       crew: workplace
         ? `${workplace.assignedLabor} / ${
           isResidenceUpgradeWorkplaceId(workplace.id)
@@ -958,6 +980,7 @@ export class VillagerRenderer {
             : getBuildingDefinition(workplace.kind).maxLabor
         } assigned`
         : 'Free labor pool',
+      paceLabel: 'Walking pace',
       pace: `${agent.walkSpeed.toFixed(1)} m/s off-road · ${
         (agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER).toFixed(1)
       } m/s on roads`,
@@ -966,12 +989,115 @@ export class VillagerRenderer {
     };
   }
 
+  private describeCombatAgent(visual: CombatAgentVisual): VillagerInspection {
+    const combat = visual.state;
+    const ordinaryGuard = combat.faction === 'guard' && combat.sourceBuildingId
+      ? this.agents.get(
+          `worker:${combat.sourceBuildingId}:${combat.sourceSlot}`,
+        ) ?? null
+      : null;
+    const guardhouse = combat.sourceBuildingId
+      ? this.buildings.get(combat.sourceBuildingId) ?? null
+      : null;
+    const personIdentity = `combat:${combat.id}`;
+    const name = ordinaryGuard
+      ? villagerDisplayName(
+          ordinaryGuard.personIdentity,
+          ordinaryGuard.modelVariant,
+        )
+      : combat.faction === 'guard'
+        ? `Guard #${combat.id}`
+        : `Ottoman raider #${combat.id}`;
+    const status = combatStatusLabel(combat.status);
+    const target = this.combatTargetLabel(combat);
+    const activity = combatActivityLabel(combat, target);
+    const health = `${Math.ceil(combat.health)} / ${Math.ceil(combat.maxHealth)}`;
+    const equipment = combat.faction === 'guard'
+      ? combat.issuedPolearms > 0
+        ? `Polearm issued · readiness ${Math.round(combat.readiness * 100)}%`
+        : `Unarmed · readiness ${Math.round(combat.readiness * 100)}%`
+      : combat.carryingLoot
+        ? 'Spear · carrying stolen stores'
+        : 'Spear · no captured stores';
+    const y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
+    return {
+      personIdentity,
+      name,
+      initials: ordinaryGuard
+        ? name
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part[0] ?? '')
+            .join('')
+            .toLocaleUpperCase()
+        : combat.faction === 'guard'
+          ? 'G'
+          : 'OR',
+      eyebrow: combat.faction === 'guard'
+        ? `Defender · ${status}`
+        : `Raider · ${status}`,
+      occupation: combat.faction === 'guard'
+        ? 'Guard company spearman'
+        : 'Ottoman frontier raider',
+      activity,
+      activityState: combat.status === 'recovering' ? 'ready' : 'active',
+      workplaceLabel: combat.faction === 'guard' ? 'Company' : 'Warband',
+      workplace: guardhouse
+        ? getBuildingDefinition(guardhouse.kind).label
+        : 'Incursion party',
+      householdLabel: 'Objective',
+      household: target,
+      crewLabel: 'Condition',
+      crew: `${health} health`,
+      paceLabel: combat.faction === 'guard' ? 'Equipment' : 'Arms and spoils',
+      pace: equipment,
+      position: { x: visual.displayX, y, z: visual.displayZ },
+      visible: true,
+    };
+  }
+
+  private combatTargetLabel(combat: CombatAgentState): string {
+    if (combat.raidAnchorBuildingId) {
+      const refuge = this.buildings.get(combat.raidAnchorBuildingId);
+      return refuge
+        ? `${getBuildingDefinition(refuge.kind).label} breach`
+        : 'Palisaded refuge breach';
+    }
+    if (
+      combat.targetKind === 'building'
+      || combat.targetKind === 'treasury-building'
+    ) {
+      const building = this.buildings.get(combat.targetId);
+      return building
+        ? getBuildingDefinition(building.kind).label
+        : 'Settlement holding';
+    }
+    if (
+      combat.targetKind === 'residence'
+      || combat.targetKind === 'treasury-residence'
+    ) {
+      const residence = this.residences.get(combat.targetId);
+      return residence
+        ? `Household parcel #${residence.parcelIndex + 1}`
+        : 'Settlement household';
+    }
+    return 'Moving supply cart';
+  }
+
   private isVisibleAgent(agent: VillagerAgent): boolean {
     if (agent.routinePhase === 'indoors' || agent.routinePhase === 'asleep') {
       return false;
     }
     if (agent.role === 'worker') {
       const workplace = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
+      if (
+        workplace?.kind === 'guardhouse'
+        && this.activeCombatGuardSlots.has(
+          combatGuardSlotKey(workplace.id, agent.workplaceSlot),
+        )
+      ) {
+        return false;
+      }
       return Boolean(workplace && workplace.assignedLabor > agent.workplaceSlot);
     }
     if (agent.role === 'founder') return this.foundingCamp !== null;
@@ -1046,7 +1172,7 @@ export class VillagerRenderer {
         id: `combat:${combat.id}`,
         slot: slot++,
         x: visual.displayX,
-        y: this.getHeightAt(visual.displayX, visual.displayZ) + 0.02,
+        y: this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02,
         z: visual.displayZ,
         yaw,
         appearanceSeed,
@@ -2872,6 +2998,31 @@ function projectWorldPoint(
   };
 }
 
+function projectedAgentHitDistance(
+  clientX: number,
+  clientY: number,
+  x: number,
+  y: number,
+  z: number,
+  camera: THREE.Camera,
+  bounds: DOMRect,
+): number | null {
+  const feet = projectWorldPoint(x, y + 0.08, z, camera, bounds);
+  const head = projectWorldPoint(x, y + 1.72, z, camera, bounds);
+  if (!feet || !head) return null;
+  const projectedHeight = Math.hypot(feet.x - head.x, feet.y - head.y);
+  const hitRadius = Math.min(30, Math.max(11, projectedHeight * 0.34));
+  const distance = distanceToScreenSegment(
+    clientX,
+    clientY,
+    feet.x,
+    feet.y,
+    head.x,
+    head.y,
+  );
+  return distance <= hitRadius ? distance : null;
+}
+
 function distanceToScreenSegment(
   pointX: number,
   pointY: number,
@@ -2925,6 +3076,51 @@ function combatRenderMode(
     case 'returning':
     case 'wounded-returning':
       return 'walk';
+  }
+}
+
+function combatStatusLabel(status: CombatAgentState['status']): string {
+  switch (status) {
+    case 'advancing': return 'Advancing';
+    case 'fighting': return 'In close combat';
+    case 'looting': return 'At the objective';
+    case 'retreating': return 'Withdrawing';
+    case 'returning': return 'Returning to company';
+    case 'downed': return 'Downed';
+    case 'wounded-returning': return 'Wounded and returning';
+    case 'recovering': return 'Recovering';
+  }
+}
+
+function combatActivityLabel(
+  combat: CombatAgentState,
+  target: string,
+): string {
+  switch (combat.status) {
+    case 'advancing':
+      return combat.faction === 'guard'
+        ? `Moving to intercept the attack near ${target}`
+        : `Advancing on ${target}`;
+    case 'fighting':
+      return `Fighting at close quarters near ${target}`;
+    case 'looting':
+      return combat.raidAnchorBuildingId
+        ? `Forcing the ${target.toLocaleLowerCase()} · ${combat.lootProgress.toFixed(1)} seconds in contact`
+        : `Taking portable stores from ${target} · ${combat.lootProgress.toFixed(1)} seconds in contact`;
+    case 'retreating':
+      return combat.carryingLoot
+        ? 'Withdrawing toward the frontier with captured stores'
+        : 'Withdrawing toward the frontier';
+    case 'returning':
+      return 'Returning to the guardhouse after the incursion';
+    case 'downed':
+      return combat.faction === 'guard'
+        ? 'Downed on the battlefield and awaiting evacuation'
+        : 'Downed on the battlefield';
+    case 'wounded-returning':
+      return 'Wounded and moving back to the guardhouse';
+    case 'recovering':
+      return 'Recovering at the guardhouse and unavailable for duty';
   }
 }
 

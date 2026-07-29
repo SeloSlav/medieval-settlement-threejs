@@ -69,6 +69,7 @@ import {
   type CombatAgentState,
 } from '../src/security/combatAgents.ts';
 import { syncActiveRaid } from '../src/security/activeRaid.ts';
+import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
 import {
   BUILDING_DEFINITIONS,
   BUILDING_COSTS,
@@ -1502,6 +1503,7 @@ const townHallInspector = readFileSync('src/resources/inspector/townHallRenderer
 const frontierMarkers = readFileSync('src/security/FrontierRiskMarkers.ts', 'utf8');
 const buildingMarkers = readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
 const villagerRenderer = readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
+const villagerInspector = readFileSync('src/ui/VillagerInspector.ts', 'utf8');
 const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 const app = readFileSync('src/app/App.ts', 'utf8');
 const clientSecurity = readFileSync('src/security/frontierSecurity.ts', 'utf8');
@@ -2012,6 +2014,26 @@ assert.match(
   /for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*id: `combat:\$\{combat\.id\}`[\s\S]*tool: 'spear'/,
   'the ordinary crowd renderer must materialize every replicated combat row with a visible weapon',
 );
+assert.match(
+  villagerRenderer,
+  /pickVillager\([\s\S]*for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*describeCombatAgent\(visual\)/,
+  'replicated fighters must participate in the same click-selection pass as ordinary villagers',
+);
+assert.match(
+  villagerRenderer,
+  /private describeCombatAgent[\s\S]*health[\s\S]*readiness[\s\S]*carrying stolen stores[\s\S]*Objective/,
+  'fighter inspection must expose combat condition, equipment, spoils, and objective',
+);
+assert.match(
+  villagerRenderer,
+  /id: `combat:\$\{combat\.id\}`[\s\S]*y: this\.resolveGroundY\(visual\.displayX, visual\.displayZ\) \+ 0\.02/,
+  'combatants following a bridge route must render on the sampled deck rather than below it',
+);
+assert.match(
+  villagerInspector,
+  /workplaceLabel\.textContent = inspection\.workplaceLabel[\s\S]*householdLabel\.textContent = inspection\.householdLabel[\s\S]*crewLabel\.textContent = inspection\.crewLabel[\s\S]*paceLabel\.textContent = inspection\.paceLabel/,
+  'the shared person inspector must relabel its rows for combat condition and objectives',
+);
 assert.match(villagerRenderer, /activeCombatGuardSlots/);
 assert.match(villagerRenderer, /case 'fighting': return 'fight'/);
 assert.match(clientCombatAgents, /status:\s*CombatAgentStatus/);
@@ -2093,6 +2115,115 @@ assert.match(clientCombatAgents, /breaching a refuge/);
     formatLiveCombatSummary([combatant('r6', 'raider', 'looting')]) ?? '',
     /1 raider looting a holding/,
   );
+
+  const combatTarget = building(
+    'combat-target',
+    'village_storehouse',
+    10,
+    20,
+    2,
+  );
+  const combatGuardhouse = building(
+    'combat-guardhouse',
+    'guardhouse',
+    0,
+    20,
+    2,
+  );
+  const previousWarn = console.warn;
+  console.warn = () => {};
+  const combatPresentation = new VillagerRenderer({
+    parent: new THREE.Group(),
+    getGameSpeed: () => 1,
+    getHeightAt: () => 0,
+    getRoadDeckY: () => 3,
+  });
+  combatPresentation.sync({
+    residences: [],
+    buildings: [combatTarget, combatGuardhouse],
+    quarries: [],
+    foragingNodes: [],
+    trees: new Map(),
+    treeRegistry: null,
+    farmFields: [],
+    pastures: [],
+    roadNetwork: null,
+  });
+  const inspectedRaider = {
+    ...combatant('r-inspect', 'raider', 'retreating'),
+    targetId: combatTarget.id,
+    health: 53,
+    carryingLoot: true,
+  };
+  const inspectedGuard = {
+    ...combatant('g-inspect', 'guard', 'fighting'),
+    sourceBuildingId: combatGuardhouse.id,
+    targetId: combatTarget.id,
+    x: 12,
+    health: 62,
+  };
+  combatPresentation.setCombatAgents(new Map([
+    [inspectedRaider.id, inspectedRaider],
+    [inspectedGuard.id, inspectedGuard],
+  ]));
+  const combatInspection = combatPresentation.inspectVillager(
+    `combat:${inspectedRaider.id}`,
+  );
+  assert.match(combatInspection?.name ?? '', /Ottoman raider/);
+  assert.equal(combatInspection?.householdLabel, 'Objective');
+  assert.equal(combatInspection?.household, 'Village storehouse');
+  assert.equal(combatInspection?.crew, '53 / 80 health');
+  assert.match(combatInspection?.pace ?? '', /carrying stolen stores/);
+  assert.equal(combatInspection?.position.y, 3.02);
+  const guardInspection = combatPresentation.inspectVillager(
+    `combat:${inspectedGuard.id}`,
+  );
+  assert.equal(guardInspection?.workplaceLabel, 'Company');
+  assert.equal(guardInspection?.workplace, 'Frontier guardhouse');
+  assert.equal(guardInspection?.crew, '62 / 80 health');
+  assert.match(guardInspection?.pace ?? '', /Polearm issued · readiness 80%/);
+
+  const renderedCombatAgents = (
+    combatPresentation as unknown as {
+      renderer: { latestAgents: Array<{ id: string; y: number }> };
+    }
+  ).renderer.latestAgents;
+  assert.equal(
+    renderedCombatAgents.find(
+      (agent) => agent.id === `combat:${inspectedRaider.id}`,
+    )?.y,
+    3.02,
+    'replicated combat visuals should share the bridge-deck grounding used by carts and villagers',
+  );
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  camera.position.set(10, 8, 32);
+  camera.lookAt(10, 3.9, 20);
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld(true);
+  const domElement = {
+    getBoundingClientRect: () => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1_000,
+      bottom: 1_000,
+      width: 1_000,
+      height: 1_000,
+      toJSON: () => ({}),
+    }),
+  } as HTMLElement;
+  assert.equal(
+    combatPresentation.pickVillager(500, 500, camera, domElement)
+      ?.personIdentity,
+    `combat:${inspectedRaider.id}`,
+    'a visible live fighter should be selectable through the normal person inspector',
+  );
+  combatPresentation.dispose();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  console.warn = previousWarn;
+
   const recovering = combatant('g3', 'guard', 'recovering');
   const recoveryTicks = guardRecoveryTicks(recovering.readiness);
   assert.ok(recoveryTicks > 0);
