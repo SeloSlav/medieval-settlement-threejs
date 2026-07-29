@@ -34,6 +34,7 @@ import {
 import { createDeliveryCartMesh } from '../src/logistics/deliveryCartMesh.ts';
 import type { DeliveryCargoKind } from '../src/logistics/deliveryTrips.ts';
 import {
+  assignMarketplaceMaterialInputTargets,
   directlyDispatchedProcessorInputPerCycle,
   selectDirectProcessorInputTarget,
   selectMarketplaceMaterialInputTarget,
@@ -264,6 +265,78 @@ assert.equal(
   'pottery committed to an active market order must not be recalled to a smokehouse',
 );
 
+const olderRemoteMarket = building('marketplace', {
+  id: 'older-remote-market',
+  x: 0,
+  iron: 12,
+});
+const newerNearMarket = building('marketplace', {
+  id: 'newer-near-market',
+  x: 90,
+  iron: 12,
+});
+const urgentSmithy = building('smithy', {
+  id: 'urgent-smithy',
+  x: 100,
+  assignedLabor: 2,
+  constructionPriority: 3,
+  iron: 0,
+});
+const routineSmithy = building('smithy', {
+  id: 'routine-smithy',
+  x: 10,
+  assignedLabor: 2,
+  constructionPriority: 2,
+  iron: 0,
+});
+const materialAssignments = assignMarketplaceMaterialInputTargets(
+  [olderRemoteMarket, newerNearMarket],
+  [routineSmithy, urgentSmithy],
+  (source, target) => Math.abs(source.x - target.x),
+);
+assert.equal(
+  materialAssignments.get(newerNearMarket.id)?.target.id,
+  urgentSmithy.id,
+  'the nearest free market must serve an equally urgent workshop regardless of market age',
+);
+assert.equal(
+  materialAssignments.get(olderRemoteMarket.id)?.target.id,
+  routineSmithy.id,
+  'the remaining market cart should cover the next workshop instead of duplicating an inbound trip',
+);
+
+const mixedMaterialMarket = building('marketplace', {
+  id: 'mixed-material-market',
+  salt: 12,
+  pottery: 12,
+});
+const emptySmokehouse = building('smokehouse', {
+  id: 'empty-smokehouse',
+  assignedLabor: 2,
+  constructionPriority: 2,
+  salt: 0,
+  pottery: 0,
+});
+let mixedAssignmentRouteSolves = 0;
+const mixedAssignments = assignMarketplaceMaterialInputTargets(
+  [mixedMaterialMarket],
+  [emptySmokehouse],
+  () => {
+    mixedAssignmentRouteSolves += 1;
+    return 20;
+  },
+);
+assert.equal(
+  mixedAssignments.get(mixedMaterialMarket.id)?.commodity,
+  'salt',
+  'an exact salt/pottery tie must resolve deterministically while reserving one inbound cart slot',
+);
+assert.equal(
+  mixedAssignmentRouteSolves,
+  1,
+  'salt and pottery candidates for one market/workshop pair must share one road solve',
+);
+
 for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
   assert.ok(
     MARKETPLACE_TRADE_OFFERS.some((offer) => offer.id === offerId),
@@ -439,9 +512,14 @@ const smithyStep = rustFunctionSection('step_smithy', 'step_potter_kiln');
 const potterKilnStep = rustFunctionSection('step_potter_kiln', 'step_apiary');
 assert.match(
   marketplaceMaterialDispatchStep,
-  /select_processor_input_dispatch_candidate/,
+  /compare_processor_input_dispatch_candidates/,
 );
 assert.match(marketplaceMaterialDispatchStep, /MARKETPLACE_MATERIAL_TARGET_KINDS/);
+assert.match(
+  marketplaceMaterialDispatchStep,
+  /used_sources[\s\S]*used_targets[\s\S]*source_id/,
+  'the authoritative pass must reserve each market cart and workshop at most once',
+);
 assert.match(
   marketplaceMaterialDispatchStep,
   /"smithy"[\s\S]*CommodityKind::Iron[\s\S]*"smokehouse"[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Pottery/,
@@ -538,6 +616,42 @@ assert.ok(
   `100,001 imported-material dispatch candidates took ${materialDispatchElapsedMs.toFixed(1)} ms`,
 );
 
+const assignmentSources = Array.from({ length: 100 }, (_, index) =>
+  building('marketplace', {
+    id: `assignment-market-${index}`,
+    x: index * 8,
+    iron: 12,
+  }));
+const assignmentTargets = Array.from({ length: 1_000 }, (_, index) =>
+  building('smithy', {
+    id: `assignment-smithy-${index}`,
+    x: index * 3,
+    assignedLabor: 1,
+    constructionPriority: index % 3 + 1,
+    iron: index % 4,
+  }));
+let assignmentRouteSolves = 0;
+const assignmentStartedAt = performance.now();
+const largeAssignments = assignMarketplaceMaterialInputTargets(
+  assignmentSources,
+  assignmentTargets,
+  (source, target) => {
+    assignmentRouteSolves += 1;
+    return Math.abs(source.x - target.x);
+  },
+);
+const assignmentElapsedMs = performance.now() - assignmentStartedAt;
+assert.equal(largeAssignments.size, assignmentSources.length);
+assert.equal(
+  assignmentRouteSolves,
+  assignmentSources.length * assignmentTargets.length,
+  'each market/workshop pair must share one route solve across candidate commodities',
+);
+assert.ok(
+  assignmentElapsedMs < 500,
+  `100,000 settlement-wide market/workshop pairs took ${assignmentElapsedMs.toFixed(1)} ms`,
+);
+
 const signatureBuildings = Array.from({ length: 100_000 }, (_, index) => {
   const kinds = [
     'clay_pit',
@@ -567,7 +681,7 @@ assert.ok(
 );
 
 console.log(
-  `Iron, clay, salt, charcoal, pottery chain tests passed (${materialDispatchElapsedMs.toFixed(1)} ms / 100k dispatch candidates; ${signatureElapsedMs.toFixed(1)} ms / 100k visual signatures).`,
+  `Iron, clay, salt, charcoal, pottery chain tests passed (${materialDispatchElapsedMs.toFixed(1)} ms / 100k target candidates; ${assignmentElapsedMs.toFixed(1)} ms / 100k settlement pairs; ${signatureElapsedMs.toFixed(1)} ms / 100k visual signatures).`,
 );
 
 function building(

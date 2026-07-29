@@ -247,6 +247,18 @@ export type RoutedMarketplaceMaterialDestination<
   commodity: MarketplaceMaterialInputCommodity;
 };
 
+type MarketplaceMaterialSourceLike = Pick<
+  BuildingState,
+  'id' | 'iron' | 'salt' | 'pottery'
+>;
+
+export type RoutedMarketplaceMaterialAssignment<
+  S extends MarketplaceMaterialSourceLike,
+  T extends ProcessorInputDestinationLike,
+> = RoutedMarketplaceMaterialDestination<T> & {
+  source: S;
+};
+
 /**
  * One marketplace cart chooses between imported iron, salt, and uncommitted
  * pottery returned from export stock. This mirrors the authoritative
@@ -305,26 +317,135 @@ export function selectMarketplaceMaterialInputTarget<
   return best;
 }
 
+/**
+ * Match every free marketplace cart across the settlement in one pass.
+ * Workshop urgency remains authoritative; among equal needs the shortest
+ * source-to-target road wins, so an older remote market cannot reserve work
+ * that a newer nearby market could serve more efficiently.
+ */
+export function assignMarketplaceMaterialInputTargets<
+  S extends MarketplaceMaterialSourceLike,
+  T extends ProcessorInputDestinationLike,
+>(
+  sources: Iterable<S>,
+  targets: Iterable<T>,
+  routeDistanceFor: (source: S, target: T) => number | null,
+  sourceIsAvailable: (source: S) => boolean = () => true,
+  hasInboundSupply: (target: T) => boolean = () => false,
+  acceptsInput: (
+    target: T,
+    commodity: MarketplaceMaterialInputCommodity,
+  ) => boolean = () => true,
+  isSourceCommodityReserved: (
+    source: S,
+    commodity: MarketplaceMaterialInputCommodity,
+  ) => boolean = () => false,
+): Map<string, RoutedMarketplaceMaterialAssignment<S, T>> {
+  const materialTargets = [...targets];
+  const candidates: RoutedMarketplaceMaterialAssignment<S, T>[] = [];
+  const routeDistanceBySource = new Map<string, Map<string, number | null>>();
+  const cachedRouteDistanceFor = (source: S, target: T): number | null => {
+    let sourceRoutes = routeDistanceBySource.get(source.id);
+    if (sourceRoutes == null) {
+      sourceRoutes = new Map();
+      routeDistanceBySource.set(source.id, sourceRoutes);
+    }
+    if (sourceRoutes.has(target.id)) {
+      return sourceRoutes.get(target.id) ?? null;
+    }
+    const distance = routeDistanceFor(source, target);
+    sourceRoutes.set(target.id, distance);
+    return distance;
+  };
+
+  for (const source of sources) {
+    if (!sourceIsAvailable(source)) continue;
+    for (const commodity of ['iron', 'salt', 'pottery'] as const) {
+      if (
+        isSourceCommodityReserved(source, commodity)
+        || Math.max(0, source[commodity] ?? 0) <= 1e-6
+      ) {
+        continue;
+      }
+      for (const target of materialTargets) {
+        const candidate = selectDirectProcessorInputTarget(
+          [target],
+          source.id,
+          commodity,
+          (destination) => cachedRouteDistanceFor(source, destination),
+          hasInboundSupply,
+          (destination) => acceptsInput(destination, commodity),
+        );
+        if (candidate?.duty !== 'working-buffer') continue;
+        candidates.push({ ...candidate, source, commodity });
+      }
+    }
+  }
+
+  candidates.sort((left, right) => {
+    const policyOrder = compareProcessorInputCandidates(left, right);
+    if (policyOrder !== 0) return policyOrder;
+    const commodityOrder = marketplaceMaterialCommodityRank(left.commodity)
+      - marketplaceMaterialCommodityRank(right.commodity);
+    if (commodityOrder !== 0) return commodityOrder;
+    return compareStableEntityIds(left.source.id, right.source.id);
+  });
+
+  const assignments = new Map<
+    string,
+    RoutedMarketplaceMaterialAssignment<S, T>
+  >();
+  const usedTargets = new Set<string>();
+  for (const candidate of candidates) {
+    if (
+      assignments.has(candidate.source.id)
+      || usedTargets.has(candidate.target.id)
+    ) {
+      continue;
+    }
+    assignments.set(candidate.source.id, candidate);
+    usedTargets.add(candidate.target.id);
+  }
+  return assignments;
+}
+
 function processorInputCandidatePrecedes<T extends ProcessorInputDestinationLike>(
   candidate: RoutedProcessorInputDestination<T>,
   selected: RoutedProcessorInputDestination<T>,
 ): boolean {
+  return compareProcessorInputCandidates(candidate, selected) < 0;
+}
+
+function compareProcessorInputCandidates<T extends ProcessorInputDestinationLike>(
+  candidate: RoutedProcessorInputDestination<T>,
+  selected: RoutedProcessorInputDestination<T>,
+): number {
   if (candidate.duty !== selected.duty) {
-    return candidate.duty === 'working-buffer';
+    return candidate.duty === 'working-buffer' ? -1 : 1;
   }
   if (candidate.duty === 'working-buffer') {
     if (candidate.workPriority !== selected.workPriority) {
-      return candidate.workPriority > selected.workPriority;
+      return selected.workPriority - candidate.workPriority;
     }
     if (candidate.inputPreferenceRank !== selected.inputPreferenceRank) {
-      return candidate.inputPreferenceRank < selected.inputPreferenceRank;
+      return candidate.inputPreferenceRank - selected.inputPreferenceRank;
     }
     if (Math.abs(candidate.runwayCycles - selected.runwayCycles) > 1e-6) {
-      return candidate.runwayCycles < selected.runwayCycles;
+      return candidate.runwayCycles - selected.runwayCycles;
     }
   }
   if (Math.abs(candidate.routeDistance - selected.routeDistance) > 1e-6) {
-    return candidate.routeDistance < selected.routeDistance;
+    return candidate.routeDistance - selected.routeDistance;
   }
-  return compareStableEntityIds(candidate.target.id, selected.target.id) < 0;
+  return compareStableEntityIds(candidate.target.id, selected.target.id);
+}
+
+function marketplaceMaterialCommodityRank(
+  commodity: MarketplaceMaterialInputCommodity,
+): number {
+  switch (commodity) {
+    case 'iron': return 0;
+    case 'salt': return 1;
+    case 'pottery': return 2;
+  }
 }

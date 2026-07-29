@@ -98,7 +98,11 @@ export function renderMarketplaceInspector(
     .find((trip) => trip.buildingId === building.id) ?? null;
   const activeMaterialTarget = activeMarketTrip?.destinationKind === 'building'
     && activeMarketTrip.targetBuildingId
-    && (activeMarketTrip.cargoKind === 'iron' || activeMarketTrip.cargoKind === 'salt')
+    && (
+      activeMarketTrip.cargoKind === 'iron'
+      || activeMarketTrip.cargoKind === 'salt'
+      || activeMarketTrip.cargoKind === 'pottery'
+    )
     ? context.worldQueries.getBuilding(activeMarketTrip.targetBuildingId)
     : null;
   const nextMaterialDispatch = building.assignedLabor > 0

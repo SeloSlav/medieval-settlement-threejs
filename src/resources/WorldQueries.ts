@@ -38,8 +38,8 @@ import {
   type RoutedGrainDestination,
 } from '../logistics/grainLogistics.ts';
 import {
+  assignMarketplaceMaterialInputTargets,
   selectDirectProcessorInputTarget,
-  selectMarketplaceMaterialInputTarget,
   type DirectProcessorInputCommodity,
   type RoutedMarketplaceMaterialDestination,
   type RoutedProcessorInputDestination,
@@ -1260,8 +1260,10 @@ export class WorldQueries {
       return null;
     }
     const network = this.getRoadNetwork();
+    const activeSources = new Set<string>();
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
+      activeSources.add(trip.buildingId);
       if (
         trip.phase !== 'inbound'
         && trip.destinationKind === 'building'
@@ -1270,20 +1272,39 @@ export class WorldQueries {
         inboundTargets.add(trip.targetBuildingId);
       }
     }
-    return selectMarketplaceMaterialInputTarget(
+    const materialSources = [...this.fireEnabledBuildings(state, fireDisabled)]
+      .filter((candidate) =>
+        candidate.kind === 'marketplace'
+        && candidate.constructionComplete !== false
+        && candidate.assignedLabor > 0
+        && !activeSources.has(candidate.id));
+    const reservations = new Map<string, boolean>();
+    for (const candidate of materialSources) {
+      const pendingTrade = marketplacePendingTradeOffer(
+        candidate.marketplacePendingTradeCode,
+      );
+      reservations.set(
+        candidate.id,
+        pendingTrade?.kind === 'goldSell' && pendingTrade.resource === 'pottery',
+      );
+    }
+    const assignments = assignMarketplaceMaterialInputTargets(
+      materialSources,
       this.fireEnabledBuildings(state, fireDisabled),
-      source,
-      (target) => roadPathDistance(
+      (market, target) => roadPathDistance(
         network,
-        source.x,
-        source.z,
+        market.x,
+        market.z,
         target.x,
         target.z,
       ),
+      (market) => !activeSources.has(market.id),
       (target) => inboundTargets.has(target.id),
       (target, commodity) => processorAcceptsInput(target, commodity),
-      (commodity) => commodity === 'pottery' && potteryReservedForTrade,
+      (market, commodity) =>
+        commodity === 'pottery' && reservations.get(market.id) === true,
     );
+    return assignments.get(source.id) ?? null;
   }
 
   getNextGranaryGuardFoodDispatch(

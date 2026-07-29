@@ -82,9 +82,9 @@ use crate::specialty_trade_policy::{
     apiary_is_active, producer_output_batch_fits, vineyard_is_harvesting,
 };
 use crate::supply_policy::{
+    compare_institutional_food_dispatch_candidates, compare_processor_input_dispatch_candidates,
     directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
-    compare_institutional_food_dispatch_candidates, grain_dispatch_duty,
-    grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
+    grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, processor_input_dispatch_duty, processor_input_runway_cycles,
     processor_input_target, select_grain_dispatch_candidate,
     select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
@@ -119,12 +119,12 @@ struct RoutedProcessorInputTarget {
 }
 
 struct RoutedMarketplaceMaterialTarget {
+    source_id: u64,
     building: Building,
     commodity: CommodityKind,
     distance: f64,
     duty: ProcessorInputDispatchDuty,
     runway_cycles: f64,
-    desired_stock: f64,
 }
 
 struct RoutedGrainTarget {
@@ -623,10 +623,12 @@ pub fn step_industrial_firewood_dispatch(
     }
 }
 
-/// A market's one local cart arbitrates scarce iron, salt, and uncommitted
-/// pottery across every staffed workshop on its road network. Work priority
-/// and remaining cycle runway therefore decide who receives the next lot,
-/// rather than the database order in which workshops happen to update.
+/// Every free market cart arbitrates scarce iron, salt, and uncommitted pottery
+/// across every staffed workshop on its owner's road network. Work priority
+/// and remaining cycle runway decide which workshops receive the available
+/// carts, while route distance decides which market should serve an equal need.
+/// Neither market construction order nor workshop update order can reserve a
+/// need before the settlement-wide match is considered.
 ///
 /// Regional trade, named household orders, and seed-grain recovery run before
 /// this pass and retain first claim on the same physical broker cart.
@@ -636,7 +638,9 @@ pub fn step_marketplace_material_dispatch(
     clock: &GameClock,
     marketplaces: Vec<Building>,
 ) {
-    for mut marketplace in marketplaces {
+    let mut candidates = Vec::new();
+
+    for marketplace in marketplaces {
         if marketplace.kind != "marketplace"
             || !marketplace.construction_complete
             || marketplace.assigned_labor == 0
@@ -651,121 +655,174 @@ pub fn step_marketplace_material_dispatch(
         };
         let pottery_reserved_for_trade =
             pending_marketplace_trade_commodity(&marketplace) == Some(CommodityKind::Pottery);
-        let Some(target) = select_processor_input_dispatch_candidate(
-            tick.building_ids_for_kinds(
-                ctx,
-                marketplace.owner,
-                MARKETPLACE_MATERIAL_TARGET_KINDS,
-            )
-            .into_iter()
-            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
-            .filter_map(|building| {
-                let source_can_supply = match building.kind.as_str() {
-                    "smithy" => marketplace.iron > 1e-6,
-                    "smokehouse" => {
-                        marketplace.salt > 1e-6
-                            || (marketplace.pottery > 1e-6 && !pottery_reserved_for_trade)
+        candidates.extend(
+            tick.building_ids_for_kinds(ctx, marketplace.owner, MARKETPLACE_MATERIAL_TARGET_KINDS)
+                .into_iter()
+                .filter_map(|target_id| ctx.db.building().id().find(&target_id))
+                .filter_map(|building| {
+                    let source_can_supply = match building.kind.as_str() {
+                        "smithy" => marketplace.iron > 1e-6,
+                        "smokehouse" => {
+                            marketplace.salt > 1e-6
+                                || (marketplace.pottery > 1e-6 && !pottery_reserved_for_trade)
+                        }
+                        _ => false,
+                    };
+                    if !source_can_supply
+                        || !building.construction_complete
+                        || building.assigned_labor == 0
+                        || tick.building_disabled_by_fire(ctx, building.id)
+                        || building_has_inbound_supply_trip(ctx, building.id)
+                    {
+                        return None;
                     }
-                    _ => false,
-                };
-                if !source_can_supply
-                    || !building.construction_complete
-                    || building.assigned_labor == 0
-                    || tick.building_disabled_by_fire(ctx, building.id)
-                    || building_has_inbound_supply_trip(ctx, building.id)
-                {
-                    return None;
-                }
-                network
-                    .road_path_distance(
-                        marketplace.x,
-                        marketplace.z,
-                        building.x,
-                        building.z,
-                    )
-                    .filter(|distance| distance.is_finite())
-                    .map(|distance| (building, distance))
-            })
-            .flat_map(|(building, distance)| {
-                let commodities = match building.kind.as_str() {
-                    "smithy" => [Some(CommodityKind::Iron), None],
-                    "smokehouse" => [
-                        Some(CommodityKind::Salt),
-                        Some(CommodityKind::Pottery),
-                    ],
-                    _ => [None, None],
-                };
-                commodities
-                    .into_iter()
-                    .flatten()
-                    .map(move |commodity| (building.clone(), commodity, distance))
-            })
-            .filter_map(|(building, commodity, distance)| {
-                if !processor_accepts_input(&building, commodity)
-                    || building_commodity_stock(&marketplace, commodity) <= 1e-6
-                    || (commodity == CommodityKind::Pottery && pottery_reserved_for_trade)
-                {
-                    return None;
-                }
-                let stock = building_commodity_stock(&building, commodity);
-                let per_cycle =
-                    directly_dispatched_processor_input_per_cycle(&building.kind, commodity);
-                let desired_stock =
-                    processor_input_target(per_cycle, building.processor_output_target_percent);
-                if desired_stock <= 1e-6
-                    || stock + 1e-6 >= desired_stock
-                    || building_commodity_room(&building, commodity) <= 1e-6
-                {
-                    return None;
-                }
-                Some(RoutedMarketplaceMaterialTarget {
-                    duty: processor_input_dispatch_duty(
-                        building.assigned_labor,
-                        stock,
-                        per_cycle,
-                        building.processor_output_target_percent,
-                    ),
-                    runway_cycles: processor_input_runway_cycles(stock, per_cycle),
-                    building,
-                    commodity,
-                    distance,
-                    desired_stock,
+                    network
+                        .road_path_distance(marketplace.x, marketplace.z, building.x, building.z)
+                        .filter(|distance| distance.is_finite())
+                        .map(|distance| (building, distance))
                 })
-            }),
-            |candidate| candidate.duty,
-            |candidate| candidate.building.construction_priority,
-            |_| 0,
-            |candidate| candidate.runway_cycles,
-            |candidate| candidate.distance,
-            |candidate| candidate.building.id,
-        ) else {
+                .flat_map(|(building, distance)| {
+                    let commodities = match building.kind.as_str() {
+                        "smithy" => [Some(CommodityKind::Iron), None],
+                        "smokehouse" => [Some(CommodityKind::Salt), Some(CommodityKind::Pottery)],
+                        _ => [None, None],
+                    };
+                    commodities
+                        .into_iter()
+                        .flatten()
+                        .map(move |commodity| (building.clone(), commodity, distance))
+                })
+                .filter_map(|(building, commodity, distance)| {
+                    if !processor_accepts_input(&building, commodity)
+                        || building_commodity_stock(&marketplace, commodity) <= 1e-6
+                        || (commodity == CommodityKind::Pottery && pottery_reserved_for_trade)
+                    {
+                        return None;
+                    }
+                    let stock = building_commodity_stock(&building, commodity);
+                    let per_cycle =
+                        directly_dispatched_processor_input_per_cycle(&building.kind, commodity);
+                    let desired_stock =
+                        processor_input_target(per_cycle, building.processor_output_target_percent);
+                    if desired_stock <= 1e-6
+                        || stock + 1e-6 >= desired_stock
+                        || building_commodity_room(&building, commodity) <= 1e-6
+                    {
+                        return None;
+                    }
+                    Some(RoutedMarketplaceMaterialTarget {
+                        source_id: marketplace.id,
+                        duty: processor_input_dispatch_duty(
+                            building.assigned_labor,
+                            stock,
+                            per_cycle,
+                            building.processor_output_target_percent,
+                        ),
+                        runway_cycles: processor_input_runway_cycles(stock, per_cycle),
+                        building,
+                        commodity,
+                        distance,
+                    })
+                }),
+        );
+    }
+
+    candidates.sort_by(|a, b| {
+        compare_processor_input_dispatch_candidates(
+            a.duty,
+            a.building.construction_priority,
+            0,
+            a.runway_cycles,
+            a.distance,
+            a.building.id,
+            b.duty,
+            b.building.construction_priority,
+            0,
+            b.runway_cycles,
+            b.distance,
+            b.building.id,
+        )
+        .then_with(|| {
+            marketplace_material_commodity_rank(a.commodity)
+                .cmp(&marketplace_material_commodity_rank(b.commodity))
+        })
+        .then_with(|| a.source_id.cmp(&b.source_id))
+    });
+
+    let mut used_sources = HashSet::new();
+    let mut used_targets = HashSet::new();
+    for candidate in candidates {
+        if used_sources.contains(&candidate.source_id)
+            || used_targets.contains(&candidate.building.id)
+        {
+            continue;
+        }
+        let Some(mut marketplace) = ctx.db.building().id().find(&candidate.source_id) else {
             continue;
         };
-        let source_stock = building_commodity_stock(&marketplace, target.commodity);
-        let needed = (target.desired_stock
-            - building_commodity_stock(&target.building, target.commodity))
-        .max(0.0)
-        .min(source_stock)
-        .min(building_commodity_room(&target.building, target.commodity));
+        let Some(target) = ctx.db.building().id().find(&candidate.building.id) else {
+            continue;
+        };
+        let pottery_reserved_for_trade =
+            pending_marketplace_trade_commodity(&marketplace) == Some(CommodityKind::Pottery);
+        if marketplace.kind != "marketplace"
+            || !marketplace.construction_complete
+            || marketplace.assigned_labor == 0
+            || target.owner != marketplace.owner
+            || !target.construction_complete
+            || target.assigned_labor == 0
+            || tick.building_disabled_by_fire(ctx, marketplace.id)
+            || tick.building_disabled_by_fire(ctx, target.id)
+            || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
+            || building_has_active_trip(ctx, marketplace.id)
+            || building_has_inbound_supply_trip(ctx, target.id)
+            || !processor_accepts_input(&target, candidate.commodity)
+            || (candidate.commodity == CommodityKind::Pottery && pottery_reserved_for_trade)
+        {
+            continue;
+        }
+        let per_cycle =
+            directly_dispatched_processor_input_per_cycle(&target.kind, candidate.commodity);
+        let desired_stock =
+            processor_input_target(per_cycle, target.processor_output_target_percent);
+        let source_stock = building_commodity_stock(&marketplace, candidate.commodity);
+        let needed = (desired_stock - building_commodity_stock(&target, candidate.commodity))
+            .max(0.0)
+            .min(source_stock)
+            .min(building_commodity_room(&target, candidate.commodity));
         if needed <= 1e-6 {
             continue;
         }
+        let Some(network) = tick.road_network(marketplace.owner) else {
+            continue;
+        };
         if try_start_building_supply_trip(
             ctx,
             tick,
             clock,
             network,
             &mut marketplace,
-            &target.building,
+            &target,
             1,
-            target.commodity,
+            candidate.commodity,
             TIMBER_DELIVERY_SPEED_MPS,
             TIMBER_DELIVERY_UNLOAD_SEC,
-            commodity_transfer_per_trip(target.commodity),
+            commodity_transfer_per_trip(candidate.commodity),
             needed,
         ) {
+            used_sources.insert(marketplace.id);
+            used_targets.insert(target.id);
             ctx.db.building().id().update(marketplace);
         }
+    }
+}
+
+fn marketplace_material_commodity_rank(commodity: CommodityKind) -> u8 {
+    match commodity {
+        CommodityKind::Iron => 0,
+        CommodityKind::Salt => 1,
+        CommodityKind::Pottery => 2,
+        _ => u8::MAX,
     }
 }
 
