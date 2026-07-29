@@ -1,6 +1,9 @@
 import {
+  CALENDAR_SECONDS_PER_DAY,
   RESIDENCE_FIREWOOD_CAPACITY,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
+  WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../generated/gameBalance.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { ResidenceState } from '../resources/types.ts';
@@ -27,6 +30,23 @@ export function residenceFirewoodRunwayDays(residence: ResidenceState): number |
 
 export function residenceHasFirewoodRoom(firewoodStock: number): boolean {
   return firewoodStock + 1e-6 < RESIDENCE_FIREWOOD_CAPACITY;
+}
+
+export function residenceFirewoodPriorityTarget(population: number): number {
+  return Math.min(
+    RESIDENCE_FIREWOOD_CAPACITY,
+    Math.max(0, population)
+      * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
+      * CALENDAR_SECONDS_PER_DAY
+      * WINTER_FIREWOOD_DEMAND_MULTIPLIER
+      * RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
+  );
+}
+
+export function residenceNeedsPriorityFirewood(residence: ResidenceState): boolean {
+  if (residence.abandoned || residence.population <= 0) return false;
+  return getNeedStock(residence.needs, 'firewood') + 1e-6
+    < residenceFirewoodPriorityTarget(residence.population);
 }
 
 export function formatFirewoodRunwayDays(days: number): string {

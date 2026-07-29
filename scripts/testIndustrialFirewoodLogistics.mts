@@ -174,6 +174,9 @@ assert.equal(plan.distributors, 2);
 assert.equal(plan.heatedHouseholds, 2);
 assert.equal(plan.industrialSites, 2);
 assert.equal(plan.householdStock, 10);
+assert.equal(plan.protectedHouseholdStock, 10);
+assert.ok(Math.abs(plan.protectedHouseholdTarget - 14.4) < 1e-9);
+assert.equal(plan.householdsBelowProtectedStock, 2);
 assert.equal(plan.distributorStock, 28);
 assert.equal(plan.industrialStock, 3);
 assert.equal(plan.firewoodInTransit, 2);
@@ -220,6 +223,14 @@ const authoritativeLoop = readFileSync(
   new URL('../server/src/reducers/simulation.rs', import.meta.url),
   'utf8',
 );
+const lodgeSimulation = readFileSync(
+  new URL('../server/src/simulation/woodcutters_lodge.rs', import.meta.url),
+  'utf8',
+);
+const storehouseSimulation = readFileSync(
+  new URL('../server/src/simulation/village_storehouse.rs', import.meta.url),
+  'utf8',
+);
 assert.match(
   expandedSimulation,
   /pub fn step_industrial_firewood_dispatch[\s\S]*dispatch_to_building_where[\s\S]*INDUSTRIAL_FIREWOOD_TARGET_KINDS/,
@@ -229,6 +240,16 @@ assert.doesNotMatch(
   /request_connected_commodity\([\s\S]{0,180}?CommodityKind::Firewood/,
   'hot workshops must no longer pull fuel in database update order',
 );
+for (const [label, source] of [
+  ['woodcutter lodge', lodgeSimulation],
+  ['village storehouse', storehouseSimulation],
+] as const) {
+  assert.match(
+    source,
+    /household_firewood_needs_priority/,
+    `${label} must stop preempting industry once its claimed homes reach protected stock`,
+  );
+}
 const householdDispatchIndex = authoritativeLoop.indexOf(
   'step_village_storehouse_household_firewood(',
 );

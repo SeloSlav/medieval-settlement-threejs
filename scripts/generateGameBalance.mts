@@ -282,6 +282,7 @@ export type GameBalance = {
     wideParcelFrontageMin: number;
     residenceFirewoodCapacity: number;
     residenceFirewoodPerPersonPerSec: number;
+    residenceFirewoodPriorityWinterDays: number;
     residenceWaterCapacity: number;
     residenceWaterPerPersonPerSec: number;
     residenceFoodCapacity: number;
@@ -698,6 +699,7 @@ function generateRust(): string {
     `pub const WIDE_PARCEL_FRONTAGE_MIN: f64 = ${rustF64(b.population.wideParcelFrontageMin)};`,
     `pub const RESIDENCE_FIREWOOD_CAPACITY: f64 = ${rustF64(b.population.residenceFirewoodCapacity)};`,
     `pub const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceFirewoodPerPersonPerSec)};`,
+    `pub const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS: f64 = ${rustF64(b.population.residenceFirewoodPriorityWinterDays)};`,
     `pub const RESIDENCE_WATER_CAPACITY: f64 = ${rustF64(b.population.residenceWaterCapacity)};`,
     `pub const RESIDENCE_WATER_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceWaterPerPersonPerSec)};`,
     `pub const RESIDENCE_FOOD_CAPACITY: f64 = ${rustF64(b.population.residenceFoodCapacity)};`,
@@ -1407,6 +1409,7 @@ function generateTypeScript(): string {
     `export const WIDE_PARCEL_FRONTAGE_MIN = ${b.population.wideParcelFrontageMin};`,
     `export const RESIDENCE_FIREWOOD_CAPACITY = ${b.population.residenceFirewoodCapacity};`,
     `export const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC = ${b.population.residenceFirewoodPerPersonPerSec};`,
+    `export const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS = ${b.population.residenceFirewoodPriorityWinterDays};`,
     `export const RESIDENCE_WATER_CAPACITY = ${b.population.residenceWaterCapacity};`,
     `export const RESIDENCE_WATER_PER_PERSON_PER_SEC = ${b.population.residenceWaterPerPersonPerSec};`,
     `export const RESIDENCE_FOOD_CAPACITY = ${b.population.residenceFoodCapacity};`,

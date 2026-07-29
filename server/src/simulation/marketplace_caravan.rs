@@ -117,7 +117,7 @@ pub fn try_dispatch_marketplace_caravan(
         dispatch.priority_residence_id,
         None,
         |residence| need_stock(&load_needs(ctx, residence.id), need_kind),
-        |stock| {
+        |_, stock| {
             dispatch.exact_load_amount.map_or_else(
                 || has_delivery_stock_room(need_kind, stock),
                 |amount| delivery_stock_room(need_kind, stock) + 1e-6 >= amount,

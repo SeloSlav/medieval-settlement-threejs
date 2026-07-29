@@ -1,8 +1,11 @@
-import { RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_WATER_CAPACITY } from '../generated/gameBalance.ts';
+import { RESIDENCE_WATER_CAPACITY } from '../generated/gameBalance.ts';
 import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
-import { residenceFirewoodRunwaySeconds } from './firewoodLogistics.ts';
+import {
+  residenceFirewoodRunwaySeconds,
+  residenceNeedsPriorityFirewood,
+} from './firewoodLogistics.ts';
 import { isResidenceInWellRange, residenceWaterRunwaySeconds } from './waterLogistics.ts';
 
 type RoadPoint = { x: number; z: number };
@@ -279,11 +282,7 @@ export function peekNextDeliveryTarget(
   lodge: { x: number; z: number },
   residences: readonly ResidenceState[],
 ): ResidenceState | null {
-  const eligible = residences.filter((residence) =>
-    hasNeedStockRoom(
-      getNeedStock(residence.needs, 'firewood'),
-      RESIDENCE_FIREWOOD_CAPACITY,
-    ));
+  const eligible = residences.filter(residenceNeedsPriorityFirewood);
   const distances = roadPathDistancesFrom(network, lodge.x, lodge.z, eligible);
   let bestIndex = -1;
   for (let index = 0; index < eligible.length; index += 1) {

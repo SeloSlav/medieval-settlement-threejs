@@ -34,7 +34,7 @@ pub fn select_residence_for_need_delivery(
     explicit_priority_residence_id: Option<u64>,
     max_distance: Option<f64>,
     stock_for: impl Fn(&Residence) -> f64,
-    needs_delivery: impl Fn(f64) -> bool,
+    needs_delivery: impl Fn(&Residence, f64) -> bool,
 ) -> Option<Residence> {
     let eligible: Vec<(usize, f64)> = residences
         .iter()
@@ -45,7 +45,7 @@ pub fn select_residence_for_need_delivery(
                 return None;
             }
             let stock = stock_for(residence);
-            if !needs_delivery(stock) {
+            if !needs_delivery(residence, stock) {
                 return None;
             }
             Some((index, stock))

@@ -26,7 +26,9 @@ use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{lodge_labor_split, select_residence_for_need_delivery};
 use crate::simulation::tick_context::SimTickContext;
-use crate::supply_policy::select_supply_route_candidate;
+use crate::supply_policy::{
+    household_firewood_needs_priority, select_supply_route_candidate,
+};
 use crate::tables::{Building, Residence};
 use crate::woodcutter_policy::woodcutter_can_process;
 
@@ -134,7 +136,14 @@ fn collect_delivery_targets(
         None,
         None,
         |residence| need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Firewood),
-        |stock| has_delivery_stock_room(ResidenceNeedKind::Firewood, stock),
+        |residence, stock| {
+            has_delivery_stock_room(ResidenceNeedKind::Firewood, stock)
+                && household_firewood_needs_priority(
+                    residence.abandoned,
+                    residence.population,
+                    stock,
+                )
+        },
     )
     .into_iter()
     .collect()

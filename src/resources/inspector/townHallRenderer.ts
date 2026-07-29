@@ -3,6 +3,7 @@ import {
   ECONOMIC_ACTIVITY_TAX_RATE_MIN,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
   MONASTERY_UNLINKED_PRODUCTIVITY,
+  RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
   TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
 } from '../../generated/gameBalance.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
@@ -2039,6 +2040,7 @@ export function renderTownHallInspector(
       ${provisioning.displacedHouseholds > 0 ? `<li><span>Fire-displaced households</span><span>${provisioning.displacedHouseholds} ${provisioning.displacedHouseholds === 1 ? 'home' : 'homes'} · ${provisioning.displacedResidents} ${provisioning.displacedResidents === 1 ? 'resident' : 'residents'} excluded from consumption and delivery forecasts until recovery</span></li>` : ''}
       <li><span>Household delivery buffer</span><span>${formatHouseholdBufferReadiness(provisioning)}</span></li>
       <li><span>Fuel placement</span><span>${firewoodPlan.householdStock.toFixed(1)} in household cupboards &middot; ${firewoodPlan.distributorStock.toFixed(1)} at staffed lodges/storehouses &middot; ${firewoodPlan.industrialStock.toFixed(1)} staged inside hot workshops &middot; ${firewoodPlan.firewoodInTransit.toFixed(1)} on carts &middot; ${firewoodPlan.inactiveStock.toFixed(1)} inactive + ${firewoodPlan.quarantinedStock.toFixed(1)} fire-quarantined</span></li>
+      <li><span>Protected hearth stock</span><span>${firewoodPlan.protectedHouseholdStock.toFixed(1)} / ${firewoodPlan.protectedHouseholdTarget.toFixed(1)} in cupboards &middot; ${firewoodPlan.householdsBelowProtectedStock} ${firewoodPlan.householdsBelowProtectedStock === 1 ? 'home' : 'homes'} below the ${RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS}-winter-day floor &middot; those homes preempt industrial fuel carts</span></li>
       <li><span>Fuel competition</span><span>${firewoodPlan.winterHouseholdDemandPerDay.toFixed(1)} winter hearths + ${firewoodPlan.industrialDemandPerDay.toFixed(1)} installed hot-work capacity = ${firewoodPlan.totalDemandPerDay.toFixed(1)} firewood/day &middot; staffed lodges sustain ${firewoodPlan.lodgeOutputCapacityPerDay.toFixed(1)}/day from ${firewoodPlan.lodgeTimberDrawPerDay.toFixed(1)} timber/day &middot; ${firewoodPlan.dailyMargin >= 0 ? '+' : ''}${firewoodPlan.dailyMargin.toFixed(1)}/day</span></li>
       <li><span>Fuel road branches</span><span>${firewoodPlan.distributors} staffed distributors across ${firewoodPlan.activeBranches} consuming branches &middot; ${firewoodPlan.flowDeficitBranches} production-short &middot; ${firewoodPlan.unservedBranches} without a distributor &middot; weakest combined runway ${formatProvisionRunway(firewoodPlan.worstBranchRunwayDays)}${firewoodInspectButton}</span></li>
       <li><span>Winter firewood</span><span>${Math.round(provisioning.usableFirewoodStock)} usable / ${Math.round(provisioning.firewoodStock)} owned · ${Math.ceil(provisioning.winterFirewoodNeed)} needed · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>

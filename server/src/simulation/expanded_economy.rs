@@ -329,9 +329,9 @@ pub fn step_watermill(
     ctx.db.building().id().update(mill);
 }
 
-/// Firewood distributors complete their household duty before this pass. Each
-/// remaining staffed source then sends at most one physical surplus cart to
-/// the highest-priority operating workshop with the lowest fuel runway.
+/// Firewood distributors first cover each claimed home's protected winter-night
+/// stock. Each remaining staffed source then sends at most one physical surplus
+/// cart to the highest-priority operating workshop with the lowest fuel runway.
 ///
 /// Dispatching from the source side removes building-update-order bias: an
 /// older kiln cannot repeatedly pull the communal cart ahead of an urgent
@@ -2483,7 +2483,7 @@ fn collect_need_delivery_targets(
         None,
         max_distance,
         |residence| need_stock(&load_needs(ctx, residence.id), need_kind),
-        |stock| has_delivery_stock_room(need_kind, stock),
+        |_, stock| has_delivery_stock_room(need_kind, stock),
     )
     .into_iter()
     .collect()

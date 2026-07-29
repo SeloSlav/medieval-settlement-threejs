@@ -178,7 +178,7 @@ export function renderWoodcuttersLodgeInspector(
       <li><span>Crew split</span><span>${crewLabel}</span></li>
       <li><span>Road-linked mills</span><span>${millSummary}</span></li>
       <li><span>Claimed residences</span><span>${residenceSummary}</span></li>
-      <li><span>Surplus fuel duty</span><span>${nextDeliveryTarget ? `Household cart first · then ${industrialFuelDuty}` : industrialFuelDuty}</span></li>
+      <li><span>Surplus fuel duty</span><span>${nextDeliveryTarget ? `Protected household stock first · then ${industrialFuelDuty}` : industrialFuelDuty}</span></li>
       <li><span>Process interval</span><span>${definition.harvestInterval}s</span></li>
       <li><span>Output per cycle</span><span>${processOutputLabel}</span></li>
       <li><span>Construction timber floor</span><span>${Math.round(timberReserve)}</span></li>

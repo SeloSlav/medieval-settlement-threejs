@@ -1,12 +1,20 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { residenceFirewoodRunwaySeconds, residenceHasFirewoodRoom } from '../src/logistics/firewoodLogistics.ts';
+import {
+  residenceFirewoodPriorityTarget,
+  residenceFirewoodRunwaySeconds,
+  residenceHasFirewoodRoom,
+  residenceNeedsPriorityFirewood,
+} from '../src/logistics/firewoodLogistics.ts';
 import {
   lodgeFirewoodPerDelivery,
   lodgeLaborAlternates,
   lodgeLaborSplit,
 } from '../src/logistics/lodgeLogistics.ts';
-import { compareResidencesForDelivery } from '../src/logistics/roadLogistics.ts';
+import {
+  compareResidencesForDelivery,
+  peekNextDeliveryTarget,
+} from '../src/logistics/roadLogistics.ts';
 import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
 import { computeUnreservedBuildingTimber } from '../src/resources/resourceTotals.ts';
 import {
@@ -53,6 +61,38 @@ assert.ok(
 );
 assert.equal(residenceHasFirewoodRoom(40), false);
 assert.equal(residenceHasFirewoodRoom(10), true);
+assert.equal(residenceFirewoodPriorityTarget(4), 9.6);
+assert.equal(residenceFirewoodPriorityTarget(10), 24);
+assert.equal(residenceNeedsPriorityFirewood(residence('below-floor', 9.59, 4)), true);
+assert.equal(residenceNeedsPriorityFirewood(residence('at-floor', 9.6, 4)), false);
+assert.equal(
+  residenceFirewoodPriorityTarget(10) < 40,
+  true,
+  'a full tier-three household must eventually release its distributor cart to industry',
+);
+const directDistanceNetwork = {
+  getPathfinder: () => ({
+    roadPathDistance: (ax: number, az: number, bx: number, bz: number) =>
+      Math.hypot(bx - ax, bz - az),
+  }),
+} as Parameters<typeof peekNextDeliveryTarget>[0];
+assert.equal(
+  peekNextDeliveryTarget(
+    directDistanceNetwork,
+    { x: 0, z: 0 },
+    [residence('covered', 9.6), residence('exposed', 9.59)],
+  )?.id,
+  'exposed',
+);
+assert.equal(
+  peekNextDeliveryTarget(
+    directDistanceNetwork,
+    { x: 0, z: 0 },
+    [residence('covered', 9.6)],
+  ),
+  null,
+  'client logistics must expose industrial fuel duty once every home reaches its floor',
+);
 
 const network = {
   nodes: new Map(),
@@ -136,6 +176,11 @@ assert.match(
   lodgeSimulation,
   /row\.kind != "lumber_mill"[\s\S]*tick\.building_disabled_by_fire\(ctx, row\.id\)/,
   'lodges must not dispatch timber out of fire-disabled lumber mills',
+);
+assert.match(
+  lodgeSimulation,
+  /household_firewood_needs_priority/,
+  'lodges must release their carts once claimed homes reach protected winter-night stock',
 );
 
 console.log('lodge logistics tests passed');

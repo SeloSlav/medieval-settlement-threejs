@@ -23,6 +23,7 @@ use crate::storehouse_policy::{
     compare_storehouse_destination, compare_storehouse_source_priority,
     storehouse_filtered_collection_headroom,
 };
+use crate::supply_policy::household_firewood_needs_priority;
 use crate::tables::{Building, Residence};
 
 const STOREHOUSE_OVERFLOW_SOURCE_KINDS: &[&str] = &[
@@ -269,7 +270,14 @@ fn collect_firewood_delivery_targets(
         None,
         None,
         |residence| need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Firewood),
-        |stock| has_delivery_stock_room(ResidenceNeedKind::Firewood, stock),
+        |residence, stock| {
+            has_delivery_stock_room(ResidenceNeedKind::Firewood, stock)
+                && household_firewood_needs_priority(
+                    residence.abandoned,
+                    residence.population,
+                    stock,
+                )
+        },
     )
     .into_iter()
     .collect()

@@ -194,7 +194,7 @@ assert.doesNotMatch(upgrades, /"smokehouse",\s*"granary",\s*"monastery"/);
 const storehouseInspector = fs.readFileSync('src/resources/inspector/storehouseRenderer.ts', 'utf8');
 assert.match(storehouseInspector, /Duty priority/);
 assert.match(storehouseInspector, /Fuel territory/);
-assert.match(storehouseInspector, /claimed homes/);
+assert.match(storehouseInspector, /winter-night fuel floor/);
 const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 assert.match(residenceInspector, /Firewood supplier/);
 assert.match(residenceInspector, /accepting storehouse/);

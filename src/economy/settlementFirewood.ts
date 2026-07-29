@@ -15,6 +15,7 @@ import {
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../generated/gameBalance.ts';
 import { fireDisabledBuildingIds, fireDisabledResidenceIds } from '../fires/fireIncident.ts';
+import { residenceFirewoodPriorityTarget } from '../logistics/firewoodLogistics.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type {
@@ -44,6 +45,9 @@ export type FirewoodRoadComponentResolver = (
 export type SettlementFirewoodBranch = {
   key: string;
   householdStock: number;
+  protectedHouseholdStock: number;
+  protectedHouseholdTarget: number;
+  householdsBelowProtectedStock: number;
   distributorStock: number;
   industrialStock: number;
   firewoodInTransit: number;
@@ -71,6 +75,9 @@ export type SettlementFirewoodPlan = {
   industrialSites: number;
   distributors: number;
   householdStock: number;
+  protectedHouseholdStock: number;
+  protectedHouseholdTarget: number;
+  householdsBelowProtectedStock: number;
   distributorStock: number;
   industrialStock: number;
   inactiveStock: number;
@@ -125,6 +132,9 @@ export function computeSettlementFirewoodPlan(
       branch = {
         key,
         householdStock: 0,
+        protectedHouseholdStock: 0,
+        protectedHouseholdTarget: 0,
+        householdsBelowProtectedStock: 0,
         distributorStock: 0,
         industrialStock: 0,
         firewoodInTransit: 0,
@@ -153,8 +163,14 @@ export function computeSettlementFirewoodPlan(
       continue;
     }
     const branch = ensureBranch(residence, 'residence');
+    const protectedTarget = residenceFirewoodPriorityTarget(residence.population);
     branch.heatedHouseholds += 1;
     branch.householdStock += stock;
+    branch.protectedHouseholdStock += Math.min(stock, protectedTarget);
+    branch.protectedHouseholdTarget += protectedTarget;
+    if (stock + 1e-6 < protectedTarget) {
+      branch.householdsBelowProtectedStock += 1;
+    }
     branch.winterHouseholdDemandPerDay += Math.max(0, residence.population)
       * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
       * CALENDAR_SECONDS_PER_DAY
@@ -231,6 +247,9 @@ export function computeSettlementFirewoodPlan(
   let industrialSites = 0;
   let distributors = 0;
   let householdStock = 0;
+  let protectedHouseholdStock = 0;
+  let protectedHouseholdTarget = 0;
+  let householdsBelowProtectedStock = 0;
   let distributorStock = 0;
   let industrialStock = 0;
   let firewoodInTransit = 0;
@@ -273,6 +292,9 @@ export function computeSettlementFirewoodPlan(
     industrialSites += branch.industrialSites;
     distributors += branch.distributors;
     householdStock += branch.householdStock;
+    protectedHouseholdStock += branch.protectedHouseholdStock;
+    protectedHouseholdTarget += branch.protectedHouseholdTarget;
+    householdsBelowProtectedStock += branch.householdsBelowProtectedStock;
     distributorStock += branch.distributorStock;
     industrialStock += branch.industrialStock;
     firewoodInTransit += branch.firewoodInTransit;
@@ -304,6 +326,9 @@ export function computeSettlementFirewoodPlan(
     industrialSites,
     distributors,
     householdStock,
+    protectedHouseholdStock,
+    protectedHouseholdTarget,
+    householdsBelowProtectedStock,
     distributorStock,
     industrialStock,
     inactiveStock,

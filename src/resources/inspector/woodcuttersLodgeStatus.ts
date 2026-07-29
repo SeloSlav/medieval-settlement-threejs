@@ -12,7 +12,7 @@ export function formatCooldown(seconds: number): string {
 }
 
 export function formatNextDeliveryTargetLabel(target: ResidenceState | null): string {
-  if (!target) return 'None needing fuel';
+  if (!target) return 'Protected household reserves covered';
   const runwayDays = residenceFirewoodRunwayDays(target);
   const runwaySuffix = runwayDays != null ? ` (${formatFirewoodRunwayDays(runwayDays)} left)` : '';
   return `Parcel #${target.parcelIndex + 1}${runwaySuffix}`;
@@ -155,7 +155,7 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
   }
   if (!hasNextTarget && hasIndustrialTarget) {
     return {
-      statusText: `Household rounds clear — surplus fuel ready for ${industrialTargetLabel}`,
+      statusText: `Protected household reserves covered — surplus fuel ready for ${industrialTargetLabel}`,
       statusState: 'ok',
     };
   }

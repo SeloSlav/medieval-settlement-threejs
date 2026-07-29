@@ -271,6 +271,7 @@
     "wideParcelFrontageMin": 14,
     "residenceFirewoodCapacity": 40,
     "residenceFirewoodPerPersonPerSec": 0.02,
+    "residenceFirewoodPriorityWinterDays": 0.5,
     "residenceWaterCapacity": 24,
     "residenceWaterPerPersonPerSec": 0.012,
     "residenceFoodCapacity": 32,

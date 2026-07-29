@@ -193,7 +193,7 @@ fn collect_delivery_targets(
         None,
         None,
         |residence| need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water),
-        |stock| has_delivery_stock_room(ResidenceNeedKind::Water, stock),
+        |_, stock| has_delivery_stock_room(ResidenceNeedKind::Water, stock),
     )
     .into_iter()
     .collect()

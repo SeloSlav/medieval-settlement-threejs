@@ -2,13 +2,16 @@ use std::cmp::Ordering;
 
 use crate::balance_generated::{
     BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
-    BREWERY_MALTING_FIREWOOD_PER_CYCLE, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE,
+    BREWERY_MALTING_FIREWOOD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY,
+    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+    GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE,
     HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
     MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
-    SMITHY_CHARCOAL_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
+    RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
+    RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS, SMITHY_CHARCOAL_PER_CYCLE,
+    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
     SMOKEHOUSE_POTTERY_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
-    WEAVER_WOOL_PER_CYCLE,
+    WEAVER_WOOL_PER_CYCLE, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 };
 use crate::civilian_tool_policy::is_civilian_tool_site;
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -209,6 +212,29 @@ pub fn is_firewood_supplier_operational(
     is_staffed_operational_supplier(construction_complete, assigned_labor)
         && (kind == "woodcutters_lodge"
             || (kind == "village_storehouse" && storehouse_accepts_firewood))
+}
+
+/// Fuel carts protect enough cupboard stock to carry a household through the
+/// winter overnight no-work window. Once every claimed home reaches this
+/// runway, the same cart and road branch may serve staffed hot workshops.
+pub fn household_firewood_priority_target(population: u32) -> f64 {
+    (population as f64
+        * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
+        * CALENDAR_SECONDS_PER_DAY
+        * WINTER_FIREWOOD_DEMAND_MULTIPLIER
+        * RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS)
+        .min(RESIDENCE_FIREWOOD_CAPACITY)
+        .max(0.0)
+}
+
+pub fn household_firewood_needs_priority(
+    abandoned: bool,
+    population: u32,
+    stock: f64,
+) -> bool {
+    !abandoned
+        && population > 0
+        && stock + 1e-6 < household_firewood_priority_target(population)
 }
 
 pub fn is_well_supplier_operational(
@@ -561,6 +587,7 @@ mod tests {
         construction_source_priority, directly_dispatched_processor_input_per_cycle,
         grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, grain_work_priority,
         granary_dispatch_order, household_food_reserve, institutional_food_surplus,
+        household_firewood_needs_priority, household_firewood_priority_target,
         is_firewood_supplier_operational, is_food_supplier_operational,
         is_specialty_supplier_operational, is_well_supplier_operational,
         processor_input_dispatch_duty, processor_input_runway_cycles, processor_input_target,
@@ -832,6 +859,20 @@ mod tests {
             ),
             Ordering::Less,
             "a matching fibre preference must beat runway and route within one work tier"
+        );
+    }
+
+    #[test]
+    fn household_firewood_priority_covers_winter_night_without_monopolizing_carts() {
+        assert!((household_firewood_priority_target(4) - 9.6).abs() < 1e-9);
+        assert!((household_firewood_priority_target(10) - 24.0).abs() < 1e-9);
+        assert!(household_firewood_needs_priority(false, 4, 9.59));
+        assert!(!household_firewood_needs_priority(false, 4, 9.6));
+        assert!(!household_firewood_needs_priority(true, 4, 0.0));
+        assert!(!household_firewood_needs_priority(false, 0, 0.0));
+        assert!(
+            household_firewood_priority_target(10) < super::RESIDENCE_FIREWOOD_CAPACITY,
+            "even a full tier-three home must eventually release the cart to industry",
         );
     }
 
