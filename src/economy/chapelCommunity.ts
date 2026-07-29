@@ -156,6 +156,8 @@ function recoveryStockBase(kind: ResidenceNeedKind): number {
       return 4;
     case 'cloth':
       return 2;
+    case 'pottery':
+      return 2;
     default: {
       const unhandled: never = kind;
       return unhandled;

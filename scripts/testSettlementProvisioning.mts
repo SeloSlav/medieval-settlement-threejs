@@ -9,6 +9,7 @@ import {
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
@@ -137,6 +138,7 @@ assert.equal(provisioning.householdBufferWaterShortHomes, 1);
 assert.equal(provisioning.householdBufferPreservedFoodShortHomes, 0);
 assert.equal(provisioning.householdBufferAleShortHomes, 0);
 assert.equal(provisioning.householdBufferClothShortHomes, 0);
+assert.equal(provisioning.householdBufferPotteryShortHomes, 0);
 assert.match(formatHouseholdBufferReadiness(provisioning), /0 \/ 2 homes buffered/);
 assert.ok(Math.abs(
   provisioning.householdFoodPerDay
@@ -550,6 +552,7 @@ assert.equal(tierThreeShort.householdBufferWaterShortHomes, 1);
 assert.equal(tierThreeShort.householdBufferPreservedFoodShortHomes, 1);
 assert.equal(tierThreeShort.householdBufferAleShortHomes, 1);
 assert.equal(tierThreeShort.householdBufferClothShortHomes, 1);
+assert.equal(tierThreeShort.householdBufferPotteryShortHomes, 1);
 
 const perfState = emptyGameState();
 for (let index = 0; index < 10_000; index += 1) {
@@ -633,6 +636,9 @@ for (const [id, tier, population] of [
       * 70;
     home.needs.ale.stock = population * RESIDENCE_ALE_PER_PERSON_PER_SEC * 70;
     home.needs.cloth.stock = population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * 70;
+    home.needs.pottery.stock = population
+      * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
+      * 70;
   }
   preparedState.residences.set(id, home);
 }
@@ -648,6 +654,8 @@ assert.equal(prepared.sabbathHouseholds, 3);
 assert.equal(formatSabbathReadiness(prepared), '3 / 3 homes stocked');
 assert.equal(prepared.householdBufferReadyHouseholds, 3);
 assert.equal(prepared.householdBufferHouseholds, 3);
+assert.equal(prepared.householdBufferPotteryShortHomes, 0);
+assert.equal(prepared.sabbathPotteryShortHomes, 0);
 assert.equal(formatHouseholdBufferReadiness(prepared), '3 / 3 homes buffered');
 
 console.log(
@@ -717,6 +725,7 @@ function residence(id: string, tier: number, population: number): ResidenceState
       preservedFood: { stock: 0, deficitSeconds: 0 },
       ale: { stock: 0, deficitSeconds: 0 },
       cloth: { stock: 0, deficitSeconds: 0 },
+      pottery: { stock: 0, deficitSeconds: 0 },
     },
     abandoned: false,
     householdWealth: 0,

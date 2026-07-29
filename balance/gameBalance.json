@@ -286,6 +286,8 @@
     "residenceAlePerPersonPerSec": 0.0025,
     "residenceClothCapacity": 8,
     "residenceClothPerPersonPerSec": 0.00018,
+    "residencePotteryCapacity": 6,
+    "residencePotteryPerPersonPerSec": 0.001,
     "abandonAfterDeficitTicks": 3600,
     "hungerWarningDays": 2,
     "malnutritionDays": 5,

@@ -24,7 +24,8 @@ export type ResidenceUpgradeServiceKind =
   | 'water'
   | 'preservedFood'
   | 'ale'
-  | 'cloth';
+  | 'cloth'
+  | 'pottery';
 
 export type ResidenceUpgradeServiceInput = {
   supplier: BuildingState | null;
@@ -128,8 +129,8 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       timber: RESIDENCE_TIER3_TIMBER_COST,
       stone: RESIDENCE_TIER3_STONE_COST,
       gold: RESIDENCE_TIER3_GOLD_COST,
-      serviceKinds: ['preservedFood', 'ale', 'cloth'],
-      addedNeeds: 'Adds preserved food, ale, and household textiles',
+      serviceKinds: ['preservedFood', 'ale', 'cloth', 'pottery'],
+      addedNeeds: 'Adds preserved food, ale, household textiles, and pottery',
     };
   }
   return null;
@@ -141,6 +142,7 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
   preservedFood: 'Preserved food',
   ale: 'Ale',
   cloth: 'Cloth',
+  pottery: 'Pottery',
 };
 
 export function evaluateResidenceUpgrade(

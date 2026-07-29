@@ -1600,7 +1600,8 @@ pub fn step_potter_kiln(
     clock: &GameClock,
     building: Building,
 ) {
-    let potter = step_processor(
+    let starting_pottery = building.pottery;
+    let mut potter = step_processor(
         ctx,
         tick,
         clock,
@@ -1610,6 +1611,20 @@ pub fn step_potter_kiln(
             (CommodityKind::Firewood, POTTER_FIREWOOD_PER_CYCLE),
         ],
         &[(CommodityKind::Pottery, POTTER_POTTERY_PER_CYCLE)],
+    );
+    if starting_pottery <= 1e-6 && potter.pottery > 1e-6 {
+        ctx.db.building().id().update(potter.clone());
+        tick.invalidate_specialty_claims(potter.owner, ResidenceNeedKind::Pottery);
+    }
+    // Prosperous household wares are fulfilled before smokehouse buffers and
+    // foreign sale. The potter's one physical cart makes that ordering real.
+    dispatch_need(
+        ctx,
+        tick,
+        clock,
+        &mut potter,
+        ResidenceNeedKind::Pottery,
+        2.0,
     );
     ctx.db.building().id().update(potter);
 }
@@ -2947,7 +2962,8 @@ fn collect_need_delivery_targets(
                 }
                 ResidenceNeedKind::Ale
                 | ResidenceNeedKind::PreservedFood
-                | ResidenceNeedKind::Cloth => {
+                | ResidenceNeedKind::Cloth
+                | ResidenceNeedKind::Pottery => {
                     tick.specialty_supplier_for(ctx, supplier.owner, residence.id, need_kind)
                 }
                 ResidenceNeedKind::Firewood | ResidenceNeedKind::Water => None,
@@ -2958,6 +2974,7 @@ fn collect_need_delivery_targets(
                     | ResidenceNeedKind::Ale
                     | ResidenceNeedKind::PreservedFood
                     | ResidenceNeedKind::Cloth
+                    | ResidenceNeedKind::Pottery
             ) && claimed_supplier != Some(supplier.id)
             {
                 return false;
@@ -2986,6 +3003,7 @@ fn need_to_commodity(kind: ResidenceNeedKind) -> CommodityKind {
         ResidenceNeedKind::Ale => CommodityKind::Ale,
         ResidenceNeedKind::PreservedFood => CommodityKind::PreservedFood,
         ResidenceNeedKind::Cloth => CommodityKind::Cloth,
+        ResidenceNeedKind::Pottery => CommodityKind::Pottery,
     }
 }
 

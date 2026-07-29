@@ -7,6 +7,8 @@ import {
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+  RESIDENCE_POTTERY_CAPACITY,
+  RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
 } from '../generated/gameBalance.ts';
@@ -25,11 +27,12 @@ export const SPECIALTY_CONSUMPTION_SECONDS_PER_DAY =
 
 export const MONASTERY_MIN_PARISH_POPULATION = 12;
 
-export type SpecialtyNeedKind = 'ale' | 'preservedFood' | 'cloth';
+export type SpecialtyNeedKind = 'ale' | 'preservedFood' | 'cloth' | 'pottery';
 
 const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = ['smokehouse', 'pastoral_farmstead'];
 const ALE_SUPPLIER_KINDS: readonly BuildingKind[] = ['brewery', 'monastery'];
 const CLOTH_SUPPLIER_KINDS: readonly BuildingKind[] = ['weaver'];
+const POTTERY_SUPPLIER_KINDS: readonly BuildingKind[] = ['potter_kiln'];
 
 export function isOperationalSpecialtySupplier(building: BuildingState): boolean {
   return building.constructionComplete !== false
@@ -181,12 +184,27 @@ export function residenceClothRunwayDays(residence: ResidenceState): number | nu
   return runwaySeconds / SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
 }
 
+export function residencePotteryRunwaySeconds(residence: ResidenceState): number | null {
+  if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
+  const stock = getNeedStock(residence.needs, 'pottery');
+  const usePerSec = residence.population * RESIDENCE_POTTERY_PER_PERSON_PER_SEC;
+  if (usePerSec <= 1e-9) return null;
+  return stock / usePerSec;
+}
+
+export function residencePotteryRunwayDays(residence: ResidenceState): number | null {
+  const runwaySeconds = residencePotteryRunwaySeconds(residence);
+  if (runwaySeconds == null) return null;
+  return runwaySeconds / SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
+}
+
 export function specialtyRunwaySeconds(
   residence: ResidenceState,
   needKind: SpecialtyNeedKind,
 ): number | null {
   if (needKind === 'ale') return residenceAleRunwaySeconds(residence);
   if (needKind === 'cloth') return residenceClothRunwaySeconds(residence);
+  if (needKind === 'pottery') return residencePotteryRunwaySeconds(residence);
   return residencePreservedFoodRunwaySeconds(residence);
 }
 
@@ -251,6 +269,7 @@ export function peekNextSpecialtyDeliveryTarget(
 function supplierKindsForNeed(needKind: SpecialtyNeedKind): readonly BuildingKind[] {
   if (needKind === 'ale') return ALE_SUPPLIER_KINDS;
   if (needKind === 'cloth') return CLOTH_SUPPLIER_KINDS;
+  if (needKind === 'pottery') return POTTERY_SUPPLIER_KINDS;
   return PRESERVED_FOOD_SUPPLIER_KINDS;
 }
 
@@ -260,12 +279,14 @@ function specialtySupplierStock(
 ): number {
   if (needKind === 'ale') return building.ale;
   if (needKind === 'cloth') return building.cloth ?? 0;
+  if (needKind === 'pottery') return building.pottery ?? 0;
   return building.preservedFood;
 }
 
 function specialtyCapacity(needKind: SpecialtyNeedKind): number {
   if (needKind === 'ale') return RESIDENCE_ALE_CAPACITY;
   if (needKind === 'cloth') return RESIDENCE_CLOTH_CAPACITY;
+  if (needKind === 'pottery') return RESIDENCE_POTTERY_CAPACITY;
   return RESIDENCE_PRESERVED_FOOD_CAPACITY;
 }
 
@@ -279,7 +300,9 @@ export {
   PRESERVED_FOOD_SUPPLIER_KINDS,
   ALE_SUPPLIER_KINDS,
   CLOTH_SUPPLIER_KINDS,
+  POTTERY_SUPPLIER_KINDS,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_ALE_CAPACITY,
   RESIDENCE_CLOTH_CAPACITY,
+  RESIDENCE_POTTERY_CAPACITY,
 };

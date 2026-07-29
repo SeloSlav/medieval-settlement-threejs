@@ -1,6 +1,7 @@
 use crate::balance_generated::{
     RESIDENCE_ALE_CAPACITY, RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_CAPACITY,
     RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_CAPACITY,
+    RESIDENCE_POTTERY_CAPACITY, RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
     RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
 };
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
@@ -24,6 +25,12 @@ pub fn consume_preserved_food(residence: &Residence, need: &NeedState) -> Consum
 
 pub fn consume_cloth(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
     consume(residence, need, RESIDENCE_CLOTH_PER_PERSON_PER_SEC)
+}
+
+/// Models replacement of broken cooking, serving, and storage vessels rather
+/// than literal daily consumption.
+pub fn consume_pottery(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
+    consume(residence, need, RESIDENCE_POTTERY_PER_PERSON_PER_SEC)
 }
 
 fn consume(residence: &Residence, need: &NeedState, rate: f64) -> ConsumeOutcome {
@@ -66,6 +73,7 @@ pub fn stock_capacity(kind: ResidenceNeedKind) -> f64 {
         ResidenceNeedKind::Ale => RESIDENCE_ALE_CAPACITY,
         ResidenceNeedKind::PreservedFood => RESIDENCE_PRESERVED_FOOD_CAPACITY,
         ResidenceNeedKind::Cloth => RESIDENCE_CLOTH_CAPACITY,
+        ResidenceNeedKind::Pottery => RESIDENCE_POTTERY_CAPACITY,
         _ => 0.0,
     }
 }

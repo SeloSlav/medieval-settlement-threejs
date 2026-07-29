@@ -4,7 +4,8 @@ export type ResidenceNeedKind =
   | 'food'
   | 'ale'
   | 'preservedFood'
-  | 'cloth';
+  | 'cloth'
+  | 'pottery';
 
 export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
   'firewood',
@@ -13,6 +14,7 @@ export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
   'preservedFood',
   'ale',
   'cloth',
+  'pottery',
 ];
 
 export function activeResidenceNeedKinds(tier: 0 | 1 | 2 | 3): ResidenceNeedKind[] {
@@ -31,6 +33,9 @@ export const RESIDENCE_NEED_KIND_IDS: Record<ResidenceNeedKind, number> = {
   ale: 6,
   preservedFood: 7,
   cloth: 14,
+  // Must mirror CommodityKind::Pottery because delivery_trip.cargo_kind is
+  // shared by household and building-bound carts.
+  pottery: 23,
 };
 
 export type ResidenceNeedRecord = {
@@ -47,6 +52,7 @@ export type ResidenceNeedSupplyContext = {
   servingPreservedFoodSupplierId?: string | null;
   servingAleSupplierId?: string | null;
   servingClothSupplierId?: string | null;
+  servingPotterySupplierId?: string | null;
 };
 
 export type ResidenceCommunityContext = {
@@ -83,6 +89,7 @@ export function createDefaultNeeds(): ResidenceNeedsState {
     ale: { stock: 0, deficitTicks: 0 },
     preservedFood: { stock: 0, deficitTicks: 0 },
     cloth: { stock: 0, deficitTicks: 0 },
+    pottery: { stock: 0, deficitTicks: 0 },
   };
 }
 
@@ -100,6 +107,8 @@ export function needKindFromId(id: number): ResidenceNeedKind | null {
       return 'preservedFood';
     case RESIDENCE_NEED_KIND_IDS.cloth:
       return 'cloth';
+    case RESIDENCE_NEED_KIND_IDS.pottery:
+      return 'pottery';
     default:
       return null;
   }

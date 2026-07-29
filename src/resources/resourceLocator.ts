@@ -48,6 +48,7 @@ const RESIDENCE_NEED_RESOURCES = new Set<ResidenceNeedKind>([
   'ale',
   'preservedFood',
   'cloth',
+  'pottery',
 ]);
 
 const CIVIC_TREASURY_KINDS = new Set<BuildingState['kind']>([

@@ -1036,6 +1036,32 @@ export class WorldQueries {
     );
   }
 
+  getServingPotterySupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
+    return findRoadLinkedSupplierForResidence(
+      residence,
+      this.fireEnabledBuildings(state),
+      this.getRoadNetwork(),
+      'pottery',
+    );
+  }
+
+  getPotteryUpgradeSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
+    return findRoadLinkedUpgradeSupplierForResidence(
+      residence,
+      this.fireEnabledBuildings(state),
+      this.getRoadNetwork(),
+      'pottery',
+    );
+  }
+
   getNextFarmBarleyDispatch(
     farmstead: BuildingState,
   ): RoutedProcessorInputDestination<BuildingState> | null {
@@ -1072,6 +1098,8 @@ export class WorldQueries {
         ? this.getServingAleSupplierForResidence(residence)
         : needKind === 'cloth'
           ? this.getServingClothSupplierForResidence(residence)
+          : needKind === 'pottery'
+            ? this.getServingPotterySupplierForResidence(residence)
           : this.getServingPreservedFoodSupplierForResidence(residence);
       return serving?.id === supplier.id;
     });

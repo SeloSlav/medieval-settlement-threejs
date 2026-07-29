@@ -21,6 +21,7 @@ impl ResidenceNeedSupplyContext {
             ResidenceNeedKind::PreservedFood => 3,
             ResidenceNeedKind::Ale => 4,
             ResidenceNeedKind::Cloth => 5,
+            ResidenceNeedKind::Pottery => 6,
         }
     }
 }
@@ -53,6 +54,9 @@ pub fn build_supply_context(
     let has_cloth_route = tick
         .specialty_supplier_for(ctx, residence.owner, residence.id, ResidenceNeedKind::Cloth)
         .is_some();
+    let has_pottery_route = tick
+        .specialty_supplier_for(ctx, residence.owner, residence.id, ResidenceNeedKind::Pottery)
+        .is_some();
 
     let mut routes = [false; ResidenceNeedKind::ALL.len()];
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Firewood)] = has_firewood_route;
@@ -62,5 +66,6 @@ pub fn build_supply_context(
         has_preserved_food_route;
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Ale)] = has_ale_route;
     routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Cloth)] = has_cloth_route;
+    routes[ResidenceNeedSupplyContext::index_for(ResidenceNeedKind::Pottery)] = has_pottery_route;
     ResidenceNeedSupplyContext { routes }
 }

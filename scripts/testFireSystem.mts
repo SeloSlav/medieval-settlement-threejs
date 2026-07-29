@@ -102,12 +102,12 @@ assert.equal(
 );
 assert.deepEqual(
   fireRecoveryCost({ timber: 100, stone: 50 }, 0.6, false, false),
-  { timber: 39, stone: 19.5 },
+  { timber: 39, stone: 19.5, ironwork: 0 },
   'structural repair must scale both material costs with damage',
 );
 assert.deepEqual(
   fireRecoveryCost({ timber: 100, stone: 50 }, 1, true, true),
-  { timber: 63, stone: 35 },
+  { timber: 63, stone: 35, ironwork: 0 },
   'carpenter support must discount only reconstruction timber',
 );
 assert.deepEqual(residenceStructuralCost(3), {

@@ -8,6 +8,7 @@ import {
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   SIM_TICK_SECONDS,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
@@ -43,6 +44,7 @@ export type SettlementGrowthPlan = {
   additionalPreservedFoodPerDay: number;
   additionalAlePerDay: number;
   additionalClothPerDay: number;
+  additionalPotteryPerDay: number;
 };
 
 const EMPTY_WAITING_COUNTS = (): Record<ResidenceNeedKind, number> => ({
@@ -52,6 +54,7 @@ const EMPTY_WAITING_COUNTS = (): Record<ResidenceNeedKind, number> => ({
   preservedFood: 0,
   ale: 0,
   cloth: 0,
+  pottery: 0,
 });
 
 export function computeSettlementGrowthPlan(input: {
@@ -86,6 +89,7 @@ export function computeSettlementGrowthPlan(input: {
   let additionalPreservedFoodPerDay = 0;
   let additionalAlePerDay = 0;
   let additionalClothPerDay = 0;
+  let additionalPotteryPerDay = 0;
   const fireDisabled = fireDisabledResidenceIds(
     input.state.fireIncidents?.values() ?? [],
   );
@@ -130,6 +134,9 @@ export function computeSettlementGrowthPlan(input: {
         * workdaySeconds;
       additionalAlePerDay += vacancies * RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
       additionalClothPerDay += vacancies * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
+      additionalPotteryPerDay += vacancies
+        * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
+        * workdaySeconds;
     }
 
     const community = communityForResidence(residence);
@@ -175,5 +182,6 @@ export function computeSettlementGrowthPlan(input: {
     additionalPreservedFoodPerDay,
     additionalAlePerDay,
     additionalClothPerDay,
+    additionalPotteryPerDay,
   };
 }

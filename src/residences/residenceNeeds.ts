@@ -22,6 +22,7 @@ import {
 import {
   formatSpecialtyRunwayDays,
   residenceClothRunwayDays,
+  residencePotteryRunwayDays,
 } from '../logistics/specialtyLogistics.ts';
 import type { ResidenceState } from '../resources/types.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
@@ -164,6 +165,15 @@ function evaluateNeedRecovery(
         stock: need.stock,
         threshold,
         supplyAvailable: supply.servingClothSupplierId != null,
+      };
+    case 'pottery':
+      return {
+        kind,
+        label: 'Household pottery',
+        ready: supply.servingPotterySupplierId != null && need.stock + 1e-6 >= threshold,
+        stock: need.stock,
+        threshold,
+        supplyAvailable: supply.servingPotterySupplierId != null,
       };
     default: {
       const unhandled: never = kind;
@@ -384,6 +394,23 @@ function describeActiveNeed(
       }
       return null;
     }
+    case 'pottery': {
+      const runwayDays = residencePotteryRunwayDays(residence);
+      if (runwayDays == null) return null;
+      if (runwayDays <= 0.25) {
+        return {
+          label: 'Out of household pottery — awaiting kiln supply',
+          state: 'warning',
+        };
+      }
+      if (runwayDays < 3) {
+        return {
+          label: `Household pottery low — ${formatSpecialtyRunwayDays(runwayDays)} left`,
+          state: 'warning',
+        };
+      }
+      return null;
+    }
     default: {
       const unhandled: never = kind;
       return unhandled;
@@ -405,6 +432,8 @@ function needLabel(kind: ResidenceNeedKind): string {
       return 'Preserved food';
     case 'cloth':
       return 'Household textiles';
+    case 'pottery':
+      return 'Household pottery';
     default: {
       const unhandled: never = kind;
       return unhandled;

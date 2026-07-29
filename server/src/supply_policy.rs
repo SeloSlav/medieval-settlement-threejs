@@ -18,6 +18,7 @@ use crate::processor_output_policy::processor_input_staging_cycles;
 pub const ALE_SUPPLIER_KINDS: &[&str] = &["brewery", "monastery"];
 pub const PRESERVED_FOOD_SUPPLIER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead"];
 pub const CLOTH_SUPPLIER_KINDS: &[&str] = &["weaver"];
+pub const POTTERY_SUPPLIER_KINDS: &[&str] = &["potter_kiln"];
 /// Every non-market building that already dispatches food to households.
 ///
 /// Marketplace caravans remain outside territorial claims because they are a
@@ -653,7 +654,7 @@ mod tests {
         GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
         GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
         LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
-        PRESERVED_FOOD_SUPPLIER_KINDS,
+        POTTERY_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
@@ -1279,6 +1280,7 @@ mod tests {
         );
         assert!(!PRESERVED_FOOD_SUPPLIER_KINDS.contains(&"granary"));
         assert_eq!(CLOTH_SUPPLIER_KINDS, &["weaver"]);
+        assert_eq!(POTTERY_SUPPLIER_KINDS, &["potter_kiln"]);
     }
 
     #[test]

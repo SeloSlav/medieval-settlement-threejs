@@ -178,8 +178,9 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * looms then route matching fibres to their selected specialization before
  * lowest runway and route; staffed extractive worksites use the same ordering
  * for replacement iron tools. Imported iron and salt stop at their working
- * buffers; pottery reaches staffed smokehouses before becoming market export
- * stock. Other inputs resume nearest storage overflow once buffers are covered.
+ * buffers; after the kiln's household-ware duty, pottery reaches staffed
+ * smokehouses before becoming market export stock. Other inputs resume nearest
+ * storage overflow once buffers are covered.
  */
 export function selectDirectProcessorInputTarget<
   T extends ProcessorInputDestinationLike,

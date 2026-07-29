@@ -25,6 +25,7 @@ import {
   POTTER_POTTERY_PER_CYCLE,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+  RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
@@ -126,6 +127,8 @@ export type SettlementProductionCapacity = {
   aleDemandPerDay: number;
   preservedFoodDemandPerDay: number;
   clothDemandPerDay: number;
+  potteryOutputPerDay: number;
+  potteryDemandPerDay: number;
   prosperityRoadBranches: ReadonlyMap<string, ProsperityRoadBranch> | null;
 };
 
@@ -205,6 +208,7 @@ export type IndustrialMaterialPlan = {
   roadCoveredFullToolIronworkPerDay: number;
   ironworkSurplusAfterToolUpkeep: number;
   firstPotteryBottleneckId: string | null;
+  firstPotteryBottleneckResidenceId: string | null;
   firstSmithyBottleneckId: string | null;
   firstUnmaintainedToolSiteId: string | null;
 };
@@ -226,6 +230,7 @@ export type ProsperityRoadBranch = {
   preservedFoodOutputPerDay: number;
   aleOutputPerDay: number;
   clothOutputPerDay: number;
+  potteryOutputPerDay: number;
   firstResidenceId: string | null;
 };
 
@@ -297,6 +302,7 @@ type IndustrialMaterialBranch = {
   potterClayPerDay: number;
   potterFirewoodPerDay: number;
   smokehousePotteryDemandPerDay: number;
+  householdPotteryDemandPerDay: number;
   charcoalOutputPerDay: number;
   charcoalFirewoodPerDay: number;
   smithyIronworkPerDay: number;
@@ -308,6 +314,7 @@ type IndustrialMaterialBranch = {
   firstClayId: string | null;
   firstPotterId: string | null;
   firstSmokehouseId: string | null;
+  firstResidenceId: string | null;
   firstCharcoalId: string | null;
   firstSmithyId: string | null;
   firstToolSiteId: string | null;
@@ -340,6 +347,13 @@ function industrialMaterialBranch(
   componentFor: ProductionRoadComponentResolver | undefined,
 ): IndustrialMaterialBranch {
   const key = grainChainBranchKey(building, componentFor);
+  return industrialMaterialBranchByKey(branches, key);
+}
+
+function industrialMaterialBranchByKey(
+  branches: Map<string, IndustrialMaterialBranch>,
+  key: string,
+): IndustrialMaterialBranch {
   let branch = branches.get(key);
   if (branch) return branch;
   branch = {
@@ -348,6 +362,7 @@ function industrialMaterialBranch(
     potterClayPerDay: 0,
     potterFirewoodPerDay: 0,
     smokehousePotteryDemandPerDay: 0,
+    householdPotteryDemandPerDay: 0,
     charcoalOutputPerDay: 0,
     charcoalFirewoodPerDay: 0,
     smithyIronworkPerDay: 0,
@@ -359,6 +374,7 @@ function industrialMaterialBranch(
     firstClayId: null,
     firstPotterId: null,
     firstSmokehouseId: null,
+    firstResidenceId: null,
     firstCharcoalId: null,
     firstSmithyId: null,
     firstToolSiteId: null,
@@ -379,6 +395,7 @@ function prosperityRoadBranch(
     preservedFoodOutputPerDay: 0,
     aleOutputPerDay: 0,
     clothOutputPerDay: 0,
+    potteryOutputPerDay: 0,
     firstResidenceId: null,
   };
   branches.set(key, branch);
@@ -389,7 +406,7 @@ function recordProsperityOutput(
   branches: Map<string, ProsperityRoadBranch> | null,
   building: BuildingState,
   componentFor: ProductionRoadComponentResolver | undefined,
-  kind: 'preservedFood' | 'ale' | 'cloth',
+  kind: 'preservedFood' | 'ale' | 'cloth' | 'pottery',
   outputPerDay: number,
 ): void {
   if (!branches || !componentFor) return;
@@ -405,8 +422,10 @@ function recordProsperityOutput(
     branch.preservedFoodOutputPerDay += outputPerDay;
   } else if (kind === 'ale') {
     branch.aleOutputPerDay += outputPerDay;
-  } else {
+  } else if (kind === 'cloth') {
     branch.clothOutputPerDay += outputPerDay;
+  } else {
+    branch.potteryOutputPerDay += outputPerDay;
   }
 }
 
@@ -1109,6 +1128,13 @@ function completedProcessorOverview(
         branch.potterClayPerDay += cycles * POTTER_CLAY_PER_CYCLE;
         branch.potterFirewoodPerDay += cycles * POTTER_FIREWOOD_PER_CYCLE;
         branch.firstPotterId = earlierStableId(branch.firstPotterId, building.id);
+        recordProsperityOutput(
+          prosperityRoadBranches,
+          building,
+          componentFor,
+          'pottery',
+          cycles * POTTER_POTTERY_PER_CYCLE,
+        );
         let runway = buildingInputRunway(
           deliveries,
           building,
@@ -1254,12 +1280,15 @@ function industrialMaterialRoadPlan(
   let roadCoveredFullToolIronworkPerDay = 0;
   let ironworkSurplusAfterToolUpkeep = 0;
   let firstPotteryBottleneckId: string | null = null;
+  let firstPotteryBottleneckResidenceId: string | null = null;
   let firstSmithyBottleneckId: string | null = null;
 
   for (const branch of branches.values()) {
+    const branchPotteryDemand = branch.smokehousePotteryDemandPerDay
+      + branch.householdPotteryDemandPerDay;
     const hasPotteryActivity = branch.clayOutputPerDay > 1e-9
       || branch.potterOutputPerDay > 1e-9
-      || branch.smokehousePotteryDemandPerDay > 1e-9;
+      || branchPotteryDemand > 1e-9;
     const hasSmithyActivity = branch.charcoalOutputPerDay > 1e-9
       || branch.smithyIronworkPerDay > 1e-9
       || branch.fullToolIronworkPerDay > 1e-9;
@@ -1269,7 +1298,7 @@ function industrialMaterialRoadPlan(
 
     clayOutputPerDay += branch.clayOutputPerDay;
     potterInstalledOutputPerDay += branch.potterOutputPerDay;
-    potteryDemandPerDay += branch.smokehousePotteryDemandPerDay;
+    potteryDemandPerDay += branchPotteryDemand;
     charcoalOutputPerDay += branch.charcoalOutputPerDay;
     charcoalFirewoodPerDay += branch.charcoalFirewoodPerDay;
     smithyInstalledIronworkPerDay += branch.smithyIronworkPerDay;
@@ -1283,7 +1312,7 @@ function industrialMaterialRoadPlan(
     );
     const branchPotteryCoverage = Math.min(
       branchPotteryOutput,
-      branch.smokehousePotteryDemandPerDay,
+      branchPotteryDemand,
     );
     const branchPotterySurplus = Math.max(
       0,
@@ -1303,13 +1332,13 @@ function industrialMaterialRoadPlan(
       potteryStrandedPerDay += branchPotterySurplus;
     }
 
-    const potteryHasDownstream = branch.smokehousePotteryDemandPerDay > 1e-9
+    const potteryHasDownstream = branchPotteryDemand > 1e-9
       || branch.hasStaffedMarket;
     if (branchPotteryOutput > 1e-9 && potteryHasDownstream) {
       potteryMatchedBranches += 1;
     }
     const potteryBlocked = (
-      branch.smokehousePotteryDemandPerDay > branchPotteryCoverage + 1e-9
+      branchPotteryDemand > branchPotteryCoverage + 1e-9
       || branch.potterOutputPerDay > branchPotteryOutput + 1e-9
       || (branch.clayOutputPerDay > 1e-9 && branch.potterOutputPerDay <= 1e-9)
       || (branchPotterySurplus > 1e-9 && !branch.hasStaffedMarket)
@@ -1325,6 +1354,16 @@ function industrialMaterialRoadPlan(
         firstPotteryBottleneckId = earlierStableId(
           firstPotteryBottleneckId,
           candidate,
+        );
+      }
+      if (
+        candidate === null
+        && branch.householdPotteryDemandPerDay > 1e-9
+        && branch.firstResidenceId !== null
+      ) {
+        firstPotteryBottleneckResidenceId = earlierStableId(
+          firstPotteryBottleneckResidenceId,
+          branch.firstResidenceId,
         );
       }
     }
@@ -1413,6 +1452,7 @@ function industrialMaterialRoadPlan(
     roadCoveredFullToolIronworkPerDay,
     ironworkSurplusAfterToolUpkeep,
     firstPotteryBottleneckId,
+    firstPotteryBottleneckResidenceId,
     firstSmithyBottleneckId,
     firstUnmaintainedToolSiteId: overview.firstUnmaintainedToolSiteId,
   };
@@ -1590,21 +1630,6 @@ export function computeSettlementProductionCapacity(
     normalizedWatermillThroughput,
     normalizedClayPitThroughput,
   );
-  const industrialMaterials = industrialMaterialRoadPlan(
-    industrialMaterialBranches,
-    {
-      clayWorkers,
-      charcoalWorkers,
-      smithyWorkers,
-      potterWorkers,
-      toolEligibleSites,
-      toolMaintainedSites,
-      maintainedToolIronworkPerDay,
-      fullToolIronworkPerDay,
-      firstUnmaintainedToolSiteId,
-    },
-  );
-
   const millCycles = cyclesPerCalendarDay(
     'watermill',
     millWorkers,
@@ -1660,6 +1685,26 @@ export function computeSettlementProductionCapacity(
         continue;
       }
       tierThreeResidents += residence.population;
+      const materialBranch = industrialMaterialBranchByKey(
+        industrialMaterialBranches,
+        roadComponentFor
+          ? productionRoadBranchKey(
+              roadComponentFor(residence),
+              'residence',
+              residence.id,
+            )
+          : 'settlement',
+      );
+      const householdPotteryDemand = Math.max(0, residence.population)
+        * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
+        * WORKDAY_SECONDS;
+      materialBranch.householdPotteryDemandPerDay += householdPotteryDemand;
+      if (householdPotteryDemand > 1e-9) {
+        materialBranch.firstResidenceId = earlierStableId(
+          materialBranch.firstResidenceId,
+          residence.id,
+        );
+      }
       if (prosperityRoadBranches && roadComponentFor) {
         const branch = prosperityRoadBranch(
           prosperityRoadBranches,
@@ -1678,6 +1723,20 @@ export function computeSettlementProductionCapacity(
       }
     }
   }
+  const industrialMaterials = industrialMaterialRoadPlan(
+    industrialMaterialBranches,
+    {
+      clayWorkers,
+      charcoalWorkers,
+      smithyWorkers,
+      potterWorkers,
+      toolEligibleSites,
+      toolMaintainedSites,
+      maintainedToolIronworkPerDay,
+      fullToolIronworkPerDay,
+      firstUnmaintainedToolSiteId,
+    },
+  );
 
   return {
     capacityDaysPerWeek: sabbathObserved ? 6 : 7,
@@ -1746,6 +1805,9 @@ export function computeSettlementProductionCapacity(
       tierThreeResidents * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     clothDemandPerDay:
       tierThreeResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+    potteryOutputPerDay: industrialMaterials.potterInstalledOutputPerDay,
+    potteryDemandPerDay:
+      tierThreeResidents * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     prosperityRoadBranches,
   };
 }

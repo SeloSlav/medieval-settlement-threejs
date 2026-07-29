@@ -241,6 +241,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     ale += getNeedStock(residence.needs, 'ale');
     preservedFood += getNeedStock(residence.needs, 'preservedFood');
     cloth += getNeedStock(residence.needs, 'cloth');
+    pottery += getNeedStock(residence.needs, 'pottery');
     remedies += Math.max(0, residence.remedyStock ?? 0);
   }
 

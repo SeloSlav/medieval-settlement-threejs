@@ -6,6 +6,7 @@ import {
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
 } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { ResidenceState } from '../resources/types.ts';
@@ -15,7 +16,7 @@ import type {
   SettlementProductionCapacity,
 } from './settlementProduction.ts';
 
-export type ProsperityCommodity = 'preservedFood' | 'ale' | 'cloth';
+export type ProsperityCommodity = 'preservedFood' | 'ale' | 'cloth' | 'pottery';
 
 export type ProsperityChain = {
   kind: ProsperityCommodity;
@@ -89,6 +90,7 @@ const PER_RESIDENT_PER_DAY: Record<ProsperityCommodity, number> = {
   preservedFood: RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
   ale: RESIDENCE_ALE_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
   cloth: RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+  pottery: RESIDENCE_POTTERY_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
 };
 
 export function computeSettlementProsperityPlan(
@@ -101,6 +103,8 @@ export function computeSettlementProsperityPlan(
     | 'aleDemandPerDay'
     | 'clothOutputPerDay'
     | 'clothDemandPerDay'
+    | 'potteryOutputPerDay'
+    | 'potteryDemandPerDay'
   > & {
     prosperityRoadBranches?: ReadonlyMap<string, ProsperityRoadBranch> | null;
   },
@@ -109,6 +113,7 @@ export function computeSettlementProsperityPlan(
     | 'additionalPreservedFoodPerDay'
     | 'additionalAlePerDay'
     | 'additionalClothPerDay'
+    | 'additionalPotteryPerDay'
   >,
 ): SettlementProsperityPlan {
   const chains = [
@@ -130,6 +135,12 @@ export function computeSettlementProsperityPlan(
       production.clothOutputPerDay,
       production.clothDemandPerDay,
     ),
+    prosperityChain(
+      'pottery',
+      'household pottery',
+      production.potteryOutputPerDay,
+      production.potteryDemandPerDay,
+    ),
   ] as const;
   const limiting = chains.reduce(
     (lowest, chain) =>
@@ -145,6 +156,7 @@ export function computeSettlementProsperityPlan(
         ),
         safeRatio(growth.additionalAlePerDay, PER_RESIDENT_PER_DAY.ale),
         safeRatio(growth.additionalClothPerDay, PER_RESIDENT_PER_DAY.cloth),
+        safeRatio(growth.additionalPotteryPerDay, PER_RESIDENT_PER_DAY.pottery),
       ))
     : 0;
   const existingFullResidents = currentResidents + existingTierThreeVacancies;
@@ -257,6 +269,13 @@ function buildProsperityRoadPlan(
         kind: 'cloth' as const,
         supported: safeRatio(raw.clothOutputPerDay, PER_RESIDENT_PER_DAY.cloth),
       },
+      {
+        kind: 'pottery' as const,
+        supported: safeRatio(
+          raw.potteryOutputPerDay,
+          PER_RESIDENT_PER_DAY.pottery,
+        ),
+      },
     ];
     const limiting = capacities.reduce(
       (lowest, capacity) =>
@@ -366,7 +385,9 @@ function prosperityChain(
 }
 
 function prosperityCommodityLabel(kind: ProsperityCommodity): string {
-  return kind === 'preservedFood' ? 'preserved food' : kind;
+  if (kind === 'preservedFood') return 'preserved food';
+  if (kind === 'pottery') return 'household pottery';
+  return kind;
 }
 
 function demandForResidents(
@@ -376,6 +397,7 @@ function demandForResidents(
     preservedFood: residents * PER_RESIDENT_PER_DAY.preservedFood,
     ale: residents * PER_RESIDENT_PER_DAY.ale,
     cloth: residents * PER_RESIDENT_PER_DAY.cloth,
+    pottery: residents * PER_RESIDENT_PER_DAY.pottery,
   };
 }
 

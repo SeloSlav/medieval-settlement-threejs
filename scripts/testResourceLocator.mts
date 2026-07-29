@@ -167,6 +167,14 @@ assert.equal(foodLocations[0]?.label, 'Village granary');
 assert.equal(foodLocations[1]?.label, 'Household · parcel 4');
 assert.match(foodLocations[3]?.detail ?? '', /travelling from Village granary/);
 
+household.needs.pottery.stock = 3;
+const potteryLocations = locatePhysicalResource(physicalFoodState, 'pottery');
+assert.deepEqual(
+  potteryLocations.map((location) => [location.kind, location.id, location.amount]),
+  [['residence', household.id, 3]],
+  'household wares must remain physically discoverable after kiln delivery',
+);
+
 const goldBuildings = [
   building({ id: 'town-1', kind: 'town_hall', gold: 12 }),
   building({ id: 'market-1', kind: 'marketplace', gold: 5 }),

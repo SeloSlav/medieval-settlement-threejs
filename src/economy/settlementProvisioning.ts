@@ -13,6 +13,7 @@ import {
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../generated/gameBalance.ts';
@@ -72,6 +73,7 @@ export type SettlementProvisioning = {
   householdBufferPreservedFoodShortHomes: number;
   householdBufferAleShortHomes: number;
   householdBufferClothShortHomes: number;
+  householdBufferPotteryShortHomes: number;
   foodStock: number;
   usableFoodStock: number;
   fireQuarantinedFoodStock: number;
@@ -104,6 +106,7 @@ export type SettlementProvisioning = {
   sabbathPreservedFoodShortHomes: number;
   sabbathAleShortHomes: number;
   sabbathClothShortHomes: number;
+  sabbathPotteryShortHomes: number;
   roadBranches: SettlementRoadProvisioning | null;
   welfare: SettlementWelfare;
 };
@@ -362,6 +365,7 @@ export function computeSettlementProvisioning(input: {
   let householdBufferPreservedFoodShortHomes = 0;
   let householdBufferAleShortHomes = 0;
   let householdBufferClothShortHomes = 0;
+  let householdBufferPotteryShortHomes = 0;
   let sabbathHouseholds = 0;
   let sabbathReadyHouseholds = 0;
   let sabbathFoodShortHomes = 0;
@@ -370,6 +374,7 @@ export function computeSettlementProvisioning(input: {
   let sabbathPreservedFoodShortHomes = 0;
   let sabbathAleShortHomes = 0;
   let sabbathClothShortHomes = 0;
+  let sabbathPotteryShortHomes = 0;
   for (const residence of state.residences.values()) {
     accumulateResidenceWelfare(
       welfareAccumulator,
@@ -458,6 +463,9 @@ export function computeSettlementProvisioning(input: {
       const clothNeeded = residence.population
         * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
         * workdaySeconds;
+      const potteryNeeded = residence.population
+        * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
+        * workdaySeconds;
       if (getNeedStock(residence.needs, 'preservedFood') + 1e-6 < preservedFoodNeeded) {
         householdBufferPreservedFoodShortHomes += 1;
         householdBufferReady = false;
@@ -468,6 +476,10 @@ export function computeSettlementProvisioning(input: {
       }
       if (getNeedStock(residence.needs, 'cloth') + 1e-6 < clothNeeded) {
         householdBufferClothShortHomes += 1;
+        householdBufferReady = false;
+      }
+      if (getNeedStock(residence.needs, 'pottery') + 1e-6 < potteryNeeded) {
+        householdBufferPotteryShortHomes += 1;
         householdBufferReady = false;
       }
     }
@@ -505,6 +517,9 @@ export function computeSettlementProvisioning(input: {
       const clothNeeded = residence.population
         * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
         * workdaySeconds;
+      const potteryNeeded = residence.population
+        * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
+        * workdaySeconds;
       if (getNeedStock(residence.needs, 'preservedFood') + 1e-6 < preservedFoodNeeded) {
         sabbathPreservedFoodShortHomes += 1;
       }
@@ -513,6 +528,9 @@ export function computeSettlementProvisioning(input: {
       }
       if (getNeedStock(residence.needs, 'cloth') + 1e-6 < clothNeeded) {
         sabbathClothShortHomes += 1;
+      }
+      if (getNeedStock(residence.needs, 'pottery') + 1e-6 < potteryNeeded) {
+        sabbathPotteryShortHomes += 1;
       }
     }
     if (sabbathReady) sabbathReadyHouseholds += 1;
@@ -739,6 +757,7 @@ export function computeSettlementProvisioning(input: {
     householdBufferPreservedFoodShortHomes,
     householdBufferAleShortHomes,
     householdBufferClothShortHomes,
+    householdBufferPotteryShortHomes,
     foodStock: totals.food,
     usableFoodStock,
     fireQuarantinedFoodStock: foodPreservation.quarantinedStock,
@@ -780,6 +799,7 @@ export function computeSettlementProvisioning(input: {
     sabbathPreservedFoodShortHomes,
     sabbathAleShortHomes,
     sabbathClothShortHomes,
+    sabbathPotteryShortHomes,
     roadBranches,
     welfare,
   };
@@ -898,6 +918,7 @@ export function formatSabbathReadiness(provisioning: SettlementProvisioning): st
     ['preserved food', provisioning.sabbathPreservedFoodShortHomes],
     ['ale', provisioning.sabbathAleShortHomes],
     ['textiles', provisioning.sabbathClothShortHomes],
+    ['pottery', provisioning.sabbathPotteryShortHomes],
   ] as const;
   const shortageLabel = shortages
     .filter(([, homes]) => homes > 0)
@@ -920,6 +941,7 @@ export function formatHouseholdBufferReadiness(
     ['preserved food', provisioning.householdBufferPreservedFoodShortHomes],
     ['ale', provisioning.householdBufferAleShortHomes],
     ['textiles', provisioning.householdBufferClothShortHomes],
+    ['pottery', provisioning.householdBufferPotteryShortHomes],
   ] as const;
   const shortageLabel = shortages
     .filter(([, homes]) => homes > 0)

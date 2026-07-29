@@ -282,7 +282,7 @@ assert.deepEqual(activeResidenceNeedKinds(1), ['food']);
 assert.deepEqual(activeResidenceNeedKinds(2), ['firewood', 'water', 'food']);
 assert.deepEqual(
   activeResidenceNeedKinds(3),
-  ['firewood', 'water', 'food', 'preservedFood', 'ale', 'cloth'],
+  ['firewood', 'water', 'food', 'preservedFood', 'ale', 'cloth', 'pottery'],
 );
 assert.equal(evaluateResidenceNeedRecovery(residence(1), supply).length, 1);
 assert.equal(evaluateResidenceNeedRecovery(residence(2), supply).length, 3);

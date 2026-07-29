@@ -528,6 +528,10 @@ fn consume_need(
             provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
+        ResidenceNeedKind::Pottery => match provisions::consume_pottery(residence, need) {
+            provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
+            provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
+        },
     }
 }
 
@@ -536,7 +540,10 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         ResidenceNeedKind::Firewood => firewood::on_unmet(need),
         ResidenceNeedKind::Water => water::on_unmet(need),
         ResidenceNeedKind::Food => food::on_unmet(need),
-        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => {
+        ResidenceNeedKind::Ale
+        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Pottery => {
             provisions::on_unmet(need)
         }
     }
@@ -554,7 +561,10 @@ fn evaluate_recovery(
         ResidenceNeedKind::Firewood => firewood::evaluate_recovery(need, supply, stock_min),
         ResidenceNeedKind::Water => water::evaluate_recovery(need, supply, stock_min),
         ResidenceNeedKind::Food => food::evaluate_recovery(need, supply, stock_min),
-        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => {
+        ResidenceNeedKind::Ale
+        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Pottery => {
             provisions::evaluate_recovery(kind, need, supply, stock_min)
         }
     }
@@ -565,7 +575,10 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         ResidenceNeedKind::Firewood => firewood::apply_delivery(need, delivered),
         ResidenceNeedKind::Water => water::apply_delivery(need, delivered),
         ResidenceNeedKind::Food => food::apply_delivery(need, delivered),
-        ResidenceNeedKind::Ale | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => {
+        ResidenceNeedKind::Ale
+        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Pottery => {
             provisions::apply_delivery(need, delivered)
         }
     }

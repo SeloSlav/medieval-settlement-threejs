@@ -110,7 +110,7 @@ const PROCESS: Record<string, string> = {
   clay_pit: 'Usable riverbank shore + labor -> wet clay for local potters',
   charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
   smithy: 'Imported regional iron + locally burned charcoal -> tools, fittings, and weapon heads',
-  potter_kiln: 'Riverbank clay + firewood -> vessels for preservation and market export',
+  potter_kiln: 'Riverbank clay + firewood -> household wares, preservation vessels, and export',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + river power → flour',
   granary: 'Buffers grain for processors, bakes staple food, and shelters road-hauled fresh food',
@@ -339,7 +339,10 @@ function outboundTripTarget(
     )?.target ?? null;
   }
   if (building.kind === 'potter_kiln') {
-    return context.worldQueries.getNextDirectProcessorInputDispatch(
+    return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
+      building,
+      'pottery',
+    ) ?? context.worldQueries.getNextDirectProcessorInputDispatch(
       building,
       'pottery',
     )?.target ?? null;
@@ -431,10 +434,13 @@ function plannedOutboundTripSeconds(
   const weaverIsSendingHouseholdSupply = building.kind === 'weaver'
     && target?.id != null
     && context.gameState.residences.has(target.id);
-  const speed = building.kind === 'monastery' || (building.kind === 'granary' && !granaryIsSendingBuildingSupply) || building.kind === 'brewery' || building.kind === 'smokehouse' || weaverIsSendingHouseholdSupply
+  const potterIsSendingHouseholdSupply = building.kind === 'potter_kiln'
+    && target?.id != null
+    && context.gameState.residences.has(target.id);
+  const speed = building.kind === 'monastery' || (building.kind === 'granary' && !granaryIsSendingBuildingSupply) || building.kind === 'brewery' || building.kind === 'smokehouse' || weaverIsSendingHouseholdSupply || potterIsSendingHouseholdSupply
     ? FOOD_DELIVERY_SPEED_MPS
     : TIMBER_DELIVERY_SPEED_MPS;
-  const unload = building.kind === 'monastery' || (building.kind === 'granary' && !granaryIsSendingBuildingSupply) || building.kind === 'brewery' || building.kind === 'smokehouse' || weaverIsSendingHouseholdSupply
+  const unload = building.kind === 'monastery' || (building.kind === 'granary' && !granaryIsSendingBuildingSupply) || building.kind === 'brewery' || building.kind === 'smokehouse' || weaverIsSendingHouseholdSupply || potterIsSendingHouseholdSupply
     ? FOOD_DELIVERY_UNLOAD_SEC
     : TIMBER_DELIVERY_UNLOAD_SEC;
   return roadDeliveryTripSeconds(
@@ -487,6 +493,9 @@ function renderLogisticsRows(
       : building.kind === 'potter_kiln'
         ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'pottery')
         : null;
+  const potteryHouseholdTarget = building.kind === 'potter_kiln'
+    ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'pottery')
+    : null;
   const materialCommodity = building.kind === 'clay_pit'
     ? 'clay'
     : building.kind === 'charcoal_burner'
@@ -511,6 +520,8 @@ function renderLogisticsRows(
         ? ironworkDispatch.duty === 'working-buffer'
           ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${staffingPriorityLabel(ironworkDispatch.workPriority)} priority · ${(ironworkDispatch.target.ironwork ?? 0).toFixed(2)} / ${ironworkDispatch.desiredStock.toFixed(2)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
           : `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · maintained buffers covered · nearest overflow route`
+      : potteryHouseholdTarget
+        ? `Parcel #${potteryHouseholdTarget.parcelIndex + 1} · lowest household pottery runway`
       : materialDispatch && materialCommodity
         ? materialDispatch.duty === 'working-buffer'
           ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${(materialDispatch.target[materialCommodity] ?? 0).toFixed(2)} / ${materialDispatch.desiredStock.toFixed(2)} ${materialCommodity} · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
@@ -574,6 +585,20 @@ function renderLogisticsRows(
         }</span></li>`;
       })()
     : '';
+  const potteryTerritoryRows = building.kind === 'potter_kiln'
+    ? (() => {
+        const claimed = context.worldQueries.getClaimedResidencesForSpecialtySupplier(
+          building,
+          'pottery',
+        );
+        const next = context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
+          building,
+          'pottery',
+        );
+        return `<li><span>Household-ware territory</span><span>${(building.pottery ?? 0) <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
+          <li><span>Next household</span><span>${next ? `Parcel #${next.parcelIndex + 1}` : 'Household cupboards covered'}</span></li>`;
+      })()
+    : '';
   const breweryReserveRows = building.kind === 'brewery'
     ? (() => {
         const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
@@ -588,7 +613,11 @@ function renderLogisticsRows(
       })()
     : '';
   const householdTerritoryRows =
-    foodTerritoryRows + textileTerritoryRows + hospitalityRoutingRows + breweryReserveRows;
+    foodTerritoryRows
+    + textileTerritoryRows
+    + potteryTerritoryRows
+    + hospitalityRoutingRows
+    + breweryReserveRows;
 
   if (!onRoad) {
     return `${householdTerritoryRows}<li><span>Deliveries</span><span>Off road — connect to dispatch hauls</span></li>`;

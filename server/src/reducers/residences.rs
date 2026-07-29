@@ -38,7 +38,7 @@ use crate::simulation::{
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
     is_well_supplier_operational, ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS,
-    PRESERVED_FOOD_SUPPLIER_KINDS,
+    POTTERY_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
 };
 use crate::tables::{farm_field, BurgageZone, Residence};
 use crate::well_policy::position_within_well_service_radius;
@@ -50,6 +50,7 @@ enum ResidenceUpgradeService {
     PreservedFood,
     Ale,
     Cloth,
+    Pottery,
 }
 
 #[reducer]
@@ -362,6 +363,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
                 ResidenceUpgradeService::PreservedFood,
                 ResidenceUpgradeService::Ale,
                 ResidenceUpgradeService::Cloth,
+                ResidenceUpgradeService::Pottery,
             ],
         ),
         _ => return Err("This residence is already at tier 3.".to_string()),
@@ -371,7 +373,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         return Err(if next_tier == 2 {
             "Tier 2 requires staffed road-linked firewood distribution (a lodge or accepting storehouse) and a staffed well.".to_string()
         } else {
-            "Tier 3 requires staffed road-linked preserved-food, ale, and cloth suppliers (a linked monastery can supply ale).".to_string()
+            "Tier 3 requires staffed road-linked preserved-food, ale, cloth, and pottery suppliers (a linked monastery can supply ale).".to_string()
         });
     }
     let physical_economy = ctx
@@ -696,6 +698,14 @@ fn has_connected_services(
                 }
                 ResidenceUpgradeService::Cloth => {
                     CLOTH_SUPPLIER_KINDS.contains(&building.kind.as_str())
+                        && is_specialty_supplier_operational(
+                            &building.kind,
+                            building.construction_complete,
+                            building.assigned_labor,
+                        )
+                }
+                ResidenceUpgradeService::Pottery => {
+                    POTTERY_SUPPLIER_KINDS.contains(&building.kind.as_str())
                         && is_specialty_supplier_operational(
                             &building.kind,
                             building.construction_complete,

@@ -11,6 +11,7 @@ import {
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_SETTLE_TICKS,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   SIM_TICK_SECONDS,
@@ -94,6 +95,10 @@ assertNear(
 assertNear(
   tierThreePlan.additionalClothPerDay,
   4 * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds,
+);
+assertNear(
+  tierThreePlan.additionalPotteryPerDay,
+  4 * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workdaySeconds,
 );
 
 const mixedState = stateWith(

@@ -1,6 +1,6 @@
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::RESIDENCE_CLOTH_CAPACITY;
+use crate::balance_generated::{RESIDENCE_CLOTH_CAPACITY, RESIDENCE_POTTERY_CAPACITY};
 use crate::db::*;
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::tables::ResidenceNeed;
@@ -37,10 +37,11 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
         })
         .collect();
 
-    let missing_cloth = !needs
+    let missing_cloth = !needs.iter().any(|need| need.kind == ResidenceNeedKind::Cloth);
+    let missing_pottery = !needs
         .iter()
-        .any(|need| need.kind == ResidenceNeedKind::Cloth);
-    let legacy_tier = if missing_cloth {
+        .any(|need| need.kind == ResidenceNeedKind::Pottery);
+    let legacy_tier = if missing_cloth || missing_pottery {
         ctx.db
             .residence()
             .id()
@@ -58,6 +59,12 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
             // cloth row, so this does not create free exportable production.
             if kind == ResidenceNeedKind::Cloth && legacy_tier >= 3 {
                 initial.stock = RESIDENCE_CLOTH_CAPACITY;
+            }
+            // Established prosperous homes receive one transition cupboard of
+            // wares. New homes already have a zero-stock row and must be
+            // supplied by a real potter.
+            if kind == ResidenceNeedKind::Pottery && legacy_tier >= 3 {
+                initial.stock = RESIDENCE_POTTERY_CAPACITY;
             }
             needs.push(initial);
         }

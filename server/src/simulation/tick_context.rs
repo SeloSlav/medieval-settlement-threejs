@@ -25,7 +25,7 @@ use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_food_supplier_operational,
     is_specialty_supplier_operational, is_well_supplier_operational, ALE_SUPPLIER_KINDS,
-    CLOTH_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
+    CLOTH_SUPPLIER_KINDS, POTTERY_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
 };
 use crate::tables::{corpse, farm_field, livestock_herd, Building, Residence};
 
@@ -964,6 +964,7 @@ impl SimTickContext {
             ResidenceNeedKind::Ale => ALE_SUPPLIER_KINDS,
             ResidenceNeedKind::PreservedFood => PRESERVED_FOOD_SUPPLIER_KINDS,
             ResidenceNeedKind::Cloth => CLOTH_SUPPLIER_KINDS,
+            ResidenceNeedKind::Pottery => POTTERY_SUPPLIER_KINDS,
             _ => return HashMap::new(),
         };
         let buildings: Vec<Building> = self
@@ -1005,6 +1006,7 @@ impl SimTickContext {
                         }
                         ResidenceNeedKind::PreservedFood => building.preserved_food > 1e-6,
                         ResidenceNeedKind::Cloth => building.cloth > 1e-6,
+                        ResidenceNeedKind::Pottery => building.pottery > 1e-6,
                         _ => false,
                     }
                     && (building.kind != "monastery"

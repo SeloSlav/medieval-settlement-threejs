@@ -51,12 +51,14 @@ well.workRadius = 80;
 const smokehouse = building('smokehouse', 'smokehouse', 4);
 const brewery = building('brewery', 'brewery', 5);
 const weaver = building('weaver', 'weaver', 6);
+const potter = building('potter', 'potter_kiln', 7);
 const allServices: ResidenceUpgradeServices = {
   firewood: { supplier: lodge, stocked: false },
   water: { supplier: well, stocked: false },
   preservedFood: { supplier: smokehouse, stocked: false },
   ale: { supplier: brewery, stocked: false },
   cloth: { supplier: weaver, stocked: false },
+  pottery: { supplier: potter, stocked: false },
 };
 const richTotals = {
   ...createEmptyStockpile(),
@@ -161,7 +163,7 @@ assert.equal(tierThreePlan.nextTier, 3);
 assert.equal(tierThreePlan.addedCapacity, 4);
 assert.deepEqual(
   tierThreePlan.services.map((service) => service.kind),
-  ['preservedFood', 'ale', 'cloth'],
+  ['preservedFood', 'ale', 'cloth', 'pottery'],
 );
 assert.deepEqual(
   tierThreePlan.resources.map((resource) => resource.required),

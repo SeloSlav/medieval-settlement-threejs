@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {
   ALE_SUPPLIER_KINDS,
   CLOTH_SUPPLIER_KINDS,
+  POTTERY_SUPPLIER_KINDS,
   compareResidencesForSpecialtyDelivery,
   findRoadLinkedSupplierForResidence,
   peekNextSpecialtyDeliveryTarget,
@@ -10,6 +11,7 @@ import {
   residenceAleRunwayDays,
   residenceClothRunwayDays,
   residencePreservedFoodRunwayDays,
+  residencePotteryRunwayDays,
   SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
 } from '../src/logistics/specialtyLogistics.ts';
 import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
@@ -51,7 +53,7 @@ function residence(
   id: string,
   x: number,
   population: number,
-  needKind: 'ale' | 'preservedFood' | 'cloth',
+  needKind: 'ale' | 'preservedFood' | 'cloth' | 'pottery',
   stock: number,
 ): ResidenceState {
   return {
@@ -84,6 +86,7 @@ const network = {
 assert.deepEqual(ALE_SUPPLIER_KINDS, ['brewery', 'monastery']);
 assert.deepEqual(PRESERVED_FOOD_SUPPLIER_KINDS, ['smokehouse', 'pastoral_farmstead']);
 assert.deepEqual(CLOTH_SUPPLIER_KINDS, ['weaver']);
+assert.deepEqual(POTTERY_SUPPLIER_KINDS, ['potter_kiln']);
 assert.equal(PRESERVED_FOOD_SUPPLIER_KINDS.includes('granary'), false);
 assert.equal(SPECIALTY_CONSUMPTION_SECONDS_PER_DAY, 70);
 assert.equal(
@@ -103,6 +106,14 @@ assert.ok(
     ) ?? 0) - 7.936507936507937,
   ) < 1e-9,
   'household cloth runway must use the same 14-hour consumption window as the server',
+);
+assert.ok(
+  Math.abs(
+    (residencePotteryRunwayDays(
+      residence('pottery-runway', 0, 4, 'pottery', 2),
+    ) ?? 0) - (500 / 70),
+  ) < 1e-9,
+  'household pottery runway must model slow vessel breakage on the workday cadence',
 );
 
 const home = residence('home', 0, 4, 'preservedFood', 0);
@@ -193,11 +204,18 @@ assert.match(
   /ResidenceNeedKind::Ale => \{[\s\S]*?building\.kind == "monastery"[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?building\.ale[\s\S]*?available > 1e-6/,
   'ale claims must release empty workshops while excluding protected monastery feast stock',
 );
+const potter = { ...building('potter', 'potter_kiln', 4), pottery: 12 };
+assert.equal(
+  findRoadLinkedSupplierForResidence(home, [weaver, potter], network, 'pottery')?.id,
+  potter.id,
+  'only a stocked road-linked potter should claim household-ware service',
+);
 assert.match(
   tickContext,
   /ResidenceNeedKind::PreservedFood => building\.preserved_food > 1e-6/,
 );
 assert.match(tickContext, /ResidenceNeedKind::Cloth => building\.cloth > 1e-6/);
+assert.match(tickContext, /ResidenceNeedKind::Pottery => building\.pottery > 1e-6/);
 const expanded = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const needDispatch = expanded.slice(
   expanded.indexOf('fn collect_need_delivery_targets'),
@@ -207,6 +225,11 @@ assert.match(needDispatch, /select_residence_for_need_delivery/);
 assert.match(needDispatch, /has_delivery_stock_room/);
 assert.doesNotMatch(needDispatch, /targets\.sort_by/);
 assert.match(expanded, /specialty_supplier_for/);
+assert.match(
+  expanded,
+  /step_potter_kiln[\s\S]*?invalidate_specialty_claims\([\s\S]*?ResidenceNeedKind::Pottery[\s\S]*?dispatch_need\([\s\S]*?ResidenceNeedKind::Pottery/,
+  'new kiln output must invalidate claims and dispatch household pottery before downstream overflow',
+);
 const supply = fs.readFileSync('server/src/simulation/residence_needs/supply.rs', 'utf8');
 assert.match(supply, /ResidenceNeedKind::PreservedFood[\s\S]*specialty_supplier_for|specialty_supplier_for[\s\S]*ResidenceNeedKind::PreservedFood/);
 assert.doesNotMatch(supply, /"smokehouse",\s*"granary",\s*"monastery"/);

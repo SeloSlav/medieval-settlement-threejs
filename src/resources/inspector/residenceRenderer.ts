@@ -18,6 +18,7 @@ import {
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
+  RESIDENCE_POTTERY_CAPACITY,
   RESIDENCE_DILAPIDATED_REPAIR_STONE,
   RESIDENCE_DILAPIDATED_REPAIR_TIMBER,
   RESIDENCE_NEGLECTED_REPAIR_STONE,
@@ -36,6 +37,7 @@ import {
   residenceAleRunwayDays,
   residenceClothRunwayDays,
   residencePreservedFoodRunwayDays,
+  residencePotteryRunwayDays,
 } from '../../logistics/specialtyLogistics.ts';
 import { formatWaterRunwayDays, residenceWaterRunwayDays } from '../../logistics/waterLogistics.ts';
 import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
@@ -185,6 +187,9 @@ export function renderResidenceInspector(
   const servingClothSupplier = residence.tier >= 2
     ? context.worldQueries.getServingClothSupplierForResidence(residence)
     : null;
+  const servingPotterySupplier = residence.tier >= 2
+    ? context.worldQueries.getServingPotterySupplierForResidence(residence)
+    : null;
   const preservedFoodUpgradeSupplier = residence.tier === 2
     ? servingPreservedFoodSupplier
       ?? context.worldQueries.getPreservedFoodUpgradeSupplierForResidence(residence)
@@ -197,6 +202,10 @@ export function renderResidenceInspector(
     ? servingClothSupplier
       ?? context.worldQueries.getClothUpgradeSupplierForResidence(residence)
     : servingClothSupplier;
+  const potteryUpgradeSupplier = residence.tier === 2
+    ? servingPotterySupplier
+      ?? context.worldQueries.getPotteryUpgradeSupplierForResidence(residence)
+    : servingPotterySupplier;
   const upgradeProject = residenceUpgradeProject(
     residence,
     context.gameState.deliveryTrips.values(),
@@ -247,6 +256,10 @@ export function renderResidenceInspector(
       cloth: {
         supplier: clothUpgradeSupplier,
         stocked: servingClothSupplier != null,
+      },
+      pottery: {
+        supplier: potteryUpgradeSupplier,
+        stocked: servingPotterySupplier != null,
       },
       },
       {
@@ -324,6 +337,7 @@ export function renderResidenceInspector(
     servingPreservedFoodSupplierId: servingPreservedFoodSupplier?.id ?? null,
     servingAleSupplierId: servingAleSupplier?.id ?? null,
     servingClothSupplierId: servingClothSupplier?.id ?? null,
+    servingPotterySupplierId: servingPotterySupplier?.id ?? null,
   }, community);
   const runwayDays = residence.tier >= 2 ? residenceFirewoodRunwayDays(residence) : null;
   const firewoodRunwayLabel = runwayDays == null
@@ -349,6 +363,12 @@ export function renderResidenceInspector(
   const clothRunwayLabel = clothRunwayDays == null
     ? '—'
     : formatSpecialtyRunwayDays(clothRunwayDays);
+  const potteryRunwayDays = residence.tier >= 3
+    ? residencePotteryRunwayDays(residence)
+    : null;
+  const potteryRunwayLabel = potteryRunwayDays == null
+    ? '—'
+    : formatSpecialtyRunwayDays(potteryRunwayDays);
   const supplierLabel = (supplier: typeof servingFirewoodSupplier): string => {
     if (!supplier) return 'None on branch';
     const distance = context.worldQueries.getRoadPathDistance(
@@ -365,6 +385,7 @@ export function renderResidenceInspector(
   const preservedFoodSupplierLabel = supplierLabel(servingPreservedFoodSupplier);
   const aleSupplierLabel = supplierLabel(servingAleSupplier);
   const clothSupplierLabel = supplierLabel(servingClothSupplier);
+  const potterySupplierLabel = supplierLabel(servingPotterySupplier);
   const capacity = residence.populationCapacity;
   const settlersRemaining = Math.max(0, capacity - residence.population);
   const settlementReadiness = residenceSettlementReadiness(residence, community);
@@ -388,6 +409,8 @@ export function renderResidenceInspector(
         ? 'preserved food'
         : kind === 'cloth'
           ? 'household textiles'
+          : kind === 'pottery'
+            ? 'household pottery'
           : kind
     )
     .join(', ');
@@ -523,12 +546,15 @@ export function renderResidenceInspector(
       ${residence.tier >= 3 ? `<li><span>Ale runway</span><span>${aleRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Household textiles</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Textile runway</span><span>${clothRunwayLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Household pottery</span><span>${Math.round(getNeedStock(residence.needs, 'pottery'))} / ${RESIDENCE_POTTERY_CAPACITY}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Pottery replacement</span><span>${potteryRunwayLabel} · slow breakage of cooking and storage vessels</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Serving food supplier</span><span>${foodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Firewood supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Serving well</span><span>${wellLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Preserved food supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale supplier</span><span>${aleSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Cloth supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Pottery supplier</span><span>${potterySupplierLabel}</span></li>` : ''}
       <li><span>Church link</span><span>${community.hasChapelAccess ? 'Staffed parish on the road' : 'None on branch'}</span></li>
       <li><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>
       <li><span>Road access</span><span>${roadAccess}</span></li>
@@ -676,7 +702,7 @@ function residenceProsperityRows(
     <li><span>Settlement prosperity</span><span>${plan.currentResidents} / ${usableCapacity} road-matched residents at installed capacity${plan.roadPlan && plan.roadPlan.fragmentationResidentCapacity > 0 ? ` · ${plan.roadPlan.fragmentationResidentCapacity} capacity split between branches` : ''} · assumes fully supplied staffed workshops</span></li>
     ${projection.roadBranchScoped ? `<li><span>Local prosperity branch</span><span>${localCurrentResidents} current / ${localCapacity} resident capacity · ${projection.limitingLabel} limited</span></li>` : ''}
     <li><span>Promotion load</span><span>+${projection.occupantsPromotedNow} prosperous consumers now · +${projection.targetHouseCapacity} with this house full · ${immediateStatus}</span></li>
-    <li><span>Immediate daily demand</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} preserved food · +${projection.immediateDemand.ale.toFixed(2)} ale · +${projection.immediateDemand.cloth.toFixed(3)} cloth</span></li>
+    <li><span>Immediate daily demand</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} preserved food · +${projection.immediateDemand.ale.toFixed(2)} ale · +${projection.immediateDemand.cloth.toFixed(3)} cloth · +${projection.immediateDemand.pottery.toFixed(2)} pottery</span></li>
   `;
 }
 

@@ -122,6 +122,7 @@ materialBuildings[0].ironwork = 1;
 for (const candidate of materialBuildings) {
   materialState.buildings.set(candidate.id, candidate);
 }
+materialState.residences.set('material-home', residence('material-home', 10));
 const joinedMaterials = computeSettlementProductionCapacity(
   materialState,
   false,
@@ -133,6 +134,10 @@ assert.equal(joinedMaterials.potteryBlockedBranches, 0);
 assert.equal(joinedMaterials.smithyMatchedBranches, 1);
 assert.equal(joinedMaterials.smithyBlockedBranches, 0);
 assert.equal(joinedMaterials.potteryShortfallPerDay, 0);
+assert.ok(
+  joinedMaterials.potteryDemandPerDay > 0,
+  'prosperous household breakage must contribute to the road-local pottery demand ledger',
+);
 assert.ok(joinedMaterials.potteryExportSurplusPerDay > 0);
 assert.equal(joinedMaterials.potteryStrandedPerDay, 0);
 assert.equal(joinedMaterials.toolEligibleSites, 2);
@@ -1658,6 +1663,8 @@ function residence(id: string, population: number): ResidenceState {
       food: { stock: 0, deficitSeconds: 0 },
       preservedFood: { stock: 0, deficitSeconds: 0 },
       ale: { stock: 0, deficitSeconds: 0 },
+      cloth: { stock: 0, deficitSeconds: 0 },
+      pottery: { stock: 0, deficitSeconds: 0 },
     },
     abandoned: false,
     householdWealth: 0,
