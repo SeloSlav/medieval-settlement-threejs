@@ -109,6 +109,47 @@ approx(fullWeek.breweryOutputRoom?.days ?? -1, 3);
 approx(fullWeek.smokehouseOutputRoom?.days ?? -1, 9 / 8);
 approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5);
 
+const maintainedMillState = emptyGameState();
+const maintainedMill = building('maintained-mill', 'watermill', 1);
+maintainedMill.grain = 180;
+maintainedMill.ironwork = 0.75;
+maintainedMillState.buildings.set(maintainedMill.id, maintainedMill);
+const maintainedMillCapacity = computeSettlementProductionCapacity(
+  maintainedMillState,
+  false,
+);
+approx(
+  maintainedMillCapacity.flourOutputPerDay,
+  48,
+  'smith-dressed stones and maintained iron fittings must raise installed milling output by 20%',
+);
+approx(
+  maintainedMillCapacity.millInputBuffer?.days ?? -1,
+  5,
+  'faster maintained milling must consume the onsite grain buffer at the same increased rate',
+);
+assert.equal(maintainedMillCapacity.industrialMaterials.toolEligibleSites, 1);
+assert.equal(maintainedMillCapacity.industrialMaterials.toolMaintainedSites, 1);
+assert.ok(
+  maintainedMillCapacity.industrialMaterials.maintainedToolIronworkPerDay > 0,
+);
+const strongFlowMaintainedMill = computeSettlementProductionCapacity(
+  maintainedMillState,
+  false,
+  undefined,
+  1.25,
+);
+approx(
+  strongFlowMaintainedMill.flourOutputPerDay,
+  60,
+  'river power and millstone condition must multiply rather than overwrite one another',
+);
+approx(
+  strongFlowMaintainedMill.industrialMaterials.maintainedToolIronworkPerDay,
+  maintainedMillCapacity.industrialMaterials.maintainedToolIronworkPerDay * 1.25,
+  'stronger flow must increase real completed batches and therefore dressing wear',
+);
+
 const materialState = emptyGameState();
 const materialBuildings = [
   building('material-clay', 'clay_pit', 1),
@@ -200,6 +241,11 @@ approx(
 assert.ok(
   frostLimitedMaterials.industrialMaterials.potteryOutputPerDay
     < joinedMaterials.potteryOutputPerDay,
+);
+assert.ok(
+  frostLimitedMaterials.industrialMaterials.maintainedToolIronworkPerDay
+    < joinedMaterials.maintainedToolIronworkPerDay,
+  'weather-limited clay extraction must also reduce forecast tool wear',
 );
 
 const splitMaterials = computeSettlementProductionCapacity(

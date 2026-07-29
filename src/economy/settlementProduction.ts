@@ -284,6 +284,7 @@ type ProcessorOverview = Pick<
   fireDisabledProcessorSites: number;
   fireDisabledProcessorWorkers: number;
   firstFireDisabledProcessorId: string | null;
+  millEffectiveWorkers: number;
   grainChainBranches: Map<string, GrainChainBranch>;
   prosperityRoadBranches: Map<string, ProsperityRoadBranch> | null;
   industrialMaterialBranches: Map<string, IndustrialMaterialBranch>;
@@ -300,6 +301,7 @@ type ProcessorOverview = Pick<
 
 type GrainChainBranch = {
   millWorkers: number;
+  millEffectiveWorkers: number;
   bakeryWorkers: number;
   firstMillId: string | null;
   firstBakeryId: string | null;
@@ -449,16 +451,20 @@ function recordGrainRoadActivity(
   building: BuildingState,
   role: 'mill' | 'bakery',
   componentFor: ProductionRoadComponentResolver | undefined,
+  throughputMultiplier = 1,
 ): void {
   const key = grainChainBranchKey(building, componentFor);
   const branch = branches.get(key) ?? {
     millWorkers: 0,
+    millEffectiveWorkers: 0,
     bakeryWorkers: 0,
     firstMillId: null,
     firstBakeryId: null,
   };
   if (role === 'mill') {
     branch.millWorkers += building.assignedLabor;
+    branch.millEffectiveWorkers += building.assignedLabor
+      * Math.max(0, throughputMultiplier);
     branch.firstMillId = earlierStableId(branch.firstMillId, building.id);
   } else {
     branch.bakeryWorkers += building.assignedLabor;
@@ -605,12 +611,6 @@ function completedProcessorOverview(
 ): ProcessorOverview {
   const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
   const deliveries = timedInputDeliveries(state.deliveryTrips.values());
-  const millCyclesPerWorker = cyclesPerCalendarDay(
-    'watermill',
-    1,
-    sabbathObserved,
-    watermillThroughputMultiplier,
-  );
   const bakeryCyclesPerWorker = cyclesPerCalendarDay('granary', 1, sabbathObserved);
   const breweryCyclesPerWorker = cyclesPerCalendarDay('brewery', 1, sabbathObserved);
   const smokehouseCyclesPerWorker = cyclesPerCalendarDay('smokehouse', 1, sabbathObserved);
@@ -630,6 +630,7 @@ function completedProcessorOverview(
   let fireDisabledProcessorWorkers = 0;
   let firstFireDisabledProcessorId: string | null = null;
   let millWorkers = 0;
+  let millEffectiveWorkers = 0;
   let bakeryWorkers = 0;
   let breweryWorkers = 0;
   let smokehouseWorkers = 0;
@@ -730,17 +731,23 @@ function completedProcessorOverview(
         const productiveToolLabor = building.kind === 'woodcutters_lodge'
           ? lodgeSustainedProcessingLabor(building.assignedLabor)
           : building.assignedLabor;
+        const environmentThroughput = building.kind === 'watermill'
+          ? watermillThroughputMultiplier
+          : building.kind === 'clay_pit'
+            ? clayPitThroughputMultiplier
+            : 1;
         const maintainedCycles = cyclesPerCalendarDay(
           building.kind,
           productiveToolLabor,
           sabbathObserved,
-          civilianToolThroughputMultiplier(building.ironwork ?? 0),
+          civilianToolThroughputMultiplier(building.ironwork ?? 0)
+            * environmentThroughput,
         );
         const fullyEquippedCycles = cyclesPerCalendarDay(
           building.kind,
           productiveToolLabor,
           sabbathObserved,
-          CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+          CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER * environmentThroughput,
         );
         fullyEquippedDemand = fullyEquippedCycles
           * CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
@@ -772,14 +779,24 @@ function completedProcessorOverview(
     }
     switch (building.kind) {
       case 'watermill': {
+        const toolThroughput = civilianToolThroughputMultiplier(
+          building.ironwork ?? 0,
+        );
         millWorkers += building.assignedLabor;
+        millEffectiveWorkers += building.assignedLabor * toolThroughput;
         recordGrainRoadActivity(
           grainChainBranches,
           building,
           'mill',
           componentFor,
+          toolThroughput,
         );
-        const cycles = millCyclesPerWorker * building.assignedLabor;
+        const cycles = cyclesPerCalendarDay(
+          'watermill',
+          building.assignedLabor,
+          sabbathObserved,
+          watermillThroughputMultiplier * toolThroughput,
+        );
         millInputBuffer = updateFirstToStop(
           millInputBuffer,
           buildingInputRunway(
@@ -1239,6 +1256,7 @@ function completedProcessorOverview(
     fireDisabledProcessorWorkers,
     firstFireDisabledProcessorId,
     millWorkers,
+    millEffectiveWorkers,
     bakeryWorkers,
     breweryWorkers,
     smokehouseWorkers,
@@ -1529,7 +1547,7 @@ function grainChainRoadPlan(
   for (const [key, branch] of branches) {
     const millCycles = cyclesPerCalendarDay(
       'watermill',
-      branch.millWorkers,
+      branch.millEffectiveWorkers,
       sabbathObserved,
       watermillThroughputMultiplier,
     );
@@ -1648,6 +1666,7 @@ export function computeSettlementProductionCapacity(
     fireDisabledProcessorWorkers,
     firstFireDisabledProcessorId,
     millWorkers,
+    millEffectiveWorkers,
     bakeryWorkers,
     breweryWorkers,
     smokehouseWorkers,
@@ -1690,7 +1709,7 @@ export function computeSettlementProductionCapacity(
   );
   const millCycles = cyclesPerCalendarDay(
     'watermill',
-    millWorkers,
+    millEffectiveWorkers,
     sabbathObserved,
     normalizedWatermillThroughput,
   );

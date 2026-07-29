@@ -1309,7 +1309,7 @@
     "watermill": {
       "label": "Grain watermill",
       "cost": { "timber": 58, "stone": 42, "ironwork": 6 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 80, "grain": 180, "flour": 260 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 80, "grain": 180, "flour": 260, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 10,
       "harvestInterval": 7,

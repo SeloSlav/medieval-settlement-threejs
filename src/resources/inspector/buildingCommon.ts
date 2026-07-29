@@ -73,18 +73,24 @@ export function civilianToolRows(building: BuildingState): string {
   if (plan == null) return '';
   const bonus = Math.round((CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER - 1) * 100);
   const isFarmstead = building.kind === 'threshing_barn';
+  const isWatermill = building.kind === 'watermill';
   const runway = isFarmstead
     ? `${farmToolWorkerDayRunway(plan.ironwork).toFixed(1)} active worker-days onsite`
     : `${plan.runwayCycles.toFixed(1)} cycles onsite`;
   const wear = isFarmstead
     ? `${FARM_TOOL_IRONWORK_PER_WORKER_DAY} ironwork per completed worker-day · wear follows actual field progress`
-    : `${CIVILIAN_TOOL_IRONWORK_PER_CYCLE} ironwork per completed cycle · smithy handcart restores a 3-cycle buffer`;
+    : isWatermill
+      ? `${CIVILIAN_TOOL_IRONWORK_PER_CYCLE} ironwork per completed milling cycle · dressing hammers, gudgeons, and fittings share the smithy buffer`
+      : `${CIVILIAN_TOOL_IRONWORK_PER_CYCLE} ironwork per completed cycle · smithy handcart restores a 3-cycle buffer`;
+  const toolLabel = isWatermill ? 'Mill dressing' : 'Work tools';
+  const maintainedLabel = isWatermill
+    ? `Stone faces dressed and iron fittings sound · +${bonus}% throughput · ${runway}`
+    : `Maintained · +${bonus}% throughput · ${runway}`;
+  const baselineLabel = isWatermill
+    ? `Worn stone faces · baseline milling · deliver ironwork for +${bonus}% throughput`
+    : `Baseline hand tools · deliver ironwork for +${bonus}% throughput`;
   return `
-    <li><span>Work tools</span><span>${
-      plan.maintained
-        ? `Maintained · +${bonus}% throughput · ${runway}`
-        : `Baseline hand tools · deliver ironwork for +${bonus}% throughput`
-    }</span></li>
+    <li><span>${toolLabel}</span><span>${plan.maintained ? maintainedLabel : baselineLabel}</span></li>
     <li><span>Tool wear</span><span>${wear}</span></li>
   `;
 }

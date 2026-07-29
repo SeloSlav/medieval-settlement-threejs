@@ -105,18 +105,25 @@ assert.match(
 );
 assert.match(
   expandedEconomySimulation,
-  /"clay_pit",\s*"threshing_barn",\s*"carpenter"/,
-  'smithies must include farm tools in physical ironwork dispatch',
+  /"clay_pit",\s*"threshing_barn",\s*"watermill",\s*"carpenter"/,
+  'smithies must include farm and watermill tools in physical ironwork dispatch',
 );
 assert.match(
   expandedEconomySimulation,
   /farm_tool_throughput[\s\S]*work_budget[\s\S]*farm_tool_ironwork_for_work\(spent\)/,
   'authoritative field progress must accelerate and wear tools only after real work',
 );
+assert.match(
+  expandedEconomySimulation,
+  /step_watermill[\s\S]*watermill_throughput_multiplier\(\)[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*mill\.flour > flour_before[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  'watermill output must combine river power with maintained dressing and wear ironwork only after a completed batch',
+);
 assert.match(woodcutterInspector, /civilianToolRows\(building\)/);
 assert.match(buildMenuCards, /replacement axes raise output but wear each cycle/);
 assert.match(buildMenuCards, /ploughshares, hoes, sickles, and scythes/);
+assert.match(buildMenuCards, /Smith-dressed millstones and maintained iron fittings raise output/);
 assert.match(farmsteadInspector, /Seasonal tool reserve/);
+assert.match(farmsteadInspector, /smith-dressed millstones and iron fittings/);
 const conflictVisibilityMethod = settlementHudSource.slice(
   settlementHudSource.indexOf('setConflictEnabled(enabled: boolean)'),
   settlementHudSource.indexOf('setSettlementClock(', settlementHudSource.indexOf(
@@ -182,6 +189,22 @@ const carpenter = building('carpenter', {
   constructionPriority: 3,
   ironwork: 0,
 });
+const watermill = building('watermill', {
+  id: 'watermill',
+  assignedLabor: 1,
+  constructionPriority: 2,
+  ironwork: 0,
+});
+
+const watermillTarget = selectDirectProcessorInputTarget(
+  [watermill],
+  'smithy',
+  'ironwork',
+  () => 24,
+);
+assert.equal(watermillTarget?.target.id, 'watermill');
+assert.equal(watermillTarget?.duty, 'working-buffer');
+assert.equal(watermillTarget?.desiredStock, 0.75);
 
 const priorityTarget = selectDirectProcessorInputTarget(
   [lowPriorityQuarry, highPriorityClay, carpenter],

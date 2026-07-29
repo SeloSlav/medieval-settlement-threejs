@@ -1382,7 +1382,7 @@ export const BUILDING_STORAGE_CAPS = {
   smokehouse: { timber: 0, firewood: 40, stone: 0, food: 120, preservedFood: 180, salt: 24, pottery: 12 },
   granary: { timber: 0, firewood: 60, stone: 0, water: 120, food: 340, grain: 360, barley: 240, flour: 260, preservedFood: 180 },
   apiary: { timber: 0, firewood: 0, stone: 0, food: 40, honey: 140 },
-  watermill: { timber: 0, firewood: 0, stone: 0, water: 80, grain: 180, flour: 260 },
+  watermill: { timber: 0, firewood: 0, stone: 0, water: 80, grain: 180, flour: 260, ironwork: 3 },
   carpenter: { timber: 140, firewood: 0, stone: 0, ironwork: 18, polearms: 24 },
   weaver: { timber: 0, firewood: 0, stone: 0, water: 24, wool: 90, flax: 90, cloth: 90 },
   ferry_landing: { timber: 0, firewood: 0, stone: 0 },

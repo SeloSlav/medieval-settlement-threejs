@@ -530,6 +530,10 @@ pub fn step_watermill(
     environment: EnvironmentState,
     building: Building,
 ) {
+    let tools_maintained = civilian_tools_maintained(building.ironwork);
+    let throughput_multiplier = environment.watermill_throughput_multiplier()
+        * civilian_tool_throughput_multiplier(building.ironwork);
+    let flour_before = building.flour;
     let mut mill = building;
     mill = step_processor_at_rate(
         ctx,
@@ -538,8 +542,15 @@ pub fn step_watermill(
         mill,
         &[(CommodityKind::Grain, WATERMILL_GRAIN_PER_CYCLE)],
         &[(CommodityKind::Flour, WATERMILL_FLOUR_PER_CYCLE)],
-        environment.watermill_throughput_multiplier(),
+        throughput_multiplier,
     );
+    if tools_maintained && mill.flour > flour_before + 1e-6 {
+        withdraw_building_commodity(
+            &mut mill,
+            CommodityKind::Ironwork,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+        );
+    }
     dispatch_to_building(
         ctx,
         tick,
@@ -1087,6 +1098,7 @@ fn local_material_source_plan(kind: &str) -> Option<(CommodityKind, &'static [&'
                 "large_quarry",
                 "clay_pit",
                 "threshing_barn",
+                "watermill",
                 "carpenter",
             ],
         )),

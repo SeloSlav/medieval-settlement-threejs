@@ -337,8 +337,8 @@ assert.doesNotMatch(
 );
 assert.match(
   expandedSimulation,
-  /step_processor_at_rate\([\s\S]*environment\.watermill_throughput_multiplier\(\)/,
-  'authoritative watermill cycles must use the live river-power multiplier',
+  /let throughput_multiplier = environment\.watermill_throughput_multiplier\(\)[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*step_processor_at_rate\([\s\S]*throughput_multiplier/,
+  'authoritative watermill cycles must multiply live river power by maintained stone dressing',
 );
 const watermillInspector = fs.readFileSync(
   'src/resources/inspector/expandedBuildingRenderer.ts',

@@ -2133,7 +2133,7 @@ const WATERMILL: BuildingDef = BuildingDef {
     storage_wine: 0.0,
     storage_wool: 0.0,
     storage_cloth: 0.0,
-    storage_ironwork: 0.0,
+    storage_ironwork: 3.0,
     storage_polearms: 0.0,
     storage_iron: 0.0,
     storage_clay: 0.0,

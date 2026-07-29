@@ -682,6 +682,7 @@ export function createWatermillMesh(): THREE.Group {
     [[1.9, 0, 4.05, 0.86], [2.62, 0, 4.15, 0.72], [2.25, 0, 4.68, 0.64]],
     (segment, scale) => addSack(segment, 0, 0, scale),
   );
+  group.add(createCivilianToolStockpile(new THREE.Vector3(3.72, 0, 3.82), -0.22));
   return group;
 }
 

@@ -122,7 +122,7 @@ const PROCESS: Record<string, string> = {
   smithy: 'Imported regional iron + locally burned charcoal -> tools, fittings, and weapon heads',
   potter_kiln: 'Riverbank clay + firewood -> household wares, preservation vessels, and export',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
-  watermill: 'Grain + river power → flour',
+  watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
   granary: 'Buffers grain, bakes staple food, and redistributes road-hauled fresh and cured provisions',
   brewery: 'Barley + water + firewood → malt → ale',
   smokehouse: 'Fresh food + firewood + imported salt + pottery vessels → preserved food',
@@ -286,7 +286,16 @@ function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
     case 'charcoal_burner':
       return ['smithy'];
     case 'smithy':
-      return ['lumber_mill', 'stone_quarry', 'large_quarry', 'clay_pit', 'carpenter'];
+      return [
+        'lumber_mill',
+        'woodcutters_lodge',
+        'stone_quarry',
+        'large_quarry',
+        'clay_pit',
+        'threshing_barn',
+        'watermill',
+        'carpenter',
+      ];
     case 'potter_kiln':
       return ['smokehouse', 'marketplace'];
     default:
@@ -908,8 +917,8 @@ export function renderExpandedBuildingInspector(
     && Math.abs(environment.watermillThroughputMultiplier - 1) > 1e-6
     ? {
         statusText: environment.watermillThroughputMultiplier > 1
-          ? `Strong spring flow · ${Math.round(environment.watermillThroughputMultiplier * 100)}% milling speed`
-          : `${environment.weather === 'frost' ? 'Iced mill race' : 'Low stream flow'} · ${Math.round(environment.watermillThroughputMultiplier * 100)}% milling speed`,
+          ? `Strong spring flow · ${Math.round(environment.watermillThroughputMultiplier * 100)}% river power before millstone condition`
+          : `${environment.weather === 'frost' ? 'Iced mill race' : 'Low stream flow'} · ${Math.round(environment.watermillThroughputMultiplier * 100)}% river power before millstone condition`,
         statusState: environment.watermillThroughputMultiplier > 1
           ? 'active' as const
           : 'warning' as const,
