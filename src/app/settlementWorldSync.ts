@@ -11,6 +11,7 @@ import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
 import type { TreeRegistry } from '../resources/TreeRegistry.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
 import { gameClock } from '../world/gameCalendar.ts';
+import { fireDisabledResidenceIds } from '../fires/fireIncident.ts';
 
 export type SettlementWorldSyncTargets = {
   residenceMarkers: ResidenceMarkers | null;
@@ -125,6 +126,11 @@ export function syncSettlementWorld(
 
   if (residencesChanged) {
     targets.residenceMarkers?.syncResidences(state.residences.values(), getHeightAt);
+  }
+  if (fireIncidentsChanged) {
+    targets.residenceMarkers?.setFireDisabledResidenceIds(
+      fireDisabledResidenceIds(state.fireIncidents.values()),
+    );
   }
   if (
     residencesChanged

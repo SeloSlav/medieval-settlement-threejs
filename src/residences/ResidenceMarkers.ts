@@ -796,6 +796,7 @@ export class ResidenceMarkers {
   private readonly smokeEligible = new Map<string, boolean>();
   private readonly residenceOccupied = new Map<string, boolean>();
   private readonly residencePopulation = new Map<string, number>();
+  private fireDisabledResidenceIds = new Set<string>();
   private chimneySmokeAllowed = true;
   private eveningWindowGlow = 0;
   private nightPolicy: Pick<NightPolicyState, 'gathering' | 'curfew'> | undefined;
@@ -810,8 +811,25 @@ export class ResidenceMarkers {
   setChimneySmokeAllowed(allowed: boolean): void {
     this.chimneySmokeAllowed = allowed;
     for (const [id, emitter] of this.smokeEmitters) {
-      emitter.setActive(allowed && (this.smokeEligible.get(id) ?? false));
+      emitter.setActive(
+        allowed
+          && !this.fireDisabledResidenceIds.has(id)
+          && (this.smokeEligible.get(id) ?? false),
+      );
     }
+  }
+
+  setFireDisabledResidenceIds(ids: ReadonlySet<string>): void {
+    if (setsEqual(this.fireDisabledResidenceIds, ids)) return;
+    this.fireDisabledResidenceIds = new Set(ids);
+    for (const [id, emitter] of this.smokeEmitters) {
+      emitter.setActive(
+        this.chimneySmokeAllowed
+          && !this.fireDisabledResidenceIds.has(id)
+          && (this.smokeEligible.get(id) ?? false),
+      );
+    }
+    this.applyWindowGlow();
   }
 
   setHouseholdClock(clock: GameClock): void {
@@ -850,7 +868,9 @@ export class ResidenceMarkers {
   tick(dt: number): void {
     for (const [id, emitter] of this.smokeEmitters) {
       emitter.setActive(
-        this.chimneySmokeAllowed && (this.smokeEligible.get(id) ?? false),
+        this.chimneySmokeAllowed
+          && !this.fireDisabledResidenceIds.has(id)
+          && (this.smokeEligible.get(id) ?? false),
       );
       emitter.tick(dt);
     }
@@ -895,11 +915,14 @@ export class ResidenceMarkers {
       const y = getHeightAt(residence.x, residence.z);
       marker.position.set(residence.x, y, residence.z);
       marker.rotation.y = residence.yaw;
-      this.smokeEligible.set(
-        residence.id,
-        !residence.abandoned
-          && residence.population > 0
-          && getNeedStock(residence.needs, 'firewood') > 0,
+      const smokeEligible = !residence.abandoned
+        && residence.population > 0
+        && getNeedStock(residence.needs, 'firewood') > 0;
+      this.smokeEligible.set(residence.id, smokeEligible);
+      this.smokeEmitters.get(residence.id)?.setActive(
+        this.chimneySmokeAllowed
+          && !this.fireDisabledResidenceIds.has(residence.id)
+          && smokeEligible,
       );
       this.residenceOccupied.set(
         residence.id,
@@ -942,6 +965,7 @@ export class ResidenceMarkers {
   }
 
   private windowGlowForResidence(residenceId: string): number {
+    if (this.fireDisabledResidenceIds.has(residenceId)) return 0;
     if (!this.householdClock) return this.eveningWindowGlow;
     const householdActivity = residenceWindowActivity(
       residenceId,
@@ -960,12 +984,22 @@ export class ResidenceMarkers {
     this.smokeEligible.clear();
     this.residenceOccupied.clear();
     this.residencePopulation.clear();
+    this.fireDisabledResidenceIds.clear();
     for (const marker of this.meshes.values()) {
       disposeGroup(marker);
     }
     this.meshes.clear();
     this.root.removeFromParent();
   }
+}
+
+function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {
+  if (left === right) return true;
+  if (left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
 }
 
 function syncFirewoodPile(marker: THREE.Group, firewoodStock: number): void {

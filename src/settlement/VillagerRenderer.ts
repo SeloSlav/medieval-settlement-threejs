@@ -142,6 +142,9 @@ type VillagerRoutinePhase =
   | 'going_to_muster'
   | 'at_muster'
   | 'returning_from_muster'
+  | 'going_to_fire_assembly'
+  | 'at_fire_assembly'
+  | 'returning_from_fire_assembly'
   | HouseholdHomeState;
 type VillagerPathPurpose =
   | 'home_wander'
@@ -154,6 +157,8 @@ type VillagerPathPurpose =
   | 'return_from_refuge'
   | 'guard_muster'
   | 'return_from_muster'
+  | 'fire_assembly'
+  | 'return_from_fire_assembly'
   | 'ambient'
   | null;
 
@@ -284,6 +289,7 @@ export class VillagerRenderer {
   private refugeAssignments: ReadonlyMap<string, string> = new Map();
   private guardMusterAssignments:
     ReadonlyMap<string, GuardMusterPresentationAssignment> = new Map();
+  private fireDisabledBuildingIds = new Set<string>();
   private fireDisabledResidenceIds = new Set<string>();
   private combatAgentVisuals = new Map<string, CombatAgentVisual>();
   private activeCombatGuardSlots = new Set<string>();
@@ -462,6 +468,7 @@ export class VillagerRenderer {
     const pastures = [...options.pastures];
     const fireIncidents = [...(options.fireIncidents ?? [])];
     const disabledBuildingIds = fireDisabledBuildingIds(fireIncidents);
+    this.fireDisabledBuildingIds = disabledBuildingIds;
     this.fireDisabledResidenceIds = fireDisabledResidenceIds(fireIncidents);
     this.residences = new Map(residences.map((residence) => [residence.id, residence]));
     this.buildings = new Map(buildings.map((building) => [building.id, building]));
@@ -604,7 +611,7 @@ export class VillagerRenderer {
     this.workerTargets = new Map();
     for (const buildingId of workerBuildingIds) {
       const building = this.buildings.get(buildingId);
-      if (!building) continue;
+      if (!building || this.fireDisabledBuildingIds.has(buildingId)) continue;
       this.workerTargets.set(buildingId, collectWorkerTargets(building, targetInputs));
     }
 
@@ -848,7 +855,9 @@ export class VillagerRenderer {
         || agent.pathPurpose === 'refuge_rally'
         || agent.pathPurpose === 'return_from_refuge'
         || agent.pathPurpose === 'guard_muster'
-        || agent.pathPurpose === 'return_from_muster';
+        || agent.pathPurpose === 'return_from_muster'
+        || agent.pathPurpose === 'fire_assembly'
+        || agent.pathPurpose === 'return_from_fire_assembly';
       if (agent.frozen && !commuteMustAdvance) continue;
 
       agent.simAccumulator += simulationDt;
@@ -951,7 +960,14 @@ export class VillagerRenderer {
       ? 'Cottage construction'
       : 'Household improvement works';
     const name = villagerDisplayName(agent.personIdentity, agent.modelVariant);
+    const workplaceFireDisabled = workplace
+      ? this.fireDisabledBuildingIds.has(workplace.id)
+      : false;
+    const residenceFireDisabled = residence
+      ? this.fireDisabledResidenceIds.has(residence.id)
+      : false;
     const onDuty = agent.role === 'worker'
+      && !workplaceFireDisabled
       && (
         agent.routinePhase === 'work'
         || agent.routinePhase === 'commuting_to_work'
@@ -969,8 +985,14 @@ export class VillagerRenderer {
       eyebrow: agent.role === 'founder'
         ? 'Founder · Awaiting housing'
         : agent.role === 'worker'
-          ? `Worker · ${onDuty ? 'On duty' : 'Off duty'}`
-          : 'Villager · Available labor',
+          ? workplaceFireDisabled
+            ? 'Worker · Fire-displaced'
+            : residenceFireDisabled
+              ? 'Worker · Household fire'
+              : `Worker · ${onDuty ? 'On duty' : 'Off duty'}`
+          : residenceFireDisabled
+            ? 'Villager · Fire-displaced'
+            : 'Villager · Available labor',
       occupation: villagerOccupation(
         workplace?.kind ?? null,
         workplace?.constructionComplete === false,
@@ -979,6 +1001,8 @@ export class VillagerRenderer {
         agent,
         workplace,
         upgradeWorkplaceLabel.toLocaleLowerCase(),
+        workplaceFireDisabled,
+        residenceFireDisabled,
       ),
       activityState: onDuty ? 'active' : 'ready',
       workplaceLabel: 'Workplace',
@@ -1462,6 +1486,12 @@ export class VillagerRenderer {
         case 'return_from_muster':
           this.completeGuardMusterReturn(agent);
           break;
+        case 'fire_assembly':
+          this.completeFireAssemblyArrival(agent);
+          break;
+        case 'return_from_fire_assembly':
+          this.completeFireAssemblyReturn(agent);
+          break;
         case 'worker_work_loop':
           this.resetWorkerToIdle(agent);
           break;
@@ -1714,8 +1744,9 @@ export class VillagerRenderer {
 
   private isDefenseDutyAgent(agent: VillagerAgent): boolean {
     if (agent.role !== 'worker' || !agent.workplaceId) return false;
-    const kind = this.buildings.get(agent.workplaceId)?.kind;
-    return kind === 'watchtower' || kind === 'guardhouse';
+    const workplace = this.buildings.get(agent.workplaceId);
+    return !this.fireDisabledBuildingIds.has(agent.workplaceId)
+      && (workplace?.kind === 'watchtower' || workplace?.kind === 'guardhouse');
   }
 
   private assignedRefugeForResidence(agent: VillagerAgent): BuildingState | null {
@@ -1728,6 +1759,7 @@ export class VillagerRenderer {
     const refuge = refugeId ? this.buildings.get(refugeId) : null;
     return refuge?.kind === 'palisaded_refuge'
       && refuge.constructionComplete !== false
+      && !this.fireDisabledBuildingIds.has(refuge.id)
       ? refuge
       : null;
   }
@@ -1744,6 +1776,7 @@ export class VillagerRenderer {
     if (
       guardhouse?.kind !== 'guardhouse'
       || guardhouse.constructionComplete === false
+      || this.fireDisabledBuildingIds.has(guardhouse.id)
       || agent.workplaceSlot >= Math.floor(guardhouse.polearms ?? 0)
     ) return null;
     const assignment = this.guardMusterAssignments.get(guardhouse.id);
@@ -1753,6 +1786,7 @@ export class VillagerRenderer {
     return tower?.kind === 'watchtower'
       && tower.constructionComplete !== false
       && tower.assignedLabor > 0
+      && !this.fireDisabledBuildingIds.has(tower.id)
       ? tower
       : null;
   }
@@ -1776,9 +1810,22 @@ export class VillagerRenderer {
       agent.routinePhase === 'going_to_muster'
       || agent.routinePhase === 'at_muster'
     ) {
+      const emergencyRefuge = this.assignedRefugeForResidence(agent);
+      if (emergencyRefuge) {
+        return this.beginRefugeJourney(agent, emergencyRefuge);
+      }
       return this.beginGuardMusterReturn(agent);
     }
-    if (agent.routinePhase === 'returning_from_muster') return false;
+    if (agent.routinePhase === 'returning_from_muster') {
+      const workplaceFireDisabled = agent.workplaceId
+        ? this.fireDisabledBuildingIds.has(agent.workplaceId)
+        : false;
+      if (!workplaceFireDisabled) return false;
+      const emergencyRefuge = this.assignedRefugeForResidence(agent);
+      return emergencyRefuge
+        ? this.beginRefugeJourney(agent, emergencyRefuge)
+        : this.beginWorkerReturnHome(agent);
+    }
 
     const refuge = this.assignedRefugeForResidence(agent);
     if (refuge) {
@@ -1800,6 +1847,41 @@ export class VillagerRenderer {
       return this.beginRefugeReturn(agent);
     }
     if (agent.routinePhase === 'returning_from_refuge') return false;
+
+    const workplace = agent.role === 'worker' && agent.workplaceId
+      ? this.buildings.get(agent.workplaceId) ?? null
+      : null;
+    const shouldWork = agent.role === 'worker'
+      && this.shouldWorkerBeAtWork(agent, workplace);
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    const residenceFireDisabled = residence
+      ? this.fireDisabledResidenceIds.has(residence.id)
+      : false;
+
+    if (residenceFireDisabled && residence && !shouldWork) {
+      if (
+        agent.routinePhase === 'going_to_fire_assembly'
+        || agent.routinePhase === 'at_fire_assembly'
+      ) {
+        return false;
+      }
+      return this.beginFireAssemblyJourney(agent, residence);
+    }
+    if (
+      agent.routinePhase === 'going_to_fire_assembly'
+      || agent.routinePhase === 'at_fire_assembly'
+    ) {
+      return shouldWork
+        ? this.beginWorkerCommuteToWork(agent)
+        : this.beginFireAssemblyReturn(agent);
+    }
+    if (agent.routinePhase === 'returning_from_fire_assembly') {
+      return shouldWork
+        ? this.beginWorkerCommuteToWork(agent)
+        : false;
+    }
 
     const homeState = householdMemberHomeState(
       agent.personIdentity,
@@ -1835,18 +1917,6 @@ export class VillagerRenderer {
     }
 
     if (agent.role === 'worker') {
-      const workplace = agent.workplaceId
-        ? this.buildings.get(agent.workplaceId) ?? null
-        : null;
-      const shouldWork = (this.clock.isWorkHours && !this.laborPaused)
-        || this.isNightWatchDuty(agent, workplace)
-        || (
-          !this.clock.isWorkHours
-          && workplace != null
-          && workplace.constructionComplete !== false
-          && isNightWorkBuilding(workplace.kind, this.nightPolicy.work)
-          && !this.frontierAlertActive
-        );
       if (shouldWork) {
         if (agent.routinePhase === 'work' || agent.routinePhase === 'commuting_to_work') {
           return false;
@@ -1863,6 +1933,27 @@ export class VillagerRenderer {
     return this.transitionToHomeState(agent, homeState);
   }
 
+  private shouldWorkerBeAtWork(
+    agent: VillagerAgent,
+    workplace: BuildingState | null,
+  ): boolean {
+    if (
+      !this.clock
+      || !workplace
+      || this.fireDisabledBuildingIds.has(workplace.id)
+    ) {
+      return false;
+    }
+    return (this.clock.isWorkHours && !this.laborPaused)
+      || this.isNightWatchDuty(agent, workplace)
+      || (
+        !this.clock.isWorkHours
+        && workplace.constructionComplete !== false
+        && isNightWorkBuilding(workplace.kind, this.nightPolicy.work)
+        && !this.frontierAlertActive
+      );
+  }
+
   private isNightWatchDuty(
     agent: VillagerAgent,
     workplace: BuildingState | null,
@@ -1872,6 +1963,7 @@ export class VillagerRenderer {
       || this.clock.isWorkHours
       || !workplace
       || workplace.constructionComplete === false
+      || this.fireDisabledBuildingIds.has(workplace.id)
       || this.nightPolicy.watch === 2
     ) {
       return false;
@@ -1972,20 +2064,12 @@ export class VillagerRenderer {
   private completeMassReturn(agent: VillagerAgent): void {
     this.clearPath(agent);
     agent.massChapelId = null;
-    if (
-      agent.role === 'worker'
-      && this.clock?.isWorkHours
-      && !this.laborPaused
-    ) {
-      agent.routinePhase = 'home_outdoors';
-      this.beginWorkerCommuteToWork(agent);
-      return;
-    }
     const homeState = this.clock
       ? householdMemberHomeState(agent.personIdentity, this.clock)
       : 'home_outdoors';
     agent.routinePhase = 'returning_from_mass';
     this.transitionToHomeState(agent, homeState);
+    if (agent.role === 'worker') this.reconcileRoutine(agent);
     this.syncCampAmbientAssignments();
     this.syncChapelAmbientAssignments();
   }
@@ -2049,11 +2133,15 @@ export class VillagerRenderer {
     const residence = agent.residenceId
       ? this.residences.get(agent.residenceId) ?? null
       : null;
-    const destination = workplace
+    const workplaceAvailable = workplace
+      && !this.fireDisabledBuildingIds.has(workplace.id);
+    const destination = workplaceAvailable
       ? workplaceYardPosition(workplace, agent.workplaceSlot)
       : residence
         ? residenceDoorPosition(residence)
-        : null;
+        : this.foundingCamp
+          ? this.foundingCampRestPosition(agent, this.foundingCamp)
+          : null;
     if (!destination) {
       this.completeGuardMusterReturn(agent);
       return true;
@@ -2078,7 +2166,7 @@ export class VillagerRenderer {
     const workplace = agent.workplaceId
       ? this.buildings.get(agent.workplaceId) ?? null
       : null;
-    if (workplace) {
+    if (workplace && !this.fireDisabledBuildingIds.has(workplace.id)) {
       this.completeWorkerCommuteToWork(agent);
       this.reconcileRoutine(agent);
       return;
@@ -2163,7 +2251,9 @@ export class VillagerRenderer {
       ? this.residences.get(agent.residenceId) ?? null
       : null;
     const destination = residence
-      ? residenceDoorPosition(residence)
+      ? this.fireDisabledResidenceIds.has(residence.id)
+        ? this.fireAssemblyPosition(agent, residence)
+        : residenceDoorPosition(residence)
       : this.foundingCamp
         ? this.foundingCampRestPosition(agent, this.foundingCamp)
         : null;
@@ -2206,11 +2296,114 @@ export class VillagerRenderer {
     const residence = agent.residenceId
       ? this.residences.get(agent.residenceId) ?? null
       : null;
+    if (residence && this.fireDisabledResidenceIds.has(residence.id)) {
+      this.completeFireAssemblyArrival(agent);
+      return;
+    }
     if (residence) this.placeIdle(agent, residence);
     else if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);
     agent.routinePhase = 'home_outdoors';
     agent.idleRemaining = 1;
     this.reconcileRoutine(agent);
+  }
+
+  private fireAssemblyPosition(
+    agent: VillagerAgent,
+    residence: ResidenceState,
+  ): PointXZ & { yaw: number } {
+    const door = residenceDoorPosition(residence);
+    const frontX = Math.sin(residence.yaw);
+    const frontZ = Math.cos(residence.yaw);
+    const sideX = Math.cos(residence.yaw);
+    const sideZ = -Math.sin(residence.yaw);
+    const lateralOffset = agent.idleOffset.x * 1.35;
+    const x = door.x + frontX * 4.8 + sideX * lateralOffset;
+    const z = door.z + frontZ * 4.8 + sideZ * lateralOffset;
+    return {
+      x,
+      z,
+      yaw: Math.atan2(residence.x - x, residence.z - z),
+    };
+  }
+
+  private beginFireAssemblyJourney(
+    agent: VillagerAgent,
+    residence: ResidenceState,
+  ): boolean {
+    const destination = this.fireAssemblyPosition(agent, residence);
+    const path = [
+      { x: agent.x, z: agent.z },
+      { x: destination.x, z: destination.z },
+    ];
+    this.chapelAmbientAssignments.delete(agent.id);
+    agent.massChapelId = null;
+    const routedPath = this.routePath(path) ?? path;
+    if (!this.beginPreparedJourney(agent, routedPath, 'fire_assembly')) {
+      this.completeFireAssemblyArrival(agent);
+      return true;
+    }
+    agent.routinePhase = 'going_to_fire_assembly';
+    this.syncChapelAmbientAssignments();
+    return true;
+  }
+
+  private completeFireAssemblyArrival(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    if (!residence || !this.fireDisabledResidenceIds.has(residence.id)) {
+      agent.routinePhase = 'home_outdoors';
+      this.reconcileRoutine(agent);
+      return;
+    }
+    const destination = this.fireAssemblyPosition(agent, residence);
+    agent.x = destination.x;
+    agent.z = destination.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = destination.yaw;
+    agent.routinePhase = 'at_fire_assembly';
+    agent.idleRemaining = 60;
+    agent.idleDirty = false;
+  }
+
+  private beginFireAssemblyReturn(agent: VillagerAgent): boolean {
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    if (!residence) {
+      this.completeFireAssemblyReturn(agent);
+      return true;
+    }
+    const destination = residenceDoorPosition(residence);
+    const path = [
+      { x: agent.x, z: agent.z },
+      destination,
+    ];
+    const routedPath = this.routePath(path) ?? path;
+    if (!this.beginPreparedJourney(agent, routedPath, 'return_from_fire_assembly')) {
+      this.completeFireAssemblyReturn(agent);
+      return true;
+    }
+    agent.routinePhase = 'returning_from_fire_assembly';
+    return true;
+  }
+
+  private completeFireAssemblyReturn(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    if (residence && this.fireDisabledResidenceIds.has(residence.id)) {
+      this.completeFireAssemblyArrival(agent);
+      return;
+    }
+    if (residence) this.placeIdle(agent, residence);
+    agent.routinePhase = this.clock
+      ? householdMemberHomeState(agent.personIdentity, this.clock, this.nightPolicy)
+      : 'home_outdoors';
+    agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
+    if (agent.role === 'worker') this.reconcileRoutine(agent);
   }
 
   private beginWorkerReturnHome(agent: VillagerAgent): boolean {
@@ -2253,7 +2446,7 @@ export class VillagerRenderer {
 
   private beginWorkerCommuteToWork(agent: VillagerAgent): boolean {
     const building = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
-    if (!building) return false;
+    if (!building || this.fireDisabledBuildingIds.has(building.id)) return false;
 
     const destination = workplaceYardPosition(building, agent.workplaceSlot);
     const path = pickWorkerCommutePath(
@@ -2272,9 +2465,14 @@ export class VillagerRenderer {
 
   private completeWorkerCommuteToWork(agent: VillagerAgent): void {
     this.clearPath(agent);
-    agent.routinePhase = 'work';
     const building = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
-    if (building) this.placeWorkerIdle(agent, building);
+    if (!building || this.fireDisabledBuildingIds.has(building.id)) {
+      agent.routinePhase = 'home_outdoors';
+      this.beginWorkerReturnHome(agent);
+      return;
+    }
+    agent.routinePhase = 'work';
+    this.placeWorkerIdle(agent, building);
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.45;
   }
 
@@ -2397,6 +2595,23 @@ export class VillagerRenderer {
     }
     if (purpose === 'return_from_mass') {
       this.completeMassReturn(agent);
+      return;
+    }
+    if (purpose === 'fire_assembly') {
+      agent.routinePhase = 'home_outdoors';
+      const residence = agent.residenceId
+        ? this.residences.get(agent.residenceId) ?? null
+        : null;
+      if (residence && this.fireDisabledResidenceIds.has(residence.id)) {
+        this.beginFireAssemblyJourney(agent, residence);
+      } else {
+        this.reconcileRoutine(agent);
+      }
+      return;
+    }
+    if (purpose === 'return_from_fire_assembly') {
+      agent.routinePhase = 'at_fire_assembly';
+      this.beginFireAssemblyReturn(agent);
       return;
     }
     if (purpose === 'ambient') {
@@ -2887,8 +3102,12 @@ export class VillagerRenderer {
       agent.routinePhase === 'going_to_refuge'
       || agent.routinePhase === 'at_refuge'
       || agent.routinePhase === 'returning_from_refuge'
+      || agent.routinePhase === 'going_to_fire_assembly'
+      || agent.routinePhase === 'at_fire_assembly'
+      || agent.routinePhase === 'returning_from_fire_assembly'
     ) return null;
     const workplace = this.buildings.get(agent.workplaceId);
+    if (workplace && this.fireDisabledBuildingIds.has(workplace.id)) return null;
     if (workplace?.constructionComplete === false) return 'hammer';
     if (workplace && workerProductionBlocker(workplace)) return null;
     const kind = workplace?.kind;
@@ -2991,6 +3210,8 @@ function describeVillagerActivity(
   agent: VillagerAgent,
   workplace: BuildingState | null,
   residenceWorksLabel = 'household improvement works',
+  workplaceFireDisabled = false,
+  residenceFireDisabled = false,
 ): string {
   const workplaceLabel = workplace
     ? isResidenceUpgradeWorkplaceId(workplace.id)
@@ -3000,9 +3221,13 @@ function describeVillagerActivity(
 
   switch (agent.routinePhase) {
     case 'commuting_to_work':
-      return `Walking to ${workplaceLabel}`;
+      return workplaceFireDisabled
+        ? `Turning back from the fire at ${workplaceLabel}`
+        : `Walking to ${workplaceLabel}`;
     case 'returning_home':
-      return 'Walking home';
+      return workplaceFireDisabled
+        ? `Evacuating from the fire at ${workplaceLabel}`
+        : 'Walking home';
     case 'going_to_mass':
       return 'Walking to Sunday mass';
     case 'at_mass':
@@ -3020,14 +3245,25 @@ function describeVillagerActivity(
     case 'at_muster':
       return 'Holding the watch muster line during the frontier alert';
     case 'returning_from_muster':
-      return 'Returning to the guardhouse after the alert';
+      return workplaceFireDisabled
+        ? `Evacuating from the fire at ${workplaceLabel}`
+        : 'Returning to the guardhouse after the alert';
     case 'going_to_refuge':
       return 'Rallying through the palisaded refuge gate';
     case 'at_refuge':
       return 'Sheltering with their household during the frontier alert';
     case 'returning_from_refuge':
       return 'Returning from the civilian refuge';
+    case 'going_to_fire_assembly':
+      return 'Evacuating from a household fire';
+    case 'at_fire_assembly':
+      return 'Waiting safely outside a fire-disabled home';
+    case 'returning_from_fire_assembly':
+      return 'Returning home after fire recovery';
     case 'work':
+      if (workplaceFireDisabled) {
+        return `Leaving ${workplaceLabel} — the site is closed by fire`;
+      }
       if (workplace?.kind === 'watchtower') {
         return 'Keeping watch from the frontier gallery';
       }
@@ -3085,6 +3321,12 @@ function describeVillagerActivity(
         ? `Working around ${workplaceLabel}`
         : `Working at ${workplaceLabel}`;
     case 'home_outdoors':
+      if (residenceFireDisabled) {
+        return 'Leaving a fire-disabled home';
+      }
+      if (agent.role === 'worker' && workplaceFireDisabled) {
+        return `Waiting near home — ${workplaceLabel} is closed by fire`;
+      }
       if (agent.role === 'founder') {
         switch (agent.ambientBehavior) {
           case 'wander': return "Walking around the founders' camp";
@@ -3096,7 +3338,10 @@ function describeVillagerActivity(
       }
       return agent.mode === 'walk' ? 'Walking near home' : 'Outside at home';
     case 'indoors':
-      return 'At home';
+      if (residenceFireDisabled) return 'Evacuating a fire-disabled home';
+      return agent.role === 'worker' && workplaceFireDisabled
+        ? `At home — ${workplaceLabel} is closed by fire`
+        : 'At home';
     case 'asleep':
       return 'Sleeping';
   }

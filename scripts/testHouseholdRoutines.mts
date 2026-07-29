@@ -28,6 +28,7 @@ import { computeDayNightState } from '../src/world/dayNightPresentation.ts';
 import type { GameClock } from '../src/world/gameCalendar.ts';
 import type { GameSpeed } from '../src/world/gameSpeed.ts';
 import { SIM_REALTIME_RATE } from '../src/generated/gameBalance.ts';
+import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
   DEFAULT_NIGHT_POLICY,
   formatDawnReport,
@@ -167,7 +168,11 @@ const villagers = new VillagerRenderer({
   getGameSpeed: () => gameSpeed,
   getHeightAt: () => 0,
 });
-const home = residence('routine-home', 0, 0);
+const home = {
+  ...residence('routine-home', 0, 0),
+  population: 2,
+  populationCapacity: 2,
+};
 const workplace = building('routine-workplace', 12, 0);
 const chapel = {
   ...building('routine-chapel', 28, 0),
@@ -202,20 +207,26 @@ parishRoads.addRoadPath([
   new THREE.Vector3(-5, 0, 0),
   new THREE.Vector3(35, 0, 0),
 ]);
-villagers.sync({
-  residences: [home],
-  buildings: [workplace, chapel, refuge],
-  quarries: [],
-  foragingNodes: [],
-  trees: new Map(),
-  treeRegistry: null,
-  farmFields: [],
-  pastures: [],
-  roadNetwork: parishRoads,
-});
+const syncRoutineVillage = (
+  fireIncidents: readonly FireIncidentState[] = [],
+): void => {
+  villagers.sync({
+    residences: [home],
+    buildings: [workplace, chapel, refuge],
+    quarries: [],
+    foragingNodes: [],
+    trees: new Map(),
+    treeRegistry: null,
+    farmFields: [],
+    pastures: [],
+    fireIncidents,
+    roadNetwork: parishRoads,
+  });
+};
+syncRoutineVillage();
 villagers.setSchedule(fullClock(19), false);
 
-const agents = (
+const villagerInternals = (
   villagers as unknown as {
     agents: Map<string, {
       personIdentity: string;
@@ -228,10 +239,85 @@ const agents = (
       x: number;
       z: number;
     }>;
+    workerTargets: Map<string, unknown[]>;
+    workerToolFor: (agent: unknown) => string | null;
   }
-).agents;
+);
+const agents = villagerInternals.agents;
 const worker = agents.get('worker:routine-workplace:0');
 assert.ok(worker);
+assert.equal(worker.routinePhase, 'work');
+assert.equal(villagerInternals.workerToolFor(worker), 'hatchet');
+
+const resident = agents.get('resident:routine-home:0');
+assert.ok(resident, 'one unassigned household member should remain visible at home');
+
+syncRoutineVillage([fireIncident('workplace-fire', 'building', workplace.id, workplace.x, workplace.z)]);
+assert.equal(
+  worker.routinePhase,
+  'returning_home',
+  'a fire-disabled workplace must immediately release its visible crew toward home',
+);
+assert.equal(worker.pathPurpose, 'return_home');
+assert.equal(
+  villagerInternals.workerTargets.has(workplace.id),
+  false,
+  'a fire-disabled workplace should not retain natural-resource or yard work targets',
+);
+assert.equal(
+  villagerInternals.workerToolFor(worker),
+  null,
+  'evacuating workers must put away production tools',
+);
+const fireDisplacedInspection = villagers.inspectVillager(worker.personIdentity);
+assert.equal(fireDisplacedInspection?.eyebrow, 'Worker · Fire-displaced');
+assert.match(
+  fireDisplacedInspection?.activity ?? '',
+  /Evacuating from the fire at Lumber mill/,
+);
+for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
+assert.notEqual(
+  worker.routinePhase,
+  'work',
+  'assigned workers must remain away while their workplace is fire-disabled',
+);
+
+syncRoutineVillage();
+assert.equal(
+  worker.routinePhase,
+  'commuting_to_work',
+  'the same rostered person should physically return when the fire outage clears',
+);
+assert.equal(worker.pathPurpose, 'commute_to_work');
+for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
+assert.equal(worker.routinePhase, 'work');
+assert.equal(villagerInternals.workerToolFor(worker), 'hatchet');
+
+syncRoutineVillage([fireIncident('home-fire', 'residence', home.id, home.x, home.z)]);
+assert.equal(
+  worker.routinePhase,
+  'work',
+  'a safely working household member should not falsely stop authoritative production',
+);
+assert.equal(
+  resident.routinePhase,
+  'going_to_fire_assembly',
+  'an at-home resident must physically leave a fire-disabled house',
+);
+const displacedResidentInspection = villagers.inspectVillager(resident.personIdentity);
+assert.equal(displacedResidentInspection?.eyebrow, 'Villager · Fire-displaced');
+assert.match(displacedResidentInspection?.activity ?? '', /Evacuating from a household fire/);
+for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
+assert.equal(resident.routinePhase, 'at_fire_assembly');
+assert.ok(
+  Math.hypot(resident.x - home.x, resident.z - home.z) > 6,
+  'fire-displaced residents must wait beyond the house footprint instead of inside the flames',
+);
+
+syncRoutineVillage();
+assert.equal(resident.routinePhase, 'returning_from_fire_assembly');
+for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
+assert.notEqual(resident.routinePhase, 'at_fire_assembly');
 assert.equal(worker.routinePhase, 'work');
 
 villagers.setSchedule(fullClock(20), true);
@@ -317,6 +403,17 @@ assert.equal(worker.pathPurpose, 'return_from_refuge');
 for (let step = 0; step < realtimeTickBudget(1800); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.equal(worker.refugeId, null);
+syncRoutineVillage([
+  fireIncident('refuge-fire', 'building', refuge.id, refuge.x, refuge.z),
+]);
+villagers.setRefugeAlert(true, new Map([[home.id, refuge.id]]));
+assert.notEqual(
+  worker.pathPurpose,
+  'refuge_rally',
+  'a fire-disabled refuge must not receive a household rally',
+);
+villagers.setRefugeAlert(false);
+syncRoutineVillage();
 villagers.dispose();
 await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -437,6 +534,39 @@ assert.equal(armedGuard.pathPurpose, 'return_from_muster');
 for (let step = 0; step < realtimeTickBudget(1400); step++) defenseVillagers.tick(0.05);
 assert.equal(armedGuard.routinePhase, 'work');
 assert.equal(armedGuard.musterTowerId, null);
+defenseVillagers.setFrontierAlert(
+  true,
+  new Map([[defenseHome.id, refuge.id]]),
+  new Map([[guardhouse.id, { towerId: musterWatch.id }]]),
+);
+for (let step = 0; step < realtimeTickBudget(1200); step++) defenseVillagers.tick(0.05);
+assert.equal(armedGuard.routinePhase, 'at_muster');
+defenseVillagers.sync({
+  residences: [defenseHome],
+  buildings: [guardhouse, musterWatch, refuge],
+  quarries: [],
+  foragingNodes: [],
+  trees: new Map(),
+  treeRegistry: null,
+  farmFields: [],
+  pastures: [],
+  fireIncidents: [
+    fireIncident('guardhouse-fire', 'building', guardhouse.id, guardhouse.x, guardhouse.z),
+  ],
+  roadNetwork: parishRoads,
+});
+assert.equal(
+  armedGuard.pathPurpose,
+  'refuge_rally',
+  'a guard whose post burns during muster must leave the line and rally with the household',
+);
+assert.equal(unarmedGuard.pathPurpose, 'refuge_rally');
+assert.equal(
+  watchman.routinePhase,
+  'work',
+  'a separate healthy watch crew must remain at its defensive post',
+);
+defenseVillagers.setFrontierAlert(false);
 defenseVillagers.dispose();
 await new Promise((resolve) => setTimeout(resolve, 0));
 console.warn = originalWarn;
@@ -450,6 +580,14 @@ const markerInternals = residenceMarkers as unknown as {
 };
 const smokeEmitter = markerInternals.smokeEmitters.get(home.id);
 assert.equal(smokeEmitter?.active, true);
+residenceMarkers.setFireDisabledResidenceIds(new Set([home.id]));
+assert.equal(
+  smokeEmitter?.active,
+  false,
+  'a fire-disabled home must stop emitting ordinary hearth smoke immediately',
+);
+residenceMarkers.setFireDisabledResidenceIds(new Set());
+assert.equal(smokeEmitter?.active, true);
 residenceMarkers.setChimneySmokeAllowed(false);
 assert.equal(
   smokeEmitter?.active,
@@ -462,6 +600,14 @@ residenceMarkers.setEveningWindowGlow(1);
 residenceMarkers.setHouseholdClock(fullClock(bedtime - 0.1));
 const windowMaterial = markerInternals.meshes.get(home.id)?.userData
   .windowMaterial as THREE.MeshStandardMaterial | undefined;
+assert.ok(windowMaterial && windowMaterial.emissiveIntensity > 0.2);
+residenceMarkers.setFireDisabledResidenceIds(new Set([home.id]));
+assert.equal(
+  windowMaterial?.emissiveIntensity,
+  0.12,
+  'a fire-disabled home must not retain ordinary household window light',
+);
+residenceMarkers.setFireDisabledResidenceIds(new Set());
 assert.ok(windowMaterial && windowMaterial.emissiveIntensity > 0.2);
 residenceMarkers.setHouseholdClock(fullClock(2));
 assert.equal(
@@ -496,6 +642,34 @@ function fullClock(hourValue: number): GameClock {
     year: 1,
     isSunday: false,
     isWorkHours: hourValue >= 6 && hourValue < 20,
+  };
+}
+
+function fireIncident(
+  id: string,
+  targetKind: FireIncidentState['targetKind'],
+  targetId: string,
+  x: number,
+  z: number,
+): FireIncidentState {
+  return {
+    id,
+    targetKind,
+    targetId,
+    x,
+    z,
+    ignitionSource: 'accident',
+    status: 'burning',
+    intensity: 0.8,
+    damage: 0.2,
+    waterDelivered: 0,
+    requiredWater: 12,
+    extinguishChance: 0,
+    startedTick: 100,
+    discoveredTick: 100,
+    lastWaterTick: 0,
+    resolvedTick: 0,
+    responseWellId: null,
   };
 }
 
