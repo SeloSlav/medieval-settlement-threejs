@@ -12,6 +12,7 @@ import {
   seedThreeGroundCoverWindVector,
 } from '../vegetation/seedthree/seedThreeGroundCover.ts';
 import type { ForagingSite } from './ForagingLayout.ts';
+import { BERRY_PATCH_RADIUS } from './foragingYields.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
 import { isForagingHarvestAvailable } from './foragingSeason.ts';
 
@@ -32,7 +33,6 @@ export type BerryPatchVisuals = {
 
 const TAU = Math.PI * 2;
 const CLUMPS_PER_PATCH = 22;
-const PATCH_RADIUS = 9.6;
 const RASPBERRY_PATCH_ALBEDO_URL = '/assets/textures/vegetation/raspberry_patch_albedo.png';
 const RASPBERRY_PATCH_CARD_SPEC = {
   quads: 5,
@@ -180,7 +180,7 @@ function createBerryClumpPlacements(
 
     while (patch.length < CLUMPS_PER_PATCH && attempts < CLUMPS_PER_PATCH * 18) {
       attempts++;
-      const radius = patch.length === 0 ? 0 : Math.sqrt(rng()) * PATCH_RADIUS;
+      const radius = patch.length === 0 ? 0 : Math.sqrt(rng()) * BERRY_PATCH_RADIUS;
       const angle = rng() * TAU;
       const x = site.x + Math.cos(angle) * radius * THREE.MathUtils.lerp(0.72, 1, rng());
       const z = site.z + Math.sin(angle) * radius * THREE.MathUtils.lerp(0.78, 1.08, rng());

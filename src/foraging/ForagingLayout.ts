@@ -7,7 +7,10 @@ import {
 } from '../props/forestField.ts';
 import { hashF64 } from '../rivers/riverHash.ts';
 import type { RiverLayout, RiverPoint } from '../rivers/RiverLayout.ts';
-import { gamePatchSpawnRadius } from './foragingYields.ts';
+import {
+  BERRY_PATCH_MAX_SPAWN_RADIUS,
+  gamePatchSpawnRadius,
+} from './foragingYields.ts';
 
 export type ForagingNodeKind = 'game' | 'berries' | 'mushrooms' | 'fish';
 
@@ -32,13 +35,15 @@ const BERRY_EDGE_MIN = 0.28;
 const BERRY_EDGE_MAX = 0.48;
 const GAME_RESPAWN_CANDIDATE_TARGET = 48;
 const MIN_FORAGING_SPACING = 180;
-const GAME_HABITAT_WATER_PROBE_SPACING = 3;
+const FORAGING_WATER_PROBE_SPACING = 3;
 
 /**
  * Keeps the full initial herd footprint off the rendered river. The extra
  * padding covers the river field's shoreline dilation beyond the layout mask.
  */
 export const GAME_HABITAT_WATER_CLEARANCE = gamePatchSpawnRadius(true) + 6;
+/** Keeps every visible raspberry clump beyond the rendered shoreline. */
+export const BERRY_PATCH_WATER_CLEARANCE = BERRY_PATCH_MAX_SPAWN_RADIUS + 6;
 
 export class ForagingLayout {
   readonly sites: ForagingSite[];
@@ -108,7 +113,14 @@ export class ForagingLayout {
     }
 
     for (let i = 0; i < nodeCounts.berries; i++) {
-      const berrySite = pickBerrySite(rng, seed ^ (0x9e37 + i * 0x5151), extent, forestCores, sites);
+      const berrySite = pickBerrySite(
+        rng,
+        seed ^ (0x9e37 + i * 0x5151),
+        extent,
+        forestCores,
+        options.riverLayout,
+        sites,
+      );
       if (berrySite) sites.push(berrySite);
     }
     for (let i = 0; i < nodeCounts.mushrooms; i++) {
@@ -371,6 +383,7 @@ function pickBerrySite(
   seed: number,
   extent: number,
   forestCores: ForestCore[],
+  riverLayout: RiverLayout,
   existing: ForagingSite[],
 ): ForagingSite | null {
   const margin = extent * 0.08;
@@ -390,7 +403,9 @@ function pickBerrySite(
     const edgeScore = berryEdgeScore(x, z, forestCores, extent, terrainExtent);
     const meadowBias = meadowProximityScore(x, z, extent);
     const score = edgeScore * 0.62 + meadowBias * 0.28 + density * 0.1;
-    if (score > bestScore && rng() < 0.42 + score * 0.5) {
+    const accepted = rng() < 0.42 + score * 0.5;
+    if (!isBerryPatchClearOfWater(riverLayout, x, z)) continue;
+    if (score > bestScore && accepted) {
       bestScore = score;
       best = { x, z, kind: 'berries' };
     }
@@ -406,14 +421,50 @@ function pickBerrySite(
   for (let i = 0; i < presets.length; i++) {
     const preset = presets[i];
     if (!hasMinimumDistance(existing, preset.x, preset.z, MIN_FORAGING_SPACING)) continue;
+    if (!isBerryPatchClearOfWater(riverLayout, preset.x, preset.z)) continue;
     const density = forestDensityAt(preset.x, preset.z, forestCores, extent, terrainExtent);
     if (density >= BERRY_EDGE_MIN && density <= BERRY_EDGE_MAX + 0.08) {
       return { x: preset.x, z: preset.z, kind: 'berries' };
     }
   }
 
-  const offset = hashF64(seed, 3, 7) * 60 - 30;
-  return { x: 120 + offset, z: -88 - offset * 0.3, kind: 'berries' };
+  return pickFallbackBerrySite(seed, extent, forestCores, riverLayout, existing);
+}
+
+function pickFallbackBerrySite(
+  seed: number,
+  extent: number,
+  forestCores: ForestCore[],
+  riverLayout: RiverLayout,
+  existing: ReadonlyArray<ForagingSite>,
+): ForagingSite | null {
+  const rng = mulberry32(seed ^ 0x62b97);
+  const limit = extent * 0.92;
+  const terrainExtent = extent * (1080 / 820);
+  let best: ForagingSite | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  for (let attempt = 0; attempt < 1_200; attempt++) {
+    const x = (rng() * 2 - 1) * limit;
+    const z = (rng() * 2 - 1) * limit;
+    if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 28) continue;
+    if (!hasMinimumDistance(existing, x, z, MIN_FORAGING_SPACING)) continue;
+    if (!isBerryPatchClearOfWater(riverLayout, x, z)) continue;
+
+    const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
+    const edgeFit = 1 - Math.min(
+      1,
+      Math.abs(density - (BERRY_EDGE_MIN + BERRY_EDGE_MAX) * 0.5) / 0.38,
+    );
+    const score = edgeFit * 0.62
+      + berryEdgeScore(x, z, forestCores, extent, terrainExtent) * 0.24
+      + meadowProximityScore(x, z, extent) * 0.14;
+    if (score <= bestScore) continue;
+    bestScore = score;
+    best = { x, z, kind: 'berries' };
+  }
+
+  return best;
 }
 
 function berryEdgeScore(
@@ -489,12 +540,30 @@ export function isGameHabitatClearOfWater(
   z: number,
   clearance = GAME_HABITAT_WATER_CLEARANCE,
 ): boolean {
-  const probeReach = Math.ceil(clearance / GAME_HABITAT_WATER_PROBE_SPACING);
+  return isForagingFootprintClearOfWater(riverLayout, x, z, clearance);
+}
+
+export function isBerryPatchClearOfWater(
+  riverLayout: RiverLayout,
+  x: number,
+  z: number,
+  clearance = BERRY_PATCH_WATER_CLEARANCE,
+): boolean {
+  return isForagingFootprintClearOfWater(riverLayout, x, z, clearance);
+}
+
+function isForagingFootprintClearOfWater(
+  riverLayout: RiverLayout,
+  x: number,
+  z: number,
+  clearance: number,
+): boolean {
+  const probeReach = Math.ceil(clearance / FORAGING_WATER_PROBE_SPACING);
   const clearanceSq = clearance * clearance;
   for (let gridZ = -probeReach; gridZ <= probeReach; gridZ++) {
-    const dz = gridZ * GAME_HABITAT_WATER_PROBE_SPACING;
+    const dz = gridZ * FORAGING_WATER_PROBE_SPACING;
     for (let gridX = -probeReach; gridX <= probeReach; gridX++) {
-      const dx = gridX * GAME_HABITAT_WATER_PROBE_SPACING;
+      const dx = gridX * FORAGING_WATER_PROBE_SPACING;
       if (dx * dx + dz * dz > clearanceSq) continue;
       if (riverLayout.sampleRiverMask(x + dx, z + dz) > 0) return false;
     }

@@ -13,6 +13,10 @@ export const RICH_FISH_SHOAL_MAX_YIELD = 240;
 export const GAME_PATCH_PICK_RADIUS = 42;
 export const RICH_GAME_PATCH_PICK_RADIUS = 60;
 export const BERRY_PATCH_PICK_RADIUS = 28;
+/** Base radius used to distribute visible raspberry clumps around a resource node. */
+export const BERRY_PATCH_RADIUS = 9.6;
+/** Furthest a clump can reach after the patch's slight axis variation. */
+export const BERRY_PATCH_MAX_SPAWN_RADIUS = BERRY_PATCH_RADIUS * 1.08;
 export const MUSHROOM_PATCH_PICK_RADIUS = 24;
 export const FISH_SHOAL_PICK_RADIUS = 24;
 

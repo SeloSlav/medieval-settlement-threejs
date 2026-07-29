@@ -22,10 +22,13 @@ import {
   protectedWildStock,
 } from '../src/foraging/harvestReservePolicy.ts';
 import {
+  BERRY_PATCH_WATER_CLEARANCE,
   GAME_HABITAT_WATER_CLEARANCE,
+  isBerryPatchClearOfWater,
   isGameHabitatClearOfWater,
 } from '../src/foraging/ForagingLayout.ts';
 import {
+  BERRY_PATCH_MAX_SPAWN_RADIUS,
   GAME_PATCH_MAX_YIELD,
   RICH_GAME_PATCH_MAX_YIELD,
   RICH_GAME_PATCH_PICK_RADIUS,
@@ -116,6 +119,7 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
     );
   }
   assertGameHabitatsStayDry(layout, `${mapSize} map`);
+  assertBerryPatchesStayDry(layout, `${mapSize} map`);
   assert.equal(mushrooms.length, layout.resourcePlan.foragingNodeCounts.mushrooms);
   assert.equal(berries.length, layout.resourcePlan.foragingNodeCounts.berries);
   assert.ok(mushrooms.length > 0, 'complete regions should retain mushrooms');
@@ -143,6 +147,7 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
 
 const layout = createWorldLayout();
 assertGameHabitatsStayDry(layout, 'default map');
+assertBerryPatchesStayDry(layout, 'default map');
 const registry = WorldLayoutRegistry.fromWorldLayout(layout);
 const gameDefinitions = registry.definitionList.filter((node) => node.kind === 'game');
 assert.deepEqual(gameDefinitions.map((node) => node.id), ['foraging-game-0', 'foraging-game-1']);
@@ -434,4 +439,42 @@ function assertGameHabitatsStayDry(
     ),
     `${label} migration candidates should also clear the river`,
   );
+}
+
+function assertBerryPatchesStayDry(
+  worldLayout: ReturnType<typeof createWorldLayout>,
+  label: string,
+): void {
+  const dimensions = resolveWorldDimensions(worldLayout.settings.mapSize);
+  const riverField = RiverField.fromLayout({
+    bounds: Terrain.fullBounds(dimensions.terrainSize),
+    layout: worldLayout.riverLayout,
+  });
+  const patches = worldLayout.foragingLayout.sites.filter((site) => site.kind === 'berries');
+
+  for (const patch of patches) {
+    assert.equal(
+      isBerryPatchClearOfWater(
+        worldLayout.riverLayout,
+        patch.x,
+        patch.z,
+        BERRY_PATCH_WATER_CLEARANCE,
+      ),
+      true,
+      `${label} berry patch should clear the river`,
+    );
+    for (let radius = 0; radius <= BERRY_PATCH_MAX_SPAWN_RADIUS; radius += 1) {
+      for (let angleIndex = 0; angleIndex < 24; angleIndex++) {
+        const angle = angleIndex * Math.PI * 2 / 24;
+        assert.equal(
+          riverField.isRenderedWetAt(
+            patch.x + Math.sin(angle) * radius,
+            patch.z + Math.cos(angle) * radius,
+          ),
+          false,
+          `${label} berry patch footprint should stay on dry land`,
+        );
+      }
+    }
+  }
 }
