@@ -248,7 +248,20 @@
         gap: 14px;
         justify-items: center;
         width: min(320px, calc(100vw - 48px));
+        padding: 28px 30px;
+        border: 1px solid rgba(229, 214, 171, 0.28);
+        border-radius: 16px;
+        background:
+          linear-gradient(150deg, rgba(64, 62, 47, 0.92), rgba(28, 31, 25, 0.96));
+        box-shadow:
+          0 24px 70px rgba(0, 0, 0, 0.42),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
         text-align: center;
+      }
+
+      .session-connection-card .app-loading-retry {
+        min-width: 132px;
+        margin-top: 2px;
       }
 
       @keyframes app-loading-spin {

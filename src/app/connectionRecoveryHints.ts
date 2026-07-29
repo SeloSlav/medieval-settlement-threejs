@@ -14,7 +14,7 @@ function isDevEnvironment(): boolean {
 
 function devServerHint(): string {
   if (!isDevEnvironment()) return '';
-  return ' Developers: redeploy with `npm run deploy:local`, or wipe the database with `npm run deploy:local-clean`.';
+  return ' Developers: ensure SpacetimeDB is running, then redeploy non-destructively with `npm run deploy:local`.';
 }
 
 function stuckHint(includeNewWorld: boolean): string {

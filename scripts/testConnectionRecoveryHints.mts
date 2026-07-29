@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   formatBootstrapFailure,
   formatConnectionUnavailable,
   formatWorldGenerationMismatch,
 } from '../src/app/connectionRecoveryHints.ts';
+import { SessionLifecycleController } from '../src/app/SessionLifecycleController.ts';
+import { SessionConnectionGate } from '../src/network/SessionConnectionGate.ts';
 
 const generationLock = formatBootstrapFailure(
   new Error('Cannot change world generation after the simulation has started.'),
@@ -34,5 +37,86 @@ assert.match(mismatch.recoveryHint, /saved map settings/i);
 const offline = formatConnectionUnavailable();
 assert.equal(offline.showNewWorldAction, false);
 assert.match(offline.recoveryHint, /retry/i);
+
+function createLifecycleHarness() {
+  const gate = new SessionConnectionGate();
+  let dismissCount = 0;
+  const controller = new SessionLifecycleController({
+    sessionGate: gate,
+    loadingScreen: {
+      setProgress: () => undefined,
+      setErrorState: () => undefined,
+      dismiss: () => {
+        dismissCount += 1;
+      },
+    },
+    connectionOverlay: {
+      show: () => undefined,
+      hide: () => undefined,
+    },
+    spacetimeStore: {
+      subscribe: () => () => undefined,
+      get isConnected() {
+        return false;
+      },
+      snapshot: {
+        connected: false,
+        identityHex: null,
+      },
+      connect: () => undefined,
+    },
+    toolbar: null,
+    roadTool: null,
+    buildingTool: null,
+    burgageTool: null,
+    farmFieldTool: null,
+    firstPersonController: null,
+  } as never);
+  return {
+    controller,
+    get dismissCount() {
+      return dismissCount;
+    },
+  };
+}
+
+const terrainFirst = createLifecycleHarness();
+terrainFirst.controller.onPresentationReady();
+assert.equal(
+  terrainFirst.dismissCount,
+  0,
+  'terrain readiness must not reveal a disconnected, non-interactive world',
+);
+terrainFirst.controller.onReady();
+assert.equal(terrainFirst.dismissCount, 1);
+terrainFirst.controller.dispose();
+
+const sessionFirst = createLifecycleHarness();
+sessionFirst.controller.onReady();
+assert.equal(
+  sessionFirst.dismissCount,
+  0,
+  'session readiness must still wait for the first terrain frame',
+);
+sessionFirst.controller.onPresentationReady();
+assert.equal(sessionFirst.dismissCount, 1);
+sessionFirst.controller.dispose();
+
+const overlaySource = readFileSync(
+  new URL('../src/ui/SessionConnectionOverlay.ts', import.meta.url),
+  'utf8',
+);
+assert.match(overlaySource, /data-session-retry/);
+assert.match(overlaySource, /this\.retryHandler\?\.\(\)/);
+
+const recoverySource = readFileSync(
+  new URL('../src/app/connectionRecoveryHints.ts', import.meta.url),
+  'utf8',
+);
+assert.doesNotMatch(
+  recoverySource,
+  /deploy:local-clean/,
+  'connection recovery must not suggest deleting the development database',
+);
 
 console.log('connection recovery hint tests passed');

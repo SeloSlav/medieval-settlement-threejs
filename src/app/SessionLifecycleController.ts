@@ -35,6 +35,7 @@ export class SessionLifecycleController {
   private reconnectTimer: number | null = null;
   private disconnectOverlayTimer: number | null = null;
   private unsubscribeStore: (() => void) | null = null;
+  private presentationReady = false;
   private readonly deps: SessionLifecycleDeps;
 
   constructor(deps: SessionLifecycleDeps) {
@@ -65,10 +66,12 @@ export class SessionLifecycleController {
     this.deps.toolbar?.setGameplayEnabled(true);
     this.clearReconnectTimer();
     this.clearDisconnectOverlayTimer();
+    this.dismissLoadingWhenPlayable();
   }
 
   onPresentationReady(): void {
-    this.deps.loadingScreen?.dismiss();
+    this.presentationReady = true;
+    this.dismissLoadingWhenPlayable();
   }
 
   onBootstrapFailed(error: unknown, retry: () => void): void {
@@ -125,12 +128,20 @@ export class SessionLifecycleController {
 
   retryConnection(): void {
     this.deps.sessionGate.markConnecting();
-    this.deps.loadingScreen?.setProgress({
-      label: 'Connecting…',
-      detail: 'Retrying SpacetimeDB connection',
-      phase: 'connecting',
-      fraction: 0,
-    });
+    this.clearDisconnectOverlayTimer();
+    if (this.deps.sessionGate.hasEverBeenReady()) {
+      this.deps.connectionOverlay.show(
+        'Reconnecting…',
+        'Contacting the authoritative settlement server. Controls remain paused until it answers.',
+      );
+    } else {
+      this.deps.loadingScreen?.setProgress({
+        label: 'Connecting…',
+        detail: 'Retrying SpacetimeDB connection',
+        phase: 'connecting',
+        fraction: 0,
+      });
+    }
     try {
       this.deps.spacetimeStore.connect();
     } catch (error) {
@@ -173,9 +184,15 @@ export class SessionLifecycleController {
       }
       this.deps.connectionOverlay.show(
         'Connection lost',
-        'Retrying SpacetimeDB connection…',
+        'This client has paused its controls. Settlement state remains authoritative on the server while reconnection continues.',
+        () => this.retryConnection(),
       );
     }, DISCONNECT_OVERLAY_DELAY_MS);
+  }
+
+  private dismissLoadingWhenPlayable(): void {
+    if (!this.presentationReady || !this.deps.sessionGate.isReady()) return;
+    this.deps.loadingScreen?.dismiss();
   }
 
   private clearDisconnectOverlayTimer(): void {
