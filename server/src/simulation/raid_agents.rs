@@ -584,6 +584,10 @@ pub fn step_live_raids(
     elapsed_seconds: f64,
     road_networks: Option<&SharedRoadNetworks>,
 ) {
+    // Intentionally independent of GameClock and the civilian labor schedule.
+    // Once materialized, a conflict advances through dusk, night, dawn, and
+    // Sabbath until attackers are down or have physically escaped and the
+    // responding guards have returned.
     if !conflict_enabled {
         clear_all_live_raids(ctx);
         return;
@@ -928,6 +932,9 @@ fn step_one_live_raid(
         );
         return;
     }
+
+    // Living includes advancing, fighting, looting, and retreating raiders.
+    // A calendar boundary can never finalize or despawn an active warband.
 
     let snapshots = agents.values().cloned().collect::<Vec<_>>();
     let mut damage_by_agent = HashMap::<u64, f64>::new();

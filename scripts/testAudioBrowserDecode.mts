@@ -10,6 +10,7 @@ import { chromium } from 'playwright';
 import {
   AMBIENT_LAYERS,
   CHURCH_BELL_CLIP,
+  COMBAT_AUDIO_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
   MUSIC_TRACKS,
@@ -73,6 +74,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...Object.values(MUSIC_TRACKS),
     ...Object.values(UI_SOUNDS),
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
+    ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
   ];
 }
 
@@ -309,12 +311,15 @@ async function main(): Promise<void> {
       );
       for (const metric of metrics.filter((entry) => (
         entry.path.startsWith('/sounds/music/')
+        || entry.path.startsWith('/sounds/combat/')
         || Object.values(AMBIENT_LAYERS).some((clip) => clip.path === entry.path)
       ))) {
         const clip = clipByPath.get(metric.path);
         const preferenceGain = metric.path.startsWith('/sounds/music/')
           ? DEFAULT_MUSIC_VOLUME
-          : DEFAULT_AMBIENCE_VOLUME;
+          : metric.path.startsWith('/sounds/combat/')
+            ? 1
+            : DEFAULT_AMBIENCE_VOLUME;
         const effectiveRms =
           metric.rms * (clip?.volume ?? 1) * preferenceGain;
         console.log(

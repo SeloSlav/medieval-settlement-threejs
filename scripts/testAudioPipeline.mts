@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import {
   AMBIENT_LAYERS,
   CHURCH_BELL_CLIP,
+  COMBAT_AUDIO_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
   MUSIC_TRACKS,
@@ -38,6 +39,14 @@ import {
   DEFAULT_MUSIC_VOLUME,
 } from '../src/audio/audioPreferences.ts';
 import { riverAudioGain } from '../src/audio/RiverAudio.ts';
+import {
+  buildCombatAudioSources,
+  CombatAudio,
+  combatAudioGain,
+  COMBAT_AUDIO_CUTOFF_DISTANCE,
+  COMBAT_AUDIO_MAX_SOURCES,
+  COMBAT_AUDIO_MAX_ZOOM_DISTANCE,
+} from '../src/audio/CombatAudio.ts';
 
 type AudioAsset = {
   id: string;
@@ -114,6 +123,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...Object.values(MUSIC_TRACKS),
     ...Object.values(UI_SOUNDS),
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
+    ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
   ];
 }
 
@@ -297,6 +307,137 @@ async function main(): Promise<void> {
     fireAudioGain(0, 1, FIRE_AUDIO_MAX_ZOOM_DISTANCE + 1) === 0,
     'Fire must be silent beyond its zoom cutoff.',
   );
+  const closeCombatView = {
+    centerX: 0,
+    centerZ: 0,
+    listenerX: 0,
+    listenerZ: 0,
+    viewRadius: 120,
+    shadowRadius: 80,
+    orbitDistance: 18,
+  };
+  invariant(
+    combatAudioGain(0, 0, closeCombatView) === 1,
+    'close zoomed-in melee should reach full normalized gain',
+  );
+  invariant(
+    combatAudioGain(COMBAT_AUDIO_CUTOFF_DISTANCE, 0, closeCombatView) === 0,
+    'melee audio must be silent at its distance cutoff',
+  );
+  invariant(
+    combatAudioGain(0, 0, {
+      ...closeCombatView,
+      orbitDistance: COMBAT_AUDIO_MAX_ZOOM_DISTANCE + 1,
+    }) === 0,
+    'melee audio must be silent at strategic overview zoom',
+  );
+  const engagementSources = buildCombatAudioSources([
+    { id: 'guard', faction: 'guard', status: 'fighting', health: 80, x: 0, z: 0 },
+    { id: 'raider', faction: 'raider', status: 'fighting', health: 70, x: 2, z: 0 },
+    { id: 'retreating', faction: 'raider', status: 'retreating', health: 40, x: 1, z: 0 },
+  ]);
+  invariant(
+    engagementSources.length === 1
+    && engagementSources[0]?.id === 'guard:raider',
+    'only a live opposing pair in the fighting state should emit melee sound',
+  );
+  const surroundedSource = buildCombatAudioSources([
+    { id: 'guard-far', faction: 'guard', status: 'fighting', health: 80, x: 4, z: 0 },
+    { id: 'guard-near', faction: 'guard', status: 'fighting', health: 80, x: 1, z: 0 },
+    { id: 'raider-one', faction: 'raider', status: 'fighting', health: 70, x: 0, z: 0 },
+  ]);
+  invariant(
+    surroundedSource.length === 1
+    && surroundedSource[0]?.id === 'guard-near:raider-one',
+    'a surrounded raider should emit one source at its nearest live opponent',
+  );
+  const combatStressFighters = Array.from(
+    { length: 100_000 },
+    (_, index) => ({
+      id: `guard-stress-${index}`,
+      faction: 'guard' as const,
+      status: 'fighting' as const,
+      health: 100,
+      x: index * 10,
+      z: 0,
+    }),
+  );
+  for (let index = 0; index < COMBAT_AUDIO_MAX_SOURCES; index += 1) {
+    combatStressFighters.push({
+      id: `raider-stress-${index}`,
+      faction: 'raider',
+      status: 'fighting',
+      health: 100,
+      x: index * 10 + 1,
+      z: 0,
+    });
+  }
+  const combatPairingStarted = performance.now();
+  const combatStressSources = buildCombatAudioSources(combatStressFighters);
+  const combatPairingElapsedMs = performance.now() - combatPairingStarted;
+  invariant(
+    combatStressSources.length === COMBAT_AUDIO_MAX_SOURCES,
+    'combat audio should retain one bounded source for every active raider',
+  );
+  invariant(
+    combatPairingElapsedMs < 250,
+    `combat audio pairing should remain bounded with 100,000 defenders; took ${combatPairingElapsedMs.toFixed(1)}ms`,
+  );
+  const audioDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
+  const combatPlayback: Array<{ paused: boolean; plays: number; volume: number }> = [];
+  class FakeCombatAudioElement {
+    paused = true;
+    plays = 0;
+    volume = 0;
+    currentTime = 0;
+    playbackRate = 1;
+    preload = '';
+    src = '';
+
+    constructor() {
+      combatPlayback.push(this);
+    }
+
+    pause(): void {
+      this.paused = true;
+    }
+
+    play(): Promise<void> {
+      this.paused = false;
+      this.plays += 1;
+      return Promise.resolve();
+    }
+
+    removeAttribute(): void {
+      this.src = '';
+    }
+  }
+  Object.defineProperty(globalThis, 'Audio', {
+    configurable: true,
+    writable: true,
+    value: FakeCombatAudioElement,
+  });
+  try {
+    const combatMixer = new CombatAudio();
+    combatMixer.tick(0, engagementSources, closeCombatView);
+    combatMixer.tick(0.3, engagementSources, closeCombatView);
+    invariant(
+      combatPlayback.some((audio) => audio.plays > 0 && audio.volume > 0),
+      'live close-range melee should trigger a spatially attenuated one-shot',
+    );
+    combatMixer.tick(0.1, [], closeCombatView);
+    invariant(
+      combatPlayback.every((audio) => audio.paused),
+      'all melee one-shots should stop as soon as the live engagement ends',
+    );
+    combatMixer.dispose();
+  } finally {
+    if (audioDescriptor) {
+      Object.defineProperty(globalThis, 'Audio', audioDescriptor);
+    } else {
+      delete (globalThis as { Audio?: unknown }).Audio;
+    }
+  }
 
   if (REQUIRE_GENERATED) {
     invariant(

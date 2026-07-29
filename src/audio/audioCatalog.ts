@@ -27,6 +27,8 @@ export type WorkerActivitySoundKind =
   | 'forage'
   | 'livestock';
 
+export type CombatAudioSoundKind = 'pike' | 'voices';
+
 export type UiSoundId =
   | 'road_place'
   | 'building_place'
@@ -86,6 +88,25 @@ export const FIRE_CRACKLE_CLIP: AudioClipDefinition = {
   path: '/sounds/ambient/fire_crackle.mp3',
   volume: 0.24,
   loop: true,
+};
+
+function combatVariants(
+  baseName: string,
+  count: number,
+  volume: number,
+): readonly AudioClipDefinition[] {
+  return Array.from({ length: count }, (_, index) => ({
+    path: `/sounds/combat/${baseName}_${index + 1}.mp3`,
+    volume,
+  }));
+}
+
+export const COMBAT_AUDIO_CLIPS: Record<
+  CombatAudioSoundKind,
+  readonly AudioClipDefinition[]
+> = {
+  pike: combatVariants('pike_melee', 4, 0.2),
+  voices: combatVariants('angry_fighting', 4, 0.115),
 };
 
 function workerActivityVariants(

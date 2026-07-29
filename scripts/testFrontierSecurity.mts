@@ -1582,6 +1582,16 @@ const generatedRaidIncursionRoute = readFileSync(
   'utf8',
 );
 const clientCombatAgents = readFileSync('src/security/combatAgents.ts', 'utf8');
+const combatAudio = readFileSync('src/audio/CombatAudio.ts', 'utf8');
+const liveRaidHeartbeat = serverRaidAgents.slice(
+  serverRaidAgents.indexOf('pub fn step_live_raids'),
+  serverRaidAgents.indexOf('fn clear_all_live_raids'),
+);
+const liveRaidExecutable = liveRaidHeartbeat.replace(/\/\/.*$/gm, '');
+const liveRaidResolution = serverRaidAgents.slice(
+  serverRaidAgents.indexOf('fn step_one_live_raid'),
+  serverRaidAgents.indexOf('fn begin_raider_rout_if_broken'),
+);
 const gameTableSubscriptions = readFileSync(
   'src/data/gameTableSubscriptions.ts',
   'utf8',
@@ -1919,6 +1929,56 @@ assert.match(
   serverRaidAgents,
   /agent\.attack_cooldown = DOWNED_LINGER_SECONDS/,
   'battlefield aftermath must use wall-clock combat time rather than sparse economy ticks',
+);
+assert.doesNotMatch(
+  liveRaidExecutable,
+  /GameClock|is_work_hours|labor_paused|sabbath/i,
+  'active combat must not receive a day/night or civilian-work scheduling gate',
+);
+assert.match(
+  liveRaidResolution,
+  /living_raiders == 0[\s\S]*return_guards_and_finalize/,
+  'the raid may finalize only after no living attacker remains on the map',
+);
+assert.match(
+  serverRaidAgents,
+  /COMBAT_STATE_RETREATING[\s\S]*distance_squared\(agent\.x, agent\.z, agent\.home_x, agent\.home_z\)[\s\S]*delete_ids\.insert\(agent\.id\)/,
+  'retreating raiders must remain authoritative until they physically escape',
+);
+assert.match(
+  villagerRenderer,
+  /activeCombatGuardSlots\.has\([\s\S]*return false/,
+  'a replicated field guard must hide the ordinary day/night worker copy for the whole conflict',
+);
+assert.match(
+  villagerRenderer,
+  /buildCombatAudioSources\([\s\S]*combatAudio\.tick|combatAudio\.tick\([\s\S]*buildCombatAudioSources/,
+  'live replicated melee must drive the contextual close-combat mixer',
+);
+assert.match(
+  villagerRenderer,
+  /advanceCombatAgentVisuals\(simulationDt > 0 \? realDt : 0\)/,
+  'pausing must freeze replicated combat presentation interpolation',
+);
+assert.match(
+  villagerRenderer,
+  /getGameSpeed\(\) === 0[\s\S]*combatAudio\.tick\(0, \[\], activeView\)/,
+  'pausing must immediately silence in-flight close-combat one-shots',
+);
+assert.match(
+  combatAudio,
+  /fighter\.status (?:===|!==) 'fighting'/,
+  'combat sound must require an authoritative live fighting state',
+);
+assert.match(
+  combatAudio,
+  /view\.orbitDistance > COMBAT_AUDIO_MAX_ZOOM_DISTANCE/,
+  'combat sound must require a close tactical zoom',
+);
+assert.match(
+  combatAudio,
+  /distance >= COMBAT_AUDIO_CUTOFF_DISTANCE/,
+  'combat sound must stop beyond its listener-distance cutoff',
 );
 assert.match(
   serverRaidAgents,

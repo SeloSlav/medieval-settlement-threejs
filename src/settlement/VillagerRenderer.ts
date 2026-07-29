@@ -33,6 +33,10 @@ import {
 } from '../audio/WorkerActivityAudio.ts';
 import { FarmWorkerSongAudio } from '../audio/FarmWorkerSongAudio.ts';
 import {
+  buildCombatAudioSources,
+  CombatAudio,
+} from '../audio/CombatAudio.ts';
+import {
   CROWD_SIM_DT,
   isWithinCrowdView,
   type CrowdViewState,
@@ -245,6 +249,7 @@ export class VillagerRenderer {
   private readonly renderer: SettlementCrowdRenderer;
   private readonly activityAudio = new WorkerActivityAudio();
   private readonly farmWorkerSongAudio = new FarmWorkerSongAudio();
+  private readonly combatAudio = new CombatAudio();
   private readonly getGameSpeed: () => GameSpeed;
   private readonly getHeightAt: (x: number, z: number) => number;
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
@@ -800,7 +805,7 @@ export class VillagerRenderer {
     const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
     this.advanceCampAmbientCycle(simulationDt);
     this.advanceChapelAmbientCycle(simulationDt);
-    this.advanceCombatAgentVisuals(realDt);
+    this.advanceCombatAgentVisuals(simulationDt > 0 ? realDt : 0);
 
     for (const agent of this.agents.values()) {
       if (agent.role === 'worker') {
@@ -912,6 +917,7 @@ export class VillagerRenderer {
     this.agents.clear();
     this.activityAudio.dispose();
     this.farmWorkerSongAudio.dispose();
+    this.combatAudio.dispose();
     this.renderer.dispose();
   }
 
@@ -1100,6 +1106,8 @@ export class VillagerRenderer {
           combatGuardSlotKey(workplace.id, agent.workplaceSlot),
         )
       ) {
+        // The replicated combatant owns this roster slot until conflict
+        // aftermath ends, regardless of the ordinary worker's day/night phase.
         return false;
       }
       return Boolean(workplace && workplace.assignedLabor > agent.workplaceSlot);
@@ -1206,6 +1214,20 @@ export class VillagerRenderer {
     const activeView = view ?? this.lastView;
     this.renderer.syncAgents(renderAgents, activeView, animationDt);
     if (audioDt > 0) {
+      this.combatAudio.tick(
+        audioDt,
+        buildCombatAudioSources(
+          [...this.combatAgentVisuals.values()].map((visual) => ({
+            id: visual.state.id,
+            faction: visual.state.faction,
+            status: visual.state.status,
+            health: visual.state.health,
+            x: visual.displayX,
+            z: visual.displayZ,
+          })),
+        ),
+        activeView,
+      );
       this.activityAudio.tick(
         audioDt,
         renderAgents.flatMap((agent) => {
@@ -1234,6 +1256,11 @@ export class VillagerRenderer {
         }),
         activeView,
       );
+    } else if (this.getGameSpeed() === 0) {
+      // A pause freezes the combat presentation and immediately silences any
+      // in-flight melee one-shots instead of letting them finish over a frozen
+      // battlefield.
+      this.combatAudio.tick(0, [], activeView);
     }
   }
 
