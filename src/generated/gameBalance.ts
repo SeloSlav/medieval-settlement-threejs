@@ -62,6 +62,8 @@ export const FRESH_FOOD_STORAGE_TREASURY_FACTOR = 1.2;
 
 export const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY = 0.1;
 export const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY = 0.0015;
+export const FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY = 1;
+export const FIRE_BUILDING_BASE_FLAMMABILITY = {"founders_camp":0,"town_hall":0,"well":0,"marketplace":0,"stone_quarry":0,"large_quarry":0,"chapel":0.32,"monastery":0.32,"smokehouse":2.2,"charcoal_burner":2.2,"smithy":1.8,"potter_kiln":1.8,"clay_pit":0.15,"brewery":1.45,"granary":1.45,"lumber_mill":1.7,"woodcutters_lodge":1.7,"reforester":1.7,"carpenter":1.7,"threshing_barn":1.65,"apiary":1.25,"fishing_camp":1.25,"hunters_hall":1.25,"foragers_shed":1.25} as const satisfies Partial<Record<BuildingKind, number>>;
 export const FIRE_DROUGHT_RISK_MULTIPLIER = 1.8;
 export const FIRE_RAIN_RISK_MULTIPLIER = 0.25;
 export const FIRE_SPREAD_RADIUS = 26;

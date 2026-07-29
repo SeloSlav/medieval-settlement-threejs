@@ -155,6 +155,10 @@ const tripSource = readFileSync(`${projectRoot}server/src/simulation/delivery_tr
 const cargoSource = readFileSync(`${projectRoot}server/src/simulation/delivery_cargo.rs`, 'utf8');
 const fireSource = readFileSync(`${projectRoot}server/src/simulation/fires.rs`, 'utf8');
 const firePolicySource = readFileSync(`${projectRoot}server/src/fire_policy.rs`, 'utf8');
+const generatedBalanceSource = readFileSync(
+  `${projectRoot}server/src/balance_generated.rs`,
+  'utf8',
+);
 const tickContextSource = readFileSync(
   `${projectRoot}server/src/simulation/tick_context.rs`,
   'utf8',
@@ -189,6 +193,11 @@ assert.match(
   fireSource,
   /building_ids_for_kinds\(ctx,\s*incident\.owner,\s*&\["well"\]\)/,
   'nearest fire-response selection should inspect only indexed well candidates',
+);
+assert.match(
+  fireSource,
+  /fire_response_load\(building\.water\) > 0\.0[\s\S]{0,180}!building_has_active_trip\(ctx, building\.id\)/,
+  'a busy nearest well must yield to a farther ready responder instead of blocking the fire call',
 );
 assert.match(
   tripSource,
@@ -254,8 +263,13 @@ assert.match(
 assert.match(fireSource, /pub const FIRE_SOURCE_RAID: u8 = 3;/);
 assert.match(
   firePolicySource,
-  /"founders_camp"[\s\S]{0,260}\| "town_hall"[\s\S]{0,160}=> 0\.0/,
-  'the irreplaceable founding anchor must be excluded from accident, lightning, spread, and raid ignition',
+  /fire_building_base_flammability\(kind\)/,
+  'authoritative fire policy must use the generated client/server flammability table',
+);
+assert.match(
+  generatedBalanceSource,
+  /"founders_camp" => 0\.0[\s\S]*"town_hall" => 0\.0/,
+  'the generated balance table must keep irreplaceable civic anchors fire-safe',
 );
 assert.match(
   fireSource,

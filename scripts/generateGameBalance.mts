@@ -208,6 +208,8 @@ export type GameBalance = {
   fires: {
     lightningIgnitionChancePerRainDay: number;
     accidentIgnitionChancePerStructureDay: number;
+    defaultBuildingBaseFlammability: number;
+    buildingBaseFlammability: Partial<Record<string, number>>;
     droughtRiskMultiplier: number;
     rainRiskMultiplier: number;
     spreadRadius: number;
@@ -626,6 +628,7 @@ function generateRust(): string {
     '',
     `pub const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY: f64 = ${rustF64(b.fires.lightningIgnitionChancePerRainDay)};`,
     `pub const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY: f64 = ${rustF64(b.fires.accidentIgnitionChancePerStructureDay)};`,
+    `pub const FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY: f64 = ${rustF64(b.fires.defaultBuildingBaseFlammability)};`,
     `pub const FIRE_DROUGHT_RISK_MULTIPLIER: f64 = ${rustF64(b.fires.droughtRiskMultiplier)};`,
     `pub const FIRE_RAIN_RISK_MULTIPLIER: f64 = ${rustF64(b.fires.rainRiskMultiplier)};`,
     `pub const FIRE_SPREAD_RADIUS: f64 = ${rustF64(b.fires.spreadRadius)};`,
@@ -956,6 +959,16 @@ function generateRust(): string {
     `pub const SWINE_HEALTH_LOSS_PER_CYCLE: f64 = ${rustF64(b.livestock.swine.healthLossPerCycle)};`,
     '',
   ];
+
+  lines.push('pub fn fire_building_base_flammability(kind: &str) -> f64 {');
+  lines.push('    match kind {');
+  for (const [kind, flammability] of Object.entries(b.fires.buildingBaseFlammability)) {
+    lines.push(`        ${JSON.stringify(kind)} => ${rustF64(flammability ?? b.fires.defaultBuildingBaseFlammability)},`);
+  }
+  lines.push('        _ => FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY,');
+  lines.push('    }');
+  lines.push('}');
+  lines.push('');
 
   lines.push('#[derive(Clone, Copy, Debug, PartialEq, Eq)]');
   lines.push('pub enum FarmCropProduce {');
@@ -1323,6 +1336,8 @@ function generateTypeScript(): string {
     '',
     `export const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY = ${b.fires.lightningIgnitionChancePerRainDay};`,
     `export const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY = ${b.fires.accidentIgnitionChancePerStructureDay};`,
+    `export const FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY = ${b.fires.defaultBuildingBaseFlammability};`,
+    `export const FIRE_BUILDING_BASE_FLAMMABILITY = ${JSON.stringify(b.fires.buildingBaseFlammability)} as const satisfies Partial<Record<BuildingKind, number>>;`,
     `export const FIRE_DROUGHT_RISK_MULTIPLIER = ${b.fires.droughtRiskMultiplier};`,
     `export const FIRE_RAIN_RISK_MULTIPLIER = ${b.fires.rainRiskMultiplier};`,
     `export const FIRE_SPREAD_RADIUS = ${b.fires.spreadRadius};`,

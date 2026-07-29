@@ -60,6 +60,7 @@ pub const FRESH_FOOD_STORAGE_TREASURY_FACTOR: f64 = 1.2;
 
 pub const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY: f64 = 0.1;
 pub const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY: f64 = 0.0015;
+pub const FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY: f64 = 1.0;
 pub const FIRE_DROUGHT_RISK_MULTIPLIER: f64 = 1.8;
 pub const FIRE_RAIN_RISK_MULTIPLIER: f64 = 0.25;
 pub const FIRE_SPREAD_RADIUS: f64 = 26.0;
@@ -388,6 +389,36 @@ pub const SWINE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = 0.5;
 pub const SWINE_BREEDING_PER_CYCLE: f64 = 0.022;
 pub const SWINE_HEALTH_RECOVERY_PER_CYCLE: f64 = 0.03;
 pub const SWINE_HEALTH_LOSS_PER_CYCLE: f64 = 0.09;
+
+pub fn fire_building_base_flammability(kind: &str) -> f64 {
+    match kind {
+        "founders_camp" => 0.0,
+        "town_hall" => 0.0,
+        "well" => 0.0,
+        "marketplace" => 0.0,
+        "stone_quarry" => 0.0,
+        "large_quarry" => 0.0,
+        "chapel" => 0.32,
+        "monastery" => 0.32,
+        "smokehouse" => 2.2,
+        "charcoal_burner" => 2.2,
+        "smithy" => 1.8,
+        "potter_kiln" => 1.8,
+        "clay_pit" => 0.15,
+        "brewery" => 1.45,
+        "granary" => 1.45,
+        "lumber_mill" => 1.7,
+        "woodcutters_lodge" => 1.7,
+        "reforester" => 1.7,
+        "carpenter" => 1.7,
+        "threshing_barn" => 1.65,
+        "apiary" => 1.25,
+        "fishing_camp" => 1.25,
+        "hunters_hall" => 1.25,
+        "foragers_shed" => 1.25,
+        _ => FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY,
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FarmCropProduce {

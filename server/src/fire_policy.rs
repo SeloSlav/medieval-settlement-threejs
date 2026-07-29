@@ -1,8 +1,8 @@
 //! Pure fire behavior shared by the authoritative simulation and native tests.
 
 use crate::balance_generated::{
-    FIRE_BUCKET_WATER, FIRE_DAMAGE_PER_INTENSITY_SECOND, FIRE_DROUGHT_RISK_MULTIPLIER,
-    FIRE_EXTINGUISH_CHANCE_BASE, FIRE_EXTINGUISH_CHANCE_PER_WATER,
+    fire_building_base_flammability, FIRE_BUCKET_WATER, FIRE_DAMAGE_PER_INTENSITY_SECOND,
+    FIRE_DROUGHT_RISK_MULTIPLIER, FIRE_EXTINGUISH_CHANCE_BASE, FIRE_EXTINGUISH_CHANCE_PER_WATER,
     FIRE_EXTINGUISH_INTENSITY_THRESHOLD, FIRE_INTENSITY_GROWTH_PER_SECOND,
     FIRE_INTENSITY_REDUCTION_PER_WATER, FIRE_MINIMUM_BUCKET_WATER,
     FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND, FIRE_RAIN_RISK_MULTIPLIER,
@@ -43,23 +43,7 @@ pub fn weather_risk_multiplier(is_raining: bool, is_drought: bool) -> f64 {
 /// arson. Goods stored at a fire-safe holding can still be lost through the
 /// raid economy; this controls only whether the structure can burn.
 pub fn building_base_flammability(kind: &str) -> f64 {
-    match kind {
-        // The founding camp is a one-time bootstrap anchor that the player
-        // cannot demolish or replace. An unlucky fire may not permanently
-        // deadlock a new settlement.
-        "founders_camp"
-        // The Town Hall is this game's manor analogue; Manor Lords makes manors nonflammable.
-        | "town_hall" | "well" | "marketplace" | "stone_quarry" | "large_quarry" => 0.0,
-        "chapel" | "monastery" => 0.32,
-        "smokehouse" | "charcoal_burner" => 2.2,
-        "smithy" | "potter_kiln" => 1.8,
-        "clay_pit" => 0.15,
-        "brewery" | "granary" => 1.45,
-        "lumber_mill" | "woodcutters_lodge" | "reforester" | "carpenter" => 1.7,
-        "threshing_barn" => 1.65,
-        "apiary" | "fishing_camp" | "hunters_hall" | "foragers_shed" => 1.25,
-        _ => 1.0,
-    }
+    fire_building_base_flammability(kind)
 }
 
 /// Combines repeated independent checks without inflating or suppressing the

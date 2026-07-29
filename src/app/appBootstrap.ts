@@ -438,6 +438,8 @@ export async function bootstrapAppSession(
       return countTreesNearBuilding(liveContext.gameState, registry, x, z, radius).matureTrees;
     },
     getRoadNetwork: () => roadNetwork,
+    getDeliveryTravelSpeedMultiplier: (origin) =>
+      worldQueries.getDeliveryTravelSpeedMultiplier(origin),
     onModeChanged: () => bridge.syncToolbar(),
     onPlacementPreviewChanged: () => bridge.syncToolbar(),
     describePlacementFailure: describeBuildingPlacementBlocker,

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   BUILDING_STORAGE_CAPS,
+  FIRE_SPREAD_RADIUS,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
 } from '../generated/gameBalance.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
@@ -18,6 +19,12 @@ import {
   watchtowerEffectiveRadius,
 } from '../security/frontierSecurity.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import {
+  assessBuildingFireSafety,
+  fireCoverageColor,
+  hasFireRiskPlanningOverlay,
+  type FireCoverageBand,
+} from '../fires/fireRiskPolicy.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -97,6 +104,7 @@ export class BuildingMarkers {
   private watermillThroughputMultiplier = 1;
   private extentOverlayMesh: THREE.Mesh | null = null;
   private extentOverlayKind: BuildingKind | null = null;
+  private fireRiskOverlayMesh: THREE.Mesh | null = null;
   private readonly guardhouseMusterRoute: THREE.InstancedMesh<
     THREE.BoxGeometry,
     THREE.MeshBasicMaterial
@@ -104,7 +112,6 @@ export class BuildingMarkers {
   private guardhouseMusterSignature = '';
   private previewBuilding: THREE.Group | null = null;
   private previewKind: BuildingKind | null = null;
-  private previewValid: boolean | null = null;
   private lastPreviewSignature = '';
   private pendingPlacement: THREE.Group | null = null;
 
@@ -162,6 +169,7 @@ export class BuildingMarkers {
       );
     }
 
+    this.syncFireRiskOverlay(building, gameState, fireDisabled);
     this.syncGuardhouseMusterRoute(building, gameState, fireDisabled);
   }
 
@@ -226,7 +234,6 @@ export class BuildingMarkers {
 
   clearPlacementPreview(): void {
     if (this.previewBuilding) this.previewBuilding.visible = false;
-    this.previewValid = null;
     this.lastPreviewSignature = '';
   }
 
@@ -253,8 +260,9 @@ export class BuildingMarkers {
     z: number,
     valid: boolean,
     visible: boolean,
+    fireCoverage: FireCoverageBand | null = null,
   ): void {
-    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${valid ? 1 : 0}|${visible ? 1 : 0}`;
+    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${valid ? 1 : 0}|${visible ? 1 : 0}|${fireCoverage ?? ''}`;
     if (signature === this.lastPreviewSignature) return;
     this.lastPreviewSignature = signature;
     if (!visible) {
@@ -269,13 +277,9 @@ export class BuildingMarkers {
       }
       this.previewBuilding = createBuildingPreviewMesh(kind);
       this.previewKind = kind;
-      this.previewValid = null;
       this.group.add(this.previewBuilding);
     }
-    if (this.previewValid !== valid) {
-      updateBuildingPreviewAppearance(this.previewBuilding, valid);
-      this.previewValid = valid;
-    }
+    updateBuildingPreviewAppearance(this.previewBuilding, valid, fireCoverage);
 
     const yaw = buildingPlacementYaw(kind, x, z, this.getRoadNetwork?.() ?? null);
     updateBuildingPreviewGeometry(
@@ -300,6 +304,10 @@ export class BuildingMarkers {
       disposeObject3D(this.extentOverlayMesh);
       this.extentOverlayMesh = null;
       this.extentOverlayKind = null;
+    }
+    if (this.fireRiskOverlayMesh) {
+      disposeObject3D(this.fireRiskOverlayMesh);
+      this.fireRiskOverlayMesh = null;
     }
     disposeObject3D(this.guardhouseMusterRoute);
     for (const id of [...this.buildingMeshes.keys()]) {
@@ -385,6 +393,64 @@ export class BuildingMarkers {
       this.guardhouseMusterRoute,
       route.polyline,
       this.terrain,
+    );
+  }
+
+  private syncFireRiskOverlay(
+    building: BuildingState | null,
+    gameState: GameState | undefined,
+    fireDisabled: ReadonlySet<string>,
+  ): void {
+    if (
+      !building
+      || !gameState
+      || building.constructionComplete === false
+      || !hasFireRiskPlanningOverlay(building.kind)
+    ) {
+      if (this.fireRiskOverlayMesh) this.fireRiskOverlayMesh.visible = false;
+      return;
+    }
+    const network = this.getRoadNetwork?.() ?? null;
+    const busyBuildings = new Set(
+      [...gameState.deliveryTrips.values()].map((trip) => trip.buildingId),
+    );
+    const assessment = assessBuildingFireSafety(building, {
+      buildings: gameState.buildings.values(),
+      residences: gameState.residences.values(),
+      fireDisabledBuildingIds: fireDisabled,
+      busyBuildingIds: busyBuildings,
+      roadPathDistance: network
+        ? (ax, az, bx, bz) =>
+            network.getPathfinder().roadPathDistance(ax, az, bx, bz)
+        : undefined,
+      travelSpeedMultiplierForWell: () =>
+        this.getRoadConditionSpeedMultiplier?.() ?? 1,
+    });
+    if (!this.fireRiskOverlayMesh) {
+      this.fireRiskOverlayMesh = createRadiusRing(
+        fireCoverageColor(assessment.coverage),
+        0.82,
+      );
+      this.fireRiskOverlayMesh.name = 'Selected building fire spread range';
+      this.group.add(this.fireRiskOverlayMesh);
+    }
+    const material = this.fireRiskOverlayMesh.material;
+    if (material instanceof THREE.MeshBasicMaterial) {
+      material.color.setHex(fireCoverageColor(assessment.coverage));
+    }
+    this.fireRiskOverlayMesh.visible = true;
+    updateTerrainCircleRibbonGeometry(
+      this.fireRiskOverlayMesh.geometry,
+      { x: building.x, z: building.z },
+      FIRE_SPREAD_RADIUS,
+      this.terrain.getHeightAt.bind(this.terrain),
+      {
+        width: 0.62,
+        lift: 0.17,
+        sampleSpacing: 4.8,
+        dashLength: 2.4,
+        gapLength: 2.1,
+      },
     );
   }
 

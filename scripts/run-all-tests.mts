@@ -62,6 +62,7 @@ const tests = [
   'test:naive-art-post',
   'test:celestial-sky',
   'test:fires',
+  'test:fire-safety-planning',
   'test:fire-recovery-planning',
   'test:world-config',
   'test:regional-resources',

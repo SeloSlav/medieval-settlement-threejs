@@ -17,6 +17,12 @@ import {
 } from '../economy/carpenterSupport.ts';
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import {
+  assessBuildingFireSafety,
+  describePlacementFireSafety,
+  hasFireRiskPlanningOverlay,
+  type FireSafetyAssessment,
+} from '../fires/fireRiskPolicy.ts';
 import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import {
   assessFoundingSite,
@@ -62,6 +68,7 @@ type BuildingToolOptions = {
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   getRoadNetwork?: () => RoadNetwork;
+  getDeliveryTravelSpeedMultiplier?: (origin: { x: number; z: number }) => number;
   onModeChanged: () => void;
   onPlacementPreviewChanged?: () => void;
   describePlacementFailure?: (reason: BuildingPlacementFailureReason) => string;
@@ -84,6 +91,7 @@ export class BuildingTool {
   private lastValidatedX = Number.NaN;
   private lastValidatedZ = Number.NaN;
   private lastPreviewValidation: BuildingPlacementResult | null = null;
+  private lastFireSafetyAssessment: FireSafetyAssessment | null = null;
   private lastValidationTime = 0;
   private validationDirty = false;
   private placementStatusDetail: string | null = null;
@@ -364,6 +372,7 @@ export class BuildingTool {
       point.z,
       validation.ok,
       true,
+      this.lastFireSafetyAssessment?.coverage ?? null,
     );
   }
 
@@ -438,6 +447,7 @@ export class BuildingTool {
       this.lastPreviewZ,
       validation.ok,
       true,
+      this.lastFireSafetyAssessment?.coverage ?? null,
     );
   }
 
@@ -450,6 +460,7 @@ export class BuildingTool {
     this.lastValidatedX = Number.NaN;
     this.lastValidatedZ = Number.NaN;
     this.lastPreviewValidation = null;
+    this.lastFireSafetyAssessment = null;
     this.lastValidationTime = 0;
     this.validationDirty = false;
     this.placementStatusDetail = null;
@@ -465,14 +476,41 @@ export class BuildingTool {
     validation: BuildingPlacementResult,
   ): void {
     if (!validation.ok) {
+      this.lastFireSafetyAssessment = null;
       const detail = this.options.describePlacementFailure?.(
         validation.reason,
       ) ?? `Placement blocked: ${validation.reason}`;
       this.setPlacementStatusDetail(detail);
       return;
     }
+    const state = this.options.getState();
+    this.lastFireSafetyAssessment = null;
+    if (hasFireRiskPlanningOverlay(kind)) {
+      const roadNetwork = this.options.getRoadNetwork?.();
+      this.lastFireSafetyAssessment = assessBuildingFireSafety(
+        { kind, x, z },
+        {
+          buildings: state.buildings.values(),
+          residences: state.residences.values(),
+          fireDisabledBuildingIds: fireDisabledBuildingIds(
+            state.fireIncidents.values(),
+          ),
+          busyBuildingIds: new Set(
+            [...state.deliveryTrips.values()].map((trip) => trip.buildingId),
+          ),
+          roadPathDistance: roadNetwork
+            ? (ax, az, bx, bz) =>
+                roadNetwork.getPathfinder().roadPathDistance(ax, az, bx, bz)
+            : undefined,
+          travelSpeedMultiplierForWell:
+            this.options.getDeliveryTravelSpeedMultiplier,
+        },
+      );
+    }
+    const fireDetail = this.lastFireSafetyAssessment
+      ? describePlacementFireSafety(this.lastFireSafetyAssessment)
+      : null;
     if (kind === 'founders_camp') {
-      const state = this.options.getState();
       const assessment = assessFoundingSite({
         x,
         z,
@@ -482,20 +520,26 @@ export class BuildingTool {
         foragingNodes: state.foragingNodes.values(),
         getHeightAt: this.options.getNaturalHeightAt,
       });
-      this.setPlacementStatusDetail(describeFoundingSiteAssessment(assessment));
+      this.setPlacementStatusDetail(joinPlacementDetails(
+        describeFoundingSiteAssessment(assessment),
+        fireDetail,
+      ));
       return;
     }
     const definition = getBuildingDefinition(kind);
     const extent = getBuildingExtent(kind, definition.workRadius);
-    this.setPlacementStatusDetail(
+    this.setPlacementStatusDetail(joinPlacementDetails(
       kind === 'town_hall'
         ? 'Ready: population, civic buildings, and road links confirmed'
         : kind === 'guardhouse'
           ? 'Ready: completed watchtower confirmed'
           : extent
             ? `Ready: ${extent.label.toLowerCase()} ${extent.radius} m`
-            : null,
-    );
+            : fireDetail
+              ? 'Ready: site clear'
+              : null,
+      fireDetail,
+    ));
   }
 
   private setPlacementStatusDetail(detail: string | null): void {
@@ -596,6 +640,15 @@ async function waitForPlacedBuilding(
     });
   }
   return findPlacedBuildingId(getState().buildings, beforeIds, kind, x, z);
+}
+
+function joinPlacementDetails(
+  primary: string | null,
+  secondary: string | null,
+): string | null {
+  if (!primary) return secondary;
+  if (!secondary) return primary;
+  return `${primary} | ${secondary}`;
 }
 
 export function getBuildingToolLabel(mode: BuildingToolMode): string {

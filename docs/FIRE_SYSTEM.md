@@ -47,8 +47,27 @@ ignition and spread risk by `0.25` and actively damps existing fire intensity.
 
 Distance uses quadratic falloff, so close-packed buildings are much more vulnerable than
 structures near the edge of the 26 m spread radius. Stored timber, firewood, and grain
-increase flammability. Smokehouses, timber workplaces, granaries, breweries, and barns
-carry elevated risk. Wells, marketplaces, quarries, and the Town Hall cannot ignite.
+increase flammability by up to 75%. Base risk is generated from the same balance table for
+the Rust authority and client planning UI:
+
+| Structure group | Base susceptibility |
+| --- | ---: |
+| Charcoal yards and smokehouses | 2.20x |
+| Smithies and pottery kilns | 1.80x |
+| Timber workplaces | 1.70x |
+| Threshing barns | 1.65x |
+| Granaries and breweries | 1.45x |
+| Ordinary structures | 1.00x |
+| Chapels and monasteries | 0.32x |
+| Clay pits | 0.15x |
+| Wells, marketplaces, quarries, founding camps, and Town Halls | Fire-safe |
+
+High-risk placement previews and selected buildings show a terrain-following 26 m spread
+ring. Green means a staffed and supplied well covers the point, amber means a well extent
+reaches it but lacks labor or water, and red means no ready well can answer. The placement
+readout and inspector name the current susceptibility, stored-fuel penalty, exposed
+neighbor count, response route, and estimated first-bucket arrival. These are derived
+views; they add no save fields or periodic settlement scan.
 
 ## Well response
 
@@ -56,7 +75,7 @@ A well can respond only when all of the following are true:
 
 - it is complete;
 - at least one laborer is assigned;
-- it holds at least one 3-unit bucket load;
+- it holds at least the 0.5-unit minimum response load (up to 3 units depart);
 - the incident lies inside its work extent;
 - it is the nearest eligible well, using road distance when connected and direct distance
   otherwise;

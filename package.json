@@ -80,6 +80,7 @@
     "test:naive-art-post": "node --experimental-strip-types scripts/testNaiveArtPostEffect.mts",
     "test:celestial-sky": "node --experimental-strip-types scripts/testCelestialSky.mts",
     "test:fires": "node --experimental-strip-types scripts/testFireSystem.mts && cargo test --manifest-path server/logic/Cargo.toml fire_policy && cargo test --manifest-path server/logic/Cargo.toml well_policy",
+    "test:fire-safety-planning": "npx tsx scripts/testFireSafetyPlanning.mts",
     "test:fire-recovery-planning": "npx tsx scripts/testSettlementFireRecovery.mts",
     "test:world-config": "npx tsx scripts/testWorldConfigAuthority.mts",
     "test:regional-resources": "npx tsx scripts/testRegionalResourceDistribution.mts",

@@ -8,6 +8,12 @@ import {
 import type { BuildingKind } from '../resources/types.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
+import {
+  fireCoverageColor,
+  hasFireRiskPlanningOverlay,
+  type FireCoverageBand,
+} from '../fires/fireRiskPolicy.ts';
+import { FIRE_SPREAD_RADIUS } from '../generated/gameBalance.ts';
 import { getBuildingPadParams } from './BuildingTerrainLayout.ts';
 import { buildingExtentColor, getBuildingExtent } from './buildingExtents.ts';
 
@@ -22,6 +28,8 @@ const FOOTPRINT_BORDER_LIFT = 0.145;
 const FOOTPRINT_BORDER_WIDTH = 0.34;
 const EXTENT_BORDER_LIFT = 0.165;
 const EXTENT_BORDER_WIDTH = 0.78;
+const FIRE_RISK_BORDER_LIFT = 0.175;
+const FIRE_RISK_BORDER_WIDTH = 0.62;
 const PREVIEW_RENDER_ORDER = 12;
 
 export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
@@ -99,6 +107,30 @@ export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
     group.add(extentRing);
   }
 
+  if (hasFireRiskPlanningOverlay(kind)) {
+    const fireRiskRing = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({
+        color: fireCoverageColor('uncovered'),
+        transparent: true,
+        opacity: 0.8,
+        depthTest: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -3,
+        polygonOffsetUnits: -3,
+      }),
+    );
+    fireRiskRing.name = 'Building fire spread range';
+    fireRiskRing.userData.previewRole = 'fire-risk';
+    fireRiskRing.userData.extentRadius = FIRE_SPREAD_RADIUS;
+    fireRiskRing.userData.extentLabel = 'Fire spread range';
+    fireRiskRing.renderOrder = PREVIEW_RENDER_ORDER + 3;
+    fireRiskRing.frustumCulled = false;
+    group.add(fireRiskRing);
+  }
+
   return group;
 }
 
@@ -170,17 +202,44 @@ export function updateBuildingPreviewGeometry(
       },
     );
   }
+
+  const fireRiskRing = group.getObjectByName('Building fire spread range');
+  if (fireRiskRing instanceof THREE.Mesh) {
+    updateTerrainCircleRibbonGeometry(
+      fireRiskRing.geometry,
+      { x, z },
+      FIRE_SPREAD_RADIUS,
+      getHeightAt,
+      {
+        width: FIRE_RISK_BORDER_WIDTH,
+        lift: FIRE_RISK_BORDER_LIFT,
+        sampleSpacing: 4.8,
+        dashLength: 2.4,
+        gapLength: 2.1,
+      },
+    );
+  }
 }
 
 export function updateBuildingPreviewAppearance(
   group: THREE.Group,
   valid: boolean,
+  fireCoverage: FireCoverageBand | null = null,
 ): void {
   const color = valid ? PREVIEW_COLORS.valid : PREVIEW_COLORS.invalid;
   group.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     const material = object.material;
     if (!(material instanceof THREE.MeshBasicMaterial)) return;
+    if (object.userData.previewRole === 'fire-risk') {
+      material.color.setHex(
+        valid
+          ? fireCoverageColor(fireCoverage ?? 'uncovered')
+          : PREVIEW_COLORS.invalid,
+      );
+      material.opacity = valid ? 0.8 : 0.3;
+      return;
+    }
     if (object.userData.previewRole === 'extent') {
       material.color.setHex(valid ? object.userData.validColor as number : PREVIEW_COLORS.invalid);
       material.opacity = valid ? 0.68 : 0.32;

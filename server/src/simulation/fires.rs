@@ -21,8 +21,8 @@ use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
-    cancel_trips_for_residence, clear_backyard_garden_for_residence, clear_residence_needs,
-    clear_residence_project, drain_trips_for_building,
+    building_has_active_trip, cancel_trips_for_residence, clear_backyard_garden_for_residence,
+    clear_residence_needs, clear_residence_project, drain_trips_for_building,
 };
 use crate::tables::{Building, FireIncident};
 
@@ -624,6 +624,7 @@ fn nearest_eligible_well_id(
                 && building.construction_complete
                 && building.assigned_labor > 0
                 && fire_response_load(building.water) > 0.0
+                && !building_has_active_trip(ctx, building.id)
                 && within_extent(building, incident.x, incident.z)
         })
     {

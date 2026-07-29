@@ -20,6 +20,7 @@ import { renderPalisadedRefugeInspector } from './palisadedRefugeRenderer.ts';
 import { withStaffingPriority } from './staffingPriorityRenderer.ts';
 import { renderFoundersCampInspector } from './foundersCampRenderer.ts';
 import { renderSalvagePileInspector } from './salvagePileRenderer.ts';
+import { withBuildingFireSafety } from './fireSafetyRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -29,7 +30,8 @@ export function renderBuildingInspector(
   if (building.constructionComplete === false) {
     return renderConstructionInspector(target, context);
   }
-  switch (building.kind) {
+  const view = (() => {
+    switch (building.kind) {
     case 'founders_camp':
       return renderFoundersCampInspector(target, context);
     case 'salvage_pile':
@@ -87,5 +89,7 @@ export function renderBuildingInspector(
       const unreachable: never = building.kind;
       throw new Error(`Unhandled building kind: ${unreachable}`);
     }
-  }
+    }
+  })();
+  return withBuildingFireSafety(view, building, context);
 }
