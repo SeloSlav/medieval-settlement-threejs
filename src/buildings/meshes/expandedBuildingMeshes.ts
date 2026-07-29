@@ -29,7 +29,9 @@ import {
 import {
   SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS,
   SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS,
+  SMOKEHOUSE_POTTERY_VISUAL_SEGMENTS,
   SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS,
+  SMOKEHOUSE_SALT_VISUAL_SEGMENTS,
 } from '../foodStockpileVisuals.ts';
 import {
   CARPENTER_IRONWORK_VISUAL_SEGMENTS,
@@ -83,6 +85,41 @@ function addSheaf(group: THREE.Group, x: number, z: number, scale = 1): void {
 function addSack(group: THREE.Group, x: number, z: number, scale = 1): void {
   addMesh(group, new THREE.SphereGeometry(0.45 * scale, 8, 6), canvas, new THREE.Vector3(x, 0.42 * scale, z), new THREE.Euler(0, 0, -0.08), new THREE.Vector3(0.82, 1.35, 0.72));
   addMesh(group, new THREE.CylinderGeometry(0.07 * scale, 0.14 * scale, 0.24 * scale, 7), canvas, new THREE.Vector3(x, 0.94 * scale, z));
+}
+
+function addSaltSack(group: THREE.Group, scale = 1): void {
+  const saltCanvas = residenceFacadeMaterial('white');
+  const body = addMesh(
+    group,
+    new THREE.SphereGeometry(0.31 * scale, 8, 6),
+    saltCanvas,
+    new THREE.Vector3(0, 0.32 * scale, 0),
+  );
+  body.scale.set(0.84, 1.2, 0.8);
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(0.06 * scale, 0.11 * scale, 0.15 * scale, 7),
+    timberMaterial('light'),
+    new THREE.Vector3(0, 0.71 * scale, 0),
+  );
+}
+
+function addPotteryVessel(group: THREE.Group, scale = 1): void {
+  const firedClay = residenceFacadeMaterial('orange');
+  addMesh(
+    group,
+    new THREE.SphereGeometry(0.23 * scale, 9, 7),
+    firedClay,
+    new THREE.Vector3(0, 0.25 * scale, 0),
+    undefined,
+    new THREE.Vector3(1, 1.12, 1),
+  );
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(0.1 * scale, 0.15 * scale, 0.23 * scale, 9, 1, true),
+    firedClay,
+    new THREE.Vector3(0, 0.49 * scale, 0),
+  );
 }
 
 function addFlaxBundle(group: THREE.Group, x: number, z: number, scale = 1): void {
@@ -489,6 +526,28 @@ export function createSmokehouseMesh(): THREE.Group {
     rawFoodStockpile.add(segment);
   }
   group.add(rawFoodStockpile);
+  addSegmentedStockProps(
+    group,
+    'SmokehouseSaltStockpile',
+    'SmokehouseSaltSegment',
+    ([
+      [3.9, 0, -1.55, 0.95],
+      [4.45, 0, -1.3, 0.82],
+      [4.08, 0, -0.76, 0.72],
+    ] as const).slice(0, SMOKEHOUSE_SALT_VISUAL_SEGMENTS),
+    (segment, scale) => addSaltSack(segment, scale),
+  );
+  addSegmentedStockProps(
+    group,
+    'SmokehousePotteryStockpile',
+    'SmokehousePotterySegment',
+    ([
+      [3.88, 0, 1.0, 1.05],
+      [4.45, 0, 1.28, 0.92],
+      [4.02, 0, 1.78, 0.8],
+    ] as const).slice(0, SMOKEHOUSE_POTTERY_VISUAL_SEGMENTS),
+    (segment, scale) => addPotteryVessel(segment, scale),
+  );
   const preservedFoodStockpile = new THREE.Group();
   preservedFoodStockpile.name = 'SmokehousePreservedFoodStockpile';
   preservedFoodStockpile.visible = false;

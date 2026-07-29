@@ -14,6 +14,8 @@ export const FORAGERS_FOOD_VISUAL_SEGMENTS = 4;
 export const FISHING_FOOD_VISUAL_SEGMENTS = 3;
 export const SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS = 2;
+export const SMOKEHOUSE_SALT_VISUAL_SEGMENTS = 3;
+export const SMOKEHOUSE_POTTERY_VISUAL_SEGMENTS = 3;
 export const SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS = 3;
 export const GRANARY_GRAIN_VISUAL_SEGMENTS = 3;
 export const GRANARY_PROVISION_VISUAL_SEGMENTS = 3;
@@ -73,6 +75,18 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
           building.food,
           BUILDING_STORAGE_CAPS.smokehouse.food,
           SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS,
+        )
+      }:${
+        stockpileVisualLevel(
+          building.salt ?? 0,
+          BUILDING_STORAGE_CAPS.smokehouse.salt,
+          SMOKEHOUSE_SALT_VISUAL_SEGMENTS,
+        )
+      }:${
+        stockpileVisualLevel(
+          building.pottery ?? 0,
+          BUILDING_STORAGE_CAPS.smokehouse.pottery,
+          SMOKEHOUSE_POTTERY_VISUAL_SEGMENTS,
         )
       }:${
         stockpileVisualLevel(
@@ -183,6 +197,20 @@ export function syncFoodStockpileVisuals(
         'SmokehouseFreshFoodSegment',
         building.food,
         BUILDING_STORAGE_CAPS.smokehouse.food,
+      );
+      syncNamedStockpile(
+        marker,
+        'SmokehouseSaltStockpile',
+        'SmokehouseSaltSegment',
+        building.salt ?? 0,
+        BUILDING_STORAGE_CAPS.smokehouse.salt,
+      );
+      syncNamedStockpile(
+        marker,
+        'SmokehousePotteryStockpile',
+        'SmokehousePotterySegment',
+        building.pottery ?? 0,
+        BUILDING_STORAGE_CAPS.smokehouse.pottery,
       );
       syncNamedStockpile(
         marker,

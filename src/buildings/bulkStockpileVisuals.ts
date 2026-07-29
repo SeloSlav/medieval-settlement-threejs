@@ -10,10 +10,13 @@ export const WOODCUTTERS_FIREWOOD_VISUAL_SEGMENTS = 4;
 export const STONE_QUARRY_STONE_VISUAL_SEGMENTS = 3;
 export const LARGE_QUARRY_STONE_VISUAL_SEGMENTS = 4;
 export const CLAY_PIT_CLAY_VISUAL_SEGMENTS = 5;
+export const CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS = 5;
 export const SMITHY_IRON_VISUAL_SEGMENTS = 4;
+export const SMITHY_CHARCOAL_VISUAL_SEGMENTS = 3;
 export const SMITHY_IRONWORK_VISUAL_SEGMENTS = 4;
 export const POTTER_CLAY_VISUAL_SEGMENTS = 5;
+export const POTTER_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const POTTER_POTTERY_VISUAL_SEGMENTS = 5;
 export const CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS = 4;
 
@@ -64,6 +67,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
       )}`;
     case 'charcoal_burner':
       return `:bulk-store:${stockpileVisualLevel(
+        building.firewood,
+        BUILDING_STORAGE_CAPS.charcoal_burner.firewood,
+        CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
         building.charcoal ?? 0,
         BUILDING_STORAGE_CAPS.charcoal_burner.charcoal,
         CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS,
@@ -74,6 +81,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         BUILDING_STORAGE_CAPS.smithy.iron,
         SMITHY_IRON_VISUAL_SEGMENTS,
       )}:${stockpileVisualLevel(
+        building.charcoal ?? 0,
+        BUILDING_STORAGE_CAPS.smithy.charcoal,
+        SMITHY_CHARCOAL_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
         building.ironwork ?? 0,
         BUILDING_STORAGE_CAPS.smithy.ironwork,
         SMITHY_IRONWORK_VISUAL_SEGMENTS,
@@ -83,6 +94,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.clay ?? 0,
         BUILDING_STORAGE_CAPS.potter_kiln.clay,
         POTTER_CLAY_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
+        building.firewood,
+        BUILDING_STORAGE_CAPS.potter_kiln.firewood,
+        POTTER_FIREWOOD_VISUAL_SEGMENTS,
       )}:${stockpileVisualLevel(
         building.pottery ?? 0,
         BUILDING_STORAGE_CAPS.potter_kiln.pottery,
@@ -143,6 +158,13 @@ export function syncBulkStockpileVisuals(
     case 'charcoal_burner':
       syncNamedStockpile(
         marker,
+        'CharcoalBurnerFirewoodStockpile',
+        'CharcoalBurnerFirewoodSegment',
+        building.firewood,
+        BUILDING_STORAGE_CAPS.charcoal_burner.firewood,
+      );
+      syncNamedStockpile(
+        marker,
         'CharcoalBurnerStockpile',
         'CharcoalBurnerCharcoalSegment',
         building.charcoal ?? 0,
@@ -159,6 +181,13 @@ export function syncBulkStockpileVisuals(
       );
       syncNamedStockpile(
         marker,
+        'SmithyCharcoalStockpile',
+        'SmithyCharcoalSegment',
+        building.charcoal ?? 0,
+        BUILDING_STORAGE_CAPS.smithy.charcoal,
+      );
+      syncNamedStockpile(
+        marker,
         'SmithyIronworkStockpile',
         'SmithyIronworkSegment',
         building.ironwork ?? 0,
@@ -172,6 +201,13 @@ export function syncBulkStockpileVisuals(
         'PotterClaySegment',
         building.clay ?? 0,
         BUILDING_STORAGE_CAPS.potter_kiln.clay,
+      );
+      syncNamedStockpile(
+        marker,
+        'PotterFirewoodStockpile',
+        'PotterFirewoodSegment',
+        building.firewood,
+        BUILDING_STORAGE_CAPS.potter_kiln.firewood,
       );
       syncNamedStockpile(
         marker,

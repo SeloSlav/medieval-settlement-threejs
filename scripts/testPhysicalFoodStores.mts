@@ -15,7 +15,9 @@ import {
   HUNTERS_FOOD_VISUAL_SEGMENTS,
   SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS,
   SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS,
+  SMOKEHOUSE_POTTERY_VISUAL_SEGMENTS,
   SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS,
+  SMOKEHOUSE_SALT_VISUAL_SEGMENTS,
   syncFoodStockpileVisuals,
   WATERMILL_FLOUR_VISUAL_SEGMENTS,
   WATERMILL_GRAIN_VISUAL_SEGMENTS,
@@ -38,6 +40,8 @@ const stockGroups: readonly StockGroupExpectation[] = [
   ['brewery', 'BreweryAleStockpile', 'BreweryAleSegment', BREWERY_ALE_VISUAL_SEGMENTS],
   ['smokehouse', 'SmokehouseFirewoodStockpile', 'SmokehouseFirewoodSegment', SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS],
   ['smokehouse', 'SmokehouseFreshFoodStockpile', 'SmokehouseFreshFoodSegment', SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS],
+  ['smokehouse', 'SmokehouseSaltStockpile', 'SmokehouseSaltSegment', SMOKEHOUSE_SALT_VISUAL_SEGMENTS],
+  ['smokehouse', 'SmokehousePotteryStockpile', 'SmokehousePotterySegment', SMOKEHOUSE_POTTERY_VISUAL_SEGMENTS],
   ['smokehouse', 'SmokehousePreservedFoodStockpile', 'SmokehousePreservedFoodSegment', SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS],
   ['granary', 'GranaryGrainStockpile', 'GranaryGrainSegment', GRANARY_GRAIN_VISUAL_SEGMENTS],
   ['granary', 'GranaryProvisionStockpile', 'GranaryProvisionSegment', GRANARY_PROVISION_VISUAL_SEGMENTS],
@@ -81,6 +85,8 @@ const smokehouse = building('smokehouse', {
   firewood: 14,
   food: 61,
   preservedFood: 61,
+  salt: 14,
+  pottery: 5,
 });
 const smokehouseMarker = createBuildingMesh('smokehouse');
 syncFoodStockpileVisuals(smokehouseMarker, smokehouse);
@@ -98,9 +104,31 @@ assertVisibleSegments(
 );
 assertVisibleSegments(
   smokehouseMarker,
+  'SmokehouseSaltStockpile',
+  'SmokehouseSaltSegment',
+  2,
+);
+assertVisibleSegments(
+  smokehouseMarker,
+  'SmokehousePotteryStockpile',
+  'SmokehousePotterySegment',
+  2,
+);
+assertVisibleSegments(
+  smokehouseMarker,
   'SmokehousePreservedFoodStockpile',
   'SmokehousePreservedFoodSegment',
   2,
+);
+assert.notEqual(
+  foodStockpileVisualSignature(building('smokehouse', { salt: 1 })),
+  foodStockpileVisualSignature(building('smokehouse')),
+  'the first salt sack must invalidate the smokehouse visual signature',
+);
+assert.notEqual(
+  foodStockpileVisualSignature(building('smokehouse', { pottery: 1 })),
+  foodStockpileVisualSignature(building('smokehouse')),
+  'the first preservation vessel must invalidate the smokehouse visual signature',
 );
 
 const granary = building('granary', { grain: 141, barley: 160, food: 261 });
@@ -168,6 +196,8 @@ const perfBuildings = Array.from({ length: 100_000 }, (_, index) => {
     firewood: index % 61,
     ale: index % 201,
     preservedFood: index % 181,
+    salt: index % 25,
+    pottery: index % 13,
   });
 });
 const started = performance.now();
@@ -205,7 +235,14 @@ function building(
   kind: BuildingKind,
   stocks: Partial<Pick<
     BuildingState,
-    'grain' | 'flour' | 'food' | 'firewood' | 'ale' | 'preservedFood'
+    | 'grain'
+    | 'flour'
+    | 'food'
+    | 'firewood'
+    | 'ale'
+    | 'preservedFood'
+    | 'salt'
+    | 'pottery'
   >> = {},
 ): BuildingState {
   return {
@@ -225,6 +262,8 @@ function building(
     honey: 0,
     wine: 0,
     firewood: 0,
+    salt: 0,
+    pottery: 0,
     ...stocks,
   } as BuildingState;
 }

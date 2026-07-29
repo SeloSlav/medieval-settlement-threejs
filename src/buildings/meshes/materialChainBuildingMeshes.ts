@@ -13,6 +13,11 @@ import {
   addPlankDoor,
 } from './buildingMeshKit.ts';
 import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
+import {
+  CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
+  POTTER_FIREWOOD_VISUAL_SEGMENTS,
+  SMITHY_CHARCOAL_VISUAL_SEGMENTS,
+} from '../bulkStockpileVisuals.ts';
 
 const CLAY = sharedBuildingDetailMaterial('earth');
 const FIRED_CLAY = sharedBuildingDetailMaterial('paintRed');
@@ -74,6 +79,7 @@ function addClayLump(
   );
   lump.name = name;
   lump.scale.set(1.2, 0.62, 1);
+  lump.visible = false;
 }
 
 function addCharcoalSack(
@@ -84,6 +90,7 @@ function addCharcoalSack(
   const sack = new THREE.Group();
   sack.name = name;
   sack.position.copy(position);
+  sack.visible = false;
   group.add(sack);
   const body = addMesh(
     sack,
@@ -114,6 +121,7 @@ function addIronBar(
     new THREE.Euler(0, yaw, 0),
   );
   bar.name = name;
+  bar.visible = false;
 }
 
 function addPot(
@@ -125,6 +133,7 @@ function addPot(
   const pot = new THREE.Group();
   pot.name = name;
   pot.position.copy(position);
+  pot.visible = false;
   group.add(pot);
   addMesh(
     pot,
@@ -147,6 +156,39 @@ function addPot(
     new THREE.Vector3(0, 0.49 * scale, 0),
     new THREE.Euler(Math.PI * 0.5, 0, 0),
   );
+}
+
+function addFirewoodStockpile(
+  group: THREE.Group,
+  containerName: string,
+  segmentName: string,
+  placements: readonly (readonly [x: number, y: number, z: number, yaw: number])[],
+): void {
+  const stockpile = new THREE.Group();
+  stockpile.name = containerName;
+  stockpile.visible = false;
+  for (const [x, y, z, yaw] of placements) {
+    const segment = new THREE.Group();
+    segment.name = segmentName;
+    segment.position.set(x, y, z);
+    segment.rotation.y = yaw;
+    segment.visible = false;
+    for (let log = 0; log < 3; log++) {
+      addMesh(
+        segment,
+        new THREE.CylinderGeometry(0.12, 0.14, 0.86, 7),
+        timberMaterial(log % 2 === 0 ? 'mid' : 'light'),
+        new THREE.Vector3(
+          0,
+          0.14 + Math.floor(log / 2) * 0.22,
+          (log % 2) * 0.24,
+        ),
+        new THREE.Euler(0, 0, Math.PI * 0.5),
+      );
+    }
+    stockpile.add(segment);
+  }
+  group.add(stockpile);
 }
 
 export function createClayPitMesh(): THREE.Group {
@@ -186,6 +228,7 @@ export function createClayPitMesh(): THREE.Group {
   }
   const stockpile = new THREE.Group();
   stockpile.name = 'ClayPitStockpile';
+  stockpile.visible = false;
   for (const child of [...group.children]) {
     if (child.name === 'ClayPitClaySegment') stockpile.attach(child);
   }
@@ -238,6 +281,7 @@ export function createCharcoalBurnerMesh(): THREE.Group {
 
   const stockpile = new THREE.Group();
   stockpile.name = 'CharcoalBurnerStockpile';
+  stockpile.visible = false;
   group.add(stockpile);
   for (const [index, [x, z]] of ([
     [2.05, 1.45],
@@ -252,6 +296,16 @@ export function createCharcoalBurnerMesh(): THREE.Group {
       new THREE.Vector3(x, 0.48 + (index % 2) * 0.08, z),
     );
   }
+  addFirewoodStockpile(
+    group,
+    'CharcoalBurnerFirewoodStockpile',
+    'CharcoalBurnerFirewoodSegment',
+    ([
+      [2.0, 0, -2.7, -0.08],
+      [2.95, 0, -2.72, 0.06],
+      [2.45, 0.34, -2.68, -0.03],
+    ] as const).slice(0, CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS),
+  );
   return group;
 }
 
@@ -315,9 +369,15 @@ export function createSmithyMesh(): THREE.Group {
 
   const ironStock = new THREE.Group();
   ironStock.name = 'SmithyIronStockpile';
+  ironStock.visible = false;
   group.add(ironStock);
+  const charcoalStock = new THREE.Group();
+  charcoalStock.name = 'SmithyCharcoalStockpile';
+  charcoalStock.visible = false;
+  group.add(charcoalStock);
   const ironworkStock = new THREE.Group();
   ironworkStock.name = 'SmithyIronworkStockpile';
+  ironworkStock.visible = false;
   group.add(ironworkStock);
   for (let index = 0; index < 4; index++) {
     addIronBar(
@@ -334,6 +394,18 @@ export function createSmithyMesh(): THREE.Group {
       new THREE.Euler(Math.PI * 0.5, 0, 0),
     );
     fitting.name = 'SmithyIronworkSegment';
+    fitting.visible = false;
+  }
+  for (let index = 0; index < SMITHY_CHARCOAL_VISUAL_SEGMENTS; index++) {
+    addCharcoalSack(
+      charcoalStock,
+      'SmithyCharcoalSegment',
+      new THREE.Vector3(
+        -3.55 - (index % 2) * 0.48,
+        0.46 + Math.floor(index / 2) * 0.48,
+        1.8,
+      ),
+    );
   }
   return group;
 }
@@ -377,9 +449,11 @@ export function createPotterKilnMesh(): THREE.Group {
 
   const clayStock = new THREE.Group();
   clayStock.name = 'PotterClayStockpile';
+  clayStock.visible = false;
   group.add(clayStock);
   const potteryStock = new THREE.Group();
   potteryStock.name = 'PotterPotteryStockpile';
+  potteryStock.visible = false;
   group.add(potteryStock);
   for (let index = 0; index < 5; index++) {
     addClayLump(
@@ -403,5 +477,15 @@ export function createPotterKilnMesh(): THREE.Group {
       index >= 3 ? 0.86 : 1,
     );
   }
+  addFirewoodStockpile(
+    group,
+    'PotterFirewoodStockpile',
+    'PotterFirewoodSegment',
+    ([
+      [1.55, 0, -3.15, 0.05],
+      [2.5, 0, -3.12, -0.07],
+      [2.0, 0.34, -3.1, 0.02],
+    ] as const).slice(0, POTTER_FIREWOOD_VISUAL_SEGMENTS),
+  );
   return group;
 }

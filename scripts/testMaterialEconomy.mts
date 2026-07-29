@@ -1,8 +1,20 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
+  bulkStockpileVisualSignature,
+  CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS,
+  CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
+  CLAY_PIT_CLAY_VISUAL_SEGMENTS,
+  POTTER_CLAY_VISUAL_SEGMENTS,
+  POTTER_FIREWOOD_VISUAL_SEGMENTS,
+  POTTER_POTTERY_VISUAL_SEGMENTS,
+  SMITHY_CHARCOAL_VISUAL_SEGMENTS,
+  SMITHY_IRON_VISUAL_SEGMENTS,
+  SMITHY_IRONWORK_VISUAL_SEGMENTS,
   syncBulkStockpileVisuals,
 } from '../src/buildings/bulkStockpileVisuals.ts';
 import {
@@ -146,24 +158,63 @@ const buildingVisuals = [
     container: 'ClayPitStockpile',
     segment: 'ClayPitClaySegment',
     resource: 'clay',
+    segments: CLAY_PIT_CLAY_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'charcoal_burner',
+    container: 'CharcoalBurnerFirewoodStockpile',
+    segment: 'CharcoalBurnerFirewoodSegment',
+    resource: 'firewood',
+    segments: CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
   },
   {
     kind: 'charcoal_burner',
     container: 'CharcoalBurnerStockpile',
     segment: 'CharcoalBurnerCharcoalSegment',
     resource: 'charcoal',
+    segments: CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS,
   },
   {
     kind: 'smithy',
     container: 'SmithyIronStockpile',
     segment: 'SmithyIronSegment',
     resource: 'iron',
+    segments: SMITHY_IRON_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'smithy',
+    container: 'SmithyCharcoalStockpile',
+    segment: 'SmithyCharcoalSegment',
+    resource: 'charcoal',
+    segments: SMITHY_CHARCOAL_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'smithy',
+    container: 'SmithyIronworkStockpile',
+    segment: 'SmithyIronworkSegment',
+    resource: 'ironwork',
+    segments: SMITHY_IRONWORK_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'potter_kiln',
+    container: 'PotterClayStockpile',
+    segment: 'PotterClaySegment',
+    resource: 'clay',
+    segments: POTTER_CLAY_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'potter_kiln',
+    container: 'PotterFirewoodStockpile',
+    segment: 'PotterFirewoodSegment',
+    resource: 'firewood',
+    segments: POTTER_FIREWOOD_VISUAL_SEGMENTS,
   },
   {
     kind: 'potter_kiln',
     container: 'PotterPotteryStockpile',
     segment: 'PotterPotterySegment',
     resource: 'pottery',
+    segments: POTTER_POTTERY_VISUAL_SEGMENTS,
   },
 ] as const;
 
@@ -172,12 +223,22 @@ for (const spec of buildingVisuals) {
   const stockpile = marker.getObjectByName(spec.container);
   assert.ok(stockpile instanceof THREE.Group, `${spec.kind} must expose ${spec.container}`);
   const segments = stockpile.children.filter((child) => child.name === spec.segment);
-  assert.ok(segments.length >= 4, `${spec.container} must have a readable fill ladder`);
+  assert.equal(
+    segments.length,
+    spec.segments,
+    `${spec.container} must have its configured fill ladder`,
+  );
+  assert.equal(stockpile.visible, false, `${spec.container} must begin empty`);
+  assert.ok(segments.every((segment) => !segment.visible));
   const state = building(spec.kind);
   state[spec.resource] = 999;
   syncBulkStockpileVisuals(marker, state);
   assert.equal(stockpile.visible, true);
   assert.ok(segments.every((segment) => segment.visible));
+  state[spec.resource] = 0;
+  syncBulkStockpileVisuals(marker, state);
+  assert.equal(stockpile.visible, false);
+  assert.ok(segments.every((segment) => !segment.visible));
 }
 
 const cargoProof: ReadonlyArray<
@@ -209,7 +270,62 @@ for (const resource of ['iron', 'clay', 'salt', 'charcoal', 'pottery']) {
   );
 }
 
-console.log('Iron, clay, salt, charcoal, pottery chain tests passed.');
+assert.notEqual(
+  bulkStockpileVisualSignature(building('smithy', { charcoal: 1 })),
+  bulkStockpileVisualSignature(building('smithy')),
+  'the first charcoal sack at a smithy must invalidate its visual signature',
+);
+assert.notEqual(
+  bulkStockpileVisualSignature(building('potter_kiln', { firewood: 1 })),
+  bulkStockpileVisualSignature(building('potter_kiln')),
+  'the first kiln fuel bundle must invalidate its visual signature',
+);
+const emptySmithy = building('smithy');
+const stockedSmithy = building('smithy', { charcoal: 1 });
+const emptySmithySignatures = buildingMarkerSignatures(
+  new Map([[emptySmithy.id, emptySmithy]]),
+);
+const stockedSmithySignatures = buildingMarkerSignatures(
+  new Map([[stockedSmithy.id, stockedSmithy]]),
+);
+assert.notEqual(stockedSmithySignatures.visual, emptySmithySignatures.visual);
+assert.equal(
+  stockedSmithySignatures.collider,
+  emptySmithySignatures.collider,
+  'changing forge supplies must not rebuild building colliders',
+);
+
+const signatureBuildings = Array.from({ length: 100_000 }, (_, index) => {
+  const kinds = [
+    'clay_pit',
+    'charcoal_burner',
+    'smithy',
+    'potter_kiln',
+  ] as const;
+  return building(kinds[index % kinds.length], {
+    firewood: index % 55,
+    ironwork: index % 73,
+    iron: index % 49,
+    clay: index % 73,
+    charcoal: index % 73,
+    pottery: index % 121,
+  });
+});
+const signatureStartedAt = performance.now();
+let signatureLength = 0;
+for (const signatureBuilding of signatureBuildings) {
+  signatureLength += bulkStockpileVisualSignature(signatureBuilding).length;
+}
+const signatureElapsedMs = performance.now() - signatureStartedAt;
+assert.ok(signatureLength > 0);
+assert.ok(
+  signatureElapsedMs < 250,
+  `100,000 material-chain visual signatures took ${signatureElapsedMs.toFixed(1)} ms`,
+);
+
+console.log(
+  `Iron, clay, salt, charcoal, pottery chain tests passed (${signatureElapsedMs.toFixed(1)} ms / 100k visual signatures).`,
+);
 
 function building(
   kind: BuildingKind,
