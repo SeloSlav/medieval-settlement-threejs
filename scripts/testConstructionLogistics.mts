@@ -90,6 +90,46 @@ for (const kind of ['lumber_mill', 'stone_quarry'] as const) {
   );
 }
 
+const fittingCosts = [
+  'large_quarry',
+  'chapel',
+  'town_hall',
+  'watchtower',
+  'guardhouse',
+  'palisaded_refuge',
+  'monastery',
+  'brewery',
+  'smokehouse',
+  'granary',
+  'watermill',
+  'carpenter',
+  'ferry_landing',
+] as const;
+assert.equal(
+  fittingCosts.reduce(
+    (total, kind) => total + (getBuildingCost(kind).ironwork ?? 0),
+    0,
+  ),
+  51,
+  'advanced civic, defensive, and processing buildout should create a modest but meaningful fittings demand',
+);
+for (const kind of [
+  'founders_camp',
+  'marketplace',
+  'lumber_mill',
+  'stone_quarry',
+  'smithy',
+  'charcoal_burner',
+  'clay_pit',
+  'potter_kiln',
+] as const) {
+  assert.equal(
+    getBuildingCost(kind).ironwork ?? 0,
+    0,
+    `${kind} must remain free of circular ironwork bootstrap costs`,
+  );
+}
+
 assert.notEqual(
   constructionVisualSignature(0.1, 0.2, 0.2),
   constructionVisualSignature(0.65, 0.8, 1),
@@ -123,6 +163,21 @@ for (const rafter of roofRafters) {
     'every construction rafter must rise toward the center ridge',
   );
 }
+
+const fittedSite = createConstructionSiteMesh('town_hall', 0.65, 1, 1, 0.67);
+assert.ok(
+  fittedSite.getObjectByName('Construction fittings crate'),
+  'delivered fittings should appear as a named construction-site crate',
+);
+assert.ok(
+  fittedSite.getObjectByName('Construction iron strap 2'),
+  'the fittings crate should visibly fill as more ironwork arrives',
+);
+assert.notEqual(
+  constructionVisualSignature(0.65, 1, 1, 0),
+  constructionVisualSignature(0.65, 1, 1, 0.67),
+  'construction marker invalidation must track delivered fittings',
+);
 
 const constructionServer = read('server/src/simulation/construction.rs');
 assert.match(constructionServer, /construction_reserved_timber/);
@@ -164,6 +219,9 @@ assert.match(
 );
 assert.match(constructionServer, /construction_progress/);
 assert.match(constructionServer, /complete_site/);
+assert.match(constructionServer, /CommodityKind::Ironwork/);
+assert.match(constructionServer, /construction_required_ironwork/);
+assert.match(constructionServer, /construction_delivered_ironwork/);
 assert.match(constructionServer, /site_buckets/);
 assert.match(constructionServer, /construction_priority_bucket/);
 assert.match(constructionServer, /CONSTRUCTION_PRIORITY_HOLD/);
@@ -354,6 +412,50 @@ const fireIncident = (
   resolvedTick: 3,
   responseWellId: null,
 });
+const fittingsSource = buildingState({
+  id: 'fittings-smithy',
+  kind: 'smithy',
+  ironwork: 4,
+  assignedLabor: 2,
+});
+const fittingsSite = buildingState({
+  id: 'fittings-town-hall',
+  kind: 'town_hall',
+  assignedLabor: 2,
+  constructionComplete: false,
+  constructionProgress: 0.2,
+  constructionRequiredTimber: 20,
+  constructionRequiredStone: 20,
+  constructionRequiredIronwork: 6,
+  constructionDeliveredTimber: 20,
+  constructionDeliveredStone: 20,
+  constructionDeliveredIronwork: 1,
+  constructionReservedIronwork: 5,
+});
+const fittingsPlan = computeSettlementConstructionPlan({
+  state: {
+    buildings: new Map([
+      [fittingsSource.id, fittingsSource],
+      [fittingsSite.id, fittingsSite],
+    ]),
+    deliveryTrips: new Map(),
+  },
+  hasRoadAccess: () => true,
+  roadComponentFor: () => 1,
+});
+assert.deepEqual(fittingsPlan.materials.ironwork, {
+  required: 6,
+  delivered: 1,
+  remaining: 5,
+  foundersReserve: 0,
+  awaitingPickup: 5,
+  inTransit: 0,
+  uncovered: 0,
+});
+assert.equal(fittingsPlan.roadPlan?.materials.ironwork.sourceStock, 4);
+assert.equal(fittingsPlan.roadPlan?.materials.ironwork.strandedRoadBoundClaim, 1);
+assert.match(renderConstructionQueueRows(fittingsPlan), /ironwork earmarked/);
+
 const urgentOffRoadSite = buildingState({
   id: 'queue-urgent',
   kind: 'lumber_mill',
@@ -644,7 +746,10 @@ const fireBlockedConstructionRows = renderConstructionQueueRows(
   fireBlockedConstructionRoads,
 );
 assert.match(fireBlockedConstructionRows, /Fire-quarantined stores/);
-assert.match(fireBlockedConstructionRows, /100 timber \+ 100 stone unavailable/);
+assert.match(
+  fireBlockedConstructionRows,
+  /100 timber \+ 100 stone \+ 0 ironwork unavailable/,
+);
 assert.match(
   fireBlockedConstructionRows,
   new RegExp(`data-inspect-building="${remoteConstructionSource.id}"`),
@@ -711,6 +816,14 @@ const constructionContext = (
   };
 };
 const siteTarget = { kind: 'building' as const, building: site };
+
+const fittingsInspector = renderConstructionInspector(
+  { kind: 'building', building: fittingsSite },
+  constructionContext([fittingsSource], 5, 30) as never,
+);
+assert.match(fittingsInspector.statusText, /preparing 5 ironwork/);
+assert.match(fittingsInspector.detailsHtml, /Ironwork fittings delivered/);
+assert.match(fittingsInspector.detailsHtml, /1 \/ 6/);
 
 assert.equal(
   renderConstructionInspector(

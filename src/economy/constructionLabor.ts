@@ -47,24 +47,30 @@ export function constructionLaborReady(
     BuildingState,
     | 'constructionRequiredTimber'
     | 'constructionRequiredStone'
+    | 'constructionRequiredIronwork'
     | 'constructionDeliveredTimber'
     | 'constructionDeliveredStone'
+    | 'constructionDeliveredIronwork'
     | 'constructionProgress'
     | 'constructionTreasuryTimber'
     | 'constructionTreasuryStone'
+    | 'constructionTreasuryIronwork'
   >,
 ): boolean {
   const requiredTotal = nonnegative(building.constructionRequiredTimber)
-    + nonnegative(building.constructionRequiredStone);
+    + nonnegative(building.constructionRequiredStone)
+    + nonnegative(building.constructionRequiredIronwork);
   const deliveredTotal = nonnegative(building.constructionDeliveredTimber)
-    + nonnegative(building.constructionDeliveredStone);
+    + nonnegative(building.constructionDeliveredStone)
+    + nonnegative(building.constructionDeliveredIronwork);
   const materialReadiness = requiredTotal <= EPSILON
     ? 1
     : Math.min(1, deliveredTotal / requiredTotal);
   const progress = Math.min(1, nonnegative(building.constructionProgress));
   return progress + EPSILON < materialReadiness
     || nonnegative(building.constructionTreasuryTimber)
-      + nonnegative(building.constructionTreasuryStone) > EPSILON;
+      + nonnegative(building.constructionTreasuryStone)
+      + nonnegative(building.constructionTreasuryIronwork) > EPSILON;
 }
 
 export function computeSettlementConstructionLaborPlan(

@@ -61,7 +61,7 @@ type BuildingPlacementContext = {
   pastures?: Iterable<PastureState>;
   quarries: Iterable<ResourceNodeState>;
   foragingNodes: Iterable<ForagingNodeState>;
-  stockpile: Pick<ResourceTotals, 'timber' | 'stone'>;
+  stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork'>;
   isWaterAt: (x: number, z: number) => boolean;
   isQuarryPitAt?: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
@@ -237,7 +237,11 @@ export function validateBuildingPlacement(
     context.fireDisabledBuildingIds,
   );
   const cost = buildingCostWithCarpenterSupport(kind, carpenterSupported);
-  if (context.stockpile.timber + 1e-6 < cost.timber || context.stockpile.stone + 1e-6 < cost.stone) {
+  if (
+    context.stockpile.timber + 1e-6 < cost.timber
+    || context.stockpile.stone + 1e-6 < cost.stone
+    || context.stockpile.ironwork + 1e-6 < (cost.ironwork ?? 0)
+  ) {
     return { ok: false, reason: 'insufficient_resources' };
   }
 

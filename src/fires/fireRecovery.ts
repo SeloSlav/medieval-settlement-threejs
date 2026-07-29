@@ -48,6 +48,7 @@ export function fireRecoveryCost(
   return {
     timber: roundToTenth(base.timber * fraction * timberMultiplier),
     stone: roundToTenth(base.stone * fraction),
+    ironwork: roundToTenth((base.ironwork ?? 0) * fraction),
   };
 }
 

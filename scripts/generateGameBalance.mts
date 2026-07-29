@@ -18,7 +18,7 @@ import {
 
 type BuildingBalance = {
   label: string;
-  cost: { timber: number; stone: number };
+  cost: { timber: number; stone: number; ironwork?: number };
   storage: {
     timber: number;
     firewood: number;
@@ -708,6 +708,7 @@ function generateRust(): string {
     `pub const STARTING_GOLD: f64 = ${rustF64(b.economy.startingGold)};`,
     `pub const STONE_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.stoneSalvageFraction)};`,
     `pub const TIMBER_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.timberSalvageFraction)};`,
+    `pub const IRONWORK_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.ironworkSalvageFraction)};`,
     `pub const GOLD_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.goldSalvageFraction)};`,
     `pub const ECONOMIC_ACTIVITY_TAX_RATE: f64 = ${rustF64(b.economy.economicActivityTaxRate)};`,
     `pub const ECONOMIC_ACTIVITY_TAX_RATE_MIN: f64 = ${rustF64(b.economy.economicActivityTaxRateMin)};`,
@@ -1186,6 +1187,7 @@ function generateRust(): string {
   lines.push('    pub kind: &\'static str,');
   lines.push('    pub cost_timber: f64,');
   lines.push('    pub cost_stone: f64,');
+  lines.push('    pub cost_ironwork: f64,');
   lines.push('    pub storage_timber: f64,');
   lines.push('    pub storage_firewood: f64,');
   lines.push('    pub storage_stone: f64,');
@@ -1235,6 +1237,7 @@ function generateRust(): string {
     lines.push(`    kind: "${kind}",`);
     lines.push(`    cost_timber: ${rustF64(def.cost.timber)},`);
     lines.push(`    cost_stone: ${rustF64(def.cost.stone)},`);
+    lines.push(`    cost_ironwork: ${rustF64(def.cost.ironwork ?? 0)},`);
     lines.push(`    storage_timber: ${rustF64(def.storage.timber)},`);
     lines.push(`    storage_firewood: ${rustF64(def.storage.firewood)},`);
     lines.push(`    storage_stone: ${rustF64(def.storage.stone)},`);
@@ -1472,6 +1475,7 @@ function generateTypeScript(): string {
     `export const STARTING_GOLD = ${b.economy.startingGold};`,
     `export const STONE_SALVAGE_FRACTION = ${b.economy.stoneSalvageFraction};`,
     `export const TIMBER_SALVAGE_FRACTION = ${b.economy.timberSalvageFraction};`,
+    `export const IRONWORK_SALVAGE_FRACTION = ${b.economy.ironworkSalvageFraction};`,
     `export const GOLD_SALVAGE_FRACTION = ${b.economy.goldSalvageFraction};`,
     `export const ECONOMIC_ACTIVITY_TAX_RATE = ${b.economy.economicActivityTaxRate};`,
     `export const ECONOMIC_ACTIVITY_TAX_RATE_MIN = ${b.economy.economicActivityTaxRateMin};`,
@@ -1851,6 +1855,7 @@ function generateTypeScript(): string {
     'export type BuildingResourceCost = {',
     '  timber: number;',
     '  stone: number;',
+    '  ironwork?: number;',
     '};',
     '',
     'export type StorageCaps = {',
@@ -1931,7 +1936,10 @@ function generateTypeScript(): string {
   lines.push('export const BUILDING_COSTS = {');
 
   for (const [kind, def] of Object.entries(b.buildings)) {
-    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone} },`);
+    const ironwork = def.cost.ironwork
+      ? `, ironwork: ${def.cost.ironwork}`
+      : '';
+    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone}${ironwork} },`);
   }
 
   lines.push('} as const satisfies Record<BuildingKind, BuildingResourceCost>;');

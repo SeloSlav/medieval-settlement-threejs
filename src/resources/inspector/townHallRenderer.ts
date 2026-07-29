@@ -604,13 +604,14 @@ export function renderSettlementFireRecoveryRows(
   const shortfalls = [
     plan.timberShortfall > 0.05 ? `${plan.timberShortfall.toFixed(1)} timber short` : '',
     plan.stoneShortfall > 0.05 ? `${plan.stoneShortfall.toFixed(1)} stone short` : '',
+    plan.ironworkShortfall > 0.05 ? `${plan.ironworkShortfall.toFixed(1)} ironwork short` : '',
   ].filter(Boolean);
   const readyMaterials = plan.readyRecoveryCount === 0
     ? 'none ready to commit'
-    : `${plan.readyTimberCost.toFixed(1)} timber + ${plan.readyStoneCost.toFixed(1)} stone ready to commit`;
+    : `${plan.readyTimberCost.toFixed(1)} timber + ${plan.readyStoneCost.toFixed(1)} stone + ${plan.readyIronworkCost.toFixed(1)} ironwork ready to commit`;
   const materials = `${readyMaterials} · ${plan.estimatedTimberCost.toFixed(1)} timber + ${
     plan.estimatedStoneCost.toFixed(1)
-  } stone current minimum liability${
+  } stone + ${plan.estimatedIronworkCost.toFixed(1)} ironwork current minimum liability${
     plan.burningCount > 0 ? ' · burning damage can raise it' : ''
   } · ${plan.carpenterSupportedTargets} ${
     plan.carpenterSupportedTargets === 1 ? 'target has' : 'targets have'
@@ -651,21 +652,24 @@ function formatConstructionRoads(
 ): string {
   const timber = plan.materials.timber;
   const stone = plan.materials.stone;
+  const ironwork = plan.materials.ironwork;
   if (
     timber.roadBoundClaim + stone.roadBoundClaim
-      + timber.offroadClaim + stone.offroadClaim
+      + ironwork.roadBoundClaim
+      + timber.offroadClaim + stone.offroadClaim + ironwork.offroadClaim
     <= 0.05
   ) {
-    return `No building-held material awaits pickup · ${timber.sourceStock.toFixed(0)} usable timber + ${stone.sourceStock.toFixed(0)} usable stone remain at completed sources`;
+    return `No building-held material awaits pickup · ${timber.sourceStock.toFixed(0)} usable timber + ${stone.sourceStock.toFixed(0)} usable stone + ${ironwork.sourceStock.toFixed(0)} usable ironwork remain at completed sources`;
   }
   const roadCoverage =
-    timber.roadBoundClaim + stone.roadBoundClaim > 0.05
-      ? `${plan.suppliedClaimBranches} / ${plan.claimBranches} road-bound claim branches fully sourced · ${timber.matchedRoadBoundClaim.toFixed(0)} / ${timber.roadBoundClaim.toFixed(0)} timber + ${stone.matchedRoadBoundClaim.toFixed(0)} / ${stone.roadBoundClaim.toFixed(0)} stone matched`
+    timber.roadBoundClaim + stone.roadBoundClaim + ironwork.roadBoundClaim > 0.05
+      ? `${plan.suppliedClaimBranches} / ${plan.claimBranches} road-bound claim branches fully sourced · ${timber.matchedRoadBoundClaim.toFixed(0)} / ${timber.roadBoundClaim.toFixed(0)} timber + ${stone.matchedRoadBoundClaim.toFixed(0)} / ${stone.roadBoundClaim.toFixed(0)} stone + ${ironwork.matchedRoadBoundClaim.toFixed(0)} / ${ironwork.roadBoundClaim.toFixed(0)} ironwork matched`
       : 'No road-bound physical claims';
   const fragmentedTimber = timber.fragmentationCoverage;
   const fragmentedStone = stone.fragmentationCoverage;
-  const fragmentation = fragmentedTimber + fragmentedStone > 0.05
-    ? ` · ${fragmentedTimber.toFixed(0)} timber + ${fragmentedStone.toFixed(0)} stone earmarked but stranded between road branches`
+  const fragmentedIronwork = ironwork.fragmentationCoverage;
+  const fragmentation = fragmentedTimber + fragmentedStone + fragmentedIronwork > 0.05
+    ? ` · ${fragmentedTimber.toFixed(0)} timber + ${fragmentedStone.toFixed(0)} stone + ${fragmentedIronwork.toFixed(0)} ironwork earmarked but stranded between road branches`
     : '';
   const scarceTimber = Math.max(
     0,
@@ -675,14 +679,19 @@ function formatConstructionRoads(
     0,
     stone.strandedRoadBoundClaim - stone.fragmentationCoverage,
   );
-  const scarcity = scarceTimber + scarceStone > 0.05
-    ? ` · ${scarceTimber.toFixed(0)} timber + ${scarceStone.toFixed(0)} stone exceed all usable source stock`
+  const scarceIronwork = Math.max(
+    0,
+    ironwork.strandedRoadBoundClaim - ironwork.fragmentationCoverage,
+  );
+  const scarcity = scarceTimber + scarceStone + scarceIronwork > 0.05
+    ? ` · ${scarceTimber.toFixed(0)} timber + ${scarceStone.toFixed(0)} stone + ${scarceIronwork.toFixed(0)} ironwork exceed all usable source stock`
     : '';
-  const offroad = timber.offroadClaim + stone.offroadClaim > 0.05
-    ? ` · off-road-capable sites can cover ${timber.offroadPotentialCoverage.toFixed(0)} / ${timber.offroadClaim.toFixed(0)} timber + ${stone.offroadPotentialCoverage.toFixed(0)} / ${stone.offroadClaim.toFixed(0)} stone from remaining stores`
+  const offroad = timber.offroadClaim + stone.offroadClaim + ironwork.offroadClaim > 0.05
+    ? ` · off-road-capable sites can cover ${timber.offroadPotentialCoverage.toFixed(0)} / ${timber.offroadClaim.toFixed(0)} timber + ${stone.offroadPotentialCoverage.toFixed(0)} / ${stone.offroadClaim.toFixed(0)} stone + ${ironwork.offroadPotentialCoverage.toFixed(0)} / ${ironwork.offroadClaim.toFixed(0)} ironwork from remaining stores`
     : '';
-  const unmatched = timber.unmatchedSourceStock + stone.unmatchedSourceStock > 0.05
-    ? ` · ${timber.unmatchedSourceStock.toFixed(0)} timber + ${stone.unmatchedSourceStock.toFixed(0)} stone remain outside matched claims`
+  const unmatched = timber.unmatchedSourceStock + stone.unmatchedSourceStock
+    + ironwork.unmatchedSourceStock > 0.05
+    ? ` · ${timber.unmatchedSourceStock.toFixed(0)} timber + ${stone.unmatchedSourceStock.toFixed(0)} stone + ${ironwork.unmatchedSourceStock.toFixed(0)} ironwork remain outside matched claims`
     : '';
   const inspect = plan.firstExposedBuildingId === null
     ? ''
@@ -704,18 +713,19 @@ export function renderConstructionQueueRows(plan: SettlementConstructionPlan): s
     : `${constructionQueueStatusLabel(plan.firstAttention.status)} <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttention.buildingId}" aria-label="Inspect first construction queue bottleneck">Inspect</button>`;
   const timber = plan.materials.timber;
   const stone = plan.materials.stone;
+  const ironwork = plan.materials.ironwork;
   const roadRow = plan.roadPlan === null
     ? ''
     : `<li><span>Construction roads</span><span>${formatConstructionRoads(plan.roadPlan)}</span></li>`;
   const fireBlockedRow = plan.fireDisabledSourceBuildings === 0
     ? ''
-    : `<li><span>Fire-quarantined stores</span><span>${plan.fireBlockedTimberStock.toFixed(0)} timber + ${plan.fireBlockedStoneStock.toFixed(0)} stone unavailable across ${plan.fireDisabledSourceBuildings} fire-damaged ${plan.fireDisabledSourceBuildings === 1 ? 'source' : 'sources'} until repaired${plan.firstFireDisabledSourceId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstFireDisabledSourceId}" aria-label="Inspect first fire-disabled construction source">Inspect</button>`}</span></li>`;
+    : `<li><span>Fire-quarantined stores</span><span>${plan.fireBlockedTimberStock.toFixed(0)} timber + ${plan.fireBlockedStoneStock.toFixed(0)} stone + ${plan.fireBlockedIronworkStock.toFixed(0)} ironwork unavailable across ${plan.fireDisabledSourceBuildings} fire-damaged ${plan.fireDisabledSourceBuildings === 1 ? 'source' : 'sources'} until repaired${plan.firstFireDisabledSourceId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstFireDisabledSourceId}" aria-label="Inspect first fire-disabled construction source">Inspect</button>`}</span></li>`;
   return `
     <li><span>Construction queue</span><span>${queueLabel} · urgent ${priorities.urgent} / normal ${priorities.normal} / low ${priorities.low}</span></li>
     <li><span>Builder load</span><span>${plan.assignedBuilders} / ${plan.builderCapacity} assigned · ${plan.remainingBuilderDays.toFixed(1)} builder-days after supply</span></li>
-    <li><span>Queue materials</span><span>${timber.delivered.toFixed(0)} / ${timber.required.toFixed(0)} timber delivered · ${stone.delivered.toFixed(0)} / ${stone.required.toFixed(0)} stone delivered</span></li>
-    <li><span>Supply coverage</span><span>${formatConstructionMaterialCoverage('timber earmarked', timber)} · ${formatConstructionMaterialCoverage('stone earmarked', stone)}${timber.uncovered + stone.uncovered > 0.05 ? ` · ${timber.uncovered.toFixed(0)} timber + ${stone.uncovered.toFixed(0)} stone uncovered` : ''}</span></li>
-    <li><span>Material movement</span><span>${timber.awaitingPickup.toFixed(0)} timber + ${stone.awaitingPickup.toFixed(0)} stone await pickup · ${timber.inTransit.toFixed(0)} + ${stone.inTransit.toFixed(0)} on carts · ${timber.foundersReserve.toFixed(0)} + ${stone.foundersReserve.toFixed(0)} in legacy ledger reserve</span></li>
+    <li><span>Queue materials</span><span>${timber.delivered.toFixed(0)} / ${timber.required.toFixed(0)} timber · ${stone.delivered.toFixed(0)} / ${stone.required.toFixed(0)} stone · ${ironwork.delivered.toFixed(0)} / ${ironwork.required.toFixed(0)} ironwork delivered</span></li>
+    <li><span>Supply coverage</span><span>${formatConstructionMaterialCoverage('timber earmarked', timber)} · ${formatConstructionMaterialCoverage('stone earmarked', stone)} · ${formatConstructionMaterialCoverage('ironwork earmarked', ironwork)}${timber.uncovered + stone.uncovered + ironwork.uncovered > 0.05 ? ` · ${timber.uncovered.toFixed(0)} timber + ${stone.uncovered.toFixed(0)} stone + ${ironwork.uncovered.toFixed(0)} ironwork uncovered` : ''}</span></li>
+    <li><span>Material movement</span><span>${timber.awaitingPickup.toFixed(0)} timber + ${stone.awaitingPickup.toFixed(0)} stone + ${ironwork.awaitingPickup.toFixed(0)} ironwork await pickup · ${timber.inTransit.toFixed(0)} + ${stone.inTransit.toFixed(0)} + ${ironwork.inTransit.toFixed(0)} on carts · ${timber.foundersReserve.toFixed(0)} timber + ${stone.foundersReserve.toFixed(0)} stone in legacy ledger reserve</span></li>
     ${fireBlockedRow}
     ${roadRow}
     <li><span>Queue attention</span><span>${attention}</span></li>

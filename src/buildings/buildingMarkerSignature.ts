@@ -52,6 +52,10 @@ export function buildingMeshSignature(building: BuildingState): string {
     building.constructionProgress,
     ratio(building.constructionDeliveredTimber, building.constructionRequiredTimber),
     ratio(building.constructionDeliveredStone, building.constructionRequiredStone),
+    ratio(
+      building.constructionDeliveredIronwork ?? 0,
+      building.constructionRequiredIronwork ?? 0,
+    ),
   );
 }
 

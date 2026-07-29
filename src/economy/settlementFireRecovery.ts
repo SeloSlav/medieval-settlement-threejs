@@ -55,10 +55,13 @@ export type SettlementFireRecoveryPlan = {
   carpenterSupportedTargets: number;
   estimatedTimberCost: number;
   estimatedStoneCost: number;
+  estimatedIronworkCost: number;
   readyTimberCost: number;
   readyStoneCost: number;
+  readyIronworkCost: number;
   timberShortfall: number;
   stoneShortfall: number;
+  ironworkShortfall: number;
   missingTargetCount: number;
   firstActiveTarget: SettlementFireRecoveryTarget | null;
   firstRecoveryTarget: SettlementFireRecoveryTarget | null;
@@ -69,7 +72,7 @@ export type SettlementFireRecoveryInput = {
     GameState,
     'tick' | 'buildings' | 'residences' | 'fireIncidents'
   >;
-  resources: Pick<ResourceTotals, 'timber' | 'stone'>;
+  resources: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork'>;
   roadComponentIdsFor?: (target: RoadPoint) => readonly number[];
   hasCarpenterSupportAt?: (target: RoadPoint) => boolean;
 };
@@ -97,10 +100,13 @@ export function computeSettlementFireRecoveryPlan(
     carpenterSupportedTargets: 0,
     estimatedTimberCost: 0,
     estimatedStoneCost: 0,
+    estimatedIronworkCost: 0,
     readyTimberCost: 0,
     readyStoneCost: 0,
+    readyIronworkCost: 0,
     timberShortfall: 0,
     stoneShortfall: 0,
+    ironworkShortfall: 0,
     missingTargetCount: 0,
     firstActiveTarget: null,
     firstRecoveryTarget: null,
@@ -153,6 +159,7 @@ export function computeSettlementFireRecoveryPlan(
     if (!summary.recoveryActive) {
       plan.estimatedTimberCost += recovery.cost.timber;
       plan.estimatedStoneCost += recovery.cost.stone;
+      plan.estimatedIronworkCost += recovery.cost.ironwork ?? 0;
     }
     if (carpenterSupported) plan.carpenterSupportedTargets += 1;
     if (target.kind === 'building') {
@@ -197,6 +204,7 @@ export function computeSettlementFireRecoveryPlan(
       plan.readyRecoveryCount += 1;
       plan.readyTimberCost += recovery.cost.timber;
       plan.readyStoneCost += recovery.cost.stone;
+      plan.readyIronworkCost += recovery.cost.ironwork ?? 0;
     } else {
       plan.coolingRecoveryCount += 1;
     }
@@ -212,6 +220,10 @@ export function computeSettlementFireRecoveryPlan(
   plan.stoneShortfall = Math.max(
     0,
     plan.estimatedStoneCost - Math.max(0, input.resources.stone),
+  );
+  plan.ironworkShortfall = Math.max(
+    0,
+    plan.estimatedIronworkCost - Math.max(0, input.resources.ironwork),
   );
   return plan;
 }

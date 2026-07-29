@@ -186,6 +186,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let gold = ledger?.gold ?? 0;
   let reservedTimber = 0;
   let reservedStone = 0;
+  let reservedIronwork = 0;
   let reservedGold = 0;
 
   for (const building of state.buildings.values()) {
@@ -224,6 +225,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     if (building.constructionComplete === false) {
       reservedTimber += Math.max(0, building.constructionReservedTimber);
       reservedStone += Math.max(0, building.constructionReservedStone);
+      reservedIronwork += Math.max(0, building.constructionReservedIronwork ?? 0);
     }
   }
 
@@ -274,6 +276,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     ...cachedStoredTotals,
     timber: Math.max(0, timber - reservedTimber),
     stone: Math.max(0, stone - reservedStone),
+    ironwork: Math.max(0, ironwork - reservedIronwork),
     gold: Math.max(0, gold - reservedGold),
   };
   cachedState = state;
@@ -396,6 +399,7 @@ export function computeMarketplaceTradeAvailability(
   const includeLegacyLedger = state.physicalFoundingSiteEnabled !== true;
   let allBuildingTimber = 0;
   let allBuildingStone = 0;
+  let allBuildingIronwork = 0;
   let accessibleTimber = 0;
   let accessibleStone = 0;
   let accessibleFirewood = 0;
@@ -408,14 +412,17 @@ export function computeMarketplaceTradeAvailability(
   let accessiblePottery = 0;
   let reservedBuildingTimber = 0;
   let reservedBuildingStone = 0;
+  let reservedBuildingIronwork = 0;
   let reservedTreasuryTimber = 0;
   let reservedTreasuryStone = 0;
+  let reservedTreasuryIronwork = 0;
   let reservedResidenceTimber = 0;
   let reservedResidenceStone = 0;
 
   for (const building of state.buildings.values()) {
     allBuildingTimber += building.timber;
     allBuildingStone += building.stone;
+    allBuildingIronwork += building.ironwork ?? 0;
     if (building.constructionComplete === false) {
       reservedBuildingTimber += Math.max(
         0,
@@ -425,8 +432,14 @@ export function computeMarketplaceTradeAvailability(
         0,
         building.constructionReservedStone - building.constructionTreasuryStone,
       );
+      reservedBuildingIronwork += Math.max(
+        0,
+        (building.constructionReservedIronwork ?? 0)
+          - (building.constructionTreasuryIronwork ?? 0),
+      );
       reservedTreasuryTimber += building.constructionTreasuryTimber;
       reservedTreasuryStone += building.constructionTreasuryStone;
+      reservedTreasuryIronwork += building.constructionTreasuryIronwork ?? 0;
       continue;
     }
     if (fireDisabled.has(building.id)) continue;
@@ -462,6 +475,10 @@ export function computeMarketplaceTradeAvailability(
     0,
     allBuildingStone - reservedBuildingStone - reservedResidenceStone,
   );
+  const unreservedBuildingIronwork = Math.max(
+    0,
+    allBuildingIronwork - reservedBuildingIronwork,
+  );
   const ledgerTimber = includeLegacyLedger
     ? Math.max(0, state.stockpile.timber - reservedTreasuryTimber)
     : 0;
@@ -480,7 +497,13 @@ export function computeMarketplaceTradeAvailability(
     food: (includeLegacyLedger ? state.stockpile.food : 0) + accessibleFood,
     grain: (includeLegacyLedger ? state.stockpile.grain : 0) + accessibleGrain,
     barley: (includeLegacyLedger ? (state.stockpile.barley ?? 0) : 0) + accessibleBarley,
-    ironwork: (includeLegacyLedger ? (state.stockpile.ironwork ?? 0) : 0) + accessibleIronwork,
+    ironwork: (includeLegacyLedger
+      ? Math.max(
+          0,
+          (state.stockpile.ironwork ?? 0) - reservedTreasuryIronwork,
+        )
+      : 0)
+      + Math.min(accessibleIronwork, unreservedBuildingIronwork),
     iron: (includeLegacyLedger ? (state.stockpile.iron ?? 0) : 0) + accessibleIron,
     salt: (includeLegacyLedger ? (state.stockpile.salt ?? 0) : 0) + accessibleSalt,
     pottery: (includeLegacyLedger ? (state.stockpile.pottery ?? 0) : 0) + accessiblePottery,

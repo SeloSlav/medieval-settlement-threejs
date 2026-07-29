@@ -335,19 +335,27 @@ pub struct Building {
     #[default(0.0)]
     pub construction_required_stone: f64,
     #[default(0.0)]
+    pub construction_required_ironwork: f64,
+    #[default(0.0)]
     pub construction_delivered_timber: f64,
     #[default(0.0)]
     pub construction_delivered_stone: f64,
+    #[default(0.0)]
+    pub construction_delivered_ironwork: f64,
     /// Reserved stock that still needs to be loaded or transferred to this site.
     #[default(0.0)]
     pub construction_reserved_timber: f64,
     #[default(0.0)]
     pub construction_reserved_stone: f64,
+    #[default(0.0)]
+    pub construction_reserved_ironwork: f64,
     /// Reserved portions backed by the legacy pre-founding-site ledger.
     #[default(0.0)]
     pub construction_treasury_timber: f64,
     #[default(0.0)]
     pub construction_treasury_stone: f64,
+    #[default(0.0)]
+    pub construction_treasury_ironwork: f64,
     /// Granary intake policy; ignored by other building kinds. Keeping this
     /// enabled trades an extra road haul for substantially slower fresh-food
     /// spoilage in centralized storage.

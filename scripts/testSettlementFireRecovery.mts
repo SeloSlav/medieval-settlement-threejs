@@ -99,7 +99,7 @@ const roadComponentIdsFor = (target: { x: number }): readonly number[] =>
   target.x < 100 ? [1] : [2];
 const plan = computeSettlementFireRecoveryPlan({
   state,
-  resources: { timber: 1, stone: 1 },
+  resources: { timber: 1, stone: 1, ironwork: 1 },
   roadComponentIdsFor,
 });
 
@@ -122,6 +122,7 @@ assert.equal(plan.firstActiveTarget?.targetId, granary.id);
 assert.equal(plan.firstRecoveryTarget?.targetId, lodge.id);
 assert.ok(plan.estimatedTimberCost > plan.readyTimberCost);
 assert.ok(plan.estimatedStoneCost > plan.readyStoneCost);
+assert.ok(plan.estimatedIronworkCost > plan.readyIronworkCost);
 assert.ok(plan.timberShortfall > 0);
 assert.ok(plan.stoneShortfall > 0);
 
@@ -136,7 +137,7 @@ const disabledCarpenterPlan = computeSettlementFireRecoveryPlan({
       })] as const,
     ]),
   },
-  resources: { timber: 1_000, stone: 1_000 },
+  resources: { timber: 1_000, stone: 1_000, ironwork: 1_000 },
   roadComponentIdsFor,
 });
 assert.equal(
@@ -188,7 +189,7 @@ const activeRepairPlan = computeSettlementFireRecoveryPlan({
       })],
     ]),
   },
-  resources: { timber: 0, stone: 0 },
+  resources: { timber: 0, stone: 0, ironwork: 0 },
   roadComponentIdsFor,
 });
 assert.equal(activeRepairPlan.activeRecoveryCount, 1);
@@ -268,7 +269,7 @@ const idlePlan = computeSettlementFireRecoveryPlan({
     residences: new Map(),
     fireIncidents: new Map(),
   },
-  resources: { timber: 0, stone: 0 },
+  resources: { timber: 0, stone: 0, ironwork: 0 },
   roadComponentIdsFor: () => {
     idleRoadProbes += 1;
     return [1];
@@ -290,7 +291,11 @@ const perfPlan = computeSettlementFireRecoveryPlan({
     residences: new Map(),
     fireIncidents: perfIncidents,
   },
-  resources: { timber: 1_000_000_000, stone: 1_000_000_000 },
+  resources: {
+    timber: 1_000_000_000,
+    stone: 1_000_000_000,
+    ironwork: 1_000_000_000,
+  },
 });
 const perfElapsed = performance.now() - perfStarted;
 assert.equal(perfPlan.incidentCount, 100_000);

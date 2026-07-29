@@ -468,6 +468,10 @@ export class BuildingMarkers {
       building.constructionDeliveredStone,
       building.constructionRequiredStone,
     );
+    const ironworkRatio = ratio(
+      building.constructionDeliveredIronwork ?? 0,
+      building.constructionRequiredIronwork ?? 0,
+    );
     const operational = building.constructionComplete !== false;
     const visualSignature = buildingMeshSignature(building);
     if (marker && marker.userData.visualSignature !== visualSignature) {
@@ -486,6 +490,7 @@ export class BuildingMarkers {
             building.constructionProgress,
             timberRatio,
             stoneRatio,
+            ironworkRatio,
           );
       marker.userData.visualSignature = visualSignature;
       if (marker.userData.fpCollisionChildrenOnly !== true) {

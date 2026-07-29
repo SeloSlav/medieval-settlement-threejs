@@ -54,7 +54,9 @@ pub use population::{
 };
 pub(crate) use regional_market::record_specialty_market_export;
 pub use regional_market::{ensure_market_state, scaled_gold_cost, step_regional_markets};
-pub(crate) use storage::available_unreserved_building_timber;
+pub(crate) use storage::{
+    available_unreserved_building_ironwork, available_unreserved_building_timber,
+};
 pub(crate) use storage::physical_treasury_seat;
 pub use storage::{
     building_food_storage_cap, building_storage_caps, building_water_storage_cap,
@@ -62,8 +64,8 @@ pub use storage::{
     credit_treasury_firewood, credit_treasury_food, credit_treasury_gold, credit_treasury_stone,
     credit_treasury_timber, credit_treasury_water, deposit_building, deposit_building_food,
     deposit_building_water, residence_firewood_capacity, residence_food_capacity,
-    residence_water_capacity, spend_treasury_gold, total_stone, total_timber, treasury_gold,
-    withdraw_building, withdraw_building_food, withdraw_building_water,
+    residence_water_capacity, spend_treasury_gold, total_ironwork, total_stone, total_timber,
+    treasury_gold, withdraw_building, withdraw_building_food, withdraw_building_water,
 };
 pub use village_economy::{
     clamp_economic_activity_tax_rate, player_economic_activity_tax_rate, taxed_economic_activity,
@@ -72,12 +74,13 @@ pub use village_economy::{
 
 pub use crate::balance_generated::{
     RESIDENCE_STONE_COST, RESIDENCE_TIMBER_COST, STARTING_GOLD, STARTING_STONE, STARTING_TIMBER,
-    STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
+    IRONWORK_SALVAGE_FRACTION, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 
 pub struct ResourceAmount {
     pub timber: f64,
     pub stone: f64,
+    pub ironwork: f64,
 }
 
 pub fn building_cost(kind: &str) -> Result<ResourceAmount, String> {
@@ -85,6 +88,7 @@ pub fn building_cost(kind: &str) -> Result<ResourceAmount, String> {
     Ok(ResourceAmount {
         timber: def.cost_timber,
         stone: def.cost_stone,
+        ironwork: def.cost_ironwork,
     })
 }
 
@@ -93,6 +97,7 @@ pub fn building_salvage_refund(kind: &str) -> Result<ResourceAmount, String> {
     Ok(ResourceAmount {
         timber: (cost.timber * TIMBER_SALVAGE_FRACTION).round(),
         stone: (cost.stone * STONE_SALVAGE_FRACTION).round(),
+        ironwork: (cost.ironwork * IRONWORK_SALVAGE_FRACTION).round(),
     })
 }
 
@@ -101,6 +106,7 @@ pub fn backyard_garden_cost(kind: crate::balance_generated::BackyardGardenKind) 
     ResourceAmount {
         timber: def.cost_timber,
         stone: def.cost_stone,
+        ironwork: 0.0,
     }
 }
 
@@ -111,6 +117,7 @@ pub fn backyard_garden_salvage_refund(
     ResourceAmount {
         timber: (cost.timber * TIMBER_SALVAGE_FRACTION).round(),
         stone: (cost.stone * STONE_SALVAGE_FRACTION).round(),
+        ironwork: 0.0,
     }
 }
 
@@ -118,5 +125,6 @@ pub fn residence_zone_cost(residence_count: u32) -> ResourceAmount {
     ResourceAmount {
         timber: RESIDENCE_TIMBER_COST * residence_count as f64,
         stone: RESIDENCE_STONE_COST * residence_count as f64,
+        ironwork: 0.0,
     }
 }

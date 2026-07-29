@@ -220,7 +220,7 @@ fn founding_destination_room(candidate: &Building, commodity: CommodityKind) -> 
 fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: CommodityKind) -> f64 {
     let stock = building_commodity_stock(site, commodity).max(0.0);
     let reserved = match commodity {
-        CommodityKind::Timber | CommodityKind::Stone => {
+        CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Ironwork => {
             let construction_reserved: f64 = ctx
                 .db
                 .building()
@@ -234,29 +234,35 @@ fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: Commodity
                     CommodityKind::Stone => (building.construction_reserved_stone
                         - building.construction_treasury_stone)
                         .max(0.0),
+                    CommodityKind::Ironwork => (building.construction_reserved_ironwork
+                        - building.construction_treasury_ironwork)
+                        .max(0.0),
                     _ => 0.0,
                 })
                 .sum();
-            let residence_reserved: f64 = ctx
-                .db
-                .residence()
-                .owner()
-                .filter(&site.owner)
-                .filter(|residence| {
-                    residence_project_active(
-                        residence.upgrade_target_tier,
-                        residence.tier,
-                        residence.backyard_project_kind,
-                        residence.fire_repair_active,
-                        residence.decay_repair_active,
-                    )
-                })
-                .map(|residence| match commodity {
-                    CommodityKind::Timber => residence.upgrade_reserved_timber.max(0.0),
-                    CommodityKind::Stone => residence.upgrade_reserved_stone.max(0.0),
-                    _ => 0.0,
-                })
-                .sum();
+            let residence_reserved: f64 = if commodity == CommodityKind::Ironwork {
+                0.0
+            } else {
+                ctx.db
+                    .residence()
+                    .owner()
+                    .filter(&site.owner)
+                    .filter(|residence| {
+                        residence_project_active(
+                            residence.upgrade_target_tier,
+                            residence.tier,
+                            residence.backyard_project_kind,
+                            residence.fire_repair_active,
+                            residence.decay_repair_active,
+                        )
+                    })
+                    .map(|residence| match commodity {
+                        CommodityKind::Timber => residence.upgrade_reserved_timber.max(0.0),
+                        CommodityKind::Stone => residence.upgrade_reserved_stone.max(0.0),
+                        _ => 0.0,
+                    })
+                    .sum()
+            };
             construction_reserved + residence_reserved
         }
         _ => 0.0,

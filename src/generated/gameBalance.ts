@@ -90,6 +90,7 @@ export const STARTING_STONE = 140;
 export const STARTING_GOLD = 0;
 export const STONE_SALVAGE_FRACTION = 0.92;
 export const TIMBER_SALVAGE_FRACTION = 0.7;
+export const IRONWORK_SALVAGE_FRACTION = 0.85;
 export const GOLD_SALVAGE_FRACTION = 0.65;
 export const ECONOMIC_ACTIVITY_TAX_RATE = 0.18;
 export const ECONOMIC_ACTIVITY_TAX_RATE_MIN = 0;
@@ -572,6 +573,7 @@ export const SWINE_HEALTH_LOSS_PER_CYCLE = 0.09;
 export type BuildingResourceCost = {
   timber: number;
   stone: number;
+  ironwork?: number;
 };
 
 export type StorageCaps = {
@@ -1297,7 +1299,7 @@ export const BUILDING_COSTS = {
   reforester: { timber: 35, stone: 10 },
   woodcutters_lodge: { timber: 40, stone: 12 },
   stone_quarry: { timber: 25, stone: 40 },
-  large_quarry: { timber: 90, stone: 70 },
+  large_quarry: { timber: 90, stone: 70, ironwork: 6 },
   clay_pit: { timber: 24, stone: 8 },
   charcoal_burner: { timber: 30, stone: 10 },
   smithy: { timber: 42, stone: 38 },
@@ -1306,25 +1308,25 @@ export const BUILDING_COSTS = {
   hunters_hall: { timber: 38, stone: 14 },
   foragers_shed: { timber: 28, stone: 8 },
   fishing_camp: { timber: 34, stone: 10 },
-  chapel: { timber: 22, stone: 34 },
+  chapel: { timber: 22, stone: 34, ironwork: 3 },
   marketplace: { timber: 32, stone: 26 },
-  town_hall: { timber: 88, stone: 96 },
+  town_hall: { timber: 88, stone: 96, ironwork: 6 },
   village_storehouse: { timber: 54, stone: 28 },
-  watchtower: { timber: 48, stone: 18 },
-  guardhouse: { timber: 64, stone: 32 },
-  palisaded_refuge: { timber: 72, stone: 30 },
+  watchtower: { timber: 48, stone: 18, ironwork: 2 },
+  guardhouse: { timber: 64, stone: 32, ironwork: 4 },
+  palisaded_refuge: { timber: 72, stone: 30, ironwork: 4 },
   threshing_barn: { timber: 44, stone: 16 },
   pastoral_farmstead: { timber: 40, stone: 20 },
   swineherd: { timber: 34, stone: 10 },
-  monastery: { timber: 90, stone: 150 },
-  brewery: { timber: 48, stone: 36 },
-  smokehouse: { timber: 34, stone: 22 },
-  granary: { timber: 50, stone: 28 },
+  monastery: { timber: 90, stone: 150, ironwork: 8 },
+  brewery: { timber: 48, stone: 36, ironwork: 3 },
+  smokehouse: { timber: 34, stone: 22, ironwork: 2 },
+  granary: { timber: 50, stone: 28, ironwork: 3 },
   apiary: { timber: 22, stone: 6 },
-  watermill: { timber: 58, stone: 42 },
-  carpenter: { timber: 52, stone: 20 },
+  watermill: { timber: 58, stone: 42, ironwork: 6 },
+  carpenter: { timber: 52, stone: 20, ironwork: 2 },
   weaver: { timber: 38, stone: 16 },
-  ferry_landing: { timber: 46, stone: 18 },
+  ferry_landing: { timber: 46, stone: 18, ironwork: 2 },
   vineyard: { timber: 26, stone: 18 },
 } as const satisfies Record<BuildingKind, BuildingResourceCost>;
 

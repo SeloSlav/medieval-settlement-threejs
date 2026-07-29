@@ -13,7 +13,7 @@ import {
   type ConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
 
-type ConstructionMaterial = 'timber' | 'stone';
+type ConstructionMaterial = 'timber' | 'stone' | 'ironwork';
 type SupplyResolution = {
   state:
     | 'ready-free'
@@ -45,14 +45,26 @@ export function renderConstructionInspector(
     0,
     building.constructionReservedStone - building.constructionTreasuryStone,
   );
+  const ironworkPending = Math.max(
+    0,
+    (building.constructionReservedIronwork ?? 0)
+      - (building.constructionTreasuryIronwork ?? 0),
+  );
   const hasUndelivered = building.constructionReservedTimber > 1e-6
-    || building.constructionReservedStone > 1e-6;
+    || building.constructionReservedStone > 1e-6
+    || ironworkPending > 1e-6;
   const pendingMaterial: ConstructionMaterial | null = stonePending > 1e-6
     ? 'stone'
     : timberPending > 1e-6
       ? 'timber'
-      : null;
-  const pendingAmount = pendingMaterial === 'stone' ? stonePending : timberPending;
+      : ironworkPending > 1e-6
+        ? 'ironwork'
+        : null;
+  const pendingAmount = pendingMaterial === 'stone'
+    ? stonePending
+    : pendingMaterial === 'timber'
+      ? timberPending
+      : ironworkPending;
   const supply = pendingMaterial && !held
     ? resolveConstructionSupply(context, building, pendingMaterial)
     : null;
@@ -147,10 +159,11 @@ export function renderConstructionInspector(
       <li><span>Queue priority</span><span>${constructionPriorityLabel(priority)}</span></li>
       <li><span>Timber delivered</span><span>${formatAmount(building.constructionDeliveredTimber)} / ${formatAmount(building.constructionRequiredTimber)}</span></li>
       <li><span>Stone delivered</span><span>${formatAmount(building.constructionDeliveredStone)} / ${formatAmount(building.constructionRequiredStone)}</span></li>
+      ${(building.constructionRequiredIronwork ?? 0) > 0 ? `<li><span>Ironwork fittings delivered</span><span>${formatAmount(building.constructionDeliveredIronwork ?? 0)} / ${formatAmount(building.constructionRequiredIronwork ?? 0)}</span></li>` : ''}
       <li><span>Incoming haul</span><span>${incomingLabel}</span></li>
       <li><span>Material source</span><span>${nextSourceLabel}</span></li>
-      <li><span>Reserved at stores</span><span>${formatAmount(timberPending)} timber · ${formatAmount(stonePending)} stone</span></li>
-      <li><span>Legacy ledger reserve</span><span>${formatAmount(building.constructionTreasuryTimber)} timber · ${formatAmount(building.constructionTreasuryStone)} stone</span></li>
+      <li><span>Reserved at stores</span><span>${formatAmount(timberPending)} timber · ${formatAmount(stonePending)} stone · ${formatAmount(ironworkPending)} ironwork</span></li>
+      <li><span>Legacy ledger reserve</span><span>${formatAmount(building.constructionTreasuryTimber)} timber · ${formatAmount(building.constructionTreasuryStone)} stone · ${formatAmount(building.constructionTreasuryIronwork ?? 0)} ironwork</span></li>
       ${buildingRoadAccessRow(context.worldQueries, building)}
     `,
     demolish: {
@@ -185,7 +198,7 @@ function resolveConstructionSupply(
   const sources = [...context.gameState.buildings.values()].filter((source) =>
     source.id !== site.id
     && source.constructionComplete !== false
-    && source[material] > 1e-6);
+    && (source[material] ?? 0) > 1e-6);
   const fireDisabled = fireDisabledBuildingIds(
     context.gameState.fireIncidents.values(),
   );
@@ -283,7 +296,11 @@ function countActiveFreeConstructionHaulers(context: InspectorRenderContext): nu
   for (const trip of context.gameState.deliveryTrips.values()) {
     if (
       trip.destinationKind !== 'building'
-      || (trip.cargoKind !== 'timber' && trip.cargoKind !== 'stone')
+      || (
+        trip.cargoKind !== 'timber'
+        && trip.cargoKind !== 'stone'
+        && trip.cargoKind !== 'ironwork'
+      )
       || Math.abs(trip.unloadSeconds - CONSTRUCTION_DELIVERY_UNLOAD_SEC) > 1e-6
     ) continue;
     const origin = context.gameState.buildings.get(trip.buildingId);

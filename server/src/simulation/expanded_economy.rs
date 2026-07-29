@@ -32,9 +32,10 @@ use crate::civilian_tool_policy::{
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_cap, building_commodity_room, building_commodity_stock,
-    credit_local_civic_receipts, deposit_building_commodity, pending_marketplace_trade_commodity,
-    spend_treasury_gold, treasury_gold, withdraw_building_commodity, CommodityKind,
+    available_unreserved_building_ironwork, building_commodity_cap, building_commodity_room,
+    building_commodity_stock, credit_local_civic_receipts, deposit_building_commodity,
+    pending_marketplace_trade_commodity, spend_treasury_gold, treasury_gold,
+    withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
     advance_crop_rotation, crop_growth_allowed, crop_produce, expected_grain_yield,
@@ -964,10 +965,16 @@ pub fn step_local_material_dispatch(
         } else {
             building_commodity_cap(&target.kind, commodity)
         };
+        let unreserved_stock = if commodity == CommodityKind::Ironwork {
+            available_unreserved_building_ironwork(ctx, source.owner)
+        } else {
+            f64::INFINITY
+        };
         let needed = (desired_stock - stock)
             .max(0.0)
             .min(building_commodity_stock(&source, commodity))
-            .min(building_commodity_room(&target, commodity));
+            .min(building_commodity_room(&target, commodity))
+            .min(unreserved_stock);
         if needed <= 1e-6 {
             continue;
         }

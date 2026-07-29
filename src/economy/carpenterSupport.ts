@@ -54,6 +54,7 @@ export function buildingCostWithCarpenterSupport(
   return {
     timber: cost.timber * (supported ? CARPENTER_TIMBER_COST_MULTIPLIER : 1),
     stone: cost.stone,
+    ironwork: cost.ironwork,
   };
 }
 

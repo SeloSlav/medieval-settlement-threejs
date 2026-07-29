@@ -29,7 +29,7 @@ const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
   / CALENDAR_HOURS_PER_DAY;
 
-export type ConstructionMaterialKind = 'timber' | 'stone';
+export type ConstructionMaterialKind = 'timber' | 'stone' | 'ironwork';
 
 export type ConstructionMaterialQueue = {
   required: number;
@@ -84,6 +84,7 @@ export type SettlementConstructionPlan = {
   fireDisabledSourceBuildings: number;
   fireBlockedTimberStock: number;
   fireBlockedStoneStock: number;
+  fireBlockedIronworkStock: number;
   firstFireDisabledSourceId: string | null;
   firstAttention: ConstructionQueueAttention | null;
   roadPlan: SettlementConstructionRoadPlan | null;
@@ -104,12 +105,16 @@ export type SettlementConstructionRoadBranch = {
   claimSites: number;
   timberClaim: number;
   stoneClaim: number;
+  ironworkClaim: number;
   sourceTimberStock: number;
   sourceStoneStock: number;
+  sourceIronworkStock: number;
   matchedTimber: number;
   matchedStone: number;
+  matchedIronwork: number;
   strandedTimber: number;
   strandedStone: number;
+  strandedIronwork: number;
 };
 
 export type SettlementConstructionRoadPlan = {
@@ -125,7 +130,7 @@ export type SettlementConstructionRoadPlan = {
 };
 
 type TransitAmounts = Record<ConstructionMaterialKind, number>;
-const ZERO_TRANSIT_AMOUNTS: TransitAmounts = { timber: 0, stone: 0 };
+const ZERO_TRANSIT_AMOUNTS: TransitAmounts = { timber: 0, stone: 0, ironwork: 0 };
 type PriorityAmounts = [number, number, number, number];
 type PriorityBuildingIds = [
   string | null,
@@ -137,12 +142,14 @@ type PriorityBuildingIds = [
 type MutableConstructionRoadBranch = SettlementConstructionRoadBranch & {
   timberByPriority: PriorityAmounts;
   stoneByPriority: PriorityAmounts;
+  ironworkByPriority: PriorityAmounts;
   firstTimberIdByPriority: PriorityBuildingIds;
   firstStoneIdByPriority: PriorityBuildingIds;
+  firstIronworkIdByPriority: PriorityBuildingIds;
 };
 
 function emptyTransitAmounts(): TransitAmounts {
-  return { timber: 0, stone: 0 };
+  return { timber: 0, stone: 0, ironwork: 0 };
 }
 
 function emptyMaterialQueue(): ConstructionMaterialQueue {
@@ -183,7 +190,11 @@ function constructionTransitBySite(
       trip.phase === 'inbound'
       || trip.destinationKind !== 'building'
       || trip.targetBuildingId === null
-      || (trip.cargoKind !== 'timber' && trip.cargoKind !== 'stone')
+      || (
+        trip.cargoKind !== 'timber'
+        && trip.cargoKind !== 'stone'
+        && trip.cargoKind !== 'ironwork'
+      )
       || trip.amount <= EPSILON
     ) {
       continue;
@@ -217,18 +228,26 @@ function materialValues(
 ): ConstructionMaterialQueue {
   const required = material === 'timber'
     ? nonnegative(building.constructionRequiredTimber)
-    : nonnegative(building.constructionRequiredStone);
+    : material === 'stone'
+      ? nonnegative(building.constructionRequiredStone)
+      : nonnegative(building.constructionRequiredIronwork);
   const delivered = material === 'timber'
     ? nonnegative(building.constructionDeliveredTimber)
-    : nonnegative(building.constructionDeliveredStone);
+    : material === 'stone'
+      ? nonnegative(building.constructionDeliveredStone)
+      : nonnegative(building.constructionDeliveredIronwork);
   const reserved = material === 'timber'
     ? nonnegative(building.constructionReservedTimber)
-    : nonnegative(building.constructionReservedStone);
+    : material === 'stone'
+      ? nonnegative(building.constructionReservedStone)
+      : nonnegative(building.constructionReservedIronwork);
   const foundersReserve = Math.min(
     reserved,
     material === 'timber'
       ? nonnegative(building.constructionTreasuryTimber)
-      : nonnegative(building.constructionTreasuryStone),
+      : material === 'stone'
+        ? nonnegative(building.constructionTreasuryStone)
+        : nonnegative(building.constructionTreasuryIronwork),
   );
   const remaining = Math.max(0, required - delivered);
   const coveredByFounders = Math.min(remaining, foundersReserve);
@@ -283,16 +302,22 @@ function constructionRoadBranch(
     claimSites: 0,
     timberClaim: 0,
     stoneClaim: 0,
+    ironworkClaim: 0,
     sourceTimberStock: 0,
     sourceStoneStock: 0,
+    sourceIronworkStock: 0,
     matchedTimber: 0,
     matchedStone: 0,
+    matchedIronwork: 0,
     strandedTimber: 0,
     strandedStone: 0,
+    strandedIronwork: 0,
     timberByPriority: emptyPriorityAmounts(),
     stoneByPriority: emptyPriorityAmounts(),
+    ironworkByPriority: emptyPriorityAmounts(),
     firstTimberIdByPriority: emptyPriorityBuildingIds(),
     firstStoneIdByPriority: emptyPriorityBuildingIds(),
+    firstIronworkIdByPriority: emptyPriorityBuildingIds(),
   };
   branches.set(key, branch);
   return branch;
@@ -308,10 +333,14 @@ function recordRoadClaim(
   if (amount <= EPSILON) return;
   const byPriority = material === 'timber'
     ? branch.timberByPriority
-    : branch.stoneByPriority;
+    : material === 'stone'
+      ? branch.stoneByPriority
+      : branch.ironworkByPriority;
   const ids = material === 'timber'
     ? branch.firstTimberIdByPriority
-    : branch.firstStoneIdByPriority;
+    : material === 'stone'
+      ? branch.firstStoneIdByPriority
+      : branch.firstIronworkIdByPriority;
   byPriority[priority] += amount;
   if (
     ids[priority] === null
@@ -332,13 +361,19 @@ function firstUndercoveredRoadClaim(
 ): ExposedRoadClaim | null {
   const byPriority = material === 'timber'
     ? branch.timberByPriority
-    : branch.stoneByPriority;
+    : material === 'stone'
+      ? branch.stoneByPriority
+      : branch.ironworkByPriority;
   const ids = material === 'timber'
     ? branch.firstTimberIdByPriority
-    : branch.firstStoneIdByPriority;
+    : material === 'stone'
+      ? branch.firstStoneIdByPriority
+      : branch.firstIronworkIdByPriority;
   let sourceStock = material === 'timber'
     ? branch.sourceTimberStock
-    : branch.sourceStoneStock;
+    : material === 'stone'
+      ? branch.sourceStoneStock
+      : branch.sourceIronworkStock;
   for (
     let priority = CONSTRUCTION_PRIORITY_URGENT;
     priority >= CONSTRUCTION_PRIORITY_HOLD;
@@ -409,10 +444,13 @@ function buildConstructionRoadPlan(input: {
   let exposedClaimBranches = 0;
   let roadBoundTimberClaim = 0;
   let roadBoundStoneClaim = 0;
+  let roadBoundIronworkClaim = 0;
   let matchedTimber = 0;
   let matchedStone = 0;
+  let matchedIronwork = 0;
   let sourceTimberStock = 0;
   let sourceStoneStock = 0;
+  let sourceIronworkStock = 0;
   let firstExposedBuildingId: string | null = null;
   let firstExposedPriority = CONSTRUCTION_PRIORITY_HOLD;
   let firstExposureRatio = Number.POSITIVE_INFINITY;
@@ -427,6 +465,10 @@ function buildConstructionRoadPlan(input: {
       branch.stoneClaim,
       branch.sourceStoneStock,
     );
+    branch.matchedIronwork = Math.min(
+      branch.ironworkClaim,
+      branch.sourceIronworkStock,
+    );
     branch.strandedTimber = Math.max(
       0,
       branch.timberClaim - branch.matchedTimber,
@@ -435,17 +477,26 @@ function buildConstructionRoadPlan(input: {
       0,
       branch.stoneClaim - branch.matchedStone,
     );
+    branch.strandedIronwork = Math.max(
+      0,
+      branch.ironworkClaim - branch.matchedIronwork,
+    );
     roadBoundTimberClaim += branch.timberClaim;
     roadBoundStoneClaim += branch.stoneClaim;
+    roadBoundIronworkClaim += branch.ironworkClaim;
     matchedTimber += branch.matchedTimber;
     matchedStone += branch.matchedStone;
+    matchedIronwork += branch.matchedIronwork;
     sourceTimberStock += branch.sourceTimberStock;
     sourceStoneStock += branch.sourceStoneStock;
+    sourceIronworkStock += branch.sourceIronworkStock;
 
-    const claim = branch.timberClaim + branch.stoneClaim;
+    const claim = branch.timberClaim + branch.stoneClaim + branch.ironworkClaim;
     if (claim <= EPSILON) continue;
     claimBranches += 1;
-    const exposure = branch.strandedTimber + branch.strandedStone;
+    const exposure = branch.strandedTimber
+      + branch.strandedStone
+      + branch.strandedIronwork;
     if (exposure <= 0.05) {
       suppliedClaimBranches += 1;
       continue;
@@ -457,6 +508,9 @@ function buildConstructionRoadPlan(input: {
       : null;
     const stoneCandidate = branch.strandedStone > 0.05
       ? firstUndercoveredRoadClaim(branch, 'stone')
+      : null;
+    const ironworkCandidate = branch.strandedIronwork > 0.05
+      ? firstUndercoveredRoadClaim(branch, 'ironwork')
       : null;
     let candidate = timberCandidate;
     if (
@@ -475,9 +529,25 @@ function buildConstructionRoadPlan(input: {
     ) {
       candidate = stoneCandidate;
     }
+    if (
+      ironworkCandidate !== null
+      && (
+        candidate === null
+        || ironworkCandidate.priority > candidate.priority
+        || (
+          ironworkCandidate.priority === candidate.priority
+          && compareStableEntityIds(
+            ironworkCandidate.buildingId,
+            candidate.buildingId,
+          ) < 0
+        )
+      )
+    ) {
+      candidate = ironworkCandidate;
+    }
     if (candidate === null) continue;
     const coverageRatio = claim > EPSILON
-      ? (branch.matchedTimber + branch.matchedStone) / claim
+      ? (branch.matchedTimber + branch.matchedStone + branch.matchedIronwork) / claim
       : 1;
     if (
       firstExposedBuildingId === null
@@ -529,6 +599,12 @@ function buildConstructionRoadPlan(input: {
         offroadClaim: input.offroadClaims.stone,
         sourceStock: sourceStoneStock,
       }),
+      ironwork: roadMaterialPlan({
+        roadBoundClaim: roadBoundIronworkClaim,
+        matchedRoadBoundClaim: matchedIronwork,
+        offroadClaim: input.offroadClaims.ironwork,
+        sourceStock: sourceIronworkStock,
+      }),
     },
     firstExposedBuildingId,
     branches: input.branches,
@@ -540,6 +616,7 @@ function statusForSite(input: {
   priority: ConstructionPriority;
   timber: ConstructionMaterialQueue;
   stone: ConstructionMaterialQueue;
+  ironwork: ConstructionMaterialQueue;
   hasRoadAccess: () => boolean;
   hasOffroadFoundingSupply: boolean;
 }): ConstructionQueueSiteStatus {
@@ -548,13 +625,14 @@ function statusForSite(input: {
     priority,
     timber,
     stone,
+    ironwork,
     hasRoadAccess,
   } = input;
   if (priority === CONSTRUCTION_PRIORITY_HOLD) return 'held';
   if (nonnegative(building.assignedLabor) <= EPSILON) return 'waiting-builders';
 
-  const requiredTotal = timber.required + stone.required;
-  const deliveredTotal = timber.delivered + stone.delivered;
+  const requiredTotal = timber.required + stone.required + ironwork.required;
+  const deliveredTotal = timber.delivered + stone.delivered + ironwork.delivered;
   const materialReadiness = requiredTotal <= EPSILON
     ? 1
     : Math.min(1, deliveredTotal / requiredTotal);
@@ -564,19 +642,21 @@ function statusForSite(input: {
   if (timber.foundersReserve + stone.foundersReserve > EPSILON) {
     return 'founders-reserve';
   }
-  if (timber.inTransit + stone.inTransit > EPSILON) return 'in-transit';
+  if (timber.inTransit + stone.inTransit + ironwork.inTransit > EPSILON) return 'in-transit';
   if (
     BUILDING_DEFINITIONS[building.kind].requiresRoad
     && !hasRoadAccess()
     && !input.hasOffroadFoundingSupply
-    && timber.awaitingPickup + stone.awaitingPickup > EPSILON
+    && timber.awaitingPickup + stone.awaitingPickup + ironwork.awaitingPickup > EPSILON
   ) {
     return 'off-road';
   }
-  if (timber.awaitingPickup + stone.awaitingPickup > EPSILON) {
+  if (timber.awaitingPickup + stone.awaitingPickup + ironwork.awaitingPickup > EPSILON) {
     return 'waiting-hauler';
   }
-  if (timber.remaining + stone.remaining > EPSILON) return 'waiting-materials';
+  if (timber.remaining + stone.remaining + ironwork.remaining > EPSILON) {
+    return 'waiting-materials';
+  }
   return 'building';
 }
 
@@ -641,6 +721,7 @@ export function computeSettlementConstructionPlan(input: {
   const materials: SettlementConstructionPlan['materials'] = {
     timber: emptyMaterialQueue(),
     stone: emptyMaterialQueue(),
+    ironwork: emptyMaterialQueue(),
   };
   let siteCount = 0;
   let activeSites = 0;
@@ -653,6 +734,7 @@ export function computeSettlementConstructionPlan(input: {
   let fireDisabledSourceBuildings = 0;
   let fireBlockedTimberStock = 0;
   let fireBlockedStoneStock = 0;
+  let fireBlockedIronworkStock = 0;
   let firstFireDisabledSourceId: string | null = null;
   const foundingStockyard = [...input.state.buildings.values()].find(
     (building) =>
@@ -665,13 +747,19 @@ export function computeSettlementConstructionPlan(input: {
     if (building.constructionComplete !== false) {
       const timberStock = nonnegative(building.timber);
       const stoneStock = nonnegative(building.stone);
+      const ironworkStock = nonnegative(building.ironwork);
       if (
         fireDisabled.has(building.id)
-        && (timberStock > EPSILON || stoneStock > EPSILON)
+        && (
+          timberStock > EPSILON
+          || stoneStock > EPSILON
+          || ironworkStock > EPSILON
+        )
       ) {
         fireDisabledSourceBuildings += 1;
         fireBlockedTimberStock += timberStock;
         fireBlockedStoneStock += stoneStock;
+        fireBlockedIronworkStock += ironworkStock;
         firstFireDisabledSourceId = firstFireDisabledSourceId === null
           || compareStableEntityIds(building.id, firstFireDisabledSourceId) < 0
           ? building.id
@@ -679,7 +767,11 @@ export function computeSettlementConstructionPlan(input: {
         continue;
       }
       if (roadBranches && input.roadComponentFor) {
-        if (timberStock > EPSILON || stoneStock > EPSILON) {
+        if (
+          timberStock > EPSILON
+          || stoneStock > EPSILON
+          || ironworkStock > EPSILON
+        ) {
           const branch = constructionRoadBranch(
             roadBranches,
             productionRoadBranchKey(
@@ -690,6 +782,7 @@ export function computeSettlementConstructionPlan(input: {
           );
           branch.sourceTimberStock += timberStock;
           branch.sourceStoneStock += stoneStock;
+          branch.sourceIronworkStock += ironworkStock;
         }
       }
       continue;
@@ -707,12 +800,14 @@ export function computeSettlementConstructionPlan(input: {
     const transit = transitBySite.get(building.id) ?? ZERO_TRANSIT_AMOUNTS;
     const timber = materialValues(building, 'timber', transit.timber);
     const stone = materialValues(building, 'stone', transit.stone);
+    const ironwork = materialValues(building, 'ironwork', transit.ironwork);
     addMaterialQueue(materials.timber, timber);
     addMaterialQueue(materials.stone, stone);
+    addMaterialQueue(materials.ironwork, ironwork);
     if (
       roadBranches
       && input.roadComponentFor
-      && timber.awaitingPickup + stone.awaitingPickup > EPSILON
+      && timber.awaitingPickup + stone.awaitingPickup + ironwork.awaitingPickup > EPSILON
     ) {
       if (BUILDING_DEFINITIONS[building.kind].requiresRoad) {
         roadBoundSites += 1;
@@ -727,6 +822,7 @@ export function computeSettlementConstructionPlan(input: {
         branch.claimSites += 1;
         branch.timberClaim += timber.awaitingPickup;
         branch.stoneClaim += stone.awaitingPickup;
+        branch.ironworkClaim += ironwork.awaitingPickup;
         recordRoadClaim(
           branch,
           'timber',
@@ -741,15 +837,23 @@ export function computeSettlementConstructionPlan(input: {
           priority,
           building.id,
         );
+        recordRoadClaim(
+          branch,
+          'ironwork',
+          ironwork.awaitingPickup,
+          priority,
+          building.id,
+        );
       } else {
         offroadSites += 1;
         offroadClaims.timber += timber.awaitingPickup;
         offroadClaims.stone += stone.awaitingPickup;
+        offroadClaims.ironwork += ironwork.awaitingPickup;
       }
     }
 
     if (priority !== CONSTRUCTION_PRIORITY_HOLD) {
-      const requiredTotal = timber.required + stone.required;
+      const requiredTotal = timber.required + stone.required + ironwork.required;
       remainingBuilderDays += Math.max(
         0,
         requiredTotal * (1 - Math.min(1, nonnegative(building.constructionProgress))),
@@ -761,12 +865,17 @@ export function computeSettlementConstructionPlan(input: {
       priority,
       timber,
       stone,
+      ironwork,
       hasRoadAccess: () => input.hasRoadAccess?.(building) ?? true,
       hasOffroadFoundingSupply: Boolean(
         foundingStockyard
         && (
           (timber.awaitingPickup > EPSILON && foundingStockyard.timber > EPSILON)
           || (stone.awaitingPickup > EPSILON && foundingStockyard.stone > EPSILON)
+          || (
+            ironwork.awaitingPickup > EPSILON
+            && (foundingStockyard.ironwork ?? 0) > EPSILON
+          )
         ),
       ),
     });
@@ -801,6 +910,7 @@ export function computeSettlementConstructionPlan(input: {
     fireDisabledSourceBuildings,
     fireBlockedTimberStock,
     fireBlockedStoneStock,
+    fireBlockedIronworkStock,
     firstFireDisabledSourceId,
     firstAttention,
     roadPlan: buildConstructionRoadPlan({

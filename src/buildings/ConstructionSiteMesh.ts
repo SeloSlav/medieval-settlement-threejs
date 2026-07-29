@@ -8,6 +8,11 @@ const PALE_STONE = new THREE.MeshStandardMaterial({ color: 0x9a9588, roughness: 
 const TIMBER = new THREE.MeshStandardMaterial({ color: 0x6d4527, roughness: 0.9 });
 const CUT_WOOD = new THREE.MeshStandardMaterial({ color: 0xc39158, roughness: 0.86 });
 const ROPE = new THREE.MeshStandardMaterial({ color: 0x9a8057, roughness: 1 });
+const IRON = new THREE.MeshStandardMaterial({
+  color: 0x343b3b,
+  roughness: 0.62,
+  metalness: 0.48,
+});
 const ROOF_PLATE_Y = 4.25;
 const ROOF_RIDGE_Y = 5.45;
 
@@ -15,11 +20,13 @@ export function constructionVisualSignature(
   progress: number,
   timberRatio: number,
   stoneRatio: number,
+  ironworkRatio = 0,
 ): string {
   const stage = Math.min(4, Math.floor(Math.max(0, progress) * 5));
   const timberPile = Math.min(3, Math.ceil(Math.max(0, timberRatio) * 3));
   const stonePile = Math.min(3, Math.ceil(Math.max(0, stoneRatio) * 3));
-  return `site:${stage}:${timberPile}:${stonePile}`;
+  const fittings = Math.min(3, Math.ceil(Math.max(0, ironworkRatio) * 3));
+  return `site:${stage}:${timberPile}:${stonePile}:${fittings}`;
 }
 
 export function createConstructionSiteMesh(
@@ -27,6 +34,7 @@ export function createConstructionSiteMesh(
   progress: number,
   timberRatio: number,
   stoneRatio: number,
+  ironworkRatio = 0,
 ): THREE.Group {
   const root = new THREE.Group();
   root.name = 'Construction site';
@@ -50,6 +58,7 @@ export function createConstructionSiteMesh(
   addScaffolding(root, halfWidth, halfDepth, stage);
   addTimberPile(root, halfWidth + 1.25, -halfDepth * 0.45, timberRatio);
   addStonePile(root, -halfWidth - 1.25, halfDepth * 0.42, stoneRatio);
+  addFittingsCrate(root, halfWidth + 1.15, halfDepth * 0.62, ironworkRatio);
 
   root.traverse((object) => {
     if (object instanceof THREE.Mesh) {
@@ -183,6 +192,38 @@ function addStonePile(root: THREE.Group, x: number, z: number, ratio: number): v
     );
     root.add(stone);
   }
+}
+
+function addFittingsCrate(
+  root: THREE.Group,
+  x: number,
+  z: number,
+  ratio: number,
+): void {
+  const visibleBands = Math.min(
+    3,
+    Math.ceil(THREE.MathUtils.clamp(ratio, 0, 1) * 3),
+  );
+  if (visibleBands <= 0) return;
+
+  const crate = new THREE.Group();
+  crate.name = 'Construction fittings crate';
+  crate.position.set(x, 0, z);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.76, 0.9), CUT_WOOD);
+  box.name = 'Construction fittings crate box';
+  box.position.y = 0.43;
+  crate.add(box);
+  for (let index = 0; index < visibleBands; index += 1) {
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.82, 0.96), IRON);
+    strap.name = `Construction iron strap ${index + 1}`;
+    strap.position.set((index - 1) * 0.42, 0.45, 0);
+    crate.add(strap);
+  }
+  const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.12), IRON);
+  hinge.name = 'Construction iron hinge';
+  hinge.position.set(0, 0.82, 0.12);
+  crate.add(hinge);
+  root.add(crate);
 }
 
 function addBeam(

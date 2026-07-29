@@ -378,6 +378,34 @@ assert.deepEqual(
   },
   'physical markets must not promise goods left in the compatibility ledger',
 );
+const fittingReservationSite = makeBuilding({
+  id: 'fitting-reservation-site',
+  kind: 'town_hall',
+  x: 8,
+  z: 0,
+  constructionComplete: false,
+  constructionRequiredIronwork: 6,
+  constructionReservedIronwork: 6,
+});
+const fittingReservationState: GameState = {
+  ...makeState([marketplace, connectedStore, fittingReservationSite]),
+  physicalFoundingSiteEnabled: true,
+  stockpile: createEmptyStockpile(),
+};
+assert.equal(
+  computeResourceTotals(fittingReservationState).ironwork,
+  3,
+  'HUD availability must remove fittings already committed to construction',
+);
+assert.equal(
+  computeMarketplaceTradeAvailability(
+    fittingReservationState,
+    marketplace,
+    roadConnected,
+  ).ironwork,
+  3,
+  'market actions must not promise construction-reserved fittings',
+);
 assert.deepEqual(MARKETPLACE_GOLD_RESERVE_TARGETS, [0, 16, 32, 64]);
 assert.equal(MARKETPLACE_GOLD_RESERVE_DEFAULT, 32);
 assert.equal(normalizeMarketplaceGoldReserveTarget(undefined), 32);

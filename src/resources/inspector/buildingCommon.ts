@@ -4,6 +4,7 @@ import {
   buildingSalvageRefund,
   formatBuildingCost,
   getBuildingCost,
+  IRONWORK_SALVAGE_FRACTION,
   STONE_SALVAGE_FRACTION,
   TIMBER_SALVAGE_FRACTION,
 } from '../buildingEconomy.ts';
@@ -85,7 +86,13 @@ export function buildingRoadAccessRow(worldQueries: WorldQueries, building: Buil
 export function buildingDemolishHint(kind: BuildingKind): string {
   const cost = getBuildingCost(kind);
   const refund = buildingSalvageRefund(kind);
-  return `Leaves about ${refund.timber} timber and ${refund.stone} stone at this site (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber of ${formatBuildingCost(cost)}). Carts must recover it, and the footprint remains occupied until the pile is empty.`;
+  const fittings = (cost.ironwork ?? 0) > 0
+    ? ` and ${refund.ironwork ?? 0} ironwork`
+    : '';
+  const fittingRate = (cost.ironwork ?? 0) > 0
+    ? `, ${Math.round(IRONWORK_SALVAGE_FRACTION * 100)}% ironwork`
+    : '';
+  return `Leaves about ${refund.timber} timber, ${refund.stone} stone${fittings} at this site (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber${fittingRate} of ${formatBuildingCost(cost)}). Carts must recover it, and the footprint remains occupied until the pile is empty.`;
 }
 
 export function buildingLaborView(

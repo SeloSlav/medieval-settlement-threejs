@@ -117,6 +117,7 @@
     "startingGold": 0,
     "stoneSalvageFraction": 0.92,
     "timberSalvageFraction": 0.7,
+    "ironworkSalvageFraction": 0.85,
     "goldSalvageFraction": 0.65,
     "economicActivityTaxRate": 0.18,
     "economicActivityTaxRateMin": 0,
@@ -847,7 +848,7 @@
     },
     "large_quarry": {
       "label": "Large Quarry",
-      "cost": { "timber": 90, "stone": 70 },
+      "cost": { "timber": 90, "stone": 70, "ironwork": 6 },
       "storage": { "timber": 0, "firewood": 0, "stone": 360, "food": 0, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 13,
@@ -1011,7 +1012,7 @@
     },
     "chapel": {
       "label": "Church",
-      "cost": { "timber": 22, "stone": 34 },
+      "cost": { "timber": 22, "stone": 34, "ironwork": 3 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1045,7 +1046,7 @@
     },
     "town_hall": {
       "label": "Town Hall",
-      "cost": { "timber": 88, "stone": 96 },
+      "cost": { "timber": 88, "stone": 96, "ironwork": 6 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 0,
       "pickRadius": 11,
@@ -1079,7 +1080,7 @@
     },
     "watchtower": {
       "label": "Frontier watchtower",
-      "cost": { "timber": 48, "stone": 18 },
+      "cost": { "timber": 48, "stone": 18, "ironwork": 2 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 190,
       "pickRadius": 8,
@@ -1098,7 +1099,7 @@
     },
     "guardhouse": {
       "label": "Frontier guardhouse",
-      "cost": { "timber": 64, "stone": 32 },
+      "cost": { "timber": 64, "stone": 32, "ironwork": 4 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 72, "polearms": 12 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1117,7 +1118,7 @@
     },
     "palisaded_refuge": {
       "label": "Palisaded refuge",
-      "cost": { "timber": 72, "stone": 30 },
+      "cost": { "timber": 72, "stone": 30, "ironwork": 4 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 68,
       "pickRadius": 11,
@@ -1193,7 +1194,7 @@
     },
     "monastery": {
       "label": "Pauline monastery",
-      "cost": { "timber": 90, "stone": 150 },
+      "cost": { "timber": 90, "stone": 150, "ironwork": 8 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 180, "ale": 120, "food": 180, "preservedFood": 80, "honey": 160, "wine": 120 },
       "workRadius": 0,
       "pickRadius": 15,
@@ -1212,7 +1213,7 @@
     },
     "brewery": {
       "label": "Brewhouse",
-      "cost": { "timber": 48, "stone": 36 },
+      "cost": { "timber": 48, "stone": 36, "ironwork": 3 },
       "storage": { "timber": 0, "firewood": 40, "stone": 0, "water": 120, "barley": 96, "malt": 48, "ale": 200 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1230,7 +1231,7 @@
     },
     "smokehouse": {
       "label": "Smokehouse",
-      "cost": { "timber": 34, "stone": 22 },
+      "cost": { "timber": 34, "stone": 22, "ironwork": 2 },
       "storage": { "timber": 0, "firewood": 40, "stone": 0, "food": 120, "salt": 24, "pottery": 12, "preservedFood": 180 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -1248,7 +1249,7 @@
     },
     "granary": {
       "label": "Village granary",
-      "cost": { "timber": 50, "stone": 28 },
+      "cost": { "timber": 50, "stone": 28, "ironwork": 3 },
       "storage": { "timber": 0, "firewood": 60, "stone": 0, "water": 120, "grain": 360, "barley": 240, "flour": 260, "food": 340, "preservedFood": 180 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1284,7 +1285,7 @@
     },
     "watermill": {
       "label": "Grain watermill",
-      "cost": { "timber": 58, "stone": 42 },
+      "cost": { "timber": 58, "stone": 42, "ironwork": 6 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 80, "grain": 180, "flour": 260 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1302,7 +1303,7 @@
     },
     "carpenter": {
       "label": "Carpenter and wheelwright",
-      "cost": { "timber": 52, "stone": 20 },
+      "cost": { "timber": 52, "stone": 20, "ironwork": 2 },
       "storage": { "timber": 140, "firewood": 0, "stone": 0, "ironwork": 18, "polearms": 24 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1339,7 +1340,7 @@
     },
     "ferry_landing": {
       "label": "Ferry landing",
-      "cost": { "timber": 46, "stone": 18 },
+      "cost": { "timber": 46, "stone": 18, "ironwork": 2 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0 },
       "workRadius": 0,
       "pickRadius": 9,

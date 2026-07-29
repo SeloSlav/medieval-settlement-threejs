@@ -355,6 +355,10 @@ pub fn drain_trips_for_building(ctx: &ReducerContext, building_id: u64) -> Deliv
                                 site.construction_reserved_stone += trip.amount;
                                 site.construction_treasury_stone += trip.amount;
                             }
+                            CommodityKind::Ironwork => {
+                                site.construction_reserved_ironwork += trip.amount;
+                                site.construction_treasury_ironwork += trip.amount;
+                            }
                             _ => {}
                         }
                         ctx.db.building().id().update(site);
@@ -917,6 +921,9 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::Stone => {
             (site.construction_reserved_stone - site.construction_treasury_stone).max(0.0)
         }
+        CommodityKind::Ironwork => (site.construction_reserved_ironwork
+            - site.construction_treasury_ironwork)
+            .max(0.0),
         _ => 0.0,
     };
     let workers = if origin.assigned_labor > 0 {
@@ -968,6 +975,10 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::Stone => {
             site.construction_reserved_stone =
                 (site.construction_reserved_stone - withdrawn).max(0.0)
+        }
+        CommodityKind::Ironwork => {
+            site.construction_reserved_ironwork =
+                (site.construction_reserved_ironwork - withdrawn).max(0.0)
         }
         _ => return false,
     }
@@ -1509,6 +1520,14 @@ fn unload_commodity_to_building(
                 target.construction_delivered_stone += amount;
                 amount
             }
+            CommodityKind::Ironwork => {
+                let room = (target.construction_required_ironwork
+                    - target.construction_delivered_ironwork)
+                    .max(0.0);
+                let amount = trip.amount.min(room);
+                target.construction_delivered_ironwork += amount;
+                amount
+            }
             _ => 0.0,
         };
         if deposited > 1e-6 {
@@ -1723,6 +1742,9 @@ fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
                 match commodity {
                     CommodityKind::Timber => site.construction_reserved_timber += trip.amount,
                     CommodityKind::Stone => site.construction_reserved_stone += trip.amount,
+                    CommodityKind::Ironwork => {
+                        site.construction_reserved_ironwork += trip.amount
+                    }
                     _ => {}
                 }
                 ctx.db.building().id().update(site);

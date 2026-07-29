@@ -51,14 +51,21 @@ fn nonnegative(value: f64) -> f64 {
 pub fn construction_labor_ready(
     required_timber: f64,
     required_stone: f64,
+    required_ironwork: f64,
     delivered_timber: f64,
     delivered_stone: f64,
+    delivered_ironwork: f64,
     progress: f64,
     treasury_timber: f64,
     treasury_stone: f64,
+    treasury_ironwork: f64,
 ) -> bool {
-    let required_total = nonnegative(required_timber) + nonnegative(required_stone);
-    let delivered_total = nonnegative(delivered_timber) + nonnegative(delivered_stone);
+    let required_total = nonnegative(required_timber)
+        + nonnegative(required_stone)
+        + nonnegative(required_ironwork);
+    let delivered_total = nonnegative(delivered_timber)
+        + nonnegative(delivered_stone)
+        + nonnegative(delivered_ironwork);
     let material_readiness = if required_total <= STOCK_EPSILON {
         1.0
     } else {
@@ -66,7 +73,10 @@ pub fn construction_labor_ready(
     };
     let progress = nonnegative(progress).min(1.0);
     progress + STOCK_EPSILON < material_readiness
-        || nonnegative(treasury_timber) + nonnegative(treasury_stone) > STOCK_EPSILON
+        || nonnegative(treasury_timber)
+            + nonnegative(treasury_stone)
+            + nonnegative(treasury_ironwork)
+            > STOCK_EPSILON
 }
 
 /// Recalls crews that cannot build and have no cart approaching, then assigns
@@ -221,21 +231,26 @@ mod tests {
     #[test]
     fn material_readiness_and_founders_reserve_are_productive_work() {
         assert!(construction_labor_ready(
-            20.0, 10.0, 15.0, 0.0, 0.25, 0.0, 0.0
+            20.0, 10.0, 2.0, 15.0, 0.0, 2.0, 0.25, 0.0, 0.0, 0.0
         ));
         assert!(!construction_labor_ready(
-            20.0, 10.0, 15.0, 0.0, 0.5, 0.0, 0.0
+            20.0, 10.0, 2.0, 15.0, 0.0, 2.0, 0.55, 0.0, 0.0, 0.0
         ));
         assert!(construction_labor_ready(
-            20.0, 10.0, 0.0, 0.0, 0.0, 10.0, 0.0
+            20.0, 10.0, 2.0, 0.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0
         ));
-        assert!(construction_labor_ready(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
+        assert!(construction_labor_ready(
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+        ));
         assert!(!construction_labor_ready(
             f64::NAN,
             10.0,
             f64::NAN,
+            f64::NAN,
             0.0,
             f64::NAN,
+            f64::NAN,
+            0.0,
             f64::NAN,
             0.0,
         ));

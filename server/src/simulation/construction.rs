@@ -48,6 +48,7 @@ pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, cloc
         transfer_treasury_reserve(ctx, tick, clock, &mut site);
         dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::Stone);
         dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::Timber);
+        dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::Ironwork);
         advance_builder_work(ctx, tick, clock, site);
     }
 }
@@ -86,6 +87,18 @@ fn transfer_treasury_reserve(
         site.construction_treasury_timber -= timber;
         site.construction_reserved_timber = (site.construction_reserved_timber - timber).max(0.0);
         site.construction_delivered_timber += timber;
+        transfer_budget -= timber;
+    }
+
+    let ironwork = transfer_budget
+        .min(site.construction_treasury_ironwork)
+        .min(treasury.ironwork);
+    if ironwork > 1e-6 {
+        treasury.ironwork -= ironwork;
+        site.construction_treasury_ironwork -= ironwork;
+        site.construction_reserved_ironwork =
+            (site.construction_reserved_ironwork - ironwork).max(0.0);
+        site.construction_delivered_ironwork += ironwork;
     }
 
     ctx.db.player_resources().owner().update(treasury);
@@ -106,6 +119,9 @@ fn dispatch_reserved_stock(
         CommodityKind::Stone => {
             (site.construction_reserved_stone - site.construction_treasury_stone).max(0.0)
         }
+        CommodityKind::Ironwork => (site.construction_reserved_ironwork
+            - site.construction_treasury_ironwork)
+            .max(0.0),
         _ => 0.0,
     };
     if physical_reserved <= 1e-6 || site_has_inbound_cargo(ctx, site.id, commodity) {
@@ -204,8 +220,12 @@ fn advance_builder_work(
     if site.assigned_labor == 0 || labor_and_logistics_paused(ctx, tick, site.owner, clock) {
         return;
     }
-    let required_total = site.construction_required_timber + site.construction_required_stone;
-    let delivered_total = site.construction_delivered_timber + site.construction_delivered_stone;
+    let required_total = site.construction_required_timber
+        + site.construction_required_stone
+        + site.construction_required_ironwork;
+    let delivered_total = site.construction_delivered_timber
+        + site.construction_delivered_stone
+        + site.construction_delivered_ironwork;
     let material_readiness = if required_total <= 1e-6 {
         1.0
     } else {
@@ -221,7 +241,9 @@ fn advance_builder_work(
     let timber_ready =
         site.construction_delivered_timber + 1e-6 >= site.construction_required_timber;
     let stone_ready = site.construction_delivered_stone + 1e-6 >= site.construction_required_stone;
-    if timber_ready && stone_ready && site.construction_progress >= 1.0 - 1e-6 {
+    let ironwork_ready = site.construction_delivered_ironwork + 1e-6
+        >= site.construction_required_ironwork;
+    if timber_ready && stone_ready && ironwork_ready && site.construction_progress >= 1.0 - 1e-6 {
         complete_site(ctx, &mut site);
         if site.kind == "chapel" {
             tick.invalidate_staffed_chapel(site.owner);
@@ -235,8 +257,10 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
     site.construction_progress = 1.0;
     site.construction_reserved_timber = 0.0;
     site.construction_reserved_stone = 0.0;
+    site.construction_reserved_ironwork = 0.0;
     site.construction_treasury_timber = 0.0;
     site.construction_treasury_stone = 0.0;
+    site.construction_treasury_ironwork = 0.0;
     site.construction_priority = CONSTRUCTION_PRIORITY_NORMAL;
     site.assigned_labor = 0;
 

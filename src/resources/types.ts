@@ -108,12 +108,16 @@ export type BuildingState = {
   constructionProgress: number;
   constructionRequiredTimber: number;
   constructionRequiredStone: number;
+  constructionRequiredIronwork?: number;
   constructionDeliveredTimber: number;
   constructionDeliveredStone: number;
+  constructionDeliveredIronwork?: number;
   constructionReservedTimber: number;
   constructionReservedStone: number;
+  constructionReservedIronwork?: number;
   constructionTreasuryTimber: number;
   constructionTreasuryStone: number;
+  constructionTreasuryIronwork?: number;
   storehouseAcceptsTimber: boolean;
   storehouseAcceptsStone: boolean;
   storehouseAcceptsFirewood: boolean;

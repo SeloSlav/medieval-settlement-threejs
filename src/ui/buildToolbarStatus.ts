@@ -153,7 +153,7 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
   if (isBuildingToolMode(stats.mode)) {
     if (stats.statusDetail) {
       const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
-      const materialCost = cost.timber > 0 || cost.stone > 0
+      const materialCost = cost.timber > 0 || cost.stone > 0 || (cost.ironwork ?? 0) > 0
         ? ` | Cost ${formatBuildingCost(cost)}`
         : '';
       return `${stats.statusDetail}${materialCost}`;

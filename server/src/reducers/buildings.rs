@@ -19,7 +19,8 @@ use crate::economy::{
     credit_treasury_commodity, credit_treasury_firewood, credit_treasury_food,
     credit_treasury_gold, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
     guardhouse_roster_count, guardhouse_roster_floors, initial_construction_labor,
-    record_parish_ledger, total_stone, total_timber, CommodityKind, ParishLedgerKind,
+    record_parish_ledger, total_ironwork, total_stone, total_timber, CommodityKind,
+    ParishLedgerKind,
 };
 use crate::foraging_policy::harvest_available;
 use crate::frontier_economy_policy::{
@@ -542,8 +543,20 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
             cost.stone.round() as i64
         ));
     }
-    let (treasury_timber, treasury_stone) =
-        construction_treasury_reservation(ctx, owner, timber_cost, cost.stone);
+    if total_ironwork(ctx, owner) + 1e-6 < cost.ironwork {
+        return Err(format!(
+            "Not enough ironwork fittings (need {} ironwork).",
+            cost.ironwork.round() as i64
+        ));
+    }
+    let (treasury_timber, treasury_stone, treasury_ironwork) =
+        construction_treasury_reservation(
+            ctx,
+            owner,
+            timber_cost,
+            cost.stone,
+            cost.ironwork,
+        );
     let assigned_builders = initial_construction_labor(available_building_labor(ctx, owner));
 
     let config = ctx
@@ -618,12 +631,16 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         construction_progress: 0.0,
         construction_required_timber: timber_cost,
         construction_required_stone: cost.stone,
+        construction_required_ironwork: cost.ironwork,
         construction_delivered_timber: 0.0,
         construction_delivered_stone: 0.0,
+        construction_delivered_ironwork: 0.0,
         construction_reserved_timber: timber_cost,
         construction_reserved_stone: cost.stone,
+        construction_reserved_ironwork: cost.ironwork,
         construction_treasury_timber: treasury_timber,
         construction_treasury_stone: treasury_stone,
+        construction_treasury_ironwork: treasury_ironwork,
         storehouse_accepts_timber: true,
         storehouse_accepts_stone: true,
         storehouse_accepts_firewood: true,
@@ -732,11 +749,14 @@ pub(crate) fn rotate_construction_labor_for_owner_with_reserve(
             work_ready: construction_labor_ready(
                 building.construction_required_timber,
                 building.construction_required_stone,
+                building.construction_required_ironwork,
                 building.construction_delivered_timber,
                 building.construction_delivered_stone,
+                building.construction_delivered_ironwork,
                 building.construction_progress,
                 building.construction_treasury_timber,
                 building.construction_treasury_stone,
+                building.construction_treasury_ironwork,
             ),
             inbound_supply: building_has_inbound_supply_trip(ctx, building.id),
         })
@@ -1955,6 +1975,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         crate::economy::ResourceAmount {
             timber: 0.0,
             stone: 0.0,
+            ironwork: 0.0,
         }
     } else if building.construction_complete {
         building_salvage_refund(&building.kind)?
@@ -1965,6 +1986,9 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
                 .round(),
             stone: (building.construction_delivered_stone
                 * crate::balance_generated::STONE_SALVAGE_FRACTION)
+                .round(),
+            ironwork: (building.construction_delivered_ironwork
+                * crate::balance_generated::IRONWORK_SALVAGE_FRACTION)
                 .round(),
         }
     };
@@ -2021,7 +2045,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             preserved_food: building.preserved_food * recoverable,
             honey: building.honey * recoverable,
             wine: building.wine * recoverable,
-            ironwork: building.ironwork * recoverable,
+            ironwork: refund.ironwork + building.ironwork * recoverable,
             polearms: building.polearms * recoverable,
             wool: building.wool * recoverable,
             cloth: building.cloth * recoverable,
@@ -2035,12 +2059,16 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             construction_progress: 1.0,
             construction_required_timber: 0.0,
             construction_required_stone: 0.0,
+            construction_required_ironwork: 0.0,
             construction_delivered_timber: 0.0,
             construction_delivered_stone: 0.0,
+            construction_delivered_ironwork: 0.0,
             construction_reserved_timber: 0.0,
             construction_reserved_stone: 0.0,
+            construction_reserved_ironwork: 0.0,
             construction_treasury_timber: 0.0,
             construction_treasury_stone: 0.0,
+            construction_treasury_ironwork: 0.0,
             construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
             founding_shelter_active: false,
             marketplace_pending_trade_code: 0,
@@ -2119,7 +2147,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         ctx,
         owner,
         CommodityKind::Ironwork,
-        (building.ironwork + trip_cargo.ironwork) * recoverable,
+        refund.ironwork + (building.ironwork + trip_cargo.ironwork) * recoverable,
     );
     credit_treasury_commodity(
         ctx,

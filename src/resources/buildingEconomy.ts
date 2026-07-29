@@ -4,6 +4,7 @@ import {
   BACKYARD_GARDEN_COSTS,
   BACKYARD_GARDEN_DEFINITIONS,
   BUILDING_COSTS,
+  IRONWORK_SALVAGE_FRACTION,
   RESIDENCE_STONE_COST,
   RESIDENCE_TIMBER_COST,
   STONE_SALVAGE_FRACTION,
@@ -18,6 +19,7 @@ export {
   STARTING_TIMBER,
   STONE_SALVAGE_FRACTION,
   TIMBER_SALVAGE_FRACTION,
+  IRONWORK_SALVAGE_FRACTION,
 } from '../generated/gameBalance.ts';
 
 export type { BuildingResourceCost };
@@ -40,6 +42,7 @@ export function residenceZoneSalvageRefund(residenceCount: number): BuildingReso
   return {
     timber: Math.round(cost.timber * TIMBER_SALVAGE_FRACTION),
     stone: Math.round(cost.stone * STONE_SALVAGE_FRACTION),
+    ironwork: Math.round((cost.ironwork ?? 0) * IRONWORK_SALVAGE_FRACTION),
   };
 }
 
@@ -56,11 +59,13 @@ export function buildingSalvageRefund(kind: BuildingKind): BuildingResourceCost 
 }
 
 export function canAffordBuilding(
-  totals: Pick<ResourceTotals, 'timber' | 'stone'>,
+  totals: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork'>,
   kind: BuildingKind,
 ): boolean {
   const cost = getBuildingCost(kind);
-  return totals.timber >= cost.timber && totals.stone >= cost.stone;
+  return totals.timber >= cost.timber
+    && totals.stone >= cost.stone
+    && totals.ironwork >= (cost.ironwork ?? 0);
 }
 
 export function canAffordResidenceZone(
@@ -72,7 +77,10 @@ export function canAffordResidenceZone(
 }
 
 export function formatBuildingCost(cost: BuildingResourceCost): string {
-  return `${cost.timber} timber, ${cost.stone} stone`;
+  const fittings = (cost.ironwork ?? 0) > 0
+    ? `, ${cost.ironwork} ironwork`
+    : '';
+  return `${cost.timber} timber, ${cost.stone} stone${fittings}`;
 }
 
 export function getBackyardGardenCost(kind: BackyardGardenKind): BuildingResourceCost {
