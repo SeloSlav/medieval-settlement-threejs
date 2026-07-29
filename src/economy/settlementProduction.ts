@@ -15,6 +15,7 @@ import {
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+  FARM_TOOL_IRONWORK_PER_WORKER_DAY,
   CLAY_PIT_CLAY_PER_CYCLE,
   GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_FLOUR_PER_CYCLE,
@@ -54,6 +55,7 @@ import {
 } from '../fires/fireIncident.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import { lodgeSustainedProcessingLabor } from '../logistics/lodgeLogistics.ts';
+import { fieldStageAllowed } from '../farming/farmWorkPlanning.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type {
   BuildingKind,
@@ -68,6 +70,8 @@ import {
 import {
   civilianToolsMaintained,
   civilianToolThroughputMultiplier,
+  farmToolsMaintained,
+  farmToolThroughputMultiplier,
   isCivilianToolSite,
 } from './civilianToolPolicy.ts';
 import { weaverUsesFlax } from './weaverInputPolicy.ts';
@@ -597,6 +601,7 @@ function completedProcessorOverview(
   componentFor: ProductionRoadComponentResolver | undefined,
   watermillThroughputMultiplier: number,
   clayPitThroughputMultiplier: number,
+  calendarMonth?: number,
 ): ProcessorOverview {
   const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
   const deliveries = timedInputDeliveries(state.deliveryTrips.values());
@@ -659,6 +664,19 @@ function completedProcessorOverview(
   const prosperityRoadBranches = componentFor
     ? new Map<string, ProsperityRoadBranch>()
     : null;
+  const activeFarmToolHoldings = new Set<string>();
+  for (const field of state.farmFields.values()) {
+    if (
+      field.priority > 0
+      && field.stage !== 'growing'
+      && (
+        calendarMonth == null
+        || fieldStageAllowed(field, calendarMonth)
+      )
+    ) {
+      activeFarmToolHoldings.add(field.farmsteadId);
+    }
+  }
   for (const building of state.buildings.values()) {
     if (building.constructionComplete === false || building.assignedLabor <= 0) {
       continue;
@@ -683,29 +701,53 @@ function completedProcessorOverview(
       }
       continue;
     }
-    if (isCivilianToolSite(building.kind)) {
+    if (
+      isCivilianToolSite(building.kind)
+      && (
+        building.kind !== 'threshing_barn'
+        || activeFarmToolHoldings.has(building.id)
+      )
+    ) {
       toolEligibleSites += 1;
-      const maintained = civilianToolsMaintained(building.ironwork ?? 0);
-      const productiveToolLabor = building.kind === 'woodcutters_lodge'
-        ? lodgeSustainedProcessingLabor(building.assignedLabor)
-        : building.assignedLabor;
-      const maintainedCycles = cyclesPerCalendarDay(
-        building.kind,
-        productiveToolLabor,
-        sabbathObserved,
-        civilianToolThroughputMultiplier(building.ironwork ?? 0),
-      );
-      const fullyEquippedCycles = cyclesPerCalendarDay(
-        building.kind,
-        productiveToolLabor,
-        sabbathObserved,
-        CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
-      );
-      const fullyEquippedDemand = fullyEquippedCycles
-        * CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
-      const maintainedDemand = maintained
-        ? maintainedCycles * CIVILIAN_TOOL_IRONWORK_PER_CYCLE
-        : 0;
+      const maintained = building.kind === 'threshing_barn'
+        ? farmToolsMaintained(building.ironwork ?? 0)
+        : civilianToolsMaintained(building.ironwork ?? 0);
+      const weeklyWorkShare = sabbathObserved ? 6 / 7 : 1;
+      let fullyEquippedDemand: number;
+      let maintainedDemand: number;
+      if (building.kind === 'threshing_barn') {
+        fullyEquippedDemand = building.assignedLabor
+          * weeklyWorkShare
+          * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
+          * FARM_TOOL_IRONWORK_PER_WORKER_DAY;
+        maintainedDemand = maintained
+          ? building.assignedLabor
+            * weeklyWorkShare
+            * farmToolThroughputMultiplier(building.ironwork ?? 0)
+            * FARM_TOOL_IRONWORK_PER_WORKER_DAY
+          : 0;
+      } else {
+        const productiveToolLabor = building.kind === 'woodcutters_lodge'
+          ? lodgeSustainedProcessingLabor(building.assignedLabor)
+          : building.assignedLabor;
+        const maintainedCycles = cyclesPerCalendarDay(
+          building.kind,
+          productiveToolLabor,
+          sabbathObserved,
+          civilianToolThroughputMultiplier(building.ironwork ?? 0),
+        );
+        const fullyEquippedCycles = cyclesPerCalendarDay(
+          building.kind,
+          productiveToolLabor,
+          sabbathObserved,
+          CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+        );
+        fullyEquippedDemand = fullyEquippedCycles
+          * CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
+        maintainedDemand = maintained
+          ? maintainedCycles * CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+          : 0;
+      }
       fullToolIronworkPerDay += fullyEquippedDemand;
       const materialBranch = industrialMaterialBranch(
         industrialMaterialBranches,
@@ -1584,6 +1626,7 @@ export function computeSettlementProductionCapacity(
   watermillThroughputMultiplier = 1,
   clayPitThroughputMultiplier = 1,
   currentPreservedFoodDemandMultiplier = 1,
+  calendarMonth?: number,
 ): SettlementProductionCapacity {
   const normalizedWatermillThroughput = Number.isFinite(
     watermillThroughputMultiplier,
@@ -1643,6 +1686,7 @@ export function computeSettlementProductionCapacity(
     roadComponentFor,
     normalizedWatermillThroughput,
     normalizedClayPitThroughput,
+    calendarMonth,
   );
   const millCycles = cyclesPerCalendarDay(
     'watermill',

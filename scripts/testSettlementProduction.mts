@@ -119,11 +119,16 @@ const materialBuildings = [
   building('material-market', 'marketplace', 1),
   building('material-lumber', 'lumber_mill', 1),
   building('material-woodcutter', 'woodcutters_lodge', 1),
+  building('material-farm', 'threshing_barn', 2),
 ];
 materialBuildings[0].ironwork = 1;
 for (const candidate of materialBuildings) {
   materialState.buildings.set(candidate.id, candidate);
 }
+materialState.farmFields.set(
+  'material-field',
+  farmField('material-field', 'material-farm', 'fallow'),
+);
 materialState.residences.set('material-home', residence('material-home', 10));
 const joinedMaterials = computeSettlementProductionCapacity(
   materialState,
@@ -142,7 +147,7 @@ assert.ok(
 );
 assert.ok(joinedMaterials.potteryExportSurplusPerDay > 0);
 assert.equal(joinedMaterials.potteryStrandedPerDay, 0);
-assert.equal(joinedMaterials.toolEligibleSites, 3);
+assert.equal(joinedMaterials.toolEligibleSites, 4);
 assert.equal(joinedMaterials.toolMaintainedSites, 1);
 assert.ok(
   joinedMaterials.fullToolIronworkPerDay
@@ -155,6 +160,29 @@ approx(
   'same-branch smithing should cover the currently maintained tool racks',
 );
 assert.ok(joinedMaterials.ironworkSurplusAfterToolUpkeep > 0);
+
+const materialField = materialState.farmFields.get('material-field');
+assert.ok(materialField);
+materialField.stage = 'growing';
+const dormantFarmMaterials = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+  1,
+  1,
+  1,
+  9,
+).industrialMaterials;
+assert.equal(
+  dormantFarmMaterials.toolEligibleSites,
+  3,
+  'a growing field must not claim daily farm-tool wear outside active field work',
+);
+assert.ok(
+  dormantFarmMaterials.fullToolIronworkPerDay
+    < joinedMaterials.fullToolIronworkPerDay,
+);
+materialField.stage = 'harvesting';
 
 const frostLimitedMaterials = computeSettlementProductionCapacity(
   materialState,
@@ -620,6 +648,7 @@ const farmState = emptyGameState();
 const shortFarm = building('short-farm', 'threshing_barn', 1);
 const stockedFarm = building('stocked-farm', 'threshing_barn', 6);
 stockedFarm.grain = 100;
+stockedFarm.ironwork = 0.5;
 farmState.buildings.set(shortFarm.id, shortFarm);
 farmState.buildings.set(stockedFarm.id, stockedFarm);
 farmState.farmFields.set(
@@ -647,6 +676,14 @@ assert.equal(
 approx(farmPlan.seedGrainShortfall, 5.6);
 assert.equal(farmPlan.seedShortHoldings, 1);
 assert.equal(farmPlan.firstSeedShortBuildingId, shortFarm.id);
+assert.equal(farmPlan.toolEligibleHoldings, 2);
+assert.equal(farmPlan.toolMaintainedHoldings, 1);
+assert.ok(farmPlan.toolIronworkRequired > 0);
+assert.ok(farmPlan.toolIronworkReserveTarget >= 0.5);
+assert.ok(farmPlan.toolIronworkCovered >= 0.25);
+assert.ok(farmPlan.toolIronworkShortfall >= 0.25);
+assert.equal(farmPlan.toolShortHoldings, 1);
+assert.equal(farmPlan.firstToolShortBuildingId, shortFarm.id);
 approx(farmPlan.seedGrainByHolding.get(shortFarm.id) ?? -1, 5.6);
 assert.equal(farmPlan.seedGrainByHolding.get(stockedFarm.id), 0);
 assert.equal(farmPlan.harvest.shortfallWorkerDays, 0);
@@ -1457,6 +1494,23 @@ assert.ok(
   aggregationElapsedMs < 250,
   `100,000-field settlement farm plan took ${aggregationElapsedMs.toFixed(1)} ms`,
 );
+const farmToolLedgerStarted = performance.now();
+const farmToolLedger = computeSettlementProductionCapacity(
+  perfFarmState,
+  false,
+  undefined,
+  1,
+  1,
+  1,
+  9,
+).industrialMaterials;
+const farmToolLedgerElapsedMs = performance.now() - farmToolLedgerStarted;
+assert.equal(farmToolLedger.toolEligibleSites, 1);
+assert.ok(farmToolLedger.fullToolIronworkPerDay > 0);
+assert.ok(
+  farmToolLedgerElapsedMs < 250,
+  `100,000-field farm-tool activity scan took ${farmToolLedgerElapsedMs.toFixed(1)} ms`,
+);
 
 const procurementPerfState = emptyGameState();
 for (let index = 0; index < 100_000; index += 1) {
@@ -1549,6 +1603,8 @@ assert.match(townHallInspector, /September barley/);
 assert.match(townHallInspector, /Seed on holdings/);
 assert.match(townHallInspector, /Spring crop labor/);
 assert.match(townHallInspector, /Ox-supported fields/);
+assert.match(townHallInspector, /Farm-tool reserve/);
+assert.match(townHallInspector, /planned wear/);
 assert.match(townHallInspector, /Grain allocation/);
 assert.match(townHallInspector, /Protected grain/);
 assert.match(townHallInspector, /Installed grain draw/);
@@ -1613,7 +1669,7 @@ assert.match(townHallRenderer, /Ironwork chain/);
 assert.match(townHallRenderer, /Civilian tool upkeep/);
 
 console.log(
-  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 200 road branches; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,
+  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 200 road branches; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${farmToolLedgerElapsedMs.toFixed(1)} ms farm-tool scan; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,
 );
 
 function approx(actual: number, expected: number, message?: string): void {

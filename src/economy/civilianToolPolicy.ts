@@ -1,7 +1,13 @@
 import {
   BUILDING_STORAGE_CAPS,
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+  FARM_TOOL_IRONWORK_PER_WORKER_DAY,
+  FARM_WORK_METERS_PER_WORKER_PER_SEC,
 } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
 
@@ -11,6 +17,7 @@ export const CIVILIAN_TOOL_SITE_KINDS = [
   'stone_quarry',
   'large_quarry',
   'clay_pit',
+  'threshing_barn',
 ] as const satisfies readonly BuildingKind[];
 
 export type CivilianToolSiteKind = (typeof CIVILIAN_TOOL_SITE_KINDS)[number];
@@ -45,16 +52,48 @@ export function civilianToolThroughputMultiplier(ironwork: number): number {
     : 1;
 }
 
+export function farmToolsMaintained(ironwork: number): boolean {
+  return Math.max(0, ironwork) > 1e-6;
+}
+
+export function farmToolThroughputMultiplier(ironwork: number): number {
+  return farmToolsMaintained(ironwork)
+    ? CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
+    : 1;
+}
+
+export function farmToolIronworkForWork(completedWork: number): number {
+  const workdaySeconds = CALENDAR_SECONDS_PER_DAY
+    * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+    / CALENDAR_HOURS_PER_DAY;
+  const workPerWorkerDay = FARM_WORK_METERS_PER_WORKER_PER_SEC * workdaySeconds;
+  return workPerWorkerDay <= 1e-9
+    ? 0
+    : Math.max(0, completedWork) / workPerWorkerDay
+      * FARM_TOOL_IRONWORK_PER_WORKER_DAY;
+}
+
+export function farmToolWorkerDayRunway(ironwork: number): number {
+  return FARM_TOOL_IRONWORK_PER_WORKER_DAY <= 1e-9
+    ? Infinity
+    : Math.max(0, ironwork) / FARM_TOOL_IRONWORK_PER_WORKER_DAY;
+}
+
 export function civilianToolPlan(
   building: Pick<BuildingState, 'kind' | 'ironwork'>,
 ): CivilianToolPlan | null {
   if (!isCivilianToolSite(building.kind)) return null;
   const ironwork = Math.max(0, building.ironwork ?? 0);
+  const farmstead = building.kind === 'threshing_barn';
   return {
-    maintained: civilianToolsMaintained(ironwork),
+    maintained: farmstead
+      ? farmToolsMaintained(ironwork)
+      : civilianToolsMaintained(ironwork),
     ironwork,
     capacity: BUILDING_STORAGE_CAPS[building.kind].ironwork ?? 0,
     runwayCycles: civilianToolRunwayCycles(ironwork),
-    throughputMultiplier: civilianToolThroughputMultiplier(ironwork),
+    throughputMultiplier: farmstead
+      ? farmToolThroughputMultiplier(ironwork)
+      : civilianToolThroughputMultiplier(ironwork),
   };
 }

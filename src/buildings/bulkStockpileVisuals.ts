@@ -69,6 +69,12 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         BUILDING_STORAGE_CAPS.clay_pit.ironwork ?? 0,
         CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
+    case 'threshing_barn':
+      return `:tools:${stockpileVisualLevel(
+        building.ironwork ?? 0,
+        BUILDING_STORAGE_CAPS.threshing_barn.ironwork ?? 0,
+        CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
+      )}`;
     case 'charcoal_burner':
       return `:bulk-store:${stockpileVisualLevel(
         building.firewood,
@@ -158,6 +164,9 @@ export function syncBulkStockpileVisuals(
         building.clay ?? 0,
         BUILDING_STORAGE_CAPS.clay_pit.clay,
       );
+      syncCivilianToolStockpile(marker, building);
+      break;
+    case 'threshing_barn':
       syncCivilianToolStockpile(marker, building);
       break;
     case 'charcoal_burner':

@@ -5,14 +5,24 @@ import * as THREE from 'three';
 import {
   BUILDING_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+  FARM_TOOL_IRONWORK_PER_WORKER_DAY,
+  FARM_WORK_METERS_PER_WORKER_PER_SEC,
 } from '../src/generated/gameBalance.ts';
 import {
   CIVILIAN_TOOL_SITE_KINDS,
   civilianToolPlan,
   civilianToolRunwayCycles,
   civilianToolThroughputMultiplier,
+  farmToolIronworkForWork,
+  farmToolsMaintained,
+  farmToolThroughputMultiplier,
+  farmToolWorkerDayRunway,
 } from '../src/economy/civilianToolPolicy.ts';
 import {
   selectDirectProcessorInputTarget,
@@ -31,6 +41,21 @@ assert.equal(civilianToolThroughputMultiplier(0), 1);
 assert.equal(civilianToolThroughputMultiplier(0.24), 1);
 assert.equal(civilianToolThroughputMultiplier(0.25), 1.2);
 assert.equal(civilianToolRunwayCycles(3), 12);
+assert.equal(FARM_TOOL_IRONWORK_PER_WORKER_DAY, 0.05);
+const farmWorkerDayWork = FARM_WORK_METERS_PER_WORKER_PER_SEC
+  * CALENDAR_SECONDS_PER_DAY
+  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+  / CALENDAR_HOURS_PER_DAY;
+assert.equal(farmToolIronworkForWork(farmWorkerDayWork), 0.05);
+assert.ok(Math.abs(
+  farmToolIronworkForWork(farmWorkerDayWork * 0.35)
+    + farmToolIronworkForWork(farmWorkerDayWork * 0.65)
+    - 0.05,
+) < 1e-9, 'tool wear must follow completed field work rather than exploitable parcel count');
+assert.equal(farmToolWorkerDayRunway(0.75), 15);
+assert.equal(farmToolsMaintained(0), false);
+assert.equal(farmToolsMaintained(0.01), true);
+assert.equal(farmToolThroughputMultiplier(0.01), 1.2);
 
 const settlementHudSource = readFileSync(
   new URL('../src/ui/SettlementHud.ts', import.meta.url),
@@ -50,6 +75,10 @@ const woodcutterInspector = readFileSync(
 );
 const buildMenuCards = readFileSync(
   new URL('../src/ui/buildMenuCards.ts', import.meta.url),
+  'utf8',
+);
+const farmsteadInspector = readFileSync(
+  new URL('../src/resources/inspector/expandedBuildingRenderer.ts', import.meta.url),
   'utf8',
 );
 const ironworkHudTag = settlementHudSource.match(
@@ -74,8 +103,20 @@ assert.match(
   /"lumber_mill",\s*"woodcutters_lodge",\s*"stone_quarry"/,
   'smithies must include winter-fuel axes in physical ironwork dispatch',
 );
+assert.match(
+  expandedEconomySimulation,
+  /"clay_pit",\s*"threshing_barn",\s*"carpenter"/,
+  'smithies must include farm tools in physical ironwork dispatch',
+);
+assert.match(
+  expandedEconomySimulation,
+  /farm_tool_throughput[\s\S]*work_budget[\s\S]*farm_tool_ironwork_for_work\(spent\)/,
+  'authoritative field progress must accelerate and wear tools only after real work',
+);
 assert.match(woodcutterInspector, /civilianToolRows\(building\)/);
 assert.match(buildMenuCards, /replacement axes raise output but wear each cycle/);
+assert.match(buildMenuCards, /ploughshares, hoes, sickles, and scythes/);
+assert.match(farmsteadInspector, /Seasonal tool reserve/);
 const conflictVisibilityMethod = settlementHudSource.slice(
   settlementHudSource.indexOf('setConflictEnabled(enabled: boolean)'),
   settlementHudSource.indexOf('setSettlementClock(', settlementHudSource.indexOf(

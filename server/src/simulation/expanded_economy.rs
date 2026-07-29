@@ -28,6 +28,7 @@ use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
 use crate::civilian_tool_policy::{
     civilian_tool_runway_cycles, civilian_tool_throughput_multiplier, civilian_tools_maintained,
+    farm_tool_ironwork_for_work, farm_tool_throughput_multiplier, farm_tools_maintained,
     is_civilian_tool_site,
 };
 use crate::db::*;
@@ -1085,6 +1086,7 @@ fn local_material_source_plan(kind: &str) -> Option<(CommodityKind, &'static [&'
                 "stone_quarry",
                 "large_quarry",
                 "clay_pit",
+                "threshing_barn",
                 "carpenter",
             ],
         )),
@@ -1251,8 +1253,10 @@ fn step_farmstead_fields(
         .min(1.0);
     }
 
+    let farm_tools_ready = farm_tools_maintained(farmstead.ironwork);
+    let farm_tool_throughput = farm_tool_throughput_multiplier(farmstead.ironwork);
     let mut work_budget = if work_allowed {
-        onsite_labor as f64 * FARM_WORK_METERS_PER_WORKER_PER_SEC * TICK_DT
+        onsite_labor as f64 * FARM_WORK_METERS_PER_WORKER_PER_SEC * TICK_DT * farm_tool_throughput
     } else {
         0.0
     };
@@ -1332,6 +1336,13 @@ fn step_farmstead_fields(
         let previous_progress = field.stage_progress;
         field.stage_progress = (field.stage_progress + spent / required).min(1.0);
         work_budget -= spent;
+        if farm_tools_ready {
+            withdraw_building_commodity(
+                farmstead,
+                CommodityKind::Ironwork,
+                farm_tool_ironwork_for_work(spent),
+            );
+        }
         if field.stage == STAGE_PLOUGHING {
             let manure_needed =
                 field_manure_required(field.area) * (field.stage_progress - previous_progress);

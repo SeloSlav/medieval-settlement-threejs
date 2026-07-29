@@ -522,6 +522,7 @@
     "largeFieldEfficiencyFloor": 0.6,
     "minFieldEdge": 6,
     "workMetersPerWorkerPerSec": 20,
+    "farmToolIronworkPerWorkerDay": 0.05,
     "ploughWorkPerSquareMeter": 1,
     "sowWorkPerSquareMeter": 0.55,
     "harvestWorkPerSquareMeter": 0.8,
@@ -1160,7 +1161,7 @@
     "threshing_barn": {
       "label": "Farmstead and threshing barn",
       "cost": { "timber": 44, "stone": 16 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 240, "barley": 180, "flax": 180, "manure": 120 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 240, "barley": 180, "flax": 180, "manure": 120, "ironwork": 3 },
       "workRadius": 150,
       "pickRadius": 9,
       "harvestInterval": 6,

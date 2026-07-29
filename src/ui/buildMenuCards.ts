@@ -72,7 +72,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   hunters_hall: ["Hunter's hall", 'K', 'Hunts game and delivers fresh food along the road network.'],
   foragers_shed: ["Forager's shed", 'Y', 'Gathers wild food, dries medicinal herbs, and carts urgent treatment to sick homes.'],
   fishing_camp: ['Fishing camp', 'Z', 'Catches from a finite river population that reproduces in spring; overfishing can cause extinction.'],
-  threshing_barn: ['Farmstead', 'T', 'Road-linked labor hub that ploughs, sows, tends, harvests, and stores grain from surrounding fields.'],
+  threshing_barn: ['Farmstead', 'T', 'Road-linked labor hub that ploughs, sows, tends, harvests, and stores crops. Smith-maintained ploughshares, hoes, sickles, and scythes shorten seasonal labor peaks.'],
   watermill: ['Grain watermill', 'M', 'Uses seasonal river power to grind grain into flour. Spring rain speeds it; drought and frost slow it. Must touch open water.'],
   granary: ['Village granary', 'N', 'Stores grain and flour, bakes staple food, and collects wild-food surplus.'],
   brewery: ['Brewhouse', 'B', 'Boils grain and water over firewood into ale for prosperous households and export.'],

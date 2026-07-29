@@ -376,6 +376,7 @@ export const FARM_LARGE_FIELD_EFFICIENCY_EXPONENT = 0.22;
 export const FARM_LARGE_FIELD_EFFICIENCY_FLOOR = 0.6;
 export const FARM_MIN_FIELD_EDGE = 6;
 export const FARM_WORK_METERS_PER_WORKER_PER_SEC = 20;
+export const FARM_TOOL_IRONWORK_PER_WORKER_DAY = 0.05;
 export const FARM_PLOUGH_WORK_PER_SQUARE_METER = 1;
 export const FARM_SOW_WORK_PER_SQUARE_METER = 0.55;
 export const FARM_HARVEST_WORK_PER_SQUARE_METER = 0.8;
@@ -1373,7 +1374,7 @@ export const BUILDING_STORAGE_CAPS = {
   watchtower: { timber: 0, firewood: 0, stone: 0 },
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },
-  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180, manure: 120 },
+  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180, ironwork: 3, manure: 120 },
   pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120, manure: 160 },
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, ale: 120, preservedFood: 80, honey: 160, wine: 120 },

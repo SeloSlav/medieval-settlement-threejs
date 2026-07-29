@@ -374,6 +374,7 @@ pub const FARM_LARGE_FIELD_EFFICIENCY_EXPONENT: f64 = 0.22;
 pub const FARM_LARGE_FIELD_EFFICIENCY_FLOOR: f64 = 0.6;
 pub const FARM_MIN_FIELD_EDGE: f64 = 6.0;
 pub const FARM_WORK_METERS_PER_WORKER_PER_SEC: f64 = 20.0;
+pub const FARM_TOOL_IRONWORK_PER_WORKER_DAY: f64 = 0.05;
 pub const FARM_PLOUGH_WORK_PER_SQUARE_METER: f64 = 1.0;
 pub const FARM_SOW_WORK_PER_SQUARE_METER: f64 = 0.55;
 pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = 0.8;
@@ -1764,7 +1765,7 @@ const THRESHING_BARN: BuildingDef = BuildingDef {
     storage_wine: 0.0,
     storage_wool: 0.0,
     storage_cloth: 0.0,
-    storage_ironwork: 0.0,
+    storage_ironwork: 3.0,
     storage_polearms: 0.0,
     storage_iron: 0.0,
     storage_clay: 0.0,

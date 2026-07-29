@@ -23,6 +23,8 @@ import {
   FARM_MANURE_FERTILITY_BONUS,
   FARM_MANURE_PER_SQUARE_METER,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import {
   computeCattleFieldSupport,
@@ -406,6 +408,22 @@ const september = gameClockAtElapsedSeconds(
   6 * CALENDAR_DAYS_PER_MONTH * CALENDAR_SECONDS_PER_DAY,
 );
 const staffedPlan = buildFarmsteadWorkPlan([planningField], 1, september, false);
+const maintainedToolPlan = buildFarmsteadWorkPlan(
+  [planningField],
+  1,
+  september,
+  false,
+  new Map(),
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+);
+const partialToolPlan = buildFarmsteadWorkPlan(
+  [planningField],
+  1,
+  september,
+  false,
+  new Map(),
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE / 2,
+);
 const sabbathPlan = buildFarmsteadWorkPlan([planningField], 1, september, true);
 const unstaffedPlan = buildFarmsteadWorkPlan([planningField], 0, september, false);
 const earlyHarvestPlan = buildFarmsteadWorkPlan(
@@ -424,6 +442,24 @@ const mixedCropPlan = buildFarmsteadWorkPlan([
     currentYield: 0,
   },
 ], 2, september, false);
+assert.ok(staffedPlan.toolIronworkRequired > 0);
+assert.ok(
+  staffedPlan.toolIronworkReserveTarget >= CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+);
+assert.equal(
+  maintainedToolPlan.toolIronworkRequired,
+  staffedPlan.toolIronworkRequired,
+  'faster tools wear by completed work rather than elapsed time',
+);
+assert.equal(
+  maintainedToolPlan.harvest.availableWorkerDays,
+  staffedPlan.harvest.availableWorkerDays * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+);
+assert.equal(
+  partialToolPlan.harvest.availableWorkerDays,
+  staffedPlan.harvest.availableWorkerDays,
+  'partial tools may speed current work but must not promise the full seasonal bonus',
+);
 assert.ok(mixedCropPlan.expectedHarvest > 0, 'grain crops should remain in the food harvest forecast');
 assert.ok(mixedCropPlan.expectedFibreHarvest > 0, 'flax should receive its own textile harvest forecast');
 assert.equal(mixedCropPlan.rotation.plannedHarvest, 0);
@@ -722,6 +758,9 @@ assert.match(buildToolbar, /first-crop site potential/);
 const farmsteadInspector = fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const livestockInspector = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
 const farmFieldInspector = fs.readFileSync('src/resources/inspector/farmFieldRenderer.ts', 'utf8');
+assert.match(farmsteadInspector, /Seasonal tool reserve/);
+assert.match(farmFieldInspector, /Field tools/);
+assert.match(farmFieldInspector, /toolThroughputMultiplier/);
 const townHallInspector = fs.readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
 assert.match(farmsteadInspector, /data-land-parcel="field"/, 'farmsteads need a contextual field-layout action');
 assert.match(livestockInspector, /data-land-parcel="pasture"/, 'livestock holdings need a contextual pasture action');

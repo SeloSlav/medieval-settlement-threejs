@@ -105,6 +105,7 @@ const TARGET_KINDS: Record<
     'stone_quarry',
     'large_quarry',
     'clay_pit',
+    'threshing_barn',
     'carpenter',
   ],
   iron: ['smithy'],

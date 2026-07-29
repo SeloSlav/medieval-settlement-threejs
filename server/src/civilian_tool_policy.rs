@@ -1,13 +1,17 @@
 use crate::balance_generated::{
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+    CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
+    CALENDAR_WORK_START_HOUR, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+    CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER, FARM_TOOL_IRONWORK_PER_WORKER_DAY,
+    FARM_WORK_METERS_PER_WORKER_PER_SEC,
 };
 
-pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 5] = [
+pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 6] = [
     "lumber_mill",
     "woodcutters_lodge",
     "stone_quarry",
     "large_quarry",
     "clay_pit",
+    "threshing_barn",
 ];
 
 pub fn is_civilian_tool_site(kind: &str) -> bool {
@@ -26,11 +30,35 @@ pub fn civilian_tool_throughput_multiplier(ironwork: f64) -> f64 {
     }
 }
 
+pub fn farm_tools_maintained(ironwork: f64) -> bool {
+    ironwork > 1e-6
+}
+
+pub fn farm_tool_throughput_multiplier(ironwork: f64) -> f64 {
+    if farm_tools_maintained(ironwork) {
+        CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
+    } else {
+        1.0
+    }
+}
+
 pub fn civilian_tool_runway_cycles(ironwork: f64) -> f64 {
     if CIVILIAN_TOOL_IRONWORK_PER_CYCLE <= 1e-9 {
         f64::INFINITY
     } else {
         ironwork.max(0.0) / CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+    }
+}
+
+pub fn farm_tool_ironwork_for_work(completed_work: f64) -> f64 {
+    let workday_seconds = CALENDAR_SECONDS_PER_DAY
+        * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) as f64
+        / CALENDAR_HOURS_PER_DAY as f64;
+    let work_per_worker_day = FARM_WORK_METERS_PER_WORKER_PER_SEC * workday_seconds;
+    if work_per_worker_day <= 1e-9 {
+        0.0
+    } else {
+        completed_work.max(0.0) / work_per_worker_day * FARM_TOOL_IRONWORK_PER_WORKER_DAY
     }
 }
 
@@ -63,7 +91,33 @@ mod tests {
             assert!(is_civilian_tool_site(kind));
         }
         assert!(is_civilian_tool_site("woodcutters_lodge"));
+        assert!(is_civilian_tool_site("threshing_barn"));
         assert!(!is_civilian_tool_site("carpenter"));
-        assert!(!is_civilian_tool_site("threshing_barn"));
+        assert!(!is_civilian_tool_site("pastoral_farmstead"));
+    }
+
+    #[test]
+    fn farm_tool_wear_scales_with_completed_work_not_field_count() {
+        let one_worker_day = FARM_WORK_METERS_PER_WORKER_PER_SEC
+            * CALENDAR_SECONDS_PER_DAY
+            * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) as f64
+            / CALENDAR_HOURS_PER_DAY as f64;
+        assert!(
+            (farm_tool_ironwork_for_work(one_worker_day) - FARM_TOOL_IRONWORK_PER_WORKER_DAY).abs()
+                < 1e-9
+        );
+        assert!(
+            (farm_tool_ironwork_for_work(one_worker_day * 0.4)
+                + farm_tool_ironwork_for_work(one_worker_day * 0.6)
+                - FARM_TOOL_IRONWORK_PER_WORKER_DAY)
+                .abs()
+                < 1e-9
+        );
+        assert!(farm_tools_maintained(FARM_TOOL_IRONWORK_PER_WORKER_DAY));
+        assert!(!farm_tools_maintained(0.0));
+        assert_eq!(
+            farm_tool_throughput_multiplier(FARM_TOOL_IRONWORK_PER_WORKER_DAY),
+            CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
+        );
     }
 }

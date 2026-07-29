@@ -1900,6 +1900,7 @@ export function renderTownHallInspector(
       environment.watermillThroughputMultiplier,
       environment.clayPitThroughputMultiplier,
       environment.preservedFoodDemandMultiplier,
+      clock.month,
     );
   const industrialMaterials = production.industrialMaterials;
   const unmaintainedToolInspect = industrialMaterials.firstUnmaintainedToolSiteId === null
@@ -2080,6 +2081,7 @@ export function renderTownHallInspector(
       <li><span>Seed on holdings</span><span>${farmPlan.seedGrainCovered.toFixed(1)} / ${farmPlan.seedGrainRequired.toFixed(1)} protected onsite${farmPlan.seedGrainShortfall > 0.05 ? ` · short ${farmPlan.seedGrainShortfall.toFixed(1)} across ${farmPlan.seedShortHoldings} holdings${farmPlan.firstSeedShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${farmPlan.firstSeedShortBuildingId}" aria-label="Inspect first seed shortfall">Inspect</button>` : ''}` : ''}</span></li>
       <li><span>Barley seed on holdings</span><span>${farmPlan.seedBarleyCovered.toFixed(1)} / ${farmPlan.seedBarleyRequired.toFixed(1)} protected onsite${farmPlan.seedBarleyShortfall > 0.05 ? ` · short ${farmPlan.seedBarleyShortfall.toFixed(1)}` : ''}</span></li>
       <li><span>Field manure</span><span>${farmPlan.manureCovered.toFixed(1)} / ${farmPlan.manureRequired.toFixed(1)} physically spread, stored, or inbound${farmPlan.manureShortfall > 0.05 ? ` · short ${farmPlan.manureShortfall.toFixed(1)} across ${farmPlan.manureShortHoldings} holdings${farmPlan.firstManureShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${farmPlan.firstManureShortBuildingId}" aria-label="Inspect first manure shortfall">Inspect</button>` : ''}` : ' · cycle coverage secured'}</span></li>
+      <li><span>Farm-tool reserve</span><span>${farmPlan.toolIronworkCovered.toFixed(2)} / ${farmPlan.toolIronworkReserveTarget.toFixed(2)} smith-forged ironwork onsite or inbound for ${farmPlan.toolIronworkRequired.toFixed(2)} planned wear · ${farmPlan.toolMaintainedHoldings} / ${farmPlan.toolEligibleHoldings} holdings currently maintained${farmPlan.toolIronworkShortfall > 0.01 ? ` · short ${farmPlan.toolIronworkShortfall.toFixed(2)} across ${farmPlan.toolShortHoldings} holdings${farmPlan.firstToolShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${farmPlan.firstToolShortBuildingId}" aria-label="Inspect first farm-tool shortfall">Inspect</button>` : ''}` : ' · seasonal coverage secured'}</span></li>
       ${rotationRows}
       <li><span>September field labor</span><span>${formatSettlementFieldWork(farmPlan.harvest)}</span></li>
       <li><span>Spring crop labor</span><span>${formatSettlementFieldWork(farmPlan.spring)}</span></li>

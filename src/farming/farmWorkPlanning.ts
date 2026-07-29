@@ -13,6 +13,8 @@ import {
   FARM_HARVEST_WORK_PER_SQUARE_METER,
   FARM_PLOUGH_WORK_PER_SQUARE_METER,
   FARM_SOW_WORK_PER_SQUARE_METER,
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   FARM_WORK_METERS_PER_WORKER_PER_SEC,
 } from '../generated/gameBalance.ts';
 import { FARM_CROPS, type FarmCrop, type FarmFieldState, type GameState } from '../resources/types.ts';
@@ -28,6 +30,10 @@ import {
   fieldManureApplied,
   fieldManureRequirement,
 } from './manurePlanning.ts';
+import {
+  farmToolsMaintained,
+  farmToolIronworkForWork,
+} from '../economy/civilianToolPolicy.ts';
 
 export type SeasonalWorkPlan = {
   requiredWork: number;
@@ -50,6 +56,9 @@ export type FarmsteadWorkPlan = {
   seedBarleyRequired: number;
   manureRequired: number;
   manureApplied: number;
+  toolIronworkRequired: number;
+  toolIronworkReserveTarget: number;
+  toolThroughputMultiplier: number;
   rotation: CropRotationPlan;
 };
 
@@ -86,6 +95,14 @@ export type SettlementFarmPlan = {
   manureShortfall: number;
   manureShortHoldings: number;
   firstManureShortBuildingId: string | null;
+  toolEligibleHoldings: number;
+  toolMaintainedHoldings: number;
+  toolIronworkRequired: number;
+  toolIronworkReserveTarget: number;
+  toolIronworkCovered: number;
+  toolIronworkShortfall: number;
+  toolShortHoldings: number;
+  firstToolShortBuildingId: string | null;
   seedGrainByHolding: ReadonlyMap<string, number>;
   seedBarleyByHolding: ReadonlyMap<string, number>;
   rotation: CropRotationPlan;
@@ -348,9 +365,13 @@ function seasonalPlan(
   requiredWork: number,
   workers: number,
   productiveSeconds: number,
+  throughputMultiplier = 1,
 ): SeasonalWorkPlan {
   const requiredWorkerDays = fieldWorkerDays(requiredWork);
-  const availableWorkerDays = Math.max(0, workers) * productiveSeconds / WORKDAY_SECONDS;
+  const availableWorkerDays = Math.max(0, workers)
+    * productiveSeconds
+    / WORKDAY_SECONDS
+    * Math.max(0, throughputMultiplier);
   return {
     requiredWork,
     requiredWorkerDays,
@@ -396,6 +417,7 @@ function buildFarmsteadWorkPlanWithWindows(
   workers: number,
   windows: FarmWorkWindows,
   cattleSupport: ReadonlyMap<string, CattleFieldSupport>,
+  toolIronworkAvailable = 0,
 ): FarmsteadWorkPlan {
   let activeFields = 0;
   let pausedFields = 0;
@@ -548,6 +570,16 @@ function buildFarmsteadWorkPlanWithWindows(
     afterPlannedFertilityArea,
     afterYearThreeFertilityArea,
   );
+  const toolIronworkRequired = farmToolIronworkForWork(
+    harvestWork + springWork + autumnWork,
+  );
+  const toolIronworkReserveTarget = toolIronworkRequired <= 1e-9
+    ? 0
+    : Math.max(CIVILIAN_TOOL_IRONWORK_PER_CYCLE, toolIronworkRequired);
+  const toolThroughputMultiplier = toolIronworkReserveTarget > 1e-9
+    && Math.max(0, toolIronworkAvailable) + 1e-6 >= toolIronworkReserveTarget
+    ? CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
+    : 1;
 
   return {
     activeFields,
@@ -560,21 +592,27 @@ function buildFarmsteadWorkPlanWithWindows(
       harvestWork,
       workers,
       windows.harvest,
+      toolThroughputMultiplier,
     ),
     spring: seasonalPlan(
       springWork,
       workers,
       windows.spring,
+      toolThroughputMultiplier,
     ),
     autumn: seasonalPlan(
       autumnWork,
       workers,
       windows.autumn,
+      toolThroughputMultiplier,
     ),
     seedGrainRequired: seedGrain,
     seedBarleyRequired: seedBarley,
     manureRequired,
     manureApplied,
+    toolIronworkRequired,
+    toolIronworkReserveTarget,
+    toolThroughputMultiplier,
     rotation,
   };
 }
@@ -585,12 +623,14 @@ export function buildFarmsteadWorkPlan(
   clock: GameClock,
   sabbathObserved: boolean,
   cattleSupport: ReadonlyMap<string, CattleFieldSupport> = new Map(),
+  toolIronworkAvailable = 0,
 ): FarmsteadWorkPlan {
   return buildFarmsteadWorkPlanWithWindows(
     fields,
     workers,
     farmWorkWindows(clock, sabbathObserved),
     cattleSupport,
+    toolIronworkAvailable,
   );
 }
 
@@ -691,20 +731,28 @@ export function buildSettlementFarmPlan(
   const seedGrainByHolding = new Map<string, number>();
   const seedBarleyByHolding = new Map<string, number>();
   const inboundManureByHolding = new Map<string, number>();
+  const inboundIronworkByHolding = new Map<string, number>();
   for (const trip of state.deliveryTrips.values()) {
     if (
       trip.targetBuildingId == null
       || trip.destinationKind !== 'building'
-      || trip.cargoKind !== 'manure'
       || trip.phase === 'inbound'
     ) {
       continue;
     }
-    inboundManureByHolding.set(
-      trip.targetBuildingId,
-      (inboundManureByHolding.get(trip.targetBuildingId) ?? 0)
-        + Math.max(0, trip.amount),
-    );
+    if (trip.cargoKind === 'manure') {
+      inboundManureByHolding.set(
+        trip.targetBuildingId,
+        (inboundManureByHolding.get(trip.targetBuildingId) ?? 0)
+          + Math.max(0, trip.amount),
+      );
+    } else if (trip.cargoKind === 'ironwork') {
+      inboundIronworkByHolding.set(
+        trip.targetBuildingId,
+        (inboundIronworkByHolding.get(trip.targetBuildingId) ?? 0)
+          + Math.max(0, trip.amount),
+      );
+    }
   }
 
   const total: SettlementFarmPlan = {
@@ -734,6 +782,14 @@ export function buildSettlementFarmPlan(
     manureShortfall: 0,
     manureShortHoldings: 0,
     firstManureShortBuildingId: null,
+    toolEligibleHoldings: 0,
+    toolMaintainedHoldings: 0,
+    toolIronworkRequired: 0,
+    toolIronworkReserveTarget: 0,
+    toolIronworkCovered: 0,
+    toolIronworkShortfall: 0,
+    toolShortHoldings: 0,
+    firstToolShortBuildingId: null,
     seedGrainByHolding,
     seedBarleyByHolding,
     rotation: emptyCropRotationPlan(),
@@ -759,7 +815,17 @@ export function buildSettlementFarmPlan(
     if (workers > 0) total.staffedHoldings += 1;
     if (!operational) total.orphanedFields += fields.length;
 
-    const plan = buildFarmsteadWorkPlanWithWindows(fields, workers, windows, cattleSupport);
+    const onsiteIronwork = operational ? Math.max(0, farmstead?.ironwork ?? 0) : 0;
+    const inboundIronwork = operational
+      ? inboundIronworkByHolding.get(farmsteadId) ?? 0
+      : 0;
+    const plan = buildFarmsteadWorkPlanWithWindows(
+      fields,
+      workers,
+      windows,
+      cattleSupport,
+      onsiteIronwork + inboundIronwork,
+    );
     total.activeFields += plan.activeFields;
     total.pausedFields += plan.pausedFields;
     total.cattleSupportedFields += plan.cattleSupportedFields;
@@ -784,6 +850,30 @@ export function buildSettlementFarmPlan(
     if (manureShortfall > 0.05) {
       total.manureShortHoldings += 1;
       total.firstManureShortBuildingId ??= farmsteadId;
+    }
+    const toolIronworkRequired = operational ? plan.toolIronworkRequired : 0;
+    const toolIronworkReserveTarget = operational ? plan.toolIronworkReserveTarget : 0;
+    total.toolIronworkRequired += toolIronworkRequired;
+    total.toolIronworkReserveTarget += toolIronworkReserveTarget;
+    const toolCovered = Math.min(
+      toolIronworkReserveTarget,
+      onsiteIronwork + inboundIronwork,
+    );
+    const toolShortfall = Math.max(
+      0,
+      toolIronworkReserveTarget - toolCovered,
+    );
+    total.toolIronworkCovered += toolCovered;
+    total.toolIronworkShortfall += toolShortfall;
+    if (operational && toolIronworkReserveTarget > 1e-9) {
+      total.toolEligibleHoldings += 1;
+      if (farmToolsMaintained(onsiteIronwork)) {
+        total.toolMaintainedHoldings += 1;
+      }
+      if (toolShortfall > 0.01) {
+        total.toolShortHoldings += 1;
+        total.firstToolShortBuildingId ??= farmsteadId;
+      }
     }
     seedGrainByHolding.set(farmsteadId, plan.seedGrainRequired);
     seedBarleyByHolding.set(farmsteadId, plan.seedBarleyRequired);

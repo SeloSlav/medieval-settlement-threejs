@@ -21,6 +21,7 @@ import {
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
+import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 import {
   CLOTH_STOCKPILE_VISUAL_SEGMENTS,
   FLAX_STOCKPILE_VISUAL_SEGMENTS,
@@ -341,6 +342,7 @@ export function createThreshingBarnMesh(): THREE.Group {
     (segment, scale) => addFlaxBundle(segment, 0, 0, scale),
   );
   group.add(createManureStockpile('ThreshingManureStockpile', 5.35, 2.65));
+  group.add(createCivilianToolStockpile(new THREE.Vector3(-5.45, 0, 2.5), 0.22));
   // A low handcart and flails make the yard read as threshing rather than storage.
   addMesh(group, new THREE.BoxGeometry(2.5, 0.42, 1.45), timberMaterial('weathered'), new THREE.Vector3(3.1, 0.82, 4.65));
   addCartWheel(group, 1.82, 0.67, 4.65, 0.66);

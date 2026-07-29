@@ -958,6 +958,10 @@ mod tests {
             0.25,
         );
         assert_eq!(
+            directly_dispatched_processor_input_per_cycle("threshing_barn", "ironwork"),
+            super::CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+        );
+        assert_eq!(
             directly_dispatched_processor_input_per_cycle("marketplace", "pottery"),
             0.0,
             "the marketplace remains overflow after preservation buffers",

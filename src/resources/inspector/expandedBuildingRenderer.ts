@@ -1183,12 +1183,17 @@ function renderFarmsteadPlanning(
     building,
     context.worldQueries.getActiveDeliveryTrip(building),
   );
+  const inboundSupply = context.worldQueries.getInboundSupplyTrip(building);
+  const inboundIronwork = inboundSupply?.cargoKind === 'ironwork'
+    ? Math.max(0, inboundSupply.amount)
+    : 0;
   const plan = buildFarmsteadWorkPlan(
     fields,
     onsiteLabor,
     clock,
     sabbathObserved,
     cattleSupport,
+    Math.max(0, building.ironwork ?? 0) + inboundIronwork,
   );
   const storageCaps = buildingStorageCaps(building.kind);
   const grainRoom = Math.max(0, (storageCaps.grain ?? 0) - building.grain);
@@ -1202,7 +1207,6 @@ function renderFarmsteadPlanning(
   const seasonalRisk = plan.harvest.shortfallWorkerDays > 0.05
     || plan.spring.shortfallWorkerDays > 0.05
     || plan.autumn.shortfallWorkerDays > 0.05;
-  const inboundSupply = context.worldQueries.getInboundSupplyTrip(building);
   const inboundSeed = inboundSupply?.cargoKind === 'grain'
     ? Math.max(0, inboundSupply.amount)
     : 0;
@@ -1281,6 +1285,7 @@ function renderFarmsteadPlanning(
     <li><span>Barley seed</span><span>${Math.min(barley, plan.seedBarleyRequired).toFixed(1)} onsite${inboundBarleySeed > 0.05 ? ` + ${inboundBarleySeed.toFixed(1)} inbound` : ''} / ${plan.seedBarleyRequired.toFixed(1)} protected${barleySeedShortfall > 0.05 ? ` · still short ${barleySeedShortfall.toFixed(1)}` : ''}</span></li>
     <li><span>Field manure</span><span>${plan.manureApplied.toFixed(1)} spread + ${Math.max(0, building.manure ?? 0).toFixed(1)} onsite${inboundManure > 0.05 ? ` + ${inboundManure.toFixed(1)} inbound` : ''} / ${plan.manureRequired.toFixed(1)} cycle coverage${manureShortfall > 0.05 ? ` · short ${manureShortfall.toFixed(1)}` : ' · covered'}</span></li>
     <li><span>Manure allocation</span><span>Consumed only during ploughing · urgent fields claim the shared farmyard pile first</span></li>
+    <li><span>Seasonal tool reserve</span><span>${(Math.max(0, building.ironwork ?? 0) + inboundIronwork).toFixed(2)} onsite / inbound · ${plan.toolIronworkReserveTarget.toFixed(2)} target for ${plan.toolIronworkRequired.toFixed(2)} planned wear</span></li>
     <li><span>Exportable grain</span><span>${exportableGrain.toFixed(1)} after sowing reserve</span></li>
     <li><span>Exportable barley</span><span>${exportableBarley.toFixed(1)} after sowing reserve</span></li>
     <li><span>${clock.month === 9 ? 'Harvest remaining' : 'Harvest potential'}</span><span>${plan.expectedHarvest.toFixed(1)} bread grain · ${plan.expectedBarleyHarvest.toFixed(1)} barley</span></li>

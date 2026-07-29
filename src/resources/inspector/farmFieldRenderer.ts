@@ -1,4 +1,7 @@
-import { FARM_OPTIMAL_FIELD_AREA } from '../../generated/gameBalance.ts';
+import {
+  CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+  FARM_OPTIMAL_FIELD_AREA,
+} from '../../generated/gameBalance.ts';
 import { computeCattleFieldSupport } from '../../farming/cattleFieldSupport.ts';
 import {
   cropHarvestUnit,
@@ -32,6 +35,10 @@ import {
   fieldManureFertilityBonus,
   fieldManureRequirement,
 } from '../../farming/manurePlanning.ts';
+import {
+  farmToolThroughputMultiplier,
+  farmToolWorkerDayRunway,
+} from '../../economy/civilianToolPolicy.ts';
 
 const STAGE_LABEL = {
   ploughing: 'Ploughing',
@@ -91,8 +98,19 @@ export function renderFarmFieldInspector(
   const onsiteLabor = farmstead
     ? onsiteBuildingLabor(farmstead, context.worldQueries.getActiveDeliveryTrip(farmstead))
     : 0;
+  const toolThroughputMultiplier = farmToolThroughputMultiplier(
+    farmstead?.ironwork ?? 0,
+  );
+  const toolCoveredWorkerDays = Math.min(
+    remainingWorkerDays,
+    farmToolWorkerDayRunway(farmstead?.ironwork ?? 0),
+  );
+  const adjustedRemainingWorkerDays = toolCoveredWorkerDays
+    / CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
+    + remainingWorkerDays
+    - toolCoveredWorkerDays;
   const crewDays = farmstead && onsiteLabor > 0
-    ? remainingWorkerDays / onsiteLabor
+    ? adjustedRemainingWorkerDays / onsiteLabor
     : null;
   const active = Boolean(farmstead && onsiteLabor > 0 && field.priority > 0);
   const month = gameClock(context.gameState.tick).month;
@@ -162,6 +180,7 @@ export function renderFarmFieldInspector(
         : 'None · requires a top-two priority slot and healthy, supplied cattle within range'}</span></li>
       <li><span>Manure spread</span><span>${manureApplied.toFixed(1)} / ${manureRequired.toFixed(1)} this cycle · +${(manureBonus * 100).toFixed(1)} soil${field.stage === 'ploughing' ? ` · ${Math.max(0, farmstead?.manure ?? 0).toFixed(1)} waiting at farmstead` : ''}</span></li>
       <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${Math.round(farmstead.grain)} grain · ${Math.round(farmstead.manure ?? 0)} manure stored` : 'Missing'}</span></li>
+      <li><span>Field tools</span><span>${toolThroughputMultiplier > 1 ? `Maintained · ${Math.round((toolThroughputMultiplier - 1) * 100)}% faster field work` : 'Baseline hand tools · farmstead needs smith-forged ironwork for faster work'}</span></li>
       <li><span>Moisture</span><span>${Math.round(field.moisture * 100)}% · ${moistureFit}% crop fit</span></li>
       <li><span>Current-cycle soil</span><span>${Math.round(field.fertility * 100)}% → ${projectedFertility}% fertility</span></li>
       <li><span>Year 2 soil</span><span>${projectedFertility}% → ${Math.round(plannedFertility * 100)}% after ${cropLabel(field.nextCrop).toLowerCase()}</span></li>
