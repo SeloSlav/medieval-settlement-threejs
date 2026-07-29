@@ -49,6 +49,7 @@ import {
   type SettlementRoadProvisioning,
   WINTER_RESERVE_DAYS,
 } from '../../economy/settlementProvisioning.ts';
+import type { SettlementWelfare } from '../../economy/settlementWelfare.ts';
 import { computeSettlementFirewoodPlan } from '../../economy/settlementFirewood.ts';
 import {
   formatFreshFoodLoss,
@@ -210,6 +211,42 @@ import {
   buildingRoadAccessRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+
+export function renderSettlementWelfareRows(welfare: SettlementWelfare): string {
+  const welfareInspectButton = welfare.firstAttentionResidenceId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${welfare.firstAttentionResidenceId}" aria-label="Inspect highest-risk household">Inspect</button>`;
+  const decayInspectButton = welfare.firstDecayResidenceId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${welfare.firstDecayResidenceId}" aria-label="Inspect most decayed vacant home">Inspect</button>`;
+  const hungerStatus = [
+    welfare.hungryResidents > 0 ? `${welfare.hungryResidents} hungry` : null,
+    welfare.malnourishedResidents > 0
+      ? `${welfare.malnourishedResidents} malnourished`
+      : null,
+    welfare.starvingResidents > 0 ? `${welfare.starvingResidents} starving` : null,
+  ].filter(Boolean).join(' · ') || 'no hunger warning';
+  const comfortStatus = welfare.comfortWarningHouseholds > 0
+    ? ` · ${welfare.comfortWarningHouseholds} comfort-strained homes / ${welfare.migrationRiskHouseholds} at emigration risk`
+    : '';
+  const burialStatus = welfare.burialGrounds > 0
+    ? `${welfare.occupiedGraves} occupied + ${welfare.reservedGraves} reserved / ${welfare.graveCapacity} graves · ${welfare.openGraves} open`
+    : 'no consecrated burial ground';
+
+  return `
+    <li><span>Household health</span><span>${welfare.stableHouseholds} / ${welfare.activeHouseholds} occupied homes stable · ${hungerStatus}${comfortStatus}${welfareInspectButton}</span></li>
+    <li><span>Illness and remedies</span><span>${welfare.sickResidents} residents unable to work across ${welfare.sickHouseholds} homes · ${welfare.remedyStock.toFixed(1)} herbs / ${welfare.remedyDemandPerDay.toFixed(2)} per day · ${formatWelfareRunway(welfare.remedyRunwayDays)}${welfare.untreatedSickHouseholds > 0 ? ` · ${welfare.untreatedSickHouseholds} homes lack one treatment day` : ''}</span></li>
+    <li><span>Mortality and burial</span><span>${welfare.totalDeaths} deaths recorded · ${welfare.uncollectedBodiesAtHomes} bodies remain at homes (${welfare.waitingBodies} waiting, ${welfare.outboundEmptyCarts} empty carts outbound) · ${welfare.loadedBurialCarts} loaded carts inbound · ${burialStatus} · ${welfare.staffedGravediggers} chapel workers available</span></li>
+    <li><span>Vacant structures</span><span>${welfare.vacantSoundHomes} sound · ${welfare.neglectedHomes} neglected · ${welfare.dilapidatedHomes} dilapidated · ${welfare.ruinedHomes} ruins · ${welfare.activeDecayRepairs} active restorations${decayInspectButton}</span></li>
+  `;
+}
+
+function formatWelfareRunway(days: number): string {
+  if (!Number.isFinite(days)) return 'no current herb demand';
+  if (days < 1) return 'less than one treatment day';
+  if (days < 10) return `${days.toFixed(1)} treatment days`;
+  return `${Math.floor(days)} treatment days`;
+}
 
 function renderFrontierSecurityRows(
   security: SettlementSecurityState,
@@ -1984,6 +2021,7 @@ export function renderTownHallInspector(
       <li><span>Role</span><span>Settlement government, taxation, and economic ledger</span></li>
       <li><span>Treasury chest</span><span>${building.gold.toFixed(0)} gold secured here${inboundTreasuryGold > 1e-6 ? ` · ${inboundTreasuryGold.toFixed(0)} incoming by handcart` : ''}</span></li>
       <li><span>Population</span><span>${context.populationStats.total}</span></li>
+      ${renderSettlementWelfareRows(provisioning.welfare)}
       <li><span>Workforce</span><span>${context.populationStats.assigned} / ${context.populationStats.total} committed${context.populationStats.cartAssigned > 0 ? ` · ${context.populationStats.cartAssigned} reserved on carts outside building rosters` : ''} · ${context.populationStats.available} free · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
       <li><span>Sector staffing</span><span>${formatLaborSectorMix(laborPlan)}</span></li>
       <li><span>Staffing priorities</span><span>${formatStaffingPriorities(laborPlan)}</span></li>

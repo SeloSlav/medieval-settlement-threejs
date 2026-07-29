@@ -207,10 +207,58 @@
   animation: provision-alert-pulse 2.2s ease-in-out infinite;
 }
 
+.settlement-hud__welfare-alert {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 1px;
+  margin-top: 4px;
+  padding: 6px 7px;
+  border: 1px solid rgba(153, 145, 113, 0.52);
+  border-radius: 6px;
+  color: #e2d8bd;
+  background: rgba(55, 49, 39, 0.38);
+  cursor: help;
+}
+
+.settlement-hud__welfare-alert[hidden] {
+  display: none;
+}
+
+.settlement-hud__welfare-alert strong {
+  font-size: 10px;
+  letter-spacing: 0.035em;
+}
+
+.settlement-hud__welfare-alert span {
+  color: #c5b99e;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.settlement-hud__welfare-alert[data-level='watch'] {
+  border-color: rgba(190, 143, 89, 0.7);
+  color: #f0d2a6;
+  background: rgba(78, 50, 30, 0.4);
+}
+
+.settlement-hud__welfare-alert[data-level='critical'] {
+  border-color: rgba(196, 91, 71, 0.82);
+  color: #ffd0bd;
+  background: rgba(91, 31, 25, 0.46);
+  animation: welfare-alert-pulse 2.4s ease-in-out infinite;
+}
+
 @keyframes provision-alert-pulse {
   50% {
     border-color: rgba(244, 178, 91, 0.96);
     box-shadow: 0 0 10px rgba(184, 80, 34, 0.2);
+  }
+}
+
+@keyframes welfare-alert-pulse {
+  50% {
+    border-color: rgba(230, 136, 99, 0.98);
+    box-shadow: 0 0 10px rgba(175, 61, 45, 0.22);
   }
 }
 

@@ -38,6 +38,12 @@ import {
   fireDisabledBuildingIds,
   fireDisabledResidenceIds,
 } from '../fires/fireIncident.ts';
+import {
+  accumulateResidenceWelfare,
+  createSettlementWelfareAccumulator,
+  finalizeSettlementWelfare,
+  type SettlementWelfare,
+} from './settlementWelfare.ts';
 
 export const WINTER_RESERVE_DAYS = CALENDAR_DAYS_PER_MONTH * 3;
 export const PROVISION_WARNING_DAYS = 5;
@@ -99,6 +105,7 @@ export type SettlementProvisioning = {
   sabbathAleShortHomes: number;
   sabbathClothShortHomes: number;
   roadBranches: SettlementRoadProvisioning | null;
+  welfare: SettlementWelfare;
 };
 
 export type ProvisionLevel = 'none' | 'ready' | 'watch' | 'critical';
@@ -333,6 +340,7 @@ export function computeSettlementProvisioning(input: {
     : null;
   const fireDisabledBuildings = fireDisabledBuildingIds(state.fireIncidents.values());
   const fireDisabledResidences = fireDisabledResidenceIds(state.fireIncidents.values());
+  const welfareAccumulator = createSettlementWelfareAccumulator();
 
   const workdayFraction = Math.max(
     0,
@@ -363,6 +371,11 @@ export function computeSettlementProvisioning(input: {
   let sabbathAleShortHomes = 0;
   let sabbathClothShortHomes = 0;
   for (const residence of state.residences.values()) {
+    accumulateResidenceWelfare(
+      welfareAccumulator,
+      residence,
+      fireDisabledResidences.has(residence.id),
+    );
     if (fireDisabledResidences.has(residence.id)) {
       fireQuarantinedFirewoodStock += finiteStock(
         getNeedStock(residence.needs, 'firewood'),
@@ -697,6 +710,11 @@ export function computeSettlementProvisioning(input: {
         roadProvisionBranches,
         freshFoodSpoilageFractionPerDay,
       );
+  const welfare = finalizeSettlementWelfare(
+    welfareAccumulator,
+    state,
+    fireDisabledBuildings,
+  );
 
   return {
     foodConsumers,
@@ -763,6 +781,7 @@ export function computeSettlementProvisioning(input: {
     sabbathAleShortHomes,
     sabbathClothShortHomes,
     roadBranches,
+    welfare,
   };
 }
 

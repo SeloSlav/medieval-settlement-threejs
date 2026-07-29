@@ -29,6 +29,29 @@ An occupied herb-garden backyard produces stored remedies. A sick household
 uses those remedies automatically, recovering faster and suffering a lower
 mortality chance.
 
+## Settlement feedback
+
+The settlement HUD shows welfare only when an occupied household, body, burial
+queue, or unusable vacant structure needs attention. A watch becomes critical
+for starvation, a serious untreated outbreak, or a body that has no available
+grave or has remained at a home for at least one in-game day.
+
+The Town Hall ledger always shows:
+
+- occupied homes without a current health or comfort warning;
+- hungry, malnourished, starving, sick, and comfort-strained households;
+- stored herbal remedies, daily treatment demand, and homes missing one
+  treatment day;
+- bodies still at homes, empty carts on their way to collect them, loaded carts
+  returning, and occupied, reserved, and open graves;
+- sound, neglected, dilapidated, ruined, and actively restoring vacant homes.
+
+Its **Inspect** actions select the highest-risk household and the most decayed
+vacant home. Equal risks use stable server-id order, so table iteration and a
+reconnect cannot change the suggested target. The summary shares the existing
+settlement-provisioning residence scan rather than adding a second per-snapshot
+pass.
+
 ## Death and burial
 
 Each death reduces the residence population by one and creates one persistent

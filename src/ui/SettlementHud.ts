@@ -78,6 +78,10 @@ const SETTLEMENT_HUD_HTML = `
         <strong data-provision-label>Winter stores</strong>
         <span data-provision-detail>Awaiting household ledgers</span>
       </div>
+      <div class="settlement-hud__welfare-alert" data-welfare-alert hidden>
+        <strong data-welfare-label>Household welfare</strong>
+        <span data-welfare-detail>Awaiting parish reports</span>
+      </div>
       <div class="settlement-hud__speed" role="group" aria-label="Simulation speed">
         ${GAME_SPEEDS.map((speed) => `
           <button
@@ -294,6 +298,9 @@ export class SettlementHud {
   private readonly provisionAlert: HTMLElement;
   private readonly provisionLabel: HTMLElement;
   private readonly provisionDetail: HTMLElement;
+  private readonly welfareAlert: HTMLElement;
+  private readonly welfareLabel: HTMLElement;
+  private readonly welfareDetail: HTMLElement;
   private readonly foodStat: HTMLElement;
   private readonly firewoodStat: HTMLElement;
   private readonly goldStat: HTMLElement;
@@ -327,6 +334,9 @@ export class SettlementHud {
     this.provisionAlert = this.mustElement('[data-provision-alert]');
     this.provisionLabel = this.mustElement('[data-provision-label]');
     this.provisionDetail = this.mustElement('[data-provision-detail]');
+    this.welfareAlert = this.mustElement('[data-welfare-alert]');
+    this.welfareLabel = this.mustElement('[data-welfare-label]');
+    this.welfareDetail = this.mustElement('[data-welfare-detail]');
     this.foodStat = this.mustElement('[data-resource="food"]');
     this.firewoodStat = this.mustElement('[data-resource="firewood"]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
@@ -493,6 +503,7 @@ export class SettlementHud {
   }
 
   setProvisioningState(provisioning: SettlementProvisioning, month: number): void {
+    this.setWelfareState(provisioning);
     const level = settlementProvisionLevel(provisioning, month);
     const show = shouldShowProvisioning(provisioning, month);
     const winterRelevant = month >= 9 || month <= 2;
@@ -635,10 +646,85 @@ export class SettlementHud {
       : "Spendable civic gold is secured at the founders' lockbox, reclamation chests, or Town Hall treasury. Parish and monastery funds remain separate; local receipts and moving lockboxes appear until unloading.";
   }
 
+  private setWelfareState(provisioning: SettlementProvisioning): void {
+    const welfare = provisioning.welfare;
+    const show = welfare.level === 'watch' || welfare.level === 'critical';
+    this.welfareAlert.hidden = !show;
+    this.welfareAlert.dataset.level = welfare.level;
+    this.panel.classList.toggle('has-welfare-warning', welfare.level === 'watch');
+    this.panel.classList.toggle('has-welfare-critical', welfare.level === 'critical');
+
+    this.welfareLabel.textContent = welfare.starvingResidents > 0
+      ? 'Households starving'
+      : welfare.uncollectedBodiesAtHomes > 0
+        && (welfare.openGraves <= 0 || welfare.oldestUncollectedBodyDays >= 1)
+        ? 'Burial response blocked'
+        : welfare.malnourishedResidents > 0
+          ? 'Household health'
+          : welfare.sickResidents > 0
+            ? 'Illness watch'
+            : welfare.migrationRiskHouseholds > 0
+              ? 'Household strain'
+              : welfare.dilapidatedHomes + welfare.ruinedHomes > 0
+                ? 'Vacant homes decaying'
+                : 'Welfare watch';
+    this.welfareDetail.textContent = [
+      welfare.starvingResidents > 0
+        ? `${welfare.starvingResidents} starving`
+        : null,
+      welfare.malnourishedResidents > 0
+        ? `${welfare.malnourishedResidents} malnourished`
+        : welfare.hungryResidents > 0
+          ? `${welfare.hungryResidents} hungry`
+          : null,
+      welfare.sickResidents > 0
+        ? `${welfare.sickResidents} sick`
+        : null,
+      welfare.sickResidents > 0
+        ? `herbs ${formatWelfareRunway(welfare.remedyRunwayDays)}`
+        : null,
+      welfare.uncollectedBodiesAtHomes > 0
+        ? `${welfare.uncollectedBodiesAtHomes} at ${welfare.uncollectedBodiesAtHomes === 1 ? 'a home' : 'homes'}`
+        : null,
+      welfare.uncollectedBodiesAtHomes > 0 || welfare.burialGrounds > 0
+        ? `${welfare.openGraves} graves open`
+        : null,
+      welfare.dilapidatedHomes + welfare.ruinedHomes > 0
+        ? `${welfare.dilapidatedHomes + welfare.ruinedHomes} homes block resettlement`
+        : null,
+    ].filter(Boolean).join(' · ');
+    this.welfareAlert.dataset.tooltip = [
+      `${welfare.stableResidents} / ${welfare.activeResidents} residents live in households without a current health or comfort warning.`,
+      welfare.sickResidents > 0
+        ? `${welfare.sickResidents} residents cannot work while ill. Household herb stores hold ${welfare.remedyStock.toFixed(1)} remedies against ${welfare.remedyDemandPerDay.toFixed(2)} per day; ${welfare.untreatedSickHouseholds} sick homes lack a full day of treatment.`
+        : 'No resident is currently unable to work through illness.',
+      welfare.uncollectedBodiesAtHomes > 0
+        ? `${welfare.uncollectedBodiesAtHomes} bodies still remain at homes and add local disease pressure. ${welfare.outboundEmptyCarts} empty burial carts are outbound and ${welfare.loadedBurialCarts} loaded carts are returning.`
+        : 'No body currently remains at a household.',
+      welfare.burialGrounds > 0
+        ? `${welfare.occupiedGraves} graves are occupied, ${welfare.reservedGraves} reserved by moving carts, and ${welfare.openGraves} remain open across ${welfare.burialGrounds} grounds.`
+        : 'No consecrated burial ground has been laid out.',
+      welfare.comfortWarningHouseholds > 0
+        ? `${welfare.comfortWarningHouseholds} households have sustained comfort shortages; ${welfare.migrationRiskHouseholds} have reached emigration risk.`
+        : 'No household is nearing comfort-driven emigration.',
+      welfare.dilapidatedHomes + welfare.ruinedHomes > 0
+        ? `${welfare.dilapidatedHomes} vacant homes are dilapidated and ${welfare.ruinedHomes} are ruins; both block resettlement until physically restored.`
+        : 'No vacant structure currently blocks resettlement through decay.',
+      'Open the Town Hall ledger to inspect the highest-risk household and the first decaying vacant home.',
+    ].join(' · ');
+  }
+
   clearProvisioningState(): void {
     this.provisionAlert.hidden = true;
     this.provisionAlert.dataset.level = 'none';
-    this.panel.classList.remove('has-provision-warning', 'has-provision-critical');
+    this.welfareAlert.hidden = true;
+    this.welfareAlert.dataset.level = 'none';
+    this.panel.classList.remove(
+      'has-provision-warning',
+      'has-provision-critical',
+      'has-welfare-warning',
+      'has-welfare-critical',
+    );
   }
 
   setConflictEnabled(enabled: boolean): void {
@@ -698,4 +784,11 @@ export class SettlementHud {
     if (!element) throw new Error(`Missing settlement HUD element ${selector}`);
     return element;
   }
+}
+
+function formatWelfareRunway(days: number): string {
+  if (!Number.isFinite(days)) return 'not needed';
+  if (days < 1) return '<1d';
+  if (days < 10) return `${days.toFixed(1)}d`;
+  return `${Math.floor(days)}d`;
 }
