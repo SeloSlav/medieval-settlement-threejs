@@ -21,6 +21,8 @@ import {
   WEAVER_INPUT_POLICY_AUTO,
   WEAVER_INPUT_POLICY_FLAX_FIRST,
   WEAVER_INPUT_POLICY_WOOL_FIRST,
+  weaverFibreDeliveryPreferenceLabel,
+  weaverFibreDeliveryPreferenceRank,
   weaverUsesFlax,
 } from '../src/economy/weaverInputPolicy.ts';
 import {
@@ -140,6 +142,31 @@ assert.equal(createDefaultNeeds().cloth.stock, 0);
 assert.equal(normalizeWeaverInputPolicy(undefined), WEAVER_INPUT_POLICY_AUTO);
 assert.equal(normalizeWeaverInputPolicy(99), WEAVER_INPUT_POLICY_AUTO);
 assert.equal(
+  weaverFibreDeliveryPreferenceRank(WEAVER_INPUT_POLICY_WOOL_FIRST, 'wool'),
+  0,
+);
+assert.equal(
+  weaverFibreDeliveryPreferenceRank(WEAVER_INPUT_POLICY_FLAX_FIRST, 'flax'),
+  0,
+);
+assert.equal(
+  weaverFibreDeliveryPreferenceRank(WEAVER_INPUT_POLICY_AUTO, 'wool'),
+  1,
+);
+assert.equal(
+  weaverFibreDeliveryPreferenceRank(WEAVER_INPUT_POLICY_WOOL_FIRST, 'flax'),
+  2,
+);
+assert.equal(weaverFibreDeliveryPreferenceRank(99, 'flax'), 1);
+assert.equal(
+  weaverFibreDeliveryPreferenceLabel(WEAVER_INPUT_POLICY_WOOL_FIRST, 'wool'),
+  'Wool first match',
+);
+assert.equal(
+  weaverFibreDeliveryPreferenceLabel(WEAVER_INPUT_POLICY_WOOL_FIRST, 'flax'),
+  'Fallback route',
+);
+assert.equal(
   weaverUsesFlax(weaver({
     wool: WEAVER_WOOL_PER_CYCLE,
     flax: WEAVER_FLAX_PER_CYCLE * 2,
@@ -215,7 +242,8 @@ const policyPanel = renderProcessorOutputTargetPanel(weaver());
 assert.match(policyPanel ?? '', /data-weaver-input-policy="0"[^>]*disabled/);
 assert.match(policyPanel ?? '', /data-weaver-input-policy="1"/);
 assert.match(policyPanel ?? '', /data-weaver-input-policy="2"/);
-assert.match(policyPanel ?? '', /ready alternate route remains a fallback/);
+assert.match(policyPanel ?? '', /Matching specialization then wins a contested working-buffer cart/);
+assert.match(policyPanel ?? '', /Covered buffers and ready alternate recipes remain fallbacks/);
 
 const emptyVisual = buildingMarkerSignatures(
   new Map([['weaver-1', weaver()]]),
@@ -776,6 +804,10 @@ assert.match(expandedEconomy, /CommodityKind::Wool, WEAVER_WOOL_PER_CYCLE/);
 assert.match(
   expandedEconomy,
   /weaver_uses_flax\([\s\S]*building\.weaver_input_policy[\s\S]*WEAVER_FLAX_WATER_PER_CYCLE/,
+);
+assert.match(
+  expandedEconomy,
+  /weaver_fibre_delivery_preference_rank\([\s\S]*target\.weaver_input_policy/,
 );
 assert.match(
   expandedEconomy,

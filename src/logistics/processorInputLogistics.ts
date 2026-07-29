@@ -11,6 +11,7 @@ import {
   type StaffingPriority,
 } from '../economy/staffingPriority.ts';
 import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
+import { weaverFibreDeliveryPreferenceRank } from '../economy/weaverInputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
 
@@ -32,6 +33,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'constructionComplete'
   | 'constructionPriority'
   | 'processorOutputTargetPercent'
+  | 'weaverInputPolicy'
   | 'flour'
   | 'food'
   | 'wool'
@@ -46,6 +48,7 @@ export type RoutedProcessorInputDestination<T extends ProcessorInputDestinationL
   runwayCycles: number;
   routeDistance: number;
   workPriority: StaffingPriority;
+  inputPreferenceRank: number;
 };
 
 const TARGET_KIND: Record<DirectProcessorInputCommodity, BuildingKind> = {
@@ -90,9 +93,10 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
 /**
  * Mirrors source-side mill, granary/swine, and sheep-holding dispatch. Active
  * processors receive their selected stock-policy working buffers by work
- * priority, then lowest runway and route. Once those buffers are covered,
- * nearest storage overflow
- * resumes without letting a high tier monopolize full warehouses.
+ * priority. Equal-tier looms then route matching fibres to their selected
+ * specialization before lowest runway and route. Once those buffers are
+ * covered, nearest storage overflow resumes without letting a high tier
+ * monopolize full warehouses.
  */
 export function selectDirectProcessorInputTarget<
   T extends ProcessorInputDestinationLike,
@@ -139,6 +143,10 @@ export function selectDirectProcessorInputTarget<
       runwayCycles: processorInputRunwayCycles(stock, perCycle),
       routeDistance,
       workPriority: normalizeStaffingPriority(target.constructionPriority),
+      inputPreferenceRank: target.kind === 'weaver'
+        && (commodity === 'wool' || commodity === 'flax')
+        ? weaverFibreDeliveryPreferenceRank(target.weaverInputPolicy, commodity)
+        : 0,
     };
     if (best == null || processorInputCandidatePrecedes(candidate, best)) {
       best = candidate;
@@ -157,6 +165,9 @@ function processorInputCandidatePrecedes<T extends ProcessorInputDestinationLike
   if (candidate.duty === 'working-buffer') {
     if (candidate.workPriority !== selected.workPriority) {
       return candidate.workPriority > selected.workPriority;
+    }
+    if (candidate.inputPreferenceRank !== selected.inputPreferenceRank) {
+      return candidate.inputPreferenceRank < selected.inputPreferenceRank;
     }
     if (Math.abs(candidate.runwayCycles - selected.runwayCycles) > 1e-6) {
       return candidate.runwayCycles < selected.runwayCycles;

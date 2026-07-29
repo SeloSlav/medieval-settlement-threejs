@@ -356,16 +356,19 @@ pub fn processor_input_dispatch_duty(
 
 /// Direct producer carts first restore operating processors to a small working
 /// buffer. Within that duty, completed-building work priority wins before
-/// cycle runway, road distance, and stable building id. Once every active
-/// buffer is covered, ordinary nearest-route overflow behavior resumes.
+/// input preference, cycle runway, road distance, and stable building id.
+/// Once every active buffer is covered, ordinary nearest-route overflow
+/// behavior resumes.
 pub fn compare_processor_input_dispatch_candidates(
     a_duty: ProcessorInputDispatchDuty,
     a_work_priority: u8,
+    a_input_preference_rank: u8,
     a_runway_cycles: f64,
     a_distance: f64,
     a_building_id: u64,
     b_duty: ProcessorInputDispatchDuty,
     b_work_priority: u8,
+    b_input_preference_rank: u8,
     b_runway_cycles: f64,
     b_distance: f64,
     b_building_id: u64,
@@ -376,12 +379,18 @@ pub fn compare_processor_input_dispatch_candidates(
         } else {
             Ordering::Equal
         };
+        let input_preference_order = if a_duty == ProcessorInputDispatchDuty::WorkingBuffer {
+            a_input_preference_rank.cmp(&b_input_preference_rank)
+        } else {
+            Ordering::Equal
+        };
         let runway_order = if a_duty == ProcessorInputDispatchDuty::WorkingBuffer {
             a_runway_cycles.total_cmp(&b_runway_cycles)
         } else {
             Ordering::Equal
         };
         work_priority_order
+            .then(input_preference_order)
             .then(runway_order)
             .then_with(|| a_distance.total_cmp(&b_distance))
             .then_with(|| a_building_id.cmp(&b_building_id))
@@ -392,6 +401,7 @@ pub fn select_processor_input_dispatch_candidate<T>(
     candidates: impl IntoIterator<Item = T>,
     duty_for: impl Fn(&T) -> ProcessorInputDispatchDuty,
     work_priority_for: impl Fn(&T) -> u8,
+    input_preference_for: impl Fn(&T) -> u8,
     runway_for: impl Fn(&T) -> f64,
     distance_for: impl Fn(&T) -> f64,
     building_id_for: impl Fn(&T) -> u64,
@@ -400,11 +410,13 @@ pub fn select_processor_input_dispatch_candidate<T>(
         compare_processor_input_dispatch_candidates(
             duty_for(a),
             work_priority_for(a),
+            input_preference_for(a),
             runway_for(a),
             distance_for(a),
             building_id_for(a),
             duty_for(b),
             work_priority_for(b),
+            input_preference_for(b),
             runway_for(b),
             distance_for(b),
             building_id_for(b),
@@ -686,11 +698,13 @@ mod tests {
             compare_processor_input_dispatch_candidates(
                 ProcessorInputDispatchDuty::WorkingBuffer,
                 3,
+                2,
                 2.5,
                 100.0,
                 9,
                 ProcessorInputDispatchDuty::WorkingBuffer,
                 1,
+                0,
                 0.0,
                 5.0,
                 1,
@@ -702,17 +716,37 @@ mod tests {
             compare_processor_input_dispatch_candidates(
                 ProcessorInputDispatchDuty::WorkingBuffer,
                 1,
+                2,
                 2.5,
                 100.0,
                 9,
                 ProcessorInputDispatchDuty::WorkshopOverflow,
                 3,
+                0,
                 0.0,
                 5.0,
                 1,
             ),
             Ordering::Less,
             "an active working buffer must beat warehouse overflow at any tier"
+        );
+        assert_eq!(
+            compare_processor_input_dispatch_candidates(
+                ProcessorInputDispatchDuty::WorkingBuffer,
+                2,
+                0,
+                2.5,
+                100.0,
+                9,
+                ProcessorInputDispatchDuty::WorkingBuffer,
+                2,
+                2,
+                0.0,
+                5.0,
+                1,
+            ),
+            Ordering::Less,
+            "a matching fibre preference must beat runway and route within one work tier"
         );
     }
 
@@ -729,6 +763,7 @@ mod tests {
                         ProcessorInputDispatchDuty::WorkshopOverflow
                     },
                     2_u8,
+                    (building_id % 3) as u8,
                     (building_id % 7) as f64,
                     (100_000 - building_id) as f64,
                 )
@@ -737,6 +772,7 @@ mod tests {
             |candidate| candidate.2,
             |candidate| candidate.3,
             |candidate| candidate.4,
+            |candidate| candidate.5,
             |candidate| candidate.0,
         )
         .expect("a direct processor-input destination should be selected");

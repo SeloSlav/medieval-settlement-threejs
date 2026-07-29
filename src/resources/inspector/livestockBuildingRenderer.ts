@@ -13,6 +13,7 @@ import {
 import { projectLivestockFodderHolding } from '../../economy/livestockFodder.ts';
 import { formatProvisionRunway } from '../../economy/settlementProvisioning.ts';
 import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
+import { weaverFibreDeliveryPreferenceLabel } from '../../economy/weaverInputPolicy.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
   CATTLE_MAX_FERTILIZED_FIELDS,
@@ -147,7 +148,7 @@ export function renderLivestockBuildingInspector(
     ? 'No wool stored'
     : nextWoolDispatch
       ? nextWoolDispatch.duty === 'working-buffer'
-        ? `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · ${staffingPriorityLabel(nextWoolDispatch.workPriority)} priority · ${(nextWoolDispatch.target.wool ?? 0).toFixed(1)} / ${nextWoolDispatch.desiredStock.toFixed(1)} wool`
+        ? `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · ${staffingPriorityLabel(nextWoolDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(nextWoolDispatch.target.weaverInputPolicy, 'wool')} · ${(nextWoolDispatch.target.wool ?? 0).toFixed(1)} / ${nextWoolDispatch.desiredStock.toFixed(1)} wool`
         : `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · active buffers covered · nearest overflow route`
       : 'No road-linked weaver can receive wool';
   const statusText = !herd

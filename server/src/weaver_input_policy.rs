@@ -20,6 +20,19 @@ pub fn normalize_weaver_input_policy(policy: u8) -> u8 {
     }
 }
 
+/// Lower ranks win when equal-priority active looms compete for one raw-fibre
+/// cart. Automatic looms remain a neutral middle pool and the opposite
+/// specialization remains eligible as a fallback.
+pub fn weaver_fibre_delivery_preference_rank(policy: u8, flax: bool) -> u8 {
+    match normalize_weaver_input_policy(policy) {
+        WEAVER_INPUT_POLICY_AUTO => 1,
+        WEAVER_INPUT_POLICY_WOOL_FIRST if !flax => 0,
+        WEAVER_INPUT_POLICY_FLAX_FIRST if flax => 0,
+        WEAVER_INPUT_POLICY_WOOL_FIRST | WEAVER_INPUT_POLICY_FLAX_FIRST => 2,
+        _ => unreachable!("weaver input policy is normalized"),
+    }
+}
+
 /// A preference never stalls a stocked loom: the selected fibre is used when
 /// it can complete a cycle, then the alternate route may keep the crew
 /// productive. With neither route ready, the preferred route remains visible
@@ -52,8 +65,9 @@ pub fn weaver_uses_flax(
 #[cfg(test)]
 mod tests {
     use super::{
-        is_valid_weaver_input_policy, normalize_weaver_input_policy, weaver_uses_flax,
-        WEAVER_INPUT_POLICY_AUTO, WEAVER_INPUT_POLICY_FLAX_FIRST, WEAVER_INPUT_POLICY_WOOL_FIRST,
+        is_valid_weaver_input_policy, normalize_weaver_input_policy,
+        weaver_fibre_delivery_preference_rank, weaver_uses_flax, WEAVER_INPUT_POLICY_AUTO,
+        WEAVER_INPUT_POLICY_FLAX_FIRST, WEAVER_INPUT_POLICY_WOOL_FIRST,
     };
 
     fn uses_flax(policy: u8, wool: f64, flax: f64, water: f64) -> bool {
@@ -90,5 +104,26 @@ mod tests {
             assert!(is_valid_weaver_input_policy(policy));
         }
         assert!(!is_valid_weaver_input_policy(3));
+    }
+
+    #[test]
+    fn fibre_delivery_ranks_match_specialized_looms_without_disabling_fallback() {
+        assert_eq!(
+            weaver_fibre_delivery_preference_rank(WEAVER_INPUT_POLICY_WOOL_FIRST, false),
+            0
+        );
+        assert_eq!(
+            weaver_fibre_delivery_preference_rank(WEAVER_INPUT_POLICY_FLAX_FIRST, true),
+            0
+        );
+        assert_eq!(
+            weaver_fibre_delivery_preference_rank(WEAVER_INPUT_POLICY_AUTO, false),
+            1
+        );
+        assert_eq!(
+            weaver_fibre_delivery_preference_rank(WEAVER_INPUT_POLICY_WOOL_FIRST, true),
+            2
+        );
+        assert_eq!(weaver_fibre_delivery_preference_rank(99, true), 1);
     }
 }

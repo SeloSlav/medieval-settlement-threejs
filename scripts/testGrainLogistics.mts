@@ -32,6 +32,11 @@ import {
   granaryProtectedGrain,
   normalizeGranaryGrainReserve,
 } from '../src/economy/granaryPolicy.ts';
+import {
+  WEAVER_INPUT_POLICY_AUTO,
+  WEAVER_INPUT_POLICY_FLAX_FIRST,
+  WEAVER_INPUT_POLICY_WOOL_FIRST,
+} from '../src/economy/weaverInputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
 const expandedSimulation = readFileSync(
@@ -413,6 +418,97 @@ assert.equal(
   highPriorityWeaver.id,
   'annual fleece should follow the same visible work-priority tiers',
 );
+const woolFirstWeaver = {
+  ...processorInputDestination('wool-first', 'weaver', 80, 0),
+  weaverInputPolicy: WEAVER_INPUT_POLICY_WOOL_FIRST,
+};
+const flaxFirstWeaver = {
+  ...processorInputDestination('flax-first', 'weaver', 5, 0),
+  weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
+};
+const automaticWeaver = {
+  ...processorInputDestination('automatic', 'weaver', 2, 0),
+  weaverInputPolicy: WEAVER_INPUT_POLICY_AUTO,
+};
+const specializedWoolDispatch = selectDirectProcessorInputTarget(
+  [flaxFirstWeaver, automaticWeaver, woolFirstWeaver],
+  'pastoral-farmstead',
+  'wool',
+  (target) => target.x,
+);
+assert.equal(
+  specializedWoolDispatch?.target.id,
+  woolFirstWeaver.id,
+  'equal-priority fleece carts should replenish a wool-first loom before nearer neutral or flax-first looms',
+);
+assert.equal(specializedWoolDispatch?.inputPreferenceRank, 0);
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [woolFirstWeaver, automaticWeaver, flaxFirstWeaver],
+    'farmstead',
+    'flax',
+    (target) => target.x,
+  )?.target.id,
+  flaxFirstWeaver.id,
+  'equal-priority flax carts should replenish a flax-first loom',
+);
+const highPriorityFlaxFirstWeaver = {
+  ...flaxFirstWeaver,
+  id: 'high-priority-flax-first',
+  constructionPriority: 3,
+};
+const lowPriorityWoolFirstWeaver = {
+  ...woolFirstWeaver,
+  id: 'low-priority-wool-first',
+  constructionPriority: 1,
+};
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [lowPriorityWoolFirstWeaver, highPriorityFlaxFirstWeaver],
+    'pastoral-farmstead',
+    'wool',
+    (target) => target.x,
+  )?.target.id,
+  highPriorityFlaxFirstWeaver.id,
+  'explicit work priority should still override loom specialization',
+);
+const bufferedWoolFirstWeaver = {
+  ...woolFirstWeaver,
+  id: 'buffered-wool-first',
+  wool: 9,
+};
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [bufferedWoolFirstWeaver, flaxFirstWeaver],
+    'pastoral-farmstead',
+    'wool',
+    (target) => target.x,
+  )?.target.id,
+  flaxFirstWeaver.id,
+  'an uncovered fallback loom must receive wool after the matching working buffer is covered',
+);
+const idleWoolFirstWeaver = {
+  ...woolFirstWeaver,
+  id: 'idle-wool-first',
+  x: 80,
+  assignedLabor: 0,
+};
+const idleNearFlaxFirstWeaver = {
+  ...flaxFirstWeaver,
+  id: 'idle-near-flax-first',
+  x: 5,
+  assignedLabor: 0,
+};
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [idleWoolFirstWeaver, idleNearFlaxFirstWeaver],
+    'pastoral-farmstead',
+    'wool',
+    (target) => target.x,
+  )?.target.id,
+  idleNearFlaxFirstWeaver.id,
+  'last-resort workshop overflow should keep using the shortest road regardless of specialization',
+);
 const highPrioritySmokehouse = processorInputDestination('14', 'smokehouse', 50, 3, 1, 3);
 const lowPrioritySmokehouse = processorInputDestination('13', 'smokehouse', 5, 0, 1, 1);
 assert.equal(
@@ -699,6 +795,7 @@ assert.match(
   'market-accessible grain must exclude the protected granary floor',
 );
 assert.match(worldQueries, /getNextDirectProcessorInputDispatch/);
+assert.match(worldQueries, /getNextFarmFlaxDispatch/);
 assert.match(worldQueries, /selectDirectProcessorInputTarget/);
 assert.match(worldQueries, /private \*fireEnabledBuildings/);
 

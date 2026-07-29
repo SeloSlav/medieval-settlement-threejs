@@ -133,3 +133,6 @@ pub mod worksite_stall_policy;
 
 #[path = "../../src/supply_policy.rs"]
 pub mod supply_policy;
+
+#[path = "../../src/weaver_input_policy.rs"]
+pub mod weaver_input_policy;

@@ -1042,6 +1042,18 @@ export class WorldQueries {
     return this.getNextDirectProcessorInputDispatch(farmstead, 'barley');
   }
 
+  getNextFarmFlaxDispatch(
+    farmstead: BuildingState,
+  ): RoutedProcessorInputDestination<BuildingState> | null {
+    if (
+      farmstead.kind !== 'threshing_barn'
+      || (farmstead.flax ?? 0) <= 1e-6
+    ) {
+      return null;
+    }
+    return this.getNextDirectProcessorInputDispatch(farmstead, 'flax');
+  }
+
   getClaimedResidencesForSpecialtySupplier(
     supplier: BuildingState,
     needKind: SpecialtyNeedKind,

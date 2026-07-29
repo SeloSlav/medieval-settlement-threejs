@@ -79,7 +79,9 @@ use crate::supply_policy::{
     GRAIN_PROCESSOR_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, Residence};
-use crate::weaver_input_policy::weaver_uses_flax;
+use crate::weaver_input_policy::{
+    weaver_fibre_delivery_preference_rank, weaver_uses_flax,
+};
 
 struct RoutedBuilding {
     building: Building,
@@ -96,6 +98,7 @@ struct RoutedProcessorInputTarget {
     building: Building,
     distance: f64,
     duty: ProcessorInputDispatchDuty,
+    input_preference_rank: u8,
     runway_cycles: f64,
     desired_stock: f64,
 }
@@ -1937,18 +1940,35 @@ fn dispatch_to_building_where_limited(
                 } else {
                     building_commodity_cap(&target.kind, commodity)
                 };
+                let input_preference_rank = if target.kind == "weaver" {
+                    match commodity {
+                        CommodityKind::Wool => weaver_fibre_delivery_preference_rank(
+                            target.weaver_input_policy,
+                            false,
+                        ),
+                        CommodityKind::Flax => weaver_fibre_delivery_preference_rank(
+                            target.weaver_input_policy,
+                            true,
+                        ),
+                        _ => 0,
+                    }
+                } else {
+                    0
+                };
                 network
                     .road_path_distance(source.x, source.z, target.x, target.z)
                     .map(|distance| RoutedProcessorInputTarget {
                         building: target,
                         distance,
                         duty,
+                        input_preference_rank,
                         runway_cycles: processor_input_runway_cycles(stock, per_cycle),
                         desired_stock,
                     })
             }),
         |candidate| candidate.duty,
         |candidate| candidate.building.construction_priority,
+        |candidate| candidate.input_preference_rank,
         |candidate| candidate.runway_cycles,
         |candidate| candidate.distance,
         |candidate| candidate.building.id,

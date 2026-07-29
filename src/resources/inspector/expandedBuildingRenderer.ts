@@ -102,6 +102,7 @@ import { civicReceiptCollectionPlan } from '../../economy/civicReceipts.ts';
 import {
   normalizeWeaverInputPolicy,
   WEAVER_INPUT_POLICY_PRESETS,
+  weaverFibreDeliveryPreferenceLabel,
 } from '../../economy/weaverInputPolicy.ts';
 
 const PROCESS: Record<string, string> = {
@@ -247,12 +248,9 @@ function outboundTripTarget(
   seedPlan: SeedGrainSourceCoveragePlan | null = null,
 ): { id?: string; x: number; z: number } | null {
   if (building.kind === 'threshing_barn') {
-    return context.worldQueries.getNextFarmGrainDispatch(building)?.target
+    return context.worldQueries.getNextFarmFlaxDispatch(building)?.target
+      ?? context.worldQueries.getNextFarmGrainDispatch(building)?.target
       ?? context.worldQueries.getNextFarmBarleyDispatch(building)?.target
-      ?? context.worldQueries.getNextDirectProcessorInputDispatch(
-        building,
-        'flax',
-      )?.target
       ?? null;
   }
   if (building.kind === 'watermill') {
@@ -417,9 +415,16 @@ function renderLogisticsRows(
   const flourDispatch = building.kind === 'watermill'
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'flour')
     : null;
+  const flaxDispatch = building.kind === 'threshing_barn'
+    ? context.worldQueries.getNextFarmFlaxDispatch(building)
+    : null;
   const destination = seedHaulUsesHoldingCrew
     ? 'Least-covered staffed farmstead, then shorter road'
-    : flourDispatch
+    : flaxDispatch
+      ? flaxDispatch.duty === 'working-buffer'
+        ? `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · ${staffingPriorityLabel(flaxDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(flaxDispatch.target.weaverInputPolicy, 'flax')} · ${(flaxDispatch.target.flax ?? 0).toFixed(1)} / ${flaxDispatch.desiredStock.toFixed(1)} flax`
+        : `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · active loom buffers covered · nearest overflow route`
+      : flourDispatch
       ? flourDispatch.duty === 'working-buffer'
         ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${staffingPriorityLabel(flourDispatch.workPriority)} priority · ${flourDispatch.target.flour.toFixed(1)} / ${flourDispatch.desiredStock.toFixed(1)} flour · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
         : `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · overflow after active bakery buffers · shortest road`
@@ -1124,11 +1129,11 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       : 'Production paused at target';
   const weaverInputPolicy = building.kind === 'weaver'
     ? `
-      <p class="resource-inspector-note">Fibre preference · decides which complete onsite recipe the loom consumes first.</p>
+      <p class="resource-inspector-note">Fibre preference · steers matching raw-fibre carts between equal-priority active looms, then decides which complete onsite recipe is consumed first.</p>
       <div class="resource-action-row">${WEAVER_INPUT_POLICY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-weaver-input-policy="${preset.policy}" title="${preset.hint}" ${normalizeWeaverInputPolicy(building.weaverInputPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">A ready alternate route remains a fallback so the crew does not idle. Wool avoids a water haul; flax turns planned field fibre and well capacity into cloth while preserving annual fleece.</p>
+      <p class="inspector-action-panel__hint">Work priority still wins first. Matching specialization then wins a contested working-buffer cart; Auto forms the neutral middle pool. Covered buffers and ready alternate recipes remain fallbacks so neither carts nor crews deadlock. Wool avoids a water haul; flax turns planned field fibre and well capacity into cloth while preserving annual fleece.</p>
     `
     : '';
   return `
