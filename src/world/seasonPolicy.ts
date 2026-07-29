@@ -54,6 +54,8 @@ export type EnvironmentState = {
   freshFoodSpoilageFractionPerDay: number;
   roadTravelSpeedMultiplier: number;
   watermillThroughputMultiplier: number;
+  /** Riverbank digging pace after saturated, hardened, or frozen ground. */
+  clayPitThroughputMultiplier: number;
 };
 
 export type NextDayEnvironmentOutlook = {
@@ -72,6 +74,17 @@ export function watermillThroughputForWeather(weather: WeatherKind): number {
   if (weather === 'rain') return SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER;
   if (weather === 'drought') return DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER;
   if (weather === 'frost') return WINTER_WATERMILL_THROUGHPUT_MULTIPLIER;
+  return 1;
+}
+
+export const CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER = 0.8;
+export const CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER = 0.7;
+export const CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER = 0.35;
+
+export function clayPitThroughputForWeather(weather: WeatherKind): number {
+  if (weather === 'rain') return CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER;
+  if (weather === 'drought') return CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER;
+  if (weather === 'frost') return CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER;
   return 1;
 }
 
@@ -157,6 +170,7 @@ export function environmentFor(
           ? AUTUMN_ROAD_SPEED_MULTIPLIER
           : 1,
     watermillThroughputMultiplier: watermillThroughputForWeather(weather),
+    clayPitThroughputMultiplier: clayPitThroughputForWeather(weather),
   };
 }
 
@@ -199,6 +213,9 @@ export function describeNextDayEnvironmentOutlook(
   if (Math.abs(next.watermillThroughputMultiplier - 1) > 1e-6) {
     pressures.push(`watermill power ${Math.round(next.watermillThroughputMultiplier * 100)}%`);
   }
+  if (Math.abs(next.clayPitThroughputMultiplier - 1) > 1e-6) {
+    pressures.push(`clay digging ${Math.round(next.clayPitThroughputMultiplier * 100)}%`);
+  }
   if (Math.abs(next.firewoodDemandMultiplier - 1) > 1e-6) {
     pressures.push(`firewood demand ${Math.round(next.firewoodDemandMultiplier * 100)}%`);
   }
@@ -220,14 +237,14 @@ export function describeEnvironment(environment: EnvironmentState): {
   if (environment.weather === 'drought') {
     return {
       title: 'Summer drought',
-      detail: `Crops and forage grow slowly; ponds lose fish; wells refill slowly; fresh food spoils faster. Low streams hold watermills to ${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput.`,
+      detail: `Crops and forage grow slowly; ponds lose fish; wells refill slowly; fresh food spoils faster. Low streams hold watermills to ${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput, while hardened riverbank clay limits pits to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%.`,
       symbol: '☀',
     };
   }
   if (environment.weather === 'rain') {
     return {
       title: 'Spring rain',
-      detail: `Crops grow faster, wells refill faster, berries and mushrooms replenish, and mill streams reach ${Math.round(environment.watermillThroughputMultiplier * 100)}% power.${roadDetail}`,
+      detail: `Crops grow faster, wells refill faster, berries and mushrooms replenish, and mill streams reach ${Math.round(environment.watermillThroughputMultiplier * 100)}% power. Saturated banks hold clay digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%.${roadDetail}`,
       symbol: '☂',
     };
   }
@@ -235,7 +252,7 @@ export function describeEnvironment(environment: EnvironmentState): {
     const snowCover = Math.round(environment.snowCoverage * 100);
     return {
       title: 'Winter frost',
-      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, and sheep shearing stop; release those crews to logging, construction, hunting, or processing the autumn crop. Higher-tier homes burn twice their normal firewood, pasture is scarce, and iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%.${roadDetail}`,
+      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, and sheep shearing stop; release those crews to logging, construction, hunting, or processing the autumn crop. Higher-tier homes burn twice their normal firewood, pasture is scarce, iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%, and frozen clay banks limit digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%. Stockpiled autumn clay can still keep sheltered kilns working.${roadDetail}`,
       symbol: '❄',
     };
   }

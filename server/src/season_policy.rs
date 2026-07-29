@@ -34,6 +34,10 @@ pub enum WeatherKind {
     Frost,
 }
 
+const CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER: f64 = 0.8;
+const CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER: f64 = 0.7;
+const CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER: f64 = 0.35;
+
 #[derive(Clone, Copy, Debug)]
 pub struct EnvironmentState {
     pub season: Season,
@@ -139,6 +143,19 @@ impl EnvironmentState {
             WeatherKind::Rain => SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
             WeatherKind::Drought => DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
             WeatherKind::Frost => WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Fair => 1.0,
+        }
+    }
+
+    /// Alluvial clay remains available year-round, but saturated spring banks,
+    /// drought-hardened ground, and winter frost slow safe hand excavation.
+    /// A non-zero winter rate keeps the system recoverable while rewarding
+    /// autumn stockpiles for sheltered pottery work.
+    pub fn clay_pit_throughput_multiplier(self) -> f64 {
+        match self.weather {
+            WeatherKind::Rain => CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Drought => CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Frost => CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
             WeatherKind::Fair => 1.0,
         }
     }
@@ -277,5 +294,30 @@ mod tests {
             frost.watermill_throughput_multiplier() < drought.watermill_throughput_multiplier()
         );
         assert!(frost.watermill_throughput_multiplier() > 0.0);
+    }
+
+    #[test]
+    fn clay_banks_reward_stockpiling_without_a_hard_winter_shutdown() {
+        let rain = EnvironmentState {
+            season: Season::Spring,
+            weather: WeatherKind::Rain,
+        };
+        let fair = EnvironmentState {
+            season: Season::Autumn,
+            weather: WeatherKind::Fair,
+        };
+        let drought = EnvironmentState {
+            season: Season::Summer,
+            weather: WeatherKind::Drought,
+        };
+        let frost = EnvironmentState {
+            season: Season::Winter,
+            weather: WeatherKind::Frost,
+        };
+        assert_eq!(rain.clay_pit_throughput_multiplier(), 0.8);
+        assert_eq!(drought.clay_pit_throughput_multiplier(), 0.7);
+        assert_eq!(frost.clay_pit_throughput_multiplier(), 0.35);
+        assert_eq!(fair.clay_pit_throughput_multiplier(), 1.0);
+        assert!(frost.clay_pit_throughput_multiplier() > 0.0);
     }
 }

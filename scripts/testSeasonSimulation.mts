@@ -23,6 +23,10 @@ import {
   worldAnimationDelta,
 } from '../src/world/gameSpeed.ts';
 import {
+  CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
+  CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
+  CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER,
+  clayPitThroughputForWeather,
   describeEnvironment,
   describeNextDayEnvironmentOutlook,
   environmentFor,
@@ -47,6 +51,10 @@ assert.equal(seasonForMonth(8), 'summer');
 assert.equal(seasonForMonth(9), 'autumn');
 assert.equal(seasonForMonth(12), 'winter');
 assert.equal(WINTER_FIREWOOD_DEMAND_MULTIPLIER, 2);
+assert.equal(CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER, 0.8);
+assert.equal(CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER, 0.7);
+assert.equal(CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER, 0.35);
+assert.equal(clayPitThroughputForWeather('fair'), 1);
 
 assert.deepEqual(GAME_SPEEDS, [0, 1, 4, 8]);
 assert.deepEqual(PLAYER_GAME_SPEEDS, [1, 4, 8]);
@@ -109,6 +117,10 @@ for (let year = 1; year <= 20 && !droughtFound; year += 1) {
       environment.watermillThroughputMultiplier,
       DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
     );
+    assert.equal(
+      environment.clayPitThroughputMultiplier,
+      CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
+    );
     break;
   }
 }
@@ -124,6 +136,10 @@ for (let springDay = 0; springDay < CALENDAR_DAYS_PER_MONTH * 3; springDay += 1)
   assert.equal(
     environment.watermillThroughputMultiplier,
     SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
+  );
+  assert.equal(
+    environment.clayPitThroughputMultiplier,
+    CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER,
   );
   assert.match(describeEnvironment(environment).detail, /carts travel 18% slower/i);
   assert.match(describeEnvironment(environment).detail, /mill streams reach 115% power/i);
@@ -191,6 +207,10 @@ assert.equal(
   winterEnvironment.watermillThroughputMultiplier,
   WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 );
+assert.equal(
+  winterEnvironment.clayPitThroughputMultiplier,
+  CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
+);
 assert.match(describeEnvironment(winterEnvironment).detail, /carts travel 28% slower/i);
 assert.match(describeEnvironment(winterEnvironment).detail, /flour throughput to 45%/i);
 
@@ -200,6 +220,7 @@ const winterOutlookDescription = describeNextDayEnvironmentOutlook(
   nextDayEnvironmentOutlook(12345, 50, lastAutumnDay),
 );
 assert.match(winterOutlookDescription, /watermill power 45%/i);
+assert.match(winterOutlookDescription, /clay digging 35%/i);
 
 let outlookChecksum = 0;
 const outlookStarted = performance.now();

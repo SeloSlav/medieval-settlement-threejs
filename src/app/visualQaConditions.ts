@@ -7,6 +7,7 @@ import {
 import type { GameClock } from '../world/gameCalendar.ts';
 import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolicy.ts';
 import {
+  clayPitThroughputForWeather,
   watermillThroughputForWeather,
   type EnvironmentState,
   type Season,
@@ -96,6 +97,9 @@ export function applyVisualQaEnvironment(
     watermillThroughputMultiplier: watermillThroughputForWeather(
       conditions.weather,
     ),
+    clayPitThroughputMultiplier: clayPitThroughputForWeather(
+      conditions.weather,
+    ),
   };
 }
 
@@ -113,6 +117,7 @@ export function standaloneVisualQaEnvironment(
     freshFoodSpoilageFractionPerDay: 0,
     roadTravelSpeedMultiplier: 1,
     watermillThroughputMultiplier: 1,
+    clayPitThroughputMultiplier: 1,
   }, conditions);
 }
 

@@ -804,6 +804,19 @@ export function renderExpandedBuildingInspector(
           ? 'active' as const
           : 'warning' as const,
       }
+    : building.kind === 'clay_pit'
+      && processorStatus?.statusState === 'active'
+      && Math.abs(environment.clayPitThroughputMultiplier - 1) > 1e-6
+      ? {
+          statusText: `${
+            environment.weather === 'frost'
+              ? 'Frozen clay bank'
+              : environment.weather === 'drought'
+                ? 'Hardened dry bank'
+                : 'Saturated clay bank'
+          } · ${Math.round(environment.clayPitThroughputMultiplier * 100)}% digging speed · stockpile clay for winter kilns`,
+          statusState: 'warning' as const,
+        }
     : null;
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const hospitality = building.kind === 'monastery'

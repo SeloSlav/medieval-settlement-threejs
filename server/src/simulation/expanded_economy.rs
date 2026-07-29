@@ -1551,10 +1551,12 @@ pub fn step_clay_pit(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
+    environment: EnvironmentState,
     building: Building,
 ) {
     let tools_maintained = civilian_tools_maintained(building.ironwork);
-    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork);
+    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork)
+        * environment.clay_pit_throughput_multiplier();
     let clay_before = building.clay;
     let mut clay_pit = step_simple_producer_at_rate(
         ctx,

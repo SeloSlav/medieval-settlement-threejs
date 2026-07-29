@@ -72,6 +72,7 @@ import { weaverUsesFlax } from './weaverInputPolicy.ts';
 export type SettlementProductionCapacity = {
   capacityDaysPerWeek: number;
   watermillThroughputMultiplier: number;
+  clayPitThroughputMultiplier: number;
   fireDisabledProcessorSites: number;
   fireDisabledProcessorWorkers: number;
   firstFireDisabledProcessorId: string | null;
@@ -571,6 +572,7 @@ function completedProcessorOverview(
   sabbathObserved: boolean,
   componentFor: ProductionRoadComponentResolver | undefined,
   watermillThroughputMultiplier: number,
+  clayPitThroughputMultiplier: number,
 ): ProcessorOverview {
   const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
   const deliveries = timedInputDeliveries(state.deliveryTrips.values());
@@ -995,7 +997,8 @@ function completedProcessorOverview(
           'clay_pit',
           building.assignedLabor,
           sabbathObserved,
-          civilianToolThroughputMultiplier(building.ironwork ?? 0),
+          civilianToolThroughputMultiplier(building.ironwork ?? 0)
+            * clayPitThroughputMultiplier,
         );
         const branch = industrialMaterialBranch(
           industrialMaterialBranches,
@@ -1531,11 +1534,17 @@ export function computeSettlementProductionCapacity(
   sabbathObserved: boolean,
   roadComponentFor?: ProductionRoadComponentResolver,
   watermillThroughputMultiplier = 1,
+  clayPitThroughputMultiplier = 1,
 ): SettlementProductionCapacity {
   const normalizedWatermillThroughput = Number.isFinite(
     watermillThroughputMultiplier,
   )
     ? Math.max(0, watermillThroughputMultiplier)
+    : 1;
+  const normalizedClayPitThroughput = Number.isFinite(
+    clayPitThroughputMultiplier,
+  )
+    ? Math.max(0, clayPitThroughputMultiplier)
     : 1;
   const {
     fireDisabledProcessorSites,
@@ -1579,6 +1588,7 @@ export function computeSettlementProductionCapacity(
     sabbathObserved,
     roadComponentFor,
     normalizedWatermillThroughput,
+    normalizedClayPitThroughput,
   );
   const industrialMaterials = industrialMaterialRoadPlan(
     industrialMaterialBranches,
@@ -1672,6 +1682,7 @@ export function computeSettlementProductionCapacity(
   return {
     capacityDaysPerWeek: sabbathObserved ? 6 : 7,
     watermillThroughputMultiplier: normalizedWatermillThroughput,
+    clayPitThroughputMultiplier: normalizedClayPitThroughput,
     fireDisabledProcessorSites,
     fireDisabledProcessorWorkers,
     firstFireDisabledProcessorId,

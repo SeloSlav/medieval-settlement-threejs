@@ -630,6 +630,16 @@ assert.match(
   localMaterialDispatchStep,
   /"clay_pit"[\s\S]*CommodityKind::Clay[\s\S]*"charcoal_burner"[\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"[\s\S]*CommodityKind::Ironwork[\s\S]*"potter_kiln"[\s\S]*CommodityKind::Pottery/,
 );
+assert.match(
+  clayPitStep,
+  /environment\.clay_pit_throughput_multiplier\(\)/,
+  'authoritative clay digging must honor the current bank conditions',
+);
+assert.match(
+  simulationReducerSource,
+  /step_clay_pit\(ctx,\s*&tick,\s*&clock,\s*environment,\s*building\)/,
+  'the shared weather state must reach every clay-pit production step',
+);
 const caravanIndex = simulationReducerSource.indexOf('step_marketplace_caravans(');
 const seedDistributionIndex = simulationReducerSource.indexOf(
   'step_seed_grain_distribution(',

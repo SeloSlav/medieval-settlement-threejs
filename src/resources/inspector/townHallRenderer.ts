@@ -1737,6 +1737,7 @@ export function renderTownHallInspector(
           )
         : undefined,
       environment.watermillThroughputMultiplier,
+      environment.clayPitThroughputMultiplier,
     );
   const industrialMaterials = production.industrialMaterials;
   const unmaintainedToolInspect = industrialMaterials.firstUnmaintainedToolSiteId === null
@@ -2060,6 +2061,7 @@ export function renderTownHallInspector(
       <li><span>Potter buffers</span><span>Input ${formatProcessorInputBuffer(production.potterInputBuffer)} &middot; pottery room ${formatProcessorOutputRoom(production.potterOutputRoom)} ${processorInspectButton('potter', production.potterInputBuffer, production.potterOutputRoom)}</span></li>
       <li><span>Processing labor</span><span>${production.millWorkers} mill · ${production.bakeryWorkers} granary · ${production.breweryWorkers} brewing · ${production.smokehouseWorkers} preserving · ${production.weaverWorkers} weaving</span></li>
       <li><span>Material-chain labor</span><span>${industrialMaterials.clayWorkers} clay &middot; ${industrialMaterials.potterWorkers} pottery &middot; ${industrialMaterials.charcoalWorkers} charcoal &middot; ${industrialMaterials.smithyWorkers} smithing</span></li>
+      <li><span>Clay-bank conditions</span><span>${Math.round(production.clayPitThroughputMultiplier * 100)}% extraction in current ${environment.weather} conditions &middot; pits never hard-stop, but autumn clay reserves keep winter kilns productive</span></li>
       <li><span>Material-chain roads</span><span>${formatIndustrialRoads(industrialMaterials)}</span></li>
       <li><span>Pottery chain</span><span>${industrialMaterials.potteryOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.potterInstalledOutputPerDay.toFixed(1)} installed pottery per day &middot; ${industrialMaterials.potteryCoveredDemandPerDay.toFixed(1)} / ${industrialMaterials.potteryDemandPerDay.toFixed(1)} smokehouse vessel demand covered &middot; ${industrialMaterials.potteryExportSurplusPerDay.toFixed(1)} exportable and ${industrialMaterials.potteryStrandedPerDay.toFixed(1)} stranded surplus &middot; consumes ${industrialMaterials.potterClayPerDay.toFixed(1)} / ${industrialMaterials.clayOutputPerDay.toFixed(1)} clay capacity + ${industrialMaterials.potterFirewoodPerDay.toFixed(1)} firewood/day</span></li>
       <li><span>Ironwork chain</span><span>${industrialMaterials.ironworkOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.smithyInstalledIronworkPerDay.toFixed(1)} installed ironwork per day &middot; needs ${industrialMaterials.smithyIronPerDay.toFixed(1)} imported iron + ${industrialMaterials.smithyCharcoalPerDay.toFixed(1)} / ${industrialMaterials.charcoalOutputPerDay.toFixed(1)} charcoal capacity &middot; charcoal yards consume ${industrialMaterials.charcoalFirewoodPerDay.toFixed(1)} firewood/day</span></li>

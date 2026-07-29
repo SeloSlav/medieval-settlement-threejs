@@ -1,4 +1,5 @@
 import {
+  clayPitThroughputForWeather,
   watermillThroughputForWeather,
   type EnvironmentState,
 } from '../world/seasonPolicy.ts';
@@ -134,6 +135,7 @@ export function precipitationPreviewEnvironment(
       snowCoverage: 0,
       deciduousFoliage: deciduousFoliageForSeasonPreview('spring'),
       watermillThroughputMultiplier: watermillThroughputForWeather('rain'),
+      clayPitThroughputMultiplier: clayPitThroughputForWeather('rain'),
     };
   }
   if (requested === 'snow') {
@@ -144,6 +146,7 @@ export function precipitationPreviewEnvironment(
       snowCoverage: 1,
       deciduousFoliage: deciduousFoliageForSeasonPreview('winter'),
       watermillThroughputMultiplier: watermillThroughputForWeather('frost'),
+      clayPitThroughputMultiplier: clayPitThroughputForWeather('frost'),
     };
   }
   if (requested === 'autumn') {
@@ -154,6 +157,7 @@ export function precipitationPreviewEnvironment(
       snowCoverage: 0,
       deciduousFoliage: deciduousFoliageForSeasonPreview('autumn'),
       watermillThroughputMultiplier: 1,
+      clayPitThroughputMultiplier: 1,
     };
   }
   if (requested === 'clear') {
@@ -162,6 +166,7 @@ export function precipitationPreviewEnvironment(
       weather: 'fair',
       snowCoverage: 0,
       watermillThroughputMultiplier: 1,
+      clayPitThroughputMultiplier: 1,
     };
   }
   return environment;
@@ -183,5 +188,6 @@ export function standalonePrecipitationPreview(
     freshFoodSpoilageFractionPerDay: FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
     roadTravelSpeedMultiplier: 1,
     watermillThroughputMultiplier: 1,
+    clayPitThroughputMultiplier: 1,
   }, search);
 }

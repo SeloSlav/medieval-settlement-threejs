@@ -428,7 +428,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
                 step_swineherd(ctx, &tick, &clock, environment, building)
             }
             crate::building_defs::BuildingSimKind::ClayPit => {
-                step_clay_pit(ctx, &tick, &clock, building)
+                step_clay_pit(ctx, &tick, &clock, environment, building)
             }
             crate::building_defs::BuildingSimKind::CharcoalBurner => {
                 step_charcoal_burner(ctx, &tick, &clock, building)

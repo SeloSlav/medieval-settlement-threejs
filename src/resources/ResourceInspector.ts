@@ -1326,6 +1326,13 @@ export class ResourceInspector {
     const sabbathObserved = (
       this.options.getParishPolicy?.().sabbathObservanceEnabled ?? false
     ) && settlementHasStaffedChapel(gameState);
+    const productionEnvironment = needsProductionForecast
+      ? environmentFor(
+          gameState.seed,
+          this.options.getWorldHydrology?.() ?? 50,
+          gameClock(gameState.tick),
+        )
+      : null;
     const settlementProduction = needsProductionForecast
       ? computeSettlementProductionCapacity(
           gameState,
@@ -1334,11 +1341,8 @@ export class ResourceInspector {
             building.x,
             building.z,
           ),
-          environmentFor(
-            gameState.seed,
-            this.options.getWorldHydrology?.() ?? 50,
-            gameClock(gameState.tick),
-          ).watermillThroughputMultiplier,
+          productionEnvironment?.watermillThroughputMultiplier ?? 1,
+          productionEnvironment?.clayPitThroughputMultiplier ?? 1,
         )
       : undefined;
     const view = renderInspectableTarget(target, {

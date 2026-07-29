@@ -149,6 +149,24 @@ approx(
 );
 assert.ok(joinedMaterials.ironworkSurplusAfterToolUpkeep > 0);
 
+const frostLimitedMaterials = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+  1,
+  0.35,
+);
+assert.equal(frostLimitedMaterials.clayPitThroughputMultiplier, 0.35);
+approx(
+  frostLimitedMaterials.industrialMaterials.clayOutputPerDay,
+  joinedMaterials.clayOutputPerDay * 0.35,
+  'frost-limited clay digging must constrain the connected pottery chain forecast',
+);
+assert.ok(
+  frostLimitedMaterials.industrialMaterials.potteryOutputPerDay
+    < joinedMaterials.potteryOutputPerDay,
+);
+
 const splitMaterials = computeSettlementProductionCapacity(
   materialState,
   false,
