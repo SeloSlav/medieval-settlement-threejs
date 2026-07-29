@@ -810,6 +810,7 @@ export async function bootstrapAppSession(
       spacetimeStore.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
     getMonasteryPolicy: () =>
       spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY,
+    getNightPolicy: () => spacetimeStore.snapshot.nightPolicy,
     getMarketState: () => spacetimeStore.snapshot.marketState,
     getSettlementSecurity: () => spacetimeStore.snapshot.settlementSecurity,
     getCombatAgents: () => spacetimeStore.snapshot.combatAgents.values(),

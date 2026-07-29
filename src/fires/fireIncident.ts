@@ -21,6 +21,7 @@ export type FireIncidentState = {
   requiredWater: number;
   extinguishChance: number;
   startedTick: number;
+  discoveredTick: number;
   lastWaterTick: number;
   resolvedTick: number;
   responseWellId: string | null;

@@ -24,6 +24,7 @@ mod livestock;
 mod lodge_logistics;
 mod lumber_mill;
 mod marketplace_caravan;
+mod night_cycle;
 mod production_labor_steward;
 mod raid_agents;
 mod reclamation;
@@ -75,13 +76,14 @@ pub use game_calendar::game_clock;
 pub use game_calendar::GameClock;
 pub use guardhouse_payroll::try_dispatch_guardhouse_payroll;
 pub use household_market_orders::step_household_market_orders;
-pub use labor_schedule::labor_and_logistics_paused;
+pub use labor_schedule::{labor_and_logistics_paused, production_labor_paused};
 pub use large_quarry::step_large_quarry;
 pub use livestock::{step_pastoral_farmstead, step_swineherd};
 pub use lumber_mill::step_lumber_mill;
 pub use marketplace_caravan::{
     step_marketplace_caravans, try_dispatch_marketplace_caravan, MarketCaravanDispatch,
 };
+pub use night_cycle::step_night_cycle;
 pub use production_labor_steward::{
     reconcile_target_production_labor_for_owner, step_production_labor_stewards,
 };

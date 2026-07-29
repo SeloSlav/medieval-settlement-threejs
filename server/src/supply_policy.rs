@@ -1,9 +1,13 @@
 use std::cmp::Ordering;
 
 use crate::balance_generated::{
+    BREWERY_BARLEY_PER_MALT_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE,
     HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
-    MONASTERY_GRAIN_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
+    MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE,
+    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
+    WEAVER_FLAX_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
+use crate::civilian_tool_policy::is_civilian_tool_site;
 use crate::processor_output_policy::processor_input_staging_cycles;
 
 pub const ALE_SUPPLIER_KINDS: &[&str] = &["brewery", "monastery"];
@@ -327,6 +331,30 @@ pub enum ProcessorInputDispatchDuty {
     WorkshopOverflow,
 }
 
+/// Per-cycle demand used by carts that proactively leave a producer.
+///
+/// A zero result deliberately marks storage/export overflow, so pottery fills
+/// staffed smokehouse vessel buffers before a nearer marketplace can claim it.
+pub fn directly_dispatched_processor_input_per_cycle(
+    target_kind: &str,
+    commodity: &str,
+) -> f64 {
+    match (target_kind, commodity) {
+        (kind, "ironwork") if is_civilian_tool_site(kind) => {
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+        }
+        ("granary", "flour") => GRANARY_FLOUR_PER_CYCLE,
+        ("smokehouse", "food") => SMOKEHOUSE_FOOD_PER_CYCLE,
+        ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
+        ("weaver", "wool") => WEAVER_WOOL_PER_CYCLE,
+        ("weaver", "flax") => WEAVER_FLAX_PER_CYCLE,
+        ("brewery", "barley") => BREWERY_BARLEY_PER_MALT_CYCLE,
+        ("potter_kiln", "clay") => POTTER_CLAY_PER_CYCLE,
+        ("smithy", "charcoal") => SMITHY_CHARCOAL_PER_CYCLE,
+        _ => 0.0,
+    }
+}
+
 pub fn processor_input_target(per_cycle: f64, processor_output_target_percent: u8) -> f64 {
     per_cycle.max(0.0) * processor_input_staging_cycles(processor_output_target_percent)
 }
@@ -518,9 +546,10 @@ mod tests {
         compare_grain_dispatch_candidates, compare_need_delivery_candidate_records,
         compare_need_delivery_candidates, compare_processor_input_dispatch_candidates,
         compare_seed_grain_delivery_candidates, compare_supply_route_candidates,
-        construction_source_priority, grain_dispatch_duty, grain_input_runway_cycles,
-        grain_input_target, grain_work_priority, granary_dispatch_order, household_food_reserve,
-        institutional_food_surplus, is_firewood_supplier_operational, is_food_supplier_operational,
+        construction_source_priority, directly_dispatched_processor_input_per_cycle,
+        grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, grain_work_priority,
+        granary_dispatch_order, household_food_reserve, institutional_food_surplus,
+        is_firewood_supplier_operational, is_food_supplier_operational,
         is_specialty_supplier_operational, is_well_supplier_operational,
         processor_input_dispatch_duty, processor_input_runway_cycles, processor_input_target,
         select_grain_dispatch_candidate, select_need_delivery_candidate,
@@ -677,6 +706,23 @@ mod tests {
 
     #[test]
     fn direct_processor_inputs_restore_priority_buffers_before_overflow() {
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("potter_kiln", "clay"),
+            3.0,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("smithy", "charcoal"),
+            1.0,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("smokehouse", "pottery"),
+            0.25,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("marketplace", "pottery"),
+            0.0,
+            "the marketplace remains overflow after preservation buffers",
+        );
         assert_eq!(processor_input_target(2.0, 25), 2.0);
         assert_eq!(processor_input_target(2.0, 50), 4.0);
         assert_eq!(processor_input_target(2.0, 75), 6.0);

@@ -223,6 +223,7 @@ export const FireIncident = __t.object("FireIncident", {
   lastWaterTick: __t.u64(),
   resolvedTick: __t.u64(),
   responseWellId: __t.u64(),
+  discoveredTick: __t.u64(),
 });
 export type FireIncident = __Infer<typeof FireIncident>;
 
@@ -363,6 +364,25 @@ export const PlayerResources = __t.object("PlayerResources", {
   salt: __t.f64(),
   charcoal: __t.f64(),
   pottery: __t.f64(),
+  nightWatchPolicy: __t.u8(),
+  nightGatheringPolicy: __t.u8(),
+  nightWorkPolicy: __t.u8(),
+  nightLightingPolicy: __t.u8(),
+  nightCurfewPolicy: __t.u8(),
+  lastNightReportDay: __t.u64(),
+  lastNightHouseholds: __t.u32(),
+  lastNightWellRestedHouseholds: __t.u32(),
+  lastNightColdHouseholds: __t.u32(),
+  lastNightSocialHouseholds: __t.u32(),
+  lastNightWorkers: __t.u32(),
+  lastNightWatchStrength: __t.f64(),
+  lastNightIncidents: __t.u32(),
+  lastNightTheftGold: __t.f64(),
+  lastNightWildlifeSightings: __t.u32(),
+  lastNightLightingFuelUsed: __t.f64(),
+  lastNightLightingFuelShortfall: __t.f64(),
+  nightCommunityCohesion: __t.f64(),
+  nightLaborFatigue: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

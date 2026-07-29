@@ -28,4 +28,5 @@ export default __t.row({
   lastWaterTick: __t.u64().name("last_water_tick"),
   resolvedTick: __t.u64().name("resolved_tick"),
   responseWellId: __t.u64().name("response_well_id"),
+  discoveredTick: __t.u64().name("discovered_tick"),
 });

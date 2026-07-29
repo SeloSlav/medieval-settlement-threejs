@@ -13,7 +13,7 @@ use crate::simulation::{
     step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_market_orders,
     step_hunters_hall, step_large_quarry, step_live_raids, step_lumber_mill,
     step_marketplace_caravans, step_monastery, step_pastoral_farmstead, step_potter_kiln,
-    step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
+    step_night_cycle, step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
     step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
     step_settlement_security, step_smokehouse, step_smithy, step_stone_quarry, step_swineherd,
     step_threshing_barn, step_village_storehouses, step_vineyard, step_watermill, step_weaver,
@@ -145,6 +145,8 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .map(|config| config.sim_tick)
         .unwrap_or(0);
     let clock = crate::simulation::game_clock(sim_tick);
+    let previous_clock = crate::simulation::game_clock(sim_tick.saturating_sub(1));
+    step_night_cycle(ctx, &previous_clock, &clock, world_seed);
     let environment = crate::season_policy::environment_for(world_seed, world_hydrology, &clock);
     step_seasonal_labor_stewards(ctx, sim_tick, clock.month);
     // Time-critical seasonal work has first claim on the day's free labor.

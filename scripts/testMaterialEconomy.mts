@@ -21,6 +21,10 @@ import {
 } from '../src/generated/gameBalance.ts';
 import { createDeliveryCartMesh } from '../src/logistics/deliveryCartMesh.ts';
 import type { DeliveryCargoKind } from '../src/logistics/deliveryTrips.ts';
+import {
+  directlyDispatchedProcessorInputPerCycle,
+  selectDirectProcessorInputTarget,
+} from '../src/logistics/processorInputLogistics.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 import { renderBuildMenuCards } from '../src/ui/buildMenuCards.ts';
 
@@ -40,6 +44,94 @@ assert.deepEqual(
 );
 assert.ok(SMOKEHOUSE_SALT_PER_CYCLE > 0);
 assert.ok(SMOKEHOUSE_POTTERY_PER_CYCLE > 0);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('potter_kiln', 'clay'),
+  POTTER_CLAY_PER_CYCLE,
+);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('smithy', 'charcoal'),
+  SMITHY_CHARCOAL_PER_CYCLE,
+);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('smokehouse', 'pottery'),
+  SMOKEHOUSE_POTTERY_PER_CYCLE,
+);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('marketplace', 'pottery'),
+  0,
+  'the market is export overflow, not a pottery processor',
+);
+
+const nearbyMarket = building('marketplace', {
+  id: 'near-market',
+  x: 5,
+  assignedLabor: 2,
+});
+const distantSmokehouse = building('smokehouse', {
+  id: 'distant-smokehouse',
+  x: 80,
+  assignedLabor: 2,
+  constructionPriority: 3,
+  processorOutputTargetPercent: 75,
+  pottery: 0,
+});
+const potteryBufferTarget = selectDirectProcessorInputTarget(
+  [nearbyMarket, distantSmokehouse],
+  'potter',
+  'pottery',
+  (candidate) => candidate.x,
+);
+assert.equal(
+  potteryBufferTarget?.target.id,
+  distantSmokehouse.id,
+  'preservation vessels must reach a staffed smokehouse before nearer market exports',
+);
+assert.equal(potteryBufferTarget?.duty, 'working-buffer');
+assert.equal(
+  potteryBufferTarget?.desiredStock,
+  SMOKEHOUSE_POTTERY_PER_CYCLE * 3,
+);
+
+distantSmokehouse.pottery = potteryBufferTarget?.desiredStock ?? 0;
+const potteryExportTarget = selectDirectProcessorInputTarget(
+  [nearbyMarket, distantSmokehouse],
+  'potter',
+  'pottery',
+  (candidate) => candidate.x,
+);
+assert.equal(
+  potteryExportTarget?.target.id,
+  nearbyMarket.id,
+  'pottery should become export stock once preservation buffers are covered',
+);
+assert.equal(potteryExportTarget?.duty, 'workshop-overflow');
+
+const lowPriorityNearSmithy = building('smithy', {
+  id: 'near-smithy',
+  x: 5,
+  assignedLabor: 2,
+  constructionPriority: 1,
+  charcoal: 0,
+});
+const highPriorityFarSmithy = building('smithy', {
+  id: 'far-smithy',
+  x: 75,
+  assignedLabor: 2,
+  constructionPriority: 3,
+  charcoal: 0,
+});
+const charcoalTarget = selectDirectProcessorInputTarget(
+  [lowPriorityNearSmithy, highPriorityFarSmithy],
+  'burner',
+  'charcoal',
+  (candidate) => candidate.x,
+);
+assert.equal(
+  charcoalTarget?.target.id,
+  highPriorityFarSmithy.id,
+  'forge-fuel carts must expose work priority as a real production decision',
+);
+assert.equal(charcoalTarget?.desiredStock, SMITHY_CHARCOAL_PER_CYCLE * 3);
 
 for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
   assert.ok(
@@ -119,7 +211,10 @@ for (const resource of ['iron', 'clay', 'salt', 'charcoal', 'pottery']) {
 
 console.log('Iron, clay, salt, charcoal, pottery chain tests passed.');
 
-function building(kind: BuildingKind): BuildingState {
+function building(
+  kind: BuildingKind,
+  patch: Partial<BuildingState> = {},
+): BuildingState {
   return {
     id: `${kind}-test`,
     kind,
@@ -148,5 +243,8 @@ function building(kind: BuildingKind): BuildingState {
     charcoal: 0,
     pottery: 0,
     assignedLabor: 2,
-  };
+    constructionPriority: 2,
+    processorOutputTargetPercent: 100,
+    ...patch,
+  } as BuildingState;
 }

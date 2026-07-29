@@ -22,6 +22,7 @@ import type { FireIncidentState } from '../../fires/fireIncident.ts';
 import type { SettlementSecurityState } from '../../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../../security/combatAgents.ts';
 import type { ActiveRaidState } from '../../security/activeRaid.ts';
+import type { NightPolicyState } from '../../economy/nightPolicy.ts';
 
 export type GameTableSyncState = {
   identityHex: string | null;
@@ -38,6 +39,7 @@ export type GameTableSyncState = {
   laborStewardReserve: number;
   parishPolicy: ParishPolicyState;
   monasteryPolicy: MonasteryPolicyState;
+  nightPolicy: NightPolicyState;
   marketState: RegionalMarketState;
   quarries: Map<string, ResourceNodeState>;
   foragingNodes: Map<string, ForagingNodeState>;

@@ -100,6 +100,11 @@ import {
   DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED,
   DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
 } from '../economy/laborSteward.ts';
+import {
+  DEFAULT_NIGHT_POLICY,
+  type NightPolicyCode,
+  type NightPolicyState,
+} from '../economy/nightPolicy.ts';
 
 export type SpacetimeGameSnapshot = {
   connected: boolean;
@@ -114,6 +119,7 @@ export type SpacetimeGameSnapshot = {
   laborStewardReserve: number;
   parishPolicy: ParishPolicyState;
   monasteryPolicy: MonasteryPolicyState;
+  nightPolicy: NightPolicyState;
   marketState: RegionalMarketState;
   quarries: Map<string, ResourceNodeState>;
   foragingNodes: Map<string, ForagingNodeState>;
@@ -154,6 +160,7 @@ function createEmptyTableState(): GameTableSyncState {
     laborStewardReserve: DEFAULT_LABOR_STEWARD_RESERVE,
     parishPolicy: { ...DEFAULT_PARISH_POLICY },
     monasteryPolicy: { ...DEFAULT_MONASTERY_POLICY },
+    nightPolicy: { ...DEFAULT_NIGHT_POLICY },
     marketState: { ...DEFAULT_REGIONAL_MARKET_STATE },
     quarries: new Map(),
     foragingNodes: new Map(),
@@ -231,6 +238,7 @@ export class SpacetimeGameStore {
       laborStewardReserve: state.laborStewardReserve,
       parishPolicy: this.snapshotRecord(state.parishPolicy),
       monasteryPolicy: this.snapshotRecord(state.monasteryPolicy),
+      nightPolicy: this.snapshotRecord(state.nightPolicy),
       marketState: this.snapshotRecord(state.marketState),
       quarries: this.snapshotMap(state.quarries),
       foragingNodes: this.snapshotMap(state.foragingNodes),
@@ -496,6 +504,16 @@ export class SpacetimeGameStore {
 
   setMonasteryPolicy(titheShare: number, feastsEnabled: boolean): Promise<void> {
     return spacetimeReducers.setMonasteryPolicy(titheShare, feastsEnabled);
+  }
+
+  setNightPolicies(
+    watch: NightPolicyCode,
+    gathering: NightPolicyCode,
+    work: NightPolicyCode,
+    lighting: NightPolicyCode,
+    curfew: NightPolicyCode,
+  ): Promise<void> {
+    return spacetimeReducers.setNightPolicies(watch, gathering, work, lighting, curfew);
   }
 
   setStorehousePolicy(

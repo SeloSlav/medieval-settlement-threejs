@@ -22,6 +22,7 @@ import { renderInspectableTarget } from './inspector/renderInspectableTarget.ts'
 import { handleSupplementalPanelClick } from './inspector/supplementalPanel.ts';
 import type { ParishPolicyState } from '../economy/chapelParish.ts';
 import type { MonasteryPolicyState } from '../economy/monasteryPolicy.ts';
+import type { NightPolicyCode, NightPolicyState } from '../economy/nightPolicy.ts';
 import type { RegionalMarketState } from '../economy/regionalMarket.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../economy/regionalMarket.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
@@ -59,6 +60,7 @@ type ResourceInspectorOptions = {
   getLaborStewardReserve?: () => number;
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
+  getNightPolicy?: () => NightPolicyState;
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
   getCombatAgents?: () => Iterable<CombatAgentState>;
@@ -97,6 +99,13 @@ type ResourceInspectorOptions = {
   onSetLaborStewardReserve?: (laborReserve: number) => void | Promise<void>;
   onSetChapelParishPolicy?: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => void | Promise<void>;
   onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
+  onSetNightPolicies?: (
+    watch: NightPolicyCode,
+    gathering: NightPolicyCode,
+    work: NightPolicyCode,
+    lighting: NightPolicyCode,
+    curfew: NightPolicyCode,
+  ) => void | Promise<void>;
   onSetStorehousePolicy?: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => void | Promise<void>;
   onSetStorehouseStockTarget?: (
     buildingId: string,
@@ -945,6 +954,22 @@ export class ResourceInspector {
       void this.options.onSetLaborStewardReserve?.(Number(input.value));
       return;
     }
+    if (building.kind === 'town_hall' && input.matches('[data-night-policy]')) {
+      const code = (selector: string): NightPolicyCode => {
+        const value = Number(
+          this.supplementalPanelSection.querySelector<HTMLSelectElement>(selector)?.value ?? 0,
+        );
+        return value === 1 || value === 2 ? value : 0;
+      };
+      void this.options.onSetNightPolicies?.(
+        code('[data-night-policy-watch]'),
+        code('[data-night-policy-gathering]'),
+        code('[data-night-policy-work]'),
+        code('[data-night-policy-lighting]'),
+        code('[data-night-policy-curfew]'),
+      );
+      return;
+    }
     if (building.kind === 'chapel' && input.matches('[data-policy-chapel-auto-sweep], [data-policy-chapel-reserve], [data-policy-chapel-sabbath]')) {
       const autoSweep = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-auto-sweep]')?.checked ?? false;
       const reserve = Number(this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-reserve]')?.value ?? 80);
@@ -1345,6 +1370,9 @@ export class ResourceInspector {
         : {}),
       ...(this.options.getMonasteryPolicy
         ? { getMonasteryPolicy: this.options.getMonasteryPolicy }
+        : {}),
+      ...(this.options.getNightPolicy
+        ? { getNightPolicy: this.options.getNightPolicy }
         : {}),
       getTradeAvailability: (marketplace) => computeMarketplaceTradeAvailability(
         this.options.getState(),

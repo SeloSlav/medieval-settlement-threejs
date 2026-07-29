@@ -3,7 +3,10 @@ import {
   BUILDING_STORAGE_CAPS,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   GRANARY_FLOUR_PER_CYCLE,
+  POTTER_CLAY_PER_CYCLE,
+  SMITHY_CHARCOAL_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
+  SMOKEHOUSE_POTTERY_PER_CYCLE,
   WEAVER_FLAX_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../generated/gameBalance.ts';
@@ -25,7 +28,10 @@ export type DirectProcessorInputCommodity =
   | 'food'
   | 'wool'
   | 'flax'
-  | 'ironwork';
+  | 'ironwork'
+  | 'clay'
+  | 'charcoal'
+  | 'pottery';
 export type ProcessorInputDispatchDuty = 'working-buffer' | 'workshop-overflow';
 
 type ProcessorInputDestinationLike = Pick<
@@ -43,6 +49,9 @@ type ProcessorInputDestinationLike = Pick<
   | 'flax'
   | 'barley'
   | 'ironwork'
+  | 'clay'
+  | 'charcoal'
+  | 'pottery'
 >;
 
 export type RoutedProcessorInputDestination<T extends ProcessorInputDestinationLike> = {
@@ -71,6 +80,9 @@ const TARGET_KINDS: Record<
     'clay_pit',
     'carpenter',
   ],
+  clay: ['potter_kiln'],
+  charcoal: ['smithy'],
+  pottery: ['smokehouse', 'marketplace'],
 };
 
 export function directlyDispatchedProcessorInputPerCycle(
@@ -93,6 +105,14 @@ export function directlyDispatchedProcessorInputPerCycle(
       return isCivilianToolSite(targetKind)
         ? CIVILIAN_TOOL_IRONWORK_PER_CYCLE
         : 0;
+    case 'clay':
+      return POTTER_CLAY_PER_CYCLE;
+    case 'charcoal':
+      return SMITHY_CHARCOAL_PER_CYCLE;
+    case 'pottery':
+      return targetKind === 'smokehouse'
+        ? SMOKEHOUSE_POTTERY_PER_CYCLE
+        : 0;
   }
 }
 
@@ -109,13 +129,13 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
 }
 
 /**
- * Mirrors source-side mill, granary/swine, sheep-holding, and smithy dispatch. Active
- * processors receive their selected stock-policy working buffers by work
- * priority. Equal-tier looms then route matching fibres to their selected
- * specialization before lowest runway and route; staffed extractive worksites
- * use the same ordering for replacement iron tools. Once those buffers are
- * covered, nearest storage overflow resumes without letting a high tier
- * monopolize full warehouses.
+ * Mirrors every source-side processor-input cart. Active processors receive
+ * their selected stock-policy working buffers by work priority. Equal-tier
+ * looms then route matching fibres to their selected specialization before
+ * lowest runway and route; staffed extractive worksites use the same ordering
+ * for replacement iron tools. Pottery reaches staffed smokehouse buffers before
+ * becoming market export stock. Once buffers are covered, nearest storage
+ * overflow resumes without letting a high tier monopolize full warehouses.
  */
 export function selectDirectProcessorInputTarget<
   T extends ProcessorInputDestinationLike,

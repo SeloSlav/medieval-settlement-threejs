@@ -84,6 +84,7 @@ export class GameTableSync {
     this.state.fireIncidents = syncFireIncidents(
       db.fire_incident ? db.fire_incident.iter() : [],
       this.state.identityHex,
+      this.state.simTick,
     );
     this.state.combatAgents = syncCombatAgents(
       db.combat_agent ? db.combat_agent.iter() : [],
@@ -189,6 +190,11 @@ export class GameTableSync {
 
     bindTable(db.world_config, () => {
       syncWorldConfig(db.world_config ? db.world_config.iter() : [], this.state);
+      this.state.fireIncidents = syncFireIncidents(
+        db.fire_incident ? db.fire_incident.iter() : [],
+        this.state.identityHex,
+        this.state.simTick,
+      );
     }, false);
 
     bindTable(db.player_resources, () => {
@@ -311,6 +317,7 @@ export class GameTableSync {
       this.state.fireIncidents = syncFireIncidents(
         db.fire_incident ? db.fire_incident.iter() : [],
         this.state.identityHex,
+        this.state.simTick,
       );
     });
 

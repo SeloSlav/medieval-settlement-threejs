@@ -238,6 +238,13 @@ mod tests {
             barley: 0.0,
             malt: 0.0,
             flax: 0.0,
+            iron: 0.0,
+            clay: 0.0,
+            salt: 0.0,
+            charcoal: 0.0,
+            pottery: 0.0,
+            marketplace_iron_target: 0,
+            marketplace_salt_target: 0,
         }
     }
 

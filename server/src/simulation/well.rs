@@ -61,7 +61,7 @@ pub fn step_well(
 
     let mut well = building;
     if !building_has_active_trip(ctx, well.id) {
-        if let Some(incident) = select_fire_for_well(ctx, tick, network, &well) {
+        if let Some(incident) = select_fire_for_well(ctx, tick, network, &well, sim_tick) {
             if reserve_fire_response(ctx, incident.id, well.id) {
                 if try_start_fire_response_trip(ctx, tick, network, &mut well, &incident) {
                     return;
@@ -71,7 +71,7 @@ pub fn step_well(
         }
     }
 
-    let fire_response_needed = fire_response_needed_for_well(ctx, &well);
+    let fire_response_needed = fire_response_needed_for_well(ctx, &well, sim_tick);
     if labor_and_logistics_paused(ctx, tick, well.owner, clock) && !fire_response_needed {
         return;
     }

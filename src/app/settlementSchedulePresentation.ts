@@ -19,6 +19,7 @@ import {
   type VisualQaConditions,
 } from './visualQaConditions.ts';
 import { hasActiveRaiderThreat } from '../security/combatAgents.ts';
+import { nightLightingVisualScale } from '../economy/nightPolicy.ts';
 
 export type SettlementPresentationTargets = {
   settlementHud: SettlementHud | null;
@@ -62,7 +63,7 @@ export class SettlementPresentationController {
   private anchor: SnapshotAnchor | null = null;
   private lastSnapshot: Pick<
     SpacetimeGameSnapshot,
-    'simTick' | 'parishPolicy' | 'gameSpeed' | 'combatAgents'
+    'simTick' | 'parishPolicy' | 'nightPolicy' | 'gameSpeed' | 'combatAgents'
   > | null = null;
   private lastGameState: GameState | null = null;
   private readonly now: () => number;
@@ -80,7 +81,7 @@ export class SettlementPresentationController {
     targets: SettlementPresentationTargets,
     snapshot: Pick<
       SpacetimeGameSnapshot,
-      'simTick' | 'parishPolicy' | 'gameSpeed' | 'combatAgents'
+      'simTick' | 'parishPolicy' | 'nightPolicy' | 'gameSpeed' | 'combatAgents'
     >,
     gameState: GameState | null,
     connected: boolean,
@@ -95,6 +96,11 @@ export class SettlementPresentationController {
     const dirtyKey = [
       settlementScheduleDirtyKey(snapshot, gameState),
       snapshot.gameSpeed,
+      snapshot.nightPolicy.watch,
+      snapshot.nightPolicy.gathering,
+      snapshot.nightPolicy.work,
+      snapshot.nightPolicy.lighting,
+      snapshot.nightPolicy.curfew,
       raidThreatActive ? 'incursion' : 'all-clear',
     ].join('|');
     if (dirtyKey === this.lastDirtyKey) {
@@ -122,7 +128,7 @@ export class SettlementPresentationController {
       gameState,
       raidThreatActive,
     );
-    this.applyPresentation(targets, schedule);
+    this.applyPresentation(targets, schedule, snapshot.nightPolicy);
     return schedule;
   }
 
@@ -137,7 +143,7 @@ export class SettlementPresentationController {
       this.lastGameState,
       hasActiveRaiderThreat(this.lastSnapshot.combatAgents.values()),
     );
-    this.applyPresentation(targets, schedule);
+    this.applyPresentation(targets, schedule, this.lastSnapshot.nightPolicy);
   }
 
   reset(): void {
@@ -176,18 +182,24 @@ export class SettlementPresentationController {
       : schedule;
   }
 
-  private applyPresentation(targets: SettlementPresentationTargets, schedule: SettlementSchedule): void {
+  private applyPresentation(
+    targets: SettlementPresentationTargets,
+    schedule: SettlementSchedule,
+    nightPolicy: SpacetimeGameSnapshot['nightPolicy'],
+  ): void {
+    const lightingScale = nightLightingVisualScale(nightPolicy.lighting);
     targets.settlementHud?.setSettlementClock(schedule);
     targets.sceneManager?.applyDayNight(schedule.dayNight);
     targets.buildingMarkers?.setFoundersCampfireNightLighting(
-      schedule.dayNight.nightAmount,
+      schedule.dayNight.nightAmount * lightingScale,
     );
     targets.residenceMarkers?.setChimneySmokeAllowed(schedule.dayNight.smokeAllowed);
     targets.residenceMarkers?.setHouseholdLighting(
       schedule.clock,
-      schedule.dayNight.eveningWindowGlow,
+      schedule.dayNight.eveningWindowGlow * lightingScale,
+      nightPolicy,
     );
-    targets.villagers?.setSchedule(schedule.clock, schedule.laborPaused);
+    targets.villagers?.setSchedule(schedule.clock, schedule.laborPaused, nightPolicy);
     targets.ambientAudio?.syncSettlementSchedule(schedule);
   }
 }

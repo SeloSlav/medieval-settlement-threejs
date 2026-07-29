@@ -325,6 +325,24 @@ function outboundTripTarget(
       'ironwork',
     )?.target ?? null;
   }
+  if (building.kind === 'clay_pit') {
+    return context.worldQueries.getNextDirectProcessorInputDispatch(
+      building,
+      'clay',
+    )?.target ?? null;
+  }
+  if (building.kind === 'charcoal_burner') {
+    return context.worldQueries.getNextDirectProcessorInputDispatch(
+      building,
+      'charcoal',
+    )?.target ?? null;
+  }
+  if (building.kind === 'potter_kiln') {
+    return context.worldQueries.getNextDirectProcessorInputDispatch(
+      building,
+      'pottery',
+    )?.target ?? null;
+  }
   if (building.kind === 'granary') {
     if (
       seedPlan?.nextDispatchBuildingId != null
@@ -461,6 +479,20 @@ function renderLogisticsRows(
   const ironworkDispatch = building.kind === 'smithy'
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'ironwork')
     : null;
+  const materialDispatch = building.kind === 'clay_pit'
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'clay')
+    : building.kind === 'charcoal_burner'
+      ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'charcoal')
+      : building.kind === 'potter_kiln'
+        ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'pottery')
+        : null;
+  const materialCommodity = building.kind === 'clay_pit'
+    ? 'clay'
+    : building.kind === 'charcoal_burner'
+      ? 'charcoal'
+      : building.kind === 'potter_kiln'
+        ? 'pottery'
+        : null;
   const flaxDispatch = building.kind === 'threshing_barn'
     ? context.worldQueries.getNextFarmFlaxDispatch(building)
     : null;
@@ -478,6 +510,10 @@ function renderLogisticsRows(
         ? ironworkDispatch.duty === 'working-buffer'
           ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${staffingPriorityLabel(ironworkDispatch.workPriority)} priority · ${(ironworkDispatch.target.ironwork ?? 0).toFixed(2)} / ${ironworkDispatch.desiredStock.toFixed(2)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
           : `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · maintained buffers covered · nearest overflow route`
+      : materialDispatch && materialCommodity
+        ? materialDispatch.duty === 'working-buffer'
+          ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${(materialDispatch.target[materialCommodity] ?? 0).toFixed(2)} / ${materialDispatch.desiredStock.toFixed(2)} ${materialCommodity} · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
+          : `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · active material buffers covered · nearest overflow route`
       : outboundDestinationLabel(building);
   const nearestTarget = outboundTripTarget(building, context, seedPlan);
   const pathDistance = nearestTarget

@@ -64,6 +64,7 @@ import SetMarketplaceSaltTargetReducer from "../set_marketplace_salt_target_redu
 import SetMarketplaceSeedGrainTargetReducer from "../set_marketplace_seed_grain_target_reducer";
 import SetMarketplaceSpecialtyExportPolicyReducer from "../set_marketplace_specialty_export_policy_reducer";
 import SetMonasteryPolicyReducer from "../set_monastery_policy_reducer";
+import SetNightPoliciesReducer from "../set_night_policies_reducer";
 import SetProcessorOutputTargetReducer from "../set_processor_output_target_reducer";
 import SetProductionLaborStewardReducer from "../set_production_labor_steward_reducer";
 import SetResidenceUpgradePriorityReducer from "../set_residence_upgrade_priority_reducer";
@@ -135,6 +136,7 @@ export type SetMarketplaceSaltTargetParams = __Infer<typeof SetMarketplaceSaltTa
 export type SetMarketplaceSeedGrainTargetParams = __Infer<typeof SetMarketplaceSeedGrainTargetReducer>;
 export type SetMarketplaceSpecialtyExportPolicyParams = __Infer<typeof SetMarketplaceSpecialtyExportPolicyReducer>;
 export type SetMonasteryPolicyParams = __Infer<typeof SetMonasteryPolicyReducer>;
+export type SetNightPoliciesParams = __Infer<typeof SetNightPoliciesReducer>;
 export type SetProcessorOutputTargetParams = __Infer<typeof SetProcessorOutputTargetReducer>;
 export type SetProductionLaborStewardParams = __Infer<typeof SetProductionLaborStewardReducer>;
 export type SetResidenceUpgradePriorityParams = __Infer<typeof SetResidenceUpgradePriorityReducer>;

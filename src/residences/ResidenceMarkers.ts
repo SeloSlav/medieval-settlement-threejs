@@ -28,6 +28,7 @@ import { RESIDENCE_FIREWOOD_CAPACITY } from '../generated/gameBalance.ts';
 import { hashStringSeed } from '../utils/random.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { residenceWindowActivity } from './householdRoutine.ts';
+import type { NightPolicyState } from '../economy/nightPolicy.ts';
 
 const WINDOW_GLOW_EMISSIVE = 0xffc060;
 const WINDOW_GLOW_COLOR = 0x4a3820;
@@ -797,6 +798,7 @@ export class ResidenceMarkers {
   private readonly residencePopulation = new Map<string, number>();
   private chimneySmokeAllowed = true;
   private eveningWindowGlow = 0;
+  private nightPolicy: Pick<NightPolicyState, 'gathering' | 'curfew'> | undefined;
   private householdClock: GameClock | null = null;
 
   constructor(parent: THREE.Group) {
@@ -817,9 +819,14 @@ export class ResidenceMarkers {
     this.applyWindowGlow();
   }
 
-  setHouseholdLighting(clock: GameClock, glow: number): void {
+  setHouseholdLighting(
+    clock: GameClock,
+    glow: number,
+    nightPolicy?: Pick<NightPolicyState, 'gathering' | 'curfew'>,
+  ): void {
     this.householdClock = clock;
     this.eveningWindowGlow = glow;
+    this.nightPolicy = nightPolicy;
     this.applyWindowGlow();
   }
 
@@ -940,6 +947,7 @@ export class ResidenceMarkers {
       residenceId,
       this.residencePopulation.get(residenceId) ?? 0,
       this.householdClock,
+      this.nightPolicy,
     );
     return this.eveningWindowGlow * householdActivity;
   }

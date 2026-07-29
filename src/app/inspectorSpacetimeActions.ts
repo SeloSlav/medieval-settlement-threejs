@@ -11,6 +11,7 @@ import { describeBackyardGardenShortfall } from '../resources/buildingEconomy.ts
 import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import type { FireTargetKind } from '../fires/fireIncident.ts';
 import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
+import type { NightPolicyCode } from '../economy/nightPolicy.ts';
 
 export type InspectorSpacetimeActions = {
   onDemolishBuilding: (buildingId: string) => Promise<void>;
@@ -48,6 +49,13 @@ export type InspectorSpacetimeActions = {
   onSetLaborStewardReserve: (laborReserve: number) => Promise<void>;
   onSetChapelParishPolicy: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => Promise<void>;
   onSetMonasteryPolicy: (titheShare: number, feastsEnabled: boolean) => Promise<void>;
+  onSetNightPolicies: (
+    watch: NightPolicyCode,
+    gathering: NightPolicyCode,
+    work: NightPolicyCode,
+    lighting: NightPolicyCode,
+    curfew: NightPolicyCode,
+  ) => Promise<void>;
   onSetStorehousePolicy: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => Promise<void>;
   onSetStorehouseStockTarget: (
     buildingId: string,
@@ -481,6 +489,21 @@ export function createInspectorSpacetimeActions(
         () => store.setMonasteryPolicy(titheShare, feastsEnabled),
         'Could not update monastery policy.',
       );
+    },
+    onSetNightPolicies: async (watch, gathering, work, lighting, curfew) => {
+      const store = requireReady();
+      if (!store) return;
+      let updated = false;
+      await runReducer(
+        async () => {
+          await store.setNightPolicies(watch, gathering, work, lighting, curfew);
+          updated = true;
+        },
+        'Could not update the settlement night policy.',
+      );
+      if (updated) {
+        toastManager.show('Night orders posted. They take effect this evening.');
+      }
     },
     onSetStorehousePolicy: async (buildingId, acceptsTimber, acceptsStone, acceptsFirewood) => {
       const store = requireReady();

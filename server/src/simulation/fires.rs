@@ -238,6 +238,7 @@ pub fn select_fire_for_well(
     tick: &SimTickContext,
     network: &RoadNetwork,
     well: &Building,
+    sim_tick: u64,
 ) -> Option<FireIncident> {
     if well.kind != "well"
         || !well.construction_complete
@@ -254,6 +255,7 @@ pub fn select_fire_for_well(
         .filter(&well.owner)
         .filter(|incident| {
             incident.state == FIRE_STATE_BURNING
+                && (incident.discovered_tick == 0 || incident.discovered_tick <= sim_tick)
                 && incident.response_well_id == 0
                 && within_extent(well, incident.x, incident.z)
                 && nearest_eligible_well_id(ctx, tick, network, incident) == Some(well.id)
@@ -273,7 +275,11 @@ pub fn select_fire_for_well(
         .map(|(incident, _)| incident)
 }
 
-pub fn fire_response_needed_for_well(ctx: &ReducerContext, well: &Building) -> bool {
+pub fn fire_response_needed_for_well(
+    ctx: &ReducerContext,
+    well: &Building,
+    sim_tick: u64,
+) -> bool {
     if well.kind != "well"
         || !well.construction_complete
         || well.assigned_labor == 0
@@ -288,6 +294,7 @@ pub fn fire_response_needed_for_well(ctx: &ReducerContext, well: &Building) -> b
         .filter(&well.owner)
         .any(|incident| {
             incident.state == FIRE_STATE_BURNING
+                && (incident.discovered_tick == 0 || incident.discovered_tick <= sim_tick)
                 && (incident.response_well_id == 0 || incident.response_well_id == well.id)
                 && within_extent(well, incident.x, incident.z)
         })
@@ -545,6 +552,32 @@ fn ignite_candidate(
             }
         }
     }
+    let clock = crate::simulation::game_clock(sim_tick);
+    let discovered_tick = if clock.is_work_hours || source == FIRE_SOURCE_RAID {
+        sim_tick
+    } else {
+        let (watch_policy, lighting_policy) = ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&candidate.owner)
+            .map(|resources| {
+                (
+                    resources.night_watch_policy,
+                    resources.night_lighting_policy,
+                )
+            })
+            .unwrap_or((
+                crate::night_policy::WATCH_STANDARD,
+                crate::night_policy::LIGHTING_MAIN_ROADS,
+            ));
+        let delay_ticks = (crate::night_policy::fire_discovery_delay_seconds(
+            watch_policy,
+            lighting_policy,
+        ) / TICK_DT)
+            .ceil() as u64;
+        sim_tick.saturating_add(delay_ticks)
+    };
     Some(ctx.db.fire_incident().insert(FireIncident {
         id: 0,
         owner: candidate.owner,
@@ -560,6 +593,7 @@ fn ignite_candidate(
         required_water: candidate.required_water,
         extinguish_chance: 0.0,
         started_tick: sim_tick,
+        discovered_tick,
         last_water_tick: 0,
         resolved_tick: 0,
         response_well_id: 0,

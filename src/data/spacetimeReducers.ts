@@ -20,6 +20,7 @@ import type { WorldGenerationSettings } from '../world/worldGenerationSettings.t
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
 import { normalizeLaborStewardReserve } from '../economy/laborSteward.ts';
+import type { NightPolicyCode } from '../economy/nightPolicy.ts';
 import {
   parseBuildingServerId,
   parseFarmFieldServerId,
@@ -395,6 +396,22 @@ export async function setProcessorOutputTarget(
   await callReducer('setProcessorOutputTarget', 'set_processor_output_target', {
     buildingId: serverId,
     targetPercent,
+  });
+}
+
+export async function setNightPolicies(
+  watch: NightPolicyCode,
+  gathering: NightPolicyCode,
+  work: NightPolicyCode,
+  lighting: NightPolicyCode,
+  curfew: NightPolicyCode,
+): Promise<void> {
+  await callReducer('setNightPolicies', 'set_night_policies', {
+    watchPolicy: watch,
+    gatheringPolicy: gathering,
+    workPolicy: work,
+    lightingPolicy: lighting,
+    curfewPolicy: curfew,
   });
 }
 

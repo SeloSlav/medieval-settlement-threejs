@@ -8,6 +8,15 @@ import {
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { DEFAULT_MONASTERY_POLICY } from '../../economy/monasteryPolicy.ts';
 import {
+  DEFAULT_NIGHT_POLICY,
+  formatDawnReport,
+  NIGHT_CURFEW_OPTIONS,
+  NIGHT_GATHERING_OPTIONS,
+  NIGHT_LIGHTING_OPTIONS,
+  NIGHT_WATCH_OPTIONS,
+  NIGHT_WORK_OPTIONS,
+} from '../../economy/nightPolicy.ts';
+import {
   constructionLaborStewardStatus,
   DEFAULT_LABOR_STEWARD_RESERVE,
   laborStewardReserveLabel,
@@ -1437,6 +1446,7 @@ export function renderTownHallInspector(
     ? 100
     : Math.round(TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER * 100);
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
+  const nightPolicy = context.getNightPolicy?.() ?? DEFAULT_NIGHT_POLICY;
   const clock = gameClock(context.gameState.tick);
   const frontierSecurity = context.conflictEnabled
     ? context.getSettlementSecurity?.() ?? null
@@ -1934,6 +1944,8 @@ export function renderTownHallInspector(
       <li><span>Construction steward</span><span>${constructionLaborStewardStatus(constructionLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
       <li><span>Steward reserve</span><span>${laborStewardReserveLabel(laborStewardReserve)} · ${context.populationStats.available} currently free</span></li>
       <li><span>Dawn labor review</span><span>${formatLaborStewardForecast(laborStewardForecast, staffedTownHallAvailable)}${laborStewardInspectButton}</span></li>
+      <li><span>Last night</span><span>${formatDawnReport(nightPolicy)}</span></li>
+      <li><span>Night condition</span><span>${Math.round(nightPolicy.communityCohesion * 100)}% cohesion Â· ${Math.round(nightPolicy.laborFatigue * 100)}% accumulated night-shift fatigue Â· watch strength ${nightPolicy.lastWatchStrength.toFixed(1)}</span></li>
       <li><span>Seasonal labor</span><span>${formatSeasonalLabor(seasonalLabor)}${seasonalLaborInspectButton}</span></li>
       <li><span>Seasonal call-up</span><span>${formatSeasonalCallup(seasonalCallup)}${seasonalCallupInspectButton}</span></li>
       <li><span>Target-paused workshops</span><span>${formatProcessorLaborRecall(processorLaborRecall)}${processorLaborRecallInspectButton}</span></li>
@@ -2039,6 +2051,32 @@ export function renderTownHallInspector(
           max="${Math.round(ECONOMIC_ACTIVITY_TAX_RATE_MAX * 100)}"
           step="1" value="${Math.round(taxRate * 100)}" ${staffed ? '' : 'disabled'} />
         <div class="city-admin-panel__range-hints"><span>Growth</span><span>Revenue</span></div>
+      </div>
+      <div class="inspector-action-panel">
+        <h4 class="inspector-action-panel__title">Night orders</h4>
+        <p class="inspector-action-panel__hint">Night is fully simulated. Homes eat an evening meal and burn heat, lamps consume stored firewood, stocked processors may continue, and watch, lighting, gatherings, and curfew shape rest, cohesion, theft, fire discovery, and night-raid warning. Active fights never stop at dawn or dusk.</p>
+        <label class="city-admin-panel__slider-label" for="town-hall-night-watch"><span>Watch</span></label>
+        <select class="inspector-policy-select" id="town-hall-night-watch" data-night-policy data-night-policy-watch ${staffedTownHallAvailable ? '' : 'disabled'}>
+          ${NIGHT_WATCH_OPTIONS.map((option) => `<option value="${option.value}" ${nightPolicy.watch === option.value ? 'selected' : ''} title="${option.hint}">${option.label}</option>`).join('')}
+        </select>
+        <label class="city-admin-panel__slider-label" for="town-hall-night-gathering"><span>Evening life</span></label>
+        <select class="inspector-policy-select" id="town-hall-night-gathering" data-night-policy data-night-policy-gathering ${staffedTownHallAvailable ? '' : 'disabled'}>
+          ${NIGHT_GATHERING_OPTIONS.map((option) => `<option value="${option.value}" ${nightPolicy.gathering === option.value ? 'selected' : ''} title="${option.hint}">${option.label}</option>`).join('')}
+        </select>
+        <label class="city-admin-panel__slider-label" for="town-hall-night-work"><span>Production</span></label>
+        <select class="inspector-policy-select" id="town-hall-night-work" data-night-policy data-night-policy-work ${staffedTownHallAvailable ? '' : 'disabled'}>
+          ${NIGHT_WORK_OPTIONS.map((option) => `<option value="${option.value}" ${nightPolicy.work === option.value ? 'selected' : ''} title="${option.hint}">${option.label}</option>`).join('')}
+        </select>
+        <label class="city-admin-panel__slider-label" for="town-hall-night-lighting"><span>Lighting</span></label>
+        <select class="inspector-policy-select" id="town-hall-night-lighting" data-night-policy data-night-policy-lighting ${staffedTownHallAvailable ? '' : 'disabled'}>
+          ${NIGHT_LIGHTING_OPTIONS.map((option) => `<option value="${option.value}" ${nightPolicy.lighting === option.value ? 'selected' : ''} title="${option.hint}">${option.label}</option>`).join('')}
+        </select>
+        <label class="city-admin-panel__slider-label" for="town-hall-night-curfew"><span>Curfew</span></label>
+        <select class="inspector-policy-select" id="town-hall-night-curfew" data-night-policy data-night-policy-curfew ${staffedTownHallAvailable ? '' : 'disabled'}>
+          ${NIGHT_CURFEW_OPTIONS.map((option) => `<option value="${option.value}" ${nightPolicy.curfew === option.value ? 'selected' : ''} title="${option.hint}">${option.label}</option>`).join('')}
+        </select>
+        <p class="inspector-action-panel__hint"><strong>Dawn report:</strong> ${formatDawnReport(nightPolicy)}<br />Cohesion ${Math.round(nightPolicy.communityCohesion * 100)}% · fatigue ${Math.round(nightPolicy.laborFatigue * 100)}%.</p>
+        ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to post night orders.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
         <label class="city-admin-panel__toggle">

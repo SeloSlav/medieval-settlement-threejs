@@ -21,13 +21,13 @@ The calendar is deliberately fictional and fixed:
 
 | Speed | Day | Month | Season | Year |
 | --- | ---: | ---: | ---: | ---: |
-| Normal, 1× | 60 sec | 30 min | 90 min | 6 hr |
-| Fast, 4× | 15 sec | 7 min 30 sec | 22 min 30 sec | 90 min |
-| Fastest, 8× | 7.5 sec | 3 min 45 sec | 11 min 15 sec | 45 min |
+| Normal, 1× | 5 min | 2 hr 30 min | 7 hr 30 min | 30 hr |
+| Fast, 4× | 75 sec | 37 min 30 sec | 1 hr 52 min 30 sec | 7 hr 30 min |
+| Fastest, 8× | 37.5 sec | 18 min 45 sec | 56 min 15 sec | 3 hr 45 min |
 
 The scheduler still fires every 200 milliseconds and every completed substep retains
-its established 0.2-second meaning. At 1× the simulation advances two simulation
-seconds per real second, making a complete day-night cycle last 60 seconds. Faster
+its established 0.2-second meaning. At 1× the fixed-point scheduler advances 0.4 simulation
+seconds per real second, making a complete day-night cycle last five minutes. Faster
 modes receive four or eight times that budget. They accelerate movement,
 labor, construction, production, deliveries, consumption, regrowth, reproduction,
 weather damage, and the calendar together.
@@ -38,6 +38,36 @@ agents, deliveries, combat, wildlife, weather, fires, and world animation stop w
 camera and UI controls remain available. Speed is server authoritative and global to
 the world. In the current shared-world model, any connected player can change it;
 host-only authority should be added before a competitive multiplayer mode.
+
+## Night settlement loop
+
+Night remains part of the authoritative game rather than a cosmetic sky pass. Ordinary
+field work, construction, and carts stop, but active delivery trips finish their routes,
+hearths consume heating fuel, and households consume an explicit evening meal at dawn.
+A staffed Town Hall exposes five persistent orders:
+
+- Watch policy changes night-raid warning coverage, petty-theft risk, visible watchtower
+  duty, and how quickly an unnoticed fire is reported.
+- Evening gatherings keep a deterministic share of households outside in courtyards
+  longer and build community cohesion; curfews trade that social benefit for safety.
+- Continuous-process work lets stocked brewing, curing, milling, charcoal, and kiln
+  batches continue without enabling carts. A full night shift adds selected indoor
+  workshops and creates a persistent fatigue burden.
+- Public lighting visibly scales camp and household lamps, consumes physical firewood,
+  reduces theft, and shortens nighttime fire-discovery delay. Fuel shortfalls are
+  reported rather than silently granting the benefit.
+- Curfew can be unrestricted, children-only, or general.
+
+At 06:00 the server writes one structured dawn report: warm and well-rested households,
+social households, night workers, watch strength, lamp fuel used or missing, recent
+fires, theft, and occasional wildlife sightings. Safe and sociable nights smooth
+community cohesion upward; staffed night work smooths fatigue upward. Well-rested homes
+receive a small settlement-progress benefit.
+
+An incursion is never sliced into shifts. Once combat agents enter the map, guards and
+raiders remain authoritative through dusk and dawn until they are downed, retreat, or
+physically leave; the night policies affect warning and preparation, not whether the
+fight is allowed to continue.
 
 ## Deterministic weather
 
@@ -597,7 +627,7 @@ mirrored in `server/src/season_policy.rs` and `src/world/seasonPolicy.ts`.
 
 The most important tuning sequence is:
 
-1. Observe whether a 90-minute season at 1× creates a satisfying slow-play option.
+1. Observe whether a 7.5-hour season at 1× creates a satisfying slow-play option.
 2. Tune work requirements so an appropriately staffed farm can harvest in September
    and plough/sow in October–November without making failure impossible.
 3. Tune winter firewood and pasture multipliers against one full six-hour year.

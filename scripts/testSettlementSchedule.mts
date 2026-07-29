@@ -15,6 +15,7 @@ import {
 } from '../src/world/settlementSchedule.ts';
 import { deriveInterpolatedSettlementSchedule } from '../src/world/settlementSchedule.ts';
 import { DEFAULT_PARISH_POLICY } from '../src/economy/chapelParish.ts';
+import { DEFAULT_NIGHT_POLICY } from '../src/economy/nightPolicy.ts';
 import {
   interpolatedSimElapsedSeconds,
   SettlementPresentationController,
@@ -181,6 +182,7 @@ const fastestSchedule = presentation.sync(
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
+    nightPolicy: DEFAULT_NIGHT_POLICY,
     gameSpeed: 8,
     combatAgents: noCombatAgents,
   },
@@ -195,6 +197,7 @@ const scenicSchedule = presentation.sync(
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
+    nightPolicy: DEFAULT_NIGHT_POLICY,
     gameSpeed: 1,
     combatAgents: noCombatAgents,
   },
@@ -222,6 +225,7 @@ const normalSchedule = presentation.sync(
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
+    nightPolicy: DEFAULT_NIGHT_POLICY,
     gameSpeed: 4,
     combatAgents: noCombatAgents,
   },
@@ -245,6 +249,7 @@ const raidSchedule = presentation.sync(
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
+    nightPolicy: DEFAULT_NIGHT_POLICY,
     gameSpeed: 4,
     combatAgents: activeCombatAgents,
   },
@@ -269,6 +274,7 @@ const qaSchedule = qaPresentation.sync(
   {
     simTick: anchorTick,
     parishPolicy: DEFAULT_PARISH_POLICY,
+    nightPolicy: DEFAULT_NIGHT_POLICY,
     gameSpeed: 8,
     combatAgents: noCombatAgents,
   },
@@ -293,6 +299,7 @@ const repeatedQaSchedule = qaPresentation.sync(
   {
     simTick: anchorTick + 1,
     parishPolicy: DEFAULT_PARISH_POLICY,
+    nightPolicy: DEFAULT_NIGHT_POLICY,
     gameSpeed: 8,
     combatAgents: noCombatAgents,
   },

@@ -27,12 +27,51 @@ import {
 import { computeDayNightState } from '../src/world/dayNightPresentation.ts';
 import type { GameClock } from '../src/world/gameCalendar.ts';
 import type { GameSpeed } from '../src/world/gameSpeed.ts';
+import { SIM_REALTIME_RATE } from '../src/generated/gameBalance.ts';
+import {
+  DEFAULT_NIGHT_POLICY,
+  formatDawnReport,
+  isNightWorkBuilding,
+  nightLightingVisualScale,
+} from '../src/economy/nightPolicy.ts';
 
 const identities = Array.from(
   { length: 12 },
   (_, index) => `residence-routine:person:${index}`,
 );
 const routines = identities.map((identity) => householdMemberRoutine(identity));
+
+const quietAtNine = identities.filter(
+  (identity) => householdMemberHomeState(
+    identity,
+    clockFromHour(21),
+    { gathering: 0, curfew: 2 },
+  ) === 'home_outdoors',
+).length;
+const livelyAtNine = identities.filter(
+  (identity) => householdMemberHomeState(
+    identity,
+    clockFromHour(21),
+    { gathering: 2, curfew: 0 },
+  ) === 'home_outdoors',
+).length;
+assert.ok(livelyAtNine > quietAtNine, 'open-late evenings should visibly outlast a general curfew');
+assert.ok(nightLightingVisualScale(2) > nightLightingVisualScale(0));
+assert.equal(isNightWorkBuilding('charcoal_burner', 1), true);
+assert.equal(isNightWorkBuilding('smithy', 1), false);
+assert.equal(isNightWorkBuilding('smithy', 2), true);
+assert.match(
+  formatDawnReport({
+    ...DEFAULT_NIGHT_POLICY,
+    lastReportDay: 2,
+    lastHouseholds: 4,
+    lastWellRestedHouseholds: 3,
+    lastSocialHouseholds: 2,
+    lastWorkers: 1,
+    lastLightingFuelUsed: 0.1,
+  }),
+  /3\/4 households well rested.*2 social.*1 night workers/,
+);
 
 assert.ok(
   new Set(routines.map((routine) => routine.bedtimeHour.toFixed(2))).size >= 8,
@@ -217,7 +256,7 @@ assert.ok(
   '4× speed should advance villagers about four times farther than 1× speed',
 );
 gameSpeed = 1;
-for (let step = 0; step < 600; step++) villagers.tick(0.05);
+for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'home_outdoors');
 assert.equal(worker.pathPurpose, null);
 
@@ -226,7 +265,7 @@ assert.equal(worker.routinePhase, 'asleep');
 villagers.setSchedule(fullClock(6), false);
 assert.equal(worker.routinePhase, 'commuting_to_work');
 assert.equal(worker.pathPurpose, 'commute_to_work');
-for (let step = 0; step < 600; step++) villagers.tick(0.05);
+for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.notEqual(worker.pathPurpose, 'commute_to_work');
 
@@ -237,7 +276,7 @@ villagers.setSchedule({
 }, false);
 assert.equal(worker.routinePhase, 'going_to_mass');
 assert.equal(worker.pathPurpose, 'chapel_mass');
-for (let step = 0; step < 1200; step++) villagers.tick(0.05);
+for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'at_mass');
 assert.ok(
   worker.ambientBehavior === 'talk' || worker.ambientBehavior === 'wander',
@@ -253,14 +292,14 @@ villagers.setSchedule({
 }, false);
 assert.equal(worker.routinePhase, 'returning_from_mass');
 assert.equal(worker.pathPurpose, 'return_from_mass');
-for (let step = 0; step < 1200; step++) villagers.tick(0.05);
+for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.notEqual(worker.pathPurpose, 'return_from_mass');
 
 villagers.setRefugeAlert(true, new Map([[home.id, refuge.id]]));
 assert.equal(worker.routinePhase, 'going_to_refuge');
 assert.equal(worker.pathPurpose, 'refuge_rally');
-for (let step = 0; step < 1600; step++) villagers.tick(0.05);
+for (let step = 0; step < realtimeTickBudget(1600); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'at_refuge');
 assert.equal(worker.pathPurpose, null);
 assert.match(
@@ -275,7 +314,7 @@ assert.ok(
 villagers.setRefugeAlert(false);
 assert.equal(worker.routinePhase, 'returning_from_refuge');
 assert.equal(worker.pathPurpose, 'return_from_refuge');
-for (let step = 0; step < 1800; step++) villagers.tick(0.05);
+for (let step = 0; step < realtimeTickBudget(1800); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.equal(worker.refugeId, null);
 villagers.dispose();
@@ -378,7 +417,7 @@ assert.equal(
   'work',
   'the watchman must remain on the gallery while the road company answers',
 );
-for (let step = 0; step < 1200; step++) defenseVillagers.tick(0.05);
+for (let step = 0; step < realtimeTickBudget(1200); step++) defenseVillagers.tick(0.05);
 assert.equal(armedGuard.routinePhase, 'at_muster');
 assert.equal(armedGuard.musterTowerId, musterWatch.id);
 assert.match(
@@ -395,7 +434,7 @@ assert.ok(
 defenseVillagers.setFrontierAlert(false);
 assert.equal(armedGuard.routinePhase, 'returning_from_muster');
 assert.equal(armedGuard.pathPurpose, 'return_from_muster');
-for (let step = 0; step < 1400; step++) defenseVillagers.tick(0.05);
+for (let step = 0; step < realtimeTickBudget(1400); step++) defenseVillagers.tick(0.05);
 assert.equal(armedGuard.routinePhase, 'work');
 assert.equal(armedGuard.musterTowerId, null);
 defenseVillagers.dispose();
@@ -433,6 +472,10 @@ assert.equal(
 residenceMarkers.dispose();
 
 console.log('household routine and worker commute tests passed');
+
+function realtimeTickBudget(unscaledTicks: number): number {
+  return Math.ceil(unscaledTicks / Math.max(SIM_REALTIME_RATE, 1e-6));
+}
 
 function clockFromHour(hourValue: number): Pick<GameClock, 'hour' | 'minute'> {
   const wrapped = ((hourValue % 24) + 24) % 24;

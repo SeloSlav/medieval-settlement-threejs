@@ -771,11 +771,12 @@ assert.ok(
 );
 assert.match(expandedSimulation, /fn connected_source_surplus/);
 assert.match(expandedSimulation, /directly_dispatched_processor_input_per_cycle/);
-assert.match(expandedSimulation, /\("granary", CommodityKind::Flour\)/);
-assert.match(expandedSimulation, /\("brewery", CommodityKind::Barley\)/);
-assert.match(expandedSimulation, /\("smokehouse", CommodityKind::Food\)/);
-assert.match(expandedSimulation, /\("weaver", CommodityKind::Wool\)/);
-assert.match(expandedSimulation, /\("weaver", CommodityKind::Flax\)/);
+assert.match(expandedSimulation, /processor_input_per_cycle_for_dispatch\(target_kind, commodity\)/);
+assert.match(supplyPolicy, /\("granary", "flour"\)/);
+assert.match(supplyPolicy, /\("brewery", "barley"\)/);
+assert.match(supplyPolicy, /\("smokehouse", "food"\)/);
+assert.match(supplyPolicy, /\("weaver", "wool"\)/);
+assert.match(supplyPolicy, /\("weaver", "flax"\)/);
 assert.match(expandedSimulation, /select_processor_input_dispatch_candidate/);
 assert.match(
   expandedSimulation,

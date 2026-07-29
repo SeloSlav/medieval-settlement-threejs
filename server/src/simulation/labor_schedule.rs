@@ -1,7 +1,9 @@
 use spacetimedb::{Identity, ReducerContext};
 
+use crate::db::*;
 use crate::simulation::game_calendar::{household_consumption_paused, GameClock};
 use crate::simulation::SimTickContext;
+use crate::tables::Building;
 
 pub fn is_work_hours(clock: &GameClock) -> bool {
     clock.is_work_hours
@@ -97,4 +99,29 @@ mod tests {
         assert!(!night.is_work_hours);
         assert!(super::household_consumption_paused(&night));
     }
+}
+
+/// Processing may continue after dark according to civic policy, but this
+/// deliberately does not unpause carts, field work, construction, or any
+/// activity while raiders are an active threat.
+pub fn production_labor_paused(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    building: &Building,
+    clock: &GameClock,
+) -> bool {
+    if clock.is_work_hours {
+        return labor_and_logistics_paused(ctx, tick, building.owner, clock);
+    }
+    if tick.owner_has_active_raider_threat(ctx, building.owner) {
+        return true;
+    }
+    let policy = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&building.owner)
+        .map(|resources| resources.night_work_policy)
+        .unwrap_or(crate::night_policy::NIGHT_WORK_DAY_SHIFT);
+    !crate::night_policy::night_work_allowed(policy, &building.kind)
 }

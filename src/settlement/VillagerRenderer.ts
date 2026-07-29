@@ -25,6 +25,11 @@ import {
   householdMemberHomeState,
   type HouseholdHomeState,
 } from '../residences/householdRoutine.ts';
+import {
+  DEFAULT_NIGHT_POLICY,
+  isNightWorkBuilding,
+  type NightPolicyState,
+} from '../economy/nightPolicy.ts';
 import { polylineLengthXZ, samplePolylineXZ, type PointXZ } from '../utils/pathGeometry.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import {
@@ -283,6 +288,7 @@ export class VillagerRenderer {
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
   private laborPaused = false;
+  private nightPolicy: NightPolicyState = { ...DEFAULT_NIGHT_POLICY };
   private lastView: CrowdViewState | undefined;
 
   constructor(options: VillagerRendererOptions) {
@@ -294,9 +300,14 @@ export class VillagerRenderer {
     this.renderer = new SettlementCrowdRenderer({ parent: options.parent });
   }
 
-  setSchedule(clock: GameClock, laborPaused: boolean): void {
+  setSchedule(
+    clock: GameClock,
+    laborPaused: boolean,
+    nightPolicy: NightPolicyState = DEFAULT_NIGHT_POLICY,
+  ): void {
     this.clock = clock;
     this.laborPaused = laborPaused;
+    this.nightPolicy = nightPolicy;
     let changed = false;
     for (const agent of this.agents.values()) {
       changed = this.reconcileRoutine(agent) || changed;
@@ -1767,7 +1778,11 @@ export class VillagerRenderer {
     }
     if (agent.routinePhase === 'returning_from_refuge') return false;
 
-    const homeState = householdMemberHomeState(agent.personIdentity, this.clock);
+    const homeState = householdMemberHomeState(
+      agent.personIdentity,
+      this.clock,
+      this.nightPolicy,
+    );
     const chapel = this.findMassChapel(agent);
     const shouldAttendMass = isSundayMassTime(
       this.clock,
@@ -1797,7 +1812,18 @@ export class VillagerRenderer {
     }
 
     if (agent.role === 'worker') {
-      const shouldWork = this.clock.isWorkHours && !this.laborPaused;
+      const workplace = agent.workplaceId
+        ? this.buildings.get(agent.workplaceId) ?? null
+        : null;
+      const shouldWork = (this.clock.isWorkHours && !this.laborPaused)
+        || this.isNightWatchDuty(agent, workplace)
+        || (
+          !this.clock.isWorkHours
+          && workplace != null
+          && workplace.constructionComplete !== false
+          && isNightWorkBuilding(workplace.kind, this.nightPolicy.work)
+          && !this.frontierAlertActive
+        );
       if (shouldWork) {
         if (agent.routinePhase === 'work' || agent.routinePhase === 'commuting_to_work') {
           return false;
@@ -1812,6 +1838,30 @@ export class VillagerRenderer {
     }
 
     return this.transitionToHomeState(agent, homeState);
+  }
+
+  private isNightWatchDuty(
+    agent: VillagerAgent,
+    workplace: BuildingState | null,
+  ): boolean {
+    if (
+      !this.clock
+      || this.clock.isWorkHours
+      || !workplace
+      || workplace.constructionComplete === false
+      || this.nightPolicy.watch === 2
+    ) {
+      return false;
+    }
+    if (workplace.kind === 'watchtower') return true;
+    if (workplace.kind !== 'guardhouse') return false;
+    const armedSlots = Math.min(
+      workplace.assignedLabor,
+      Math.floor(workplace.polearms ?? 0),
+    );
+    if (agent.workplaceSlot >= armedSlots) return false;
+    return this.nightPolicy.watch === 1
+      || agent.workplaceSlot < Math.max(1, Math.ceil(armedSlots / 2));
   }
 
   private findMassChapel(agent: VillagerAgent): BuildingState | null {

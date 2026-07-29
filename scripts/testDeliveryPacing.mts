@@ -28,7 +28,7 @@ assert.equal(
   'food handcarts should keep a believable base pace before game-speed scaling',
 );
 assert.ok(
-  Math.abs(FOOD_DELIVERY_SPEED_MPS * SIM_REALTIME_RATE - 3.2) < 1e-12,
+  Math.abs(FOOD_DELIVERY_SPEED_MPS * SIM_REALTIME_RATE - 0.64) < 1e-12,
   'physical cart speed should advance with the same base realtime rate as the calendar',
 );
 assert.equal(
@@ -36,14 +36,12 @@ assert.equal(
   6,
   'each food visit should replenish a meaningful share of household storage',
 );
-assert.equal(
-  SIM_TICK_SECONDS * 1 * SIM_REALTIME_RATE,
-  0.4,
+assert.ok(
+  Math.abs(SIM_TICK_SECONDS * 1 * SIM_REALTIME_RATE - 0.08) < 1e-12,
   '1× delivery heartbeats should use the base realtime rate',
 );
-assert.equal(
-  SIM_TICK_SECONDS * 4 * SIM_REALTIME_RATE,
-  1.6,
+assert.ok(
+  Math.abs(SIM_TICK_SECONDS * 4 * SIM_REALTIME_RATE - 0.32) < 1e-12,
   '4× delivery heartbeats should retain the selected speed multiplier',
 );
 

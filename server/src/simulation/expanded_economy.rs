@@ -79,6 +79,7 @@ use crate::specialty_trade_policy::{
     apiary_is_active, producer_output_batch_fits, vineyard_is_harvesting,
 };
 use crate::supply_policy::{
+    directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
     grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, processor_input_dispatch_duty, processor_input_runway_cycles,
     processor_input_target, select_grain_dispatch_candidate,
@@ -1637,7 +1638,7 @@ fn cycle_labor_if_ready_at_rate(
     autonomous: bool,
     throughput_multiplier: f64,
 ) -> Option<f64> {
-    if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
+    if crate::simulation::production_labor_paused(ctx, tick, building, clock) {
         return None;
     }
     let labor = if autonomous {
@@ -2220,17 +2221,19 @@ fn directly_dispatched_processor_input_per_cycle(
     target_kind: &str,
     commodity: CommodityKind,
 ) -> f64 {
-    match (target_kind, commodity) {
-        (kind, CommodityKind::Ironwork) if is_civilian_tool_site(kind) => {
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE
-        }
-        ("granary", CommodityKind::Flour) => GRANARY_FLOUR_PER_CYCLE,
-        ("smokehouse", CommodityKind::Food) => SMOKEHOUSE_FOOD_PER_CYCLE,
-        ("weaver", CommodityKind::Wool) => WEAVER_WOOL_PER_CYCLE,
-        ("weaver", CommodityKind::Flax) => WEAVER_FLAX_PER_CYCLE,
-        ("brewery", CommodityKind::Barley) => BREWERY_BARLEY_PER_MALT_CYCLE,
-        _ => 0.0,
-    }
+    let commodity = match commodity {
+        CommodityKind::Barley => "barley",
+        CommodityKind::Flour => "flour",
+        CommodityKind::Food => "food",
+        CommodityKind::Wool => "wool",
+        CommodityKind::Flax => "flax",
+        CommodityKind::Ironwork => "ironwork",
+        CommodityKind::Clay => "clay",
+        CommodityKind::Charcoal => "charcoal",
+        CommodityKind::Pottery => "pottery",
+        _ => return 0.0,
+    };
+    processor_input_per_cycle_for_dispatch(target_kind, commodity)
 }
 
 fn dispatch_monastery_hospitality(

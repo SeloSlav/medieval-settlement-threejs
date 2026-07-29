@@ -4,6 +4,7 @@ use crate::db::*;
 use crate::economy::clamp_chapel_coffer_reserve_gold;
 use crate::labor_steward_policy::is_valid_labor_steward_reserve;
 use crate::lifecycle::ensure_player_resources;
+use crate::night_policy::valid_policy_code;
 use crate::reducers::buildings::rotate_construction_labor_for_owner_with_reserve;
 use crate::simulation::{
     game_clock, reconcile_seasonal_labor_for_owner, reconcile_target_production_labor_for_owner,
@@ -29,6 +30,44 @@ fn require_owned_building(ctx: &ReducerContext, kind: &str, staffed: bool) -> Re
             kind.replace('_', " ")
         ))
     }
+}
+
+#[reducer]
+pub fn set_night_policies(
+    ctx: &ReducerContext,
+    watch_policy: u8,
+    gathering_policy: u8,
+    work_policy: u8,
+    lighting_policy: u8,
+    curfew_policy: u8,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    require_owned_building(ctx, "town_hall", true)?;
+
+    if ![
+        watch_policy,
+        gathering_policy,
+        work_policy,
+        lighting_policy,
+        curfew_policy,
+    ]
+    .into_iter()
+    .all(valid_policy_code)
+    {
+        return Err("Night policy choices must be between 0 and 2.".to_string());
+    }
+
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Player resources not found.".to_string());
+    };
+    resources.night_watch_policy = watch_policy;
+    resources.night_gathering_policy = gathering_policy;
+    resources.night_work_policy = work_policy;
+    resources.night_lighting_policy = lighting_policy;
+    resources.night_curfew_policy = curfew_policy;
+    ctx.db.player_resources().owner().update(resources);
+    Ok(())
 }
 
 #[reducer]

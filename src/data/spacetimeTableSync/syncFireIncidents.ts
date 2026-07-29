@@ -14,12 +14,15 @@ import {
 export function syncFireIncidents(
   rows: Iterable<FireIncident>,
   identityHex: string | null,
+  simTick = Number.MAX_SAFE_INTEGER,
 ): Map<string, FireIncidentState> {
   const incidents = new Map<string, FireIncidentState>();
   if (!identityHex) return incidents;
 
   for (const row of rows) {
     if (row.owner.toHexString() !== identityHex) continue;
+    const discoveredTick = Number(row.discoveredTick ?? 0);
+    if (discoveredTick > 0 && discoveredTick > simTick) continue;
     const targetKind = fireTargetKindFromId(Number(row.targetKind));
     const status = fireStatusFromId(Number(row.state));
     const ignitionSource = fireSourceFromId(Number(row.ignitionSource));
@@ -42,6 +45,7 @@ export function syncFireIncidents(
       requiredWater: row.requiredWater,
       extinguishChance: row.extinguishChance,
       startedTick: Number(row.startedTick),
+      discoveredTick,
       lastWaterTick: Number(row.lastWaterTick),
       resolvedTick: Number(row.resolvedTick),
       responseWellId: row.responseWellId > 0n

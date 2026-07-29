@@ -176,7 +176,27 @@ fn step_owner_security(
         .find(&owner)
         .map(|resources| treasury_portable_stores(&resources, &buildings))
         .unwrap_or_default();
-    let towers = staffed_watch_coverage(&buildings, &fire_disabled_buildings);
+    let mut towers = staffed_watch_coverage(&buildings, &fire_disabled_buildings);
+    let scheduled_raid_is_at_night =
+        state.next_raid_tick > 0 && !crate::simulation::game_clock(state.next_raid_tick).is_work_hours;
+    if scheduled_raid_is_at_night {
+        let night_watch_policy = ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&owner)
+            .map(|resources| resources.night_watch_policy)
+            .unwrap_or(crate::night_policy::WATCH_STANDARD);
+        if night_watch_policy == crate::night_policy::WATCH_STAND_DOWN {
+            towers.clear();
+        } else {
+            let radius_multiplier =
+                crate::night_policy::warning_policy_multiplier(night_watch_policy);
+            for tower in &mut towers {
+                tower.radius *= radius_multiplier;
+            }
+        }
+    }
     let watch_index = WatchCoverageIndex::new(&towers);
     let refuges = active_palisaded_refuge_coverage(&buildings, &fire_disabled_buildings);
     let refuge_index = WatchCoverageIndex::new(&refuges);

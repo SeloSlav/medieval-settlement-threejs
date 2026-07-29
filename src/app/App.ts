@@ -102,6 +102,7 @@ import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHoo
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
 import { markFirstPlayable, markVegetationReady } from './startupDiagnostics.ts';
+import { formatDawnReport } from '../economy/nightPolicy.ts';
 
 export class App {
   private readonly root: HTMLElement;
@@ -163,6 +164,7 @@ export class App {
   private lastSeenRaidTick: number | null = null;
   private lastSeenRaidWarningTick: number | null = null;
   private lastSeenActiveRaidId: string | null | undefined;
+  private lastSeenNightReportDay: number | null = null;
   private raidProjectionSignature = '';
   private combatInspectorSignature = '';
   private projectedRaidTargets: ProjectedRaidTarget[] = [];
@@ -770,6 +772,7 @@ export class App {
     this.syncVisualQaFoundersCampFixture();
     this.notifyFireChanges(state, previous);
     this.notifySecurityChanges(snapshot);
+    this.notifyNightReport(snapshot);
     const projectedTargets = this.syncFrontierRiskFeedback(
       snapshot,
       state,
@@ -872,6 +875,13 @@ export class App {
       if (!prior && incident.status === 'burning') {
         this.toastManager?.show(
           'Structure fire reported. A staffed well can respond if the fire lies inside its work extent.',
+          { variant: 'error', durationMs: 7000 },
+        );
+        continue;
+      }
+      if (!prior && incident.status === 'destroyed') {
+        this.toastManager?.show(
+          'A structure fire went undiscovered until the building was lost.',
           { variant: 'error', durationMs: 7000 },
         );
         continue;
@@ -1030,6 +1040,28 @@ export class App {
     this.projectedRaidTargets = [];
     this.villagers?.setFrontierAlert(false);
     this.frontierRiskMarkers?.sync([], 0, false);
+  }
+
+  private notifyNightReport(snapshot: SpacetimeGameSnapshot): void {
+    const reportDay = snapshot.nightPolicy.lastReportDay;
+    if (
+      this.lastSeenNightReportDay === null
+      || reportDay < this.lastSeenNightReportDay
+    ) {
+      this.lastSeenNightReportDay = reportDay;
+      return;
+    }
+    if (reportDay <= 0 || reportDay === this.lastSeenNightReportDay) return;
+    this.lastSeenNightReportDay = reportDay;
+    const troubled =
+      snapshot.nightPolicy.lastColdHouseholds > 0
+      || snapshot.nightPolicy.lastIncidents > 0
+      || snapshot.nightPolicy.lastLightingFuelShortfall > 0.005;
+    this.toastManager?.show(
+      `Dawn report: ${formatDawnReport(snapshot.nightPolicy)}`,
+      { variant: troubled ? 'error' : 'info', durationMs: 9_000 },
+    );
+    this.resourceInspector?.refreshSelection();
   }
 
   private applyShowcaseView(state: GameState): void {

@@ -194,6 +194,52 @@ pub struct PlayerResources {
     /// Fired household and preserving vessels.
     #[default(0.0)]
     pub pottery: f64,
+    /// Night watch: 0 = ordinary watch, 1 = reinforced, 2 = stand down.
+    #[default(0u8)]
+    pub night_watch_policy: u8,
+    /// Evening life: 0 = quiet homes, 1 = courtyard visits, 2 = open late.
+    #[default(1u8)]
+    pub night_gathering_policy: u8,
+    /// Night production: 0 = day shift, 1 = continuous processes, 2 = staffed shift.
+    #[default(1u8)]
+    pub night_work_policy: u8,
+    /// Public lighting: 0 = conserve, 1 = main roads, 2 = fully lit.
+    #[default(1u8)]
+    pub night_lighting_policy: u8,
+    /// Curfew: 0 = none, 1 = children indoors, 2 = general curfew.
+    #[default(1u8)]
+    pub night_curfew_policy: u8,
+    /// Calendar day represented by the most recently completed dawn report.
+    #[default(0u64)]
+    pub last_night_report_day: u64,
+    #[default(0u32)]
+    pub last_night_households: u32,
+    #[default(0u32)]
+    pub last_night_well_rested_households: u32,
+    #[default(0u32)]
+    pub last_night_cold_households: u32,
+    #[default(0u32)]
+    pub last_night_social_households: u32,
+    #[default(0u32)]
+    pub last_night_workers: u32,
+    #[default(0.0)]
+    pub last_night_watch_strength: f64,
+    #[default(0u32)]
+    pub last_night_incidents: u32,
+    #[default(0.0)]
+    pub last_night_theft_gold: f64,
+    #[default(0u32)]
+    pub last_night_wildlife_sightings: u32,
+    #[default(0.0)]
+    pub last_night_lighting_fuel_used: f64,
+    #[default(0.0)]
+    pub last_night_lighting_fuel_shortfall: f64,
+    /// Smoothed 0-1 benefit from safe, sociable evenings.
+    #[default(0.5)]
+    pub night_community_cohesion: f64,
+    /// Smoothed 0-1 burden from staffing workshops through the night.
+    #[default(0.0)]
+    pub night_labor_fatigue: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -1030,6 +1076,10 @@ pub struct FireIncident {
     pub resolved_tick: u64,
     /// Well currently dispatching a responder, or zero while unclaimed.
     pub response_well_id: u64,
+    /// First tick on which civilians can report and respond to the fire.
+    /// Zero preserves immediate discovery for incidents from older saves.
+    #[default(0u64)]
+    pub discovered_tick: u64,
 }
 
 #[spacetimedb::table(

@@ -6,6 +6,7 @@ import type { RegionalMarketState } from '../../economy/regionalMarket.ts';
 import type { GameState, InspectableTarget } from '../types.ts';
 import type { SettlementSecurityState } from '../../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../../security/combatAgents.ts';
+import type { NightPolicyState } from '../../economy/nightPolicy.ts';
 import type { SettlementProductionCapacity } from '../../economy/settlementProduction.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import { renderBackyardInspector } from './backyardRenderer.ts';
@@ -62,6 +63,7 @@ export type InspectorRenderContext = {
   getLaborStewardReserve?: () => number;
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
+  getNightPolicy?: () => NightPolicyState;
   getTradeAvailability?: (
     marketplace: Extract<InspectableTarget, { kind: 'building' }>['building'],
   ) => MarketplaceTradeAvailability;
