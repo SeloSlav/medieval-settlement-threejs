@@ -5,6 +5,10 @@ import {
   stockpileVisualLevel,
   syncStockpileSegments,
 } from './buildingStockpileVisuals.ts';
+import {
+  MANURE_STOCKPILE_VISUAL_SEGMENTS,
+  MANURE_STOCK_SEGMENT_NAME,
+} from './meshes/manureStockpileMesh.ts';
 
 export const THRESHING_GRAIN_VISUAL_SEGMENTS = 4;
 export const THRESHING_FLAX_VISUAL_SEGMENTS = 4;
@@ -26,6 +30,16 @@ export function seasonalStockpileVisualSignature(building: BuildingState): strin
         building.flax ?? 0,
         BUILDING_STORAGE_CAPS.threshing_barn.flax ?? 0,
         THRESHING_FLAX_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
+        building.manure ?? 0,
+        BUILDING_STORAGE_CAPS.threshing_barn.manure ?? 0,
+        MANURE_STOCKPILE_VISUAL_SEGMENTS,
+      )}`;
+    case 'pastoral_farmstead':
+      return `:manure-store:${stockpileVisualLevel(
+        building.manure ?? 0,
+        BUILDING_STORAGE_CAPS.pastoral_farmstead.manure ?? 0,
+        MANURE_STOCKPILE_VISUAL_SEGMENTS,
       )}`;
     case 'apiary':
       return `:seasonal-store:${
@@ -80,6 +94,22 @@ export function syncSeasonalStockpileVisuals(
         'ThreshingFlaxSegment',
         building.flax ?? 0,
         BUILDING_STORAGE_CAPS.threshing_barn.flax ?? 0,
+      );
+      syncNamedStockpile(
+        marker,
+        'ThreshingManureStockpile',
+        MANURE_STOCK_SEGMENT_NAME,
+        building.manure ?? 0,
+        BUILDING_STORAGE_CAPS.threshing_barn.manure ?? 0,
+      );
+      break;
+    case 'pastoral_farmstead':
+      syncNamedStockpile(
+        marker,
+        'PastoralManureStockpile',
+        MANURE_STOCK_SEGMENT_NAME,
+        building.manure ?? 0,
+        BUILDING_STORAGE_CAPS.pastoral_farmstead.manure ?? 0,
       );
       break;
     case 'apiary':

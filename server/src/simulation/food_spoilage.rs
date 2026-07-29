@@ -2,9 +2,9 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
     FRESH_FOOD_STORAGE_CART_FACTOR, FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
-    FRESH_FOOD_STORAGE_GRANARY_FACTOR,
-    FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR, FRESH_FOOD_STORAGE_MONASTERY_FACTOR,
-    FRESH_FOOD_STORAGE_SMOKEHOUSE_FACTOR, FRESH_FOOD_STORAGE_TREASURY_FACTOR, TICK_DT,
+    FRESH_FOOD_STORAGE_GRANARY_FACTOR, FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR,
+    FRESH_FOOD_STORAGE_MONASTERY_FACTOR, FRESH_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+    FRESH_FOOD_STORAGE_TREASURY_FACTOR, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::CommodityKind;
@@ -44,9 +44,7 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         .db
         .delivery_trip()
         .iter()
-        .filter(|trip| {
-            trip.cargo_kind == CommodityKind::Food.as_u8() && trip.amount > 1e-9
-        })
+        .filter(|trip| trip.cargo_kind == CommodityKind::Food.as_u8() && trip.amount > 1e-9)
         .collect::<Vec<DeliveryTrip>>()
     {
         let spoiled = trip.amount * rate * FRESH_FOOD_STORAGE_CART_FACTOR * TICK_DT;

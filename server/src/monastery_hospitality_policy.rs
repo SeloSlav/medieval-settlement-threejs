@@ -1,15 +1,13 @@
 use crate::balance_generated::{
     MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
-    MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
-    MONASTERY_HOSPITALITY_HONEY_PER_DAY, MONASTERY_HOSPITALITY_WINE_PER_DAY,
-    MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
+    MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY, MONASTERY_HOSPITALITY_HONEY_PER_DAY,
+    MONASTERY_HOSPITALITY_WINE_PER_DAY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
 };
 
 /// Five established observances on their familiar dates inside the fixed
 /// 30-day calendar: Epiphany, Saints Peter and Paul, the Assumption, the
 /// Exaltation of the Holy Cross, and Christmas.
-pub const MONASTERY_FEAST_DATES: [(u32, u32); 5] =
-    [(1, 6), (6, 29), (8, 15), (9, 14), (12, 25)];
+pub const MONASTERY_FEAST_DATES: [(u32, u32); 5] = [(1, 6), (6, 29), (8, 15), (9, 14), (12, 25)];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MonasteryHospitalityUse {
@@ -149,9 +147,7 @@ mod tests {
         assert_eq!(MONASTERY_FEAST_DATES.len(), 5);
         for (month, month_day) in MONASTERY_FEAST_DATES {
             assert!((1..=12).contains(&month));
-            assert!(
-                (1..=crate::balance_generated::CALENDAR_DAYS_PER_MONTH).contains(&month_day)
-            );
+            assert!((1..=crate::balance_generated::CALENDAR_DAYS_PER_MONTH).contains(&month_day));
             assert!(is_monastery_feast_day(month, month_day));
         }
         assert!(!is_monastery_feast_day(6, 28));

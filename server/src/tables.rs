@@ -506,6 +506,10 @@ pub struct Building {
     /// Fired ceramic vessels used by smokehouses and sold at market.
     #[default(0.0)]
     pub pottery: f64,
+    /// Dung and bedding collected at cattle holdings or awaiting field spreading
+    /// at an arable farmstead.
+    #[default(0.0)]
+    pub manure: f64,
     /// Desired imported regional iron held at this marketplace in whole
     /// twelve-unit lots. Appended for additive save compatibility; zero keeps
     /// existing markets on manual procurement.
@@ -583,6 +587,10 @@ pub struct FarmField {
     /// behavior where `next_crop` repeats indefinitely.
     #[default(255u8)]
     pub following_crop: u8,
+    /// Physical manure already spread during this cycle's ploughing. The soil
+    /// benefit is proportional to field coverage and settles at cycle end.
+    #[default(0.0)]
+    pub manure_applied: f64,
 }
 
 /// A player-drawn grazing parcel tied to a pastoral farmstead or woodland swineherd.

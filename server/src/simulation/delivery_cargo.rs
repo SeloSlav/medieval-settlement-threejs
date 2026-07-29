@@ -36,6 +36,7 @@ pub struct DeliveryCargoTotals {
     pub salt: f64,
     pub charcoal: f64,
     pub pottery: f64,
+    pub manure: f64,
 }
 
 impl DeliveryCargoTotals {
@@ -65,6 +66,7 @@ impl DeliveryCargoTotals {
             CommodityKind::Salt => self.salt += amount,
             CommodityKind::Charcoal => self.charcoal += amount,
             CommodityKind::Pottery => self.pottery += amount,
+            CommodityKind::Manure => self.manure += amount,
         }
     }
 }

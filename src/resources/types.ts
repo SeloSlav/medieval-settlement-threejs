@@ -99,6 +99,7 @@ export type BuildingState = {
   salt?: number;
   charcoal?: number;
   pottery?: number;
+  manure?: number;
   gold: number;
   waterCapacity: number;
   assignedLabor: number;
@@ -178,6 +179,8 @@ export type FarmFieldState = {
   currentYield: number;
   /** Locked fraction of normal yield for the active harvest; absent means a normal harvest. */
   harvestYieldMultiplier?: number;
+  /** Physical manure spread during this cycle's ploughing. */
+  manureApplied?: number;
 };
 
 export const LIVESTOCK_SPECIES = ['cattle', 'sheep', 'swine'] as const;

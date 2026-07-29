@@ -81,7 +81,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10% and move connected carts 18% faster.'],
   weaver: ["Weaver's workshop", 'I', 'Turns sheep wool and field-grown flax fibre into household textiles, then exports the surplus.'],
   vineyard: ['Vineyard terrace', 'V', 'An autumn hillside harvest yields food and wine for monastery hospitality or high-value export.'],
-  pastoral_farmstead: ['Pastoral farmstead', 'D', 'Keeps cattle for dairy, manure, and ox power, or sheep for upland cheese and an annual wool clip for local weaving. Draw fenced pastures within its work extent.'],
+  pastoral_farmstead: ['Pastoral farmstead', 'D', 'Keeps cattle for dairy, collectable manure carts, and nearby ox power, or sheep for upland cheese and an annual wool clip. Draw fenced pasture and connect crop farmsteads by road.'],
   swineherd: ['Woodland swineherd', 'X', 'Raises pigs on mature woodland mast. Felling its pannage trees forces inefficient grain feeding and reduces output.'],
 };
 

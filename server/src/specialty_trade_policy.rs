@@ -57,9 +57,7 @@ pub fn vineyard_is_harvesting(month: u8) -> bool {
 /// A seasonal harvest is one indivisible work batch. If either co-product
 /// lacks room, the crop remains uncollected until a cart frees storage instead
 /// of silently discarding the part that did not fit.
-pub fn producer_output_batch_fits(
-    outputs: impl IntoIterator<Item = (f64, f64, f64)>,
-) -> bool {
+pub fn producer_output_batch_fits(outputs: impl IntoIterator<Item = (f64, f64, f64)>) -> bool {
     outputs.into_iter().all(|(stock, capacity, batch)| {
         stock.is_finite()
             && capacity.is_finite()
@@ -126,11 +124,7 @@ mod tests {
             (0.0, 140.0, 6.0),
             (37.01, 40.0, 3.0),
         ]));
-        assert!(!producer_output_batch_fits([(
-            f64::NAN,
-            140.0,
-            6.0,
-        )]));
+        assert!(!producer_output_batch_fits([(f64::NAN, 140.0, 6.0,)]));
     }
 
     #[test]

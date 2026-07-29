@@ -35,6 +35,7 @@ unlocks, or a Heavy Plow unlock.
 | Field priority | Players can prioritize field work | Fields have four priority states, including paused, and the farm plan schedules higher priorities first | Matched |
 | Early harvest | A player may force an early harvest | In August, a crop at 55% growth may be cut to spread labor or secure emergency stores; its current ripeness permanently locks 47–85% of normal yield, while waiting for September keeps 100% | Matched |
 | Ox/plough support | Ox ploughing is tied to a development and Farmhouse upgrade | Healthy cattle can support the two highest-priority nearby fields without an unlock tree | Different by design |
+| Manure and soil improvement | Fertility can be restored through farming choices | Supplied cattle collect a seasonal physical manure stock at their holding; one visible road cart distributes it to the least-covered crop farmstead, and farmers spread it during ploughing for a proportional, capped fertility benefit | Different by design — spatial livestock, cart availability, field priority, and timing replace a passive proximity bonus |
 | Technology tree / Heavy Plow unlock | Development-gated feature | Explicitly excluded from this scope; no unlock or technology-tree work was added | Intentionally excluded |
 
 ## Visual acceptance target

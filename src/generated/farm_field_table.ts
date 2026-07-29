@@ -36,4 +36,5 @@ export default __t.row({
   currentYield: __t.f64().name("current_yield"),
   harvestYieldMultiplier: __t.f64().name("harvest_yield_multiplier"),
   followingCrop: __t.u8().name("following_crop"),
+  manureApplied: __t.f64().name("manure_applied"),
 });

@@ -353,6 +353,8 @@ export const FARM_SOW_WORK_PER_SQUARE_METER = 0.55;
 export const FARM_HARVEST_WORK_PER_SQUARE_METER = 0.8;
 export const FARM_GROWTH_SECONDS = 6000;
 export const FARM_BASE_GRAIN_PER_SQUARE_METER = 0.08;
+export const FARM_MANURE_PER_SQUARE_METER = 0.04;
+export const FARM_MANURE_FERTILITY_BONUS = 0.03;
 export const FARMSTEAD_STARTER_SEED_GRAIN = 24;
 export const FARMSTEAD_STARTER_BARLEY_SEED = 24;
 export const FARM_EARLY_HARVEST_MONTH = 8;
@@ -499,6 +501,7 @@ export const LIVESTOCK_HAYMAKING_END_MONTH = 8;
 export const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT = 35;
 export const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT = 60;
 export const LIVESTOCK_HAY_STORAGE_CAPACITY = 240;
+export const LIVESTOCK_MANURE_TRANSFER_PER_TRIP = 24;
 export const CATTLE_STARTER_HERD = 3;
 export const CATTLE_MAX_HERD = 10;
 export const CATTLE_MINIMUM_BREEDING_RESERVE = 3;
@@ -517,8 +520,12 @@ export const CATTLE_GRAIN_PER_UNSUPPORTED_HEAD = 0.34;
 export const CATTLE_BREEDING_PER_CYCLE = 0.018;
 export const CATTLE_HEALTH_RECOVERY_PER_CYCLE = 0.035;
 export const CATTLE_HEALTH_LOSS_PER_CYCLE = 0.08;
-export const CATTLE_FERTILITY_BONUS = 0.03;
-export const CATTLE_MAX_FERTILIZED_FIELDS = 2;
+export const CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE = 0.015;
+export const CATTLE_MANURE_COLLECTION_SPRING_MULTIPLIER = 0.65;
+export const CATTLE_MANURE_COLLECTION_SUMMER_MULTIPLIER = 0.35;
+export const CATTLE_MANURE_COLLECTION_AUTUMN_MULTIPLIER = 0.65;
+export const CATTLE_MANURE_COLLECTION_WINTER_MULTIPLIER = 1;
+export const CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS = 2;
 export const CATTLE_PLOUGH_WORK_MULTIPLIER = 0.78;
 export const SHEEP_STARTER_HERD = 6;
 export const SHEEP_MAX_HERD = 18;
@@ -584,6 +591,7 @@ export type StorageCaps = {
   salt?: number;
   charcoal?: number;
   pottery?: number;
+  manure?: number;
 };
 
 export type BuildingDefinition = {
@@ -1314,7 +1322,7 @@ export const BUILDING_COSTS = {
 
 export const BUILDING_STORAGE_CAPS = {
   founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 80, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80 },
-  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000 },
+  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, manure: 2000 },
   lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0 },
@@ -1335,8 +1343,8 @@ export const BUILDING_STORAGE_CAPS = {
   watchtower: { timber: 0, firewood: 0, stone: 0 },
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },
-  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180 },
-  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120 },
+  threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180, manure: 120 },
+  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120, manure: 160 },
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, ale: 120, preservedFood: 80, honey: 160, wine: 120 },
   brewery: { timber: 0, firewood: 40, stone: 0, water: 120, barley: 96, malt: 48, ale: 200 },

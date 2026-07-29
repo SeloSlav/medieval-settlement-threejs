@@ -284,49 +284,35 @@ mod tests {
     #[test]
     fn shared_broker_serves_the_most_depleted_enabled_target() {
         assert_eq!(
-            next_standing_marketplace_import(
-                0.0, 48, 0.0, 12, 0.0, 0, 0.0, 0, false,
-            ),
+            next_standing_marketplace_import(0.0, 48, 0.0, 12, 0.0, 0, 0.0, 0, false,),
             Some(StandingMarketplaceImport::SeedGrain),
             "peaceful worlds must ignore stale frontier targets"
         );
         assert_eq!(
-            next_standing_marketplace_import(
-                0.0, 48, 0.0, 12, 0.0, 0, 0.0, 0, true,
-            ),
+            next_standing_marketplace_import(0.0, 48, 0.0, 12, 0.0, 0, 0.0, 0, true,),
             Some(StandingMarketplaceImport::SeedGrain),
             "seed grain wins an exact fill-ratio tie"
         );
         assert_eq!(
-            next_standing_marketplace_import(
-                24.0, 72, 0.0, 12, 0.0, 0, 0.0, 0, true,
-            ),
+            next_standing_marketplace_import(24.0, 72, 0.0, 12, 0.0, 0, 0.0, 0, true,),
             Some(StandingMarketplaceImport::Ironwork)
         );
         assert_eq!(
-            next_standing_marketplace_import(
-                0.0, 72, 6.0, 12, 0.0, 0, 0.0, 0, true,
-            ),
+            next_standing_marketplace_import(0.0, 72, 6.0, 12, 0.0, 0, 0.0, 0, true,),
             Some(StandingMarketplaceImport::SeedGrain)
         );
         assert_eq!(
-            next_standing_marketplace_import(
-                60.0, 72, 7.0, 12, 0.0, 0, 0.0, 0, true,
-            ),
+            next_standing_marketplace_import(60.0, 72, 7.0, 12, 0.0, 0, 0.0, 0, true,),
             None,
             "neither target accepts a whole lot without overshooting"
         );
         assert_eq!(
-            next_standing_marketplace_import(
-                24.0, 48, 0.0, 12, 0.0, 24, 0.0, 24, true,
-            ),
+            next_standing_marketplace_import(24.0, 48, 0.0, 12, 0.0, 24, 0.0, 24, true,),
             Some(StandingMarketplaceImport::Salt),
             "empty salt wins its tie with raw iron and frontier ironwork"
         );
         assert_eq!(
-            next_standing_marketplace_import(
-                24.0, 48, 0.0, 12, 0.0, 24, 12.0, 24, true,
-            ),
+            next_standing_marketplace_import(24.0, 48, 0.0, 12, 0.0, 24, 12.0, 24, true,),
             Some(StandingMarketplaceImport::Iron),
             "the raw iron reserve moves next after salt receives a lot"
         );

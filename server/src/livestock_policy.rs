@@ -1,11 +1,15 @@
 use crate::balance_generated::{
     CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, LIVESTOCK_AUTUMN_CULL_END_MONTH, LIVESTOCK_AUTUMN_CULL_START_MONTH,
+    CALENDAR_WORK_START_HOUR, CATTLE_MANURE_COLLECTION_AUTUMN_MULTIPLIER,
+    CATTLE_MANURE_COLLECTION_SPRING_MULTIPLIER, CATTLE_MANURE_COLLECTION_SUMMER_MULTIPLIER,
+    CATTLE_MANURE_COLLECTION_WINTER_MULTIPLIER, CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE,
+    LIVESTOCK_AUTUMN_CULL_END_MONTH, LIVESTOCK_AUTUMN_CULL_START_MONTH,
     LIVESTOCK_HAYMAKING_END_MONTH, LIVESTOCK_HAYMAKING_START_MONTH,
     LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT, LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
     SHEEP_SHEARING_END_MONTH, SHEEP_SHEARING_START_MONTH, SHEEP_WOOL_PER_SHEARING_PER_HEAD,
     WINTER_PASTURE_CAPACITY_MULTIPLIER,
 };
+use crate::season_policy::Season;
 
 const STORAGE_EPSILON: f64 = 1e-6;
 const SPECIES_CATTLE: u8 = 0;
@@ -17,6 +21,22 @@ pub fn cattle_field_support_is_active(
     supplied_capacity: f64,
 ) -> bool {
     species == SPECIES_CATTLE && head_count >= 2 && health >= 0.65 && supplied_capacity >= 2.0
+}
+
+pub fn cattle_manure_collection_multiplier(season: Season) -> f64 {
+    match season {
+        Season::Spring => CATTLE_MANURE_COLLECTION_SPRING_MULTIPLIER,
+        Season::Summer => CATTLE_MANURE_COLLECTION_SUMMER_MULTIPLIER,
+        Season::Autumn => CATTLE_MANURE_COLLECTION_AUTUMN_MULTIPLIER,
+        Season::Winter => CATTLE_MANURE_COLLECTION_WINTER_MULTIPLIER,
+    }
+    .max(0.0)
+}
+
+pub fn cattle_manure_output(productive_heads: f64, season: Season) -> f64 {
+    productive_heads.max(0.0)
+        * CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE.max(0.0)
+        * cattle_manure_collection_multiplier(season)
 }
 
 pub fn livestock_cycles_per_calendar_day(
@@ -143,10 +163,12 @@ pub fn can_cull_one(
 mod tests {
     use super::{
         can_cull_one, can_store_full_sheep_clip, cattle_field_support_is_active,
-        effective_breeding_reserve, haymaking_share, is_autumn_cull_month, is_haymaking_month,
-        is_shearing_month, livestock_cycles_per_calendar_day, pending_cull_heads,
-        projected_winter_fodder_grain, retain_priority_candidate, sheep_fleece_output,
+        cattle_manure_collection_multiplier, cattle_manure_output, effective_breeding_reserve,
+        haymaking_share, is_autumn_cull_month, is_haymaking_month, is_shearing_month,
+        livestock_cycles_per_calendar_day, pending_cull_heads, projected_winter_fodder_grain,
+        retain_priority_candidate, sheep_fleece_output,
     };
+    use crate::season_policy::Season;
     use std::time::Instant;
 
     #[test]
@@ -187,6 +209,23 @@ mod tests {
         assert!(!cattle_field_support_is_active(0, 1, 0.65, 2.0));
         assert!(!cattle_field_support_is_active(0, 2, 0.64, 2.0));
         assert!(!cattle_field_support_is_active(0, 2, 0.65, 1.99));
+    }
+
+    #[test]
+    fn housed_cattle_yield_more_collectable_manure_than_summer_grazing() {
+        assert!(
+            cattle_manure_collection_multiplier(Season::Winter)
+                > cattle_manure_collection_multiplier(Season::Spring)
+        );
+        assert!(
+            cattle_manure_collection_multiplier(Season::Spring)
+                > cattle_manure_collection_multiplier(Season::Summer)
+        );
+        assert!(
+            cattle_manure_output(4.0, Season::Winter) > cattle_manure_output(4.0, Season::Summer)
+        );
+        assert_eq!(cattle_manure_output(0.0, Season::Winter), 0.0);
+        assert_eq!(cattle_manure_output(-1.0, Season::Winter), 0.0);
     }
 
     #[test]

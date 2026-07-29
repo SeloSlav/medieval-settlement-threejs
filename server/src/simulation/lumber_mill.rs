@@ -1,16 +1,14 @@
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
 use crate::building_defs::building_def;
-use crate::civilian_tool_policy::{
-    civilian_tool_throughput_multiplier, civilian_tools_maintained,
-};
+use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_tools_maintained};
 use crate::constants::{MILL_WATER_PER_HARVEST, TICK_DT};
 use crate::db::*;
 use crate::economy::{
     building_storage_caps, building_water_storage_cap, deposit_building,
     withdraw_building_commodity, withdraw_building_water, CommodityKind,
 };
-use crate::balance_generated::CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;

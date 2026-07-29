@@ -1,10 +1,8 @@
 use spacetimedb::ReducerContext;
 
-use crate::building_defs::building_def;
-use crate::civilian_tool_policy::{
-    civilian_tool_throughput_multiplier, civilian_tools_maintained,
-};
 use crate::balance_generated::CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
+use crate::building_defs::building_def;
+use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_tools_maintained};
 use crate::constants::{STONE_PER_HARVEST, TICK_DT};
 use crate::db::*;
 use crate::economy::{

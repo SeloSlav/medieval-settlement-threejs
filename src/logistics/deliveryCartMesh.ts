@@ -53,6 +53,8 @@ const CARGO_MATERIALS = {
   saltCanvas: createCargoMaterial('Salt sack canvas', 0xd9d0b8, 0.98),
   salt: createCargoMaterial('Coarse sea salt', 0xe7e1d2, 0.92),
   charcoal: createCargoMaterial('Lump charcoal', 0x202324, 0.99),
+  manure: createCargoMaterial('Dung and straw manure', 0x5b472c, 1),
+  manureStraw: createCargoMaterial('Manure bedding straw', 0xaa8647, 0.99),
 } as const;
 
 const CANOPY_PALETTES = [
@@ -157,6 +159,9 @@ function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
       break;
     case 'pottery':
       addPotteryLoad(group);
+      break;
+    case 'manure':
+      addManureLoad(group);
       break;
     default: {
       const unreachable: never = kind;
@@ -601,6 +606,32 @@ function addPotteryLoad(group: THREE.Group): void {
       new THREE.Vector3(x, y, z),
       scale,
       CARGO_MATERIALS.terracotta,
+    );
+  }
+}
+
+function addManureLoad(group: THREE.Group): void {
+  addNamedMesh(
+    group,
+    'Manure cart heap',
+    new THREE.DodecahedronGeometry(0.47, 1),
+    CARGO_MATERIALS.manure,
+    new THREE.Vector3(0, 0.72, 0),
+    new THREE.Euler(0.04, 0.2, -0.03),
+    new THREE.Vector3(1.3, 0.68, 0.95),
+  );
+  for (const [index, [x, y, z, rotation]] of ([
+    [-0.3, 0.92, -0.08, 0.8],
+    [0.04, 1.0, 0.02, -0.5],
+    [0.3, 0.9, 0.13, 0.42],
+  ] as const).entries()) {
+    addNamedMesh(
+      group,
+      `Manure bedding straw ${index + 1}`,
+      new THREE.CylinderGeometry(0.012, 0.016, 0.62, 5),
+      CARGO_MATERIALS.manureStraw,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(0.08, rotation, Math.PI * 0.5),
     );
   }
 }

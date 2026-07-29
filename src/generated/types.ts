@@ -104,6 +104,7 @@ export const Building = __t.object("Building", {
   salt: __t.f64(),
   charcoal: __t.f64(),
   pottery: __t.f64(),
+  manure: __t.f64(),
   marketplaceIronTarget: __t.u8(),
   marketplaceSaltTarget: __t.u8(),
 });
@@ -222,6 +223,7 @@ export const FarmField = __t.object("FarmField", {
   currentYield: __t.f64(),
   harvestYieldMultiplier: __t.f64(),
   followingCrop: __t.u8(),
+  manureApplied: __t.f64(),
 });
 export type FarmField = __Infer<typeof FarmField>;
 

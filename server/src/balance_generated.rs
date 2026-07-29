@@ -351,6 +351,8 @@ pub const FARM_SOW_WORK_PER_SQUARE_METER: f64 = 0.55;
 pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = 0.8;
 pub const FARM_GROWTH_SECONDS: f64 = 6000.0;
 pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = 0.08;
+pub const FARM_MANURE_PER_SQUARE_METER: f64 = 0.04;
+pub const FARM_MANURE_FERTILITY_BONUS: f64 = 0.03;
 pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = 24.0;
 pub const FARMSTEAD_STARTER_BARLEY_SEED: f64 = 24.0;
 pub const FARM_EARLY_HARVEST_MONTH: u32 = 8;
@@ -371,6 +373,7 @@ pub const LIVESTOCK_HAYMAKING_END_MONTH: u32 = 8;
 pub const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT: u8 = 35;
 pub const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT: u8 = 60;
 pub const LIVESTOCK_HAY_STORAGE_CAPACITY: f64 = 240.0;
+pub const LIVESTOCK_MANURE_TRANSFER_PER_TRIP: f64 = 24.0;
 pub const CATTLE_STARTER_HERD: u32 = 3;
 pub const CATTLE_MAX_HERD: u32 = 10;
 pub const CATTLE_MINIMUM_BREEDING_RESERVE: u32 = 3;
@@ -389,8 +392,12 @@ pub const CATTLE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = 0.34;
 pub const CATTLE_BREEDING_PER_CYCLE: f64 = 0.018;
 pub const CATTLE_HEALTH_RECOVERY_PER_CYCLE: f64 = 0.035;
 pub const CATTLE_HEALTH_LOSS_PER_CYCLE: f64 = 0.08;
-pub const CATTLE_FERTILITY_BONUS: f64 = 0.03;
-pub const CATTLE_MAX_FERTILIZED_FIELDS: usize = 2;
+pub const CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE: f64 = 0.015;
+pub const CATTLE_MANURE_COLLECTION_SPRING_MULTIPLIER: f64 = 0.65;
+pub const CATTLE_MANURE_COLLECTION_SUMMER_MULTIPLIER: f64 = 0.35;
+pub const CATTLE_MANURE_COLLECTION_AUTUMN_MULTIPLIER: f64 = 0.65;
+pub const CATTLE_MANURE_COLLECTION_WINTER_MULTIPLIER: f64 = 1.0;
+pub const CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS: usize = 2;
 pub const CATTLE_PLOUGH_WORK_MULTIPLIER: f64 = 0.78;
 pub const SHEEP_STARTER_HERD: u32 = 6;
 pub const SHEEP_MAX_HERD: u32 = 18;
@@ -677,6 +684,7 @@ pub struct BuildingDef {
     pub storage_salt: f64,
     pub storage_charcoal: f64,
     pub storage_pottery: f64,
+    pub storage_manure: f64,
     pub accepts_labor: bool,
     pub max_labor: u32,
     pub work_radius: f64,
@@ -720,6 +728,7 @@ const FOUNDERS_CAMP: BuildingDef = BuildingDef {
     storage_salt: 80.0,
     storage_charcoal: 80.0,
     storage_pottery: 80.0,
+    storage_manure: 0.0,
     accepts_labor: false,
     max_labor: 0,
     work_radius: 0.0,
@@ -763,6 +772,7 @@ const SALVAGE_PILE: BuildingDef = BuildingDef {
     storage_salt: 2000.0,
     storage_charcoal: 2000.0,
     storage_pottery: 2000.0,
+    storage_manure: 2000.0,
     accepts_labor: false,
     max_labor: 0,
     work_radius: 0.0,
@@ -806,6 +816,7 @@ const LUMBER_MILL: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 210.0,
@@ -849,6 +860,7 @@ const REFORESTER: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 1,
     work_radius: 190.0,
@@ -892,6 +904,7 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -935,6 +948,7 @@ const STONE_QUARRY: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 4,
     work_radius: 80.0,
@@ -978,6 +992,7 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 6,
     work_radius: 0.0,
@@ -1021,6 +1036,7 @@ const CLAY_PIT: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
@@ -1064,6 +1080,7 @@ const CHARCOAL_BURNER: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 72.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -1107,6 +1124,7 @@ const SMITHY: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 36.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
@@ -1150,6 +1168,7 @@ const POTTER_KILN: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 120.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -1193,6 +1212,7 @@ const WELL: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 90.0,
@@ -1236,6 +1256,7 @@ const HUNTERS_HALL: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 68.0,
@@ -1279,6 +1300,7 @@ const FORAGERS_SHED: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 48.0,
@@ -1322,6 +1344,7 @@ const FISHING_CAMP: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 64.0,
@@ -1365,6 +1388,7 @@ const CHAPEL: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 1,
     work_radius: 0.0,
@@ -1408,6 +1432,7 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_salt: 72.0,
     storage_charcoal: 0.0,
     storage_pottery: 96.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -1451,6 +1476,7 @@ const TOWN_HALL: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 1,
     work_radius: 0.0,
@@ -1494,6 +1520,7 @@ const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -1537,6 +1564,7 @@ const WATCHTOWER: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 190.0,
@@ -1580,6 +1608,7 @@ const GUARDHOUSE: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 6,
     work_radius: 0.0,
@@ -1623,6 +1652,7 @@ const PALISADED_REFUGE: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: false,
     max_labor: 0,
     work_radius: 68.0,
@@ -1666,6 +1696,7 @@ const THRESHING_BARN: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 120.0,
     accepts_labor: true,
     max_labor: 6,
     work_radius: 150.0,
@@ -1709,6 +1740,7 @@ const PASTORAL_FARMSTEAD: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 160.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 110.0,
@@ -1752,6 +1784,7 @@ const SWINEHERD: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 120.0,
@@ -1795,6 +1828,7 @@ const MONASTERY: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: false,
     max_labor: 0,
     work_radius: 0.0,
@@ -1838,6 +1872,7 @@ const BREWERY: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
@@ -1881,6 +1916,7 @@ const SMOKEHOUSE: BuildingDef = BuildingDef {
     storage_salt: 24.0,
     storage_charcoal: 0.0,
     storage_pottery: 12.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -1924,6 +1960,7 @@ const GRANARY: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
@@ -1967,6 +2004,7 @@ const APIARY: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 1,
     work_radius: 48.0,
@@ -2010,6 +2048,7 @@ const WATERMILL: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
@@ -2053,6 +2092,7 @@ const CARPENTER: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -2096,6 +2136,7 @@ const WEAVER: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -2139,6 +2180,7 @@ const FERRY_LANDING: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -2182,6 +2224,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
+    storage_manure: 0.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -2198,7 +2241,43 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
+const ALL: &[BuildingDef] = &[
+    FOUNDERS_CAMP,
+    SALVAGE_PILE,
+    LUMBER_MILL,
+    REFORESTER,
+    WOODCUTTERS_LODGE,
+    STONE_QUARRY,
+    LARGE_QUARRY,
+    CLAY_PIT,
+    CHARCOAL_BURNER,
+    SMITHY,
+    POTTER_KILN,
+    WELL,
+    HUNTERS_HALL,
+    FORAGERS_SHED,
+    FISHING_CAMP,
+    CHAPEL,
+    MARKETPLACE,
+    TOWN_HALL,
+    VILLAGE_STOREHOUSE,
+    WATCHTOWER,
+    GUARDHOUSE,
+    PALISADED_REFUGE,
+    THRESHING_BARN,
+    PASTORAL_FARMSTEAD,
+    SWINEHERD,
+    MONASTERY,
+    BREWERY,
+    SMOKEHOUSE,
+    GRANARY,
+    APIARY,
+    WATERMILL,
+    CARPENTER,
+    WEAVER,
+    FERRY_LANDING,
+    VINEYARD,
+];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)
@@ -2312,7 +2391,14 @@ const BACKYARD_HEN_YARD: BackyardGardenDef = BackyardGardenDef {
     gold_per_person_per_sec: 0.002,
 };
 
-const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[BACKYARD_APPLE_ORCHARD, BACKYARD_CHERRY_ORCHARD, BACKYARD_VEGETABLE_GARDEN, BACKYARD_FLOWER_GARDEN, BACKYARD_HERB_GARDEN, BACKYARD_HEN_YARD];
+const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[
+    BACKYARD_APPLE_ORCHARD,
+    BACKYARD_CHERRY_ORCHARD,
+    BACKYARD_VEGETABLE_GARDEN,
+    BACKYARD_FLOWER_GARDEN,
+    BACKYARD_HERB_GARDEN,
+    BACKYARD_HEN_YARD,
+];
 
 pub fn backyard_garden_def(kind: BackyardGardenKind) -> &'static BackyardGardenDef {
     ALL_BACKYARD_GARDENS
@@ -2367,8 +2453,16 @@ impl TradeResource {
 
 #[derive(Clone, Copy, Debug)]
 pub enum MarketplaceTradeKind {
-    GoldBuy { resource: TradeResource, amount: f64, gold_cost: f64 },
-    GoldSell { resource: TradeResource, amount: f64, gold_yield: f64 },
+    GoldBuy {
+        resource: TradeResource,
+        amount: f64,
+        gold_cost: f64,
+    },
+    GoldSell {
+        resource: TradeResource,
+        amount: f64,
+        gold_yield: f64,
+    },
     Barter {
         give: TradeResource,
         give_amount: f64,
@@ -2530,7 +2624,24 @@ const TRADE_TIMBER_FOR_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_SELL_FOOD, TRADE_BUY_SEED_GRAIN, TRADE_BUY_BARLEY_SEED, TRADE_BUY_IRONWORK, TRADE_BUY_IRON, TRADE_BUY_SALT, TRADE_SELL_POTTERY, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
+const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[
+    TRADE_BUY_TIMBER,
+    TRADE_SELL_TIMBER,
+    TRADE_BUY_STONE,
+    TRADE_SELL_STONE,
+    TRADE_BUY_FIREWOOD,
+    TRADE_SELL_FIREWOOD,
+    TRADE_SELL_FOOD,
+    TRADE_BUY_SEED_GRAIN,
+    TRADE_BUY_BARLEY_SEED,
+    TRADE_BUY_IRONWORK,
+    TRADE_BUY_IRON,
+    TRADE_BUY_SALT,
+    TRADE_SELL_POTTERY,
+    TRADE_TIMBER_FOR_STONE,
+    TRADE_STONE_FOR_TIMBER,
+    TRADE_TIMBER_FOR_FIREWOOD,
+];
 
 pub fn marketplace_trade_offer(id: &str) -> Option<&'static MarketplaceTradeOffer> {
     ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)
@@ -2606,7 +2717,13 @@ const COMMODITY_BUY_CHEESE: MarketCommodityOffer = MarketCommodityOffer {
     base_gold_cost: 7.0,
 };
 
-const ALL_MARKET_COMMODITIES: &[MarketCommodityOffer] = &[COMMODITY_BUY_PORK, COMMODITY_BUY_LAMB, COMMODITY_BUY_VEAL, COMMODITY_BUY_KOBASICA, COMMODITY_BUY_CHEESE];
+const ALL_MARKET_COMMODITIES: &[MarketCommodityOffer] = &[
+    COMMODITY_BUY_PORK,
+    COMMODITY_BUY_LAMB,
+    COMMODITY_BUY_VEAL,
+    COMMODITY_BUY_KOBASICA,
+    COMMODITY_BUY_CHEESE,
+];
 
 pub fn all_market_food_commodities() -> &'static [MarketCommodityOffer] {
     ALL_MARKET_COMMODITIES
@@ -2644,12 +2761,17 @@ const WATER_COMMODITY_BUY_WATER_BARREL: MarketWaterCommodityOffer = MarketWaterC
     base_gold_cost: 8.0,
 };
 
-const ALL_MARKET_WATER_COMMODITIES: &[MarketWaterCommodityOffer] = &[WATER_COMMODITY_BUY_WATER_CASK, WATER_COMMODITY_BUY_WATER_BARREL];
+const ALL_MARKET_WATER_COMMODITIES: &[MarketWaterCommodityOffer] = &[
+    WATER_COMMODITY_BUY_WATER_CASK,
+    WATER_COMMODITY_BUY_WATER_BARREL,
+];
 
 pub fn all_market_water_commodities() -> &'static [MarketWaterCommodityOffer] {
     ALL_MARKET_WATER_COMMODITIES
 }
 
 pub fn market_water_commodity_offer(id: &str) -> Option<&'static MarketWaterCommodityOffer> {
-    ALL_MARKET_WATER_COMMODITIES.iter().find(|offer| offer.id == id)
+    ALL_MARKET_WATER_COMMODITIES
+        .iter()
+        .find(|offer| offer.id == id)
 }

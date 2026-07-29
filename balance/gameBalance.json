@@ -497,6 +497,8 @@
     "harvestWorkPerSquareMeter": 0.8,
     "growthSeconds": 6000,
     "baseGrainPerSquareMeter": 0.08,
+    "manurePerSquareMeter": 0.04,
+    "manureFertilityBonus": 0.03,
     "farmsteadStarterSeedGrain": 24,
     "farmsteadStarterBarleySeed": 24,
     "earlyHarvestMonth": 8,
@@ -616,6 +618,7 @@
     "defaultHaymakingPercent": 35,
     "maximumHaymakingPercent": 60,
     "hayStorageCapacity": 240,
+    "manureTransferPerTrip": 24,
     "cattle": {
       "starterHerd": 3,
       "maxHerd": 10,
@@ -635,8 +638,12 @@
       "breedingPerCycle": 0.018,
       "healthRecoveryPerCycle": 0.035,
       "healthLossPerCycle": 0.08,
-      "fertilityBonus": 0.03,
-      "maxFertilizedFields": 2,
+      "manurePerSuppliedHeadPerCycle": 0.015,
+      "manureCollectionSpringMultiplier": 0.65,
+      "manureCollectionSummerMultiplier": 0.35,
+      "manureCollectionAutumnMultiplier": 0.65,
+      "manureCollectionWinterMultiplier": 1,
+      "maxPloughSupportedFields": 2,
       "ploughWorkMultiplier": 0.78
     },
     "sheep": {
@@ -744,6 +751,7 @@
         "salt": 2000,
         "charcoal": 2000,
         "pottery": 2000,
+        "manure": 2000,
         "wool": 2000,
         "flax": 2000,
         "cloth": 2000
@@ -1121,7 +1129,7 @@
     "threshing_barn": {
       "label": "Farmstead and threshing barn",
       "cost": { "timber": 44, "stone": 16 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 240, "barley": 180, "flax": 180 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 240, "barley": 180, "flax": 180, "manure": 120 },
       "workRadius": 150,
       "pickRadius": 9,
       "harvestInterval": 6,
@@ -1140,7 +1148,7 @@
     "pastoral_farmstead": {
       "label": "Pastoral farmstead",
       "cost": { "timber": 40, "stone": 20 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 120, "grain": 90, "preservedFood": 70, "wool": 120 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 120, "grain": 90, "preservedFood": 70, "wool": 120, "manure": 160 },
       "workRadius": 110,
       "pickRadius": 10,
       "harvestInterval": 10,

@@ -51,6 +51,8 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
       return "a Village Smithy or Charcoal Burner's Yard";
     case 'pottery':
       return "a Smokehouse, Marketplace, or Potter's Kiln";
+    case 'manure':
+      return 'a crop Farmstead with a manure yard';
     case 'polearms':
       return 'a Guardhouse or Carpenter';
     case 'wool':

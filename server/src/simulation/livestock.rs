@@ -6,11 +6,12 @@ use crate::balance_generated::{
     CATTLE_AREA_PER_HEAD, CATTLE_BREEDING_PER_CYCLE, CATTLE_FOOD_PER_CYCLE_PER_HEAD,
     CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
     CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE, CATTLE_HEALTH_LOSS_PER_CYCLE,
-    CATTLE_HEALTH_RECOVERY_PER_CYCLE, CATTLE_MAX_FERTILIZED_FIELDS, CATTLE_MAX_HERD,
+    CATTLE_HEALTH_RECOVERY_PER_CYCLE, CATTLE_MAX_HERD, CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS,
     CATTLE_MAX_SLOPE_DEGREES, CATTLE_MOISTURE_IDEAL, CATTLE_MOISTURE_TOLERANCE,
     CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, CATTLE_SLAUGHTER_FOOD_PER_HEAD,
-    CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, LIVESTOCK_HAY_STORAGE_CAPACITY, SHEEP_AREA_PER_HEAD,
-    SHEEP_BREEDING_PER_CYCLE, SHEEP_FOOD_PER_CYCLE_PER_HEAD, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
+    CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, LIVESTOCK_HAY_STORAGE_CAPACITY,
+    LIVESTOCK_MANURE_TRANSFER_PER_TRIP, SHEEP_AREA_PER_HEAD, SHEEP_BREEDING_PER_CYCLE,
+    SHEEP_FOOD_PER_CYCLE_PER_HEAD, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
     SHEEP_HAY_PER_UNSUPPORTED_HEAD, SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
     SHEEP_HEALTH_LOSS_PER_CYCLE, SHEEP_HEALTH_RECOVERY_PER_CYCLE, SHEEP_MAX_HERD,
     SHEEP_MAX_SLOPE_DEGREES, SHEEP_MOISTURE_IDEAL, SHEEP_MOISTURE_TOLERANCE,
@@ -19,6 +20,7 @@ use crate::balance_generated::{
     SWINE_FOOD_PER_CYCLE_PER_HEAD, SWINE_GRAIN_PER_UNSUPPORTED_HEAD, SWINE_HEALTH_LOSS_PER_CYCLE,
     SWINE_HEALTH_RECOVERY_PER_CYCLE, SWINE_MATURE_TREES_PER_HEAD, SWINE_MAX_HERD,
     SWINE_SLAUGHTER_FOOD_PER_HEAD, SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, TICK_DT,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -29,13 +31,16 @@ use crate::economy::{
 };
 use crate::farming::{centroid, point_in_field};
 use crate::livestock_policy::{
-    can_cull_one, can_store_full_sheep_clip, effective_breeding_reserve, haymaking_share,
-    is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
+    can_cull_one, can_store_full_sheep_clip, cattle_manure_output, effective_breeding_reserve,
+    haymaking_share, is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
     projected_winter_fodder_grain, retain_priority_candidate, sheep_fleece_output,
 };
 use crate::reducers::livestock::{SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE};
 use crate::season_policy::{EnvironmentState, Season};
-use crate::simulation::delivery_trips::onsite_building_labor;
+use crate::simulation::delivery_trips::{
+    building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
+    try_start_building_supply_trip,
+};
 use crate::simulation::expanded_economy::{
     dispatch_need, dispatch_to_building, request_connected_commodity,
 };
@@ -192,6 +197,9 @@ fn step_livestock_building(
                 2.0,
             );
         }
+        if herd.species == SPECIES_CATTLE {
+            dispatch_manure_to_crop_farmstead(ctx, tick, clock, &mut building);
+        }
     }
 
     ctx.db.livestock_herd().building_id().update(herd);
@@ -265,6 +273,13 @@ fn run_livestock_cycle(
     ));
     deposit_building_commodity(building, CommodityKind::Food, food);
     deposit_building_commodity(building, CommodityKind::PreservedFood, preserved);
+    if herd.species == SPECIES_CATTLE {
+        deposit_building_commodity(
+            building,
+            CommodityKind::Manure,
+            cattle_manure_output(productive_heads, environment.season),
+        );
+    }
 
     // A flock is shorn once in the early-summer window. The old implementation
     // minted gold every livestock cycle; keeping a physical annual fleece makes
@@ -427,7 +442,7 @@ pub fn cattle_field_support_sources(
         let Some(building) = ctx.db.building().id().find(&herd.building_id) else {
             continue;
         };
-        let mut selected = Vec::with_capacity(CATTLE_MAX_FERTILIZED_FIELDS);
+        let mut selected = Vec::with_capacity(CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS);
         for candidate in &owner_fields {
             let center = centroid(&field_corners(candidate));
             if (building.x - center.x).hypot(building.z - center.z) > building.work_radius {
@@ -437,7 +452,7 @@ pub fn cattle_field_support_sources(
                 &mut selected,
                 candidate.priority,
                 candidate.id,
-                CATTLE_MAX_FERTILIZED_FIELDS,
+                CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS,
             );
         }
         for (_, field_id) in selected {
@@ -449,6 +464,79 @@ pub fn cattle_field_support_sources(
         field_sources.dedup();
     }
     sources
+}
+
+fn dispatch_manure_to_crop_farmstead(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &mut Building,
+) {
+    if source.manure <= 1e-6
+        || source.assigned_labor == 0
+        || building_has_active_trip(ctx, source.id)
+    {
+        return;
+    }
+    let Some(network) = tick.road_network(source.owner) else {
+        return;
+    };
+    let mut best: Option<(Building, f64, u8, f64, f64)> = None;
+    for target_id in tick.building_ids_for_kinds(ctx, source.owner, &["threshing_barn"]) {
+        let Some(target) = ctx.db.building().id().find(&target_id) else {
+            continue;
+        };
+        let (requirement, priority) =
+            tick.farmstead_manure_requirement_for(ctx, source.owner, target.id);
+        let desired = requirement.min(building_commodity_cap(&target.kind, CommodityKind::Manure));
+        let needed = (desired - target.manure.max(0.0)).max(0.0);
+        if !target.construction_complete
+            || needed <= 1e-6
+            || building_has_inbound_supply_trip(ctx, target.id)
+        {
+            continue;
+        }
+        let Some(distance) = network.road_path_distance(source.x, source.z, target.x, target.z)
+        else {
+            continue;
+        };
+        let coverage = if desired > 1e-9 {
+            (target.manure.max(0.0) / desired).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+        let replace = best.as_ref().is_none_or(
+            |(incumbent, incumbent_coverage, incumbent_priority, incumbent_distance, _)| {
+                coverage < *incumbent_coverage - 1e-9
+                    || ((coverage - *incumbent_coverage).abs() <= 1e-9
+                        && (priority > *incumbent_priority
+                            || (priority == *incumbent_priority
+                                && (distance < *incumbent_distance - 1e-9
+                                    || ((distance - *incumbent_distance).abs() <= 1e-9
+                                        && target.id < incumbent.id)))))
+            },
+        );
+        if replace {
+            best = Some((target, coverage, priority, distance, needed));
+        }
+    }
+    let Some((target, _, _, _, needed)) = best else {
+        return;
+    };
+    try_start_building_supply_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        source,
+        &target,
+        1,
+        CommodityKind::Manure,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        LIVESTOCK_MANURE_TRANSFER_PER_TRIP,
+        needed,
+    );
 }
 
 fn field_corners(field: &FarmField) -> ZoneCorners {

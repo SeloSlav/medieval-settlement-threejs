@@ -243,6 +243,7 @@ mod tests {
             salt: 0.0,
             charcoal: 0.0,
             pottery: 0.0,
+            manure: 0.0,
             marketplace_iron_target: 0,
             marketplace_salt_target: 0,
         }

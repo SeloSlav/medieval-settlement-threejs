@@ -23,6 +23,11 @@ import {
   type CattleFieldSupport,
 } from './cattleFieldSupport.ts';
 import { expectedFieldYield, fieldShapeEfficiency } from './farmFieldMath.ts';
+import {
+  fieldManureFertilityBonus,
+  fieldManureApplied,
+  fieldManureRequirement,
+} from './manurePlanning.ts';
 
 export type SeasonalWorkPlan = {
   requiredWork: number;
@@ -43,6 +48,8 @@ export type FarmsteadWorkPlan = {
   autumn: SeasonalWorkPlan;
   seedGrainRequired: number;
   seedBarleyRequired: number;
+  manureRequired: number;
+  manureApplied: number;
   rotation: CropRotationPlan;
 };
 
@@ -73,6 +80,12 @@ export type SettlementFarmPlan = {
   seedBarleyShortfall: number;
   seedShortHoldings: number;
   firstSeedShortBuildingId: string | null;
+  manureRequired: number;
+  manureApplied: number;
+  manureCovered: number;
+  manureShortfall: number;
+  manureShortHoldings: number;
+  firstManureShortBuildingId: string | null;
   seedGrainByHolding: ReadonlyMap<string, number>;
   seedBarleyByHolding: ReadonlyMap<string, number>;
   rotation: CropRotationPlan;
@@ -168,12 +181,12 @@ export function projectedCropFertility(
 
 export function projectedFieldFertility(
   field: FarmFieldState,
-  cattleFertilityBonus = 0,
+  manureFertilityBonus = fieldManureFertilityBonus(field),
 ): number {
   return projectedCropFertility(
     field.fertility,
     field.crop,
-    cattleFertilityBonus,
+    manureFertilityBonus,
   );
 }
 
@@ -395,6 +408,8 @@ function buildFarmsteadWorkPlanWithWindows(
   let autumnWork = 0;
   let seedGrain = 0;
   let seedBarley = 0;
+  let manureRequired = 0;
+  let manureApplied = 0;
   const rotation = emptyCropRotationPlan();
   let currentFertilityArea = 0;
   let afterCurrentFertilityArea = 0;
@@ -413,8 +428,10 @@ function buildFarmsteadWorkPlanWithWindows(
     const currentFertility = Math.max(0.2, Math.min(1, field.fertility));
     const afterCurrentFertility = projectedFieldFertility(
       field,
-      support?.fertilityBonus,
+      fieldManureFertilityBonus(field),
     );
+    manureRequired += fieldManureRequirement(field);
+    manureApplied += fieldManureApplied(field);
     const afterPlannedFertility = projectedCropFertility(
       afterCurrentFertility,
       field.nextCrop,
@@ -556,6 +573,8 @@ function buildFarmsteadWorkPlanWithWindows(
     ),
     seedGrainRequired: seedGrain,
     seedBarleyRequired: seedBarley,
+    manureRequired,
+    manureApplied,
     rotation,
   };
 }
@@ -671,6 +690,22 @@ export function buildSettlementFarmPlan(
   }
   const seedGrainByHolding = new Map<string, number>();
   const seedBarleyByHolding = new Map<string, number>();
+  const inboundManureByHolding = new Map<string, number>();
+  for (const trip of state.deliveryTrips.values()) {
+    if (
+      trip.targetBuildingId == null
+      || trip.destinationKind !== 'building'
+      || trip.cargoKind !== 'manure'
+      || trip.phase === 'inbound'
+    ) {
+      continue;
+    }
+    inboundManureByHolding.set(
+      trip.targetBuildingId,
+      (inboundManureByHolding.get(trip.targetBuildingId) ?? 0)
+        + Math.max(0, trip.amount),
+    );
+  }
 
   const total: SettlementFarmPlan = {
     holdingCount: fieldsByHolding.size,
@@ -693,6 +728,12 @@ export function buildSettlementFarmPlan(
     seedBarleyShortfall: 0,
     seedShortHoldings: 0,
     firstSeedShortBuildingId: null,
+    manureRequired: 0,
+    manureApplied: 0,
+    manureCovered: 0,
+    manureShortfall: 0,
+    manureShortHoldings: 0,
+    firstManureShortBuildingId: null,
     seedGrainByHolding,
     seedBarleyByHolding,
     rotation: emptyCropRotationPlan(),
@@ -727,6 +768,23 @@ export function buildSettlementFarmPlan(
     total.expectedFibreHarvest += plan.expectedFibreHarvest;
     total.seedGrainRequired += plan.seedGrainRequired;
     total.seedBarleyRequired += plan.seedBarleyRequired;
+    total.manureRequired += plan.manureRequired;
+    total.manureApplied += plan.manureApplied;
+    const onsiteManure = operational ? Math.max(0, farmstead?.manure ?? 0) : 0;
+    const inboundManure = operational
+      ? inboundManureByHolding.get(farmsteadId) ?? 0
+      : 0;
+    const manureCovered = Math.min(
+      plan.manureRequired,
+      plan.manureApplied + onsiteManure + inboundManure,
+    );
+    const manureShortfall = Math.max(0, plan.manureRequired - manureCovered);
+    total.manureCovered += manureCovered;
+    total.manureShortfall += manureShortfall;
+    if (manureShortfall > 0.05) {
+      total.manureShortHoldings += 1;
+      total.firstManureShortBuildingId ??= farmsteadId;
+    }
     seedGrainByHolding.set(farmsteadId, plan.seedGrainRequired);
     seedBarleyByHolding.set(farmsteadId, plan.seedBarleyRequired);
     total.rotation.activeArea += plan.rotation.activeArea;

@@ -165,16 +165,12 @@ pub fn try_execute_standing_marketplace_import(
             TradeResource::Ironwork,
             MARKETPLACE_IRONWORK_IMPORT_LOT,
         ),
-        StandingMarketplaceImport::Iron => (
-            "buy_iron",
-            TradeResource::Iron,
-            MARKETPLACE_IRON_IMPORT_LOT,
-        ),
-        StandingMarketplaceImport::Salt => (
-            "buy_salt",
-            TradeResource::Salt,
-            MARKETPLACE_SALT_IMPORT_LOT,
-        ),
+        StandingMarketplaceImport::Iron => {
+            ("buy_iron", TradeResource::Iron, MARKETPLACE_IRON_IMPORT_LOT)
+        }
+        StandingMarketplaceImport::Salt => {
+            ("buy_salt", TradeResource::Salt, MARKETPLACE_SALT_IMPORT_LOT)
+        }
     };
     let Some(offer) = marketplace_trade_offer(trade_id) else {
         return false;

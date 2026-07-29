@@ -4,8 +4,9 @@ use crate::balance_generated::{
     FARM_CROP_RYE_ID, FARM_CROP_WHEAT_ID, FARM_EARLY_HARVEST_MINIMUM_GROWTH,
     FARM_EARLY_HARVEST_MONTH, FARM_EARLY_HARVEST_RIPENESS_FACTOR,
     FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_LARGE_FIELD_EFFICIENCY_EXPONENT,
-    FARM_LARGE_FIELD_EFFICIENCY_FLOOR, FARM_OPTIMAL_FIELD_AREA, FARM_PLOUGH_WORK_PER_SQUARE_METER,
-    FARM_SLOPE_PENALTY_PER_DEGREE, FARM_SOW_WORK_PER_SQUARE_METER,
+    FARM_LARGE_FIELD_EFFICIENCY_FLOOR, FARM_MANURE_FERTILITY_BONUS, FARM_MANURE_PER_SQUARE_METER,
+    FARM_OPTIMAL_FIELD_AREA, FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_SLOPE_PENALTY_PER_DEGREE,
+    FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
 
@@ -322,6 +323,18 @@ pub fn fertility_after_harvest(crop: u8, fertility: f64) -> f64 {
     (fertility + crop_definition(crop).fertility_delta).clamp(0.2, 1.0)
 }
 
+pub fn field_manure_required(area: f64) -> f64 {
+    area.max(0.0) * FARM_MANURE_PER_SQUARE_METER.max(0.0)
+}
+
+pub fn field_manure_fertility_bonus(area: f64, manure_applied: f64) -> f64 {
+    let required = field_manure_required(area);
+    if required <= 1e-9 {
+        return 0.0;
+    }
+    FARM_MANURE_FERTILITY_BONUS.max(0.0) * (manure_applied.max(0.0) / required).clamp(0.0, 1.0)
+}
+
 pub fn point_in_field(point: Point2, corners: &ZoneCorners) -> bool {
     let polygon = corners_array(corners);
     let mut sign = 0.0;
@@ -417,6 +430,28 @@ mod tests {
         assert!(initial_field_fertility(0.7, 2.0) > initial_field_fertility(0.3, 12.0));
         assert!((initial_field_fertility(10.0, 0.0) - 0.92).abs() < 1e-9);
         assert_eq!(initial_field_fertility(0.0, 100.0), 0.35);
+    }
+
+    #[test]
+    fn manure_benefit_is_proportional_to_physical_field_coverage() {
+        let area = 1_600.0;
+        let required = field_manure_required(area);
+        assert!((required - 64.0).abs() < 1e-9);
+        assert_eq!(field_manure_fertility_bonus(area, 0.0), 0.0);
+        assert!(
+            (field_manure_fertility_bonus(area, required / 2.0)
+                - FARM_MANURE_FERTILITY_BONUS / 2.0)
+                .abs()
+                < 1e-9
+        );
+        assert!(
+            (field_manure_fertility_bonus(area, required) - FARM_MANURE_FERTILITY_BONUS).abs()
+                < 1e-9
+        );
+        assert_eq!(
+            field_manure_fertility_bonus(area, required * 2.0),
+            FARM_MANURE_FERTILITY_BONUS
+        );
     }
 
     #[test]
@@ -528,7 +563,13 @@ mod tests {
         );
         assert!((farmstead_exportable_grain(30.0, 19.2) - 10.8).abs() < 1e-9);
         assert_eq!(farmstead_exportable_grain(10.0, 19.2), 0.0);
-        assert_eq!(field_seed_crop(CROP_BARLEY, CROP_RYE, STAGE_SOWING), CROP_BARLEY);
-        assert_eq!(field_seed_crop(CROP_RYE, CROP_BARLEY, STAGE_GROWING), CROP_BARLEY);
+        assert_eq!(
+            field_seed_crop(CROP_BARLEY, CROP_RYE, STAGE_SOWING),
+            CROP_BARLEY
+        );
+        assert_eq!(
+            field_seed_crop(CROP_RYE, CROP_BARLEY, STAGE_GROWING),
+            CROP_BARLEY
+        );
     }
 }

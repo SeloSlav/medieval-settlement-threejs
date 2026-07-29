@@ -8,15 +8,25 @@ import {
   HAYLOFT_VISUAL_SEGMENTS,
   syncStockpileSegments,
 } from '../src/buildings/buildingStockpileVisuals.ts';
+import {
+  MANURE_STOCKPILE_VISUAL_SEGMENTS,
+  MANURE_STOCK_SEGMENT_NAME,
+} from '../src/buildings/meshes/manureStockpileMesh.ts';
 import { getBuildingExtent } from '../src/buildings/buildingExtents.ts';
 import { createCattleVisualDistribution } from '../src/farming/LivestockVisuals.ts';
 import {
+  cattleManureCollectionMultiplier,
+  cattleManurePerCycle,
+} from '../src/farming/manurePlanning.ts';
+import {
   BACKYARD_GARDEN_DEFINITIONS,
+  BUILDING_STORAGE_CAPS,
   BUILDING_DEFINITIONS,
   BUILDING_KINDS,
-  CATTLE_FERTILITY_BONUS,
-  CATTLE_MAX_FERTILIZED_FIELDS,
+  CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
+  FARM_MANURE_FERTILITY_BONUS,
+  LIVESTOCK_MANURE_TRANSFER_PER_TRIP,
   LIVESTOCK_MIN_PASTURE_AREA,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
   SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
@@ -32,9 +42,16 @@ assert.equal(BUILDING_DEFINITIONS.pastoral_farmstead.workRadius, 110);
 assert.equal(BUILDING_DEFINITIONS.swineherd.workRadius, 120);
 assert.equal(BUILDING_DEFINITIONS.swineherd.requiresMatureTrees, true);
 assert.ok(LIVESTOCK_MIN_PASTURE_AREA >= 48, 'pastures must remain meaningful drawn parcels');
-assert.ok(CATTLE_FERTILITY_BONUS > 0, 'cattle must directly restore field fertility');
-assert.equal(CATTLE_MAX_FERTILIZED_FIELDS, 2, 'cattle field support must remain capped');
+assert.ok(FARM_MANURE_FERTILITY_BONUS > 0, 'spread manure must materially improve soil');
+assert.equal(CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS, 2, 'ox field support must remain capped');
 assert.ok(CATTLE_PLOUGH_WORK_MULTIPLIER < 1, 'ox power must reduce plough work');
+assert.equal(LIVESTOCK_MANURE_TRANSFER_PER_TRIP, 24, 'manure carts need bounded physical loads');
+assert.ok(
+  cattleManureCollectionMultiplier('winter') > cattleManureCollectionMultiplier('spring')
+    && cattleManureCollectionMultiplier('spring') > cattleManureCollectionMultiplier('summer'),
+  'housing and bedding should make manure easiest to collect in winter and scarcest on summer pasture',
+);
+assert.ok(cattleManurePerCycle(4, 'winter') > cattleManurePerCycle(4, 'summer'));
 assert.ok(
   SWINE_GRAIN_PER_UNSUPPORTED_HEAD > SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
   'grain-only pig keeping must remain deliberately inefficient',
@@ -105,6 +122,24 @@ assert.equal(syncStockpileSegments(
 ), 0);
 assert.equal(hayloft.visible, false);
 
+const manureYard = pastoralModel.getObjectByName('PastoralManureStockpile');
+assert.ok(manureYard instanceof THREE.Group, 'the pastoral farmstead should expose a live manure yard');
+const manureSegments = manureYard.children.filter(
+  (child) => child.name === MANURE_STOCK_SEGMENT_NAME,
+);
+assert.equal(manureSegments.length, MANURE_STOCKPILE_VISUAL_SEGMENTS);
+assert.equal(manureYard.visible, false, 'an empty manure yard must not show a decorative pile');
+assert.equal(
+  syncStockpileSegments(
+    manureYard,
+    MANURE_STOCK_SEGMENT_NAME,
+    BUILDING_STORAGE_CAPS.pastoral_farmstead.manure / 2,
+    BUILDING_STORAGE_CAPS.pastoral_farmstead.manure,
+  ),
+  MANURE_STOCKPILE_VISUAL_SEGMENTS / 2,
+);
+assert.equal(manureSegments.filter((segment) => segment.visible).length, 2);
+
 const livestockAssets = [
   { label: 'cow', path: 'public/assets/models/livestock/quaternius-cow.glb', idle: 'idle', graze: 'eating', walk: 'walk' },
   { label: 'bull', path: 'public/assets/models/livestock/quaternius-bull.glb', idle: 'idle', graze: 'eating', walk: 'walk' },
@@ -149,7 +184,7 @@ const serverLivestock = fs.readFileSync('server/src/simulation/livestock.rs', 'u
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
 assert.match(serverLivestock, /tree\.phase == "mature"/, 'pannage should count only mature trees');
 assert.match(serverLivestock, /mature_trees\s*\/\s*SWINE_MATURE_TREES_PER_HEAD/, 'pannage capacity should use mature trees');
-assert.match(serverLivestock, /CATTLE_MAX_FERTILIZED_FIELDS/, 'cattle support should cap fertilized fields');
+assert.match(serverLivestock, /CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS/, 'ox support should cap ploughed fields');
 assert.match(
   serverLivestock,
   /pub fn cattle_field_support_sources[\s\S]*owner_fields[\s\S]*retain_priority_candidate/,
@@ -170,6 +205,26 @@ assert.match(
   /cattle_field_support_for[\s\S]*livestock_herd\(\)[\s\S]*building_id\(\)[\s\S]*find\(&building_id\)[\s\S]*cattle_field_support_is_active/,
   'field work should re-read live herd readiness after using the cached candidate map',
 );
+assert.match(
+  serverLivestock,
+  /deposit_building_commodity\([\s\S]*CommodityKind::Manure[\s\S]*cattle_manure_output/,
+  'supplied cattle must produce manure into the holding rather than the treasury',
+);
+assert.match(
+  serverLivestock,
+  /dispatch_manure_to_crop_farmstead[\s\S]*road_path_distance[\s\S]*LIVESTOCK_MANURE_TRANSFER_PER_TRIP/,
+  'manure must travel in bounded carts to road-reachable crop holdings',
+);
+assert.match(
+  tickContext,
+  /farmstead_manure_requirements:\s*RefCell<HashMap<Identity,\s*HashMap<u64,\s*\(f64,\s*u8\)>>>/,
+  'manure demand should be indexed once per owner and simulation substep',
+);
+assert.match(
+  tickContext,
+  /ensure_farmstead_manure_requirements[\s\S]*for field in ctx\.db\.farm_field\(\)\.owner\(\)\.filter\(&owner\)[\s\S]*field_manure_required/,
+  'one owner-wide field scan should build all crop-holding manure requirements',
+);
 const farmSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(
   farmSimulation,
@@ -181,14 +236,41 @@ assert.match(
   /field\.stage == STAGE_PLOUGHING[\s\S]{0,100}plough_multiplier[\s\S]{0,100}else[\s\S]{0,100}1\.0/,
   'ox power should apply only to ploughing',
 );
-assert.match(farmSimulation, /fertility_after_harvest[\s\S]*manure_bonus/, 'cattle manure should directly improve field fertility');
-assert.doesNotMatch(serverLivestock, /RESOURCE_MANURE|manure commodity/i, 'manure must remain a direct field effect, not a new commodity');
+assert.match(
+  farmSimulation,
+  /withdraw_building_commodity\(farmstead, CommodityKind::Manure, manure_needed\)/,
+  'field work must consume physical manure from its owning crop farmstead',
+);
+assert.match(
+  farmSimulation,
+  /field_manure_fertility_bonus\(field\.area, field\.manure_applied\)/,
+  'soil improvement must follow actual manure coverage',
+);
+assert.doesNotMatch(
+  farmSimulation,
+  /cattle_field_support_for[\s\S]{0,300}fertility/,
+  'nearby cattle must not grant a free proximity fertility bonus',
+);
+const commodities = fs.readFileSync('server/src/economy/commodities.rs', 'utf8');
+assert.match(commodities, /Self::Manure => 24/, 'manure needs a stable physical cargo id');
+assert.match(commodities, /CommodityKind::Manure => building\.manure/, 'manure stock must live on buildings');
+assert.match(
+  commodities,
+  /CommodityKind::Manure => return/,
+  'manure must never be credited to the disembodied legacy treasury ledger',
+);
 
 const scaleFarmsteads = 2_000;
 const scaleFields = 2_000;
 const scaleCattleHoldings = 20;
 const repeatedFieldVisits = scaleFarmsteads * scaleFields * scaleCattleHoldings;
 const cachedFieldVisits = scaleFields * scaleCattleHoldings + scaleFields;
+const repeatedManureRequirementVisits = scaleCattleHoldings * scaleFarmsteads * scaleFields;
+const cachedManureRequirementVisits = scaleFields + scaleCattleHoldings * scaleFarmsteads;
+assert.ok(
+  repeatedManureRequirementVisits / cachedManureRequirementVisits > 9,
+  'manure target selection should reuse one field-demand scan across cattle holdings',
+);
 assert.ok(
   repeatedFieldVisits / cachedFieldVisits > 1_000,
   'the owner cache should remove farmstead × field × cattle scan multiplication',

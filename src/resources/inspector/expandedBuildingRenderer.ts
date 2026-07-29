@@ -1086,6 +1086,9 @@ function renderFarmsteadPlanning(
   const inboundBarleySeed = inboundSupply?.cargoKind === 'barley'
     ? Math.max(0, inboundSupply.amount)
     : 0;
+  const inboundManure = inboundSupply?.cargoKind === 'manure'
+    ? Math.max(0, inboundSupply.amount)
+    : 0;
   const onsiteSeedShortfall = Math.max(0, plan.seedGrainRequired - building.grain);
   const onsiteBarleySeedShortfall = Math.max(
     0,
@@ -1099,6 +1102,11 @@ function renderFarmsteadPlanning(
     0,
     plan.seedBarleyRequired - barley - inboundBarleySeed,
   );
+  const manureCovered = Math.min(
+    plan.manureRequired,
+    plan.manureApplied + Math.max(0, building.manure ?? 0) + inboundManure,
+  );
+  const manureShortfall = Math.max(0, plan.manureRequired - manureCovered);
   const exportableGrain = Math.max(0, building.grain - plan.seedGrainRequired);
   const exportableBarley = Math.max(0, barley - plan.seedBarleyRequired);
   const grainDispatch = context.worldQueries.getNextFarmGrainDispatch(building);
@@ -1148,6 +1156,8 @@ function renderFarmsteadPlanning(
     <li><span>Autumn crop labor</span><span>${formatSeasonalWork(plan.autumn)}</span></li>
     <li><span>Seed grain</span><span>${Math.min(building.grain, plan.seedGrainRequired).toFixed(1)} onsite${inboundSeed > 0.05 ? ` + ${inboundSeed.toFixed(1)} inbound` : ''} / ${plan.seedGrainRequired.toFixed(1)} protected${seedShortfall > 0.05 ? ` · still short ${seedShortfall.toFixed(1)}` : ''}</span></li>
     <li><span>Barley seed</span><span>${Math.min(barley, plan.seedBarleyRequired).toFixed(1)} onsite${inboundBarleySeed > 0.05 ? ` + ${inboundBarleySeed.toFixed(1)} inbound` : ''} / ${plan.seedBarleyRequired.toFixed(1)} protected${barleySeedShortfall > 0.05 ? ` · still short ${barleySeedShortfall.toFixed(1)}` : ''}</span></li>
+    <li><span>Field manure</span><span>${plan.manureApplied.toFixed(1)} spread + ${Math.max(0, building.manure ?? 0).toFixed(1)} onsite${inboundManure > 0.05 ? ` + ${inboundManure.toFixed(1)} inbound` : ''} / ${plan.manureRequired.toFixed(1)} cycle coverage${manureShortfall > 0.05 ? ` · short ${manureShortfall.toFixed(1)}` : ' · covered'}</span></li>
+    <li><span>Manure allocation</span><span>Consumed only during ploughing · urgent fields claim the shared farmyard pile first</span></li>
     <li><span>Exportable grain</span><span>${exportableGrain.toFixed(1)} after sowing reserve</span></li>
     <li><span>Exportable barley</span><span>${exportableBarley.toFixed(1)} after sowing reserve</span></li>
     <li><span>${clock.month === 9 ? 'Harvest remaining' : 'Harvest potential'}</span><span>${plan.expectedHarvest.toFixed(1)} bread grain · ${plan.expectedBarleyHarvest.toFixed(1)} barley</span></li>
@@ -1194,6 +1204,16 @@ function renderFarmsteadPlanning(
     return {
       rows,
       statusText: `Sowing at risk — connect stored or market-imported seed, or pause fields (short ${seedShortfall.toFixed(1)} grain + ${barleySeedShortfall.toFixed(1)} barley)`,
+      statusState: 'warning',
+    };
+  }
+  if (
+    manureShortfall > 0.05
+    && fields.some((field) => field.priority > 0 && field.stage === 'ploughing')
+  ) {
+    return {
+      rows,
+      statusText: `Ploughing manure short ${manureShortfall.toFixed(1)} — incoming cattle carts or lower field priority can protect the most valuable parcels`,
       statusState: 'warning',
     };
   }

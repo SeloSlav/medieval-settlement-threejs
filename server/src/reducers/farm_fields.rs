@@ -202,6 +202,7 @@ pub fn place_farm_field(
         current_yield: 0.0,
         harvest_yield_multiplier: 1.0,
         following_crop: NO_FOLLOWING_CROP,
+        manure_applied: 0.0,
     });
     Ok(())
 }

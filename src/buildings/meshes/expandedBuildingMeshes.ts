@@ -53,6 +53,7 @@ import {
 } from '../monasteryStockpileVisuals.ts';
 import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
 import { addStockedPolearmRack } from './polearmRack.ts';
+import { createManureStockpile } from './manureStockpileMesh.ts';
 
 export const LOCAL_RECEIPT_VISUAL_SEGMENTS = 3;
 export const LOCAL_RECEIPT_VISUAL_CAPACITY = STOREHOUSE_HAUL_PER_WORKER;
@@ -339,6 +340,7 @@ export function createThreshingBarnMesh(): THREE.Group {
     ] as const).slice(0, FLAX_STOCKPILE_VISUAL_SEGMENTS),
     (segment, scale) => addFlaxBundle(segment, 0, 0, scale),
   );
+  group.add(createManureStockpile('ThreshingManureStockpile', 5.35, 2.65));
   // A low handcart and flails make the yard read as threshing rather than storage.
   addMesh(group, new THREE.BoxGeometry(2.5, 0.42, 1.45), timberMaterial('weathered'), new THREE.Vector3(3.1, 0.82, 4.65));
   addCartWheel(group, 1.82, 0.67, 4.65, 0.66);

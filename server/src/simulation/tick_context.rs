@@ -7,12 +7,14 @@ use std::sync::Arc;
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    CATTLE_FERTILITY_BONUS, CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS,
-    MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD,
+    CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_ALE,
+    MONASTERY_FEAST_FOOD,
 };
 use crate::db::*;
 use crate::economy::CommodityKind;
-use crate::farming::{field_seed_crop, field_seed_grain_remaining, CROP_BARLEY};
+use crate::farming::{
+    field_manure_required, field_seed_crop, field_seed_grain_remaining, CROP_BARLEY,
+};
 use crate::monastery_hospitality_policy::monastery_feast_surplus;
 use crate::raid_agent_policy::combat_agent_is_active_raider_threat;
 use crate::resident_welfare_policy::CorpseSpatialIndex;
@@ -56,6 +58,7 @@ pub struct SimTickContext {
     waiting_corpse_index: RefCell<Option<HashMap<Identity, CorpseSpatialIndex>>>,
     farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
     farmstead_barley_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
+    farmstead_manure_requirements: RefCell<HashMap<Identity, HashMap<u64, (f64, u8)>>>,
     cattle_field_sources_by_owner: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
 }
 
@@ -98,6 +101,7 @@ impl SimTickContext {
             waiting_corpse_index: RefCell::new(None),
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
             farmstead_barley_seed_reserves: RefCell::new(HashMap::new()),
+            farmstead_manure_requirements: RefCell::new(HashMap::new()),
             cattle_field_sources_by_owner: RefCell::new(HashMap::new()),
         }
     }
@@ -578,7 +582,7 @@ impl SimTickContext {
         ctx: &ReducerContext,
         owner: Identity,
         field_id: u64,
-    ) -> Option<(f64, f64)> {
+    ) -> Option<f64> {
         self.ensure_cattle_field_sources(ctx, owner);
         let source_ids = self
             .cattle_field_sources_by_owner
@@ -598,7 +602,53 @@ impl SimTickContext {
                     herd.supplied_capacity,
                 )
             })
-            .then_some((CATTLE_PLOUGH_WORK_MULTIPLIER, CATTLE_FERTILITY_BONUS))
+            .then_some(CATTLE_PLOUGH_WORK_MULTIPLIER)
+    }
+
+    /// Active fields share one owner-wide requirement scan. Cattle holdings
+    /// can then compare crop farmsteads without multiplying field scans by
+    /// source count; live building stock and inbound carts are still reloaded
+    /// for every dispatch decision.
+    pub fn farmstead_manure_requirement_for(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        farmstead_id: u64,
+    ) -> (f64, u8) {
+        self.ensure_farmstead_manure_requirements(ctx, owner);
+        self.farmstead_manure_requirements
+            .borrow()
+            .get(&owner)
+            .and_then(|requirements| requirements.get(&farmstead_id))
+            .copied()
+            .unwrap_or((0.0, 0))
+    }
+
+    fn ensure_farmstead_manure_requirements(&self, ctx: &ReducerContext, owner: Identity) {
+        if self
+            .farmstead_manure_requirements
+            .borrow()
+            .contains_key(&owner)
+        {
+            return;
+        }
+        let mut requirements: HashMap<u64, (f64, u8)> = HashMap::new();
+        for field in ctx.db.farm_field().owner().filter(&owner) {
+            if field.priority == 0 {
+                continue;
+            }
+            let remaining =
+                (field_manure_required(field.area) - field.manure_applied.max(0.0)).max(0.0);
+            if remaining <= 1e-6 {
+                continue;
+            }
+            let entry = requirements.entry(field.farmstead_id).or_insert((0.0, 0));
+            entry.0 += remaining;
+            entry.1 = entry.1.max(field.priority);
+        }
+        self.farmstead_manure_requirements
+            .borrow_mut()
+            .insert(owner, requirements);
     }
 
     fn ensure_cattle_field_sources(&self, ctx: &ReducerContext, owner: Identity) {

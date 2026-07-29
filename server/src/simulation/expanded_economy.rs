@@ -8,43 +8,40 @@ use crate::balance_generated::{
     BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
-    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, FARM_GROWTH_SECONDS,
-    FARM_WORK_METERS_PER_WORKER_PER_SEC, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
-    FERRY_GOLD_PER_DAY, FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
+    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE,
+    FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, FERRY_GOLD_PER_DAY,
+    FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
     GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE,
     GRANARY_WATER_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
     MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
     MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
-    MONASTERY_UNLINKED_PRODUCTIVITY, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
-    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
-    SMOKEHOUSE_SALT_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
-    SMITHY_IRON_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
-    POTTER_POTTERY_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
-    VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
-    WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
-    WEAVER_WOOL_PER_CYCLE,
+    MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    POTTER_POTTERY_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
+    SMITHY_IRON_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
+    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
+    TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE,
+    WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
+    WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
+use crate::burgage::{Point2, ZoneCorners};
 use crate::civilian_tool_policy::{
     civilian_tool_runway_cycles, civilian_tool_throughput_multiplier, civilian_tools_maintained,
     is_civilian_tool_site,
 };
-use crate::burgage::{Point2, ZoneCorners};
 use crate::db::*;
 use crate::economy::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
-    credit_local_civic_receipts, deposit_building_commodity,
-    pending_marketplace_trade_commodity, spend_treasury_gold, treasury_gold,
-    withdraw_building_commodity, CommodityKind,
+    credit_local_civic_receipts, deposit_building_commodity, pending_marketplace_trade_commodity,
+    spend_treasury_gold, treasury_gold, withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
     advance_crop_rotation, crop_growth_allowed, crop_produce, expected_grain_yield,
-    farmstead_exportable_grain, fertility_after_harvest, field_seed_crop,
-    field_seed_grain_remaining,
-    field_work_allowed, seed_grain_required, shape_efficiency, sowing_window_missed, work_required,
-    CROP_BARLEY, CROP_FALLOW, STAGE_GROWING, STAGE_HARVESTING, STAGE_PLOUGHING,
-    STAGE_SOWING,
+    farmstead_exportable_grain, fertility_after_harvest, field_manure_fertility_bonus,
+    field_manure_required, field_seed_crop, field_seed_grain_remaining, field_work_allowed,
+    seed_grain_required, shape_efficiency, sowing_window_missed, work_required, CROP_BARLEY,
+    CROP_FALLOW, STAGE_GROWING, STAGE_HARVESTING, STAGE_PLOUGHING, STAGE_SOWING,
 };
 use crate::frontier_economy_policy::{
     armed_guards, carpenter_polearm_shortfall, guard_upkeep, guardhouse_food_runway_days,
@@ -95,9 +92,7 @@ use crate::supply_policy::{
     MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, Residence};
-use crate::weaver_input_policy::{
-    weaver_fibre_delivery_preference_rank, weaver_uses_flax,
-};
+use crate::weaver_input_policy::{weaver_fibre_delivery_preference_rank, weaver_uses_flax};
 
 struct RoutedBuilding {
     building: Building,
@@ -194,11 +189,9 @@ pub fn step_institutional_food_dispatch(
         let Some(network) = tick.road_network(source.owner) else {
             continue;
         };
-        for target_id in tick.building_ids_for_kinds(
-            ctx,
-            source.owner,
-            &["guardhouse", "smokehouse", "granary"],
-        ) {
+        for target_id in
+            tick.building_ids_for_kinds(ctx, source.owner, &["guardhouse", "smokehouse", "granary"])
+        {
             let Some(target) = ctx.db.building().id().find(&target_id) else {
                 continue;
             };
@@ -214,8 +207,7 @@ pub fn step_institutional_food_dispatch(
             else {
                 continue;
             };
-            let Some(distance) =
-                network.road_path_distance(source.x, source.z, target.x, target.z)
+            let Some(distance) = network.road_path_distance(source.x, source.z, target.x, target.z)
             else {
                 continue;
             };
@@ -274,9 +266,7 @@ pub fn step_institutional_food_dispatch(
             continue;
         };
         let transferable = institutional_source_food_surplus(ctx, tick, &source, source.food);
-        let needed = (desired_stock - target.food)
-            .max(0.0)
-            .min(transferable);
+        let needed = (desired_stock - target.food).max(0.0).min(transferable);
         if needed <= 1e-6 {
             continue;
         }
@@ -321,11 +311,8 @@ fn institutional_food_target_plan(
             if desired_stock <= 1e-6 || target.food + 1e-6 >= desired_stock {
                 return None;
             }
-            let runway = guardhouse_food_runway_days(
-                target.assigned_labor,
-                target.polearms,
-                target.food,
-            );
+            let runway =
+                guardhouse_food_runway_days(target.assigned_labor, target.polearms, target.food);
             let duty = if runway + 1e-9 < GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS {
                 InstitutionalFoodDispatchDuty::CriticalGuard
             } else {
@@ -397,12 +384,7 @@ pub fn step_threshing_barn(
         fields,
     );
     tick.set_farmstead_seed_reserve(ctx, building.owner, building.id, seed_reserve);
-    tick.set_farmstead_barley_seed_reserve(
-        ctx,
-        building.owner,
-        building.id,
-        barley_seed_reserve,
-    );
+    tick.set_farmstead_barley_seed_reserve(ctx, building.owner, building.id, barley_seed_reserve);
     if !labor_and_logistics_paused(ctx, tick, building.owner, clock) && building.assigned_labor > 0
     {
         dispatch_to_building(
@@ -880,8 +862,7 @@ pub fn step_local_material_dispatch(
                 continue;
             }
             let stock = building_commodity_stock(&target, commodity);
-            let per_cycle =
-                directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
+            let per_cycle = directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
             let duty = processor_input_dispatch_duty(
                 target.assigned_labor,
                 stock,
@@ -902,8 +883,7 @@ pub fn step_local_material_dispatch(
                 } else {
                     processor_input_runway_cycles(stock, per_cycle)
                 };
-            let Some(distance) =
-                network.road_path_distance(source.x, source.z, target.x, target.z)
+            let Some(distance) = network.road_path_distance(source.x, source.z, target.x, target.z)
             else {
                 continue;
             };
@@ -1015,9 +995,7 @@ pub fn step_local_material_dispatch(
     }
 }
 
-fn local_material_source_plan(
-    kind: &str,
-) -> Option<(CommodityKind, &'static [&'static str])> {
+fn local_material_source_plan(kind: &str) -> Option<(CommodityKind, &'static [&'static str])> {
     match kind {
         "clay_pit" => Some((CommodityKind::Clay, &["potter_kiln"])),
         "charcoal_burner" => Some((CommodityKind::Charcoal, &["smithy"])),
@@ -1126,7 +1104,7 @@ fn step_farmstead_fields(
     onsite_labor: u32,
     mut fields: Vec<FarmField>,
 ) -> (f64, f64) {
-    let cattle_support: std::collections::HashMap<u64, (f64, f64)> = fields
+    let cattle_support: std::collections::HashMap<u64, f64> = fields
         .iter()
         .filter_map(|field| {
             tick.cattle_field_support_for(ctx, farmstead.owner, field.id)
@@ -1167,11 +1145,7 @@ fn step_farmstead_fields(
                 fail_field_cycle(field);
             }
         } else if clock.month == 10 && field.stage == STAGE_HARVESTING {
-            let manure_bonus = cattle_support
-                .get(&field.id)
-                .map(|(_, bonus)| *bonus)
-                .unwrap_or(0.0);
-            finish_field_cycle_with_manure(field, field.current_yield, manure_bonus);
+            finish_field_cycle(field, field.current_yield);
         }
     }
 
@@ -1209,8 +1183,7 @@ fn step_farmstead_fields(
         }
         let corners = field_corners(field);
         let shape = shape_efficiency(&corners);
-        let (plough_multiplier, manure_bonus) =
-            cattle_support.get(&field.id).copied().unwrap_or((1.0, 0.0));
+        let plough_multiplier = cattle_support.get(&field.id).copied().unwrap_or(1.0);
         let required = (work_required(field.stage, field.area, shape)
             * if field.stage == STAGE_PLOUGHING {
                 plough_multiplier
@@ -1269,6 +1242,13 @@ fn step_farmstead_fields(
         let previous_progress = field.stage_progress;
         field.stage_progress = (field.stage_progress + spent / required).min(1.0);
         work_budget -= spent;
+        if field.stage == STAGE_PLOUGHING {
+            let manure_needed =
+                field_manure_required(field.area) * (field.stage_progress - previous_progress);
+            let manure_spread =
+                withdraw_building_commodity(farmstead, CommodityKind::Manure, manure_needed);
+            field.manure_applied += manure_spread;
+        }
         if seed_required > 1e-9 {
             let seed_used =
                 seed_required * (field.stage_progress - previous_progress).clamp(0.0, 1.0);
@@ -1296,11 +1276,7 @@ fn step_farmstead_fields(
                 field.stage_progress = 0.0;
             }
             STAGE_HARVESTING => {
-                finish_field_cycle_with_manure(
-                    field,
-                    expected_harvest.unwrap_or_default(),
-                    manure_bonus,
-                );
+                finish_field_cycle(field, expected_harvest.unwrap_or_default());
             }
             _ => {}
         }
@@ -1332,10 +1308,7 @@ fn farmstead_seed_grain_remaining(fields: &[FarmField]) -> (f64, f64) {
 }
 
 fn finish_field_cycle(field: &mut FarmField, harvested: f64) {
-    finish_field_cycle_with_manure(field, harvested, 0.0);
-}
-
-fn finish_field_cycle_with_manure(field: &mut FarmField, harvested: f64, manure_bonus: f64) {
+    let manure_bonus = settle_field_manure_bonus(field);
     field.last_yield = harvested;
     field.current_yield = 0.0;
     field.harvest_yield_multiplier = 1.0;
@@ -1348,12 +1321,20 @@ fn finish_field_cycle_with_manure(field: &mut FarmField, harvested: f64, manure_
 }
 
 fn fail_field_cycle(field: &mut FarmField) {
+    let manure_bonus = settle_field_manure_bonus(field);
     field.last_yield = 0.0;
     field.current_yield = 0.0;
     field.harvest_yield_multiplier = 1.0;
+    field.fertility = (field.fertility + manure_bonus).clamp(0.0, 1.0);
     advance_field_rotation(field);
     field.stage = STAGE_PLOUGHING;
     field.stage_progress = 0.0;
+}
+
+fn settle_field_manure_bonus(field: &mut FarmField) -> f64 {
+    let bonus = field_manure_fertility_bonus(field.area, field.manure_applied);
+    field.manure_applied = 0.0;
+    bonus
 }
 
 fn advance_field_rotation(field: &mut FarmField) {
@@ -1411,8 +1392,7 @@ pub fn step_brewery(
     if ale_headroom > 1e-6 {
         let malt_working_target = (BREWERY_MALT_PER_ALE_CYCLE * input_staging_cycles)
             .min(building_commodity_cap(&brewery.kind, CommodityKind::Malt));
-        let should_malt = brewery.barley > 1e-6
-            && brewery.malt + 1e-6 < malt_working_target;
+        let should_malt = brewery.barley > 1e-6 && brewery.malt + 1e-6 < malt_working_target;
         brewery = if should_malt {
             step_processor(
                 ctx,
@@ -1422,10 +1402,7 @@ pub fn step_brewery(
                 &[
                     (CommodityKind::Barley, BREWERY_BARLEY_PER_MALT_CYCLE),
                     (CommodityKind::Water, BREWERY_MALTING_WATER_PER_CYCLE),
-                    (
-                        CommodityKind::Firewood,
-                        BREWERY_MALTING_FIREWOOD_PER_CYCLE,
-                    ),
+                    (CommodityKind::Firewood, BREWERY_MALTING_FIREWOOD_PER_CYCLE),
                 ],
                 &[(CommodityKind::Malt, BREWERY_MALT_PER_CYCLE)],
             )
@@ -1438,10 +1415,7 @@ pub fn step_brewery(
                 &[
                     (CommodityKind::Malt, BREWERY_MALT_PER_ALE_CYCLE),
                     (CommodityKind::Water, BREWERY_BREWING_WATER_PER_CYCLE),
-                    (
-                        CommodityKind::Firewood,
-                        BREWERY_BREWING_FIREWOOD_PER_CYCLE,
-                    ),
+                    (CommodityKind::Firewood, BREWERY_BREWING_FIREWOOD_PER_CYCLE),
                 ],
                 &[(CommodityKind::Ale, BREWERY_ALE_PER_CYCLE)],
             )
@@ -2683,14 +2657,12 @@ fn dispatch_to_building_where_limited(
                 };
                 let input_preference_rank = if target.kind == "weaver" {
                     match commodity {
-                        CommodityKind::Wool => weaver_fibre_delivery_preference_rank(
-                            target.weaver_input_policy,
-                            false,
-                        ),
-                        CommodityKind::Flax => weaver_fibre_delivery_preference_rank(
-                            target.weaver_input_policy,
-                            true,
-                        ),
+                        CommodityKind::Wool => {
+                            weaver_fibre_delivery_preference_rank(target.weaver_input_policy, false)
+                        }
+                        CommodityKind::Flax => {
+                            weaver_fibre_delivery_preference_rank(target.weaver_input_policy, true)
+                        }
                         _ => 0,
                     }
                 } else {
@@ -3191,10 +3163,7 @@ fn run_monastery_feast(
     withdraw_building_commodity(monastery, CommodityKind::Honey, MONASTERY_FEAST_HONEY);
     withdraw_building_commodity(monastery, CommodityKind::Wine, MONASTERY_FEAST_WINE);
     let food_share = MONASTERY_FEAST_FOOD / residences.len() as f64;
-    let prosperous_homes = residences
-        .iter()
-        .filter(|home| home.tier >= 3)
-        .count();
+    let prosperous_homes = residences.iter().filter(|home| home.tier >= 3).count();
     let ale_share = if prosperous_homes > 0 {
         MONASTERY_FEAST_ALE / prosperous_homes as f64
     } else {

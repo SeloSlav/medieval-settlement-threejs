@@ -20,13 +20,18 @@ import {
   WATERMILL_WATER_PER_CYCLE,
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
-  CATTLE_FERTILITY_BONUS,
+  FARM_MANURE_FERTILITY_BONUS,
+  FARM_MANURE_PER_SQUARE_METER,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import {
   computeCattleFieldSupport,
   selectCattleSupportedFields,
 } from '../src/farming/cattleFieldSupport.ts';
+import {
+  fieldManureFertilityBonus,
+  fieldManureRequirement,
+} from '../src/farming/manurePlanning.ts';
 import {
   expectedFieldYield,
   fieldArea,
@@ -271,6 +276,7 @@ const planningField: FarmFieldState = {
   harvestCount: 0,
   lastYield: 0,
   currentYield: 6,
+  manureApplied: 0,
 };
 assert.ok(currentFieldWorkRemaining(planningField) > 0);
 assert.ok(projectedFieldFertility(planningField) < planningField.fertility);
@@ -285,8 +291,20 @@ assert.ok(
   'a scheduled worked fallow should visibly restore soil after the current cereal',
 );
 assert.equal(
-  projectedFieldFertility(planningField, CATTLE_FERTILITY_BONUS),
-  projectedFieldFertility(planningField) + CATTLE_FERTILITY_BONUS,
+  projectedFieldFertility({
+    ...planningField,
+    manureApplied: fieldManureRequirement(planningField),
+  }),
+  projectedFieldFertility(planningField) + FARM_MANURE_FERTILITY_BONUS,
+);
+assert.equal(fieldManureRequirement(planningField), planningField.area * FARM_MANURE_PER_SQUARE_METER);
+assert.equal(
+  fieldManureFertilityBonus({
+    ...planningField,
+    manureApplied: fieldManureRequirement(planningField) / 2,
+  }),
+  FARM_MANURE_FERTILITY_BONUS / 2,
+  'partial physical coverage should grant only a proportional soil benefit',
 );
 assert.equal(
   yearThreeCrop(planningField),
@@ -607,7 +625,6 @@ const supportedAutumnPlan = buildFarmsteadWorkPlan(
       buildingId: oxHolding.id,
       distance: 0,
       ploughWorkMultiplier: CATTLE_PLOUGH_WORK_MULTIPLIER,
-      fertilityBonus: CATTLE_FERTILITY_BONUS,
     },
   ]]),
 );
@@ -732,8 +749,18 @@ const farmSimulation = fs.readFileSync('server/src/simulation/expanded_economy.r
 assert.match(farmSimulation, /field\.current_yield \+= deposited/, 'harvest accounting must track grain actually stored');
 assert.match(
   farmSimulation,
-  /finish_field_cycle_with_manure\(field, field\.current_yield, manure_bonus\)/,
+  /finish_field_cycle\(field, field\.current_yield\)/,
   'the October deadline must close partial harvests instead of erasing their soil cost',
+);
+assert.match(
+  farmSimulation,
+  /field\.stage == STAGE_PLOUGHING[\s\S]*withdraw_building_commodity\(farmstead, CommodityKind::Manure, manure_needed\)[\s\S]*field\.manure_applied \+= manure_spread/,
+  'ploughing progress must physically withdraw and spread manure from the crop farmstead',
+);
+assert.match(
+  farmSimulation,
+  /field_manure_fertility_bonus\(field\.area, field\.manure_applied\)/,
+  'cycle settlement must convert actual spread coverage into the soil bonus',
 );
 assert.match(farmSimulation, /seed_grain_required\(field\.area, field\.crop\)/);
 assert.match(farmSimulation, /withdraw_building_commodity\(farmstead, seed_commodity, seed_used\)/);

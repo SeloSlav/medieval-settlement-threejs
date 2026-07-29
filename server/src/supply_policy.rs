@@ -4,15 +4,13 @@ use crate::balance_generated::{
     BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_FIREWOOD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
-    GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE,
-    HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
-    MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
-    RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-    RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS, SMITHY_CHARCOAL_PER_CYCLE,
-    SMITHY_IRON_PER_CYCLE,
-    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
-    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
-    WEAVER_FLAX_PER_CYCLE, WEAVER_WOOL_PER_CYCLE, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+    GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
+    HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE,
+    POTTER_FIREWOOD_PER_CYCLE, RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
+    RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
+    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
+    SMOKEHOUSE_SALT_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
+    WEAVER_WOOL_PER_CYCLE, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 };
 use crate::civilian_tool_policy::is_civilian_tool_site;
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -243,14 +241,8 @@ pub fn household_firewood_priority_target(population: u32) -> f64 {
         .max(0.0)
 }
 
-pub fn household_firewood_needs_priority(
-    abandoned: bool,
-    population: u32,
-    stock: f64,
-) -> bool {
-    !abandoned
-        && population > 0
-        && stock + 1e-6 < household_firewood_priority_target(population)
+pub fn household_firewood_needs_priority(abandoned: bool, population: u32, stock: f64) -> bool {
+    !abandoned && population > 0 && stock + 1e-6 < household_firewood_priority_target(population)
 }
 
 pub fn is_well_supplier_operational(
@@ -643,26 +635,24 @@ pub fn select_need_delivery_candidate(
 #[cfg(test)]
 mod tests {
     use super::{
-        compare_grain_dispatch_candidates, compare_need_delivery_candidate_records,
-        compare_institutional_food_dispatch_candidates, compare_need_delivery_candidates,
-        compare_processor_input_dispatch_candidates,
-        compare_seed_grain_delivery_candidates, compare_supply_route_candidates,
-        construction_source_priority, directly_dispatched_processor_input_per_cycle,
-        grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, grain_work_priority,
-        granary_dispatch_order, household_food_reserve, institutional_food_surplus,
+        compare_grain_dispatch_candidates, compare_institutional_food_dispatch_candidates,
+        compare_need_delivery_candidate_records, compare_need_delivery_candidates,
+        compare_processor_input_dispatch_candidates, compare_seed_grain_delivery_candidates,
+        compare_supply_route_candidates, construction_source_priority,
+        directly_dispatched_processor_input_per_cycle, grain_dispatch_duty,
+        grain_input_runway_cycles, grain_input_target, grain_work_priority, granary_dispatch_order,
         household_firewood_needs_priority, household_firewood_priority_target,
-        is_firewood_supplier_operational, is_food_supplier_operational,
-        is_specialty_supplier_operational, is_well_supplier_operational,
-        processor_input_dispatch_duty, processor_input_runway_cycles, processor_input_target,
-        select_grain_dispatch_candidate, select_need_delivery_candidate,
+        household_food_reserve, institutional_food_surplus, is_firewood_supplier_operational,
+        is_food_supplier_operational, is_specialty_supplier_operational,
+        is_well_supplier_operational, processor_input_dispatch_duty, processor_input_runway_cycles,
+        processor_input_target, select_grain_dispatch_candidate, select_need_delivery_candidate,
         select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
         select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
         InstitutionalFoodDispatchDuty, NeedDeliveryCandidate, ProcessorInputDispatchDuty,
         ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
         GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
-        GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
-        INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
-        MARKETPLACE_MATERIAL_TARGET_KINDS,
+        GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
+        LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
         PRESERVED_FOOD_SUPPLIER_KINDS,
     };
     use std::cmp::Ordering;
@@ -951,10 +941,7 @@ mod tests {
             directly_dispatched_processor_input_per_cycle("smokehouse", "salt"),
             super::SMOKEHOUSE_SALT_PER_CYCLE,
         );
-        assert_eq!(
-            MARKETPLACE_MATERIAL_TARGET_KINDS,
-            &["smithy", "smokehouse"],
-        );
+        assert_eq!(MARKETPLACE_MATERIAL_TARGET_KINDS, &["smithy", "smokehouse"],);
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("smithy", "charcoal"),
             1.0,

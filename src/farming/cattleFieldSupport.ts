@@ -1,6 +1,5 @@
 import {
-  CATTLE_FERTILITY_BONUS,
-  CATTLE_MAX_FERTILIZED_FIELDS,
+  CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
 } from '../generated/gameBalance.ts';
 import {
@@ -20,7 +19,6 @@ export type CattleFieldSupport = {
   buildingId: string;
   distance: number;
   ploughWorkMultiplier: number;
-  fertilityBonus: number;
 };
 
 type CattleSupportState = Pick<GameState, 'buildings' | 'farmFields' | 'livestockHerds'>;
@@ -74,10 +72,10 @@ export function selectCattleSupportedFields(
     const insertion = selected.findIndex(({ field: incumbent }) => (
       fieldRanksAhead(field, incumbent)
     ));
-    if (insertion >= 0 && insertion < CATTLE_MAX_FERTILIZED_FIELDS) {
+    if (insertion >= 0 && insertion < CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS) {
       selected.splice(insertion, 0, { field, distance });
-      selected.length = Math.min(selected.length, CATTLE_MAX_FERTILIZED_FIELDS);
-    } else if (selected.length < CATTLE_MAX_FERTILIZED_FIELDS) {
+      selected.length = Math.min(selected.length, CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS);
+    } else if (selected.length < CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS) {
       selected.push({ field, distance });
     }
   }
@@ -123,7 +121,6 @@ export function computeCattleFieldSupport(
         buildingId: building.id,
         distance,
         ploughWorkMultiplier: CATTLE_PLOUGH_WORK_MULTIPLIER,
-        fertilityBonus: CATTLE_FERTILITY_BONUS,
       });
     }
   }

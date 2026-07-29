@@ -22,7 +22,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 24] = [
+const RECOVERY_ORDER: [CommodityKind; 25] = [
     CommodityKind::Gold,
     CommodityKind::Food,
     CommodityKind::Grain,
@@ -40,6 +40,7 @@ const RECOVERY_ORDER: [CommodityKind; 24] = [
     CommodityKind::Pottery,
     CommodityKind::Charcoal,
     CommodityKind::Clay,
+    CommodityKind::Manure,
     CommodityKind::Wool,
     CommodityKind::Ironwork,
     CommodityKind::Polearms,
@@ -75,6 +76,7 @@ pub struct ReclamationStock {
     pub salt: f64,
     pub charcoal: f64,
     pub pottery: f64,
+    pub manure: f64,
 }
 
 impl ReclamationStock {
@@ -177,6 +179,10 @@ impl ReclamationStock {
                 pottery: amount,
                 ..Self::default()
             },
+            CommodityKind::Manure => Self {
+                manure: amount,
+                ..Self::default()
+            },
         }
     }
 
@@ -212,6 +218,7 @@ impl ReclamationStock {
             salt: resources.salt.max(0.0),
             charcoal: resources.charcoal.max(0.0),
             pottery: resources.pottery.max(0.0),
+            manure: 0.0,
         }
     }
 
@@ -241,6 +248,7 @@ impl ReclamationStock {
             CommodityKind::Salt => self.salt,
             CommodityKind::Charcoal => self.charcoal,
             CommodityKind::Pottery => self.pottery,
+            CommodityKind::Manure => self.manure,
         }
     }
 
@@ -269,6 +277,7 @@ impl ReclamationStock {
         building.salt += self.salt;
         building.charcoal += self.charcoal;
         building.pottery += self.pottery;
+        building.manure += self.manure;
     }
 }
 
@@ -478,6 +487,7 @@ pub fn insert_reclamation_pile(
         salt: stock.salt.max(0.0),
         charcoal: stock.charcoal.max(0.0),
         pottery: stock.pottery.max(0.0),
+        manure: stock.manure.max(0.0),
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
     });
@@ -756,10 +766,7 @@ pub fn step_reclamation_piles(
     }
 }
 
-pub(crate) fn reclamation_destination_priority(
-    commodity: CommodityKind,
-    kind: &str,
-) -> Option<u8> {
+pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &str) -> Option<u8> {
     match commodity {
         CommodityKind::Gold => match kind {
             "town_hall" => Some(0),
@@ -860,6 +867,10 @@ pub(crate) fn reclamation_destination_priority(
             "potter_kiln" => Some(2),
             "founders_camp" => Some(3),
             _ => Some(4),
+        },
+        CommodityKind::Manure => match kind {
+            "threshing_barn" => Some(0),
+            _ => None,
         },
         CommodityKind::Water => match kind {
             "well" => Some(0),

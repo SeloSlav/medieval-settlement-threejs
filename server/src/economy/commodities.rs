@@ -30,6 +30,7 @@ pub enum CommodityKind {
     Salt,
     Charcoal,
     Pottery,
+    Manure,
 }
 
 impl CommodityKind {
@@ -59,6 +60,7 @@ impl CommodityKind {
             Self::Salt => 21,
             Self::Charcoal => 22,
             Self::Pottery => 23,
+            Self::Manure => 24,
         }
     }
 
@@ -88,6 +90,7 @@ impl CommodityKind {
             21 => Some(Self::Salt),
             22 => Some(Self::Charcoal),
             23 => Some(Self::Pottery),
+            24 => Some(Self::Manure),
             _ => None,
         }
     }
@@ -119,6 +122,7 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Salt => building.salt,
         CommodityKind::Charcoal => building.charcoal,
         CommodityKind::Pottery => building.pottery,
+        CommodityKind::Manure => building.manure,
     }
 }
 
@@ -167,6 +171,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Salt => def.storage_salt,
         CommodityKind::Charcoal => def.storage_charcoal,
         CommodityKind::Pottery => def.storage_pottery,
+        CommodityKind::Manure => def.storage_manure,
     }
 }
 
@@ -206,6 +211,7 @@ pub fn withdraw_building_commodity(
         CommodityKind::Salt => building.salt -= withdrawn,
         CommodityKind::Charcoal => building.charcoal -= withdrawn,
         CommodityKind::Pottery => building.pottery -= withdrawn,
+        CommodityKind::Manure => building.manure -= withdrawn,
     }
     withdrawn
 }
@@ -241,6 +247,7 @@ pub fn deposit_building_commodity(
         CommodityKind::Salt => building.salt += deposited,
         CommodityKind::Charcoal => building.charcoal += deposited,
         CommodityKind::Pottery => building.pottery += deposited,
+        CommodityKind::Manure => building.manure += deposited,
     }
     deposited
 }
@@ -286,6 +293,9 @@ pub fn credit_treasury_commodity(
         CommodityKind::Salt => treasury.salt += amount,
         CommodityKind::Charcoal => treasury.charcoal += amount,
         CommodityKind::Pottery => treasury.pottery += amount,
+        // Manure exists only in physical building stores; there is no legacy
+        // disembodied ledger slot to credit.
+        CommodityKind::Manure => return,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);

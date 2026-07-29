@@ -18,6 +18,7 @@ import {
   HAYLOFT_VISUAL_SEGMENTS,
   WOOL_STOCKPILE_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
+import { createManureStockpile } from './manureStockpileMesh.ts';
 
 const hay = sharedBuildingDetailMaterial('crop');
 const earth = sharedBuildingDetailMaterial('earth');
@@ -178,6 +179,7 @@ export function createPastoralFarmsteadMesh(): THREE.Group {
   }
   group.add(createHayloftStockpile());
   group.add(createWoolStockpile());
+  group.add(createManureStockpile('PastoralManureStockpile', 5.45, -3.65));
   for (const [x, scale] of [[-0.2, 1], [0.65, 0.78]] as const) {
     addMesh(group, new THREE.CylinderGeometry(0.3 * scale, 0.36 * scale, 0.82 * scale, 10), metalMaterial('iron'), new THREE.Vector3(x, 0.42 * scale, 4.0));
     addMesh(group, new THREE.TorusGeometry(0.22 * scale, 0.035, 5, 10), metalMaterial('steel'), new THREE.Vector3(x, 0.9 * scale, 4.0), new THREE.Euler(Math.PI * 0.5, 0, 0));

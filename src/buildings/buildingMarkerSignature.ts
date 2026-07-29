@@ -104,6 +104,7 @@ export function buildingMarkerSignatures(
         + (building.salt ?? 0)
         + (building.charcoal ?? 0)
         + (building.pottery ?? 0)
+        + (building.manure ?? 0)
         + (building.wool ?? 0)
         + (building.flax ?? 0)
         + (building.cloth ?? 0);

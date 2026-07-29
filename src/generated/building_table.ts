@@ -81,6 +81,7 @@ export default __t.row({
   salt: __t.f64(),
   charcoal: __t.f64(),
   pottery: __t.f64(),
+  manure: __t.f64(),
   marketplaceIronTarget: __t.u8().name("marketplace_iron_target"),
   marketplaceSaltTarget: __t.u8().name("marketplace_salt_target"),
 });

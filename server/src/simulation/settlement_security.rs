@@ -177,8 +177,8 @@ fn step_owner_security(
         .map(|resources| treasury_portable_stores(&resources, &buildings))
         .unwrap_or_default();
     let mut towers = staffed_watch_coverage(&buildings, &fire_disabled_buildings);
-    let scheduled_raid_is_at_night =
-        state.next_raid_tick > 0 && !crate::simulation::game_clock(state.next_raid_tick).is_work_hours;
+    let scheduled_raid_is_at_night = state.next_raid_tick > 0
+        && !crate::simulation::game_clock(state.next_raid_tick).is_work_hours;
     if scheduled_raid_is_at_night {
         let night_watch_policy = ctx
             .db
@@ -877,7 +877,7 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Pottery) => stores.pottery = amount,
         // Raiders do not select bulk stone or water as plunder even when a
         // settlement cart happens to be carrying it.
-        Some(CommodityKind::Stone | CommodityKind::Water) | None => {}
+        Some(CommodityKind::Stone | CommodityKind::Water | CommodityKind::Manure) | None => {}
     }
     stores
 }
@@ -906,7 +906,7 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Salt) => stores.salt,
         Some(CommodityKind::Charcoal) => stores.charcoal,
         Some(CommodityKind::Pottery) => stores.pottery,
-        Some(CommodityKind::Stone | CommodityKind::Water) | None => 0.0,
+        Some(CommodityKind::Stone | CommodityKind::Water | CommodityKind::Manure) | None => 0.0,
     }
 }
 

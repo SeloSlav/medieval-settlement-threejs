@@ -16,12 +16,13 @@ import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 import { weaverFibreDeliveryPreferenceLabel } from '../../economy/weaverInputPolicy.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
-  CATTLE_MAX_FERTILIZED_FIELDS,
+  CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
   LIVESTOCK_HAYMAKING_START_MONTH,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
 } from '../../generated/gameBalance.ts';
+import { cattleManurePerCycle } from '../../farming/manurePlanning.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
@@ -199,7 +200,7 @@ export function renderLivestockBuildingInspector(
     ? 'Forest pannage → seasonal pork for smokehouses'
     : herd?.species === 'sheep'
       ? 'Upland grazing → food, cheese, and annual fleece for local weaving'
-      : 'Pasture → dairy, field fertility, and ox ploughing power';
+      : 'Pasture → dairy, collectable farmyard manure, and ox ploughing power';
 
   const speciesControls = building.kind === 'pastoral_farmstead'
     ? `<div class="inspector-action-panel">
@@ -259,6 +260,12 @@ export function renderLivestockBuildingInspector(
   const recentOutput = herd
     ? `${herd.lastFoodOutput.toFixed(2)} food · ${herd.lastPreservedOutput.toFixed(2)} preserved${herd.lastHayOutput > 0 ? ` · ${herd.lastHayOutput.toFixed(2)} hay` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`
     : 'None';
+  const manurePerCycle = herd?.species === 'cattle'
+    ? cattleManurePerCycle(
+      Math.min(herd.headCount, herd.suppliedCapacity) * herd.health,
+      environment.season,
+    )
+    : 0;
   const capacity = herd
     ? `${herd.headCount} head · ${herd.suppliedCapacity}/${herd.pastureCapacity} supplied/pasture capacity`
     : 'No herd';
@@ -267,7 +274,9 @@ export function renderLivestockBuildingInspector(
        <li><span>Forest condition</span><span>${target.matureTrees > 0 ? 'Live canopy supplies mast' : 'Clear-cut — grain-only fallback'}</span></li>`
     : '';
   const benefitRow = herd?.species === 'cattle'
-    ? `<li><span>Field benefit</span><span>Highest-priority ${CATTLE_MAX_FERTILIZED_FIELDS} fields inside work extent · ${Math.round((1 - CATTLE_PLOUGH_WORK_MULTIPLIER) * 100)}% less ploughing + fertility</span></li>`
+    ? `<li><span>Ox team</span><span>Highest-priority ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} fields inside work extent · ${Math.round((1 - CATTLE_PLOUGH_WORK_MULTIPLIER) * 100)}% less ploughing</span></li>
+       <li><span>Manure output</span><span>${manurePerCycle.toFixed(2)} per work cycle now · supplied heads, health, and seasonal housing govern collection</span></li>
+       <li><span>Manure yard</span><span>${Math.max(0, building.manure ?? 0).toFixed(1)} / ${storageCaps.manure ?? 0} · carts serve lowest-covered road-linked crop farmsteads after food duties</span></li>`
     : herd?.species === 'sheep'
       ? '<li><span>Terrain fit</span><span>Lower input · tolerates steeper upland pasture</span></li>'
       : '<li><span>Seasonality</span><span>No passive pork · actual surplus culls in October–November</span></li>';

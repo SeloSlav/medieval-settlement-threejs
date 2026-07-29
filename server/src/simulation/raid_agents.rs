@@ -685,9 +685,7 @@ pub fn step_live_raids(
         .db
         .combat_agent()
         .iter()
-        .filter(|agent| {
-            agent.faction == COMBAT_FACTION_GUARD && agent.source_building_id > 0
-        })
+        .filter(|agent| agent.faction == COMBAT_FACTION_GUARD && agent.source_building_id > 0)
         .map(|agent| (agent.owner, agent.raid_id, agent.source_building_id))
         .collect::<HashSet<_>>();
     for route in ctx

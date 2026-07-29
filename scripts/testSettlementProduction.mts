@@ -1262,14 +1262,15 @@ farmState.livestockHerds.set(cattleHolding.id, {
 });
 const cattleFarmPlan = buildSettlementFarmPlan(farmState, september, false);
 assert.equal(cattleFarmPlan.cattleSupportedFields, 2);
-assert.ok(
-  cattleFarmPlan.rotation.afterCurrentAverageFertility
-    > farmPlan.rotation.afterCurrentAverageFertility,
-  'the rotation forecast should carry current ox-team manure into next-cycle soil',
+assert.equal(
+  cattleFarmPlan.rotation.afterCurrentAverageFertility,
+  farmPlan.rotation.afterCurrentAverageFertility,
+  'an ox team must not grant a free proximity fertility bonus',
 );
-assert.ok(
-  cattleFarmPlan.rotation.plannedHarvest > farmPlan.rotation.plannedHarvest,
-  'better post-cycle soil should raise the next crop forecast',
+assert.equal(
+  cattleFarmPlan.rotation.plannedHarvest,
+  farmPlan.rotation.plannedHarvest,
+  'future harvest should improve only after physical manure reaches and is spread on a field',
 );
 assert.ok(
   cattleFarmPlan.spring.requiredWorkerDays < farmPlan.spring.requiredWorkerDays,

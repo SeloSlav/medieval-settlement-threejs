@@ -43,6 +43,7 @@ type BuildingBalance = {
     salt?: number;
     charcoal?: number;
     pottery?: number;
+    manure?: number;
   };
   workRadius: number;
   pickRadius: number;
@@ -108,8 +109,12 @@ type LivestockSpeciesBalance = {
   woolPerShearingPerHead?: number;
   shearingStartMonth?: number;
   shearingEndMonth?: number;
-  fertilityBonus?: number;
-  maxFertilizedFields?: number;
+  manurePerSuppliedHeadPerCycle?: number;
+  manureCollectionSpringMultiplier?: number;
+  manureCollectionSummerMultiplier?: number;
+  manureCollectionAutumnMultiplier?: number;
+  manureCollectionWinterMultiplier?: number;
+  maxPloughSupportedFields?: number;
   ploughWorkMultiplier?: number;
   matureTreesPerHead?: number;
 };
@@ -508,6 +513,8 @@ export type GameBalance = {
     harvestWorkPerSquareMeter: number;
     growthSeconds: number;
     baseGrainPerSquareMeter: number;
+    manurePerSquareMeter: number;
+    manureFertilityBonus: number;
     farmsteadStarterSeedGrain: number;
     farmsteadStarterBarleySeed: number;
     earlyHarvestMonth: number;
@@ -530,6 +537,7 @@ export type GameBalance = {
     defaultHaymakingPercent: number;
     maximumHaymakingPercent: number;
     hayStorageCapacity: number;
+    manureTransferPerTrip: number;
     cattle: LivestockSpeciesBalance;
     sheep: LivestockSpeciesBalance;
     swine: LivestockSpeciesBalance;
@@ -956,6 +964,8 @@ function generateRust(): string {
     `pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = ${rustF64(b.farming.harvestWorkPerSquareMeter)};`,
     `pub const FARM_GROWTH_SECONDS: f64 = ${rustF64(b.farming.growthSeconds)};`,
     `pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.baseGrainPerSquareMeter)};`,
+    `pub const FARM_MANURE_PER_SQUARE_METER: f64 = ${rustF64(b.farming.manurePerSquareMeter)};`,
+    `pub const FARM_MANURE_FERTILITY_BONUS: f64 = ${rustF64(b.farming.manureFertilityBonus)};`,
     `pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = ${rustF64(b.farming.farmsteadStarterSeedGrain)};`,
     `pub const FARMSTEAD_STARTER_BARLEY_SEED: f64 = ${rustF64(b.farming.farmsteadStarterBarleySeed)};`,
     `pub const FARM_EARLY_HARVEST_MONTH: u32 = ${b.farming.earlyHarvestMonth};`,
@@ -976,6 +986,7 @@ function generateRust(): string {
     `pub const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT: u8 = ${b.livestock.defaultHaymakingPercent};`,
     `pub const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT: u8 = ${b.livestock.maximumHaymakingPercent};`,
     `pub const LIVESTOCK_HAY_STORAGE_CAPACITY: f64 = ${rustF64(b.livestock.hayStorageCapacity)};`,
+    `pub const LIVESTOCK_MANURE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.livestock.manureTransferPerTrip)};`,
     `pub const CATTLE_STARTER_HERD: u32 = ${b.livestock.cattle.starterHerd};`,
     `pub const CATTLE_MAX_HERD: u32 = ${b.livestock.cattle.maxHerd};`,
     `pub const CATTLE_MINIMUM_BREEDING_RESERVE: u32 = ${b.livestock.cattle.minimumBreedingReserve};`,
@@ -994,8 +1005,12 @@ function generateRust(): string {
     `pub const CATTLE_BREEDING_PER_CYCLE: f64 = ${rustF64(b.livestock.cattle.breedingPerCycle)};`,
     `pub const CATTLE_HEALTH_RECOVERY_PER_CYCLE: f64 = ${rustF64(b.livestock.cattle.healthRecoveryPerCycle)};`,
     `pub const CATTLE_HEALTH_LOSS_PER_CYCLE: f64 = ${rustF64(b.livestock.cattle.healthLossPerCycle)};`,
-    `pub const CATTLE_FERTILITY_BONUS: f64 = ${rustF64(b.livestock.cattle.fertilityBonus ?? 0)};`,
-    `pub const CATTLE_MAX_FERTILIZED_FIELDS: usize = ${b.livestock.cattle.maxFertilizedFields ?? 0};`,
+    `pub const CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE: f64 = ${rustF64(b.livestock.cattle.manurePerSuppliedHeadPerCycle ?? 0)};`,
+    `pub const CATTLE_MANURE_COLLECTION_SPRING_MULTIPLIER: f64 = ${rustF64(b.livestock.cattle.manureCollectionSpringMultiplier ?? 1)};`,
+    `pub const CATTLE_MANURE_COLLECTION_SUMMER_MULTIPLIER: f64 = ${rustF64(b.livestock.cattle.manureCollectionSummerMultiplier ?? 1)};`,
+    `pub const CATTLE_MANURE_COLLECTION_AUTUMN_MULTIPLIER: f64 = ${rustF64(b.livestock.cattle.manureCollectionAutumnMultiplier ?? 1)};`,
+    `pub const CATTLE_MANURE_COLLECTION_WINTER_MULTIPLIER: f64 = ${rustF64(b.livestock.cattle.manureCollectionWinterMultiplier ?? 1)};`,
+    `pub const CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS: usize = ${b.livestock.cattle.maxPloughSupportedFields ?? 0};`,
     `pub const CATTLE_PLOUGH_WORK_MULTIPLIER: f64 = ${rustF64(b.livestock.cattle.ploughWorkMultiplier ?? 1)};`,
     `pub const SHEEP_STARTER_HERD: u32 = ${b.livestock.sheep.starterHerd};`,
     `pub const SHEEP_MAX_HERD: u32 = ${b.livestock.sheep.maxHerd};`,
@@ -1179,6 +1194,7 @@ function generateRust(): string {
   lines.push('    pub storage_salt: f64,');
   lines.push('    pub storage_charcoal: f64,');
   lines.push('    pub storage_pottery: f64,');
+  lines.push('    pub storage_manure: f64,');
   lines.push('    pub accepts_labor: bool,');
   lines.push('    pub max_labor: u32,');
   lines.push('    pub work_radius: f64,');
@@ -1226,6 +1242,7 @@ function generateRust(): string {
     lines.push(`    storage_salt: ${rustF64(def.storage.salt ?? 0)},`);
     lines.push(`    storage_charcoal: ${rustF64(def.storage.charcoal ?? 0)},`);
     lines.push(`    storage_pottery: ${rustF64(def.storage.pottery ?? 0)},`);
+    lines.push(`    storage_manure: ${rustF64(def.storage.manure ?? 0)},`);
     lines.push(`    accepts_labor: ${def.acceptsLabor},`);
     lines.push(`    max_labor: ${def.maxLabor},`);
     lines.push(`    work_radius: ${rustF64(def.workRadius)},`);
@@ -1701,6 +1718,8 @@ function generateTypeScript(): string {
     `export const FARM_HARVEST_WORK_PER_SQUARE_METER = ${b.farming.harvestWorkPerSquareMeter};`,
     `export const FARM_GROWTH_SECONDS = ${b.farming.growthSeconds};`,
     `export const FARM_BASE_GRAIN_PER_SQUARE_METER = ${b.farming.baseGrainPerSquareMeter};`,
+    `export const FARM_MANURE_PER_SQUARE_METER = ${b.farming.manurePerSquareMeter};`,
+    `export const FARM_MANURE_FERTILITY_BONUS = ${b.farming.manureFertilityBonus};`,
     `export const FARMSTEAD_STARTER_SEED_GRAIN = ${b.farming.farmsteadStarterSeedGrain};`,
     `export const FARMSTEAD_STARTER_BARLEY_SEED = ${b.farming.farmsteadStarterBarleySeed};`,
     `export const FARM_EARLY_HARVEST_MONTH = ${b.farming.earlyHarvestMonth};`,
@@ -1744,6 +1763,7 @@ function generateTypeScript(): string {
     `export const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT = ${b.livestock.defaultHaymakingPercent};`,
     `export const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT = ${b.livestock.maximumHaymakingPercent};`,
     `export const LIVESTOCK_HAY_STORAGE_CAPACITY = ${b.livestock.hayStorageCapacity};`,
+    `export const LIVESTOCK_MANURE_TRANSFER_PER_TRIP = ${b.livestock.manureTransferPerTrip};`,
     `export const CATTLE_STARTER_HERD = ${b.livestock.cattle.starterHerd};`,
     `export const CATTLE_MAX_HERD = ${b.livestock.cattle.maxHerd};`,
     `export const CATTLE_MINIMUM_BREEDING_RESERVE = ${b.livestock.cattle.minimumBreedingReserve};`,
@@ -1762,8 +1782,12 @@ function generateTypeScript(): string {
     `export const CATTLE_BREEDING_PER_CYCLE = ${b.livestock.cattle.breedingPerCycle};`,
     `export const CATTLE_HEALTH_RECOVERY_PER_CYCLE = ${b.livestock.cattle.healthRecoveryPerCycle};`,
     `export const CATTLE_HEALTH_LOSS_PER_CYCLE = ${b.livestock.cattle.healthLossPerCycle};`,
-    `export const CATTLE_FERTILITY_BONUS = ${b.livestock.cattle.fertilityBonus ?? 0};`,
-    `export const CATTLE_MAX_FERTILIZED_FIELDS = ${b.livestock.cattle.maxFertilizedFields ?? 0};`,
+    `export const CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE = ${b.livestock.cattle.manurePerSuppliedHeadPerCycle ?? 0};`,
+    `export const CATTLE_MANURE_COLLECTION_SPRING_MULTIPLIER = ${b.livestock.cattle.manureCollectionSpringMultiplier ?? 1};`,
+    `export const CATTLE_MANURE_COLLECTION_SUMMER_MULTIPLIER = ${b.livestock.cattle.manureCollectionSummerMultiplier ?? 1};`,
+    `export const CATTLE_MANURE_COLLECTION_AUTUMN_MULTIPLIER = ${b.livestock.cattle.manureCollectionAutumnMultiplier ?? 1};`,
+    `export const CATTLE_MANURE_COLLECTION_WINTER_MULTIPLIER = ${b.livestock.cattle.manureCollectionWinterMultiplier ?? 1};`,
+    `export const CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS = ${b.livestock.cattle.maxPloughSupportedFields ?? 0};`,
     `export const CATTLE_PLOUGH_WORK_MULTIPLIER = ${b.livestock.cattle.ploughWorkMultiplier ?? 1};`,
     `export const SHEEP_STARTER_HERD = ${b.livestock.sheep.starterHerd};`,
     `export const SHEEP_MAX_HERD = ${b.livestock.sheep.maxHerd};`,
@@ -1829,6 +1853,7 @@ function generateTypeScript(): string {
     '  salt?: number;',
     '  charcoal?: number;',
     '  pottery?: number;',
+    '  manure?: number;',
     '};',
     '',
     'export type BuildingDefinition = {',
@@ -1909,6 +1934,7 @@ function generateTypeScript(): string {
     const salt = def.storage.salt ?? 0;
     const charcoal = def.storage.charcoal ?? 0;
     const pottery = def.storage.pottery ?? 0;
+    const manure = def.storage.manure ?? 0;
     const extras: string[] = [];
     if (water > 0) extras.push(`water: ${water}`);
     if (food > 0) extras.push(`food: ${food}`);
@@ -1930,6 +1956,7 @@ function generateTypeScript(): string {
     if (salt > 0) extras.push(`salt: ${salt}`);
     if (charcoal > 0) extras.push(`charcoal: ${charcoal}`);
     if (pottery > 0) extras.push(`pottery: ${pottery}`);
+    if (manure > 0) extras.push(`manure: ${manure}`);
     lines.push(
       `  ${kind}: { timber: ${def.storage.timber}, firewood: ${def.storage.firewood}, stone: ${def.storage.stone}${extras.length > 0 ? `, ${extras.join(', ')}` : ''} },`,
     );

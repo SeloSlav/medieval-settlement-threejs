@@ -296,6 +296,7 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   salt: 'Adriatic salt sack 1',
   charcoal: 'Charcoal sack 1',
   pottery: 'Fired pottery vessel 1',
+  manure: 'Manure cart heap',
 };
 for (const [index, kind] of DELIVERY_CARGO_KINDS.entries()) {
   const cart = createDeliveryCartMesh(kind, {

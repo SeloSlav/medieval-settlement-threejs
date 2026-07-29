@@ -29,6 +29,7 @@ const tests = [
   'test:physical-food-stores',
   'test:physical-bulk-stores',
   'test:physical-armory-stores',
+  'test:physical-manure-economy',
   'test:resource-locator',
   'test:seasonal-producer-stores',
   'test:physical-marketplace-specialties',

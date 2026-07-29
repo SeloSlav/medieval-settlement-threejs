@@ -36,6 +36,7 @@ export function syncFarmFields(
       lastYield: row.lastYield,
       currentYield: row.currentYield ?? 0,
       harvestYieldMultiplier: row.harvestYieldMultiplier ?? 1,
+      manureApplied: row.manureApplied ?? 0,
     });
   }
   return fields;

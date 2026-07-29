@@ -142,7 +142,12 @@ October and November are the only ploughing and sowing months:
 
 - Farmers prioritize by player field priority, then harvesting, sowing, and
   ploughing urgency.
-- Cattle support still reduces plough work and can add manure fertility.
+- Healthy, supplied cattle still reduce plough work on the two highest-priority
+  nearby fields. Fertility now depends separately on physical manure: cattle
+  holdings collect more dung-and-bedding stock while housed in winter, cart it
+  over roads to crop farmsteads after their food duties, and farmers consume it
+  in proportion to ploughing progress. Partial field coverage grants only a
+  partial soil bonus.
 - A fully sown field becomes dormant through winter.
 
 Other autumn rules:

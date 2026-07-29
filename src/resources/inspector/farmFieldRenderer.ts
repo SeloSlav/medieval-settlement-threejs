@@ -27,6 +27,11 @@ import type { InspectorRenderContext, InspectorView } from './renderInspectableT
 import { hiddenLabor } from './renderInspectableTarget.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
+import {
+  fieldManureApplied,
+  fieldManureFertilityBonus,
+  fieldManureRequirement,
+} from '../../farming/manurePlanning.ts';
 
 const STAGE_LABEL = {
   ploughing: 'Ploughing',
@@ -56,10 +61,10 @@ export function renderFarmFieldInspector(
   const sizeEfficiency = Math.round(fieldSizeEfficiency(field.area) * 100);
   const moistureFit = Math.round(moistureSuitability(field.crop, field.moisture) * 100);
   const cattleSupport = computeCattleFieldSupport(context.gameState).get(field.id);
-  const projectedFertilityValue = projectedFieldFertility(
-    field,
-    cattleSupport?.fertilityBonus,
-  );
+  const manureRequired = fieldManureRequirement(field);
+  const manureApplied = fieldManureApplied(field);
+  const manureBonus = fieldManureFertilityBonus(field);
+  const projectedFertilityValue = projectedFieldFertility(field);
   const projectedFertility = Math.round(projectedFertilityValue * 100);
   const plannedFertility = projectedCropFertility(
     projectedFertilityValue,
@@ -127,7 +132,7 @@ export function renderFarmFieldInspector(
       </div>
     </div>`;
   const priorityControls = `<div class="inspector-action-panel">
-      <p class="resource-inspector-note">Farmstead work priority — also decides which nearby fields receive the limited ox team. Ties favor the older field.</p>
+      <p class="resource-inspector-note">Farmstead work priority — decides which nearby fields receive the limited ox team and which ploughing parcel claims scarce onsite manure first. Ties favor the older field.</p>
       <div class="resource-action-row">${[0, 1, 2, 3].map((priority) => `<button type="button" class="resource-action-button" data-field-priority="${priority}" ${priority === field.priority ? 'disabled' : ''}>${PRIORITY_LABEL[priority]}</button>`).join('')}</div>
     </div>`;
   const earlyHarvestControls = field.stage === 'growing' && cropProduce(field.crop) !== 'none'
@@ -153,9 +158,10 @@ export function renderFarmFieldInspector(
       <li><span>Crop calendar</span><span>${cropCalendarLabel(field.crop)}</span></li>
       <li><span>Priority</span><span>${PRIORITY_LABEL[field.priority] ?? 'Normal'}</span></li>
       <li><span>Ox support</span><span>${cattleSupport
-        ? `Active from nearby cattle · ${Math.round((1 - cattleSupport.ploughWorkMultiplier) * 100)}% less ploughing · +${Math.round(cattleSupport.fertilityBonus * 100)} fertility after cycle`
+        ? `Active from nearby cattle · ${Math.round((1 - cattleSupport.ploughWorkMultiplier) * 100)}% less ploughing`
         : 'None · requires a top-two priority slot and healthy, supplied cattle within range'}</span></li>
-      <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${Math.round(farmstead.grain)} grain stored` : 'Missing'}</span></li>
+      <li><span>Manure spread</span><span>${manureApplied.toFixed(1)} / ${manureRequired.toFixed(1)} this cycle · +${(manureBonus * 100).toFixed(1)} soil${field.stage === 'ploughing' ? ` · ${Math.max(0, farmstead?.manure ?? 0).toFixed(1)} waiting at farmstead` : ''}</span></li>
+      <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${Math.round(farmstead.grain)} grain · ${Math.round(farmstead.manure ?? 0)} manure stored` : 'Missing'}</span></li>
       <li><span>Moisture</span><span>${Math.round(field.moisture * 100)}% · ${moistureFit}% crop fit</span></li>
       <li><span>Current-cycle soil</span><span>${Math.round(field.fertility * 100)}% → ${projectedFertility}% fertility</span></li>
       <li><span>Year 2 soil</span><span>${projectedFertility}% → ${Math.round(plannedFertility * 100)}% after ${cropLabel(field.nextCrop).toLowerCase()}</span></li>

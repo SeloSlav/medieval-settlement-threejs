@@ -224,8 +224,8 @@ export class ResourceInspector {
   private readonly detailDisclosure: HTMLDetailsElement;
   private readonly detailDisclosureCount: HTMLElement;
   private readonly stockpileRoot: HTMLElement;
-  private readonly stockpileValues: Record<keyof ResourceTotals, HTMLElement>;
-  private readonly stockpileTransitValues: Record<keyof ResourceTotals, HTMLElement>;
+  private readonly stockpileValues: Record<HudResourceKind, HTMLElement>;
+  private readonly stockpileTransitValues: Record<HudResourceKind, HTMLElement>;
   private readonly resourceTotalsModeButton: HTMLButtonElement;
   private readonly resourceTotalsModeLabel: HTMLElement;
   private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
@@ -383,7 +383,7 @@ export class ResourceInspector {
         resource,
         this.mustElement(options.uiRoot, `[data-stockpile-transit="${resource}"]`),
       ]),
-    ) as Record<keyof ResourceTotals, HTMLElement>;
+    ) as Record<HudResourceKind, HTMLElement>;
     this.populationValue = this.mustElement(options.uiRoot, '[data-stockpile="population"]');
     this.housingValue = this.mustElement(options.uiRoot, '[data-stockpile="housing"]');
     this.housingSub = this.mustElement(options.uiRoot, '[data-stockpile="housing-sub"]');
