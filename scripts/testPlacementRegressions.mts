@@ -140,6 +140,8 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
   const fillGeometry = new THREE.BufferGeometry();
   updateTerrainQuadGeometry(fillGeometry, corners, heightAt, 0.1, 5, 5);
   const fillPositions = fillGeometry.getAttribute('position') as THREE.BufferAttribute;
+  const fillIndex = fillGeometry.getIndex();
+  assert.ok(fillIndex);
   for (let index = 0; index < fillPositions.count; index++) {
     assert.ok(
       Math.abs(
@@ -149,6 +151,24 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
       'placement fill vertices must stay just above the sampled terrain',
     );
   }
+  updateTerrainQuadGeometry(
+    fillGeometry,
+    corners.map((point) => ({ x: point.x + 2, z: point.z - 3 })) as typeof corners,
+    heightAt,
+    0.1,
+    5,
+    5,
+  );
+  assert.strictEqual(
+    fillGeometry.getAttribute('position'),
+    fillPositions,
+    'same-topology preview movement must retain the WebGPU position buffer',
+  );
+  assert.strictEqual(
+    fillGeometry.getIndex(),
+    fillIndex,
+    'same-topology preview movement must retain the WebGPU index buffer',
+  );
 
   const borderGeometry = new THREE.BufferGeometry();
   updateTerrainRibbonGeometry(
@@ -158,6 +178,8 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
     { width: 0.2, lift: 0.16, sampleSpacing: 0.75, dashLength: 1.4, gapLength: 0.8 },
   );
   const borderPositions = borderGeometry.getAttribute('position') as THREE.BufferAttribute;
+  const borderIndex = borderGeometry.getIndex();
+  assert.ok(borderIndex);
   assert.ok(borderPositions.count > 16, 'dotted footprint border should be terrain-sampled');
   for (let index = 0; index < borderPositions.count; index++) {
     assert.ok(
@@ -168,6 +190,24 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
       'placement border vertices must stay just above the sampled terrain',
     );
   }
+  updateTerrainRibbonGeometry(
+    borderGeometry,
+    polygonSegments(corners.map(
+      (point) => ({ x: point.x + 2, z: point.z - 3 }),
+    ) as typeof corners),
+    heightAt,
+    { width: 0.2, lift: 0.16, sampleSpacing: 0.75, dashLength: 1.4, gapLength: 0.8 },
+  );
+  assert.strictEqual(
+    borderGeometry.getAttribute('position'),
+    borderPositions,
+    'same-topology ribbon movement must retain the WebGPU position buffer',
+  );
+  assert.strictEqual(
+    borderGeometry.getIndex(),
+    borderIndex,
+    'same-topology ribbon movement must retain the WebGPU index buffer',
+  );
 
   fillGeometry.dispose();
   borderGeometry.dispose();

@@ -53,6 +53,14 @@ pub const MAP_EDGE_INSET_METERS: f64 = 9.0;
 pub const MIN_GUARD_RECOVERY_DAYS: f64 = 3.0;
 pub const MAX_GUARD_RECOVERY_DAYS: f64 = 5.0;
 pub const ROUTE_SHORTCUT_MARGIN_METERS: f64 = 8.0;
+pub const RAIDER_ROUT_CONTESTED_CASUALTY_FRACTION: f64 = 0.25;
+pub const RAIDER_ROUT_COLLAPSE_CASUALTY_FRACTION: f64 = 0.5;
+pub const RAIDER_ROUT_GUARD_STRENGTH_RATIO: f64 = 1.1;
+pub const RAID_APPROACH_UNKNOWN: u8 = 0;
+pub const RAID_APPROACH_NORTH: u8 = 1;
+pub const RAID_APPROACH_EAST: u8 = 2;
+pub const RAID_APPROACH_SOUTH: u8 = 3;
+pub const RAID_APPROACH_WEST: u8 = 4;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RouteMove {
@@ -108,6 +116,55 @@ pub fn raid_party_size(enemy_pressure: u8) -> u32 {
         .clamp(3.0, 12.0) as u32
 }
 
+/// Health-weighted field strength used by the deterministic morale check.
+///
+/// Readiness already reflects a guard company's physical food, pay, weapon,
+/// and drill state; hostile readiness reflects configured frontier pressure.
+/// Keeping the multiplier bounded lets preparation matter without turning a
+/// single veteran into several replicated fighters.
+pub fn combatant_morale_strength(health: f64, max_health: f64, readiness: f64) -> f64 {
+    if !health.is_finite()
+        || !max_health.is_finite()
+        || !readiness.is_finite()
+        || health <= 0.0
+        || max_health <= 0.0
+    {
+        return 0.0;
+    }
+    let health_ratio = (health / max_health).clamp(0.0, 1.0);
+    let readiness_factor = 0.75 + readiness.clamp(0.0, 1.0) * 0.5;
+    health_ratio * readiness_factor
+}
+
+/// A raid breaks only after real battlefield casualties.
+///
+/// Losing half the original party causes an unconditional collapse. Earlier
+/// losses can trigger a rout only while fit guards hold a material local
+/// strength advantage. There is no off-map probability roll: the caller turns
+/// every surviving raider into a physical retreating agent that must still
+/// escape the map and can be intercepted on the way out.
+pub fn raider_company_should_rout(
+    initial_raiders: u32,
+    raiders_downed: u32,
+    committed_raider_strength: f64,
+    field_guard_strength: f64,
+) -> bool {
+    if initial_raiders < 2
+        || raiders_downed == 0
+        || !committed_raider_strength.is_finite()
+        || !field_guard_strength.is_finite()
+        || committed_raider_strength <= 0.0
+        || field_guard_strength < 0.0
+    {
+        return false;
+    }
+    let casualty_fraction = raiders_downed.min(initial_raiders) as f64 / initial_raiders as f64;
+    casualty_fraction + 1e-9 >= RAIDER_ROUT_COLLAPSE_CASUALTY_FRACTION
+        || (casualty_fraction + 1e-9 >= RAIDER_ROUT_CONTESTED_CASUALTY_FRACTION
+            && field_guard_strength + 1e-9
+                >= committed_raider_strength * RAIDER_ROUT_GUARD_STRENGTH_RATIO)
+}
+
 pub fn playable_half_for_map_size(map_size: u8) -> f64 {
     match map_size {
         0 => 310.0,
@@ -147,6 +204,49 @@ pub fn raid_entry_point(
                 .total_cmp(&distance(right.0, right.1, target_x, target_z))
         })
         .unwrap_or((target_x, -limit))
+}
+
+/// Compresses a planned edge entry into one stable side plus an along-edge
+/// offset. Settlement security stores this before the raid is visible so a
+/// warning from the north cannot later become an east-side spawn merely
+/// because the richest physical target changed while the party approached.
+pub fn raid_approach_from_entry(entry_x: f64, entry_z: f64) -> (u8, f64) {
+    if !entry_x.is_finite() || !entry_z.is_finite() {
+        return (RAID_APPROACH_UNKNOWN, 0.0);
+    }
+    if entry_z.abs() >= entry_x.abs() {
+        if entry_z < 0.0 {
+            (RAID_APPROACH_NORTH, entry_x)
+        } else {
+            (RAID_APPROACH_SOUTH, entry_x)
+        }
+    } else if entry_x > 0.0 {
+        (RAID_APPROACH_EAST, entry_z)
+    } else {
+        (RAID_APPROACH_WEST, entry_z)
+    }
+}
+
+/// Reconstructs the exact planned map-edge entry from its compact persisted
+/// form. Unknown legacy plans return `None` and retain the older deterministic
+/// entry selection at contact.
+pub fn raid_entry_point_for_approach(
+    approach: u8,
+    offset: f64,
+    playable_half: f64,
+) -> Option<(f64, f64)> {
+    if !offset.is_finite() || !playable_half.is_finite() {
+        return None;
+    }
+    let limit = (playable_half - MAP_EDGE_INSET_METERS).max(40.0);
+    let offset = offset.clamp(-limit + 1.0, limit - 1.0);
+    match approach {
+        RAID_APPROACH_NORTH => Some((offset, -limit)),
+        RAID_APPROACH_EAST => Some((limit, offset)),
+        RAID_APPROACH_SOUTH => Some((offset, limit)),
+        RAID_APPROACH_WEST => Some((-limit, offset)),
+        _ => None,
+    }
 }
 
 pub fn formation_spawn(
@@ -633,6 +733,38 @@ mod tests {
     }
 
     #[test]
+    fn casualties_and_prepared_guards_can_break_a_live_raid() {
+        assert!(!raider_company_should_rout(6, 1, 4.6, 7.0));
+        assert!(
+            raider_company_should_rout(6, 2, 3.7, 4.2),
+            "one-third casualties plus a real guard advantage should break the attack",
+        );
+        assert!(
+            !raider_company_should_rout(6, 2, 4.2, 3.0),
+            "casualties alone should not erase a still-superior raiding party",
+        );
+        assert!(
+            raider_company_should_rout(6, 3, 2.8, 0.0),
+            "half the original party down should cause an unconditional collapse",
+        );
+        assert!(
+            !raider_company_should_rout(1, 1, 0.8, 4.0),
+            "a lone attacker has no surviving company to rout",
+        );
+        assert!(!raider_company_should_rout(6, 2, f64::NAN, 4.0));
+    }
+
+    #[test]
+    fn morale_strength_rewards_health_and_physical_readiness() {
+        let unready = combatant_morale_strength(80.0, 100.0, 0.0);
+        let ready = combatant_morale_strength(80.0, 100.0, 1.0);
+        assert!(ready > unready);
+        assert_eq!(combatant_morale_strength(0.0, 100.0, 1.0), 0.0);
+        assert_eq!(combatant_morale_strength(80.0, 0.0, 1.0), 0.0);
+        assert_eq!(combatant_morale_strength(f64::NAN, 100.0, 1.0), 0.0);
+    }
+
+    #[test]
     fn muster_uses_later_fit_slots_and_only_onsite_weapons() {
         assert_eq!(
             select_guard_muster_slots(4, 3.0, &[0]),
@@ -650,6 +782,17 @@ mod tests {
         let limit = 310.0 - MAP_EDGE_INSET_METERS;
         assert!((entry.0.abs() - limit).abs() < 1e-9 || (entry.1.abs() - limit).abs() < 1e-9);
         assert!(distance(entry.0, entry.1, 250.0, 0.0) >= 90.0);
+
+        let (approach, offset) = raid_approach_from_entry(entry.0, entry.1);
+        assert_ne!(approach, RAID_APPROACH_UNKNOWN);
+        assert_eq!(
+            raid_entry_point_for_approach(approach, offset, playable_half_for_map_size(0)),
+            Some(entry),
+        );
+        assert_eq!(
+            raid_entry_point_for_approach(RAID_APPROACH_UNKNOWN, 0.0, 310.0),
+            None,
+        );
     }
 
     #[test]
@@ -1020,7 +1163,14 @@ mod tests {
                 raid_entry_point(index, 17.0, -23.0, playable_half_for_map_size(1));
             let moved = move_toward(entry_x, entry_z, 17.0, -23.0, 0.335);
             let assault = holding_assault_position(17.0, -23.0, entry_x, entry_z, 11.0);
-            checksum += moved.0 * 1e-9 + moved.1 * 1e-9 + assault.0 * 1e-10 + assault.1 * 1e-10;
+            let morale = combatant_morale_strength(60.0, 80.0, (index % 101) as f64 / 100.0);
+            let rout = raider_company_should_rout(9, 3, 4.0, morale * 5.0);
+            checksum += moved.0 * 1e-9
+                + moved.1 * 1e-9
+                + assault.0 * 1e-10
+                + assault.1 * 1e-10
+                + morale * 1e-11
+                + if rout { 1e-12 } else { 0.0 };
         }
         assert!(checksum.is_finite());
         assert!(

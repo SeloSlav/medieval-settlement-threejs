@@ -6,7 +6,6 @@ import {
   GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE,
   GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
   PALISADED_REFUGE_BREACH_SECONDS,
-  PALISADED_REFUGE_RALLY_THREAT_THRESHOLD,
   PALISADED_REFUGE_RESIDENT_CAPACITY,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
@@ -31,6 +30,10 @@ export type SettlementSecurityState = {
   defenseReadiness: number;
   nextRaidTick: number;
   lastRaidTick: number;
+  raidApproach: 'unknown' | 'north' | 'east' | 'south' | 'west';
+  raidApproachOffset: number;
+  warningStartedTick: number;
+  warningSourceTowerId: string | null;
   lastOutcome: 'none' | 'averted' | 'plundered' | 'arson';
   lastGoodsLost: number;
   lastWealthLost: number;
@@ -49,6 +52,10 @@ export const DEFAULT_SETTLEMENT_SECURITY: SettlementSecurityState = {
   defenseReadiness: 0,
   nextRaidTick: 0,
   lastRaidTick: 0,
+  raidApproach: 'unknown',
+  raidApproachOffset: 0,
+  warningStartedTick: 0,
+  warningSourceTowerId: null,
   lastOutcome: 'none',
   lastGoodsLost: 0,
   lastWealthLost: 0,
@@ -219,6 +226,14 @@ export function settlementSecurityFromRow(row: SettlementSecurity): SettlementSe
     defenseReadiness: clamp01(row.defenseReadiness),
     nextRaidTick: Number(row.nextRaidTick),
     lastRaidTick: Number(row.lastRaidTick),
+    raidApproach: raidApproachFromId(row.raidApproach),
+    raidApproachOffset: Number.isFinite(row.raidApproachOffset)
+      ? row.raidApproachOffset
+      : 0,
+    warningStartedTick: Number(row.warningStartedTick),
+    warningSourceTowerId: row.warningSourceTowerId > 0n
+      ? row.warningSourceTowerId.toString()
+      : null,
     lastOutcome: row.lastOutcome === 3
       ? 'arson'
       : row.lastOutcome === 2
@@ -279,14 +294,12 @@ export function frontierThreatLabel(
 ): string {
   if (settings?.conflictMode !== 'frontier') return 'Peaceful settlement';
   if (security.nextRaidTick <= 0) return 'Frontier quiet';
-  if (
-    month !== undefined
-    && !isFrontierRaidSeason(month)
-    && security.threat >= 0.9
-  ) return 'Winter campaign pause';
-  if (security.threat >= 0.9) return 'Incursion imminent';
-  if (security.threat >= 0.7) return 'Raiders reported';
-  if (security.threat >= 0.4) return 'Frontier unrest';
+  if (security.warningStartedTick > 0) {
+    if (month !== undefined && !isFrontierRaidSeason(month)) {
+      return 'Hostile trail reported';
+    }
+    return 'Raiders sighted';
+  }
   return 'Frontier watch';
 }
 
@@ -295,19 +308,19 @@ export function isFrontierRaidSeason(month: number): boolean {
 }
 
 export function isFrontierAlertActive(
-  security: Pick<SettlementSecurityState, 'nextRaidTick' | 'threat'>,
+  security: Pick<SettlementSecurityState, 'nextRaidTick' | 'warningStartedTick'>,
   conflictEnabled: boolean,
   month: number,
 ): boolean {
   return conflictEnabled
     && security.nextRaidTick > 0
-    && security.threat + 1e-9 >= PALISADED_REFUGE_RALLY_THREAT_THRESHOLD
+    && security.warningStartedTick > 0
     && isFrontierRaidSeason(month);
 }
 
 /** Compatibility name retained for refuge-specific callers. */
 export function isPalisadedRefugeRallyActive(
-  security: Pick<SettlementSecurityState, 'nextRaidTick' | 'threat'>,
+  security: Pick<SettlementSecurityState, 'nextRaidTick' | 'warningStartedTick'>,
   conflictEnabled: boolean,
   month: number,
 ): boolean {
@@ -332,16 +345,47 @@ export function formatFrontierRaidTiming(
   if (days === null) {
     return 'No incursion scheduled until the settlement reaches eight residents';
   }
+  if (security.warningStartedTick <= 0) {
+    return 'No confirmed sighting · scout reports are uncertain and each staffed tower watches only its own frontier';
+  }
   const campaignOpen = isFrontierRaidSeason(month);
   if (!campaignOpen && days <= 0.1) {
-    return 'Threat clock elapsed · incursion waits for the April campaign season';
+    return 'Reported trail is ready to move · winter conditions may defer contact until the April campaign season';
   }
+  const roundedDays = Math.max(1, Math.ceil(days));
   const countdown = days <= 0.1
-    ? 'Scouts may arrive now'
-    : `threat clock about ${Math.max(1, Math.ceil(days))} days`;
+    ? 'Contact may occur now'
+    : `estimated arrival in about ${roundedDays} ${roundedDays === 1 ? 'day' : 'days'}`;
   return campaignOpen
     ? `${countdown} · April–October campaign season active`
-    : `${countdown} · November–March campaign pause can defer contact`;
+    : `${countdown} · winter conditions can defer contact`;
+}
+
+export function projectedRaidPartySize(enemyPressure: number): number {
+  return Math.max(
+    3,
+    Math.min(12, Math.ceil(2.5 + Math.max(0, Math.min(100, enemyPressure)) * 0.065)),
+  );
+}
+
+export function formatIncomingRaidWarning(
+  security: SettlementSecurityState,
+  enemyPressure: number,
+  simTick: number,
+  month: number,
+): string {
+  const source = security.warningSourceTowerId == null
+    ? 'Scouts report'
+    : 'A staffed watchtower reports';
+  const approach = security.raidApproach === 'unknown'
+    ? 'from an uncertain direction'
+    : `from the ${security.raidApproach}`;
+  const raiders = projectedRaidPartySize(enemyPressure);
+  return `${source} ${raiders} raiders approaching ${approach}. ${formatFrontierRaidTiming(
+    security,
+    simTick,
+    month,
+  )}.`;
 }
 
 export function formatRaidReport(security: SettlementSecurityState): string {
@@ -1574,6 +1618,18 @@ function distanceSquared(
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function raidApproachFromId(
+  value: number,
+): SettlementSecurityState['raidApproach'] {
+  switch (value) {
+    case 1: return 'north';
+    case 2: return 'east';
+    case 3: return 'south';
+    case 4: return 'west';
+    default: return 'unknown';
+  }
 }
 
 function formatGuardCount(value: number): string {

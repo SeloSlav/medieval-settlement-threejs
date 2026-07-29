@@ -283,6 +283,16 @@ assert.match(
 );
 assert.match(
   deliveryServer,
+  /RaidCartPosture::Ordinary[\s\S]*Dispatch is independently gated by work hours and Sabbath[\s\S]*completes the committed outbound leg, unload, and return/,
+  'a cart that departed during work hours must finish its active round trip after the workday boundary',
+);
+assert.doesNotMatch(
+  deliveryServer,
+  /RaidCartPosture::Ordinary\s*=>\s*\{[\s\S]{0,240}labor_and_logistics_paused/,
+  'night and Sabbath may block new departures but must not freeze an existing cart on the road',
+);
+assert.match(
+  deliveryServer,
   /fn recall_trip_to_origin_during_raid[\s\S]*prepare_trip_return_leg[\s\S]*finish_inbound_trip/,
   'raid recall must preserve the trip and settle cargo only after its physical return',
 );

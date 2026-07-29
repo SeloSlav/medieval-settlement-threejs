@@ -5,17 +5,21 @@ use spacetimedb::{Identity, ReducerContext};
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::economy::CommodityKind;
-use crate::raid_agent_policy::{playable_half_for_map_size, select_guard_muster_slots};
+use crate::raid_agent_policy::{
+    playable_half_for_map_size, raid_approach_from_entry, raid_entry_point,
+    raid_entry_point_for_approach, raid_party_size, select_guard_muster_slots,
+    RAID_APPROACH_UNKNOWN,
+};
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
-    assign_refuge_households, guardhouse_muster_efficiency, is_raid_season, raid_district_forecast,
-    raid_contact_loss_fraction, raid_holding_vulnerability, raid_target_can_shelter,
-    raid_target_count, raidable_treasury_timber, scheduled_raid_ticks,
-    select_guardhouse_muster_watch, select_raid_targets, threat_progress, tower_effective_radius,
-    RaidPortableStores, RaidTargetCandidate, RaidTargetDefenseCandidate, RaidTargetKind,
-    RefugeHouseholdCandidate, WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION,
-    SECURITY_UPDATE_INTERVAL_TICKS,
+    assign_refuge_households, guardhouse_muster_efficiency, is_raid_season,
+    raid_contact_loss_fraction, raid_district_forecast, raid_holding_vulnerability,
+    raid_target_can_shelter, raid_target_count, raid_warning_detection, raidable_treasury_timber,
+    scheduled_raid_ticks, select_guardhouse_muster_watch, select_raid_targets, threat_progress,
+    tower_effective_radius, RaidPortableStores, RaidTargetCandidate, RaidTargetDefenseCandidate,
+    RaidTargetKind, RefugeHouseholdCandidate, WatchArea, WatchCoverageIndex,
+    MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{
     settlement_security, Building, DeliveryTrip, PlayerResources, Residence, SettlementSecurity,
@@ -46,6 +50,10 @@ pub fn ensure_settlement_security(ctx: &ReducerContext, owner: Identity) {
         defense_readiness: 0.0,
         next_raid_tick: 0,
         last_raid_tick: 0,
+        raid_approach: RAID_APPROACH_UNKNOWN,
+        raid_approach_offset: 0.0,
+        warning_started_tick: 0,
+        warning_source_tower_id: 0,
         last_outcome: 0,
         last_goods_lost: 0.0,
         last_wealth_lost: 0.0,
@@ -116,6 +124,7 @@ fn step_owner_security(
         state.defense_readiness = 0.0;
         state.next_raid_tick = 0;
         state.last_raid_tick = 0;
+        clear_pending_raid_warning(&mut state);
         state.last_outcome = 0;
         state.last_goods_lost = 0.0;
         state.last_wealth_lost = 0.0;
@@ -216,6 +225,7 @@ fn step_owner_security(
     if population < MIN_FRONTIER_POPULATION {
         state.threat = 0.0;
         state.next_raid_tick = 0;
+        clear_pending_raid_warning(&mut state);
         ctx.db.settlement_security().owner().update(state);
         return;
     }
@@ -243,6 +253,59 @@ fn step_owner_security(
             world_seed ^ sim_tick ^ population as u64,
             true,
         ));
+        clear_pending_raid_warning(&mut state);
+    }
+
+    let playable_half = playable_half_for_map_size(map_size);
+    if state.raid_approach == RAID_APPROACH_UNKNOWN {
+        let planned_primary = select_raid_targets(
+            &raid_targets
+                .iter()
+                .map(|candidate| candidate.target)
+                .collect::<Vec<_>>(),
+            1,
+        )
+        .into_iter()
+        .next();
+        if let Some(primary) = planned_primary {
+            if let Some((target_x, target_z)) =
+                raid_target_position(ctx, primary.kind.as_u8(), primary.id)
+            {
+                let (entry_x, entry_z) = raid_entry_point(
+                    world_seed ^ state.next_raid_tick ^ primary.id,
+                    target_x,
+                    target_z,
+                    playable_half,
+                );
+                (state.raid_approach, state.raid_approach_offset) =
+                    raid_approach_from_entry(entry_x, entry_z);
+            }
+        }
+    }
+
+    if state.warning_started_tick == 0 {
+        if let Some((entry_x, entry_z)) = raid_entry_point_for_approach(
+            state.raid_approach,
+            state.raid_approach_offset,
+            playable_half,
+        ) {
+            if let Some(detection) = raid_warning_detection(
+                state.next_raid_tick,
+                ticks_per_day,
+                raid_party_size(enemy_pressure),
+                state.raid_approach,
+                entry_x,
+                entry_z,
+                playable_half,
+                world_seed ^ state.next_raid_tick,
+                &towers,
+            ) {
+                if sim_tick >= detection.observation_tick {
+                    state.warning_started_tick = sim_tick.max(1);
+                    state.warning_source_tower_id = detection.tower_id;
+                }
+            }
+        }
     }
 
     if sim_tick >= state.next_raid_tick && is_raid_season(month) {
@@ -293,7 +356,12 @@ fn step_owner_security(
             sim_tick,
             enemy_pressure,
             world_seed,
-            playable_half_for_map_size(map_size),
+            playable_half,
+            raid_entry_point_for_approach(
+                state.raid_approach,
+                state.raid_approach_offset,
+                playable_half,
+            ),
             &live_targets,
             &buildings,
             &towers,
@@ -320,10 +388,18 @@ fn step_owner_security(
             world_seed ^ sim_tick ^ towers.len() as u64,
             false,
         ));
+        clear_pending_raid_warning(&mut state);
     }
 
     state.threat = threat_progress(state.last_raid_tick, state.next_raid_tick, sim_tick);
     ctx.db.settlement_security().owner().update(state);
+}
+
+fn clear_pending_raid_warning(state: &mut SettlementSecurity) {
+    state.raid_approach = RAID_APPROACH_UNKNOWN;
+    state.raid_approach_offset = 0.0;
+    state.warning_started_tick = 0;
+    state.warning_source_tower_id = 0;
 }
 
 fn staffed_watch_coverage(
@@ -421,7 +497,10 @@ fn settlement_exposure(
     {
         let portable_value = building_portable_value(
             building,
-            issued_guard_polearms.get(&building.id).copied().unwrap_or(0.0),
+            issued_guard_polearms
+                .get(&building.id)
+                .copied()
+                .unwrap_or(0.0),
         );
         let vulnerable_value =
             raid_holding_vulnerability(building.construction_complete, portable_value);
@@ -472,8 +551,11 @@ fn settlement_exposure(
                     sheltered,
                     value: residence.household_wealth,
                 },
-                local_ready_guards: watch_index
-                    .defended_readiness(raid_x, raid_z, readiness_by_watch),
+                local_ready_guards: watch_index.defended_readiness(
+                    raid_x,
+                    raid_z,
+                    readiness_by_watch,
+                ),
             });
         }
     }
@@ -938,12 +1020,10 @@ fn settlement_guard_districts(
                 .get(&guardhouse.id)
                 .copied()
                 .unwrap_or(0.0))
-            .max(0.0);
+        .max(0.0);
         let unavailable_here = unavailable_guard_slots
             .iter()
-            .filter_map(|(building_id, slot)| {
-                (*building_id == guardhouse.id).then_some(*slot)
-            })
+            .filter_map(|(building_id, slot)| (*building_id == guardhouse.id).then_some(*slot))
             .collect::<Vec<_>>();
         let armed_here = select_guard_muster_slots(
             guardhouse.assigned_labor,

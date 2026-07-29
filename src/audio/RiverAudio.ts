@@ -107,6 +107,7 @@ export class RiverAudio {
   private loaded = false;
   private started = false;
   private enabled = true;
+  private ambienceVolume = 1;
 
   constructor(config: RiverAudioConfig) {
     this.config = config;
@@ -159,11 +160,15 @@ export class RiverAudio {
 
     const followAlpha = 1 - Math.exp(-dt * POSITION_FOLLOW_SPEED);
     this.source.position.lerp(this.targetPosition, followAlpha);
-    const targetVolume = this.loaded ? RIVER_WATER_CLIP.volume ?? 1 : 0;
+    const targetVolume = this.loaded ? riverAudioGain(this.ambienceVolume) : 0;
     const volumeAlpha = 1 - Math.exp(-dt * VOLUME_FADE_SPEED);
     this.currentVolume = THREE.MathUtils.lerp(this.currentVolume, targetVolume, volumeAlpha);
     this.source.setVolume(this.currentVolume);
     this.ensurePlayback();
+  }
+
+  setVolume(volume: number): void {
+    this.ambienceVolume = clamp01(volume);
   }
 
   setEnabled(enabled: boolean): void {
@@ -232,4 +237,8 @@ function lerp(a: number, b: number, t: number): number {
 
 function clamp01(value: number): number {
   return value < 0 ? 0 : value > 1 ? 1 : value;
+}
+
+export function riverAudioGain(ambienceVolume: number): number {
+  return (RIVER_WATER_CLIP.volume ?? 1) * clamp01(ambienceVolume);
 }

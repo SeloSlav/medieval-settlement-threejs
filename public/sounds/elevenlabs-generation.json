@@ -58,17 +58,6 @@
       "sha256": "1b8e8a9aa2a74190b86069ad7c6b044b492dfaf7de6212e39bc6c9991a0125e2"
     },
     {
-      "id": "ambient-overview-wind",
-      "output": "public/sounds/ambient/open_wind_overview.mp3",
-      "generatedAt": "2026-07-29T05:41:35.258Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "301",
-      "byteLength": 481115,
-      "sha256": "2c0b4da182e3617ad1ba3db35aa70efc8b76acc48b5bbd35a748f6721c714ce7"
-    },
-    {
       "id": "ambient-river",
       "output": "public/sounds/ambient/river_water_rushing.mp3",
       "generatedAt": "2026-07-28T05:58:51.289Z",

@@ -37,6 +37,7 @@ import {
   DEFAULT_AMBIENCE_VOLUME,
   DEFAULT_MUSIC_VOLUME,
 } from '../src/audio/audioPreferences.ts';
+import { riverAudioGain } from '../src/audio/RiverAudio.ts';
 
 type AudioAsset = {
   id: string;
@@ -82,6 +83,8 @@ const REPORT_PATH = path.join(
 const REQUIRE_GENERATED = process.argv.includes('--require-generated');
 const EXPECTED_FARM_SONG_SHA256 =
   '4c7639f2abcbdad954db703744a0866b3e81afa4d2f27d6bd51907819e26f1c5';
+const EXPECTED_SELO_OVERVIEW_WIND_SHA256 =
+  '388cdc56f19ea6d106af8d46c78b5d6bfa3cb6ea860542998f3190129a2d8305';
 
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -144,6 +147,13 @@ async function main(): Promise<void> {
   invariant(
     DEFAULT_AMBIENCE_VOLUME >= 0.7 && DEFAULT_AMBIENCE_VOLUME <= 0.9,
     'Default ambience should support rather than mask the score',
+  );
+  invariant(
+    riverAudioGain(0) === 0
+    && Math.abs(
+      riverAudioGain(0.5) - (RIVER_WATER_CLIP.volume ?? 1) * 0.5,
+    ) < 1e-9,
+    'The ambience volume must scale the positional river loop',
   );
   invariant(
     OVERVIEW_ENTER_DISTANCE - OVERVIEW_EXIT_DISTANCE >= 20,
@@ -260,6 +270,15 @@ async function main(): Promise<void> {
   invariant(
     await sha256(farmSongPath) === EXPECTED_FARM_SONG_SHA256,
     'The imported Selo Empire farm song does not match its recorded source hash.',
+  );
+
+  const overviewWindPath = path.resolve(
+    PROJECT_ROOT,
+    `public${AMBIENT_LAYERS.open_wind_overview.path}`,
+  );
+  invariant(
+    await sha256(overviewWindPath) === EXPECTED_SELO_OVERVIEW_WIND_SHA256,
+    'The imported Selo Empire overview wind does not match its recorded source hash.',
   );
 
   invariant(

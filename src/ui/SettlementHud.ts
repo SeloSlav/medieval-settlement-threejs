@@ -383,38 +383,44 @@ export class SettlementHud {
     withdrawingCarts = 0,
   ): void {
     const enabled = world?.configured === true && world.conflictMode === 'frontier';
+    const warningActive = security.warningStartedTick > 0;
     this.securityAlert.hidden = !enabled;
     this.panel.classList.toggle(
       'has-frontier-threat',
-      enabled && (raidThreatActive || security.threat >= 0.7),
+      enabled && (raidThreatActive || warningActive),
     );
     if (!enabled) return;
 
     const clock = gameClock(simTick);
-    this.securityLabel.textContent = `🛡 ${frontierThreatLabel(security, world, clock.month)}`;
+    this.securityLabel.textContent = `🛡 ${
+      raidThreatActive
+        ? 'Raiders inside the frontier'
+        : frontierThreatLabel(security, world, clock.month)
+    }`;
     const coverage = Math.round(security.coverage * 100);
     const readyGuards = security.readyGuards.toFixed(security.readyGuards < 10 ? 1 : 0);
     const requiredGuards = security.guardsRequired.toFixed(security.guardsRequired < 10 ? 1 : 0);
     const timing = security.nextRaidTick <= 0
       ? 'Pressure begins at 8 residents'
       : formatFrontierRaidTiming(security, simTick, clock.month);
-    const mobilization = raidThreatActive
-      ? `Live incursion: labor halted, new cart departures stopped${
+    const routActive = raidThreatActive && activeRaid?.routStarted === true;
+    const mobilization = routActive
+      ? `Raiders routed: guards pursuing until the last attacker escapes or falls`
+      : raidThreatActive
+        ? `Live incursion: labor halted, new cart departures stopped${
           withdrawingCarts > 0
             ? ` · ${withdrawingCarts} handcart${withdrawingCarts === 1 ? '' : 's'} withdrawing`
             : ''
         }`
-      : activeRaid
-        ? 'All clear: the company is returning'
-        : timing;
-    this.securityDetail.textContent = `${mobilization} · ${coverage}% watched · weakest district ${readyGuards}/${requiredGuards}${security.threat >= 0.4 && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
-    this.securityAlert.dataset.threat = raidThreatActive || security.threat >= 0.9
+        : activeRaid
+          ? 'All clear: the company is returning'
+          : timing;
+    this.securityDetail.textContent = `${mobilization} · ${coverage}% watched · weakest district ${readyGuards}/${requiredGuards}${warningActive && security.targetsAtRisk > 0 ? ` · ${security.targetsAtRisk} marked` : ''}`;
+    this.securityAlert.dataset.threat = raidThreatActive
       ? 'imminent'
-      : security.threat >= 0.7
+      : warningActive
         ? 'high'
-        : security.threat >= 0.4
-          ? 'rising'
-          : 'low';
+        : 'low';
     this.securityAlert.dataset.tooltip = [
       `Enemy pressure: ${world.enemyPressure}%`,
       `Staffed watchtowers: ${security.staffedWatchtowers}`,
@@ -422,7 +428,9 @@ export class SettlementHud {
       `Companies supplied, paid, drilled, and road-linked: ${Math.round(security.defenseReadiness * 100)}%`,
       `Protected settlement value: ${coverage}%`,
       raidThreatActive && activeRaid
-        ? `Settlement mobilized since tick ${activeRaid.startedTick}: production, construction, migration, and new ordinary-cart departures remain halted until the last capable raider physically escapes or falls. Active carters reverse toward their origins with cargo still exposed, while fire response and household consumption continue.`
+        ? activeRaid.routStarted
+          ? `The raiding party broke after ${activeRaid.raidersDowned} of ${activeRaid.initialRaiders} attackers fell. Every survivor is now a physical fugitive: guards can pursue them and recover carried loot, while the alarm remains until the last capable raider reaches the frontier or falls.`
+          : `Settlement mobilized since tick ${activeRaid.startedTick}: production, construction, migration, and new ordinary-cart departures remain halted until the last capable raider physically escapes or falls. Active carters reverse toward their origins with cargo still exposed, while fire response and household consumption continue.`
         : activeRaid
           ? 'The last hostile is clear: ordinary work and carts have resumed while the company physically returns and casualties are recovered.'
           : undefined,
@@ -431,7 +439,8 @@ export class SettlementHud {
         : undefined,
       formatFrontierForecast(security, world.enemyPressure),
       projectedTargets,
-      'One watchman provides 78% of a tower’s full radius; two provide full coverage.',
+      'Ordinary scout reports are uncertain, with larger parties easier to notice. A staffed watchtower reliably reports only an approach lane inside its effective sight radius.',
+      'One watchman provides 78% of a tower’s full sight radius; two provide full coverage. Towers farther toward the correct map edge report earlier, while towers on another side provide no warning for this raid.',
       'Each armed company reinforces only its nearest road-linked staffed tower. Short routes give a full muster; long, soft, or missing routes weaken that watch district.',
       'Unlinked armed companies still materialize at their guardhouse and immediately head cross-country for the nearest attacked holding. They are not credited to a specific watch-district forecast; linked roads remain the faster coordinated response.',
       'Incursions strike the richest exposed holdings first; watched holdings remain vulnerable if the guard muster is insufficient.',

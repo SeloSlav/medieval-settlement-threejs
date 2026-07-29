@@ -16,6 +16,11 @@ export type TerrainCircleRibbonOptions = TerrainRibbonOptions & {
 };
 
 export function clearOverlayGeometry(geometry: THREE.BufferGeometry): void {
+  if (geometry.getIndex() || geometry.getAttribute('position')) {
+    // WebGPU caches GPU buffers by BufferAttribute identity. Invalidate that
+    // cache before removing a live overlay's attributes.
+    geometry.dispose();
+  }
   geometry.setIndex(null);
   geometry.deleteAttribute('position');
   geometry.setDrawRange(0, 0);
@@ -57,10 +62,7 @@ export function updateTerrainQuadGeometry(
     }
   }
 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setIndex(indices);
-  geometry.setDrawRange(0, indices.length);
-  geometry.computeBoundingSphere();
+  updateOverlayGeometry(geometry, positions, indices);
 }
 
 export function updateTerrainPolygonFanGeometry(
@@ -87,10 +89,7 @@ export function updateTerrainPolygonFanGeometry(
     indices.push(0, index, index + 1);
   }
 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setIndex(indices);
-  geometry.setDrawRange(0, indices.length);
-  geometry.computeBoundingSphere();
+  updateOverlayGeometry(geometry, positions, indices);
 }
 
 export function updateTerrainRibbonGeometry(
@@ -180,13 +179,7 @@ export function updateTerrainRibbonGeometry(
     return;
   }
 
-  geometry.setAttribute(
-    'position',
-    new THREE.BufferAttribute(new Float32Array(positions), 3),
-  );
-  geometry.setIndex(indices);
-  geometry.setDrawRange(0, indices.length);
-  geometry.computeBoundingSphere();
+  updateOverlayGeometry(geometry, new Float32Array(positions), indices);
 }
 
 export function updateTerrainCircleRibbonGeometry(
@@ -247,4 +240,50 @@ function bilinearPoint(
     x: THREE.MathUtils.lerp(topX, bottomX, v),
     z: THREE.MathUtils.lerp(topZ, bottomZ, v),
   };
+}
+
+/**
+ * Keep live BufferAttribute objects stable whenever an overlay's topology is
+ * unchanged. Three's WebGPU backend keys uploaded buffers by attribute
+ * identity; replacing the index attribute on every cursor movement can leave
+ * the next render pass pointing at an index that has not received a GPUBuffer.
+ */
+function updateOverlayGeometry(
+  geometry: THREE.BufferGeometry,
+  positions: Float32Array,
+  indices: readonly number[],
+): void {
+  const position = geometry.getAttribute('position');
+  const index = geometry.getIndex();
+  const needsUint32 = positions.length / 3 > 65_535;
+  const canReusePosition = position instanceof THREE.BufferAttribute
+    && position.itemSize === 3
+    && position.array instanceof Float32Array
+    && position.array.length === positions.length;
+  const canReuseIndex = index instanceof THREE.BufferAttribute
+    && index.array.length === indices.length
+    && (needsUint32
+      ? index.array instanceof Uint32Array
+      : index.array instanceof Uint16Array);
+
+  if (canReusePosition && canReuseIndex) {
+    position.array.set(positions);
+    position.needsUpdate = true;
+    index.array.set(indices);
+    index.needsUpdate = true;
+  } else {
+    if (position || index) {
+      // Changing topology requires new attributes. Dispose first so WebGPU
+      // drops the old attribute-to-buffer bindings before the next frame.
+      geometry.dispose();
+    }
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setIndex(new THREE.BufferAttribute(
+      needsUint32 ? Uint32Array.from(indices) : Uint16Array.from(indices),
+      1,
+    ));
+  }
+
+  geometry.setDrawRange(0, indices.length);
+  geometry.computeBoundingSphere();
 }

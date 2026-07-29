@@ -1038,9 +1038,10 @@ fn step_one_trip(
             // enough for this already-returning cart to reach its origin.
         }
         RaidCartPosture::Ordinary => {
-            if !fire_response && labor_and_logistics_paused(ctx, tick, trip.owner, clock) {
-                return;
-            }
+            // Dispatch is independently gated by work hours and Sabbath at
+            // every trip-start boundary. Once a crew has physically departed,
+            // it completes the committed outbound leg, unload, and return
+            // instead of camping on the road when the workday ends.
         }
     }
 

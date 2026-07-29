@@ -20,4 +20,6 @@ export default __t.row({
   goodsLost: __t.f64().name("goods_lost"),
   wealthLost: __t.f64().name("wealth_lost"),
   arsonStarted: __t.bool().name("arson_started"),
+  raidersDowned: __t.u32().name("raiders_downed"),
+  routStarted: __t.bool().name("rout_started"),
 });

@@ -9,6 +9,8 @@ export type ActiveRaidState = {
   goodsLost: number;
   wealthLost: number;
   arsonStarted: boolean;
+  raidersDowned: number;
+  routStarted: boolean;
 };
 
 /**
@@ -32,6 +34,8 @@ export function syncActiveRaid(
       goodsLost: Math.max(0, row.goodsLost),
       wealthLost: Math.max(0, row.wealthLost),
       arsonStarted: row.arsonStarted,
+      raidersDowned: Math.max(0, Number(row.raidersDowned)),
+      routStarted: row.routStarted,
     };
   }
   return null;

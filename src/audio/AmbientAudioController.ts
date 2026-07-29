@@ -79,6 +79,7 @@ export class AmbientAudioController {
     window.addEventListener('keydown', this.onUnlock, { capture: true });
     this.musicEnabled = isMusicEnabled();
     this.audio.setVolume(getAmbienceVolume());
+    this.riverAudio.setVolume(getAmbienceVolume());
     this.soundtrack.setVolume(getMusicVolume());
     this.setEnabled(isGameAudioEnabled());
   }
@@ -184,6 +185,7 @@ export class AmbientAudioController {
 
   setAmbienceVolume(volume: number): void {
     this.audio.setVolume(volume);
+    this.riverAudio.setVolume(volume);
   }
 
   playUiSound(id: UiSoundId): void {

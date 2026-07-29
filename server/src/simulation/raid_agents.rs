@@ -5,11 +5,12 @@ use spacetimedb::{Identity, ReducerContext};
 use crate::balance_generated::{building_def, CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::raid_agent_policy::{
-    combat_state_blocks_guard_slot, distance_squared, formation_spawn, guard_attack_interval,
-    guard_breaks_route_for, guard_damage, guard_recovery_ticks, holding_assault_position,
-    move_along_route, move_toward, nearest_emergency_guard_target, per_raider_loot_fraction,
-    raid_contact_duration, raid_contact_range, raid_entry_point, raid_party_size,
-    raider_attack_interval, raider_damage, refuge_assault_position, route_shortcut_is_worthwhile,
+    combat_state_blocks_guard_slot, combatant_morale_strength, distance_squared, formation_spawn,
+    guard_attack_interval, guard_breaks_route_for, guard_damage, guard_recovery_ticks,
+    holding_assault_position, move_along_route, move_toward, nearest_emergency_guard_target,
+    per_raider_loot_fraction, raid_contact_duration, raid_contact_range, raid_entry_point,
+    raid_party_size, raider_attack_interval, raider_company_should_rout, raider_damage,
+    refuge_assault_position, route_shortcut_is_worthwhile,
     route_shortcut_via_endpoint_is_worthwhile, select_guard_muster_slots, EmergencyGuardTarget,
     RouteMove, COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
     COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED,
@@ -71,6 +72,7 @@ pub fn start_live_raid(
     enemy_pressure: u8,
     world_seed: u64,
     playable_half: f64,
+    planned_entry: Option<(f64, f64)>,
     targets: &[LiveRaidTarget],
     buildings: &[Building],
     towers: &[WatchArea],
@@ -102,12 +104,16 @@ pub fn start_live_raid(
 
     let raider_count = raid_party_size(enemy_pressure);
     let primary = targets[0];
-    let (entry_x, entry_z) = raid_entry_point(
-        world_seed ^ raid_id ^ primary.id,
-        primary.x,
-        primary.z,
-        playable_half,
-    );
+    let (entry_x, entry_z) = planned_entry
+        .filter(|(x, z)| x.is_finite() && z.is_finite())
+        .unwrap_or_else(|| {
+            raid_entry_point(
+                world_seed ^ raid_id ^ primary.id,
+                primary.x,
+                primary.z,
+                playable_half,
+            )
+        });
     let mut assigned_by_target = vec![0_u32; targets.len()];
     for index in 0..raider_count {
         assigned_by_target[index as usize % targets.len()] += 1;
@@ -135,6 +141,8 @@ pub fn start_live_raid(
         goods_lost: 0.0,
         wealth_lost: 0.0,
         arson_started: false,
+        raiders_downed: 0,
+        rout_started: false,
     });
 
     for index in 0..raider_count {
@@ -649,12 +657,72 @@ fn step_one_live_raid(
         }
     }
 
+    begin_raider_rout_if_broken(ctx, &active, &mut agents, sim_tick);
+
     for (id, agent) in agents {
         if delete_ids.contains(&id) {
             ctx.db.combat_agent().id().delete(id);
         } else {
             ctx.db.combat_agent().id().update(agent);
         }
+    }
+}
+
+fn begin_raider_rout_if_broken(
+    ctx: &ReducerContext,
+    active: &ActiveRaid,
+    agents: &mut HashMap<u64, CombatAgent>,
+    sim_tick: u64,
+) {
+    let Some(mut latest) = ctx.db.active_raid().owner().find(&active.owner) else {
+        return;
+    };
+    if latest.rout_started || latest.raiders_downed == 0 {
+        return;
+    }
+
+    let committed_raider_strength = agents
+        .values()
+        .filter(|agent| {
+            agent.faction == COMBAT_FACTION_RAIDER
+                && agent.state != COMBAT_STATE_DOWNED
+                && agent.state != COMBAT_STATE_RETREATING
+                && agent.health > EPSILON
+        })
+        .map(|agent| combatant_morale_strength(agent.health, agent.max_health, agent.readiness))
+        .sum::<f64>();
+    let field_guard_strength = agents
+        .values()
+        .filter(|agent| {
+            agent.faction == COMBAT_FACTION_GUARD
+                && matches!(agent.state, COMBAT_STATE_ADVANCING | COMBAT_STATE_FIGHTING)
+                && agent.health > EPSILON
+        })
+        .map(|agent| combatant_morale_strength(agent.health, agent.max_health, agent.readiness))
+        .sum::<f64>();
+
+    if !raider_company_should_rout(
+        latest.initial_raiders,
+        latest.raiders_downed,
+        committed_raider_strength,
+        field_guard_strength,
+    ) {
+        return;
+    }
+
+    latest.rout_started = true;
+    ctx.db.active_raid().owner().update(latest);
+    for agent in agents.values_mut() {
+        if agent.faction != COMBAT_FACTION_RAIDER
+            || agent.state == COMBAT_STATE_DOWNED
+            || agent.state == COMBAT_STATE_RETREATING
+            || agent.health <= EPSILON
+        {
+            continue;
+        }
+        agent.state = COMBAT_STATE_RETREATING;
+        agent.state_changed_tick = sim_tick;
+        agent.loot_progress = 0.0;
     }
 }
 
@@ -1258,29 +1326,31 @@ fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid
     agent.state_changed_tick = sim_tick;
     agent.attack_cooldown = DOWNED_LINGER_SECONDS;
     agent.loot_progress = 0.0;
-    if agent.faction != COMBAT_FACTION_RAIDER || agent.carried_loot_json.is_empty() {
+    if agent.faction != COMBAT_FACTION_RAIDER {
         return;
     }
-    let Ok(carried) = serde_json::from_str::<RaidPortableStores>(&agent.carried_loot_json) else {
+
+    let Some(mut latest) = ctx.db.active_raid().owner().find(&active.owner) else {
         return;
     };
-    let recovered = recover_stock_at(
-        ctx,
-        agent.owner,
-        agent.x,
-        agent.z,
-        reclamation_from_raid_stores(carried),
-    )
-    .unwrap_or(false);
-    if !recovered {
-        return;
+    latest.raiders_downed = latest.raiders_downed.saturating_add(1);
+
+    if let Ok(carried) = serde_json::from_str::<RaidPortableStores>(&agent.carried_loot_json) {
+        let recovered = recover_stock_at(
+            ctx,
+            agent.owner,
+            agent.x,
+            agent.z,
+            reclamation_from_raid_stores(carried),
+        )
+        .unwrap_or(false);
+        if recovered {
+            agent.carried_loot_json.clear();
+            latest.goods_lost = (latest.goods_lost - carried.goods_amount()).max(0.0);
+            latest.wealth_lost = (latest.wealth_lost - carried.gold.max(0.0)).max(0.0);
+        }
     }
-    agent.carried_loot_json.clear();
-    if let Some(mut latest) = ctx.db.active_raid().owner().find(&active.owner) {
-        latest.goods_lost = (latest.goods_lost - carried.goods_amount()).max(0.0);
-        latest.wealth_lost = (latest.wealth_lost - carried.gold.max(0.0)).max(0.0);
-        ctx.db.active_raid().owner().update(latest);
-    }
+    ctx.db.active_raid().owner().update(latest);
 }
 
 fn return_guards_and_finalize(
@@ -1400,6 +1470,10 @@ fn return_guards_and_finalize(
         world_seed ^ sim_tick ^ latest.raid_id,
         false,
     ));
+    security.raid_approach = 0;
+    security.raid_approach_offset = 0.0;
+    security.warning_started_tick = 0;
+    security.warning_source_tower_id = 0;
     security.threat = 0.0;
     ctx.db.settlement_security().owner().update(security);
     clear_guard_muster_routes(ctx, latest.owner);

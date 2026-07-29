@@ -206,8 +206,11 @@ function carriedPolearms(carriedStoresJson: string): number {
 export function formatLiveCombatSummary(
   agents: Iterable<CombatAgentState>,
   simTick?: number,
+  routStarted = false,
 ): string | undefined {
   let raiders = 0;
+  let retreatingRaiders = 0;
+  let retreatingLootCarriers = 0;
   let guards = 0;
   let downedRaiders = 0;
   let woundedGuards = 0;
@@ -223,6 +226,10 @@ export function formatLiveCombatSummary(
       else {
         raiders += 1;
         raiderHealth += agent.health / agent.maxHealth;
+        if (agent.status === 'retreating') {
+          retreatingRaiders += 1;
+          if (agent.carryingLoot) retreatingLootCarriers += 1;
+        }
         if (agent.status === 'looting' && agent.raidAnchorBuildingId) {
           breachingRefuges += 1;
         } else if (agent.status === 'looting') {
@@ -287,6 +294,18 @@ export function formatLiveCombatSummary(
   const casualties = casualtyParts.length > 0
     ? ` | ${casualtyParts.join(' · ')}`
     : '';
+  if (routStarted) {
+    const fleeing = retreatingRaiders === raiders
+      ? `${raiders} raider${raiders === 1 ? '' : 's'} fleeing`
+      : `${retreatingRaiders} / ${raiders} raiders fleeing`;
+    const pursuit = guards > 0
+      ? `${guards} guard${guards === 1 ? '' : 's'} pursuing${guardStrength}`
+      : 'no fit guards in pursuit';
+    const loot = retreatingLootCarriers > 0
+      ? ` | ${retreatingLootCarriers} ${retreatingLootCarriers === 1 ? 'fugitive carries' : 'fugitives carry'} stolen stores`
+      : '';
+    return `Raiders routed: ${fleeing}${raiderStrength} | ${pursuit}${loot}${casualties}.`;
+  }
   const refugeAssault = breachingRefuges > 0
     ? ` | ${breachingRefuges} raider${breachingRefuges === 1 ? '' : 's'} breaching a refuge`
     : '';

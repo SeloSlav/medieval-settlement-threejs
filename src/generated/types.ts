@@ -20,6 +20,8 @@ export const ActiveRaid = __t.object("ActiveRaid", {
   goodsLost: __t.f64(),
   wealthLost: __t.f64(),
   arsonStarted: __t.bool(),
+  raidersDowned: __t.u32(),
+  routStarted: __t.bool(),
 });
 export type ActiveRaid = __Infer<typeof ActiveRaid>;
 
@@ -445,6 +447,10 @@ export const SettlementSecurity = __t.object("SettlementSecurity", {
   guardsRequired: __t.f64(),
   targetsAtRisk: __t.u32(),
   estimatedLossFraction: __t.f64(),
+  raidApproach: __t.u8(),
+  raidApproachOffset: __t.f64(),
+  warningStartedTick: __t.u64(),
+  warningSourceTowerId: __t.u64(),
 });
 export type SettlementSecurity = __Infer<typeof SettlementSecurity>;
 

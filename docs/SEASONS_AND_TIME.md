@@ -15,6 +15,9 @@ The calendar is deliberately fictional and fixed:
 - Labor normally works from 06:00 to 20:00. A staffed chapel can make Sunday a
   sabbath. Household heating continues at night and on sabbaths even while other
   household consumption and labor are paused.
+- Work hours and Sabbath observance block new ordinary-cart departures. A cart
+  that already departed remains a committed crew and completes its delivery,
+  unloading, and return home across the boundary instead of camping on the road.
 
 | Speed | Day | Month | Season | Year |
 | --- | ---: | ---: | ---: | ---: |
@@ -528,6 +531,25 @@ nearby low-priority rear company from absorbing every scarce weapon while an
 explicitly urgent frontier company remains unarmed. Emergency granary food is
 still selected by lowest runway, because immediate starvation overrides standing
 company rank. The policy field and normal legacy default are unchanged.
+
+The raid calendar remains authoritative but hidden until someone actually sees
+the approach. Ordinary scouts have a fallible deterministic chance that rises
+with party size. A staffed watchtower instead guarantees a report only when its
+effective sight radius reaches the raid's planned map-edge lane. A second lookout
+widens that radius, towers built farther toward the correct edge report earlier,
+and coverage on another side contributes nothing; complete warning coverage
+therefore requires a genuine frontier network. The persisted approach side also
+drives the later physical spawn, so a directional report cannot change after
+stores or targets move. The HUD shows an approximate countdown only after a
+report and raises an immediate contact alarm when every warning source misses.
+
+Raid morale is resolved from the same live battlefield rather than as a hidden
+economy roll. After one quarter of the original party has physically fallen,
+surviving raiders break if the healthy, supplied guard strength contesting them
+is at least ten percent greater; losing half the party causes a collapse even
+without that advantage. Every survivor remains an agent and retreats over the
+terrain, so guards can pursue fugitives and recover carried stores. The alarm
+does not clear until the last capable attacker reaches the frontier or falls.
 
 ## Persistent wild resources
 

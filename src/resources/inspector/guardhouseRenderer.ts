@@ -218,11 +218,11 @@ export function renderGuardhouseInspector(
             : frontierAlert && armed > 0
               ? muster.linkedTowerId
                 ? [
-                    `Muster underway — ${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} marching to the linked watch`,
+                    `Warning received — ${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} ready for the linked watch`,
                     'active',
                   ] as const
                 : [
-                    `Cross-country response — ${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} heading directly for the nearest attacked holding`,
+                    `Warning received — ${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} ready for a direct response`,
                     'active',
                   ] as const
             : readiness < 0.99
@@ -270,7 +270,7 @@ export function renderGuardhouseInspector(
       <li><span>Local readiness</span><span>${Math.round(readiness * 100)}% · ${ready.toFixed(1)} ready</span></li>
       <li><span>Muster order</span><span>${orderedMusterPostId === null ? 'Nearest staffed watch by road' : `Hold for Watch #${orderedMusterPostId} unless the order is changed`}</span></li>
       <li><span>Watch muster</span><span>${muster.routeDistance == null ? `${missingMusterRoute}; no early district reinforcement` : `${Math.round(muster.routeDistance)} m by road · ${Math.round(muster.efficiency * 100)}% · ${musterRouteFeedback}${linkedWatchButton}`}</span></li>
-      <li><span>Alert posture</span><span>${frontierAlert ? muster.linkedTowerId && armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard' : 'guards'} taking the faster linked watch road, then breaking cross-country for nearby or active attacks` : armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} physically formed at this guardhouse and heading directly across country for the nearest attacked holding` : 'Frontier alert active, but this company has no fit equipped guards' : 'Ordinary drill at the guardhouse until raiders are reported during campaign season'}</span></li>
+      <li><span>Alert posture</span><span>${frontierAlert ? muster.linkedTowerId && armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard' : 'guards'} warned and ready to take the faster linked-watch road when contact fixes a target` : armed > 0 ? `${armed} equipped ${armed === 1 ? 'guard is' : 'guards are'} warned and ready to break cross-country when contact fixes a target` : 'Frontier warning active, but this company has no fit equipped guards' : 'Ordinary drill at the guardhouse until scouts or a staffed watchtower report raiders'}</span></li>
       <li><span>Hostile approach</span><span>Raiders physically enter from the frontier and favor the road branch serving their target, but cut across country to fight, chase a moving cart, or avoid a major detour</span></li>
       <li><span>Road conditions</span><span>${roadConditionFeedback}</span></li>
       <li><span>Warned response</span><span>${effectiveReady.toFixed(1)} guards in the linked watch forecast after casualties, signal, and travel</span></li>

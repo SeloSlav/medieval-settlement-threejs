@@ -83,6 +83,7 @@ import {
   computeRefugeShelterPlan,
   FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS,
   frontierDefenseFireSignature,
+  formatIncomingRaidWarning,
   formatProjectedRaidTargets,
   formatRaidReport,
   projectRaidTargets,
@@ -158,6 +159,8 @@ export class App {
   private showcaseViewApplied = false;
   private initialSettlementViewApplied = false;
   private lastSeenRaidTick: number | null = null;
+  private lastSeenRaidWarningTick: number | null = null;
+  private lastSeenActiveRaidId: string | null | undefined;
   private raidProjectionSignature = '';
   private combatInspectorSignature = '';
   private projectedRaidTargets: ProjectedRaidTarget[] = [];
@@ -769,6 +772,7 @@ export class App {
     const liveCombat = formatLiveCombatSummary(
       snapshot.combatAgents.values(),
       snapshot.simTick,
+      snapshot.activeRaid?.routStarted ?? false,
     );
     const frontierDetail = [liveCombat, projectedTargets]
       .filter((detail): detail is string => Boolean(detail))
@@ -882,6 +886,47 @@ export class App {
   }
 
   private notifySecurityChanges(snapshot: SpacetimeGameSnapshot): void {
+    const activeRaidId = snapshot.activeRaid?.raidId ?? null;
+    if (this.lastSeenActiveRaidId === undefined) {
+      this.lastSeenActiveRaidId = activeRaidId;
+    } else if (activeRaidId !== null && activeRaidId !== this.lastSeenActiveRaidId) {
+      const approach = snapshot.settlementSecurity.raidApproach === 'unknown'
+        ? 'an unreported side'
+        : `the ${snapshot.settlementSecurity.raidApproach}`;
+      this.toastManager?.show(
+        `Raiders have crossed the frontier from ${approach}. Civilian work and new ordinary-cart departures are halted.`,
+        { variant: 'error', durationMs: 9_000 },
+      );
+      this.lastSeenActiveRaidId = activeRaidId;
+    } else {
+      this.lastSeenActiveRaidId = activeRaidId;
+    }
+
+    const warningTick = snapshot.settlementSecurity.warningStartedTick;
+    if (
+      this.lastSeenRaidWarningTick === null
+      || warningTick < this.lastSeenRaidWarningTick
+    ) {
+      this.lastSeenRaidWarningTick = warningTick;
+    } else if (
+      warningTick > 0
+      && warningTick !== this.lastSeenRaidWarningTick
+    ) {
+      this.lastSeenRaidWarningTick = warningTick;
+      if (activeRaidId === null && snapshot.worldGeneration) {
+        const clock = gameClock(snapshot.simTick);
+        this.toastManager?.show(
+          formatIncomingRaidWarning(
+            snapshot.settlementSecurity,
+            snapshot.worldGeneration.enemyPressure,
+            snapshot.simTick,
+            clock.month,
+          ),
+          { variant: 'error', durationMs: 9_000 },
+        );
+      }
+    }
+
     const raidTick = snapshot.settlementSecurity.lastRaidTick;
     if (this.lastSeenRaidTick === null || raidTick < this.lastSeenRaidTick) {
       this.lastSeenRaidTick = raidTick;
@@ -910,6 +955,9 @@ export class App {
       enabled ? 1 : 0,
       security.lastRaidTick,
       security.nextRaidTick,
+      security.warningStartedTick,
+      security.warningSourceTowerId ?? 'scouts',
+      security.raidApproach,
       security.targetsAtRisk,
       security.threat.toFixed(6),
       security.coverage.toFixed(6),
@@ -958,7 +1006,11 @@ export class App {
       );
       this.frontierRiskMarkers?.sync(
         this.projectedRaidTargets,
-        security.threat,
+        raidThreatActive
+          ? 1
+          : security.warningStartedTick > 0
+            ? 0.85
+            : 0,
         enabled,
       );
     }

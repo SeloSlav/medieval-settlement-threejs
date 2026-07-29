@@ -52,9 +52,10 @@ export function renderWatchtowerInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Role</span><span>Early warning for nearby households and stores</span></li>
+      <li><span>Role</span><span>Local holding coverage plus directional early warning on the frontier</span></li>
       <li><span>Posted watch</span><span>${suspendedByFire && building.assignedLabor > 0 ? `${building.assignedLabor} assigned ${building.assignedLabor === 1 ? 'lookout is' : 'lookouts are'} displaced during recovery` : building.assignedLabor > 0 ? `${building.assignedLabor} visible ${building.assignedLabor === 1 ? 'lookout' : 'lookouts'} in the raised gallery` : 'No lookout posted'}</span></li>
       <li><span>Effective radius</span><span>${effectiveRadius > 0 ? `${Math.round(effectiveRadius)} m` : suspendedByFire ? 'None until fire recovery' : 'None until staffed'}</span></li>
+      <li><span>Approach detection</span><span>A staffed tower reports a party only when this sight radius reaches its actual map-edge entry lane; farther-out towers report earlier, while another side of the map remains unseen</span></li>
       <li><span>Protected holdings</span><span>${protectedSites.buildings} buildings · ${protectedSites.homes} homes</span></li>
       <li><span>Residents warned</span><span>${protectedSites.residents}</span></li>
       <li><span>Settlement coverage</span><span>${settlementCoverage}% weighted value</span></li>

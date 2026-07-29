@@ -8,6 +8,9 @@ use crate::balance_generated::{
     GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE, GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
     PALISADED_REFUGE_RESIDENT_CAPACITY,
 };
+use crate::raid_agent_policy::{
+    RAID_APPROACH_EAST, RAID_APPROACH_NORTH, RAID_APPROACH_SOUTH, RAID_APPROACH_WEST,
+};
 
 pub const MIN_FRONTIER_POPULATION: u32 = 8;
 pub const SECURITY_UPDATE_INTERVAL_TICKS: u64 = 300;
@@ -24,6 +27,14 @@ pub struct WatchArea {
     pub x: f64,
     pub z: f64,
     pub radius: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RaidWarningDetection {
+    pub observation_tick: u64,
+    /// Zero identifies an ordinary scout or traveler report. A non-zero value
+    /// is the staffed watchtower that observed the planned approach lane.
+    pub tower_id: u64,
 }
 
 /// Exact point-in-watch queries backed by coarse cells. Each tower is inserted
@@ -431,6 +442,99 @@ pub fn scheduled_raid_ticks(
     (base_days * jitter * ticks_per_day as f64).round().max(1.0) as u64
 }
 
+/// Chance that ordinary patrols, hunters, or travelers notice a party before
+/// it reaches the map. Bigger groups are harder to conceal. This is the
+/// deliberately fallible baseline; a staffed tower whose effective sight
+/// radius reaches the actual approach lane detects it reliably.
+pub fn raid_scout_detection_chance(raider_count: u32) -> f64 {
+    (0.055 + raider_count.min(12) as f64 * 0.049).clamp(0.0, 0.66)
+}
+
+/// Chooses the earliest successful warning source for one already-scheduled
+/// approach. Towers on the wrong frontier—or too far inland for their sight
+/// radius to reach the entry lane—contribute nothing. An outward tower reports
+/// earlier, while two watchmen matter through their larger effective radius.
+pub fn raid_warning_detection(
+    next_raid_tick: u64,
+    ticks_per_day: u64,
+    raider_count: u32,
+    approach: u8,
+    entry_x: f64,
+    entry_z: f64,
+    playable_half: f64,
+    entropy: u64,
+    towers: &[WatchArea],
+) -> Option<RaidWarningDetection> {
+    if next_raid_tick == 0
+        || ticks_per_day == 0
+        || raider_count == 0
+        || !entry_x.is_finite()
+        || !entry_z.is_finite()
+        || !playable_half.is_finite()
+    {
+        return None;
+    }
+
+    let party_visibility = ((raider_count.clamp(3, 12) - 3) as f64 / 9.0).clamp(0.0, 1.0);
+    let mut detection = (unit_hash(entropy ^ 0x6a09_e667_f3bc_c909)
+        < raid_scout_detection_chance(raider_count))
+    .then(|| RaidWarningDetection {
+        observation_tick: warning_tick(
+            next_raid_tick,
+            ticks_per_day,
+            0.45 + party_visibility * 0.8,
+        ),
+        tower_id: 0,
+    });
+
+    let limit = (playable_half - crate::raid_agent_policy::MAP_EDGE_INSET_METERS).max(40.0);
+    for tower in towers.iter().copied().filter(|tower| {
+        tower.source_id > 0
+            && tower.x.is_finite()
+            && tower.z.is_finite()
+            && tower.radius.is_finite()
+            && tower.radius > 0.0
+    }) {
+        let outwardness = match approach {
+            RAID_APPROACH_NORTH => -tower.z / limit,
+            RAID_APPROACH_EAST => tower.x / limit,
+            RAID_APPROACH_SOUTH => tower.z / limit,
+            RAID_APPROACH_WEST => -tower.x / limit,
+            _ => continue,
+        }
+        .clamp(0.0, 1.0);
+        if outwardness <= 0.05 {
+            continue;
+        }
+        let dx = tower.x - entry_x;
+        let dz = tower.z - entry_z;
+        if dx * dx + dz * dz > tower.radius * tower.radius {
+            continue;
+        }
+
+        let candidate = RaidWarningDetection {
+            observation_tick: warning_tick(
+                next_raid_tick,
+                ticks_per_day,
+                0.75 + outwardness * 3.0 + party_visibility * 0.5,
+            ),
+            tower_id: tower.source_id,
+        };
+        if detection.is_none_or(|current| {
+            candidate.observation_tick < current.observation_tick
+                || (candidate.observation_tick == current.observation_tick && current.tower_id == 0)
+        }) {
+            detection = Some(candidate);
+        }
+    }
+    detection
+}
+
+fn warning_tick(next_raid_tick: u64, ticks_per_day: u64, lead_days: f64) -> u64 {
+    let lead_ticks = (lead_days.max(0.0) * ticks_per_day as f64).round().max(1.0) as u64;
+    next_raid_tick.saturating_sub(lead_ticks)
+}
+
 pub fn threat_progress(last_raid_tick: u64, next_raid_tick: u64, sim_tick: u64) -> f64 {
     if next_raid_tick == 0 || next_raid_tick <= last_raid_tick {
         return 0.0;
@@ -602,11 +706,7 @@ pub fn raid_forecast(
         defense_ratio,
         target_count: guarded_raid_target_count(enemy_pressure, defense_ratio)
             .min(available_targets),
-        loss_fraction: projected_guarded_raid_loss_fraction(
-            enemy_pressure,
-            coverage,
-            ready_guards,
-        ),
+        loss_fraction: projected_guarded_raid_loss_fraction(enemy_pressure, coverage, ready_guards),
     }
 }
 
@@ -840,6 +940,97 @@ mod tests {
         assert!(raid_interval_days(20) > raid_interval_days(50));
         assert!(raid_interval_days(50) > raid_interval_days(90));
         assert!(first_raid_delay_days(50) > raid_interval_days(50));
+    }
+
+    #[test]
+    fn larger_parties_are_easier_for_ordinary_scouts_to_notice() {
+        assert!(raid_scout_detection_chance(3) < raid_scout_detection_chance(7));
+        assert!(raid_scout_detection_chance(7) < raid_scout_detection_chance(12));
+        assert!(raid_scout_detection_chance(12) < 1.0);
+    }
+
+    #[test]
+    fn only_a_staffed_tower_covering_the_actual_approach_guarantees_warning() {
+        let next_raid_tick = 10_000;
+        let ticks_per_day = 600;
+        let scout_miss_entropy = (0..10_000)
+            .find(|entropy| {
+                raid_warning_detection(
+                    next_raid_tick,
+                    ticks_per_day,
+                    5,
+                    RAID_APPROACH_NORTH,
+                    0.0,
+                    -401.0,
+                    410.0,
+                    *entropy,
+                    &[],
+                )
+                .is_none()
+            })
+            .expect("the fallible scout model must retain missed approaches");
+        let one_watchman = [WatchArea {
+            source_id: 11,
+            x: 0.0,
+            z: -241.0,
+            radius: 148.2,
+        }];
+        assert!(
+            raid_warning_detection(
+                next_raid_tick,
+                ticks_per_day,
+                5,
+                RAID_APPROACH_NORTH,
+                0.0,
+                -401.0,
+                410.0,
+                scout_miss_entropy,
+                &one_watchman,
+            )
+            .is_none(),
+            "one watchman cannot see an approach beyond the reduced sight radius",
+        );
+
+        let two_watchmen = [WatchArea {
+            radius: 190.0,
+            ..one_watchman[0]
+        }];
+        let detected = raid_warning_detection(
+            next_raid_tick,
+            ticks_per_day,
+            5,
+            RAID_APPROACH_NORTH,
+            0.0,
+            -401.0,
+            410.0,
+            scout_miss_entropy,
+            &two_watchmen,
+        )
+        .expect("a staffed tower covering the entry lane must report the party");
+        assert_eq!(detected.tower_id, 11);
+        assert!(detected.observation_tick < next_raid_tick - ticks_per_day);
+
+        let wrong_frontier = [WatchArea {
+            source_id: 12,
+            x: 0.0,
+            z: 241.0,
+            radius: 190.0,
+        }];
+        assert!(
+            raid_warning_detection(
+                next_raid_tick,
+                ticks_per_day,
+                5,
+                RAID_APPROACH_NORTH,
+                0.0,
+                -401.0,
+                410.0,
+                scout_miss_entropy,
+                &wrong_frontier,
+            )
+            .is_none(),
+            "coverage on another side of the map must not reveal this approach",
+        );
     }
 
     #[test]
@@ -1172,9 +1363,7 @@ mod tests {
             raid_contact_loss_fraction(50),
             projected_raid_loss_fraction(50, 0.0)
         );
-        assert!(
-            raid_contact_loss_fraction(50) > projected_raid_loss_fraction(50, 1.0)
-        );
+        assert!(raid_contact_loss_fraction(50) > projected_raid_loss_fraction(50, 1.0));
         assert!(raid_contact_loss_fraction(100) > raid_contact_loss_fraction(0));
         assert!(raid_target_can_shelter(
             RaidTargetKind::Residence,
@@ -1212,10 +1401,7 @@ mod tests {
         let warned = guard_defense_ratio(50, 1.0, 6.0);
         assert!(warned > uncovered);
         assert_eq!(warned, 1.0);
-        assert_eq!(
-            projected_guarded_raid_loss_fraction(50, 1.0, 6.0),
-            0.0
-        );
+        assert_eq!(projected_guarded_raid_loss_fraction(50, 1.0, 6.0), 0.0);
         assert_eq!(guarded_raid_target_count(50, warned), 0);
     }
 

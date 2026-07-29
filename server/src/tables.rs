@@ -760,6 +760,20 @@ pub struct SettlementSecurity {
     /// Fraction of portable stock likely to be lost at each selected holding.
     #[default(0.0)]
     pub estimated_loss_fraction: f64,
+    /// Persisted map edge for the next incursion: 0 unknown, 1 north,
+    /// 2 east, 3 south, 4 west.
+    #[default(0u8)]
+    pub raid_approach: u8,
+    /// Along-edge coordinate paired with `raid_approach`.
+    #[default(0.0)]
+    pub raid_approach_offset: f64,
+    /// First authoritative tick on which scouts or a staffed watchtower
+    /// reported the pending approach. Zero keeps the schedule hidden.
+    #[default(0u64)]
+    pub warning_started_tick: u64,
+    /// Reporting watchtower, or zero for an ordinary scout/traveler report.
+    #[default(0u64)]
+    pub warning_source_tower_id: u64,
 }
 
 /// One live hostile incursion per settlement. The row accumulates only results
@@ -778,6 +792,14 @@ pub struct ActiveRaid {
     pub goods_lost: f64,
     pub wealth_lost: f64,
     pub arson_started: bool,
+    /// Cumulative physical raider casualties. Downed agent rows may disappear
+    /// before a long fight ends, so morale cannot infer this from replication.
+    #[default(0u32)]
+    pub raiders_downed: u32,
+    /// True once battlefield casualties break the party. Surviving attackers
+    /// remain replicated and dangerous until they physically escape or fall.
+    #[default(false)]
+    pub rout_started: bool,
 }
 
 /// A replicated person participating in a live frontier fight.

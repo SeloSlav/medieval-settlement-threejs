@@ -48,12 +48,12 @@ export function renderPalisadedRefugeInspector(
         ? ['No watch warning reaches nearby homes', 'warning'] as const
         : sheltered.unassignedWarnedResidents > 0
           ? [
-              `${rallyActive ? 'Rally underway' : 'Capacity shortfall'} — ${sheltered.shelteredResidents} residents assigned, ${sheltered.unassignedWarnedResidents} need another refuge`,
+              `${rallyActive ? 'Warning received' : 'Capacity shortfall'} — ${sheltered.shelteredResidents} residents assigned, ${sheltered.unassignedWarnedResidents} need another refuge`,
               'warning',
             ] as const
           : rallyActive && sheltered.shelteredHomes > 0
             ? [
-                `Rally underway — ${sheltered.shelteredResidents} residents visibly sheltering`,
+                `Warning received — ${sheltered.shelteredResidents} residents have places reserved`,
                 'ok',
               ] as const
           : sheltered.shelteredHomes <= 0
@@ -75,7 +75,7 @@ export function renderPalisadedRefugeInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Warned families carry people and household coin into a compact civilian enclosure</span></li>
       <li><span>Rally reach</span><span>${radius > 0 ? `${Math.round(radius)} m` : 'None until fire recovery'}</span></li>
-      <li><span>Alert state</span><span>${rallyActive ? 'Raiders reported during campaign season · assigned families are moving through the gate' : 'Families remain on ordinary routines until raiders are reported during campaign season'}</span></li>
+      <li><span>Alert state</span><span>${rallyActive ? 'Raiders reported during campaign season · assigned families know this refuge and move when the emergency alarm sounds' : 'Families remain on ordinary routines until a scout or correctly placed watch reports raiders'}</span></li>
       <li><span>Homes within reach</span><span>${sheltered.homesInReach} homes · ${sheltered.residentsInReach} residents</span></li>
       <li><span>Warned demand</span><span>${sheltered.warnedHomesInReach} homes · ${sheltered.warnedResidentsInReach} residents can attempt to rally</span></li>
       <li><span>Resident capacity</span><span>${sheltered.shelteredResidents} / ${sheltered.residentCapacity} places assigned · ${sheltered.remainingResidentCapacity} remain</span></li>

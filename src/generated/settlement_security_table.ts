@@ -27,4 +27,8 @@ export default __t.row({
   guardsRequired: __t.f64().name("guards_required"),
   targetsAtRisk: __t.u32().name("targets_at_risk"),
   estimatedLossFraction: __t.f64().name("estimated_loss_fraction"),
+  raidApproach: __t.u8().name("raid_approach"),
+  raidApproachOffset: __t.f64().name("raid_approach_offset"),
+  warningStartedTick: __t.u64().name("warning_started_tick"),
+  warningSourceTowerId: __t.u64().name("warning_source_tower_id"),
 });

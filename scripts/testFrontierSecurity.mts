@@ -19,6 +19,7 @@ import {
   countSitesProtectedByWatchtower,
   estimatedRaidDays,
   formatFrontierForecast,
+  formatIncomingRaidWarning,
   formatFrontierRaidTiming,
   formatProjectedRaidTargets,
   formatRaidReport,
@@ -39,6 +40,7 @@ import {
   palisadedRefugeEffectiveRadius,
   projectRaidTargets,
   projectedRaidArsonChance,
+  projectedRaidPartySize,
   raidTargetCanShelter,
   normalizeGuardhouseFoodReserve,
   selectCriticalGuardhouseFoodTarget,
@@ -123,7 +125,7 @@ assert.equal(combatRiverNavigationIsWaterAt(combatRiverNavigation, 0, 0), true);
 assert.equal(combatRiverNavigationIsWaterAt(combatRiverNavigation, 0, 8), false);
 assert.equal(
   isFrontierAlertActive(
-    { nextRaidTick: 10_000, threat: 0.7 },
+    { nextRaidTick: 10_000, warningStartedTick: 9_000 },
     true,
     5,
   ),
@@ -131,7 +133,7 @@ assert.equal(
 );
 assert.equal(
   isPalisadedRefugeRallyActive(
-    { nextRaidTick: 10_000, threat: 0.7 },
+    { nextRaidTick: 10_000, warningStartedTick: 9_000 },
     true,
     5,
   ),
@@ -140,7 +142,7 @@ assert.equal(
 );
 assert.equal(
   isPalisadedRefugeRallyActive(
-    { nextRaidTick: 10_000, threat: 0.699 },
+    { nextRaidTick: 10_000, warningStartedTick: 0 },
     true,
     5,
   ),
@@ -148,7 +150,7 @@ assert.equal(
 );
 assert.equal(
   isPalisadedRefugeRallyActive(
-    { nextRaidTick: 10_000, threat: 0.95 },
+    { nextRaidTick: 10_000, warningStartedTick: 9_000 },
     true,
     1,
   ),
@@ -157,7 +159,7 @@ assert.equal(
 );
 assert.equal(
   isPalisadedRefugeRallyActive(
-    { nextRaidTick: 10_000, threat: 0.95 },
+    { nextRaidTick: 10_000, warningStartedTick: 9_000 },
     false,
     5,
   ),
@@ -194,6 +196,8 @@ const activeRaid = syncActiveRaid(
     goodsLost: 1.25,
     wealthLost: 0.5,
     arsonStarted: false,
+    raidersDowned: 2,
+    routStarted: true,
   } as never],
   'settlement-owner',
 );
@@ -206,6 +210,8 @@ assert.deepEqual(activeRaid, {
   goodsLost: 1.25,
   wealthLost: 0.5,
   arsonStarted: false,
+  raidersDowned: 2,
+  routStarted: true,
 });
 assert.equal(
   syncActiveRaid([], 'settlement-owner'),
@@ -1414,6 +1420,10 @@ const security: SettlementSecurityState = {
   defenseReadiness: 0.75,
   nextRaidTick: 18_000,
   lastRaidTick: 0,
+  raidApproach: 'north',
+  raidApproachOffset: 25,
+  warningStartedTick: 12_000,
+  warningSourceTowerId: 'watch-1',
   lastOutcome: 'none',
   lastGoodsLost: 0,
   lastWealthLost: 0,
@@ -1421,9 +1431,18 @@ const security: SettlementSecurityState = {
   targetsAtRisk: 2,
   estimatedLossFraction: 0.08,
 };
-assert.equal(frontierThreatLabel(security, frontierSettings), 'Raiders reported');
+assert.equal(frontierThreatLabel(security, frontierSettings), 'Raiders sighted');
 assert.equal(frontierThreatLabel(security, legacySettings), 'Peaceful settlement');
 assert.equal(estimatedRaidDays(security, 0), 30);
+assert.equal(projectedRaidPartySize(65), 7);
+assert.match(
+  formatIncomingRaidWarning(security, 65, 17_400, 5),
+  /staffed watchtower reports 7 raiders approaching from the north.*about 1 day/,
+);
+assert.match(
+  formatFrontierRaidTiming({ ...security, warningStartedTick: 0 }, 17_400, 5),
+  /No confirmed sighting.*each staffed tower watches only its own frontier/,
+);
 const overdueRaid = {
   ...security,
   threat: 1,
@@ -1431,19 +1450,19 @@ const overdueRaid = {
 };
 assert.equal(
   frontierThreatLabel(overdueRaid, frontierSettings, 1),
-  'Winter campaign pause',
+  'Hostile trail reported',
 );
 assert.equal(
   frontierThreatLabel(overdueRaid, frontierSettings, 5),
-  'Incursion imminent',
+  'Raiders sighted',
 );
 assert.match(
   formatFrontierRaidTiming(overdueRaid, 101, 1),
-  /waits for the April campaign season/,
+  /winter conditions may defer contact until the April campaign season/,
 );
 assert.match(
   formatFrontierRaidTiming(overdueRaid, 101, 5),
-  /Scouts may arrive now.*campaign season active/,
+  /Contact may occur now.*campaign season active/,
 );
 assert.equal(
   formatFrontierForecast(security),
@@ -1554,6 +1573,10 @@ const serverResidenceLifecycle = readFileSync(
   'utf8',
 );
 const generatedCombatAgent = readFileSync('src/generated/combat_agent_table.ts', 'utf8');
+const generatedSettlementSecurity = readFileSync(
+  'src/generated/settlement_security_table.ts',
+  'utf8',
+);
 const generatedRaidIncursionRoute = readFileSync(
   'src/generated/raid_incursion_route_table.ts',
   'utf8',
@@ -1604,9 +1627,42 @@ assert.match(settlementHud, /formatFrontierForecast\(security, world\.enemyPress
 assert.match(settlementHud, /formatFrontierRaidTiming/);
 assert.match(
   settlementHud,
+  /warningStartedTick[\s\S]*Ordinary scout reports are uncertain[\s\S]*Towers farther toward the correct map edge report earlier/,
+);
+assert.match(
+  settlementHud,
   /Live incursion: labor halted, new cart departures stopped/,
 );
 assert.match(serverTables, /table\(accessor = active_raid, public\)/);
+assert.match(
+  serverTables,
+  /pub struct SettlementSecurity[\s\S]*pub raid_approach: u8[\s\S]*pub raid_approach_offset: f64[\s\S]*pub warning_started_tick: u64[\s\S]*pub warning_source_tower_id: u64/,
+  'the authority must persist one hidden approach and its first real warning across reconnects',
+);
+assert.match(
+  generatedSettlementSecurity,
+  /raidApproach:[\s\S]*raidApproachOffset:[\s\S]*warningStartedTick:[\s\S]*warningSourceTowerId:/,
+);
+assert.match(
+  serverPolicy,
+  /raid_scout_detection_chance[\s\S]*raider_count[\s\S]*raid_warning_detection[\s\S]*tower\.radius \* tower\.radius/,
+  'larger parties need a fallible scout baseline while towers detect only the approach lane inside their physical sight radius',
+);
+assert.match(
+  serverSimulation,
+  /raid_entry_point[\s\S]*raid_approach_from_entry[\s\S]*raid_warning_detection[\s\S]*warning_started_tick = sim_tick/,
+  'security updates must plan one stable map side and reveal it only after an authoritative detection',
+);
+assert.match(
+  app,
+  /formatIncomingRaidWarning[\s\S]*Raiders have crossed the frontier[\s\S]*warningStartedTick > 0[\s\S]*0\.85/,
+  'the UI must toast both detected approaches and surprise contact without leaking the hidden threat clock into map warnings',
+);
+assert.match(
+  serverTables,
+  /pub struct ActiveRaid[\s\S]*pub raiders_downed: u32[\s\S]*pub rout_started: bool/,
+  'the live raid must retain cumulative physical casualties after downed visuals leave replication',
+);
 assert.match(gameTableSubscriptions, /'active_raid'/);
 assert.match(gameTableSync, /syncActiveRaid/);
 assert.match(
@@ -1636,15 +1692,15 @@ assert.match(guardhouseInspector, /Projected raid/);
 assert.match(guardhouseInspector, /context\.enemyPressure/);
 assert.match(guardhouseInspector, /Watch muster/);
 assert.match(guardhouseInspector, /Alert posture/);
-assert.match(guardhouseInspector, /breaking cross-country for nearby or active attacks/);
+assert.match(guardhouseInspector, /ready to break cross-country when contact fixes a target/);
 assert.match(guardhouseInspector, /Raiders physically enter from the frontier/);
-assert.match(guardhouseInspector, /Muster underway/);
-assert.match(guardhouseInspector, /Cross-country response/);
+assert.match(guardhouseInspector, /Warning received/);
+assert.match(guardhouseInspector, /ready for a direct response/);
 assert.match(guardhouseInspector, /Road conditions/);
 assert.match(guardhouseInspector, /Soft-road delay/);
 assert.match(guardhouseInspector, /Warned response/);
 assert.match(guardhouseInspector, /Cross-country reserve/);
-assert.match(guardhouseInspector, /heading directly across country/);
+assert.match(guardhouseInspector, /ready to break cross-country/);
 assert.match(guardhouseInspector, /Inspect linked watchtower/);
 assert.match(guardhouseInspector, /Muster order/);
 assert.match(guardhouseInspector, /Nearest staffed watch/);
@@ -1659,7 +1715,7 @@ assert.match(refugeInspector, /Warned demand/);
 assert.match(refugeInspector, /Resident capacity/);
 assert.match(refugeInspector, /Nearest-household claims/);
 assert.match(refugeInspector, /Alert state/);
-assert.match(refugeInspector, /Rally underway/);
+assert.match(refugeInspector, /Warning received/);
 assert.match(refugeInspector, /Household coin rallied/);
 assert.match(refugeInspector, /Palisade breach/);
 assert.match(refugeInspector, /No automatic loss reduction/);
@@ -1997,6 +2053,31 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
+  /fn down_agent[\s\S]*raiders_downed = latest\.raiders_downed\.saturating_add\(1\)/,
+  'only physical battlefield takedowns may accumulate pressure toward a rout',
+);
+assert.match(
+  serverRaidAgents,
+  /for \(target_id, damage\) in damage_by_agent[\s\S]*down_agent\([\s\S]*begin_raider_rout_if_broken/,
+  'the authoritative combat heartbeat must evaluate morale only after applying live melee damage',
+);
+assert.match(
+  serverRaidAgents,
+  /begin_raider_rout_if_broken[\s\S]*combatant_morale_strength[\s\S]*raider_company_should_rout[\s\S]*agent\.state = COMBAT_STATE_RETREATING/,
+  'a broken raid must convert each surviving attacker into a physical retreating agent',
+);
+assert.match(
+  serverRaidAgentPolicy,
+  /RAIDER_ROUT_CONTESTED_CASUALTY_FRACTION:\s*f64\s*=\s*0\.25[\s\S]*RAIDER_ROUT_COLLAPSE_CASUALTY_FRACTION:\s*f64\s*=\s*0\.5[\s\S]*RAIDER_ROUT_GUARD_STRENGTH_RATIO:\s*f64\s*=\s*1\.1/,
+  'raid morale thresholds must remain explicit and inspectable',
+);
+assert.match(
+  serverRaidAgentPolicy,
+  /fn casualties_and_prepared_guards_can_break_a_live_raid/,
+  'native policy coverage must preserve the casualty and guard-advantage rout rules',
+);
+assert.match(
+  serverRaidAgents,
   /guard_breaks_route_for[\s\S]*engage_agent\([\s\S]*move_along_combat_route/,
   'nearby enemies and attacks already in contact must override the preferred road march',
 );
@@ -2070,7 +2151,17 @@ assert.match(generatedRaidIncursionRoute, /routePolylineJson: __t\.string\(\)/);
 assert.match(app, /villagers\?\.setCombatAgents\(snapshot\.combatAgents\)/);
 assert.match(
   app,
-  /formatLiveCombatSummary\([\s\S]*snapshot\.combatAgents\.values\(\),[\s\S]*snapshot\.simTick/,
+  /formatLiveCombatSummary\([\s\S]*snapshot\.combatAgents\.values\(\),[\s\S]*snapshot\.simTick,[\s\S]*snapshot\.activeRaid\?\.routStarted/,
+);
+assert.match(
+  clientCombatAgents,
+  /if \(routStarted\)[\s\S]*fugitive[\s\S]*Raiders routed:/,
+  'live combat feedback must distinguish a broken party and any loot still leaving the map',
+);
+assert.match(
+  settlementHud,
+  /Raiders routed: guards pursuing[\s\S]*raiding party broke after[\s\S]*physical fugitive/,
+  'the settlement alert must explain why work remains halted after the attackers break',
 );
 assert.match(
   villagerRenderer,
@@ -2166,6 +2257,23 @@ assert.match(clientCombatAgents, /breaching a refuge/);
     'malformed replicated health must not create a permanent client-only alarm',
   );
   assert.match(liveSummary ?? '', /1 raider down · 1 guard wounded/);
+  const routedRaider = {
+    ...combatant('r-routed', 'raider', 'retreating'),
+    carryingLoot: true,
+  };
+  const routedSummary = formatLiveCombatSummary(
+    [
+      routedRaider,
+      combatant('g-pursuit', 'guard', 'fighting'),
+      combatant('r-downed', 'raider', 'downed'),
+    ],
+    400,
+    true,
+  );
+  assert.match(routedSummary ?? '', /Raiders routed: 1 raider fleeing/);
+  assert.match(routedSummary ?? '', /1 guard pursuing/);
+  assert.match(routedSummary ?? '', /1 fugitive carries stolen stores/);
+  assert.match(routedSummary ?? '', /1 raider down/);
   const breaching = {
     ...combatant('r3', 'raider', 'looting'),
     raidAnchorBuildingId: 'building:12',
