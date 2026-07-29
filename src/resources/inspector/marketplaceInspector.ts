@@ -91,6 +91,9 @@ export function renderMarketplaceInspector(
     context.gameState.fireIncidents.values(),
   ).has(building.id);
   const physicalEconomy = context.gameState.physicalFoundingSiteEnabled === true;
+  const pendingOffer = marketplacePendingTradeOffer(building.marketplacePendingTradeCode);
+  const potteryReservedForTrade = pendingOffer?.kind === 'goldSell'
+    && pendingOffer.resource === 'pottery';
   const activeMarketTrip = Array.from(context.gameState.deliveryTrips.values())
     .find((trip) => trip.buildingId === building.id) ?? null;
   const activeMaterialTarget = activeMarketTrip?.destinationKind === 'building'
@@ -113,8 +116,14 @@ export function renderMarketplaceInspector(
         } · ${staffingPriorityLabel(nextMaterialDispatch.workPriority)} priority · ${
           nextMaterialDispatch.runwayCycles.toFixed(1)
         } cycles onsite · ${formatDeliveryRoadDistance(nextMaterialDispatch.routeDistance)}`
-      : (building.iron ?? 0) <= 1e-6 && (building.salt ?? 0) <= 1e-6
-        ? 'No imported iron or salt onsite'
+      : (building.iron ?? 0) <= 1e-6
+          && (building.salt ?? 0) <= 1e-6
+          && (building.pottery ?? 0) <= 1e-6
+        ? 'No iron, salt, or pottery onsite'
+        : potteryReservedForTrade
+            && (building.iron ?? 0) <= 1e-6
+            && (building.salt ?? 0) <= 1e-6
+          ? 'Pottery held for the active export order'
         : 'No staffed road-linked workshop below its selected input buffer';
   const inboundCashTrip = Array.from(context.gameState.deliveryTrips.values())
     .find((trip) =>
@@ -161,7 +170,6 @@ export function renderMarketplaceInspector(
       inboundBulkResources.add(trip.cargoKind as TradeResourceKind);
     }
   }
-  const pendingOffer = marketplacePendingTradeOffer(building.marketplacePendingTradeCode);
   const pendingStaging = pendingOffer
     ? marketplaceTradeStagingPlan(building, pendingOffer, physicalEconomy, inboundBulkResources)
     : null;

@@ -222,7 +222,7 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'smithy':
       return 'Highest-priority maintained worksite below its iron-tool buffer, then carpenter and overflow';
     case 'potter_kiln':
-      return 'Road-linked smokehouse first, then export marketplace';
+      return 'Highest-priority road-linked smokehouse below its vessel buffer, then export marketplace';
     default:
       return 'Awaiting destination';
   }

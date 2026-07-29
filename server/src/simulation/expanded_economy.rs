@@ -32,7 +32,8 @@ use crate::burgage::{Point2, ZoneCorners};
 use crate::db::*;
 use crate::economy::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
-    credit_local_civic_receipts, deposit_building_commodity, spend_treasury_gold, treasury_gold,
+    credit_local_civic_receipts, deposit_building_commodity,
+    pending_marketplace_trade_commodity, spend_treasury_gold, treasury_gold,
     withdraw_building_commodity, CommodityKind,
 };
 use crate::farming::{
@@ -406,10 +407,10 @@ pub fn step_industrial_firewood_dispatch(
     }
 }
 
-/// A market's one local cart arbitrates scarce imported iron and salt across
-/// every staffed workshop on its road network. Work priority and remaining
-/// cycle runway therefore decide who receives the next lot, rather than the
-/// database order in which smithies and smokehouses happen to update.
+/// A market's one local cart arbitrates scarce iron, salt, and uncommitted
+/// pottery across every staffed workshop on its road network. Work priority
+/// and remaining cycle runway therefore decide who receives the next lot,
+/// rather than the database order in which workshops happen to update.
 ///
 /// Regional trade, named household orders, and seed-grain recovery run before
 /// this pass and retain first claim on the same physical broker cart.
@@ -432,6 +433,8 @@ pub fn step_marketplace_material_dispatch(
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
+        let pottery_reserved_for_trade =
+            pending_marketplace_trade_commodity(&marketplace) == Some(CommodityKind::Pottery);
         let Some(target) = select_processor_input_dispatch_candidate(
             tick.building_ids_for_kinds(
                 ctx,
@@ -441,17 +444,50 @@ pub fn step_marketplace_material_dispatch(
             .into_iter()
             .filter_map(|target_id| ctx.db.building().id().find(&target_id))
             .filter_map(|building| {
-                let commodity = match building.kind.as_str() {
-                    "smithy" => CommodityKind::Iron,
-                    "smokehouse" => CommodityKind::Salt,
-                    _ => return None,
+                let source_can_supply = match building.kind.as_str() {
+                    "smithy" => marketplace.iron > 1e-6,
+                    "smokehouse" => {
+                        marketplace.salt > 1e-6
+                            || (marketplace.pottery > 1e-6 && !pottery_reserved_for_trade)
+                    }
+                    _ => false,
                 };
-                if !building.construction_complete
+                if !source_can_supply
+                    || !building.construction_complete
                     || building.assigned_labor == 0
                     || tick.building_disabled_by_fire(ctx, building.id)
                     || building_has_inbound_supply_trip(ctx, building.id)
-                    || !processor_accepts_input(&building, commodity)
+                {
+                    return None;
+                }
+                network
+                    .road_path_distance(
+                        marketplace.x,
+                        marketplace.z,
+                        building.x,
+                        building.z,
+                    )
+                    .filter(|distance| distance.is_finite())
+                    .map(|distance| (building, distance))
+            })
+            .flat_map(|(building, distance)| {
+                let commodities = match building.kind.as_str() {
+                    "smithy" => [Some(CommodityKind::Iron), None],
+                    "smokehouse" => [
+                        Some(CommodityKind::Salt),
+                        Some(CommodityKind::Pottery),
+                    ],
+                    _ => [None, None],
+                };
+                commodities
+                    .into_iter()
+                    .flatten()
+                    .map(move |commodity| (building.clone(), commodity, distance))
+            })
+            .filter_map(|(building, commodity, distance)| {
+                if !processor_accepts_input(&building, commodity)
                     || building_commodity_stock(&marketplace, commodity) <= 1e-6
+                    || (commodity == CommodityKind::Pottery && pottery_reserved_for_trade)
                 {
                     return None;
                 }
@@ -466,14 +502,6 @@ pub fn step_marketplace_material_dispatch(
                 {
                     return None;
                 }
-                let distance = network
-                    .road_path_distance(
-                        marketplace.x,
-                        marketplace.z,
-                        building.x,
-                        building.z,
-                    )
-                    .filter(|distance| distance.is_finite())?;
                 Some(RoutedMarketplaceMaterialTarget {
                     duty: processor_input_dispatch_duty(
                         building.assigned_labor,
@@ -1036,15 +1064,6 @@ pub fn step_smokehouse(
         &["hunters_hall", "foragers_shed", "fishing_camp", "swineherd"],
         SMOKEHOUSE_FOOD_PER_CYCLE * input_staging_cycles,
     );
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &smokehouse,
-        CommodityKind::Pottery,
-        &["potter_kiln", "marketplace"],
-        SMOKEHOUSE_POTTERY_PER_CYCLE * input_staging_cycles,
-    );
     smokehouse = step_processor(
         ctx,
         tick,
@@ -1138,16 +1157,6 @@ pub fn step_smithy(
     clock: &GameClock,
     building: Building,
 ) {
-    let staging = processor_input_staging_cycles(building.processor_output_target_percent);
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &building,
-        CommodityKind::Charcoal,
-        &["charcoal_burner"],
-        SMITHY_CHARCOAL_PER_CYCLE * staging,
-    );
     let mut smithy = step_processor(
         ctx,
         tick,
@@ -1182,16 +1191,6 @@ pub fn step_potter_kiln(
     clock: &GameClock,
     building: Building,
 ) {
-    let staging = processor_input_staging_cycles(building.processor_output_target_percent);
-    request_connected_commodity(
-        ctx,
-        tick,
-        clock,
-        &building,
-        CommodityKind::Clay,
-        &["clay_pit"],
-        POTTER_CLAY_PER_CYCLE * staging,
-    );
     let mut potter = step_processor(
         ctx,
         tick,

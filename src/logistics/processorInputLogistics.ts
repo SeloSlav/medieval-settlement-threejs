@@ -43,7 +43,7 @@ export type DirectProcessorInputCommodity =
   | 'salt'
   | 'charcoal'
   | 'pottery';
-export type MarketplaceMaterialInputCommodity = 'iron' | 'salt';
+export type MarketplaceMaterialInputCommodity = 'iron' | 'salt' | 'pottery';
 export type ProcessorInputDispatchDuty = 'working-buffer' | 'workshop-overflow';
 
 type ProcessorInputDestinationLike = Pick<
@@ -248,36 +248,55 @@ export type RoutedMarketplaceMaterialDestination<
 };
 
 /**
- * One marketplace cart chooses between its imported iron and salt requests.
- * This mirrors the authoritative source-side pass, so a later-built urgent
- * smokehouse can beat an older smithy instead of losing to update order.
+ * One marketplace cart chooses between imported iron, salt, and uncommitted
+ * pottery returned from export stock. This mirrors the authoritative
+ * source-side pass, so a later-built urgent workshop can beat an older target
+ * instead of losing to update order.
  */
 export function selectMarketplaceMaterialInputTarget<
   T extends ProcessorInputDestinationLike,
 >(
   targets: Iterable<T>,
-  source: Pick<BuildingState, 'id' | 'iron' | 'salt'>,
+  source: Pick<BuildingState, 'id' | 'iron' | 'salt' | 'pottery'>,
   routeDistanceFor: (target: T) => number | null,
   hasInboundSupply: (target: T) => boolean = () => false,
   acceptsInput: (
     target: T,
     commodity: MarketplaceMaterialInputCommodity,
   ) => boolean = () => true,
+  isSourceCommodityReserved: (
+    commodity: MarketplaceMaterialInputCommodity,
+  ) => boolean = () => false,
 ): RoutedMarketplaceMaterialDestination<T> | null {
   let best: RoutedMarketplaceMaterialDestination<T> | null = null;
   const materialTargets = [...targets];
-  for (const commodity of ['iron', 'salt'] as const) {
-    if (Math.max(0, source[commodity] ?? 0) <= 1e-6) continue;
+  const routeDistanceByTargetId = new Map<string, number | null>();
+  const cachedRouteDistanceFor = (target: T): number | null => {
+    if (routeDistanceByTargetId.has(target.id)) {
+      return routeDistanceByTargetId.get(target.id) ?? null;
+    }
+    const distance = routeDistanceFor(target);
+    routeDistanceByTargetId.set(target.id, distance);
+    return distance;
+  };
+  for (const commodity of ['iron', 'salt', 'pottery'] as const) {
+    if (
+      isSourceCommodityReserved(commodity)
+      || Math.max(0, source[commodity] ?? 0) <= 1e-6
+    ) {
+      continue;
+    }
     const candidate = selectDirectProcessorInputTarget(
       materialTargets,
       source.id,
       commodity,
-      routeDistanceFor,
+      cachedRouteDistanceFor,
       hasInboundSupply,
       (target) => acceptsInput(target, commodity),
     );
     if (
       candidate
+      && candidate.duty === 'working-buffer'
       && (best == null || processorInputCandidatePrecedes(candidate, best))
     ) {
       best = { ...candidate, commodity };

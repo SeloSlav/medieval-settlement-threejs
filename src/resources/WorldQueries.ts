@@ -45,6 +45,7 @@ import {
   type RoutedProcessorInputDestination,
 } from '../logistics/processorInputLogistics.ts';
 import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
+import { marketplacePendingTradeOffer } from '../economy/marketplaceTrade.ts';
 import {
   farmsteadExportableGrain,
   farmsteadSeedBarleyRequired,
@@ -1140,7 +1141,15 @@ export class WorldQueries {
   ): RoutedProcessorInputDestination<BuildingState> | null {
     const state = this.getGameState();
     const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
-    if (fireDisabled.has(source.id)) return null;
+    if (
+      source.constructionComplete === false
+      || source.assignedLabor <= 0
+      || fireDisabled.has(source.id)
+      || Math.max(0, Number(source[commodity] ?? 0)) <= 1e-6
+      || findActiveTripForBuilding(state.deliveryTrips.values(), source.id) != null
+    ) {
+      return null;
+    }
     const network = this.getRoadNetwork();
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
@@ -1173,6 +1182,11 @@ export class WorldQueries {
   ): RoutedMarketplaceMaterialDestination<BuildingState> | null {
     const state = this.getGameState();
     const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    const pendingTrade = marketplacePendingTradeOffer(
+      source.marketplacePendingTradeCode,
+    );
+    const potteryReservedForTrade = pendingTrade?.kind === 'goldSell'
+      && pendingTrade.resource === 'pottery';
     if (
       source.kind !== 'marketplace'
       || source.constructionComplete === false
@@ -1181,6 +1195,10 @@ export class WorldQueries {
       || (
         (source.iron ?? 0) <= 1e-6
         && (source.salt ?? 0) <= 1e-6
+        && (
+          potteryReservedForTrade
+          || (source.pottery ?? 0) <= 1e-6
+        )
       )
     ) {
       return null;
@@ -1208,6 +1226,7 @@ export class WorldQueries {
       ),
       (target) => inboundTargets.has(target.id),
       (target, commodity) => processorAcceptsInput(target, commodity),
+      (commodity) => commodity === 'pottery' && potteryReservedForTrade,
     );
   }
 

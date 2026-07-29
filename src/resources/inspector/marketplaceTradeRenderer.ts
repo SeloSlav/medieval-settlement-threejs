@@ -470,7 +470,7 @@ function renderMaterialProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Workshop input procurement">
       <h3 class="marketplace-trade-section__title">Workshop input reserves</h3>
-      <p class="resource-inspector-note">Set physical market stock for regionally sourced inputs. Each twelve-unit lot consumes broker time, coffer gold, and the current regional rate. A free local market cart stages working buffers at staffed road-linked smithies and smokehouses; paid household orders and seed recovery retain first claim, then work priority, cycle runway, road length, and stable order decide the next workshop. All standing imports share one queue and the most depleted selected reserve goes first.</p>
+      <p class="resource-inspector-note">Set physical market stock for regionally sourced inputs. Each twelve-unit lot consumes broker time, coffer gold, and the current regional rate. A free local market cart stages iron, salt, and uncommitted pottery working buffers at staffed road-linked smithies and smokehouses; paid household orders and seed recovery retain first claim, then work priority, cycle runway, road length, and stable order decide the next workshop. Pottery promised to an active export order stays at the market. All standing imports share one queue and the most depleted selected reserve goes first.</p>
       <h4 class="marketplace-trade-section__title">Raw iron for smithing</h4>
       <div class="resource-action-row">${renderTargetButtons(
         'iron',

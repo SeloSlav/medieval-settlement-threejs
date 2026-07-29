@@ -158,6 +158,7 @@ const materialMarket = building('marketplace', {
   id: 'material-market',
   iron: 12,
   salt: 12,
+  pottery: 12,
 });
 const lowPriorityIronTarget = building('smithy', {
   id: 'older-near-smithy',
@@ -173,10 +174,14 @@ const highPrioritySaltTarget = building('smokehouse', {
   constructionPriority: 3,
   salt: 0,
 });
+let materialRouteSolves = 0;
 let marketMaterialTarget = selectMarketplaceMaterialInputTarget(
   [lowPriorityIronTarget, highPrioritySaltTarget],
   materialMarket,
-  (candidate) => candidate.x,
+  (candidate) => {
+    materialRouteSolves += 1;
+    return candidate.x;
+  },
 );
 assert.equal(
   marketMaterialTarget?.target.id,
@@ -185,6 +190,11 @@ assert.equal(
 );
 assert.equal(marketMaterialTarget?.commodity, 'salt');
 assert.equal(marketMaterialTarget?.duty, 'working-buffer');
+assert.equal(
+  materialRouteSolves,
+  2,
+  'salt and pottery candidates for one smokehouse must share one road solve',
+);
 
 lowPriorityIronTarget.constructionPriority = 2;
 lowPriorityIronTarget.iron = SMITHY_IRON_PER_CYCLE;
@@ -208,8 +218,20 @@ marketMaterialTarget = selectMarketplaceMaterialInputTarget(
 );
 assert.equal(
   marketMaterialTarget?.commodity,
+  'pottery',
+  'uncommitted market pottery must return to an uncovered preservation-vessel buffer',
+);
+
+highPrioritySaltTarget.pottery = SMOKEHOUSE_POTTERY_PER_CYCLE * 3;
+marketMaterialTarget = selectMarketplaceMaterialInputTarget(
+  [lowPriorityIronTarget, highPrioritySaltTarget],
+  materialMarket,
+  (candidate) => candidate.x,
+);
+assert.equal(
+  marketMaterialTarget?.commodity,
   'iron',
-  'a covered smokehouse buffer must release the market cart to the smithy',
+  'covered salt and pottery buffers must release the market cart to the smithy',
 );
 
 highPrioritySaltTarget.salt = 0;
@@ -223,6 +245,23 @@ assert.equal(
   marketMaterialTarget?.commodity,
   'iron',
   'unstaffed workshops must not reserve scarce imported inputs',
+);
+
+highPrioritySaltTarget.assignedLabor = 2;
+highPrioritySaltTarget.salt = SMOKEHOUSE_SALT_PER_CYCLE * 3;
+highPrioritySaltTarget.pottery = 0;
+const reservedExportPotteryTarget = selectMarketplaceMaterialInputTarget(
+  [highPrioritySaltTarget],
+  { ...materialMarket, iron: 0, salt: 0 },
+  (candidate) => candidate.x,
+  () => false,
+  () => true,
+  (commodity) => commodity === 'pottery',
+);
+assert.equal(
+  reservedExportPotteryTarget,
+  null,
+  'pottery committed to an active market order must not be recalled to a smokehouse',
 );
 
 for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
@@ -394,7 +433,10 @@ const marketplaceMaterialDispatchStep = rustFunctionSection(
   'step_granary',
 );
 const smokehouseStep = rustFunctionSection('step_smokehouse', 'step_clay_pit');
+const clayPitStep = rustFunctionSection('step_clay_pit', 'step_charcoal_burner');
+const charcoalBurnerStep = rustFunctionSection('step_charcoal_burner', 'step_smithy');
 const smithyStep = rustFunctionSection('step_smithy', 'step_potter_kiln');
+const potterKilnStep = rustFunctionSection('step_potter_kiln', 'step_apiary');
 assert.match(
   marketplaceMaterialDispatchStep,
   /select_processor_input_dispatch_candidate/,
@@ -402,7 +444,12 @@ assert.match(
 assert.match(marketplaceMaterialDispatchStep, /MARKETPLACE_MATERIAL_TARGET_KINDS/);
 assert.match(
   marketplaceMaterialDispatchStep,
-  /"smithy" => CommodityKind::Iron[\s\S]*"smokehouse" => CommodityKind::Salt/,
+  /"smithy"[\s\S]*CommodityKind::Iron[\s\S]*"smokehouse"[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Pottery/,
+);
+assert.match(
+  marketplaceMaterialDispatchStep,
+  /pending_marketplace_trade_commodity\(&marketplace\) == Some\(CommodityKind::Pottery\)/,
+  'an active pottery export must reserve its physically staged vessels',
 );
 assert.doesNotMatch(
   smokehouseStep,
@@ -413,6 +460,33 @@ assert.doesNotMatch(
   smithyStep,
   /request_connected_commodity\(\s*ctx,\s*tick,\s*clock,\s*&building,\s*CommodityKind::Iron/,
   'smithies must not pull iron in database update order',
+);
+assert.doesNotMatch(
+  smokehouseStep,
+  /request_connected_commodity\(\s*ctx,\s*tick,\s*clock,\s*&smokehouse,\s*CommodityKind::Pottery/,
+  'smokehouses must not pull pottery in database update order',
+);
+assert.doesNotMatch(
+  smithyStep,
+  /request_connected_commodity\(\s*ctx,\s*tick,\s*clock,\s*&building,\s*CommodityKind::Charcoal/,
+  'smithies must not pull charcoal in database update order',
+);
+assert.doesNotMatch(
+  potterKilnStep,
+  /request_connected_commodity\(\s*ctx,\s*tick,\s*clock,\s*&building,\s*CommodityKind::Clay/,
+  'potter kilns must not pull clay in database update order',
+);
+assert.match(
+  clayPitStep,
+  /dispatch_to_building\([\s\S]*CommodityKind::Clay[\s\S]*"potter_kiln"/,
+);
+assert.match(
+  charcoalBurnerStep,
+  /dispatch_to_building\([\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"/,
+);
+assert.match(
+  potterKilnStep,
+  /dispatch_to_building\([\s\S]*CommodityKind::Pottery[\s\S]*"smokehouse"[\s\S]*"marketplace"/,
 );
 const caravanIndex = simulationReducerSource.indexOf('step_marketplace_caravans(');
 const seedDistributionIndex = simulationReducerSource.indexOf(

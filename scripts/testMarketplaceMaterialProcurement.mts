@@ -191,9 +191,10 @@ assert.match(panel, /Queued behind the more depleted salt reserve; 2 iron lots r
 assert.match(panel, /Next twelve-unit lot ready for 14 gold; 2 lots remain/);
 assert.match(
   panel,
-  /free local market cart stages working buffers at staffed road-linked smithies and smokehouses/,
+  /free local market cart stages iron, salt, and uncommitted pottery working buffers/,
   'the inspector must keep physical last-mile logistics explicit',
 );
+assert.match(panel, /Pottery promised to an active export order stays at the market/);
 
 const tablesSource = fs.readFileSync('server/src/tables.rs', 'utf8');
 const reducerSource = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
