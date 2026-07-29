@@ -17,6 +17,13 @@ import {
   type ProsperityRoadBranch,
 } from '../src/economy/settlementProduction.ts';
 import {
+  normalizeWeaverInputPolicy,
+  WEAVER_INPUT_POLICY_AUTO,
+  WEAVER_INPUT_POLICY_FLAX_FIRST,
+  WEAVER_INPUT_POLICY_WOOL_FIRST,
+  weaverUsesFlax,
+} from '../src/economy/weaverInputPolicy.ts';
+import {
   BUILDING_STORAGE_CAPS,
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
@@ -40,6 +47,7 @@ import {
 } from '../src/residences/residenceNeedState.ts';
 import { getBuildingDefinition } from '../src/resources/buildings.ts';
 import { getBuildingProcessorStatus } from '../src/resources/inspector/buildingProcessorStatus.ts';
+import { renderProcessorOutputTargetPanel } from '../src/resources/inspector/expandedBuildingRenderer.ts';
 import { renderSettlementTextileRows } from '../src/resources/inspector/townHallRenderer.ts';
 import {
   createEmptyStockpile,
@@ -129,6 +137,36 @@ assert.equal(cargoKindLabel('flax'), 'Flax fibre');
 assert.equal(cargoKindLabel('cloth'), 'Cloth');
 assert.equal(needKindFromId(14), 'cloth');
 assert.equal(createDefaultNeeds().cloth.stock, 0);
+assert.equal(normalizeWeaverInputPolicy(undefined), WEAVER_INPUT_POLICY_AUTO);
+assert.equal(normalizeWeaverInputPolicy(99), WEAVER_INPUT_POLICY_AUTO);
+assert.equal(
+  weaverUsesFlax(weaver({
+    wool: WEAVER_WOOL_PER_CYCLE,
+    flax: WEAVER_FLAX_PER_CYCLE * 2,
+    water: WEAVER_FLAX_WATER_PER_CYCLE * 2,
+    weaverInputPolicy: WEAVER_INPUT_POLICY_WOOL_FIRST,
+  })),
+  false,
+);
+assert.equal(
+  weaverUsesFlax(weaver({
+    wool: WEAVER_WOOL_PER_CYCLE * 2,
+    flax: WEAVER_FLAX_PER_CYCLE,
+    water: WEAVER_FLAX_WATER_PER_CYCLE,
+    weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
+  })),
+  true,
+);
+assert.equal(
+  weaverUsesFlax(weaver({
+    wool: WEAVER_WOOL_PER_CYCLE,
+    flax: WEAVER_FLAX_PER_CYCLE,
+    water: 0,
+    weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
+  })),
+  false,
+  'flax-first should fall back to a complete wool cycle instead of idling',
+);
 
 const worldQueries = {} as WorldQueries;
 assert.match(
@@ -161,6 +199,23 @@ assert.equal(
   )?.statusText,
   'Preparing flax and weaving linen cloth',
 );
+const policyStatus = getBuildingProcessorStatus(
+  weaver({
+    wool: WEAVER_WOOL_PER_CYCLE,
+    flax: WEAVER_FLAX_PER_CYCLE,
+    water: WEAVER_FLAX_WATER_PER_CYCLE,
+    weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
+  }),
+  flaxWorldQueries,
+);
+assert.equal(policyStatus?.statusText, 'Preparing flax and weaving linen cloth');
+assert.match(policyStatus?.waterDetailHtml ?? '', /Input policy<\/span><span>Flax first/);
+assert.match(policyStatus?.waterDetailHtml ?? '', /Selected textile route<\/span><span>Flax \+ hauled water/);
+const policyPanel = renderProcessorOutputTargetPanel(weaver());
+assert.match(policyPanel ?? '', /data-weaver-input-policy="0"[^>]*disabled/);
+assert.match(policyPanel ?? '', /data-weaver-input-policy="1"/);
+assert.match(policyPanel ?? '', /data-weaver-input-policy="2"/);
+assert.match(policyPanel ?? '', /ready alternate route remains a fallback/);
 
 const emptyVisual = buildingMarkerSignatures(
   new Map([['weaver-1', weaver()]]),
@@ -700,6 +755,13 @@ const residenceNeedState = readFileSync(
   'server/src/simulation/residence_needs/state.rs',
   'utf8',
 );
+const buildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
+const buildingTable = readFileSync('server/src/tables.rs', 'utf8');
+const generatedBuildingTable = readFileSync('src/generated/building_table.ts', 'utf8');
+const generatedWeaverPolicyReducer = readFileSync(
+  'src/generated/set_weaver_input_policy_reducer.ts',
+  'utf8',
+);
 assert.match(livestockSimulation, /herd\.last_shearing_year != clock\.year/);
 assert.match(livestockSimulation, /can_store_full_sheep_clip/);
 assert.match(livestockSimulation, /deposit_building_commodity\(building, CommodityKind::Wool/);
@@ -711,6 +773,10 @@ assert.match(
   /CommodityKind::Flax, WEAVER_FLAX_PER_CYCLE[\s\S]*CommodityKind::Water[\s\S]*WEAVER_FLAX_WATER_PER_CYCLE[\s\S]*CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE/,
 );
 assert.match(expandedEconomy, /CommodityKind::Wool, WEAVER_WOOL_PER_CYCLE/);
+assert.match(
+  expandedEconomy,
+  /weaver_uses_flax\([\s\S]*building\.weaver_input_policy[\s\S]*WEAVER_FLAX_WATER_PER_CYCLE/,
+);
 assert.match(
   expandedEconomy,
   /FarmCropProduce::Fibre => Some\(CommodityKind::Flax\)/,
@@ -735,6 +801,13 @@ assert.match(
   /missing_cloth[\s\S]*legacy_tier >= 3[\s\S]*RESIDENCE_CLOTH_CAPACITY/,
   'only legacy tier-3 homes should receive the one-time textile transition buffer',
 );
+assert.match(
+  buildingReducers,
+  /set_weaver_input_policy[\s\S]*is_valid_weaver_input_policy[\s\S]*building\.kind != "weaver"[\s\S]*weaver_input_policy = input_policy/,
+);
+assert.match(buildingTable, /#\[default\(0u8\)\][\s\S]*pub weaver_input_policy: u8/);
+assert.match(generatedBuildingTable, /weaverInputPolicy:[\s\S]*weaver_input_policy/);
+assert.match(generatedWeaverPolicyReducer, /buildingId:[\s\S]*inputPolicy:/);
 
 const townHallRenderer = readFileSync(
   'src/resources/inspector/townHallRenderer.ts',

@@ -398,6 +398,18 @@ export async function setProcessorOutputTarget(
   });
 }
 
+export async function setWeaverInputPolicy(
+  buildingId: string,
+  inputPolicy: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid weaver workshop id.');
+  await callReducer('setWeaverInputPolicy', 'set_weaver_input_policy', {
+    buildingId: serverId,
+    inputPolicy,
+  });
+}
+
 export async function setGranaryPolicy(
   buildingId: string,
   acceptsFreshFood: boolean,

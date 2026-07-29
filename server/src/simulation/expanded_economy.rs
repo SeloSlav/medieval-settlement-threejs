@@ -79,6 +79,7 @@ use crate::supply_policy::{
     GRAIN_PROCESSOR_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, Residence};
+use crate::weaver_input_policy::weaver_uses_flax;
 
 struct RoutedBuilding {
     building: Building,
@@ -799,13 +800,18 @@ pub fn step_weaver(
             WEAVER_FLAX_WATER_PER_CYCLE * input_staging_cycles,
         );
     }
-    let inputs = if weaver_prefers_flax(building.wool, building.flax, building.water) {
+    let inputs = if weaver_uses_flax(
+        building.weaver_input_policy,
+        building.wool,
+        building.flax,
+        building.water,
+        WEAVER_WOOL_PER_CYCLE,
+        WEAVER_FLAX_PER_CYCLE,
+        WEAVER_FLAX_WATER_PER_CYCLE,
+    ) {
         [
             (CommodityKind::Flax, WEAVER_FLAX_PER_CYCLE),
-            (
-                CommodityKind::Water,
-                WEAVER_FLAX_WATER_PER_CYCLE,
-            ),
+            (CommodityKind::Water, WEAVER_FLAX_WATER_PER_CYCLE),
         ]
     } else {
         [
@@ -838,14 +844,6 @@ pub fn step_weaver(
         &["marketplace"],
     );
     ctx.db.building().id().update(weaver);
-}
-
-fn weaver_prefers_flax(wool: f64, flax: f64, water: f64) -> bool {
-    let wool_cycles = wool.max(0.0) / WEAVER_WOOL_PER_CYCLE.max(1e-6);
-    let flax_cycles = (flax.max(0.0) / WEAVER_FLAX_PER_CYCLE.max(1e-6)).min(
-        water.max(0.0) / WEAVER_FLAX_WATER_PER_CYCLE.max(1e-6),
-    );
-    (flax > 1e-6 && wool <= 1e-6) || flax_cycles > wool_cycles + 1e-9
 }
 
 pub fn step_smokehouse(

@@ -225,6 +225,7 @@ mod tests {
             guardhouse_pay_priority: 0,
             guardhouse_food_reserve: 0,
             guardhouse_muster_watchtower_id: 0,
+            weaver_input_policy: 0,
             marketplace_ironwork_target: 0,
             marketplace_seed_grain_target: 0,
             marketplace_pending_trade_code: 0,

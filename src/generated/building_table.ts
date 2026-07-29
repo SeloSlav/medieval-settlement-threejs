@@ -75,4 +75,5 @@ export default __t.row({
   malt: __t.f64(),
   flax: __t.f64(),
   guardhouseMusterWatchtowerId: __t.u64().name("guardhouse_muster_watchtower_id"),
+  weaverInputPolicy: __t.u8().name("weaver_input_policy"),
 });

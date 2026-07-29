@@ -45,6 +45,7 @@ mod storehouse_policy;
 mod supply_policy;
 mod tables;
 mod types;
+mod weaver_input_policy;
 mod well_policy;
 mod woodcutter_policy;
 mod worksite_stall_policy;

@@ -96,6 +96,7 @@ export const Building = __t.object("Building", {
   malt: __t.f64(),
   flax: __t.f64(),
   guardhouseMusterWatchtowerId: __t.u64(),
+  weaverInputPolicy: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 

@@ -114,6 +114,8 @@ export type BuildingState = {
   storehouseStoneTargetPercent?: number;
   storehouseFirewoodTargetPercent?: number;
   processorOutputTargetPercent?: number;
+  /** 0 auto, 1 wool first, 2 flax first; meaningful only for weavers. */
+  weaverInputPolicy?: number;
   granaryAcceptsFreshFood?: boolean;
   granaryHouseholdsFirst?: boolean;
   granaryGrainReserve?: number;

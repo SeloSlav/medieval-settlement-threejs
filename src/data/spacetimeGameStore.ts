@@ -531,6 +531,13 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setProcessorOutputTarget(buildingId, targetPercent);
   }
 
+  setWeaverInputPolicy(
+    buildingId: string,
+    inputPolicy: number,
+  ): Promise<void> {
+    return spacetimeReducers.setWeaverInputPolicy(buildingId, inputPolicy);
+  }
+
   setGranaryPolicy(
     buildingId: string,
     acceptsFreshFood: boolean,

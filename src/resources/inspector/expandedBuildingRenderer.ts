@@ -99,6 +99,10 @@ import {
 } from '../../economy/processorOutputPolicy.ts';
 import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 import { civicReceiptCollectionPlan } from '../../economy/civicReceipts.ts';
+import {
+  normalizeWeaverInputPolicy,
+  WEAVER_INPUT_POLICY_PRESETS,
+} from '../../economy/weaverInputPolicy.ts';
 
 const PROCESS: Record<string, string> = {
   threshing_barn: 'Farmstead crew works nearby drawn fields',
@@ -1118,12 +1122,22 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
     : stock > target + 0.05
       ? `${(stock - target).toFixed(0)} above target · still available`
       : 'Production paused at target';
+  const weaverInputPolicy = building.kind === 'weaver'
+    ? `
+      <p class="resource-inspector-note">Fibre preference · decides which complete onsite recipe the loom consumes first.</p>
+      <div class="resource-action-row">${WEAVER_INPUT_POLICY_PRESETS
+        .map((preset) => `<button type="button" class="resource-action-button" data-weaver-input-policy="${preset.policy}" title="${preset.hint}" ${normalizeWeaverInputPolicy(building.weaverInputPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
+        .join('')}</div>
+      <p class="inspector-action-panel__hint">A ready alternate route remains a fallback so the crew does not idle. Wool avoids a water haul; flax turns planned field fibre and well capacity into cloth while preserving annual fleece.</p>
+    `
+    : '';
   return `
     <div class="inspector-action-panel">
       <p class="resource-inspector-note">Stock policy · stages ${stagingLabel} · finished ${label} ${stock.toFixed(0)} / ${target.toFixed(0)} · ${pressure}</p>
       <div class="resource-action-row">${PROCESSOR_OUTPUT_TARGET_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
         .join('')}</div>
+      ${weaverInputPolicy}
       <p class="inspector-action-panel__hint">This policy sets both the on-site input staging depth and the finished-goods ceiling. Routine input top-ups stop at the staged-cycle target; a producer may still use the workshop as last-resort overflow when normal storage cannot receive its cargo. Finished-goods deliveries may draw below the ceiling and restart work. It is not a protected reserve, and a cart already on the road may still arrive after you lower it.</p>
     </div>
   `;

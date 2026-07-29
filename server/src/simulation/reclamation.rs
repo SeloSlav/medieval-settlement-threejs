@@ -422,6 +422,7 @@ pub fn insert_reclamation_pile(
         malt: stock.malt.max(0.0),
         flax: stock.flax.max(0.0),
         guardhouse_muster_watchtower_id: 0,
+        weaver_input_policy: 0,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

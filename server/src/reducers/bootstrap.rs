@@ -266,6 +266,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         malt: resources.malt.max(0.0),
         flax: resources.flax.max(0.0),
         guardhouse_muster_watchtower_id: 0,
+        weaver_input_policy: 0,
     });
 
     resources.timber = 0.0;

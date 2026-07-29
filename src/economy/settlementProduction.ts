@@ -49,6 +49,7 @@ import {
   normalizeProcessorOutputTargetPercent,
   processorOutputTargetForBuilding,
 } from './processorOutputPolicy.ts';
+import { weaverUsesFlax } from './weaverInputPolicy.ts';
 
 export type SettlementProductionCapacity = {
   capacityDaysPerWeek: number;
@@ -703,18 +704,7 @@ function completedProcessorOverview(
           'cloth',
           cycles * WEAVER_CLOTH_PER_CYCLE,
         );
-        const woolCycles = Math.max(0, building.wool ?? 0)
-          / Math.max(1e-6, WEAVER_WOOL_PER_CYCLE);
-        const flaxCycles = Math.min(
-          Math.max(0, building.flax ?? 0)
-            / Math.max(1e-6, WEAVER_FLAX_PER_CYCLE),
-          Math.max(0, building.water)
-            / Math.max(1e-6, WEAVER_FLAX_WATER_PER_CYCLE),
-        );
-        const usesFlax = (
-          (building.flax ?? 0) > 1e-6
-          && (building.wool ?? 0) <= 1e-6
-        ) || flaxCycles > woolCycles + 1e-9;
+        const usesFlax = weaverUsesFlax(building);
         let runway = buildingInputRunway(
           deliveries,
           building,

@@ -101,6 +101,10 @@ type ResourceInspectorOptions = {
     buildingId: string,
     targetPercent: number,
   ) => void | Promise<void>;
+  onSetWeaverInputPolicy?: (
+    buildingId: string,
+    inputPolicy: number,
+  ) => void | Promise<void>;
   onSetGranaryPolicy?: (
     buildingId: string,
     acceptsFreshFood: boolean,
@@ -709,6 +713,18 @@ export class ResourceInspector {
       this.selectedTarget?.kind === 'building'
       && isProcessorOutputTargetKind(this.selectedTarget.building.kind)
     ) {
+      if (this.selectedTarget.building.kind === 'weaver') {
+        const inputPolicy = (event.target as HTMLElement)
+          .closest<HTMLElement>('[data-weaver-input-policy]')
+          ?.dataset.weaverInputPolicy;
+        if (inputPolicy != null) {
+          void this.options.onSetWeaverInputPolicy?.(
+            this.selectedTarget.building.id,
+            Number(inputPolicy),
+          );
+          return;
+        }
+      }
       const targetValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-processor-output-target]')
         ?.dataset.processorOutputTarget;

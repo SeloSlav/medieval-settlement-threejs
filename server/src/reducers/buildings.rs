@@ -67,6 +67,7 @@ use crate::storehouse_policy::{
 use crate::tables::{
     farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
 };
+use crate::weaver_input_policy::is_valid_weaver_input_policy;
 use crate::woodcutter_policy::normalize_woodcutter_timber_reserve;
 use crate::worksite_stall_policy::{
     is_production_labor_kind, stalled_labor_target, SpatialBuckets, RICH_DEPOSIT_CENTER_TOLERANCE,
@@ -653,6 +654,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         malt: 0.0,
         flax: 0.0,
         guardhouse_muster_watchtower_id: 0,
+        weaver_input_policy: 0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1399,6 +1401,30 @@ pub fn set_processor_output_target(
         return Err("You do not own this completed processing workshop.".to_string());
     }
     building.processor_output_target_percent = target_percent;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_weaver_input_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    input_policy: u8,
+) -> Result<(), String> {
+    if !is_valid_weaver_input_policy(input_policy) {
+        return Err("Weaver input policy must be Auto, Wool first, or Flax first.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Weaver workshop not found.".to_string())?;
+    if building.owner != owner || building.kind != "weaver" || !building.construction_complete {
+        return Err("You do not own this completed weaver workshop.".to_string());
+    }
+    building.weaver_input_policy = input_policy;
     ctx.db.building().id().update(building);
     Ok(())
 }

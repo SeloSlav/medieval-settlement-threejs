@@ -45,6 +45,10 @@ import {
   type WellWaterAssessment,
 } from './buildingWaterStatus.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
+import {
+  weaverInputPolicyLabel,
+  weaverUsesFlax,
+} from '../../economy/weaverInputPolicy.ts';
 
 export type BuildingProcessorContext = {
   matureTrees?: number;
@@ -378,24 +382,12 @@ function getBreweryStatus(
   };
 }
 
-function weaverPrefersFlax(building: BuildingState): boolean {
-  const wool = Math.max(0, building.wool ?? 0);
-  const flax = Math.max(0, building.flax ?? 0);
-  const water = Math.max(0, building.water);
-  const woolCycles = wool / Math.max(1e-6, WEAVER_WOOL_PER_CYCLE);
-  const flaxCycles = Math.min(
-    flax / Math.max(1e-6, WEAVER_FLAX_PER_CYCLE),
-    water / Math.max(1e-6, WEAVER_FLAX_WATER_PER_CYCLE),
-  );
-  return (flax > 1e-6 && wool <= 1e-6) || flaxCycles > woolCycles + 1e-9;
-}
-
 function getWeaverStatus(
   building: BuildingState,
   worldQueries: WorldQueries,
   onsiteLabor: number,
 ): BuildingProcessorStatus {
-  const usesFlax = weaverPrefersFlax(building);
+  const usesFlax = weaverUsesFlax(building);
   const input = usesFlax
     ? {
         key: 'flax' as const,
@@ -423,6 +415,7 @@ function getWeaverStatus(
     usesFlax ? undefined : 'None - wool preparation is a dry process',
   );
   const detailHtml = waterRows + `
+    <li><span>Input policy</span><span>${weaverInputPolicyLabel(building.weaverInputPolicy)} · ready alternate fibre remains a fallback</span></li>
     <li><span>Selected textile route</span><span>${usesFlax ? 'Flax + hauled water' : 'Annual sheep fleece'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
     <li><span>${usesFlax ? 'Flax' : 'Wool'} working stock</span><span>${stockAmount(building, input.key).toFixed(1)} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
     <li><span>Alternative input</span><span>${usesFlax ? `${Math.max(0, building.wool ?? 0).toFixed(1)} wool` : `${Math.max(0, building.flax ?? 0).toFixed(1)} flax + ${Math.max(0, building.water).toFixed(1)} water`} onsite</span></li>
