@@ -44,6 +44,7 @@
     "test:settlement-production": "node --experimental-strip-types scripts/testSettlementProduction.mts",
     "test:settlement-prosperity": "node --experimental-strip-types scripts/testSettlementProsperity.mts",
     "test:food-preservation": "node --experimental-strip-types scripts/testFoodPreservation.mts",
+    "test:settlement-preservation-reserve": "node --experimental-strip-types scripts/testSettlementPreservationReserve.mts",
     "test:physical-food-stores": "npx tsx scripts/testPhysicalFoodStores.mts",
     "test:physical-bulk-stores": "npx tsx scripts/testPhysicalBulkStores.mts",
     "test:physical-armory-stores": "npx tsx scripts/testPhysicalArmoryStores.mts",

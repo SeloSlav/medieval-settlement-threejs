@@ -330,7 +330,8 @@ assert.match(inspector, /Settlement prosperity/);
 assert.match(inspector, /Promotion load/);
 assert.match(inspector, /Local prosperity branch/);
 assert.match(inspector, /this road branch/);
-assert.match(inspector, /Immediate daily demand/);
+assert.match(inspector, /Prosperity planning load/);
+assert.match(inspector, /preserved-food reserve allowance/);
 assert.match(inspector, /Warning: promoting the current occupants immediately exceeds/);
 assert.match(
   inspector,

@@ -78,6 +78,9 @@ import {
 import {
   MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
 } from '../../economy/marketplaceSeedPolicy.ts';
+import {
+  MARKETPLACE_SALT_IMPORT_OFFER,
+} from '../../economy/marketplaceMaterialProcurementPolicy.ts';
 import { marketplaceTradeOfferCost } from '../../economy/marketplaceTrade.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../../economy/regionalMarket.ts';
 import {
@@ -139,6 +142,10 @@ import {
   type ProcessorInputBuffer,
   type ProcessorOutputRoom,
 } from '../../economy/settlementProduction.ts';
+import {
+  computeSettlementPreservationReservePlan,
+  type SettlementPreservationReservePlan,
+} from '../../economy/settlementPreservationReserve.ts';
 import {
   computeSettlementProsperityPlan,
   type ProsperityRoadPlan,
@@ -1442,6 +1449,66 @@ export function renderFreshFoodPreservationRows(
   `;
 }
 
+export function renderPreservationReserveRows(
+  plan: SettlementPreservationReservePlan,
+  saltGoldPerLot: number,
+): string {
+  if (plan.tierThreeResidents <= 0) {
+    return `<li><span>Winter fallback reserve</span><span>No active prosperous residents yet &middot; ${(
+      plan.preservedStock + plan.preservedInTransit
+    ).toFixed(1)} preserved food can be stockpiled before tier-3 promotions</span></li>`;
+  }
+
+  const residenceInspect = plan.firstExposedResidenceId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${plan.firstExposedResidenceId}" aria-label="Inspect weakest winter preservation branch">Inspect household</button>`;
+  const buildingInspect = plan.firstAttentionBuildingId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionBuildingId}" aria-label="Inspect winter preservation bottleneck">Inspect chain</button>`;
+  const marketInspect = plan.firstSaltMarketId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSaltMarketId}" aria-label="Inspect preservation salt market">Inspect market</button>`;
+  const completion = plan.roadMatchedShortfall <= 0.05
+    ? 'Target ready'
+    : Number.isFinite(plan.productionDaysToTarget)
+      ? `${plan.productionDaysToTarget.toFixed(1)} working days at current same-branch smokehouse crews`
+      : `${plan.branchesWithoutSmokehouse} short ${plan.branchesWithoutSmokehouse === 1 ? 'branch has' : 'branches have'} no staffed same-branch smokehouse`;
+  const storedDetail = [
+    plan.preservedInTransit > 0.05
+      ? `${plan.preservedInTransit.toFixed(1)} arriving by cart`
+      : null,
+    plan.unmatchedPreservedStock > 0.05
+      ? `${plan.unmatchedPreservedStock.toFixed(1)} surplus or stranded outside current branch targets`
+      : null,
+    plan.quarantinedPreservedStock > 0.05
+      ? `${plan.quarantinedPreservedStock.toFixed(1)} fire-quarantined`
+      : null,
+  ].filter(Boolean).join(' &middot; ');
+  const saltGold = Math.max(0, plan.saltImportLots)
+    * Math.max(0, saltGoldPerLot);
+  const saltImports = plan.saltImportLots <= 0
+    ? 'current branch stocks cover the reserve build'
+    : `${plan.saltImportLots} twelve-unit Adriatic ${plan.saltImportLots === 1 ? 'lot' : 'lots'} &asymp; ${saltGold.toFixed(0)} gold at today&rsquo;s first-lot rate`;
+  const saltWarnings = [
+    plan.selectedSaltTarget > 0
+      ? `${plan.selectedSaltTarget.toFixed(0)} selected staffed-market reserve settlement-wide`
+      : 'no selected staffed-market salt reserve',
+    plan.branchesWithoutStandingSalt > 0
+      ? `${plan.branchesWithoutStandingSalt} short ${plan.branchesWithoutStandingSalt === 1 ? 'branch lacks' : 'branches lack'} a standing salt order`
+      : null,
+  ].filter(Boolean).join(' &middot; ');
+  const potteryStatus = plan.potteryShortfall > 0.05
+    ? `${plan.potteryShortfall.toFixed(1)} vessels still need firing on the affected branches`
+    : 'current and inbound vessels cover the reserve build';
+
+  return `
+    <li><span>${plan.targetDays}-day winter fallback</span><span>${plan.roadMatchedStock.toFixed(1)} / ${plan.targetStock.toFixed(1)} preserved food road-matched for ${plan.tierThreeResidents} prosperous residents &middot; ${plan.preparedBranches} / ${plan.targetBranches} branches ready${plan.roadMatchedShortfall > 0.05 ? ` &middot; short ${plan.roadMatchedShortfall.toFixed(1)}` : ''}${storedDetail ? ` &middot; ${storedDetail}` : ''}${residenceInspect}</span></li>
+    <li><span>Reserve completion</span><span>${completion} &middot; the shortfall requires ${plan.freshFoodRequired.toFixed(1)} fresh food + ${plan.firewoodRequired.toFixed(1)} firewood + ${plan.saltRequired.toFixed(1)} salt + ${plan.potteryRequired.toFixed(1)} pottery${buildingInspect}</span></li>
+    <li><span>Adriatic salt burden</span><span>${Math.max(0, plan.saltRequired - plan.saltImportShortfall).toFixed(1)} road-matched toward reserve inputs &middot; ${saltImports} &middot; ${saltWarnings} &middot; repeated imports can tighten the regional rate${marketInspect}</span></li>
+    <li><span>Preserving vessels</span><span>${Math.max(0, plan.potteryRequired - plan.potteryShortfall).toFixed(1)} road-matched toward reserve inputs &middot; ${potteryStatus} &middot; kiln cart priorities decide whether smokehouses or household breakage receive the next load</span></li>
+  `;
+}
+
 function formatFreshFoodLossSite(
   site: FreshFoodLossSite | null,
   getBuildingLabel: (kind: BuildingKind) => string,
@@ -1850,6 +1917,20 @@ export function renderTownHallInspector(
       : undefined,
   });
   const marketState = context.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE;
+  const preservationReserve = computeSettlementPreservationReservePlan(
+    context.gameState,
+    {
+      sabbathObserved: provisioning.sabbathObserved,
+      roadComponentFor,
+    },
+  );
+  const preservationReserveRows = renderPreservationReserveRows(
+    preservationReserve,
+    marketplaceTradeOfferCost(
+      MARKETPLACE_SALT_IMPORT_OFFER,
+      marketState,
+    ).amount,
+  );
   const roadNetworkSnapshot =
     typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
       ? context.worldQueries.getRoadNetworkSnapshot()
@@ -2122,7 +2203,8 @@ export function renderTownHallInspector(
       <li><span>Grain-chain roads</span><span>${formatGrainChainRoads(production.grainChainRoads)}</span></li>
       <li><span>Bread capacity</span><span>${production.breadFoodCapacityPerDay.toFixed(1)} food / day vs ${provisioning.totalFoodPerDay.toFixed(1)} total demand · needs ${production.breadGrainPerDay.toFixed(1)} grain + ${production.breadWaterPerDay.toFixed(1)} water + ${production.breadFirewoodPerDay.toFixed(1)} firewood</span></li>
       <li><span>Ale capacity</span><span>${production.aleOutputPerDay.toFixed(1)} / day vs ${production.aleDemandPerDay.toFixed(1)} tier-3 demand · two workshop cycles per batch · needs ${production.aleBarleyPerDay.toFixed(1)} barley + ${production.aleWaterPerDay.toFixed(1)} water + ${production.aleFirewoodPerDay.toFixed(1)} firewood</span></li>
-      <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day vs ${production.preservedFoodDemandPerDay.toFixed(1)} tier-3 demand · needs ${production.preservationFreshFoodPerDay.toFixed(1)} fresh food + ${production.preservationFirewoodPerDay.toFixed(1)} firewood + ${production.preservationSaltPerDay.toFixed(1)} salt + ${production.preservationPotteryPerDay.toFixed(1)} pottery</span></li>
+      <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day installed reserve-building capacity · ${production.preservedFoodDemandPerDay.toFixed(1)} / day prosperity planning allowance · needs ${production.preservationFreshFoodPerDay.toFixed(1)} fresh food + ${production.preservationFirewoodPerDay.toFixed(1)} firewood + ${production.preservationSaltPerDay.toFixed(1)} salt + ${production.preservationPotteryPerDay.toFixed(1)} pottery at full crews</span></li>
+      ${preservationReserveRows}
       <li><span>Cloth capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-3 demand · choose ${production.clothWoolPerDay.toFixed(1)} wool, or ${production.clothFlaxPerDay.toFixed(1)} flax + ${production.clothFlaxWaterPerDay.toFixed(1)} hauled water</span></li>
       <li><span>Household pottery</span><span>${production.potteryOutputPerDay.toFixed(1)} / day installed kiln output vs ${production.potteryDemandPerDay.toFixed(1)} tier-3 breakage replacement · homes share each kiln's physical cart with smokehouses and export</span></li>
       <li><span>Prosperity throughput</span><span>${formatProsperityCapacity(prosperity)}</span></li>

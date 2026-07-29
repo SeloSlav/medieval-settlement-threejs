@@ -262,7 +262,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="charcoal">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="charcoal" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels stored at pottery yards, markets, smokehouses, and prosperous homes. Potter carts replace household breakage first; smokehouses consume packing vessels and remaining surplus can be exported. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels stored at pottery yards, markets, smokehouses, and prosperous homes. Each kiln can put household breakage or smokehouse packing first; export remains last. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Pottery</span>
         <strong class="settlement-hud__value" data-stockpile="pottery">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pottery" hidden></span>

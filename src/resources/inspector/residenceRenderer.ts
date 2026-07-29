@@ -702,7 +702,7 @@ function residenceProsperityRows(
     <li><span>Settlement prosperity</span><span>${plan.currentResidents} / ${usableCapacity} road-matched residents at installed capacity${plan.roadPlan && plan.roadPlan.fragmentationResidentCapacity > 0 ? ` · ${plan.roadPlan.fragmentationResidentCapacity} capacity split between branches` : ''} · assumes fully supplied staffed workshops</span></li>
     ${projection.roadBranchScoped ? `<li><span>Local prosperity branch</span><span>${localCurrentResidents} current / ${localCapacity} resident capacity · ${projection.limitingLabel} limited</span></li>` : ''}
     <li><span>Promotion load</span><span>+${projection.occupantsPromotedNow} prosperous consumers now · +${projection.targetHouseCapacity} with this house full · ${immediateStatus}</span></li>
-    <li><span>Immediate daily demand</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} preserved food · +${projection.immediateDemand.ale.toFixed(2)} ale · +${projection.immediateDemand.cloth.toFixed(3)} cloth · +${projection.immediateDemand.pottery.toFixed(2)} pottery</span></li>
+    <li><span>Prosperity planning load</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} preserved-food reserve allowance · +${projection.immediateDemand.ale.toFixed(2)} ale/day · +${projection.immediateDemand.cloth.toFixed(3)} cloth/day · +${projection.immediateDemand.pottery.toFixed(2)} pottery/day</span></li>
   `;
 }
 
