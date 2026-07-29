@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import {
@@ -30,6 +31,36 @@ assert.equal(civilianToolThroughputMultiplier(0), 1);
 assert.equal(civilianToolThroughputMultiplier(0.24), 1);
 assert.equal(civilianToolThroughputMultiplier(0.25), 1.2);
 assert.equal(civilianToolRunwayCycles(3), 12);
+
+const settlementHudSource = readFileSync(
+  new URL('../src/ui/SettlementHud.ts', import.meta.url),
+  'utf8',
+);
+const ironworkHudTag = settlementHudSource.match(
+  /<div[^>]*data-resource="ironwork"[^>]*>/,
+)?.[0];
+assert.ok(ironworkHudTag, 'the resource HUD must expose the civilian ironwork stock');
+assert.doesNotMatch(
+  ironworkHudTag,
+  /\bhidden\b/,
+  'peaceful settlements still consume ironwork for civilian tool upkeep',
+);
+const conflictVisibilityMethod = settlementHudSource.slice(
+  settlementHudSource.indexOf('setConflictEnabled(enabled: boolean)'),
+  settlementHudSource.indexOf('setSettlementClock(', settlementHudSource.indexOf(
+    'setConflictEnabled(enabled: boolean)',
+  )),
+);
+assert.doesNotMatch(
+  conflictVisibilityMethod,
+  /ironwork/,
+  'conflict mode must not control a peaceful-economy resource',
+);
+assert.match(
+  conflictVisibilityMethod,
+  /this\.polearmsStat\.hidden = !enabled/,
+  'weapon stock should remain conflict-only',
+);
 
 for (const kind of CIVILIAN_TOOL_SITE_KINDS) {
   assert.equal(
