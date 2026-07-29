@@ -1133,7 +1133,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       <div class="resource-action-row">${WEAVER_INPUT_POLICY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-weaver-input-policy="${preset.policy}" title="${preset.hint}" ${normalizeWeaverInputPolicy(building.weaverInputPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Work priority still wins first. Matching specialization then wins a contested working-buffer cart; Auto forms the neutral middle pool. Covered buffers and ready alternate recipes remain fallbacks so neither carts nor crews deadlock. Wool avoids a water haul; flax turns planned field fibre and well capacity into cloth while preserving annual fleece.</p>
+      <p class="inspector-action-panel__hint">Work priority still wins first. Matching specialization then wins a contested working-buffer cart; Auto forms the neutral middle pool. The same order governs scarce well water once flax is physically staged. Covered buffers and ready alternate recipes remain fallbacks so neither carts nor crews deadlock. Wool avoids a water haul; flax turns planned field fibre and well capacity into cloth while preserving annual fleece.</p>
     `
     : '';
   return `

@@ -788,21 +788,6 @@ pub fn step_weaver(
     building: Building,
 ) {
     let starting_cloth = building.cloth;
-    let input_staging_cycles =
-        processor_input_staging_cycles(building.processor_output_target_percent);
-    let flax_route_present = building.flax > 1e-6
-        || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Flax);
-    if flax_route_present {
-        request_connected_commodity(
-            ctx,
-            tick,
-            clock,
-            &building,
-            CommodityKind::Water,
-            &["well"],
-            WEAVER_FLAX_WATER_PER_CYCLE * input_staging_cycles,
-        );
-    }
     let inputs = if weaver_uses_flax(
         building.weaver_input_policy,
         building.wool,

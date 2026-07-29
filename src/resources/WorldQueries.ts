@@ -555,6 +555,7 @@ export class WorldQueries {
         || candidate.assignedLabor <= 0
         || requiredPerCycle <= 0
         || desiredStock <= 0
+        || (candidate.kind === 'weaver' && (candidate.flax ?? 0) <= 1e-6)
         || !processorAcceptsInput(candidate, 'water')
         || candidate.water + 1e-6 >= desiredStock
         || inboundTargets.has(candidate.id)

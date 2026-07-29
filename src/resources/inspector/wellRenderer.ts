@@ -37,6 +37,7 @@ import {
   wellLaborSplit,
   wellWaterPerDelivery,
 } from '../../logistics/waterLogistics.ts';
+import { weaverFibreDeliveryPreferenceLabel } from '../../economy/weaverInputPolicy.ts';
 import { formatCooldown } from './woodcuttersLodgeStatus.ts';
 
 function formatNextWaterTargetLabel(target: ReturnType<InspectorRenderContext['worldQueries']['getNextWaterDeliveryTargetForWell']>): string {
@@ -75,10 +76,13 @@ export function renderWellInspector(
   const refillPerSec = WELL_BASE_REFILL_PER_SEC
     * refillHydrology
     * drawingWorkers;
+  const industrialPreferenceLabel = nextIndustrialTarget?.kind === 'weaver'
+    ? ` · ${weaverFibreDeliveryPreferenceLabel(nextIndustrialTarget.weaverInputPolicy, 'flax')}`
+    : '';
   const nextTargetLabel = nextHouseholdTarget
     ? formatNextWaterTargetLabel(nextHouseholdTarget)
     : nextIndustrialTarget
-      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} · ${staffingPriorityLabel(normalizeStaffingPriority(nextIndustrialTarget.constructionPriority))} priority (${nextIndustrialTarget.water.toFixed(1)} / ${industrialWaterTarget(nextIndustrialTarget.kind, nextIndustrialTarget.processorOutputTargetPercent).toFixed(1)} staged water)`
+      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} · ${staffingPriorityLabel(normalizeStaffingPriority(nextIndustrialTarget.constructionPriority))} priority${industrialPreferenceLabel} (${nextIndustrialTarget.water.toFixed(1)} / ${industrialWaterTarget(nextIndustrialTarget.kind, nextIndustrialTarget.processorOutputTargetPercent).toFixed(1)} staged water)`
       : 'None needing water';
   const activeTargetLabel = formatTripDestinationLabel(
     activeTrip,
@@ -150,9 +154,9 @@ export function renderWellInspector(
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
       ${buildingExtentRow(building.kind)}
       <li><span>Road-linked homes</span><span>${claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
-      <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'granary').length} granary`}</span></li>
-      <li><span>Dispatch rule</span><span>Fires first · households second · highest-priority emptiest workshop third</span></li>
-      <li><span>Supplies</span><span>Homes, brewhouses, and granary bakeries by visible cart</span></li>
+      <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'granary').length} granary · ${industrialConsumers.filter((item) => item.kind === 'weaver').length} linen loom`}</span></li>
+      <li><span>Dispatch rule</span><span>Fires first · households second · workshop priority, input policy, then buffer coverage</span></li>
+      <li><span>Supplies</span><span>Homes, brewhouses, granary bakeries, and flax-working looms by visible cart</span></li>
       ${deliveryRow}
     `,
     demolish: {

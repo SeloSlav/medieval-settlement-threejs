@@ -34,9 +34,9 @@ use crate::simulation::{
 };
 use crate::tables::{Building, Residence};
 use crate::well_policy::{
-    industrial_water_requirement, industrial_water_target, prioritize_fire_response,
-    select_industrial_water_candidate, well_refill_amount, well_refill_workers,
-    IndustrialWaterCandidate, INDUSTRIAL_WATER_BUILDING_KINDS,
+    industrial_water_input_preference_rank, industrial_water_requirement, industrial_water_target,
+    prioritize_fire_response, select_industrial_water_candidate, well_refill_amount,
+    well_refill_workers, IndustrialWaterCandidate, INDUSTRIAL_WATER_BUILDING_KINDS,
 };
 
 pub fn step_well(
@@ -226,11 +226,18 @@ fn select_industrial_water_target(
                 {
                     return None;
                 }
+                if candidate.kind == "weaver" && candidate.flax <= 1e-6 {
+                    return None;
+                }
                 let distance =
                     road_path_distance(network, well.x, well.z, candidate.x, candidate.z)?;
                 Some(IndustrialWaterCandidate {
                     building_id: candidate.id,
                     work_priority: candidate.construction_priority,
+                    input_preference_rank: industrial_water_input_preference_rank(
+                        &candidate.kind,
+                        candidate.weaver_input_policy,
+                    ),
                     stock_ratio: candidate.water.max(0.0) / desired_stock,
                     distance,
                 })

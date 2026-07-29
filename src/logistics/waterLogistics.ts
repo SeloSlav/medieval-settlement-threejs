@@ -5,6 +5,7 @@ import {
   MILL_WATER_PER_HARVEST,
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
+  WEAVER_FLAX_WATER_PER_CYCLE,
   WELL_WATER_PER_DELIVERY,
 } from '../generated/gameBalance.ts';
 import { waterDeliveryTripSeconds } from './deliveryLogistics.ts';
@@ -13,6 +14,7 @@ import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { normalizeStaffingPriority } from '../economy/staffingPriority.ts';
 import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
+import { weaverFibreDeliveryPreferenceRank } from '../economy/weaverInputPolicy.ts';
 import { GAME_DAY_SECONDS } from './firewoodLogistics.ts';
 
 export {
@@ -43,6 +45,8 @@ export function industrialWaterRequirement(kind: BuildingKind): number {
       return GRANARY_WATER_PER_CYCLE;
     case 'brewery':
       return BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE;
+    case 'weaver':
+      return WEAVER_FLAX_WATER_PER_CYCLE;
     case 'lumber_mill':
       return MILL_WATER_PER_HARVEST;
     default:
@@ -55,9 +59,18 @@ export function industrialWaterTarget(
   processorOutputTargetPercent: number | undefined = 100,
 ): number {
   const perCycle = industrialWaterRequirement(kind);
-  return kind === 'granary' || kind === 'brewery'
+  return kind === 'granary' || kind === 'brewery' || kind === 'weaver'
     ? perCycle * processorInputStagingCycles(processorOutputTargetPercent)
     : perCycle;
+}
+
+export function industrialWaterInputPreferenceRank(
+  kind: BuildingKind,
+  weaverInputPolicy: number | undefined,
+): number {
+  return kind === 'weaver'
+    ? weaverFibreDeliveryPreferenceRank(weaverInputPolicy, 'flax')
+    : 1;
 }
 
 function compareCanonicalUint64Strings(a: string, b: string): number {
@@ -84,15 +97,31 @@ export function selectIndustrialWaterCandidate(
     const selectedPriority = selected
       ? normalizeStaffingPriority(selected.building.constructionPriority)
       : 0;
+    const candidateInputPreference = industrialWaterInputPreferenceRank(
+      candidate.building.kind,
+      candidate.building.weaverInputPolicy,
+    );
+    const selectedInputPreference = selected
+      ? industrialWaterInputPreferenceRank(
+          selected.building.kind,
+          selected.building.weaverInputPolicy,
+        )
+      : Infinity;
     if (
       !selected
       || candidatePriority > selectedPriority
       || (
         candidatePriority === selectedPriority
+        && candidateInputPreference < selectedInputPreference
+      )
+      || (
+        candidatePriority === selectedPriority
+        && candidateInputPreference === selectedInputPreference
         && candidate.stockRatio < selected.stockRatio
       )
       || (
         candidatePriority === selectedPriority
+        && candidateInputPreference === selectedInputPreference
         && candidate.stockRatio === selected.stockRatio
         && (
           candidate.distance < selected.distance

@@ -1,31 +1,45 @@
 //! Pure well-yield policy shared by the authoritative simulation and native tests.
 
 use crate::balance_generated::{
-    BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE,
-    GRANARY_WATER_PER_CYCLE, MILL_WATER_PER_HARVEST,
-    WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
+    BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE, GRANARY_WATER_PER_CYCLE,
+    MILL_WATER_PER_HARVEST, WEAVER_FLAX_WATER_PER_CYCLE, WELL_BASE_REFILL_PER_SEC,
+    WELL_MINIMUM_REFILL_HYDROLOGY,
 };
 use crate::construction_priority::{
     CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT,
 };
 use crate::processor_output_policy::processor_input_staging_cycles;
+use crate::weaver_input_policy::weaver_fibre_delivery_preference_rank;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IndustrialWaterCandidate {
     pub building_id: u64,
     pub work_priority: u8,
+    pub input_preference_rank: u8,
     pub stock_ratio: f64,
     pub distance: f64,
 }
 
-pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &["granary", "brewery"];
+pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &["granary", "brewery", "weaver"];
 
 pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     match building_kind {
         "granary" => GRANARY_WATER_PER_CYCLE,
         "brewery" => BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE,
+        "weaver" => WEAVER_FLAX_WATER_PER_CYCLE,
         "lumber_mill" => MILL_WATER_PER_HARVEST,
         _ => 0.0,
+    }
+}
+
+/// Loom fibre policy doubles as its water-cart preference because only the
+/// flax route consumes water. Other wet workshops and automatic looms occupy
+/// the neutral middle tier; explicit building work priority still wins first.
+pub fn industrial_water_input_preference_rank(building_kind: &str, weaver_input_policy: u8) -> u8 {
+    if building_kind == "weaver" {
+        weaver_fibre_delivery_preference_rank(weaver_input_policy, true)
+    } else {
+        1
     }
 }
 
@@ -50,8 +64,9 @@ pub fn industrial_water_target(building_kind: &str, processor_output_target_perc
     }
 }
 
-/// Select the highest-priority workshop, then its least water runway and
-/// shortest cart route, using building id as a deterministic final tie-break.
+/// Select the highest-priority workshop, then its input preference, least
+/// water runway, and shortest cart route, using building id as a deterministic
+/// final tie-break.
 pub fn select_industrial_water_candidate(
     candidates: impl IntoIterator<Item = IndustrialWaterCandidate>,
 ) -> Option<IndustrialWaterCandidate> {
@@ -66,6 +81,7 @@ pub fn select_industrial_water_candidate(
         .min_by(|a, b| {
             normalized_work_priority(b.work_priority)
                 .cmp(&normalized_work_priority(a.work_priority))
+                .then_with(|| a.input_preference_rank.cmp(&b.input_preference_rank))
                 .then_with(|| a.stock_ratio.total_cmp(&b.stock_ratio))
                 .then_with(|| a.distance.total_cmp(&b.distance))
                 .then_with(|| a.building_id.cmp(&b.building_id))
@@ -196,18 +212,21 @@ mod tests {
             IndustrialWaterCandidate {
                 building_id: 8,
                 work_priority: 2,
+                input_preference_rank: 1,
                 stock_ratio: 0.5,
                 distance: 10.0,
             },
             IndustrialWaterCandidate {
                 building_id: 7,
                 work_priority: 2,
+                input_preference_rank: 1,
                 stock_ratio: 0.0,
                 distance: 30.0,
             },
             IndustrialWaterCandidate {
                 building_id: 6,
                 work_priority: 2,
+                input_preference_rank: 1,
                 stock_ratio: 0.0,
                 distance: 30.0,
             },
@@ -222,12 +241,14 @@ mod tests {
             IndustrialWaterCandidate {
                 building_id: 8,
                 work_priority: 3,
+                input_preference_rank: 2,
                 stock_ratio: 0.5,
                 distance: 100.0,
             },
             IndustrialWaterCandidate {
                 building_id: 7,
                 work_priority: 1,
+                input_preference_rank: 0,
                 stock_ratio: 0.0,
                 distance: 10.0,
             },
@@ -237,8 +258,40 @@ mod tests {
     }
 
     #[test]
+    fn industrial_water_honors_loom_policy_inside_one_work_tier() {
+        let selected = select_industrial_water_candidate([
+            IndustrialWaterCandidate {
+                building_id: 8,
+                work_priority: 2,
+                input_preference_rank: 0,
+                stock_ratio: 0.8,
+                distance: 100.0,
+            },
+            IndustrialWaterCandidate {
+                building_id: 7,
+                work_priority: 2,
+                input_preference_rank: 1,
+                stock_ratio: 0.0,
+                distance: 10.0,
+            },
+            IndustrialWaterCandidate {
+                building_id: 6,
+                work_priority: 2,
+                input_preference_rank: 2,
+                stock_ratio: 0.0,
+                distance: 5.0,
+            },
+        ])
+        .expect("a valid workshop should be selected");
+        assert_eq!(selected.building_id, 8);
+    }
+
+    #[test]
     fn industrial_water_requirements_only_include_wet_processors() {
-        assert_eq!(INDUSTRIAL_WATER_BUILDING_KINDS, &["granary", "brewery"]);
+        assert_eq!(
+            INDUSTRIAL_WATER_BUILDING_KINDS,
+            &["granary", "brewery", "weaver"]
+        );
         assert_eq!(
             industrial_water_requirement("granary"),
             GRANARY_WATER_PER_CYCLE
@@ -251,7 +304,26 @@ mod tests {
             industrial_water_requirement("lumber_mill"),
             MILL_WATER_PER_HARVEST
         );
+        assert_eq!(
+            industrial_water_requirement("weaver"),
+            WEAVER_FLAX_WATER_PER_CYCLE
+        );
         assert_eq!(industrial_water_requirement("watermill"), 0.0);
+        assert_eq!(
+            industrial_water_input_preference_rank(
+                "weaver",
+                crate::weaver_input_policy::WEAVER_INPUT_POLICY_FLAX_FIRST,
+            ),
+            0
+        );
+        assert_eq!(
+            industrial_water_input_preference_rank(
+                "weaver",
+                crate::weaver_input_policy::WEAVER_INPUT_POLICY_WOOL_FIRST,
+            ),
+            2
+        );
+        assert_eq!(industrial_water_input_preference_rank("granary", 2), 1);
     }
 
     #[test]
@@ -261,6 +333,8 @@ mod tests {
         assert_eq!(industrial_water_target("granary", 75), 6.0);
         assert_eq!(industrial_water_target("granary", 100), 6.0);
         assert_eq!(industrial_water_target("brewery", 50), 6.0);
+        assert_eq!(industrial_water_target("weaver", 25), 1.0);
+        assert_eq!(industrial_water_target("weaver", 100), 3.0);
         assert_eq!(industrial_water_target("watermill", 25), 0.0);
     }
 
@@ -269,6 +343,7 @@ mod tests {
         let candidates = (0..100_000).map(|index| IndustrialWaterCandidate {
             building_id: index,
             work_priority: 2,
+            input_preference_rank: 1,
             stock_ratio: if index == 99_999 { 0.0 } else { 0.5 },
             distance: (100_000 - index) as f64,
         });
