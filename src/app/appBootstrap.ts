@@ -834,6 +834,8 @@ export async function bootstrapAppSession(
       && spacetimeStore.snapshot.worldGeneration.conflictMode === 'frontier',
     getEnemyPressure: () => spacetimeStore.snapshot.worldGeneration?.enemyPressure ?? 0,
     getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
+    getWorldResourceAbundance: () =>
+      spacetimeStore.snapshot.worldGeneration?.resourceAbundance ?? 50,
     ...inspectorActions,
     onBeginFarmFieldPlacement: (farmsteadId) => beginLinkedLandParcelPlacement('field', farmsteadId),
     onBeginPasturePlacement: (farmsteadId) => beginLinkedLandParcelPlacement('pasture', farmsteadId),

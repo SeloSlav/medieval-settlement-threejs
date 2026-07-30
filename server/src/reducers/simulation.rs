@@ -133,6 +133,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let world_seed = config.seed;
     let world_map_size = config.map_size;
     let world_hydrology = config.hydrology;
+    let world_resource_abundance = config.resource_abundance;
     let conflict_enabled = config.conflict_enabled;
     let enemy_pressure = config.enemy_pressure;
     ctx.db.world_config().id().update(WorldConfig {
@@ -426,9 +427,14 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             crate::building_defs::BuildingSimKind::Swineherd => {
                 step_swineherd(ctx, &tick, &clock, environment, building)
             }
-            crate::building_defs::BuildingSimKind::ClayPit => {
-                step_clay_pit(ctx, &tick, &clock, environment, building)
-            }
+            crate::building_defs::BuildingSimKind::ClayPit => step_clay_pit(
+                ctx,
+                &tick,
+                &clock,
+                environment,
+                world_resource_abundance,
+                building,
+            ),
             crate::building_defs::BuildingSimKind::CharcoalBurner => {
                 step_charcoal_burner(ctx, &tick, &clock, building)
             }

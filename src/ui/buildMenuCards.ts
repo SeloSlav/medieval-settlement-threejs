@@ -63,7 +63,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
   large_quarry: ['Large Quarry', 'G', 'Builds directly over a rich deposit and raises underground stone indefinitely.'],
-  clay_pit: ['Riverbank clay pit', 'C', 'Cuts wet clay beside shallow water for the potter. Clay is local, but the shoreline and hauling branch are not.'],
+  clay_pit: ['Riverbank clay pit', 'C', 'Cuts exposed alluvial clay pockets beside shallow water for the potter. Scout the placement yield, then balance bank richness against the hauling branch.'],
   charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for forge fuel. Severe fire risk: isolate it or keep a ready well in range.'],
   smithy: ['Village smithy', 'M', 'Forges imported iron blooms with local charcoal into ironwork for tools, construction fittings, and frontier weapons. Elevated fire risk.'],
   potter_kiln: ["Potter's kiln", 'P', 'Fires river clay with firewood into prosperous household wares, preserving crocks, and export pottery. Elevated fire risk rewards well coverage and spacing.'],

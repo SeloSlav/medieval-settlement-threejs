@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
+import { clayBankYieldAt } from '../src/economy/clayBankPolicy.ts';
 import { createRegionalResourcePlan } from '../src/world/regionalResourceDistribution.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
@@ -10,6 +11,17 @@ import {
 
 const mapSizes: WorldMapSize[] = ['small', 'medium', 'large'];
 const balancedPlans = mapSizes.map((mapSize) => createRegionalResourcePlan(settings({ mapSize })));
+const representativeClayBank = { x: 4.252, z: -131.811 };
+
+assert.ok(
+  clayBankYieldAt(representativeClayBank.x, representativeClayBank.z, 0)
+    < clayBankYieldAt(representativeClayBank.x, representativeClayBank.z, 50),
+);
+assert.ok(
+  clayBankYieldAt(representativeClayBank.x, representativeClayBank.z, 50)
+    < clayBankYieldAt(representativeClayBank.x, representativeClayBank.z, 100),
+  'the world abundance choice must affect the same physical clay bank',
+);
 
 assert.deepEqual(
   balancedPlans.map((plan) => plan.ordinaryQuarryCount + 1),

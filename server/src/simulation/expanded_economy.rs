@@ -53,6 +53,7 @@ use crate::frontier_economy_policy::{
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
+use crate::hydrology::clay_bank_yield_multiplier_at;
 use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
     monastery_feast_surplus, monastery_hospitality_use, monastery_pilgrimage_gold,
@@ -1653,11 +1654,13 @@ pub fn step_clay_pit(
     tick: &SimTickContext,
     clock: &GameClock,
     environment: EnvironmentState,
+    resource_abundance: u8,
     building: Building,
 ) {
     let tools_maintained = civilian_tools_maintained(building.ironwork);
     let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork)
-        * environment.clay_pit_throughput_multiplier();
+        * environment.clay_pit_throughput_multiplier()
+        * clay_bank_yield_multiplier_at(building.x, building.z, resource_abundance);
     let clay_before = building.clay;
     let mut clay_pit = step_simple_producer_at_rate(
         ctx,

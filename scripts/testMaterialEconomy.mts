@@ -51,8 +51,46 @@ import {
   potteryDispatchOrder,
   potteryDispatchPolicyLabel,
 } from '../src/economy/potteryDispatchPolicy.ts';
+import {
+  CLAY_BANK_SITE_YIELD_MAX,
+  CLAY_BANK_SITE_YIELD_MIN,
+  CLAY_BANK_STRATA_VISUAL_SEGMENTS,
+  CLAY_BANK_TOTAL_YIELD_MAX,
+  CLAY_BANK_TOTAL_YIELD_MIN,
+  clayBankRegionalYieldMultiplier,
+  clayBankSiteYieldAt,
+  clayBankSiteYieldMultiplier,
+  clayBankStrataVisualLevel,
+  clayBankYieldAt,
+  clayBankYieldGrade,
+  clayBankYieldMultiplier,
+} from '../src/economy/clayBankPolicy.ts';
 import { renderProcessorOutputTargetPanel } from '../src/resources/inspector/expandedBuildingRenderer.ts';
 import { renderBuildMenuCards } from '../src/ui/buildMenuCards.ts';
+
+const leanClayBank = { x: -12.7559, z: -140.315 };
+const richClayBank = { x: 4.252, z: -131.811 };
+assert.equal(clayBankRegionalYieldMultiplier(50), 1);
+assert.equal(clayBankRegionalYieldMultiplier(Number.NaN), 1);
+assert.equal(clayBankSiteYieldMultiplier(Number.NEGATIVE_INFINITY), CLAY_BANK_SITE_YIELD_MIN);
+assert.equal(clayBankSiteYieldMultiplier(1), CLAY_BANK_SITE_YIELD_MAX);
+assert.ok(clayBankYieldMultiplier(-10, -10) >= CLAY_BANK_TOTAL_YIELD_MIN);
+assert.ok(clayBankYieldMultiplier(10, 110) <= CLAY_BANK_TOTAL_YIELD_MAX);
+assert.ok(
+  clayBankYieldAt(richClayBank.x, richClayBank.z)
+    > clayBankYieldAt(leanClayBank.x, leanClayBank.z),
+  'broader alluvial pockets must outperform narrow clay margins',
+);
+assert.ok(
+  clayBankYieldAt(richClayBank.x, richClayBank.z, 100)
+    > clayBankYieldAt(richClayBank.x, richClayBank.z, 0),
+  'world resource abundance must modestly shift a fixed bank',
+);
+assert.match(clayBankYieldGrade(clayBankYieldAt(richClayBank.x, richClayBank.z)), /Good|Rich/);
+assert.equal(
+  clayBankStrataVisualLevel(clayBankSiteYieldAt(richClayBank.x, richClayBank.z)),
+  CLAY_BANK_STRATA_VISUAL_SEGMENTS,
+);
 
 assert.equal(CLAY_PIT_CLAY_PER_CYCLE, 4);
 assert.deepEqual(
@@ -514,6 +552,43 @@ for (const spec of buildingVisuals) {
   assert.ok(segments.every((segment) => !segment.visible));
 }
 
+const leanClayPitMesh = createBuildingMesh('clay_pit');
+const leanClayStrata = leanClayPitMesh.getObjectByName('ClayBankStrata');
+assert.ok(leanClayStrata instanceof THREE.Group);
+assert.equal(
+  leanClayStrata.children.filter((child) => child.name === 'ClayBankStratum').length,
+  CLAY_BANK_STRATA_VISUAL_SEGMENTS,
+);
+const leanClayPitState = building('clay_pit', {
+  x: leanClayBank.x,
+  z: leanClayBank.z,
+});
+syncBulkStockpileVisuals(leanClayPitMesh, leanClayPitState);
+const leanVisibleStrata = leanClayStrata.children.filter((child) => child.visible).length;
+assert.equal(
+  leanVisibleStrata,
+  clayBankStrataVisualLevel(
+    clayBankSiteYieldAt(leanClayPitState.x, leanClayPitState.z),
+  ),
+);
+const richClayPitMesh = createBuildingMesh('clay_pit');
+const richClayStrata = richClayPitMesh.getObjectByName('ClayBankStrata');
+assert.ok(richClayStrata instanceof THREE.Group);
+const richClayPitState = building('clay_pit', {
+  x: richClayBank.x,
+  z: richClayBank.z,
+});
+syncBulkStockpileVisuals(richClayPitMesh, richClayPitState);
+assert.ok(
+  richClayStrata.children.filter((child) => child.visible).length > leanVisibleStrata,
+  'the physical excavation must expose more clay strata at a richer bank',
+);
+assert.notEqual(
+  bulkStockpileVisualSignature(richClayPitState),
+  bulkStockpileVisualSignature(leanClayPitState),
+  'bank strata changes must invalidate only the bounded visual signature',
+);
+
 const cargoProof: ReadonlyArray<
   readonly [DeliveryCargoKind, string]
 > = [
@@ -702,14 +777,36 @@ assert.match(
 );
 assert.match(
   clayPitStep,
-  /environment\.clay_pit_throughput_multiplier\(\)/,
-  'authoritative clay digging must honor the current bank conditions',
+  /environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at\(\s*building\.x,\s*building\.z,\s*resource_abundance/,
+  'authoritative clay digging must multiply weather by the local geological bank yield',
 );
 assert.match(
   simulationReducerSource,
-  /step_clay_pit\(ctx,\s*&tick,\s*&clock,\s*environment,\s*building\)/,
-  'the shared weather state must reach every clay-pit production step',
+  /step_clay_pit\(\s*ctx,\s*&tick,\s*&clock,\s*environment,\s*world_resource_abundance,\s*building/,
+  'weather and world resource abundance must reach every clay-pit production step',
 );
+const clayBankPolicySource = readFileSync('src/economy/clayBankPolicy.ts', 'utf8');
+const hydrologySamplerSource = readFileSync(
+  'src/hydrology/sampleAuthoritativeHydrology.ts',
+  'utf8',
+);
+const hydrologySource = readFileSync('server/src/hydrology/mod.rs', 'utf8');
+const buildingToolSource = readFileSync('src/buildings/BuildingTool.ts', 'utf8');
+const expandedInspectorSource = readFileSync(
+  'src/resources/inspector/expandedBuildingRenderer.ts',
+  'utf8',
+);
+const townHallSource = readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
+assert.match(clayBankPolicySource, /sampleAuthoritativeHydrologyScore/);
+assert.match(
+  hydrologySamplerSource,
+  /hydrology_grid\.json' with \{ type: 'json' \}/,
+  'direct Node test runners and Vite must share an explicit JSON module boundary',
+);
+assert.match(hydrologySource, /pub fn clay_bank_yield_multiplier_at/);
+assert.match(buildingToolSource, /geological clay yield before weather and iron tools/);
+assert.match(expandedInspectorSource, /Clay seam[\s\S]*Current digging pace/);
+assert.match(townHallSource, /average geological yield across active pits/);
 const caravanIndex = simulationReducerSource.indexOf('step_marketplace_caravans(');
 const seedDistributionIndex = simulationReducerSource.indexOf(
   'step_seed_grain_distribution(',

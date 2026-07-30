@@ -211,6 +211,26 @@ export function createClayPitMesh(): THREE.Group {
     new THREE.Vector3(-0.7, 0.18, -0.35),
   ).scale.set(1.18, 1, 0.72);
 
+  const strata = new THREE.Group();
+  strata.name = 'ClayBankStrata';
+  strata.visible = false;
+  for (const [index, [x, y, z, yaw, width]] of ([
+    [-3.65, 0.38, -1.35, 0.34, 1.15],
+    [-3.18, 0.53, -2.05, 0.62, 1.0],
+    [1.77, 0.42, -2.22, -0.46, 1.1],
+    [2.15, 0.58, -1.52, -0.24, 0.95],
+  ] as const).entries()) {
+    const seam = addMesh(
+      strata,
+      new THREE.BoxGeometry(width, 0.18 + index * 0.015, 0.32),
+      CLAY,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(-0.08, yaw, index % 2 === 0 ? 0.08 : -0.06),
+    );
+    seam.name = 'ClayBankStratum';
+  }
+  group.add(strata);
+
   addTimberCanopy(group, new THREE.Vector3(3.25, 0, 1.75), 3.4, 2.4);
   for (const [index, [x, z]] of ([
     [2.45, 1.45],

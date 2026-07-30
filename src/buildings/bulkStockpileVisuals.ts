@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
+import {
+  CLAY_BANK_STRATA_VISUAL_SEGMENTS,
+  clayBankSiteYieldAt,
+  clayBankStrataVisualLevel,
+} from '../economy/clayBankPolicy.ts';
 import type { BuildingState } from '../resources/types.ts';
 import {
   stockpileVisualLevel,
@@ -68,6 +73,8 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.ironwork ?? 0,
         BUILDING_STORAGE_CAPS.clay_pit.ironwork ?? 0,
         CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
+      )}:bank:${clayBankStrataVisualLevel(
+        clayBankSiteYieldAt(building.x, building.z),
       )}`;
     case 'threshing_barn':
       return `:tools:${stockpileVisualLevel(
@@ -169,6 +176,13 @@ export function syncBulkStockpileVisuals(
         'ClayPitClaySegment',
         building.clay ?? 0,
         BUILDING_STORAGE_CAPS.clay_pit.clay,
+      );
+      syncNamedStockpile(
+        marker,
+        'ClayBankStrata',
+        'ClayBankStratum',
+        clayBankStrataVisualLevel(clayBankSiteYieldAt(building.x, building.z)),
+        CLAY_BANK_STRATA_VISUAL_SEGMENTS,
       );
       syncCivilianToolStockpile(marker, building);
       break;

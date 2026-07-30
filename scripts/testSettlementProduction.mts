@@ -6,6 +6,7 @@ import {
   grainChainBalanceLabel,
   processorBottleneckBuildingId,
 } from '../src/economy/settlementProduction.ts';
+import { clayBankYieldAt } from '../src/economy/clayBankPolicy.ts';
 import { computeSettlementGrainPlan } from '../src/economy/settlementGrainPlan.ts';
 import { computeSettlementSeedProcurementPlan } from '../src/economy/settlementSeedProcurement.ts';
 import { buildSettlementFarmPlan } from '../src/farming/farmWorkPlanning.ts';
@@ -171,6 +172,81 @@ materialState.farmFields.set(
   farmField('material-field', 'material-farm', 'fallow'),
 );
 materialState.residences.set('material-home', residence('material-home', 10));
+
+const leanClayState = emptyGameState();
+const leanClayPit = building('lean-clay-bank', 'clay_pit', 1);
+leanClayPit.x = 0;
+leanClayPit.z = 0;
+leanClayState.buildings.set(leanClayPit.id, leanClayPit);
+const richClayState = emptyGameState();
+const richClayPit = building('rich-clay-bank', 'clay_pit', 1);
+richClayPit.x = 4.252;
+richClayPit.z = -131.811;
+richClayState.buildings.set(richClayPit.id, richClayPit);
+const leanClayProduction = computeSettlementProductionCapacity(
+  leanClayState,
+  false,
+  undefined,
+  1,
+  1,
+  1,
+  undefined,
+  50,
+);
+const richClayProduction = computeSettlementProductionCapacity(
+  richClayState,
+  false,
+  undefined,
+  1,
+  1,
+  1,
+  undefined,
+  50,
+);
+assert.ok(
+  richClayProduction.industrialMaterials.clayOutputPerDay
+    > leanClayProduction.industrialMaterials.clayOutputPerDay,
+  'a richer alluvial bank must sustain more clay from the same crew',
+);
+approx(
+  leanClayProduction.industrialMaterials.clayBankYieldMultiplier,
+  clayBankYieldAt(leanClayPit.x, leanClayPit.z, 50),
+);
+approx(
+  richClayProduction.industrialMaterials.clayBankYieldMultiplier,
+  clayBankYieldAt(richClayPit.x, richClayPit.z, 50),
+);
+assert.equal(
+  leanClayProduction.industrialMaterials.firstLeanClayPitId,
+  leanClayPit.id,
+);
+assert.equal(richClayProduction.industrialMaterials.firstLeanClayPitId, null);
+const abundantRichClayProduction = computeSettlementProductionCapacity(
+  richClayState,
+  false,
+  undefined,
+  1,
+  1,
+  1,
+  undefined,
+  100,
+);
+const scarceRichClayProduction = computeSettlementProductionCapacity(
+  richClayState,
+  false,
+  undefined,
+  1,
+  1,
+  1,
+  undefined,
+  0,
+);
+assert.ok(
+  abundantRichClayProduction.industrialMaterials.clayOutputPerDay
+    > scarceRichClayProduction.industrialMaterials.clayOutputPerDay,
+  'regional abundance must compose with, not replace, local bank quality',
+);
+
 const joinedMaterials = computeSettlementProductionCapacity(
   materialState,
   false,

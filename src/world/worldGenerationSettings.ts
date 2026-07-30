@@ -12,7 +12,7 @@ export type WorldGenerationSettings = {
   hydrology: number;
   /** 0 = open meadows, 100 = dense woodland */
   forestDensity: number;
-  /** 0 = lean local reserves, 100 = numerous local deposits and wild-food sites. */
+  /** 0 = lean local reserves, 100 = numerous deposits, richer clay banks, and wild-food sites. */
   resourceAbundance: number;
   /** 0 = strongly specialized region, 100 = every natural resource family is present. */
   resourceVariety: number;

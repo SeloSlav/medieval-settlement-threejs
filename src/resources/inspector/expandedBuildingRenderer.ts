@@ -115,6 +115,11 @@ import {
   POTTERY_DISPATCH_POLICY_PRESETS,
   potteryDispatchPolicyLabel,
 } from '../../economy/potteryDispatchPolicy.ts';
+import {
+  CLAY_BANK_LEAN_YIELD_THRESHOLD,
+  clayBankYieldAt,
+  clayBankYieldGrade,
+} from '../../economy/clayBankPolicy.ts';
 
 const PROCESS: Record<string, string> = {
   clay_pit: 'Usable riverbank shore + labor -> wet clay for local potters',
@@ -912,6 +917,26 @@ export function renderExpandedBuildingInspector(
     context.worldHydrology,
     clock,
   );
+  const clayBankYield = building.kind === 'clay_pit'
+    ? clayBankYieldAt(
+        building.x,
+        building.z,
+        context.worldResourceAbundance ?? 50,
+      )
+    : 1;
+  const clayBankCombinedYield = clayBankYield
+    * environment.clayPitThroughputMultiplier;
+  const clayBankWeatherLabel = environment.weather === 'frost'
+    ? 'frozen ground'
+    : environment.weather === 'drought'
+      ? 'hardened ground'
+      : environment.weather === 'rain'
+        ? 'saturated ground'
+        : 'fair ground';
+  const clayBankRows = building.kind === 'clay_pit'
+    ? `<li><span>Clay seam</span><span>${clayBankYieldGrade(clayBankYield)} · ${Math.round(clayBankYield * 100)}% geological yield at regional abundance ${Math.round(context.worldResourceAbundance ?? 50)}/100</span></li>
+      <li><span>Current digging pace</span><span>${Math.round(clayBankYield * 100)}% bank × ${Math.round(environment.clayPitThroughputMultiplier * 100)}% ${clayBankWeatherLabel} = ${Math.round(clayBankCombinedYield * 100)}% before tool condition</span></li>`
+    : '';
   const seasonalProcessorStatus = building.kind === 'watermill'
     && processorStatus?.statusState === 'active'
     && Math.abs(environment.watermillThroughputMultiplier - 1) > 1e-6
@@ -925,16 +950,11 @@ export function renderExpandedBuildingInspector(
       }
     : building.kind === 'clay_pit'
       && processorStatus?.statusState === 'active'
-      && Math.abs(environment.clayPitThroughputMultiplier - 1) > 1e-6
       ? {
-          statusText: `${
-            environment.weather === 'frost'
-              ? 'Frozen clay bank'
-              : environment.weather === 'drought'
-                ? 'Hardened dry bank'
-                : 'Saturated clay bank'
-          } · ${Math.round(environment.clayPitThroughputMultiplier * 100)}% digging speed · stockpile clay for winter kilns`,
-          statusState: 'warning' as const,
+          statusText: `${clayBankYieldGrade(clayBankYield)} · ${Math.round(clayBankCombinedYield * 100)}% clay pace before tool condition${environment.clayPitThroughputMultiplier < 1 ? ' · stockpile for winter kilns' : ''}`,
+          statusState: clayBankCombinedYield < CLAY_BANK_LEAN_YIELD_THRESHOLD
+            ? 'warning' as const
+            : 'active' as const,
         }
     : null;
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
@@ -1160,7 +1180,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${clayBankRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

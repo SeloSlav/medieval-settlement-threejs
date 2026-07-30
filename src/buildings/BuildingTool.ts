@@ -25,10 +25,15 @@ import {
 } from '../fires/fireRiskPolicy.ts';
 import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import {
+  clayBankYieldGrade,
+  clayBankYieldMultiplier,
+} from '../economy/clayBankPolicy.ts';
+import {
   assessFoundingSite,
   describeFoundingSiteAssessment,
 } from '../settlement/foundingSiteSuitability.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
+import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 
 export type BuildingToolMode = BuildingKind | 'off';
 
@@ -528,16 +533,27 @@ export class BuildingTool {
     }
     const definition = getBuildingDefinition(kind);
     const extent = getBuildingExtent(kind, definition.workRadius);
+    const clayBankDetail = kind === 'clay_pit'
+      ? (() => {
+          const yieldMultiplier = clayBankYieldMultiplier(
+            sampleAuthoritativeHydrologyScore(x, z),
+            getActiveWorldGeneration().resourceAbundance,
+          );
+          return `Ready: ${clayBankYieldGrade(yieldMultiplier).toLowerCase()} · ${Math.round(yieldMultiplier * 100)}% geological clay yield before weather and iron tools`;
+        })()
+      : null;
     this.setPlacementStatusDetail(joinPlacementDetails(
       kind === 'town_hall'
         ? 'Ready: population, civic buildings, and road links confirmed'
         : kind === 'guardhouse'
           ? 'Ready: completed watchtower confirmed'
-          : extent
-            ? `Ready: ${extent.label.toLowerCase()} ${extent.radius} m`
-            : fireDetail
-              ? 'Ready: site clear'
-              : null,
+          : clayBankDetail
+            ? clayBankDetail
+            : extent
+              ? `Ready: ${extent.label.toLowerCase()} ${extent.radius} m`
+              : fireDetail
+                ? 'Ready: site clear'
+                : null,
       fireDetail,
     ));
   }

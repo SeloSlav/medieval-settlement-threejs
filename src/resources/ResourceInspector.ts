@@ -67,6 +67,7 @@ type ResourceInspectorOptions = {
   getConflictEnabled?: () => boolean;
   getEnemyPressure?: () => number;
   getWorldHydrology?: () => number;
+  getWorldResourceAbundance?: () => number;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
@@ -1382,6 +1383,7 @@ export class ResourceInspector {
           productionEnvironment?.clayPitThroughputMultiplier ?? 1,
           productionEnvironment?.preservedFoodDemandMultiplier ?? 1,
           gameClock(gameState.tick).month,
+          this.options.getWorldResourceAbundance?.() ?? 50,
         )
       : undefined;
     const view = renderInspectableTarget(target, {
@@ -1390,6 +1392,7 @@ export class ResourceInspector {
       populationStats: this.populationStats,
       resourceTotals,
       worldHydrology: this.options.getWorldHydrology?.() ?? 50,
+      worldResourceAbundance: this.options.getWorldResourceAbundance?.() ?? 50,
       conflictEnabled: this.options.getConflictEnabled?.() ?? false,
       enemyPressure: this.options.getEnemyPressure?.() ?? 0,
       ...(settlementProduction ? { settlementProduction } : {}),

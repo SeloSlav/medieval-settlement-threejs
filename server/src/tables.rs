@@ -36,7 +36,7 @@ pub struct WorldConfig {
     /// False until a client publishes generation settings via configure_world.
     #[default(false)]
     pub configured: bool,
-    /// Controls the number of ordinary stone deposits and wild-food sites.
+    /// Controls ordinary stone deposits, clay-bank yield, and wild-food sites.
     /// Appended so established development worlds migrate without a reset.
     #[default(50)]
     pub resource_abundance: u8,

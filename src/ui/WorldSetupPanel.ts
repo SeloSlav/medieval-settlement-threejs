@@ -102,7 +102,7 @@ export class WorldSetupPanel {
               <strong data-resource-abundance-value>${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}</strong>
             </label>
             <input id="world-setup-resource-abundance" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceAbundance}" />
-            <p class="world-setup-slider-hint">Lean regions have fewer supporting deposits and wild-food sites. One rich stone mine is always guaranteed.</p>
+            <p class="world-setup-slider-hint">Lean regions have fewer supporting deposits, poorer clay banks, and fewer wild-food sites. One rich stone mine is always guaranteed.</p>
 
             <label class="world-setup-slider-label world-setup-slider-label--secondary" for="world-setup-resource-variety">
               <span>Local variety</span>

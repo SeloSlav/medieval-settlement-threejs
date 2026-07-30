@@ -1,4 +1,4 @@
-import hydrologyGrid from '../../server/generated/hydrology_grid.json';
+import hydrologyGrid from '../../server/generated/hydrology_grid.json' with { type: 'json' };
 
 type HydrologyGrid = {
   resolution: number;
