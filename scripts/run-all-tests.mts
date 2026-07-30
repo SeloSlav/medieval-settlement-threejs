@@ -25,6 +25,7 @@ const tests = [
   'test:guardhouse-payroll',
   'test:settlement-provisioning',
   'test:settlement-production',
+  'test:settlement-geology',
   'test:settlement-prosperity',
   'test:food-preservation',
   'test:settlement-preservation-reserve',

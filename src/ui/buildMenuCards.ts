@@ -65,7 +65,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
   large_quarry: ['Large Quarry', 'G', 'Builds directly over a rich deposit and raises underground stone indefinitely.'],
   mine: ['Mineral mine', 'N', 'Build directly over an iron or salt deposit. Rich workings are faster and do not exhaust; ordinary surface seams are finite.'],
-  clay_pit: ['Riverbank clay pit', 'C', 'Cuts clay beside shallow water for the potter. Every region has one marked rich deposit; ordinary banks remain workable when the haul is shorter.'],
+  clay_pit: ['Riverbank clay pit', 'C', 'Cuts clay at a marked alluvial bank beside shallow water. Every region has ordinary banks; rich banks are deterministic seed rolls with higher output.'],
   charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for forge fuel. Severe fire risk: isolate it or keep a ready well in range.'],
   smithy: ['Village smithy', 'M', 'Forges locally mined or imported iron blooms with charcoal into ironwork for tools, construction fittings, and frontier weapons. Elevated fire risk.'],
   potter_kiln: ["Potter's kiln", 'P', 'Fires river clay with firewood into prosperous household wares, preserving crocks, and export pottery. Elevated fire risk rewards well coverage and spacing.'],

@@ -1,0 +1,366 @@
+import {
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
+  MINE_IRON_PER_CYCLE,
+  MINE_SALT_PER_CYCLE,
+  RICH_MINE_THROUGHPUT_MULTIPLIER,
+  STONE_PER_HARVEST,
+} from '../generated/gameBalance.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import { getBuildingDefinition } from '../resources/buildings.ts';
+import type {
+  BuildingState,
+  GameState,
+  ResourceNodeState,
+} from '../resources/types.ts';
+import { civilianToolThroughputMultiplier } from './civilianToolPolicy.ts';
+
+export type GeologicalResource = 'stone' | 'iron' | 'salt';
+
+export type GeologicalResourcePlan = {
+  resource: GeologicalResource;
+  deposits: number;
+  ordinaryDeposits: number;
+  richDeposits: number;
+  exhaustedFiniteDeposits: number;
+  finiteReserve: number;
+  finiteCapacity: number;
+  extractionSites: number;
+  staffedExtractionSites: number;
+  finiteExtractionPerDay: number;
+  deepExtractionPerDay: number;
+  activeDeepSources: number;
+  firstAttentionBuildingId: string | null;
+};
+
+export type SettlementGeologyPlan = Record<
+  GeologicalResource,
+  GeologicalResourcePlan
+>;
+
+type MutableGeologicalResourcePlan = GeologicalResourcePlan & {
+  finiteRatesByDeposit: Map<string, number>;
+  finiteBuildingsByDeposit: Map<string, string>;
+  blockedFiniteBuildingId: string | null;
+};
+
+const MINERAL_CENTER_TOLERANCE_SQ = 2.5 * 2.5;
+const EPSILON = 1e-9;
+const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
+  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+  / CALENDAR_HOURS_PER_DAY;
+
+/**
+ * Settlement-wide reserve and extraction forecast for the three exhaustible
+ * geological materials. Clay is intentionally absent: physical alluvial banks
+ * constrain placement and yield, but the simulation does not deplete them.
+ *
+ * This mirrors server producer rates and deposit selection. It uses assigned
+ * labor as installed capacity, just like the Town Hall's other long-run plans;
+ * carts temporarily drawing workers away can reduce moment-to-moment output.
+ */
+export function computeSettlementGeologyPlan(
+  state: GameState,
+  sabbathObserved: boolean,
+): SettlementGeologyPlan {
+  const plans = {
+    stone: emptyResourcePlan('stone'),
+    iron: emptyResourcePlan('iron'),
+    salt: emptyResourcePlan('salt'),
+  };
+  const deposits = {
+    stone: [] as ResourceNodeState[],
+    iron: [] as ResourceNodeState[],
+    salt: [] as ResourceNodeState[],
+  };
+
+  for (const deposit of state.quarries.values()) {
+    if (
+      deposit.kind !== 'quarry'
+      || (deposit.resource !== 'stone'
+        && deposit.resource !== 'iron'
+        && deposit.resource !== 'salt')
+    ) {
+      continue;
+    }
+    const resource = deposit.resource;
+    deposits[resource].push(deposit);
+    const plan = plans[resource];
+    plan.deposits += 1;
+    if (deposit.isRich) {
+      plan.richDeposits += 1;
+    } else {
+      plan.ordinaryDeposits += 1;
+    }
+
+    // Rich mineral mines are non-exhausting from their first cycle. Rich stone
+    // still exposes a finite surface outcrop before a Large Quarry opens its
+    // non-exhausting underground source.
+    const isFinite = resource === 'stone' || !deposit.isRich;
+    if (!isFinite) continue;
+    plan.finiteReserve += Math.max(0, deposit.remaining);
+    plan.finiteCapacity += Math.max(0, deposit.maxYield);
+    if (deposit.remaining <= EPSILON) {
+      plan.exhaustedFiniteDeposits += 1;
+    }
+  }
+
+  const mineralDeposits = [...deposits.iron, ...deposits.salt];
+  const disabledBuildings = fireDisabledBuildingIds(
+    state.fireIncidents?.values?.() ?? [],
+  );
+  for (const building of state.buildings.values()) {
+    if (
+      building.constructionComplete === false
+      || (building.kind !== 'stone_quarry'
+        && building.kind !== 'large_quarry'
+        && building.kind !== 'mine')
+    ) {
+      continue;
+    }
+
+    if (building.kind === 'stone_quarry') {
+      const anyDeposit = nearestSurfaceStone(
+        building,
+        deposits.stone,
+        building.workRadius || getBuildingDefinition('stone_quarry').workRadius,
+        true,
+      );
+      if (anyDeposit === null) continue;
+      const plan = plans.stone;
+      plan.extractionSites += 1;
+      if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
+        continue;
+      }
+      plan.staffedExtractionSites += 1;
+      const deposit = nearestSurfaceStone(
+        building,
+        deposits.stone,
+        building.workRadius || getBuildingDefinition('stone_quarry').workRadius,
+        false,
+      );
+      if (deposit === null) {
+        plan.blockedFiniteBuildingId ??= building.id;
+        continue;
+      }
+      const rate = cyclesPerCalendarDay(
+        'stone_quarry',
+        building.assignedLabor,
+        sabbathObserved,
+        civilianToolThroughputMultiplier(building.ironwork ?? 0),
+      ) * STONE_PER_HARVEST;
+      plan.finiteExtractionPerDay += rate;
+      addFiniteRate(plan, deposit, building, rate);
+      continue;
+    }
+
+    if (building.kind === 'large_quarry') {
+      const deposit = centeredDeposit(
+        building,
+        deposits.stone,
+        (candidate) => candidate.isRich === true,
+      );
+      if (deposit === null) continue;
+      const plan = plans.stone;
+      plan.extractionSites += 1;
+      if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
+        continue;
+      }
+      plan.staffedExtractionSites += 1;
+      plan.activeDeepSources += 1;
+      plan.deepExtractionPerDay += cyclesPerCalendarDay(
+        'large_quarry',
+        building.assignedLabor,
+        sabbathObserved,
+        civilianToolThroughputMultiplier(building.ironwork ?? 0),
+      ) * STONE_PER_HARVEST;
+      continue;
+    }
+
+    const deposit = centeredDeposit(
+      building,
+      mineralDeposits,
+    );
+    if (deposit === null || (deposit.resource !== 'iron' && deposit.resource !== 'salt')) {
+      continue;
+    }
+    const plan = plans[deposit.resource];
+    plan.extractionSites += 1;
+    if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
+      continue;
+    }
+    plan.staffedExtractionSites += 1;
+    if (!deposit.isRich && deposit.remaining <= EPSILON) {
+      plan.blockedFiniteBuildingId ??= building.id;
+      continue;
+    }
+    const baseBatch = deposit.resource === 'iron'
+      ? MINE_IRON_PER_CYCLE
+      : MINE_SALT_PER_CYCLE;
+    const rate = cyclesPerCalendarDay(
+      'mine',
+      building.assignedLabor,
+      sabbathObserved,
+      deposit.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1,
+    ) * baseBatch;
+    if (deposit.isRich) {
+      plan.activeDeepSources += 1;
+      plan.deepExtractionPerDay += rate;
+    } else {
+      plan.finiteExtractionPerDay += rate;
+      addFiniteRate(plan, deposit, building, rate);
+    }
+  }
+
+  for (const resource of ['stone', 'iron', 'salt'] as const) {
+    plans[resource].firstAttentionBuildingId = firstFiniteAttentionBuilding(
+      plans[resource],
+      deposits[resource],
+    );
+  }
+
+  return {
+    stone: stripInternalFields(plans.stone),
+    iron: stripInternalFields(plans.iron),
+    salt: stripInternalFields(plans.salt),
+  };
+}
+
+export function geologicalFiniteRunwayDays(
+  plan: GeologicalResourcePlan,
+): number | null {
+  if (plan.finiteExtractionPerDay <= EPSILON) return null;
+  return plan.finiteReserve / plan.finiteExtractionPerDay;
+}
+
+function emptyResourcePlan(
+  resource: GeologicalResource,
+): MutableGeologicalResourcePlan {
+  return {
+    resource,
+    deposits: 0,
+    ordinaryDeposits: 0,
+    richDeposits: 0,
+    exhaustedFiniteDeposits: 0,
+    finiteReserve: 0,
+    finiteCapacity: 0,
+    extractionSites: 0,
+    staffedExtractionSites: 0,
+    finiteExtractionPerDay: 0,
+    deepExtractionPerDay: 0,
+    activeDeepSources: 0,
+    firstAttentionBuildingId: null,
+    finiteRatesByDeposit: new Map(),
+    finiteBuildingsByDeposit: new Map(),
+    blockedFiniteBuildingId: null,
+  };
+}
+
+function stripInternalFields(
+  plan: MutableGeologicalResourcePlan,
+): GeologicalResourcePlan {
+  const {
+    finiteRatesByDeposit: _finiteRatesByDeposit,
+    finiteBuildingsByDeposit: _finiteBuildingsByDeposit,
+    blockedFiniteBuildingId: _blockedFiniteBuildingId,
+    ...publicPlan
+  } = plan;
+  return publicPlan;
+}
+
+function cyclesPerCalendarDay(
+  kind: 'stone_quarry' | 'large_quarry' | 'mine',
+  assignedLabor: number,
+  sabbathObserved: boolean,
+  throughputMultiplier: number,
+): number {
+  const interval = getBuildingDefinition(kind).harvestInterval;
+  if (assignedLabor <= 0 || interval <= EPSILON) return 0;
+  return WORKDAY_SECONDS
+    * (sabbathObserved ? 6 / 7 : 1)
+    * assignedLabor
+    * Math.max(0, throughputMultiplier)
+    / interval;
+}
+
+function centeredDeposit(
+  building: BuildingState,
+  deposits: readonly ResourceNodeState[],
+  predicate: (deposit: ResourceNodeState) => boolean = () => true,
+): ResourceNodeState | null {
+  for (const deposit of deposits) {
+    if (!predicate(deposit)) continue;
+    if (distanceSq(building, deposit) <= MINERAL_CENTER_TOLERANCE_SQ) {
+      return deposit;
+    }
+  }
+  return null;
+}
+
+function nearestSurfaceStone(
+  building: BuildingState,
+  deposits: readonly ResourceNodeState[],
+  workRadius: number,
+  includeExhausted: boolean,
+): ResourceNodeState | null {
+  const radiusSq = workRadius * workRadius;
+  let nearest: ResourceNodeState | null = null;
+  let nearestDistanceSq = Number.POSITIVE_INFINITY;
+  for (const deposit of deposits) {
+    if (!includeExhausted && deposit.remaining <= EPSILON) continue;
+    const candidateDistanceSq = distanceSq(building, deposit);
+    if (candidateDistanceSq > radiusSq || candidateDistanceSq >= nearestDistanceSq) {
+      continue;
+    }
+    nearest = deposit;
+    nearestDistanceSq = candidateDistanceSq;
+  }
+  return nearest;
+}
+
+function distanceSq(
+  a: Pick<BuildingState, 'x' | 'z'>,
+  b: Pick<ResourceNodeState, 'x' | 'z'>,
+): number {
+  const dx = a.x - b.x;
+  const dz = a.z - b.z;
+  return dx * dx + dz * dz;
+}
+
+function addFiniteRate(
+  plan: MutableGeologicalResourcePlan,
+  deposit: ResourceNodeState,
+  building: BuildingState,
+  rate: number,
+): void {
+  plan.finiteRatesByDeposit.set(
+    deposit.nodeId,
+    (plan.finiteRatesByDeposit.get(deposit.nodeId) ?? 0) + rate,
+  );
+  if (!plan.finiteBuildingsByDeposit.has(deposit.nodeId)) {
+    plan.finiteBuildingsByDeposit.set(deposit.nodeId, building.id);
+  }
+}
+
+function firstFiniteAttentionBuilding(
+  plan: MutableGeologicalResourcePlan,
+  deposits: readonly ResourceNodeState[],
+): string | null {
+  if (plan.blockedFiniteBuildingId !== null) {
+    return plan.blockedFiniteBuildingId;
+  }
+  let firstId: string | null = null;
+  let shortestRunway = Number.POSITIVE_INFINITY;
+  for (const deposit of deposits) {
+    const rate = plan.finiteRatesByDeposit.get(deposit.nodeId) ?? 0;
+    if (rate <= EPSILON) continue;
+    const runway = Math.max(0, deposit.remaining) / rate;
+    if (runway < shortestRunway) {
+      shortestRunway = runway;
+      firstId = plan.finiteBuildingsByDeposit.get(deposit.nodeId) ?? null;
+    }
+  }
+  return firstId;
+}

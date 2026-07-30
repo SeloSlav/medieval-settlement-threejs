@@ -329,7 +329,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Iron ore and bars held at mines, marketplaces, and smithies. Some regions have local deposits; others must import it through a staffed marketplace. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Iron ore and bars held at mines, marketplaces, and smithies. Every region has finite physical iron seams; rich seed rolls allow non-exhausting deep mining, while staffed marketplace imports cover shortages. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Iron</span>
         <strong class="settlement-hud__value" data-stockpile="iron">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="iron" hidden></span>
@@ -339,7 +339,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="clay">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="clay" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="Salt held at mines, marketplaces, smokehouses, and pastoral holdings. Local deposits or staffed marketplace imports can supply it; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="Salt held at mines, marketplaces, smokehouses, and pastoral holdings. Every region has finite physical salt deposits; rich seed rolls allow non-exhausting deep mining, while staffed marketplace imports cover shortages. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Salt</span>
         <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>

@@ -144,6 +144,11 @@ import {
   type ProcessorOutputRoom,
 } from '../../economy/settlementProduction.ts';
 import {
+  computeSettlementGeologyPlan,
+  geologicalFiniteRunwayDays,
+  type GeologicalResourcePlan,
+} from '../../economy/settlementGeology.ts';
+import {
   computeSettlementPreservationReservePlan,
   type SettlementPreservationReservePlan,
 } from '../../economy/settlementPreservationReserve.ts';
@@ -382,6 +387,51 @@ function formatIndustrialRoads(plan: IndustrialMaterialPlan): string {
   } forge-connected${
     blocked ? ` &middot; ${blocked}` : ' &middot; no upstream route break'
   }${potteryInspect}${smithyInspect}`;
+}
+
+function formatGeologicalResourcePlan(
+  plan: GeologicalResourcePlan,
+  dailyDemand = 0,
+  demandLabel = '',
+): string {
+  const finiteRunway = geologicalFiniteRunwayDays(plan);
+  const reserveStatus = plan.finiteReserve <= 0.05
+    ? 'finite reserve exhausted'
+    : finiteRunway === null
+      ? `${plan.finiteReserve.toFixed(0)} finite reserve idle`
+      : `${plan.finiteReserve.toFixed(0)} finite reserve &middot; ${Math.floor(finiteRunway + 1e-9)} days at current finite-seam crews`;
+  const deepStatus = plan.richDeposits === 0
+    ? 'no rich deep-source roll'
+    : `${plan.activeDeepSources} / ${plan.richDeposits} rich deep ${
+        plan.richDeposits === 1 ? 'source' : 'sources'
+      } active`;
+  const extraction = `${plan.finiteExtractionPerDay.toFixed(1)} finite + ${
+    plan.deepExtractionPerDay.toFixed(1)
+  } deep output / day from ${plan.staffedExtractionSites} / ${
+    plan.extractionSites
+  } staffed works`;
+  const demand = dailyDemand <= 0.05
+    ? ''
+    : ` &middot; ${demandLabel} need ${dailyDemand.toFixed(1)} / day &middot; ${
+        plan.finiteExtractionPerDay + plan.deepExtractionPerDay >= dailyDemand
+          ? '+'
+          : ''
+      }${(
+        plan.finiteExtractionPerDay
+        + plan.deepExtractionPerDay
+        - dailyDemand
+      ).toFixed(1)} / day balance`;
+  const exhausted = plan.exhaustedFiniteDeposits === 0
+    ? ''
+    : ` &middot; ${plan.exhaustedFiniteDeposits} exhausted finite ${
+        plan.exhaustedFiniteDeposits === 1 ? 'site' : 'sites'
+      }`;
+  const inspect = plan.firstAttentionBuildingId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionBuildingId}" aria-label="Inspect shortest geological reserve runway">Inspect shortest</button>`;
+  return `${plan.ordinaryDeposits} ordinary + ${plan.richDeposits} rich physical ${
+    plan.deposits === 1 ? 'deposit' : 'deposits'
+  } &middot; ${reserveStatus} &middot; ${deepStatus} &middot; ${extraction}${demand}${exhausted}${inspect}`;
 }
 
 function formatRoadProvisioning(plan: SettlementRoadProvisioning | null): string {
@@ -1905,6 +1955,10 @@ export function renderTownHallInspector(
       environment.charcoalBurnerThroughputMultiplier,
     );
   const industrialMaterials = production.industrialMaterials;
+  const geology = computeSettlementGeologyPlan(
+    context.gameState,
+    provisioning.sabbathObserved,
+  );
   const unmaintainedToolInspect = industrialMaterials.firstUnmaintainedToolSiteId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${industrialMaterials.firstUnmaintainedToolSiteId}" aria-label="Inspect first unmaintained civilian tool rack">Inspect</button>`;
@@ -2257,6 +2311,9 @@ export function renderTownHallInspector(
       <li><span>Processing labor</span><span>${production.millWorkers} mill · ${production.bakeryWorkers} granary · ${production.breweryWorkers} brewing · ${production.smokehouseWorkers} preserving · ${production.weaverWorkers} weaving</span></li>
       <li><span>Material-chain labor</span><span>${industrialMaterials.clayWorkers} clay &middot; ${industrialMaterials.potterWorkers} pottery &middot; ${industrialMaterials.charcoalWorkers} charcoal &middot; ${industrialMaterials.smithyWorkers} smithing</span></li>
       <li><span>Clay-bank conditions</span><span>${Math.round(industrialMaterials.clayBankYieldMultiplier * 100)}% average geological yield across active pits at regional abundance ${Math.round(context.worldResourceAbundance ?? 50)}/100 &times; ${Math.round(production.clayPitThroughputMultiplier * 100)}% current ${environment.weather} ground before tool condition${leanClayPitInspect} &middot; pits never hard-stop, but autumn clay reserves keep winter kilns productive</span></li>
+      <li><span>Stone geology</span><span>${formatGeologicalResourcePlan(geology.stone)}</span></li>
+      <li><span>Iron geology</span><span>${formatGeologicalResourcePlan(geology.iron, industrialMaterials.smithyIronPerDay, 'smithies')}</span></li>
+      <li><span>Salt geology</span><span>${formatGeologicalResourcePlan(geology.salt, production.preservationSaltPerDay + livestockFodder.dairySaltPerDay, 'preservation')}</span></li>
       <li><span>Charcoal-clamp conditions</span><span>${Math.round(production.charcoalBurnerThroughputMultiplier * 100)}% current ${environment.weather} burn pace &middot; damp or frozen billets slow the shared forge-fuel bottleneck; drought dries the charge but also maximizes clamp fire danger</span></li>
       <li><span>Material-chain roads</span><span>${formatIndustrialRoads(industrialMaterials)}</span></li>
       <li><span>Pottery chain</span><span>${industrialMaterials.potteryOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.potterInstalledOutputPerDay.toFixed(1)} installed pottery per day &middot; ${industrialMaterials.potteryCoveredDemandPerDay.toFixed(1)} / ${industrialMaterials.potteryDemandPerDay.toFixed(1)} household + smokehouse demand covered &middot; ${industrialMaterials.potteryExportSurplusPerDay.toFixed(1)} exportable and ${industrialMaterials.potteryStrandedPerDay.toFixed(1)} stranded surplus &middot; consumes ${industrialMaterials.potterClayPerDay.toFixed(1)} / ${industrialMaterials.clayOutputPerDay.toFixed(1)} clay capacity + ${industrialMaterials.potterFirewoodPerDay.toFixed(1)} firewood/day</span></li>

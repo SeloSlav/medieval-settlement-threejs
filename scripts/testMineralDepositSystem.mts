@@ -236,6 +236,21 @@ assert.match(
 );
 assert.match(
   uiSurfaces,
+  /Every region has finite physical iron seams/,
+  'the HUD must teach the guaranteed physical iron source',
+);
+assert.match(
+  uiSurfaces,
+  /Every region has finite physical salt deposits/,
+  'the HUD must teach the guaranteed physical salt source',
+);
+assert.doesNotMatch(
+  uiSurfaces,
+  /Some regions have local deposits; others must import/,
+  'legacy import-only mineral guidance must not return',
+);
+assert.match(
+  uiSurfaces,
   /\/assets\/ui\/build-menu\/cards\/iron-mine\.webp/,
   'the mine card must use its distinct generated artwork',
 );
