@@ -1926,8 +1926,8 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /fn delivery_trip_portable_stores[\s\S]*CommodityKind::Gold[\s\S]*CommodityKind::Stone \| CommodityKind::Water/,
-  'authoritative cart exposure must value portable cargo while excluding bulk water and stone',
+  /fn delivery_trip_portable_stores[\s\S]*CommodityKind::Gold[\s\S]*CommodityKind::Stone[\s\S]*CommodityKind::Water[\s\S]*CommodityKind::Manure[\s\S]*CommodityKind::RoofTiles/,
+  'authoritative cart exposure must value portable cargo while excluding bulk stone, water, manure, and roof tiles',
 );
 assert.match(
   serverSimulation,

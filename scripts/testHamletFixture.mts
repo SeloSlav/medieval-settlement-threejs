@@ -1706,6 +1706,11 @@ for (let seed = 0; seed < 48; seed += 1) {
   const forbiddenRoofMaterials = new Set<THREE.Material>();
   residence.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
+    let ancestor = object.parent;
+    while (ancestor && ancestor !== residence) {
+      if (ancestor.name === 'ResidenceUpgradeWorks') return;
+      ancestor = ancestor.parent;
+    }
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
       if (/\b(?:clayRed|clayDark|slate)\b/.test(material.name)) {
@@ -1740,7 +1745,7 @@ for (let index = 0; index < expectedResidenceCount; index += 1) {
   authoredHamlet.add(residence);
 }
 let authoredMeshCount = 0;
-authoredHamlet.traverse((object) => {
+authoredHamlet.traverseVisible((object) => {
   if ((object as THREE.Mesh).isMesh) authoredMeshCount += 1;
 });
 const batchedHamlet = batchStaticFixtureMeshes(
@@ -1755,7 +1760,7 @@ assert.equal(
 assert.equal(
   batchedHamlet.stats.sourceMeshes,
   authoredMeshCount,
-  'all immutable residence meshes must enter the fixture batch',
+  'all effectively visible immutable residence meshes must enter the fixture batch',
 );
 assert.ok(
   batchedHamlet.stats.batches <= Math.ceil(authoredMeshCount * 0.04),

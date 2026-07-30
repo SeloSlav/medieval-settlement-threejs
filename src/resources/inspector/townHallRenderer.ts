@@ -2353,7 +2353,7 @@ export function renderTownHallInspector(
       <li><span>Steward reserve</span><span>${laborStewardReserveLabel(laborStewardReserve)} · ${context.populationStats.available} currently free</span></li>
       <li><span>Dawn labor review</span><span>${formatLaborStewardForecast(laborStewardForecast, staffedTownHallAvailable)}${laborStewardInspectButton}</span></li>
       <li><span>Last night</span><span>${formatDawnReport(nightPolicy)}</span></li>
-      <li><span>Night condition</span><span>${Math.round(nightPolicy.communityCohesion * 100)}% cohesion Â· ${Math.round(nightPolicy.laborFatigue * 100)}% accumulated night-shift fatigue Â· watch strength ${nightPolicy.lastWatchStrength.toFixed(1)}</span></li>
+      <li><span>Night condition</span><span>${Math.round(nightPolicy.communityCohesion * 100)}% cohesion · ${Math.round(nightPolicy.laborFatigue * 100)}% accumulated night-shift fatigue · watch strength ${nightPolicy.lastWatchStrength.toFixed(1)}</span></li>
       <li><span>Seasonal labor</span><span>${formatSeasonalLabor(seasonalLabor)}${seasonalLaborInspectButton}</span></li>
       <li><span>Seasonal call-up</span><span>${formatSeasonalCallup(seasonalCallup)}${seasonalCallupInspectButton}</span></li>
       <li><span>Target-paused workshops</span><span>${formatProcessorLaborRecall(processorLaborRecall)}${processorLaborRecallInspectButton}</span></li>

@@ -101,7 +101,7 @@ export function renderStorehouseInspector(
     .map((commodity) =>
       `${storehouseCommodityLabel(commodity)} ${storehouseCommodityTargetPercent(building, commodity)}%`,
     )
-    .join(' Â· ');
+    .join(' · ');
   const collectionHeadroom = STOREHOUSE_COMMODITIES.reduce(
     (sum, commodity) =>
       storehouseAcceptsCommodity(building, commodity)
@@ -194,12 +194,12 @@ export function renderStorehouseStockTargetControls(building: BuildingState): st
     const pressure = headroom > 0.05
       ? `${headroom.toFixed(0)} collection headroom`
       : stock > target + 0.05
-        ? `${(stock - target).toFixed(0)} above target Â· still available`
+        ? `${(stock - target).toFixed(0)} above target · still available`
         : 'At collection target';
     return `
-      <p class="resource-inspector-note">${storehouseCommodityLabel(commodity)} target Â· ${stock.toFixed(0)} stored / ${target.toFixed(0)} selected Â· ${pressure}</p>
+      <p class="resource-inspector-note">${storehouseCommodityLabel(commodity)} target · ${stock.toFixed(0)} stored / ${target.toFixed(0)} selected · ${pressure}</p>
       <div class="resource-action-row">${STOREHOUSE_STOCK_TARGET_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-storehouse-stock-kind="${commodity}" data-storehouse-stock-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} Â· ${preset.percent}%</button>`)
+        .map((preset) => `<button type="button" class="resource-action-button" data-storehouse-stock-kind="${commodity}" data-storehouse-stock-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
         .join('')}</div>
     `;
   }).join('');

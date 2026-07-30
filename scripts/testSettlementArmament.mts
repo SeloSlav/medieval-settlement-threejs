@@ -505,7 +505,7 @@ const expandedEconomySource = readFileSync(
 );
 assert.match(
   expandedEconomySource,
-  /"smithy" => Some\(\([\s\S]*CommodityKind::Ironwork,[\s\S]*"carpenter"/,
+  /\("smithy", CommodityKind::Ironwork\) => Some\(\&\[[\s\S]*"carpenter"/,
   'the local-industry armament forecast must remain tied to the authoritative smithy-to-carpenter cart route',
 );
 assert.match(

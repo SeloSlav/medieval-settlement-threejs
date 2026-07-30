@@ -125,6 +125,11 @@ assert.match(townHallInspector, /Road-branch provisions/);
 assert.match(townHallInspector, /first road-branch provision exposure/);
 assert.match(townHallInspector, /Cured ration displacement/);
 assert.match(townHallInspector, /current fresh demand after/);
+assert.doesNotMatch(
+  townHallInspector,
+  /Â/,
+  'the settlement ledger must not expose double-decoded separators',
+);
 assert.match(
   appSource,
   /computeSettlementProvisioning\([\s\S]*?roadComponentFor:[\s\S]*?roadComponentAt/,

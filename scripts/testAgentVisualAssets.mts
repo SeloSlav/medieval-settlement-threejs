@@ -296,6 +296,7 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   salt: 'Mined rock salt chunk 1',
   charcoal: 'Charcoal sack 1',
   pottery: 'Fired pottery vessel 1',
+  roofTiles: 'Fired roof tile stack 1 layer 1',
   manure: 'Manure cart heap',
   remedies: 'Dried remedy bundle 1',
 };

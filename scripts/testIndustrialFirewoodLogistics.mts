@@ -300,12 +300,14 @@ const overflowDispatchIndex = authoritativeLoop.indexOf(
   'step_village_storehouse_overflow_collection(',
 );
 const processorLoopIndex = authoritativeLoop.indexOf('for (sim_kind, building_id) in expanded_ids');
+const localMaterialDispatchIndex = authoritativeLoop.indexOf('step_local_material_dispatch(');
 assert.ok(
   householdDispatchIndex >= 0
     && householdDispatchIndex < industrialDispatchIndex
-    && industrialDispatchIndex < overflowDispatchIndex
-    && overflowDispatchIndex < processorLoopIndex,
-  'household firewood duty must run before industry, overflow collection, and processing',
+    && industrialDispatchIndex < processorLoopIndex
+    && processorLoopIndex < localMaterialDispatchIndex
+    && localMaterialDispatchIndex < overflowDispatchIndex,
+  'household fuel and urgent workshop dispatch must precede production, while producer output and local-material duties must precede depot overflow collection',
 );
 
 console.log(

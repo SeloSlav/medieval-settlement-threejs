@@ -76,6 +76,11 @@ assert.match(legacyControls, /260 collection headroom/);
 assert.match(legacyControls, /Iron target/);
 assert.match(legacyControls, /Clay target/);
 assert.match(legacyControls, /Salt target/);
+assert.doesNotMatch(
+  legacyControls,
+  /Â/,
+  'stock-target controls must not expose a double-decoded separator',
+);
 
 const distributedStorehouse = makeStorehouse({
   storehouseTimberTargetPercent: 25,

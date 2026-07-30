@@ -36,13 +36,16 @@ export function batchStaticFixtureMeshes(
   const submittedSources: THREE.Mesh[] = [];
   let sourceTriangles = 0;
 
-  sourceRoot.traverse((object) => {
+  // `traverseVisible` respects the complete ancestor chain. Checking only
+  // `mesh.visible` would flatten dormant upgrade works beneath a hidden parent
+  // into the permanent batch, making their geometry visible and needlessly
+  // increasing fixture submissions.
+  sourceRoot.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (
       !mesh.isMesh
       || (mesh as THREE.InstancedMesh).isInstancedMesh
       || (mesh as THREE.SkinnedMesh).isSkinnedMesh
-      || !mesh.visible
       || Array.isArray(mesh.material)
       || !mesh.geometry.getAttribute('position')
       || Object.keys(mesh.geometry.morphAttributes).length > 0
