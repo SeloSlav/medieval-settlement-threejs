@@ -2,6 +2,7 @@ import {
   CATTLE_DEFAULT_BREEDING_RESERVE,
   CATTLE_MAX_HERD,
   CATTLE_MINIMUM_BREEDING_RESERVE,
+  CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
   CATTLE_SLAUGHTER_FOOD_PER_HEAD,
   CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
   LIVESTOCK_AUTUMN_CULL_END_MONTH,
@@ -10,9 +11,11 @@ import {
   LIVESTOCK_HAYMAKING_END_MONTH,
   LIVESTOCK_HAYMAKING_START_MONTH,
   LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT,
+  LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
   SHEEP_DEFAULT_BREEDING_RESERVE,
   SHEEP_MAX_HERD,
   SHEEP_MINIMUM_BREEDING_RESERVE,
+  SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
   SHEEP_SHEARING_END_MONTH,
   SHEEP_SHEARING_START_MONTH,
   SHEEP_SLAUGHTER_FOOD_PER_HEAD,
@@ -32,6 +35,7 @@ export type LivestockPolicyDefinition = {
   maximumHerd: number;
   slaughterFoodPerHead: number;
   slaughterPreservedFoodPerHead: number;
+  preservedFoodPerCyclePerHead: number;
 };
 
 export type LivestockReservePreset = {
@@ -53,6 +57,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     maximumHerd: CATTLE_MAX_HERD,
     slaughterFoodPerHead: CATTLE_SLAUGHTER_FOOD_PER_HEAD,
     slaughterPreservedFoodPerHead: CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+    preservedFoodPerCyclePerHead: CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
   },
   sheep: {
     minimumReserve: SHEEP_MINIMUM_BREEDING_RESERVE,
@@ -60,6 +65,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     maximumHerd: SHEEP_MAX_HERD,
     slaughterFoodPerHead: SHEEP_SLAUGHTER_FOOD_PER_HEAD,
     slaughterPreservedFoodPerHead: SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+    preservedFoodPerCyclePerHead: SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
   },
   swine: {
     minimumReserve: SWINE_MINIMUM_BREEDING_RESERVE,
@@ -67,6 +73,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     maximumHerd: SWINE_MAX_HERD,
     slaughterFoodPerHead: SWINE_SLAUGHTER_FOOD_PER_HEAD,
     slaughterPreservedFoodPerHead: SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+    preservedFoodPerCyclePerHead: 0,
   },
 };
 
@@ -177,4 +184,34 @@ export function projectedLivestockCullYield(
     food: heads * policy.slaughterFoodPerHead,
     preservedFood: heads * policy.slaughterPreservedFoodPerHead,
   };
+}
+
+export function livestockPreservationSaltRequired(
+  preservedFood: number,
+): number {
+  return Math.max(0, preservedFood)
+    * LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT;
+}
+
+export function livestockSaltedOutputCapacity(salt: number): number {
+  return LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT <= 1e-9
+    ? Number.POSITIVE_INFINITY
+    : Math.max(0, salt) / LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT;
+}
+
+export function livestockDairyPreservedOutputPerCycle(
+  species: LivestockSpecies,
+  productiveHeads: number,
+): number {
+  return Math.max(0, productiveHeads)
+    * livestockPolicyDefinition(species).preservedFoodPerCyclePerHead;
+}
+
+export function livestockDairySaltPerCycle(
+  species: LivestockSpecies,
+  productiveHeads: number,
+): number {
+  return livestockPreservationSaltRequired(
+    livestockDairyPreservedOutputPerCycle(species, productiveHeads),
+  );
 }

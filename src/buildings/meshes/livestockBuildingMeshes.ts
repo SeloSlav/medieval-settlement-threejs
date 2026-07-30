@@ -16,6 +16,7 @@ import {
 } from './buildingMeshKit.ts';
 import {
   HAYLOFT_VISUAL_SEGMENTS,
+  PASTORAL_SALT_VISUAL_SEGMENTS,
   WOOL_STOCKPILE_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
 import { createManureStockpile } from './manureStockpileMesh.ts';
@@ -137,6 +138,46 @@ function createWoolStockpile(): THREE.Group {
   return stockpile;
 }
 
+function createPastoralSaltStockpile(): THREE.Group {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'PastoralSaltStockpile';
+  stockpile.visible = false;
+
+  const placements = [
+    [1.65, 4.02, 1],
+    [2.2, 4.12, 0.86],
+    [1.92, 3.58, 0.73],
+  ] as const;
+  for (
+    let index = 0;
+    index < Math.min(PASTORAL_SALT_VISUAL_SEGMENTS, placements.length);
+    index += 1
+  ) {
+    const [x, z, scale] = placements[index];
+    const segment = new THREE.Group();
+    segment.name = 'PastoralSaltSegment';
+    segment.visible = false;
+    segment.position.set(x, 0, z);
+    const sack = addMesh(
+      segment,
+      new THREE.SphereGeometry(0.32 * scale, 8, 6),
+      residenceFacadeMaterial('white'),
+      new THREE.Vector3(0, 0.33 * scale, 0),
+      new THREE.Euler(0, index * 0.23, index % 2 === 0 ? -0.07 : 0.06),
+      new THREE.Vector3(0.84, 1.22, 0.8),
+    );
+    sack.name = 'Farmstead salt sack';
+    addMesh(
+      segment,
+      new THREE.CylinderGeometry(0.055 * scale, 0.11 * scale, 0.16 * scale, 7),
+      timberMaterial('light'),
+      new THREE.Vector3(0, 0.74 * scale, 0),
+    );
+    stockpile.add(segment);
+  }
+  return stockpile;
+}
+
 export function createPastoralFarmsteadMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Pastoral farmstead';
@@ -179,6 +220,7 @@ export function createPastoralFarmsteadMesh(): THREE.Group {
   }
   group.add(createHayloftStockpile());
   group.add(createWoolStockpile());
+  group.add(createPastoralSaltStockpile());
   group.add(createManureStockpile('PastoralManureStockpile', 5.45, -3.65));
   for (const [x, scale] of [[-0.2, 1], [0.65, 0.78]] as const) {
     addMesh(group, new THREE.CylinderGeometry(0.3 * scale, 0.36 * scale, 0.82 * scale, 10), metalMaterial('iron'), new THREE.Vector3(x, 0.42 * scale, 4.0));

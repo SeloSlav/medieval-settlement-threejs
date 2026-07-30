@@ -9,9 +9,9 @@ use crate::balance_generated::{
     CATTLE_HEALTH_RECOVERY_PER_CYCLE, CATTLE_MAX_HERD, CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS,
     CATTLE_MAX_SLOPE_DEGREES, CATTLE_MOISTURE_IDEAL, CATTLE_MOISTURE_TOLERANCE,
     CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, CATTLE_SLAUGHTER_FOOD_PER_HEAD,
-    CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, LIVESTOCK_HAY_STORAGE_CAPACITY,
-    LIVESTOCK_MANURE_TRANSFER_PER_TRIP, SHEEP_AREA_PER_HEAD, SHEEP_BREEDING_PER_CYCLE,
-    SHEEP_FOOD_PER_CYCLE_PER_HEAD, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
+    CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
+    LIVESTOCK_HAY_STORAGE_CAPACITY, LIVESTOCK_MANURE_TRANSFER_PER_TRIP, SHEEP_AREA_PER_HEAD,
+    SHEEP_BREEDING_PER_CYCLE, SHEEP_FOOD_PER_CYCLE_PER_HEAD, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
     SHEEP_HAY_PER_UNSUPPORTED_HEAD, SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
     SHEEP_HEALTH_LOSS_PER_CYCLE, SHEEP_HEALTH_RECOVERY_PER_CYCLE, SHEEP_MAX_HERD,
     SHEEP_MAX_SLOPE_DEGREES, SHEEP_MOISTURE_IDEAL, SHEEP_MOISTURE_TOLERANCE,
@@ -279,13 +279,10 @@ fn run_livestock_cycle(
     // meat only when actual surplus animals are culled below.
     let food = productive_heads * species_food_per_cycle(herd.species);
     let preserved = productive_heads * species_preserved_per_cycle(herd.species);
-    herd.last_food_output = food.min(building_commodity_room(building, CommodityKind::Food));
-    herd.last_preserved_output = preserved.min(building_commodity_room(
-        building,
-        CommodityKind::PreservedFood,
-    ));
-    deposit_building_commodity(building, CommodityKind::Food, food);
-    deposit_building_commodity(building, CommodityKind::PreservedFood, preserved);
+    herd.last_food_output = deposit_building_commodity(building, CommodityKind::Food, food);
+    // Fresh dairy remains available without imported salt. Only the portion
+    // actually salted and placed in the cured store becomes durable cheese.
+    herd.last_preserved_output = store_salted_farmstead_output(building, preserved);
     if herd.species == SPECIES_CATTLE {
         deposit_building_commodity(
             building,
@@ -335,6 +332,11 @@ fn run_livestock_cycle(
 
     let maximum_herd = species_max_herd(herd.species);
     let (slaughter_food, slaughter_preserved) = species_slaughter_yields(herd.species);
+    let saltable_slaughter =
+        slaughter_preserved.min(farmstead_salted_output_capacity(building).min(
+            building_commodity_room(building, CommodityKind::PreservedFood),
+        ));
+    let unsalted_slaughter = (slaughter_preserved - saltable_slaughter).max(0.0);
     if can_cull_one(
         clock.month,
         herd.head_count,
@@ -342,17 +344,49 @@ fn run_livestock_cycle(
         maximum_herd,
         building_commodity_room(building, CommodityKind::Food),
         building_commodity_room(building, CommodityKind::PreservedFood),
-        slaughter_food,
-        slaughter_preserved,
+        slaughter_food + unsalted_slaughter,
+        saltable_slaughter,
     ) {
         herd.head_count -= 1;
         herd.last_culled = 1;
         herd.supplied_capacity = herd.supplied_capacity.min(herd.head_count as f64);
-        deposit_building_commodity(building, CommodityKind::Food, slaughter_food);
-        deposit_building_commodity(building, CommodityKind::PreservedFood, slaughter_preserved);
-        herd.last_food_output += slaughter_food;
-        herd.last_preserved_output += slaughter_preserved;
+        // Unsalted meat enters the vulnerable fresh-food store instead of
+        // becoming free cured provisions. No animal is discarded merely
+        // because an imported salt cart has not reached the holding.
+        herd.last_food_output += deposit_building_commodity(
+            building,
+            CommodityKind::Food,
+            slaughter_food + unsalted_slaughter,
+        );
+        herd.last_preserved_output += store_salted_farmstead_output(building, saltable_slaughter);
     }
+}
+
+fn farmstead_salted_output_capacity(building: &Building) -> f64 {
+    if LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT <= 1e-9 {
+        f64::INFINITY
+    } else {
+        building.salt.max(0.0) / LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT
+    }
+}
+
+fn store_salted_farmstead_output(building: &mut Building, desired_output: f64) -> f64 {
+    let stored = desired_output
+        .max(0.0)
+        .min(building_commodity_room(
+            building,
+            CommodityKind::PreservedFood,
+        ))
+        .min(farmstead_salted_output_capacity(building));
+    if stored <= 1e-9 {
+        return 0.0;
+    }
+    withdraw_building_commodity(
+        building,
+        CommodityKind::Salt,
+        stored * LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
+    );
+    deposit_building_commodity(building, CommodityKind::PreservedFood, stored)
 }
 
 fn grazing_capacity(ctx: &ReducerContext, building: &Building, herd: &LivestockHerd) -> f64 {

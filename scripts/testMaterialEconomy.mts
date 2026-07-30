@@ -21,6 +21,7 @@ import {
   CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   CLAY_PIT_CLAY_PER_CYCLE,
+  LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
   MARKETPLACE_TRADE_OFFERS,
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
@@ -42,6 +43,7 @@ import {
   selectDirectProcessorInputTarget,
   selectMarketplaceMaterialInputTarget,
 } from '../src/logistics/processorInputLogistics.ts';
+import { processorAcceptsInput } from '../src/economy/processorOutputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 import {
   normalizePotteryDispatchPolicy,
@@ -127,6 +129,10 @@ assert.equal(
 assert.equal(
   directlyDispatchedProcessorInputPerCycle('smokehouse', 'salt'),
   SMOKEHOUSE_SALT_PER_CYCLE,
+);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('pastoral_farmstead', 'salt'),
+  LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
 );
 assert.equal(
   directlyDispatchedProcessorInputPerCycle('marketplace', 'pottery'),
@@ -232,6 +238,33 @@ const materialMarket = building('marketplace', {
   salt: 12,
   pottery: 12,
 });
+const pastoralSaltTarget = building('pastoral_farmstead', {
+  id: 'pastoral-salt-target',
+  x: 32,
+  assignedLabor: 2,
+  constructionPriority: 3,
+  salt: 0,
+});
+const pastoralSaltDispatch = selectMarketplaceMaterialInputTarget(
+  [pastoralSaltTarget],
+  materialMarket,
+  (candidate) => candidate.x,
+);
+assert.equal(pastoralSaltDispatch?.target.id, pastoralSaltTarget.id);
+assert.equal(pastoralSaltDispatch?.commodity, 'salt');
+assert.equal(
+  pastoralSaltDispatch?.desiredStock,
+  LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE * 3,
+  'pastoral holdings need a bounded cheese-and-cull salt buffer',
+);
+assert.equal(processorAcceptsInput(pastoralSaltTarget, 'salt'), true);
+assert.equal(
+  processorAcceptsInput(building('pastoral_farmstead', {
+    preservedFood: 70,
+  }), 'salt'),
+  false,
+  'a full cured store must not attract another imported salt cart',
+);
 const lowPriorityIronTarget = building('smithy', {
   id: 'older-near-smithy',
   x: 5,
@@ -682,7 +715,7 @@ assert.match(
 );
 assert.match(
   marketplaceMaterialDispatchStep,
-  /"smithy"[\s\S]*CommodityKind::Iron[\s\S]*"smokehouse"[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Pottery/,
+  /"smithy"[\s\S]*CommodityKind::Iron[\s\S]*"smokehouse"[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Pottery[\s\S]*"pastoral_farmstead"[\s\S]*CommodityKind::Salt/,
 );
 assert.match(
   marketplaceMaterialDispatchStep,

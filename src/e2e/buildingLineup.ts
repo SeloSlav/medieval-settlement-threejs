@@ -98,6 +98,8 @@ const STOCKED_PREVIEW_PREFIXES = [
   'GuardhousePolearmSegment',
   'ThreshingGrainStockpile',
   'ThreshingGrainSegment',
+  'PastoralSaltStockpile',
+  'PastoralSaltSegment',
   'ApiaryFoodStockpile',
   'ApiaryFoodSegment',
   'ApiaryHoneyStockpile',

@@ -531,6 +531,8 @@ export const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT = 35;
 export const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT = 60;
 export const LIVESTOCK_HAY_STORAGE_CAPACITY = 240;
 export const LIVESTOCK_MANURE_TRANSFER_PER_TRIP = 24;
+export const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT = 0.125;
+export const LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE = 0.25;
 export const CATTLE_STARTER_HERD = 3;
 export const CATTLE_MAX_HERD = 10;
 export const CATTLE_MINIMUM_BREEDING_RESERVE = 3;
@@ -1375,7 +1377,7 @@ export const BUILDING_STORAGE_CAPS = {
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },
   threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180, ironwork: 3, manure: 120 },
-  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120, manure: 160 },
+  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120, salt: 6, manure: 160 },
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, ale: 120, preservedFood: 80, honey: 160, wine: 120 },
   brewery: { timber: 0, firewood: 40, stone: 0, water: 120, barley: 96, malt: 48, ale: 200 },

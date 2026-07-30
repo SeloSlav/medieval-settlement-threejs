@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import {
+  PASTORAL_SALT_VISUAL_SEGMENTS,
   stockpileVisualLevel,
   syncStockpileSegments,
 } from './buildingStockpileVisuals.ts';
@@ -36,10 +37,14 @@ export function seasonalStockpileVisualSignature(building: BuildingState): strin
         MANURE_STOCKPILE_VISUAL_SEGMENTS,
       )}`;
     case 'pastoral_farmstead':
-      return `:manure-store:${stockpileVisualLevel(
+      return `:pastoral-store:${stockpileVisualLevel(
         building.manure ?? 0,
         BUILDING_STORAGE_CAPS.pastoral_farmstead.manure ?? 0,
         MANURE_STOCKPILE_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
+        building.salt ?? 0,
+        BUILDING_STORAGE_CAPS.pastoral_farmstead.salt ?? 0,
+        PASTORAL_SALT_VISUAL_SEGMENTS,
       )}`;
     case 'apiary':
       return `:seasonal-store:${
@@ -110,6 +115,13 @@ export function syncSeasonalStockpileVisuals(
         MANURE_STOCK_SEGMENT_NAME,
         building.manure ?? 0,
         BUILDING_STORAGE_CAPS.pastoral_farmstead.manure ?? 0,
+      );
+      syncNamedStockpile(
+        marker,
+        'PastoralSaltStockpile',
+        'PastoralSaltSegment',
+        building.salt ?? 0,
+        BUILDING_STORAGE_CAPS.pastoral_farmstead.salt ?? 0,
       );
       break;
     case 'apiary':

@@ -673,6 +673,7 @@ pub fn step_marketplace_material_dispatch(
                             marketplace.salt > 1e-6
                                 || (marketplace.pottery > 1e-6 && !pottery_reserved_for_trade)
                         }
+                        "pastoral_farmstead" => marketplace.salt > 1e-6,
                         _ => false,
                     };
                     if !source_can_supply
@@ -692,6 +693,7 @@ pub fn step_marketplace_material_dispatch(
                     let commodities = match building.kind.as_str() {
                         "smithy" => [Some(CommodityKind::Iron), None],
                         "smokehouse" => [Some(CommodityKind::Salt), Some(CommodityKind::Pottery)],
+                        "pastoral_farmstead" => [Some(CommodityKind::Salt), None],
                         _ => [None, None],
                     };
                     commodities
@@ -2248,6 +2250,9 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
 pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityKind) -> bool {
     if building.kind == "granary" && commodity == CommodityKind::PreservedFood {
         return building.granary_accepts_fresh_food;
+    }
+    if building.kind == "pastoral_farmstead" && commodity == CommodityKind::Salt {
+        return building_commodity_room(building, CommodityKind::PreservedFood) > 1e-6;
     }
     if !processor_uses_input(&building.kind, commodity) {
         return true;

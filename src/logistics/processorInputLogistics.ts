@@ -7,6 +7,7 @@ import {
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   GRANARY_FIREWOOD_PER_CYCLE,
   GRANARY_FLOUR_PER_CYCLE,
+  LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   SMITHY_IRON_PER_CYCLE,
@@ -111,7 +112,7 @@ const TARGET_KINDS: Record<
   ],
   iron: ['smithy'],
   clay: ['potter_kiln'],
-  salt: ['smokehouse'],
+  salt: ['smokehouse', 'pastoral_farmstead'],
   charcoal: ['smithy'],
   pottery: ['smokehouse', 'marketplace'],
 };
@@ -159,7 +160,9 @@ export function directlyDispatchedProcessorInputPerCycle(
     case 'clay':
       return POTTER_CLAY_PER_CYCLE;
     case 'salt':
-      return SMOKEHOUSE_SALT_PER_CYCLE;
+      return targetKind === 'pastoral_farmstead'
+        ? LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE
+        : SMOKEHOUSE_SALT_PER_CYCLE;
     case 'charcoal':
       return SMITHY_CHARCOAL_PER_CYCLE;
     case 'pottery':
@@ -187,8 +190,9 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * looms then route matching fibres to their selected specialization before
  * lowest runway and route; staffed heavy-tool worksites use the same ordering
  * for replacement iron tools. Imported iron and salt stop at their working
- * buffers; after the kiln's household-ware duty, pottery reaches staffed
- * smokehouses before becoming market export stock. Preserved food is a
+ * buffers, including salt staged for farmhouse cheese and autumn slaughter;
+ * after the kiln's household-ware duty, pottery reaches staffed smokehouses
+ * before becoming market export stock. Preserved food is a
  * storage-only overflow route to the nearest granary that accepts perishable
  * surplus, never a processor input.
  * Other inputs resume nearest storage overflow once buffers are covered.

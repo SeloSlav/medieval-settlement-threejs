@@ -6,6 +6,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import {
   HAYLOFT_VISUAL_SEGMENTS,
+  PASTORAL_SALT_VISUAL_SEGMENTS,
   syncStockpileSegments,
 } from '../src/buildings/buildingStockpileVisuals.ts';
 import {
@@ -140,6 +141,27 @@ assert.equal(
 );
 assert.equal(manureSegments.filter((segment) => segment.visible).length, 2);
 
+const saltStore = pastoralModel.getObjectByName('PastoralSaltStockpile');
+assert.ok(
+  saltStore instanceof THREE.Group,
+  'the pastoral farmstead should expose physical salt sacks',
+);
+const saltSegments = saltStore.children.filter(
+  (child) => child.name === 'PastoralSaltSegment',
+);
+assert.equal(saltSegments.length, PASTORAL_SALT_VISUAL_SEGMENTS);
+assert.equal(saltStore.visible, false, 'an empty dairy salt store must show no sacks');
+assert.equal(
+  syncStockpileSegments(
+    saltStore,
+    'PastoralSaltSegment',
+    BUILDING_STORAGE_CAPS.pastoral_farmstead.salt / 2,
+    BUILDING_STORAGE_CAPS.pastoral_farmstead.salt,
+  ),
+  2,
+);
+assert.equal(saltSegments.filter((segment) => segment.visible).length, 2);
+
 const livestockAssets = [
   { label: 'cow', path: 'public/assets/models/livestock/quaternius-cow.glb', idle: 'idle', graze: 'eating', walk: 'walk' },
   { label: 'bull', path: 'public/assets/models/livestock/quaternius-bull.glb', idle: 'idle', graze: 'eating', walk: 'walk' },
@@ -214,6 +236,11 @@ assert.match(
   serverLivestock,
   /dispatch_manure_to_crop_farmstead[\s\S]*road_path_distance[\s\S]*LIVESTOCK_MANURE_TRANSFER_PER_TRIP/,
   'manure must travel in bounded carts to road-reachable crop holdings',
+);
+assert.match(
+  serverLivestock,
+  /store_salted_farmstead_output[\s\S]*withdraw_building_commodity\([\s\S]*CommodityKind::Salt/,
+  'farmhouse cheese must consume salt from the visible holding store',
 );
 assert.match(
   tickContext,

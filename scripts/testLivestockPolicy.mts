@@ -9,8 +9,12 @@ import {
   isLivestockHaymakingMonth,
   isSheepShearingMonth,
   livestockHaymakingPresets,
+  livestockDairyPreservedOutputPerCycle,
+  livestockDairySaltPerCycle,
+  livestockPreservationSaltRequired,
   livestockPolicyDefinition,
   livestockReservePresets,
+  livestockSaltedOutputCapacity,
   pendingLivestockCullHeads,
   projectedLivestockCullYield,
 } from '../src/economy/livestockPolicy.ts';
@@ -26,6 +30,8 @@ import {
   CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
   CATTLE_MAX_HERD,
   CATTLE_MINIMUM_BREEDING_RESERVE,
+  LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
+  LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
   SHEEP_DEFAULT_BREEDING_RESERVE,
   SWINE_FOOD_PER_CYCLE_PER_HEAD,
@@ -55,6 +61,7 @@ function buildingFixture(
     preservedFood: 0,
     honey: 0,
     wine: 0,
+    salt: 0,
     gold: 0,
     waterCapacity: 0,
     assignedLabor,
@@ -139,6 +146,17 @@ assert.deepEqual(projectedLivestockCullYield('cattle', 9, 6), {
   food: 30,
   preservedFood: 9,
 });
+assert.equal(livestockPreservationSaltRequired(8), 1);
+assert.equal(livestockSaltedOutputCapacity(1), 8);
+assert.equal(
+  livestockDairyPreservedOutputPerCycle('cattle', 10),
+  1.2,
+);
+assert.equal(
+  livestockDairySaltPerCycle('cattle', 10),
+  1.2 * LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
+);
+assert.equal(livestockDairySaltPerCycle('swine', 10), 0);
 
 const fodderBuilding = buildingFixture('building-1', 60);
 const fodderHerd = herdFixture(fodderBuilding.id);
@@ -164,6 +182,15 @@ assert.ok(
 assert.equal(fodderPlan.winterReserveTarget, 90, 'holding target must respect grain capacity');
 assert.equal(fodderPlan.winterReserveStock, 60);
 assert.equal(fodderPlan.winterReserveShortfall, 30);
+assert.ok(Math.abs(fodderPlan.productiveHeads - 7.2) < 1e-9);
+assert.ok(Math.abs(fodderPlan.dairyPreservedFoodPerDay - 6.048) < 1e-9);
+assert.ok(Math.abs(fodderPlan.dairySaltPerDay - 0.756) < 1e-9);
+assert.equal(
+  fodderPlan.dairySaltTarget,
+  LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE * 3,
+);
+assert.equal(fodderPlan.dairySaltShortfall, fodderPlan.dairySaltTarget);
+assert.equal(fodderPlan.dairySaltRunwayDays, 0);
 assert.ok(
   fodderPlan.winterGrainNeed > fodderPlan.winterReserveTarget,
   'full holding storage must expose a mid-winter resupply requirement',
@@ -245,6 +272,16 @@ assert.equal(
   180,
   'one full holding must not hide local shortfalls at two others',
 );
+assert.equal(settlementFodder.dairySaltShortHoldings, 3);
+assert.equal(
+  settlementFodder.firstDairySaltShortBuildingId,
+  'building-1',
+  'equal empty salt runways must use stable server-id order',
+);
+assert.equal(
+  settlementFodder.dairySaltTarget,
+  LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE * 3 * 3,
+);
 
 const serverPolicy = fs.readFileSync('server/src/livestock_policy.rs', 'utf8');
 const serverSimulation = fs.readFileSync('server/src/simulation/livestock.rs', 'utf8');
@@ -300,6 +337,16 @@ assert.match(
   /head_count < max_herd[\s\S]*breeding_progress \+= [\s\S]*else[\s\S]*breeding_progress = herd\.breeding_progress\.min\(0\.999\)/,
   'full herds must not bank an unlimited queue of replacement births',
 );
+assert.match(
+  serverSimulation,
+  /store_salted_farmstead_output[\s\S]*CommodityKind::Salt[\s\S]*LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT/,
+  'farmhouse preserved output must withdraw physical salt',
+);
+assert.match(
+  serverSimulation,
+  /unsalted_slaughter[\s\S]*CommodityKind::Food/,
+  'unsalted autumn meat must enter vulnerable fresh-food storage',
+);
 assert.doesNotMatch(
   serverSimulation,
   /season_multiplier[\s\S]{0,300}species_food_per_cycle/,
@@ -341,10 +388,14 @@ assert.match(livestockInspector, /Winter resupply/);
 assert.match(livestockInspector, /data-livestock-haymaking-percent/);
 assert.match(livestockInspector, /Summer hay meadow/);
 assert.match(livestockInspector, /Hayloft/);
+assert.match(livestockInspector, /Cheese salt/);
+assert.match(livestockInspector, /fresh dairy continues/);
 assert.match(townHallInspector, /computeSettlementLivestockFodderPlan/);
 assert.match(townHallInspector, /first winter fodder shortfall/);
 assert.match(townHallInspector, /Summer hay plan/);
 assert.match(townHallInspector, /Winter hay reserve/);
+assert.match(townHallInspector, /Dairy salt buffers/);
+assert.match(townHallInspector, /first dairy salt shortfall/);
 assert.match(townHallInspector, /data-inspect-building/);
 
 let checksum = 0;

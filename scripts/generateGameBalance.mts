@@ -569,6 +569,8 @@ export type GameBalance = {
     maximumHaymakingPercent: number;
     hayStorageCapacity: number;
     manureTransferPerTrip: number;
+    farmsteadPreservationSaltPerOutput: number;
+    farmsteadSaltStagingPerCycle: number;
     cattle: LivestockSpeciesBalance;
     sheep: LivestockSpeciesBalance;
     swine: LivestockSpeciesBalance;
@@ -1047,6 +1049,8 @@ function generateRust(): string {
     `pub const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT: u8 = ${b.livestock.maximumHaymakingPercent};`,
     `pub const LIVESTOCK_HAY_STORAGE_CAPACITY: f64 = ${rustF64(b.livestock.hayStorageCapacity)};`,
     `pub const LIVESTOCK_MANURE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.livestock.manureTransferPerTrip)};`,
+    `pub const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT: f64 = ${rustF64(b.livestock.farmsteadPreservationSaltPerOutput)};`,
+    `pub const LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE: f64 = ${rustF64(b.livestock.farmsteadSaltStagingPerCycle)};`,
     `pub const CATTLE_STARTER_HERD: u32 = ${b.livestock.cattle.starterHerd};`,
     `pub const CATTLE_MAX_HERD: u32 = ${b.livestock.cattle.maxHerd};`,
     `pub const CATTLE_MINIMUM_BREEDING_RESERVE: u32 = ${b.livestock.cattle.minimumBreedingReserve};`,
@@ -1857,6 +1861,8 @@ function generateTypeScript(): string {
     `export const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT = ${b.livestock.maximumHaymakingPercent};`,
     `export const LIVESTOCK_HAY_STORAGE_CAPACITY = ${b.livestock.hayStorageCapacity};`,
     `export const LIVESTOCK_MANURE_TRANSFER_PER_TRIP = ${b.livestock.manureTransferPerTrip};`,
+    `export const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT = ${b.livestock.farmsteadPreservationSaltPerOutput};`,
+    `export const LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE = ${b.livestock.farmsteadSaltStagingPerCycle};`,
     `export const CATTLE_STARTER_HERD = ${b.livestock.cattle.starterHerd};`,
     `export const CATTLE_MAX_HERD = ${b.livestock.cattle.maxHerd};`,
     `export const CATTLE_MINIMUM_BREEDING_RESERVE = ${b.livestock.cattle.minimumBreedingReserve};`,

@@ -5,8 +5,9 @@ use crate::balance_generated::{
     BREWERY_MALTING_FIREWOOD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
     GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
-    HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE,
-    POTTER_FIREWOOD_PER_CYCLE, RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
+    HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
+    MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
     RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
     SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
     SMOKEHOUSE_SALT_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
@@ -63,7 +64,8 @@ pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
     "charcoal_burner",
     "potter_kiln",
 ];
-pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &["smithy", "smokehouse"];
+pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] =
+    &["smithy", "smokehouse", "pastoral_farmstead"];
 pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
@@ -444,6 +446,7 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("smokehouse", "food") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
         ("smokehouse", "salt") => SMOKEHOUSE_SALT_PER_CYCLE,
+        ("pastoral_farmstead", "salt") => LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
         ("weaver", "wool") => WEAVER_WOOL_PER_CYCLE,
         ("weaver", "flax") => WEAVER_FLAX_PER_CYCLE,
         ("brewery", "barley") => BREWERY_BARLEY_PER_MALT_CYCLE,
@@ -948,7 +951,14 @@ mod tests {
             directly_dispatched_processor_input_per_cycle("smokehouse", "salt"),
             super::SMOKEHOUSE_SALT_PER_CYCLE,
         );
-        assert_eq!(MARKETPLACE_MATERIAL_TARGET_KINDS, &["smithy", "smokehouse"],);
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("pastoral_farmstead", "salt"),
+            super::LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
+        );
+        assert_eq!(
+            MARKETPLACE_MATERIAL_TARGET_KINDS,
+            &["smithy", "smokehouse", "pastoral_farmstead"],
+        );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("smithy", "charcoal"),
             1.0,

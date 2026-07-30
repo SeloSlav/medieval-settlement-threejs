@@ -7,6 +7,7 @@ import {
   CATTLE_HAY_PER_UNSUPPORTED_HEAD,
   CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
   CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
+  LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
   LIVESTOCK_HAYMAKING_END_MONTH,
   LIVESTOCK_HAYMAKING_START_MONTH,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
@@ -31,7 +32,10 @@ import {
   effectiveLivestockBreedingReserve,
   effectiveLivestockHaymakingPercent,
   isLivestockHaymakingMonth,
+  livestockDairyPreservedOutputPerCycle,
+  livestockDairySaltPerCycle,
 } from './livestockPolicy.ts';
+import { processorInputStagingCycles } from './processorOutputPolicy.ts';
 
 const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
@@ -104,6 +108,13 @@ export type LivestockFodderHoldingPlan = {
   winterReserveStock: number;
   winterReserveShortfall: number;
   storageRunwayDays: number;
+  productiveHeads: number;
+  dairyPreservedFoodPerDay: number;
+  dairySaltPerDay: number;
+  dairySaltStock: number;
+  dairySaltTarget: number;
+  dairySaltShortfall: number;
+  dairySaltRunwayDays: number;
 };
 
 export type SettlementLivestockFodderPlan = {
@@ -129,6 +140,15 @@ export type SettlementLivestockFodderPlan = {
   capacityLimitedHoldings: number;
   firstShortBuildingId: string | null;
   firstRunwayDays: number;
+  productiveDairyHeads: number;
+  dairyPreservedFoodPerDay: number;
+  dairySaltPerDay: number;
+  dairySaltStock: number;
+  dairySaltTarget: number;
+  dairySaltShortfall: number;
+  dairySaltShortHoldings: number;
+  firstDairySaltShortBuildingId: string | null;
+  firstDairySaltRunwayDays: number;
 };
 
 export function livestockCyclesPerCalendarDay(
@@ -153,6 +173,28 @@ export function projectLivestockFodderHolding(
   monthDay = 1,
 ): LivestockFodderHoldingPlan {
   const cyclesPerDay = livestockCyclesPerCalendarDay(building, sabbathObserved);
+  const productiveHeads = herd.species === 'swine'
+    ? 0
+    : Math.min(
+      Math.max(0, herd.headCount),
+      Math.max(0, herd.suppliedCapacity),
+    ) * Math.min(1, Math.max(0, herd.health));
+  const dairyPreservedFoodPerCycle = livestockDairyPreservedOutputPerCycle(
+    herd.species,
+    productiveHeads,
+  );
+  const dairySaltPerCycle = livestockDairySaltPerCycle(
+    herd.species,
+    productiveHeads,
+  );
+  const dairySaltStock = herd.species === 'swine'
+    ? 0
+    : Math.max(0, building.salt ?? 0);
+  const dairySaltTarget = herd.species === 'swine' || building.assignedLabor <= 0
+    ? 0
+    : LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE
+      * processorInputStagingCycles(building.processorOutputTargetPercent);
+  const dairySaltPerDay = dairySaltPerCycle * cyclesPerDay;
   const grainPerHead = GRAIN_PER_UNSUPPORTED_HEAD[herd.species];
   const hayPerHead = HAY_PER_UNSUPPORTED_HEAD[herd.species];
   const haymakingPercent = herd.species === 'swine'
@@ -263,6 +305,15 @@ export function projectLivestockFodderHolding(
     storageRunwayDays: winterGrainPerDay > 1e-9
       ? grainCapacity / winterGrainPerDay
       : Number.POSITIVE_INFINITY,
+    productiveHeads,
+    dairyPreservedFoodPerDay: dairyPreservedFoodPerCycle * cyclesPerDay,
+    dairySaltPerDay,
+    dairySaltStock,
+    dairySaltTarget,
+    dairySaltShortfall: Math.max(0, dairySaltTarget - dairySaltStock),
+    dairySaltRunwayDays: dairySaltPerDay > 1e-9
+      ? dairySaltStock / dairySaltPerDay
+      : Number.POSITIVE_INFINITY,
   };
 }
 
@@ -296,6 +347,15 @@ export function computeSettlementLivestockFodderPlan(
     capacityLimitedHoldings: 0,
     firstShortBuildingId: null,
     firstRunwayDays: Number.POSITIVE_INFINITY,
+    productiveDairyHeads: 0,
+    dairyPreservedFoodPerDay: 0,
+    dairySaltPerDay: 0,
+    dairySaltStock: 0,
+    dairySaltTarget: 0,
+    dairySaltShortfall: 0,
+    dairySaltShortHoldings: 0,
+    firstDairySaltShortBuildingId: null,
+    firstDairySaltRunwayDays: Number.POSITIVE_INFINITY,
   };
 
   for (const herd of state.livestockHerds.values()) {
@@ -337,6 +397,33 @@ export function computeSettlementLivestockFodderPlan(
     total.winterReserveTarget += plan.winterReserveTarget;
     total.winterReserveStock += plan.winterReserveStock;
     total.winterReserveShortfall += plan.winterReserveShortfall;
+    total.productiveDairyHeads += plan.productiveHeads;
+    total.dairyPreservedFoodPerDay += plan.dairyPreservedFoodPerDay;
+    total.dairySaltPerDay += plan.dairySaltPerDay;
+    total.dairySaltStock += plan.dairySaltStock;
+    total.dairySaltTarget += plan.dairySaltTarget;
+    total.dairySaltShortfall += plan.dairySaltShortfall;
+    if (
+      building.assignedLabor > 0
+      && plan.dairySaltTarget > 0.01
+      && plan.dairySaltShortfall > 0.05
+    ) {
+      total.dairySaltShortHoldings += 1;
+      if (
+        total.firstDairySaltShortBuildingId === null
+        || plan.dairySaltRunwayDays < total.firstDairySaltRunwayDays - 1e-9
+        || (
+          Math.abs(plan.dairySaltRunwayDays - total.firstDairySaltRunwayDays) <= 1e-9
+          && compareBuildingIds(
+            plan.buildingId,
+            total.firstDairySaltShortBuildingId,
+          ) < 0
+        )
+      ) {
+        total.firstDairySaltShortBuildingId = plan.buildingId;
+        total.firstDairySaltRunwayDays = plan.dairySaltRunwayDays;
+      }
+    }
     if (plan.winterGrainNeed > plan.winterReserveTarget + 0.05) {
       total.capacityLimitedHoldings += 1;
     }

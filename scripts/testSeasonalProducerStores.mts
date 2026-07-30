@@ -12,6 +12,7 @@ import {
   VINEYARD_WINE_VISUAL_SEGMENTS,
   syncSeasonalStockpileVisuals,
 } from '../src/buildings/seasonalStockpileVisuals.ts';
+import { PASTORAL_SALT_VISUAL_SEGMENTS } from '../src/buildings/buildingStockpileVisuals.ts';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import { seasonalProducerOutputBlocker } from '../src/economy/specialtyTrade.ts';
@@ -36,6 +37,12 @@ const stockGroups = [
     'ThreshingFlaxStockpile',
     'ThreshingFlaxSegment',
     THRESHING_FLAX_VISUAL_SEGMENTS,
+  ],
+  [
+    'pastoral_farmstead',
+    'PastoralSaltStockpile',
+    'PastoralSaltSegment',
+    PASTORAL_SALT_VISUAL_SEGMENTS,
   ],
   [
     'apiary',
@@ -100,6 +107,23 @@ syncSeasonalStockpileVisuals(
 );
 assertVisibleSegments(apiaryMarker, 'ApiaryFoodStockpile', 'ApiaryFoodSegment', 2);
 assertVisibleSegments(apiaryMarker, 'ApiaryHoneyStockpile', 'ApiaryHoneySegment', 2);
+
+const pastoralMarker = createBuildingMesh('pastoral_farmstead');
+syncSeasonalStockpileVisuals(
+  pastoralMarker,
+  building('pastoral_farmstead', { salt: 3 }),
+);
+assertVisibleSegments(
+  pastoralMarker,
+  'PastoralSaltStockpile',
+  'PastoralSaltSegment',
+  2,
+);
+assert.notEqual(
+  seasonalStockpileVisualSignature(building('pastoral_farmstead', { salt: 1 })),
+  seasonalStockpileVisualSignature(building('pastoral_farmstead')),
+  'the first farmstead salt sack must invalidate the visual signature',
+);
 
 const vineyardMarker = createBuildingMesh('vineyard');
 syncSeasonalStockpileVisuals(
@@ -215,7 +239,7 @@ function building(
   kind: BuildingKind,
   stocks: Partial<Pick<
     BuildingState,
-    'food' | 'grain' | 'barley' | 'flax' | 'honey' | 'wine'
+    'food' | 'grain' | 'barley' | 'flax' | 'honey' | 'wine' | 'salt'
   >> = {},
 ): BuildingState {
   return {
@@ -235,6 +259,7 @@ function building(
     honey: 0,
     wine: 0,
     firewood: 0,
+    salt: 0,
     assignedLabor: 1,
     ...stocks,
   } as BuildingState;

@@ -650,6 +650,8 @@
     "maximumHaymakingPercent": 60,
     "hayStorageCapacity": 240,
     "manureTransferPerTrip": 24,
+    "farmsteadPreservationSaltPerOutput": 0.125,
+    "farmsteadSaltStagingPerCycle": 0.25,
     "cattle": {
       "starterHerd": 3,
       "maxHerd": 10,
@@ -1180,7 +1182,7 @@
     "pastoral_farmstead": {
       "label": "Pastoral farmstead",
       "cost": { "timber": 40, "stone": 20 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 120, "grain": 90, "preservedFood": 70, "wool": 120, "manure": 160 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 120, "grain": 90, "salt": 6, "preservedFood": 70, "wool": 120, "manure": 160 },
       "workRadius": 110,
       "pickRadius": 10,
       "harvestInterval": 10,

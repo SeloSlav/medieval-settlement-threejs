@@ -2091,11 +2091,18 @@ export function renderTownHallInspector(
       <li><span>Spring crop labor</span><span>${formatSettlementFieldWork(farmPlan.spring)}</span></li>
       <li><span>Autumn crop labor</span><span>${formatSettlementFieldWork(farmPlan.autumn)}</span></li>
     `;
+  const livestockDairyRows = livestockFodder.pastoralHoldings === 0
+    ? ''
+    : `
+      <li><span>Farmhouse cheese</span><span>${livestockFodder.productiveDairyHeads.toFixed(1)} productive cattle/sheep head · ${livestockFodder.dairyPreservedFoodPerDay.toFixed(1)} preserved food / day potential · ${livestockFodder.dairySaltPerDay.toFixed(2)} salt / day</span></li>
+      <li><span>Dairy salt buffers</span><span>${livestockFodder.dairySaltStock.toFixed(2)} / ${livestockFodder.dairySaltTarget.toFixed(2)} onsite across staffed holdings${livestockFodder.dairySaltShortfall > 0.05 ? ` · short ${livestockFodder.dairySaltShortfall.toFixed(2)} across ${livestockFodder.dairySaltShortHoldings} holdings · first runway ${formatProvisionRunway(livestockFodder.firstDairySaltRunwayDays)}${livestockFodder.firstDairySaltShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstDairySaltShortBuildingId}" aria-label="Inspect first dairy salt shortfall">Inspect</button>` : ''}` : ' · working buffers covered'} · market carts share imported salt with smokehouses; fresh dairy continues when empty</span></li>
+    `;
   const livestockFodderRows = livestockFodder.holdingCount === 0
     ? '<li><span>Winter herd plan</span><span>No livestock holdings</span></li>'
     : `
       <li><span>Winter herd plan</span><span>${livestockFodder.projectedHeadCount} projected head · ${livestockFodder.winterPastureCapacity.toFixed(1)} pasture-supported · ${livestockFodder.winterUnsupportedHeads.toFixed(1)} need stored fodder · ${livestockFodder.staffedHoldings}/${livestockFodder.holdingCount} holdings staffed</span></li>
       <li><span>Summer hay plan</span><span>${livestockFodder.haymakingHoldings} / ${livestockFodder.pastoralHoldings} cattle/sheep holdings reserving meadow · ${livestockFodder.summerReservedCapacity.toFixed(1)} pasture capacity reserved · ${livestockFodder.hayOutputPerDay.toFixed(1)} hay / day in season</span></li>
+      ${livestockDairyRows}
       <li><span>Winter hay reserve</span><span>${livestockFodder.hayStock.toFixed(1)} stored · ${livestockFodder.projectedHayStock.toFixed(1)} projected at winter / ${livestockFodder.winterHayNeed.toFixed(1)} needed${livestockFodder.winterHayShortfall > 0.05 ? ` · short ${livestockFodder.winterHayShortfall.toFixed(1)} before grain` : ''}</span></li>
       <li><span>Winter fodder grain</span><span>${livestockFodder.winterReserveStock.toFixed(1)} / ${livestockFodder.winterReserveTarget.toFixed(1)} onsite after hay${livestockFodder.winterReserveShortfall > 0.05 ? ` · short ${livestockFodder.winterReserveShortfall.toFixed(1)} across ${livestockFodder.shortHoldings} holdings · first combined coverage ${formatProvisionRunway(livestockFodder.firstRunwayDays)}${livestockFodder.firstShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstShortBuildingId}" aria-label="Inspect first winter fodder shortfall">Inspect</button>` : ''}` : ' · stocked to holding targets'}</span></li>
       <li><span>Winter fodder logistics</span><span>${livestockFodder.winterGrainNeed.toFixed(1)} emergency grain after projected hay for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days · ${livestockFodder.winterGrainPerDay.toFixed(1)} / day after hay runs out${livestockFodder.capacityLimitedHoldings > 0 ? ` · ${livestockFodder.capacityLimitedHoldings} holdings need winter resupply even when full` : ''}</span></li>

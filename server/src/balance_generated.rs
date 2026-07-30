@@ -403,6 +403,8 @@ pub const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT: u8 = 35;
 pub const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT: u8 = 60;
 pub const LIVESTOCK_HAY_STORAGE_CAPACITY: f64 = 240.0;
 pub const LIVESTOCK_MANURE_TRANSFER_PER_TRIP: f64 = 24.0;
+pub const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT: f64 = 0.125;
+pub const LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE: f64 = 0.25;
 pub const CATTLE_STARTER_HERD: u32 = 3;
 pub const CATTLE_MAX_HERD: u32 = 10;
 pub const CATTLE_MINIMUM_BREEDING_RESERVE: u32 = 3;
@@ -1815,7 +1817,7 @@ const PASTORAL_FARMSTEAD: BuildingDef = BuildingDef {
     storage_polearms: 0.0,
     storage_iron: 0.0,
     storage_clay: 0.0,
-    storage_salt: 0.0,
+    storage_salt: 6.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
     storage_manure: 160.0,

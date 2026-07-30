@@ -198,6 +198,10 @@ export function processorAcceptsInput(
   >,
   commodity: ProcessorInputCommodity,
 ): boolean {
+  if (building.kind === 'pastoral_farmstead' && commodity === 'salt') {
+    return Math.max(0, building.preservedFood ?? 0) + 1e-6
+      < (BUILDING_STORAGE_CAPS.pastoral_farmstead.preservedFood ?? 0);
+  }
   return !processorUsesInput(building.kind, commodity)
     || processorNeedsInputs(building);
 }

@@ -138,7 +138,7 @@ export function renderMarketplaceInspector(
             && (building.iron ?? 0) <= 1e-6
             && (building.salt ?? 0) <= 1e-6
           ? 'Pottery held for the active export order'
-        : 'No staffed road-linked workshop below its selected input buffer';
+        : 'No staffed road-linked production site below its selected input buffer';
   const inboundCashTrip = Array.from(context.gameState.deliveryTrips.values())
     .find((trip) =>
       trip.targetBuildingId === building.id
@@ -292,7 +292,7 @@ export function renderMarketplaceInspector(
       <li><span>Caravan crew</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>
       <li><span>Bulk trade desk</span><span>${manualTrade.label}</span></li>
       <li><span>Active bulk order</span><span>${pendingOrderLabel}</span></li>
-      <li><span>Workshop input cart</span><span>${workshopInputCart}</span></li>
+      <li><span>Production input cart</span><span>${workshopInputCart}</span></li>
       <li><span>Regional route</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueueLabel}</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
