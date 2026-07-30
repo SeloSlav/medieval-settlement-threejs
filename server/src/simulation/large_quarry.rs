@@ -1,6 +1,8 @@
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
+use crate::balance_generated::{
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
+};
 use crate::building_defs::building_def;
 use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_tools_maintained};
 use crate::constants::{STONE_PER_HARVEST, TICK_DT};
@@ -9,9 +11,11 @@ use crate::economy::{
     building_storage_caps, deposit_building, withdraw_building_commodity, CommodityKind,
 };
 use crate::simulation::delivery_trips::onsite_building_labor;
+use crate::simulation::expanded_economy::request_connected_commodity;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::SimTickContext;
+use crate::supply_policy::{large_quarry_support_target, large_quarry_supports_ready};
 use crate::tables::{Building, Quarry};
 
 const RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2.5;
@@ -37,6 +41,24 @@ pub fn step_large_quarry(
         return;
     }
 
+    let caps = building_storage_caps(&building.kind);
+    let has_rich_source = rich_deposit_beneath(ctx, building.x, building.z).is_some();
+    if has_rich_source && building.stone < caps.stone - 1e-6 {
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            &building,
+            CommodityKind::Timber,
+            &["lumber_mill", "village_storehouse"],
+            large_quarry_support_target(),
+        );
+        if !large_quarry_supports_ready(building.timber) {
+            ctx.db.building().id().update(building);
+            return;
+        }
+    }
+
     let tools_maintained = civilian_tools_maintained(building.ironwork);
     let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork);
     let cooldown = (building.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
@@ -49,10 +71,7 @@ pub fn step_large_quarry(
     }
 
     let labor_interval = interval / onsite_labor as f64;
-    let caps = building_storage_caps(&building.kind);
-    if building.stone >= caps.stone - 1e-6
-        || rich_deposit_beneath(ctx, building.x, building.z).is_none()
-    {
+    if building.stone >= caps.stone - 1e-6 || !has_rich_source {
         ctx.db.building().id().update(Building {
             action_cooldown: labor_interval,
             ..building
@@ -62,6 +81,13 @@ pub fn step_large_quarry(
 
     let produced = STONE_PER_HARVEST.min((caps.stone - building.stone).max(0.0));
     let (_, _, _, mut updated) = deposit_building(&building, caps, 0.0, 0.0, produced);
+    if produced > 1e-6 {
+        withdraw_building_commodity(
+            &mut updated,
+            CommodityKind::Timber,
+            LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
+        );
+    }
     if tools_maintained {
         withdraw_building_commodity(
             &mut updated,

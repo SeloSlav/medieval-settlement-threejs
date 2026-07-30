@@ -329,6 +329,8 @@ export const SMOKEHOUSE_SALT_PER_CYCLE = 0.5;
 export const SMOKEHOUSE_POTTERY_PER_CYCLE = 0.25;
 export const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE = 4;
 export const CLAY_PIT_CLAY_PER_CYCLE = 4;
+export const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE = 0.25;
+export const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES = 6;
 export const MINE_IRON_PER_CYCLE = 2;
 export const MINE_SALT_PER_CYCLE = 2.5;
 export const MINE_TIMBER_SUPPORT_PER_CYCLE = 0.5;
@@ -781,7 +783,7 @@ export const BUILDING_DEFINITIONS = {
     regrowRatePerSecond: 0,
     maxLabor: 6,
     acceptsLabor: true,
-    requiresRoad: false,
+    requiresRoad: true,
     facesRoad: false,
     requiresMatureTrees: false,
     requiresQuarryStone: false,
@@ -1390,7 +1392,7 @@ export const BUILDING_STORAGE_CAPS = {
   reforester: { timber: 0, firewood: 0, stone: 0 },
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0, ironwork: 3 },
   stone_quarry: { timber: 0, firewood: 0, stone: 180, ironwork: 3 },
-  large_quarry: { timber: 0, firewood: 0, stone: 360, ironwork: 3 },
+  large_quarry: { timber: 12, firewood: 0, stone: 360, ironwork: 3 },
   mine: { timber: 12, firewood: 0, stone: 0, ironwork: 3, iron: 240, salt: 240 },
   clay_pit: { timber: 0, firewood: 0, stone: 0, ironwork: 3, clay: 180 },
   charcoal_burner: { timber: 0, firewood: 54, stone: 0, charcoal: 72 },

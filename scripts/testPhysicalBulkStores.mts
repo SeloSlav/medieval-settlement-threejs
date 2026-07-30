@@ -3,6 +3,7 @@ import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import {
   bulkStockpileVisualSignature,
+  LARGE_QUARRY_SUPPORT_VISUAL_SEGMENTS,
   LARGE_QUARRY_STONE_VISUAL_SEGMENTS,
   STONE_QUARRY_STONE_VISUAL_SEGMENTS,
   syncBulkStockpileVisuals,
@@ -30,6 +31,12 @@ const stockGroups = [
     'LargeQuarryStockpile',
     'LargeQuarryStockSegment',
     LARGE_QUARRY_STONE_VISUAL_SEGMENTS,
+  ],
+  [
+    'large_quarry',
+    'LargeQuarrySupportStockpile',
+    'LargeQuarrySupportSegment',
+    LARGE_QUARRY_SUPPORT_VISUAL_SEGMENTS,
   ],
 ] as const;
 
@@ -83,6 +90,26 @@ assertVisibleSegments(
   'LargeQuarryStockpile',
   'LargeQuarryStockSegment',
   0,
+);
+syncBulkStockpileVisuals(
+  largeQuarryMarker,
+  building('large_quarry', { timber: 0.25 }),
+);
+assertVisibleSegments(
+  largeQuarryMarker,
+  'LargeQuarrySupportStockpile',
+  'LargeQuarrySupportSegment',
+  1,
+);
+syncBulkStockpileVisuals(
+  largeQuarryMarker,
+  building('large_quarry', { timber: 1.5 }),
+);
+assertVisibleSegments(
+  largeQuarryMarker,
+  'LargeQuarrySupportStockpile',
+  'LargeQuarrySupportSegment',
+  6,
 );
 
 const emptyLodge = building('woodcutters_lodge');
@@ -148,7 +175,7 @@ function assertVisibleSegments(
 
 function building(
   kind: BuildingKind,
-  stocks: Partial<Pick<BuildingState, 'firewood' | 'stone'>> = {},
+  stocks: Partial<Pick<BuildingState, 'firewood' | 'stone' | 'timber'>> = {},
 ): BuildingState {
   return {
     id: `${kind}-1`,

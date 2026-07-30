@@ -63,7 +63,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   ferry_landing: ['Ferry landing', 'J', 'A staffed river crossing and modest source of trade income. Must touch open water.'],
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
-  large_quarry: ['Large Quarry', 'G', 'Builds directly over a rich deposit and raises underground stone indefinitely.'],
+  large_quarry: ['Large Quarry', 'G', 'Build directly over rich stone. The non-depleting shaft needs a road and consumes prepared timber chamber supports delivered from a lumber mill or village storehouse.'],
   mine: ['Mineral mine', 'N', 'Build directly over an iron or salt deposit. Ordinary surface seams are finite and need no upkeep timber. Rich deep workings are faster and inexhaustible, but consume road-hauled shaft supports; smith-forged picks and hammer heads raise output but wear each cycle.'],
   clay_pit: ['Riverbank clay pit', 'C', 'Cuts a finite ordinary alluvial bank beside shallow water. Rich seed rolls expose faster deep clay that does not exhaust.'],
   charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for forge fuel. Severe fire risk: isolate it or keep a ready well in range.'],

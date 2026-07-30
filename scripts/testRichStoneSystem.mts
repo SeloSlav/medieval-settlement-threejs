@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { BUILDING_DEFINITIONS, BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
+import {
+  BUILDING_DEFINITIONS,
+  BUILDING_STORAGE_CAPS,
+  LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES,
+  LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
+} from '../src/generated/gameBalance.ts';
+import {
+  LARGE_QUARRY_SUPPORT_TARGET,
+  largeQuarrySupportRunwayCycles,
+  largeQuarrySupportsReady,
+} from '../src/economy/largeQuarrySupportPolicy.ts';
 import {
   resolveBuildingPlacementPoint,
   validateBuildingPlacement,
@@ -107,6 +117,14 @@ assert.equal(surfaceRockCountForRemaining(40, 0, 4000), 0);
 assert.equal(BUILDING_DEFINITIONS.large_quarry.maxLabor, 6);
 assert.equal(BUILDING_DEFINITIONS.large_quarry.workRadius, 0);
 assert.equal(BUILDING_STORAGE_CAPS.large_quarry.stone, 360);
+assert.equal(BUILDING_STORAGE_CAPS.large_quarry.timber, 12);
+assert.equal(BUILDING_DEFINITIONS.large_quarry.requiresRoad, true);
+assert.equal(LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, 0.25);
+assert.equal(LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES, 6);
+assert.equal(LARGE_QUARRY_SUPPORT_TARGET, 1.5);
+assert.equal(largeQuarrySupportRunwayCycles(1.5), 6);
+assert.equal(largeQuarrySupportsReady(0.24), false);
+assert.equal(largeQuarrySupportsReady(0.25), true);
 assert.ok(
   BUILDING_DEFINITIONS.large_quarry.harvestInterval
     < BUILDING_DEFINITIONS.stone_quarry.harvestInterval,
@@ -135,6 +153,21 @@ assert.equal(workerPlan?.activity, 'mine');
 
 const serverWorkflow = readFileSync('server/src/simulation/large_quarry.rs', 'utf8');
 assert.match(serverWorkflow, /deposit_building/);
+assert.match(
+  serverWorkflow,
+  /request_connected_commodity[\s\S]*CommodityKind::Timber[\s\S]*lumber_mill[\s\S]*village_storehouse[\s\S]*large_quarry_support_target/,
+  'the deep quarry must request physical prepared timber from connected suppliers',
+);
+assert.match(
+  serverWorkflow,
+  /!large_quarry_supports_ready\(building\.timber\)[\s\S]*return;/,
+  'deep quarry cooldown must not advance without one complete support batch',
+);
+assert.match(
+  serverWorkflow,
+  /produced > 1e-6[\s\S]*CommodityKind::Timber[\s\S]*LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE/,
+  'prepared chamber timber must wear only after stone is actually produced',
+);
 assert.doesNotMatch(
   serverWorkflow,
   /quarry\(\)\.quarry_id\(\)\.update/,

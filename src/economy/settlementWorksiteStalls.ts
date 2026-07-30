@@ -25,6 +25,7 @@ import {
   type ProcessorInputCommodity,
   type ProcessorOutputTargetKind,
 } from './processorOutputPolicy.ts';
+import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
 import { richMineSupportsReady } from './mineSupportPolicy.ts';
 import {
   normalizeStaffingPriority,
@@ -442,7 +443,8 @@ function quarryStall(
   building: BuildingState,
   quarryBuckets: ReadonlyMap<string, readonly ResourceNodeState[]>,
   hasActiveOriginTrip: boolean,
-): WorksiteStallSite | null {
+  inboundCargo?: ReadonlySet<DeliveryCargoKind>,
+): WorksiteStallSite | 'supply_en_route' | null {
   const kind = building.kind as Extract<BuildingKind, 'stone_quarry' | 'large_quarry'>;
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
   const targetLabor = hasActiveOriginTrip ? Math.min(1, assignedLabor) : 0;
@@ -474,13 +476,22 @@ function quarryStall(
       (quarry) => quarry.resource === 'stone' && quarry.isRich === true,
       () => true,
     );
-    return source.usable
-      ? null
-      : {
-          ...base,
-          reason: 'source_unavailable',
-          detail: 'no rich underground source beneath the shaft',
-        };
+    if (!source.usable) {
+      return {
+        ...base,
+        reason: 'source_unavailable',
+        detail: 'no rich underground source beneath the shaft',
+      };
+    }
+    if (!largeQuarrySupportsReady(building.timber)) {
+      if (inboundCargo?.has('timber') === true) return 'supply_en_route';
+      return {
+        ...base,
+        reason: 'input_empty',
+        detail: 'no prepared chamber-support timber on site',
+      };
+    }
+    return null;
   }
 
   const source = sourceStateWithinRadius(
@@ -679,7 +690,13 @@ export function computeSettlementOperationalProductionReadiness(
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'
     ) {
-      ready = quarryStall(building, quarryBuckets, false) === null;
+      const stall = quarryStall(
+        building,
+        quarryBuckets,
+        false,
+        inboundCargoByBuilding.get(building.id),
+      );
+      ready = stall === null || stall === 'supply_en_route';
     } else {
       ready = wildStockStall(building, nodeBuckets, false) === null;
     }
@@ -776,7 +793,12 @@ export function computeSettlementWorksiteStallPlan(
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'
     ) {
-      stall = quarryStall(building, quarryBuckets, activeOriginTrip);
+      stall = quarryStall(
+        building,
+        quarryBuckets,
+        activeOriginTrip,
+        inboundCargoByBuilding.get(building.id),
+      );
     } else {
       stall = wildStockStall(building, nodeBuckets, activeOriginTrip);
     }

@@ -4,6 +4,7 @@ import {
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
   CLAY_PIT_CLAY_PER_CYCLE,
+  LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
   MINE_IRON_PER_CYCLE,
   MINE_SALT_PER_CYCLE,
   MINE_TIMBER_SUPPORT_PER_CYCLE,
@@ -19,6 +20,10 @@ import type {
 } from '../resources/types.ts';
 import { civilianToolThroughputMultiplier } from './civilianToolPolicy.ts';
 import { clayBankYieldAt } from './clayBankPolicy.ts';
+import {
+  largeQuarrySupportRunwayCycles,
+  largeQuarrySupportsReady,
+} from './largeQuarrySupportPolicy.ts';
 import {
   richMineSupportRunwayCycles,
   richMineSupportsReady,
@@ -206,13 +211,26 @@ export function computeSettlementGeologyPlan(
         continue;
       }
       plan.staffedExtractionSites += 1;
-      plan.activeDeepSources += 1;
-      plan.deepExtractionPerDay += cyclesPerCalendarDay(
+      const inboundTimber = inboundTimberByBuildingId.get(building.id) ?? 0;
+      const cycles = cyclesPerCalendarDay(
         'large_quarry',
         building.assignedLabor,
         sabbathObserved,
         civilianToolThroughputMultiplier(building.ironwork ?? 0),
-      ) * STONE_PER_HARVEST;
+      );
+      plan.deepSupportTimberPerDay +=
+        cycles * LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE;
+      plan.deepSupportRunwayCycles += largeQuarrySupportRunwayCycles(
+        building.timber,
+        inboundTimber,
+      );
+      if (!largeQuarrySupportsReady(building.timber, inboundTimber)) {
+        plan.deepSourcesAwaitingSupports += 1;
+        plan.firstSupportBuildingId ??= building.id;
+        continue;
+      }
+      plan.activeDeepSources += 1;
+      plan.deepExtractionPerDay += cycles * STONE_PER_HARVEST;
       continue;
     }
 

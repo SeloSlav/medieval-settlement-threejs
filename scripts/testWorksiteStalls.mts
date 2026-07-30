@@ -354,6 +354,53 @@ assert.equal(recoveringMinePlan.stalledSites, 0);
 assert.equal(recoveringMinePlan.supplyEnRouteSites, 1);
 assert.equal(recoveringMinePlan.supplyEnRouteWorkers, 3);
 
+const unsupportedQuarryState = emptyGameState();
+const unsupportedDeepQuarry = building(
+  'large-quarry-unsupported',
+  'large_quarry',
+  4,
+  0,
+  0,
+);
+unsupportedQuarryState.buildings.set(
+  unsupportedDeepQuarry.id,
+  unsupportedDeepQuarry,
+);
+unsupportedQuarryState.quarries.set(
+  'quarry-rich-support-test',
+  {
+    ...quarry('quarry-rich-support-test', 0, 0, 100),
+    isRich: true,
+  },
+);
+const unsupportedQuarryPlan = computeSettlementWorksiteStallPlan(
+  unsupportedQuarryState,
+  7,
+);
+assert.equal(unsupportedQuarryPlan.stalledSites, 1);
+assert.equal(unsupportedQuarryPlan.inputStalledSites, 1);
+assert.equal(unsupportedQuarryPlan.reclaimableWorkers, 4);
+assert.equal(
+  unsupportedQuarryPlan.firstAttention?.detail,
+  'no prepared chamber-support timber on site',
+);
+unsupportedQuarryState.deliveryTrips.set(
+  'quarry-support-timber-inbound',
+  trip(
+    'quarry-support-timber-inbound',
+    'lumber-mill',
+    unsupportedDeepQuarry.id,
+    'timber',
+  ),
+);
+const recoveringQuarryPlan = computeSettlementWorksiteStallPlan(
+  unsupportedQuarryState,
+  7,
+);
+assert.equal(recoveringQuarryPlan.stalledSites, 0);
+assert.equal(recoveringQuarryPlan.supplyEnRouteSites, 1);
+assert.equal(recoveringQuarryPlan.supplyEnRouteWorkers, 4);
+
 const townHallState = emptyGameState();
 const townHall = building('hall', 'town_hall', 1, 0, 0);
 const townHallWeaver = building('20', 'weaver', 2, 20, 0);
@@ -458,6 +505,9 @@ assert.match(expandedEconomy, /processor_output_headroom/);
 assert.match(stoneQuarrySimulation, /building\.stone >= caps\.stone - 1e-6/);
 assert.match(stoneQuarrySimulation, /find_nearest_quarry/);
 assert.match(largeQuarrySimulation, /RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2\.5/);
+assert.match(largeQuarrySimulation, /request_connected_commodity/);
+assert.match(largeQuarrySimulation, /large_quarry_supports_ready/);
+assert.match(largeQuarrySimulation, /LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE/);
 assert.match(foodSupplierSimulation, /building\.food >= food_cap - 1e-6/);
 assert.match(foodSupplierSimulation, /find_nearest_harvestable_foraging_node/);
 assert.match(serverReducer, /stalled_labor_target/);

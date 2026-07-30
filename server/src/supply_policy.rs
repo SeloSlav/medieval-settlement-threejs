@@ -5,7 +5,8 @@ use crate::balance_generated::{
     BREWERY_MALTING_FIREWOOD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
     GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
-    HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
+    HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES,
+    LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
     MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE,
     POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, RESIDENCE_FIREWOOD_CAPACITY,
     RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
@@ -76,6 +77,24 @@ pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
 pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
+
+/// Deep stone chambers use bedrock pillars for most permanent support, but
+/// still consume prepared timber columns and working cribs while a new face is
+/// undercut. The larger buffer offsets the quarry's faster, six-person cycle.
+pub fn large_quarry_support_target() -> f64 {
+    LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE * LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES
+}
+
+pub fn large_quarry_support_runway_cycles(timber: f64) -> f64 {
+    if LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE <= 1e-9 {
+        return 0.0;
+    }
+    timber.max(0.0) / LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE
+}
+
+pub fn large_quarry_supports_ready(timber: f64) -> bool {
+    large_quarry_support_runway_cycles(timber) + 1e-9 >= 1.0
+}
 
 /// Rich mineral seams represent deep, non-depleting workings. They require one
 /// complete timber-crib batch before labor can safely advance extraction.
@@ -678,13 +697,14 @@ mod tests {
         household_firewood_needs_priority, household_firewood_priority_target,
         household_food_reserve, institutional_food_surplus, is_firewood_supplier_operational,
         is_food_supplier_operational, is_specialty_supplier_operational,
-        is_well_supplier_operational, processor_input_dispatch_duty, processor_input_runway_cycles,
-        processor_input_target, rich_mine_support_runway_cycles, rich_mine_support_target,
-        rich_mine_supports_ready, select_grain_dispatch_candidate, select_need_delivery_candidate,
-        select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
-        select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
-        InstitutionalFoodDispatchDuty, NeedDeliveryCandidate, ProcessorInputDispatchDuty,
-        ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
+        is_well_supplier_operational, large_quarry_support_runway_cycles,
+        large_quarry_support_target, large_quarry_supports_ready, processor_input_dispatch_duty,
+        processor_input_runway_cycles, processor_input_target, rich_mine_support_runway_cycles,
+        rich_mine_support_target, rich_mine_supports_ready, select_grain_dispatch_candidate,
+        select_need_delivery_candidate, select_processor_input_dispatch_candidate,
+        select_seed_grain_delivery_candidate, select_supply_route_candidate, GrainDispatchDuty,
+        GranaryDispatchDuty, InstitutionalFoodDispatchDuty, NeedDeliveryCandidate,
+        ProcessorInputDispatchDuty, ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
         GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
         GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
         LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_SUPPLIER_KINDS,
@@ -700,6 +720,14 @@ mod tests {
         assert_eq!(rich_mine_support_runway_cycles(1.5), 3.0);
         assert!(!rich_mine_supports_ready(0.49));
         assert!(rich_mine_supports_ready(0.5));
+    }
+
+    #[test]
+    fn large_quarries_stage_six_lighter_timber_support_cycles() {
+        assert!((large_quarry_support_target() - 1.5).abs() < 1e-9);
+        assert_eq!(large_quarry_support_runway_cycles(1.5), 6.0);
+        assert!(!large_quarry_supports_ready(0.24));
+        assert!(large_quarry_supports_ready(0.25));
     }
 
     #[test]

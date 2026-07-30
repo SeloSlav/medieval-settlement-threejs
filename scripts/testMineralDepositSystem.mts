@@ -15,12 +15,16 @@ import {
 } from '../src/minerals/MineralDepositLayout.ts';
 import {
   BUILDING_STORAGE_CAPS,
+  LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
   MINE_IRON_PER_CYCLE,
   MINE_SALT_PER_CYCLE,
   MINE_TIMBER_SUPPORT_BUFFER_CYCLES,
   MINE_TIMBER_SUPPORT_PER_CYCLE,
   RICH_MINE_THROUGHPUT_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
+import {
+  LARGE_QUARRY_SUPPORT_TARGET,
+} from '../src/economy/largeQuarrySupportPolicy.ts';
 import {
   RICH_MINE_SUPPORT_TARGET,
   richMineSupportRunwayCycles,
@@ -420,6 +424,59 @@ assert.match(
   largeQuarryInspector.statusText,
   /no rich underground source beneath the shaft/,
   'a rich mineral deposit must not masquerade as a rich stone source in the inspector',
+);
+const richStoneAtQuarry: ResourceNodeState = {
+  ...richSaltNearQuarry,
+  nodeId: 'quarry-rich-stone-inspector',
+  resource: 'stone',
+};
+const unsupportedLargeQuarryState = inspectorGameState(
+  largeQuarryBuilding,
+  [richStoneAtQuarry],
+);
+let supportedLargeQuarryInspector = renderLargeQuarryInspector(
+  buildingTarget(largeQuarryBuilding),
+  inspectorContext(unsupportedLargeQuarryState),
+);
+assert.match(
+  supportedLargeQuarryInspector.statusText,
+  /await prepared timber supports/,
+);
+assert.match(
+  supportedLargeQuarryInspector.detailsHtml,
+  /0.00 onsite \/ 1.50 timber target/,
+);
+const quarrySupportTrip: DeliveryTripState = {
+  ...inboundSupportTrip,
+  id: 'quarry-support-inbound',
+  targetBuildingId: largeQuarryBuilding.id,
+  amount: LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
+};
+supportedLargeQuarryInspector = renderLargeQuarryInspector(
+  buildingTarget(largeQuarryBuilding),
+  inspectorContext(unsupportedLargeQuarryState, quarrySupportTrip),
+);
+assert.match(
+  supportedLargeQuarryInspector.statusText,
+  /prepared chamber supports are approaching/,
+);
+const supportedLargeQuarryBuilding = {
+  ...largeQuarryBuilding,
+  timber: LARGE_QUARRY_SUPPORT_TARGET,
+};
+supportedLargeQuarryInspector = renderLargeQuarryInspector(
+  buildingTarget(supportedLargeQuarryBuilding),
+  inspectorContext(
+    inspectorGameState(supportedLargeQuarryBuilding, [richStoneAtQuarry]),
+  ),
+);
+assert.match(
+  supportedLargeQuarryInspector.statusText,
+  /Extracting from the non-depleting underground source/,
+);
+assert.match(
+  supportedLargeQuarryInspector.detailsHtml,
+  /0.25 timber per completed stone batch/,
 );
 
 const nearbySalt = mineralNode('deposit-salt-nearby', 'salt', 0, 0, 90, 90, false);

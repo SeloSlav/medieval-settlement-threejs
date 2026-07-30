@@ -134,6 +134,7 @@ exhaustedQuarry.x = 100;
 exhaustedQuarry.workRadius = 30;
 const readyLargeQuarry = building('30', 'large_quarry', 0);
 readyLargeQuarry.x = 200;
+readyLargeQuarry.timber = 0.25;
 const readyHunter = building('40', 'hunters_hall', 0);
 readyHunter.x = 300;
 readyHunter.workRadius = 68;

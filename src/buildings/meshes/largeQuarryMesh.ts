@@ -175,6 +175,41 @@ function addStoneYard(group: THREE.Group): void {
   }
 }
 
+function addChamberSupportStockpile(group: THREE.Group): void {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'LargeQuarrySupportStockpile';
+  stockpile.visible = false;
+  stockpile.position.set(-8.8, 0, 3.5);
+  stockpile.rotation.y = 0.12;
+
+  for (let segmentIndex = 0; segmentIndex < 6; segmentIndex += 1) {
+    const segment = new THREE.Group();
+    segment.name = 'LargeQuarrySupportSegment';
+    segment.visible = false;
+    segment.position.set(
+      (segmentIndex % 3) * 2.25,
+      0,
+      Math.floor(segmentIndex / 3) * 1.0,
+    );
+    for (let beamIndex = 0; beamIndex < 3; beamIndex += 1) {
+      const beam = addMesh(
+        segment,
+        new THREE.BoxGeometry(1.95, 0.22, 0.28),
+        timberMaterial(beamIndex === 1 ? 'dark' : 'weathered'),
+        new THREE.Vector3(
+          0,
+          0.24 + beamIndex * 0.22,
+          (beamIndex - 1) * 0.11,
+        ),
+        new THREE.Euler(0, (beamIndex - 1) * 0.03, 0),
+      );
+      beam.name = 'Prepared quarry chamber beam';
+    }
+    stockpile.add(segment);
+  }
+  group.add(stockpile);
+}
+
 /** Permanent shaft quarry for the underground source of a rich stone deposit. */
 export function createLargeQuarryMesh(): THREE.Group {
   const group = new THREE.Group();
@@ -190,6 +225,7 @@ export function createLargeQuarryMesh(): THREE.Group {
   addWinchHouse(group);
   addWorkPlatforms(group);
   addStoneYard(group);
+  addChamberSupportStockpile(group);
   group.add(createCivilianToolStockpile(new THREE.Vector3(7.8, 0, 5.45), -0.18));
   return group;
 }

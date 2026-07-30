@@ -95,6 +95,7 @@ const buildings = [
     z: 0,
     assignedLabor: 1,
     ironwork: 1,
+    timber: 1.5,
   }),
   makeBuilding({
     id: 'clay-pit-finite',
@@ -213,6 +214,9 @@ assert.equal(plan.iron.finiteReserve, 90, 'rich mineral seams must not masquerad
 assert.equal(plan.clay.finiteReserve, 240, 'rich alluvium must not masquerade as finite stock');
 assert.equal(plan.salt.finiteReserve, 50);
 assert.equal(plan.stone.activeDeepSources, 1);
+assert.equal(plan.stone.deepSourcesAwaitingSupports, 0);
+assert.equal(plan.stone.deepSupportRunwayCycles, 6);
+assert.ok(plan.stone.deepSupportTimberPerDay > 0);
 assert.equal(plan.clay.activeDeepSources, 1);
 assert.equal(plan.iron.activeDeepSources, 1);
 assert.equal(plan.iron.deepSourcesAwaitingSupports, 0);
@@ -235,6 +239,43 @@ assert.equal(
   geologicalFiniteRunwayDays(plan.iron),
   plan.iron.finiteReserve / plan.iron.finiteExtractionPerDay,
 );
+
+const deepStoneQuarry = state.buildings.get('deep-quarry');
+assert.ok(deepStoneQuarry);
+deepStoneQuarry.timber = 0;
+const stoneSupportStarvedPlan = computeSettlementGeologyPlan(state, false);
+assert.equal(stoneSupportStarvedPlan.stone.activeDeepSources, 0);
+assert.equal(stoneSupportStarvedPlan.stone.deepExtractionPerDay, 0);
+assert.equal(stoneSupportStarvedPlan.stone.deepSourcesAwaitingSupports, 1);
+assert.equal(
+  stoneSupportStarvedPlan.stone.firstSupportBuildingId,
+  'deep-quarry',
+);
+state.deliveryTrips.set('quarry-support-cart', {
+  id: 'quarry-support-cart',
+  buildingId: 'lumber-mill-source',
+  residenceId: null,
+  destinationKind: 'building',
+  targetBuildingId: 'deep-quarry',
+  cargoKind: 'timber',
+  amount: 0.5,
+  phase: 'outbound',
+  x: 0,
+  z: 0,
+  progress: 0,
+  speedMps: 1,
+  unloadSeconds: 1,
+  unloadRemaining: 1,
+  deliveryWorkers: 1,
+  freeHaulerWorkers: 0,
+  pathDistance: 1,
+  travelSpeedMultiplier: 1,
+  routePolylineJson: '[]',
+});
+const inboundStoneSupportPlan = computeSettlementGeologyPlan(state, false);
+assert.equal(inboundStoneSupportPlan.stone.activeDeepSources, 1);
+assert.equal(inboundStoneSupportPlan.stone.deepSourcesAwaitingSupports, 0);
+assert.equal(inboundStoneSupportPlan.stone.deepSupportRunwayCycles, 2);
 
 const deepIronMine = state.buildings.get('iron-mine-deep');
 assert.ok(deepIronMine);

@@ -1,3 +1,11 @@
+import { civilianToolThroughputMultiplier } from '../../economy/civilianToolPolicy.ts';
+import {
+  LARGE_QUARRY_SUPPORT_TARGET,
+  largeQuarrySupportRunwayCycles,
+  largeQuarrySupportsReady,
+} from '../../economy/largeQuarrySupportPolicy.ts';
+import { LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE } from '../../generated/gameBalance.ts';
+import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps, laborScaledInterval } from '../resourceTotals.ts';
@@ -7,11 +15,10 @@ import {
   civilianToolRows,
   buildingDemolishHint,
   buildingLaborView,
+  buildingRoadAccessRow,
   buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
-import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
-import { civilianToolThroughputMultiplier } from '../../economy/civilianToolPolicy.ts';
 
 export function renderLargeQuarryInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -30,12 +37,26 @@ export function renderLargeQuarryInspector(
     building,
     context.worldQueries.getActiveDeliveryTrip(building),
   );
-  const active = onsiteLabor > 0 && richDeposit != null && !storageFull;
+  const inboundSupply = context.worldQueries.getInboundSupplyTrip(building);
+  const inboundSupportTimber = inboundSupply?.cargoKind === 'timber'
+    ? Math.max(0, inboundSupply.amount)
+    : 0;
+  const onsiteSupportsReady = largeQuarrySupportsReady(building.timber);
+  const supportsRecovering = !onsiteSupportsReady
+    && largeQuarrySupportsReady(building.timber, inboundSupportTimber);
+  const supportRunway = largeQuarrySupportRunwayCycles(
+    building.timber,
+    inboundSupportTimber,
+  );
+  const active = onsiteLabor > 0
+    && richDeposit != null
+    && onsiteSupportsReady
+    && !storageFull;
   const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor)
     / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
   return {
-    eyebrow: 'Underground quarry',
+    eyebrow: 'Deep stone quarry',
     title: context.worldQueries.getBuildingLabel(building.kind),
     statusText: onsiteLabor === 0
       ? building.assignedLabor > 0
@@ -45,14 +66,29 @@ export function renderLargeQuarryInspector(
         ? 'Paused — stone storage is full'
         : !richDeposit
           ? 'Stopped — no rich underground source beneath the shaft'
-          : 'Extracting from the inexhaustible underground source',
-    statusState: active ? 'active' : 'idle',
+          : !onsiteSupportsReady
+            ? supportsRecovering
+              ? 'Waiting — prepared chamber supports are approaching'
+              : 'Stopped — deep chambers await prepared timber supports'
+            : 'Extracting from the non-depleting underground source',
+    statusState: active
+      ? 'active'
+      : richDeposit != null && (onsiteSupportsReady || supportsRecovering)
+        ? 'idle'
+        : 'warning',
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${civilianToolRows(building)}
-      <li><span>Source</span><span>Rich underground stone · inexhaustible</span></li>
+      <li><span>Source</span><span>Rich underground stone · non-depleting during settlement play</span></li>
       <li><span>Surface reserve</span><span>Separate · ${Math.round(richDeposit?.remaining ?? 0)} remaining</span></li>
+      <li><span>Chamber supports</span><span>${Math.max(0, building.timber).toFixed(2)} onsite${
+        inboundSupportTimber > 1e-6
+          ? ` + ${inboundSupportTimber.toFixed(2)} inbound`
+          : ''
+      } / ${LARGE_QUARRY_SUPPORT_TARGET.toFixed(2)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
+      <li><span>Support wear</span><span>${LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE.toFixed(2)} timber per completed stone batch · nearest road-linked lumber mill or village storehouse supplies it</span></li>
       <li><span>Production interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
+      ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {

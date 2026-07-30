@@ -32,7 +32,7 @@ export function renderQuarryInspector(
     detailsHtml: `
       <li><span>Nearest road</span><span>${nearestRoad == null ? 'None nearby' : `${nearestRoad.toFixed(1)} m`}</span></li>
       <li><span>Extraction</span><span>${isStone ? "Assign at a Stonecutter's Camp nearby" : 'Build a Mineral mine directly over this deposit'}</span></li>
-      ${state.isRich ? `<li><span>Deep source</span><span>Rich · supports a ${isStone ? 'Large Quarry' : 'faster, non-exhausting Mineral mine'}</span></li>` : '<li><span>Reserve</span><span>Finite · imports remain available after exhaustion</span></li>'}
+      ${state.isRich ? `<li><span>Deep source</span><span>Rich · supports a ${isStone ? 'road-linked, timber-braced Large Quarry' : 'faster, non-depleting Mineral mine'}</span></li>` : '<li><span>Reserve</span><span>Finite · imports remain available after exhaustion</span></li>'}
     `,
     demolish: hiddenDemolish(),
     labor: hiddenLabor(),

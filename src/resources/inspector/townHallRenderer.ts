@@ -406,7 +406,9 @@ function formatGeologicalResourcePlan(
         plan.richDeposits === 1 ? 'source' : 'sources'
       } active`;
   const deepSupport = (
-    (plan.resource === 'iron' || plan.resource === 'salt')
+    (plan.resource === 'stone'
+      || plan.resource === 'iron'
+      || plan.resource === 'salt')
     && plan.richDeposits > 0
   )
     ? ` &middot; deep workings need ${plan.deepSupportTimberPerDay.toFixed(1)} timber / day &middot; ${plan.deepSupportRunwayCycles.toFixed(1)} aggregate onsite + inbound support cycles${
@@ -418,7 +420,7 @@ function formatGeologicalResourcePlan(
       }${
         plan.firstSupportBuildingId === null
           ? ''
-          : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSupportBuildingId}" aria-label="Inspect first rich mine awaiting timber supports">Inspect support</button>`
+          : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSupportBuildingId}" aria-label="Inspect first deep extraction site awaiting timber supports">Inspect support</button>`
       }`
     : '';
   const extraction = `${plan.finiteExtractionPerDay.toFixed(1)} finite + ${

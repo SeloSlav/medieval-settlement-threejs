@@ -327,6 +327,8 @@ pub const SMOKEHOUSE_SALT_PER_CYCLE: f64 = 0.5;
 pub const SMOKEHOUSE_POTTERY_PER_CYCLE: f64 = 0.25;
 pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = 4.0;
 pub const CLAY_PIT_CLAY_PER_CYCLE: f64 = 4.0;
+pub const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE: f64 = 0.25;
+pub const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = 6.0;
 pub const MINE_IRON_PER_CYCLE: f64 = 2.0;
 pub const MINE_SALT_PER_CYCLE: f64 = 2.5;
 pub const MINE_TIMBER_SUPPORT_PER_CYCLE: f64 = 0.5;
@@ -1027,7 +1029,7 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
     cost_timber: 90.0,
     cost_stone: 70.0,
     cost_ironwork: 6.0,
-    storage_timber: 0.0,
+    storage_timber: 12.0,
     storage_firewood: 0.0,
     storage_stone: 360.0,
     storage_water: 0.0,
@@ -1057,7 +1059,7 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
     work_radius: 0.0,
     action_interval: 7.0,
     pick_radius: 13.0,
-    requires_road: false,
+    requires_road: true,
     requires_mature_trees: false,
     requires_quarry_stone: false,
     requires_game: false,

@@ -67,7 +67,7 @@ use crate::specialty_trade_policy::is_valid_specialty_export_policy;
 use crate::storehouse_policy::{
     is_valid_storehouse_stock_target_percent, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
 };
-use crate::supply_policy::rich_mine_supports_ready;
+use crate::supply_policy::{large_quarry_supports_ready, rich_mine_supports_ready};
 use crate::tables::graveyard;
 use crate::tables::{
     farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
@@ -1100,6 +1100,7 @@ fn production_site_ready(
         "large_quarry" => {
             !commodity_output_blocked(building, CommodityKind::Stone)
                 && rich_stone_source_usable(building, quarry_buckets)
+                && large_quarry_supports_ready(building.timber)
         }
         "hunters_hall" => {
             !commodity_output_blocked(building, CommodityKind::Food)
@@ -1193,12 +1194,23 @@ pub fn recall_target_idle_processor_labor_for_owner(
                 false,
                 has_active_trip,
             ),
-            "large_quarry" => (
-                commodity_output_blocked(&building, CommodityKind::Stone)
-                    || !rich_stone_source_usable(&building, &quarry_buckets),
-                false,
-                has_active_trip,
-            ),
+            "large_quarry" => {
+                let source_usable = rich_stone_source_usable(&building, &quarry_buckets);
+                let output_blocked = commodity_output_blocked(&building, CommodityKind::Stone);
+                let support_missing = !large_quarry_supports_ready(building.timber);
+                (
+                    output_blocked || !source_usable || support_missing,
+                    source_usable
+                        && !output_blocked
+                        && support_missing
+                        && building_has_inbound_commodity_trip(
+                            ctx,
+                            building.id,
+                            CommodityKind::Timber,
+                        ),
+                    has_active_trip,
+                )
+            }
             "hunters_hall" | "fishing_camp"
                 if building.kind == "hunters_hall" || harvest_available("fish", month) =>
             {

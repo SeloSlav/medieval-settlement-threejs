@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   BUILDING_STORAGE_CAPS,
+  LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
   MINE_TIMBER_SUPPORT_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import {
@@ -17,6 +18,10 @@ import {
 export const WOODCUTTERS_FIREWOOD_VISUAL_SEGMENTS = 4;
 export const STONE_QUARRY_STONE_VISUAL_SEGMENTS = 3;
 export const LARGE_QUARRY_STONE_VISUAL_SEGMENTS = 4;
+export const LARGE_QUARRY_SUPPORT_VISUAL_SEGMENTS = 6;
+export const LARGE_QUARRY_SUPPORT_VISUAL_CAPACITY =
+  LARGE_QUARRY_SUPPORT_VISUAL_SEGMENTS
+  * LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE;
 export const MINE_IRON_VISUAL_SEGMENTS = 6;
 export const MINE_SALT_VISUAL_SEGMENTS = 6;
 export const MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS = 4;
@@ -73,6 +78,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.ironwork ?? 0,
         BUILDING_STORAGE_CAPS.large_quarry.ironwork ?? 0,
         CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
+      )}:supports:${stockpileVisualLevel(
+        building.timber,
+        LARGE_QUARRY_SUPPORT_VISUAL_CAPACITY,
+        LARGE_QUARRY_SUPPORT_VISUAL_SEGMENTS,
       )}`;
     case 'mine':
       return `:bulk-store:${stockpileVisualLevel(
@@ -202,6 +211,13 @@ export function syncBulkStockpileVisuals(
         'LargeQuarryStockSegment',
         building.stone,
         BUILDING_STORAGE_CAPS.large_quarry.stone,
+      );
+      syncNamedStockpile(
+        marker,
+        'LargeQuarrySupportStockpile',
+        'LargeQuarrySupportSegment',
+        building.timber,
+        LARGE_QUARRY_SUPPORT_VISUAL_CAPACITY,
       );
       syncCivilianToolStockpile(marker, building);
       break;
