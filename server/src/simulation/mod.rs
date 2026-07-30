@@ -95,8 +95,9 @@ pub use production_labor_steward::{
 pub use raid_agents::{start_live_raid, step_live_raids, LiveRaidTarget};
 pub use reclamation::{
     insert_reclamation_pile, materialize_all_physical_resource_ledgers,
-    materialize_physical_resource_ledger, materialize_physical_resource_ledger_at,
-    recover_stock_at, recover_stock_beside_building, step_reclamation_piles, ReclamationStock,
+    materialize_physical_construction_reservations, materialize_physical_resource_ledger,
+    materialize_physical_resource_ledger_at, recover_stock_at, recover_stock_beside_building,
+    step_reclamation_piles, ReclamationStock,
 };
 pub use reforester::step_reforester;
 pub use residence_lifecycle::step_residence;

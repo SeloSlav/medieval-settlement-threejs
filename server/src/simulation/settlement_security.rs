@@ -917,6 +917,13 @@ fn treasury_portable_stores(
     treasury: &PlayerResources,
     buildings: &[Building],
 ) -> RaidPortableStores {
+    // A physical settlement's compatibility row has no position and may only
+    // exist briefly until the materializer creates a visible salvage pile.
+    // That pile is already evaluated as a Building target, so treating this
+    // row as a treasury would duplicate both value and plunder.
+    if treasury.physical_founding_site_enabled {
+        return RaidPortableStores::default();
+    }
     let reserved_timber = buildings
         .iter()
         .map(|building| building.construction_treasury_timber.max(0.0))

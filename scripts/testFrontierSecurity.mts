@@ -1187,6 +1187,19 @@ assert.deepEqual(
 assert.equal(treasuryTargets[0]?.portableValue, 60);
 assert.equal(treasuryTargets[0]?.portableSummary, '20 cloth + 20 timber');
 assert.equal(treasuryTargets[0]?.label, 'Settlement treasury at Town Hall');
+const physicalTreasuryLeakState = emptyGameState();
+physicalTreasuryLeakState.physicalFoundingSiteEnabled = true;
+physicalTreasuryLeakState.stockpile.gold = 200;
+physicalTreasuryLeakState.stockpile.cloth = 30;
+physicalTreasuryLeakState.buildings.set(
+  'physical-hall',
+  building('physical-hall', 'town_hall', 20, 0, 1),
+);
+assert.deepEqual(
+  projectRaidTargets(physicalTreasuryLeakState, 3),
+  [],
+  'a stale compatibility row must not become a second, disembodied raid target in a physical settlement',
+);
 treasuryTargetState.buildings.set(tower.id, tower);
 assert.deepEqual(
   projectRaidTargets(treasuryTargetState, 2).map(
@@ -1551,6 +1564,11 @@ const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'ut
 const app = readFileSync('src/app/App.ts', 'utf8');
 const clientSecurity = readFileSync('src/security/frontierSecurity.ts', 'utf8');
 const serverSimulation = readFileSync('server/src/simulation/settlement_security.rs', 'utf8');
+assert.match(
+  serverSimulation,
+  /fn treasury_portable_stores[\s\S]*?if treasury\.physical_founding_site_enabled[\s\S]*?return RaidPortableStores::default\(\)/,
+  'authoritative raid targeting must ignore the positionless compatibility row in physical settlements',
+);
 const serverRaidAgents = readFileSync('server/src/simulation/raid_agents.rs', 'utf8');
 const serverRaidAgentPolicy = readFileSync('server/src/raid_agent_policy.rs', 'utf8');
 const serverRoadNetwork = readFileSync('server/src/roads/network.rs', 'utf8');

@@ -621,6 +621,7 @@ pub fn materialize_physical_resource_ledger_at(
     {
         stock.add_to_building(&mut pile);
         ctx.db.building().id().update(pile);
+        materialize_physical_construction_reservations(ctx, owner);
         clear_resource_ledger(&mut resources);
         ctx.db.player_resources().owner().update(resources);
         return Ok(true);
@@ -660,9 +661,48 @@ pub fn materialize_physical_resource_ledger_at(
     if !insert_reclamation_pile(ctx, owner, position.0, position.1, stock)? {
         return Ok(false);
     }
+    materialize_physical_construction_reservations(ctx, owner);
     clear_resource_ledger(&mut resources);
     ctx.db.player_resources().owner().update(resources);
     Ok(true)
+}
+
+/// Legacy worksites reserve some of their materials directly against the
+/// compatibility row. Once that row becomes a visible pile, preserve the
+/// overall reservation but make its entire balance eligible for physical cart
+/// dispatch. Otherwise the old share would be neither haulable nor spendable,
+/// while another project could incorrectly reserve the same pile stock.
+pub fn materialize_physical_construction_reservations(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) {
+    if !ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled)
+    {
+        return;
+    }
+    let sites = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| {
+            !building.construction_complete
+                && (building.construction_treasury_timber > EPSILON
+                    || building.construction_treasury_stone > EPSILON
+                    || building.construction_treasury_ironwork > EPSILON)
+        })
+        .collect::<Vec<_>>();
+    for mut site in sites {
+        site.construction_treasury_timber = 0.0;
+        site.construction_treasury_stone = 0.0;
+        site.construction_treasury_ironwork = 0.0;
+        ctx.db.building().id().update(site);
+    }
 }
 
 /// The player table is tiny, while a full building scan is only needed for an

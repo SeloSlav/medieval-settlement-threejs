@@ -385,11 +385,10 @@ pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, 
 }
 
 pub fn treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    let ledger_gold = ctx
-        .db
-        .player_resources()
-        .owner()
-        .find(&owner)
+    let resources = ctx.db.player_resources().owner().find(&owner);
+    let ledger_gold = resources
+        .as_ref()
+        .filter(|resources| !resources.physical_founding_site_enabled)
         .map(|resources| resources.gold.max(0.0))
         .unwrap_or(0.0);
     let physical_gold = ledger_gold
@@ -462,13 +461,11 @@ pub fn spend_treasury_gold(
             seat.gold -= paid;
             remaining -= paid;
             ctx.db.building().id().update(seat);
-            if remaining <= 1e-9 {
+            if remaining <= 1e-6 {
                 return Ok(());
             }
         }
-        treasury.gold = (treasury.gold - remaining).max(0.0);
-        ctx.db.player_resources().owner().update(treasury);
-        return Ok(());
+        return Err("Not enough physically stored gold.".to_string());
     }
     treasury.gold -= amount;
     ctx.db.player_resources().owner().update(treasury);
@@ -507,6 +504,7 @@ fn treasury_timber(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
         .player_resources()
         .owner()
         .find(&owner)
+        .filter(|row| !row.physical_founding_site_enabled)
         .map(|row| row.timber)
         .unwrap_or(0.0)
 }
@@ -516,6 +514,7 @@ fn treasury_stone(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
         .player_resources()
         .owner()
         .find(&owner)
+        .filter(|row| !row.physical_founding_site_enabled)
         .map(|row| row.stone)
         .unwrap_or(0.0)
 }
@@ -525,6 +524,7 @@ fn treasury_ironwork(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 
         .player_resources()
         .owner()
         .find(&owner)
+        .filter(|row| !row.physical_founding_site_enabled)
         .map(|row| row.ironwork)
         .unwrap_or(0.0)
 }

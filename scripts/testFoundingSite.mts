@@ -720,6 +720,33 @@ assert.match(
   /source\.kind == "founders_camp"/,
   'founding handcarts must be allowed to leave the road network',
 );
+const storageServer = read('server/src/economy/storage.rs');
+for (const accessor of ['treasury_timber', 'treasury_stone', 'treasury_ironwork']) {
+  assert.match(
+    storageServer,
+    new RegExp(
+      `fn ${accessor}[\\s\\S]*?filter\\(\\|row\\| !row\\.physical_founding_site_enabled\\)`,
+    ),
+    `${accessor} must hide the compatibility row after goods become physical`,
+  );
+}
+assert.match(
+  storageServer,
+  /let ledger_gold = resources[\s\S]*?filter\(\|resources\| !resources\.physical_founding_site_enabled\)/,
+  'physical civic spending must not fall back to disembodied compatibility gold',
+);
+const reclamationServer = read('server/src/simulation/reclamation.rs');
+assert.match(
+  reclamationServer,
+  /fn materialize_physical_construction_reservations[\s\S]*?physical_founding_site_enabled[\s\S]*?construction_treasury_timber = 0\.0;[\s\S]*?construction_treasury_stone = 0\.0;[\s\S]*?construction_treasury_ironwork = 0\.0;/,
+  'legacy construction claims must become cart-haulable after their ledger is materialized',
+);
+const lifecycleServer = read('server/src/lifecycle.rs');
+assert.match(
+  lifecycleServer,
+  /client_connected[\s\S]*?materialize_physical_construction_reservations\(ctx, owner\);/,
+  'returning saves must repair old reservation shares once even when their ledger was already cleared',
+);
 const foundingLifecycle = read('server/src/simulation/founding_site.rs');
 assert.match(foundingLifecycle, /housed >= STARTING_POPULATION/);
 assert.match(foundingLifecycle, /"town_hall"/);

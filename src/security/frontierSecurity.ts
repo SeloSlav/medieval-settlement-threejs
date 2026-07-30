@@ -969,14 +969,21 @@ export function projectRaidTargets(
       portableValue: residence.householdWealth,
     });
   }
-  const treasuryStores: PortableRaidStoresLike = {
-    ...gameState.stockpile,
-    timber: raidableTreasuryTimber(
-      gameState.stockpile.timber,
-      reservedTreasuryTimber,
-    ),
-  };
-  const treasuryValue = portableRaidValue(treasuryStores);
+  // The compatibility row has no world position in a physical settlement.
+  // The server converts any stray balance into a salvage pile, which is
+  // already covered by the building-target loop above. Never invent a second
+  // raid target while that repair is propagating to the client.
+  const treasuryStores: PortableRaidStoresLike | null =
+    gameState.physicalFoundingSiteEnabled === true
+      ? null
+      : {
+          ...gameState.stockpile,
+          timber: raidableTreasuryTimber(
+            gameState.stockpile.timber,
+            reservedTreasuryTimber,
+          ),
+        };
+  const treasuryValue = treasuryStores ? portableRaidValue(treasuryStores) : 0;
   const buildingAnchor = townHallAnchor ?? completedHoldingAnchor;
   const treasuryAnchor = buildingAnchor
     ? {
@@ -1018,7 +1025,7 @@ export function projectRaidTargets(
       : target.kind === 'cart'
         ? deliveryTripRaidSummary(gameState.deliveryTrips.get(target.id))
       : target.kind === 'treasury'
-        ? portableRaidSummary(treasuryStores)
+        ? portableRaidSummary(treasuryStores ?? undefined)
         : `${formatPortableStoreAmount(
             gameState.residences.get(target.id)?.householdWealth ?? target.portableValue,
           )} household gold`;

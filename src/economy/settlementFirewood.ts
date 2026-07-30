@@ -121,7 +121,12 @@ export function computeSettlementFirewoodPlan(
   const fireDisabledResidences = fireDisabledResidenceIds(state.fireIncidents.values());
   const branches = new Map<string, MutableFirewoodBranch>();
   let quarantinedStock = 0;
-  let inactiveStock = finiteStock(state.stockpile.firewood);
+  // The compatibility row is not a place. Physical settlements materialize
+  // any stray balance into a salvage pile, so even the "inactive" diagnostic
+  // must ignore it while that repair is propagating to the client.
+  let inactiveStock = state.physicalFoundingSiteEnabled === true
+    ? 0
+    : finiteStock(state.stockpile.firewood);
 
   const ensureBranch = (
     entity: FirewoodRoadEntity,

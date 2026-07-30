@@ -194,6 +194,20 @@ assert.equal(
 assert.ok(plan.lodgeOutputCapacityPerDay > 0);
 assert.ok(plan.lodgeTimberDrawPerDay > 0);
 assert.ok(Number.isFinite(plan.combinedRunwayDays));
+state.stockpile.firewood = 99;
+assert.equal(
+  computeSettlementFirewoodPlan(state, false).inactiveStock,
+  104,
+  'legacy saves may still report compatibility-ledger fuel as inactive stock',
+);
+state.physicalFoundingSiteEnabled = true;
+assert.equal(
+  computeSettlementFirewoodPlan(state, false).inactiveStock,
+  5,
+  'physical settlements must never count a stale compatibility row as fuel',
+);
+state.physicalFoundingSiteEnabled = false;
+state.stockpile.firewood = 0;
 const baselineLodgeOutput = plan.lodgeOutputCapacityPerDay;
 const baselineLodgeTimber = plan.lodgeTimberDrawPerDay;
 lodge.ironwork = 0.75;

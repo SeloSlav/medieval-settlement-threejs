@@ -12,7 +12,10 @@ use crate::labor_steward_policy::{
 };
 use crate::reducers::world_configuration::default_world_config;
 use crate::schedule::SimTickSchedule;
-use crate::simulation::{ensure_settlement_security, materialize_physical_resource_ledger};
+use crate::simulation::{
+    ensure_settlement_security, materialize_physical_construction_reservations,
+    materialize_physical_resource_ledger,
+};
 use crate::tables::{ForagingNode, PlayerResources, Quarry, TreeEntity};
 use crate::world_gen;
 
@@ -36,6 +39,10 @@ pub fn client_connected(ctx: &ReducerContext) {
     // population-loss events reconcile immediately at the mutation site, so
     // the hot simulation loop never needs a settlement-wide fallback scan.
     reconcile_building_labor(ctx, owner);
+    // Old module versions could clear the compatibility row without converting
+    // construction_treasury_* shares. Repair that bounded legacy case once on
+    // reconnect rather than scanning every ordinary resource reducer.
+    materialize_physical_construction_reservations(ctx, owner);
 }
 
 pub fn seed_world_entities(ctx: &ReducerContext) {
