@@ -104,14 +104,14 @@ export class WorldSetupPanel {
               <strong data-resource-abundance-value>${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}</strong>
             </label>
             <input id="world-setup-resource-abundance" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceAbundance}" />
-            <p class="world-setup-slider-hint">Stone, clay, iron, and salt all enter through physical deposits. The seed, map size, abundance, and terrain decide how many are rich; every map begins with finite ordinary sources for all four.</p>
+            <p class="world-setup-slider-hint">Stone, clay, iron, and salt are all physical local deposits. Every map has finite ordinary sources for all four. Rich stone and clay roll independently; iron and salt share up to one rich-mineral opportunity on small or medium maps and two on large maps, with the seed and local variety deciding which mineral receives them.</p>
 
             <label class="world-setup-slider-label world-setup-slider-label--secondary" for="world-setup-resource-variety">
               <span>Local variety</span>
               <strong data-resource-variety-value>${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}</strong>
             </label>
             <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
-            <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich rolls into fewer resource families. Staffed marketplaces cover exhausted deposits and production shortfalls.</p>
+            <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich mineral rolls into fewer resource families. Staffed marketplaces can import iron and Adriatic salt after local seams run short; trade supplements physical geology rather than replacing it.</p>
             <p class="world-setup-resource-summary" data-resource-summary>${this.resourceSummary()}</p>
           </section>
 

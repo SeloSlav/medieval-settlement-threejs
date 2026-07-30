@@ -6,6 +6,7 @@ import {
   bulkStockpileVisualSignature,
   syncBulkStockpileVisuals,
 } from '../src/buildings/bulkStockpileVisuals.ts';
+import { clayDepositNodeId } from '../src/clay/ClayDepositLayout.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
   createMineralDepositRoster,
@@ -61,6 +62,7 @@ import {
   type WorldGenerationSettings,
   type WorldMapSize,
 } from '../src/world/worldGenerationSettings.ts';
+import { computeWorldBootstrapDataFromLayout } from '../src/world/worldBootstrapData.ts';
 
 const mapSizes: WorldMapSize[] = ['small', 'medium', 'large'];
 for (const mapSize of mapSizes) {
@@ -98,6 +100,143 @@ for (const mapSize of mapSizes) {
     }
   }
 }
+
+// The setup panel promises physical ordinary deposits, not merely a regional
+// budget. Exercise the dry/wet and lean/plentiful extremes because competing
+// river, quarry, clay-bank, forage, and mineral clearances are where a
+// deterministic placement fallback is most likely to silently drop a node.
+const extremePlacementFailures: string[] = [];
+let extremeWorldCount = 0;
+for (const mapSize of mapSizes) {
+  for (const hydrology of [0, 100]) {
+    for (const resourceAbundance of [0, 100]) {
+      for (const resourceVariety of [0, 100]) {
+        for (let seed = 1; seed <= 16; seed++) {
+          const settings = worldSettings({
+            mapSize,
+            seed,
+            hydrology,
+            resourceAbundance,
+            resourceVariety,
+          });
+          const layout = createWorldLayout(settings);
+          const stoneSites = layout.quarryLayout.sites;
+          const claySites = layout.clayDepositLayout.sites;
+          const mineralSites = layout.mineralDepositLayout.sites;
+          const expectedStone =
+            layout.resourcePlan.ordinaryQuarryCount
+            + layout.resourcePlan.richStoneDepositCount;
+          const expectedClay =
+            layout.resourcePlan.ordinaryClayDepositCount
+            + layout.resourcePlan.richClayDepositCount;
+          const expectedMinerals =
+            layout.resourcePlan.ordinaryMineralDepositCount
+            + layout.resourcePlan.richMineralDepositCount;
+          const ordinaryStone = stoneSites.filter((site) => site.kind === 'small').length;
+          const richStone = stoneSites.filter((site) => site.kind === 'large').length;
+          const ordinaryClay = claySites.filter((site) => site.kind === 'ordinary').length;
+          const richClay = claySites.filter((site) => site.kind === 'rich').length;
+          const ordinaryMinerals = mineralSites.filter(
+            (site) => site.grade === 'ordinary',
+          ).length;
+          const richMinerals = mineralSites.filter((site) => site.grade === 'rich').length;
+          const ironSites = mineralSites.filter((site) => site.resource === 'iron').length;
+          const saltSites = mineralSites.filter((site) => site.resource === 'salt').length;
+
+          extremeWorldCount++;
+          if (
+            stoneSites.length !== expectedStone
+            || claySites.length !== expectedClay
+            || mineralSites.length !== expectedMinerals
+            || ordinaryStone !== layout.resourcePlan.ordinaryQuarryCount
+            || richStone !== layout.resourcePlan.richStoneDepositCount
+            || ordinaryClay !== layout.resourcePlan.ordinaryClayDepositCount
+            || richClay !== layout.resourcePlan.richClayDepositCount
+            || ordinaryMinerals !== layout.resourcePlan.ordinaryMineralDepositCount
+            || richMinerals !== layout.resourcePlan.richMineralDepositCount
+            || ironSites === 0
+            || saltSites === 0
+          ) {
+            extremePlacementFailures.push(JSON.stringify({
+              mapSize,
+              seed,
+              hydrology,
+              resourceAbundance,
+              resourceVariety,
+              expected: {
+                stone: expectedStone,
+                clay: expectedClay,
+                minerals: expectedMinerals,
+                ordinaryStone: layout.resourcePlan.ordinaryQuarryCount,
+                richStone: layout.resourcePlan.richStoneDepositCount,
+                ordinaryClay: layout.resourcePlan.ordinaryClayDepositCount,
+                richClay: layout.resourcePlan.richClayDepositCount,
+                ordinaryMinerals: layout.resourcePlan.ordinaryMineralDepositCount,
+                richMinerals: layout.resourcePlan.richMineralDepositCount,
+              },
+              actual: {
+                stone: stoneSites.length,
+                clay: claySites.length,
+                minerals: mineralSites.length,
+                ordinaryStone,
+                richStone,
+                ordinaryClay,
+                richClay,
+                ordinaryMinerals,
+                richMinerals,
+                iron: ironSites,
+                salt: saltSites,
+              },
+            }));
+          }
+        }
+      }
+    }
+  }
+}
+assert.deepEqual(
+  extremePlacementFailures,
+  [],
+  `every setup must place its complete physical deposit budget; checked ${
+    extremeWorldCount
+  } extreme worlds, first failures:\n${extremePlacementFailures.slice(0, 8).join('\n')}`,
+);
+
+const nonDefaultLayout = createWorldLayout(worldSettings({
+  seed: 13,
+  mapSize: 'small',
+  hydrology: 100,
+  resourceAbundance: 100,
+  resourceVariety: 0,
+}));
+const nonDefaultRegistry = WorldLayoutRegistry.fromWorldLayout(nonDefaultLayout);
+const nonDefaultBootstrap = computeWorldBootstrapDataFromLayout(nonDefaultLayout);
+const expectedQuarryIds = nonDefaultRegistry.definitionList
+  .filter((definition) => definition.kind === 'quarry')
+  .map((definition) => definition.id);
+const expectedClayIds = nonDefaultLayout.clayDepositLayout.sites
+  .map((site, index) => clayDepositNodeId(site, index));
+assert.deepEqual(
+  nonDefaultBootstrap.quarries.map((quarry) => quarry.quarryId),
+  expectedQuarryIds,
+  'an arbitrary setup must send every stone, iron, and salt node to bootstrap_quarries',
+);
+assert.deepEqual(
+  nonDefaultBootstrap.foragingNodes
+    .filter((node) => node.nodeKind === 'clay')
+    .map((node) => node.nodeId),
+  expectedClayIds,
+  'an arbitrary setup must send every clay node to bootstrap_foraging',
+);
+assert.deepEqual(
+  new Set(
+    nonDefaultBootstrap.quarries
+      .filter((quarry) => quarry.quarryId.startsWith('deposit-'))
+      .map((quarry) => quarry.quarryId.split('-')[1]),
+  ),
+  new Set(['iron', 'salt']),
+  'authoritative bootstrap payloads must retain both physical mineral families',
+);
 
 let sawIron = false;
 let sawSalt = false;
@@ -532,6 +671,21 @@ assert.match(
   uiSurfaces,
   /iron or salt deposit/i,
   'player-facing UI must explain that both mineral resources have real deposits',
+);
+assert.match(
+  uiSurfaces,
+  /Stone, clay, iron, and salt are all physical local deposits/,
+  'world setup must state the four guaranteed physical deposit families directly',
+);
+assert.match(
+  uiSurfaces,
+  /Rich stone and clay roll independently; iron and salt share up to one rich-mineral opportunity on small or medium maps and two on large maps/,
+  'world setup must explain the shared regional rich-mineral budget',
+);
+assert.match(
+  uiSurfaces,
+  /trade supplements physical geology rather than replacing it/,
+  'Adriatic salt guidance must not imply that trade replaces local deposits',
 );
 assert.match(
   uiSurfaces,
