@@ -67,7 +67,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   mine: ['Mineral mine', 'N', 'Build directly over an iron or salt deposit. Rich workings are faster and do not exhaust; ordinary surface seams are finite.'],
   clay_pit: ['Riverbank clay pit', 'C', 'Cuts a finite ordinary alluvial bank beside shallow water. Rich seed rolls expose faster deep clay that does not exhaust.'],
   charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for forge fuel. Severe fire risk: isolate it or keep a ready well in range.'],
-  smithy: ['Village smithy', 'M', 'Forges locally mined or imported iron blooms with charcoal into ironwork for tools, construction fittings, and frontier weapons. Elevated fire risk.'],
+  smithy: ['Village smithy', 'M', 'Forges locally mined or imported iron blooms with charcoal and carted well water into ironwork for tools, construction fittings, and frontier weapons. Elevated fire risk.'],
   potter_kiln: ["Potter's kiln", 'P', 'Fires river clay with firewood into prosperous household wares, preserving crocks, and export pottery. Elevated fire risk rewards well coverage and spacing.'],
   reforester: ['Reforester', 'F', 'Restores harvested woodland with native saplings.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood and supplies connected homes. Smith-forged replacement axes raise output but wear each cycle.'],

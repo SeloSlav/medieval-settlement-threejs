@@ -37,6 +37,7 @@ import {
   SMITHY_CHARCOAL_PER_CYCLE,
   SMITHY_IRONWORK_PER_CYCLE,
   SMITHY_IRON_PER_CYCLE,
+  SMITHY_WATER_PER_CYCLE,
   WATERMILL_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
@@ -226,6 +227,7 @@ export type IndustrialMaterialPlan = {
   localIronStrandedPerDay: number;
   smithyIronPerDay: number;
   smithyCharcoalPerDay: number;
+  smithyWaterPerDay: number;
   maintainedToolIronworkPerDay: number;
   fullToolIronworkPerDay: number;
   roadCoveredToolIronworkPerDay: number;
@@ -337,6 +339,7 @@ type IndustrialMaterialBranch = {
   smithyIronworkPerDay: number;
   smithyIronPerDay: number;
   smithyCharcoalPerDay: number;
+  hasStaffedWell: boolean;
   maintainedToolIronworkPerDay: number;
   fullToolIronworkPerDay: number;
   hasStaffedMarket: boolean;
@@ -399,6 +402,7 @@ function industrialMaterialBranchByKey(
     smithyIronworkPerDay: 0,
     smithyIronPerDay: 0,
     smithyCharcoalPerDay: 0,
+    hasStaffedWell: false,
     maintainedToolIronworkPerDay: 0,
     fullToolIronworkPerDay: 0,
     hasStaffedMarket: false,
@@ -1201,6 +1205,16 @@ function completedProcessorOverview(
           runway = charcoalRunway;
           limitingInput = 'charcoal';
         }
+        const waterRunway = buildingInputRunway(
+          deliveries,
+          building,
+          'water',
+          cycles * SMITHY_WATER_PER_CYCLE,
+        );
+        if (waterRunway.days < runway.days) {
+          runway = waterRunway;
+          limitingInput = 'water';
+        }
         smithyInputBuffer = updateFirstToStop(
           smithyInputBuffer,
           runway,
@@ -1218,6 +1232,15 @@ function completedProcessorOverview(
           building.id,
           normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
         );
+        break;
+      }
+      case 'well': {
+        const branch = industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        );
+        branch.hasStaffedWell = true;
         break;
       }
       case 'mine': {
@@ -1414,6 +1437,7 @@ function industrialMaterialRoadPlan(
   let localIronStrandedPerDay = 0;
   let smithyIronPerDay = 0;
   let smithyCharcoalPerDay = 0;
+  let smithyWaterPerDay = 0;
   let roadCoveredToolIronworkPerDay = 0;
   let roadCoveredFullToolIronworkPerDay = 0;
   let ironworkSurplusAfterToolUpkeep = 0;
@@ -1521,6 +1545,7 @@ function industrialMaterialRoadPlan(
     const branchIronworkOutput = Math.min(
       branch.smithyIronworkPerDay,
       charcoalSupportedIronwork,
+      branch.hasStaffedWell ? Number.POSITIVE_INFINITY : 0,
       branch.hasStaffedMarket
         ? Number.POSITIVE_INFINITY
         : localIronSupportedIronwork,
@@ -1545,6 +1570,9 @@ function industrialMaterialRoadPlan(
     );
     smithyCharcoalPerDay += branchIronworkOutput
       * SMITHY_CHARCOAL_PER_CYCLE
+      / SMITHY_IRONWORK_PER_CYCLE;
+    smithyWaterPerDay += branchIronworkOutput
+      * SMITHY_WATER_PER_CYCLE
       / SMITHY_IRONWORK_PER_CYCLE;
     roadCoveredToolIronworkPerDay += Math.min(
       branchIronworkOutput,
@@ -1621,6 +1649,7 @@ function industrialMaterialRoadPlan(
     localIronStrandedPerDay,
     smithyIronPerDay,
     smithyCharcoalPerDay,
+    smithyWaterPerDay,
     maintainedToolIronworkPerDay: overview.maintainedToolIronworkPerDay,
     fullToolIronworkPerDay: overview.fullToolIronworkPerDay,
     roadCoveredToolIronworkPerDay,

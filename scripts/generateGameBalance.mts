@@ -497,6 +497,7 @@ export type GameBalance = {
     charcoalBurnerCharcoalPerCycle: number;
     smithyIronPerCycle: number;
     smithyCharcoalPerCycle: number;
+    smithyWaterPerCycle: number;
     smithyIronworkPerCycle: number;
     civilianToolIronworkPerCycle: number;
     civilianToolThroughputMultiplier: number;
@@ -987,6 +988,7 @@ function generateRust(): string {
     `pub const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE: f64 = ${rustF64(b.production.charcoalBurnerCharcoalPerCycle)};`,
     `pub const SMITHY_IRON_PER_CYCLE: f64 = ${rustF64(b.production.smithyIronPerCycle)};`,
     `pub const SMITHY_CHARCOAL_PER_CYCLE: f64 = ${rustF64(b.production.smithyCharcoalPerCycle)};`,
+    `pub const SMITHY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.smithyWaterPerCycle)};`,
     `pub const SMITHY_IRONWORK_PER_CYCLE: f64 = ${rustF64(b.production.smithyIronworkPerCycle)};`,
     `pub const CIVILIAN_TOOL_IRONWORK_PER_CYCLE: f64 = ${rustF64(b.production.civilianToolIronworkPerCycle)};`,
     `pub const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.production.civilianToolThroughputMultiplier)};`,
@@ -1783,6 +1785,7 @@ function generateTypeScript(): string {
     `export const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE = ${b.production.charcoalBurnerCharcoalPerCycle};`,
     `export const SMITHY_IRON_PER_CYCLE = ${b.production.smithyIronPerCycle};`,
     `export const SMITHY_CHARCOAL_PER_CYCLE = ${b.production.smithyCharcoalPerCycle};`,
+    `export const SMITHY_WATER_PER_CYCLE = ${b.production.smithyWaterPerCycle};`,
     `export const SMITHY_IRONWORK_PER_CYCLE = ${b.production.smithyIronworkPerCycle};`,
     `export const CIVILIAN_TOOL_IRONWORK_PER_CYCLE = ${b.production.civilianToolIronworkPerCycle};`,
     `export const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER = ${b.production.civilianToolThroughputMultiplier};`,

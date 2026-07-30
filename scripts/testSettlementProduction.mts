@@ -16,6 +16,8 @@ import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+  SMITHY_IRONWORK_PER_CYCLE,
+  SMITHY_WATER_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import {
   createEmptyStockpile,
@@ -159,6 +161,7 @@ const materialBuildings = [
   building('material-smokehouse', 'smokehouse', 1),
   building('material-charcoal', 'charcoal_burner', 1),
   building('material-smithy', 'smithy', 1),
+  building('material-well', 'well', 1),
   building('material-market', 'marketplace', 1),
   building('material-lumber', 'lumber_mill', 1),
   building('material-woodcutter', 'woodcutters_lodge', 1),
@@ -174,6 +177,7 @@ materialState.farmFields.set(
 );
 materialState.residences.set('material-home', residence('material-home', 10));
 materialBuildings[3].firewood = 36;
+materialBuildings[4].water = 9;
 
 const leanClayState = emptyGameState();
 const leanClayPit = building('lean-clay-bank', 'clay_pit', 1);
@@ -279,6 +283,13 @@ assert.ok(
     > joinedMaterials.maintainedToolIronworkPerDay,
 );
 assert.ok(joinedMaterials.ironworkOutputPerDay > 0);
+approx(
+  joinedMaterials.smithyWaterPerDay,
+  joinedMaterials.ironworkOutputPerDay
+    * SMITHY_WATER_PER_CYCLE
+    / SMITHY_IRONWORK_PER_CYCLE,
+  'sustainable ironwork output must expose its physical quench-water draw',
+);
 assert.equal(joinedMaterials.localIronOutputPerDay, 0);
 approx(
   joinedMaterials.ironImportDemandPerDay,
@@ -296,8 +307,10 @@ const localForgeState = emptyGameState();
 const localIronMine = building('local-iron-mine', 'mine', 1);
 const localCharcoal = building('local-charcoal', 'charcoal_burner', 1);
 const localSmithy = building('local-smithy', 'smithy', 1);
+const localWell = building('local-well', 'well', 1);
 localCharcoal.firewood = 36;
-for (const candidate of [localIronMine, localCharcoal, localSmithy]) {
+localSmithy.water = 9;
+for (const candidate of [localIronMine, localCharcoal, localSmithy, localWell]) {
   localForgeState.buildings.set(candidate.id, candidate);
 }
 localForgeState.quarries.set(
@@ -326,6 +339,20 @@ assert.ok(
 assert.equal(localForge.smithyMatchedBranches, 1);
 assert.equal(localForge.ironImportDemandPerDay, 0);
 assert.ok(localForge.localIronConsumedPerDay > 0);
+
+localForgeState.buildings.delete(localWell.id);
+const waterlessLocalForge = computeSettlementProductionCapacity(
+  localForgeState,
+  false,
+  () => 'local-forge',
+).industrialMaterials;
+assert.equal(
+  waterlessLocalForge.ironworkOutputPerDay,
+  0,
+  'ore and charcoal must not create sustained forge output without a staffed same-branch well',
+);
+assert.ok(waterlessLocalForge.smithyBlockedBranches >= 1);
+localForgeState.buildings.set(localWell.id, localWell);
 
 const disconnectedLocalForge = computeSettlementProductionCapacity(
   localForgeState,
@@ -492,6 +519,21 @@ assert.equal(industrialBuffers.potterInputBuffer?.limitingInput, 'clay');
 assert.ok((industrialBuffers.charcoalOutputRoom?.days ?? 0) > 0);
 assert.ok((industrialBuffers.smithyOutputRoom?.days ?? 0) > 0);
 assert.ok((industrialBuffers.potterOutputRoom?.days ?? 0) > 0);
+materialBuildings[4].iron = 40;
+materialBuildings[4].charcoal = 20;
+materialBuildings[4].water = 1;
+const waterLimitedForgeBuffer = computeSettlementProductionCapacity(
+  materialState,
+  false,
+);
+assert.equal(
+  waterLimitedForgeBuffer.smithyInputBuffer?.limitingInput,
+  'water',
+  'the Town Hall input buffer must identify a nearly empty quench tub',
+);
+materialBuildings[4].iron = 0;
+materialBuildings[4].charcoal = 0;
+materialBuildings[4].water = 9;
 materialState.fireIncidents.set('material-smithy-fire', {
   id: 'material-smithy-fire',
   targetKind: 'building',

@@ -147,6 +147,33 @@ assert.match(
   /Output room<\/span><span>85 cycles · food before 340 target/,
 );
 
+const smithy = makeBuilding({
+  id: 'smithy-1',
+  kind: 'smithy',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  iron: 2,
+  charcoal: 1,
+});
+assert.equal(
+  getBuildingProcessorStatus(smithy, noWellQueries)?.statusText,
+  'Idle — needs a staffed, road-connected well to operate',
+);
+assert.equal(
+  getBuildingProcessorStatus(smithy, readyQueries)?.statusText,
+  'Waiting for well cart — 0.0 / 1 stored',
+);
+smithy.water = 1;
+assert.equal(
+  getBuildingProcessorStatus(smithy, readyQueries)?.statusText,
+  'Forging iron heads, nails, hinges, and fittings',
+);
+assert.match(
+  getBuildingProcessorStatus(smithy, readyQueries)?.waterDetailHtml ?? '',
+  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · regional iron limits/,
+);
+
 const brewery = makeBuilding({
   id: 'brewery-1',
   kind: 'brewery',

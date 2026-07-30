@@ -18,12 +18,12 @@ use crate::balance_generated::{
     MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
     POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_POTTERY_PER_CYCLE,
     RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
-    SMITHY_IRON_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
-    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
-    TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
-    VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE,
-    WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
-    WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+    SMOKEHOUSE_SALT_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE,
+    WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE,
+    WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -1828,6 +1828,7 @@ pub fn step_smithy(
         &[
             (CommodityKind::Iron, SMITHY_IRON_PER_CYCLE),
             (CommodityKind::Charcoal, SMITHY_CHARCOAL_PER_CYCLE),
+            (CommodityKind::Water, SMITHY_WATER_PER_CYCLE),
         ],
         &[(CommodityKind::Ironwork, SMITHY_IRONWORK_PER_CYCLE)],
     );
@@ -2356,7 +2357,10 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
             CommodityKind::Wool | CommodityKind::Flax | CommodityKind::Water
         ),
         "charcoal_burner" => commodity == CommodityKind::Firewood,
-        "smithy" => matches!(commodity, CommodityKind::Iron | CommodityKind::Charcoal),
+        "smithy" => matches!(
+            commodity,
+            CommodityKind::Iron | CommodityKind::Charcoal | CommodityKind::Water
+        ),
         "potter_kiln" => matches!(commodity, CommodityKind::Clay | CommodityKind::Firewood),
         _ => false,
     }

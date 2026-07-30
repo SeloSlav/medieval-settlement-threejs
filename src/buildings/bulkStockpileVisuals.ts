@@ -22,6 +22,7 @@ export const CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS = 5;
 export const SMITHY_IRON_VISUAL_SEGMENTS = 4;
 export const SMITHY_CHARCOAL_VISUAL_SEGMENTS = 3;
 export const SMITHY_IRONWORK_VISUAL_SEGMENTS = 4;
+export const SMITHY_WATER_VISUAL_SEGMENTS = 3;
 export const POTTER_CLAY_VISUAL_SEGMENTS = 5;
 export const POTTER_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const POTTER_POTTERY_VISUAL_SEGMENTS = 5;
@@ -123,6 +124,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.ironwork ?? 0,
         BUILDING_STORAGE_CAPS.smithy.ironwork,
         SMITHY_IRONWORK_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
+        building.water,
+        BUILDING_STORAGE_CAPS.smithy.water,
+        SMITHY_WATER_VISUAL_SEGMENTS,
       )}`;
     case 'potter_kiln':
       return `:bulk-store:${stockpileVisualLevel(
@@ -257,6 +262,13 @@ export function syncBulkStockpileVisuals(
         'SmithyIronworkSegment',
         building.ironwork ?? 0,
         BUILDING_STORAGE_CAPS.smithy.ironwork,
+      );
+      syncNamedStockpile(
+        marker,
+        'SmithyQuenchWaterStockpile',
+        'SmithyQuenchWaterSegment',
+        building.water,
+        BUILDING_STORAGE_CAPS.smithy.water,
       );
       break;
     case 'potter_kiln':

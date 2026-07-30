@@ -90,7 +90,7 @@ const INPUTS_BY_KIND: Record<
   smokehouse: ['food', 'firewood', 'salt', 'pottery'],
   weaver: ['wool', 'flax', 'water'],
   charcoal_burner: ['firewood'],
-  smithy: ['iron', 'charcoal'],
+  smithy: ['iron', 'charcoal', 'water'],
   potter_kiln: ['clay', 'firewood'],
 };
 

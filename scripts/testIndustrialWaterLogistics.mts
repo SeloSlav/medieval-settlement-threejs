@@ -61,6 +61,7 @@ function makeBuilding(
 assert.ok(industrialWaterRequirement('granary') > 0);
 assert.ok(industrialWaterRequirement('brewery') > 0);
 assert.equal(industrialWaterRequirement('weaver'), 1);
+assert.equal(industrialWaterRequirement('smithy'), 1);
 assert.equal(industrialWaterRequirement('lumber_mill'), 0);
 assert.equal(industrialWaterRequirement('watermill'), 0);
 assert.equal(industrialWaterTarget('granary', 25), 2);
@@ -70,6 +71,9 @@ assert.equal(industrialWaterTarget('granary', 100), 6);
 assert.equal(industrialWaterTarget('brewery', 50), 6);
 assert.equal(industrialWaterTarget('weaver', 25), 1);
 assert.equal(industrialWaterTarget('weaver', 100), 3);
+assert.equal(industrialWaterTarget('smithy', 25), 1);
+assert.equal(industrialWaterTarget('smithy', 50), 2);
+assert.equal(industrialWaterTarget('smithy', 100), 3);
 assert.equal(
   industrialWaterInputPreferenceRank('weaver', WEAVER_INPUT_POLICY_FLAX_FIRST),
   0,
@@ -258,6 +262,7 @@ assert.match(wellInspector, /industrialWaterTarget/);
 assert.match(wellInspector, /staged water/);
 assert.match(wellInspector, /by visible cart/);
 assert.match(wellInspector, /flax-working looms/);
+assert.match(wellInspector, /smithy quench tubs/);
 assert.match(
   worldQueries,
   /candidate\.kind === 'weaver' && \(candidate\.flax \?\? 0\) <= 1e-6/,
@@ -270,6 +275,20 @@ assert.doesNotMatch(
   weaverStep,
   /request_connected_commodity/,
   'weavers must not pull water by building iteration order after joining well-side arbitration',
+);
+const smithyStep = expandedEconomy.slice(
+  expandedEconomy.indexOf('pub fn step_smithy'),
+  expandedEconomy.indexOf('pub fn step_potter_kiln'),
+);
+assert.match(
+  smithyStep,
+  /CommodityKind::Water,\s*SMITHY_WATER_PER_CYCLE/,
+  'the authoritative forge recipe must consume its physically delivered quench water',
+);
+assert.doesNotMatch(
+  smithyStep,
+  /request_connected_commodity/,
+  'smithies must wait for the well-side cart arbitration rather than pulling water instantly',
 );
 assert.match(processorWaterStatus, /Water cart inbound/);
 assert.match(processorWaterStatus, /Waiting for well cart/);

@@ -21,6 +21,7 @@ import {
   SMITHY_CHARCOAL_VISUAL_SEGMENTS,
   SMITHY_IRON_VISUAL_SEGMENTS,
   SMITHY_IRONWORK_VISUAL_SEGMENTS,
+  SMITHY_WATER_VISUAL_SEGMENTS,
   syncBulkStockpileVisuals,
 } from '../src/buildings/bulkStockpileVisuals.ts';
 import {
@@ -35,6 +36,7 @@ import {
   SMITHY_CHARCOAL_PER_CYCLE,
   SMITHY_IRON_PER_CYCLE,
   SMITHY_IRONWORK_PER_CYCLE,
+  SMITHY_WATER_PER_CYCLE,
   SMOKEHOUSE_POTTERY_PER_CYCLE,
   SMOKEHOUSE_SALT_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
@@ -113,8 +115,13 @@ assert.deepEqual(
   'charcoal must impose a meaningful net firewood cost',
 );
 assert.deepEqual(
-  [SMITHY_IRON_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE],
-  [2, 1, 2],
+  [
+    SMITHY_IRON_PER_CYCLE,
+    SMITHY_CHARCOAL_PER_CYCLE,
+    SMITHY_WATER_PER_CYCLE,
+    SMITHY_IRONWORK_PER_CYCLE,
+  ],
+  [2, 1, 1, 2],
 );
 assert.deepEqual(
   [POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_POTTERY_PER_CYCLE],
@@ -591,6 +598,13 @@ const buildingVisuals = [
     segments: SMITHY_IRONWORK_VISUAL_SEGMENTS,
   },
   {
+    kind: 'smithy',
+    container: 'SmithyQuenchWaterStockpile',
+    segment: 'SmithyQuenchWaterSegment',
+    resource: 'water',
+    segments: SMITHY_WATER_VISUAL_SEGMENTS,
+  },
+  {
     kind: 'potter_kiln',
     container: 'PotterClayStockpile',
     segment: 'PotterClaySegment',
@@ -709,6 +723,11 @@ for (const [kind, objectName] of cargoProof) {
 }
 
 const renderedCards = renderBuildMenuCards();
+assert.match(
+  renderedCards,
+  /smithy[\s\S]*carted well water/i,
+  'the build card must reveal the forge-water dependency before placement',
+);
 for (const slug of ['clay-pit', 'charcoal-burner', 'smithy', 'potter-kiln']) {
   assert.match(renderedCards, new RegExp(`/assets/ui/build-menu/cards/${slug}\\.webp`));
   assert.ok(
@@ -727,6 +746,11 @@ assert.notEqual(
   bulkStockpileVisualSignature(building('smithy', { charcoal: 1 })),
   bulkStockpileVisualSignature(building('smithy')),
   'the first charcoal sack at a smithy must invalidate its visual signature',
+);
+assert.notEqual(
+  bulkStockpileVisualSignature(building('smithy', { water: 1 })),
+  bulkStockpileVisualSignature(building('smithy')),
+  'the first carted quench-water unit must raise the visible tub surface',
 );
 assert.notEqual(
   bulkStockpileVisualSignature(building('potter_kiln', { firewood: 1 })),
@@ -813,6 +837,11 @@ assert.doesNotMatch(
   smithyStep,
   /request_connected_commodity\(\s*ctx,\s*tick,\s*clock,\s*&building,\s*CommodityKind::Charcoal/,
   'smithies must not pull charcoal in database update order',
+);
+assert.match(
+  smithyStep,
+  /CommodityKind::Water,\s*SMITHY_WATER_PER_CYCLE/,
+  'forging must consume water from the physical on-site quench tub',
 );
 assert.doesNotMatch(
   potterKilnStep,

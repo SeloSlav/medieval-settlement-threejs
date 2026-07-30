@@ -482,6 +482,7 @@
     "charcoalBurnerCharcoalPerCycle": 2,
     "smithyIronPerCycle": 2,
     "smithyCharcoalPerCycle": 1,
+    "smithyWaterPerCycle": 1,
     "smithyIronworkPerCycle": 2,
     "civilianToolIronworkPerCycle": 0.25,
     "civilianToolThroughputMultiplier": 1.2,
@@ -953,7 +954,7 @@
     "smithy": {
       "label": "Village smithy",
       "cost": { "timber": 42, "stone": 38 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "iron": 48, "charcoal": 36, "ironwork": 72 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 9, "iron": 48, "charcoal": 36, "ironwork": 72 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 10,

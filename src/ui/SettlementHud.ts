@@ -354,7 +354,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="pottery">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pottery" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Smith-forged heads, nails, hinges, and fittings stored at smithies, markets, carpenter workshops, and maintained lumber, stone, and clay worksites. A smithy handcart first restores staffed tool buffers by priority and shortest road; each maintained production cycle wears 0.25 ironwork for 20% faster output. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Smith-forged heads, nails, hinges, and fittings stored at smithies, markets, carpenter workshops, and maintained lumber, stone, and clay worksites. Smithies require ore, charcoal, and quench water physically carted from a staffed well. A smithy handcart first restores staffed tool buffers by priority and shortest road; each maintained production cycle wears 0.25 ironwork for 20% faster output. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Ironwork</span>
         <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ironwork" hidden></span>

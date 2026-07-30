@@ -154,9 +154,9 @@ export function renderWellInspector(
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
       ${buildingExtentRow(building.kind)}
       <li><span>Road-linked homes</span><span>${claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
-      <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'granary').length} granary · ${industrialConsumers.filter((item) => item.kind === 'weaver').length} linen loom`}</span></li>
+      <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'granary').length} granary · ${industrialConsumers.filter((item) => item.kind === 'weaver').length} linen loom · ${industrialConsumers.filter((item) => item.kind === 'smithy').length} smithy`}</span></li>
       <li><span>Dispatch rule</span><span>Fires first · households second · workshop priority, input policy, then buffer coverage</span></li>
-      <li><span>Supplies</span><span>Homes, brewhouses, granary bakeries, and flax-working looms by visible cart</span></li>
+      <li><span>Supplies</span><span>Homes, brewhouses, granary bakeries, flax-working looms, and smithy quench tubs by visible cart</span></li>
       ${deliveryRow}
     `,
     demolish: {

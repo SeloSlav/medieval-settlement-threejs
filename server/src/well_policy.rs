@@ -2,8 +2,8 @@
 
 use crate::balance_generated::{
     BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE, GRANARY_WATER_PER_CYCLE,
-    MILL_WATER_PER_HARVEST, WEAVER_FLAX_WATER_PER_CYCLE, WELL_BASE_REFILL_PER_SEC,
-    WELL_MINIMUM_REFILL_HYDROLOGY,
+    MILL_WATER_PER_HARVEST, SMITHY_WATER_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
+    WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
 };
 use crate::construction_priority::{
     CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT,
@@ -20,13 +20,14 @@ pub struct IndustrialWaterCandidate {
     pub distance: f64,
 }
 
-pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &["granary", "brewery", "weaver"];
+pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &["granary", "brewery", "weaver", "smithy"];
 
 pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     match building_kind {
         "granary" => GRANARY_WATER_PER_CYCLE,
         "brewery" => BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE,
         "weaver" => WEAVER_FLAX_WATER_PER_CYCLE,
+        "smithy" => SMITHY_WATER_PER_CYCLE,
         "lumber_mill" => MILL_WATER_PER_HARVEST,
         _ => 0.0,
     }
@@ -290,7 +291,7 @@ mod tests {
     fn industrial_water_requirements_only_include_wet_processors() {
         assert_eq!(
             INDUSTRIAL_WATER_BUILDING_KINDS,
-            &["granary", "brewery", "weaver"]
+            &["granary", "brewery", "weaver", "smithy"]
         );
         assert_eq!(
             industrial_water_requirement("granary"),
@@ -307,6 +308,10 @@ mod tests {
         assert_eq!(
             industrial_water_requirement("weaver"),
             WEAVER_FLAX_WATER_PER_CYCLE
+        );
+        assert_eq!(
+            industrial_water_requirement("smithy"),
+            SMITHY_WATER_PER_CYCLE
         );
         assert_eq!(industrial_water_requirement("watermill"), 0.0);
         assert_eq!(
@@ -335,6 +340,8 @@ mod tests {
         assert_eq!(industrial_water_target("brewery", 50), 6.0);
         assert_eq!(industrial_water_target("weaver", 25), 1.0);
         assert_eq!(industrial_water_target("weaver", 100), 3.0);
+        assert_eq!(industrial_water_target("smithy", 25), 1.0);
+        assert_eq!(industrial_water_target("smithy", 100), 3.0);
         assert_eq!(industrial_water_target("watermill", 25), 0.0);
     }
 

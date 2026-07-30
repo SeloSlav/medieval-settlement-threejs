@@ -5,6 +5,7 @@ import {
   MILL_WATER_PER_HARVEST,
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
+  SMITHY_WATER_PER_CYCLE,
   WEAVER_FLAX_WATER_PER_CYCLE,
   WELL_WATER_PER_DELIVERY,
 } from '../generated/gameBalance.ts';
@@ -47,6 +48,8 @@ export function industrialWaterRequirement(kind: BuildingKind): number {
       return BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE;
     case 'weaver':
       return WEAVER_FLAX_WATER_PER_CYCLE;
+    case 'smithy':
+      return SMITHY_WATER_PER_CYCLE;
     case 'lumber_mill':
       return MILL_WATER_PER_HARVEST;
     default:
@@ -59,7 +62,10 @@ export function industrialWaterTarget(
   processorOutputTargetPercent: number | undefined = 100,
 ): number {
   const perCycle = industrialWaterRequirement(kind);
-  return kind === 'granary' || kind === 'brewery' || kind === 'weaver'
+  return kind === 'granary'
+    || kind === 'brewery'
+    || kind === 'weaver'
+    || kind === 'smithy'
     ? perCycle * processorInputStagingCycles(processorOutputTargetPercent)
     : perCycle;
 }

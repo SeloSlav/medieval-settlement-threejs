@@ -25,6 +25,7 @@ import {
   SMITHY_CHARCOAL_PER_CYCLE,
   SMITHY_IRON_PER_CYCLE,
   SMITHY_IRONWORK_PER_CYCLE,
+  SMITHY_WATER_PER_CYCLE,
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   POTTER_POTTERY_PER_CYCLE,
@@ -176,7 +177,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
   },
   smithy: {
     requiresLabor: true,
-    waterPerCycle: 0,
+    waterPerCycle: SMITHY_WATER_PER_CYCLE,
     inputs: [
       {
         key: 'iron',

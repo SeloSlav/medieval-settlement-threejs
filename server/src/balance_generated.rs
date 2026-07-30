@@ -334,6 +334,7 @@ pub const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE: f64 = 3.0;
 pub const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE: f64 = 2.0;
 pub const SMITHY_IRON_PER_CYCLE: f64 = 2.0;
 pub const SMITHY_CHARCOAL_PER_CYCLE: f64 = 1.0;
+pub const SMITHY_WATER_PER_CYCLE: f64 = 1.0;
 pub const SMITHY_IRONWORK_PER_CYCLE: f64 = 2.0;
 pub const CIVILIAN_TOOL_IRONWORK_PER_CYCLE: f64 = 0.25;
 pub const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER: f64 = 1.2;
@@ -1210,7 +1211,7 @@ const SMITHY: BuildingDef = BuildingDef {
     storage_timber: 0.0,
     storage_firewood: 0.0,
     storage_stone: 0.0,
-    storage_water: 0.0,
+    storage_water: 9.0,
     storage_food: 0.0,
     storage_grain: 0.0,
     storage_barley: 0.0,

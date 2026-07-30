@@ -240,6 +240,8 @@ const suppliedCharcoalYard = building(
   0,
 );
 suppliedCharcoalYard.firewood = 12;
+const suppliedWell = building('material-70-well', 'well', 1);
+suppliedWell.water = 12;
 for (const site of [
   readyClayPit,
   fullClayPit,
@@ -247,6 +249,7 @@ for (const site of [
   incompleteSmithy,
   suppliedPotter,
   suppliedCharcoalYard,
+  suppliedWell,
 ]) {
   materialCallupState.buildings.set(site.id, site);
 }
@@ -315,6 +318,15 @@ materialCallupState.deliveryTrips.set(
     suppliedCharcoalYard.id,
     incompleteSmithy.id,
     'charcoal',
+  ),
+);
+materialCallupState.deliveryTrips.set(
+  'material-forge-water-cart',
+  deliveryTrip(
+    'material-forge-water-cart',
+    suppliedWell.id,
+    incompleteSmithy.id,
+    'water',
   ),
 );
 const recoveringMaterialCallup =

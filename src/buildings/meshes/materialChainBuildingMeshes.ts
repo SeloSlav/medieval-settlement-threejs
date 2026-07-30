@@ -17,6 +17,7 @@ import {
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,
   SMITHY_CHARCOAL_VISUAL_SEGMENTS,
+  SMITHY_WATER_VISUAL_SEGMENTS,
 } from '../bulkStockpileVisuals.ts';
 
 const CLAY = sharedBuildingDetailMaterial('earth');
@@ -24,6 +25,7 @@ const FIRED_CLAY = sharedBuildingDetailMaterial('paintRed');
 const CHARCOAL = sharedBuildingMaterial('interiorDark');
 const IRON_BLOOM = metalMaterial('iron');
 const ASH = stoneMaterial('mortar');
+const WATER = sharedBuildingDetailMaterial('water');
 export const CHARCOAL_CLAMP_SMOKE_NAME = 'CharcoalClampSmoke';
 
 function addYardBase(group: THREE.Group, width: number, depth: number): void {
@@ -422,6 +424,39 @@ export function createSmithyMesh(): THREE.Group {
     metalMaterial('iron'),
     new THREE.Vector3(3.25, 1.02, 0.25),
   );
+  const quenchTub = new THREE.Group();
+  quenchTub.name = 'Smithy quench tub';
+  quenchTub.position.set(3.55, 0.05, 1.95);
+  group.add(quenchTub);
+  addMesh(
+    quenchTub,
+    new THREE.CylinderGeometry(0.5, 0.54, 0.62, 10, 1, true),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 0.36, 0),
+  ).name = 'Smithy coopered quench tub';
+  for (const y of [0.16, 0.5]) {
+    addMesh(
+      quenchTub,
+      new THREE.TorusGeometry(0.5, 0.035, 5, 10),
+      IRON_BLOOM,
+      new THREE.Vector3(0, y, 0),
+      new THREE.Euler(Math.PI * 0.5, 0, 0),
+    ).name = 'Smithy quench tub hoop';
+  }
+  const quenchWater = new THREE.Group();
+  quenchWater.name = 'SmithyQuenchWaterStockpile';
+  quenchWater.visible = false;
+  quenchTub.add(quenchWater);
+  for (let level = 0; level < SMITHY_WATER_VISUAL_SEGMENTS; level++) {
+    const water = addMesh(
+      quenchWater,
+      new THREE.CylinderGeometry(0.42, 0.42, 0.025, 10),
+      WATER,
+      new THREE.Vector3(0, 0.2 + level * 0.17, 0),
+    );
+    water.name = 'SmithyQuenchWaterSegment';
+    water.visible = false;
+  }
 
   const ironStock = new THREE.Group();
   ironStock.name = 'SmithyIronStockpile';

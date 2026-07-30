@@ -163,6 +163,7 @@ saltAndPotteryStarvedSmokehouse.food = 12;
 saltAndPotteryStarvedSmokehouse.firewood = 6;
 const charcoalStarvedSmithy = building('material-smithy', 'smithy', 2, 40, 0);
 charcoalStarvedSmithy.iron = 8;
+charcoalStarvedSmithy.water = 3;
 const suppliedCharcoalYard = building(
   'material-charcoal',
   'charcoal_burner',

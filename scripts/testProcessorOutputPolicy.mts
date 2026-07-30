@@ -8,6 +8,7 @@ import {
   PROCESSOR_OUTPUT_TARGET_KINDS,
   PROCESSOR_OUTPUT_TARGET_PRESETS,
   processorAcceptsInput,
+  processorInputCommodities,
   processorInputStagingCycles,
   processorNeedsInputs,
   processorOutputCommodity,
@@ -82,6 +83,11 @@ assert.equal(processorOutputCommodity('weaver'), 'cloth');
 assert.equal(processorOutputCommodity('charcoal_burner'), 'charcoal');
 assert.equal(processorOutputCommodity('smithy'), 'ironwork');
 assert.equal(processorOutputCommodity('potter_kiln'), 'pottery');
+assert.deepEqual(
+  processorInputCommodities('smithy'),
+  ['iron', 'charcoal', 'water'],
+  'the forge stock policy must stage the complete authoritative recipe',
+);
 
 const mill = processor('mill', 'watermill', 25);
 assert.equal(processorOutputTargetForBuilding(mill), 65);

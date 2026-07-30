@@ -61,7 +61,7 @@ pub fn processor_input_kinds(kind: &str) -> &'static [ProcessorInputKind] {
         "smokehouse" => &[Food, Firewood, Salt, Pottery],
         "weaver" => &[Wool, Flax, Water],
         "charcoal_burner" => &[Firewood],
-        "smithy" => &[Iron, Charcoal],
+        "smithy" => &[Iron, Charcoal, Water],
         "potter_kiln" => &[Clay, Firewood],
         _ => &[],
     }
@@ -198,7 +198,7 @@ mod tests {
         );
         assert_eq!(processor_input_kinds("weaver"), &[Wool, Flax, Water]);
         assert_eq!(processor_input_kinds("charcoal_burner"), &[Firewood]);
-        assert_eq!(processor_input_kinds("smithy"), &[Iron, Charcoal]);
+        assert_eq!(processor_input_kinds("smithy"), &[Iron, Charcoal, Water]);
         assert_eq!(processor_input_kinds("potter_kiln"), &[Clay, Firewood]);
         assert!(processor_input_kinds("clay_pit").is_empty());
     }
