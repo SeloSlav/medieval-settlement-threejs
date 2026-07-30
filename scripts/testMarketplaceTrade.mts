@@ -754,6 +754,21 @@ assert.match(marketplaceTradeSource, /stage_or_spend_physical_market_resource/);
 assert.match(marketplaceTradeSource, /try_start_building_supply_trip/);
 assert.match(marketplaceTradeSource, /building_has_inbound_commodity_trip/);
 assert.match(
+  marketplaceOrderSource,
+  /physical_market_orders_enabled[\s\S]*order_physical_market_import/,
+  'provender and water purchases must use the physical import path in developed settlements',
+);
+assert.match(
+  marketplaceOrderSource,
+  /None => start_external_market_import_trip\(/,
+  'manual provender and water orders must arrive at the marketplace on a map-edge cart',
+);
+assert.match(
+  marketplaceOrderSource,
+  /Some\(target\) => start_external_market_import_trip_to_residence/,
+  'named household and parish orders must remain attached to one live merchant cart',
+);
+assert.match(
   marketplaceTradeSource,
   /road_path_distances_from/,
   'staging-source selection should build one road-distance tree instead of one Dijkstra solve per store',
@@ -834,6 +849,11 @@ assert.match(marketplaceTradeRendererSource, /settle it automatically/);
 assert.match(marketplaceTradeRendererSource, /Market cash reserve/);
 assert.match(marketplaceTradeRendererSource, /data-marketplace-gold-reserve-target/);
 assert.match(marketplaceTradeRendererSource, /physically held in this market coffer/);
+assert.match(
+  marketplaceTradeRendererSource,
+  /every paid import is carried from the map edge/,
+  'the trade panel must explain the same physical rule for bulk, provender, and water orders',
+);
 assert.match(marketplaceTradeRendererSource, /cancel-marketplace-trade-order/);
 assert.doesNotMatch(marketplaceTradeRendererSource, /click again after unloading/);
 

@@ -150,7 +150,11 @@ export function renderMarketplaceTradePanel(
           : 'Not enough treasury gold'
         : !hasRoom
           ? 'Marketplace needs room for the full order'
-          : `${commodity.origin} · delivered to homes${priceTag ? ` · ${priceTag}` : ''}`);
+          : `${commodity.origin} · ${
+              physicalEconomy
+                ? 'live merchant cart to this market, then local delivery'
+                : 'delivered to homes'
+            }${priceTag ? ` · ${priceTag}` : ''}`);
     return `
       <li class="marketplace-trade-row">
         <button
@@ -180,7 +184,11 @@ export function renderMarketplaceTradePanel(
           : 'Not enough treasury gold'
         : !hasRoom
           ? 'Marketplace needs room for the full order'
-          : `${commodity.origin} · delivered to homes${priceTag ? ` · ${priceTag}` : ''}`);
+          : `${commodity.origin} · ${
+              physicalEconomy
+                ? 'live regional cart to this market, then local delivery'
+                : 'delivered to homes'
+            }${priceTag ? ` · ${priceTag}` : ''}`);
     return `
       <li class="marketplace-trade-row">
         <button
@@ -202,7 +210,7 @@ export function renderMarketplaceTradePanel(
       <p class="marketplace-trade-bulletin">${marketState.bulletin}</p>
       <p class="marketplace-trade-intro">${physicalEconomy
         ? 'Bulk exports settle only from goods physically staged at this market. One order dispatches visible source carts until its full lot arrives, then brokers settle it automatically at the prevailing regional rate. Imports spend only coin physically held in this market coffer; free haulers replenish its chosen reserve from the civic treasury, while brokers return only surplus receipts. Construction, household, and residence-upgrade reserves remain protected.'
-        : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here and wait for broker capacity. Imports arrive at this market; farmsteads may collect seed grain by road, while construction carts and household caravans haul other orders onward.</p>
+        : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here and wait for broker capacity. In the physical economy, every paid import is carried from the map edge: manual lots unload here for local distribution, while named household and parish orders pass through this market's road branch before reaching their exact home.</p>
       <p class="marketplace-trade-depth">${manualTrade.label}. ${nextTurnaround}</p>
       ${pendingOffer
         ? renderPendingMarketplaceOrder(

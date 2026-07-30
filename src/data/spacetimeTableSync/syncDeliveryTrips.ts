@@ -43,8 +43,7 @@ export function syncDeliveryTrips(
         ? residenceClientId(row.residenceId)
         : null,
       destinationKind,
-      targetBuildingId: (destinationKind === 'building' || destinationKind === 'fire')
-        && row.targetBuildingId > 0n
+      targetBuildingId: row.targetBuildingId > 0n
         ? buildingClientId(row.targetBuildingId)
         : null,
       cargoKind,

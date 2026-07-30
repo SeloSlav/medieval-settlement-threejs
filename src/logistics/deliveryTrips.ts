@@ -138,11 +138,25 @@ export function raidWithdrawingCartCount(
   if (!activeRaiderThreat) return 0;
   let count = 0;
   for (const trip of trips) {
-    if (trip.destinationKind !== 'fire' && trip.phase === 'inbound') {
+    if (
+      trip.destinationKind !== 'fire'
+      && trip.phase === 'inbound'
+      && !isRegionalImportTrip(trip)
+    ) {
       count += 1;
     }
   }
   return count;
+}
+
+export function isRegionalImportTrip(trip: DeliveryTripState): boolean {
+  return (
+    trip.targetBuildingId === trip.buildingId
+    && (
+      trip.destinationKind === 'building'
+      || trip.destinationKind === 'residence'
+    )
+  );
 }
 
 /** Stable identity for the regular hauler attached to a producer between trips. */
@@ -150,6 +164,9 @@ export function deliveryWorkerPersonIdentity(
   trip: DeliveryTripState,
   crewIndex = 0,
 ): string {
+  if (isRegionalImportTrip(trip)) {
+    return `regional-merchant:${trip.id}:crew:${Math.max(0, Math.floor(crewIndex))}`;
+  }
   return `delivery:${trip.buildingId}:hauler:${Math.max(0, Math.floor(crewIndex))}`;
 }
 
@@ -285,7 +302,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'clay':
       return 'River clay';
     case 'salt':
-      return 'Sea salt';
+      return 'Salt';
     case 'charcoal':
       return 'Charcoal';
     case 'pottery':

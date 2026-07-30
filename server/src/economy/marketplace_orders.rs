@@ -3,8 +3,9 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    MarketCommodityOffer, MarketWaterCommodityOffer, TradeResource,
-    MARKET_CARAVAN_FOOD_PER_DELIVERY, MARKET_CARAVAN_WATER_PER_DELIVERY,
+    MarketCommodityOffer, MarketWaterCommodityOffer, TradeResource, FOOD_DELIVERY_SPEED_MPS,
+    FOOD_DELIVERY_UNLOAD_SEC, MARKET_CARAVAN_FOOD_PER_DELIVERY, MARKET_CARAVAN_WATER_PER_DELIVERY,
+    WATER_DELIVERY_SPEED_MPS, WATER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::marketplace_trade_policy::market_order_should_commit;
@@ -13,10 +14,15 @@ use crate::economy::regional_market_policy::MarketTradeDirection;
 use crate::economy::{
     building_food_storage_cap, building_water_storage_cap, credit_treasury_gold,
     debit_residence_wealth, deposit_building_food, deposit_building_water, spend_treasury_gold,
+    CommodityKind,
 };
 use crate::simulation::residence_needs::ResidenceNeedKind;
+use crate::simulation::residence_needs::{load_needs, need_stock};
 use crate::simulation::{
-    try_dispatch_marketplace_caravan, GameClock, MarketCaravanDispatch, SimTickContext,
+    building_has_external_market_import_trip, delivery_stock_room, regional_market_import_route,
+    regional_market_import_route_to_residence, start_external_market_import_trip,
+    start_external_market_import_trip_to_residence, try_dispatch_marketplace_caravan, GameClock,
+    MarketCaravanDispatch, SimTickContext,
 };
 use crate::tables::{Building, Residence};
 
@@ -50,6 +56,23 @@ pub fn order_food_commodity(
         .find(&marketplace_id)
         .ok_or_else(|| "Marketplace not found.".to_string())?;
     validate_order_marketplace(ctx, tick, &building, owner)?;
+    if physical_market_orders_enabled(ctx, owner) {
+        return order_physical_market_import(
+            ctx,
+            tick,
+            &mut building,
+            owner,
+            CommodityKind::Food,
+            commodity.food_amount,
+            gold_cost,
+            FOOD_DELIVERY_SPEED_MPS,
+            FOOD_DELIVERY_UNLOAD_SEC,
+            payer,
+            residence,
+            dispatch,
+            Some(TradeResource::Food),
+        );
+    }
     let original_building = building.clone();
 
     let paid_from_market = pay_market_gold(ctx, owner, gold_cost, payer, residence, &mut building)?;
@@ -118,6 +141,23 @@ pub fn order_water_commodity(
         .find(&marketplace_id)
         .ok_or_else(|| "Marketplace not found.".to_string())?;
     validate_order_marketplace(ctx, tick, &building, owner)?;
+    if physical_market_orders_enabled(ctx, owner) {
+        return order_physical_market_import(
+            ctx,
+            tick,
+            &mut building,
+            owner,
+            CommodityKind::Water,
+            commodity.water_amount,
+            gold_cost,
+            WATER_DELIVERY_SPEED_MPS,
+            WATER_DELIVERY_UNLOAD_SEC,
+            payer,
+            residence,
+            dispatch,
+            None,
+        );
+    }
     let original_building = building.clone();
 
     let paid_from_market = pay_market_gold(ctx, owner, gold_cost, payer, residence, &mut building)?;
@@ -155,6 +195,158 @@ pub fn order_water_commodity(
     }
     ctx.db.building().id().update(dispatch_building);
     Ok(dispatched)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn order_physical_market_import(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    marketplace: &mut Building,
+    owner: spacetimedb::Identity,
+    commodity: CommodityKind,
+    amount: f64,
+    gold_cost: f64,
+    speed_mps: f64,
+    unload_seconds: f64,
+    payer: MarketGoldPayer,
+    residence: Option<&Residence>,
+    dispatch: MarketCaravanDispatch,
+    regional_trade_resource: Option<TradeResource>,
+) -> Result<bool, String> {
+    if amount <= 1e-6 || !amount.is_finite() {
+        return Ok(false);
+    }
+    if building_has_external_market_import_trip(ctx, marketplace.id) {
+        return Err(
+            "This marketplace already has a regional caravan on the road. Wait for it to unload and leave the map."
+                .to_string(),
+        );
+    }
+    let network = tick
+        .road_network(owner)
+        .ok_or_else(|| "Connect the marketplace to a road before ordering goods.".to_string())?;
+
+    let named_residence = match dispatch.priority_residence_id {
+        Some(residence_id) => {
+            if dispatch
+                .exact_load_amount
+                .is_some_and(|exact| (exact - amount).abs() > 1e-6)
+            {
+                return Err("The named household order has an invalid load size.".to_string());
+            }
+            let supplied_residence = residence
+                .filter(|candidate| candidate.id == residence_id)
+                .ok_or_else(|| "Named household order requires its residence.".to_string())?;
+            let current = ctx
+                .db
+                .residence()
+                .id()
+                .find(&residence_id)
+                .ok_or_else(|| "Household not found.".to_string())?;
+            let need_kind = match commodity {
+                CommodityKind::Food => ResidenceNeedKind::Food,
+                CommodityKind::Water => ResidenceNeedKind::Water,
+                _ => return Err("Unsupported named regional order.".to_string()),
+            };
+            if current.owner != owner
+                || supplied_residence.owner != owner
+                || !need_kind.is_active_for_tier(current.tier)
+                || tick.residence_disabled_by_fire(ctx, current.id)
+                || (!dispatch.include_abandoned && (current.abandoned || current.population == 0))
+            {
+                return Err("The named household can no longer receive this order.".to_string());
+            }
+            let current_stock = need_stock(&load_needs(ctx, current.id), need_kind);
+            if delivery_stock_room(need_kind, current_stock) + 1e-6 < amount {
+                return Err("The named household needs room for the full order.".to_string());
+            }
+            Some(current)
+        }
+        None => {
+            if residence.is_some() {
+                return Err("A household order needs an exact destination.".to_string());
+            }
+            ensure_physical_market_import_room(marketplace, commodity, amount)?;
+            None
+        }
+    };
+
+    let route = match named_residence.as_ref() {
+        Some(target) => {
+            regional_market_import_route_to_residence(ctx, network, marketplace, target)?
+        }
+        None => regional_market_import_route(ctx, network, marketplace)?,
+    };
+    // Payment is performed only after every physical route and destination
+    // check succeeds. Reducer transaction rollback still protects the rare
+    // insertion failure below.
+    let charged_from_market =
+        pay_market_gold(ctx, owner, gold_cost, payer, residence, marketplace)?;
+    let started = match named_residence.as_ref() {
+        Some(target) => start_external_market_import_trip_to_residence(
+            ctx,
+            tick,
+            network,
+            marketplace,
+            target,
+            commodity,
+            amount,
+            speed_mps,
+            unload_seconds,
+            route,
+        ),
+        None => start_external_market_import_trip(
+            ctx,
+            tick,
+            network,
+            marketplace,
+            commodity,
+            amount,
+            route,
+        ),
+    };
+    if !started {
+        return Err(
+            "The regional caravan could not enter this marketplace's road branch.".to_string(),
+        );
+    }
+    if charged_from_market {
+        ctx.db.building().id().update(marketplace.clone());
+    }
+    if let Some(resource) = regional_trade_resource {
+        record_market_trade(ctx, owner, resource, MarketTradeDirection::Import, amount);
+    }
+    Ok(true)
+}
+
+fn physical_market_orders_enabled(ctx: &ReducerContext, owner: spacetimedb::Identity) -> bool {
+    ctx.db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled)
+}
+
+fn ensure_physical_market_import_room(
+    marketplace: &Building,
+    commodity: CommodityKind,
+    amount: f64,
+) -> Result<(), String> {
+    let room = match commodity {
+        CommodityKind::Food => {
+            (building_food_storage_cap(&marketplace.kind) - marketplace.food).max(0.0)
+        }
+        CommodityKind::Water => (marketplace
+            .water_capacity
+            .max(building_water_storage_cap(&marketplace.kind))
+            - marketplace.water)
+            .max(0.0),
+        _ => 0.0,
+    };
+    if room + 1e-6 < amount {
+        return Err("Marketplace needs room for the full regional order.".to_string());
+    }
+    Ok(())
 }
 
 fn validate_order_marketplace(

@@ -80,8 +80,41 @@ assert.match(
 );
 assert.match(
   marketplaceOrders,
-  /validate_order_marketplace\(ctx, tick, &building, owner\)\?;[\s\S]{0,220}pay_market_gold\(/,
+  /validate_order_marketplace\(ctx, tick, &building, owner\)\?;[\s\S]*order_physical_market_import/,
   'marketplace validation must happen before any payer is debited',
+);
+assert.ok(
+  marketplaceOrders.indexOf('regional_market_import_route_to_residence')
+    < marketplaceOrders.indexOf('pay_market_gold(ctx, owner, gold_cost'),
+  'the exact map-edge, marketplace, and household route must validate before payment',
+);
+assert.match(
+  marketplaceOrders,
+  /order_physical_market_import[\s\S]*start_external_market_import_trip_to_residence/,
+  'named household and parish orders must use one physical regional merchant agent',
+);
+assert.match(
+  marketplaceOrders,
+  /delivery_stock_room\(need_kind, current_stock\)[\s\S]*named household needs room/,
+  'a paid physical household load must fit before the merchant departs',
+);
+
+const deliveryTrips = read('server/src/simulation/delivery_trips.rs');
+assert.match(
+  deliveryTrips,
+  /ExternalResidence[\s\S]*market_id[\s\S]*DELIVERY_DESTINATION_RESIDENCE, id, market_id/,
+  'the existing destination row must retain the contracting market without a new save column',
+);
+assert.match(
+  deliveryTrips,
+  /regional_market_import_route_to_residence[\s\S]*regional_market_import_route[\s\S]*road_path_route/,
+  'named imports must enter through their marketplace branch before continuing to the home',
+);
+const deliverySync = read('src/data/spacetimeTableSync/syncDeliveryTrips.ts');
+assert.match(
+  deliverySync,
+  /targetBuildingId: row\.targetBuildingId > 0n/,
+  'the client must retain the market marker on a regional household trip',
 );
 
 for (const path of [
@@ -132,7 +165,6 @@ assert.doesNotMatch(
 );
 
 const tickContext = read('server/src/simulation/tick_context.rs');
-const deliveryTrips = read('server/src/simulation/delivery_trips.rs');
 assert.match(
   tickContext,
   /building_index:\s*RefCell<Option<HashMap<Identity,\s*OwnerBuildingIndex>>>/,

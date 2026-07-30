@@ -2,8 +2,8 @@ use spacetimedb::ReducerContext;
 
 use super::marketplace_orders::{order_food_commodity, order_water_commodity, MarketGoldPayer};
 use super::marketplace_trade_policy::{
-    adriatic_trade_entry_point, manual_trade_cooldown_seconds, manual_trade_ready, trade_receive,
-    trade_spend, TradeReceive, TradeSpend,
+    manual_trade_cooldown_seconds, manual_trade_ready, trade_receive, trade_spend, TradeReceive,
+    TradeSpend,
 };
 use super::regional_market::{
     ensure_market_state, price_multiplier_for, record_market_trade, scaled_gold_cost,
@@ -31,14 +31,13 @@ use crate::marketplace_procurement_policy::{
     next_standing_marketplace_import, StandingMarketplaceImport, MARKETPLACE_IRONWORK_IMPORT_LOT,
     MARKETPLACE_IRON_IMPORT_LOT, MARKETPLACE_SALT_IMPORT_LOT, MARKETPLACE_SEED_GRAIN_IMPORT_LOT,
 };
-use crate::raid_agent_policy::playable_half_for_map_size;
-use crate::roads::{RoadNetwork, RoadPathRoute};
+use crate::roads::RoadNetwork;
 use crate::season_policy::environment_for;
 use crate::simulation::{
     building_has_active_trip, building_has_external_market_import_trip,
     building_has_inbound_commodity_trip, game_clock, labor_and_logistics_paused,
-    start_external_market_import_trip, try_start_building_supply_trip, GameClock,
-    MarketCaravanDispatch, SimTickContext,
+    regional_market_import_route, start_external_market_import_trip,
+    try_start_building_supply_trip, GameClock, MarketCaravanDispatch, SimTickContext,
 };
 use crate::tables::Building;
 
@@ -447,7 +446,7 @@ fn apply_marketplace_trade(
     let external_import_route = if physical_trade_staging_enabled(ctx, owner)
         && matches!(trade_receive(offer), TradeReceive::Resource(_))
     {
-        Some(adriatic_import_route(ctx, marketplace, network)?)
+        Some(regional_market_import_route(ctx, network, marketplace)?)
     } else {
         None
     };
@@ -535,30 +534,6 @@ fn apply_marketplace_trade(
 
     record_trade_effects(ctx, owner, offer);
     Ok(MarketplaceTradeOutcome::Settled)
-}
-
-fn adriatic_import_route(
-    ctx: &ReducerContext,
-    marketplace: &Building,
-    network: &RoadNetwork,
-) -> Result<RoadPathRoute, String> {
-    let config = ctx
-        .db
-        .world_config()
-        .id()
-        .find(&0)
-        .ok_or_else(|| "World configuration unavailable.".to_string())?;
-    let entropy = config.seed ^ marketplace.id.wrapping_mul(0x9e37_79b9);
-    let playable_half = playable_half_for_map_size(config.map_size);
-    let (entry_x, entry_z) =
-        adriatic_trade_entry_point(entropy, marketplace.x, marketplace.z, playable_half)
-            .ok_or_else(|| "The Adriatic trade approach is invalid.".to_string())?;
-    network
-        .road_path_route_from_external_access(entry_x, entry_z, marketplace.x, marketplace.z, 1.6)
-        .filter(|route| route.distance > 1e-6 && route.polyline.len() >= 2)
-        .ok_or_else(|| {
-            "Extend a road-connected branch toward the regional route before importing.".to_string()
-        })
 }
 
 /// Advances one save-persistent physical export order. It is called on the

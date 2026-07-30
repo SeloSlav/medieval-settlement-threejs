@@ -10,6 +10,7 @@ import {
 import {
   deliveryLegRemainingMeters,
   deliveryWorkerPersonIdentity,
+  isRegionalImportTrip,
   onsiteBuildingLabor,
   raidWithdrawingCartCount,
   rosteredCartWorkers,
@@ -74,6 +75,25 @@ const loadedTrip: DeliveryTripState = {
 };
 assert.equal(deliveryWorkerPersonIdentity(loadedTrip), 'delivery:origin:hauler:0');
 assert.equal(deliveryWorkerPersonIdentity(loadedTrip, 2), 'delivery:origin:hauler:2');
+const regionalMarketTrip: DeliveryTripState = {
+  ...loadedTrip,
+  id: 'regional-market-cart',
+  targetBuildingId: loadedTrip.buildingId,
+  freeHaulerWorkers: loadedTrip.deliveryWorkers,
+};
+assert.equal(isRegionalImportTrip(regionalMarketTrip), true);
+assert.equal(
+  deliveryWorkerPersonIdentity(regionalMarketTrip),
+  'regional-merchant:regional-market-cart:crew:0',
+  'a foreign merchant must not reuse a settlement hauler identity',
+);
+const regionalHouseholdTrip: DeliveryTripState = {
+  ...regionalMarketTrip,
+  id: 'regional-household-cart',
+  destinationKind: 'residence',
+  residenceId: 'named-home',
+};
+assert.equal(isRegionalImportTrip(regionalHouseholdTrip), true);
 assert.equal(rosteredCartWorkers({ assignedLabor: 3 }, loadedTrip), 2);
 assert.equal(onsiteBuildingLabor({ assignedLabor: 3 }, loadedTrip), 1);
 assert.equal(
@@ -154,6 +174,7 @@ assert.equal(
       { ...loadedTrip, phase: 'inbound' },
       { ...loadedTrip, id: 'fire-cart', destinationKind: 'fire', phase: 'inbound' },
       { ...loadedTrip, id: 'outbound-cart', phase: 'outbound' },
+      { ...regionalHouseholdTrip, phase: 'inbound' },
     ],
     true,
   ),

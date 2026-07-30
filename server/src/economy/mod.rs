@@ -22,6 +22,7 @@ pub use commodities::{
     credit_treasury_commodity, deposit_building_commodity, withdraw_building_commodity,
     CommodityKind,
 };
+pub(crate) use marketplace_trade_policy::adriatic_trade_entry_point;
 
 pub use aggregate_spend::{spend_aggregate_stone, spend_aggregate_timber};
 pub use chapel_coffer::{

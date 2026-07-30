@@ -32,6 +32,7 @@ import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import {
   cargoKindLabel,
   formatTripPhaseLabel,
+  isRegionalImportTrip,
   tripRemainingSeconds,
   type DeliveryTripState,
 } from '../../logistics/deliveryTrips.ts';
@@ -108,10 +109,7 @@ export function renderMarketplaceInspector(
     && pendingOffer.resource === 'pottery';
   const activeMarketTrips = Array.from(context.gameState.deliveryTrips.values())
     .filter((trip) => trip.buildingId === building.id);
-  const regionalImportTrip = activeMarketTrips.find((trip) =>
-    trip.destinationKind === 'building'
-    && trip.targetBuildingId === building.id
-  ) ?? null;
+  const regionalImportTrip = activeMarketTrips.find(isRegionalImportTrip) ?? null;
   const activeMarketTrip = activeMarketTrips.find((trip) => trip !== regionalImportTrip) ?? null;
   const activeMaterialTarget = activeMarketTrip?.destinationKind === 'building'
     && activeMarketTrip.targetBuildingId
@@ -209,7 +207,12 @@ export function renderMarketplaceInspector(
     ? `${Math.round(roadSpeedMultiplier * 100)}% caravan pace`
     : 'Firm roads';
   const regionalRoute = regionalImportTrip
-    ? formatRegionalImportTrip(regionalImportTrip)
+    ? formatRegionalImportTrip(
+        regionalImportTrip,
+        regionalImportTrip.residenceId
+          ? context.gameState.residences.get(regionalImportTrip.residenceId)?.parcelIndex
+          : undefined,
+      )
     : marketFireDisabled
     ? 'Paused · repair fire damage before regional trade resumes'
     : brokerCount <= 0
@@ -346,7 +349,10 @@ export function renderMarketplaceInspector(
   };
 }
 
-function formatRegionalImportTrip(trip: DeliveryTripState): string {
+function formatRegionalImportTrip(
+  trip: DeliveryTripState,
+  parcelIndex?: number,
+): string {
   const remainingSeconds = tripRemainingSeconds(trip, trip.pathDistance);
   const clearsIn = Number.isFinite(remainingSeconds)
     ? ` · route clears in about ${Math.max(1, Math.ceil(remainingSeconds))}s`
@@ -354,8 +360,19 @@ function formatRegionalImportTrip(trip: DeliveryTripState): string {
   if (trip.phase === 'inbound') {
     return `Merchant cart returning to the Adriatic-facing map edge${clearsIn}`;
   }
+  const household = trip.destinationKind === 'residence'
+    ? parcelIndex == null
+      ? 'the named household'
+      : `Parcel #${parcelIndex + 1}`
+    : null;
   if (trip.phase === 'unloading') {
+    if (household) {
+      return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading at ${household}${clearsIn}`;
+    }
     return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading into physical market storage${clearsIn}`;
+  }
+  if (household) {
+    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound through this market to ${household}${clearsIn}`;
   }
   return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound from the Adriatic-facing map edge${clearsIn}`;
 }
