@@ -73,16 +73,17 @@ export type ResidenceUpgradeContext = {
 };
 
 export type ResidenceUpgradeMaterial = 'timber' | 'stone' | 'gold';
+export type ResidenceProjectMaterial = ResidenceUpgradeMaterial | 'roofTiles';
 
 export type ResidenceMaterialProject = {
   progress: number;
   priority: ConstructionPriority;
   priorityLabel: string;
   assignedLabor: number;
-  required: Record<ResidenceUpgradeMaterial, number>;
-  delivered: Record<ResidenceUpgradeMaterial, number>;
-  reserved: Record<ResidenceUpgradeMaterial, number>;
-  incoming: Record<ResidenceUpgradeMaterial, number>;
+  required: Record<ResidenceProjectMaterial, number>;
+  delivered: Record<ResidenceProjectMaterial, number>;
+  reserved: Record<ResidenceProjectMaterial, number>;
+  incoming: Record<ResidenceProjectMaterial, number>;
   incomingTrips: DeliveryTripState[];
   materialReadiness: number;
   paid: boolean;
@@ -99,6 +100,7 @@ export type ResidenceBackyardProject = ResidenceMaterialProject & {
 
 export type ResidenceFireRepairProject = ResidenceMaterialProject;
 export type ResidenceDecayRepairProject = ResidenceMaterialProject;
+export type ResidenceRoofTileProject = ResidenceMaterialProject;
 
 type UpgradeDefinition = {
   nextTier: 2 | 3;
@@ -256,6 +258,14 @@ export function residenceDecayRepairProject(
   return residenceMaterialProject(residence, trips);
 }
 
+export function residenceRoofTileProject(
+  residence: ResidenceState,
+  trips: Iterable<DeliveryTripState> = [],
+): ResidenceRoofTileProject | null {
+  if (residence.roofTileRetrofitActive !== true) return null;
+  return residenceMaterialProject(residence, trips);
+}
+
 function residenceMaterialProject(
   residence: ResidenceState,
   trips: Iterable<DeliveryTripState>,
@@ -264,18 +274,21 @@ function residenceMaterialProject(
     timber: nonnegative(residence.upgradeRequiredTimber),
     stone: nonnegative(residence.upgradeRequiredStone),
     gold: nonnegative(residence.upgradeRequiredGold),
+    roofTiles: nonnegative(residence.upgradeRequiredRoofTiles),
   };
   const delivered = {
     timber: nonnegative(residence.upgradeDeliveredTimber),
     stone: nonnegative(residence.upgradeDeliveredStone),
     gold: nonnegative(residence.upgradeDeliveredGold),
+    roofTiles: nonnegative(residence.upgradeDeliveredRoofTiles),
   };
   const reserved = {
     timber: nonnegative(residence.upgradeReservedTimber),
     stone: nonnegative(residence.upgradeReservedStone),
     gold: nonnegative(residence.upgradeReservedGold),
+    roofTiles: nonnegative(residence.upgradeReservedRoofTiles),
   };
-  const incoming = { timber: 0, stone: 0, gold: 0 };
+  const incoming = { timber: 0, stone: 0, gold: 0, roofTiles: 0 };
   const incomingTrips: DeliveryTripState[] = [];
   for (const trip of trips) {
     if (
@@ -284,17 +297,21 @@ function residenceMaterialProject(
       || trip.phase === 'inbound'
       || (trip.cargoKind !== 'timber'
         && trip.cargoKind !== 'stone'
-        && trip.cargoKind !== 'gold')
+        && trip.cargoKind !== 'gold'
+        && trip.cargoKind !== 'roofTiles')
     ) {
       continue;
     }
     incoming[trip.cargoKind] += Math.max(0, trip.amount);
     incomingTrips.push(trip);
   }
-  const structuralRequired = required.timber + required.stone;
+  const structuralRequired = required.timber + required.stone + required.roofTiles;
   const materialReadiness = structuralRequired <= 1e-6
     ? 1
-    : Math.min(1, (delivered.timber + delivered.stone) / structuralRequired);
+    : Math.min(
+        1,
+        (delivered.timber + delivered.stone + delivered.roofTiles) / structuralRequired,
+      );
   const priority = normalizeConstructionPriority(residence.upgradePriority);
   const assignedLabor = Math.max(0, Math.floor(residence.upgradeAssignedLabor ?? 0));
   const paid = delivered.gold + 1e-6 >= required.gold;
@@ -309,6 +326,9 @@ function residenceMaterialProject(
       : []),
     ...(delivered.gold + incoming.gold + 1e-6 < required.gold
       ? ['civic lockbox payment still at source']
+      : []),
+    ...(delivered.roofTiles + incoming.roofTiles + 1e-6 < required.roofTiles
+      ? ['fired roof tiles still reserved at source']
       : []),
   ];
 

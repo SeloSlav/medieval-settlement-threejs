@@ -254,6 +254,7 @@ fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: Commodity
                             residence.backyard_project_kind,
                             residence.fire_repair_active,
                             residence.decay_repair_active,
+                            residence.roof_tile_retrofit_active,
                         )
                     })
                     .map(|residence| match commodity {

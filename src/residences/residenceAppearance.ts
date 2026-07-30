@@ -45,8 +45,8 @@ const ENTRY_SIDES = [-1, 1] as const;
 export function pickResidenceAppearance(seed: number): ResidenceAppearance {
   const rng = mulberry32(seed);
   const facade = pick(FACADE_COLORS, rng);
-  // Keep the established seeded construction sequence stable while roofing
-  // remains physical-state-only and no per-residence retrofit state exists.
+  // Keep the established seeded construction sequence stable. The completed
+  // roof covering is authoritative per-residence state, not a random roll.
   rng();
   const roof: RoofColor = 'brown';
   const archetype = pick(ARCHETYPES, rng);

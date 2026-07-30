@@ -6,6 +6,7 @@ use crate::balance_generated::{
     FIRE_EXTINGUISH_INTENSITY_THRESHOLD, FIRE_INTENSITY_GROWTH_PER_SECOND,
     FIRE_INTENSITY_REDUCTION_PER_WATER, FIRE_MINIMUM_BUCKET_WATER,
     FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND, FIRE_RAIN_RISK_MULTIPLIER,
+    RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -44,6 +45,15 @@ pub fn weather_risk_multiplier(is_raining: bool, is_drought: bool) -> f64 {
 /// raid economy; this controls only whether the structure can burn.
 pub fn building_base_flammability(kind: &str) -> f64 {
     fire_building_base_flammability(kind)
+}
+
+pub fn residence_flammability(tier: u8, tiled_roof: bool) -> f64 {
+    let base = 0.9 + tier as f64 * 0.12;
+    if tiled_roof {
+        base * RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER
+    } else {
+        base
+    }
 }
 
 /// Combines repeated independent checks without inflating or suppressing the
@@ -116,6 +126,16 @@ pub fn distance_spread_factor(distance: f64, radius: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tile_roof_reduces_but_does_not_remove_residence_fire_exposure() {
+        let shingled = residence_flammability(3, false);
+        let tiled = residence_flammability(3, true);
+
+        assert!(tiled > 0.0);
+        assert!(tiled < shingled);
+        assert!((tiled / shingled - RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER).abs() < 1e-9);
+    }
 
     #[test]
     fn rain_damps_while_drought_accelerates_fire() {

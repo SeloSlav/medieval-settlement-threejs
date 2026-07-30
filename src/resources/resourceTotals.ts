@@ -77,6 +77,7 @@ export type ResourceTotals = {
   salt: number;
   charcoal: number;
   pottery: number;
+  roofTiles: number;
   manure: number;
   remedies: number;
 };
@@ -106,6 +107,7 @@ export const HUD_RESOURCE_KINDS = [
   'salt',
   'charcoal',
   'pottery',
+  'roofTiles',
 ] as const satisfies readonly (keyof ResourceTotals)[];
 
 export type HudResourceKind = (typeof HUD_RESOURCE_KINDS)[number];
@@ -181,6 +183,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let salt = ledger?.salt ?? 0;
   let charcoal = ledger?.charcoal ?? 0;
   let pottery = ledger?.pottery ?? 0;
+  let roofTiles = ledger?.roofTiles ?? 0;
   let manure = 0;
   let remedies = 0;
   let gold = ledger?.gold ?? 0;
@@ -188,6 +191,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let reservedStone = 0;
   let reservedIronwork = 0;
   let reservedGold = 0;
+  let reservedRoofTiles = 0;
 
   for (const building of state.buildings.values()) {
     timber += building.timber;
@@ -213,6 +217,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     salt += building.salt ?? 0;
     charcoal += building.charcoal ?? 0;
     pottery += building.pottery ?? 0;
+    roofTiles += building.roofTiles ?? 0;
     manure += building.manure ?? 0;
     remedies += building.remedies ?? 0;
     if (
@@ -234,6 +239,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
       reservedTimber += Math.max(0, residence.upgradeReservedTimber ?? 0);
       reservedStone += Math.max(0, residence.upgradeReservedStone ?? 0);
       reservedGold += Math.max(0, residence.upgradeReservedGold ?? 0);
+      reservedRoofTiles += Math.max(0, residence.upgradeReservedRoofTiles ?? 0);
     }
     firewood += getNeedStock(residence.needs, 'firewood');
     water += getNeedStock(residence.needs, 'water');
@@ -270,6 +276,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     salt,
     charcoal,
     pottery,
+    roofTiles,
     manure,
     remedies,
   };
@@ -279,6 +286,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     stone: Math.max(0, stone - reservedStone),
     ironwork: Math.max(0, ironwork - reservedIronwork),
     gold: Math.max(0, gold - reservedGold),
+    roofTiles: Math.max(0, roofTiles - reservedRoofTiles),
   };
   cachedState = state;
   return cachedTotals;
@@ -593,6 +601,7 @@ function emptyResourceTotals(): ResourceTotals {
     salt: 0,
     charcoal: 0,
     pottery: 0,
+    roofTiles: 0,
     manure: 0,
     remedies: 0,
   };

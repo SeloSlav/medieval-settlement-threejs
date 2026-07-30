@@ -183,6 +183,8 @@ function foundingDestinationPriority(
       if (building.kind === 'marketplace') return 1;
       if (building.kind === 'potter_kiln') return 2;
       return 3;
+    case 'roofTiles':
+      return building.kind === 'potter_kiln' ? 0 : null;
     case 'manure':
       return building.kind === 'threshing_barn' ? 0 : null;
     case 'remedies':

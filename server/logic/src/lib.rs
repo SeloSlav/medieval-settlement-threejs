@@ -81,6 +81,9 @@ pub mod preserved_food_policy;
 #[path = "../../src/pottery_dispatch_policy.rs"]
 pub mod pottery_dispatch_policy;
 
+#[path = "../../src/potter_firing_policy.rs"]
+pub mod potter_firing_policy;
+
 #[path = "../../src/processor_labor_policy.rs"]
 pub mod processor_labor_policy;
 

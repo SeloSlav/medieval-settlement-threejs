@@ -97,4 +97,6 @@ export default __t.row({
   storehouseIronTargetPercent: __t.u8().name("storehouse_iron_target_percent"),
   storehouseClayTargetPercent: __t.u8().name("storehouse_clay_target_percent"),
   storehouseSaltTargetPercent: __t.u8().name("storehouse_salt_target_percent"),
+  roofTiles: __t.f64().name("roof_tiles"),
+  potterFiringPolicy: __t.u8().name("potter_firing_policy"),
 });

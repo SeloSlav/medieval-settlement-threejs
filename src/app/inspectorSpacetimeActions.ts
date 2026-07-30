@@ -18,6 +18,7 @@ export type InspectorSpacetimeActions = {
   onDemolishBurgageZone: (zoneId: string) => Promise<void>;
   onDemolishResidence: (residenceId: string) => Promise<void>;
   onUpgradeResidence: (residenceId: string) => Promise<void>;
+  onRetrofitResidenceTileRoof: (residenceId: string) => Promise<void>;
   onRepairResidenceDecay: (residenceId: string) => Promise<void>;
   onDemolishGraveyard: (graveyardId: string) => Promise<void>;
   onSetResidenceUpgradePriority: (residenceId: string, priority: number) => Promise<void>;
@@ -83,6 +84,10 @@ export type InspectorSpacetimeActions = {
   onSetPotteryDispatchPolicy: (
     buildingId: string,
     dispatchPolicy: number,
+  ) => Promise<void>;
+  onSetPotterFiringPolicy: (
+    buildingId: string,
+    firingPolicy: number,
   ) => Promise<void>;
   onSetGranaryPolicy: (
     buildingId: string,
@@ -165,6 +170,14 @@ export function createInspectorSpacetimeActions(
       const store = requireReady();
       if (!store) return;
       await runReducer(() => store.upgradeResidence(residenceId), 'Residence upgrade failed.');
+    },
+    onRetrofitResidenceTileRoof: async (residenceId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.retrofitResidenceTileRoof(residenceId),
+        'Roof retrofit failed.',
+      );
     },
     onRepairResidenceDecay: async (residenceId) => {
       const store = requireReady();
@@ -590,6 +603,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setPotteryDispatchPolicy(buildingId, dispatchPolicy),
         'Could not update the pottery dispatch policy.',
+      );
+    },
+    onSetPotterFiringPolicy: async (buildingId, firingPolicy) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setPotterFiringPolicy(buildingId, firingPolicy),
+        'Could not update the kiln firing order.',
       );
     },
     onSetGranaryPolicy: async (buildingId, acceptsFreshFood, householdsFirst) => {

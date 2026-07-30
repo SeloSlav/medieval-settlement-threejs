@@ -39,6 +39,7 @@ const RESOURCE_LABELS: Record<HudResourceKind, string> = {
   salt: 'Salt',
   charcoal: 'Charcoal',
   pottery: 'Pottery',
+  roofTiles: 'Fired roof tiles',
 };
 
 const RESIDENCE_NEED_RESOURCES = new Set<ResidenceNeedKind>([

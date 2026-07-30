@@ -32,6 +32,7 @@ pub enum CommodityKind {
     Pottery,
     Manure,
     Remedies,
+    RoofTiles,
 }
 
 impl CommodityKind {
@@ -63,6 +64,7 @@ impl CommodityKind {
             Self::Pottery => 23,
             Self::Manure => 24,
             Self::Remedies => 25,
+            Self::RoofTiles => 26,
         }
     }
 
@@ -94,6 +96,7 @@ impl CommodityKind {
             23 => Some(Self::Pottery),
             24 => Some(Self::Manure),
             25 => Some(Self::Remedies),
+            26 => Some(Self::RoofTiles),
             _ => None,
         }
     }
@@ -127,6 +130,7 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Pottery => building.pottery,
         CommodityKind::Manure => building.manure,
         CommodityKind::Remedies => building.remedies,
+        CommodityKind::RoofTiles => building.roof_tiles,
     }
 }
 
@@ -177,6 +181,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Pottery => def.storage_pottery,
         CommodityKind::Manure => def.storage_manure,
         CommodityKind::Remedies => def.storage_remedies,
+        CommodityKind::RoofTiles => def.storage_roof_tiles,
     }
 }
 
@@ -218,6 +223,7 @@ pub fn withdraw_building_commodity(
         CommodityKind::Pottery => building.pottery -= withdrawn,
         CommodityKind::Manure => building.manure -= withdrawn,
         CommodityKind::Remedies => building.remedies -= withdrawn,
+        CommodityKind::RoofTiles => building.roof_tiles -= withdrawn,
     }
     withdrawn
 }
@@ -255,6 +261,7 @@ pub fn deposit_building_commodity(
         CommodityKind::Pottery => building.pottery += deposited,
         CommodityKind::Manure => building.manure += deposited,
         CommodityKind::Remedies => building.remedies += deposited,
+        CommodityKind::RoofTiles => building.roof_tiles += deposited,
     }
     deposited
 }
@@ -305,6 +312,7 @@ pub fn credit_treasury_commodity(
         CommodityKind::Manure => return,
         // Prepared remedies are produced and consumed only at physical sites.
         CommodityKind::Remedies => return,
+        CommodityKind::RoofTiles => treasury.roof_tiles += amount,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);

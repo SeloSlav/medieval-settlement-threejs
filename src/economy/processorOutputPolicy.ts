@@ -1,5 +1,9 @@
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
+import {
+  normalizePotterFiringPolicy,
+  POTTER_FIRE_ROOF_TILES,
+} from './potterFiringPolicy.ts';
 
 export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'watermill',
@@ -33,7 +37,8 @@ export type ProcessorOutputCommodity =
   | 'cloth'
   | 'charcoal'
   | 'ironwork'
-  | 'pottery';
+  | 'pottery'
+  | 'roofTiles';
 
 export type ExtractionOutputCommodity = 'stone' | 'iron' | 'salt' | 'clay';
 
@@ -163,6 +168,19 @@ export function processorOutputCommodity(
   return OUTPUT_BY_KIND[kind];
 }
 
+export function processorOutputCommodityForBuilding(
+  building: Pick<BuildingState, 'kind' | 'potterFiringPolicy'>,
+): ProcessorOutputCommodity | null {
+  if (!isProcessorOutputTargetKind(building.kind)) return null;
+  if (
+    building.kind === 'potter_kiln'
+    && normalizePotterFiringPolicy(building.potterFiringPolicy) === POTTER_FIRE_ROOF_TILES
+  ) {
+    return 'roofTiles';
+  }
+  return processorOutputCommodity(building.kind);
+}
+
 export function processorInputCommodities(
   kind: ProcessorOutputTargetKind,
 ): readonly ProcessorInputCommodity[] {
@@ -196,10 +214,13 @@ export function processorInputStagingCycles(
 }
 
 export function processorOutputTargetForBuilding(
-  building: Pick<BuildingState, 'kind' | 'processorOutputTargetPercent'>,
+  building: Pick<
+    BuildingState,
+    'kind' | 'processorOutputTargetPercent' | 'potterFiringPolicy'
+  >,
 ): number | null {
-  if (!isProcessorOutputTargetKind(building.kind)) return null;
-  const output = processorOutputCommodity(building.kind);
+  const output = processorOutputCommodityForBuilding(building);
+  if (!output || !isProcessorOutputTargetKind(building.kind)) return null;
   const capacity = (
     BUILDING_STORAGE_CAPS[building.kind] as Partial<
       Record<ProcessorOutputCommodity, number>
@@ -211,11 +232,14 @@ export function processorOutputTargetForBuilding(
 export function processorOutputHeadroom(
   building: Pick<
     BuildingState,
-    'kind' | 'processorOutputTargetPercent' | ProcessorOutputCommodity
+    'kind'
+      | 'processorOutputTargetPercent'
+      | 'potterFiringPolicy'
+      | ProcessorOutputCommodity
   >,
 ): number | null {
-  if (!isProcessorOutputTargetKind(building.kind)) return null;
-  const output = processorOutputCommodity(building.kind);
+  const output = processorOutputCommodityForBuilding(building);
+  if (!output) return null;
   const target = processorOutputTargetForBuilding(building) ?? 0;
   return Math.max(0, target - Math.max(0, building[output] ?? 0));
 }

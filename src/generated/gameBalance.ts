@@ -123,6 +123,10 @@ export const RESIDENCE_TIER2_GOLD_COST = 8;
 export const RESIDENCE_TIER3_TIMBER_COST = 28;
 export const RESIDENCE_TIER3_STONE_COST = 24;
 export const RESIDENCE_TIER3_GOLD_COST = 22;
+export const RESIDENCE_TILE_ROOF_TIMBER_COST = 12;
+export const RESIDENCE_TILE_ROOF_TILE_COST = 36;
+export const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION = 0.6;
+export const RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER = 0.55;
 export const HOUSEHOLD_MAX_WEALTH = 200;
 export const TOWN_HALL_POPULATION_REQUIRED = 24;
 export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = 0.6;
@@ -348,6 +352,7 @@ export const POTTER_CLAY_PER_CYCLE = 3;
 export const POTTER_FIREWOOD_PER_CYCLE = 1;
 export const POTTER_WATER_PER_CYCLE = 1;
 export const POTTER_POTTERY_PER_CYCLE = 3;
+export const POTTER_ROOF_TILES_PER_CYCLE = 4;
 export const APIARY_HONEY_PER_CYCLE = 2;
 export const APIARY_FOOD_PER_CYCLE = 1;
 export const APIARY_SEASON_START_MONTH = 4;
@@ -638,6 +643,7 @@ export type StorageCaps = {
   salt?: number;
   charcoal?: number;
   pottery?: number;
+  roofTiles?: number;
   manure?: number;
   remedies?: number;
 };
@@ -1389,8 +1395,8 @@ export const BUILDING_COSTS = {
 } as const satisfies Record<BuildingKind, BuildingResourceCost>;
 
 export const BUILDING_STORAGE_CAPS = {
-  founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 80, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80 },
-  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, manure: 2000, remedies: 2000 },
+  founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 80, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80, roofTiles: 80 },
+  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, roofTiles: 2000, manure: 2000, remedies: 2000 },
   lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0, ironwork: 3 },
@@ -1400,7 +1406,7 @@ export const BUILDING_STORAGE_CAPS = {
   clay_pit: { timber: 0, firewood: 0, stone: 0, ironwork: 3, clay: 180 },
   charcoal_burner: { timber: 0, firewood: 54, stone: 0, charcoal: 72 },
   smithy: { timber: 0, firewood: 0, stone: 0, water: 9, ironwork: 72, iron: 48, charcoal: 36 },
-  potter_kiln: { timber: 0, firewood: 36, stone: 0, water: 9, clay: 72, pottery: 120 },
+  potter_kiln: { timber: 0, firewood: 36, stone: 0, water: 9, clay: 72, pottery: 120, roofTiles: 120 },
   well: { timber: 0, firewood: 0, stone: 0, water: 100 },
   hunters_hall: { timber: 0, firewood: 0, stone: 0, food: 100 },
   foragers_shed: { timber: 0, firewood: 0, stone: 0, food: 80, remedies: 36 },

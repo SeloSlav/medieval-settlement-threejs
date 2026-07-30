@@ -735,6 +735,7 @@ function syncBuildingVisualState(
           + (building.salt ?? 0)
           + (building.charcoal ?? 0)
           + (building.pottery ?? 0)
+          + (building.roofTiles ?? 0)
           + (building.wool ?? 0)
           + (building.flax ?? 0)
           + (building.cloth ?? 0),

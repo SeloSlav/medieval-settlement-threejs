@@ -137,6 +137,16 @@ export async function upgradeResidence(residenceId: string): Promise<void> {
   await callReducer('upgradeResidence', 'upgrade_residence', { residenceId: serverId });
 }
 
+export async function retrofitResidenceTileRoof(residenceId: string): Promise<void> {
+  const serverId = parseResidenceServerId(residenceId);
+  if (serverId === null) throw new Error('Invalid residence id.');
+  await callReducer(
+    'retrofitResidenceTileRoof',
+    'retrofit_residence_tile_roof',
+    { residenceId: serverId },
+  );
+}
+
 export async function repairResidenceDecay(residenceId: string): Promise<void> {
   const serverId = parseResidenceServerId(residenceId);
   if (serverId === null) throw new Error('Invalid residence id.');
@@ -483,6 +493,18 @@ export async function setPotteryDispatchPolicy(
   await callReducer('setPotteryDispatchPolicy', 'set_pottery_dispatch_policy', {
     buildingId: serverId,
     dispatchPolicy,
+  });
+}
+
+export async function setPotterFiringPolicy(
+  buildingId: string,
+  firingPolicy: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid potter kiln id.');
+  await callReducer('setPotterFiringPolicy', 'set_potter_firing_policy', {
+    buildingId: serverId,
+    firingPolicy,
   });
 }
 

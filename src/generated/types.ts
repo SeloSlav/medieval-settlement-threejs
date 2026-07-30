@@ -120,6 +120,8 @@ export const Building = __t.object("Building", {
   storehouseIronTargetPercent: __t.u8(),
   storehouseClayTargetPercent: __t.u8(),
   storehouseSaltTargetPercent: __t.u8(),
+  roofTiles: __t.f64(),
+  potterFiringPolicy: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -437,6 +439,7 @@ export const PlayerResources = __t.object("PlayerResources", {
   lastNightLightingFuelShortfall: __t.f64(),
   nightCommunityCohesion: __t.f64(),
   nightLaborFatigue: __t.f64(),
+  roofTiles: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
@@ -509,6 +512,11 @@ export const Residence = __t.object("Residence", {
   condition: __t.u8(),
   lastStarvationDeathHungerTicks: __t.u32(),
   decayRepairActive: __t.bool(),
+  tiledRoof: __t.bool(),
+  roofTileRetrofitActive: __t.bool(),
+  upgradeRequiredRoofTiles: __t.f64(),
+  upgradeDeliveredRoofTiles: __t.f64(),
+  upgradeReservedRoofTiles: __t.f64(),
 });
 export type Residence = __Infer<typeof Residence>;
 

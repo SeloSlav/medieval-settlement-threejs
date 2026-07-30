@@ -8,11 +8,13 @@ pub fn residence_project_active(
     backyard_project_kind: u8,
     fire_repair_active: bool,
     decay_repair_active: bool,
+    roof_tile_retrofit_active: bool,
 ) -> bool {
     target_tier > current_tier
         || backyard_project_kind != 0
         || fire_repair_active
         || decay_repair_active
+        || roof_tile_retrofit_active
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -21,9 +23,11 @@ pub struct ResidenceUpgradeWork {
     pub required_timber: f64,
     pub required_stone: f64,
     pub required_gold: f64,
+    pub required_roof_tiles: f64,
     pub delivered_timber: f64,
     pub delivered_stone: f64,
     pub delivered_gold: f64,
+    pub delivered_roof_tiles: f64,
     pub assigned_labor: u32,
 }
 
@@ -40,11 +44,15 @@ pub fn residence_upgrade_household_contribution(household_wealth: f64, gold_cost
 }
 
 pub fn residence_upgrade_material_readiness(work: ResidenceUpgradeWork) -> f64 {
-    let required = nonnegative(work.required_timber) + nonnegative(work.required_stone);
+    let required = nonnegative(work.required_timber)
+        + nonnegative(work.required_stone)
+        + nonnegative(work.required_roof_tiles);
     if required <= EPSILON {
         return 1.0;
     }
-    let delivered = nonnegative(work.delivered_timber) + nonnegative(work.delivered_stone);
+    let delivered = nonnegative(work.delivered_timber)
+        + nonnegative(work.delivered_stone)
+        + nonnegative(work.delivered_roof_tiles);
     (delivered / required).clamp(0.0, 1.0)
 }
 
@@ -65,7 +73,9 @@ pub fn advance_residence_upgrade(
     {
         return progress;
     }
-    let structural_cost = nonnegative(work.required_timber) + nonnegative(work.required_stone);
+    let structural_cost = nonnegative(work.required_timber)
+        + nonnegative(work.required_stone)
+        + nonnegative(work.required_roof_tiles);
     if structural_cost <= EPSILON {
         return 1.0;
     }
@@ -81,6 +91,7 @@ pub fn residence_upgrade_complete(work: ResidenceUpgradeWork) -> bool {
     residence_upgrade_is_paid(work)
         && nonnegative(work.delivered_timber) + EPSILON >= nonnegative(work.required_timber)
         && nonnegative(work.delivered_stone) + EPSILON >= nonnegative(work.required_stone)
+        && nonnegative(work.delivered_roof_tiles) + EPSILON >= nonnegative(work.required_roof_tiles)
         && nonnegative(work.progress) >= 1.0 - EPSILON
 }
 
@@ -94,9 +105,11 @@ mod tests {
             required_timber: 18.0,
             required_stone: 14.0,
             required_gold: 8.0,
+            required_roof_tiles: 0.0,
             delivered_timber: 18.0,
             delivered_stone: 14.0,
             delivered_gold: 8.0,
+            delivered_roof_tiles: 0.0,
             assigned_labor: 1,
         }
     }
@@ -110,11 +123,12 @@ mod tests {
 
     #[test]
     fn household_projects_share_one_physical_work_slot() {
-        assert!(residence_project_active(2, 1, 0, false, false));
-        assert!(residence_project_active(0, 1, 3, false, false));
-        assert!(residence_project_active(0, 1, 0, true, false));
-        assert!(residence_project_active(0, 1, 0, false, true));
-        assert!(!residence_project_active(0, 1, 0, false, false));
+        assert!(residence_project_active(2, 1, 0, false, false, false));
+        assert!(residence_project_active(0, 1, 3, false, false, false));
+        assert!(residence_project_active(0, 1, 0, true, false, false));
+        assert!(residence_project_active(0, 1, 0, false, true, false));
+        assert!(residence_project_active(0, 3, 0, false, false, true));
+        assert!(!residence_project_active(0, 1, 0, false, false, false));
     }
 
     #[test]
@@ -163,9 +177,11 @@ mod tests {
             required_timber: 8.0,
             required_stone: 12.0,
             required_gold: 0.0,
+            required_roof_tiles: 0.0,
             delivered_timber: 8.0,
             delivered_stone: 12.0,
             delivered_gold: 0.0,
+            delivered_roof_tiles: 0.0,
             assigned_labor: 1,
         };
         assert_eq!(advance_residence_upgrade(work, 10.0, 1.0), 0.5);

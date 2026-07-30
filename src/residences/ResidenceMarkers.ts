@@ -626,6 +626,7 @@ function addRoofShingleCourses(
   roofPitch: number,
   eaveDrop: number,
   seed: number,
+  tiledRoof: boolean,
 ): void {
   for (const side of [-1, 1] as const) {
     const parts: BoxPart[] = [];
@@ -668,11 +669,12 @@ function addRoofShingleCourses(
       material,
       new THREE.Vector3(),
     );
-    applyWarmShingleBackFaceFinish(courses);
+    if (!tiledRoof) applyWarmShingleBackFaceFinish(courses);
     courses.name =
-      `Residence split-wood shingle courses ${side < 0 ? 'left' : 'right'}`;
+      `Residence ${tiledRoof ? 'fired-clay tile' : 'split-wood shingle'} courses ${side < 0 ? 'left' : 'right'}`;
     courses.userData.residenceRoofSurface = true;
-    courses.userData.residenceRoofFinish = 'split-wood-shingle';
+    courses.userData.residenceRoofFinish =
+      tiledRoof ? 'fired-clay-tile' : 'split-wood-shingle';
   }
 }
 
@@ -1260,6 +1262,27 @@ function addResidenceUpgradeWorks(
     );
     stone.name = `UpgradeStoneSegment:${index}`;
   }
+  for (let index = 0; index < 8; index += 1) {
+    const stack = new THREE.Group();
+    stack.name = `UpgradeRoofTileSegment:${index}`;
+    stack.position.set(
+      -0.65 + (index % 4) * 0.42,
+      0.04,
+      pileZ + 0.72 + Math.floor(index / 4) * 0.42,
+    );
+    stack.rotation.y = (index % 2 === 0 ? -1 : 1) * 0.05;
+    works.add(stack);
+    for (let layer = 0; layer < 4; layer += 1) {
+      addMesh(
+        stack,
+        new THREE.BoxGeometry(0.34, 0.035, 0.38),
+        layer % 2 === 0
+          ? sharedBuildingMaterial('clayRed')
+          : sharedBuildingMaterial('clayDark'),
+        new THREE.Vector3(0, layer * 0.04, 0),
+      ).name = 'Delivered fired roof tile';
+    }
+  }
   const lockbox = new THREE.Group();
   lockbox.name = 'UpgradeCoinLockbox';
   works.add(lockbox);
@@ -1280,6 +1303,7 @@ function addResidenceUpgradeWorks(
 export function createResidenceMesh(
   seed = 0,
   tier: 1 | 2 | 3 = 1,
+  tiledRoof = false,
 ): THREE.Group {
   const appearance = pickResidenceAppearance(seed);
   const { facade, roof, archetype, entrySide, trim } = appearance;
@@ -1303,7 +1327,9 @@ export function createResidenceMesh(
   const wallMaterial =
     tier === 1 ? tierOneWeatheredMaterial : residenceFacadeMaterial(facade);
   const roofSurfaceMaterial =
-    tier === 1
+    tiledRoof
+      ? sharedBuildingMaterial('clayRed')
+      : tier === 1
       ? tierOneResidenceMaterial('wood-shingle')
       : residenceRoofMaterial(roof);
   // Course boards and ridge caps must stay on the same shared roof surface as
@@ -1319,6 +1345,9 @@ export function createResidenceMesh(
   group.userData.residenceArchetype = archetype;
   group.userData.residenceTier = tier;
   group.userData.residenceRoof = roof;
+  group.userData.residenceTiledRoof = tiledRoof;
+  group.userData.residenceRoofFinish =
+    tiledRoof ? 'fired-clay-tile' : 'split-wood-shingle';
   group.userData.residenceVisualSeed = seed;
 
   const { width, depth, foundationHeight, groundHeight, upperHeight, ridgeHeight } = dimensions;
@@ -1494,8 +1523,9 @@ export function createResidenceMesh(
     );
     roofPlane.name = `Residence main roof plane ${side < 0 ? 'left' : 'right'}`;
     roofPlane.userData.residenceRoofSurface = true;
-    roofPlane.userData.residenceRoofFinish = 'split-wood-shingle';
-    applyWarmShingleBackFaceFinish(roofPlane);
+    roofPlane.userData.residenceRoofFinish =
+      tiledRoof ? 'fired-clay-tile' : 'split-wood-shingle';
+    if (!tiledRoof) applyWarmShingleBackFaceFinish(roofPlane);
   }
   addRoofShingleCourses(
     group,
@@ -1508,6 +1538,7 @@ export function createResidenceMesh(
     roofPitch,
     roofEaveDrop,
     seed,
+    tiledRoof,
   );
 
   for (const zSign of [-1, 1] as const) {
@@ -1912,7 +1943,13 @@ export class ResidenceMarkers {
     for (const residence of residences) {
       nextIds.add(residence.id);
       let marker = this.meshes.get(residence.id);
-      if (marker && marker.userData.residenceTier !== residence.tier) {
+      if (
+        marker
+        && (
+          marker.userData.residenceTier !== residence.tier
+          || marker.userData.residenceTiledRoof !== (residence.tiledRoof === true)
+        )
+      ) {
         if (this.serviceCoverageIds.has(residence.id)) {
           this.serviceCoverageDirty = true;
         }
@@ -1931,7 +1968,11 @@ export class ResidenceMarkers {
         const completedTier = residence.tier === 0 ? null : residence.tier;
         marker = completedTier == null
           ? createInitialResidenceConstructionMesh(appearanceSeed)
-          : createResidenceMesh(appearanceSeed, completedTier);
+          : createResidenceMesh(
+              appearanceSeed,
+              completedTier,
+              residence.tiledRoof === true,
+            );
         marker.userData.fpCollisionAggregate = true;
         if (completedTier != null) {
           const shadowProxy = createResidenceShadowProxy(completedTier);
@@ -2202,8 +2243,17 @@ export function syncResidenceUpgradeWorks(
   const stoneFill = (residence.upgradeRequiredStone ?? 0) <= 1e-6
     ? 0
     : stoneRemaining / (residence.upgradeRequiredStone ?? 1);
+  const roofTilesRemaining = Math.max(
+    0,
+    (residence.upgradeDeliveredRoofTiles ?? 0)
+      - (residence.upgradeRequiredRoofTiles ?? 0) * progress,
+  );
+  const roofTileFill = (residence.upgradeRequiredRoofTiles ?? 0) <= 1e-6
+    ? 0
+    : roofTilesRemaining / (residence.upgradeRequiredRoofTiles ?? 1);
   syncUpgradeMaterialSegments(works, 'UpgradeTimberSegment:', timberFill);
   syncUpgradeMaterialSegments(works, 'UpgradeStoneSegment:', stoneFill);
+  syncUpgradeMaterialSegments(works, 'UpgradeRoofTileSegment:', roofTileFill);
   const lockbox = works.getObjectByName('UpgradeCoinLockbox');
   if (lockbox) {
     lockbox.visible = (residence.upgradeDeliveredGold ?? 0) > 0.05 && progress < 0.999;

@@ -253,6 +253,14 @@ mod tests {
             remedies: 0.0,
             pottery_dispatch_policy: 0,
             carpenter_cart_service_target_trips: 0,
+            storehouse_accepts_iron: true,
+            storehouse_accepts_clay: true,
+            storehouse_accepts_salt: true,
+            storehouse_iron_target_percent: 100,
+            storehouse_clay_target_percent: 100,
+            storehouse_salt_target_percent: 100,
+            roof_tiles: 0.0,
+            potter_firing_policy: 0,
         }
     }
 

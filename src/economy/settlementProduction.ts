@@ -24,6 +24,7 @@ import {
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   POTTER_POTTERY_PER_CYCLE,
+  POTTER_ROOF_TILES_PER_CYCLE,
   POTTER_WATER_PER_CYCLE,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
@@ -69,6 +70,10 @@ import {
   normalizeProcessorOutputTargetPercent,
   processorOutputTargetForBuilding,
 } from './processorOutputPolicy.ts';
+import {
+  normalizePotterFiringPolicy,
+  POTTER_FIRE_ROOF_TILES,
+} from './potterFiringPolicy.ts';
 import {
   civilianToolsMaintained,
   civilianToolThroughputMultiplier,
@@ -212,6 +217,8 @@ export type IndustrialMaterialPlan = {
   clayOutputPerDay: number;
   potterInstalledOutputPerDay: number;
   potteryOutputPerDay: number;
+  potterInstalledRoofTilesPerDay: number;
+  roofTilesOutputPerDay: number;
   potteryDemandPerDay: number;
   potteryCoveredDemandPerDay: number;
   potteryShortfallPerDay: number;
@@ -340,6 +347,7 @@ type GrainChainBranch = {
 type IndustrialMaterialBranch = {
   clayOutputPerDay: number;
   potterOutputPerDay: number;
+  potterRoofTileOutputPerDay: number;
   potterClayPerDay: number;
   potterFirewoodPerDay: number;
   smokehousePotteryDemandPerDay: number;
@@ -408,6 +416,7 @@ function industrialMaterialBranchByKey(
   branch = {
     clayOutputPerDay: 0,
     potterOutputPerDay: 0,
+    potterRoofTileOutputPerDay: 0,
     potterClayPerDay: 0,
     potterFirewoodPerDay: 0,
     smokehousePotteryDemandPerDay: 0,
@@ -1295,22 +1304,32 @@ function completedProcessorOverview(
       case 'potter_kiln': {
         potterWorkers += building.assignedLabor;
         const cycles = potterCyclesPerWorker * building.assignedLabor;
+        const firingRoofTiles = normalizePotterFiringPolicy(
+          building.potterFiringPolicy,
+        ) === POTTER_FIRE_ROOF_TILES;
         const branch = industrialMaterialBranch(
           industrialMaterialBranches,
           building,
           componentFor,
         );
-        branch.potterOutputPerDay += cycles * POTTER_POTTERY_PER_CYCLE;
+        if (firingRoofTiles) {
+          branch.potterRoofTileOutputPerDay += cycles
+            * POTTER_ROOF_TILES_PER_CYCLE;
+        } else {
+          branch.potterOutputPerDay += cycles * POTTER_POTTERY_PER_CYCLE;
+        }
         branch.potterClayPerDay += cycles * POTTER_CLAY_PER_CYCLE;
         branch.potterFirewoodPerDay += cycles * POTTER_FIREWOOD_PER_CYCLE;
         branch.firstPotterId = earlierStableId(branch.firstPotterId, building.id);
-        recordProsperityOutput(
-          prosperityRoadBranches,
-          building,
-          componentFor,
-          'pottery',
-          cycles * POTTER_POTTERY_PER_CYCLE,
-        );
+        if (!firingRoofTiles) {
+          recordProsperityOutput(
+            prosperityRoadBranches,
+            building,
+            componentFor,
+            'pottery',
+            cycles * POTTER_POTTERY_PER_CYCLE,
+          );
+        }
         let runway = buildingInputRunway(
           deliveries,
           building,
@@ -1347,10 +1366,21 @@ function completedProcessorOverview(
         potterOutputRoom = updateFirstToFill(
           potterOutputRoom,
           outputRoomDays(
-            building.pottery ?? 0,
+            firingRoofTiles
+              ? building.roofTiles ?? 0
+              : building.pottery ?? 0,
             processorOutputTargetForBuilding(building)
-              ?? (BUILDING_STORAGE_CAPS.potter_kiln.pottery ?? 0),
-            cycles * POTTER_POTTERY_PER_CYCLE,
+              ?? (
+                firingRoofTiles
+                  ? BUILDING_STORAGE_CAPS.potter_kiln.roofTiles
+                  : BUILDING_STORAGE_CAPS.potter_kiln.pottery
+              )
+              ?? 0,
+            cycles * (
+              firingRoofTiles
+                ? POTTER_ROOF_TILES_PER_CYCLE
+                : POTTER_POTTERY_PER_CYCLE
+            ),
           ),
           building.id,
           normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
@@ -1474,7 +1504,9 @@ function industrialMaterialRoadPlan(
   let smithyBlockedBranches = 0;
   let clayOutputPerDay = 0;
   let potterInstalledOutputPerDay = 0;
+  let potterInstalledRoofTilesPerDay = 0;
   let potteryOutputPerDay = 0;
+  let roofTilesOutputPerDay = 0;
   let potteryDemandPerDay = 0;
   let potteryCoveredDemandPerDay = 0;
   let potteryExportSurplusPerDay = 0;
@@ -1513,6 +1545,7 @@ function industrialMaterialRoadPlan(
       + branch.householdPotteryDemandPerDay;
     const hasPotteryActivity = branch.clayOutputPerDay > 1e-9
       || branch.potterOutputPerDay > 1e-9
+      || branch.potterRoofTileOutputPerDay > 1e-9
       || branchPotteryDemand > 1e-9;
     const hasSmithyActivity = branch.charcoalOutputPerDay > 1e-9
       || branch.localIronOutputPerDay > 1e-9
@@ -1524,6 +1557,7 @@ function industrialMaterialRoadPlan(
 
     clayOutputPerDay += branch.clayOutputPerDay;
     potterInstalledOutputPerDay += branch.potterOutputPerDay;
+    potterInstalledRoofTilesPerDay += branch.potterRoofTileOutputPerDay;
     potteryDemandPerDay += branchPotteryDemand;
     charcoalOutputPerDay += branch.charcoalOutputPerDay;
     charcoalFirewoodPerDay += branch.charcoalFirewoodPerDay;
@@ -1539,14 +1573,16 @@ function industrialMaterialRoadPlan(
       );
     }
 
-    const claySupportedPottery = branch.clayOutputPerDay
-      * POTTER_POTTERY_PER_CYCLE
-      / POTTER_CLAY_PER_CYCLE;
-    const branchPotteryOutput = Math.min(
-      branch.potterOutputPerDay,
-      claySupportedPottery,
-      branch.hasStaffedWell ? Number.POSITIVE_INFINITY : 0,
-    );
+    const kilnInputScale = branch.potterClayPerDay > 1e-9
+      ? Math.min(
+        1,
+        branch.clayOutputPerDay / branch.potterClayPerDay,
+        branch.hasStaffedWell ? 1 : 0,
+      )
+      : 0;
+    const branchPotteryOutput = branch.potterOutputPerDay * kilnInputScale;
+    const branchRoofTilesOutput = branch.potterRoofTileOutputPerDay
+      * kilnInputScale;
     const prosperityBranch = prosperityRoadBranches?.get(branchKey);
     if (prosperityBranch) {
       prosperityBranch.potteryOutputPerDay = branchPotteryOutput;
@@ -1560,16 +1596,14 @@ function industrialMaterialRoadPlan(
       branchPotteryOutput - branchPotteryCoverage,
     );
     potteryOutputPerDay += branchPotteryOutput;
+    roofTilesOutputPerDay += branchRoofTilesOutput;
     potteryCoveredDemandPerDay += branchPotteryCoverage;
-    potterClayPerDay += branchPotteryOutput
-      * POTTER_CLAY_PER_CYCLE
-      / POTTER_POTTERY_PER_CYCLE;
-    potterFirewoodPerDay += branchPotteryOutput
-      * POTTER_FIREWOOD_PER_CYCLE
-      / POTTER_POTTERY_PER_CYCLE;
-    potterWaterPerDay += branchPotteryOutput
+    potterClayPerDay += branch.potterClayPerDay * kilnInputScale;
+    potterFirewoodPerDay += branch.potterFirewoodPerDay * kilnInputScale;
+    potterWaterPerDay += branch.potterClayPerDay
+      / POTTER_CLAY_PER_CYCLE
       * POTTER_WATER_PER_CYCLE
-      / POTTER_POTTERY_PER_CYCLE;
+      * kilnInputScale;
     if (branch.hasStaffedMarket) {
       potteryExportSurplusPerDay += branchPotterySurplus;
     } else {
@@ -1731,6 +1765,8 @@ function industrialMaterialRoadPlan(
     clayOutputPerDay,
     potterInstalledOutputPerDay,
     potteryOutputPerDay,
+    potterInstalledRoofTilesPerDay,
+    roofTilesOutputPerDay,
     potteryDemandPerDay,
     potteryCoveredDemandPerDay,
     potteryShortfallPerDay: Math.max(

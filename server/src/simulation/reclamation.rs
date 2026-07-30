@@ -22,7 +22,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 26] = [
+const RECOVERY_ORDER: [CommodityKind; 27] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -39,6 +39,7 @@ const RECOVERY_ORDER: [CommodityKind; 26] = [
     CommodityKind::Iron,
     CommodityKind::Salt,
     CommodityKind::Pottery,
+    CommodityKind::RoofTiles,
     CommodityKind::Charcoal,
     CommodityKind::Clay,
     CommodityKind::Manure,
@@ -79,6 +80,7 @@ pub struct ReclamationStock {
     pub pottery: f64,
     pub manure: f64,
     pub remedies: f64,
+    pub roof_tiles: f64,
 }
 
 impl ReclamationStock {
@@ -189,6 +191,10 @@ impl ReclamationStock {
                 remedies: amount,
                 ..Self::default()
             },
+            CommodityKind::RoofTiles => Self {
+                roof_tiles: amount,
+                ..Self::default()
+            },
         }
     }
 
@@ -226,6 +232,7 @@ impl ReclamationStock {
             pottery: resources.pottery.max(0.0),
             manure: 0.0,
             remedies: 0.0,
+            roof_tiles: resources.roof_tiles.max(0.0),
         }
     }
 
@@ -257,6 +264,7 @@ impl ReclamationStock {
             CommodityKind::Pottery => self.pottery,
             CommodityKind::Manure => self.manure,
             CommodityKind::Remedies => self.remedies,
+            CommodityKind::RoofTiles => self.roof_tiles,
         }
     }
 
@@ -287,6 +295,7 @@ impl ReclamationStock {
         building.pottery += self.pottery;
         building.manure += self.manure;
         building.remedies += self.remedies;
+        building.roof_tiles += self.roof_tiles;
     }
 }
 
@@ -315,6 +324,7 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.salt = 0.0;
     resources.charcoal = 0.0;
     resources.pottery = 0.0;
+    resources.roof_tiles = 0.0;
 }
 
 fn recovery_pile_position_beside_building(
@@ -509,11 +519,13 @@ pub fn insert_reclamation_pile(
         salt: stock.salt.max(0.0),
         charcoal: stock.charcoal.max(0.0),
         pottery: stock.pottery.max(0.0),
+        roof_tiles: stock.roof_tiles.max(0.0),
         manure: stock.manure.max(0.0),
         remedies: stock.remedies.max(0.0),
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
         pottery_dispatch_policy: 0,
+        potter_firing_policy: 0,
         carpenter_cart_service_target_trips: 0,
     });
     ctx.db.world_config().id().update(WorldConfig {
@@ -939,6 +951,11 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         },
         CommodityKind::Remedies => match kind {
             "foragers_shed" => Some(0),
+            _ => None,
+        },
+        CommodityKind::RoofTiles => match kind {
+            "potter_kiln" => Some(0),
+            "founders_camp" => Some(1),
             _ => None,
         },
         CommodityKind::Water => match kind {

@@ -61,6 +61,9 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       salt: row.salt ?? 0,
       charcoal: row.charcoal ?? 0,
       pottery: row.pottery ?? 0,
+      roofTiles: Number(
+        (row as typeof row & Partial<{ roofTiles: number }>).roofTiles ?? 0,
+      ),
     };
     state.physicalFoundingSiteEnabled = row.physicalFoundingSiteEnabled ?? false;
     state.legacyUnhousedPopulationBonusEnabled =

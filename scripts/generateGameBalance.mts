@@ -43,6 +43,7 @@ type BuildingBalance = {
     salt?: number;
     charcoal?: number;
     pottery?: number;
+    roofTiles?: number;
     manure?: number;
     remedies?: number;
   };
@@ -277,6 +278,10 @@ export type GameBalance = {
     residenceTier3TimberCost: number;
     residenceTier3StoneCost: number;
     residenceTier3GoldCost: number;
+    residenceTileRoofTimberCost: number;
+    residenceTileRoofTileCost: number;
+    residenceTileRoofSalvageFraction: number;
+    residenceTileRoofFlammabilityMultiplier: number;
     householdMaxWealth: number;
     townHallPopulationRequired: number;
     townHallUnstaffedTaxCollectionMultiplier: number;
@@ -509,6 +514,7 @@ export type GameBalance = {
     potterFirewoodPerCycle: number;
     potterWaterPerCycle: number;
     potterPotteryPerCycle: number;
+    potterRoofTilesPerCycle: number;
     apiaryHoneyPerCycle: number;
     apiaryFoodPerCycle: number;
     apiarySeasonStartMonth: number;
@@ -782,6 +788,10 @@ function generateRust(): string {
     `pub const RESIDENCE_TIER3_TIMBER_COST: f64 = ${rustF64(b.economy.residenceTier3TimberCost)};`,
     `pub const RESIDENCE_TIER3_STONE_COST: f64 = ${rustF64(b.economy.residenceTier3StoneCost)};`,
     `pub const RESIDENCE_TIER3_GOLD_COST: f64 = ${rustF64(b.economy.residenceTier3GoldCost)};`,
+    `pub const RESIDENCE_TILE_ROOF_TIMBER_COST: f64 = ${rustF64(b.economy.residenceTileRoofTimberCost)};`,
+    `pub const RESIDENCE_TILE_ROOF_TILE_COST: f64 = ${rustF64(b.economy.residenceTileRoofTileCost)};`,
+    `pub const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.residenceTileRoofSalvageFraction)};`,
+    `pub const RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER: f64 = ${rustF64(b.economy.residenceTileRoofFlammabilityMultiplier)};`,
     `pub const HOUSEHOLD_MAX_WEALTH: f64 = ${rustF64(b.economy.householdMaxWealth)};`,
     `pub const TOWN_HALL_POPULATION_REQUIRED: u32 = ${b.economy.townHallPopulationRequired};`,
     `pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = ${rustF64(b.economy.townHallUnstaffedTaxCollectionMultiplier)};`,
@@ -1008,6 +1018,7 @@ function generateRust(): string {
     `pub const POTTER_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.potterFirewoodPerCycle)};`,
     `pub const POTTER_WATER_PER_CYCLE: f64 = ${rustF64(b.production.potterWaterPerCycle)};`,
     `pub const POTTER_POTTERY_PER_CYCLE: f64 = ${rustF64(b.production.potterPotteryPerCycle)};`,
+    `pub const POTTER_ROOF_TILES_PER_CYCLE: f64 = ${rustF64(b.production.potterRoofTilesPerCycle)};`,
     `pub const APIARY_HONEY_PER_CYCLE: f64 = ${rustF64(b.production.apiaryHoneyPerCycle)};`,
     `pub const APIARY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.apiaryFoodPerCycle)};`,
     `pub const APIARY_SEASON_START_MONTH: u8 = ${b.production.apiarySeasonStartMonth};`,
@@ -1291,6 +1302,7 @@ function generateRust(): string {
   lines.push('    pub storage_salt: f64,');
   lines.push('    pub storage_charcoal: f64,');
   lines.push('    pub storage_pottery: f64,');
+  lines.push('    pub storage_roof_tiles: f64,');
   lines.push('    pub storage_manure: f64,');
   lines.push('    pub storage_remedies: f64,');
   lines.push('    pub accepts_labor: bool,');
@@ -1341,6 +1353,7 @@ function generateRust(): string {
     lines.push(`    storage_salt: ${rustF64(def.storage.salt ?? 0)},`);
     lines.push(`    storage_charcoal: ${rustF64(def.storage.charcoal ?? 0)},`);
     lines.push(`    storage_pottery: ${rustF64(def.storage.pottery ?? 0)},`);
+    lines.push(`    storage_roof_tiles: ${rustF64(def.storage.roofTiles ?? 0)},`);
     lines.push(`    storage_manure: ${rustF64(def.storage.manure ?? 0)},`);
     lines.push(`    storage_remedies: ${rustF64(def.storage.remedies ?? 0)},`);
     lines.push(`    accepts_labor: ${def.acceptsLabor},`);
@@ -1588,6 +1601,10 @@ function generateTypeScript(): string {
     `export const RESIDENCE_TIER3_TIMBER_COST = ${b.economy.residenceTier3TimberCost};`,
     `export const RESIDENCE_TIER3_STONE_COST = ${b.economy.residenceTier3StoneCost};`,
     `export const RESIDENCE_TIER3_GOLD_COST = ${b.economy.residenceTier3GoldCost};`,
+    `export const RESIDENCE_TILE_ROOF_TIMBER_COST = ${b.economy.residenceTileRoofTimberCost};`,
+    `export const RESIDENCE_TILE_ROOF_TILE_COST = ${b.economy.residenceTileRoofTileCost};`,
+    `export const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION = ${b.economy.residenceTileRoofSalvageFraction};`,
+    `export const RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER = ${b.economy.residenceTileRoofFlammabilityMultiplier};`,
     `export const HOUSEHOLD_MAX_WEALTH = ${b.economy.householdMaxWealth};`,
     `export const TOWN_HALL_POPULATION_REQUIRED = ${b.economy.townHallPopulationRequired};`,
     `export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = ${b.economy.townHallUnstaffedTaxCollectionMultiplier};`,
@@ -1813,6 +1830,7 @@ function generateTypeScript(): string {
     `export const POTTER_FIREWOOD_PER_CYCLE = ${b.production.potterFirewoodPerCycle};`,
     `export const POTTER_WATER_PER_CYCLE = ${b.production.potterWaterPerCycle};`,
     `export const POTTER_POTTERY_PER_CYCLE = ${b.production.potterPotteryPerCycle};`,
+    `export const POTTER_ROOF_TILES_PER_CYCLE = ${b.production.potterRoofTilesPerCycle};`,
     `export const APIARY_HONEY_PER_CYCLE = ${b.production.apiaryHoneyPerCycle};`,
     `export const APIARY_FOOD_PER_CYCLE = ${b.production.apiaryFoodPerCycle};`,
     `export const APIARY_SEASON_START_MONTH = ${b.production.apiarySeasonStartMonth};`,
@@ -2000,6 +2018,7 @@ function generateTypeScript(): string {
     '  salt?: number;',
     '  charcoal?: number;',
     '  pottery?: number;',
+    '  roofTiles?: number;',
     '  manure?: number;',
     '  remedies?: number;',
     '};',
@@ -2085,6 +2104,7 @@ function generateTypeScript(): string {
     const salt = def.storage.salt ?? 0;
     const charcoal = def.storage.charcoal ?? 0;
     const pottery = def.storage.pottery ?? 0;
+    const roofTiles = def.storage.roofTiles ?? 0;
     const manure = def.storage.manure ?? 0;
     const remedies = def.storage.remedies ?? 0;
     const extras: string[] = [];
@@ -2108,6 +2128,7 @@ function generateTypeScript(): string {
     if (salt > 0) extras.push(`salt: ${salt}`);
     if (charcoal > 0) extras.push(`charcoal: ${charcoal}`);
     if (pottery > 0) extras.push(`pottery: ${pottery}`);
+    if (roofTiles > 0) extras.push(`roofTiles: ${roofTiles}`);
     if (manure > 0) extras.push(`manure: ${manure}`);
     if (remedies > 0) extras.push(`remedies: ${remedies}`);
     lines.push(

@@ -240,6 +240,10 @@ pub struct PlayerResources {
     /// Smoothed 0-1 burden from staffing workshops through the night.
     #[default(0.0)]
     pub night_labor_fatigue: f64,
+    /// Fired roof tiles recovered from a legacy ledger or demolished stores.
+    /// Fresh production remains physically at a kiln until hauled.
+    #[default(0.0)]
+    pub roof_tiles: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -569,6 +573,13 @@ pub struct Building {
     pub storehouse_clay_target_percent: u8,
     #[default(100u8)]
     pub storehouse_salt_target_percent: u8,
+    /// Fired clay roofing pieces awaiting a specific household retrofit.
+    /// Appended after the established building schema for additive migration.
+    #[default(0.0)]
+    pub roof_tiles: f64,
+    /// Kiln firing choice: 0 household/preserving vessels, 1 roof tiles.
+    #[default(0u8)]
+    pub potter_firing_policy: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).
@@ -878,6 +889,20 @@ pub struct Residence {
     /// while remaining distinct from fire recovery.
     #[default(false)]
     pub decay_repair_active: bool,
+    /// Completed, residence-local fired-clay roof. Wooden shingles remain the
+    /// historically appropriate default for every older and lower-tier home.
+    #[default(false)]
+    pub tiled_roof: bool,
+    /// True while this prosperous household is replacing its shingle covering.
+    #[default(false)]
+    pub roof_tile_retrofit_active: bool,
+    /// Physical fired tiles needed, delivered, and still reserved at sources.
+    #[default(0.0)]
+    pub upgrade_required_roof_tiles: f64,
+    #[default(0.0)]
+    pub upgrade_delivered_roof_tiles: f64,
+    #[default(0.0)]
+    pub upgrade_reserved_roof_tiles: f64,
 }
 
 #[spacetimedb::table(

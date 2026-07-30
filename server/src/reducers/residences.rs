@@ -4,7 +4,8 @@ use crate::balance_generated::{
     MONASTERY_COVERAGE_RADIUS, RESIDENCE_STONE_COST, RESIDENCE_TIER2_CAPACITY,
     RESIDENCE_TIER2_GOLD_COST, RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST,
     RESIDENCE_TIER3_CAPACITY, RESIDENCE_TIER3_GOLD_COST, RESIDENCE_TIER3_STONE_COST,
-    RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIMBER_COST,
+    RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
+    RESIDENCE_TILE_ROOF_TILE_COST, RESIDENCE_TILE_ROOF_TIMBER_COST, RESIDENCE_TIMBER_COST,
 };
 use crate::burgage::{
     compute_burgage_layout, convex_zones_overlap, max_zone_depth, measure_zone_depth,
@@ -15,11 +16,11 @@ use crate::construction_priority::{
 };
 use crate::db::*;
 use crate::economy::{
-    available_building_labor, building_commodity_stock, credit_treasury_stone,
-    credit_treasury_timber, reconcile_building_labor, residence_population_for_parcel,
-    residence_zone_cost, spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold,
-    total_stone, total_timber, treasury_gold, CommodityKind, ResourceAmount,
-    STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
+    available_building_labor, building_commodity_stock, credit_treasury_commodity,
+    credit_treasury_stone, credit_treasury_timber, reconcile_building_labor,
+    residence_population_for_parcel, residence_zone_cost, spend_aggregate_stone,
+    spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber, treasury_gold,
+    CommodityKind, ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{
@@ -282,6 +283,11 @@ pub fn place_burgage_zone(
             condition: 0,
             last_starvation_death_hunger_ticks: 0,
             decay_repair_active: false,
+            tiled_roof: false,
+            roof_tile_retrofit_active: false,
+            upgrade_required_roof_tiles: 0.0,
+            upgrade_delivered_roof_tiles: 0.0,
+            upgrade_reserved_roof_tiles: 0.0,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {
@@ -330,6 +336,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         residence.backyard_project_kind,
         residence.fire_repair_active,
         residence.decay_repair_active,
+        residence.roof_tile_retrofit_active,
     ) {
         return Err("This household already has improvement works underway.".to_string());
     }
@@ -446,6 +453,106 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
 }
 
 #[reducer]
+pub fn retrofit_residence_tile_roof(ctx: &ReducerContext, residence_id: u64) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    let mut residence = ctx
+        .db
+        .residence()
+        .id()
+        .find(&residence_id)
+        .ok_or_else(|| "Residence not found.".to_string())?;
+    if residence.owner != owner {
+        return Err("You do not own this residence.".to_string());
+    }
+    if residence.tier < 3 {
+        return Err("Only a prosperous tier-3 house can support a fired-tile roof.".to_string());
+    }
+    if residence.tiled_roof {
+        return Err("This residence already has a fired-tile roof.".to_string());
+    }
+    if residence.abandoned || residence.population == 0 {
+        return Err("Only an occupied residence can commission a roof retrofit.".to_string());
+    }
+    if residence_fire_state(ctx, residence.id).is_some() {
+        return Err("Repair the fire-damaged residence before replacing its roof.".to_string());
+    }
+    if residence_project_active(
+        residence.upgrade_target_tier,
+        residence.tier,
+        residence.backyard_project_kind,
+        residence.fire_repair_active,
+        residence.decay_repair_active,
+        residence.roof_tile_retrofit_active,
+    ) {
+        return Err("This household already has improvement works underway.".to_string());
+    }
+    let physical_economy = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if !physical_economy {
+        return Err(
+            "Roof tiles require the physical founding-store economy for carted delivery."
+                .to_string(),
+        );
+    }
+    let available_tiles = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .map(|building| building.roof_tiles.max(0.0))
+        .sum::<f64>();
+    if total_timber(ctx, owner) + 1e-6 < RESIDENCE_TILE_ROOF_TIMBER_COST
+        || available_tiles + 1e-6 < RESIDENCE_TILE_ROOF_TILE_COST
+    {
+        return Err(format!(
+            "Roof retrofit requires {} timber battens and {} fired roof tiles in physical stores.",
+            RESIDENCE_TILE_ROOF_TIMBER_COST.round() as i64,
+            RESIDENCE_TILE_ROOF_TILE_COST.round() as i64,
+        ));
+    }
+    let network = load_owner_road_network(ctx, owner)
+        .ok_or_else(|| "Roof retrofit requires road-linked material sources.".to_string())?;
+    ensure_upgrade_source_route(
+        ctx,
+        &network,
+        &residence,
+        CommodityKind::Timber,
+        RESIDENCE_TILE_ROOF_TIMBER_COST,
+    )?;
+    ensure_upgrade_source_route(
+        ctx,
+        &network,
+        &residence,
+        CommodityKind::RoofTiles,
+        RESIDENCE_TILE_ROOF_TILE_COST,
+    )?;
+
+    residence.roof_tile_retrofit_active = true;
+    residence.upgrade_progress = 0.0;
+    residence.upgrade_required_timber = RESIDENCE_TILE_ROOF_TIMBER_COST;
+    residence.upgrade_required_stone = 0.0;
+    residence.upgrade_required_gold = 0.0;
+    residence.upgrade_required_roof_tiles = RESIDENCE_TILE_ROOF_TILE_COST;
+    residence.upgrade_delivered_timber = 0.0;
+    residence.upgrade_delivered_stone = 0.0;
+    residence.upgrade_delivered_gold = 0.0;
+    residence.upgrade_delivered_roof_tiles = 0.0;
+    residence.upgrade_reserved_timber = RESIDENCE_TILE_ROOF_TIMBER_COST;
+    residence.upgrade_reserved_stone = 0.0;
+    residence.upgrade_reserved_gold = 0.0;
+    residence.upgrade_reserved_roof_tiles = RESIDENCE_TILE_ROOF_TILE_COST;
+    residence.upgrade_assigned_labor = available_building_labor(ctx, owner).min(1);
+    residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
+    ctx.db.residence().id().update(residence);
+    Ok(())
+}
+
+#[reducer]
 pub fn set_residence_upgrade_priority(
     ctx: &ReducerContext,
     residence_id: u64,
@@ -470,6 +577,7 @@ pub fn set_residence_upgrade_priority(
         residence.backyard_project_kind,
         residence.fire_repair_active,
         residence.decay_repair_active,
+        residence.roof_tile_retrofit_active,
     ) {
         return Err("This residence has no improvement works underway.".to_string());
     }
@@ -509,6 +617,7 @@ pub fn repair_residence_decay(ctx: &ReducerContext, residence_id: u64) -> Result
         residence.backyard_project_kind,
         residence.fire_repair_active,
         residence.decay_repair_active,
+        residence.roof_tile_retrofit_active,
     ) {
         return Err("This household already has structural works underway.".to_string());
     }
@@ -606,6 +715,7 @@ pub(crate) fn ensure_upgrade_source_route(
                 CommodityKind::Timber => "timber",
                 CommodityKind::Stone => "stone",
                 CommodityKind::Gold => "civic treasury",
+                CommodityKind::RoofTiles => "fired roof-tile",
                 _ => "material",
             }
         ))
@@ -737,6 +847,16 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
         0
     });
     let recover_project_materials = !fire_damaged || residence.fire_repair_active;
+    let salvaged_roof_tiles = ((if residence.tiled_roof {
+        RESIDENCE_TILE_ROOF_TILE_COST
+    } else {
+        0.0
+    } + if recover_project_materials {
+        residence.upgrade_delivered_roof_tiles
+    } else {
+        0.0
+    }) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION)
+        .round();
     let salvage = ResourceAmount {
         timber: ((refund.timber
             + if recover_project_materials {
@@ -764,11 +884,13 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
         ReclamationStock {
             timber: salvage.timber,
             stone: salvage.stone,
+            roof_tiles: salvaged_roof_tiles,
             ..ReclamationStock::default()
         },
     )? {
         credit_treasury_timber(ctx, owner, salvage.timber);
         credit_treasury_stone(ctx, owner, salvage.stone);
+        credit_treasury_commodity(ctx, owner, CommodityKind::RoofTiles, salvaged_roof_tiles);
     }
 
     clear_residence_needs(ctx, residence_id);
@@ -822,6 +944,23 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
         })
         .map(|residence| residence.upgrade_delivered_stone)
         .sum::<f64>();
+    let salvaged_roof_tiles = residences
+        .iter()
+        .map(|residence| {
+            let recover_project_materials =
+                residence_fire_state(ctx, residence.id).is_none() || residence.fire_repair_active;
+            (if residence.tiled_roof {
+                RESIDENCE_TILE_ROOF_TILE_COST
+            } else {
+                0.0
+            } + if recover_project_materials {
+                residence.upgrade_delivered_roof_tiles
+            } else {
+                0.0
+            }) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION
+        })
+        .sum::<f64>()
+        .round();
     let salvage = ResourceAmount {
         timber: ((refund.timber + upgrade_timber) * TIMBER_SALVAGE_FRACTION).round(),
         stone: ((refund.stone + upgrade_stone) * STONE_SALVAGE_FRACTION).round(),
@@ -859,6 +998,12 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
                     + (residence.upgrade_delivered_timber * TIMBER_SALVAGE_FRACTION),
                 stone: completed_structure.stone
                     + (residence.upgrade_delivered_stone * STONE_SALVAGE_FRACTION),
+                roof_tiles: (if residence.tiled_roof {
+                    RESIDENCE_TILE_ROOF_TILE_COST
+                } else {
+                    0.0
+                } + residence.upgrade_delivered_roof_tiles)
+                    * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
                 ..ReclamationStock::default()
             },
         )?;
@@ -866,6 +1011,7 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
     if !physical_reclamation {
         credit_treasury_timber(ctx, owner, salvage.timber);
         credit_treasury_stone(ctx, owner, salvage.stone);
+        credit_treasury_commodity(ctx, owner, CommodityKind::RoofTiles, salvaged_roof_tiles);
     }
 
     for residence in residences {

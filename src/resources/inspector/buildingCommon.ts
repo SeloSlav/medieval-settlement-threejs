@@ -65,6 +65,7 @@ export function buildingStorageRows(
     caps.salt != null && caps.salt > 0 ? `<li><span>Salt stored</span><span>${Math.round(building.salt ?? 0)} / ${caps.salt}</span></li>` : '',
     caps.charcoal != null && caps.charcoal > 0 ? `<li><span>Charcoal stored</span><span>${Math.round(building.charcoal ?? 0)} / ${caps.charcoal}</span></li>` : '',
     caps.pottery != null && caps.pottery > 0 ? `<li><span>Pottery stored</span><span>${Math.round(building.pottery ?? 0)} / ${caps.pottery}</span></li>` : '',
+    caps.roofTiles != null && caps.roofTiles > 0 ? `<li><span>Roof tiles stacked</span><span>${Math.round(building.roofTiles ?? 0)} / ${caps.roofTiles}</span></li>` : '',
   ].filter(Boolean).join('');
 }
 

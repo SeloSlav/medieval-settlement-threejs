@@ -80,6 +80,8 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} charcoal`;
     case 'pottery':
       return `${Math.round(amount)} pottery`;
+    case 'roofTiles':
+      return `${Math.round(amount)} roof tiles`;
     case 'gold':
       return `${Math.round(amount)} gold`;
     default: {

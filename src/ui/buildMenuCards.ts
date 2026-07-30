@@ -68,7 +68,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   clay_pit: ['Riverbank clay pit', 'C', 'Cuts a finite ordinary alluvial bank beside shallow water. Rich seed rolls expose faster deep clay that does not exhaust.'],
   charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for forge fuel. Severe fire risk: isolate it or keep a ready well in range.'],
   smithy: ['Forest bloomery & smithy', 'M', 'Reduces locally mined ore or reheats imported blooms and bars with charcoal, then forges them with carted quench water into tools, construction fittings, and frontier weapon heads. The compact hot-work yard carries elevated fire risk.'],
-  potter_kiln: ["Potter's kiln", 'P', 'Puddles river clay with carted well water, then fires it with firewood into household wares, preserving crocks, and export pottery. Elevated fire risk rewards well coverage and spacing.'],
+  potter_kiln: ["Potter's kiln", 'P', 'Puddles river clay with carted well water, then spends firewood and labor firing either household/preserving vessels or costly roof tiles for prosperous homes. Choosing tiles interrupts new vessel output; elevated fire risk rewards well coverage and spacing.'],
   reforester: ['Reforester', 'F', 'Restores harvested woodland with native saplings.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood and supplies connected homes. Smith-forged replacement axes raise output but wear each cycle.'],
   hunters_hall: ["Hunter's hall", 'K', 'Hunts game and delivers fresh food along the road network.'],

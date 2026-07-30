@@ -61,8 +61,7 @@ pub fn total_stone(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
 }
 
 pub fn total_ironwork(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    (treasury_ironwork(ctx, owner)
-        + building_sum(ctx, owner, |building| building.ironwork)
+    (treasury_ironwork(ctx, owner) + building_sum(ctx, owner, |building| building.ironwork)
         - reserved_construction_total(ctx, owner, |building| {
             building.construction_reserved_ironwork
         }))
@@ -101,8 +100,7 @@ pub(crate) fn available_unreserved_building_ironwork(
 ) -> f64 {
     let stock = building_sum(ctx, owner, |building| building.ironwork);
     let reserved = reserved_construction_total(ctx, owner, |building| {
-        (building.construction_reserved_ironwork - building.construction_treasury_ironwork)
-            .max(0.0)
+        (building.construction_reserved_ironwork - building.construction_treasury_ironwork).max(0.0)
     });
     (stock - reserved).max(0.0)
 }
@@ -148,9 +146,8 @@ pub fn construction_treasury_reservation(
         .clamp(0.0, available_unreserved_treasury_timber(ctx, owner));
     let stone_from_treasury = (stone - available_unreserved_building_stone(ctx, owner))
         .clamp(0.0, available_unreserved_treasury_stone(ctx, owner));
-    let ironwork_from_treasury =
-        (ironwork - available_unreserved_building_ironwork(ctx, owner))
-            .clamp(0.0, available_unreserved_treasury_ironwork(ctx, owner));
+    let ironwork_from_treasury = (ironwork - available_unreserved_building_ironwork(ctx, owner))
+        .clamp(0.0, available_unreserved_treasury_ironwork(ctx, owner));
     (
         timber_from_treasury,
         stone_from_treasury,
@@ -201,8 +198,7 @@ pub fn construction_treasury_reservation_excluding_building(
         (building.construction_reserved_stone - building.construction_treasury_stone).max(0.0)
     });
     let reserved_ironwork = reserved_construction_total(ctx, owner, |building| {
-        (building.construction_reserved_ironwork - building.construction_treasury_ironwork)
-            .max(0.0)
+        (building.construction_reserved_ironwork - building.construction_treasury_ironwork).max(0.0)
     });
     let available_timber = (building_timber - reserved_timber).max(0.0);
     let available_stone = (building_stone - reserved_stone).max(0.0);
@@ -256,6 +252,7 @@ where
                 residence.backyard_project_kind,
                 residence.fire_repair_active,
                 residence.decay_repair_active,
+                residence.roof_tile_retrofit_active,
             )
         })
         .map(|residence| pick(&residence).max(0.0))

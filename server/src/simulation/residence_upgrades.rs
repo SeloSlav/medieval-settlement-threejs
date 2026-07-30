@@ -44,6 +44,7 @@ pub fn step_residence_upgrades(ctx: &ReducerContext, tick: &SimTickContext, cloc
             residence.backyard_project_kind,
             residence.fire_repair_active,
             residence.decay_repair_active,
+            residence.roof_tile_retrofit_active,
         )
     }) {
         let structural_repair = residence.fire_repair_active || residence.decay_repair_active;
@@ -78,6 +79,7 @@ pub fn step_residence_upgrades(ctx: &ReducerContext, tick: &SimTickContext, cloc
                 continue;
             };
             dispatch_upgrade_material(ctx, tick, clock, &mut residence, CommodityKind::Gold);
+            dispatch_upgrade_material(ctx, tick, clock, &mut residence, CommodityKind::RoofTiles);
             dispatch_upgrade_material(ctx, tick, clock, &mut residence, CommodityKind::Stone);
             dispatch_upgrade_material(ctx, tick, clock, &mut residence, CommodityKind::Timber);
             advance_upgrade_work(ctx, tick, clock, residence);
@@ -170,6 +172,7 @@ fn dispatch_upgrade_material(
         CommodityKind::Timber => residence.upgrade_reserved_timber,
         CommodityKind::Stone => residence.upgrade_reserved_stone,
         CommodityKind::Gold => residence.upgrade_reserved_gold,
+        CommodityKind::RoofTiles => residence.upgrade_reserved_roof_tiles,
         _ => 0.0,
     };
     if reserved <= 1e-6
@@ -313,9 +316,11 @@ fn advance_upgrade_work(
         required_timber: residence.upgrade_required_timber,
         required_stone: residence.upgrade_required_stone,
         required_gold: residence.upgrade_required_gold,
+        required_roof_tiles: residence.upgrade_required_roof_tiles,
         delivered_timber: residence.upgrade_delivered_timber,
         delivered_stone: residence.upgrade_delivered_stone,
         delivered_gold: residence.upgrade_delivered_gold,
+        delivered_roof_tiles: residence.upgrade_delivered_roof_tiles,
         assigned_labor: residence.upgrade_assigned_labor,
     };
     residence.upgrade_progress =
@@ -339,6 +344,12 @@ fn advance_upgrade_work(
 }
 
 fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
+    if residence.roof_tile_retrofit_active {
+        residence.tiled_roof = true;
+        clear_residence_project(residence);
+        return false;
+    }
+
     if residence.decay_repair_active {
         residence.condition = crate::resident_welfare_policy::RESIDENCE_CONDITION_SOUND;
         residence.vacancy_ticks = 0;
@@ -395,15 +406,19 @@ pub(crate) fn clear_residence_project(residence: &mut Residence) {
     residence.upgrade_required_timber = 0.0;
     residence.upgrade_required_stone = 0.0;
     residence.upgrade_required_gold = 0.0;
+    residence.upgrade_required_roof_tiles = 0.0;
     residence.upgrade_delivered_timber = 0.0;
     residence.upgrade_delivered_stone = 0.0;
     residence.upgrade_delivered_gold = 0.0;
+    residence.upgrade_delivered_roof_tiles = 0.0;
     residence.upgrade_reserved_timber = 0.0;
     residence.upgrade_reserved_stone = 0.0;
     residence.upgrade_reserved_gold = 0.0;
+    residence.upgrade_reserved_roof_tiles = 0.0;
     residence.upgrade_assigned_labor = 0;
     residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
     residence.backyard_project_kind = 0;
     residence.fire_repair_active = false;
     residence.decay_repair_active = false;
+    residence.roof_tile_retrofit_active = false;
 }

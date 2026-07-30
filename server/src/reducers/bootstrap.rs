@@ -294,11 +294,13 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         salt: resources.salt.max(0.0),
         charcoal: resources.charcoal.max(0.0),
         pottery: resources.pottery.max(0.0),
+        roof_tiles: resources.roof_tiles.max(0.0),
         manure: 0.0,
         remedies: 0.0,
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
         pottery_dispatch_policy: 0,
+        potter_firing_policy: 0,
         carpenter_cart_service_target_trips: 0,
     });
 
@@ -321,6 +323,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.salt = 0.0;
     resources.charcoal = 0.0;
     resources.pottery = 0.0;
+    resources.roof_tiles = 0.0;
     resources.cloth = 0.0;
     resources.gold = 0.0;
     resources.barley = 0.0;

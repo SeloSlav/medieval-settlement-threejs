@@ -9,12 +9,15 @@ import {
   RESIDENCE_TIER3_GOLD_COST,
   RESIDENCE_TIER3_STONE_COST,
   RESIDENCE_TIER3_TIMBER_COST,
+  RESIDENCE_TILE_ROOF_TILE_COST,
+  RESIDENCE_TILE_ROOF_TIMBER_COST,
 } from '../src/generated/gameBalance.ts';
 import { residenceSettlementReadiness } from '../src/economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
   residenceBackyardProject,
   residenceFireRepairProject,
+  residenceRoofTileProject,
   residenceUpgradeProject,
   type ResidenceUpgradeServices,
 } from '../src/economy/residenceUpgrade.ts';
@@ -257,6 +260,40 @@ assert.equal(
   'the authoritative builder should reuse the visible construction-worker routine',
 );
 
+const activeRoofRetrofit = residence('active-roof-retrofit', 3, 10);
+Object.assign(activeRoofRetrofit, {
+  roofTileRetrofitActive: true,
+  upgradeProgress: 0.4,
+  upgradeRequiredTimber: RESIDENCE_TILE_ROOF_TIMBER_COST,
+  upgradeRequiredRoofTiles: RESIDENCE_TILE_ROOF_TILE_COST,
+  upgradeDeliveredTimber: RESIDENCE_TILE_ROOF_TIMBER_COST,
+  upgradeDeliveredRoofTiles: RESIDENCE_TILE_ROOF_TILE_COST / 2,
+  upgradeReservedRoofTiles: RESIDENCE_TILE_ROOF_TILE_COST / 2,
+  upgradeAssignedLabor: 1,
+});
+const roofTileCart = deliveryTrip({
+  id: 'trip-roof-tiles',
+  residenceId: activeRoofRetrofit.id,
+  cargoKind: 'roofTiles',
+  amount: RESIDENCE_TILE_ROOF_TILE_COST / 4,
+});
+const roofProject = residenceRoofTileProject(activeRoofRetrofit, [roofTileCart]);
+assert.ok(roofProject);
+assert.equal(roofProject.required.roofTiles, RESIDENCE_TILE_ROOF_TILE_COST);
+assert.equal(
+  roofProject.delivered.roofTiles,
+  RESIDENCE_TILE_ROOF_TILE_COST / 2,
+);
+assert.equal(
+  roofProject.incoming.roofTiles,
+  RESIDENCE_TILE_ROOF_TILE_COST / 4,
+);
+assert.equal(
+  residenceUpgradeWorkplaces([activeRoofRetrofit]).length,
+  1,
+  'roof retrofits should use the same visible one-builder household worksite',
+);
+
 const activeBackyard = residence('active-backyard', 1, 3);
 Object.assign(activeBackyard, {
   backyardProjectKind: 3,
@@ -315,7 +352,12 @@ Object.assign(activeFireRepair, {
 const fireRepairProject = residenceFireRepairProject(activeFireRepair);
 assert.ok(fireRepairProject);
 assert.equal(fireRepairProject.priorityLabel, 'Urgent');
-assert.deepEqual(fireRepairProject.required, { timber: 20, stone: 12, gold: 0 });
+assert.deepEqual(fireRepairProject.required, {
+  timber: 20,
+  stone: 12,
+  gold: 0,
+  roofTiles: 0,
+});
 assert.equal(residenceUpgradeProject(activeFireRepair), null);
 assert.equal(residenceBackyardProject(activeFireRepair), null);
 assert.equal(
@@ -360,6 +402,7 @@ assert.deepEqual(initialProject.required, {
   timber: RESIDENCE_TIMBER_COST,
   stone: RESIDENCE_STONE_COST,
   gold: 0,
+  roofTiles: 0,
 });
 assert.doesNotMatch(
   initialProject.blockers.join(' '),
@@ -454,6 +497,22 @@ assert.match(residenceReducer, /upgrade_reserved_timber = timber/);
 assert.match(residenceReducer, /upgrade_delivered_gold = household_contribution/);
 assert.match(residenceReducer, /spend_aggregate_timber\(ctx, owner, timber\)/);
 assert.match(residenceReducer, /set_residence_upgrade_priority/);
+assert.match(residenceReducer, /pub fn retrofit_residence_tile_roof/);
+assert.match(
+  residenceReducer,
+  /residence\.tier < 3[\s\S]*available_tiles[\s\S]*RESIDENCE_TILE_ROOF_TILE_COST/,
+  'the retrofit must remain a costly tier-three-only project',
+);
+assert.match(
+  residenceReducer,
+  /ensure_upgrade_source_route\([\s\S]*CommodityKind::RoofTiles[\s\S]*RESIDENCE_TILE_ROOF_TILE_COST/,
+  'tier-three tile roofs must reserve a real routed tile stock before work begins',
+);
+assert.match(
+  residenceReducer,
+  /roof_tiles: salvaged_roof_tiles/,
+  'demolished tile roofs should leave physical reclaimable material',
+);
 assert.match(
   residenceReducer,
   /residence_fire_state\(ctx, residence\.id\)\.is_some\(\)[\s\S]*Repair the fire-damaged residence before upgrading it/,
@@ -478,6 +537,11 @@ assert.match(residenceInspector, /founders remain at camp/);
 assert.match(residenceInspector, /Cancel cottage works/);
 assert.match(residenceInspector, /Fire recovery worksite/);
 assert.match(residenceInspector, /active fire-recovery sites recover only material already delivered/);
+assert.match(residenceInspector, /Fired-tile roof retrofit/);
+assert.match(
+  residenceInspector,
+  /RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER[\s\S]*lower ignition and spread weighting[\s\S]*not fireproof/,
+);
 
 const residenceMarkers = source('../src/residences/ResidenceMarkers.ts');
 assert.match(residenceMarkers, /ResidenceUpgradeWorks/);
@@ -487,6 +551,8 @@ assert.match(residenceMarkers, /upgradeProgress/);
 assert.match(residenceMarkers, /upgradeDeliveredTimber/);
 assert.match(residenceMarkers, /InitialCottageConstructionFrame/);
 assert.match(residenceMarkers, /InitialCottageFrameSegment/);
+assert.match(residenceMarkers, /fired-clay tile.*split-wood shingle/);
+assert.match(residenceMarkers, /Delivered fired roof tile/);
 
 const upgradeSimulation = source('../server/src/simulation/residence_upgrades.rs');
 assert.match(upgradeSimulation, /HashMap<[\s\S]*CONSTRUCTION_PRIORITY_LEVELS/);
@@ -494,6 +560,10 @@ assert.match(upgradeSimulation, /upgrade_assigned_labor == 0[\s\S]*return/);
 assert.match(upgradeSimulation, /try_start_residence_upgrade_supply_trip/);
 assert.match(upgradeSimulation, /ensure_residence_needs\(ctx, residence_id\)/);
 assert.match(upgradeSimulation, /initial_cottage_works/);
+assert.match(
+  upgradeSimulation,
+  /if residence\.roof_tile_retrofit_active[\s\S]*residence\.tiled_roof = true/,
+);
 assert.match(
   upgradeSimulation,
   /backyard_project_kind[\s\S]*BackyardGardenKind::from_id[\s\S]*backyard_garden\(\)\.insert/,
@@ -510,6 +580,7 @@ assert.match(deliveryTrips, /try_start_residence_upgrade_supply_trip/);
 assert.match(deliveryTrips, /unload_residence_upgrade_material/);
 assert.match(deliveryTrips, /upgrade_reserved_gold/);
 assert.match(deliveryTrips, /residence_project_active/);
+assert.match(deliveryTrips, /CommodityKind::RoofTiles/);
 assert.match(
   deliveryTrips,
   /tick\.residence_disabled_by_fire\(ctx, residence\.id\) && !residence\.fire_repair_active/,
@@ -519,6 +590,8 @@ assert.match(
 const residenceBinding = source('../src/generated/residence_table.ts');
 assert.match(residenceBinding, /backyardProjectKind: __t\.u8\(\)/);
 assert.match(residenceBinding, /fireRepairActive: __t\.bool\(\)/);
+assert.match(residenceBinding, /tiledRoof: __t\.bool\(\)/);
+assert.match(residenceBinding, /upgradeRequiredRoofTiles: __t\.f64\(\)/);
 
 const recoveryReducer = source('../server/src/reducers/fire_recovery.rs');
 assert.match(recoveryReducer, /Homestead recovery is already underway/);
@@ -533,6 +606,12 @@ assert.match(
   fireSimulation,
   /residence_project_active[\s\S]*cancel_trips_for_residence[\s\S]*clear_residence_project/,
   'ignition should cancel any unfinished household works before fire loss is recorded',
+);
+const firePolicy = source('../server/src/fire_policy.rs');
+assert.match(
+  firePolicy,
+  /base \* RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER/,
+  'a tile roof must reduce physical fire weighting without becoming fireproof',
 );
 
 console.log(

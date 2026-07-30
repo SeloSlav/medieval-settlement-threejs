@@ -45,6 +45,7 @@ use crate::placement_validation::{
     building_overlaps_open_water, building_overlaps_residence_zone, building_overlaps_road_surface,
     building_site_contains_point, is_near_open_water, is_on_resource_deposit, is_open_water,
 };
+use crate::potter_firing_policy::{is_valid_potter_firing_policy, potter_fires_roof_tiles};
 use crate::pottery_dispatch_policy::is_valid_pottery_dispatch_policy;
 use crate::processor_labor_policy::{
     processor_callup_targets, production_steward_callup_allowed, ProcessorCallupCandidate,
@@ -750,11 +751,13 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         salt: 0.0,
         charcoal: 0.0,
         pottery: 0.0,
+        roof_tiles: 0.0,
         manure: 0.0,
         remedies: 0.0,
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
         pottery_dispatch_policy: 0,
+        potter_firing_policy: 0,
         carpenter_cart_service_target_trips,
     });
 
@@ -912,7 +915,13 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
 }
 
 fn processor_output_room(building: &Building) -> Option<f64> {
-    let commodity = processor_output_commodity(&building.kind)?;
+    let commodity = if building.kind == "potter_kiln"
+        && potter_fires_roof_tiles(building.potter_firing_policy)
+    {
+        CommodityKind::RoofTiles
+    } else {
+        processor_output_commodity(&building.kind)?
+    };
     Some(processor_output_headroom(
         building_commodity_stock(building, commodity),
         building_commodity_cap(&building.kind, commodity),
@@ -1663,6 +1672,31 @@ pub fn set_pottery_dispatch_policy(
         return Err("You do not own this completed potter kiln.".to_string());
     }
     building.pottery_dispatch_policy = dispatch_policy;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_potter_firing_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    firing_policy: u8,
+) -> Result<(), String> {
+    if !is_valid_potter_firing_policy(firing_policy) {
+        return Err("Kiln firing must produce vessels or fired roof tiles.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Potter kiln not found.".to_string())?;
+    if building.owner != owner || building.kind != "potter_kiln" || !building.construction_complete
+    {
+        return Err("You do not own this completed potter kiln.".to_string());
+    }
+    building.potter_firing_policy = firing_policy;
     ctx.db.building().id().update(building);
     Ok(())
 }

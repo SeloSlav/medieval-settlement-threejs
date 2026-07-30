@@ -75,6 +75,7 @@ type ResourceInspectorOptions = {
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
+  onRetrofitResidenceTileRoof?: (residenceId: string) => void | Promise<void>;
   onRepairResidenceDecay?: (residenceId: string) => void | Promise<void>;
   onSetResidenceUpgradePriority?: (
     residenceId: string,
@@ -137,6 +138,10 @@ type ResourceInspectorOptions = {
   onSetPotteryDispatchPolicy?: (
     buildingId: string,
     dispatchPolicy: number,
+  ) => void | Promise<void>;
+  onSetPotterFiringPolicy?: (
+    buildingId: string,
+    firingPolicy: number,
   ) => void | Promise<void>;
   onSetGranaryPolicy?: (
     buildingId: string,
@@ -412,6 +417,7 @@ export class ResourceInspector {
       salt: this.mustElement(options.uiRoot, '[data-stockpile="salt"]'),
       charcoal: this.mustElement(options.uiRoot, '[data-stockpile="charcoal"]'),
       pottery: this.mustElement(options.uiRoot, '[data-stockpile="pottery"]'),
+      roofTiles: this.mustElement(options.uiRoot, '[data-stockpile="roofTiles"]'),
     };
     for (const resource of HUD_RESOURCE_KINDS) {
       const stat = this.stockpileValues[resource]
@@ -944,6 +950,16 @@ export class ResourceInspector {
         }
       }
       if (this.selectedTarget.building.kind === 'potter_kiln') {
+        const firingPolicy = (event.target as HTMLElement)
+          .closest<HTMLElement>('[data-potter-firing-policy]')
+          ?.dataset.potterFiringPolicy;
+        if (firingPolicy != null) {
+          void this.options.onSetPotterFiringPolicy?.(
+            this.selectedTarget.building.id,
+            Number(firingPolicy),
+          );
+          return;
+        }
         const dispatchPolicy = (event.target as HTMLElement)
           .closest<HTMLElement>('[data-pottery-dispatch-policy]')
           ?.dataset.potteryDispatchPolicy;
@@ -1015,6 +1031,7 @@ export class ResourceInspector {
       onCancelMarketplaceTradeOrder: this.options.onCancelMarketplaceTradeOrder,
       onCollectChapelCoffer: this.options.onCollectChapelCoffer,
       onUpgradeResidence: this.options.onUpgradeResidence,
+      onRetrofitResidenceTileRoof: this.options.onRetrofitResidenceTileRoof,
       onSetResidenceUpgradePriority: this.options.onSetResidenceUpgradePriority,
     });
   };
@@ -1197,6 +1214,7 @@ export class ResourceInspector {
     this.stockpileValues.salt.textContent = Math.round(totals.salt).toString();
     this.stockpileValues.charcoal.textContent = Math.round(totals.charcoal).toString();
     this.stockpileValues.pottery.textContent = Math.round(totals.pottery).toString();
+    this.stockpileValues.roofTiles.textContent = Math.round(totals.roofTiles).toString();
     for (const resource of HUD_RESOURCE_KINDS) {
       const transit = this.stockpileTransitValues[resource];
       const amount = Math.max(0, this.inTransitTotals?.[resource] ?? 0);
@@ -1238,6 +1256,7 @@ export class ResourceInspector {
       'salt',
       'charcoal',
       'pottery',
+      'roofTiles',
     ] as const;
     const stockedSpecialties = specialtyResources.filter((resource) =>
       totals[resource] > 1e-6 || (this.inTransitTotals?.[resource] ?? 0) > 1e-6);

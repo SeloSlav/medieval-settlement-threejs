@@ -61,6 +61,7 @@ pub fn place_backyard_garden(
         residence.backyard_project_kind,
         residence.fire_repair_active,
         residence.decay_repair_active,
+        residence.roof_tile_retrofit_active,
     ) {
         return Err("This household already has improvement works underway.".to_string());
     }

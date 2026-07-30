@@ -39,6 +39,10 @@ function buildingStateFromRow(
   if (!identityHex || row.owner.toHexString() !== identityHex) return null;
   if (!isBuildingKind(row.kind)) return null;
   const id = buildingClientId(row.id);
+  const materialRow = row as Building & Partial<{
+    roofTiles: number;
+    potterFiringPolicy: number;
+  }>;
   return {
     id,
     kind: row.kind,
@@ -69,6 +73,7 @@ function buildingStateFromRow(
     salt: row.salt,
     charcoal: row.charcoal,
     pottery: row.pottery,
+    roofTiles: Number(materialRow.roofTiles ?? 0),
     manure: row.manure,
     remedies: row.remedies,
     gold: row.gold,
@@ -103,6 +108,7 @@ function buildingStateFromRow(
     processorOutputTargetPercent: row.processorOutputTargetPercent,
     weaverInputPolicy: row.weaverInputPolicy,
     potteryDispatchPolicy: row.potteryDispatchPolicy,
+    potterFiringPolicy: Number(materialRow.potterFiringPolicy ?? 0),
     granaryAcceptsFreshFood: row.granaryAcceptsFreshFood,
     granaryHouseholdsFirst: row.granaryHouseholdsFirst,
     granaryGrainReserve: row.granaryGrainReserve,

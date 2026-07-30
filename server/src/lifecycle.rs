@@ -167,6 +167,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         last_night_lighting_fuel_shortfall: 0.0,
         night_community_cohesion: 0.5,
         night_labor_fatigue: 0.0,
+        roof_tiles: 0.0,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

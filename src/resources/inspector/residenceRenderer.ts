@@ -28,6 +28,10 @@ import {
   RESIDENCE_NEGLECTED_REPAIR_TIMBER,
   RESIDENCE_RUINED_REPAIR_STONE,
   RESIDENCE_RUINED_REPAIR_TIMBER,
+  RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER,
+  RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
+  RESIDENCE_TILE_ROOF_TILE_COST,
+  RESIDENCE_TILE_ROOF_TIMBER_COST,
   STARVATION_DEATH_START_DAYS,
   HERB_TREATMENT_PER_SICK_DAY,
 } from '../../generated/gameBalance.ts';
@@ -69,9 +73,11 @@ import {
   residenceBackyardProject,
   residenceDecayRepairProject,
   residenceFireRepairProject,
+  residenceRoofTileProject,
   residenceUpgradeProject,
   type ResidenceDecayRepairProject,
   type ResidenceFireRepairProject,
+  type ResidenceRoofTileProject,
   type ResidenceUpgradePlan,
   type ResidenceUpgradeProject,
   type ResidenceUpgradeServiceKind,
@@ -153,6 +159,7 @@ export function renderResidenceInspector(
               (residence.upgradeDeliveredStone ?? 0) * STONE_SALVAGE_FRACTION,
             )
           : 0,
+        roofTiles: 0,
       }
     : {
         timber: Math.round(
@@ -164,6 +171,11 @@ export function renderResidenceInspector(
           ((residence.tier >= 1 ? singleCost.stone : 0)
             + (residence.upgradeDeliveredStone ?? 0))
           * STONE_SALVAGE_FRACTION,
+        ),
+        roofTiles: Math.round(
+          ((residence.tiledRoof === true ? RESIDENCE_TILE_ROOF_TILE_COST : 0)
+            + (residence.upgradeDeliveredRoofTiles ?? 0))
+          * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
         ),
       };
   const plotRefund = {
@@ -183,7 +195,22 @@ export function renderResidenceInspector(
         ))
       * STONE_SALVAGE_FRACTION,
     ),
+    roofTiles: Math.round(
+      reclaimablePlotResidences.reduce(
+        (sum, candidate) =>
+          sum
+          + (candidate.tiledRoof === true ? RESIDENCE_TILE_ROOF_TILE_COST : 0)
+          + (candidate.upgradeDeliveredRoofTiles ?? 0),
+        0,
+      ) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
+    ),
   };
+  const singleRoofTileSalvage = singleRefund.roofTiles > 0
+    ? ` and ${singleRefund.roofTiles} roof tiles`
+    : '';
+  const plotRoofTileSalvage = plotRefund.roofTiles > 0
+    ? ` and ${plotRefund.roofTiles} roof tiles`
+    : '';
   const nearestRoad = context.worldQueries.getNearestRoadNodeDistance(residence.x, residence.z);
   const roadAccess = context.worldQueries.getRoadAccessLabel(residence.x, residence.z);
   const servingFirewoodSupplier =
@@ -234,6 +261,10 @@ export function renderResidenceInspector(
     residence,
     context.gameState.deliveryTrips.values(),
   );
+  const roofTileProject = residenceRoofTileProject(
+    residence,
+    context.gameState.deliveryTrips.values(),
+  );
   const remedyDelivery = [...context.gameState.deliveryTrips.values()].find(
     (trip) =>
       trip.destinationKind === 'care'
@@ -243,7 +274,10 @@ export function renderResidenceInspector(
   ) ?? null;
   const structuralRepairProject = fireRepairProject ?? decayRepairProject;
   const initialConstruction = residence.tier === 0 && upgradeProject?.targetTier === 1;
-  const upgradePlan = upgradeProject || backyardProject || structuralRepairProject
+  const upgradePlan = upgradeProject
+    || backyardProject
+    || structuralRepairProject
+    || roofTileProject
     ? null
     : evaluateResidenceUpgrade(
       residence,
@@ -493,6 +527,22 @@ export function renderResidenceInspector(
       : `${(residence.remedyStock ?? 0).toFixed(1)} at home · no current treatment demand`;
   const condition = residence.condition ?? 0;
   const conditionLabel = ['Sound', 'Neglected', 'Dilapidated', 'Ruin'][condition] ?? 'Sound';
+  const roofRetrofitBlockers = [
+    ...(context.gameState.physicalFoundingSiteEnabled === true
+      ? []
+      : ['physical founding-store economy required']),
+    ...(residence.tier >= 3 ? [] : ['prosperous tier-3 house required']),
+    ...(!residence.abandoned && residence.population > 0
+      ? []
+      : ['occupied household required']),
+    ...(fireDisabled ? ['repair fire damage first'] : []),
+    ...(context.resourceTotals.timber + 1e-6 >= RESIDENCE_TILE_ROOF_TIMBER_COST
+      ? []
+      : [`${formatUpgradeAmount(RESIDENCE_TILE_ROOF_TIMBER_COST - context.resourceTotals.timber)} timber short`]),
+    ...(context.resourceTotals.roofTiles + 1e-6 >= RESIDENCE_TILE_ROOF_TILE_COST
+      ? []
+      : [`${formatUpgradeAmount(RESIDENCE_TILE_ROOF_TILE_COST - context.resourceTotals.roofTiles)} fired tiles short`]),
+  ];
   const repairCost = condition === 1
     ? [RESIDENCE_NEGLECTED_REPAIR_TIMBER, RESIDENCE_NEGLECTED_REPAIR_STONE]
     : condition === 2
@@ -502,7 +552,10 @@ export function renderResidenceInspector(
         : [0, 0];
   const householdCorpses = Array.from((context.gameState.corpses ?? new Map()).values())
     .filter((corpse) => corpse.residenceId === residence.id);
-  const statusText = structuralRepairProject
+  const statusText = roofTileProject
+    ? roofTileProject.blockers[0]
+      ?? `Roof retrofit ${Math.round(roofTileProject.progress * 100)}% complete`
+    : structuralRepairProject
     ? structuralRepairProject.blockers[0]
       ?? `${decayRepairProject ? 'Vacant-home restoration' : 'Structural recovery'} ${Math.round(structuralRepairProject.progress * 100)}% complete`
     : initialConstruction && upgradeProject
@@ -513,12 +566,16 @@ export function renderResidenceInspector(
       : needs.label;
 
   return {
-    eyebrow: structuralRepairProject
+    eyebrow: roofTileProject
+      ? 'Roof worksite'
+      : structuralRepairProject
       ? decayRepairProject ? 'Vacant-home worksite' : 'Fire recovery worksite'
       : initialConstruction
         ? 'Cottage worksite'
         : 'Residence',
-    title: structuralRepairProject
+    title: roofTileProject
+      ? 'Fired-tile roof retrofit'
+      : structuralRepairProject
       ? decayRepairProject
         ? `${conditionLabel} home restoration`
         : residenceFire?.status === 'destroyed'
@@ -532,7 +589,9 @@ export function renderResidenceInspector(
         ? 'Residence'
         : `Residence plot (${residenceCount} residences)`,
     statusText,
-    statusState: structuralRepairProject
+    statusState: roofTileProject
+      ? roofTileProject.blockers.length === 0 ? 'ok' : 'warning'
+      : structuralRepairProject
       ? structuralRepairProject.blockers.length === 0 ? 'ok' : 'warning'
       : initialConstruction && upgradeProject
         ? upgradeProject.blockers.length === 0 ? 'ok' : 'warning'
@@ -549,7 +608,11 @@ export function renderResidenceInspector(
       <li><span>Deaths</span><span>${residence.deathsTotal ?? 0} total · ${householdCorpses.length} unburied or in transit</span></li>
       <li><span>Structure</span><span>${conditionLabel}${condition >= 2 ? ' · blocks resettlement until repaired' : ''}</span></li>
       <li><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : `${residence.tier} / 3`}</span></li>
-      ${decayRepairProject
+      <li><span>Roof covering</span><span>${residence.tiledRoof === true ? 'Fired clay tile · rare prosperous-house retrofit' : 'Split wooden shingle · regional default'}</span></li>
+      <li><span>Roof fire exposure</span><span>${residence.tiledRoof === true ? `${Math.round((1 - RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER) * 100)}% lower ignition and spread weighting · not fireproof` : 'Full wooden-roof exposure'}</span></li>
+      ${roofTileProject
+        ? residenceRoofTileProjectRows(roofTileProject)
+        : decayRepairProject
         ? residenceDecayRepairProjectRows(decayRepairProject, conditionLabel)
         : fireRepairProject
         ? residenceFireRepairProjectRows(fireRepairProject, residence.tier)
@@ -623,16 +686,16 @@ export function renderResidenceInspector(
       visible: true,
       label: initialConstruction ? 'Cancel cottage works' : 'Remove residence',
       hint: initialConstruction
-        ? `Cancels this cottage and leaves about ${singleRefund.timber} timber and ${singleRefund.stone} stone from material already delivered onsite. Reserved stock and incoming carts are released back to connected stores.`
+        ? `Cancels this cottage and leaves about ${singleRefund.timber} timber, ${singleRefund.stone} stone${singleRoofTileSalvage} from material already delivered onsite. Reserved stock and incoming carts are released back to connected stores.`
         : structuralRepairProject
-          ? `Clears the damaged homestead and leaves about ${singleRefund.timber} timber and ${singleRefund.stone} stone from recovery material already delivered onsite. Reserved stock and incoming carts return to connected stores.`
+          ? `Clears the damaged homestead and leaves about ${singleRefund.timber} timber, ${singleRefund.stone} stone${singleRoofTileSalvage} from recovery material already delivered onsite. Reserved stock and incoming carts return to connected stores.`
         : fireDisabled
         ? 'Removes this fire-damaged residence. Its structural material is no longer recoverable.'
-        : `Leaves about ${singleRefund.timber} timber and ${singleRefund.stone} stone at this cottage footprint (${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber, ${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone of ${formatBuildingCost(singleCost)}). A free hauler must cart it to connected storage before the footprint clears.`,
+        : `Leaves about ${singleRefund.timber} timber, ${singleRefund.stone} stone${singleRoofTileSalvage} at this cottage footprint (${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber, ${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, and ${Math.round(RESIDENCE_TILE_ROOF_SALVAGE_FRACTION * 100)}% of intact fired tiles). A free hauler must cart it to connected storage before the footprint clears.`,
       secondary: residenceCount > 1
         ? {
             label: 'Remove entire plot',
-            hint: `Removes all ${residenceCount} residences and leaves up to ${reclaimablePlotResidenceCount} separate reclamation ${reclaimablePlotResidenceCount === 1 ? 'pile' : 'piles'} with about ${plotRefund.timber} timber and ${plotRefund.stone} stone total. Unfinished cottages and active fire-recovery sites recover only material already delivered; unrepaired fire damage yields nothing; every salvage-bearing footprint remains occupied until free haulers reach connected storage.`,
+            hint: `Removes all ${residenceCount} residences and leaves up to ${reclaimablePlotResidenceCount} separate reclamation ${reclaimablePlotResidenceCount === 1 ? 'pile' : 'piles'} with about ${plotRefund.timber} timber, ${plotRefund.stone} stone${plotRoofTileSalvage} total. Unfinished cottages and active fire-recovery sites recover only material already delivered; unrepaired fire damage yields nothing; every salvage-bearing footprint remains occupied until free haulers reach connected storage.`,
           }
         : undefined,
     },
@@ -644,7 +707,9 @@ export function renderResidenceInspector(
           </button>
           <p class="inspector-action-panel__hint">Materials remain in real stores until a cart and builder are available. Dilapidated homes and ruins cannot take settlers until restoration finishes.</p>
         </div>`
-      : ''}${decayRepairProject
+      : ''}${roofTileProject
+      ? residenceRoofTileProjectPanel(roofTileProject)
+      : decayRepairProject
       ? residenceDecayRepairProjectPanel(decayRepairProject)
       : fireRepairProject
       ? residenceFireRepairProjectPanel(fireRepairProject)
@@ -654,7 +719,9 @@ export function renderResidenceInspector(
         ? `<p class="resource-inspector-note">${backyardGardenLabel(backyardProject.kind)} works are using this household's builder slot. Select the backyard marker to inspect carts, materials, priority, or cancel the project.</p>`
       : upgradePlan
         ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
-        : '<p class="resource-inspector-note">This household has reached tier 3.</p>'}`,
+        : residence.tier >= 3 && residence.tiledRoof !== true
+          ? residenceRoofTileOfferPanel(roofRetrofitBlockers)
+          : '<p class="resource-inspector-note">This household has reached tier 3.</p>'}`,
   };
 }
 
@@ -719,6 +786,25 @@ function residenceFireRepairProjectRows(
     <li><span>Stone onsite</span><span>${formatUpgradeAmount(project.delivered.stone)} / ${formatUpgradeAmount(project.required.stone)} · ${formatUpgradeAmount(project.reserved.stone)} at source</span></li>
     <li><span>Incoming haul</span><span>${incoming}</span></li>
     <li><span>Household activity</span><span>Resumes only after structural recovery is complete</span></li>
+  `;
+}
+
+function residenceRoofTileProjectRows(
+  project: ResidenceRoofTileProject,
+): string {
+  const incoming = project.incomingTrips.length === 0
+    ? 'None'
+    : project.incomingTrips.map((trip) =>
+      `${formatUpgradeAmount(trip.amount)} ${trip.cargoKind} <button type="button" class="inspector-jump-button" data-inspect-delivery-trip="${trip.id}" aria-label="Inspect incoming ${trip.cargoKind} cart">Inspect cart</button>`,
+    ).join(' · ');
+  return `
+    <li><span>Retrofit target</span><span>Replace wooden shingles with fired clay tiles</span></li>
+    <li><span>Builder progress</span><span>${Math.round(project.progress * 100)}%</span></li>
+    <li><span>Queue priority</span><span>${project.priorityLabel}</span></li>
+    <li><span>Builder</span><span>${project.assignedLabor > 0 ? '1 replacing battens and covering' : 'Waiting for free labor'}</span></li>
+    <li><span>Timber onsite</span><span>${formatUpgradeAmount(project.delivered.timber)} / ${formatUpgradeAmount(project.required.timber)} · ${formatUpgradeAmount(project.reserved.timber)} at source</span></li>
+    <li><span>Tiles onsite</span><span>${formatUpgradeAmount(project.delivered.roofTiles)} / ${formatUpgradeAmount(project.required.roofTiles)} · ${formatUpgradeAmount(project.reserved.roofTiles)} at source</span></li>
+    <li><span>Incoming haul</span><span>${incoming}</span></li>
   `;
 }
 
@@ -812,6 +898,31 @@ function residenceFireRepairProjectPanel(
     : project.blockers.join(' · ');
   return `<div class="inspector-action-panel">
     <p class="resource-inspector-note">Recovery is physical: the damaged home remains offline while one builder uses timber and stone brought from real stores by cart. ${status} Hold releases the builder and stops new carts without losing reservations.</p>
+    <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
+      residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
+  </div>`;
+}
+
+function residenceRoofTileOfferPanel(blockers: string[]): string {
+  const ready = blockers.length === 0;
+  return `<div class="inspector-action-panel">
+    <button type="button" class="inspector-action-panel__button" data-action="retrofit-residence-tile-roof" ${ready ? '' : 'disabled'}>
+      Retrofit fired-tile roof (${RESIDENCE_TILE_ROOF_TIMBER_COST} timber, ${RESIDENCE_TILE_ROOF_TILE_COST} tiles)
+    </button>
+    <p class="inspector-action-panel__hint">${ready
+      ? 'Ready. One builder fits new battens while carts bring every tile from a real kiln or recovery pile.'
+      : `Blocked · ${blockers.join(' · ')}.`} Wooden shingles remain the regional norm; this costly prosperous-house exception diverts kiln capacity from vessels and lowers fire ignition/spread exposure by ${Math.round((1 - RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER) * 100)}% without making the home fireproof.</p>
+  </div>`;
+}
+
+function residenceRoofTileProjectPanel(
+  project: ResidenceRoofTileProject,
+): string {
+  const status = project.blockers.length === 0
+    ? 'Supplied and staffed; the covering advances as physical deliveries permit.'
+    : project.blockers.join(' · ');
+  return `<div class="inspector-action-panel">
+    <p class="resource-inspector-note">This is a residence-local worksite: kiln stock is reserved but remains visible at its source until a real cart reaches the house. ${status} Hold releases the builder and stops new carts without losing reservations.</p>
     <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
       residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
   </div>`;

@@ -51,4 +51,9 @@ export default __t.row({
   condition: __t.u8(),
   lastStarvationDeathHungerTicks: __t.u32().name("last_starvation_death_hunger_ticks"),
   decayRepairActive: __t.bool().name("decay_repair_active"),
+  tiledRoof: __t.bool().name("tiled_roof"),
+  roofTileRetrofitActive: __t.bool().name("roof_tile_retrofit_active"),
+  upgradeRequiredRoofTiles: __t.f64().name("upgrade_required_roof_tiles"),
+  upgradeDeliveredRoofTiles: __t.f64().name("upgrade_delivered_roof_tiles"),
+  upgradeReservedRoofTiles: __t.f64().name("upgrade_reserved_roof_tiles"),
 });

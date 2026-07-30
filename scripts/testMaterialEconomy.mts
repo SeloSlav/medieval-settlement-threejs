@@ -18,6 +18,7 @@ import {
   POTTER_CLAY_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_POTTERY_VISUAL_SEGMENTS,
+  POTTER_ROOF_TILE_VISUAL_SEGMENTS,
   POTTER_WATER_VISUAL_SEGMENTS,
   SMITHY_CHARCOAL_VISUAL_SEGMENTS,
   SMITHY_IRON_VISUAL_SEGMENTS,
@@ -34,6 +35,7 @@ import {
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   POTTER_POTTERY_PER_CYCLE,
+  POTTER_ROOF_TILES_PER_CYCLE,
   POTTER_WATER_PER_CYCLE,
   SMITHY_CHARCOAL_PER_CYCLE,
   SMITHY_IRON_PER_CYCLE,
@@ -54,7 +56,10 @@ import {
   selectDirectProcessorInputTarget,
   selectMarketplaceMaterialInputTarget,
 } from '../src/logistics/processorInputLogistics.ts';
-import { processorAcceptsInput } from '../src/economy/processorOutputPolicy.ts';
+import {
+  processorAcceptsInput,
+  processorOutputCommodityForBuilding,
+} from '../src/economy/processorOutputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 import {
   normalizePotteryDispatchPolicy,
@@ -64,6 +69,13 @@ import {
   potteryDispatchOrder,
   potteryDispatchPolicyLabel,
 } from '../src/economy/potteryDispatchPolicy.ts';
+import {
+  normalizePotterFiringPolicy,
+  POTTER_FIRE_ROOF_TILES,
+  POTTER_FIRE_VESSELS,
+  POTTER_FIRING_POLICY_PRESETS,
+  potterFiringPolicyLabel,
+} from '../src/economy/potterFiringPolicy.ts';
 import {
   CLAY_BANK_ORDINARY_YIELD_MAX,
   CLAY_BANK_RICH_YIELD_MIN,
@@ -135,6 +147,27 @@ assert.deepEqual(
   ],
   [3, 1, 1, 3],
 );
+assert.equal(POTTER_ROOF_TILES_PER_CYCLE, 4);
+assert.equal(normalizePotterFiringPolicy(99), POTTER_FIRE_VESSELS);
+assert.equal(potterFiringPolicyLabel(POTTER_FIRE_VESSELS), 'Household vessels');
+assert.equal(potterFiringPolicyLabel(POTTER_FIRE_ROOF_TILES), 'Fired roof tiles');
+assert.deepEqual(
+  POTTER_FIRING_POLICY_PRESETS.map((preset) => preset.policy),
+  [POTTER_FIRE_VESSELS, POTTER_FIRE_ROOF_TILES],
+);
+assert.equal(
+  processorOutputCommodityForBuilding(
+    building('potter_kiln', { potterFiringPolicy: POTTER_FIRE_VESSELS }),
+  ),
+  'pottery',
+);
+assert.equal(
+  processorOutputCommodityForBuilding(
+    building('potter_kiln', { potterFiringPolicy: POTTER_FIRE_ROOF_TILES }),
+  ),
+  'roofTiles',
+  'tile firing must replace rather than supplement vessel output',
+);
 assert.ok(SMOKEHOUSE_SALT_PER_CYCLE > 0);
 assert.ok(SMOKEHOUSE_POTTERY_PER_CYCLE > 0);
 assert.equal(
@@ -187,6 +220,14 @@ const householdFirstPotterPanel = renderProcessorOutputTargetPanel(
 assert.match(householdFirstPotterPanel ?? '', /data-pottery-dispatch-policy="0"[^>]*disabled/);
 assert.match(householdFirstPotterPanel ?? '', /data-pottery-dispatch-policy="1"/);
 assert.match(householdFirstPotterPanel ?? '', /market export always waits until both local duties/);
+const tileFiringPotterPanel = renderProcessorOutputTargetPanel(
+  building('potter_kiln', { potterFiringPolicy: POTTER_FIRE_ROOF_TILES }),
+);
+assert.match(tileFiringPotterPanel ?? '', /data-potter-firing-policy="1"[^>]*disabled/);
+assert.match(
+  tileFiringPotterPanel ?? '',
+  /Tile firing suspends new household and smokehouse vessel output/,
+);
 
 const nearbyMarket = building('marketplace', {
   id: 'near-market',
@@ -852,6 +893,13 @@ const buildingVisuals = [
   },
   {
     kind: 'potter_kiln',
+    container: 'PotterRoofTileStockpile',
+    segment: 'PotterRoofTileSegment',
+    resource: 'roofTiles',
+    segments: POTTER_ROOF_TILE_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'potter_kiln',
     container: 'PotterPuddlingWaterStockpile',
     segment: 'PotterPuddlingWaterSegment',
     resource: 'water',
@@ -948,6 +996,7 @@ const cargoProof: ReadonlyArray<
   ['salt', 'Mined rock salt chunk 1'],
   ['charcoal', 'Charcoal sack 1'],
   ['pottery', 'Fired pottery vessel 1'],
+  ['roofTiles', 'Fired roof tile stack 1 layer 1'],
 ];
 for (const [kind, objectName] of cargoProof) {
   const cart = createDeliveryCartMesh(kind);
@@ -1103,6 +1152,16 @@ assert.match(
   potterKilnStep,
   /CommodityKind::Water,\s*POTTER_WATER_PER_CYCLE/,
   'pottery must consume water from the physical on-site puddling pit',
+);
+assert.match(
+  potterKilnStep,
+  /potter_fires_roof_tiles[\s\S]*CommodityKind::RoofTiles, POTTER_ROOF_TILES_PER_CYCLE[\s\S]*step_processor/,
+  'tile firing must manufacture a distinct physical output at the kiln',
+);
+assert.match(
+  potterKilnStep,
+  /if !firing_roof_tiles[\s\S]*pottery_households_first/,
+  'a tile firing must suspend rather than duplicate household-vessel dispatch',
 );
 assert.doesNotMatch(
   potterKilnStep,
@@ -1407,7 +1466,7 @@ assert.ok(
 );
 
 console.log(
-  `Iron, clay, salt, charcoal, pottery chain tests passed (${materialDispatchElapsedMs.toFixed(1)} ms / 100k target candidates; ${assignmentElapsedMs.toFixed(1)} ms / 100k market pairs; ${localAssignmentElapsedMs.toFixed(1)} ms / 100k local pairs; ${signatureElapsedMs.toFixed(1)} ms / 100k visual signatures).`,
+  `Iron, clay, salt, charcoal, pottery, and roof-tile chain tests passed (${materialDispatchElapsedMs.toFixed(1)} ms / 100k target candidates; ${assignmentElapsedMs.toFixed(1)} ms / 100k market pairs; ${localAssignmentElapsedMs.toFixed(1)} ms / 100k local pairs; ${signatureElapsedMs.toFixed(1)} ms / 100k visual signatures).`,
 );
 
 function building(

@@ -13,7 +13,8 @@ use crate::db::*;
 use crate::economy::reconcile_building_labor;
 use crate::fire_policy::{
     accumulated_event_chance, building_base_flammability, distance_spread_factor,
-    fire_response_load, step_fire, suppression_result, weather_risk_multiplier,
+    fire_response_load, residence_flammability, step_fire, suppression_result,
+    weather_risk_multiplier,
 };
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::RoadNetwork;
@@ -216,7 +217,7 @@ pub fn ignite_raid_target(
                 target_id,
                 x: residence.x,
                 z: residence.z,
-                flammability: 0.9 + residence.tier as f64 * 0.12,
+                flammability: residence_flammability(residence.tier, residence.tiled_roof),
                 required_water: 5.0 + residence.tier as f64,
             }
         }
@@ -390,7 +391,7 @@ fn collect_candidates(
             target_id: residence.id,
             x: residence.x,
             z: residence.z,
-            flammability: 0.9 + residence.tier as f64 * 0.12,
+            flammability: residence_flammability(residence.tier, residence.tiled_roof),
             required_water: 5.0 + residence.tier as f64,
         });
     }
@@ -538,6 +539,7 @@ fn ignite_candidate(
                 residence.backyard_project_kind,
                 residence.fire_repair_active,
                 residence.decay_repair_active,
+                residence.roof_tile_retrofit_active,
             ) {
                 // A new fire ends unfinished household works immediately:
                 // source reservations are released, carts turn back, onsite
@@ -677,6 +679,7 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.wine = 0.0;
             building.wool = 0.0;
             building.cloth = 0.0;
+            building.roof_tiles = 0.0;
             building.gold = 0.0;
             building.civic_receipts_gold = 0.0;
             ctx.db.building().id().update(building);
@@ -692,6 +695,7 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             clear_backyard_garden_for_residence(ctx, residence.id);
             residence.population = 0;
             residence.abandoned = true;
+            residence.tiled_roof = false;
             residence.settlement_ticks = 0;
             ctx.db.residence().id().update(residence);
             reconcile_building_labor(ctx, owner);

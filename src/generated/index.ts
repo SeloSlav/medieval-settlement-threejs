@@ -66,6 +66,7 @@ import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
 import RepairFireDamageReducer from "./repair_fire_damage_reducer";
 import RepairResidenceDecayReducer from "./repair_residence_decay_reducer";
 import ResetWorldReducer from "./reset_world_reducer";
+import RetrofitResidenceTileRoofReducer from "./retrofit_residence_tile_roof_reducer";
 import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer";
 import SetCarpenterCartServiceTargetReducer from "./set_carpenter_cart_service_target_reducer";
 import SetCarpenterPolearmReserveReducer from "./set_carpenter_polearm_reserve_reducer";
@@ -96,6 +97,7 @@ import SetMarketplaceSeedGrainTargetReducer from "./set_marketplace_seed_grain_t
 import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specialty_export_policy_reducer";
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
 import SetNightPoliciesReducer from "./set_night_policies_reducer";
+import SetPotterFiringPolicyReducer from "./set_potter_firing_policy_reducer";
 import SetPotteryDispatchPolicyReducer from "./set_pottery_dispatch_policy_reducer";
 import SetProcessorOutputTargetReducer from "./set_processor_output_target_reducer";
 import SetProductionLaborStewardReducer from "./set_production_labor_steward_reducer";
@@ -550,6 +552,7 @@ const reducersSchema = __reducers(
   __reducerSchema("repair_fire_damage", RepairFireDamageReducer),
   __reducerSchema("repair_residence_decay", RepairResidenceDecayReducer),
   __reducerSchema("reset_world", ResetWorldReducer),
+  __reducerSchema("retrofit_residence_tile_roof", RetrofitResidenceTileRoofReducer),
   __reducerSchema("rotate_construction_labor", RotateConstructionLaborReducer),
   __reducerSchema("set_carpenter_cart_service_target", SetCarpenterCartServiceTargetReducer),
   __reducerSchema("set_carpenter_polearm_reserve", SetCarpenterPolearmReserveReducer),
@@ -580,6 +583,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_marketplace_specialty_export_policy", SetMarketplaceSpecialtyExportPolicyReducer),
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),
   __reducerSchema("set_night_policies", SetNightPoliciesReducer),
+  __reducerSchema("set_potter_firing_policy", SetPotterFiringPolicyReducer),
   __reducerSchema("set_pottery_dispatch_policy", SetPotteryDispatchPolicyReducer),
   __reducerSchema("set_processor_output_target", SetProcessorOutputTargetReducer),
   __reducerSchema("set_production_labor_steward", SetProductionLaborStewardReducer),

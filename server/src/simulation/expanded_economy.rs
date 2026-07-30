@@ -17,14 +17,14 @@ use crate::balance_generated::{
     MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
     MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
-    POTTER_POTTERY_PER_CYCLE, POTTER_WATER_PER_CYCLE, RICH_MINE_THROUGHPUT_MULTIPLIER,
-    SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
-    SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
-    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
-    TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
-    VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE,
-    WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
-    WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    POTTER_POTTERY_PER_CYCLE, POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE,
+    RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
+    SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+    SMOKEHOUSE_SALT_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE,
+    WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE,
+    WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -63,6 +63,7 @@ use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
     monastery_feast_surplus, monastery_hospitality_use, monastery_pilgrimage_gold,
 };
+use crate::potter_firing_policy::potter_fires_roof_tiles;
 use crate::pottery_dispatch_policy::pottery_households_first;
 use crate::processor_output_policy::{
     processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
@@ -1928,7 +1929,13 @@ pub fn step_potter_kiln(
     clock: &GameClock,
     building: Building,
 ) {
+    let firing_roof_tiles = potter_fires_roof_tiles(building.potter_firing_policy);
     let starting_pottery = building.pottery;
+    let output = if firing_roof_tiles {
+        (CommodityKind::RoofTiles, POTTER_ROOF_TILES_PER_CYCLE)
+    } else {
+        (CommodityKind::Pottery, POTTER_POTTERY_PER_CYCLE)
+    };
     let mut potter = step_processor(
         ctx,
         tick,
@@ -1939,13 +1946,13 @@ pub fn step_potter_kiln(
             (CommodityKind::Firewood, POTTER_FIREWOOD_PER_CYCLE),
             (CommodityKind::Water, POTTER_WATER_PER_CYCLE),
         ],
-        &[(CommodityKind::Pottery, POTTER_POTTERY_PER_CYCLE)],
+        &[output],
     );
-    if starting_pottery <= 1e-6 && potter.pottery > 1e-6 {
+    if !firing_roof_tiles && starting_pottery <= 1e-6 && potter.pottery > 1e-6 {
         ctx.db.building().id().update(potter.clone());
         tick.invalidate_specialty_claims(potter.owner, ResidenceNeedKind::Pottery);
     }
-    if pottery_households_first(potter.pottery_dispatch_policy) {
+    if !firing_roof_tiles && pottery_households_first(potter.pottery_dispatch_policy) {
         // The additive default preserves established behavior. Kilns ordered
         // to prioritize preservation wait for the settlement-wide material
         // arbitration pass before trying household cupboards.
@@ -2472,6 +2479,7 @@ fn production_output_target_applies(kind: &str, commodity: CommodityKind) -> boo
                 | ("clay_pit", CommodityKind::Clay)
                 | ("mine", CommodityKind::Iron)
                 | ("mine", CommodityKind::Salt)
+                | ("potter_kiln", CommodityKind::RoofTiles)
         )
 }
 
@@ -2554,7 +2562,14 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
     if !processor_uses_input(&building.kind, commodity) {
         return true;
     }
-    let Some(output) = processor_output_commodity(&building.kind) else {
+    let output = if building.kind == "potter_kiln"
+        && potter_fires_roof_tiles(building.potter_firing_policy)
+    {
+        Some(CommodityKind::RoofTiles)
+    } else {
+        processor_output_commodity(&building.kind)
+    };
+    let Some(output) = output else {
         return true;
     };
     processor_output_headroom(

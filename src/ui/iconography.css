@@ -235,7 +235,8 @@
 .settlement-hud__stat[data-resource='clay']::before,
 .settlement-hud__stat[data-resource='salt']::before,
 .settlement-hud__stat[data-resource='charcoal']::before,
-.settlement-hud__stat[data-resource='pottery']::before {
+.settlement-hud__stat[data-resource='pottery']::before,
+.settlement-hud__stat[data-resource='roofTiles']::before {
   background-position: center;
   background-size: contain;
 }
@@ -258,6 +259,10 @@
 
 .settlement-hud__stat[data-resource='pottery']::before {
   background-image: url('/assets/ui/icons/materials/pottery.png');
+}
+
+.settlement-hud__stat[data-resource='roofTiles']::before {
+  background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
 }
 
 .settlement-hud__stat[data-resource]:hover::before,

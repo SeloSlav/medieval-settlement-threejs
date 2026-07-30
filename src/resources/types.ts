@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'grain', 'barley', 'malt', 'flour', 'ale', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'gold'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'grain', 'barley', 'malt', 'flour', 'ale', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'roofTiles', 'gold'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -99,6 +99,7 @@ export type BuildingState = {
   salt?: number;
   charcoal?: number;
   pottery?: number;
+  roofTiles?: number;
   manure?: number;
   remedies?: number;
   gold: number;
@@ -136,6 +137,8 @@ export type BuildingState = {
   weaverInputPolicy?: number;
   /** 0 household wares first, 1 preservation vessels first; potter kilns only. */
   potteryDispatchPolicy?: number;
+  /** 0 household/preserving vessels, 1 fired roof tiles; potter kilns only. */
+  potterFiringPolicy?: number;
   granaryAcceptsFreshFood?: boolean;
   granaryHouseholdsFirst?: boolean;
   granaryGrainReserve?: number;
@@ -292,12 +295,15 @@ export type ResidenceState = {
   upgradeRequiredTimber?: number;
   upgradeRequiredStone?: number;
   upgradeRequiredGold?: number;
+  upgradeRequiredRoofTiles?: number;
   upgradeDeliveredTimber?: number;
   upgradeDeliveredStone?: number;
   upgradeDeliveredGold?: number;
+  upgradeDeliveredRoofTiles?: number;
   upgradeReservedTimber?: number;
   upgradeReservedStone?: number;
   upgradeReservedGold?: number;
+  upgradeReservedRoofTiles?: number;
   upgradeAssignedLabor?: number;
   /** Shared construction priority: 0 hold, 1 low, 2 normal, 3 urgent. */
   upgradePriority?: number;
@@ -317,18 +323,23 @@ export type ResidenceState = {
   condition?: 0 | 1 | 2 | 3;
   /** Physical material-and-builder project restoring a vacant structure. */
   decayRepairActive?: boolean;
+  /** Completed local fired-clay roof; absent legacy rows remain shingle-roofed. */
+  tiledRoof?: boolean;
+  /** Physical tile-and-timber residence project. */
+  roofTileRetrofitActive?: boolean;
 };
 
 export function residenceHasActiveProject(
   residence: Pick<
     ResidenceState,
-    'tier' | 'upgradeTargetTier' | 'backyardProjectKind' | 'fireRepairActive' | 'decayRepairActive'
+    'tier' | 'upgradeTargetTier' | 'backyardProjectKind' | 'fireRepairActive' | 'decayRepairActive' | 'roofTileRetrofitActive'
   >,
 ): boolean {
   return (residence.upgradeTargetTier ?? 0) > residence.tier
     || (residence.backyardProjectKind ?? 0) !== 0
     || residence.fireRepairActive === true
-    || residence.decayRepairActive === true;
+    || residence.decayRepairActive === true
+    || residence.roofTileRetrofitActive === true;
 }
 
 export type BackyardGardenState = {
@@ -416,7 +427,7 @@ export type InspectableTarget =
     };
 
 export function createEmptyStockpile(): ResourceStockpile {
-  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, barley: 0, malt: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, flax: 0, cloth: 0, ironwork: 0, polearms: 0, iron: 0, clay: 0, salt: 0, charcoal: 0, pottery: 0, gold: 0 };
+  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, barley: 0, malt: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, flax: 0, cloth: 0, ironwork: 0, polearms: 0, iron: 0, clay: 0, salt: 0, charcoal: 0, pottery: 0, roofTiles: 0, gold: 0 };
 }
 
 export function isResourceKind(value: string): value is ResourceKind {

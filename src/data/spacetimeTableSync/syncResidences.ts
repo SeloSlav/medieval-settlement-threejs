@@ -64,6 +64,11 @@ export function syncResidences(
       vacancyTicks: number;
       condition: number;
       decayRepairActive: boolean;
+      tiledRoof: boolean;
+      roofTileRetrofitActive: boolean;
+      upgradeRequiredRoofTiles: number;
+      upgradeDeliveredRoofTiles: number;
+      upgradeReservedRoofTiles: number;
     }>;
     const residenceId = residenceClientId(row.id);
     residences.set(residenceId, {
@@ -109,6 +114,11 @@ export function syncResidences(
       vacancyTicks: Number(upgradeRow.vacancyTicks ?? 0),
       condition: Math.max(0, Math.min(3, Number(upgradeRow.condition ?? 0))) as 0 | 1 | 2 | 3,
       decayRepairActive: upgradeRow.decayRepairActive === true,
+      tiledRoof: upgradeRow.tiledRoof === true,
+      roofTileRetrofitActive: upgradeRow.roofTileRetrofitActive === true,
+      upgradeRequiredRoofTiles: Number(upgradeRow.upgradeRequiredRoofTiles ?? 0),
+      upgradeDeliveredRoofTiles: Number(upgradeRow.upgradeDeliveredRoofTiles ?? 0),
+      upgradeReservedRoofTiles: Number(upgradeRow.upgradeReservedRoofTiles ?? 0),
     });
   }
   return residences;

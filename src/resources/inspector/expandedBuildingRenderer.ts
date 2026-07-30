@@ -108,6 +108,7 @@ import {
   PROCESSOR_OUTPUT_TARGET_PRESETS,
   processorInputStagingCycles,
   processorOutputCommodity,
+  processorOutputCommodityForBuilding,
   processorOutputHeadroom,
   processorOutputTargetForBuilding,
 } from '../../economy/processorOutputPolicy.ts';
@@ -125,6 +126,12 @@ import {
   potteryDispatchPolicyLabel,
 } from '../../economy/potteryDispatchPolicy.ts';
 import {
+  normalizePotterFiringPolicy,
+  POTTER_FIRING_POLICY_PRESETS,
+  POTTER_FIRE_ROOF_TILES,
+  potterFiringPolicyLabel,
+} from '../../economy/potterFiringPolicy.ts';
+import {
   CLAY_BANK_LEAN_YIELD_THRESHOLD,
   clayBankYieldAt,
   clayBankYieldGrade,
@@ -136,7 +143,7 @@ const PROCESS: Record<string, string> = {
   clay_pit: 'Finite ordinary bank or rich deep alluvium + labor -> wet clay for local potters',
   charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
   smithy: 'Small direct-process bloomery reduces local ore or reheats imported blooms and bars; the smithing bay then uses charcoal and carted quench water to finish tools, fittings, and weapon heads',
-  potter_kiln: 'Riverbank clay + firewood + carted puddling water -> household wares, preservation vessels, and export',
+  potter_kiln: 'Riverbank clay + firewood + carted puddling water -> either vessels or rare prosperous-house roof tiles',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
   granary: 'Buffers grain, bakes staple food, and redistributes road-hauled fresh and cured provisions',
@@ -700,7 +707,8 @@ function renderLogisticsRows(
           building,
           'pottery',
         );
-        return `<li><span>Kiln cart order</span><span>${potteryDispatchPolicyLabel(building.potteryDispatchPolicy)} · export always last</span></li>
+        return `<li><span>Kiln firing</span><span>${potterFiringPolicyLabel(building.potterFiringPolicy)}</span></li>
+          <li><span>Kiln cart order</span><span>${potteryDispatchPolicyLabel(building.potteryDispatchPolicy)} · export always last</span></li>
           <li><span>Household-ware territory</span><span>${(building.pottery ?? 0) <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
           <li><span>Next household</span><span>${next ? `Parcel #${next.parcelIndex + 1}` : 'Household cupboards covered'}</span></li>`;
       })()
@@ -1517,7 +1525,8 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
   const percent = normalizeProcessorOutputTargetPercent(
     building.processorOutputTargetPercent,
   );
-  const output = processorOutputCommodity(building.kind);
+  const output = processorOutputCommodityForBuilding(building)
+    ?? processorOutputCommodity(building.kind);
   const stagingCycles = processorInputStagingCycles(percent);
   const stagingLabel = `${stagingCycles} input ${stagingCycles === 1 ? 'cycle' : 'cycles'}`;
   const label = output === 'preservedFood' ? 'preserved food' : output;
@@ -1547,6 +1556,17 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       <p class="inspector-action-panel__hint">Homes-first protects prosperous household wares before smokehouse packing stock. Preservation-first stages the highest-priority smokehouse working buffer before replacing household breakage. Either order immediately falls through when its first duty has no reachable shortage, and market export always waits until both local duties are covered.</p>
     `
     : '';
+  const potterFiringPolicy = building.kind === 'potter_kiln'
+    ? `
+      <p class="resource-inspector-note">Firing order · one kiln output at a time. Changing it never converts stock already fired.</p>
+      <div class="resource-action-row">${POTTER_FIRING_POLICY_PRESETS
+        .map((preset) => `<button type="button" class="resource-action-button" data-potter-firing-policy="${preset.policy}" title="${preset.hint}" ${normalizePotterFiringPolicy(building.potterFiringPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
+        .join('')}</div>
+      <p class="inspector-action-panel__hint">${normalizePotterFiringPolicy(building.potterFiringPolicy) === POTTER_FIRE_ROOF_TILES
+        ? 'Tile firing suspends new household and smokehouse vessel output. Existing vessels still dispatch; fired tiles remain stacked here until a tier-3 residence commissions a road-hauled retrofit.'
+        : 'Vessel firing serves household breakage, preserving crocks, then export. Commissioned roof projects wait until this or another linked kiln fires enough physical tiles.'}</p>
+    `
+    : '';
   return `
     <div class="inspector-action-panel">
       <p class="resource-inspector-note">Stock policy · stages ${stagingLabel} · finished ${label} ${stock.toFixed(0)} / ${target.toFixed(0)} · ${pressure}</p>
@@ -1554,6 +1574,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
         .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
         .join('')}</div>
       ${weaverInputPolicy}
+      ${potterFiringPolicy}
       ${potteryDispatchPolicy}
       <p class="inspector-action-panel__hint">This policy sets both the on-site input staging depth and the finished-goods ceiling. Routine input top-ups stop at the staged-cycle target; a producer may still use the workshop as last-resort overflow when normal storage cannot receive its cargo. Finished-goods deliveries may draw below the ceiling and restart work. It is not a protected reserve, and a cart already on the road may still arrive after you lower it.</p>
     </div>

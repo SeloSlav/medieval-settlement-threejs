@@ -153,6 +153,10 @@
     "residenceTier3TimberCost": 28,
     "residenceTier3StoneCost": 24,
     "residenceTier3GoldCost": 22,
+    "residenceTileRoofTimberCost": 12,
+    "residenceTileRoofTileCost": 36,
+    "residenceTileRoofSalvageFraction": 0.6,
+    "residenceTileRoofFlammabilityMultiplier": 0.55,
     "householdMaxWealth": 200,
     "townHallPopulationRequired": 24,
     "townHallUnstaffedTaxCollectionMultiplier": 0.6
@@ -494,6 +498,7 @@
     "potterFirewoodPerCycle": 1,
     "potterWaterPerCycle": 1,
     "potterPotteryPerCycle": 3,
+    "potterRoofTilesPerCycle": 4,
     "apiaryHoneyPerCycle": 2,
     "apiaryFoodPerCycle": 1,
     "apiarySeasonStartMonth": 4,
@@ -759,6 +764,7 @@
         "salt": 80,
         "charcoal": 80,
         "pottery": 80,
+        "roofTiles": 80,
         "wool": 120,
         "flax": 120,
         "cloth": 80
@@ -800,6 +806,7 @@
         "salt": 2000,
         "charcoal": 2000,
         "pottery": 2000,
+        "roofTiles": 2000,
         "manure": 2000,
         "remedies": 2000,
         "wool": 2000,
@@ -981,7 +988,7 @@
     "potter_kiln": {
       "label": "Potter's kiln",
       "cost": { "timber": 36, "stone": 24 },
-      "storage": { "timber": 0, "firewood": 36, "stone": 0, "water": 9, "clay": 72, "pottery": 120 },
+      "storage": { "timber": 0, "firewood": 36, "stone": 0, "water": 9, "clay": 72, "pottery": 120, "roofTiles": 120 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 9,

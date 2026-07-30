@@ -1055,6 +1055,7 @@ pub fn try_start_residence_upgrade_supply_trip(
             residence.backyard_project_kind,
             residence.fire_repair_active,
             residence.decay_repair_active,
+            residence.roof_tile_retrofit_active,
         )
         || origin.owner != residence.owner
         || tick.building_disabled_by_fire(ctx, origin.id)
@@ -1070,6 +1071,7 @@ pub fn try_start_residence_upgrade_supply_trip(
         CommodityKind::Timber => residence.upgrade_reserved_timber,
         CommodityKind::Stone => residence.upgrade_reserved_stone,
         CommodityKind::Gold => residence.upgrade_reserved_gold,
+        CommodityKind::RoofTiles => residence.upgrade_reserved_roof_tiles,
         _ => 0.0,
     }
     .max(0.0);
@@ -1131,6 +1133,10 @@ pub fn try_start_residence_upgrade_supply_trip(
         }
         CommodityKind::Gold => {
             residence.upgrade_reserved_gold = (residence.upgrade_reserved_gold - withdrawn).max(0.0)
+        }
+        CommodityKind::RoofTiles => {
+            residence.upgrade_reserved_roof_tiles =
+                (residence.upgrade_reserved_roof_tiles - withdrawn).max(0.0)
         }
         _ => return false,
     }
@@ -1779,7 +1785,10 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
         unload_remedies_to_residence(ctx, trip);
     } else if matches!(
         commodity,
-        CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Gold
+        CommodityKind::Timber
+            | CommodityKind::Stone
+            | CommodityKind::Gold
+            | CommodityKind::RoofTiles
     ) && ctx
         .db
         .residence()
@@ -1792,6 +1801,7 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
                 residence.backyard_project_kind,
                 residence.fire_repair_active,
                 residence.decay_repair_active,
+                residence.roof_tile_retrofit_active,
             )
         })
     {
@@ -1855,6 +1865,7 @@ fn unload_residence_upgrade_material(
         residence.backyard_project_kind,
         residence.fire_repair_active,
         residence.decay_repair_active,
+        residence.roof_tile_retrofit_active,
     ) {
         return;
     }
@@ -1868,6 +1879,9 @@ fn unload_residence_upgrade_material(
         CommodityKind::Gold => {
             (residence.upgrade_required_gold - residence.upgrade_delivered_gold).max(0.0)
         }
+        CommodityKind::RoofTiles => (residence.upgrade_required_roof_tiles
+            - residence.upgrade_delivered_roof_tiles)
+            .max(0.0),
         _ => 0.0,
     };
     let delivered = trip.amount.min(room);
@@ -1878,6 +1892,7 @@ fn unload_residence_upgrade_material(
         CommodityKind::Timber => residence.upgrade_delivered_timber += delivered,
         CommodityKind::Stone => residence.upgrade_delivered_stone += delivered,
         CommodityKind::Gold => residence.upgrade_delivered_gold += delivered,
+        CommodityKind::RoofTiles => residence.upgrade_delivered_roof_tiles += delivered,
         _ => {}
     }
     trip.amount = (trip.amount - delivered).max(0.0);
@@ -2193,7 +2208,10 @@ fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
     if trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE
         && matches!(
             commodity,
-            CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Gold
+            CommodityKind::Timber
+                | CommodityKind::Stone
+                | CommodityKind::Gold
+                | CommodityKind::RoofTiles
         )
     {
         if let Some(mut residence) = ctx.db.residence().id().find(&trip.residence_id) {
@@ -2203,11 +2221,15 @@ fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
                 residence.backyard_project_kind,
                 residence.fire_repair_active,
                 residence.decay_repair_active,
+                residence.roof_tile_retrofit_active,
             ) {
                 match commodity {
                     CommodityKind::Timber => residence.upgrade_reserved_timber += trip.amount,
                     CommodityKind::Stone => residence.upgrade_reserved_stone += trip.amount,
                     CommodityKind::Gold => residence.upgrade_reserved_gold += trip.amount,
+                    CommodityKind::RoofTiles => {
+                        residence.upgrade_reserved_roof_tiles += trip.amount
+                    }
                     _ => {}
                 }
                 ctx.db.residence().id().update(residence);

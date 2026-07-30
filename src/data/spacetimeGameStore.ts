@@ -378,6 +378,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.upgradeResidence(residenceId);
   }
 
+  retrofitResidenceTileRoof(residenceId: string): Promise<void> {
+    return spacetimeReducers.retrofitResidenceTileRoof(residenceId);
+  }
+
   async setResidenceUpgradePriority(residenceId: string, priority: number): Promise<void> {
     const clampedPriority = Math.max(0, Math.min(3, Math.floor(priority)));
     const previous = this.tableState.residences.get(residenceId);
@@ -593,6 +597,13 @@ export class SpacetimeGameStore {
     dispatchPolicy: number,
   ): Promise<void> {
     return spacetimeReducers.setPotteryDispatchPolicy(buildingId, dispatchPolicy);
+  }
+
+  setPotterFiringPolicy(
+    buildingId: string,
+    firingPolicy: number,
+  ): Promise<void> {
+    return spacetimeReducers.setPotterFiringPolicy(buildingId, firingPolicy);
   }
 
   setGranaryPolicy(

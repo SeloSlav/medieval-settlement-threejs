@@ -37,6 +37,7 @@ export const SMITHY_WATER_VISUAL_SEGMENTS = 3;
 export const POTTER_CLAY_VISUAL_SEGMENTS = 5;
 export const POTTER_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const POTTER_POTTERY_VISUAL_SEGMENTS = 5;
+export const POTTER_ROOF_TILE_VISUAL_SEGMENTS = 5;
 export const POTTER_WATER_VISUAL_SEGMENTS = 3;
 export const CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS = 4;
 
@@ -166,6 +167,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
        building.pottery ?? 0,
        BUILDING_STORAGE_CAPS.potter_kiln.pottery,
        POTTER_POTTERY_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
+       building.roofTiles ?? 0,
+       BUILDING_STORAGE_CAPS.potter_kiln.roofTiles ?? 0,
+       POTTER_ROOF_TILE_VISUAL_SEGMENTS,
       )}:${stockpileVisualLevel(
         building.water,
         BUILDING_STORAGE_CAPS.potter_kiln.water,
@@ -335,6 +340,13 @@ export function syncBulkStockpileVisuals(
         'PotterPotterySegment',
         building.pottery ?? 0,
         BUILDING_STORAGE_CAPS.potter_kiln.pottery,
+      );
+      syncNamedStockpile(
+        marker,
+        'PotterRoofTileStockpile',
+        'PotterRoofTileSegment',
+        building.roofTiles ?? 0,
+        BUILDING_STORAGE_CAPS.potter_kiln.roofTiles ?? 0,
       );
       syncNamedStockpile(
         marker,

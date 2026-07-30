@@ -75,4 +75,5 @@ export default __t.row({
   lastNightLightingFuelShortfall: __t.f64().name("last_night_lighting_fuel_shortfall"),
   nightCommunityCohesion: __t.f64().name("night_community_cohesion"),
   nightLaborFatigue: __t.f64().name("night_labor_fatigue"),
+  roofTiles: __t.f64().name("roof_tiles"),
 });

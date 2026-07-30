@@ -177,6 +177,9 @@ function addCargo(
     case 'pottery':
       addPotteryLoad(group);
       break;
+    case 'roofTiles':
+      addRoofTileLoad(group);
+      break;
     case 'manure':
       addManureLoad(group);
       break;
@@ -731,6 +734,36 @@ function addPotteryLoad(group: THREE.Group): void {
       new THREE.Vector3(x, y, z),
       scale,
       CARGO_MATERIALS.terracotta,
+    );
+  }
+}
+
+function addRoofTileLoad(group: THREE.Group): void {
+  const stacks = [
+    { x: -0.23, z: -0.12, yaw: -0.04 },
+    { x: 0.23, z: -0.1, yaw: 0.05 },
+    { x: 0, z: 0.2, yaw: -0.02 },
+  ] as const;
+  for (const [stackIndex, stack] of stacks.entries()) {
+    for (let layer = 0; layer < 5; layer += 1) {
+      addNamedMesh(
+        group,
+        `Fired roof tile stack ${stackIndex + 1} layer ${layer + 1}`,
+        new THREE.BoxGeometry(0.34, 0.036, 0.48),
+        layer % 2 === 0
+          ? CARGO_MATERIALS.terracotta
+          : CARGO_MATERIALS.darkTerracotta,
+        new THREE.Vector3(stack.x, 0.59 + layer * 0.041, stack.z),
+        new THREE.Euler(0, stack.yaw + (layer % 2) * 0.018, 0),
+      );
+    }
+    addNamedMesh(
+      group,
+      `Fired roof tile stack ${stackIndex + 1} rope`,
+      new THREE.BoxGeometry(0.035, 0.24, 0.54),
+      CARGO_MATERIALS.rope,
+      new THREE.Vector3(stack.x, 0.68, stack.z),
+      new THREE.Euler(0, stack.yaw, 0),
     );
   }
 }

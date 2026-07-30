@@ -16,6 +16,7 @@ import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 import {
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,
+  POTTER_ROOF_TILE_VISUAL_SEGMENTS,
   POTTER_WATER_VISUAL_SEGMENTS,
   SMITHY_CHARCOAL_VISUAL_SEGMENTS,
   SMITHY_WATER_VISUAL_SEGMENTS,
@@ -704,6 +705,10 @@ export function createPotterKilnMesh(): THREE.Group {
   potteryStock.name = 'PotterPotteryStockpile';
   potteryStock.visible = false;
   group.add(potteryStock);
+  const roofTileStock = new THREE.Group();
+  roofTileStock.name = 'PotterRoofTileStockpile';
+  roofTileStock.visible = false;
+  group.add(roofTileStock);
   for (let index = 0; index < 5; index++) {
     addClayLump(
       clayStock,
@@ -725,6 +730,26 @@ export function createPotterKilnMesh(): THREE.Group {
       ),
       index >= 3 ? 0.86 : 1,
     );
+  }
+  for (let index = 0; index < POTTER_ROOF_TILE_VISUAL_SEGMENTS; index++) {
+    const stack = new THREE.Group();
+    stack.name = 'PotterRoofTileSegment';
+    stack.position.set(
+      -0.15 + (index % 3) * 0.62,
+      0.08,
+      2.25 + Math.floor(index / 3) * 0.55,
+    );
+    stack.rotation.y = (index % 2 === 0 ? -1 : 1) * 0.035;
+    stack.visible = false;
+    roofTileStock.add(stack);
+    for (let layer = 0; layer < 5; layer++) {
+      addMesh(
+        stack,
+        new THREE.BoxGeometry(0.48, 0.045, 0.62),
+        layer % 2 === 0 ? FIRED_CLAY : sharedBuildingMaterial('clayDark'),
+        new THREE.Vector3(0, layer * 0.05, 0),
+      ).name = 'Stacked fired roof tile';
+    }
   }
   addFirewoodStockpile(
     group,
