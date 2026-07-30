@@ -8,6 +8,7 @@ use crate::db::*;
 use crate::economy::{
     building_storage_caps, deposit_building, withdraw_building_commodity, CommodityKind,
 };
+use crate::processor_output_policy::processor_output_headroom;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -50,7 +51,12 @@ pub fn step_stone_quarry(
     let labor_interval = interval / onsite_labor as f64;
 
     let caps = building_storage_caps(&building.kind);
-    if building.stone >= caps.stone - 1e-6 {
+    let output_headroom = processor_output_headroom(
+        building.stone,
+        caps.stone,
+        building.processor_output_target_percent,
+    );
+    if output_headroom <= 1e-6 {
         ctx.db.building().id().update(Building {
             action_cooldown: labor_interval,
             ..building
@@ -66,7 +72,7 @@ pub fn step_stone_quarry(
         return;
     };
 
-    let extracted = STONE_PER_HARVEST.min(quarry.remaining);
+    let extracted = STONE_PER_HARVEST.min(quarry.remaining).min(output_headroom);
     if extracted <= 0.0 {
         ctx.db.building().id().update(Building {
             action_cooldown: labor_interval,
@@ -85,7 +91,7 @@ pub fn step_stone_quarry(
         withdraw_building_commodity(
             &mut updated,
             CommodityKind::Ironwork,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE * extracted / STONE_PER_HARVEST,
         );
     }
     updated.action_cooldown = labor_interval;

@@ -120,6 +120,7 @@ import {
   clayBankYieldAt,
   clayBankYieldGrade,
 } from '../../economy/clayBankPolicy.ts';
+import { renderExtractionStockTargetPanel } from './extractionStockTargetRenderer.ts';
 
 const PROCESS: Record<string, string> = {
   mine: 'A local iron or salt deposit + labor → raw material for linked local processing',
@@ -1206,7 +1207,10 @@ export function renderExpandedBuildingInspector(
           ? renderCarpenterArmoryPanel(building)
           : undefined;
   const processorPolicyPanelHtml = renderProcessorOutputTargetPanel(building);
-  const supplementalPanelHtml = `${buildingPolicyPanelHtml ?? ''}${processorPolicyPanelHtml ?? ''}`
+  const extractionPolicyPanelHtml = building.kind === 'clay_pit'
+    ? renderExtractionStockTargetPanel(building, 'clay')
+    : null;
+  const supplementalPanelHtml = `${buildingPolicyPanelHtml ?? ''}${processorPolicyPanelHtml ?? ''}${extractionPolicyPanelHtml ?? ''}`
     || undefined;
   const role = building.kind === 'carpenter' && !context.conflictEnabled
     ? 'Timber framing and cartwright support for road-linked building sites'

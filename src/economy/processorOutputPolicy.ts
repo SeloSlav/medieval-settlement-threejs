@@ -15,6 +15,16 @@ export const PROCESSOR_OUTPUT_TARGET_KINDS = [
 export type ProcessorOutputTargetKind =
   (typeof PROCESSOR_OUTPUT_TARGET_KINDS)[number];
 
+export const EXTRACTION_OUTPUT_TARGET_KINDS = [
+  'stone_quarry',
+  'large_quarry',
+  'mine',
+  'clay_pit',
+] as const satisfies readonly BuildingKind[];
+
+export type ExtractionOutputTargetKind =
+  (typeof EXTRACTION_OUTPUT_TARGET_KINDS)[number];
+
 export type ProcessorOutputCommodity =
   | 'flour'
   | 'food'
@@ -24,6 +34,8 @@ export type ProcessorOutputCommodity =
   | 'charcoal'
   | 'ironwork'
   | 'pottery';
+
+export type ExtractionOutputCommodity = 'stone' | 'iron' | 'salt' | 'clay';
 
 export type ProcessorInputCommodity =
   | 'grain'
@@ -66,6 +78,29 @@ export const PROCESSOR_OUTPUT_TARGET_PRESETS = [
   },
 ] as const;
 
+export const EXTRACTION_OUTPUT_TARGET_PRESETS = [
+  {
+    percent: 25,
+    label: 'Lean',
+    hint: 'Keeps a small working yard and preserves finite ground until consumers need it.',
+  },
+  {
+    percent: 50,
+    label: 'Balanced',
+    hint: 'Keeps a practical local buffer without tying up the full extraction crew.',
+  },
+  {
+    percent: 75,
+    label: 'Deep',
+    hint: 'Builds a strong construction or winter reserve near the source.',
+  },
+  {
+    percent: 100,
+    label: 'Fill',
+    hint: 'Retains the legacy behavior and works until the physical yard is full.',
+  },
+] as const;
+
 const OUTPUT_BY_KIND: Record<
   ProcessorOutputTargetKind,
   ProcessorOutputCommodity
@@ -98,6 +133,18 @@ export function isProcessorOutputTargetKind(
   kind: BuildingKind,
 ): kind is ProcessorOutputTargetKind {
   return (PROCESSOR_OUTPUT_TARGET_KINDS as readonly BuildingKind[]).includes(kind);
+}
+
+export function isExtractionOutputTargetKind(
+  kind: BuildingKind,
+): kind is ExtractionOutputTargetKind {
+  return (EXTRACTION_OUTPUT_TARGET_KINDS as readonly BuildingKind[]).includes(kind);
+}
+
+export function isProductionOutputTargetKind(
+  kind: BuildingKind,
+): kind is ProcessorOutputTargetKind | ExtractionOutputTargetKind {
+  return isProcessorOutputTargetKind(kind) || isExtractionOutputTargetKind(kind);
 }
 
 export function normalizeProcessorOutputTargetPercent(
@@ -171,6 +218,35 @@ export function processorOutputHeadroom(
   const output = processorOutputCommodity(building.kind);
   const target = processorOutputTargetForBuilding(building) ?? 0;
   return Math.max(0, target - Math.max(0, building[output] ?? 0));
+}
+
+export function extractionOutputTarget(
+  kind: ExtractionOutputTargetKind,
+  commodity: ExtractionOutputCommodity,
+  percent: number | undefined,
+): number {
+  const capacity = (
+    BUILDING_STORAGE_CAPS[kind] as Partial<
+      Record<ExtractionOutputCommodity, number>
+    >
+  )[commodity] ?? 0;
+  return processorOutputTarget(capacity, percent);
+}
+
+export function extractionOutputHeadroom(
+  building: Pick<
+    BuildingState,
+    'kind' | 'processorOutputTargetPercent' | ExtractionOutputCommodity
+  >,
+  commodity: ExtractionOutputCommodity,
+): number | null {
+  if (!isExtractionOutputTargetKind(building.kind)) return null;
+  const target = extractionOutputTarget(
+    building.kind,
+    commodity,
+    building.processorOutputTargetPercent,
+  );
+  return Math.max(0, target - Math.max(0, building[commodity] ?? 0));
 }
 
 export function processorNeedsInputs(

@@ -194,7 +194,12 @@ const serverSimulation = readFileSync(
 );
 assert.match(
   serverSimulation,
-  /if !producer_output_batch_fits[\s\S]{0,500}return building;[\s\S]{0,200}cycle_labor_if_ready/,
+  /else \{\s*producer_output_batch_fits\(outputs\.iter\(\)\.map/,
+  'seasonal co-products must retain their indivisible physical-capacity check',
+);
+assert.ok(
+  serverSimulation.indexOf('if !output_ready')
+    < serverSimulation.indexOf('let Some(labor) = cycle_labor_if_ready_at_rate'),
   'seasonal output room must be checked before consuming a completed work cycle',
 );
 

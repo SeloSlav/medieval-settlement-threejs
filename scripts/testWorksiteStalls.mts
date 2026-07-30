@@ -35,7 +35,8 @@ const partialMill = building('30', 'watermill', 1, 40, 0);
 partialMill.grain = 0.1;
 const suppliedMill = building('40', 'watermill', 2, 60, 0);
 const fullQuarry = building('50', 'stone_quarry', 4, 100, 0);
-fullQuarry.stone = 180;
+fullQuarry.processorOutputTargetPercent = 25;
+fullQuarry.stone = 45;
 fullQuarry.workRadius = 80;
 const exhaustedQuarry = building('60', 'stone_quarry', 3, 0, 0);
 exhaustedQuarry.workRadius = 20;
@@ -151,7 +152,8 @@ assert.equal(
 
 const materialState = emptyGameState();
 const fullClayPit = building('material-clay', 'clay_pit', 3, 0, 0);
-fullClayPit.clay = 999;
+fullClayPit.processorOutputTargetPercent = 25;
+fullClayPit.clay = 45;
 const saltAndPotteryStarvedSmokehouse = building(
   'material-smokehouse',
   'smokehouse',
@@ -254,7 +256,8 @@ assert.equal(
 const mineralState = emptyGameState();
 const exhaustedIronMine = building('mine-10-exhausted', 'mine', 3, 0, 0);
 const fullSaltMine = building('mine-20-full', 'mine', 4, 100, 0);
-fullSaltMine.salt = 999;
+fullSaltMine.processorOutputTargetPercent = 25;
+fullSaltMine.salt = 60;
 const richIronMine = building('mine-30-rich', 'mine', 2, 200, 0);
 richIronMine.timber = 0.5;
 const mineralOnlyStoneCamp = building(
@@ -308,7 +311,11 @@ assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)
     ?.targetLabor,
   1,
-  'a full mine must retain one dispatcher while its salt cart is active',
+  'a mine at its selected yard target must retain one dispatcher while its salt cart is active',
+);
+assert.equal(
+  mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)?.detail,
+  'local salt yard target reached',
 );
 assert.equal(
   mineralPlan.sites.some((site) => site.buildingId === richIronMine.id),
@@ -502,7 +509,8 @@ const serverPolicy = readFileSync(
 );
 assert.match(expandedEconomy, /building_commodity_stock\(building, \*kind\) \/ amount/);
 assert.match(expandedEconomy, /processor_output_headroom/);
-assert.match(stoneQuarrySimulation, /building\.stone >= caps\.stone - 1e-6/);
+assert.match(stoneQuarrySimulation, /processor_output_headroom/);
+assert.match(stoneQuarrySimulation, /\.min\(output_headroom\)/);
 assert.match(stoneQuarrySimulation, /find_nearest_quarry/);
 assert.match(largeQuarrySimulation, /RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2\.5/);
 assert.match(largeQuarrySimulation, /request_connected_commodity/);
@@ -512,6 +520,7 @@ assert.match(foodSupplierSimulation, /building\.food >= food_cap - 1e-6/);
 assert.match(foodSupplierSimulation, /find_nearest_harvestable_foraging_node/);
 assert.match(serverReducer, /stalled_labor_target/);
 assert.match(serverReducer, /processor_input_kinds/);
+assert.match(serverReducer, /fn extraction_output_blocked/);
 assert.match(serverReducer, /"clay_pit" => \(/);
 assert.match(serverReducer, /"mine" => \{/);
 assert.match(serverReducer, /fn mineral_source/);

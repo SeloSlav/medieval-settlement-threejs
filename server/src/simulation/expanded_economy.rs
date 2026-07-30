@@ -1141,7 +1141,12 @@ pub fn step_mine(
     } else {
         base_batch.min(deposit.remaining)
     };
-    if deposit.is_rich && building_commodity_room(&building, commodity) + 1e-6 >= batch {
+    let output_headroom = processor_output_headroom(
+        building_commodity_stock(&building, commodity),
+        building_commodity_cap(&building.kind, commodity),
+        building.processor_output_target_percent,
+    );
+    if deposit.is_rich && output_headroom > 1e-6 {
         request_connected_commodity(
             ctx,
             tick,
@@ -1183,14 +1188,14 @@ pub fn step_mine(
         withdraw_building_commodity(
             &mut mine,
             CommodityKind::Timber,
-            MINE_TIMBER_SUPPORT_PER_CYCLE,
+            MINE_TIMBER_SUPPORT_PER_CYCLE * produced / base_batch,
         );
     }
     if tools_maintained && produced > 1e-6 {
         withdraw_building_commodity(
             &mut mine,
             CommodityKind::Ironwork,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE * produced / base_batch,
         );
     }
     ctx.db.building().id().update(mine);
@@ -1794,7 +1799,7 @@ pub fn step_clay_pit(
         withdraw_building_commodity(
             &mut clay_pit,
             CommodityKind::Ironwork,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE * clay_produced / CLAY_PIT_CLAY_PER_CYCLE,
         );
     }
     ctx.db.building().id().update(clay_pit);
@@ -2229,13 +2234,28 @@ fn step_simple_producer_at_rate(
     outputs: &[(CommodityKind, f64)],
     throughput_multiplier: f64,
 ) -> Building {
-    if !producer_output_batch_fits(outputs.iter().map(|(kind, batch)| {
-        (
-            building_commodity_stock(&building, *kind),
-            building_commodity_cap(&building.kind, *kind),
-            *batch,
-        )
-    })) {
+    let uses_extraction_target = !outputs.is_empty()
+        && outputs
+            .iter()
+            .all(|(kind, _)| production_output_target_applies(&building.kind, *kind));
+    let output_ready = if uses_extraction_target {
+        outputs.iter().all(|(kind, _)| {
+            processor_output_headroom(
+                building_commodity_stock(&building, *kind),
+                building_commodity_cap(&building.kind, *kind),
+                building.processor_output_target_percent,
+            ) > 1e-6
+        })
+    } else {
+        producer_output_batch_fits(outputs.iter().map(|(kind, batch)| {
+            (
+                building_commodity_stock(&building, *kind),
+                building_commodity_cap(&building.kind, *kind),
+                *batch,
+            )
+        }))
+    };
+    if !output_ready {
         return building;
     }
     let Some(labor) = cycle_labor_if_ready_at_rate(
@@ -2248,8 +2268,13 @@ fn step_simple_producer_at_rate(
     ) else {
         return building;
     };
-    for (kind, amount) in outputs {
-        deposit_building_commodity(&mut building, *kind, *amount);
+    if uses_extraction_target {
+        let target_percent = building.processor_output_target_percent;
+        process_batch(&mut building, &[], outputs, 1.0, Some(target_percent));
+    } else {
+        for (kind, amount) in outputs {
+            deposit_building_commodity(&mut building, *kind, *amount);
+        }
     }
     reset_cycle(&mut building, labor);
     building
@@ -2329,7 +2354,7 @@ fn process_batch(
     for (kind, amount) in outputs {
         if *amount > 1e-6 {
             let room = if output_target_percent.is_some()
-                && processor_output_commodity(&building.kind) == Some(*kind)
+                && production_output_target_applies(&building.kind, *kind)
             {
                 processor_output_headroom(
                     building_commodity_stock(building, *kind),
@@ -2364,6 +2389,18 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Ironwork => Some(CommodityKind::Ironwork),
         ProcessorOutputKind::Pottery => Some(CommodityKind::Pottery),
     }
+}
+
+fn production_output_target_applies(kind: &str, commodity: CommodityKind) -> bool {
+    processor_output_commodity(kind) == Some(commodity)
+        || matches!(
+            (kind, commodity),
+            ("stone_quarry", CommodityKind::Stone)
+                | ("large_quarry", CommodityKind::Stone)
+                | ("clay_pit", CommodityKind::Clay)
+                | ("mine", CommodityKind::Iron)
+                | ("mine", CommodityKind::Salt)
+        )
 }
 
 fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {

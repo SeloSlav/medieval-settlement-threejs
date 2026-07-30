@@ -8,7 +8,7 @@ import { LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE } from '../../generated/gameBalan
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
-import { buildingStorageCaps, laborScaledInterval } from '../resourceTotals.ts';
+import { laborScaledInterval } from '../resourceTotals.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
   buildingCostRows,
@@ -19,6 +19,11 @@ import {
   buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import {
+  extractionOutputHeadroom,
+  extractionOutputTarget,
+} from '../../economy/processorOutputPolicy.ts';
+import { renderExtractionStockTargetPanel } from './extractionStockTargetRenderer.ts';
 
 export function renderLargeQuarryInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -26,13 +31,18 @@ export function renderLargeQuarryInspector(
 ): InspectorView {
   const { building } = target;
   const definition = getBuildingDefinition(building.kind);
-  const caps = buildingStorageCaps(building.kind);
   const richDeposit = [...context.gameState.quarries.values()].find((quarry) =>
     quarry.resource === 'stone'
     && quarry.isRich
     && Math.hypot(quarry.x - building.x, quarry.z - building.z) <= 2.5
   );
-  const storageFull = building.stone >= caps.stone - 1e-6;
+  const stoneTarget = extractionOutputTarget(
+    'large_quarry',
+    'stone',
+    building.processorOutputTargetPercent,
+  );
+  const outputHeadroom = extractionOutputHeadroom(building, 'stone') ?? 0;
+  const targetReached = outputHeadroom <= 1e-6;
   const onsiteLabor = onsiteBuildingLabor(
     building,
     context.worldQueries.getActiveDeliveryTrip(building),
@@ -51,7 +61,7 @@ export function renderLargeQuarryInspector(
   const active = onsiteLabor > 0
     && richDeposit != null
     && onsiteSupportsReady
-    && !storageFull;
+    && !targetReached;
   const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor)
     / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
@@ -62,8 +72,8 @@ export function renderLargeQuarryInspector(
       ? building.assignedLabor > 0
         ? 'Extraction paused - the full roster is away with its cart'
         : 'Idle - assign workers to the underground quarry'
-      : storageFull
-        ? 'Paused — stone storage is full'
+      : targetReached
+        ? `Paused - stone yard target reached (${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)})`
         : !richDeposit
           ? 'Stopped — no rich underground source beneath the shaft'
           : !onsiteSupportsReady
@@ -87,6 +97,7 @@ export function renderLargeQuarryInspector(
           : ''
       } / ${LARGE_QUARRY_SUPPORT_TARGET.toFixed(2)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
       <li><span>Support wear</span><span>${LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE.toFixed(2)} timber per completed stone batch · nearest road-linked lumber mill or village storehouse supplies it</span></li>
+      <li><span>Yard ceiling</span><span>${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)} stone · ${outputHeadroom.toFixed(0)} headroom</span></li>
       <li><span>Production interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind)}
@@ -96,5 +107,6 @@ export function renderLargeQuarryInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
+    supplementalPanelHtml: renderExtractionStockTargetPanel(building, 'stone') ?? undefined,
   };
 }

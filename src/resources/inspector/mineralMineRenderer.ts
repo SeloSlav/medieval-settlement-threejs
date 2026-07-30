@@ -14,7 +14,7 @@ import { mineralDepositBeneath } from '../../economy/settlementGeology.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
-import { buildingStorageCaps, laborScaledInterval } from '../resourceTotals.ts';
+import { laborScaledInterval } from '../resourceTotals.ts';
 import type {
   InspectableTarget,
 } from '../types.ts';
@@ -30,6 +30,11 @@ import type {
   InspectorRenderContext,
   InspectorView,
 } from './renderInspectableTarget.ts';
+import {
+  extractionOutputHeadroom,
+  extractionOutputTarget,
+} from '../../economy/processorOutputPolicy.ts';
+import { renderExtractionStockTargetPanel } from './extractionStockTargetRenderer.ts';
 
 export function renderMineralMineInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -44,8 +49,13 @@ export function renderMineralMineInspector(
   const resource = deposit?.resource === 'salt' ? 'salt' : 'iron';
   const resourceLabel = resource === 'iron' ? 'iron-bearing ore' : 'rock salt';
   const stock = Math.max(0, building[resource] ?? 0);
-  const capacity = buildingStorageCaps('mine')[resource] ?? 0;
-  const storageFull = capacity > 0 && stock >= capacity - 1e-6;
+  const yardTarget = extractionOutputTarget(
+    'mine',
+    resource,
+    building.processorOutputTargetPercent,
+  );
+  const outputHeadroom = extractionOutputHeadroom(building, resource) ?? 0;
+  const targetReached = outputHeadroom <= 1e-6;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const inboundSupply = context.worldQueries.getInboundSupplyTrip(building);
   const inboundSupportTimber = inboundSupply?.cargoKind === 'timber'
@@ -62,7 +72,7 @@ export function renderMineralMineInspector(
   const active = onsiteLabor > 0
     && sourceUsable
     && onsiteSupportReady
-    && !storageFull;
+    && !targetReached;
   const throughput = (deposit?.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1)
     * civilianToolThroughputMultiplier(building.ironwork ?? 0);
   const cycleSeconds = laborScaledInterval(
@@ -95,8 +105,8 @@ export function renderMineralMineInspector(
       ? 'Stopped - no physical iron or salt deposit beneath the shaft'
       : !sourceUsable
         ? `Exhausted - finite ${resource} seam is spent`
-        : storageFull
-          ? `Paused - ${resource} yard is full`
+        : targetReached
+          ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
           : onsiteLabor === 0
             ? building.assignedLabor > 0
               ? 'Extraction paused - the full roster is away with its cart'
@@ -134,6 +144,7 @@ export function renderMineralMineInspector(
           ? ` - ${Math.round((RICH_MINE_THROUGHPUT_MULTIPLIER - 1) * 100)}% faster deep working with maintained timber cribs`
           : ''
       }</span></li>
+      <li><span>Yard ceiling</span><span>${stock.toFixed(0)} / ${yardTarget.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
       <li><span>Production interval</span><span>${
         active
           ? `${cycleSeconds.toFixed(1)}s`
@@ -160,5 +171,6 @@ export function renderMineralMineInspector(
       context.populationStats,
       context.worldQueries,
     ),
+    supplementalPanelHtml: renderExtractionStockTargetPanel(building, resource) ?? undefined,
   };
 }

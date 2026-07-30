@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
+  EXTRACTION_OUTPUT_TARGET_KINDS,
+  EXTRACTION_OUTPUT_TARGET_PRESETS,
+  extractionOutputHeadroom,
+  extractionOutputTarget,
+  isExtractionOutputTargetKind,
   isProcessorOutputTargetKind,
+  isProductionOutputTargetKind,
   normalizeProcessorOutputTargetPercent,
   PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES,
   PROCESSOR_OUTPUT_TARGET_KINDS,
@@ -16,6 +22,7 @@ import {
   processorOutputTargetForBuilding,
 } from '../src/economy/processorOutputPolicy.ts';
 import { selectDirectProcessorInputTarget } from '../src/logistics/processorInputLogistics.ts';
+import { renderExtractionStockTargetPanel } from '../src/resources/inspector/extractionStockTargetRenderer.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
 function processor(
@@ -75,6 +82,21 @@ for (const percent of [25, 50, 75, 100]) {
 }
 assert.equal(isProcessorOutputTargetKind('watermill'), true);
 assert.equal(isProcessorOutputTargetKind('monastery'), false);
+assert.deepEqual(
+  EXTRACTION_OUTPUT_TARGET_KINDS,
+  ['stone_quarry', 'large_quarry', 'mine', 'clay_pit'],
+);
+assert.deepEqual(
+  EXTRACTION_OUTPUT_TARGET_PRESETS.map((preset) => preset.percent),
+  [25, 50, 75, 100],
+);
+for (const kind of EXTRACTION_OUTPUT_TARGET_KINDS) {
+  assert.equal(isExtractionOutputTargetKind(kind), true);
+  assert.equal(isProductionOutputTargetKind(kind), true);
+  assert.equal(isProcessorOutputTargetKind(kind), false);
+}
+assert.equal(isProductionOutputTargetKind('smithy'), true);
+assert.equal(isProductionOutputTargetKind('hunters_hall'), false);
 assert.equal(processorOutputCommodity('watermill'), 'flour');
 assert.equal(processorOutputCommodity('granary'), 'food');
 assert.equal(processorOutputCommodity('brewery'), 'ale');
@@ -83,6 +105,31 @@ assert.equal(processorOutputCommodity('weaver'), 'cloth');
 assert.equal(processorOutputCommodity('charcoal_burner'), 'charcoal');
 assert.equal(processorOutputCommodity('smithy'), 'ironwork');
 assert.equal(processorOutputCommodity('potter_kiln'), 'pottery');
+
+const leanQuarry = processor('quarry', 'stone_quarry', 25);
+leanQuarry.stone = 44;
+assert.equal(extractionOutputTarget('stone_quarry', 'stone', 25), 45);
+assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 1);
+leanQuarry.stone = 45;
+assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 0);
+const quarryPanel = renderExtractionStockTargetPanel(leanQuarry, 'stone') ?? '';
+assert.match(quarryPanel, /stone 45 \/ 45/);
+assert.match(quarryPanel, /Extraction paused at target/);
+assert.equal(
+  (quarryPanel.match(/data-processor-output-target=/g) ?? []).length,
+  4,
+);
+assert.match(quarryPanel, /Lean · 25%/);
+assert.match(quarryPanel, /Fill · 100%/);
+assert.equal(extractionOutputTarget('large_quarry', 'stone', 25), 90);
+assert.equal(extractionOutputTarget('clay_pit', 'clay', 25), 45);
+assert.equal(extractionOutputTarget('mine', 'iron', 25), 60);
+assert.equal(extractionOutputTarget('mine', 'salt', 25), 60);
+assert.equal(
+  extractionOutputTarget('mine', 'salt', undefined),
+  240,
+  'legacy extraction sites must keep filling their physical yards',
+);
 assert.deepEqual(
   processorInputCommodities('smithy'),
   ['iron', 'charcoal', 'water'],
@@ -185,6 +232,25 @@ assert.ok(
   `100k processor target checks took ${elapsed.toFixed(1)}ms`,
 );
 
+const extractionCandidates = Array.from({ length: 100_000 }, (_, index) => {
+  const building = processor(`mine-${index}`, 'mine', 25);
+  building.iron = index % 2 === 0 ? 60 : 59;
+  return building;
+});
+const extractionStarted = performance.now();
+let extractionOpen = 0;
+for (const candidate of extractionCandidates) {
+  if ((extractionOutputHeadroom(candidate, 'iron') ?? 0) > 1e-6) {
+    extractionOpen += 1;
+  }
+}
+const extractionElapsed = performance.now() - extractionStarted;
+assert.equal(extractionOpen, 50_000);
+assert.ok(
+  extractionElapsed < 500,
+  `100k extraction target checks took ${extractionElapsed.toFixed(1)}ms`,
+);
+
 const table = readFileSync('server/src/tables.rs', 'utf8');
 const reducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const economy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
@@ -199,6 +265,10 @@ const inspector = readFileSync(
   'src/resources/inspector/expandedBuildingRenderer.ts',
   'utf8',
 );
+const extractionInspector = readFileSync(
+  'src/resources/inspector/extractionStockTargetRenderer.ts',
+  'utf8',
+);
 
 assert.match(
   table,
@@ -206,7 +276,7 @@ assert.match(
 );
 assert.match(
   reducer,
-  /set_processor_output_target[\s\S]*is_valid_processor_output_target_percent[\s\S]*is_processor_output_target_kind[\s\S]*processor_output_target_percent = target_percent/,
+  /set_processor_output_target[\s\S]*is_valid_processor_output_target_percent[\s\S]*is_production_output_target_kind[\s\S]*processor_output_target_percent = target_percent/,
 );
 assert.match(
   economy,
@@ -230,7 +300,14 @@ assert.match(inspector, /stages \$\{stagingLabel\}/);
 assert.match(inspector, /sets both the on-site input staging depth and the finished-goods ceiling/);
 assert.match(inspector, /Routine input top-ups stop at the staged-cycle target/);
 assert.match(inspector, /last-resort overflow when normal storage cannot receive its cargo/);
+assert.match(extractionInspector, /data-processor-output-target/);
+assert.match(extractionInspector, /on-site output ceiling, not a protected reserve/);
+assert.match(extractionInspector, /preserve finite deposits/);
+assert.match(extractionInspector, /avoid timber-support and tool wear/);
+assert.match(economy, /fn production_output_target_applies/);
+assert.match(economy, /uses_extraction_target/);
+assert.match(economy, /process_batch\([\s\S]*Some\(target_percent\)/);
 
 console.log(
-  `processor output policy tests passed (${elapsed.toFixed(1)}ms for 100k checks)`,
+  `processor output policy tests passed (${elapsed.toFixed(1)}ms processors; ${extractionElapsed.toFixed(1)}ms extraction for 100k checks each)`,
 );

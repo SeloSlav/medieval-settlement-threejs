@@ -46,10 +46,14 @@ import {
   specialtySeasonStatus,
 } from '../../economy/specialtyTrade.ts';
 import {
+  extractionOutputHeadroom,
+  extractionOutputTarget,
+  isExtractionOutputTargetKind,
   isProcessorOutputTargetKind,
   processorInputStagingCycles,
   processorOutputHeadroom,
   processorOutputTargetForBuilding,
+  type ExtractionOutputCommodity,
 } from '../../economy/processorOutputPolicy.ts';
 import {
   assessWellWaterSupply,
@@ -230,6 +234,12 @@ function stockLabel(key: StockKey): string {
   return key === 'preservedFood' ? 'preserved food' : key;
 }
 
+function isExtractionOutputCommodity(
+  key: StockKey,
+): key is ExtractionOutputCommodity {
+  return key === 'stone' || key === 'iron' || key === 'salt' || key === 'clay';
+}
+
 function isOutputAtLimit(
   building: BuildingState,
   kind: BuildingKind,
@@ -237,6 +247,12 @@ function isOutputAtLimit(
 ): boolean {
   if (isProcessorOutputTargetKind(kind)) {
     return (processorOutputHeadroom(building) ?? Number.POSITIVE_INFINITY) <= 0.001;
+  }
+  if (isExtractionOutputTargetKind(kind) && isExtractionOutputCommodity(output)) {
+    return (
+      extractionOutputHeadroom(building, output)
+        ?? Number.POSITIVE_INFINITY
+    ) <= 0.001;
   }
   const cap = buildingStorageCaps(kind)[output];
   return cap != null
@@ -293,11 +309,23 @@ function formatProcessorInputBufferRow(
     : formatInputCycleCoverage(limitingCycles);
   const inputRow = `<li><span>On-site input buffer</span><span>${inputCoverage} · ${limitingInput} limits</span></li>`;
   if (!profile.output || profile.outputPerCycle <= 1e-9) return inputRow;
+  const extractionTarget = isExtractionOutputTargetKind(building.kind)
+    && isExtractionOutputCommodity(profile.output)
+    ? extractionOutputTarget(
+        building.kind,
+        profile.output,
+        building.processorOutputTargetPercent,
+      )
+    : null;
   const outputLimit = processorOutputTargetForBuilding(building)
+    ?? extractionTarget
     ?? (buildingStorageCaps(building.kind)[profile.output] ?? 0);
   const outputRoom = isProcessorOutputTargetKind(building.kind)
     ? (processorOutputHeadroom(building) ?? 0)
-    : Math.max(0, outputLimit - Math.max(0, stockAmount(building, profile.output)));
+    : isExtractionOutputTargetKind(building.kind)
+        && isExtractionOutputCommodity(profile.output)
+      ? (extractionOutputHeadroom(building, profile.output) ?? 0)
+      : Math.max(0, outputLimit - Math.max(0, stockAmount(building, profile.output)));
   const outputRoomCycles = outputRoom / profile.outputPerCycle;
   return `${inputRow}<li><span>Output room</span><span>${formatInputCycleCoverage(outputRoomCycles)} · ${stockLabel(profile.output)} before ${outputLimit.toFixed(0)} target</span></li>`;
 }

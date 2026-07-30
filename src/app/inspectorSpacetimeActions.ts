@@ -548,7 +548,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setProcessorOutputTarget(buildingId, targetPercent),
-        'Could not update the workshop output target.',
+        'Could not update the production stock target.',
       );
     },
     onSetWeaverInputPolicy: async (buildingId, inputPolicy) => {

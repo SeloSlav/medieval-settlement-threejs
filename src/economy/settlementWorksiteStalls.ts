@@ -18,6 +18,7 @@ import type {
   ResourceNodeState,
 } from '../resources/types.ts';
 import {
+  extractionOutputHeadroom,
   isProcessorOutputTargetKind,
   processorInputCommodities,
   processorOutputCommodity,
@@ -330,15 +331,14 @@ function clayPitStall(
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
   const hasDispatchDuty = hasActiveOriginTrip || (building.clay ?? 0) > 1e-6;
   const targetLabor = hasDispatchDuty ? Math.min(1, assignedLabor) : 0;
-  const clayCapacity = BUILDING_STORAGE_CAPS.clay_pit.clay ?? 0;
-  if (clayCapacity <= 0 || (building.clay ?? 0) < clayCapacity - 1e-6) {
+  if ((extractionOutputHeadroom(building, 'clay') ?? Number.POSITIVE_INFINITY) > 1e-6) {
     return null;
   }
   return {
     buildingId: building.id,
     kind: 'clay_pit',
     reason: 'output_blocked',
-    detail: 'local clay yard is full',
+    detail: 'local clay yard target reached',
     assignedLabor,
     assignedWorkers: assignedLabor,
     targetLabor,
@@ -413,12 +413,14 @@ function mineStall(
       detail: 'no iron or salt deposit lies beneath the mine',
     };
   }
-  const capacity = BUILDING_STORAGE_CAPS.mine[source.resource] ?? 0;
-  if (capacity > 0 && outputStock >= capacity - 1e-6) {
+  if (
+    (extractionOutputHeadroom(building, source.resource)
+      ?? Number.POSITIVE_INFINITY) <= 1e-6
+  ) {
     return {
       ...base,
       reason: 'output_blocked',
-      detail: `local ${source.resource} yard is full`,
+      detail: `local ${source.resource} yard target reached`,
     };
   }
   if (!source.usable) {
@@ -458,12 +460,14 @@ function quarryStall(
     priority: normalizeStaffingPriority(building.constructionPriority),
     hasDispatchDuty: hasActiveOriginTrip,
   };
-  const stoneCapacity = BUILDING_STORAGE_CAPS[kind].stone ?? 0;
-  if (stoneCapacity > 0 && building.stone >= stoneCapacity - 1e-6) {
+  if (
+    (extractionOutputHeadroom(building, 'stone')
+      ?? Number.POSITIVE_INFINITY) <= 1e-6
+  ) {
     return {
       ...base,
       reason: 'output_blocked',
-      detail: 'local stone yard is full',
+      detail: 'local stone yard target reached',
     };
   }
 

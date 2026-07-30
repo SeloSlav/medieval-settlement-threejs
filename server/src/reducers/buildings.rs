@@ -50,9 +50,10 @@ use crate::processor_labor_policy::{
     processor_callup_targets, production_steward_callup_allowed, ProcessorCallupCandidate,
 };
 use crate::processor_output_policy::{
-    is_processor_output_target_kind, is_valid_processor_output_target_percent,
-    processor_input_kinds, processor_output_headroom, processor_output_kind, ProcessorInputKind,
-    ProcessorOutputKind, PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
+    is_processor_output_target_kind, is_production_output_target_kind,
+    is_valid_processor_output_target_percent, processor_input_kinds, processor_output_headroom,
+    processor_output_kind, ProcessorInputKind, ProcessorOutputKind,
+    PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
 };
 use crate::roads::load_owner_road_network;
 use crate::simulation::{
@@ -1073,6 +1074,14 @@ fn commodity_output_blocked(building: &Building, commodity: CommodityKind) -> bo
     capacity > 0.0 && building_commodity_stock(building, commodity) >= capacity - 1e-6
 }
 
+fn extraction_output_blocked(building: &Building, commodity: CommodityKind) -> bool {
+    processor_output_headroom(
+        building_commodity_stock(building, commodity),
+        building_commodity_cap(&building.kind, commodity),
+        building.processor_output_target_percent,
+    ) <= 1e-6
+}
+
 fn production_site_ready(
     building: &Building,
     quarry_buckets: &SpatialBuckets<Quarry>,
@@ -1083,22 +1092,22 @@ fn production_site_ready(
             processor_output_room(building).is_some_and(|headroom| headroom > 1e-6)
         }
         "clay_pit" => {
-            !commodity_output_blocked(building, CommodityKind::Clay)
+            !extraction_output_blocked(building, CommodityKind::Clay)
                 && clay_source_usable(building, foraging_buckets)
         }
         "mine" => {
             mineral_source(building, quarry_buckets).is_some_and(|(commodity, usable, is_rich)| {
                 usable
-                    && !commodity_output_blocked(building, commodity)
+                    && !extraction_output_blocked(building, commodity)
                     && (!is_rich || rich_mine_supports_ready(building.timber))
             })
         }
         "stone_quarry" => {
-            !commodity_output_blocked(building, CommodityKind::Stone)
+            !extraction_output_blocked(building, CommodityKind::Stone)
                 && stone_source_usable(building, quarry_buckets)
         }
         "large_quarry" => {
-            !commodity_output_blocked(building, CommodityKind::Stone)
+            !extraction_output_blocked(building, CommodityKind::Stone)
                 && rich_stone_source_usable(building, quarry_buckets)
                 && large_quarry_supports_ready(building.timber)
         }
@@ -1159,7 +1168,7 @@ pub fn recall_target_idle_processor_labor_for_owner(
                 )
             }
             "clay_pit" => (
-                commodity_output_blocked(&building, CommodityKind::Clay)
+                extraction_output_blocked(&building, CommodityKind::Clay)
                     || !clay_source_usable(&building, &foraging_buckets),
                 false,
                 building.clay > 1e-6 || has_active_trip,
@@ -1168,7 +1177,7 @@ pub fn recall_target_idle_processor_labor_for_owner(
                 let source = mineral_source(&building, &quarry_buckets);
                 let (stalled, supply_en_route) =
                     source.map_or((true, false), |(commodity, usable, is_rich)| {
-                        let output_blocked = commodity_output_blocked(&building, commodity);
+                        let output_blocked = extraction_output_blocked(&building, commodity);
                         let support_missing = is_rich && !rich_mine_supports_ready(building.timber);
                         (
                             !usable || output_blocked || support_missing,
@@ -1189,14 +1198,14 @@ pub fn recall_target_idle_processor_labor_for_owner(
                 )
             }
             "stone_quarry" => (
-                commodity_output_blocked(&building, CommodityKind::Stone)
+                extraction_output_blocked(&building, CommodityKind::Stone)
                     || !stone_source_usable(&building, &quarry_buckets),
                 false,
                 has_active_trip,
             ),
             "large_quarry" => {
                 let source_usable = rich_stone_source_usable(&building, &quarry_buckets);
-                let output_blocked = commodity_output_blocked(&building, CommodityKind::Stone);
+                let output_blocked = extraction_output_blocked(&building, CommodityKind::Stone);
                 let support_missing = !large_quarry_supports_ready(building.timber);
                 (
                     output_blocked || !source_usable || support_missing,
@@ -1563,7 +1572,7 @@ pub fn set_processor_output_target(
     target_percent: u8,
 ) -> Result<(), String> {
     if !is_valid_processor_output_target_percent(target_percent) {
-        return Err("Processor output target must be 25%, 50%, 75%, or 100%.".to_string());
+        return Err("Production stock target must be 25%, 50%, 75%, or 100%.".to_string());
     }
     let owner = ctx.sender();
     let mut building = ctx
@@ -1571,12 +1580,12 @@ pub fn set_processor_output_target(
         .building()
         .id()
         .find(&building_id)
-        .ok_or_else(|| "Processing workshop not found.".to_string())?;
+        .ok_or_else(|| "Production site not found.".to_string())?;
     if building.owner != owner
         || !building.construction_complete
-        || !is_processor_output_target_kind(&building.kind)
+        || !is_production_output_target_kind(&building.kind)
     {
-        return Err("You do not own this completed processing workshop.".to_string());
+        return Err("You do not own this completed production site.".to_string());
     }
     building.processor_output_target_percent = target_percent;
     ctx.db.building().id().update(building);

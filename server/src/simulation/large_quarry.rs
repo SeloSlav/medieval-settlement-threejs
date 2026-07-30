@@ -10,6 +10,7 @@ use crate::db::*;
 use crate::economy::{
     building_storage_caps, deposit_building, withdraw_building_commodity, CommodityKind,
 };
+use crate::processor_output_policy::processor_output_headroom;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::expanded_economy::request_connected_commodity;
 use crate::simulation::game_calendar::GameClock;
@@ -42,8 +43,13 @@ pub fn step_large_quarry(
     }
 
     let caps = building_storage_caps(&building.kind);
+    let output_headroom = processor_output_headroom(
+        building.stone,
+        caps.stone,
+        building.processor_output_target_percent,
+    );
     let has_rich_source = rich_deposit_beneath(ctx, building.x, building.z).is_some();
-    if has_rich_source && building.stone < caps.stone - 1e-6 {
+    if has_rich_source && output_headroom > 1e-6 {
         request_connected_commodity(
             ctx,
             tick,
@@ -71,7 +77,7 @@ pub fn step_large_quarry(
     }
 
     let labor_interval = interval / onsite_labor as f64;
-    if building.stone >= caps.stone - 1e-6 || !has_rich_source {
+    if output_headroom <= 1e-6 || !has_rich_source {
         ctx.db.building().id().update(Building {
             action_cooldown: labor_interval,
             ..building
@@ -79,20 +85,20 @@ pub fn step_large_quarry(
         return;
     }
 
-    let produced = STONE_PER_HARVEST.min((caps.stone - building.stone).max(0.0));
+    let produced = STONE_PER_HARVEST.min(output_headroom);
     let (_, _, _, mut updated) = deposit_building(&building, caps, 0.0, 0.0, produced);
     if produced > 1e-6 {
         withdraw_building_commodity(
             &mut updated,
             CommodityKind::Timber,
-            LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
+            LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE * produced / STONE_PER_HARVEST,
         );
     }
     if tools_maintained {
         withdraw_building_commodity(
             &mut updated,
             CommodityKind::Ironwork,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE * produced / STONE_PER_HARVEST,
         );
     }
     updated.action_cooldown = labor_interval;

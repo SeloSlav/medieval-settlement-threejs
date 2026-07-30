@@ -433,7 +433,7 @@ export async function setProcessorOutputTarget(
   targetPercent: number,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid processing workshop id.');
+  if (serverId === null) throw new Error('Invalid production site id.');
   await callReducer('setProcessorOutputTarget', 'set_processor_output_target', {
     buildingId: serverId,
     targetPercent,
