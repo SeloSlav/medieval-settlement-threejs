@@ -541,6 +541,12 @@ pub struct Building {
     /// two local duties. Appended so established kilns retain household-first.
     #[default(0u8)]
     pub pottery_dispatch_policy: u8,
+    /// Protected wheelwright repair-kit depth at a carpenter, measured in
+    /// accelerated cart departures. Zero disables kit procurement and use
+    /// while retaining skilled construction framing. The additive default
+    /// preserves the original fifteen-departure service behavior.
+    #[default(15u8)]
+    pub carpenter_cart_service_target_trips: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

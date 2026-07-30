@@ -213,6 +213,20 @@ assert.equal(split.unarmedAfterFinishedStock, 1);
 assert.equal(split.unarmedAfterReadyCrafts, 1);
 assert.equal(split.selectedArmoryOutput, 7);
 assert.equal(split.readyArmoryOutput, 2);
+westCarpenter.carpenterCartServiceTargetTrips = 0;
+remoteCarpenter.carpenterCartServiceTargetTrips = 0;
+const fittingsConserved = computeSettlementArmamentPlan({
+  state,
+  roadComponentFor: (candidate) =>
+    candidate.x < 50 ? 1 : candidate.x < 150 ? 2 : 3,
+});
+assert.equal(
+  fittingsConserved.readyArmoryOutput,
+  5,
+  'disabling cart service must release workshop timber and fittings to ready weapon crafts',
+);
+westCarpenter.carpenterCartServiceTargetTrips = undefined;
+remoteCarpenter.carpenterCartServiceTargetTrips = undefined;
 assert.equal(split.timberNeededForTargets, 8);
 assert.ok(Math.abs(split.ironworkNeededForTargets - 3.2) < 1e-9);
 assert.equal(split.roadSourceTimber, 8);

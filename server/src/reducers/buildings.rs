@@ -68,7 +68,10 @@ use crate::specialty_trade_policy::is_valid_specialty_export_policy;
 use crate::storehouse_policy::{
     is_valid_storehouse_stock_target_percent, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
 };
-use crate::supply_policy::{large_quarry_supports_ready, rich_mine_supports_ready};
+use crate::supply_policy::{
+    is_valid_carpenter_cart_service_target, large_quarry_supports_ready, rich_mine_supports_ready,
+    CARPENTER_CART_SERVICE_TARGET_DEFAULT,
+};
 use crate::tables::graveyard;
 use crate::tables::{
     farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
@@ -651,6 +654,11 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     } else {
         0
     };
+    let carpenter_cart_service_target_trips = if kind == "carpenter" {
+        CARPENTER_CART_SERVICE_TARGET_DEFAULT
+    } else {
+        0
+    };
     let guardhouse_pay_priority = if kind == "guardhouse" {
         GUARDHOUSE_PAY_PRIORITY_NORMAL
     } else {
@@ -741,6 +749,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
         pottery_dispatch_policy: 0,
+        carpenter_cart_service_target_trips,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1762,6 +1771,30 @@ pub fn set_carpenter_polearm_reserve(
         return Err("You do not own this completed carpenter workshop.".to_string());
     }
     building.carpenter_polearm_reserve = polearm_reserve;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_carpenter_cart_service_target(
+    ctx: &ReducerContext,
+    building_id: u64,
+    target_trips: u8,
+) -> Result<(), String> {
+    if !is_valid_carpenter_cart_service_target(target_trips) {
+        return Err("Carpenter cart-service target must be 0, 5, 15, or 30 trips.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Carpenter workshop not found.".to_string())?;
+    if building.owner != owner || building.kind != "carpenter" || !building.construction_complete {
+        return Err("You do not own this completed carpenter workshop.".to_string());
+    }
+    building.carpenter_cart_service_target_trips = target_trips;
     ctx.db.building().id().update(building);
     Ok(())
 }

@@ -17,6 +17,7 @@ export type ToolbarStats = {
   farmCrop?: FarmCrop;
   buildingCost?: BuildingResourceCost;
   carpenterSupported?: boolean;
+  carpenterCartServiceEnabled?: boolean;
   carpenterCartServiceReady?: boolean;
 };
 
@@ -165,7 +166,9 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
     const support = stats.carpenterSupported
       ? stats.carpenterCartServiceReady
         ? ' — carpenter-supported: 10% less timber; stocked wheelwright gives road carts +18% speed'
-        : ' — carpenter-supported: 10% less timber; cart speed awaits repair timber and ironwork'
+        : stats.carpenterCartServiceEnabled
+          ? ' — carpenter-supported: 10% less timber; cart speed awaits repair timber and ironwork'
+          : ' — carpenter-supported: 10% less timber; cart service disabled to conserve fittings'
       : '';
     return `Click terrain to place a ${label.toLowerCase()} (${formatBuildingCost(cost)})${support}${hint}`;
   }

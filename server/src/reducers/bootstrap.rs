@@ -293,6 +293,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
         pottery_dispatch_policy: 0,
+        carpenter_cart_service_target_trips: 0,
     });
 
     resources.timber = 0.0;

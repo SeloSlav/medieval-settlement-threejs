@@ -20,7 +20,61 @@ export type CarpenterSupportBuilding = RoadPoint & {
   assignedLabor: number;
   timber?: number;
   ironwork?: number;
+  carpenterCartServiceTargetTrips?: number;
 };
+
+export const CARPENTER_CART_SERVICE_TARGET_DEFAULT =
+  CARPENTER_CART_SERVICE_TARGET_TRIPS;
+
+export const CARPENTER_CART_SERVICE_TARGET_PRESETS = [
+  {
+    trips: 0,
+    label: 'Conserve fittings',
+    hint: 'Keep the construction timber discount, but do not stock or consume cart-repair kits.',
+  },
+  {
+    trips: 5,
+    label: 'Lean service',
+    hint: 'Keep five accelerated departures ready with a small protected repair buffer.',
+  },
+  {
+    trips: CARPENTER_CART_SERVICE_TARGET_DEFAULT,
+    label: 'Standard service',
+    hint: 'Keep fifteen accelerated departures ready for ordinary settlement logistics.',
+  },
+  {
+    trips: 30,
+    label: 'Deep service',
+    hint: 'Stock thirty accelerated departures for construction surges at twice the standard working capital.',
+  },
+] as const;
+
+export function normalizeCarpenterCartServiceTargetTrips(
+  targetTrips: number | null | undefined,
+): number {
+  const normalized = Math.floor(
+    targetTrips ?? CARPENTER_CART_SERVICE_TARGET_DEFAULT,
+  );
+  return CARPENTER_CART_SERVICE_TARGET_PRESETS.some(
+    (preset) => preset.trips === normalized,
+  )
+    ? normalized
+    : CARPENTER_CART_SERVICE_TARGET_DEFAULT;
+}
+
+export function carpenterCartServiceTimberTarget(
+  targetTrips: number | null | undefined,
+): number {
+  return CARPENTER_CART_SERVICE_TIMBER_PER_TRIP
+    * normalizeCarpenterCartServiceTargetTrips(targetTrips);
+}
+
+export function carpenterCartServiceIronworkTarget(
+  targetTrips: number | null | undefined,
+): number {
+  return CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP
+    * normalizeCarpenterCartServiceTargetTrips(targetTrips);
+}
 
 export function isOperationalCarpenter(
   building: CarpenterSupportBuilding,
@@ -101,13 +155,10 @@ export function carpenterCartServiceReady(
   building: CarpenterSupportBuilding,
 ): boolean {
   return isOperationalCarpenter(building)
+    && normalizeCarpenterCartServiceTargetTrips(
+      building.carpenterCartServiceTargetTrips,
+    ) > 0
     && carpenterCartServiceTripsAvailable(building) > 0;
 }
-
-export const CARPENTER_CART_SERVICE_TIMBER_TARGET =
-  CARPENTER_CART_SERVICE_TIMBER_PER_TRIP * CARPENTER_CART_SERVICE_TARGET_TRIPS;
-
-export const CARPENTER_CART_SERVICE_IRONWORK_TARGET =
-  CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP * CARPENTER_CART_SERVICE_TARGET_TRIPS;
 
 const EMPTY_DISABLED_BUILDINGS: ReadonlySet<string> = new Set();

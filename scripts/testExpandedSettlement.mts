@@ -29,11 +29,15 @@ import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
   buildingCostWithCarpenterSupport,
+  CARPENTER_CART_SERVICE_TARGET_PRESETS,
+  carpenterCartServiceIronworkTarget,
   carpenterCartServiceReady,
+  carpenterCartServiceTimberTarget,
   carpenterCartServiceTripsAvailable,
   carpenterDeliverySpeedMultiplier,
   hasRoadLinkedCarpenter,
   isOperationalCarpenter,
+  normalizeCarpenterCartServiceTargetTrips,
   type CarpenterSupportBuilding,
 } from '../src/economy/carpenterSupport.ts';
 import { roadDeliveryTripSeconds } from '../src/logistics/deliveryLogistics.ts';
@@ -159,6 +163,32 @@ assert.equal(isOperationalCarpenter(activeCarpenter), true);
 assert.equal(isOperationalCarpenter(idleCarpenter), false);
 assert.equal(carpenterCartServiceReady(activeCarpenter), true);
 assert.equal(carpenterCartServiceTripsAvailable(activeCarpenter), 15);
+assert.deepEqual(
+  CARPENTER_CART_SERVICE_TARGET_PRESETS.map((preset) => preset.trips),
+  [0, 5, 15, 30],
+);
+assert.equal(normalizeCarpenterCartServiceTargetTrips(undefined), 15);
+assert.equal(normalizeCarpenterCartServiceTargetTrips(7), 15);
+assert.equal(carpenterCartServiceTimberTarget(5), 1);
+assert.equal(carpenterCartServiceIronworkTarget(5), 0.2);
+const conservingCarpenter = {
+  ...activeCarpenter,
+  carpenterCartServiceTargetTrips: 0,
+};
+assert.equal(
+  carpenterCartServiceReady(conservingCarpenter),
+  false,
+  'the workshop policy must be able to stop repair-kit consumption',
+);
+assert.equal(
+  hasRoadLinkedCarpenter(
+    [conservingCarpenter],
+    carpenterRoad,
+    { x: 100, z: 18 },
+  ),
+  true,
+  'conserving fittings must retain the skilled construction discount',
+);
 assert.equal(
   carpenterCartServiceTripsAvailable({
     timber: CARPENTER_CART_SERVICE_TIMBER_PER_TRIP * 5,
@@ -238,6 +268,15 @@ assert.equal(
   1,
   'staffing alone must not create a free cart-speed aura',
 );
+assert.equal(
+  carpenterDeliverySpeedMultiplier(
+    [conservingCarpenter],
+    carpenterRoad,
+    { x: 30, z: 18 },
+  ),
+  1,
+  'a stocked carpenter with service disabled must not consume a kit or accelerate carts',
+);
 const supportedTripSeconds = roadDeliveryTripSeconds(
   carpenterRoad,
   { x: 30, z: 18 },
@@ -261,6 +300,18 @@ const placementStatus = describeToolbarStatus({
 });
 assert.match(placementStatus, /carpenter-supported: 10% less timber; stocked wheelwright gives road carts \+18% speed/);
 assert.match(placementStatus, new RegExp(`${supportedSmokehouseCost.timber} timber`));
+assert.match(
+  describeToolbarStatus({
+    canBuild: true,
+    hasDraft: false,
+    mode: 'smokehouse',
+    buildingCost: supportedSmokehouseCost,
+    carpenterSupported: true,
+    carpenterCartServiceEnabled: false,
+    carpenterCartServiceReady: false,
+  }),
+  /cart service disabled to conserve fittings/,
+);
 
 const performanceCarpenters: CarpenterSupportBuilding[] = Array.from(
   { length: 100_000 },
@@ -408,5 +459,32 @@ assert.match(
 );
 assert.match(watermillInspector, /Repair kit/);
 assert.match(watermillInspector, /protected timber/);
+assert.match(watermillInspector, /data-carpenter-cart-service-target/);
+const carpenterPolicy = fs.readFileSync(
+  'src/economy/carpenterSupport.ts',
+  'utf8',
+);
+assert.match(carpenterPolicy, /Conserve fittings/);
+assert.match(carpenterPolicy, /Deep service/);
+assert.match(
+  placementReducer,
+  /set_carpenter_cart_service_target[\s\S]*is_valid_carpenter_cart_service_target[\s\S]*carpenter_cart_service_target_trips = target_trips/,
+  'cart-service depth must be an authoritative validated workshop policy',
+);
+const buildingSchema = fs.readFileSync('server/src/tables.rs', 'utf8');
+assert.match(
+  buildingSchema,
+  /#\[default\(15u8\)\]\s+pub carpenter_cart_service_target_trips: u8/,
+  'existing carpenters must retain the current fifteen-departure service depth',
+);
+const generatedBuilding = fs.readFileSync(
+  'src/generated/building_table.ts',
+  'utf8',
+);
+assert.match(generatedBuilding, /carpenterCartServiceTargetTrips/);
+assert.ok(
+  fs.existsSync('src/generated/set_carpenter_cart_service_target_reducer.ts'),
+  'client bindings must include the cart-service policy reducer',
+);
 
 console.log('expanded settlement tests passed');

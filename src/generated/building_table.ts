@@ -90,4 +90,5 @@ export default __t.row({
   manure: __t.f64(),
   remedies: __t.f64(),
   potteryDispatchPolicy: __t.u8().name("pottery_dispatch_policy"),
+  carpenterCartServiceTargetTrips: __t.u8().name("carpenter_cart_service_target_trips"),
 });

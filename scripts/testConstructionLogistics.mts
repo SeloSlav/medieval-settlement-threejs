@@ -413,6 +413,20 @@ assert.ok(
       - CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP * 2,
   ) < 1e-9,
 );
+const conservingCarpenterStock = {
+  ...carpenterServiceStock,
+  carpenterCartServiceTargetTrips: 0,
+};
+assert.equal(
+  constructionSourceAvailableStock(conservingCarpenterStock, 'timber'),
+  carpenterServiceStock.timber,
+  'disabling cart service must release protected timber to construction',
+);
+assert.equal(
+  constructionSourceAvailableStock(conservingCarpenterStock, 'ironwork'),
+  carpenterServiceStock.ironwork,
+  'disabling cart service must release protected fittings to construction',
+);
 const fireIncident = (
   targetId: string,
   id = `fire-${targetId}`,

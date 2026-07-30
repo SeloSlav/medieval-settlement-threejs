@@ -105,6 +105,7 @@ function buildingStateFromRow(
     woodcutterTimberReserve: row.woodcutterTimberReserve,
     harvestReservePercent: row.harvestReservePercent,
     carpenterPolearmReserve: row.carpenterPolearmReserve,
+    carpenterCartServiceTargetTrips: row.carpenterCartServiceTargetTrips,
     guardhousePayPriority: row.guardhousePayPriority,
     guardhouseFoodReserve: row.guardhouseFoodReserve,
     guardhouseMusterWatchtowerId: row.guardhouseMusterWatchtowerId == null

@@ -79,12 +79,28 @@ pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// ordinary household or preservation cart duty.
 pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
 
-pub fn carpenter_cart_service_timber_target() -> f64 {
-    CARPENTER_CART_SERVICE_TIMBER_PER_TRIP * CARPENTER_CART_SERVICE_TARGET_TRIPS
+pub const CARPENTER_CART_SERVICE_TARGET_DEFAULT: u8 = CARPENTER_CART_SERVICE_TARGET_TRIPS as u8;
+
+pub fn is_valid_carpenter_cart_service_target(target_trips: u8) -> bool {
+    matches!(target_trips, 0 | 5 | 15 | 30)
 }
 
-pub fn carpenter_cart_service_ironwork_target() -> f64 {
-    CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP * CARPENTER_CART_SERVICE_TARGET_TRIPS
+pub fn normalize_carpenter_cart_service_target(target_trips: u8) -> u8 {
+    if is_valid_carpenter_cart_service_target(target_trips) {
+        target_trips
+    } else {
+        CARPENTER_CART_SERVICE_TARGET_DEFAULT
+    }
+}
+
+pub fn carpenter_cart_service_timber_target(target_trips: u8) -> f64 {
+    CARPENTER_CART_SERVICE_TIMBER_PER_TRIP
+        * normalize_carpenter_cart_service_target(target_trips) as f64
+}
+
+pub fn carpenter_cart_service_ironwork_target(target_trips: u8) -> f64 {
+    CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP
+        * normalize_carpenter_cart_service_target(target_trips) as f64
 }
 
 pub fn carpenter_cart_service_trips_available(timber: f64, ironwork: f64) -> u32 {
@@ -94,16 +110,24 @@ pub fn carpenter_cart_service_trips_available(timber: f64, ironwork: f64) -> u32
     timber_trips.min(ironwork_trips).clamp(0.0, u32::MAX as f64) as u32
 }
 
-pub fn carpenter_cart_service_ready(timber: f64, ironwork: f64) -> bool {
-    carpenter_cart_service_trips_available(timber, ironwork) > 0
+pub fn carpenter_cart_service_ready(target_trips: u8, timber: f64, ironwork: f64) -> bool {
+    normalize_carpenter_cart_service_target(target_trips) > 0
+        && carpenter_cart_service_trips_available(timber, ironwork) > 0
 }
 
 /// A carpenter's small wheel, axle, pin, and fitting buffer is service stock,
 /// not spare construction inventory. Building carts may draw only the excess.
-pub fn construction_source_available_stock(kind: &str, commodity: &str, stock: f64) -> f64 {
+pub fn construction_source_available_stock(
+    kind: &str,
+    cart_service_target_trips: u8,
+    commodity: &str,
+    stock: f64,
+) -> f64 {
     let reserve = match (kind, commodity) {
-        ("carpenter", "timber") => carpenter_cart_service_timber_target(),
-        ("carpenter", "ironwork") => carpenter_cart_service_ironwork_target(),
+        ("carpenter", "timber") => carpenter_cart_service_timber_target(cart_service_target_trips),
+        ("carpenter", "ironwork") => {
+            carpenter_cart_service_ironwork_target(cart_service_target_trips)
+        }
         _ => 0.0,
     };
     (stock.max(0.0) - reserve).max(0.0)
@@ -1019,28 +1043,37 @@ mod tests {
 
     #[test]
     fn carpenter_service_stock_backs_real_accelerated_departures() {
-        assert!((carpenter_cart_service_timber_target() - 3.0).abs() < 1e-9);
-        assert!((carpenter_cart_service_ironwork_target() - 0.6).abs() < 1e-9);
+        assert!((carpenter_cart_service_timber_target(15) - 3.0).abs() < 1e-9);
+        assert!((carpenter_cart_service_ironwork_target(15) - 0.6).abs() < 1e-9);
+        assert_eq!(carpenter_cart_service_timber_target(0), 0.0);
+        assert_eq!(carpenter_cart_service_ironwork_target(0), 0.0);
         assert_eq!(carpenter_cart_service_trips_available(3.0, 0.6), 15);
         assert_eq!(carpenter_cart_service_trips_available(3.0, 0.039), 0);
-        assert!(!carpenter_cart_service_ready(0.19, 4.0));
-        assert!(carpenter_cart_service_ready(0.2, 0.04));
+        assert!(!carpenter_cart_service_ready(15, 0.19, 4.0));
+        assert!(carpenter_cart_service_ready(15, 0.2, 0.04));
+        assert!(!carpenter_cart_service_ready(0, 3.0, 0.6));
     }
 
     #[test]
     fn construction_carts_leave_the_carpenter_service_buffer_at_the_shop() {
         assert!(
-            (construction_source_available_stock("carpenter", "timber", 8.0) - 5.0).abs() < 1e-9
+            (construction_source_available_stock("carpenter", 15, "timber", 8.0) - 5.0).abs()
+                < 1e-9
         );
         assert!(
-            (construction_source_available_stock("carpenter", "ironwork", 2.0) - 1.4).abs() < 1e-9
+            (construction_source_available_stock("carpenter", 15, "ironwork", 2.0) - 1.4).abs()
+                < 1e-9
         );
         assert_eq!(
-            construction_source_available_stock("carpenter", "timber", 2.0),
+            construction_source_available_stock("carpenter", 15, "timber", 2.0),
             0.0
         );
         assert_eq!(
-            construction_source_available_stock("lumber_mill", "timber", 2.0),
+            construction_source_available_stock("carpenter", 0, "timber", 2.0),
+            2.0
+        );
+        assert_eq!(
+            construction_source_available_stock("lumber_mill", 30, "timber", 2.0),
             2.0
         );
     }

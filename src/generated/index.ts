@@ -67,6 +67,7 @@ import RepairFireDamageReducer from "./repair_fire_damage_reducer";
 import RepairResidenceDecayReducer from "./repair_residence_decay_reducer";
 import ResetWorldReducer from "./reset_world_reducer";
 import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer";
+import SetCarpenterCartServiceTargetReducer from "./set_carpenter_cart_service_target_reducer";
 import SetCarpenterPolearmReserveReducer from "./set_carpenter_polearm_reserve_reducer";
 import SetChapelParishPolicyReducer from "./set_chapel_parish_policy_reducer";
 import SetConstructionLaborStewardReducer from "./set_construction_labor_steward_reducer";
@@ -550,6 +551,7 @@ const reducersSchema = __reducers(
   __reducerSchema("repair_residence_decay", RepairResidenceDecayReducer),
   __reducerSchema("reset_world", ResetWorldReducer),
   __reducerSchema("rotate_construction_labor", RotateConstructionLaborReducer),
+  __reducerSchema("set_carpenter_cart_service_target", SetCarpenterCartServiceTargetReducer),
   __reducerSchema("set_carpenter_polearm_reserve", SetCarpenterPolearmReserveReducer),
   __reducerSchema("set_chapel_parish_policy", SetChapelParishPolicyReducer),
   __reducerSchema("set_construction_labor_steward", SetConstructionLaborStewardReducer),

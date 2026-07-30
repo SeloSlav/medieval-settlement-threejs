@@ -85,6 +85,7 @@ export type InspectorSpacetimeActions = {
   onSetGranaryFreshFoodTarget: (buildingId: string, targetPercent: number) => Promise<void>;
   onSetWoodcutterTimberReserve: (buildingId: string, timberReserve: number) => Promise<void>;
   onSetCarpenterPolearmReserve: (buildingId: string, polearmReserve: number) => Promise<void>;
+  onSetCarpenterCartServiceTarget: (buildingId: string, targetTrips: number) => Promise<void>;
   onSetGuardhousePayPriority: (buildingId: string, payPriority: number) => Promise<void>;
   onSetGuardhouseFoodReserve: (buildingId: string, reservePerGuard: number) => Promise<void>;
   onSetGuardhouseMusterPost: (
@@ -605,6 +606,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setCarpenterPolearmReserve(buildingId, polearmReserve),
         'Could not update the carpenter armory reserve.',
+      );
+    },
+    onSetCarpenterCartServiceTarget: async (buildingId, targetTrips) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setCarpenterCartServiceTarget(buildingId, targetTrips),
+        'Could not update the carpenter cart-service depth.',
       );
     },
     onSetGuardhousePayPriority: async (buildingId, payPriority) => {

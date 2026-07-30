@@ -32,9 +32,6 @@ use crate::raid_agent_policy::{
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
-use crate::supply_policy::{
-    carpenter_cart_service_ready, construction_source_available_stock,
-};
 use crate::simulation::delivery_cargo::{
     building_delivery_stock, pick_delivery_target, residence_delivery_room,
     withdraw_delivery_cargo, DeliveryCargoTotals,
@@ -52,6 +49,7 @@ use crate::simulation::settlement_security::{
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{recover_stock_at, recover_stock_beside_building, ReclamationStock};
+use crate::supply_policy::{carpenter_cart_service_ready, construction_source_available_stock};
 use crate::tables::{Building, DeliveryTrip, FireIncident, Residence};
 
 pub fn serialize_route_polyline(polyline: &[[f64; 2]]) -> String {
@@ -1304,11 +1302,12 @@ pub fn try_start_construction_supply_trip(
     };
     let load = construction_source_available_stock(
         &origin.kind,
+        origin.carpenter_cart_service_target_trips,
         commodity_name,
         building_commodity_stock(origin, commodity),
     )
-        .min(reserved_physical)
-        .min(haul_per_worker * workers as f64);
+    .min(reserved_physical)
+    .min(haul_per_worker * workers as f64);
     if load <= 1e-6 {
         return false;
     }
@@ -1901,7 +1900,11 @@ fn carpenter_delivery_multiplier_for_origin(
                 || !shop.construction_complete
                 || shop.assigned_labor == 0
                 || building_fire_state(ctx, shop.id).is_some()
-                || !carpenter_cart_service_ready(shop.timber, shop.ironwork)
+                || !carpenter_cart_service_ready(
+                    shop.carpenter_cart_service_target_trips,
+                    shop.timber,
+                    shop.ironwork,
+                )
             {
                 return None;
             }

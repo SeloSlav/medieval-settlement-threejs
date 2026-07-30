@@ -613,6 +613,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setCarpenterPolearmReserve(buildingId, polearmReserve);
   }
 
+  setCarpenterCartServiceTarget(buildingId: string, targetTrips: number): Promise<void> {
+    return spacetimeReducers.setCarpenterCartServiceTarget(buildingId, targetTrips);
+  }
+
   setGuardhousePayPriority(buildingId: string, payPriority: number): Promise<void> {
     return spacetimeReducers.setGuardhousePayPriority(buildingId, payPriority);
   }

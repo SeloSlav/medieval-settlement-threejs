@@ -680,6 +680,8 @@ export class App {
       farmCrop: farmCrop ?? undefined,
       buildingCost: placementEconomy?.cost,
       carpenterSupported: placementEconomy?.carpenterSupported,
+      carpenterCartServiceEnabled:
+        placementEconomy?.carpenterCartServiceEnabled,
       carpenterCartServiceReady: placementEconomy?.carpenterCartServiceReady,
     };
     this.sceneManager?.setCropSuitabilityOverlayCrop(farmCrop);

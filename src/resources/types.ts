@@ -137,6 +137,8 @@ export type BuildingState = {
   woodcutterTimberReserve?: number;
   harvestReservePercent?: number;
   carpenterPolearmReserve?: number;
+  /** Protected wheelwright repair kits; 0 disables accelerated cart service. */
+  carpenterCartServiceTargetTrips?: number;
   guardhousePayPriority?: number;
   guardhouseFoodReserve?: number;
   /** Null/undefined keeps nearest-watch behavior; otherwise a server building id. */

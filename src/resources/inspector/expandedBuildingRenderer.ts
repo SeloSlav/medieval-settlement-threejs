@@ -26,9 +26,11 @@ import {
   TEXTILE_TRANSFER_PER_TRIP,
 } from '../../generated/gameBalance.ts';
 import {
-  CARPENTER_CART_SERVICE_IRONWORK_TARGET,
-  CARPENTER_CART_SERVICE_TIMBER_TARGET,
+  CARPENTER_CART_SERVICE_TARGET_PRESETS,
+  carpenterCartServiceIronworkTarget,
   carpenterCartServiceTripsAvailable,
+  carpenterCartServiceTimberTarget,
+  normalizeCarpenterCartServiceTargetTrips,
 } from '../../economy/carpenterSupport.ts';
 import { roadDeliveryTripSeconds } from '../../logistics/deliveryLogistics.ts';
 import {
@@ -881,6 +883,17 @@ export function renderExpandedBuildingInspector(
   const carpenterServiceTrips = building.kind === 'carpenter'
     ? carpenterCartServiceTripsAvailable(building)
     : 0;
+  const carpenterServiceTargetTrips = building.kind === 'carpenter'
+    ? normalizeCarpenterCartServiceTargetTrips(
+        building.carpenterCartServiceTargetTrips,
+      )
+    : 0;
+  const carpenterServiceTimberTarget = carpenterCartServiceTimberTarget(
+    building.carpenterCartServiceTargetTrips,
+  );
+  const carpenterServiceIronworkTarget = carpenterCartServiceIronworkTarget(
+    building.carpenterCartServiceTargetTrips,
+  );
   const carpenterStatus = building.kind === 'carpenter'
     ? building.assignedLabor <= 0
       ? {
@@ -889,6 +902,11 @@ export function renderExpandedBuildingInspector(
             : 'Idle — assign craftspeople for construction and cart support',
           statusState: 'idle' as const,
         }
+      : carpenterServiceTargetTrips <= 0
+        ? {
+            statusText: 'Construction support active — accelerated cart service disabled by policy',
+            statusState: 'active' as const,
+          }
       : carpenterServiceTrips <= 0
         ? {
             statusText: `Construction support active — cart service awaits ${
@@ -905,11 +923,11 @@ export function renderExpandedBuildingInspector(
           }
       : armory && armory.shortfall > 0
         && building.timber + 1e-6
-          < CARPENTER_CART_SERVICE_TIMBER_TARGET + CARPENTER_TIMBER_PER_POLEARM
+          < carpenterServiceTimberTarget + CARPENTER_TIMBER_PER_POLEARM
         ? { statusText: `Cart service ready — polearms need ${CARPENTER_TIMBER_PER_POLEARM} surplus timber beyond the repair buffer`, statusState: 'warning' as const }
       : armory && armory.shortfall > 0
         && (building.ironwork ?? 0) + 1e-6
-          < CARPENTER_CART_SERVICE_IRONWORK_TARGET + CARPENTER_IRONWORK_PER_POLEARM
+          < carpenterServiceIronworkTarget + CARPENTER_IRONWORK_PER_POLEARM
         ? { statusText: 'Cart service ready — polearms await smith-forged ironwork beyond the repair buffer', statusState: 'warning' as const }
           : armory && armory.shortfall <= 0
             ? {
@@ -1230,8 +1248,8 @@ export function renderExpandedBuildingInspector(
       ? renderFarmsteadFieldPanel()
       : building.kind === 'granary'
         ? renderGranaryPolicyPanel(building)
-        : building.kind === 'carpenter' && context.conflictEnabled
-          ? renderCarpenterArmoryPanel(building)
+        : building.kind === 'carpenter'
+          ? renderCarpenterPolicyPanel(building, context.conflictEnabled === true)
           : undefined;
   const processorPolicyPanelHtml = renderProcessorOutputTargetPanel(building);
   const extractionPolicyPanelHtml = building.kind === 'clay_pit'
@@ -1246,7 +1264,7 @@ export function renderExpandedBuildingInspector(
     ? `<li><span>Construction timber</span><span>${Math.round((1 - CARPENTER_TIMBER_COST_MULTIPLIER) * 100)}% less at road-linked sites</span></li>
       <li><span>Cart travel</span><span>${Math.round((CARPENTER_DELIVERY_SPEED_MULTIPLIER - 1) * 100)}% faster from linked origins while a repair kit is available · base speed otherwise</span></li>
       <li><span>Repair kit</span><span>${CARPENTER_CART_SERVICE_TIMBER_PER_TRIP.toFixed(2)} timber + ${CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP.toFixed(2)} ironwork consumed per accelerated departure</span></li>
-      <li><span>Service buffer</span><span>${building.timber.toFixed(1)} / ${CARPENTER_CART_SERVICE_TIMBER_TARGET.toFixed(1)} protected timber · ${(building.ironwork ?? 0).toFixed(2)} / ${CARPENTER_CART_SERVICE_IRONWORK_TARGET.toFixed(2)} protected ironwork · ${carpenterServiceTrips} departures ready</span></li>
+      <li><span>Service buffer</span><span>${building.timber.toFixed(1)} / ${carpenterServiceTimberTarget.toFixed(1)} protected timber · ${(building.ironwork ?? 0).toFixed(2)} / ${carpenterServiceIronworkTarget.toFixed(2)} protected ironwork · ${carpenterServiceTrips} / ${carpenterServiceTargetTrips} departures ready</span></li>
       <li><span>Support state</span><span>${building.assignedLabor > 0 ? 'Skilled construction active across this road network' : 'Inactive — requires at least 1 craftsperson'}</span></li>
       ${armory ? `<li><span>Armory reserve</span><span>${armory.reserve <= 0 ? `${armory.stock.toFixed(0)} stored · production paused` : `${armory.stock.toFixed(0)} / ${armory.reserve} polearms`}</span></li>
       <li><span>Inputs to target</span><span>${armory.shortfall <= 0 ? 'Reserve stocked' : `${armory.timberToTarget.toFixed(0)} timber · ${armory.ironworkToTarget.toFixed(0)} smith-forged ironwork`}</span></li>
@@ -1542,15 +1560,32 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
   `;
 }
 
-function renderCarpenterArmoryPanel(building: BuildingState): string {
+function renderCarpenterPolicyPanel(
+  building: BuildingState,
+  conflictEnabled: boolean,
+): string {
+  const serviceTarget = normalizeCarpenterCartServiceTargetTrips(
+    building.carpenterCartServiceTargetTrips,
+  );
+  const serviceTimberTarget = carpenterCartServiceTimberTarget(serviceTarget);
+  const serviceIronworkTarget = carpenterCartServiceIronworkTarget(serviceTarget);
   const armory = carpenterArmoryPlan(building);
   return `
     <div class="inspector-action-panel">
-      <p class="resource-inspector-note">Finished polearm reserve — the workshop stops consuming timber and imported ironwork when this target is stocked.</p>
-      <div class="resource-action-row">${CARPENTER_POLEARM_RESERVE_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-carpenter-polearm-reserve="${preset.reserve}" ${armory.reserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
+      <p class="resource-inspector-note">Cart-service depth — protected working capital for accelerated departures.</p>
+      <div class="resource-action-row">${CARPENTER_CART_SERVICE_TARGET_PRESETS
+        .map((preset) => `<button type="button" class="resource-action-button" data-carpenter-cart-service-target="${preset.trips}" title="${preset.hint}" ${serviceTarget === preset.trips ? 'disabled' : ''}>${preset.label} · ${preset.trips}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Carpenters first issue one weapon to each assigned guard, then rebuild this local reserve. “Cartwright only” disables weapon crafting so timber and fittings remain available for framing and physical cart repair.</p>
+      <p class="inspector-action-panel__hint">${serviceTarget <= 0
+        ? 'Conserve fittings keeps the road-linked construction timber discount but stops repair-kit procurement and the cart-speed bonus. Existing timber and ironwork become available to construction and weapon crafting.'
+        : `This shop protects ${serviceTimberTarget.toFixed(1)} timber + ${serviceIronworkTarget.toFixed(2)} ironwork for ${serviceTarget} departures. Every accelerated departure consumes ${CARPENTER_CART_SERVICE_TIMBER_PER_TRIP.toFixed(2)} timber + ${CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP.toFixed(2)} ironwork; lowering the target immediately releases surplus stock.`}</p>
+      ${conflictEnabled ? `
+        <p class="resource-inspector-note">Finished polearm reserve — weapon crafting uses only timber and ironwork above the selected cart-service buffer.</p>
+        <div class="resource-action-row">${CARPENTER_POLEARM_RESERVE_PRESETS
+          .map((preset) => `<button type="button" class="resource-action-button" data-carpenter-polearm-reserve="${preset.reserve}" ${armory.reserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
+          .join('')}</div>
+        <p class="inspector-action-panel__hint">Carpenters first issue one weapon to each assigned guard, then rebuild this local reserve. “Cartwright only” disables weapon crafting so timber and fittings remain available for framing and physical cart repair.</p>
+      ` : ''}
     </div>
   `;
 }

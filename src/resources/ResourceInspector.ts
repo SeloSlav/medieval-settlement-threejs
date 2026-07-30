@@ -151,6 +151,10 @@ type ResourceInspectorOptions = {
     buildingId: string,
     polearmReserve: number,
   ) => void | Promise<void>;
+  onSetCarpenterCartServiceTarget?: (
+    buildingId: string,
+    targetTrips: number,
+  ) => void | Promise<void>;
   onSetGuardhousePayPriority?: (
     buildingId: string,
     payPriority: number,
@@ -777,6 +781,16 @@ export class ResourceInspector {
       this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'carpenter'
     ) {
+      const serviceTargetValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-carpenter-cart-service-target]')
+        ?.dataset.carpenterCartServiceTarget;
+      if (serviceTargetValue != null) {
+        void this.options.onSetCarpenterCartServiceTarget?.(
+          this.selectedTarget.building.id,
+          Number(serviceTargetValue),
+        );
+        return;
+      }
       const reserveValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-carpenter-polearm-reserve]')
         ?.dataset.carpenterPolearmReserve;

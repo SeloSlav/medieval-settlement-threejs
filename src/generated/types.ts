@@ -113,6 +113,7 @@ export const Building = __t.object("Building", {
   manure: __t.f64(),
   remedies: __t.f64(),
   potteryDispatchPolicy: __t.u8(),
+  carpenterCartServiceTargetTrips: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 

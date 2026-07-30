@@ -88,13 +88,13 @@ use crate::specialty_trade_policy::{
     apiary_is_active, producer_output_batch_fits, vineyard_is_harvesting,
 };
 use crate::supply_policy::{
+    carpenter_cart_service_ironwork_target, carpenter_cart_service_timber_target,
     compare_institutional_food_dispatch_candidates, compare_processor_input_dispatch_candidates,
     directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
     grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, local_material_dispatch_target, processor_input_dispatch_duty,
-    processor_input_runway_cycles, processor_input_target,
-    carpenter_cart_service_ironwork_target, carpenter_cart_service_timber_target,
-    rich_mine_support_target, rich_mine_supports_ready, select_grain_dispatch_candidate,
+    processor_input_runway_cycles, processor_input_target, rich_mine_support_target,
+    rich_mine_supports_ready, select_grain_dispatch_candidate,
     select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
     select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
     InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
@@ -2125,8 +2125,10 @@ pub fn step_carpenter(
     clock: &GameClock,
     mut building: Building,
 ) {
-    let cart_service_timber = carpenter_cart_service_timber_target();
-    let cart_service_ironwork = carpenter_cart_service_ironwork_target();
+    let cart_service_timber =
+        carpenter_cart_service_timber_target(building.carpenter_cart_service_target_trips);
+    let cart_service_ironwork =
+        carpenter_cart_service_ironwork_target(building.carpenter_cart_service_target_trips);
     request_connected_commodity(
         ctx,
         tick,
@@ -2179,10 +2181,8 @@ pub fn step_carpenter(
     let ready_labor = cycle_labor_if_ready(ctx, tick, clock, &mut building, false);
     if let Some(labor) = ready_labor.filter(|_| {
         polearm_shortfall > 1e-6
-            && building.timber + 1e-6
-                >= cart_service_timber + CARPENTER_TIMBER_PER_POLEARM
-            && building.ironwork + 1e-6
-                >= cart_service_ironwork + CARPENTER_IRONWORK_PER_POLEARM
+            && building.timber + 1e-6 >= cart_service_timber + CARPENTER_TIMBER_PER_POLEARM
+            && building.ironwork + 1e-6 >= cart_service_ironwork + CARPENTER_IRONWORK_PER_POLEARM
             && building_commodity_room(&building, CommodityKind::Polearms) + 1e-6 >= 1.0
     }) {
         withdraw_building_commodity(

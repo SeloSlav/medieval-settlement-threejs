@@ -542,6 +542,22 @@ export async function setCarpenterPolearmReserve(
   });
 }
 
+export async function setCarpenterCartServiceTarget(
+  buildingId: string,
+  targetTrips: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid carpenter workshop id.');
+  await callReducer(
+    'setCarpenterCartServiceTarget',
+    'set_carpenter_cart_service_target',
+    {
+      buildingId: serverId,
+      targetTrips: Math.max(0, Math.floor(targetTrips)),
+    },
+  );
+}
+
 export async function setGuardhousePayPriority(
   buildingId: string,
   payPriority: number,

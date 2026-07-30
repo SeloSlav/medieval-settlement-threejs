@@ -15,6 +15,7 @@ import {
   buildingCostWithCarpenterSupport,
   carpenterCartServiceReady,
   hasRoadLinkedCarpenter,
+  normalizeCarpenterCartServiceTargetTrips,
 } from '../economy/carpenterSupport.ts';
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
@@ -131,6 +132,7 @@ export class BuildingTool {
   getPlacementEconomy(): {
     cost: BuildingResourceCost;
     carpenterSupported: boolean;
+    carpenterCartServiceEnabled: boolean;
     carpenterCartServiceReady: boolean;
   } | null {
     if (this.mode === 'off') return null;
@@ -151,9 +153,19 @@ export class BuildingTool {
       disabledBuildingIds,
       carpenterCartServiceReady,
     );
+    const cartServiceEnabled = hasPreview && hasRoadLinkedCarpenter(
+      state.buildings.values(),
+      this.options.getRoadNetwork?.(),
+      { x: this.lastPreviewX, z: this.lastPreviewZ },
+      disabledBuildingIds,
+      (building) => normalizeCarpenterCartServiceTargetTrips(
+        building.carpenterCartServiceTargetTrips,
+      ) > 0,
+    );
     return {
       cost: buildingCostWithCarpenterSupport(this.mode, carpenterSupported),
       carpenterSupported,
+      carpenterCartServiceEnabled: cartServiceEnabled,
       carpenterCartServiceReady: cartServiceReady,
     };
   }

@@ -206,6 +206,7 @@ fn construction_source_stock(source: &Building, commodity: CommodityKind) -> f64
     };
     construction_source_available_stock(
         &source.kind,
+        source.carpenter_cart_service_target_trips,
         commodity_name,
         building_commodity_stock(source, commodity),
     )

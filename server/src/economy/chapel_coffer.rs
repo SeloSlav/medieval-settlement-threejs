@@ -252,6 +252,7 @@ mod tests {
             marketplace_salt_target: 0,
             remedies: 0.0,
             pottery_dispatch_policy: 0,
+            carpenter_cart_service_target_trips: 0,
         }
     }
 

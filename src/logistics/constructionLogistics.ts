@@ -1,8 +1,8 @@
 import type { BuildingState } from '../resources/types.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
 import {
-  CARPENTER_CART_SERVICE_IRONWORK_TARGET,
-  CARPENTER_CART_SERVICE_TIMBER_TARGET,
+  carpenterCartServiceIronworkTarget,
+  carpenterCartServiceTimberTarget,
 } from '../economy/carpenterSupport.ts';
 
 export type ConstructionSourceLike = Pick<
@@ -12,7 +12,10 @@ export type ConstructionSourceLike = Pick<
 
 export type ConstructionMaterial = 'timber' | 'stone' | 'ironwork';
 export type ConstructionStockSourceLike = ConstructionSourceLike
-  & Pick<BuildingState, 'timber' | 'stone' | 'ironwork'>;
+  & Pick<
+    BuildingState,
+    'timber' | 'stone' | 'ironwork' | 'carpenterCartServiceTargetTrips'
+  >;
 
 export type RoutedConstructionSource<T extends ConstructionSourceLike> = {
   source: T;
@@ -47,9 +50,13 @@ export function constructionSourceAvailableStock(
   const stock = Math.max(0, source[material] ?? 0);
   const serviceReserve = source.kind === 'carpenter'
     ? material === 'timber'
-      ? CARPENTER_CART_SERVICE_TIMBER_TARGET
+      ? carpenterCartServiceTimberTarget(
+          source.carpenterCartServiceTargetTrips,
+        )
       : material === 'ironwork'
-        ? CARPENTER_CART_SERVICE_IRONWORK_TARGET
+        ? carpenterCartServiceIronworkTarget(
+            source.carpenterCartServiceTargetTrips,
+          )
         : 0
     : 0;
   return Math.max(0, stock - serviceReserve);

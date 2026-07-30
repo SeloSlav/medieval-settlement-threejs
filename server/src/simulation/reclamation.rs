@@ -505,6 +505,7 @@ pub fn insert_reclamation_pile(
         marketplace_iron_target: 0,
         marketplace_salt_target: 0,
         pottery_dispatch_policy: 0,
+        carpenter_cart_service_target_trips: 0,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

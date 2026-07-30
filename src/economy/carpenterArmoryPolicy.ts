@@ -4,8 +4,8 @@ import {
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import {
-  CARPENTER_CART_SERVICE_IRONWORK_TARGET,
-  CARPENTER_CART_SERVICE_TIMBER_TARGET,
+  carpenterCartServiceIronworkTarget,
+  carpenterCartServiceTimberTarget,
 } from './carpenterSupport.ts';
 
 export const CARPENTER_POLEARM_RESERVE_DEFAULT = 6;
@@ -47,7 +47,11 @@ export function guardhousePolearmTarget(assignedLabor: number): number {
 export function carpenterArmoryPlan(
   building: Pick<
     BuildingState,
-    'polearms' | 'carpenterPolearmReserve' | 'timber' | 'ironwork'
+    | 'polearms'
+    | 'carpenterPolearmReserve'
+    | 'carpenterCartServiceTargetTrips'
+    | 'timber'
+    | 'ironwork'
   >,
 ): CarpenterArmoryPlan {
   const reserve = normalizeCarpenterPolearmReserve(
@@ -55,6 +59,12 @@ export function carpenterArmoryPlan(
   );
   const stock = Math.max(0, building.polearms ?? 0);
   const shortfall = carpenterPolearmShortfall(stock, reserve);
+  const cartServiceTimberTarget = carpenterCartServiceTimberTarget(
+    building.carpenterCartServiceTargetTrips,
+  );
+  const cartServiceIronworkTarget = carpenterCartServiceIronworkTarget(
+    building.carpenterCartServiceTargetTrips,
+  );
   return {
     reserve,
     stock,
@@ -63,7 +73,7 @@ export function carpenterArmoryPlan(
       ? 0
       : Math.max(
           0,
-          CARPENTER_CART_SERVICE_TIMBER_TARGET
+          cartServiceTimberTarget
             + shortfall * CARPENTER_TIMBER_PER_POLEARM
             - Math.max(0, building.timber),
         ),
@@ -71,7 +81,7 @@ export function carpenterArmoryPlan(
       ? 0
       : Math.max(
           0,
-          CARPENTER_CART_SERVICE_IRONWORK_TARGET
+          cartServiceIronworkTarget
             + shortfall * CARPENTER_IRONWORK_PER_POLEARM
             - Math.max(0, building.ironwork ?? 0),
         ),

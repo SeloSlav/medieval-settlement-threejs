@@ -8,8 +8,8 @@ import {
   carpenterArmoryPlan,
 } from './carpenterArmoryPolicy.ts';
 import {
-  CARPENTER_CART_SERVICE_IRONWORK_TARGET,
-  CARPENTER_CART_SERVICE_TIMBER_TARGET,
+  carpenterCartServiceIronworkTarget,
+  carpenterCartServiceTimberTarget,
 } from './carpenterSupport.ts';
 import {
   GUARDHOUSE_PAY_PRIORITY_HIGH,
@@ -578,21 +578,29 @@ export function computeSettlementArmamentPlan(input: {
       + carpenter.inboundTimber;
     const ironwork = positive(carpenter.building.ironwork)
       + carpenter.inboundIronwork;
+    const cartServiceTimberTarget = carpenterCartServiceTimberTarget(
+      carpenter.building.carpenterCartServiceTargetTrips,
+    );
+    const cartServiceIronworkTarget = carpenterCartServiceIronworkTarget(
+      carpenter.building.carpenterCartServiceTargetTrips,
+    );
     const plan = carpenterArmoryPlan({
       polearms: positive(carpenter.building.polearms),
       carpenterPolearmReserve:
         carpenter.building.carpenterPolearmReserve,
+      carpenterCartServiceTargetTrips:
+        carpenter.building.carpenterCartServiceTargetTrips,
       timber,
       ironwork,
     });
     const readyOutput = Math.min(
       plan.shortfall,
       Math.floor(
-        Math.max(0, timber - CARPENTER_CART_SERVICE_TIMBER_TARGET)
+        Math.max(0, timber - cartServiceTimberTarget)
           / CARPENTER_TIMBER_PER_POLEARM,
       ),
       Math.floor(
-        Math.max(0, ironwork - CARPENTER_CART_SERVICE_IRONWORK_TARGET)
+        Math.max(0, ironwork - cartServiceIronworkTarget)
           / CARPENTER_IRONWORK_PER_POLEARM,
       ),
     );
@@ -606,7 +614,7 @@ export function computeSettlementArmamentPlan(input: {
     carpenter.branch.ironworkNeededForTargets += plan.ironworkToTarget;
     carpenter.branch.serviceableIronwork += Math.max(
       0,
-      ironwork - CARPENTER_CART_SERVICE_IRONWORK_TARGET,
+      ironwork - cartServiceIronworkTarget,
     );
   }
 

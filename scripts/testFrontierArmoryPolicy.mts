@@ -49,6 +49,21 @@ assert.equal(paused.shortfall, 0);
 assert.equal(paused.timberToTarget, 0);
 assert.equal(paused.ironworkToTarget, 0);
 
+const fittingsConserved = carpenterArmoryPlan({
+  polearms: 2,
+  carpenterPolearmReserve: 6,
+  carpenterCartServiceTargetTrips: 0,
+  timber: 2,
+  ironwork: 0,
+});
+assert.deepEqual(fittingsConserved, {
+  reserve: 6,
+  stock: 2,
+  shortfall: 4,
+  timberToTarget: 6,
+  ironworkToTarget: 4,
+});
+
 const legacy = carpenterArmoryPlan({
   polearms: 4,
   timber: 0,
@@ -101,10 +116,13 @@ assert.match(
 
 const performanceStarted = performance.now();
 let checksum = 0;
+const serviceTargets = [0, 5, 15, 30] as const;
 for (let index = 0; index < 100_000; index += 1) {
   checksum += carpenterArmoryPlan({
     polearms: index % 25,
     carpenterPolearmReserve: CARPENTER_POLEARM_RESERVE_PRESETS[index % 5].reserve,
+    carpenterCartServiceTargetTrips:
+      serviceTargets[index % serviceTargets.length],
     timber: index % 14,
     ironwork: index % 8,
   }).ironworkToTarget;
