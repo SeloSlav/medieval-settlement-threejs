@@ -957,7 +957,7 @@
       "requiresHillside": false
     },
     "smithy": {
-      "label": "Village smithy",
+      "label": "Forest bloomery & smithy",
       "cost": { "timber": 42, "stone": 38 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 9, "iron": 48, "charcoal": 36, "ironwork": 72 },
       "workRadius": 0,

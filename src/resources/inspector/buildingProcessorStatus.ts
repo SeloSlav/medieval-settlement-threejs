@@ -186,9 +186,9 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     inputs: [
       {
         key: 'iron',
-        label: 'regional iron',
+        label: 'iron charge',
         required: SMITHY_IRON_PER_CYCLE,
-        deliveryHint: 'mine or market carts may supply ore or blooms',
+        deliveryHint: 'mine carts supply ore; Adriatic merchants supply blooms or bars',
       },
       {
         key: 'charcoal',
@@ -199,8 +199,8 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     ],
     output: 'ironwork',
     outputPerCycle: SMITHY_IRONWORK_PER_CYCLE,
-    operatingLabel: 'Forging iron heads, nails, hinges, and fittings',
-    idleNoWorkersLabel: 'Idle - assign blacksmiths',
+    operatingLabel: 'Smelting the iron charge, consolidating the bloom, and forging ironwork',
+    idleNoWorkersLabel: 'Idle - assign smelters and smiths',
   },
   potter_kiln: {
     requiresLabor: true,

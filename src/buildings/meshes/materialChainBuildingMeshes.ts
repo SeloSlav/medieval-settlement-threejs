@@ -25,6 +25,7 @@ const CLAY = sharedBuildingDetailMaterial('earth');
 const FIRED_CLAY = sharedBuildingDetailMaterial('paintRed');
 const CHARCOAL = sharedBuildingMaterial('interiorDark');
 const IRON_BLOOM = metalMaterial('iron');
+const IRON_ORE = sharedBuildingDetailMaterial('paintRed');
 const ASH = stoneMaterial('mortar');
 const WATER = sharedBuildingDetailMaterial('water');
 export const CHARCOAL_CLAMP_SMOKE_NAME = 'CharcoalClampSmoke';
@@ -126,6 +127,55 @@ function addIronBar(
   );
   bar.name = name;
   bar.visible = false;
+}
+
+function addIronChargeSegment(
+  group: THREE.Group,
+  position: THREE.Vector3,
+  index: number,
+): void {
+  const segment = new THREE.Group();
+  segment.name = 'SmithyIronSegment';
+  segment.position.copy(position);
+  segment.visible = false;
+  group.add(segment);
+
+  if (index % 2 === 1) {
+    addIronBar(
+      segment,
+      'Imported or consolidated iron bar',
+      new THREE.Vector3(),
+      index % 4 === 1 ? -0.05 : 0.06,
+    );
+    const bar = segment.getObjectByName('Imported or consolidated iron bar');
+    if (bar) bar.visible = true;
+    return;
+  }
+
+  const basket = addMesh(
+    segment,
+    new THREE.CylinderGeometry(0.31, 0.24, 0.34, 9, 1, true),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 0.2, 0),
+  );
+  basket.name = 'Iron ore basket';
+  basket.visible = true;
+  for (let ore = 0; ore < 5; ore++) {
+    const angle = (ore / 5) * Math.PI * 2;
+    const chunk = addMesh(
+      segment,
+      new THREE.DodecahedronGeometry(0.12 + (ore % 2) * 0.025, 0),
+      IRON_ORE,
+      new THREE.Vector3(
+        Math.cos(angle) * 0.17,
+        0.36 + (ore % 2) * 0.07,
+        Math.sin(angle) * 0.14,
+      ),
+      new THREE.Euler(ore * 0.21, ore * 0.47, ore * 0.13),
+    );
+    chunk.name = 'Reddish iron ore';
+    chunk.visible = true;
+  }
 }
 
 function addPot(
@@ -370,7 +420,7 @@ export function setCharcoalClampSmokeThroughput(
 
 export function createSmithyMesh(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Village smithy';
+  group.name = 'Forest bloomery and smithy';
   addYardBase(group, 8.5, 7.5);
   const shell = addGableShell(group, {
     width: 5.9,
@@ -425,6 +475,75 @@ export function createSmithyMesh(): THREE.Group {
     metalMaterial('iron'),
     new THREE.Vector3(3.25, 1.02, 0.25),
   );
+
+  const bloomery = new THREE.Group();
+  bloomery.name = 'Direct-process bloomery';
+  bloomery.position.set(0.25, 0, 2.55);
+  group.add(bloomery);
+  addMesh(
+    bloomery,
+    new THREE.CylinderGeometry(0.43, 0.68, 1.55, 10),
+    stoneMaterial('mortar'),
+    new THREE.Vector3(0, 0.82, 0),
+  ).name = 'Clay-lined bloomery shaft';
+  addMesh(
+    bloomery,
+    new THREE.CylinderGeometry(0.32, 0.32, 0.045, 10),
+    CHARCOAL,
+    new THREE.Vector3(0, 1.61, 0),
+  ).name = 'Bloomery charging mouth';
+  addMesh(
+    bloomery,
+    new THREE.BoxGeometry(0.42, 0.42, 0.12),
+    CHARCOAL,
+    new THREE.Vector3(0, 0.48, 0.59),
+  ).name = 'Bloomery tapping arch';
+  addMesh(
+    bloomery,
+    new THREE.CylinderGeometry(0.08, 0.11, 0.78, 7),
+    FIRED_CLAY,
+    new THREE.Vector3(0.6, 0.57, 0),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  ).name = 'Bloomery clay tuyere';
+
+  const bellows = new THREE.Group();
+  bellows.name = 'Bloomery leather bellows';
+  bellows.position.set(1.48, 0.67, 2.55);
+  group.add(bellows);
+  addMesh(
+    bellows,
+    new THREE.ConeGeometry(0.48, 0.82, 8),
+    sharedBuildingMaterial('timberDark'),
+    new THREE.Vector3(),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  ).name = 'Bloomery bellows body';
+  addMesh(
+    bellows,
+    new THREE.CylinderGeometry(0.07, 0.11, 0.72, 7),
+    timberMaterial('dark'),
+    new THREE.Vector3(0.63, 0, 0),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  ).name = 'Bloomery bellows handle';
+
+  const slag = new THREE.Group();
+  slag.name = 'Bloomery slag heap';
+  slag.position.set(0.05, 0, 3.25);
+  group.add(slag);
+  for (let index = 0; index < 6; index++) {
+    const lump = addMesh(
+      slag,
+      new THREE.DodecahedronGeometry(0.16 + (index % 3) * 0.025, 0),
+      CHARCOAL,
+      new THREE.Vector3(
+        (index % 3 - 1) * 0.24,
+        0.13 + Math.floor(index / 3) * 0.12,
+        Math.floor(index / 3) * 0.19,
+      ),
+      new THREE.Euler(index * 0.13, index * 0.31, index * 0.17),
+    );
+    lump.name = 'Bloomery slag lump';
+  }
+
   const quenchTub = new THREE.Group();
   quenchTub.name = 'Smithy quench tub';
   quenchTub.position.set(3.55, 0.05, 1.95);
@@ -472,11 +591,10 @@ export function createSmithyMesh(): THREE.Group {
   ironworkStock.visible = false;
   group.add(ironworkStock);
   for (let index = 0; index < 4; index++) {
-    addIronBar(
+    addIronChargeSegment(
       ironStock,
-      'SmithyIronSegment',
       new THREE.Vector3(1.75 + (index % 2) * 0.78, 0.3 + Math.floor(index / 2) * 0.13, -2.25),
-      index % 2 ? -0.05 : 0.06,
+      index,
     );
     const fitting = addMesh(
       ironworkStock,
@@ -495,7 +613,7 @@ export function createSmithyMesh(): THREE.Group {
       new THREE.Vector3(
         -3.55 - (index % 2) * 0.48,
         0.46 + Math.floor(index / 2) * 0.48,
-        1.8,
+        -1.85,
       ),
     );
   }

@@ -659,6 +659,48 @@ for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
   );
 }
 
+const bloomerySmithy = createBuildingMesh('smithy');
+assert.equal(bloomerySmithy.name, 'Forest bloomery and smithy');
+for (const objectName of [
+  'Direct-process bloomery',
+  'Clay-lined bloomery shaft',
+  'Bloomery charging mouth',
+  'Bloomery tapping arch',
+  'Bloomery clay tuyere',
+  'Bloomery leather bellows',
+  'Bloomery slag heap',
+  'Smithy forge hearth',
+  'Smithy anvil',
+  'Smithy quench tub',
+]) {
+  assert.ok(
+    bloomerySmithy.getObjectByName(objectName),
+    `the integrated ironworking yard must visibly model ${objectName}`,
+  );
+}
+const bloomeryIronStock = bloomerySmithy.getObjectByName('SmithyIronStockpile');
+assert.ok(bloomeryIronStock instanceof THREE.Group);
+assert.equal(
+  bloomeryIronStock.children.filter((child) => child.name === 'SmithyIronSegment').length,
+  SMITHY_IRON_VISUAL_SEGMENTS,
+);
+syncBulkStockpileVisuals(
+  bloomerySmithy,
+  building('smithy', { iron: 24 }),
+);
+const visibleIronCharge = bloomeryIronStock.children.filter(
+  (child) => child.name === 'SmithyIronSegment' && child.visible,
+);
+assert.equal(visibleIronCharge.length, 2);
+assert.ok(
+  visibleIronCharge[0]?.getObjectByName('Iron ore basket'),
+  'the first visible iron charge must read as locally mined ore',
+);
+assert.ok(
+  visibleIronCharge[1]?.getObjectByName('Imported or consolidated iron bar'),
+  'a deeper iron charge must also show the bloom/bar form accepted from trade or prior consolidation',
+);
+
 const buildingVisuals = [
   {
     kind: 'mine',
@@ -861,21 +903,25 @@ assert.ok(
 const renderedCards = renderBuildMenuCards();
 assert.match(
   renderedCards,
-  /smithy[\s\S]*carted well water/i,
-  'the build card must reveal the forge-water dependency before placement',
+  /Forest bloomery & smithy[\s\S]*locally mined ore[\s\S]*imported blooms and bars[\s\S]*carted quench water/i,
+  'the build card must reveal the integrated ore-reduction and forging chain before placement',
 );
 assert.match(
   renderedCards,
   /potter[\s\S]*carted well water/i,
   'the build card must reveal the clay-puddling water dependency before placement',
 );
-for (const slug of ['clay-pit', 'charcoal-burner', 'smithy', 'potter-kiln']) {
+for (const slug of ['clay-pit', 'charcoal-burner', 'smithy-bloomery', 'potter-kiln']) {
   assert.match(renderedCards, new RegExp(`/assets/ui/build-menu/cards/${slug}\\.webp`));
   assert.ok(
     existsSync(`public/assets/ui/build-menu/cards/${slug}.webp`),
     `missing generated ${slug} card`,
   );
 }
+assert.ok(
+  readFileSync('public/assets/ui/build-menu/cards/smithy-bloomery.webp').byteLength > 40_000,
+  'the bloomery-smithy card must retain a detailed authored image rather than a placeholder',
+);
 for (const resource of ['iron', 'clay', 'salt', 'charcoal', 'pottery']) {
   assert.ok(
     existsSync(`public/assets/ui/icons/materials/${resource}.png`),
@@ -1127,6 +1173,16 @@ assert.match(
   'a missing clay source must remain visible even after its crew is released',
 );
 assert.match(townHallSource, /average geological yield across active pits/);
+assert.match(
+  expandedInspectorSource,
+  /Small direct-process bloomery reduces local ore or reheats imported blooms and bars/,
+  'the workshop inspector must explain why mine ore and Adriatic worked iron share one normalized charge',
+);
+assert.match(
+  townHallSource,
+  /integrated bloomery-smithies reduce or reheat[\s\S]*local ore \/ imported iron charge/,
+  'the settlement ledger must expose the smelting stage instead of implying ore becomes fittings directly',
+);
 const caravanIndex = simulationReducerSource.indexOf('step_marketplace_caravans(');
 const seedDistributionIndex = simulationReducerSource.indexOf(
   'step_seed_grain_distribution(',

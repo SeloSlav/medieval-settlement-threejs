@@ -167,11 +167,11 @@ assert.equal(
 smithy.water = 1;
 assert.equal(
   getBuildingProcessorStatus(smithy, readyQueries)?.statusText,
-  'Forging iron heads, nails, hinges, and fittings',
+  'Smelting the iron charge, consolidating the bloom, and forging ironwork',
 );
 assert.match(
   getBuildingProcessorStatus(smithy, readyQueries)?.waterDetailHtml ?? '',
-  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · regional iron limits/,
+  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · iron charge limits/,
 );
 
 const potter = makeBuilding({

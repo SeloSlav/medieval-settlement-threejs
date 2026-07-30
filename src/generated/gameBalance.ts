@@ -852,7 +852,7 @@ export const BUILDING_DEFINITIONS = {
   },
   smithy: {
     kind: 'smithy',
-    label: "Village smithy",
+    label: "Forest bloomery & smithy",
     workRadius: 0,
     pickRadius: 9,
     harvestInterval: 10,
