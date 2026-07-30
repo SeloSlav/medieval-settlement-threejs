@@ -507,7 +507,7 @@ pub struct Building {
     /// Wet riverbank clay held at extraction and pottery yards.
     #[default(0.0)]
     pub clay: f64,
-    /// Adriatic sea salt delivered through the marketplace.
+    /// Locally mined rock salt or imported Adriatic sea salt.
     #[default(0.0)]
     pub salt: f64,
     /// Firewood converted in a covered clamp for smithing fuel.
@@ -521,9 +521,10 @@ pub struct Building {
     /// existing markets on manual procurement.
     #[default(0u8)]
     pub marketplace_iron_target: u8,
-    /// Desired Adriatic salt held at this marketplace in whole twelve-unit
-    /// lots. Appended for additive save compatibility; zero keeps existing
-    /// markets on manual procurement.
+    /// Desired salt held at this marketplace in whole twelve-unit lots.
+    /// Local mine carts fill the reserve first; Adriatic trade buys the
+    /// remaining whole-lot shortfall. Appended for additive save
+    /// compatibility; zero keeps existing markets on manual procurement.
     #[default(0u8)]
     pub marketplace_salt_target: u8,
     /// Dung and bedding collected at cattle holdings or awaiting field spreading

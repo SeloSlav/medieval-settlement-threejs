@@ -291,9 +291,9 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   flax: 'Flax bundle 1 stem 1',
   cloth: 'Woven cloth roll 1',
   gold: 'Treasury lockbox',
-  iron: 'Imported iron bar 1',
+  iron: 'Local iron ore chunk 1',
   clay: 'Clay basket load 1',
-  salt: 'Adriatic salt sack 1',
+  salt: 'Mined rock salt chunk 1',
   charcoal: 'Charcoal sack 1',
   pottery: 'Fired pottery vessel 1',
   manure: 'Manure cart heap',
@@ -312,6 +312,45 @@ for (const [index, kind] of DELIVERY_CARGO_KINDS.entries()) {
   );
   disposeDeliveryCartMesh(cart);
 }
+
+const regionalIronCart = createDeliveryCartMesh('iron', {
+  appearanceSeed: 212,
+  source: cartSource,
+  regionalImport: true,
+});
+const regionalSaltCart = createDeliveryCartMesh('salt', {
+  appearanceSeed: 213,
+  source: cartSource,
+  regionalImport: true,
+});
+assert.equal(
+  regionalIronCart.name,
+  deliveryCartMeshName('iron', true, true),
+);
+assert.equal(
+  regionalIronCart.userData.deliveryCargoProvenance,
+  'regional-import',
+);
+assert.ok(
+  regionalIronCart.getObjectByName('Imported iron bar 1'),
+  'regional iron merchants must carry readable finished bars or blooms',
+);
+assert.equal(
+  regionalIronCart.getObjectByName('Local iron ore chunk 1'),
+  undefined,
+  'regional iron imports must not masquerade as a local mine cart',
+);
+assert.ok(
+  regionalSaltCart.getObjectByName('Adriatic salt sack 1'),
+  'regional salt merchants must carry recognizable Adriatic sack loads',
+);
+assert.equal(
+  regionalSaltCart.getObjectByName('Mined rock salt chunk 1'),
+  undefined,
+  'regional sea-salt imports must not masquerade as local rock salt',
+);
+disposeDeliveryCartMesh(regionalIronCart);
+disposeDeliveryCartMesh(regionalSaltCart);
 
 const firewoodLog = cartA.getObjectByName('Firewood split log 1') as THREE.Mesh;
 assert.match(

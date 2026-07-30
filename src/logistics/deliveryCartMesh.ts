@@ -49,9 +49,12 @@ const CARGO_MATERIALS = {
   clothRed: createCargoMaterial('Madder-dyed cloth', 0x8f443d, 0.96),
   clothBlue: createCargoMaterial('Blue-grey woven cloth', 0x52697a, 0.96),
   ironBloom: createCargoMaterial('Forged iron bloom', 0x42494d, 0.78, 0.42),
+  ironOreDark: createCargoMaterial('Iron-bearing stone', 0x4b4540, 0.98, 0.04),
+  ironOreRust: createCargoMaterial('Weathered iron ore', 0x7b4933, 0.97, 0.03),
   clay: createCargoMaterial('Wet river clay', 0x8d5139, 0.99),
   saltCanvas: createCargoMaterial('Salt sack canvas', 0xd9d0b8, 0.98),
-  salt: createCargoMaterial('Coarse sea salt', 0xe7e1d2, 0.92),
+  seaSalt: createCargoMaterial('Coarse Adriatic sea salt', 0xe7e1d2, 0.92),
+  rockSalt: createCargoMaterial('Mined rock salt', 0xd5cec2, 0.96, 0.01),
   charcoal: createCargoMaterial('Lump charcoal', 0x202324, 0.99),
   manure: createCargoMaterial('Dung and straw manure', 0x5b472c, 1),
   manureStraw: createCargoMaterial('Manure bedding straw', 0xaa8647, 0.99),
@@ -74,6 +77,7 @@ export type DeliveryCartModelSource = {
 export type DeliveryCartMeshOptions = {
   appearanceSeed?: number;
   source?: DeliveryCartModelSource | null;
+  regionalImport?: boolean;
 };
 
 function createCargoMaterial(
@@ -91,7 +95,11 @@ function createCargoMaterial(
   return material;
 }
 
-function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
+function addCargo(
+  group: THREE.Group,
+  kind: DeliveryCargoKind,
+  regionalImport: boolean,
+): void {
   switch (kind) {
     case 'firewood':
       addFirewoodLoad(group);
@@ -147,13 +155,21 @@ function addCargo(group: THREE.Group, kind: DeliveryCargoKind): void {
       addGoldLoad(group);
       break;
     case 'iron':
-      addIronLoad(group);
+      if (regionalImport) {
+        addImportedIronLoad(group);
+      } else {
+        addSettlementIronLoad(group);
+      }
       break;
     case 'clay':
       addClayLoad(group);
       break;
     case 'salt':
-      addSaltLoad(group);
+      if (regionalImport) {
+        addAdriaticSaltLoad(group);
+      } else {
+        addRockSaltLoad(group);
+      }
       break;
     case 'charcoal':
       addCharcoalLoad(group);
@@ -560,7 +576,7 @@ function addWoolLoad(group: THREE.Group): void {
   }
 }
 
-function addIronLoad(group: THREE.Group): void {
+function addImportedIronLoad(group: THREE.Group): void {
   for (const [index, [x, y, z, yaw]] of ([
     [-0.2, 0.62, -0.12, 0.08],
     [0.15, 0.64, -0.06, -0.06],
@@ -577,6 +593,43 @@ function addIronLoad(group: THREE.Group): void {
     );
   }
   addCrate(group, 'Imported iron bloom crate', new THREE.Vector3(0, 0.52, 0), 1);
+}
+
+function addSettlementIronLoad(group: THREE.Group): void {
+  const baskets = [
+    { x: -0.2, z: -0.04, yaw: 0.08 },
+    { x: 0.2, z: 0.06, yaw: -0.06 },
+  ] as const;
+  for (const [basketIndex, basket] of baskets.entries()) {
+    addBasket(
+      group,
+      `Local iron ore basket ${basketIndex + 1}`,
+      new THREE.Vector3(basket.x, 0.6, basket.z),
+      0.96,
+    );
+    for (let chunkIndex = 0; chunkIndex < 4; chunkIndex += 1) {
+      const angle = basket.yaw + chunkIndex * Math.PI * 0.5;
+      addNamedMesh(
+        group,
+        `Local iron ore chunk ${basketIndex * 4 + chunkIndex + 1}`,
+        new THREE.IcosahedronGeometry(0.105 - chunkIndex * 0.008, 0),
+        chunkIndex % 2 === 0
+          ? CARGO_MATERIALS.ironOreRust
+          : CARGO_MATERIALS.ironOreDark,
+        new THREE.Vector3(
+          basket.x + Math.cos(angle) * 0.075,
+          0.76 + (chunkIndex % 2) * 0.045,
+          basket.z + Math.sin(angle) * 0.075,
+        ),
+        new THREE.Euler(
+          chunkIndex * 0.31,
+          angle,
+          chunkIndex * 0.19,
+        ),
+        new THREE.Vector3(1.15, 0.82, 0.94),
+      );
+    }
+  }
 }
 
 function addClayLoad(group: THREE.Group): void {
@@ -599,18 +652,53 @@ function addClayLoad(group: THREE.Group): void {
   }
 }
 
-function addSaltLoad(group: THREE.Group): void {
+function addAdriaticSaltLoad(group: THREE.Group): void {
   addSack(group, 'Adriatic salt sack 1', new THREE.Vector3(-0.2, 0.7, 0), 1, CARGO_MATERIALS.saltCanvas);
   addSack(group, 'Adriatic salt sack 2', new THREE.Vector3(0.2, 0.72, 0.04), 0.94, CARGO_MATERIALS.saltCanvas);
   addNamedMesh(
     group,
     'Visible coarse salt',
     new THREE.SphereGeometry(0.16, 8, 5),
-    CARGO_MATERIALS.salt,
+    CARGO_MATERIALS.seaSalt,
     new THREE.Vector3(0, 0.96, -0.08),
     undefined,
     new THREE.Vector3(1.2, 0.4, 0.9),
   );
+}
+
+function addRockSaltLoad(group: THREE.Group): void {
+  const baskets = [
+    { x: -0.2, z: -0.06 },
+    { x: 0.2, z: 0.08 },
+  ] as const;
+  for (const [basketIndex, basket] of baskets.entries()) {
+    addBasket(
+      group,
+      `Rock salt basket ${basketIndex + 1}`,
+      new THREE.Vector3(basket.x, 0.6, basket.z),
+      0.96,
+    );
+    for (let chunkIndex = 0; chunkIndex < 4; chunkIndex += 1) {
+      const angle = chunkIndex * Math.PI * 0.5 + basketIndex * 0.22;
+      addNamedMesh(
+        group,
+        `Mined rock salt chunk ${basketIndex * 4 + chunkIndex + 1}`,
+        new THREE.IcosahedronGeometry(0.1 - chunkIndex * 0.006, 0),
+        CARGO_MATERIALS.rockSalt,
+        new THREE.Vector3(
+          basket.x + Math.cos(angle) * 0.075,
+          0.76 + (chunkIndex % 2) * 0.045,
+          basket.z + Math.sin(angle) * 0.075,
+        ),
+        new THREE.Euler(
+          chunkIndex * 0.23,
+          angle,
+          chunkIndex * 0.17,
+        ),
+        new THREE.Vector3(1.08, 0.9, 0.92),
+      );
+    }
+  }
 }
 
 function addCharcoalLoad(group: THREE.Group): void {
@@ -1001,8 +1089,11 @@ function addNamedMesh(
 export function deliveryCartMeshName(
   kind: DeliveryCargoKind,
   hasModelSource: boolean,
+  regionalImport = false,
 ): string {
-  return `DeliveryCart:${kind}:${hasModelSource ? 'quaternius' : 'fallback'}`;
+  return `DeliveryCart:${kind}:${
+    regionalImport ? 'regional-import' : 'settlement'
+  }:${hasModelSource ? 'quaternius' : 'fallback'}`;
 }
 
 export function fireBucketCarrierMeshName(): string {
@@ -1064,8 +1155,12 @@ export function createDeliveryCartMesh(
 ): THREE.Group {
   const group = new THREE.Group();
   const source = options.source ?? null;
-  group.name = deliveryCartMeshName(kind, source != null);
+  const regionalImport = options.regionalImport === true;
+  group.name = deliveryCartMeshName(kind, source != null, regionalImport);
   group.userData.deliveryCartAsset = source ? 'quaternius-medieval-cart' : 'procedural-fallback';
+  group.userData.deliveryCargoProvenance = regionalImport
+    ? 'regional-import'
+    : 'settlement';
 
   if (source) {
     addQuaterniusCart(group, source, options.appearanceSeed ?? 0);
@@ -1074,12 +1169,14 @@ export function createDeliveryCartMesh(
   }
 
   const cargoRoot = new THREE.Group();
-  cargoRoot.name = `Cart cargo: ${kind}`;
+  cargoRoot.name = regionalImport
+    ? `Regional import cargo: ${kind}`
+    : `Cart cargo: ${kind}`;
   if (source) {
     cargoRoot.scale.setScalar(0.76);
     cargoRoot.position.set(0, 0.08, 0.08);
   }
-  addCargo(cargoRoot, kind);
+  addCargo(cargoRoot, kind, regionalImport);
   group.add(cargoRoot);
   return group;
 }

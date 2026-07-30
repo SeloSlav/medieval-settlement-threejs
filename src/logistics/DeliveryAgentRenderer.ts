@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   deliveryLegRemainingMeters,
   deliveryWorkerPersonIdentity,
+  isRegionalImportTrip,
   type DeliveryTripState,
   type DeliveryTripPhase,
 } from '../logistics/deliveryTrips.ts';
@@ -353,7 +354,11 @@ export class DeliveryAgentRenderer {
   private ensureCartMesh(visual: TripVisual, trip: DeliveryTripState): void {
     const desiredName = trip.destinationKind === 'fire'
       ? fireBucketCarrierMeshName()
-      : deliveryCartMeshName(trip.cargoKind, this.cartSource != null);
+      : deliveryCartMeshName(
+          trip.cargoKind,
+          this.cartSource != null,
+          isRegionalImportTrip(trip),
+        );
     if (visual.mesh.name === desiredName) return;
     const replacement = this.createCartMesh(trip);
     replacement.position.copy(visual.mesh.position);
@@ -387,6 +392,7 @@ export class DeliveryAgentRenderer {
     return createDeliveryCartMesh(trip.cargoKind, {
       appearanceSeed: hashStringSeed(`delivery-cart:${trip.id}`),
       source: this.cartSource,
+      regionalImport: isRegionalImportTrip(trip),
     });
   }
 

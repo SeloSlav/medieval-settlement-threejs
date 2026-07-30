@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import {
   FOOD_PER_DELIVERY,
   FOOD_DELIVERY_SPEED_MPS,
@@ -8,6 +9,8 @@ import {
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 import {
+  cargoKindLabelForTrip,
+  describeDeliveryTrip,
   deliveryLegRemainingMeters,
   deliveryWorkerPersonIdentity,
   destinationKindFromId,
@@ -112,6 +115,98 @@ assert.equal(
   deliveryWorkerPersonIdentity(regionalExportTrip),
   'regional-merchant:regional-export-cart:crew:0',
   'an export merchant must remain visually distinct from resident haulers',
+);
+const regionalIronTrip: DeliveryTripState = {
+  ...regionalMarketTrip,
+  id: 'regional-iron-import',
+  cargoKind: 'iron',
+  amount: 12,
+  deliveryWorkers: 1,
+  freeHaulerWorkers: 1,
+};
+assert.equal(cargoKindLabelForTrip(regionalIronTrip), 'Imported iron bars');
+assert.deepEqual(
+  describeDeliveryTrip(regionalIronTrip, 'Marketplace', 'Marketplace'),
+  {
+    eyebrow: 'Regional merchant - Outbound',
+    activity: 'Bringing 12 imported iron bars from the Adriatic trade route to Marketplace',
+    current: 'Inbound from the Adriatic trade route',
+    occupation: 'Regional merchant',
+    workplaceHeading: 'Contracting market',
+    routeHeading: 'Trade leg',
+    routeTarget: 'Marketplace',
+    cargoSummary: '12 imported iron bars - 1 hauler',
+  },
+  'a physical import must not read as a local marketplace self-delivery',
+);
+const returningSaltMerchant: DeliveryTripState = {
+  ...regionalMarketTrip,
+  id: 'regional-salt-return',
+  cargoKind: 'salt',
+  amount: 0,
+  phase: 'inbound',
+  deliveryWorkers: 1,
+  freeHaulerWorkers: 1,
+};
+assert.equal(cargoKindLabelForTrip(returningSaltMerchant), 'Adriatic salt');
+assert.deepEqual(
+  describeDeliveryTrip(returningSaltMerchant, 'Marketplace', 'Marketplace'),
+  {
+    eyebrow: 'Regional merchant - Returning',
+    activity: 'Returning empty from Marketplace to the Adriatic trade route',
+    current: 'Returning to the Adriatic trade route',
+    occupation: 'Regional merchant',
+    workplaceHeading: 'Contracting market',
+    routeHeading: 'Trade leg',
+    routeTarget: 'Adriatic trade route',
+    cargoSummary: 'Empty - Adriatic salt import',
+  },
+);
+const localIronTrip: DeliveryTripState = {
+  ...loadedTrip,
+  cargoKind: 'iron',
+  amount: 4,
+};
+assert.equal(cargoKindLabelForTrip(localIronTrip), 'Raw iron');
+assert.match(
+  describeDeliveryTrip(localIronTrip, 'Mineral mine', 'Village smithy').activity,
+  /Delivering 4 raw iron to Village smithy/,
+  'a settlement mine cart must remain visibly local',
+);
+assert.equal(
+  describeDeliveryTrip(
+    regionalExportTrip,
+    'Marketplace',
+    'Regional exchange route',
+  ).occupation,
+  'Regional merchant',
+  'the shared presentation helper must preserve existing export merchants',
+);
+const presentationStarted = performance.now();
+let presentationCharacters = 0;
+for (let index = 0; index < 100_000; index += 1) {
+  const candidate = {
+    ...regionalIronTrip,
+    id: `regional-presentation-${index}`,
+    phase: index % 3 === 0
+      ? 'outbound'
+      : index % 3 === 1
+        ? 'unloading'
+        : 'inbound',
+    amount: index % 3 === 2 ? 0 : 12,
+  } satisfies DeliveryTripState;
+  const presentation = describeDeliveryTrip(
+    candidate,
+    'Marketplace',
+    'Marketplace',
+  );
+  presentationCharacters += presentation.activity.length;
+}
+const presentationElapsed = performance.now() - presentationStarted;
+assert.ok(presentationCharacters > 0);
+assert.ok(
+  presentationElapsed < 750,
+  `100k provenance-aware cart descriptions regressed (${presentationElapsed.toFixed(1)} ms)`,
 );
 assert.equal(rosteredCartWorkers({ assignedLabor: 3 }, loadedTrip), 2);
 assert.equal(onsiteBuildingLabor({ assignedLabor: 3 }, loadedTrip), 1);
@@ -278,6 +373,16 @@ assert.deepEqual(parseCounts(20), { before: 50, after: 30 });
 assert.deepEqual(parseCounts(120), { before: 150, after: 30 });
 
 const deliveryServer = read('server/src/simulation/delivery_trips.rs');
+const serverTables = read('server/src/tables.rs');
+assert.match(
+  serverTables,
+  /Locally mined rock salt or imported Adriatic sea salt/,
+  'the authoritative resource row must acknowledge both physical salt sources',
+);
+assert.match(
+  serverTables,
+  /Local mine carts fill the reserve first; Adriatic trade buys the[\s\S]*remaining whole-lot shortfall/,
+);
 assert.match(
   deliveryServer,
   /pub fn onsite_building_labor[\s\S]*?delivery_trip\(\)[\s\S]*?building_id\(\)[\s\S]*?free_hauler_workers/,
@@ -390,6 +495,16 @@ assert.match(deliveryRenderer, /DELIVERY_ROAD_SPEED_MULTIPLIER/);
 assert.match(deliveryRenderer, /phaseChanged \|\| progressRestarted/);
 assert.match(
   deliveryRenderer,
+  /deliveryCartMeshName\([\s\S]*isRegionalImportTrip\(trip\)/,
+  'cart mesh replacement must retain the live trip provenance',
+);
+assert.match(
+  deliveryRenderer,
+  /createDeliveryCartMesh\([\s\S]*regionalImport: isRegionalImportTrip\(trip\)/,
+  'new regional merchants must receive their distinct cargo load',
+);
+assert.match(
+  deliveryRenderer,
   /this\.resolveGroundY\(x,\s*z\) \+ 0\.05/,
   'delivery carts and their visible workers should use the road/bridge walking surface',
 );
@@ -407,13 +522,19 @@ assert.match(
 );
 
 const villagerInspector = read('src/ui/VillagerInspector.ts');
+const deliveryTripClient = read('src/logistics/deliveryTrips.ts');
 assert.match(villagerInspector, />Distance left</);
 assert.match(villagerInspector, /inspection\.remainingMeters/);
 assert.match(villagerInspector, /this\.current\.textContent/);
 assert.match(
-  villagerInspector,
+  deliveryTripClient,
   /returningLoaded[\s\S]*Returning \$\{cargoAmount\} undelivered/,
   'the agent inspector should disclose when a returning cart is still visibly loaded',
+);
+assert.match(
+  villagerInspector,
+  /describeDeliveryTrip\([\s\S]*presentation\.activity[\s\S]*presentation\.routeTarget/,
+  'the visible inspector must use the provenance-aware trip description',
 );
 
 console.log('delivery pacing checks passed');

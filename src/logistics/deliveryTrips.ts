@@ -312,7 +312,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'gold':
       return 'Gold';
     case 'iron':
-      return 'Iron bars';
+      return 'Raw iron';
     case 'clay':
       return 'River clay';
     case 'salt':
@@ -548,6 +548,141 @@ export function formatTripPhaseLabel(phase: DeliveryTripPhase): string {
       return _exhaustive;
     }
   }
+}
+
+export type DeliveryTripPresentation = {
+  eyebrow: string;
+  activity: string;
+  current: string;
+  occupation: 'Cart hauler' | 'Regional merchant';
+  workplaceHeading: 'Origin' | 'Contracting market';
+  routeHeading: 'Route target' | 'Trade leg';
+  routeTarget: string;
+  cargoSummary: string;
+};
+
+/**
+ * Human-readable account of the same route encoded by the authoritative trip.
+ * External imports use the marketplace as their save-compatible origin and
+ * target marker, even though the loaded merchant actually starts at the map
+ * edge. Keeping this distinction here prevents the inspector from describing
+ * a live Adriatic caravan as a local cart delivering a market to itself.
+ */
+export function describeDeliveryTrip(
+  trip: DeliveryTripState,
+  originLabel: string,
+  destinationLabel: string,
+): DeliveryTripPresentation {
+  const cargo = cargoKindLabelForTrip(trip);
+  const cargoLower = cargo.toLocaleLowerCase();
+  const cargoAmount = formatCargoAmount(trip.amount);
+  const crew = `${trip.deliveryWorkers} ${
+    trip.deliveryWorkers === 1 ? 'hauler' : 'haulers'
+  }`;
+  const returning = trip.phase === 'inbound';
+  const returningLoaded = returning && trip.amount > 0.05;
+  const regionalImport = isRegionalImportTrip(trip);
+  const regionalExport = isRegionalExportTrip(trip);
+
+  if (regionalImport) {
+    const routeTarget = returning ? 'Adriatic trade route' : destinationLabel;
+    return {
+      eyebrow: `Regional merchant - ${formatTripPhaseLabel(trip.phase)}`,
+      activity: returning
+        ? `Returning empty from ${destinationLabel} to the Adriatic trade route`
+        : trip.phase === 'unloading'
+          ? `Unloading ${cargoLower} at ${destinationLabel}`
+          : `Bringing ${cargoAmount} ${cargoLower} from the Adriatic trade route to ${destinationLabel}`,
+      current: returning
+        ? 'Returning to the Adriatic trade route'
+        : trip.phase === 'unloading'
+          ? `Unloading at ${destinationLabel}`
+          : 'Inbound from the Adriatic trade route',
+      occupation: 'Regional merchant',
+      workplaceHeading: 'Contracting market',
+      routeHeading: 'Trade leg',
+      routeTarget,
+      cargoSummary: returning
+        ? `Empty - ${cargo} import`
+        : `${cargoAmount} ${cargoLower} - ${crew}`,
+    };
+  }
+
+  if (regionalExport) {
+    return {
+      eyebrow: `Regional merchant - ${formatTripPhaseLabel(trip.phase)}`,
+      activity: returning
+        ? returningLoaded
+          ? `Returning ${cargoAmount} ${cargoLower} from the regional exchange to ${originLabel}`
+          : `Returning empty from the regional exchange to ${originLabel}`
+        : trip.phase === 'unloading'
+          ? `Exchanging ${cargoAmount} ${cargoLower} at the regional route`
+          : `Carrying ${cargoAmount} ${cargoLower} from ${originLabel} to the regional exchange`,
+      current: returning
+        ? `Returning receipts to ${originLabel}`
+        : trip.phase === 'unloading'
+          ? 'Settling at regional exchange'
+          : 'Outbound on regional route',
+      occupation: 'Regional merchant',
+      workplaceHeading: 'Contracting market',
+      routeHeading: 'Trade leg',
+      routeTarget: returning ? originLabel : 'Regional exchange route',
+      cargoSummary: returning
+        ? returningLoaded
+          ? `${cargoAmount} ${cargoLower} - ${crew}`
+          : `Empty - ${cargo} run`
+        : `${cargoAmount} ${cargoLower} - ${crew}`,
+    };
+  }
+
+  return {
+    eyebrow: `Delivery agent - ${formatTripPhaseLabel(trip.phase)}`,
+    activity: returning
+      ? returningLoaded
+        ? `Returning ${cargoAmount} undelivered ${cargoLower} to ${originLabel}`
+        : `Returning to ${originLabel} after the ${cargoLower} delivery`
+      : trip.phase === 'unloading'
+        ? `Unloading ${cargoLower} at ${destinationLabel}`
+        : `Delivering ${cargoAmount} ${cargoLower} to ${destinationLabel}`,
+    current: returning
+      ? `Returning to ${originLabel}`
+      : trip.phase === 'unloading'
+        ? `Unloading at ${destinationLabel}`
+        : `Traveling to ${destinationLabel}`,
+    occupation: 'Cart hauler',
+    workplaceHeading: 'Origin',
+    routeHeading: 'Route target',
+    routeTarget: returning ? originLabel : destinationLabel,
+    cargoSummary: returning
+      ? returningLoaded
+        ? `${cargoAmount} ${cargoLower} - ${crew}`
+        : `Empty - ${cargo} run`
+      : `${cargoAmount} ${cargoLower} - ${crew}`,
+  };
+}
+
+export function cargoKindLabelForTrip(trip: DeliveryTripState): string {
+  const label = cargoKindLabel(trip.cargoKind);
+  if (!isRegionalImportTrip(trip)) return label;
+  switch (trip.cargoKind) {
+    case 'iron':
+      return 'Imported iron bars';
+    case 'salt':
+      return 'Adriatic salt';
+    case 'food':
+      return 'Imported provisions';
+    case 'water':
+      return 'Imported water';
+    default:
+      return `Imported ${label.toLocaleLowerCase()}`;
+  }
+}
+
+function formatCargoAmount(amount: number): string {
+  if (Math.abs(amount - Math.round(amount)) < 0.05) {
+    return Math.round(amount).toLocaleString();
+  }
+  return amount.toFixed(1);
 }
 
 export function cargoColor(kind: DeliveryCargoKind): number {

@@ -837,9 +837,9 @@ assert.notEqual(
 const cargoProof: ReadonlyArray<
   readonly [DeliveryCargoKind, string]
 > = [
-  ['iron', 'Imported iron bar 1'],
+  ['iron', 'Local iron ore chunk 1'],
   ['clay', 'Clay basket 1'],
-  ['salt', 'Adriatic salt sack 1'],
+  ['salt', 'Mined rock salt chunk 1'],
   ['charcoal', 'Charcoal sack 1'],
   ['pottery', 'Fired pottery vessel 1'],
 ];
@@ -847,6 +847,16 @@ for (const [kind, objectName] of cargoProof) {
   const cart = createDeliveryCartMesh(kind);
   assert.ok(cart.getObjectByName(objectName), `${kind} cart must visibly carry ${objectName}`);
 }
+assert.ok(
+  createDeliveryCartMesh('iron', { regionalImport: true })
+    .getObjectByName('Imported iron bar 1'),
+  'a regional iron caravan must remain visually distinct from a local ore cart',
+);
+assert.ok(
+  createDeliveryCartMesh('salt', { regionalImport: true })
+    .getObjectByName('Adriatic salt sack 1'),
+  'a regional salt caravan must remain visually distinct from a local rock-salt cart',
+);
 
 const renderedCards = renderBuildMenuCards();
 assert.match(
