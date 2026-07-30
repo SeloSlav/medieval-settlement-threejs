@@ -1352,6 +1352,7 @@ function industrialMaterialRoadPlan(
     | 'fullToolIronworkPerDay'
     | 'firstUnmaintainedToolSiteId'
   >,
+  prosperityRoadBranches: Map<string, ProsperityRoadBranch> | null,
 ): IndustrialMaterialPlan {
   let activeRoadBranches = 0;
   let potteryMatchedBranches = 0;
@@ -1380,7 +1381,7 @@ function industrialMaterialRoadPlan(
   let firstPotteryBottleneckResidenceId: string | null = null;
   let firstSmithyBottleneckId: string | null = null;
 
-  for (const branch of branches.values()) {
+  for (const [branchKey, branch] of branches) {
     const branchPotteryDemand = branch.smokehousePotteryDemandPerDay
       + branch.householdPotteryDemandPerDay;
     const hasPotteryActivity = branch.clayOutputPerDay > 1e-9
@@ -1407,6 +1408,10 @@ function industrialMaterialRoadPlan(
       branch.potterOutputPerDay,
       claySupportedPottery,
     );
+    const prosperityBranch = prosperityRoadBranches?.get(branchKey);
+    if (prosperityBranch) {
+      prosperityBranch.potteryOutputPerDay = branchPotteryOutput;
+    }
     const branchPotteryCoverage = Math.min(
       branchPotteryOutput,
       branchPotteryDemand,
@@ -1862,6 +1867,7 @@ export function computeSettlementProductionCapacity(
       fullToolIronworkPerDay,
       firstUnmaintainedToolSiteId,
     },
+    prosperityRoadBranches,
   );
 
   return {
@@ -1942,7 +1948,7 @@ export function computeSettlementProductionCapacity(
       normalizedPreservedFoodDemandMultiplier,
     clothDemandPerDay:
       tierThreeResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
-    potteryOutputPerDay: industrialMaterials.potterInstalledOutputPerDay,
+    potteryOutputPerDay: industrialMaterials.potteryOutputPerDay,
     potteryDemandPerDay:
       tierThreeResidents * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     prosperityRoadBranches,

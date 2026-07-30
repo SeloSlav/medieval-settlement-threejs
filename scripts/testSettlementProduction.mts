@@ -264,6 +264,11 @@ assert.ok(
   joinedMaterials.potteryDemandPerDay > 0,
   'prosperous household breakage must contribute to the road-local pottery demand ledger',
 );
+approx(
+  joinedProduction.potteryOutputPerDay,
+  joinedMaterials.potteryOutputPerDay,
+  'settlement prosperity must use sustainable pottery output, not installed kiln capacity',
+);
 assert.ok(joinedMaterials.potteryExportSurplusPerDay > 0);
 assert.equal(joinedMaterials.potteryStrandedPerDay, 0);
 assert.equal(joinedMaterials.toolEligibleSites, 4);
@@ -320,6 +325,11 @@ assert.ok(
   frostLimitedMaterials.industrialMaterials.potteryOutputPerDay
     < joinedMaterials.potteryOutputPerDay,
 );
+approx(
+  frostLimitedMaterials.potteryOutputPerDay,
+  frostLimitedMaterials.industrialMaterials.potteryOutputPerDay,
+  'frost-limited clay supply must constrain the prosperity forecast too',
+);
 assert.ok(
   frostLimitedMaterials.industrialMaterials.maintainedToolIronworkPerDay
     < joinedMaterials.maintainedToolIronworkPerDay,
@@ -372,7 +382,7 @@ approx(
   'dry billets must raise charcoal output while drought fire danger remains a separate cost',
 );
 
-const splitMaterials = computeSettlementProductionCapacity(
+const splitProduction = computeSettlementProductionCapacity(
   materialState,
   false,
   (candidate) => (
@@ -381,10 +391,22 @@ const splitMaterials = computeSettlementProductionCapacity(
       ? 'remote'
       : 'core'
   ),
-).industrialMaterials;
+);
+const splitMaterials = splitProduction.industrialMaterials;
 assert.equal(splitMaterials.activeRoadBranches, 2);
 assert.equal(splitMaterials.potteryMatchedBranches, 0);
 assert.ok(splitMaterials.potteryBlockedBranches >= 1);
+assert.equal(
+  splitProduction.potteryOutputPerDay,
+  0,
+  'a remote kiln without road-local clay must not count toward settlement prosperity',
+);
+assert.equal(
+  splitProduction.prosperityRoadBranches?.get('component:string:remote')
+    ?.potteryOutputPerDay,
+  0,
+  'road-local prosperity must not count clay-starved installed kiln output',
+);
 assert.equal(
   splitMaterials.potteryCoveredDemandPerDay,
   0,
