@@ -39,6 +39,7 @@ const MARKER_KIND_CLASS: Record<WorldMapMarkerKind, string> = {
   berries: 'terrain-minimap__marker--berries',
   mushrooms: 'terrain-minimap__marker--mushrooms',
   fish: 'terrain-minimap__marker--fish',
+  clay: 'terrain-minimap__marker--clay',
   building: 'terrain-minimap__marker--building',
 };
 
@@ -206,7 +207,13 @@ export class TerrainMinimapOverlay {
     element.className = `terrain-minimap__marker ${MARKER_KIND_CLASS[marker.kind]}`;
     if (marker.kind !== 'building') {
       element.classList.add('terrain-minimap__marker--resource');
-      element.innerHTML = RESOURCE_MAP_ICON_HTML[marker.kind];
+      const iconKind = marker.resource === 'iron' || marker.resource === 'salt'
+        ? marker.resource
+        : marker.kind;
+      element.innerHTML = RESOURCE_MAP_ICON_HTML[iconKind];
+      if (marker.resource === 'iron' || marker.resource === 'salt') {
+        element.classList.add(`terrain-minimap__marker--${marker.resource}`);
+      }
       if (marker.kind === 'quarry' && marker.quarryKind === 'large') {
         element.classList.add('terrain-minimap__marker--large');
       }

@@ -78,6 +78,7 @@ import { DEFAULT_MONASTERY_POLICY } from '../economy/monasteryPolicy.ts';
 import { beginNewWorld, resolveWorldGenerationSettings } from './worldBootstrapFlow.ts';
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
+import { TutorialOverlay } from '../ui/TutorialOverlay.ts';
 import { VillagerInspector } from '../ui/VillagerInspector.ts';
 import { saveWorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { getDraftWorldGeneration, setDraftWorldGeneration } from '../world/worldGenerationContext.ts';
@@ -127,6 +128,7 @@ export type BootstrappedSession = {
   livestockVisuals: LivestockVisuals;
   toolbar: BuildToolbar;
   toastManager: ToastManager;
+  tutorialOverlay: TutorialOverlay;
   disposeTooltips: () => void;
   resourceInspector: ResourceInspector;
   villagerInspector: VillagerInspector;
@@ -249,6 +251,7 @@ export async function bootstrapAppSession(
   let farmFieldTool: FarmFieldTool;
   let toolbar: BuildToolbar;
   let toastManager: ToastManager;
+  let tutorialOverlay: TutorialOverlay;
   let resourceInspector: ResourceInspector;
   let villagerInspector: VillagerInspector;
 
@@ -332,6 +335,7 @@ export async function bootstrapAppSession(
     isFarmFieldToolEnabled: () => false,
     isFirstPersonActive: () => false,
     isMenuOpen: () => false,
+    isTutorialOpen: () => tutorialOverlay?.isOpen() ?? false,
   };
 
   cameraController = new CameraController({
@@ -358,6 +362,16 @@ export async function bootstrapAppSession(
     },
   });
 
+  tutorialOverlay = new TutorialOverlay(uiRoot, {
+    onOpenChange: (open) => {
+      cameraController.setInputEnabled(
+        !open
+        && !(firstPersonController?.isActive() ?? false)
+        && !(toolbar?.isGameMenuOpen() ?? false),
+      );
+    },
+  });
+
   const roadSelection = new RoadSelection({
     camera: sceneManager.camera,
     domElement: sceneManager.renderer.domElement,
@@ -378,6 +392,7 @@ export async function bootstrapAppSession(
       farmFieldTool.setEnabled(false);
       resourceInspector?.clearSelection();
       villagerInspector?.clearSelection();
+      tutorialOverlay.notifyRoadToolOpened(roadNetwork.edges.size);
     }
     bridge.syncToolbar();
   };
@@ -433,7 +448,9 @@ export async function bootstrapAppSession(
       await spacetimeStore.demolishBuilding(buildingId);
     },
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
-    isQuarryPitAt: (x, z) => sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z),
+    isQuarryPitAt: (x, z) =>
+      sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z)
+      || sceneManager.worldLayout.mineralDepositLayout.isBlockedForProps(x, z),
     getNaturalHeightAt: (x, z) => sampleNaturalTerrainHeight(x, z),
     countMatureTreesInRadius: (x, z, radius) => {
       const registry = liveContext.treeRegistry;
@@ -454,6 +471,12 @@ export async function bootstrapAppSession(
       ambientAudio.playUiSound('error');
       toastManager?.show(message, { variant: 'error' });
     },
+    onBuildingPlaced: (kind) => {
+      tutorialOverlay.notifyBuildingPlaced(
+        kind,
+        [...liveContext.gameState.buildings.values()].map((building) => building.kind),
+      );
+    },
     onUndoFailed: (message) => {
       toastManager?.show(message, { variant: 'error' });
     },
@@ -472,7 +495,9 @@ export async function bootstrapAppSession(
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     getNaturalHeightAt: (x, z) => sampleNaturalTerrainHeight(x, z),
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
-    isQuarryPitAt: (x, z) => sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z),
+    isQuarryPitAt: (x, z) =>
+      sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z)
+      || sceneManager.worldLayout.mineralDepositLayout.isBlockedForProps(x, z),
     onCommit: async (commit) => {
       requireSessionReady();
       await spacetimeStore.placeBurgageZone({
@@ -481,6 +506,9 @@ export async function bootstrapAppSession(
         plotCount: commit.plotCount,
       });
       ambientAudio.playUiSound('building_place');
+    },
+    onBurgageZonePlaced: () => {
+      tutorialOverlay.notifyBurgageZonePlaced(liveContext.gameState.burgageZones.size);
     },
     onDemolishBurgageZone: async (zoneId) => {
       requireSessionReady();
@@ -547,7 +575,9 @@ export async function bootstrapAppSession(
     getState: () => liveContext.gameState,
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
-    isQuarryPitAt: (x, z) => sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z),
+    isQuarryPitAt: (x, z) =>
+      sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z)
+      || sceneManager.worldLayout.mineralDepositLayout.isBlockedForProps(x, z),
     onCommit: async (input) => {
       requireSessionReady();
       await spacetimeStore.placeFarmField(input);
@@ -684,6 +714,10 @@ export async function bootstrapAppSession(
         farmFieldTool.setEnabled(false);
         resourceInspector?.clearSelection();
         villagerInspector?.clearSelection();
+        tutorialOverlay.notifyBuildingToolOpened(
+          kind,
+          [...liveContext.gameState.buildings.values()].map((building) => building.kind),
+        );
       }
       bridge.syncToolbar();
     },
@@ -700,7 +734,10 @@ export async function bootstrapAppSession(
         farmFieldTool.setEnabled(false);
         resourceInspector?.clearSelection();
         villagerInspector?.clearSelection();
-        if (!wasEnabled) {
+        const tutorialShown = tutorialOverlay.notifyResidenceToolOpened(
+          liveContext.gameState.burgageZones.size,
+        );
+        if (!wasEnabled && !tutorialShown) {
           toastManager?.show(
             'Draw the rectangle along the road, then use the on-screen plot controls to choose how many homes fit.',
             { variant: 'info', durationMs: 6500 },
@@ -742,7 +779,11 @@ export async function bootstrapAppSession(
       });
     },
     onMenuOpenChange: (open) => {
-      cameraController.setInputEnabled(!open && !firstPersonController.isActive());
+      cameraController.setInputEnabled(
+        !open
+        && !firstPersonController.isActive()
+        && !tutorialOverlay.isOpen(),
+      );
     },
     onAudioEnabledChange: (enabled) => {
       ambientAudio.setEnabled(enabled);
@@ -764,7 +805,8 @@ export async function bootstrapAppSession(
       && !roadTool.isEnabled()
       && !buildingTool.isEnabled()
       && !burgageTool.isEnabled()
-      && !farmFieldTool.isEnabled(),
+      && !farmFieldTool.isEnabled()
+      && !tutorialOverlay.isOpen(),
     onNewWorld: () => {
       void beginNewWorld(() => sessionGate.isReady());
     },
@@ -859,6 +901,7 @@ export async function bootstrapAppSession(
       if (target) villagerInspector.clearSelection();
       toolbar.setCityAdministrationOpen(target?.kind === 'building' && target.building.kind === 'town_hall');
       if (target?.kind === 'building') {
+        tutorialOverlay.notifyBuildingSelected(target.building.kind);
         buildingMarkers.setBuildingExtentOverlay(target.building, liveContext.gameState);
         return;
       }
@@ -944,7 +987,11 @@ export async function bootstrapAppSession(
     isMenuOpen: () => toolbar.isGameMenuOpen(),
     isSessionReady: () => sessionGate.isReady() && isSettlementFounded(),
     onModeChange: (active) => {
-      cameraController.setInputEnabled(!active && !toolbar.isGameMenuOpen());
+      cameraController.setInputEnabled(
+        !active
+        && !toolbar.isGameMenuOpen()
+        && !tutorialOverlay.isOpen(),
+      );
       toolbar.setFirstPersonMode(active);
       if (active) {
         if (roadTool.isEnabled()) roadTool.setEnabled(false);
@@ -974,6 +1021,7 @@ export async function bootstrapAppSession(
     terrain: sceneManager.terrain,
     riverField: sceneManager.riverField,
     registry: layoutRegistry,
+    clayDepositSites: sceneManager.worldLayout.clayDepositLayout.sites,
     getCamera: () => sceneManager.camera,
     getZoomPercent: () => cameraController.getZoomPercent(),
     getGameState: () => liveContext.gameState,
@@ -981,6 +1029,7 @@ export async function bootstrapAppSession(
     placementGate,
     onQuarrySelect: (quarryId) => resourceInspector.selectQuarry(quarryId),
     onForagingSelect: (nodeId) => resourceInspector.selectForaging(nodeId),
+    onClaySelect: (x, z) => cameraController.focusWorldPosition(x, z),
   });
   worldMapUi.minimap.syncBuildings(buildBuildingWorldMapMarkers(liveContext.gameState.buildings.values()));
 
@@ -1022,6 +1071,7 @@ export async function bootstrapAppSession(
     livestockVisuals,
     toolbar,
     toastManager,
+    tutorialOverlay,
     disposeTooltips,
     resourceInspector,
     villagerInspector,

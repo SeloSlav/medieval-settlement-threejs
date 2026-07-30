@@ -6,7 +6,11 @@ import {
   createMapIconRoot,
   placeProjectedMapButton,
 } from './mapIconProjection.ts';
-import { QUARRY_ICON_HTML } from './resourceMapIconArt.ts';
+import {
+  IRON_ICON_HTML,
+  QUARRY_ICON_HTML,
+  SALT_ICON_HTML,
+} from './resourceMapIconArt.ts';
 
 type QuarryMapIconsOptions = {
   uiRoot: HTMLElement;
@@ -81,8 +85,15 @@ export class QuarryMapIcons {
     if (marker.quarryKind === 'large') {
       button.classList.add('quarry-map-icon--large');
     }
+    if (marker.resource === 'iron' || marker.resource === 'salt') {
+      button.classList.add(`quarry-map-icon--${marker.resource}`);
+    }
 
-    button.innerHTML = QUARRY_ICON_HTML;
+    button.innerHTML = marker.resource === 'iron'
+      ? IRON_ICON_HTML
+      : marker.resource === 'salt'
+        ? SALT_ICON_HTML
+        : QUARRY_ICON_HTML;
     button.addEventListener('mousedown', (event) => {
       if (event.button !== 0) return;
       if (this.options.isBlocked()) return;

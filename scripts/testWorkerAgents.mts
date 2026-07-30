@@ -278,6 +278,7 @@ const expectedWorkplaces = [
   'woodcutters_lodge',
   'stone_quarry',
   'large_quarry',
+  'mine',
   'clay_pit',
   'charcoal_burner',
   'smithy',

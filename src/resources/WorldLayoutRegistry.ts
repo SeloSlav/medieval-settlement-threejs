@@ -11,6 +11,11 @@ import {
 } from '../foraging/foragingYields.ts';
 import { quarryMaxYield, quarryPickRadius } from './yields.ts';
 import type { WorldLayout } from './WorldLayout.ts';
+import {
+  mineralDepositLabel,
+  mineralDepositMaxYield,
+  mineralDepositNodeId,
+} from '../minerals/MineralDepositLayout.ts';
 import { getBuildingDefinition } from './buildings.ts';
 import type { BuildingState } from './types.ts';
 
@@ -48,6 +53,21 @@ export class WorldLayoutRegistry {
         pickRadius: quarryPickRadius(site.radiusX, site.radiusZ),
         quarryKind: site.kind,
         isRich: site.kind === 'large',
+      });
+    }
+
+    for (let index = 0; index < layout.mineralDepositLayout.sites.length; index++) {
+      const site = layout.mineralDepositLayout.sites[index];
+      definitions.push({
+        id: mineralDepositNodeId(site, index),
+        kind: 'quarry',
+        resource: site.resource,
+        x: site.x,
+        z: site.z,
+        label: mineralDepositLabel(site),
+        maxYield: mineralDepositMaxYield(site),
+        pickRadius: Math.max(site.radiusX, site.radiusZ) + 6,
+        isRich: site.grade === 'rich',
       });
     }
 

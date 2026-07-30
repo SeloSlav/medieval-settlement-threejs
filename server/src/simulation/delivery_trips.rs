@@ -921,9 +921,9 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::Stone => {
             (site.construction_reserved_stone - site.construction_treasury_stone).max(0.0)
         }
-        CommodityKind::Ironwork => (site.construction_reserved_ironwork
-            - site.construction_treasury_ironwork)
-            .max(0.0),
+        CommodityKind::Ironwork => {
+            (site.construction_reserved_ironwork - site.construction_treasury_ironwork).max(0.0)
+        }
         _ => 0.0,
     };
     let workers = if origin.assigned_labor > 0 {
@@ -1742,9 +1742,7 @@ fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
                 match commodity {
                     CommodityKind::Timber => site.construction_reserved_timber += trip.amount,
                     CommodityKind::Stone => site.construction_reserved_stone += trip.amount,
-                    CommodityKind::Ironwork => {
-                        site.construction_reserved_ironwork += trip.amount
-                    }
+                    CommodityKind::Ironwork => site.construction_reserved_ironwork += trip.amount,
                     _ => {}
                 }
                 ctx.db.building().id().update(site);

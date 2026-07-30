@@ -79,6 +79,7 @@ type BuildingToolOptions = {
   describePlacementFailure?: (reason: BuildingPlacementFailureReason) => string;
   onPlacementRejected?: (reason: BuildingPlacementFailureReason) => void;
   onPlacementFailed?: (message: string) => void;
+  onBuildingPlaced?: (kind: BuildingKind, buildingId: string) => void;
   onUndoFailed?: (message: string) => void;
   onRedoFailed?: (message: string) => void;
   isBlocked: () => boolean;
@@ -293,6 +294,9 @@ export class BuildingTool {
       if (buildingId && kind !== 'founders_camp') {
         this.undoStack.push({ buildingId, kind, x, z });
         this.redoStack.length = 0;
+      }
+      if (buildingId) {
+        this.options.onBuildingPlaced?.(kind, buildingId);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Building placement failed.';
@@ -542,11 +546,27 @@ export class BuildingTool {
           return `Ready: ${clayBankYieldGrade(yieldMultiplier).toLowerCase()} · ${Math.round(yieldMultiplier * 100)}% geological clay yield before weather and iron tools`;
         })()
       : null;
+    const mineralMineDetail = kind === 'mine'
+      ? (() => {
+          const deposit = [...state.quarries.values()].find((node) =>
+            (node.resource === 'iron' || node.resource === 'salt')
+            && Math.hypot(node.x - x, node.z - z) <= 2.5
+          );
+          if (!deposit) return null;
+          const grade = deposit.isRich ? 'Rich' : 'Ordinary';
+          const reserve = deposit.isRich
+            ? 'deep source does not exhaust'
+            : `${Math.round(deposit.remaining)} surface reserve remaining`;
+          return `Ready: ${grade.toLowerCase()} ${deposit.resource} deposit · ${reserve}`;
+        })()
+      : null;
     this.setPlacementStatusDetail(joinPlacementDetails(
       kind === 'town_hall'
         ? 'Ready: population, civic buildings, and road links confirmed'
         : kind === 'guardhouse'
           ? 'Ready: completed watchtower confirmed'
+          : mineralMineDetail
+            ? mineralMineDetail
           : clayBankDetail
             ? clayBankDetail
             : extent

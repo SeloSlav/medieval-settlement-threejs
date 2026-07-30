@@ -122,15 +122,16 @@ import {
 } from '../../economy/clayBankPolicy.ts';
 
 const PROCESS: Record<string, string> = {
+  mine: 'A local iron or salt deposit + labor → raw material for linked local processing',
   clay_pit: 'Usable riverbank shore + labor -> wet clay for local potters',
   charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
-  smithy: 'Imported regional iron + locally burned charcoal -> tools, fittings, and weapon heads',
+  smithy: 'Local ore or imported iron blooms + charcoal -> tools, fittings, and weapon heads',
   potter_kiln: 'Riverbank clay + firewood -> household wares, preservation vessels, and export',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
   granary: 'Buffers grain, bakes staple food, and redistributes road-hauled fresh and cured provisions',
   brewery: 'Barley + water + firewood → malt → ale',
-  smokehouse: 'Fresh food + firewood + imported salt + pottery vessels → preserved food',
+  smokehouse: 'Fresh food + firewood + local or imported salt + pottery vessels → preserved food',
   apiary: 'April-September forest forage → food, monastery hospitality, or export honey',
   vineyard: 'September-October grape harvest → food, monastery hospitality, or export wine',
   monastery: 'Tithes + food + hospitality stores → charity, feasts, pilgrimages',
@@ -140,6 +141,7 @@ const PROCESS: Record<string, string> = {
 };
 
 const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
+  'mine',
   'threshing_barn',
   'watermill',
   'granary',

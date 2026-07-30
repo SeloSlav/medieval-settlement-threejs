@@ -13,6 +13,8 @@ import {
   CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS,
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
   CLAY_PIT_CLAY_VISUAL_SEGMENTS,
+  MINE_IRON_VISUAL_SEGMENTS,
+  MINE_SALT_VISUAL_SEGMENTS,
   POTTER_CLAY_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_POTTERY_VISUAL_SEGMENTS,
@@ -58,6 +60,8 @@ import {
   potteryDispatchPolicyLabel,
 } from '../src/economy/potteryDispatchPolicy.ts';
 import {
+  CLAY_BANK_ORDINARY_YIELD_MAX,
+  CLAY_BANK_RICH_YIELD_MIN,
   CLAY_BANK_SITE_YIELD_MAX,
   CLAY_BANK_SITE_YIELD_MIN,
   CLAY_BANK_STRATA_VISUAL_SEGMENTS,
@@ -81,7 +85,11 @@ assert.equal(clayBankRegionalYieldMultiplier(Number.NaN), 1);
 assert.equal(clayBankSiteYieldMultiplier(Number.NEGATIVE_INFINITY), CLAY_BANK_SITE_YIELD_MIN);
 assert.equal(clayBankSiteYieldMultiplier(1), CLAY_BANK_SITE_YIELD_MAX);
 assert.ok(clayBankYieldMultiplier(-10, -10) >= CLAY_BANK_TOTAL_YIELD_MIN);
-assert.ok(clayBankYieldMultiplier(10, 110) <= CLAY_BANK_TOTAL_YIELD_MAX);
+assert.ok(clayBankYieldMultiplier(10, 110) <= CLAY_BANK_ORDINARY_YIELD_MAX);
+const explicitRichClayYield = clayBankYieldMultiplier(0.3, 50, 1);
+assert.ok(explicitRichClayYield >= CLAY_BANK_RICH_YIELD_MIN);
+assert.ok(explicitRichClayYield <= CLAY_BANK_TOTAL_YIELD_MAX);
+assert.match(clayBankYieldGrade(explicitRichClayYield), /Rich clay deposit/);
 assert.ok(
   clayBankYieldAt(richClayBank.x, richClayBank.z)
     > clayBankYieldAt(leanClayBank.x, leanClayBank.z),
@@ -94,7 +102,7 @@ assert.ok(
 );
 assert.match(clayBankYieldGrade(clayBankYieldAt(richClayBank.x, richClayBank.z)), /Good|Rich/);
 assert.equal(
-  clayBankStrataVisualLevel(clayBankSiteYieldAt(richClayBank.x, richClayBank.z)),
+  clayBankStrataVisualLevel(explicitRichClayYield),
   CLAY_BANK_STRATA_VISUAL_SEGMENTS,
 );
 
@@ -447,11 +455,21 @@ assert.equal(
 
 assert.deepEqual(
   LOCAL_MATERIAL_SOURCE_KINDS,
-  ['clay_pit', 'charcoal_burner', 'smithy', 'potter_kiln'],
+  ['mine', 'clay_pit', 'charcoal_burner', 'smithy', 'potter_kiln'],
 );
 assert.deepEqual(
-  LOCAL_MATERIAL_SOURCE_KINDS.map(localMaterialInputCommodity),
-  ['clay', 'charcoal', 'ironwork', 'pottery'],
+  LOCAL_MATERIAL_SOURCE_KINDS.map((kind) =>
+    localMaterialInputCommodity(
+      kind,
+      kind === 'mine' ? { iron: 12, salt: 0 } : undefined,
+    )
+  ),
+  ['iron', 'clay', 'charcoal', 'ironwork', 'pottery'],
+);
+assert.equal(
+  localMaterialInputCommodity('mine', { iron: 0, salt: 12 }),
+  'salt',
+  'a legacy salt-deposit row must remain routable without inheriting the iron route',
 );
 const olderRemoteClayPit = building('clay_pit', {
   id: 'older-remote-clay-pit',
@@ -492,6 +510,21 @@ assert.equal(
   routinePotter.id,
   'the remaining clay cart must cover the next kiln without duplicating its inbound slot',
 );
+const localMineAssignments = assignLocalMaterialInputTargets(
+  [
+    building('mine', { id: 'iron-mine', iron: 12 }),
+    building('mine', { id: 'salt-mine', salt: 12 }),
+  ],
+  [
+    building('smithy', { id: 'local-iron-smithy', iron: 0 }),
+    building('smokehouse', { id: 'local-salt-smokehouse', salt: 0 }),
+  ],
+  () => 20,
+);
+assert.equal(localMineAssignments.get('iron-mine')?.commodity, 'iron');
+assert.equal(localMineAssignments.get('iron-mine')?.target.id, 'local-iron-smithy');
+assert.equal(localMineAssignments.get('salt-mine')?.commodity, 'salt');
+assert.equal(localMineAssignments.get('salt-mine')?.target.id, 'local-salt-smokehouse');
 
 for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
   assert.ok(
@@ -501,6 +534,20 @@ for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
 }
 
 const buildingVisuals = [
+  {
+    kind: 'mine',
+    container: 'IronMineStockpile',
+    segment: 'IronMineOreSegment',
+    resource: 'iron',
+    segments: MINE_IRON_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'mine',
+    container: 'SaltMineStockpile',
+    segment: 'SaltMineSaltSegment',
+    resource: 'salt',
+    segments: MINE_SALT_VISUAL_SEGMENTS,
+  },
   {
     kind: 'clay_pit',
     container: 'ClayPitStockpile',
@@ -791,7 +838,7 @@ assert.match(
 );
 assert.match(
   localMaterialDispatchStep,
-  /"clay_pit"[\s\S]*CommodityKind::Clay[\s\S]*"charcoal_burner"[\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"[\s\S]*CommodityKind::Ironwork[\s\S]*"potter_kiln"[\s\S]*CommodityKind::Pottery/,
+  /"mine"[\s\S]*CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*"clay_pit"[\s\S]*CommodityKind::Clay[\s\S]*"charcoal_burner"[\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"[\s\S]*CommodityKind::Ironwork[\s\S]*"potter_kiln"[\s\S]*CommodityKind::Pottery/,
 );
 assert.match(
   potterKilnStep,
@@ -835,7 +882,7 @@ assert.match(
 );
 assert.match(
   clayPitStep,
-  /environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at\(\s*building\.x,\s*building\.z,\s*resource_abundance/,
+  /environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at_with_deposits\(\s*ctx,\s*building\.x,\s*building\.z,\s*resource_abundance/,
   'authoritative clay digging must multiply weather by the local geological bank yield',
 );
 assert.match(
@@ -876,7 +923,7 @@ assert.match(
   /hydrology_grid\.json' with \{ type: 'json' \}/,
   'direct Node test runners and Vite must share an explicit JSON module boundary',
 );
-assert.match(hydrologySource, /pub fn clay_bank_yield_multiplier_at/);
+assert.match(clayPitStep, /fn clay_bank_yield_multiplier_at_with_deposits/);
 assert.match(buildingToolSource, /geological clay yield before weather and iron tools/);
 assert.match(expandedInspectorSource, /Clay seam[\s\S]*Current digging pace/);
 assert.match(townHallSource, /average geological yield across active pits/);

@@ -29,6 +29,7 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'woodcutters_lodge',
   'stone_quarry',
   'large_quarry',
+  'mine',
   'clay_pit',
   'charcoal_burner',
   'smithy',
@@ -138,6 +139,7 @@ export type WorkerTargetInputs = {
  */
 export const YARD_WORK_ACTIVITY = {
   woodcutters_lodge: 'chop',
+  mine: 'mine',
   clay_pit: 'plant',
   charcoal_burner: 'tend',
   smithy: 'build',

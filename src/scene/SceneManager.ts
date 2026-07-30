@@ -10,6 +10,12 @@ import { RiverField } from '../rivers/RiverField.ts';
 import { setActiveRiverLayout, setActiveQuarryLayout, getActivePlacedBuildingLayout } from '../terrain/TerrainHeight.ts';
 import { loadTerrainStartupData } from '../terrain/loadTerrainStartupData.ts';
 import { createQuarrySystem, type QuarrySystem } from '../quarries/QuarrySystem.ts';
+import { createClayDepositSystem, type ClayDepositSystem } from '../clay/ClayDepositSystem.ts';
+import {
+  createMineralDepositSystem,
+  type MineralDepositSystem,
+} from '../minerals/MineralDepositSystem.ts';
+import { setActiveClayDepositLayout } from '../economy/clayBankPolicy.ts';
 import { createWorldLayout, type WorldLayout } from '../resources/WorldLayout.ts';
 import type { FarmCrop, ForagingNodeState, ResourceNodeState } from '../resources/types.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
@@ -39,6 +45,7 @@ import { createPostProcessor, type ScenePostProcessor } from './PostProcessing.t
 import { fitDirectionalLightShadow, computeViewShadowBounds, intersectTerrainBounds } from './fitDirectionalShadow.ts';
 import {
   createPreferredRenderer,
+  type RendererAdapterEvidence,
   type RendererBackend,
   type RendererBackendKind,
   type SupportedRenderer,
@@ -96,6 +103,7 @@ export class SceneManager {
   readonly camera: THREE.PerspectiveCamera;
   readonly renderer: SupportedRenderer;
   readonly rendererBackend: RendererBackendKind;
+  private readonly rendererAdapterEvidence: RendererAdapterEvidence;
   readonly postProcessor: ScenePostProcessor;
   private readonly maxAnisotropy: number;
   readonly cameraTarget = new THREE.Vector3();
@@ -135,6 +143,8 @@ export class SceneManager {
   private lastForestClearanceSourceSignature = '';
   private readonly riverSystem: RiverSystem;
   private readonly quarrySystem: QuarrySystem;
+  private readonly clayDepositSystem: ClayDepositSystem;
+  private readonly mineralDepositSystem: MineralDepositSystem;
   private hydrologyOverlay: HydrologyOverlay | null = null;
   private cropSuitabilityOverlay: CropSuitabilityOverlay | null = null;
   private cropSuitabilityCrop: FarmCrop | null = null;
@@ -172,11 +182,17 @@ export class SceneManager {
     terrain: Terrain,
     riverSystem: RiverSystem,
     quarrySystem: QuarrySystem,
+    clayDepositSystem: ClayDepositSystem,
+    mineralDepositSystem: MineralDepositSystem,
     worldLayout: WorldLayout,
   ) {
     this.container = container;
     this.renderer = backend.renderer;
     this.rendererBackend = backend.kind;
+    this.rendererAdapterEvidence = {
+      ...backend.adapterEvidence,
+      limitations: [...backend.adapterEvidence.limitations],
+    };
     this.maxAnisotropy = backend.maxAnisotropy;
     this.materials = materials;
     this.scene = new THREE.Scene();
@@ -214,6 +230,8 @@ export class SceneManager {
     });
     this.riverSystem = riverSystem;
     this.quarrySystem = quarrySystem;
+    this.clayDepositSystem = clayDepositSystem;
+    this.mineralDepositSystem = mineralDepositSystem;
     this.worldLayout = worldLayout;
     this.unsubscribeHydrologyOverlayPreference = subscribeHydrologyOverlayPreference(() => {
       this.applyHydrologyOverlayPreference();
@@ -234,6 +252,8 @@ export class SceneManager {
       this.terrain.mesh,
       this.riverSystem.group,
       this.quarrySystem.group,
+      this.clayDepositSystem.group,
+      this.mineralDepositSystem.group,
       this.roadGroup,
       this.junctionGroup,
       this.previewGroup,
@@ -276,15 +296,21 @@ export class SceneManager {
 
     onProgress?.({
       label: 'Building world',
-      detail: 'River layout, quarries, and terrain',
+      detail: 'River layout, stone, clay, iron, salt, and terrain',
       phase: 'worldFeatures',
       fraction: 0,
     });
     const dimensions = resolveWorldDimensions(settings.mapSize);
     const worldLayout = createWorldLayout(settings);
-    const { quarryLayout, riverLayout } = worldLayout;
+    const {
+      clayDepositLayout,
+      mineralDepositLayout,
+      quarryLayout,
+      riverLayout,
+    } = worldLayout;
     setActiveRiverLayout(riverLayout);
     setActiveQuarryLayout(quarryLayout);
+    setActiveClayDepositLayout(clayDepositLayout);
     const startupData = await loadTerrainStartupData(
       settings,
       dimensions,
@@ -311,7 +337,7 @@ export class SceneManager {
 
     onProgress?.({
       label: 'Building world',
-      detail: 'River water, banks, and quarries',
+      detail: 'River water and mineral deposits',
       phase: 'worldFeatures',
       fraction: 0.55,
     });
@@ -325,6 +351,8 @@ export class SceneManager {
       backend.kind,
     );
     const quarrySystem = createQuarrySystem(terrain, quarryLayout, startupTextures.riverRock);
+    const clayDepositSystem = createClayDepositSystem(terrain, clayDepositLayout);
+    const mineralDepositSystem = createMineralDepositSystem(terrain, mineralDepositLayout);
     await yieldToMain();
     markStartupCheckpoint('river and quarry systems ready');
 
@@ -334,7 +362,18 @@ export class SceneManager {
       phase: 'worldFeatures',
       fraction: 1,
     });
-    const manager = new SceneManager(container, backend, materials, startupTextures, terrain, riverSystem, quarrySystem, worldLayout);
+    const manager = new SceneManager(
+      container,
+      backend,
+      materials,
+      startupTextures,
+      terrain,
+      riverSystem,
+      quarrySystem,
+      clayDepositSystem,
+      mineralDepositSystem,
+      worldLayout,
+    );
     markStartupCheckpoint('scene manager ready');
     void manager.sky.ready.catch((error) => {
       console.warn('Sky volumetric shader still compiling:', error);
@@ -367,7 +406,11 @@ export class SceneManager {
       this.quarrySystem.finishDetails(),
     ]);
     this.forestManager = await createForestProps(this.terrain, this.maxAnisotropy, {
-      isBlockedAt: (x, z) => this.riverSystem.isBlockedAt(x, z) || this.quarrySystem.isBlockedAt(x, z),
+      isBlockedAt: (x, z) =>
+        this.riverSystem.isBlockedAt(x, z)
+        || this.quarrySystem.isBlockedAt(x, z)
+        || this.clayDepositSystem.isBlockedAt(x, z)
+        || this.mineralDepositSystem.isBlockedAt(x, z),
       rendererBackend: this.rendererBackend,
       webgpuRenderer: this.rendererBackend === 'webgpu' ? this.renderer : undefined,
       treeSeed: this.worldLayout.treeSeed,
@@ -380,7 +423,10 @@ export class SceneManager {
       this.forestManager.setDeciduousFoliage(this.environment.deciduousFoliage);
     }
     const isForagingSiteBlocked = (x: number, z: number) =>
-      this.riverSystem.isBlockedAt(x, z) || this.quarrySystem.isBlockedAt(x, z);
+      this.riverSystem.isBlockedAt(x, z)
+      || this.quarrySystem.isBlockedAt(x, z)
+      || this.clayDepositSystem.isBlockedAt(x, z)
+      || this.mineralDepositSystem.isBlockedAt(x, z);
     const deerVisualsPromise = createDeerWildlifeVisuals(
       this.terrain,
       this.worldLayout.foragingLayout.sites,
@@ -432,6 +478,8 @@ export class SceneManager {
         isBlockedAt: (x, z) =>
           this.riverSystem.isGrassBlockedAt(x, z)
           || this.quarrySystem.isGrassBlockedAt(x, z)
+          || this.clayDepositSystem.isGrassBlockedAt(x, z)
+          || this.mineralDepositSystem.isGrassBlockedAt(x, z)
           || (getActivePlacedBuildingLayout()?.isBlockedForGrass(x, z) ?? false),
         maxAnisotropy: this.maxAnisotropy,
         rendererBackend: this.rendererBackend,
@@ -461,7 +509,11 @@ export class SceneManager {
     syncShadowCasters({
       sunLight: this.sunLight,
       forestManager: this.forestManager,
-      propGroups: [this.riverSystem.group, this.quarrySystem.group],
+      propGroups: [
+        this.riverSystem.group,
+        this.quarrySystem.group,
+        this.mineralDepositSystem.group,
+      ],
       buildingRoot: this.selectionGroup,
     });
     this.refreshShadowMap();
@@ -798,6 +850,13 @@ export class SceneManager {
     };
   }
 
+  getRendererAdapterEvidence(): RendererAdapterEvidence {
+    return {
+      ...this.rendererAdapterEvidence,
+      limitations: [...this.rendererAdapterEvidence.limitations],
+    };
+  }
+
   getForestManager(): ForestManager | null {
     return this.forestManager;
   }
@@ -914,7 +973,10 @@ export class SceneManager {
   }
 
   syncQuarryNodes(nodes: Iterable<ResourceNodeState>): boolean {
-    const changed = this.quarrySystem.syncNodes(nodes);
+    const snapshot = [...nodes];
+    const quarryChanged = this.quarrySystem.syncNodes(snapshot);
+    const mineralChanged = this.mineralDepositSystem.syncNodes(snapshot);
+    const changed = quarryChanged || mineralChanged;
     if (!changed) return false;
     this.rebuildRockSpatialIndex();
     this.refreshShadowMap();
@@ -1001,6 +1063,9 @@ export class SceneManager {
     disposeObject3D(this.riverSystem.group);
     this.quarrySystem.dispose();
     disposeObject3D(this.quarrySystem.group);
+    this.clayDepositSystem.dispose();
+    this.mineralDepositSystem.dispose();
+    setActiveClayDepositLayout(null);
     this.precipitation.dispose();
     this.sky.dispose();
     this.postProcessor.dispose();

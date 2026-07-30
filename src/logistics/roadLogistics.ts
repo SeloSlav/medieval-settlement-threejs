@@ -17,7 +17,10 @@ export function compareStableEntityIds(a: string, b: string): number {
     const numericB = BigInt(b);
     return numericA < numericB ? -1 : numericA > numericB ? 1 : 0;
   }
-  return a.localeCompare(b);
+  // Entity ids are ASCII protocol identifiers. Ordinal comparison is both
+  // deterministic across host locales and much cheaper inside 100k-pair
+  // logistics candidate sorts than repeatedly constructing collation state.
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 export function roadPathRoute(

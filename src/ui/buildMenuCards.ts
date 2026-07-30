@@ -3,7 +3,7 @@ import { formatBuildingCost, getBuildingCost, residenceZoneCost } from '../resou
 import { MENU_ACTION_TO_BUILDING_KIND } from './buildMenuMapping.ts';
 
 export type PlacementBuildMenuAction =
-  | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'reforester' | 'woodcutters-lodge'
+  | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
   | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'marketplace'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'smokehouse'
   | 'granary' | 'apiary' | 'watermill' | 'carpenter' | 'ferry-landing' | 'vineyard'
@@ -25,6 +25,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   lumber_mill: '/assets/ui/build-menu/cards/lumber-mill.webp', reforester: '/assets/ui/build-menu/cards/reforester.webp',
   woodcutters_lodge: '/assets/ui/build-menu/cards/woodcutters-lodge.webp', stone_quarry: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
   large_quarry: '/assets/ui/build-menu/cards/large-quarry.webp',
+  mine: '/assets/ui/build-menu/cards/iron-mine.webp',
   clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
   charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
   smithy: '/assets/ui/build-menu/cards/smithy.webp',
@@ -63,9 +64,10 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
   large_quarry: ['Large Quarry', 'G', 'Builds directly over a rich deposit and raises underground stone indefinitely.'],
-  clay_pit: ['Riverbank clay pit', 'C', 'Cuts exposed alluvial clay pockets beside shallow water for the potter. Scout the placement yield, then balance bank richness against the hauling branch.'],
+  mine: ['Mineral mine', 'N', 'Build directly over an iron or salt deposit. Rich workings are faster and do not exhaust; ordinary surface seams are finite.'],
+  clay_pit: ['Riverbank clay pit', 'C', 'Cuts clay beside shallow water for the potter. Every region has one marked rich deposit; ordinary banks remain workable when the haul is shorter.'],
   charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for forge fuel. Severe fire risk: isolate it or keep a ready well in range.'],
-  smithy: ['Village smithy', 'M', 'Forges imported iron blooms with local charcoal into ironwork for tools, construction fittings, and frontier weapons. Elevated fire risk.'],
+  smithy: ['Village smithy', 'M', 'Forges locally mined or imported iron blooms with charcoal into ironwork for tools, construction fittings, and frontier weapons. Elevated fire risk.'],
   potter_kiln: ["Potter's kiln", 'P', 'Fires river clay with firewood into prosperous household wares, preserving crocks, and export pottery. Elevated fire risk rewards well coverage and spacing.'],
   reforester: ['Reforester', 'F', 'Restores harvested woodland with native saplings.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood and supplies connected homes. Smith-forged replacement axes raise output but wear each cycle.'],
@@ -76,12 +78,12 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   watermill: ['Grain watermill', 'M', 'Uses seasonal river power to grind grain into flour. Smith-dressed millstones and maintained iron fittings raise output; spring rain speeds it, while drought and frost slow it. Must touch open water.'],
   granary: ['Village granary', 'N', 'Stores grain and flour, bakes staple food, and collects wild-food surplus.'],
   brewery: ['Brewhouse', 'B', 'Boils grain and water over firewood into ale for prosperous households and export.'],
-  smokehouse: ['Smokehouse', 'Q', 'Uses fresh food, firewood, imported salt, and local pottery to create larger preserved-food batches. Severe fire risk makes isolation and well coverage important.'],
+  smokehouse: ['Smokehouse', 'Q', 'Uses fresh food, firewood, local or imported salt, and pottery to create larger preserved-food batches. Severe fire risk makes isolation and well coverage important.'],
   apiary: ['Forest apiary', 'A', 'Produces seasonal honey and food. Hospitality-enabled monasteries take honey before market export.'],
   carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10% and move connected carts 18% faster.'],
   weaver: ["Weaver's workshop", 'I', 'Turns sheep wool and field-grown flax fibre into household textiles, then exports the surplus.'],
   vineyard: ['Vineyard terrace', 'V', 'An autumn hillside harvest yields food and wine for monastery hospitality or high-value export.'],
-  pastoral_farmstead: ['Pastoral farmstead', 'D', 'Keeps cattle for fresh dairy, manure carts, and nearby ox power, or sheep for upland dairy and an annual wool clip. Imported sea salt turns dairy and part of autumn slaughter into durable provisions; draw fenced pasture and keep a road to the market.'],
+  pastoral_farmstead: ['Pastoral farmstead', 'D', 'Keeps cattle for fresh dairy, manure carts, and nearby ox power, or sheep for upland dairy and an annual wool clip. Local or imported salt turns dairy and part of autumn slaughter into durable provisions; draw fenced pasture and keep a road to its suppliers.'],
   swineherd: ['Woodland swineherd', 'X', 'Raises pigs on mature woodland mast. Felling its pannage trees forces inefficient grain feeding and reduces output.'],
 };
 
@@ -110,7 +112,7 @@ export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 /** Forestry, hunting, foraging, extraction, and rural craft. */
 export const RURAL_INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   entry('hunters_hall'), entry('foragers_shed'), entry('fishing_camp'), entry('woodcutters_lodge'), entry('lumber_mill'), entry('reforester'),
-  entry('stone_quarry'), entry('large_quarry'), entry('carpenter'), entry('weaver'),
+  entry('stone_quarry'), entry('large_quarry'), entry('mine'), entry('carpenter'), entry('weaver'),
   entry('clay_pit'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ];
 

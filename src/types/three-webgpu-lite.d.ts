@@ -4,6 +4,7 @@ declare module 'three/webgpu' {
   export type WebGPURendererParameters = {
     alpha?: boolean;
     antialias?: boolean;
+    device?: unknown;
     forceWebGL?: boolean;
     powerPreference?: 'low-power' | 'high-performance';
   };

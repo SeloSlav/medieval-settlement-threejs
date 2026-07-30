@@ -77,6 +77,7 @@ type BurgageToolOptions = {
   isWaterAt: (x: number, z: number) => boolean;
   isQuarryPitAt?: (x: number, z: number) => boolean;
   onCommit: (commit: BurgageZoneCommit) => void | Promise<void>;
+  onBurgageZonePlaced?: (zoneId: string) => void;
   onDemolishBurgageZone: (zoneId: string) => void | Promise<void>;
   onModeChanged: () => void;
   onPlacementRejected?: (reason: BurgagePlacementFailureReason) => void;
@@ -516,6 +517,7 @@ export class BurgageTool {
       if (zoneId) {
         this.undoStack.push({ zoneId, commit });
         this.redoStack.length = 0;
+        this.options.onBurgageZonePlaced?.(zoneId);
       }
       this.setEnabled(false);
     } catch (error) {

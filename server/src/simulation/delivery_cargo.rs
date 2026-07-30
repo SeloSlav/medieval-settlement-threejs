@@ -127,9 +127,7 @@ pub fn delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> f64 {
         ResidenceNeedKind::Ale
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
-        | ResidenceNeedKind::Pottery => {
-            (provisions::stock_capacity(kind) - stock).max(0.0)
-        }
+        | ResidenceNeedKind::Pottery => (provisions::stock_capacity(kind) - stock).max(0.0),
     }
 }
 
@@ -141,9 +139,7 @@ pub fn has_delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> bool {
         ResidenceNeedKind::Ale
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
-        | ResidenceNeedKind::Pottery => {
-            stock + 1e-6 < provisions::stock_capacity(kind)
-        }
+        | ResidenceNeedKind::Pottery => stock + 1e-6 < provisions::stock_capacity(kind),
     }
 }
 

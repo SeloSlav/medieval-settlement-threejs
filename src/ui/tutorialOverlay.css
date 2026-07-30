@@ -1,0 +1,333 @@
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding:
+    max(22px, env(safe-area-inset-top, 0px))
+    max(18px, env(safe-area-inset-right, 0px))
+    max(22px, env(safe-area-inset-bottom, 0px))
+    max(18px, env(safe-area-inset-left, 0px));
+  overflow: auto;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(10, 12, 9, 0.08) 0 22%, rgba(3, 4, 3, 0.54) 100%),
+    rgba(4, 5, 4, 0.18);
+  backdrop-filter: blur(1.5px) saturate(0.84);
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: auto;
+}
+
+.tutorial-overlay[hidden] {
+  display: none;
+}
+
+.tutorial-overlay.is-visible {
+  opacity: 1;
+}
+
+.tutorial-dialog {
+  position: relative;
+  isolation: isolate;
+  width: min(740px, calc(100vw - 36px));
+  max-height: min(calc(100dvh - 44px), 780px);
+  padding: clamp(27px, 4vw, 42px) clamp(22px, 5.2vw, 52px) 28px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: #ddd6c7;
+  font-family: Georgia, 'Times New Roman', serif;
+  border: 1px solid rgba(201, 160, 76, 0.26);
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(84, 72, 43, 0.17), transparent 43%),
+    linear-gradient(145deg, rgba(17, 19, 16, 0.98), rgba(10, 12, 10, 0.985));
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.72),
+    0 0 24px 13px rgba(5, 7, 5, 0.72),
+    0 30px 90px rgba(0, 0, 0, 0.66),
+    inset 0 1px 0 rgba(255, 242, 204, 0.045);
+  transform: translateY(8px) scale(0.99);
+  transition: transform 210ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.tutorial-dialog::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: '';
+  border-radius: 25px;
+  background:
+    radial-gradient(ellipse at center, transparent 53%, rgba(4, 5, 4, 0.82) 75%, transparent 100%);
+  filter: blur(9px);
+  opacity: 0.92;
+  pointer-events: none;
+}
+
+.tutorial-dialog::after {
+  position: absolute;
+  z-index: -1;
+  inset: 7px;
+  content: '';
+  border: 1px solid rgba(229, 197, 125, 0.04);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.tutorial-overlay.is-visible .tutorial-dialog {
+  transform: translateY(0) scale(1);
+}
+
+.tutorial-dialog__header {
+  text-align: center;
+}
+
+.tutorial-dialog__eyebrow {
+  margin: 0 0 5px;
+  color: rgba(201, 170, 100, 0.8);
+  font-family: Inter, ui-sans-serif, system-ui, Segoe UI, sans-serif;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.tutorial-dialog__title {
+  margin: 0;
+  color: #f2ede2;
+  font-size: clamp(27px, 4vw, 36px);
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: 0.015em;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.72);
+}
+
+.tutorial-dialog__rule {
+  display: block;
+  width: min(480px, 86%);
+  height: 1px;
+  margin: 15px auto 22px;
+  background: linear-gradient(90deg, transparent, rgba(197, 158, 75, 0.4), transparent);
+}
+
+.tutorial-dialog__rows {
+  display: grid;
+  gap: 12px;
+}
+
+.tutorial-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 76px;
+  padding: 12px 18px 12px 12px;
+  border: 1px solid rgba(200, 160, 72, 0.26);
+  border-radius: 12px;
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0.026), transparent 64%),
+    rgba(13, 15, 13, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.34),
+    0 5px 18px rgba(0, 0, 0, 0.14);
+}
+
+.tutorial-row__icon {
+  display: block;
+  width: 52px;
+  height: 52px;
+  border: 2px solid rgba(196, 156, 67, 0.54);
+  border-radius: 50%;
+  background-color: rgba(20, 22, 18, 0.95);
+  background-repeat: no-repeat;
+  box-shadow:
+    0 4px 13px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.54);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.76));
+}
+
+.tutorial-row__icon--camp,
+.tutorial-row__icon--road,
+.tutorial-row__icon--build {
+  background-image: url('/assets/ui/icons/construction-actions.png');
+  background-size: 300% 300%;
+}
+
+.tutorial-row__icon--camp {
+  background-position: 100% 100%;
+}
+
+.tutorial-row__icon--road {
+  background-position: 0 0;
+}
+
+.tutorial-row__icon--build {
+  background-position: 50% 0;
+}
+
+.tutorial-row__icon--timber,
+.tutorial-row__icon--stone,
+.tutorial-row__icon--food,
+.tutorial-row__icon--housing,
+.tutorial-row__icon--labor {
+  background-image: url('/assets/ui/icons/hud-resources-core.png');
+  background-size: 300% 300%;
+}
+
+.tutorial-row__icon--timber {
+  background-position: 0 0;
+}
+
+.tutorial-row__icon--stone {
+  background-position: 50% 0;
+}
+
+.tutorial-row__icon--food {
+  background-position: 50% 50%;
+}
+
+.tutorial-row__icon--housing {
+  background-position: 50% 100%;
+}
+
+.tutorial-row__icon--labor {
+  background-position: 100% 100%;
+}
+
+.tutorial-row__copy {
+  margin: 0;
+  color: #d2cbbd;
+  font-size: clamp(16px, 2.2vw, 20px);
+  font-weight: 550;
+  line-height: 1.38;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.76);
+}
+
+.tutorial-row__emphasis {
+  color: #e1bc63;
+  font-weight: 700;
+}
+
+.tutorial-dialog__footer {
+  display: grid;
+  justify-items: center;
+  gap: 19px;
+  margin-top: 24px;
+  padding-top: 19px;
+  border-top: 1px solid rgba(193, 155, 73, 0.2);
+}
+
+.tutorial-dialog__skip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: rgba(220, 213, 199, 0.72);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 12px;
+  font-style: italic;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tutorial-dialog__skip input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.tutorial-dialog__check {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(219, 205, 170, 0.48);
+  border-radius: 3px;
+  background: rgba(226, 220, 204, 0.13);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.48);
+}
+
+.tutorial-dialog__skip input:checked + .tutorial-dialog__check::after {
+  position: absolute;
+  left: 4px;
+  top: 0;
+  width: 6px;
+  height: 11px;
+  content: '';
+  border: solid #e1bc63;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.tutorial-dialog__skip input:focus-visible + .tutorial-dialog__check {
+  outline: 2px solid rgba(225, 188, 99, 0.7);
+  outline-offset: 3px;
+}
+
+.tutorial-dialog__confirm {
+  min-width: 158px;
+  padding: 9px 28px 10px;
+  color: #ead8aa;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  font-weight: 700;
+  border: 1px solid rgba(203, 161, 72, 0.4);
+  border-width: 1px 0;
+  background:
+    linear-gradient(90deg, transparent, rgba(176, 133, 51, 0.09), transparent),
+    rgba(5, 6, 5, 0.2);
+  text-shadow: 0 1px 2px #000;
+  cursor: pointer;
+}
+
+.tutorial-dialog__confirm:hover,
+.tutorial-dialog__confirm:focus-visible {
+  color: #fff0c6;
+  border-color: rgba(231, 194, 111, 0.72);
+  background:
+    linear-gradient(90deg, transparent, rgba(190, 145, 55, 0.18), transparent),
+    rgba(5, 6, 5, 0.32);
+  outline: none;
+}
+
+@media (max-width: 620px) {
+  .tutorial-overlay {
+    place-items: start center;
+  }
+
+  .tutorial-dialog {
+    width: min(100%, 520px);
+    padding: 24px 18px 22px;
+  }
+
+  .tutorial-dialog__rule {
+    margin-bottom: 17px;
+  }
+
+  .tutorial-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 11px;
+    min-height: 68px;
+    padding: 10px 12px 10px 9px;
+  }
+
+  .tutorial-row__icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tutorial-row__copy {
+    font-size: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-overlay,
+  .tutorial-dialog {
+    transition: none;
+  }
+}

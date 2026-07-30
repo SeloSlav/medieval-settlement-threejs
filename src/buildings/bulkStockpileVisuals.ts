@@ -14,6 +14,8 @@ import {
 export const WOODCUTTERS_FIREWOOD_VISUAL_SEGMENTS = 4;
 export const STONE_QUARRY_STONE_VISUAL_SEGMENTS = 3;
 export const LARGE_QUARRY_STONE_VISUAL_SEGMENTS = 4;
+export const MINE_IRON_VISUAL_SEGMENTS = 6;
+export const MINE_SALT_VISUAL_SEGMENTS = 6;
 export const CLAY_PIT_CLAY_VISUAL_SEGMENTS = 5;
 export const CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS = 5;
@@ -63,6 +65,16 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.ironwork ?? 0,
         BUILDING_STORAGE_CAPS.large_quarry.ironwork ?? 0,
         CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
+      )}`;
+    case 'mine':
+      return `:bulk-store:${stockpileVisualLevel(
+        building.iron ?? 0,
+        BUILDING_STORAGE_CAPS.mine.iron,
+        MINE_IRON_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
+        building.salt ?? 0,
+        BUILDING_STORAGE_CAPS.mine.salt,
+        MINE_SALT_VISUAL_SEGMENTS,
       )}`;
     case 'clay_pit':
       return `:bulk-store:${stockpileVisualLevel(
@@ -168,6 +180,22 @@ export function syncBulkStockpileVisuals(
         BUILDING_STORAGE_CAPS.large_quarry.stone,
       );
       syncCivilianToolStockpile(marker, building);
+      break;
+    case 'mine':
+      syncNamedStockpile(
+        marker,
+        'IronMineStockpile',
+        'IronMineOreSegment',
+        building.iron ?? 0,
+        BUILDING_STORAGE_CAPS.mine.iron,
+      );
+      syncNamedStockpile(
+        marker,
+        'SaltMineStockpile',
+        'SaltMineSaltSegment',
+        building.salt ?? 0,
+        BUILDING_STORAGE_CAPS.mine.salt,
+      );
       break;
     case 'clay_pit':
       syncNamedStockpile(

@@ -490,6 +490,9 @@ export type GameBalance = {
     smokehousePotteryPerCycle: number;
     smokehousePreservedFoodPerCycle: number;
     clayPitClayPerCycle: number;
+    mineIronPerCycle: number;
+    mineSaltPerCycle: number;
+    richMineThroughputMultiplier: number;
     charcoalBurnerFirewoodPerCycle: number;
     charcoalBurnerCharcoalPerCycle: number;
     smithyIronPerCycle: number;
@@ -610,6 +613,7 @@ const simKindByKind: Record<string, string | null> = {
   reforester: 'Reforester',
   stone_quarry: 'StoneQuarry',
   large_quarry: 'LargeQuarry',
+  mine: 'Mine',
   clay_pit: 'ClayPit',
   charcoal_burner: 'CharcoalBurner',
   smithy: 'Smithy',
@@ -976,6 +980,9 @@ function generateRust(): string {
     `pub const SMOKEHOUSE_POTTERY_PER_CYCLE: f64 = ${rustF64(b.production.smokehousePotteryPerCycle)};`,
     `pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehousePreservedFoodPerCycle)};`,
     `pub const CLAY_PIT_CLAY_PER_CYCLE: f64 = ${rustF64(b.production.clayPitClayPerCycle)};`,
+    `pub const MINE_IRON_PER_CYCLE: f64 = ${rustF64(b.production.mineIronPerCycle)};`,
+    `pub const MINE_SALT_PER_CYCLE: f64 = ${rustF64(b.production.mineSaltPerCycle)};`,
+    `pub const RICH_MINE_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.production.richMineThroughputMultiplier)};`,
     `pub const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.charcoalBurnerFirewoodPerCycle)};`,
     `pub const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE: f64 = ${rustF64(b.production.charcoalBurnerCharcoalPerCycle)};`,
     `pub const SMITHY_IRON_PER_CYCLE: f64 = ${rustF64(b.production.smithyIronPerCycle)};`,
@@ -1210,6 +1217,7 @@ function generateRust(): string {
   lines.push('    Reforester,');
   lines.push('    StoneQuarry,');
   lines.push('    LargeQuarry,');
+  lines.push('    Mine,');
   lines.push('    ClayPit,');
   lines.push('    CharcoalBurner,');
   lines.push('    Smithy,');
@@ -1768,6 +1776,9 @@ function generateTypeScript(): string {
     `export const SMOKEHOUSE_POTTERY_PER_CYCLE = ${b.production.smokehousePotteryPerCycle};`,
     `export const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE = ${b.production.smokehousePreservedFoodPerCycle};`,
     `export const CLAY_PIT_CLAY_PER_CYCLE = ${b.production.clayPitClayPerCycle};`,
+    `export const MINE_IRON_PER_CYCLE = ${b.production.mineIronPerCycle};`,
+    `export const MINE_SALT_PER_CYCLE = ${b.production.mineSaltPerCycle};`,
+    `export const RICH_MINE_THROUGHPUT_MULTIPLIER = ${b.production.richMineThroughputMultiplier};`,
     `export const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE = ${b.production.charcoalBurnerFirewoodPerCycle};`,
     `export const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE = ${b.production.charcoalBurnerCharcoalPerCycle};`,
     `export const SMITHY_IRON_PER_CYCLE = ${b.production.smithyIronPerCycle};`,

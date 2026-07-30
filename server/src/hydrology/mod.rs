@@ -5,12 +5,15 @@ use crate::hydrology_grid_generated::{
 
 pub const CLAY_BANK_SCORE_FLOOR: f64 = 0.15;
 pub const CLAY_BANK_SCORE_CEILING: f64 = 0.53;
-pub const CLAY_BANK_SITE_YIELD_MIN: f64 = 0.85;
-pub const CLAY_BANK_SITE_YIELD_MAX: f64 = 1.25;
-pub const CLAY_BANK_REGIONAL_YIELD_MIN: f64 = 0.9;
-pub const CLAY_BANK_REGIONAL_YIELD_MAX: f64 = 1.1;
-pub const CLAY_BANK_TOTAL_YIELD_MIN: f64 = 0.75;
-pub const CLAY_BANK_TOTAL_YIELD_MAX: f64 = 1.38;
+pub const CLAY_BANK_SITE_YIELD_MIN: f64 = 0.82;
+pub const CLAY_BANK_SITE_YIELD_MAX: f64 = 1.08;
+pub const CLAY_BANK_REGIONAL_YIELD_MIN: f64 = 0.95;
+pub const CLAY_BANK_REGIONAL_YIELD_MAX: f64 = 1.05;
+pub const CLAY_BANK_TOTAL_YIELD_MIN: f64 = 0.78;
+pub const CLAY_BANK_ORDINARY_YIELD_MAX: f64 = 1.14;
+pub const CLAY_BANK_RICH_YIELD_MIN: f64 = 1.28;
+pub const CLAY_BANK_TOTAL_YIELD_MAX: f64 = 1.42;
+pub const RICH_CLAY_DEPOSIT_RADIUS: f64 = 24.0;
 
 pub fn sample_hydrology_score(x: f64, z: f64) -> f64 {
     if x < HYDROLOGY_GRID_MIN_X
@@ -72,7 +75,26 @@ pub fn clay_bank_regional_yield_multiplier(resource_abundance: u8) -> f64 {
 pub fn clay_bank_yield_multiplier(hydrology_score: f64, resource_abundance: u8) -> f64 {
     (clay_bank_site_yield_multiplier(hydrology_score)
         * clay_bank_regional_yield_multiplier(resource_abundance))
-    .clamp(CLAY_BANK_TOTAL_YIELD_MIN, CLAY_BANK_TOTAL_YIELD_MAX)
+    .clamp(CLAY_BANK_TOTAL_YIELD_MIN, CLAY_BANK_ORDINARY_YIELD_MAX)
+}
+
+pub fn clay_bank_yield_multiplier_with_richness(
+    hydrology_score: f64,
+    resource_abundance: u8,
+    rich_deposit_strength: f64,
+) -> f64 {
+    let ordinary_yield = clay_bank_yield_multiplier(hydrology_score, resource_abundance);
+    let richness = if rich_deposit_strength.is_finite() {
+        rich_deposit_strength.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    if richness <= 0.0 {
+        return ordinary_yield;
+    }
+    let rich_yield =
+        (ordinary_yield * 1.3).clamp(CLAY_BANK_RICH_YIELD_MIN, CLAY_BANK_TOTAL_YIELD_MAX);
+    ordinary_yield + (rich_yield - ordinary_yield) * richness
 }
 
 pub fn clay_bank_yield_multiplier_at(x: f64, z: f64, resource_abundance: u8) -> f64 {
@@ -88,8 +110,10 @@ fn grid_at(ix: usize, iz: usize) -> f64 {
 mod tests {
     use super::{
         clay_bank_regional_yield_multiplier, clay_bank_site_yield_multiplier,
-        clay_bank_yield_multiplier, clay_bank_yield_multiplier_at, sample_hydrology_score,
-        CLAY_BANK_SITE_YIELD_MAX, CLAY_BANK_SITE_YIELD_MIN,
+        clay_bank_yield_multiplier, clay_bank_yield_multiplier_at,
+        clay_bank_yield_multiplier_with_richness, sample_hydrology_score,
+        CLAY_BANK_ORDINARY_YIELD_MAX, CLAY_BANK_RICH_YIELD_MIN, CLAY_BANK_SITE_YIELD_MAX,
+        CLAY_BANK_SITE_YIELD_MIN,
     };
 
     #[test]
@@ -118,10 +142,20 @@ mod tests {
     #[test]
     fn regional_abundance_scales_the_same_local_bank_conservatively() {
         assert_eq!(clay_bank_regional_yield_multiplier(50), 1.0);
-        assert_eq!(clay_bank_regional_yield_multiplier(0), 0.9);
-        assert_eq!(clay_bank_regional_yield_multiplier(100), 1.1);
-        assert_eq!(clay_bank_regional_yield_multiplier(255), 1.1);
+        assert_eq!(clay_bank_regional_yield_multiplier(0), 0.95);
+        assert_eq!(clay_bank_regional_yield_multiplier(100), 1.05);
+        assert_eq!(clay_bank_regional_yield_multiplier(255), 1.05);
         assert!(clay_bank_yield_multiplier(0.3, 100) > clay_bank_yield_multiplier(0.3, 0));
+        assert!(clay_bank_yield_multiplier(1.0, 100) <= CLAY_BANK_ORDINARY_YIELD_MAX);
+    }
+
+    #[test]
+    fn explicit_rich_deposit_is_distinct_from_ordinary_shoreline() {
+        let ordinary = clay_bank_yield_multiplier_with_richness(0.3, 50, 0.0);
+        let rich = clay_bank_yield_multiplier_with_richness(0.3, 50, 1.0);
+        assert!(ordinary <= CLAY_BANK_ORDINARY_YIELD_MAX);
+        assert!(rich >= CLAY_BANK_RICH_YIELD_MIN);
+        assert!(rich > ordinary);
     }
 
     #[test]

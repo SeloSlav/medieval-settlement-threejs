@@ -4,8 +4,18 @@ import { deriveSubSeed, type WorldGenerationSettings, type WorldMapSize } from '
 export type ForagingNodeCounts = Record<ForagingNodeKind, number>;
 
 export type RegionalResourcePlan = {
-  /** A rich stone deposit is invariant; this is the number of additional ordinary deposits. */
+  /** Finite surface-stone deposits. At least one is present in every region. */
   ordinaryQuarryCount: number;
+  /** Optional deep stone source, rolled from the seed and regional settings. */
+  richStoneDepositCount: number;
+  /** Explicit ordinary alluvial banks. At least one is present in every region. */
+  ordinaryClayDepositCount: number;
+  /** Optional high-output alluvial bank, rolled independently from stone. */
+  richClayDepositCount: number;
+  /** Rich iron-or-salt sites rolled from the mineral budget. */
+  richMineralDepositCount: number;
+  /** Supporting finite iron-or-salt deposits vary with map size and abundance. */
+  ordinaryMineralDepositCount: number;
   foragingNodeCounts: ForagingNodeCounts;
   presentForagingKinds: ForagingNodeKind[];
   totalForagingNodes: number;
@@ -13,6 +23,9 @@ export type RegionalResourcePlan = {
 
 type SizeResourceBudget = {
   ordinaryQuarries: number;
+  ordinaryClayBanks: number;
+  ordinaryMineralDeposits: number;
+  richMineralSlots: number;
   foragingNodes: number;
   varietyBonus: number;
   maxForagingNodes: number;
@@ -21,7 +34,10 @@ type SizeResourceBudget = {
 
 const SIZE_RESOURCE_BUDGETS: Record<WorldMapSize, SizeResourceBudget> = {
   small: {
-    ordinaryQuarries: 2,
+    ordinaryQuarries: 1,
+    ordinaryClayBanks: 1,
+    ordinaryMineralDeposits: 2,
+    richMineralSlots: 1,
     foragingNodes: 8,
     varietyBonus: -10,
     maxForagingNodes: 8,
@@ -29,13 +45,19 @@ const SIZE_RESOURCE_BUDGETS: Record<WorldMapSize, SizeResourceBudget> = {
   },
   medium: {
     ordinaryQuarries: 2,
+    ordinaryClayBanks: 2,
+    ordinaryMineralDeposits: 2,
+    richMineralSlots: 1,
     foragingNodes: 8,
     varietyBonus: 0,
     maxForagingNodes: 10,
     perKindCap: 3,
   },
   large: {
-    ordinaryQuarries: 2,
+    ordinaryQuarries: 3,
+    ordinaryClayBanks: 3,
+    ordinaryMineralDeposits: 3,
+    richMineralSlots: 2,
     foragingNodes: 8,
     varietyBonus: 10,
     maxForagingNodes: 12,
@@ -111,15 +133,75 @@ export function createRegionalResourcePlan(
   }
 
   return {
-    // Every world gets one rich deposit. Abundance only changes the supporting sites.
+    // Every material has an ordinary physical source. Rich grades are separate
+    // deterministic seed rolls so map size improves the odds without making
+    // any particular rich resource compulsory.
     ordinaryQuarryCount: Math.max(
-      0,
-      Math.min(3, sizeBudget.ordinaryQuarries + Math.round((abundance - 50) / 50)),
+      1,
+      Math.min(4, sizeBudget.ordinaryQuarries + Math.round((abundance - 50) / 50)),
+    ),
+    richStoneDepositCount: seededRichCount(
+      settings,
+      'stone',
+      1,
+      richnessChance(settings.mapSize, abundance, 0.28),
+    ),
+    ordinaryClayDepositCount: Math.max(
+      1,
+      Math.min(4, sizeBudget.ordinaryClayBanks + Math.round((abundance - 50) / 50)),
+    ),
+    richClayDepositCount: seededRichCount(
+      settings,
+      'clay',
+      1,
+      richnessChance(
+        settings.mapSize,
+        Math.round((abundance * 2 + clampPercent(settings.hydrology)) / 3),
+        0.32,
+      ),
+    ),
+    richMineralDepositCount: seededRichCount(
+      settings,
+      'iron-salt',
+      sizeBudget.richMineralSlots,
+      richnessChance(settings.mapSize, abundance, 0.34),
+    ),
+    ordinaryMineralDepositCount: Math.max(
+      2,
+      Math.min(
+        4,
+        sizeBudget.ordinaryMineralDeposits + Math.round((abundance - 50) / 50),
+      ),
     ),
     foragingNodeCounts,
     presentForagingKinds,
     totalForagingNodes: allocated,
   };
+}
+
+function richnessChance(
+  mapSize: WorldMapSize,
+  abundance: number,
+  baseChance: number,
+): number {
+  const sizeBonus = mapSize === 'large' ? 0.36 : mapSize === 'medium' ? 0.2 : 0;
+  const abundanceAdjustment = (clampPercent(abundance) - 50) / 250;
+  return Math.max(0.08, Math.min(0.9, baseChance + sizeBonus + abundanceAdjustment));
+}
+
+function seededRichCount(
+  settings: WorldGenerationSettings,
+  resource: string,
+  slots: number,
+  chance: number,
+): number {
+  let richCount = 0;
+  for (let slot = 0; slot < slots; slot++) {
+    const roll = (deriveSubSeed(settings.seed, `rich-deposit:${resource}:${slot}`) >>> 0)
+      / 0x1_0000_0000;
+    if (roll < chance) richCount++;
+  }
+  return richCount;
 }
 
 export function describeResourceAbundance(value: number): string {
@@ -130,7 +212,7 @@ export function describeResourceAbundance(value: number): string {
 
 export function describeResourceVariety(value: number): string {
   if (value <= 25) return 'Specialized';
-  if (value >= 80) return 'Complete';
+  if (value >= 80) return 'Broad mix';
   return 'Regional mix';
 }
 

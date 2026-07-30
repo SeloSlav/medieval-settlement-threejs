@@ -41,6 +41,9 @@ pub fn find_nearest_quarry(
     let mut best_dist = f64::INFINITY;
 
     for quarry in ctx.db.quarry().iter() {
+        if !quarry.quarry_id.starts_with("quarry-") {
+            continue;
+        }
         if quarry.remaining <= 0.0 {
             continue;
         }

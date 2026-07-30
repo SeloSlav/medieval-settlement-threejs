@@ -8,6 +8,7 @@ export type PlacementInteractionGate = {
   isFarmFieldToolEnabled: () => boolean;
   isFirstPersonActive: () => boolean;
   isMenuOpen: () => boolean;
+  isTutorialOpen?: () => boolean;
 };
 
 export function isSessionGameplayBlocked(gate: PlacementInteractionGate): boolean {
@@ -20,7 +21,8 @@ export function isBuildingPlacementBlocked(gate: PlacementInteractionGate): bool
     || gate.isBurgageToolEnabled()
     || gate.isFarmFieldToolEnabled()
     || gate.isFirstPersonActive()
-    || gate.isMenuOpen();
+    || gate.isMenuOpen()
+    || (gate.isTutorialOpen?.() ?? false);
 }
 
 export function isBurgagePlacementBlocked(gate: PlacementInteractionGate): boolean {
@@ -30,7 +32,8 @@ export function isBurgagePlacementBlocked(gate: PlacementInteractionGate): boole
     || gate.isBuildingToolEnabled()
     || gate.isFarmFieldToolEnabled()
     || gate.isFirstPersonActive()
-    || gate.isMenuOpen();
+    || gate.isMenuOpen()
+    || (gate.isTutorialOpen?.() ?? false);
 }
 
 export function isRoadPlacementBlocked(gate: PlacementInteractionGate): boolean {
@@ -40,7 +43,8 @@ export function isRoadPlacementBlocked(gate: PlacementInteractionGate): boolean 
     || gate.isBurgageToolEnabled()
     || gate.isFarmFieldToolEnabled()
     || gate.isFirstPersonActive()
-    || gate.isMenuOpen();
+    || gate.isMenuOpen()
+    || (gate.isTutorialOpen?.() ?? false);
 }
 
 export function isFarmFieldPlacementBlocked(gate: PlacementInteractionGate): boolean {
@@ -50,7 +54,8 @@ export function isFarmFieldPlacementBlocked(gate: PlacementInteractionGate): boo
     || gate.isBuildingToolEnabled()
     || gate.isBurgageToolEnabled()
     || gate.isFirstPersonActive()
-    || gate.isMenuOpen();
+    || gate.isMenuOpen()
+    || (gate.isTutorialOpen?.() ?? false);
 }
 
 export function isWorldInspectionBlocked(gate: PlacementInteractionGate): boolean {
@@ -60,7 +65,8 @@ export function isWorldInspectionBlocked(gate: PlacementInteractionGate): boolea
     || gate.isBurgageToolEnabled()
     || gate.isFarmFieldToolEnabled()
     || gate.isFirstPersonActive()
-    || gate.isMenuOpen();
+    || gate.isMenuOpen()
+    || (gate.isTutorialOpen?.() ?? false);
 }
 
 export function isWorldResourceIconVisibilityBlocked(
@@ -74,9 +80,12 @@ export function isWorldResourceIconVisibilityBlocked(
     || gate.isBurgageToolEnabled()
     || gate.isFarmFieldToolEnabled()
     || gate.isFirstPersonActive()
-    || gate.isMenuOpen();
+    || gate.isMenuOpen()
+    || (gate.isTutorialOpen?.() ?? false);
 }
 
 export function isOverlayBlocked(gate: PlacementInteractionGate): boolean {
-  return isSessionGameplayBlocked(gate) || gate.isMenuOpen();
+  return isSessionGameplayBlocked(gate)
+    || gate.isMenuOpen()
+    || (gate.isTutorialOpen?.() ?? false);
 }

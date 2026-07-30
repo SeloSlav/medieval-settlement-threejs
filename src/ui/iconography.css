@@ -1,5 +1,5 @@
 /*
- * Gorski Kotar iconography
+ * Frontier-valley iconography
  *
  * Generated, hand-inked sprite atlases replace the former inline SVG and
  * Unicode resource glyphs. Interaction frames remain CSS so focus, disabled,
@@ -100,6 +100,17 @@
 .map-resource-icon-glyph--berries { background-position: 100% 0; }
 .map-resource-icon-glyph--mushrooms { background-position: 0 100%; }
 .map-resource-icon-glyph--fish { background-position: 50% 100%; }
+.map-resource-icon-glyph--clay { background-position: 100% 100%; }
+.map-resource-icon-glyph--iron,
+.map-resource-icon-glyph--salt { background-position: 0 0; }
+
+.map-resource-icon-glyph--iron {
+  filter: sepia(0.8) saturate(1.8) hue-rotate(330deg) brightness(0.78);
+}
+
+.map-resource-icon-glyph--salt {
+  filter: grayscale(0.8) brightness(1.45);
+}
 
 .quarry-map-icon,
 .foraging-map-icon {

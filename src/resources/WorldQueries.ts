@@ -1196,10 +1196,10 @@ export class WorldQueries {
         inboundTargets.add(trip.targetBuildingId);
       }
     }
-    if (localMaterialInputCommodity(source.kind) === commodity) {
+    if (localMaterialInputCommodity(source.kind, source) === commodity) {
       const localSources = [...this.fireEnabledBuildings(state, fireDisabled)]
         .filter((candidate) =>
-          localMaterialInputCommodity(candidate.kind) != null
+          localMaterialInputCommodity(candidate.kind, candidate) != null
           && candidate.constructionComplete !== false
           && candidate.assignedLabor > 0
           && !activeSources.has(candidate.id));

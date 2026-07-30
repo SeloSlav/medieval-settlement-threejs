@@ -28,6 +28,7 @@ export type BuildingPlacementFailureReason =
   | 'on_quarry_pit'
   | 'no_quarry_in_range'
   | 'requires_rich_deposit'
+  | 'requires_mineral_deposit'
   | 'no_game_in_range'
   | 'no_berries_in_range'
   | 'no_fish_in_range'
@@ -98,7 +99,11 @@ export function validateBuildingPlacement(
     if (slope > MAX_FOOTPRINT_HEIGHT_DELTA) {
       return { ok: false, reason: 'too_steep' };
     }
-  } else if (kind !== 'large_quarry' && isFootprintTooUneven(kind, x, z, context.getNaturalHeightAt)) {
+  } else if (
+    kind !== 'large_quarry'
+    && kind !== 'mine'
+    && isFootprintTooUneven(kind, x, z, context.getNaturalHeightAt)
+  ) {
     return { ok: false, reason: 'too_steep' };
   }
 
@@ -106,7 +111,11 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'on_road' };
   }
 
-  if (kind !== 'large_quarry' && context.isQuarryPitAt?.(x, z)) {
+  if (
+    kind !== 'large_quarry'
+    && kind !== 'mine'
+    && context.isQuarryPitAt?.(x, z)
+  ) {
     return { ok: false, reason: 'on_quarry_pit' };
   }
 
@@ -201,6 +210,10 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'requires_rich_deposit' };
   }
 
+  if (kind === 'mine' && !hasMineralDepositAtCenter(x, z, context.quarries)) {
+    return { ok: false, reason: 'requires_mineral_deposit' };
+  }
+
   if (kind === 'hunters_hall' && !hasForagingInRadius(x, z, getBuildingDefinition(kind).workRadius, 'game', context.foragingNodes)) {
     return { ok: false, reason: 'no_game_in_range' };
   }
@@ -283,11 +296,15 @@ export function resolveBuildingPlacementPoint(
   z: number,
   quarries: Iterable<ResourceNodeState>,
 ): { x: number; z: number } {
-  if (kind !== 'large_quarry') return { x, z };
+  if (kind !== 'large_quarry' && kind !== 'mine') return { x, z };
   let nearest: ResourceNodeState | null = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
   for (const quarry of quarries) {
-    if (!quarry.isRich) continue;
+    const eligible = kind === 'large_quarry'
+      ? quarry.resource === 'stone' && quarry.isRich
+      : (quarry.resource === 'iron' || quarry.resource === 'salt')
+        && (quarry.isRich || quarry.remaining > 0);
+    if (!eligible) continue;
     const distance = Math.hypot(quarry.x - x, quarry.z - z);
     if (distance > RICH_QUARRY_SNAP_RADIUS || distance >= nearestDistance) continue;
     nearest = quarry;
@@ -344,8 +361,28 @@ function hasRichQuarryAtCenter(
   quarries: Iterable<ResourceNodeState>,
 ): boolean {
   for (const quarry of quarries) {
-    if (!quarry.isRich) continue;
+    if (quarry.resource !== 'stone' || !quarry.isRich) continue;
     if (Math.hypot(quarry.x - x, quarry.z - z) <= RICH_QUARRY_CENTER_TOLERANCE) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasMineralDepositAtCenter(
+  x: number,
+  z: number,
+  quarries: Iterable<ResourceNodeState>,
+): boolean {
+  for (const deposit of quarries) {
+    if (
+      deposit.resource !== 'iron'
+      && deposit.resource !== 'salt'
+    ) {
+      continue;
+    }
+    if (!deposit.isRich && deposit.remaining <= 0) continue;
+    if (Math.hypot(deposit.x - x, deposit.z - z) <= RICH_QUARRY_CENTER_TOLERANCE) {
       return true;
     }
   }
@@ -434,6 +471,7 @@ function hasQuarryStoneInRadius(
   quarries: Iterable<ResourceNodeState>,
 ): boolean {
   for (const quarry of quarries) {
+    if (quarry.resource !== 'stone') continue;
     if (quarry.remaining <= 0) continue;
     if (Math.hypot(quarry.x - x, quarry.z - z) <= radius) {
       return true;

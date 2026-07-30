@@ -33,7 +33,9 @@ use crate::granary_policy::{
     GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
 };
 use crate::harvest_reserve_policy::{harvestable_wild_stock, normalize_harvest_reserve_percent};
-use crate::hydrology::{sample_hydrology_score, well_capacity_from_hydrology};
+use crate::hydrology::{
+    sample_hydrology_score, well_capacity_from_hydrology, RICH_CLAY_DEPOSIT_RADIUS,
+};
 use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
 use crate::marketplace_procurement_policy::{
@@ -217,6 +219,9 @@ fn has_mature_tree_in_radius(ctx: &ReducerContext, x: f64, z: f64, radius: f64) 
 fn has_quarry_stone_in_radius(ctx: &ReducerContext, x: f64, z: f64, radius: f64) -> bool {
     let radius_sq = radius * radius;
     for quarry in ctx.db.quarry().iter() {
+        if !quarry.quarry_id.starts_with("quarry-") {
+            continue;
+        }
         if quarry.remaining <= 0.0 {
             continue;
         }
@@ -233,8 +238,20 @@ fn has_rich_quarry_at_center(ctx: &ReducerContext, x: f64, z: f64) -> bool {
     const CENTER_TOLERANCE: f64 = 2.5;
     let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
     ctx.db.quarry().iter().any(|quarry| {
-        quarry.is_rich
+        quarry.quarry_id.starts_with("quarry-")
+            && quarry.is_rich
             && (quarry.x - x) * (quarry.x - x) + (quarry.z - z) * (quarry.z - z) <= tolerance_sq
+    })
+}
+
+fn has_mineral_deposit_at_center(ctx: &ReducerContext, x: f64, z: f64) -> bool {
+    const CENTER_TOLERANCE: f64 = 2.5;
+    let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
+    ctx.db.quarry().iter().any(|deposit| {
+        (deposit.quarry_id.starts_with("deposit-iron-")
+            || deposit.quarry_id.starts_with("deposit-salt-"))
+            && (deposit.is_rich || deposit.remaining > 0.0)
+            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
     })
 }
 
@@ -297,13 +314,22 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         return Err("Place the founders' camp before building the settlement.".into());
     }
 
-    if kind != "large_quarry" && is_on_quarry_pit(ctx, x, z) {
+    let on_mineral_deposit = kind == "mine" && has_mineral_deposit_at_center(ctx, x, z);
+
+    if kind != "large_quarry" && !on_mineral_deposit && is_on_quarry_pit(ctx, x, z) {
         return Err("Cannot build on a quarry pit.".to_string());
     }
 
-    // Quarry generation now guarantees a dry padded pit. Do not let the coarse,
-    // static server hydrology grid falsely reject a visually dry stonecutter site.
-    if kind != "large_quarry" && is_open_water(x, z) {
+    // Generated mineral landmarks are authoritative terrain anchors. Do not let
+    // the coarse static hydrology grid reject a visually dry clay site in
+    // worlds whose river seed differs from the embedded default grid.
+    let on_generated_clay_bank = kind == "clay_pit"
+        && has_foraging_in_radius(ctx, x, z, RICH_CLAY_DEPOSIT_RADIUS, "clay", true);
+    if kind != "large_quarry"
+        && !on_mineral_deposit
+        && !on_generated_clay_bank
+        && is_open_water(x, z)
+    {
         return Err(if kind == "well" {
             "Cannot build a well on open water.".to_string()
         } else {
@@ -314,7 +340,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         return Err("The entire fishing camp must stand on dry land.".to_string());
     }
 
-    if def.requires_water_shore && !is_near_open_water(x, z, 24.0) {
+    if def.requires_water_shore && !on_generated_clay_bank && !is_near_open_water(x, z, 24.0) {
         return Err("This building must be placed on a river or lake shore.".to_string());
     }
 
@@ -490,6 +516,12 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         );
     }
 
+    if kind == "mine" && !on_mineral_deposit {
+        return Err(
+            "Mineral mines must be placed directly over an iron or salt deposit.".to_string(),
+        );
+    }
+
     if def.requires_game && !has_foraging_in_radius(ctx, x, z, def.work_radius, "game", false) {
         return Err("No game within work range.".to_string());
     }
@@ -551,13 +583,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         ));
     }
     let (treasury_timber, treasury_stone, treasury_ironwork) =
-        construction_treasury_reservation(
-            ctx,
-            owner,
-            timber_cost,
-            cost.stone,
-            cost.ironwork,
-        );
+        construction_treasury_reservation(ctx, owner, timber_cost, cost.stone, cost.ironwork);
     let assigned_builders = initial_construction_labor(available_building_labor(ctx, owner));
 
     let config = ctx

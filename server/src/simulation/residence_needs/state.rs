@@ -37,7 +37,9 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
         })
         .collect();
 
-    let missing_cloth = !needs.iter().any(|need| need.kind == ResidenceNeedKind::Cloth);
+    let missing_cloth = !needs
+        .iter()
+        .any(|need| need.kind == ResidenceNeedKind::Cloth);
     let missing_pottery = !needs
         .iter()
         .any(|need| need.kind == ResidenceNeedKind::Pottery);

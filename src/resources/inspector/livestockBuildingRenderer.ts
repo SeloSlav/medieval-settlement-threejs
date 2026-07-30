@@ -359,8 +359,8 @@ export function renderLivestockBuildingInspector(
     ? ''
     : `<li><span>Cheese salt</span><span>${fodderPlan.dairySaltStock.toFixed(2)} onsite${inboundSalt > 0.001 ? ` + ${inboundSalt.toFixed(2)} inbound` : ''} / ${fodderPlan.dairySaltTarget.toFixed(2)} working target · ${fodderPlan.dairySaltPerDay.toFixed(2)} / day at current herd and staffing · ${formatProvisionRunway(fodderPlan.dairySaltRunwayDays)} onsite</span></li>
       <li><span>Salt logistics</span><span>${inboundSalt > 0.001
-        ? `Sea salt cart ${formatTripPhaseLabel(inboundTrip!.phase).toLowerCase()} from ${context.worldQueries.getBuildingLabel(context.worldQueries.getBuilding(inboundTrip!.buildingId)?.kind ?? 'marketplace')}`
-        : 'Road-linked staffed marketplace carts share imported sea salt between smokehouses and pastoral holdings by work priority and runway'} · empty salt stops cured cheese, not fresh dairy or herd care</span></li>`;
+        ? `Salt cart ${formatTripPhaseLabel(inboundTrip!.phase).toLowerCase()} from ${context.worldQueries.getBuildingLabel(context.worldQueries.getBuilding(inboundTrip!.buildingId)?.kind ?? 'marketplace')}`
+        : 'Road-linked mine or marketplace carts share salt between smokehouses and pastoral holdings by work priority and runway'} · empty salt stops cured cheese, not fresh dairy or herd care</span></li>`;
 
   return {
     eyebrow: 'Livestock holding',

@@ -4,7 +4,7 @@
   display: grid;
   gap: 8px;
   padding: 11px 12px 12px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid rgba(213, 190, 139, 0.28);
   border-radius: 12px;
   background:
@@ -48,6 +48,413 @@
   gap: 2px 10px;
   padding: 1px 1px 7px;
   border-bottom: 1px solid rgba(211, 188, 137, 0.18);
+}
+
+.settlement-hud__approval-shell {
+  position: relative;
+}
+
+.settlement-hud__approval-button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  overflow: hidden;
+  border: 1px solid rgba(205, 180, 119, 0.32);
+  border-radius: 7px;
+  color: #dcd0b5;
+  background:
+    linear-gradient(105deg, rgba(226, 200, 139, 0.08), transparent 42%),
+    rgba(7, 9, 7, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 246, 218, 0.055),
+    0 4px 14px rgba(0, 0, 0, 0.12);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    transform 140ms ease;
+}
+
+.settlement-hud__approval-button::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: #9ebc7a;
+  opacity: 0.72;
+}
+
+.settlement-hud__approval-button:hover:not(:disabled),
+.settlement-hud__approval-button:focus-visible,
+.settlement-hud__approval-button[aria-expanded='true'] {
+  border-color: rgba(224, 193, 113, 0.72);
+  background-color: rgba(72, 61, 33, 0.26);
+  outline: none;
+}
+
+.settlement-hud__approval-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.settlement-hud__approval-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.settlement-hud__approval-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(176, 198, 137, 0.3);
+  border-radius: 50%;
+  color: #c7dba3;
+  background: rgba(97, 124, 69, 0.16);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.settlement-hud__approval-copy,
+.settlement-hud__approval-standing {
+  display: grid;
+  min-width: 0;
+}
+
+.settlement-hud__approval-copy {
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.settlement-hud__approval-kicker {
+  color: #9e9684;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.settlement-hud__approval-score {
+  color: #b9d18f;
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.settlement-hud__approval-standing {
+  grid-template-columns: auto 12px;
+  align-items: center;
+  gap: 4px;
+  color: #bdb39e;
+  font-size: 9px;
+  text-align: right;
+}
+
+.settlement-hud__approval-standing strong {
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-hud__approval-standing [data-approval-trend] {
+  color: #aaa18f;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.settlement-hud__approval-standing [data-trend='rising'] {
+  color: #9dcc76;
+}
+
+.settlement-hud__approval-standing [data-trend='falling'] {
+  color: #e19873;
+}
+
+.settlement-hud__approval-button[data-tier='beloved']::after,
+.settlement-hud__approval-button[data-tier='liked']::after {
+  background: #83bd62;
+}
+
+.settlement-hud__approval-button[data-tier='content']::after {
+  background: #bdaf67;
+}
+
+.settlement-hud__approval-button[data-tier='uneasy']::after {
+  background: #d59a54;
+}
+
+.settlement-hud__approval-button[data-tier='disliked']::after,
+.settlement-hud__approval-button[data-tier='crisis']::after {
+  background: #cc644f;
+}
+
+.settlement-hud__approval-button[data-tier='uneasy'] .settlement-hud__approval-score {
+  color: #e5b46e;
+}
+
+.settlement-hud__approval-button[data-tier='disliked'] .settlement-hud__approval-score,
+.settlement-hud__approval-button[data-tier='crisis'] .settlement-hud__approval-score {
+  color: #e58d73;
+}
+
+.settlement-hud__approval-panel {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 10px);
+  right: auto;
+  left: 0;
+  display: grid;
+  gap: 12px;
+  width: min(380px, calc(100vw - 326px));
+  max-height: calc(100vh - 92px);
+  padding: 15px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(213, 190, 139, 0.36);
+  border-radius: 11px;
+  color: #ded4bf;
+  background:
+    linear-gradient(135deg, rgba(255, 239, 197, 0.045), transparent 35%),
+    linear-gradient(180deg, rgba(29, 31, 25, 0.985), rgba(17, 20, 16, 0.98));
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 245, 213, 0.08);
+  backdrop-filter: blur(20px) saturate(0.86);
+}
+
+.settlement-hud__approval-panel[hidden] {
+  display: none;
+}
+
+.settlement-hud__approval-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(211, 188, 137, 0.18);
+}
+
+.settlement-hud__approval-panel-header h2 {
+  margin: 2px 0 0;
+  color: #eee2ca;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.settlement-hud__approval-eyebrow {
+  color: #a8956b;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.settlement-hud__approval-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(220, 202, 162, 0.18);
+  border-radius: 5px;
+  color: #aca28e;
+  background: rgba(7, 9, 7, 0.26);
+  font: 18px/1 Georgia, 'Times New Roman', serif;
+  cursor: pointer;
+}
+
+.settlement-hud__approval-close:hover,
+.settlement-hud__approval-close:focus-visible {
+  border-color: rgba(215, 180, 99, 0.62);
+  color: #ead49b;
+  outline: none;
+}
+
+.settlement-hud__approval-reading {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.settlement-hud__approval-reading strong {
+  color: #b9d18f;
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.settlement-hud__approval-reading span {
+  color: #d0c4aa;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.settlement-hud__approval-panel[data-tier='uneasy'] .settlement-hud__approval-reading strong {
+  color: #e5b46e;
+}
+
+.settlement-hud__approval-panel[data-tier='disliked'] .settlement-hud__approval-reading strong,
+.settlement-hud__approval-panel[data-tier='crisis'] .settlement-hud__approval-reading strong {
+  color: #e58d73;
+}
+
+.settlement-hud__approval-meter {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(216, 196, 151, 0.2);
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(178, 60, 48, 0.8) 0 25%,
+      rgba(189, 133, 66, 0.78) 25% 55%,
+      rgba(123, 168, 85, 0.78) 55% 100%
+    );
+}
+
+.settlement-hud__approval-meter span {
+  display: block;
+  height: 100%;
+  border-right: 2px solid rgba(251, 234, 184, 0.9);
+  background: rgba(238, 221, 178, 0.24);
+  box-shadow: 0 0 8px rgba(227, 204, 146, 0.42);
+  transition: width 260ms ease;
+}
+
+.settlement-hud__approval-meter i {
+  position: absolute;
+  inset: -1px auto -1px 50%;
+  width: 1px;
+  background: rgba(19, 21, 17, 0.58);
+}
+
+.settlement-hud__approval-summary,
+.settlement-hud__approval-note {
+  margin: 0;
+  color: #b9af9c;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.settlement-hud__approval-section {
+  display: grid;
+  gap: 7px;
+}
+
+.settlement-hud__approval-section h3 {
+  margin: 0;
+  color: #d5c9ad;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 12px;
+  letter-spacing: 0.025em;
+}
+
+.settlement-hud__approval-effects,
+.settlement-hud__approval-factors {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settlement-hud__approval-effects li {
+  position: relative;
+  padding: 7px 8px 7px 20px;
+  border: 1px solid rgba(179, 166, 132, 0.14);
+  border-radius: 5px;
+  color: #bdb49f;
+  background: rgba(7, 9, 7, 0.2);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.settlement-hud__approval-effects li::before {
+  content: '\203A';
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  color: #b79958;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.settlement-hud__approval-factor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 8px;
+  border: 1px solid rgba(179, 166, 132, 0.14);
+  border-radius: 5px;
+  background: rgba(7, 9, 7, 0.2);
+}
+
+.settlement-hud__approval-factor-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.settlement-hud__approval-factor-copy > strong {
+  color: #d4c9b0;
+  font-size: 10px;
+}
+
+.settlement-hud__approval-factor-copy > span {
+  color: #a9a18f;
+  font-size: 9px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+
+.settlement-hud__approval-impact {
+  min-width: 28px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.settlement-hud__approval-factor--positive .settlement-hud__approval-impact {
+  color: #91c875;
+}
+
+.settlement-hud__approval-factor--negative .settlement-hud__approval-impact {
+  color: #e08b6f;
+}
+
+.settlement-hud__approval-empty {
+  padding: 8px;
+  border: 1px dashed rgba(179, 166, 132, 0.14);
+  border-radius: 5px;
+  color: #918a7c;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.settlement-hud__approval-note {
+  padding-top: 9px;
+  border-top: 1px solid rgba(211, 188, 137, 0.14);
+  color: #8f887a;
+  font-size: 9px;
 }
 
 .settlement-hud__clock-date {
@@ -655,6 +1062,13 @@
   .settlement-hud__stores-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap-inline: 6px;
+  }
+
+  .settlement-hud__approval-panel {
+    position: fixed;
+    inset: 14px;
+    width: auto;
+    max-height: calc(100vh - 28px);
   }
 }
 

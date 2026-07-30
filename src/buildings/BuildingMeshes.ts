@@ -17,6 +17,7 @@ import {
 } from './meshes/serviceBuildingMeshes.ts';
 import { createStoneQuarryMesh } from './meshes/stoneQuarryMesh.ts';
 import { createLargeQuarryMesh } from './meshes/largeQuarryMesh.ts';
+import { createMineralMineMesh } from './meshes/mineralMineMesh.ts';
 import {
   createCharcoalBurnerMesh,
   createClayPitMesh,
@@ -64,6 +65,8 @@ export function createBuildingMesh(kind: BuildingKind): THREE.Group {
       return createStoneQuarryMesh();
     case 'large_quarry':
       return createLargeQuarryMesh();
+    case 'mine':
+      return createMineralMineMesh();
     case 'clay_pit':
       return createClayPitMesh();
     case 'charcoal_burner':

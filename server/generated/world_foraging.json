@@ -71,6 +71,24 @@
       "maxYield": 240,
       "anchorX": 20.547768106642984,
       "anchorZ": 54.02610099312055
+    },
+    {
+      "nodeId": "clay-ordinary-0",
+      "nodeKind": "clay",
+      "x": 122.98204539531413,
+      "z": -164.05765957518744,
+      "maxYield": 1,
+      "anchorX": 122.98204539531413,
+      "anchorZ": -164.05765957518744
+    },
+    {
+      "nodeId": "clay-ordinary-1",
+      "nodeKind": "clay",
+      "x": 160.89553671435067,
+      "z": -7.938166670081101,
+      "maxYield": 1,
+      "anchorX": 160.89553671435067,
+      "anchorZ": -7.938166670081101
     }
   ],
   "gameRespawnCandidates": [

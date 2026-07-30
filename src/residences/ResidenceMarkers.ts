@@ -465,9 +465,22 @@ function addResidenceUpgradeWorks(
   );
 }
 
-export function createResidenceMesh(seed = 0, tier: 1 | 2 | 3 = 1): THREE.Group {
+export type ResidenceMeshOptions = {
+  /**
+   * Fixture/art-direction override. Normal settlement rendering leaves this
+   * unset and retains the deterministic appearance selected from the seed.
+   */
+  roof?: import('../buildings/buildingMaterials.ts').ResidenceRoofColor;
+};
+
+export function createResidenceMesh(
+  seed = 0,
+  tier: 1 | 2 | 3 = 1,
+  options: ResidenceMeshOptions = {},
+): THREE.Group {
   const appearance = pickResidenceAppearance(seed);
-  const { facade, roof, archetype, entrySide, trim } = appearance;
+  const { facade, archetype, entrySide, trim } = appearance;
+  const roof = options.roof ?? appearance.roof;
   const dimensions = dimensionsForTier(archetype, tier);
   const wallMaterial = residenceFacadeMaterial(facade);
   const roofSurfaceMaterial = residenceRoofMaterial(roof);
@@ -479,6 +492,7 @@ export function createResidenceMesh(seed = 0, tier: 1 | 2 | 3 = 1): THREE.Group 
   group.userData.windowMaterial = windowMaterial;
   group.userData.residenceArchetype = archetype;
   group.userData.residenceTier = tier;
+  group.userData.residenceRoof = roof;
 
   const { width, depth, foundationHeight, groundHeight, upperHeight, ridgeHeight } = dimensions;
   const halfW = width * 0.5;

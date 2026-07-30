@@ -20,6 +20,7 @@ export const TOAST_MESSAGES = {
   'building.placement.on_quarry_pit': 'Cannot build on a quarry pit',
   'building.placement.no_quarry_in_range': 'No quarry stone within work range',
   'building.placement.requires_rich_deposit': 'Large Quarries must be placed directly over a rich stone deposit',
+  'building.placement.requires_mineral_deposit': 'Mineral mines must be placed directly over an iron or salt deposit',
   'building.placement.no_game_in_range': 'No game within work range',
   'building.placement.no_berries_in_range': 'Place within 48 m of a berry patch or mushroom bed (dormant and depleted patches still count)',
   'building.placement.no_fish_in_range': 'No fish shoal within work range',
@@ -133,6 +134,8 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.no_quarry_in_range';
     case 'requires_rich_deposit':
       return 'building.placement.requires_rich_deposit';
+    case 'requires_mineral_deposit':
+      return 'building.placement.requires_mineral_deposit';
     case 'no_game_in_range':
       return 'building.placement.no_game_in_range';
     case 'no_berries_in_range':

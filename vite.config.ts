@@ -1,5 +1,21 @@
+import { existsSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
+
+const gameEntry = fileURLToPath(new URL('./index.html', import.meta.url));
+const visualGauntletEntry = fileURLToPath(
+  new URL('./visual-gauntlet.html', import.meta.url),
+);
+const hamletFixtureEntry = fileURLToPath(
+  new URL('./hamlet-fixture.html', import.meta.url),
+);
+const buildInputs: Record<string, string> = { game: gameEntry };
+if (existsSync(visualGauntletEntry)) {
+  buildInputs['visual-gauntlet'] = visualGauntletEntry;
+}
+if (existsSync(hamletFixtureEntry)) {
+  buildInputs['hamlet-fixture'] = hamletFixtureEntry;
+}
 
 function vendorChunk(id: string): string | undefined {
   if (!id.includes('node_modules')) {
@@ -27,6 +43,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: buildInputs,
       output: {
         manualChunks(id) {
           return vendorChunk(id);

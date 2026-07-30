@@ -20,6 +20,7 @@ import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { PerspectiveCamera } from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
+import type { ClayDepositSite } from '../clay/ClayDepositLayout.ts';
 
 export type WorldMapUiBundle = {
   quarry: QuarryMapIcons;
@@ -33,6 +34,7 @@ export function createWorldMapUi(options: {
   terrain: Terrain;
   riverField: RiverField;
   registry: WorldLayoutRegistry;
+  clayDepositSites?: readonly ClayDepositSite[];
   getCamera: () => PerspectiveCamera | null;
   getZoomPercent: () => number;
   getGameState: () => GameState;
@@ -40,6 +42,7 @@ export function createWorldMapUi(options: {
   placementGate: PlacementInteractionGate;
   onQuarrySelect: (quarryId: string) => void;
   onForagingSelect: (nodeId: string) => void;
+  onClaySelect?: (x: number, z: number) => void;
 }): WorldMapUiBundle {
   const {
     uiRoot,
@@ -47,6 +50,7 @@ export function createWorldMapUi(options: {
     terrain,
     riverField,
     registry,
+    clayDepositSites,
     getCamera,
     getZoomPercent,
     getGameState,
@@ -54,9 +58,10 @@ export function createWorldMapUi(options: {
     placementGate,
     onQuarrySelect,
     onForagingSelect,
+    onClaySelect,
   } = options;
 
-  const layoutMarkers = buildLayoutWorldMapMarkers(registry);
+  const layoutMarkers = buildLayoutWorldMapMarkers(registry, clayDepositSites);
   const quarryMarkers = filterWorldMapMarkersByKind(layoutMarkers, 'quarry');
   const foragingMarkers = filterWorldMapForagingMarkers(layoutMarkers);
 
@@ -81,6 +86,7 @@ export function createWorldMapUi(options: {
     getZoomPercent,
     getForagingNodes: () => getGameState().foragingNodes,
     onForagingSelect,
+    onClaySelect,
     isBlocked: () => isWorldInspectionBlocked(placementGate),
     isVisibilityBlocked: () => isWorldResourceIconVisibilityBlocked(placementGate),
   });

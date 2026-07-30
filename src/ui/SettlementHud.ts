@@ -45,6 +45,10 @@ import {
   formatFreshFoodLoss,
   formatPreservedFoodLoss,
 } from '../economy/foodPreservation.ts';
+import type {
+  SettlementApproval,
+  SettlementApprovalFactor,
+} from '../economy/settlementApproval.ts';
 import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority.ts';
 import {
   HUD_RESOURCE_KINDS,
@@ -101,6 +105,86 @@ const SETTLEMENT_HUD_HTML = `
           </button>
         `).join('')}
       </div>
+    </div>
+    <div class="settlement-hud__approval-shell" data-approval-shell>
+      <button
+        type="button"
+        class="settlement-hud__approval-button"
+        data-approval-button
+        data-tier="unavailable"
+        aria-controls="settlement-approval-panel"
+        aria-expanded="false"
+        aria-label="Approval awaiting settlement data"
+        disabled
+      >
+        <span class="settlement-hud__approval-icon" aria-hidden="true">&#10003;</span>
+        <span class="settlement-hud__approval-copy">
+          <span class="settlement-hud__approval-kicker">Approval</span>
+          <strong class="settlement-hud__approval-score" data-approval-score>--</strong>
+        </span>
+        <span class="settlement-hud__approval-standing">
+          <strong data-approval-label>Awaiting ledger</strong>
+          <span data-approval-trend aria-hidden="true">&bull;</span>
+        </span>
+      </button>
+      <section
+        id="settlement-approval-panel"
+        class="settlement-hud__approval-panel"
+        data-approval-panel
+        data-tier="unavailable"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="settlement-approval-title"
+        hidden
+      >
+        <header class="settlement-hud__approval-panel-header">
+          <div>
+            <span class="settlement-hud__approval-eyebrow">Settlement standing</span>
+            <h2 id="settlement-approval-title">Approval</h2>
+          </div>
+          <button
+            type="button"
+            class="settlement-hud__approval-close"
+            data-approval-close
+            aria-label="Close approval details"
+          >&times;</button>
+        </header>
+        <div class="settlement-hud__approval-reading">
+          <strong data-approval-panel-score>--</strong>
+          <span data-approval-panel-label>Awaiting ledger</span>
+        </div>
+        <div
+          class="settlement-hud__approval-meter"
+          data-approval-meter
+          role="meter"
+          aria-label="Settlement approval"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          <span data-approval-meter-fill></span>
+          <i aria-hidden="true"></i>
+        </div>
+        <p class="settlement-hud__approval-summary" data-approval-summary>
+          Settlement data is not available yet.
+        </p>
+        <section class="settlement-hud__approval-section">
+          <h3>Current effects</h3>
+          <ul class="settlement-hud__approval-effects" data-approval-effects></ul>
+        </section>
+        <section class="settlement-hud__approval-section" data-approval-concerns-section>
+          <h3>Needs attention</h3>
+          <ul class="settlement-hud__approval-factors" data-approval-concerns></ul>
+        </section>
+        <section class="settlement-hud__approval-section" data-approval-support-section>
+          <h3>Supporting factors</h3>
+          <ul class="settlement-hud__approval-factors" data-approval-support></ul>
+        </section>
+        <p class="settlement-hud__approval-note">
+          Approval summarizes live settlement conditions. Authoritative arrivals,
+          departures, and welfare remain household-driven.
+        </p>
+      </section>
     </div>
     <div class="settlement-hud__perf">
       <div
@@ -245,7 +329,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Regional iron blooms and bars held at marketplaces and smithies. Gorski Kotar has no local 1550 iron mine: a staffed marketplace must import it before a smith can forge fittings. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Iron ore and bars held at mines, marketplaces, and smithies. Some regions have local deposits; others must import it through a staffed marketplace. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Iron</span>
         <strong class="settlement-hud__value" data-stockpile="iron">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="iron" hidden></span>
@@ -255,7 +339,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="clay">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="clay" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="Imported Adriatic sea salt stored at marketplaces and smokehouses. Salt is a caravan dependency for efficient preservation; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="Salt held at mines, marketplaces, smokehouses, and pastoral holdings. Local deposits or staffed marketplace imports can supply it; loaded carts are shown separately.">
         <span class="settlement-hud__label">Salt</span>
         <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>
@@ -304,6 +388,23 @@ export class SettlementHud {
   private readonly welfareAlert: HTMLElement;
   private readonly welfareLabel: HTMLElement;
   private readonly welfareDetail: HTMLElement;
+  private readonly approvalShell: HTMLElement;
+  private readonly approvalButton: HTMLButtonElement;
+  private readonly approvalScore: HTMLElement;
+  private readonly approvalLabel: HTMLElement;
+  private readonly approvalTrend: HTMLElement;
+  private readonly approvalPanel: HTMLElement;
+  private readonly approvalPanelScore: HTMLElement;
+  private readonly approvalPanelLabel: HTMLElement;
+  private readonly approvalMeter: HTMLElement;
+  private readonly approvalMeterFill: HTMLElement;
+  private readonly approvalSummary: HTMLElement;
+  private readonly approvalEffects: HTMLElement;
+  private readonly approvalConcerns: HTMLElement;
+  private readonly approvalSupport: HTMLElement;
+  private readonly approvalConcernsSection: HTMLElement;
+  private readonly approvalSupportSection: HTMLElement;
+  private readonly approvalClose: HTMLButtonElement;
   private readonly foodStat: HTMLElement;
   private readonly firewoodStat: HTMLElement;
   private readonly goldStat: HTMLElement;
@@ -312,6 +413,9 @@ export class SettlementHud {
   private readonly fpsValue: HTMLElement;
   private readonly zoomValue: HTMLElement;
   private onLocateResource: ((resource: HudResourceKind) => void) | null = null;
+  private lastApprovalScore: number | null = null;
+  private lastApprovalTrend: 'rising' | 'falling' | 'steady' = 'steady';
+  private approvalTrendExpiresAt = 0;
   readonly zoomStat: HTMLElement;
 
   constructor(parent: HTMLElement, onSetGameSpeed?: (speed: GameSpeed) => void) {
@@ -340,6 +444,23 @@ export class SettlementHud {
     this.welfareAlert = this.mustElement('[data-welfare-alert]');
     this.welfareLabel = this.mustElement('[data-welfare-label]');
     this.welfareDetail = this.mustElement('[data-welfare-detail]');
+    this.approvalShell = this.mustElement('[data-approval-shell]');
+    this.approvalButton = this.mustButton('[data-approval-button]');
+    this.approvalScore = this.mustElement('[data-approval-score]');
+    this.approvalLabel = this.mustElement('[data-approval-label]');
+    this.approvalTrend = this.mustElement('[data-approval-trend]');
+    this.approvalPanel = this.mustElement('[data-approval-panel]');
+    this.approvalPanelScore = this.mustElement('[data-approval-panel-score]');
+    this.approvalPanelLabel = this.mustElement('[data-approval-panel-label]');
+    this.approvalMeter = this.mustElement('[data-approval-meter]');
+    this.approvalMeterFill = this.mustElement('[data-approval-meter-fill]');
+    this.approvalSummary = this.mustElement('[data-approval-summary]');
+    this.approvalEffects = this.mustElement('[data-approval-effects]');
+    this.approvalConcerns = this.mustElement('[data-approval-concerns]');
+    this.approvalSupport = this.mustElement('[data-approval-support]');
+    this.approvalConcernsSection = this.mustElement('[data-approval-concerns-section]');
+    this.approvalSupportSection = this.mustElement('[data-approval-support-section]');
+    this.approvalClose = this.mustButton('[data-approval-close]');
     this.foodStat = this.mustElement('[data-resource="food"]');
     this.firewoodStat = this.mustElement('[data-resource="firewood"]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
@@ -367,6 +488,10 @@ export class SettlementHud {
     }
     this.panel.addEventListener('click', this.onResourceRowClick);
     this.panel.addEventListener('keydown', this.onResourceRowKeyDown);
+    this.approvalButton.addEventListener('click', this.onApprovalToggle);
+    this.approvalClose.addEventListener('click', this.onApprovalClose);
+    window.addEventListener('pointerdown', this.onApprovalOutsidePointerDown, true);
+    window.addEventListener('keydown', this.onApprovalEscape, true);
   }
 
   setResourceLocator(handler: ((resource: HudResourceKind) => void) | null): void {
@@ -649,6 +774,92 @@ export class SettlementHud {
       : "Spendable civic gold is secured at the founders' lockbox, reclamation chests, or Town Hall treasury. Parish and monastery funds remain separate; local receipts and moving lockboxes appear until unloading.";
   }
 
+  setApprovalState(approval: SettlementApproval): void {
+    const now = Date.now();
+    if (this.lastApprovalScore !== null) {
+      const delta = approval.score - this.lastApprovalScore;
+      if (delta >= 1) {
+        this.lastApprovalTrend = 'rising';
+        this.approvalTrendExpiresAt = now + 30_000;
+      } else if (delta <= -1) {
+        this.lastApprovalTrend = 'falling';
+        this.approvalTrendExpiresAt = now + 30_000;
+      } else if (now >= this.approvalTrendExpiresAt) {
+        this.lastApprovalTrend = 'steady';
+      }
+    }
+    this.lastApprovalScore = approval.score;
+
+    this.approvalButton.disabled = false;
+    this.approvalButton.dataset.tier = approval.tier;
+    this.approvalPanel.dataset.tier = approval.tier;
+    this.approvalScore.textContent = `${approval.score}%`;
+    this.approvalLabel.textContent = approval.label;
+    this.approvalPanelScore.textContent = `${approval.score}%`;
+    this.approvalPanelLabel.textContent = approval.label;
+    this.approvalSummary.textContent = approval.summary;
+    this.approvalMeter.setAttribute('aria-valuenow', String(approval.score));
+    this.approvalMeterFill.style.width = `${approval.score}%`;
+
+    const trendCopy = this.lastApprovalTrend === 'rising'
+      ? { symbol: '↑', label: 'rising' }
+      : this.lastApprovalTrend === 'falling'
+        ? { symbol: '↓', label: 'falling' }
+        : { symbol: '•', label: 'steady' };
+    this.approvalTrend.textContent = trendCopy.symbol;
+    this.approvalTrend.dataset.trend = this.lastApprovalTrend;
+    this.approvalButton.setAttribute(
+      'aria-label',
+      `Approval ${approval.score} percent, ${approval.label}, ${trendCopy.label}. Open approval details.`,
+    );
+    this.approvalButton.dataset.tooltip =
+      `${approval.summary} Approval is ${trendCopy.label}. Activate for factors and current settlement effects.`;
+
+    renderTextList(this.approvalEffects, approval.effects);
+    const concerns = approval.factors
+      .filter((factor) => factor.impact < 0)
+      .sort((left, right) => left.impact - right.impact);
+    const support = approval.factors
+      .filter((factor) => factor.impact > 0)
+      .sort((left, right) => right.impact - left.impact);
+    renderApprovalFactorList(
+      this.approvalConcerns,
+      concerns,
+      'No active factor is reducing approval.',
+    );
+    renderApprovalFactorList(
+      this.approvalSupport,
+      support,
+      'No factor is currently lifting approval above its neutral base.',
+    );
+    this.approvalConcernsSection.dataset.empty = String(concerns.length === 0);
+    this.approvalSupportSection.dataset.empty = String(support.length === 0);
+  }
+
+  clearApprovalState(): void {
+    this.setApprovalOpen(false);
+    this.lastApprovalScore = null;
+    this.lastApprovalTrend = 'steady';
+    this.approvalTrendExpiresAt = 0;
+    this.approvalButton.disabled = true;
+    this.approvalButton.dataset.tier = 'unavailable';
+    this.approvalPanel.dataset.tier = 'unavailable';
+    this.approvalScore.textContent = '--';
+    this.approvalLabel.textContent = 'Awaiting ledger';
+    this.approvalTrend.textContent = '•';
+    this.approvalTrend.dataset.trend = 'steady';
+    this.approvalPanelScore.textContent = '--';
+    this.approvalPanelLabel.textContent = 'Awaiting ledger';
+    this.approvalSummary.textContent = 'Settlement data is not available yet.';
+    this.approvalMeter.setAttribute('aria-valuenow', '0');
+    this.approvalMeterFill.style.width = '0%';
+    this.approvalButton.setAttribute('aria-label', 'Approval awaiting settlement data');
+    delete this.approvalButton.dataset.tooltip;
+    this.approvalEffects.replaceChildren();
+    this.approvalConcerns.replaceChildren();
+    this.approvalSupport.replaceChildren();
+  }
+
   private setWelfareState(provisioning: SettlementProvisioning): void {
     const welfare = provisioning.welfare;
     const show = welfare.level === 'watch' || welfare.level === 'critical';
@@ -728,6 +939,7 @@ export class SettlementHud {
       'has-welfare-warning',
       'has-welfare-critical',
     );
+    this.clearApprovalState();
   }
 
   setConflictEnabled(enabled: boolean): void {
@@ -768,6 +980,35 @@ export class SettlementHud {
     this.activateResourceRow(event.target);
   };
 
+  private readonly onApprovalToggle = (): void => {
+    this.setApprovalOpen(this.approvalPanel.hasAttribute('hidden'));
+  };
+
+  private readonly onApprovalClose = (): void => {
+    this.setApprovalOpen(false);
+    this.approvalButton.focus();
+  };
+
+  private readonly onApprovalOutsidePointerDown = (event: PointerEvent): void => {
+    if (this.approvalPanel.hidden) return;
+    if (event.target instanceof Node && this.approvalShell.contains(event.target)) return;
+    this.setApprovalOpen(false);
+  };
+
+  private readonly onApprovalEscape = (event: KeyboardEvent): void => {
+    if (event.key !== 'Escape' || this.approvalPanel.hidden) return;
+    event.preventDefault();
+    this.setApprovalOpen(false);
+    this.approvalButton.focus();
+  };
+
+  private setApprovalOpen(open: boolean): void {
+    const nextOpen = open && !this.approvalButton.disabled;
+    this.approvalPanel.hidden = !nextOpen;
+    this.approvalButton.setAttribute('aria-expanded', String(nextOpen));
+    this.panel.classList.toggle('has-approval-open', nextOpen);
+  }
+
   private activateResourceRow(target: EventTarget | null): void {
     const resource = this.resourceFromTarget(target);
     if (resource) this.onLocateResource?.(resource);
@@ -787,6 +1028,19 @@ export class SettlementHud {
     if (!element) throw new Error(`Missing settlement HUD element ${selector}`);
     return element;
   }
+
+  private mustButton(selector: string): HTMLButtonElement {
+    const element = this.panel.querySelector<HTMLButtonElement>(selector);
+    if (!(element instanceof HTMLButtonElement)) {
+      throw new Error(`Missing settlement HUD button ${selector}`);
+    }
+    return element;
+  }
+
+  dispose(): void {
+    window.removeEventListener('pointerdown', this.onApprovalOutsidePointerDown, true);
+    window.removeEventListener('keydown', this.onApprovalEscape, true);
+  }
 }
 
 function formatWelfareRunway(days: number): string {
@@ -794,4 +1048,54 @@ function formatWelfareRunway(days: number): string {
   if (days < 1) return '<1d';
   if (days < 10) return `${days.toFixed(1)}d`;
   return `${Math.floor(days)}d`;
+}
+
+function renderTextList(parent: HTMLElement, values: readonly string[]): void {
+  const fragment = document.createDocumentFragment();
+  for (const value of values) {
+    const item = document.createElement('li');
+    item.textContent = value;
+    fragment.appendChild(item);
+  }
+  parent.replaceChildren(fragment);
+}
+
+function renderApprovalFactorList(
+  parent: HTMLElement,
+  factors: readonly SettlementApprovalFactor[],
+  emptyMessage: string,
+): void {
+  const fragment = document.createDocumentFragment();
+  if (factors.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'settlement-hud__approval-empty';
+    empty.textContent = emptyMessage;
+    fragment.appendChild(empty);
+  } else {
+    for (const factor of factors) {
+      const item = document.createElement('li');
+      item.className = `settlement-hud__approval-factor settlement-hud__approval-factor--${
+        factor.impact > 0 ? 'positive' : 'negative'
+      }`;
+
+      const copy = document.createElement('span');
+      copy.className = 'settlement-hud__approval-factor-copy';
+      const label = document.createElement('strong');
+      label.textContent = factor.label;
+      const detail = document.createElement('span');
+      detail.textContent = factor.detail;
+      copy.append(label, detail);
+
+      const impact = document.createElement('strong');
+      impact.className = 'settlement-hud__approval-impact';
+      impact.textContent = factor.impact > 0 ? `+${factor.impact}` : String(factor.impact);
+      impact.setAttribute(
+        'aria-label',
+        `${Math.abs(factor.impact)} approval ${factor.impact > 0 ? 'gained' : 'lost'}`,
+      );
+      item.append(copy, impact);
+      fragment.appendChild(item);
+    }
+  }
+  parent.replaceChildren(fragment);
 }

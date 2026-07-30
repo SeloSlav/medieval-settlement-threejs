@@ -119,9 +119,9 @@ fn dispatch_reserved_stock(
         CommodityKind::Stone => {
             (site.construction_reserved_stone - site.construction_treasury_stone).max(0.0)
         }
-        CommodityKind::Ironwork => (site.construction_reserved_ironwork
-            - site.construction_treasury_ironwork)
-            .max(0.0),
+        CommodityKind::Ironwork => {
+            (site.construction_reserved_ironwork - site.construction_treasury_ironwork).max(0.0)
+        }
         _ => 0.0,
     };
     if physical_reserved <= 1e-6 || site_has_inbound_cargo(ctx, site.id, commodity) {
@@ -241,8 +241,8 @@ fn advance_builder_work(
     let timber_ready =
         site.construction_delivered_timber + 1e-6 >= site.construction_required_timber;
     let stone_ready = site.construction_delivered_stone + 1e-6 >= site.construction_required_stone;
-    let ironwork_ready = site.construction_delivered_ironwork + 1e-6
-        >= site.construction_required_ironwork;
+    let ironwork_ready =
+        site.construction_delivered_ironwork + 1e-6 >= site.construction_required_ironwork;
     if timber_ready && stone_ready && ironwork_ready && site.construction_progress >= 1.0 - 1e-6 {
         complete_site(ctx, &mut site);
         if site.kind == "chapel" {

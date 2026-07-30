@@ -36,11 +36,11 @@ pub struct WorldConfig {
     /// False until a client publishes generation settings via configure_world.
     #[default(false)]
     pub configured: bool,
-    /// Controls ordinary stone deposits, clay-bank yield, and wild-food sites.
+    /// Controls deposit counts, rich-resource odds, clay yield, and wild-food sites.
     /// Appended so established development worlds migrate without a reset.
     #[default(50)]
     pub resource_abundance: u8,
-    /// Controls how many wild-resource families occur in this region.
+    /// Controls whether extra deposits and wild resources specialize or diversify.
     /// Appended so established development worlds migrate without a reset.
     #[default(50)]
     pub resource_variety: u8,
@@ -185,7 +185,7 @@ pub struct PlayerResources {
     /// Riverbank clay awaiting firing.
     #[default(0.0)]
     pub clay: f64,
-    /// Imported Adriatic salt held for curing and trade.
+    /// Local or imported salt held for curing and trade.
     #[default(0.0)]
     pub salt: f64,
     /// Locally burned charcoal reserved for high-temperature craft.
@@ -245,6 +245,8 @@ pub struct PlayerResources {
 #[spacetimedb::table(accessor = quarry, public)]
 pub struct Quarry {
     #[primary_key]
+    /// `quarry-*` rows are stone; `deposit-iron-*` and `deposit-salt-*`
+    /// rows are mineral seams. Prefixes preserve the additive table schema.
     pub quarry_id: String,
     pub x: f64,
     pub z: f64,
@@ -499,7 +501,7 @@ pub struct Building {
     /// not idle. Ignored by other building kinds.
     #[default(0u8)]
     pub weaver_input_policy: u8,
-    /// Imported regional blooms and bars, never locally mined in this period.
+    /// Locally raised ore or imported regional blooms and bars.
     #[default(0.0)]
     pub iron: f64,
     /// Wet riverbank clay held at extraction and pottery yards.

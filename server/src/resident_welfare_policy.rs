@@ -209,7 +209,9 @@ impl CorpseSpatialIndex {
                 count += entries
                     .iter()
                     .filter(|(corpse_x, corpse_z)| {
-                        (corpse_x - x).powi(2) + (corpse_z - z).powi(2) <= radius_sq
+                        let dx = corpse_x - x;
+                        let dz = corpse_z - z;
+                        dx * dx + dz * dz <= radius_sq
                     })
                     .count();
             }

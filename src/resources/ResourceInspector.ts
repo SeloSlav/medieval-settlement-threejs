@@ -1898,7 +1898,9 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
     return {
       kind: 'resource',
       symbol: '\u25C6',
-      image: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
+      image: target.definition.resource === 'stone'
+        ? '/assets/ui/build-menu/cards/stonecutters-camp.webp'
+        : '/assets/ui/build-menu/cards/large-quarry.webp',
     };
   }
   if (target.kind === 'foraging') {

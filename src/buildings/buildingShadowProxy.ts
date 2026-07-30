@@ -15,6 +15,7 @@ const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   woodcutters_lodge: 5.6,
   stone_quarry: 6.4,
   large_quarry: 9.2,
+  mine: 9.2,
   clay_pit: 2.4,
   charcoal_burner: 4.0,
   smithy: 5.8,
@@ -118,6 +119,7 @@ function createBuildingShadowGeometry(
   switch (kind) {
     case 'stone_quarry':
     case 'large_quarry':
+    case 'mine':
       return new THREE.CylinderGeometry(params.radiusX * scale, params.radiusX * scale, height, 16);
     case 'founders_camp':
     case 'salvage_pile':

@@ -10,6 +10,7 @@ import {
 } from './mapIconProjection.ts';
 import {
   BERRY_ICON_HTML,
+  CLAY_ICON_HTML,
   FISH_ICON_HTML,
   GAME_ICON_HTML,
   MUSHROOM_ICON_HTML,
@@ -24,6 +25,7 @@ type ForagingMapIconsOptions = {
   getCamera: () => THREE.PerspectiveCamera | null;
   getZoomPercent: () => number;
   onForagingSelect: (nodeId: string) => void;
+  onClaySelect?: (x: number, z: number) => void;
   isBlocked: () => boolean;
   isVisibilityBlocked?: () => boolean;
 };
@@ -77,7 +79,10 @@ export class ForagingMapIcons {
       }
 
       const node = nodes.get(marker.id);
-      button.classList.toggle('foraging-map-icon--depleted', (node?.remaining ?? 0) <= 0);
+      button.classList.toggle(
+        'foraging-map-icon--depleted',
+        marker.kind !== 'clay' && (node?.remaining ?? 0) <= 0,
+      );
       placeProjectedMapButton(
         button,
         node?.x ?? marker.x,
@@ -110,6 +115,9 @@ export class ForagingMapIcons {
     } else if (marker.kind === 'mushrooms') {
       button.classList.add('foraging-map-icon--mushrooms');
       button.innerHTML = MUSHROOM_ICON_HTML;
+    } else if (marker.kind === 'clay') {
+      button.classList.add('foraging-map-icon--clay');
+      button.innerHTML = CLAY_ICON_HTML;
     } else {
       button.classList.add('foraging-map-icon--fish');
       button.innerHTML = FISH_ICON_HTML;
@@ -120,7 +128,11 @@ export class ForagingMapIcons {
       if (this.options.isBlocked()) return;
       event.preventDefault();
       event.stopPropagation();
-      this.options.onForagingSelect(marker.id);
+      if (marker.kind === 'clay') {
+        this.options.onClaySelect?.(marker.x, marker.z);
+      } else {
+        this.options.onForagingSelect(marker.id);
+      }
     });
 
     return button;

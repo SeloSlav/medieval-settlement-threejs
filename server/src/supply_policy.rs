@@ -53,8 +53,13 @@ pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
     "pastoral_farmstead",
     "swineherd",
 ];
-pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] =
-    &["clay_pit", "charcoal_burner", "smithy", "potter_kiln"];
+pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
+    "mine",
+    "clay_pit",
+    "charcoal_burner",
+    "smithy",
+    "potter_kiln",
+];
 pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "monastery"];
 pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "granary", "monastery"];
 pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
@@ -907,7 +912,13 @@ mod tests {
     fn direct_processor_inputs_restore_priority_buffers_before_overflow() {
         assert_eq!(
             LOCAL_MATERIAL_SOURCE_KINDS,
-            &["clay_pit", "charcoal_burner", "smithy", "potter_kiln"],
+            &[
+                "mine",
+                "clay_pit",
+                "charcoal_burner",
+                "smithy",
+                "potter_kiln"
+            ],
         );
         assert_eq!(
             INDUSTRIAL_FIREWOOD_TARGET_KINDS,

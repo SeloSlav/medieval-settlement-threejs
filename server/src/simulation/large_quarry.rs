@@ -76,7 +76,8 @@ pub fn step_large_quarry(
 fn rich_deposit_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<Quarry> {
     let tolerance_sq = RICH_DEPOSIT_CENTER_TOLERANCE * RICH_DEPOSIT_CENTER_TOLERANCE;
     ctx.db.quarry().iter().find(|quarry| {
-        quarry.is_rich
+        quarry.quarry_id.starts_with("quarry-")
+            && quarry.is_rich
             && (quarry.x - x) * (quarry.x - x) + (quarry.z - z) * (quarry.z - z) <= tolerance_sq
     })
 }

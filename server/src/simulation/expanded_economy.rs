@@ -12,11 +12,12 @@ use crate::balance_generated::{
     FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, FERRY_GOLD_PER_DAY,
     FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
     GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE,
-    GRANARY_WATER_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
-    MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
-    MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
-    MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
-    POTTER_POTTERY_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
+    GRANARY_WATER_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
+    MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_ALE,
+    MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE, MONASTERY_FOOD_PER_CYCLE,
+    MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
+    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_POTTERY_PER_CYCLE,
+    RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
     SMITHY_IRON_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
     SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
     TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
@@ -53,7 +54,9 @@ use crate::frontier_economy_policy::{
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
-use crate::hydrology::clay_bank_yield_multiplier_at;
+use crate::hydrology::{
+    clay_bank_yield_multiplier_with_richness, sample_hydrology_score, RICH_CLAY_DEPOSIT_RADIUS,
+};
 use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
     monastery_feast_surplus, monastery_hospitality_use, monastery_pilgrimage_gold,
@@ -95,7 +98,7 @@ use crate::supply_policy::{
     INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
     MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
-use crate::tables::{farm_field, Building, FarmField, Residence};
+use crate::tables::{farm_field, Building, FarmField, Quarry, Residence};
 use crate::weaver_input_policy::{weaver_fibre_delivery_preference_rank, weaver_uses_flax};
 
 struct RoutedBuilding {
@@ -835,8 +838,8 @@ fn marketplace_material_commodity_rank(commodity: CommodityKind) -> u8 {
     }
 }
 
-/// Match locally produced clay, charcoal, ironwork, and pottery after every
-/// producer has completed this tick's work. Active processor buffers still
+/// Match local or imported raw iron, salt, clay, charcoal, ironwork, and pottery
+/// after every producer has completed this tick's work. Active processor buffers still
 /// lead by player priority and runway; among equal needs, the shortest
 /// source-to-target road decides which producer cart serves the destination.
 /// Each source and target receives at most one assignment per pass.
@@ -850,7 +853,7 @@ pub fn step_local_material_dispatch(
     let mut deferred_pottery_exports = Vec::new();
 
     for source in &sources {
-        let Some((commodity, target_kinds)) = local_material_source_plan(&source.kind) else {
+        let Some((commodity, target_kinds)) = local_material_source_plan(source) else {
             continue;
         };
         if !LOCAL_MATERIAL_SOURCE_KINDS.contains(&source.kind.as_str())
@@ -1020,7 +1023,7 @@ fn dispatch_local_material_candidates(
         let Some(target) = ctx.db.building().id().find(&candidate.building.id) else {
             continue;
         };
-        let Some((commodity, target_kinds)) = local_material_source_plan(&source.kind) else {
+        let Some((commodity, target_kinds)) = local_material_source_plan(&source) else {
             continue;
         };
         if commodity != candidate.commodity
@@ -1088,8 +1091,14 @@ fn dispatch_local_material_candidates(
     }
 }
 
-fn local_material_source_plan(kind: &str) -> Option<(CommodityKind, &'static [&'static str])> {
-    match kind {
+fn local_material_source_plan(
+    source: &Building,
+) -> Option<(CommodityKind, &'static [&'static str])> {
+    match source.kind.as_str() {
+        "mine" if source.iron > 1e-6 => Some((CommodityKind::Iron, &["smithy"])),
+        "mine" if source.salt > 1e-6 => {
+            Some((CommodityKind::Salt, &["smokehouse", "pastoral_farmstead"]))
+        }
         "clay_pit" => Some((CommodityKind::Clay, &["potter_kiln"])),
         "charcoal_burner" => Some((CommodityKind::Charcoal, &["smithy"])),
         "smithy" => Some((
@@ -1108,6 +1117,62 @@ fn local_material_source_plan(kind: &str) -> Option<(CommodityKind, &'static [&'
         "potter_kiln" => Some((CommodityKind::Pottery, &["smokehouse", "marketplace"])),
         _ => None,
     }
+}
+
+pub fn step_mine(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let Some(deposit) = mineral_deposit_beneath(ctx, building.x, building.z) else {
+        return;
+    };
+    if !deposit.is_rich && deposit.remaining <= 1e-6 {
+        return;
+    }
+    let (commodity, base_batch) = if deposit.quarry_id.starts_with("deposit-iron-") {
+        (CommodityKind::Iron, MINE_IRON_PER_CYCLE)
+    } else {
+        (CommodityKind::Salt, MINE_SALT_PER_CYCLE)
+    };
+    let batch = if deposit.is_rich {
+        base_batch
+    } else {
+        base_batch.min(deposit.remaining)
+    };
+    let before = building_commodity_stock(&building, commodity);
+    let throughput = if deposit.is_rich {
+        RICH_MINE_THROUGHPUT_MULTIPLIER
+    } else {
+        1.0
+    };
+    let mine = step_simple_producer_at_rate(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[(commodity, batch)],
+        throughput,
+    );
+    let produced = (building_commodity_stock(&mine, commodity) - before).max(0.0);
+    if produced > 1e-6 && !deposit.is_rich {
+        ctx.db.quarry().quarry_id().update(Quarry {
+            remaining: (deposit.remaining - produced).max(0.0),
+            ..deposit
+        });
+    }
+    ctx.db.building().id().update(mine);
+}
+
+fn mineral_deposit_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<Quarry> {
+    const CENTER_TOLERANCE: f64 = 2.5;
+    let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
+    ctx.db.quarry().iter().find(|deposit| {
+        (deposit.quarry_id.starts_with("deposit-iron-")
+            || deposit.quarry_id.starts_with("deposit-salt-"))
+            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
+    })
 }
 
 pub fn step_granary(
@@ -1662,7 +1727,12 @@ pub fn step_clay_pit(
     let tools_maintained = civilian_tools_maintained(building.ironwork);
     let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork)
         * environment.clay_pit_throughput_multiplier()
-        * clay_bank_yield_multiplier_at(building.x, building.z, resource_abundance);
+        * clay_bank_yield_multiplier_at_with_deposits(
+            ctx,
+            building.x,
+            building.z,
+            resource_abundance,
+        );
     let clay_before = building.clay;
     let mut clay_pit = step_simple_producer_at_rate(
         ctx,
@@ -1680,6 +1750,33 @@ pub fn step_clay_pit(
         );
     }
     ctx.db.building().id().update(clay_pit);
+}
+
+fn clay_bank_yield_multiplier_at_with_deposits(
+    ctx: &ReducerContext,
+    x: f64,
+    z: f64,
+    resource_abundance: u8,
+) -> f64 {
+    let richness = ctx
+        .db
+        .foraging_node()
+        .iter()
+        .filter(|node| node.node_kind == "clay" && node.node_id.starts_with("clay-rich-"))
+        .map(|node| {
+            let distance = (node.x - x).hypot(node.z - z);
+            if distance >= RICH_CLAY_DEPOSIT_RADIUS {
+                return 0.0;
+            }
+            let t = 1.0 - distance / RICH_CLAY_DEPOSIT_RADIUS;
+            t * t * (3.0 - 2.0 * t)
+        })
+        .fold(0.0, f64::max);
+    clay_bank_yield_multiplier_with_richness(
+        sample_hydrology_score(x, z),
+        resource_abundance,
+        richness,
+    )
 }
 
 pub fn step_charcoal_burner(

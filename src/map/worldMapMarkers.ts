@@ -3,10 +3,16 @@ import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type {
   BuildingState,
   ForagingNodeState,
+  ResourceKind,
   ResourceNodeKind,
 } from '../resources/types.ts';
+import {
+  clayDepositLabel,
+  clayDepositNodeId,
+  type ClayDepositSite,
+} from '../clay/ClayDepositLayout.ts';
 
-export type WorldMapMarkerKind = ResourceNodeKind | 'building';
+export type WorldMapMarkerKind = ResourceNodeKind | 'clay' | 'building';
 
 export type WorldMapMarker = {
   id: string;
@@ -15,13 +21,19 @@ export type WorldMapMarker = {
   x: number;
   z: number;
   quarryKind?: 'large' | 'small';
+  resource?: ResourceKind;
 };
 
-export function buildLayoutWorldMapMarkers(registry: WorldLayoutRegistry): WorldMapMarker[] {
-  return registry.definitionList
+export function buildLayoutWorldMapMarkers(
+  registry: WorldLayoutRegistry,
+  clayDepositSites: readonly ClayDepositSite[] = [],
+): WorldMapMarker[] {
+  const resourceMarkers = registry.definitionList
     .filter((definition) => {
       if (definition.kind === 'quarry') {
-        return definition.resource === 'stone';
+        return definition.resource === 'stone'
+          || definition.resource === 'iron'
+          || definition.resource === 'salt';
       }
       return definition.kind === 'game'
         || definition.kind === 'berries'
@@ -35,7 +47,16 @@ export function buildLayoutWorldMapMarkers(registry: WorldLayoutRegistry): World
       x: definition.x,
       z: definition.z,
       quarryKind: definition.quarryKind,
+      resource: definition.resource,
     }));
+  const clayMarkers = clayDepositSites.map((site, index) => ({
+    id: clayDepositNodeId(site, index),
+    kind: 'clay' as const,
+    label: clayDepositLabel(site),
+    x: site.x,
+    z: site.z,
+  }));
+  return [...resourceMarkers, ...clayMarkers];
 }
 
 export function buildBuildingWorldMapMarkers(buildings: Iterable<BuildingState>): WorldMapMarker[] {
@@ -75,6 +96,7 @@ export function filterWorldMapForagingMarkers(markers: readonly WorldMapMarker[]
       marker.kind === 'game'
       || marker.kind === 'berries'
       || marker.kind === 'mushrooms'
-      || marker.kind === 'fish',
+      || marker.kind === 'fish'
+      || marker.kind === 'clay',
   );
 }

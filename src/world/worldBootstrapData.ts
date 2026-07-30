@@ -10,6 +10,7 @@ import {
   resolveWorldDimensions,
   type WorldGenerationSettings,
 } from './worldGenerationSettings.ts';
+import { clayDepositNodeId } from '../clay/ClayDepositLayout.ts';
 
 export type WorldBootstrapQuarry = {
   quarryId: string;
@@ -21,7 +22,7 @@ export type WorldBootstrapQuarry = {
 
 export type WorldBootstrapForagingNode = {
   nodeId: string;
-  nodeKind: 'game' | 'berries' | 'mushrooms' | 'fish';
+  nodeKind: 'game' | 'berries' | 'mushrooms' | 'fish' | 'clay';
   x: number;
   z: number;
   maxYield: number;
@@ -76,7 +77,10 @@ export function computeWorldBootstrapDataFromLayout(worldLayout: WorldLayout): W
   const riverBounds = Terrain.fullBounds(dims.terrainSize);
   const riverField = RiverField.fromLayout({ bounds: riverBounds, layout: worldLayout.riverLayout });
   const isBlockedAt = (x: number, z: number) =>
-    riverField.isBlockedForProps(x, z) || worldLayout.quarryLayout.isBlockedForProps(x, z);
+    riverField.isBlockedForProps(x, z)
+    || worldLayout.quarryLayout.isBlockedForProps(x, z)
+    || worldLayout.clayDepositLayout.isBlockedForProps(x, z)
+    || worldLayout.mineralDepositLayout.isBlockedForProps(x, z);
 
   const quarries: WorldBootstrapQuarry[] = registry.definitionList
     .filter((definition) => definition.kind === 'quarry')
@@ -104,6 +108,19 @@ export function computeWorldBootstrapDataFromLayout(worldLayout: WorldLayout): W
       anchorX: definition.x,
       anchorZ: definition.z,
     }));
+  for (let index = 0; index < worldLayout.clayDepositLayout.sites.length; index++) {
+    const site = worldLayout.clayDepositLayout.sites[index];
+    foragingNodes.push({
+      nodeId: clayDepositNodeId(site, index),
+      nodeKind: 'clay',
+      x: site.x,
+      z: site.z,
+      // The row is a permanent geological anchor, not a harvestable stock.
+      maxYield: 1,
+      anchorX: site.x,
+      anchorZ: site.z,
+    });
+  }
 
   const treePlacements = computeForestTreePlacements(dims.playableSize, dims.terrainSize, isBlockedAt, {
     treeSeed: worldLayout.treeSeed,
@@ -144,7 +161,11 @@ export function selectFoundingSite(
     bounds: Terrain.fullBounds(dims.terrainSize),
     layout: worldLayout.riverLayout,
   });
-  const resourceAnchors = WorldLayoutRegistry.fromWorldLayout(worldLayout).definitionList;
+  const resourceAnchors = [
+    ...WorldLayoutRegistry.fromWorldLayout(worldLayout).definitionList,
+    ...worldLayout.clayDepositLayout.sites,
+    ...worldLayout.mineralDepositLayout.sites,
+  ];
   const candidates: FoundingSitePosition[] = [];
   const seedAngle = ((worldLayout.seed >>> 0) / 0x1_0000_0000) * Math.PI * 2;
 
@@ -175,7 +196,9 @@ export function selectFoundingSite(
       const x = position.x + offsetX;
       const z = position.z + offsetZ;
       return !riverField.isBlockedForProps(x, z)
-        && !worldLayout.quarryLayout.isBlockedForProps(x, z);
+        && !worldLayout.quarryLayout.isBlockedForProps(x, z)
+        && !worldLayout.clayDepositLayout.isBlockedForProps(x, z)
+        && !worldLayout.mineralDepositLayout.isBlockedForProps(x, z);
     });
     if (!footprintIsClear) continue;
 

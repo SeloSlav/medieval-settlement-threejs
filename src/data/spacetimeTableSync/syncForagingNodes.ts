@@ -5,6 +5,9 @@ import type { ForagingNodeState } from '../../resources/types.ts';
 export function syncForagingNodes(rows: Iterable<ForagingNode>): Map<string, ForagingNodeState> {
   const foragingNodes = new Map<string, ForagingNodeState>();
   for (const row of rows) {
+    // Rich clay uses the shared natural-resource anchor table so the authority
+    // can evaluate nearby pits. It is a permanent landmark, not forage state.
+    if (row.nodeKind === 'clay') continue;
     const kind = row.nodeKind === 'game'
       ? 'game'
       : row.nodeKind === 'fish'

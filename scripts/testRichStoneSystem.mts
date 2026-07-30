@@ -11,7 +11,7 @@ import { collectWorkerTargets, pickWorkerWalkPlan } from '../src/settlement/work
 import { createRegionalResourcePlan } from '../src/world/regionalResourceDistribution.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 
-const worldQuarries = JSON.parse(readFileSync('server/generated/world_quarries.json', 'utf8'))
+const worldResourceRows = JSON.parse(readFileSync('server/generated/world_quarries.json', 'utf8'))
   .quarries as Array<{
     quarryId: string;
     x: number;
@@ -19,15 +19,19 @@ const worldQuarries = JSON.parse(readFileSync('server/generated/world_quarries.j
     maxYield: number;
     isRich: boolean;
   }>;
+const worldQuarries = worldResourceRows.filter((quarry) =>
+  quarry.quarryId.startsWith('quarry-')
+);
+const defaultResourcePlan = createRegionalResourcePlan(DEFAULT_WORLD_GENERATION_SETTINGS);
 assert.equal(
   worldQuarries.length,
-  createRegionalResourcePlan(DEFAULT_WORLD_GENERATION_SETTINGS).ordinaryQuarryCount + 1,
+  defaultResourcePlan.ordinaryQuarryCount + defaultResourcePlan.richStoneDepositCount,
   'generated bootstrap should match the default map-size stone budget',
 );
 assert.equal(
   worldQuarries.filter((quarry) => quarry.isRich).length,
-  1,
-  'exactly one generated deposit should carry a rich underground source',
+  defaultResourcePlan.richStoneDepositCount,
+  'generated rich stone must match the default seed roll',
 );
 assert.ok(worldQuarries.every((quarry) => quarry.maxYield > 0));
 

@@ -189,8 +189,9 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * their selected stock-policy working buffers by work priority. Equal-tier
  * looms then route matching fibres to their selected specialization before
  * lowest runway and route; staffed heavy-tool worksites use the same ordering
- * for replacement iron tools. Imported iron and salt stop at their working
- * buffers, including salt staged for farmhouse cheese and autumn slaughter;
+ * for replacement iron tools. Raw iron and salt stop at their working buffers
+ * whether they came from a local mine or a marketplace, then move to smithies,
+ * smokehouses, and pastoral holdings according to work priority and runway;
  * after the kiln's household-ware duty, pottery reaches staffed smokehouses
  * before becoming market export stock. Preserved food is a
  * storage-only overflow route to the nearest granary that accepts perishable
@@ -281,6 +282,7 @@ export type RoutedMarketplaceMaterialAssignment<
 };
 
 export const LOCAL_MATERIAL_SOURCE_KINDS = [
+  'mine',
   'clay_pit',
   'charcoal_burner',
   'smithy',
@@ -288,6 +290,8 @@ export const LOCAL_MATERIAL_SOURCE_KINDS = [
 ] as const satisfies readonly BuildingKind[];
 
 export type LocalMaterialInputCommodity =
+  | 'iron'
+  | 'salt'
   | 'clay'
   | 'charcoal'
   | 'ironwork'
@@ -304,8 +308,13 @@ export type RoutedDirectProcessorInputAssignment<
 
 export function localMaterialInputCommodity(
   kind: BuildingKind,
+  source?: Pick<BuildingState, 'iron' | 'salt'>,
 ): LocalMaterialInputCommodity | null {
   switch (kind) {
+    case 'mine':
+      if ((source?.iron ?? 0) > 1e-6) return 'iron';
+      if ((source?.salt ?? 0) > 1e-6) return 'salt';
+      return null;
     case 'clay_pit': return 'clay';
     case 'charcoal_burner': return 'charcoal';
     case 'smithy': return 'ironwork';
@@ -420,7 +429,8 @@ export function assignMarketplaceMaterialInputTargets<
 }
 
 /**
- * Match locally produced clay, charcoal, ironwork, and pottery in one pass.
+ * Match local or imported raw iron, salt, clay, charcoal, ironwork, and pottery
+ * in one pass.
  * The same processor policy still decides urgency, but equal candidates now
  * choose the shortest source route across every producer cart.
  */
@@ -441,7 +451,7 @@ export function assignLocalMaterialInputTargets<
   const offers: ProcessorInputOffer<S, LocalMaterialInputCommodity>[] = [];
   for (const source of sources) {
     if (!sourceIsAvailable(source)) continue;
-    const commodity = localMaterialInputCommodity(source.kind);
+    const commodity = localMaterialInputCommodity(source.kind, source);
     if (
       commodity == null
       || Math.max(0, Number(source[commodity] ?? 0)) <= 1e-6

@@ -29,6 +29,7 @@ import {
   computeStoredResourceTotals,
 } from '../resources/resourceTotals.ts';
 import { computeSettlementProvisioning } from '../economy/settlementProvisioning.ts';
+import { computeSettlementApproval } from '../economy/settlementApproval.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -128,6 +129,7 @@ export class App {
   private livestockVisuals: LivestockVisuals | null = null;
   private toolbar: BuildToolbar | null = null;
   private toastManager: ToastManager | null = null;
+  private tutorialOverlay: BootstrappedSession['tutorialOverlay'] | null = null;
   private disposeTooltips: (() => void) | null = null;
   private resourceInspector: ResourceInspector | null = null;
   private villagerInspector: VillagerInspector | null = null;
@@ -229,6 +231,7 @@ export class App {
     this.livestockVisuals = session.livestockVisuals;
     this.toolbar = session.toolbar;
     this.toastManager = session.toastManager;
+    this.tutorialOverlay = session.tutorialOverlay;
     this.disposeTooltips = session.disposeTooltips;
     this.resourceInspector = session.resourceInspector;
     this.villagerInspector = session.villagerInspector;
@@ -493,6 +496,7 @@ export class App {
     this.worldMapUi?.foraging.dispose();
     this.worldMapUi?.minimap.dispose();
     this.toastManager?.dispose();
+    this.tutorialOverlay?.dispose();
     this.disposeTooltips?.();
     this.disposeTooltips = null;
     this.firstPersonController?.dispose();
@@ -820,24 +824,35 @@ export class App {
       snapshot.worldGeneration?.hydrology ?? 50,
       clock,
     );
-    this.toolbar?.settlementHud.setProvisioningState(
-      computeSettlementProvisioning({
-        state,
-        totals: computeResourceTotals(state),
-        currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
-        freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
-        preservedFoodSpoilageFractionPerDay:
-          environment.preservedFoodSpoilageFractionPerDay,
-        currentPreservedFoodDemandMultiplier:
-          environment.preservedFoodDemandMultiplier,
-        sabbathObserved: snapshot.parishPolicy.sabbathObservanceEnabled
-          && settlementHasStaffedChapel(state),
-        roadComponentFor: (entity) =>
-          this.roadNetwork!.getPathfinder().roadComponentAt(entity.x, entity.z),
-      }),
-      clock.month,
-    );
-    this.toolbar?.setConflictEnabled(snapshot.worldGeneration?.conflictMode === 'frontier');
+    const provisioning = computeSettlementProvisioning({
+      state,
+      totals: computeResourceTotals(state),
+      currentFirewoodDemandMultiplier: environment.firewoodDemandMultiplier,
+      freshFoodSpoilageFractionPerDay: environment.freshFoodSpoilageFractionPerDay,
+      preservedFoodSpoilageFractionPerDay:
+        environment.preservedFoodSpoilageFractionPerDay,
+      currentPreservedFoodDemandMultiplier:
+        environment.preservedFoodDemandMultiplier,
+      sabbathObserved: snapshot.parishPolicy.sabbathObservanceEnabled
+        && settlementHasStaffedChapel(state),
+      roadComponentFor: (entity) =>
+        this.roadNetwork!.getPathfinder().roadComponentAt(entity.x, entity.z),
+    });
+    this.toolbar?.settlementHud.setProvisioningState(provisioning, clock.month);
+    const conflictEnabled = snapshot.worldGeneration?.conflictMode === 'frontier';
+    let activeFires = 0;
+    for (const incident of state.fireIncidents.values()) {
+      if (incident.status === 'burning') activeFires += 1;
+    }
+    this.toolbar?.settlementHud.setApprovalState(computeSettlementApproval({
+      provisioning,
+      nightPolicy: snapshot.nightPolicy,
+      security: snapshot.settlementSecurity,
+      conflictEnabled,
+      activeFires,
+      month: clock.month,
+    }));
+    this.toolbar?.setConflictEnabled(conflictEnabled);
     const presentationEnvironment = import.meta.env.DEV
       ? this.visualQaConditions
         ? applyVisualQaEnvironment(environment, this.visualQaConditions)
@@ -1212,7 +1227,9 @@ export class App {
         await this.spacetimeStore!.placeBuilding(kind, x, z);
       },
       isWaterAt: (x, z) => this.sceneManager!.riverField.isRenderedWetAt(x, z),
-      isQuarryPitAt: (x, z) => this.sceneManager!.worldLayout.quarryLayout.isBlockedForProps(x, z),
+      isQuarryPitAt: (x, z) =>
+        this.sceneManager!.worldLayout.quarryLayout.isBlockedForProps(x, z)
+        || this.sceneManager!.worldLayout.mineralDepositLayout.isBlockedForProps(x, z),
       getNaturalHeightAt: sampleNaturalTerrainHeight,
       getRoadNetwork: () => this.roadNetwork,
       playableHalf,

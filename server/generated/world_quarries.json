@@ -20,6 +20,27 @@
       "z": 27.232413323782385,
       "maxYield": 4000,
       "isRich": false
+    },
+    {
+      "quarryId": "deposit-iron-rich-0",
+      "x": -190.66501709233157,
+      "z": 204.05141080556356,
+      "maxYield": 900,
+      "isRich": true
+    },
+    {
+      "quarryId": "deposit-iron-ordinary-1",
+      "x": 287.52651804076174,
+      "z": 90.19569644493039,
+      "maxYield": 300,
+      "isRich": false
+    },
+    {
+      "quarryId": "deposit-salt-ordinary-2",
+      "x": -330.1853270042836,
+      "z": 262.8402553114025,
+      "maxYield": 360,
+      "isRich": false
     }
   ]
 }

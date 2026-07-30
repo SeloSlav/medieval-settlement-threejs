@@ -20,7 +20,12 @@ import { QuarryLayout, quarrySiteOverlapsRiver } from '../src/quarries/QuarryLay
 import { burgageZoneTouchesWater } from '../src/residences/burgagePlacementValidation.ts';
 import { RiverLayout } from '../src/rivers/RiverLayout.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
-import type { BuildingKind, BuildingState, ResidenceState } from '../src/resources/types.ts';
+import type {
+  BuildingKind,
+  BuildingState,
+  ResidenceState,
+  ResourceNodeState,
+} from '../src/resources/types.ts';
 import {
   deriveSubSeed,
   hydrologyRiverCount,
@@ -460,12 +465,51 @@ function testCivicAndFrontierPlacementPrerequisites(): void {
   );
 }
 
+function testMineralMineCanOccupyItsDeposit(): void {
+  const ironDeposit: ResourceNodeState = {
+    nodeId: 'deposit-iron-ordinary-0',
+    kind: 'quarry',
+    resource: 'iron',
+    remaining: 300,
+    maxYield: 300,
+    x: 42,
+    z: -18,
+    isRich: false,
+  };
+  const baseContext = {
+    buildings: [],
+    residences: [],
+    burgageZones: [],
+    farmFields: [],
+    pastures: [],
+    quarries: [ironDeposit],
+    foragingNodes: [],
+    stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000 },
+    isWaterAt: () => false,
+    isQuarryPitAt: () => true,
+    getNaturalHeightAt: () => 0,
+    fireDisabledBuildingIds: new Set<string>(),
+  };
+
+  assert.equal(
+    validateBuildingPlacement('mine', ironDeposit.x, ironDeposit.z, baseContext).ok,
+    true,
+    'a mine must be allowed to occupy the mineral pit it is required to cover',
+  );
+  assert.deepEqual(
+    validateBuildingPlacement('mine', ironDeposit.x + 8, ironDeposit.z, baseContext),
+    { ok: false, reason: 'requires_mineral_deposit' },
+    'a mine offset from the deposit center must remain invalid',
+  );
+}
+
 testClearanceSpatialIndexKeepsNearbyCandidates();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
 testPlacementOverlaysFollowTerrainHeight();
 testPlacementPreviewShowsTerrainFollowingExtent();
 testCivicAndFrontierPlacementPrerequisites();
+testMineralMineCanOccupyItsDeposit();
 
 assert.equal(
   describeBuildingPlacementBlocker('requires_shore'),
@@ -532,6 +576,11 @@ assert.match(
   buildingReducer,
   /civic_landmarks[\s\S]*road_path_distances_from\(x, z, &civic_points\)[\s\S]*linked_chapel[\s\S]*linked_marketplace/,
   'authoritative Town Hall placement should batch every completed civic landmark and accept any linked chapel and market',
+);
+assert.match(
+  buildingReducer,
+  /let on_mineral_deposit[\s\S]{0,220}kind != "large_quarry"[\s\S]{0,120}!on_mineral_deposit[\s\S]{0,120}is_on_quarry_pit/,
+  'the authority must allow a mine to occupy the mineral pit it is required to cover',
 );
 assert.doesNotMatch(
   buildingReducer,

@@ -1,15 +1,25 @@
 import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
+import type { ClayDepositLayout } from '../clay/ClayDepositLayout.ts';
 
 export const CLAY_BANK_SCORE_FLOOR = 0.15;
 export const CLAY_BANK_SCORE_CEILING = 0.53;
-export const CLAY_BANK_SITE_YIELD_MIN = 0.85;
-export const CLAY_BANK_SITE_YIELD_MAX = 1.25;
-export const CLAY_BANK_REGIONAL_YIELD_MIN = 0.9;
-export const CLAY_BANK_REGIONAL_YIELD_MAX = 1.1;
-export const CLAY_BANK_TOTAL_YIELD_MIN = 0.75;
-export const CLAY_BANK_TOTAL_YIELD_MAX = 1.38;
+export const CLAY_BANK_SITE_YIELD_MIN = 0.82;
+export const CLAY_BANK_SITE_YIELD_MAX = 1.08;
+export const CLAY_BANK_REGIONAL_YIELD_MIN = 0.95;
+export const CLAY_BANK_REGIONAL_YIELD_MAX = 1.05;
+export const CLAY_BANK_TOTAL_YIELD_MIN = 0.78;
+export const CLAY_BANK_ORDINARY_YIELD_MAX = 1.14;
+export const CLAY_BANK_RICH_YIELD_MIN = 1.28;
+export const CLAY_BANK_TOTAL_YIELD_MAX = 1.42;
 export const CLAY_BANK_STRATA_VISUAL_SEGMENTS = 4;
 export const CLAY_BANK_LEAN_YIELD_THRESHOLD = 0.92;
+export const CLAY_BANK_RICH_YIELD_THRESHOLD = 1.2;
+
+let activeClayDepositLayout: ClayDepositLayout | null = null;
+
+export function setActiveClayDepositLayout(layout: ClayDepositLayout | null): void {
+  activeClayDepositLayout = layout;
+}
 
 /**
  * Local bank quality inferred from the same hydrology field used by the
@@ -40,15 +50,23 @@ export function clayBankRegionalYieldMultiplier(resourceAbundance: number): numb
 export function clayBankYieldMultiplier(
   hydrologyScore: number,
   resourceAbundance = 50,
+  richDepositStrength = 0,
 ): number {
-  return Math.max(
+  const ordinaryYield = Math.max(
     CLAY_BANK_TOTAL_YIELD_MIN,
     Math.min(
-      CLAY_BANK_TOTAL_YIELD_MAX,
+      CLAY_BANK_ORDINARY_YIELD_MAX,
       clayBankSiteYieldMultiplier(hydrologyScore)
         * clayBankRegionalYieldMultiplier(resourceAbundance),
     ),
   );
+  const richness = clamp01(finiteOr(richDepositStrength, 0));
+  if (richness <= 0) return ordinaryYield;
+  const richYield = Math.max(
+    CLAY_BANK_RICH_YIELD_MIN,
+    Math.min(CLAY_BANK_TOTAL_YIELD_MAX, ordinaryYield * 1.3),
+  );
+  return ordinaryYield + (richYield - ordinaryYield) * richness;
 }
 
 export function clayBankYieldAt(
@@ -59,17 +77,20 @@ export function clayBankYieldAt(
   return clayBankYieldMultiplier(
     sampleAuthoritativeHydrologyScore(x, z),
     resourceAbundance,
+    activeClayDepositLayout?.richnessAt(x, z) ?? 0,
   );
 }
 
 export function clayBankSiteYieldAt(x: number, z: number): number {
-  return clayBankSiteYieldMultiplier(
+  return clayBankYieldMultiplier(
     sampleAuthoritativeHydrologyScore(x, z),
+    50,
+    activeClayDepositLayout?.richnessAt(x, z) ?? 0,
   );
 }
 
 export function clayBankYieldGrade(multiplier: number): string {
-  if (multiplier >= 1.15) return 'Rich clay seam';
+  if (multiplier >= CLAY_BANK_RICH_YIELD_THRESHOLD) return 'Rich clay deposit';
   if (multiplier >= 1.02) return 'Good alluvial pocket';
   if (multiplier >= CLAY_BANK_LEAN_YIELD_THRESHOLD) return 'Workable clay bank';
   return 'Lean clay margin';
@@ -78,7 +99,7 @@ export function clayBankYieldGrade(multiplier: number): string {
 export function clayBankStrataVisualLevel(siteMultiplier: number): number {
   const normalized = clamp01(
     (finiteOr(siteMultiplier, CLAY_BANK_SITE_YIELD_MIN) - CLAY_BANK_SITE_YIELD_MIN)
-      / (CLAY_BANK_SITE_YIELD_MAX - CLAY_BANK_SITE_YIELD_MIN),
+      / (CLAY_BANK_TOTAL_YIELD_MAX - CLAY_BANK_SITE_YIELD_MIN),
   );
   return 1 + Math.min(
     CLAY_BANK_STRATA_VISUAL_SEGMENTS - 1,

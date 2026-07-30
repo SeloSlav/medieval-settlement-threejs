@@ -2,6 +2,8 @@ import { fullTerrainBounds } from '../terrain/terrainBounds.ts';
 import { RiverLayout } from '../rivers/RiverLayout.ts';
 import { ForagingLayout } from '../foraging/ForagingLayout.ts';
 import { QuarryLayout } from '../quarries/QuarryLayout.ts';
+import { ClayDepositLayout } from '../clay/ClayDepositLayout.ts';
+import { MineralDepositLayout } from '../minerals/MineralDepositLayout.ts';
 import {
   createForestCores,
   createForestSpawnConfig,
@@ -30,6 +32,8 @@ export type WorldLayout = {
   settings: WorldGenerationSettings;
   seed: number;
   quarryLayout: QuarryLayout;
+  clayDepositLayout: ClayDepositLayout;
+  mineralDepositLayout: MineralDepositLayout;
   foragingLayout: ForagingLayout;
   riverLayout: RiverLayout;
   forestCores: ForestCore[];
@@ -58,6 +62,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     riverLayout,
     playableHalf: dims.playableHalf,
     ordinarySiteCount: resourcePlan.ordinaryQuarryCount,
+    richSiteCount: resourcePlan.richStoneDepositCount,
   });
   const densityScale = forestDensityScale(normalizedSettings.forestDensity);
   const spawnConfig = createForestSpawnConfig(dims.playableSize, dims.terrainSize, densityScale);
@@ -69,10 +74,33 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     seed: normalizedSettings.seed ^ 0x4f0d21,
     nodeCounts: resourcePlan.foragingNodeCounts,
   });
+  const clayDepositLayout = ClayDepositLayout.create({
+    riverLayout,
+    quarrySites: quarryLayout.sites,
+    foragingSites: foragingLayout.sites,
+    playableHalf: dims.playableHalf,
+    seed: deriveSubSeed(normalizedSettings.seed, 'rich-clay'),
+    ordinarySiteCount: resourcePlan.ordinaryClayDepositCount,
+    richSiteCount: resourcePlan.richClayDepositCount,
+  });
+  const mineralDepositLayout = MineralDepositLayout.create({
+    riverLayout,
+    richSiteCount: resourcePlan.richMineralDepositCount,
+    ordinarySiteCount: resourcePlan.ordinaryMineralDepositCount,
+    quarrySites: quarryLayout.sites,
+    foragingSites: foragingLayout.sites,
+    claySites: clayDepositLayout.sites,
+    playableHalf: dims.playableHalf,
+    seed: deriveSubSeed(normalizedSettings.seed, 'iron-salt-deposits'),
+    mapSize: normalizedSettings.mapSize,
+    resourceVariety: normalizedSettings.resourceVariety,
+  });
   return {
     settings: normalizedSettings,
     seed: normalizedSettings.seed,
     quarryLayout,
+    clayDepositLayout,
+    mineralDepositLayout,
     foragingLayout,
     riverLayout,
     forestCores,

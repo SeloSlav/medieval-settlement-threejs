@@ -774,6 +774,7 @@ export class BuildToolbar {
     window.removeEventListener('mousedown', this.onBuildMenuOutsideMouseDown, true);
     window.removeEventListener('pointerdown', this.onDeleteOutsidePointerDown, true);
     this.gameMenu?.dispose();
+    this.settlementHud.dispose();
     this.compassHud.dispose();
   }
 

@@ -55,7 +55,12 @@ pub fn build_supply_context(
         .specialty_supplier_for(ctx, residence.owner, residence.id, ResidenceNeedKind::Cloth)
         .is_some();
     let has_pottery_route = tick
-        .specialty_supplier_for(ctx, residence.owner, residence.id, ResidenceNeedKind::Pottery)
+        .specialty_supplier_for(
+            ctx,
+            residence.owner,
+            residence.id,
+            ResidenceNeedKind::Pottery,
+        )
         .is_some();
 
     let mut routes = [false; ResidenceNeedKind::ALL.len()];

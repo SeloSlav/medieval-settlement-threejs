@@ -1,5 +1,6 @@
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
+  deriveSubSeed,
   formatSeedHex,
   MAP_SIZE_PRESETS,
   normalizeWorldGenerationSettings,
@@ -8,6 +9,7 @@ import {
   type WorldGenerationSettings,
   type WorldMapSize,
 } from '../world/worldGenerationSettings.ts';
+import { createMineralDepositRoster } from '../minerals/MineralDepositLayout.ts';
 import {
   createRegionalResourcePlan,
   describeResourceAbundance,
@@ -36,7 +38,7 @@ export class WorldSetupPanel {
         />
         <form class="world-setup-dialog" aria-labelledby="world-setup-title">
           <p class="world-setup-dialog__eyebrow">New settlement</p>
-          <h1 id="world-setup-title" class="world-setup-dialog__title">Gorski Kotar, 1550</h1>
+          <h1 id="world-setup-title" class="world-setup-dialog__title">A frontier valley, 1550</h1>
           <p class="world-setup-dialog__intro">
             Shape a frontier valley where roads, rivers, and forest will decide how your settlement survives.
           </p>
@@ -102,14 +104,14 @@ export class WorldSetupPanel {
               <strong data-resource-abundance-value>${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}</strong>
             </label>
             <input id="world-setup-resource-abundance" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceAbundance}" />
-            <p class="world-setup-slider-hint">Lean regions have fewer supporting deposits, poorer clay banks, and fewer wild-food sites. One rich stone mine is always guaranteed.</p>
+            <p class="world-setup-slider-hint">Stone, clay, iron, and salt all enter through physical deposits. The seed, map size, abundance, and terrain decide how many are rich; ordinary sources remain workable on every map.</p>
 
             <label class="world-setup-slider-label world-setup-slider-label--secondary" for="world-setup-resource-variety">
               <span>Local variety</span>
               <strong data-resource-variety-value>${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}</strong>
             </label>
             <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
-            <p class="world-setup-slider-hint">Specialized regions omit some wild resources, making marketplace imports and regional trade more important.</p>
+            <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich rolls into fewer resource families. Staffed marketplaces cover exhausted deposits and production shortfalls.</p>
             <p class="world-setup-resource-summary" data-resource-summary>${this.resourceSummary()}</p>
           </section>
 
@@ -273,7 +275,24 @@ export class WorldSetupPanel {
     const wildResources = plan.presentForagingKinds
       .map((kind) => `${kindLabels[kind]} ×${plan.foragingNodeCounts[kind]}`)
       .join(', ');
-    const totalMines = plan.ordinaryQuarryCount + 1;
-    return `This seed: ${totalMines} stone ${totalMines === 1 ? 'mine' : 'mines'} (1 rich) · ${wildResources}. Farms, wells, and managed woodland remain available in every region.`;
+    const totalStone = plan.ordinaryQuarryCount + plan.richStoneDepositCount;
+    const totalClay = plan.ordinaryClayDepositCount + plan.richClayDepositCount;
+    const mineralRoster = createMineralDepositRoster({
+      seed: deriveSubSeed(this.draft.seed, 'iron-salt-deposits'),
+      mapSize: this.draft.mapSize,
+      richSiteCount: plan.richMineralDepositCount,
+      ordinarySiteCount: plan.ordinaryMineralDepositCount,
+      resourceVariety: this.draft.resourceVariety,
+    });
+    const mineralSummary = (resource: 'iron' | 'salt'): string => {
+      const sites = mineralRoster.filter((site) => site.resource === resource);
+      const rich = sites.filter((site) => site.grade === 'rich').length;
+      const ordinary = sites.length - rich;
+      if (sites.length === 0) return 'imports';
+      return `${rich > 0 ? `${rich} rich` : ''}${rich > 0 && ordinary > 0 ? ' + ' : ''}${ordinary > 0 ? `${ordinary} ordinary` : ''}`;
+    };
+    const depositSummary = (total: number, rich: number): string =>
+      `${total} ${rich > 0 ? `(${rich} rich)` : '(ordinary)'}`;
+    return `This seed: stone ${depositSummary(totalStone, plan.richStoneDepositCount)} · clay ${depositSummary(totalClay, plan.richClayDepositCount)} · iron: ${mineralSummary('iron')} · salt: ${mineralSummary('salt')} · ${wildResources}.`;
   }
 }

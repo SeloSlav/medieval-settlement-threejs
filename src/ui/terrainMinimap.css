@@ -127,6 +127,14 @@
   border-color: rgba(215, 180, 99, 0.72);
 }
 
+.terrain-minimap__marker--iron {
+  border-color: rgba(164, 86, 60, 0.9);
+}
+
+.terrain-minimap__marker--salt {
+  border-color: rgba(224, 222, 201, 0.92);
+}
+
 .terrain-minimap__marker--game {
   border-color: rgba(120, 156, 98, 0.72);
 }
@@ -141,6 +149,10 @@
 
 .terrain-minimap__marker--fish {
   border-color: rgba(91, 153, 176, 0.82);
+}
+
+.terrain-minimap__marker--clay {
+  border-color: rgba(190, 111, 69, 0.9);
 }
 
 .terrain-minimap__focus {

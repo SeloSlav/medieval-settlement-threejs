@@ -12,9 +12,9 @@ export type WorldGenerationSettings = {
   hydrology: number;
   /** 0 = open meadows, 100 = dense woodland */
   forestDensity: number;
-  /** 0 = lean local reserves, 100 = numerous deposits, richer clay banks, and wild-food sites. */
+  /** 0 = lean reserves and fewer rich rolls, 100 = more deposits and better rich-roll odds. */
   resourceAbundance: number;
-  /** 0 = strongly specialized region, 100 = every natural resource family is present. */
+  /** 0 = extra deposits favor local specialties, 100 = extras spread across resource families. */
   resourceVariety: number;
   /** Peaceful settlements never schedule hostile pressure. */
   conflictMode: WorldConflictMode;
